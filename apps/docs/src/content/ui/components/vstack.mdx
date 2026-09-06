@@ -1,0 +1,71 @@
+import { VStack } from 'ui/components/VStack';
+import { Button } from 'ui/components/Button';
+import { PropsTable } from 'components/PropsTable';
+
+# VStack
+
+A vertical flex container. Use it to compose elements with consistent spacing from the design token scale — no raw `gap` values in page code.
+
+`VStack` is the column-direction shortcut over `Flex`. Use it as the default for vertical layout; reach for `Flex` only when you need explicit two-axis control (`direction`, `justify-between` with non-default direction, etc.).
+
+## Examples
+
+### Basic
+
+<Preview code={`import { VStack } from 'ui/components/VStack';
+import { Button } from 'ui/components/Button';
+
+export default function Example() {
+  return (
+    <VStack gap="03">
+      <Button variant="primary">First</Button>
+      <Button variant="secondary">Second</Button>
+      <Button variant="secondary">Third</Button>
+    </VStack>
+  );
+}`}>
+  <VStack gap="03">
+    <Button variant="primary">First</Button>
+    <Button variant="secondary">Second</Button>
+    <Button variant="secondary">Third</Button>
+  </VStack>
+</Preview>
+
+### Alignment
+
+<Preview code={`import { VStack } from 'ui/components/VStack';
+import { Button } from 'ui/components/Button';
+
+export default function Example() {
+  return (
+    <VStack align="center" gap="03">
+      <Button variant="primary">Centered</Button>
+      <Button variant="secondary">Also centered</Button>
+    </VStack>
+  );
+}`}>
+  <VStack align="center" gap="03">
+    <Button variant="primary">Centered</Button>
+    <Button variant="secondary">Also centered</Button>
+  </VStack>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "gap", type: "SpaceScale", default: "—", description: "Gap between children, maps to `--space-{n}` token" },
+  { prop: "align", type: "CSSProperties['alignItems']", default: "—", description: "`align-items` value" },
+  { prop: "justify", type: "CSSProperties['justifyContent']", default: "—", description: "`justify-content` value" },
+  { prop: "as", type: "ElementType", default: "'div'", description: "Render as any HTML element" },
+]} />
+
+`SpaceScale` is `'01'` through `'12'`, corresponding to `--space-01`–`--space-12`.
+
+All standard HTML `div` attributes are also accepted.
+
+## Accessibility
+
+Presentational only — renders a `<div>` by default (or whatever you pass as `as`), with no inherent role.
+
+- Tab order and reading order follow the DOM. Don't use `flex-direction: column-reverse` or CSS `order` to rearrange children — reorder the JSX instead.
+- When the column is a form, list, or landmark region, render it with the appropriate semantic tag via `as="form"` / `as="ul"` / etc. For a labelled landmark, prefer `<Section>`.

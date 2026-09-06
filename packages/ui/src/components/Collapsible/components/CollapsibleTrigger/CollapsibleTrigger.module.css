@@ -1,0 +1,13 @@
+.trigger {
+  all: unset;
+  cursor: pointer;
+}
+
+.trigger:focus-visible {
+  border-radius: var(--radius-01);
+}
+
+.trigger[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

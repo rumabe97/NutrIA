@@ -1,0 +1,1 @@
+export { useSpotlight } from './useSpotlight';

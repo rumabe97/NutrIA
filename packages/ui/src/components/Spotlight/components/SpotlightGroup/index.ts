@@ -1,0 +1,1 @@
+export { SpotlightGroup } from './SpotlightGroup';

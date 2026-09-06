@@ -1,0 +1,20 @@
+# UI
+
+The design system that ships with the template. Every component is a thin, accessible, token-driven primitive built on top of Radix UI, vaul, or native HTML — exposed under the `ui/components/*` path.
+
+## What's in this section
+
+- **Layout primitives** — `VStack`, `HStack`, `Flex`, `Grid`, `Container`, `Section`, `Spacer`. The plumbing for arranging things on the page.
+- **Typography** — `Heading`, `Text`, `Code`. Tokenized font sizes, weights, and tones.
+- **Components** — interactive primitives: `Button`, `Input`, `Dialog`, `Drawer`, `Sidebar`, `Tabs`, `Carousel`, and more.
+
+Every page in this section follows the same structure: short description → live example → props table → notes on accessibility or gotchas where relevant.
+
+## Conventions worth knowing
+
+- Components are imported by name: `import { Button } from 'ui/components/Button'`.
+- Shared types live at `ui/types/<Name>.types`.
+- Visual styling is driven by CSS modules and design tokens defined in `ui/styles/variables.css`. No inline styles in app code, except the deliberate `gap` / `size` props on layout primitives.
+- Components stay context-agnostic by default (no `'use client'` unless the component genuinely needs it).
+
+For the full rule set, see [`packages/ui/AGENTS.md`](https://github.com/) in the repo.

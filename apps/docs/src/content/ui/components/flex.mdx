@@ -1,0 +1,116 @@
+import { Flex } from 'ui/components/Flex';
+import { PropsTable } from 'components/PropsTable';
+
+# Flex
+
+A flex layout container with token-driven gap. Use `Flex` when you need explicit control over both axes (direction, wrap, justify-along-main, align-across-cross). For the common column-stacking and row-with-wrap cases, prefer `VStack` and `HStack` — they're more semantic and require less thought at the call site.
+
+## Examples
+
+### Row with gap
+
+<Preview code={`import { Flex } from 'ui/components/Flex';
+
+export default function Example() {
+  return (
+    <Flex direction="row" gap="03">
+      <div className="demo-card">A</div>
+      <div className="demo-card">B</div>
+      <div className="demo-card">C</div>
+    </Flex>
+  );
+}`}>
+  <Flex direction="row" gap="03">
+    <div className="demo-card">A</div>
+    <div className="demo-card">B</div>
+    <div className="demo-card">C</div>
+  </Flex>
+</Preview>
+
+### Justify between
+
+<Preview code={`import { Flex } from 'ui/components/Flex';
+
+export default function Example() {
+  return (
+    <Flex justify="space-between" align="center" style={{ width: '100%' }}>
+      <div className="demo-card">Left</div>
+      <div className="demo-card">Right</div>
+    </Flex>
+  );
+}`}>
+  <Flex justify="space-between" align="center" style={{ width: '100%' }}>
+    <div className="demo-card">Left</div>
+    <div className="demo-card">Right</div>
+  </Flex>
+</Preview>
+
+### Column (use VStack instead)
+
+<Preview code={`import { Flex } from 'ui/components/Flex';
+
+export default function Example() {
+  return (
+    <Flex direction="column" gap="02">
+      <div className="demo-card">Row 1</div>
+      <div className="demo-card">Row 2</div>
+      <div className="demo-card">Row 3</div>
+    </Flex>
+  );
+}`}>
+  <Flex direction="column" gap="02">
+    <div className="demo-card">Row 1</div>
+    <div className="demo-card">Row 2</div>
+    <div className="demo-card">Row 3</div>
+  </Flex>
+</Preview>
+
+> For vertical stacks, prefer `<VStack gap="02">` — it expresses intent more clearly and skips the `direction` prop.
+
+## Props
+
+<PropsTable data={[
+  { prop: 'as', type: 'ElementType', default: "'div'", description: 'Render as any HTML element' },
+  { prop: 'direction', type: "CSSProperties['flexDirection']", default: "'row'", description: '`flex-direction` value' },
+  { prop: 'align', type: "CSSProperties['alignItems']", default: '—', description: '`align-items` value' },
+  { prop: 'justify', type: "CSSProperties['justifyContent']", default: '—', description: '`justify-content` value' },
+  { prop: 'gap', type: 'SpaceScale', default: '—', description: 'Gap between children, maps to `--space-{n}`' },
+  { prop: 'wrap', type: "CSSProperties['flexWrap']", default: '—', description: '`flex-wrap` value' },
+  { prop: 'inline', type: 'boolean', default: 'false', description: 'Render as `inline-flex` instead of `flex`' },
+]} />
+
+`SpaceScale` is `'01'`–`'12'`. All standard HTML attributes are also accepted.
+
+## Flex vs. VStack vs. HStack
+
+- **`<VStack gap="…">`** — vertical column. The 80% case. Use this by default.
+- **`<HStack gap="…">`** — horizontal row, wraps by default. Use for nav items, button groups, tag rows.
+- **`<Flex …>`** — when you need both axes configurable, `justify="space-between"` with one row of items, or any non-default `direction`/`wrap` combination.
+
+## Accessibility
+
+### `direction="row-reverse"` / `column-reverse` reorder visually, not in the DOM
+
+CSS reorders the **visual** layout but **not** the DOM order. Tab order, screen-reader linearization, copy-paste, and find-on-page all follow DOM order — so reverse direction creates a mismatch between what a sighted user sees and what an assistive-tech user hears. The same caveat applies to the CSS `order:` property on flex/grid children.
+
+```tsx
+// ⚠️ Tab order: Cancel → Confirm. Sighted user sees: Confirm | Cancel.
+<Flex direction="row-reverse" gap="03">
+  <button>Cancel</button>
+  <button>Confirm</button>
+</Flex>
+
+// ✅ Reorder in the JSX so DOM and visual order match.
+<Flex direction="row" gap="03">
+  <button>Cancel</button>
+  <button>Confirm</button>
+</Flex>
+```
+
+This violates [WCAG 2.1 SC 1.3.2 Meaningful Sequence](https://www.w3.org/WAI/WCAG21/Understanding/meaningful-sequence.html) whenever the visual order conveys meaning (sequence, priority, agreement vs. cancellation, etc.).
+
+**Rule of thumb:** only use `*-reverse` when the children are interchangeable — purely decorative dividers, symmetric icons, etc. If order carries meaning, reorder the JSX instead.
+
+### Tab order
+
+Don't use `tabIndex` to reorder focus inside a Flex container — it has the same problem as `*-reverse`. Reorder the JSX.

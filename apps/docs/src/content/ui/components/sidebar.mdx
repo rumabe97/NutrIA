@@ -1,0 +1,72 @@
+import { Sidebar } from 'ui/components/Sidebar';
+import { Button } from 'ui/components/Button';
+import { PropsTable } from 'components/PropsTable';
+
+# Sidebar
+
+A panel that slides in from the left or right edge of the screen. Built on [Vaul](https://vaul.emilkowal.ski/) — a drawer primitive with smooth drag interaction and accessible focus management. Rendered as a client component.
+
+## Examples
+
+### Left (default)
+
+<Preview code={`import { Sidebar } from 'ui/components/Sidebar';
+import { Button } from 'ui/components/Button';
+
+export default function Example() {
+  return (
+    <Sidebar title="Navigation" trigger={<Button>Open left</Button>}>
+      <p>Navigation links, filters, or any other content go here.</p>
+    </Sidebar>
+  );
+}`}>
+  <Sidebar title="Navigation" trigger={<Button>Open left</Button>}>
+    <p>Navigation links, filters, or any other content go here.</p>
+  </Sidebar>
+</Preview>
+
+### Right
+
+<Preview code={`import { Sidebar } from 'ui/components/Sidebar';
+import { Button } from 'ui/components/Button';
+
+export default function Example() {
+  return (
+    <Sidebar direction="right" title="Settings" trigger={<Button>Open right</Button>}>
+      <p>Settings, details, or secondary actions go here.</p>
+    </Sidebar>
+  );
+}`}>
+  <Sidebar direction="right" title="Settings" trigger={<Button>Open right</Button>}>
+    <p>Settings, details, or secondary actions go here.</p>
+  </Sidebar>
+</Preview>
+
+### Controlled
+
+```tsx
+const [open, setOpen] = useState(false);
+
+<Sidebar open={open} onOpenChange={setOpen} title="Navigation" trigger={<Button>Open</Button>}>
+  <p>Content</p>
+</Sidebar>;
+```
+
+## Props
+
+<PropsTable data={[
+  { prop: "title", type: "string", default: "—", description: "**Required.** Accessible title for the panel" },
+  { prop: "trigger", type: "ReactElement", default: "—", description: "**Required.** Element that opens the sidebar" },
+  { prop: "children", type: "ReactNode", default: "—", description: "Sidebar body content" },
+  { prop: "direction", type: "'left' | 'right'", default: "'left'", description: "Side the panel slides in from" },
+  { prop: "open", type: "boolean", default: "—", description: "Controlled open state" },
+  { prop: "onOpenChange", type: "(open: boolean) => void", default: "—", description: "Called when the open state changes" },
+]} />
+
+## Accessibility
+
+- The sidebar title is announced by screen readers when the panel opens.
+- Focus moves into the sidebar on open and returns to the trigger on close.
+- Drag-to-dismiss and `Escape` key both close the panel.
+
+> **Note:** This is a `'use client'` component. It cannot be used in React Server Components directly — wrap it in a client boundary if needed.

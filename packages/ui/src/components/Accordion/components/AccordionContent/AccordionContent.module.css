@@ -1,0 +1,35 @@
+.content {
+  font-size: var(--font-size-03);
+  overflow: hidden;
+}
+
+.content[data-state='open'] {
+  animation: slide-down var(--duration-normal) var(--ease-default);
+}
+
+.content[data-state='closed'] {
+  animation: slide-up var(--duration-normal) var(--ease-default);
+}
+
+.inner {
+  color: var(--foreground-02);
+  padding-bottom: var(--space-04);
+}
+
+@keyframes slide-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}

@@ -1,0 +1,95 @@
+import { Accordion, AccordionItem } from 'ui/components/Accordion';
+import { PropsTable } from 'components/PropsTable';
+
+# Accordion
+
+A vertically stacked set of collapsible sections. Built on [Radix UI Accordion](https://www.radix-ui.com/primitives/docs/components/accordion), which provides full keyboard navigation and WAI-ARIA compliance.
+
+## Examples
+
+### Multiple open (default)
+
+<Preview code={`import { Accordion, AccordionItem } from 'ui/components/Accordion';
+
+export default function Example() {
+  return (
+    <Accordion type="multiple">
+      <AccordionItem trigger="What is this template?" value="item-1">
+        A production-ready monorepo with Next.js, Supabase, and a shared component library.
+      </AccordionItem>
+      <AccordionItem trigger="Who is it for?" value="item-2">
+        Teams that want a solid foundation without spending weeks on project setup.
+      </AccordionItem>
+      <AccordionItem trigger="Can I extend it?" value="item-3">
+        Yes. Every package is designed to be composed and extended.
+      </AccordionItem>
+    </Accordion>
+  );
+}`}>
+  <Accordion type="multiple">
+    <AccordionItem trigger="What is this template?" value="item-1">
+      A production-ready monorepo with Next.js, Supabase, and a shared component library.
+    </AccordionItem>
+    <AccordionItem trigger="Who is it for?" value="item-2">
+      Teams that want a solid foundation without spending weeks on project setup.
+    </AccordionItem>
+    <AccordionItem trigger="Can I extend it?" value="item-3">
+      Yes. Every package is designed to be composed and extended.
+    </AccordionItem>
+  </Accordion>
+</Preview>
+
+### Single open (collapsible)
+
+<Preview code={`import { Accordion, AccordionItem } from 'ui/components/Accordion';
+
+export default function Example() {
+  return (
+    <Accordion collapsible type="single">
+      <AccordionItem trigger="What is this template?" value="item-1">
+        A production-ready monorepo with Next.js, Supabase, and a shared component library.
+      </AccordionItem>
+      <AccordionItem trigger="Who is it for?" value="item-2">
+        Teams that want a solid foundation without spending weeks on project setup.
+      </AccordionItem>
+    </Accordion>
+  );
+}`}>
+  <Accordion collapsible type="single">
+    <AccordionItem trigger="What is this template?" value="item-1">
+      A production-ready monorepo with Next.js, Supabase, and a shared component library.
+    </AccordionItem>
+    <AccordionItem trigger="Who is it for?" value="item-2">
+      Teams that want a solid foundation without spending weeks on project setup.
+    </AccordionItem>
+  </Accordion>
+</Preview>
+
+## Props
+
+### `Accordion`
+
+Accepts all [Radix Accordion Root](https://www.radix-ui.com/primitives/docs/components/accordion#root) props. `type` is required.
+
+<PropsTable data={[
+  { prop: "type", type: "'single' | 'multiple'", default: "—", description: "**Required.** Whether one or many items can be open" },
+  { prop: "collapsible", type: "boolean", default: "false", description: "When `type=\"single\"`, allows closing the open item" },
+  { prop: "defaultValue", type: "string | string[]", default: "—", description: "Initially open item(s) (uncontrolled)" },
+  { prop: "value", type: "string | string[]", default: "—", description: "Controlled open item(s)" },
+  { prop: "onValueChange", type: "(value) => void", default: "—", description: "Called when the open state changes" },
+]} />
+
+### `AccordionItem`
+
+<PropsTable data={[
+  { prop: "value", type: "string", default: "—", description: "**Required.** Unique key for this item" },
+  { prop: "trigger", type: "ReactNode", default: "—", description: "**Required.** Content rendered in the header" },
+  { prop: "children", type: "ReactNode", default: "—", description: "Content revealed when the item is open" },
+  { prop: "disabled", type: "boolean", default: "false", description: "Prevents the item from being toggled" },
+]} />
+
+## Accessibility
+
+- Trigger buttons are keyboard focusable and toggled with `Space` or `Enter`.
+- `aria-expanded` reflects open/closed state.
+- `aria-controls` links each trigger to its content panel.

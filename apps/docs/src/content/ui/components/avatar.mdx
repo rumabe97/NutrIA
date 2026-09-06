@@ -1,0 +1,67 @@
+import { Avatar } from 'ui/components/Avatar';
+import { PropsTable } from 'components/PropsTable';
+
+# Avatar
+
+A circular image frame that falls back to a generated [Marble Effect](/components/marble-effect) when no image is available. Built on [Radix UI Avatar](https://www.radix-ui.com/primitives/docs/components/avatar), which handles asynchronous image loading and prevents layout shift.
+
+## Examples
+
+### With image
+
+<Preview code={`import { Avatar } from 'ui/components/Avatar';
+
+export default function Example() {
+  return <Avatar name="Pablo Arrastia" src="https://github.com/shadcn.png" />;
+}`}>
+  <Avatar name="Pablo Arrastia" src="https://github.com/shadcn.png" />
+</Preview>
+
+### Marble fallback
+
+<Preview code={`import { Avatar } from 'ui/components/Avatar';
+
+export default function Example() {
+  return <Avatar name="Pablo Arrastia" />;
+}`}>
+  <Avatar name="Pablo Arrastia" />
+</Preview>
+
+### Custom size
+
+<Preview code={`import { Avatar } from 'ui/components/Avatar';
+
+export default function Example() {
+  return <Avatar name="Alex Kim" size={48} />;
+}`}>
+  <Avatar name="Alex Kim" size={48} />
+</Preview>
+
+### Custom fallback
+
+<Preview code={`import { Avatar } from 'ui/components/Avatar';
+
+export default function Example() {
+  return <Avatar fallback="PA" name="Pablo Arrastia" />;
+}`}>
+  <Avatar fallback="PA" name="Pablo Arrastia" />
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "name", type: "string", default: "—", description: "**Required.** Seed for the marble effect fallback. Also used as the default accessible label (image `alt` and fallback `aria-label`) — see Accessibility." },
+  { prop: "src", type: "string", default: "—", description: "Image URL. Shows the marble effect if omitted or load fails" },
+  { prop: "alt", type: "string", default: "`name`", description: "Override the accessible label when the person's name isn't the right text (e.g. \"Pablo's profile picture\"). Applied as `alt` on the loaded image and `aria-label` on the marble fallback." },
+  { prop: "size", type: "number", default: "80", description: "Width and height in pixels" },
+  { prop: "fallback", type: "ReactNode", default: "—", description: "Custom content shown instead of the marble effect. When provided, the consumer owns the fallback's accessibility." },
+]} />
+
+All Radix Avatar Root props are also accepted.
+
+## Accessibility
+
+- The loaded `<img>` carries `alt={alt ?? name}` so screen readers announce the person, not the file URL. Override with the `alt` prop when needed.
+- The default marble fallback is rendered as `<svg role="img" aria-label={alt ?? name}>`, so the same accessible name is announced whether or not the image loads. Don't rely on the marble pattern conveying identity visually — it's decoration.
+- When you pass a custom `fallback`, the DS hands off accessibility to you. Make sure your fallback exposes its own label (e.g. visible initials with no extra role, or `<span aria-label="…">PA</span>`).
+- Radix swaps the image for the fallback after the load fails, preventing a flash of broken content.

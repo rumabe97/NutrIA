@@ -1,0 +1,220 @@
+import { Spotlight, SpotlightDialog, SpotlightEmpty, SpotlightGroup, SpotlightInput, SpotlightItem, SpotlightList, SpotlightLoading, SpotlightSeparator } from 'ui/components/Spotlight';
+import { PropsTable } from 'components/PropsTable';
+
+# Spotlight
+
+A fast, accessible command-menu primitive — port of [pacocoursey/cmdk](https://github.com/pacocoursey/cmdk) adapted to this codebase's conventions. Use it for command palettes (⌘K-style), action menus, fuzzy-search UIs, or any list-with-search interaction where the input drives selection.
+
+Built on `@radix-ui/react-dialog` for the modal variant. The list itself is a plain composable React tree — no portal needed for the inline version.
+
+## Examples
+
+### Inline
+
+<Preview code={`import {
+  Spotlight,
+  SpotlightEmpty,
+  SpotlightGroup,
+  SpotlightInput,
+  SpotlightItem,
+  SpotlightList,
+  SpotlightSeparator
+} from 'ui/components/Spotlight';
+
+export default function Example() {
+  return (
+    <Spotlight label="Command menu" style={{ width: '100%', maxWidth: 360, border: '1px solid var(--border-01)', borderRadius: 8 }}>
+      <SpotlightInput placeholder="Type a command…" />
+      <SpotlightList label="Suggestions">
+        <SpotlightEmpty>No results found.</SpotlightEmpty>
+        <SpotlightGroup heading="Suggestions">
+          <SpotlightItem value="apple" onSelect={(v) => console.log(v)}>Apple</SpotlightItem>
+          <SpotlightItem value="banana" onSelect={(v) => console.log(v)}>Banana</SpotlightItem>
+          <SpotlightItem value="cherry" onSelect={(v) => console.log(v)}>Cherry</SpotlightItem>
+        </SpotlightGroup>
+        <SpotlightSeparator />
+        <SpotlightGroup heading="Settings">
+          <SpotlightItem value="theme" onSelect={(v) => console.log(v)}>Switch theme</SpotlightItem>
+          <SpotlightItem value="profile" onSelect={(v) => console.log(v)}>Edit profile</SpotlightItem>
+        </SpotlightGroup>
+      </SpotlightList>
+    </Spotlight>
+  );
+}`}>
+  <Spotlight label="Command menu" style={{ width: '100%', maxWidth: 360, border: '1px solid var(--border-01)', borderRadius: 8 }}>
+    <SpotlightInput placeholder="Type a command…" />
+    <SpotlightList label="Suggestions">
+      <SpotlightEmpty>No results found.</SpotlightEmpty>
+      <SpotlightGroup heading="Suggestions">
+        <SpotlightItem value="apple">Apple</SpotlightItem>
+        <SpotlightItem value="banana">Banana</SpotlightItem>
+        <SpotlightItem value="cherry">Cherry</SpotlightItem>
+      </SpotlightGroup>
+      <SpotlightSeparator />
+      <SpotlightGroup heading="Settings">
+        <SpotlightItem value="theme">Switch theme</SpotlightItem>
+        <SpotlightItem value="profile">Edit profile</SpotlightItem>
+      </SpotlightGroup>
+    </SpotlightList>
+  </Spotlight>
+</Preview>
+
+### Disabled item
+
+<Preview code={`<Spotlight label="Menu">
+  <SpotlightInput placeholder="Search…" />
+  <SpotlightList label="Suggestions">
+    <SpotlightItem value="ok">Available</SpotlightItem>
+    <SpotlightItem value="ko" disabled>Disabled item</SpotlightItem>
+  </SpotlightList>
+</Spotlight>`}>
+  <Spotlight label="Disabled-item example" style={{ width: '100%', maxWidth: 360, border: '1px solid var(--border-01)', borderRadius: 8 }}>
+    <SpotlightInput placeholder="Search…" />
+    <SpotlightList label="Suggestions">
+      <SpotlightItem value="ok">Available</SpotlightItem>
+      <SpotlightItem disabled value="ko">Disabled item</SpotlightItem>
+    </SpotlightList>
+  </Spotlight>
+</Preview>
+
+### Loading state
+
+Render `<SpotlightLoading label="Loading" />` while fetching async results. By default it renders a `<Spinner />`; pass children to swap in a custom visual. The `label` prop is the accessible name for the progressbar — localize it for non-English apps.
+
+<Preview code={`<Spotlight label="Loading example">
+  <SpotlightInput placeholder="Searching…" />
+  <SpotlightList label="Suggestions">
+    <SpotlightLoading label="Loading" />
+  </SpotlightList>
+</Spotlight>`}>
+  <Spotlight label="Loading example" style={{ width: '100%', maxWidth: 360, border: '1px solid var(--border-01)', borderRadius: 8 }}>
+    <SpotlightInput placeholder="Searching…" />
+    <SpotlightList label="Suggestions">
+      <SpotlightLoading label="Loading" style={{ alignItems: 'center', display: 'flex', justifyContent: 'center', padding: 'var(--space-04)' }} />
+    </SpotlightList>
+  </Spotlight>
+</Preview>
+
+## Accessibility
+
+Spotlight is a fully-keyboard-operable command menu modelled on the [WAI-ARIA combobox / listbox pattern](https://www.w3.org/WAI/ARIA/apg/patterns/combobox/).
+
+- **Roles** — the root has `role="combobox"` semantics via the input + list pairing. Items render as listbox `options`; `SpotlightGroup` wraps related items with `role="group"` and a labelled heading.
+- **Accessible name** — pass `label` to `Spotlight`. The label is rendered visually hidden inside the menu (standard screen-reader-only recipe) and wired up via `aria-labelledby`. When using `SpotlightDialog`, the same `label` is also the dialog's accessible name.
+- **Selected item** — the active item carries `aria-selected="true"` and `data-selected="true"`; the input's `aria-activedescendant` points at it so focus stays on the input while selection moves.
+- **Disabled items** — `disabled` items get `aria-disabled="true"` and are skipped by keyboard navigation.
+- **Empty / loading states** — `SpotlightEmpty` only renders when there are zero filtered results; `SpotlightLoading` exposes a `label` prop you should use to describe what's loading.
+- **Localization** — see the [Localization section](#localization) for translating the visually-hidden label and other strings.
+
+Full keyboard map below.
+
+## Keyboard navigation
+
+| Key | Action |
+|---|---|
+| `ArrowDown` / `ArrowUp` | Move selection to next / previous item |
+| `Home` / `End` | Jump to first / last item |
+| `Enter` | Activate the selected item (`onSelect`) |
+| `Ctrl+J` / `Ctrl+N` | Same as `ArrowDown` (Vim bindings, on by default) |
+| `Ctrl+K` / `Ctrl+P` | Same as `ArrowUp` (Vim bindings) |
+| `Alt + ↑/↓` | Jump to previous / next **group** |
+| `Meta + ↑/↓` | Jump to first / last item |
+
+Disable Vim shortcuts with `vimBindings={false}`. Disabled items are skipped automatically.
+
+## Filtering
+
+By default, items are fuzzy-matched against the search query using a `command-score` algorithm — exact prefix matches rank highest, scattered character matches rank lower. Pass a custom `filter` function (returning 0–1) to override. Pass `shouldFilter={false}` to take full control yourself (you render the items, Spotlight only handles navigation).
+
+## Sub-components
+
+| Component | Role | Notes |
+|---|---|---|
+| `Spotlight` | Root container | Holds shared state; required wrapper |
+| `SpotlightInput` | Search input | `role="combobox"` wired to the list |
+| `SpotlightList` | Listbox container | Sets `--spotlight-list-height` CSS var for animations |
+| `SpotlightItem` | Selectable option | Pass a stable `value` if children may change |
+| `SpotlightGroup` | Heading + items wrapper | Items stay together when sorting |
+| `SpotlightSeparator` | Visual divider | Hidden while searching unless `alwaysRender` |
+| `SpotlightEmpty` | Renders when nothing matches | Auto-toggled by filter count |
+| `SpotlightLoading` | Async-loading indicator | `role="progressbar"`. Defaults to a `<Spinner />`; pass children to swap in a custom visual. |
+| `SpotlightDialog` | Modal wrapper | Built on Radix Dialog |
+
+## `Spotlight` props
+
+<PropsTable data={[
+  { prop: 'label', type: 'string', default: '— *(required)*', description: 'Required. Screen-reader-only label, wired to the input via `aria-labelledby`. Localize for non-English apps — there is no English default.' },
+  { prop: 'shouldFilter', type: 'boolean', default: 'true', description: 'Set to `false` to disable internal filtering and sorting.' },
+  { prop: 'filter', type: '(value: string, search: string, keywords?: ReadonlyArray<string>) => number', default: 'commandScore', description: 'Custom match function returning a 0–1 score (1 best, 0 hides the item).' },
+  { prop: 'value', type: 'string', default: '—', description: 'Controlled value of the currently-selected item.' },
+  { prop: 'defaultValue', type: 'string', default: '—', description: 'Initial selected item (uncontrolled).' },
+  { prop: 'onValueChange', type: '(value: string) => void', default: '—', description: 'Fired when the selected item changes.' },
+  { prop: 'loop', type: 'boolean', default: 'false', description: 'Wrap arrow-key navigation around the ends of the list.' },
+  { prop: 'disablePointerSelection', type: 'boolean', default: 'false', description: 'Disable pointer-driven selection on hover; only clicks select.' },
+  { prop: 'vimBindings', type: 'boolean', default: 'true', description: 'Enable Ctrl+J/K/N/P shortcuts for navigation.' }
+]} />
+
+## `SpotlightItem` props
+
+<PropsTable data={[
+  { prop: 'value', type: 'string', default: 'inferred', description: 'Stable identifier. If omitted, derived from `children` / rendered `textContent`.' },
+  { prop: 'keywords', type: 'ReadonlyArray<string>', default: '[]', description: 'Extra terms to match against while filtering.' },
+  { prop: 'disabled', type: 'boolean', default: 'false', description: 'Skip during keyboard nav; prevent clicks.' },
+  { prop: 'forceMount', type: 'boolean', default: 'false', description: 'Always render, even when filtered out.' },
+  { prop: 'onSelect', type: '(value: string) => void', default: '—', description: 'Fires on click or Enter when this item is selected.' }
+]} />
+
+## `SpotlightInput` props
+
+<PropsTable data={[
+  { prop: 'value', type: 'string', default: '—', description: 'Controlled search value.' },
+  { prop: 'onValueChange', type: '(search: string) => void', default: '—', description: 'Fires when the search value changes.' }
+]} />
+
+Plus all standard `<input>` attributes (`placeholder`, `autoFocus`, etc.).
+
+## `SpotlightDialog` props
+
+Extends `Spotlight` props with:
+
+<PropsTable data={[
+  { prop: 'open', type: 'boolean', default: '—', description: 'Controlled open state (Radix Dialog).' },
+  { prop: 'onOpenChange', type: '(open: boolean) => void', default: '—', description: 'Fires when the dialog opens or closes.' },
+  { prop: 'overlayClassName', type: 'string', default: '—', description: 'ClassName for the dialog overlay.' },
+  { prop: 'contentClassName', type: 'string', default: '—', description: 'ClassName for the dialog content panel.' },
+  { prop: 'container', type: 'HTMLElement', default: 'document.body', description: 'Custom portal container.' }
+]} />
+
+## Styling
+
+The component ships with minimal default styles in `Spotlight.module.css`. Each part exposes a `data-spotlight-*` attribute (`data-spotlight-input`, `data-spotlight-item`, `data-spotlight-list`, etc.) you can target in your own CSS. Items expose `data-selected="true"` and `data-disabled="true"` for state-driven styling.
+
+```css
+[data-spotlight-item][data-selected='true'] {
+  background: var(--color-hover);
+}
+```
+
+For app-specific look and feel, prefer the standard pattern (`className` + a CSS module) over relying on the `data-*` selectors directly.
+
+## Localization
+
+Three pieces of text are user-visible to screen readers and must be localized for non-English apps:
+
+| Where | What | Notes |
+|---|---|---|
+| `<Spotlight label="…">` | The composite's accessible name. | **Required prop** — no default. TypeScript will fail the build if you forget it. |
+| `<SpotlightList label="…">` | The listbox's accessible name. | **Required prop** — no default. |
+| `<SpotlightLoading label="…">` | The progressbar's accessible name. | **Required prop** — no default. |
+
+The component renders no other user-visible English text. Visible content (item labels, group headings, placeholder text) is fully caller-supplied and naturally goes through your i18n layer.
+
+## Origin
+
+Ported from [pacocoursey/cmdk](https://github.com/pacocoursey/cmdk) with the following adaptations:
+
+- Split into one file per sub-component (matches our `components/` convention).
+- Types tightened — no `any`, no `MutableRefObject`, no implicit `null` returns.
+- `cmdk-*` HTML attributes converted to standard `data-spotlight-*` so the markup is valid HTML.
+- Internal helpers extracted into `constants.ts`, `context.ts`, `helpers.ts`, `types.ts`, `utils.ts`.
+- Unit tests added (the upstream lib only ships Playwright tests).

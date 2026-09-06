@@ -1,0 +1,64 @@
+.skeleton {
+  background-color: currentColor;
+  display: block;
+  opacity: 0.1;
+}
+
+/* `shimmer` — subtle opacity dip and back. The default; quiet, won't compete with content. */
+.shimmer {
+  animation: skeleton-shimmer 1.3s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    opacity: 0.1;
+  }
+  50% {
+    opacity: 0.04;
+  }
+  100% {
+    opacity: 0.1;
+  }
+}
+
+/* `pulse` — stronger, slower breathing pulse. More noticeable than shimmer. */
+.pulse {
+  animation: skeleton-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes skeleton-pulse {
+  0% {
+    opacity: 0.16;
+  }
+  50% {
+    opacity: 0.05;
+  }
+  100% {
+    opacity: 0.16;
+  }
+}
+
+/* `wave` — the classic Material-UI "shimmering gradient" sweep. Use sparingly; most
+   eye-catching of the four, so reserve for hero placeholders. */
+.wave {
+  animation: skeleton-wave 1.8s linear infinite;
+  background-color: transparent;
+  background-image: linear-gradient(90deg, transparent, currentColor 50%, transparent);
+  background-size: 200% 100%;
+  opacity: 0.15;
+}
+
+@keyframes skeleton-wave {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Inner element that sizes the skeleton to the placeholder content. Hidden visually
+   but kept in the layout so the box matches what's coming. */
+.measure {
+  visibility: hidden;
+}

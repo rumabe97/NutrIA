@@ -1,0 +1,43 @@
+.root {
+  border: 1px solid var(--border-01);
+  border-radius: 12px;
+  font-size: 0.8125rem;
+  margin-block: 1.5rem;
+  overflow: clip;
+  overflow-clip-margin: var(--focus-ring-clip-margin);
+  position: relative;
+}
+
+.copy {
+  background: none;
+  border: none;
+  color: var(--foreground-03);
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0;
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+  transition: color 0.15s;
+}
+
+.copy:hover {
+  color: var(--foreground-01);
+}
+
+/* ── Shiki output ── */
+.root :global(.shiki) {
+  padding: 1.25rem 1.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .root :global(.shiki) {
+    background-color: var(--shiki-dark-bg) !important;
+    color: var(--shiki-dark) !important;
+  }
+
+  .root :global(.shiki span) {
+    color: var(--shiki-dark) !important;
+  }
+}

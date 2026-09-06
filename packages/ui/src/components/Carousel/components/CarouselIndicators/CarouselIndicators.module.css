@@ -1,0 +1,25 @@
+.indicators {
+  display: flex;
+  gap: var(--space-02);
+  justify-content: center;
+  margin-top: var(--space-03);
+}
+
+.dot {
+  background-color: var(--border-01);
+  border: none;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  height: 8px;
+  padding: 0;
+  transition: background-color var(--duration-fast) var(--ease-default);
+  width: 8px;
+}
+
+.dot:hover {
+  background-color: var(--foreground-03);
+}
+
+.active {
+  background-color: var(--foreground-01);
+}

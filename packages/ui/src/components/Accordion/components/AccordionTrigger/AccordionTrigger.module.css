@@ -1,0 +1,35 @@
+.header {
+  display: flex;
+  margin: 0;
+}
+
+.trigger {
+  align-items: center;
+  background: none;
+  border: none;
+  color: var(--foreground-01);
+  cursor: pointer;
+  display: flex;
+  flex: 1;
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+  gap: var(--space-02);
+  justify-content: space-between;
+  line-height: var(--line-height-01);
+  padding: var(--space-04) 0;
+  width: 100%;
+}
+
+.chevron {
+  border-right: 1.5px solid currentColor;
+  border-top: 1.5px solid currentColor;
+  flex-shrink: 0;
+  height: 8px;
+  transform: rotate(135deg);
+  transition: transform var(--duration-normal) var(--ease-default);
+  width: 8px;
+}
+
+.trigger[data-state='open'] .chevron {
+  transform: rotate(-45deg);
+}

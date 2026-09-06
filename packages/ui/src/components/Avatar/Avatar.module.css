@@ -1,0 +1,10 @@
+.root {
+  align-items: center;
+  border-radius: 100%;
+  display: inline-flex;
+  justify-content: center;
+  overflow: clip;
+  overflow-clip-margin: var(--focus-ring-clip-margin);
+  user-select: none;
+  vertical-align: middle;
+}

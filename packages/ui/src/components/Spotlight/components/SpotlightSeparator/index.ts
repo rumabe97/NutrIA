@@ -1,0 +1,1 @@
+export { SpotlightSeparator } from './SpotlightSeparator';

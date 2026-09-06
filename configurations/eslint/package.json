@@ -1,0 +1,39 @@
+{
+  "name": "eslint-configuration",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./base": "./base.js",
+    "./next": "./next.js",
+    "./node": "./node.js",
+    "./react": "./react-internal.js"
+  },
+  "files": [
+    "base.js",
+    "next.js",
+    "node.js",
+    "react-internal.js"
+  ],
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@stylistic/eslint-plugin": "^5.5.0",
+    "@next/eslint-plugin-next": "^16.2.6",
+    "@typescript-eslint/eslint-plugin": "^8.59.4",
+    "@typescript-eslint/parser": "^8.59.4",
+    "@vercel/style-guide": "^6.0.0",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-config-turbo": "^2.9.14",
+    "eslint-plugin-monk": "^0.0.3",
+    "eslint-plugin-only-warn": "^1.2.1",
+    "eslint-plugin-perfectionist": "^5.9.1",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-turbo": "^2.9.14",
+    "globals": "^17.6.0",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.4"
+  },
+  "prettier": "prettier-configuration/base.json"
+}

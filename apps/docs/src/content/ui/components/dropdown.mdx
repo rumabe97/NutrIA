@@ -1,0 +1,111 @@
+import { Dropdown, DropdownGroup, DropdownOption } from 'ui/components/Dropdown';
+import { PropsTable } from 'components/PropsTable';
+
+# Dropdown
+
+A button that reveals a floating menu of options. Built on [Radix UI Dropdown Menu](https://www.radix-ui.com/primitives/docs/components/dropdown-menu), which manages positioning, portal rendering, and full keyboard navigation.
+
+## Examples
+
+### Basic
+
+<Preview code={`import { Dropdown, DropdownOption } from 'ui/components/Dropdown';
+
+export default function Example() {
+  return (
+    <Dropdown label="Options">
+      <DropdownOption>Edit</DropdownOption>
+      <DropdownOption>Duplicate</DropdownOption>
+      <DropdownOption>Delete</DropdownOption>
+    </Dropdown>
+  );
+}`}>
+  <Dropdown label="Options">
+    <DropdownOption>Edit</DropdownOption>
+    <DropdownOption>Duplicate</DropdownOption>
+    <DropdownOption>Delete</DropdownOption>
+  </Dropdown>
+</Preview>
+
+### With groups
+
+<Preview code={`import { Dropdown, DropdownGroup, DropdownOption } from 'ui/components/Dropdown';
+
+export default function Example() {
+  return (
+    <Dropdown label="Actions">
+      <DropdownGroup>
+        <DropdownOption>View profile</DropdownOption>
+        <DropdownOption>Settings</DropdownOption>
+      </DropdownGroup>
+      <DropdownGroup>
+        <DropdownOption>Sign out</DropdownOption>
+      </DropdownGroup>
+    </Dropdown>
+  );
+}`}>
+  <Dropdown label="Actions">
+    <DropdownGroup>
+      <DropdownOption>View profile</DropdownOption>
+      <DropdownOption>Settings</DropdownOption>
+    </DropdownGroup>
+    <DropdownGroup>
+      <DropdownOption>Sign out</DropdownOption>
+    </DropdownGroup>
+  </Dropdown>
+</Preview>
+
+### With prefix and suffix
+
+<Preview code={`import { Dropdown, DropdownOption } from 'ui/components/Dropdown';
+
+export default function Example() {
+  return (
+    <Dropdown label="Sort by" prefix="↕" suffix="▾">
+      <DropdownOption>Name</DropdownOption>
+      <DropdownOption>Date created</DropdownOption>
+      <DropdownOption>Last modified</DropdownOption>
+    </Dropdown>
+  );
+}`}>
+  <Dropdown label="Sort by" prefix="↕" suffix="▾">
+    <DropdownOption>Name</DropdownOption>
+    <DropdownOption>Date created</DropdownOption>
+    <DropdownOption>Last modified</DropdownOption>
+  </Dropdown>
+</Preview>
+
+## Props
+
+### `Dropdown`
+
+<PropsTable data={[
+  { prop: "label", type: "ReactNode", default: "—", description: "**Required.** Text or element in the trigger" },
+  { prop: "children", type: "ReactNode", default: "—", description: "`DropdownOption` or `DropdownGroup` elements" },
+  { prop: "align", type: "'start' | 'center' | 'end'", default: "'center'", description: "Alignment of the menu relative to the trigger" },
+  { prop: "prefix", type: "ReactNode", default: "—", description: "Content rendered before the label" },
+  { prop: "suffix", type: "ReactNode", default: "—", description: "Content rendered after the label" },
+]} />
+
+### `DropdownOption`
+
+<PropsTable data={[
+  { prop: "children", type: "ReactNode", default: "—", description: "Option label" },
+  { prop: "disabled", type: "boolean", default: "false", description: "Prevents selection" },
+  { prop: "onSelect", type: "function", default: "—", description: "Called when the option is selected" },
+]} />
+
+All Radix Dropdown Menu Item props are also accepted.
+
+### `DropdownGroup`
+
+<PropsTable data={[
+  { prop: "children", type: "ReactNode", default: "—", description: "`DropdownOption` elements" },
+]} />
+
+## Accessibility
+
+- Opens on click; closes on `Escape` or when focus leaves.
+- Arrow keys navigate between options; `Enter` or `Space` selects.
+- `role="menu"` and `role="menuitem"` are applied automatically.
+- Menu is rendered in a portal to avoid z-index and overflow clipping issues.

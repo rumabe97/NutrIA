@@ -1,0 +1,98 @@
+import { ToastExamples } from 'components/examples/ToastExamples';
+import { PropsTable } from 'components/PropsTable';
+
+# Toast
+
+Lightweight, accessible toast notifications. Built on [Sonner](https://sonner.emilkowal.ski/) — an opinionated, fully accessible toast library by Emil Kowalski with stacking, swipe-to-dismiss, and promise support.
+
+## Setup
+
+Add `<Toaster />` once to your root layout. It handles its own portal — no z-index configuration needed.
+
+```tsx
+import { Toaster } from 'ui/components/Toaster';
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        {children}
+        <Toaster />
+      </body>
+    </html>
+  );
+}
+```
+
+Then call `toast()` from anywhere in your app:
+
+```tsx
+import { toast } from 'ui/components/Toaster';
+```
+
+## Examples
+
+<Preview code={`import { toast } from 'ui/components/Toaster';
+
+export default function Example() {
+  return (
+    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+      <button onClick={() => toast('Event has been created')}>Default</button>
+      <button onClick={() => toast.success('Changes saved!')}>Success</button>
+      <button onClick={() => toast.error('Something went wrong.')}>Error</button>
+      <button onClick={() => toast.warning('Unsaved changes.')}>Warning</button>
+      <button onClick={() => toast.info('Update available.')}>Info</button>
+    </div>
+  );
+}`}>
+  <ToastExamples />
+</Preview>
+
+### Promise
+
+```tsx
+toast.promise(saveChanges(), {
+  loading: 'Saving...',
+  success: 'Saved successfully.',
+  error: 'Failed to save.'
+});
+```
+
+## Props
+
+### `Toaster`
+
+<PropsTable data={[
+  { prop: "position", type: "'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'", default: "'bottom-right'", description: "Where toasts appear on screen" },
+  { prop: "duration", type: "number", default: "4000", description: "Auto-dismiss delay in milliseconds" },
+  { prop: "closeButton", type: "boolean", default: "true", description: "Show an explicit close button on each toast" },
+  { prop: "expand", type: "boolean", default: "true", description: "Always show toasts expanded — new ones push existing ones up immediately instead of collapsing into a stack" },
+  { prop: "richColors", type: "boolean", default: "true", description: "Apply semantic colours for success/error/warning" },
+  { prop: "theme", type: "'light' | 'dark' | 'system'", default: "'system'", description: "Colour scheme" },
+  { prop: "toastOptions", type: "ToastOptions", default: "—", description: "Default options applied to every toast" },
+]} />
+
+All [Sonner Toaster](https://sonner.emilkowal.ski/) props are accepted.
+
+### `toast()`
+
+<table>
+  <thead><tr><th>Signature</th><th>Description</th></tr></thead>
+  <tbody>
+    <tr><td><code>toast(message, options?)</code></td><td>Default toast</td></tr>
+    <tr><td><code>toast.success(message, options?)</code></td><td>Green success toast</td></tr>
+    <tr><td><code>toast.error(message, options?)</code></td><td>Red error toast</td></tr>
+    <tr><td><code>toast.warning(message, options?)</code></td><td>Yellow warning toast</td></tr>
+    <tr><td><code>toast.info(message, options?)</code></td><td>Blue info toast</td></tr>
+    <tr><td><code>toast.loading(message, options?)</code></td><td>Loading spinner toast</td></tr>
+    <tr><td><code>toast.promise(promise, {"{ loading, success, error }"})</code></td><td>Tracks a promise and updates the toast state</td></tr>
+    <tr><td><code>toast.dismiss(id?)</code></td><td>Dismiss one or all toasts</td></tr>
+  </tbody>
+</table>
+
+## Accessibility
+
+- Each toast has `role="status"` and is announced by screen readers on mount.
+- Toasts pause their auto-dismiss timer when hovered or focused.
+- Swipe-to-dismiss works on touch devices.
+- `Escape` dismisses the focused toast.

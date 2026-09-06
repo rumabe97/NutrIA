@@ -1,0 +1,96 @@
+/* Shared CSS reset imported by every app.
+   Import this before your app's globals.css.
+   Add app-specific overrides in each app's styles/globals.css. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  /* `overflow-x: clip` (not `hidden`) prevents horizontal overflow WITHOUT creating a new
+     scroll container. With `hidden`, the spec forces `overflow-y` from `visible` to `auto`,
+     which silently breaks `position: sticky` on descendants because they end up latched to
+     this new container instead of the viewport. `clip` doesn't do that. */
+  overflow-x: clip;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+  background: var(--background-01);
+  color: var(--foreground-01);
+  font-family: var(--main-font), var(--font-fallback);
+  line-height: var(--line-height-04);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-02);
+  overflow-wrap: break-word;
+}
+
+p {
+  color: var(--foreground-02);
+  overflow-wrap: break-word;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img,
+video {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Reduced-motion baseline.
+   When the user's OS reports `prefers-reduced-motion: reduce`, we collapse every animation
+   and transition to ~instant. Applies to every app that imports `ui/styles/base` — Carousel
+   scroll-snap, Dialog open/close, Drawer slides, Skeleton shimmer, Spinner rotation,
+   Spotlight scroll-into-view, and anything else with motion.
+
+   The 0.01ms duration (instead of 0ms) keeps `animationend` / `transitionend` events firing
+   so JS that depends on them still works. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

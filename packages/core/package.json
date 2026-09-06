@@ -1,0 +1,37 @@
+{
+  "name": "core",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./controllers/*": "./src/controllers/*/index.ts",
+    "./entities/*": "./src/entities/*/index.ts"
+  },
+  "imports": {
+    "#repositories/*": "./src/repositories/*/index.ts",
+    "#test/*": "./src/test/*.ts"
+  },
+  "scripts": {
+    "deadcode": "knip --tags=-knipignore --production",
+    "lint": "eslint 'src/**/*.ts' --max-warnings 0",
+    "lint:fix": "eslint 'src/**/*.ts' --fix",
+    "ts:check": "tsc --noEmit",
+    "format": "prettier --check 'src/**/*.ts'",
+    "format:fix": "prettier --write 'src/**/*.ts'",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "database": "workspace:^",
+    "drizzle-orm": "^0.45.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@vitest/coverage-istanbul": "^4.1.7",
+    "eslint-configuration": "workspace:*",
+    "typescript-configuration": "workspace:*",
+    "vitest": "^4.1.7"
+  }
+}

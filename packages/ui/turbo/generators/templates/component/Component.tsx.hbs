@@ -1,0 +1,14 @@
+import styles from './{{pascalCase name}}.module.css';
+
+import type { ComponentPropsWithRef } from 'react';
+
+export interface {{pascalCase name}}Props extends ComponentPropsWithRef<'div'> {}
+
+export function {{pascalCase name}}({ children, className, ref, ...rest }: {{pascalCase name}}Props) {
+  const classes = [styles.{{camelCase name}}, className].filter(Boolean).join(' ');
+  return (
+    <div className={classes} ref={ref} {...rest}>
+      {children}
+    </div>
+  );
+}

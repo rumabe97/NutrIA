@@ -1,0 +1,28 @@
+.page {
+  height: calc(100% - var(--header-height));
+}
+
+@media (min-width: 1024px) {
+  .page {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 240px 1fr;
+    min-height: 100%;
+  }
+}
+
+.content {
+  display: flex;
+  gap: 1rem;
+  min-height: 100%;
+  padding-inline: 1rem;
+}
+
+@media (min-width: 1024px) {
+  .content {
+    padding-bottom: 4rem;
+    padding-left: 0;
+    padding-right: 2rem;
+    padding-top: 4rem;
+  }
+}

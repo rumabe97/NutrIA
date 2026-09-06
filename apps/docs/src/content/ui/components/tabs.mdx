@@ -1,0 +1,100 @@
+import { Tabs, TabsList, TabsTrigger, TabsContent } from 'ui/components/Tabs';
+import { PropsTable } from 'components/PropsTable';
+
+# Tabs
+
+A set of layered panels — only one visible at a time — activated by a row of trigger buttons. Built on [Radix UI Tabs](https://www.radix-ui.com/primitives/docs/components/tabs), which handles keyboard navigation and WAI-ARIA compliance automatically.
+
+## Examples
+
+### Basic
+
+<Preview code={`import { Tabs, TabsList, TabsTrigger, TabsContent } from 'ui/components/Tabs';
+
+export default function Example() {
+  return (
+    <Tabs defaultValue="account">
+      <TabsList>
+        <TabsTrigger value="account">Account</TabsTrigger>
+        <TabsTrigger value="password">Password</TabsTrigger>
+      </TabsList>
+      <TabsContent value="account">Make changes to your account here.</TabsContent>
+      <TabsContent value="password">Change your password here.</TabsContent>
+    </Tabs>
+  );
+}`}>
+  <Tabs defaultValue="account">
+    <TabsList>
+      <TabsTrigger value="account">Account</TabsTrigger>
+      <TabsTrigger value="password">Password</TabsTrigger>
+    </TabsList>
+    <TabsContent value="account">Make changes to your account here.</TabsContent>
+    <TabsContent value="password">Change your password here.</TabsContent>
+  </Tabs>
+</Preview>
+
+### Three tabs
+
+<Preview code={`import { Tabs, TabsList, TabsTrigger, TabsContent } from 'ui/components/Tabs';
+
+export default function Example() {
+  return (
+    <Tabs defaultValue="overview">
+      <TabsList>
+        <TabsTrigger value="overview">Overview</TabsTrigger>
+        <TabsTrigger value="activity">Activity</TabsTrigger>
+        <TabsTrigger value="settings">Settings</TabsTrigger>
+      </TabsList>
+      <TabsContent value="overview">Project overview and summary.</TabsContent>
+      <TabsContent value="activity">Recent activity feed.</TabsContent>
+      <TabsContent value="settings">Project settings and configuration.</TabsContent>
+    </Tabs>
+  );
+}`}>
+  <Tabs defaultValue="overview">
+    <TabsList>
+      <TabsTrigger value="overview">Overview</TabsTrigger>
+      <TabsTrigger value="activity">Activity</TabsTrigger>
+      <TabsTrigger value="settings">Settings</TabsTrigger>
+    </TabsList>
+    <TabsContent value="overview">Project overview and summary.</TabsContent>
+    <TabsContent value="activity">Recent activity feed.</TabsContent>
+    <TabsContent value="settings">Project settings and configuration.</TabsContent>
+  </Tabs>
+</Preview>
+
+## Props
+
+### `Tabs`
+
+<PropsTable data={[
+  { prop: "defaultValue", type: "string", default: "—", description: "Initially active tab (uncontrolled)" },
+  { prop: "value", type: "string", default: "—", description: "Controlled active tab" },
+  { prop: "onValueChange", type: "(value: string) => void", default: "—", description: "Called when the active tab changes" },
+]} />
+
+All Radix Tabs Root props are also accepted.
+
+### `TabsList`
+
+Wraps the row of trigger buttons. Accepts all Radix Tabs List props.
+
+### `TabsTrigger`
+
+<PropsTable data={[
+  { prop: "value", type: "string", default: "—", description: "**Required.** Matches a `TabsContent` panel" },
+  { prop: "disabled", type: "boolean", default: "false", description: "Prevents switching to this tab" },
+]} />
+
+### `TabsContent`
+
+<PropsTable data={[
+  { prop: "value", type: "string", default: "—", description: "**Required.** Matches a `TabsTrigger` value" },
+]} />
+
+## Accessibility
+
+- Arrow keys navigate between tabs.
+- `role="tablist"`, `role="tab"`, and `role="tabpanel"` are applied automatically.
+- `aria-selected` reflects the active tab.
+- `aria-controls` links each trigger to its panel.

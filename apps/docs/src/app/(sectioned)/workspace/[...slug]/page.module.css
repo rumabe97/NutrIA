@@ -1,0 +1,82 @@
+.main {
+  line-height: 1.65;
+  margin: 0 auto;
+  max-width: 48rem;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.main h1,
+.main h2,
+.main h3 {
+  margin: 1.75em 0 0.5em;
+}
+
+.main h1:first-child {
+  margin-top: 0;
+}
+
+.main p,
+.main ul,
+.main ol {
+  margin: 0.75em 0;
+}
+
+.main blockquote {
+  border-left: 3px solid var(--foreground-03, #ccc);
+  color: var(--foreground-02, #666);
+  margin: 1em 0;
+  padding: 0.25em 0 0.25em 1em;
+}
+
+.main code {
+  background: var(--background-02, #f4f4f4);
+  border-radius: 4px;
+  font-size: 0.9em;
+  padding: 0.1em 0.35em;
+}
+
+.main pre {
+  background: var(--background-02, #f4f4f4);
+  border-radius: 8px;
+  overflow-x: auto;
+  padding: 1em;
+}
+
+.main pre code {
+  background: none;
+  padding: 0;
+}
+
+.main table {
+  border-collapse: collapse;
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+}
+
+.main th,
+.main td {
+  border: 1px solid var(--foreground-03, #ddd);
+  padding: 0.4em 0.75em;
+  text-align: left;
+}
+
+.tabs {
+  border-bottom: 1px solid var(--foreground-03, #ddd);
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 2rem;
+}
+
+.tab {
+  border-bottom: 2px solid transparent;
+  color: var(--foreground-02, #666);
+  margin-bottom: -1px;
+  padding: 0.5rem 0.875rem;
+  text-decoration: none;
+}
+
+.tab[aria-current='page'] {
+  border-bottom-color: currentColor;
+  color: var(--foreground-01, #111);
+}

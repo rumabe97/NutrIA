@@ -1,0 +1,85 @@
+import { Skeleton } from 'ui/components/Skeleton';
+import { VStack } from 'ui/components/VStack';
+import { PropsTable } from 'components/PropsTable';
+
+# Skeleton
+
+A placeholder block that hints at incoming content while it loads. Carries `aria-busy="true"` so assistive tech announces the loading state. Ships four animation variants — `shimmer` (default), `pulse`, `wave`, and `none`.
+
+## Examples
+
+### Fixed dimensions
+
+Pass explicit `width` and `height` when you know the shape of the upcoming content:
+
+<Preview code={`import { Skeleton } from 'ui/components/Skeleton';
+
+export default function Example() {
+  return <Skeleton height="1.5rem" radius={4} width="240px" />;
+}`}>
+  <Skeleton height="1.5rem" radius={4} width="240px" />
+</Preview>
+
+### Stack of lines
+
+Use absolute widths inside a stack so each line is visible regardless of the parent layout:
+
+<Preview code={`<VStack gap="02">
+  <Skeleton height="1rem" width="240px" />
+  <Skeleton height="1rem" width="180px" />
+  <Skeleton height="1rem" width="210px" />
+</VStack>`}>
+  <VStack gap="02">
+    <Skeleton height="1rem" width="240px" />
+    <Skeleton height="1rem" width="180px" />
+    <Skeleton height="1rem" width="210px" />
+  </VStack>
+</Preview>
+
+### Sized by children
+
+Pass real content as children to have the skeleton match its size while the real content is loading. The content stays invisible until you swap the skeleton out:
+
+<Preview code={`<Skeleton>Loaded text once it arrives</Skeleton>`}>
+  <Skeleton>Loaded text once it arrives</Skeleton>
+</Preview>
+
+### Animations
+
+Four variants, each suited to a different visual weight. Pick `shimmer` for content that should sit quietly in the page, `pulse` when you want it to read as "loading", and `wave` for hero placeholders where the activity is part of the experience. `none` is for users with `prefers-reduced-motion` — it's also picked automatically when the OS reports that preference.
+
+<Preview code={`<VStack gap="03">
+  <Skeleton animation="shimmer" height="1.25rem" width="240px" />
+  <Skeleton animation="pulse" height="1.25rem" width="240px" />
+  <Skeleton animation="wave" height="1.25rem" width="240px" />
+  <Skeleton animation="none" height="1.25rem" width="240px" />
+</VStack>`}>
+  <VStack gap="03">
+    <Skeleton animation="shimmer" height="1.25rem" width="240px" />
+    <Skeleton animation="pulse" height="1.25rem" width="240px" />
+    <Skeleton animation="wave" height="1.25rem" width="240px" />
+    <Skeleton animation="none" height="1.25rem" width="240px" />
+  </VStack>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: 'animation', type: "'shimmer' | 'pulse' | 'wave' | 'none'", default: "'shimmer'", description: 'Animation variant. Auto-disabled under `prefers-reduced-motion`.' },
+  { prop: 'width', type: 'string', default: '—', description: 'CSS width (any valid value). Ignored when `children` is set.' },
+  { prop: 'height', type: 'string', default: '—', description: 'CSS height (any valid value). Ignored when `children` is set.' },
+  { prop: 'radius', type: 'number', default: '4', description: 'Border radius in pixels.' },
+  { prop: 'children', type: 'ReactNode', default: '—', description: 'Optional content used to size the skeleton — rendered invisibly to fill the box.' }
+]} />
+
+All standard `<span>` HTML attributes are also accepted.
+
+## Accessibility
+
+The element carries `aria-busy="true"` so assistive tech announces it as loading. Swap the skeleton for real content as soon as it arrives — leaving an `aria-busy` element on the page indefinitely is a screen-reader anti-pattern.
+
+All animations are paused for users with `prefers-reduced-motion: reduce` via a CSS media query — you do not need to handle this in your code.
+
+## Tip
+
+Skeletons size themselves from their parent when using percentage widths only if the parent stretches them (e.g. flex container with `align="stretch"` or a block-level container with a defined width). When in doubt, use absolute pixel widths.

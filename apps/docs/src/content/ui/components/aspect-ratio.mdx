@@ -1,0 +1,77 @@
+import { AspectRatio } from 'ui/components/AspectRatio';
+import { PropsTable } from 'components/PropsTable';
+
+# Aspect Ratio
+
+Constrains any content to a given width-to-height ratio. Useful for images, videos, maps, and embeds that must maintain their proportions across screen sizes. Built on [Radix UI Aspect Ratio](https://www.radix-ui.com/primitives/docs/components/aspect-ratio).
+
+## Examples
+
+### 16:9
+
+<Preview code={`import { AspectRatio } from 'ui/components/AspectRatio';
+
+export default function Example() {
+  return (
+    <AspectRatio ratio={16 / 9} style={{ background: 'var(--color-hover)', borderRadius: 'var(--radius-02)' }} />
+  );
+}`}>
+  <AspectRatio ratio={16 / 9} style={{ background: 'var(--color-hover)', borderRadius: 'var(--radius-02)' }} />
+</Preview>
+
+### 1:1 (square)
+
+<Preview code={`import { AspectRatio } from 'ui/components/AspectRatio';
+
+export default function Example() {
+  return (
+    <div style={{ width: '200px' }}>
+      <AspectRatio ratio={1} style={{ background: 'var(--color-hover)', borderRadius: 'var(--radius-02)' }} />
+    </div>
+  );
+}`}>
+  <div style={{ width: '200px' }}>
+    <AspectRatio ratio={1} style={{ background: 'var(--color-hover)', borderRadius: 'var(--radius-02)' }} />
+  </div>
+</Preview>
+
+### With an image
+
+<Preview code={`import { AspectRatio } from 'ui/components/AspectRatio';
+
+export default function Example() {
+  return (
+    <AspectRatio ratio={16 / 9}>
+      <img
+        src="https://images.unsplash.com/photo-1536431311719-398b6704d4cc?w=800"
+        alt="Mountain landscape"
+        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'var(--radius-02)' }}
+      />
+    </AspectRatio>
+  );
+}`}>
+  <AspectRatio ratio={16 / 9}>
+    <img
+      src="https://images.unsplash.com/photo-1536431311719-398b6704d4cc?w=800"
+      alt="Mountain landscape"
+      style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'var(--radius-02)' }}
+    />
+  </AspectRatio>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: 'ratio', type: 'number', default: '1', description: 'Width divided by height (e.g. 16/9, 4/3, 1)' },
+]} />
+
+All standard HTML `div` attributes are also accepted.
+
+## Accessibility
+
+Presentational only — renders a `<div>` with no inherent role. The accessibility story is whatever child you place inside:
+
+- **`<img>` child** — `alt` is required. Decorative images use `alt=""`.
+- **`<video>` child** — provide captions or a transcript.
+- **`<iframe>` child** (embeds, maps) — provide a `title` describing the embedded content.
+- **Background-only** (the colored-box examples above) — fine to leave unlabelled; it's purely visual.

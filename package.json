@@ -1,0 +1,32 @@
+{
+  "name": "trc-template",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "check:leaks": "sh scripts/check-leaks.sh",
+    "deadcode": "knip --tags=-knipignore --production",
+    "dev": "turbo run dev",
+    "format": "turbo run format",
+    "format:fix": "turbo run format:fix",
+    "generate:component": "pnpm --filter ui generate:component",
+    "generate:hook": "pnpm --filter ui generate:hook",
+    "lint": "turbo run lint",
+    "lint:fix": "turbo run lint:fix",
+    "test": "turbo run test",
+    "test:coverage": "turbo run test:coverage",
+    "test:watch": "turbo run test:watch",
+    "ts:check": "turbo run ts:check",
+    "up:latest": "pnpm up --latest --recursive && pnpm add -D eslint@9.39.2 --filter=eslint-configuration"
+  },
+  "devDependencies": {
+    "knip": "^6.14.2",
+    "prettier-configuration": "workspace:*",
+    "turbo": "^2.9.14",
+    "typescript": "^6.0.3"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "prettier": "prettier-configuration/base.json"
+}

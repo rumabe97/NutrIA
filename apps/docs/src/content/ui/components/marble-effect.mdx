@@ -1,0 +1,87 @@
+import { MarbleEffect } from 'ui/components/MarbleEffect';
+import { PropsTable } from 'components/PropsTable';
+
+# Marble Effect
+
+A deterministic SVG avatar generator. Given the same `name`, it always produces the same marble pattern — useful as a unique, consistent identity visual without storing images.
+
+Used internally by [Avatar](/components/avatar) as its image fallback.
+
+## Examples
+
+### Default
+
+<Preview code={`import { MarbleEffect } from 'ui/components/MarbleEffect';
+
+export default function Example() {
+  return <MarbleEffect name="Pablo Arrastia" />;
+}`}>
+  <MarbleEffect name="Pablo Arrastia" />
+</Preview>
+
+### Custom size
+
+<Preview code={`import { MarbleEffect } from 'ui/components/MarbleEffect';
+
+export default function Example() {
+  return (
+    <>
+      <MarbleEffect name="Pablo Arrastia" size={48} />
+      <MarbleEffect name="Pablo Arrastia" size={120} />
+    </>
+  );
+}`}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+    <MarbleEffect name="Pablo Arrastia" size={48} />
+    <MarbleEffect name="Pablo Arrastia" size={120} />
+  </div>
+</Preview>
+
+### Custom palette
+
+<Preview code={`import { MarbleEffect } from 'ui/components/MarbleEffect';
+
+export default function Example() {
+  return (
+    <MarbleEffect colors={['#6366F1', '#8B5CF6', '#A78BFA']} name="Pablo Arrastia" />
+  );
+}`}>
+  <MarbleEffect colors={['#6366F1', '#8B5CF6', '#A78BFA']} name="Pablo Arrastia" />
+</Preview>
+
+### Different seeds
+
+<Preview code={`import { MarbleEffect } from 'ui/components/MarbleEffect';
+
+export default function Example() {
+  return (
+    <>
+      <MarbleEffect name="Alice" />
+      <MarbleEffect name="Bob" />
+      <MarbleEffect name="Charlie" />
+    </>
+  );
+}`}>
+  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+    <MarbleEffect name="Alice" />
+    <MarbleEffect name="Bob" />
+    <MarbleEffect name="Charlie" />
+  </div>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "name", type: "string", default: "—", description: "**Required.** Seed for the generated pattern" },
+  { prop: "size", type: "number", default: "80", description: "Width and height of the SVG in pixels" },
+  { prop: "colors", type: "string[]", default: "15 built-in colours", description: "Colour palette to sample from" },
+  { prop: "elements", type: "number", default: "3", description: "Number of layered shapes" },
+  { prop: "title", type: "string", default: "—", description: "Accessible title for the SVG (`role=\"img\"` is set)" },
+]} />
+
+All standard SVG props are also accepted.
+
+## Accessibility
+
+- Renders with `role="img"`.
+- Provide `title` when the graphic conveys meaning beyond decoration (e.g. when used outside of an `Avatar` that already has a label).

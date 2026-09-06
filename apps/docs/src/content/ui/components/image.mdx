@@ -1,0 +1,60 @@
+import { Image } from 'ui/components/Image';
+import { PropsTable } from 'components/PropsTable';
+
+# Image
+
+A thin wrapper around [Next.js Image](https://nextjs.org/docs/app/api-reference/components/image) that applies consistent base styles. Inherits all of Next.js's built-in optimisations: automatic WebP conversion, lazy loading, blur placeholders, and responsive `srcSet` generation.
+
+## Examples
+
+### Fixed size
+
+<Preview code={`import { Image } from 'ui/components/Image';
+
+export default function Example() {
+  return (
+    <Image alt="Example image" height={200} src="https://picsum.photos/400/200" width={400} />
+  );
+}`}>
+  <Image alt="Example image" height={200} src="https://picsum.photos/400/200" width={400} />
+</Preview>
+
+### Fill mode
+
+<Preview code={`import { Image } from 'ui/components/Image';
+
+export default function Example() {
+  return (
+    <div style={{ height: '200px', position: 'relative' }}>
+      <Image
+        alt="Fill example"
+        fill
+        src="https://picsum.photos/800/400"
+        style={{ objectFit: 'cover' }}
+      />
+    </div>
+  );
+}`}>
+  <div style={{ position: 'relative', height: '200px', width: '100%' }}>
+    <Image alt="Fill example" fill src="https://picsum.photos/800/400" style={{ objectFit: 'cover' }} />
+  </div>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "src", type: "string | StaticImageData", default: "—", description: "**Required.** Image source URL or static import" },
+  { prop: "alt", type: "string", default: "—", description: "**Required.** Alternative text for accessibility" },
+  { prop: "width", type: "number", default: "—", description: "Width in pixels (required unless `fill` is used)" },
+  { prop: "height", type: "number", default: "—", description: "Height in pixels (required unless `fill` is used)" },
+  { prop: "fill", type: "boolean", default: "false", description: "Fills the nearest `position: relative` parent" },
+  { prop: "priority", type: "boolean", default: "false", description: "Disables lazy loading for above-the-fold images" },
+  { prop: "quality", type: "number", default: "75", description: "Output quality from 1–100" },
+  { prop: "className", type: "string", default: "—", description: "Additional CSS classes" },
+]} />
+
+All other [Next.js Image props](https://nextjs.org/docs/app/api-reference/components/image) are also accepted.
+
+## Accessibility
+
+- Always provide a meaningful `alt` description. Use `alt=""` only for decorative images.

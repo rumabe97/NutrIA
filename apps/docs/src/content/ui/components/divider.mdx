@@ -1,0 +1,26 @@
+import { Divider } from 'ui/components/Divider';
+
+# Divider
+
+A thin horizontal rule for separating sections of content. Renders a styled `<hr>` element.
+
+## Examples
+
+### Default
+
+<Preview code={`import { Divider } from 'ui/components/Divider';
+
+export default function Example() {
+  return <Divider />;
+}`}>
+  <Divider />
+</Preview>
+
+## Props
+
+All standard `<hr>` HTML attributes are accepted (`className`, `style`, `aria-*`, etc.).
+
+## Accessibility
+
+- Renders as `<hr>` which has an implicit `role="separator"`.
+- Marks a thematic break between content sections for assistive technologies.

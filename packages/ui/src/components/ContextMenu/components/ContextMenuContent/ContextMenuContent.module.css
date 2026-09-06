@@ -1,0 +1,16 @@
+.panel {
+  --menu-transform-origin: 0% 0px;
+
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  background-color: var(--color-glass);
+  border-radius: var(--radius-03);
+  border: 1px solid var(--border-01);
+  box-shadow: var(--shadow-m);
+  max-width: 240px;
+  min-width: 160px;
+  padding: var(--space-01);
+  transform-origin: var(--menu-transform-origin);
+  will-change: transform, opacity;
+  z-index: var(--z-dropdown);
+}

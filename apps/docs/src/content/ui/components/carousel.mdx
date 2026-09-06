@@ -1,0 +1,421 @@
+import { Carousel, CarouselViewport, CarouselItem, CarouselPrevious, CarouselNext } from 'ui/components/Carousel';
+import { CarouselBasic } from 'components/examples/CarouselBasic';
+import { CarouselThumbnails } from 'components/examples/CarouselThumbnails';
+import { PropsTable } from 'components/PropsTable';
+
+# Carousel
+
+A horizontally scrolling carousel built on native CSS scroll-snap. Touch swipe, momentum, and arrow-key navigation all work natively; React orchestrates programmatic navigation, indicator state, and accessibility wiring on top.
+
+The DS implementation is intentionally **minimal** compared to libraries like Embla — no looping, no autoplay, no plugins, no axis switching. Most product carousels (image galleries, featured items, testimonials, onboarding flows) only need the core "horizontal swipe + prev/next + dots" pattern, and modern browsers give us most of that for free.
+
+## Anatomy
+
+```tsx
+<Carousel aria-label="Featured products" roleDescription="carousel">
+  <CarouselViewport>
+    <CarouselItem roleDescription="slide">…</CarouselItem>
+    <CarouselItem roleDescription="slide">…</CarouselItem>
+    <CarouselItem roleDescription="slide">…</CarouselItem>
+  </CarouselViewport>
+  <CarouselPrevious aria-label="Previous slide" />
+  <CarouselNext aria-label="Next slide" />
+  <CarouselIndicators getIndicatorLabel={(i, total) => `Go to slide ${i + 1} of ${total}`} />
+</Carousel>
+```
+
+- **`Carousel`** — root region with shared state via context. Requires `aria-label` or `aria-labelledby` (TS-enforced)
+- **`CarouselViewport`** — the scrollable container with CSS scroll-snap. Tracks the active slide via `IntersectionObserver`. Keyboard-focusable; arrow keys / Home / End navigate
+- **`CarouselItem`** — a single slide. Defaults to 100% width of the viewport; override with `className` for multi-slide layouts
+- **`CarouselPrevious` / `CarouselNext`** — chevron buttons that scroll to the adjacent slide. Auto-disable at the edges
+- **`CarouselIndicators`** — dots showing position. Uses a roving tabindex — single tab stop, arrow keys move between dots
+
+## Examples
+
+### Basic
+
+<Preview code={`import {
+  Carousel,
+  CarouselViewport,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+  CarouselIndicators
+} from 'ui/components/Carousel';
+
+export default function Example() {
+  return (
+    <Carousel aria-label="Featured items" roleDescription="carousel">
+      <CarouselViewport>
+        <CarouselItem roleDescription="slide">
+          <div className="demo-card" style={{ minHeight: '160px' }}>Slide one</div>
+        </CarouselItem>
+        <CarouselItem roleDescription="slide">
+          <div className="demo-card" style={{ minHeight: '160px' }}>Slide two</div>
+        </CarouselItem>
+        <CarouselItem roleDescription="slide">
+          <div className="demo-card" style={{ minHeight: '160px' }}>Slide three</div>
+        </CarouselItem>
+      </CarouselViewport>
+      <CarouselPrevious aria-label="Previous slide" />
+      <CarouselNext aria-label="Next slide" />
+      <CarouselIndicators getIndicatorLabel={(i, total) => \`Go to slide \${i + 1} of \${total}\`} />
+    </Carousel>
+  );
+}`}>
+  <CarouselBasic />
+</Preview>
+
+### Without indicators
+
+<Preview code={`import {
+  Carousel,
+  CarouselViewport,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext
+} from 'ui/components/Carousel';
+
+export default function Example() {
+  return (
+    <Carousel aria-label="Featured items" roleDescription="carousel">
+      <CarouselViewport>
+        <CarouselItem roleDescription="slide">
+          <div className="demo-card" style={{ minHeight: '160px' }}>One</div>
+        </CarouselItem>
+        <CarouselItem roleDescription="slide">
+          <div className="demo-card" style={{ minHeight: '160px' }}>Two</div>
+        </CarouselItem>
+        <CarouselItem roleDescription="slide">
+          <div className="demo-card" style={{ minHeight: '160px' }}>Three</div>
+        </CarouselItem>
+      </CarouselViewport>
+      <CarouselPrevious aria-label="Previous slide" />
+      <CarouselNext aria-label="Next slide" />
+    </Carousel>
+  );
+}`}>
+  <Carousel aria-label="No indicators demo" roleDescription="carousel">
+    <CarouselViewport>
+      <CarouselItem roleDescription="slide">
+        <div className="demo-card" style={{ minHeight: '160px' }}>One</div>
+      </CarouselItem>
+      <CarouselItem roleDescription="slide">
+        <div className="demo-card" style={{ minHeight: '160px' }}>Two</div>
+      </CarouselItem>
+      <CarouselItem roleDescription="slide">
+        <div className="demo-card" style={{ minHeight: '160px' }}>Three</div>
+      </CarouselItem>
+    </CarouselViewport>
+    <CarouselPrevious aria-label="Previous slide" />
+    <CarouselNext aria-label="Next slide" />
+  </Carousel>
+</Preview>
+
+### Slides per view
+
+Override `CarouselItem`'s width to show more than one slide per page. The viewport stays the same width; each item is sized relative to it.
+
+<Preview code={`import {
+  Carousel,
+  CarouselViewport,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext
+} from 'ui/components/Carousel';
+
+// In your CSS module:
+// .tripleSlide { width: calc((100% - var(--space-03) \* 2) / 3); }
+// .gappedViewport { gap: var(--space-03); }
+
+export default function Example() {
+  return (
+    <Carousel aria-label="Three at a time" roleDescription="carousel">
+      <CarouselViewport className="gappedViewport">
+        {Array.from({ length: 6 }, (_, i) => (
+          <CarouselItem className="tripleSlide" key={i} roleDescription="slide">
+            <div className="demo-card">Slide {i + 1}</div>
+          </CarouselItem>
+        ))}
+      </CarouselViewport>
+      <CarouselPrevious aria-label="Previous slide" />
+      <CarouselNext aria-label="Next slide" />
+    </Carousel>
+  );
+}`}>
+  <Carousel aria-label="Three at a time demo" roleDescription="carousel">
+    <CarouselViewport style={{ gap: 'var(--space-03)' }}>
+      {Array.from({ length: 6 }, (_, i) => (
+        <CarouselItem key={i} roleDescription="slide" style={{ width: 'calc((100% - var(--space-03) * 2) / 3)' }}>
+          <div className="demo-card">Slide {i + 1}</div>
+        </CarouselItem>
+      ))}
+    </CarouselViewport>
+    <CarouselPrevious aria-label="Previous slide" />
+    <CarouselNext aria-label="Next slide" />
+  </Carousel>
+</Preview>
+
+### Slides to scroll
+
+By default, `CarouselPrevious`/`Next` step one slide at a time. Pass `slidesToScroll={N}` to step N slides per click — useful with multi-visible layouts so each click advances a full "page" instead of revealing a single new slide.
+
+<Preview code={`import {
+  Carousel,
+  CarouselViewport,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext
+} from 'ui/components/Carousel';
+
+export default function Example() {
+  return (
+    <Carousel aria-label="Three at a time, page by page" roleDescription="carousel" slidesToScroll={3}>
+      <CarouselViewport className="gappedViewport">
+        {Array.from({ length: 9 }, (_, i) => (
+          <CarouselItem className="tripleSlide" key={i} roleDescription="slide">
+            <div className="demo-card">Slide {i + 1}</div>
+          </CarouselItem>
+        ))}
+      </CarouselViewport>
+      <CarouselPrevious aria-label="Previous slide" />
+      <CarouselNext aria-label="Next slide" />
+    </Carousel>
+  );
+}`}>
+  <Carousel aria-label="Slides to scroll demo" roleDescription="carousel" slidesToScroll={3}>
+    <CarouselViewport style={{ gap: 'var(--space-03)' }}>
+      {Array.from({ length: 9 }, (_, i) => (
+        <CarouselItem key={i} roleDescription="slide" style={{ width: 'calc((100% - var(--space-03) * 2) / 3)' }}>
+          <div className="demo-card">Slide {i + 1}</div>
+        </CarouselItem>
+      ))}
+    </CarouselViewport>
+    <CarouselPrevious aria-label="Previous slide" />
+    <CarouselNext aria-label="Next slide" />
+  </Carousel>
+</Preview>
+
+### Drag free
+
+Set `dragFree` to disable scroll-snap. Swipes/scrolls land wherever momentum carries them — slides don't lock to position. `Previous` / `Next` and indicators still snap programmatically to specific slides.
+
+**Where it shines:** image galleries, "browse-a-row" layouts (Netflix-style), product carousels where exact alignment is less important than smooth continuous browsing.
+
+**How it interacts with each input:**
+
+- **Touch** — native scroll + momentum + rubber-band. No velocity-based snap override (the whole point is free scrolling).
+- **Trackpad** — native horizontal scroll, lands freely.
+- **Mouse wheel / scrollbar** — native, free.
+- **Mouse pointer-drag** — not provided. Mouse users navigate via the Previous / Next buttons or the indicators, which still snap to specific slides.
+
+<Preview code={`import {
+  Carousel,
+  CarouselViewport,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext
+} from 'ui/components/Carousel';
+
+export default function Example() {
+  return (
+    <Carousel aria-label="Free-flowing gallery" dragFree roleDescription="carousel">
+      <CarouselViewport className="gappedViewport">
+        {Array.from({ length: 8 }, (_, i) => (
+          <CarouselItem className="tripleSlide" key={i} roleDescription="slide">
+            <div className="demo-card">{i + 1}</div>
+          </CarouselItem>
+        ))}
+      </CarouselViewport>
+      <CarouselPrevious aria-label="Previous slide" />
+      <CarouselNext aria-label="Next slide" />
+    </Carousel>
+  );
+}`}>
+  <Carousel aria-label="Drag-free demo" dragFree roleDescription="carousel">
+    <CarouselViewport style={{ gap: 'var(--space-03)' }}>
+      {Array.from({ length: 8 }, (_, i) => (
+        <CarouselItem key={i} roleDescription="slide" style={{ width: 'calc((100% - var(--space-03) * 2) / 3)' }}>
+          <div className="demo-card">{i + 1}</div>
+        </CarouselItem>
+      ))}
+    </CarouselViewport>
+    <CarouselPrevious aria-label="Previous slide" />
+    <CarouselNext aria-label="Next slide" />
+  </Carousel>
+</Preview>
+
+### Thumbnails (using `useCarousel`)
+
+For more elaborate navigation than dots — a row of labelled thumbnails, a vertical list, a progress bar — read the carousel state via the `useCarousel` hook and render whatever you want. The example below builds a thumbnail row from the same data used for slides; clicking a thumbnail jumps to that slide, and the active thumbnail highlights as you scroll.
+
+<Preview code={`import {
+  Carousel,
+  CarouselViewport,
+  CarouselItem,
+  CarouselPrevious,
+  CarouselNext,
+  useCarousel
+} from 'ui/components/Carousel';
+
+const items = ['Mountains', 'Ocean', 'Forest', 'Desert'];
+
+function Thumbnails() {
+const { currentIndex, scrollToIndex } = useCarousel();
+return (
+
+<div style={{ display: 'flex', gap: 'var(--space-02)', marginTop: 'var(--space-03)' }}>
+{items.map((label, i) => (
+<button
+aria-current={i === currentIndex ? 'true' : undefined}
+aria-label={'Go to ' + label}
+key={label}
+onClick={() => scrollToIndex(i)}
+type="button" >
+{label}
+</button>
+))}
+</div>
+);
+}
+
+export default function Example() {
+  return (
+    <Carousel aria-label="Landscape gallery" roleDescription="carousel">
+      <CarouselViewport>
+        {items.map((label) => (
+          <CarouselItem key={label} roleDescription="slide">
+            <div className="demo-card" style={{ minHeight: '160px' }}>{label}</div>
+          </CarouselItem>
+        ))}
+      </CarouselViewport>
+      <CarouselPrevious aria-label="Previous slide" />
+      <CarouselNext aria-label="Next slide" />
+      <Thumbnails />
+    </Carousel>
+  );
+}`}>
+  <Carousel aria-label="Thumbnails demo" roleDescription="carousel">
+    <CarouselViewport>
+      {['Mountains', 'Ocean', 'Forest', 'Desert'].map((label) => (
+        <CarouselItem key={label} roleDescription="slide">
+          <div className="demo-card" style={{ minHeight: '160px' }}>{label}</div>
+        </CarouselItem>
+      ))}
+    </CarouselViewport>
+    <CarouselPrevious aria-label="Previous slide" />
+    <CarouselNext aria-label="Next slide" />
+    <CarouselThumbnails items={['Mountains', 'Ocean', 'Forest', 'Desert']} />
+  </Carousel>
+</Preview>
+
+## Props
+
+### `Carousel`
+
+<PropsTable
+  data={[
+    {
+      prop: 'aria-label',
+      type: 'string',
+      default: '—',
+      description: '**Required (or `aria-labelledby`).** Accessible name announced as the carousel landmark'
+    },
+    {
+      prop: 'aria-labelledby',
+      type: 'string',
+      default: '—',
+      description: '**Required (or `aria-label`).** Id of an external element naming the carousel'
+    },
+    {
+      prop: 'slidesToScroll',
+      type: 'number',
+      default: '1',
+      description: 'How many slides `Previous`/`Next` advance per click. Useful with multi-visible layouts so each click advances a full "page"'
+    },
+    {
+      prop: 'dragFree',
+      type: 'boolean',
+      default: 'false',
+      description: 'Disable scroll-snap. Swipes/scrolls land freely; buttons and indicators still snap programmatically'
+    }
+  ]}
+/>
+
+Accepts all standard `<div>` HTML attributes (`className`, `style`, `id`, etc.).
+
+### `CarouselViewport`
+
+Accepts all standard `<div>` HTML attributes (except `dir`, which is reserved). The viewport is the scrollable element; pass `className` to override width, height, padding, or `gap`.
+
+### `CarouselItem`
+
+Accepts all standard `<div>` HTML attributes. Defaults to 100% viewport width (one-slide-per-page). Override the width via `className` (or `style`) for multi-slide layouts.
+
+### `CarouselPrevious` / `CarouselNext`
+
+Accepts all standard `<button>` HTML attributes. The default `aria-label` is "Previous slide" / "Next slide"; override via `aria-label` for localization. Auto-disables when there's no adjacent slide to scroll to.
+
+### `CarouselIndicators`
+
+Accepts all standard `<div>` HTML attributes (except `dir`). Renders nothing when `slideCount <= 1` to avoid a single useless dot. Uses a roving tabindex internally — keyboard users get a single tab stop and arrow-key navigation between dots.
+
+## Hook — `useCarousel`
+
+For custom UI that needs to read or control the carousel from outside the standard parts:
+
+```tsx
+import { useCarousel } from 'ui/components/Carousel';
+
+function SlideCounter() {
+  const { currentIndex, slideCount } = useCarousel();
+  return (
+    <small>
+      Slide {currentIndex + 1} of {slideCount}
+    </small>
+  );
+}
+```
+
+`useCarousel` returns:
+
+<PropsTable
+  data={[
+    { prop: 'currentIndex', type: 'number', default: '—', description: 'Zero-based index of the currently-visible slide' },
+    { prop: 'slideCount', type: 'number', default: '—', description: 'Total number of slides' },
+    { prop: 'canScrollNext', type: 'boolean', default: '—', description: 'Whether there is a slide to the right of the current one' },
+    { prop: 'canScrollPrev', type: 'boolean', default: '—', description: 'Whether there is a slide to the left of the current one' },
+    { prop: 'scrollNext', type: '() => void', default: '—', description: 'Scroll to the next slide (advances by `slidesToScroll`)' },
+    { prop: 'scrollPrev', type: '() => void', default: '—', description: 'Scroll to the previous slide (advances by `slidesToScroll`)' },
+    { prop: 'scrollToIndex', type: '(index: number) => void', default: '—', description: 'Scroll to a specific slide by index' },
+    { prop: 'slidesToScroll', type: 'number', default: '1', description: 'Resolved value of the root `slidesToScroll` prop' },
+    { prop: 'dragFree', type: 'boolean', default: 'false', description: 'Resolved value of the root `dragFree` prop' }
+  ]}
+/>
+
+The hook throws if called outside a `<Carousel>` parent — useful as a fail-fast for misuse.
+
+## Accessibility
+
+- **Root has `role="region"` + `aria-roledescription="carousel"`.** Combined with the required `aria-label` (or `aria-labelledby`), it becomes a named landmark for screen-reader navigation.
+- **Each `CarouselItem` has `role="group"` + `aria-roledescription="slide"`.** Screen readers announce each as a slide, not just a generic `<div>`.
+- **Keyboard navigation** lives on `CarouselViewport`. Focus the viewport, then:
+  - `ArrowLeft` / `ArrowRight` — previous / next slide (or page, with `slidesToScroll`)
+  - `Home` / `End` — first / last slide
+  - The viewport's `:focus-visible` style shows the active focus ring
+- **Buttons auto-disable** at the boundary slides so screen readers announce "Previous slide, dimmed" rather than letting users uselessly activate a no-op.
+- **Indicators use a roving tabindex** (`RovingFocusGroup`) — single tab stop on the active dot, `ArrowLeft`/`ArrowRight` to move between dots, `Enter`/`Space` to activate. This avoids the 10+ tab stops of "one dot = one tab stop" and matches the WAI-ARIA Authoring Practices for carousel pagination.
+- **Touch behaviour** is hybrid. Native CSS scroll-snap handles 1:1 finger tracking, momentum, and rubber-band overscroll. On top of that, a touchend listener measures the swipe **velocity** — if the gesture exceeds a "deliberate flick" threshold (`0.3 px/ms` over `≥ 20 px` of horizontal travel), `scrollNext` / `scrollPrev` runs and overrides the native position-based snap. The combination matches the iOS UIScrollView paging feel: slow drags settle by distance, quick flicks always advance.
+- **Respects `prefers-reduced-motion`.** Button / indicator / keyboard navigation defaults to a smooth scroll, but the component reads `matchMedia('(prefers-reduced-motion: reduce)')` on every `scrollToIndex` call and falls back to an instant jump when the user has opted out of motion. This handles the WHATWG CSSOM View footgun where `Element.scrollTo({ behavior: 'smooth' })` from JS overrides the CSS `scroll-behavior: auto !important` set by [`ui/styles/base.css`](../../../../packages/ui/src/styles/base.css)'s reduced-motion baseline.
+
+## What's intentionally not here
+
+This carousel deliberately omits features that bloat most production carousels but rarely earn their weight:
+
+- **Looping / infinite scroll** — adds significant complexity and breaks scroll-snap. If you genuinely need looping, the right move is to switch to a JS-driven engine (Embla, Swiper) for that specific feature.
+- **Autoplay** — accessibility hostility (people with cognitive disabilities lose track) and usually not what users actually want. If a project needs it, add it as a wrapper component, not in the DS.
+- **Vertical orientation** — the API would diverge enough (CSS, keyboard handlers) that a `Carousel` and a `VerticalCarousel` should be separate primitives. Add the second one if and when there's a real need.
+- **Pointer-drag-by-mouse on desktop** — touch carousels are common and worth investing in; desktop pointer-drag is a less expected interaction (most users reach for the prev/next buttons or trackpad-swipe). Skipping it keeps the implementation small. `dragFree` consequently means "no snap" — on desktop it relies on trackpad/wheel; mouse users navigate via buttons.
+- **Plugin system** — engineering for a feature surface area we don't have.
+
+These omissions are deliberate. The carousel that ships with the DS is the carousel that most apps actually need.

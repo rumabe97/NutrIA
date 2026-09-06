@@ -1,0 +1,18 @@
+/* Override or extend packages/ui tokens for the docs app. */
+/* All base tokens (surfaces, text, borders, shadows) come from ui/styles/variables. */
+
+:root {
+  --header-height: 70px;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --transparent-dotted-border: rgba(0, 0, 0, 0.12);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --transparent-dotted-border: rgba(255, 255, 255, 0.1);
+  }
+}

@@ -1,0 +1,80 @@
+import { ContextMenu, ContextMenuItem } from 'ui/components/ContextMenu';
+import { Button } from 'ui/components/Button';
+import { PropsTable } from 'components/PropsTable';
+
+# Context Menu
+
+A menu that appears at the pointer position on right-click (or long-press on touch). Built on [Radix UI Context Menu](https://www.radix-ui.com/primitives/docs/components/context-menu), which handles positioning, portal rendering, and keyboard navigation automatically.
+
+## Examples
+
+### Basic
+
+<Preview code={`import { ContextMenu, ContextMenuItem } from 'ui/components/ContextMenu';
+import { Button } from 'ui/components/Button';
+
+export default function Example() {
+  return (
+    <ContextMenu trigger={<Button>Right-click me</Button>}>
+      <ContextMenuItem>Open</ContextMenuItem>
+      <ContextMenuItem>Rename</ContextMenuItem>
+      <ContextMenuItem>Delete</ContextMenuItem>
+    </ContextMenu>
+  );
+}`}>
+  <ContextMenu trigger={<Button>Right-click me</Button>}>
+    <ContextMenuItem>Open</ContextMenuItem>
+    <ContextMenuItem>Rename</ContextMenuItem>
+    <ContextMenuItem>Delete</ContextMenuItem>
+  </ContextMenu>
+</Preview>
+
+### With keyboard shortcuts
+
+<Preview code={`import { ContextMenu, ContextMenuItem } from 'ui/components/ContextMenu';
+import { Button } from 'ui/components/Button';
+
+export default function Example() {
+  return (
+    <ContextMenu trigger={<Button>Right-click me</Button>}>
+      <ContextMenuItem suffix="⌘O">Open</ContextMenuItem>
+      <ContextMenuItem suffix="⌘R">Rename</ContextMenuItem>
+      <ContextMenuItem suffix="⌫">Delete</ContextMenuItem>
+    </ContextMenu>
+  );
+}`}>
+  <ContextMenu trigger={<Button>Right-click me</Button>}>
+    <ContextMenuItem suffix="⌘O">Open</ContextMenuItem>
+    <ContextMenuItem suffix="⌘R">Rename</ContextMenuItem>
+    <ContextMenuItem suffix="⌫">Delete</ContextMenuItem>
+  </ContextMenu>
+</Preview>
+
+## Props
+
+### `ContextMenu`
+
+<PropsTable data={[
+  { prop: "trigger", type: "ReactNode", default: "—", description: "**Required.** The element that activates the menu" },
+  { prop: "children", type: "ReactNode", default: "—", description: "`ContextMenuItem` elements to display in the menu" },
+]} />
+
+All Radix ContextMenu Root props (`onOpenChange`, `modal`, etc.) are also accepted.
+
+### `ContextMenuItem`
+
+<PropsTable data={[
+  { prop: "icon", type: "ReactNode", default: "—", description: "Icon displayed before the label" },
+  { prop: "suffix", type: "ReactNode", default: "—", description: "Content displayed after the label (e.g. keyboard shortcut)" },
+  { prop: "disabled", type: "boolean", default: "false", description: "Prevents selection" },
+  { prop: "onSelect", type: "function", default: "—", description: "Called when the item is selected" },
+]} />
+
+All Radix ContextMenu Item props are also accepted.
+
+## Accessibility
+
+- Opens on right-click or long-press; closes on `Escape` or when focus leaves.
+- Arrow keys navigate between items.
+- `role="menu"` and `role="menuitem"` are applied automatically.
+- Menu is rendered in a portal to avoid z-index and overflow clipping issues.

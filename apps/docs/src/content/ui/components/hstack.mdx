@@ -1,0 +1,95 @@
+import { HStack } from 'ui/components/HStack';
+import { Button } from 'ui/components/Button';
+import { PropsTable } from 'components/PropsTable';
+
+# HStack
+
+A horizontal flex container with wrapping enabled by default. Use it for button groups, nav items, tag rows, and any other side-by-side arrangement.
+
+`HStack` is the row-direction shortcut over `Flex`. Use it as the default for horizontal layout; reach for `Flex` only when you need a non-default `direction` (e.g. `row-reverse`) or finer-grained wrap control.
+
+> Note: unlike SwiftUI's `HStack`, ours defaults to `wrap=true` because the common web cases (button groups, nav items, tag rows) almost always want wrap. Pass `wrap={false}` for a strict no-wrap row.
+
+## Examples
+
+### Basic
+
+<Preview code={`import { HStack } from 'ui/components/HStack';
+import { Button } from 'ui/components/Button';
+
+export default function Example() {
+  return (
+    <HStack gap="02">
+      <Button variant="primary">Save</Button>
+      <Button variant="secondary">Cancel</Button>
+      <Button variant="secondary">Preview</Button>
+    </HStack>
+  );
+}`}>
+  <HStack gap="02">
+    <Button variant="primary">Save</Button>
+    <Button variant="secondary">Cancel</Button>
+    <Button variant="secondary">Preview</Button>
+  </HStack>
+</Preview>
+
+### Alignment
+
+<Preview code={`import { HStack } from 'ui/components/HStack';
+import { Button } from 'ui/components/Button';
+
+export default function Example() {
+  return (
+    <HStack align="center" gap="02" justify="space-between">
+      <Button variant="secondary">Left</Button>
+      <Button variant="primary">Right</Button>
+    </HStack>
+  );
+}`}>
+  <HStack align="center" gap="02" justify="space-between">
+    <Button variant="secondary">Left</Button>
+    <Button variant="primary">Right</Button>
+  </HStack>
+</Preview>
+
+### No wrap
+
+<Preview code={`import { HStack } from 'ui/components/HStack';
+import { Button } from 'ui/components/Button';
+
+export default function Example() {
+  return (
+    <HStack gap="02" wrap={false}>
+      <Button variant="secondary">A</Button>
+      <Button variant="secondary">B</Button>
+      <Button variant="secondary">C</Button>
+    </HStack>
+  );
+}`}>
+  <HStack gap="02" wrap={false}>
+    <Button variant="secondary">A</Button>
+    <Button variant="secondary">B</Button>
+    <Button variant="secondary">C</Button>
+  </HStack>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "gap", type: "SpaceScale", default: "—", description: "Gap between children, maps to `--space-{n}` token" },
+  { prop: "align", type: "CSSProperties['alignItems']", default: "—", description: "`align-items` value" },
+  { prop: "justify", type: "CSSProperties['justifyContent']", default: "—", description: "`justify-content` value" },
+  { prop: "wrap", type: "boolean", default: "true", description: "Whether children wrap to new lines" },
+  { prop: "as", type: "ElementType", default: "'div'", description: "Render as any HTML element" },
+]} />
+
+`SpaceScale` is `'01'` through `'12'`, corresponding to `--space-01`–`--space-12`.
+
+All standard HTML `div` attributes are also accepted.
+
+## Accessibility
+
+Presentational only — renders a `<div>` by default (or whatever you pass as `as`), with no inherent role.
+
+- Tab order and screen-reader reading order follow the DOM. Don't use `flex-direction: row-reverse` or CSS `order` to rearrange children if the order conveys meaning — reorder the JSX instead.
+- When the row is a navigation, button bar, or list, render it with the appropriate semantic tag via `as="nav"` / `as="ul"` / etc.

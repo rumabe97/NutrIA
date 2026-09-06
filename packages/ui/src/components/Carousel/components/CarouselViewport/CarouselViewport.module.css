@@ -1,0 +1,18 @@
+.viewport {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.viewport::-webkit-scrollbar {
+  display: none;
+}
+
+.viewport:focus-visible {
+  border-radius: var(--radius-02);
+}
+
+.dragFree {
+  scroll-snap-type: none;
+}

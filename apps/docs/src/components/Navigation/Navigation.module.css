@@ -1,0 +1,39 @@
+.navigation {
+  background-color: var(--background-02);
+
+  display: none;
+  height: calc(100vh - var(--header-height));
+  overflow-y: auto;
+  position: fixed;
+  scrollbar-width: none;
+  top: var(--header-height);
+  width: 240px;
+}
+
+.navigation::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .navigation {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+.content {
+  padding: 1rem;
+}
+
+.footer {
+  padding-bottom: 2rem;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}

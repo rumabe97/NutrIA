@@ -1,0 +1,134 @@
+import { Heading } from 'ui/components/Heading';
+import { PropsTable } from 'components/PropsTable';
+
+# Heading
+
+A semantic heading (`<h1>`–`<h6>`) with **separate** controls for semantic level and visual size.
+
+The DS deliberately decouples these two concerns:
+
+- **`level`** chooses the HTML tag (`<h1>` … `<h6>`). It determines the **document outline** — what shows up in screen-reader heading navigation, sitemap generators, and so on. Pick it to reflect the actual hierarchy of your content.
+- **`size`** chooses the visual font-size from a 5-tier scale (`xs`/`sm`/`md`/`lg`/`xl`). Independent of `level`. This is what determines how large the heading *looks*.
+
+These two are independent because real interfaces often need them to disagree. A card title nested inside a `<section>` whose heading is `<h2>` should be `<h3>` semantically (don't skip levels), but it can still look small (`size="sm"`) — the section title is the visual focus, the card title is a label. If `level` and `size` were forced to match, you'd have to choose between a correct outline and the right visual weight. Decoupling lets you have both.
+
+## Examples
+
+### Default size per level
+
+When you don't pass `size`, the heading picks a sensible default based on `level` (`level="1"` → `xl`, `level="2"` → `lg`, etc.). 80% of the time, that's what you want.
+
+<Preview code={`import { Heading } from 'ui/components/Heading';
+
+export default function Example() {
+  return (
+    <>
+      <Heading level="1">Heading level 1</Heading>
+      <Heading level="2">Heading level 2</Heading>
+      <Heading level="3">Heading level 3</Heading>
+      <Heading level="4">Heading level 4</Heading>
+      <Heading level="5">Heading level 5</Heading>
+      <Heading level="6">Heading level 6</Heading>
+    </>
+  );
+}`}>
+  <Heading level="1">Heading level 1</Heading>
+  <Heading level="2">Heading level 2</Heading>
+  <Heading level="3">Heading level 3</Heading>
+  <Heading level="4">Heading level 4</Heading>
+  <Heading level="5">Heading level 5</Heading>
+  <Heading level="6">Heading level 6</Heading>
+</Preview>
+
+### Decoupling level from size — the real value
+
+Same DOM tag (`<h2>` for screen-reader navigation), different visual sizes for different contexts:
+
+<Preview code={`import { Heading } from 'ui/components/Heading';
+
+export default function Example() {
+  return (
+    <>
+      {/* Hero section title — h2 semantically, very large visually */}
+      <Heading level="2" size="xl">Pricing</Heading>
+
+      {/* Card title — also h2 semantically, but visually small */}
+      <Heading level="2" size="sm">Starter plan</Heading>
+    </>
+  );
+}`}>
+  <Heading level="2" size="xl">Pricing</Heading>
+  <Heading level="2" size="sm">Starter plan</Heading>
+</Preview>
+
+### Weight and tone
+
+<Preview code={`import { Heading } from 'ui/components/Heading';
+
+export default function Example() {
+  return (
+    <>
+      <Heading level="3" weight="regular">Regular weight</Heading>
+      <Heading level="3" weight="medium">Medium weight</Heading>
+      <Heading level="3" weight="bold">Bold weight</Heading>
+      <Heading level="3" tone="secondary">Secondary tone</Heading>
+      <Heading level="3" tone="tertiary">Tertiary tone</Heading>
+    </>
+  );
+}`}>
+  <Heading level="3" weight="regular">Regular weight</Heading>
+  <Heading level="3" weight="medium">Medium weight</Heading>
+  <Heading level="3" weight="bold">Bold weight</Heading>
+  <Heading level="3" tone="secondary">Secondary tone</Heading>
+  <Heading level="3" tone="tertiary">Tertiary tone</Heading>
+</Preview>
+
+### Alignment
+
+<Preview code={`import { Heading } from 'ui/components/Heading';
+
+export default function Example() {
+  return (
+    <>
+      <Heading level="3" align="start">Start aligned</Heading>
+      <Heading level="3" align="center">Center aligned</Heading>
+      <Heading level="3" align="end">End aligned</Heading>
+    </>
+  );
+}`}>
+  <Heading level="3" align="start">Start aligned</Heading>
+  <Heading level="3" align="center">Center aligned</Heading>
+  <Heading level="3" align="end">End aligned</Heading>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: 'level', type: "'1' | '2' | '3' | '4' | '5' | '6'", default: '—', description: '**Required.** Semantic heading level — determines the HTML tag (`<h1>`–`<h6>`)' },
+  { prop: 'size', type: "'xs' | 'sm' | 'md' | 'lg' | 'xl'", default: 'derived from `level`', description: 'Visual font-size tier, independent of `level`. Maps to `--font-size-05`–`--font-size-09`' },
+  { prop: 'weight', type: "'regular' | 'medium' | 'semibold' | 'bold'", default: "'semibold'", description: 'Font weight token' },
+  { prop: 'tone', type: "'primary' | 'secondary' | 'tertiary'", default: "'primary'", description: "Text color — `--foreground-01/02/03`. `tertiary` is sub-AA (use sparingly for decorative emphasis; for AA-passing dim headings, use `secondary`)." },
+  { prop: 'align', type: "'start' | 'center' | 'end'", default: '—', description: 'Text alignment (writing-direction aware)' },
+]} />
+
+All standard heading HTML attributes are also accepted (`id`, `className`, `style`, etc.).
+
+## Accessibility
+
+- **`level` drives the outline.** Use `<Heading level="1">` once per page (the page title), then `<Heading level="2">` for top-level sections, `<Heading level="3">` for subsections, and so on. Don't skip levels (`<h2>` → `<h4>`) just because you want a visual size — use `size` for that.
+- **Visible label for `<Section>`.** When a Section's `aria-labelledby` points at a heading, the heading needs an `id` and visible text. **Always generate the id with React's `useId()` hook** — never hardcode strings, since two instances of the same component would silently clash:
+  ```tsx
+  import { useId } from 'react';
+
+  function PricingSection() {
+    const headingId = useId();
+    return (
+      <Section aria-labelledby={headingId}>
+        <Heading id={headingId} level="2">Pricing</Heading>
+        …
+      </Section>
+    );
+  }
+  ```
+  `useId` generates a stable id across SSR and client hydration, and never collides across instances. The same rule applies to any other ARIA id wiring (`aria-describedby`, `aria-controls`, etc.).
+- **Don't style raw `<h2>`s differently in CSS modules** if you're also using Heading — pick one source of truth.

@@ -1,0 +1,123 @@
+import { RovingFocusGroup, RovingFocusGroupItem } from 'ui/components/RovingFocusGroup';
+import { PropsTable } from 'components/PropsTable';
+
+# Roving Focus Group
+
+A low-level primitive that manages focus across a group of items using the roving tabindex pattern. Only one item in the group is in the tab order at a time; arrow keys move focus between items.
+
+This is an **internal building block** — most of the time you want `Tabs`, `RadioGroup`, or another higher-level component that already uses it. Reach for this directly when building a custom toolbar, list, or grid that needs arrow-key navigation.
+
+## Examples
+
+### Horizontal (toolbar)
+
+Tab moves into the group, Left/Right arrows navigate between buttons:
+
+<Preview code={`import { RovingFocusGroup, RovingFocusGroupItem } from 'ui/components/RovingFocusGroup';
+
+export default function Example() {
+  return (
+    <RovingFocusGroup orientation="horizontal" style={{ display: 'flex', gap: 'var(--space-02)' }}>
+      <RovingFocusGroupItem asChild active>
+        <button>Bold</button>
+      </RovingFocusGroupItem>
+      <RovingFocusGroupItem asChild>
+        <button>Italic</button>
+      </RovingFocusGroupItem>
+      <RovingFocusGroupItem asChild>
+        <button>Underline</button>
+      </RovingFocusGroupItem>
+    </RovingFocusGroup>
+  );
+}`}>
+  <RovingFocusGroup orientation="horizontal" style={{ display: 'flex', gap: 'var(--space-02)' }}>
+    <RovingFocusGroupItem asChild active>
+      <button>Bold</button>
+    </RovingFocusGroupItem>
+    <RovingFocusGroupItem asChild>
+      <button>Italic</button>
+    </RovingFocusGroupItem>
+    <RovingFocusGroupItem asChild>
+      <button>Underline</button>
+    </RovingFocusGroupItem>
+  </RovingFocusGroup>
+</Preview>
+
+### Vertical (menu list)
+
+Up/Down arrows navigate, `loop` wraps focus from last back to first:
+
+<Preview code={`import { RovingFocusGroup, RovingFocusGroupItem } from 'ui/components/RovingFocusGroup';
+
+export default function Example() {
+  return (
+    <RovingFocusGroup
+      orientation="vertical"
+      loop
+      style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-01)', width: '180px' }}
+    >
+      <RovingFocusGroupItem asChild active>
+        <button style={{ textAlign: 'left' }}>Dashboard</button>
+      </RovingFocusGroupItem>
+      <RovingFocusGroupItem asChild>
+        <button style={{ textAlign: 'left' }}>Settings</button>
+      </RovingFocusGroupItem>
+      <RovingFocusGroupItem asChild>
+        <button style={{ textAlign: 'left' }}>Profile</button>
+      </RovingFocusGroupItem>
+      <RovingFocusGroupItem asChild>
+        <button style={{ textAlign: 'left' }}>Log out</button>
+      </RovingFocusGroupItem>
+    </RovingFocusGroup>
+  );
+}`}>
+  <RovingFocusGroup
+    orientation="vertical"
+    loop
+    style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-01)', width: '180px' }}
+  >
+    <RovingFocusGroupItem asChild active>
+      <button style={{ textAlign: 'left' }}>Dashboard</button>
+    </RovingFocusGroupItem>
+    <RovingFocusGroupItem asChild>
+      <button style={{ textAlign: 'left' }}>Settings</button>
+    </RovingFocusGroupItem>
+    <RovingFocusGroupItem asChild>
+      <button style={{ textAlign: 'left' }}>Profile</button>
+    </RovingFocusGroupItem>
+    <RovingFocusGroupItem asChild>
+      <button style={{ textAlign: 'left' }}>Log out</button>
+    </RovingFocusGroupItem>
+  </RovingFocusGroup>
+</Preview>
+
+## Props
+
+### `RovingFocusGroup`
+
+<PropsTable data={[
+  { prop: 'orientation', type: "'horizontal' | 'vertical' | undefined", default: '—', description: "Controls which arrow keys trigger navigation. undefined enables all four arrows" },
+  { prop: 'dir', type: "'ltr' | 'rtl'", default: '—', description: 'Reading direction' },
+  { prop: 'loop', type: 'boolean', default: 'false', description: 'Whether focus wraps from last to first item' },
+  { prop: 'currentTabStopId', type: 'string | null', default: '—', description: 'Controlled ID of the active tab stop' },
+  { prop: 'defaultCurrentTabStopId', type: 'string', default: '—', description: 'Uncontrolled initial tab stop' },
+  { prop: 'onCurrentTabStopIdChange', type: '(id: string | null) => void', default: '—', description: 'Called when the active tab stop changes' },
+  { prop: 'onEntryFocus', type: '(event: Event) => void', default: '—', description: 'Called when the group receives focus' },
+  { prop: 'preventScrollOnEntryFocus', type: 'boolean', default: 'false', description: 'Prevents scrolling when the group is focused' },
+]} />
+
+### `RovingFocusGroupItem`
+
+<PropsTable data={[
+  { prop: 'tabStopId', type: 'string', default: '—', description: 'Stable ID for this item — auto-generated if omitted' },
+  { prop: 'focusable', type: 'boolean', default: 'true', description: 'Whether this item participates in the roving cycle' },
+  { prop: 'active', type: 'boolean', default: 'false', description: 'Marks this item as the preferred entry point when the group first receives focus' },
+  { prop: 'asChild', type: 'boolean', default: 'false', description: 'Merge props onto the child element instead of rendering a span' },
+]} />
+
+## Accessibility
+
+- Only one item holds `tabindex="0"` at a time; the rest have `tabindex="-1"`.
+- Arrow key direction is controlled by `orientation`: horizontal uses Left/Right, vertical uses Up/Down.
+- Set `active` on the initially focused item so Tab into the group lands on the right element.
+- `loop` wraps focus from the last item back to the first and vice versa.

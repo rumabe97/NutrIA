@@ -1,0 +1,67 @@
+import { Switch } from 'ui/components/Switch';
+import { PropsTable } from 'components/PropsTable';
+
+# Switch
+
+A toggle control for binary on/off states. Built on [Radix UI Switch](https://www.radix-ui.com/primitives/docs/components/switch), which provides a native-like toggle with full keyboard support and WAI-ARIA compliance.
+
+## Examples
+
+### Uncontrolled
+
+<Preview code={`import { Switch } from 'ui/components/Switch';
+
+export default function Example() {
+  return <Switch />;
+}`}>
+  <Switch />
+</Preview>
+
+### Checked by default
+
+<Preview code={`import { Switch } from 'ui/components/Switch';
+
+export default function Example() {
+  return <Switch defaultChecked />;
+}`}>
+  <Switch defaultChecked />
+</Preview>
+
+### Disabled
+
+<Preview code={`import { Switch } from 'ui/components/Switch';
+
+export default function Example() {
+  return <Switch disabled />;
+}`}>
+  <Switch disabled />
+</Preview>
+
+### Controlled
+
+```tsx
+const [checked, setChecked] = useState(false);
+
+<Switch checked={checked} onCheckedChange={setChecked} />;
+```
+
+## Props
+
+<PropsTable data={[
+  { prop: "checked", type: "boolean", default: "—", description: "Controlled checked state" },
+  { prop: "defaultChecked", type: "boolean", default: "false", description: "Initial checked state (uncontrolled)" },
+  { prop: "onCheckedChange", type: "(checked: boolean) => void", default: "—", description: "Called when the state changes" },
+  { prop: "disabled", type: "boolean", default: "false", description: "Prevents interaction" },
+  { prop: "required", type: "boolean", default: "false", description: "Marks the field as required for form validation" },
+  { prop: "name", type: "string", default: "—", description: "Name submitted with form data" },
+  { prop: "value", type: "string", default: "'on'", description: "Value submitted with form data when checked" },
+]} />
+
+All Radix Switch Root props are also accepted.
+
+## Accessibility
+
+- Renders with `role="switch"` and `aria-checked` reflecting the current state.
+- Toggled with `Space` when focused.
+- Works as a native form field when placed inside a `<form>`.
+- Always pair with a visible label (via `<label>` or `aria-label`) so the purpose is clear.

@@ -1,0 +1,9 @@
+/* Override or extend packages/ui tokens for the web app. */
+/* All base tokens (surfaces, text, borders, shadows) come from ui/styles/variables. */
+/* Add branding-specific overrides here, for example: */
+
+/* @media (prefers-color-scheme: light) { */
+/*   :root { */
+/*     --background-01: #f8f6f2; */
+/*   } */
+/* } */

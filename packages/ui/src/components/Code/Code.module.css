@@ -1,0 +1,7 @@
+.code {
+  background-color: var(--background-highlight);
+  border-radius: var(--radius-01);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: 0.875em;
+  padding: 0.1em 0.35em;
+}

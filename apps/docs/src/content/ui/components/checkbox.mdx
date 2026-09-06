@@ -1,0 +1,70 @@
+import { Checkbox } from 'ui/components/Checkbox';
+import { PropsTable } from 'components/PropsTable';
+
+# Checkbox
+
+A form control that toggles between checked, unchecked, and indeterminate states. Built on [Radix UI Checkbox](https://www.radix-ui.com/primitives/docs/components/checkbox) with full keyboard navigation and WAI-ARIA compliance. The component renders a wrapping `<label>` so the visual + the label text together form the clickable target — satisfying WCAG 2.5.8 even though the visual itself is 16×16.
+
+## Examples
+
+### Default
+
+<Preview code={`import { Checkbox } from 'ui/components/Checkbox';
+
+export default function Example() {
+  return <Checkbox defaultChecked label="Accept terms" />;
+}`}>
+  <Checkbox defaultChecked label="Accept terms" />
+</Preview>
+
+### Indeterminate
+
+<Preview code={`<Checkbox checked="indeterminate" label="Some items selected" />`}>
+  <Checkbox checked="indeterminate" label="Some items selected" />
+</Preview>
+
+### Disabled
+
+<Preview code={`<div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-02)' }}>
+  <Checkbox disabled label="Disabled" />
+  <Checkbox defaultChecked disabled label="Disabled (checked)" />
+</div>`}>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-02)' }}>
+    <Checkbox disabled label="Disabled" />
+    <Checkbox defaultChecked disabled label="Disabled (checked)" />
+  </div>
+</Preview>
+
+### Rich label (ReactNode)
+
+The `label` prop accepts any `ReactNode` — useful for embedding links or emphasis.
+
+<Preview code={`<Checkbox
+  label={<>I agree to the <a href="/terms">Terms of Service</a></>}
+/>`}>
+  <Checkbox
+    label={<>I agree to the <a href="/terms">Terms of Service</a></>}
+  />
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: 'label', type: 'ReactNode', default: '— *(required)*', description: '**Required.** Label rendered alongside the checkbox. Click anywhere on the label or visual toggles the checkbox. For a label-less case (e.g. table master checkbox), pass a visually-hidden node.' },
+  { prop: 'checked', type: "boolean | 'indeterminate'", default: '—', description: 'Controlled checked state' },
+  { prop: 'defaultChecked', type: "boolean | 'indeterminate'", default: '—', description: 'Uncontrolled initial state' },
+  { prop: 'onCheckedChange', type: "(checked: boolean | 'indeterminate') => void", default: '—', description: 'Called when state changes' },
+  { prop: 'disabled', type: 'boolean', default: 'false', description: 'Prevents interaction' },
+  { prop: 'required', type: 'boolean', default: 'false', description: 'Marks field as required in a form' },
+  { prop: 'name', type: 'string', default: '—', description: 'Form field name' },
+  { prop: 'value', type: 'string', default: "'on'", description: 'Value submitted with a form' },
+]} />
+
+All Radix Checkbox Root props are also accepted.
+
+## Accessibility
+
+- Renders with `role="checkbox"` and `aria-checked` reflecting the current state, including `"mixed"` for indeterminate.
+- The wrapping `<label>` makes the label text and visual a single ~24×24+ click target — WCAG 2.5.8 (Target Size Minimum) passes via the "Equivalent target" exception even though the visual is 16×16.
+- `Space` toggles the checkbox when focused; the focus ring follows our shared `--focus-ring-*` tokens.
+- For label-less checkboxes (e.g. a "select all" in a data-table header), pass a visually-hidden node as `label` — never omit the label.

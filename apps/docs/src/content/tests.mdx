@@ -1,0 +1,14 @@
+# Tests
+
+How the template tests itself — and the conventions we expect any app built on top to follow.
+
+## Two test scopes
+
+- **Unit / integration** — lives _inside_ the template. Every component in `packages/ui` ships with its own test file. Runs in jsdom via Vitest; orchestrated by Turborepo with `pnpm test` from the repo root. **See [Unit testing](/tests/unit) for the stack, conventions, and coverage strategy.**
+- **End-to-end** — lives _per-project_, not in the template itself. The template gives you the unit-tested API surface; apps wire up their own e2e runs against their own user flows. **See [End-to-end testing](/tests/e2e) for the guidance we hand off.**
+
+## Why this split
+
+Unit tests on a design-system component validate the API contract: prop forwarding, ARIA wiring, keyboard navigation, basic interactions. They run in milliseconds, give fast CI signal, and catch most regressions. They cannot, however, validate browser-integration behavior — real scroll animations, IntersectionObserver feedback, focus management interacting with portals, CSS scroll-snap.
+
+That last category — _browser-integration behavior_ — is where end-to-end tests earn their keep. And it's also where each app has its own opinion on what to test (their critical user flows, not the DS's). Bundling an e2e harness into the template would either over-prescribe (forcing every app to adopt a tool that doesn't fit their flow) or under-prescribe (a harness with no flows is just dead infrastructure). So we ship unit tests; apps add e2e on their own terms.

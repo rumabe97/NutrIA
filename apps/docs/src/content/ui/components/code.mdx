@@ -1,0 +1,58 @@
+import { Code } from 'ui/components/Code';
+import { Text } from 'ui/components/Text';
+import { PropsTable } from 'components/PropsTable';
+
+# Code
+
+An inline `<code>` element with monospace font, subtle background, and small padding. Use it for inline references to code identifiers, file paths, commands, and similar.
+
+`Code` is intentionally **inline-only**. For multi-line, syntax-highlighted code blocks, there is no DS-level component yet — see the "When NOT to use" section below.
+
+## Examples
+
+### Inline in a paragraph
+
+<Preview code={`import { Code } from 'ui/components/Code';
+import { Text } from 'ui/components/Text';
+
+export default function Example() {
+  return (
+    <Text>
+      Pass <Code>variant="primary"</Code> to the <Code>Button</Code> component
+      to get the brand-colored variant. The CSS class lives in{' '}
+      <Code>Button.module.css</Code>.
+    </Text>
+  );
+}`}>
+  <Text>Pass <Code>variant="primary"</Code> to the <Code>Button</Code> component to get the brand-colored variant. The CSS class lives in <Code>Button.module.css</Code>.</Text>
+</Preview>
+
+### Standalone
+
+<Preview code={`import { Code } from 'ui/components/Code';
+
+export default function Example() {
+  return <Code>pnpm install</Code>;
+}`}>
+  <Code>pnpm install</Code>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: 'children', type: 'ReactNode', default: '—', description: 'The code text' },
+]} />
+
+All standard `<code>` HTML attributes are also accepted (`className`, `id`, etc.).
+
+## When NOT to use Code
+
+- **For multi-line / syntax-highlighted code** — `Code` is inline-only. There is no DS-level `CodeBlock` yet (candidate for a future addition). Until one exists, apps that need block-level code with syntax highlighting should build their own using a highlighter like Shiki or Prism. The `apps/docs` site has an internal `CodeBlock` implementation that can serve as a reference, but apps should not import directly from another app.
+- **For keyboard shortcuts** — use a `<kbd>` element directly (we don't yet have a DS `Kbd` primitive).
+
+## Accessibility
+
+Renders a native inline `<code>`. Screen readers announce it as code, so most of the work is done for you.
+
+- **Don't put interactive controls inside `<code>`.** It's a phrasing element, not a container — buttons, links, copy-to-clipboard widgets belong as siblings.
+- **Inline only.** For block code with syntax highlighting (where reading order and language announcement matter more), see "When NOT to use Code" above.

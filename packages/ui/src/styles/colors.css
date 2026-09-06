@@ -1,0 +1,95 @@
+/* Raw color palette — primitives only.
+   Never reference these directly in components.
+   Use semantic tokens from variables.css instead. */
+
+:root {
+  color-scheme: light dark;
+
+  /* Constants */
+  --color-black: #000000;
+  --color-white: #ffffff;
+
+  /* Gray */
+  --color-gray-01: light-dark(#fcfcfc, #161616);
+  --color-gray-02: light-dark(#f8f8f8, #1c1c1c);
+  --color-gray-03: light-dark(#f3f3f3, #232323);
+  --color-gray-04: light-dark(#ededed, #282828);
+  --color-gray-05: light-dark(#e8e8e8, #2e2e2e);
+  --color-gray-06: light-dark(#e2e2e2, #343434);
+  --color-gray-07: light-dark(#dbdbdb, #3e3e3e);
+  --color-gray-08: light-dark(#c7c7c7, #505050);
+  --color-gray-09: light-dark(#8f8f8f, #707070);
+  --color-gray-10: light-dark(#858585, #7e7e7e);
+  --color-gray-11: light-dark(#6f6f6f, #a0a0a0);
+  --color-gray-12: light-dark(#171717, #ededed);
+
+  /* Gray alpha */
+  --color-gray-01-alpha: light-dark(rgba(0, 0, 0, 0.012), hsla(0, 0%, 100%, 0));
+  --color-gray-02-alpha: light-dark(rgba(0, 0, 0, 0.027), hsla(0, 0%, 100%, 0.026));
+  --color-gray-03-alpha: light-dark(rgba(0, 0, 0, 0.047), hsla(0, 0%, 100%, 0.056));
+  --color-gray-04-alpha: light-dark(rgba(0, 0, 0, 0.071), hsla(0, 0%, 100%, 0.077));
+  --color-gray-05-alpha: light-dark(rgba(0, 0, 0, 0.09), hsla(0, 0%, 100%, 0.103));
+  --color-gray-06-alpha: light-dark(rgba(0, 0, 0, 0.114), hsla(0, 0%, 100%, 0.129));
+  --color-gray-07-alpha: light-dark(rgba(0, 0, 0, 0.141), hsla(0, 0%, 100%, 0.172));
+  --color-gray-08-alpha: light-dark(rgba(0, 0, 0, 0.22), hsla(0, 0%, 100%, 0.249));
+  --color-gray-09-alpha: light-dark(rgba(0, 0, 0, 0.439), hsla(0, 0%, 100%, 0.386));
+  --color-gray-10-alpha: light-dark(rgba(0, 0, 0, 0.478), hsla(0, 0%, 100%, 0.446));
+  --color-gray-11-alpha: light-dark(rgba(0, 0, 0, 0.565), hsla(0, 0%, 100%, 0.592));
+  --color-gray-12-alpha: light-dark(rgba(0, 0, 0, 0.91), hsla(0, 0%, 100%, 0.923));
+
+  /* Blue */
+  --color-blue-01: light-dark(#fbfdff, #0f1720);
+  --color-blue-02: light-dark(#f5faff, #0f1b2d);
+  --color-blue-03: light-dark(#edf6ff, #10243e);
+  --color-blue-04: light-dark(#e1f0ff, #102a4c);
+  --color-blue-05: light-dark(#cee7fe, #0f3058);
+  --color-blue-06: light-dark(#b7d9f8, #0d3868);
+  --color-blue-07: light-dark(#96c7f2, #0a4481);
+  --color-blue-08: light-dark(#5eb0ef, #0954a5);
+  --color-blue-09: light-dark(#0091ff, #0091ff);
+  --color-blue-10: light-dark(#0081f1, #369eff);
+  --color-blue-11: light-dark(#006adc, #52a9ff);
+  --color-blue-12: light-dark(#00254d, #eaf6ff);
+
+  /* Green */
+  --color-green-01: light-dark(#fbfefc, #0d1912);
+  --color-green-02: light-dark(#f2fcf5, #0c1f17);
+  --color-green-03: light-dark(#e9f9ee, #0f291e);
+  --color-green-04: light-dark(#ddf3e4, #113123);
+  --color-green-05: light-dark(#ccebd7, #133929);
+  --color-green-06: light-dark(#b4dfc4, #164430);
+  --color-green-07: light-dark(#92ceac, #1b543a);
+  --color-green-08: light-dark(#5bb98c, #236e4a);
+  --color-green-09: light-dark(#30a46c, #30a46c);
+  --color-green-10: light-dark(#299764, #3cb179);
+  --color-green-11: light-dark(#18794e, #4cc38a);
+  --color-green-12: light-dark(#153226, #e5fbeb);
+
+  /* Red */
+  --color-red-01: light-dark(#fffcfc, #1f1315);
+  --color-red-02: light-dark(#fff8f8, #291415);
+  --color-red-03: light-dark(#ffefef, #3c181a);
+  --color-red-04: light-dark(#ffe5e5, #481a1d);
+  --color-red-05: light-dark(#fdd8d8, #541b1f);
+  --color-red-06: light-dark(#f9c6c6, #671e22);
+  --color-red-07: light-dark(#f3aeaf, #822025);
+  --color-red-08: light-dark(#eb9091, #aa2429);
+  --color-red-09: light-dark(#e5484d, #e5484d);
+  --color-red-10: light-dark(#dc3d43, #f2555a);
+  --color-red-11: light-dark(#cd2b31, #ff6369);
+  --color-red-12: light-dark(#381316, #feecee);
+
+  /* Amber */
+  --color-amber-01: light-dark(#fefdfb, #1f1300);
+  --color-amber-02: light-dark(#fff9ed, #271700);
+  --color-amber-03: light-dark(#fff4d5, #341c00);
+  --color-amber-04: light-dark(#ffecbc, #3f2200);
+  --color-amber-05: light-dark(#ffe3a2, #4a2900);
+  --color-amber-06: light-dark(#ffd386, #573300);
+  --color-amber-07: light-dark(#f3ba63, #693f05);
+  --color-amber-08: light-dark(#ee9d2b, #824e00);
+  --color-amber-09: light-dark(#ffb224, #ffb224);
+  --color-amber-10: light-dark(#ffa01c, #ffcb47);
+  --color-amber-11: light-dark(#ad5700, #f1a10d);
+  --color-amber-12: light-dark(#4e2009, #fef3dd);
+}

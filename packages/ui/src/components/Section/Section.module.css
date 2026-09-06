@@ -1,0 +1,15 @@
+.sm {
+  padding-block: var(--space-04);
+}
+
+.md {
+  padding-block: var(--space-06);
+}
+
+.lg {
+  padding-block: var(--space-08);
+}
+
+.xl {
+  padding-block: var(--space-10);
+}

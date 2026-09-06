@@ -1,0 +1,56 @@
+import { Label } from 'ui/components/Label';
+import { Input } from 'ui/components/Input';
+import { PropsTable } from 'components/PropsTable';
+
+# Label
+
+Renders a `<label>` element with one extra behaviour: **double-clicking the label doesn't accidentally select the label text**, while double-clicks inside form controls (`<input>`, `<button>`, `<select>`, `<textarea>`) keep their native word-selection. Built on [Radix UI Label](https://www.radix-ui.com/primitives/docs/components/label).
+
+Use `<Label>` whenever you're composing your own form control. The DS's built-in `Checkbox`, `RadioGroupItem`, and `Input` already use it internally — you don't need to wrap those.
+
+## Examples
+
+### With a native input
+
+<Preview code={`import { Label } from 'ui/components/Label';
+
+export default function Example() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-01)' }}>
+      <Label htmlFor="email">Email address</Label>
+      <input id="email" type="email" placeholder="you@example.com" />
+    </div>
+  );
+}`}>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-01)' }}>
+    <Label htmlFor="email">Email address</Label>
+    <input id="email" type="email" placeholder="you@example.com" />
+  </div>
+</Preview>
+
+### Wrapping pattern
+
+You can also wrap the control inside the label — no `htmlFor` needed.
+
+<Preview code={`<Label>
+  <input type="checkbox" /> Subscribe to updates
+</Label>`}>
+  <Label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-02)' }}>
+    <input type="checkbox" /> Subscribe to updates
+  </Label>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: 'htmlFor', type: 'string', default: '—', description: 'Associates the label with the form control whose `id` matches this value' },
+  { prop: 'children', type: 'ReactNode', default: '—', description: 'Label content (text and/or nested controls)' },
+]} />
+
+All standard `<label>` HTML attributes are also accepted.
+
+## Accessibility
+
+- Renders as a native `<label>` so the `htmlFor` association is honoured by assistive tech without extra ARIA.
+- Double-clicking the label text doesn't accidentally select it; double-clicking inside a nested form control still selects the word inside that control. This avoids the common UX papercut where a user fat-fingers a label and ends up with selected text instead of toggling the control.
+- Always provide an `htmlFor` (or wrap the control) so the label is functionally bound to its control.

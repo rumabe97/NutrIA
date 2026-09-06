@@ -1,0 +1,9 @@
+{
+  "extends": "typescript-configuration/react-library.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "."
+  },
+  "include": ["src", "test", "turbo/generators", "vitest.config.ts"],
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,0 +1,75 @@
+/* Minimum styling — consumers fully style via className. These rules just keep the menu usable
+   out of the box. Attribute selectors stay global per CSS-modules semantics, so every rule is
+   scoped under `.root` to keep the styling encapsulated to one Spotlight instance. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+}
+
+.root [data-spotlight-input] {
+  background: transparent;
+  border: 0;
+  font: inherit;
+  padding: var(--space-03);
+  width: 100%;
+}
+
+.root [data-spotlight-list] {
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.root [data-spotlight-item] {
+  align-items: center;
+  border-radius: var(--radius-02);
+  cursor: default;
+  display: flex;
+  gap: var(--space-03);
+  padding: var(--space-02) var(--space-03);
+  user-select: none;
+}
+
+.root [data-spotlight-item][data-selected='true'] {
+  background: var(--color-hover);
+  color: var(--foreground-01);
+}
+
+.root [data-spotlight-item][data-disabled='true'] {
+  color: var(--foreground-disabled);
+  cursor: not-allowed;
+}
+
+.root [data-spotlight-group-heading] {
+  color: var(--foreground-02);
+  font-size: var(--font-size-01);
+  letter-spacing: 0.04em;
+  padding: var(--space-03) var(--space-03) var(--space-01);
+  text-transform: uppercase;
+}
+
+.root [data-spotlight-separator] {
+  background: var(--border-01);
+  height: 1px;
+  margin: var(--space-02) 0;
+}
+
+.root [data-spotlight-empty] {
+  color: var(--foreground-02);
+  padding: var(--space-04);
+  text-align: center;
+}
+
+/* The accessible label sits off-screen — present for assistive tech via `aria-labelledby`,
+   invisible to sighted users. Standard screen-reader-only recipe. */
+.root [data-spotlight-label] {
+  border-width: 0;
+  clip: rect(0, 0, 0, 0);
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}

@@ -1,0 +1,33 @@
+{
+  "name": "web",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev --turbopack --port 3000",
+    "lint:cache": "pnpm lint --cache",
+    "lint:ci": "pnpm lint:cache --cache-strategy content --quiet",
+    "lint": "eslint 'src/**/*.{ts,tsx,js,jsx}' --max-warnings 0",
+    "lint:fix": "eslint 'src/**/*.{ts,tsx,js,jsx}' --fix",
+    "start": "next start",
+    "ts:check": "tsc --noEmit",
+    "format": "prettier --check 'src/**/*.{ts,tsx,css}'",
+    "format:fix": "prettier --write 'src/**/*.{ts,tsx,css}'"
+  },
+  "dependencies": {
+    "auth": "workspace:*",
+    "core": "workspace:^",
+    "next": "^16.2.6",
+    "react": "^19.2.6",
+    "react-dom": "^19.2.6",
+    "ui": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "@types/react": "^19.2.15",
+    "@types/react-dom": "^19.2.3",
+    "eslint-configuration": "workspace:*",
+    "typescript-configuration": "workspace:*"
+  }
+}

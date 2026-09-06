@@ -1,0 +1,69 @@
+.wrapper {
+  align-items: center;
+  cursor: pointer;
+  display: inline-flex;
+  gap: var(--space-02);
+}
+
+.wrapper:has(.root[data-disabled]) {
+  cursor: not-allowed;
+}
+
+.label {
+  color: var(--foreground-01);
+  font-size: var(--font-size-03);
+  line-height: var(--line-height-03);
+  user-select: none;
+}
+
+.root {
+  align-items: center;
+  background-color: transparent;
+  border: 1.5px solid var(--border-01);
+  border-radius: var(--radius-01);
+  cursor: inherit;
+  display: flex;
+  flex-shrink: 0;
+  height: 16px;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  transition:
+    background-color var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default);
+  width: 16px;
+}
+
+.root[data-state='checked'],
+.root[data-state='indeterminate'] {
+  background-color: var(--color-brand-09);
+  border-color: var(--color-brand-09);
+}
+
+.root[data-disabled] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.indicator {
+  align-items: center;
+  color: var(--color-white);
+  display: flex;
+  justify-content: center;
+}
+
+.check {
+  display: block;
+}
+
+.indeterminate {
+  display: none;
+}
+
+.indicator[data-state='indeterminate'] .check {
+  display: none;
+}
+
+.indicator[data-state='indeterminate'] .indeterminate {
+  display: block;
+}

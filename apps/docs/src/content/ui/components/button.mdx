@@ -1,0 +1,67 @@
+import { Button } from 'ui/components/Button';
+import { PropsTable } from 'components/PropsTable';
+
+# Button
+
+A clickable element that triggers an action. Supports `primary` and `secondary` variants, and three sizes.
+
+## Examples
+
+### Variants
+
+<Preview code={`import { Button } from 'ui/components/Button';
+
+export default function Example() {
+  return (
+    <div style={{ display: 'flex', gap: '0.5rem' }}>
+      <Button variant="primary">Primary</Button>
+      <Button variant="secondary">Secondary</Button>
+    </div>
+  );
+}`}>
+  <div style={{ display: 'flex', gap: '0.5rem' }}>
+    <Button variant="primary">Primary</Button>
+    <Button variant="secondary">Secondary</Button>
+  </div>
+</Preview>
+
+### Sizes
+
+<Preview code={`import { Button } from 'ui/components/Button';
+
+export default function Example() {
+  return (
+    <div style={{ alignItems: 'center', display: 'flex', gap: '0.5rem' }}>
+      <Button size="sm" variant="primary">Small</Button>
+      <Button size="md" variant="primary">Medium</Button>
+      <Button size="lg" variant="primary">Large</Button>
+    </div>
+  );
+}`}>
+  <div style={{ alignItems: 'center', display: 'flex', gap: '0.5rem' }}>
+    <Button size="sm" variant="primary">Small</Button>
+    <Button size="md" variant="primary">Medium</Button>
+    <Button size="lg" variant="primary">Large</Button>
+  </div>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: 'variant', type: "'primary' | 'secondary'", default: "'primary'", description: 'Visual style of the button' },
+  { prop: 'size', type: "'sm' | 'md' | 'lg'", default: "'md'", description: 'Height and padding preset' },
+  { prop: 'children', type: 'ReactNode', default: '—', description: 'Button label' },
+  { prop: 'disabled', type: 'boolean', default: 'false', description: 'Disables interaction' },
+  { prop: 'onClick', type: 'MouseEventHandler', default: '—', description: 'Click handler' },
+]} />
+
+All standard `<button>` HTML attributes are also accepted.
+
+## Accessibility
+
+Renders a native `<button>`, so role, focus, and Enter/Space activation are handled by the browser.
+
+- **Accessible name** — provide visible text as `children`. For icon-only buttons add `aria-label="…"`.
+- **Disabled state** — use the native `disabled` attribute (this component forwards it). Disabled buttons are removed from the tab order and don't fire `onClick`. If you need a button that's perceivable to assistive tech but inactive, use `aria-disabled="true"` plus a handler that no-ops instead of native `disabled`.
+- **Focus visible** — the browser's focus ring is preserved; don't strip it in a wrapping CSS module.
+- **Type attribute** — when used inside a `<form>`, pass `type="button"` unless the button is supposed to submit. Native default is `"submit"`, which causes accidental form submissions.

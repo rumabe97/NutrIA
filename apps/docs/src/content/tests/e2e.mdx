@@ -1,0 +1,57 @@
+# End-to-end testing
+
+The template **does not ship an end-to-end test harness.** This page explains the choice, what we recommend per-project, and how to add one when the time comes.
+
+## Why no e2e in the template
+
+Three reasons:
+
+1. **No flows to test.** The template has no user-facing app of its own — `apps/docs` is a component reference, `apps/web` is a starter shell. Neither has critical user flows worth automating.
+2. **Tooling choice belongs to the app.** Playwright, Cypress, and Puppeteer each have meaningful tradeoffs (parallelism, video recording, mobile coverage, CI cost). The right pick depends on what the app actually does — bundling one would over-prescribe.
+3. **Maintenance cost without payoff.** An e2e harness with no flows is dead infrastructure that breaks on every dependency bump. Worse — a half-built harness signals "this is supported" without actually being so.
+
+## When to add e2e to an app
+
+If your app does any of these, e2e earns its place:
+
+- Multi-step user flows where unit-level component contracts aren't enough (checkout, onboarding, file upload).
+- Browser-integration behaviour the design system unit tests can't reach (real scroll, focus management across portals, scroll-snap, real network).
+- Cross-browser parity (Safari quirks, Firefox edge cases).
+- Visual regression against known good baselines (Chromatic, Percy).
+
+If your app is a thin admin panel that mostly composes DS components, unit tests at the page level are usually enough. Don't pre-emptively add Playwright "just in case."
+
+## What we'd reach for
+
+| Tool | When it fits |
+|---|---|
+| **[Playwright](https://playwright.dev/)** | Default pick for new projects. Cross-browser, fast, great trace viewer, first-class TypeScript. The community standard right now. |
+| **[Cypress](https://www.cypress.io/)** | Strong DX if your team already knows it. Limited to Chromium-family browsers; less ergonomic for parallel CI. |
+| **[Chromatic](https://www.chromatic.com/)** / **[Percy](https://percy.io/)** | Visual regression specifically. Use _alongside_ Playwright/Cypress, not instead of. Pairs well with a Storybook setup. |
+
+## Suggested structure
+
+When an app adds e2e, the convention in this template would be:
+
+```
+apps/<app>/
+  e2e/
+    *.spec.ts           — tests
+    fixtures/           — test data
+    playwright.config.ts
+  package.json          — adds "e2e", "e2e:ui", "e2e:headed" scripts
+```
+
+Add the runner as a Turbo task (`e2e` with `cache: false, persistent: false`) so it integrates with `pnpm e2e` from the repo root.
+
+## What unit tests already cover (so you don't double-test)
+
+The UI library's unit tests already validate:
+
+- Component prop contracts and class composition
+- Keyboard navigation (arrow keys, Home/End, Enter/Space)
+- ARIA roles, names, and `aria-*` state
+- Basic interactions (click, focus, controlled vs uncontrolled state)
+- Hook contracts
+
+Don't re-test these in e2e — you'd just be slowly re-running what already passes in milliseconds. Use e2e for the things that genuinely need a real browser.

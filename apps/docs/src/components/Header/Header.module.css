@@ -1,0 +1,58 @@
+.header {
+  align-items: center;
+  background-color: color-mix(in srgb, var(--background-01) 85%, transparent);
+  backdrop-filter: saturate(180%) blur(10px);
+  -webkit-backdrop-filter: saturate(180%) blur(10px);
+  display: flex;
+  gap: var(--space-04);
+  height: var(--header-height);
+  padding-inline: 1rem;
+  /* `position: fixed` (not `sticky`) so the header is decoupled from the document's scroll —
+     no rubber-band bounce on overscroll, and natural scroll feel everywhere else. Body has
+     `padding-top: var(--header-height)` to reserve space below. */
+  left: 0;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: var(--z-dropdown);
+}
+
+/* Pull the Brand left so its hover hit-area aligns with the header edge. */
+.brand {
+  margin-left: -0.5rem;
+}
+
+.separator {
+  color: var(--foreground-03);
+  user-select: none;
+}
+
+.sections {
+  align-items: stretch;
+  display: flex;
+  gap: var(--space-04);
+  height: 100%;
+}
+
+.section {
+  align-items: center;
+  border-bottom: 2px solid transparent;
+  color: var(--foreground-02);
+  display: inline-flex;
+  margin-bottom: -1px;
+  padding: 0 var(--space-01);
+  text-decoration: none;
+  transition:
+    color var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default);
+}
+
+.section:hover {
+  color: var(--foreground-01);
+}
+
+.sectionActive {
+  border-bottom-color: var(--foreground-01);
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-medium);
+}

@@ -1,0 +1,56 @@
+import { Dialog } from 'ui/components/Dialog';
+import { Button } from 'ui/components/Button';
+import { PropsTable } from 'components/PropsTable';
+
+# Dialog
+
+A modal window that interrupts the user to request a decision or display critical information. Built on [Radix UI Dialog](https://www.radix-ui.com/primitives/docs/components/dialog), which traps focus inside the dialog, manages scroll lock, and handles `Escape` to close.
+
+## Examples
+
+### Basic
+
+<Preview code={`import { Dialog } from 'ui/components/Dialog';
+import { Button } from 'ui/components/Button';
+
+export default function Example() {
+  return (
+    <Dialog
+      closeButton={<Button variant="secondary">Close</Button>}
+      title="Confirm action"
+      trigger={<Button>Open dialog</Button>}
+    >
+      Are you sure you want to continue? This action cannot be undone.
+    </Dialog>
+  );
+}`}>
+  <Dialog
+    closeButton={<Button variant="secondary">Close</Button>}
+    title="Confirm action"
+    trigger={<Button>Open dialog</Button>}
+  >
+    Are you sure you want to continue? This action cannot be undone.
+  </Dialog>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "trigger", type: "ReactNode", default: "—", description: "**Required.** Element that opens the dialog" },
+  { prop: "title", type: "string", default: "—", description: "**Required.** Heading rendered inside the dialog" },
+  { prop: "closeButton", type: "ReactNode", default: "—", description: "**Required.** Element rendered as the close button" },
+  { prop: "children", type: "ReactNode", default: "—", description: "Body content of the dialog" },
+  { prop: "description", type: "string", default: "—", description: "Optional explanatory copy announced to screen readers via `aria-describedby`. Pass it when there's meaningful context beyond the title — e.g. \"This will permanently delete the project.\"" },
+  { prop: "open", type: "boolean", default: "—", description: "Controlled open state. Omit for uncontrolled behaviour (the trigger handles open/close)." },
+  { prop: "defaultOpen", type: "boolean", default: "false", description: "Initial open state in uncontrolled mode." },
+  { prop: "onOpenChange", type: "(open: boolean) => void", default: "—", description: "Fires when the open state changes (in both controlled and uncontrolled modes)." },
+]} />
+
+All other [Radix Dialog Root props](https://www.radix-ui.com/primitives/docs/components/dialog#root) are also forwarded.
+
+## Accessibility
+
+- Focus is trapped inside the dialog when open; returns to the trigger on close.
+- `Escape` closes the dialog.
+- Background content receives `aria-hidden` while the dialog is open.
+- The dialog element has `role="dialog"` and `aria-labelledby` pointing to the title.

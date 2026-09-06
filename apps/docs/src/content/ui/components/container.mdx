@@ -1,0 +1,106 @@
+import { Container } from 'ui/components/Container';
+import { PropsTable } from 'components/PropsTable';
+
+# Container
+
+A horizontally-centered, max-width wrapper for page content. Use it once per page (or once per major section) to keep line lengths readable on wide viewports — without it, text spans the full window width on a 27" monitor.
+
+The four `size` presets cover the typical reading widths. Apps can override the max-widths globally by re-defining the `.sm` / `.md` / `.lg` / `.xl` class selectors.
+
+## Examples
+
+### Default (`lg`)
+
+<Preview code={`import { Container } from 'ui/components/Container';
+
+export default function Example() {
+  return (
+    <Container>
+      <div className="demo-card">
+        Centered content with max-width 1024px.
+      </div>
+    </Container>
+  );
+}`}>
+  <Container>
+    <div className="demo-card">
+      Centered content with max-width 1024px.
+    </div>
+  </Container>
+</Preview>
+
+### Narrower (`md`) for reading content
+
+<Preview code={`import { Container } from 'ui/components/Container';
+
+export default function Example() {
+  return (
+    <Container size="md">
+      <div className="demo-card">
+        Articles read better at 768px max.
+      </div>
+    </Container>
+  );
+}`}>
+  <Container size="md">
+    <div className="demo-card">
+      Articles read better at 768px max.
+    </div>
+  </Container>
+</Preview>
+
+### With gutters
+
+Add `px` to inset content from the edges on narrow viewports:
+
+<Preview code={`import { Container } from 'ui/components/Container';
+
+export default function Example() {
+  return (
+    <Container size="md" px="04">
+      <div className="demo-card">
+        Has 16px gutters that prevent content touching the edges on mobile.
+      </div>
+    </Container>
+  );
+}`}>
+  <Container size="md" px="04">
+    <div className="demo-card">
+      Has 16px gutters that prevent content touching the edges on mobile.
+    </div>
+  </Container>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: 'as', type: 'ElementType', default: "'div'", description: 'Render as any HTML element' },
+  { prop: 'size', type: "'sm' | 'md' | 'lg' | 'xl'", default: "'lg'", description: 'Max-width preset: 640 / 768 / 1024 / 1280 px' },
+  { prop: 'px', type: 'SpaceScale', default: '—', description: 'Horizontal padding (gutters)' },
+]} />
+
+`SpaceScale` is `'01'`–`'12'`. All standard HTML attributes are also accepted.
+
+## Common pattern
+
+Combine Container with Section for the standard "page section" layout:
+
+```tsx
+<Section aria-labelledby="section-heading" size="lg">
+  <Container size="md" px="04">
+    <VStack gap="06">
+      <h2 id="section-heading">Section title</h2>
+      {children}
+    </VStack>
+  </Container>
+</Section>
+```
+
+Section provides vertical rhythm, Container caps width, VStack handles internal flow.
+
+## Accessibility
+
+Presentational only — renders a `<div>` by default (or whatever `as` you pass), with no inherent role.
+
+- For a labelled landmark region, use `<Section>` instead (or pass `as="section"` along with `aria-labelledby` / `aria-label`). See [Section vs raw tag](../../../) in the design-system AGENTS for the decision tree.
+- Container does not establish any tab order or focus behaviour. Reading order follows DOM order — don't reorder children with CSS `order` or `flex-direction: *-reverse`.

@@ -1,0 +1,66 @@
+import { Drawer } from 'ui/components/Drawer';
+import { Button } from 'ui/components/Button';
+import { PropsTable } from 'components/PropsTable';
+
+# Drawer
+
+A sheet that slides up from the bottom of the screen. Built on [Vaul](https://vaul.emilkowal.ski/) — the same primitive used by the Sidebar component — with drag-to-dismiss and accessible focus management.
+
+## Examples
+
+### Basic
+
+<Preview code={`import { Drawer } from 'ui/components/Drawer';
+import { Button } from 'ui/components/Button';
+
+export default function Example() {
+  return (
+    <Drawer title="Options" trigger={<Button>Open drawer</Button>}>
+      <p>Sheet content — actions, filters, or any other secondary UI.</p>
+    </Drawer>
+  );
+}`}>
+  <Drawer title="Options" trigger={<Button>Open drawer</Button>}>
+    <p>Sheet content — actions, filters, or any other secondary UI.</p>
+  </Drawer>
+</Preview>
+
+### With description
+
+Pass `description` when there's explanatory copy that should be announced to screen readers alongside the title — e.g. confirming a destructive action.
+
+<Preview code={`<Drawer
+  description="This will permanently delete the project and all its data."
+  title="Delete project"
+  trigger={<Button variant="secondary">Delete project</Button>}
+>
+  <p>Are you sure? This action cannot be undone.</p>
+</Drawer>`}>
+  <Drawer
+    description="This will permanently delete the project and all its data."
+    title="Delete project"
+    trigger={<Button variant="secondary">Delete project</Button>}
+  >
+    <p>Are you sure? This action cannot be undone.</p>
+  </Drawer>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "title", type: "string", default: "—", description: "**Required.** Accessible title for the drawer panel" },
+  { prop: "trigger", type: "ReactElement", default: "—", description: "**Required.** Element that opens the drawer" },
+  { prop: "children", type: "ReactNode", default: "—", description: "Drawer body content" },
+  { prop: "description", type: "string", default: "—", description: "Optional explanatory copy announced to screen readers via `aria-describedby`. Omit when the title is self-explanatory." },
+  { prop: "open", type: "boolean", default: "—", description: "Controlled open state. Omit for uncontrolled behaviour." },
+  { prop: "onOpenChange", type: "(open: boolean) => void", default: "—", description: "Fires when the open state changes (controlled or uncontrolled)." },
+]} />
+
+## Accessibility
+
+- The drawer title is announced by screen readers when the panel opens.
+- Focus moves into the drawer on open and returns to the trigger on close.
+- Drag-to-dismiss and `Escape` key both close the panel.
+- When `description` is omitted, the wrapper opts out of `aria-describedby` so Vaul doesn't emit a "missing description" warning.
+
+> **Note**: vaul (the underlying library) ships its own `'use client'` directive, so importing `Drawer` from a Server Component automatically draws the client boundary at the import site — you don't need to mark the page as `'use client'`.

@@ -1,0 +1,1 @@
+export { SpotlightEmpty } from './SpotlightEmpty';

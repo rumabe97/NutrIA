@@ -1,0 +1,132 @@
+import { Input } from 'ui/components/Input';
+import { PropsTable } from 'components/PropsTable';
+
+# Input
+
+A text input with a built-in, required label, optional hint text, and optional error message. The label is enforced via TypeScript — you cannot render an `Input` without one. The hint and error are linked to the input via `aria-describedby`, so screen readers announce them when the input is focused.
+
+Built on the native `<input>` element with `<label htmlFor>` linkage. Generates a stable id automatically (via `useId`) and reuses it for the hint and error ids.
+
+## Examples
+
+### Default
+
+<Preview code={`import { Input } from 'ui/components/Input';
+
+export default function Example() {
+  return <Input label="Email" type="email" placeholder="you@example.com" />;
+}`}>
+  <Input label="Email" type="email" placeholder="you@example.com" />
+</Preview>
+
+### With hint
+
+<Preview code={`import { Input } from 'ui/components/Input';
+
+export default function Example() {
+  return <Input label="Username" hint="Letters and numbers only, 3–20 characters." />;
+}`}>
+  <Input label="Username" hint="Letters and numbers only, 3–20 characters." />
+</Preview>
+
+### With error
+
+<Preview code={`import { Input } from 'ui/components/Input';
+
+export default function Example() {
+  return <Input label="Email" type="email" defaultValue="not-an-email" error="Enter a valid email address." />;
+}`}>
+  <Input label="Email" type="email" defaultValue="not-an-email" error="Enter a valid email address." />
+</Preview>
+
+### Required
+
+<Preview code={`import { Input } from 'ui/components/Input';
+
+export default function Example() {
+  return <Input label="Username" required placeholder="Pick a username" />;
+}`}>
+  <Input label="Username" required placeholder="Pick a username" />
+</Preview>
+
+### Disabled
+
+<Preview code={`import { Input } from 'ui/components/Input';
+
+export default function Example() {
+  return <Input label="Read only" defaultValue="cannot edit" disabled />;
+}`}>
+  <Input label="Read only" defaultValue="cannot edit" disabled />
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: 'label', type: 'string', default: '—', description: '**Required.** Visible label rendered above the input and linked via `htmlFor`' },
+  { prop: 'hint', type: 'string', default: '—', description: 'Helper text shown below the input. Hidden when `error` is also set' },
+  { prop: 'error', type: 'string', default: '—', description: 'Error message shown below the input. Adds `aria-invalid="true"`, red styling, and announces via `aria-live="polite"`. Prefer on-blur or on-submit validation — see Accessibility below.' },
+  { prop: 'type', type: 'string', default: "'text'", description: 'Any native input type (`text`, `email`, `password`, `number`, `url`, etc.)' },
+  { prop: 'disabled', type: 'boolean', default: 'false', description: 'Prevents interaction and dims the field' },
+  { prop: 'required', type: 'boolean', default: 'false', description: 'Marks the field as required for native form validation' },
+]} />
+
+All standard `<input>` HTML attributes are also accepted (`value`, `defaultValue`, `onChange`, `placeholder`, `name`, `min`, `max`, `pattern`, etc.). The `id` prop is intentionally omitted — `Input` generates its own stable id.
+
+## Use in forms
+
+Input is designed for the React 19 + Next.js server-action form pattern. The `error` prop is the integration point — pass the per-field error string from the action's returned state:
+
+```tsx
+'use client';
+import { useActionState } from 'react';
+import { Input } from 'ui/components/Input';
+import { Button } from 'ui/components/Button';
+import { registerAction } from './_actions/register';
+
+export function RegisterForm() {
+  const [state, action, isPending] = useActionState(registerAction, { errors: {} });
+
+  return (
+    <form>
+      <Input
+        defaultValue={state.email}
+        error={state.errors?.email}
+        label="Email"
+        name="email"
+        required
+        type="email"
+      />
+      <Input
+        error={state.errors?.password}
+        label="Password"
+        name="password"
+        required
+        type="password"
+      />
+      <Button formAction={action} type="submit" disabled={isPending}>
+        {isPending ? 'Submitting…' : 'Register'}
+      </Button>
+    </form>
+  );
+}
+```
+
+The full pattern is documented in `apps/web/AGENTS.md` under "Forms".
+
+## Accessibility
+
+- The `label` prop is required at the type level — no Input can be rendered without an accessible name.
+- `<label htmlFor={id}>` is linked to `<input id={id}>` so clicking the label focuses the input and screen readers announce the label.
+- When `hint` is set, the input gets `aria-describedby` pointing at the hint paragraph — screen readers announce the hint when the input is focused.
+- When `error` is set, the input gets `aria-invalid="true"` and `aria-describedby` pointing at the error paragraph. The hint is hidden so the error takes its place.
+- The error paragraph is `aria-live="polite"` — screen readers announce the message when it appears, not just when the input is re-focused. This is the [common DS pattern](https://primer.style/) (Primer, Carbon) and works without interrupting whatever the screen reader is currently reading.
+
+### Validation timing — prefer on-blur or on-submit
+
+Because the error is in a live region, setting it on **every keystroke** causes the screen reader to announce on every change — chatty and disorientating. Validate when the user has paused or moved on:
+
+- **`onBlur`** — validate when focus leaves the field. Good for "is this email valid?" checks.
+- **`onSubmit`** — validate when the form is submitted (the React 19 server-action pattern shown above does this automatically). Good for "do these passwords match?" / "is this username taken?" checks.
+
+If you genuinely need live validation as the user types (e.g. a password-strength indicator), **debounce** the error state in your form layer (~300ms) before passing it to the Input.
+- Generated ids use React's `useId()`, stable across SSR and client hydration.

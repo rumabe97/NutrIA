@@ -1,0 +1,5 @@
+{
+  "extends": "typescript-configuration/node.json",
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules"]
+}

@@ -1,0 +1,28 @@
+import { {{pascalCase name}} } from 'ui/components/{{pascalCase name}}';
+import { PropsTable } from 'components/PropsTable';
+
+# {{displayName name}}
+
+One-sentence description of what {{displayName name}} does and when to use it.
+
+## Examples
+
+<Preview code={`import { {{pascalCase name}} } from 'ui/components/{{pascalCase name}}';
+
+export default function Example() {
+  return <{{pascalCase name}}>Hello</{{pascalCase name}}>;
+}`}>
+  <{{pascalCase name}}>Hello</{{pascalCase name}}>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: 'children', type: 'ReactNode', default: '—', description: 'Body content' },
+]} />
+
+All standard HTML `div` attributes are also accepted.
+
+## Accessibility
+
+Presentational only — renders a `<div>` with no inherent role. Replace this section with the real a11y story for {{displayName name}}.

@@ -1,0 +1,38 @@
+{
+  "name": "database",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": "./src/client.ts",
+    "./schema/*": "./src/schemas/*.schema.ts"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "generate": "drizzle-kit generate",
+    "lint": "eslint 'src/**/*.ts' --max-warnings 0",
+    "lint:fix": "eslint 'src/**/*.ts' --fix",
+    "migrate": "drizzle-kit migrate",
+    "pull": "drizzle-kit pull",
+    "push": "drizzle-kit push",
+    "seed": "tsx ./src/seed.ts",
+    "ts:check": "tsc --noEmit",
+    "format": "prettier --check 'src/**/*.ts'",
+    "format:fix": "prettier --write 'src/**/*.ts'"
+  },
+  "dependencies": {
+    "auth": "workspace:*",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "jwt-decode": "^4.0.0",
+    "postgres": "^3.4.9"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "drizzle-kit": "^0.31.10",
+    "eslint-configuration": "workspace:*",
+    "tsx": "^4.22.3",
+    "typescript-configuration": "workspace:*"
+  }
+}

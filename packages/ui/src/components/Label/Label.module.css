@@ -1,0 +1,6 @@
+.label {
+  color: var(--foreground-01);
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-03);
+}

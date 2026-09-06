@@ -1,0 +1,25 @@
+.code {
+  font-size: 0.8125rem;
+  min-height: 240px;
+  overflow: auto;
+  padding: 0;
+}
+
+/* ── Shiki output ── */
+/* Light: inline styles from codeToHtml are authoritative; no override needed.
+   Dark: CSS variables --shiki-dark / --shiki-dark-bg are set as inline style props on each element. */
+.code :global(.shiki) {
+  min-height: 240px;
+  padding: 1.25rem 1.5rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  .code :global(.shiki) {
+    background-color: var(--shiki-dark-bg) !important;
+    color: var(--shiki-dark) !important;
+  }
+
+  .code :global(.shiki span) {
+    color: var(--shiki-dark) !important;
+  }
+}

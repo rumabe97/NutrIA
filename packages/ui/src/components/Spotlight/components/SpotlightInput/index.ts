@@ -1,0 +1,1 @@
+export { SpotlightInput } from './SpotlightInput';

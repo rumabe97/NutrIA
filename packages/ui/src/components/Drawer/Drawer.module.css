@@ -1,0 +1,44 @@
+.overlay {
+  background-color: var(--color-overlay);
+  inset: 0;
+  position: fixed;
+  z-index: var(--z-overlay);
+}
+
+.content {
+  background-color: var(--background-01);
+  border-top: 1px solid var(--border-01);
+  border-top-left-radius: var(--radius-04);
+  border-top-right-radius: var(--radius-04);
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-04);
+  left: 0;
+  max-height: 85dvh;
+  padding: var(--space-04);
+  position: fixed;
+  right: 0;
+  z-index: var(--z-modal);
+}
+
+.handle {
+  background-color: var(--border-01);
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+  height: 4px;
+  margin: 0 auto;
+  width: 48px;
+}
+
+.title {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+
+.description {
+  color: var(--foreground-02);
+  font-size: var(--font-size-03);
+  margin: 0;
+}

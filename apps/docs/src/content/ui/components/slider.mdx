@@ -1,0 +1,78 @@
+import { Slider } from 'ui/components/Slider';
+import { PropsTable } from 'components/PropsTable';
+
+# Slider
+
+An input for selecting a value (or range of values) along a track. Built on [Radix UI Slider](https://www.radix-ui.com/primitives/docs/components/slider). Keyboard accessible: arrow keys step by 1, `Page Up`/`Page Down` by 10%, `Home`/`End` jump to min/max.
+
+## Examples
+
+### Basic
+
+<Preview code={`import { Slider } from 'ui/components/Slider';
+
+export default function Example() {
+  return <Slider defaultValue={[40]} />;
+}`}>
+  <Slider defaultValue={[40]} />
+</Preview>
+
+### Range
+
+Two thumbs for selecting a range. Pass two values to `defaultValue`:
+
+<Preview code={`import { Slider } from 'ui/components/Slider';
+
+export default function Example() {
+  return <Slider ariaLabelThumbs={['Minimum price', 'Maximum price']} defaultValue={[20, 70]} />;
+}`}>
+  <Slider ariaLabelThumbs={['Minimum price', 'Maximum price']} defaultValue={[20, 70]} />
+</Preview>
+
+### Stepped
+
+<Preview code={`import { Slider } from 'ui/components/Slider';
+
+export default function Example() {
+  return <Slider defaultValue={[0]} step={10} />;
+}`}>
+  <Slider defaultValue={[0]} step={10} />
+</Preview>
+
+### Disabled
+
+<Preview code={`import { Slider } from 'ui/components/Slider';
+
+export default function Example() {
+  return <Slider defaultValue={[50]} disabled />;
+}`}>
+  <Slider defaultValue={[50]} disabled />
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: 'value', type: 'number[]', default: '—', description: 'Controlled value — array length determines the number of thumbs' },
+  { prop: 'defaultValue', type: 'number[]', default: '—', description: 'Uncontrolled initial value' },
+  { prop: 'onValueChange', type: '(value: number[]) => void', default: '—', description: 'Fires continuously while dragging' },
+  { prop: 'onValueCommit', type: '(value: number[]) => void', default: '—', description: 'Fires on pointer/key up' },
+  { prop: 'min', type: 'number', default: '0', description: 'Minimum value' },
+  { prop: 'max', type: 'number', default: '100', description: 'Maximum value' },
+  { prop: 'step', type: 'number', default: '1', description: 'Increment between steps' },
+  { prop: 'minStepsBetweenThumbs', type: 'number', default: '0', description: 'Minimum gap between thumbs in a range slider' },
+  { prop: 'orientation', type: "'horizontal' | 'vertical'", default: "'horizontal'", description: 'Layout direction' },
+  { prop: 'disabled', type: 'boolean', default: 'false', description: 'Prevents interaction' },
+  { prop: 'inverted', type: 'boolean', default: 'false', description: 'Reverses the track direction' },
+  { prop: 'name', type: 'string', default: '—', description: 'Form field name' },
+  { prop: 'ariaLabelThumbs', type: 'string[]', default: '—', description: 'Per-thumb accessible names. Use for range sliders so screen readers announce e.g. "Minimum price" / "Maximum price" instead of just "slider" twice.' },
+]} />
+
+All Radix Slider Root props are also accepted.
+
+## Accessibility
+
+- Each thumb has `role="slider"` with `aria-valuenow`, `aria-valuemin`, `aria-valuemax`, and `aria-valuetext`.
+- Arrow keys step by the `step` value; `Page Up`/`Page Down` by 10% of the range.
+- `Home` / `End` jump to min and max.
+- A single-thumb slider inherits its name from a wrapping `<label>` or an `aria-labelledby` on the Root.
+- A multi-thumb (range) slider needs **per-thumb** names so each handle is distinguishable. Pass `ariaLabelThumbs={['Minimum', 'Maximum']}` — without this, both thumbs announce as just "slider".

@@ -1,0 +1,134 @@
+import { Section } from 'ui/components/Section';
+import { Container } from 'ui/components/Container';
+import { PropsTable } from 'components/PropsTable';
+
+# Section
+
+A semantic `<section>` landmark with a tiered vertical-rhythm preset. Use it to separate major regions of a page (hero, features, footer).
+
+Section **always** renders a `<section>` element and **requires** an accessible name via `aria-label` or `aria-labelledby`. TypeScript will refuse to compile without one. If you need vertical-rhythm padding on a non-section element, use a `<div>` (or `<Box as="…">`) with CSS in your component's module instead.
+
+The `size` prop chooses one of four pre-defined vertical-padding tiers. There is no raw `py` prop — that would compete with the design system's CSS modules. If the four tiers aren't enough for a specific page, write the override in the consuming component's CSS module via `className`.
+
+## Why a name is required
+
+A `<section>` element only becomes a navigable landmark for screen readers if it has an accessible name. The accessible-name algorithm checks `aria-labelledby` → `aria-label` → `title`, in that order — **it does not auto-derive the name from a child heading**. A `<section>` with a visible `<h2>` inside but no `aria-*` attribute is announced as a generic group (or skipped entirely) by most screen readers — effectively a `<div>` for landmark navigation.
+
+The recommended pattern points `aria-labelledby` at the visible heading's id. **Always generate the id with React's `useId()` hook** so two instances of the same component never clash:
+
+```tsx
+import { useId } from 'react';
+
+function PricingSection() {
+  const headingId = useId();
+  return (
+    <Section aria-labelledby={headingId}>
+      <h2 id={headingId}>Pricing</h2>
+      …
+    </Section>
+  );
+}
+```
+
+`useId` is stable across SSR and client hydration, doesn't require `'use client'`, and never collides across instances. The same rule applies to every ARIA id wiring (`aria-describedby`, `aria-controls`, etc.) — never hardcode the string.
+
+This way the heading stays visible *and* the region is named "Pricing" in landmark navigation.
+
+## Examples
+
+### Labelled by a child heading
+
+<Preview code={`import { Section } from 'ui/components/Section';
+
+export default function Example() {
+  return (
+    <Section aria-labelledby="features-heading" style={{ background: 'var(--background-02)' }}>
+      <h2 id="features-heading">Features</h2>
+      <p>Everything you need, nothing you don't.</p>
+    </Section>
+  );
+}`}>
+  <Section aria-labelledby="features-heading-demo" style={{ background: 'var(--background-02)' }}>
+    <h2 id="features-heading-demo">Features</h2>
+    <p>Everything you need, nothing you don't.</p>
+  </Section>
+</Preview>
+
+### Labelled by an invisible name
+
+When there's no visible heading, use `aria-label`:
+
+<Preview code={`import { Section } from 'ui/components/Section';
+
+export default function Example() {
+  return (
+    <Section aria-label="Newsletter signup" style={{ background: 'var(--background-02)' }}>
+      <p>Drop in your email to stay in the loop.</p>
+    </Section>
+  );
+}`}>
+  <Section aria-label="Newsletter signup" style={{ background: 'var(--background-02)' }}>
+    <p>Drop in your email to stay in the loop.</p>
+  </Section>
+</Preview>
+
+### Size tiers
+
+<Preview code={`import { Section } from 'ui/components/Section';
+
+export default function Example() {
+  return (
+    <>
+      <Section aria-label="Small section" size="sm" style={{ background: 'var(--background-02)' }}>sm — 16px each side</Section>
+      <Section aria-label="Medium section" size="md" style={{ background: 'var(--background-highlight)' }}>md — 24px each side</Section>
+      <Section aria-label="Large section" size="lg" style={{ background: 'var(--background-02)' }}>lg — 40px each side (default)</Section>
+      <Section aria-label="Extra-large section" size="xl" style={{ background: 'var(--background-highlight)' }}>xl — 64px each side</Section>
+    </>
+  );
+}`}>
+  <Section aria-label="Small section demo" size="sm" style={{ background: 'var(--background-02)' }}>sm — 16px each side</Section>
+  <Section aria-label="Medium section demo" size="md" style={{ background: 'var(--background-highlight)' }}>md — 24px each side</Section>
+  <Section aria-label="Large section demo" size="lg" style={{ background: 'var(--background-02)' }}>lg — 40px each side (default)</Section>
+  <Section aria-label="Extra-large section demo" size="xl" style={{ background: 'var(--background-highlight)' }}>xl — 64px each side</Section>
+</Preview>
+
+### Full page-section pattern
+
+<Preview code={`import { Section } from 'ui/components/Section';
+import { Container } from 'ui/components/Container';
+
+export default function Example() {
+  return (
+    <Section aria-labelledby="cta-heading" size="xl" style={{ background: 'var(--background-02)' }}>
+      <Container size="md" px="04">
+        <h2 id="cta-heading" style={{ marginTop: 0 }}>Get started</h2>
+        <p>Section wraps the full-width band; Container caps the content width.</p>
+      </Container>
+    </Section>
+  );
+}`}>
+  <Section aria-labelledby="cta-heading-demo" size="xl" style={{ background: 'var(--background-02)' }}>
+    <Container size="md" px="04">
+      <h2 id="cta-heading-demo" style={{ marginTop: 0 }}>Get started</h2>
+      <p>Section wraps the full-width band; Container caps the content width.</p>
+    </Container>
+  </Section>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: 'aria-label', type: 'string', default: '—', description: '**Required (or `aria-labelledby`).** Accessible name announced as the landmark name' },
+  { prop: 'aria-labelledby', type: 'string', default: '—', description: '**Required (or `aria-label`).** Id of the visible element that names this section' },
+  { prop: 'size', type: "'sm' | 'md' | 'lg' | 'xl'", default: "'lg'", description: 'Vertical-padding tier: 16 / 24 / 40 / 64 px each side' },
+]} />
+
+All standard HTML attributes are also accepted. Pass `className` to extend Section's styles from a CSS module.
+
+## Accessibility
+
+- **Always provide a name.** TypeScript enforces it — `<Section>` without `aria-label` or `aria-labelledby` is a compile error.
+- **Prefer `aria-labelledby`** when there's a visible heading. The screen reader announces the visible label, which stays in sync if the text changes.
+- **Use `aria-label`** only when there is no visible label nearby — e.g. a section with only an image or interactive control.
+- **Don't nest sections more than 2–3 deep.** Each `<section>` adds to the heading outline and creates a landmark; too many flattens the structure.
+- **Headings inside the section follow the document outline.** If the Section is at the same level as another, use `<h2>`. If nested inside another section that uses `<h2>`, use `<h3>`. Section itself doesn't render headings — your content does.

@@ -1,0 +1,11 @@
+{
+  "extends": "typescript-configuration/node.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "paths": {
+      "commands/*": ["./src/commands/*"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

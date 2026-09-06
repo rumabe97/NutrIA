@@ -1,0 +1,182 @@
+import { Text } from 'ui/components/Text';
+import { PropsTable } from 'components/PropsTable';
+
+# Text
+
+A typographic primitive for any non-heading text — paragraphs, captions, labels, small print. Defaults to a `<p>` with body size, regular weight, and primary tone.
+
+Use `Text` instead of raw `<p>` / `<span>` whenever the styling is intentional (which is most of the time in an app). It centralizes the vocabulary — `size`, `weight`, `tone`, `align` — so every paragraph in the app draws from the same scale.
+
+## Examples
+
+### Default
+
+<Preview code={`import { Text } from 'ui/components/Text';
+
+export default function Example() {
+  return <Text>Default body text — size md, weight regular, tone primary.</Text>;
+}`}>
+  <Text>Default body text — size md, weight regular, tone primary.</Text>
+</Preview>
+
+### Sizes
+
+<Preview code={`import { Text } from 'ui/components/Text';
+
+export default function Example() {
+  return (
+    <>
+      <Text size="xs">xs — caption (12px)</Text>
+      <Text size="sm">sm — small body (13px)</Text>
+      <Text size="md">md — body (14px, default)</Text>
+      <Text size="lg">lg — large body (16px)</Text>
+    </>
+  );
+}`}>
+  <Text size="xs">xs — caption (12px)</Text>
+  <Text size="sm">sm — small body (13px)</Text>
+  <Text size="md">md — body (14px, default)</Text>
+  <Text size="lg">lg — large body (16px)</Text>
+</Preview>
+
+### Weights
+
+<Preview code={`import { Text } from 'ui/components/Text';
+
+export default function Example() {
+  return (
+    <>
+      <Text weight="regular">Regular — default for body</Text>
+      <Text weight="medium">Medium — for slight emphasis</Text>
+      <Text weight="semibold">Semibold — for inline emphasis or labels</Text>
+      <Text weight="bold">Bold — for strong emphasis</Text>
+    </>
+  );
+}`}>
+  <Text weight="regular">Regular — default for body</Text>
+  <Text weight="medium">Medium — for slight emphasis</Text>
+  <Text weight="semibold">Semibold — for inline emphasis or labels</Text>
+  <Text weight="bold">Bold — for strong emphasis</Text>
+</Preview>
+
+### Tones
+
+`tone` maps to the foreground tokens. Use `secondary` for de-emphasized content, `disabled` for unavailable text.
+
+`tertiary` is intentionally sub-AA (it maps to `--foreground-03`, designed for **decorative non-text** like placeholders and dots). Use it sparingly for content where slight contrast trade-off is acceptable — non-essential metadata, watermark-style captions. For genuine body text — including hints, helper text, and important metadata — reach for `secondary` instead.
+
+<Preview code={`import { Text } from 'ui/components/Text';
+
+export default function Example() {
+  return (
+    <>
+      <Text>Primary — full-emphasis body text</Text>
+      <Text tone="secondary">Secondary — slightly muted, for supporting copy</Text>
+      <Text tone="tertiary">Tertiary — strongly muted, for hints and metadata</Text>
+      <Text tone="disabled">Disabled — for unavailable text</Text>
+    </>
+  );
+}`}>
+  <Text>Primary — full-emphasis body text</Text>
+  <Text tone="secondary">Secondary — slightly muted, for supporting copy</Text>
+  <Text tone="tertiary">Tertiary — strongly muted, for hints and metadata</Text>
+  <Text tone="disabled">Disabled — for unavailable text</Text>
+</Preview>
+
+### Inline (`as="span"`)
+
+For inline text — e.g. mixing tones inside a paragraph — render as a `<span>`:
+
+<Preview code={`import { Text } from 'ui/components/Text';
+
+export default function Example() {
+  return (
+    <Text>
+      Most of this paragraph is primary, but{' '}
+      <Text as="span" tone="tertiary">this part is muted</Text>{' '}
+      to de-emphasize it.
+    </Text>
+  );
+}`}>
+  <Text>Most of this paragraph is primary, but <Text as="span" tone="tertiary">this part is muted</Text> to de-emphasize it.</Text>
+</Preview>
+
+### Semantic inline tags
+
+Use the semantic HTML element that matches the **meaning** of the text. The browser's user-agent stylesheet applies the right visual default automatically (bold for `<strong>`, italic for `<em>`, line-through for `<s>`, yellow background for `<mark>`).
+
+<Preview code={`import { Text } from 'ui/components/Text';
+
+export default function Example() {
+  return (
+    <>
+      <Text>
+        Make sure you <Text as="strong">save your work</Text> before closing the tab.
+      </Text>
+      <Text>
+        This is <Text as="em">strongly recommended</Text> for new accounts.
+      </Text>
+      <Text>
+        <Text as="s">Old price $50</Text> — now $29.
+      </Text>
+      <Text>
+        Recent change: <Text as="mark">the API endpoint moved</Text> last week.
+      </Text>
+    </>
+  );
+}`}>
+  <Text>Make sure you <Text as="strong">save your work</Text> before closing the tab.</Text>
+  <Text>This is <Text as="em">strongly recommended</Text> for new accounts.</Text>
+  <Text><Text as="s">Old price $50</Text> — now $29.</Text>
+  <Text>Recent change: <Text as="mark">the API endpoint moved</Text> last week.</Text>
+</Preview>
+
+> `<Text as="strong">` renders bold because of the browser default — Text only applies the `weight` class when you pass the prop explicitly. If you want strong-but-not-bold, pass `weight="regular"`. If you want bold without the semantics, use `<Text weight="bold">`.
+
+## Props
+
+<PropsTable data={[
+  { prop: 'as', type: "'p' | 'span' | 'small' | 'strong' | 'em' | 'mark' | 's'", default: "'p'", description: 'HTML tag to render. Use the tag that matches the semantic meaning of the text' },
+  { prop: 'size', type: "'xs' | 'sm' | 'md' | 'lg'", default: "'md'", description: 'Font-size tier — maps to `--font-size-01`–`--font-size-04`' },
+  { prop: 'weight', type: "'regular' | 'medium' | 'semibold' | 'bold'", default: '—', description: 'Font weight token. When omitted, the browser default applies — important for `<strong>` and `<em>` to render with their semantic visual default' },
+  { prop: 'tone', type: "'primary' | 'secondary' | 'tertiary' | 'disabled'", default: "'primary'", description: "Text color — `--foreground-01/02/03/disabled`. `tertiary` is sub-AA (decorative use only — for AA-passing dim text use `secondary`). `disabled` is exempt by WCAG 1.4.3." },
+  { prop: 'align', type: "'start' | 'center' | 'end' | 'justify'", default: '—', description: 'Text alignment (only meaningful on block-level elements)' },
+]} />
+
+All standard HTML attributes are also accepted (`className`, `style`, `id`, `onClick`, etc.).
+
+## When NOT to use Text
+
+- **For headings** — use `Heading`, not `<Text size="lg" weight="semibold">`. The semantic tag matters.
+- **For inline code** — use `Code`.
+- **For purely decorative or one-off styling** — write the CSS in your component's module. Text is for the recurring vocabulary, not for every styled span.
+
+## Extending `tone` for semantic states
+
+`tone` currently covers emphasis tiers (primary / secondary / tertiary / disabled). Some projects also need semantic states — success, warning, error — to colour inline messages like "Saved" or "Invalid email." The DS already defines `--color-success`, `--color-warning`, `--color-error` tokens, so the extension is small and mechanical:
+
+```ts
+// Text.tsx — widen the type
+type TextTone = 'primary' | 'secondary' | 'tertiary' | 'disabled' | 'success' | 'warning' | 'error';
+```
+
+```css
+/* Text.module.css — add the matching classes */
+.tone-success { color: var(--color-success); }
+.tone-warning { color: var(--color-warning); }
+.tone-error { color: var(--color-error); }
+```
+
+That's the whole change. The same pattern applies to `Heading` if you ever need semantically-coloured headings (rare).
+
+**Naming convention:** keep the state names matching the existing token suffix (`--color-success` ↔ `tone="success"`). Don't invent new names ("ok", "danger", "alert") — symmetry with the token catalog is what makes the API memorable.
+
+**When NOT to extend:** if the colour is only used in *one* component (e.g. a per-field error message in `Input`), don't put it in `tone` — Input already uses `--color-error` directly via its own `.invalid` CSS class. `tone` is for colours that need to be settable from JSX across many components.
+
+## Accessibility
+
+Defaults to `<p>` and respects the semantic tag you pass via `as` — that's the whole accessibility story.
+
+- **Choose `as` semantically.** `<p>` for paragraphs, `<span>` for inline runs, `<strong>` / `<em>` / `<mark>` / `<s>` when the emphasis is meaningful (assistive tech announces them). Use `as="span"` for inline copy — don't nest a `<p>` inside another `<p>`.
+- **`tone` is not a substitute for semantics.** Coloured text alone doesn't convey state to screen readers or to colour-blind users. For a real error/success message, pair the visible Text with an `aria-live` region or a leading icon with a label.
+- **Don't strip text into images.** Keep the words in the DOM so they're selectable, translatable, and zoomable.

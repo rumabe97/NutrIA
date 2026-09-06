@@ -1,0 +1,96 @@
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from 'ui/components/Collapsible';
+import { PropsTable } from 'components/PropsTable';
+
+# Collapsible
+
+Shows and hides a section of content with an animated transition. Follows the WAI-ARIA Disclosure pattern. Built on [Radix UI Collapsible](https://www.radix-ui.com/primitives/docs/components/collapsible).
+
+## Examples
+
+### Basic
+
+<Preview code={`import { Collapsible, CollapsibleTrigger, CollapsibleContent } from 'ui/components/Collapsible';
+
+export default function Example() {
+  return (
+    <Collapsible>
+      <CollapsibleTrigger>Toggle section</CollapsibleTrigger>
+      <CollapsibleContent>
+        <p style={{ paddingTop: 'var(--space-03)', color: 'var(--foreground-02)' }}>
+          This content collapses and expands with a smooth animation.
+        </p>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}`}>
+  <Collapsible>
+    <CollapsibleTrigger>Toggle section</CollapsibleTrigger>
+    <CollapsibleContent>
+      <p style={{ paddingTop: 'var(--space-03)', color: 'var(--foreground-02)' }}>This content collapses and expands with a smooth animation.</p>
+    </CollapsibleContent>
+  </Collapsible>
+</Preview>
+
+### Open by default
+
+<Preview code={`import { Collapsible, CollapsibleTrigger, CollapsibleContent } from 'ui/components/Collapsible';
+
+export default function Example() {
+  return (
+    <Collapsible defaultOpen>
+      <CollapsibleTrigger>Hide details</CollapsibleTrigger>
+      <CollapsibleContent>
+        <p style={{ paddingTop: 'var(--space-03)', color: 'var(--foreground-02)' }}>
+          This panel starts open.
+        </p>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}`}>
+  <Collapsible defaultOpen>
+    <CollapsibleTrigger>Hide details</CollapsibleTrigger>
+    <CollapsibleContent>
+      <p style={{ paddingTop: 'var(--space-03)', color: 'var(--foreground-02)' }}>This panel starts open.</p>
+    </CollapsibleContent>
+  </Collapsible>
+</Preview>
+
+### Controlled
+
+```tsx
+const [open, setOpen] = useState(false);
+
+<Collapsible open={open} onOpenChange={setOpen}>
+  <CollapsibleTrigger>{open ? 'Hide' : 'Show'} details</CollapsibleTrigger>
+  <CollapsibleContent>...</CollapsibleContent>
+</Collapsible>
+```
+
+## Props
+
+### `Collapsible`
+
+<PropsTable data={[
+  { prop: 'open', type: 'boolean', default: '—', description: 'Controlled open state' },
+  { prop: 'defaultOpen', type: 'boolean', default: '—', description: 'Uncontrolled initial state' },
+  { prop: 'onOpenChange', type: '(open: boolean) => void', default: '—', description: 'Called when open state changes' },
+  { prop: 'disabled', type: 'boolean', default: 'false', description: 'Prevents toggling' },
+]} />
+
+All Radix Collapsible Root props are also accepted.
+
+### `CollapsibleTrigger`
+
+Renders a `<button>` that toggles the panel. Accepts all Radix Collapsible Trigger props.
+
+### `CollapsibleContent`
+
+<PropsTable data={[
+  { prop: 'forceMount', type: 'boolean', default: '—', description: 'Keep content mounted even when closed' },
+]} />
+
+## Accessibility
+
+- `Space` / `Enter` on the trigger toggles the panel.
+- `aria-expanded` on the trigger reflects open state.
+- `aria-controls` links the trigger to the content panel.

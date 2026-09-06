@@ -1,0 +1,119 @@
+# Unit testing
+
+The template ships **300+ unit tests** across the UI library, run by [Vitest](https://vitest.dev/) in a jsdom environment with [@testing-library/react](https://testing-library.com/docs/react-testing-library/intro/). Coverage is enforced via thresholds — CI fails if any of the four metrics drops below the floor.
+
+## The stack
+
+| Concern | Tool | Why |
+|---|---|---|
+| Test runner | Vitest 4 | Native ESM, fast, mirrors Vite's transform pipeline, great Turbopack/Next compatibility |
+| DOM environment | jsdom | Sufficient for the API contracts we test; no real browser overhead |
+| Rendering | @testing-library/react | Drives components the way users do — by role, by label, by text |
+| Interactions | @testing-library/user-event | Fires the realistic sequence of pointerdown / mousedown / focus / etc. |
+| Assertions | @testing-library/jest-dom (Vitest variant) | `toHaveClass`, `toHaveStyle`, `toBeInTheDocument`, etc. |
+| Coverage | `@vitest/coverage-istanbul` | Source-level instrumentation — accurate branch coverage on TS/JSX |
+
+`@testing-library/jest-dom` is loaded once globally in `packages/ui/test/setup.ts`, so individual test files don't need to import it.
+
+## Why Vitest, not Jest
+
+Two reasons that matter for this template:
+
+1. **It uses Vite's transform pipeline natively.** Our TS/JSX/CSS-module handling is the same in tests as it is in dev. Jest would need separate Babel + ts-jest + CSS-modules transformers — three independent moving parts that drift over time.
+2. **It's fast.** Hot-reload tests stay hot in watch mode; cold runs of the full suite finish in ~4 seconds.
+
+The choice is independent of Turborepo — Turbo orchestrates tasks; Vitest runs them. We aren't tied to Vite as a bundler either; Next still ships with Turbopack.
+
+## Why Istanbul (and not v8)
+
+Istanbul is the de-facto JS coverage library — it rewrites your source before tests run, sprinkling counters around every statement, branch, and function so the runner can record exactly what executed. Vitest gives you two providers:
+
+| | `istanbul` (what we use) | `v8` |
+|---|---|---|
+| How | Instruments source after transform | Uses Node's V8 engine coverage API |
+| Speed | Slower (extra transform step) | Faster (zero overhead) |
+| Accuracy on TS/JSX | High — sees your source | Mediocre — measures compiled JS, then back-maps via sourcemaps. Branch coverage on TS/JSX can lie. |
+| When to pick | Design systems, libraries, anywhere you care about branch coverage | Apps with mountains of code where speed beats nuance |
+
+For a TS+React design system, istanbul's branch numbers are the ones you can actually trust. We can revisit if test runs get slow.
+
+## What the coverage columns mean
+
+When you run `pnpm test:coverage`, the report looks like:
+
+```
+File             | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s
+Carousel.tsx     |   95.45 |    78.08 |   98.03 |   97.34 | 88, 151-153, 315
+```
+
+| Column | What it counts | Quick example |
+|---|---|---|
+| **% Stmts** (Statements) | % of JS statements executed at least once. A "statement" is one logical step — `const x = 1`, a function call, a `return`. | `const a = 1; const b = 2;` on one line = 2 statements |
+| **% Branch** (Branches) | % of conditional paths taken. Every `if`/`else`, ternary, `&&`, `\|\|`, `??`, `switch case` creates 2+ branches. 100% means each condition was hit both true *and* false during tests. | `if (a) doX(); else doY();` — branches=2, both must run |
+| **% Funcs** (Functions) | % of declared functions invoked at least once. | A component never rendered = 0% |
+| **% Lines** | % of physical source lines that executed. Similar to Stmts but counted by line number. | Usually tracks Stmts closely |
+| **Uncovered Line #s** | Specific line numbers in the source file that never executed. Click into the HTML report for highlighted source. | `55-99` means lines 55–99 are dead during tests |
+
+**Branch coverage is the hardest** — you can hit 100% statements/funcs without ever exercising the "what if this is null" path. When auditing test quality, look at branch coverage, not statement coverage.
+
+## What we test, and why
+
+The Carousel test file is the canonical reference for "everything we test":
+
+- **Accessibility** — required ARIA roles and names, `aria-current` state, that hooks throw when called outside their provider.
+- **Keyboard navigation** — arrow keys, Home / End, Enter / Space, via `userEvent.keyboard`.
+- **Pointer interaction** — `userEvent.click` rather than raw `fireEvent.click` (it dispatches the realistic event sequence).
+- **Touch gestures** — `fireEvent.touch*` with explicit `timeStamp` overrides (jsdom uses wall-clock time, which breaks velocity-based handlers).
+- **Hook contracts** — `renderHook` + assertions on `result.current`.
+
+We deliberately **don't** test pure styling (brittle, tests the CSS module not the user-visible behaviour) or React-internal implementation details (`useEffect` choices, `useState` shape).
+
+## What we deliberately can't test
+
+A category of bugs lives outside unit-test reach:
+
+- Real smooth-scroll animations (jsdom has no layout)
+- IntersectionObserver feedback during in-progress scrolls (we mock IO to a no-op)
+- StrictMode double-invocation interactions with side effects (final state often masks the issue)
+- Rapid user input racing with React reconciliation
+- CSS scroll-snap behaviour (not in jsdom)
+
+This category is covered by **dogfooding** during development + **per-project e2e tests**, not by unit tests. The Carousel had two such bugs surface during testing of the docs app — we caught them by using the page, then wrote targeted fixes. Tests would have needed a real browser to detect them.
+
+## jsdom polyfills we ship
+
+In `packages/ui/test/setup.ts` we polyfill the APIs Radix-based primitives expect that jsdom doesn't ship. If you add a component that needs another browser-only API, add the mock here so every test file gets it:
+
+- `IntersectionObserver` — no-op constructor
+- `ResizeObserver` — no-op constructor (Slider, Select sizing)
+- `TouchEvent` — minimal polyfill extending `UIEvent` (React 19 synthetic-event dispatch needs this)
+- `matchMedia` — stub (vaul reads it for reduced-motion detection)
+- `Element.prototype.hasPointerCapture` / `setPointerCapture` / `releasePointerCapture` (Radix Select)
+- `Element.prototype.scrollTo` — `vi.fn()` (jsdom defines it but as a no-op)
+- `Element.prototype.scrollIntoView` — no-op
+
+## Coverage thresholds
+
+Set in `packages/ui/vitest.config.ts`. They reflect the current floor and are meant to **ratchet up** as new tests are added — bump them in the same PR so coverage never silently regresses.
+
+Coverage excludes are scoped to noise that doesn't represent meaningful behaviour: barrel `index.ts` files, type-only files, test files themselves, future story files. See `packages/ui/vitest.config.ts` for the full exclude list and the reasoning behind each entry.
+
+## Running tests
+
+From the repo root:
+
+```bash
+pnpm test              # one-shot run, all packages
+pnpm test:watch        # watch mode (only packages that have tests)
+pnpm test:coverage     # one-shot + coverage report (HTML at packages/ui/coverage/index.html)
+```
+
+From `packages/ui` directly:
+
+```bash
+pnpm test                    # run all tests in the UI package
+pnpm exec vitest <pattern>   # run a subset by file/test name
+pnpm test:coverage           # local coverage report
+```
+
+The HTML report at `packages/ui/coverage/index.html` is the most useful artifact — it lets you click into any file and see exactly which lines and branches weren't hit, highlighted in red.

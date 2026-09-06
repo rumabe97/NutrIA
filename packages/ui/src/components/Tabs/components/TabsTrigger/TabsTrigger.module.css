@@ -1,0 +1,23 @@
+.trigger {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--foreground-02);
+  cursor: pointer;
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+  margin-bottom: -1px;
+  padding: 0.625rem var(--space-04);
+  transition:
+    color var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default);
+}
+
+.trigger:hover {
+  color: var(--foreground-01);
+}
+
+.trigger[data-state='active'] {
+  border-bottom-color: var(--foreground-01);
+  color: var(--foreground-01);
+}

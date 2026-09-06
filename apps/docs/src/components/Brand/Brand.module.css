@@ -1,0 +1,35 @@
+.brand {
+  align-items: center;
+  border-radius: var(--radius-02);
+  color: var(--foreground-01);
+  cursor: pointer;
+  display: inline-flex;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-weight: var(--font-weight-semibold);
+  gap: 0.5rem;
+  letter-spacing: -0.02em;
+  padding: var(--space-02) var(--space-03);
+  text-decoration: none;
+  transition: background-color var(--duration-fast) var(--ease-default);
+}
+
+.brand:hover {
+  background-color: var(--background-highlight);
+}
+
+.brand:hover .mark {
+  transform: rotate(45deg);
+}
+
+.mark {
+  background: var(--foreground-01);
+  border-radius: 2px;
+  display: inline-block;
+  height: 10px;
+  transition: transform var(--duration-fast) var(--ease-default);
+  width: 10px;
+}
+
+.brandText {
+  font-size: var(--font-size-04);
+}

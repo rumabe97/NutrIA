@@ -1,0 +1,157 @@
+/* App-specific global styles.
+   The shared reset (box-sizing, body defaults, font-family) lives in ui/styles/base.
+   Add only what is unique to this app here. */
+
+/* The Header is `position: fixed` (see Header.module.css for why). Reserve space at the top
+   of the body so content doesn't slip behind it on initial render. */
+body {
+  padding-top: var(--header-height);
+}
+
+a {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+
+p {
+  margin-block: var(--space-02);
+}
+
+h1 {
+  margin-top: var(--space-08);
+}
+
+h2 {
+  margin-top: var(--space-08);
+}
+
+h3 {
+  margin-top: var(--space-06);
+}
+
+h4 {
+  margin-top: var(--space-05);
+}
+
+:not(pre) > code {
+  background-color: var(--background-highlight);
+  border-radius: var(--radius-01);
+  padding: 0.1em 0.35em;
+  font-size: 0.875em;
+}
+
+/* Shape used by layout primitive demos (Flex, Grid, Container, …).
+   Token-based so it matches the DS palette in both light and dark modes. */
+.demo-card {
+  background: var(--background-02);
+  border-radius: var(--radius-02);
+  padding: var(--space-04);
+}
+
+.dotted {
+  background-image: linear-gradient(var(--transparent-dotted-border, #ccc) 33%, hsla(0, 0%, 100%, 0) 0);
+  background-size: 1px 4px;
+}
+
+.dotted-right {
+  background-position: 100%;
+  background-repeat: repeat-y;
+}
+
+.dotted-bottom,
+.dotted-top {
+  background-image: repeating-linear-gradient(
+    90deg,
+    var(--transparent-dotted-border, #ccc) 0,
+    var(--transparent-dotted-border, #ccc) 1px,
+    transparent 1px,
+    transparent 4px
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 1px;
+}
+
+.dotted-bottom {
+  background-position: bottom;
+}
+
+.dotted-top {
+  background-position: top;
+}
+
+/* not-found page — inlined here (instead of a CSS module) so Next doesn't
+   preload a per-route chunk on every navigation. The dev preload warning the
+   module triggered was noise; the styles ride along with the global bundle
+   instead. */
+.not-found-page {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin: auto;
+  text-align: center;
+  user-select: none;
+}
+
+.not-found-title {
+  border-right: 1px solid rgba(0, 0, 0, 0.3);
+  display: inline-block;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 49px;
+  margin: 0 20px 0 0;
+  padding: 0 23px 0 0;
+  vertical-align: top;
+}
+
+.not-found-container {
+  display: inline-block;
+}
+
+.not-found-subtitle {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 49px;
+  margin: 0;
+}
+
+/* MDX content typography — restores the bullet/number padding the shared reset strips
+   (so lists in docs pages don't have their markers clipped off-screen), plus a bit of
+   vertical breathing room between siblings.
+   Scoped to `main` (NOT global) so it only affects rendered docs content — every routed
+   page wraps its content in `<main>` (see `app/page.tsx`, `app/(sectioned)/[...slug]/page.tsx`).
+   The scoping keeps these rules from leaking into DS components like Spotlight that render
+   their own internal `<ul>` lists in dropdowns / menus, where these defaults would be wrong.
+   If you ever build a docs page without a `<main>` wrapper, the lists in it will lose this
+   styling — wrap it in `<main>` (or update the selector). */
+main ul,
+main ol {
+  margin-block: var(--space-03);
+  padding-left: var(--space-06);
+}
+
+main ul {
+  list-style: disc;
+}
+
+main ol {
+  list-style: decimal;
+}
+
+main li {
+  margin-block: var(--space-01);
+}
+
+main li::marker {
+  color: var(--foreground-03);
+}
+
+main li > ul,
+main li > ol {
+  margin-block: var(--space-01);
+}
+
+/* Tighten paragraph spacing inside list items so multi-line bullets read as one item. */
+main li > p {
+  margin: 0;
+}

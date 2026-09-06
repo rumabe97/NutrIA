@@ -1,0 +1,80 @@
+import { Select, SelectOption } from 'ui/components/Select';
+import { PropsTable } from 'components/PropsTable';
+
+# Select
+
+A dropdown control for picking a single value from a list. Built on [Radix UI Select](https://www.radix-ui.com/primitives/docs/components/select), which provides typeahead search, keyboard navigation, and full WAI-ARIA compliance.
+
+## Examples
+
+### Basic
+
+<Preview code={`import { Select, SelectOption } from 'ui/components/Select';
+
+export default function Example() {
+  return (
+    <Select aria-label="Fruit" placeholder="Pick a fruit">
+      <SelectOption indicator="✓" value="apple">Apple</SelectOption>
+      <SelectOption indicator="✓" value="banana">Banana</SelectOption>
+      <SelectOption indicator="✓" value="cherry">Cherry</SelectOption>
+    </Select>
+  );
+}`}>
+  <Select aria-label="Fruit" placeholder="Pick a fruit">
+    <SelectOption indicator="✓" value="apple">Apple</SelectOption>
+    <SelectOption indicator="✓" value="banana">Banana</SelectOption>
+    <SelectOption indicator="✓" value="cherry">Cherry</SelectOption>
+  </Select>
+</Preview>
+
+### With default value
+
+<Preview code={`import { Select, SelectOption } from 'ui/components/Select';
+
+export default function Example() {
+  return (
+    <Select aria-label="Fruit" defaultValue="banana" placeholder="Pick a fruit">
+      <SelectOption indicator="✓" value="apple">Apple</SelectOption>
+      <SelectOption indicator="✓" value="banana">Banana</SelectOption>
+      <SelectOption indicator="✓" value="cherry">Cherry</SelectOption>
+    </Select>
+  );
+}`}>
+  <Select aria-label="Fruit" defaultValue="banana" placeholder="Pick a fruit">
+    <SelectOption indicator="✓" value="apple">Apple</SelectOption>
+    <SelectOption indicator="✓" value="banana">Banana</SelectOption>
+    <SelectOption indicator="✓" value="cherry">Cherry</SelectOption>
+  </Select>
+</Preview>
+
+## Props
+
+### `Select`
+
+<PropsTable data={[
+  { prop: "placeholder", type: "ReactNode", default: "—", description: "Text shown in the trigger when nothing is selected" },
+  { prop: "children", type: "ReactNode", default: "—", description: "`SelectOption` elements" },
+  { prop: "value", type: "string", default: "—", description: "Controlled selected value" },
+  { prop: "defaultValue", type: "string", default: "—", description: "Initial selected value (uncontrolled)" },
+  { prop: "onValueChange", type: "(value: string) => void", default: "—", description: "Called when the selection changes" },
+  { prop: "disabled", type: "boolean", default: "false", description: "Disables the entire select" },
+  { prop: "required", type: "boolean", default: "false", description: "Marks the field as required for form validation" },
+]} />
+
+All Radix Select Root props are also accepted.
+
+### `SelectOption`
+
+<PropsTable data={[
+  { prop: "value", type: "string", default: "—", description: "**Required.** The value submitted when this option is selected" },
+  { prop: "indicator", type: "ReactNode", default: "—", description: "**Required.** Element shown next to the selected option" },
+  { prop: "children", type: "ReactNode", default: "—", description: "Option label" },
+  { prop: "disabled", type: "boolean", default: "false", description: "Prevents selection of this option" },
+]} />
+
+## Accessibility
+
+- Opens on click or `Space`/`Enter`; closes on `Escape`.
+- Arrow keys move between options; typeahead jumps to the first matching option.
+- Selected value is announced by screen readers via `aria-selected`.
+- Works as a native form field when placed inside a `<form>`.

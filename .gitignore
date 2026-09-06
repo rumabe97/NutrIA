@@ -1,0 +1,48 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Local env files — covers .env, .env.local, .env.production, .env.<NODE_ENV>.local, etc.
+# at any depth. The `!.env.example` negation lets the in-repo template files (one per
+# consuming package + one per app — see apps/web/.env.example) stay visible.
+.env*
+!.env.example
+
+# Local-only working docs — the ONLY uncommitted docs location. Session prompts,
+# machine-specific context, strategy notes, half-formed ideas. Everything else in
+# docs/ is meant to be committed. See AGENTS.md § Documentation.
+docs/local/
+
+# Testing
+coverage
+
+# Turbo
+.turbo
+
+# TypeScript
+*.tsbuildinfo
+
+# Vercel
+.vercel
+
+# Build Outputs
+.next/
+out/
+build
+dist
+dist-ssr
+server/dist
+public/dist
+
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+.DS_Store
+*.pem

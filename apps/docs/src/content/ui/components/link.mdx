@@ -1,0 +1,81 @@
+import { Link } from 'ui/components/Link';
+import { PropsTable } from 'components/PropsTable';
+
+# Link
+
+A styled navigation element built on [Next.js Link](https://nextjs.org/docs/app/api-reference/components/link). Provides client-side navigation with prefetching while applying the design system's link styles.
+
+## Examples
+
+### Internal link
+
+<Preview code={`import { Link } from 'ui/components/Link';
+
+export default function Example() {
+  return <Link href="/ui/components/button">Go to Button docs</Link>;
+}`}>
+  <Link href="/ui/components/button">Go to Button docs</Link>
+</Preview>
+
+### External link
+
+<Preview code={`import { Link } from 'ui/components/Link';
+
+export default function Example() {
+  return (
+    <Link href="https://nextjs.org" rel="noopener noreferrer" target="_blank">
+      Next.js docs
+    </Link>
+  );
+}`}>
+  <Link href="https://nextjs.org" rel="noopener noreferrer" target="_blank">Next.js docs</Link>
+</Preview>
+
+### Inline (in prose)
+
+By default `Link` inherits its parent's colour and text decoration — right for navigation, breadcrumbs, and headers where context already identifies it. When a link sits inside body text, pass `inline` so it picks up the brand colour and an underline (WCAG 1.4.1 — colour alone can't identify a link).
+
+<Preview code={`import { Link } from 'ui/components/Link';
+
+export default function Example() {
+  return (
+    <p>
+      Read the full <Link href="/ui" inline>component reference</Link> for details.
+    </p>
+  );
+}`}>
+  <p>
+    Read the full <Link href="/ui" inline>component reference</Link> for details.
+  </p>
+</Preview>
+
+### Active link (current page)
+
+For navigation lists, mark the link to the current page with `aria-current="page"`. Screen readers announce "current page" — sighted users already get the visual `.active` style.
+
+```tsx
+const isActive = pathname === href;
+<Link aria-current={isActive ? 'page' : undefined} href={href}>
+  {name}
+</Link>
+```
+
+## Props
+
+<PropsTable data={[
+  { prop: "href", type: "string", default: "—", description: "**Required.** Destination URL (internal or external)" },
+  { prop: "children", type: "ReactNode", default: "—", description: "Link label or content" },
+  { prop: "inline", type: "boolean", default: "false", description: "Opt in to the visible link affordance (underline + brand colour). Use when the link sits inline in prose." },
+  { prop: "aria-current", type: "'page' | 'step' | 'location' | 'date' | 'time' | boolean", default: "—", description: "Marks the link as referring to the current item. Pass `\"page\"` for the active link in a nav list." },
+  { prop: "className", type: "string", default: "—", description: "Additional CSS classes" },
+  { prop: "target", type: "'_blank' | '_self' | '_parent' | '_top'", default: "—", description: "Browsing context for the link" },
+  { prop: "rel", type: "string", default: "—", description: "Link relationship. Defaults to `noopener noreferrer` when `target=\"_blank\"` and no `rel` is provided." },
+  { prop: "prefetch", type: "boolean | null", default: "null", description: "Controls Next.js prefetch behaviour" },
+]} />
+
+## Accessibility
+
+- Renders as a native `<a>` element — fully keyboard navigable.
+- For external links that open in a new tab, the component defaults `rel="noopener noreferrer"` (browsers add `noopener` implicitly for `_blank` but **not** `noreferrer`).
+- In prose, set `inline` so the link is identifiable without relying on colour alone (WCAG 1.4.1).
+- For the link to the current page in a nav list, set `aria-current="page"` so the active state reaches assistive tech, not just the CSS class.

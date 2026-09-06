@@ -1,0 +1,59 @@
+import { Spinner } from 'ui/components/Spinner';
+import { PropsTable } from 'components/PropsTable';
+
+# Spinner
+
+A small, square loading indicator. Eight rotating leaves fade in and out — purely decorative, paired with `aria-hidden="true"` so screen readers ignore it. Use it inside `<SpotlightLoading>` (its default), buttons, or anywhere a brief async wait happens.
+
+## Examples
+
+### Default
+
+<Preview code={`import { Spinner } from 'ui/components/Spinner';
+
+export default function Example() {
+  return <Spinner />;
+}`}>
+  <Spinner />
+</Preview>
+
+### Larger
+
+<Preview code={`<Spinner size={40} />`}>
+  <Spinner size={40} />
+</Preview>
+
+### With announced label
+
+Pass `label` to expose the spinner as `role="status"` with a visually-hidden label so screen readers announce the busy state.
+
+<Preview code={`<Spinner label="Loading projects" />`}>
+  <Spinner label="Loading projects" />
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: 'size', type: 'number', default: '20', description: 'Outer square size in pixels.' },
+  { prop: 'label', type: 'string', default: '—', description: 'When provided, switches the spinner to `role="status"` with a visually-hidden text label that screen readers announce. Omit for purely decorative use.' }
+]} />
+
+All standard `<span>` HTML attributes are also accepted (`className`, `style`, `id`, etc.).
+
+## Accessibility
+
+By default the spinner is decorative (`aria-hidden="true"`). For a single loading indicator that needs to be announced (e.g. a submit button's busy state), pass `label` — the component becomes a `role="status"` region with the label as visually-hidden text.
+
+For pages with **many** skeletons or spinners loading in parallel, don't label each one — announcing "Loading… Loading… Loading…" is noisy. Wrap the whole loading region in a single `role="status"` instead:
+
+```tsx
+<div role="status" aria-live="polite" aria-label="Loading projects">
+  <Skeleton width="100%" height="2rem" />
+  <Skeleton width="80%" height="2rem" />
+  <Skeleton width="60%" height="2rem" />
+</div>
+```
+
+## Tokens & color
+
+The spinner uses `currentColor` for its leaves — inherit color from its parent. To recolor, wrap it in an element with the desired `color`, or pass `style={{ color: 'var(--color-brand-06)' }}`.

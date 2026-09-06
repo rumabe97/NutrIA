@@ -1,0 +1,86 @@
+import { Grid } from 'ui/components/Grid';
+import { PropsTable } from 'components/PropsTable';
+
+# Grid
+
+A CSS grid container with token-driven gap and even-column shorthand. Pass `columns="3"` to get three equal-width columns (`repeat(3, minmax(0, 1fr))`) — no `grid-template-columns` boilerplate at the call site.
+
+For more complex grids (named areas, fixed-width tracks, mixed `auto`/`fr`), drop down to a CSS module — the layout primitives intentionally don't expose every grid feature.
+
+## Examples
+
+### Three even columns
+
+<Preview code={`import { Grid } from 'ui/components/Grid';
+
+export default function Example() {
+  return (
+    <Grid columns="3" gap="03">
+      <div className="demo-card">1</div>
+      <div className="demo-card">2</div>
+      <div className="demo-card">3</div>
+      <div className="demo-card">4</div>
+      <div className="demo-card">5</div>
+      <div className="demo-card">6</div>
+    </Grid>
+  );
+}`}>
+  <Grid columns="3" gap="03">
+    <div className="demo-card">1</div>
+    <div className="demo-card">2</div>
+    <div className="demo-card">3</div>
+    <div className="demo-card">4</div>
+    <div className="demo-card">5</div>
+    <div className="demo-card">6</div>
+  </Grid>
+</Preview>
+
+### Two columns, larger gap
+
+<Preview code={`import { Grid } from 'ui/components/Grid';
+
+export default function Example() {
+  return (
+    <Grid columns="2" gap="06">
+      <div className="demo-card">Left</div>
+      <div className="demo-card">Right</div>
+    </Grid>
+  );
+}`}>
+  <Grid columns="2" gap="06">
+    <div className="demo-card">Left</div>
+    <div className="demo-card">Right</div>
+  </Grid>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: 'as', type: 'ElementType', default: "'div'", description: 'Render as any HTML element' },
+  { prop: 'columns', type: "'1' | '2' | … | '12'", default: '—', description: 'Number of even-width columns. Resolves to `repeat(N, minmax(0, 1fr))`' },
+  { prop: 'rows', type: "'1' | '2' | … | '12'", default: '—', description: 'Number of even-height rows' },
+  { prop: 'gap', type: 'SpaceScale', default: '—', description: 'Gap between cells, maps to `--space-{n}`' },
+  { prop: 'align', type: "CSSProperties['alignItems']", default: '—', description: '`align-items` value' },
+  { prop: 'justify', type: "CSSProperties['justifyContent']", default: '—', description: '`justify-content` value' },
+  { prop: 'inline', type: 'boolean', default: 'false', description: 'Render as `inline-grid` instead of `grid`' },
+]} />
+
+`SpaceScale` is `'01'`–`'12'`. All standard HTML attributes are also accepted.
+
+## When to use a CSS module instead
+
+`Grid` is intentionally limited to even-column / even-row layouts. If you need:
+
+- Named grid areas (`grid-template-areas`)
+- Mixed track sizes (`200px 1fr 200px`)
+- Per-item placement (`grid-column: span 2`)
+- Auto-flow customization
+
+…write the grid in a CSS module of the consuming component. Grid the primitive is for the common case, not every case.
+
+## Accessibility
+
+Presentational only — renders a `<div>` by default (or whatever you pass as `as`), with no inherent role.
+
+- CSS Grid can visually rearrange items relative to the DOM (`grid-row-start`, `grid-column-start`, `order`). Reading and tab order still follow the DOM, so if the visual order conveys meaning, reorder the JSX rather than the CSS — same rule as flex.
+- For a data table use a proper `<table>` instead. Grid is for layout, not tabular data.

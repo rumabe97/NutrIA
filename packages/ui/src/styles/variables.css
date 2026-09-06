@@ -1,0 +1,189 @@
+/* Semantic tokens. Assign meaning to palette colors from colors.css.
+   These are the only variables components should reference.
+   Override in each app's styles/variables.css for branding.
+
+   Most tokens need no media query: the gray scale in colors.css already
+   flips between modes. --color-gray-01 is near-white in light and
+   near-black in dark, so --background-01 just works in both. */
+
+:root {
+  /* ── Spacing scale (4px base) ──────────────────────────────────────
+     Use these for all padding, gap, and margin values.
+     Never hardcode raw px or rem values in components. */
+  --space-01: 0.25rem; /* 4px  */
+  --space-02: 0.5rem; /* 8px  */
+  --space-03: 0.75rem; /* 12px */
+  --space-04: 1rem; /* 16px */
+  --space-05: 1.25rem; /* 20px */
+  --space-06: 1.5rem; /* 24px */
+  --space-07: 2rem; /* 32px */
+  --space-08: 2.5rem; /* 40px */
+  --space-09: 3rem; /* 48px */
+  --space-10: 4rem; /* 64px */
+  --space-11: 5rem; /* 80px */
+  --space-12: 6rem; /* 96px */
+
+  /* ── Typography ─────────────────────────────────────────────────── */
+
+  /* Font family */
+  --font-fallback: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  /* --main-font is injected by ui/fonts via Next.js localFont — do not define here */
+
+  /* Font size scale — 12px floor enforced (below that, character shapes lose
+     legibility for low-vision users and browser min-font-size profiles bump
+     anyway, breaking the designer's spacing intent). */
+  --font-size-01: 0.75rem; /* 12px — caption       */
+  --font-size-02: 0.8125rem; /* 13px — small body    */
+  --font-size-03: 0.875rem; /* 14px — body          */
+  --font-size-04: 1rem; /* 16px — body-lg       */
+  --font-size-05: 1.125rem; /* 18px — heading-sm    */
+  --font-size-06: 1.25rem; /* 20px — heading       */
+  --font-size-07: 1.5rem; /* 24px — heading-lg    */
+  --font-size-08: 1.875rem; /* 30px — display-sm    */
+  --font-size-09: 2.25rem; /* 36px — display       */
+  --font-size-10: 3rem; /* 48px — display-lg    */
+  --font-size-11: 3.75rem; /* 60px — display-xl    */
+
+  /* Line height */
+  --line-height-01: 1; /* none    — buttons, labels  */
+  --line-height-02: 1.25; /* tight   — headings         */
+  --line-height-03: 1.375; /* snug                       */
+  --line-height-04: 1.5; /* normal  — body text        */
+  --line-height-05: 1.625; /* relaxed                    */
+  --line-height-06: 2; /* loose                      */
+
+  /* Font weight */
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  /* ── Sizing — component heights ─────────────────────────────────── */
+  --height-xs: 20px;
+  --height-s: 24px;
+  --height-m: 32px;
+  --height-l: 40px;
+  --height-xl: 48px;
+
+  /* ── Motion ──────────────────────────────────────────────────────────
+     Use these for all transition-duration and animation-duration values.
+     Override in variables.css to slow down or speed up the entire UI. */
+  --duration-fast: 0.15s; /* hover states, focus rings, tab highlights */
+  --duration-normal: 0.2s; /* component state changes (accordion, switch) */
+  --duration-slow: 0.35s; /* overlay and modal entrance / exit */
+
+  --ease-default: ease;
+  --ease-spring: cubic-bezier(0.16, 1, 0.3, 1); /* snappy enter, soft land */
+
+  /* ── Z-index layers ──────────────────────────────────────────────────
+     Named by role, not by number. Never hardcode z-index in components. */
+  --z-base: 1; /* general positioned elements */
+  --z-dropdown: 10; /* dropdowns, popovers, floating menus */
+  --z-overlay: 100; /* modal backdrop / drawer overlay */
+  --z-modal: 200; /* dialog, drawer, sidebar panel */
+  --z-toast: 300; /* toast notifications */
+  --z-tooltip: 400; /* tooltips — always on top */
+
+  /* ── Border radius ───────────────────────────────────────────────── */
+  --radius-01: 4px;
+  --radius-02: 6px;
+  --radius-03: 8px;
+  --radius-04: 12px;
+  --radius-05: 16px;
+  --radius-full: 9999px;
+
+  /* ── Surfaces ────────────────────────────────────────────────────── */
+  --background-01: var(--color-gray-01);
+  --background-02: var(--color-gray-02);
+  --background-highlight: var(--color-gray-04);
+
+  /* ── Text ──────────────────────────────────────────────────────────
+     `--foreground-01` / `--foreground-02` are the body-text tiers — both meet
+     WCAG AA against `--background-01` in light and dark mode.
+     `--foreground-03` is intentionally sub-AA — it is for **decorative
+     non-text** surfaces only (carousel dots, input placeholders, etc.). Do
+     NOT use it for body or label text — reach for `--foreground-02` instead.
+     `--foreground-disabled` is exempt from contrast requirements (WCAG 1.4.3
+     explicitly exempts inactive UI components). */
+  --foreground-01: var(--color-gray-12);
+  --foreground-02: var(--color-gray-11);
+  --foreground-03: var(--color-gray-09);
+  --foreground-disabled: var(--color-gray-08);
+
+  /* ── Borders ─────────────────────────────────────────────────────── */
+  --border-01: var(--color-gray-06);
+
+  /* ── Interactive ─────────────────────────────────────────────────── */
+  --color-hover: var(--color-gray-03-alpha);
+  --color-highlighted: var(--color-gray-05-alpha);
+  --color-selected: var(--color-gray-05-alpha);
+  --color-switch: var(--color-gray-05);
+
+  /* ── Focus ring ──────────────────────────────────────────────────────
+     Applied globally via `:focus-visible` in `ui/styles/base.css`. */
+  --focus-ring-color: var(--color-gray-10-alpha);
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --focus-ring-clip-margin: 4px;
+
+  /* ── States ──────────────────────────────────────────────────────────
+     Each semantic state has two tokens. The base (`--color-error` etc.) is
+     the Radix scale **step 09** — the "saturated solid" step, designed for
+     fills, borders, outlines, and 3:1-OK non-text indicators (Switch on-state,
+     Input invalid border, toast accent). The `-text` variant is **step 11** —
+     the "low-contrast text" step, designed to meet WCAG AA 4.5:1 as foreground
+     text against the surface colour. Pick by use:
+       - `background-color: var(--color-error)` → fill (step 09)
+       - `border-color: var(--color-error)` → border (step 09; 3:1 OK)
+       - `color: var(--color-error-text)` → text (step 11; AA-passing) */
+  --color-success: var(--color-green-09);
+  --color-error: var(--color-red-09);
+  --color-warning: var(--color-amber-09);
+  --color-success-text: var(--color-green-11);
+  --color-error-text: var(--color-red-11);
+  --color-warning-text: var(--color-amber-11);
+
+  /* ── Brand ───────────────────────────────────────────────────────────
+     Defaults to blue. Override in your app's styles/variables.css
+     by remapping to any palette scale from colors.css.
+     Components use --color-brand-* for accent/interactive colors. */
+  --color-brand-01: var(--color-blue-01);
+  --color-brand-02: var(--color-blue-02);
+  --color-brand-03: var(--color-blue-03);
+  --color-brand-04: var(--color-blue-04);
+  --color-brand-05: var(--color-blue-05);
+  --color-brand-06: var(--color-blue-06);
+  --color-brand-07: var(--color-blue-07);
+  --color-brand-08: var(--color-blue-08);
+  --color-brand-09: var(--color-blue-09);
+  --color-brand-10: var(--color-blue-10);
+  --color-brand-11: var(--color-blue-11);
+  --color-brand-12: var(--color-blue-12);
+}
+
+/*
+  Glass, overlay, and shadows require explicit per-mode values
+  since they cannot be derived from the gray scale alone.
+*/
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-glass: hsla(0, 0%, 100%, 0.85);
+    --color-overlay: rgba(0, 0, 0, 0.4);
+
+    --shadow-s: 0 1px 2px var(--color-gray-07-alpha);
+    --shadow-m: 0 4px 16px var(--color-gray-08-alpha);
+    --shadow-l: 0 8px 32px var(--color-gray-09-alpha);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-glass: hsla(0, 0%, 11%, 0.85);
+    --color-overlay: rgba(0, 0, 0, 0.6);
+
+    --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-m: 0 4px 16px rgba(0, 0, 0, 0.4);
+    --shadow-l: 0 8px 32px rgba(0, 0, 0, 0.5);
+  }
+}

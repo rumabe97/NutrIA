@@ -1,0 +1,86 @@
+import { RadioGroup, RadioGroupItem } from 'ui/components/RadioGroup';
+import { PropsTable } from 'components/PropsTable';
+
+# Radio Group
+
+A set of checkable buttons where only one can be selected at a time. Arrow keys navigate between items. Built on [Radix UI Radio Group](https://www.radix-ui.com/primitives/docs/components/radio-group) with roving tabindex for accessibility. Each `RadioGroupItem` renders a wrapping `<label>` so the visual + the label text together form the clickable target — satisfying WCAG 2.5.8 even though the visual itself is 16×16.
+
+## Examples
+
+### Basic
+
+<Preview code={`import { RadioGroup, RadioGroupItem } from 'ui/components/RadioGroup';
+
+export default function Example() {
+  return (
+    <RadioGroup defaultValue="option-a">
+      <RadioGroupItem value="option-a" label="Option A" />
+      <RadioGroupItem value="option-b" label="Option B" />
+      <RadioGroupItem value="option-c" label="Option C" />
+    </RadioGroup>
+  );
+}`}>
+  <RadioGroup defaultValue="option-a">
+    <RadioGroupItem value="option-a" label="Option A" />
+    <RadioGroupItem value="option-b" label="Option B" />
+    <RadioGroupItem value="option-c" label="Option C" />
+  </RadioGroup>
+</Preview>
+
+### Horizontal
+
+<Preview code={`<RadioGroup defaultValue="sm" orientation="horizontal" style={{ flexDirection: 'row' }}>
+  <RadioGroupItem value="sm" label="Small" />
+  <RadioGroupItem value="md" label="Medium" />
+  <RadioGroupItem value="lg" label="Large" />
+</RadioGroup>`}>
+  <RadioGroup defaultValue="sm" orientation="horizontal" style={{ flexDirection: 'row' }}>
+    <RadioGroupItem value="sm" label="Small" />
+    <RadioGroupItem value="md" label="Medium" />
+    <RadioGroupItem value="lg" label="Large" />
+  </RadioGroup>
+</Preview>
+
+### Disabled
+
+<Preview code={`<RadioGroup defaultValue="option-a" disabled>
+  <RadioGroupItem value="option-a" label="Option A" />
+  <RadioGroupItem value="option-b" label="Option B" />
+</RadioGroup>`}>
+  <RadioGroup defaultValue="option-a" disabled>
+    <RadioGroupItem value="option-a" label="Option A" />
+    <RadioGroupItem value="option-b" label="Option B" />
+  </RadioGroup>
+</Preview>
+
+## Props
+
+### `RadioGroup`
+
+<PropsTable data={[
+  { prop: 'value', type: 'string', default: '—', description: 'Controlled selected value' },
+  { prop: 'defaultValue', type: 'string', default: '—', description: 'Uncontrolled initial value' },
+  { prop: 'onValueChange', type: '(value: string) => void', default: '—', description: 'Called when selection changes' },
+  { prop: 'orientation', type: "'horizontal' | 'vertical' | undefined", default: '—', description: 'Affects which arrow keys navigate between items' },
+  { prop: 'loop', type: 'boolean', default: 'true', description: 'Whether arrow keys wrap around' },
+  { prop: 'disabled', type: 'boolean', default: 'false', description: 'Disables all items' },
+  { prop: 'name', type: 'string', default: '—', description: 'Form field name' },
+  { prop: 'required', type: 'boolean', default: 'false', description: 'Marks group as required' },
+]} />
+
+All Radix Radio Group Root props are also accepted.
+
+### `RadioGroupItem`
+
+<PropsTable data={[
+  { prop: 'label', type: 'ReactNode', default: '— *(required)*', description: '**Required.** Label rendered alongside the radio. Click anywhere on the label or visual selects this item.' },
+  { prop: 'value', type: 'string', default: '—', description: '**Required.** The value this item represents' },
+  { prop: 'disabled', type: 'boolean', default: 'false', description: 'Disables this item only' },
+]} />
+
+## Accessibility
+
+- Arrow keys navigate between items using the roving tabindex pattern.
+- `role="radiogroup"` and `role="radio"` are applied automatically.
+- `aria-checked` reflects the selected state of each item.
+- The wrapping `<label>` makes the label text and visual a single ~24×24+ click target — WCAG 2.5.8 (Target Size Minimum) passes via the "Equivalent target" exception even though the visual is 16×16.

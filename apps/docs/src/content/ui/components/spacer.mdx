@@ -1,0 +1,80 @@
+import { Spacer } from 'ui/components/Spacer';
+import { Button } from 'ui/components/Button';
+import { PropsTable } from 'components/PropsTable';
+
+# Spacer
+
+An invisible element that adds vertical space between sibling elements. Renders a `<span>` with `margin-top` set in rem units.
+
+> **Prefer `VStack` (or `HStack`) with a `gap` prop for almost every case.** Spacer predates the layout primitive system and is kept around only for rare cases where you cannot wrap siblings in a flex container — for example, two siblings rendered into the same parent by different libraries, or content where adding a flex wrapper would change semantics. If you're reaching for `Spacer` to gap children inside a component you control, you almost certainly want `VStack`.
+
+```tsx
+// ❌ Don't reach for Spacer just to gap two buttons
+<Button>First</Button>
+<Spacer space={2} />
+<Button>Second</Button>
+
+// ✅ Use VStack — token-typed gap, no extra DOM node, no margin
+<VStack gap="04">
+  <Button>First</Button>
+  <Button>Second</Button>
+</VStack>
+```
+
+`Spacer`'s `space` prop takes a raw `number` of rem, **not** a `SpaceScale` token. That's a holdover from before the spacing scale existed; it's preserved for backward compatibility but not the direction we'd encourage for new code.
+
+## Examples
+
+### Default (1rem)
+
+<Preview code={`import { Spacer } from 'ui/components/Spacer';
+import { Button } from 'ui/components/Button';
+
+export default function Example() {
+  return (
+    <>
+      <Button>First</Button>
+      <Spacer />
+      <Button>Second</Button>
+    </>
+  );
+}`}>
+  <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <Button>First</Button>
+    <Spacer />
+    <Button>Second</Button>
+  </div>
+</Preview>
+
+### Custom space
+
+<Preview code={`import { Spacer } from 'ui/components/Spacer';
+import { Button } from 'ui/components/Button';
+
+export default function Example() {
+  return (
+    <>
+      <Button>First</Button>
+      <Spacer space={3} />
+      <Button>Third</Button>
+    </>
+  );
+}`}>
+  <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <Button>First</Button>
+    <Spacer space={3} />
+    <Button>Third</Button>
+  </div>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "space", type: "number", default: "1", description: "Vertical space in `rem` units (raw, not a `SpaceScale` token)" },
+]} />
+
+All standard `<span>` HTML attributes are also accepted (`className`, `style`, etc.).
+
+## Accessibility
+
+- Renders with `aria-hidden="true"` — invisible to assistive technologies.
