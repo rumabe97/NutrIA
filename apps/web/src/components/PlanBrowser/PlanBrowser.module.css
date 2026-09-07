@@ -1,0 +1,35 @@
+.header {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03) var(--space-05);
+  justify-content: space-between;
+  margin-bottom: var(--space-06);
+}
+
+.title {
+  font-size: var(--font-size-09);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0;
+}
+
+.card {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-04);
+  padding: var(--space-05) var(--space-06);
+}
+
+.meals {
+  margin-top: var(--space-05);
+}
+
+.dayHeading {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+  margin-bottom: var(--space-05);
+}

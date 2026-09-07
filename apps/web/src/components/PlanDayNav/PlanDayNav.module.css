@@ -1,0 +1,82 @@
+.wrapper {
+  margin-bottom: var(--space-06);
+}
+
+.weeks {
+  display: flex;
+  gap: var(--space-02);
+  margin-bottom: var(--space-04);
+}
+
+.week {
+  background: none;
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-full);
+  color: var(--foreground-02);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--font-size-02);
+  padding: var(--space-02) var(--space-04);
+}
+
+.week[aria-pressed='true'] {
+  background-color: var(--color-brand-03);
+  border-color: var(--color-brand-09);
+  color: var(--color-brand-12);
+}
+
+/* A scroller rather than a wrap: fourteen chips on two ragged lines is harder to
+   scan than one line you push along. */
+.days {
+  display: flex;
+  gap: var(--space-02);
+  overflow-x: auto;
+  padding-bottom: var(--space-02);
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.day {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-03);
+  color: var(--foreground-02);
+  cursor: pointer;
+  display: grid;
+  flex: 0 0 auto;
+  font: inherit;
+  gap: 2px;
+  /* 56px keeps the tap target above the 44px minimum. */
+  min-width: 56px;
+  padding: var(--space-03) var(--space-02);
+  scroll-snap-align: start;
+  text-align: center;
+  transition:
+    background-color var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default);
+}
+
+.day:hover {
+  border-color: var(--color-brand-07);
+}
+
+.day[aria-current='true'] {
+  background-color: var(--color-brand-09);
+  border-color: var(--color-brand-09);
+  color: var(--color-white);
+}
+
+.dayIndex {
+  font-size: var(--font-size-04);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+}
+
+.dayLabel {
+  font-size: var(--font-size-01);
+  opacity: 0.85;
+}
+
+.today {
+  border-color: var(--color-brand-09);
+}
