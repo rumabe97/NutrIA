@@ -57,6 +57,18 @@ const envSchema = z
     APP_URL: z.url(),
     BETTER_AUTH_SECRET: z.string().min(SECRET_MIN_LENGTH, `must be at least ${SECRET_MIN_LENGTH} characters`),
     BETTER_AUTH_URL: z.url(),
+    /*
+     * The parent domain the session cookie is written for, with the leading dot
+     * (`.nutria.app`). Unset for local development, where API and web share an
+     * origin's site by both being localhost.
+     *
+     * This is not a nicety. `proxy.ts` and `server-api.ts` in the web app both
+     * read the session cookie from the *web* domain, so a cookie scoped to the
+     * API's host alone means every protected route redirects to sign-in and every
+     * server-side read comes back empty. Sign-in appears to work and nothing else
+     * does.
+     */
+    COOKIE_DOMAIN: optional(z.string().startsWith('.', 'must start with a dot, e.g. .example.com')),
     DATABASE_URL: z.string().startsWith('postgres'),
     DIRECT_DATABASE_URL: optional(z.string().startsWith('postgres')),
     EMAIL_FROM: optional(z.email()),

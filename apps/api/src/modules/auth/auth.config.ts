@@ -24,8 +24,18 @@ export function createAuth(env: Env) {
   return betterAuth({
     account: { accountLinking: { enabled: false } },
     advanced: {
-      // Same-site cookies over HTTPS in production; a cross-site cookie here
-      // would be sent on requests the user never initiated.
+      /*
+       * Written for the parent domain when API and web sit on sibling subdomains,
+       * which is the deployed shape: the web app reads this cookie itself, both in
+       * `proxy.ts` and when forwarding it server-side, and a host-only cookie on
+       * the API's subdomain is invisible to it.
+       *
+       * Still `sameSite: 'lax'` — sibling subdomains of one registrable domain are
+       * the *same site*, so nothing is loosened here. A cross-site cookie would be
+       * sent on requests the user never initiated, which is the attack this
+       * setting exists to prevent, and no deployment shape justifies it.
+       */
+      crossSubDomainCookies: env.COOKIE_DOMAIN ? { domain: env.COOKIE_DOMAIN, enabled: true } : undefined,
       defaultCookieAttributes: { httpOnly: true, sameSite: 'lax', secure: env.NODE_ENV === 'production' },
       useSecureCookies: env.NODE_ENV === 'production'
     },
