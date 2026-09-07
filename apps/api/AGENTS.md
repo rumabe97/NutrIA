@@ -117,6 +117,17 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   invocation alive. A bare `void promise` is frozen the moment the response is sent
   and leaves a job row `running` with no log line. Generation takes 30–45s, so a
   60s ceiling is not enough headroom.
+- **The function runtime cannot `require()` an ES module.** Its own loader throws
+  `ERR_REQUIRE_ESM`, while Node 22.12+ allows it by default — so a CommonJS dependency
+  that `require()`s the ESM `@nestjs/*` passes every local run and every test, and
+  kills the function on its first cold start with nothing else in the log. This is
+  independent of the Node version setting: the throw comes from the platform's
+  loader, not from Node. `nestjs-pino` was the live example and is gone; logging is
+  `shared/logging`, plain `pino` + `pino-http`. `check:cjs` imports the deployed entry
+  under `--no-experimental-require-module`, the rule the runtime applies, and runs as
+  part of `build` — so a violating dependency fails the deploy at build time, before
+  migrations, rather than at the first request. Every `@nestjs/*` package is ESM;
+  before adding any Nest-adjacent third-party package, check it ships an ESM build.
 - `pnpm --filter api smoke:function` runs the deployed entry behind a plain Node
   server and checks it boots, denies with 404, and returns the JSON envelope for an
   unmatched route. Needs a live database, so it is not in the gate. Run it after any
@@ -133,7 +144,8 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
 | Command | What it does |
 | --- | --- |
 | `pnpm --filter api dev` | Watch mode on :3001 |
-| `pnpm --filter api build` | `nest build` → `dist/` |
+| `pnpm --filter api build` | `nest build` → `dist/`, then `check:cjs` |
+| `pnpm --filter api check:cjs` | Load the deployed entry under the function runtime's module rule (no database needed) |
 | `pnpm --filter api test` | Unit specs (no database needed) |
 | `pnpm --filter api test:e2e` | e2e specs — **needs a real database**, see `test/README.md` |
 | `pnpm --filter api ts:check` | Type-check, specs included |
@@ -150,6 +162,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   it (`onboarding.controller.spec.ts`, `profiles.controller.spec.ts`) go through a real
   Nest application with supertest.
 - **Better Auth must receive an unread request body.** `CreateApp.ts` mounts `express.json()` *after* the auth path. Moving the parser earlier makes sign-in receive an empty body, and the failure looks like bad credentials.
+- **A CommonJS package that `require()`s `@nestjs/*` works locally and dies on the platform.** See § Deployment. `check:cjs` catches it; run it after adding any dependency that touches Nest.
 - **`emitDecoratorMetadata` is what makes DI work.** Without it every injection needs an explicit `@Inject`. It is on in `tsconfig.json`; `verbatimModuleSyntax` must stay off, or type-only imports stop producing metadata.
 - **`HealthIndicatorService`, not `HealthCheckError`.** Terminus 12 removed the old error class; return `indicator.down()`.
 - **A module that provides a Terminus indicator must import `TerminusModule` itself.** Importing it only in `HealthModule` leaves `DatabaseModule` unable to resolve the dependency.

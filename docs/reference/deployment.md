@@ -84,9 +84,14 @@ nothing to compile and the function ships the same artifact the type gate passed
 and `vercel-build` runs:
 
 ```
-turbo run build --filter=api...   # builds core + database, then type-gates the API
+turbo run build --filter=api...   # builds core + database, type-gates the API, then check:cjs
 pnpm --filter database migrate    # applies pending migrations to the live database
 ```
+
+`check:cjs` loads the deployed entry under the module rule the function runtime
+applies — it refuses `require()` of an ES module, which local Node allows. A
+dependency that violates it passes every local check and kills the function on its
+first cold start; here it fails the build instead, before anything is migrated.
 
 **Every production deploy applies migrations.** The build runs first so a type error
 stops the deploy before it touches anything; a bad migration still blocks every

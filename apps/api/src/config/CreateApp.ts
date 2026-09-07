@@ -6,13 +6,14 @@ import { ConfigService } from '@nestjs/config';
 import { ExpressAdapter } from '@nestjs/platform-express';
 import { HttpStatus, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
-import { Logger } from 'nestjs-pino';
 
 import { AppModule } from '../app.module.js';
+import { PinoLoggerService, REQUEST_LOGGER } from '../shared/logging/index.js';
 import { setupSwagger } from './swagger.config.js';
 
 import type { Env } from './Env.validation.js';
 import type { Express } from 'express';
+import type { HttpLogger } from 'pino-http';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 
 /**
@@ -30,7 +31,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
  *
  * Deliberately **not** re-exported from `config/index.ts`. This file reaches the
  * whole application graph, and the barrel is imported by specs that want nothing
- * more than the `Env` type — pulling `nestjs-pino` in behind them breaks them
+ * more than the `Env` type — pulling every module in behind them breaks them
  * under Jest's ESM interop with a require cycle that names neither file.
  */
 export async function createApp(expressApp?: Express): Promise<NestExpressApplication> {
@@ -45,8 +46,13 @@ export async function createApp(expressApp?: Express): Promise<NestExpressApplic
   const prefix = config.get('API_PREFIX', { infer: true });
   const isProduction = config.get('NODE_ENV', { infer: true }) === 'production';
 
-  app.useLogger(app.get(Logger));
+  app.useLogger(app.get(PinoLoggerService));
   app.setGlobalPrefix(prefix);
+
+  // Request logging at the Express level, ahead of everything: the auth handler
+  // and the 404 fallback below both sit outside Nest's own middleware pipeline
+  // and would otherwise never produce a line.
+  app.use(app.get<HttpLogger>(REQUEST_LOGGER));
 
   // Exactly one proxy hop — the platform's edge. `true` would trust the whole
   // client-supplied X-Forwarded-For chain, and `request.ip` is what the rate

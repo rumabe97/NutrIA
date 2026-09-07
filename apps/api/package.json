@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "nest build",
+    "build": "nest build && pnpm run check:cjs",
+    "check:cjs": "node --no-experimental-require-module scripts/check-cjs.mjs",
     "vercel-build": "pnpm turbo run build --filter=api... && pnpm --filter database migrate",
     "dev": "nest start --watch",
     "start": "node dist/main",
@@ -39,7 +40,6 @@
     "express": "^5.2.1",
     "helmet": "^8.3.0",
     "hpp": "^0.2.3",
-    "nestjs-pino": "^5.1.0",
     "ollama-ai-provider-v2": "^4.0.1",
     "pino": "^10.3.1",
     "pino-http": "^11.0.0",
