@@ -9,7 +9,7 @@ export default defineConfig({
   test: {
     coverage: {
       exclude: ['src/**/index.ts', 'src/**/*.d.ts', 'src/**/*.test.ts'],
-      include: ['src/lib/**/*.ts'],
+      include: ['src/i18n/**/*.ts', 'src/lib/**/*.ts'],
       provider: 'istanbul',
       reporter: [['text', { skipFull: false }], 'html', 'json-summary']
     },

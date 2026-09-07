@@ -5,6 +5,7 @@
     "paths": {
       "components/*": ["./src/components/*"],
       "hooks/*": ["./src/hooks/*"],
+      "i18n/*": ["./src/i18n/*"],
       "lib/*": ["./src/lib/*"],
       "styles/*": ["./src/styles/*"]
     }

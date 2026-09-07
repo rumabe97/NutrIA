@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers';
 
+import { activeLocale } from '../i18n/server';
 import { API_URL } from './env';
 
 /**
@@ -12,10 +13,16 @@ import { API_URL } from './env';
  * empty state, not take the page down.
  */
 export async function serverApi<T>(path: string): Promise<T | null> {
-  const cookieHeader = (await cookies()).toString();
+  const [cookieStore, locale] = await Promise.all([cookies(), activeLocale()]);
 
   try {
-    const response = await fetch(`${API_URL}${path}`, { cache: 'no-store', headers: { Cookie: cookieHeader } });
+    const response = await fetch(`${API_URL}${path}`, {
+      cache: 'no-store',
+      // Sent on every call, for the same reason the browser client sends it: the
+      // locale decision is made once and travels, rather than being rediscovered
+      // by whichever feature needs it first.
+      headers: { 'Accept-Language': locale, Cookie: cookieStore.toString() }
+    });
 
     if (!response.ok) {return null;}
 
