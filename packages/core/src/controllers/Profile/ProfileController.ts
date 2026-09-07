@@ -1,104 +1,155 @@
-import { ConflictError, NotFoundError } from 'core/entities/Error';
+import { NotFoundError } from 'core/entities/Error';
+import { ageInYears, nutritionTargets } from 'core/domain/Nutrition';
 import { ProfileRepository } from '#repositories/Profile';
-import { UserRepository } from '#repositories/User';
-import type { CreateProfile, Profile, UpdateProfile } from 'core/entities/Profile';
+import { SafetyRepository } from '#repositories/Safety';
+import type { Goal, Preferences, Profile, UpdateGoal, UpdatePreferences, UpdateProfile } from 'core/entities/Profile';
+import type { NutritionTargets } from 'core/entities/Nutrition';
 
 // --- Presenters ---------------------------------------------------------------
 
 export interface ProfileView {
   id: string;
-  avatarUrl: string | null;
-  bio: string | null;
-  updatedAt: string; // always ISO 8601
-  userId: string;
-  username: string;
+  birthDate: string | null;
+  country: string | null;
+  displayName: string | null;
+  heightCm: number | null;
+  locale: string;
+  sex: Profile['sex'];
+  timezone: string;
+  updatedAt: string;
+}
+
+export interface GoalView {
+  id: string;
+  customGoal: string | null;
+  paceKgPerWeek: number | null;
+  startingWeightKg: number | null;
+  targetWeightKg: number | null;
+  type: Goal['type'];
+}
+
+export type PreferencesView = Omit<Preferences, 'createdAt' | 'updatedAt' | 'userId'>;
+
+export interface FullProfileView {
+  allergies: readonly { allergenId: string; allergenLabel: string; crossContaminationSensitive: boolean; severity: string }[];
+  cuisines: readonly string[];
+  dietaryPatterns: readonly string[];
+  foodPreferences: readonly { ingredientId: string | null; label: string; sentiment: 'disliked' | 'liked' }[];
+  goal: GoalView | null;
+  intolerances: readonly { allergenId: string; allergenLabel: string }[];
+  preferences: PreferencesView | null;
+  profile: ProfileView | null;
+  /** Null until enough of the profile exists to compute it honestly. */
+  targets: (NutritionTargets & { wasClamped: boolean }) | null;
 }
 
 function presentProfile(profile: Profile): ProfileView {
   return {
     id: profile.id,
-    avatarUrl: profile.avatarUrl ?? null,
-    bio: profile.bio ?? null,
-    updatedAt: profile.updatedAt.toISOString(),
-    userId: profile.userId,
-    username: profile.username
+    birthDate: profile.birthDate,
+    country: profile.country,
+    displayName: profile.displayName,
+    heightCm: profile.heightCm,
+    locale: profile.locale,
+    sex: profile.sex,
+    timezone: profile.timezone,
+    updatedAt: profile.updatedAt.toISOString()
   };
 }
 
+function presentGoal(goal: Goal): GoalView {
+  return {
+    id: goal.id,
+    customGoal: goal.customGoal,
+    paceKgPerWeek: goal.paceKgPerWeek,
+    startingWeightKg: goal.startingWeightKg,
+    targetWeightKg: goal.targetWeightKg,
+    type: goal.type
+  };
+}
+
+function presentPreferences(preferences: Preferences): PreferencesView {
+  const { createdAt: _createdAt, updatedAt: _updatedAt, userId: _userId, ...view } = preferences;
+
+  return view;
+}
+
+/**
+ * Daily targets, or null.
+ *
+ * Returning null when the inputs are incomplete is the point: a placeholder
+ * calorie figure computed from a guessed height or an assumed sex is a number
+ * the user would act on. Absent is honest; approximate is not.
+ */
+function computeTargets(profile: Profile | undefined, goal: Goal | undefined, preferences: Preferences | undefined) {
+  if (!profile?.birthDate || !profile.heightCm || !profile.sex || !goal || !preferences?.activityLevel) {return null;}
+
+  const weightKg = goal.startingWeightKg;
+
+  if (!weightKg) {return null;}
+
+  return nutritionTargets({
+    activityLevel: preferences.activityLevel,
+    ageYears: ageInYears(profile.birthDate),
+    goal: goal.type,
+    heightCm: profile.heightCm,
+    paceKgPerWeek: goal.paceKgPerWeek,
+    sex: profile.sex,
+    weightKg
+  });
+}
+
 // --- Controller ---------------------------------------------------------------
-//
-// ProfileController imports TWO repositories — Profile and User.
-// This is the standard pattern when a controller's business rules span domains:
-//   - import the repository for the domain being operated on (ProfileRepository)
-//   - import any other repositories needed for cross-domain validation (UserRepository)
-//
-// Never call another controller from here. Always go through the repository directly.
 
 export const ProfileController = {
-  async createProfile(input: CreateProfile): Promise<ProfileView> {
-    // Cross-domain check: the user must exist before creating their profile.
-    const user = await UserRepository.findById(input.userId);
+  /** One round trip's worth of everything the profile and dashboard screens need. */
+  async getFullProfile(userId: string): Promise<FullProfileView> {
+    const [profile, goal, preferences, dietaryPatterns, foodPreferences, cuisines, allergies, intolerances] = await Promise.all([
+      ProfileRepository.findByUserId(userId),
+      ProfileRepository.findActiveGoal(userId),
+      ProfileRepository.findPreferences(userId),
+      ProfileRepository.findDietaryPatterns(userId),
+      ProfileRepository.findFoodPreferences(userId),
+      ProfileRepository.findCuisines(userId),
+      SafetyRepository.findAllergies(userId),
+      SafetyRepository.findIntolerances(userId)
+    ]);
 
-    if (!user) {
-      throw new NotFoundError(`User "${input.userId}" not found`);
-    }
+    return {
+      allergies: allergies.map(a => ({
+        allergenId: a.allergenId,
+        allergenLabel: a.allergenLabel,
+        crossContaminationSensitive: a.crossContaminationSensitive,
+        severity: a.severity
+      })),
+      cuisines,
+      dietaryPatterns,
+      foodPreferences,
+      goal: goal ? presentGoal(goal) : null,
+      intolerances: intolerances.map(i => ({ allergenId: i.allergenId, allergenLabel: i.allergenLabel })),
+      preferences: preferences ? presentPreferences(preferences) : null,
+      profile: profile ? presentProfile(profile) : null,
+      targets: computeTargets(profile, goal, preferences)
+    };
+  },
 
-    const taken = await ProfileRepository.findByUsername(input.username);
+  async getProfile(userId: string): Promise<ProfileView> {
+    const profile = await ProfileRepository.findByUserId(userId);
 
-    if (taken) {
-      throw new ConflictError(`Username "${input.username}" is already taken`);
-    }
-
-    const profile = await ProfileRepository.create(input);
+    if (!profile) {throw new NotFoundError('Profile not found');}
 
     return presentProfile(profile);
   },
 
-  async deleteProfile(id: string): Promise<void> {
-    const profile = await ProfileRepository.findById(id);
-
-    if (!profile) {
-      throw new NotFoundError(`Profile "${id}" not found`);
-    }
-
-    await ProfileRepository.delete(id);
+  async updateGoal(userId: string, input: UpdateGoal): Promise<GoalView> {
+    return presentGoal(await ProfileRepository.upsertGoal(userId, input));
   },
 
-  async getProfileByUserId(input: { userId: string }): Promise<ProfileView> {
-    const profile = await ProfileRepository.findByUserId(input.userId);
-
-    if (!profile) {
-      throw new NotFoundError(`No profile found for user "${input.userId}"`);
-    }
-
-    return presentProfile(profile);
+  async updatePreferences(userId: string, input: UpdatePreferences): Promise<PreferencesView> {
+    return presentPreferences(await ProfileRepository.upsertPreferences(userId, input));
   },
 
-  async updateProfile(id: string, input: UpdateProfile): Promise<ProfileView> {
-    const profile = await ProfileRepository.findById(id);
-
-    if (!profile) {
-      throw new NotFoundError(`Profile "${id}" not found`);
-    }
-
-    if (input.username) {
-      const taken = await ProfileRepository.findByUsername(input.username);
-
-      // Allow the same user to "re-claim" their own username in an update.
-      if (taken && taken.id !== id) {
-        throw new ConflictError(`Username "${input.username}" is already taken`);
-      }
-    }
-
-    const updated = await ProfileRepository.update(id, input);
-
-    // Defensive: a race (row deleted between the findById and this update, or RLS
-    // suddenly excluding the caller) could yield zero affected rows even though the
-    // findById succeeded. Surface as NotFoundError rather than presenting `undefined`.
-    if (!updated) {
-      throw new NotFoundError(`Profile "${id}" not found`);
-    }
-
-    return presentProfile(updated);
+  async updateProfile(userId: string, input: UpdateProfile): Promise<ProfileView> {
+    return presentProfile(await ProfileRepository.upsert(userId, input));
   }
 };

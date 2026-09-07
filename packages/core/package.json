@@ -1,14 +1,26 @@
 {
   "name": "core",
   "version": "0.0.0",
-  "type": "module",
   "private": true,
   "exports": {
-    "./controllers/*": "./src/controllers/*/index.ts",
-    "./entities/*": "./src/entities/*/index.ts"
+    "./controllers/*": {
+      "types": "./src/controllers/*/index.ts",
+      "default": "./dist/controllers/*/index.js"
+    },
+    "./domain/*": {
+      "types": "./src/domain/*/index.ts",
+      "default": "./dist/domain/*/index.js"
+    },
+    "./entities/*": {
+      "types": "./src/entities/*/index.ts",
+      "default": "./dist/entities/*/index.js"
+    }
   },
   "imports": {
-    "#repositories/*": "./src/repositories/*/index.ts",
+    "#repositories/*": {
+      "types": "./src/repositories/*/index.ts",
+      "default": "./dist/repositories/*/index.js"
+    },
     "#test/*": "./src/test/*.ts"
   },
   "scripts": {
@@ -20,7 +32,9 @@
     "format:fix": "prettier --write 'src/**/*.ts'",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch"
   },
   "dependencies": {
     "database": "workspace:^",
@@ -30,8 +44,13 @@
   "devDependencies": {
     "@types/node": "^25.9.1",
     "@vitest/coverage-istanbul": "^4.1.7",
+    "eslint": "^9.39.2",
     "eslint-configuration": "workspace:*",
+    "prettier": "^3.8.3",
     "typescript-configuration": "workspace:*",
     "vitest": "^4.1.7"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }
