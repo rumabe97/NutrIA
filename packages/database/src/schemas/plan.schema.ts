@@ -98,7 +98,13 @@ export const meals = pgTable(
     status: mealStatus().notNull().default('planned'),
     ...timestamps
   },
-  table => [unique('meals_slot_unique').on(table.planDayId, table.slot), index('meals_plan_day_idx').on(table.planDayId)]
+  table => [
+    unique('meals_slot_unique').on(table.planDayId, table.slot),
+    index('meals_plan_day_idx').on(table.planDayId),
+    // Joined to `recipes` on every plan read — fifty-six rows a plan, and a
+    // sequential scan of every meal ever stored without this.
+    index('meals_recipe_idx').on(table.recipeId)
+  ]
 );
 
 /** The adherence signal. One row per user action, so it is auditable and undoable. */

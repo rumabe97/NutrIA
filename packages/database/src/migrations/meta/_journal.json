@@ -57,6 +57,13 @@
       "when": 1788797305098,
       "tag": "0007_thankful_matthew_murdock",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1788803650522,
+      "tag": "0008_charming_switch",
+      "breakpoints": true
     }
   ]
 }

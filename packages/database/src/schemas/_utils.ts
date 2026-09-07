@@ -20,7 +20,20 @@ export type Column = { [K in string]: PgColumnBuilderBase };
  * Ownership is enforced in application code, not by database policies: the API
  * owns the only connection, so a WHERE clause on `userId` is the boundary.
  */
-export function userOwned<T extends Column>(tableName: string, columns: T) {
+export function userOwned<T extends Column>(
+  tableName: string,
+  columns: T,
+  /**
+   * Indexes beyond the `userId` one, which is always added.
+   *
+   * A user-owned table often carries a *second* foreign key that a join reads on
+   * every request — an allergen, an ingredient, a recipe. Postgres indexes a
+   * primary key and a unique constraint automatically and a foreign key never,
+   * so those need declaring, and there was previously nowhere to declare them
+   * without abandoning this helper and losing the `userId` index with it.
+   */
+  extraIndexes?: (table: Record<string, never>) => unknown[]
+) {
   return pgTable(
     tableName,
     {
@@ -31,7 +44,7 @@ export function userOwned<T extends Column>(tableName: string, columns: T) {
       ...columns,
       ...timestamps
     },
-    table => [index(`${tableName}_user_id_idx`).on(table.userId)]
+    table => [index(`${tableName}_user_id_idx`).on(table.userId), ...(extraIndexes?.(table as never) ?? [])] as never
   );
 }
 

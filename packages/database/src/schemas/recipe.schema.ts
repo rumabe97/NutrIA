@@ -67,6 +67,10 @@ export const recipeIngredients = pgTable(
   },
   table => [
     unique('recipe_ingredients_unique').on(table.recipeId, table.ingredientId),
-    index('recipe_ingredients_recipe_idx').on(table.recipeId)
+    index('recipe_ingredients_recipe_idx').on(table.recipeId),
+    // The catalogue join every plan read makes. The unique constraint above
+    // indexes (recipe_id, ingredient_id) in that order, which Postgres cannot use
+    // to look up by ingredient alone.
+    index('recipe_ingredients_ingredient_idx').on(table.ingredientId)
   ]
 );
