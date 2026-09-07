@@ -45,6 +45,20 @@ be abandoned.
 pregnancy, eating-disorder recovery, paediatric feeding. The product must recognise these
 and point to a professional rather than serve them badly.
 
+**On the health data the product now collects.** Since project 003 a user may record
+conditions, medications and supplements, under an explicit versioned consent, and delete
+them on their own at any time. That does not move the line above; it makes the line
+legible. What is recorded produces exactly three things: a curated dietary exclusion in the
+one case where avoiding the substance *is* the definition of managing the condition
+(coeliac disease → gluten, per [`0008`](./decisions/0008-condition-exclusions.md)), a
+suggestion the user confirms where it is a matter of degree (lactose intolerance), and a
+persistent recommendation to have the plan reviewed by a professional. Medications produce
+nothing at all — they are stored so the user can see what they told us and so the
+supervision notice appears, never mapped to a dietary rule, never placed in a prompt, and
+without a dose field, because dosing is out of scope and a field nothing may read should
+not exist. Supplements contribute a protein figure that is *displayed* beside the targets
+and never deducted from what a plan must supply.
+
 ## Scope
 
 **v1 includes** the full loop, and nothing outside it:

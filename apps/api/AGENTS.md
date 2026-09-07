@@ -51,6 +51,7 @@ Not style preferences. Changing one is a security regression.
 - **Denials are 404, never 401 or 403.** A distinct status confirms to precisely the blocked caller that the route or resource exists. `SessionGuard`, `AdminGuard` and the exception filter all agree on this, so no handler can drift into being the one that confirms.
 - **`SessionGuard` is global and deny-by-default.** A route is protected unless it carries `@Public()`. Opting *in* to protection means a forgotten decorator is an open endpoint.
 - **The session is re-read on every request.** Never cache authorisation. A logout or a deleted account must take effect immediately, not at token expiry.
+- **Completeness of a profile is the API's judgement, not the client's.** `RequiresOnboardingGuard` is global and opted into per route with `@RequiresOnboarding()`; the meal-plan controller carries it on the class. Opt-in, not deny-by-default, because most routes are how someone *finishes* onboarding. It is the one refusal that is **not** a 404 — a 409 with code `ONBOARDING_INCOMPLETE` — because the caller owns the account and the only useful answer is which step they left. A check the web app performs and the API does not is a suggestion.
 - **`@CurrentUser()` is the only sanctioned source of a user id.** An id from a path param, query string or body is an id the caller chose. Never scope a query with one.
 - **Every route body has a schema, bound to the `@Body()` parameter.** `@Body() body: SomeType` with no pipe gets *no* validation and arrives as whatever was sent. Use `@Body(new ZodValidationPipe(schema))` with a schema from `packages/core/entities` — the same one the web form uses. **Never `@UsePipes(...)` at the handler**: that binds the pipe to *every* parameter, so the body schema also validates `@CurrentUser()` and rejects every valid request. That shipped once; see the traps below.
 - **Nothing internal reaches a response.** `AllExceptionsFilter` is the single translation point. Driver messages carry connection strings, Zod issues describe the schema, stacks carry paths. An unrecognised error is a bare 500.
@@ -67,6 +68,7 @@ Allergies are a hard constraint enforced in **code**, never by prompting a model
 - Load the profile with `SafetyController.getSafetyProfile(userId)`. It is a named method so the call site is greppable: **a code path that never calls it is a code path with no allergy check.**
 - Anything that produces or shows food — generation, replacement, shopping lists — validates before it stores and before it returns.
 - `contains` blocks anyone with that allergy or intolerance. `may_contain` blocks only users who set `crossContaminationSensitive`.
+- **Free text is resolved once, deterministically, in `core/domain/Safety`.** A matched entry becomes an excluded ingredient id and goes through `findSafetyViolations` like everything else. An unmatched one becomes `SafetyProfile.unenforceableLabels` — the only allergy data that ever reaches a prompt, and only because there is no id to withhold. Never treat a label as a guarantee, and never add a second checker for one.
 
 ## Adding a module
 

@@ -39,7 +39,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 1 — Targets that say what they are
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 003 phase 1`
 - **Goal**: make every derived nutrition figure legible, correctable and impossible to compute into an impossible state.
 - **Scope**: `packages/core/src/{domain/Nutrition,entities/Nutrition,entities/Profile,controllers/Profile,repositories/Profile}`, `packages/database/src/schemas/profile.schema.ts`, `apps/api/src/modules/profiles/`, `apps/web/src/app/(app)/{inicio,perfil}`, `apps/web/src/components/MacroSummary/`.
@@ -59,7 +59,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 2 — Onboarding that resumes, and is enforced
 
-- [ ] pending
+- [ ] in progress — code complete and green; awaiting the `human-verify` step below
 - **Dispatch**: opus @ medium — `/execute-project 003 phase 2`
 - **Goal**: leaving is fine; arriving anywhere else with a half-finished profile is not.
 - **Scope**: `packages/core/src/controllers/Onboarding/`, `apps/api/src/{shared/guards,modules/meal-plans,modules/profiles}`, `apps/web/src/{proxy.ts,app/(app)}`.
@@ -77,7 +77,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 3 — Allergens outside the list
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 003 phase 3` *(the routing profile would send this to fable as safety-critical; fable is unavailable, so opus at high effort — the substitution is the standing one in the plan header)*
 - **Goal**: let someone name any allergy, and be honest about which we can enforce.
 - **Scope**: `packages/database/src/schemas/safety.schema.ts`, `packages/core/src/{entities/Safety,domain/Safety,repositories/Safety,controllers/Safety}`, `apps/api/src/modules/{safety,ai}`, `apps/web/src/components/OnboardingFlow/`.
@@ -96,7 +96,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 4 — Conditions, medications and supplements
 
-- [ ] pending
+- [x] done — the `owner-approves` gate was put and answered; see [`0008`](../../decisions/0008-condition-exclusions.md)
 - **Dispatch**: opus @ high — `/execute-project 003 phase 4` *(same substitution: safety- and privacy-critical)*
 - **Goal**: collect what changes a plan, use only what we can use responsibly, and say where the line is.
 - **Scope**: `packages/database/src/schemas/{profile,platform}.schema.ts`, `packages/core/src/{entities,domain,repositories,controllers}`, `apps/api/src/modules/{profiles,ai,meal-plans}`, `apps/web/src/{components/OnboardingFlow,app/(app)/perfil}`.
@@ -117,7 +117,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 5 — Locale plumbing and the interface in English
 
-- [ ] pending
+- [ ] in progress — code complete and green; awaiting the `human-verify` step below
 - **Dispatch**: opus @ high — `/execute-project 003 phase 5`
 - **Goal**: one locale decision, honoured everywhere, with the interface fully translated.
 - **Scope**: `apps/web/src/**`, `packages/core/src/entities/Profile`, `apps/api/src/shared/`.
@@ -137,7 +137,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 6 — The catalogue and generated content in English
 
-- [ ] pending
+- [x] done — the `owner-gated` migration and seed are still to run; commands in [LOG.md](./LOG.md)
 - **Dispatch**: opus @ high — `/execute-project 003 phase 6`
 - **Goal**: an English user gets an English shopping list, which is the half that actually matters.
 - **Scope**: `packages/database/src/{schemas/food.schema.ts,seed}`, `packages/core/src/{repositories/Recipe,controllers/Recipe}`, `apps/api/src/modules/ai/`.
@@ -157,7 +157,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 7 — The design pass
 
-- [ ] pending
+- [ ] in progress — code complete and green; awaiting the `human-verify` step below
 - **Dispatch**: opus @ high — `/execute-project 003 phase 7`
 - **Goal**: make it feel built rather than assembled — the owner's words were "empty", "bland" and "bunched up".
 - **Scope**: `packages/ui/src/styles/`, `apps/web/src/**/*.module.css`, `apps/web/src/components/`.
@@ -177,7 +177,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 8 — Verification and documentation
 
-- [ ] pending
+- [ ] in progress — written and green; the e2e suites are `owner-gated` and have never been run
 - **Dispatch**: sonnet @ medium — `/execute-project 003 phase 8`
 - **Goal**: prove the new guarantees, and leave the docs true.
 - **Scope**: `apps/api/test/`, `docs/`.

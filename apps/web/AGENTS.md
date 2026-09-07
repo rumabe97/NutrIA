@@ -137,9 +137,22 @@ Error display rules:
 
 ## Copy
 
-UI copy is **Spanish (`es-ES`)**. Code identifiers, comments and docs stay English. Copy is
-inline for now; an i18n layer arrives with the English milestone, so keep strings in the
-component that renders them rather than scattering ad-hoc constant files.
+**No user-facing string is written in a component.** Every one lives in
+`src/i18n/dictionaries/es-ES.ts` — the source of truth for both the words and the *shape* —
+with `en-GB.ts` typed as that shape, so a key added to one and forgotten in the other is a
+compile error. Spanish stays the first language: write it there first, then translate.
+
+- Server components read the dictionary with `await getDictionary()`; client components use
+  `useDictionary()` from the provider mounted in the root layout.
+- Placeholders are `{name}`, filled by `interpolate`. **Never** build a key from user data:
+  `t['goal.' + type]` puts a translation lookup at the mercy of what someone typed.
+- Numbers, dates and quantities go through `lib/format`, never `toLocaleString` with a
+  hardcoded locale and never a manual decimal-separator swap.
+- Values that are **data** are not copy: cuisine names are matched against recipe metadata,
+  and the section anchors (`#como-funciona`) are URLs someone may have saved. Both stay as
+  they are.
+
+Code identifiers, comments and docs stay English.
 
 Tone follows [`docs/PRODUCT.md`](../../docs/PRODUCT.md) § Experience principles: concise,
 concrete, no AI marketing. And never claim something works that does not — the dashboard's
@@ -154,12 +167,54 @@ This app imports tokens in this order (defined in `src/app/layout.tsx`):
 2. `ui/styles/variables` — semantic tokens
 3. `ui/styles/base` — shared CSS reset (do not duplicate its rules in `globals.css`)
 4. `ui/styles/classnames` — shared utility classes
-5. `styles/globals.css` — app-specific global styles only
-6. `styles/variables.css` — app-level token overrides (must be last)
+5. `ui/styles/motion` — the entrance / exit / shared-axis utilities
+6. `styles/globals.css` — app-specific global styles only
+7. `styles/variables.css` — app-level token overrides (must be last)
 
 `src/styles/variables.css` is where all branding and token overrides go. To change the accent color, remap `--color-brand-01`–`--color-brand-12` to any palette scale. Never reference palette tokens (`--color-gray-*`, `--color-blue-*`, etc.) directly.
 
 `src/styles/globals.css` is for app-specific styles only — the shared reset already lives in `ui/styles/base`.
+
+### Rhythm
+
+**Three gaps, and a gap that is none of them needs a reason.** The first build read as
+"bunched up" not because it lacked space but because every component picked its own, so
+nothing lined up and no gap meant anything.
+
+| Token | Between |
+| --- | --- |
+| `--gap-heading` | a heading and the content it introduces |
+| `--gap-block` | one block and the next inside a region |
+| `--gap-region` | one region of a screen and the next |
+
+`--section-gap` is the marketing page's own, much larger, and does not belong on a product
+screen. Card padding is `--card-padding` (or `--card-padding-lg` for a card that *is* the
+screen), never a `--space-*` pair chosen per component. Label/value grids use
+`--label-column`, so the profile screen and the targets panel agree with each other.
+
+**Tabular figures where numbers are compared** — a column of values, a row of stats — via
+`.tabular-nums` or the property directly. Not inside a sentence: there is nothing to line a
+number up with there, and tabular digits read as slightly wrong in running text.
+
+### Motion
+
+Use the utilities from `ui/styles/motion`: `.motion-enter` for something arriving,
+`.motion-list` for a list arriving (the stagger is on the children), `.motion-forward` /
+`.motion-back` for a shared-axis change where direction carries meaning.
+
+- **Never gate interaction on an animation.** No `pointer-events`, no `visibility`, no
+  handler wired on `animationend`. An element mid-entrance is a working element that
+  happens to be moving.
+- Reduced motion is handled once, in `ui/styles/base`, which collapses every animation and
+  transition. Do not add a second `prefers-reduced-motion` guard.
+- Replay an entrance by changing the element's `key`, not by toggling a class.
+
+### Feedback on a mutation
+
+Every control that starts one shows it **on itself**: `<Button loading={pending}>`, which
+adds a spinner, sets `aria-busy` and disables. The person who pressed the button is looking
+at the button. Buttons *beside* it stay merely `disabled` — two spinners for one request
+says two things are happening.
 
 ## Environment variables
 
