@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { PlanJobController } from 'core/controllers/Plan';
 
+import { BackgroundTaskService } from '../../shared/services/index.js';
 import { GenerationError } from './PlanGeneration.service.js';
 import { PlanJobRunner } from './PlanJobRunner.service.js';
 
@@ -23,7 +24,10 @@ function build(generate: () => Promise<string>) {
   const markSucceeded = jest.spyOn(PlanJobController, 'markSucceeded').mockResolvedValue(undefined);
   const markFailed = jest.spyOn(PlanJobController, 'markFailed').mockResolvedValue(undefined);
 
-  const runner = new PlanJobRunner({ generate: jest.fn(generate) } as unknown as PlanGenerationService);
+  // The real service, not a stub: off-platform its `waitUntil` throws and is
+  // caught, which is exactly the path a local run takes. A stub here would test
+  // the double.
+  const runner = new PlanJobRunner(new BackgroundTaskService(), { generate: jest.fn(generate) } as unknown as PlanGenerationService);
 
   return { markFailed, markStarted, markStep, markSucceeded, runner, start };
 }

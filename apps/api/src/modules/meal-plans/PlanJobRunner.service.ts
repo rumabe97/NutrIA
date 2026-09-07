@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { PlanJobController } from 'core/controllers/Plan';
 
+import { BackgroundTaskService } from '../../shared/services/index.js';
 import { GenerationError, PlanGenerationService } from './PlanGeneration.service.js';
 
 import type { JobView } from 'core/controllers/Plan';
@@ -14,6 +15,10 @@ import type { JobView } from 'core/controllers/Plan';
  * is that a restart mid-generation orphans a `running` row — handled by the stale
  * sweeper in `PlanJobController.start`, not ignored.
  *
+ * The work is handed to `BackgroundTaskService` rather than dropped on the floor
+ * with `void`. On a serverless host the invocation is frozen when the response is
+ * sent, and generation needs another thirty to forty-five seconds after that.
+ *
  * The job row is the contract, so replacing this with a real queue later means
  * writing a different runner, not changing the schema or the API.
  */
@@ -21,15 +26,19 @@ import type { JobView } from 'core/controllers/Plan';
 export class PlanJobRunner {
   private readonly logger = new Logger(PlanJobRunner.name);
 
-  constructor(private readonly generation: PlanGenerationService) {}
+  constructor(
+    private readonly background: BackgroundTaskService,
+    private readonly generation: PlanGenerationService
+  ) {}
 
   /** Creates the job and returns immediately; the work continues after the response. */
   async start(userId: string): Promise<JobView> {
     const job = await PlanJobController.start(userId);
 
     // Deliberately not awaited: the HTTP request returns a job id in milliseconds
-    // and the client polls. `void` marks that as intended rather than forgotten.
-    void this.run(userId, job.id);
+    // and the client polls. Handing it over rather than voiding it is what keeps
+    // the work alive once this function has already answered.
+    this.background.run(`plan-generation:${job.id}`, () => this.run(userId, job.id));
 
     return job;
   }
