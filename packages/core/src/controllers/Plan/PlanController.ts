@@ -97,6 +97,11 @@ function presentMeal({ items, meal, recipe }: MealRow): MealView {
 // --- Controller ---------------------------------------------------------------
 
 export const PlanController = {
+  /** For generation: the next plan version, and what the user was served last fortnight. */
+  async generationHistory(userId: string): Promise<{ readonly nextVersion: number; readonly recentDishes: readonly { readonly name: string; readonly slug: string }[] }> {
+    return PlanRepository.findGenerationHistory(userId);
+  },
+
   /** The active plan with its days and meals, or null — having no plan is a normal state. */
   async getActivePlan(userId: string, locale: string | null = null): Promise<PlanView | null> {
     const plan = await PlanRepository.findActive(userId);

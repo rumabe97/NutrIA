@@ -15,8 +15,15 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * ingredients and a name — which is what the owner meant by "too basic". The
  * floor is also enforced in `pool.schema.ts` now, so this text is a request and
  * the schema is the guarantee.
+ * 2.3.0: designs for one person rather than a profile. The model now sees how
+ * they eat breakfast, how big they like a plate, how often they cook and what
+ * their days look like — fields the profile always held and the prompt never
+ * read — plus what they were served last fortnight, so it proposes something
+ * else. And the set it returns has to be *spread*: no protein, cuisine or
+ * method dominating, with the counts stated, because "varied" alone produced
+ * eight chicken dishes with a straight face.
  */
-export const PROMPT_VERSION = '2.2.0';
+export const PROMPT_VERSION = '2.3.0';
 
 /** Share of the day each slot carries; mirrors the scheduler's own weights. */
 const SLOT_SHARE: Record<MealSlot, number> = {
@@ -43,7 +50,12 @@ export function languageName(locale: string): string {
 }
 
 export type PromptContext = {
+  /** Names of dishes served last fortnight. Excluded from reuse already; the model is told so it does not recreate them. */
+  readonly avoidNames: readonly string[];
+  /** Free text from onboarding, e.g. "no desayuno, almuerzo a las 11". */
+  readonly breakfastStyle: string | null;
   readonly budget: string | null;
+  readonly cookingFrequency: string | null;
   readonly cookingTimeMinutes: number | null;
   readonly cuisines: readonly string[];
   readonly dietaryPatterns: readonly string[];
@@ -63,6 +75,10 @@ export type PromptContext = {
   readonly language: string;
   readonly likedLabels: readonly string[];
   readonly needBySlot: ReadonlyMap<MealSlot, number>;
+  /** Free text: "ligeros", "grandes"… */
+  readonly portionPreference: string | null;
+  /** Free text about the working week, e.g. shifts. */
+  readonly scheduleNotes: string | null;
   readonly targets: NutritionTargets;
 };
 
@@ -115,6 +131,38 @@ export const POOL_SYSTEM_PROMPT = [
  * same identifiers whatever language it writes in — which is what keeps the macro
  * lookup and the allergy gate language-agnostic.
  */
+/**
+ * User-written text on one line, bounded. It is *their* words about themselves,
+ * which is the point; the bound and the flattening are so a paragraph pasted
+ * into "work schedule" cannot restructure the prompt around it.
+ */
+function oneLine(text: string | null, max = 160): string | null {
+  const flat = text?.replace(/\s+/g, ' ').trim() ?? '';
+
+  return flat ? flat.slice(0, max) : null;
+}
+
+/**
+ * How spread the returned set must be, stated as counts the model can check.
+ * "Varied" alone produced eight chicken dishes; a ceiling per protein does not.
+ */
+function spreadRules(total: number): string[] {
+  if (total < 4) {return [];}
+
+  const perProtein = Math.max(2, Math.ceil(total / 4));
+  const perMethod = Math.max(2, Math.ceil(total / 3));
+  const cuisines = Math.min(4, Math.floor(total / 3));
+
+  return [
+    'SPREAD ACROSS THE SET YOU RETURN (counted over all dishes together):',
+    `- No main protein — chicken, beef, pork, fish, eggs, legumes, dairy — in more than ${perProtein} dishes.`,
+    `- No cooking method — roast, sear, stew, salad, sandwich, bowl — in more than ${perMethod} dishes.`,
+    `- At least ${cuisines} distinct cuisines, drawing on the preferred ones first.`,
+    '- Every dish a different base: do not send the same dish twice with the protein swapped.',
+    ''
+  ];
+}
+
 export function buildPoolPrompt(context: PromptContext, safeIngredients: readonly CatalogueIngredient[]): string {
   const active = [...context.needBySlot.keys()];
   const totalShare = active.reduce((sum, slot) => sum + SLOT_SHARE[slot], 0) || 1;
@@ -163,6 +211,16 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
     'DISHES NEEDED:',
     needs,
     '',
+    ...spreadRules([...context.needBySlot.values()].reduce((sum, count) => sum + count, 0)),
+    'THIS PERSON (design for them, not for a profile):',
+    oneLine(context.breakfastStyle) ? `- Breakfast, in their words: ${oneLine(context.breakfastStyle)}` : '',
+    oneLine(context.portionPreference) ? `- Plates they like: ${oneLine(context.portionPreference)}` : '',
+    context.cookingFrequency ? `- Cooks: ${context.cookingFrequency}` : '',
+    oneLine(context.scheduleNotes) ? `- Their week: ${oneLine(context.scheduleNotes)}` : '',
+    '',
+    context.avoidNames.length > 0
+      ? `SERVED TO THEM LAST FORTNIGHT — propose different dishes, not these or close variations of them: ${context.avoidNames.slice(0, 60).join('; ')}`
+      : '',
     context.dietaryPatterns.length > 0 ? `WAY OF EATING: ${context.dietaryPatterns.join(', ')}` : 'WAY OF EATING: no restriction declared',
     context.cookingTimeMinutes ? `MAXIMUM TIME PER DISH: ${context.cookingTimeMinutes} minutes (prep + cooking)` : '',
     context.budget ? `BUDGET: ${context.budget}` : '',

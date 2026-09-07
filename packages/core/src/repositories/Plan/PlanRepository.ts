@@ -267,6 +267,39 @@ export const PlanRepository = {
     }
   },
 
+  /**
+   * What generation needs to know about this user's past plans: the version the
+   * next one will carry, and every dish served in the latest one.
+   *
+   * The version seeds which library dishes the user is handed, so the pick is
+   * theirs and reproducible; the dishes are what they will not be served again.
+   * One method, because the two answers come from the same plan.
+   */
+  async findGenerationHistory(userId: string): Promise<{ readonly nextVersion: number; readonly recentDishes: readonly { readonly name: string; readonly slug: string }[] }> {
+    try {
+      const db = database();
+      const [latest] = await db
+        .select({ id: mealPlans.id, version: mealPlans.version })
+        .from(mealPlans)
+        .where(eq(mealPlans.userId, userId))
+        .orderBy(desc(mealPlans.version))
+        .limit(1);
+
+      if (!latest) {return { nextVersion: 1, recentDishes: [] };}
+
+      const served = await db
+        .selectDistinct({ name: recipes.name, slug: recipes.slug })
+        .from(meals)
+        .innerJoin(planDays, eq(planDays.id, meals.planDayId))
+        .innerJoin(recipes, eq(recipes.id, meals.recipeId))
+        .where(eq(planDays.planId, latest.id));
+
+      return { nextVersion: latest.version + 1, recentDishes: served };
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   async findHistory(userId: string, limit: number, offset: number) {
     try {
       return await database().select().from(mealPlans).where(eq(mealPlans.userId, userId)).orderBy(desc(mealPlans.version)).limit(limit).offset(offset);

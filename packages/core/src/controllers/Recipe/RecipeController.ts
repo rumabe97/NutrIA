@@ -1,10 +1,12 @@
 import { hasUsableMethod } from 'core/domain/Method';
+import { rotatePool } from 'core/domain/Variety';
 import { dishSafety } from 'core/domain/Safety';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
 import { SafetyController } from 'core/controllers/Safety';
 import { toCatalogue } from 'core/entities/Plan';
 import type { CandidateDish, Catalogue, MealSlot } from 'core/entities/Plan';
+import type { Rotation } from 'core/domain/Variety';
 import type { ReusableRecipe } from '#repositories/Recipe';
 import type { SafetyProfile } from 'core/entities/Safety';
 
@@ -75,6 +77,9 @@ export const RecipeController = {
    * Dishes referencing an ingredient no longer in the catalogue are dropped: their
    * macros could not be computed, so they cannot be scheduled.
    *
+   * With a `rotation`, the library is then narrowed to this user's own pick — see
+   * `rotatePool` for why "reuse everything" meant "everyone gets the same plan".
+   *
    * Dishes with no method are dropped too, and that gate is the only thing that
    * lets a quality change ever reach an existing user. Reuse is preferred over
    * generation by design ([`0006`](../../../../docs/decisions/0006-reuse-before-generating.md)),
@@ -83,11 +88,15 @@ export const RecipeController = {
    * A recipe that never says how to cook it is the one defect worth spending a
    * regeneration on, so it is the one this filter names.
    */
-  async reusablePool(slots: readonly MealSlot[], context: GenerationContext): Promise<readonly CandidateDish[]> {
+  async reusablePool(slots: readonly MealSlot[], context: GenerationContext, rotation?: Rotation): Promise<readonly CandidateDish[]> {
     const recipes = await RecipeRepository.findReusable(slots, REUSE_FETCH_LIMIT, context.locale);
-
-    return recipes
+    const usable = recipes
       .filter(recipe => hasUsableMethod(recipe) && dishSafety(recipe.ingredients, context.catalogue, context.safety).kind === 'safe')
       .map(toCandidateDish);
+
+    // Without a rotation every user is handed the whole safe library in the same
+    // order, and the deterministic scheduler then hands them the same plan. With
+    // one, each user gets their own dozen per slot, minus last fortnight's.
+    return rotation ? rotatePool(usable, slots, rotation) : usable;
   }
 };

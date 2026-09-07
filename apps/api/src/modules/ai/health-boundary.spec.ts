@@ -37,7 +37,10 @@ describe('the health-data boundary around the AI module', () => {
 
   it('builds a prompt from a context that has nowhere to put a condition or a medication', () => {
     const context: PromptContext = {
+      avoidNames: [],
+      breakfastStyle: null,
       budget: 'medium',
+      cookingFrequency: null,
       cookingTimeMinutes: 30,
       cuisines: ['Mediterránea'],
       dietaryPatterns: ['omnivore'],
@@ -47,6 +50,8 @@ describe('the health-data boundary around the AI module', () => {
       language: 'Spanish (Spain)',
       likedLabels: ['salmón'],
       needBySlot: new Map<MealSlot, number>([['breakfast', 2]]),
+      portionPreference: null,
+      scheduleNotes: null,
       targets: { carbsG: 200, fatG: 60, fiberG: 28, kcal: 2000, proteinG: 150 }
     };
 

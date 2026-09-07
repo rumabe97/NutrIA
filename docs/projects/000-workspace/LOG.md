@@ -349,3 +349,24 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
 - **Note**: this is the fix batch that made project 003's acceptance criterion 6 concrete;
   the rest of that criterion — per-mutation progress on every control — belongs to the
   project, not here.
+
+### 2026-09-07 — Own plans per user, and compact time fields (task)
+
+- **Executor**: agent, at the owner's report: "In onboarding, the hour inputs are made
+  too large. In addition, optimise the prompt so that each user has their own totally
+  different plan, with many varieties."
+- **Time fields**: `Input` drops the native look for `type=time`/`date`, sizes them to
+  their value (`max-inline-size: 11rem`) and left-aligns like every other field. iOS
+  drew an oversized, centred picker stretched to the width of the phone.
+- **Own plans**: the cause was never the prompt. The scheduler is deterministic and
+  order-independent, and reuse handed every user the whole library — so similar
+  profiles got the same plan, and the same user got it again next fortnight.
+  `rotatePool` gives each user a seeded dozen per slot minus last fortnight's dishes;
+  prompt 2.3.0 designs for the person (breakfast style, plate size, cooking frequency,
+  their week — fields the profile held and the prompt never read), is told what they
+  were served, and must spread the set with counts. `DISHES_NEEDED_PER_SLOT` moved to
+  core so the model's ask and the user's hand are one number. ADR 0006 amended.
+- **Verified**: unit — rotation determinism, difference across users and versions,
+  history exclusion, per-slot cap; prompt content pinned; generation wiring pinned.
+  Live — one real generation inspected (see the report in the conversation).
+

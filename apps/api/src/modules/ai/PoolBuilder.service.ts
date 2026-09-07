@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { dishSafety, findSafetyViolations } from 'core/domain/Safety';
-import { VARIETY_RULES } from 'core/domain/Variety';
+import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
 import { AiClient } from './clients/AiClient.js';
 import { buildPoolPrompt, languageName, POOL_SYSTEM_PROMPT, PROMPT_VERSION } from './PoolPrompt.js';
@@ -13,23 +13,12 @@ import type { GenerationContext } from 'core/controllers/Recipe';
 import type { PromptContext } from './PoolPrompt.js';
 
 /**
- * Distinct dishes to ask for per slot.
- *
- * The bare minimum for fourteen days is `ceil(14 / maxOccurrencesPerPlan)` — seven
- * under the current variety rules. Asking for exactly that leaves the scheduler no
- * freedom at all: it must use every dish the maximum number of times, so a single
- * protein-dense outlier lands on several days and takes them out of band, and
- * there is no alternative to swap in. Slack is what lets it choose a combination
- * that meets the targets.
- *
- * Five rather than four, because the floor rose with the variety rules and slack
- * that does not rise with it is slack that shrinks in proportion — the thing it
- * protects against is a *fraction* of the pool being rejected, not a fixed count.
- *
- * The cost of the extra dishes is one larger response, against a failed generation
- * that costs the whole call.
+ * Re-exported from `core/domain/Variety`, where it is defined once: the pool
+ * builder asks a model for this many per slot, and the reuse rotation hands a
+ * user this many per slot. The same number, or two plans differ only by how
+ * large the library happens to be.
  */
-export const DISHES_NEEDED_PER_SLOT = Math.ceil(14 / VARIETY_RULES.maxOccurrencesPerPlan) + 5;
+export { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
 const MAX_ATTEMPTS = 3;
 

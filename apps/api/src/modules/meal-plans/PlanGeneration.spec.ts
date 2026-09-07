@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { OnboardingController } from 'core/controllers/Onboarding';
-import { PlanJobController } from 'core/controllers/Plan';
+import { PlanController, PlanJobController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
 
@@ -144,19 +144,40 @@ function build(overrides: Partial<Mocks> = {}) {
       unenforceableLabels: []
     }
   });
+  jest.spyOn(PlanController, 'generationHistory').mockResolvedValue({ nextVersion: 3, recentDishes: [{ name: 'Pollo al limón', slug: 'pollo-al-limon' }] });
   jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(reusable);
   jest.spyOn(PlanJobController, 'persist').mockImplementation(persist as never);
 
-  const poolBuilder = {
-    build: jest.fn(async () => Promise.resolve({ dishes: reusable, generated: [], metadata: { attempts: 0, calls: 0, inputTokens: 0, model: 'none', outputTokens: 0, promptVersion: '1.0.0', rejected: 0, reused: reusable.length } }))
-  } as unknown as PoolBuilder;
+  const buildPool = jest.fn(async (_input: unknown) => Promise.resolve({ dishes: reusable, generated: [], metadata: { attempts: 0, calls: 0, inputTokens: 0, model: 'none', outputTokens: 0, promptVersion: '1.0.0', rejected: 0, reused: reusable.length } }));
+  const poolBuilder = { build: buildPool } as unknown as PoolBuilder;
 
-  return { persist, service: new PlanGenerationService(poolBuilder) };
+  return { buildPool, persist, service: new PlanGenerationService(poolBuilder) };
 }
 
 describe('PlanGenerationService', () => {
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  /*
+   * "Each user gets their own plan" is decided here, not in the prompt: which
+   * library dishes reuse hands over is seeded by the user and the plan version,
+   * last fortnight's are held back, and the model is told what they were.
+   */
+  it('rotates reuse per user and version, holds back last fortnight, and names it to the model', async () => {
+    const { buildPool, service } = build();
+    const reusablePool = jest.spyOn(RecipeController, 'reusablePool');
+
+    await service.generate('user-1', 'job-1', async () => Promise.resolve());
+
+    const rotation = reusablePool.mock.calls[0]?.[2];
+
+    expect(rotation?.seed).toBe('user-1:3');
+    expect(rotation?.avoidSlugs.has('pollo-al-limon')).toBe(true);
+
+    const input = buildPool.mock.calls[0]?.[0] as { preferences: { avoidNames: readonly string[] } } | undefined;
+
+    expect(input?.preferences.avoidNames).toEqual(['Pollo al limón']);
   });
 
   it('produces a 14-day plan and persists it once', async () => {

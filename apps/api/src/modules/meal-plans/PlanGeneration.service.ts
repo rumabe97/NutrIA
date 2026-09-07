@@ -5,7 +5,7 @@ import { dishSafety } from 'core/domain/Safety';
 import { PLAN_DAYS, schedulePlan, slotsFor } from 'core/domain/Scheduler';
 import { validatePlan } from 'core/domain/PlanValidation';
 import { OnboardingController } from 'core/controllers/Onboarding';
-import { PlanJobController } from 'core/controllers/Plan';
+import { PlanController, PlanJobController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
 
@@ -14,6 +14,7 @@ import { PoolBuilder } from '../ai/PoolBuilder.service.js';
 import type { CandidateDish, PlanAssignment } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { GenerationContext } from 'core/controllers/Recipe';
+import type { Rotation } from 'core/domain/Variety';
 import type { PlanDraft, RecipeDraft } from 'core/entities/Plan';
 
 /**
@@ -67,10 +68,11 @@ export class PlanGenerationService {
   async generate(userId: string, jobId: string, markStep: (step: string) => Promise<void>): Promise<string> {
     await markStep(STEPS.loading);
 
-    const [onboarding, profile, context] = await Promise.all([
+    const [onboarding, profile, context, history] = await Promise.all([
       OnboardingController.getState(userId),
       ProfileController.getFullProfile(userId),
-      RecipeController.generationContext(userId)
+      RecipeController.generationContext(userId),
+      PlanController.generationHistory(userId)
     ]);
 
     if (!onboarding.isComplete) {throw new GenerationError('GENERATION_ONBOARDING_INCOMPLETE');}
@@ -84,16 +86,25 @@ export class PlanGenerationService {
 
     await markStep(STEPS.choosing);
 
-    const reusable = await RecipeController.reusablePool(slots, context);
+    // The seed is the user and the plan version: the library pick is theirs, it is
+    // reproducible for a failed generation, and next fortnight's is a different one.
+    // What they were served last time is excluded from reuse and named to the model.
+    const rotation: Rotation = { avoidSlugs: new Set(history.recentDishes.map(dish => dish.slug)), seed: `${userId}:${history.nextVersion}` };
+    const reusable = await RecipeController.reusablePool(slots, context, rotation);
     const built = await this.pool.build({
       context,
       preferences: {
+        avoidNames: history.recentDishes.map(dish => dish.name),
+        breakfastStyle: profile.preferences?.breakfastStyle ?? null,
         budget: profile.preferences?.budget ?? null,
+        cookingFrequency: profile.preferences?.cookingFrequency ?? null,
         cookingTimeMinutes: profile.preferences?.cookingTimeMinutes ?? null,
         cuisines: profile.cuisines,
         dietaryPatterns: profile.dietaryPatterns,
         dislikedLabels: profile.foodPreferences.filter(item => item.sentiment === 'disliked').map(item => item.label),
         likedLabels: profile.foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label),
+        portionPreference: profile.preferences?.portionPreference ?? null,
+        scheduleNotes: profile.preferences?.workScheduleNotes ?? null,
         targets
       },
       reusable,
@@ -166,7 +177,7 @@ export class PlanGenerationService {
 
     await markStep(STEPS.saving);
 
-    return PlanJobController.persist(userId, this.toDraft(scheduled.assignment, shopping, built, targets, context, jobId));
+    return PlanJobController.persist(userId, this.toDraft(scheduled.assignment, shopping, built, targets, context, jobId, rotation));
   }
 
   /**
@@ -226,7 +237,8 @@ export class PlanGenerationService {
     built: Awaited<ReturnType<PoolBuilder['build']>>,
     targets: NutritionTargets,
     context: GenerationContext,
-    jobId: string
+    jobId: string,
+    rotation: Rotation
   ): PlanDraft {
     const start = new Date();
     const end = new Date(start);
@@ -252,7 +264,9 @@ export class PlanGenerationService {
         }))
       })),
       endDate: isoDate(end),
-      generationMetadata: { ...built.metadata, jobId, locale: context.locale, scheduledAt: start.toISOString() },
+      // The seed and the number of dishes held back say *why* this plan differs from
+      // the last one, which is the first thing anyone asks when two plans look alike.
+      generationMetadata: { ...built.metadata, avoidedDishes: rotation.avoidSlugs.size, jobId, locale: context.locale, poolSeed: rotation.seed, scheduledAt: start.toISOString() },
       // Only dishes the plan actually uses are persisted — a generated dish the
       // scheduler never placed is not worth a row.
       locale: context.locale,

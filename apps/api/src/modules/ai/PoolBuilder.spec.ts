@@ -108,12 +108,17 @@ describe('shortfall', () => {
 
 describe('PoolBuilder', () => {
   const preferences = {
+    avoidNames: [],
+    breakfastStyle: null,
     budget: null,
+    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
     dietaryPatterns: [],
     dislikedLabels: [],
     likedLabels: [],
+    portionPreference: null,
+    scheduleNotes: null,
     targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
   };
 
@@ -292,6 +297,76 @@ describe('PoolBuilder', () => {
     expect(prompt).toContain('Technique in the steps');
   });
 
+  /*
+   * 2.3.0. "Optimise the prompt so each user gets their own plan" is mostly
+   * pool rotation, but the model has to know who it is designing for and what
+   * they just had — and "varied" has to be a number it can count.
+   */
+  describe('designs for the person', () => {
+    it('tells the model what they were served last fortnight, so it proposes something else', async () => {
+      const { client, generate } = stubClient([{ dishes: [] }]);
+
+      await new PoolBuilder(client).build({ context: context(), preferences: { ...preferences, avoidNames: ['Pollo al limón', 'Lentejas con chorizo'] }, reusable: [], slots: ['lunch'] });
+
+      const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
+
+      expect(prompt).toContain('SERVED TO THEM LAST FORTNIGHT');
+      expect(prompt).toContain('Pollo al limón; Lentejas con chorizo');
+    });
+
+    it('says nothing about last fortnight when there was none', async () => {
+      const { client, generate } = stubClient([{ dishes: [] }]);
+
+      await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+
+      expect((generate.mock.calls[0]?.[0] as { prompt: string }).prompt).not.toContain('LAST FORTNIGHT');
+    });
+
+    it('passes on how they eat, in their own words, one line each', async () => {
+      const { client, generate } = stubClient([{ dishes: [] }]);
+
+      await new PoolBuilder(client).build({
+        context: context(),
+        preferences: { ...preferences, breakfastStyle: 'No desayuno,\n  almuerzo   a las 11', cookingFrequency: 'often', portionPreference: 'Ligeros', scheduleNotes: 'Turnos de noche' },
+        reusable: [],
+        slots: ['lunch']
+      });
+
+      const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
+
+      expect(prompt).toContain('THIS PERSON');
+      expect(prompt).toContain('- Breakfast, in their words: No desayuno, almuerzo a las 11');
+      expect(prompt).toContain('- Plates they like: Ligeros');
+      expect(prompt).toContain('- Cooks: often');
+      expect(prompt).toContain('- Their week: Turnos de noche');
+    });
+
+    it('bounds free text, so a pasted paragraph cannot restructure the prompt', async () => {
+      const { client, generate } = stubClient([{ dishes: [] }]);
+      const essay = 'x'.repeat(500);
+
+      await new PoolBuilder(client).build({ context: context(), preferences: { ...preferences, scheduleNotes: essay }, reusable: [], slots: ['lunch'] });
+
+      const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
+      const line = prompt.split('\n').find(candidate => candidate.startsWith('- Their week:')) ?? '';
+
+      expect(line.length).toBeLessThan(200);
+    });
+
+    it('states the spread as counts the model can check', async () => {
+      const { client, generate } = stubClient([{ dishes: [] }]);
+
+      await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['breakfast', 'lunch', 'dinner'] });
+
+      const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
+
+      // Three slots × DISHES_NEEDED_PER_SLOT dishes requested; a quarter of that per protein.
+      expect(prompt).toContain('SPREAD ACROSS THE SET YOU RETURN');
+      expect(prompt).toMatch(/No main protein .* in more than \d+ dishes/);
+      expect(prompt).toMatch(/At least \d+ distinct cuisines/);
+    });
+  });
+
   it('gives up after a bounded number of attempts rather than looping', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
@@ -337,12 +412,17 @@ function dish2(slug: string): CandidateDish {
 
 describe('PoolBuilder — telling a broken provider from an absent one', () => {
   const preferences = {
+    avoidNames: [],
+    breakfastStyle: null,
     budget: null,
+    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
     dietaryPatterns: [],
     dislikedLabels: [],
     likedLabels: [],
+    portionPreference: null,
+    scheduleNotes: null,
     targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
   };
 
