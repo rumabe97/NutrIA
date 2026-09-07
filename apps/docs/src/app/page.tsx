@@ -30,7 +30,7 @@ export default function Home() {
     <main className={styles.main}>
       <section className={styles.hero}>
         <Text className={styles.eyebrow} size="xs" tone="tertiary">
-          mini template · v0.1
+          NutrIA · v0.1
         </Text>
         <Heading className={styles.title} level="1">
           A batteries-included Next.js&nbsp;monorepo, designed to&nbsp;ship.
