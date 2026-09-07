@@ -123,6 +123,29 @@ describe('AI provider and model pairing', () => {
 });
 
 /*
+ * A default that production refuses is a trap, not a default: the first
+ * production deploy failed on SWAGGER_ENABLED, which nobody had set. Unset now
+ * means the safe thing for wherever the process is.
+ */
+describe('SWAGGER_ENABLED when nothing is said', () => {
+  it('is on in development', () => {
+    expect(validateEnv({ ...valid }).SWAGGER_ENABLED).toBe(true);
+  });
+
+  it('is off in production', () => {
+    expect(validateEnv({ ...valid, ALLOWED_ORIGINS: 'https://nutria.app', NODE_ENV: 'production' }).SWAGGER_ENABLED).toBe(false);
+  });
+
+  it('is off in staging', () => {
+    expect(validateEnv({ ...valid, NODE_ENV: 'staging' }).SWAGGER_ENABLED).toBe(false);
+  });
+
+  it('still honours an explicit value outside production', () => {
+    expect(validateEnv({ ...valid, SWAGGER_ENABLED: 'false' }).SWAGGER_ENABLED).toBe(false);
+  });
+});
+
+/*
  * The platform sets VERCEL_ENV; the operator sets NODE_ENV. When they disagree
  * on a production deployment, every production-only rule above is silently
  * skipped — the deployed function found this out by crashing on a development

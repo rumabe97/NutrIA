@@ -89,10 +89,14 @@ const envObject = z
     SMTP_PASS: optional(z.string()),
     SMTP_PORT: optional(z.coerce.number().int().positive()),
     SMTP_USER: optional(z.string()),
-    SWAGGER_ENABLED: z
-      .enum(['true', 'false'])
-      .default('true')
-      .transform(value => value === 'true'),
+    /*
+     * No fixed default. Unset means "on in development, off everywhere else",
+     * resolved below once NODE_ENV is known. It used to default to `true`, which
+     * production then refused — so the first production deploy failed on a
+     * variable nobody had set, to say that not publishing the schema must be
+     * asked for. The safe thing has to be what happens when nothing is said.
+     */
+    SWAGGER_ENABLED: optional(z.enum(['true', 'false'])),
     /*
      * Set by the platform on every deployment, never by hand. It exists in this
      * schema for one cross-check below: a production deployment running with a
@@ -111,7 +115,11 @@ const envSchema = envObject
   // is what makes running with no account a supported state rather than a broken
   // one — see docs/decisions/0006-reuse-before-generating.md.
   // Fill the provider's own default before anything reads AI_MODEL.
-  .transform(env => ({ ...env, AI_MODEL: env.AI_MODEL ?? DEFAULT_MODEL[env.AI_PROVIDER] }))
+  .transform(env => ({
+    ...env,
+    AI_MODEL: env.AI_MODEL ?? DEFAULT_MODEL[env.AI_PROVIDER],
+    SWAGGER_ENABLED: env.SWAGGER_ENABLED === undefined ? env.NODE_ENV === 'development' : env.SWAGGER_ENABLED === 'true'
+  }))
   .superRefine((env, ctx) => {
     const expected = MODEL_PREFIX[env.AI_PROVIDER];
 
