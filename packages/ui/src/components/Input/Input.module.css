@@ -27,6 +27,27 @@
   color: var(--foreground-03);
 }
 
+/*
+ * A time is five characters. Stretched to the width of a phone it reads as a
+ * broken control, and iOS draws its own oversized, centred picker for it
+ * besides — so the native look is dropped and the field is sized to its value,
+ * left-aligned like every other input. `min-height` rather than relying on
+ * `height`: iOS ignores `height` on this type and uses its own.
+ */
+.input[type='time'],
+.input[type='date'] {
+  appearance: none;
+  -webkit-appearance: none;
+  max-inline-size: 11rem;
+  min-height: 2.25rem;
+}
+
+.input[type='time']::-webkit-date-and-time-value,
+.input[type='date']::-webkit-date-and-time-value {
+  min-height: 1.5em;
+  text-align: start;
+}
+
 .input:disabled {
   cursor: not-allowed;
   opacity: 0.5;
