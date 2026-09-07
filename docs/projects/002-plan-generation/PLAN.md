@@ -182,7 +182,7 @@ dishes as well as generated ones.)*
 
 ### Phase 6 — Web: generation, the plan, meal detail
 
-- [ ] in progress — code complete and command-verified; **blocked at the `human-verify` gate**, which needs a live database to have a plan to look at (see ROADMAP § Now)
+- [x] done — human-verify confirmed by the owner on 2026-09-07: a plan generated and rendered correctly. Design feedback from that review (spacing, motion, density) is carried into project 003 rather than reopening this phase.
 - **Dispatch**: opus @ high — `/execute-project 002 phase 6`
 - **Goal**: the screens that make a plan a product, replacing the dashboard's empty state.
 - **Scope**: `apps/web/src/app/(app)/`, `apps/web/src/components/`.

@@ -314,3 +314,26 @@
   **throwaway** database. Commands are in `apps/api/test/README.md` and
   [`ROADMAP.md`](../../ROADMAP.md) § Now. Until they run, project 002 is implemented but
   unproven against real Postgres, and this log says so rather than implying otherwise.
+
+## Phase 6 — human-verify closed (2026-09-07)
+
+- **Confirmed by the owner on 2026-09-07**: generation ran end to end against a live
+  database and a real Gemini key, and the resulting plan rendered correctly.
+- **What that closes**: the gate's second half — that the generation screen's labels match
+  the pipeline stages — was already settled structurally, since the client renders
+  `job.step` verbatim. The first half, that a generated plan reads correctly, is now
+  confirmed by someone looking at one.
+- **What it does not close**: the owner's review also found the surface too sparse, the
+  spacing uneven and the motion absent. That is real feedback and it is **not** recorded
+  here as a defect of this phase — the screens do what this project specified. It becomes
+  project 003, which was planned in response to it.
+- **What made it work**: five fixes in sequence, none of them in this phase's code — the
+  Google model default, the wire schema Gemini would accept, protein-aware scheduling, the
+  protein ceiling measured in g/kg, and finally the calorie target itself, which had been
+  4,099 instead of 2,449 for a weight-loss profile. The last of those is why the earlier
+  four were so hard: the scheduler was being asked to hit an impossible number, and every
+  fix was tuning against a target that was wrong.
+- **Still open**: phase 7's `owner-gated` step. The end-to-end suites have a database
+  available now but should run against a **throwaway** one — they create and delete
+  accounts, and would write scripted test dishes into the shared recipe library that later
+  plans would then reuse.

@@ -9,11 +9,15 @@
 
 **Milestone: a user receives a real 14-day plan.**
 
-[`002-plan-generation`](./projects/002-plan-generation/) — **all seven phases implemented;
-two gates outstanding, both waiting on a database.** The catalogue, the generation
-pipeline, atomic persistence, the REST surface and the plan screens are built and covered
-by 541 passing tests. What has never run: the end-to-end suites (they need real Postgres)
-and the visual check on phase 6's screens (they need a plan to display).
+[`002-plan-generation`](./projects/002-plan-generation/) — **delivered**, confirmed
+working end to end by the owner on 2026-09-07 against a live database and a real AI
+provider. One gate remains: phase 7's end-to-end suites are written and type-checked but
+have never been executed, and want a throwaway database rather than the working one.
+
+Next: [`003-trust-depth-and-polish`](./projects/003-trust-depth-and-polish/) — PRD
+approved, plan being written. Trustworthy and overridable targets, onboarding that
+resumes and is enforced server-side, a deeper profile (free-text allergens, conditions,
+medications, supplements), English throughout, and a design pass.
 
 *Delivered:* [`001-workspace-kickoff`](./projects/001-workspace-kickoff/) — landing page,
 authentication, the ten-step onboarding, the profile, computed daily targets, the allergy
