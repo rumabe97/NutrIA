@@ -9,12 +9,14 @@ import { Button } from 'ui/components/Button';
 import { Checkbox } from 'ui/components/Checkbox';
 import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { ChipGroup } from 'components/ChipGroup';
 import { OptionCards } from 'components/OptionCards';
 import { SummaryRow } from 'components/SummaryRow';
 
 import { api, ApiError, messageFor } from 'lib/api';
+import { formatNumber, interpolate } from 'lib/format';
 
 import { FLOW, TOTAL_STEPS } from './steps';
 
@@ -28,59 +30,36 @@ interface OnboardingFlowProps {
   step: number;
 }
 
-const GOALS = [
-  { hint: 'Reducir grasa manteniendo la masa muscular.', label: 'Perder peso', value: 'weight_loss' },
-  { hint: 'Quedarte donde estás, comiendo mejor.', label: 'Mantenerme', value: 'maintenance' },
-  { hint: 'Ganar músculo con un superávit controlado.', label: 'Ganar músculo', value: 'muscle_gain' },
-  { hint: 'Comer para entrenar y recuperar mejor.', label: 'Rendimiento', value: 'performance' },
-  { hint: 'Sin objetivo de peso, solo comer bien.', label: 'Comer sano', value: 'healthy_eating' },
-  { hint: 'Cuéntanoslo con tus palabras.', label: 'Otro', value: 'custom' }
+/**
+ * Option **values**, in the order they are offered. Labels and hints come from
+ * the dictionary; these arrays carry only what the API accepts.
+ */
+const GOAL_VALUES = ['weight_loss', 'maintenance', 'muscle_gain', 'performance', 'healthy_eating', 'custom'] as const;
+const ACTIVITY_VALUES = ['sedentary', 'light', 'moderate', 'high', 'athlete'] as const;
+const SEX_VALUES = ['female', 'male', 'other', 'prefer_not_to_say'] as const;
+const COOKING_FREQUENCY_VALUES = ['rarely', 'sometimes', 'often', 'daily'] as const;
+const BUDGET_VALUES = ['low', 'medium', 'high'] as const;
+const DIETARY_PATTERN_VALUES = [
+  'omnivore',
+  'vegetarian',
+  'vegan',
+  'pescatarian',
+  'flexitarian',
+  'gluten_free',
+  'lactose_free',
+  'halal',
+  'kosher'
 ] as const;
 
-const ACTIVITY = [
-  { hint: 'Trabajo sentado, poco ejercicio.', label: 'Sedentario', value: 'sedentary' },
-  { hint: 'Camino a diario o entreno 1–2 veces.', label: 'Ligero', value: 'light' },
-  { hint: 'Entreno 3–4 veces por semana.', label: 'Moderado', value: 'moderate' },
-  { hint: 'Entreno 5–6 veces o trabajo físico.', label: 'Alto', value: 'high' },
-  { hint: 'Doble sesión o competición.', label: 'Deportista', value: 'athlete' }
-] as const;
-
-const SEXES = [
-  { label: 'Mujer', value: 'female' },
-  { label: 'Hombre', value: 'male' },
-  { label: 'Otro', value: 'other' },
-  { label: 'Prefiero no decirlo', value: 'prefer_not_to_say' }
-] as const;
-
-const COOKING_FREQUENCY = [
-  { label: 'Casi nunca', value: 'rarely' },
-  { label: 'A veces', value: 'sometimes' },
-  { label: 'A menudo', value: 'often' },
-  { label: 'A diario', value: 'daily' }
-] as const;
-
-const BUDGETS = [
-  { hint: 'Básicos y marcas blancas.', label: 'Ajustado', value: 'low' },
-  { hint: 'Sin pensarlo demasiado.', label: 'Normal', value: 'medium' },
-  { hint: 'Producto fresco y de temporada.', label: 'Amplio', value: 'high' }
-] as const;
-
+/**
+ * Cuisine names are stored as the string the user picked and are matched against
+ * recipe metadata, so they are **not** translated: "Mediterránea" is a value in
+ * the database, not a label. Localising the catalogue is phase 6's work.
+ */
 const CUISINES = ['Mediterránea', 'Española', 'Italiana', 'Mexicana', 'Japonesa', 'India', 'Griega', 'Árabe', 'Tailandesa', 'Peruana'].map(name => ({
   label: name,
   value: name
 }));
-
-const DIETARY_PATTERNS = [
-  { label: 'Sin restricción', value: 'omnivore' },
-  { label: 'Vegetariana', value: 'vegetarian' },
-  { label: 'Vegana', value: 'vegan' },
-  { label: 'Pescetariana', value: 'pescatarian' },
-  { label: 'Flexitariana', value: 'flexitarian' },
-  { label: 'Sin gluten', value: 'gluten_free' },
-  { label: 'Sin lactosa', value: 'lactose_free' },
-  { label: 'Halal', value: 'halal' },
-  { label: 'Kosher', value: 'kosher' }
-] as const;
 
 /**
  * One step per screen, one PATCH per step.
@@ -91,11 +70,37 @@ const DIETARY_PATTERNS = [
  */
 export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps) {
   const router = useRouter();
+  const dictionary = useDictionary();
+  const locale = useLocale();
+  const t = dictionary.onboarding;
+  const f = t.fields;
+
+  const options = {
+    activity: ACTIVITY_VALUES.map(value => ({ ...t.options.activity[value], value })),
+    budget: BUDGET_VALUES.map(value => ({ ...t.options.budget[value], value })),
+    cookingFrequency: COOKING_FREQUENCY_VALUES.map(value => ({ label: t.options.cookingFrequency[value], value })),
+    dietaryPatterns: DIETARY_PATTERN_VALUES.map(value => ({ label: t.options.dietaryPatterns[value], value })),
+    goals: GOAL_VALUES.map(value => ({ ...t.options.goals[value], value })),
+    sex: SEX_VALUES.map(value => ({ label: t.options.sex[value], value }))
+  };
   const [error, setError] = useState<string>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, readonly string[]>>({});
   const [pending, setPending] = useState(false);
 
+  // Which way the reader is travelling, so the step that arrives comes from the
+  // side they are going. Direction is the whole information content of a
+  // shared-axis transition; without it the motion is decoration.
+  //
+  // Derived from the prop during render rather than kept in a ref, which is the
+  // pattern React documents for "state that depends on a prop changing" — and
+  // the one the lint rule is protecting.
+  const [travel, setTravel] = useState({ goingBack: false, step });
+
+  if (travel.step !== step) {setTravel({ goingBack: step < travel.step, step });}
+
+  const goingBack = travel.step === step ? travel.goingBack : step < travel.step;
   const current = FLOW[step - 1];
+  const copy = current ? t.steps[current.copy] : undefined;
   const isReview = current?.key === 'review';
   const goal = profile?.goal;
   const preferences = profile?.preferences;
@@ -152,6 +157,7 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
             crossContaminationSensitive: form.getAll('trace').includes(String(id)),
             severity: 'moderate' as const
           })),
+          customAllergens: splitList(text('customAllergens')),
           dietaryPatterns: form.getAll('dietaryPatterns').map(String),
           intolerances: form.getAll('intolerance').map(id => ({ allergenId: String(id) }))
         };
@@ -190,10 +196,15 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
 
       await api('/onboarding', { body: { data: buildPayload(new FormData(event.currentTarget)), step: current?.key }, method: 'PATCH' });
       router.push(`/onboarding/${step + 1}`);
+      // The step just saved is now stale in the client router cache. Without
+      // this, going back to it re-renders the payload fetched *before* the save
+      // and the fields show the old answers — which looks exactly like the save
+      // having failed.
+      router.refresh();
     } catch (caught) {
       if (caught instanceof ApiError) {setFieldErrors(caught.fieldErrors);}
 
-      setError(messageFor(caught));
+      setError(messageFor(caught, dictionary));
     } finally {
       setPending(false);
     }
@@ -204,14 +215,14 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
       <div className={styles.progress}>
         <div className={styles.progressMeta}>
           <Text size="sm" tone="secondary">
-            Paso {step} de {TOTAL_STEPS}
+            {interpolate(t.stepOf, { current: step, total: TOTAL_STEPS })}
           </Text>
           <Text size="sm" tone="tertiary">
-            {Math.round((step / TOTAL_STEPS) * 100)} %
+            {interpolate(t.percent, { value: Math.round((step / TOTAL_STEPS) * 100) })}
           </Text>
         </div>
         <div
-          aria-label="Progreso del cuestionario"
+          aria-label={t.progressLabel}
           aria-valuemax={TOTAL_STEPS}
           aria-valuemin={1}
           aria-valuenow={step}
@@ -222,12 +233,12 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
         </div>
       </div>
 
-      <h1 className={styles.title}>{current?.title}</h1>
+      <h1 className={styles.title}>{copy?.title}</h1>
       <Text className={styles.subtitle} tone="secondary">
-        {current?.subtitle}
+        {copy?.subtitle}
       </Text>
 
-      <form className={styles.fields} noValidate={true} onSubmit={onSubmit}>
+      <form className={`${styles.fields} ${goingBack ? 'motion-back' : 'motion-forward'}`} key={step} noValidate={true} onSubmit={onSubmit}>
         {error ? (
           <p className={styles.error} role="alert">
             {error}
@@ -236,16 +247,16 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
 
         {current?.key === 'about-you' ? (
           <Fragment>
-            <Input defaultValue={person?.displayName ?? ''} error={fieldError('displayName')} label="¿Cómo quieres que te llamemos?" name="displayName" />
+            <Input defaultValue={person?.displayName ?? ''} error={fieldError('displayName')} label={f.displayName} name="displayName" />
             <div className={styles.row}>
-              <Input defaultValue={person?.birthDate ?? ''} error={fieldError('birthDate')} label="Fecha de nacimiento" name="birthDate" type="date" />
-              <Input defaultValue={person?.country ?? 'ES'} hint="Código de dos letras." label="País" maxLength={2} name="country" />
+              <Input defaultValue={person?.birthDate ?? ''} error={fieldError('birthDate')} label={f.birthDate} name="birthDate" type="date" />
+              <Input defaultValue={person?.country ?? 'ES'} hint={f.countryHint} label={f.country} maxLength={2} name="country" />
             </div>
             <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>Sexo</legend>
-              <OptionCards name="sex" options={SEXES} value={person?.sex} />
+              <legend className={styles.legend}>{f.sex}</legend>
+              <OptionCards name="sex" options={options.sex} value={person?.sex} />
               <Text className={styles.hint} size="xs" tone="tertiary">
-                Lo usamos solo para la ecuación metabólica. Si prefieres no decirlo, usamos el valor intermedio.
+                {f.sexHint}
               </Text>
             </fieldset>
           </Fragment>
@@ -254,22 +265,22 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
         {current?.key === 'goal' ? (
           <Fragment>
             <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>¿Qué quieres conseguir?</legend>
-              <OptionCards name="type" options={GOALS} value={goal?.type} />
+              <legend className={styles.legend}>{f.goalType}</legend>
+              <OptionCards name="type" options={options.goals} value={goal?.type} />
             </fieldset>
             <div className={styles.row}>
               <Input
                 defaultValue={goal?.targetWeightKg ?? ''}
                 error={fieldError('targetWeightKg')}
-                label="Peso objetivo (kg)"
+                label={f.targetWeightKg}
                 name="targetWeightKg"
                 step="0.1"
                 type="number"
               />
               <Input
                 defaultValue={goal?.paceKgPerWeek ?? ''}
-                hint="Cuántos kg por semana. El sentido lo marca tu objetivo."
-                label="Ritmo (kg por semana)"
+                hint={f.paceHint}
+                label={f.pace}
                 max="1"
                 min="0"
                 name="paceKgPerWeek"
@@ -277,26 +288,26 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
                 type="number"
               />
             </div>
-            <Input defaultValue={goal?.customGoal ?? ''} label="Si has elegido «Otro», descríbelo" name="customGoal" />
+            <Input defaultValue={goal?.customGoal ?? ''} label={f.customGoal} name="customGoal" />
           </Fragment>
         ) : null}
 
         {current?.key === 'body-activity' ? (
           <Fragment>
             <div className={styles.row}>
-              <Input defaultValue={person?.heightCm ?? ''} error={fieldError('heightCm')} label="Altura (cm)" name="heightCm" type="number" />
+              <Input defaultValue={person?.heightCm ?? ''} error={fieldError('heightCm')} label={f.heightCm} name="heightCm" type="number" />
               <Input
                 defaultValue={goal?.startingWeightKg ?? ''}
                 error={fieldError('currentWeightKg')}
-                label="Peso actual (kg)"
+                label={f.weightKg}
                 name="currentWeightKg"
                 step="0.1"
                 type="number"
               />
             </div>
             <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>Nivel de actividad</legend>
-              <OptionCards name="activityLevel" options={ACTIVITY} value={preferences?.activityLevel} />
+              <legend className={styles.legend}>{f.activityLevel}</legend>
+              <OptionCards name="activityLevel" options={options.activity} value={preferences?.activityLevel} />
             </fieldset>
           </Fragment>
         ) : null}
@@ -305,16 +316,16 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
           <Fragment>
             <Input
               defaultValue={preferences?.mealsPerDay ?? 4}
-              hint="Entre 2 y 6."
-              label="Comidas al día"
+              hint={f.mealsPerDayHint}
+              label={f.mealsPerDay}
               max="6"
               min="2"
               name="mealsPerDay"
               type="number"
             />
-            <Checkbox defaultChecked={preferences?.includesSnacks ?? true} label="Incluir tentempiés entre comidas" name="includesSnacks" />
-            <Input defaultValue={preferences?.breakfastStyle ?? ''} label="¿Cómo sueles desayunar?" name="breakfastStyle" />
-            <Input defaultValue={preferences?.portionPreference ?? ''} label="¿Prefieres platos grandes o ligeros?" name="portionPreference" />
+            <Checkbox defaultChecked={preferences?.includesSnacks ?? true} label={f.includesSnacks} name="includesSnacks" />
+            <Input defaultValue={preferences?.breakfastStyle ?? ''} label={f.breakfastStyle} name="breakfastStyle" />
+            <Input defaultValue={preferences?.portionPreference ?? ''} label={f.portionPreference} name="portionPreference" />
           </Fragment>
         ) : null}
 
@@ -322,18 +333,18 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
           <Fragment>
             <Input
               defaultValue={joinList(profile?.foodPreferences, 'liked')}
-              hint="Separa con comas."
-              label="Alimentos que te gustan"
+              hint={f.likedHint}
+              label={f.liked}
               name="liked"
             />
             <Input
               defaultValue={joinList(profile?.foodPreferences, 'disliked')}
-              hint="No volverán a aparecer en tus planes."
-              label="Alimentos que no quieres ver"
+              hint={f.dislikedHint}
+              label={f.disliked}
               name="disliked"
             />
             <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>Cocinas que te apetecen</legend>
+              <legend className={styles.legend}>{f.cuisines}</legend>
               <ChipGroup name="cuisines" options={CUISINES} selected={profile?.cuisines ?? []} />
             </fieldset>
           </Fragment>
@@ -342,9 +353,9 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
         {current?.key === 'allergies' ? (
           <Fragment>
             <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>Alergias</legend>
+              <legend className={styles.legend}>{f.allergies}</legend>
               <Text className={styles.hint} size="xs" tone="tertiary">
-                Marca «trazas» si también te afectan los productos que pueden contener el alérgeno.
+                {f.traceHint}
               </Text>
               {allergens.map(allergen => (
                 <div className={styles.allergen} key={allergen.id}>
@@ -361,14 +372,14 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
                       type="checkbox"
                       value={allergen.id}
                     />{' '}
-                    trazas
+                    {f.traceLabel}
                   </label>
                 </div>
               ))}
             </fieldset>
 
             <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>Intolerancias</legend>
+              <legend className={styles.legend}>{f.intolerances}</legend>
               <ChipGroup
                 name="intolerance"
                 options={allergens.map(allergen => ({ label: allergen.labelEs, value: allergen.id }))}
@@ -377,8 +388,28 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
             </fieldset>
 
             <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>Tipo de alimentación</legend>
-              <ChipGroup name="dietaryPatterns" options={DIETARY_PATTERNS} selected={profile?.dietaryPatterns ?? []} />
+              <legend className={styles.legend}>{f.otherAllergies}</legend>
+              <Input
+                defaultValue={(profile?.customAllergens ?? []).map(entry => entry.label).join(', ')}
+                hint={f.customAllergensHint}
+                label={f.customAllergens}
+                name="customAllergens"
+              />
+
+              {/* Status per entry, never a summary. "Tus alergias están cubiertas"
+                  would be true of the matched ones and a lie about the rest, and
+                  the reader has no way to tell which half they are in. */}
+              {(profile?.customAllergens ?? []).map(entry => (
+                <p className={entry.ingredientName ? styles.enforced : styles.bestEffort} key={entry.label}>
+                  <strong>{entry.label}</strong>{' '}
+                  {entry.ingredientName ? interpolate(t.customAllergen.enforced, { ingredient: entry.ingredientName }) : t.customAllergen.bestEffort}
+                </p>
+              ))}
+            </fieldset>
+
+            <fieldset className={styles.fieldset}>
+              <legend className={styles.legend}>{f.dietaryPatterns}</legend>
+              <ChipGroup name="dietaryPatterns" options={options.dietaryPatterns} selected={profile?.dietaryPatterns ?? []} />
             </fieldset>
           </Fragment>
         ) : null}
@@ -386,21 +417,21 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
         {current?.key === 'lifestyle' ? (
           <Fragment>
             <div className={styles.row}>
-              <Input defaultValue={preferences?.sleepStart ?? ''} label="¿A qué hora te acuestas?" name="sleepStart" type="time" />
-              <Input defaultValue={preferences?.sleepEnd ?? ''} label="¿A qué hora te levantas?" name="sleepEnd" type="time" />
+              <Input defaultValue={preferences?.sleepStart ?? ''} label={f.sleepStart} name="sleepStart" type="time" />
+              <Input defaultValue={preferences?.sleepEnd ?? ''} label={f.sleepEnd} name="sleepEnd" type="time" />
             </div>
             <div className={styles.row}>
               <Input
                 defaultValue={preferences?.trainingDaysPerWeek ?? 0}
-                label="Días de entrenamiento por semana"
+                label={f.trainingDays}
                 max="7"
                 min="0"
                 name="trainingDaysPerWeek"
                 type="number"
               />
-              <Input defaultValue={preferences?.trainingTime ?? ''} label="¿A qué hora entrenas?" name="trainingTime" type="time" />
+              <Input defaultValue={preferences?.trainingTime ?? ''} label={f.trainingTime} name="trainingTime" type="time" />
             </div>
-            <Input defaultValue={preferences?.workScheduleNotes ?? ''} label="Algo de tu horario que debamos saber" name="workScheduleNotes" />
+            <Input defaultValue={preferences?.workScheduleNotes ?? ''} label={f.workScheduleNotes} name="workScheduleNotes" />
           </Fragment>
         ) : null}
 
@@ -408,49 +439,71 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
           <Fragment>
             <Input
               defaultValue={preferences?.cookingTimeMinutes ?? 30}
-              hint="Por comida, entre 5 y 240."
-              label="Minutos que puedes dedicar a cocinar"
+              hint={f.cookingTimeHint}
+              label={f.cookingTime}
               max="240"
               min="5"
               name="cookingTimeMinutes"
               type="number"
             />
             <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>¿Con qué frecuencia cocinas?</legend>
-              <OptionCards name="cookingFrequency" options={COOKING_FREQUENCY} value={preferences?.cookingFrequency} />
+              <legend className={styles.legend}>{f.cookingFrequency}</legend>
+              <OptionCards name="cookingFrequency" options={options.cookingFrequency} value={preferences?.cookingFrequency} />
             </fieldset>
             <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>Presupuesto</legend>
-              <OptionCards name="budget" options={BUDGETS} value={preferences?.budget} />
+              <legend className={styles.legend}>{f.budget}</legend>
+              <OptionCards name="budget" options={options.budget} value={preferences?.budget} />
             </fieldset>
           </Fragment>
         ) : null}
 
         {isReview ? (
           <div className={styles.summary}>
-            <SummaryRow label="Nombre" value={person?.displayName} />
-            <SummaryRow label="Fecha de nacimiento" value={person?.birthDate} />
-            <SummaryRow label="Altura" value={person?.heightCm ? `${person.heightCm} cm` : undefined} />
-            <SummaryRow label="Peso actual" value={goal?.startingWeightKg ? `${goal.startingWeightKg} kg` : undefined} />
-            <SummaryRow label="Objetivo" value={GOALS.find(item => item.value === goal?.type)?.label} />
-            <SummaryRow label="Actividad" value={ACTIVITY.find(item => item.value === preferences?.activityLevel)?.label} />
-            <SummaryRow label="Comidas al día" value={preferences?.mealsPerDay ? String(preferences.mealsPerDay) : undefined} />
-            <SummaryRow label="Alergias" value={profile?.allergies.map(a => a.allergenLabel).join(', ') || 'Ninguna'} />
-            <SummaryRow label="Intolerancias" value={profile?.intolerances.map(i => i.allergenLabel).join(', ') || 'Ninguna'} />
-            <SummaryRow label="Cocinas" value={profile?.cuisines.join(', ') || 'Sin preferencia'} />
+            <SummaryRow label={t.review.name} value={person?.displayName} />
+            <SummaryRow label={t.review.birthDate} value={person?.birthDate} />
+            <SummaryRow label={t.review.height} value={person?.heightCm ? `${formatNumber(person.heightCm, locale)} cm` : undefined} />
+            <SummaryRow
+              label={t.review.weight}
+              value={goal?.startingWeightKg ? `${formatNumber(goal.startingWeightKg, locale)} ${dictionary.units.kilogram}` : undefined}
+            />
+            <SummaryRow label={t.review.objective} value={goal?.type ? dictionary.goals[goal.type] : undefined} />
+            <SummaryRow
+              label={t.review.activity}
+              value={preferences?.activityLevel ? dictionary.activity[preferences.activityLevel] : undefined}
+            />
+            <SummaryRow label={t.review.mealsPerDay} value={preferences?.mealsPerDay ? formatNumber(preferences.mealsPerDay, locale) : undefined} />
+            <SummaryRow label={t.review.allergies} value={profile?.allergies.map(a => a.allergenLabel).join(', ') || dictionary.common.none} />
+            <SummaryRow label={t.review.intolerances} value={profile?.intolerances.map(i => i.allergenLabel).join(', ') || dictionary.common.none} />
+            <SummaryRow label={t.review.cuisines} value={profile?.cuisines.join(', ') || t.review.noCuisinePreference} />
 
             {profile?.targets ? (
               <div className={styles.targetsBox}>
                 <Text size="sm" weight="semibold">
-                  Tus objetivos diarios
+                  {t.review.targets}
                 </Text>
                 <Text size="sm" tone="secondary">
-                  {profile.targets.kcal} kcal · {profile.targets.proteinG} g proteína · {profile.targets.carbsG} g carbohidratos · {profile.targets.fatG} g
-                  grasas
+                  {interpolate(t.review.targetsLine, {
+                    carbs: formatNumber(profile.targets.effective.carbsG, locale),
+                    fat: formatNumber(profile.targets.effective.fatG, locale),
+                    kcal: formatNumber(profile.targets.effective.kcal, locale),
+                    protein: formatNumber(profile.targets.effective.proteinG, locale)
+                  })}
                 </Text>
-                {profile.targets.wasClamped ? (
+                {/* The basis, on the screen where the number is first seen. This
+                    is where 4,099 kcal for a weight-loss goal sat unquestioned. */}
+                <Text size="xs" style={{ marginTop: 'var(--space-03)' }} tone="secondary">
+                  {interpolate(t.review.basis, { maintenance: formatNumber(profile.targets.derivation.maintenanceKcal, locale) })}
+                  {profile.targets.derivation.goal === 'weight_loss'
+                    ? interpolate(t.review.basisLoss, { pace: formatNumber(profile.targets.derivation.paceKgPerWeek, locale) })
+                    : null}
+                  {profile.targets.derivation.goal === 'muscle_gain'
+                    ? interpolate(t.review.basisGain, { pace: formatNumber(profile.targets.derivation.paceKgPerWeek, locale) })
+                    : null}
+                  {t.review.basisTail}
+                </Text>
+                {profile.targets.derivation.clampedBy ? (
                   <Text size="xs" style={{ marginTop: 'var(--space-03)' }} tone="secondary">
-                    Hemos ajustado tu ritmo para no bajar del mínimo diario que consideramos seguro sin supervisión profesional.
+                    {interpolate(t.review.clamped, { requested: formatNumber(profile.targets.derivation.requestedKcal, locale) })}
                   </Text>
                 ) : null}
               </div>
@@ -465,12 +518,22 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
             type="button"
             variant="secondary"
           >
-            Atrás
+            {dictionary.common.back}
           </Button>
-          <Button disabled={pending} type="submit">
-            {pending ? 'Guardando…' : isReview ? 'Terminar' : 'Continuar'}
+          <Button loading={pending} type="submit">
+            {pending ? dictionary.common.saving : isReview ? dictionary.common.finish : dictionary.common.continue}
           </Button>
         </div>
+
+        {/* Says exactly when the saving happens, not just that it does. "We save
+            as you go" would be a lie for the step someone abandons half-typed,
+            and being wrong about this is how people lose an answer and stop
+            trusting the rest. */}
+        {isReview ? null : (
+          <Text className={styles.saveNote} size="xs" tone="tertiary">
+            {t.saveNote}
+          </Text>
+        )}
       </form>
     </div>
   );

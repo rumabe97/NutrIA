@@ -5,7 +5,10 @@ import Link from 'next/link';
 
 import styles from './SiteHeader.module.css';
 
+import { useDictionary } from 'i18n/LocaleProvider';
+
 import { CtaLink } from 'components/CtaLink';
+import { LocaleSwitcher } from 'components/LocaleSwitcher';
 
 /**
  * The border only appears once the page has scrolled, so the hero starts on an
@@ -13,6 +16,7 @@ import { CtaLink } from 'components/CtaLink';
  * looking like a toolbar bolted on top of the page.
  */
 export function SiteHeader() {
+  const dictionary = useDictionary();
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -27,32 +31,37 @@ export function SiteHeader() {
   return (
     <header className={styles.header} data-scrolled={scrolled}>
       <div className={styles.inner}>
-        <Link aria-label="NutrIA — inicio" className={styles.brand} href="/">
+        <Link aria-label={dictionary.siteNav.brandHome} className={styles.brand} href="/">
           <span aria-hidden="true" className={styles.mark} />
           NutrIA
         </Link>
 
-        <nav aria-label="Secciones" className={styles.nav}>
+        {/* The anchors are URL fragments, not copy: they stay Spanish so a link
+            someone saved still works after a language change. */}
+        <nav aria-label={dictionary.siteNav.sectionsLabel} className={styles.nav}>
           <a className={styles.navLink} href="#como-funciona">
-            Cómo funciona
+            {dictionary.siteNav.howItWorks}
           </a>
           <a className={styles.navLink} href="#personalizacion">
-            Personalización
+            {dictionary.siteNav.personalisation}
           </a>
           <a className={styles.navLink} href="#seguridad">
-            Seguridad
+            {dictionary.siteNav.safety}
           </a>
           <a className={styles.navLink} href="#preguntas">
-            Preguntas
+            {dictionary.siteNav.questions}
           </a>
         </nav>
 
         <div className={styles.actions}>
+          {/* On the landing page too, and not behind a menu: someone deciding
+              whether to sign up at all cannot read a label to open one. */}
+          <LocaleSwitcher compact={true} />
           <Link className={styles.signIn} href="/acceder">
-            Acceder
+            {dictionary.siteNav.signIn}
           </Link>
           <CtaLink href="/registro" size="sm">
-            Crear mi plan
+            {dictionary.siteNav.signUp}
           </CtaLink>
         </div>
       </div>

@@ -8,12 +8,14 @@ import styles from '../../../components/AuthForm/AuthForm.module.css';
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
+import { useDictionary } from 'i18n/LocaleProvider';
 
 import { authClient } from 'lib/auth-client';
 
 import type { FormEvent } from 'react';
 
 export default function ForgotPasswordPage() {
+  const dictionary = useDictionary();
   const [sent, setSent] = useState(false);
   const [pending, setPending] = useState(false);
 
@@ -34,13 +36,11 @@ export default function ForgotPasswordPage() {
   if (sent) {
     return (
       <Fragment>
-        <h1 className={styles.title}>Revisa tu correo</h1>
-        <p className={styles.success}>
-          Si existe una cuenta con ese correo, te hemos enviado un enlace para restablecer la contraseña. Caduca en una hora.
-        </p>
+        <h1 className={styles.title}>{dictionary.auth.checkEmail}</h1>
+        <p className={styles.success}>{dictionary.auth.recoverSent}</p>
         <div className={styles.footer}>
           <Link className={styles.link} href="/acceder">
-            Volver a acceder
+            {dictionary.auth.backToSignIn}
           </Link>
         </div>
       </Fragment>
@@ -49,21 +49,21 @@ export default function ForgotPasswordPage() {
 
   return (
     <Fragment>
-      <h1 className={styles.title}>Recuperar contraseña</h1>
+      <h1 className={styles.title}>{dictionary.auth.recoverTitle}</h1>
       <Text className={styles.subtitle} tone="secondary">
-        Escribe tu correo y te enviaremos un enlace para elegir una nueva.
+        {dictionary.auth.recoverSubtitle}
       </Text>
 
       <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
-        <Input autoComplete="email" label="Correo electrónico" name="email" required={true} type="email" />
+        <Input autoComplete="email" label={dictionary.auth.email} name="email" required={true} type="email" />
 
-        <Button disabled={pending} type="submit">
-          {pending ? 'Enviando…' : 'Enviar enlace'}
+        <Button loading={pending} type="submit">
+          {pending ? dictionary.auth.sending : dictionary.auth.sendLink}
         </Button>
 
         <div className={styles.footer}>
           <Link className={styles.link} href="/acceder">
-            Volver a acceder
+            {dictionary.auth.backToSignIn}
           </Link>
         </div>
       </form>

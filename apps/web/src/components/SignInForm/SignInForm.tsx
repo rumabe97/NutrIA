@@ -9,8 +9,10 @@ import styles from 'components/AuthForm/AuthForm.module.css';
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
+import { useDictionary } from 'i18n/LocaleProvider';
 
 import { signIn } from 'lib/auth-client';
+import { syncLocaleFromProfile } from 'lib/locale-sync';
 
 import type { FormEvent } from 'react';
 
@@ -21,6 +23,7 @@ import type { FormEvent } from 'react';
  */
 export function SignInForm() {
   const router = useRouter();
+  const dictionary = useDictionary();
   const params = useSearchParams();
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
@@ -38,10 +41,16 @@ export function SignInForm() {
     if (signInError) {
       // One message for wrong password and unknown account alike: telling them
       // apart turns this form into an account-enumeration oracle.
-      setError('Correo o contraseña incorrectos.');
+      setError(dictionary.auth.invalidCredentials);
 
       return;
     }
+
+    // The profile column is the durable preference; the cookie is only a cache of
+    // it. Syncing here is what makes a language chosen on one device survive
+    // signing in on another — without it the new device keeps whatever its
+    // browser negotiated.
+    await syncLocaleFromProfile();
 
     router.push(params.get('siguiente') ?? '/inicio');
     router.refresh();
@@ -55,22 +64,22 @@ export function SignInForm() {
         </p>
       ) : null}
 
-      <Input autoComplete="email" label="Correo electrónico" name="email" required={true} type="email" />
-      <Input autoComplete="current-password" label="Contraseña" name="password" required={true} type="password" />
+      <Input autoComplete="email" label={dictionary.auth.email} name="email" required={true} type="email" />
+      <Input autoComplete="current-password" label={dictionary.auth.password} name="password" required={true} type="password" />
 
       <Link className={`${styles.link} ${styles.forgot}`} href="/recuperar">
-        ¿Has olvidado tu contraseña?
+        {dictionary.auth.forgotPassword}
       </Link>
 
-      <Button disabled={pending} type="submit">
-        {pending ? 'Accediendo…' : 'Acceder'}
+      <Button loading={pending} type="submit">
+        {pending ? dictionary.auth.signingIn : dictionary.auth.signIn}
       </Button>
 
       <div className={styles.footer}>
         <Text size="sm" tone="secondary">
-          ¿Aún no tienes cuenta?{' '}
+          {dictionary.auth.noAccount}{' '}
           <Link className={styles.link} href="/registro">
-            Crea la tuya
+            {dictionary.auth.toSignUp}
           </Link>
         </Text>
       </div>

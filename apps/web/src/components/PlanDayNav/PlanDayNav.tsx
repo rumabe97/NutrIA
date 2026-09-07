@@ -3,8 +3,11 @@ import { useState } from 'react';
 
 import styles from './PlanDayNav.module.css';
 
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
+
+import { formatDate, interpolate } from 'lib/format';
+
 const DAYS_PER_WEEK = 7;
-const WEEKDAY = new Intl.DateTimeFormat('es-ES', { weekday: 'short' });
 
 interface PlanDayNavProps {
   days: readonly { date: string; dayIndex: number }[];
@@ -20,6 +23,8 @@ interface PlanDayNavProps {
  * the week buttons are a filter, not a second source of truth.
  */
 export function PlanDayNav({ days, onSelect, selected, today }: PlanDayNavProps) {
+  const dictionary = useDictionary();
+  const locale = useLocale();
   const [week, setWeek] = useState(() => (selected > DAYS_PER_WEEK ? 2 : 1));
   const visible = days.filter(day => (week === 1 ? day.dayIndex <= DAYS_PER_WEEK : day.dayIndex > DAYS_PER_WEEK));
 
@@ -28,12 +33,12 @@ export function PlanDayNav({ days, onSelect, selected, today }: PlanDayNavProps)
       <div className={styles.weeks}>
         {[1, 2].map(number => (
           <button aria-pressed={week === number} className={styles.week} key={number} onClick={() => setWeek(number)} type="button">
-            Semana {number}
+            {interpolate(dictionary.plan.week, { number })}
           </button>
         ))}
       </div>
 
-      <nav aria-label="Días del plan" className={styles.days}>
+      <nav aria-label={dictionary.plan.daysLabel} className={styles.days}>
         {visible.map(day => (
           <button
             aria-current={day.dayIndex === selected}
@@ -43,7 +48,7 @@ export function PlanDayNav({ days, onSelect, selected, today }: PlanDayNavProps)
             type="button"
           >
             <span className={styles.dayIndex}>{day.dayIndex}</span>
-            <span className={styles.dayLabel}>{WEEKDAY.format(new Date(`${day.date}T00:00:00`))}</span>
+            <span className={styles.dayLabel}>{formatDate(day.date, locale, { weekday: 'short' })}</span>
           </button>
         ))}
       </nav>

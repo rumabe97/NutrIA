@@ -1,16 +1,41 @@
+'use client';
 import Link from 'next/link';
 
 import styles from './SiteFooter.module.css';
 
 import { Text } from 'ui/components/Text';
-
-const COLUMNS = [
-  { links: [{ href: '#como-funciona', label: 'Cómo funciona' }, { href: '#personalizacion', label: 'Personalización' }, { href: '#preguntas', label: 'Preguntas' }], title: 'Producto' },
-  { links: [{ href: '/registro', label: 'Crear cuenta' }, { href: '/acceder', label: 'Acceder' }], title: 'Cuenta' },
-  { links: [{ href: '/privacidad', label: 'Privacidad' }, { href: '/terminos', label: 'Términos' }], title: 'Legal' }
-] as const;
+import { useDictionary } from 'i18n/LocaleProvider';
 
 export function SiteFooter() {
+  const dictionary = useDictionary();
+  const { footer, siteNav } = dictionary;
+
+  // The hrefs are fixed; only the words move.
+  const columns = [
+    {
+      links: [
+        { href: '#como-funciona', label: siteNav.howItWorks },
+        { href: '#personalizacion', label: siteNav.personalisation },
+        { href: '#preguntas', label: siteNav.questions }
+      ],
+      title: footer.product
+    },
+    {
+      links: [
+        { href: '/registro', label: footer.createAccount },
+        { href: '/acceder', label: footer.signIn }
+      ],
+      title: footer.account
+    },
+    {
+      links: [
+        { href: '/privacidad', label: footer.privacy },
+        { href: '/terminos', label: footer.terms }
+      ],
+      title: footer.legal
+    }
+  ];
+
   return (
     <footer className={styles.footer}>
       <div className={styles.inner}>
@@ -20,12 +45,12 @@ export function SiteFooter() {
               NutrIA
             </Text>
             <Text size="sm" tone="secondary">
-              Nutrición que se adapta a ti.
+              {footer.tagline}
             </Text>
           </div>
 
           <div className={styles.columns}>
-            {COLUMNS.map(column => (
+            {columns.map(column => (
               <div key={column.title}>
                 <Text as="span" className={styles.columnTitle} size="sm" weight="medium">
                   {column.title}
@@ -48,8 +73,7 @@ export function SiteFooter() {
           {/* Stated plainly and permanently, not buried in a modal: this is a
               planning tool, and it does not replace clinical advice. */}
           <Text className={styles.disclaimer} size="xs" tone="tertiary">
-            NutrIA elabora planes de alimentación generales. No sustituye el consejo de un médico ni de un dietista-nutricionista colegiado. Consulta a un
-            profesional si tienes una condición médica, estás embarazada o tomas medicación.
+            {footer.disclaimer}
           </Text>
           <Text size="xs" tone="tertiary">
             © {new Date().getFullYear()} NutrIA

@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 
 import styles from './page.module.css';
 
+import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { CtaLink } from 'components/CtaLink';
@@ -9,10 +10,12 @@ import { EmptyState } from 'components/EmptyState';
 import { MacroSummary } from 'components/MacroSummary';
 import { MealRow } from 'components/MealRow';
 
+import { formatNumber, interpolate } from 'lib/format';
+import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
+import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { FullProfileView } from 'core/controllers/Profile';
-import type { OnboardingView } from 'core/controllers/Onboarding';
 import type { PlanView } from 'core/controllers/Plan';
 import type { UserView } from 'core/controllers/User';
 
@@ -20,26 +23,31 @@ export const dynamic = 'force-dynamic';
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-function greeting(hour: number): string {
-  if (hour < 6) {return 'Buenas noches';}
+function greetingKey(hour: number): 'goodAfternoon' | 'goodEvening' | 'goodMorning' {
+  if (hour < 6) {return 'goodEvening';}
 
-  if (hour < 14) {return 'Buenos días';}
+  if (hour < 14) {return 'goodMorning';}
 
-  if (hour < 21) {return 'Buenas tardes';}
+  if (hour < 21) {return 'goodAfternoon';}
 
-  return 'Buenas noches';
+  return 'goodEvening';
 }
 
 export default async function DashboardPage() {
-  const [user, onboarding, profile, plan] = await Promise.all([
+  await redirectIfOnboardingIncomplete();
+
+  const [dictionary, locale, user, profile, plan] = await Promise.all([
+    getDictionary(),
+    activeLocale(),
     serverApi<UserView>('/users/me'),
-    serverApi<OnboardingView>('/onboarding'),
     serverApi<FullProfileView>('/profile'),
     serverApi<PlanView | null>('/meal-plans/active')
   ]);
 
+  const t = dictionary.dashboard;
   const firstName = (profile?.profile?.displayName ?? user?.name ?? '').split(' ')[0];
-  const hello = firstName ? `${greeting(new Date().getHours())}, ${firstName}.` : greeting(new Date().getHours());
+  const greeting = t[greetingKey(new Date().getHours())];
+  const hello = firstName ? interpolate(t.greetingNamed, { greeting, name: firstName }) : greeting;
   const today = new Date().toISOString().slice(0, 10);
   const day = plan?.days.find(candidate => candidate.date === today);
 
@@ -47,26 +55,29 @@ export default async function DashboardPage() {
     <Fragment>
       <h1 className={styles.greeting}>{hello}</h1>
 
-      {plan ? (
-        <Fragment>
-          <Text tone="secondary">
-            {day ? `Día ${day.dayIndex} de ${plan.days.length}` : 'Tu plan está activo'} · próxima revisión {checkInLabel(plan.endDate)}
+      <div className={styles.layout}>
+        <div className={`${styles.main} motion-enter`}>
+          {plan ? (
+            <Fragment>
+              <Text tone="secondary">
+            {day ? interpolate(t.dayOf, { current: day.dayIndex, total: plan.days.length }) : t.activePlan}{' '}
+            {interpolate(t.checkIn, { when: checkInLabel(plan.endDate, t) })}
           </Text>
 
           {day ? (
             <section className={styles.todayCard}>
               <div className={styles.todayHeading}>
                 <Text size="lg" weight="semibold">
-                  Hoy
+                  {t.today}
                 </Text>
                 <CtaLink href="/plan" size="sm" variant="ghost">
-                  Ver los 14 días →
+                  {t.seeAllDays}
                 </CtaLink>
               </div>
 
               <MacroSummary carbsG={day.totals.carbsG} fatG={day.totals.fatG} kcal={day.totals.kcal} proteinG={day.totals.proteinG} />
 
-              <div className={styles.meals}>
+              <div className={`${styles.meals} motion-list`}>
                 {day.meals.map(meal => (
                   <MealRow id={meal.id} kcal={meal.kcal} key={meal.id} name={meal.name} proteinG={meal.proteinG} slot={meal.slot} />
                 ))}
@@ -75,71 +86,83 @@ export default async function DashboardPage() {
           ) : (
             // The plan is active but today falls outside its dates — the fortnight
             // has run its course and the next one is due.
-            <EmptyState
-              body="Tu plan ha llegado al final de sus catorce días. Crea el siguiente cuando quieras."
-              title="Tu plan ha terminado"
-            >
+            <EmptyState body={t.planEndedBody} title={t.planEndedTitle}>
               <CtaLink href="/plan/generando" size="lg">
-                Crear mi próximo plan
+                {t.planEndedCta}
               </CtaLink>
               <CtaLink href="/plan" size="lg" variant="secondary">
-                Ver el plan anterior
+                {t.seePreviousPlan}
               </CtaLink>
             </EmptyState>
           )}
         </Fragment>
       ) : (
+        // No "finish your profile" branch: an unfinished profile never reaches
+        // this page, it is redirected to its resume step above.
         <Fragment>
-          <Text tone="secondary">{onboarding?.isComplete ? 'Tu perfil está completo.' : 'Todavía nos faltan un par de cosas.'}</Text>
+          <Text tone="secondary">{t.profileComplete}</Text>
 
-          {onboarding?.isComplete ? (
-            <EmptyState
-              body="Ya tenemos todo lo que necesitamos sobre ti. Crearemos catorce días completos con recetas, cantidades y la lista de la compra hecha."
-              title="Todavía no tienes plan"
-            >
-              <CtaLink href="/plan/generando" size="lg">
-                Crear mi plan
-              </CtaLink>
-            </EmptyState>
-          ) : (
-            <EmptyState
-              body={`Has completado ${onboarding?.completedSteps.length ?? 0} de 8 pasos. Cuando termines podremos calcular tus necesidades y preparar tu primer plan.`}
-              title="Termina tu perfil"
-            >
-              <CtaLink href={`/onboarding/${Math.min(onboarding?.currentStep ?? 1, 9)}`} size="lg">
-                Continuar donde lo dejé
-              </CtaLink>
-            </EmptyState>
+          <EmptyState body={t.noPlanBody} title={t.noPlanTitle}>
+            <CtaLink href="/plan/generando" size="lg">
+              {t.noPlanCta}
+            </CtaLink>
+          </EmptyState>
+            </Fragment>
           )}
-        </Fragment>
-      )}
+        </div>
 
-      {profile?.targets ? (
-        <Fragment>
-          <Text className={styles.targetsLabel} size="sm" tone="tertiary">
-            Tus objetivos diarios
-          </Text>
-          <MacroSummary carbsG={profile.targets.carbsG} fatG={profile.targets.fatG} kcal={profile.targets.kcal} proteinG={profile.targets.proteinG} />
-          {profile.targets.wasClamped ? (
-            <p className={styles.notice}>
-              Hemos ajustado tu ritmo: el objetivo que elegiste quedaba por debajo del mínimo diario de calorías que consideramos seguro sin supervisión
-              profesional.
-            </p>
-          ) : null}
-        </Fragment>
-      ) : null}
+        {profile?.targets ? (
+          <aside className={`${styles.rail} motion-enter`}>
+            <div>
+              <div className={styles.targetsLabel}>
+                <Text size="sm" tone="tertiary">
+                  {interpolate(t.targetsLabel, {
+                    status: profile.targets.overrideStatus === 'applied' ? t.targetsStatusOverridden : t.targetsStatusEstimated
+                  })}
+                </Text>
+                <CtaLink href="/perfil" size="sm" variant="ghost">
+                  {t.targetsAdjust}
+                </CtaLink>
+              </div>
+
+              <MacroSummary
+                carbsG={profile.targets.effective.carbsG}
+                fatG={profile.targets.effective.fatG}
+                kcal={profile.targets.effective.kcal}
+                proteinG={profile.targets.effective.proteinG}
+              />
+
+              {/* Said on every screen the figure appears on, not only where it is
+                  edited: someone acts on the number they see, not on the one they
+                  once read an explanation for. */}
+              <Text className={styles.targetsNote} size="xs" tone="tertiary">
+                {t.targetsEstimate}
+              </Text>
+
+              {profile.targets.derivation.clampedBy === 'floor' ? (
+                <p className={styles.notice}>
+                  {interpolate(t.targetsClamped, {
+                    floor: formatNumber(profile.targets.derivation.floorKcal, locale),
+                    requested: formatNumber(profile.targets.derivation.requestedKcal, locale)
+                  })}
+                </p>
+              ) : null}
+            </div>
+          </aside>
+        ) : null}
+      </div>
     </Fragment>
   );
 }
 
-function checkInLabel(endDate: string): string {
+function checkInLabel(endDate: string, t: Dictionary['dashboard']): string {
   const remaining = Math.ceil((new Date(`${endDate}T00:00:00`).getTime() - Date.now()) / MS_PER_DAY);
 
-  if (remaining < 0) {return 'ya disponible';}
+  if (remaining < 0) {return t.availableNow;}
 
-  if (remaining === 0) {return 'hoy';}
+  if (remaining === 0) {return t.today.toLowerCase();}
 
-  if (remaining === 1) {return 'mañana';}
+  if (remaining === 1) {return t.tomorrow;}
 
-  return `en ${remaining} días`;
+  return interpolate(t.inDays, { count: remaining });
 }

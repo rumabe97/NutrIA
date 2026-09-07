@@ -5,6 +5,7 @@ import styles from './error.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Text } from 'ui/components/Text';
+import { useDictionary } from 'i18n/LocaleProvider';
 
 import { CtaLink } from 'components/CtaLink';
 
@@ -20,21 +21,23 @@ import { CtaLink } from 'components/CtaLink';
  * helps nobody.
  */
 export default function AppError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
+  const dictionary = useDictionary();
+
   useEffect(() => {
     console.error(error);
   }, [error]);
 
   return (
     <div className={styles.shell}>
-      <h1 className={styles.title}>No hemos podido cargar esta página</h1>
-      <Text tone="secondary">Puede ser una conexión intermitente. Vuelve a intentarlo; si sigue fallando, tus datos están a salvo.</Text>
+      <h1 className={styles.title}>{dictionary.errors.boundaryTitle}</h1>
+      <Text tone="secondary">{dictionary.errors.boundaryBody}</Text>
 
       <div className={styles.actions}>
         <Button onClick={reset} type="button">
-          Reintentar
+          {dictionary.common.retry}
         </Button>
         <CtaLink href="/inicio" variant="secondary">
-          Ir al inicio
+          {dictionary.errors.boundaryHome}
         </CtaLink>
       </div>
     </div>

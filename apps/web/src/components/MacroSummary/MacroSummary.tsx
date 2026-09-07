@@ -1,6 +1,10 @@
+'use client';
 import styles from './MacroSummary.module.css';
 
 import { Text } from 'ui/components/Text';
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
+
+import { formatNumber } from 'lib/format';
 
 interface MacroSummaryProps {
   carbsG: number;
@@ -11,11 +15,14 @@ interface MacroSummaryProps {
 
 /** Calories lead; the macros support them. Four numbers is as much as a glance holds. */
 export function MacroSummary({ carbsG, fatG, kcal, proteinG }: MacroSummaryProps) {
+  const dictionary = useDictionary();
+  const locale = useLocale();
+
   const items = [
-    { accent: true, label: 'Calorías', unit: 'kcal', value: kcal },
-    { accent: false, label: 'Proteína', unit: 'g', value: proteinG },
-    { accent: false, label: 'Carbohidratos', unit: 'g', value: carbsG },
-    { accent: false, label: 'Grasas', unit: 'g', value: fatG }
+    { accent: true, label: dictionary.macros.kcal, unit: dictionary.units.kcal, value: kcal },
+    { accent: false, label: dictionary.macros.protein, unit: dictionary.units.gram, value: proteinG },
+    { accent: false, label: dictionary.macros.carbs, unit: dictionary.units.gram, value: carbsG },
+    { accent: false, label: dictionary.macros.fat, unit: dictionary.units.gram, value: fatG }
   ];
 
   return (
@@ -23,7 +30,7 @@ export function MacroSummary({ carbsG, fatG, kcal, proteinG }: MacroSummaryProps
       {items.map(item => (
         <div className={styles.item} data-accent={item.accent} key={item.label}>
           <div className={styles.value}>
-            {Math.round(item.value)}
+            {formatNumber(Math.round(item.value), locale)}
             <span className={styles.unit}> {item.unit}</span>
           </div>
           <Text size="xs" tone="tertiary">

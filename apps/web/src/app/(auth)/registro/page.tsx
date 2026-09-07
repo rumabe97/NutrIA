@@ -9,7 +9,9 @@ import styles from '../../../components/AuthForm/AuthForm.module.css';
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
+import { useDictionary } from 'i18n/LocaleProvider';
 
+import { interpolate } from 'lib/format';
 import { signUp } from 'lib/auth-client';
 
 import type { FormEvent } from 'react';
@@ -18,6 +20,7 @@ const MIN_PASSWORD_LENGTH = 8;
 
 export default function RegisterPage() {
   const router = useRouter();
+  const dictionary = useDictionary();
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
 
@@ -29,7 +32,7 @@ export default function RegisterPage() {
     const password = String(form.get('password'));
 
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+      setError(interpolate(dictionary.auth.passwordTooShort, { count: MIN_PASSWORD_LENGTH }));
 
       return;
     }
@@ -49,19 +52,19 @@ export default function RegisterPage() {
       // else. Both are shown as-is: at sign-*up* an existing address is
       // information the visitor already has, and hiding it only produces a
       // confusing dead end.
-      setError(signUpError.status === 422 ? 'Ya existe una cuenta con ese correo.' : 'No hemos podido crear la cuenta. Inténtalo de nuevo.');
+      setError(signUpError.status === 422 ? dictionary.auth.emailTaken : dictionary.auth.signUpFailed);
 
       return;
     }
 
-    router.push('/onboarding/1');
+    router.push('/onboarding');
   }
 
   return (
     <Fragment>
-      <h1 className={styles.title}>Crea tu cuenta</h1>
+      <h1 className={styles.title}>{dictionary.auth.createAccount}</h1>
       <Text className={styles.subtitle} tone="secondary">
-        Unos minutos de preguntas y tendrás tu primer plan de catorce días.
+        {dictionary.auth.createAccountSubtitle}
       </Text>
 
       <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
@@ -71,27 +74,27 @@ export default function RegisterPage() {
           </p>
         ) : null}
 
-        <Input autoComplete="name" label="Nombre" name="name" required={true} type="text" />
-        <Input autoComplete="email" label="Correo electrónico" name="email" required={true} type="email" />
+        <Input autoComplete="name" label={dictionary.auth.name} name="name" required={true} type="text" />
+        <Input autoComplete="email" label={dictionary.auth.email} name="email" required={true} type="email" />
         <Input
           autoComplete="new-password"
-          hint={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres.`}
-          label="Contraseña"
+          hint={interpolate(dictionary.auth.passwordHint, { count: MIN_PASSWORD_LENGTH })}
+          label={dictionary.auth.password}
           minLength={MIN_PASSWORD_LENGTH}
           name="password"
           required={true}
           type="password"
         />
 
-        <Button disabled={pending} type="submit">
-          {pending ? 'Creando tu cuenta…' : 'Crear mi plan'}
+        <Button loading={pending} type="submit">
+          {pending ? dictionary.auth.signUpPending : dictionary.auth.signUp}
         </Button>
 
         <div className={styles.footer}>
           <Text size="sm" tone="secondary">
-            ¿Ya tienes cuenta?{' '}
+            {dictionary.auth.haveAccount}{' '}
             <Link className={styles.link} href="/acceder">
-              Accede
+              {dictionary.auth.toSignIn}
             </Link>
           </Text>
         </div>

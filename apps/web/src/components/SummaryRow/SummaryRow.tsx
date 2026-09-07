@@ -14,7 +14,9 @@ export function SummaryRow({ label, value }: SummaryRowProps) {
       <Text size="sm" tone="tertiary">
         {label}
       </Text>
-      <Text size="sm">{value || '—'}</Text>
+      <Text className={styles.value} size="sm">
+        {value || '—'}
+      </Text>
     </div>
   );
 }

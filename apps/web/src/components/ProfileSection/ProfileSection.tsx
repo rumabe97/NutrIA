@@ -1,13 +1,15 @@
+'use client';
 import Link from 'next/link';
 
 import styles from './ProfileSection.module.css';
 
 import { Text } from 'ui/components/Text';
+import { useDictionary } from 'i18n/LocaleProvider';
 
 import { SummaryRow } from 'components/SummaryRow';
 
 interface ProfileSectionProps {
-  /** Where "Editar" goes — the onboarding step that owns these fields. */
+  /** Where the edit link goes — the onboarding step that owns these fields. */
   editHref: string;
   rows: readonly { label: string; value?: string | null }[];
   title: string;
@@ -22,12 +24,14 @@ interface ProfileSectionProps {
  * steps already validate every field against the shared schemas.
  */
 export function ProfileSection({ editHref, rows, title }: ProfileSectionProps) {
+  const dictionary = useDictionary();
+
   return (
     <section className={styles.card}>
       <div className={styles.head}>
         <Text weight="semibold">{title}</Text>
         <Link className={styles.editLink} href={editHref}>
-          Editar
+          {dictionary.common.edit}
         </Link>
       </div>
       <div className={styles.rows}>

@@ -8,8 +8,10 @@ import styles from 'components/AuthForm/AuthForm.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
+import { useDictionary } from 'i18n/LocaleProvider';
 
 import { authClient } from 'lib/auth-client';
+import { interpolate } from 'lib/format';
 
 import type { FormEvent } from 'react';
 
@@ -18,6 +20,7 @@ const MIN_PASSWORD_LENGTH = 8;
 /** Needs the `?token` query parameter, hence a client component behind Suspense. */
 export function ResetPasswordForm() {
   const router = useRouter();
+  const dictionary = useDictionary();
   const token = useSearchParams().get('token');
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
@@ -26,11 +29,11 @@ export function ResetPasswordForm() {
     return (
       <Fragment>
         <p className={styles.error} role="alert">
-          Este enlace no es válido o ha caducado.
+          {dictionary.auth.invalidLink}
         </p>
         <div className={styles.footer}>
           <Link className={styles.link} href="/recuperar">
-            Pedir un enlace nuevo
+            {dictionary.auth.askNewLink}
           </Link>
         </div>
       </Fragment>
@@ -45,13 +48,13 @@ export function ResetPasswordForm() {
     const password = String(form.get('password'));
 
     if (password.length < MIN_PASSWORD_LENGTH) {
-      setError(`La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres.`);
+      setError(interpolate(dictionary.auth.passwordTooShort, { count: MIN_PASSWORD_LENGTH }));
 
       return;
     }
 
     if (password !== String(form.get('confirm'))) {
-      setError('Las contraseñas no coinciden.');
+      setError(dictionary.auth.passwordsDoNotMatch);
 
       return;
     }
@@ -63,7 +66,7 @@ export function ResetPasswordForm() {
     setPending(false);
 
     if (resetError) {
-      setError('Este enlace no es válido o ha caducado.');
+      setError(dictionary.auth.invalidLink);
 
       return;
     }
@@ -81,17 +84,17 @@ export function ResetPasswordForm() {
 
       <Input
         autoComplete="new-password"
-        hint={`Mínimo ${MIN_PASSWORD_LENGTH} caracteres.`}
-        label="Nueva contraseña"
+        hint={interpolate(dictionary.auth.passwordHint, { count: MIN_PASSWORD_LENGTH })}
+        label={dictionary.auth.newPassword}
         minLength={MIN_PASSWORD_LENGTH}
         name="password"
         required={true}
         type="password"
       />
-      <Input autoComplete="new-password" label="Repite la contraseña" name="confirm" required={true} type="password" />
+      <Input autoComplete="new-password" label={dictionary.auth.confirmPassword} name="confirm" required={true} type="password" />
 
-      <Button disabled={pending} type="submit">
-        {pending ? 'Guardando…' : 'Guardar contraseña'}
+      <Button loading={pending} type="submit">
+        {pending ? dictionary.common.saving : dictionary.auth.savePassword}
       </Button>
     </form>
   );

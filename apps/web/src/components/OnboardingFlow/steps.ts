@@ -1,27 +1,29 @@
 import type { OnboardingStep } from 'core/entities/Onboarding';
 
 /**
- * The eight data steps plus a review screen.
+ * The eight data steps plus a review screen, in order.
  *
  * `core/entities/Onboarding` declares ten (the tenth is plan generation, which
  * arrives with the meal-engine project). Here we render nine, and the review
  * step closes onboarding — so the flow never shows a step whose action does not
  * yet exist.
  *
- * The `step` key is what the API's discriminated union expects; keeping the
- * ordering in one array is what keeps the progress bar, the URL and the server's
+ * Only keys. The title and subtitle live in the dictionaries, because a step
+ * list that carries its own Spanish is a step list that cannot be translated.
+ * `key` is what the API's discriminated union expects, and keeping the ordering
+ * in one array is what keeps the progress bar, the URL and the server's
  * completeness check in agreement.
  */
 export const FLOW = [
-  { key: 'about-you', subtitle: 'Con esto calculamos tus necesidades. Nada de esto se comparte.', title: 'Sobre ti' },
-  { key: 'goal', subtitle: 'Puedes cambiarlo en cualquier momento.', title: 'Tu objetivo' },
-  { key: 'body-activity', subtitle: 'Cuánto te mueves cambia bastante las cifras.', title: 'Cuerpo y actividad' },
-  { key: 'how-you-eat', subtitle: 'Cómo repartes la comida a lo largo del día.', title: 'Cómo comes' },
-  { key: 'food-preferences', subtitle: 'Lo que te gusta aparecerá más. Lo que no, desaparece.', title: 'Preferencias' },
-  { key: 'allergies', subtitle: 'Esto es un límite, no una preferencia: no aparecerá nunca.', title: 'Alergias e intolerancias' },
-  { key: 'lifestyle', subtitle: 'Para que las comidas caigan cuando puedes comértelas.', title: 'Tu día a día' },
-  { key: 'cooking', subtitle: 'Sé sincero: un plan que no puedes cocinar no sirve.', title: 'Cocina' },
-  { key: 'review', subtitle: 'Comprueba que todo está bien antes de terminar.', title: 'Revisión' }
-] as const satisfies readonly { key: 'review' | OnboardingStep; subtitle: string; title: string }[];
+  { copy: 'aboutYou', key: 'about-you' },
+  { copy: 'goal', key: 'goal' },
+  { copy: 'bodyActivity', key: 'body-activity' },
+  { copy: 'howYouEat', key: 'how-you-eat' },
+  { copy: 'foodPreferences', key: 'food-preferences' },
+  { copy: 'allergies', key: 'allergies' },
+  { copy: 'lifestyle', key: 'lifestyle' },
+  { copy: 'cooking', key: 'cooking' },
+  { copy: 'review', key: 'review' }
+] as const satisfies readonly { copy: string; key: 'review' | OnboardingStep }[];
 
 export const TOTAL_STEPS = FLOW.length;

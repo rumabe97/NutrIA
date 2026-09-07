@@ -7,11 +7,12 @@ import styles from './GenerationProgress.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Text } from 'ui/components/Text';
+import { useDictionary } from 'i18n/LocaleProvider';
 
 import { CtaLink } from 'components/CtaLink';
 
 import { api, ApiError, messageFor } from 'lib/api';
-import { generationError } from 'lib/generation';
+import { generationError, stepLabel } from 'lib/generation';
 
 import type { JobView } from 'core/controllers/Plan';
 
@@ -31,6 +32,7 @@ type Phase = { code: string | null; detail: string | null; kind: 'failed' } | { 
  */
 export function GenerationProgress() {
   const router = useRouter();
+  const dictionary = useDictionary();
   const [phase, setPhase] = useState<Phase>({ kind: 'starting' });
   const [fatal, setFatal] = useState<string>();
   const started = useRef(false);
@@ -45,7 +47,8 @@ export function GenerationProgress() {
       job = await api<JobView>('/meal-plans/generate', { method: 'POST' });
     } catch (error) {
       // 429 is the generation limit, not a failure of the plan itself.
-      setFatal(error instanceof ApiError && error.status === 429 ? 'Has pedido varios planes seguidos. Espera un momento antes de volver a intentarlo.' : messageFor(error));
+      // 429 is the generation limit, not a failure of the plan itself.
+      setFatal(error instanceof ApiError && error.status === 429 ? dictionary.generation.rateLimited : messageFor(error, dictionary));
 
       return;
     }
@@ -78,7 +81,7 @@ export function GenerationProgress() {
     }
 
     setPhase({ code: 'GENERATION_ABANDONED', detail: null, kind: 'failed' });
-  }, [router]);
+  }, [dictionary, router]);
 
   useEffect(() => {
     // React 18+ mounts effects twice in development; without this the user would
@@ -92,14 +95,14 @@ export function GenerationProgress() {
   if (fatal) {
     return (
       <div className={styles.shell}>
-        <h1 className={styles.title}>No hemos podido empezar</h1>
+        <h1 className={styles.title}>{dictionary.generation.couldNotStart}</h1>
         <p className={styles.error}>{fatal}</p>
         <div className={styles.actions}>
           <Button onClick={() => void start()} type="button">
-            Reintentar
+            {dictionary.common.retry}
           </Button>
           <CtaLink href="/inicio" variant="secondary">
-            Volver
+            {dictionary.generation.back}
           </CtaLink>
         </div>
       </div>
@@ -107,7 +110,7 @@ export function GenerationProgress() {
   }
 
   if (phase.kind === 'failed') {
-    const copy = generationError(phase.code);
+    const copy = generationError(phase.code, dictionary);
 
     return (
       <div className={styles.shell}>
@@ -119,19 +122,19 @@ export function GenerationProgress() {
             hiding the actual reason helps nobody. */}
         {phase.detail ? (
           <p className={styles.detail}>
-            <strong>Detalle del servidor:</strong> {phase.detail}
+            <strong>{dictionary.generation.serverDetail}</strong> {phase.detail}
           </p>
         ) : null}
         <div className={styles.actions}>
           {copy.canRetry ? (
             <Button onClick={() => void start()} type="button">
-              Reintentar
+              {dictionary.common.retry}
             </Button>
           ) : (
-            <CtaLink href="/onboarding/1">Completar mi perfil</CtaLink>
+            <CtaLink href="/onboarding">{dictionary.generation.completeProfile}</CtaLink>
           )}
           <CtaLink href="/inicio" variant="secondary">
-            Volver
+            {dictionary.generation.back}
           </CtaLink>
         </div>
       </div>
@@ -140,11 +143,11 @@ export function GenerationProgress() {
 
   return (
     <div className={styles.shell}>
-        <h1 className={styles.title}>Estamos creando tu plan</h1>
-        <Text tone="secondary">Tarda un par de minutos. Puedes dejar esta página abierta.</Text>
+        <h1 className={styles.title}>{dictionary.generation.title}</h1>
+        <Text tone="secondary">{dictionary.generation.wait}</Text>
 
         <div aria-atomic="true" aria-live="polite" className={styles.step}>
-          <Text weight="medium">{phase.kind === 'running' && phase.step ? phase.step : 'Empezando…'}</Text>
+          <Text weight="medium">{phase.kind === 'running' && phase.step ? stepLabel(phase.step, dictionary) : dictionary.generation.starting}</Text>
         </div>
 
         <div className={styles.track}>
@@ -152,7 +155,7 @@ export function GenerationProgress() {
         </div>
 
         <Text className={styles.note} size="sm" tone="tertiary">
-          Comprobamos tus alergias antes de guardar nada.
+          {dictionary.generation.safetyNote}
         </Text>
       </div>
   );

@@ -2,12 +2,15 @@ import { Fragment } from 'react';
 
 import styles from './page.module.css';
 
+import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { CtaLink } from 'components/CtaLink';
 import { EmptyState } from 'components/EmptyState';
 
-import { CATEGORY_LABELS, formatQuantity } from 'lib/generation';
+import { categoryLabel } from 'lib/generation';
+import { formatQuantity } from 'lib/format';
+import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
 export const dynamic = 'force-dynamic';
@@ -22,13 +25,15 @@ type ShoppingListView = {
 const ORDER = ['produce', 'protein', 'dairy', 'bakery', 'frozen', 'pantry', 'beverages', 'other'];
 
 export default async function ShoppingPage() {
-  const list = await serverApi<ShoppingListView>('/shopping-lists/active');
+  await redirectIfOnboardingIncomplete();
+
+  const [dictionary, locale, list] = await Promise.all([getDictionary(), activeLocale(), serverApi<ShoppingListView>('/shopping-lists/active')]);
 
   if (!list) {
     return (
-      <EmptyState body="La lista se genera junto con tu plan, ya sumada y agrupada por pasillo." title="Todavía no hay lista">
+      <EmptyState body={dictionary.shopping.emptyBody} title={dictionary.shopping.emptyTitle}>
         <CtaLink href="/plan" size="lg">
-          Ver mi plan
+          {dictionary.shopping.emptyCta}
         </CtaLink>
       </EmptyState>
     );
@@ -38,25 +43,25 @@ export default async function ShoppingPage() {
 
   return (
     <Fragment>
-      <h1 className={styles.title}>Lista de la compra</h1>
-      <Text tone="secondary">Todo lo que necesitas para los catorce días, ya sumado.</Text>
+      <h1 className={styles.title}>{dictionary.shopping.title}</h1>
+      <Text tone="secondary">{dictionary.shopping.subtitle}</Text>
 
       {/* Said plainly rather than rendered as checkboxes that do nothing. A control
           that looks interactive and is not is worse than its absence. */}
       <div className={styles.notice}>
         <Text size="sm" tone="secondary">
-          Por ahora la lista es solo de consulta. Poder marcar lo que ya tienes, ajustar cantidades y añadir cosas llega en la próxima entrega.
+          {dictionary.shopping.notice}
         </Text>
       </div>
 
       {groups.map(group => (
-        <section className={styles.group} key={group.category}>
-          <h2 className={styles.groupTitle}>{CATEGORY_LABELS[group.category] ?? group.category}</h2>
+        <section className={`${styles.group} motion-enter`} key={group.category}>
+          <h2 className={styles.groupTitle}>{categoryLabel(group.category, dictionary)}</h2>
           <ul className={styles.items}>
             {group.items.map(item => (
               <li className={styles.item} key={item.id}>
                 <span>{item.name}</span>
-                <span className={styles.quantity}>{formatQuantity(item.displayQuantity, item.displayUnit)}</span>
+                <span className={styles.quantity}>{formatQuantity(item.displayQuantity, item.displayUnit, locale, dictionary)}</span>
               </li>
             ))}
           </ul>
