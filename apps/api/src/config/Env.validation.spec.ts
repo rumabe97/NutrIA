@@ -1,6 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from '@jest/globals';
 
-import { validateEnv } from './Env.validation.js';
+import { ENV_KEYS, validateEnv } from './Env.validation.js';
 
 const valid = {
   APP_URL: 'http://localhost:3000',
@@ -118,5 +119,23 @@ describe('AI provider and model pairing', () => {
 
   it('does not second-guess a local model name', () => {
     expect(validateEnv({ ...valid, AI_MODEL: 'llama3.1:70b', AI_PROVIDER: 'ollama' }).AI_MODEL).toBe('llama3.1:70b');
+  });
+});
+
+/*
+ * A variable the schema knows about but Turborepo does not is invisible to every
+ * task it runs: the build gets a warning it prints once among a thousand lines,
+ * and the value is simply absent. `AI_PROVIDER` and `GOOGLE_API_KEY` were set on
+ * the host and missing here, so the deploy that first used them would have fallen
+ * back to the stub provider and generated nothing, with no error to read.
+ *
+ * The schema is the contract, so it is also the source of this list.
+ */
+describe('turbo.json globalEnv', () => {
+  it('declares every variable the schema reads', () => {
+    const turbo = JSON.parse(readFileSync(new URL('../../../../turbo.json', import.meta.url), 'utf8')) as { globalEnv: string[] };
+    const missing = ENV_KEYS.filter(key => !turbo.globalEnv.includes(key));
+
+    expect(missing).toEqual([]);
   });
 });

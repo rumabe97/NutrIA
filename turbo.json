@@ -2,7 +2,9 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "globalEnv": [
+    "AI_BASE_URL",
     "AI_MODEL",
+    "AI_PROVIDER",
     "ALLOWED_ORIGINS",
     "ANTHROPIC_API_KEY",
     "API_PREFIX",
@@ -13,6 +15,7 @@
     "DATABASE_URL",
     "DIRECT_DATABASE_URL",
     "EMAIL_FROM",
+    "GOOGLE_API_KEY",
     "LOG_LEVEL",
     "NEXT_PUBLIC_API_URL",
     "NODE_ENV",

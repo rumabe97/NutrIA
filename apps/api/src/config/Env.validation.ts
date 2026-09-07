@@ -46,7 +46,14 @@ function optional<T extends z.ZodType>(schema: T) {
   return z.preprocess(value => (value === '' ? undefined : value), schema.optional());
 }
 
-const envSchema = z
+/**
+ * The declared surface, before the cross-field rules below.
+ *
+ * Split out so the key list is readable as data: `turbo.json`'s `globalEnv` has
+ * to name every one of these, and a variable it omits is silently absent from
+ * every task it runs. A spec asserts the two agree.
+ */
+const envObject = z
   .object({
     AI_BASE_URL: optional(z.url()),
     AI_MODEL: optional(z.string()),
@@ -86,7 +93,11 @@ const envSchema = z
       .enum(['true', 'false'])
       .default('true')
       .transform(value => value === 'true')
-  })
+  });
+
+export const ENV_KEYS = Object.keys(envObject.shape);
+
+const envSchema = envObject
   // Production has stricter requirements than development, and the difference is
   // exactly the set of things that are harmless locally and dangerous live.
   // The selected provider decides which key is required. `stub` needs none, which
