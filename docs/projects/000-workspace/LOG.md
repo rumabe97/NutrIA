@@ -333,3 +333,19 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   planned 4,099 kcal of food. The days of scheduler work that preceded this were spent
   fitting a plan to a target that was wrong. **Validating the inputs to a calculation is
   worth more than any amount of care downstream of it.**
+
+## Every signed-in page looked frozen while it loaded (2026-09-07)
+
+- **Symptom**: the owner reported the app "keeps loading and seems broken".
+- **Cause**: there was not a single `loading.tsx` or `error.tsx` in `apps/web`. Every
+  route in the signed-in group is `force-dynamic` — it fetches the user's own data per
+  request — and Next.js holds the *previous* screen until the response lands unless a
+  loading boundary exists. So navigation produced no feedback at all, and a server
+  component that threw replaced the whole app with Next's default error page.
+- **Fix**: a skeleton loading state for the signed-in group shaped like the dashboard and
+  plan screens (so content does not jump when it arrives), a lighter one for the auth
+  screens, and an error boundary offering `reset()` — which is usually all a transient API
+  failure needs.
+- **Note**: this is the fix batch that made project 003's acceptance criterion 6 concrete;
+  the rest of that criterion — per-mutation progress on every control — belongs to the
+  project, not here.

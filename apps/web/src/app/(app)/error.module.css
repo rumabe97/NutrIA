@@ -1,0 +1,22 @@
+.shell {
+  margin-inline: auto;
+  max-width: 34rem;
+  padding-block: var(--space-09);
+  text-align: center;
+}
+
+.title {
+  font-size: var(--font-size-08);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0 0 var(--space-03);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  justify-content: center;
+  margin-top: var(--space-07);
+}
