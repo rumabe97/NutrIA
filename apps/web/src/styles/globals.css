@@ -1,3 +1,48 @@
 /* App-specific global styles.
-   The shared reset (box-sizing, body defaults, font-family) lives in ui/styles/base.
-   Add only what is unique to this app here. */
+   The shared reset (box-sizing, body defaults, font-family) lives in ui/styles/base. */
+
+body {
+  background-color: var(--background-01);
+  color: var(--foreground-01);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Reveal-on-scroll, driven by an IntersectionObserver in
+   components/Reveal. Declared globally rather than per-module so every section
+   animates identically and there is one place to disable it. */
+[data-reveal] {
+  opacity: 0;
+  transform: translateY(1.25rem);
+  transition:
+    opacity 0.7s var(--ease-spring),
+    transform 0.7s var(--ease-spring);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
+[data-reveal='shown'] {
+  opacity: 1;
+  transform: none;
+}
+
+/* Motion is decoration here, so it goes away entirely rather than being
+   shortened — and the content must still be visible, which is why this resets
+   opacity rather than only the duration. */
+@media (prefers-reduced-motion: reduce) {
+  [data-reveal],
+  [data-reveal='shown'] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

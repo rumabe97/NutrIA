@@ -1,9 +1,50 @@
-/* Override or extend packages/ui tokens for the web app. */
-/* All base tokens (surfaces, text, borders, shadows) come from ui/styles/variables. */
-/* Add branding-specific overrides here, for example: */
+/* NutrIA brand layer.
+   Base tokens (surfaces, text, borders, shadows, spacing, type scale) come from
+   ui/styles/variables. Only the decisions specific to this product live here.
 
-/* @media (prefers-color-scheme: light) { */
-/*   :root { */
-/*     --background-01: #f8f6f2; */
-/*   } */
-/* } */
+   Direction: calm and near-neutral, one restrained accent. The accent marks
+   *actions*, never decoration — in a product about food, saturated colour on
+   surfaces reads as appetite signalling, and the plan should look like
+   information, not marketing. */
+
+:root {
+  /* ── Accent ────────────────────────────────────────────────────────────
+     A muted olive-green. Green is the obvious choice for nutrition and also
+     the reason so many of these products look alike, so this one is
+     desaturated far enough to sit next to food photography without competing
+     with it. Steps mirror the Radix scale contract documented in
+     ui/styles/variables: 09 is the solid fill, 11 is the AA-passing text step. */
+  --color-brand-01: light-dark(#fcfdfb, #131610);
+  --color-brand-02: light-dark(#f7faf3, #181c13);
+  --color-brand-03: light-dark(#eef4e6, #1e2418);
+  --color-brand-04: light-dark(#e4ecd8, #242c1c);
+  --color-brand-05: light-dark(#d9e3ca, #2b3421);
+  --color-brand-06: light-dark(#cbd8b7, #333e27);
+  --color-brand-07: light-dark(#b8c99f, #3f4c2f);
+  --color-brand-08: light-dark(#9db47e, #506237);
+  --color-brand-09: light-dark(#5f7a3d, #6d8a46);
+  --color-brand-10: light-dark(#546d35, #7d9b53);
+  --color-brand-11: light-dark(#475c2c, #a3c07a);
+  --color-brand-12: light-dark(#232d15, #e8f0dc);
+
+  /* ── Editorial type scale ─────────────────────────────────────────────
+     Extends (never replaces) the ui scale, which tops out at 60px. Marketing
+     headlines need to breathe; product screens keep using the base scale. */
+  --font-size-display: clamp(2.5rem, 1.6rem + 4.2vw, 5.25rem);
+  --font-size-headline: clamp(1.875rem, 1.3rem + 2.4vw, 3.25rem);
+  --font-size-lede: clamp(1.0625rem, 0.98rem + 0.5vw, 1.375rem);
+
+  /* Tight tracking is what stops large type reading as a system dialog. */
+  --tracking-display: -0.035em;
+  --tracking-headline: -0.025em;
+
+  /* ── Layout rhythm ────────────────────────────────────────────────────── */
+  --section-gap: clamp(4rem, 2.5rem + 7vw, 9rem);
+  --content-max: 68rem;
+  --prose-max: 34rem;
+
+  /* ── Surfaces ─────────────────────────────────────────────────────────
+     A single raised card token, so every card in the product agrees. */
+  --surface-card: light-dark(#ffffff, #1a1a1a);
+  --surface-sunken: var(--color-gray-02);
+}
