@@ -28,8 +28,22 @@
   opacity: 1;
 }
 
+/* Sized in `em` so it tracks the button's own font size across the three tiers
+   without a per-size rule. */
 .spinner {
+  animation: button-spinner 600ms linear infinite;
+  block-size: 1.05em;
+  border: 2px solid currentcolor;
+  border-radius: 50%;
+  border-inline-end-color: transparent;
   flex: 0 0 auto;
+  inline-size: 1.05em;
+}
+
+@keyframes button-spinner {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── Sizes ── */

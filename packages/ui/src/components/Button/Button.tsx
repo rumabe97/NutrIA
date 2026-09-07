@@ -1,14 +1,9 @@
 import styles from './Button.module.css';
 
-import { Spinner } from 'ui/components/Spinner';
-
 import type { ComponentPropsWithRef } from 'react';
 import type { Size } from 'ui/types/Sizes.types';
 
 type ButtonSize = Exclude<Size, 'xs' | 'xl'>;
-
-/** Spinner size per button height, so it is never taller than the label beside it. */
-const SPINNER_SIZE: Record<ButtonSize, number> = { lg: 16, md: 14, sm: 12 };
 
 export interface ButtonProps extends ComponentPropsWithRef<'button'> {
   /**
@@ -29,10 +24,14 @@ export function Button({ children, className, disabled, loading = false, size = 
   const classes = [styles.button, styles[variant], styles[size], className].filter(Boolean).join(' ');
 
   return (
-    // `aria-busy` rather than only the visual spinner: a screen reader user
-    // gets the same "something is happening" the sighted one does.
+    // `aria-busy` rather than only the visual spinner: a screen reader user gets
+    // the same "something is happening" the sighted one does.
     <button aria-busy={loading || undefined} className={classes} disabled={disabled ?? loading} {...rest}>
-      {loading ? <Spinner className={styles.spinner} size={SPINNER_SIZE[size]} /> : null}
+      {/* A ring rather than `ui/components/Spinner`, which is an eight-leaf mark
+          designed for 20px and up. Scaled to fit a 24px button its leaves are
+          1.5px wide at 65% opacity — present in the DOM and invisible on screen,
+          which is the worst of both. A 2px stroke reads at any button height. */}
+      {loading ? <span aria-hidden="true" className={styles.spinner} /> : null}
       {children}
     </button>
   );
