@@ -342,6 +342,35 @@ export const PlanRepository = {
     } catch (error: unknown) {
       throw wrap(error);
     }
+  },
+
+  /**
+   * Ticks or unticks one item.
+   *
+   * Ownership is resolved *inside* the statement, by walking item → list → plan →
+   * user, so an item id belonging to another account updates nothing and the
+   * caller sees "not found" rather than a refusal. The same rule as every other
+   * user-scoped write: the id from the path is never trusted on its own.
+   */
+  async setItemChecked(userId: string, itemId: string, checked: boolean): Promise<boolean> {
+    try {
+      const owned = database()
+        .select({ id: shoppingListItems.id })
+        .from(shoppingListItems)
+        .innerJoin(shoppingLists, eq(shoppingLists.id, shoppingListItems.listId))
+        .innerJoin(mealPlans, eq(mealPlans.id, shoppingLists.planId))
+        .where(and(eq(shoppingListItems.id, itemId), eq(mealPlans.userId, userId)));
+
+      const updated = await database()
+        .update(shoppingListItems)
+        .set({ checked, updatedAt: new Date() })
+        .where(inArray(shoppingListItems.id, owned))
+        .returning({ id: shoppingListItems.id });
+
+      return updated.length > 0;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
   }
 };
 

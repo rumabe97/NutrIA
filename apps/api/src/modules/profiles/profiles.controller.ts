@@ -5,7 +5,7 @@ import { ProfileController } from 'core/controllers/Profile';
 import { updateGoalSchema, updatePreferencesSchema, updateProfileSchema } from 'core/entities/Profile';
 import { updateTargetOverrideSchema } from 'core/entities/Nutrition';
 
-import { CurrentUser } from '../../shared/decorators/index.js';
+import { CurrentUser, Locale } from '../../shared/decorators/index.js';
 import { ZodValidationPipe } from '../../shared/pipes/index.js';
 
 import type { FullProfileView, GoalView, PreferencesView, ProfileView } from 'core/controllers/Profile';
@@ -23,8 +23,8 @@ import type { UpdateGoal, UpdatePreferences, UpdateProfile } from 'core/entities
 export class ProfilesController {
   @ApiOperation({ summary: 'Profile, goal, preferences, restrictions and resolved daily targets' })
   @Get()
-  async get(@CurrentUser() user: SessionUser): Promise<FullProfileView> {
-    return ProfileController.getFullProfile(user.id);
+  async get(@CurrentUser() user: SessionUser, @Locale() locale: string | null): Promise<FullProfileView> {
+    return ProfileController.getFullProfile(user.id, locale);
   }
 
   @ApiOperation({ summary: 'Update personal details' })

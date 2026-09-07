@@ -1,5 +1,6 @@
 import { InputParseError, NotFoundError } from 'core/entities/Error';
 import { ageInYears, resolveTargets } from 'core/domain/Nutrition';
+import { FALLBACK_LOCALE } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
 import { SafetyRepository } from '#repositories/Safety';
 import type { Goal, Preferences, Profile, UpdateGoal, UpdatePreferences, UpdateProfile } from 'core/entities/Profile';
@@ -165,9 +166,14 @@ function explain(violation: TargetViolation): string {
 
 export const ProfileController = {
   /** One round trip's worth of everything the profile and dashboard screens need. */
-  async getFullProfile(userId: string): Promise<FullProfileView> {
-    const [profile, goal, preferences, dietaryPatterns, foodPreferences, cuisines, allergies, intolerances, customAllergens, override] = await Promise.all([
-      ProfileRepository.findByUserId(userId),
+  async getFullProfile(userId: string, locale: string | null = null): Promise<FullProfileView> {
+    // Hoisted out of the batch below because the rest of it needs the answer:
+    // free-text allergies name the ingredient they resolved to, and that name has
+    // a language. One extra sequential read on a screen that already does nine.
+    const profile = await ProfileRepository.findByUserId(userId);
+    const effectiveLocale = locale ?? profile?.locale ?? FALLBACK_LOCALE;
+
+    const [goal, preferences, dietaryPatterns, foodPreferences, cuisines, allergies, intolerances, customAllergens, override] = await Promise.all([
       ProfileRepository.findActiveGoal(userId),
       ProfileRepository.findPreferences(userId),
       ProfileRepository.findDietaryPatterns(userId),
@@ -175,7 +181,7 @@ export const ProfileController = {
       ProfileRepository.findCuisines(userId),
       SafetyRepository.findAllergies(userId),
       SafetyRepository.findIntolerances(userId),
-      SafetyRepository.findCustomAllergens(userId),
+      SafetyRepository.findCustomAllergens(userId, effectiveLocale),
       ProfileRepository.findTargetOverride(userId)
     ]);
 

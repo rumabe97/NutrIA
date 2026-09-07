@@ -3,7 +3,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { PlanController } from 'core/controllers/Plan';
 
-import { CurrentUser, RateLimit, RequiresOnboarding } from '../../shared/decorators/index.js';
+import { CurrentUser, Locale, RateLimit, RequiresOnboarding } from '../../shared/decorators/index.js';
 import { PlanJobRunner } from './PlanJobRunner.service.js';
 
 import type { JobView, MealDetailView, PlanDayView, PlanSummaryView, PlanView } from 'core/controllers/Plan';
@@ -48,8 +48,8 @@ export class MealPlansController {
   // Declared before `:id`, or Nest matches "active" as a plan id and the route is
   // unreachable.
   @Get('active')
-  async active(@CurrentUser() user: SessionUser): Promise<PlanView | null> {
-    return PlanController.getActivePlan(user.id);
+  async active(@CurrentUser() user: SessionUser, @Locale() locale: string | null): Promise<PlanView | null> {
+    return PlanController.getActivePlan(user.id, locale);
   }
 
   @ApiOperation({ summary: 'Plan history, newest first.' })
@@ -64,8 +64,8 @@ export class MealPlansController {
 
   @ApiOperation({ summary: 'One plan. A plan belonging to another account is not found.' })
   @Get(':id')
-  async plan(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string): Promise<PlanView> {
-    return PlanController.getPlan(user.id, id);
+  async plan(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Locale() locale: string | null): Promise<PlanView> {
+    return PlanController.getPlan(user.id, id, locale);
   }
 
   @ApiOperation({ summary: 'One day of a plan.' })
@@ -73,14 +73,15 @@ export class MealPlansController {
   async day(
     @CurrentUser() user: SessionUser,
     @Param('id', ParseUUIDPipe) id: string,
-    @Param('dayIndex', ParseIntPipe) dayIndex: number
+    @Param('dayIndex', ParseIntPipe) dayIndex: number,
+    @Locale() locale: string | null
   ): Promise<PlanDayView> {
-    return PlanController.getDay(user.id, id, dayIndex);
+    return PlanController.getDay(user.id, id, dayIndex, locale);
   }
 
   @ApiOperation({ summary: "A meal, with ingredient quantities scaled to the portion planned — not the recipe's base." })
   @Get('meals/:id')
-  async meal(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string): Promise<MealDetailView> {
-    return PlanController.getMeal(user.id, id);
+  async meal(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Locale() locale: string | null): Promise<MealDetailView> {
+    return PlanController.getMeal(user.id, id, locale);
   }
 }

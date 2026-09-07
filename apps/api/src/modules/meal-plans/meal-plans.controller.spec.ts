@@ -49,25 +49,27 @@ describe('MealPlansController', () => {
   it('scopes the active plan to the session user', async () => {
     const getActivePlan = jest.spyOn(PlanController, 'getActivePlan').mockResolvedValue(null);
 
-    await controller.active(ALICE);
+    await controller.active(ALICE, 'en-GB');
 
-    expect(getActivePlan).toHaveBeenCalledWith('usr-alice');
+    // The request's language travels with the id: content resolves into the
+    // language the reader is looking at, not the one their profile last stored.
+    expect(getActivePlan).toHaveBeenCalledWith('usr-alice', 'en-GB');
   });
 
   it("passes the caller's id alongside a plan id, so another account's plan is not found", async () => {
     const getPlan = jest.spyOn(PlanController, 'getPlan').mockRejectedValue(new Error('not found'));
 
-    await expect(controller.plan(ALICE, BOB_PLAN)).rejects.toThrow();
+    await expect(controller.plan(ALICE, BOB_PLAN, null)).rejects.toThrow();
     // The path id is never used alone — ownership is resolved in the same query.
-    expect(getPlan).toHaveBeenCalledWith('usr-alice', BOB_PLAN);
+    expect(getPlan).toHaveBeenCalledWith('usr-alice', BOB_PLAN, null);
   });
 
   it('scopes a meal to the caller', async () => {
     const getMeal = jest.spyOn(PlanController, 'getMeal').mockResolvedValue({} as never);
 
-    await controller.meal(ALICE, BOB_PLAN);
+    await controller.meal(ALICE, BOB_PLAN, null);
 
-    expect(getMeal).toHaveBeenCalledWith('usr-alice', BOB_PLAN);
+    expect(getMeal).toHaveBeenCalledWith('usr-alice', BOB_PLAN, null);
   });
 
   it('scopes a job to the caller', async () => {

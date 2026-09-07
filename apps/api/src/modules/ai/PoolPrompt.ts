@@ -8,8 +8,10 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  *
  * 2.0.0: the prompt itself moved to English for every locale, with the output
  * language passed as a parameter.
+ * 2.1.0: asks for cooking rather than combinations — named dishes, real
+ * technique, seasoning, and steps a person could follow.
  */
-export const PROMPT_VERSION = '2.0.0';
+export const PROMPT_VERSION = '2.1.0';
 
 /** Share of the day each slot carries; mirrors the scheduler's own weights. */
 const SLOT_SHARE: Record<MealSlot, number> = {
@@ -77,11 +79,12 @@ const SLOT_LABEL: Record<MealSlot, string> = {
  * this that varies.
  */
 export const POOL_SYSTEM_PROMPT = [
-  'You are a cook designing dishes for personalised meal plans.',
+  'You are a working cook designing dishes for personalised meal plans.',
   'You only return dishes composed of ingredients from the catalogue you are given.',
   'You never invent an ingredient or a slug: if something is not on the list, it does not exist.',
   'You never state calories or macronutrients: the system computes those from the catalogue.',
-  'Dishes must be realistic, cookable, and varied.'
+  'You cook: you season, you use technique, and you build texture and contrast.',
+  'You do not return two ingredients on a plate and call it a dish.'
 ].join(' ');
 
 /**
@@ -139,6 +142,17 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
     'IMPORTANT: every main dish must carry a protein source (meat, fish, egg, dairy or pulses).',
     'A plan that meets the calories but falls short on protein is discarded in full.',
     '',
+    'WHAT MAKES A DISH GOOD ENOUGH TO SEND BACK:',
+    '- A name a cook would recognise, describing the dish — not a list of its ingredients.',
+    '- Seasoning. The catalogue has salt, paprika, cumin, oregano, cinnamon, bay, garlic, lemon,',
+    '  vinegars and olive oil. A dish that uses none of them is not finished.',
+    '- Technique in the steps: roast, sear, sauté, braise, griddle, marinate, rest. Say the heat',
+    '  and the time. "Cook the chicken" is not a step; "sear 4 minutes a side, then rest 5" is.',
+    '- Contrast in texture and temperature — something crisp against something soft, something',
+    '  fresh against something rich.',
+    '- Three to eight steps for anything cooked. Snacks are the exception and take none.',
+    '- Variety of method across the set you return: do not send eight roasted dishes.',
+    '',
     'DISHES NEEDED:',
     needs,
     '',
@@ -156,7 +170,8 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
     'AVAILABLE INGREDIENTS (use these slugs and no others):',
     catalogue,
     '',
-    'Each dish lists its ingredients in grams for the number of servings you declare.'
+    'Each dish lists its ingredients in grams for the number of servings you declare.',
+    'Aim for four to eight ingredients in a main dish. Two is a snack; fifteen is a shopping trip.'
   ]
     .filter(Boolean)
     .join('\n');

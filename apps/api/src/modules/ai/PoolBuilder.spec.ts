@@ -278,6 +278,20 @@ describe('PoolBuilder', () => {
     expect((generate.mock.calls[0]?.[0] as { prompt: string }).prompt).toContain('SPANISH (SPAIN)');
   });
 
+  it('asks for cooking rather than combinations', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+
+    const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
+
+    // "The recipes seem too basic" was a prompt that asked for realistic and
+    // varied dishes and never once asked the model to season anything.
+    expect(prompt).toContain('WHAT MAKES A DISH GOOD ENOUGH TO SEND BACK');
+    expect(prompt).toContain('Seasoning.');
+    expect(prompt).toContain('Technique in the steps');
+  });
+
   it('gives up after a bounded number of attempts rather than looping', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 

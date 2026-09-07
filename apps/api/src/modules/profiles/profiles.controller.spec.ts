@@ -40,6 +40,29 @@ describe('body validation is scoped to the body', () => {
     jest.restoreAllMocks();
   });
 
+  /**
+   * The language switch sends exactly this and nothing else.
+   *
+   * The UI language comes from a cookie and the *data* language from
+   * `profiles.locale`, so a `locale` that is validated away leaves a user reading
+   * an English interface full of Spanish ingredient names — which is what was
+   * reported, and what this asserts cannot happen silently.
+   */
+  it('carries a lone locale through to the controller', async () => {
+    const update = jest.spyOn(ProfileController, 'updateProfile').mockResolvedValue({} as never);
+
+    const response: Response = await request(app.getHttpServer() as Server).patch('/profile').send({ locale: 'en-GB' });
+
+    expect(response.status).toBe(200);
+    expect(update).toHaveBeenCalledWith('usr-1', { locale: 'en-GB' });
+  });
+
+  it('refuses a locale it does not ship rather than storing it', async () => {
+    const response: Response = await request(app.getHttpServer() as Server).patch('/profile').send({ locale: 'x' });
+
+    expect(response.status).toBe(422);
+  });
+
   it('accepts a valid profile update', async () => {
     const update = jest.spyOn(ProfileController, 'updateProfile').mockResolvedValue({} as never);
 

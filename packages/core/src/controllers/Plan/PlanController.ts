@@ -98,16 +98,16 @@ function presentMeal({ items, meal, recipe }: MealRow): MealView {
 
 export const PlanController = {
   /** The active plan with its days and meals, or null — having no plan is a normal state. */
-  async getActivePlan(userId: string): Promise<PlanView | null> {
+  async getActivePlan(userId: string, locale: string | null = null): Promise<PlanView | null> {
     const plan = await PlanRepository.findActive(userId);
 
     if (!plan) {return null;}
 
-    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId)));
+    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
   },
 
-  async getDay(userId: string, planId: string, dayIndex: number): Promise<PlanDayView> {
-    const plan = await PlanController.getPlan(userId, planId);
+  async getDay(userId: string, planId: string, dayIndex: number, locale: string | null = null): Promise<PlanDayView> {
+    const plan = await PlanController.getPlan(userId, planId, locale);
     const day = plan.days.find(candidate => candidate.dayIndex === dayIndex);
 
     if (!day) {throw new NotFoundError('Day not found');}
@@ -123,17 +123,17 @@ export const PlanController = {
     return { id: job.id, error: job.error, errorDetail: job.errorDetail, planId: job.planId, status: job.status, step: job.step };
   },
 
-  async getMeal(userId: string, mealId: string): Promise<MealDetailView> {
-    return loadMealDetail(userId, mealId);
+  async getMeal(userId: string, mealId: string, locale: string | null = null): Promise<MealDetailView> {
+    return loadMealDetail(userId, mealId, locale);
   },
 
   /** Owner-scoped. A plan belonging to someone else is simply not found. */
-  async getPlan(userId: string, planId: string): Promise<PlanView> {
+  async getPlan(userId: string, planId: string, locale: string | null = null): Promise<PlanView> {
     const plan = await PlanRepository.findById(userId, planId);
 
     if (!plan) {throw new NotFoundError('Plan not found');}
 
-    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId)));
+    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
   },
 
   async getShoppingList(userId: string, planId: string) {
@@ -165,6 +165,20 @@ export const PlanController = {
     const rows = await PlanRepository.findHistory(userId, limit, offset);
 
     return rows.map(row => ({ id: row.id, endDate: row.endDate, startDate: row.startDate, status: row.status, version: row.version }));
+  },
+
+  /**
+   * Ticks an item off the shopping list.
+   *
+   * A read-only list was the honest state while nothing could be written; now
+   * that something can, this is the whole of it. Deliberately not a "clear all"
+   * or a quantity edit: those are separate decisions, and a control that does
+   * more than it says is worse than one that does less.
+   */
+  async setShoppingItemChecked(userId: string, itemId: string, checked: boolean): Promise<void> {
+    if (!(await PlanRepository.setItemChecked(userId, itemId, checked))) {
+      throw new NotFoundError('Shopping list item not found');
+    }
   }
 };
 
@@ -281,15 +295,20 @@ export interface MealDetailView {
  * interface.
  */
 /**
- * The profile's locale, for the same reason generation uses it: one source, and
- * it works whether or not there is a request to read a header from.
+ * The language to resolve content into.
+ *
+ * The request wins when it names one, because that is the language the reader is
+ * *looking at* — the web app's switch takes effect on the next request rather
+ * than on the next profile write, and it works signed out, where there is no
+ * profile to have written to. The stored preference is the fallback, and the only
+ * answer available to a background job, which has no request at all.
  */
-async function localeFor(userId: string): Promise<string> {
-  return (await ProfileRepository.findByUserId(userId))?.locale ?? FALLBACK_LOCALE;
+async function localeFor(userId: string, requested: string | null): Promise<string> {
+  return requested ?? (await ProfileRepository.findByUserId(userId))?.locale ?? FALLBACK_LOCALE;
 }
 
-async function loadMealDetail(userId: string, mealId: string): Promise<MealDetailView> {
-  const found = await PlanRepository.findMealDetail(userId, mealId, await localeFor(userId));
+async function loadMealDetail(userId: string, mealId: string, requested: string | null): Promise<MealDetailView> {
+  const found = await PlanRepository.findMealDetail(userId, mealId, await localeFor(userId, requested));
 
   if (!found) {throw new NotFoundError('Meal not found');}
 

@@ -163,3 +163,8 @@ export type PlanDraft = {
   readonly startDate: string;
   readonly strategy: NutritionTargets;
 };
+
+/** The only field a shopping-list item exposes for writing. */
+export const setShoppingItemSchema = z.object({ checked: z.boolean() });
+
+export type SetShoppingItem = z.infer<typeof setShoppingItemSchema>;

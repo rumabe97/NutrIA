@@ -12,6 +12,7 @@ import { HealthModule } from './modules/health/health.module.js';
 import { MealPlansModule } from './modules/meal-plans/meal-plans.module.js';
 import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
 import { ProfilesModule } from './modules/profiles/profiles.module.js';
+import { ProgressModule } from './modules/progress/progress.module.js';
 import { SafetyModule } from './modules/safety/safety.module.js';
 import { ShoppingListsModule } from './modules/shopping-lists/shopping-lists.module.js';
 import { UsersModule } from './modules/users/users.module.js';
@@ -65,6 +66,7 @@ import type { Env } from './config/index.js';
     MealPlansModule,
     OnboardingModule,
     ProfilesModule,
+    ProgressModule,
     SafetyModule,
     ShoppingListsModule,
     UsersModule
