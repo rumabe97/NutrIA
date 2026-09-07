@@ -1,3 +1,4 @@
+import { hasUsableMethod } from 'core/domain/Method';
 import { dishSafety } from 'core/domain/Safety';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
@@ -73,10 +74,20 @@ export const RecipeController = {
    *
    * Dishes referencing an ingredient no longer in the catalogue are dropped: their
    * macros could not be computed, so they cannot be scheduled.
+   *
+   * Dishes with no method are dropped too, and that gate is the only thing that
+   * lets a quality change ever reach an existing user. Reuse is preferred over
+   * generation by design ([`0006`](../../../../docs/decisions/0006-reuse-before-generating.md)),
+   * so a library built under an older prompt is served back for ever: the first
+   * plan generated after prompt 2.1.0 landed was 41 dishes, of which 3 were new.
+   * A recipe that never says how to cook it is the one defect worth spending a
+   * regeneration on, so it is the one this filter names.
    */
   async reusablePool(slots: readonly MealSlot[], context: GenerationContext): Promise<readonly CandidateDish[]> {
     const recipes = await RecipeRepository.findReusable(slots, REUSE_FETCH_LIMIT, context.locale);
 
-    return recipes.filter(recipe => dishSafety(recipe.ingredients, context.catalogue, context.safety).kind === 'safe').map(toCandidateDish);
+    return recipes
+      .filter(recipe => hasUsableMethod(recipe) && dishSafety(recipe.ingredients, context.catalogue, context.safety).kind === 'safe')
+      .map(toCandidateDish);
   }
 };

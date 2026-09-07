@@ -74,7 +74,9 @@ export const candidateDishSchema = z.object({
   servings: z.number().min(0.25).max(8),
   slots: z.array(z.enum(MEAL_SLOTS)).min(1),
   slug: z.string().min(1).max(140),
-  steps: z.array(z.object({ minutes: z.number().int().min(0).max(240).optional(), text: z.string().min(1).max(600) })).max(15)
+  // At least one, always: see `domain/Method`, which is where the floor is decided
+  // and where the provider's output and the reuse pool are both measured against it.
+  steps: z.array(z.object({ minutes: z.number().int().min(0).max(240).optional(), text: z.string().min(1).max(600) })).min(1).max(15)
 });
 
 export type CandidateDish = z.infer<typeof candidateDishSchema>;
