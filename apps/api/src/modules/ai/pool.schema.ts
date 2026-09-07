@@ -1,0 +1,111 @@
+import { jsonSchema } from 'ai';
+import { z } from 'zod';
+
+import { MEAL_SLOTS } from 'core/entities/Plan';
+
+/**
+ * What the model is allowed to return.
+ *
+ * Note what is absent: no calories, no macros, no ingredient names. Only catalogue
+ * slugs and gram quantities. There is nowhere for a generated nutrition figure to
+ * be stored even by accident — macros are computed from the catalogue
+ * (`docs/decisions/0004-deterministic-safety-layer.md`).
+ */
+export const generatedDishSchema = z.object({
+  cookMinutes: z.number().int().min(0).max(180).describe('Minutos de cocción. 0 si no requiere cocinar.'),
+  // The wire schema has no nullable, so 'none' arrives as an empty string.
+  cuisine: z
+    .string()
+    .max(60)
+    .nullish()
+    .transform(value => value || null)
+    .describe('Cocina de origen, por ejemplo "mediterranea".'),
+  difficulty: z.enum(['easy', 'medium', 'hard']),
+  ingredients: z
+    .array(
+      z.object({
+        grams: z.number().positive().max(2000).describe('Gramos para el total de raciones indicado.'),
+        slug: z.string().min(1).describe('Debe ser exactamente uno de los slugs disponibles.')
+      })
+    )
+    .min(1)
+    .max(12),
+  name: z.string().min(1).max(120).describe('Nombre del plato en español.'),
+  prepMinutes: z.number().int().min(0).max(120),
+  servings: z.number().min(1).max(4).describe('Número de raciones que rinden las cantidades indicadas.'),
+  slots: z.array(z.enum(MEAL_SLOTS)).min(1).describe('Momentos del día en los que este plato encaja.'),
+  steps: z.array(z.object({ text: z.string().min(1).max(400) })).max(10).describe('Pasos de preparación. Vacío para tentempiés.')
+});
+
+export const generatedPoolSchema = z.object({ dishes: z.array(generatedDishSchema).min(1).max(30) });
+
+export type GeneratedDish = z.infer<typeof generatedDishSchema>;
+export type GeneratedPool = z.infer<typeof generatedPoolSchema>;
+
+// ── The wire schema ───────────────────────────────────────────────────────
+
+/**
+ * What we actually send the provider — hand-written JSON Schema, not converted
+ * from Zod.
+ *
+ * Gemini accepts only a subset of OpenAPI 3.0 (`type`, `format`, `description`,
+ * `enum`, `items`, `properties`, `required`, `nullable`) and rejects the whole
+ * request with "Request contains an invalid argument" if anything else appears.
+ * Converting the Zod schema above emits `minimum`, `maximum`, `maxLength`,
+ * `additionalProperties` and — from `.nullable()` — `anyOf`, every one of which
+ * trips it.
+ *
+ * So the split is deliberate: **this** is what the provider must be able to
+ * express, and `generatedDishSchema` above is what we trust. The model's output is
+ * re-parsed against the strict schema in `PoolBuilder` before anything is
+ * accepted, so loosening the wire contract loosens nothing that matters — the
+ * bounds are enforced on our side, where they always belonged
+ * (`docs/decisions/0004-deterministic-safety-layer.md`).
+ *
+ * Keeping it hand-written also means a Zod change cannot silently reintroduce an
+ * unsupported keyword. `pool.schema.spec.ts` asserts none are present.
+ */
+export const wirePoolSchema = jsonSchema<GeneratedPool>({
+  properties: {
+    dishes: {
+      description: 'Los platos solicitados.',
+      items: {
+        properties: {
+          cookMinutes: { description: 'Minutos de cocción. 0 si no requiere cocinar.', type: 'integer' },
+          cuisine: { description: 'Cocina de origen, por ejemplo "mediterranea". Cadena vacía si no aplica.', type: 'string' },
+          difficulty: { enum: ['easy', 'medium', 'hard'], type: 'string' },
+          ingredients: {
+            description: 'Entre 1 y 12 ingredientes, todos del catálogo.',
+            items: {
+              properties: {
+                grams: { description: 'Gramos para el total de raciones indicado.', type: 'number' },
+                slug: { description: 'Exactamente uno de los slugs disponibles.', type: 'string' }
+              },
+              required: ['grams', 'slug'],
+              type: 'object'
+            },
+            type: 'array'
+          },
+          name: { description: 'Nombre del plato en español.', type: 'string' },
+          prepMinutes: { description: 'Minutos de preparación.', type: 'integer' },
+          servings: { description: 'Raciones que rinden las cantidades indicadas.', type: 'number' },
+          slots: {
+            description: 'Momentos del día en los que encaja.',
+            items: { enum: [...MEAL_SLOTS], type: 'string' },
+            type: 'array'
+          },
+          steps: {
+            description: 'Pasos de preparación. Lista vacía para tentempiés.',
+            items: { properties: { text: { type: 'string' } }, required: ['text'], type: 'object' },
+            type: 'array'
+          }
+        },
+        required: ['cookMinutes', 'cuisine', 'difficulty', 'ingredients', 'name', 'prepMinutes', 'servings', 'slots', 'steps'],
+        type: 'object'
+      },
+      type: 'array'
+    }
+  },
+  required: ['dishes'],
+  type: 'object'
+});
