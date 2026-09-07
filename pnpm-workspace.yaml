@@ -2,3 +2,30 @@ packages:
   - 'apps/*'
   - 'configurations/*'
   - 'packages/*'
+
+# pnpm 11 refuses to run a dependency's install scripts unless it is listed here
+# (`allowBuilds`; pre-11 this key was `onlyBuiltDependencies`). Each of these
+# needs its postinstall to produce a working native binary:
+#   esbuild       — the binary tsx and vitest execute
+#   sharp         — libvips bindings for next/image optimisation
+#   unrs-resolver — native resolver used by eslint-plugin-import
+# Anything not listed stays unbuilt, which is the point: a new transitive
+# dependency cannot run code at install time without a deliberate edit here.
+allowBuilds:
+  # Native file watcher for `nest start --watch`; falls back to polling without it.
+  '@parcel/watcher': true
+  # Analytics beacon pulled in transitively. Denied — nothing needs it to run.
+  '@scarf/scarf': false
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+
+minimumReleaseAgeExclude:
+  - '@better-auth/core@1.7.3'
+  - '@better-auth/drizzle-adapter@1.7.3'
+  - '@better-auth/kysely-adapter@1.7.3'
+  - '@better-auth/memory-adapter@1.7.3'
+  - '@better-auth/mongo-adapter@1.7.3'
+  - '@better-auth/prisma-adapter@1.7.3'
+  - '@better-auth/telemetry@1.7.3'
+  - better-auth@1.7.3

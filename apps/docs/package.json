@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "dev": "next dev --turbopack --port 3001",
+    "dev": "next dev --turbopack --port 3002",
     "lint:cache": "pnpm lint --cache",
     "lint:ci": "pnpm lint:cache --cache-strategy content --quiet",
     "lint": "eslint 'src/**/*.{ts,tsx,js,jsx}' --max-warnings 0",
@@ -33,7 +33,9 @@
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.2",
     "eslint-configuration": "workspace:*",
+    "prettier": "^3.8.3",
     "typescript-configuration": "workspace:*"
   }
 }

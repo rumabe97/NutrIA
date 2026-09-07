@@ -2,11 +2,27 @@
   "$schema": "https://turbo.build/schema.json",
   "ui": "tui",
   "globalEnv": [
-    "ADMIN_DATABASE_URL",
-    "RLS_DATABASE_URL",
-    "NEXT_PUBLIC_SUPABASE_URL",
-    "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
-    "NODE_ENV"
+    "ALLOWED_ORIGINS",
+    "ANTHROPIC_API_KEY",
+    "API_PREFIX",
+    "APP_URL",
+    "AI_MODEL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "DATABASE_URL",
+    "DIRECT_DATABASE_URL",
+    "EMAIL_FROM",
+    "LOG_LEVEL",
+    "NEXT_PUBLIC_API_URL",
+    "NODE_ENV",
+    "PORT",
+    "RATE_LIMIT_MAX",
+    "RATE_LIMIT_TTL",
+    "SMTP_HOST",
+    "SMTP_PASS",
+    "SMTP_PORT",
+    "SMTP_USER",
+    "SWAGGER_ENABLED"
   ],
   "tasks": {
     "build": {
@@ -19,7 +35,8 @@
       ],
       "outputs": [
         ".next/**",
-        "!.next/cache/**"
+        "!.next/cache/**",
+        "dist/**"
       ]
     },
     "lint": {
@@ -47,11 +64,13 @@
     },
     "ts:check": {
       "dependsOn": [
+        "^build",
         "^ts:check"
       ]
     },
     "test": {
       "dependsOn": [
+        "^build",
         "^test"
       ]
     },
