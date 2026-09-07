@@ -3,9 +3,10 @@ import { eq, sql } from 'drizzle-orm';
 
 import { closeDatabase, database } from '../client';
 import { allergens } from '../schemas/safety.schema';
-import { ingredientAllergens, ingredients } from '../schemas/food.schema';
+import { ingredientAllergens, ingredientNames, ingredients } from '../schemas/food.schema';
 
 import { ALLERGEN_SEED } from './allergens';
+import { INGREDIENT_NAMES_EN_GB } from './ingredient-names';
 import { INGREDIENT_SEED } from './ingredients';
 
 config({ path: '.env' });
@@ -32,6 +33,7 @@ async function main(): Promise<void> {
 
   let ingredientCount = 0;
   let linkCount = 0;
+  let nameCount = 0;
 
   for (const seed of INGREDIENT_SEED) {
     const [row] = await db
@@ -44,7 +46,6 @@ async function main(): Promise<void> {
         fiberPer100g: String(seed.fiber ?? 0),
         gramsPerUnit: seed.gramsPerUnit === undefined ? null : String(seed.gramsPerUnit),
         kcalPer100g: String(seed.kcal),
-        name: seed.name,
         proteinPer100g: String(seed.protein),
         slug: seed.slug,
         source: seed.source ?? 'manual'
@@ -55,7 +56,6 @@ async function main(): Promise<void> {
           fatPer100g: sql`excluded.fat_per100g`,
           fiberPer100g: sql`excluded.fiber_per100g`,
           kcalPer100g: sql`excluded.kcal_per100g`,
-          name: sql`excluded.name`,
           proteinPer100g: sql`excluded.protein_per100g`
         },
         target: ingredients.slug
@@ -65,6 +65,23 @@ async function main(): Promise<void> {
     if (!row) {continue;}
 
     ingredientCount += 1;
+
+    // Upserted per locale rather than deleted and reinserted: a name is what the
+    // shopping list of an existing plan was built from, and a moment with no row
+    // is a moment a lookup falls back to the wrong language.
+    const english = INGREDIENT_NAMES_EN_GB[seed.slug];
+
+    if (english === undefined) {throw new Error(`No en-GB name for ingredient "${seed.slug}"`);}
+
+    await db
+      .insert(ingredientNames)
+      .values([
+        { ingredientId: row.id, locale: 'es-ES', name: seed.name },
+        { ingredientId: row.id, locale: 'en-GB', name: english }
+      ])
+      .onConflictDoUpdate({ set: { name: sql`excluded.name` }, target: [ingredientNames.ingredientId, ingredientNames.locale] });
+
+    nameCount += 2;
 
     // Rewritten wholesale rather than merged: the seed file is the source of
     // truth for which allergens an ingredient carries, and a stale link here is
@@ -81,7 +98,7 @@ async function main(): Promise<void> {
     }
   }
 
-  console.log(`[seed] ingredients: ${ingredientCount}, allergen links: ${linkCount}`);
+  console.log(`[seed] ingredients: ${ingredientCount}, names: ${nameCount}, allergen links: ${linkCount}`);
 }
 
 main()

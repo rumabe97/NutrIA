@@ -9,6 +9,11 @@ import { userOwned } from './_utils';
  * Structured nutrition, so macros are looked up rather than invented by a model
  * (§ AI does not control hard constraints). Everything is **per 100 g** — the
  * one normalisation that makes recipe totals a sum instead of a special case.
+ *
+ * No `name` column, and no `locale` one either. A name is not a property of an
+ * ingredient, it is a property of an ingredient *in a language*, and a row-level
+ * `locale` tag said the opposite: that a Spanish tomato and an English one were
+ * two ingredients. They are one, with two names, in `ingredient_names`.
  */
 export const ingredients = pgTable(
   'ingredients',
@@ -22,14 +27,35 @@ export const ingredients = pgTable(
     fiberPer100g: numeric({ precision: 6, scale: 2 }).notNull().default('0'),
     gramsPerUnit: numeric({ precision: 7, scale: 2 }),
     kcalPer100g: numeric({ precision: 6, scale: 2 }).notNull(),
-    locale: text().notNull().default('es-ES'),
-    name: text().notNull(),
     proteinPer100g: numeric({ precision: 6, scale: 2 }).notNull(),
     slug: text().notNull().unique(),
     /** Provenance of the nutrition figures, e.g. `bedca`, `usda`, `manual`. */
     source: text().notNull().default('manual')
   },
   table => [index('ingredients_category_idx').on(table.category)]
+);
+
+/**
+ * One ingredient, one name per locale.
+ *
+ * The primary key is the pair, so a locale cannot end up with two names for the
+ * same thing, and the cascade means a deleted ingredient takes its names with
+ * it. A missing row is a real state — a locale the catalogue has not been
+ * translated into yet — and the resolver falls back to `es-ES` and reports the
+ * gap rather than showing a blank.
+ */
+export const ingredientNames = pgTable(
+  'ingredient_names',
+  {
+    ingredientId: uuid()
+      .notNull()
+      .references(() => ingredients.id, { onDelete: 'cascade' }),
+    /** BCP 47, matching `profiles.locale`. */
+    locale: text().notNull(),
+    name: text().notNull(),
+    ...timestamps
+  },
+  table => [primaryKey({ columns: [table.ingredientId, table.locale] }), index('ingredient_names_locale_idx').on(table.locale)]
 );
 
 /**

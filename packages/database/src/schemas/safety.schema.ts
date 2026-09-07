@@ -1,6 +1,7 @@
 import { boolean, pgTable, text, uuid } from 'drizzle-orm/pg-core';
 
 import { allergySeverity } from './_enums';
+import { ingredients } from './food.schema';
 import { timestamps } from './_columns';
 import { userOwned } from './_utils';
 
@@ -39,4 +40,24 @@ export const intolerances = userOwned('intolerances', {
   notes: text(),
   /** Some users tolerate small amounts; null means "avoid entirely". */
   toleratedGramsPerDay: text()
+});
+
+/**
+ * An allergy the catalogue has no allergen row for — whatever the user typed.
+ *
+ * `label` is kept exactly as written because it is shown back to them and it is
+ * the only record of what they actually said. It is never what gets compared:
+ * matching normalises a copy and resolves to `ingredientId`, and everything
+ * downstream works from that id.
+ *
+ * There is no `matched` column. `ingredientId is not null` **is** the matched
+ * flag, and a second copy of it could outlive the thing it describes: with
+ * `on delete set null`, an ingredient leaving the catalogue silently downgrades
+ * the entry to best-effort, which is true, whereas a stored boolean would go on
+ * claiming an enforcement that no longer exists. The failure direction decides
+ * the design.
+ */
+export const customAllergens = userOwned('custom_allergens', {
+  ingredientId: uuid().references(() => ingredients.id, { onDelete: 'set null' }),
+  label: text().notNull()
 });

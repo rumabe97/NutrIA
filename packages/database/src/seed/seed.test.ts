@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ALLERGEN_SEED } from './allergens';
+import { INGREDIENT_NAMES_EN_GB } from './ingredient-names';
 import { INGREDIENT_SEED } from './ingredients';
 
 const ALLERGEN_KEYS = new Set(ALLERGEN_SEED.map(a => a.key));
@@ -79,5 +80,40 @@ describe('INGREDIENT_SEED', () => {
         RATIO_BAND.max
       );
     }
+  });
+});
+
+/**
+ * The catalogue is bilingual, and a gap in either direction is a bug someone
+ * only finds by reading their shopping list in the wrong language.
+ */
+describe('INGREDIENT_NAMES_EN_GB', () => {
+  it('translates every seeded ingredient', () => {
+    const missing = INGREDIENT_SEED.filter(ingredient => INGREDIENT_NAMES_EN_GB[ingredient.slug] === undefined).map(ingredient => ingredient.slug);
+
+    expect(missing).toEqual([]);
+  });
+
+  it('translates nothing that is not seeded', () => {
+    // An orphan entry is a slug that was renamed, and the rename left a
+    // translation behind that now silently applies to nothing.
+    const slugs = new Set(INGREDIENT_SEED.map(ingredient => ingredient.slug));
+
+    expect(Object.keys(INGREDIENT_NAMES_EN_GB).filter(slug => !slugs.has(slug))).toEqual([]);
+  });
+
+  it('has no blank name', () => {
+    expect(Object.entries(INGREDIENT_NAMES_EN_GB).filter(([, name]) => name.trim() === '')).toEqual([]);
+  });
+
+  it('does not leave a name untranslated', () => {
+    // Not a spell check — a handful of words are genuinely the same in both
+    // (Kiwi, Tempeh, Hummus). This catches the copy-paste that leaves a whole
+    // Spanish phrase sitting in the English column.
+    const identical = INGREDIENT_SEED.filter(ingredient => INGREDIENT_NAMES_EN_GB[ingredient.slug] === ingredient.name)
+      .map(ingredient => ingredient.slug)
+      .filter(slug => !['bagel', 'chorizo', 'croissant', 'guacamole', 'hummus', 'kiwi', 'muesli', 'tahini', 'tempeh'].includes(slug));
+
+    expect(identical).toEqual([]);
   });
 });

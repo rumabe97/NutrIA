@@ -1,4 +1,4 @@
-import { boolean, date, numeric, smallint, text, time } from 'drizzle-orm/pg-core';
+import { boolean, date, integer, numeric, smallint, text, time, timestamp } from 'drizzle-orm/pg-core';
 
 import { activityLevel, budgetTier, cookingFrequency, dietaryPattern, goalType, sentiment, sex } from './_enums';
 import { userOwned, userOwnedSingleton } from './_utils';
@@ -22,7 +22,7 @@ export const profiles = userOwnedSingleton('profiles', {
 export const goals = userOwned('goals', {
   archivedAt: date(),
   customGoal: text(),
-  /** kg per week; negative for loss, positive for gain. */
+  /** kg per week, as a magnitude. The goal supplies the direction — see `domain/Nutrition`. */
   paceKgPerWeek: numeric({ precision: 3, scale: 2 }),
   startingWeightKg: numeric({ precision: 5, scale: 2 }),
   targetWeightKg: numeric({ precision: 5, scale: 2 }),
@@ -58,4 +58,87 @@ export const onboardingState = userOwnedSingleton('onboarding_state', {
   completedAt: date(),
   completedSteps: text().array().notNull().default([]),
   currentStep: smallint().notNull().default(1)
+});
+
+/**
+ * A user's correction to their computed daily targets.
+ *
+ * Every column is nullable and a null means "use the computed value" — the
+ * computed figure is deliberately **not** copied in. Copying it would freeze a
+ * snapshot of today's equations into the row, so a later correction to the
+ * calculator would silently stop reaching anyone who had ever opened this form.
+ *
+ * Only kcal and the three macros: fibre follows from the calorie figure and
+ * nobody has an opinion about it worth a column.
+ */
+export const targetOverrides = userOwnedSingleton('target_overrides', {
+  carbsG: smallint(),
+  fatG: smallint(),
+  kcal: integer(),
+  /** When the user last changed it, so the profile can say whose number this is. */
+  overriddenAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  proteinG: smallint()
+});
+
+/**
+ * Health data, collected as health data.
+ *
+ * Three tables rather than one because they are used differently, and the
+ * differences are the whole point: a condition may produce a **curated**
+ * dietary exclusion, a medication produces none ever, and a supplement
+ * contributes nutrition. Merging them into a "health notes" table would make
+ * that boundary a convention instead of a schema.
+ *
+ * All three cascade from `user.id`, so deleting an account deletes them. None
+ * is required to finish onboarding: data given under a condition of using the
+ * product is not consent.
+ */
+export const healthConditions = userOwned('health_conditions', {
+  /**
+   * A key from the curated list in `core/entities/Health`, or null when the
+   * user typed something we do not recognise. Null means **no dietary
+   * inference at all** — only the supervision recommendation.
+   */
+  conditionKey: text(),
+  /** What the user chose or typed, kept verbatim for showing back. */
+  label: text().notNull()
+});
+
+/**
+ * Recorded so the user can see what they told us and so the supervision notice
+ * can be shown. **Never** mapped to a dietary rule and **never** placed in a
+ * prompt — the boundary in `docs/decisions/0004-deterministic-safety-layer.md`.
+ *
+ * No dose column. Dosing is permanently out of scope, and a field nothing may
+ * read is a field that should not exist: it is health data whose only possible
+ * use is one we have ruled out.
+ */
+export const medications = userOwned('medications', {
+  name: text().notNull()
+});
+
+/**
+ * A supplement and, optionally, the protein it supplies.
+ *
+ * Protein only. The other macros a supplement might carry are not what anyone
+ * records a supplement for, and a column per macro would invite treating this
+ * table as a second, unvalidated food catalogue.
+ */
+export const supplements = userOwned('supplements', {
+  name: text().notNull(),
+  proteinGPerServing: numeric({ precision: 5, scale: 1 }),
+  servingsPerDay: smallint().notNull().default(1)
+});
+
+/**
+ * Consent to hold the three tables above.
+ *
+ * `version` is what makes it re-askable: change the notice and the stored
+ * version no longer matches, so consent is requested again rather than assumed
+ * to cover wording the user never saw. Withdrawal is the deletion of this row
+ * and the health rows together, in one transaction.
+ */
+export const healthDataConsents = userOwnedSingleton('health_data_consents', {
+  grantedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  version: text().notNull()
 });

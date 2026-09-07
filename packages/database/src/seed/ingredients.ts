@@ -12,6 +12,7 @@ export type IngredientSeed = {
   readonly fiber?: number;
   readonly gramsPerUnit?: number;
   readonly kcal: number;
+  /** Spanish. The other locales live in `ingredient-names.ts`, keyed by slug. */
   readonly name: string;
   readonly protein: number;
   readonly slug: string;

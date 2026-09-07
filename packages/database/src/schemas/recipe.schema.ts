@@ -24,6 +24,15 @@ export const recipes = pgTable(
     difficulty: difficulty().notNull().default('easy'),
     imageUrl: text(),
     instructions: jsonb().$type<readonly RecipeStep[]>().notNull().default([]),
+    /**
+     * The language its name and steps are written in.
+     *
+     * Reuse is scoped to it. A recipe is genuinely locale-bound in a way an
+     * ingredient is not: "Tostada de aguacate" and its Spanish method are one
+     * artefact, and handing them to an English user is not a translation gap,
+     * it is the wrong dish.
+     */
+    locale: text().notNull().default('es-ES'),
     /** Which slots this recipe is appropriate for; a plan meal must match one. */
     mealSlots: text().array().notNull().default([]),
     name: text().notNull(),
@@ -32,7 +41,7 @@ export const recipes = pgTable(
     slug: text().notNull().unique(),
     source: recipeSource().notNull().default('seed')
   },
-  table => [index('recipes_source_idx').on(table.source), index('recipes_cuisine_idx').on(table.cuisine)]
+  table => [index('recipes_source_idx').on(table.source), index('recipes_cuisine_idx').on(table.cuisine), index('recipes_locale_idx').on(table.locale)]
 );
 
 /**

@@ -16,7 +16,7 @@ import type { PgTable } from 'drizzle-orm/pg-core';
  */
 
 /** One row per user. Every one of these is written with an upsert on `user_id`. */
-const SINGLETON_TABLES = ['profiles', 'user_preferences', 'onboarding_state'];
+const SINGLETON_TABLES = ['profiles', 'user_preferences', 'onboarding_state', 'target_overrides', 'health_data_consents'];
 
 /**
  * The barrel exports tables, enums and column helpers together. A type predicate
