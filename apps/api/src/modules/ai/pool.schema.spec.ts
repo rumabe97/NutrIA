@@ -64,7 +64,7 @@ describe('the strict schema still enforces what the wire schema cannot', () => {
     prepMinutes: 5,
     servings: 1,
     slots: ['lunch' as const],
-    steps: [{ text: 'Cocer' }]
+    steps: [{ text: 'Sofreír el ajo un minuto' }, { text: 'Añadir el arroz y cocer 18 minutos' }]
   };
 
   it('accepts a well-formed dish', () => {
@@ -85,6 +85,22 @@ describe('the strict schema still enforces what the wire schema cannot', () => {
 
   it('rejects an unknown slot', () => {
     expect(generatedDishSchema.safeParse({ ...valid, slots: ['brunch'] }).success).toBe(false);
+  });
+
+  /*
+   * Prompt 2.1.0 asked for three to eight steps and the library still filled up
+   * with dishes that have none. The prompt is the request; this is the guarantee.
+   */
+  it('rejects a dish with no method at all', () => {
+    expect(generatedDishSchema.safeParse({ ...valid, cookMinutes: 0, steps: [] }).success).toBe(false);
+  });
+
+  it('rejects a cooked dish that gets one sentence', () => {
+    expect(generatedDishSchema.safeParse({ ...valid, cookMinutes: 20, steps: [{ text: 'Cocinar el pollo' }] }).success).toBe(false);
+  });
+
+  it('accepts one honest sentence for something that is only assembled', () => {
+    expect(generatedDishSchema.safeParse({ ...valid, cookMinutes: 0, steps: [{ text: 'Verter el yogur y esparcir las almendras' }] }).success).toBe(true);
   });
 
   it('turns the wire’s empty-string cuisine back into null', () => {

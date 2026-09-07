@@ -66,7 +66,7 @@ function dish(name: string, slots: readonly MealSlot[], slugs: readonly string[]
     prepMinutes: 5,
     servings: 1,
     slots: [...slots],
-    steps: [{ text: 'Mezclar' }]
+    steps: [{ text: 'Calentar la sartén' }, { text: 'Mezclar y cocer 10 minutos' }]
   };
 }
 

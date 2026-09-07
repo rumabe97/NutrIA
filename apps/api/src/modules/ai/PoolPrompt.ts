@@ -10,8 +10,13 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * language passed as a parameter.
  * 2.1.0: asks for cooking rather than combinations — named dishes, real
  * technique, seasoning, and steps a person could follow.
+ * 2.2.0: snacks stop being exempt from having a method. 2.1.0 told the model to
+ * send them with no steps at all, and a quarter of the stored library is now two
+ * ingredients and a name — which is what the owner meant by "too basic". The
+ * floor is also enforced in `pool.schema.ts` now, so this text is a request and
+ * the schema is the guarantee.
  */
-export const PROMPT_VERSION = '2.1.0';
+export const PROMPT_VERSION = '2.2.0';
 
 /** Share of the day each slot carries; mirrors the scheduler's own weights. */
 const SLOT_SHARE: Record<MealSlot, number> = {
@@ -123,7 +128,7 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
       const share = SLOT_SHARE[slot] / totalShare;
       const kcal = Math.round(context.targets.kcal * share);
       const protein = Math.round(context.targets.proteinG * share);
-      const shape = SNACK_SLOTS.includes(slot) ? ' — snack: 1-3 ingredients, no cooking, no steps' : '';
+      const shape = SNACK_SLOTS.includes(slot) ? ' — snack: 2-4 ingredients, little or no cooking, but still 1-3 steps' : '';
 
       return `- ${SLOT_LABEL[slot]}: ${count} distinct dishes of ~${kcal} kcal and ~${protein} g protein per serving${shape}`;
     })
@@ -150,7 +155,9 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
     '  and the time. "Cook the chicken" is not a step; "sear 4 minutes a side, then rest 5" is.',
     '- Contrast in texture and temperature — something crisp against something soft, something',
     '  fresh against something rich.',
-    '- Three to eight steps for anything cooked. Snacks are the exception and take none.',
+    '- Three to eight steps for anything cooked; one to three for a snack. Never zero: a dish',
+    '  with no method is rejected before it is stored. Even assembly is an instruction — what',
+    '  goes on what, toasted or not, dressed with what.',
     '- Variety of method across the set you return: do not send eight roasted dishes.',
     '',
     'DISHES NEEDED:',
@@ -171,7 +178,7 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
     catalogue,
     '',
     'Each dish lists its ingredients in grams for the number of servings you declare.',
-    'Aim for four to eight ingredients in a main dish. Two is a snack; fifteen is a shopping trip.'
+    'Aim for four to eight ingredients in a main dish, two to four in a snack; fifteen is a shopping trip.'
   ]
     .filter(Boolean)
     .join('\n');

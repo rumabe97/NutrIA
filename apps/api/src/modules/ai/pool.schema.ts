@@ -1,6 +1,7 @@
 import { jsonSchema } from 'ai';
 import { z } from 'zod';
 
+import { hasUsableMethod, METHOD_RULES } from 'core/domain/Method';
 import { MEAL_SLOTS } from 'core/entities/Plan';
 
 /**
@@ -34,8 +35,17 @@ export const generatedDishSchema = z.object({
   prepMinutes: z.number().int().min(0).max(120),
   servings: z.number().min(1).max(4).describe('Número de raciones que rinden las cantidades indicadas.'),
   slots: z.array(z.enum(MEAL_SLOTS)).min(1).describe('Momentos del día en los que este plato encaja.'),
-  steps: z.array(z.object({ text: z.string().min(1).max(400) })).max(10).describe('Pasos de preparación. Vacío para tentempiés.')
-});
+  steps: z.array(z.object({ text: z.string().min(1).max(400) })).max(10).describe('Pasos de preparación. Al menos uno, siempre.')
+})
+  /*
+   * The floor lives here rather than only in the prompt because 2.1.0 asked for
+   * three to eight steps and a quarter of the library still came back with none.
+   * A dish that does not say how to make it is rejected and counted, not stored.
+   */
+  .refine(hasUsableMethod, {
+    message: `needs at least ${METHOD_RULES.minStepsUncooked} step, and ${METHOD_RULES.minStepsCooked} when it is cooked`,
+    path: ['steps']
+  });
 
 export const generatedPoolSchema = z.object({ dishes: z.array(generatedDishSchema).min(1).max(30) });
 
