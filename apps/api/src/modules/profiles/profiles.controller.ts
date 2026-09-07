@@ -3,11 +3,14 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { ProfileController } from 'core/controllers/Profile';
 import { updateGoalSchema, updatePreferencesSchema, updateProfileSchema } from 'core/entities/Profile';
+import { updateTargetOverrideSchema } from 'core/entities/Nutrition';
 
 import { CurrentUser } from '../../shared/decorators/index.js';
 import { ZodValidationPipe } from '../../shared/pipes/index.js';
 
 import type { FullProfileView, GoalView, PreferencesView, ProfileView } from 'core/controllers/Profile';
+import type { ResolvedTargets } from 'core/domain/Nutrition';
+import type { UpdateTargetOverride } from 'core/entities/Nutrition';
 import type { SessionUser } from '../../shared/decorators/index.js';
 import type { UpdateGoal, UpdatePreferences, UpdateProfile } from 'core/entities/Profile';
 
@@ -18,7 +21,7 @@ import type { UpdateGoal, UpdatePreferences, UpdateProfile } from 'core/entities
 @ApiTags('profile')
 @Controller('profile')
 export class ProfilesController {
-  @ApiOperation({ summary: 'Profile, goal, preferences, restrictions and computed daily targets' })
+  @ApiOperation({ summary: 'Profile, goal, preferences, restrictions and resolved daily targets' })
   @Get()
   async get(@CurrentUser() user: SessionUser): Promise<FullProfileView> {
     return ProfileController.getFullProfile(user.id);
@@ -34,6 +37,19 @@ export class ProfilesController {
   @Patch('goal')
   async updateGoal(@CurrentUser() user: SessionUser, @Body(new ZodValidationPipe(updateGoalSchema)) body: UpdateGoal): Promise<GoalView> {
     return ProfileController.updateGoal(user.id, body);
+  }
+
+  /**
+   * The bounds are checked in `packages/core`, not here: a limit enforced at the
+   * HTTP edge would be a limit generation does not share.
+   */
+  @ApiOperation({ summary: 'Set or clear the user\'s own daily targets' })
+  @Patch('targets')
+  async updateTargets(
+    @CurrentUser() user: SessionUser,
+    @Body(new ZodValidationPipe(updateTargetOverrideSchema)) body: UpdateTargetOverride
+  ): Promise<ResolvedTargets> {
+    return ProfileController.updateTargets(user.id, body);
   }
 
   @ApiOperation({ summary: 'Update eating, lifestyle and cooking preferences' })

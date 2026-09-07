@@ -1,6 +1,14 @@
 import { ArgumentsHost, Catch, HttpException, HttpStatus, Logger } from '@nestjs/common';
 
-import { ConflictError, DatabaseOperationError, InputParseError, NotFoundError, SafetyViolationError, UnauthorizedError } from 'core/entities/Error';
+import {
+  ConflictError,
+  DatabaseOperationError,
+  InputParseError,
+  NotFoundError,
+  OnboardingIncompleteError,
+  SafetyViolationError,
+  UnauthorizedError
+} from 'core/entities/Error';
 
 import type { ExceptionFilter } from '@nestjs/common';
 import type { Response } from 'express';
@@ -51,6 +59,13 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (exception instanceof InputParseError) {
       return { code: 'INVALID_INPUT', fieldErrors: exception.fieldErrors, message: exception.message, statusCode: HttpStatus.UNPROCESSABLE_ENTITY };
+    }
+
+    if (exception instanceof OnboardingIncompleteError) {
+      // 409, not 404: the account state conflicts with the request, and unlike
+      // an authorisation denial this one is meant to be understood. The client
+      // switches on `code` and sends the person back to their resume step.
+      return { code: 'ONBOARDING_INCOMPLETE', message: 'Termina tu perfil antes de continuar.', statusCode: HttpStatus.CONFLICT };
     }
 
     if (exception instanceof SafetyViolationError) {

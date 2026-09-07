@@ -67,13 +67,45 @@ describe('body validation is scoped to the body', () => {
     expect(update).toHaveBeenCalledWith('usr-1', { mealsPerDay: 4 });
   });
 
+  it('accepts a targets override and passes only the fields that were sent', async () => {
+    const update = jest.spyOn(ProfileController, 'updateTargets').mockResolvedValue({} as never);
+
+    const response: Response = await request(app.getHttpServer() as Server).patch('/profile/targets').send({ kcal: 2400 });
+
+    expect(response.status).toBe(200);
+    expect(update).toHaveBeenCalledWith('usr-1', { kcal: 2400 });
+  });
+
+  it('accepts nulls, which are how a user clears an override rather than changing it', async () => {
+    const update = jest.spyOn(ProfileController, 'updateTargets').mockResolvedValue({} as never);
+
+    const response: Response = await request(app.getHttpServer() as Server)
+      .patch('/profile/targets')
+      .send({ carbsG: null, fatG: null, kcal: null, proteinG: null });
+
+    expect(response.status).toBe(200);
+    expect(update).toHaveBeenCalledWith('usr-1', { carbsG: null, fatG: null, kcal: null, proteinG: null });
+  });
+
+  it('rejects a non-numeric target without reaching the controller', async () => {
+    const update = jest.spyOn(ProfileController, 'updateTargets').mockResolvedValue({} as never);
+
+    const response: Response = await request(app.getHttpServer() as Server).patch('/profile/targets').send({ kcal: 'muchas' });
+
+    expect(response.status).toBe(422);
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it('accepts a valid restrictions replacement', async () => {
     const set = jest.spyOn(SafetyController, 'setRestrictions').mockResolvedValue(undefined);
 
     const response: Response = await request(app.getHttpServer() as Server).put('/safety/restrictions').send({ allergies: [], intolerances: [] });
 
     expect(response.status).toBe(204);
-    expect(set).toHaveBeenCalledWith('usr-1', { allergies: [], intolerances: [] });
+    // `customAllergens` defaults to an empty list rather than arriving undefined:
+    // the replace-all semantics depend on the field always being present, or an
+    // older client omitting it would leave stale free-text entries in place.
+    expect(set).toHaveBeenCalledWith('usr-1', { allergies: [], customAllergens: [], intolerances: [] });
   });
 
   it('still rejects an out-of-range height', async () => {

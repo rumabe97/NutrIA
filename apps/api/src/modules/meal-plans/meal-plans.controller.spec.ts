@@ -1,10 +1,21 @@
-import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import { afterAll, afterEach, beforeAll, describe, expect, it, jest } from '@jest/globals';
+import { APP_GUARD } from '@nestjs/core';
+import express from 'express';
+import request from 'supertest';
+import { Test } from '@nestjs/testing';
 
+import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController } from 'core/controllers/Plan';
 
+import { AllExceptionsFilter } from '../../shared/filters/index.js';
+import { RequiresOnboardingGuard } from '../../shared/guards/index.js';
 import { MealPlansController } from './meal-plans.controller.js';
+import { PlanJobRunner } from './PlanJobRunner.service.js';
 
-import type { PlanJobRunner } from './PlanJobRunner.service.js';
+import type { INestApplication } from '@nestjs/common';
+import type { OnboardingView } from 'core/controllers/Onboarding';
+import type { Response } from 'supertest';
+import type { Server } from 'node:http';
 import type { SessionUser } from '../../shared/decorators/index.js';
 
 const ALICE: SessionUser = { id: 'usr-alice', email: 'alice@example.invalid', emailVerified: true, name: 'Alice', role: 'user' };
@@ -14,6 +25,10 @@ function build() {
   const start = jest.fn(async (_userId: string) => Promise.resolve({ id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null }));
 
   return { controller: new MealPlansController({ start } as unknown as PlanJobRunner), start };
+}
+
+function onboardingState(patch: Partial<OnboardingView>): OnboardingView {
+  return { completedAt: null, completedSteps: [], currentStep: 1, isComplete: false, missingSteps: [], resumeStep: 1, totalSteps: 10, ...patch };
 }
 
 describe('MealPlansController', () => {
@@ -79,4 +94,77 @@ describe('MealPlansController', () => {
     expect(listPlans).toHaveBeenCalledWith('usr-alice', 20, 0);
   });
 
+});
+
+/**
+ * The gate has to be exercised through the pipeline: unit-testing the guard
+ * proves the rule, and unit-testing the controller proves the handler, but only
+ * a real request proves the decorator is actually *on* the controller. A
+ * `@RequiresOnboarding()` that was written and never applied would pass both of
+ * the other two.
+ */
+describe('meal-plan routes behind onboarding (through the real pipeline)', () => {
+  let app: INestApplication;
+  const start = jest.fn(async (_userId: string) => Promise.resolve({ id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null }));
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      controllers: [MealPlansController],
+      providers: [
+        { provide: PlanJobRunner, useValue: { start } },
+        { provide: APP_GUARD, useClass: RequiresOnboardingGuard }
+      ]
+    }).compile();
+
+    app = moduleRef.createNestApplication();
+    app.useGlobalFilters(new AllExceptionsFilter());
+    // Stands in for SessionGuard, which is global in AppModule.
+    app.use((req: express.Request & { user?: unknown }, _res: express.Response, next: express.NextFunction) => {
+      req.user = ALICE;
+      next();
+    });
+    app.use(express.json());
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    start.mockClear();
+  });
+
+  it('refuses generation for a half-finished profile before a job exists', async () => {
+    jest.spyOn(OnboardingController, 'getState').mockResolvedValue(onboardingState({ missingSteps: ['allergies'], resumeStep: 6 }));
+
+    const response: Response = await request(app.getHttpServer() as Server).post('/meal-plans/generate');
+
+    expect(response.status).toBe(409);
+    expect((response.body as { code: string }).code).toBe('ONBOARDING_INCOMPLETE');
+    // The point of moving the check to the door: nothing was started. The
+    // generator's own check would have refused too, but only after a job row,
+    // a progress screen and a failure the user reads as a malfunction.
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it('refuses the plan routes too, not only generation', async () => {
+    jest.spyOn(OnboardingController, 'getState').mockResolvedValue(onboardingState({ missingSteps: ['allergies'], resumeStep: 6 }));
+    const getActivePlan = jest.spyOn(PlanController, 'getActivePlan').mockResolvedValue(null);
+
+    const response: Response = await request(app.getHttpServer() as Server).get('/meal-plans/active');
+
+    expect(response.status).toBe(409);
+    expect(getActivePlan).not.toHaveBeenCalled();
+  });
+
+  it('lets a finished profile generate', async () => {
+    jest.spyOn(OnboardingController, 'getState').mockResolvedValue(onboardingState({ completedAt: '2026-09-07', isComplete: true, resumeStep: 9 }));
+
+    const response: Response = await request(app.getHttpServer() as Server).post('/meal-plans/generate');
+
+    expect(response.status).toBe(201);
+    expect(start).toHaveBeenCalledWith('usr-alice');
+  });
 });

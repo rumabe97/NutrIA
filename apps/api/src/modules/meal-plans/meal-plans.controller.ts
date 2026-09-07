@@ -3,7 +3,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { PlanController } from 'core/controllers/Plan';
 
-import { CurrentUser, RateLimit } from '../../shared/decorators/index.js';
+import { CurrentUser, RateLimit, RequiresOnboarding } from '../../shared/decorators/index.js';
 import { PlanJobRunner } from './PlanJobRunner.service.js';
 
 import type { JobView, MealDetailView, PlanDayView, PlanSummaryView, PlanView } from 'core/controllers/Plan';
@@ -15,9 +15,17 @@ const HISTORY_PAGE = { default: 20, max: 50 } as const;
  * Every route scopes to `@CurrentUser().id`. None accepts a user id, and the
  * repository joins on it, so a plan or meal belonging to someone else is **not
  * found** rather than refused — the denial rule in `apps/api/AGENTS.md`.
+ *
+ * `@RequiresOnboarding()` sits on the class, not on `generate` alone. The
+ * generator did check completeness, but from *inside* the job, three stages in
+ * — by then a job row exists, the user is watching a progress screen, and the
+ * answer arrives as a generation failure instead of a precondition. Refusing at
+ * the door means nothing is started that cannot finish, and the check inside
+ * the pipeline becomes the second line of defence it should always have been.
  */
 @ApiTags('meal-plans')
 @Controller('meal-plans')
+@RequiresOnboarding()
 export class MealPlansController {
   constructor(private readonly runner: PlanJobRunner) {}
 

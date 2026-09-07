@@ -4,7 +4,7 @@ import { dishSafety, findSafetyViolations } from 'core/domain/Safety';
 import { VARIETY_RULES } from 'core/domain/Variety';
 
 import { AiClient } from './clients/AiClient.js';
-import { buildPoolPrompt, POOL_SYSTEM_PROMPT, PROMPT_VERSION } from './PoolPrompt.js';
+import { buildPoolPrompt, languageName, POOL_SYSTEM_PROMPT, PROMPT_VERSION } from './PoolPrompt.js';
 import { generatedDishSchema, wirePoolSchema } from './pool.schema.js';
 
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
@@ -49,7 +49,7 @@ export type PoolResult = {
 
 export type BuildPoolInput = {
   readonly context: GenerationContext;
-  readonly preferences: Omit<PromptContext, 'excludeSlugs' | 'needBySlot'>;
+  readonly preferences: Omit<PromptContext, 'excludeSlugs' | 'forbiddenLabels' | 'language' | 'needBySlot'>;
   readonly reusable: readonly CandidateDish[];
   readonly slots: readonly MealSlot[];
 };
@@ -107,7 +107,22 @@ export class PoolBuilder {
 
       try {
         response = await this.ai.generate({
-          prompt: buildPoolPrompt({ ...preferences, excludeSlugs: [...accepted.keys()], needBySlot }, safeIngredients),
+          // The forbidden labels come from the safety profile, not from the
+          // caller's preferences: they are allergy data, and the one place that
+          // decides what is enforceable and what is not is `toSafetyProfile`.
+          prompt: buildPoolPrompt(
+            {
+              ...preferences,
+              excludeSlugs: [...accepted.keys()],
+              forbiddenLabels: context.safety.unenforceableLabels,
+              // Both from the context, not the caller: the language the dishes
+              // come back in and the language their ingredients were named in
+              // have to be the same one, and the context is where that is decided.
+              language: languageName(context.locale),
+              needBySlot
+            },
+            safeIngredients
+          ),
           schema: wirePoolSchema,
           system: POOL_SYSTEM_PROMPT
         });

@@ -3,8 +3,13 @@ import { SNACK_SLOTS } from 'core/entities/Plan';
 import type { CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 
-/** Bumped whenever the wording changes, and recorded in `generation_metadata`. */
-export const PROMPT_VERSION = '1.0.0';
+/**
+ * Bumped whenever the wording changes, and recorded in `generation_metadata`.
+ *
+ * 2.0.0: the prompt itself moved to English for every locale, with the output
+ * language passed as a parameter.
+ */
+export const PROMPT_VERSION = '2.0.0';
 
 /** Share of the day each slot carries; mirrors the scheduler's own weights. */
 const SLOT_SHARE: Record<MealSlot, number> = {
@@ -16,6 +21,20 @@ const SLOT_SHARE: Record<MealSlot, number> = {
   supper: 0.1
 };
 
+/**
+ * How to name the output language to the model.
+ *
+ * A language name rather than a BCP 47 tag: "write in en-GB" is an instruction
+ * about a code, and models follow "write in British English" far more reliably.
+ * An unknown locale falls back to Spanish, which is the language the catalogue
+ * is guaranteed to have.
+ */
+const LANGUAGE_NAMES: Record<string, string> = { 'en-GB': 'British English', 'es-ES': 'Spanish (Spain)' };
+
+export function languageName(locale: string): string {
+  return LANGUAGE_NAMES[locale] ?? 'Spanish (Spain)';
+}
+
 export type PromptContext = {
   readonly budget: string | null;
   readonly cookingTimeMinutes: number | null;
@@ -23,26 +42,46 @@ export type PromptContext = {
   readonly dietaryPatterns: readonly string[];
   readonly dislikedLabels: readonly string[];
   readonly excludeSlugs: readonly string[];
+  /**
+   * Free-text allergies that matched nothing in the catalogue, exactly as the
+   * user wrote them.
+   *
+   * The only case where an allergy is named to the model rather than enforced by
+   * removal — because there is no row to remove. See the note on
+   * `buildPoolPrompt`; this is a mitigation, not a guarantee, and the interface
+   * says so to the user in the same words.
+   */
+  readonly forbiddenLabels: readonly string[];
+  /** The language the dish names and steps must come back in. */
+  readonly language: string;
   readonly likedLabels: readonly string[];
   readonly needBySlot: ReadonlyMap<MealSlot, number>;
   readonly targets: NutritionTargets;
 };
 
 const SLOT_LABEL: Record<MealSlot, string> = {
-  afternoon_snack: 'merienda',
-  breakfast: 'desayuno',
-  dinner: 'cena',
-  lunch: 'comida',
-  morning_snack: 'almuerzo (tentempié de media mañana)',
-  supper: 'recena'
+  afternoon_snack: 'afternoon snack',
+  breakfast: 'breakfast',
+  dinner: 'dinner',
+  lunch: 'lunch',
+  morning_snack: 'mid-morning snack',
+  supper: 'supper'
 };
 
+/**
+ * The system prompt, in English for every user.
+ *
+ * English because it steers these models better, and because one prompt is one
+ * thing to maintain and reason about — a prompt per language is a set of bugs
+ * per language. The *output* language is a parameter, and it is the only part of
+ * this that varies.
+ */
 export const POOL_SYSTEM_PROMPT = [
-  'Eres un cocinero que diseña platos para planes de alimentación personalizados en España.',
-  'Devuelves únicamente platos compuestos con los ingredientes del catálogo que se te da.',
-  'Nunca inventas un ingrediente ni un slug: si algo no está en la lista, no existe.',
-  'Nunca indicas calorías ni macronutrientes: esos los calcula el sistema a partir del catálogo.',
-  'Los platos deben ser realistas, cocinables y variados entre sí.'
+  'You are a cook designing dishes for personalised meal plans.',
+  'You only return dishes composed of ingredients from the catalogue you are given.',
+  'You never invent an ingredient or a slug: if something is not on the list, it does not exist.',
+  'You never state calories or macronutrients: the system computes those from the catalogue.',
+  'Dishes must be realistic, cookable, and varied.'
 ].join(' ');
 
 /**
@@ -50,56 +89,74 @@ export const POOL_SYSTEM_PROMPT = [
  *
  * Two things it deliberately does not contain: any identifying information about the
  * person (no name, email, birth date or weight — the model needs targets, not a
- * patient), and any mention of the user's allergens. Restrictions are enforced by
+ * patient), and any mention of the user's **catalogue** allergens. Those are enforced by
  * *removing unsafe ingredients from the catalogue listing below*, so the model
  * cannot choose what it was never offered. The prompt is the second line of
  * defence; the gate in `PoolBuilder` is the first.
+ *
+ * `forbiddenLabels` is the exception, and only because there is nothing to remove:
+ * a free-text allergy that matched no catalogue row has no id to exclude. Naming
+ * it here narrows what the model writes into dish names and steps; it cannot make
+ * the entry enforceable, and nothing downstream treats it as though it had. The
+ * deterministic half of that case is the rejection of any dish whose ingredients
+ * do not all resolve — an invented slug is the one way an unknown substance could
+ * otherwise arrive.
+ *
+ * The ingredient names below are **already in the user's language**, because the
+ * catalogue was loaded in it. The slugs never change, so the model returns the
+ * same identifiers whatever language it writes in — which is what keeps the macro
+ * lookup and the allergy gate language-agnostic.
  */
 export function buildPoolPrompt(context: PromptContext, safeIngredients: readonly CatalogueIngredient[]): string {
   const active = [...context.needBySlot.keys()];
   const totalShare = active.reduce((sum, slot) => sum + SLOT_SHARE[slot], 0) || 1;
 
-  // Per-slot targets, not just a daily figure. A model told only "2000 kcal, 120 g
-  // de proteína" produces dishes that hit the calories and miss the protein, and
-  // no amount of portion scaling can fix a dish's composition afterwards.
+  // Per-slot targets, not just a daily figure. A model told only "2000 kcal,
+  // 120 g protein" produces dishes that hit the calories and miss the protein,
+  // and no amount of portion scaling can fix a dish's composition afterwards.
   const needs = [...context.needBySlot.entries()]
     .filter(([, count]) => count > 0)
     .map(([slot, count]) => {
       const share = SLOT_SHARE[slot] / totalShare;
       const kcal = Math.round(context.targets.kcal * share);
       const protein = Math.round(context.targets.proteinG * share);
-      const shape = SNACK_SLOTS.includes(slot) ? ' — tentempié: 1-3 ingredientes, sin cocinar, sin pasos' : '';
+      const shape = SNACK_SLOTS.includes(slot) ? ' — snack: 1-3 ingredients, no cooking, no steps' : '';
 
-      return `- ${SLOT_LABEL[slot]}: ${count} platos distintos de ~${kcal} kcal y ~${protein} g de proteína por ración${shape}`;
+      return `- ${SLOT_LABEL[slot]}: ${count} distinct dishes of ~${kcal} kcal and ~${protein} g protein per serving${shape}`;
     })
     .join('\n');
 
   const catalogue = safeIngredients.map(ingredient => `${ingredient.slug} (${ingredient.name})`).join(', ');
 
   return [
-    'Diseña platos para un plan de alimentación de 14 días.',
+    'Design dishes for a 14-day meal plan.',
     '',
-    'OBJETIVOS DIARIOS DEL USUARIO (para calibrar el tamaño de los platos, no los indiques en la respuesta):',
-    `- ${Math.round(context.targets.kcal)} kcal, ${Math.round(context.targets.proteinG)} g de proteína al día`,
+    `WRITE EVERY DISH NAME AND EVERY STEP IN ${context.language.toUpperCase()}. Slugs stay exactly as given; only the prose is in that language.`,
     '',
-    'IMPORTANTE: cada plato principal debe llevar una fuente de proteína (carne, pescado, huevo, lácteo o legumbre).',
-    'Un plan que solo cumple las calorías pero se queda corto de proteína se descarta entero.',
+    "THE USER'S DAILY TARGETS (to size the dishes; do not state them in the response):",
+    `- ${Math.round(context.targets.kcal)} kcal and ${Math.round(context.targets.proteinG)} g of protein per day`,
     '',
-    'PLATOS NECESARIOS:',
+    'IMPORTANT: every main dish must carry a protein source (meat, fish, egg, dairy or pulses).',
+    'A plan that meets the calories but falls short on protein is discarded in full.',
+    '',
+    'DISHES NEEDED:',
     needs,
     '',
-    context.dietaryPatterns.length > 0 ? `ALIMENTACIÓN: ${context.dietaryPatterns.join(', ')}` : 'ALIMENTACIÓN: sin restricción declarada',
-    context.cookingTimeMinutes ? `TIEMPO MÁXIMO POR PLATO: ${context.cookingTimeMinutes} minutos (preparación + cocción)` : '',
-    context.budget ? `PRESUPUESTO: ${context.budget}` : '',
-    context.cuisines.length > 0 ? `COCINAS PREFERIDAS: ${context.cuisines.join(', ')}` : '',
-    context.likedLabels.length > 0 ? `LE GUSTA: ${context.likedLabels.join(', ')}` : '',
-    context.dislikedLabels.length > 0 ? `NO QUIERE: ${context.dislikedLabels.join(', ')}` : '',
-    context.excludeSlugs.length > 0 ? `NO REPITAS ESTOS PLATOS YA PROPUESTOS: ${context.excludeSlugs.join(', ')}` : '',
+    context.dietaryPatterns.length > 0 ? `WAY OF EATING: ${context.dietaryPatterns.join(', ')}` : 'WAY OF EATING: no restriction declared',
+    context.cookingTimeMinutes ? `MAXIMUM TIME PER DISH: ${context.cookingTimeMinutes} minutes (prep + cooking)` : '',
+    context.budget ? `BUDGET: ${context.budget}` : '',
+    context.cuisines.length > 0 ? `PREFERRED CUISINES: ${context.cuisines.join(', ')}` : '',
+    context.likedLabels.length > 0 ? `LIKES: ${context.likedLabels.join(', ')}` : '',
+    context.dislikedLabels.length > 0 ? `DISLIKES: ${context.dislikedLabels.join(', ')}` : '',
+    context.forbiddenLabels.length > 0
+      ? `FORBIDDEN BY ALLERGY (do not use it, and do not mention it in names, steps or garnishes): ${context.forbiddenLabels.join(', ')}`
+      : '',
+    context.excludeSlugs.length > 0 ? `DO NOT REPEAT THESE ALREADY-PROPOSED DISHES: ${context.excludeSlugs.join(', ')}` : '',
     '',
-    'INGREDIENTES DISPONIBLES (usa exclusivamente estos slugs):',
+    'AVAILABLE INGREDIENTS (use these slugs and no others):',
     catalogue,
     '',
-    'Cada plato indica sus ingredientes en gramos para el número de raciones que declares.'
+    'Each dish lists its ingredients in grams for the number of servings you declare.'
   ]
     .filter(Boolean)
     .join('\n');

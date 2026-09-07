@@ -1,6 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { ageInYears, nutritionTargets } from 'core/domain/Nutrition';
 import { buildShoppingList, unresolvedSlugs } from 'core/domain/ShoppingList';
 import { dishSafety } from 'core/domain/Safety';
 import { PLAN_DAYS, schedulePlan, slotsFor } from 'core/domain/Scheduler';
@@ -13,21 +12,27 @@ import { RecipeController } from 'core/controllers/Recipe';
 import { PoolBuilder } from '../ai/PoolBuilder.service.js';
 
 import type { CandidateDish, PlanAssignment } from 'core/entities/Plan';
+import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { GenerationContext } from 'core/controllers/Recipe';
 import type { PlanDraft, RecipeDraft } from 'core/entities/Plan';
 
 /**
- * The user-facing stage labels. Each is written to the job **before** the stage
- * runs, so the progress screen can never show a step the pipeline did not reach
- * (PRD criterion 8).
+ * Stage **codes**, not labels. Each is written to the job before the stage runs,
+ * so the progress screen can never show a step the pipeline did not reach (PRD
+ * criterion 8).
+ *
+ * Codes rather than sentences for the same reason failures are codes: the API
+ * writes them once, in no language, and the client turns them into whichever one
+ * the reader has. They used to be Spanish, which put a Spanish line in the
+ * middle of an otherwise English screen.
  */
 export const STEPS = {
-  building: 'Preparando tu lista de la compra',
-  choosing: 'Eligiendo recetas',
-  loading: 'Revisando tu perfil',
-  saving: 'Guardando tu plan',
-  scheduling: 'Repartiendo las comidas de los 14 días',
-  validating: 'Comprobando que todo encaja'
+  building: 'BUILDING_LIST',
+  choosing: 'CHOOSING_RECIPES',
+  loading: 'LOADING_PROFILE',
+  saving: 'SAVING_PLAN',
+  scheduling: 'SCHEDULING_MEALS',
+  validating: 'VALIDATING_PLAN'
 } as const;
 
 /** Stable failure codes. The client maps these to copy; none is a raw error. */
@@ -69,6 +74,8 @@ export class PlanGenerationService {
     ]);
 
     if (!onboarding.isComplete) {throw new GenerationError('GENERATION_ONBOARDING_INCOMPLETE');}
+
+    this.reportUntranslatedIngredients(context);
 
     const targets = this.targetsFor(profile);
     const mealsPerDay = profile.preferences?.mealsPerDay ?? 4;
@@ -120,7 +127,7 @@ export class PlanGenerationService {
       expectedSlots: slots,
       sex: profile.profile?.sex ?? 'prefer_not_to_say',
       targets,
-      // Present by construction: `targetsFor` refuses without it.
+      // Present by construction: targets resolve to null without a starting weight.
       weightKg: profile.goal?.startingWeightKg ?? 0
     });
 
@@ -155,31 +162,47 @@ export class PlanGenerationService {
 
     if (missing.length > 0) {throw new GenerationError('GENERATION_INVALID_PLAN', `unresolved ingredients: ${missing.join(', ')}`);}
 
-    const shopping = buildShoppingList(scheduled.assignment, context.catalogue);
+    const shopping = buildShoppingList(scheduled.assignment, context.catalogue, context.locale);
 
     await markStep(STEPS.saving);
 
     return PlanJobController.persist(userId, this.toDraft(scheduled.assignment, shopping, built, targets, context, jobId));
   }
 
-  private targetsFor(profile: Awaited<ReturnType<typeof ProfileController.getFullProfile>>) {
-    const person = profile.profile;
-    const goal = profile.goal;
-    const weightKg = goal?.startingWeightKg;
+  /**
+   * Logs catalogue entries that had no name in the user's language.
+   *
+   * The fallback is shown — an English user seeing "Calabacín" is better than
+   * seeing nothing — but it is a gap in the catalogue, not a feature, and it is
+   * invisible to everyone except the person reading a shopping list in the wrong
+   * language. Logged at warn with a count and a sample rather than the whole
+   * list, because 200 slugs in a log line is a line nobody reads.
+   */
+  private reportUntranslatedIngredients(context: GenerationContext): void {
+    const missing = [...context.catalogue.values()].filter(ingredient => ingredient.nameLocale !== context.locale);
 
-    if (!person?.birthDate || !person.heightCm || !person.sex || !goal || !profile.preferences?.activityLevel || !weightKg) {
-      throw new GenerationError('GENERATION_PROFILE_INCOMPLETE');
-    }
+    if (missing.length === 0) {return;}
 
-    return nutritionTargets({
-      activityLevel: profile.preferences.activityLevel,
-      ageYears: ageInYears(person.birthDate),
-      goal: goal.type,
-      heightCm: person.heightCm,
-      paceKgPerWeek: goal.paceKgPerWeek,
-      sex: person.sex,
-      weightKg
-    });
+    this.logger.warn(
+      `${missing.length} ingredient(s) have no ${context.locale} name and fell back to ${missing[0]?.nameLocale ?? 'es-ES'}: ` +
+        `${missing.slice(0, 10).map(ingredient => ingredient.slug).join(', ')}${missing.length > 10 ? '…' : ''}`
+    );
+  }
+
+  /**
+   * The targets in effect — the user's own if they set them, the computed ones
+   * otherwise.
+   *
+   * Read from `getFullProfile` rather than recomputed. This used to call
+   * `nutritionTargets` itself, which meant the number generation planned against
+   * and the number the profile screen showed were produced by two call sites
+   * that only happened to agree. An override would have reached one and not the
+   * other.
+   */
+  private targetsFor(profile: Awaited<ReturnType<typeof ProfileController.getFullProfile>>): NutritionTargets {
+    if (!profile.targets) {throw new GenerationError('GENERATION_PROFILE_INCOMPLETE');}
+
+    return profile.targets.effective;
   }
 
   private assertPlanIsSafe(assignment: PlanAssignment, context: GenerationContext): void {
@@ -201,7 +224,7 @@ export class PlanGenerationService {
     assignment: PlanAssignment,
     shopping: ReturnType<typeof buildShoppingList>,
     built: Awaited<ReturnType<PoolBuilder['build']>>,
-    targets: ReturnType<typeof nutritionTargets>,
+    targets: NutritionTargets,
     context: GenerationContext,
     jobId: string
   ): PlanDraft {
@@ -229,9 +252,10 @@ export class PlanGenerationService {
         }))
       })),
       endDate: isoDate(end),
-      generationMetadata: { ...built.metadata, jobId, scheduledAt: start.toISOString() },
+      generationMetadata: { ...built.metadata, jobId, locale: context.locale, scheduledAt: start.toISOString() },
       // Only dishes the plan actually uses are persisted — a generated dish the
       // scheduler never placed is not worth a row.
+      locale: context.locale,
       newRecipes: built.generated.filter(dish => used.has(dish.slug)).map(dish => this.toRecipeDraft(dish, context)),
       shoppingItems: shopping.items.map(item => ({
         category: item.category,

@@ -24,6 +24,7 @@ function ingredient(slug: string, allergens: CatalogueIngredient['allergens'] = 
     gramsPerUnit: null,
     kcalPer100g: 200,
     name: slug,
+    nameLocale: 'es-ES',
     proteinPer100g: 12,
     slug
   };
@@ -41,10 +42,13 @@ const CATALOGUE = [
 function context(overrides?: Partial<GenerationContext['safety']>): GenerationContext {
   return {
     catalogue: toCatalogue(CATALOGUE),
+    locale: 'es-ES',
     safety: {
       allergenIds: new Set<string>(),
       crossContaminationAllergenIds: new Set<string>(),
+      excludedIngredientIds: new Set<string>(),
       intoleranceAllergenIds: new Set<string>(),
+      unenforceableLabels: [],
       ...overrides
     }
   };
@@ -189,6 +193,89 @@ describe('PoolBuilder', () => {
     });
 
     expect((generate.mock.calls[0]?.[0] as { prompt: string }).prompt).not.toContain('avena');
+  });
+
+  it('rejects a generated dish using an ingredient a free-text allergy resolved to', async () => {
+    // `tomate` carries no allergen link at all. The only thing standing between
+    // it and the plate is the exclusion — the same gate, one more axis.
+    const unsafe = { dishes: [dish('Ensalada', ['lunch'], ['tomate'])] };
+    const { client } = stubClient([unsafe]);
+    const result = await new PoolBuilder(client).build({
+      context: context({ excludedIngredientIds: new Set(['ing-tomate']) }),
+      preferences,
+      reusable: [],
+      slots: ['lunch']
+    });
+
+    expect(result.dishes).toEqual([]);
+    expect(result.metadata.rejected).toBeGreaterThan(0);
+  });
+
+  it('never offers an ingredient excluded by a free-text allergy', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({
+      context: context({ excludedIngredientIds: new Set(['ing-tomate']) }),
+      preferences,
+      reusable: [],
+      slots: ['breakfast']
+    });
+
+    const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
+
+    expect(prompt).toContain('arroz');
+    expect(prompt).not.toContain('tomate');
+  });
+
+  it('names an allergy it could not resolve, because there is no ingredient to withhold', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({
+      context: context({ unenforceableLabels: ['marisco'] }),
+      preferences,
+      reusable: [],
+      slots: ['breakfast']
+    });
+
+    expect((generate.mock.calls[0]?.[0] as { prompt: string }).prompt).toContain('marisco');
+  });
+
+  it('says nothing about allergies when every one of them resolved', async () => {
+    // The default remains "enforce by omission": a matched allergy is removed
+    // from the catalogue and never mentioned, so the prompt carries no health
+    // data it does not need to.
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({
+      context: context({ allergenIds: new Set([GLUTEN]), excludedIngredientIds: new Set(['ing-tomate']) }),
+      preferences,
+      reusable: [],
+      slots: ['breakfast']
+    });
+
+    expect((generate.mock.calls[0]?.[0] as { prompt: string }).prompt).not.toContain('PROHIBIDO POR ALERGIA');
+  });
+
+  it('writes the prompt in English and asks for output in the user\u2019s language', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({ context: { ...context(), locale: 'en-GB' }, preferences, reusable: [], slots: ['breakfast'] });
+
+    const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
+
+    // The instructions are English for everyone — one prompt to maintain, and the
+    // one these models follow best. Only the requested output language varies.
+    expect(prompt).toContain('Design dishes for a 14-day meal plan.');
+    expect(prompt).toContain('BRITISH ENGLISH');
+    expect(prompt).not.toContain('Diseña platos');
+  });
+
+  it('asks for Spanish when that is the user\u2019s language', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({ context: { ...context(), locale: 'es-ES' }, preferences, reusable: [], slots: ['breakfast'] });
+
+    expect((generate.mock.calls[0]?.[0] as { prompt: string }).prompt).toContain('SPANISH (SPAIN)');
   });
 
   it('gives up after a bounded number of attempts rather than looping', async () => {

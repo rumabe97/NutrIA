@@ -5,7 +5,7 @@ import { PlanJobController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
 
-import { ageInYears, nutritionTargets } from 'core/domain/Nutrition';
+import { ageInYears, resolveTargets } from 'core/domain/Nutrition';
 import { toCatalogue } from 'core/entities/Plan';
 
 import { PlanGenerationService, STEPS } from './PlanGeneration.service.js';
@@ -17,19 +17,27 @@ const GLUTEN = 'allergen-gluten';
 const SLOTS: readonly MealSlot[] = ['breakfast', 'lunch', 'dinner'];
 
 /**
- * The targets the pipeline will actually compute for PROFILE. Derived rather than
- * hardcoded, so the fixture cannot drift away from the maths and make validation
- * fail for a reason unrelated to what a test is asserting.
+ * The targets the pipeline will actually plan against for PROFILE. Derived rather
+ * than hardcoded, so the fixture cannot drift away from the maths and make
+ * validation fail for a reason unrelated to what a test is asserting.
+ *
+ * Resolved the same way the profile controller resolves them, because that is now
+ * where generation reads them from — the service no longer computes its own.
  */
-const TARGETS = nutritionTargets({
-  activityLevel: 'moderate',
-  ageYears: ageInYears('1994-03-11', new Date('2026-09-07T00:00:00Z')),
-  goal: 'maintenance',
-  heightCm: 168,
-  paceKgPerWeek: null,
-  sex: 'female',
-  weightKg: 72
-});
+const RESOLVED = resolveTargets(
+  {
+    activityLevel: 'moderate',
+    ageYears: ageInYears('1994-03-11', new Date('2026-09-07T00:00:00Z')),
+    goal: 'maintenance',
+    heightCm: 168,
+    paceKgPerWeek: null,
+    sex: 'female',
+    weightKg: 72
+  },
+  null
+);
+
+const TARGETS = RESOLVED.effective;
 
 const KCAL_PER_100G = 200;
 
@@ -48,6 +56,7 @@ function ingredient(slug: string, allergens: CatalogueIngredient['allergens'] = 
     gramsPerUnit: null,
     kcalPer100g: KCAL_PER_100G,
     name: slug,
+    nameLocale: 'es-ES',
     proteinPer100g: share(TARGETS.proteinG),
     slug
   };
@@ -84,7 +93,7 @@ const PROFILE = {
   intolerances: [],
   preferences: { activityLevel: 'moderate' as const, includesSnacks: false, mealsPerDay: 3 },
   profile: { birthDate: '1994-03-11', heightCm: 168, sex: 'female' as const },
-  targets: null
+  targets: RESOLVED
 };
 
 type Mocks = { onboarding: unknown; persist: jest.Mock; profile: unknown; reusable: CandidateDish[]; safety: Set<string> };
@@ -106,7 +115,14 @@ function build(overrides: Partial<Mocks> = {}) {
   jest.spyOn(ProfileController, 'getFullProfile').mockResolvedValue({ ...PROFILE, ...(overrides.profile as object) } as never);
   jest.spyOn(RecipeController, 'generationContext').mockResolvedValue({
     catalogue: CATALOGUE,
-    safety: { allergenIds: safety, crossContaminationAllergenIds: new Set(), intoleranceAllergenIds: new Set() }
+    locale: 'es-ES',
+    safety: {
+      allergenIds: safety,
+      crossContaminationAllergenIds: new Set(),
+      excludedIngredientIds: new Set(),
+      intoleranceAllergenIds: new Set(),
+      unenforceableLabels: []
+    }
   });
   jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(reusable);
   jest.spyOn(PlanJobController, 'persist').mockImplementation(persist as never);
@@ -159,7 +175,8 @@ describe('PlanGenerationService', () => {
   });
 
   it('refuses an incomplete profile rather than guessing a calorie target', async () => {
-    const { persist, service } = build({ profile: { profile: { birthDate: null, heightCm: null, sex: null } } });
+    // Targets resolve to null when the profile is missing what the equations need.
+    const { persist, service } = build({ profile: { profile: { birthDate: null, heightCm: null, sex: null }, targets: null } });
 
     await expect(service.generate('usr-1', 'job-1', async () => Promise.resolve())).rejects.toMatchObject({ code: 'GENERATION_PROFILE_INCOMPLETE' });
     expect(persist).not.toHaveBeenCalled();

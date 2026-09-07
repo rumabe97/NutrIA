@@ -12,7 +12,7 @@ import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
 import type { Server } from 'node:http';
 
-const STATE = { completedAt: null, completedSteps: [], currentStep: 2, isComplete: false, missingSteps: [], totalSteps: 10 };
+const STATE = { completedAt: null, completedSteps: [], currentStep: 2, isComplete: false, missingSteps: [], resumeStep: 2, totalSteps: 10 };
 
 /**
  * Guards against a class of bug that unit-testing the controller method directly
