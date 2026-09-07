@@ -1,12 +1,13 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { aliasedTable, and, desc, eq, inArray } from 'drizzle-orm';
 
 import { database } from 'database';
 import { mealPlans, meals, planDays } from 'database/schema/plan';
-import { ingredients } from 'database/schema/food';
+import { ingredientNames, ingredients } from 'database/schema/food';
 import { recipeIngredients, recipes } from 'database/schema/recipe';
 import { shoppingListItems, shoppingLists } from 'database/schema/shopping';
 
 import { ConflictError, DatabaseOperationError } from 'core/entities/Error';
+import { FALLBACK_LOCALE } from '#repositories/Recipe';
 import type { PlanDraft } from 'core/entities/Plan';
 
 export const PlanRepository = {
@@ -43,6 +44,9 @@ export const PlanRepository = {
                 cuisine: recipe.cuisine,
                 difficulty: recipe.difficulty,
                 instructions: recipe.steps,
+                // The language the model was told to write in. Reuse is scoped to
+                // it, so this is what keeps a Spanish dish out of an English plan.
+                locale: draft.locale,
                 mealSlots: [...recipe.mealSlots],
                 name: recipe.name,
                 prepMinutes: recipe.prepMinutes,
@@ -242,7 +246,7 @@ export const PlanRepository = {
    * The join to `meal_plans` on `userId` is what makes a meal id from another
    * account simply not found, rather than a resource we then have to refuse.
    */
-  async findMealDetail(userId: string, mealId: string) {
+  async findMealDetail(userId: string, mealId: string, locale: string) {
     try {
       const db = database();
 
@@ -257,11 +261,32 @@ export const PlanRepository = {
 
       if (!row) {return undefined;}
 
-      const items = await db
-        .select({ grams: recipeIngredients.grams, name: ingredients.name, slug: ingredients.slug, unit: recipeIngredients.unit })
+      // Resolved live rather than snapshotted, unlike the shopping list: the
+      // ingredient list on a meal is a lookup into the current catalogue, so a
+      // user who switches language sees this screen change with them.
+      const requested = aliasedTable(ingredientNames, 'requested_name');
+      const fallback = aliasedTable(ingredientNames, 'fallback_name');
+
+      const rows = await db
+        .select({
+          fallbackName: fallback.name,
+          grams: recipeIngredients.grams,
+          requestedName: requested.name,
+          slug: ingredients.slug,
+          unit: recipeIngredients.unit
+        })
         .from(recipeIngredients)
         .innerJoin(ingredients, eq(ingredients.id, recipeIngredients.ingredientId))
+        .leftJoin(requested, and(eq(requested.ingredientId, ingredients.id), eq(requested.locale, locale)))
+        .leftJoin(fallback, and(eq(fallback.ingredientId, ingredients.id), eq(fallback.locale, FALLBACK_LOCALE)))
         .where(eq(recipeIngredients.recipeId, row.recipe.id));
+
+      const items = rows.map(item => ({
+        grams: item.grams,
+        name: item.requestedName ?? item.fallbackName ?? item.slug,
+        slug: item.slug,
+        unit: item.unit
+      }));
 
       return { ...row, items };
     } catch (error: unknown) {

@@ -1,5 +1,6 @@
 import { ONBOARDING_STEPS, REQUIRED_ONBOARDING_STEPS } from 'core/entities/Onboarding';
 import { OnboardingRepository } from '#repositories/Onboarding';
+import { resolveFreeTextAllergens } from 'core/controllers/Safety';
 import { ProfileRepository } from '#repositories/Profile';
 import { SafetyRepository } from '#repositories/Safety';
 import type { OnboardingState, OnboardingStep, OnboardingStepInput } from 'core/entities/Onboarding';
@@ -13,12 +14,25 @@ export interface OnboardingView {
   isComplete: boolean;
   /** The steps still standing between the user and a plan. */
   missingSteps: readonly OnboardingStep[];
+  /**
+   * Where someone returning mid-flow belongs: the position of the first
+   * incomplete step in `ONBOARDING_STEPS`, one-based, or the review step once
+   * every answer is in.
+   *
+   * Resolved here so no client has to work it out. The two that did computed
+   * `min(currentStep, 9)`, and `currentStep` is *the step after the last one
+   * saved* — go back and re-save step 1 and it says 2, sending you to a step
+   * you finished days ago. The first missing step is the only definition that
+   * survives someone editing out of order.
+   */
+  resumeStep: number;
   totalSteps: number;
 }
 
 function presentOnboarding(state: OnboardingState | undefined): OnboardingView {
   const completedSteps = state?.completedSteps ?? [];
   const missingSteps = REQUIRED_ONBOARDING_STEPS.filter(step => !completedSteps.includes(step));
+  const firstMissing = missingSteps[0];
 
   return {
     completedAt: state?.completedAt ?? null,
@@ -26,6 +40,7 @@ function presentOnboarding(state: OnboardingState | undefined): OnboardingView {
     currentStep: state?.currentStep ?? 1,
     isComplete: Boolean(state?.completedAt),
     missingSteps,
+    resumeStep: firstMissing ? ONBOARDING_STEPS.indexOf(firstMissing) + 1 : REQUIRED_ONBOARDING_STEPS.length + 1,
     totalSteps: ONBOARDING_STEPS.length
   };
 }
@@ -106,10 +121,19 @@ export const OnboardingController = {
         await ProfileRepository.setCuisines(userId, input.data.cuisines);
         break;
 
-      case 'allergies':
-        await SafetyRepository.replaceAll(userId, { allergies: input.data.allergies, intolerances: input.data.intolerances });
+      case 'allergies': {
+        // Free text is resolved through the same domain matcher the profile
+        // screen uses. Two save paths, one definition of what a word means.
+        const customAllergens = await resolveFreeTextAllergens(input.data.customAllergens);
+
+        await SafetyRepository.replaceAll(
+          userId,
+          { allergies: input.data.allergies, customAllergens: input.data.customAllergens, intolerances: input.data.intolerances },
+          customAllergens
+        );
         await ProfileRepository.setDietaryPatterns(userId, input.data.dietaryPatterns);
         break;
+      }
     }
 
     const index = ONBOARDING_STEPS.indexOf(input.step);

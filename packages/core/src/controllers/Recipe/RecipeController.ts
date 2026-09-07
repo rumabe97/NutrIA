@@ -1,7 +1,8 @@
-import { dishSafety, toSafetyProfile } from 'core/domain/Safety';
+import { dishSafety } from 'core/domain/Safety';
+import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
+import { ProfileRepository } from '#repositories/Profile';
+import { SafetyController } from 'core/controllers/Safety';
 import { toCatalogue } from 'core/entities/Plan';
-import { RecipeRepository } from '#repositories/Recipe';
-import { SafetyRepository } from '#repositories/Safety';
 import type { CandidateDish, Catalogue, MealSlot } from 'core/entities/Plan';
 import type { ReusableRecipe } from '#repositories/Recipe';
 import type { SafetyProfile } from 'core/entities/Safety';
@@ -11,6 +12,8 @@ const REUSE_FETCH_LIMIT = 300;
 
 export type GenerationContext = {
   readonly catalogue: Catalogue;
+  /** The user's language. Names are resolved into it, reuse is scoped to it, and the model is told to write in it. */
+  readonly locale: string;
   readonly safety: SafetyProfile;
 };
 
@@ -45,13 +48,19 @@ export const RecipeController = {
    * something someone later decides to skip "for performance".
    */
   async generationContext(userId: string): Promise<GenerationContext> {
-    const [catalogue, allergies, intolerances] = await Promise.all([
-      RecipeRepository.loadCatalogue(),
-      SafetyRepository.findAllergies(userId),
-      SafetyRepository.findIntolerances(userId)
-    ]);
+    // Through `SafetyController`, not rebuilt from repositories here. This used
+    // to assemble its own profile, which meant "what is this user allowed to
+    // eat" had two implementations that happened to agree — until free-text
+    // allergies arrived and only one of them knew.
+    // The locale comes from the profile, not from a request header: generation
+    // runs as a background job, where there is no request to read one from, and
+    // a second source would drift from the first.
+    const profile = await ProfileRepository.findByUserId(userId);
+    const locale = profile?.locale ?? FALLBACK_LOCALE;
 
-    return { catalogue: toCatalogue(catalogue), safety: toSafetyProfile(allergies, intolerances) };
+    const [catalogue, safety] = await Promise.all([RecipeRepository.loadCatalogue(locale), SafetyController.getSafetyProfile(userId)]);
+
+    return { catalogue: toCatalogue(catalogue), locale, safety };
   },
 
   /**
@@ -66,7 +75,7 @@ export const RecipeController = {
    * macros could not be computed, so they cannot be scheduled.
    */
   async reusablePool(slots: readonly MealSlot[], context: GenerationContext): Promise<readonly CandidateDish[]> {
-    const recipes = await RecipeRepository.findReusable(slots, REUSE_FETCH_LIMIT);
+    const recipes = await RecipeRepository.findReusable(slots, REUSE_FETCH_LIMIT, context.locale);
 
     return recipes.filter(recipe => dishSafety(recipe.ingredients, context.catalogue, context.safety).kind === 'safe').map(toCandidateDish);
   }

@@ -1,9 +1,10 @@
-import { NotFoundError } from 'core/entities/Error';
-import { ageInYears, nutritionTargets } from 'core/domain/Nutrition';
+import { InputParseError, NotFoundError } from 'core/entities/Error';
+import { ageInYears, resolveTargets } from 'core/domain/Nutrition';
 import { ProfileRepository } from '#repositories/Profile';
 import { SafetyRepository } from '#repositories/Safety';
 import type { Goal, Preferences, Profile, UpdateGoal, UpdatePreferences, UpdateProfile } from 'core/entities/Profile';
-import type { NutritionTargets } from 'core/entities/Nutrition';
+import type { ResolvedTargets, TargetInput, TargetViolation } from 'core/domain/Nutrition';
+import type { UpdateTargetOverride } from 'core/entities/Nutrition';
 
 // --- Presenters ---------------------------------------------------------------
 
@@ -33,14 +34,27 @@ export type PreferencesView = Omit<Preferences, 'createdAt' | 'updatedAt' | 'use
 export interface FullProfileView {
   allergies: readonly { allergenId: string; allergenLabel: string; crossContaminationSensitive: boolean; severity: string }[];
   cuisines: readonly string[];
+  /**
+   * Free-text allergies. `ingredientName` non-null means the entry resolved and
+   * is enforced by the gate; null means best-effort, and every screen showing it
+   * has to say so.
+   */
+  customAllergens: readonly { ingredientId: string | null; ingredientName: string | null; label: string }[];
   dietaryPatterns: readonly string[];
   foodPreferences: readonly { ingredientId: string | null; label: string; sentiment: 'disliked' | 'liked' }[];
   goal: GoalView | null;
   intolerances: readonly { allergenId: string; allergenLabel: string }[];
   preferences: PreferencesView | null;
   profile: ProfileView | null;
-  /** Null until enough of the profile exists to compute it honestly. */
-  targets: (NutritionTargets & { wasClamped: boolean }) | null;
+  /**
+   * Computed targets, the user's correction, and which is in effect — resolved
+   * once, here, so no consumer has to decide. Generation reads `effective` from
+   * this same call rather than recomputing, because two implementations of the
+   * same rule is how one of them ends up wrong.
+   *
+   * Null until enough of the profile exists to compute it honestly.
+   */
+  targets: ResolvedTargets | null;
 }
 
 function presentProfile(profile: Profile): ProfileView {
@@ -68,27 +82,40 @@ function presentGoal(goal: Goal): GoalView {
   };
 }
 
+/**
+ * Postgres hands back a `time` column as `HH:MM:SS`; `updatePreferencesSchema`
+ * accepts `HH:MM` and nothing else.
+ *
+ * Left as stored, the lifestyle step of onboarding refills its fields with the
+ * exact value the API gave it and the resave is refused as invalid — an answer
+ * that saves the first time and fails the second, for someone who changed
+ * nothing. The API reads a time of day in the same shape it writes one.
+ */
+function timeOfDay(value: string | null): string | null {
+  return value === null ? null : value.slice(0, 5);
+}
+
 function presentPreferences(preferences: Preferences): PreferencesView {
   const { createdAt: _createdAt, updatedAt: _updatedAt, userId: _userId, ...view } = preferences;
 
-  return view;
+  return { ...view, sleepEnd: timeOfDay(view.sleepEnd), sleepStart: timeOfDay(view.sleepStart), trainingTime: timeOfDay(view.trainingTime) };
 }
 
 /**
- * Daily targets, or null.
+ * The inputs the equations need, or null.
  *
- * Returning null when the inputs are incomplete is the point: a placeholder
- * calorie figure computed from a guessed height or an assumed sex is a number
- * the user would act on. Absent is honest; approximate is not.
+ * Returning null when they are incomplete is the point: a placeholder calorie
+ * figure computed from a guessed height or an assumed sex is a number the user
+ * would act on. Absent is honest; approximate is not.
  */
-function computeTargets(profile: Profile | undefined, goal: Goal | undefined, preferences: Preferences | undefined) {
+function targetInput(profile: Profile | undefined, goal: Goal | undefined, preferences: Preferences | undefined): TargetInput | null {
   if (!profile?.birthDate || !profile.heightCm || !profile.sex || !goal || !preferences?.activityLevel) {return null;}
 
   const weightKg = goal.startingWeightKg;
 
   if (!weightKg) {return null;}
 
-  return nutritionTargets({
+  return {
     activityLevel: preferences.activityLevel,
     ageYears: ageInYears(profile.birthDate),
     goal: goal.type,
@@ -96,7 +123,42 @@ function computeTargets(profile: Profile | undefined, goal: Goal | undefined, pr
     paceKgPerWeek: goal.paceKgPerWeek,
     sex: profile.sex,
     weightKg
-  });
+  };
+}
+
+/**
+ * Applies one field of a patch.
+ *
+ * `undefined` and `null` are not the same request: absent leaves the stored
+ * value alone, `null` clears that field back to the computed one. Collapsing
+ * them with `??` would make "reset my protein" indistinguishable from "don't
+ * touch my protein".
+ */
+function merge(patched: number | null | undefined, stored: number | null | undefined): number | null {
+  return patched === undefined ? (stored ?? null) : patched;
+}
+
+/**
+ * Turns a bound the user crossed into the sentence that names it.
+ *
+ * A refusal that says only "invalid" teaches nothing; this one says which limit,
+ * and what the limit is, so the next attempt can be right.
+ */
+function explain(violation: TargetViolation): string {
+  switch (violation.kind) {
+    case 'fat_below_floor':
+      return `Las grasas no pueden bajar de ${Math.ceil(violation.floor)} g: por debajo no se cubren las vitaminas liposolubles ni los ácidos grasos esenciales.`;
+    case 'kcal_above_ceiling':
+      return `El máximo para tu perfil son ${Math.floor(violation.ceiling)} kcal, un 20 % por encima de tu mantenimiento.`;
+    case 'kcal_below_floor':
+      return `El mínimo para tu perfil son ${Math.ceil(violation.floor)} kcal. Por debajo no construimos un plan sin supervisión profesional.`;
+    case 'macros_do_not_sum':
+      return `Los macros suman ${Math.round(violation.macroKcal)} kcal y has pedido ${violation.kcal}. Ajusta uno de los dos para que cuadren.`;
+    case 'protein_above_ceiling':
+      return `El máximo de proteína para tu peso son ${Math.floor(violation.ceiling)} g al día.`;
+    case 'protein_below_floor':
+      return `El mínimo de proteína para tu peso son ${Math.ceil(violation.floor)} g al día.`;
+  }
 }
 
 // --- Controller ---------------------------------------------------------------
@@ -104,7 +166,7 @@ function computeTargets(profile: Profile | undefined, goal: Goal | undefined, pr
 export const ProfileController = {
   /** One round trip's worth of everything the profile and dashboard screens need. */
   async getFullProfile(userId: string): Promise<FullProfileView> {
-    const [profile, goal, preferences, dietaryPatterns, foodPreferences, cuisines, allergies, intolerances] = await Promise.all([
+    const [profile, goal, preferences, dietaryPatterns, foodPreferences, cuisines, allergies, intolerances, customAllergens, override] = await Promise.all([
       ProfileRepository.findByUserId(userId),
       ProfileRepository.findActiveGoal(userId),
       ProfileRepository.findPreferences(userId),
@@ -112,8 +174,12 @@ export const ProfileController = {
       ProfileRepository.findFoodPreferences(userId),
       ProfileRepository.findCuisines(userId),
       SafetyRepository.findAllergies(userId),
-      SafetyRepository.findIntolerances(userId)
+      SafetyRepository.findIntolerances(userId),
+      SafetyRepository.findCustomAllergens(userId),
+      ProfileRepository.findTargetOverride(userId)
     ]);
+
+    const input = targetInput(profile, goal, preferences);
 
     return {
       allergies: allergies.map(a => ({
@@ -123,13 +189,14 @@ export const ProfileController = {
         severity: a.severity
       })),
       cuisines,
+      customAllergens: customAllergens.map(entry => ({ ingredientId: entry.ingredientId, ingredientName: entry.ingredientName, label: entry.label })),
       dietaryPatterns,
       foodPreferences,
       goal: goal ? presentGoal(goal) : null,
       intolerances: intolerances.map(i => ({ allergenId: i.allergenId, allergenLabel: i.allergenLabel })),
       preferences: preferences ? presentPreferences(preferences) : null,
       profile: profile ? presentProfile(profile) : null,
-      targets: computeTargets(profile, goal, preferences)
+      targets: input ? resolveTargets(input, override ?? null) : null
     };
   },
 
@@ -151,5 +218,45 @@ export const ProfileController = {
 
   async updateProfile(userId: string, input: UpdateProfile): Promise<ProfileView> {
     return presentProfile(await ProfileRepository.upsert(userId, input));
+  },
+
+  /**
+   * Records the user's own targets, or refuses and says which bound it hit.
+   *
+   * The refusal runs against the *same* bounds the calculator obeys — one
+   * `targetViolations`, one `targetBounds` — so there is no version of this
+   * product where a hand-typed number may go where a computed one may not.
+   *
+   * The candidate is assembled by `resolveTargets` before it is judged, because
+   * a correction to calories alone re-derives its macros: judging the raw patch
+   * would reject a perfectly coherent request for having only one field.
+   */
+  async updateTargets(userId: string, patch: UpdateTargetOverride): Promise<ResolvedTargets> {
+    const [profile, goal, preferences] = await Promise.all([
+      ProfileRepository.findByUserId(userId),
+      ProfileRepository.findActiveGoal(userId),
+      ProfileRepository.findPreferences(userId)
+    ]);
+
+    const input = targetInput(profile, goal, preferences);
+
+    if (!input) {throw new NotFoundError('Profile not found');}
+
+    const stored = await ProfileRepository.findTargetOverride(userId);
+    const candidate = resolveTargets(input, {
+      carbsG: merge(patch.carbsG, stored?.carbsG),
+      fatG: merge(patch.fatG, stored?.fatG),
+      kcal: merge(patch.kcal, stored?.kcal),
+      overriddenAt: new Date(),
+      proteinG: merge(patch.proteinG, stored?.proteinG)
+    });
+
+    if (candidate.overrideViolations.length > 0) {
+      throw new InputParseError('Targets out of bounds', { targets: candidate.overrideViolations.map(explain) });
+    }
+
+    const saved = await ProfileRepository.upsertTargetOverride(userId, patch);
+
+    return resolveTargets(input, saved);
   }
 };

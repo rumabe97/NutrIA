@@ -1,8 +1,8 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { aliasedTable, and, eq, inArray, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
-import { ingredientAllergens, ingredients } from 'database/schema/food';
+import { ingredientAllergens, ingredientNames, ingredients } from 'database/schema/food';
 import { recipeIngredients, recipes } from 'database/schema/recipe';
 
 import { DatabaseOperationError } from 'core/entities/Error';
@@ -22,6 +22,15 @@ export type ReusableRecipe = {
   readonly steps: readonly { readonly minutes?: number; readonly text: string }[];
 };
 
+/**
+ * The language every catalogue name is guaranteed to exist in.
+ *
+ * Spanish is the product's first language and the one the seed has always
+ * written, so it is the only safe fallback. A resolver with no fallback would
+ * hand back an empty name the first time a locale was added.
+ */
+export const FALLBACK_LOCALE = 'es-ES';
+
 export const RecipeRepository = {
   /**
    * Recipes already in the library that could fill one of these slots.
@@ -31,7 +40,7 @@ export const RecipeRepository = {
    * a recipe existing in the database says nothing about whether it is safe for a
    * particular person. See `docs/decisions/0006-reuse-before-generating.md`.
    */
-  async findReusable(slots: readonly MealSlot[], limit: number): Promise<readonly ReusableRecipe[]> {
+  async findReusable(slots: readonly MealSlot[], limit: number, locale: string): Promise<readonly ReusableRecipe[]> {
     if (slots.length === 0) {return [];}
 
     try {
@@ -41,7 +50,14 @@ export const RecipeRepository = {
         .select()
         .from(recipes)
         // `meal_slots` is a text[]; overlap is the array-aware form of "any of these".
-        .where(sql`${recipes.mealSlots} && ${sql.raw(`ARRAY[${slots.map(slot => `'${slot}'`).join(',')}]::text[]`)}`)
+        //
+        // Scoped to the locale, and this is not a nicety: a recipe's name and
+        // method are one artefact written in one language. Handing "Tostada de
+        // aguacate" to an English user is not a translation gap, it is the wrong
+        // dish — and reuse would otherwise quietly undo everything else here.
+        .where(
+          and(eq(recipes.locale, locale), sql`${recipes.mealSlots} && ${sql.raw(`ARRAY[${slots.map(slot => `'${slot}'`).join(',')}]::text[]`)}`)
+        )
         .limit(limit);
 
       if (rows.length === 0) {return [];}
@@ -93,12 +109,34 @@ export const RecipeRepository = {
    * check reads from this, so it must be one query rather than a lookup per
    * ingredient inside a loop over fourteen days of meals.
    */
-  async loadCatalogue(): Promise<readonly CatalogueIngredient[]> {
+  async loadCatalogue(locale: string): Promise<readonly CatalogueIngredient[]> {
     try {
       const db = database();
+      // Two joins rather than one, so a missing translation is visible instead of
+      // absent: `requested` is null exactly when this locale has no name, and the
+      // caller is told which locale it actually got.
+      const requested = aliasedTable(ingredientNames, 'requested_name');
+      const fallback = aliasedTable(ingredientNames, 'fallback_name');
 
       const [rows, links] = await Promise.all([
-        db.select().from(ingredients),
+        db
+          .select({
+            id: ingredients.id,
+            carbsPer100g: ingredients.carbsPer100g,
+            category: ingredients.category,
+            defaultUnit: ingredients.defaultUnit,
+            fallbackName: fallback.name,
+            fatPer100g: ingredients.fatPer100g,
+            fiberPer100g: ingredients.fiberPer100g,
+            gramsPerUnit: ingredients.gramsPerUnit,
+            kcalPer100g: ingredients.kcalPer100g,
+            proteinPer100g: ingredients.proteinPer100g,
+            requestedName: requested.name,
+            slug: ingredients.slug
+          })
+          .from(ingredients)
+          .leftJoin(requested, and(eq(requested.ingredientId, ingredients.id), eq(requested.locale, locale)))
+          .leftJoin(fallback, and(eq(fallback.ingredientId, ingredients.id), eq(fallback.locale, FALLBACK_LOCALE))),
         db.select({ allergenId: ingredientAllergens.allergenId, ingredientId: ingredientAllergens.ingredientId, presence: ingredientAllergens.presence }).from(ingredientAllergens)
       ]);
 
@@ -118,7 +156,11 @@ export const RecipeRepository = {
         fiberPer100g: Number(row.fiberPer100g),
         gramsPerUnit: row.gramsPerUnit === null ? null : Number(row.gramsPerUnit),
         kcalPer100g: Number(row.kcalPer100g),
-        name: row.name,
+        // The slug is the last resort. An ingredient with no name in any locale
+        // is a broken seed, and showing "pan-integral" says so; showing nothing
+        // hides it.
+        name: row.requestedName ?? row.fallbackName ?? row.slug,
+        nameLocale: row.requestedName === null ? FALLBACK_LOCALE : locale,
         proteinPer100g: Number(row.proteinPer100g),
         slug: row.slug
       }));

@@ -2,12 +2,14 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
-import { cuisinePreferences, goals, profiles, userDietaryPatterns, userPreferences } from 'database/schema/profile';
+import { cuisinePreferences, goals, profiles, targetOverrides, userDietaryPatterns, userPreferences } from 'database/schema/profile';
 import { foodPreferences } from 'database/schema/food';
 
 import { DatabaseOperationError } from 'core/entities/Error';
 import { goalSchema, preferencesSchema, profileSchema } from 'core/entities/Profile';
+import { targetOverrideSchema } from 'core/entities/Nutrition';
 import type { Goal, Preferences, Profile, UpdateGoal, UpdatePreferences, UpdateProfile } from 'core/entities/Profile';
+import type { TargetOverride, UpdateTargetOverride } from 'core/entities/Nutrition';
 
 /**
  * Every method takes `userId` as its first argument and every query filters on
@@ -81,6 +83,16 @@ export const ProfileRepository = {
       return row ? preferencesSchema.parse(row) : undefined;
     } catch (error: unknown) {
       throw wrap(error, 'user_preferences');
+    }
+  },
+
+  async findTargetOverride(userId: string): Promise<TargetOverride | undefined> {
+    try {
+      const [row] = await database().select().from(targetOverrides).where(eq(targetOverrides.userId, userId)).limit(1);
+
+      return row ? targetOverrideSchema.parse(row) : undefined;
+    } catch (error: unknown) {
+      throw wrap(error, 'target_overrides');
     }
   },
 
@@ -186,6 +198,28 @@ export const ProfileRepository = {
       return preferencesSchema.parse(row);
     } catch (error: unknown) {
       throw wrap(error, 'user_preferences');
+    }
+  },
+
+  /**
+   * Writes only the fields the caller named.
+   *
+   * A field left out of `input` is untouched; a field sent as `null` is cleared
+   * back to the computed value. That distinction is the whole contract of this
+   * table, so the upsert must not fill in defaults for absent keys.
+   */
+  async upsertTargetOverride(userId: string, input: UpdateTargetOverride): Promise<TargetOverride> {
+    try {
+      const values = { ...input, overriddenAt: new Date() };
+      const [row] = await database()
+        .insert(targetOverrides)
+        .values({ ...values, userId })
+        .onConflictDoUpdate({ set: values, target: targetOverrides.userId })
+        .returning();
+
+      return targetOverrideSchema.parse(row);
+    } catch (error: unknown) {
+      throw wrap(error, 'target_overrides');
     }
   }
 };

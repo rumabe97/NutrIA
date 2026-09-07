@@ -1,5 +1,7 @@
 import { ConflictError, NotFoundError } from 'core/entities/Error';
+import { FALLBACK_LOCALE } from '#repositories/Recipe';
 import { PlanJobRepository, PlanRepository } from '#repositories/Plan';
+import { ProfileRepository } from '#repositories/Profile';
 import type { MealSlot, PlanDraft } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 
@@ -262,7 +264,10 @@ export interface MealDetailView {
  * interface.
  */
 async function loadMealDetail(userId: string, mealId: string): Promise<MealDetailView> {
-  const found = await PlanRepository.findMealDetail(userId, mealId);
+  // The profile's locale, for the same reason generation uses it: one source,
+  // and it works whether or not there is a request to read a header from.
+  const profile = await ProfileRepository.findByUserId(userId);
+  const found = await PlanRepository.findMealDetail(userId, mealId, profile?.locale ?? FALLBACK_LOCALE);
 
   if (!found) {throw new NotFoundError('Meal not found');}
 
