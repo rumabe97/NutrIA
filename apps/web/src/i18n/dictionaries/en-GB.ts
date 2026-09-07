@@ -180,12 +180,9 @@ export const enGB: Dictionary = {
     createAccount: 'Create account',
     disclaimer:
       'NutrIA produces general meal plans. It does not replace advice from a doctor or a registered dietitian. Speak to a professional if you have a medical condition, are pregnant, or take medication.',
-    legal: 'Legal',
-    privacy: 'Privacy',
     product: 'Product',
     signIn: 'Sign in',
-    tagline: 'Nutrition that adapts to you.',
-    terms: 'Terms'
+    tagline: 'Nutrition that adapts to you.'
   },
 
   generation: {

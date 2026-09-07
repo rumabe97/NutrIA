@@ -11,6 +11,10 @@ export function SiteFooter() {
   const { footer, siteNav } = dictionary;
 
   // The hrefs are fixed; only the words move.
+  // No "Legal" column: it linked to /privacidad and /terminos, which do not exist,
+  // and every visitor's browser prefetched both and logged two 404s per page. A
+  // link to a page that is not there is a promise the product does not keep;
+  // the pages come first, then the links.
   const columns = [
     {
       links: [
@@ -26,13 +30,6 @@ export function SiteFooter() {
         { href: '/acceder', label: footer.signIn }
       ],
       title: footer.account
-    },
-    {
-      links: [
-        { href: '/privacidad', label: footer.privacy },
-        { href: '/terminos', label: footer.terms }
-      ],
-      title: footer.legal
     }
   ];
 

@@ -184,12 +184,9 @@ export const esES = {
     createAccount: 'Crear cuenta',
     disclaimer:
       'NutrIA elabora planes de alimentación generales. No sustituye el consejo de un médico ni de un dietista-nutricionista colegiado. Consulta a un profesional si tienes una condición médica, estás embarazada o tomas medicación.',
-    legal: 'Legal',
-    privacy: 'Privacidad',
     product: 'Producto',
     signIn: 'Acceder',
-    tagline: 'Nutrición que se adapta a ti.',
-    terms: 'Términos'
+    tagline: 'Nutrición que se adapta a ti.'
   },
 
   generation: {
