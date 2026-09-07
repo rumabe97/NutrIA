@@ -50,3 +50,8 @@ yarn-error.log*
 # IDE
 .idea/
 .vscode/
+
+# Agent tooling state — local to a machine, not to the project.
+.serena/
+.claude/.headroom_*
+:memory:*
