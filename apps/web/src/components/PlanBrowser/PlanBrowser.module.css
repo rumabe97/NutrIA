@@ -26,6 +26,14 @@
 .layout {
   display: grid;
   gap: var(--gap-region);
+  /*
+   * `minmax(0, 1fr)`, not the implicit `auto`. The day strip is a scroller, but a
+   * scroller's min-content is still its content — seven day chips, 440px — and an
+   * `auto` track sizes to that, so the strip dragged the whole page 100px past
+   * the right edge of a phone instead of scrolling inside it. The desktop query
+   * below already has this; the base did not.
+   */
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .card {

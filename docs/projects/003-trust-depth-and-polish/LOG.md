@@ -621,3 +621,46 @@ The owner approved all three recommendations. What that turned into:
   - The e2e suites are **written but unrun**. Everything in them typechecks and lints, and
     the fixtures use slugs the seed guarantees, but no assertion in them has ever been
     executed. Treat the first run as part of the work, not as a formality.
+
+### Phase 7, after the gate — the phone-width verification (2026-09-07)
+
+- **Executor**: agent, at the owner's report "on my cell phone it cuts, it is not
+  100% responsive".
+
+- **What was done**: every screen rendered headless at 320, 360, 390 and 414px with the
+  owner's real data (a session minted directly in the `session` table and removed after),
+  horizontal overflow *measured* in-page rather than eyeballed — `scrollWidth` against the
+  viewport, and the outermost elements past its right edge — plus console and exception
+  capture. Then fixed and re-measured until every page read 0px at every width.
+
+- **Found and fixed**, in order of how much a phone user would notice:
+  1. `PlanDayNav` on `/plan` dragged the page **100px** past the edge: the day strip is a
+     scroller, but its grid container had the implicit `auto` column, which sizes to a
+     scroller's *content*. Bounded with `minmax(0, 1fr)` — and then the strip became a
+     seven-column grid, because a strip that scrolled showed five days and hid the weekend
+     with no cue, which reads as "cut", not as "swipe". All seven fit at 320px.
+  2. The loading skeleton (`(app)` and `(auth)`) was 352px wide in a 360px viewport — a
+     flash of overflow on every navigation. Fixed widths capped with `min(…, 100%)`,
+     columns bounded, stats two-up on phones like the real row.
+  3. `SiteHeader`'s CTA ran 51px off the landing page at 360px; hidden below 40rem, where
+     the hero directly beneath carries the same action.
+  4. `MacroSummary` four-up at every width: at 360px "2235 kcal" wrapped its unit while
+     "189 g" did not, and the four figures misaligned. Two-up below 34rem; figure and unit
+     never split.
+  5. `MealRow` kept the figures beside the name on phones — a nowrap block that took a
+     third of the width and wrapped every dish name to four lines. Single column below
+     34rem, figures beneath the name. The landing preview's rows got the same shape.
+  6. `AppNav` at 320px wrapped "Cerrar sesión" onto two lines; the wordmark yields below
+     22.5rem (the mark and the aria-label remain).
+  7. **A hydration failure on the dashboard**, surfaced by the console capture:
+     `NextMeal`'s "nothing left today" state rendered a `<Text>` (a `<p>`) inside a `<p>`.
+     Invalid nesting the browser restructures, so server and client trees differed and
+     the whole dashboard re-rendered on the client on every load. One element now.
+
+- **Verified**: 0px overflow and 0 offenders on `/`, `/acceder`, `/registro`, `/inicio`,
+  `/plan`, `/plan/comida/[id]`, `/compra`, `/perfil`, `/onboarding/[1,4,7]` at 320/360/390/
+  414; zero console errors or exceptions on the signed-in pages. Screenshots were looked
+  at, not only measured. Gate green.
+
+- **Still open from the phase 7 gate**: desktop widths and reduced motion were not part
+  of this pass; the owner's confirmation on those stands as before.

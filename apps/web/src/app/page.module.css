@@ -94,7 +94,7 @@
   border-bottom: 1px solid var(--border-01);
   display: grid;
   gap: var(--space-01) var(--space-05);
-  grid-template-columns: 7rem 1fr auto;
+  grid-template-columns: 7rem minmax(0, 1fr) auto;
   padding-block: var(--space-04);
 }
 
@@ -106,8 +106,25 @@
   border-top: 1px solid var(--border-01);
   display: grid;
   gap: var(--space-05);
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   padding: var(--space-05);
+}
+
+/*
+ * On a phone the preview's meal rows lose their label column: 7rem of slot
+ * label plus the figures left a hundred pixels for the dish name, which wrapped
+ * to five lines in a card meant to show how tidy a plan looks. Label above,
+ * name and figures on the line beneath — the same shape as the real MealRow.
+ */
+@media (width < 34rem) {
+  .mealRow {
+    gap: var(--space-01) var(--space-04);
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .mealRow > :first-child {
+    grid-column: 1 / -1;
+  }
 }
 
 /* ── Headings ─────────────────────────────────────────────────────────── */

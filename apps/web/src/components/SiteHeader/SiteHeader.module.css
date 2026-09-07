@@ -74,6 +74,23 @@
   color: var(--foreground-01);
 }
 
+/*
+ * Below 40rem the header's own CTA is hidden. Brand, language, sign-in and a
+ * button do not fit in 360px — the button was the element running off the
+ * right edge on every phone — and the hero directly beneath carries the same
+ * call to action, so nothing is lost on the one screen where the header is
+ * the first thing seen.
+ */
+.cta {
+  display: none;
+}
+
+@media (width >= 40rem) {
+  .cta {
+    display: inline-flex;
+  }
+}
+
 @media (width >= 48rem) {
   .nav {
     display: flex;

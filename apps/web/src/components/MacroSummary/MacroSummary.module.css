@@ -1,7 +1,19 @@
+/*
+ * Two-up on phones, four-up from 34rem. Four columns in 360px are ~70px each:
+ * "2235 kcal" and "174 g" wrapped their unit onto a second line while "189 g"
+ * did not, and the four figures no longer lined up. `minmax(0, 1fr)` so a long
+ * value can never widen its track past the others.
+ */
 .summary {
   display: grid;
   gap: var(--space-04);
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (width >= 34rem) {
+  .summary {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 .item {
@@ -15,6 +27,8 @@
 
 .value {
   font-size: var(--font-size-06);
+  /* The figure and its unit are one thing; they never split across lines. */
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
   font-weight: var(--font-weight-semibold);
   letter-spacing: -0.02em;

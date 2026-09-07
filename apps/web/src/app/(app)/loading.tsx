@@ -17,8 +17,8 @@ export default function AppLoading() {
   return (
     <div className={styles.shell}>
       <div className={styles.header}>
-        <Skeleton animation="wave" height="2.25rem" width="14rem" />
-        <Skeleton height="1rem" width="22rem" />
+        <Skeleton animation="wave" height="2.25rem" width="min(14rem, 100%)" />
+        <Skeleton height="1rem" width="min(22rem, 100%)" />
       </div>
 
       <div className={styles.card}>

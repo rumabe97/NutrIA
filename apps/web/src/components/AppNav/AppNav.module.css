@@ -68,6 +68,24 @@
   font: inherit;
   font-size: var(--font-size-03);
   padding: 0;
+  /* A two-word control never breaks in half; if the row is short, it shrinks elsewhere. */
+  white-space: nowrap;
+}
+
+/*
+ * Below 360px the row cannot hold the wordmark, the language switch and
+ * "Cerrar sesión" at once, and the sign-out wrapped onto two lines. The mark
+ * alone carries the brand there — the bottom bar names every destination, so
+ * nothing needed for orientation is lost. The link keeps its aria-label.
+ */
+@media (width < 22.5rem) {
+  .inner {
+    gap: var(--space-04);
+  }
+
+  .wordmark {
+    display: none;
+  }
 }
 
 .signOut:hover {

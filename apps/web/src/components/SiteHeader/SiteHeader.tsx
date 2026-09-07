@@ -60,7 +60,7 @@ export function SiteHeader() {
           <Link className={styles.signIn} href="/acceder">
             {dictionary.siteNav.signIn}
           </Link>
-          <CtaLink href="/registro" size="sm">
+          <CtaLink className={styles.cta} href="/registro" size="sm">
             {dictionary.siteNav.signUp}
           </CtaLink>
         </div>

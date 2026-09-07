@@ -5,8 +5,8 @@ import { Skeleton } from 'ui/components/Skeleton';
 export default function AuthLoading() {
   return (
     <div className={styles.header}>
-      <Skeleton animation="wave" height="2rem" width="12rem" />
-      <Skeleton height="1rem" width="16rem" />
+      <Skeleton animation="wave" height="2rem" width="min(12rem, 100%)" />
+      <Skeleton height="1rem" width="min(16rem, 100%)" />
       <Skeleton height="2.5rem" />
       <Skeleton height="2.5rem" />
     </div>

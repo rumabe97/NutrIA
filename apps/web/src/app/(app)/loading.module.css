@@ -1,11 +1,19 @@
+/*
+ * `minmax(0, 1fr)` on both, not the implicit `auto`: an `auto` column sizes to
+ * its widest child, and a skeleton bar with a fixed width then pushes the whole
+ * placeholder past the edge of a phone — a flash of horizontal overflow on
+ * every navigation, which reads as the app "cutting".
+ */
 .shell {
   display: grid;
   gap: var(--space-06);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .header {
   display: grid;
   gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .card {
@@ -24,8 +32,15 @@
   grid-template-columns: 6.5rem 1fr 5rem;
 }
 
+/* Two-up on phones, four-up from tablet: the same shape as the real stat row it stands in for. */
 .stats {
   display: grid;
   gap: var(--space-04);
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+@media (width >= 40rem) {
+  .stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }

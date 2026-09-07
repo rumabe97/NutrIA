@@ -44,7 +44,7 @@ export function AppNav() {
         <div className={styles.inner}>
           <Link aria-label={dictionary.appNav.brandHome} className={styles.brand} href="/inicio">
             <span aria-hidden="true" className={styles.mark} />
-            NutrIA
+            <span className={styles.wordmark}>NutrIA</span>
           </Link>
 
           <nav aria-label={dictionary.appNav.sectionsLabel} className={styles.desktopNav}>

@@ -25,15 +25,17 @@
   color: var(--color-brand-12);
 }
 
-/* A scroller rather than a wrap: fourteen chips on two ragged lines is harder to
-   scan than one line you push along. */
+/*
+ * The whole week, always. Seven columns that share the width, never a scroller:
+ * a strip that scrolled showed five days on a phone and hid the weekend past the
+ * edge with nothing to say so — which reads as "the plan is cut", not as
+ * "swipe". At 320px each chip is ~40px wide, enough for a two-digit day and a
+ * three-letter label, and the chip is 60px tall, so the tap target holds.
+ */
 .days {
-  display: flex;
-  gap: var(--space-02);
-  overflow-x: auto;
-  padding-bottom: var(--space-02);
-  scroll-snap-type: x proximity;
-  scrollbar-width: thin;
+  display: grid;
+  gap: var(--space-01);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
 }
 
 .day {
@@ -43,13 +45,10 @@
   color: var(--foreground-02);
   cursor: pointer;
   display: grid;
-  flex: 0 0 auto;
   font: inherit;
   gap: var(--space-01);
-  /* Above the 44px minimum tap target, with room for a two-digit day. */
-  min-inline-size: 3.5rem;
-  padding: var(--space-03) var(--space-02);
-  scroll-snap-align: start;
+  min-inline-size: 0;
+  padding: var(--space-03) 0;
   text-align: center;
   transition:
     background-color var(--duration-fast) var(--ease-default),
@@ -81,19 +80,13 @@
   border-color: var(--color-brand-09);
 }
 
-/*
- * At desktop width the row becomes a grid that shows the whole week at once,
- * so nothing has to be scrolled past to be reached.
- */
-@media (width >= 64rem) {
+/* With room to spare, the chips get their gaps and side padding back. */
+@media (width >= 34rem) {
   .days {
-    grid-template-columns: repeat(auto-fill, minmax(3.5rem, 1fr));
-    display: grid;
-    overflow-x: visible;
-    padding-bottom: 0;
+    gap: var(--space-02);
   }
 
   .day {
-    min-inline-size: 0;
+    padding-inline: var(--space-02);
   }
 }

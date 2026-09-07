@@ -87,13 +87,15 @@
   white-space: nowrap;
 }
 
+/*
+ * On a phone the row is a single column: slot, name, then the figures beneath.
+ * With the figures beside the name they took a third of the width — a nowrap
+ * block of "583 kcal · 42 g P" — and every dish name wrapped to four lines.
+ */
 @media (width < 34rem) {
   .head {
-    grid-template-columns: 1fr auto;
-  }
-
-  .slot {
-    grid-column: 1 / -1;
+    gap: var(--space-01);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .details {
