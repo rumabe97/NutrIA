@@ -14,6 +14,14 @@ export interface MealView {
   difficulty: string;
   fatG: number;
   fiberG: number;
+  /**
+   * The recipe's ingredients, **scaled to this meal's portion**.
+   *
+   * Carried on the plan rather than fetched per meal, because a fortnight of
+   * meal names with the quantities a click away is a plan you cannot shop or
+   * cook from without fifty-six navigations.
+   */
+  ingredients: readonly { grams: number; name: string }[];
   kcal: number;
   name: string;
   prepMinutes: number;
@@ -62,7 +70,11 @@ export interface JobView {
 
 type MealRow = Awaited<ReturnType<typeof PlanRepository.findDaysWithMeals>>[number]['meals'][number];
 
-function presentMeal({ meal, recipe }: MealRow): MealView {
+function presentMeal({ items, meal, recipe }: MealRow): MealView {
+  // The recipe's quantities are for *its* servings; this meal may have been
+  // scaled to fit the day. The same factor `loadMealDetail` applies.
+  const factor = Number(meal.servings) / (recipe.servings || 1);
+
   return {
     id: meal.id,
     carbsG: Number(meal.carbsG),
@@ -70,6 +82,7 @@ function presentMeal({ meal, recipe }: MealRow): MealView {
     difficulty: recipe.difficulty,
     fatG: Number(meal.fatG),
     fiberG: Number(meal.fiberG),
+    ingredients: items.map(item => ({ grams: Math.round(Number(item.grams) * factor * 10) / 10, name: item.name })),
     kcal: Number(meal.kcal),
     name: recipe.name,
     prepMinutes: recipe.prepMinutes,
@@ -90,7 +103,7 @@ export const PlanController = {
 
     if (!plan) {return null;}
 
-    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id));
+    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId)));
   },
 
   async getDay(userId: string, planId: string, dayIndex: number): Promise<PlanDayView> {
@@ -120,7 +133,7 @@ export const PlanController = {
 
     if (!plan) {throw new NotFoundError('Plan not found');}
 
-    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id));
+    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId)));
   },
 
   async getShoppingList(userId: string, planId: string) {
@@ -221,6 +234,10 @@ export const PlanJobController = {
 
   /** Refuses a second concurrent generation, after clearing anything a restart abandoned. */
   async start(userId: string): Promise<JobView> {
+    // Adopt before failing: a job whose plan committed did not fail, whatever its
+    // row says, and marking it abandoned would discard a plan the user already
+    // has — and charge them a second generation to get it back.
+    await PlanJobRepository.adoptCompleted(userId);
     await PlanJobRepository.failStale(userId);
 
     const inFlight = await PlanJobRepository.findInFlight(userId);
@@ -263,11 +280,16 @@ export interface MealDetailView {
  * cook the wrong amount, so the scaling happens here rather than being left to the
  * interface.
  */
+/**
+ * The profile's locale, for the same reason generation uses it: one source, and
+ * it works whether or not there is a request to read a header from.
+ */
+async function localeFor(userId: string): Promise<string> {
+  return (await ProfileRepository.findByUserId(userId))?.locale ?? FALLBACK_LOCALE;
+}
+
 async function loadMealDetail(userId: string, mealId: string): Promise<MealDetailView> {
-  // The profile's locale, for the same reason generation uses it: one source,
-  // and it works whether or not there is a request to read a header from.
-  const profile = await ProfileRepository.findByUserId(userId);
-  const found = await PlanRepository.findMealDetail(userId, mealId, profile?.locale ?? FALLBACK_LOCALE);
+  const found = await PlanRepository.findMealDetail(userId, mealId, await localeFor(userId));
 
   if (!found) {throw new NotFoundError('Meal not found');}
 

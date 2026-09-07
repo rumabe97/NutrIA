@@ -207,7 +207,7 @@ export const PlanRepository = {
   },
 
   /** Days and meals for a plan the caller has already been confirmed to own. */
-  async findDaysWithMeals(planId: string) {
+  async findDaysWithMeals(planId: string, locale: string) {
     try {
       const db = database();
       const days = await db.select().from(planDays).where(eq(planDays.planId, planId)).orderBy(planDays.dayIndex);
@@ -226,7 +226,42 @@ export const PlanRepository = {
         )
         .orderBy(meals.sortOrder);
 
-      return days.map(day => ({ ...day, meals: rows.filter(row => row.meal.planDayId === day.id) }));
+      // One query for the whole fortnight's ingredients rather than one per meal:
+      // fourteen days of four meals is fifty-six round trips otherwise, on the
+      // screen a user opens most.
+      const requested = aliasedTable(ingredientNames, 'requested_name');
+      const fallback = aliasedTable(ingredientNames, 'fallback_name');
+      const recipeIds = [...new Set(rows.map(row => row.recipe.id))];
+
+      const items =
+        recipeIds.length === 0
+          ? []
+          : await db
+              .select({
+                fallbackName: fallback.name,
+                grams: recipeIngredients.grams,
+                recipeId: recipeIngredients.recipeId,
+                requestedName: requested.name,
+                slug: ingredients.slug
+              })
+              .from(recipeIngredients)
+              .innerJoin(ingredients, eq(ingredients.id, recipeIngredients.ingredientId))
+              .leftJoin(requested, and(eq(requested.ingredientId, ingredients.id), eq(requested.locale, locale)))
+              .leftJoin(fallback, and(eq(fallback.ingredientId, ingredients.id), eq(fallback.locale, FALLBACK_LOCALE)))
+              .where(and(inArray(recipeIngredients.recipeId, recipeIds), eq(recipeIngredients.isOptional, false)));
+
+      const byRecipe = new Map<string, { grams: string; name: string }[]>();
+
+      for (const item of items) {
+        const name = item.requestedName ?? item.fallbackName ?? item.slug;
+
+        byRecipe.set(item.recipeId, [...(byRecipe.get(item.recipeId) ?? []), { grams: item.grams, name }]);
+      }
+
+      return days.map(day => ({
+        ...day,
+        meals: rows.filter(row => row.meal.planDayId === day.id).map(row => ({ ...row, items: byRecipe.get(row.recipe.id) ?? [] }))
+      }));
     } catch (error: unknown) {
       throw wrap(error);
     }

@@ -1,7 +1,7 @@
-import { and, eq, lt, or } from 'drizzle-orm';
+import { and, eq, inArray, lt, or, sql } from 'drizzle-orm';
 
 import { database } from 'database';
-import { planGenerationJobs } from 'database/schema/plan';
+import { mealPlans, planGenerationJobs } from 'database/schema/plan';
 
 import { DatabaseOperationError } from 'core/entities/Error';
 
@@ -11,6 +11,55 @@ export const STALE_JOB_MINUTES = 15;
 export type JobStatus = 'failed' | 'queued' | 'running' | 'succeeded';
 
 export const PlanJobRepository = {
+  /**
+   * Adopts jobs whose plan committed but whose runner died before saying so.
+   *
+   * The last thing generation does is commit the whole plan in one transaction
+   * and *then* mark the job succeeded. A restart in that gap — a deploy, a dev
+   * server reloading on a file change — leaves a complete, active plan and a job
+   * row that still says `running`. `failStale` would then declare it abandoned,
+   * and the user would read "we could not create your plan" with the plan sitting
+   * right there.
+   *
+   * The plan carries the job id in `generation_metadata`, so the evidence that a
+   * job finished is the plan itself. Same staleness cutoff as `failStale`, which
+   * removes the race with a runner that is about to mark its own job succeeded.
+   */
+  async adoptCompleted(userId: string): Promise<number> {
+    try {
+      const db = database();
+      const cutoff = new Date(Date.now() - STALE_JOB_MINUTES * 60 * 1000);
+
+      const stale = await db
+        .select({ id: planGenerationJobs.id })
+        .from(planGenerationJobs)
+        .where(and(eq(planGenerationJobs.userId, userId), eq(planGenerationJobs.status, 'running'), lt(planGenerationJobs.startedAt, cutoff)));
+
+      if (stale.length === 0) {return 0;}
+
+      const ids = stale.map(row => row.id);
+      const plans = await db
+        .select({ id: mealPlans.id, jobId: sql<string>`${mealPlans.generationMetadata}->>'jobId'` })
+        .from(mealPlans)
+        .where(and(eq(mealPlans.userId, userId), inArray(sql`${mealPlans.generationMetadata}->>'jobId'`, ids)));
+
+      let adopted = 0;
+
+      for (const plan of plans) {
+        await db
+          .update(planGenerationJobs)
+          .set({ finishedAt: new Date(), planId: plan.id, status: 'succeeded', step: 'done' })
+          .where(and(eq(planGenerationJobs.id, plan.jobId), eq(planGenerationJobs.status, 'running')));
+
+        adopted += 1;
+      }
+
+      return adopted;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   async create(userId: string) {
     try {
       const [row] = await database().insert(planGenerationJobs).values({ status: 'queued', userId }).returning();
@@ -29,6 +78,9 @@ export const PlanJobRepository = {
    * The runner is in-process, so a deploy mid-generation leaves a `running` row
    * nobody is advancing. Without this the user's next attempt is refused forever by
    * the in-flight check.
+   *
+   * Run `adoptCompleted` first: a job whose plan exists did not fail, and calling
+   * it abandoned would throw away a fortnight of work the user already paid for.
    */
   async failStale(userId: string): Promise<number> {
     try {
