@@ -75,6 +75,29 @@
   --ease-default: ease;
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1); /* snappy enter, soft land */
 
+  /* Named transitions, so an entrance is the same motion everywhere it appears.
+     Durations above are the vocabulary; these are the sentences.
+
+     `enter` is spring-eased and slow enough to be read as movement; `exit` is
+     faster and linear-ish, because leaving should not be savoured. `axis` is the
+     shared-axis pair used when one thing replaces another in a sequence — an
+     onboarding step, a plan day — where direction carries meaning.
+
+     None of these may gate interaction. An element animating in is clickable
+     from the first frame; nothing here sets `pointer-events`, and nothing waits
+     on `animationend` before wiring a handler. `ui/styles/base` already collapses
+     every animation under `prefers-reduced-motion: reduce`, so these inherit that
+     and need no guard of their own. */
+  --motion-enter: var(--duration-normal) var(--ease-spring);
+  --motion-exit: var(--duration-fast) var(--ease-default);
+  --motion-axis: var(--duration-normal) var(--ease-spring);
+  /* How far an entering element travels. Small on purpose: motion that moves a
+     long way reads as decoration rather than as the thing arriving. */
+  --motion-distance: 0.5rem;
+  /* Between siblings in a list. Ten items is 360ms end to end, which is the most
+     a stagger can be before it becomes a queue the reader is waiting in. */
+  --motion-stagger: 40ms;
+
   /* ── Z-index layers ──────────────────────────────────────────────────
      Named by role, not by number. Never hardcode z-index in components. */
   --z-base: 1; /* general positioned elements */

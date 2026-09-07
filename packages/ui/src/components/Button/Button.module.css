@@ -21,6 +21,17 @@
   pointer-events: none;
 }
 
+/* A busy button is not a disabled one to look at: it is working, and dimming it
+   to half opacity says the opposite. */
+.button[aria-busy='true'] {
+  cursor: progress;
+  opacity: 1;
+}
+
+.spinner {
+  flex: 0 0 auto;
+}
+
 /* ── Sizes ── */
 
 .sm {

@@ -10,3 +10,14 @@
   white-space: nowrap;
   width: 1px;
 }
+
+/* Tabular figures.
+
+   For numbers that are *compared* — a column of values, a row of stats, a
+   quantity beside another quantity — where proportional digits make a 1 sit
+   half a character left of the 8 above it. Not for a number inside a sentence:
+   there is nothing to line it up with, and tabular digits read as slightly
+   wrong in running text. */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}

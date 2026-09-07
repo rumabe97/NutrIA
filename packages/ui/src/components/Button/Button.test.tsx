@@ -73,6 +73,35 @@ describe('Button', () => {
       expect(btn).toHaveClass('extra');
     });
 
+    it('is busy and disabled while loading', () => {
+      render(<Button loading={true}>Save</Button>);
+      const btn = screen.getByRole('button');
+
+      expect(btn).toHaveAttribute('aria-busy', 'true');
+      // Disabled as well as busy: a second submit while the first is in flight
+      // is the double-charge bug in every checkout that ever shipped one.
+      expect(btn).toBeDisabled();
+      expect(btn).toHaveTextContent('Save');
+    });
+
+    it('carries no busy state when it is not loading', () => {
+      render(<Button>Save</Button>);
+      const btn = screen.getByRole('button');
+
+      expect(btn).not.toHaveAttribute('aria-busy');
+      expect(btn).toBeEnabled();
+    });
+
+    it('stays disabled when told to, loading or not', () => {
+      render(
+        <Button disabled={true} loading={false}>
+          Save
+        </Button>
+      );
+
+      expect(screen.getByRole('button')).toBeDisabled();
+    });
+
     it('forwards standard button attributes (type, form, aria-*)', () => {
       render(
         <Button aria-pressed="true" form="signup" type="submit">

@@ -10,6 +10,7 @@
     "./styles/base": "./src/styles/base.css",
     "./styles/classnames": "./src/styles/classnames.css",
     "./styles/colors": "./src/styles/colors.css",
+    "./styles/motion": "./src/styles/motion.css",
     "./styles/variables": "./src/styles/variables.css",
     "./types/*": "./src/types/*.ts",
     "./utils/*": "./src/utils/*.ts"

@@ -1,0 +1,107 @@
+/* Motion utilities.
+
+   Four things, and deliberately only four: something arriving, a list of things
+   arriving, and a pair of shared-axis transitions for when one thing replaces
+   another in a sequence.
+
+   Every animation here is subject to the reduced-motion baseline in
+   `ui/styles/base`, which collapses animation and transition durations to ~0
+   when the OS asks for it. That is why none of these carry their own
+   `prefers-reduced-motion` guard: one rule, in one place.
+
+   **Nothing here may gate interaction.** An element mid-entrance is a fully
+   working element that happens to be moving — no `pointer-events`, no
+   `visibility`, and no handler wired on `animationend`. */
+
+@keyframes motion-rise {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-distance));
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes motion-axis-forward {
+  from {
+    opacity: 0;
+    transform: translateX(var(--motion-distance));
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes motion-axis-back {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--motion-distance) * -1));
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* One element arriving: a card, a panel, a screen. */
+.motion-enter {
+  animation: motion-rise var(--motion-enter) both;
+}
+
+/* A list arriving. The stagger is on the children, so the container can be a
+   grid or a flex row without the animation caring which. */
+.motion-list > * {
+  animation: motion-rise var(--motion-enter) both;
+}
+
+.motion-list > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.motion-list > *:nth-child(2) {
+  animation-delay: var(--motion-stagger);
+}
+
+.motion-list > *:nth-child(3) {
+  animation-delay: calc(var(--motion-stagger) * 2);
+}
+
+.motion-list > *:nth-child(4) {
+  animation-delay: calc(var(--motion-stagger) * 3);
+}
+
+.motion-list > *:nth-child(5) {
+  animation-delay: calc(var(--motion-stagger) * 4);
+}
+
+.motion-list > *:nth-child(6) {
+  animation-delay: calc(var(--motion-stagger) * 5);
+}
+
+.motion-list > *:nth-child(7) {
+  animation-delay: calc(var(--motion-stagger) * 6);
+}
+
+.motion-list > *:nth-child(8) {
+  animation-delay: calc(var(--motion-stagger) * 7);
+}
+
+/* Beyond eight the stagger stops adding meaning and starts adding waiting. */
+.motion-list > *:nth-child(n + 9) {
+  animation-delay: calc(var(--motion-stagger) * 8);
+}
+
+/* Shared axis. Direction carries meaning: forward for "next", back for "previous". */
+.motion-forward {
+  animation: motion-axis-forward var(--motion-axis) both;
+}
+
+.motion-back {
+  animation: motion-axis-back var(--motion-axis) both;
+}

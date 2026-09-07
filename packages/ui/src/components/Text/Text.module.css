@@ -1,6 +1,16 @@
-.text {
-  margin: 0;
-}
+/*
+ * `.text` carries no margin rule on purpose.
+ *
+ * It used to be `margin: 0`, which is already what `ui/styles/base`'s universal
+ * reset does — so the rule was redundant, and worse than redundant: it competes
+ * at equal specificity with any layout class a consumer passes in
+ * (`<Text className={styles.lede}>`), and which one wins comes down to the order
+ * two CSS modules happen to land in the bundle. That is how the landing page's
+ * lede lost its `margin-inline: auto` and sat against the left edge of a centred
+ * hero.
+ *
+ * A reset belongs at reset specificity. Consumer classes now win by default.
+ */
 
 .size-xs {
   font-size: var(--font-size-01);
