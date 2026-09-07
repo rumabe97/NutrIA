@@ -108,3 +108,64 @@ describe('ageInYears', () => {
     expect(ageInYears('1994-09-06', new Date('2026-09-06T00:00:00Z'))).toBe(32);
   });
 });
+
+describe('nutritionTargets — the goal decides direction, not the sign', () => {
+  /** A real profile: 29, male, 180 cm, 95 kg, moderate activity, losing weight. */
+  const ruben: TargetInput = {
+    activityLevel: 'moderate',
+    ageYears: 29,
+    goal: 'weight_loss',
+    heightCm: 180,
+    paceKgPerWeek: null,
+    sex: 'male',
+    weightKg: 95
+  };
+
+  it('puts a weight-loss goal below maintenance', () => {
+    expect(nutritionTargets(ruben).kcal).toBeLessThan(Math.round(totalDailyEnergyExpenditure(ruben)));
+  });
+
+  it('treats a positive pace on a weight-loss goal as a deficit, not a surplus', () => {
+    // This shipped inverted: entering "1" kg per week produced 4,099 kcal against
+    // a 2,999 maintenance — a surplus, for someone asking to lose weight.
+    const signed = nutritionTargets({ ...ruben, paceKgPerWeek: 1 });
+
+    expect(signed.kcal).toBeLessThan(Math.round(totalDailyEnergyExpenditure(ruben)));
+  });
+
+  it('gives the same answer whichever sign the pace carries', () => {
+    expect(nutritionTargets({ ...ruben, paceKgPerWeek: 1 }).kcal).toBe(nutritionTargets({ ...ruben, paceKgPerWeek: -1 }).kcal);
+  });
+
+  it('treats a negative pace on a muscle-gain goal as a surplus', () => {
+    const gaining = { ...ruben, goal: 'muscle_gain' as const, paceKgPerWeek: -0.5 };
+
+    expect(nutritionTargets(gaining).kcal).toBeGreaterThan(Math.round(totalDailyEnergyExpenditure(ruben)));
+  });
+
+  it('ignores the pace entirely for a non-directional goal', () => {
+    const maintenance = Math.round(totalDailyEnergyExpenditure(ruben));
+
+    expect(nutritionTargets({ ...ruben, goal: 'maintenance', paceKgPerWeek: 1 }).kcal).toBe(maintenance);
+    expect(nutritionTargets({ ...ruben, goal: 'healthy_eating', paceKgPerWeek: -1 }).kcal).toBe(maintenance);
+  });
+
+  it('caps a deficit at a share of maintenance, which an absolute floor alone would miss', () => {
+    // 1,899 kcal clears the 1,500 floor and is still a 37% deficit.
+    const aggressive = nutritionTargets({ ...ruben, paceKgPerWeek: 1 });
+
+    expect(aggressive.kcal).toBeGreaterThanOrEqual(Math.round(totalDailyEnergyExpenditure(ruben) * 0.75) - 1);
+    expect(aggressive.wasClamped).toBe(true);
+  });
+
+  it('caps a surplus too, so a gain goal cannot ask for anything', () => {
+    const aggressive = nutritionTargets({ ...ruben, goal: 'muscle_gain', paceKgPerWeek: 1 });
+
+    expect(aggressive.kcal).toBeLessThanOrEqual(Math.round(totalDailyEnergyExpenditure(ruben) * 1.2) + 1);
+    expect(aggressive.wasClamped).toBe(true);
+  });
+
+  it('does not clamp an ordinary pace', () => {
+    expect(nutritionTargets({ ...ruben, paceKgPerWeek: 0.5 }).wasClamped).toBe(false);
+  });
+});

@@ -73,8 +73,19 @@ export type Goal = z.infer<typeof goalSchema>;
 export const updateGoalSchema = z
   .object({
     customGoal: z.string().max(280).nullish(),
-    /** Negative loses weight, positive gains. Capped: faster than this is not a nutrition plan. */
-    paceKgPerWeek: z.number().min(-1).max(1).nullish(),
+    /**
+     * A magnitude in kg per week; the goal supplies the direction. Signed values
+     * are still accepted from older clients and normalised, because a positive
+     * pace on a weight-loss goal once produced a surplus.
+     */
+    // `.transform` before `.nullish`, so the field stays optional rather than
+    // becoming a required key that happens to accept undefined.
+    paceKgPerWeek: z
+      .number()
+      .min(-1)
+      .max(1)
+      .transform(Math.abs)
+      .nullish(),
     startingWeightKg: z.number().min(WEIGHT_KG.min).max(WEIGHT_KG.max).nullish(),
     targetWeightKg: z.number().min(WEIGHT_KG.min).max(WEIGHT_KG.max).nullish(),
     type: z.enum(GOAL_TYPES)

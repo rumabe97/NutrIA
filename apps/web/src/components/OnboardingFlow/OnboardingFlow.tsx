@@ -268,10 +268,10 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
               />
               <Input
                 defaultValue={goal?.paceKgPerWeek ?? ''}
-                hint="Negativo para perder. Máximo 1 kg."
+                hint="Cuántos kg por semana. El sentido lo marca tu objetivo."
                 label="Ritmo (kg por semana)"
                 max="1"
-                min="-1"
+                min="0"
                 name="paceKgPerWeek"
                 step="0.05"
                 type="number"

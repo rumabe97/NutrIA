@@ -307,3 +307,29 @@ of a nutritionally sound plan on the same rule.
   threshold; only this one changed what is being measured. Adjusting a constant until real
   data stops failing is fitting the rule to the sample, which is the same error as choosing
   a fixture that makes a test pass.
+
+## A weight-loss goal was given a 1,100 kcal surplus (2026-09-07)
+
+Post-ship fix to [`001-workspace-kickoff`](../001-workspace-kickoff/), found by the owner
+reading his own review screen: 4,099 kcal a day, for losing weight.
+
+- **Symptom**: profile 29 y, male, 180 cm, 95 kg, moderate activity, **weight loss**.
+  Maintenance is 2,999 kcal and the correct target 2,449. The app showed **4,099**.
+- **Cause**: `paceKgPerWeek` was signed, and `nutritionTargets` trusted that sign over the
+  goal. The form's hint said "negative to lose"; a pace entered as `1` therefore *added*
+  1,100 kcal to a weight-loss plan. The sign was redundant information that could
+  contradict the goal, and the goal lost.
+- **Fix**: pace is a magnitude and the goal is the only source of direction —
+  `Math.abs` in the calculation, normalised again in the entity for older clients, and the
+  form no longer offers a negative range.
+- **Also**: a floor in absolute calories turned out to be insufficient on its own. 1,899
+  kcal clears the 1,500 floor and is still a **37% deficit** for someone maintaining at
+  3,000. Added a cap at 25% of maintenance, and a 20% ceiling on a surplus.
+- **Evidence**: eight assertions covering direction from the goal, sign-independence, a
+  non-directional goal ignoring pace entirely, and both bounds. `packages/core` 102 → **110**.
+- **Reflection**: the value was displayed prominently on the review screen for every user
+  and nobody noticed, because a number in a box looks authoritative. Worse, the whole
+  generation pipeline was built on top of it and behaved *correctly* — it faithfully
+  planned 4,099 kcal of food. The days of scheduler work that preceded this were spent
+  fitting a plan to a target that was wrong. **Validating the inputs to a calculation is
+  worth more than any amount of care downstream of it.**
