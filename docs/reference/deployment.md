@@ -78,8 +78,10 @@ several round trips, and a cross-continent hop multiplies all of them.
 
 ## 3. What each deploy does
 
-`apps/api/vercel.json` points the `@vercel/node` builder at `src/api/index.ts`, and
-`vercel-build` runs:
+`apps/api/vercel.json` points the `@vercel/node` builder at `vercel/index.js` — a
+committed one-line re-export of the built `dist/api/index.js`, so the builder has
+nothing to compile and the function ships the same artifact the type gate passed —
+and `vercel-build` runs:
 
 ```
 turbo run build --filter=api...   # builds core + database, then type-gates the API
@@ -89,6 +91,11 @@ pnpm --filter database migrate    # applies pending migrations to the live datab
 **Every production deploy applies migrations.** The build runs first so a type error
 stops the deploy before it touches anything; a bad migration still blocks every
 subsequent deploy. Review migrations as production changes, not as code.
+
+The build log is expected to be clean. If it ever shows TypeScript errors from the
+builder itself (`Property 'headers' does not exist on type 'Request'`, hundreds of
+them), the entry has been pointed back at a `.ts` file — see `apps/api/AGENTS.md`
+§ Deployment for why that is noise and why the cure is the shim, not hoisting.
 
 `ignoreCommand` skips every branch but `main`. This is deliberate: a preview URL is
 in neither `ALLOWED_ORIGINS` nor `COOKIE_DOMAIN`, so authentication cannot work on

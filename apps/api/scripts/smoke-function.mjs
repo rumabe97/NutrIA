@@ -6,8 +6,9 @@
  * it is the code path that exists only in production, which is the worst place
  * to discover that `createApp` behaves differently through an ExpressAdapter.
  * This stands a plain Node server in front of the exported function, the way the
- * function runtime does, and checks three things that each catch a real class of
- * failure:
+ * function runtime does — imported through `vercel/index.js`, the committed shim
+ * the platform is actually pointed at, so the re-export is exercised too — and
+ * checks three things that each catch a real class of failure:
  *
  *   - the app boots at all and reaches the database;
  *   - an unauthenticated read is 404, not 401 — the deny-as-404 invariant, which
@@ -22,7 +23,7 @@
  */
 import { createServer } from 'node:http';
 
-import handler from '../dist/api/index.js';
+import handler from '../vercel/index.js';
 
 // Stand in for the platform: one Node server that hands every request to the
 // exported function, exactly as the function runtime does.

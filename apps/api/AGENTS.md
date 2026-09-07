@@ -90,19 +90,23 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
 
 - `src/config/CreateApp.ts` is the **one** place an application is assembled. There are
   two entry points — `main.ts` (owns a port) and `src/api/index.ts` (the deployed
-  handler) — and neither owns the configuration list. Anything added to one and
+  handler, reached through `vercel/index.js`) — and neither owns the configuration list. Anything added to one and
   forgotten in the other is a bug that exists in exactly one environment.
 - It is deliberately **not** re-exported from `config/index.ts`: that barrel is imported
   by specs that want only the `Env` type, and reaching the whole application graph
   behind them breaks them under Jest's ESM interop with a require cycle naming
   neither file.
-- `vercel.json` uses the legacy `builds` array pointed at the **`.ts`** entry. The
-  platform then runs its own TypeScript pass over that file, and under pnpm's strict
-  store it resolves modules without following symlinks, so transitive packages are
-  invisible to it and it emits a wall of type errors. **They are cosmetic** — the
-  builder emits JavaScript regardless, and `vercel-build` runs the real type gate.
-  Do not "fix" them by hoisting (`shamefully-hoist`, `node-linker=hoisted`); that
-  throws away the phantom-dependency protection pnpm was adopted for.
+- `vercel.json` uses the legacy `builds` array pointed at **`vercel/index.js`**, a
+  committed one-line re-export of `dist/api/index.js`. Two constraints meet there:
+  the builder compiles any `.ts` it is handed with its own symlink-blind TypeScript
+  pass (a wall of errors under pnpm's strict store, cosmetic but noisy, and a
+  deployed artifact nothing had type-checked), and the `builds[].src` glob is matched
+  against the tree *before* `vercel-build` runs, so a path under `dist/` matches
+  nothing and silently emits no function. The shim is JavaScript, so nothing is
+  compiled; it is committed, so the glob matches; `dist/` exists by the time the
+  entry is traced because the builder runs `vercel-build` first. The function ships
+  the artifact the gate passed. Never point `src` at `dist/` directly, and never
+  quiet a builder error by hoisting (`shamefully-hoist`, `node-linker=hoisted`).
 - `vercel-build` runs `turbo run build --filter=api...` **then** `database migrate`, so
   a type error stops the deploy before it touches the database. Every production
   deploy still applies pending migrations: review them as production changes.

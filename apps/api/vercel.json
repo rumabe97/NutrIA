@@ -6,7 +6,7 @@
   "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ]; then echo \"Skipping deployment for $VERCEL_GIT_COMMIT_REF\"; exit 0; fi; exit 1",
   "builds": [
     {
-      "src": "src/api/index.ts",
+      "src": "vercel/index.js",
       "use": "@vercel/node",
       "config": {
         "maxDuration": 300,
@@ -17,7 +17,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "src/api/index.ts"
+      "dest": "vercel/index.js"
     }
   ]
 }
