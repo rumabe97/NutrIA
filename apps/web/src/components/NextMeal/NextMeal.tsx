@@ -44,12 +44,13 @@ export function NextMeal({ hour, meals }: NextMealProps) {
   const upcoming = [...meals].sort((a, b) => (SLOT_HOUR[a.slot] ?? 12) - (SLOT_HOUR[b.slot] ?? 12)).find(meal => (SLOT_HOUR[meal.slot] ?? 12) >= hour);
 
   if (!upcoming) {
+    // One element, not a `<Text>` inside a `<p>`: `Text` renders a `<p>` itself, and
+    // a nested paragraph is invalid HTML the browser restructures — which made the
+    // server and client trees differ and the whole dashboard re-render on the client.
     return (
-      <p className={styles.done}>
-        <Text size="sm" tone="tertiary">
-          {dictionary.dashboard.nextMealNone}
-        </Text>
-      </p>
+      <Text className={styles.done} size="sm" tone="tertiary">
+        {dictionary.dashboard.nextMealNone}
+      </Text>
     );
   }
 
