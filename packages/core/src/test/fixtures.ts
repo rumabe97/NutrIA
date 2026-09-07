@@ -2,6 +2,7 @@ import type { Goal, Preferences, Profile } from 'core/entities/Profile';
 import type { SafetyProfile } from 'core/entities/Safety';
 import type { User } from 'core/entities/User';
 import { toCatalogue } from 'core/entities/Plan';
+import { VARIETY_RULES } from 'core/domain/Variety';
 
 import type { CandidateDish, Catalogue, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 import type { CheckedIngredient } from 'core/domain/Safety';
@@ -163,7 +164,20 @@ export function makeDish(overrides?: Partial<CandidateDish>): CandidateDish {
  * a flat ramp of identical dishes across every slot is not, and it makes the
  * scheduler look broken when it is the fixture that is unrealistic.
  */
-export function makePool(slots: readonly MealSlot[], perSlot = 6): readonly CandidateDish[] {
+/** Fourteen days, matching the scheduler's own default. */
+const PLAN_DAYS = 14;
+
+/**
+ * Enough dishes per slot to satisfy the variety rules, plus two for the ranker
+ * to discriminate on.
+ *
+ * Derived rather than a literal, because a fixture that hardcodes the old floor
+ * turns a deliberate tightening of `VARIETY_RULES` into two dozen red tests that
+ * say nothing about the change.
+ */
+export const POOL_PER_SLOT = Math.ceil(PLAN_DAYS / VARIETY_RULES.maxOccurrencesPerPlan) + 2;
+
+export function makePool(slots: readonly MealSlot[], perSlot = POOL_PER_SLOT): readonly CandidateDish[] {
   const SHARE: Record<MealSlot, number> = {
     afternoon_snack: 0.1,
     breakfast: 0.28,
@@ -179,8 +193,9 @@ export function makePool(slots: readonly MealSlot[], perSlot = 6): readonly Cand
 
     return Array.from({ length: perSlot }, (_unused, index) =>
       makeDish({
-        // Spread around the centre so ranking has something to discriminate on.
-        ingredients: [{ grams: Math.round(centre * (0.8 + index * 0.08)), slug: 'base' }],
+            // Spread across the same 0.8–1.2 range whatever the pool size, so growing
+        // the pool adds density rather than pushing the extremes further out.
+        ingredients: [{ grams: Math.round(centre * (0.8 + (index / Math.max(perSlot - 1, 1)) * 0.4)), slug: 'base' }],
         name: `${slot} ${index}`,
         slots: [slot],
         slug: `${slot}-${index}`

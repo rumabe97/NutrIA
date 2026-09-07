@@ -20,7 +20,10 @@ describe('canPlace', () => {
   });
 
   it('allows it again once the gap is wide enough', () => {
-    expect(canPlace('paella', 'lunch', 3, placements(['paella', 'lunch', 1]))).toBe(true);
+    const clear = 1 + VARIETY_RULES.minDaysBetweenSameSlot;
+
+    expect(canPlace('paella', 'lunch', clear - 1, placements(['paella', 'lunch', 1]))).toBe(false);
+    expect(canPlace('paella', 'lunch', clear, placements(['paella', 'lunch', 1]))).toBe(true);
   });
 
   it('allows the same dish in a different slot on the next day', () => {
@@ -28,10 +31,24 @@ describe('canPlace', () => {
   });
 
   it('blocks a dish that has hit the per-plan cap', () => {
-    const used = placements(['paella', 'lunch', 1], ['paella', 'lunch', 4], ['paella', 'dinner', 7]);
+    const used = placements(['paella', 'lunch', 1], ['paella', 'dinner', 7]);
 
     expect(used).toHaveLength(VARIETY_RULES.maxOccurrencesPerPlan);
-    expect(canPlace('paella', 'lunch', 10, used)).toBe(false);
+    // Far enough away that only the cap can be what refuses it.
+    expect(canPlace('paella', 'lunch', 14, used)).toBe(false);
+  });
+
+  /**
+   * The numbers themselves, pinned.
+   *
+   * Everything else here derives from `VARIETY_RULES`, which is right for the
+   * *rule* and useless for the *policy*: a test that derives everything passes
+   * whatever the policy becomes. This one fails if someone loosens it, which is
+   * the change worth noticing — "certain meals are repeated each week" was this
+   * pair of numbers, not a scheduling bug.
+   */
+  it('is at most twice a fortnight, never within four days', () => {
+    expect(VARIETY_RULES).toEqual({ maxOccurrencesPerPlan: 2, minDaysBetweenSameSlot: 4 });
   });
 
   it('does not let one dish be blocked by another dish history', () => {
@@ -66,10 +83,18 @@ describe('varietyViolations', () => {
     expect(found[0]?.kind).toBe('repeated_in_slot_too_soon');
   });
 
-  it('flags a fourth appearance across the plan', () => {
-    const found = varietyViolations([day(1, ['a']), day(3, ['a']), day(5, ['a']), day(7, ['a'])]);
+  it('flags the appearance that exceeds the per-plan cap', () => {
+    // Spaced well clear of the gap rule, so the only thing left to trip is the cap.
+    const found = varietyViolations([day(1, ['a']), day(6, ['a']), day(11, ['a'])]);
 
     expect(found).toHaveLength(1);
-    expect(found[0]).toMatchObject({ dayIndex: 7, kind: 'too_many_occurrences' });
+    expect(found[0]).toMatchObject({ dayIndex: 11, kind: 'too_many_occurrences' });
+  });
+
+  it('flags a repeat inside the gap even when the cap is not reached', () => {
+    const found = varietyViolations([day(1, ['a']), day(3, ['a'])]);
+
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ dayIndex: 3, kind: 'repeated_in_slot_too_soon' });
   });
 });

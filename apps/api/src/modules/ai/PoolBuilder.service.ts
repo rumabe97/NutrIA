@@ -15,16 +15,21 @@ import type { PromptContext } from './PoolPrompt.js';
 /**
  * Distinct dishes to ask for per slot.
  *
- * The bare minimum for fourteen days is `ceil(14 / maxOccurrencesPerPlan)` — five.
- * Asking for that leaves the scheduler no freedom at all: it must use nearly every
- * dish nearly the maximum number of times, so a single protein-dense outlier lands
- * on several days and takes them out of band, and there is no alternative to swap
- * in. Slack is what lets it choose a combination that meets the targets.
+ * The bare minimum for fourteen days is `ceil(14 / maxOccurrencesPerPlan)` — seven
+ * under the current variety rules. Asking for exactly that leaves the scheduler no
+ * freedom at all: it must use every dish the maximum number of times, so a single
+ * protein-dense outlier lands on several days and takes them out of band, and
+ * there is no alternative to swap in. Slack is what lets it choose a combination
+ * that meets the targets.
+ *
+ * Five rather than four, because the floor rose with the variety rules and slack
+ * that does not rise with it is slack that shrinks in proportion — the thing it
+ * protects against is a *fraction* of the pool being rejected, not a fixed count.
  *
  * The cost of the extra dishes is one larger response, against a failed generation
  * that costs the whole call.
  */
-export const DISHES_NEEDED_PER_SLOT = Math.ceil(14 / VARIETY_RULES.maxOccurrencesPerPlan) + 4;
+export const DISHES_NEEDED_PER_SLOT = Math.ceil(14 / VARIETY_RULES.maxOccurrencesPerPlan) + 5;
 
 const MAX_ATTEMPTS = 3;
 

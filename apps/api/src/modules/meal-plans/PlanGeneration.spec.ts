@@ -7,6 +7,7 @@ import { RecipeController } from 'core/controllers/Recipe';
 
 import { ageInYears, resolveTargets } from 'core/domain/Nutrition';
 import { toCatalogue } from 'core/entities/Plan';
+import { VARIETY_RULES } from 'core/domain/Variety';
 
 import { PlanGenerationService, STEPS } from './PlanGeneration.service.js';
 
@@ -64,16 +65,35 @@ function ingredient(slug: string, allergens: CatalogueIngredient['allergens'] = 
 
 const CATALOGUE = toCatalogue([ingredient('arroz'), ingredient('pan', [{ allergenId: GLUTEN, presence: 'contains' }])]);
 
-/** A pool wide enough for the variety rules, sized near each slot's share of 2000 kcal. */
+/**
+ * A pool wide enough for the variety rules, sized near each slot's share of 2000 kcal.
+ *
+ * The count is derived, not a literal: `maxOccurrencesPerPlan` decides how many
+ * distinct dishes a fortnight needs, and a fixture that hardcodes yesterday's
+ * answer turns a deliberate tightening of the variety rules into a wall of red
+ * that says nothing about the change. Two over the floor, so the scheduler has
+ * something to choose between.
+ */
+const POOL_PER_SLOT = Math.ceil(14 / VARIETY_RULES.maxOccurrencesPerPlan) + 2;
+
 function pool(slug = 'arroz'): CandidateDish[] {
   const SHARE: Record<string, number> = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 };
 
   return SLOTS.flatMap(slot =>
-    Array.from({ length: 6 }, (_unused, index) => ({
+    Array.from({ length: POOL_PER_SLOT }, (_unused, index) => ({
       cookMinutes: 10,
       cuisine: null,
       difficulty: 'easy' as const,
-      ingredients: [{ grams: Math.round(((TARGETS.kcal * (SHARE[slot] ?? 0.3)) / (KCAL_PER_100G / 100)) * (0.8 + index * 0.08)), slug }],
+      // Spread across a fixed 0.8–1.2 band whatever the pool size, so a bigger
+      // pool is denser rather than more extreme at its edges.
+      ingredients: [
+        {
+          grams: Math.round(
+            ((TARGETS.kcal * (SHARE[slot] ?? 0.3)) / (KCAL_PER_100G / 100)) * (0.8 + (index / Math.max(POOL_PER_SLOT - 1, 1)) * 0.4)
+          ),
+          slug
+        }
+      ],
       name: `${slot} ${index}`,
       prepMinutes: 5,
       servings: 1,
@@ -221,7 +241,7 @@ describe('PlanGenerationService', () => {
 
     const draft = persist.mock.calls[0]?.[1] as { generationMetadata: Record<string, unknown> };
 
-    expect(draft.generationMetadata).toMatchObject({ calls: 0, jobId: 'job-1', reused: 18 });
+    expect(draft.generationMetadata).toMatchObject({ calls: 0, jobId: 'job-1', reused: SLOTS.length * POOL_PER_SLOT });
   });
 
   it('persists no new recipes when the plan was built entirely from reuse', async () => {

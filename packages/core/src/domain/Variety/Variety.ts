@@ -3,12 +3,22 @@ import type { MealSlot, PlanDayAssignment } from 'core/entities/Plan';
 /**
  * What "varied" means, as numbers rather than as a hope expressed to a model.
  *
- * Three appearances across a fortnight is roughly once every five days — often
- * enough to reuse something the user liked, rare enough that the plan does not
- * read as a loop. The consecutive-day rule matters more than the cap: the same
- * lunch two days running is the thing people actually notice.
+ * **At most twice in a fortnight, and never within four days.** That is: no dish
+ * comes round more than once a week, and never in the same part of the week.
+ *
+ * These were three and two, and the arithmetic of that is worse than it sounds:
+ * three appearances with a two-day floor puts the same lunch on Monday,
+ * Wednesday and Friday and calls it varied. The owner's report — "certain meals
+ * are repeated each week" — was not a scheduling accident, it was this rule
+ * working as written.
+ *
+ * The cost is real and worth naming: the minimum distinct dishes per slot goes
+ * from `ceil(14/3)` = 5 to `ceil(14/2)` = 7, so every generation asks the model
+ * for more, and a thin reuse library makes `GENERATION_POOL_TOO_SMALL` likelier.
+ * Variety is the thing the user notices; pool size is the thing the operator
+ * notices, and `PoolBuilder` carries slack over the floor for exactly this.
  */
-export const VARIETY_RULES = { maxOccurrencesPerPlan: 3, minDaysBetweenSameSlot: 2 } as const;
+export const VARIETY_RULES = { maxOccurrencesPerPlan: 2, minDaysBetweenSameSlot: 4 } as const;
 
 export type VarietyViolation = {
   readonly dayIndex: number;

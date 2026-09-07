@@ -95,13 +95,17 @@ describe('schedulePlan', () => {
 
   it('reports a shortfall when the pool is too small for the variety rules', () => {
     // With one dish per slot the spacing rule bites before the occurrence cap
-    // does: the same dish cannot fill the same slot on consecutive days, so the
-    // plan fails on day 2 rather than after `maxOccurrencesPerPlan` uses.
+    // does: the same dish cannot fill the same slot again until the gap has
+    // passed, so the plan fails on day 2 whatever that gap is.
     const result = schedule({ pool: makePool(slotsFor(3, false), 1) });
 
     expect(result.ok).toBe(false);
 
-    if (!result.ok) {expect(result.shortfall.dayIndex).toBe(VARIETY_RULES.minDaysBetweenSameSlot);}
+    if (!result.ok) {
+      expect(result.shortfall.dayIndex).toBe(2);
+      // Sanity on the premise: one dish cannot cover a gap of any size.
+      expect(VARIETY_RULES.minDaysBetweenSameSlot).toBeGreaterThan(1);
+    }
   });
 
   it('names the day and slot it could not fill, so a retry can ask for exactly that', () => {
@@ -208,27 +212,66 @@ describe('schedulePlan — protein, not just calories', () => {
 
   const slots = slotsFor(3, false);
 
-  /** Every slot gets both a carb-led and a protein-led option. */
+  /** The share of the day each slot carries, mirroring the scheduler's own weights. */
+  const SHARE: Record<string, number> = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 };
+
+  /**
+   * Both carb-led and protein-led options in every slot, sized for that slot.
+   *
+   * Two things this fixture has to get right, and an earlier version got the
+   * second one wrong:
+   *
+   *  1. **Enough of them.** Under `maxOccurrencesPerPlan: 2` a dish covers two
+   *     days, so seven protein-led options are what covers a fortnight. Three
+   *     left eight days to be filled with rice — the plan validation exists to
+   *     reject.
+   *  2. **Plausible composition.** Sizing a chicken dish by calories alone puts
+   *     300 g of chicken in one meal: 90 g of protein against a 120 g daily
+   *     target. The scheduler then cannot add a portion anywhere without sending
+   *     protein through the roof, so it leaves the day short on energy instead —
+   *     correctly, and the test reads like a scheduler bug. Chicken varies
+   *     modestly and **rice fills the calories**, which is what real food does.
+   */
   function mixedPool() {
-    return slots.flatMap(slot => [
-      ...[300, 400, 500].map((grams, index) =>
-        makeDish({ ingredients: [{ grams, slug: 'arroz' }], name: `${slot} arroz ${index}`, slots: [slot], slug: `${slot}-arroz-${index}` })
-      ),
-      ...[150, 200, 250].map((grams, index) =>
-        makeDish({
-          ingredients: [
-            { grams, slug: 'pollo' },
-            { grams: 150, slug: 'arroz' }
-          ],
-          name: `${slot} pollo ${index}`,
-          slots: [slot],
-          slug: `${slot}-pollo-${index}`
-        })
-      ),
-      ...[200, 300].map((grams, index) =>
-        makeDish({ ingredients: [{ grams, slug: 'yogur' }], name: `${slot} yogur ${index}`, slots: [slot], slug: `${slot}-yogur-${index}` })
-      )
-    ]);
+    const KCAL = { arroz: 130, pollo: 165, yogur: 97 };
+
+    return slots.flatMap(slot => {
+      const centre = TARGETS.kcal * (SHARE[slot] ?? 0.33);
+      const spread = (index: number, count: number) => 0.85 + (index / Math.max(count - 1, 1)) * 0.3;
+
+      return [
+        ...[0, 1, 2].map(index =>
+          makeDish({
+            ingredients: [{ grams: Math.round(((centre * spread(index, 3)) / KCAL.arroz) * 100), slug: 'arroz' }],
+            name: `${slot} arroz ${index}`,
+            slots: [slot],
+            slug: `${slot}-arroz-${index}`
+          })
+        ),
+        ...[0, 1, 2, 3, 4, 5, 6].map(index => {
+          const pollo = 100 + index * 15;
+          const rice = Math.max(Math.round(((centre - (pollo / 100) * KCAL.pollo) / KCAL.arroz) * 100), 40);
+
+          return makeDish({
+            ingredients: [
+              { grams: pollo, slug: 'pollo' },
+              { grams: rice, slug: 'arroz' }
+            ],
+            name: `${slot} pollo ${index}`,
+            slots: [slot],
+            slug: `${slot}-pollo-${index}`
+          });
+        }),
+        ...[0, 1].map(index =>
+          makeDish({
+            ingredients: [{ grams: Math.round(((centre * spread(index, 2)) / KCAL.yogur) * 100), slug: 'yogur' }],
+            name: `${slot} yogur ${index}`,
+            slots: [slot],
+            slug: `${slot}-yogur-${index}`
+          })
+        )
+      ];
+    });
   }
 
   it('lands within the protein tolerance, not only the calorie one', () => {
@@ -261,7 +304,12 @@ describe('schedulePlan — protein, not just calories', () => {
     // The scheduler's job is the best assignment available; refusing the plan on
     // nutritional grounds belongs to validatePlan, which reports every violation.
     const carbsOnly = slots.flatMap(slot =>
-      [300, 400, 500, 600, 700, 800].map((grams, index) =>
+      // Nine, comfortably over the `ceil(14 / maxOccurrencesPerPlan)` floor of
+      // seven. At exactly the floor the four-day gap rule leaves the scheduler no
+      // legal dish for the tail of the fortnight, and the test would fail for
+      // running out of dishes rather than for the nutritional shortfall it is
+      // about.
+      [300, 350, 400, 450, 500, 550, 600, 650, 700].map((grams, index) =>
         makeDish({ ingredients: [{ grams, slug: 'arroz' }], name: `${slot} ${index}`, slots: [slot], slug: `${slot}-${index}` })
       )
     );
