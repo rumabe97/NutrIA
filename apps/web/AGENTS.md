@@ -4,7 +4,10 @@ Main web application. Rules here are more specific than root `AGENTS.md` — bot
 
 ---
 
-> **Status: starter shell.** Today this app only contains `src/app/layout.tsx`, `src/app/page.tsx`, and the auth proxy (`src/proxy.ts`) — no server actions, no forms, no `core` integrations yet. The sections below describe **the patterns to follow when you add those features**, not what's already there. Don't expect to find example code matching every section; the conventions are forward-looking and meant to be applied as you build.
+> **Status.** Built: the landing page, the five auth screens, the ten-step onboarding, the
+> profile, and the dashboard's empty state. Not built: the 14-day plan, meal detail and
+> replacement, the shopping list, progress, check-ins and the assistant — see
+> [`docs/ROADMAP.md`](../../docs/ROADMAP.md).
 
 ## Stack
 
@@ -18,191 +21,130 @@ Main web application. Rules here are more specific than root `AGENTS.md` — bot
 
 ## Proxy (replaces Middleware in Next.js v16)
 
-Next.js v16 renamed `middleware.ts` → `proxy.ts`. The exported function is `proxy`, not `middleware`. **With a `src/` layout the file MUST live at `src/proxy.ts`** — at the app root Next silently never loads it (verified via the build manifest: no error, no session refresh, auth gating just doesn't run).
+Next.js v16 renamed `middleware.ts` → `proxy.ts`, and the exported function is `proxy`, not
+`middleware`. **With a `src/` layout the file MUST live at `src/proxy.ts`** — at the app
+root Next silently never loads it: no error, no redirect, the gating just does not run.
 
-```ts
-// apps/web/src/proxy.ts
-import { updateSession } from 'auth/middleware';
-import type { NextRequest } from 'next/server';
-
-export async function proxy(request: NextRequest) {
-  return updateSession(request);
-}
-
-export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)']
-};
-```
+**`src/proxy.ts` is a redirect for signed-out visitors, not an authorisation check.** It
+only tests whether a session cookie is *present*, and a client can set a cookie to anything.
+The real check is `SessionGuard` in `apps/api`, which validates the session on every
+request. Keep that distinction explicit in comments and in review: a cookie-presence test
+that reads like a security control is how an app ends up with none.
 
 ## Directory layout
 
 ```
 src/
-  app/          — Next.js App Router pages, layouts, and server actions
+  app/          — App Router. Route groups: (auth) for signed-out screens, (app) for signed-in
   components/   — app-specific components (not shared with other apps)
   hooks/        — app-specific hooks
-  lib/          — app-specific utilities
+  lib/          — api.ts (the typed API client), auth-client.ts, server-api.ts, env.ts
   styles/       — globals.css, variables.css
 ```
 
 Before building a component here, check `packages/ui` first. If a component is reused in 2+ apps, it belongs in `packages/ui`, not here.
 
-## Using core
-
-Business logic lives in `packages/core`. Import controllers directly — never import repositories or entities from an app except for type-only imports.
-
-```ts
-// Server Component — fetch data directly
-import { UserController } from 'core/controllers/User';
-
-export default async function ProfilePage({ params }: { params: { id: string } }) {
-  const user = await UserController.getUser({ id: params.id });
-  return <Profile user={user} />;
-}
-
-// Server action — handle mutations
-import { UserController } from 'core/controllers/User';
-import { ConflictError, NotFoundError } from 'core/entities/Error';
-
-export async function createUserAction(input: CreateUser) {
-  try {
-    return await UserController.createUser(input);
-  } catch (error) {
-    if (error instanceof ConflictError) return { error: 'Email already in use' };
-    if (error instanceof NotFoundError) return { error: 'Not found' };
-    throw error; // unexpected — let Next.js handle it
-  }
-}
-```
-
-**App boundaries (server actions and route handlers) are the only place that should `try/catch` domain errors.** Server Components can let errors propagate to the nearest `error.tsx`.
-
 ## Adding pages
 
-Pages live in `src/app/`. Each route segment is a folder with a `page.tsx`:
+Route groups carry the layout, so put a page in the right one and it inherits the correct
+chrome for free:
 
-```
-src/app/
-  page.tsx              — /
-  about/
-    page.tsx            — /about
-  dashboard/
-    layout.tsx          — shared layout for dashboard routes
-    page.tsx            — /dashboard
-    [id]/
-      page.tsx          — /dashboard/:id
-```
+- `src/app/(auth)/…` — signed-out screens. Centred card, brand mark, no nav.
+- `src/app/(app)/…` — signed-in screens. `AppNav` (desktop header + mobile bottom bar) and
+  the content shell.
+- `src/app/page.tsx` — the marketing landing page, its own header and footer.
 
-- Layouts (`layout.tsx`) handle shared UI — nav, sidebars, auth wrappers.
-- Pages (`page.tsx`) are async Server Components by default — fetch data directly using core controllers.
-- Add `'use client'` only when you need browser APIs, event handlers, or React state.
+Routes are **Spanish**: `/acceder`, `/registro`, `/recuperar`, `/restablecer`, `/inicio`,
+`/perfil`, `/onboarding/[paso]`. Add any new signed-in route to `PROTECTED` in
+`src/proxy.ts` so signed-out visitors are redirected instead of seeing a flash of empty
+page.
 
-## Server vs. Client Components
+Pages are Server Components by default and fetch through `serverApi`. A page that needs a
+session-scoped fetch must set `export const dynamic = 'force-dynamic'` — otherwise Next
+prerenders it at build time, where there is no cookie, and every visitor gets the
+signed-out render.
 
-See the canonical rule in [root AGENTS.md](../../AGENTS.md#server-vs-client-components--the-most-important-nextjs-app-router-rule). All of it applies here verbatim — not duplicated to avoid drift.
+`useSearchParams` opts a route out of static rendering, so put the component that uses it
+behind its own `<Suspense>` boundary rather than making the whole page dynamic — see
+`components/SignInForm`.
 
-App-specific notes:
+One component per file (`react/no-multi-comp` is enforced), and `<Fragment>` rather than
+`<>` (`react/jsx-fragments: element`). Before building a component here, check
+`packages/ui` first: anything reused across two apps belongs there.
 
-- `src/app/**/page.tsx` and `layout.tsx` are Server Components by default. Don't put `'use client'` on them; extract the interactive leaf into a sibling file.
-- Forms in this app combine a Server Component page + a `'use client'` form component that calls `useActionState` — see the Forms section below for the canonical pattern.
+## Talking to the API
 
-## Server actions
+**This app has no database access and no business logic.** Data comes from `apps/api` over
+HTTPS. It imports from `packages/core` for **types and Zod schemas only** — the same schema
+validates the form here and the request body there, so a rule like "height is 100–250 cm"
+is written once.
 
-Place actions in `src/app/actions/` or co-locate them in the relevant route folder as `actions.ts`.
+Two clients, picked by where the code runs:
 
 ```ts
-'use server';
+// Server Component — forwards the browser's session cookie, returns null on failure.
+import { serverApi } from 'lib/server-api';
 
-import { UserController } from 'core/controllers/User';
-
-export async function createUser(input: CreateUser) {
-  return UserController.createUser(input);
-}
+const profile = await serverApi<FullProfileView>('/profile');
 ```
+
+```ts
+// Client Component — credentials included, throws a typed ApiError.
+import { api, messageFor } from 'lib/api';
+
+await api('/onboarding', { body: { data, step: 'about-you' }, method: 'PATCH' });
+```
+
+`serverApi` returns `null` rather than throwing, deliberately: a server component that
+throws replaces the whole page with an error boundary, and one section failing to load
+should degrade to an empty state, not take the page down.
+
+`ApiError` carries a **stable `code`** (`NOT_FOUND`, `INVALID_INPUT`, `UNSAFE_CONTENT`, …)
+and per-field `fieldErrors`. Switch on the code and use `messageFor(error)` for copy — the
+API is free to reword its `message`, so never render it directly or match on its text.
+
+**Never send a user id.** Every endpoint takes the caller's identity from the session.
+
+## Auth
+
+`lib/auth-client.ts` wraps Better Auth's React client. The session lives in an httpOnly
+cookie, so no token is ever readable from JavaScript, and nothing auth-related goes in
+`localStorage`.
+
+After `signIn` / `signOut`, call `router.refresh()` as well as `router.push()` — server
+components cache per-request, and without the refresh the next page renders with the
+previous session's data.
 
 ## Forms
 
-This app uses **native `<form>` + React 19 `useActionState` + server actions**. There is no `Form` wrapper component in the DS, and we do not use a client-side form library (no react-hook-form, no Radix Form). The whole pattern is server-action-first: validation happens on the server, errors come back as state, and per-field errors are threaded into each `Input`'s `error` prop.
+Uncontrolled by default: `<form onSubmit>` + `new FormData(event.currentTarget)`, with
+`defaultValue` seeded from server-fetched data. Reach for controlled state only when a
+field's value drives something else on screen.
 
-### The canonical pattern
+Validation happens twice, on purpose. The client copy is a courtesy that avoids a round
+trip; **the API's copy is the boundary**. Both use the same schema from
+`packages/core/entities`, so they cannot disagree.
 
-**Action** — returns `{ values?, errors? }` for the form to re-render with:
+Error display rules:
 
-```ts
-// src/app/(public)/register/_actions/register.ts
-'use server';
+- One `role="alert"` region per form for the failure summary, so a screen reader hears it
+  without focus moving and losing the user's place.
+- Field-level errors go on the `Input`'s `error` prop, keyed off `ApiError.fieldErrors`.
+- **Never distinguish "wrong password" from "no such account"** on sign-in, or confirm
+  whether an address exists on password reset. Both turn the form into an
+  account-enumeration oracle. Sign-*up* is the exception: an existing address is
+  information the visitor already has, and hiding it produces a dead end.
 
-import { UserController } from 'core/controllers/User';
+## Copy
 
-interface RegisterState {
-  errors?: { email?: string; password?: string; _form?: string };
-  values?: { email?: string };
-}
+UI copy is **Spanish (`es-ES`)**. Code identifiers, comments and docs stay English. Copy is
+inline for now; an i18n layer arrives with the English milestone, so keep strings in the
+component that renders them rather than scattering ad-hoc constant files.
 
-export async function registerAction(_prev: RegisterState, formData: FormData): Promise<RegisterState> {
-  const email = String(formData.get('email') ?? '');
-  const password = String(formData.get('password') ?? '');
-
-  const errors: NonNullable<RegisterState['errors']> = {};
-  if (!email.includes('@')) errors.email = 'Enter a valid email address.';
-  if (password.length < 8) errors.password = 'Password must be at least 8 characters.';
-  if (Object.keys(errors).length) return { errors, values: { email } };
-
-  try {
-    await UserController.createUser({ email, password });
-    // …redirect on success
-  } catch (error) {
-    return { errors: { _form: 'Something went wrong. Try again.' }, values: { email } };
-  }
-  return {};
-}
-```
-
-**Form component** — client component that wires `useActionState` into the DS Inputs:
-
-```tsx
-// src/app/(public)/register/RegisterForm.tsx
-'use client';
-
-import { useActionState } from 'react';
-import { Input } from 'ui/components/Input';
-import { Button } from 'ui/components/Button';
-import { VStack } from 'ui/components/VStack';
-import { registerAction } from './_actions/register';
-
-export function RegisterForm() {
-  const [state, action, isPending] = useActionState(registerAction, {});
-
-  return (
-    <form>
-      <VStack gap="04">
-        <Input defaultValue={state.values?.email} error={state.errors?.email} label="Email" name="email" required type="email" />
-        <Input error={state.errors?.password} label="Password" name="password" required type="password" />
-        {state.errors?._form && <p role="alert">{state.errors._form}</p>}
-        <Button formAction={action} type="submit" disabled={isPending}>
-          {isPending ? 'Submitting…' : 'Register'}
-        </Button>
-      </VStack>
-    </form>
-  );
-}
-```
-
-### Rules
-
-1. **Action returns `{ values?, errors? }`** — `values` lets the form re-render with the user's input preserved; `errors` is keyed by field name so each Input picks its own error from `state.errors?.<name>`.
-2. **`<form>` is the native element.** No DS Form wrapper. The form's layout (gap between fields, button placement) is the consuming component's responsibility — use VStack or a CSS module for it.
-3. **Use `<Button formAction={action}>`** to bind the action to a specific submit button. This also works for multi-action forms (Save vs. Save & Continue).
-4. **Disable the submit while pending.** `isPending` from `useActionState`. Don't disable Inputs — users may want to fix something while the submit is in flight.
-5. **Form-level errors** (e.g. "server error") go in a `role="alert"` paragraph, separate from per-field errors.
-6. **Validation on the server is the source of truth.** Native `required` / `type="email"` / `pattern` are progressive enhancement — they catch trivial mistakes before the round-trip, but the server still validates.
-7. **Don't reach for `react-hook-form`, `zod-form-data`, or Radix Form** unless you have a real need the canonical pattern can't meet. The canonical pattern handles 90% of forms with zero extra dependencies.
-
-### Where validation logic lives
-
-- **Server actions** validate input and shape the error response (above).
-- **Heavy validation rules** (regex, business rules) live in `packages/core/controllers/*` so they're reusable. The action calls the controller, the controller throws a domain error, the action catches and maps to `errors`.
-- **Native HTML attributes** (`required`, `type`, `pattern`, `minLength`) are a free first line of defense — use them.
+Tone follows [`docs/PRODUCT.md`](../../docs/PRODUCT.md) § Experience principles: concise,
+concrete, no AI marketing. And never claim something works that does not — the dashboard's
+empty state says plan generation is not built yet rather than showing a button that calls
+nothing.
 
 ## Styles
 
@@ -221,16 +163,23 @@ This app imports tokens in this order (defined in `src/app/layout.tsx`):
 
 ## Environment variables
 
-- Server-only vars: no `NEXT_PUBLIC_` prefix.
-- Client-exposed vars: `NEXT_PUBLIC_` prefix — treat as public, never put secrets here.
-- Declare expected env vars in `turbo.json` under `globalEnv` or task `env` so Turborepo can cache correctly.
+**This app has exactly one: `NEXT_PUBLIC_API_URL`.** That is the design, not an accident —
+no database URL, no auth secret, no AI key exists in this app, because `apps/api` holds all
+of them.
+
+If you find yourself adding a server-only variable here, the feature that needs it belongs
+in `apps/api`. Declare anything new in `turbo.json` `globalEnv` so Turborepo caches
+correctly.
 
 ## Testing
 
-This app currently has no tests because there's no real app code to test yet (the starter is intentionally bare-bones). When you add features, follow these patterns:
+This app has no test suite yet. The logic worth testing lives elsewhere: domain rules in
+`packages/core` (vitest), HTTP behaviour and user isolation in `apps/api` (jest +
+supertest), components in `packages/ui`.
 
-- **Server actions** — test like controllers in `packages/core`: mock the controller dependency, assert on the input → output / error contract. Vitest with `vi.mock()`.
-- **Client Components with state or effects** — test like UI components in `packages/ui`: vitest + `@testing-library/react`, query by role, no snapshots.
-- **Static Server Components** (pure markup with no logic) — don't test. Visual regression belongs in Playwright / Storybook if you add them later, not in unit tests.
+When something here earns a test — a client component with real state, a non-trivial
+transform in `lib/` — add a `vitest` config mirroring `packages/ui`'s, and:
 
-When you add the first server action or interactive component, also add the matching `vitest` config + scripts to `apps/web/package.json` (mirror `packages/core/package.json` for server-side, `packages/ui/package.json` for component tests).
+- Query by role, never by class name. No snapshots.
+- Mock `lib/api`, not `fetch`. The client's error mapping is part of the contract.
+- Don't test static server components. Visual regression belongs in Playwright, not here.

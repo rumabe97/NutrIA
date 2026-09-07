@@ -2,10 +2,10 @@ Strictly follow the rules in [`./AGENTS.md`](./AGENTS.md).
 
 The closest `AGENTS.md` to the file being edited always wins. Sub-docs:
 
-- [`packages/core/AGENTS.md`](./packages/core/AGENTS.md) — business logic (entities, repositories, controllers)
+- [`packages/core/AGENTS.md`](./packages/core/AGENTS.md) — domain layer (entities, domain, repositories, controllers)
 - [`packages/database/AGENTS.md`](./packages/database/AGENTS.md) — Drizzle client, schemas, migrations
-- [`packages/auth/AGENTS.md`](./packages/auth/AGENTS.md) — Supabase auth helpers
 - [`packages/ui/AGENTS.md`](./packages/ui/AGENTS.md) — component library
+- [`apps/api/AGENTS.md`](./apps/api/AGENTS.md) — NestJS backend
 - [`apps/web/AGENTS.md`](./apps/web/AGENTS.md) — web app
 - [`apps/docs/AGENTS.md`](./apps/docs/AGENTS.md) — docs app
 - [`apps/cli/AGENTS.md`](./apps/cli/AGENTS.md) — developer CLI

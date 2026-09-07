@@ -1,38 +1,55 @@
 {
   "name": "database",
   "version": "0.0.0",
-  "type": "module",
   "private": true,
   "exports": {
-    ".": "./src/client.ts",
-    "./schema/*": "./src/schemas/*.schema.ts"
+    ".": {
+      "types": "./src/client.ts",
+      "default": "./dist/client.js"
+    },
+    "./schema": {
+      "types": "./src/schemas/index.ts",
+      "default": "./dist/schemas/index.js"
+    },
+    "./schema/*": {
+      "types": "./src/schemas/*.schema.ts",
+      "default": "./dist/schemas/*.schema.js"
+    }
   },
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
     "generate": "drizzle-kit generate",
     "lint": "eslint 'src/**/*.ts' --max-warnings 0",
     "lint:fix": "eslint 'src/**/*.ts' --fix",
     "migrate": "drizzle-kit migrate",
     "pull": "drizzle-kit pull",
     "push": "drizzle-kit push",
-    "seed": "tsx ./src/seed.ts",
+    "seed": "tsx ./src/seed/index.ts",
     "ts:check": "tsc --noEmit",
     "format": "prettier --check 'src/**/*.ts'",
-    "format:fix": "prettier --write 'src/**/*.ts'"
+    "format:fix": "prettier --write 'src/**/*.ts'",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "auth": "workspace:*",
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.45.2",
-    "jwt-decode": "^4.0.0",
     "postgres": "^3.4.9"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
+    "@vitest/coverage-istanbul": "^4.1.7",
     "drizzle-kit": "^0.31.10",
+    "eslint": "^9.39.2",
     "eslint-configuration": "workspace:*",
+    "prettier": "^3.8.3",
     "tsx": "^4.22.3",
-    "typescript-configuration": "workspace:*"
-  }
+    "typescript-configuration": "workspace:*",
+    "vitest": "^4.1.7"
+  },
+  "files": [
+    "dist"
+  ]
 }

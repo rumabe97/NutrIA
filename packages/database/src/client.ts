@@ -1,41 +1,59 @@
 import postgres from 'postgres';
 
-import { createClient } from 'auth/server';
+import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
 
-import { createDrizzle } from './drizzle';
 import { required } from './env';
-import { decode } from './jwt';
 
-import { profiles } from './schemas/profiles.schema';
-import { users } from './schemas/users.schema';
+import * as schema from './schemas';
 
-import type { DrizzleConfig } from 'drizzle-orm';
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
 
-const schema = { profiles, users };
-const config = { casing: 'snake_case', schema } satisfies DrizzleConfig<typeof schema>;
+export type Database = PostgresJsDatabase<typeof schema>;
 
-// adminDb — bypasses Supabase RLS. Safe for trusted server-side operations
-// (migrations, seed scripts, admin actions). Use database() for user-scoped requests.
-export const adminDb = drizzle({ client: postgres(required('ADMIN_DATABASE_URL'), { prepare: false }), ...config });
+let instance: Database | undefined;
+let pool: postgres.Sql | undefined;
 
-export type AdminDb = typeof adminDb;
+/**
+ * The single Drizzle instance for the whole process.
+ *
+ * Only `apps/api` reaches this — the browser never holds a database connection
+ * (see `docs/ARCHITECTURE.md` § Data access). Authorisation is NOT delegated to
+ * the database: every user-scoped read and write filters on `userId` in
+ * `packages/core/repositories`, and the API layer verifies session ownership
+ * before it gets here.
+ *
+ * Lazily constructed so importing this module never requires env — tests that
+ * only touch entities or pure logic stay connection-free.
+ *
+ * `prepare: false` is required: Neon's pooled endpoint is PgBouncer in
+ * transaction mode, which cannot carry named prepared statements across
+ * checkouts. Point `DATABASE_URL` at the pooled host; `DIRECT_DATABASE_URL`
+ * (session mode) is for migrations only and is read by `drizzle.config.ts`.
+ */
+export function database(): Database {
+  if (!instance) {
+    pool = postgres(required('DATABASE_URL'), { prepare: false });
+    instance = drizzle({ casing: 'snake_case', client: pool, schema });
+  }
 
-// rlsDb — module-level singleton like adminDb. Safe to share across requests because
-// the JWT context is set inside each rls() transaction (set_config with TRUE = transaction-local),
-// so different users never bleed into each other's queries.
-const rlsDb = drizzle({ client: postgres(required('RLS_DATABASE_URL'), { prepare: false }), ...config });
+  return instance;
+}
 
-// database() — returns an auth-aware Drizzle instance for Next.js server contexts.
-//   db.admin — same as adminDb, bypasses RLS
-//   db.rls   — respects row-level security; use for user-scoped reads and writes
-//
-// Usage in a server action:
-//   const db = await database();
-//   const rows = await db.rls(tx => tx.select().from(users));
-export async function database() {
-  const { auth } = await createClient();
-  const { data } = await auth.getSession();
+/** Closes the pool. Call from the API's shutdown hook and at the end of scripts. */
+export async function closeDatabase(): Promise<void> {
+  await pool?.end();
+  instance = undefined;
+  pool = undefined;
+}
 
-  return createDrizzle(decode(data.session?.access_token ?? ''), { admin: adminDb, client: rlsDb });
+/**
+ * Cheapest statement that proves a connection can be checked out of the pool.
+ *
+ * Lives here rather than in the API's health indicator so that no app has to
+ * import `drizzle-orm` to build SQL — and so the API's ESM type resolution of
+ * drizzle never has to line up with this package's CommonJS one.
+ */
+export async function ping(): Promise<void> {
+  await database().execute(sql`select 1`);
 }

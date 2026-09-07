@@ -1,4 +1,4 @@
-# Mini Template AGENTS.md
+# NutrIA AGENTS.md
 
 Agent-focused guidance for this monorepo. The closest `AGENTS.md` to the file you edit wins.
 
@@ -13,7 +13,7 @@ Agent-focused guidance for this monorepo. The closest `AGENTS.md` to the file yo
 
 | Command                | What it does                                                                                                  |
 | ---------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `pnpm dev`             | Start all apps in dev mode                                                                                    |
+| `pnpm dev`             | Start all apps in dev mode (web :3000, api :3001, docs :3002) **and** the package watchers |
 | `pnpm build`           | Build all apps                                                                                                |
 | `pnpm ts:check`        | Type-check all packages                                                                                       |
 | `pnpm lint`            | Lint all packages                                                                                             |
@@ -25,6 +25,15 @@ Agent-focused guidance for this monorepo. The closest `AGENTS.md` to the file yo
 | `pnpm format`          | Format-check with Prettier (via Turbo)                                                                        |
 | `pnpm format:fix`      | Format with Prettier (`--write`, via Turbo)                                                                   |
 | `pnpm up:latest`       | Update all deps to latest stable                                                                              |
+| `pnpm check:leaks`     | Grep tracked files for absolute paths and the patterns in `docs/local/leak-patterns.txt`                       |
+| `pnpm --filter database generate` | Generate a migration from the schemas (needs `DIRECT_DATABASE_URL`)                                 |
+| `pnpm --filter database migrate`  | Apply pending migrations                                                                            |
+| `pnpm --filter database seed`     | Seed the allergen catalogue and ingredients — **reference data, not sample data**                   |
+| `pnpm --filter api test:e2e`      | End-to-end suite, incl. user isolation. **Needs a real database** — see `apps/api/test/README.md`    |
+
+> **After editing `packages/core` or `packages/database`, run `pnpm --filter core build`**
+> (or leave `pnpm dev` running, which watches). They compile to CommonJS `dist/` for
+> `apps/api`; without a rebuild the API keeps running the previous build.
 
 ## Dependencies
 
@@ -37,13 +46,14 @@ Agent-focused guidance for this monorepo. The closest `AGENTS.md` to the file yo
 
 ```
 apps/
-  web/    — main web app (Next.js, port 3000)
-  docs/   — design system docs / custom Storybook (Next.js, port 3001)
+  web/    — web client (Next.js, port 3000) — UI only, no database, no secrets
+  api/    — the backend (NestJS, port 3001) — the ONLY process with a DB
+            connection, an auth secret, or an AI key
+  docs/   — design system docs + the docs/ viewer at /workspace (Next.js, port 3002)
   cli/    — developer CLI (Commander.js + tsx)
 packages/
-  core/     — business logic: entities, repositories, controllers
-  database/ — Drizzle ORM client, schemas, migrations
-  auth/     — Supabase auth helpers (client, server, middleware)
+  core/     — domain layer: entities, repositories, controllers, domain (pure logic)
+  database/ — Drizzle client, schemas, migrations, reference-data seed
   ui/       — shared React component library
 configurations/
   eslint/       — shared ESLint configs
@@ -54,12 +64,22 @@ configurations/
 ## Dependency chain
 
 ```
-apps/*  →  core  →  database  →  [drizzle-orm, postgres, auth]
-apps/*  →  ui
-apps/*  →  auth
+apps/api  →  core  →  database  →  [drizzle-orm, postgres]
+apps/web  →  core   (TYPES AND ZOD SCHEMAS ONLY — never at runtime for data)
+apps/*    →  ui
 ```
 
-Apps never import from `database` directly — all data access goes through `packages/core`.
+`apps/api` is the only app that reaches the database, and it does so through
+`packages/core`. `apps/web` borrows core's Zod schemas so a validation rule is written once
+and enforced on both sides; it gets its **data** over HTTPS from the API and never imports
+`database`.
+
+**Module systems differ, deliberately.** `apps/api` is ESM (NestJS 12 ships ESM only) and
+needs `.js` extensions on every relative import. `packages/core` and `packages/database`
+compile to CommonJS `dist/`; their `exports` resolve `types` to source and `default` to
+`dist`. So: **run `pnpm --filter core build` (or `pnpm dev`, which watches) after editing
+those packages**, or `apps/api` keeps running the last build. See
+[`docs/decisions/0002`](./docs/decisions/0002-drizzle-on-neon.md).
 
 ## Absolute imports
 
@@ -72,6 +92,7 @@ Apps define their own internal aliases via `tsconfig.json` `paths`. There is no 
 - `apps/web`: `components/*`, `hooks/*`, `lib/*`, `styles/*`
 - `apps/docs`: `components/*`, `lib/*`, `styles/*`
 - `apps/cli`: `commands/*`
+- `apps/api`: none — it uses relative paths with `.js` extensions (see [`apps/api/AGENTS.md`](./apps/api/AGENTS.md))
 
 Each app's `tsconfig.json` `paths` block is the source of truth — these examples may lag behind reality. When in doubt, read the app's tsconfig.
 
@@ -100,9 +121,14 @@ One consistent rule for all consumers — including the package itself. See [`pa
 See [`packages/core/AGENTS.md`](./packages/core/AGENTS.md) for the full rules. Short version:
 
 - **entities/** — Zod schemas + derived types. Data shapes only, no logic.
+- **domain/** — pure functions, no I/O, no framework. The deterministic safety code lives
+  here: allergy validation and nutrition maths. Highest coverage floor in the workspace.
 - **repositories/** — static objects. Call `database()` per method. Wrap I/O in try/catch.
+  **Every user-scoped method takes `userId` first and every query filters on it** — there is
+  no row-level security behind this package.
 - **controllers/** — static objects. Business rules + presenters. No try/catch, no DB access.
-- Apps import only from `core/controllers/*`. Never from `core/repositories/*` except for types.
+- `apps/api` imports only from `core/controllers/*` and `core/domain/*`. Never from
+  `core/repositories/*` except for types.
 
 ---
 
@@ -209,6 +235,26 @@ import styles from './MyPage.module.css';
 ```
 
 For a component that needs a fundamentally different look, create a new component in the app — don't fight specificity.
+
+---
+
+## Security invariants
+
+Not style preferences. Changing one is a security or privacy regression. The full set,
+with reasoning, is in [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) § Invariants; the
+API-specific ones are in [`apps/api/AGENTS.md`](./apps/api/AGENTS.md). The short version:
+
+- **Only `apps/api` touches the database.** No RLS sits behind it, so a repository query
+  missing its `userId` filter is a data leak, not a slow query.
+- **`userId` comes from the verified session, never from the request.**
+- **Denials are 404**, never 401 or 403 — a distinct status confirms the resource exists to
+  exactly the person who was blocked.
+- **Authentication is deny-by-default**; a route is public only with an explicit `@Public()`.
+- **Allergies and calorie floors are enforced in code**, never by prompting a model.
+- **Nothing internal reaches a response** — no stack traces, no driver messages, no Zod
+  issues describing the schema.
+- **Never log** a request body, a cookie, an `Authorization` header, an email address, or
+  any secret. Bodies here carry health data.
 
 ---
 
@@ -334,17 +380,42 @@ export function OpenButton() {
 | Schema declaration       | https://orm.drizzle.team/docs/sql-schema-declaration |
 | Queries                  | https://orm.drizzle.team/docs/select                 |
 | Insert / Update / Delete | https://orm.drizzle.team/docs/insert                 |
-| Row-Level Security       | https://orm.drizzle.team/docs/rls                    |
 | Migrations               | https://orm.drizzle.team/docs/migrations             |
+| Transactions             | https://orm.drizzle.team/docs/transactions           |
 
-### Supabase
+### NestJS (currently v12 — ESM only)
 
-| What                       | URL                                                                   |
-| -------------------------- | --------------------------------------------------------------------- |
-| Auth overview              | https://supabase.com/docs/guides/auth                                 |
-| SSR auth (`@supabase/ssr`) | https://supabase.com/docs/guides/auth/server-side-rendering           |
-| Row Level Security         | https://supabase.com/docs/guides/database/postgres/row-level-security |
-| Next.js quickstart         | https://supabase.com/docs/guides/getting-started/quickstarts/nextjs   |
+| What                  | URL                                            |
+| --------------------- | ---------------------------------------------- |
+| Modules & providers   | https://docs.nestjs.com/modules                |
+| Controllers           | https://docs.nestjs.com/controllers            |
+| Guards                | https://docs.nestjs.com/guards                 |
+| Exception filters     | https://docs.nestjs.com/exception-filters      |
+| Interceptors          | https://docs.nestjs.com/interceptors           |
+| Custom pipes          | https://docs.nestjs.com/pipes                  |
+| Configuration         | https://docs.nestjs.com/techniques/configuration |
+| Health checks         | https://docs.nestjs.com/recipes/terminus       |
+| OpenAPI               | https://docs.nestjs.com/openapi/introduction   |
+| Testing               | https://docs.nestjs.com/fundamentals/testing   |
+
+### Better Auth
+
+| What                | URL                                                     |
+| ------------------- | ------------------------------------------------------- |
+| Installation        | https://www.better-auth.com/docs/installation           |
+| Email & password    | https://www.better-auth.com/docs/authentication/email-password |
+| Drizzle adapter     | https://www.better-auth.com/docs/adapters/drizzle       |
+| Session management  | https://www.better-auth.com/docs/concepts/session-management |
+| Node/Express handler| https://www.better-auth.com/docs/integrations/node      |
+| React client        | https://www.better-auth.com/docs/integrations/react     |
+
+### Neon
+
+| What                    | URL                                                    |
+| ----------------------- | ------------------------------------------------------ |
+| Connection pooling      | https://neon.com/docs/connect/connection-pooling       |
+| Connect from Node.js    | https://neon.com/docs/guides/node                      |
+| Drizzle with Neon       | https://neon.com/docs/guides/drizzle                   |
 
 ### TypeScript
 
@@ -372,14 +443,21 @@ Fixed terms — use them consistently in docs, prompts, and conversation:
 
 - **workspace** — this whole repo, created from the template. Matches pnpm's own usage (the monorepo *is* the workspace; `pnpm-workspace.yaml` defines it) and Linear's hierarchy (Workspace → Projects). Disambiguation: npm/yarn/knip config keys named `workspaces` refer to member packages — in prose, "workspace" always means the repo; members are always "apps/packages".
 - **product** — the ongoing thing the workspace exists to build (vision, users, roadmap; no end date). Defined in `docs/PRODUCT.md`; the word appears only in that context.
-- **project** — one bounded unit of work with its own PRD/PLAN/LOG (`docs/projects/NNN-slug/`). Temporary by definition: born from a roadmap item, done when delivered. Same meaning as a Linear Project. Disambiguation: Supabase/Vercel "projects" are infrastructure, not `docs/projects/`.
+- **project** — one bounded unit of work with its own PRD/PLAN/LOG (`docs/projects/NNN-slug/`). Temporary by definition: born from a roadmap item, done when delivered. Same meaning as a Linear Project. Disambiguation: Neon/Vercel "projects" are infrastructure, not `docs/projects/`.
 - **milestone** — one roadmap item (`docs/ROADMAP.md`). Roadmap eras are milestones, **never "phases"** — phase is reserved for the plan unit.
 - **phase** — the review/commit unit within a project's plan. One phase = one owner commit.
 - **plan** — a project's phased technical execution plan (`PLAN.md`). Deliberately called "plan", not TEP/spec/RFC.
 - **task** — work too small for a project (a fix batch, a config sync, a polish round). No folder, no PRD, no plan — but its record still lands somewhere committed: a `LOG.md` entry in the project it serves, or `docs/projects/000-workspace/LOG.md`, the standing log for project-less work.
 - **app / package** — members of `apps/` and `packages/` within the workspace (turborepo standard).
 
-Product-domain homonyms: if the product itself defines a first-class entity named `project`, `task`, `workspace`, or `phase` (common in SaaS/data apps), the doc-model term still wins in docs and prompts — and the kickoff/adoption MUST record the collision plus the disambiguating convention here (e.g. write "doc-project" or `docs/projects/NNN` when the product's `project` could be meant).
+Product-domain homonyms recorded for this workspace:
+
+- **plan** — the product's central entity is a 14-day *meal plan*. The doc-model term wins
+  in docs and prompts: bare "plan" always means a project's `PLAN.md`. Write **"meal plan"**
+  (or `mealPlan` / `meal_plans` in code) whenever the product entity is meant.
+- **controller** — `packages/core/controllers/*` are *application services*;
+  `apps/api/src/modules/**/*.controller.ts` are *HTTP endpoints*. Say "core controller" or
+  "Nest controller" whenever which one matters.
 
 ### Map — where to read, where to write
 
@@ -437,9 +515,12 @@ Below projects sit **tasks** (see Vocabulary): committed record, zero ceremony. 
 
 ### Model routing
 
-**Routing profile: TBD — set at workspace kickoff.** <!-- kickoff agent: replace this line with the chosen profile and delete this comment -->
+**Routing profile: `tiered`.**
 
-Every workspace's kickoff MUST pick a routing profile and record it here before the first project is planned. `/plan-project` assigns each plan phase a model within the active profile; deviations need a one-line justification in the plan.
+Chosen because this workspace is large and much of what remains is well-specified
+mechanical work. The exception: phases touching **allergy validation, authentication, or AI
+output validation** run at `quality-max` — a subtle mistake there is a safety or privacy
+failure, not a bug. Record that deviation in the plan phase as usual. `/plan-project` assigns each plan phase a model within the active profile; deviations need a one-line justification in the plan.
 
 | Profile | Planning / design / review | Implementation | Mechanical phases | Tooling & formatting |
 | --- | --- | --- | --- | --- |
@@ -447,28 +528,3 @@ Every workspace's kickoff MUST pick a routing profile and record it here before 
 | `tiered` | fable | opus | sonnet | haiku |
 
 Guidance: small or high-stakes workspaces tend toward `quality-max`; larger ones with many well-specified mechanical phases tend toward `tiered`. The built-in rows are conventions, not laws — some workspaces invert them (plan on opus, implement on fable); custom profiles are fine, define them as rows in this table. Tasks and exploratory rounds get a single routing decision (one model for the session), not per-phase routing.
-
-### Kickoff checklist (new workspace)
-
-The agent bootstrapping a new workspace from this template must, in order:
-
-1. Draft `docs/PRODUCT.md` with the owner (definition only — strategy goes to `docs/local/STRATEGY.md`).
-2. Draft `docs/ARCHITECTURE.md` for what this workspace adds on top of the template.
-3. Seed `docs/ROADMAP.md`.
-4. **Set the model routing profile above** — an explicit, recorded decision.
-5. Seed `docs/local/leak-patterns.txt` with the owner (see the seeding guidance in § Rules) and run `pnpm check:leaks` once.
-6. Record two conventions with the owner: env-var documentation mode (committed `.env.example` files — the template default — or var lists in the owning `AGENTS.md` with no example files; prefer the latter for workspaces handling employer/third-party-sensitive config), and any product-domain homonyms (see Vocabulary).
-7. Create project `001` via `/plan-project`.
-8. **Delete this checklist and the adoption checklist below from this file** — they are template machinery; once executed, a workspace stands alone (see the independence rule) and carries no kickoff scaffolding.
-
-### Adoption checklist (existing workspace)
-
-Retrofitting this model into a workspace that predates it — **order matters; the leak guard comes before any doc content moves**:
-
-1. Scan pre-existing docs for the reserved terms (`phase`, `milestone`, `workspace`, `project`, `plan`, `task`) and rename conflicts first — roadmap-era "Phases" become **milestones**; a former "Phase" typically becomes a whole *project* whose build sessions become its phases. Record product-domain homonyms in Vocabulary.
-2. Create `docs/local/`, sweep stray uncommitted `.md` files into it (or into projects), and seed `leak-patterns.txt` with the owner.
-3. Install `scripts/check-leaks.sh` + the `check:leaks` script and **run it against the existing tree** — triage and scrub violations before anything else is committed (adopting repos usually have pre-existing leaks).
-4. Map every existing doc onto the tiers (evergreen / reference / upstream / projects / decisions / local) and retrofit the closest proto-project as `001` — hybrid docs split (roadmap direction → ROADMAP, execution narrative → LOG, decisions → decisions/, kickoff prompts → local).
-5. Add purpose headers to every doc that survives.
-6. Port the `/workspace` viewer if `apps/docs` exists (optional — the tree is fully usable without it).
-7. **Delete both checklists from this file when done** — same independence rule as kickoff: executed scaffolding doesn't ride along in the workspace.

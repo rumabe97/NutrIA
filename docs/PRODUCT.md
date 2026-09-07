@@ -12,16 +12,69 @@
 
 ## Problem
 
-<!-- What hurts today, for whom. One or two paragraphs. -->
+Eating well is not a knowledge problem for most people; it is a **decision-fatigue**
+problem. They know roughly what they should eat and still stand in front of the fridge at
+nine at night with nothing planned, nothing bought and no energy left to decide. The tools
+that exist make this worse: calorie trackers hand the planning back to the user, and
+one-shot "AI diet generators" produce a beautiful fourteen-day PDF built around a person
+who has no allergies, unlimited time and no Tuesday.
+
+The gap is not generating a plan. It is generating a plan someone can actually follow, and
+then **changing it when it turns out they didn't**.
 
 ## Users
 
-<!-- Who uses this, in priority order. What each user type needs. -->
+**The primary user** is an adult who wants to eat better toward a concrete goal — lose
+weight, gain muscle, or simply stop improvising — and who cooks for themselves most days.
+They are not a nutrition hobbyist. They will not log macros. They want to be told what to
+eat and what to buy, and they want the answer to fit a real week.
+
+What they need, in order:
+
+1. To be told what to eat today, without thinking about it.
+2. To be told what to buy, once, for the whole cycle.
+3. To be able to say "not this" and get something else that still fits.
+4. To see whether it is working, without it becoming a second job.
+5. To never be served something that could hurt them.
+
+**A secondary user** is the same person two months in, whose circumstances have changed —
+new job hours, an injury, a holiday — and who needs the plan to move with them rather than
+be abandoned.
+
+**Not a user (v1):** anyone requiring clinical nutrition — diagnosed metabolic disease,
+pregnancy, eating-disorder recovery, paediatric feeding. The product must recognise these
+and point to a professional rather than serve them badly.
 
 ## Scope
 
-<!-- What v1 includes. And, just as important, what it deliberately excludes. -->
+**v1 includes** the full loop, and nothing outside it:
+
+- Account, onboarding, an editable profile.
+- A personalised **14-day plan**: every day, every meal, with recipes and quantities.
+- Completing, skipping, favouriting, disliking and **replacing** meals.
+- A **shopping list** generated from the active plan, consolidated and grouped.
+- Progress tracking: weight, adherence, and how the fortnight actually felt.
+- A **biweekly check-in** that feeds the next plan.
+- Plan history, kept forever and never overwritten.
+- A nutrition-only AI assistant with access to the user's own plan.
+- Spanish first, architected so English can follow.
+
+**Deliberately excluded from v1:** barcode scanning, photo food logging, restaurant
+databases, macro-by-macro manual logging, social features, coach marketplaces, wearable
+integrations, payments.
 
 ## Experience principles
 
-<!-- The 3-5 rules that shape every UX decision in this product. -->
+1. **Answer one question: "what do I eat, and what do I buy?"** Every screen either
+   answers it or gets out of the way. If a screen exists to display data rather than to
+   settle a decision, it should not exist.
+2. **The safe thing is not negotiable.** Allergies and calorie floors are enforced by code
+   before anything reaches the user, and the product says so plainly rather than promising
+   it in marketing copy.
+3. **Never fake it.** No button that pretends to work, no progress bar that is a timer, no
+   plan that is a placeholder. Absent and honest beats present and hollow.
+4. **Adaptation is the product, not a feature.** The check-in is the hinge the whole thing
+   turns on; everything else exists to make that fortnight's data worth having.
+5. **Calm over clever.** The user is tired and hungry. Large type, few choices, one obvious
+   next action.
+6. **Mobile is where this is used.** Standing in a kitchen, or in a supermarket aisle.

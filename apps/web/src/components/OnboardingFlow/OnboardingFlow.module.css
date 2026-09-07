@@ -1,0 +1,115 @@
+.shell {
+  margin-inline: auto;
+  max-width: 38rem;
+}
+
+.progress {
+  margin-bottom: var(--space-08);
+}
+
+.progressMeta {
+  align-items: baseline;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--space-03);
+}
+
+.track {
+  background-color: var(--color-gray-04);
+  border-radius: var(--radius-full);
+  height: 4px;
+  overflow: hidden;
+}
+
+.bar {
+  background-color: var(--color-brand-09);
+  block-size: 100%;
+  border-radius: inherit;
+  transition: inline-size var(--duration-slow) var(--ease-spring);
+}
+
+.title {
+  font-size: var(--font-size-08);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0 0 var(--space-02);
+}
+
+.subtitle {
+  margin-bottom: var(--space-07);
+}
+
+.fields {
+  display: grid;
+  gap: var(--space-05);
+}
+
+.row {
+  display: grid;
+  gap: var(--space-05);
+}
+
+.fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+}
+
+.legend {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--space-03);
+  padding: 0;
+}
+
+.hint {
+  margin-top: var(--space-02);
+}
+
+.allergen {
+  align-items: center;
+  border-bottom: 1px solid var(--border-01);
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+  padding-block: var(--space-03);
+}
+
+.allergenTrace {
+  font-size: var(--font-size-02);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-03);
+  justify-content: space-between;
+  margin-top: var(--space-08);
+}
+
+.error {
+  background-color: var(--color-red-03);
+  border-radius: var(--radius-02);
+  color: var(--color-error-text);
+  font-size: var(--font-size-03);
+  padding: var(--space-03) var(--space-04);
+}
+
+.summary {
+  display: grid;
+  gap: var(--space-04);
+}
+
+.targetsBox {
+  background-color: var(--color-brand-02);
+  border: 1px solid var(--color-brand-06);
+  border-radius: var(--radius-04);
+  margin-top: var(--space-06);
+  padding: var(--space-05);
+}
+
+@media (width >= 34rem) {
+  .row {
+    grid-template-columns: 1fr 1fr;
+  }
+}

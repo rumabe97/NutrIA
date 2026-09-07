@@ -13,11 +13,14 @@
     "start": "next start",
     "ts:check": "tsc --noEmit",
     "format": "prettier --check 'src/**/*.{ts,tsx,css}'",
-    "format:fix": "prettier --write 'src/**/*.{ts,tsx,css}'"
+    "format:fix": "prettier --write 'src/**/*.{ts,tsx,css}'",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "auth": "workspace:*",
-    "core": "workspace:^",
+    "better-auth": "^1.7.3",
+    "core": "workspace:*",
     "next": "^16.2.6",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
@@ -27,7 +30,11 @@
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
+    "@vitest/coverage-istanbul": "^4.1.7",
+    "eslint": "^9.39.2",
     "eslint-configuration": "workspace:*",
-    "typescript-configuration": "workspace:*"
+    "prettier": "^3.8.3",
+    "typescript-configuration": "workspace:*",
+    "vitest": "^4.1.7"
   }
 }

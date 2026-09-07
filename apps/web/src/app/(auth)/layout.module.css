@@ -1,0 +1,38 @@
+.shell {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: var(--space-06) var(--space-05) var(--space-10);
+}
+
+.card {
+  width: 100%;
+  max-width: 25rem;
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-02);
+  color: var(--foreground-01);
+  font-size: var(--font-size-05);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-08);
+  text-decoration: none;
+}
+
+.mark {
+  width: 18px;
+  height: 18px;
+  background-color: var(--color-brand-09);
+  border-radius: var(--radius-01) var(--radius-full) var(--radius-full) var(--radius-full);
+}
+
+.title {
+  font-size: var(--font-size-08);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0 0 var(--space-02);
+}

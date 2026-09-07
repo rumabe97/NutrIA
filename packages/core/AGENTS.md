@@ -10,6 +10,7 @@ Three layers:
 
 ```
 entities/       — Zod schemas + derived types + domain errors
+domain/         — pure functions: nutrition maths, allergy validation. No I/O, no framework.
 repositories/   — static objects; call database() directly for every query
 controllers/    — static objects; orchestrate repositories, apply business rules, present results
 ```
@@ -18,8 +19,16 @@ Dependency direction — **never break this**:
 
 ```
 controllers  →  repositories  →  entities
-repositories  →  [entities, database, drizzle-orm]
+controllers  →  domain        →  entities
+repositories →  [entities, database, drizzle-orm]
+domain       →  [entities]          ← nothing else, ever
 ```
+
+`domain/` is where the deterministic safety code lives — the allergy validator and the
+nutrition maths. It has no I/O and no framework dependency, which is what makes it fast to
+test exhaustively and impossible to bypass by rewiring. It carries the highest coverage
+floor in the workspace (see `vitest.config.ts`). See
+[`docs/decisions/0004`](../../docs/decisions/0004-deterministic-safety-layer.md).
 
 Inner layers know nothing about outer layers. A repository never imports from a controller. A controller never imports `database` or `drizzle-orm` directly.
 
@@ -33,7 +42,8 @@ The package exposes granular export paths. Use the most specific one for what yo
 
 | What you need                         | Import from               |
 | ------------------------------------- | ------------------------- |
-| Controllers (what apps import)        | `'core/controllers/User'` |
+| Controllers (what `apps/api` imports) | `'core/controllers/User'` |
+| Pure domain logic                     | `'core/domain/Nutrition'`, `'core/domain/Safety'` |
 | View types (`UserView`)               | `'core/controllers/User'` |
 | Entity types (`User`, `CreateUser`)   | `'core/entities/User'`    |
 | Domain errors (`NotFoundError`, etc.) | `'core/entities/Error'`   |
@@ -147,8 +157,7 @@ import type { CreateUser, User } from '../../entities/User';
 export const UserRepository = {
   async findById(id: string): Promise<User | undefined> {
     try {
-      const { admin } = await database();
-      const [row] = await admin.select().from(users).where(eq(users.id, id)).limit(1);
+      const [row] = await database().select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
       if (!row) return undefined;
       return userSchema.parse(row);
     } catch (error) {
@@ -161,17 +170,23 @@ export const UserRepository = {
 
 Method names follow a consistent verb convention: `findById`, `findByEmail`, `findByUserId`, `create`, `update`, `delete`.
 
-Each method picks between `admin` and `rls` by intent. `admin` bypasses every row-level security policy on the table; `rls()` runs the query inside a transaction with the caller's JWT set as Postgres session context, so the policies fire and enforce ownership at the database layer.
+**Every user-scoped method takes `userId` as its first argument, and every query filters on
+it.** There is one database client and no row-level security behind this package — the API
+is the only process that connects, so there is no untrusted caller for a policy to
+constrain. That makes the `WHERE` clause the ownership boundary, not a performance detail:
+a query missing it returns another user's rows.
 
-Pick by what the query is actually doing:
+`userId` always originates from the verified session (`@CurrentUser()` in `apps/api`).
+A repository must never receive an id that came from a path parameter, a query string or a
+request body.
 
-- **Use `rls()`** for owner-scoped reads (a user fetching their own profile) and for any write that targets a row the user is supposed to own (creating/updating/deleting their own profile). If the controller has a bug and lets a caller act on someone else's row, RLS rejects the query at the database — it is the second line of defence, not a duplicate of controller-layer checks.
-- **Use `admin`** for genuinely cross-user operations — the sign-up flow (no JWT yet), cross-user uniqueness checks (`findByUsername` before a create), admin moderation, seeding. The current owner-scoped RLS read policies would block these and the query would silently return zero rows.
+Two related rules:
 
-Picking the wrong one is a real bug in opposite directions:
-
-- `admin` where `rls()` should fire silently grants cross-user access to anyone calling the repo.
-- `rls()` where a cross-user read is needed silently returns "no rows" and the business rule (e.g. uniqueness check) appears to pass for every input.
+- **Wrap delete-then-insert in a transaction.** `SafetyRepository.replaceAll` does, because
+  the intermediate state — allergies deleted, not yet re-inserted — is a profile with *no*
+  restrictions. Nothing may observe that gap.
+- **Drizzle returns `numeric` columns as strings** to avoid float loss. Convert at the
+  repository boundary so entities and controllers only ever see numbers.
 
 Every repository method should carry a one-line comment on which mode it chose and why — see `ProfileRepository.ts` for the canonical example.
 
@@ -265,7 +280,7 @@ Vitest with `vi.mock()` for dependencies. Reference tests live next to the code 
 
 - Entities (Zod schemas) — testing them would just restate the schema
 - Presenters — pure functions, exercised implicitly by controller tests that go through them
-- `database()` itself — thin orchestrator of Supabase + Drizzle, lives in `packages/database` and is mostly delegation
+- `database()` itself — a thin lazily-created Drizzle client, lives in `packages/database` and is mostly delegation
 
 When you add a new controller or repository, copy the pattern from the reference test in the same domain folder.
 
@@ -331,7 +346,7 @@ import { database } from 'database';
 
 export const UserController = {
   async getUser(id: string) {
-    const { admin } = await database(); // DB logic belongs in the repository
+    const db = database(); // DB logic belongs in the repository, not here
   }
 };
 

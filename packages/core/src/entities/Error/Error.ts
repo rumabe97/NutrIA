@@ -59,3 +59,20 @@ export class DatabaseOperationError extends Error {
     this.name = 'DatabaseOperationError';
   }
 }
+
+/**
+ * Thrown when content would reach a user whose allergy or intolerance profile
+ * forbids it. Distinct from `InputParseError` on purpose: this is never the
+ * user's mistake to correct, it is the system refusing to serve something
+ * unsafe, and it must be logged and alerted on rather than shown as a form
+ * error. Carries the violations so the caller can say what was wrong.
+ */
+export class SafetyViolationError extends Error {
+  constructor(
+    message = 'Unsafe content blocked',
+    public readonly violations: readonly { ingredientName: string; kind: string }[] = []
+  ) {
+    super(message);
+    this.name = 'SafetyViolationError';
+  }
+}

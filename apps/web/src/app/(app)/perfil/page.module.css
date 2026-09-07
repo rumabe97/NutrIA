@@ -1,0 +1,67 @@
+.title {
+  font-size: var(--font-size-09);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0 0 var(--space-02);
+}
+
+.sections {
+  display: grid;
+  gap: var(--space-06);
+  margin-top: var(--space-08);
+}
+
+.card {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-04);
+  padding: var(--space-06);
+}
+
+.cardHead {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+  margin-bottom: var(--space-05);
+}
+
+.rows {
+  display: grid;
+  gap: var(--space-03);
+}
+
+.row {
+  border-bottom: 1px solid var(--border-01);
+  display: grid;
+  gap: var(--space-01) var(--space-05);
+  grid-template-columns: 12rem 1fr;
+  padding-bottom: var(--space-03);
+}
+
+.row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.editLink {
+  color: var(--color-brand-11);
+  font-size: var(--font-size-03);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.editLink:hover {
+  text-decoration: underline;
+}
+
+.danger {
+  border-color: var(--color-red-06);
+}
+
+@media (width < 34rem) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+}

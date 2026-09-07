@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Node.js library (emits CommonJS)",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
+    "lib": ["esnext"],
+    // CommonJS, deliberately. These packages are consumed by apps/api, which
+    // runs on NestJS — CJS is Nest's default and best-supported module system,
+    // and it lets the sources keep extensionless relative imports. Node ESM
+    // would require rewriting every `./env` to `./env.js`.
+    // `node16` (not `node10`) is what makes package `exports` maps resolve, so
+    // self-references like `core/entities/User` work at build and at runtime.
+    "module": "node16",
+    "moduleResolution": "node16",
+    "noEmit": false,
+    "sourceMap": true,
+    "types": ["node"],
+    // Incompatible with a CommonJS emit: it forbids the ESM syntax these
+    // sources are written in.
+    "verbatimModuleSyntax": false
+  }
+}

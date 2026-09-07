@@ -1,0 +1,297 @@
+import { and, desc, eq, inArray } from 'drizzle-orm';
+
+import { database } from 'database';
+import { mealPlans, meals, planDays } from 'database/schema/plan';
+import { ingredients } from 'database/schema/food';
+import { recipeIngredients, recipes } from 'database/schema/recipe';
+import { shoppingListItems, shoppingLists } from 'database/schema/shopping';
+
+import { ConflictError, DatabaseOperationError } from 'core/entities/Error';
+import type { PlanDraft } from 'core/entities/Plan';
+
+export const PlanRepository = {
+  /**
+   * Writes an entire plan, or nothing.
+   *
+   * Everything happens in one transaction: the AI-generated recipes, the plan, its
+   * fourteen days, every meal, the shopping list and its items, **and** completing
+   * the plan this one supersedes. A failure anywhere rolls all of it back, which is
+   * what stops a user ending up with six days of food and half a shopping list.
+   *
+   * Two database constraints do real work here rather than merely documenting
+   * intent: `meal_plans_one_active_per_user` (a partial unique index) and
+   * `meal_plans_user_version_key`. Under a double submit the second transaction
+   * violates one of them and is translated to a `ConflictError` — the request fails
+   * cleanly instead of racing to produce two active plans.
+   *
+   * Persisting `newRecipes` inside this transaction is not incidental: it is what
+   * grows the reusable library, and without it every user pays to generate dishes
+   * that already exist (`docs/decisions/0006-reuse-before-generating.md`).
+   */
+  async createPlanAtomically(userId: string, draft: PlanDraft): Promise<string> {
+    try {
+      return await database().transaction(async tx => {
+        const recipeIdBySlug = new Map<string, string>();
+
+        if (draft.newRecipes.length > 0) {
+          const inserted = await tx
+            .insert(recipes)
+            .values(
+              draft.newRecipes.map(recipe => ({
+                cookMinutes: recipe.cookMinutes,
+                createdBy: userId,
+                cuisine: recipe.cuisine,
+                difficulty: recipe.difficulty,
+                instructions: recipe.steps,
+                mealSlots: [...recipe.mealSlots],
+                name: recipe.name,
+                prepMinutes: recipe.prepMinutes,
+                servings: recipe.servings,
+                slug: recipe.slug,
+                source: 'ai' as const
+              }))
+            )
+            // Another user's generation may have produced the same dish first.
+            // That is a race to win harmlessly, not an error.
+            .onConflictDoNothing({ target: recipes.slug })
+            .returning({ id: recipes.id, slug: recipes.slug });
+
+          for (const row of inserted) {recipeIdBySlug.set(row.slug, row.id);}
+
+          const ingredientRows = draft.newRecipes
+            .filter(recipe => recipeIdBySlug.has(recipe.slug))
+            .flatMap(recipe =>
+              recipe.ingredients.map(item => ({
+                grams: String(item.grams),
+                ingredientId: item.ingredientId,
+                quantity: String(item.grams),
+                recipeId: recipeIdBySlug.get(recipe.slug) as string,
+                unit: item.unit
+              }))
+            );
+
+          if (ingredientRows.length > 0) {await tx.insert(recipeIngredients).values(ingredientRows);}
+        }
+
+        // Resolve every slug the plan references — reused recipes, plus any new one
+        // whose insert lost the race above.
+        const wanted = [...new Set(draft.days.flatMap(day => day.meals.map(meal => meal.recipeSlug)))];
+        const missing = wanted.filter(slug => !recipeIdBySlug.has(slug));
+
+        if (missing.length > 0) {
+          const found = await tx.select({ id: recipes.id, slug: recipes.slug }).from(recipes).where(inArray(recipes.slug, missing));
+
+          for (const row of found) {recipeIdBySlug.set(row.slug, row.id);}
+        }
+
+        const unresolved = wanted.filter(slug => !recipeIdBySlug.has(slug));
+
+        if (unresolved.length > 0) {throw new DatabaseOperationError(`Plan references recipes that do not exist: ${unresolved.join(', ')}`);}
+
+        const previous = await tx
+          .select({ id: mealPlans.id, version: mealPlans.version })
+          .from(mealPlans)
+          .where(eq(mealPlans.userId, userId))
+          .orderBy(desc(mealPlans.version))
+          .limit(1);
+
+        const nextVersion = (previous.at(0)?.version ?? 0) + 1;
+
+        // Complete the outgoing plan first: the partial unique index permits only
+        // one active row per user, so the new one cannot be inserted until this
+        // lands — in the same transaction, so no window exists where a user has none.
+        await tx
+          .update(mealPlans)
+          .set({ completedAt: draft.startDate, status: 'completed' })
+          .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active')));
+
+        const [plan] = await tx
+          .insert(mealPlans)
+          .values({
+            activatedAt: new Date(),
+            endDate: draft.endDate,
+            generationMetadata: draft.generationMetadata,
+            previousPlanId: previous.at(0)?.id ?? null,
+            startDate: draft.startDate,
+            status: 'active',
+            strategy: draft.strategy,
+            userId,
+            version: nextVersion
+          })
+          .returning({ id: mealPlans.id });
+
+        if (!plan) {throw new DatabaseOperationError('Plan insert returned no row');}
+
+        const insertedDays = await tx
+          .insert(planDays)
+          .values(draft.days.map(day => ({ date: day.date, dayIndex: day.dayIndex, planId: plan.id })))
+          .returning({ id: planDays.id, dayIndex: planDays.dayIndex });
+
+        const dayIdByIndex = new Map(insertedDays.map(day => [day.dayIndex, day.id]));
+
+        const mealRows = draft.days.flatMap(day =>
+          day.meals.map(meal => ({
+            carbsG: String(meal.carbsG),
+            fatG: String(meal.fatG),
+            fiberG: String(meal.fiberG),
+            kcal: String(meal.kcal),
+            planDayId: dayIdByIndex.get(day.dayIndex) as string,
+            proteinG: String(meal.proteinG),
+            recipeId: recipeIdBySlug.get(meal.recipeSlug) as string,
+            servings: String(meal.servings),
+            slot: meal.slot,
+            sortOrder: meal.sortOrder
+          }))
+        );
+
+        if (mealRows.length > 0) {await tx.insert(meals).values(mealRows);}
+
+        const [list] = await tx.insert(shoppingLists).values({ planId: plan.id, userId }).returning({ id: shoppingLists.id });
+
+        if (!list) {throw new DatabaseOperationError('Shopping list insert returned no row');}
+
+        if (draft.shoppingItems.length > 0) {
+          await tx.insert(shoppingListItems).values(
+            draft.shoppingItems.map(item => ({
+              category: item.category,
+              displayQuantity: String(item.displayQuantity),
+              displayUnit: item.displayUnit,
+              ingredientId: item.ingredientId,
+              listId: list.id,
+              name: item.name,
+              totalGrams: String(item.totalGrams)
+            }))
+          );
+        }
+
+        return plan.id;
+      });
+    } catch (error: unknown) {
+      if (isUniqueViolation(error)) {throw new ConflictError('A plan is already being created for this account');}
+
+      throw wrap(error);
+    }
+  },
+
+  async findActive(userId: string) {
+    try {
+      const [row] = await database()
+        .select()
+        .from(mealPlans)
+        .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active')))
+        .limit(1);
+
+      return row;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /** Owner-scoped by construction: a plan id from another account simply is not found. */
+  async findById(userId: string, planId: string) {
+    try {
+      const [row] = await database()
+        .select()
+        .from(mealPlans)
+        .where(and(eq(mealPlans.id, planId), eq(mealPlans.userId, userId)))
+        .limit(1);
+
+      return row;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /** Days and meals for a plan the caller has already been confirmed to own. */
+  async findDaysWithMeals(planId: string) {
+    try {
+      const db = database();
+      const days = await db.select().from(planDays).where(eq(planDays.planId, planId)).orderBy(planDays.dayIndex);
+
+      if (days.length === 0) {return [];}
+
+      const rows = await db
+        .select({ meal: meals, recipe: recipes })
+        .from(meals)
+        .innerJoin(recipes, eq(recipes.id, meals.recipeId))
+        .where(
+          inArray(
+            meals.planDayId,
+            days.map(day => day.id)
+          )
+        )
+        .orderBy(meals.sortOrder);
+
+      return days.map(day => ({ ...day, meals: rows.filter(row => row.meal.planDayId === day.id) }));
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  async findHistory(userId: string, limit: number, offset: number) {
+    try {
+      return await database().select().from(mealPlans).where(eq(mealPlans.userId, userId)).orderBy(desc(mealPlans.version)).limit(limit).offset(offset);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * One meal, with its recipe and ingredients — owner-scoped through the plan.
+   *
+   * The join to `meal_plans` on `userId` is what makes a meal id from another
+   * account simply not found, rather than a resource we then have to refuse.
+   */
+  async findMealDetail(userId: string, mealId: string) {
+    try {
+      const db = database();
+
+      const [row] = await db
+        .select({ day: planDays, meal: meals, recipe: recipes })
+        .from(meals)
+        .innerJoin(planDays, eq(planDays.id, meals.planDayId))
+        .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))
+        .innerJoin(recipes, eq(recipes.id, meals.recipeId))
+        .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId)))
+        .limit(1);
+
+      if (!row) {return undefined;}
+
+      const items = await db
+        .select({ grams: recipeIngredients.grams, name: ingredients.name, slug: ingredients.slug, unit: recipeIngredients.unit })
+        .from(recipeIngredients)
+        .innerJoin(ingredients, eq(ingredients.id, recipeIngredients.ingredientId))
+        .where(eq(recipeIngredients.recipeId, row.recipe.id));
+
+      return { ...row, items };
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  async findShoppingList(planId: string) {
+    try {
+      const db = database();
+      const [list] = await db.select().from(shoppingLists).where(eq(shoppingLists.planId, planId)).limit(1);
+
+      if (!list) {return undefined;}
+
+      const items = await db.select().from(shoppingListItems).where(eq(shoppingListItems.listId, list.id)).orderBy(shoppingListItems.category, shoppingListItems.name);
+
+      return { ...list, items };
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  }
+};
+
+/** Postgres 23505. Here it means the one-active-plan or version constraint fired. */
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === '23505';
+}
+
+function wrap(error: unknown): DatabaseOperationError {
+  if (error instanceof DatabaseOperationError) {return error;}
+
+  return new DatabaseOperationError();
+}

@@ -1,0 +1,20 @@
+{
+  "extends": "typescript-configuration/node-library.json",
+  "compilerOptions": {
+    // NestJS resolves constructor dependencies from the type metadata that
+    // `emitDecoratorMetadata` writes. Without these two, every injection needs an
+    // explicit @Inject token and DI silently breaks when one is forgotten.
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "noEmit": true,
+    "rootDir": ".",
+    // Decorator metadata is emitted from the *value* of an imported type, so
+    // type-only imports must stay elidable by tsc's own rules rather than being
+    // frozen by verbatimModuleSyntax — it is already off in the base preset.
+    "strictPropertyInitialization": false
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

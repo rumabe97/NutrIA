@@ -1,9 +1,23 @@
 import { z } from 'zod';
 
-export const userSchema = z.object({ id: z.string().uuid(), createdAt: z.date(), email: z.string().email(), name: z.string().min(1).max(100) });
+/**
+ * The authenticated account. Better Auth owns this row, so the shape mirrors
+ * its table (see `packages/database/src/schemas/auth.schema.ts`) plus the `role`
+ * column we add.
+ *
+ * `id` is a string, not a UUID: Better Auth generates its own ids and they are
+ * not UUID-shaped. Validating them as UUIDs would reject every real user.
+ */
+export const userSchema = z.object({
+  id: z.string().min(1),
+  createdAt: z.date(),
+  email: z.email(),
+  emailVerified: z.boolean(),
+  image: z.string().nullable(),
+  name: z.string().min(1).max(100),
+  role: z.enum(['user', 'admin']),
+  updatedAt: z.date()
+});
 
 export type User = z.infer<typeof userSchema>;
-
-// omit() removes server-generated fields from the creation input shape.
-export const createUserSchema = userSchema.omit({ id: true, createdAt: true });
-export type CreateUser = z.infer<typeof createUserSchema>;
+export type UserRole = User['role'];

@@ -8,9 +8,9 @@ interface BrandProps {
 
 export function Brand({ className }: BrandProps) {
   return (
-    <Link aria-label="Home — mini template" className={className ? `${styles.brand} ${className}` : styles.brand} href="/">
+    <Link aria-label="Inicio — NutrIA" className={className ? `${styles.brand} ${className}` : styles.brand} href="/">
       <span aria-hidden="true" className={styles.mark} />
-      <span className={styles.brandText}>mini</span>
+      <span className={styles.brandText}>NutrIA</span>
     </Link>
   );
 }

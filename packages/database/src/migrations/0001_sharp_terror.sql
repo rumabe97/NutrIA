@@ -1,0 +1,2 @@
+ALTER TABLE "plan_generation_jobs" ALTER COLUMN "finished_at" SET DATA TYPE timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "plan_generation_jobs" ALTER COLUMN "started_at" SET DATA TYPE timestamp with time zone;

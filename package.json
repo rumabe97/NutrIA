@@ -1,5 +1,5 @@
 {
-  "name": "trc-template",
+  "name": "nutria",
   "private": true,
   "scripts": {
     "build": "turbo run build",
@@ -25,8 +25,8 @@
     "typescript": "^6.0.3"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=24"
   },
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@11.24.0",
   "prettier": "prettier-configuration/base.json"
 }

@@ -1,0 +1,90 @@
+.shell {
+  margin-inline: auto;
+  max-width: 34rem;
+  padding-block: var(--space-09);
+  text-align: center;
+}
+
+.title {
+  font-size: var(--font-size-08);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0 0 var(--space-03);
+}
+
+.step {
+  min-height: 1.6em;
+  margin-top: var(--space-06);
+}
+
+.track {
+  background-color: var(--color-gray-04);
+  border-radius: var(--radius-full);
+  height: 4px;
+  margin-top: var(--space-05);
+  overflow: hidden;
+}
+
+/* Indeterminate on purpose: the pipeline reports which stage it reached, not a
+   percentage, and inventing one would be the fake progress bar this product
+   explicitly refuses. */
+.bar {
+  animation: slide 1.6s var(--ease-spring) infinite;
+  background-color: var(--color-brand-09);
+  block-size: 100%;
+  inline-size: 40%;
+}
+
+@keyframes slide {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar {
+    animation: none;
+    inline-size: 100%;
+    opacity: 0.4;
+  }
+}
+
+.note {
+  margin-top: var(--space-07);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  justify-content: center;
+  margin-top: var(--space-07);
+}
+
+.error {
+  background-color: var(--color-red-03);
+  border-radius: var(--radius-03);
+  color: var(--color-error-text);
+  padding: var(--space-04) var(--space-05);
+  text-align: start;
+}
+
+/* Deliberately quieter than the message above it: a diagnosis for whoever runs the
+   server, not copy for whoever is hungry. */
+.detail {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-02);
+  color: var(--foreground-02);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--font-size-01);
+  line-height: var(--line-height-04);
+  margin-top: var(--space-03);
+  overflow-wrap: anywhere;
+  padding: var(--space-03) var(--space-04);
+  text-align: start;
+}

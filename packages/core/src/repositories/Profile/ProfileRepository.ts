@@ -1,166 +1,215 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
-import { profiles } from 'database/schema/profiles';
+import { cuisinePreferences, goals, profiles, userDietaryPatterns, userPreferences } from 'database/schema/profile';
+import { foodPreferences } from 'database/schema/food';
 
 import { DatabaseOperationError } from 'core/entities/Error';
-import { profileSchema } from 'core/entities/Profile';
-import type { CreateProfile, Profile, UpdateProfile } from 'core/entities/Profile';
+import { goalSchema, preferencesSchema, profileSchema } from 'core/entities/Profile';
+import type { Goal, Preferences, Profile, UpdateGoal, UpdatePreferences, UpdateProfile } from 'core/entities/Profile';
 
-// ProfileRepository — picks between `rls` and `admin` per method based on intent:
-//
-//   rls()  — runs the query inside a transaction with the caller's JWT set as
-//            Postgres session context. The RLS policies on the `profiles` table
-//            (`Users can read/update/delete their own profile`) then fire and
-//            enforce ownership at the database level. Use for owner-scoped reads
-//            and for any write that touches a row the user is supposed to own —
-//            even if the controller thinks it's already verified ownership, RLS
-//            is the second line of defense.
-//
-//   admin  — bypasses RLS. Use only for genuinely cross-user operations that the
-//            current owner-scoped RLS policies would block (uniqueness checks,
-//            admin moderation, server-side seeding).
-//
-// Picking the wrong one is a real bug: using `admin` where RLS should fire silently
-// hands cross-user access to anyone calling the repo; using `rls` where a cross-user
-// read is needed (e.g. checking if a username is taken) silently returns "no rows"
-// and the business rule appears broken.
+/**
+ * Every method takes `userId` as its first argument and every query filters on
+ * it. That is the ownership boundary — there is no row-level security behind
+ * this package, so a query without the filter is a data leak, not a slow query.
+ * `userId` always comes from the verified session, never from a request body.
+ */
 export const ProfileRepository = {
-  async create(input: CreateProfile): Promise<Profile> {
-    // RLS: insert policy is "Users can create their own profile" where
-    // `userId = auth.uid()`. If a malicious caller passes a userId other than
-    // the authenticated user's, Postgres rejects the insert.
+  async findActiveGoal(userId: string): Promise<Goal | undefined> {
     try {
-      const { rls } = await database();
-      const row = await rls(async tx => {
-        const [inserted] = await tx.insert(profiles).values(input).returning();
+      const [row] = await database()
+        .select()
+        .from(goals)
+        .where(and(eq(goals.userId, userId), isNull(goals.archivedAt)))
+        .limit(1);
 
-        return inserted;
-      });
-
-      return profileSchema.parse(row);
+      return row ? goalSchema.parse(toNumbers(row, ['paceKgPerWeek', 'startingWeightKg', 'targetWeightKg'])) : undefined;
     } catch (error: unknown) {
-      if (error instanceof ZodError) {
-        throw new DatabaseOperationError(`Schema mismatch on profiles: ${error.message}`);
-      }
-
-      throw new DatabaseOperationError();
-    }
-  },
-
-  async delete(id: string): Promise<void> {
-    // RLS: delete policy is "Users can delete their own profile". Same enforcement.
-    try {
-      const { rls } = await database();
-      await rls(async tx => {
-        await tx.delete(profiles).where(eq(profiles.id, id));
-      });
-    } catch {
-      throw new DatabaseOperationError();
-    }
-  },
-
-  async findById(id: string): Promise<Profile | undefined> {
-    // RLS: select policy is "Users can read their own profile" — non-owners get
-    // back zero rows, which we surface as `undefined` exactly like a missing row.
-    try {
-      const { rls } = await database();
-      const row = await rls(async tx => {
-        const [first] = await tx.select().from(profiles).where(eq(profiles.id, id)).limit(1);
-
-        return first;
-      });
-
-      if (!row) {
-        return undefined;
-      }
-
-      return profileSchema.parse(row);
-    } catch (error: unknown) {
-      if (error instanceof ZodError) {
-        throw new DatabaseOperationError(`Schema mismatch on profiles: ${error.message}`);
-      }
-
-      throw new DatabaseOperationError();
+      throw wrap(error, 'goals');
     }
   },
 
   async findByUserId(userId: string): Promise<Profile | undefined> {
-    // RLS: same as above — owner-only read scoped to the caller.
     try {
-      const { rls } = await database();
-      const row = await rls(async tx => {
-        const [first] = await tx.select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
+      const [row] = await database().select().from(profiles).where(eq(profiles.userId, userId)).limit(1);
 
-        return first;
-      });
-
-      if (!row) {
-        return undefined;
-      }
-
-      return profileSchema.parse(row);
+      return row ? profileSchema.parse(row) : undefined;
     } catch (error: unknown) {
-      if (error instanceof ZodError) {
-        throw new DatabaseOperationError(`Schema mismatch on profiles: ${error.message}`);
-      }
-
-      throw new DatabaseOperationError();
+      throw wrap(error, 'profiles');
     }
   },
 
-  async findByUsername(username: string): Promise<Profile | undefined> {
-    // admin: cross-user uniqueness check (called by the controller before a
-    // create/update to detect name collisions). RLS would block reads of other
-    // users' rows and make every name appear available.
+  async findCuisines(userId: string): Promise<readonly string[]> {
     try {
-      const { admin } = await database();
-      const [row] = await admin.select().from(profiles).where(eq(profiles.username, username)).limit(1);
+      const rows = await database()
+        .select({ cuisine: cuisinePreferences.cuisine })
+        .from(cuisinePreferences)
+        .where(and(eq(cuisinePreferences.userId, userId), eq(cuisinePreferences.sentiment, 'liked')));
 
-      if (!row) {
-        return undefined;
-      }
-
-      return profileSchema.parse(row);
+      return rows.map(row => row.cuisine);
     } catch (error: unknown) {
-      if (error instanceof ZodError) {
-        throw new DatabaseOperationError(`Schema mismatch on profiles: ${error.message}`);
-      }
-
-      throw new DatabaseOperationError();
+      throw wrap(error, 'cuisine_preferences');
     }
   },
 
-  async update(id: string, input: UpdateProfile): Promise<Profile | undefined> {
-    // RLS: update policy is "Users can update their own profile". A caller updating
-    // a row they don't own gets back zero affected rows — same shape as "row missing".
-    // Return `undefined` for both and let the controller decide the business semantics
-    // (NotFoundError, etc.). Matches the findById pattern; keeps business errors out
-    // of the repository layer.
+  async findDietaryPatterns(userId: string): Promise<readonly string[]> {
     try {
-      const { rls } = await database();
-      const row = await rls(async tx => {
-        const [updated] = await tx
-          .update(profiles)
-          .set({ ...input, updatedAt: new Date() })
-          .where(eq(profiles.id, id))
-          .returning();
+      const rows = await database().select({ pattern: userDietaryPatterns.pattern }).from(userDietaryPatterns).where(eq(userDietaryPatterns.userId, userId));
 
-        return updated;
-      });
+      return rows.map(row => row.pattern);
+    } catch (error: unknown) {
+      throw wrap(error, 'user_dietary_patterns');
+    }
+  },
 
-      if (!row) {
-        return undefined;
+  async findFoodPreferences(userId: string): Promise<readonly { ingredientId: string | null; label: string; sentiment: 'disliked' | 'liked' }[]> {
+    try {
+      return await database()
+        .select({ ingredientId: foodPreferences.ingredientId, label: foodPreferences.label, sentiment: foodPreferences.sentiment })
+        .from(foodPreferences)
+        .where(eq(foodPreferences.userId, userId));
+    } catch (error: unknown) {
+      throw wrap(error, 'food_preferences');
+    }
+  },
+
+  async findPreferences(userId: string): Promise<Preferences | undefined> {
+    try {
+      const [row] = await database().select().from(userPreferences).where(eq(userPreferences.userId, userId)).limit(1);
+
+      return row ? preferencesSchema.parse(row) : undefined;
+    } catch (error: unknown) {
+      throw wrap(error, 'user_preferences');
+    }
+  },
+
+  async setCuisines(userId: string, cuisines: readonly string[]): Promise<void> {
+    try {
+      const db = database();
+
+      await db.delete(cuisinePreferences).where(eq(cuisinePreferences.userId, userId));
+
+      if (cuisines.length > 0) {
+        await db.insert(cuisinePreferences).values(cuisines.map(cuisine => ({ cuisine, sentiment: 'liked' as const, userId })));
       }
+    } catch (error: unknown) {
+      throw wrap(error, 'cuisine_preferences');
+    }
+  },
+
+  /** Replace-all: the client sends the complete set, so a removed pattern actually disappears. */
+  async setDietaryPatterns(userId: string, patterns: readonly string[]): Promise<void> {
+    try {
+      const db = database();
+
+      await db.delete(userDietaryPatterns).where(eq(userDietaryPatterns.userId, userId));
+
+      if (patterns.length > 0) {
+        await db.insert(userDietaryPatterns).values(patterns.map(pattern => ({ pattern: pattern as 'omnivore', userId })));
+      }
+    } catch (error: unknown) {
+      throw wrap(error, 'user_dietary_patterns');
+    }
+  },
+
+  async setFoodPreferences(
+    userId: string,
+    preferences: readonly { ingredientId?: string | null; label: string; sentiment: 'disliked' | 'liked' }[]
+  ): Promise<void> {
+    try {
+      const db = database();
+
+      await db.delete(foodPreferences).where(eq(foodPreferences.userId, userId));
+
+      if (preferences.length > 0) {
+        await db.insert(foodPreferences).values(preferences.map(p => ({ ingredientId: p.ingredientId ?? null, label: p.label, sentiment: p.sentiment, userId })));
+      }
+    } catch (error: unknown) {
+      throw wrap(error, 'food_preferences');
+    }
+  },
+
+  /** Insert-or-update, because onboarding writes the profile one step at a time. */
+  async upsert(userId: string, input: UpdateProfile): Promise<Profile> {
+    try {
+      const [row] = await database()
+        .insert(profiles)
+        .values({ ...input, userId })
+        .onConflictDoUpdate({ set: input, target: profiles.userId })
+        .returning();
 
       return profileSchema.parse(row);
     } catch (error: unknown) {
-      if (error instanceof ZodError) {
-        throw new DatabaseOperationError(`Schema mismatch on profiles: ${error.message}`);
-      }
+      throw wrap(error, 'profiles');
+    }
+  },
 
-      throw new DatabaseOperationError();
+  async upsertGoal(userId: string, input: UpdateGoal): Promise<Goal> {
+    try {
+      const db = database();
+      const values = {
+        customGoal: input.customGoal ?? null,
+        paceKgPerWeek: toNumeric(input.paceKgPerWeek),
+        startingWeightKg: toNumeric(input.startingWeightKg),
+        targetWeightKg: toNumeric(input.targetWeightKg),
+        type: input.type
+      };
+
+      const [existing] = await db
+        .select({ id: goals.id })
+        .from(goals)
+        .where(and(eq(goals.userId, userId), isNull(goals.archivedAt)))
+        .limit(1);
+
+      const [row] = existing
+        ? await db.update(goals).set(values).where(eq(goals.id, existing.id)).returning()
+        : await db
+            .insert(goals)
+            .values({ ...values, userId })
+            .returning();
+
+      return goalSchema.parse(toNumbers(row, ['paceKgPerWeek', 'startingWeightKg', 'targetWeightKg']));
+    } catch (error: unknown) {
+      throw wrap(error, 'goals');
+    }
+  },
+
+  async upsertPreferences(userId: string, input: UpdatePreferences): Promise<Preferences> {
+    try {
+      const [row] = await database()
+        .insert(userPreferences)
+        .values({ ...input, userId })
+        .onConflictDoUpdate({ set: input, target: userPreferences.userId })
+        .returning();
+
+      return preferencesSchema.parse(row);
+    } catch (error: unknown) {
+      throw wrap(error, 'user_preferences');
     }
   }
 };
+
+/** Drizzle returns `numeric` columns as strings to avoid float loss; entities want numbers. */
+function toNumbers<T extends Record<string, unknown>>(row: T | undefined, keys: readonly string[]): T | undefined {
+  if (!row) {return row;}
+
+  const parsed: Record<string, unknown> = { ...row };
+
+  for (const key of keys) {
+    const value = parsed[key];
+    parsed[key] = typeof value === 'string' ? Number(value) : value;
+  }
+
+  return parsed as T;
+}
+
+function toNumeric(value: number | null | undefined): string | null {
+  return value === null || value === undefined ? null : String(value);
+}
+
+function wrap(error: unknown, table: string): DatabaseOperationError {
+  if (error instanceof ZodError) {return new DatabaseOperationError(`Schema mismatch on ${table}: ${error.message}`);}
+
+  return new DatabaseOperationError();
+}

@@ -1,0 +1,112 @@
+.greeting {
+  font-size: var(--font-size-09);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0 0 var(--space-02);
+}
+
+.todayCard {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-04);
+  margin-top: var(--space-07);
+  padding: var(--space-05) var(--space-06);
+}
+
+.todayHeading {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+  margin-bottom: var(--space-05);
+}
+
+.meals {
+  margin-top: var(--space-05);
+}
+
+.targetsLabel {
+  display: block;
+  margin: var(--space-09) 0 var(--space-04);
+}
+
+.empty {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-05);
+  margin-top: var(--space-08);
+  padding: var(--space-09) var(--space-06);
+  text-align: center;
+}
+
+.emptyTitle {
+  font-size: var(--font-size-07);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.015em;
+  margin: 0 0 var(--space-03);
+}
+
+.emptyBody {
+  margin-inline: auto;
+  max-width: 32rem;
+}
+
+.emptyActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  justify-content: center;
+  margin-top: var(--space-07);
+}
+
+.progress {
+  background-color: var(--color-gray-04);
+  border-radius: var(--radius-full);
+  height: 6px;
+  margin: var(--space-06) auto 0;
+  max-width: 22rem;
+  overflow: hidden;
+}
+
+.progressBar {
+  background-color: var(--color-brand-09);
+  block-size: 100%;
+  border-radius: inherit;
+  transition: inline-size var(--duration-slow) var(--ease-spring);
+}
+
+.targets {
+  display: grid;
+  gap: var(--space-05);
+  grid-template-columns: repeat(2, 1fr);
+  margin-top: var(--space-08);
+}
+
+.target {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-04);
+  padding: var(--space-05);
+}
+
+.targetValue {
+  font-size: var(--font-size-07);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+.notice {
+  background-color: var(--color-amber-03);
+  border-radius: var(--radius-03);
+  color: var(--color-warning-text);
+  margin-top: var(--space-06);
+  padding: var(--space-04) var(--space-05);
+}
+
+@media (width >= 40rem) {
+  .targets {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}

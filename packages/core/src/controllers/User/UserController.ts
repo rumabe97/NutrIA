@@ -1,67 +1,62 @@
-import { ConflictError, NotFoundError } from 'core/entities/Error';
+import { NotFoundError } from 'core/entities/Error';
 import { UserRepository } from '#repositories/User';
-import type { CreateUser, User } from 'core/entities/User';
+import type { User } from 'core/entities/User';
 
 /**
- * UserController
+ * Structure every controller here follows:
  *
- * Structure followed by every controller in this package:
+ *  1. Presenters — pure functions shaping domain data for consumers. Serialise
+ *     dates, drop internals. No I/O. Always at the top of the file.
+ *  2. Controller — a static object of typed methods: business rule → repository
+ *     call → present.
  *
- *  1. Presenters   — pure functions that shape domain data for consumers.
- *                    Serialise dates, rename fields, strip internals.
- *                    No I/O, no side effects. Always at the top of the file.
+ * Input arrives already typed; parsing raw payloads belongs at the app boundary
+ * (the NestJS DTO). Controllers throw domain errors and never catch — the API's
+ * exception filter translates them into responses.
  *
- *  2. Controller   — static object of typed methods.
- *                    Each method: business rule → repository call → present.
+ * Never call another controller from a method. Reach for the other domain's
+ * repository instead.
  *
- * Input is typed — controllers receive proper TypeScript types, not raw unknown.
- * Input validation (Zod, form parsing, etc.) belongs at the app boundary:
- * the server action, the CLI command, or the API route handler.
- *
- * Error handling:
- *   - Repositories wrap I/O in try/catch and throw domain errors (DatabaseOperationError).
- *   - Controllers throw intentionally for business rule violations (NotFoundError, ConflictError).
- *   - Controllers do NOT catch — errors bubble to the app boundary.
- *   - App boundaries catch domain errors and translate to user-facing messages.
- *
- * NEVER call another controller from inside a method.
- * If you need data from another domain, import that domain's repository directly.
+ * Naming note: a "controller" here is an application service. The HTTP layer's
+ * controllers live in `apps/api` and call into these.
  */
 
 // --- Presenters ---------------------------------------------------------------
 
 export interface UserView {
   id: string;
-  createdAt: string; // dates are always serialised to ISO 8601 at this boundary
+  createdAt: string;
   email: string;
+  emailVerified: boolean;
+  image: string | null;
   name: string;
+  role: 'admin' | 'user';
 }
 
 function presentUser(user: User): UserView {
-  return { id: user.id, createdAt: user.createdAt.toISOString(), email: user.email, name: user.name };
+  return {
+    id: user.id,
+    createdAt: user.createdAt.toISOString(),
+    email: user.email,
+    emailVerified: user.emailVerified,
+    image: user.image,
+    name: user.name,
+    role: user.role
+  };
 }
 
 // --- Controller ---------------------------------------------------------------
 
 export const UserController = {
-  async createUser(input: CreateUser): Promise<UserView> {
-    const existing = await UserRepository.findByEmail(input.email);
-
-    if (existing) {
-      throw new ConflictError(`Email "${input.email}" is already taken`);
-    }
-
-    const user = await UserRepository.create(input);
-
-    return presentUser(user);
-  },
-
-  async getUser(input: Pick<User, 'id'>): Promise<UserView> {
+  /**
+   * `id` must come from the verified session. There is deliberately no
+   * "get any user" method: a caller that could pass an arbitrary id would be one
+   * missing authorisation check away from reading another account.
+   */
+  async getUser(input: { id: string }): Promise<UserView> {
     const user = await UserRepository.findById(input.id);
 
-    if (!user) {
-      throw new NotFoundError(`User "${input.id}" not found`);
-    }
+    if (!user) {throw new NotFoundError(`User "${input.id}" not found`);}
 
     return presentUser(user);
   }
