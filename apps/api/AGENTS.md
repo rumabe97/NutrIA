@@ -84,6 +84,46 @@ Allergies are a hard constraint enforced in **code**, never by prompting a model
 
 Production is stricter than development, by design: `ALLOWED_ORIGINS` is required and may not contain localhost, and `SWAGGER_ENABLED` must be false.
 
+## Deployment
+
+**This app deploys as a serverless function, and deploying applies migrations — treat it as high-stakes.**
+
+- `src/config/CreateApp.ts` is the **one** place an application is assembled. There are
+  two entry points — `main.ts` (owns a port) and `src/api/index.ts` (the deployed
+  handler) — and neither owns the configuration list. Anything added to one and
+  forgotten in the other is a bug that exists in exactly one environment.
+- It is deliberately **not** re-exported from `config/index.ts`: that barrel is imported
+  by specs that want only the `Env` type, and reaching the whole application graph
+  behind them breaks them under Jest's ESM interop with a require cycle naming
+  neither file.
+- `vercel.json` uses the legacy `builds` array pointed at the **`.ts`** entry. The
+  platform then runs its own TypeScript pass over that file, and under pnpm's strict
+  store it resolves modules without following symlinks, so transitive packages are
+  invisible to it and it emits a wall of type errors. **They are cosmetic** — the
+  builder emits JavaScript regardless, and `vercel-build` runs the real type gate.
+  Do not "fix" them by hoisting (`shamefully-hoist`, `node-linker=hoisted`); that
+  throws away the phantom-dependency protection pnpm was adopted for.
+- `vercel-build` runs `turbo run build --filter=api...` **then** `database migrate`, so
+  a type error stops the deploy before it touches the database. Every production
+  deploy still applies pending migrations: review them as production changes.
+- `ignoreCommand` deploys only `main`. Preview URLs would be in neither
+  `ALLOWED_ORIGINS` nor `COOKIE_DOMAIN`, so authentication cannot work on them.
+- `maxDuration` is 300s because generation runs *after* the response: `PlanJobRunner`
+  hands its work to `BackgroundTaskService`, which calls `waitUntil` to keep the
+  invocation alive. A bare `void promise` is frozen the moment the response is sent
+  and leaves a job row `running` with no log line. Generation takes 30–45s, so a
+  60s ceiling is not enough headroom.
+- `pnpm --filter api smoke:function` runs the deployed entry behind a plain Node
+  server and checks it boots, denies with 404, and returns the JSON envelope for an
+  unmatched route. Needs a live database, so it is not in the gate. Run it after any
+  change to how the application is assembled.
+- **`COOKIE_DOMAIN` is what makes sign-in work across subdomains.** The web app reads
+  the session cookie itself — in `proxy.ts` and when forwarding it server-side — so a
+  cookie scoped to the API's own host is invisible to it and every protected page
+  redirects to sign-in. Sibling subdomains of one registrable domain are the same
+  *site*, so `sameSite: 'lax'` is unchanged. Two `*.vercel.app` subdomains are **not**:
+  that domain is on the Public Suffix List, so a custom domain is required.
+
 ## Commands
 
 | Command | What it does |
@@ -93,6 +133,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
 | `pnpm --filter api test` | Unit specs (no database needed) |
 | `pnpm --filter api test:e2e` | e2e specs — **needs a real database**, see `test/README.md` |
 | `pnpm --filter api ts:check` | Type-check, specs included |
+| `pnpm --filter api smoke:function` | Serve the deployed entry locally — **needs a real database** |
 
 ## Traps
 
@@ -104,7 +145,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   directly cannot see this, because it bypasses the pipeline entirely; the specs that catch
   it (`onboarding.controller.spec.ts`, `profiles.controller.spec.ts`) go through a real
   Nest application with supertest.
-- **Better Auth must receive an unread request body.** `main.ts` mounts `express.json()` *after* the auth path. Moving the parser earlier makes sign-in receive an empty body, and the failure looks like bad credentials.
+- **Better Auth must receive an unread request body.** `CreateApp.ts` mounts `express.json()` *after* the auth path. Moving the parser earlier makes sign-in receive an empty body, and the failure looks like bad credentials.
 - **`emitDecoratorMetadata` is what makes DI work.** Without it every injection needs an explicit `@Inject`. It is on in `tsconfig.json`; `verbatimModuleSyntax` must stay off, or type-only imports stop producing metadata.
 - **`HealthIndicatorService`, not `HealthCheckError`.** Terminus 12 removed the old error class; return `indicator.down()`.
 - **A module that provides a Terminus indicator must import `TerminusModule` itself.** Importing it only in `HealthModule` leaves `DatabaseModule` unable to resolve the dependency.
