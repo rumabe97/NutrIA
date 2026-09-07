@@ -3,8 +3,8 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "build": "nest build && pnpm run check:cjs",
-    "check:cjs": "node --no-experimental-require-module scripts/check-cjs.mjs",
+    "build": "nest build && pnpm run preflight",
+    "preflight": "node --no-experimental-require-module --env-file-if-exists=.env scripts/preflight.mjs",
     "vercel-build": "pnpm turbo run build --filter=api... && pnpm --filter database migrate",
     "dev": "nest start --watch",
     "start": "node dist/main",

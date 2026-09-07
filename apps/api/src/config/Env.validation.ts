@@ -92,7 +92,14 @@ const envObject = z
     SWAGGER_ENABLED: z
       .enum(['true', 'false'])
       .default('true')
-      .transform(value => value === 'true')
+      .transform(value => value === 'true'),
+    /*
+     * Set by the platform on every deployment, never by hand. It exists in this
+     * schema for one cross-check below: a production deployment running with a
+     * development `NODE_ENV` has every production-only rule switched off, and the
+     * first sign of it was the function crashing on a pretty-printer.
+     */
+    VERCEL_ENV: optional(z.enum(['development', 'preview', 'production']))
   });
 
 export const ENV_KEYS = Object.keys(envObject.shape);
@@ -122,6 +129,19 @@ const envSchema = envObject
 
     if (env.AI_PROVIDER === 'google' && !env.GOOGLE_API_KEY) {
       ctx.addIssue({ code: 'custom', message: 'is required when AI_PROVIDER is "google"', path: ['GOOGLE_API_KEY'] });
+    }
+  })
+  .superRefine((env, ctx) => {
+    // The platform says this is production; the process must agree, or every
+    // rule below is skipped, cookies are not `secure`, and Swagger is one flag
+    // from public. This is the only place the two are compared, so it fails
+    // loudly and names the fix.
+    if (env.VERCEL_ENV === 'production' && env.NODE_ENV !== 'production') {
+      ctx.addIssue({
+        code: 'custom',
+        message: `must be "production" on a production deployment (VERCEL_ENV is "production", NODE_ENV is "${env.NODE_ENV}") — set it in the project's environment`,
+        path: ['NODE_ENV']
+      });
     }
   })
   .superRefine((env, ctx) => {

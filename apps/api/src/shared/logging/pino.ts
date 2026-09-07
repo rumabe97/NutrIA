@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import pino from 'pino';
 import { pinoHttp } from 'pino-http';
 
@@ -40,11 +41,34 @@ export const REDACTED_PATHS = [
  * whole of what the wrapper did for us.
  */
 export function createPino({ level, pretty }: { readonly level: LevelWithSilent; readonly pretty: boolean }): Logger {
-  return pino({
+  // A pretty-printer is the lowest-stakes feature in the process and must never
+  // be able to take it down. pino resolves a transport target at runtime from
+  // this file's location, so a traced function bundle does not contain it — and
+  // the deployed function once died at boot on exactly that, from a development
+  // `NODE_ENV` that should never have reached it. Degrade to JSON and say so.
+  const usePretty = pretty && prettyAvailable();
+  const logger = pino({
     level,
     redact: { paths: [...REDACTED_PATHS], remove: true },
-    transport: pretty ? { target: 'pino-pretty' } : undefined
+    transport: usePretty ? { target: 'pino-pretty' } : undefined
   });
+
+  if (pretty && !usePretty) {
+    logger.warn('pino-pretty was requested but is not installed here; logging JSON instead');
+  }
+
+  return logger;
+}
+
+/** Resolved from here, which is where pino would resolve it from too. */
+function prettyAvailable(): boolean {
+  try {
+    createRequire(import.meta.url).resolve('pino-pretty');
+
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

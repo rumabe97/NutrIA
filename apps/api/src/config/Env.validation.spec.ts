@@ -123,6 +123,30 @@ describe('AI provider and model pairing', () => {
 });
 
 /*
+ * The platform sets VERCEL_ENV; the operator sets NODE_ENV. When they disagree
+ * on a production deployment, every production-only rule above is silently
+ * skipped — the deployed function found this out by crashing on a development
+ * pretty-printer, which was the least of what was switched off.
+ */
+describe('validateEnv on a production deployment', () => {
+  it('refuses a development NODE_ENV', () => {
+    expect(() => validateEnv({ ...valid, VERCEL_ENV: 'production' })).toThrow(/NODE_ENV.*must be "production"/);
+  });
+
+  it('refuses an unset NODE_ENV, which defaults to development', () => {
+    expect(() => validateEnv({ ...valid, NODE_ENV: '', VERCEL_ENV: 'production' })).toThrow(/NODE_ENV/);
+  });
+
+  it('is satisfied by a production NODE_ENV, and then applies the production rules', () => {
+    expect(() => validateEnv({ ...valid, NODE_ENV: 'production', VERCEL_ENV: 'production' })).toThrow(/ALLOWED_ORIGINS/);
+  });
+
+  it('does not constrain a preview deployment', () => {
+    expect(() => validateEnv({ ...valid, VERCEL_ENV: 'preview' })).not.toThrow();
+  });
+});
+
+/*
  * A variable the schema knows about but Turborepo does not is invisible to every
  * task it runs: the build gets a warning it prints once among a thousand lines,
  * and the value is simply absent. `AI_PROVIDER` and `GOOGLE_API_KEY` were set on

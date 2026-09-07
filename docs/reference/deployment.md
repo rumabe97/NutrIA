@@ -71,7 +71,12 @@ from local development:
 | `DIRECT_DATABASE_URL` | Neon's **direct** endpoint — the build runs migrations through it |
 
 `Env.validation.ts` refuses to boot on a bad environment and reports every problem at
-once. In production it is stricter than in development on purpose.
+once. In production it is stricter than in development on purpose — and it checks
+that it *is* in production: the platform sets `VERCEL_ENV=production` on every
+production deployment, and a `NODE_ENV` that disagrees is refused, because every
+production-only rule depends on it. Do not copy a local `.env` into the project's
+environment wholesale; `NODE_ENV=development` and the localhost URLs in it are
+exactly what the rules exist to reject, and the build will fail naming each one.
 
 Set the API's region to the one holding the Neon database. Every request makes
 several round trips, and a cross-continent hop multiplies all of them.
@@ -84,14 +89,17 @@ nothing to compile and the function ships the same artifact the type gate passed
 and `vercel-build` runs:
 
 ```
-turbo run build --filter=api...   # builds core + database, type-gates the API, then check:cjs
+turbo run build --filter=api...   # builds core + database, type-gates the API, then preflight
 pnpm --filter database migrate    # applies pending migrations to the live database
 ```
 
-`check:cjs` loads the deployed entry under the module rule the function runtime
-applies — it refuses `require()` of an ES module, which local Node allows. A
-dependency that violates it passes every local check and kills the function on its
-first cold start; here it fails the build instead, before anything is migrated.
+`preflight` does two things the platform otherwise reports only at the first
+request. It loads the deployed entry under the module rule the function runtime
+applies — it refuses `require()` of an ES module, which local Node allows, so a
+violating dependency passes every local check and kills the function at boot. And
+it validates the environment exactly as boot would, so a development `NODE_ENV` on
+a production deployment, or a localhost origin, fails the build — before anything
+is migrated — naming each problem.
 
 **Every production deploy applies migrations.** The build runs first so a type error
 stops the deploy before it touches anything; a bad migration still blocks every

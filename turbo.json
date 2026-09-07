@@ -26,7 +26,8 @@
     "SMTP_PASS",
     "SMTP_PORT",
     "SMTP_USER",
-    "SWAGGER_ENABLED"
+    "SWAGGER_ENABLED",
+    "VERCEL_ENV"
   ],
   "tasks": {
     "build": {
