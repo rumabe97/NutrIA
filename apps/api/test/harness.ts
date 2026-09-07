@@ -29,6 +29,13 @@ export type Account = { readonly id: string; readonly cookie: string; readonly e
  */
 export class ScriptedAiClient extends AiClient {
   public calls = 0;
+  /**
+   * Every prompt this client was sent, in order.
+   *
+   * Kept so a suite can assert what did **not** reach the model. "A medication
+   * never appears in a prompt" is only checkable if the prompt is checkable.
+   */
+  public prompts: string[] = [];
 
   constructor(private readonly dishes: readonly unknown[]) {
     super();
@@ -38,8 +45,9 @@ export class ScriptedAiClient extends AiClient {
     return true;
   }
 
-  generate<T>(_request: AiRequest<T>): Promise<AiResponse<T>> {
+  generate<T>(request: AiRequest<T>): Promise<AiResponse<T>> {
     this.calls += 1;
+    this.prompts.push(request.prompt);
 
     return Promise.resolve({
       object: { dishes: this.dishes } as T,
@@ -107,7 +115,12 @@ export async function register(app: INestApplication, email: string): Promise<Ac
 }
 
 /** Walks the eight required onboarding steps so a plan may be generated. */
-export async function completeOnboarding(app: INestApplication, account: Account, allergenIds: readonly string[] = []): Promise<void> {
+export async function completeOnboarding(
+  app: INestApplication,
+  account: Account,
+  allergenIds: readonly string[] = [],
+  customAllergens: readonly string[] = []
+): Promise<void> {
   const server = httpServer(app);
   const patch = async (step: string, data: unknown) =>
     request(server).patch(`/${PREFIX}/onboarding`).set('Cookie', account.cookie).send({ data, step }).expect(200);
@@ -119,6 +132,7 @@ export async function completeOnboarding(app: INestApplication, account: Account
   await patch('food-preferences', { cuisines: ['Mediterránea'], preferences: [] });
   await patch('allergies', {
     allergies: allergenIds.map(allergenId => ({ allergenId, crossContaminationSensitive: false, severity: 'moderate' as const })),
+    customAllergens,
     dietaryPatterns: [],
     intolerances: []
   });
@@ -147,4 +161,16 @@ export async function generateAndWait(app: INestApplication, account: Account, t
   }
 
   throw new Error('Generation did not finish within the timeout');
+}
+
+/** Sets the account's language. Everything server-side reads it from the profile. */
+export async function setLocale(app: INestApplication, account: Account, locale: string): Promise<void> {
+  await request(httpServer(app)).patch(`/${PREFIX}/profile`).set('Cookie', account.cookie).send({ locale }).expect(200);
+}
+
+/** The active plan's shopping list, as the web app reads it. */
+export async function activeShoppingList(app: INestApplication, account: Account): Promise<{ items: { name: string }[] }> {
+  const response: Response = await request(httpServer(app)).get(`/${PREFIX}/shopping-lists/active`).set('Cookie', account.cookie).expect(200);
+
+  return response.body as { items: { name: string }[] };
 }

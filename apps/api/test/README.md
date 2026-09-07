@@ -10,6 +10,10 @@ part of `pnpm test`. Run them deliberately.
 | `isolation.e2e-spec.ts` | User A cannot read or write User B's data, by any route. |
 | `generation.e2e-spec.ts` | The core loop: onboarding → a 14-day plan → a shopping list that reconciles with it, with history preserved and one active plan. |
 | `allergy-safety.e2e-spec.ts` | A declared allergen never reaches a stored meal or a shopping list — **even when the model deliberately proposes one**. |
+| `custom-allergens.e2e-spec.ts` | A free-text allergy that matched the catalogue is enforced exactly as a listed one; one that did not is stored, surfaced as unenforceable, and named to the model. |
+| `health-data.e2e-spec.ts` | A recorded medication or condition never appears in a prompt, and withdrawal deletes the data and the consent together. |
+| `target-overrides.e2e-spec.ts` | A corrected target is refused outside its bounds, and *is the figure the stored plan was built against* when accepted. |
+| `localisation.e2e-spec.ts` | An English account gets an English prompt, an English shopping list, and no Spanish recipe from the shared library. |
 
 ## Running them
 
@@ -38,6 +42,12 @@ not resolve, every candidate dish is rejected, and generation fails with
 
 The allergy suite additionally reads the `gluten` allergen's id from
 `GET /safety/allergens`, so an unseeded `allergens` table fails it at setup.
+
+`localisation.e2e-spec.ts` needs the seed's **`en-GB` names** specifically — it asserts a
+shopping list reads "Cooked white rice" rather than "Arroz blanco cocido". Applying
+migration `0007` without re-running the seed leaves every ingredient with only its Spanish
+name, which is a legitimate runtime state (the resolver falls back and logs the gap) and a
+failing test.
 
 ## The scripted model
 
