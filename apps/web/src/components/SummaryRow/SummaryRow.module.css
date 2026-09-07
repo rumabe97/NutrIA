@@ -1,0 +1,18 @@
+.row {
+  border-bottom: 1px solid var(--border-01);
+  display: grid;
+  gap: var(--space-01) var(--space-05);
+  grid-template-columns: 11rem 1fr;
+  padding-bottom: var(--space-03);
+}
+
+.row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+@media (width < 34rem) {
+  .row {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,37 @@
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+}
+
+.chip {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  font-size: var(--font-size-03);
+  padding: var(--space-02) var(--space-04);
+  position: relative;
+  transition:
+    background-color var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default);
+}
+
+.chip:has(input:checked) {
+  background-color: var(--color-brand-03);
+  border-color: var(--color-brand-09);
+  color: var(--color-brand-12);
+}
+
+.chip:has(input:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Visually hidden rather than display:none — a hidden input is not focusable,
+   which would make the whole group unreachable by keyboard. */
+.input {
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+}

@@ -1,0 +1,26 @@
+import { notFound } from 'next/navigation';
+
+import { OnboardingFlow, TOTAL_STEPS } from 'components/OnboardingFlow';
+
+import { serverApi } from 'lib/server-api';
+
+import type { Allergen } from 'core/entities/Safety';
+import type { FullProfileView } from 'core/controllers/Profile';
+
+export const dynamic = 'force-dynamic';
+
+/**
+ * Server-rendered so every step arrives with the user's saved answers already
+ * filled in — that is what makes the flow resumable rather than merely
+ * restartable.
+ */
+export default async function OnboardingStepPage({ params }: { params: Promise<{ paso: string }> }) {
+  const { paso } = await params;
+  const step = Number(paso);
+
+  if (!Number.isInteger(step) || step < 1 || step > TOTAL_STEPS) {notFound();}
+
+  const [profile, allergens] = await Promise.all([serverApi<FullProfileView>('/profile'), serverApi<readonly Allergen[]>('/safety/allergens')]);
+
+  return <OnboardingFlow allergens={allergens ?? []} profile={profile} step={step} />;
+}

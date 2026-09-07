@@ -1,0 +1,121 @@
+.header {
+  border-bottom: 1px solid var(--border-01);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-dropdown);
+  backdrop-filter: saturate(180%) blur(16px);
+  background-color: var(--color-glass);
+}
+
+.inner {
+  align-items: center;
+  display: flex;
+  gap: var(--space-06);
+  justify-content: space-between;
+  height: 56px;
+  margin-inline: auto;
+  max-width: var(--content-max);
+  padding-inline: var(--space-05);
+}
+
+.brand {
+  align-items: center;
+  color: var(--foreground-01);
+  display: inline-flex;
+  gap: var(--space-02);
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.02em;
+  text-decoration: none;
+}
+
+.mark {
+  width: 16px;
+  height: 16px;
+  background-color: var(--color-brand-09);
+  border-radius: var(--radius-01) var(--radius-full) var(--radius-full) var(--radius-full);
+}
+
+/* Desktop navigation. On small screens the same destinations live in the
+   bottom bar, where thumbs actually reach. */
+.desktopNav {
+  display: none;
+  gap: var(--space-05);
+}
+
+.navLink {
+  color: var(--foreground-02);
+  font-size: var(--font-size-03);
+  padding-block: var(--space-02);
+  text-decoration: none;
+  transition: color var(--duration-fast) var(--ease-default);
+}
+
+.navLink[aria-current='page'] {
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-medium);
+}
+
+.navLink:hover {
+  color: var(--foreground-01);
+}
+
+.signOut {
+  background: none;
+  border: none;
+  color: var(--foreground-02);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--font-size-03);
+  padding: 0;
+}
+
+.signOut:hover {
+  color: var(--foreground-01);
+}
+
+/* ── Mobile bottom bar ────────────────────────────────────────────────── */
+.bottomBar {
+  background-color: var(--color-glass);
+  backdrop-filter: saturate(180%) blur(16px);
+  border-top: 1px solid var(--border-01);
+  bottom: 0;
+  display: grid;
+  grid-auto-flow: column;
+  inset-inline: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  position: fixed;
+  z-index: var(--z-dropdown);
+}
+
+.bottomLink {
+  align-items: center;
+  color: var(--foreground-03);
+  display: flex;
+  flex-direction: column;
+  font-size: var(--font-size-01);
+  gap: var(--space-01);
+  justify-content: center;
+  /* 56px keeps every target above the 44px minimum for touch. */
+  min-height: 56px;
+  text-decoration: none;
+}
+
+.bottomLink[aria-current='page'] {
+  color: var(--color-brand-11);
+}
+
+.bottomIcon {
+  block-size: 20px;
+  inline-size: 20px;
+}
+
+@media (width >= 48rem) {
+  .desktopNav {
+    display: flex;
+  }
+
+  .bottomBar {
+    display: none;
+  }
+}

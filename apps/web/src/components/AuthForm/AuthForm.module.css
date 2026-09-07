@@ -1,0 +1,56 @@
+.form {
+  display: grid;
+  gap: var(--space-05);
+}
+
+.title {
+  font-size: var(--font-size-08);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0 0 var(--space-02);
+}
+
+.subtitle {
+  margin-bottom: var(--space-07);
+}
+
+/* role="alert" so a screen reader hears the failure without moving focus and
+   losing the user's place in the form. */
+.error {
+  background-color: var(--color-red-03);
+  border-radius: var(--radius-02);
+  color: var(--color-error-text);
+  font-size: var(--font-size-03);
+  padding: var(--space-03) var(--space-04);
+}
+
+.success {
+  background-color: var(--color-brand-03);
+  border-radius: var(--radius-02);
+  color: var(--color-brand-11);
+  font-size: var(--font-size-03);
+  padding: var(--space-04);
+}
+
+.footer {
+  border-top: 1px solid var(--border-01);
+  margin-top: var(--space-03);
+  padding-top: var(--space-05);
+  text-align: center;
+}
+
+.link {
+  color: var(--color-brand-11);
+  font-size: var(--font-size-03);
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.forgot {
+  justify-self: end;
+  margin-top: calc(var(--space-04) * -1);
+}

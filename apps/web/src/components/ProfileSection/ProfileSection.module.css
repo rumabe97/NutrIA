@@ -1,0 +1,30 @@
+.card {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-04);
+  padding: var(--space-06);
+}
+
+.head {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+  margin-bottom: var(--space-05);
+}
+
+.rows {
+  display: grid;
+  gap: var(--space-03);
+}
+
+.editLink {
+  color: var(--color-brand-11);
+  font-size: var(--font-size-03);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.editLink:hover {
+  text-decoration: underline;
+}

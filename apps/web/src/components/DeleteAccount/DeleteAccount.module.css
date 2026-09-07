@@ -1,0 +1,22 @@
+.wrapper {
+  margin-top: var(--space-05);
+}
+
+.confirm {
+  display: grid;
+  gap: var(--space-04);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+}
+
+.error {
+  background-color: var(--color-red-03);
+  border-radius: var(--radius-02);
+  color: var(--color-error-text);
+  font-size: var(--font-size-03);
+  padding: var(--space-03) var(--space-04);
+}

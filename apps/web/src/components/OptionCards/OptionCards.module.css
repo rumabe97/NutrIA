@@ -1,0 +1,51 @@
+/* A radio group rendered as selectable cards. The input stays in the DOM with
+   its native semantics — the card is a <label> — so keyboard navigation, focus
+   and screen-reader announcements are the browser's behaviour, not ours. */
+.options {
+  display: grid;
+  gap: var(--space-03);
+}
+
+.option {
+  align-items: flex-start;
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-03);
+  cursor: pointer;
+  display: flex;
+  gap: var(--space-03);
+  padding: var(--space-04) var(--space-05);
+  transition:
+    background-color var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default);
+}
+
+.option:hover {
+  border-color: var(--color-brand-07);
+}
+
+.option:has(input:checked) {
+  background-color: var(--color-brand-02);
+  border-color: var(--color-brand-09);
+}
+
+.option:has(input:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.input {
+  accent-color: var(--color-brand-09);
+  margin-top: 0.2em;
+}
+
+.label {
+  display: grid;
+  gap: var(--space-01);
+}
+
+@media (width >= 34rem) {
+  .options {
+    grid-template-columns: 1fr 1fr;
+  }
+}
