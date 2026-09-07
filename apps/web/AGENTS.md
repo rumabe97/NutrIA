@@ -218,13 +218,20 @@ says two things are happening.
 
 ## Environment variables
 
-**This app has exactly one: `NEXT_PUBLIC_API_URL`.** That is the design, not an accident —
-no database URL, no auth secret, no AI key exists in this app, because `apps/api` holds all
-of them.
+**This app has two, and no secret among them.** No database URL, no auth secret, no AI key
+exists in this app, because `apps/api` holds all of them.
 
-If you find yourself adding a server-only variable here, the feature that needs it belongs
-in `apps/api`. Declare anything new in `turbo.json` `globalEnv` so Turborepo caches
-correctly.
+- `NEXT_PUBLIC_API_URL` — where the **browser** reaches the API. Public by construction.
+- `API_UPSTREAM_URL` — server-only. Where **this server** reaches the API for server-rendered
+  reads, and what `next.config.js` proxies `/api/v1/*` to. Set only when the API is on a host
+  the browser must not talk to directly: two `*.vercel.app` hosts are different *sites* to a
+  browser, so no session cookie can span them — the browser has to see one origin. With it set,
+  `NEXT_PUBLIC_API_URL` is this app's own origin plus `/api/v1`. Unset locally: no rewrite.
+
+If you find yourself adding another server-only variable here, the feature that needs it
+belongs in `apps/api`. Declare anything new in `turbo.json` `globalEnv` — a variable missing
+there is silently absent from the build, and for `API_UPSTREAM_URL` that means no rewrite and
+no error.
 
 ## Testing
 

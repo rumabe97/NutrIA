@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 
 import { activeLocale } from '../i18n/server';
-import { API_URL } from './env';
+import { API_UPSTREAM_URL } from './env';
 
 /**
  * Server-side read of the API, for React Server Components.
@@ -16,7 +16,7 @@ export async function serverApi<T>(path: string): Promise<T | null> {
   const [cookieStore, locale] = await Promise.all([cookies(), activeLocale()]);
 
   try {
-    const response = await fetch(`${API_URL}${path}`, {
+    const response = await fetch(`${API_UPSTREAM_URL}${path}`, {
       cache: 'no-store',
       // Sent on every call, for the same reason the browser client sends it: the
       // locale decision is made once and travels, rather than being rediscovered

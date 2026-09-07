@@ -151,7 +151,10 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   cookie scoped to the API's own host is invisible to it and every protected page
   redirects to sign-in. Sibling subdomains of one registrable domain are the same
   *site*, so `sameSite: 'lax'` is unchanged. Two `*.vercel.app` subdomains are **not**:
-  that domain is on the Public Suffix List, so a custom domain is required.
+  that domain is on the Public Suffix List. Without a custom domain, leave it empty and
+  proxy the API through the web app's origin instead (`apps/web/next.config.js`,
+  `API_UPSTREAM_URL`); then `BETTER_AUTH_URL` and `ALLOWED_ORIGINS` are the **web**
+  origin, because that is the only origin a browser ever sees.
 
 ## Commands
 

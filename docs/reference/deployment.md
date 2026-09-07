@@ -16,41 +16,50 @@ Two projects on one host, from one repository:
 
 ---
 
-## 1. The domain decides whether authentication works
+## 1. One origin, or a domain you own
 
 This is the first decision, not the last, because everything else is downstream of it.
 
-The browser calls the API directly with `credentials: 'include'`, and the session
-cookie is `sameSite: 'lax'`. Two things must therefore be true:
+The browser calls the API with `credentials: 'include'`, and the session cookie is
+`sameSite: 'lax'`. The web app must be able to **read** that cookie, not only the API:
+`proxy.ts` checks it to decide whether a visitor is signed out, and `server-api.ts`
+forwards it on every server-rendered read. Two `*.vercel.app` hosts cannot share one:
+`vercel.app` is on the Public Suffix List, so to a browser they are different *sites*,
+the same as two unrelated websites. Sign-in succeeds and every protected page then
+bounces to `/acceder`, with nothing in any log.
 
-1. The web app and the API must be on the **same site** — the same registrable
-   domain. `nutria.app` and `api.nutria.app` qualify. Two `*.vercel.app` subdomains
-   do **not**: `vercel.app` is on the Public Suffix List, so the platform's own
-   subdomains are different sites to a browser, and the cookie is neither stored
-   nor sent.
-2. The cookie must be **readable by the web app**, not only by the API. `proxy.ts`
-   checks it to decide whether a visitor is signed out, and `server-api.ts`
-   forwards it on every server-rendered read. A host-only cookie on the API's
-   subdomain is invisible to both, and the symptom is that sign-in succeeds and
-   every protected page then bounces to `/acceder`.
+There are two shapes that work. **This deployment uses the first.**
 
-So: **a custom domain is required**, and `COOKIE_DOMAIN` must be set to the parent
-with its leading dot.
+### Shape A — one origin, no custom domain (current)
 
-Suggested layout — DNS records point at the host, one per project:
+The browser only ever talks to the web host. `next.config.js` proxies `/api/v1/*` to
+the API deployment (`API_UPSTREAM_URL`), so the cookie is an ordinary first-party
+cookie on the web host. Server-rendered reads go to the API directly.
 
-| Host | Project |
+| | Host |
 | --- | --- |
-| `nutria.app`, `www.nutria.app` | `nutria-web` |
-| `api.nutria.app` | `nutria-api` |
+| Web (the only origin a browser sees) | `https://nutr-ia-web-phi.vercel.app` |
+| API (reached through the proxy, and by the web server directly) | `https://api-liard-kappa.vercel.app` |
+
+`COOKIE_DOMAIN` stays **empty**. `BETTER_AUTH_URL` and `ALLOWED_ORIGINS` are the
+**web** origin, because that is the origin the browser's requests carry.
+
+### Shape B — sibling subdomains of a domain you own
+
+`nutria.app` for the web and `api.nutria.app` for the API. The browser talks to the API
+directly; `COOKIE_DOMAIN=.nutria.app` (leading dot) makes the cookie a parent-domain
+cookie both hosts see. Sibling subdomains are the same *site*, so `sameSite: 'lax'` is
+unchanged. `API_UPSTREAM_URL` is unset — no proxy — and `BETTER_AUTH_URL` is the API
+origin. Move to this when there is a domain; nothing in the code changes.
 
 ## 2. Environment
 
-The web app takes **one** variable, and it is public by construction:
+The web app takes **two** variables, and no secret among them:
 
-```
-NEXT_PUBLIC_API_URL=https://api.nutria.app/api/v1
-```
+| Variable | Shape A (current) |
+| --- | --- |
+| `NEXT_PUBLIC_API_URL` | `https://nutr-ia-web-phi.vercel.app/api/v1` — the web app's **own** origin |
+| `API_UPSTREAM_URL` | `https://api-liard-kappa.vercel.app/api/v1` — server-only; the proxy target |
 
 No database URL, no auth secret, no provider key is ever set on the web project.
 That is not a convention, it is the architecture: the browser must never reach
@@ -59,13 +68,13 @@ PostgreSQL, and an AI key in a `NEXT_PUBLIC_` variable is a key in the page sour
 The API takes the inventory in `apps/api/.env.example`. The ones whose values differ
 from local development:
 
-| Variable | Production value |
+| Variable | Shape A (current) |
 | --- | --- |
-| `NODE_ENV` | `production` |
-| `APP_URL` | `https://nutria.app` |
-| `BETTER_AUTH_URL` | `https://api.nutria.app` |
-| `ALLOWED_ORIGINS` | `https://nutria.app,https://www.nutria.app` — required, and rejected if it contains localhost |
-| `COOKIE_DOMAIN` | `.nutria.app` |
+| `NODE_ENV` | `production` — the process refuses to boot otherwise on a production deployment |
+| `APP_URL` | `https://nutr-ia-web-phi.vercel.app` |
+| `BETTER_AUTH_URL` | `https://nutr-ia-web-phi.vercel.app` — the web origin, not the API's |
+| `ALLOWED_ORIGINS` | `https://nutr-ia-web-phi.vercel.app` — required, and rejected if it contains localhost |
+| `COOKIE_DOMAIN` | *(empty)* |
 | `SWAGGER_ENABLED` | `false` — the schema describes every endpoint to anyone who asks |
 | `DATABASE_URL` | Neon's **pooled** endpoint (host contains `-pooler`) |
 | `DIRECT_DATABASE_URL` | Neon's **direct** endpoint — the build runs migrations through it |

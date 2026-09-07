@@ -41,4 +41,7 @@ export function proxy(request: NextRequest): NextResponse {
   return NextResponse.next();
 }
 
-export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'] };
+// `api/` is excluded: when the API is proxied through this host (`next.config.js`),
+// every API call would otherwise pass through here first — a redirect check that
+// can never apply to it, paid on the hottest path in the app.
+export const config = { matcher: ['/((?!api/|_next/static|_next/image|favicon.ico).*)'] };

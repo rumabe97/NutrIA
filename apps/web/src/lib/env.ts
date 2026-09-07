@@ -1,11 +1,24 @@
 /**
  * The web app's entire environment surface.
  *
- * One variable, and it is public by construction. No database URL, no auth secret,
- * no AI key ever reaches this app — they live in `apps/api`, which is the only
- * process that holds them.
+ * Two variables, and no secret among them. No database URL, no auth secret, no AI
+ * key ever reaches this app — they live in `apps/api`, which is the only process
+ * that holds them.
  */
+
+/** Where the **browser** reaches the API. Public by construction. */
 export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
+
+/**
+ * Where **this server** reaches the API, for server-rendered reads.
+ *
+ * When the API is proxied through this host (see `next.config.js`), `API_URL` is
+ * this host's own origin, and a server-side fetch to it would leave through the
+ * platform's edge only to come straight back — a round trip for nothing. The
+ * upstream is the API itself. Server-only: there is no `NEXT_PUBLIC_` prefix, so
+ * it is never bundled, and in the browser this evaluates to the fallback.
+ */
+export const API_UPSTREAM_URL = process.env.API_UPSTREAM_URL ?? API_URL;
 
 /**
  * Splits an API URL into the two values Better Auth's client needs *separately*.
