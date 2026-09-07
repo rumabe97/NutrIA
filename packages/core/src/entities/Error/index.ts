@@ -1,1 +1,1 @@
-export { ConflictError, DatabaseOperationError, InputParseError, NotFoundError, SafetyViolationError, UnauthorizedError } from './Error';
+export { ConflictError, DatabaseOperationError, InputParseError, NotFoundError, OnboardingIncompleteError, SafetyViolationError, UnauthorizedError } from './Error';

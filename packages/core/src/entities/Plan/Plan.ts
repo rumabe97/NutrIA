@@ -34,6 +34,15 @@ export type CatalogueIngredient = {
   readonly gramsPerUnit: number | null;
   readonly kcalPer100g: number;
   readonly name: string;
+  /**
+   * The locale `name` actually came from.
+   *
+   * Not the same as the locale that was asked for: a catalogue with no entry in
+   * the requested language falls back to `es-ES`, and this is how a caller can
+   * tell — and report the gap — instead of the fallback passing silently for a
+   * translation.
+   */
+  readonly nameLocale: string;
   readonly proteinPer100g: number;
   readonly slug: string;
 };
@@ -147,6 +156,8 @@ export type PlanDraft = {
   readonly days: readonly { readonly date: string; readonly dayIndex: number; readonly meals: readonly MealDraft[] }[];
   readonly endDate: string;
   readonly generationMetadata: Record<string, unknown>;
+  /** The language the dishes were written in. Stored on each new recipe, and what scopes reuse. */
+  readonly locale: string;
   readonly newRecipes: readonly RecipeDraft[];
   readonly shoppingItems: readonly ShoppingItemDraft[];
   readonly startDate: string;

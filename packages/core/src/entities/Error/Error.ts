@@ -76,3 +76,21 @@ export class SafetyViolationError extends Error {
     this.name = 'SafetyViolationError';
   }
 }
+
+/**
+ * Thrown when the account has not finished onboarding and the operation needs
+ * a complete profile.
+ *
+ * Deliberately *not* a `UnauthorizedError`, which becomes a 404. This one has
+ * to be legible: the only useful response is to send the person back to the
+ * step they stopped at, and a 404 says nothing anyone can act on. The denial
+ * rule protects against confirming what exists to a caller who should not know
+ * — here the caller is the owner of the account, and the answer is about the
+ * state of their own profile.
+ */
+export class OnboardingIncompleteError extends Error {
+  constructor(public readonly missingSteps: readonly string[] = []) {
+    super('Onboarding incomplete');
+    this.name = 'OnboardingIncompleteError';
+  }
+}

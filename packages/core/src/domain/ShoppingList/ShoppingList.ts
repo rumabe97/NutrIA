@@ -14,7 +14,7 @@ const CATEGORY_ORDER = ['produce', 'protein', 'dairy', 'bakery', 'frozen', 'pant
  * `name` and `category` are snapshotted from the catalogue rather than referenced,
  * so a list stays readable after the catalogue moves on.
  */
-export function buildShoppingList(assignment: PlanAssignment, catalogue: Catalogue): ShoppingDraft {
+export function buildShoppingList(assignment: PlanAssignment, catalogue: Catalogue, locale = 'es-ES'): ShoppingDraft {
   const totals = new Map<string, number>();
 
   for (const day of assignment.days) {
@@ -49,7 +49,7 @@ export function buildShoppingList(assignment: PlanAssignment, catalogue: Catalog
     });
   }
 
-  return { items: items.sort(byAisleThenName) };
+  return { items: items.sort(byAisleThenName(locale)) };
 }
 
 /** Slugs in the assignment that the catalogue cannot resolve. Empty on a valid plan. */
@@ -83,10 +83,19 @@ function toDisplay(totalGrams: number, defaultUnit: ShoppingDraftItem['displayUn
   return { quantity: totalGrams, unit: 'g' as const };
 }
 
-function byAisleThenName(a: ShoppingDraftItem, b: ShoppingDraftItem): number {
-  const order = CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
+/**
+ * Aisle order first, then the name — collated in the list's own language.
+ *
+ * The locale matters here: `localeCompare` with the wrong one puts accented
+ * words in the wrong place, which on a list you read while walking a supermarket
+ * is exactly where you will not look.
+ */
+function byAisleThenName(locale: string) {
+  return (a: ShoppingDraftItem, b: ShoppingDraftItem): number => {
+    const order = CATEGORY_ORDER.indexOf(a.category) - CATEGORY_ORDER.indexOf(b.category);
 
-  return order !== 0 ? order : a.name.localeCompare(b.name, 'es');
+    return order !== 0 ? order : a.name.localeCompare(b.name, locale);
+  };
 }
 
 function roundTo(value: number, decimals: number): number {

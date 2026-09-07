@@ -1,5 +1,5 @@
 import { varietyViolations } from 'core/domain/Variety';
-import { MINIMUM_DAILY_KCAL } from 'core/entities/Nutrition';
+import { MINIMUM_DAILY_KCAL, PROTEIN_CEILING_G_PER_KG } from 'core/entities/Nutrition';
 import type { MealSlot, PlanAssignment } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { VarietyViolation } from 'core/domain/Variety';
@@ -18,7 +18,9 @@ import type { VarietyViolation } from 'core/domain/Variety';
  * muscle gain. Expressing the ceiling as "+35% of target" made it stricter for
  * someone maintaining than for someone bulking, which is precisely backwards.
  *
- * `PROTEIN_CEILING_G_PER_KG` is a sanity bound, not a recommendation. Intakes
+ * `PROTEIN_CEILING_G_PER_KG` — defined in `core/entities/Nutrition`, because the
+ * same ceiling has to bound a *target* before a plan is built around it — is a
+ * sanity bound, not a recommendation. Intakes
  * around 2 g/kg are ordinary for trained people and well above target by design;
  * 3 g/kg is where a plan stops looking like food and starts looking like a bug.
  *
@@ -28,9 +30,6 @@ import type { VarietyViolation } from 'core/domain/Variety';
  * wrong thing.
  */
 export const PLAN_TOLERANCE = { kcal: 0.1, proteinUnder: 0.15 } as const;
-
-/** Grams of protein per kg of body weight, above which a day is implausible. */
-export const PROTEIN_CEILING_G_PER_KG = 3;
 
 export type PlanViolation =
   | { readonly actual: number; readonly dayIndex: number; readonly kind: 'below_minimum_kcal'; readonly minimum: number }

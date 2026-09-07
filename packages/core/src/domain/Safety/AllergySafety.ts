@@ -13,11 +13,16 @@ export type CheckedIngredient = {
 };
 
 export type SafetyViolation = {
-  readonly allergenId: string;
+  /** Null for a free-text allergy: it excludes an ingredient, not an allergen. */
+  readonly allergenId: string | null;
   readonly ingredientId: string;
   readonly ingredientName: string;
-  /** `allergy` blocks outright; `intolerance` blocks by default and is user-overridable. */
-  readonly kind: 'allergy' | 'intolerance';
+  /**
+   * `allergy` blocks outright; `intolerance` blocks by default and is
+   * user-overridable; `custom_allergen` is a free-text entry that resolved to
+   * this exact ingredient and blocks exactly as an allergy does.
+   */
+  readonly kind: 'allergy' | 'custom_allergen' | 'intolerance';
   readonly presence: 'contains' | 'may_contain';
 };
 
@@ -42,6 +47,20 @@ export function findSafetyViolations(ingredients: readonly CheckedIngredient[], 
   const violations: SafetyViolation[] = [];
 
   for (const ingredient of ingredients) {
+    // A free-text allergy that resolved to a catalogue row excludes that row
+    // outright, whatever it is or is not linked to. Same function, same loop,
+    // same rejection — the entry is enforced identically to a listed allergen
+    // because it goes through the identical gate, not a parallel one.
+    if (profile.excludedIngredientIds.has(ingredient.id)) {
+      violations.push({
+        allergenId: null,
+        ingredientId: ingredient.id,
+        ingredientName: ingredient.name,
+        kind: 'custom_allergen',
+        presence: 'contains'
+      });
+    }
+
     for (const link of ingredient.allergens) {
       const isAllergy = profile.allergenIds.has(link.allergenId);
       const isIntolerance = profile.intoleranceAllergenIds.has(link.allergenId);
@@ -80,12 +99,17 @@ export function isSafe(ingredients: readonly CheckedIngredient[], profile: Safet
  */
 export function toSafetyProfile(
   allergies: readonly { allergenId: string; crossContaminationSensitive: boolean }[],
-  intolerances: readonly { allergenId: string }[]
+  intolerances: readonly { allergenId: string }[],
+  customAllergens: readonly { ingredientId: string | null; label: string }[] = []
 ): SafetyProfile {
   return {
     allergenIds: new Set(allergies.map(a => a.allergenId)),
     crossContaminationAllergenIds: new Set(allergies.filter(a => a.crossContaminationSensitive).map(a => a.allergenId)),
-    intoleranceAllergenIds: new Set(intolerances.map(i => i.allergenId))
+    excludedIngredientIds: new Set(customAllergens.map(entry => entry.ingredientId).filter((id): id is string => id !== null)),
+    intoleranceAllergenIds: new Set(intolerances.map(i => i.allergenId)),
+    // The split is the whole point: what resolved is enforced, what did not is
+    // carried separately and labelled as unenforceable all the way to the screen.
+    unenforceableLabels: customAllergens.filter(entry => entry.ingredientId === null).map(entry => entry.label)
   };
 }
 

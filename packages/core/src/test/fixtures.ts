@@ -97,7 +97,9 @@ export function makeSafetyProfile(overrides?: Partial<SafetyProfile>): SafetyPro
   return {
     allergenIds: new Set([ALLERGEN_GLUTEN]),
     crossContaminationAllergenIds: new Set<string>(),
+    excludedIngredientIds: new Set<string>(),
     intoleranceAllergenIds: new Set([ALLERGEN_MILK]),
+    unenforceableLabels: [],
     ...overrides
   };
 }
@@ -128,6 +130,7 @@ export function makeCatalogueIngredient(overrides?: Partial<CatalogueIngredient>
     gramsPerUnit: null,
     kcalPer100g: 200,
     name: 'Base',
+    nameLocale: 'es-ES',
     proteinPer100g: 12,
     slug: 'base',
     ...overrides

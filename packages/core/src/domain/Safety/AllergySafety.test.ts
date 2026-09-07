@@ -70,6 +70,60 @@ describe('findSafetyViolations', () => {
   });
 });
 
+describe('a free-text allergy that resolved goes through the same gate', () => {
+  it('blocks the ingredient it resolved to, even with no allergen link at all', () => {
+    // Kiwi carries none of the EU-14. Nothing in the allergen tables would ever
+    // stop it — the exclusion is the whole mechanism.
+    const kiwi = makeIngredient({ id: 'ing-kiwi', allergens: [], name: 'Kiwi' });
+    const profile = makeSafetyProfile({ excludedIngredientIds: new Set(['ing-kiwi']) });
+
+    const violations = findSafetyViolations([kiwi], profile);
+
+    expect(violations).toHaveLength(1);
+    expect(violations[0]).toMatchObject({ allergenId: null, ingredientName: 'Kiwi', kind: 'custom_allergen' });
+  });
+
+  it('rejects a dish through `dishSafety`, exactly as a listed allergen does', () => {
+    const catalogue = toCatalogue([
+      {
+        id: 'ing-kiwi',
+        allergens: [],
+        carbsPer100g: 15,
+        category: 'produce',
+        defaultUnit: 'g',
+        fatPer100g: 0.5,
+        fiberPer100g: 3,
+        gramsPerUnit: null,
+        kcalPer100g: 61,
+        name: 'Kiwi',
+        nameLocale: 'es-ES',
+        proteinPer100g: 1.1,
+        slug: 'kiwi'
+      }
+    ]);
+
+    const safe = dishSafety([{ slug: 'kiwi' }], catalogue, makeSafetyProfile());
+    const unsafe = dishSafety([{ slug: 'kiwi' }], catalogue, makeSafetyProfile({ excludedIngredientIds: new Set(['ing-kiwi']) }));
+
+    expect(safe.kind).toBe('safe');
+    expect(unsafe.kind).toBe('unsafe');
+  });
+
+  it('leaves every other ingredient alone', () => {
+    const rice = makeIngredient({ id: 'ing-arroz', allergens: [], name: 'Arroz' });
+
+    expect(isSafe([rice], makeSafetyProfile({ excludedIngredientIds: new Set(['ing-kiwi']) }))).toBe(true);
+  });
+
+  it('reports both an exclusion and an allergen link on the same ingredient', () => {
+    // Nothing dedupes them, and nothing should: they are two independent reasons
+    // the same ingredient is out, and a rejection that names one is still true.
+    const bread = makeIngredient({ id: 'ing-pan', allergens: [{ allergenId: ALLERGEN_IDS.gluten, presence: 'contains' }], name: 'Pan' });
+
+    expect(findSafetyViolations([bread], makeSafetyProfile({ excludedIngredientIds: new Set(['ing-pan']) }))).toHaveLength(2);
+  });
+});
+
 describe('toSafetyProfile', () => {
   it('puts only trace-sensitive allergies into the cross-contamination set', () => {
     const profile = toSafetyProfile(
@@ -83,6 +137,35 @@ describe('toSafetyProfile', () => {
     expect([...profile.allergenIds].sort()).toEqual([ALLERGEN_IDS.gluten, ALLERGEN_IDS.peanuts].sort());
     expect([...profile.crossContaminationAllergenIds]).toEqual([ALLERGEN_IDS.gluten]);
     expect([...profile.intoleranceAllergenIds]).toEqual([ALLERGEN_IDS.milk]);
+  });
+
+  it('splits free-text allergies into what is enforced and what is not', () => {
+    const profile = toSafetyProfile(
+      [],
+      [],
+      [
+        { ingredientId: 'ing-kiwi', label: 'kiwi' },
+        { ingredientId: null, label: 'marisco' }
+      ]
+    );
+
+    expect([...profile.excludedIngredientIds]).toEqual(['ing-kiwi']);
+    expect(profile.unenforceableLabels).toEqual(['marisco']);
+  });
+
+  it('never lets an unmatched label reach the enforced set', () => {
+    // The one invariant that makes the interface's promise true: if it is in
+    // `excludedIngredientIds` there is an id behind it, and an id is enforceable.
+    const profile = toSafetyProfile([], [], [{ ingredientId: null, label: 'marisco' }]);
+
+    expect(profile.excludedIngredientIds.size).toBe(0);
+  });
+
+  it('carries neither when nobody typed anything', () => {
+    const profile = toSafetyProfile([], []);
+
+    expect(profile.excludedIngredientIds.size).toBe(0);
+    expect(profile.unenforceableLabels).toEqual([]);
   });
 });
 
@@ -99,6 +182,7 @@ describe('dishSafety — the one gate both generation and reuse pass through', (
       gramsPerUnit: null,
       kcalPer100g: 200,
       name: 'Arroz',
+      nameLocale: 'es-ES',
       proteinPer100g: 12,
       slug: 'arroz'
     },
@@ -113,6 +197,7 @@ describe('dishSafety — the one gate both generation and reuse pass through', (
       gramsPerUnit: 40,
       kcalPer100g: 247,
       name: 'Pan integral',
+      nameLocale: 'es-ES',
       proteinPer100g: 8.8,
       slug: 'pan'
     },
@@ -127,6 +212,7 @@ describe('dishSafety — the one gate both generation and reuse pass through', (
       gramsPerUnit: null,
       kcalPer100g: 389,
       name: 'Avena',
+      nameLocale: 'es-ES',
       proteinPer100g: 16.9,
       slug: 'avena'
     }
