@@ -28,14 +28,33 @@
 }
 
 .rail {
+  align-content: start;
   display: grid;
   gap: var(--gap-block);
-  align-content: start;
   min-inline-size: 0;
+}
+
+/*
+ * The rail's contents are reference, so they sit on one quiet card rather than
+ * four competing ones. A stack of separately-bordered boxes down the side of a
+ * screen is the thing that made this feel assembled.
+ */
+.railBlock,
+.rail > section {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-04);
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    var(--card-shadow);
+  padding: var(--card-padding);
 }
 
 .todayCard {
   background-color: var(--surface-card);
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    var(--card-shadow);
   border: 1px solid var(--border-01);
   border-radius: var(--radius-04);
   padding: var(--card-padding);
@@ -69,6 +88,9 @@
 
 .empty {
   background-color: var(--surface-card);
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    var(--card-shadow);
   border: 1px solid var(--border-01);
   border-radius: var(--radius-05);
   margin-top: var(--gap-region);
@@ -121,6 +143,9 @@
 
 .target {
   background-color: var(--surface-card);
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    var(--card-shadow);
   border: 1px solid var(--border-01);
   border-radius: var(--radius-04);
   padding: var(--space-05);

@@ -82,4 +82,25 @@
      A single raised card token, so every card in the product agrees. */
   --surface-card: light-dark(#ffffff, #1a1a1a);
   --surface-sunken: var(--color-gray-02);
+
+  /* A hairline of light along a card's top edge and a shadow beneath it. Two
+     cheap cues that a surface sits *above* the page rather than being a
+     differently-coloured region of it — which is most of what made flat cards on
+     a flat ground read as bland. */
+  --card-shadow: light-dark(0 1px 2px rgb(24 28 20 / 4%), 0 1px 2px rgb(0 0 0 / 40%));
+  --card-highlight: light-dark(rgb(255 255 255 / 90%), rgb(255 255 255 / 6%));
+
+  /* ── Ambient light ────────────────────────────────────────────────────
+     Three soft pools of colour behind everything, plus grain.
+
+     Deliberately not a gradient across the whole page, which reads as a theme;
+     these are lights in a room. Kept far below the text contrast threshold —
+     the brightest is 7% — because the job is to stop the ground being *nothing*,
+     not to be noticed. Warm at the top left, brand green at the right, cool at
+     the foot, so scrolling passes through a slow shift rather than a flat field. */
+  --glow-warm: light-dark(rgb(212 196 148 / 22%), rgb(160 140 80 / 10%));
+  --glow-brand: light-dark(rgb(95 122 61 / 13%), rgb(109 138 70 / 12%));
+  --glow-cool: light-dark(rgb(140 165 190 / 14%), rgb(90 120 160 / 9%));
+  /* Grain is what stops a large soft gradient banding on an 8-bit display. */
+  --grain-opacity: light-dark(0.028, 0.05);
 }

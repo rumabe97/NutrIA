@@ -1,0 +1,55 @@
+/*
+ * The one card on the dashboard that carries the accent as a fill.
+ *
+ * The accent marks actions, and this is the only thing on the screen a user
+ * opens the dashboard to act on. Everything else is reference.
+ */
+.card {
+  background:
+    linear-gradient(140deg, var(--color-brand-03), var(--color-brand-02) 60%),
+    var(--surface-card);
+  border: 1px solid var(--color-brand-06);
+  border-radius: var(--radius-04);
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    var(--card-shadow);
+  color: inherit;
+  display: grid;
+  gap: var(--space-01);
+  padding: var(--card-padding);
+  text-decoration: none;
+  transition:
+    border-color var(--duration-fast) var(--ease-default),
+    transform var(--duration-fast) var(--ease-default);
+}
+
+.card:hover {
+  border-color: var(--color-brand-08);
+  transform: translateY(-1px);
+}
+
+.eyebrow {
+  color: var(--color-brand-11);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.name {
+  font-size: var(--font-size-06);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.015em;
+  line-height: var(--line-height-02);
+}
+
+.meta {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  font-variant-numeric: tabular-nums;
+}
+
+.done {
+  color: var(--foreground-02);
+  margin: 0;
+}

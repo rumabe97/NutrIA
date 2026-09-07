@@ -5,28 +5,57 @@ import styles from './MealRow.module.css';
 
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
-import { formatNumber } from 'lib/format';
+import { formatNumber, formatQuantity } from 'lib/format';
 import { slotLabel } from 'lib/generation';
 
 interface MealRowProps {
   id: string;
+  /** Already scaled to this meal's portion by the API. */
+  ingredients?: readonly { grams: number; name: string }[];
   kcal: number;
   name: string;
   proteinG: number;
   slot: string;
 }
 
-export function MealRow({ id, kcal, name, proteinG, slot }: MealRowProps) {
+/**
+ * One meal, with its ingredients a disclosure away rather than a page away.
+ *
+ * The plan used to be fourteen days of names, and the grams — the thing you
+ * actually cook and shop from — were behind a navigation per meal. Fifty-six
+ * navigations is not a plan you can use in a kitchen.
+ *
+ * Closed by default, because fourteen days of open ingredient lists is not a
+ * plan you can scan either. The title stays a link to the full recipe with its
+ * method; this is the quantities only.
+ */
+export function MealRow({ id, ingredients = [], kcal, name, proteinG, slot }: MealRowProps) {
   const dictionary = useDictionary();
   const locale = useLocale();
 
   return (
-    <Link className={styles.row} href={`/plan/comida/${id}`}>
-      <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
-      <span className={styles.name}>{name}</span>
-      <span className={styles.meta}>
-        {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(proteinG), locale)} {dictionary.units.proteinShort}
-      </span>
-    </Link>
+    <div className={styles.row}>
+      <Link className={styles.head} href={`/plan/comida/${id}`}>
+        <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
+        <span className={styles.name}>{name}</span>
+        <span className={styles.meta}>
+          {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(proteinG), locale)} {dictionary.units.proteinShort}
+        </span>
+      </Link>
+
+      {ingredients.length > 0 ? (
+        <details className={styles.details}>
+          <summary className={styles.summary}>{dictionary.meal.ingredients}</summary>
+          <ul className={styles.ingredients}>
+            {ingredients.map(ingredient => (
+              <li className={styles.ingredient} key={ingredient.name}>
+                <span>{ingredient.name}</span>
+                <span className={styles.grams}>{formatQuantity(ingredient.grams, 'g', locale, dictionary)}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </div>
   );
 }

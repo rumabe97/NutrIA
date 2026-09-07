@@ -1,49 +1,102 @@
 .row {
-  align-items: center;
   border-bottom: 1px solid var(--border-01);
-  color: inherit;
-  display: grid;
-  gap: var(--space-01) var(--space-05);
-  grid-template-columns: 6.5rem 1fr auto;
-  padding-block: var(--space-04);
-  text-decoration: none;
-  transition: background-color var(--duration-fast) var(--ease-default);
+  padding-block: var(--space-03);
 }
 
 .row:last-child {
   border-bottom: none;
+  padding-bottom: 0;
 }
 
-.row:hover {
-  background-color: var(--color-hover);
+.head {
+  align-items: baseline;
+  color: inherit;
+  display: grid;
+  gap: var(--space-01) var(--space-04);
+  grid-template-columns: 6.5rem 1fr auto;
+  text-decoration: none;
+}
+
+.head:hover .name {
+  text-decoration: underline;
 }
 
 .slot {
-  color: var(--foreground-03);
-  font-size: var(--font-size-02);
-  text-transform: none;
+  color: var(--foreground-02);
+  font-size: var(--font-size-01);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .name {
-  font-size: var(--font-size-04);
-  font-weight: var(--font-weight-medium);
-  text-wrap: pretty;
+  font-size: var(--font-size-03);
 }
 
 .meta {
   color: var(--foreground-02);
   font-size: var(--font-size-02);
   font-variant-numeric: tabular-nums;
-  text-align: end;
+  white-space: nowrap;
+}
+
+/* Offset to line up under the name column rather than under the slot label. */
+.details {
+  margin-inline-start: calc(6.5rem + var(--space-04));
+  margin-top: var(--space-02);
+}
+
+.summary {
+  color: var(--color-brand-11);
+  cursor: pointer;
+  font-size: var(--font-size-01);
+  list-style: none;
+  width: fit-content;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary::before {
+  content: '+ ';
+}
+
+.details[open] .summary::before {
+  content: '− ';
+}
+
+.ingredients {
+  display: grid;
+  gap: var(--space-01);
+  list-style: none;
+  margin: var(--space-02) 0 0;
+  padding: 0;
+}
+
+.ingredient {
+  color: var(--foreground-02);
+  display: flex;
+  font-size: var(--font-size-02);
+  gap: var(--space-04);
+  justify-content: space-between;
+  max-inline-size: 26rem;
+}
+
+.grams {
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 @media (width < 34rem) {
-  .row {
+  .head {
     grid-template-columns: 1fr auto;
   }
 
   .slot {
     grid-column: 1 / -1;
+  }
+
+  .details {
+    margin-inline-start: 0;
   }
 }

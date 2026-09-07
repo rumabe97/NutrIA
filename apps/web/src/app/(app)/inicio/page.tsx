@@ -9,6 +9,10 @@ import { CtaLink } from 'components/CtaLink';
 import { EmptyState } from 'components/EmptyState';
 import { MacroSummary } from 'components/MacroSummary';
 import { MealRow } from 'components/MealRow';
+import { NextMeal } from 'components/NextMeal';
+import { PlanProgress } from 'components/PlanProgress';
+import { ShoppingSnapshot } from 'components/ShoppingSnapshot';
+import { TargetProgress } from 'components/TargetProgress';
 
 import { formatNumber, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
@@ -20,6 +24,9 @@ import type { PlanView } from 'core/controllers/Plan';
 import type { UserView } from 'core/controllers/User';
 
 export const dynamic = 'force-dynamic';
+
+/** Only the fields the dashboard's snapshot needs. The shopping screen reads the rest. */
+type ShoppingListView = { items: readonly { category: string }[] };
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
@@ -36,17 +43,21 @@ function greetingKey(hour: number): 'goodAfternoon' | 'goodEvening' | 'goodMorni
 export default async function DashboardPage() {
   await redirectIfOnboardingIncomplete();
 
-  const [dictionary, locale, user, profile, plan] = await Promise.all([
+  const [dictionary, locale, user, profile, plan, shopping] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<UserView>('/users/me'),
     serverApi<FullProfileView>('/profile'),
-    serverApi<PlanView | null>('/meal-plans/active')
+    serverApi<PlanView | null>('/meal-plans/active'),
+    // 404s into null when there is no active plan, which is a normal state and
+    // why every consumer below is guarded rather than this being awaited apart.
+    serverApi<ShoppingListView>('/shopping-lists/active')
   ]);
 
   const t = dictionary.dashboard;
+  const hour = new Date().getHours();
   const firstName = (profile?.profile?.displayName ?? user?.name ?? '').split(' ')[0];
-  const greeting = t[greetingKey(new Date().getHours())];
+  const greeting = t[greetingKey(hour)];
   const hello = firstName ? interpolate(t.greetingNamed, { greeting, name: firstName }) : greeting;
   const today = new Date().toISOString().slice(0, 10);
   const day = plan?.days.find(candidate => candidate.date === today);
@@ -60,43 +71,51 @@ export default async function DashboardPage() {
           {plan ? (
             <Fragment>
               <Text tone="secondary">
-            {day ? interpolate(t.dayOf, { current: day.dayIndex, total: plan.days.length }) : t.activePlan}{' '}
-            {interpolate(t.checkIn, { when: checkInLabel(plan.endDate, t) })}
-          </Text>
+                {day ? interpolate(t.dayOf, { current: day.dayIndex, total: plan.days.length }) : t.activePlan}{' '}
+                {interpolate(t.checkIn, { when: checkInLabel(plan.endDate, t) })}
+              </Text>
 
-          {day ? (
-            <section className={styles.todayCard}>
-              <div className={styles.todayHeading}>
-                <Text size="lg" weight="semibold">
-                  {t.today}
-                </Text>
-                <CtaLink href="/plan" size="sm" variant="ghost">
-                  {t.seeAllDays}
-                </CtaLink>
-              </div>
+              <PlanProgress days={plan.days} today={day?.dayIndex} />
 
-              <MacroSummary carbsG={day.totals.carbsG} fatG={day.totals.fatG} kcal={day.totals.kcal} proteinG={day.totals.proteinG} />
+              {day ? (
+                <Fragment>
+                  {/* The one question someone opens this screen to answer, answered
+                      first and on its own. The full day is below it. */}
+                  <NextMeal hour={hour} meals={day.meals} />
 
-              <div className={`${styles.meals} motion-list`}>
-                {day.meals.map(meal => (
-                  <MealRow id={meal.id} kcal={meal.kcal} key={meal.id} name={meal.name} proteinG={meal.proteinG} slot={meal.slot} />
-                ))}
-              </div>
-            </section>
-          ) : (
+                  <section className={styles.todayCard}>
+                    <div className={styles.todayHeading}>
+                      <Text size="lg" weight="semibold">
+                        {t.today}
+                      </Text>
+                      <CtaLink href="/plan" size="sm" variant="ghost">
+                        {t.seeAllDays}
+                      </CtaLink>
+                    </div>
+
+                    <MacroSummary carbsG={day.totals.carbsG} fatG={day.totals.fatG} kcal={day.totals.kcal} proteinG={day.totals.proteinG} />
+
+                    <div className={`${styles.meals} motion-list`}>
+                      {day.meals.map(meal => (
+                        <MealRow id={meal.id} ingredients={meal.ingredients} kcal={meal.kcal} key={meal.id} name={meal.name} proteinG={meal.proteinG} slot={meal.slot} />
+                      ))}
+                    </div>
+                  </section>
+                </Fragment>
+              ) : (
             // The plan is active but today falls outside its dates — the fortnight
             // has run its course and the next one is due.
             <EmptyState body={t.planEndedBody} title={t.planEndedTitle}>
               <CtaLink href="/plan/generando" size="lg">
                 {t.planEndedCta}
               </CtaLink>
-              <CtaLink href="/plan" size="lg" variant="secondary">
-                {t.seePreviousPlan}
-              </CtaLink>
-            </EmptyState>
-          )}
-        </Fragment>
-      ) : (
+                  <CtaLink href="/plan" size="lg" variant="secondary">
+                    {t.seePreviousPlan}
+                  </CtaLink>
+                </EmptyState>
+              )}
+            </Fragment>
+          ) : (
         // No "finish your profile" branch: an unfinished profile never reaches
         // this page, it is redirected to its resume step above.
         <Fragment>
@@ -113,7 +132,9 @@ export default async function DashboardPage() {
 
         {profile?.targets ? (
           <aside className={`${styles.rail} motion-enter`}>
-            <div>
+            {/* Each rail block is its own panel, so the grid's gap is the rhythm
+                between them rather than a margin each one invents. */}
+            <div className={styles.railBlock}>
               <div className={styles.targetsLabel}>
                 <Text size="sm" tone="tertiary">
                   {interpolate(t.targetsLabel, {
@@ -138,6 +159,10 @@ export default async function DashboardPage() {
               <Text className={styles.targetsNote} size="xs" tone="tertiary">
                 {t.targetsEstimate}
               </Text>
+
+              {day ? <TargetProgress targets={profile.targets.effective} totals={day.totals} /> : null}
+
+              {shopping && shopping.items.length > 0 ? <ShoppingSnapshot items={shopping.items} /> : null}
 
               {profile.targets.derivation.clampedBy === 'floor' ? (
                 <p className={styles.notice}>

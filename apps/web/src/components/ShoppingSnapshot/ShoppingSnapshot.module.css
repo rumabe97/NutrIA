@@ -1,0 +1,23 @@
+.panel {
+  display: grid;
+  gap: var(--space-02);
+}
+
+.count {
+  font-size: var(--font-size-04);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+}
+
+.link {
+  color: var(--color-brand-11);
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
+  justify-self: start;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}

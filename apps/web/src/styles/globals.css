@@ -1,11 +1,77 @@
 /* App-specific global styles.
    The shared reset (box-sizing, body defaults, font-family) lives in ui/styles/base. */
 
-body {
+/*
+ * The page colour lives on `html`, not `body`, and that is load-bearing.
+ *
+ * The ambient layers below are `body::before` / `::after` at a negative
+ * z-index. With the background on `body` they only paint because a body
+ * background with no html background propagates to the canvas — true today, and
+ * silently false the moment anyone gives `html` a background. Putting it here
+ * removes the question: the root's background is the canvas, always painted
+ * first, and everything else is above it.
+ */
+html {
   background-color: var(--background-01);
+}
+
+body {
+  /*
+   * Deliberately transparent, overriding `ui/styles/base`.
+   *
+   * With a background here *and* one on `html`, body's own background box paints
+   * over the ambient layers below — they are its pseudo-elements at a negative
+   * z-index, which puts them above the canvas and below everything body itself
+   * draws. Only one of the two elements may carry the colour, and it has to be
+   * the root.
+   */
+  background: none;
   color: var(--foreground-01);
   -webkit-font-smoothing: antialiased;
+  /* Positioned so the ambient layers below are placed against it. */
+  position: relative;
   text-rendering: optimizeLegibility;
+}
+
+/*
+ * Ambient light.
+ *
+ * Two fixed layers behind everything: three soft pools of colour, and a grain
+ * overlay. `fixed` rather than `absolute` so the lights stay put while the page
+ * moves under them — a background that scrolls with the content is wallpaper;
+ * one that does not is a room.
+ *
+ * `pointer-events: none` on both. Neither may ever intercept a click, and a
+ * decorative layer that does is the kind of bug nobody thinks to test for.
+ */
+body::before {
+  background:
+    radial-gradient(60rem 40rem at 12% -6%, var(--glow-warm), transparent 65%),
+    radial-gradient(52rem 44rem at 96% 18%, var(--glow-brand), transparent 62%),
+    radial-gradient(64rem 40rem at 45% 104%, var(--glow-cool), transparent 60%);
+  content: '';
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  z-index: -2;
+}
+
+/*
+ * Grain, as an inline SVG so it costs no request.
+ *
+ * Its job is to break up the gradients above: a 40rem-wide soft radial banding
+ * into visible steps on an 8-bit display is the single most common way an
+ * ambient background looks cheap. At under 3% it is invisible as texture and
+ * does its work anyway.
+ */
+body::after {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  content: '';
+  inset: 0;
+  opacity: var(--grain-opacity);
+  pointer-events: none;
+  position: fixed;
+  z-index: -1;
 }
 
 /* Reveal-on-scroll, driven by an IntersectionObserver in

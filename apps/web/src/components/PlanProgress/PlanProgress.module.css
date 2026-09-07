@@ -1,0 +1,43 @@
+.wrapper {
+  display: grid;
+  gap: var(--gap-heading);
+}
+
+.head {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+}
+
+/* One cell per stored day, so the strip cannot disagree with the plan. */
+.strip {
+  display: grid;
+  gap: var(--space-01);
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+
+.cell {
+  background-color: var(--color-gray-04);
+  block-size: 0.5rem;
+  border-radius: var(--radius-full);
+  transition: background-color var(--duration-fast) var(--ease-default);
+}
+
+.cell[data-state='past'] {
+  background-color: var(--color-brand-07);
+}
+
+.cell[data-state='today'] {
+  background-color: var(--color-brand-09);
+  /* The only cell that is taller. Position in a fortnight is the one thing this
+     strip has to answer at a glance, and colour alone does not survive being
+     glanced at. */
+  block-size: 0.875rem;
+  margin-block: -0.1875rem;
+}
+
+.strip:hover .cell[data-state='future'] {
+  background-color: var(--color-gray-05);
+}

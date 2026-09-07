@@ -1,0 +1,43 @@
+.panel {
+  display: grid;
+  gap: var(--gap-heading);
+}
+
+.rows {
+  display: grid;
+  gap: var(--space-04);
+  margin: 0;
+}
+
+.row {
+  display: grid;
+  gap: var(--space-01);
+  grid-template-columns: 1fr auto;
+}
+
+.label {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+}
+
+.value {
+  font-size: var(--font-size-02);
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+  text-align: end;
+}
+
+.track {
+  background-color: var(--color-gray-04);
+  block-size: 0.25rem;
+  border-radius: var(--radius-full);
+  grid-column: 1 / -1;
+  overflow: hidden;
+}
+
+.bar {
+  background-color: var(--color-brand-09);
+  block-size: 100%;
+  border-radius: inherit;
+  transition: inline-size var(--duration-slow) var(--ease-spring);
+}
