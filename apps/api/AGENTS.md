@@ -138,6 +138,14 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `ConfigModule.forRoot` is async and a validation failure at import is a rejected
   promise nothing observes until bootstrap — so the deploy fails there, before
   migrations.
+- **The request log carries an allow-list of headers, never the whole object.** The
+  first production log line held a platform bearer credential valid for hours
+  (`x-vercel-oidc-token`), a proxy signature, and the caller's city, postal code and
+  coordinates, because the default records every header. `LOGGED_REQUEST_HEADERS` in
+  `shared/logging/pino.ts` names what is wanted; add to it deliberately, and never
+  replace it with a block-list — the next header the platform adds is not one you
+  will know about. The client IP is personal data and is deliberately absent;
+  correlate on `x-vercel-id` with the platform's own access log if it is ever needed.
 - **The pretty-printer degrades, it never crashes.** `pino-pretty` is a devDependency
   resolved at runtime, so a traced bundle never contains it; `createPino` checks it
   is resolvable and falls back to JSON with one warning line. Do not make any

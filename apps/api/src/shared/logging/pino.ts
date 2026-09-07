@@ -2,7 +2,7 @@ import { createRequire } from 'node:module';
 import pino from 'pino';
 import { pinoHttp } from 'pino-http';
 
-import type { IncomingMessage } from 'node:http';
+import type { IncomingHttpHeaders, IncomingMessage, OutgoingHttpHeaders } from 'node:http';
 import type { LevelWithSilent, Logger } from 'pino';
 import type { HttpLogger } from 'pino-http';
 
@@ -13,8 +13,9 @@ export const REQUEST_LOGGER = Symbol('REQUEST_LOGGER');
  * Redaction is not optional here: bodies carry health data and headers carry
  * session cookies.
  *
- * The three health fields are listed even though request logging does not
- * record bodies by default. The list is what survives someone turning body
+ * The header paths are a second line of defence behind the allow-list below —
+ * they only matter if someone widens it. The three health fields are listed even
+ * though request logging does not record bodies by default. The list is what survives someone turning body
  * logging on to debug something at 2am — and a medication name in a log file is
  * not a mistake anyone can take back. Extend it in the same change that adds a
  * field, never afterwards.
@@ -72,11 +73,62 @@ function prettyAvailable(): boolean {
 }
 
 /**
+ * The only headers a request log line may carry. An allow-list, not a block-list.
+ *
+ * The default was every header, and on the platform every header includes a
+ * bearer credential it issues to the function (`x-vercel-oidc-token`, valid for
+ * hours), a proxy signature, and the caller's city, postal code and coordinates.
+ * A health-data app must not write a person's street-level location into a log
+ * on every request, and no app should write a bearer token. Redacting by name
+ * loses the next time a header is added upstream; naming what is wanted cannot.
+ *
+ * `x-vercel-id` is here for correlation with the platform's own access log,
+ * which is where the client IP lives if it is ever needed — it is personal data
+ * and is deliberately not recorded here. `sec-fetch-site` is here because it is
+ * the one header that says whether the browser treated the call as cross-site,
+ * which is the whole cookie question in one word.
+ */
+export const LOGGED_REQUEST_HEADERS = [
+  'accept-language',
+  'content-length',
+  'content-type',
+  'origin',
+  'referer',
+  'sec-fetch-site',
+  'user-agent',
+  'x-vercel-id'
+] as const;
+
+/** Response headers worth a line. The security headers are the same on every response and say nothing. */
+export const LOGGED_RESPONSE_HEADERS = ['content-length', 'content-type', 'location'] as const;
+
+/** What pino-http hands a custom serializer: its own standard shape, already built. */
+type SerializedRequest = { readonly id?: unknown; readonly headers: IncomingHttpHeaders; readonly method?: string; readonly url?: string };
+type SerializedResponse = { readonly headers: OutgoingHttpHeaders; readonly statusCode?: number };
+
+function pick(headers: IncomingHttpHeaders | OutgoingHttpHeaders, allowed: readonly string[]): Record<string, unknown> {
+  return Object.fromEntries(allowed.filter(name => headers[name] !== undefined).map(name => [name, headers[name]]));
+}
+
+export function serializeRequest(request: SerializedRequest): Record<string, unknown> {
+  // No `remoteAddress`: behind the proxy it is always the loopback address.
+  return { id: request.id, headers: pick(request.headers, LOGGED_REQUEST_HEADERS), method: request.method, url: request.url };
+}
+
+export function serializeResponse(response: SerializedResponse): Record<string, unknown> {
+  return { headers: pick(response.headers, LOGGED_RESPONSE_HEADERS), statusCode: response.statusCode };
+}
+
+/**
  * One line per request, on the shared logger.
  *
  * @param silence a path prefix whose requests are not logged — health checks are
  *   the loudest and least informative lines in any log.
  */
 export function createRequestLogger(logger: Logger, { silence }: { readonly silence: string }): HttpLogger {
-  return pinoHttp({ autoLogging: { ignore: (request: IncomingMessage) => request.url?.startsWith(silence) ?? false }, logger });
+  return pinoHttp({
+    autoLogging: { ignore: (request: IncomingMessage) => request.url?.startsWith(silence) ?? false },
+    logger,
+    serializers: { req: serializeRequest, res: serializeResponse }
+  });
 }
