@@ -137,6 +137,30 @@ Items can now be ticked off, optimistically, with ownership resolved inside the
 update. Deliberately still not editable: changing a quantity changes what the
 list claims the plan needs, which is a different claim.
 
+### 4.1b The reuse pool starved the prompt improvement — **fixed**
+
+Prompt 2.1.0 was written to ask for cooking rather than combinations, and then
+verified against the real provider rather than assumed. The first plan generated
+after it landed used **41 distinct dishes, of which 3 were new**: reuse is
+preferred over generation by design (`0006`), so the library built under 2.0.0 was
+served straight back. A prompt improvement reaches an existing user only as fast
+as their pool turns over, which without a rule is never.
+
+Worse, the measurement found what the owner meant by "the recipes seem too
+basic": **12 of 48 stored recipes had no method at all** — two ingredients and a
+name — because 2.1.0 explicitly told the model that snacks take no steps, and
+nothing anywhere checked.
+
+Fixed in three places, deliberately: `domain/Method` decides the floor (one step
+always, two when the dish is cooked), `pool.schema` rejects a generated dish that
+misses it, and `reusablePool` stops serving a stored one that misses it. Prompt
+2.2.0 asks snacks for one to three steps. The next generation reused 36 instead
+of 47 and wrote 11 new snacks with real method — verified against the provider,
+not inferred.
+
+The 12 method-less rows stay in the table. They are referenced by meals in
+historical plans, and those are never rewritten.
+
 ### 4.2 Meal completion, replacement and feedback
 
 The tables exist (`meal_completions`, `meal_feedback`, `favorite_recipes`,
