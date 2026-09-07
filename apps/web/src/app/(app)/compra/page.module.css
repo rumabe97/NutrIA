@@ -6,7 +6,7 @@
   margin: 0 0 var(--gap-heading);
 }
 
-.notice {
+.progress {
   background-color: var(--surface-sunken);
   border-radius: var(--radius-03);
   margin: var(--gap-block) 0;

@@ -44,9 +44,29 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
         {meal.cuisine ? <span>{meal.cuisine}</span> : null}
       </div>
 
-      <div aria-hidden="true" className={styles.visual}>
-        {meal.name}
-      </div>
+      {/* A specification, where a decorative band used to be.
+          The band was a gradient with the dish name written in it — a hero image
+          made of nothing, occupying the most valuable space on the page and
+          telling the reader something the heading above already said. There is no
+          photograph to put here: nobody cooked this dish, and an invented picture
+          of it would be the most convincing lie on the page. So the space carries
+          the four numbers a cook checks before starting. */}
+      <dl className={styles.spec}>
+        {[
+          { label: dictionary.meal.prep, value: interpolate(dictionary.meal.minutes, { value: formatNumber(meal.prepMinutes, locale) }) },
+          {
+            label: dictionary.meal.cook,
+            value: meal.cookMinutes > 0 ? interpolate(dictionary.meal.minutes, { value: formatNumber(meal.cookMinutes, locale) }) : dictionary.meal.none
+          },
+          { label: dictionary.meal.servingsLabel, value: formatNumber(Math.round(meal.servings * 100) / 100, locale) },
+          { label: dictionary.meal.difficultyLabel, value: difficultyLabel(meal.difficulty, dictionary) }
+        ].map(item => (
+          <div className={styles.specItem} key={item.label}>
+            <dt className={styles.specLabel}>{item.label}</dt>
+            <dd className={styles.specValue}>{item.value}</dd>
+          </div>
+        ))}
+      </dl>
 
       <MacroSummary carbsG={meal.carbsG} fatG={meal.fatG} kcal={meal.kcal} proteinG={meal.proteinG} />
 

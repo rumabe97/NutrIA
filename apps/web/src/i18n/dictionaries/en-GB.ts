@@ -150,7 +150,15 @@ export const enGB: Dictionary = {
     targetsStatusOverridden: 'set by you',
     today: 'Today',
     todayVsTarget: 'Today, against your targets',
-    tomorrow: 'tomorrow'
+    tomorrow: 'tomorrow',
+    weightLog: 'Log',
+    weightNone: 'No weight logged yet.',
+    weightPlaceholder: 'kg',
+    weightSince: '{change} kg since your first entry',
+    weightStable: 'No change since your first entry',
+    weightStart: 'You started at {value} kg',
+    weightTitle: 'Your weight',
+    weightToday: 'Today'
   },
 
   errors: {
@@ -359,11 +367,17 @@ export const enGB: Dictionary = {
 
   meal: {
     back: '← Back to the plan',
+    cook: 'Cook',
     dayOf: '{slot} · Day {day}',
     difficulty: { easy: 'Easy', hard: 'Hard', medium: 'Medium' },
+    difficultyLabel: 'Difficulty',
     ingredients: 'Ingredients',
+    minutes: '{value} min',
     noCooking: 'No cooking',
+    none: '—',
+    prep: 'Prep',
     servingNote: 'Quantities for {servings} {unit}.',
+    servingsLabel: 'Servings',
     servingUnitOne: 'serving',
     servingUnitOther: 'servings',
     steps: 'Method',
@@ -566,6 +580,7 @@ export const enGB: Dictionary = {
     emptyCta: 'See my plan',
     emptyTitle: 'No list yet',
     notice: 'For now the list is read-only. Ticking off what you already have, adjusting quantities and adding items arrives in the next release.',
+    progress: '{done} of {total} in the trolley',
     subtitle: 'Everything you need for the fortnight, already added up.',
     title: 'Shopping list'
   },

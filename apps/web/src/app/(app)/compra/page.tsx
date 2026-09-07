@@ -7,9 +7,10 @@ import { Text } from 'ui/components/Text';
 
 import { CtaLink } from 'components/CtaLink';
 import { EmptyState } from 'components/EmptyState';
+import { ShoppingItem } from 'components/ShoppingItem';
 
 import { categoryLabel } from 'lib/generation';
-import { formatQuantity } from 'lib/format';
+import { formatNumber, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
@@ -46,11 +47,14 @@ export default async function ShoppingPage() {
       <h1 className={styles.title}>{dictionary.shopping.title}</h1>
       <Text tone="secondary">{dictionary.shopping.subtitle}</Text>
 
-      {/* Said plainly rather than rendered as checkboxes that do nothing. A control
-          that looks interactive and is not is worse than its absence. */}
-      <div className={styles.notice}>
+      {/* Progress, not a promise: the count is derived from the ticks, so it
+          cannot claim something the list does not show. */}
+      <div className={styles.progress}>
         <Text size="sm" tone="secondary">
-          {dictionary.shopping.notice}
+          {interpolate(dictionary.shopping.progress, {
+            done: formatNumber(list.items.filter(item => item.checked).length, locale),
+            total: formatNumber(list.items.length, locale)
+          })}
         </Text>
       </div>
 
@@ -59,10 +63,14 @@ export default async function ShoppingPage() {
           <h2 className={styles.groupTitle}>{categoryLabel(group.category, dictionary)}</h2>
           <ul className={styles.items}>
             {group.items.map(item => (
-              <li className={styles.item} key={item.id}>
-                <span>{item.name}</span>
-                <span className={styles.quantity}>{formatQuantity(item.displayQuantity, item.displayUnit, locale, dictionary)}</span>
-              </li>
+              <ShoppingItem
+                checked={item.checked}
+                displayQuantity={item.displayQuantity}
+                displayUnit={item.displayUnit}
+                id={item.id}
+                key={item.id}
+                name={item.name}
+              />
             ))}
           </ul>
         </section>

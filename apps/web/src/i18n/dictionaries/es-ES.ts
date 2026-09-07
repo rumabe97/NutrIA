@@ -154,7 +154,15 @@ export const esES = {
     targetsStatusOverridden: 'ajustados por ti',
     today: 'Hoy',
     todayVsTarget: 'Hoy, sobre tus objetivos',
-    tomorrow: 'mañana'
+    tomorrow: 'mañana',
+    weightLog: 'Anotar',
+    weightNone: 'Aún no has anotado ningún peso.',
+    weightPlaceholder: 'kg',
+    weightSince: '{change} kg desde tu primera anotación',
+    weightStable: 'Sin cambios desde tu primera anotación',
+    weightStart: 'Empezaste en {value} kg',
+    weightTitle: 'Tu peso',
+    weightToday: 'Hoy'
   },
 
   errors: {
@@ -364,11 +372,17 @@ export const esES = {
 
   meal: {
     back: '← Volver al plan',
+    cook: 'Cocción',
     dayOf: '{slot} · Día {day}',
     difficulty: { easy: 'Fácil', hard: 'Difícil', medium: 'Media' },
+    difficultyLabel: 'Dificultad',
     ingredients: 'Ingredientes',
+    minutes: '{value} min',
     noCooking: 'Sin cocinar',
+    none: '—',
+    prep: 'Preparación',
     servingNote: 'Cantidades para {servings} {unit}.',
+    servingsLabel: 'Raciones',
     servingUnitOne: 'ración',
     servingUnitOther: 'raciones',
     steps: 'Preparación',
@@ -571,6 +585,7 @@ export const esES = {
     emptyCta: 'Ver mi plan',
     emptyTitle: 'Todavía no hay lista',
     notice: 'Por ahora la lista es solo de consulta. Poder marcar lo que ya tienes, ajustar cantidades y añadir cosas llega en la próxima entrega.',
+    progress: '{done} de {total} ya en el carro',
     subtitle: 'Todo lo que necesitas para los catorce días, ya sumado.',
     title: 'Lista de la compra'
   },

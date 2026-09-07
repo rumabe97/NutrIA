@@ -13,6 +13,7 @@ import { NextMeal } from 'components/NextMeal';
 import { PlanProgress } from 'components/PlanProgress';
 import { ShoppingSnapshot } from 'components/ShoppingSnapshot';
 import { TargetProgress } from 'components/TargetProgress';
+import { WeightTracker } from 'components/WeightTracker';
 
 import { formatNumber, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
@@ -22,6 +23,7 @@ import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { PlanView } from 'core/controllers/Plan';
 import type { UserView } from 'core/controllers/User';
+import type { WeightView } from 'core/controllers/Progress';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,7 +45,7 @@ function greetingKey(hour: number): 'goodAfternoon' | 'goodEvening' | 'goodMorni
 export default async function DashboardPage() {
   await redirectIfOnboardingIncomplete();
 
-  const [dictionary, locale, user, profile, plan, shopping] = await Promise.all([
+  const [dictionary, locale, user, profile, plan, shopping, weight] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<UserView>('/users/me'),
@@ -51,7 +53,8 @@ export default async function DashboardPage() {
     serverApi<PlanView | null>('/meal-plans/active'),
     // 404s into null when there is no active plan, which is a normal state and
     // why every consumer below is guarded rather than this being awaited apart.
-    serverApi<ShoppingListView>('/shopping-lists/active')
+    serverApi<ShoppingListView>('/shopping-lists/active'),
+    serverApi<WeightView>('/progress/weight')
   ]);
 
   const t = dictionary.dashboard;
@@ -163,6 +166,8 @@ export default async function DashboardPage() {
               {day ? <TargetProgress targets={profile.targets.effective} totals={day.totals} /> : null}
 
               {shopping && shopping.items.length > 0 ? <ShoppingSnapshot items={shopping.items} /> : null}
+
+              {weight ? <WeightTracker weight={weight} /> : null}
 
               {profile.targets.derivation.clampedBy === 'floor' ? (
                 <p className={styles.notice}>

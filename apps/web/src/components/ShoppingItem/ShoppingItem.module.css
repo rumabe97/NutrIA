@@ -1,0 +1,51 @@
+.item {
+  align-items: center;
+  border-bottom: 1px solid var(--border-01);
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+  padding-block: var(--space-03);
+}
+
+.item:last-child {
+  border-bottom: none;
+}
+
+/*
+ * Struck through and dimmed, never removed. A list that reorders itself while
+ * you are reading it loses your place, and unticking a mistake needs the row to
+ * still be where it was.
+ */
+.item[data-checked='true'] .name,
+.item[data-checked='true'] .quantity {
+  color: var(--foreground-02);
+  text-decoration: line-through;
+}
+
+.label {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  /* The whole row is the target, not the box: this is used one-handed, walking. */
+  flex: 1;
+  gap: var(--space-03);
+  min-block-size: 1.5rem;
+}
+
+.checkbox {
+  accent-color: var(--color-brand-09);
+  block-size: 1.15rem;
+  cursor: pointer;
+  flex: 0 0 auto;
+  inline-size: 1.15rem;
+}
+
+.name {
+  font-size: var(--font-size-03);
+}
+
+.quantity {
+  font-size: var(--font-size-03);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

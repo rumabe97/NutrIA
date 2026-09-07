@@ -1,0 +1,63 @@
+.panel {
+  display: grid;
+  gap: var(--space-03);
+}
+
+.head {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-03);
+  justify-content: space-between;
+}
+
+.current {
+  font-size: var(--font-size-08);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-01);
+  margin: 0;
+}
+
+.unit {
+  color: var(--foreground-02);
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-regular);
+}
+
+.empty {
+  color: var(--foreground-02);
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-regular);
+  letter-spacing: normal;
+}
+
+.spark {
+  block-size: 1.75rem;
+  inline-size: 100%;
+  overflow: visible;
+}
+
+.spark polyline {
+  fill: none;
+  stroke: var(--color-brand-09);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  /* `preserveAspectRatio: none` stretches the stroke with the box; this keeps it
+     an even weight whatever the panel's width. */
+  vector-effect: non-scaling-stroke;
+}
+
+.form {
+  align-items: end;
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: 1fr auto;
+}
+
+.error {
+  color: var(--color-error-text);
+  font-size: var(--font-size-02);
+  margin: 0;
+}

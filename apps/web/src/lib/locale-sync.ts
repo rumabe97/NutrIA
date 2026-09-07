@@ -18,19 +18,44 @@ export function writeLocaleCookie(locale: Locale): void {
 }
 
 /**
- * Copies the profile's stored locale into the presentation cookie.
+ * Reconciles the browser's language with the account's, at sign-in.
  *
- * Called once, after sign-in. Failure is deliberately silent: the worst outcome
- * is that this session stays in the negotiated language, which is a mild
- * annoyance, and blocking a successful sign-in on it would be a much worse one.
+ * The direction depends on who chose. A cookie already present means someone
+ * picked a language *in this browser* — most likely on the landing page, before
+ * they had an account to store it on — and that choice should win and be kept.
+ * No cookie means nothing was chosen here, so the account's stored preference is
+ * the better answer.
+ *
+ * Getting this backwards is what made "the interface is English and the data is
+ * Spanish" possible: a pull-only sync overwrote a deliberate choice with a stale
+ * profile, or left the profile stale while the cookie moved on.
+ *
+ * Failure is deliberately silent. The worst outcome is a session in the
+ * negotiated language, which is a mild annoyance; blocking a successful sign-in
+ * on it would be a much worse one.
  */
 export async function syncLocaleFromProfile(): Promise<void> {
   try {
-    const profile = await api<FullProfileView>('/profile');
-    const locale = parseLocale(profile.profile?.locale);
+    const chosen = readLocaleCookie();
 
-    if (locale) {writeLocaleCookie(locale);}
+    if (chosen) {
+      await api('/profile', { body: { locale: chosen }, method: 'PATCH' });
+
+      return;
+    }
+
+    const profile = await api<FullProfileView>('/profile');
+    const stored = parseLocale(profile.profile?.locale);
+
+    if (stored) {writeLocaleCookie(stored);}
   } catch {
-    // Keep the negotiated locale.
+    // Keep whatever language this session already has.
   }
+}
+
+/** The locale this browser has chosen, if any. */
+function readLocaleCookie(): Locale | null {
+  const match = document.cookie.split('; ').find(entry => entry.startsWith(`${LOCALE_COOKIE}=`));
+
+  return parseLocale(match?.slice(LOCALE_COOKIE.length + 1));
 }

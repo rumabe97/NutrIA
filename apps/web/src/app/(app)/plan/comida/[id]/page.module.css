@@ -1,12 +1,29 @@
+/*
+ * The back link reads as one control rather than an arrow that happens to sit
+ * near some words: the two are bound together (`nowrap`, so a narrow screen
+ * cannot split them), it has a hit area rather than a text baseline, and the gap
+ * beneath it is the heading gap rather than a whole block — it belongs to the
+ * page it precedes.
+ */
 .back {
+  align-items: center;
+  border-radius: var(--radius-full);
   color: var(--foreground-02);
-  display: inline-block;
-  font-size: var(--font-size-03);
-  margin-bottom: var(--gap-block);
+  display: inline-flex;
+  font-size: var(--font-size-02);
+  gap: var(--space-01);
+  margin-block-end: var(--gap-heading);
+  margin-inline-start: calc(var(--space-03) * -1);
+  padding: var(--space-01) var(--space-03);
   text-decoration: none;
+  transition:
+    background-color var(--duration-fast) var(--ease-default),
+    color var(--duration-fast) var(--ease-default);
+  white-space: nowrap;
 }
 
 .back:hover {
+  background-color: var(--surface-sunken);
   color: var(--foreground-01);
 }
 
@@ -34,18 +51,45 @@
   margin-bottom: var(--gap-block);
 }
 
-/* A neutral band rather than a stock photo. An invented image of a dish nobody
-   cooked would be the most convincing lie on the page. */
-.visual {
-  align-items: center;
-  aspect-ratio: 16 / 7;
-  background: linear-gradient(135deg, var(--color-brand-03), var(--color-brand-05));
-  border-radius: var(--radius-05);
-  color: var(--color-brand-11);
-  display: flex;
+/* The recipe's specification. Four numbers a cook checks before starting, where
+   a decorative gradient band used to be. */
+.spec {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-04);
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    var(--card-shadow);
+  display: grid;
+  gap: var(--space-04);
+  grid-template-columns: repeat(2, 1fr);
+  margin: 0 0 var(--gap-block);
+  padding: var(--card-padding);
+}
+
+.specItem {
+  display: grid;
+  gap: var(--space-01);
+}
+
+.specLabel {
+  color: var(--foreground-02);
+  font-size: var(--font-size-01);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.specValue {
   font-size: var(--font-size-05);
-  justify-content: center;
-  margin-bottom: var(--gap-block);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+
+@media (width >= 40rem) {
+  .spec {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 .section {
