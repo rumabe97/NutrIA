@@ -12,7 +12,9 @@ import { activeLocale, dictionaryFor, getDictionary } from 'i18n/server';
 import { font } from 'ui/fonts';
 import { LocaleProvider } from 'i18n/LocaleProvider';
 
-import type { Metadata } from 'next';
+import { PAGE_BACKGROUND } from 'lib/brandIcon';
+
+import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
 
 /**
@@ -20,6 +22,18 @@ import type { ReactNode } from 'react';
  * shows, and a search result or a shared link in the wrong language is the first
  * thing a reader sees.
  */
+/**
+ * The colour a phone's browser paints its own chrome to match the page — one per
+ * scheme, because the page background follows the scheme and a dark bar over a
+ * light page looks like a mistake.
+ */
+export const viewport: Viewport = {
+  themeColor: [
+    { color: PAGE_BACKGROUND.light, media: '(prefers-color-scheme: light)' },
+    { color: PAGE_BACKGROUND.dark, media: '(prefers-color-scheme: dark)' }
+  ]
+};
+
 export async function generateMetadata(): Promise<Metadata> {
   const dictionary = await getDictionary();
 
