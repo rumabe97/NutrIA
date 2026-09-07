@@ -1,5 +1,5 @@
 .wrapper {
-  margin-top: var(--space-05);
+  margin-top: var(--gap-block);
 }
 
 .confirm {

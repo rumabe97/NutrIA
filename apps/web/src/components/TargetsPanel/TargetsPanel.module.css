@@ -1,0 +1,121 @@
+.panel {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-04);
+  display: grid;
+  gap: var(--gap-block);
+  padding: var(--card-padding);
+}
+
+.head {
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+}
+
+.badge {
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-full);
+  color: var(--foreground-02);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.02em;
+  padding: var(--space-01) var(--space-03);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.badge[data-own='true'] {
+  background-color: var(--color-brand-03);
+  border-color: var(--color-brand-06);
+  color: var(--color-brand-11);
+}
+
+.disclaimer {
+  margin: 0;
+}
+
+.details {
+  border-top: 1px solid var(--border-01);
+  padding-top: var(--space-04);
+}
+
+.summary {
+  color: var(--foreground-02);
+  cursor: pointer;
+  font-size: var(--font-size-02);
+}
+
+.summary:hover {
+  color: var(--foreground-01);
+}
+
+.derivation {
+  display: grid;
+  gap: var(--space-02);
+  margin: var(--space-04) 0 0;
+}
+
+.row {
+  display: grid;
+  font-size: var(--font-size-02);
+  gap: var(--space-04);
+  grid-template-columns: var(--label-column) 1fr;
+}
+
+.row dt {
+  color: var(--foreground-02);
+}
+
+.row dd {
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.notice {
+  background-color: var(--surface-sunken);
+  border-left: 2px solid var(--color-brand-09);
+  border-radius: var(--radius-02);
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  line-height: var(--line-height-03);
+  margin: 0;
+  padding: var(--space-03) var(--space-04);
+}
+
+.errors {
+  border-left: 2px solid var(--color-error);
+  color: var(--color-error-text);
+  display: grid;
+  font-size: var(--font-size-02);
+  gap: var(--space-02);
+  padding: var(--space-02) var(--space-04);
+}
+
+.errors p {
+  margin: 0;
+}
+
+.form {
+  border-top: 1px solid var(--border-01);
+  display: grid;
+  gap: var(--space-04);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: var(--space-05);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  grid-column: 1 / -1;
+}
+
+@media (width <= 40rem) {
+  .form,
+  .row {
+    grid-template-columns: 1fr;
+  }
+}

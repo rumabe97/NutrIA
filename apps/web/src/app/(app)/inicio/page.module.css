@@ -3,15 +3,42 @@
   font-weight: var(--font-weight-semibold);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
-  margin: 0 0 var(--space-02);
+  margin: 0 0 var(--gap-heading);
+}
+
+/*
+ * One column on a phone, a main column and a rail above `--breakpoint-wide`.
+ *
+ * The dashboard was a single centred column on a canvas wide enough for two,
+ * which is most of why it read as empty: not too little content, but content
+ * with nowhere to sit. The targets are the natural rail — they are reference,
+ * consulted rather than acted on, and they belong beside today rather than
+ * below it.
+ */
+.layout {
+  display: grid;
+  gap: var(--gap-region);
+}
+
+.main {
+  display: grid;
+  gap: var(--gap-block);
+  /* `minmax(0, …)` or a long dish name pushes the column wider than the grid. */
+  min-inline-size: 0;
+}
+
+.rail {
+  display: grid;
+  gap: var(--gap-block);
+  align-content: start;
+  min-inline-size: 0;
 }
 
 .todayCard {
   background-color: var(--surface-card);
   border: 1px solid var(--border-01);
   border-radius: var(--radius-04);
-  margin-top: var(--space-07);
-  padding: var(--space-05) var(--space-06);
+  padding: var(--card-padding);
 }
 
 .todayHeading {
@@ -19,23 +46,32 @@
   display: flex;
   gap: var(--space-04);
   justify-content: space-between;
-  margin-bottom: var(--space-05);
+  margin-bottom: var(--gap-heading);
 }
 
 .meals {
-  margin-top: var(--space-05);
+  display: grid;
+  margin-top: var(--gap-block);
 }
 
 .targetsLabel {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+  margin: 0 0 var(--gap-heading);
+}
+
+.targetsNote {
   display: block;
-  margin: var(--space-09) 0 var(--space-04);
+  margin-top: var(--gap-heading);
 }
 
 .empty {
   background-color: var(--surface-card);
   border: 1px solid var(--border-01);
   border-radius: var(--radius-05);
-  margin-top: var(--space-08);
+  margin-top: var(--gap-region);
   padding: var(--space-09) var(--space-06);
   text-align: center;
 }
@@ -57,7 +93,7 @@
   flex-wrap: wrap;
   gap: var(--space-03);
   justify-content: center;
-  margin-top: var(--space-07);
+  margin-top: var(--gap-block);
 }
 
 .progress {
@@ -80,7 +116,7 @@
   display: grid;
   gap: var(--space-05);
   grid-template-columns: repeat(2, 1fr);
-  margin-top: var(--space-08);
+  margin-top: var(--gap-region);
 }
 
 .target {
@@ -101,12 +137,19 @@
   background-color: var(--color-amber-03);
   border-radius: var(--radius-03);
   color: var(--color-warning-text);
-  margin-top: var(--space-06);
+  margin-top: var(--gap-heading);
   padding: var(--space-04) var(--space-05);
 }
 
 @media (width >= 40rem) {
   .targets {
     grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (width >= 64rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr) var(--rail-width);
+    gap: var(--gap-region);
   }
 }

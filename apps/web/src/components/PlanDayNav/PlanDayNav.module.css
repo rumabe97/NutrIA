@@ -1,11 +1,11 @@
 .wrapper {
-  margin-bottom: var(--space-06);
+  margin-bottom: 0;
 }
 
 .weeks {
   display: flex;
   gap: var(--space-02);
-  margin-bottom: var(--space-04);
+  margin-bottom: var(--gap-heading);
 }
 
 .week {
@@ -45,9 +45,9 @@
   display: grid;
   flex: 0 0 auto;
   font: inherit;
-  gap: 2px;
-  /* 56px keeps the tap target above the 44px minimum. */
-  min-width: 56px;
+  gap: var(--space-01);
+  /* Above the 44px minimum tap target, with room for a two-digit day. */
+  min-inline-size: 3.5rem;
   padding: var(--space-03) var(--space-02);
   scroll-snap-align: start;
   text-align: center;
@@ -79,4 +79,21 @@
 
 .today {
   border-color: var(--color-brand-09);
+}
+
+/*
+ * At desktop width the row becomes a grid that shows the whole week at once,
+ * so nothing has to be scrolled past to be reached.
+ */
+@media (width >= 64rem) {
+  .days {
+    grid-template-columns: repeat(auto-fill, minmax(3.5rem, 1fr));
+    display: grid;
+    overflow-x: visible;
+    padding-bottom: 0;
+  }
+
+  .day {
+    min-inline-size: 0;
+  }
 }

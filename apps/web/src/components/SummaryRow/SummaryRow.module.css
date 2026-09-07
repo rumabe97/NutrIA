@@ -2,8 +2,16 @@
   border-bottom: 1px solid var(--border-01);
   display: grid;
   gap: var(--space-01) var(--space-05);
-  grid-template-columns: 11rem 1fr;
+  /* The same label column every other label/value grid uses, so the review step
+     and the profile screen line up with each other. */
+  grid-template-columns: var(--label-column) 1fr;
   padding-bottom: var(--space-03);
+}
+
+/* A column of values is a column: 180 cm above 72 kg above 4 should agree on
+   where their digits sit. */
+.value {
+  font-variant-numeric: tabular-nums;
 }
 
 .row:last-child {

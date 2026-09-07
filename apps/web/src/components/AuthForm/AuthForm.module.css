@@ -8,11 +8,11 @@
   font-weight: var(--font-weight-semibold);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
-  margin: 0 0 var(--space-02);
+  margin: 0 0 var(--gap-heading);
 }
 
 .subtitle {
-  margin-bottom: var(--space-07);
+  margin-bottom: var(--gap-block);
 }
 
 /* role="alert" so a screen reader hears the failure without moving focus and

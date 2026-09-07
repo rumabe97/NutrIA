@@ -38,10 +38,45 @@
   --tracking-display: -0.035em;
   --tracking-headline: -0.025em;
 
-  /* ── Layout rhythm ────────────────────────────────────────────────────── */
+  /* ── Layout rhythm ──────────────────────────────────────────────────────
+     The owner's words for the first build were "empty", "bland" and "bunched
+     up", and the third of those is what these tokens exist to fix. Crowding was
+     never a shortage of space overall — it was every component deciding its own
+     gaps, so nothing lined up and no gap meant anything.
+
+     Three rules, and screens use only these:
+
+       --gap-heading   a heading to the content it introduces
+       --gap-block     one block to the next inside a region
+       --gap-region    one region of a screen to the next
+
+     A gap that is none of those three is a gap that needs a reason. Marketing
+     sections keep their own much larger `--section-gap`, because a landing page
+     and a dashboard are not the same density problem. */
+  --gap-heading: var(--space-03);
+  --gap-block: var(--space-06);
+  --gap-region: var(--space-09);
   --section-gap: clamp(4rem, 2.5rem + 7vw, 9rem);
+
+  /* Card padding, once. Two tiers: the default, and a roomier one for a card
+     that is the whole point of the screen it sits on. */
+  --card-padding: var(--space-05) var(--space-06);
+  --card-padding-lg: var(--space-07);
+
   --content-max: 68rem;
   --prose-max: 34rem;
+  /* The side rail on wide screens. Wide enough for a macro summary and a short
+     paragraph, narrow enough that the main column stays the main column. */
+  --rail-width: 20rem;
+  /* The day picker's rail. Narrower than `--rail-width` because it holds chips
+     rather than prose, and a token rather than a number so the plan screen's
+     split is a decision someone can find. */
+  --rail-width-narrow: 13rem;
+  /* The label column in every label/value grid, so the profile screen and the
+     targets panel line up with each other rather than each picking a width. */
+  --label-column: 12rem;
+  /* Below this the product is one column; above it, screens with a rail split. */
+  --breakpoint-wide: 64rem;
 
   /* ── Surfaces ─────────────────────────────────────────────────────────
      A single raised card token, so every card in the product agrees. */

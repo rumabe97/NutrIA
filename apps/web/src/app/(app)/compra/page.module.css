@@ -3,25 +3,25 @@
   font-weight: var(--font-weight-semibold);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
-  margin: 0 0 var(--space-02);
+  margin: 0 0 var(--gap-heading);
 }
 
 .notice {
   background-color: var(--surface-sunken);
   border-radius: var(--radius-03);
-  margin: var(--space-06) 0;
+  margin: var(--gap-block) 0;
   padding: var(--space-04) var(--space-05);
 }
 
 .group {
-  margin-top: var(--space-07);
+  margin-top: var(--gap-region);
 }
 
 .groupTitle {
   border-bottom: 1px solid var(--border-01);
   font-size: var(--font-size-05);
   font-weight: var(--font-weight-semibold);
-  margin: 0 0 var(--space-02);
+  margin: 0 0 var(--gap-heading);
   padding-bottom: var(--space-02);
 }
 

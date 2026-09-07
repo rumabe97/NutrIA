@@ -2,7 +2,7 @@
   color: var(--foreground-02);
   display: inline-block;
   font-size: var(--font-size-03);
-  margin-bottom: var(--space-05);
+  margin-bottom: var(--gap-block);
   text-decoration: none;
 }
 
@@ -21,7 +21,7 @@
   font-weight: var(--font-weight-semibold);
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
-  margin: var(--space-02) 0 var(--space-04);
+  margin: var(--space-02) 0 var(--gap-heading);
   text-wrap: balance;
 }
 
@@ -31,7 +31,7 @@
   flex-wrap: wrap;
   font-size: var(--font-size-03);
   gap: var(--space-02) var(--space-05);
-  margin-bottom: var(--space-07);
+  margin-bottom: var(--gap-block);
 }
 
 /* A neutral band rather than a stock photo. An invented image of a dish nobody
@@ -45,18 +45,18 @@
   display: flex;
   font-size: var(--font-size-05);
   justify-content: center;
-  margin-bottom: var(--space-07);
+  margin-bottom: var(--gap-block);
 }
 
 .section {
-  margin-top: var(--space-08);
+  margin-top: var(--gap-region);
 }
 
 .sectionTitle {
   font-size: var(--font-size-06);
   font-weight: var(--font-weight-semibold);
   letter-spacing: -0.015em;
-  margin: 0 0 var(--space-04);
+  margin: 0 0 var(--gap-heading);
 }
 
 .ingredients {
@@ -112,6 +112,6 @@
 .servingNote {
   background-color: var(--color-brand-02);
   border-radius: var(--radius-03);
-  margin-bottom: var(--space-05);
+  margin-bottom: var(--gap-block);
   padding: var(--space-03) var(--space-04);
 }

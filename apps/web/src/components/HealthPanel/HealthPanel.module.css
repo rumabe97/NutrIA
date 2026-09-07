@@ -1,0 +1,129 @@
+.panel {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-03);
+  display: grid;
+  gap: var(--gap-block);
+  padding: var(--card-padding);
+}
+
+.heading {
+  align-items: center;
+  display: flex;
+  gap: var(--space-03);
+  justify-content: space-between;
+}
+
+.summary {
+  display: grid;
+  gap: var(--space-03);
+  margin: 0;
+}
+
+.row {
+  display: grid;
+  gap: var(--space-01);
+}
+
+.row dt {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+}
+
+.row dd {
+  font-size: var(--font-size-03);
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.applied,
+.suggestion {
+  border-inline-start: 3px solid;
+  border-radius: var(--radius-02);
+  display: grid;
+  font-size: var(--font-size-02);
+  gap: var(--space-02);
+  line-height: var(--line-height-04);
+  padding: var(--space-03) var(--space-04);
+}
+
+.applied {
+  background-color: var(--surface-sunken);
+  border-color: var(--color-success);
+  color: var(--foreground-02);
+}
+
+.suggestion {
+  background-color: var(--surface-sunken);
+  border-color: var(--color-warning);
+  color: var(--foreground-02);
+}
+
+.applied p,
+.suggestion p {
+  margin: 0;
+}
+
+.notice {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-02);
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  padding: var(--space-03) var(--space-04);
+}
+
+.fieldset {
+  border: 0;
+  display: grid;
+  gap: var(--space-03);
+  margin: 0;
+  padding: 0;
+}
+
+.legend {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-semibold);
+  padding: 0;
+}
+
+.chips {
+  display: grid;
+  gap: var(--space-02);
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+}
+
+.supplement {
+  align-items: end;
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: 2fr 1fr 1fr auto;
+}
+
+.consent {
+  display: grid;
+  gap: var(--space-02);
+}
+
+.hint {
+  margin: 0;
+}
+
+.error {
+  background-color: var(--color-red-03);
+  border-radius: var(--radius-02);
+  color: var(--color-error-text);
+  font-size: var(--font-size-03);
+  padding: var(--space-03) var(--space-04);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+}
+
+@media (width < 40rem) {
+  .supplement {
+    grid-template-columns: 1fr;
+  }
+}

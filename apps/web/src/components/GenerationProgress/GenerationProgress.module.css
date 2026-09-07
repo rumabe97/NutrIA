@@ -1,6 +1,6 @@
 .shell {
   margin-inline: auto;
-  max-width: 34rem;
+  max-width: var(--prose-max);
   padding-block: var(--space-09);
   text-align: center;
 }
@@ -22,7 +22,7 @@
   background-color: var(--color-gray-04);
   border-radius: var(--radius-full);
   height: 4px;
-  margin-top: var(--space-05);
+  margin-top: var(--gap-block);
   overflow: hidden;
 }
 
@@ -55,7 +55,7 @@
 }
 
 .note {
-  margin-top: var(--space-07);
+  margin-top: var(--gap-block);
 }
 
 .actions {
@@ -63,7 +63,7 @@
   flex-wrap: wrap;
   gap: var(--space-03);
   justify-content: center;
-  margin-top: var(--space-07);
+  margin-top: var(--gap-block);
 }
 
 .error {

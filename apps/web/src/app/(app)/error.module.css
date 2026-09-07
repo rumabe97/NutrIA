@@ -1,6 +1,6 @@
 .shell {
   margin-inline: auto;
-  max-width: 34rem;
+  max-width: var(--prose-max);
   padding-block: var(--space-09);
   text-align: center;
 }
@@ -18,5 +18,5 @@
   flex-wrap: wrap;
   gap: var(--space-03);
   justify-content: center;
-  margin-top: var(--space-07);
+  margin-top: var(--gap-block);
 }

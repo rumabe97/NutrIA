@@ -2,7 +2,7 @@
   background-color: var(--surface-card);
   border: 1px solid var(--border-01);
   border-radius: var(--radius-05);
-  padding: var(--space-09) var(--space-06);
+  padding: var(--card-padding-lg);
   text-align: center;
 }
 
@@ -10,12 +10,12 @@
   font-size: var(--font-size-07);
   font-weight: var(--font-weight-semibold);
   letter-spacing: -0.015em;
-  margin: 0 0 var(--space-03);
+  margin: 0 0 var(--gap-heading);
 }
 
 .body {
   margin-inline: auto;
-  max-width: 34rem;
+  max-width: var(--prose-max);
 }
 
 .actions {
@@ -23,7 +23,7 @@
   flex-wrap: wrap;
   gap: var(--space-03);
   justify-content: center;
-  margin-top: var(--space-07);
+  margin-top: var(--gap-block);
 }
 
 .warning {
