@@ -27,6 +27,19 @@ const HEIGHT_CM = { max: 250, min: 100 } as const;
 const WEIGHT_KG = { max: 400, min: 30 } as const;
 const AGE_YEARS = { max: 100, min: 16 } as const;
 
+/**
+ * How fast a person may ask to lose or gain, in kg per week.
+ *
+ * Exported because the form shows the same bound it will be held to. One kg a
+ * week is ~7,700 kcal, an 1,100 kcal daily deficit — already past the largest
+ * deficit `domain/Nutrition` allows for most people, so anything above it would
+ * be a number the plan could never honour. The message is Spanish-first, like
+ * the rest of this schema's; the web app shows its own localised copy before
+ * the request is ever sent.
+ */
+export const PACE_KG_PER_WEEK = { max: 1, min: 0 } as const;
+const PACE_MESSAGE = `El ritmo tiene que estar entre ${PACE_KG_PER_WEEK.min} y ${PACE_KG_PER_WEEK.max} kg por semana`;
+
 export const profileSchema = z.object({
   id: z.uuid(),
   birthDate: z.string().nullable(),
@@ -82,8 +95,8 @@ export const updateGoalSchema = z
     // becoming a required key that happens to accept undefined.
     paceKgPerWeek: z
       .number()
-      .min(-1)
-      .max(1)
+      .min(-PACE_KG_PER_WEEK.max, PACE_MESSAGE)
+      .max(PACE_KG_PER_WEEK.max, PACE_MESSAGE)
       .transform(Math.abs)
       .nullish(),
     startingWeightKg: z.number().min(WEIGHT_KG.min).max(WEIGHT_KG.max).nullish(),

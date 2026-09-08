@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useTransition } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -14,6 +14,8 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { ChipGroup } from 'components/ChipGroup';
 import { OptionCards } from 'components/OptionCards';
 import { SummaryRow } from 'components/SummaryRow';
+
+import { PACE_KG_PER_WEEK } from 'core/entities/Profile';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatNumber, interpolate } from 'lib/format';
@@ -85,7 +87,19 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
   };
   const [error, setError] = useState<string>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, readonly string[]>>({});
-  const [pending, setPending] = useState(false);
+  const [saving, setSaving] = useState(false);
+  // Every step is server-rendered, so a navigation is a round trip that takes
+  // as long as the save did. Run it as a transition and `navigating` stays true
+  // until the next step is actually on screen — which is what keeps the spinner
+  // on the button that long. Before this, the spinner stopped when the save
+  // returned and the screen sat unchanged for the whole navigation: the exact
+  // picture of an app that has hung.
+  const [navigating, startNavigation] = useTransition();
+  // Which button was pressed, so the spinner lands on that one and not both.
+  const [heading, setHeading] = useState<'back' | 'forward'>('forward');
+  const pending = saving || navigating;
+  const advancing = saving || (navigating && heading === 'forward');
+  const retreating = navigating && heading === 'back';
 
   // Which way the reader is travelling, so the step that arrives comes from the
   // side they are going. Direction is the whole information content of a
@@ -108,6 +122,22 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
 
   function fieldError(name: string): string | undefined {
     return fieldErrors[name]?.[0];
+  }
+
+  /**
+   * The one rule the browser will not enforce for us. The form is `noValidate`,
+   * so `max` on the input is advice rather than a gate — on iOS not even that —
+   * and the API's copy of the rule answers in its own language. Same bound the
+   * schema holds the request to, in the reader's words, before it is sent.
+   */
+  function localErrors(payload: Record<string, unknown>): Record<string, readonly string[]> {
+    const pace = payload.paceKgPerWeek;
+
+    if (current?.key === 'goal' && typeof pace === 'number' && !(pace >= PACE_KG_PER_WEEK.min && pace <= PACE_KG_PER_WEEK.max)) {
+      return { paceKgPerWeek: [f.paceRange] };
+    }
+
+    return {};
   }
 
   function buildPayload(form: FormData): Record<string, unknown> {
@@ -183,30 +213,46 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
     event.preventDefault();
     setError(undefined);
     setFieldErrors({});
-    setPending(true);
+
+    const payload = buildPayload(new FormData(event.currentTarget));
+    const problems = localErrors(payload);
+
+    if (Object.keys(problems).length > 0) {
+      setFieldErrors(problems);
+      setError(dictionary.errors.invalidInput);
+
+      return;
+    }
+
+    setHeading('forward');
+    setSaving(true);
 
     try {
       if (isReview) {
         await api('/onboarding/complete', { method: 'POST' });
-        router.push('/inicio');
-        router.refresh();
+        startNavigation(() => {
+          router.push('/inicio');
+          router.refresh();
+        });
 
         return;
       }
 
-      await api('/onboarding', { body: { data: buildPayload(new FormData(event.currentTarget)), step: current?.key }, method: 'PATCH' });
-      router.push(`/onboarding/${step + 1}`);
-      // The step just saved is now stale in the client router cache. Without
-      // this, going back to it re-renders the payload fetched *before* the save
-      // and the fields show the old answers — which looks exactly like the save
-      // having failed.
-      router.refresh();
+      await api('/onboarding', { body: { data: payload, step: current?.key }, method: 'PATCH' });
+      startNavigation(() => {
+        router.push(`/onboarding/${step + 1}`);
+        // The step just saved is now stale in the client router cache. Without
+        // this, going back to it re-renders the payload fetched *before* the
+        // save and the fields show the old answers — which looks exactly like
+        // the save having failed.
+        router.refresh();
+      });
     } catch (caught) {
       if (caught instanceof ApiError) {setFieldErrors(caught.fieldErrors);}
 
       setError(messageFor(caught, dictionary));
     } finally {
-      setPending(false);
+      setSaving(false);
     }
   }
 
@@ -279,10 +325,11 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
               />
               <Input
                 defaultValue={goal?.paceKgPerWeek ?? ''}
+                error={fieldError('paceKgPerWeek')}
                 hint={f.paceHint}
                 label={f.pace}
-                max="1"
-                min="0"
+                max={PACE_KG_PER_WEEK.max}
+                min={PACE_KG_PER_WEEK.min}
                 name="paceKgPerWeek"
                 step="0.05"
                 type="number"
@@ -514,14 +561,18 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
         <div className={styles.actions}>
           <Button
             disabled={step === 1 || pending}
-            onClick={() => router.push(`/onboarding/${step - 1}`)}
+            loading={retreating}
+            onClick={() => {
+              setHeading('back');
+              startNavigation(() => router.push(`/onboarding/${step - 1}`));
+            }}
             type="button"
             variant="secondary"
           >
             {dictionary.common.back}
           </Button>
-          <Button loading={pending} type="submit">
-            {pending ? dictionary.common.saving : isReview ? dictionary.common.finish : dictionary.common.continue}
+          <Button disabled={pending} loading={advancing} type="submit">
+            {advancing ? dictionary.common.saving : isReview ? dictionary.common.finish : dictionary.common.continue}
           </Button>
         </div>
 

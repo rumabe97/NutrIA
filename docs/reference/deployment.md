@@ -90,8 +90,14 @@ production-only rule depends on it. Do not copy a local `.env` into the project'
 environment wholesale; `NODE_ENV=development` and the localhost URLs in it are
 exactly what the rules exist to reject, and the build will fail naming each one.
 
-Set the API's region to the one holding the Neon database. Every request makes
-several round trips, and a cross-continent hop multiplies all of them.
+Both `vercel.json` files pin their functions to `fra1`, the platform's name for
+the `eu-central-1` region the Neon database lives in. Left unset, functions run
+in `iad1` (Washington), and every one of the several database round trips a
+request makes crosses the Atlantic — measured at ~100 ms each, against ~2 ms
+colocated. The web app is pinned too, not only the API: its server components
+call the API on every page, so the two must sit together. If the database ever
+moves, move both pins with it. One region is all a Hobby project may choose,
+which is fine — one is all this needs.
 
 ## 3. What each deploy does
 

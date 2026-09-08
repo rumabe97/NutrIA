@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 
-import { OnboardingFlow, TOTAL_STEPS } from 'components/OnboardingFlow';
+import { FLOW, OnboardingFlow, TOTAL_STEPS } from 'components/OnboardingFlow';
 
 import { serverApi } from 'lib/server-api';
 
@@ -20,7 +20,12 @@ export default async function OnboardingStepPage({ params }: { params: Promise<{
 
   if (!Number.isInteger(step) || step < 1 || step > TOTAL_STEPS) {notFound();}
 
-  const [profile, allergens] = await Promise.all([serverApi<FullProfileView>('/profile'), serverApi<readonly Allergen[]>('/safety/allergens')]);
+  // Only the allergies step renders the catalogue. Fetching it for the other
+  // eight is a whole extra API invocation per step for nothing.
+  const [profile, allergens] = await Promise.all([
+    serverApi<FullProfileView>('/profile'),
+    FLOW[step - 1]?.key === 'allergies' ? serverApi<readonly Allergen[]>('/safety/allergens') : null
+  ]);
 
   return <OnboardingFlow allergens={allergens ?? []} profile={profile} step={step} />;
 }
