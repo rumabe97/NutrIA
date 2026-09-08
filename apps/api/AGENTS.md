@@ -167,6 +167,14 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `generation_metadata.advisories`. If you add a rule, decide which it is: the default
   is advisory, and a new blocking rule needs a reason a user would accept losing their
   plan over.
+- **The model is a preference, not a dependency, once the library can serve.** A
+  returning user's rotation holds back last fortnight and caps the rest, and the model
+  fills the gap; with the model gone (quota, key, outage) the gap stayed open and only
+  returning users failed — a new user has nothing to exclude and needs no model. Now
+  the scheduler is offered the whole safe library once, without asking the failed
+  provider again, and the plan records `fallback: full_library`. What still fails is
+  a library that genuinely cannot fill a fortnight, which is `GENERATION_AI_UNAVAILABLE`
+  when the provider failed and `POOL_TOO_SMALL` when there simply is none.
 - **Both sweeps stop at the first exhausted quota** (`isQuotaExhausted`). The provider's
   free tier caps *requests*, not only spend, and generation draws on the same allowance:
   a sweep that keeps going after a refusal attempted eighteen recipes three times each

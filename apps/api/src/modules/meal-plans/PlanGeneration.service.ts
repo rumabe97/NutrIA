@@ -115,7 +115,8 @@ export class PlanGenerationService {
 
     await markStep(STEPS.scheduling);
 
-    const scheduled = schedulePlan({ catalogue: context.catalogue, includesSnacks, mealsPerDay, pool: built.dishes, targets });
+    let scheduled = schedulePlan({ catalogue: context.catalogue, includesSnacks, mealsPerDay, pool: built.dishes, targets });
+    let fallback: 'full_library' | null = null;
 
     if (!scheduled.ok) {
       this.logger.warn(
@@ -124,6 +125,23 @@ export class PlanGenerationService {
           `provider ${built.metadata.providerUsed ? built.metadata.model : 'none'})`
       );
 
+      // The rotation held back last fortnight's dishes and capped the rest — a
+      // variety preference, backed by the model filling the gap. With the model
+      // gone (quota, key, outage) that preference is the only thing between this
+      // person and no plan at all, and a repeated dish is strictly better than
+      // that. So: the whole safe library, nothing held back, no second model call
+      // — the one that failed is not asked again — and the plan says it happened.
+      // Returning users were the ones this hit: a new user has no history to
+      // exclude, and a full library needs no model.
+      const everything = await RecipeController.reusablePool(slots, context);
+      const widened = new Map([...everything, ...built.generated].map(dish => [dish.slug, dish]));
+
+      this.logger.warn(`Retrying with the full library (${widened.size} dishes, last fortnight included)`);
+      scheduled = schedulePlan({ catalogue: context.catalogue, includesSnacks, mealsPerDay, pool: [...widened.values()], targets });
+      fallback = 'full_library';
+    }
+
+    if (!scheduled.ok) {
       // A configured provider that failed is a different problem from no provider,
       // and telling someone to "configure AI_PROVIDER" when they already have is
       // the worst possible answer. Distinguish them.
@@ -179,7 +197,7 @@ export class PlanGenerationService {
 
     await markStep(STEPS.saving);
 
-    return PlanJobController.persist(userId, this.toDraft(scheduled.assignment, shopping, built, targets, context, jobId, rotation, advisorySummary));
+    return PlanJobController.persist(userId, this.toDraft(scheduled.assignment, shopping, built, targets, context, jobId, rotation, advisorySummary, fallback));
   }
 
   /**
@@ -241,7 +259,8 @@ export class PlanGenerationService {
     context: GenerationContext,
     jobId: string,
     rotation: Rotation,
-    advisories: readonly string[]
+    advisories: readonly string[],
+    fallback: 'full_library' | null
   ): PlanDraft {
     const start = new Date();
     const end = new Date(start);
@@ -269,7 +288,7 @@ export class PlanGenerationService {
       endDate: isoDate(end),
       // The seed and the number of dishes held back say *why* this plan differs from
       // the last one, which is the first thing anyone asks when two plans look alike.
-      generationMetadata: { ...built.metadata, advisories, avoidedDishes: rotation.avoidSlugs.size, jobId, locale: context.locale, poolSeed: rotation.seed, scheduledAt: start.toISOString() },
+      generationMetadata: { ...built.metadata, advisories, avoidedDishes: rotation.avoidSlugs.size, fallback, jobId, locale: context.locale, poolSeed: rotation.seed, scheduledAt: start.toISOString() },
       // Only dishes the plan actually uses are persisted — a generated dish the
       // scheduler never placed is not worth a row.
       locale: context.locale,

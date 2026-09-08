@@ -12,7 +12,7 @@ import { VARIETY_RULES } from 'core/domain/Variety';
 import { PlanGenerationService, STEPS } from './PlanGeneration.service.js';
 
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
-import type { PoolBuilder } from '../ai/PoolBuilder.service.js';
+import type { PoolBuilder, PoolResult } from '../ai/PoolBuilder.service.js';
 
 const GLUTEN = 'allergen-gluten';
 const SLOTS: readonly MealSlot[] = ['breakfast', 'lunch', 'dinner'];
@@ -148,7 +148,13 @@ function build(overrides: Partial<Mocks> = {}) {
   jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(reusable);
   jest.spyOn(PlanJobController, 'persist').mockImplementation(persist as never);
 
-  const buildPool = jest.fn(async (_input: unknown) => Promise.resolve({ dishes: reusable, generated: [], metadata: { attempts: 0, calls: 0, inputTokens: 0, model: 'none', outputTokens: 0, promptVersion: '1.0.0', rejected: 0, reused: reusable.length } }));
+  const buildPool = jest.fn<(input: unknown) => Promise<PoolResult>>(async () =>
+    Promise.resolve({
+      dishes: reusable,
+      generated: [],
+      metadata: { attempts: 0, calls: 0, inputTokens: 0, model: 'none', outputTokens: 0, promptVersion: '1.0.0', providerUsed: false, rejected: 0, reused: reusable.length }
+    })
+  );
   const poolBuilder = { build: buildPool } as unknown as PoolBuilder;
 
   return { buildPool, persist, service: new PlanGenerationService(poolBuilder) };
@@ -199,6 +205,52 @@ describe('PlanGenerationService', () => {
 
     expect(draft.generationMetadata.advisories.length).toBeGreaterThan(0);
     expect(draft.generationMetadata.advisories.join(' ')).toContain('protein_below_target');
+  });
+
+  /*
+   * Returning users hit AI_UNAVAILABLE while new users did not. The rotation held
+   * back last fortnight's dishes and the model was meant to fill the gap; with the
+   * quota gone, the gap stayed open and the plan was refused. A repeated dish beats
+   * no plan: the whole library is offered once, without a second model call, and
+   * the plan records that it happened.
+   */
+  it('falls back to the full library when the provider cannot fill a rotated pool', async () => {
+    const full = pool('arroz');
+    const thin = full.slice(0, 1);
+    const { buildPool, persist, service } = build({ reusable: full });
+
+    jest.spyOn(RecipeController, 'reusablePool').mockImplementation(async (_slots, _context, rotation) => Promise.resolve(rotation ? thin : full));
+    buildPool.mockResolvedValueOnce({
+      dishes: thin,
+      generated: [],
+      metadata: { attempts: 1, calls: 1, inputTokens: 0, model: 'gemini', outputTokens: 0, promptVersion: '2.4.2', providerError: 'You exceeded your current quota', providerUsed: true, rejected: 0, reused: thin.length }
+    });
+
+    const planId = await service.generate('user-1', 'job-1', async () => Promise.resolve());
+
+    expect(planId).toBeTruthy();
+    expect(persist).toHaveBeenCalledTimes(1);
+    // One model attempt — the failed one — never a second against a dead quota.
+    expect(buildPool).toHaveBeenCalledTimes(1);
+
+    const draft = persist.mock.calls[0]?.[1] as { generationMetadata: { fallback: string | null; providerError?: string } };
+
+    expect(draft.generationMetadata.fallback).toBe('full_library');
+    expect(draft.generationMetadata.providerError).toContain('quota');
+  });
+
+  it('still fails when even the full library cannot fill a fortnight', async () => {
+    const thin = pool('arroz').slice(0, 1);
+    const { buildPool, service } = build({ reusable: thin });
+
+    jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(thin);
+    buildPool.mockResolvedValueOnce({
+      dishes: thin,
+      generated: [],
+      metadata: { attempts: 1, calls: 1, inputTokens: 0, model: 'gemini', outputTokens: 0, promptVersion: '2.4.2', providerError: 'quota', providerUsed: true, rejected: 0, reused: 1 }
+    });
+
+    await expect(service.generate('user-1', 'job-1', async () => Promise.resolve())).rejects.toMatchObject({ code: 'GENERATION_AI_UNAVAILABLE' });
   });
 
   it('produces a 14-day plan and persists it once', async () => {

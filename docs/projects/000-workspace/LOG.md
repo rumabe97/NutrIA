@@ -454,3 +454,24 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   visible per plan rather than only as a failure rate — and are the evidence to
   widen the pool if drift becomes common, rather than widening the tolerance.
 
+### 2026-09-08 — Returning users failed when the quota was gone; new users did not (task)
+
+- **Executor**: agent, at the owner's screenshot — `AI_APICallError: You exceeded your
+  current quota` on a returning account — and the observation that only users who
+  already had a plan saw it.
+- **Not the key.** An invalid key says "API key not valid"; this is the free tier's
+  daily request cap, emptied by this afternoon's rewrite sweep (recorded above). It
+  resets at midnight Pacific; a new key on the same project shares the same quota.
+- **Why only returning users**: the rotation ([`0009`](../../decisions/0009-rotate-reuse-per-user.md))
+  holds back last fortnight's dishes and caps the rest, on the promise that the model
+  fills the gap. With the model refusing, the builder degraded to reuse as designed,
+  the scheduler found the rotated pool too thin, and generation threw. A new user has
+  no history to exclude, so the whole library was theirs and no model was needed.
+- **Fixed**: one fallback, no second model call — the whole safe library, last fortnight
+  included, offered to the scheduler once; `fallback: full_library` on the plan. A
+  repeated dish beats no plan. Two specs: the fallback delivers, and a library that
+  cannot fill a fortnight still fails with the provider's reason.
+- **The principle, now twice**: nutrition targets ([`0011`](../../decisions/0011-nutrition-targets-are-advisory.md))
+  and cross-fortnight variety are preferences, and a preference never costs someone
+  their plan. Only structure and safety do.
+
