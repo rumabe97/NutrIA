@@ -664,3 +664,50 @@ The owner approved all three recommendations. What that turned into:
 
 - **Still open from the phase 7 gate**: desktop widths and reduced motion were not part
   of this pass; the owner's confirmation on those stands as before.
+
+### Phase 2, at the gate — the resume walk, mechanically (2026-09-08)
+
+- **Executor**: agent, `/execute-project 003`. The phase's code landed with the layer
+  commits; this is the `human-verify` gate's evidence, gathered because the gate was
+  written when nothing could drive the app and something can now.
+
+- **How**: a throwaway account (`@example.invalid`, deleted after — 3 removed, 0 profiles
+  and 0 sessions left behind) against a local API and web server, walked step by step.
+
+- **Resume points — all eight correct.** Before saving step *n* the API answers
+  `resumeStep: n`; after saving it answers *n+1*. Leaving at any step returns you to it.
+
+  | left at | resume before | PATCH | resume after |
+  | --- | --- | --- | --- |
+  | 1 about-you | 1 | 200 | 2 |
+  | 2 goal | 2 | 200 | 3 |
+  | 3 body-activity | 3 | 200 | 4 |
+  | 4 how-you-eat | 4 | 200 | 5 |
+  | 5 food-preferences | 5 | 200 | 6 |
+  | 6 allergies | 6 | 200 | 7 |
+  | 7 lifestyle | 7 | 200 | 8 |
+  | 8 cooking | 8 | 200 | 9 (review) |
+
+  A rejected save (422, from a bad fixture) left the resume point *unmoved* at that step —
+  the behaviour the gate exists to check, observed by accident.
+
+- **Retained answers — all eight repopulate.** Returning to each step and reading every
+  named control back: text, number, time, radio group and checkbox all carry the saved
+  value. Note `currentWeightKg` on step 3 is backed by `goal.startingWeightKg`; there is
+  no field of that name, which is correct and briefly looked like a miss.
+
+- **The gate around it, also exercised**: `POST /meal-plans/generate` with onboarding open
+  is `409 ONBOARDING_INCOMPLETE`, not a partial plan; and `/inicio`, `/plan`, `/compra`
+  and `/perfil` each land a half-finished profile on `/onboarding/2`, its resume step.
+  `POST /onboarding/complete` then closes it and the dashboard opens.
+
+- **Deviations from plan**: none. No source file changed in this pass.
+
+- **Notes**: `isComplete` is `Boolean(completedAt)` — set only by the explicit completion
+  call, which refuses while a required step is missing. All eight steps saved is therefore
+  *not* complete, which is right and is worth knowing before reading the field.
+
+- **Still the owner's**: this is mechanical evidence, not the gate. The gate asks a person
+  to leave and return and find it unsurprising. Record `confirmed by human on <date>` here
+  when you have.
+

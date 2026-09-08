@@ -37,9 +37,14 @@ prompt, never reach a log, and leave with the account.
 
 ## Phases
 
+> **On the commit references.** This project was committed by *layer* — database, core,
+> api, web, ui — not one commit per phase, so a phase names every commit that carried it
+> and a commit appears under several phases. Backfilled 2026-09-08 from `git log`.
+
+
 ### Phase 1 — Targets that say what they are
 
-- [x] done
+- [x] done — commits `d0175c9`, `eebb7e3`, `6caf9d5`, `1e73cfa`, `2ff7774`
 - **Dispatch**: opus @ high — `/execute-project 003 phase 1`
 - **Goal**: make every derived nutrition figure legible, correctable and impossible to compute into an impossible state.
 - **Scope**: `packages/core/src/{domain/Nutrition,entities/Nutrition,entities/Profile,controllers/Profile,repositories/Profile}`, `packages/database/src/schemas/profile.schema.ts`, `apps/api/src/modules/profiles/`, `apps/web/src/app/(app)/{inicio,perfil}`, `apps/web/src/components/MacroSummary/`.
@@ -59,7 +64,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 2 — Onboarding that resumes, and is enforced
 
-- [ ] in progress — code complete and green; awaiting the `human-verify` step below
+- [ ] in progress — code complete and green; the `human-verify` step was walked mechanically on 2026-09-08 (all eight resume points and repopulations correct, see [LOG.md](./LOG.md)) and awaits the owner's own pass
 - **Dispatch**: opus @ medium — `/execute-project 003 phase 2`
 - **Goal**: leaving is fine; arriving anywhere else with a half-finished profile is not.
 - **Scope**: `packages/core/src/controllers/Onboarding/`, `apps/api/src/{shared/guards,modules/meal-plans,modules/profiles}`, `apps/web/src/{proxy.ts,app/(app)}`.
@@ -77,7 +82,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 3 — Allergens outside the list
 
-- [x] done
+- [x] done — commits `d0175c9`, `eebb7e3`, `6caf9d5`
 - **Dispatch**: opus @ high — `/execute-project 003 phase 3` *(the routing profile would send this to fable as safety-critical; fable is unavailable, so opus at high effort — the substitution is the standing one in the plan header)*
 - **Goal**: let someone name any allergy, and be honest about which we can enforce.
 - **Scope**: `packages/database/src/schemas/safety.schema.ts`, `packages/core/src/{entities/Safety,domain/Safety,repositories/Safety,controllers/Safety}`, `apps/api/src/modules/{safety,ai}`, `apps/web/src/components/OnboardingFlow/`.
@@ -96,7 +101,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 4 — Conditions, medications and supplements
 
-- [x] done — the `owner-approves` gate was put and answered; see [`0008`](../../decisions/0008-condition-exclusions.md)
+- [x] done — commits `eebb7e3`, `1e73cfa`; the `owner-approves` gate was put and answered, see [`0008`](../../decisions/0008-condition-exclusions.md)
 - **Dispatch**: opus @ high — `/execute-project 003 phase 4` *(same substitution: safety- and privacy-critical)*
 - **Goal**: collect what changes a plan, use only what we can use responsibly, and say where the line is.
 - **Scope**: `packages/database/src/schemas/{profile,platform}.schema.ts`, `packages/core/src/{entities,domain,repositories,controllers}`, `apps/api/src/modules/{profiles,ai,meal-plans}`, `apps/web/src/{components/OnboardingFlow,app/(app)/perfil}`.
@@ -137,7 +142,7 @@ prompt, never reach a log, and leave with the account.
 
 ### Phase 6 — The catalogue and generated content in English
 
-- [x] done — the `owner-gated` migration and seed are still to run; commands in [LOG.md](./LOG.md)
+- [x] done — commits `d0175c9`, `6caf9d5`, `1e73cfa`; the `owner-gated` migration and seed have since been run against the live database (LOG, 2026-09-07)
 - **Dispatch**: opus @ high — `/execute-project 003 phase 6`
 - **Goal**: an English user gets an English shopping list, which is the half that actually matters.
 - **Scope**: `packages/database/src/{schemas/food.schema.ts,seed}`, `packages/core/src/{repositories/Recipe,controllers/Recipe}`, `apps/api/src/modules/ai/`.
