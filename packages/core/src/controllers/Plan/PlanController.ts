@@ -2,6 +2,8 @@ import { ConflictError, NotFoundError } from 'core/entities/Error';
 import { FALLBACK_LOCALE } from '#repositories/Recipe';
 import { PlanJobRepository, PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
+import { SafetyController } from 'core/controllers/Safety';
+import { alternativesFor } from 'core/domain/Substitution';
 import type { MealSlot, PlanDraft } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 
@@ -282,7 +284,12 @@ export interface MealDetailView {
   fatG: number;
   fiberG: number;
   illustrationPath: string | null;
-  ingredients: readonly { grams: number; name: string; unit: string }[];
+  /**
+   * `alternatives` are what to buy instead when the shop has none, already
+   * filtered for this person's allergens and scaled to this portion. Empty for
+   * a staple, on purpose.
+   */
+  ingredients: readonly { alternatives: readonly { grams: number; name: string }[]; grams: number; name: string; unit: string }[];
   kcal: number;
   name: string;
   prepMinutes: number;
@@ -317,7 +324,11 @@ async function localeFor(userId: string, requested: string | null): Promise<stri
 }
 
 async function loadMealDetail(userId: string, mealId: string, requested: string | null): Promise<MealDetailView> {
-  const found = await PlanRepository.findMealDetail(userId, mealId, await localeFor(userId, requested));
+  const locale = await localeFor(userId, requested);
+  // The safety profile is fetched alongside the meal rather than only when an
+  // ingredient has alternatives: it is the gate every alternative passes through,
+  // and a gate loaded lazily is a gate that can be skipped by mistake.
+  const [found, safety] = await Promise.all([PlanRepository.findMealDetail(userId, mealId, locale), SafetyController.getSafetyProfile(userId)]);
 
   if (!found) {throw new NotFoundError('Meal not found');}
 
@@ -334,7 +345,11 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
     fatG: Number(meal.fatG),
     fiberG: Number(meal.fiberG),
     illustrationPath: recipe.hasImage ? `/recipes/${recipe.id}/image` : null,
-    ingredients: items.map(item => ({ grams: Math.round(Number(item.grams) * factor * 10) / 10, name: item.name, unit: item.unit })),
+    ingredients: items.map(item => {
+      const grams = Math.round(Number(item.grams) * factor * 10) / 10;
+
+      return { alternatives: alternativesFor(item, grams, item.substitutes, safety), grams, name: item.name, unit: item.unit };
+    }),
     kcal: Number(meal.kcal),
     name: recipe.name,
     prepMinutes: recipe.prepMinutes,

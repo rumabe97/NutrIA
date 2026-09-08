@@ -368,6 +368,7 @@ export const esES = {
   },
 
   meal: {
+    alternatives: 'Si no lo encuentras',
     back: '← Volver al plan',
     cook: 'Cocción',
     dayOf: '{slot} · Día {day}',

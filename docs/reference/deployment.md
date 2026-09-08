@@ -161,7 +161,10 @@ Two consequences worth knowing before the first real generation:
    if it is not.
 6. Seed the reference catalogue if this is a fresh database:
    `pnpm --filter database seed`. Generation cannot run without it — every dish is
-   composed from catalogue slugs.
+   composed from catalogue slugs. **Re-run it whenever `packages/database/src/seed/`
+   changes** — a new ingredient, a new substitution pair — with `DATABASE_URL`
+   pointing at the deployed database. A deploy runs migrations, never the seed,
+   so a pair added in the repository is invisible until someone does.
 
 ## 6. Before changing how the app is assembled
 

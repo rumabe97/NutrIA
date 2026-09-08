@@ -363,6 +363,7 @@ export const enGB: Dictionary = {
   },
 
   meal: {
+    alternatives: 'If you can’t find it',
     back: '← Back to the plan',
     cook: 'Cook',
     dayOf: '{slot} · Day {day}',

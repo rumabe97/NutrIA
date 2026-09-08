@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { ALLERGEN_SEED } from './allergens';
 import { INGREDIENT_NAMES_EN_GB } from './ingredient-names';
 import { INGREDIENT_SEED } from './ingredients';
+import { SUBSTITUTION_EXTRAS, SUBSTITUTION_GROUPS, substitutionPairs } from './substitutions';
 
 const ALLERGEN_KEYS = new Set(ALLERGEN_SEED.map(a => a.key));
 
@@ -115,5 +116,59 @@ describe('INGREDIENT_NAMES_EN_GB', () => {
       .filter(slug => !['bagel', 'chorizo', 'croissant', 'guacamole', 'hummus', 'kiwi', 'muesli', 'tahini', 'tempeh'].includes(slug));
 
     expect(identical).toEqual([]);
+  });
+});
+
+describe('SUBSTITUTION_GROUPS and SUBSTITUTION_EXTRAS', () => {
+  const slugs = new Set(INGREDIENT_SEED.map(entry => entry.slug));
+  const pairs = substitutionPairs();
+
+  it('name only seeded ingredients, so every alternative has macros and allergen links', () => {
+    for (const group of SUBSTITUTION_GROUPS) {
+      for (const member of group.members) {expect(slugs.has(member), `${group.name}: ${member}`).toBe(true);}
+    }
+
+    for (const extra of SUBSTITUTION_EXTRAS) {
+      expect(slugs.has(extra.from), extra.from).toBe(true);
+      expect(slugs.has(extra.to), extra.to).toBe(true);
+    }
+  });
+
+  it('never offer an ingredient as its own alternative, and never the same pair twice', () => {
+    const keys = pairs.map(pair => `${pair.ingredient}→${pair.substitute}`);
+
+    expect(pairs.every(pair => pair.ingredient !== pair.substitute)).toBe(true);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  it('scale by a ratio a cook could follow', () => {
+    for (const pair of pairs) {
+      expect(pair.ratio, `${pair.ingredient} → ${pair.substitute}`).toBeGreaterThanOrEqual(0.25);
+      expect(pair.ratio, `${pair.ingredient} → ${pair.substitute}`).toBeLessThanOrEqual(4);
+    }
+  });
+
+  /**
+   * The rule that keeps a vegetarian, pescatarian or halal plan intact without the
+   * code knowing the person's pattern: a swap may leave a class of food, never
+   * enter one. Dietary patterns are enforced only in the prompt, so this is the
+   * one place a substitute could otherwise undo them.
+   */
+  it('never introduce a class of food the dish did not already have', () => {
+    const PORK = new Set(['chorizo', 'costillas-de-cerdo', 'jamon-cocido', 'jamon-serrano', 'lomo-de-cerdo', 'panceta']);
+    const MEAT = new Set([...PORK, 'carne-picada-de-ternera', 'conejo', 'muslo-de-pollo', 'pavo', 'pechuga-de-pollo', 'solomillo-de-ternera', 'ternera-magra']);
+    const SHELLFISH = new Set(['almeja', 'calamar', 'gambas', 'mejillon', 'pulpo-cocido']);
+    const FISH = new Set(['atun-al-natural', 'bacalao-desalado', 'dorada', 'filete-de-merluza-congelado', 'lubina', 'merluza', 'salmon', 'sardina']);
+    const EGG = new Set(['clara-de-huevo', 'huevo', 'mayonesa', 'salsa-alioli']);
+    const DAIRY = new Set(INGREDIENT_SEED.filter(entry => entry.category === 'dairy').map(entry => entry.slug));
+    const ANIMAL = new Set([...MEAT, ...SHELLFISH, ...FISH, ...EGG, ...DAIRY, 'caldo-de-pollo', 'gelatina-neutra', 'miel']);
+
+    for (const [label, set] of Object.entries({ ANIMAL, DAIRY, EGG, FISH, MEAT, PORK, SHELLFISH })) {
+      for (const pair of pairs) {
+        if (!set.has(pair.ingredient)) {
+          expect(set.has(pair.substitute), `${label}: ${pair.ingredient} → ${pair.substitute}`).toBe(false);
+        }
+      }
+    }
   });
 });

@@ -3,11 +3,12 @@ import { eq, sql } from 'drizzle-orm';
 
 import { closeDatabase, database } from '../client';
 import { allergens } from '../schemas/safety.schema';
-import { ingredientAllergens, ingredientNames, ingredients } from '../schemas/food.schema';
+import { ingredientAllergens, ingredientNames, ingredients, ingredientSubstitutions } from '../schemas/food.schema';
 
 import { ALLERGEN_SEED } from './allergens';
 import { INGREDIENT_NAMES_EN_GB } from './ingredient-names';
 import { INGREDIENT_SEED } from './ingredients';
+import { substitutionPairs } from './substitutions';
 
 config({ path: '.env' });
 
@@ -34,6 +35,7 @@ async function main(): Promise<void> {
   let ingredientCount = 0;
   let linkCount = 0;
   let nameCount = 0;
+  const idBySlug = new Map<string, string>();
 
   for (const seed of INGREDIENT_SEED) {
     const [row] = await db
@@ -65,6 +67,7 @@ async function main(): Promise<void> {
     if (!row) {continue;}
 
     ingredientCount += 1;
+    idBySlug.set(seed.slug, row.id);
 
     // Upserted per locale rather than deleted and reinserted: a name is what the
     // shopping list of an existing plan was built from, and a moment with no row
@@ -99,6 +102,25 @@ async function main(): Promise<void> {
   }
 
   console.log(`[seed] ingredients: ${ingredientCount}, names: ${nameCount}, allergen links: ${linkCount}`);
+
+  // Rewritten wholesale, in one transaction: nothing references a pair, the seed
+  // file is the source of truth for which swaps exist, and a half-written table
+  // would offer some dishes their alternatives and others none.
+  const pairs = substitutionPairs().map(pair => {
+    const ingredientId = idBySlug.get(pair.ingredient);
+    const substituteId = idBySlug.get(pair.substitute);
+
+    if (!ingredientId || !substituteId) {throw new Error(`Substitution names an unseeded ingredient: "${pair.ingredient}" → "${pair.substitute}"`);}
+
+    return { ingredientId, ratio: String(pair.ratio), substituteId };
+  });
+
+  await db.transaction(async tx => {
+    await tx.delete(ingredientSubstitutions);
+    await tx.insert(ingredientSubstitutions).values(pairs);
+  });
+
+  console.log(`[seed] substitutions: ${pairs.length}`);
 }
 
 main()

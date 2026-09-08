@@ -2,7 +2,7 @@ import { aliasedTable, and, desc, eq, getTableColumns, inArray, sql } from 'driz
 
 import { database } from 'database';
 import { mealPlans, meals, planDays } from 'database/schema/plan';
-import { ingredientNames, ingredients } from 'database/schema/food';
+import { ingredientAllergens, ingredientNames, ingredients, ingredientSubstitutions } from 'database/schema/food';
 import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 import { shoppingListItems, shoppingLists } from 'database/schema/shopping';
 
@@ -339,8 +339,13 @@ export const PlanRepository = {
 
       const rows = await db
         .select({
+          carbsPer100g: ingredients.carbsPer100g,
           fallbackName: fallback.name,
+          fatPer100g: ingredients.fatPer100g,
           grams: recipeIngredients.grams,
+          ingredientId: ingredients.id,
+          kcalPer100g: ingredients.kcalPer100g,
+          proteinPer100g: ingredients.proteinPer100g,
           requestedName: requested.name,
           slug: ingredients.slug,
           unit: recipeIngredients.unit
@@ -351,10 +356,17 @@ export const PlanRepository = {
         .leftJoin(fallback, and(eq(fallback.ingredientId, ingredients.id), eq(fallback.locale, FALLBACK_LOCALE)))
         .where(eq(recipeIngredients.recipeId, row.recipe.id));
 
+      const substitutes = await findSubstitutes(rows.map(item => item.ingredientId), locale);
+
       const items = rows.map(item => ({
+        carbsPer100g: Number(item.carbsPer100g),
+        fatPer100g: Number(item.fatPer100g),
         grams: item.grams,
+        kcalPer100g: Number(item.kcalPer100g),
         name: item.requestedName ?? item.fallbackName ?? item.slug,
+        proteinPer100g: Number(item.proteinPer100g),
         slug: item.slug,
+        substitutes: substitutes.get(item.ingredientId) ?? [],
         unit: item.unit
       }));
 
@@ -412,6 +424,73 @@ export const PlanRepository = {
 /** Postgres 23505. Here it means the one-active-plan or version constraint fired. */
 function isUniqueViolation(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === '23505';
+}
+
+/**
+ * The catalogue's alternatives for these ingredients, with each substitute's own
+ * allergen links and macros — what `core/domain/Substitution` needs to filter
+ * them per person and order them. Not filtered here: a repository does not know
+ * who is asking.
+ */
+async function findSubstitutes(ingredientIds: readonly string[], locale: string) {
+  const bySource = new Map<string, { readonly id: string; readonly allergens: { readonly allergenId: string; readonly presence: 'contains' | 'may_contain' }[]; readonly carbsPer100g: number; readonly fatPer100g: number; readonly kcalPer100g: number; readonly name: string; readonly proteinPer100g: number; readonly ratio: number }[]>();
+
+  if (ingredientIds.length === 0) {return bySource;}
+
+  const db = database();
+  const substitute = aliasedTable(ingredients, 'substitute');
+  const requested = aliasedTable(ingredientNames, 'substitute_requested_name');
+  const fallback = aliasedTable(ingredientNames, 'substitute_fallback_name');
+  const substituteIds = db.select({ id: ingredientSubstitutions.substituteId }).from(ingredientSubstitutions).where(inArray(ingredientSubstitutions.ingredientId, ingredientIds));
+
+  const [rows, links] = await Promise.all([
+    db
+      .select({
+        id: substitute.id,
+        carbsPer100g: substitute.carbsPer100g,
+        fallbackName: fallback.name,
+        fatPer100g: substitute.fatPer100g,
+        ingredientId: ingredientSubstitutions.ingredientId,
+        kcalPer100g: substitute.kcalPer100g,
+        proteinPer100g: substitute.proteinPer100g,
+        ratio: ingredientSubstitutions.ratio,
+        requestedName: requested.name,
+        slug: substitute.slug
+      })
+      .from(ingredientSubstitutions)
+      .innerJoin(substitute, eq(substitute.id, ingredientSubstitutions.substituteId))
+      .leftJoin(requested, and(eq(requested.ingredientId, substitute.id), eq(requested.locale, locale)))
+      .leftJoin(fallback, and(eq(fallback.ingredientId, substitute.id), eq(fallback.locale, FALLBACK_LOCALE)))
+      .where(inArray(ingredientSubstitutions.ingredientId, ingredientIds)),
+    db
+      .select({ allergenId: ingredientAllergens.allergenId, ingredientId: ingredientAllergens.ingredientId, presence: ingredientAllergens.presence })
+      .from(ingredientAllergens)
+      .where(inArray(ingredientAllergens.ingredientId, substituteIds))
+  ]);
+
+  const allergensOf = new Map<string, { readonly allergenId: string; readonly presence: 'contains' | 'may_contain' }[]>();
+
+  for (const link of links) {
+    allergensOf.set(link.ingredientId, [...(allergensOf.get(link.ingredientId) ?? []), { allergenId: link.allergenId, presence: link.presence }]);
+  }
+
+  for (const row of rows) {
+    bySource.set(row.ingredientId, [
+      ...(bySource.get(row.ingredientId) ?? []),
+      {
+        id: row.id,
+        allergens: allergensOf.get(row.id) ?? [],
+        carbsPer100g: Number(row.carbsPer100g),
+        fatPer100g: Number(row.fatPer100g),
+        kcalPer100g: Number(row.kcalPer100g),
+        name: row.requestedName ?? row.fallbackName ?? row.slug,
+        proteinPer100g: Number(row.proteinPer100g),
+        ratio: Number(row.ratio)
+      }
+    ]);
+  }
+
+  return bySource;
 }
 
 function wrap(error: unknown): DatabaseOperationError {
