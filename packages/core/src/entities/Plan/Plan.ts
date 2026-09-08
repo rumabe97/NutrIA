@@ -131,6 +131,8 @@ export type RecipeDraft = {
   readonly servings: number;
   readonly slug: string;
   readonly steps: readonly { readonly cue?: string; readonly minutes?: number; readonly text: string }[];
+  /** The prompt version that wrote `steps`; stamped so a later prompt can find its predecessors. */
+  readonly stepsVersion: string;
 };
 
 export type MealDraft = {

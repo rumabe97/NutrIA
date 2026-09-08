@@ -27,8 +27,15 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * three on twenty-nine of thirty-nine dishes, each sentence doing the work of
  * two or three. Steps now carry `minutes` and a `cue`, and the floor for a long
  * cook is enforced in `domain/Method`, not asked for.
+ * 2.4.1: documented is not the same as long. The first rewrite pass gave a bowl
+ * of cottage cheese and kiwi five steps, one of them a minute spent spooning
+ * cheese into a cup. An uncooked dish now gets two or three real actions, no
+ * invented minutes and a cue only where there is something to look for.
+ * 2.4.2: a third band. A two-minute tostada is cooking but is not a main course,
+ * and the two-way split gave it seven steps, five of them `0 min`. The bands now
+ * match the three `domain/Method` enforces.
  */
-export const PROMPT_VERSION = '2.4.0';
+export const PROMPT_VERSION = '2.4.2';
 
 /** Share of the day each slot carries; mirrors the scheduler's own weights. */
 const SLOT_SHARE: Record<MealSlot, number> = {

@@ -24,6 +24,10 @@
     {
       "path": "/api/v1/cron/illustrate",
       "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/v1/cron/rewrite-steps",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

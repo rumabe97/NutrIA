@@ -4,6 +4,7 @@ import request from 'supertest';
 
 import { ENV } from '../../config/index.js';
 import { RecipeIllustrator } from '../ai/RecipeIllustrator.service.js';
+import { RecipeRewriter } from '../ai/RecipeRewriter.service.js';
 import { IllustrateController } from './illustrate.controller.js';
 
 import type { INestApplication } from '@nestjs/common';
@@ -16,6 +17,7 @@ import type { Server } from 'node:http';
 describe('GET /cron/illustrate', () => {
   let app: INestApplication;
   const illustrateMissing = jest.fn<(limit: number) => Promise<{ drawn: number; failed: number; pending: number }>>();
+  const rewriteOutdated = jest.fn<(limit: number) => Promise<{ pending: number; rewritten: number; skipped: number }>>();
 
   afterEach(async () => {
     jest.clearAllMocks();
@@ -27,7 +29,8 @@ describe('GET /cron/illustrate', () => {
       controllers: [IllustrateController],
       providers: [
         { provide: ENV, useValue: { CRON_SECRET: secret } },
-        { provide: RecipeIllustrator, useValue: { illustrateMissing } }
+        { provide: RecipeIllustrator, useValue: { illustrateMissing } },
+        { provide: RecipeRewriter, useValue: { rewriteOutdated } }
       ]
     }).compile();
 
@@ -45,6 +48,23 @@ describe('GET /cron/illustrate', () => {
 
     expect(response.body).toEqual({ drawn: 2, failed: 0, pending: 2 });
     expect(illustrateMissing).toHaveBeenCalledWith(6);
+  });
+
+  it('runs a bounded rewrite sweep on its own route', async () => {
+    rewriteOutdated.mockResolvedValue({ pending: 10, rewritten: 9, skipped: 1 });
+    const server = await boot('a-secret-of-sixteen-chars');
+
+    const response = await request(server).get('/cron/rewrite-steps').set('Authorization', 'Bearer a-secret-of-sixteen-chars').expect(200);
+
+    expect(response.body).toEqual({ pending: 10, rewritten: 9, skipped: 1 });
+    expect(rewriteOutdated).toHaveBeenCalledWith(10);
+  });
+
+  it('guards the rewrite route exactly as it guards the other', async () => {
+    const server = await boot('a-secret-of-sixteen-chars');
+
+    await request(server).get('/cron/rewrite-steps').set('Authorization', 'Bearer wrong').expect(404);
+    expect(rewriteOutdated).not.toHaveBeenCalled();
   });
 
   it('is 404 for the wrong bearer, and draws nothing', async () => {

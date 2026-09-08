@@ -1,4 +1,4 @@
-import { aliasedTable, and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { aliasedTable, and, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -7,6 +7,7 @@ import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe
 
 import { DatabaseOperationError } from 'core/entities/Error';
 import type { CatalogueIngredient, MealSlot } from 'core/entities/Plan';
+import type { RecipeStep } from 'database/schema/recipe';
 
 export type ReusableRecipe = {
   readonly id: string;
@@ -31,14 +32,18 @@ export type ReusableRecipe = {
  */
 export const FALLBACK_LOCALE = 'es-ES';
 
+export type UndocumentedRecipe = {
+  readonly id: string;
+  readonly cookMinutes: number;
+  readonly ingredients: readonly { readonly grams: number; readonly name: string }[];
+  readonly locale: string;
+  readonly name: string;
+  readonly prepMinutes: number;
+  readonly servings: number;
+  readonly steps: readonly RecipeStep[];
+};
+
 export const RecipeRepository = {
-  /**
-   * The whole ingredient catalogue, with allergen links attached.
-   *
-   * Loaded once per generation and passed down: every macro sum and every allergy
-   * check reads from this, so it must be one query rather than a lookup per
-   * ingredient inside a loop over fourteen days of meals.
-   */
   /** The stored illustration, or nothing. Bytes only — the route adds the headers. */
   async findImage(recipeId: string): Promise<{ readonly bytes: Buffer; readonly contentType: string } | undefined> {
     try {
@@ -119,6 +124,63 @@ export const RecipeRepository = {
           steps: row.instructions
         }))
         .filter(recipe => recipe.ingredients.length > 0);
+    } catch (error: unknown) {
+      throw wrap(error, 'recipes');
+    }
+  },
+
+  /**
+   * The whole ingredient catalogue, with allergen links attached.
+   *
+   * Loaded once per generation and passed down: every macro sum and every allergy
+   * check reads from this, so it must be one query rather than a lookup per
+   * ingredient inside a loop over fourteen days of meals.
+   */
+  /**
+   * Recipes whose steps predate the current prompt, with everything needed to
+   * rewrite them: the dish, its times, its ingredients in its own language, and
+   * the steps as they stand.
+   *
+   * Nothing about any person is here and nothing can be — a recipe is shared, and
+   * the rewriter is given a dish, not a diner.
+   */
+  async findUndocumented(stepsVersion: string, limit: number): Promise<readonly UndocumentedRecipe[]> {
+    try {
+      const db = database();
+      const rows = await db
+        .select({
+          id: recipes.id,
+          cookMinutes: recipes.cookMinutes,
+          locale: recipes.locale,
+          name: recipes.name,
+          prepMinutes: recipes.prepMinutes,
+          servings: recipes.servings,
+          steps: recipes.instructions
+        })
+        .from(recipes)
+        .where(or(isNull(recipes.stepsVersion), ne(recipes.stepsVersion, stepsVersion)))
+        .orderBy(recipes.id)
+        .limit(limit);
+
+      if (rows.length === 0) {return [];}
+
+      const items = await db
+        .select({ grams: recipeIngredients.grams, locale: ingredientNames.locale, name: ingredientNames.name, recipeId: recipeIngredients.recipeId })
+        .from(recipeIngredients)
+        .innerJoin(ingredientNames, eq(ingredientNames.ingredientId, recipeIngredients.ingredientId))
+        .where(
+          inArray(
+            recipeIngredients.recipeId,
+            rows.map(row => row.id)
+          )
+        );
+
+      return rows.map(row => ({
+        ...row,
+        ingredients: items
+          .filter(item => item.recipeId === row.id && item.locale === row.locale)
+          .map(item => ({ grams: Number(item.grams), name: item.name }))
+      }));
     } catch (error: unknown) {
       throw wrap(error, 'recipes');
     }
@@ -231,6 +293,20 @@ export const RecipeRepository = {
         .onConflictDoUpdate({ set: { ...image, updatedAt: new Date() }, target: recipeImages.recipeId });
     } catch (error: unknown) {
       throw wrap(error, 'recipe_images');
+    }
+  },
+
+  /**
+   * Replaces a recipe's method and stamps who wrote it. **Only** `instructions`
+   * and `steps_version`: the ingredients, the grams and the macros every plan
+   * already computed from them are untouched, so a rewrite cannot change what a
+   * past plan says anyone ate.
+   */
+  async updateSteps(recipeId: string, steps: readonly RecipeStep[], stepsVersion: string): Promise<void> {
+    try {
+      await database().update(recipes).set({ instructions: steps, stepsVersion }).where(eq(recipes.id, recipeId));
+    } catch (error: unknown) {
+      throw wrap(error, 'recipes');
     }
   }
 };

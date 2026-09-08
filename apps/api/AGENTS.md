@@ -150,13 +150,25 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   resolved at runtime, so a traced bundle never contains it; `createPino` checks it
   is resolvable and falls back to JSON with one warning line. Do not make any
   logging option able to stop the process.
+- **A recipe records which prompt wrote its steps** (`recipes.steps_version`), and
+  `RecipeRewriter` rewrites everything an older one wrote — bounded, on
+  `GET /cron/rewrite-steps`. Only `instructions` changes: ingredients, grams and the
+  macros every past plan computed from them are untouched, so a rewrite cannot alter
+  what a plan says anyone ate, and cannot reach the allergy layer, which matches ids
+  and never prose. Bump `PROMPT_VERSION` when the standard for steps changes and the
+  library re-sweeps itself; the stamp is why a rewrite that comes back terse is not
+  swept for ever. What it asks for scales in the same three bands `domain/Method`
+  enforces — uncooked, briefly cooked, properly cooked — because a prompt that asks
+  for more than the schema accepts just fails twice.
 - **Illustrations are drawn after the plan, never before it, and are off by default.**
   `RecipeIllustrator` (in `modules/ai`, so the health-data boundary test covers it)
   draws from the recipe's name and ingredients only, resizes to a phone-sized WebP and
   stores it in `recipe_images`; `GET /recipes/:id/image` is the one public route that
   serves bytes, immutable for a year. A bounded batch runs in the background after a
   generation and `GET /cron/illustrate` (bearer `CRON_SECRET`, else 404) sweeps the
-  rest every ten minutes. `AI_ILLUSTRATIONS=false` resolves no image model and every
+  rest every ten minutes. An unconfigured `CRON_SECRET` is logged at warn on each call:
+  a cron quietly 404ing every ten minutes has to be tellable from someone knocking, and
+  the response deliberately cannot say which. `AI_ILLUSTRATIONS=false` resolves no image model and every
   sweep is a no-op: the configured provider's free tier allows zero image calls, so the
   switch is the owner's. Every screen that shows one carries the "AI-generated
   illustration" label from the dictionary ([`0010`](../../docs/decisions/0010-illustrate-recipes-not-photograph-them.md)).

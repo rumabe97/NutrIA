@@ -7,7 +7,11 @@ import { SafetyController } from 'core/controllers/Safety';
 import { toCatalogue } from 'core/entities/Plan';
 import type { CandidateDish, Catalogue, MealSlot } from 'core/entities/Plan';
 import type { Rotation } from 'core/domain/Variety';
-import type { ReusableRecipe } from '#repositories/Recipe';
+import type { RecipeStep } from 'database/schema/recipe';
+import type { ReusableRecipe, UndocumentedRecipe } from '#repositories/Recipe';
+
+/** Re-exported: a rewriter in `apps/api` needs this shape, and depends on controllers, not repositories. */
+export type { UndocumentedRecipe } from '#repositories/Recipe';
 import type { SafetyProfile } from 'core/entities/Safety';
 
 /** How many library recipes to consider per generation. */
@@ -76,6 +80,11 @@ export const RecipeController = {
     return RecipeRepository.findWithoutImage(limit);
   },
 
+  /** Recipes still written by an older prompt, oldest first. Bounded. */
+  async pendingStepUpgrades(stepsVersion: string, limit: number): Promise<readonly UndocumentedRecipe[]> {
+    return RecipeRepository.findUndocumented(stepsVersion, limit);
+  },
+
   /**
    * Dishes from the library this user may safely eat.
    *
@@ -108,6 +117,11 @@ export const RecipeController = {
     // order, and the deterministic scheduler then hands them the same plan. With
     // one, each user gets their own dozen per slot, minus last fortnight's.
     return rotation ? rotatePool(usable, slots, rotation) : usable;
+  },
+
+  /** Replaces a recipe's method and records which prompt wrote it. Ingredients are never touched. */
+  async rewriteSteps(recipeId: string, steps: readonly RecipeStep[], stepsVersion: string): Promise<void> {
+    await RecipeRepository.updateSteps(recipeId, steps, stepsVersion);
   },
 
   async storeIllustration(recipeId: string, image: { readonly bytes: Buffer; readonly contentType: string; readonly height: number; readonly model: string; readonly promptVersion: string; readonly width: number }): Promise<void> {

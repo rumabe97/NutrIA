@@ -391,3 +391,26 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
 - **Hygiene**: yesterday's in-place amendment of 0006 moved into [`0009`](../../decisions/0009-rotate-reuse-per-user.md),
   as the template requires.
 
+### 2026-09-08 — The existing library's steps, rewritten in place (task)
+
+- **Executor**: agent, at the owner's "upgrade the existing recipes' steps".
+- **Why it needed more than a prompt**: 2.4.0 only shapes new dishes, and every plan
+  the owner can see is built from the hundred and ten already stored. `recipes` now
+  records `steps_version`, so "written by a prompt we have since improved" is a
+  stamp rather than a guess — which also closes the gap the 2026-09-07 review named
+  ("a promptVersion column on recipes would let you retire a whole generation of
+  dishes later, and there isn't one").
+- **Only `instructions` changes.** Ingredients, grams and the macros every past plan
+  computed are untouched; the allergy layer matches ingredient ids, never prose.
+- **Two rounds of prompt correction, both found by running it, not by reading it**:
+  - 2.4.1 — the first pass gave a bowl of cottage cheese and kiwi *five* steps, one a
+    full minute spent spooning cheese into a cup, each with a cue. An uncooked dish now
+    gets two or three real actions and no invented minutes.
+  - 2.4.2 — a two-minute tostada then got the main-course treatment: seven steps, five
+    of them `0 min`, ending "until it is plated and ready to eat". The guidance now
+    scales in the same three bands `domain/Method` enforces. It came back at four.
+  Bumping the version is what re-sweeps what an earlier one wrote.
+- **Also**: a zero-minute step is not data — both write paths drop it, as they already
+  dropped an empty cue. And an unconfigured `CRON_SECRET` is now logged, so a cron
+  404ing every ten minutes is diagnosable from the logs rather than only from the code.
+

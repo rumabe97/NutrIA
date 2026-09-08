@@ -10,6 +10,7 @@ import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
 
 import { PoolBuilder } from '../ai/PoolBuilder.service.js';
+import { PROMPT_VERSION } from '../ai/PoolPrompt.js';
 
 import type { CandidateDish, PlanAssignment } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
@@ -300,7 +301,9 @@ export class PlanGenerationService {
       prepMinutes: dish.prepMinutes,
       servings: dish.servings,
       slug: dish.slug,
-      steps: dish.steps
+      steps: dish.steps,
+      // Stamped with the prompt that wrote them, so a later one can find its predecessors.
+      stepsVersion: PROMPT_VERSION
     };
   }
 }

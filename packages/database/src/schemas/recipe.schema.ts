@@ -40,9 +40,25 @@ export const recipes = pgTable(
     prepMinutes: smallint().notNull().default(0),
     servings: smallint().notNull().default(1),
     slug: text().notNull().unique(),
-    source: recipeSource().notNull().default('seed')
+    source: recipeSource().notNull().default('seed'),
+    /**
+     * Which prompt wrote `instructions`. Null for everything written before the
+     * versions were recorded — the seed, and every dish generated up to 2.3.0.
+     *
+     * It exists to make one question answerable: *which recipes were written by a
+     * prompt we have since improved.* Without it, "needs rewriting" has to be
+     * guessed from the content, and a rewrite that happens to come back terse
+     * would be swept again for ever. A stamp is checked once and is right.
+     */
+    stepsVersion: text()
   },
-  table => [index('recipes_source_idx').on(table.source), index('recipes_cuisine_idx').on(table.cuisine), index('recipes_locale_idx').on(table.locale)]
+  table => [
+    index('recipes_source_idx').on(table.source),
+    index('recipes_cuisine_idx').on(table.cuisine),
+    index('recipes_locale_idx').on(table.locale),
+    // The rewriter's only query: everything not yet written by the current prompt.
+    index('recipes_steps_version_idx').on(table.stepsVersion)
+  ]
 );
 
 /**

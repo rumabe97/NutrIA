@@ -71,6 +71,13 @@
       "when": 1788843762572,
       "tag": "0009_medical_phantom_reporter",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788871879788,
+      "tag": "0010_clammy_black_crow",
+      "breakpoints": true
     }
   ]
 }

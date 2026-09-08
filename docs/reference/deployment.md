@@ -79,7 +79,7 @@ from local development:
 | `DATABASE_URL` | Neon's **pooled** endpoint (host contains `-pooler`) |
 | `DIRECT_DATABASE_URL` | Neon's **direct** endpoint — the build runs migrations through it |
 | `AI_ILLUSTRATIONS` | `false` until billing is enabled on the Google AI project (its free tier allows **zero** image generations); then `true` |
-| `CRON_SECRET` | any 16+ characters; the platform sends it as a bearer on the `*/10` illustration cron. Unset, the cron route does not exist |
+| `CRON_SECRET` | any 16+ characters (`openssl rand -base64 32`); the platform sends it as a bearer on both crons — illustrations every 10 minutes, step rewrites every 5. Unset, the routes 404 and say so in the log |
 
 `Env.validation.ts` refuses to boot on a bad environment and reports every problem at
 once. In production it is stricter than in development on purpose — and it checks

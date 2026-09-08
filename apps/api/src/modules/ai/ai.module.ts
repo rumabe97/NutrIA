@@ -7,6 +7,7 @@ import { ImageClient } from './clients/ImageClient.js';
 import { ProviderImageClient } from './clients/ProviderImageClient.js';
 import { PoolBuilder } from './PoolBuilder.service.js';
 import { RecipeIllustrator } from './RecipeIllustrator.service.js';
+import { RecipeRewriter } from './RecipeRewriter.service.js';
 import { StructuredAiClient } from './clients/StructuredAiClient.js';
 
 import type { Env } from '../../config/index.js';
@@ -19,7 +20,7 @@ import type { Env } from '../../config/index.js';
  */
 @Global()
 @Module({
-  exports: [AiClient, ImageClient, PoolBuilder, RecipeIllustrator],
+  exports: [AiClient, ImageClient, PoolBuilder, RecipeIllustrator, RecipeRewriter],
   providers: [
     envProvider,
     { inject: [ENV], provide: AI_MODEL, useFactory: (env: Env) => resolveModel(env) },
@@ -27,7 +28,8 @@ import type { Env } from '../../config/index.js';
     { inject: [ENV], provide: AI_IMAGE_MODEL, useFactory: (env: Env) => resolveImageModel(env) },
     { provide: ImageClient, useClass: ProviderImageClient },
     PoolBuilder,
-    RecipeIllustrator
+    RecipeIllustrator,
+    RecipeRewriter
   ]
 })
 export class AiModule {}

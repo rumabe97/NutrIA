@@ -52,7 +52,8 @@ export const PlanRepository = {
                 prepMinutes: recipe.prepMinutes,
                 servings: recipe.servings,
                 slug: recipe.slug,
-                source: 'ai' as const
+                source: 'ai' as const,
+                stepsVersion: recipe.stepsVersion
               }))
             )
             // Another user's generation may have produced the same dish first.
