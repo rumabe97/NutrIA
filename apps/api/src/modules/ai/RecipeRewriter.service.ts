@@ -1,6 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { RecipeController } from 'core/controllers/Recipe';
+
+import { ENV } from '../../config/index.js';
 
 import { AiClient } from './clients/AiClient.js';
 import { buildRewritePrompt } from './RewritePrompt.js';
@@ -8,6 +10,7 @@ import { isQuotaExhausted } from './clients/quota.js';
 import { languageName, PROMPT_VERSION } from './PoolPrompt.js';
 import { rewrittenStepsSchema, wireRewriteSchema } from './rewrite.schema.js';
 
+import type { Env } from '../../config/index.js';
 import type { UndocumentedRecipe } from 'core/controllers/Recipe';
 
 const SYSTEM = 'You rewrite cooking methods. You never change the dish, its ingredients or its timings — only how clearly the method is written.';
@@ -34,14 +37,19 @@ export type RewriteRun = { readonly pending: number; readonly rewritten: number;
 export class RecipeRewriter {
   private readonly logger = new Logger(RecipeRewriter.name);
 
-  constructor(private readonly ai: AiClient) {}
+  constructor(
+    private readonly ai: AiClient,
+    @Inject(ENV) private readonly env: Env
+  ) {}
 
+  /** Both switches: a provider to ask, and the owner's say-so that its quota may be spent on this. */
   get isAvailable(): boolean {
-    return this.ai.isAvailable;
+    return this.env.AI_REWRITE_STEPS && this.ai.isAvailable;
   }
 
   async rewriteOutdated(limit: number): Promise<RewriteRun> {
-    if (!this.ai.isAvailable) {return { pending: 0, rewritten: 0, skipped: 0 };}
+    // The sweep's own availability, not the client's: the owner's switch lives here.
+    if (!this.isAvailable) {return { pending: 0, rewritten: 0, skipped: 0 };}
 
     const pending = await RecipeController.pendingStepUpgrades(PROMPT_VERSION, limit);
     let rewritten = 0;

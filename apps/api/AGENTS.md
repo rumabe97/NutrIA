@@ -175,6 +175,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   provider again, and the plan records `fallback: full_library`. What still fails is
   a library that genuinely cannot fill a fortnight, which is `GENERATION_AI_UNAVAILABLE`
   when the provider failed and `POOL_TOO_SMALL` when there simply is none.
+- **Both sweeps are off by default** (`AI_ILLUSTRATIONS`, `AI_REWRITE_STEPS`), because a free-tier project's daily request cap is generation's. Turn them on with billing, or deliberately, for a while.
 - **Both sweeps stop at the first exhausted quota** (`isQuotaExhausted`). The provider's
   free tier caps *requests*, not only spend, and generation draws on the same allowance:
   a sweep that keeps going after a refusal attempted eighteen recipes three times each

@@ -67,6 +67,16 @@ const envObject = z
       .transform(value => value === 'true'),
     AI_MODEL: optional(z.string()),
     AI_PROVIDER: z.enum(['anthropic', 'google', 'ollama', 'stub']).default('stub'),
+    /*
+     * Off by default, like illustrations, and for the same reason: the provider's
+     * free tier caps requests per day and generation draws on the same cap. The
+     * rewrite sweep alone would spend a day's allowance in about two hours. Turn
+     * it on with billing, or deliberately, for a while, on a project you can spare.
+     */
+    AI_REWRITE_STEPS: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform(value => value === 'true'),
     ALLOWED_ORIGINS: optional(z.string()),
     ANTHROPIC_API_KEY: optional(z.string()),
     API_PREFIX: z.string().default('api/v1'),

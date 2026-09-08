@@ -8,7 +8,11 @@ import { RecipeRewriter } from './RecipeRewriter.service.js';
 import { AiClient } from './clients/AiClient.js';
 
 import type { AiRequest, AiResponse } from './clients/AiClient.js';
+import type { Env } from '../../config/index.js';
 import type { UndocumentedRecipe } from 'core/controllers/Recipe';
+
+const ON = { AI_REWRITE_STEPS: true } as Env;
+const OFF = { AI_REWRITE_STEPS: false } as Env;
 
 const RECIPE: UndocumentedRecipe = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -66,10 +70,17 @@ describe('RecipeRewriter', () => {
     jest.restoreAllMocks();
   });
 
+  it('does nothing while the owner has not switched it on, however able the provider is', async () => {
+    const pending = jest.spyOn(RecipeController, 'pendingStepUpgrades');
+
+    expect(await new RecipeRewriter(new ScriptedAi([GOOD]), OFF).rewriteOutdated(10)).toEqual({ pending: 0, rewritten: 0, skipped: 0 });
+    expect(pending).not.toHaveBeenCalled();
+  });
+
   it('does nothing when no provider is configured', async () => {
     const pending = jest.spyOn(RecipeController, 'pendingStepUpgrades');
 
-    expect(await new RecipeRewriter(new UnavailableAi()).rewriteOutdated(10)).toEqual({ pending: 0, rewritten: 0, skipped: 0 });
+    expect(await new RecipeRewriter(new UnavailableAi(), ON).rewriteOutdated(10)).toEqual({ pending: 0, rewritten: 0, skipped: 0 });
     expect(pending).not.toHaveBeenCalled();
   });
 
@@ -77,7 +88,7 @@ describe('RecipeRewriter', () => {
     const pending = jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE]);
     const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
 
-    const run = await new RecipeRewriter(new ScriptedAi([GOOD])).rewriteOutdated(10);
+    const run = await new RecipeRewriter(new ScriptedAi([GOOD]), ON).rewriteOutdated(10);
 
     expect(pending).toHaveBeenCalledWith(PROMPT_VERSION, 10);
     expect(run).toEqual({ pending: 1, rewritten: 1, skipped: 0 });
@@ -97,7 +108,7 @@ describe('RecipeRewriter', () => {
     const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
 
     // Three steps for a twenty-minute cook is exactly what this exists to replace.
-    const run = await new RecipeRewriter(new ScriptedAi([{ steps: GOOD.steps.slice(0, 3) }])).rewriteOutdated(10);
+    const run = await new RecipeRewriter(new ScriptedAi([{ steps: GOOD.steps.slice(0, 3) }]), ON).rewriteOutdated(10);
 
     expect(run).toEqual({ pending: 1, rewritten: 0, skipped: 1 });
     expect(rewrite).not.toHaveBeenCalled();
@@ -107,7 +118,7 @@ describe('RecipeRewriter', () => {
     jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE]);
     const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
 
-    const run = await new RecipeRewriter(new ScriptedAi([{ steps: [{ text: 'Cocer.' }, { text: 'Servir.' }, { text: 'Comer.' }, { text: 'Fin.' }] }])).rewriteOutdated(10);
+    const run = await new RecipeRewriter(new ScriptedAi([{ steps: [{ text: 'Cocer.' }, { text: 'Servir.' }, { text: 'Comer.' }, { text: 'Fin.' }] }]), ON).rewriteOutdated(10);
 
     expect(run.rewritten).toBe(0);
     expect(rewrite).not.toHaveBeenCalled();
@@ -128,7 +139,7 @@ describe('RecipeRewriter', () => {
       }
     })();
 
-    const run = await new RecipeRewriter(ai).rewriteOutdated(10);
+    const run = await new RecipeRewriter(ai, ON).rewriteOutdated(10);
 
     // One attempt, not three: the other two would have spent the allowance
     // plan generation needs on calls that could not have succeeded.
@@ -140,7 +151,7 @@ describe('RecipeRewriter', () => {
     jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE, { ...RECIPE, id: '22222222-2222-4222-8222-222222222222' }]);
     jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
 
-    const run = await new RecipeRewriter(new ScriptedAi([{ steps: [] }, GOOD])).rewriteOutdated(10);
+    const run = await new RecipeRewriter(new ScriptedAi([{ steps: [] }, GOOD]), ON).rewriteOutdated(10);
 
     expect(run).toEqual({ pending: 2, rewritten: 1, skipped: 1 });
   });
