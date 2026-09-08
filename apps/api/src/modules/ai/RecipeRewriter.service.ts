@@ -4,6 +4,7 @@ import { RecipeController } from 'core/controllers/Recipe';
 
 import { AiClient } from './clients/AiClient.js';
 import { buildRewritePrompt } from './RewritePrompt.js';
+import { isQuotaExhausted } from './clients/quota.js';
 import { languageName, PROMPT_VERSION } from './PoolPrompt.js';
 import { rewrittenStepsSchema, wireRewriteSchema } from './rewrite.schema.js';
 
@@ -53,6 +54,14 @@ export class RecipeRewriter {
       } catch (error: unknown) {
         skipped += 1;
         this.logger.warn(`Could not rewrite recipe ${recipe.id}: ${error instanceof Error ? error.message : 'unknown'}`);
+
+        // Out of budget is not a per-recipe failure. Carrying on spends the rest of
+        // the allowance on calls that cannot succeed — and that allowance is the one
+        // plan generation draws on, so a sweep must never be what empties it.
+        if (isQuotaExhausted(error)) {
+          this.logger.warn('Provider quota is exhausted; stopping this sweep. The rest will be picked up next time.');
+          break;
+        }
       }
     }
 

@@ -414,3 +414,20 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   dropped an empty cue. And an unconfigured `CRON_SECRET` is now logged, so a cron
   404ing every ten minutes is diagnosable from the logs rather than only from the code.
 
+### 2026-09-08 — The sweep emptied the day's quota (incident, same task)
+
+- **What happened**: the full-library rewrite ran 12 recipes, then hit the Google free
+  tier's request cap and kept going — 18 further recipes, each retried three times
+  against a provider that had already refused. Roughly 54 wasted calls on top of the
+  12 real ones. **Plan generation shares that allowance**, so it was blocked for the
+  rest of the day.
+- **My error, twice**: I told the owner text was "free-tier, so ~110 calls costs
+  nothing". The free tier caps requests, not only spend, and the cap is shared with
+  the feature that matters most. I also wrote a sweep that could not tell "no budget
+  left" from "try again".
+- **Fixed**: `isQuotaExhausted` names the difference in one place, and both sweeps
+  break out of the batch on it rather than spending the remainder on calls that cannot
+  succeed. Pinned by a test asserting exactly one attempt, not one per item.
+- **State**: 17 of 110 recipes rewritten; the rest resume when the quota resets, either
+  from the cron once `CRON_SECRET` is set, or from a local sweep.
+

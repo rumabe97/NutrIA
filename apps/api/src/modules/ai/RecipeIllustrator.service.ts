@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import { RecipeController } from 'core/controllers/Recipe';
 
 import { ImageClient } from './clients/ImageClient.js';
+import { isQuotaExhausted } from './clients/quota.js';
 
 /** Bumped when the wording changes; stored with each image so a better prompt can tell its own rows apart. */
 export const ILLUSTRATION_PROMPT_VERSION = '1.0.0';
@@ -52,6 +53,12 @@ export class RecipeIllustrator {
       } catch (error: unknown) {
         failed += 1;
         this.logger.warn(`Could not illustrate recipe ${recipe.id}: ${error instanceof Error ? error.message : 'unknown'}`);
+
+        // See `isQuotaExhausted`: the rest of this batch cannot succeed either.
+        if (isQuotaExhausted(error)) {
+          this.logger.warn('Provider quota is exhausted; stopping this sweep. The rest will be picked up next time.');
+          break;
+        }
       }
     }
 

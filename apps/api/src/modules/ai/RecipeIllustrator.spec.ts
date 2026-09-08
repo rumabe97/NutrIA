@@ -18,7 +18,8 @@ class ScriptedImageClient extends ImageClient {
 
   constructor(
     private readonly available: boolean,
-    private readonly fail: (prompt: string) => boolean = () => false
+    private readonly fail: (prompt: string) => boolean = () => false,
+    private readonly failure = 'the model returned nothing'
   ) {
     super();
   }
@@ -30,7 +31,7 @@ class ScriptedImageClient extends ImageClient {
   generate({ prompt }: ImageRequest): Promise<ImageResponse> {
     this.prompts.push(prompt);
 
-    if (this.fail(prompt)) {return Promise.reject(new Error('quota exceeded for metric x'));}
+    if (this.fail(prompt)) {return Promise.reject(new Error(this.failure));}
 
     return Promise.resolve({ bytes: new Uint8Array(PNG), mediaType: 'image/png', model: 'scripted-image' });
   }
@@ -85,6 +86,19 @@ describe('RecipeIllustrator', () => {
 
     expect(run).toEqual({ drawn: 1, failed: 1, pending: 2 });
     expect(store).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops the sweep the moment the provider says it is out of budget', async () => {
+    jest.spyOn(RecipeController, 'pendingIllustrations').mockResolvedValue(pending);
+    const store = jest.spyOn(RecipeController, 'storeIllustration').mockResolvedValue(undefined);
+    const client = new ScriptedImageClient(true, () => true, 'You exceeded your current quota, please check your plan and billing details.');
+
+    const run = await new RecipeIllustrator(client).illustrateMissing(6);
+
+    // One attempt, not one per recipe: the rest could not have succeeded.
+    expect(client.prompts).toHaveLength(1);
+    expect(run).toEqual({ drawn: 0, failed: 1, pending: 2 });
+    expect(store).not.toHaveBeenCalled();
   });
 
   it('asks for exactly the bound it was given', async () => {

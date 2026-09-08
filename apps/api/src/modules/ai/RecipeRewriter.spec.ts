@@ -113,6 +113,29 @@ describe('RecipeRewriter', () => {
     expect(rewrite).not.toHaveBeenCalled();
   });
 
+  it('stops the sweep the moment the provider says it is out of budget', async () => {
+    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE, { ...RECIPE, id: '22222222-2222-4222-8222-222222222222' }, { ...RECIPE, id: '33333333-3333-4333-8333-333333333333' }]);
+    jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
+    const ai = new (class extends AiClient {
+      public calls = 0;
+      get isAvailable(): boolean {
+        return true;
+      }
+      generate<T>(): Promise<AiResponse<T>> {
+        this.calls += 1;
+
+        return Promise.reject(new Error('You exceeded your current quota, please check your plan and billing details.'));
+      }
+    })();
+
+    const run = await new RecipeRewriter(ai).rewriteOutdated(10);
+
+    // One attempt, not three: the other two would have spent the allowance
+    // plan generation needs on calls that could not have succeeded.
+    expect(ai.calls).toBe(1);
+    expect(run).toEqual({ pending: 3, rewritten: 0, skipped: 1 });
+  });
+
   it('counts one failure and carries on with the rest', async () => {
     jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE, { ...RECIPE, id: '22222222-2222-4222-8222-222222222222' }]);
     jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);

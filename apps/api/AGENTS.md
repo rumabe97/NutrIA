@@ -160,6 +160,11 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   swept for ever. What it asks for scales in the same three bands `domain/Method`
   enforces — uncooked, briefly cooked, properly cooked — because a prompt that asks
   for more than the schema accepts just fails twice.
+- **Both sweeps stop at the first exhausted quota** (`isQuotaExhausted`). The provider's
+  free tier caps *requests*, not only spend, and generation draws on the same allowance:
+  a sweep that keeps going after a refusal attempted eighteen recipes three times each
+  and emptied the day's budget, blocking plan generation. Treat "the sweep is free
+  because the text tier is free" as false — it is bounded, and the bound is shared.
 - **Illustrations are drawn after the plan, never before it, and are off by default.**
   `RecipeIllustrator` (in `modules/ai`, so the health-data boundary test covers it)
   draws from the recipe's name and ingredients only, resizes to a phone-sized WebP and
