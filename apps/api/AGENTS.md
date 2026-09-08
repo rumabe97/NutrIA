@@ -160,6 +160,13 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   swept for ever. What it asks for scales in the same three bands `domain/Method`
   enforces — uncooked, briefly cooked, properly cooked — because a prompt that asks
   for more than the schema accepts just fails twice.
+- **A plan is discarded only for structure or a safety bound**, never for missing a
+  nutrition target — see [`0011`](../../docs/decisions/0011-nutrition-targets-are-advisory.md).
+  `validatePlan` reports every violation, `isBlocking` says which are worth throwing
+  fourteen days of food away for, and the rest ride along in
+  `generation_metadata.advisories`. If you add a rule, decide which it is: the default
+  is advisory, and a new blocking rule needs a reason a user would accept losing their
+  plan over.
 - **Both sweeps stop at the first exhausted quota** (`isQuotaExhausted`). The provider's
   free tier caps *requests*, not only spend, and generation draws on the same allowance:
   a sweep that keeps going after a refusal attempted eighteen recipes three times each

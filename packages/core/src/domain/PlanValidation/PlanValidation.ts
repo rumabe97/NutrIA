@@ -32,12 +32,40 @@ import type { VarietyViolation } from 'core/domain/Variety';
 export const PLAN_TOLERANCE = { kcal: 0.1, proteinUnder: 0.15 } as const;
 
 export type PlanViolation =
+  | { readonly actual: number; readonly ceiling: number; readonly dayIndex: number; readonly kind: 'protein_above_ceiling' }
   | { readonly actual: number; readonly dayIndex: number; readonly kind: 'below_minimum_kcal'; readonly minimum: number }
-  | { readonly actual: number; readonly dayIndex: number; readonly kind: 'kcal_out_of_band' | 'protein_out_of_band'; readonly target: number; readonly tolerance: number }
+  | { readonly actual: number; readonly dayIndex: number; readonly kind: 'kcal_out_of_band' | 'protein_below_target'; readonly target: number; readonly tolerance: number }
   | { readonly actual: number; readonly expected: number; readonly kind: 'wrong_day_count'; }
   | { readonly dayIndex: number; readonly kind: 'empty_day' }
   | { readonly dayIndex: number; readonly kind: 'missing_slot'; readonly slot: MealSlot }
   | { readonly kind: 'variety'; readonly violation: VarietyViolation };
+
+/**
+ * Whether a violation is a reason to throw the plan away.
+ *
+ * Three kinds of thing were being treated as one, and only one of them justifies
+ * discarding fourteen days of food:
+ *
+ * - **Structural** — a missing day, an empty day, a missing meal. The plan is not
+ *   a plan. Blocking.
+ * - **Safety** — a day under the minimum energy a body needs, or protein above the
+ *   sanity ceiling. These are not targets, they are bounds, and the project's rule
+ *   is that safety is never softened for convenience. Blocking.
+ * - **Guidance** — a day a little under the protein target, or outside the calorie
+ *   band. **Advisory.** The targets are an estimate the profile screen already
+ *   calls an estimate; missing one by a few per cent on two days out of fourteen
+ *   is information, not a fault, and discarding a good plan over it leaves the
+ *   user with no plan at all — which serves their nutrition strictly worse than
+ *   the plan we threw away.
+ *
+ * Variety is advisory too: `canPlace` prevents it by construction, so a violation
+ * here means a scheduler bug worth logging, not a plan worth destroying.
+ */
+export function isBlocking(violation: PlanViolation): boolean {
+  return BLOCKING_KINDS.has(violation.kind);
+}
+
+const BLOCKING_KINDS = new Set<PlanViolation['kind']>(['below_minimum_kcal', 'empty_day', 'missing_slot', 'protein_above_ceiling', 'wrong_day_count']);
 
 export type ValidationInput = {
   readonly assignment: PlanAssignment;
@@ -55,6 +83,10 @@ export type ValidationInput = {
  * Returns every violation rather than the first, for the same reason the allergy
  * validator does: a generation that fails on three counts should surface three,
  * not send the pipeline round the loop three times.
+ *
+ * It does not decide what to *do* about them — see `isBlocking`. A caller
+ * discards a plan for a broken structure or a broken safety bound, and delivers
+ * one that merely drifted from a target it already describes as an estimate.
  */
 export function validatePlan(input: ValidationInput): readonly PlanViolation[] {
   const violations: PlanViolation[] = [];
@@ -83,11 +115,21 @@ export function validatePlan(input: ValidationInput): readonly PlanViolation[] {
       violations.push({ actual: day.totals.kcal, dayIndex: day.dayIndex, kind: 'kcal_out_of_band', target: input.targets.kcal, tolerance: PLAN_TOLERANCE.kcal });
     }
 
-    if (day.totals.proteinG < input.targets.proteinG * (1 - PLAN_TOLERANCE.proteinUnder) || day.totals.proteinG > input.weightKg * PROTEIN_CEILING_G_PER_KG) {
+    // The two halves of the old `protein_out_of_band` are different questions and
+    // were never the same rule: under the target is a goal missed, over the ceiling
+    // is a bound broken. Only one of them is a reason to discard the plan.
+    if (day.totals.proteinG > input.weightKg * PROTEIN_CEILING_G_PER_KG) {
+      violations.push({
+        actual: day.totals.proteinG,
+        ceiling: input.weightKg * PROTEIN_CEILING_G_PER_KG,
+        dayIndex: day.dayIndex,
+        kind: 'protein_above_ceiling'
+      });
+    } else if (day.totals.proteinG < input.targets.proteinG * (1 - PLAN_TOLERANCE.proteinUnder)) {
       violations.push({
         actual: day.totals.proteinG,
         dayIndex: day.dayIndex,
-        kind: 'protein_out_of_band',
+        kind: 'protein_below_target',
         target: input.targets.proteinG,
         tolerance: PLAN_TOLERANCE.proteinUnder
       });

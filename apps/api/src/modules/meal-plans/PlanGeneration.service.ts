@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { buildShoppingList, unresolvedSlugs } from 'core/domain/ShoppingList';
 import { dishSafety } from 'core/domain/Safety';
 import { PLAN_DAYS, schedulePlan, slotsFor } from 'core/domain/Scheduler';
-import { validatePlan } from 'core/domain/PlanValidation';
+import { isBlocking, validatePlan } from 'core/domain/PlanValidation';
 import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController, PlanJobController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
@@ -14,6 +14,7 @@ import { PROMPT_VERSION } from '../ai/PoolPrompt.js';
 
 import type { CandidateDish, PlanAssignment } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
+import type { PlanViolation } from 'core/domain/PlanValidation';
 import type { GenerationContext } from 'core/controllers/Recipe';
 import type { Rotation } from 'core/domain/Variety';
 import type { PlanDraft, RecipeDraft } from 'core/entities/Plan';
@@ -143,24 +144,24 @@ export class PlanGenerationService {
       weightKg: profile.goal?.startingWeightKg ?? 0
     });
 
-    if (violations.length > 0) {
-      // Summarised rather than dumped: which rules failed, how many days each
-      // affected, and the worst miss — enough to tell "the pool was carb-heavy"
-      // from "a day came out short" without reading a log.
-      const byKind = new Map<string, { count: number; worst: string }>();
+    const blocking = violations.filter(isBlocking);
+    const advisories = violations.filter(violation => !isBlocking(violation));
 
-      for (const violation of violations) {
-        const existing = byKind.get(violation.kind) ?? { count: 0, worst: '' };
-        const detail =
-          'actual' in violation && 'target' in violation ? `${Math.round(violation.actual)} frente a ${Math.round(violation.target)}` : '';
-
-        byKind.set(violation.kind, { count: existing.count + 1, worst: existing.worst || detail });
-      }
-
-      const summary = [...byKind.entries()].map(([kind, { count, worst }]) => `${kind} (${count} días${worst ? `, p. ej. ${worst}` : ''})`).join('; ');
+    if (blocking.length > 0) {
+      const summary = summarise(blocking);
 
       this.logger.warn(`Plan rejected by validation: ${summary}`);
       throw new GenerationError('GENERATION_INVALID_PLAN', summary);
+    }
+
+    const advisorySummary = advisories.map(describe);
+
+    if (advisories.length > 0) {
+      // Delivered, not discarded. The targets are an estimate — the profile screen
+      // says so — and a plan that misses one on two days out of fourteen serves the
+      // person better than the nothing they get if it is thrown away. Recorded on
+      // the plan so an operator can still see which days drifted and by how much.
+      this.logger.log(`Plan delivered with advisories: ${summarise(advisories)}`);
     }
 
     // The gate runs again over the *assembled* plan, immediately before anything is
@@ -178,7 +179,7 @@ export class PlanGenerationService {
 
     await markStep(STEPS.saving);
 
-    return PlanJobController.persist(userId, this.toDraft(scheduled.assignment, shopping, built, targets, context, jobId, rotation));
+    return PlanJobController.persist(userId, this.toDraft(scheduled.assignment, shopping, built, targets, context, jobId, rotation, advisorySummary));
   }
 
   /**
@@ -239,7 +240,8 @@ export class PlanGenerationService {
     targets: NutritionTargets,
     context: GenerationContext,
     jobId: string,
-    rotation: Rotation
+    rotation: Rotation,
+    advisories: readonly string[]
   ): PlanDraft {
     const start = new Date();
     const end = new Date(start);
@@ -267,7 +269,7 @@ export class PlanGenerationService {
       endDate: isoDate(end),
       // The seed and the number of dishes held back say *why* this plan differs from
       // the last one, which is the first thing anyone asks when two plans look alike.
-      generationMetadata: { ...built.metadata, avoidedDishes: rotation.avoidSlugs.size, jobId, locale: context.locale, poolSeed: rotation.seed, scheduledAt: start.toISOString() },
+      generationMetadata: { ...built.metadata, advisories, avoidedDishes: rotation.avoidSlugs.size, jobId, locale: context.locale, poolSeed: rotation.seed, scheduledAt: start.toISOString() },
       // Only dishes the plan actually uses are persisted — a generated dish the
       // scheduler never placed is not worth a row.
       locale: context.locale,
@@ -319,3 +321,38 @@ function addDays(date: Date, days: number): Date {
 function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
+
+/**
+ * One line per rule: which fired, how many days it touched, and the worst miss —
+ * enough to tell "the pool was carb-heavy" from "a day came out short" without
+ * reading a log.
+ */
+function summarise(violations: readonly PlanViolation[]): string {
+  const byKind = new Map<string, { count: number; worst: string }>();
+
+  for (const violation of violations) {
+    const existing = byKind.get(violation.kind) ?? { count: 0, worst: '' };
+
+    byKind.set(violation.kind, { count: existing.count + 1, worst: existing.worst || detailOf(violation) });
+  }
+
+  return [...byKind.entries()].map(([kind, { count, worst }]) => `${kind} (${count} días${worst ? `, p. ej. ${worst}` : ''})`).join('; ');
+}
+
+/** One advisory, per day, for the plan's own record. */
+function describe(violation: PlanViolation): string {
+  const detail = detailOf(violation);
+
+  return `${violation.kind}${'dayIndex' in violation ? ` día ${violation.dayIndex}` : ''}${detail ? `: ${detail}` : ''}`;
+}
+
+function detailOf(violation: PlanViolation): string {
+  if ('actual' in violation && 'target' in violation) {return `${Math.round(violation.actual)} frente a ${Math.round(violation.target)}`;}
+
+  if ('actual' in violation && 'ceiling' in violation) {return `${Math.round(violation.actual)} sobre un techo de ${Math.round(violation.ceiling)}`;}
+
+  if ('actual' in violation && 'minimum' in violation) {return `${Math.round(violation.actual)} bajo un mínimo de ${Math.round(violation.minimum)}`;}
+
+  return '';
+}
+

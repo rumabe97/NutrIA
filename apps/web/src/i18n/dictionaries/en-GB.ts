@@ -196,7 +196,7 @@ export const enGB: Dictionary = {
     couldNotStart: 'We could not start',
     failedBody: 'Something went wrong at our end. Nothing was saved, so you can try again.',
     failedTitle: 'We could not create your plan',
-    invalidPlanBody: 'We built a plan but it did not meet your nutrition targets, so we discarded it rather than give it to you.',
+    invalidPlanBody: 'We built a plan but it was missing meals or crossed a safety limit, so we discarded it rather than give it to you. Try again.',
     invalidPlanTitle: 'The plan did not come out right',
     onboardingIncompleteBody: 'We are missing information about you before we can work out what you need.',
     onboardingIncompleteTitle: 'Your profile is unfinished',

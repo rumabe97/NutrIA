@@ -180,6 +180,27 @@ describe('PlanGenerationService', () => {
     expect(input?.preferences.avoidNames).toEqual(['Pollo al limón']);
   });
 
+  /*
+   * A real plan was discarded for 141 g of protein against 185 on two days of
+   * fourteen, and the owner had no plan at all as a result. The nutrition figures
+   * are guidance; the bounds around them are not.
+   */
+  it('delivers a plan that drifts from its targets, and records where', async () => {
+    // A pool whose dishes are light on protein: the scheduler can build fourteen
+    // valid days from it, but not fourteen that reach the target.
+    const { persist, service } = build({ reusable: pool('arroz').map(dish => ({ ...dish, ingredients: [{ grams: 60, slug: 'arroz' }] })) });
+
+    const planId = await service.generate('user-1', 'job-1', async () => Promise.resolve());
+
+    expect(planId).toBeTruthy();
+    expect(persist).toHaveBeenCalledTimes(1);
+
+    const draft = persist.mock.calls[0]?.[1] as { generationMetadata: { advisories: readonly string[] } };
+
+    expect(draft.generationMetadata.advisories.length).toBeGreaterThan(0);
+    expect(draft.generationMetadata.advisories.join(' ')).toContain('protein_below_target');
+  });
+
   it('produces a 14-day plan and persists it once', async () => {
     const { persist, service } = build();
     const planId = await service.generate('usr-1', 'job-1', async () => Promise.resolve());

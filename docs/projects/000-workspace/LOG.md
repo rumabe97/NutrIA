@@ -431,3 +431,26 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
 - **State**: 17 of 110 recipes rewritten; the rest resume when the quota resets, either
   from the cron once `CRON_SECRET` is set, or from a local sweep.
 
+### 2026-09-08 — Generation stopped failing on guidance (task)
+
+- **Executor**: agent, at the owner's report — a phone screenshot of
+  `protein_out_of_band (2 días, p. ej. 141 frente a 185)` and "los datos son
+  orientativos, nunca tiene que fallar la generación".
+- **The fault was the consequence, not the rule.** Fourteen days were built,
+  scheduled and allergy-checked, then destroyed because two of them came in 24 %
+  under a protein target the profile screen already calls an estimate. No plan is
+  worse for the person than a plan that drifts.
+- **Fixed** as [`0011`](../../decisions/0011-nutrition-targets-are-advisory.md):
+  `isBlocking` separates structural faults and safety bounds (minimum energy, the
+  protein ceiling) from guidance. Guidance rides along in
+  `generation_metadata.advisories` — which day, which rule, how far.
+  `protein_out_of_band` split into `protein_below_target` (advisory) and
+  `protein_above_ceiling` (blocking); they were two rules under one name, which is
+  how a safety limit and a nutrition preference came to share a failure path.
+- **Also corrected the copy**: it said the plan "did not meet your nutrition
+  targets", now the one thing that cannot cause that error.
+- **Why it surfaced now**: tighter variety rules and a rotated pool give the
+  scheduler less freedom to hit every target. The advisories make that pressure
+  visible per plan rather than only as a failure rate — and are the evidence to
+  widen the pool if drift becomes common, rather than widening the tolerance.
+

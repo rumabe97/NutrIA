@@ -200,7 +200,7 @@ export const esES = {
     couldNotStart: 'No hemos podido empezar',
     failedBody: 'Algo ha ido mal por nuestra parte. No se ha guardado nada, así que puedes volver a intentarlo.',
     failedTitle: 'No hemos podido crear tu plan',
-    invalidPlanBody: 'Hemos construido un plan pero no cumplía tus objetivos nutricionales, así que lo hemos descartado en lugar de dártelo.',
+    invalidPlanBody: 'Hemos construido un plan pero le faltaban comidas o cruzaba un límite de seguridad, así que lo hemos descartado en lugar de dártelo. Vuelve a intentarlo.',
     invalidPlanTitle: 'El plan no salía bien',
     onboardingIncompleteBody: 'Nos faltan datos tuyos para poder calcular tus necesidades.',
     onboardingIncompleteTitle: 'Falta terminar tu perfil',
