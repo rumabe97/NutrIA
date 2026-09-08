@@ -21,6 +21,8 @@ export interface MealView {
    * meal names with the quantities a click away is a plan you cannot shop or
    * cook from without fifty-six navigations.
    */
+  /** API path of the recipe's illustration, or null when none has been drawn yet. Relative: the client prefixes its API base. */
+  illustrationPath: string | null;
   ingredients: readonly { grams: number; name: string }[];
   kcal: number;
   name: string;
@@ -82,6 +84,7 @@ function presentMeal({ items, meal, recipe }: MealRow): MealView {
     difficulty: recipe.difficulty,
     fatG: Number(meal.fatG),
     fiberG: Number(meal.fiberG),
+    illustrationPath: recipe.hasImage ? `/recipes/${recipe.id}/image` : null,
     ingredients: items.map(item => ({ grams: Math.round(Number(item.grams) * factor * 10) / 10, name: item.name })),
     kcal: Number(meal.kcal),
     name: recipe.name,
@@ -278,6 +281,7 @@ export interface MealDetailView {
   difficulty: string;
   fatG: number;
   fiberG: number;
+  illustrationPath: string | null;
   ingredients: readonly { grams: number; name: string; unit: string }[];
   kcal: number;
   name: string;
@@ -286,7 +290,7 @@ export interface MealDetailView {
   servings: number;
   slot: MealSlot;
   status: string;
-  steps: readonly { minutes?: number; text: string }[];
+  steps: readonly { cue?: string; minutes?: number; text: string }[];
 }
 
 /**
@@ -329,6 +333,7 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
     difficulty: recipe.difficulty,
     fatG: Number(meal.fatG),
     fiberG: Number(meal.fiberG),
+    illustrationPath: recipe.hasImage ? `/recipes/${recipe.id}/image` : null,
     ingredients: items.map(item => ({ grams: Math.round(Number(item.grams) * factor * 10) / 10, name: item.name, unit: item.unit })),
     kcal: Number(meal.kcal),
     name: recipe.name,

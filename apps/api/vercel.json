@@ -19,5 +19,11 @@
       "src": "/(.*)",
       "dest": "vercel/index.js"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/v1/cron/illustrate",
+      "schedule": "*/10 * * * *"
+    }
   ]
 }

@@ -159,3 +159,44 @@
   margin-bottom: var(--gap-block);
   padding: var(--space-03) var(--space-04);
 }
+
+/* The cue and the time sit under the step in the secondary tone: read the action,
+   then what to watch for. Tabular figures so "3 min" and "12 min" align down a list. */
+.stepBody {
+  display: grid;
+  gap: var(--space-01);
+  min-width: 0;
+}
+
+.stepCue {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-01);
+}
+
+.stepTime {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.figure {
+  margin: 0 0 var(--gap-block);
+}
+
+.illustration {
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-04);
+  display: block;
+  object-fit: cover;
+  width: 100%;
+}
+
+/* The label is part of the picture, not a caption someone can drop. */
+.illustrationLabel {
+  color: var(--foreground-03);
+  font-size: var(--font-size-01);
+  letter-spacing: 0.02em;
+  margin-top: var(--space-02);
+  text-transform: uppercase;
+}
+

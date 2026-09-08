@@ -72,26 +72,8 @@ a local Ollama, or a stub. No feature code imports a vendor SDK.
 - A stub provider becomes a first-class citizen, which is what lets the whole pipeline be
   tested and demonstrated with no key and no spend.
 
-## Amendment — 2026-09-07: which reuse, not whether
+## Amended by
 
-Reuse first still holds. What changed is that the pool builder used to hand every
-user the *whole* safe library, and the scheduler — deterministic, ranking by usage,
-fit and slug — turned the same library into the same plan for everyone with a
-similar profile, and into the same plan again the following fortnight. The owner's
-report was "each user should have their own plan, with many varieties"; the cause
-was not the model, it was this step not existing.
-
-`rotatePool` (`core/domain/Variety`) now decides which library dishes a user is
-handed: last fortnight's are excluded, the rest are shuffled with a seed from the
-user and the plan version, and up to `DISHES_NEEDED_PER_SLOT` are taken per slot —
-the same number a generation asks for. Reproducible per user and version; different
-per user and per fortnight. Prompt 2.3.0 is told what was served last time and asked
-to spread the set it returns, with the counts stated.
-
-**The cost claim above bends.** Excluding last fortnight means a returning user's
-second plan needs dishes the library may not yet hold, so generation is called where
-it would not have been. That cost falls as the library grows — every generated dish
-is reusable by everyone else — and it is the price of the two things the owner asked
-for twice. Cost still does not scale with *users*; it scales, for a while, with how
-often the same user comes back.
-
+- [`0009`](./0009-rotate-reuse-per-user.md) — reuse is rotated per user and per plan
+  version, and a user is never served last fortnight's dishes again. The cost claim
+  above bends for returning users; the reasoning is there, not here.

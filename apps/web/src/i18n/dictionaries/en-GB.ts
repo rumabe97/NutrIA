@@ -368,6 +368,7 @@ export const enGB: Dictionary = {
     dayOf: '{slot} · Day {day}',
     difficulty: { easy: 'Easy', hard: 'Hard', medium: 'Medium' },
     difficultyLabel: 'Difficulty',
+    illustration: 'AI-generated illustration',
     ingredients: 'Ingredients',
     minutes: '{value} min',
     noCooking: 'No cooking',

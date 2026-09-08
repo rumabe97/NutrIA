@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { PlanJobController } from 'core/controllers/Plan';
 
+import { RecipeIllustrator } from '../ai/RecipeIllustrator.service.js';
 import { BackgroundTaskService } from '../../shared/services/index.js';
 import { GenerationError, PlanGenerationService } from './PlanGeneration.service.js';
 
@@ -22,13 +23,17 @@ import type { JobView } from 'core/controllers/Plan';
  * The job row is the contract, so replacing this with a real queue later means
  * writing a different runner, not changing the schema or the API.
  */
+/** Enough for a fresh plan's new dishes to have pictures within a minute or two; the cron draws the rest. */
+const ILLUSTRATIONS_AFTER_PLAN = 8;
+
 @Injectable()
 export class PlanJobRunner {
   private readonly logger = new Logger(PlanJobRunner.name);
 
   constructor(
     private readonly background: BackgroundTaskService,
-    private readonly generation: PlanGenerationService
+    private readonly generation: PlanGenerationService,
+    private readonly illustrator: RecipeIllustrator
   ) {}
 
   /** Creates the job and returns immediately; the work continues after the response. */
@@ -51,6 +56,12 @@ export class PlanJobRunner {
 
       await PlanJobController.markSucceeded(jobId, planId);
       this.logger.log(`Plan ${planId} generated for job ${jobId}`);
+
+      // The plan is done and reported; its pictures are a bonus drawn afterwards,
+      // a bounded batch here and the rest by the cron. Never awaited by the job.
+      if (this.illustrator.isAvailable) {
+        this.background.run(`illustrate-after:${jobId}`, () => this.illustrator.illustrateMissing(ILLUSTRATIONS_AFTER_PLAN));
+      }
     } catch (error: unknown) {
       // A stable code reaches the user; the detail stays in the log. Nothing
       // partial survives — every write happens in one transaction at the end.

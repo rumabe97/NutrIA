@@ -201,7 +201,9 @@ export class PoolBuilder {
       servings: dish.servings,
       slots: dish.slots,
       slug,
-      steps: dish.steps
+      // The wire has no nullable, so "no cue" arrives as an empty string. It leaves
+      // as no key at all, which is what the page tests for before rendering one.
+      steps: dish.steps.map(step => (step.cue ? step : { ...step, cue: undefined }))
     };
   }
 }

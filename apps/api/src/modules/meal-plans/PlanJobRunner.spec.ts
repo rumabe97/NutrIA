@@ -7,6 +7,7 @@ import { GenerationError } from './PlanGeneration.service.js';
 import { PlanJobRunner } from './PlanJobRunner.service.js';
 
 import type { PlanGenerationService } from './PlanGeneration.service.js';
+import type { RecipeIllustrator } from '../ai/RecipeIllustrator.service.js';
 
 const JOB = { id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null };
 
@@ -27,7 +28,10 @@ function build(generate: () => Promise<string>) {
   // The real service, not a stub: off-platform its `waitUntil` throws and is
   // caught, which is exactly the path a local run takes. A stub here would test
   // the double.
-  const runner = new PlanJobRunner(new BackgroundTaskService(), { generate: jest.fn(generate) } as unknown as PlanGenerationService);
+  // Illustrations off: the runner asks the illustrator nothing, which is the state
+  // every environment starts in and the one these tests are about.
+  const illustrator = { illustrateMissing: jest.fn(), isAvailable: false } as unknown as RecipeIllustrator;
+  const runner = new PlanJobRunner(new BackgroundTaskService(), { generate: jest.fn(generate) } as unknown as PlanGenerationService, illustrator);
 
   return { markFailed, markStarted, markStep, markSucceeded, runner, start };
 }

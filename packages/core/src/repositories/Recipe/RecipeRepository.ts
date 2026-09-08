@@ -1,9 +1,9 @@
-import { aliasedTable, and, eq, inArray, sql } from 'drizzle-orm';
+import { aliasedTable, and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
 import { ingredientAllergens, ingredientNames, ingredients } from 'database/schema/food';
-import { recipeIngredients, recipes } from 'database/schema/recipe';
+import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 
 import { DatabaseOperationError } from 'core/entities/Error';
 import type { CatalogueIngredient, MealSlot } from 'core/entities/Plan';
@@ -32,6 +32,28 @@ export type ReusableRecipe = {
 export const FALLBACK_LOCALE = 'es-ES';
 
 export const RecipeRepository = {
+  /**
+   * The whole ingredient catalogue, with allergen links attached.
+   *
+   * Loaded once per generation and passed down: every macro sum and every allergy
+   * check reads from this, so it must be one query rather than a lookup per
+   * ingredient inside a loop over fourteen days of meals.
+   */
+  /** The stored illustration, or nothing. Bytes only — the route adds the headers. */
+  async findImage(recipeId: string): Promise<{ readonly bytes: Buffer; readonly contentType: string } | undefined> {
+    try {
+      const [row] = await database()
+        .select({ bytes: recipeImages.bytes, contentType: recipeImages.contentType })
+        .from(recipeImages)
+        .where(eq(recipeImages.recipeId, recipeId))
+        .limit(1);
+
+      return row;
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_images');
+    }
+  },
+
   /**
    * Recipes already in the library that could fill one of these slots.
    *
@@ -103,12 +125,43 @@ export const RecipeRepository = {
   },
 
   /**
-   * The whole ingredient catalogue, with allergen links attached.
-   *
-   * Loaded once per generation and passed down: every macro sum and every allergy
-   * check reads from this, so it must be one query rather than a lookup per
-   * ingredient inside a loop over fourteen days of meals.
+   * Recipes still waiting for an illustration, oldest first, with what the
+   * illustrator needs to describe them: the name and the ingredient names in the
+   * recipe's own language. Nothing about any person is here, and nothing can be.
    */
+  async findWithoutImage(limit: number): Promise<readonly { readonly id: string; readonly ingredientNames: readonly string[]; readonly locale: string; readonly name: string }[]> {
+    try {
+      const db = database();
+      const rows = await db
+        .select({ id: recipes.id, locale: recipes.locale, name: recipes.name })
+        .from(recipes)
+        .leftJoin(recipeImages, eq(recipeImages.recipeId, recipes.id))
+        .where(isNull(recipeImages.recipeId))
+        .orderBy(recipes.id)
+        .limit(limit);
+
+      if (rows.length === 0) {return [];}
+
+      const names = await db
+        .select({ locale: ingredientNames.locale, name: ingredientNames.name, recipeId: recipeIngredients.recipeId })
+        .from(recipeIngredients)
+        .innerJoin(ingredientNames, eq(ingredientNames.ingredientId, recipeIngredients.ingredientId))
+        .where(
+          inArray(
+            recipeIngredients.recipeId,
+            rows.map(row => row.id)
+          )
+        );
+
+      return rows.map(row => ({
+        ...row,
+        ingredientNames: names.filter(name => name.recipeId === row.id && name.locale === row.locale).map(name => name.name)
+      }));
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_images');
+    }
+  },
+
   async loadCatalogue(locale: string): Promise<readonly CatalogueIngredient[]> {
     try {
       const db = database();
@@ -166,6 +219,18 @@ export const RecipeRepository = {
       }));
     } catch (error: unknown) {
       throw wrap(error, 'ingredients');
+    }
+  },
+
+  /** Replaces any existing illustration; a re-drawn recipe keeps one row. */
+  async saveImage(recipeId: string, image: { readonly bytes: Buffer; readonly contentType: string; readonly height: number; readonly model: string; readonly promptVersion: string; readonly width: number }): Promise<void> {
+    try {
+      await database()
+        .insert(recipeImages)
+        .values({ recipeId, ...image })
+        .onConflictDoUpdate({ set: { ...image, updatedAt: new Date() }, target: recipeImages.recipeId });
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_images');
     }
   }
 };

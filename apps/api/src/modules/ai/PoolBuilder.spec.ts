@@ -66,7 +66,7 @@ function dish(name: string, slots: readonly MealSlot[], slugs: readonly string[]
     prepMinutes: 5,
     servings: 1,
     slots: [...slots],
-    steps: [{ text: 'Calentar la sartén' }, { text: 'Mezclar y cocer 10 minutos' }]
+    steps: [{ text: 'Calentar la sartén con el aceite a fuego medio' }, { text: 'Mezclar y cocer 10 minutos, removiendo' }]
   };
 }
 
@@ -365,6 +365,34 @@ describe('PoolBuilder', () => {
       expect(prompt).toMatch(/No main protein .* in more than \d+ dishes/);
       expect(prompt).toMatch(/At least \d+ distinct cuisines/);
     });
+  });
+
+  it('asks for one action per step, with its time and its cue', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+
+    const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
+
+    // "Only three steps, each has to be better documented" — 2.3.0 asked for a
+    // range and got the bottom of it with every sentence doing double duty.
+    expect(prompt).toContain('ONE ACTION PER STEP');
+    expect(prompt).toContain('EVERY STEP DOCUMENTED');
+    expect(prompt).toContain('`minutes`');
+    expect(prompt).toContain('`cue`');
+  });
+
+  it('drops an empty cue from the wire rather than storing an empty string', async () => {
+    const { client } = stubClient([
+      { dishes: [{ ...dish('Arroz', ['lunch']), steps: [{ cue: '', minutes: 2, text: 'Calentar el aceite a fuego medio en la sartén' }, { cue: 'hasta que dore', text: 'Añadir el arroz y remover dos minutos' }] }] }
+    ]);
+
+    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+    const steps = result.generated[0]?.steps ?? [];
+
+    expect(steps[0]).not.toHaveProperty('cue', '');
+    expect(steps[0]?.cue).toBeUndefined();
+    expect(steps[1]?.cue).toBe('hasta que dore');
   });
 
   it('gives up after a bounded number of attempts rather than looping', async () => {

@@ -10,6 +10,7 @@ import { Text } from 'ui/components/Text';
 
 import { MacroSummary } from 'components/MacroSummary';
 
+import { API_URL } from 'lib/env';
 import { difficultyLabel, slotLabel } from 'lib/generation';
 import { formatNumber, formatQuantity, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
@@ -44,13 +45,18 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
         {meal.cuisine ? <span>{meal.cuisine}</span> : null}
       </div>
 
-      {/* A specification, where a decorative band used to be.
-          The band was a gradient with the dish name written in it — a hero image
-          made of nothing, occupying the most valuable space on the page and
-          telling the reader something the heading above already said. There is no
-          photograph to put here: nobody cooked this dish, and an invented picture
-          of it would be the most convincing lie on the page. So the space carries
-          the four numbers a cook checks before starting. */}
+      {/* An illustration when one has been drawn, and it says so. Nobody cooked this
+          dish, so there is no photograph of it and calling a picture one would be the
+          most convincing lie on the page (0010). Absent, the page is complete without
+          it: the specification below is the content, the picture is the bonus. */}
+      {meal.illustrationPath ? (
+        <figure className={styles.figure}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- the API serves a phone-sized, immutable WebP already; next/image would add an optimiser hop and per-image billing for nothing */}
+          <img alt={meal.name} className={styles.illustration} src={`${API_URL}${meal.illustrationPath}`} />
+          <figcaption className={styles.illustrationLabel}>{dictionary.meal.illustration}</figcaption>
+        </figure>
+      ) : null}
+      {/* The four numbers a cook checks before starting. */}
       <dl className={styles.spec}>
         {[
           { label: dictionary.meal.prep, value: interpolate(dictionary.meal.minutes, { value: formatNumber(meal.prepMinutes, locale) }) },
@@ -100,7 +106,19 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
           <ol className={styles.steps}>
             {meal.steps.map(step => (
               <li className={styles.step} key={step.text}>
-                <Text>{step.text}</Text>
+                {/* The step, then what the cook watches for and how long it takes —
+                    the two things a method leaves out when it is written to be
+                    short rather than to be followed. */}
+                <div className={styles.stepBody}>
+                  <Text>{step.text}</Text>
+                  {step.cue || step.minutes ? (
+                    <Text as="span" className={styles.stepCue} size="sm" tone="secondary">
+                      {step.cue ? <span>{step.cue}</span> : null}
+                      {step.cue && step.minutes ? <span aria-hidden="true"> · </span> : null}
+                      {step.minutes ? <span className={styles.stepTime}>{interpolate(dictionary.meal.minutes, { value: formatNumber(step.minutes, locale) })}</span> : null}
+                    </Text>
+                  ) : null}
+                </div>
               </li>
             ))}
           </ol>

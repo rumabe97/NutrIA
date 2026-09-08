@@ -1,0 +1,69 @@
+import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import { Test } from '@nestjs/testing';
+import request from 'supertest';
+
+import { ENV } from '../../config/index.js';
+import { RecipeIllustrator } from '../ai/RecipeIllustrator.service.js';
+import { IllustrateController } from './illustrate.controller.js';
+
+import type { INestApplication } from '@nestjs/common';
+import type { Server } from 'node:http';
+
+/**
+ * The cron's door. Wrong secret, no secret, no secret configured: all 404, the
+ * same as every other denial, so probing does not confirm the route exists.
+ */
+describe('GET /cron/illustrate', () => {
+  let app: INestApplication;
+  const illustrateMissing = jest.fn<(limit: number) => Promise<{ drawn: number; failed: number; pending: number }>>();
+
+  afterEach(async () => {
+    jest.clearAllMocks();
+    await app?.close();
+  });
+
+  async function boot(secret: string | undefined): Promise<Server> {
+    const moduleRef = await Test.createTestingModule({
+      controllers: [IllustrateController],
+      providers: [
+        { provide: ENV, useValue: { CRON_SECRET: secret } },
+        { provide: RecipeIllustrator, useValue: { illustrateMissing } }
+      ]
+    }).compile();
+
+    app = moduleRef.createNestApplication();
+    await app.init();
+
+    return app.getHttpServer() as Server;
+  }
+
+  it('runs a bounded sweep for the platform’s bearer', async () => {
+    illustrateMissing.mockResolvedValue({ drawn: 2, failed: 0, pending: 2 });
+    const server = await boot('a-secret-of-sixteen-chars');
+
+    const response = await request(server).get('/cron/illustrate').set('Authorization', 'Bearer a-secret-of-sixteen-chars').expect(200);
+
+    expect(response.body).toEqual({ drawn: 2, failed: 0, pending: 2 });
+    expect(illustrateMissing).toHaveBeenCalledWith(6);
+  });
+
+  it('is 404 for the wrong bearer, and draws nothing', async () => {
+    const server = await boot('a-secret-of-sixteen-chars');
+
+    await request(server).get('/cron/illustrate').set('Authorization', 'Bearer wrong').expect(404);
+    expect(illustrateMissing).not.toHaveBeenCalled();
+  });
+
+  it('is 404 with no bearer at all', async () => {
+    const server = await boot('a-secret-of-sixteen-chars');
+
+    await request(server).get('/cron/illustrate').expect(404);
+  });
+
+  it('does not exist when no secret is configured, whatever is sent', async () => {
+    const server = await boot(undefined);
+
+    await request(server).get('/cron/illustrate').set('Authorization', 'Bearer anything').expect(404);
+    expect(illustrateMissing).not.toHaveBeenCalled();
+  });
+});

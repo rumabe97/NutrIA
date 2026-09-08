@@ -17,14 +17,25 @@
  * one honest sentence.
  */
 export const METHOD_RULES = {
+  /**
+   * A main that cooks for a quarter of an hour or more has stages — prepare,
+   * start the heat, add, turn or reduce, finish, plate. Three steps for that
+   * means three actions folded into each sentence, which is what the owner read
+   * as "too simple": every dish came back with exactly three, and the median
+   * step was a hundred characters doing the work of two.
+   */
+  longCookMinutes: 15,
   /** Something goes on the heat and something comes off it: that is two sentences. */
   minStepsCooked: 2,
+  minStepsCookedLong: 4,
   /** Even assembly is an instruction — what goes on what, and in what order. */
   minStepsUncooked: 1
 } as const;
 
-/** The floor for a dish, given whether it is cooked. */
+/** The floor for a dish, given how long it cooks. */
 export function minimumSteps(cookMinutes: number): number {
+  if (cookMinutes >= METHOD_RULES.longCookMinutes) {return METHOD_RULES.minStepsCookedLong;}
+
   return cookMinutes > 0 ? METHOD_RULES.minStepsCooked : METHOD_RULES.minStepsUncooked;
 }
 

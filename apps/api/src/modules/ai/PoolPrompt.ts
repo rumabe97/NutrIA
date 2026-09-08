@@ -22,8 +22,13 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * else. And the set it returns has to be *spread*: no protein, cuisine or
  * method dominating, with the counts stated, because "varied" alone produced
  * eight chicken dishes with a straight face.
+ * 2.4.0: one action per step, and each step documented — how, how hot, how long,
+ * and the sign it is done. 2.3.0 asked for three to eight steps and got exactly
+ * three on twenty-nine of thirty-nine dishes, each sentence doing the work of
+ * two or three. Steps now carry `minutes` and a `cue`, and the floor for a long
+ * cook is enforced in `domain/Method`, not asked for.
  */
-export const PROMPT_VERSION = '2.3.0';
+export const PROMPT_VERSION = '2.4.0';
 
 /** Share of the day each slot carries; mirrors the scheduler's own weights. */
 const SLOT_SHARE: Record<MealSlot, number> = {
@@ -203,9 +208,15 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
     '  and the time. "Cook the chicken" is not a step; "sear 4 minutes a side, then rest 5" is.',
     '- Contrast in texture and temperature — something crisp against something soft, something',
     '  fresh against something rich.',
-    '- Three to eight steps for anything cooked; one to three for a snack. Never zero: a dish',
-    '  with no method is rejected before it is stored. Even assembly is an instruction — what',
-    '  goes on what, toasted or not, dressed with what.',
+    '- ONE ACTION PER STEP. Five to eight steps for a main that cooks, two to four for a',
+    '  snack. Never zero: a dish with no method is rejected before it is stored. "Sear the',
+    '  pork 3 minutes, add the mushrooms, cook 4 more, stir in the rice" is four steps, not one.',
+    '- EVERY STEP DOCUMENTED, in one to three sentences: what to do, how (the cut, the vessel,',
+    '  the heat), and how long — put the time in `minutes` as well as the text. Then the sign',
+    '  it is done, in `cue`: "until the edges brown", "until the liquid has halved", "until it',
+    '  no longer sticks". A cook who has never made this dish follows it without guessing.',
+    '- Include the quiet steps a recipe book includes: bring to temperature, rest the meat,',
+    '  taste for seasoning, plate. They are where a dish goes right or wrong.',
     '- Variety of method across the set you return: do not send eight roasted dishes.',
     '',
     'DISHES NEEDED:',

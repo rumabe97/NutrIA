@@ -370,3 +370,24 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   history exclusion, per-slot cap; prompt content pinned; generation wiring pinned.
   Live — one real generation inspected (see the report in the conversation).
 
+### 2026-09-08 — Documented steps, and an illustration per recipe (task)
+
+- **Executor**: agent, at the owner's report: "the recipes are very simple, only three
+  steps, each step has to be better documented. Also add photos of each meal."
+- **Steps**: measured first — 29 of 39 dishes in the live plan had exactly three steps,
+  median 97 characters, each sentence doing two or three actions. Prompt 2.4.0 asks one
+  action per step with how, heat, time and a *cue*; steps carry `minutes` and `cue`; a
+  15-minute cook needs four steps and a step needs twenty characters, enforced in
+  `domain/Method` and `pool.schema`, not asked for. Existing recipes keep their steps —
+  7 of 110 now fall under the floor and leave reuse; nothing already served changes.
+- **Illustrations**: [`0010`](../../decisions/0010-illustrate-recipes-not-photograph-them.md).
+  Per recipe, labelled as AI-drawn, stored in `recipe_images` (migration `0009`), served
+  from one public immutable route, drawn after the plan and swept by a cron. Off by
+  default: the provider's free tier allows zero image generations, which was found by
+  trying one. Verified with a scripted image client end to end through sharp; the real
+  model is one env switch away and unverified until billing exists.
+- **Declined**: ingredient photos — a category icon would serve the shopping list better
+  for nothing; offered, not built.
+- **Hygiene**: yesterday's in-place amendment of 0006 moved into [`0009`](../../decisions/0009-rotate-reuse-per-user.md),
+  as the template requires.
+

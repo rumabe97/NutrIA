@@ -53,3 +53,13 @@
   color: var(--foreground-02);
   margin: 0;
 }
+
+/* The picture is the first thing in the card and the only thing that is not text. */
+.picture {
+  aspect-ratio: 16 / 7;
+  border-radius: var(--radius-03);
+  margin-bottom: var(--space-03);
+  object-fit: cover;
+  width: 100%;
+}
+

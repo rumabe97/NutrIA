@@ -99,6 +99,28 @@ describe('the strict schema still enforces what the wire schema cannot', () => {
     expect(generatedDishSchema.safeParse({ ...valid, cookMinutes: 20, steps: [{ text: 'Cocinar el pollo' }] }).success).toBe(false);
   });
 
+  /*
+   * 2.4.0. "Only three steps, each has to be better documented." A step now
+   * carries how long it takes and what to look for, and a bare action is not a
+   * step: "Cocer el arroz." names nothing about how, how hot or how long.
+   */
+  it('keeps a step\u2019s minutes and cue', () => {
+    const parsed = generatedDishSchema.safeParse({
+      ...valid,
+      steps: [
+        { cue: 'hasta que el ajo dore sin quemarse', minutes: 1, text: 'Sofreír el ajo laminado en el aceite a fuego medio' },
+        { cue: '', minutes: 18, text: 'Añadir el arroz y el caldo, tapar y cocer a fuego bajo' }
+      ]
+    });
+
+    expect(parsed.success).toBe(true);
+    expect(parsed.success && parsed.data.steps[0]).toEqual({ cue: 'hasta que el ajo dore sin quemarse', minutes: 1, text: 'Sofreír el ajo laminado en el aceite a fuego medio' });
+  });
+
+  it('rejects a step that is only a verb and a noun', () => {
+    expect(generatedDishSchema.safeParse({ ...valid, cookMinutes: 0, steps: [{ text: 'Cocer el arroz.' }] }).success).toBe(false);
+  });
+
   it('accepts one honest sentence for something that is only assembled', () => {
     expect(generatedDishSchema.safeParse({ ...valid, cookMinutes: 0, steps: [{ text: 'Verter el yogur y esparcir las almendras' }] }).success).toBe(true);
   });

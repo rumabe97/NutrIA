@@ -56,6 +56,15 @@ function optional<T extends z.ZodType>(schema: T) {
 const envObject = z
   .object({
     AI_BASE_URL: optional(z.url()),
+    /*
+     * Off by default: the configured provider's free tier allows zero image
+     * generations, so this is the switch the owner throws once billing is on.
+     * When off, no image model is resolved and the sweeps do nothing (0010).
+     */
+    AI_ILLUSTRATIONS: z
+      .enum(['true', 'false'])
+      .default('false')
+      .transform(value => value === 'true'),
     AI_MODEL: optional(z.string()),
     AI_PROVIDER: z.enum(['anthropic', 'google', 'ollama', 'stub']).default('stub'),
     ALLOWED_ORIGINS: optional(z.string()),
@@ -76,6 +85,8 @@ const envObject = z
      * does.
      */
     COOKIE_DOMAIN: optional(z.string().startsWith('.', 'must start with a dot, e.g. .example.com')),
+    /** The platform sends it as a bearer on cron calls; unset means the cron route does not exist. */
+    CRON_SECRET: optional(z.string().min(16, 'must be at least 16 characters')),
     DATABASE_URL: z.string().startsWith('postgres'),
     DIRECT_DATABASE_URL: optional(z.string().startsWith('postgres')),
     EMAIL_FROM: optional(z.email()),

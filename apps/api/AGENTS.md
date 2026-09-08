@@ -150,6 +150,16 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   resolved at runtime, so a traced bundle never contains it; `createPino` checks it
   is resolvable and falls back to JSON with one warning line. Do not make any
   logging option able to stop the process.
+- **Illustrations are drawn after the plan, never before it, and are off by default.**
+  `RecipeIllustrator` (in `modules/ai`, so the health-data boundary test covers it)
+  draws from the recipe's name and ingredients only, resizes to a phone-sized WebP and
+  stores it in `recipe_images`; `GET /recipes/:id/image` is the one public route that
+  serves bytes, immutable for a year. A bounded batch runs in the background after a
+  generation and `GET /cron/illustrate` (bearer `CRON_SECRET`, else 404) sweeps the
+  rest every ten minutes. `AI_ILLUSTRATIONS=false` resolves no image model and every
+  sweep is a no-op: the configured provider's free tier allows zero image calls, so the
+  switch is the owner's. Every screen that shows one carries the "AI-generated
+  illustration" label from the dictionary ([`0010`](../../docs/decisions/0010-illustrate-recipes-not-photograph-them.md)).
 - `pnpm --filter api smoke:function` runs the deployed entry behind a plain Node
   server and checks it boots, denies with 404, and returns the JSON envelope for an
   unmatched route. Needs a live database, so it is not in the gate. Run it after any

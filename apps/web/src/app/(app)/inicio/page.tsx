@@ -100,7 +100,7 @@ export default async function DashboardPage() {
 
                     <div className={`${styles.meals} motion-list`}>
                       {day.meals.map(meal => (
-                        <MealRow id={meal.id} ingredients={meal.ingredients} kcal={meal.kcal} key={meal.id} name={meal.name} proteinG={meal.proteinG} slot={meal.slot} />
+                        <MealRow id={meal.id} illustrationPath={meal.illustrationPath} ingredients={meal.ingredients} kcal={meal.kcal} key={meal.id} name={meal.name} proteinG={meal.proteinG} slot={meal.slot} />
                       ))}
                     </div>
                   </section>

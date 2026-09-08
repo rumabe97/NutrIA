@@ -1,9 +1,9 @@
-import { aliasedTable, and, desc, eq, inArray } from 'drizzle-orm';
+import { aliasedTable, and, desc, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
 
 import { database } from 'database';
 import { mealPlans, meals, planDays } from 'database/schema/plan';
 import { ingredientNames, ingredients } from 'database/schema/food';
-import { recipeIngredients, recipes } from 'database/schema/recipe';
+import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 import { shoppingListItems, shoppingLists } from 'database/schema/shopping';
 
 import { ConflictError, DatabaseOperationError } from 'core/entities/Error';
@@ -215,7 +215,8 @@ export const PlanRepository = {
       if (days.length === 0) {return [];}
 
       const rows = await db
-        .select({ meal: meals, recipe: recipes })
+        // `hasImage` rides on the recipe so every consumer of a recipe row can offer the picture.
+        .select({ meal: meals, recipe: { ...getTableColumns(recipes), hasImage: sql<boolean>`exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id})` } })
         .from(meals)
         .innerJoin(recipes, eq(recipes.id, meals.recipeId))
         .where(
@@ -319,7 +320,7 @@ export const PlanRepository = {
       const db = database();
 
       const [row] = await db
-        .select({ day: planDays, meal: meals, recipe: recipes })
+        .select({ day: planDays, meal: meals, recipe: { ...getTableColumns(recipes), hasImage: sql<boolean>`exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id})` } })
         .from(meals)
         .innerJoin(planDays, eq(planDays.id, meals.planDayId))
         .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))

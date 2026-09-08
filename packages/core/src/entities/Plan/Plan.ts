@@ -76,7 +76,7 @@ export const candidateDishSchema = z.object({
   slug: z.string().min(1).max(140),
   // At least one, always: see `domain/Method`, which is where the floor is decided
   // and where the provider's output and the reuse pool are both measured against it.
-  steps: z.array(z.object({ minutes: z.number().int().min(0).max(240).optional(), text: z.string().min(1).max(600) })).min(1).max(15)
+  steps: z.array(z.object({ cue: z.string().max(160).optional(), minutes: z.number().int().min(0).max(240).optional(), text: z.string().min(1).max(600) })).min(1).max(15)
 });
 
 export type CandidateDish = z.infer<typeof candidateDishSchema>;
@@ -130,7 +130,7 @@ export type RecipeDraft = {
   readonly prepMinutes: number;
   readonly servings: number;
   readonly slug: string;
-  readonly steps: readonly { readonly minutes?: number; readonly text: string }[];
+  readonly steps: readonly { readonly cue?: string; readonly minutes?: number; readonly text: string }[];
 };
 
 export type MealDraft = {

@@ -66,6 +66,16 @@ export const RecipeController = {
     return { catalogue: toCatalogue(catalogue), locale, safety };
   },
 
+  /** The stored illustration for a public route to serve; nothing else about the recipe. */
+  async illustration(recipeId: string): Promise<{ readonly bytes: Buffer; readonly contentType: string } | undefined> {
+    return RecipeRepository.findImage(recipeId);
+  },
+
+  /** What the illustrator still has to draw. Bounded, oldest first. */
+  async pendingIllustrations(limit: number): Promise<readonly { readonly id: string; readonly ingredientNames: readonly string[]; readonly locale: string; readonly name: string }[]> {
+    return RecipeRepository.findWithoutImage(limit);
+  },
+
   /**
    * Dishes from the library this user may safely eat.
    *
@@ -98,5 +108,9 @@ export const RecipeController = {
     // order, and the deterministic scheduler then hands them the same plan. With
     // one, each user gets their own dozen per slot, minus last fortnight's.
     return rotation ? rotatePool(usable, slots, rotation) : usable;
+  },
+
+  async storeIllustration(recipeId: string, image: { readonly bytes: Buffer; readonly contentType: string; readonly height: number; readonly model: string; readonly promptVersion: string; readonly width: number }): Promise<void> {
+    await RecipeRepository.saveImage(recipeId, image);
   }
 };

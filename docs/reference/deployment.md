@@ -78,6 +78,8 @@ from local development:
 | `SWAGGER_ENABLED` | leave unset — off by default outside development; an explicit `true` is refused, because the schema describes every endpoint to anyone who asks |
 | `DATABASE_URL` | Neon's **pooled** endpoint (host contains `-pooler`) |
 | `DIRECT_DATABASE_URL` | Neon's **direct** endpoint — the build runs migrations through it |
+| `AI_ILLUSTRATIONS` | `false` until billing is enabled on the Google AI project (its free tier allows **zero** image generations); then `true` |
+| `CRON_SECRET` | any 16+ characters; the platform sends it as a bearer on the `*/10` illustration cron. Unset, the cron route does not exist |
 
 `Env.validation.ts` refuses to boot on a bad environment and reports every problem at
 once. In production it is stricter than in development on purpose — and it checks

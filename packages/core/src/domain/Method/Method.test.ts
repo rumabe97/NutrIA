@@ -7,9 +7,11 @@ function dish(cookMinutes: number, stepCount: number): { cookMinutes: number; st
 }
 
 describe('minimumSteps', () => {
-  it('asks more of a dish that is cooked', () => {
-    expect(minimumSteps(20)).toBe(METHOD_RULES.minStepsCooked);
+  it('asks more of a dish that is cooked, and more again of one that cooks a while', () => {
     expect(minimumSteps(0)).toBe(METHOD_RULES.minStepsUncooked);
+    expect(minimumSteps(9)).toBe(METHOD_RULES.minStepsCooked);
+    expect(minimumSteps(METHOD_RULES.longCookMinutes)).toBe(METHOD_RULES.minStepsCookedLong);
+    expect(minimumSteps(45)).toBe(METHOD_RULES.minStepsCookedLong);
   });
 });
 
@@ -28,5 +30,10 @@ describe('hasUsableMethod', () => {
 
   it('accepts a cooked dish that says how', () => {
     expect(hasUsableMethod(dish(25, 4))).toBe(true);
+  });
+
+  it('rejects three steps for a dish that cooks a quarter of an hour — that is three actions per sentence', () => {
+    expect(hasUsableMethod(dish(25, 3))).toBe(false);
+    expect(hasUsableMethod(dish(10, 3))).toBe(true);
   });
 });

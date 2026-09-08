@@ -3,9 +3,10 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOllama } from 'ollama-ai-provider-v2';
 
 import type { Env } from '../../config/index.js';
-import type { LanguageModel } from 'ai';
+import type { ImageModel, LanguageModel } from 'ai';
 
 export const AI_MODEL = Symbol('AI_MODEL');
+export const AI_IMAGE_MODEL = Symbol('AI_IMAGE_MODEL');
 
 /**
  * Resolves the configured provider to a model.
@@ -44,3 +45,19 @@ function required(value: string | undefined, name: string): string {
 
   return value;
 }
+
+/**
+ * Which model draws illustrations, given who is generating dishes.
+ *
+ * Null unless `AI_ILLUSTRATIONS=true` *and* the provider has an image model:
+ * only Google does here, and only with billing — its free tier allows zero image
+ * calls, which is why this is a switch the owner throws rather than a default.
+ * Anthropic and Ollama generate no images; Google's `AI_MODEL` names its text
+ * model, so the image model is fixed rather than read from it (0010).
+ */
+export function resolveImageModel(env: Env): ImageModel | null {
+  if (!env.AI_ILLUSTRATIONS || env.AI_PROVIDER !== 'google') {return null;}
+
+  return createGoogleGenerativeAI({ apiKey: required(env.GOOGLE_API_KEY, 'GOOGLE_API_KEY') }).image('gemini-2.5-flash-image');
+}
+

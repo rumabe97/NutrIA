@@ -373,6 +373,7 @@ export const esES = {
     dayOf: '{slot} · Día {day}',
     difficulty: { easy: 'Fácil', hard: 'Difícil', medium: 'Media' },
     difficultyLabel: 'Dificultad',
+    illustration: 'Ilustración generada por IA',
     ingredients: 'Ingredientes',
     minutes: '{value} min',
     noCooking: 'Sin cocinar',

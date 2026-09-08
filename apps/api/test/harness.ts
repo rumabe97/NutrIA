@@ -80,7 +80,13 @@ export function dish(name: string, slots: readonly string[], ingredients: readon
     prepMinutes: 5,
     servings: 1,
     slots: [...slots],
-    steps: [{ text: 'Preparar y servir.' }]
+    // Two documented steps: a ten-minute cook needs two under `domain/Method`, and a
+    // step is twenty characters at least. The suites are about safety, not cooking,
+    // but a fixture the schema rejects tests nothing.
+    steps: [
+      { cue: 'hasta que el aceite brille', minutes: 1, text: 'Calentar el aceite en la sartén a fuego medio' },
+      { minutes: 9, text: 'Añadir los ingredientes y cocinar, removiendo, hasta que estén hechos' }
+    ]
   };
 }
 

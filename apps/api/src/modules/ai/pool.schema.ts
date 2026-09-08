@@ -35,7 +35,19 @@ export const generatedDishSchema = z.object({
   prepMinutes: z.number().int().min(0).max(120),
   servings: z.number().min(1).max(4).describe('Número de raciones que rinden las cantidades indicadas.'),
   slots: z.array(z.enum(MEAL_SLOTS)).min(1).describe('Momentos del día en los que este plato encaja.'),
-  steps: z.array(z.object({ text: z.string().min(1).max(400) })).max(10).describe('Pasos de preparación. Al menos uno, siempre.')
+  steps: z
+    .array(
+      z.object({
+        // What to look for before moving on. Optional on the wire; the prompt asks for it.
+        cue: z.string().max(160).optional(),
+        minutes: z.number().int().min(0).max(240).optional(),
+        // Twenty characters is the floor under "Cocer el arroz." — a step that names
+        // an action and nothing about how, how hot or how long is not documented.
+        text: z.string().min(20).max(400)
+      })
+    )
+    .max(10)
+    .describe('Pasos de preparación. Al menos uno, siempre.')
 })
   /*
    * The floor lives here rather than only in the prompt because 2.1.0 asked for
@@ -105,8 +117,16 @@ export const wirePoolSchema = jsonSchema<GeneratedPool>({
             type: 'array'
           },
           steps: {
-            description: 'Pasos de preparación. Lista vacía para tentempiés.',
-            items: { properties: { text: { type: 'string' } }, required: ['text'], type: 'object' },
+            description: 'Pasos de preparación, uno por acción. Cada paso: qué hacer, cómo, a qué fuego y cuánto tiempo, y qué señal indica que está listo.',
+            items: {
+              properties: {
+                cue: { description: 'La señal de que el paso está hecho: "hasta que los bordes doren", "hasta que deje de humear". Cadena vacía si no aplica.', type: 'string' },
+                minutes: { description: 'Minutos que ocupa este paso. 0 si es instantáneo.', type: 'integer' },
+                text: { description: 'La acción, en una a tres frases: qué, cómo, a qué fuego.', type: 'string' }
+              },
+              required: ['text'],
+              type: 'object'
+            },
             type: 'array'
           }
         },

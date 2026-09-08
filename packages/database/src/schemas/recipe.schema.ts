@@ -1,11 +1,12 @@
-import { boolean, index, jsonb, numeric, pgTable, smallint, text, unique, uuid } from 'drizzle-orm/pg-core';
+import { boolean, customType, index, jsonb, numeric, pgTable, smallint, text, unique, uuid } from 'drizzle-orm/pg-core';
 
 import { difficulty, measurementUnit, recipeSource } from './_enums';
 import { ingredients } from './food.schema';
 import { user } from './auth.schema';
 import { timestamps } from './_columns';
 
-export type RecipeStep = { readonly minutes?: number; readonly text: string; };
+/** `cue` is what the cook looks for before moving on — "until the edges brown", "until it stops steaming". */
+export type RecipeStep = { readonly cue?: string; readonly minutes?: number; readonly text: string; };
 
 /**
  * Recipes are shared, not user-owned: an AI-generated one is reusable, and plan
@@ -74,3 +75,34 @@ export const recipeIngredients = pgTable(
     index('recipe_ingredients_ingredient_idx').on(table.ingredientId)
   ]
 );
+
+/** drizzle-pg has no `bytea`; postgres.js passes a Buffer through unchanged. */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return 'bytea';
+  }
+});
+
+/**
+ * One illustration per recipe, stored here rather than in a blob store.
+ *
+ * An image lives with the recipe it depicts: shared across every plan that uses
+ * the recipe, gone when the recipe goes. Sixty recipes at ~80 KB is a few
+ * megabytes, served through one cacheable route — well under the point where a
+ * second vendor earns its account, and it keeps the product runnable from a
+ * database URL alone (0010). `model` and `promptVersion` say what drew it, so
+ * a later, better illustrator can tell which rows are its own.
+ */
+export const recipeImages = pgTable('recipe_images', {
+  bytes: bytea().notNull(),
+  contentType: text().notNull(),
+  height: smallint().notNull(),
+  model: text().notNull(),
+  promptVersion: text().notNull(),
+  recipeId: uuid()
+    .primaryKey()
+    .references(() => recipes.id, { onDelete: 'cascade' }),
+  width: smallint().notNull(),
+  ...timestamps
+});
+
