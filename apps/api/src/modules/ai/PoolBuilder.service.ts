@@ -91,7 +91,10 @@ export class PoolBuilder {
 
     // Only ingredients this user may safely eat are ever shown to the model. It
     // cannot choose what it was never offered.
-    const safeIngredients = [...context.catalogue.values()].filter(ingredient => isSafeIngredient(ingredient, context));
+    // The model is shown only what this person may and would eat: an ingredient
+    // absent from the prompt cannot be proposed, which is cheaper and more
+    // reliable than asking for it to be avoided and checking afterwards.
+    const safeIngredients = [...context.catalogue.values()].filter(ingredient => isSafeIngredient(ingredient, context) && isWantedIngredient(ingredient, context));
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       let needBySlot = shortfall(slots, [...accepted.values()], needPerSlot);
@@ -220,6 +223,16 @@ export class PoolBuilder {
       return undefined;
     }
 
+    // The catalogue it was given held none of these, so this is a model that
+    // wrote one anyway. Not an error — the rule held — but worth counting.
+    const unwanted = unwantedIn(dish, context);
+
+    if (unwanted.length > 0) {
+      this.logger.warn(`Dish "${dish.name}" rejected: ${unwanted.join(', ')} is ruled out by their way of eating or dislikes`);
+
+      return undefined;
+    }
+
     return {
       cookMinutes: dish.cookMinutes,
       cuisine: dish.cuisine,
@@ -244,6 +257,25 @@ export function shortfall(slots: readonly MealSlot[], have: readonly CandidateDi
 
 function isSafeIngredient(ingredient: CatalogueIngredient, context: GenerationContext): boolean {
   return findSafetyViolations([{ id: ingredient.id, allergens: ingredient.allergens, name: ingredient.name }], context.safety).length === 0;
+}
+
+/**
+ * What their way of eating and their dislikes rule out (0023).
+ *
+ * Kept apart from `isSafeIngredient` because the two answer different
+ * questions and deserve different words: an allergen reaching a plate is a
+ * safety event and is logged as an error; a disliked ingredient is a
+ * preference the product simply honours.
+ */
+function isWantedIngredient(ingredient: CatalogueIngredient, context: GenerationContext): boolean {
+  return !context.preferences.excludedIngredientIds.has(ingredient.id);
+}
+
+function unwantedIn(dish: { readonly ingredients: readonly { readonly slug: string }[] }, context: GenerationContext): readonly string[] {
+  return dish.ingredients
+    .map(item => context.catalogue.get(item.slug))
+    .filter((ingredient): ingredient is CatalogueIngredient => ingredient !== undefined && !isWantedIngredient(ingredient, context))
+    .map(ingredient => ingredient.name);
 }
 
 function slugify(name: string): string {

@@ -42,8 +42,15 @@ export function promptPreferences(
   avoidNames: readonly string[],
   targets: NutritionTargets,
   checkIn: CheckInForGeneration | null = null,
-  swapWish: string | null = null
+  swapWish: string | null = null,
+  /** Dislikes the catalogue could not resolve; the enforced ones are already out of the catalogue. */
+  unenforceableLabels: readonly string[] = []
 ): PromptPreferences {
+  const enforced = new Set(unenforceableLabels.map(label => label.toLowerCase()));
+  const unenforceable = profile.foodPreferences
+    .filter(item => item.sentiment === 'disliked' && enforced.has(item.label.trim().toLowerCase()))
+    .map(item => item.label);
+
   return {
     avoidNames,
     breakfastStyle: profile.preferences?.breakfastStyle ?? null,
@@ -53,7 +60,10 @@ export function promptPreferences(
     cookingTimeMinutes: profile.preferences?.cookingTimeMinutes ?? null,
     cuisines: profile.cuisines,
     dietaryPatterns: profile.dietaryPatterns,
-    dislikedLabels: profile.foodPreferences.filter(item => item.sentiment === 'disliked').map(item => item.label),
+    // Only the ones the catalogue could not resolve: the rest are already gone
+    // from the catalogue the model is shown, and repeating them as a request
+    // would suggest the request is what enforces them (0023).
+    dislikedLabels: unenforceable,
     dislikedNames: verdicts.disliked.map(dish => dish.name),
     likedLabels: profile.foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label),
     lovedNames: verdicts.liked.map(dish => dish.name),

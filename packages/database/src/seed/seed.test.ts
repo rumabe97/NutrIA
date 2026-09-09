@@ -3,9 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { ALLERGEN_SEED } from './allergens';
 import { INGREDIENT_NAMES_EN_GB } from './ingredient-names';
 import { INGREDIENT_SEED } from './ingredients';
+import { foodClasses } from './ingredients/classes';
 
 import type { AllergenKey } from './allergens';
-import type { FoodClass, IngredientSeed } from './ingredients';
+import type { FoodClass } from './ingredients';
 import { SUBSTITUTION_EXTRAS, SUBSTITUTION_GROUPS, substitutionPairs } from './substitutions';
 
 const ALLERGEN_KEYS = new Set(ALLERGEN_SEED.map(a => a.key));
@@ -239,25 +240,3 @@ describe('SUBSTITUTION_GROUPS and SUBSTITUTION_EXTRAS', () => {
   });
 });
 
-/**
- * Every class a row belongs to: what it tags, what its allergens reveal, and
- * what those imply — pork is meat, and all of them are animal.
- */
-function foodClasses(entry: IngredientSeed): ReadonlySet<FoodClass> {
-  const classes = new Set<FoodClass>(entry.classes ?? []);
-  const allergens = new Set((entry.allergens ?? []).filter(link => (link.presence ?? 'contains') === 'contains').map(link => link.key));
-
-  if (allergens.has('milk') || allergens.has('lactose')) {classes.add('dairy');}
-
-  if (allergens.has('eggs')) {classes.add('egg');}
-
-  if (allergens.has('fish')) {classes.add('fish');}
-
-  if (allergens.has('crustaceans') || allergens.has('molluscs')) {classes.add('shellfish');}
-
-  if (classes.has('pork')) {classes.add('meat');}
-
-  if (classes.size > 0) {classes.add('animal');}
-
-  return classes;
-}

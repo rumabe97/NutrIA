@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
+import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
 import { CheckInController } from 'core/controllers/CheckIn';
 import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController, PlanJobController } from 'core/controllers/Plan';
@@ -52,6 +53,7 @@ function ingredient(slug: string, allergens: CatalogueIngredient['allergens'] = 
     allergens,
     carbsPer100g: share(TARGETS.carbsG),
     category: 'pantry',
+    classes: [],
     defaultUnit: 'g',
     fatPer100g: share(TARGETS.fatG),
     fiberPer100g: share(TARGETS.fiberG),
@@ -137,6 +139,7 @@ function build(overrides: Partial<Mocks> = {}) {
   jest.spyOn(RecipeController, 'generationContext').mockResolvedValue({
     catalogue: CATALOGUE,
     locale: 'es-ES',
+    preferences: NO_PREFERENCE_EXCLUSIONS,
     safety: {
       allergenIds: safety,
       crossContaminationAllergenIds: new Set(),

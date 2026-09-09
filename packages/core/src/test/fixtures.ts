@@ -125,6 +125,7 @@ export function makeCatalogueIngredient(overrides?: Partial<CatalogueIngredient>
     // nothing to do with what it is testing.
     carbsPer100g: 20,
     category: 'pantry',
+    classes: [],
     defaultUnit: 'g',
     fatPer100g: 6,
     fiberPer100g: 2,

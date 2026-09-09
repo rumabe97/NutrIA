@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
+import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
 import { toCatalogue } from 'core/entities/Plan';
 
 import { DISHES_NEEDED_PER_SLOT, PoolBuilder, shortfall } from './PoolBuilder.service.js';
@@ -18,6 +19,7 @@ function ingredient(slug: string, allergens: CatalogueIngredient['allergens'] = 
     allergens,
     carbsPer100g: 20,
     category: 'pantry',
+    classes: [],
     defaultUnit: 'g',
     fatPer100g: 6,
     fiberPer100g: 2,
@@ -43,6 +45,7 @@ function context(overrides?: Partial<GenerationContext['safety']>): GenerationCo
   return {
     catalogue: toCatalogue(CATALOGUE),
     locale: 'es-ES',
+    preferences: NO_PREFERENCE_EXCLUSIONS,
     safety: {
       allergenIds: new Set<string>(),
       crossContaminationAllergenIds: new Set<string>(),
@@ -207,6 +210,36 @@ describe('PoolBuilder', () => {
 
     expect(prompt).toContain('arroz');
     expect(prompt).not.toContain('pan');
+  });
+
+  it('never offers an ingredient their way of eating or dislikes rule out', async () => {
+    // The reported bug: "no me gusta el pescado" was a line in the prompt and
+    // nothing else, so the model served salmon anyway. The catalogue it is shown
+    // no longer holds it (0023).
+    const { client, generate } = stubClient([{ dishes: [] }]);
+    const wanted = { excludedIngredientIds: new Set(['ing-pollo']), unenforceableLabels: [] };
+
+    await new PoolBuilder(client).build({ context: { ...context(), preferences: wanted }, preferences, reusable: [], slots: ['breakfast'] });
+
+    const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
+
+    expect(prompt).toContain('arroz');
+    expect(prompt).not.toContain('pollo');
+  });
+
+  it('drops a dish that uses a ruled-out ingredient even when the model writes one anyway', async () => {
+    const { client } = stubClient([{ dishes: [dish('Pollo al horno', ['breakfast'], ['pollo'])] }]);
+    const wanted = { excludedIngredientIds: new Set(['ing-pollo']), unenforceableLabels: [] };
+
+    const result = await new PoolBuilder(client).build({
+      context: { ...context(), preferences: wanted },
+      preferences,
+      reusable: [],
+      slots: ['breakfast']
+    });
+
+    expect(result.dishes).toEqual([]);
+    expect(result.metadata.rejected).toBeGreaterThan(0);
   });
 
   it('offers a trace-risk ingredient to a user who is not trace-sensitive', async () => {

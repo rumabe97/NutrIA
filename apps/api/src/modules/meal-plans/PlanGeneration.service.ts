@@ -115,7 +115,9 @@ export class PlanGenerationService {
         verdicts,
         history.recentDishes.map(dish => dish.name),
         targets,
-        checkIn
+        checkIn,
+        null,
+        context.preferences.unenforceableLabels
       ),
       reusable,
       slots

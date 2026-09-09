@@ -3,6 +3,7 @@ import { rotatePool } from 'core/domain/Variety';
 import { dishSafety } from 'core/domain/Safety';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
+import { resolvePreferences } from 'core/domain/Preference';
 import { SafetyController } from 'core/controllers/Safety';
 import { NotFoundError } from 'core/entities/Error';
 import { toCatalogue } from 'core/entities/Plan';
@@ -13,6 +14,7 @@ import type { DishRef, ReusableRecipe, UndocumentedRecipe } from '#repositories/
 
 /** Re-exported: a rewriter in `apps/api` needs this shape, and depends on controllers, not repositories. */
 export type { UndocumentedRecipe } from '#repositories/Recipe';
+import type { PreferenceExclusions } from 'core/domain/Preference';
 import type { SafetyProfile } from 'core/entities/Safety';
 
 /** How many library recipes to consider per generation. */
@@ -22,8 +24,29 @@ export type GenerationContext = {
   readonly catalogue: Catalogue;
   /** The user's language. Names are resolved into it, reuse is scoped to it, and the model is told to write in it. */
   readonly locale: string;
+  /**
+   * What their way of eating and their dislikes rule out (0023).
+   *
+   * Beside `safety` rather than inside it: both remove food before it can be
+   * proposed, but one is a constraint and the other a preference, and merging
+   * them would report a vegetarian's chicken as an allergy violation.
+   */
+  readonly preferences: PreferenceExclusions;
   readonly safety: SafetyProfile;
 };
+
+/**
+ * Whether a dish uses anything this person's way of eating or dislikes rule out
+ * (0023). A recipe already in the library is no more evidence that they want it
+ * than that it is safe for them, so reuse is filtered exactly as generation is.
+ */
+function usesExcluded(ingredients: readonly { readonly slug: string }[], context: GenerationContext): boolean {
+  return ingredients.some(item => {
+    const ingredient = context.catalogue.get(item.slug);
+
+    return ingredient !== undefined && context.preferences.excludedIngredientIds.has(ingredient.id);
+  });
+}
 
 // --- Presenters ---------------------------------------------------------------
 
@@ -66,9 +89,22 @@ export const RecipeController = {
     const profile = await ProfileRepository.findByUserId(userId);
     const locale = profile?.locale ?? FALLBACK_LOCALE;
 
-    const [catalogue, safety] = await Promise.all([RecipeRepository.loadCatalogue(locale), SafetyController.getSafetyProfile(userId)]);
+    const [catalogue, safety, dietaryPatterns, foodPreferences] = await Promise.all([
+      RecipeRepository.loadCatalogue(locale),
+      SafetyController.getSafetyProfile(userId),
+      ProfileRepository.findDietaryPatterns(userId),
+      ProfileRepository.findFoodPreferences(userId)
+    ]);
 
-    return { catalogue: toCatalogue(catalogue), locale, safety };
+    // Resolved here, once, for the same reason the safety profile is: a rule
+    // rebuilt at each call site is a rule that disagrees with itself.
+    const preferences = resolvePreferences({
+      dietaryPatterns,
+      dislikedLabels: foodPreferences.filter(item => item.sentiment === 'disliked').map(item => item.label),
+      ingredients: catalogue
+    });
+
+    return { catalogue: toCatalogue(catalogue), locale, preferences, safety };
   },
 
   /** The stored illustration for a public route to serve; nothing else about the recipe. */
@@ -111,7 +147,12 @@ export const RecipeController = {
   async reusablePool(slots: readonly MealSlot[], context: GenerationContext, rotation?: Rotation): Promise<readonly CandidateDish[]> {
     const recipes = await RecipeRepository.findReusable(slots, REUSE_FETCH_LIMIT, context.locale);
     const usable = recipes
-      .filter(recipe => hasUsableMethod(recipe) && dishSafety(recipe.ingredients, context.catalogue, context.safety).kind === 'safe')
+      .filter(
+        recipe =>
+          hasUsableMethod(recipe) &&
+          dishSafety(recipe.ingredients, context.catalogue, context.safety).kind === 'safe' &&
+          !usesExcluded(recipe.ingredients, context)
+      )
       .map(toCandidateDish);
 
     // Without a rotation every user is handed the whole safe library in the same

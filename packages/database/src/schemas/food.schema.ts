@@ -15,12 +15,28 @@ import { userOwned } from './_utils';
  * `locale` tag said the opposite: that a Spanish tomato and an English one were
  * two ingredients. They are one, with two names, in `ingredient_names`.
  */
+/**
+ * What a food *is*, for the questions allergens cannot answer: a way of eating
+ * that excludes meat, a dislike of fish. Four of the seven are also allergens
+ * and are derived from those links at seed time; `meat`, `pork` and a bare
+ * `animal` (honey, gelatine, lard, a meat stock) exist only here. `pork`
+ * implies `meat`, and everything implies `animal`.
+ *
+ * A column rather than a lookup at query time because every generation filters
+ * the catalogue by it, and a rule that costs a join is a rule someone later
+ * skips.
+ */
+export const FOOD_CLASSES = ['animal', 'dairy', 'egg', 'fish', 'meat', 'pork', 'shellfish'] as const;
+export type FoodClass = (typeof FOOD_CLASSES)[number];
+
 export const ingredients = pgTable(
   'ingredients',
   {
     id: uuid().primaryKey().defaultRandom(),
     carbsPer100g: numeric({ precision: 6, scale: 2 }).notNull(),
     category: ingredientCategory().notNull(),
+    /** See `FOOD_CLASSES`. Empty for anything with no animal origin. */
+    classes: text().array().notNull().default([]),
     /** Grams in one `defaultUnit`, so "2 eggs" becomes grams without a guess. */
     defaultUnit: measurementUnit().notNull().default('g'),
     fatPer100g: numeric({ precision: 6, scale: 2 }).notNull(),

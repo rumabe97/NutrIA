@@ -1,4 +1,5 @@
 import type { AllergenKey } from '../allergens';
+import type { FoodClass } from '../../schemas/food.schema';
 
 export type Category = 'bakery' | 'beverages' | 'dairy' | 'frozen' | 'other' | 'pantry' | 'produce' | 'protein';
 export type Unit = 'cup' | 'g' | 'ml' | 'pinch' | 'slice' | 'tbsp' | 'tsp' | 'unit';
@@ -12,7 +13,7 @@ export type Unit = 'cup' | 'g' | 'ml' | 'pinch' | 'slice' | 'tbsp' | 'tsp' | 'un
  * gelatine, lard and a meat stock. `foodClasses()` in `seed.test.ts` does the
  * joining; the seed says the least it can.
  */
-export type FoodClass = 'animal' | 'dairy' | 'egg' | 'fish' | 'meat' | 'pork' | 'shellfish';
+export type { FoodClass };
 
 export type IngredientSeed = {
   readonly allergens?: readonly { readonly key: AllergenKey; readonly presence?: 'contains' | 'may_contain' }[];

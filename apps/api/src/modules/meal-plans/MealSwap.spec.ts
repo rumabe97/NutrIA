@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
+import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
 import { QuotaExceededError } from 'core/entities/Error';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
@@ -15,7 +16,7 @@ import type { PoolBuilder, PoolResult } from '../ai/PoolBuilder.service.js';
 const MEAL = '11111111-1111-4111-8111-111111111111';
 
 function ingredient(slug: string, kcalPer100g: number, proteinPer100g: number): CatalogueIngredient {
-  return { id: `i-${slug}`, allergens: [], carbsPer100g: 10, category: 'pantry', defaultUnit: 'g', fatPer100g: 2, fiberPer100g: 1, gramsPerUnit: null, kcalPer100g, name: slug, nameLocale: 'es-ES', proteinPer100g, slug };
+  return { id: `i-${slug}`, allergens: [], carbsPer100g: 10, category: 'pantry', classes: [], defaultUnit: 'g', fatPer100g: 2, fiberPer100g: 1, gramsPerUnit: null, kcalPer100g, name: slug, nameLocale: 'es-ES', proteinPer100g, slug };
 }
 
 const CATALOGUE: readonly CatalogueIngredient[] = [ingredient('rice', 130, 2.7), ingredient('chicken', 120, 22.5), ingredient('lentils', 116, 9)];
@@ -44,7 +45,7 @@ function harness(options: { readonly generated?: readonly CandidateDish[]; reado
     mealSwaps: { allowed: (options.remaining ?? 5) > 0, limit: 5, remaining: options.remaining ?? 5, used: 5 - (options.remaining ?? 5) },
     planRedo: { allowed: true, kind: 'redo', limit: 1, nextAt: null, used: 0 }
   });
-  jest.spyOn(RecipeController, 'generationContext').mockResolvedValue({ catalogue: toCatalogue(CATALOGUE), locale: 'es-ES', safety: SAFETY });
+  jest.spyOn(RecipeController, 'generationContext').mockResolvedValue({ catalogue: toCatalogue(CATALOGUE), locale: 'es-ES', preferences: NO_PREFERENCE_EXCLUSIONS, safety: SAFETY });
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [{ name: 'Bad', slug: 'chicken-rice-bad' }], liked: [] });
   jest.spyOn(ProfileController, 'getFullProfile').mockResolvedValue({ cuisines: [], dietaryPatterns: [], foodPreferences: [], preferences: null } as never);
   jest.spyOn(PlanController, 'composition').mockResolvedValue([meal(MEAL, 3, 'lunch', CURRENT), meal('m-2', 4, 'dinner', FITS)]);

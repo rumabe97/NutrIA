@@ -1,5 +1,7 @@
 import { z } from 'zod';
 
+import type { FoodClass } from 'database/schema/food';
+
 import { macrosSchema } from 'core/entities/Nutrition';
 import type { Macros, NutritionTargets } from 'core/entities/Nutrition';
 
@@ -28,6 +30,8 @@ export type CatalogueIngredient = {
   readonly allergens: readonly { readonly allergenId: string; readonly presence: 'contains' | 'may_contain' }[];
   readonly carbsPer100g: number;
   readonly category: IngredientCategory;
+  /** What this food is, for the rules allergens cannot answer — see `FOOD_CLASSES`. */
+  readonly classes: readonly FoodClass[];
   readonly defaultUnit: MeasurementUnit;
   readonly fatPer100g: number;
   readonly fiberPer100g: number;

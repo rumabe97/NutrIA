@@ -216,6 +216,11 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   model only when the library has nothing for the slot) and rebuilds the shopping list in the
   same transaction. A spent allowance is 429 `QUOTA_EXCEEDED`, with `retryAt` when it renews
   on a date. The redo check lives in `PlanJobController.start`, never in a route.
+- **Preferences are enforced** (`0023`): `GenerationContext.preferences` carries the ingredient ids
+  a way of eating or a dislike rules out, resolved once in `RecipeController.generationContext`.
+  `PoolBuilder` filters the catalogue it shows the model and drops a dish that uses one anyway;
+  reuse filters the library. Only unresolved dislikes reach the prompt. Beside the safety profile,
+  never inside it: a preference must never be reported as an allergy violation.
 - **Swap axes** (`0022`): the swap body may name `axis` — `quicker`, `no_cooking`, `more_protein` —
   and `axisFilter` (core) is applied to the library pick and to the model's dishes alike; the
   model is told the wish in the prompt (`2.7.0`) but never trusted to honour it.

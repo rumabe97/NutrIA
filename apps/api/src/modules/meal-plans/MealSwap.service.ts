@@ -97,7 +97,7 @@ export class MealSwapService {
       const built = await this.pool.build({
         context,
         needPerSlot: SWAP_CANDIDATES,
-        preferences: promptPreferences(profile, verdicts, [...inPlan], targets, null, wishFor(axis, anchor.recipe)),
+        preferences: promptPreferences(profile, verdicts, [...inPlan], targets, null, wishFor(axis, anchor.recipe), context.preferences.unenforceableLabels),
         reusable: [],
         slots: [current.slot]
       });

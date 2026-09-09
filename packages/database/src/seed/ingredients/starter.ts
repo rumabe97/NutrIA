@@ -14,7 +14,7 @@ import type { IngredientSeed } from './types';
  */
 export const STARTER: readonly IngredientSeed[] = [
   // ── Produce ───────────────────────────────────────────────────────────
-  { carbs: 3.9, category: 'produce', fat: 0.2, fiber: 1.2, kcal: 18, name: 'Tomate', protein: 0.9, slug: 'tomate', source: 'usda' },
+  { carbs: 3.9, category: 'produce', fat: 0.2, fiber: 1.2, kcal: 18, name: 'Tomate fresco', protein: 0.9, slug: 'tomate', source: 'usda' },
   { carbs: 9.3, category: 'produce', fat: 0.1, fiber: 1.7, kcal: 40, name: 'Cebolla', protein: 1.1, slug: 'cebolla', source: 'usda' },
   { carbs: 6, category: 'produce', fat: 0.3, fiber: 2.1, kcal: 26, name: 'Pimiento rojo', protein: 1, slug: 'pimiento-rojo', source: 'usda' },
   { carbs: 9.6, category: 'produce', fat: 0.2, fiber: 2.8, kcal: 41, name: 'Zanahoria', protein: 0.9, slug: 'zanahoria', source: 'usda' },
@@ -63,13 +63,13 @@ export const STARTER: readonly IngredientSeed[] = [
   // ── Protein ───────────────────────────────────────────────────────────
   { carbs: 0, category: 'protein', classes: ['meat'], fat: 2.6, kcal: 120, name: 'Pechuga de pollo', protein: 22.5, slug: 'pechuga-de-pollo', source: 'usda' },
   { carbs: 0.2, category: 'protein', classes: ['meat'], fat: 16.6, kcal: 221, name: 'Muslo de pollo', protein: 16.5, slug: 'muslo-de-pollo', source: 'usda' },
-  { carbs: 0.1, category: 'protein', classes: ['meat'], fat: 1.9, kcal: 115, name: 'Pavo', protein: 22.6, slug: 'pavo', source: 'usda' },
+  { carbs: 0.1, category: 'protein', classes: ['meat'], fat: 1.9, kcal: 115, name: 'Pavo fresco', protein: 22.6, slug: 'pavo', source: 'usda' },
   { carbs: 0, category: 'protein', classes: ['meat'], fat: 4.1, kcal: 135, name: 'Ternera magra', protein: 22.9, slug: 'ternera-magra', source: 'usda' },
   { carbs: 0, category: 'protein', classes: ['pork'], fat: 6.9, kcal: 155, name: 'Lomo de cerdo', protein: 21.6, slug: 'lomo-de-cerdo', source: 'usda' },
-  { allergens: [{ key: 'fish' }], carbs: 0, category: 'protein', fat: 13.4, kcal: 208, name: 'Salmón', protein: 20.4, slug: 'salmon', source: 'usda' },
-  { allergens: [{ key: 'fish' }], carbs: 0, category: 'protein', fat: 1, kcal: 82, name: 'Merluza', protein: 17.8, slug: 'merluza' },
+  { allergens: [{ key: 'fish' }], carbs: 0, category: 'protein', fat: 13.4, kcal: 208, name: 'Salmón fresco', protein: 20.4, slug: 'salmon', source: 'usda' },
+  { allergens: [{ key: 'fish' }], carbs: 0, category: 'protein', fat: 1, kcal: 82, name: 'Merluza fresca', protein: 17.8, slug: 'merluza' },
   { allergens: [{ key: 'fish' }], carbs: 0, category: 'protein', fat: 0.8, kcal: 116, name: 'Atún al natural', protein: 25.5, slug: 'atun-al-natural', source: 'usda' },
-  { allergens: [{ key: 'crustaceans' }], carbs: 0, category: 'protein', fat: 0.5, kcal: 85, name: 'Gambas', protein: 20.1, slug: 'gambas', source: 'usda' },
+  { allergens: [{ key: 'crustaceans' }], carbs: 0, category: 'protein', fat: 0.5, kcal: 85, name: 'Gambas frescas', protein: 20.1, slug: 'gambas', source: 'usda' },
   { allergens: [{ key: 'molluscs' }], carbs: 3.7, category: 'protein', fat: 2.2, kcal: 86, name: 'Mejillón', protein: 11.9, slug: 'mejillon', source: 'usda' },
   { allergens: [{ key: 'eggs' }], carbs: 0.7, category: 'protein', defaultUnit: 'unit', fat: 9.5, gramsPerUnit: 58, kcal: 143, name: 'Huevo', protein: 12.6, slug: 'huevo', source: 'usda' },
   { allergens: [{ key: 'soy' }], carbs: 2.8, category: 'protein', fat: 8.7, fiber: 2.3, kcal: 144, name: 'Tofu firme', protein: 17.3, slug: 'tofu-firme', source: 'usda' },
@@ -111,7 +111,7 @@ export const STARTER: readonly IngredientSeed[] = [
   { allergens: [{ key: 'milk' }, { key: 'lactose' }], carbs: 3, category: 'dairy', fat: 8, kcal: 132, name: 'Queso de Burgos', protein: 12, slug: 'queso-de-burgos', source: 'bedca' },
   { allergens: [{ key: 'milk' }, { key: 'lactose' }], carbs: 3.4, category: 'dairy', fat: 4.3, kcal: 98, name: 'Queso cottage', protein: 11.1, slug: 'queso-cottage', source: 'usda' },
   { allergens: [{ key: 'milk' }, { key: 'lactose' }], carbs: 3.7, category: 'dairy', defaultUnit: 'ml', fat: 19.1, kcal: 195, name: 'Nata para cocinar', protein: 3, slug: 'nata-para-cocinar', source: 'usda' },
-  { allergens: [{ key: 'milk' }, { key: 'lactose' }], carbs: 0.1, category: 'dairy', defaultUnit: 'tbsp', fat: 81.1, gramsPerUnit: 14, kcal: 717, name: 'Mantequilla', protein: 0.8, slug: 'mantequilla', source: 'usda' },
+  { allergens: [{ key: 'milk' }, { key: 'lactose' }], carbs: 0.1, category: 'dairy', defaultUnit: 'tbsp', fat: 81.1, gramsPerUnit: 14, kcal: 717, name: 'Mantequilla con sal', protein: 0.8, slug: 'mantequilla', source: 'usda' },
   { allergens: [{ key: 'milk' }, { key: 'lactose' }], carbs: 4.5, category: 'dairy', defaultUnit: 'ml', fat: 3.5, kcal: 63, name: 'Kéfir', protein: 3.3, slug: 'kefir', source: 'bedca' },
 
   // ── Pantry ────────────────────────────────────────────────────────────

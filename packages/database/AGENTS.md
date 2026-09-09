@@ -4,6 +4,16 @@ Database client, schema definitions, and migrations. Rules here are more specifi
 
 ---
 
+## Food classes
+
+`ingredients.classes` says what a food *is* — `meat`, `pork`, `fish`, `shellfish`, `dairy`, `egg`,
+or a bare `animal` for honey, gelatine, lard and a meat stock (`FOOD_CLASSES` in
+`schemas/food.schema.ts`). Four are derived from the allergen links; the seed tags only what no
+allergen reveals. `foodClasses()` in `seed/ingredients/classes.ts` is the single derivation: the
+seed writes its result to the column and the substitution audit checks against it. A way of eating
+and a dislike are enforced from this column (`0023`), so **a seed that has not been re-run leaves
+every row unclassified and both silently unenforced**.
+
 ## What lives here
 
 ```

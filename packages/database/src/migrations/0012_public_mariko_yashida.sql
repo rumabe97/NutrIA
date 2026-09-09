@@ -1,0 +1,1 @@
+ALTER TABLE "ingredients" ADD COLUMN "classes" text[] DEFAULT '{}' NOT NULL;

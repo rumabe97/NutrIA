@@ -7,6 +7,7 @@ import { dislikedRecipes, favoriteRecipes } from 'database/schema/plan';
 import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 
 import { DatabaseOperationError } from 'core/entities/Error';
+import type { FoodClass } from 'database/schema/food';
 import type { CatalogueIngredient, MealSlot, RecipeVerdict } from 'core/entities/Plan';
 import type { RecipeStep } from 'database/schema/recipe';
 
@@ -273,6 +274,7 @@ export const RecipeRepository = {
             id: ingredients.id,
             carbsPer100g: ingredients.carbsPer100g,
             category: ingredients.category,
+            classes: ingredients.classes,
             defaultUnit: ingredients.defaultUnit,
             fallbackName: fallback.name,
             fatPer100g: ingredients.fatPer100g,
@@ -300,6 +302,7 @@ export const RecipeRepository = {
         allergens: byIngredient.get(row.id) ?? [],
         carbsPer100g: Number(row.carbsPer100g),
         category: row.category,
+        classes: row.classes as readonly FoodClass[],
         defaultUnit: row.defaultUnit,
         fatPer100g: Number(row.fatPer100g),
         fiberPer100g: Number(row.fiberPer100g),
