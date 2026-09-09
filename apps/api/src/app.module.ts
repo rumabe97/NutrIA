@@ -4,6 +4,7 @@ import { ConfigModule } from '@nestjs/config';
 
 import { envProvider, validateEnv } from './config/index.js';
 import { DatabaseModule } from './database/database.module.js';
+import { AdminModule } from './modules/admin/admin.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CheckInsModule } from './modules/check-ins/check-ins.module.js';
@@ -32,6 +33,7 @@ import { LoggingModule } from './shared/logging/index.js';
     LoggingModule,
     ObservabilityModule,
     DatabaseModule,
+    AdminModule,
     AiModule,
     AuthModule,
     CheckInsModule,

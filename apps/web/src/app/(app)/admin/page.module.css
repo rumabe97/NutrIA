@@ -1,0 +1,122 @@
+.title {
+  font-size: var(--font-size-09);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0 0 var(--space-03);
+}
+
+.intro {
+  margin: 0 0 var(--gap-block);
+  max-width: 40rem;
+  text-wrap: pretty;
+}
+
+.tiles {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0 0 var(--gap-region);
+}
+
+.tile {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-04);
+  display: grid;
+  gap: var(--space-01);
+  padding: var(--space-04) var(--space-05);
+}
+
+.tileLabel {
+  color: var(--foreground-03);
+  font-size: var(--font-size-02);
+}
+
+.tileValue {
+  font-size: var(--font-size-07);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-01);
+  margin: 0;
+}
+
+.tileNote {
+  margin: 0;
+}
+
+.section {
+  display: grid;
+  gap: var(--space-04);
+  margin-bottom: var(--gap-region);
+}
+
+.subtitle {
+  font-size: var(--font-size-05);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-02);
+  margin: 0;
+}
+
+.rows,
+.jobs {
+  display: grid;
+  gap: var(--space-02);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  border-bottom: 1px solid var(--border-01);
+  display: flex;
+  font-size: var(--font-size-03);
+  justify-content: space-between;
+  padding-bottom: var(--space-02);
+}
+
+.count {
+  font-variant-numeric: tabular-nums;
+}
+
+/* One line per generation, its state first: a column of "failed" is the thing
+   this page exists to make visible at a glance. */
+.job {
+  border-left: 2px solid var(--border-01);
+  display: grid;
+  font-size: var(--font-size-02);
+  gap: var(--space-01);
+  padding: var(--space-02) var(--space-04);
+}
+
+.job[data-status='failed'] {
+  border-left-color: var(--color-error);
+}
+
+.job[data-status='succeeded'] {
+  border-left-color: var(--color-brand-09);
+}
+
+.jobStatus {
+  font-weight: var(--font-weight-medium);
+}
+
+.jobWhen,
+.jobCode,
+.jobDetail {
+  color: var(--foreground-02);
+}
+
+.jobDetail {
+  overflow-wrap: anywhere;
+}
+
+.hint {
+  margin: 0;
+}
+
+@media (width >= 48rem) {
+  .tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

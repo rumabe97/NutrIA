@@ -15,6 +15,23 @@ export const enGB: Dictionary = {
     sedentary: 'Sedentary'
   },
 
+  admin: {
+    accounts: 'Accounts',
+    attempts: '{count} attempts',
+    failureNote: '{count} generations failed. The code says whether it was the quota, the key or the catalogue.',
+    failures: 'Failures',
+    inDays: 'in {days} days',
+    ingredients: 'Ingredients',
+    intro: 'How the service is doing. No plan and no profile here: only whether generation works and how much the catalogue holds.',
+    jobsTitle: 'Generations ({days} days)',
+    noJobs: 'No generation yet.',
+    plansTitle: 'Plans by state',
+    recipes: 'Recipes',
+    title: 'Service',
+    waiting: '{count} not activated',
+    withoutImage: '{count} without a picture'
+  },
+
   appNav: {
     brandHome: 'NutrIA — home',
     home: 'Home',

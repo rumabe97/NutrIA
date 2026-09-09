@@ -18,6 +18,23 @@ export const esES = {
     sedentary: 'Sedentario'
   },
 
+  admin: {
+    accounts: 'Cuentas',
+    attempts: '{count} intentos',
+    failureNote: '{count} generaciones han fallado. El código dice si fue la cuota, la clave o el catálogo.',
+    failures: 'Fallos',
+    inDays: 'en {days} días',
+    ingredients: 'Ingredientes',
+    intro: 'Cómo va el servicio. No hay ningún plan ni ningún perfil aquí: solo si la generación funciona y cuánto hay en el catálogo.',
+    jobsTitle: 'Generaciones ({days} días)',
+    noJobs: 'Ninguna generación todavía.',
+    plansTitle: 'Planes por estado',
+    recipes: 'Recetas',
+    title: 'Servicio',
+    waiting: '{count} sin activar',
+    withoutImage: '{count} sin ilustrar'
+  },
+
   appNav: {
     brandHome: 'NutrIA — inicio',
     home: 'Inicio',

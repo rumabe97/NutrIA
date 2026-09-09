@@ -62,7 +62,9 @@ screens at phone width, which closes project 002's two open gates.
 
 ## Later / someday
 
-- Admin: generation monitoring, AI failure review, safety-flag triage, catalogue management.
+- Admin: generation monitoring and failure review are done (`0028`, `/admin`). Safety-flag
+  triage has no flags to triage yet; catalogue management is a seed file in git, which is a
+  better place to edit a catalogue than a form.
 - English alongside Spanish; country-aware ingredient availability.
 - Vacation mode — a temporary lifestyle override that does not destroy the normal plan.
 - Analytics on the events already reserved in `analytics_events`.

@@ -216,6 +216,10 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   model only when the library has nothing for the slot) and rebuilds the shopping list in the
   same transaction. A spent allowance is 429 `QUOTA_EXCEEDED`, with `retryAt` when it renews
   on a date. The redo check lives in `PlanJobController.start`, never in a route.
+- **Admin** (`0028`): `GET /admin/overview` and `/admin/failures`, `@Roles('admin')` on the
+  controller class so a new route is guarded by default. `AdminRepository` selects no column
+  that carries content — no dish, no profile, no email. Keep it that way: the questions worth
+  a screen are "is generation working" and "how big is the catalogue".
 - **Reminders** (`0027`): `/cron/reminders`, guarded by `CRON_SECRET` like the other two
   sweeps. `CheckInReminderService` sends one mail per fortnight to accounts whose plan reached
   its last day, and writes the `notifications` row only after the provider accepted it — the

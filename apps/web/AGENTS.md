@@ -56,7 +56,7 @@ chrome for free:
 
 Routes are **Spanish**: `/acceder`, `/registro`, `/recuperar`, `/restablecer`, `/pendiente`,
 `/inicio`, `/plan`, `/plan/historial`, `/compra`, `/progreso`, `/check-in`, `/perfil`,
-`/onboarding/[paso]`.
+`/onboarding/[paso]`, and `/admin` — owner-only, unlinked, 404 for everyone else (`0028`).
 Add any new signed-in route to `PROTECTED` in
 `src/proxy.ts` so signed-out visitors are redirected instead of seeing a flash of empty
 page.
