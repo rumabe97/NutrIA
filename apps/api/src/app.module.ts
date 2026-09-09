@@ -17,7 +17,7 @@ import { SafetyModule } from './modules/safety/safety.module.js';
 import { ShoppingListsModule } from './modules/shopping-lists/shopping-lists.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { AllExceptionsFilter } from './shared/filters/index.js';
-import { AdminGuard, RateLimitGuard, RequiresOnboardingGuard, SessionGuard } from './shared/guards/index.js';
+import { AdminGuard, RateLimitGuard, RequiresOnboardingGuard, SessionGuard, VerifiedEmailGuard } from './shared/guards/index.js';
 import { NoStoreCacheInterceptor } from './shared/interceptors/index.js';
 import { LoggingModule } from './shared/logging/index.js';
 
@@ -47,6 +47,7 @@ import { LoggingModule } from './shared/logging/index.js';
     // flood is rejected before it costs a session lookup per request.
     { provide: APP_GUARD, useClass: RateLimitGuard },
     { provide: APP_GUARD, useClass: SessionGuard },
+    { provide: APP_GUARD, useClass: VerifiedEmailGuard },
     { provide: APP_GUARD, useClass: AdminGuard },
     { provide: APP_GUARD, useClass: RequiresOnboardingGuard },
     { provide: APP_FILTER, useClass: AllExceptionsFilter },

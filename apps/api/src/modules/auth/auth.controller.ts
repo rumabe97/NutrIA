@@ -3,7 +3,7 @@ import { ApiExcludeEndpoint, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { toNodeHandler } from 'better-auth/node';
 
 import { AUTH } from './auth.config.js';
-import { CurrentUser, Public } from '../../shared/decorators/index.js';
+import { AllowUnverified, CurrentUser, Public } from '../../shared/decorators/index.js';
 
 import type { Auth } from './auth.config.js';
 import type { Request, Response } from 'express';
@@ -37,6 +37,7 @@ export class AuthController {
   }
 
   @ApiOperation({ summary: 'The signed-in user, or 404 when there is no session' })
+  @AllowUnverified()
   @Get('me')
   me(@CurrentUser() user: SessionUser): SessionUser {
     return user;

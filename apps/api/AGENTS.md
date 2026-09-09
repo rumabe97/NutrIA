@@ -218,6 +218,10 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   on a date. The redo check lives in `PlanJobController.start`, never in a route.
 - **Eaten or skipped**: `PATCH /meal-plans/meals/:id/status` with `{ status }` marks a meal;
   `meal_completions` keeps the day it was said. `planned` takes it back.
+- **Activation** (`0017`): `VerifiedEmailGuard` is global; a signed-in account with
+  `email_verified = false` gets 409 `EMAIL_UNVERIFIED` on every route not marked `@Public()`
+  or `@AllowUnverified()`. Keep the allow-list to what an unactivated account needs: who am
+  I, and leave.
 
 ## Commands
 

@@ -5,7 +5,7 @@ import { fromNodeHeaders } from 'better-auth/node';
 import { UserController } from 'core/controllers/User';
 
 import { AUTH } from '../auth/auth.config.js';
-import { CurrentUser } from '../../shared/decorators/index.js';
+import { AllowUnverified, CurrentUser } from '../../shared/decorators/index.js';
 
 import type { Auth } from '../auth/auth.config.js';
 import type { Request } from 'express';
@@ -23,12 +23,14 @@ export class UsersController {
   constructor(@Inject(AUTH) private readonly auth: Auth) {}
 
   @ApiOperation({ summary: "The signed-in user's account" })
+  @AllowUnverified()
   @Get('me')
   async me(@CurrentUser() user: SessionUser): Promise<UserView> {
     return UserController.getUser({ id: user.id });
   }
 
   @ApiOperation({ summary: 'Permanently delete the account and every row that references it' })
+  @AllowUnverified()
   @Delete('me')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Req() request: Request): Promise<void> {

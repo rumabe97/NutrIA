@@ -2,9 +2,13 @@ import styles from './layout.module.css';
 
 import { AppNav } from 'components/AppNav';
 
+import { redirectIfUnverified } from 'lib/access';
+
 import type { ReactNode } from 'react';
 
-export default function AppLayout({ children }: { children: ReactNode }) {
+export default async function AppLayout({ children }: { children: ReactNode }) {
+  await redirectIfUnverified();
+
   return (
     <div className={styles.shell}>
       <AppNav />

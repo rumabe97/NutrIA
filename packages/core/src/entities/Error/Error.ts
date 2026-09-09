@@ -103,6 +103,19 @@ export class QuotaExceededError extends Error {
   }
 }
 
+/**
+ * Thrown when a signed-in account has not been activated. Access is opened
+ * account by account while the product runs on a free-tier provider
+ * ([`0017`](../../../../docs/decisions/0017-access-opens-account-by-account.md));
+ * the flag is `user.email_verified`, set by hand for now.
+ */
+export class EmailUnverifiedError extends Error {
+  constructor() {
+    super('Email not verified');
+    this.name = 'EmailUnverifiedError';
+  }
+}
+
 export class OnboardingIncompleteError extends Error {
   constructor(public readonly missingSteps: readonly string[] = []) {
     super('Onboarding incomplete');

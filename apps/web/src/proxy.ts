@@ -12,7 +12,7 @@ import type { NextRequest } from 'next/server';
 // cookie-presence test that looks like a security control is how apps end up
 // with none.
 const SESSION_COOKIE = 'better-auth.session_token';
-const PROTECTED = ['/compra', '/inicio', '/onboarding', '/perfil', '/plan'];
+const PROTECTED = ['/compra', '/inicio', '/onboarding', '/pendiente', '/perfil', '/plan'];
 const AUTH_ROUTES = ['/acceder', '/registro'];
 
 export function proxy(request: NextRequest): NextResponse {

@@ -3,6 +3,7 @@ import { ArgumentsHost, Catch, HttpException, HttpStatus, Logger } from '@nestjs
 import {
   ConflictError,
   DatabaseOperationError,
+  EmailUnverifiedError,
   InputParseError,
   NotFoundError,
   OnboardingIncompleteError,
@@ -62,6 +63,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     if (exception instanceof InputParseError) {
       return { code: 'INVALID_INPUT', fieldErrors: exception.fieldErrors, message: exception.message, statusCode: HttpStatus.UNPROCESSABLE_ENTITY };
+    }
+
+    if (exception instanceof EmailUnverifiedError) {
+      // 409 like an unfinished profile: the account's state conflicts with the
+      // request, and the person is meant to understand it and where to go.
+      return { code: 'EMAIL_UNVERIFIED', message: 'Tu cuenta todavía no está activada.', statusCode: HttpStatus.CONFLICT };
     }
 
     if (exception instanceof OnboardingIncompleteError) {

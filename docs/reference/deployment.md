@@ -166,6 +166,19 @@ Two consequences worth knowing before the first real generation:
    pointing at the deployed database. A deploy runs migrations, never the seed,
    so a pair added in the repository is invisible until someone does.
 
+## 5b. Activating an account
+
+Access is opened account by account (`0017`). A new sign-up can sign in but lands
+on `/pendiente` until its email is marked verified. Until a mail provider is
+configured, that is a row update on the direct (session-mode) endpoint:
+
+```sql
+update "user" set email_verified = true, updated_at = now() where email = 'persona@ejemplo.com';
+```
+
+To see who is waiting: `select email, created_at from "user" where not email_verified order by created_at;`.
+The change takes effect on the person's next page load; nothing needs redeploying.
+
 ## 6. Before changing how the app is assembled
 
 `src/config/CreateApp.ts` is the only place an application is put together, shared by
