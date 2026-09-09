@@ -68,9 +68,10 @@ screens at phone width, which closes project 002's two open gates.
 - English alongside Spanish; country-aware ingredient availability.
 - Vacation mode — a temporary lifestyle override that does not destroy the normal plan.
 - Analytics on the events already reserved in `analytics_events`.
-- CI: the gate runs on every push and pull request (`.github/workflows/ci.yml`). Two things
-  remain — a branch protection rule so a red run actually blocks a merge, and the end-to-end
-  suites, which need a throwaway database in CI.
+- CI: the gate and the end-to-end suites both run on every push and pull request
+  (`.github/workflows/ci.yml`); the suites get a Postgres container that dies with the job,
+  so they need no secret and no shared branch. One thing remains, and it is the owner's: a
+  branch protection rule, so a red run actually blocks a merge.
 - Error visibility: done (`0024`). Set `SENTRY_DSN` on the API project to turn it on; unset,
   nothing is sent.
 

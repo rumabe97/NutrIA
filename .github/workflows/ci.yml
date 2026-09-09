@@ -4,9 +4,11 @@
 # that is the point — a red run is the record that a commit should not have gone
 # out, and it arrives in a minute rather than in a bug report.
 #
-# The end-to-end suites are deliberately absent. They need a live throwaway
-# database (see apps/api/test/README.md), which means a secret and a branch to
-# reset; they stay a deliberate local run until that exists.
+# Two jobs, because they fail for different reasons and cost different amounts of
+# time. The gate is the one a developer runs; the end-to-end suites boot the real
+# application against a real database, which here is a Postgres container that
+# exists for the length of the job — no secret, no shared branch to reset, and
+# nothing to clean up.
 name: CI
 
 on:
@@ -42,3 +44,70 @@ jobs:
       # One command, the same one the working pattern uses; turbo's own cache
       # keeps a re-run of an unchanged package cheap.
       - run: pnpm turbo lint ts:check test
+
+  e2e:
+    name: end-to-end
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    # Thrown away with the job. The suites register and delete accounts, so they
+    # must never see a database anybody else can reach — a container that dies
+    # with the run enforces that rather than asking for it.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: nutria_e2e
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+
+    env:
+      # One container, so pooled and direct are the same host. `prepare: false`
+      # in the client is Neon's constraint, not this one, and is harmless here.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nutria_e2e
+      DIRECT_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/nutria_e2e
+      ALLOWED_ORIGINS: http://localhost:3000
+      APP_URL: http://localhost:3000
+      BETTER_AUTH_URL: http://localhost:3001
+      LOG_LEVEL: warn
+      NODE_ENV: test
+      # The suites script every answer (`ScriptedAiClient`); no provider is
+      # called and none must be, because the free tier they would spend is the
+      # one plan generation runs on.
+      AI_PROVIDER: stub
+      AI_ILLUSTRATIONS: 'false'
+      AI_REWRITE_STEPS: 'false'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          cache: pnpm
+          node-version-file: package.json
+
+      - run: pnpm install --frozen-lockfile
+
+      # Lives as long as the job. Nothing signed with it outlives the container
+      # holding the sessions, so there is no secret here to leak or to rotate.
+      - name: A session secret for this run only
+        run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 48)" >> "$GITHUB_ENV"
+
+      # `packages/core` is consumed as its CJS build, so the suites resolve
+      # yesterday's exports without this.
+      - run: pnpm turbo run build --filter=api...
+
+      - run: pnpm --filter database migrate
+
+      # Reference data, not sample data: the allergy layer has nothing to
+      # enforce without it and generation cannot resolve an ingredient
+      # (apps/api/test/README.md).
+      - run: pnpm --filter database seed
+
+      - run: pnpm --filter api test:e2e

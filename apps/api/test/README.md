@@ -37,6 +37,13 @@ Set `AI_PROVIDER=stub` and leave `SMTP_HOST` empty for the run: the suites never
 provider (below) and must never send a mail, and the environment contract refuses a half
 mail configuration anyway. `NODE_ENV=test` keeps the development-only rules.
 
+### In CI
+
+`.github/workflows/ci.yml` runs these suites on every push and pull request against a
+`postgres:17` service container that is destroyed with the job — no secret, no shared
+branch, nothing to reset. It migrates, seeds and runs, exactly as below. That is also the
+answer to "what if I break the harness": the failure arrives on the commit that caused it.
+
 ### A throwaway database without Docker
 
 This machine has neither Docker nor a local Postgres, and Neon's free tier allows one
