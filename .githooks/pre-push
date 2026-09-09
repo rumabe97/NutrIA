@@ -1,0 +1,21 @@
+#!/bin/sh
+# Refuses a push the gate has not agreed to.
+#
+# This exists because GitHub will not enforce a branch rule on a private
+# repository owned by a personal account on the Free plan — the ruleset can be
+# created and is simply never applied (see runbook §9).
+#
+# A hook is a worse brake than a ruleset: it runs on the machine it is meant to
+# restrain, and `git push --no-verify` walks straight past it. It still catches
+# the failure actually worth catching for a repository with one developer — a
+# red commit reaching `main` because the last change looked too small to check.
+#
+# Enable:  pnpm hooks:install
+# Disable: git config --unset core.hooksPath
+set -e
+
+printf '\n[pre-push] lint · types · tests — turbo caches, so an unchanged package is free.\n\n'
+pnpm turbo lint ts:check test
+
+printf '\n[pre-push] green. The end-to-end suites are not run here: six minutes is too long\n'
+printf '           to pay on every push, and CI runs them on the pull request.\n\n'

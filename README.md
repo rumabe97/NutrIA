@@ -34,6 +34,7 @@ configurations/eslint, typescript, prettier
 
 ```bash
 pnpm install
+pnpm hooks:install   # refuses a push the gate has not agreed to
 ```
 
 Then fill in the environment. Copy each `.env.example` next to it as `.env`:
@@ -73,6 +74,7 @@ pnpm dev
 | `pnpm ts:check` | Type-check |
 | `pnpm test` / `pnpm test:coverage` | Tests |
 | `pnpm check:leaks` | Scan tracked files for absolute paths and private patterns |
+| `pnpm hooks:install` | Point git at `.githooks`, so a push runs the gate first |
 | `pnpm --filter database generate` | Generate a migration from the schemas |
 | `pnpm --filter api test:e2e` | End-to-end suite — needs a real database |
 

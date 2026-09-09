@@ -350,9 +350,11 @@ Three things to be honest about:
 - **The gate runs, the deploy does not wait for it.** `.github/workflows/ci.yml` runs the
   gate on every push and pull request and the end-to-end suites on every pull request, but
   the host still builds whatever lands on `main` regardless. A red run is a record, not a
-  brake. Making it a brake is §9 — a repository setting, not a file, which is why it is
-  the one thing here an agent cannot do. Until it is in place, a direct push to `main`
-  skips the end-to-end suites, because there is no pull request to run them on.
+  brake, and it cannot be made one on this plan: GitHub does not enforce branch rules on a
+  private repository owned by a personal account on Free (§9). `.githooks/pre-push` is the
+  stand-in — the gate, locally, refusing the push — and it is bypassable by the one person
+  who would bypass it. A direct push to `main` also skips the end-to-end suites, because
+  there is no pull request to run them on.
 - **No backup runs on a schedule, and no restore has been rehearsed.** §8 says how to take
   an export and how the host's own restore works, and the export has been run; neither has
   been used in anger. The restore window's length is still a blank in §8 that only the
@@ -362,6 +364,24 @@ Three things to be honest about:
 
 Everything below is on github.com, under **Settings** for the repository. None of it lives
 in this repo, which is why it keeps being listed as a gap rather than fixed in a commit.
+
+### First, the plan wall
+
+**A personal account on GitHub Free cannot enforce any branch rule on a private
+repository.** The ruleset can be created, saved and shown as Active, and GitHub says so
+in a banner while quietly applying none of it. Protected branches on private repositories
+are the first thing GitHub Pro adds (~$4 a month); an organisation on Team is the other
+route, and making the repository public is the third.
+
+Until one of those, the brake is `.githooks/pre-push`, enabled once with
+`pnpm hooks:install`: it runs `pnpm turbo lint ts:check test` and refuses the push if it
+fails. It is a worse brake than a ruleset — it runs on the machine it restrains and
+`--no-verify` walks past it — but it catches the failure worth catching here, which is a
+red commit reaching `main` because the change looked too small to check. The end-to-end
+suites are deliberately not in it: six minutes is too long to pay on every push, and CI
+runs them on the pull request.
+
+The rest of this section is what to configure the day the plan allows it.
 
 ### The rule that makes a red run a brake
 
