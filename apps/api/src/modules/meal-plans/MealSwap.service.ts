@@ -33,6 +33,8 @@ function wishFor(axis: SwapAxis | undefined, current: { readonly cookMinutes: nu
       return 'no cooking at all: assembled cold, cooking time zero';
     case 'more_protein':
       return 'clearly more protein per calorie than an ordinary dish of this kind';
+    case 'vegetarian':
+      return 'vegetarian: no meat, no fish and no shellfish (eggs and dairy are fine)';
     default:
       return null;
   }
@@ -83,7 +85,7 @@ export class MealSwapService {
     // they were. An axis (0022) is a test every candidate must pass, judged
     // against the dish being replaced; "more protein" also raises the protein
     // the fit is scored against, so a richer plate ranks as the better one.
-    const filter = axisFilter(axis, { cookMinutes: anchor.recipe.cookMinutes, macros: current.macros, prepMinutes: anchor.recipe.prepMinutes });
+    const filter = axisFilter(axis, { cookMinutes: anchor.recipe.cookMinutes, macros: current.macros, prepMinutes: anchor.recipe.prepMinutes }, context.catalogue);
     const budget = { kcal: current.macros.kcal, proteinG: axis === 'more_protein' ? current.macros.proteinG * MORE_PROTEIN_BUDGET : current.macros.proteinG };
     const pick = { budget, catalogue: context.catalogue, dayIndex: current.dayIndex, filter, placed, prefer: new Set(verdicts.liked.map(dish => dish.slug)), slot: current.slot };
 

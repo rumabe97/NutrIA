@@ -1,6 +1,7 @@
 import { InputParseError, NotFoundError } from 'core/entities/Error';
 import { ageInYears, resolveTargets } from 'core/domain/Nutrition';
 import { FALLBACK_LOCALE } from '#repositories/Recipe';
+import { isEnforceableDislike } from 'core/domain/Preference';
 import { ProfileRepository } from '#repositories/Profile';
 import { ProgressRepository } from '#repositories/Progress';
 import { SafetyRepository } from '#repositories/Safety';
@@ -43,7 +44,13 @@ export interface FullProfileView {
    */
   customAllergens: readonly { ingredientId: string | null; ingredientName: string | null; label: string }[];
   dietaryPatterns: readonly string[];
-  foodPreferences: readonly { ingredientId: string | null; label: string; sentiment: 'disliked' | 'liked' }[];
+  /**
+   * `enforced` answers the only question that matters about a dislike: is it a
+   * promise or a request. True when the catalogue can act on it — a group word
+   * or an ingredient it knows — and false when all the product can do is ask
+   * the model. Always false for a like, which cannot be enforced by anything.
+   */
+  foodPreferences: readonly { enforced: boolean; ingredientId: string | null; label: string; sentiment: 'disliked' | 'liked' }[];
   goal: GoalView | null;
   intolerances: readonly { allergenId: string; allergenLabel: string }[];
   preferences: PreferencesView | null;
@@ -180,7 +187,7 @@ export const ProfileController = {
     const profile = await ProfileRepository.findByUserId(userId);
     const effectiveLocale = locale ?? profile?.locale ?? FALLBACK_LOCALE;
 
-    const [goal, preferences, dietaryPatterns, foodPreferences, cuisines, allergies, intolerances, customAllergens, override, latestWeightKg] = await Promise.all([
+    const [goal, preferences, dietaryPatterns, foodPreferences, cuisines, allergies, intolerances, customAllergens, override, latestWeightKg, matchable] = await Promise.all([
       ProfileRepository.findActiveGoal(userId),
       ProfileRepository.findPreferences(userId),
       ProfileRepository.findDietaryPatterns(userId),
@@ -190,7 +197,10 @@ export const ProfileController = {
       SafetyRepository.findIntolerances(userId),
       SafetyRepository.findCustomAllergens(userId, effectiveLocale),
       ProfileRepository.findTargetOverride(userId),
-      ProgressRepository.findLatestWeight(userId)
+      ProgressRepository.findLatestWeight(userId),
+      // The same list the free-text allergy matcher reads; the dislike rule needs
+      // exactly it, and one query serves both.
+      SafetyRepository.listMatchableIngredients()
     ]);
 
     const input = targetInput(profile, goal, preferences, latestWeightKg);
@@ -205,7 +215,12 @@ export const ProfileController = {
       cuisines,
       customAllergens: customAllergens.map(entry => ({ ingredientId: entry.ingredientId, ingredientName: entry.ingredientName, label: entry.label })),
       dietaryPatterns,
-      foodPreferences,
+      // Resolved on read, not stored: the catalogue grows, and a label that named
+      // nothing last month can name something today.
+      foodPreferences: foodPreferences.map(item => ({
+        ...item,
+        enforced: item.sentiment === 'disliked' && isEnforceableDislike(item.label, matchable)
+      })),
       goal: goal ? presentGoal(goal) : null,
       intolerances: intolerances.map(i => ({ allergenId: i.allergenId, allergenLabel: i.allergenLabel })),
       preferences: preferences ? presentPreferences(preferences) : null,

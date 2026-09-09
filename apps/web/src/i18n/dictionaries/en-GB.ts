@@ -453,6 +453,8 @@ export const enGB: Dictionary = {
     swapAxisNoCookingHint: 'Nothing on the hob: assembled cold.',
     swapAxisQuicker: 'Quicker',
     swapAxisQuickerHint: 'Under {minutes} min in total, prep and cooking.',
+    swapAxisVegetarian: 'No meat or fish',
+    swapAxisVegetarianHint: 'No meat, fish or shellfish. Eggs and dairy stay.',
     swapConfirm: 'Change',
     swapCount: '{remaining} of {limit}',
     swapHint: '{remaining} of {limit} swaps left on this plan; the shopping list updates itself.',
@@ -667,6 +669,8 @@ export const enGB: Dictionary = {
     unset: '—',
     yes: 'Yes',
     youAvoid: 'You avoid',
+    youAvoidBestEffort: '{labels} · asked of the AI, but we cannot guarantee it',
+    youAvoidEnforced: '{labels} · kept out of your recipes',
     youLike: 'You like'
   },
 

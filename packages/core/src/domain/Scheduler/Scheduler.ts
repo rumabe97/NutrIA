@@ -223,6 +223,9 @@ export function pickReplacement(input: {
 /** "More protein" means this much more protein per calorie than the dish being replaced. */
 const MORE_PROTEIN_FACTOR = 1.2;
 
+/** What "vegetarian" takes off a plate. Eggs and dairy are not on this list, on purpose. */
+const MEATY: ReadonlySet<string> = new Set(['fish', 'meat', 'pork', 'shellfish']);
+
 /**
  * The test a candidate must pass for what the person asked of the swap
  * (0022), judged against the dish being replaced. Undefined when nothing was
@@ -232,10 +235,14 @@ const MORE_PROTEIN_FACTOR = 1.2;
  * - `no_cooking`: no cooking at all.
  * - `more_protein`: clearly more protein per calorie, so that scaled to the
  *   same energy the plate carries more protein.
+ * - `vegetarian`: no meat, no fish, no shellfish — read from the catalogue's
+ *   classes, never from the dish's name. Eggs and dairy stay, which is what the
+ *   word means; someone who wants neither says so on their profile.
  */
 export function axisFilter(
   axis: SwapAxis | undefined,
-  current: { readonly cookMinutes: number; readonly macros: Macros; readonly prepMinutes: number }
+  current: { readonly cookMinutes: number; readonly macros: Macros; readonly prepMinutes: number },
+  catalogue?: Catalogue
 ): ((dish: CandidateDish, perServing: Macros) => boolean) | undefined {
   if (axis === undefined) {return undefined;}
 
@@ -249,6 +256,17 @@ export function axisFilter(
       return dish => dish.cookMinutes === 0;
     case 'more_protein':
       return (_dish, perServing) => perServing.kcal > 0 && perServing.proteinG / perServing.kcal >= currentDensity * MORE_PROTEIN_FACTOR;
+    case 'vegetarian':
+      // No catalogue, no claim: without it nothing can be told apart, and a
+      // filter that lets everything through would answer the request with meat.
+      return catalogue === undefined
+        ? () => false
+        : dish =>
+            dish.ingredients.every(item => {
+              const ingredient = catalogue.get(item.slug);
+
+              return ingredient !== undefined && !ingredient.classes.some(cls => MEATY.has(cls));
+            });
   }
 }
 

@@ -479,6 +479,25 @@ describe('axisFilter', () => {
     expect(passes?.(dish(0, 5), macros)).toBe(false);
   });
 
+  it('vegetarian: nothing carrying meat, fish or shellfish, read from the catalogue', () => {
+    const meaty = makeCatalogue([
+      makeCatalogueIngredient({ id: 'i-rice', classes: [], slug: 'rice' }),
+      makeCatalogueIngredient({ id: 'i-chicken', classes: ['animal', 'meat'], slug: 'chicken' }),
+      makeCatalogueIngredient({ id: 'i-egg', classes: ['animal', 'egg'], slug: 'egg' })
+    ]);
+    const passes = axisFilter('vegetarian', current, meaty);
+    const withSlugs = (...slugs: string[]) => ({ ...dish(0, 0), ingredients: slugs.map(slug => ({ grams: 100, slug })) });
+
+    expect(passes?.(withSlugs('rice', 'egg'), macros)).toBe(true);
+    expect(passes?.(withSlugs('rice', 'chicken'), macros)).toBe(false);
+    // An ingredient the catalogue does not know cannot be vouched for.
+    expect(passes?.(withSlugs('rice', 'mystery'), macros)).toBe(false);
+  });
+
+  it('vegetarian without a catalogue claims nothing rather than letting meat through', () => {
+    expect(axisFilter('vegetarian', current)?.(dish(0, 0), macros)).toBe(false);
+  });
+
   it('more protein: at least a fifth more protein per calorie', () => {
     const passes = axisFilter('more_protein', current);
 

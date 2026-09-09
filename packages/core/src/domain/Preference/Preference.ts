@@ -52,6 +52,25 @@ const GROUP_LABELS: ReadonlyMap<string, readonly FoodClass[]> = new Map([
   ['pescado y marisco', ['fish', 'shellfish']]
 ]);
 
+/**
+ * Whether a dislike is a promise or a request — the same question
+ * `resolvePreferences` answers while building a plan, asked without one.
+ *
+ * Deliberately needs no catalogue classes and no macros: a group word is known
+ * from the map, and everything else is an exact name or slug. That keeps it
+ * cheap enough to run on a profile screen, and it is the *same* rule, not a
+ * second one that agrees until it does not.
+ */
+export function isEnforceableDislike(label: string, ingredients: readonly { readonly name: string; readonly slug: string }[]): boolean {
+  const key = normaliseForMatching(label);
+
+  if (key === '') {return false;}
+
+  if (GROUP_LABELS.has(key)) {return true;}
+
+  return ingredients.some(ingredient => normaliseForMatching(ingredient.name) === key || normaliseForMatching(ingredient.slug) === key);
+}
+
 export type PreferenceExclusions = {
   /** Every catalogue row a way of eating or a dislike rules out. */
   readonly excludedIngredientIds: ReadonlySet<string>;

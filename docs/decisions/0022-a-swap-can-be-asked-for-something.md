@@ -27,10 +27,10 @@ offered are the ones the data can answer.**
   replaced. When the library has nothing that answers it, the model is told
   what was asked, in one line, and its dishes pass the same filter: the model
   is asked, never trusted.
-- Not offered: *cheaper*, because no ingredient carries a price, and
-  *vegetarian*, because food classes exist only in the seed and not in a
-  column the picker can read. Either is a data change first; an axis the
-  product cannot enforce would be a promise made by a prompt.
+- Not offered: *cheaper*, because no ingredient carries a price, and — at the
+  time of writing — *vegetarian*, because food classes existed only in the seed
+  and not in a column the picker could read. Either is a data change first; an
+  axis the product cannot enforce would be a promise made by a prompt.
 - The screen says when nothing answers the axis and suggests another one or
   none; the allowance is not spent by a swap that found nothing.
 
@@ -42,3 +42,13 @@ offered are the ones the data can answer.**
   against the real dish and not a guess.
 - Adding *vegetarian* means persisting the seed's food classes on
   `ingredients` and filtering on them; *cheaper* means a price per ingredient.
+
+## Amendment — 2026-09-09
+
+*Vegetarian* is now offered. `0025` put a food's class in a column, so the
+filter reads it: a dish passes when none of its ingredients carries `meat`,
+`pork`, `fish` or `shellfish`. Eggs and dairy stay, which is what the word
+means. An ingredient the catalogue does not know fails the test rather than
+passing it — without the catalogue the filter claims nothing at all, because a
+filter that let everything through would answer the request with meat.
+*Cheaper* still waits for a price.

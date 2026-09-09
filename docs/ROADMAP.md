@@ -46,8 +46,8 @@ screens at phone width, which closes project 002's two open gates.
 1. **A user can live inside the plan.** Day navigation, meal detail with recipe and macros
    (done), favourite / dislike (done, `0014`), meal replacement (done, `0015`: library first,
    five a plan, list rebuilt), complete / skip (done, `0016`), the quicker / no cooking /
-   more protein axes on a swap (done, `0022`). Cheaper and vegetarian wait for a price per
-   ingredient and for food classes persisted on the catalogue.
+   more protein and vegetarian axes on a swap (done, `0022`). Cheaper waits for a price per
+   ingredient.
 2. **A user can shop from it.** Done: consolidated list per plan, grouped by aisle, editable,
    rebuilt on every swap, always matching the active plan.
 3. **The loop closes.** Weight tracking (done), eaten / skipped on each meal (done, `0016`),

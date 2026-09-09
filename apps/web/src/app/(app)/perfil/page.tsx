@@ -15,6 +15,7 @@ import { formatNumber, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
+import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { HealthView } from 'core/controllers/Health';
 import type { UserView } from 'core/controllers/User';
@@ -23,6 +24,28 @@ export const dynamic = 'force-dynamic';
 
 function list(values: readonly string[], empty: string): string {
   return values.length > 0 ? values.join(', ') : empty;
+}
+
+/**
+ * What is kept out and what is only asked for, said separately.
+ *
+ * A dislike the catalogue can act on is a promise — "pescado" leaves every fish
+ * out of the plan. One it cannot resolve is a line in a prompt, which a model
+ * may ignore. One list showing both as the same thing is the lie: the reader
+ * has no way to tell which half they are in (0025).
+ */
+function avoidValue(disliked: readonly { enforced: boolean; label: string }[], t: Dictionary['profile']): string | undefined {
+  if (disliked.length === 0) {return undefined;}
+
+  const enforced = disliked.filter(item => item.enforced).map(item => item.label);
+  const asked = disliked.filter(item => !item.enforced).map(item => item.label);
+
+  return [
+    enforced.length > 0 ? interpolate(t.youAvoidEnforced, { labels: enforced.join(', ') }) : '',
+    asked.length > 0 ? interpolate(t.youAvoidBestEffort, { labels: asked.join(', ') }) : ''
+  ]
+    .filter(Boolean)
+    .join('\n');
 }
 
 export default async function ProfilePage() {
@@ -134,7 +157,13 @@ export default async function ProfilePage() {
           editHref="/onboarding/5?volver=perfil"
           rows={[
             { label: t.youLike, value: list(foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label), t.unset) },
-            { label: t.youAvoid, value: list(foodPreferences.filter(item => item.sentiment === 'disliked').map(item => item.label), t.unset) },
+            {
+              label: t.youAvoid,
+              value: avoidValue(
+                foodPreferences.filter(item => item.sentiment === 'disliked'),
+                t
+              )
+            },
             { label: t.cuisines, value: list(profile?.cuisines ?? [], t.unset) }
           ]}
           title={t.preferences}

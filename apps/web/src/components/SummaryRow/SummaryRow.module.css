@@ -11,6 +11,9 @@
 /* A column of values is a column: 180 cm above 72 kg above 4 should agree on
    where their digits sit. */
 .value {
+  /* A value may be two lines that must stay apart — what is kept out of a plan
+     and what is only asked for read as one sentence otherwise. */
+  white-space: pre-line;
   font-variant-numeric: tabular-nums;
 }
 

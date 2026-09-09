@@ -52,7 +52,8 @@ export function MealSwap({ limit, mealId, remaining, totalMinutes }: MealSwapPro
     { hint: t.swapAxisAnyHint, label: t.swapAxisAny, value: 'any' },
     { hint: interpolate(t.swapAxisQuickerHint, { minutes: totalMinutes }), label: t.swapAxisQuicker, value: 'quicker' },
     { hint: t.swapAxisNoCookingHint, label: t.swapAxisNoCooking, value: 'no_cooking' },
-    { hint: t.swapAxisMoreProteinHint, label: t.swapAxisMoreProtein, value: 'more_protein' }
+    { hint: t.swapAxisMoreProteinHint, label: t.swapAxisMoreProtein, value: 'more_protein' },
+    { hint: t.swapAxisVegetarianHint, label: t.swapAxisVegetarian, value: 'vegetarian' }
   ];
 
   async function swap() {

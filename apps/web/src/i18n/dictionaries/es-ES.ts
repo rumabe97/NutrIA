@@ -458,6 +458,8 @@ export const esES = {
     swapAxisNoCookingHint: 'Nada al fuego: se prepara en frío.',
     swapAxisQuicker: 'Más rápido',
     swapAxisQuickerHint: 'Menos de {minutes} min en total, preparación y cocción.',
+    swapAxisVegetarian: 'Sin carne ni pescado',
+    swapAxisVegetarianHint: 'Nada de carne, pescado ni marisco. El huevo y los lácteos siguen.',
     swapConfirm: 'Cambiar',
     swapCount: '{remaining} de {limit}',
     swapHint: 'Te quedan {remaining} de {limit} cambios en este plan; la lista de la compra se actualiza sola.',
@@ -672,6 +674,8 @@ export const esES = {
     unset: '—',
     yes: 'Sí',
     youAvoid: 'No quieres ver',
+    youAvoidBestEffort: '{labels} · se lo pedimos a la IA, pero no podemos garantizarlo',
+    youAvoidEnforced: '{labels} · fuera de tus recetas',
     youLike: 'Te gusta'
   },
 

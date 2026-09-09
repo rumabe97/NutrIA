@@ -61,3 +61,16 @@ Applied to what the audit found:
 - A tight cooking-time limit can now leave a slot unfillable, and generation
   fails naming it. That is the same trade `0023` took: better to say so than to
   serve what they said they cannot do.
+
+## Follow-through — 2026-09-09
+
+Two of the consequences above are now closed:
+
+- The **vegetarian** swap axis exists, on the column this decision added
+  (`0022`, amended).
+- The profile says, per dislike, whether it is **kept out** or only **asked
+  for**. `isEnforceableDislike` answers the same question `resolvePreferences`
+  answers while building a plan, without a plan and without the catalogue's
+  classes — a group word is known from the map, everything else is an exact
+  name or slug. Resolved on read rather than stored, because the catalogue
+  grows and a label that named nothing last month can name something today.

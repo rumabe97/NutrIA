@@ -205,11 +205,12 @@ export const LIVED_PLAN_STATUSES: ReadonlySet<string> = new Set(['active', 'arch
 /**
  * What a person may ask of a swap besides "something that fits" (0022): a dish
  * that takes less time, one that needs no cooking, one with more protein for
- * the same calories. Each is a fact the catalogue holds for every dish; an axis
- * the data cannot answer — price, vegetarian — is not offered rather than
+ * the same calories, one without meat or fish. Each is a fact the catalogue
+ * holds for every dish — the last one since `0025` put a food's class in a
+ * column. An axis the data cannot answer — price — is not offered rather than
  * guessed.
  */
-export const SWAP_AXES = ['more_protein', 'no_cooking', 'quicker'] as const;
+export const SWAP_AXES = ['more_protein', 'no_cooking', 'quicker', 'vegetarian'] as const;
 export type SwapAxis = (typeof SWAP_AXES)[number];
 
 export const swapMealSchema = z.object({ axis: z.enum(SWAP_AXES).optional() }).default({});
