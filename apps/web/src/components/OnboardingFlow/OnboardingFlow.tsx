@@ -29,6 +29,12 @@ import type { FullProfileView } from 'core/controllers/Profile';
 interface OnboardingFlowProps {
   allergens: readonly Allergen[];
   profile: FullProfileView | null;
+  /**
+   * Where to go after saving this one step, when the person came to edit it
+   * from their profile. The flow then saves and returns rather than marching
+   * on to the next step — editing a goal is not redoing the onboarding.
+   */
+  returnTo?: string | null;
   step: number;
 }
 
@@ -70,7 +76,7 @@ const CUISINES = ['Mediterránea', 'Española', 'Italiana', 'Mexicana', 'Japones
  * refresh, a different device, or closing the tab halfway through — there is no
  * separate draft that could drift from the profile it is filling in.
  */
-export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps) {
+export function OnboardingFlow({ allergens, profile, returnTo = null, step }: OnboardingFlowProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -240,7 +246,7 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
 
       await api('/onboarding', { body: { data: payload, step: current?.key }, method: 'PATCH' });
       startNavigation(() => {
-        router.push(`/onboarding/${step + 1}`);
+        router.push(returnTo ?? `/onboarding/${step + 1}`);
         // The step just saved is now stale in the client router cache. Without
         // this, going back to it re-renders the payload fetched *before* the
         // save and the fields show the old answers — which looks exactly like
@@ -560,19 +566,19 @@ export function OnboardingFlow({ allergens, profile, step }: OnboardingFlowProps
 
         <div className={styles.actions}>
           <Button
-            disabled={step === 1 || pending}
+            disabled={(step === 1 && !returnTo) || pending}
             loading={retreating}
             onClick={() => {
               setHeading('back');
-              startNavigation(() => router.push(`/onboarding/${step - 1}`));
+              startNavigation(() => router.push(returnTo ?? `/onboarding/${step - 1}`));
             }}
             type="button"
             variant="secondary"
           >
-            {dictionary.common.back}
+            {returnTo ? dictionary.common.cancel : dictionary.common.back}
           </Button>
           <Button disabled={pending} loading={advancing} type="submit">
-            {advancing ? dictionary.common.saving : isReview ? dictionary.common.finish : dictionary.common.continue}
+            {advancing ? dictionary.common.saving : returnTo ? dictionary.common.save : isReview ? dictionary.common.finish : dictionary.common.continue}
           </Button>
         </div>
 

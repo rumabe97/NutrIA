@@ -14,8 +14,10 @@ export const dynamic = 'force-dynamic';
  * filled in — that is what makes the flow resumable rather than merely
  * restartable.
  */
-export default async function OnboardingStepPage({ params }: { params: Promise<{ paso: string }> }) {
-  const { paso } = await params;
+export default async function OnboardingStepPage({ params, searchParams }: { params: Promise<{ paso: string }>; searchParams: Promise<{ volver?: string }> }) {
+  const [{ paso }, { volver }] = await Promise.all([params, searchParams]);
+  // Only the profile sends people here to edit one step; anything else is the flow itself.
+  const returnTo = volver === 'perfil' ? '/perfil' : null;
   const step = Number(paso);
 
   if (!Number.isInteger(step) || step < 1 || step > TOTAL_STEPS) {notFound();}
@@ -27,5 +29,5 @@ export default async function OnboardingStepPage({ params }: { params: Promise<{
     FLOW[step - 1]?.key === 'allergies' ? serverApi<readonly Allergen[]>('/safety/allergens') : null
   ]);
 
-  return <OnboardingFlow allergens={allergens ?? []} profile={profile} step={step} />;
+  return <OnboardingFlow allergens={allergens ?? []} profile={profile} returnTo={returnTo} step={step} />;
 }

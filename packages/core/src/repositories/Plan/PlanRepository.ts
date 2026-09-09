@@ -61,13 +61,19 @@ export const PlanRepository = {
         if (unresolved.length > 0) {throw new DatabaseOperationError(`Plan references recipes that do not exist: ${unresolved.join(', ')}`);}
 
         const previous = await tx
-          .select({ id: mealPlans.id, version: mealPlans.version })
+          .select({ id: mealPlans.id, endDate: mealPlans.endDate, status: mealPlans.status, version: mealPlans.version })
           .from(mealPlans)
           .where(eq(mealPlans.userId, userId))
           .orderBy(desc(mealPlans.version))
           .limit(1);
 
         const nextVersion = (previous.at(0)?.version ?? 0) + 1;
+        // A plan generated while the previous one still had days to run is a
+        // redo of that fortnight, and is stamped as one here, at the moment it
+        // is known. Plans from before this stamp existed are not redos: they
+        // carry no flag, and the allowance never counts what it did not see.
+        const latest = previous.at(0);
+        const redo = latest !== undefined && latest.status === 'active' && latest.endDate >= draft.startDate;
 
         // Complete the outgoing plan first: the partial unique index permits only
         // one active row per user, so the new one cannot be inserted until this
@@ -82,7 +88,7 @@ export const PlanRepository = {
           .values({
             activatedAt: new Date(),
             endDate: draft.endDate,
-            generationMetadata: draft.generationMetadata,
+            generationMetadata: { ...draft.generationMetadata, redo },
             previousPlanId: previous.at(0)?.id ?? null,
             startDate: draft.startDate,
             status: 'active',
@@ -177,11 +183,13 @@ export const PlanRepository = {
   /** Every plan the user has had, newest first: the chain `redosInFortnight` walks. */
   async findChain(userId: string) {
     try {
-      return await database()
-        .select({ id: mealPlans.id, completedAt: mealPlans.completedAt, endDate: mealPlans.endDate, startDate: mealPlans.startDate, status: mealPlans.status, version: mealPlans.version })
+      const rows = await database()
+        .select({ id: mealPlans.id, completedAt: mealPlans.completedAt, endDate: mealPlans.endDate, generationMetadata: mealPlans.generationMetadata, startDate: mealPlans.startDate, status: mealPlans.status, version: mealPlans.version })
         .from(mealPlans)
         .where(eq(mealPlans.userId, userId))
         .orderBy(desc(mealPlans.version));
+
+      return rows.map(({ generationMetadata, ...row }) => ({ ...row, redo: generationMetadata?.redo === true }));
     } catch (error: unknown) {
       throw wrap(error);
     }

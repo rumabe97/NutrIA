@@ -29,6 +29,9 @@
 
 .slot {
   color: var(--color-brand-11);
+  /* Its own line: the back link is inline-flex, and an inline span after it
+     would sit on the same line and touch the pill the link becomes on hover. */
+  display: block;
   font-size: var(--font-size-02);
   font-weight: var(--font-weight-medium);
 }

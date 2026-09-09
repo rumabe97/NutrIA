@@ -127,12 +127,12 @@ function presentMeal({ items, meal, recipe }: MealRow): MealView {
 export const PlanController = {
   async allowances(userId: string): Promise<AllowancesView> {
     const [active, chain] = await Promise.all([PlanRepository.findActive(userId), PlanRepository.findChain(userId)]);
-    const predecessors = active ? chain.filter(plan => plan.version < active.version) : [];
+    const fromActive = active ? chain.filter(plan => plan.version <= active.version) : [];
     const swaps = active ? await PlanRepository.countSwaps(active.id) : 0;
 
     return {
       mealSwaps: mealSwapStanding(swaps),
-      planRedo: planRedoStanding(active ? { endDate: active.endDate } : undefined, redosInFortnight(predecessors), isoToday())
+      planRedo: planRedoStanding(active ? { endDate: active.endDate } : undefined, redosInFortnight(fromActive), isoToday())
     };
   },
 

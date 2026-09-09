@@ -48,18 +48,19 @@ export function mealSwapStanding(used: number): MealSwapStanding {
 /**
  * How many times the fortnight in progress has already been redone.
  *
- * `createPlanAtomically` stamps the plan it replaces with `completedAt` = the
- * new plan's start date. A predecessor completed *before* its own end date was
- * cut short — replaced mid-fortnight — so a redo. The chain is walked from the
- * active plan's immediate predecessor backwards and stops at the first plan that
- * ran its course: that one closed the previous fortnight, and everything behind
- * it belongs to it. No calendar arithmetic, no extra column.
+ * `createPlanAtomically` stamps a plan `redo` when it was generated while the
+ * previous one still had days to run. The chain is walked from the active plan
+ * backwards, newest first, counting stamped plans and stopping at the first that
+ * is not one: that plan opened the fortnight, and everything behind it belongs
+ * to earlier ones. Plans from before the stamp existed carry none, so a person
+ * whose history predates the allowance starts with it untouched. No calendar
+ * arithmetic, no extra column.
  */
-export function redosInFortnight(predecessors: readonly { readonly completedAt: string | null; readonly endDate: string }[]): number {
+export function redosInFortnight(chainFromActive: readonly { readonly redo: boolean }[]): number {
   let count = 0;
 
-  for (const plan of predecessors) {
-    if (plan.completedAt === null || plan.completedAt >= plan.endDate) {break;}
+  for (const plan of chainFromActive) {
+    if (!plan.redo) {break;}
 
     count += 1;
   }

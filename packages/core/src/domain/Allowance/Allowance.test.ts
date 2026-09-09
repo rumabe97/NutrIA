@@ -19,18 +19,17 @@ describe('planRedoStanding', () => {
 });
 
 describe('redosInFortnight', () => {
-  it('counts predecessors that were cut short, and stops at the first that ran its course', () => {
-    // v3 active; v2 replaced on day 3 of 14; v1 replaced on day 2 — two redos this fortnight.
-    expect(redosInFortnight([{ completedAt: '2026-09-04', endDate: '2026-09-15' }, { completedAt: '2026-09-02', endDate: '2026-09-14' }])).toBe(2);
-    // v2 active; v1 ended naturally and the next fortnight was generated a day later.
-    expect(redosInFortnight([{ completedAt: '2026-09-15', endDate: '2026-09-14' }])).toBe(0);
-    // A redo behind a plan that ran its course belongs to the previous fortnight.
-    expect(redosInFortnight([{ completedAt: '2026-09-15', endDate: '2026-09-14' }, { completedAt: '2026-08-20', endDate: '2026-09-01' }])).toBe(0);
+  it('counts stamped redos back from the active plan, and stops at the plan that opened the fortnight', () => {
+    // v3 active and a redo; v2 a redo; v1 opened the fortnight — two redos.
+    expect(redosInFortnight([{ redo: true }, { redo: true }, { redo: false }])).toBe(2);
+    // v2 active and a fresh fortnight; whatever happened before it is not this fortnight's.
+    expect(redosInFortnight([{ redo: false }, { redo: true }, { redo: true }])).toBe(0);
     expect(redosInFortnight([])).toBe(0);
   });
 
-  it('does not count a plan replaced on its own last day as cut short', () => {
-    expect(redosInFortnight([{ completedAt: '2026-09-14', endDate: '2026-09-14' }])).toBe(0);
+  it('starts a person whose history predates the allowance with it untouched', () => {
+    // Plans generated before the stamp existed carry no flag, however many there were.
+    expect(redosInFortnight([{ redo: false }, { redo: false }, { redo: false }, { redo: false }])).toBe(0);
   });
 });
 

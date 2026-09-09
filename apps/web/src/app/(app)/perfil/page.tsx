@@ -70,7 +70,7 @@ export default async function ProfilePage() {
         <LocaleSwitcher />
 
         <ProfileSection
-          editHref="/onboarding/1"
+          editHref="/onboarding/1?volver=perfil"
           rows={[
             { label: t.name, value: user?.name },
             { label: t.email, value: user?.email },
@@ -80,7 +80,7 @@ export default async function ProfilePage() {
         />
 
         <ProfileSection
-          editHref="/onboarding/1"
+          editHref="/onboarding/1?volver=perfil"
           rows={[
             { label: t.displayName, value: person?.displayName },
             { label: dictionary.onboarding.fields.birthDate, value: person?.birthDate },
@@ -91,7 +91,7 @@ export default async function ProfilePage() {
         />
 
         <ProfileSection
-          editHref="/onboarding/2"
+          editHref="/onboarding/2?volver=perfil"
           rows={[
             { label: t.goal, value: goal ? dictionary.goals[goal.type] : undefined },
             { label: t.startingWeight, value: goal?.startingWeightKg ? kg(goal.startingWeightKg) : undefined },
@@ -105,7 +105,7 @@ export default async function ProfilePage() {
         />
 
         <ProfileSection
-          editHref="/onboarding/6"
+          editHref="/onboarding/6?volver=perfil"
           rows={[
             { label: t.allergies, value: list((profile?.allergies ?? []).map(allergy => allergy.allergenLabel), t.none) },
             { label: t.intolerances, value: list((profile?.intolerances ?? []).map(intolerance => intolerance.allergenLabel), t.none) },
@@ -115,7 +115,7 @@ export default async function ProfilePage() {
         />
 
         <ProfileSection
-          editHref="/onboarding/4"
+          editHref="/onboarding/4?volver=perfil"
           rows={[
             {
               label: dictionary.onboarding.fields.mealsPerDay,
@@ -132,7 +132,7 @@ export default async function ProfilePage() {
         />
 
         <ProfileSection
-          editHref="/onboarding/5"
+          editHref="/onboarding/5?volver=perfil"
           rows={[
             { label: t.youLike, value: list(foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label), t.unset) },
             { label: t.youAvoid, value: list(foodPreferences.filter(item => item.sentiment === 'disliked').map(item => item.label), t.unset) },
