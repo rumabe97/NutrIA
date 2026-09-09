@@ -375,8 +375,12 @@ export const esES = {
     dayOf: '{slot} · Día {day}',
     difficulty: { easy: 'Fácil', hard: 'Difícil', medium: 'Media' },
     difficultyLabel: 'Dificultad',
+    dislike: 'No me gusta',
+    dislikedHint: 'Anotado: no volverá, ni nada muy parecido.',
     illustration: 'Ilustración generada por IA',
     ingredients: 'Ingredientes',
+    like: 'Me gusta',
+    likedHint: 'Anotado: podrá volver, y buscaremos platos en esta línea.',
     minutes: '{value} min',
     noCooking: 'Sin cocinar',
     none: '—',
@@ -386,7 +390,8 @@ export const esES = {
     servingUnitOne: 'ración',
     servingUnitOther: 'raciones',
     steps: 'Preparación',
-    totalMinutes: '{minutes} min en total'
+    totalMinutes: '{minutes} min en total',
+    verdictHint: '¿Repetimos este plato? Lo tendremos en cuenta en tus próximos planes.'
   },
 
   onboarding: {

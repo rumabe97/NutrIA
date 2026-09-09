@@ -146,6 +146,7 @@ function build(overrides: Partial<Mocks> = {}) {
   });
   jest.spyOn(PlanController, 'generationHistory').mockResolvedValue({ nextVersion: 3, recentDishes: [{ name: 'Pollo al limón', slug: 'pollo-al-limon' }] });
   jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(reusable);
+  jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [], liked: [] });
   jest.spyOn(PlanJobController, 'persist').mockImplementation(persist as never);
 
   const buildPool = jest.fn<(input: unknown) => Promise<PoolResult>>(async () =>
@@ -184,6 +185,35 @@ describe('PlanGenerationService', () => {
     const input = buildPool.mock.calls[0]?.[0] as { preferences: { avoidNames: readonly string[] } } | undefined;
 
     expect(input?.preferences.avoidNames).toEqual(['Pollo al limón']);
+  });
+
+  /*
+   * A verdict is the one thing a person says about a dish after eating it, and
+   * it must reach both halves of generation: reuse, deterministically — a
+   * disliked dish is held back like last fortnight's, a liked one goes first —
+   * and the model, by name, so it designs towards one and never recreates the other.
+   */
+  it('holds back disliked dishes, puts liked ones first, and names both to the model', async () => {
+    const { buildPool, service } = build();
+
+    jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({
+      disliked: [{ name: 'Lentejas con chorizo', slug: 'lentejas-con-chorizo' }],
+      liked: [{ name: 'Salmón al horno con eneldo', slug: 'salmon-al-horno-con-eneldo' }]
+    });
+    const reusablePool = jest.spyOn(RecipeController, 'reusablePool');
+
+    await service.generate('user-1', 'job-1', async () => Promise.resolve());
+
+    const rotation = reusablePool.mock.calls[0]?.[2];
+
+    expect(rotation?.avoidSlugs.has('lentejas-con-chorizo')).toBe(true);
+    expect(rotation?.avoidSlugs.has('pollo-al-limon')).toBe(true);
+    expect(rotation?.preferSlugs?.has('salmon-al-horno-con-eneldo')).toBe(true);
+
+    const input = buildPool.mock.calls[0]?.[0] as { preferences: { dislikedNames: readonly string[]; lovedNames: readonly string[] } } | undefined;
+
+    expect(input?.preferences.dislikedNames).toEqual(['Lentejas con chorizo']);
+    expect(input?.preferences.lovedNames).toEqual(['Salmón al horno con eneldo']);
   });
 
   /*

@@ -3,10 +3,11 @@ import { ZodError } from 'zod';
 
 import { database } from 'database';
 import { ingredientAllergens, ingredientNames, ingredients } from 'database/schema/food';
+import { dislikedRecipes, favoriteRecipes } from 'database/schema/plan';
 import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 
 import { DatabaseOperationError } from 'core/entities/Error';
-import type { CatalogueIngredient, MealSlot } from 'core/entities/Plan';
+import type { CatalogueIngredient, MealSlot, RecipeVerdict } from 'core/entities/Plan';
 import type { RecipeStep } from 'database/schema/recipe';
 
 export type ReusableRecipe = {
@@ -31,6 +32,9 @@ export type ReusableRecipe = {
  * hand back an empty name the first time a locale was added.
  */
 export const FALLBACK_LOCALE = 'es-ES';
+
+/** A dish as generation refers to it: what to exclude by slug, what to name to the model. */
+export type DishRef = { readonly name: string; readonly slug: string };
 
 export type UndocumentedRecipe = {
   readonly id: string;
@@ -191,6 +195,36 @@ export const RecipeRepository = {
    * illustrator needs to describe them: the name and the ingredient names in the
    * recipe's own language. Nothing about any person is here, and nothing can be.
    */
+  /** What this person said about one recipe, if anything. */
+  async findVerdict(userId: string, recipeId: string): Promise<'disliked' | 'liked' | null> {
+    try {
+      const db = database();
+      const [liked, disliked] = await Promise.all([
+        db.select({ id: favoriteRecipes.id }).from(favoriteRecipes).where(and(eq(favoriteRecipes.userId, userId), eq(favoriteRecipes.recipeId, recipeId))).limit(1),
+        db.select({ id: dislikedRecipes.id }).from(dislikedRecipes).where(and(eq(dislikedRecipes.userId, userId), eq(dislikedRecipes.recipeId, recipeId))).limit(1)
+      ]);
+
+      return liked.length > 0 ? 'liked' : disliked.length > 0 ? 'disliked' : null;
+    } catch (error: unknown) {
+      throw wrap(error, 'favorite_recipes');
+    }
+  },
+
+  /** Every verdict this person has given, as the dish names and slugs generation needs. */
+  async findVerdicts(userId: string): Promise<{ readonly disliked: readonly DishRef[]; readonly liked: readonly DishRef[] }> {
+    try {
+      const db = database();
+      const [liked, disliked] = await Promise.all([
+        db.select({ name: recipes.name, slug: recipes.slug }).from(favoriteRecipes).innerJoin(recipes, eq(recipes.id, favoriteRecipes.recipeId)).where(eq(favoriteRecipes.userId, userId)),
+        db.select({ name: recipes.name, slug: recipes.slug }).from(dislikedRecipes).innerJoin(recipes, eq(recipes.id, dislikedRecipes.recipeId)).where(eq(dislikedRecipes.userId, userId))
+      ]);
+
+      return { disliked, liked };
+    } catch (error: unknown) {
+      throw wrap(error, 'favorite_recipes');
+    }
+  },
+
   async findWithoutImage(limit: number): Promise<readonly { readonly id: string; readonly ingredientNames: readonly string[]; readonly locale: string; readonly name: string }[]> {
     try {
       const db = database();
@@ -302,6 +336,34 @@ export const RecipeRepository = {
    * already computed from them are untouched, so a rewrite cannot change what a
    * past plan says anyone ate.
    */
+  /**
+   * One verdict per person per recipe: the two tables are cleared for the pair
+   * and at most one row written, in one transaction, so a "liked" can never sit
+   * beside a "disliked". Returns false when the recipe does not exist, which the
+   * controller turns into a 404 rather than a foreign-key error.
+   */
+  async setVerdict(userId: string, recipeId: string, verdict: RecipeVerdict): Promise<boolean> {
+    try {
+      const db = database();
+      const [exists] = await db.select({ id: recipes.id }).from(recipes).where(eq(recipes.id, recipeId)).limit(1);
+
+      if (!exists) {return false;}
+
+      await db.transaction(async tx => {
+        await tx.delete(favoriteRecipes).where(and(eq(favoriteRecipes.userId, userId), eq(favoriteRecipes.recipeId, recipeId)));
+        await tx.delete(dislikedRecipes).where(and(eq(dislikedRecipes.userId, userId), eq(dislikedRecipes.recipeId, recipeId)));
+
+        if (verdict === 'liked') {await tx.insert(favoriteRecipes).values({ recipeId, userId });}
+
+        if (verdict === 'disliked') {await tx.insert(dislikedRecipes).values({ recipeId, userId });}
+      });
+
+      return true;
+    } catch (error: unknown) {
+      throw wrap(error, 'favorite_recipes');
+    }
+  },
+
   async updateSteps(recipeId: string, steps: readonly RecipeStep[], stepsVersion: string): Promise<void> {
     try {
       await database().update(recipes).set({ instructions: steps, stepsVersion }).where(eq(recipes.id, recipeId));

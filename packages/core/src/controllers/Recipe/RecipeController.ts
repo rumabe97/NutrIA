@@ -4,11 +4,12 @@ import { dishSafety } from 'core/domain/Safety';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
 import { SafetyController } from 'core/controllers/Safety';
+import { NotFoundError } from 'core/entities/Error';
 import { toCatalogue } from 'core/entities/Plan';
-import type { CandidateDish, Catalogue, MealSlot } from 'core/entities/Plan';
+import type { CandidateDish, Catalogue, MealSlot, RecipeVerdict } from 'core/entities/Plan';
 import type { Rotation } from 'core/domain/Variety';
 import type { RecipeStep } from 'database/schema/recipe';
-import type { ReusableRecipe, UndocumentedRecipe } from '#repositories/Recipe';
+import type { DishRef, ReusableRecipe, UndocumentedRecipe } from '#repositories/Recipe';
 
 /** Re-exported: a rewriter in `apps/api` needs this shape, and depends on controllers, not repositories. */
 export type { UndocumentedRecipe } from '#repositories/Recipe';
@@ -119,12 +120,26 @@ export const RecipeController = {
     return rotation ? rotatePool(usable, slots, rotation) : usable;
   },
 
-  /** Replaces a recipe's method and records which prompt wrote it. Ingredients are never touched. */
   async rewriteSteps(recipeId: string, steps: readonly RecipeStep[], stepsVersion: string): Promise<void> {
     await RecipeRepository.updateSteps(recipeId, steps, stepsVersion);
   },
 
+  /** Replaces a recipe's method and records which prompt wrote it. Ingredients are never touched. */
+  /** A verdict on a recipe that does not exist is a 404, like every other denial. */
+  async setVerdict(userId: string, recipeId: string, verdict: RecipeVerdict): Promise<void> {
+    if (!(await RecipeRepository.setVerdict(userId, recipeId, verdict))) {throw new NotFoundError('Recipe not found');}
+  },
+
   async storeIllustration(recipeId: string, image: { readonly bytes: Buffer; readonly contentType: string; readonly height: number; readonly model: string; readonly promptVersion: string; readonly width: number }): Promise<void> {
     await RecipeRepository.saveImage(recipeId, image);
+  },
+
+  async verdictFor(userId: string, recipeId: string): Promise<'disliked' | 'liked' | null> {
+    return RecipeRepository.findVerdict(userId, recipeId);
+  },
+
+  /** Everything this person has said about dishes, for the next plan to honour. */
+  async verdicts(userId: string): Promise<{ readonly disliked: readonly DishRef[]; readonly liked: readonly DishRef[] }> {
+    return RecipeRepository.findVerdicts(userId);
   }
 };

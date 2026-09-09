@@ -172,3 +172,15 @@ export type PlanDraft = {
 export const setShoppingItemSchema = z.object({ checked: z.boolean() });
 
 export type SetShoppingItem = z.infer<typeof setShoppingItemSchema>;
+
+/**
+ * What a person said about a dish, once. `liked` brings it back and asks for
+ * more in its spirit; `disliked` keeps it, and close variations, out of every
+ * plan from now on; `none` withdraws either. One verdict per person per recipe
+ * ([`0014`](../../../../docs/decisions/0014-a-verdict-shapes-the-next-plan.md)).
+ */
+export const RECIPE_VERDICTS = ['liked', 'disliked', 'none'] as const;
+export type RecipeVerdict = (typeof RECIPE_VERDICTS)[number];
+
+export const setRecipeVerdictSchema = z.object({ verdict: z.enum(RECIPE_VERDICTS) });
+export type SetRecipeVerdict = z.infer<typeof setRecipeVerdictSchema>;

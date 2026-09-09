@@ -1,5 +1,5 @@
 import { ConflictError, NotFoundError } from 'core/entities/Error';
-import { FALLBACK_LOCALE } from '#repositories/Recipe';
+import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { PlanJobRepository, PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
 import { SafetyController } from 'core/controllers/Safety';
@@ -294,10 +294,13 @@ export interface MealDetailView {
   name: string;
   prepMinutes: number;
   proteinG: number;
+  /** The recipe behind this meal — what a verdict attaches to, since the dish can return in another plan. */
+  recipeId: string;
   servings: number;
   slot: MealSlot;
   status: string;
   steps: readonly { cue?: string; minutes?: number; text: string }[];
+  verdict: 'disliked' | 'liked' | null;
 }
 
 /**
@@ -334,6 +337,7 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
 
   const { day, items, meal, recipe } = found;
   const factor = Number(meal.servings) / (recipe.servings || 1);
+  const verdict = await RecipeRepository.findVerdict(userId, recipe.id);
 
   return {
     id: meal.id,
@@ -354,9 +358,11 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
     name: recipe.name,
     prepMinutes: recipe.prepMinutes,
     proteinG: Number(meal.proteinG),
+    recipeId: recipe.id,
     servings: Number(meal.servings),
     slot: meal.slot,
     status: meal.status,
-    steps: recipe.instructions
+    steps: recipe.instructions,
+    verdict
   };
 }

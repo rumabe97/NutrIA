@@ -207,6 +207,11 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `API_UPSTREAM_URL`); then `BETTER_AUTH_URL` and `ALLOWED_ORIGINS` are the **web**
   origin, because that is the only origin a browser ever sees.
 
+- **Verdicts** (`0014`): `PUT /recipes/:id/verdict` with `{ verdict: 'liked' | 'disliked' | 'none' }`
+  records what the session's user thinks of a recipe. Generation reads them: disliked
+  slugs join the rotation's `avoidSlugs`, liked ones its `preferSlugs`, and both are named
+  to the model. The verdict is on the recipe, never on the meal.
+
 ## Commands
 
 | Command | What it does |

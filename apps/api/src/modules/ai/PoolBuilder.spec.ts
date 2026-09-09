@@ -116,7 +116,9 @@ describe('PoolBuilder', () => {
     cuisines: [],
     dietaryPatterns: [],
     dislikedLabels: [],
+    dislikedNames: [],
     likedLabels: [],
+    lovedNames: [],
     portionPreference: null,
     scheduleNotes: null,
     targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
@@ -448,7 +450,9 @@ describe('PoolBuilder — telling a broken provider from an absent one', () => {
     cuisines: [],
     dietaryPatterns: [],
     dislikedLabels: [],
+    dislikedNames: [],
     likedLabels: [],
+    lovedNames: [],
     portionPreference: null,
     scheduleNotes: null,
     targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }

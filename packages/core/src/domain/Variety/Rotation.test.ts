@@ -65,6 +65,21 @@ describe('rotatePool', () => {
     expect(rotatePool(dishes, ['lunch'], rotation)).not.toEqual(rotatePool(dishes, ['lunch'], { ...rotation, seed: 'user-a:2' }));
   });
 
+  it('puts what the user asked to see again at the front, however large the library', () => {
+    const dishes = library(300, ['lunch']);
+    const picked = rotatePool(dishes, ['lunch'], { avoidSlugs: nothingAvoided, preferSlugs: new Set(['dish-250', 'dish-299']), seed: 'user-a:1' }).map(dish => dish.slug);
+
+    expect(picked.slice(0, 2).sort()).toEqual(['dish-250', 'dish-299']);
+    expect(picked).toHaveLength(REUSED_DISHES_PER_SLOT);
+  });
+
+  it('does not let a favourite override last fortnight', () => {
+    const dishes = library(20, ['lunch']);
+    const picked = rotatePool(dishes, ['lunch'], { avoidSlugs: new Set(['dish-3']), preferSlugs: new Set(['dish-3']), seed: 'user-a:1' }).map(dish => dish.slug);
+
+    expect(picked).not.toContain('dish-3');
+  });
+
   it('never offers what the user had last fortnight', () => {
     const dishes = library(20, ['lunch']);
     const avoid = new Set(['dish-3', 'dish-7', 'dish-11']);

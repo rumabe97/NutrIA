@@ -9,6 +9,7 @@ import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { MacroSummary } from 'components/MacroSummary';
+import { RecipeVerdict } from 'components/RecipeVerdict';
 
 import { API_URL } from 'lib/env';
 import { difficultyLabel, slotLabel } from 'lib/generation';
@@ -44,6 +45,11 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
         <span>{difficultyLabel(meal.difficulty, dictionary)}</span>
         {meal.cuisine ? <span>{meal.cuisine}</span> : null}
       </div>
+
+      {/* The one thing the reader tells us about a dish. It sits by the name, not
+          at the foot of the method: the moment of judgement is when the plate is
+          in front of them, and that is when they are looking here. */}
+      <RecipeVerdict recipeId={meal.recipeId} verdict={meal.verdict} />
 
       {/* An illustration when one has been drawn, and it says so. Nobody cooked this
           dish, so there is no photograph of it and calling a picture one would be the

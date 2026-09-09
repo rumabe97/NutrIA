@@ -370,8 +370,12 @@ export const enGB: Dictionary = {
     dayOf: '{slot} · Day {day}',
     difficulty: { easy: 'Easy', hard: 'Hard', medium: 'Medium' },
     difficultyLabel: 'Difficulty',
+    dislike: 'Not for me',
+    dislikedHint: 'Noted: it will not come back, nor anything close to it.',
     illustration: 'AI-generated illustration',
     ingredients: 'Ingredients',
+    like: 'I like it',
+    likedHint: 'Noted: it may come back, and we will look for dishes along these lines.',
     minutes: '{value} min',
     noCooking: 'No cooking',
     none: '—',
@@ -381,7 +385,8 @@ export const enGB: Dictionary = {
     servingUnitOne: 'serving',
     servingUnitOther: 'servings',
     steps: 'Method',
-    totalMinutes: '{minutes} min in total'
+    totalMinutes: '{minutes} min in total',
+    verdictHint: 'Cook this again? It shapes your next plans.'
   },
 
   onboarding: {

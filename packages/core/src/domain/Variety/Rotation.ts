@@ -47,8 +47,14 @@ export const FRESH_DISHES_PER_SLOT = Math.ceil(DISHES_NEEDED_PER_SLOT * FRESH_SH
 export const REUSED_DISHES_PER_SLOT = DISHES_NEEDED_PER_SLOT - FRESH_DISHES_PER_SLOT;
 
 export type Rotation = {
-  /** Slugs this user was served last fortnight. Never offered again. */
+  /** Slugs this user was served last fortnight, and dishes they disliked. Never offered. */
   readonly avoidSlugs: ReadonlySet<string>;
+  /**
+   * Dishes this user asked to see again. They go to the front of the pick, so a
+   * favourite is in the pool whenever the library may offer it — still never
+   * from last fortnight, which is what `avoidSlugs` says.
+   */
+  readonly preferSlugs?: ReadonlySet<string>;
   /** Anything stable per user and per plan — the same seed always yields the same pick. */
   readonly seed: string;
 };
@@ -121,7 +127,10 @@ export function rotatePool(
   rotation: Rotation,
   perSlot: number = REUSED_DISHES_PER_SLOT
 ): CandidateDish[] {
-  const shuffled = seededShuffle(dishes.filter(dish => !rotation.avoidSlugs.has(dish.slug)), rotation.seed);
+  const eligible = seededShuffle(dishes.filter(dish => !rotation.avoidSlugs.has(dish.slug)), rotation.seed);
+  const preferred = rotation.preferSlugs ?? new Set<string>();
+  // A stable partition: favourites first in their shuffled order, then the rest in theirs.
+  const shuffled = [...eligible.filter(dish => preferred.has(dish.slug)), ...eligible.filter(dish => !preferred.has(dish.slug))];
   const taken = new Map<string, CandidateDish>();
 
   for (const slot of slots) {

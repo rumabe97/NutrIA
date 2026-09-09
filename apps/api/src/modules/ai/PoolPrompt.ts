@@ -34,8 +34,10 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * 2.4.2: a third band. A two-minute tostada is cooking but is not a main course,
  * and the two-way split gave it seven steps, five of them `0 min`. The bands now
  * match the three `domain/Method` enforces.
+ * 2.5.0: the person's verdicts — dishes they loved, to design towards; dishes
+ * they disliked, never to recreate (0014).
  */
-export const PROMPT_VERSION = '2.4.2';
+export const PROMPT_VERSION = '2.5.0';
 
 /** Share of the day each slot carries; mirrors the scheduler's own weights. */
 const SLOT_SHARE: Record<MealSlot, number> = {
@@ -72,6 +74,8 @@ export type PromptContext = {
   readonly cuisines: readonly string[];
   readonly dietaryPatterns: readonly string[];
   readonly dislikedLabels: readonly string[];
+  /** Dishes the person marked as disliked. Already out of reuse; named so the model does not recreate them. */
+  readonly dislikedNames: readonly string[];
   readonly excludeSlugs: readonly string[];
   /**
    * Free-text allergies that matched nothing in the catalogue, exactly as the
@@ -86,6 +90,8 @@ export type PromptContext = {
   /** The language the dish names and steps must come back in. */
   readonly language: string;
   readonly likedLabels: readonly string[];
+  /** Dishes the person marked as liked: the taste to design towards, and dishes that may return. */
+  readonly lovedNames: readonly string[];
   readonly needBySlot: ReadonlyMap<MealSlot, number>;
   /** Free text: "ligeros", "grandes"… */
   readonly portionPreference: string | null;
@@ -269,6 +275,12 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
     '',
     context.avoidNames.length > 0
       ? `SERVED TO THEM LAST FORTNIGHT — propose different dishes, not these or close variations of them: ${context.avoidNames.slice(0, 60).join('; ')}`
+      : '',
+    context.lovedNames.length > 0
+      ? `DISHES THEY SAID THEY LOVED — this is their taste; design new dishes in the same spirit (technique, seasoning, kind of dish), not copies: ${context.lovedNames.slice(0, 40).join('; ')}`
+      : '',
+    context.dislikedNames.length > 0
+      ? `DISHES THEY SAID THEY DISLIKED — do not propose these, close variations of them, or their defining ingredient in the same role: ${context.dislikedNames.slice(0, 40).join('; ')}`
       : '',
     context.dietaryPatterns.length > 0 ? `WAY OF EATING: ${context.dietaryPatterns.join(', ')}` : 'WAY OF EATING: no restriction declared',
     context.cookingTimeMinutes ? `MAXIMUM TIME PER DISH: ${context.cookingTimeMinutes} minutes (prep + cooking)` : '',

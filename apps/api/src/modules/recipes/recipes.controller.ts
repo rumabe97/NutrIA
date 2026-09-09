@@ -1,11 +1,15 @@
-import { Controller, Get, NotFoundException, Param, ParseUUIDPipe, Res } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, ParseUUIDPipe, Put, Res } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { RecipeController } from 'core/controllers/Recipe';
+import { setRecipeVerdictSchema } from 'core/entities/Plan';
 
-import { Public } from '../../shared/decorators/index.js';
+import { CurrentUser, Public } from '../../shared/decorators/index.js';
+import { ZodValidationPipe } from '../../shared/pipes/index.js';
 
 import type { Response } from 'express';
+import type { SessionUser } from '../../shared/decorators/index.js';
+import type { SetRecipeVerdict } from 'core/entities/Plan';
 
 /**
  * Public, and the only public route that serves stored bytes.
@@ -29,5 +33,19 @@ export class RecipesController {
     response.setHeader('Cache-Control', 'public, max-age=31536000, s-maxage=31536000, immutable');
     response.setHeader('Content-Type', image.contentType);
     response.end(image.bytes);
+  }
+
+  @ApiOperation({ summary: 'Say whether this dish should come back — it shapes the next plan' })
+  @Put(':id/verdict')
+  async verdict(
+    @CurrentUser() user: SessionUser,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body(new ZodValidationPipe(setRecipeVerdictSchema)) body: SetRecipeVerdict
+  ): Promise<SetRecipeVerdict> {
+    // The verdict belongs to the session's user; the recipe id is the only thing
+    // the client names, and a recipe that does not exist is a 404 like any denial.
+    await RecipeController.setVerdict(user.id, id, body.verdict);
+
+    return body;
   }
 }

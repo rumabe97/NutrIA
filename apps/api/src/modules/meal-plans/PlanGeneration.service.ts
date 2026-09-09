@@ -70,11 +70,12 @@ export class PlanGenerationService {
   async generate(userId: string, jobId: string, markStep: (step: string) => Promise<void>): Promise<string> {
     await markStep(STEPS.loading);
 
-    const [onboarding, profile, context, history] = await Promise.all([
+    const [onboarding, profile, context, history, verdicts] = await Promise.all([
       OnboardingController.getState(userId),
       ProfileController.getFullProfile(userId),
       RecipeController.generationContext(userId),
-      PlanController.generationHistory(userId)
+      PlanController.generationHistory(userId),
+      RecipeController.verdicts(userId)
     ]);
 
     if (!onboarding.isComplete) {throw new GenerationError('GENERATION_ONBOARDING_INCOMPLETE');}
@@ -91,7 +92,13 @@ export class PlanGenerationService {
     // The seed is the user and the plan version: the library pick is theirs, it is
     // reproducible for a failed generation, and next fortnight's is a different one.
     // What they were served last time is excluded from reuse and named to the model.
-    const rotation: Rotation = { avoidSlugs: new Set(history.recentDishes.map(dish => dish.slug)), seed: `${userId}:${history.nextVersion}` };
+    // A disliked dish is excluded like last fortnight's, for good; a liked one goes to
+    // the front of the library pick. Both are also named to the model (0014).
+    const rotation: Rotation = {
+      avoidSlugs: new Set([...history.recentDishes.map(dish => dish.slug), ...verdicts.disliked.map(dish => dish.slug)]),
+      preferSlugs: new Set(verdicts.liked.map(dish => dish.slug)),
+      seed: `${userId}:${history.nextVersion}`
+    };
     const reusable = await RecipeController.reusablePool(slots, context, rotation);
     const built = await this.pool.build({
       context,
@@ -104,7 +111,9 @@ export class PlanGenerationService {
         cuisines: profile.cuisines,
         dietaryPatterns: profile.dietaryPatterns,
         dislikedLabels: profile.foodPreferences.filter(item => item.sentiment === 'disliked').map(item => item.label),
+        dislikedNames: verdicts.disliked.map(dish => dish.name),
         likedLabels: profile.foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label),
+        lovedNames: verdicts.liked.map(dish => dish.name),
         portionPreference: profile.preferences?.portionPreference ?? null,
         scheduleNotes: profile.preferences?.workScheduleNotes ?? null,
         targets
