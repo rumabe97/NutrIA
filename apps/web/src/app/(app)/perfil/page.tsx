@@ -84,8 +84,7 @@ export default async function ProfilePage() {
           rows={[
             { label: t.displayName, value: person?.displayName },
             { label: dictionary.onboarding.fields.birthDate, value: person?.birthDate },
-            { label: t.height, value: person?.heightCm ? `${formatNumber(person.heightCm, locale)} cm` : undefined },
-            { label: t.country, value: person?.country }
+            { label: t.height, value: person?.heightCm ? `${formatNumber(person.heightCm, locale)} cm` : undefined }
           ]}
           title={t.personalData}
         />

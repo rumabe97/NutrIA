@@ -55,6 +55,14 @@ const GROUP_LABELS: ReadonlyMap<string, readonly FoodClass[]> = new Map([
 export type PreferenceExclusions = {
   /** Every catalogue row a way of eating or a dislike rules out. */
   readonly excludedIngredientIds: ReadonlySet<string>;
+  /**
+   * The longest a dish may take, prep plus cooking, or null when they set none.
+   *
+   * Enforced rather than asked for the reason the whole of `0023` exists: a
+   * person who says thirty minutes and is handed a fifty-minute stew has been
+   * ignored, and the model is the wrong place to guarantee it.
+   */
+  readonly maxMinutesPerDish: number | null;
   /** Dislikes that named nothing the catalogue knows. Asked of the model, never claimed as applied. */
   readonly unenforceableLabels: readonly string[];
 };
@@ -82,6 +90,7 @@ export function resolvePreferences(input: {
   readonly dietaryPatterns: readonly string[];
   readonly dislikedLabels: readonly string[];
   readonly ingredients: readonly CatalogueIngredient[];
+  readonly maxMinutesPerDish?: number | null;
 }): PreferenceExclusions {
   const classes = new Set<FoodClass>(input.dietaryPatterns.flatMap(pattern => PATTERN_EXCLUSIONS[pattern] ?? []));
   const excluded = new Set<string>();
@@ -138,8 +147,13 @@ export function resolvePreferences(input: {
     }
   }
 
-  return { excludedIngredientIds: excluded, unenforceableLabels: unenforceable };
+  return { excludedIngredientIds: excluded, maxMinutesPerDish: input.maxMinutesPerDish ?? null, unenforceableLabels: unenforceable };
 }
 
 /** Nothing excluded — for a caller with no profile to read, and for tests. */
-export const NO_PREFERENCE_EXCLUSIONS: PreferenceExclusions = { excludedIngredientIds: new Set(), unenforceableLabels: [] };
+export const NO_PREFERENCE_EXCLUSIONS: PreferenceExclusions = { excludedIngredientIds: new Set(), maxMinutesPerDish: null, unenforceableLabels: [] };
+
+/** Whether a dish can be cooked in the time they said they have. */
+export function withinTime(dish: { readonly cookMinutes: number; readonly prepMinutes: number }, limit: number | null): boolean {
+  return limit === null || dish.prepMinutes + dish.cookMinutes <= limit;
+}

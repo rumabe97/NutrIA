@@ -36,6 +36,31 @@ export type PromptPreferences = Omit<PromptContext, 'excludeSlugs' | 'forbiddenL
  * Everything the prompt is told about the person, from one place — a whole plan
  * and a single meal's swap describe them the same way.
  */
+/**
+ * The day in one line: when they wake, when they sleep, how often and when they
+ * train.
+ *
+ * These four answers shaped nothing at all — the lifestyle step was stored and
+ * read by no one. They belong here rather than in a rule: what time someone
+ * rises decides whether a breakfast can be cooked or has to travel, and when
+ * they train decides where the heavier plate goes. That is a design judgement,
+ * which is the model's half of the split (0004), so it is asked for and not
+ * enforced. Null when they said nothing, so the prompt gains no empty line.
+ */
+export function dayShapeOf(preferences: FullProfileView['preferences']): string | null {
+  const parts: string[] = [];
+
+  if (preferences?.sleepEnd) {parts.push(`wakes at ${preferences.sleepEnd}`);}
+
+  if (preferences?.sleepStart) {parts.push(`sleeps at ${preferences.sleepStart}`);}
+
+  if (preferences?.trainingDaysPerWeek) {
+    parts.push(preferences.trainingTime ? `trains ${preferences.trainingDaysPerWeek} days a week at ${preferences.trainingTime}` : `trains ${preferences.trainingDaysPerWeek} days a week`);
+  }
+
+  return parts.length > 0 ? parts.join('; ') : null;
+}
+
 export function promptPreferences(
   profile: FullProfileView,
   verdicts: { readonly disliked: readonly { readonly name: string }[]; readonly liked: readonly { readonly name: string }[] },
@@ -59,6 +84,7 @@ export function promptPreferences(
     cookingFrequency: profile.preferences?.cookingFrequency ?? null,
     cookingTimeMinutes: profile.preferences?.cookingTimeMinutes ?? null,
     cuisines: profile.cuisines,
+    dayShape: dayShapeOf(profile.preferences),
     dietaryPatterns: profile.dietaryPatterns,
     // Only the ones the catalogue could not resolve: the rest are already gone
     // from the catalogue the model is shown, and repeating them as a request

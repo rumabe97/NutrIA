@@ -221,6 +221,10 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   reports a failed generation. It sends the error, its stack and the route *pattern* only:
   `beforeSend` deletes request, user and response context, and messages go through
   `redactSecrets`. Never add a body, a header or an id to a report.
+- **Every answer changes something** (`0025`): before adding an onboarding field, decide which
+  it is — a rule in code or a line in the prompt — and say so where it is read. The cooking-time
+  limit is a rule (`withinTime`, applied in `PoolBuilder` and in reuse); the day
+  (`dayShapeOf`) is a prompt line. A field that is neither does not get asked.
 - **Preferences are enforced** (`0023`): `GenerationContext.preferences` carries the ingredient ids
   a way of eating or a dislike rules out, resolved once in `RecipeController.generationContext`.
   `PoolBuilder` filters the catalogue it shows the model and drops a dish that uses one anyway;

@@ -161,7 +161,7 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
 
     switch (current?.key) {
       case 'about-you':
-        return { birthDate: text('birthDate'), country: text('country'), displayName: text('displayName'), sex: text('sex') };
+        return { birthDate: text('birthDate'), displayName: text('displayName'), sex: text('sex') };
 
       case 'goal':
         return { customGoal: text('customGoal'), paceKgPerWeek: number('paceKgPerWeek'), targetWeightKg: number('targetWeightKg'), type: text('type') };
@@ -300,10 +300,11 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
         {current?.key === 'about-you' ? (
           <Fragment>
             <Input defaultValue={person?.displayName ?? ''} error={fieldError('displayName')} label={f.displayName} name="displayName" />
-            <div className={styles.row}>
-              <Input defaultValue={person?.birthDate ?? ''} error={fieldError('birthDate')} label={f.birthDate} name="birthDate" type="date" />
-              <Input defaultValue={person?.country ?? 'ES'} hint={f.countryHint} label={f.country} maxLength={2} name="country" />
-            </div>
+            {/* No country field: nothing reads it, the catalogue is Spanish, and a
+                question whose answer changes nothing is a question not worth asking
+                (0025). The column and the stored values stay for the day the
+                catalogue knows more than one country. */}
+            <Input defaultValue={person?.birthDate ?? ''} error={fieldError('birthDate')} label={f.birthDate} name="birthDate" type="date" />
             <fieldset className={styles.fieldset}>
               <legend className={styles.legend}>{f.sex}</legend>
               <OptionCards name="sex" options={options.sex} value={person?.sex} />

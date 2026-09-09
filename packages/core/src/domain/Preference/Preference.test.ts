@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { NO_PREFERENCE_EXCLUSIONS, PATTERN_EXCLUSIONS, resolvePreferences } from 'core/domain/Preference';
+import { NO_PREFERENCE_EXCLUSIONS, PATTERN_EXCLUSIONS, resolvePreferences, withinTime } from 'core/domain/Preference';
 import { makeCatalogueIngredient } from '#test/fixtures';
 
 import type { CatalogueIngredient } from 'core/entities/Plan';
@@ -101,8 +101,26 @@ describe('resolvePreferences — a way of eating', () => {
     expect(result.excludedIngredientIds.has('i-pechuga-de-pollo')).toBe(true);
   });
 
+  it('carries the cooking-time limit, and nothing when none was set', () => {
+    expect(resolvePreferences({ dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE, maxMinutesPerDish: 25 }).maxMinutesPerDish).toBe(25);
+    expect(resolvePreferences({ dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE }).maxMinutesPerDish).toBeNull();
+  });
+
   it('is empty when nothing was said', () => {
     expect(resolvePreferences({ dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE }).excludedIngredientIds.size).toBe(0);
     expect(NO_PREFERENCE_EXCLUSIONS.excludedIngredientIds.size).toBe(0);
+  });
+});
+
+describe('withinTime — the minutes they said they have', () => {
+  const dish = (prepMinutes: number, cookMinutes: number) => ({ cookMinutes, prepMinutes });
+
+  it('counts prep and cooking together, against the limit', () => {
+    expect(withinTime(dish(10, 20), 30)).toBe(true);
+    expect(withinTime(dish(10, 21), 30)).toBe(false);
+  });
+
+  it('lets everything through when no limit was set', () => {
+    expect(withinTime(dish(60, 120), null)).toBe(true);
   });
 });

@@ -3,7 +3,7 @@ import { rotatePool } from 'core/domain/Variety';
 import { dishSafety } from 'core/domain/Safety';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
-import { resolvePreferences } from 'core/domain/Preference';
+import { resolvePreferences, withinTime } from 'core/domain/Preference';
 import { SafetyController } from 'core/controllers/Safety';
 import { NotFoundError } from 'core/entities/Error';
 import { toCatalogue } from 'core/entities/Plan';
@@ -89,11 +89,12 @@ export const RecipeController = {
     const profile = await ProfileRepository.findByUserId(userId);
     const locale = profile?.locale ?? FALLBACK_LOCALE;
 
-    const [catalogue, safety, dietaryPatterns, foodPreferences] = await Promise.all([
+    const [catalogue, safety, dietaryPatterns, foodPreferences, preferred] = await Promise.all([
       RecipeRepository.loadCatalogue(locale),
       SafetyController.getSafetyProfile(userId),
       ProfileRepository.findDietaryPatterns(userId),
-      ProfileRepository.findFoodPreferences(userId)
+      ProfileRepository.findFoodPreferences(userId),
+      ProfileRepository.findPreferences(userId)
     ]);
 
     // Resolved here, once, for the same reason the safety profile is: a rule
@@ -101,7 +102,8 @@ export const RecipeController = {
     const preferences = resolvePreferences({
       dietaryPatterns,
       dislikedLabels: foodPreferences.filter(item => item.sentiment === 'disliked').map(item => item.label),
-      ingredients: catalogue
+      ingredients: catalogue,
+      maxMinutesPerDish: preferred?.cookingTimeMinutes ?? null
     });
 
     return { catalogue: toCatalogue(catalogue), locale, preferences, safety };
@@ -151,7 +153,8 @@ export const RecipeController = {
         recipe =>
           hasUsableMethod(recipe) &&
           dishSafety(recipe.ingredients, context.catalogue, context.safety).kind === 'safe' &&
-          !usesExcluded(recipe.ingredients, context)
+          !usesExcluded(recipe.ingredients, context) &&
+          withinTime(recipe, context.preferences.maxMinutesPerDish)
       )
       .map(toCandidateDish);
 

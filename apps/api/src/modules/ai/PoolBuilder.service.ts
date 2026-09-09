@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { dishSafety, findSafetyViolations } from 'core/domain/Safety';
+import { withinTime } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
 import { AiClient } from './clients/AiClient.js';
@@ -229,6 +230,13 @@ export class PoolBuilder {
 
     if (unwanted.length > 0) {
       this.logger.warn(`Dish "${dish.name}" rejected: ${unwanted.join(', ')} is ruled out by their way of eating or dislikes`);
+
+      return undefined;
+    }
+
+    // The prompt states the limit; this is what makes it true.
+    if (!withinTime(dish, context.preferences.maxMinutesPerDish)) {
+      this.logger.warn(`Dish "${dish.name}" rejected: ${dish.prepMinutes + dish.cookMinutes} min over their ${String(context.preferences.maxMinutesPerDish)} min limit`);
 
       return undefined;
     }

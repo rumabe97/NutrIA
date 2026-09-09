@@ -40,7 +40,7 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * 2.6.0: the last fortnight's check-in — how the portions felt, how hard the plan
  * was, their own words (0018).
  */
-export const PROMPT_VERSION = '2.7.0';
+export const PROMPT_VERSION = '2.8.0';
 
 /** Share of the day each slot carries; mirrors the scheduler's own weights. */
 const SLOT_SHARE: Record<MealSlot, number> = {
@@ -77,6 +77,8 @@ export type PromptContext = {
   readonly cookingFrequency: string | null;
   readonly cookingTimeMinutes: number | null;
   readonly cuisines: readonly string[];
+  /** When they wake, when they sleep, and when they train — the shape of the day a plan has to fit. */
+  readonly dayShape: string | null;
   readonly dietaryPatterns: readonly string[];
   readonly dislikedLabels: readonly string[];
   /** Dishes the person marked as disliked. Already out of reuse; named so the model does not recreate them. */
@@ -308,6 +310,7 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
     oneLine(context.portionPreference) ? `- Plates they like: ${oneLine(context.portionPreference)}` : '',
     context.cookingFrequency ? `- Cooks: ${context.cookingFrequency}` : '',
     oneLine(context.scheduleNotes) ? `- Their week: ${oneLine(context.scheduleNotes)}` : '',
+    context.dayShape ? `- Their day: ${context.dayShape}` : '',
     '',
     context.avoidNames.length > 0
       ? `SERVED TO THEM LAST FORTNIGHT — propose different dishes, not these or close variations of them: ${context.avoidNames.slice(0, 60).join('; ')}`
