@@ -80,7 +80,7 @@ from local development:
 | `DIRECT_DATABASE_URL` | Neon's **direct** endpoint — the build runs migrations through it |
 | `AI_REWRITE_STEPS` | `false` on a free-tier project: the rewrite sweep would spend the daily request cap generation needs in ~2 hours; `true` with billing |
 | `AI_ILLUSTRATIONS` | `false` until billing is enabled on the Google AI project (its free tier allows **zero** image generations); then `true` |
-| `CRON_SECRET` | any 16+ characters (`openssl rand -base64 32`); the platform sends it as a bearer on all three crons — illustrations every 10 minutes, step rewrites every 5, check-in reminders daily at 08:00 UTC (`0027`). Unset, the routes 404 and say so in the log |
+| `CRON_SECRET` | any 16+ characters (`openssl rand -base64 32`); the platform sends it as a bearer on a cron call. **No cron is scheduled today** — see §3b. Unset, the routes 404 and say so in the log |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | the password-reset sender (`0019`), see §5c. All five together or none: a host without credentials or a sender is refused at boot. With none, reset links go to the log and nobody receives them |
 
 `Env.validation.ts` refuses to boot on a bad environment and reports every problem at
@@ -132,6 +132,28 @@ them), the entry has been pointed back at a `.ts` file — see `apps/api/AGENTS.
 `ignoreCommand` skips every branch but `main`. This is deliberate: a preview URL is
 in neither `ALLOWED_ORIGINS` nor `COOKIE_DOMAIN`, so authentication cannot work on
 one, and a preview that half-works is worse than none.
+
+## 3b. The crons are off
+
+`apps/api/vercel.json` has **no `crons` block**, so the platform schedules nothing and the
+three routes are only reachable by hand with the bearer. They were removed on 2026-09-09,
+at the owner's request, while the project runs on free tiers.
+
+| Route | What it spends | Also gated by |
+| --- | --- | --- |
+| `/api/v1/cron/illustrate` | one image generation per recipe — the expensive one | `AI_ILLUSTRATIONS`, off by default |
+| `/api/v1/cron/rewrite-steps` | one text generation per recipe, from the same daily cap generation needs | `AI_REWRITE_STEPS`, off by default |
+| `/api/v1/cron/reminders` | **nothing from the AI provider** — one SMTP send per account, at most once a fortnight | `SMTP_HOST`; sends nothing without it |
+
+Turning one back on is putting its entry back:
+
+```jsonc
+"crons": [{ "path": "/api/v1/cron/reminders", "schedule": "0 8 * * *" }]
+```
+
+Vercel reads the block at deploy time, so a redeploy is what starts it. Note that a
+scheduled call costs a function invocation whether or not the route does any work: with the
+block removed, even that stops.
 
 ## 4. Long work outlives the response
 

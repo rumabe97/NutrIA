@@ -48,3 +48,14 @@ that stops it.**
 - The other notification types the schema reserves — `plan_ready`,
   `shopping_ready`, `meal_reminder`, `plan_failed` — stay unused. Each would
   need its own case for existing at all, and "we could" is not one.
+
+## Amendment — 2026-09-09
+
+The schedule is removed. The owner asked for every cron to be off while the
+project runs on free tiers, and this one went with the other two even though it
+spends nothing from the AI provider — a scheduled call still costs a function
+invocation, and one exception is a thing to remember rather than a rule.
+
+The sweep, the switch and the mail are unchanged and tested; nothing calls them
+until an entry goes back into `apps/api/vercel.json` (§3b of the runbook). Until
+then the check-in card on the dashboard is the only nudge, as it was before.

@@ -216,11 +216,13 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   model only when the library has nothing for the slot) and rebuilds the shopping list in the
   same transaction. A spent allowance is 429 `QUOTA_EXCEEDED`, with `retryAt` when it renews
   on a date. The redo check lives in `PlanJobController.start`, never in a route.
-- **Reminders** (`0027`): `/cron/reminders` daily, guarded by `CRON_SECRET` like the other two
+- **Reminders** (`0027`): `/cron/reminders`, guarded by `CRON_SECRET` like the other two
   sweeps. `CheckInReminderService` sends one mail per fortnight to accounts whose plan reached
   its last day, and writes the `notifications` row only after the provider accepted it — the
   row is what stops a second one. Never put plan or health content in a reminder; it is read on
-  a lock screen. `PATCH /notifications/settings` is the switch.
+  a lock screen. `PATCH /notifications/settings` is the switch. **No cron is scheduled**: the
+  `crons` block is out of `apps/api/vercel.json` while the project runs on free tiers, so all
+  three routes only run when called by hand with the bearer.
 - **Error reporting** (`0024`): `ErrorReporter` in `shared/observability` — off without
   `SENTRY_DSN`. The exception filter reports what it turns into a 5xx and `PlanJobRunner`
   reports a failed generation. It sends the error, its stack and the route *pattern* only:

@@ -1,7 +1,9 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
-  "regions": ["fra1"],
+  "regions": [
+    "fra1"
+  ],
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm run vercel-build",
   "ignoreCommand": "if [ \"$VERCEL_GIT_COMMIT_REF\" != \"main\" ]; then echo \"Skipping deployment for $VERCEL_GIT_COMMIT_REF\"; exit 0; fi; exit 1",
@@ -19,20 +21,6 @@
     {
       "src": "/(.*)",
       "dest": "vercel/index.js"
-    }
-  ],
-  "crons": [
-    {
-      "path": "/api/v1/cron/illustrate",
-      "schedule": "*/10 * * * *"
-    },
-    {
-      "path": "/api/v1/cron/rewrite-steps",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/v1/cron/reminders",
-      "schedule": "0 8 * * *"
     }
   ]
 }
