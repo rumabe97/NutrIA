@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { dishSafety, findSafetyViolations, isSafe, toSafetyProfile } from 'core/domain/Safety';
+import { dishSafety, findSafetyViolations, isSafe, madeOf, toSafetyProfile } from 'core/domain/Safety';
 import { toCatalogue } from 'core/entities/Plan';
 import { ALLERGEN_IDS, makeIngredient, makeSafetyProfile } from '#test/fixtures';
 
@@ -260,5 +260,40 @@ describe('dishSafety — the one gate both generation and reuse pass through', (
     const sensitive = makeSafetyProfile({ crossContaminationAllergenIds: new Set([ALLERGEN_IDS.gluten]) });
 
     expect(dishSafety([{ slug: 'avena' }], catalogue, sensitive).kind).toBe('unsafe');
+  });
+});
+
+describe('madeOf — a free-text allergy excludes what is made of it', () => {
+  const catalogue = [
+    { id: 'i-tomate', name: 'Tomate', slug: 'tomate' },
+    { id: 'i-frito', name: 'Tomate frito', slug: 'tomate-frito' },
+    { id: 'i-zumo', name: 'Zumo de tomate', slug: 'zumo-de-tomate' },
+    { id: 'i-tomatillo', name: 'Tomatillo', slug: 'tomatillo' },
+    { id: 'i-pan', name: 'Pan', slug: 'pan' },
+    { id: 'i-rallado', name: 'Pan rallado', slug: 'pan-rallado' },
+    { id: 'i-panceta', name: 'Panceta', slug: 'panceta' },
+    { id: 'i-pollo', name: 'Pechuga de pollo', slug: 'pechuga-de-pollo' },
+    { id: 'i-pollo-plancha', name: 'Pechuga de pollo a la plancha', slug: 'pechuga-de-pollo-a-la-plancha' }
+  ];
+
+  it('finds every slug that carries the anchor as whole tokens, and nothing that merely starts like it', () => {
+    expect([...madeOf(['i-tomate'], catalogue)].sort()).toEqual(['i-frito', 'i-tomate', 'i-zumo']);
+    expect([...madeOf(['i-pan'], catalogue)].sort()).toEqual(['i-pan', 'i-rallado']);
+  });
+
+  it('matches a multi-word anchor as a run, in order', () => {
+    expect([...madeOf(['i-pollo'], catalogue)].sort()).toEqual(['i-pollo', 'i-pollo-plancha']);
+  });
+
+  it('is nothing without an anchor or without a catalogue', () => {
+    expect(madeOf([], catalogue)).toEqual([]);
+    expect(madeOf(['i-tomate'], [])).toEqual([]);
+  });
+
+  it('lands in the profile as excluded ingredients, alongside the anchor', () => {
+    const profile = toSafetyProfile([], [], [{ ingredientId: 'i-tomate', label: 'tomate' }, { ingredientId: null, label: 'polen' }], catalogue);
+
+    expect([...profile.excludedIngredientIds].sort()).toEqual(['i-frito', 'i-tomate', 'i-zumo']);
+    expect(profile.unenforceableLabels).toEqual(['polen']);
   });
 });

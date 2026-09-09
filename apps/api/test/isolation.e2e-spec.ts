@@ -4,7 +4,7 @@ import { Test } from '@nestjs/testing';
 import express from 'express';
 
 import { AppModule } from '../src/app.module.js';
-import { httpServer } from './harness.js';
+import { activate, httpServer } from './harness.js';
 
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { INestApplication } from '@nestjs/common';
@@ -31,6 +31,7 @@ describe('user data isolation', () => {
     const password = 'correct-horse-battery-staple-9';
 
     await request(httpServer(app)).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: email.split('@')[0], password }).expect(200);
+    await activate(email);
 
     const signIn = await request(httpServer(app)).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password }).expect(200);
     const cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');

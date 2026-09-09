@@ -94,7 +94,9 @@ describe('allergy safety', () => {
     expect(glutenId).not.toBe('');
 
     user = await register(app, `celiac-${Date.now()}@e2e.invalid`);
-    await completeOnboarding(app, user, [glutenId]);
+    // Trace-sensitive, so `may_contain` counts too: the seed marks oats as a trace
+    // carrier, and the suite's premise is that bread *and* oats are forbidden.
+    await completeOnboarding(app, user, [glutenId], [], true);
   }, 120_000);
 
   afterAll(async () => {

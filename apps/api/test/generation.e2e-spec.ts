@@ -87,6 +87,10 @@ describe('plan generation', () => {
     bob = await register(app, `bob-${stamp}@e2e.invalid`);
 
     await completeOnboarding(app, alice);
+    // Bob is onboarded too: an account still in onboarding answers 409 on every
+    // plan route before ownership is even asked, and the isolation checks below
+    // are about ownership.
+    await completeOnboarding(app, bob);
 
     const job = await generateAndWait(app, alice);
 
@@ -154,6 +158,7 @@ describe('plan generation', () => {
     // Sum the scaled ingredients of every meal in the plan, from the API's own
     // meal-detail responses, and require the list to match.
     const expected = new Map<string, number>();
+    const occurrences = new Map<string, number>();
 
     for (const day of plan.days) {
       for (const meal of day.meals) {
@@ -161,6 +166,7 @@ describe('plan generation', () => {
 
         for (const item of (detail.body as { ingredients: readonly { grams: number; name: string }[] }).ingredients) {
           expected.set(item.name, (expected.get(item.name) ?? 0) + item.grams);
+          occurrences.set(item.name, (occurrences.get(item.name) ?? 0) + 1);
         }
       }
     }
@@ -168,8 +174,17 @@ describe('plan generation', () => {
     expect(list.items).toHaveLength(expected.size);
 
     for (const item of list.items) {
-      // Rounding is to one decimal at each step, so allow a gram of drift over ~40 additions.
-      expect({ matches: Math.abs(item.totalGrams - (expected.get(item.name) ?? 0)) <= 1, name: item.name }).toEqual({ matches: true, name: item.name });
+      // Each meal-detail figure is rounded to one decimal (±0.05 g) and the list
+      // rounds once more, so the drift a *correct* list may show grows with the
+      // number of meals the ingredient appears in. A flat gram was too tight for
+      // an ingredient in every breakfast.
+      const count = occurrences.get(item.name) ?? 0;
+      const drift = Math.abs(item.totalGrams - (expected.get(item.name) ?? 0));
+      const tolerance = 0.05 * count + 0.1;
+
+      // Shaped so a failure names the ingredient, the drift and how many meals it
+      // was added over — the three things needed to tell rounding from an error.
+      expect({ drift: drift <= tolerance ? 0 : Math.round(drift * 100) / 100, meals: count, name: item.name }).toEqual({ drift: 0, meals: count, name: item.name });
     }
   }, 120_000);
 

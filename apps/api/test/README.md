@@ -33,6 +33,28 @@ pnpm --filter api test:e2e
 **Never point these at a database holding real user data.** Every suite registers accounts
 and deletes them again in `afterAll`.
 
+Set `AI_PROVIDER=stub` and leave `SMTP_HOST` empty for the run: the suites never call a
+provider (below) and must never send a mail, and the environment contract refuses a half
+mail configuration anyway. `NODE_ENV=test` keeps the development-only rules.
+
+### A throwaway database without Docker
+
+This machine has neither Docker nor a local Postgres, and Neon's free tier allows one
+branch per project besides the default. A second **database on the dev branch** is the
+throwaway: `create database nutria_e2e;` once, from the SQL editor or any client connected
+to the dev branch's direct endpoint, then point both URLs above at it by replacing
+`/neondb` with `/nutria_e2e` in the dev branch's connection strings. Migrations and the
+seed run against it like any other database (the seed takes about ten minutes from here);
+dropping it afterwards is `drop database nutria_e2e;`.
+
+### Accounts are opened by hand
+
+Access opens account by account (`0017`): a fresh sign-up answers 409 `EMAIL_UNVERIFIED`
+on every route past sign-in. `harness.ts` → `activate()` flips the flag the way the owner
+does, through `UserController.activate`, right after each registration. A suite that
+registers on its own must call it too, or its first `PATCH /profile` fails with the
+product working exactly as designed.
+
 ## Why the seed is required
 
 `generation.e2e-spec.ts` and `allergy-safety.e2e-spec.ts` script dishes from ingredient
@@ -48,6 +70,33 @@ shopping list reads "Cooked white rice" rather than "Arroz blanco cocido". Apply
 migration `0007` without re-running the seed leaves every ingredient with only its Spanish
 name, which is a legitimate runtime state (the resolver falls back and logs the gap) and a
 failing test.
+
+## What a first real run changed
+
+The suites were written and type-checked but had never been executed. Running them
+against a real catalogue found four things, all of them fixed rather than
+accommodated:
+
+1. **A free-text allergy excluded one row, not the food.** A tomato allergy
+   resolved to `tomate` and left `tomate-frito`, `zumo-de-tomate` and seven more
+   on the model's list. `madeOf` in `core/domain/Safety` now excludes every row
+   whose slug carries the anchor as whole tokens (0004, amended).
+2. **The stand-in model returned the same dishes on every call.** A slot needs
+   seven distinct dishes for a fortnight, and a redo needs dishes it has not
+   served; a real model writes new ones each time. `ScriptedAiClient` now numbers
+   variants, so each call yields fresh names and fresh slugs for the same
+   ingredients — which is what the suites are about.
+3. **Two fixtures collided with the catalogue.** "Proteína de suero" is both the
+   suite's supplement and a real ingredient, so "never appears in a prompt" could
+   not pass. The supplement is now something the catalogue does not sell.
+4. **Hooks timed out at jest's 5 s default** against a remote database. The
+   config sets `testTimeout` once for every suite; the suites are not about
+   latency.
+
+The shopping-list reconciliation allows drift proportional to how many meals an
+ingredient appears in (±0.05 g per rounded figure), not a flat gram: an
+ingredient in every breakfast accumulates more rounding than one in a single
+dish, and the flat bound failed on oats.
 
 ## The scripted model
 

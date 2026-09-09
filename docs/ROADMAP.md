@@ -11,8 +11,10 @@
 
 [`002-plan-generation`](./projects/002-plan-generation/) — **delivered**, confirmed
 working end to end by the owner on 2026-09-07 against a live database and a real AI
-provider. One gate remains: phase 7's end-to-end suites are written and type-checked but
-have never been executed, and want a throwaway database rather than the working one.
+provider. Phase 7's end-to-end suites now run: 31 tests, seven suites, against a
+throwaway database on the dev branch with a scripted model (see
+`apps/api/test/README.md`). Their first execution found a real safety gap in
+free-text allergies, fixed in `0004`'s amendment.
 
 Next: [`003-trust-depth-and-polish`](./projects/003-trust-depth-and-polish/) — PRD
 approved, plan being written. Trustworthy and overridable targets, onboarding that
@@ -64,6 +66,6 @@ screens at phone width, which closes project 002's two open gates.
 - Vacation mode — a temporary lifestyle override that does not destroy the normal plan.
 - Analytics on the events already reserved in `analytics_events`.
 - CI. The deployment is live (`docs/reference/deployment.md`) but no workflow runs the gate
-  before the host builds `main`; the end-to-end suites still want a throwaway database.
+  before the host builds `main`, and nothing runs the end-to-end suites automatically.
 - Error visibility. Failures reach the owner as screenshots; an error tracker's free tier
   would reach them first.

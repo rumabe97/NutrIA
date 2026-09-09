@@ -41,6 +41,21 @@ export const UserRepository = {
     } catch (error: unknown) {
       throw wrap(error);
     }
+  },
+
+  /**
+   * Opens the account (0017): the one write this repository makes to a table
+   * Better Auth owns, because it is the switch the owner throws by hand today
+   * and an admin screen will throw tomorrow. True when a row was updated.
+   */
+  async markEmailVerified(email: string): Promise<boolean> {
+    try {
+      const rows = await database().update(user).set({ emailVerified: true, updatedAt: new Date() }).where(eq(user.email, email)).returning({ id: user.id });
+
+      return rows.length > 0;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
   }
 };
 

@@ -26,6 +26,10 @@ import type { INestApplication } from '@nestjs/common';
  */
 
 const MEDICATION = 'Levotiroxina';
+/* Deliberately not a catalogue ingredient: whey protein is one, and a supplement
+   sharing its name with something the model may legitimately be offered would make
+   this assertion unpassable rather than meaningful. */
+const SUPPLEMENT = 'Colágeno hidrolizado';
 const CONSENT_VERSION = '1.0.0';
 
 const POOL = [
@@ -97,7 +101,9 @@ describe('recorded health data, end to end', () => {
         conditions: [{ conditionKey: 'hypothyroidism', label: 'Hipotiroidismo' }],
         consentVersion: CONSENT_VERSION,
         medications: [{ name: MEDICATION }],
-        supplements: [{ name: 'Proteína de suero', proteinGPerServing: 24, servingsPerDay: 1 }]
+        // Not a catalogue ingredient: whey protein is one, and a supplement that shares
+        // its name with something the model may legitimately be offered proves nothing.
+        supplements: [{ name: SUPPLEMENT, proteinGPerServing: 24, servingsPerDay: 1 }]
       })
       .expect(200);
   }, 120_000);
@@ -138,7 +144,7 @@ describe('recorded health data, end to end', () => {
       expect(prompt).not.toContain(MEDICATION.toLowerCase());
       expect(prompt).not.toContain('hipotiroidismo');
       expect(prompt).not.toContain('hypothyroid');
-      expect(prompt).not.toContain('proteína de suero');
+      expect(prompt).not.toContain(SUPPLEMENT.toLowerCase());
     }
   }, 200_000);
 

@@ -48,6 +48,11 @@ function presentUser(user: User): UserView {
 // --- Controller ---------------------------------------------------------------
 
 export const UserController = {
+  /** Opens an account (0017) — what the owner does by hand today. True when the account existed. */
+  async activate(email: string): Promise<boolean> {
+    return UserRepository.markEmailVerified(email);
+  },
+
   /**
    * `id` must come from the verified session. There is deliberately no
    * "get any user" method: a caller that could pass an arbitrary id would be one

@@ -57,9 +57,14 @@ export const SafetyController = {
       .filter(allergen => derivedKeys.includes(allergen.key))
       .map(allergen => ({ allergenId: allergen.id, crossContaminationSensitive: false }));
 
+    // A free-text allergy that resolved to a row also excludes every row made of
+    // it (`madeOf`), which needs the catalogue's slugs — loaded only when there
+    // is something to expand, since most profiles have no free-text entry.
+    const ingredients = customAllergens.some(entry => entry.ingredientId !== null) ? await SafetyRepository.listMatchableIngredients() : [];
+
     // Sets, so a user who both declared gluten and recorded coeliac disease is
     // not counted twice — and so their own trace setting survives the merge.
-    return toSafetyProfile([...allergies, ...derived], intolerances, customAllergens);
+    return toSafetyProfile([...allergies, ...derived], intolerances, customAllergens, ingredients);
   },
 
   async listAllergens(): Promise<readonly Allergen[]> {

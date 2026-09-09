@@ -4,6 +4,8 @@ import request from 'supertest';
 import type { Response } from 'supertest';
 import { Test } from '@nestjs/testing';
 
+import { UserController } from 'core/controllers/User';
+
 import { AiClient } from '../src/modules/ai/clients/AiClient.js';
 import { AppModule } from '../src/app.module.js';
 
@@ -21,7 +23,18 @@ export function httpServer(app: INestApplication): Server {
 export type Account = { readonly id: string; readonly cookie: string; readonly email: string; };
 
 /**
- * A model stand-in that returns exactly the dishes a test dictates.
+ * How many named variants of each scripted dish a call returns. The variety
+ * rules allow a dish twice a fortnight (`0009`), so a slot needs at least seven
+ * distinct dishes, and a redo must find dishes it has not served — a real model
+ * answers both by writing new dishes every time. The stand-in does the same by
+ * numbering: every call yields fresh names, and so fresh slugs, for the same
+ * ingredients, which is what the suites are about.
+ */
+const VARIANTS_PER_DISH = 3;
+
+/**
+ * A model stand-in that returns the dishes a test dictates — as many named
+ * variants of each as a real model would return distinct dishes.
  *
  * These suites must never call a real provider: they would be slow, cost money, and
  * — fatally for the safety suite — non-deterministic, so "the allergy gate held"
@@ -49,8 +62,17 @@ export class ScriptedAiClient extends AiClient {
     this.calls += 1;
     this.prompts.push(request.prompt);
 
+    const call = this.calls;
+    const dishes = this.dishes.flatMap(base =>
+      Array.from({ length: VARIANTS_PER_DISH }, (_, index) => {
+        const named = base as { name: string };
+
+        return { ...named, name: `${named.name} ${call}.${index + 1}` };
+      })
+    );
+
     return Promise.resolve({
-      object: { dishes: this.dishes } as T,
+      object: { dishes } as T,
       usage: { calls: 1, inputTokens: 0, model: 'scripted', outputTokens: 0 }
     });
   }
@@ -107,11 +129,21 @@ export async function createApp(ai: AiClient): Promise<INestApplication> {
   return app;
 }
 
+/**
+ * Opens the account the way the owner does (0017): a row update, since no
+ * verification mail is sent. Without it every route past sign-in answers
+ * 409 EMAIL_UNVERIFIED, which is the product working and the suite failing.
+ */
+export async function activate(email: string): Promise<void> {
+  if (!(await UserController.activate(email))) {throw new Error(`No account to activate for ${email}`);}
+}
+
 export async function register(app: INestApplication, email: string): Promise<Account> {
   const password = 'correct-horse-battery-staple-9';
   const server = httpServer(app);
 
   await request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: email.split('@')[0], password }).expect(200);
+  await activate(email);
 
   const signIn: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password }).expect(200);
   const cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
@@ -121,11 +153,17 @@ export async function register(app: INestApplication, email: string): Promise<Ac
 }
 
 /** Walks the eight required onboarding steps so a plan may be generated. */
+/** The scripted name behind a served dish name — the per-call variant suffix removed. */
+export function scriptedName(name: string): string {
+  return name.replace(/ \d+\.\d+$/, '');
+}
+
 export async function completeOnboarding(
   app: INestApplication,
   account: Account,
   allergenIds: readonly string[] = [],
-  customAllergens: readonly string[] = []
+  customAllergens: readonly string[] = [],
+  crossContaminationSensitive = false
 ): Promise<void> {
   const server = httpServer(app);
   const patch = async (step: string, data: unknown) =>
@@ -137,7 +175,7 @@ export async function completeOnboarding(
   await patch('how-you-eat', { includesSnacks: false, mealsPerDay: 3 });
   await patch('food-preferences', { cuisines: ['Mediterránea'], preferences: [] });
   await patch('allergies', {
-    allergies: allergenIds.map(allergenId => ({ allergenId, crossContaminationSensitive: false, severity: 'moderate' as const })),
+    allergies: allergenIds.map(allergenId => ({ allergenId, crossContaminationSensitive, severity: 'moderate' as const })),
     customAllergens,
     dietaryPatterns: [],
     intolerances: []

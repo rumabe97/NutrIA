@@ -1,4 +1,5 @@
 import type { Catalogue } from 'core/entities/Plan';
+import type { MatchableIngredient } from './CustomAllergen';
 import type { SafetyProfile } from 'core/entities/Safety';
 
 export type IngredientAllergenLink = {
@@ -100,17 +101,44 @@ export function isSafe(ingredients: readonly CheckedIngredient[], profile: Safet
 export function toSafetyProfile(
   allergies: readonly { allergenId: string; crossContaminationSensitive: boolean }[],
   intolerances: readonly { allergenId: string }[],
-  customAllergens: readonly { ingredientId: string | null; label: string }[] = []
+  customAllergens: readonly { ingredientId: string | null; label: string }[] = [],
+  ingredients: readonly MatchableIngredient[] = []
 ): SafetyProfile {
+  const anchors = customAllergens.map(entry => entry.ingredientId).filter((id): id is string => id !== null);
+
   return {
     allergenIds: new Set(allergies.map(a => a.allergenId)),
     crossContaminationAllergenIds: new Set(allergies.filter(a => a.crossContaminationSensitive).map(a => a.allergenId)),
-    excludedIngredientIds: new Set(customAllergens.map(entry => entry.ingredientId).filter((id): id is string => id !== null)),
+    excludedIngredientIds: new Set([...anchors, ...madeOf(anchors, ingredients)]),
     intoleranceAllergenIds: new Set(intolerances.map(i => i.allergenId)),
     // The split is the whole point: what resolved is enforced, what did not is
     // carried separately and labelled as unenforceable all the way to the screen.
     unenforceableLabels: customAllergens.filter(entry => entry.ingredientId === null).map(entry => entry.label)
   };
+}
+
+/**
+ * Every catalogue row made of an excluded ingredient, by its slug.
+ *
+ * A free-text allergy resolves to one row — "tomate" to `tomate` — and the
+ * catalogue also holds `tomate-frito`, `zumo-de-tomate`, `concentrado-de-tomate`.
+ * Excluding the one row while the interface says the allergy is enforced is the
+ * failure `CustomAllergen` warns about, in the other direction: narrower than
+ * the word the person used. So the anchor's slug, as whole hyphen-separated
+ * tokens, is looked for as a run inside every other slug: `tomate` is in
+ * `zumo-de-tomate` and not in `tomatillo`; `pan` is in `pan-rallado` and not in
+ * `panceta`. Whole tokens, not substrings, and only downstream of an exact
+ * match — the matching rule itself is unchanged.
+ */
+export function madeOf(anchorIds: readonly string[], ingredients: readonly MatchableIngredient[]): readonly string[] {
+  if (anchorIds.length === 0 || ingredients.length === 0) {return [];}
+
+  const byId = new Map(ingredients.map(ingredient => [ingredient.id, ingredient]));
+  const runs = anchorIds.map(id => byId.get(id)?.slug.split('-') ?? []).filter(tokens => tokens.length > 0);
+  const containsRun = (tokens: readonly string[], run: readonly string[]): boolean =>
+    tokens.some((_token, start) => run.every((word, offset) => tokens[start + offset] === word));
+
+  return ingredients.filter(ingredient => runs.some(run => containsRun(ingredient.slug.split('-'), run))).map(ingredient => ingredient.id);
 }
 
 export type DishSafety =

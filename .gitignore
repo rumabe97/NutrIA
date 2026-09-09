@@ -55,3 +55,6 @@ yarn-error.log*
 .serena/
 .claude/.headroom_*
 :memory:*
+
+# Knowledge graph output (graphify): 11 MB of generated artefacts, rebuilt on demand.
+graphify-out/

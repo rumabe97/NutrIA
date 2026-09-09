@@ -57,3 +57,14 @@ displays food re-validates — before storing **and** before returning.
   content reaching that point means an upstream check let it through, which is a bug to
   investigate, not a user error to display.
 - The domain layer carries the highest coverage floor in the workspace.
+
+## Amendment — 2026-09-09
+
+A free-text allergy that resolves to a catalogue row now also excludes every
+row *made of* it: the anchor's slug, as whole hyphen-separated tokens, found as
+a run inside another slug (`tomate` → `tomate-frito`, `zumo-de-tomate`; `pan` →
+`pan-rallado`, not `panceta`). The matching rule is unchanged — still exact,
+still no stemming — this applies only downstream of a match. The gap showed
+when the end-to-end suite first ran against the thousand-row catalogue: a
+tomato allergy excluded one row and offered nine tomato products to the model.
+`madeOf` in `core/domain/Safety`.

@@ -3,19 +3,7 @@ import request from 'supertest';
 
 import type { Response } from 'supertest';
 
-import {
-  activeShoppingList,
-  completeOnboarding,
-  createApp,
-  dish,
-  generateAndWait,
-  httpServer,
-  PREFIX,
-  register,
-  ScriptedAiClient,
-  SEEDED,
-  setLocale
-} from './harness.js';
+import { activeShoppingList, completeOnboarding, createApp, dish, generateAndWait, httpServer, PREFIX, register, ScriptedAiClient, scriptedName, SEEDED, setLocale } from './harness.js';
 
 import type { Account } from './harness.js';
 import type { INestApplication } from '@nestjs/common';
@@ -161,7 +149,7 @@ describe('an English account, end to end', () => {
     const scripted = new Set(POOL.map(candidate => candidate.name));
 
     for (const name of names) {
-      expect(scripted.has(name)).toBe(true);
+      expect(scripted.has(scriptedName(name))).toBe(true);
     }
   });
 });
