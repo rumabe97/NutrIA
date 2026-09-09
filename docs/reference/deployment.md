@@ -199,7 +199,8 @@ configured, that is a row update on the direct (session-mode) endpoint:
 update "user" set activated_at = now(), updated_at = now() where email = 'persona@ejemplo.com';
 ```
 
-`activated_at` is the door, `email_verified` only says the address is real (`0030`) — the old
+`activated_at` is the key, `email_verified` only says the address is real (`0030`); whether
+anyone may sign up at all is the other switch, on `/admin` (`0031`) — the old
 statement now confirms an address and opens nothing. Two easier ways: the button in the mail
 you get on every sign-up, and the queue on `/admin`, which needs an account whose `role` is
 `admin`:

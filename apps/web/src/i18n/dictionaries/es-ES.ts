@@ -33,6 +33,10 @@ export const esES = {
     noneWaiting: 'No hay ninguna cuenta esperando.',
     plansTitle: 'Planes por estado',
     recipes: 'Recetas',
+    registrationClosedHint: 'Nadie puede crear una cuenta. Quien ya tiene una entra igual.',
+    registrationOpen: 'Registro abierto',
+    registrationOpenHint: 'Cualquiera puede crear una cuenta. Seguirá esperando a que tú la abras.',
+    registrationTitle: 'Puerta',
     title: 'Servicio',
     unconfirmed: 'sin confirmar',
     waiting: '{count} sin activar',
@@ -245,6 +249,7 @@ export const esES = {
     notFound: 'No hemos encontrado lo que buscabas.',
     onboardingIncomplete: 'Nos falta parte de tu perfil. Termínalo y vuelve a intentarlo.',
     quotaExceeded: 'Has agotado lo que permite tu plan esta quincena.',
+    registrationClosed: 'El registro está cerrado ahora mismo. Vuelve a intentarlo más adelante.',
     request: 'No hemos podido completar la acción.',
     unsafeContent: 'Ese contenido no cumple tus restricciones alimentarias.'
   },

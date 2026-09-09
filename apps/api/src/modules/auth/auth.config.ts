@@ -1,5 +1,7 @@
-import { betterAuth } from 'better-auth';
+import { APIError, betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+
+import { SettingsController } from 'core/controllers/Settings';
 
 import { database } from 'database';
 import { account, rateLimit, session, user, verification } from 'database/schema/auth';
@@ -60,6 +62,17 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
            */
           after: async (created: { id: string; email: string; }) => {
             await notifyOwnerOfWaitingAccount(mailer, env.OWNER_EMAIL, created, { apiUrl: `${env.BETTER_AUTH_URL}/${env.API_PREFIX}`, secret: env.BETTER_AUTH_SECRET });
+          },
+          /*
+           * The owner can close the door (`0031`). Checked here rather than in a
+           * guard because this is the one write that must not happen: an account
+           * created and then refused is still an account, and an email address
+           * this product now holds for nothing.
+           */
+          before: async () => {
+            if (await SettingsController.registrationOpen()) {return;}
+
+            throw new APIError('FORBIDDEN', { code: 'REGISTRATION_CLOSED', message: 'Registration is closed' });
           }
         }
       }

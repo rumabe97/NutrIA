@@ -55,3 +55,18 @@ export const analyticsEvents = pgTable(
   },
   table => [index('analytics_events_event_idx').on(table.event), index('analytics_events_user_idx').on(table.userId)]
 );
+
+/**
+ * Settings the owner changes while the service runs, one row per switch.
+ *
+ * A table rather than an environment variable because a variable needs a
+ * redeploy, and "stop letting people in" is the kind of decision somebody makes
+ * on a phone while something is going wrong. Deliberately tiny: a key, a
+ * boolean, and when it was last changed. Anything needing more shape than that
+ * is a feature, not a setting.
+ */
+export const appSettings = pgTable('app_settings', {
+  enabled: boolean().notNull(),
+  key: text().primaryKey(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow()
+});

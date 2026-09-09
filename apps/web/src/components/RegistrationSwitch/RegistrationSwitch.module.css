@@ -1,0 +1,15 @@
+.root {
+  display: grid;
+  gap: var(--space-02);
+}
+
+.line {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: var(--space-03);
+}
+
+.error {
+  color: var(--color-error-text);
+}

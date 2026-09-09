@@ -1,16 +1,21 @@
-import { Controller, Get, Inject, NotFoundException, Param, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, Inject, NotFoundException, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { ApiExcludeEndpoint, ApiOperation, ApiTags } from '@nestjs/swagger';
 
+import { adminSettingsSchema } from 'core/entities/Settings';
 import { AdminController } from 'core/controllers/Admin';
+import { SettingsController } from 'core/controllers/Settings';
 import { UserController } from 'core/controllers/User';
 
 import { ENV } from '../../config/index.js';
 import { Public, Roles } from '../../shared/decorators/index.js';
+import { ZodValidationPipe } from '../../shared/pipes/index.js';
 import { verifyActivationToken } from '../auth/ActivationLink.js';
 
 import type { AdminJobView, AdminOverviewView } from 'core/controllers/Admin';
 import type { WaitingView } from 'core/controllers/User';
+import type { AdminSettings } from 'core/entities/Settings';
 import type { Env } from '../../config/index.js';
+import type { SettingsView } from 'core/controllers/Settings';
 import type { Response } from 'express';
 
 /**
@@ -34,6 +39,18 @@ export class AdminRestController {
   @Get('failures')
   async failures(): Promise<readonly AdminJobView[]> {
     return AdminController.failures();
+  }
+
+  @ApiOperation({ summary: 'The switches the owner can throw' })
+  @Get('settings')
+  async settings(): Promise<SettingsView> {
+    return SettingsController.read();
+  }
+
+  @ApiOperation({ summary: 'Open or close registration' })
+  @Patch('settings')
+  async setSettings(@Body(new ZodValidationPipe(adminSettingsSchema)) body: AdminSettings): Promise<SettingsView> {
+    return SettingsController.setRegistrationOpen(body.registrationOpen);
   }
 
   @ApiOperation({ summary: 'Accounts waiting to be opened, oldest first' })

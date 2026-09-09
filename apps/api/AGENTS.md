@@ -216,7 +216,11 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   model only when the library has nothing for the slot) and rebuilds the shopping list in the
   same transaction. A spent allowance is 429 `QUOTA_EXCEEDED`, with `retryAt` when it renews
   on a date. The redo check lives in `PlanJobController.start`, never in a route.
-- **The door is `activated_at`** (`0030`): `VerifiedEmailGuard` checks `SessionUser.activated`,
+- **Two switches** (`0031`): `app_settings.registration_open` decides whether anyone may sign
+  up — checked in Better Auth's `user.create.before`, so a refused sign-up writes no row — and
+  `activated_at` decides whether an account may be used. Open is the default: a missing
+  settings row must never shut the service.
+- **The key is `activated_at`** (`0030`): `VerifiedEmailGuard` checks `SessionUser.activated`,
   never `emailVerified` — the first is the owner's decision, the second is only proof the
   address is real. Opening an account is `UserController.activate({ email | id })`, by button
   from the owner's mail (a signed, expiring token, one account, nothing else) or from `/admin`.

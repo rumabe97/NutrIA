@@ -16,6 +16,7 @@ export type ApiErrorCode =
   | 'NOT_FOUND'
   | 'ONBOARDING_INCOMPLETE'
   | 'QUOTA_EXCEEDED'
+  | 'REGISTRATION_CLOSED'
   | 'REQUEST_ERROR'
   | 'UNSAFE_CONTENT';
 
@@ -46,6 +47,7 @@ const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   NOT_FOUND: 'notFound',
   ONBOARDING_INCOMPLETE: 'onboardingIncomplete',
   QUOTA_EXCEEDED: 'quotaExceeded',
+  REGISTRATION_CLOSED: 'registrationClosed',
   REQUEST_ERROR: 'request',
   UNSAFE_CONTENT: 'unsafeContent'
 };

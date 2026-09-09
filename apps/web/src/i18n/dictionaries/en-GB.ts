@@ -30,6 +30,10 @@ export const enGB: Dictionary = {
     noneWaiting: 'No account is waiting.',
     plansTitle: 'Plans by state',
     recipes: 'Recipes',
+    registrationClosedHint: 'Nobody can create an account. Anyone who already has one still signs in.',
+    registrationOpen: 'Registration open',
+    registrationOpenHint: 'Anyone can create an account. It will still wait for you to open it.',
+    registrationTitle: 'The door',
     title: 'Service',
     unconfirmed: 'unconfirmed',
     waiting: '{count} not activated',
@@ -241,6 +245,7 @@ export const enGB: Dictionary = {
     notFound: 'We could not find what you were looking for.',
     onboardingIncomplete: 'Part of your profile is missing. Finish it and try again.',
     quotaExceeded: 'You have used up what your plan allows this fortnight.',
+    registrationClosed: 'Registration is closed right now. Try again later.',
     request: 'We could not complete that action.',
     unsafeContent: 'That content does not meet your dietary restrictions.'
   },

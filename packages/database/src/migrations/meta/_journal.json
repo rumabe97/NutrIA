@@ -106,6 +106,13 @@
       "when": 1788979920314,
       "tag": "0014_unusual_spectrum",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1788981807594,
+      "tag": "0015_ambitious_squadron_sinister",
+      "breakpoints": true
     }
   ]
 }
