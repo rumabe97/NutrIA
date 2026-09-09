@@ -7,15 +7,15 @@ import styles from './page.module.css';
 import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
-import { ActivateAccount } from 'components/ActivateAccount';
-import { RegistrationSwitch } from 'components/RegistrationSwitch';
+import { AccountList } from 'components/AccountList';
+import { ActivationSwitch } from 'components/ActivationSwitch';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
+import type { AccountView } from 'core/controllers/User';
 import type { AdminOverviewView } from 'core/controllers/Admin';
 import type { SettingsView } from 'core/controllers/Settings';
-import type { WaitingView } from 'core/controllers/User';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,11 +31,11 @@ export const dynamic = 'force-dynamic';
  * and "how big is the catalogue" are answerable without reading anybody's food.
  */
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ abierta?: string }> }) {
-  const [dictionary, locale, overview, waiting, settings, opened] = await Promise.all([
+  const [dictionary, locale, overview, accounts, settings, opened] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<AdminOverviewView>('/admin/overview'),
-    serverApi<readonly WaitingView[]>('/admin/waiting'),
+    serverApi<readonly AccountView[]>('/admin/accounts'),
     serverApi<SettingsView>('/admin/settings'),
     searchParams
   ]);
@@ -79,14 +79,14 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       ) : null}
 
       <section className={styles.section}>
-        <h2 className={styles.subtitle}>{t.registrationTitle}</h2>
-        <RegistrationSwitch open={settings?.registrationOpen ?? true} />
+        <h2 className={styles.subtitle}>{t.activationTitle}</h2>
+        <ActivationSwitch automatic={settings?.automaticActivation ?? true} />
       </section>
 
-      {/* The queue next: it is the only thing on this page somebody is waiting on. */}
+      {/* Accounts next: the only thing on this page somebody is waiting on. */}
       <section className={styles.section}>
-        <h2 className={styles.subtitle}>{t.waitingTitle}</h2>
-        <ActivateAccount accounts={waiting ?? []} />
+        <h2 className={styles.subtitle}>{t.accountsTitle}</h2>
+        <AccountList accounts={accounts ?? []} />
       </section>
 
       <section className={styles.section}>

@@ -4,6 +4,7 @@ import {
   AccountNotActivatedError,
   ConflictError,
   DatabaseOperationError,
+  EmailNotVerifiedError,
   InputParseError,
   NotFoundError,
   OnboardingIncompleteError,
@@ -83,6 +84,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // 409 like an unfinished profile: the account's state conflicts with the
       // request, and the person is meant to understand it and where to go.
       return { code: 'ACCOUNT_NOT_ACTIVATED', message: 'Tu cuenta todavía no está activada.', statusCode: HttpStatus.CONFLICT };
+    }
+
+    if (exception instanceof EmailNotVerifiedError) {
+      // Same shape as an unopened account, different fix: this one is undone by
+      // the person, from their own inbox.
+      return { code: 'EMAIL_NOT_VERIFIED', message: 'Confirma tu correo para continuar.', statusCode: HttpStatus.CONFLICT };
     }
 
     if (exception instanceof OnboardingIncompleteError) {

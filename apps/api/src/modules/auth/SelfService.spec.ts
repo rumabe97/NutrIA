@@ -3,37 +3,49 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { SettingsController } from 'core/controllers/Settings';
 import { UserController } from 'core/controllers/User';
 
-import { activateIfRegistrationIsOpen } from './SelfService.js';
+import { onAddressConfirmed } from './SelfService.js';
+
+const ACCOUNT = { id: 'usr-1', email: 'ada@example.invalid' };
+const LINK = { apiUrl: 'https://api.example.invalid/api/v1', secret: 'a'.repeat(48) };
+
+function deps(sent = true) {
+  return { link: LINK, mailer: { configured: true, send: jest.fn<() => Promise<boolean>>().mockResolvedValue(sent) }, ownerEmail: 'owner@example.invalid' };
+}
 
 /**
- * The two halves of `0031` meeting: the door decides whether confirming an
- * address is enough to open the account. Getting this backwards either locks
- * everybody out of an open product or lets everybody into a closed one.
+ * The two halves of `0031` meeting: the switch decides whether confirming an
+ * address is enough to open the account, and therefore whether the owner has
+ * anything to do. Getting it backwards either holds everybody in a queue for
+ * nothing or lets everybody into a product meant to be gated.
  */
-describe('activateIfRegistrationIsOpen', () => {
+describe('onAddressConfirmed', () => {
   afterEach(() => {
     jest.restoreAllMocks();
   });
 
-  it('opens the account when the door is open', async () => {
-    jest.spyOn(SettingsController, 'registrationOpen').mockResolvedValue(true);
-    const activate = jest.spyOn(UserController, 'activate').mockResolvedValue({ email: 'ada@example.invalid' });
+  it('opens the account and tells nobody when activation is automatic', async () => {
+    jest.spyOn(SettingsController, 'automaticActivation').mockResolvedValue(true);
+    const activate = jest.spyOn(UserController, 'activate').mockResolvedValue({ email: ACCOUNT.email });
+    const dependencies = deps();
 
-    await expect(activateIfRegistrationIsOpen('usr-1')).resolves.toBe(true);
-    expect(activate).toHaveBeenCalledWith({ id: 'usr-1' });
+    await expect(onAddressConfirmed(ACCOUNT, dependencies)).resolves.toBe('opened');
+    expect(activate).toHaveBeenCalledWith({ id: ACCOUNT.id });
+    expect(dependencies.mailer.send).not.toHaveBeenCalled();
   });
 
-  it('leaves the account waiting when the door is closed', async () => {
-    jest.spyOn(SettingsController, 'registrationOpen').mockResolvedValue(false);
+  it('leaves the account waiting and mails the owner when activation is manual', async () => {
+    jest.spyOn(SettingsController, 'automaticActivation').mockResolvedValue(false);
     const activate = jest.spyOn(UserController, 'activate');
+    const dependencies = deps();
 
-    await expect(activateIfRegistrationIsOpen('usr-1')).resolves.toBe(false);
+    await expect(onAddressConfirmed(ACCOUNT, dependencies)).resolves.toBe('waiting');
     expect(activate).not.toHaveBeenCalled();
+    expect(dependencies.mailer.send).toHaveBeenCalledTimes(1);
   });
 
-  it('leaves the account waiting rather than failing the verification when the settings read breaks', async () => {
-    jest.spyOn(SettingsController, 'registrationOpen').mockRejectedValue(new Error('no database'));
+  it('falls back to waiting, not to an error, when the settings read breaks', async () => {
+    jest.spyOn(SettingsController, 'automaticActivation').mockRejectedValue(new Error('no database'));
 
-    await expect(activateIfRegistrationIsOpen('usr-1')).resolves.toBe(false);
+    await expect(onAddressConfirmed(ACCOUNT, deps())).resolves.toBe('waiting');
   });
 });

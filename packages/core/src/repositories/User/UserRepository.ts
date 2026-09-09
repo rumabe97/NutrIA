@@ -1,4 +1,4 @@
-import { eq, isNull } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -48,6 +48,50 @@ export const UserRepository = {
     }
   },
 
+  /**
+   * Marks the address confirmed — the owner vouching for it, not the person
+   * proving it.
+   *
+   * The product's own path is the verification link, and nothing here is
+   * reachable over HTTP. This exists for the two places that always needed it:
+   * the runbook's statement for somebody who cannot receive the mail, and the
+   * suites, where no mail is sent at all.
+   */
+  async confirmAddress(email: string): Promise<boolean> {
+    try {
+      const rows = await database()
+        .update(user)
+        .set({ emailVerified: true, updatedAt: new Date() })
+        .where(eq(user.email, email))
+        .returning({ email: user.email });
+
+      return rows.length > 0;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Every account with the two locks and its role, oldest first — the list the
+   * admin screen shows.
+   *
+   * Address, dates and role only. No profile, no plan, no answers: an admin
+   * surface that can read what people eat is how one becomes a way to read
+   * people's health data (`0028`), and none of it helps decide whether to open
+   * an account.
+   */
+  async findAll(limit: number): Promise<readonly { readonly id: string; readonly activatedAt: Date | null; readonly createdAt: Date; readonly email: string; readonly emailVerified: boolean; readonly role: 'admin' | 'user'; }[]> {
+    try {
+      return await database()
+        .select({ id: user.id, activatedAt: user.activatedAt, createdAt: user.createdAt, email: user.email, emailVerified: user.emailVerified, role: user.role })
+        .from(user)
+        .orderBy(user.createdAt)
+        .limit(limit);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   async findByEmail(email: string): Promise<User | undefined> {
     try {
       const [row] = await database().select().from(user).where(eq(user.email, email)).limit(1);
@@ -63,20 +107,6 @@ export const UserRepository = {
       const [row] = await database().select().from(user).where(eq(user.id, id)).limit(1);
 
       return row ? userSchema.parse(row) : undefined;
-    } catch (error: unknown) {
-      throw wrap(error);
-    }
-  },
-
-  /** Accounts still waiting for the owner, oldest first — the queue the admin screen shows. */
-  async findWaiting(limit: number): Promise<readonly { readonly id: string; readonly createdAt: Date; readonly email: string; readonly emailVerified: boolean; }[]> {
-    try {
-      return await database()
-        .select({ id: user.id, createdAt: user.createdAt, email: user.email, emailVerified: user.emailVerified })
-        .from(user)
-        .where(isNull(user.activatedAt))
-        .orderBy(user.createdAt)
-        .limit(limit);
     } catch (error: unknown) {
       throw wrap(error);
     }

@@ -12,7 +12,7 @@ import { ZodValidationPipe } from '../../shared/pipes/index.js';
 import { verifyActivationToken } from '../auth/ActivationLink.js';
 
 import type { AdminJobView, AdminOverviewView } from 'core/controllers/Admin';
-import type { WaitingView } from 'core/controllers/User';
+import type { AccountView } from 'core/controllers/User';
 import type { AdminSettings } from 'core/entities/Settings';
 import type { Env } from '../../config/index.js';
 import type { SettingsView } from 'core/controllers/Settings';
@@ -50,13 +50,13 @@ export class AdminRestController {
   @ApiOperation({ summary: 'Open or close registration' })
   @Patch('settings')
   async setSettings(@Body(new ZodValidationPipe(adminSettingsSchema)) body: AdminSettings): Promise<SettingsView> {
-    return SettingsController.setRegistrationOpen(body.registrationOpen);
+    return SettingsController.setAutomaticActivation(body.automaticActivation);
   }
 
-  @ApiOperation({ summary: 'Accounts waiting to be opened, oldest first' })
-  @Get('waiting')
-  async waiting(): Promise<readonly WaitingView[]> {
-    return UserController.waiting();
+  @ApiOperation({ summary: 'Every account with the state of its two locks, oldest first' })
+  @Get('accounts')
+  async accounts(): Promise<readonly AccountView[]> {
+    return UserController.accounts();
   }
 
   @ApiOperation({ summary: 'Open one account' })

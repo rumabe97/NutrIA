@@ -52,14 +52,6 @@ export default function RegisterPage() {
       // else. Both are shown as-is: at sign-*up* an existing address is
       // information the visitor already has, and hiding it only produces a
       // confusing dead end.
-      // 403 is the door being shut (0031), which is a state to explain rather
-      // than a failure to apologise for.
-      if (signUpError.status === 403) {
-        setError(dictionary.errors.registrationClosed);
-
-        return;
-      }
-
       setError(signUpError.status === 422 ? dictionary.auth.emailTaken : dictionary.auth.signUpFailed);
 
       return;

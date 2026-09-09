@@ -191,26 +191,33 @@ Two consequences worth knowing before the first real generation:
 
 ## 5b. Activating an account
 
-Who opens an account depends on the door (`0031`):
+Anyone may create an account. What happens when they confirm their address is the
+switch on `/admin` (`0031`):
 
-| Registration | What confirming the address does | Who opens the account |
+| Automatic activation | What confirming the address does | Who opens the account |
 | --- | --- | --- |
-| **Open** | Opens it. Nothing waits on you. | Nobody — the person does |
-| **Closed** | Only confirms the address | You, from `/admin` or the mail |
+| **On** (default) | Opens it. Nothing waits on you. | Nobody — the person does |
+| **Off** | Only confirms the address | You, from `/admin` or the mail |
 
-A new sign-up can always sign in, and lands on `/pendiente` until `activated_at` is
-set. With the door closed that is your act — the button in the mail, the queue on
-`/admin`, or a row update on the direct (session-mode) endpoint:
+An account is usable only when **both** are true: `email_verified` and
+`activated_at`. A new sign-up can always sign in, and lands on `/pendiente` until
+they are. With the door closed the second one is your act — the button in the mail,
+the list on `/admin`, or a row update on the direct (session-mode) endpoint:
 
 ```sql
 update "user" set activated_at = now(), updated_at = now() where email = 'persona@ejemplo.com';
 ```
 
-`activated_at` is the key, `email_verified` only says the address is real (`0030`); whether
-anyone may sign up at all is the other switch, on `/admin` (`0031`) — the old
-statement now confirms an address and opens nothing. Two easier ways: the button in the mail
-you get on every sign-up, and the queue on `/admin`, which needs an account whose `role` is
-`admin`:
+If somebody cannot receive the confirmation mail at all, the other half is a statement too —
+you vouching for the address rather than them proving it:
+
+```sql
+update "user" set email_verified = true, updated_at = now() where email = 'persona@ejemplo.com';
+```
+
+Two easier ways than either: the button in the mail you get when an account lands in the
+queue, and the list on `/admin`, which shows every account with both locks and needs an
+account whose `role` is `admin`:
 
 ```sql
 update "user" set role = 'admin', updated_at = now() where email = 'tu@correo.com';
@@ -218,9 +225,10 @@ update "user" set role = 'admin', updated_at = now() where email = 'tu@correo.co
 
 To see who is waiting: `select email, created_at from "user" where activated_at is null order by created_at;`.
 
-With `OWNER_EMAIL` set on the API project, you do not have to look: every sign-up sends that
-address one mail naming the account and carrying the statement above, ready to paste
-(`0029`). Unset, nothing is sent and the query is the only way to know.
+With `OWNER_EMAIL` set on the API project, you do not have to look: when somebody confirms
+their address while activation is manual — the only moment an account joins the queue — that
+address gets one mail naming the account and carrying the statement above, ready to paste
+(`0029`, `0031`). Unset, nothing is sent and the query is the only way to know.
 The change takes effect on the person's next page load; nothing needs redeploying.
 
 ## 5c. Mail: the password-reset link

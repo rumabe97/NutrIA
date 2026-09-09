@@ -117,6 +117,21 @@ export class AccountNotActivatedError extends Error {
   }
 }
 
+/**
+ * The account is open but the address has never been confirmed (`0030`).
+ *
+ * The other half of the same gate: an account is usable when both are true.
+ * Separate from `AccountNotActivatedError` because the two are fixed by
+ * different people — this one by the person holding the mailbox, the other by
+ * the owner — and the waiting screen has to say which.
+ */
+export class EmailNotVerifiedError extends Error {
+  constructor(message = 'Email not verified') {
+    super(message);
+    this.name = 'EmailNotVerifiedError';
+  }
+}
+
 export class OnboardingIncompleteError extends Error {
   constructor(public readonly missingSteps: readonly string[] = []) {
     super('Onboarding incomplete');

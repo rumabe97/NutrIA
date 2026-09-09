@@ -216,21 +216,26 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   model only when the library has nothing for the slot) and rebuilds the shopping list in the
   same transaction. A spent allowance is 429 `QUOTA_EXCEEDED`, with `retryAt` when it renews
   on a date. The redo check lives in `PlanJobController.start`, never in a route.
-- **Two switches** (`0031`): `app_settings.registration_open` decides whether anyone may sign
-  up — checked in Better Auth's `user.create.before`, so a refused sign-up writes no row — and
-  `activated_at` decides whether an account may be used. Open is the default: a missing
-  settings row must never shut the service.
-- **The key is `activated_at`** (`0030`): `VerifiedEmailGuard` checks `SessionUser.activated`,
-  never `emailVerified` — the first is the owner's decision, the second is only proof the
-  address is real. Opening an account is `UserController.activate({ email | id })`, by button
-  from the owner's mail (a signed, expiring token, one account, nothing else) or from `/admin`.
-- **Owner notice** (`0029`): a Better Auth `user.create.after` hook mails `OWNER_EMAIL` that an
-  account is waiting. It never throws — a sign-up must not fail because a mailbox did — and it
-  is the only mail carrying a user's address, because activation matches on it.
-- **Admin** (`0028`): `GET /admin/overview` and `/admin/failures`, `@Roles('admin')` on the
-  controller class so a new route is guarded by default. `AdminRepository` selects no column
-  that carries content — no dish, no profile, no email. Keep it that way: the questions worth
-  a screen are "is generation working" and "how big is the catalogue".
+- **Two locks** (`0030`, `0031`): an account is usable when `email_verified` **and**
+  `activated_at` are both set. `VerifiedEmailGuard` refuses on either — 409 `EMAIL_NOT_VERIFIED`
+  first, because that is the half the person can fix themselves, then 409 `ACCOUNT_NOT_ACTIVATED`.
+  Signing up is never refused. Opening an account is `UserController.activate({ email | id })`,
+  by button from the owner's mail (a signed, expiring token, one account, nothing else) or from
+  the list on `/admin`.
+- **One switch** (`0031`, amended): `app_settings.automatic_activation` decides what confirming
+  an address does — opens the account, or leaves it in the owner's queue. Read in Better Auth's
+  `emailVerification.afterEmailVerification` at the moment of the click, never remembered from
+  sign-up. Automatic is the default: a missing settings row must never start queueing people.
+  `GET /settings` (`@AllowUnverified()`) is how the waiting screen knows which wait it is.
+- **Owner notice** (`0029`, amended): sent from `afterEmailVerification` when activation is
+  manual — the only moment an account joins the queue. It never throws (a confirmation must not
+  fail because a mailbox did) and it is the only mail carrying a user's address, because
+  activation matches on it.
+- **Admin** (`0028`): `GET /admin/overview`, `/admin/failures` and `/admin/accounts`,
+  `@Roles('admin')` on the controller class so a new route is guarded by default.
+  `AdminRepository` selects no column that carries content — no dish, no profile. The account
+  list carries address, dates and role and nothing else. Keep it that way: the questions worth
+  a screen are "is generation working", "how big is the catalogue" and "who is waiting".
 - **Reminders** (`0027`): `/cron/reminders`, guarded by `CRON_SECRET` like the other two
   sweeps. `CheckInReminderService` sends one mail per fortnight to accounts whose plan reached
   its last day, and writes the `notifications` row only after the provider accepted it — the

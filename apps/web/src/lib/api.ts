@@ -10,13 +10,13 @@ import type { Dictionary } from '../i18n/dictionaries/es-ES';
 export type ApiErrorCode =
   | 'ACCOUNT_NOT_ACTIVATED'
   | 'CONFLICT'
+  | 'EMAIL_NOT_VERIFIED'
   | 'INTERNAL_ERROR'
   | 'INVALID_INPUT'
   | 'NETWORK'
   | 'NOT_FOUND'
   | 'ONBOARDING_INCOMPLETE'
   | 'QUOTA_EXCEEDED'
-  | 'REGISTRATION_CLOSED'
   | 'REQUEST_ERROR'
   | 'UNSAFE_CONTENT';
 
@@ -41,13 +41,13 @@ export class ApiError extends Error {
 const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   ACCOUNT_NOT_ACTIVATED: 'accountNotActivated',
   CONFLICT: 'conflict',
+  EMAIL_NOT_VERIFIED: 'emailNotVerified',
   INTERNAL_ERROR: 'internal',
   INVALID_INPUT: 'invalidInput',
   NETWORK: 'network',
   NOT_FOUND: 'notFound',
   ONBOARDING_INCOMPLETE: 'onboardingIncomplete',
   QUOTA_EXCEEDED: 'quotaExceeded',
-  REGISTRATION_CLOSED: 'registrationClosed',
   REQUEST_ERROR: 'request',
   UNSAFE_CONTENT: 'unsafeContent'
 };

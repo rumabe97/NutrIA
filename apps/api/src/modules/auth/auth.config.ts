@@ -1,14 +1,11 @@
-import { APIError, betterAuth } from 'better-auth';
+import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
-
-import { SettingsController } from 'core/controllers/Settings';
 
 import { database } from 'database';
 import { account, rateLimit, session, user, verification } from 'database/schema/auth';
 
-import { notifyOwnerOfWaitingAccount } from './AccountWaitingMail.js';
 import { absoluteCallback, sendPasswordResetMail } from './PasswordResetMail.js';
-import { activateIfRegistrationIsOpen } from './SelfService.js';
+import { onAddressConfirmed } from './SelfService.js';
 import { localeFromHeader } from '../../shared/decorators/Locale.decorator.js';
 import { verifyEmail } from '../email/templates/VerifyEmail.js';
 
@@ -52,36 +49,6 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
     basePath: `/${env.API_PREFIX}/auth`,
     baseURL: env.BETTER_AUTH_URL,
     database: drizzleAdapter(database(), { provider: 'pg', schema: { account, rateLimit, session, user, verification } }),
-    databaseHooks: {
-      user: {
-        create: {
-          /*
-           * Access opens account by account (`0017`), and until now the only way
-           * to learn that somebody was waiting was to query the table. The
-           * helper swallows its own failures, so a sign-up can never be lost to
-           * an unreachable mailbox.
-           */
-          after: async (created: { id: string; email: string; }) => {
-            // Read again rather than assumed from `before`: it says which of the
-            // two modes the notice was written in, and the door can move.
-            const selfService = await SettingsController.registrationOpen();
-
-            await notifyOwnerOfWaitingAccount(mailer, env.OWNER_EMAIL, created, { apiUrl: `${env.BETTER_AUTH_URL}/${env.API_PREFIX}`, secret: env.BETTER_AUTH_SECRET, selfService });
-          },
-          /*
-           * The owner can close the door (`0031`). Checked here rather than in a
-           * guard because this is the one write that must not happen: an account
-           * created and then refused is still an account, and an email address
-           * this product now holds for nothing.
-           */
-          before: async () => {
-            if (await SettingsController.registrationOpen()) {return;}
-
-            throw new APIError('FORBIDDEN', { code: 'REGISTRATION_CLOSED', message: 'Registration is closed' });
-          }
-        }
-      }
-    },
     emailAndPassword: {
       enabled: true,
       // Verification is required before a session is useful, but sign-up still
@@ -107,8 +74,8 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
        * session cookie is set, and `SessionGuard` re-reads the row on every
        * request, so the person is in on their next navigation.
        */
-      afterEmailVerification: async (verified: { id: string }) => {
-        await activateIfRegistrationIsOpen(verified.id);
+      afterEmailVerification: async (verified: { id: string; email: string; }) => {
+        await onAddressConfirmed(verified, { link: { apiUrl: `${env.BETTER_AUTH_URL}/${env.API_PREFIX}`, secret: env.BETTER_AUTH_SECRET }, mailer, ownerEmail: env.OWNER_EMAIL });
       },
       autoSignInAfterVerification: true,
       /*

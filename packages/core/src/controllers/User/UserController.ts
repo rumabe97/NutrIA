@@ -50,10 +50,22 @@ function presentUser(user: User): UserView {
 
 // --- Controller ---------------------------------------------------------------
 
-/** One account the owner has not opened yet (`0030`). No profile, no answers — only what a decision needs. */
-export type WaitingView = { id: string; createdAt: string; email: string; emailVerified: boolean; };
+/**
+ * One account on the admin list: the two locks, when it arrived and what it is.
+ * No profile, no answers — only what a decision about access needs (`0028`).
+ */
+export type AccountView = { id: string; activated: boolean; createdAt: string; email: string; emailVerified: boolean; role: 'admin' | 'user'; };
 
 export const UserController = {
+  /** Every account, oldest first, each saying which of its two locks are open. */
+  async accounts(limit = 200): Promise<readonly AccountView[]> {
+    return (await UserRepository.findAll(limit)).map(({ activatedAt, createdAt, ...row }) => ({
+      ...row,
+      activated: activatedAt !== null,
+      createdAt: createdAt.toISOString()
+    }));
+  },
+
   /**
    * Opens an account (`0017`, `0030`) — the owner's decision, by id from the
    * admin screen and by email from the runbook. Returns the address opened, or
@@ -61,6 +73,15 @@ export const UserController = {
    */
   async activate(match: { readonly id?: string; readonly email?: string; }): Promise<{ readonly email: string } | null> {
     return UserRepository.activate(match);
+  },
+
+  /**
+   * The owner vouching for an address (see the repository): the runbook's
+   * statement, and how the suites stand in for a click nobody makes there.
+   * No HTTP route calls it — the product's path is the verification link.
+   */
+  async confirmAddress(email: string): Promise<boolean> {
+    return UserRepository.confirmAddress(email);
   },
 
   /**
@@ -74,10 +95,5 @@ export const UserController = {
     if (!user) {throw new NotFoundError(`User "${input.id}" not found`);}
 
     return presentUser(user);
-  },
-
-  /** Accounts still waiting to be opened, oldest first. */
-  async waiting(limit = 50): Promise<readonly WaitingView[]> {
-    return (await UserRepository.findWaiting(limit)).map(row => ({ ...row, createdAt: row.createdAt.toISOString() }));
   }
 };

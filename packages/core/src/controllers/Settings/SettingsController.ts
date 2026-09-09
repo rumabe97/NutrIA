@@ -1,31 +1,33 @@
 import { SettingsRepository } from '#repositories/Settings';
 
 /** The switches the owner can throw while the service runs. One so far. */
-export const SETTING_KEYS = { registrationOpen: 'registration_open' } as const;
+export const SETTING_KEYS = { automaticActivation: 'automatic_activation' } as const;
 
 /**
- * Signing up is open unless the owner has closed it.
+ * Confirming the address opens the account, unless the owner has said it
+ * should not (`0031`).
  *
- * Open is the default because a service that refuses new accounts the moment a
- * settings row goes missing is a service that fails closed for the wrong
- * reason. Closing is a deliberate act, and it leaves a row saying so.
+ * Automatic is the default because a service that starts holding everybody in a
+ * queue the moment a settings row goes missing is a service that fails shut for
+ * the wrong reason. Turning it off is a deliberate act, and it leaves a row
+ * saying so.
  */
-const REGISTRATION_OPEN_BY_DEFAULT = true;
+const AUTOMATIC_BY_DEFAULT = true;
 
-export type SettingsView = { readonly registrationOpen: boolean };
+export type SettingsView = { readonly automaticActivation: boolean };
 
 export const SettingsController = {
+  async automaticActivation(): Promise<boolean> {
+    return SettingsRepository.isEnabled(SETTING_KEYS.automaticActivation, AUTOMATIC_BY_DEFAULT);
+  },
+
   async read(): Promise<SettingsView> {
-    return { registrationOpen: await SettingsController.registrationOpen() };
+    return { automaticActivation: await SettingsController.automaticActivation() };
   },
 
-  async registrationOpen(): Promise<boolean> {
-    return SettingsRepository.isEnabled(SETTING_KEYS.registrationOpen, REGISTRATION_OPEN_BY_DEFAULT);
-  },
+  async setAutomaticActivation(automatic: boolean): Promise<SettingsView> {
+    await SettingsRepository.set(SETTING_KEYS.automaticActivation, automatic);
 
-  async setRegistrationOpen(open: boolean): Promise<SettingsView> {
-    await SettingsRepository.set(SETTING_KEYS.registrationOpen, open);
-
-    return { registrationOpen: open };
+    return { automaticActivation: automatic };
   }
 };

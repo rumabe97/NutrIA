@@ -57,8 +57,8 @@ screens at phone width, which closes project 002's two open gates.
    profile), password-reset mail (done, `0019`), the check-in reminder and its switch
    (done, `0027`), the owner told when an account is waiting (done, `0029`). Remaining:
    verification mail (done, `0030`) and any further reminder that can argue for itself.
-   Opening access to everyone is now one switch: with registration open, confirming the
-   address opens the account (`0031`, amended); closed, an admin turns the key.
+   Opening access to everyone is now one switch: with automatic activation on, confirming
+   the address opens the account (`0031`, amended); off, an admin turns the key.
 
 ## Later / someday
 

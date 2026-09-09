@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 
-import styles from './RegistrationSwitch.module.css';
+import styles from './ActivationSwitch.module.css';
 
 import { Switch } from 'ui/components/Switch';
 import { Text } from 'ui/components/Text';
@@ -10,16 +10,17 @@ import { useDictionary } from 'i18n/LocaleProvider';
 import { api, messageFor } from 'lib/api';
 
 /**
- * The door itself: whether anyone new may sign up at all (`0031`).
+ * Who turns the second lock (`0031`): confirming an address either opens the
+ * account or leaves it in the queue for the owner.
  *
- * Separate from activation, which decides whether an account that exists may
- * be used. Closing this stops accounts being created; it changes nothing for
- * the people already in, and nothing about who still waits.
+ * It does not stop anybody signing up — an account always gets created, and
+ * always gets its confirmation mail. What it changes is what that confirmation
+ * is worth, and therefore whether the owner gets a mail about it.
  */
-export function RegistrationSwitch({ open }: { open: boolean }) {
+export function ActivationSwitch({ automatic }: { automatic: boolean }) {
   const dictionary = useDictionary();
   const t = dictionary.admin;
-  const [on, setOn] = useState(open);
+  const [on, setOn] = useState(automatic);
   const [error, setError] = useState<string>();
 
   async function change(next: boolean) {
@@ -29,7 +30,7 @@ export function RegistrationSwitch({ open }: { open: boolean }) {
     setError(undefined);
 
     try {
-      await api('/admin/settings', { body: { registrationOpen: next }, method: 'PATCH' });
+      await api('/admin/settings', { body: { automaticActivation: next }, method: 'PATCH' });
     } catch (caught) {
       setOn(previous);
       setError(messageFor(caught, dictionary));
@@ -40,10 +41,10 @@ export function RegistrationSwitch({ open }: { open: boolean }) {
     <div className={styles.root}>
       <label className={styles.line}>
         <Switch checked={on} onCheckedChange={next => void change(next)} />
-        <Text size="sm">{t.registrationOpen}</Text>
+        <Text size="sm">{t.automaticActivation}</Text>
       </label>
       <Text size="xs" tone="tertiary">
-        {on ? t.registrationOpenHint : t.registrationClosedHint}
+        {on ? t.automaticHint : t.manualHint}
       </Text>
       {error ? (
         <Text className={styles.error} size="xs">

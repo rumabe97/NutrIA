@@ -130,11 +130,15 @@ export async function createApp(ai: AiClient): Promise<INestApplication> {
 }
 
 /**
- * Opens the account the way the owner does (0017): a row update, since no
- * verification mail is sent. Without it every route past sign-in answers
- * 409 ACCOUNT_NOT_ACTIVATED, which is the product working and the suite failing.
+ * Opens both locks (0030, 0031): the owner's, the way the owner does it, and the
+ * address, which in the product is a click in a mail nobody reads here.
+ *
+ * Without either, every route past sign-in answers 409 — the product working and
+ * the suite failing.
  */
 export async function activate(email: string): Promise<void> {
+  if (!(await UserController.confirmAddress(email))) {throw new Error(`No account to confirm for ${email}`);}
+
   if (!(await UserController.activate({ email }))) {throw new Error(`No account to activate for ${email}`);}
 }
 

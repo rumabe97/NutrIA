@@ -20,9 +20,16 @@ import type { UserView } from 'core/controllers/User';
 export const dynamic = 'force-dynamic';
 
 /**
- * Where a signed-in but not yet activated account lands (0017). Honest about
- * what is happening — accounts are opened by hand while the product runs on a
- * free-tier provider — and about the one thing they can do: check again later.
+ * Where a signed-in account lands while either of its two locks is closed
+ * (0030, 0031), saying which one it is and who opens it.
+ *
+ * Three messages, because there are three waits:
+ *   · the address is unconfirmed and confirming it is the whole gate — one click
+ *   · the address is unconfirmed and the owner still has to open the account
+ *   · the address is confirmed and only the owner is left
+ *
+ * Honest about the last one: accounts are opened by hand while the product runs
+ * on a free-tier provider, and the only thing to do is check again later.
  */
 export default async function PendingPage() {
   const [dictionary, user, settings] = await Promise.all([
@@ -33,36 +40,26 @@ export default async function PendingPage() {
 
   if (!user) {redirect('/acceder');}
 
-  // The owner's switch, not the address (`0030`) — asking about the address here
-  // sent a confirmed-but-unopened account straight back into the app.
-  if (user.activated) {redirect('/inicio');}
+  if (user.activated && user.emailVerified) {redirect('/inicio');}
 
+  const t = dictionary.auth;
   /*
-   * Which of the two waits this is (`0031`). While the door is open, confirming
-   * the address is the whole gate and there is nobody to wait for; while it is
-   * closed, the owner turns the key. Unknown counts as closed: promising
+   * Whether confirming the address is the last thing standing: it is if the
+   * owner already opened this account, or if activation is automatic and
+   * confirming will open it (0031). Unknown counts as manual — promising
    * somebody they are one click away when we could not ask is the worse lie.
    */
-  const selfService = settings?.registrationOpen === true && !user.emailVerified;
+  const oneClickAway = user.activated || settings?.automaticActivation === true;
+  const body = user.emailVerified ? t.pendingBody : oneClickAway ? t.pendingConfirmBody : t.pendingConfirmWaitBody;
 
   return (
     <Fragment>
-      <h1 className={styles.title}>{selfService ? dictionary.auth.pendingConfirmTitle : dictionary.auth.pendingTitle}</h1>
-      <Text tone="secondary">
-        {interpolate(selfService ? dictionary.auth.pendingConfirmBody : dictionary.auth.pendingBody, { email: user.email })}
-      </Text>
-
-      {/* Two different waits, and only one of them is ours (0030): the account
-          opens when the owner opens it, the address is confirmed by them. */}
-      {user.emailVerified || selfService ? null : (
-        <Text size="sm" tone="tertiary">
-          {dictionary.auth.pendingConfirm}
-        </Text>
-      )}
+      <h1 className={styles.title}>{user.emailVerified ? t.pendingTitle : t.pendingConfirmTitle}</h1>
+      <Text tone="secondary">{interpolate(body, { email: user.email })}</Text>
 
       <div className={`${styles.footer} ${own.actions}`}>
-        <CheckAgainButton>{dictionary.auth.pendingCheck}</CheckAgainButton>
-        <SignOutLink>{dictionary.auth.pendingSignOut}</SignOutLink>
+        <CheckAgainButton>{t.pendingCheck}</CheckAgainButton>
+        <SignOutLink>{t.pendingSignOut}</SignOutLink>
       </div>
     </Fragment>
   );
