@@ -43,6 +43,16 @@ const VARIANTS_PER_DISH = 3;
 export class ScriptedAiClient extends AiClient {
   public calls = 0;
   /**
+   * Unique per client, and so per suite.
+   *
+   * Recipes are keyed by slug and shared by every account, which is the
+   * product's own reuse working — so two suites scripting "Merluza con arroz"
+   * with different ingredients would be writing over each other's recipe, and
+   * the failure surfaces three steps later as a shopping list that does not
+   * reconcile. A token in the name makes a suite's dishes its own.
+   */
+  private readonly token = Math.random().toString(36).slice(2, 6);
+  /**
    * Every prompt this client was sent, in order.
    *
    * Kept so a suite can assert what did **not** reach the model. "A medication
@@ -67,7 +77,7 @@ export class ScriptedAiClient extends AiClient {
       Array.from({ length: VARIANTS_PER_DISH }, (_, index) => {
         const named = base as { name: string };
 
-        return { ...named, name: `${named.name} ${call}.${index + 1}` };
+        return { ...named, name: `${named.name} ${this.token}.${call}.${index + 1}` };
       })
     );
 
@@ -111,6 +121,68 @@ export function dish(name: string, slots: readonly string[], ingredients: readon
     ]
   };
 }
+
+/**
+ * A pool wide enough for a fortnight: five dishes a slot, each of them three
+ * variants per call, which is what the variety rules need to fill fourteen days
+ * without repeating a dish more than twice (`0009`).
+ *
+ * Shared so a suite that is not *about* the pool does not carry sixty lines of
+ * one. A suite about a particular dish still writes its own.
+ */
+export const POOL = [
+  dish('Avena con yogur', ['breakfast'], [
+    { grams: 80, slug: SEEDED.avena },
+    { grams: 150, slug: SEEDED.yogur }
+  ]),
+  dish('Tostada con huevo', ['breakfast'], [
+    { grams: 80, slug: SEEDED.pan },
+    { grams: 120, slug: SEEDED.huevo }
+  ]),
+  dish('Yogur con avena', ['breakfast'], [
+    { grams: 200, slug: SEEDED.yogur },
+    { grams: 60, slug: SEEDED.avena }
+  ]),
+  dish('Huevos con pan', ['breakfast'], [
+    { grams: 140, slug: SEEDED.huevo },
+    { grams: 60, slug: SEEDED.pan }
+  ]),
+  dish('Avena sola', ['breakfast'], [{ grams: 110, slug: SEEDED.avena }]),
+  dish('Arroz con pollo', ['lunch'], [
+    { grams: 220, slug: SEEDED.arroz },
+    { grams: 180, slug: SEEDED.pollo }
+  ]),
+  dish('Lentejas con arroz', ['lunch'], [
+    { grams: 250, slug: SEEDED.lentejas },
+    { grams: 150, slug: SEEDED.arroz }
+  ]),
+  dish('Pollo con patata', ['lunch'], [
+    { grams: 200, slug: SEEDED.pollo },
+    { grams: 250, slug: SEEDED.patata }
+  ]),
+  dish('Arroz con tomate', ['lunch'], [
+    { grams: 260, slug: SEEDED.arroz },
+    { grams: 150, slug: SEEDED.tomate }
+  ]),
+  dish('Lentejas solas', ['lunch'], [{ grams: 350, slug: SEEDED.lentejas }]),
+  dish('Merluza con patata', ['dinner'], [
+    { grams: 200, slug: SEEDED.merluza },
+    { grams: 220, slug: SEEDED.patata }
+  ]),
+  dish('Pollo con tomate', ['dinner'], [
+    { grams: 170, slug: SEEDED.pollo },
+    { grams: 200, slug: SEEDED.tomate }
+  ]),
+  dish('Merluza con arroz', ['dinner'], [
+    { grams: 180, slug: SEEDED.merluza },
+    { grams: 180, slug: SEEDED.arroz }
+  ]),
+  dish('Patata con huevo', ['dinner'], [
+    { grams: 250, slug: SEEDED.patata },
+    { grams: 110, slug: SEEDED.huevo }
+  ]),
+  dish('Merluza sola', ['dinner'], [{ grams: 300, slug: SEEDED.merluza }])
+];
 
 export async function createApp(ai: AiClient): Promise<INestApplication> {
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
@@ -157,9 +229,17 @@ export async function register(app: INestApplication, email: string): Promise<Ac
 }
 
 /** Walks the eight required onboarding steps so a plan may be generated. */
-/** The scripted name behind a served dish name — the per-call variant suffix removed. */
+/**
+ * The scripted name behind a served dish name — the suite token and per-call
+ * variant suffix removed.
+ *
+ * The token is optional in the pattern because a database that is thrown away
+ * by policy rather than by force still holds recipes from before it existed,
+ * and the product will happily reuse one. Tolerating the older shape costs a
+ * `?`; not tolerating it costs an afternoon.
+ */
 export function scriptedName(name: string): string {
-  return name.replace(/ \d+\.\d+$/, '');
+  return name.replace(/ (?:[a-z0-9]+\.)?\d+\.\d+$/, '');
 }
 
 export async function completeOnboarding(

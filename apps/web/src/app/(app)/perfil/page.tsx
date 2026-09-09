@@ -11,6 +11,7 @@ import { LocaleSwitcher } from 'components/LocaleSwitcher';
 import { ProfileSection } from 'components/ProfileSection';
 import { ReminderToggle } from 'components/ReminderToggle';
 import { TargetsPanel } from 'components/TargetsPanel';
+import { VacationPlanner } from 'components/VacationPlanner';
 
 import { formatNumber, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
@@ -21,6 +22,7 @@ import type { FullProfileView } from 'core/controllers/Profile';
 import type { HealthView } from 'core/controllers/Health';
 import type { NotificationSettingsView } from 'core/controllers/Notification';
 import type { UserView } from 'core/controllers/User';
+import type { VacationView } from 'core/controllers/Vacation';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,13 +61,14 @@ export default async function ProfilePage() {
   // Health data is fetched here and only here. It is not folded into
   // `/profile`, which the dashboard also loads — a medication has no business
   // travelling to a screen that does not show it.
-  const [dictionary, locale, user, profile, health, notifications] = await Promise.all([
+  const [dictionary, locale, user, profile, health, notifications, trips] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<UserView>('/users/me'),
     serverApi<FullProfileView>('/profile'),
     serverApi<HealthView>('/health-data'),
-    serverApi<NotificationSettingsView>('/notifications/settings')
+    serverApi<NotificationSettingsView>('/notifications/settings'),
+    serverApi<readonly VacationView[]>('/vacations')
   ]);
   const t = dictionary.profile;
   const kg = (value: number) => `${formatNumber(value, locale)} ${dictionary.units.kilogram}`;
@@ -94,6 +97,8 @@ export default async function ProfilePage() {
         {health ? <HealthPanel health={health} /> : null}
 
         <LocaleSwitcher />
+
+        <VacationPlanner trips={trips ?? []} />
 
         <ProfileSection
           editHref="/onboarding/1?volver=perfil"

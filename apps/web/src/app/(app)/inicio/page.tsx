@@ -15,7 +15,7 @@ import { ShoppingSnapshot } from 'components/ShoppingSnapshot';
 import { TargetProgress } from 'components/TargetProgress';
 import { WeightTracker } from 'components/WeightTracker';
 
-import { formatNumber, interpolate } from 'lib/format';
+import { formatDate, formatNumber, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
@@ -24,6 +24,7 @@ import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { PlanView } from 'core/controllers/Plan';
 import type { UserView } from 'core/controllers/User';
+import type { VacationView } from 'core/controllers/Vacation';
 import type { WeightView } from 'core/controllers/Progress';
 
 export const dynamic = 'force-dynamic';
@@ -46,7 +47,7 @@ function greetingKey(hour: number): 'goodAfternoon' | 'goodEvening' | 'goodMorni
 export default async function DashboardPage() {
   await redirectIfOnboardingIncomplete();
 
-  const [dictionary, locale, user, profile, plan, shopping, weight, checkIn] = await Promise.all([
+  const [dictionary, locale, user, profile, plan, shopping, weight, checkIn, trips] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<UserView>('/users/me'),
@@ -56,7 +57,8 @@ export default async function DashboardPage() {
     // why every consumer below is guarded rather than this being awaited apart.
     serverApi<ShoppingListView>('/shopping-lists/active'),
     serverApi<WeightView>('/progress/weight'),
-    serverApi<CheckInStatusView>('/check-ins/status')
+    serverApi<CheckInStatusView>('/check-ins/status'),
+    serverApi<readonly VacationView[]>('/vacations')
   ]);
 
   const t = dictionary.dashboard;
@@ -66,6 +68,12 @@ export default async function DashboardPage() {
   const hello = firstName ? interpolate(t.greetingNamed, { greeting, name: firstName }) : greeting;
   const today = new Date().toISOString().slice(0, 10);
   const day = plan?.days.find(candidate => candidate.date === today);
+  /*
+   * There is no day today because the plan was paused around it (`0032`), not
+   * because anything went wrong — and the difference matters enough to say out
+   * loud, above everything else on the screen.
+   */
+  const away = trips?.find(trip => trip.away);
 
   return (
     <Fragment>
@@ -73,6 +81,10 @@ export default async function DashboardPage() {
 
       <div className={styles.layout}>
         <div className={`${styles.main} motion-enter`}>
+          {away ? (
+            <EmptyState body={interpolate(dictionary.vacations.awayBody, { until: formatDate(away.endsOn, locale, { day: 'numeric', month: 'long' }) })} title={dictionary.vacations.awayTitle} />
+          ) : null}
+
           {/* The fortnight's check-in, first, when it is due: the one thing this
               screen wants from the person before anything else it offers. */}
           {checkIn?.due ? (

@@ -834,5 +834,20 @@ export const enGB: Dictionary = {
     proteinShort: 'g P',
     slice: 'slices',
     unit: 'units'
+  },
+
+  vacations: {
+    add: 'Pause the plan',
+    awayBody: 'Your plan is waiting. It picks up on {until}, exactly where you left it.',
+    awayNow: 'right now, {count} days',
+    awayTitle: 'You are away',
+    backEarly: 'I am back',
+    cancel: 'Remove',
+    days: '{count} days',
+    from: 'From',
+    intro: 'Mark the days you will be away and the plan pauses: those days do not count as skipped, and when you return it carries on where it stopped.',
+    range: '{from} to {to}',
+    title: 'Holidays',
+    to: 'Until'
   }
 };

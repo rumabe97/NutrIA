@@ -4,6 +4,7 @@ import { ALLOWANCES, mealSwapStanding, planRedoStanding, redosInFortnight } from
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { PlanJobRepository, PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
+import { VacationRepository } from '#repositories/Vacation';
 import { SafetyController } from 'core/controllers/Safety';
 import { alternativesFor } from 'core/domain/Substitution';
 import type { Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
@@ -360,7 +361,18 @@ export const PlanJobController = {
 
   /** The single write path for a generated plan. Atomic; see `PlanRepository`. */
   async persist(userId: string, draft: PlanDraft): Promise<string> {
-    return PlanRepository.createPlanAtomically(userId, draft);
+    const planId = await PlanRepository.createPlanAtomically(userId, draft);
+
+    /*
+     * Generation lays a fortnight out from today, one day after another, because
+     * that is what a fortnight is — it knows nothing about a holiday declared
+     * last week. The days are pushed apart afterwards (`0032`), which is the same
+     * arithmetic declaring a trip performs, applied to a plan that did not exist
+     * when it was declared.
+     */
+    await VacationRepository.applyTo(userId);
+
+    return planId;
   },
 
   /** Refuses a second concurrent generation, after clearing anything a restart abandoned. */

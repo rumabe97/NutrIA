@@ -20,6 +20,7 @@ import { SafetyModule } from './modules/safety/safety.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { ShoppingListsModule } from './modules/shopping-lists/shopping-lists.module.js';
 import { UsersModule } from './modules/users/users.module.js';
+import { VacationsModule } from './modules/vacations/vacations.module.js';
 import { AllExceptionsFilter } from './shared/filters/index.js';
 import { ObservabilityModule } from './shared/observability/index.js';
 import { AdminGuard, RateLimitGuard, RequiresOnboardingGuard, SessionGuard, VerifiedEmailGuard } from './shared/guards/index.js';
@@ -49,7 +50,8 @@ import { LoggingModule } from './shared/logging/index.js';
     SafetyModule,
     SettingsModule,
     ShoppingListsModule,
-    UsersModule
+    UsersModule,
+    VacationsModule
   ],
   providers: [
     envProvider,

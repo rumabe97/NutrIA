@@ -236,6 +236,11 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `AdminRepository` selects no column that carries content — no dish, no profile. The account
   list carries address, dates and role and nothing else. Keep it that way: the questions worth
   a screen are "is generation working", "how big is the catalogue" and "who is waiting".
+- **Vacations** (`0032`): `POST /vacations` moves every plan day at or after the trip forward
+  by its length, in one transaction, so those dates hold no plan day at all. Nothing else was
+  taught about holidays — skipping, adherence and the check-in mail all follow the dates.
+  Cancelling gives back only the days not yet spent. Refused for a trip in the past, one that
+  overlaps another, or one longer than ninety days.
 - **Reminders** (`0027`): `/cron/reminders`, guarded by `CRON_SECRET` like the other two
   sweeps. `CheckInReminderService` sends one mail per fortnight to accounts whose plan reached
   its last day, and writes the `notifications` row only after the provider accepted it — the

@@ -66,7 +66,10 @@ screens at phone width, which closes project 002's two open gates.
   triage has no flags to triage yet; catalogue management is a seed file in git, which is a
   better place to edit a catalogue than a form.
 - English alongside Spanish; country-aware ingredient availability.
-- Vacation mode — a temporary lifestyle override that does not destroy the normal plan.
+- Vacation mode: done (`0032`) — a trip pauses the plan and the days after it move with it,
+  so nothing counts as skipped and the fortnight resumes on return. A generated plan *for*
+  the trip is deliberately not built: it costs a model call per trip, and the question it
+  answers is not the one people were asking.
 - Analytics on the events already reserved in `analytics_events`.
 - CI: the gate and the end-to-end suites both run on every push and pull request
   (`.github/workflows/ci.yml`); the suites get a Postgres container that dies with the job,

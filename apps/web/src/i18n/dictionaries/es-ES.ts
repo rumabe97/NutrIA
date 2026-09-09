@@ -839,6 +839,21 @@ export const esES = {
     proteinShort: 'g P',
     slice: 'reb.',
     unit: 'ud.'
+  },
+
+  vacations: {
+    add: 'Pausar el plan',
+    awayBody: 'Tu plan te espera. Retoma el {until}, justo donde lo dejaste.',
+    awayNow: 'ahora mismo, {count} días',
+    awayTitle: 'Estás de vacaciones',
+    backEarly: 'He vuelto',
+    cancel: 'Quitar',
+    days: '{count} días',
+    from: 'Desde',
+    intro: 'Marca los días que estarás fuera y el plan se pausa: esos días no cuentan como saltados y, al volver, sigue donde lo dejaste.',
+    range: 'Del {from} al {to}',
+    title: 'Vacaciones',
+    to: 'Hasta'
   }
 };
 

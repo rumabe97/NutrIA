@@ -108,6 +108,21 @@ export const meals = pgTable(
 );
 
 /** The adherence signal. One row per user action, so it is auditable and undoable. */
+/**
+ * A stretch of days somebody is away, both ends included (`0032`).
+ *
+ * The row is the *record* of the pause, not its mechanism: creating one moves
+ * every plan day at or after `starts_on` forward by its length, so during the
+ * trip there is simply no plan day on those dates — nothing to eat, nothing to
+ * skip, nothing to be reminded about — and the plan resumes on the day after.
+ * Storing the shift rather than deriving it keeps every other query honest: a
+ * plan day's date is the date it is.
+ */
+export const vacations = userOwned('vacations', {
+  endsOn: date().notNull(),
+  startsOn: date().notNull()
+});
+
 export const mealCompletions = userOwned('meal_completions', {
   loggedAt: date().notNull(),
   mealId: uuid()
