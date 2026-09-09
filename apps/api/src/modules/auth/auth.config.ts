@@ -8,6 +8,7 @@ import { account, rateLimit, session, user, verification } from 'database/schema
 
 import { notifyOwnerOfWaitingAccount } from './AccountWaitingMail.js';
 import { absoluteCallback, sendPasswordResetMail } from './PasswordResetMail.js';
+import { activateIfRegistrationIsOpen } from './SelfService.js';
 import { localeFromHeader } from '../../shared/decorators/Locale.decorator.js';
 import { verifyEmail } from '../email/templates/VerifyEmail.js';
 
@@ -61,7 +62,11 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
            * an unreachable mailbox.
            */
           after: async (created: { id: string; email: string; }) => {
-            await notifyOwnerOfWaitingAccount(mailer, env.OWNER_EMAIL, created, { apiUrl: `${env.BETTER_AUTH_URL}/${env.API_PREFIX}`, secret: env.BETTER_AUTH_SECRET });
+            // Read again rather than assumed from `before`: it says which of the
+            // two modes the notice was written in, and the door can move.
+            const selfService = await SettingsController.registrationOpen();
+
+            await notifyOwnerOfWaitingAccount(mailer, env.OWNER_EMAIL, created, { apiUrl: `${env.BETTER_AUTH_URL}/${env.API_PREFIX}`, secret: env.BETTER_AUTH_SECRET, selfService });
           },
           /*
            * The owner can close the door (`0031`). Checked here rather than in a
@@ -95,6 +100,16 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
         })
     },
     emailVerification: {
+      /*
+       * The door decides what confirming an address does (`0031`, amended):
+       * self-service while registration is open, an admin's act while it is
+       * closed. The hook runs after `emailVerified` is written and before the
+       * session cookie is set, and `SessionGuard` re-reads the row on every
+       * request, so the person is in on their next navigation.
+       */
+      afterEmailVerification: async (verified: { id: string }) => {
+        await activateIfRegistrationIsOpen(verified.id);
+      },
       autoSignInAfterVerification: true,
       /*
        * Sent, since `0030`: confirming an address no longer opens the account.

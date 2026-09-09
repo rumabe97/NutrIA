@@ -17,6 +17,7 @@ import { ProfilesModule } from './modules/profiles/profiles.module.js';
 import { ProgressModule } from './modules/progress/progress.module.js';
 import { RecipesModule } from './modules/recipes/recipes.module.js';
 import { SafetyModule } from './modules/safety/safety.module.js';
+import { SettingsModule } from './modules/settings/settings.module.js';
 import { ShoppingListsModule } from './modules/shopping-lists/shopping-lists.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { AllExceptionsFilter } from './shared/filters/index.js';
@@ -46,6 +47,7 @@ import { LoggingModule } from './shared/logging/index.js';
     ProgressModule,
     RecipesModule,
     SafetyModule,
+    SettingsModule,
     ShoppingListsModule,
     UsersModule
   ],

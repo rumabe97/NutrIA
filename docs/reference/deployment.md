@@ -191,9 +191,16 @@ Two consequences worth knowing before the first real generation:
 
 ## 5b. Activating an account
 
-Access is opened account by account (`0017`). A new sign-up can sign in but lands
-on `/pendiente` until its email is marked verified. Until a mail provider is
-configured, that is a row update on the direct (session-mode) endpoint:
+Who opens an account depends on the door (`0031`):
+
+| Registration | What confirming the address does | Who opens the account |
+| --- | --- | --- |
+| **Open** | Opens it. Nothing waits on you. | Nobody — the person does |
+| **Closed** | Only confirms the address | You, from `/admin` or the mail |
+
+A new sign-up can always sign in, and lands on `/pendiente` until `activated_at` is
+set. With the door closed that is your act — the button in the mail, the queue on
+`/admin`, or a row update on the direct (session-mode) endpoint:
 
 ```sql
 update "user" set activated_at = now(), updated_at = now() where email = 'persona@ejemplo.com';

@@ -20,7 +20,7 @@ export async function notifyOwnerOfWaitingAccount(
   mailer: Pick<EmailService, 'configured' | 'send'>,
   ownerEmail: string | undefined,
   account: { readonly id: string; readonly email: string; },
-  link: { readonly apiUrl: string; readonly secret: string }
+  link: { readonly apiUrl: string; readonly secret: string; readonly selfService?: boolean }
 ): Promise<void> {
   if (!ownerEmail || !mailer.configured) {return;}
 
@@ -28,7 +28,7 @@ export async function notifyOwnerOfWaitingAccount(
     // One click, signed and expiring: the owner opens the account from their
     // phone instead of finding a database client (`0030`).
     const url = `${link.apiUrl}/admin/activate?token=${activationToken(account.id, link.secret)}`;
-    const sent = await mailer.send({ ...accountWaitingEmail({ email: account.email, locale: OWNER_LOCALE, url }), to: ownerEmail });
+    const sent = await mailer.send({ ...accountWaitingEmail({ email: account.email, locale: OWNER_LOCALE, selfService: link.selfService, url }), to: ownerEmail });
 
     console.info(`[auth] owner ${sent ? 'notified' : 'NOT notified'} of a waiting account (user ${account.id})`);
   } catch (error) {

@@ -14,6 +14,7 @@ import { SignOutLink } from 'components/SignOutLink';
 import { interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
+import type { SettingsView } from 'core/controllers/Settings';
 import type { UserView } from 'core/controllers/User';
 
 export const dynamic = 'force-dynamic';
@@ -24,7 +25,11 @@ export const dynamic = 'force-dynamic';
  * free-tier provider — and about the one thing they can do: check again later.
  */
 export default async function PendingPage() {
-  const [dictionary, user] = await Promise.all([getDictionary(), serverApi<UserView>('/users/me')]);
+  const [dictionary, user, settings] = await Promise.all([
+    getDictionary(),
+    serverApi<UserView>('/users/me'),
+    serverApi<SettingsView>('/settings')
+  ]);
 
   if (!user) {redirect('/acceder');}
 
@@ -32,14 +37,24 @@ export default async function PendingPage() {
   // sent a confirmed-but-unopened account straight back into the app.
   if (user.activated) {redirect('/inicio');}
 
+  /*
+   * Which of the two waits this is (`0031`). While the door is open, confirming
+   * the address is the whole gate and there is nobody to wait for; while it is
+   * closed, the owner turns the key. Unknown counts as closed: promising
+   * somebody they are one click away when we could not ask is the worse lie.
+   */
+  const selfService = settings?.registrationOpen === true && !user.emailVerified;
+
   return (
     <Fragment>
-      <h1 className={styles.title}>{dictionary.auth.pendingTitle}</h1>
-      <Text tone="secondary">{interpolate(dictionary.auth.pendingBody, { email: user.email })}</Text>
+      <h1 className={styles.title}>{selfService ? dictionary.auth.pendingConfirmTitle : dictionary.auth.pendingTitle}</h1>
+      <Text tone="secondary">
+        {interpolate(selfService ? dictionary.auth.pendingConfirmBody : dictionary.auth.pendingBody, { email: user.email })}
+      </Text>
 
       {/* Two different waits, and only one of them is ours (0030): the account
           opens when the owner opens it, the address is confirmed by them. */}
-      {user.emailVerified ? null : (
+      {user.emailVerified || selfService ? null : (
         <Text size="sm" tone="tertiary">
           {dictionary.auth.pendingConfirm}
         </Text>

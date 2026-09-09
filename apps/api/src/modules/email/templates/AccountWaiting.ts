@@ -12,12 +12,15 @@ import type { EmailLocale, RenderedEmail } from './Layout.js';
  * waiting. Nothing else about the person travels: no name, no answers, no
  * profile, because none of it is needed to decide whether to open an account.
  */
-const COPY: Record<EmailLocale, { activate: string; button: string; byHand: string; intro: string; subject: string; unconfirmed: string }> = {
+const COPY: Record<EmailLocale, { activate: string; button: string; byHand: string; intro: string; selfService: string; selfServiceIntro: string; selfServiceSubject: string; subject: string; unconfirmed: string }> = {
   'en-GB': {
     activate: 'One click opens it. The link works for a month.',
     button: 'Open this account',
     byHand: 'Or by hand, against the database:',
     intro: 'Someone signed up and is waiting for their account to be opened.',
+    selfService: 'Registration is open, so this account opens itself as soon as they confirm their address. The button opens it now.',
+    selfServiceIntro: 'Someone signed up.',
+    selfServiceSubject: 'NutrIA — someone signed up',
     subject: 'NutrIA — an account is waiting',
     unconfirmed: 'They have not confirmed their address yet.'
   },
@@ -26,20 +29,28 @@ const COPY: Record<EmailLocale, { activate: string; button: string; byHand: stri
     button: 'Abrir esta cuenta',
     byHand: 'O a mano, contra la base de datos:',
     intro: 'Alguien se ha registrado y está esperando a que le abras la cuenta.',
+    selfService: 'El registro está abierto, así que la cuenta se abrirá sola en cuanto confirme su correo. El botón la abre ya.',
+    selfServiceIntro: 'Alguien se ha registrado.',
+    selfServiceSubject: 'NutrIA — alguien se ha registrado',
     subject: 'NutrIA — una cuenta está esperando',
     unconfirmed: 'Todavía no ha confirmado su correo.'
   }
 };
 
-export function accountWaitingEmail({ email, emailVerified = true, locale, url }: { email: string; emailVerified?: boolean; locale: EmailLocale; url: string }): RenderedEmail {
+export function accountWaitingEmail({ email, emailVerified = true, locale, selfService = false, url }: { email: string; emailVerified?: boolean; locale: EmailLocale; selfService?: boolean; url: string }): RenderedEmail {
   const copy = COPY[locale];
   const statement = `update "user" set activated_at = now(), updated_at = now() where email = '${email}';`;
+  // While the door is open the account opens itself on confirmation (`0031`),
+  // so calling it "waiting" would be a small lie in the owner's inbox.
+  const intro = selfService ? copy.selfServiceIntro : copy.intro;
+  const subject = selfService ? copy.selfServiceSubject : copy.subject;
 
   const html = layout({
     body: [
-      paragraph(copy.intro),
+      paragraph(intro),
       `<p style="margin:0 0 1rem;font-size:1rem;"><strong>${escapeHtml(email)}</strong></p>`,
       emailVerified ? '' : paragraph(copy.unconfirmed, 'muted'),
+      selfService ? paragraph(copy.selfService, 'muted') : '',
       button(url, copy.button),
       paragraph(copy.activate, 'muted'),
       paragraph(copy.byHand, 'muted'),
@@ -48,8 +59,8 @@ export function accountWaitingEmail({ email, emailVerified = true, locale, url }
       .filter(Boolean)
       .join('\n'),
     locale,
-    title: copy.subject
+    title: subject
   });
 
-  return { html, subject: copy.subject, text: [copy.intro, '', email, '', copy.activate, url, '', copy.byHand, statement].join('\n') };
+  return { html, subject, text: [intro, '', email, '', copy.activate, url, '', copy.byHand, statement].join('\n') };
 }

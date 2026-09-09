@@ -40,3 +40,42 @@ The owner asked for registration to be open, and for a way to close it.
   while something is going wrong.
 - `app_settings` holds a key, a boolean and a timestamp, and should stay that
   small. Anything needing more shape than a switch is a feature.
+
+## Amendment — 2026-09-09 — the door also decides who turns the key
+
+Two switches, still. What changes is that the first one now says how the second
+is turned:
+
+| `registration_open` | Signing up | Confirming the address |
+| --- | --- | --- |
+| **true** | Anyone | Opens the account — self-service |
+| **false** | Refused, 403 `REGISTRATION_CLOSED` | Confirms the address and nothing else; an admin opens it |
+
+`afterEmailVerification` reads the door and, when it is open, writes
+`activated_at` for that account. Before this, confirming an address opened
+nothing under any setting, so "open registration" meant a queue that the owner
+had to work through by hand — a door with nobody allowed through it.
+
+Three details worth keeping:
+
+- **The door is read when the link is clicked, not when the account was
+  created.** Somebody who signs up while it is open and confirms after it shuts
+  is waiting. Closing the door is meant to stop people arriving, and someone who
+  has not finished arriving has not arrived.
+- **The write never fails the verification.** The address is confirmed by then;
+  a settings read that breaks leaves the account waiting, which an admin can
+  still open. The opposite — an error page on a link that worked — would lose
+  the confirmation too.
+- **`activated_at` still means one thing**: the account is open. Who wrote it,
+  the person or the owner, is not a distinction any guard makes, and adding one
+  would be a second door pretending to be a fact.
+
+The screens follow the same split. `/pendiente` asks the API which wait this is
+and says so — "confirm your email" when it is one click, "we will open your
+account" when it is a person. The switch on `/admin` says what each position
+means now, and the owner's notice says whether the account will open itself.
+
+The trade this makes explicit: with the door open, the only thing standing
+between a stranger and a generated plan is a confirmed mailbox. That is the
+point of being able to shut it in one click, and the reason the roadmap keeps
+provider quota next to it.
