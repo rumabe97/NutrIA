@@ -3,6 +3,8 @@ import { Global, Module } from '@nestjs/common';
 import { ENV, envProvider } from '../../config/index.js';
 import { AUTH, createAuth } from './auth.config.js';
 import { AuthController } from './auth.controller.js';
+import { EmailModule } from '../email/email.module.js';
+import { EmailService } from '../email/Email.service.js';
 import { SessionGuard } from '../../shared/guards/Session.guard.js';
 
 import type { Env } from '../../config/index.js';
@@ -16,8 +18,9 @@ import type { Env } from '../../config/index.js';
 @Module({
   controllers: [AuthController],
   exports: [AUTH, ENV, SessionGuard],
+  imports: [EmailModule],
   providers: [
-    { inject: [ENV], provide: AUTH, useFactory: (env: Env) => createAuth(env) },
+    { inject: [ENV, EmailService], provide: AUTH, useFactory: (env: Env, mailer: EmailService) => createAuth(env, mailer) },
     SessionGuard,
     envProvider
   ]

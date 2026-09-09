@@ -4,7 +4,10 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { database } from 'database';
 import { account, session, user, verification } from 'database/schema/auth';
 
+import { sendPasswordResetMail } from './PasswordResetMail.js';
+
 import type { Env } from '../../config/index.js';
+import type { EmailService } from '../email/Email.service.js';
 
 const MINUTES = 60;
 const SESSION_MAX_AGE_DAYS = 30;
@@ -20,7 +23,7 @@ const SESSION_REFRESH_AGE_DAYS = 1;
  * removes a person's health data — every user-scoped table references it with
  * ON DELETE CASCADE (see `packages/database/src/schemas/_utils.ts`).
  */
-export function createAuth(env: Env) {
+export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | 'send'>) {
   return betterAuth({
     account: { accountLinking: { enabled: false } },
     advanced: {
@@ -48,21 +51,28 @@ export function createAuth(env: Env) {
       // succeeds — bouncing the user back to the form with "check your email"
       // half-completed is worse than letting them in and gating the plan.
       requireEmailVerification: false,
-      sendResetPassword: async ({ url, user: recipient }) => {
-        // Wired to SMTP in the notifications project. Logging the address would
-        // put an account identifier in the log stream, so it does not.
-        console.info(`[auth] password reset requested; token url issued (user ${recipient.id})`, env.SMTP_HOST ? '' : '(no SMTP configured)');
-
-        if (!env.SMTP_HOST) {console.info(`[auth] reset url: ${url}`);}
-      }
+      // The one mail the product sends (0019). The request's language picks
+      // the copy; the web app sends the tag it is rendering in.
+      sendResetPassword: ({ url, user: recipient }, request) =>
+        sendPasswordResetMail(mailer, {
+          acceptLanguage: request?.headers.get('accept-language') ?? null,
+          to: recipient.email,
+          url,
+          userId: recipient.id
+        })
     },
     emailVerification: {
       autoSignInAfterVerification: true,
-      sendOnSignUp: true,
+      /*
+       * Deliberately not sent, even with mail configured: `email_verified` is
+       * the switch the owner throws by hand to open an account (0017), and a
+       * link the person can click themselves would hand them the switch. When
+       * access opens to everyone, this is the line to change — and the hook
+       * below the one to write.
+       */
+      sendOnSignUp: false,
       sendVerificationEmail: async ({ url, user: recipient }) => {
-        console.info(`[auth] verification email queued (user ${recipient.id})`, env.SMTP_HOST ? '' : '(no SMTP configured)');
-
-        if (!env.SMTP_HOST) {console.info(`[auth] verification url: ${url}`);}
+        console.info(`[auth] verification link issued, not mailed — access opens by hand (0017) (user ${recipient.id}); url: ${url}`);
       }
     },
     secret: env.BETTER_AUTH_SECRET,

@@ -8,7 +8,7 @@ import styles from '../../../components/AuthForm/AuthForm.module.css';
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
-import { useDictionary } from 'i18n/LocaleProvider';
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { authClient } from 'lib/auth-client';
 
@@ -16,6 +16,7 @@ import type { FormEvent } from 'react';
 
 export default function ForgotPasswordPage() {
   const dictionary = useDictionary();
+  const locale = useLocale();
   const [sent, setSent] = useState(false);
   const [pending, setPending] = useState(false);
 
@@ -25,7 +26,13 @@ export default function ForgotPasswordPage() {
 
     const form = new FormData(event.currentTarget);
 
-    await authClient.requestPasswordReset({ email: String(form.get('email')), redirectTo: '/restablecer' });
+    // The mail is written in the language the person is reading, not the
+    // browser's own preference list — the same tag every API call carries.
+    await authClient.requestPasswordReset({
+      email: String(form.get('email')),
+      fetchOptions: { headers: { 'Accept-Language': locale } },
+      redirectTo: '/restablecer'
+    });
 
     setPending(false);
     // Always the same confirmation, whether or not the address exists —

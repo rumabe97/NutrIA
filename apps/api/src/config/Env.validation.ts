@@ -161,6 +161,16 @@ const envSchema = envObject
     }
   })
   .superRefine((env, ctx) => {
+    // Mail is all or nothing. A host with no credentials, or credentials with no
+    // sender, would boot, accept every reset request, and deliver none of them —
+    // and the form on the other side says "we have sent you a link".
+    if (!env.SMTP_HOST) {return;}
+
+    for (const key of ['SMTP_USER', 'SMTP_PASS', 'EMAIL_FROM'] as const) {
+      if (!env[key]) {ctx.addIssue({ code: 'custom', message: 'is required when SMTP_HOST is set', path: [key] });}
+    }
+  })
+  .superRefine((env, ctx) => {
     // The platform says this is production; the process must agree, or every
     // rule below is skipped, cookies are not `secure`, and Swagger is one flag
     // from public. This is the only place the two are compared, so it fails

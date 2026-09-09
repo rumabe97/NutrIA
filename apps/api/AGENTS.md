@@ -15,7 +15,7 @@ apps/api/src/
   config/            — Env.validation.ts (boot-time contract), swagger.config.ts
   database/          — DatabaseModule + the health indicator
   shared/            — decorators/ guards/ filters/ interceptors/ pipes/
-  modules/           — auth, users, profiles, onboarding, safety, health
+  modules/           — auth, users, profiles, onboarding, safety, health, email, …
 test/                — e2e specs; need a real database (see test/README.md)
 ```
 
@@ -222,6 +222,13 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `email_verified = false` gets 409 `EMAIL_UNVERIFIED` on every route not marked `@Public()`
   or `@AllowUnverified()`. Keep the allow-list to what an unactivated account needs: who am
   I, and leave.
+- **Mail** (`0019`): `modules/email` is the one door mail leaves through — `EmailService.send`
+  over SMTP (nodemailer), unconfigured without `SMTP_HOST` and then returning `false`. The only
+  message today is the password-reset link, composed in `modules/email/templates` in the
+  request's language and sent from Better Auth's hook (`modules/auth/PasswordResetMail.ts`),
+  which never throws: the hook runs only for existing accounts, so an escaping error would tell
+  a caller which addresses are registered. Verification links are logged, not mailed (`0017`).
+  Addresses never reach the log.
 - **Check-in** (`0018`): `GET /check-ins/status`, `POST /check-ins` — once per plan, from its last
   day. Weight → progress log (targets follow the latest weight); portions → a 5 % calorie nudge
   through the target override; words → the next plan's prompt. Never a restriction.

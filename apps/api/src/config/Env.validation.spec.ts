@@ -88,6 +88,20 @@ describe('empty values from a copied .env.example', () => {
     expect(() => validateEnv({ ...copied, EMAIL_FROM: 'not-an-email' })).toThrow(/EMAIL_FROM/);
   });
 
+  it('requires the whole mail configuration once a host is named', () => {
+    const run = () => validateEnv({ ...copied, SMTP_HOST: 'smtp.example.com' });
+
+    expect(run).toThrow(/SMTP_USER/);
+    expect(run).toThrow(/SMTP_PASS/);
+    expect(run).toThrow(/EMAIL_FROM/);
+  });
+
+  it('accepts a complete mail configuration', () => {
+    const env = validateEnv({ ...copied, EMAIL_FROM: 'hola@example.com', SMTP_HOST: 'smtp.example.com', SMTP_PASS: 'x', SMTP_PORT: '465', SMTP_USER: 'hola@example.com' });
+
+    expect(env.SMTP_PORT).toBe(465);
+  });
+
   it('treats an empty provider key as missing when that provider is selected', () => {
     expect(() => validateEnv({ ...copied, AI_PROVIDER: 'anthropic' })).toThrow(/ANTHROPIC_API_KEY/);
   });

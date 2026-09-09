@@ -81,6 +81,7 @@ from local development:
 | `AI_REWRITE_STEPS` | `false` on a free-tier project: the rewrite sweep would spend the daily request cap generation needs in ~2 hours; `true` with billing |
 | `AI_ILLUSTRATIONS` | `false` until billing is enabled on the Google AI project (its free tier allows **zero** image generations); then `true` |
 | `CRON_SECRET` | any 16+ characters (`openssl rand -base64 32`); the platform sends it as a bearer on both crons — illustrations every 10 minutes, step rewrites every 5. Unset, the routes 404 and say so in the log |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | the password-reset sender (`0019`), see §5c. All five together or none: a host without credentials or a sender is refused at boot. With none, reset links go to the log and nobody receives them |
 
 `Env.validation.ts` refuses to boot on a bad environment and reports every problem at
 once. In production it is stricter than in development on purpose — and it checks
@@ -178,6 +179,47 @@ update "user" set email_verified = true, updated_at = now() where email = 'perso
 
 To see who is waiting: `select email, created_at from "user" where not email_verified order by created_at;`.
 The change takes effect on the person's next page load; nothing needs redeploying.
+
+## 5c. Mail: the password-reset link
+
+The product sends exactly one mail, the password-reset link (`0019`). Verification
+links are never mailed — activation is §5b. Any SMTP provider works; the API talks
+to it on port 587 (STARTTLS) or 465 (implicit TLS). Port 25 is blocked by the platform
+and is not needed.
+
+**Gmail, until there is a domain.** A dedicated Google account, not a personal one —
+the app password grants full send rights on it.
+
+1. In the Google account, turn on two-step verification (Security → 2-Step Verification).
+   App passwords do not exist without it.
+2. Security → *App passwords* → create one named `NutrIA`. Google shows sixteen characters
+   once; copy them without the spaces.
+3. On the API project's environment (production):
+
+   | Variable | Value |
+   | --- | --- |
+   | `SMTP_HOST` | `smtp.gmail.com` |
+   | `SMTP_PORT` | `465` |
+   | `SMTP_USER` | the Gmail address |
+   | `SMTP_PASS` | the sixteen-character app password |
+   | `EMAIL_FROM` | the same Gmail address — Gmail rewrites any other sender to the account's own |
+
+4. Redeploy the API (environment changes do not apply to a running deployment), then
+   request a reset from `/recuperar` for your own account. The mail arrives from
+   "NutrIA <address>"; the link opens `/restablecer`. If nothing arrives, the API log
+   has one line per attempt: `password reset mail sent` or `mail NOT sent` with the
+   provider's reason, never the address.
+
+Gmail allows a few hundred messages a day from an ordinary account, which a
+hand-activated user base does not approach.
+
+**A provider on the product's own domain, when there is one.** A transactional service
+(Resend, Postmark, Brevo — all have a free tier and all speak SMTP) verifies the domain
+once with three DNS records (SPF, DKIM, DMARC) and then any address on it may send.
+Nothing in the code changes: the same five variables, the service's SMTP host and
+credentials, `EMAIL_FROM` becoming `hola@` the domain. Buying the domain through the
+hosting platform puts the DNS where the deployments already are, and gives the web app
+its real address at the same time (§1, shape B).
 
 ## 6. Before changing how the app is assembled
 

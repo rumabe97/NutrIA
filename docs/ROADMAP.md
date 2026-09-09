@@ -43,17 +43,19 @@ screens at phone width, which closes project 002's two open gates.
 
 1. **A user can live inside the plan.** Day navigation, meal detail with recipe and macros
    (done), favourite / dislike (done, `0014`), meal replacement (done, `0015`: library first,
-   five a plan, list rebuilt) — the "faster, cheaper, vegetarian, no cooking, more protein"
-   axes and complete / skip remain.
-2. **A user can shop from it.** Consolidated list per plan, grouped by aisle, editable,
-   regenerable, always matching the active plan.
+   five a plan, list rebuilt), complete / skip (done, `0016`) — the "faster, cheaper,
+   vegetarian, no cooking, more protein" axes on a swap remain.
+2. **A user can shop from it.** Done: consolidated list per plan, grouped by aisle, editable,
+   rebuilt on every swap, always matching the active plan.
 3. **The loop closes.** Weight tracking (done), eaten / skipped on each meal (done, `0016`),
-   the fortnightly check-in feeding the next plan (done, `0018`). Plan history, immutable,
-   remains.
+   the fortnightly check-in feeding the next plan (done, `0018`). Remaining: a progress
+   screen over the data already kept (weight trend, adherence per fortnight) and plan
+   history, immutable.
 4. **The assistant.** Nutrition-scoped, context-efficient, with the medical boundaries in
    `PRODUCT.md` enforced rather than requested.
-5. **Settings and notifications.** Preference editing outside onboarding, email delivery
-   (SMTP is stubbed to the log today), reminders, and notification preferences.
+5. **Settings and notifications.** Preference editing outside onboarding (done, from the
+   profile), password-reset mail (done, `0019`), reminders and notification preferences —
+   and verification mail, the day access opens to everyone (`0017`).
 
 ## Later / someday
 
@@ -61,5 +63,7 @@ screens at phone width, which closes project 002's two open gates.
 - English alongside Spanish; country-aware ingredient availability.
 - Vacation mode — a temporary lifestyle override that does not destroy the normal plan.
 - Analytics on the events already reserved in `analytics_events`.
-- Deployment and CI. Nothing is wired yet; the reference workspace's Vercel + GitHub Actions
-  approach is the starting point, minus its known problems.
+- CI. The deployment is live (`docs/reference/deployment.md`) but no workflow runs the gate
+  before the host builds `main`; the end-to-end suites still want a throwaway database.
+- Error visibility. Failures reach the owner as screenshots; an error tracker's free tier
+  would reach them first.
