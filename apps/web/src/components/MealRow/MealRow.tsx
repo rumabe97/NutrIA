@@ -19,6 +19,7 @@ interface MealRowProps {
   name: string;
   proteinG: number;
   slot: string;
+  status?: string;
 }
 
 /**
@@ -32,19 +33,23 @@ interface MealRowProps {
  * plan you can scan either. The title stays a link to the full recipe with its
  * method; this is the quantities only.
  */
-export function MealRow({ id, illustrationPath = null, ingredients = [], kcal, name, proteinG, slot }: MealRowProps) {
+export function MealRow({ id, illustrationPath = null, ingredients = [], kcal, name, proteinG, slot, status = 'planned' }: MealRowProps) {
   const dictionary = useDictionary();
   const locale = useLocale();
 
   return (
-    <div className={styles.row}>
+    <div className={styles.row} data-status={status}>
       <Link className={styles.head} data-illustrated={illustrationPath ? 'true' : undefined} href={`/plan/comida/${id}`}>
         {/* Decorative here — the name beside it is the content — so the alt is empty and
             the label lives on the detail page, where the picture is large enough to matter. */}
         {/* eslint-disable-next-line @next/next/no-img-element -- the API serves a phone-sized, immutable WebP already; next/image would add an optimiser hop and per-image billing for nothing */}
         {illustrationPath ? <img alt="" className={styles.thumb} loading="lazy" src={`${API_URL}${illustrationPath}`} /> : null}
         <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
-        <span className={styles.name}>{name}</span>
+        <span className={styles.name}>
+          {name}
+          {status === 'completed' ? <span className={styles.badge}>{dictionary.meal.badgeDone}</span> : null}
+          {status === 'skipped' ? <span className={styles.badge}>{dictionary.meal.badgeSkipped}</span> : null}
+        </span>
         <span className={styles.meta}>
           {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(proteinG), locale)} {dictionary.units.proteinShort}
         </span>

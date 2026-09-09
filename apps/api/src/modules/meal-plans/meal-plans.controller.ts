@@ -1,14 +1,17 @@
-import { Controller, DefaultValuePipe, Get, Param, ParseIntPipe, ParseUUIDPipe, Post, Query } from '@nestjs/common';
+import { Body, Controller, DefaultValuePipe, Get, Param, ParseIntPipe, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { PlanController } from 'core/controllers/Plan';
+import { setMealStatusSchema } from 'core/entities/Plan';
 
 import { CurrentUser, Locale, RateLimit, RequiresOnboarding } from '../../shared/decorators/index.js';
+import { ZodValidationPipe } from '../../shared/pipes/index.js';
 import { MealSwapService } from './MealSwap.service.js';
 import { PlanJobRunner } from './PlanJobRunner.service.js';
 
 import type { AllowancesView, JobView, MealDetailView, PlanDayView, PlanSummaryView, PlanView } from 'core/controllers/Plan';
 import type { SessionUser } from '../../shared/decorators/index.js';
+import type { SetMealStatus } from 'core/entities/Plan';
 
 const HISTORY_PAGE = { default: 20, max: 50 } as const;
 
@@ -55,6 +58,14 @@ export class MealPlansController {
   @RateLimit({ limit: 10, ttlSeconds: 3600 })
   async swap(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Locale() locale: string | null): Promise<MealDetailView> {
     return this.swaps.swap(user.id, id, locale);
+  }
+
+  @ApiOperation({ summary: 'Mark a meal eaten or skipped, or take it back.' })
+  @Patch('meals/:id/status')
+  async setStatus(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Body(new ZodValidationPipe(setMealStatusSchema)) body: SetMealStatus): Promise<SetMealStatus> {
+    await PlanController.setMealStatus(user.id, id, body.status);
+
+    return body;
   }
 
   @ApiOperation({ summary: 'Progress of a generation. `step` is the stage the pipeline actually reached.' })

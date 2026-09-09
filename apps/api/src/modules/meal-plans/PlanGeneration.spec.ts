@@ -153,7 +153,7 @@ function build(overrides: Partial<Mocks> = {}) {
     Promise.resolve({
       dishes: reusable,
       generated: [],
-      metadata: { attempts: 0, calls: 0, inputTokens: 0, model: 'none', outputTokens: 0, promptVersion: '1.0.0', providerUsed: false, rejected: 0, reused: reusable.length }
+      metadata: { attempts: 0, backfilled: 0, calls: 0, inputTokens: 0, model: 'none', outputTokens: 0, promptVersion: '1.0.0', providerUsed: false, rejected: 0, reused: reusable.length }
     })
   );
   const poolBuilder = { build: buildPool } as unknown as PoolBuilder;
@@ -253,7 +253,7 @@ describe('PlanGenerationService', () => {
     buildPool.mockResolvedValueOnce({
       dishes: thin,
       generated: [],
-      metadata: { attempts: 1, calls: 1, inputTokens: 0, model: 'gemini', outputTokens: 0, promptVersion: '2.4.2', providerError: 'You exceeded your current quota', providerUsed: true, rejected: 0, reused: thin.length }
+      metadata: { attempts: 1, backfilled: 0, calls: 1, inputTokens: 0, model: 'gemini', outputTokens: 0, promptVersion: '2.4.2', providerError: 'You exceeded your current quota', providerUsed: true, rejected: 0, reused: thin.length }
     });
 
     const planId = await service.generate('user-1', 'job-1', async () => Promise.resolve());
@@ -277,7 +277,7 @@ describe('PlanGenerationService', () => {
     buildPool.mockResolvedValueOnce({
       dishes: thin,
       generated: [],
-      metadata: { attempts: 1, calls: 1, inputTokens: 0, model: 'gemini', outputTokens: 0, promptVersion: '2.4.2', providerError: 'quota', providerUsed: true, rejected: 0, reused: 1 }
+      metadata: { attempts: 1, backfilled: 0, calls: 1, inputTokens: 0, model: 'gemini', outputTokens: 0, promptVersion: '2.4.2', providerError: 'quota', providerUsed: true, rejected: 0, reused: 1 }
     });
 
     await expect(service.generate('user-1', 'job-1', async () => Promise.resolve())).rejects.toMatchObject({ code: 'GENERATION_AI_UNAVAILABLE' });

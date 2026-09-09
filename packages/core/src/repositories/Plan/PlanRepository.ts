@@ -1,14 +1,14 @@
 import { aliasedTable, and, desc, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
 
 import { database } from 'database';
-import { mealPlans, meals, mealSwaps, planDays } from 'database/schema/plan';
+import { mealCompletions, mealPlans, meals, mealSwaps, planDays } from 'database/schema/plan';
 import { ingredientAllergens, ingredientNames, ingredients, ingredientSubstitutions } from 'database/schema/food';
 import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 import { shoppingListItems, shoppingLists } from 'database/schema/shopping';
 
 import { ConflictError, DatabaseOperationError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
 import { FALLBACK_LOCALE } from '#repositories/Recipe';
-import type { Macros, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
+import type { Macros, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
 
 export const PlanRepository = {
   /** Swaps recorded against one plan — what the fortnight's allowance is counted from. */
@@ -426,6 +426,39 @@ export const PlanRepository = {
         .returning({ id: shoppingListItems.id });
 
       return updated.length > 0;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Marks a meal eaten or skipped, or takes it back. The meal row carries the
+   * current answer; `meal_completions` keeps the day it was said, which is what
+   * a check-in will read. Owner-scoped in the statement. Returns false when the
+   * meal is not theirs, which the controller turns into a 404.
+   */
+  async setMealStatus(userId: string, mealId: string, status: MealStatus): Promise<boolean> {
+    try {
+      return await database().transaction(async tx => {
+        const [owned] = await tx
+          .select({ id: meals.id })
+          .from(meals)
+          .innerJoin(planDays, eq(planDays.id, meals.planDayId))
+          .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))
+          .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId)))
+          .limit(1);
+
+        if (!owned) {return false;}
+
+        await tx.update(meals).set({ status, updatedAt: new Date() }).where(eq(meals.id, mealId));
+        await tx.delete(mealCompletions).where(and(eq(mealCompletions.userId, userId), eq(mealCompletions.mealId, mealId)));
+
+        if (status !== 'planned') {
+          await tx.insert(mealCompletions).values({ loggedAt: new Date().toISOString().slice(0, 10), mealId, status, userId });
+        }
+
+        return true;
+      });
     } catch (error: unknown) {
       throw wrap(error);
     }

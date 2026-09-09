@@ -124,3 +124,25 @@
     margin-inline-start: 0;
   }
 }
+
+/* Eaten or skipped: the row steps back, and a small badge says which. */
+.row[data-status='completed'] .name,
+.row[data-status='skipped'] .name {
+  color: var(--foreground-02);
+}
+
+.row[data-status='skipped'] .name {
+  text-decoration: line-through;
+}
+
+.badge {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-full);
+  color: var(--foreground-02);
+  font-size: var(--font-size-01);
+  margin-inline-start: var(--space-02);
+  padding: 0 var(--space-02);
+  text-decoration: none;
+  vertical-align: middle;
+  white-space: nowrap;
+}

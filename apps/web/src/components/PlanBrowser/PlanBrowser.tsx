@@ -81,7 +81,7 @@ export function PlanBrowser({ plan, redo }: { plan: PlanView; redo: PlanRedoStan
                 content changed, and motion is how a reader is told that. */}
             <div className={`${styles.meals} motion-list`}>
               {day.meals.map(meal => (
-                <MealRow id={meal.id} illustrationPath={meal.illustrationPath} ingredients={meal.ingredients} kcal={meal.kcal} key={meal.id} name={meal.name} proteinG={meal.proteinG} slot={meal.slot} />
+                <MealRow id={meal.id} illustrationPath={meal.illustrationPath} ingredients={meal.ingredients} kcal={meal.kcal} key={meal.id} name={meal.name} proteinG={meal.proteinG} slot={meal.slot} status={meal.status} />
               ))}
             </div>
           </section>

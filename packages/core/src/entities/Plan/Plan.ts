@@ -184,3 +184,10 @@ export type RecipeVerdict = (typeof RECIPE_VERDICTS)[number];
 
 export const setRecipeVerdictSchema = z.object({ verdict: z.enum(RECIPE_VERDICTS) });
 export type SetRecipeVerdict = z.infer<typeof setRecipeVerdictSchema>;
+
+/** What a person says about a meal once its time has come: eaten, or not. `planned` takes it back. */
+export const MEAL_STATUSES = ['planned', 'completed', 'skipped'] as const;
+export type MealStatus = (typeof MEAL_STATUSES)[number];
+
+export const setMealStatusSchema = z.object({ status: z.enum(MEAL_STATUSES) });
+export type SetMealStatus = z.infer<typeof setMealStatusSchema>;

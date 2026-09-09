@@ -5,7 +5,7 @@ import { PlanJobRepository, PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
 import { SafetyController } from 'core/controllers/Safety';
 import { alternativesFor } from 'core/domain/Substitution';
-import type { Macros, MealSlot, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
+import type { Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
 import type { MealSwapStanding, PlanRedoStanding } from 'core/domain/Allowance';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 
@@ -244,6 +244,11 @@ export const PlanController = {
     if (!found) {throw new NotFoundError('Meal not found');}
 
     return found;
+  },
+
+  /** A meal that is not theirs is not found — the same shape as every other denial. */
+  async setMealStatus(userId: string, mealId: string, status: MealStatus): Promise<void> {
+    if (!(await PlanRepository.setMealStatus(userId, mealId, status))) {throw new NotFoundError('Meal not found');}
   },
 
   /**

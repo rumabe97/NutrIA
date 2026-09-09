@@ -56,7 +56,7 @@ function harness(options: { readonly generated?: readonly CandidateDish[]; reado
     Promise.resolve({
       dishes: options.generated ?? [],
       generated: options.generated ?? [],
-      metadata: { attempts: 1, calls: 1, inputTokens: 0, model: 'gemini', outputTokens: 0, promptVersion: '2.5.0', providerUsed: true, rejected: 0, reused: 0 }
+      metadata: { attempts: 1, backfilled: 0, calls: 1, inputTokens: 0, model: 'gemini', outputTokens: 0, promptVersion: '2.5.0', providerUsed: true, rejected: 0, reused: 0 }
     })
   );
 

@@ -58,6 +58,13 @@ describe('MealPlansController', () => {
     expect(allowances).toHaveBeenCalledWith('usr-alice');
   });
 
+  it('marks a meal for the session user and echoes the status', async () => {
+    const setMealStatus = jest.spyOn(PlanController, 'setMealStatus').mockResolvedValue(undefined);
+
+    await expect(controller.setStatus(ALICE, BOB_PLAN, { status: 'completed' })).resolves.toEqual({ status: 'completed' });
+    expect(setMealStatus).toHaveBeenCalledWith('usr-alice', BOB_PLAN, 'completed');
+  });
+
   it('swaps a meal for the session user, in the language of the request', async () => {
     const { controller, swap } = build();
 

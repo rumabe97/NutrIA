@@ -17,9 +17,20 @@ import { generationError, stepLabel } from 'lib/generation';
 
 import type { JobView } from 'core/controllers/Plan';
 
-const POLL_MS = 1500;
-/** Generation takes a couple of minutes at worst; beyond this something is wrong. */
-const MAX_POLLS = 240;
+/**
+ * Polling backs off: 1 s, 2 s, 4 s, then every 6 s. The first answers arrive
+ * while the job is still queued and change quickly; once it is generating, a
+ * plan takes minutes and nothing changes second to second. A fifth of the
+ * requests the old fixed 1.5 s made, and no slower to notice the end.
+ */
+const POLL_DELAYS_MS = [1000, 2000, 4000] as const;
+const POLL_MAX_MS = 6000;
+/** Ten minutes at the capped interval; the job itself gives up well before. */
+const MAX_POLLS = 100;
+
+function pollDelay(poll: number): number {
+  return POLL_DELAYS_MS[poll] ?? POLL_MAX_MS;
+}
 
 type Phase = { code: string | null; detail: string | null; kind: 'failed' } | { kind: 'running'; step: string | null } | { kind: 'starting' };
 
@@ -62,7 +73,7 @@ export function GenerationProgress() {
     }
 
     for (let poll = 0; poll < MAX_POLLS; poll += 1) {
-      await new Promise(resolve => setTimeout(resolve, POLL_MS));
+      await new Promise(resolve => setTimeout(resolve, pollDelay(poll)));
 
       let current: JobView;
 

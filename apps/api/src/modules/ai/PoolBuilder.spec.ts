@@ -136,13 +136,41 @@ describe('PoolBuilder', () => {
   });
 
   it('generates only the shortfall and reports usage', async () => {
-    const generated = SLOTS.flatMap(slot => Array.from({ length: DISHES_NEEDED_PER_SLOT }, (_u, i) => dish(`${slot} nuevo ${i}`, [slot])));
-    const { client, generate } = stubClient([{ dishes: generated }]);
+    // One response per slot, in the order the slots are asked.
+    const perSlot = SLOTS.map(slot => ({ dishes: Array.from({ length: DISHES_NEEDED_PER_SLOT }, (_u, i) => dish(`${slot} nuevo ${i}`, [slot])) }));
+    const { client, generate } = stubClient(perSlot);
     const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: SLOTS });
 
-    expect(generate).toHaveBeenCalledTimes(1);
-    expect(result.metadata).toMatchObject({ calls: 1, inputTokens: 100, model: 'stub-model', outputTokens: 500, rejected: 0, reused: 0 });
+    // One request per slot, all in the first round; usage adds up across them.
+    expect(generate).toHaveBeenCalledTimes(SLOTS.length);
+    expect(result.metadata).toMatchObject({ attempts: 1, calls: SLOTS.length, inputTokens: 100 * SLOTS.length, model: 'stub-model', outputTokens: 500 * SLOTS.length, rejected: 0, reused: 0 });
     expect(result.dishes.length).toBeGreaterThanOrEqual(SLOTS.length * DISHES_NEEDED_PER_SLOT);
+  });
+
+  it('asks each slot in its own request, naming only that slot', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: SLOTS });
+
+    // The first round: one prompt per slot, each naming its slot and no other.
+    const firstRound = generate.mock.calls.slice(0, SLOTS.length).map(call => (call[0] as { prompt: string }).prompt);
+
+    expect(firstRound.filter(prompt => prompt.includes('- lunch:'))).toHaveLength(1);
+    expect(firstRound.filter(prompt => prompt.includes('- breakfast:'))).toHaveLength(1);
+    expect(firstRound.every(prompt => prompt.split('distinct dishes').length === 2)).toBe(true);
+  });
+
+  it('covers a short first round from the backfill instead of asking the model again', async () => {
+    // The model returns two lunches where twelve were wanted; the library has plenty held back.
+    const two = { dishes: [dish('Nuevo uno', ['lunch']), dish('Nuevo dos', ['lunch'])] };
+    const backfill = Array.from({ length: 20 }, (_u, i) => ({ ...dish(`Guardado ${i}`, ['lunch']), slug: `guardado-${i}` }));
+    const { client, generate } = stubClient([two]);
+    const result = await new PoolBuilder(client).build({ backfill, context: context(), preferences, reusable: [], slots: ['lunch'] });
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(result.generated).toHaveLength(2);
+    expect(result.metadata.backfilled).toBe(DISHES_NEEDED_PER_SLOT - 2);
+    expect(result.dishes).toHaveLength(DISHES_NEEDED_PER_SLOT);
   });
 
   it('rejects a dish referencing an ingredient outside the catalogue, and retries', async () => {
@@ -397,10 +425,10 @@ describe('PoolBuilder', () => {
     expect(steps[1]?.cue).toBe('hasta que dore');
   });
 
-  it('gives up after a bounded number of attempts rather than looping', async () => {
+  it('gives up after a bounded number of rounds rather than looping', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: SLOTS });
+    await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
 
     expect(generate).toHaveBeenCalledTimes(3);
   });

@@ -27,6 +27,8 @@ export type PoolResult = {
   readonly generated: readonly CandidateDish[];
   readonly metadata: {
     readonly attempts: number;
+    /** Library dishes used to cover what the model's first round left short. */
+    readonly backfilled: number;
     readonly calls: number;
     readonly inputTokens: number;
     readonly model: string;
@@ -42,6 +44,12 @@ export type PoolResult = {
 };
 
 export type BuildPoolInput = {
+  /**
+   * Library dishes held back from `reusable` for freshness, offered to cover
+   * whatever the model's first round left short — instead of a second round
+   * ([`0016`](../../../../../docs/decisions/0016-one-round-per-slot-in-parallel.md)).
+   */
+  readonly backfill?: readonly CandidateDish[];
   readonly context: GenerationContext;
   /** Dishes wanted per slot. A whole plan wants `DISHES_NEEDED_PER_SLOT`; a single meal's swap wants a handful. */
   readonly needPerSlot?: number;
@@ -64,11 +72,12 @@ export class PoolBuilder {
 
   constructor(private readonly ai: AiClient) {}
 
-  async build({ context, needPerSlot = DISHES_NEEDED_PER_SLOT, preferences, reusable, slots }: BuildPoolInput): Promise<PoolResult> {
+  async build({ backfill = [], context, needPerSlot = DISHES_NEEDED_PER_SLOT, preferences, reusable, slots }: BuildPoolInput): Promise<PoolResult> {
     const accepted = new Map<string, CandidateDish>(reusable.map(dish => [dish.slug, dish]));
     const generated: CandidateDish[] = [];
     const metadata = {
       attempts: 0,
+      backfilled: 0,
       calls: 0,
       inputTokens: 0,
       model: 'none',
@@ -85,70 +94,88 @@ export class PoolBuilder {
     const safeIngredients = [...context.catalogue.values()].filter(ingredient => isSafeIngredient(ingredient, context));
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-      const needBySlot = shortfall(slots, [...accepted.values()], needPerSlot);
+      let needBySlot = shortfall(slots, [...accepted.values()], needPerSlot);
 
-      if ([...needBySlot.values()].every(count => count === 0)) {break;}
+      // After the first round, what the library still has covers the gap before
+      // the model is asked again: a second round costs as much as the first and
+      // arrives minutes later; a library dish arrives now.
+      if (attempt > 1) {
+        for (const dish of backfill) {
+          if ([...needBySlot.values()].every(count => count === 0)) {break;}
+
+          if (accepted.has(dish.slug) || !dish.slots.some(slot => (needBySlot.get(slot) ?? 0) > 0)) {continue;}
+
+          accepted.set(dish.slug, dish);
+          metadata.backfilled += 1;
+          needBySlot = shortfall(slots, [...accepted.values()], needPerSlot);
+        }
+      }
+
+      const wanted = [...needBySlot].filter(([, count]) => count > 0).map(([slot]) => slot);
+
+      if (wanted.length === 0) {break;}
 
       if (!this.ai.isAvailable) {
-        // No provider configured. Reuse is all there is, and the caller decides
-        // whether that is enough — silently returning a thin pool would surface
-        // later as an unexplained scheduling failure.
         this.logger.warn('No AI provider available; serving reuse only');
         break;
       }
 
       metadata.attempts = attempt;
 
-      let response;
+      // One request per slot, all at once. Latency is set by the longest single
+      // response, and a response for one slot is a quarter the size of one for
+      // four; the token cost is the same either way.
+      const excludeSlugs = [...accepted.keys()];
+      const rounds = await Promise.allSettled(
+        wanted.map(slot =>
+          this.ai.generate({
+            prompt: buildPoolPrompt(
+              {
+                ...preferences,
+                excludeSlugs,
+                forbiddenLabels: context.safety.unenforceableLabels,
+                language: languageName(context.locale),
+                needBySlot: new Map([[slot, needBySlot.get(slot) ?? 0]])
+              },
+              safeIngredients
+            ),
+            schema: wirePoolSchema,
+            system: POOL_SYSTEM_PROMPT
+          })
+        )
+      );
 
-      try {
-        response = await this.ai.generate({
-          // The forbidden labels come from the safety profile, not from the
-          // caller's preferences: they are allergy data, and the one place that
-          // decides what is enforceable and what is not is `toSafetyProfile`.
-          prompt: buildPoolPrompt(
-            {
-              ...preferences,
-              excludeSlugs: [...accepted.keys()],
-              forbiddenLabels: context.safety.unenforceableLabels,
-              // Both from the context, not the caller: the language the dishes
-              // come back in and the language their ingredients were named in
-              // have to be the same one, and the context is where that is decided.
-              language: languageName(context.locale),
-              needBySlot
-            },
-            safeIngredients
-          ),
-          schema: wirePoolSchema,
-          system: POOL_SYSTEM_PROMPT
-        });
-      } catch (error: unknown) {
-        // Degrade to whatever reuse supplied rather than failing here — but record
-        // *that the provider failed*. Without this the caller cannot tell a
-        // configured-but-broken provider from no provider at all, and reports
-        // "not enough recipes" to someone whose credentials or model name are
-        // simply wrong. That happened.
-        metadata.providerError = error instanceof Error ? error.message : 'unknown';
-        this.logger.error(`Pool generation attempt ${attempt} failed against ${metadata.model}: ${metadata.providerError}`);
-        break;
-      }
+      let succeeded = 0;
 
-      metadata.calls += response.usage.calls;
-      metadata.inputTokens += response.usage.inputTokens;
-      metadata.model = response.usage.model;
-      metadata.outputTokens += response.usage.outputTokens;
+      for (const round of rounds) {
+        if (round.status === 'rejected') {
+          const error: unknown = round.reason;
 
-      for (const dish of response.object.dishes) {
-        const candidate = this.validate(dish, context, accepted);
-
-        if (!candidate) {
-          metadata.rejected += 1;
+          metadata.providerError = error instanceof Error ? error.message : 'unknown';
+          this.logger.error(`Pool generation attempt ${attempt} failed against ${metadata.model}: ${metadata.providerError}`);
           continue;
         }
 
-        accepted.set(candidate.slug, candidate);
-        generated.push(candidate);
+        succeeded += 1;
+        metadata.calls += round.value.usage.calls;
+        metadata.inputTokens += round.value.usage.inputTokens;
+        metadata.model = round.value.usage.model;
+        metadata.outputTokens += round.value.usage.outputTokens;
+
+        for (const dish of round.value.object.dishes) {
+          const candidate = this.validate(dish, context, accepted);
+
+          if (!candidate) {
+            metadata.rejected += 1;
+            continue;
+          }
+
+          accepted.set(candidate.slug, candidate);
+          generated.push(candidate);
+        }
       }
+
+      if (succeeded === 0) {break;}
     }
 
     return { dishes: [...accepted.values()], generated, metadata };

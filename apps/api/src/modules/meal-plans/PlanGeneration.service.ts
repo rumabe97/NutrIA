@@ -99,8 +99,14 @@ export class PlanGenerationService {
       preferSlugs: new Set(verdicts.liked.map(dish => dish.slug)),
       seed: `${userId}:${history.nextVersion}`
     };
-    const reusable = await RecipeController.reusablePool(slots, context, rotation);
+    const [reusable, everything] = await Promise.all([RecipeController.reusablePool(slots, context, rotation), RecipeController.reusablePool(slots, context)]);
+    // What rotation held back for freshness, minus last fortnight's and the
+    // dislikes: the builder covers a short first round from here rather than
+    // asking the model again.
+    const inPool = new Set(reusable.map(dish => dish.slug));
+    const backfill = everything.filter(dish => !inPool.has(dish.slug) && !rotation.avoidSlugs.has(dish.slug));
     const built = await this.pool.build({
+      backfill,
       context,
       preferences: promptPreferences(
         profile,
