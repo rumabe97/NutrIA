@@ -1,6 +1,7 @@
 #!/bin/sh
 # Guards committed content against leaks (AGENTS.md § Documentation):
-#   1. Absolute local paths (/Users/...) never belong in tracked files.
+#   1. Absolute home paths (/Users/... on macOS, /home/... on Linux) never belong in
+#      tracked files: they name the machine and the person who wrote the line.
 #   2. Workspace-specific patterns from docs/local/leak-patterns.txt (one extended
 #      regex per line, # comments allowed). The list lives in docs/local/ DELIBERATELY:
 #      a committed denylist naming employers or private repos would itself be the leak.
@@ -16,7 +17,7 @@
 
 fail=0
 
-if git grep -nE '/Users/[A-Za-z]' -- ':!pnpm-lock.yaml' ':!scripts/check-leaks.sh'; then
+if git grep -nE '/(Users|home)/[A-Za-z]' -- ':!pnpm-lock.yaml' ':!scripts/check-leaks.sh'; then
   fail=1
 fi
 
