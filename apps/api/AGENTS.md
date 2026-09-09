@@ -216,6 +216,10 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   model only when the library has nothing for the slot) and rebuilds the shopping list in the
   same transaction. A spent allowance is 429 `QUOTA_EXCEEDED`, with `retryAt` when it renews
   on a date. The redo check lives in `PlanJobController.start`, never in a route.
+- **The past is read-only** (`0021`): `GET /meal-plans` lists every plan with `replaced` (the next
+  lived plan began before it ended); `GET /meal-plans/:id` serves any plan of theirs; a meal's
+  detail carries `planId` and `planStatus`. A status change or a swap on a meal of a plan that is
+  not active is a 409 conflict, never silently applied.
 - **Eaten or skipped**: `PATCH /meal-plans/meals/:id/status` with `{ status }` marks a meal;
   `meal_completions` keeps the day it was said. `planned` takes it back.
 - **Activation** (`0017`): `VerifiedEmailGuard` is global; a signed-in account with

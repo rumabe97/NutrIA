@@ -309,7 +309,12 @@ export const PlanRepository = {
       const db = database();
 
       const [row] = await db
-        .select({ day: planDays, meal: meals, recipe: { ...getTableColumns(recipes), hasImage: sql<boolean>`exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id})` } })
+        .select({
+          day: planDays,
+          meal: meals,
+          plan: { id: mealPlans.id, status: mealPlans.status },
+          recipe: { ...getTableColumns(recipes), hasImage: sql<boolean>`exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id})` }
+        })
         .from(meals)
         .innerJoin(planDays, eq(planDays.id, meals.planDayId))
         .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))
@@ -434,21 +439,24 @@ export const PlanRepository = {
   /**
    * Marks a meal eaten or skipped, or takes it back. The meal row carries the
    * current answer; `meal_completions` keeps the day it was said, which is what
-   * a check-in will read. Owner-scoped in the statement. Returns false when the
-   * meal is not theirs, which the controller turns into a 404.
+   * a check-in will read. Owner-scoped in the statement. `missing` when the
+   * meal is not theirs (a 404 upstream); `closed` when its plan is no longer
+   * the active one — the past is read-only (0021).
    */
-  async setMealStatus(userId: string, mealId: string, status: MealStatus): Promise<boolean> {
+  async setMealStatus(userId: string, mealId: string, status: MealStatus): Promise<'closed' | 'done' | 'missing'> {
     try {
       return await database().transaction(async tx => {
         const [owned] = await tx
-          .select({ id: meals.id })
+          .select({ id: meals.id, planStatus: mealPlans.status })
           .from(meals)
           .innerJoin(planDays, eq(planDays.id, meals.planDayId))
           .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))
           .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId)))
           .limit(1);
 
-        if (!owned) {return false;}
+        if (!owned) {return 'missing';}
+
+        if (owned.planStatus !== 'active') {return 'closed';}
 
         await tx.update(meals).set({ status, updatedAt: new Date() }).where(eq(meals.id, mealId));
         await tx.delete(mealCompletions).where(and(eq(mealCompletions.userId, userId), eq(mealCompletions.mealId, mealId)));
@@ -457,7 +465,7 @@ export const PlanRepository = {
           await tx.insert(mealCompletions).values({ loggedAt: new Date().toISOString().slice(0, 10), mealId, status, userId });
         }
 
-        return true;
+        return 'done';
       });
     } catch (error: unknown) {
       throw wrap(error);

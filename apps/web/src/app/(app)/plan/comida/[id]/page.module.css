@@ -222,3 +222,7 @@
   justify-content: space-between;
   margin-bottom: var(--gap-block);
 }
+
+.readOnly {
+  margin: var(--space-03) 0 var(--gap-block);
+}

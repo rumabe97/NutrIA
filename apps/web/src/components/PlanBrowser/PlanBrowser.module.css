@@ -75,3 +75,23 @@
   gap: var(--space-02) var(--space-04);
   margin-block: var(--space-03) var(--space-05);
 }
+
+.back {
+  color: var(--foreground-02);
+  display: inline-block;
+  font-size: var(--font-size-02);
+  margin-block-end: var(--gap-heading);
+  text-decoration: none;
+}
+
+.back:hover,
+.historyLink:hover {
+  text-decoration: underline;
+}
+
+.historyLink {
+  color: var(--color-brand-11);
+  font-size: var(--font-size-02);
+  text-decoration: none;
+  white-space: nowrap;
+}

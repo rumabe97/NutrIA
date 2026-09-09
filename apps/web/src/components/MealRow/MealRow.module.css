@@ -36,7 +36,8 @@
   color: var(--color-brand-09);
 }
 
-.tick[aria-pressed='true'] {
+.tick[aria-pressed='true'],
+.tick[data-done='true'] {
   background-color: var(--color-brand-09);
   border-color: var(--color-brand-09);
   color: var(--color-brand-01, #fff);
@@ -192,4 +193,19 @@
   text-decoration: none;
   vertical-align: middle;
   white-space: nowrap;
+}
+
+/* The mark of a plan already lived: shown, not offered. */
+.tick[data-static='true'] {
+  cursor: default;
+}
+
+.tick[data-static='true']:hover {
+  border-color: var(--border-02, var(--border-01));
+  color: transparent;
+}
+
+.tick[data-static='true'][data-done='true']:hover {
+  border-color: var(--color-brand-09);
+  color: var(--color-white);
 }

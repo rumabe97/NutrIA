@@ -1,5 +1,6 @@
 import { CheckInRepository } from '#repositories/CheckIn';
 import { difficultyAnswer, hungerAnswer } from 'core/entities/CheckIn';
+import { LIVED_PLAN_STATUSES } from 'core/entities/Plan';
 import { PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
 import { ProgressRepository } from '#repositories/Progress';
@@ -14,8 +15,6 @@ const RECENT_LIMIT = 30;
 const HISTORY_LIMIT = 400;
 const FORTNIGHT_DAYS = 14;
 const DAY_MS = 24 * 60 * 60 * 1000;
-/** Plans that had meals to eat. Drafts, failures and plans still generating are not fortnights lived. */
-const LIVED = new Set(['active', 'archived', 'completed']);
 
 export interface WeightView {
   /** Latest minus the earliest reading in the window. Null until there are two. */
@@ -158,7 +157,7 @@ export const ProgressController = {
     // it ended — a redo, or a regeneration — and from that day on its meals were
     // never on anyone's table: they are counted up to the day before, and a
     // plan replaced before a single meal was marked was not a fortnight at all.
-    const lived = chain.filter(plan => LIVED.has(plan.status));
+    const lived = chain.filter(plan => LIVED_PLAN_STATUSES.has(plan.status));
     const fortnights = lived.flatMap((plan, index): FortnightView[] => {
       const successor = lived[index - 1];
       const replaced = successor !== undefined && successor.startDate <= plan.endDate;

@@ -1,6 +1,8 @@
 'use client';
 import { Fragment, useState } from 'react';
 
+import Link from 'next/link';
+
 import styles from './PlanBrowser.module.css';
 
 import { Text } from 'ui/components/Text';
@@ -20,21 +22,45 @@ import type { PlanView } from 'core/controllers/Plan';
  * Day selection is client state over a plan fetched on the server: all fourteen
  * days arrive in one response, so switching days is instant and needs no request.
  */
-export function PlanBrowser({ plan, redo }: { plan: PlanView; redo: PlanRedoStanding | null }) {
+interface PlanBrowserProps {
+  /** Whether there is more than this plan to see — shows the way to the history. */
+  hasHistory?: boolean;
+  /**
+   * A plan no longer being lived (0021): the marks are shown and nothing can be
+   * changed — no tick, no redo, no "today" — and the header says which plan it
+   * was and how it ended.
+   */
+  history?: { replaced: boolean } | null;
+  plan: PlanView;
+  redo: PlanRedoStanding | null;
+}
+
+export function PlanBrowser({ hasHistory = false, history = null, plan, redo }: PlanBrowserProps) {
   const dictionary = useDictionary();
   const locale = useLocale();
   const shortDate = (date: string) => formatDate(date, locale, { day: 'numeric', month: 'short' });
-  const today = plan.days.find(day => day.date === new Date().toISOString().slice(0, 10))?.dayIndex;
+  const today = history ? undefined : plan.days.find(day => day.date === new Date().toISOString().slice(0, 10))?.dayIndex;
   const [selected, setSelected] = useState(today ?? 1);
   const day = plan.days.find(candidate => candidate.dayIndex === selected) ?? plan.days[0];
 
   return (
     <Fragment>
+      {history ? (
+        <Link className={styles.back} href="/plan/historial">
+          {dictionary.plan.historyBack}
+        </Link>
+      ) : null}
       <div className={styles.header}>
-        <h1 className={styles.title}>{dictionary.plan.title}</h1>
+        <h1 className={styles.title}>{history ? dictionary.plan.historyOne : dictionary.plan.title}</h1>
         <Text size="sm" tone="tertiary">
           {interpolate(dictionary.plan.range, { end: shortDate(plan.endDate), start: shortDate(plan.startDate) })}
+          {history ? ` · ${history.replaced ? dictionary.plan.historyReplaced : dictionary.plan.historyFinished}` : ''}
         </Text>
+        {hasHistory && !history ? (
+          <Link className={styles.historyLink} href="/plan/historial">
+            {dictionary.plan.historyLink}
+          </Link>
+        ) : null}
         {/* What the fortnight still allows, said before the person goes looking
             for a button that will refuse them. A redo is a whole new plan for the
             same days; the next fortnight is never rationed. */}
@@ -81,7 +107,18 @@ export function PlanBrowser({ plan, redo }: { plan: PlanView; redo: PlanRedoStan
                 content changed, and motion is how a reader is told that. */}
             <div className={`${styles.meals} motion-list`}>
               {day.meals.map(meal => (
-                <MealRow id={meal.id} illustrationPath={meal.illustrationPath} ingredients={meal.ingredients} kcal={meal.kcal} key={meal.id} name={meal.name} proteinG={meal.proteinG} slot={meal.slot} status={meal.status} />
+                <MealRow
+                  id={meal.id}
+                  illustrationPath={meal.illustrationPath}
+                  ingredients={meal.ingredients}
+                  kcal={meal.kcal}
+                  key={meal.id}
+                  name={meal.name}
+                  proteinG={meal.proteinG}
+                  readOnly={history !== null}
+                  slot={meal.slot}
+                  status={meal.status}
+                />
               ))}
             </div>
           </section>

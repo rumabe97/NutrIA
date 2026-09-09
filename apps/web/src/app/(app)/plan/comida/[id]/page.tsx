@@ -38,11 +38,14 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
   if (!meal) {notFound();}
 
   const totalMinutes = meal.prepMinutes + meal.cookMinutes;
+  // Only a meal of the plan being lived can be marked or swapped (0021); one of
+  // an earlier plan is shown as it was, and the way back leads to that plan.
+  const editable = meal.planStatus === 'active';
 
   return (
     <Fragment>
-      <Link className={styles.back} href="/plan">
-        {dictionary.meal.back}
+      <Link className={styles.back} href={editable ? '/plan' : `/plan/historial/${meal.planId}`}>
+        {editable ? dictionary.meal.back : dictionary.meal.backToHistory}
       </Link>
 
       <span className={styles.slot}>{interpolate(dictionary.meal.dayOf, { day: meal.dayIndex, slot: slotLabel(meal.slot, dictionary) })}</span>
@@ -58,10 +61,16 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
           another dish on the right — and only for a meal still to come, since a
           plate already eaten is not something to change. The state is the message;
           the buttons carry it, and nothing is explained under them. */}
-      <div className={styles.toolbar}>
-        <MealStatus mealId={meal.id} status={meal.status as Status} />
-        {allowances && meal.status === 'planned' ? <MealSwap limit={allowances.mealSwaps.limit} mealId={meal.id} remaining={allowances.mealSwaps.remaining} /> : null}
-      </div>
+      {editable ? (
+        <div className={styles.toolbar}>
+          <MealStatus mealId={meal.id} status={meal.status as Status} />
+          {allowances && meal.status === 'planned' ? <MealSwap limit={allowances.mealSwaps.limit} mealId={meal.id} remaining={allowances.mealSwaps.remaining} /> : null}
+        </div>
+      ) : (
+        <Text className={styles.readOnly} size="sm" tone="tertiary">
+          {dictionary.meal.readOnly}
+        </Text>
+      )}
 
       {/* An illustration when one has been drawn, and it says so. Nobody cooked this
           dish, so there is no photograph of it and calling a picture one would be the

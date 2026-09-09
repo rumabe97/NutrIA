@@ -22,6 +22,8 @@ interface MealRowProps {
   kcal: number;
   name: string;
   proteinG: number;
+  /** A row of a plan that is no longer active: the mark is shown, not offered. */
+  readOnly?: boolean;
   slot: string;
   status?: string;
 }
@@ -43,7 +45,7 @@ interface MealRowProps {
  * Optimistic; a failure puts it back. "Skipped" stays on the meal's own page,
  * where it is a considered choice rather than a tap in passing.
  */
-export function MealRow({ id, illustrationPath = null, ingredients = [], kcal, name, proteinG, slot, status: initial = 'planned' }: MealRowProps) {
+export function MealRow({ id, illustrationPath = null, ingredients = [], kcal, name, proteinG, readOnly = false, slot, status: initial = 'planned' }: MealRowProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -70,19 +72,27 @@ export function MealRow({ id, illustrationPath = null, ingredients = [], kcal, n
 
   return (
     <div className={styles.row} data-status={status}>
-      <button
-        aria-busy={pending || undefined}
-        aria-label={done ? dictionary.meal.unmarkDone : dictionary.meal.markDone}
-        aria-pressed={done}
-        className={styles.tick}
-        disabled={pending}
-        onClick={() => void toggleDone()}
-        type="button"
-      >
-        <svg aria-hidden="true" className={styles.tickMark} fill="none" height="12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 12 12" width="12">
-          <path d="M2 6.5 4.8 9.2 10 3.5" />
-        </svg>
-      </button>
+      {readOnly ? (
+        <span aria-hidden="true" className={styles.tick} data-done={done} data-static="true">
+          <svg className={styles.tickMark} fill="none" height="12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 12 12" width="12">
+            <path d="M2 6.5 4.8 9.2 10 3.5" />
+          </svg>
+        </span>
+      ) : (
+        <button
+          aria-busy={pending || undefined}
+          aria-label={done ? dictionary.meal.unmarkDone : dictionary.meal.markDone}
+          aria-pressed={done}
+          className={styles.tick}
+          disabled={pending}
+          onClick={() => void toggleDone()}
+          type="button"
+        >
+          <svg aria-hidden="true" className={styles.tickMark} fill="none" height="12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 12 12" width="12">
+            <path d="M2 6.5 4.8 9.2 10 3.5" />
+          </svg>
+        </button>
+      )}
       <div className={styles.body}>
       <Link className={styles.head} data-illustrated={illustrationPath ? 'true' : undefined} href={`/plan/comida/${id}`}>
         {/* Decorative here — the name beside it is the content — so the alt is empty and

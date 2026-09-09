@@ -1,4 +1,5 @@
 import { ConflictError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
+import { LIVED_PLAN_STATUSES } from 'core/entities/Plan';
 import { ALLOWANCES, mealSwapStanding, planRedoStanding, redosInFortnight } from 'core/domain/Allowance';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { PlanJobRepository, PlanRepository } from '#repositories/Plan';
@@ -58,6 +59,8 @@ export interface PlanView {
 export interface PlanSummaryView {
   id: string;
   endDate: string;
+  /** True when a later plan began before this one ended — a redo, or a regeneration. */
+  replaced: boolean;
   startDate: string;
   status: string;
   version: number;
@@ -231,10 +234,23 @@ export const PlanController = {
     };
   },
 
+  /** Newest first. A plan is replaced when the next lived plan began before it ended. */
   async listPlans(userId: string, limit = 20, offset = 0): Promise<readonly PlanSummaryView[]> {
     const rows = await PlanRepository.findHistory(userId, limit, offset);
+    const lived = rows.filter(row => LIVED_PLAN_STATUSES.has(row.status));
 
-    return rows.map(row => ({ id: row.id, endDate: row.endDate, startDate: row.startDate, status: row.status, version: row.version }));
+    return rows.map(row => {
+      const successor = lived[lived.indexOf(row) - 1];
+
+      return {
+        id: row.id,
+        endDate: row.endDate,
+        replaced: successor !== undefined && successor.startDate <= row.endDate,
+        startDate: row.startDate,
+        status: row.status,
+        version: row.version
+      };
+    });
   },
 
   /** The meal a swap is anchored on, owner-scoped; a meal that is not theirs is not found. */
@@ -246,9 +262,17 @@ export const PlanController = {
     return found;
   },
 
-  /** A meal that is not theirs is not found — the same shape as every other denial. */
+  /**
+   * A meal that is not theirs is not found — the same shape as every other
+   * denial. A meal of a plan that is no longer active is a conflict, not a
+   * denial: the past is read-only (0021), and the screen says so.
+   */
   async setMealStatus(userId: string, mealId: string, status: MealStatus): Promise<void> {
-    if (!(await PlanRepository.setMealStatus(userId, mealId, status))) {throw new NotFoundError('Meal not found');}
+    const result = await PlanRepository.setMealStatus(userId, mealId, status);
+
+    if (result === 'missing') {throw new NotFoundError('Meal not found');}
+
+    if (result === 'closed') {throw new ConflictError('Only the active plan can be changed');}
   },
 
   /**
@@ -382,6 +406,9 @@ export interface MealDetailView {
   ingredients: readonly { alternatives: readonly { grams: number; name: string }[]; grams: number; name: string; unit: string }[];
   kcal: number;
   name: string;
+  /** The plan this meal belongs to, and whether it is still the one being lived: only then can the meal be changed. */
+  planId: string;
+  planStatus: string;
   prepMinutes: number;
   proteinG: number;
   /** The recipe behind this meal — what a verdict attaches to, since the dish can return in another plan. */
@@ -429,7 +456,7 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
 
   if (!found) {throw new NotFoundError('Meal not found');}
 
-  const { day, items, meal, recipe } = found;
+  const { day, items, meal, plan, recipe } = found;
   const factor = Number(meal.servings) / (recipe.servings || 1);
   const verdict = await RecipeRepository.findVerdict(userId, recipe.id);
 
@@ -450,6 +477,8 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
     }),
     kcal: Number(meal.kcal),
     name: recipe.name,
+    planId: plan.id,
+    planStatus: plan.status,
     prepMinutes: recipe.prepMinutes,
     proteinG: Number(meal.proteinG),
     recipeId: recipe.id,

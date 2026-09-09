@@ -98,3 +98,14 @@
 .checkIn li:first-child::before {
   content: none;
 }
+
+.open {
+  color: var(--color-brand-11);
+  font-size: var(--font-size-02);
+  justify-self: start;
+  text-decoration: none;
+}
+
+.open:hover {
+  text-decoration: underline;
+}

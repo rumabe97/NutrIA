@@ -1,4 +1,6 @@
 'use client';
+import Link from 'next/link';
+
 import styles from './FortnightList.module.css';
 
 import { Text } from 'ui/components/Text';
@@ -71,6 +73,10 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
             <Text size="sm" tone="secondary">
               {interpolate(t.mealsLine, { eaten: fortnight.meals.eaten, skipped: fortnight.meals.skipped, soFar: fortnight.meals.soFar, unmarked })}
             </Text>
+
+            <Link className={styles.open} href={fortnight.status === 'active' ? '/plan' : `/plan/historial/${fortnight.planId}`}>
+              {t.openPlan}
+            </Link>
 
             {fortnight.checkIn ? (
               <ul className={styles.checkIn}>

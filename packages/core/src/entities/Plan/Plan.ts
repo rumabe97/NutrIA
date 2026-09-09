@@ -191,3 +191,9 @@ export type MealStatus = (typeof MEAL_STATUSES)[number];
 
 export const setMealStatusSchema = z.object({ status: z.enum(MEAL_STATUSES) });
 export type SetMealStatus = z.infer<typeof setMealStatusSchema>;
+
+/**
+ * Plans that had meals to eat. A draft, a failure and a plan still generating
+ * were never a fortnight, and every screen that lists fortnights skips them.
+ */
+export const LIVED_PLAN_STATUSES: ReadonlySet<string> = new Set(['active', 'archived', 'completed']);
