@@ -14,6 +14,7 @@ import { MealSwapService } from './MealSwap.service.js';
 import { PlanJobRunner } from './PlanJobRunner.service.js';
 
 import type { INestApplication } from '@nestjs/common';
+import type { SwapAxis } from 'core/entities/Plan';
 import type { OnboardingView } from 'core/controllers/Onboarding';
 import type { Response } from 'supertest';
 import type { Server } from 'node:http';
@@ -24,7 +25,7 @@ const BOB_PLAN = '11111111-2222-4333-8444-555555555555';
 
 function build() {
   const start = jest.fn(async (_userId: string) => Promise.resolve({ id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null }));
-  const swap = jest.fn(async (_userId: string, _mealId: string, _locale: string | null) => Promise.resolve({ id: 'meal-1' }));
+  const swap = jest.fn(async (_userId: string, _mealId: string, _locale: string | null, _axis?: SwapAxis) => Promise.resolve({ id: 'meal-1' }));
 
   return { controller: new MealPlansController({ start } as unknown as PlanJobRunner, { swap } as unknown as MealSwapService), start, swap };
 }
