@@ -12,8 +12,10 @@ import {
   UnauthorizedError
 } from 'core/entities/Error';
 
+import { ErrorReporter } from '../observability/ErrorReporter.js';
+
 import type { ExceptionFilter } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 
 type ErrorBody = {
   readonly code: string;
@@ -41,12 +43,24 @@ type ErrorBody = {
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
+  /** Optional so a test can stand the filter up without the reporter. */
+  constructor(private readonly reporter?: ErrorReporter) {}
+
   catch(exception: unknown, host: ArgumentsHost): void {
-    const response = host.switchToHttp().getResponse<Response>();
+    const http = host.switchToHttp();
+    const response = http.getResponse<Response>();
     const body = this.toBody(exception);
 
     if (body.statusCode >= HttpStatus.INTERNAL_SERVER_ERROR) {
       this.logger.error(exception instanceof Error ? exception.stack : String(exception));
+      // The route, not the URL: a path carries ids, and an id is a person.
+      const request = http.getRequest<Request>();
+      // express annotates the matched route on the request; its own types leave
+      // it loose, and the pattern — not the URL — is the whole point: a path
+      // carries ids, and an id is a person.
+      const route = (request as { route?: { path?: string } }).route?.path ?? 'unmatched';
+
+      this.reporter?.report(exception, `${request.method} ${route}`);
     }
 
     response.status(body.statusCode).json(body);

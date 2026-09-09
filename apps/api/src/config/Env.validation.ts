@@ -106,6 +106,8 @@ const envObject = z
     PORT: z.coerce.number().int().positive().default(3001),
     RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
     RATE_LIMIT_TTL: z.coerce.number().int().positive().default(60),
+    /** Unset means no error reporting at all — nothing is sent, and the log is the only record. */
+    SENTRY_DSN: optional(z.url()),
     SMTP_HOST: optional(z.string()),
     SMTP_PASS: optional(z.string()),
     SMTP_PORT: optional(z.coerce.number().int().positive()),
@@ -124,7 +126,9 @@ const envObject = z
      * development `NODE_ENV` has every production-only rule switched off, and the
      * first sign of it was the function crashing on a pretty-printer.
      */
-    VERCEL_ENV: optional(z.enum(['development', 'preview', 'production']))
+    VERCEL_ENV: optional(z.enum(['development', 'preview', 'production'])),
+    /** Set by the platform; used as the release a report is filed against. */
+    VERCEL_GIT_COMMIT_SHA: optional(z.string())
   });
 
 export const ENV_KEYS = Object.keys(envObject.shape);

@@ -4,6 +4,7 @@ import { PlanJobController } from 'core/controllers/Plan';
 
 import { RecipeIllustrator } from '../ai/RecipeIllustrator.service.js';
 import { BackgroundTaskService } from '../../shared/services/index.js';
+import { ErrorReporter } from '../../shared/observability/index.js';
 import { GenerationError, PlanGenerationService } from './PlanGeneration.service.js';
 
 import type { JobView } from 'core/controllers/Plan';
@@ -33,7 +34,8 @@ export class PlanJobRunner {
   constructor(
     private readonly background: BackgroundTaskService,
     private readonly generation: PlanGenerationService,
-    private readonly illustrator: RecipeIllustrator
+    private readonly illustrator: RecipeIllustrator,
+    private readonly reporter: ErrorReporter
   ) {}
 
   /** Creates the job and returns immediately; the work continues after the response. */
@@ -71,6 +73,9 @@ export class PlanJobRunner {
       const detail = error instanceof GenerationError ? error.message : undefined;
 
       this.logger.error(`Job ${jobId} failed (${code}): ${detail ?? (error instanceof Error ? error.message : 'unknown')}`);
+      // Nobody is waiting on a response here, so without this the failure is a
+      // log line in a serverless function that nobody reads.
+      this.reporter.report(error, `plan-generation:${code}`);
 
       await PlanJobController.markFailed(jobId, code, detail === code ? undefined : detail).catch((failure: unknown) => {
         this.logger.error(`Could not record failure for job ${jobId}: ${failure instanceof Error ? failure.message : 'unknown'}`);

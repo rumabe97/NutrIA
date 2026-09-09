@@ -216,6 +216,11 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   model only when the library has nothing for the slot) and rebuilds the shopping list in the
   same transaction. A spent allowance is 429 `QUOTA_EXCEEDED`, with `retryAt` when it renews
   on a date. The redo check lives in `PlanJobController.start`, never in a route.
+- **Error reporting** (`0024`): `ErrorReporter` in `shared/observability` — off without
+  `SENTRY_DSN`. The exception filter reports what it turns into a 5xx and `PlanJobRunner`
+  reports a failed generation. It sends the error, its stack and the route *pattern* only:
+  `beforeSend` deletes request, user and response context, and messages go through
+  `redactSecrets`. Never add a body, a header or an id to a report.
 - **Preferences are enforced** (`0023`): `GenerationContext.preferences` carries the ingredient ids
   a way of eating or a dislike rules out, resolved once in `RecipeController.generationContext`.
   `PoolBuilder` filters the catalogue it shows the model and drops a dish that uses one anyway;

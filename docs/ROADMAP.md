@@ -67,5 +67,5 @@ screens at phone width, which closes project 002's two open gates.
 - Analytics on the events already reserved in `analytics_events`.
 - CI. The deployment is live (`docs/reference/deployment.md`) but no workflow runs the gate
   before the host builds `main`, and nothing runs the end-to-end suites automatically.
-- Error visibility. Failures reach the owner as screenshots; an error tracker's free tier
-  would reach them first.
+- Error visibility: done (`0024`). Set `SENTRY_DSN` on the API project to turn it on; unset,
+  nothing is sent.

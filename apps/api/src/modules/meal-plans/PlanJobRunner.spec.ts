@@ -6,6 +6,7 @@ import { BackgroundTaskService } from '../../shared/services/index.js';
 import { GenerationError } from './PlanGeneration.service.js';
 import { PlanJobRunner } from './PlanJobRunner.service.js';
 
+import type { ErrorReporter } from '../../shared/observability/index.js';
 import type { PlanGenerationService } from './PlanGeneration.service.js';
 import type { RecipeIllustrator } from '../ai/RecipeIllustrator.service.js';
 
@@ -31,7 +32,9 @@ function build(generate: () => Promise<string>) {
   // Illustrations off: the runner asks the illustrator nothing, which is the state
   // every environment starts in and the one these tests are about.
   const illustrator = { illustrateMissing: jest.fn(), isAvailable: false } as unknown as RecipeIllustrator;
-  const runner = new PlanJobRunner(new BackgroundTaskService(), { generate: jest.fn(generate) } as unknown as PlanGenerationService, illustrator);
+  // Reporting is off in a test the way it is off without a DSN in production.
+  const report = jest.fn();
+  const runner = new PlanJobRunner(new BackgroundTaskService(), { generate: jest.fn(generate) } as unknown as PlanGenerationService, illustrator, { report } as unknown as ErrorReporter);
 
   return { markFailed, markStarted, markStep, markSucceeded, runner, start };
 }

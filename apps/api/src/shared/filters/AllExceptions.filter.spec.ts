@@ -10,7 +10,8 @@ import type { ArgumentsHost } from '@nestjs/common';
 function capture(exception: unknown) {
   const json = jest.fn();
   const status = jest.fn(() => ({ json }));
-  const host = { switchToHttp: () => ({ getResponse: () => ({ status }) }) } as unknown as ArgumentsHost;
+  const request = { method: 'GET', route: { path: '/api/v1/thing' } };
+  const host = { switchToHttp: () => ({ getRequest: () => request, getResponse: () => ({ status }) }) } as unknown as ArgumentsHost;
 
   const filter = new AllExceptionsFilter();
 

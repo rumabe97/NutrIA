@@ -26,12 +26,14 @@
     "PORT",
     "RATE_LIMIT_MAX",
     "RATE_LIMIT_TTL",
+    "SENTRY_DSN",
     "SMTP_HOST",
     "SMTP_PASS",
     "SMTP_PORT",
     "SMTP_USER",
     "SWAGGER_ENABLED",
-    "VERCEL_ENV"
+    "VERCEL_ENV",
+    "VERCEL_GIT_COMMIT_SHA"
   ],
   "tasks": {
     "build": {

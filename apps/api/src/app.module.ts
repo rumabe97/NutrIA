@@ -18,6 +18,7 @@ import { SafetyModule } from './modules/safety/safety.module.js';
 import { ShoppingListsModule } from './modules/shopping-lists/shopping-lists.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { AllExceptionsFilter } from './shared/filters/index.js';
+import { ObservabilityModule } from './shared/observability/index.js';
 import { AdminGuard, RateLimitGuard, RequiresOnboardingGuard, SessionGuard, VerifiedEmailGuard } from './shared/guards/index.js';
 import { NoStoreCacheInterceptor } from './shared/interceptors/index.js';
 import { LoggingModule } from './shared/logging/index.js';
@@ -28,6 +29,7 @@ import { LoggingModule } from './shared/logging/index.js';
   imports: [
     ConfigModule.forRoot({ cache: true, isGlobal: true, validate: validateEnv }),
     LoggingModule,
+    ObservabilityModule,
     DatabaseModule,
     AiModule,
     AuthModule,
