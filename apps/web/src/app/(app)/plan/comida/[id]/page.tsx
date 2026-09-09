@@ -64,7 +64,7 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
       {editable ? (
         <div className={styles.toolbar}>
           <MealStatus mealId={meal.id} status={meal.status as Status} />
-          {allowances && meal.status === 'planned' ? <MealSwap limit={allowances.mealSwaps.limit} mealId={meal.id} remaining={allowances.mealSwaps.remaining} /> : null}
+          {allowances && meal.status === 'planned' ? <MealSwap limit={allowances.mealSwaps.limit} mealId={meal.id} remaining={allowances.mealSwaps.remaining} totalMinutes={totalMinutes} /> : null}
         </div>
       ) : (
         <Text className={styles.readOnly} size="sm" tone="tertiary">

@@ -32,7 +32,11 @@ export function MacroSummary({ carbsG, fatG, kcal, note, proteinG }: MacroSummar
   ];
 
   return (
-    <div className={styles.summary} data-note={note ? true : undefined}>
+    // The wrapper is the container the columns are decided against: four abreast
+    // where the box is wide, two by two where it is not — a rail on a desktop
+    // is narrower than a phone, and the window's width said nothing about it.
+    <div className={styles.root}>
+      <div className={styles.summary} data-note={note ? true : undefined}>
       {items.map(item => (
         <div className={styles.item} data-accent={item.accent} key={item.label}>
           <div className={styles.value}>
@@ -49,6 +53,7 @@ export function MacroSummary({ carbsG, fatG, kcal, note, proteinG }: MacroSummar
           {note}
         </Text>
       ) : null}
+      </div>
     </div>
   );
 }

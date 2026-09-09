@@ -1,16 +1,22 @@
 /*
- * Two-up on phones, four-up from 34rem. Four columns in 360px are ~70px each:
- * "2235 kcal" and "174 g" wrapped their unit onto a second line while "189 g"
- * did not, and the four figures no longer lined up. `minmax(0, 1fr)` so a long
- * value can never widen its track past the others.
+ * Two-up in a narrow box, four-up in a wide one — judged on the box, not the
+ * window. Four columns in 360px are ~70px each: "2235 kcal" and "174 g" wrapped
+ * their unit onto a second line while "189 g" did not, and the figures no longer
+ * lined up; and a desktop rail is narrower than a phone, where the window query
+ * put four columns in 20rem and "3157 kcal" ran into "155 g". `minmax(0, 1fr)`
+ * so a long value can never widen its track past the others.
  */
+.root {
+  container-type: inline-size;
+}
+
 .summary {
   display: grid;
   gap: var(--space-04);
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-@media (width >= 34rem) {
+@container (width >= 30rem) {
   .summary {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }

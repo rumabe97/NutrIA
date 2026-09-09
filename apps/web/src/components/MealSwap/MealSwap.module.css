@@ -1,45 +1,100 @@
+/*
+ * The root takes no box of its own: the trigger sits in the toolbar's row and
+ * the panel drops under the whole row, full width, whatever the screen.
+ */
 .root {
+  display: contents;
+}
+
+.trigger {
+  margin-inline-start: auto;
+}
+
+.count {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-full);
+  color: var(--foreground-02);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-regular);
+  margin-inline-start: var(--space-02);
+  padding: 0 var(--space-02);
+}
+
+.panel {
+  background-color: var(--surface-sunken);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-04);
+  display: grid;
+  flex: 1 1 100%;
+  gap: var(--space-04);
+  padding: var(--space-05);
+}
+
+.options {
   display: grid;
   gap: var(--space-02);
 }
 
+.option {
+  align-items: flex-start;
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-03);
+  cursor: pointer;
+  display: flex;
+  gap: var(--space-03);
+  padding: var(--space-03) var(--space-04);
+  transition:
+    background-color var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default);
+}
+
+.option:hover {
+  border-color: var(--color-brand-07);
+}
+
+.option:has(input:checked) {
+  background-color: var(--color-brand-02);
+  border-color: var(--color-brand-09);
+}
+
+.option:has(input:focus-visible) {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.input {
+  accent-color: var(--color-brand-09);
+  margin-top: 0.2em;
+}
+
+.optionText {
+  display: grid;
+  gap: var(--space-01);
+}
+
+.footer {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03) var(--space-04);
+}
+
 .hint {
+  flex: 1 1 14rem;
   margin: 0;
   text-wrap: pretty;
 }
 
-.axes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-02);
+@media (width < 34rem) {
+  .trigger {
+    flex: 1 1 100%;
+    margin-inline-start: 0;
+  }
 }
 
-.axis {
-  background: none;
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-full);
-  color: var(--foreground-02);
-  cursor: pointer;
-  font: inherit;
-  font-size: var(--font-size-01);
-  padding: var(--space-01) var(--space-03);
-  transition:
-    background-color var(--duration-fast) var(--ease-default),
-    border-color var(--duration-fast) var(--ease-default),
-    color var(--duration-fast) var(--ease-default);
-}
-
-.axis:hover:not(:disabled) {
-  border-color: var(--color-brand-07);
-}
-
-.axis[aria-pressed='true'] {
-  background-color: var(--color-brand-03);
-  border-color: var(--color-brand-09);
-  color: var(--color-brand-12);
-}
-
-.axis:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
+@media (width >= 48rem) {
+  .options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
