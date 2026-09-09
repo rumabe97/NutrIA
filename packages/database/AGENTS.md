@@ -4,6 +4,15 @@ Database client, schema definitions, and migrations. Rules here are more specifi
 
 ---
 
+## Backups
+
+`pnpm backup` (`scripts/backup.ts`) exports every table as NDJSON plus a manifest with row
+counts and the last migration hash — the data only; the schema is the migrations in git.
+It picks no destination and encrypts nothing, because the file carries every user's health
+data and where it lives is a decision. `backups/` is git-ignored. There is deliberately no
+restore script: see §8 of `docs/reference/deployment.md` for why, and for the host's own
+point-in-time restore, which is the path that has actually been tested.
+
 ## Food classes
 
 `ingredients.classes` says what a food *is* — `meat`, `pork`, `fish`, `shellfish`, `dairy`, `egg`,

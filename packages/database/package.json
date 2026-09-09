@@ -17,8 +17,11 @@
     }
   },
   "scripts": {
+    "backup": "tsx ./scripts/backup.ts",
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
+    "format": "prettier --check 'src/**/*.ts'",
+    "format:fix": "prettier --write 'src/**/*.ts'",
     "generate": "drizzle-kit generate",
     "lint": "eslint 'src/**/*.ts' --max-warnings 0",
     "lint:fix": "eslint 'src/**/*.ts' --fix",
@@ -26,12 +29,10 @@
     "pull": "drizzle-kit pull",
     "push": "drizzle-kit push",
     "seed": "tsx ./src/seed/index.ts",
-    "ts:check": "tsc --noEmit",
-    "format": "prettier --check 'src/**/*.ts'",
-    "format:fix": "prettier --write 'src/**/*.ts'",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "ts:check": "tsc --noEmit"
   },
   "dependencies": {
     "dotenv": "^17.4.2",

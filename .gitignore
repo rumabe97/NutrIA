@@ -58,3 +58,6 @@ yarn-error.log*
 
 # Knowledge graph output (graphify): 11 MB of generated artefacts, rebuilt on demand.
 graphify-out/
+
+# Database exports carry every user's health data; they never enter the repository.
+backups/

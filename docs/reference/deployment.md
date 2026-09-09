@@ -263,17 +263,68 @@ boots, that an unauthenticated read is 404 rather than 401, and that an unmatche
 route returns the JSON envelope rather than the framework's HTML page. It needs a
 live database, so it is not part of the green gate.
 
+## 8. Backups
+
+Two different questions, and they have different answers.
+
+**"I deleted the wrong rows an hour ago."** The database host's own history. Neon keeps a
+restore window on every branch and restoring is creating a branch from a moment in the past:
+Console → the project → Branches → *Create branch* → *From a point in time*. The new branch
+comes up with its own connection string, so nothing is overwritten while you look — point
+`DIRECT_DATABASE_URL` at it, check the rows are there, and only then decide whether to move
+the app to it or copy rows back.
+
+**Check the window's length in the console and write it here — it is the one number this
+file cannot know**, because it is a property of the plan, not of the code:
+
+> Restore window on this project: ______ (Neon Console → Settings → *History retention*).
+
+That number is also the honest limit of this line of defence: past it, and for anything that
+loses the Neon project itself (an account closed, a plan expired, a database dropped by
+hand), the host has nothing.
+
+**"The project is gone."** A logical export, run by hand:
+
+```bash
+cd packages/database
+DIRECT_DATABASE_URL='postgresql://…' BACKUP_DIR=~/nutria-backups pnpm backup
+```
+
+It writes one newline-delimited JSON file per table plus a `manifest.json` with the row
+counts and the migration the data was shaped by — 46 tables and about 2 MB today. The schema
+is **not** in that folder: it is the migrations in git, which is why the manifest names the
+last one applied. A restore is therefore: create a database, `pnpm --filter database migrate`
+up to that migration, then load the rows in foreign-key order.
+
+Three things to be honest about:
+
+- **There is no restore script.** Loading 46 tables in dependency order is a program that
+  must be right the day it is used, and one written now and never run is not a backup, it is
+  a belief. The export exists so the data survives; the host's own restore is the path that
+  has been tested by the people who wrote it.
+- **The file carries every user's health data.** It is not encrypted and it is not uploaded
+  anywhere — `backups/` is in `.gitignore` and the script picks no destination, because
+  where a file like that lives is a decision, not a default.
+- **Nothing runs it on a schedule.** No cron is scheduled at all right now (§3b), and a
+  backup nobody runs is worth what it sounds like. Until that changes, it is a habit: before
+  a migration that drops or rewrites a column, and before anything else you would not want
+  to do twice.
+
 ## 7. Known gaps
 
-- **The rate limiter counts per instance.** `RateLimitGuard` holds its windows in
-  memory, so the effective limit multiplies by however many instances are warm. It
-  was already a documented trade; serverless is the moment it wants a shared store.
+- **The app's rate limiter still counts per instance.** `RateLimitGuard` holds its windows
+  in memory, so its effective limit multiplies by however many instances are warm. The
+  auth routes no longer do — Better Auth counts those in the database (`0007`, amended) —
+  and the expensive paths are quota'd in Postgres already (one redo a fortnight, five swaps
+  a plan). What is left is a coarse abuse guard on ordinary reads, where a database write
+  per request would cost more than it protects.
 - **The gate runs, the deploy does not wait for it.** `.github/workflows/ci.yml` runs
   `pnpm turbo lint ts:check test` on every push to `main` and every pull request, but the
   host still builds whatever lands on `main` regardless. A red run is a record, not a
   brake; making it one means a branch protection rule on the repository, which is a
   setting rather than a file. The end-to-end suites are not in CI: they need a live
   throwaway database, which means a secret and a branch to reset.
-- **Backups are undocumented.** The database host has its own retention and this
-  repository does not say what it is, how to restore, or who checks. A migration that
-  drops a column after back-filling is exactly when that matters.
+- **No backup runs on a schedule, and no restore has been rehearsed.** §8 says how to take
+  an export and how the host's own restore works, and the export has been run; neither has
+  been used in anger. The restore window's length is still a blank in §8 that only the
+  console can fill.

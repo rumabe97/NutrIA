@@ -2,7 +2,7 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 
 import { database } from 'database';
-import { account, session, user, verification } from 'database/schema/auth';
+import { account, rateLimit, session, user, verification } from 'database/schema/auth';
 
 import { sendPasswordResetMail } from './PasswordResetMail.js';
 
@@ -44,7 +44,7 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
     },
     basePath: `/${env.API_PREFIX}/auth`,
     baseURL: env.BETTER_AUTH_URL,
-    database: drizzleAdapter(database(), { provider: 'pg', schema: { account, session, user, verification } }),
+    database: drizzleAdapter(database(), { provider: 'pg', schema: { account, rateLimit, session, user, verification } }),
     emailAndPassword: {
       enabled: true,
       // Verification is required before a session is useful, but sign-up still
@@ -76,6 +76,18 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
         console.info(`[auth] verification link issued, not mailed — access opens by hand (0017) (user ${recipient.id}); url: ${url}`);
       }
     },
+    /*
+     * Counted in the database, not in the process.
+     *
+     * Better Auth limits its own routes by default in production and keeps the
+     * counters in memory, which on a serverless host means the effective limit
+     * is multiplied by however many instances are warm — and these are the
+     * routes where that matters, because the thing being counted is password
+     * guesses. A row per key is a write on a path that sees a handful of
+     * requests, which is a price worth paying exactly here and nowhere else
+     * (`0007`, amended).
+     */
+    rateLimit: { enabled: true, storage: 'database' },
     secret: env.BETTER_AUTH_SECRET,
     session: {
       expiresIn: SESSION_MAX_AGE_DAYS * 24 * MINUTES * MINUTES,

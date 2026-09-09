@@ -1,4 +1,4 @@
-import { boolean, index, pgEnum, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { bigint, boolean, index, integer, pgEnum, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
 
 import { timestamps } from './_columns';
 
@@ -70,3 +70,22 @@ export const verification = pgTable(
   },
   table => [index('verification_identifier_idx').on(table.identifier)]
 );
+
+/**
+ * Better Auth's rate-limit counters, in the database rather than in a process.
+ *
+ * The one place a per-instance count is actually dangerous: this is what stands
+ * between someone and an unlimited number of password guesses, and a serverless
+ * host runs as many instances as it likes (`0007`, amended). Its columns are
+ * Better Auth's contract, like the four tables above.
+ *
+ * Rows are transient. Better Auth deletes expired ones as it goes, so this table
+ * holds roughly one row per active key and not a history.
+ */
+export const rateLimit = pgTable('rate_limit', {
+  id: text().primaryKey(),
+  count: integer().notNull().default(0),
+  key: text().notNull().unique(),
+  /** Epoch milliseconds, as Better Auth writes it. */
+  lastRequest: bigint({ mode: 'number' }).notNull()
+});

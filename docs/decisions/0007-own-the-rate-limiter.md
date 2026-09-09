@@ -55,3 +55,21 @@ testable, and its failure mode is visible rather than silent.
 - The guard is keyed on user id where a session exists, so one aggressive network does not
   throttle everyone behind it.
 - Being ours, the limiter is unit-tested — which the throttler integration never was.
+
+## Amendment — 2026-09-09
+
+The counters that guard **password guessing** now live in the database.
+
+`RateLimitGuard` keeps its windows in memory, and on a serverless host that
+means the effective limit is multiplied by however many instances are warm. For
+an ordinary read that is a coarse guard doing a coarse job. For sign-in it is
+the difference between a hundred guesses and a hundred per instance, so Better
+Auth's own limiter — which covers exactly those routes — is switched to
+`storage: 'database'` and given a `rate_limit` table.
+
+The app's own guard stays in memory on purpose. A row written on every request
+would put a database round trip on the hot path of a free-tier instance, to
+protect against something that is already bounded where it costs money: one
+redo a fortnight and five swaps a plan, both counted in Postgres inside the
+transaction that spends them. The place where a shared count actually mattered
+is the place it now happens.
