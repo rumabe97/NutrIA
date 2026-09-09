@@ -48,12 +48,27 @@
   text-wrap: pretty;
 }
 
+/*
+ * Both calls to action share one width — the wider label's — instead of each
+ * hugging its own text. Hugging made "Crear mi plan" visibly smaller than
+ * "Cómo funciona", which read as the secondary action mattering more. An
+ * inline grid with `1fr` tracks sizes every track to the largest item; the
+ * hero's `text-align: center` places the grid. On narrow screens the two stack
+ * and keep sharing that width.
+ */
 .heroActions {
-  display: flex;
-  flex-wrap: wrap;
+  display: inline-grid;
   gap: var(--space-03);
-  justify-content: center;
+  grid-auto-columns: 1fr;
+  grid-auto-flow: column;
   margin-top: var(--space-08);
+  max-inline-size: 100%;
+}
+
+@media (width < 34rem) {
+  .heroActions {
+    grid-auto-flow: row;
+  }
 }
 
 .heroNote {

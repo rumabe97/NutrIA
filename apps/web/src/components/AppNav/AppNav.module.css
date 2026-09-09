@@ -103,7 +103,22 @@
   inset-inline: 0;
   padding-bottom: env(safe-area-inset-bottom);
   position: fixed;
+  /* The delay is for coming back — see the `:has()` rule below. */
+  transition: visibility 0s linear 300ms;
   z-index: var(--z-dropdown);
+}
+
+/*
+ * iOS pins a fixed bar to the bottom of the *visual* viewport, so when the
+ * keyboard opens the bar rides up with it and lands on whatever the person was
+ * typing towards — on the onboarding it sat on top of "Atrás / Continuar".
+ * While a field that opens a keyboard has focus, the bar steps aside. It
+ * returns a beat after focus leaves, so a tap that blurred the field lands
+ * where it was aimed and not on a bar that appeared under the finger.
+ */
+body:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit'], [type='file']):focus, select:focus, textarea:focus) .bottomBar {
+  transition-delay: 0s;
+  visibility: hidden;
 }
 
 .bottomLink {

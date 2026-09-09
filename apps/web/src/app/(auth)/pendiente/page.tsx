@@ -8,7 +8,7 @@ import styles from '../../../components/AuthForm/AuthForm.module.css';
 import { getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
-import { CtaLink } from 'components/CtaLink';
+import { CheckAgainButton } from 'components/CheckAgainButton';
 import { SignOutLink } from 'components/SignOutLink';
 
 import { interpolate } from 'lib/format';
@@ -36,9 +36,7 @@ export default async function PendingPage() {
       <Text tone="secondary">{interpolate(dictionary.auth.pendingBody, { email: user.email })}</Text>
 
       <div className={`${styles.footer} ${own.actions}`}>
-        <CtaLink href="/inicio" variant="secondary">
-          {dictionary.auth.pendingCheck}
-        </CtaLink>
+        <CheckAgainButton>{dictionary.auth.pendingCheck}</CheckAgainButton>
         <SignOutLink>{dictionary.auth.pendingSignOut}</SignOutLink>
       </div>
     </Fragment>
