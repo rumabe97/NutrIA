@@ -15,6 +15,8 @@ src/
   seed/              — reference data: the allergen catalogue, the ingredient set (one file
                        per aisle under `ingredients/`, each with its English names) and the
                        substitution pairs (`0012`) — re-run the seed after changing any of them
+  scripts/usda-check/ — the slug → USDA SR Legacy map and the scripts that set a row's
+                       macros from it (`source: 'usda'`); see its README before adding rows
 drizzle.config.ts    — drizzle-kit config (migration generation + push)
 ```
 

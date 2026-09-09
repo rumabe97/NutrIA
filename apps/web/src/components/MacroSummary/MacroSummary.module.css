@@ -39,3 +39,10 @@
   font-size: var(--font-size-02);
   font-weight: var(--font-weight-regular);
 }
+
+/* One line under the four figures, full width, in the quiet voice of a footnote. */
+.note {
+  grid-column: 1 / -1;
+  margin: 0;
+  text-wrap: pretty;
+}

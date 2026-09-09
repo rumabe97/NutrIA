@@ -96,7 +96,7 @@ export default async function DashboardPage() {
                       </CtaLink>
                     </div>
 
-                    <MacroSummary carbsG={day.totals.carbsG} fatG={day.totals.fatG} kcal={day.totals.kcal} proteinG={day.totals.proteinG} />
+                    <MacroSummary carbsG={day.totals.carbsG} fatG={day.totals.fatG} kcal={day.totals.kcal} note={dictionary.macros.note} proteinG={day.totals.proteinG} />
 
                     <div className={`${styles.meals} motion-list`}>
                       {day.meals.map(meal => (

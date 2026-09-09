@@ -10,11 +10,17 @@ interface MacroSummaryProps {
   carbsG: number;
   fatG: number;
   kcal: number;
+  /**
+   * Shown under the numbers when they describe food rather than a target: a
+   * dish's figures come from composition tables and a label can disagree with
+   * them, and the person should hear that where the number is, not in a FAQ.
+   */
+  note?: string;
   proteinG: number;
 }
 
 /** Calories lead; the macros support them. Four numbers is as much as a glance holds. */
-export function MacroSummary({ carbsG, fatG, kcal, proteinG }: MacroSummaryProps) {
+export function MacroSummary({ carbsG, fatG, kcal, note, proteinG }: MacroSummaryProps) {
   const dictionary = useDictionary();
   const locale = useLocale();
 
@@ -26,7 +32,7 @@ export function MacroSummary({ carbsG, fatG, kcal, proteinG }: MacroSummaryProps
   ];
 
   return (
-    <div className={styles.summary}>
+    <div className={styles.summary} data-note={note ? true : undefined}>
       {items.map(item => (
         <div className={styles.item} data-accent={item.accent} key={item.label}>
           <div className={styles.value}>
@@ -38,6 +44,11 @@ export function MacroSummary({ carbsG, fatG, kcal, proteinG }: MacroSummaryProps
           </Text>
         </div>
       ))}
+      {note ? (
+        <Text as="p" className={styles.note} size="xs" tone="tertiary">
+          {note}
+        </Text>
+      ) : null}
     </div>
   );
 }

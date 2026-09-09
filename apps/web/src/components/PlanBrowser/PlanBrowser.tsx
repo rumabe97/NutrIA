@@ -52,7 +52,7 @@ export function PlanBrowser({ plan }: { plan: PlanView }) {
             </div>
           </div>
 
-          <MacroSummary carbsG={day.totals.carbsG} fatG={day.totals.fatG} kcal={day.totals.kcal} proteinG={day.totals.proteinG} />
+          <MacroSummary carbsG={day.totals.carbsG} fatG={day.totals.fatG} kcal={day.totals.kcal} note={dictionary.macros.note} proteinG={day.totals.proteinG} />
 
             {/* Keyed on the day so switching days replays the entrance — the
                 content changed, and motion is how a reader is told that. */}

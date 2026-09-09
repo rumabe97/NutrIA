@@ -359,6 +359,7 @@ export const enGB: Dictionary = {
     carbs: 'Carbohydrate',
     fat: 'Fat',
     kcal: 'Calories',
+    note: 'Approximate values from composition tables (USDA/BEDCA). For packaged products, the label wins.',
     protein: 'Protein'
   },
 

@@ -10,7 +10,7 @@ import type { IngredientSeed } from './types';
  */
 export const FROZEN: readonly IngredientSeed[] = [
   // ── Vegetables ────────────────────────────────────────────────────────
-  { carbs: 4.7, category: 'frozen', fat: 0.3, fiber: 2.3, kcal: 24, name: 'Coliflor congelada', protein: 1.8, slug: 'coliflor-congelada' },
+  { carbs: 4.7, category: 'frozen', fat: 0.3, fiber: 2.3, kcal: 24, name: 'Coliflor congelada', protein: 2, slug: 'coliflor-congelada', source: 'usda' },
   { carbs: 3.5, category: 'frozen', fat: 0.3, fiber: 1.5, kcal: 25, name: 'Setas congeladas', protein: 2.5, slug: 'setas-congeladas' },
   { carbs: 10.5, category: 'frozen', fat: 0.2, fiber: 5.4, kcal: 47, name: 'Alcachofas congeladas', protein: 3.3, slug: 'alcachofas-congeladas' },
   { carbs: 11.7, category: 'frozen', fat: 0.6, fiber: 4.2, kcal: 72, name: 'Habas congeladas', protein: 5.6, slug: 'habas-congeladas' },
@@ -19,37 +19,37 @@ export const FROZEN: readonly IngredientSeed[] = [
   { carbs: 6, category: 'frozen', fat: 0.4, fiber: 2.5, kcal: 35, name: 'Salteado de verduras congelado', protein: 2, slug: 'salteado-de-verduras-congelado' },
   { carbs: 5.5, category: 'frozen', fat: 0.3, fiber: 2, kcal: 30, name: 'Verduras para sopa congeladas', protein: 1.5, slug: 'verduras-para-sopa-congeladas' },
   { allergens: [{ key: 'milk' }, { key: 'lactose' }], carbs: 6, category: 'frozen', fat: 5, fiber: 2, kcal: 80, name: 'Espinacas a la crema congeladas', protein: 3, slug: 'espinacas-a-la-crema-congeladas' },
-  { allergens: [{ key: 'soy' }], carbs: 9, category: 'frozen', fat: 5, fiber: 5, kcal: 121, name: 'Edamame congelado', protein: 11, slug: 'edamame-congelado' },
-  { carbs: 24, category: 'frozen', fat: 5, fiber: 2, kcal: 150, name: 'Patatas fritas congeladas', protein: 2.5, slug: 'patatas-fritas-congeladas' },
+  { allergens: [{ key: 'soy' }], carbs: 7.6, category: 'frozen', fat: 4.7, fiber: 4.8, kcal: 109, name: 'Edamame congelado', protein: 11.2, slug: 'edamame-congelado', source: 'usda' },
+  { carbs: 22.2, category: 'frozen', fat: 7.5, fiber: 2.4, kcal: 162, name: 'Patatas fritas congeladas', protein: 2.6, slug: 'patatas-fritas-congeladas', source: 'usda' },
   { carbs: 25, category: 'frozen', fat: 5.5, fiber: 2.5, kcal: 160, name: 'Patatas gajo congeladas', protein: 2.6, slug: 'patatas-gajo-congeladas' },
   // ── Fruit ─────────────────────────────────────────────────────────────
-  { carbs: 15, category: 'frozen', fat: 0.4, fiber: 1.6, kcal: 60, name: 'Mango congelado', protein: 0.8, slug: 'mango-congelado' },
-  { carbs: 13, category: 'frozen', fat: 0.1, fiber: 1.4, kcal: 50, name: 'Piña congelada', protein: 0.5, slug: 'pina-congelada' },
-  { carbs: 14.5, category: 'frozen', fat: 0.3, fiber: 2.4, kcal: 57, name: 'Arándanos congelados', protein: 0.7, slug: 'arandanos-congelados' },
+  { carbs: 15, category: 'frozen', fat: 0.4, fiber: 1.6, kcal: 60, name: 'Mango congelado', protein: 0.8, slug: 'mango-congelado', source: 'usda' },
+  { carbs: 13.1, category: 'frozen', fat: 0.1, fiber: 1.4, kcal: 50, name: 'Piña congelada', protein: 0.5, slug: 'pina-congelada', source: 'usda' },
+  { carbs: 12.2, category: 'frozen', fat: 0.6, fiber: 2.7, kcal: 51, name: 'Arándanos congelados', protein: 0.4, slug: 'arandanos-congelados', source: 'usda' },
   // ── Fish and seafood ──────────────────────────────────────────────────
-  { allergens: [{ key: 'crustaceans' }, { key: 'sulphites', presence: 'may_contain' }], carbs: 0.5, category: 'frozen', fat: 0.8, kcal: 70, name: 'Gambas peladas congeladas', protein: 15, slug: 'gambas-peladas-congeladas' },
-  { allergens: [{ key: 'crustaceans' }, { key: 'sulphites', presence: 'may_contain' }], carbs: 0.5, category: 'frozen', fat: 1, kcal: 85, name: 'Langostinos congelados', protein: 18, slug: 'langostinos-congelados' },
-  { allergens: [{ key: 'molluscs' }], carbs: 3.7, category: 'frozen', fat: 2.2, kcal: 86, name: 'Mejillones congelados', protein: 12, slug: 'mejillones-congelados' },
-  { allergens: [{ key: 'molluscs' }, { key: 'sulphites', presence: 'may_contain' }], carbs: 1, category: 'frozen', fat: 1.5, kcal: 80, name: 'Anillas de calamar congeladas', protein: 15, slug: 'anillas-de-calamar-congeladas' },
+  { allergens: [{ key: 'crustaceans' }, { key: 'sulphites', presence: 'may_contain' }], carbs: 0, category: 'frozen', fat: 0.5, kcal: 85, name: 'Gambas peladas congeladas', protein: 20.1, slug: 'gambas-peladas-congeladas', source: 'usda' },
+  { allergens: [{ key: 'crustaceans' }, { key: 'sulphites', presence: 'may_contain' }], carbs: 0, category: 'frozen', fat: 0.5, kcal: 85, name: 'Langostinos congelados', protein: 20.1, slug: 'langostinos-congelados', source: 'usda' },
+  { allergens: [{ key: 'molluscs' }], carbs: 3.7, category: 'frozen', fat: 2.2, kcal: 86, name: 'Mejillones congelados', protein: 11.9, slug: 'mejillones-congelados', source: 'usda' },
+  { allergens: [{ key: 'molluscs' }, { key: 'sulphites', presence: 'may_contain' }], carbs: 3.1, category: 'frozen', fat: 1.4, kcal: 92, name: 'Anillas de calamar congeladas', protein: 15.6, slug: 'anillas-de-calamar-congeladas', source: 'usda' },
   { allergens: [{ key: 'molluscs' }, { key: 'gluten' }, { key: 'eggs', presence: 'may_contain' }], carbs: 19, category: 'frozen', fat: 9, kcal: 190, name: 'Calamares a la romana congelados', protein: 9, slug: 'calamares-a-la-romana-congelados' },
-  { allergens: [{ key: 'molluscs' }], carbs: 2.2, category: 'frozen', fat: 1, kcal: 82, name: 'Pulpo congelado', protein: 15, slug: 'pulpo-congelado' },
+  { allergens: [{ key: 'molluscs' }], carbs: 2.2, category: 'frozen', fat: 1, kcal: 82, name: 'Pulpo congelado', protein: 14.9, slug: 'pulpo-congelado', source: 'usda' },
   { allergens: [{ key: 'crustaceans' }, { key: 'molluscs' }, { key: 'sulphites', presence: 'may_contain' }], carbs: 2, category: 'frozen', fat: 1.5, kcal: 85, name: 'Mix de marisco congelado', protein: 16, slug: 'mix-de-marisco-congelado' },
-  { allergens: [{ key: 'fish' }], carbs: 0, category: 'frozen', fat: 13, kcal: 200, name: 'Salmón congelado', protein: 20, slug: 'salmon-congelado' },
-  { allergens: [{ key: 'fish' }], carbs: 0, category: 'frozen', fat: 0.7, kcal: 82, name: 'Bacalao congelado', protein: 18, slug: 'bacalao-congelado' },
+  { allergens: [{ key: 'fish' }], carbs: 0, category: 'frozen', fat: 13.4, kcal: 208, name: 'Salmón congelado', protein: 20.4, slug: 'salmon-congelado', source: 'usda' },
+  { allergens: [{ key: 'fish' }], carbs: 0, category: 'frozen', fat: 0.7, kcal: 82, name: 'Bacalao congelado', protein: 17.8, slug: 'bacalao-congelado', source: 'usda' },
   { allergens: [{ key: 'fish' }], carbs: 0, category: 'frozen', fat: 3, kcal: 90, name: 'Filete de panga congelado', protein: 15, slug: 'filete-de-panga-congelado' },
   { allergens: [{ key: 'fish' }, { key: 'gluten' }, { key: 'eggs', presence: 'may_contain' }], carbs: 17, category: 'frozen', fat: 9, kcal: 200, name: 'Palitos de merluza congelados', protein: 12, slug: 'palitos-de-merluza-congelados' },
   // ── Prepared ──────────────────────────────────────────────────────────
   { allergens: [{ key: 'gluten' }, { key: 'milk' }, { key: 'lactose' }, { key: 'eggs' }], carbs: 22, category: 'frozen', classes: ['pork'], fat: 9, fiber: 1, kcal: 200, name: 'Croquetas de jamón congeladas', protein: 6, slug: 'croquetas-de-jamon-congeladas' },
   { allergens: [{ key: 'gluten' }, { key: 'milk' }, { key: 'lactose' }, { key: 'eggs' }], carbs: 22, category: 'frozen', classes: ['meat'], fat: 8.5, fiber: 1, kcal: 195, name: 'Croquetas de pollo congeladas', protein: 7, slug: 'croquetas-de-pollo-congeladas' },
   { allergens: [{ key: 'gluten' }, { key: 'fish' }, { key: 'eggs', presence: 'may_contain' }], carbs: 28, category: 'frozen', fat: 12, kcal: 250, name: 'Empanadillas de atún congeladas', protein: 8, slug: 'empanadillas-de-atun-congeladas' },
-  { allergens: [{ key: 'gluten' }, { key: 'milk' }], carbs: 30, category: 'frozen', fat: 9, kcal: 240, name: 'Pizza margarita congelada', protein: 10, slug: 'pizza-margarita-congelada' },
+  { allergens: [{ key: 'gluten' }, { key: 'milk' }], carbs: 29, category: 'frozen', fat: 12.3, fiber: 2.2, kcal: 268, name: 'Pizza margarita congelada', protein: 10.4, slug: 'pizza-margarita-congelada', source: 'usda' },
   { allergens: [{ key: 'gluten' }, { key: 'eggs', presence: 'may_contain' }, { key: 'soy', presence: 'may_contain' }], carbs: 15, category: 'frozen', classes: ['meat'], fat: 15, kcal: 250, name: 'Nuggets de pollo congelados', protein: 14, slug: 'nuggets-de-pollo-congelados' },
-  { allergens: [{ key: 'gluten' }, { key: 'milk', presence: 'may_contain' }], carbs: 37, category: 'frozen', fat: 26, kcal: 400, name: 'Masa de hojaldre', protein: 6, slug: 'masa-de-hojaldre' },
-  { allergens: [{ key: 'gluten' }, { key: 'milk' }], carbs: 40, category: 'frozen', fat: 28, kcal: 430, name: 'Masa quebrada', protein: 5.5, slug: 'masa-quebrada' },
+  { allergens: [{ key: 'gluten' }, { key: 'milk', presence: 'may_contain' }], carbs: 45.1, category: 'frozen', fat: 38.1, fiber: 1.5, kcal: 551, name: 'Masa de hojaldre', protein: 7.3, slug: 'masa-de-hojaldre', source: 'usda' },
+  { allergens: [{ key: 'gluten' }, { key: 'milk' }], carbs: 46.8, category: 'frozen', fat: 28.7, fiber: 1.4, kcal: 468, name: 'Masa quebrada', protein: 5.5, slug: 'masa-quebrada', source: 'usda' },
   { allergens: [{ key: 'gluten' }], carbs: 47, category: 'frozen', fat: 3, kcal: 250, name: 'Masa de pizza', protein: 8, slug: 'masa-de-pizza' },
   // ── Ice cream ─────────────────────────────────────────────────────────
-  { allergens: [{ key: 'milk' }, { key: 'lactose' }, { key: 'eggs', presence: 'may_contain' }], carbs: 24, category: 'frozen', fat: 11, kcal: 207, name: 'Helado de vainilla', protein: 3.5, slug: 'helado-de-vainilla' },
-  { allergens: [{ key: 'milk' }, { key: 'lactose' }, { key: 'soy', presence: 'may_contain' }], carbs: 28, category: 'frozen', fat: 11, kcal: 216, name: 'Helado de chocolate', protein: 3.8, slug: 'helado-de-chocolate' },
+  { allergens: [{ key: 'milk' }, { key: 'lactose' }, { key: 'eggs', presence: 'may_contain' }], carbs: 23.6, category: 'frozen', fat: 11, fiber: 0.7, kcal: 207, name: 'Helado de vainilla', protein: 3.5, slug: 'helado-de-vainilla', source: 'usda' },
+  { allergens: [{ key: 'milk' }, { key: 'lactose' }, { key: 'soy', presence: 'may_contain' }], carbs: 28.2, category: 'frozen', fat: 11, fiber: 1.2, kcal: 216, name: 'Helado de chocolate', protein: 3.8, slug: 'helado-de-chocolate', source: 'usda' },
   { carbs: 33, category: 'frozen', fat: 0, kcal: 130, name: 'Sorbete de limón', protein: 0.2, slug: 'sorbete-de-limon' },
   { carbs: 17, category: 'frozen', defaultUnit: 'unit', fat: 0.1, gramsPerUnit: 70, kcal: 70, name: 'Polo de fruta', protein: 0.3, slug: 'polo-de-fruta' },
   // ── Second pass ───────────────────────────────────────────────────────
@@ -62,11 +62,11 @@ export const FROZEN: readonly IngredientSeed[] = [
   { allergens: [{ key: 'gluten' }, { key: 'milk' }, { key: 'eggs' }], carbs: 18, category: 'frozen', classes: ['pork'], defaultUnit: 'unit', fat: 15, gramsPerUnit: 90, kcal: 250, name: 'San Jacobos congelados', protein: 12, slug: 'san-jacobos-congelados' },
   { allergens: [{ key: 'gluten' }, { key: 'eggs' }, { key: 'milk' }], carbs: 17, category: 'frozen', classes: ['pork'], defaultUnit: 'unit', fat: 18, gramsPerUnit: 80, kcal: 280, name: 'Flamenquines congelados', protein: 13, slug: 'flamenquines-congelados' },
   { allergens: [{ key: 'crustaceans' }, { key: 'gluten' }, { key: 'eggs' }], carbs: 20, category: 'frozen', fat: 11, kcal: 220, name: 'Gambas rebozadas congeladas', protein: 10, slug: 'gambas-rebozadas-congeladas' },
-  { allergens: [{ key: 'molluscs' }], carbs: 0.7, category: 'frozen', fat: 1, kcal: 80, name: 'Sepia congelada', protein: 16, slug: 'sepia-congelada' },
-  { carbs: 11.9, category: 'frozen', fat: 0.7, fiber: 6.5, kcal: 52, name: 'Frambuesas congeladas', protein: 1.2, slug: 'frambuesas-congeladas' },
-  { carbs: 7.7, category: 'frozen', fat: 0.3, fiber: 2, kcal: 32, name: 'Fresas congeladas', protein: 0.7, slug: 'fresas-congeladas' },
+  { allergens: [{ key: 'molluscs' }], carbs: 0.8, category: 'frozen', fat: 0.7, kcal: 79, name: 'Sepia congelada', protein: 16.2, slug: 'sepia-congelada', source: 'usda' },
+  { carbs: 12.6, category: 'frozen', fat: 0.8, fiber: 4.3, kcal: 56, name: 'Frambuesas congeladas', protein: 1.1, slug: 'frambuesas-congeladas', source: 'usda' },
+  { carbs: 9.1, category: 'frozen', fat: 0.1, fiber: 2.1, kcal: 35, name: 'Fresas congeladas', protein: 0.4, slug: 'fresas-congeladas', source: 'usda' },
   { allergens: [{ key: 'milk' }, { key: 'lactose' }], carbs: 25, category: 'frozen', fat: 5, kcal: 160, name: 'Yogur helado', protein: 4, slug: 'yogur-helado' },
-  { allergens: [{ key: 'milk' }, { key: 'lactose' }], carbs: 25, category: 'frozen', fat: 9, kcal: 190, name: 'Helado de fresa', protein: 3, slug: 'helado-de-fresa' }
+  { allergens: [{ key: 'milk' }, { key: 'lactose' }], carbs: 27.6, category: 'frozen', fat: 8.4, fiber: 0.9, kcal: 192, name: 'Helado de fresa', protein: 3.2, slug: 'helado-de-fresa', source: 'usda' }
 ];
 
 export const FROZEN_NAMES_EN_GB: Record<string, string> = {

@@ -364,6 +364,7 @@ export const esES = {
     carbs: 'Carbohidratos',
     fat: 'Grasas',
     kcal: 'Calorías',
+    note: 'Valores orientativos, calculados con tablas de composición (USDA/BEDCA). En producto envasado, la etiqueta manda.',
     protein: 'Proteína'
   },
 

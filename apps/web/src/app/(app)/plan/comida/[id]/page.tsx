@@ -74,7 +74,7 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
         ))}
       </dl>
 
-      <MacroSummary carbsG={meal.carbsG} fatG={meal.fatG} kcal={meal.kcal} proteinG={meal.proteinG} />
+      <MacroSummary carbsG={meal.carbsG} fatG={meal.fatG} kcal={meal.kcal} note={dictionary.macros.note} proteinG={meal.proteinG} />
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{dictionary.meal.ingredients}</h2>
