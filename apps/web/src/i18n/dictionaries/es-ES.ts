@@ -392,6 +392,7 @@ export const esES = {
     ingredients: 'Ingredientes',
     like: 'Me gusta',
     likedHint: 'Anotado: podrá volver, y buscaremos platos en esta línea.',
+    markDone: 'Marcar como hecha',
     minutes: '{value} min',
     noCooking: 'Sin cocinar',
     none: '—',
@@ -405,13 +406,15 @@ export const esES = {
     statusHint: 'Cuando llegue el momento, marca si la has comido o la has saltado.',
     steps: 'Preparación',
     swap: 'Cambiar plato',
-    swapHint: 'Te quedan {remaining} de {limit} cambios en este plan. Buscamos otro plato que encaje en esta comida; la lista de la compra se actualiza sola.',
-    swapHintOne: 'Te queda 1 cambio de {limit} en este plan. Buscamos otro plato que encaje en esta comida; la lista de la compra se actualiza sola.',
+    swapHint: 'Te quedan {remaining} de {limit} cambios en este plan; la lista de la compra se actualiza sola.',
+    swapHintOne: 'Te queda 1 cambio de {limit} en este plan; la lista de la compra se actualiza sola.',
     swapNoFit: 'Ahora mismo no tenemos otro plato que encaje aquí. Prueba más tarde.',
     swapping: 'Buscando otro plato…',
     swapSpent: 'Has usado los {limit} cambios de este plan.',
     totalMinutes: '{minutes} min en total',
-    verdictHint: '¿Repetimos este plato? Lo tendremos en cuenta en tus próximos planes.'
+    unmarkDone: 'Quitar la marca de hecha',
+    verdictHint: 'Lo tendremos en cuenta en tus próximos planes.',
+    verdictTitle: '¿Qué te ha parecido?'
   },
 
   onboarding: {

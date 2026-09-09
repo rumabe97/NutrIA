@@ -1,6 +1,53 @@
 .row {
+  align-items: start;
   border-bottom: 1px solid var(--border-01);
+  column-gap: var(--space-03);
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
   padding-block: var(--space-03);
+}
+
+.body {
+  min-width: 0;
+}
+
+/* A round tick, empty until pressed; filled in the brand colour once the plate is cleared. */
+.tick {
+  align-items: center;
+  background: none;
+  border: 1.5px solid var(--border-02, var(--border-01));
+  border-radius: var(--radius-full);
+  color: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  height: 1.5rem;
+  justify-content: center;
+  margin-top: 0.1rem;
+  padding: 0;
+  transition:
+    background-color var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default),
+    color var(--duration-fast) var(--ease-default);
+  width: 1.5rem;
+}
+
+.tick:hover {
+  border-color: var(--color-brand-09);
+  color: var(--color-brand-09);
+}
+
+.tick[aria-pressed='true'] {
+  background-color: var(--color-brand-09);
+  border-color: var(--color-brand-09);
+  color: var(--color-brand-01, #fff);
+}
+
+.tick[disabled] {
+  cursor: progress;
+}
+
+.tickMark {
+  display: block;
 }
 
 .row:last-child {

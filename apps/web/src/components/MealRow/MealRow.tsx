@@ -1,10 +1,14 @@
 'use client';
+import { useState } from 'react';
+
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 import styles from './MealRow.module.css';
 
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
+import { api } from 'lib/api';
 import { API_URL } from 'lib/env';
 import { formatNumber, formatQuantity } from 'lib/format';
 import { slotLabel } from 'lib/generation';
@@ -33,12 +37,53 @@ interface MealRowProps {
  * plan you can scan either. The title stays a link to the full recipe with its
  * method; this is the quantities only.
  */
-export function MealRow({ id, illustrationPath = null, ingredients = [], kcal, name, proteinG, slot, status = 'planned' }: MealRowProps) {
+/**
+ * One meal in a day's list, with a tick at the start to mark it eaten from
+ * here — the list is where a person is when a plate has just been cleared.
+ * Optimistic; a failure puts it back. "Skipped" stays on the meal's own page,
+ * where it is a considered choice rather than a tap in passing.
+ */
+export function MealRow({ id, illustrationPath = null, ingredients = [], kcal, name, proteinG, slot, status: initial = 'planned' }: MealRowProps) {
+  const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
+  const [status, setStatus] = useState(initial);
+  const [pending, setPending] = useState(false);
+  const done = status === 'completed';
+
+  async function toggleDone() {
+    const previous = status;
+    const next = done ? 'planned' : 'completed';
+
+    setStatus(next);
+    setPending(true);
+
+    try {
+      await api(`/meal-plans/meals/${id}/status`, { body: { status: next }, method: 'PATCH' });
+      router.refresh();
+    } catch {
+      setStatus(previous);
+    } finally {
+      setPending(false);
+    }
+  }
 
   return (
     <div className={styles.row} data-status={status}>
+      <button
+        aria-busy={pending || undefined}
+        aria-label={done ? dictionary.meal.unmarkDone : dictionary.meal.markDone}
+        aria-pressed={done}
+        className={styles.tick}
+        disabled={pending}
+        onClick={() => void toggleDone()}
+        type="button"
+      >
+        <svg aria-hidden="true" className={styles.tickMark} fill="none" height="12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 12 12" width="12">
+          <path d="M2 6.5 4.8 9.2 10 3.5" />
+        </svg>
+      </button>
+      <div className={styles.body}>
       <Link className={styles.head} data-illustrated={illustrationPath ? 'true' : undefined} href={`/plan/comida/${id}`}>
         {/* Decorative here — the name beside it is the content — so the alt is empty and
             the label lives on the detail page, where the picture is large enough to matter. */}
@@ -68,6 +113,7 @@ export function MealRow({ id, illustrationPath = null, ingredients = [], kcal, n
           </ul>
         </details>
       ) : null}
+      </div>
     </div>
   );
 }

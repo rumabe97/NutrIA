@@ -212,3 +212,13 @@
   text-transform: uppercase;
 }
 
+/* Eaten / skipped on one side, "change this dish" on the other; on a phone the
+   two stack, and the swap keeps its full width as the heavier action. */
+.toolbar {
+  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-04) var(--space-06);
+  justify-content: space-between;
+  margin-bottom: var(--gap-block);
+}

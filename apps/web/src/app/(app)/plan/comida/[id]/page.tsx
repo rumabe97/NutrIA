@@ -54,16 +54,14 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
         {meal.cuisine ? <span>{meal.cuisine}</span> : null}
       </div>
 
-      {/* The one thing the reader tells us about a dish. It sits by the name, not
-          at the foot of the method: the moment of judgement is when the plate is
-          in front of them, and that is when they are looking here. */}
-      <RecipeVerdict recipeId={meal.recipeId} verdict={meal.verdict} />
-
-      <MealStatus mealId={meal.id} status={meal.status as Status} />
-
-      {/* Only on a meal still to come: a plate already eaten is not something to
-          change, and the plan's swaps are for the fortnight ahead. */}
-      {allowances && meal.status === 'planned' ? <MealSwap limit={allowances.mealSwaps.limit} mealId={meal.id} remaining={allowances.mealSwaps.remaining} /> : null}
+      {/* What can be done with this meal, in one row: eaten or skipped on the left,
+          another dish on the right — and only for a meal still to come, since a
+          plate already eaten is not something to change. The state is the message;
+          the buttons carry it, and nothing is explained under them. */}
+      <div className={styles.toolbar}>
+        <MealStatus mealId={meal.id} status={meal.status as Status} />
+        {allowances && meal.status === 'planned' ? <MealSwap limit={allowances.mealSwaps.limit} mealId={meal.id} remaining={allowances.mealSwaps.remaining} /> : null}
+      </div>
 
       {/* An illustration when one has been drawn, and it says so. Nobody cooked this
           dish, so there is no photograph of it and calling a picture one would be the
@@ -155,6 +153,13 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
           </ol>
         </section>
       ) : null}
+
+      {/* The verdict comes last, after the recipe: it is asked of someone who has
+          cooked or eaten the dish, and that is where they are when they reach it. */}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>{dictionary.meal.verdictTitle}</h2>
+        <RecipeVerdict recipeId={meal.recipeId} verdict={meal.verdict} />
+      </section>
     </Fragment>
   );
 }

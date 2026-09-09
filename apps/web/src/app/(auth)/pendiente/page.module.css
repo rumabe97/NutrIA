@@ -1,0 +1,7 @@
+.actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-04) var(--space-06);
+  justify-content: center;
+}

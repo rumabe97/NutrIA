@@ -2,6 +2,7 @@ import { Fragment } from 'react';
 
 import { redirect } from 'next/navigation';
 
+import own from './page.module.css';
 import styles from '../../../components/AuthForm/AuthForm.module.css';
 
 import { getDictionary } from 'i18n/server';
@@ -34,7 +35,7 @@ export default async function PendingPage() {
       <h1 className={styles.title}>{dictionary.auth.pendingTitle}</h1>
       <Text tone="secondary">{interpolate(dictionary.auth.pendingBody, { email: user.email })}</Text>
 
-      <div className={styles.footer}>
+      <div className={`${styles.footer} ${own.actions}`}>
         <CtaLink href="/inicio" variant="secondary">
           {dictionary.auth.pendingCheck}
         </CtaLink>

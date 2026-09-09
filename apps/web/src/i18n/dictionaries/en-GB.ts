@@ -387,6 +387,7 @@ export const enGB: Dictionary = {
     ingredients: 'Ingredients',
     like: 'I like it',
     likedHint: 'Noted: it may come back, and we will look for dishes along these lines.',
+    markDone: 'Mark as eaten',
     minutes: '{value} min',
     noCooking: 'No cooking',
     none: '—',
@@ -400,13 +401,15 @@ export const enGB: Dictionary = {
     statusHint: 'When the time comes, mark whether you ate it or skipped it.',
     steps: 'Method',
     swap: 'Swap this dish',
-    swapHint: '{remaining} of {limit} swaps left on this plan. We find another dish that fits this meal; the shopping list updates itself.',
-    swapHintOne: '1 swap of {limit} left on this plan. We find another dish that fits this meal; the shopping list updates itself.',
+    swapHint: '{remaining} of {limit} swaps left on this plan; the shopping list updates itself.',
+    swapHintOne: '1 swap of {limit} left on this plan; the shopping list updates itself.',
     swapNoFit: 'We have nothing else that fits here right now. Try again later.',
     swapping: 'Finding another dish…',
     swapSpent: 'You have used all {limit} swaps on this plan.',
     totalMinutes: '{minutes} min in total',
-    verdictHint: 'Cook this again? It shapes your next plans.'
+    unmarkDone: 'Unmark as eaten',
+    verdictHint: 'It shapes your next plans.',
+    verdictTitle: 'What did you think?'
   },
 
   onboarding: {

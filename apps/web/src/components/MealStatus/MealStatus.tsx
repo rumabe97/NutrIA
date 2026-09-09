@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import styles from './MealStatus.module.css';
 
 import { Button } from 'ui/components/Button';
-import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
 import { api } from 'lib/api';
@@ -49,8 +48,7 @@ export function MealStatus({ mealId, status: initial }: MealStatusProps) {
   }
 
   return (
-    <div className={styles.root}>
-      <div className={styles.buttons}>
+    <div className={styles.buttons}>
         <Button
           aria-pressed={status === 'completed'}
           disabled={pending}
@@ -71,10 +69,6 @@ export function MealStatus({ mealId, status: initial }: MealStatusProps) {
         >
           {t.skipped}
         </Button>
-      </div>
-      <Text as="p" className={styles.hint} size="xs" tone="tertiary">
-        {status === 'completed' ? t.doneHint : status === 'skipped' ? t.skippedHint : t.statusHint}
-      </Text>
     </div>
   );
 }
