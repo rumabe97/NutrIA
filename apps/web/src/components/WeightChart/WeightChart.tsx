@@ -32,9 +32,11 @@ export function WeightChart({ entries, targetKg }: WeightChartProps) {
 
   if (entries.length < 2) {
     return (
-      <Text size="sm" tone="tertiary">
-        {dictionary.progress.chartEmpty}
-      </Text>
+      <div className={styles.empty}>
+        <Text size="sm" tone="tertiary">
+          {dictionary.progress.chartEmpty}
+        </Text>
+      </div>
     );
   }
 

@@ -31,8 +31,10 @@ retroactively "eat" a plan from last month.
   active is refused as a conflict (409), the same class as a swap on one; a
   meal that is not theirs remains not found. The past cannot be edited by
   calling the API directly either.
-- The progress screen's fortnight cards open their plan; the living plan
-  shows the way to the history when there is one.
+- The progress screen's fortnight cards open their plan, and its fortnight
+  list links to the whole history; the living plan always shows the way to
+  the history, even on a first plan — a door that appears only once there is
+  something behind it is a door nobody learns exists.
 
 ## Consequences
 

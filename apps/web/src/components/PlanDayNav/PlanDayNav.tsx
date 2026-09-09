@@ -49,6 +49,8 @@ export function PlanDayNav({ days, onSelect, selected, today }: PlanDayNavProps)
           >
             <span className={styles.dayIndex}>{day.dayIndex}</span>
             <span className={styles.dayLabel}>{formatDate(day.date, locale, { weekday: 'short' })}</span>
+            {/* The date itself only fits where the chips become rows — the desktop rail. */}
+            <span className={styles.dayDate}>{formatDate(day.date, locale, { day: 'numeric', month: 'short' })}</span>
           </button>
         ))}
       </nav>

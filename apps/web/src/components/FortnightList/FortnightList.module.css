@@ -1,12 +1,15 @@
+/* One column on a phone, two side by side from a tablet up. */
 .list {
   display: grid;
   gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
 .card {
+  align-content: start;
   background-color: var(--surface-card);
   border: 1px solid var(--border-01);
   border-radius: var(--radius-04);
@@ -14,7 +17,8 @@
     inset 0 1px 0 var(--card-highlight),
     var(--card-shadow);
   display: grid;
-  gap: var(--space-03);
+  gap: var(--space-04);
+  min-inline-size: 0;
   padding: var(--card-padding);
 }
 
@@ -108,4 +112,10 @@
 
 .open:hover {
   text-decoration: underline;
+}
+
+@media (width >= 48rem) {
+  .list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }

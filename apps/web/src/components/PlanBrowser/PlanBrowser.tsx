@@ -23,8 +23,6 @@ import type { PlanView } from 'core/controllers/Plan';
  * days arrive in one response, so switching days is instant and needs no request.
  */
 interface PlanBrowserProps {
-  /** Whether there is more than this plan to see — shows the way to the history. */
-  hasHistory?: boolean;
   /**
    * A plan no longer being lived (0021): the marks are shown and nothing can be
    * changed — no tick, no redo, no "today" — and the header says which plan it
@@ -35,7 +33,7 @@ interface PlanBrowserProps {
   redo: PlanRedoStanding | null;
 }
 
-export function PlanBrowser({ hasHistory = false, history = null, plan, redo }: PlanBrowserProps) {
+export function PlanBrowser({ history = null, plan, redo }: PlanBrowserProps) {
   const dictionary = useDictionary();
   const locale = useLocale();
   const shortDate = (date: string) => formatDate(date, locale, { day: 'numeric', month: 'short' });
@@ -56,11 +54,14 @@ export function PlanBrowser({ hasHistory = false, history = null, plan, redo }: 
           {interpolate(dictionary.plan.range, { end: shortDate(plan.endDate), start: shortDate(plan.startDate) })}
           {history ? ` · ${history.replaced ? dictionary.plan.historyReplaced : dictionary.plan.historyFinished}` : ''}
         </Text>
-        {hasHistory && !history ? (
+        {/* Always shown, even on a first plan: the list holds this one too, and a
+            door that appears only once there is something behind it is a door
+            nobody learns exists. */}
+        {history ? null : (
           <Link className={styles.historyLink} href="/plan/historial">
             {dictionary.plan.historyLink}
           </Link>
-        ) : null}
+        )}
         {/* What the fortnight still allows, said before the person goes looking
             for a button that will refuse them. A redo is a whole new plan for the
             same days; the next fortnight is never rationed. */}

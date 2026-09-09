@@ -16,25 +16,31 @@ import { formatNumber, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
+import type { Locale } from 'i18n/config';
 import type { ProgressSummaryView } from 'core/controllers/Progress';
 
 export const dynamic = 'force-dynamic';
 
-function signed(value: number, locale: Parameters<typeof formatNumber>[1]): string {
-  return `${value > 0 ? '+' : ''}${formatNumber(value, locale, { maximumFractionDigits: 1 })}`;
+function kg(value: number, locale: Locale): string {
+  return formatNumber(value, locale, { maximumFractionDigits: 1 });
+}
+
+function signed(value: number, locale: Locale): string {
+  return `${value > 0 ? '+' : ''}${kg(value, locale)}`;
 }
 
 /**
- * What the product has kept about how it is going: the weight line, and every
- * fortnight with its meal marks and check-in. Nothing here is estimated; the
- * page is a reading of what the person logged, so an empty part says so
- * rather than showing a number it does not have.
+ * What the product has kept about how it is going: four figures, the weight
+ * line, and every fortnight with its meal marks and check-in. Nothing here is
+ * estimated; the page is a reading of what the person logged, so an empty part
+ * says so rather than showing a number it does not have.
  */
 export default async function ProgressPage() {
   await redirectIfOnboardingIncomplete();
 
   const [dictionary, locale, summary] = await Promise.all([getDictionary(), activeLocale(), serverApi<ProgressSummaryView>('/progress/summary')]);
   const t = dictionary.progress;
+  const unit = dictionary.units.kilogram;
 
   if (!summary) {
     return (
@@ -58,12 +64,21 @@ export default async function ProgressPage() {
     );
   }
 
+  // A change of exactly nothing is "no change", not "0 kg": the second reads as
+  // a measurement that came out at zero.
+  const change = (value: number | null) => (value === null ? { note: null, value: t.noData } : value === 0 ? { note: null, value: t.noChange } : { note: unit, value: signed(value, locale) });
   const toTarget =
     weight.toTargetKg === null
-      ? null
+      ? { note: null, value: t.noData }
       : Math.abs(weight.toTargetKg) < 0.05
-        ? t.toTargetReached
-        : interpolate(weight.toTargetKg < 0 ? t.toTargetLoss : t.toTargetGain, { value: formatNumber(Math.abs(weight.toTargetKg), locale, { maximumFractionDigits: 1 }) });
+        ? { note: null, value: t.reached }
+        : { note: `${unit} ${weight.toTargetKg < 0 ? t.toLose : t.toGain}`, value: kg(Math.abs(weight.toTargetKg), locale) };
+  const tiles = [
+    { label: t.weightLatest, note: weight.latestKg === null ? null : unit, value: weight.latestKg === null ? t.noData : kg(weight.latestKg, locale) },
+    { label: t.sinceStart, ...change(weight.changeKg) },
+    { label: t.lastFortnight, ...change(weight.fortnightChangeKg) },
+    { label: t.toTarget, ...toTarget }
+  ];
 
   return (
     <Fragment>
@@ -72,58 +87,51 @@ export default async function ProgressPage() {
         {t.intro}
       </Text>
 
-      <div className={styles.layout}>
-        <section className={styles.card}>
-          <div className={styles.head}>
-            <Text size="sm" tone="tertiary">
-              {t.weightTitle}
-            </Text>
-            <Link className={styles.link} href="/inicio">
-              {t.logLink}
-            </Link>
+      <dl className={styles.tiles}>
+        {tiles.map(tile => (
+          <div className={styles.tile} key={tile.label}>
+            <dt className={styles.tileLabel}>{tile.label}</dt>
+            <dd className={styles.tileValue}>
+              {tile.value}
+              {tile.note ? <span className={styles.tileNote}> {tile.note}</span> : null}
+            </dd>
           </div>
+        ))}
+      </dl>
 
-          {weight.latestKg === null ? (
-            <Text tone="secondary">{t.weightNone}</Text>
-          ) : (
-            <Fragment>
-              <p className={styles.current}>
-                {formatNumber(weight.latestKg, locale, { maximumFractionDigits: 1 })} <span className={styles.unit}>{dictionary.units.kilogram}</span>
-              </p>
-              <ul className={styles.facts}>
-                {weight.changeKg === null ? null : <li>{interpolate(t.weightChangeSinceStart, { change: signed(weight.changeKg, locale) })}</li>}
-                {weight.fortnightChangeKg === null ? null : <li>{interpolate(t.weightChangeFortnight, { change: signed(weight.fortnightChangeKg, locale) })}</li>}
-                {weight.startingWeightKg === null ? null : <li>{interpolate(t.weightStart, { value: formatNumber(weight.startingWeightKg, locale, { maximumFractionDigits: 1 }) })}</li>}
-                {toTarget === null ? null : <li>{toTarget}</li>}
-              </ul>
-            </Fragment>
-          )}
+      <section className={styles.card}>
+        <div className={styles.head}>
+          <div>
+            <h2 className={styles.subtitle}>{t.weightTitle}</h2>
+            {weight.startingWeightKg === null ? null : (
+              <Text size="xs" tone="tertiary">
+                {interpolate(t.weightStart, { value: kg(weight.startingWeightKg, locale) })}
+              </Text>
+            )}
+          </div>
+          <Link className={styles.link} href="/inicio">
+            {t.logLink}
+          </Link>
+        </div>
 
-          <WeightChart entries={weight.entries} targetKg={weight.targetWeightKg} />
-        </section>
+        {weight.latestKg === null ? <Text tone="secondary">{t.weightNone}</Text> : <WeightChart entries={weight.entries} targetKg={weight.targetWeightKg} />}
+      </section>
 
-        <section className={styles.fortnights}>
-          <div className={styles.head}>
+      <section className={styles.fortnights}>
+        <div className={styles.head}>
+          <div>
             <h2 className={styles.subtitle}>{t.fortnightsTitle}</h2>
-            <Text size="sm" tone="tertiary">
-              {overall.adherence === null ? null : interpolate(t.overallLine, { eaten: overall.eaten, marked: overall.marked })}
+            <Text size="xs" tone="tertiary">
+              {overall.adherence === null ? t.overallNone : interpolate(t.overallLine, { eaten: overall.eaten, marked: overall.marked })}
             </Text>
           </div>
+          <Link className={styles.link} href="/plan/historial">
+            {t.allPlans}
+          </Link>
+        </div>
 
-          {fortnights.length === 0 ? (
-            <Text tone="secondary">{t.emptyBody}</Text>
-          ) : (
-            <Fragment>
-              {overall.adherence === null ? (
-                <Text className={styles.hint} size="sm" tone="tertiary">
-                  {t.overallNone}
-                </Text>
-              ) : null}
-              <FortnightList fortnights={fortnights} />
-            </Fragment>
-          )}
-        </section>
-      </div>
+        {fortnights.length === 0 ? <Text tone="secondary">{t.emptyBody}</Text> : <FortnightList fortnights={fortnights} />}
+      </section>
     </Fragment>
   );
 }

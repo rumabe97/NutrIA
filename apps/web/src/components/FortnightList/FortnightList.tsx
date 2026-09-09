@@ -15,7 +15,8 @@ const FULL = 100;
 /**
  * One card per fortnight lived, newest first: how its meals were marked and
  * what the check-in said. The bar is the check-in's own measure — eaten over
- * marked — so the number here and the one on the check-in never disagree.
+ * marked — so the number here and the one on the check-in never disagree; an
+ * empty bar with "no meals marked" is the honest state before the first mark.
  */
 export function FortnightList({ fortnights }: { fortnights: readonly FortnightView[] }) {
   const dictionary = useDictionary();
@@ -36,8 +37,7 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
           <li className={styles.card} key={fortnight.planId}>
             {/* Dated, not numbered: a redo or a regeneration makes a new plan of the
                 same fortnight, and "Quincena 3" of a person on their first fortnight
-                asked more than it answered. The plan number stays, small, for the
-                owner reading the database. */}
+                asked more than it answered. The plan number stays, small. */}
             <div className={styles.head}>
               <div>
                 <h3 className={styles.title}>
@@ -52,31 +52,20 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
               </span>
             </div>
 
-            {fortnight.adherence === null ? (
-              <Text size="sm" tone="secondary">
-                {t.adherenceNone}
-              </Text>
-            ) : (
-              <div className={styles.adherence}>
-                <div className={styles.figure}>
-                  <span className={styles.percent}>{formatNumber(fortnight.adherence, locale)} %</span>
-                  <Text size="xs" tone="tertiary">
-                    {t.adherenceLabel}
-                  </Text>
-                </div>
-                <div className={styles.track}>
-                  <div className={styles.bar} style={{ inlineSize: `${Math.min(fortnight.adherence, FULL)}%` }} />
-                </div>
+            <div className={styles.adherence}>
+              <div className={styles.figure}>
+                <span className={styles.percent}>{fortnight.adherence === null ? t.noData : `${formatNumber(fortnight.adherence, locale)} %`}</span>
+                <Text size="xs" tone="tertiary">
+                  {fortnight.adherence === null ? t.adherenceNone : t.adherenceLabel}
+                </Text>
               </div>
-            )}
-
-            <Text size="sm" tone="secondary">
-              {interpolate(t.mealsLine, { eaten: fortnight.meals.eaten, skipped: fortnight.meals.skipped, soFar: fortnight.meals.soFar, unmarked })}
-            </Text>
-
-            <Link className={styles.open} href={fortnight.status === 'active' ? '/plan' : `/plan/historial/${fortnight.planId}`}>
-              {t.openPlan}
-            </Link>
+              <div className={styles.track}>
+                <div className={styles.bar} style={{ inlineSize: `${Math.min(fortnight.adherence ?? 0, FULL)}%` }} />
+              </div>
+              <Text size="xs" tone="tertiary">
+                {interpolate(t.mealsLine, { eaten: fortnight.meals.eaten, skipped: fortnight.meals.skipped, soFar: fortnight.meals.soFar, unmarked })}
+              </Text>
+            </div>
 
             {fortnight.checkIn ? (
               <ul className={styles.checkIn}>
@@ -86,6 +75,10 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
                 {fortnight.checkIn.weightKg === null ? null : <li>{interpolate(t.checkInWeight, { value: formatNumber(fortnight.checkIn.weightKg, locale, { maximumFractionDigits: 1 }) })}</li>}
               </ul>
             ) : null}
+
+            <Link className={styles.open} href={fortnight.status === 'active' ? '/plan' : `/plan/historial/${fortnight.planId}`}>
+              {t.openPlan}
+            </Link>
           </li>
         );
       })}

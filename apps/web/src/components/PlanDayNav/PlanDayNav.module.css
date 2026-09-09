@@ -76,6 +76,10 @@
   opacity: 0.85;
 }
 
+.dayDate {
+  display: none;
+}
+
 .today {
   border-color: var(--color-brand-09);
 }
@@ -88,5 +92,43 @@
 
   .day {
     padding-inline: var(--space-02);
+  }
+}
+
+/*
+ * On the desktop rail the seven chips shared fourteen rem and each was too
+ * narrow for its own number. There the week becomes a list: one row per day,
+ * number first, weekday and date after it, the way a diary reads.
+ */
+@media (width >= 64rem) {
+  .days {
+    gap: var(--space-01);
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .day {
+    align-items: baseline;
+    display: flex;
+    gap: var(--space-03);
+    padding: var(--space-02) var(--space-03);
+    text-align: start;
+  }
+
+  .dayIndex {
+    flex: 0 0 1.5rem;
+    font-size: var(--font-size-03);
+  }
+
+  .dayLabel {
+    font-size: var(--font-size-02);
+    opacity: 1;
+    text-transform: capitalize;
+  }
+
+  .dayDate {
+    display: inline;
+    font-size: var(--font-size-02);
+    margin-inline-start: auto;
+    opacity: 0.7;
   }
 }
