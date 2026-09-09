@@ -4,6 +4,8 @@ import { PlanRepository } from '#repositories/Plan';
 import { ProfileController } from 'core/controllers/Profile';
 import { ProgressRepository } from '#repositories/Progress';
 
+import { DIFFICULTY_RATING, HUNGER_RATING } from 'core/entities/CheckIn';
+
 import type { DifficultyAnswer, HungerAnswer, SubmitCheckIn } from 'core/entities/CheckIn';
 import type { PlanStats } from '#repositories/CheckIn';
 
@@ -14,9 +16,6 @@ import type { PlanStats } from '#repositories/CheckIn';
  * feel next fortnight, never past what the equations call safe.
  */
 const PORTION_NUDGE = 0.05;
-
-const HUNGER_RATING: Record<HungerAnswer, number> = { hungry: 1, right: 2, too_much: 3 };
-const DIFFICULTY_RATING: Record<DifficultyAnswer, number> = { easy: 1, hard: 3, ok: 2 };
 
 export interface CheckInStatusView {
   /** Meals marked eaten over meals with any mark, or null when nothing was marked. */

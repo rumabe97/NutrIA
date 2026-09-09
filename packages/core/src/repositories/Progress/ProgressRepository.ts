@@ -1,12 +1,15 @@
-import { and, desc, eq, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, lte, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
+import { mealPlans, meals, planDays } from 'database/schema/plan';
 import { progressEntries } from 'database/schema/progress';
 
 import { DatabaseOperationError } from 'core/entities/Error';
 import { progressEntrySchema } from 'core/entities/Progress';
 import type { ProgressEntry } from 'core/entities/Progress';
+
+export type MealMarks = { readonly completed: number; readonly planId: string; readonly planned: number; readonly skipped: number };
 
 export const ProgressRepository = {
   /**
@@ -45,6 +48,36 @@ export const ProgressRepository = {
         .limit(limit);
 
       return rows.map(row => progressEntrySchema.parse({ ...row, weightKg: row.weightKg === null ? null : Number(row.weightKg) }));
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * How every plan's meals were marked, counting only days on or before `upTo`.
+   *
+   * A meal three days from now is neither eaten nor missed; counting it would
+   * make a plan that is going well look half-abandoned on its first morning.
+   */
+  async mealMarksByPlan(userId: string, upTo: string): Promise<readonly MealMarks[]> {
+    try {
+      const rows = await database()
+        .select({ n: sql<number>`count(*)::int`, planId: planDays.planId, status: meals.status })
+        .from(meals)
+        .innerJoin(planDays, eq(planDays.id, meals.planDayId))
+        .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))
+        .where(and(eq(mealPlans.userId, userId), lte(planDays.date, upTo)))
+        .groupBy(planDays.planId, meals.status);
+      const byPlan = new Map<string, MealMarks>();
+
+      for (const row of rows) {
+        const marks = byPlan.get(row.planId) ?? { completed: 0, planId: row.planId, planned: 0, skipped: 0 };
+        const key = row.status === 'completed' ? 'completed' : row.status === 'skipped' ? 'skipped' : 'planned';
+
+        byPlan.set(row.planId, { ...marks, [key]: marks[key] + row.n });
+      }
+
+      return [...byPlan.values()];
     } catch (error: unknown) {
       throw wrap(error);
     }

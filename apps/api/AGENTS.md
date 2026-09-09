@@ -229,6 +229,9 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   which never throws: the hook runs only for existing accounts, so an escaping error would tell
   a caller which addresses are registered. Verification links are logged, not mailed (`0017`).
   Addresses never reach the log.
+- **Progress** (`0020`): `GET /progress/summary` — the weight line and one entry per fortnight
+  lived, with meal marks counted only for days that have arrived and the check-in that closed
+  it. Reads only; nothing is collected for it. `GET`/`POST /progress/weight` are the dashboard's.
 - **Check-in** (`0018`): `GET /check-ins/status`, `POST /check-ins` — once per plan, from its last
   day. Weight → progress log (targets follow the latest weight); portions → a 5 % calorie nudge
   through the target override; words → the next plan's prompt. Never a restriction.

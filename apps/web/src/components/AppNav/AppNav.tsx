@@ -13,16 +13,15 @@ import { LocaleSwitcher } from 'components/LocaleSwitcher';
 import { signOut } from 'lib/auth-client';
 
 /**
- * Destinations, in the order the product loop uses them. The same list drives
- * the desktop header and the mobile bottom bar, so the two can never disagree.
- *
- * Progress is not yet built, so it is absent rather than present-and-dead: a nav
- * item that leads nowhere is worse than one that is not there.
+ * Destinations, in the order the product loop uses them — plan, shop, eat, see
+ * how it went. The same list drives the desktop header and the mobile bottom
+ * bar, so the two can never disagree.
  */
 const DESTINATIONS = [
   { href: '/inicio', icon: 'M3 10.5 12 3l9 7.5M5.5 9.5V20h13V9.5', label: 'home' },
   { href: '/plan', icon: 'M7 4h10a1 1 0 0 1 1 1v15l-6-3-6 3V5a1 1 0 0 1 1-1Z', label: 'plan' },
   { href: '/compra', icon: 'M4 6h2l2.2 9.4a1 1 0 0 0 1 .8h7.7a1 1 0 0 0 1-.8L20 9H7M9 20h.01M17 20h.01', label: 'shopping' },
+  { href: '/progreso', icon: 'M3 17l6-6 4 4 8-8M15 7h6v6', label: 'progress' },
   { href: '/perfil', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4.5 20a7.5 7.5 0 0 1 15 0', label: 'profile' }
 ] as const;
 

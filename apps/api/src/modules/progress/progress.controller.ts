@@ -9,7 +9,7 @@ import { ZodValidationPipe } from '../../shared/pipes/index.js';
 
 import type { LogWeight } from 'core/entities/Progress';
 import type { SessionUser } from '../../shared/decorators/index.js';
-import type { WeightView } from 'core/controllers/Progress';
+import type { ProgressSummaryView, WeightView } from 'core/controllers/Progress';
 
 /**
  * Weight, logged and read back.
@@ -25,6 +25,12 @@ export class ProgressRestController {
   @Get('weight')
   async weight(@CurrentUser() user: SessionUser): Promise<WeightView> {
     return ProgressController.getWeight(user.id);
+  }
+
+  @ApiOperation({ summary: 'The weight line, and every fortnight lived with its meal marks and check-in' })
+  @Get('summary')
+  async summary(@CurrentUser() user: SessionUser): Promise<ProgressSummaryView> {
+    return ProgressController.summary(user.id);
   }
 
   @ApiOperation({ summary: "Log today's weight. Logging the same day twice replaces the earlier figure." })

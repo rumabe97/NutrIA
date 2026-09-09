@@ -48,9 +48,8 @@ screens at phone width, which closes project 002's two open gates.
 2. **A user can shop from it.** Done: consolidated list per plan, grouped by aisle, editable,
    rebuilt on every swap, always matching the active plan.
 3. **The loop closes.** Weight tracking (done), eaten / skipped on each meal (done, `0016`),
-   the fortnightly check-in feeding the next plan (done, `0018`). Remaining: a progress
-   screen over the data already kept (weight trend, adherence per fortnight) and plan
-   history, immutable.
+   the fortnightly check-in feeding the next plan (done, `0018`), a progress screen over
+   the data already kept (done, `0020`). Remaining: plan history, immutable.
 4. **The assistant.** Nutrition-scoped, context-efficient, with the medical boundaries in
    `PRODUCT.md` enforced rather than requested.
 5. **Settings and notifications.** Preference editing outside onboarding (done, from the

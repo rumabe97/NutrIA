@@ -54,8 +54,9 @@ chrome for free:
   the content shell.
 - `src/app/page.tsx` — the marketing landing page, its own header and footer.
 
-Routes are **Spanish**: `/acceder`, `/registro`, `/recuperar`, `/restablecer`, `/inicio`,
-`/perfil`, `/onboarding/[paso]`. Add any new signed-in route to `PROTECTED` in
+Routes are **Spanish**: `/acceder`, `/registro`, `/recuperar`, `/restablecer`, `/pendiente`,
+`/inicio`, `/plan`, `/compra`, `/progreso`, `/check-in`, `/perfil`, `/onboarding/[paso]`.
+Add any new signed-in route to `PROTECTED` in
 `src/proxy.ts` so signed-out visitors are redirected instead of seeing a flash of empty
 page.
 

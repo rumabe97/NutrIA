@@ -1,6 +1,8 @@
 'use client';
 import { useState } from 'react';
 
+import Link from 'next/link';
+
 import styles from './WeightTracker.module.css';
 
 import { Button } from 'ui/components/Button';
@@ -111,11 +113,18 @@ export function WeightTracker({ weight }: { weight: WeightView }) {
         </Button>
       </div>
 
-      {view.startingWeightKg === null ? null : (
-        <Text size="xs" tone="tertiary">
-          {interpolate(t.weightStart, { value: formatNumber(view.startingWeightKg, locale) })}
-        </Text>
-      )}
+      <div className={styles.foot}>
+        {view.startingWeightKg === null ? (
+          <span />
+        ) : (
+          <Text size="xs" tone="tertiary">
+            {interpolate(t.weightStart, { value: formatNumber(view.startingWeightKg, locale) })}
+          </Text>
+        )}
+        <Link className={styles.more} href="/progreso">
+          {t.weightMore}
+        </Link>
+      </div>
 
       {error ? (
         <p className={styles.error} role="alert">

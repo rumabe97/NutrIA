@@ -10,6 +10,18 @@ export type HungerAnswer = (typeof HUNGER_ANSWERS)[number];
 export const DIFFICULTY_ANSWERS = ['easy', 'ok', 'hard'] as const;
 export type DifficultyAnswer = (typeof DIFFICULTY_ANSWERS)[number];
 
+/** How the three-way answers are stored — a small integer, so the columns stay numeric. */
+export const HUNGER_RATING: Record<HungerAnswer, number> = { hungry: 1, right: 2, too_much: 3 };
+export const DIFFICULTY_RATING: Record<DifficultyAnswer, number> = { easy: 1, hard: 3, ok: 2 };
+
+export function hungerAnswer(rating: number | null): HungerAnswer | null {
+  return HUNGER_ANSWERS.find(answer => HUNGER_RATING[answer] === rating) ?? null;
+}
+
+export function difficultyAnswer(rating: number | null): DifficultyAnswer | null {
+  return DIFFICULTY_ANSWERS.find(answer => DIFFICULTY_RATING[answer] === rating) ?? null;
+}
+
 /**
  * The fortnight's check-in, once per plan
  * ([`0018`](../../../../docs/decisions/0018-the-fortnight-closes-with-a-check-in.md)).

@@ -62,6 +62,17 @@ export const CheckInRepository = {
     }
   },
 
+  /** Every check-in the person has made, newest first. */
+  async findAll(userId: string): Promise<readonly CheckInRow[]> {
+    try {
+      const rows = await database().select(COLUMNS).from(checkIns).where(eq(checkIns.userId, userId)).orderBy(desc(checkIns.createdAt));
+
+      return rows.map(present);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   async findByPlan(userId: string, planId: string): Promise<CheckInRow | undefined> {
     try {
       const [row] = await database().select(COLUMNS).from(checkIns).where(and(eq(checkIns.userId, userId), eq(checkIns.planId, planId))).limit(1);

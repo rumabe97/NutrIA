@@ -1,0 +1,59 @@
+.figure {
+  display: grid;
+  gap: var(--space-01) var(--space-02);
+  grid-template-columns: auto minmax(0, 1fr);
+  margin: 0;
+}
+
+.axisY {
+  color: var(--foreground-03);
+  display: flex;
+  flex-direction: column;
+  font-size: var(--font-size-01);
+  font-variant-numeric: tabular-nums;
+  justify-content: space-between;
+  text-align: end;
+}
+
+.chart {
+  block-size: 9rem;
+  inline-size: 100%;
+  overflow: visible;
+}
+
+.line {
+  fill: none;
+  stroke: var(--color-brand-09);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.dot {
+  fill: var(--color-brand-09);
+  /* The box is stretched to fit; a circle drawn in it would be an oval. */
+  vector-effect: non-scaling-stroke;
+  stroke: var(--color-brand-09);
+  stroke-width: 3;
+  r: 0;
+}
+
+.target {
+  stroke: var(--foreground-03);
+  stroke-dasharray: 2 2;
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.axisX {
+  color: var(--foreground-03);
+  display: flex;
+  font-size: var(--font-size-01);
+  grid-column: 2;
+  justify-content: space-between;
+}
+
+.caption {
+  grid-column: 2;
+}
