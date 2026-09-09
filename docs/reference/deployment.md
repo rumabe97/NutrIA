@@ -348,10 +348,11 @@ Three things to be honest about:
   a plan). What is left is a coarse abuse guard on ordinary reads, where a database write
   per request would cost more than it protects.
 - **The gate runs, the deploy does not wait for it.** `.github/workflows/ci.yml` runs the
-  gate and the end-to-end suites on every push to `main` and every pull request, but the
-  host still builds whatever lands on `main` regardless. A red run is a record, not a
+  gate on every push and pull request and the end-to-end suites on every pull request, but
+  the host still builds whatever lands on `main` regardless. A red run is a record, not a
   brake. Making it a brake is §9 — a repository setting, not a file, which is why it is
-  the one thing here an agent cannot do.
+  the one thing here an agent cannot do. Until it is in place, a direct push to `main`
+  skips the end-to-end suites, because there is no pull request to run them on.
 - **No backup runs on a schedule, and no restore has been rehearsed.** §8 says how to take
   an export and how the host's own restore works, and the export has been run; neither has
   been used in anger. The restore window's length is still a blank in §8 that only the

@@ -13,6 +13,7 @@ part of `pnpm test`. Run them deliberately.
 | `vacations.e2e-spec.ts` | A trip moves the days after it by exactly its length, leaves the days before it alone, holds no plan day while it lasts, and gives the days back when cancelled. |
 | `swaps.e2e-spec.ts` | A replacement is a different dish in the same slot, the shopping list is rebuilt with it, and the fifth swap is the last — the sixth is 429. |
 | `plan-lifecycle.e2e-spec.ts` | Meals remember being eaten or skipped, one plan is active at a time, a replaced plan stays readable, the fortnight redo is spent once, and a weight logged twice in a day is a correction. |
+| `fortnight.e2e-spec.ts` | The rest of what a person does with a plan: ticking the shopping list, a verdict on a dish, the check-in that closes the cycle and refuses a second, the reminder switch, and a restriction changed outside onboarding. |
 | `preferences.e2e-spec.ts` | A disliked ingredient and a dietary pattern are enforced in code — the model is told to serve fish on purpose and none reaches the plan — while a preference nothing can match is kept and shown as unenforceable. |
 | `generation.e2e-spec.ts` | The core loop: onboarding → a 14-day plan → a shopping list that reconciles with it, with history preserved and one active plan. |
 | `allergy-safety.e2e-spec.ts` | A declared allergen never reaches a stored meal or a shopping list — **even when the model deliberately proposes one**. |
@@ -45,10 +46,12 @@ mail configuration anyway. `NODE_ENV=test` keeps the development-only rules.
 
 ### In CI
 
-`.github/workflows/ci.yml` runs these suites on every push and pull request against a
-`postgres:17` service container that is destroyed with the job — no secret, no shared
-branch, nothing to reset. It migrates, seeds and runs, exactly as below. That is also the
-answer to "what if I break the harness": the failure arrives on the commit that caused it.
+`.github/workflows/ci.yml` runs these suites on every pull request against a `postgres:17`
+service container that is destroyed with the job — no secret, no shared branch, nothing to
+reset. It migrates, seeds and runs, exactly as below; the seed takes five seconds against a
+container and the suites about twenty minutes on a shared runner. That is also the answer
+to "what if I break the harness": the failure arrives on the pull request that caused it,
+before it can reach `main`.
 
 ### A throwaway database without Docker
 

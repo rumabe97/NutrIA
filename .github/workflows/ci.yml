@@ -5,10 +5,11 @@
 # out, and it arrives in a minute rather than in a bug report.
 #
 # Two jobs, because they fail for different reasons and cost different amounts of
-# time. The gate is the one a developer runs; the end-to-end suites boot the real
-# application against a real database, which here is a Postgres container that
-# exists for the length of the job — no secret, no shared branch to reset, and
-# nothing to clean up.
+# time. The gate is the one a developer runs, on every push and every pull
+# request. The end-to-end suites boot the real application against a real
+# database — here a Postgres container that exists for the length of the job, so
+# no secret, no shared branch to reset and nothing to clean up — and run on pull
+# requests, which is every route into `main` once §9 of the runbook is in place.
 name: CI
 
 on:
@@ -48,7 +49,17 @@ jobs:
   e2e:
     name: end-to-end
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # Six and a half minutes on a developer's machine, a bit over twenty on a
+    # shared runner. The ceiling is set well above the second figure because a
+    # suite cut off mid-run reports as "cancelled", which reads like somebody
+    # pressed a button rather than like a limit that needs raising.
+    timeout-minutes: 45
+
+    # Pull requests only. Once `main` can be reached only through a green pull
+    # request (runbook §9), a push run would re-run the suites that had just
+    # passed on the commit being merged — the same twenty minutes, twice, on an
+    # account with a monthly budget of them. The gate still runs on both.
+    if: github.event_name == 'pull_request'
 
     # Thrown away with the job. The suites register and delete accounts, so they
     # must never see a database anybody else can reach — a container that dies
