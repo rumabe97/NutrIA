@@ -14,6 +14,15 @@ export const userRole = pgEnum('user_role', ['user', 'admin']);
  */
 export const user = pgTable('user', {
   id: text().primaryKey(),
+  /**
+   * When the owner opened this account (`0017`, `0030`) — null while it waits.
+   *
+   * Separate from `emailVerified` because they answer different questions and
+   * only one of them is the door. A verification link proves the address is
+   * real, which is the person's own business; this is the owner's decision, and
+   * conflating them meant a confirmation mail would have handed out the key.
+   */
+  activatedAt: timestamp({ withTimezone: true }),
   email: text().notNull().unique(),
   emailVerified: boolean().notNull().default(false),
   image: text(),

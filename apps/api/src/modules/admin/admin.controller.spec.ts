@@ -7,6 +7,7 @@ import { Test } from '@nestjs/testing';
 import { AdminController } from 'core/controllers/Admin';
 
 import { AdminGuard } from '../../shared/guards/index.js';
+import { ENV } from '../../config/index.js';
 import { AdminRestController } from './admin.controller.js';
 import { AllExceptionsFilter } from '../../shared/filters/index.js';
 
@@ -40,11 +41,12 @@ describe('AdminRestController', () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [AdminRestController],
       providers: [
+        { provide: ENV, useValue: { APP_URL: 'https://nutria.example', BETTER_AUTH_SECRET: 'a'.repeat(48) } },
         // Registration order is execution order: the session stand-in has to put
         // the user on the request before the role is checked, exactly as
         // `SessionGuard` runs before `AdminGuard` in the real application.
         { provide: APP_GUARD, useValue: { canActivate: (context: { switchToHttp: () => { getRequest: () => { user?: unknown } } }) => {
-          context.switchToHttp().getRequest().user = { id: 'usr-1', email: 'a@b.invalid', emailVerified: true, name: 'A', role };
+          context.switchToHttp().getRequest().user = { id: 'usr-1', activated: true, email: 'a@b.invalid', emailVerified: true, name: 'A', role };
 
           return true;
         } } },

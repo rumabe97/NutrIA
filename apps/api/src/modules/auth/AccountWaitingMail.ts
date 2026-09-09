@@ -1,4 +1,5 @@
 import { accountWaitingEmail } from '../email/templates/AccountWaiting.js';
+import { activationToken } from './ActivationLink.js';
 
 import type { EmailLocale } from '../email/templates/Layout.js';
 import type { EmailService } from '../email/Email.service.js';
@@ -18,12 +19,16 @@ const OWNER_LOCALE: EmailLocale = 'es-ES';
 export async function notifyOwnerOfWaitingAccount(
   mailer: Pick<EmailService, 'configured' | 'send'>,
   ownerEmail: string | undefined,
-  account: { readonly id: string; readonly email: string; }
+  account: { readonly id: string; readonly email: string; },
+  link: { readonly apiUrl: string; readonly secret: string }
 ): Promise<void> {
   if (!ownerEmail || !mailer.configured) {return;}
 
   try {
-    const sent = await mailer.send({ ...accountWaitingEmail({ email: account.email, locale: OWNER_LOCALE }), to: ownerEmail });
+    // One click, signed and expiring: the owner opens the account from their
+    // phone instead of finding a database client (`0030`).
+    const url = `${link.apiUrl}/admin/activate?token=${activationToken(account.id, link.secret)}`;
+    const sent = await mailer.send({ ...accountWaitingEmail({ email: account.email, locale: OWNER_LOCALE, url }), to: ownerEmail });
 
     console.info(`[auth] owner ${sent ? 'notified' : 'NOT notified'} of a waiting account (user ${account.id})`);
   } catch (error) {

@@ -196,10 +196,19 @@ on `/pendiente` until its email is marked verified. Until a mail provider is
 configured, that is a row update on the direct (session-mode) endpoint:
 
 ```sql
-update "user" set email_verified = true, updated_at = now() where email = 'persona@ejemplo.com';
+update "user" set activated_at = now(), updated_at = now() where email = 'persona@ejemplo.com';
 ```
 
-To see who is waiting: `select email, created_at from "user" where not email_verified order by created_at;`.
+`activated_at` is the door, `email_verified` only says the address is real (`0030`) — the old
+statement now confirms an address and opens nothing. Two easier ways: the button in the mail
+you get on every sign-up, and the queue on `/admin`, which needs an account whose `role` is
+`admin`:
+
+```sql
+update "user" set role = 'admin', updated_at = now() where email = 'tu@correo.com';
+```
+
+To see who is waiting: `select email, created_at from "user" where activated_at is null order by created_at;`.
 
 With `OWNER_EMAIL` set on the API project, you do not have to look: every sign-up sends that
 address one mail naming the account and carrying the statement above, ready to paste

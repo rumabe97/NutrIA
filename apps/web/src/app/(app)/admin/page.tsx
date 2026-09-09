@@ -7,10 +7,13 @@ import styles from './page.module.css';
 import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
+import { ActivateAccount } from 'components/ActivateAccount';
+
 import { formatDate, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import type { AdminOverviewView } from 'core/controllers/Admin';
+import type { WaitingView } from 'core/controllers/User';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,8 +28,14 @@ export const dynamic = 'force-dynamic';
  * It shows no plan, no profile and no email on purpose. "Is generation working"
  * and "how big is the catalogue" are answerable without reading anybody's food.
  */
-export default async function AdminPage() {
-  const [dictionary, locale, overview] = await Promise.all([getDictionary(), activeLocale(), serverApi<AdminOverviewView>('/admin/overview')]);
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ abierta?: string }> }) {
+  const [dictionary, locale, overview, waiting, opened] = await Promise.all([
+    getDictionary(),
+    activeLocale(),
+    serverApi<AdminOverviewView>('/admin/overview'),
+    serverApi<readonly WaitingView[]>('/admin/waiting'),
+    searchParams
+  ]);
 
   if (!overview) {notFound();}
 
@@ -61,6 +70,16 @@ export default async function AdminPage() {
           </div>
         ))}
       </dl>
+
+      {opened.abierta ? (
+        <p className={styles.opened}>{interpolate(t.justOpened, { email: opened.abierta })}</p>
+      ) : null}
+
+      {/* The queue first: it is the only thing on this page somebody is waiting on. */}
+      <section className={styles.section}>
+        <h2 className={styles.subtitle}>{t.waitingTitle}</h2>
+        <ActivateAccount accounts={waiting ?? []} />
+      </section>
 
       <section className={styles.section}>
         <h2 className={styles.subtitle}>{t.plansTitle}</h2>

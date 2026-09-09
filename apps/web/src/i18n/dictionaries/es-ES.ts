@@ -20,6 +20,7 @@ export const esES = {
 
   admin: {
     accounts: 'Cuentas',
+    activate: 'Abrir cuenta',
     attempts: '{count} intentos',
     failureNote: '{count} generaciones han fallado. El código dice si fue la cuota, la clave o el catálogo.',
     failures: 'Fallos',
@@ -27,11 +28,15 @@ export const esES = {
     ingredients: 'Ingredientes',
     intro: 'Cómo va el servicio. No hay ningún plan ni ningún perfil aquí: solo si la generación funciona y cuánto hay en el catálogo.',
     jobsTitle: 'Generaciones ({days} días)',
+    justOpened: 'Cuenta abierta: {email}',
     noJobs: 'Ninguna generación todavía.',
+    noneWaiting: 'No hay ninguna cuenta esperando.',
     plansTitle: 'Planes por estado',
     recipes: 'Recetas',
     title: 'Servicio',
+    unconfirmed: 'sin confirmar',
     waiting: '{count} sin activar',
+    waitingTitle: 'Cuentas esperando',
     withoutImage: '{count} sin ilustrar'
   },
 
@@ -72,6 +77,7 @@ export const esES = {
     passwordTooShort: 'La contraseña debe tener al menos {count} caracteres.',
     pendingBody: 'Estamos abriendo NutrIA poco a poco. Activaremos tu cuenta ({email}) en cuanto podamos y te avisaremos por correo.',
     pendingCheck: 'Volver a comprobar',
+    pendingConfirm: 'Mientras tanto, confirma tu correo con el enlace que acabamos de enviarte. No abre la cuenta, pero nos dice que la dirección es tuya.',
     pendingSignOut: 'Cerrar sesión',
     pendingTitle: 'Cuenta pendiente de activación',
     recoverSent: 'Si existe una cuenta con ese correo, te hemos enviado un enlace para restablecer la contraseña. Caduca en una hora.',
@@ -228,11 +234,11 @@ export const esES = {
   },
 
   errors: {
+    accountNotActivated: 'Tu cuenta todavía no está activada.',
     boundaryBody: 'Puede ser una conexión intermitente. Vuelve a intentarlo; si sigue fallando, tus datos están a salvo.',
     boundaryHome: 'Ir al inicio',
     boundaryTitle: 'No hemos podido cargar esta página',
     conflict: 'Ese dato ya está en uso.',
-    emailUnverified: 'Tu cuenta todavía no está activada.',
     internal: 'Algo ha ido mal por nuestra parte. Inténtalo de nuevo en un momento.',
     invalidInput: 'Revisa los datos marcados.',
     network: 'No hemos podido conectar. Comprueba tu conexión.',

@@ -74,7 +74,7 @@ describe('GET /recipes/:id/image', () => {
  */
 describe('PUT /recipes/:id/verdict', () => {
   let app: INestApplication;
-  const ALICE = { id: 'alice', email: 'alice@example.com', emailVerified: true, name: 'Alice', role: 'user' as const };
+  const ALICE = { id: 'alice', activated: true, email: 'alice@example.com', emailVerified: true, name: 'Alice', role: 'user' as const };
 
   afterEach(async () => {
     jest.restoreAllMocks();

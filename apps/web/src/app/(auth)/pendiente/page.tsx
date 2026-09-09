@@ -35,6 +35,14 @@ export default async function PendingPage() {
       <h1 className={styles.title}>{dictionary.auth.pendingTitle}</h1>
       <Text tone="secondary">{interpolate(dictionary.auth.pendingBody, { email: user.email })}</Text>
 
+      {/* Two different waits, and only one of them is ours (0030): the account
+          opens when the owner opens it, the address is confirmed by them. */}
+      {user.emailVerified ? null : (
+        <Text size="sm" tone="tertiary">
+          {dictionary.auth.pendingConfirm}
+        </Text>
+      )}
+
       <div className={`${styles.footer} ${own.actions}`}>
         <CheckAgainButton>{dictionary.auth.pendingCheck}</CheckAgainButton>
         <SignOutLink>{dictionary.auth.pendingSignOut}</SignOutLink>

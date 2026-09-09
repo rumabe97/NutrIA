@@ -29,7 +29,7 @@ describe('body validation is scoped to the body', () => {
     app = moduleRef.createNestApplication();
     app.useGlobalFilters(new AllExceptionsFilter());
     app.use((req: express.Request & { user?: unknown }, _res: express.Response, next: express.NextFunction) => {
-      req.user = { id: 'usr-1', email: 'a@b.co', emailVerified: true, name: 'A', role: 'user' };
+      req.user = { id: 'usr-1', activated: true, email: 'a@b.co', emailVerified: true, name: 'A', role: 'user' };
       next();
     });
     app.use(express.json());

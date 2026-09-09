@@ -104,15 +104,16 @@ export class QuotaExceededError extends Error {
 }
 
 /**
- * Thrown when a signed-in account has not been activated. Access is opened
- * account by account while the product runs on a free-tier provider
- * ([`0017`](../../../../docs/decisions/0017-access-opens-account-by-account.md));
- * the flag is `user.email_verified`, set by hand for now.
+ * The account exists and the person is signed in, but the owner has not opened
+ * it yet (`0017`, `0030`).
+ *
+ * Not a denial — a state. The screen routes on it and says what is happening,
+ * which is why this is 409 rather than the 404 every real denial answers.
  */
-export class EmailUnverifiedError extends Error {
-  constructor() {
-    super('Email not verified');
-    this.name = 'EmailUnverifiedError';
+export class AccountNotActivatedError extends Error {
+  constructor(message = 'Account not activated') {
+    super(message);
+    this.name = 'AccountNotActivatedError';
   }
 }
 

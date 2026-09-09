@@ -5,9 +5,12 @@ import { database } from 'database';
 import { account, rateLimit, session, user, verification } from 'database/schema/auth';
 
 import { notifyOwnerOfWaitingAccount } from './AccountWaitingMail.js';
-import { sendPasswordResetMail } from './PasswordResetMail.js';
+import { absoluteCallback, sendPasswordResetMail } from './PasswordResetMail.js';
+import { localeFromHeader } from '../../shared/decorators/Locale.decorator.js';
+import { verifyEmail } from '../email/templates/VerifyEmail.js';
 
 import type { Env } from '../../config/index.js';
+import type { EmailLocale } from '../email/templates/Layout.js';
 import type { EmailService } from '../email/Email.service.js';
 
 const MINUTES = 60;
@@ -56,7 +59,7 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
            * an unreachable mailbox.
            */
           after: async (created: { id: string; email: string; }) => {
-            await notifyOwnerOfWaitingAccount(mailer, env.OWNER_EMAIL, created);
+            await notifyOwnerOfWaitingAccount(mailer, env.OWNER_EMAIL, created, { apiUrl: `${env.BETTER_AUTH_URL}/${env.API_PREFIX}`, secret: env.BETTER_AUTH_SECRET });
           }
         }
       }
@@ -81,15 +84,23 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
     emailVerification: {
       autoSignInAfterVerification: true,
       /*
-       * Deliberately not sent, even with mail configured: `email_verified` is
-       * the switch the owner throws by hand to open an account (0017), and a
-       * link the person can click themselves would hand them the switch. When
-       * access opens to everyone, this is the line to change — and the hook
-       * below the one to write.
+       * Sent, since `0030`: confirming an address no longer opens the account.
+       * That is `activatedAt`, which only the owner writes, so the link proves
+       * what the person can prove and nothing more.
        */
-      sendOnSignUp: false,
-      sendVerificationEmail: async ({ url, user: recipient }) => {
-        console.info(`[auth] verification link issued, not mailed — access opens by hand (0017) (user ${recipient.id}); url: ${url}`);
+      sendOnSignUp: true,
+      sendVerificationEmail: async ({ url, user: recipient }, request) => {
+        const locale = (localeFromHeader(request?.headers.get('accept-language') ?? undefined) ?? 'es-ES') as EmailLocale;
+
+        if (!mailer.configured) {
+          console.info(`[auth] no SMTP configured; verification url for ${recipient.id}: ${url}`);
+
+          return;
+        }
+
+        const sent = await mailer.send({ ...verifyEmail({ locale, url: absoluteCallback(url, env.APP_URL) }), to: recipient.email });
+
+        console.info(`[auth] verification ${sent ? 'mail sent' : 'mail NOT sent'} (user ${recipient.id})`);
       }
     },
     /*
@@ -111,7 +122,16 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
     },
     trustedOrigins: (env.ALLOWED_ORIGINS ?? env.APP_URL).split(',').map(origin => origin.trim()),
     user: {
-      additionalFields: { role: { defaultValue: 'user', input: false, required: false, type: 'string' } },
+      additionalFields: {
+        /*
+         * Declared so it rides the session (`0030`): the guard asks "is this
+         * account open" on every request, and a column Better Auth does not
+         * know about is a column that is not there when it looks. `input: false`
+         * — a client cannot send it, which is the whole point of a door.
+         */
+        activatedAt: { input: false, required: false, type: 'date' },
+        role: { defaultValue: 'user', input: false, required: false, type: 'string' }
+      },
       deleteUser: { enabled: true }
     }
   });

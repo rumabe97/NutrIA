@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, isNull } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -23,6 +23,31 @@ import type { User } from 'core/entities/User';
  *      connection strings and must never reach a response
  */
 export const UserRepository = {
+  /**
+   * Opens the account (`0017`, `0030`): the one write this repository makes to a
+   * table Better Auth owns, because it is the owner's decision and nothing in
+   * Better Auth models it. By id from the admin screen, by email from the
+   * runbook and the tests. Returns the address opened, or null if there was no
+   * such account.
+   *
+   * Deliberately does **not** touch `emailVerified`: that says the address is
+   * real and only the person holding it can prove that.
+   */
+  async activate(match: { readonly id?: string; readonly email?: string; }): Promise<{ readonly email: string } | null> {
+    try {
+      const where = match.id === undefined ? eq(user.email, match.email ?? '') : eq(user.id, match.id);
+      const rows = await database()
+        .update(user)
+        .set({ activatedAt: new Date(), updatedAt: new Date() })
+        .where(where)
+        .returning({ email: user.email });
+
+      return rows[0] ?? null;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   async findByEmail(email: string): Promise<User | undefined> {
     try {
       const [row] = await database().select().from(user).where(eq(user.email, email)).limit(1);
@@ -43,16 +68,15 @@ export const UserRepository = {
     }
   },
 
-  /**
-   * Opens the account (0017): the one write this repository makes to a table
-   * Better Auth owns, because it is the switch the owner throws by hand today
-   * and an admin screen will throw tomorrow. True when a row was updated.
-   */
-  async markEmailVerified(email: string): Promise<boolean> {
+  /** Accounts still waiting for the owner, oldest first — the queue the admin screen shows. */
+  async findWaiting(limit: number): Promise<readonly { readonly id: string; readonly createdAt: Date; readonly email: string; readonly emailVerified: boolean; }[]> {
     try {
-      const rows = await database().update(user).set({ emailVerified: true, updatedAt: new Date() }).where(eq(user.email, email)).returning({ id: user.id });
-
-      return rows.length > 0;
+      return await database()
+        .select({ id: user.id, createdAt: user.createdAt, email: user.email, emailVerified: user.emailVerified })
+        .from(user)
+        .where(isNull(user.activatedAt))
+        .orderBy(user.createdAt)
+        .limit(limit);
     } catch (error: unknown) {
       throw wrap(error);
     }

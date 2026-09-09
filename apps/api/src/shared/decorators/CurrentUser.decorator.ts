@@ -5,6 +5,8 @@ import type { Request } from 'express';
 
 export type SessionUser = {
   readonly id: string;
+  /** Whether the owner has opened this account (`0030`). `emailVerified` is a different question. */
+  readonly activated: boolean;
   readonly email: string;
   readonly emailVerified: boolean;
   readonly name: string;

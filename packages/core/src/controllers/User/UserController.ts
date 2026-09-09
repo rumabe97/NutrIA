@@ -47,10 +47,17 @@ function presentUser(user: User): UserView {
 
 // --- Controller ---------------------------------------------------------------
 
+/** One account the owner has not opened yet (`0030`). No profile, no answers — only what a decision needs. */
+export type WaitingView = { id: string; createdAt: string; email: string; emailVerified: boolean; };
+
 export const UserController = {
-  /** Opens an account (0017) — what the owner does by hand today. True when the account existed. */
-  async activate(email: string): Promise<boolean> {
-    return UserRepository.markEmailVerified(email);
+  /**
+   * Opens an account (`0017`, `0030`) — the owner's decision, by id from the
+   * admin screen and by email from the runbook. Returns the address opened, or
+   * null when there was no such account.
+   */
+  async activate(match: { readonly id?: string; readonly email?: string; }): Promise<{ readonly email: string } | null> {
+    return UserRepository.activate(match);
   },
 
   /**
@@ -64,5 +71,10 @@ export const UserController = {
     if (!user) {throw new NotFoundError(`User "${input.id}" not found`);}
 
     return presentUser(user);
+  },
+
+  /** Accounts still waiting to be opened, oldest first. */
+  async waiting(limit = 50): Promise<readonly WaitingView[]> {
+    return (await UserRepository.findWaiting(limit)).map(row => ({ ...row, createdAt: row.createdAt.toISOString() }));
   }
 };

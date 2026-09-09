@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { EmailUnverifiedError } from 'core/entities/Error';
+import { AccountNotActivatedError } from 'core/entities/Error';
 
 import { ALLOW_UNVERIFIED_KEY } from '../decorators/AllowUnverified.decorator.js';
 import { IS_PUBLIC_KEY } from '../decorators/Public.decorator.js';
@@ -9,7 +9,7 @@ import { VerifiedEmailGuard } from './VerifiedEmail.guard.js';
 import type { ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
 
-function makeContext(user?: { id: string; emailVerified: boolean; }): ExecutionContext {
+function makeContext(user?: { id: string; activated: boolean }): ExecutionContext {
   return {
     getClass: () => class {},
     getHandler: () => () => undefined,
@@ -27,19 +27,19 @@ function makeGuard(flags: { allowUnverified?: boolean; isPublic?: boolean } = {}
 
 describe('VerifiedEmailGuard', () => {
   it('lets an activated account through', () => {
-    expect(makeGuard().canActivate(makeContext({ id: 'u1', emailVerified: true }))).toBe(true);
+    expect(makeGuard().canActivate(makeContext({ id: 'u1', activated: true }))).toBe(true);
   });
 
   it('refuses an account that has not been activated, with the code the screen routes on', () => {
-    expect(() => makeGuard().canActivate(makeContext({ id: 'u1', emailVerified: false }))).toThrow(EmailUnverifiedError);
+    expect(() => makeGuard().canActivate(makeContext({ id: 'u1', activated: false }))).toThrow(AccountNotActivatedError);
   });
 
   it('is not the business of a public route', () => {
-    expect(makeGuard({ isPublic: true }).canActivate(makeContext({ id: 'u1', emailVerified: false }))).toBe(true);
+    expect(makeGuard({ isPublic: true }).canActivate(makeContext({ id: 'u1', activated: false }))).toBe(true);
   });
 
   it('lets an unactivated account reach the routes marked for it', () => {
-    expect(makeGuard({ allowUnverified: true }).canActivate(makeContext({ id: 'u1', emailVerified: false }))).toBe(true);
+    expect(makeGuard({ allowUnverified: true }).canActivate(makeContext({ id: 'u1', activated: false }))).toBe(true);
   });
 
   it('leaves an absent user to the session guard', () => {

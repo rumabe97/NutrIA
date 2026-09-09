@@ -1,0 +1,37 @@
+.root {
+  display: grid;
+  gap: var(--space-03);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-02);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  align-items: center;
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-03);
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+  padding: var(--space-03) var(--space-04);
+}
+
+.who {
+  display: grid;
+  gap: var(--space-01);
+  min-inline-size: 0;
+}
+
+.email {
+  font-size: var(--font-size-03);
+  overflow-wrap: anywhere;
+}
+
+.error {
+  color: var(--color-error-text);
+}

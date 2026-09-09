@@ -43,6 +43,7 @@ export class SessionGuard implements CanActivate {
 
     request.user = {
       id: session.user.id,
+      activated: (session.user as { activatedAt?: Date | string | null }).activatedAt != null,
       email: session.user.email,
       emailVerified: session.user.emailVerified,
       name: session.user.name,

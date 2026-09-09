@@ -17,6 +17,7 @@ export const enGB: Dictionary = {
 
   admin: {
     accounts: 'Accounts',
+    activate: 'Open account',
     attempts: '{count} attempts',
     failureNote: '{count} generations failed. The code says whether it was the quota, the key or the catalogue.',
     failures: 'Failures',
@@ -24,11 +25,15 @@ export const enGB: Dictionary = {
     ingredients: 'Ingredients',
     intro: 'How the service is doing. No plan and no profile here: only whether generation works and how much the catalogue holds.',
     jobsTitle: 'Generations ({days} days)',
+    justOpened: 'Account opened: {email}',
     noJobs: 'No generation yet.',
+    noneWaiting: 'No account is waiting.',
     plansTitle: 'Plans by state',
     recipes: 'Recipes',
     title: 'Service',
+    unconfirmed: 'unconfirmed',
     waiting: '{count} not activated',
+    waitingTitle: 'Accounts waiting',
     withoutImage: '{count} without a picture'
   },
 
@@ -69,6 +74,7 @@ export const enGB: Dictionary = {
     passwordTooShort: 'The password must be at least {count} characters.',
     pendingBody: 'We are opening NutrIA a few people at a time. We will activate your account ({email}) as soon as we can and let you know by email.',
     pendingCheck: 'Check again',
+    pendingConfirm: 'In the meantime, confirm your address with the link we just sent. It does not open the account, it tells us the address is yours.',
     pendingSignOut: 'Sign out',
     pendingTitle: 'Account pending activation',
     recoverSent: 'If an account exists with that email, we have sent a link to reset the password. It expires in an hour.',
@@ -224,11 +230,11 @@ export const enGB: Dictionary = {
   },
 
   errors: {
+    accountNotActivated: 'Your account has not been activated yet.',
     boundaryBody: 'It may be an intermittent connection. Try again; if it keeps failing, your data is safe.',
     boundaryHome: 'Go to the dashboard',
     boundaryTitle: 'We could not load this page',
     conflict: 'That is already in use.',
-    emailUnverified: 'Your account has not been activated yet.',
     internal: 'Something went wrong at our end. Try again in a moment.',
     invalidInput: 'Check the fields marked.',
     network: 'We could not connect. Check your connection.',

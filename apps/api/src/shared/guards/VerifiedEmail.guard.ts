@@ -1,7 +1,7 @@
 import { CanActivate, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
-import { EmailUnverifiedError } from 'core/entities/Error';
+import { AccountNotActivatedError } from 'core/entities/Error';
 
 import { ALLOW_UNVERIFIED_KEY } from '../decorators/AllowUnverified.decorator.js';
 import { IS_PUBLIC_KEY } from '../decorators/Public.decorator.js';
@@ -10,13 +10,13 @@ import type { AuthenticatedRequest } from '../decorators/CurrentUser.decorator.j
 import type { ExecutionContext } from '@nestjs/common';
 
 /**
- * Only an activated account may use the product
+ * Only an account the owner has opened may use the product
  * ([`0017`](../../../../../docs/decisions/0017-access-opens-account-by-account.md)).
  *
  * Runs after `SessionGuard`, so `request.user` is the session's user. Public
  * routes are not its business; a route marked `@AllowUnverified()` is the
  * small set an unactivated account needs — who am I, and leave. Everything
- * else answers 409 `EMAIL_UNVERIFIED`: not a 404, because the person is
+ * else answers 409 `ACCOUNT_NOT_ACTIVATED`: not a 404, because the person is
  * signed in and the state is their own, and the screen sends them to the
  * page that explains it.
  */
@@ -33,7 +33,8 @@ export class VerifiedEmailGuard implements CanActivate {
 
     const { user } = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
-    if (user && !user.emailVerified) {throw new EmailUnverifiedError();}
+    // The owner's switch, not the address: a confirmed email is not a key (`0030`).
+    if (user && !user.activated) {throw new AccountNotActivatedError();}
 
     return true;
   }

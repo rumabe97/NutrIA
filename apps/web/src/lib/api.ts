@@ -8,8 +8,8 @@ import type { Dictionary } from '../i18n/dictionaries/es-ES';
  * so UI copy switches on the code, never on the text.
  */
 export type ApiErrorCode =
+  | 'ACCOUNT_NOT_ACTIVATED'
   | 'CONFLICT'
-  | 'EMAIL_UNVERIFIED'
   | 'INTERNAL_ERROR'
   | 'INVALID_INPUT'
   | 'NETWORK'
@@ -38,8 +38,8 @@ export class ApiError extends Error {
  * server-side in one language and the reader may not have that one.
  */
 const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
+  ACCOUNT_NOT_ACTIVATED: 'accountNotActivated',
   CONFLICT: 'conflict',
-  EMAIL_UNVERIFIED: 'emailUnverified',
   INTERNAL_ERROR: 'internal',
   INVALID_INPUT: 'invalidInput',
   NETWORK: 'network',

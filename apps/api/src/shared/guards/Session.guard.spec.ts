@@ -7,7 +7,7 @@ import type { Auth } from '../../modules/auth/auth.config.js';
 import type { ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
 
-type Session = { user: { id: string; email: string; emailVerified: boolean; name: string; role?: string } } | null;
+type Session = { user: { id: string; activatedAt?: Date | null; email: string; emailVerified: boolean; name: string; role?: string } } | null;
 
 function makeContext(request: Record<string, unknown> = { headers: {} }): ExecutionContext {
   return {
@@ -25,7 +25,7 @@ function makeGuard(session: Session, isPublic = false) {
   return { getSession, guard: new SessionGuard(auth, reflector) };
 }
 
-const session: Session = { user: { id: 'usr_1', email: 'ada@example.com', emailVerified: true, name: 'Ada', role: 'user' } };
+const session: Session = { user: { id: 'usr_1', activatedAt: new Date(), email: 'ada@example.com', emailVerified: true, name: 'Ada', role: 'user' } };
 
 describe('SessionGuard', () => {
   it('denies an unauthenticated request', async () => {
@@ -52,12 +52,12 @@ describe('SessionGuard', () => {
 
     await guard.canActivate(makeContext(request));
 
-    expect(request.user).toEqual({ id: 'usr_1', email: 'ada@example.com', emailVerified: true, name: 'Ada', role: 'user' });
+    expect(request.user).toEqual({ id: 'usr_1', activated: true, email: 'ada@example.com', emailVerified: true, name: 'Ada', role: 'user' });
   });
 
   it('defaults a missing role to `user` — never to something privileged', async () => {
     const request: Record<string, unknown> = { headers: {} };
-    const { guard } = makeGuard({ user: { id: 'usr_2', email: 'a@b.c', emailVerified: true, name: 'A' } });
+    const { guard } = makeGuard({ user: { id: 'usr_2', activatedAt: new Date(), email: 'a@b.c', emailVerified: true, name: 'A' } });
 
     await guard.canActivate(makeContext(request));
 

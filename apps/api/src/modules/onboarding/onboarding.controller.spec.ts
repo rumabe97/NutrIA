@@ -34,7 +34,7 @@ describe('POST /onboarding (through the real pipeline)', () => {
     app.useGlobalFilters(new AllExceptionsFilter());
     // Stands in for SessionGuard, which is global in AppModule.
     app.use((req: express.Request & { user?: unknown }, _res: express.Response, next: express.NextFunction) => {
-      req.user = { id: 'usr-1', email: 'a@b.co', emailVerified: true, name: 'A', role: 'user' };
+      req.user = { id: 'usr-1', activated: true, email: 'a@b.co', emailVerified: true, name: 'A', role: 'user' };
       next();
     });
     app.use(express.json());

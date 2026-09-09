@@ -7,7 +7,7 @@ import { ProgressRestController } from './progress.controller.js';
 import type { ProgressSummaryView, WeightView } from 'core/controllers/Progress';
 import type { SessionUser } from '../../shared/decorators/index.js';
 
-const ALICE: SessionUser = { id: 'usr-alice', email: 'alice@example.invalid', emailVerified: true, name: 'Alice', role: 'user' };
+const ALICE: SessionUser = { id: 'usr-alice', activated: true, email: 'alice@example.invalid', emailVerified: true, name: 'Alice', role: 'user' };
 
 const weight: WeightView = { changeKg: -1.2, entries: [{ loggedOn: '2026-09-09', weightKg: 86.2 }], latestKg: 86.2, startingWeightKg: 87.4 };
 const summary: ProgressSummaryView = {

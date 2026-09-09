@@ -56,8 +56,8 @@ screens at phone width, which closes project 002's two open gates.
 4. **Settings and notifications.** Preference editing outside onboarding (done, from the
    profile), password-reset mail (done, `0019`), the check-in reminder and its switch
    (done, `0027`), the owner told when an account is waiting (done, `0029`). Remaining:
-   verification mail, the day access opens to everyone (`0017`), and any further reminder
-   that can argue for itself.
+   verification mail (done, `0030`) and any further reminder that can argue for itself.
+   Opening access to everyone is now one line: stop checking `activated_at`.
 
 ## Later / someday
 

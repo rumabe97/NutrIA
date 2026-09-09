@@ -1,7 +1,7 @@
 import { BadRequestException, HttpStatus, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, jest } from '@jest/globals';
 
-import { ConflictError, DatabaseOperationError, EmailUnverifiedError, InputParseError, NotFoundError, QuotaExceededError, SafetyViolationError, UnauthorizedError } from 'core/entities/Error';
+import { AccountNotActivatedError, ConflictError, DatabaseOperationError, InputParseError, NotFoundError, QuotaExceededError, SafetyViolationError, UnauthorizedError } from 'core/entities/Error';
 
 import { AllExceptionsFilter } from './AllExceptions.filter.js';
 
@@ -33,7 +33,7 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('maps an unactivated account to 409 with the code the screen routes on', () => {
-    expect(capture(new EmailUnverifiedError()).body).toMatchObject({ code: 'EMAIL_UNVERIFIED', statusCode: HttpStatus.CONFLICT });
+    expect(capture(new AccountNotActivatedError()).body).toMatchObject({ code: 'ACCOUNT_NOT_ACTIVATED', statusCode: HttpStatus.CONFLICT });
   });
 
   it('maps a spent allowance to 429, naming which one and when it renews', () => {
