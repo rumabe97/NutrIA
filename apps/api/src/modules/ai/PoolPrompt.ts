@@ -40,7 +40,7 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * 2.6.0: the last fortnight's check-in — how the portions felt, how hard the plan
  * was, their own words (0018).
  */
-export const PROMPT_VERSION = '2.6.0';
+export const PROMPT_VERSION = '2.7.0';
 
 /** Share of the day each slot carries; mirrors the scheduler's own weights. */
 const SLOT_SHARE: Record<MealSlot, number> = {
@@ -102,6 +102,8 @@ export type PromptContext = {
   readonly portionPreference: string | null;
   /** Free text about the working week, e.g. shifts. */
   readonly scheduleNotes: string | null;
+  /** For a swap: what the person asked of this one dish, when they asked something (0022). */
+  readonly swapWish?: string | null;
   readonly targets: NutritionTargets;
 };
 
@@ -311,6 +313,7 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
       ? `SERVED TO THEM LAST FORTNIGHT — propose different dishes, not these or close variations of them: ${context.avoidNames.slice(0, 60).join('; ')}`
       : '',
     ...checkInLines(context.checkIn ?? null),
+    context.swapWish ? `THIS ONE DISH IS A REPLACEMENT THE PERSON ASKED FOR: ${context.swapWish}. Every dish proposed must satisfy that.` : '',
     context.lovedNames.length > 0
       ? `DISHES THEY SAID THEY LOVED — this is their taste; design new dishes in the same spirit (technique, seasoning, kind of dish), not copies: ${context.lovedNames.slice(0, 40).join('; ')}`
       : '',

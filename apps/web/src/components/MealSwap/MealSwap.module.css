@@ -7,3 +7,39 @@
   margin: 0;
   text-wrap: pretty;
 }
+
+.axes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+}
+
+.axis {
+  background: none;
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-full);
+  color: var(--foreground-02);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--font-size-01);
+  padding: var(--space-01) var(--space-03);
+  transition:
+    background-color var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default),
+    color var(--duration-fast) var(--ease-default);
+}
+
+.axis:hover:not(:disabled) {
+  border-color: var(--color-brand-07);
+}
+
+.axis[aria-pressed='true'] {
+  background-color: var(--color-brand-03);
+  border-color: var(--color-brand-09);
+  color: var(--color-brand-12);
+}
+
+.axis:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

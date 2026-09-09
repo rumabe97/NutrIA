@@ -38,7 +38,7 @@ function harness(options: { readonly generated?: readonly CandidateDish[]; reado
     day: { id: 'day-3', dayIndex: 3 },
     meal: { id: MEAL } as never,
     plan: { id: 'plan-1', endDate: '2026-09-22', startDate: '2026-09-09', status: 'active', strategy: { carbsG: 250, fatG: 70, fiberG: 30, kcal: 2200, proteinG: 160 } },
-    recipe: { id: 'r-1', name: 'Lentil stew', servings: 1, slug: 'lentil-stew' }
+    recipe: { id: 'r-1', cookMinutes: 10, name: 'Lentil stew', prepMinutes: 5, servings: 1, slug: 'lentil-stew' }
   } as never);
   jest.spyOn(PlanController, 'allowances').mockResolvedValue({
     mealSwaps: { allowed: (options.remaining ?? 5) > 0, limit: 5, remaining: options.remaining ?? 5, used: 5 - (options.remaining ?? 5) },
@@ -119,6 +119,41 @@ describe('MealSwapService', () => {
     // Lentils left with the old dish; chicken and rice aggregate across the two meals.
     expect(names).not.toContain('lentils');
     expect(items.find(item => item.ingredientId === 'i-rice')?.totalGrams).toBeGreaterThan(250);
+  });
+
+  it('quicker: only a dish that takes less time than the current one, library first', async () => {
+    const slow = { ...lunch('slow-rice', [{ grams: 200, slug: 'chicken' }, { grams: 250, slug: 'rice' }]), cookMinutes: 30, prepMinutes: 10 };
+    const quick = { ...lunch('quick-rice', [{ grams: 190, slug: 'chicken' }, { grams: 260, slug: 'rice' }]), cookMinutes: 0, prepMinutes: 8 };
+    const { build, service, swapMeal } = harness({ library: [slow, quick] });
+
+    await service.swap('user-1', MEAL, 'es-ES', 'quicker');
+
+    expect(build).not.toHaveBeenCalled();
+    expect(swapMeal.mock.calls[0]?.[2]?.recipeSlug).toBe('quick-rice');
+  });
+
+  it('tells the model what was asked when the library cannot answer it, and holds the answer to it too', async () => {
+    const slow = { ...lunch('slow-rice', [{ grams: 200, slug: 'chicken' }, { grams: 250, slug: 'rice' }]), cookMinutes: 30, prepMinutes: 10 };
+    const cooked = { ...lunch('model-cooked', [{ grams: 220, slug: 'chicken' }, { grams: 230, slug: 'rice' }]), cookMinutes: 12, prepMinutes: 5 };
+    const raw = { ...lunch('model-raw', [{ grams: 210, slug: 'chicken' }, { grams: 240, slug: 'rice' }]), cookMinutes: 0, prepMinutes: 10 };
+    const { build, service, swapMeal } = harness({ generated: [cooked, raw], library: [slow] });
+
+    await service.swap('user-1', MEAL, 'es-ES', 'no_cooking');
+
+    const input = build.mock.calls[0]?.[0] as { preferences: { swapWish: string | null } } | undefined;
+
+    expect(input?.preferences.swapWish).toContain('no cooking');
+    expect(swapMeal.mock.calls[0]?.[2]?.recipeSlug).toBe('model-raw');
+  });
+
+  it('more protein: a richer plate for the same calories, or nothing', async () => {
+    const same = lunch('lentil-again', [{ grams: 300, slug: 'lentils' }, { grams: 100, slug: 'rice' }]);
+    const richer = lunch('chicken-plate', [{ grams: 300, slug: 'chicken' }, { grams: 100, slug: 'rice' }]);
+    const { service, swapMeal } = harness({ library: [same, richer] });
+
+    await service.swap('user-1', MEAL, 'es-ES', 'more_protein');
+
+    expect(swapMeal.mock.calls[0]?.[2]?.recipeSlug).toBe('chicken-plate');
   });
 
   it('refuses when the plan has no swaps left, before looking anything up', async () => {

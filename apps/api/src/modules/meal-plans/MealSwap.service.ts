@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
 import { buildShoppingList } from 'core/domain/ShoppingList';
-import { pickReplacement } from 'core/domain/Scheduler';
+import { axisFilter, pickReplacement } from 'core/domain/Scheduler';
 import { ConflictError, QuotaExceededError } from 'core/entities/Error';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
@@ -12,7 +12,7 @@ import { promptPreferences, toRecipeDraft } from './GenerationShared.js';
 
 import type { MealCompositionView, MealDetailView } from 'core/controllers/Plan';
 import type { Placement } from 'core/domain/Variety';
-import type { RecipeDraft } from 'core/entities/Plan';
+import type { RecipeDraft, SwapAxis } from 'core/entities/Plan';
 
 /**
  * How many dishes to ask the model for when the library has nothing for the
@@ -20,6 +20,23 @@ import type { RecipeDraft } from 'core/entities/Plan';
  * asks, because one meal is being replaced.
  */
 const SWAP_CANDIDATES = 3;
+
+/** The budget's protein when "more protein" is asked: the picker then ranks a richer plate as the better fit. */
+const MORE_PROTEIN_BUDGET = 1.25;
+
+/** What the model is told when the library had nothing that answers the axis. */
+function wishFor(axis: SwapAxis | undefined, current: { readonly cookMinutes: number; readonly prepMinutes: number }): string | null {
+  switch (axis) {
+    case 'quicker':
+      return `quicker than the current dish — under ${current.prepMinutes + current.cookMinutes} minutes in total, prep and cooking`;
+    case 'no_cooking':
+      return 'no cooking at all: assembled cold, cooking time zero';
+    case 'more_protein':
+      return 'clearly more protein per calorie than an ordinary dish of this kind';
+    default:
+      return null;
+  }
+}
 
 /**
  * Replaces one meal of the active plan
@@ -38,7 +55,7 @@ export class MealSwapService {
 
   constructor(private readonly pool: PoolBuilder) {}
 
-  async swap(userId: string, mealId: string, locale: string | null): Promise<MealDetailView> {
+  async swap(userId: string, mealId: string, locale: string | null, axis?: SwapAxis): Promise<MealDetailView> {
     const anchor = await PlanController.mealForSwap(userId, mealId);
 
     if (anchor.plan.status !== 'active') {throw new ConflictError('Only the active plan can be changed');}
@@ -62,8 +79,13 @@ export class MealSwapService {
     const placed: Placement[] = meals.filter(meal => meal.id !== mealId).map(meal => ({ dayIndex: meal.dayIndex, dishSlug: meal.recipeSlug, slot: meal.slot }));
     const inPlan = new Set(meals.map(meal => meal.recipeSlug));
     const disliked = new Set(verdicts.disliked.map(dish => dish.slug));
-    // The meal's own planned figures are the budget: the day's totals stay where they were.
-    const pick = { budget: { kcal: current.macros.kcal, proteinG: current.macros.proteinG }, catalogue: context.catalogue, dayIndex: current.dayIndex, placed, prefer: new Set(verdicts.liked.map(dish => dish.slug)), slot: current.slot };
+    // The meal's own planned figures are the budget: the day's totals stay where
+    // they were. An axis (0022) is a test every candidate must pass, judged
+    // against the dish being replaced; "more protein" also raises the protein
+    // the fit is scored against, so a richer plate ranks as the better one.
+    const filter = axisFilter(axis, { cookMinutes: anchor.recipe.cookMinutes, macros: current.macros, prepMinutes: anchor.recipe.prepMinutes });
+    const budget = { kcal: current.macros.kcal, proteinG: axis === 'more_protein' ? current.macros.proteinG * MORE_PROTEIN_BUDGET : current.macros.proteinG };
+    const pick = { budget, catalogue: context.catalogue, dayIndex: current.dayIndex, filter, placed, prefer: new Set(verdicts.liked.map(dish => dish.slug)), slot: current.slot };
 
     const library = (await RecipeController.reusablePool([current.slot], context)).filter(dish => !inPlan.has(dish.slug) && !disliked.has(dish.slug));
     let replacement = pickReplacement({ ...pick, pool: library });
@@ -75,7 +97,7 @@ export class MealSwapService {
       const built = await this.pool.build({
         context,
         needPerSlot: SWAP_CANDIDATES,
-        preferences: promptPreferences(profile, verdicts, [...inPlan], targets),
+        preferences: promptPreferences(profile, verdicts, [...inPlan], targets, null, wishFor(axis, anchor.recipe)),
         reusable: [],
         slots: [current.slot]
       });
@@ -83,7 +105,7 @@ export class MealSwapService {
       replacement = pickReplacement({ ...pick, pool: built.generated.filter(dish => !inPlan.has(dish.slug)) });
 
       if (!replacement) {
-        this.logger.warn(`No replacement for meal ${mealId} (${current.slot}): library empty for the slot and the model returned nothing usable`);
+        this.logger.warn(`No replacement for meal ${mealId} (${current.slot}${axis ? `, ${axis}` : ''}): library empty for the slot and the model returned nothing usable`);
         throw new ConflictError('No dish fits this meal right now');
       }
 

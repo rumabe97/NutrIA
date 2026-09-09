@@ -2,7 +2,7 @@ import { composePerServing, scaleIngredients, scaleMacros, sumMacros } from 'cor
 import { canPlace } from 'core/domain/Variety';
 import { MEAL_SLOTS } from 'core/entities/Plan';
 import type { Placement } from 'core/domain/Variety';
-import type { CandidateDish, Catalogue, Macros, MealSlot, PlanAssignment, PlanDayAssignment, ScheduledMeal } from 'core/entities/Plan';
+import type { CandidateDish, Catalogue, Macros, MealSlot, PlanAssignment, PlanDayAssignment, ScheduledMeal, SwapAxis } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 
 export const PLAN_DAYS = 14;
@@ -184,12 +184,20 @@ export function pickReplacement(input: {
   readonly budget: SlotBudget;
   readonly catalogue: Catalogue;
   readonly dayIndex: number;
+  /** What the person asked of the swap, as a test every candidate must pass — see `axisFilter`. */
+  readonly filter?: (dish: CandidateDish, perServing: Macros) => boolean;
   readonly placed: readonly Placement[];
   readonly pool: readonly CandidateDish[];
   readonly prefer?: ReadonlySet<string>;
   readonly slot: MealSlot;
 }): Replacement | undefined {
   const perServing = perServingIndex(input.pool, input.catalogue);
+
+  const passes = (dish: CandidateDish): boolean => {
+    const base = perServing.get(dish.slug);
+
+    return base !== undefined && (input.filter?.(dish, base) ?? true);
+  };
 
   const costOf = (slug: string): number => {
     const base = perServing.get(slug);
@@ -200,7 +208,7 @@ export function pickReplacement(input: {
   const rank = (dish: CandidateDish): number => (input.prefer?.has(dish.slug) && costOf(dish.slug) <= PREFERRED_FIT_TOLERANCE ? 0 : 1);
 
   const dish = input.pool
-    .filter(candidate => candidate.slots.includes(input.slot) && perServing.has(candidate.slug) && canPlace(candidate.slug, input.slot, input.dayIndex, input.placed))
+    .filter(candidate => candidate.slots.includes(input.slot) && passes(candidate) && canPlace(candidate.slug, input.slot, input.dayIndex, input.placed))
     .sort((a, b) => rank(a) - rank(b) || costOf(a.slug) - costOf(b.slug) || a.slug.localeCompare(b.slug))
     .at(0);
   const base = dish ? perServing.get(dish.slug) : undefined;
@@ -210,6 +218,38 @@ export function pickReplacement(input: {
   const servings = servingsFor(base, input.budget);
 
   return { dish, ingredients: scaleIngredients(dish.ingredients, servings / dish.servings), macros: scaleMacros(base, servings), servings };
+}
+
+/** "More protein" means this much more protein per calorie than the dish being replaced. */
+const MORE_PROTEIN_FACTOR = 1.2;
+
+/**
+ * The test a candidate must pass for what the person asked of the swap
+ * (0022), judged against the dish being replaced. Undefined when nothing was
+ * asked — every candidate passes.
+ *
+ * - `quicker`: less time in total, prep and cooking, than the current dish.
+ * - `no_cooking`: no cooking at all.
+ * - `more_protein`: clearly more protein per calorie, so that scaled to the
+ *   same energy the plate carries more protein.
+ */
+export function axisFilter(
+  axis: SwapAxis | undefined,
+  current: { readonly cookMinutes: number; readonly macros: Macros; readonly prepMinutes: number }
+): ((dish: CandidateDish, perServing: Macros) => boolean) | undefined {
+  if (axis === undefined) {return undefined;}
+
+  const currentMinutes = current.prepMinutes + current.cookMinutes;
+  const currentDensity = current.macros.kcal > 0 ? current.macros.proteinG / current.macros.kcal : 0;
+
+  switch (axis) {
+    case 'quicker':
+      return dish => dish.prepMinutes + dish.cookMinutes < currentMinutes;
+    case 'no_cooking':
+      return dish => dish.cookMinutes === 0;
+    case 'more_protein':
+      return (_dish, perServing) => perServing.kcal > 0 && perServing.proteinG / perServing.kcal >= currentDensity * MORE_PROTEIN_FACTOR;
+  }
 }
 
 /**

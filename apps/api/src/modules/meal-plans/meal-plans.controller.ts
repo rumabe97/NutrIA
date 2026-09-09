@@ -2,7 +2,7 @@ import { Body, Controller, DefaultValuePipe, Get, Param, ParseIntPipe, ParseUUID
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { PlanController } from 'core/controllers/Plan';
-import { setMealStatusSchema } from 'core/entities/Plan';
+import { setMealStatusSchema, swapMealSchema } from 'core/entities/Plan';
 
 import { CurrentUser, Locale, RateLimit, RequiresOnboarding } from '../../shared/decorators/index.js';
 import { ZodValidationPipe } from '../../shared/pipes/index.js';
@@ -11,7 +11,7 @@ import { PlanJobRunner } from './PlanJobRunner.service.js';
 
 import type { AllowancesView, JobView, MealDetailView, PlanDayView, PlanSummaryView, PlanView } from 'core/controllers/Plan';
 import type { SessionUser } from '../../shared/decorators/index.js';
-import type { SetMealStatus } from 'core/entities/Plan';
+import type { SetMealStatus, SwapMeal } from 'core/entities/Plan';
 
 const HISTORY_PAGE = { default: 20, max: 50 } as const;
 
@@ -56,8 +56,13 @@ export class MealPlansController {
   // A swap may reach the model; this keeps a stuck retry loop from spending the
   // fortnight's allowance in a minute, and it sits well above the allowance itself.
   @RateLimit({ limit: 10, ttlSeconds: 3600 })
-  async swap(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Locale() locale: string | null): Promise<MealDetailView> {
-    return this.swaps.swap(user.id, id, locale);
+  async swap(
+    @CurrentUser() user: SessionUser,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Locale() locale: string | null,
+    @Body(new ZodValidationPipe(swapMealSchema)) body: SwapMeal
+  ): Promise<MealDetailView> {
+    return this.swaps.swap(user.id, id, locale, body.axis);
   }
 
   @ApiOperation({ summary: 'Mark a meal eaten or skipped, or take it back.' })

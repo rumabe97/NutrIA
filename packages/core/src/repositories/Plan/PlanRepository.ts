@@ -377,7 +377,7 @@ export const PlanRepository = {
           day: { id: planDays.id, dayIndex: planDays.dayIndex },
           meal: meals,
           plan: { id: mealPlans.id, endDate: mealPlans.endDate, startDate: mealPlans.startDate, status: mealPlans.status, strategy: mealPlans.strategy },
-          recipe: { id: recipes.id, name: recipes.name, servings: recipes.servings, slug: recipes.slug }
+          recipe: { id: recipes.id, cookMinutes: recipes.cookMinutes, name: recipes.name, prepMinutes: recipes.prepMinutes, servings: recipes.servings, slug: recipes.slug }
         })
         .from(meals)
         .innerJoin(planDays, eq(planDays.id, meals.planDayId))

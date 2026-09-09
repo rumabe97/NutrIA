@@ -41,7 +41,8 @@ export function promptPreferences(
   verdicts: { readonly disliked: readonly { readonly name: string }[]; readonly liked: readonly { readonly name: string }[] },
   avoidNames: readonly string[],
   targets: NutritionTargets,
-  checkIn: CheckInForGeneration | null = null
+  checkIn: CheckInForGeneration | null = null,
+  swapWish: string | null = null
 ): PromptPreferences {
   return {
     avoidNames,
@@ -58,6 +59,7 @@ export function promptPreferences(
     lovedNames: verdicts.liked.map(dish => dish.name),
     portionPreference: profile.preferences?.portionPreference ?? null,
     scheduleNotes: profile.preferences?.workScheduleNotes ?? null,
+    swapWish,
     targets
   };
 }

@@ -65,12 +65,14 @@ describe('MealPlansController', () => {
     expect(setMealStatus).toHaveBeenCalledWith('usr-alice', BOB_PLAN, 'completed');
   });
 
-  it('swaps a meal for the session user, in the language of the request', async () => {
+  it('swaps a meal for the session user, in the language of the request, with what they asked of it', async () => {
     const { controller, swap } = build();
 
-    await controller.swap(ALICE, BOB_PLAN, 'en-GB');
+    await controller.swap(ALICE, BOB_PLAN, 'en-GB', { axis: 'quicker' });
+    await controller.swap(ALICE, BOB_PLAN, 'en-GB', {});
 
-    expect(swap).toHaveBeenCalledWith('usr-alice', BOB_PLAN, 'en-GB');
+    expect(swap).toHaveBeenNthCalledWith(1, 'usr-alice', BOB_PLAN, 'en-GB', 'quicker');
+    expect(swap).toHaveBeenNthCalledWith(2, 'usr-alice', BOB_PLAN, 'en-GB', undefined);
   });
 
   it('scopes the active plan to the session user', async () => {

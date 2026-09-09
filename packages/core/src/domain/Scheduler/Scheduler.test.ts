@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { pickReplacement, PLAN_DAYS, schedulePlan, SERVING_BOUNDS, slotsFor } from 'core/domain/Scheduler';
+import { axisFilter, pickReplacement, PLAN_DAYS, schedulePlan, SERVING_BOUNDS, slotsFor } from 'core/domain/Scheduler';
 import { VARIETY_RULES, varietyViolations } from 'core/domain/Variety';
 import { validatePlan } from 'core/domain/PlanValidation';
 import { makeCatalogue, makeCatalogueIngredient, makeDish, makePool, TARGETS } from '#test/fixtures';
@@ -444,5 +444,47 @@ describe('pickReplacement', () => {
 
   it('returns nothing when the pool has nothing for the slot', () => {
     expect(pickReplacement({ budget, catalogue, dayIndex: 3, placed: [], pool: [dinnerOnly], slot: 'lunch' })).toBeUndefined();
+  });
+
+  it('offers only what passes the filter, and nothing when nothing does', () => {
+    const quick = { ...lunch('quick-rice', [{ grams: 200, slug: 'chicken' }, { grams: 250, slug: 'rice' }]), cookMinutes: 0, prepMinutes: 5 };
+    const slow = { ...fits, cookMinutes: 30, prepMinutes: 15 };
+    const filter = axisFilter('quicker', { cookMinutes: 10, macros: { carbsG: 0, fatG: 0, fiberG: 0, kcal: 600, proteinG: 45 }, prepMinutes: 10 });
+
+    expect(pickReplacement({ budget, catalogue, dayIndex: 3, filter, placed: [], pool: [slow, quick], slot: 'lunch' })?.dish.slug).toBe('quick-rice');
+    expect(pickReplacement({ budget, catalogue, dayIndex: 3, filter, placed: [], pool: [slow], slot: 'lunch' })).toBeUndefined();
+  });
+});
+
+describe('axisFilter', () => {
+  const macros = { carbsG: 50, fatG: 10, fiberG: 5, kcal: 600, proteinG: 30 };
+  const current = { cookMinutes: 20, macros, prepMinutes: 10 };
+  const dish = (prepMinutes: number, cookMinutes: number) => ({ ...makeDish({ ingredients: [], name: 'x', slots: ['lunch'], slug: 'x' }), cookMinutes, prepMinutes });
+
+  it('asks nothing when no axis was chosen', () => {
+    expect(axisFilter(undefined, current)).toBeUndefined();
+  });
+
+  it('quicker: strictly less time in total than the current dish', () => {
+    const passes = axisFilter('quicker', current);
+
+    expect(passes?.(dish(10, 15), macros)).toBe(true);
+    expect(passes?.(dish(15, 15), macros)).toBe(false);
+  });
+
+  it('no cooking: a cook time of zero, whatever the prep', () => {
+    const passes = axisFilter('no_cooking', current);
+
+    expect(passes?.(dish(25, 0), macros)).toBe(true);
+    expect(passes?.(dish(0, 5), macros)).toBe(false);
+  });
+
+  it('more protein: at least a fifth more protein per calorie', () => {
+    const passes = axisFilter('more_protein', current);
+
+    // 30 g / 600 kcal = 0.05 g per kcal; the bar is 0.06.
+    expect(passes?.(dish(0, 0), { ...macros, kcal: 500, proteinG: 30 })).toBe(true);
+    expect(passes?.(dish(0, 0), { ...macros, kcal: 600, proteinG: 33 })).toBe(false);
+    expect(passes?.(dish(0, 0), { ...macros, kcal: 0, proteinG: 0 })).toBe(false);
   });
 });
