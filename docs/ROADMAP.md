@@ -47,8 +47,9 @@ screens at phone width, which closes project 002's two open gates.
    axes and complete / skip remain.
 2. **A user can shop from it.** Consolidated list per plan, grouped by aisle, editable,
    regenerable, always matching the active plan.
-3. **The loop closes.** Progress tracking, the biweekly check-in, and next-plan generation
-   that actually reads the previous fortnight's feedback. Plan history, immutable.
+3. **The loop closes.** Weight tracking (done), eaten / skipped on each meal (done, `0016`),
+   the fortnightly check-in feeding the next plan (done, `0018`). Plan history, immutable,
+   remains.
 4. **The assistant.** Nutrition-scoped, context-efficient, with the medical boundaries in
    `PRODUCT.md` enforced rather than requested.
 5. **Settings and notifications.** Preference editing outside onboarding, email delivery

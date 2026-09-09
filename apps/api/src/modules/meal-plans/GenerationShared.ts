@@ -1,6 +1,7 @@
 import { PROMPT_VERSION } from '../ai/PoolPrompt.js';
 
 import type { CandidateDish, RecipeDraft } from 'core/entities/Plan';
+import type { CheckInForGeneration } from 'core/controllers/CheckIn';
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { GenerationContext } from 'core/controllers/Recipe';
 import type { NutritionTargets } from 'core/entities/Nutrition';
@@ -39,12 +40,14 @@ export function promptPreferences(
   profile: FullProfileView,
   verdicts: { readonly disliked: readonly { readonly name: string }[]; readonly liked: readonly { readonly name: string }[] },
   avoidNames: readonly string[],
-  targets: NutritionTargets
+  targets: NutritionTargets,
+  checkIn: CheckInForGeneration | null = null
 ): PromptPreferences {
   return {
     avoidNames,
     breakfastStyle: profile.preferences?.breakfastStyle ?? null,
     budget: profile.preferences?.budget ?? null,
+    checkIn,
     cookingFrequency: profile.preferences?.cookingFrequency ?? null,
     cookingTimeMinutes: profile.preferences?.cookingTimeMinutes ?? null,
     cuisines: profile.cuisines,

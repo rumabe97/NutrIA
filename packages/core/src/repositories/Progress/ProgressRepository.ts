@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, isNotNull } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -9,6 +9,31 @@ import { progressEntrySchema } from 'core/entities/Progress';
 import type { ProgressEntry } from 'core/entities/Progress';
 
 export const ProgressRepository = {
+  /**
+   * One weight per day, replaced rather than appended.
+   *
+   * There is no unique index on `(user_id, logged_on)` to lean on — the table
+   * carries energy, hunger and measurements too, and a check-in may write those
+   * separately — so the day is looked up first and updated if present. Two
+   * weights logged in the same second could still race; the loser is a duplicate
+   * reading on one day, which is a cosmetic problem rather than a correctness one.
+   */
+  /** The most recent weight the person logged, if any — what the targets are computed against. */
+  async findLatestWeight(userId: string): Promise<number | null> {
+    try {
+      const [row] = await database()
+        .select({ weightKg: progressEntries.weightKg })
+        .from(progressEntries)
+        .where(and(eq(progressEntries.userId, userId), isNotNull(progressEntries.weightKg)))
+        .orderBy(desc(progressEntries.loggedOn))
+        .limit(1);
+
+      return row?.weightKg === null || row?.weightKg === undefined ? null : Number(row.weightKg);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   /** Most recent first. The dashboard shows the latest and a short trend. */
   async findRecent(userId: string, limit: number): Promise<readonly ProgressEntry[]> {
     try {
@@ -25,15 +50,6 @@ export const ProgressRepository = {
     }
   },
 
-  /**
-   * One weight per day, replaced rather than appended.
-   *
-   * There is no unique index on `(user_id, logged_on)` to lean on — the table
-   * carries energy, hunger and measurements too, and a check-in may write those
-   * separately — so the day is looked up first and updated if present. Two
-   * weights logged in the same second could still race; the loser is a duplicate
-   * reading on one day, which is a cosmetic problem rather than a correctness one.
-   */
   async upsertWeight(userId: string, loggedOn: string, weightKg: number): Promise<ProgressEntry> {
     try {
       const db = database();

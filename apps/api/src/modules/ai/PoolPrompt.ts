@@ -1,6 +1,7 @@
 import { INGREDIENT_CATEGORIES, SNACK_SLOTS } from 'core/entities/Plan';
 
 import type { CatalogueIngredient, IngredientCategory, MealSlot } from 'core/entities/Plan';
+import type { CheckInForGeneration } from 'core/controllers/CheckIn';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 
 /**
@@ -36,8 +37,10 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * match the three `domain/Method` enforces.
  * 2.5.0: the person's verdicts — dishes they loved, to design towards; dishes
  * they disliked, never to recreate (0014).
+ * 2.6.0: the last fortnight's check-in — how the portions felt, how hard the plan
+ * was, their own words (0018).
  */
-export const PROMPT_VERSION = '2.5.0';
+export const PROMPT_VERSION = '2.6.0';
 
 /** Share of the day each slot carries; mirrors the scheduler's own weights. */
 const SLOT_SHARE: Record<MealSlot, number> = {
@@ -69,6 +72,8 @@ export type PromptContext = {
   /** Free text from onboarding, e.g. "no desayuno, almuerzo a las 11". */
   readonly breakfastStyle: string | null;
   readonly budget: string | null;
+  /** The last fortnight's check-in, when there is one: how the portions felt, how hard it was, in their words. */
+  readonly checkIn?: CheckInForGeneration | null;
   readonly cookingFrequency: string | null;
   readonly cookingTimeMinutes: number | null;
   readonly cuisines: readonly string[];
@@ -126,6 +131,35 @@ const CATEGORY_LABEL: Record<IngredientCategory, string> = {
   produce: 'Fresh produce and herbs',
   protein: 'Meat, fish, seafood, eggs and pulses'
 };
+
+const HUNGER_LINE: Record<CheckInForGeneration['hunger'], string> = {
+  hungry: 'the portions left them hungry — make dishes more filling at the same calories: volume, fibre, protein',
+  right: 'the portions felt right',
+  too_much: 'the portions were more than they could eat — lighter, simpler plates'
+};
+
+const DIFFICULTY_LINE: Record<CheckInForGeneration['difficulty'], string> = {
+  easy: 'the plan was easy to follow',
+  hard: 'the plan was hard to follow — simpler and faster dishes, fewer ingredients each',
+  ok: 'the plan was manageable'
+};
+
+/**
+ * What the person said at the end of last fortnight, as guidance. The weight
+ * they gave is not here: it already moved the targets, in code. Their words are
+ * bounded like every other free text, so a pasted paragraph cannot restructure
+ * the prompt.
+ */
+function checkInLines(checkIn: CheckInForGeneration | null): readonly string[] {
+  if (!checkIn) {return [];}
+
+  const words = oneLine(checkIn.comments, 300);
+
+  return [
+    `LAST FORTNIGHT'S CHECK-IN: ${HUNGER_LINE[checkIn.hunger]}; ${DIFFICULTY_LINE[checkIn.difficulty]}; they rated it ${checkIn.satisfaction}/5.`,
+    words ? `In their words: "${words}"` : ''
+  ];
+}
 
 function catalogueByAisle(safeIngredients: readonly CatalogueIngredient[]): string {
   return INGREDIENT_CATEGORIES.map(category => {
@@ -276,6 +310,7 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
     context.avoidNames.length > 0
       ? `SERVED TO THEM LAST FORTNIGHT — propose different dishes, not these or close variations of them: ${context.avoidNames.slice(0, 60).join('; ')}`
       : '',
+    ...checkInLines(context.checkIn ?? null),
     context.lovedNames.length > 0
       ? `DISHES THEY SAID THEY LOVED — this is their taste; design new dishes in the same spirit (technique, seasoning, kind of dish), not copies: ${context.lovedNames.slice(0, 40).join('; ')}`
       : '',

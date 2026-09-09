@@ -2,6 +2,7 @@ import { InputParseError, NotFoundError } from 'core/entities/Error';
 import { ageInYears, resolveTargets } from 'core/domain/Nutrition';
 import { FALLBACK_LOCALE } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
+import { ProgressRepository } from '#repositories/Progress';
 import { SafetyRepository } from '#repositories/Safety';
 import type { Goal, Preferences, Profile, UpdateGoal, UpdatePreferences, UpdateProfile } from 'core/entities/Profile';
 import type { ResolvedTargets, TargetInput, TargetViolation } from 'core/domain/Nutrition';
@@ -109,10 +110,16 @@ function presentPreferences(preferences: Preferences): PreferencesView {
  * figure computed from a guessed height or an assumed sex is a number the user
  * would act on. Absent is honest; approximate is not.
  */
-function targetInput(profile: Profile | undefined, goal: Goal | undefined, preferences: Preferences | undefined): TargetInput | null {
+/**
+ * The weight the targets are computed against is the latest one logged — a
+ * weigh-in or a check-in — and only before any of those the weight given at
+ * onboarding. A target computed from a weight a fortnight old is a target for
+ * someone else.
+ */
+function targetInput(profile: Profile | undefined, goal: Goal | undefined, preferences: Preferences | undefined, latestWeightKg: number | null): TargetInput | null {
   if (!profile?.birthDate || !profile.heightCm || !profile.sex || !goal || !preferences?.activityLevel) {return null;}
 
-  const weightKg = goal.startingWeightKg;
+  const weightKg = latestWeightKg ?? goal.startingWeightKg;
 
   if (!weightKg) {return null;}
 
@@ -173,7 +180,7 @@ export const ProfileController = {
     const profile = await ProfileRepository.findByUserId(userId);
     const effectiveLocale = locale ?? profile?.locale ?? FALLBACK_LOCALE;
 
-    const [goal, preferences, dietaryPatterns, foodPreferences, cuisines, allergies, intolerances, customAllergens, override] = await Promise.all([
+    const [goal, preferences, dietaryPatterns, foodPreferences, cuisines, allergies, intolerances, customAllergens, override, latestWeightKg] = await Promise.all([
       ProfileRepository.findActiveGoal(userId),
       ProfileRepository.findPreferences(userId),
       ProfileRepository.findDietaryPatterns(userId),
@@ -182,10 +189,11 @@ export const ProfileController = {
       SafetyRepository.findAllergies(userId),
       SafetyRepository.findIntolerances(userId),
       SafetyRepository.findCustomAllergens(userId, effectiveLocale),
-      ProfileRepository.findTargetOverride(userId)
+      ProfileRepository.findTargetOverride(userId),
+      ProgressRepository.findLatestWeight(userId)
     ]);
 
-    const input = targetInput(profile, goal, preferences);
+    const input = targetInput(profile, goal, preferences, latestWeightKg);
 
     return {
       allergies: allergies.map(a => ({
@@ -238,13 +246,14 @@ export const ProfileController = {
    * would reject a perfectly coherent request for having only one field.
    */
   async updateTargets(userId: string, patch: UpdateTargetOverride): Promise<ResolvedTargets> {
-    const [profile, goal, preferences] = await Promise.all([
+    const [profile, goal, preferences, latestWeightKg] = await Promise.all([
       ProfileRepository.findByUserId(userId),
       ProfileRepository.findActiveGoal(userId),
-      ProfileRepository.findPreferences(userId)
+      ProfileRepository.findPreferences(userId),
+      ProgressRepository.findLatestWeight(userId)
     ]);
 
-    const input = targetInput(profile, goal, preferences);
+    const input = targetInput(profile, goal, preferences, latestWeightKg);
 
     if (!input) {throw new NotFoundError('Profile not found');}
 

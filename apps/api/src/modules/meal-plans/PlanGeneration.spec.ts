@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
+import { CheckInController } from 'core/controllers/CheckIn';
 import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController, PlanJobController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
@@ -147,6 +148,7 @@ function build(overrides: Partial<Mocks> = {}) {
   jest.spyOn(PlanController, 'generationHistory').mockResolvedValue({ nextVersion: 3, recentDishes: [{ name: 'Pollo al limón', slug: 'pollo-al-limon' }] });
   jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(reusable);
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [], liked: [] });
+  jest.spyOn(CheckInController, 'latestForGeneration').mockResolvedValue(null);
   jest.spyOn(PlanJobController, 'persist').mockImplementation(persist as never);
 
   const buildPool = jest.fn<(input: unknown) => Promise<PoolResult>>(async () =>
@@ -214,6 +216,18 @@ describe('PlanGenerationService', () => {
 
     expect(input?.preferences.dislikedNames).toEqual(['Lentejas con chorizo']);
     expect(input?.preferences.lovedNames).toEqual(['Salmón al horno con eneldo']);
+  });
+
+  it('tells the model how the last fortnight went, in the person\'s terms', async () => {
+    const { buildPool, service } = build();
+
+    jest.spyOn(CheckInController, 'latestForGeneration').mockResolvedValue({ comments: 'Las cenas eran enormes', difficulty: 'hard', hunger: 'too_much', satisfaction: 3 });
+
+    await service.generate('user-1', 'job-1', async () => Promise.resolve());
+
+    const input = buildPool.mock.calls[0]?.[0] as { preferences: { checkIn: unknown } } | undefined;
+
+    expect(input?.preferences.checkIn).toMatchObject({ difficulty: 'hard', hunger: 'too_much' });
   });
 
   /*

@@ -1,0 +1,79 @@
+.form {
+  display: grid;
+  gap: var(--space-06);
+  max-width: 40rem;
+}
+
+.error {
+  background-color: var(--surface-sunken);
+  border-radius: var(--radius-03);
+  color: var(--foreground-01);
+  margin: 0;
+  padding: var(--space-03) var(--space-04);
+}
+
+.fieldset {
+  border: 0;
+  display: grid;
+  gap: var(--space-03);
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+.legend,
+.label {
+  display: block;
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+  margin-bottom: var(--space-02);
+  padding: 0;
+}
+
+.field {
+  display: grid;
+  gap: var(--space-02);
+}
+
+.textarea {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-03);
+  color: inherit;
+  font: inherit;
+  padding: var(--space-03) var(--space-04);
+  resize: vertical;
+  width: 100%;
+}
+
+.textarea:focus-visible {
+  border-color: var(--color-brand-09);
+  outline: none;
+}
+
+.done {
+  display: grid;
+  gap: var(--space-04);
+  max-width: 40rem;
+}
+
+.doneTitle {
+  font-size: var(--font-size-07);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  margin: 0;
+}
+
+.effects {
+  display: grid;
+  gap: var(--space-02);
+  margin: 0;
+  padding-left: var(--space-05);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  margin-top: var(--space-03);
+}

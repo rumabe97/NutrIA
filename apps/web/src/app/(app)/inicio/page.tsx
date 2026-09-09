@@ -19,6 +19,7 @@ import { formatNumber, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
+import type { CheckInStatusView } from 'core/controllers/CheckIn';
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { PlanView } from 'core/controllers/Plan';
@@ -45,7 +46,7 @@ function greetingKey(hour: number): 'goodAfternoon' | 'goodEvening' | 'goodMorni
 export default async function DashboardPage() {
   await redirectIfOnboardingIncomplete();
 
-  const [dictionary, locale, user, profile, plan, shopping, weight] = await Promise.all([
+  const [dictionary, locale, user, profile, plan, shopping, weight, checkIn] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<UserView>('/users/me'),
@@ -54,7 +55,8 @@ export default async function DashboardPage() {
     // 404s into null when there is no active plan, which is a normal state and
     // why every consumer below is guarded rather than this being awaited apart.
     serverApi<ShoppingListView>('/shopping-lists/active'),
-    serverApi<WeightView>('/progress/weight')
+    serverApi<WeightView>('/progress/weight'),
+    serverApi<CheckInStatusView>('/check-ins/status')
   ]);
 
   const t = dictionary.dashboard;
@@ -71,6 +73,16 @@ export default async function DashboardPage() {
 
       <div className={styles.layout}>
         <div className={`${styles.main} motion-enter`}>
+          {/* The fortnight's check-in, first, when it is due: the one thing this
+              screen wants from the person before anything else it offers. */}
+          {checkIn?.due ? (
+            <EmptyState body={t.checkInDueBody} title={t.checkInDueTitle} tone="warning">
+              <CtaLink href="/check-in" size="lg">
+                {t.checkInDueCta}
+              </CtaLink>
+            </EmptyState>
+          ) : null}
+
           {plan ? (
             <Fragment>
               <Text tone="secondary">
@@ -108,7 +120,7 @@ export default async function DashboardPage() {
               ) : (
             // The plan is active but today falls outside its dates — the fortnight
             // has run its course and the next one is due.
-            <EmptyState body={t.planEndedBody} title={t.planEndedTitle}>
+            <EmptyState body={checkIn?.done ? `${t.planEndedBody} ${t.checkInDoneNote}` : t.planEndedBody} title={t.planEndedTitle}>
               <CtaLink href="/plan/generando" size="lg">
                 {t.planEndedCta}
               </CtaLink>

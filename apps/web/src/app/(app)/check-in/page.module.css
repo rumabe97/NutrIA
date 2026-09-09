@@ -1,0 +1,18 @@
+.title {
+  font-size: var(--font-size-09);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0 0 var(--space-03);
+  text-wrap: balance;
+}
+
+.intro {
+  margin: 0 0 var(--space-03);
+  max-width: 40rem;
+  text-wrap: pretty;
+}
+
+.adherence {
+  margin: 0 0 var(--gap-block);
+}

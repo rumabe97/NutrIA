@@ -6,6 +6,7 @@ import { envProvider, validateEnv } from './config/index.js';
 import { DatabaseModule } from './database/database.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { CheckInsModule } from './modules/check-ins/check-ins.module.js';
 import { HealthDataModule } from './modules/health-data/health-data.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { MealPlansModule } from './modules/meal-plans/meal-plans.module.js';
@@ -30,6 +31,7 @@ import { LoggingModule } from './shared/logging/index.js';
     DatabaseModule,
     AiModule,
     AuthModule,
+    CheckInsModule,
     HealthDataModule,
     HealthModule,
     MealPlansModule,

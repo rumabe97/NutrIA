@@ -4,6 +4,7 @@ import { buildShoppingList, unresolvedSlugs } from 'core/domain/ShoppingList';
 import { dishSafety } from 'core/domain/Safety';
 import { PLAN_DAYS, schedulePlan, slotsFor } from 'core/domain/Scheduler';
 import { isBlocking, validatePlan } from 'core/domain/PlanValidation';
+import { CheckInController } from 'core/controllers/CheckIn';
 import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController, PlanJobController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
@@ -70,12 +71,13 @@ export class PlanGenerationService {
   async generate(userId: string, jobId: string, markStep: (step: string) => Promise<void>): Promise<string> {
     await markStep(STEPS.loading);
 
-    const [onboarding, profile, context, history, verdicts] = await Promise.all([
+    const [onboarding, profile, context, history, verdicts, checkIn] = await Promise.all([
       OnboardingController.getState(userId),
       ProfileController.getFullProfile(userId),
       RecipeController.generationContext(userId),
       PlanController.generationHistory(userId),
-      RecipeController.verdicts(userId)
+      RecipeController.verdicts(userId),
+      CheckInController.latestForGeneration(userId)
     ]);
 
     if (!onboarding.isComplete) {throw new GenerationError('GENERATION_ONBOARDING_INCOMPLETE');}
@@ -112,7 +114,8 @@ export class PlanGenerationService {
         profile,
         verdicts,
         history.recentDishes.map(dish => dish.name),
-        targets
+        targets,
+        checkIn
       ),
       reusable,
       slots

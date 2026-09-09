@@ -222,6 +222,9 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `email_verified = false` gets 409 `EMAIL_UNVERIFIED` on every route not marked `@Public()`
   or `@AllowUnverified()`. Keep the allow-list to what an unactivated account needs: who am
   I, and leave.
+- **Check-in** (`0018`): `GET /check-ins/status`, `POST /check-ins` — once per plan, from its last
+  day. Weight → progress log (targets follow the latest weight); portions → a 5 % calorie nudge
+  through the target override; words → the next plan's prompt. Never a restriction.
 
 ## Commands
 

@@ -344,6 +344,24 @@ describe('PoolBuilder', () => {
       expect(prompt).toContain('Pollo al limón; Lentejas con chorizo');
     });
 
+    it('passes on the last check-in as guidance, with their words bounded', async () => {
+      const { client, generate } = stubClient([{ dishes: [] }]);
+
+      await new PoolBuilder(client).build({
+        context: context(),
+        preferences: { ...preferences, checkIn: { comments: 'Las cenas eran enormes', difficulty: 'hard', hunger: 'too_much', satisfaction: 2 } },
+        reusable: [],
+        slots: ['lunch']
+      });
+
+      const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
+
+      expect(prompt).toContain("LAST FORTNIGHT'S CHECK-IN");
+      expect(prompt).toContain('more than they could eat');
+      expect(prompt).toContain('hard to follow');
+      expect(prompt).toContain('Las cenas eran enormes');
+    });
+
     it('says nothing about last fortnight when there was none', async () => {
       const { client, generate } = stubClient([{ dishes: [] }]);
 
