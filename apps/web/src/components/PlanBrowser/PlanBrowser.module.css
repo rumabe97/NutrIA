@@ -1,67 +1,10 @@
-.header {
-  align-items: baseline;
+
+
+/* The allowance line sits with the title block, quiet, one step below the range. */
+.redo {
+  align-items: center;
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-03) var(--space-05);
-  justify-content: space-between;
-  margin-bottom: var(--gap-region);
-}
-
-.title {
-  font-size: var(--font-size-09);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: var(--tracking-headline);
-  line-height: var(--line-height-02);
-  margin: 0;
-}
-
-/*
- * One column on a phone; the day picker becomes a left rail above
- * `--breakpoint-wide`.
- *
- * Fourteen chips in a horizontal scroller is the right answer on a phone and
- * the wrong one on a desktop, where there is room to show the whole fortnight
- * at once and no reason to make someone push a row along to find Thursday.
- */
-.layout {
-  display: grid;
-  gap: var(--gap-region);
-  /*
-   * `minmax(0, 1fr)`, not the implicit `auto`. The day strip is a scroller, but a
-   * scroller's min-content is still its content — seven day chips, 440px — and an
-   * `auto` track sizes to that, so the strip dragged the whole page 100px past
-   * the right edge of a phone instead of scrolling inside it. The desktop query
-   * below already has this; the base did not.
-   */
-  grid-template-columns: minmax(0, 1fr);
-}
-
-.card {
-  background-color: var(--surface-card);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-04);
-  padding: var(--card-padding);
-}
-
-.meals {
-  display: grid;
-  margin-top: var(--gap-block);
-}
-
-.dayHeading {
-  align-items: baseline;
-  display: flex;
-  gap: var(--space-04);
-  justify-content: space-between;
-  margin-bottom: var(--gap-heading);
-}
-
-@media (width >= 64rem) {
-  .layout {
-    align-items: start;
-    grid-template-columns: var(--rail-width-narrow) minmax(0, 1fr);
-  }
+  gap: var(--space-02) var(--space-04);
+  margin-top: var(--space-03);
 }

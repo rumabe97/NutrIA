@@ -9,6 +9,7 @@ import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { MacroSummary } from 'components/MacroSummary';
+import { MealSwap } from 'components/MealSwap';
 import { RecipeVerdict } from 'components/RecipeVerdict';
 
 import { API_URL } from 'lib/env';
@@ -17,7 +18,7 @@ import { formatNumber, formatQuantity, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
-import type { MealDetailView } from 'core/controllers/Plan';
+import type { AllowancesView, MealDetailView } from 'core/controllers/Plan';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,7 +26,12 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
   await redirectIfOnboardingIncomplete();
 
   const { id } = await params;
-  const [dictionary, locale, meal] = await Promise.all([getDictionary(), activeLocale(), serverApi<MealDetailView>(`/meal-plans/meals/${id}`)]);
+  const [dictionary, locale, meal, allowances] = await Promise.all([
+    getDictionary(),
+    activeLocale(),
+    serverApi<MealDetailView>(`/meal-plans/meals/${id}`),
+    serverApi<AllowancesView>('/meal-plans/allowances')
+  ]);
 
   if (!meal) {notFound();}
 
@@ -50,6 +56,10 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
           at the foot of the method: the moment of judgement is when the plate is
           in front of them, and that is when they are looking here. */}
       <RecipeVerdict recipeId={meal.recipeId} verdict={meal.verdict} />
+
+      {/* Only on a meal still to come: a plate already eaten is not something to
+          change, and the plan's swaps are for the fortnight ahead. */}
+      {allowances && meal.status === 'planned' ? <MealSwap limit={allowances.mealSwaps.limit} mealId={meal.id} remaining={allowances.mealSwaps.remaining} /> : null}
 
       {/* An illustration when one has been drawn, and it says so. Nobody cooked this
           dish, so there is no photograph of it and calling a picture one would be the

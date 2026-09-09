@@ -175,6 +175,7 @@ export const esES = {
     network: 'No hemos podido conectar. Comprueba tu conexión.',
     notFound: 'No hemos encontrado lo que buscabas.',
     onboardingIncomplete: 'Nos falta parte de tu perfil. Termínalo y vuelve a intentarlo.',
+    quotaExceeded: 'Has agotado lo que permite tu plan esta quincena.',
     request: 'No hemos podido completar la acción.',
     unsafeContent: 'Ese contenido no cumple tus restricciones alimentarias.'
   },
@@ -209,6 +210,7 @@ export const esES = {
     poolTooSmallTitle: 'Nos faltan recetas',
     profileIncompleteBody: 'Necesitamos tu fecha de nacimiento, altura, sexo, peso y nivel de actividad para calcular tus objetivos.',
     profileIncompleteTitle: 'Falta información en tu perfil',
+    quotaExceeded: 'Ya has rehecho tu plan esta quincena. Podrás crear el siguiente el {date}.',
     rateLimited: 'Has pedido varios planes seguidos. Espera un momento antes de volver a intentarlo.',
     safetyNote: 'Comprobamos tus alergias antes de guardar nada.',
     serverDetail: 'Detalle del servidor:',
@@ -390,6 +392,12 @@ export const esES = {
     servingUnitOne: 'ración',
     servingUnitOther: 'raciones',
     steps: 'Preparación',
+    swap: 'Cambiar plato',
+    swapHint: 'Te quedan {remaining} de {limit} cambios en este plan. Buscamos otro plato que encaje en esta comida; la lista de la compra se actualiza sola.',
+    swapHintOne: 'Te queda 1 cambio de {limit} en este plan. Buscamos otro plato que encaje en esta comida; la lista de la compra se actualiza sola.',
+    swapNoFit: 'Ahora mismo no tenemos otro plato que encaje aquí. Prueba más tarde.',
+    swapping: 'Buscando otro plato…',
+    swapSpent: 'Has usado los {limit} cambios de este plan.',
     totalMinutes: '{minutes} min en total',
     verdictHint: '¿Repetimos este plato? Lo tendremos en cuenta en tus próximos planes.'
   },
@@ -529,6 +537,9 @@ export const esES = {
     emptyBody: 'Tu perfil está completo. Crea tu primer plan de catorce días con recetas, cantidades y la lista de la compra hecha.',
     emptyTitle: 'Todavía no tienes plan',
     range: '14 días · del {start} al {end}',
+    redoAvailable: 'Puedes rehacer este plan una vez esta quincena: recetas nuevas para los mismos días.',
+    redoCta: 'Rehacer el plan',
+    redoSpent: 'Ya has rehecho tu plan esta quincena. Podrás crear el siguiente el {date}.',
     title: 'Tu plan',
     week: 'Semana {number}'
   },

@@ -6,19 +6,21 @@ import styles from './PlanBrowser.module.css';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
+import { CtaLink } from 'components/CtaLink';
 import { MacroSummary } from 'components/MacroSummary';
 import { MealRow } from 'components/MealRow';
 import { PlanDayNav } from 'components/PlanDayNav';
 
 import { formatDate, interpolate } from 'lib/format';
 
+import type { PlanRedoStanding } from 'core/domain/Allowance';
 import type { PlanView } from 'core/controllers/Plan';
 
 /**
  * Day selection is client state over a plan fetched on the server: all fourteen
  * days arrive in one response, so switching days is instant and needs no request.
  */
-export function PlanBrowser({ plan }: { plan: PlanView }) {
+export function PlanBrowser({ plan, redo }: { plan: PlanView; redo: PlanRedoStanding | null }) {
   const dictionary = useDictionary();
   const locale = useLocale();
   const shortDate = (date: string) => formatDate(date, locale, { day: 'numeric', month: 'short' });
@@ -33,6 +35,27 @@ export function PlanBrowser({ plan }: { plan: PlanView }) {
         <Text size="sm" tone="tertiary">
           {interpolate(dictionary.plan.range, { end: shortDate(plan.endDate), start: shortDate(plan.startDate) })}
         </Text>
+        {/* What the fortnight still allows, said before the person goes looking
+            for a button that will refuse them. A redo is a whole new plan for the
+            same days; the next fortnight is never rationed. */}
+        {redo?.kind === 'redo' ? (
+          <div className={styles.redo}>
+            {redo.allowed ? (
+              <Fragment>
+                <CtaLink href="/plan/generando" size="sm" variant="secondary">
+                  {dictionary.plan.redoCta}
+                </CtaLink>
+                <Text size="xs" tone="tertiary">
+                  {dictionary.plan.redoAvailable}
+                </Text>
+              </Fragment>
+            ) : (
+              <Text size="xs" tone="tertiary">
+                {interpolate(dictionary.plan.redoSpent, { date: redo.nextAt ? shortDate(redo.nextAt) : '' })}
+              </Text>
+            )}
+          </div>
+        ) : null}
       </div>
 
       <div className={styles.layout}>

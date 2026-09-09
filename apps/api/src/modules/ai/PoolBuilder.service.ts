@@ -43,6 +43,8 @@ export type PoolResult = {
 
 export type BuildPoolInput = {
   readonly context: GenerationContext;
+  /** Dishes wanted per slot. A whole plan wants `DISHES_NEEDED_PER_SLOT`; a single meal's swap wants a handful. */
+  readonly needPerSlot?: number;
   readonly preferences: Omit<PromptContext, 'excludeSlugs' | 'forbiddenLabels' | 'language' | 'needBySlot'>;
   readonly reusable: readonly CandidateDish[];
   readonly slots: readonly MealSlot[];
@@ -62,7 +64,7 @@ export class PoolBuilder {
 
   constructor(private readonly ai: AiClient) {}
 
-  async build({ context, preferences, reusable, slots }: BuildPoolInput): Promise<PoolResult> {
+  async build({ context, needPerSlot = DISHES_NEEDED_PER_SLOT, preferences, reusable, slots }: BuildPoolInput): Promise<PoolResult> {
     const accepted = new Map<string, CandidateDish>(reusable.map(dish => [dish.slug, dish]));
     const generated: CandidateDish[] = [];
     const metadata = {
@@ -83,7 +85,7 @@ export class PoolBuilder {
     const safeIngredients = [...context.catalogue.values()].filter(ingredient => isSafeIngredient(ingredient, context));
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-      const needBySlot = shortfall(slots, [...accepted.values()]);
+      const needBySlot = shortfall(slots, [...accepted.values()], needPerSlot);
 
       if ([...needBySlot.values()].every(count => count === 0)) {break;}
 
@@ -209,8 +211,8 @@ export class PoolBuilder {
 }
 
 /** How many more distinct dishes each slot needs. Drives both the retry and the prompt. */
-export function shortfall(slots: readonly MealSlot[], have: readonly CandidateDish[]): ReadonlyMap<MealSlot, number> {
-  return new Map(slots.map(slot => [slot, Math.max(DISHES_NEEDED_PER_SLOT - have.filter(dish => dish.slots.includes(slot)).length, 0)]));
+export function shortfall(slots: readonly MealSlot[], have: readonly CandidateDish[], needed: number = DISHES_NEEDED_PER_SLOT): ReadonlyMap<MealSlot, number> {
+  return new Map(slots.map(slot => [slot, Math.max(needed - have.filter(dish => dish.slots.includes(slot)).length, 0)]));
 }
 
 function isSafeIngredient(ingredient: CatalogueIngredient, context: GenerationContext): boolean {

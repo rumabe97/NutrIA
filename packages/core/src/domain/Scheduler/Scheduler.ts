@@ -158,6 +158,60 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
 
 export type SlotBudget = { readonly kcal: number; readonly proteinG: number };
 
+export type Replacement = {
+  readonly dish: CandidateDish;
+  readonly ingredients: readonly { readonly grams: number; readonly slug: string }[];
+  readonly macros: Macros;
+  readonly servings: number;
+};
+
+/**
+ * A favourite goes first only if it lands near the budget — this much fit cost
+ * is roughly 20 % off on energy. Past that, a favourite is the wrong dish for
+ * this slot however much the person likes it, and the fit decides.
+ */
+const PREFERRED_FIT_TOLERANCE = 0.35;
+
+/**
+ * The best dish in `pool` for one slot of one day, judged exactly as the
+ * scheduler judges: scaled to the budget, then by how close its macros land.
+ * `placed` is the rest of the plan with the meal being replaced taken out, so the
+ * variety rules hold after the swap as they did before it. Undefined when nothing
+ * fits — the caller then asks the model for something new
+ * ([`0015`](../../../../docs/decisions/0015-one-redo-a-fortnight-five-swaps-a-plan.md)).
+ */
+export function pickReplacement(input: {
+  readonly budget: SlotBudget;
+  readonly catalogue: Catalogue;
+  readonly dayIndex: number;
+  readonly placed: readonly Placement[];
+  readonly pool: readonly CandidateDish[];
+  readonly prefer?: ReadonlySet<string>;
+  readonly slot: MealSlot;
+}): Replacement | undefined {
+  const perServing = perServingIndex(input.pool, input.catalogue);
+
+  const costOf = (slug: string): number => {
+    const base = perServing.get(slug);
+
+    return base ? scaledFitCost(base, input.budget) : Number.MAX_VALUE;
+  };
+
+  const rank = (dish: CandidateDish): number => (input.prefer?.has(dish.slug) && costOf(dish.slug) <= PREFERRED_FIT_TOLERANCE ? 0 : 1);
+
+  const dish = input.pool
+    .filter(candidate => candidate.slots.includes(input.slot) && perServing.has(candidate.slug) && canPlace(candidate.slug, input.slot, input.dayIndex, input.placed))
+    .sort((a, b) => rank(a) - rank(b) || costOf(a.slug) - costOf(b.slug) || a.slug.localeCompare(b.slug))
+    .at(0);
+  const base = dish ? perServing.get(dish.slug) : undefined;
+
+  if (!dish || !base) {return undefined;}
+
+  const servings = servingsFor(base, input.budget);
+
+  return { dish, ingredients: scaleIngredients(dish.ingredients, servings / dish.servings), macros: scaleMacros(base, servings), servings };
+}
+
 /**
  * Normalised budget per slot, so the weights work for any slot subset.
  *

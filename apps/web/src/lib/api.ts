@@ -14,6 +14,7 @@ export type ApiErrorCode =
   | 'NETWORK'
   | 'NOT_FOUND'
   | 'ONBOARDING_INCOMPLETE'
+  | 'QUOTA_EXCEEDED'
   | 'REQUEST_ERROR'
   | 'UNSAFE_CONTENT';
 
@@ -22,7 +23,9 @@ export class ApiError extends Error {
     public readonly code: ApiErrorCode,
     message: string,
     public readonly status: number,
-    public readonly fieldErrors: Record<string, readonly string[]> = {}
+    public readonly fieldErrors: Record<string, readonly string[]> = {},
+    /** ISO date a spent allowance renews, when the API said so. */
+    public readonly retryAt: string | null = null
   ) {
     super(message);
     this.name = 'ApiError';
@@ -40,6 +43,7 @@ const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   NETWORK: 'network',
   NOT_FOUND: 'notFound',
   ONBOARDING_INCOMPLETE: 'onboardingIncomplete',
+  QUOTA_EXCEEDED: 'quotaExceeded',
   REQUEST_ERROR: 'request',
   UNSAFE_CONTENT: 'unsafeContent'
 };
@@ -85,9 +89,9 @@ export async function api<T>(path: string, { body, headers, ...options }: Option
   const payload: unknown = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const { code, fieldErrors, message } = payload as { code?: ApiErrorCode; fieldErrors?: Record<string, string[]>; message?: string };
+    const { code, fieldErrors, message, retryAt } = payload as { code?: ApiErrorCode; fieldErrors?: Record<string, string[]>; message?: string; retryAt?: string };
 
-    throw new ApiError(code ?? 'REQUEST_ERROR', message ?? 'Request failed', response.status, fieldErrors ?? {});
+    throw new ApiError(code ?? 'REQUEST_ERROR', message ?? 'Request failed', response.status, fieldErrors ?? {}, retryAt ?? null);
   }
 
   return payload as T;

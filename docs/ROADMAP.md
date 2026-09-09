@@ -41,9 +41,10 @@ screens at phone width, which closes project 002's two open gates.
 
 ## Next
 
-1. **A user can live inside the plan.** Day navigation, meal detail with recipe and macros,
-   complete / skip / favourite / dislike, and meal replacement with the "faster, cheaper,
-   vegetarian, no cooking, more protein" axes — every alternative re-validated.
+1. **A user can live inside the plan.** Day navigation, meal detail with recipe and macros
+   (done), favourite / dislike (done, `0014`), meal replacement (done, `0015`: library first,
+   five a plan, list rebuilt) — the "faster, cheaper, vegetarian, no cooking, more protein"
+   axes and complete / skip remain.
 2. **A user can shop from it.** Consolidated list per plan, grouped by aisle, editable,
    regenerable, always matching the active plan.
 3. **The loop closes.** Progress tracking, the biweekly check-in, and next-plan generation

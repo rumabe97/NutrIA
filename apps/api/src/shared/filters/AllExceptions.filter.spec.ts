@@ -1,7 +1,7 @@
 import { BadRequestException, HttpStatus, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, jest } from '@jest/globals';
 
-import { ConflictError, DatabaseOperationError, InputParseError, NotFoundError, SafetyViolationError, UnauthorizedError } from 'core/entities/Error';
+import { ConflictError, DatabaseOperationError, InputParseError, NotFoundError, QuotaExceededError, SafetyViolationError, UnauthorizedError } from 'core/entities/Error';
 
 import { AllExceptionsFilter } from './AllExceptions.filter.js';
 
@@ -29,6 +29,11 @@ describe('AllExceptionsFilter', () => {
 
   it('maps ConflictError to 409', () => {
     expect(capture(new ConflictError()).body).toMatchObject({ code: 'CONFLICT', statusCode: HttpStatus.CONFLICT });
+  });
+
+  it('maps a spent allowance to 429, naming which one and when it renews', () => {
+    expect(capture(new QuotaExceededError('plan_redo', '2026-09-21')).body).toMatchObject({ code: 'QUOTA_EXCEEDED', message: 'plan_redo', retryAt: '2026-09-21', statusCode: HttpStatus.TOO_MANY_REQUESTS });
+    expect(capture(new QuotaExceededError('meal_swap')).body).not.toHaveProperty('retryAt');
   });
 
   it('maps InputParseError to 422 and keeps the field errors', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { PLAN_DAYS, schedulePlan, SERVING_BOUNDS, slotsFor } from 'core/domain/Scheduler';
+import { pickReplacement, PLAN_DAYS, schedulePlan, SERVING_BOUNDS, slotsFor } from 'core/domain/Scheduler';
 import { VARIETY_RULES, varietyViolations } from 'core/domain/Variety';
 import { validatePlan } from 'core/domain/PlanValidation';
 import { makeCatalogue, makeCatalogueIngredient, makeDish, makePool, TARGETS } from '#test/fixtures';
@@ -403,5 +403,46 @@ describe('schedulePlan — a large athlete on three meals a day', () => {
     if (!result.ok) {return;}
 
     expect(validatePlan({ assignment: result.assignment, expectedDays: 14, expectedSlots: slots, sex: 'male', targets: BIG, weightKg: 95 })).toEqual([]);
+  });
+});
+
+describe('pickReplacement', () => {
+  const catalogue = makeCatalogue([
+    makeCatalogueIngredient({ id: 'i-rice', kcalPer100g: 130, proteinPer100g: 2.7, slug: 'rice' }),
+    makeCatalogueIngredient({ id: 'i-chicken', kcalPer100g: 120, proteinPer100g: 22.5, slug: 'chicken' }),
+    makeCatalogueIngredient({ id: 'i-oil', fatPer100g: 100, kcalPer100g: 884, proteinPer100g: 0, slug: 'oil' })
+  ]);
+  const budget = { kcal: 600, proteinG: 45 };
+  const lunch = (slug: string, ingredients: { grams: number; slug: string }[]) => makeDish({ ingredients, name: slug, servings: 1, slots: ['lunch'], slug });
+  const fits = lunch('chicken-rice', [{ grams: 200, slug: 'chicken' }, { grams: 250, slug: 'rice' }]);
+  const heavy = lunch('oil-bomb', [{ grams: 60, slug: 'oil' }, { grams: 50, slug: 'rice' }]);
+  const dinnerOnly = makeDish({ ingredients: [{ grams: 200, slug: 'chicken' }], name: 'dinner', slots: ['dinner'], slug: 'dinner-only' });
+
+  it('picks the dish whose scaled macros land closest to the budget, for that slot only', () => {
+    const picked = pickReplacement({ budget, catalogue, dayIndex: 3, placed: [], pool: [heavy, dinnerOnly, fits], slot: 'lunch' });
+
+    expect(picked?.dish.slug).toBe('chicken-rice');
+    expect(picked?.servings).toBeGreaterThan(0);
+    expect(Math.abs((picked?.macros.kcal ?? 0) - budget.kcal) / budget.kcal).toBeLessThan(0.2);
+  });
+
+  it('keeps the variety rules: a dish already used too often in the plan is not offered', () => {
+    const placed = [
+      { dayIndex: 1, dishSlug: 'chicken-rice', slot: 'lunch' as const },
+      { dayIndex: 8, dishSlug: 'chicken-rice', slot: 'lunch' as const }
+    ];
+
+    expect(pickReplacement({ budget, catalogue, dayIndex: 3, placed, pool: [fits], slot: 'lunch' })).toBeUndefined();
+  });
+
+  it('puts a favourite first when it fits, and not when it does not', () => {
+    const alsoFits = lunch('turkey-rice', [{ grams: 210, slug: 'chicken' }, { grams: 240, slug: 'rice' }]);
+
+    expect(pickReplacement({ budget, catalogue, dayIndex: 3, placed: [], pool: [fits, alsoFits], prefer: new Set(['turkey-rice']), slot: 'lunch' })?.dish.slug).toBe('turkey-rice');
+    expect(pickReplacement({ budget, catalogue, dayIndex: 3, placed: [], pool: [fits, heavy], prefer: new Set(['oil-bomb']), slot: 'lunch' })?.dish.slug).toBe('chicken-rice');
+  });
+
+  it('returns nothing when the pool has nothing for the slot', () => {
+    expect(pickReplacement({ budget, catalogue, dayIndex: 3, placed: [], pool: [dinnerOnly], slot: 'lunch' })).toBeUndefined();
   });
 });

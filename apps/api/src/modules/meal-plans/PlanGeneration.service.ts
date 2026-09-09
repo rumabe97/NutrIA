@@ -10,14 +10,14 @@ import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
 
 import { PoolBuilder } from '../ai/PoolBuilder.service.js';
-import { PROMPT_VERSION } from '../ai/PoolPrompt.js';
+import { promptPreferences, toRecipeDraft } from './GenerationShared.js';
 
-import type { CandidateDish, PlanAssignment } from 'core/entities/Plan';
+import type { PlanAssignment } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PlanViolation } from 'core/domain/PlanValidation';
 import type { GenerationContext } from 'core/controllers/Recipe';
 import type { Rotation } from 'core/domain/Variety';
-import type { PlanDraft, RecipeDraft } from 'core/entities/Plan';
+import type { PlanDraft } from 'core/entities/Plan';
 
 /**
  * Stage **codes**, not labels. Each is written to the job before the stage runs,
@@ -102,22 +102,12 @@ export class PlanGenerationService {
     const reusable = await RecipeController.reusablePool(slots, context, rotation);
     const built = await this.pool.build({
       context,
-      preferences: {
-        avoidNames: history.recentDishes.map(dish => dish.name),
-        breakfastStyle: profile.preferences?.breakfastStyle ?? null,
-        budget: profile.preferences?.budget ?? null,
-        cookingFrequency: profile.preferences?.cookingFrequency ?? null,
-        cookingTimeMinutes: profile.preferences?.cookingTimeMinutes ?? null,
-        cuisines: profile.cuisines,
-        dietaryPatterns: profile.dietaryPatterns,
-        dislikedLabels: profile.foodPreferences.filter(item => item.sentiment === 'disliked').map(item => item.label),
-        dislikedNames: verdicts.disliked.map(dish => dish.name),
-        likedLabels: profile.foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label),
-        lovedNames: verdicts.liked.map(dish => dish.name),
-        portionPreference: profile.preferences?.portionPreference ?? null,
-        scheduleNotes: profile.preferences?.workScheduleNotes ?? null,
+      preferences: promptPreferences(
+        profile,
+        verdicts,
+        history.recentDishes.map(dish => dish.name),
         targets
-      },
+      ),
       reusable,
       slots
     });
@@ -301,7 +291,7 @@ export class PlanGenerationService {
       // Only dishes the plan actually uses are persisted — a generated dish the
       // scheduler never placed is not worth a row.
       locale: context.locale,
-      newRecipes: built.generated.filter(dish => used.has(dish.slug)).map(dish => this.toRecipeDraft(dish, context)),
+      newRecipes: built.generated.filter(dish => used.has(dish.slug)).map(dish => toRecipeDraft(dish, context)),
       shoppingItems: shopping.items.map(item => ({
         category: item.category,
         displayQuantity: item.displayQuantity,
@@ -312,28 +302,6 @@ export class PlanGenerationService {
       })),
       startDate: isoDate(start),
       strategy: { carbsG: targets.carbsG, fatG: targets.fatG, fiberG: targets.fiberG, kcal: targets.kcal, proteinG: targets.proteinG }
-    };
-  }
-
-  private toRecipeDraft(dish: CandidateDish, context: GenerationContext): RecipeDraft {
-    return {
-      cookMinutes: dish.cookMinutes,
-      cuisine: dish.cuisine ?? null,
-      difficulty: dish.difficulty,
-      ingredients: dish.ingredients.map(item => ({
-        grams: item.grams,
-        // Safe: the plan passed `unresolvedSlugs` before reaching here.
-        ingredientId: context.catalogue.get(item.slug)?.id ?? '',
-        unit: 'g' as const
-      })),
-      mealSlots: dish.slots,
-      name: dish.name,
-      prepMinutes: dish.prepMinutes,
-      servings: dish.servings,
-      slug: dish.slug,
-      steps: dish.steps,
-      // Stamped with the prompt that wrote them, so a later one can find its predecessors.
-      stepsVersion: PROMPT_VERSION
     };
   }
 }

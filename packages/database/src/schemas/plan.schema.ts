@@ -133,6 +133,29 @@ export const favoriteRecipes = userOwned('favorite_recipes', {
     .references(() => recipes.id, { onDelete: 'cascade' })
 });
 
+/**
+ * One row per meal swap, so the fortnight's allowance can be counted and a
+ * person can be told what they had before. The meal row itself is updated in
+ * place — `meals_slot_unique` allows one meal per slot per day — so this is the
+ * only record that a swap happened.
+ */
+export const mealSwaps = userOwned('meal_swaps', {
+  fromRecipeId: uuid()
+    .notNull()
+    .references(() => recipes.id, { onDelete: 'restrict' }),
+  mealId: uuid()
+    .notNull()
+    .references(() => meals.id, { onDelete: 'cascade' }),
+  planId: uuid()
+    .notNull()
+    .references(() => mealPlans.id, { onDelete: 'cascade' }),
+  /** Where the replacement came from: the library, or a dish the model wrote for this swap. */
+  source: text().notNull(),
+  toRecipeId: uuid()
+    .notNull()
+    .references(() => recipes.id, { onDelete: 'restrict' })
+});
+
 export const dislikedRecipes = userOwned('disliked_recipes', {
   reason: text(),
   recipeId: uuid()

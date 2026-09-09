@@ -10,6 +10,7 @@ import { PlanController } from 'core/controllers/Plan';
 import { AllExceptionsFilter } from '../../shared/filters/index.js';
 import { RequiresOnboardingGuard } from '../../shared/guards/index.js';
 import { MealPlansController } from './meal-plans.controller.js';
+import { MealSwapService } from './MealSwap.service.js';
 import { PlanJobRunner } from './PlanJobRunner.service.js';
 
 import type { INestApplication } from '@nestjs/common';
@@ -23,8 +24,9 @@ const BOB_PLAN = '11111111-2222-4333-8444-555555555555';
 
 function build() {
   const start = jest.fn(async (_userId: string) => Promise.resolve({ id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null }));
+  const swap = jest.fn(async (_userId: string, _mealId: string, _locale: string | null) => Promise.resolve({ id: 'meal-1' }));
 
-  return { controller: new MealPlansController({ start } as unknown as PlanJobRunner), start };
+  return { controller: new MealPlansController({ start } as unknown as PlanJobRunner, { swap } as unknown as MealSwapService), start, swap };
 }
 
 function onboardingState(patch: Partial<OnboardingView>): OnboardingView {
@@ -44,6 +46,24 @@ describe('MealPlansController', () => {
     await controller.generate(ALICE);
 
     expect(start).toHaveBeenCalledWith('usr-alice');
+  });
+
+  it('reads the allowances for the session user', async () => {
+    const allowances = jest.spyOn(PlanController, 'allowances').mockResolvedValue({
+      mealSwaps: { allowed: true, limit: 5, remaining: 5, used: 0 },
+      planRedo: { allowed: true, kind: 'new_fortnight', limit: 1, nextAt: null, used: 0 }
+    });
+
+    await expect(controller.allowances(ALICE)).resolves.toMatchObject({ mealSwaps: { remaining: 5 } });
+    expect(allowances).toHaveBeenCalledWith('usr-alice');
+  });
+
+  it('swaps a meal for the session user, in the language of the request', async () => {
+    const { controller, swap } = build();
+
+    await controller.swap(ALICE, BOB_PLAN, 'en-GB');
+
+    expect(swap).toHaveBeenCalledWith('usr-alice', BOB_PLAN, 'en-GB');
   });
 
   it('scopes the active plan to the session user', async () => {
@@ -114,6 +134,7 @@ describe('meal-plan routes behind onboarding (through the real pipeline)', () =>
       controllers: [MealPlansController],
       providers: [
         { provide: PlanJobRunner, useValue: { start } },
+        { provide: MealSwapService, useValue: { swap: jest.fn() } },
         { provide: APP_GUARD, useClass: RequiresOnboardingGuard }
       ]
     }).compile();

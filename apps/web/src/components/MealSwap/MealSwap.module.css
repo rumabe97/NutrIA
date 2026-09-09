@@ -1,0 +1,10 @@
+.root {
+  display: grid;
+  gap: var(--space-02);
+  margin-bottom: var(--gap-block);
+}
+
+.hint {
+  margin: 0;
+  text-wrap: pretty;
+}

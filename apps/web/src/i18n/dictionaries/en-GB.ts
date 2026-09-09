@@ -171,6 +171,7 @@ export const enGB: Dictionary = {
     network: 'We could not connect. Check your connection.',
     notFound: 'We could not find what you were looking for.',
     onboardingIncomplete: 'Part of your profile is missing. Finish it and try again.',
+    quotaExceeded: 'You have used up what your plan allows this fortnight.',
     request: 'We could not complete that action.',
     unsafeContent: 'That content does not meet your dietary restrictions.'
   },
@@ -205,6 +206,7 @@ export const enGB: Dictionary = {
     poolTooSmallTitle: 'We are short of recipes',
     profileIncompleteBody: 'We need your date of birth, height, sex, weight and activity level to work out your targets.',
     profileIncompleteTitle: 'Your profile is missing information',
+    quotaExceeded: 'You have already redone your plan this fortnight. The next one opens on {date}.',
     rateLimited: 'You have asked for several plans in a row. Wait a moment before trying again.',
     safetyNote: 'We check your allergies before saving anything.',
     serverDetail: 'Server detail:',
@@ -385,6 +387,12 @@ export const enGB: Dictionary = {
     servingUnitOne: 'serving',
     servingUnitOther: 'servings',
     steps: 'Method',
+    swap: 'Swap this dish',
+    swapHint: '{remaining} of {limit} swaps left on this plan. We find another dish that fits this meal; the shopping list updates itself.',
+    swapHintOne: '1 swap of {limit} left on this plan. We find another dish that fits this meal; the shopping list updates itself.',
+    swapNoFit: 'We have nothing else that fits here right now. Try again later.',
+    swapping: 'Finding another dish…',
+    swapSpent: 'You have used all {limit} swaps on this plan.',
     totalMinutes: '{minutes} min in total',
     verdictHint: 'Cook this again? It shapes your next plans.'
   },
@@ -524,6 +532,9 @@ export const enGB: Dictionary = {
     emptyBody: 'Your profile is complete. Create your first fourteen-day plan with recipes, quantities and the shopping list written.',
     emptyTitle: 'No plan yet',
     range: '14 days · {start} to {end}',
+    redoAvailable: 'You can redo this plan once this fortnight: new dishes for the same days.',
+    redoCta: 'Redo the plan',
+    redoSpent: 'You have already redone your plan this fortnight. The next one opens on {date}.',
     title: 'Your plan',
     week: 'Week {number}'
   },

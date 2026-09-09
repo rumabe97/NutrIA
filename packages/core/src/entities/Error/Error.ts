@@ -88,6 +88,21 @@ export class SafetyViolationError extends Error {
  * — here the caller is the owner of the account, and the answer is about the
  * state of their own profile.
  */
+/**
+ * Thrown when a person has used up an allowance — a redo of the fortnight's
+ * plan, a swap of a meal. `nextAt` is the ISO date the allowance renews, when
+ * it renews on a date rather than with the next plan.
+ */
+export class QuotaExceededError extends Error {
+  constructor(
+    public readonly kind: 'meal_swap' | 'plan_redo',
+    public readonly nextAt: string | null = null
+  ) {
+    super('Quota exceeded');
+    this.name = 'QuotaExceededError';
+  }
+}
+
 export class OnboardingIncompleteError extends Error {
   constructor(public readonly missingSteps: readonly string[] = []) {
     super('Onboarding incomplete');

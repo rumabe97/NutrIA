@@ -1,10 +1,12 @@
-import { ConflictError, NotFoundError } from 'core/entities/Error';
+import { ConflictError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
+import { ALLOWANCES, mealSwapStanding, planRedoStanding, redosInFortnight } from 'core/domain/Allowance';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { PlanJobRepository, PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
 import { SafetyController } from 'core/controllers/Safety';
 import { alternativesFor } from 'core/domain/Substitution';
-import type { MealSlot, PlanDraft } from 'core/entities/Plan';
+import type { Macros, MealSlot, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
+import type { MealSwapStanding, PlanRedoStanding } from 'core/domain/Allowance';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 
 // --- Presenters ---------------------------------------------------------------
@@ -61,6 +63,27 @@ export interface PlanSummaryView {
   version: number;
 }
 
+/** What the person may still do this fortnight, for the screen to say before they try. */
+export interface AllowancesView {
+  mealSwaps: MealSwapStanding;
+  planRedo: PlanRedoStanding;
+}
+
+/**
+ * Every meal of a plan with its ingredients scaled to the portion planned — what a
+ * swap needs to keep the variety rules and rebuild the shopping list.
+ */
+export interface MealCompositionView {
+  id: string;
+  dayIndex: number;
+  ingredients: readonly { grams: number; slug: string }[];
+  macros: Macros;
+  recipeSlug: string;
+  servings: number;
+  slot: MealSlot;
+  sortOrder: number;
+}
+
 export interface JobView {
   id: string;
   /** A stable code. The client maps it to copy. */
@@ -102,6 +125,43 @@ function presentMeal({ items, meal, recipe }: MealRow): MealView {
 // --- Controller ---------------------------------------------------------------
 
 export const PlanController = {
+  async allowances(userId: string): Promise<AllowancesView> {
+    const [active, chain] = await Promise.all([PlanRepository.findActive(userId), PlanRepository.findChain(userId)]);
+    const predecessors = active ? chain.filter(plan => plan.version < active.version) : [];
+    const swaps = active ? await PlanRepository.countSwaps(active.id) : 0;
+
+    return {
+      mealSwaps: mealSwapStanding(swaps),
+      planRedo: planRedoStanding(active ? { endDate: active.endDate } : undefined, redosInFortnight(predecessors), isoToday())
+    };
+  },
+
+  /** Owner-scoped, like `getPlan`; the plan's meals as the swap sees them. */
+  async composition(userId: string, planId: string): Promise<readonly MealCompositionView[]> {
+    const plan = await PlanRepository.findById(userId, planId);
+
+    if (!plan) {throw new NotFoundError('Plan not found');}
+
+    const days = await PlanRepository.findDaysWithMeals(plan.id, FALLBACK_LOCALE);
+
+    return days.flatMap(day =>
+      day.meals.map(({ items, meal, recipe }) => {
+        const factor = Number(meal.servings) / (recipe.servings || 1);
+
+        return {
+          id: meal.id,
+          dayIndex: day.dayIndex,
+          ingredients: items.map(item => ({ grams: Math.round(Number(item.grams) * factor * 10) / 10, slug: item.slug })),
+          macros: { carbsG: Number(meal.carbsG), fatG: Number(meal.fatG), fiberG: Number(meal.fiberG), kcal: Number(meal.kcal), proteinG: Number(meal.proteinG) },
+          recipeSlug: recipe.slug,
+          servings: Number(meal.servings),
+          slot: meal.slot,
+          sortOrder: meal.sortOrder
+        };
+      })
+    );
+  },
+
   /** For generation: the next plan version, and what the user was served last fortnight. */
   async generationHistory(userId: string): Promise<{ readonly nextVersion: number; readonly recentDishes: readonly { readonly name: string; readonly slug: string }[] }> {
     return PlanRepository.findGenerationHistory(userId);
@@ -177,6 +237,15 @@ export const PlanController = {
     return rows.map(row => ({ id: row.id, endDate: row.endDate, startDate: row.startDate, status: row.status, version: row.version }));
   },
 
+  /** The meal a swap is anchored on, owner-scoped; a meal that is not theirs is not found. */
+  async mealForSwap(userId: string, mealId: string) {
+    const found = await PlanRepository.findMealForSwap(userId, mealId);
+
+    if (!found) {throw new NotFoundError('Meal not found');}
+
+    return found;
+  },
+
   /**
    * Ticks an item off the shopping list.
    *
@@ -189,6 +258,15 @@ export const PlanController = {
     if (!(await PlanRepository.setItemChecked(userId, itemId, checked))) {
       throw new NotFoundError('Shopping list item not found');
     }
+  },
+
+  async swapMeal(
+    userId: string,
+    mealId: string,
+    change: { readonly locale: string; readonly macros: Macros; readonly newRecipe: RecipeDraft | null; readonly recipeSlug: string; readonly servings: number; readonly source: 'library' | 'model' },
+    shoppingItems: readonly ShoppingItemDraft[]
+  ): Promise<void> {
+    await PlanRepository.swapMeal(userId, mealId, { ...change, limit: ALLOWANCES.mealSwapsPerPlan }, shoppingItems);
   }
 };
 
@@ -268,6 +346,13 @@ export const PlanJobController = {
 
     if (inFlight) {throw new ConflictError('A plan is already being generated');}
 
+    // The next fortnight is always allowed; redoing the one in progress is an
+    // allowance, and it is checked here — the one place a generation starts —
+    // rather than in the route, so no second route can forget it.
+    const { planRedo } = await PlanController.allowances(userId);
+
+    if (!planRedo.allowed) {throw new QuotaExceededError('plan_redo', planRedo.nextAt);}
+
     const job = await PlanJobRepository.create(userId);
 
     return { id: job.id, error: job.error, errorDetail: job.errorDetail, planId: job.planId, status: job.status, step: job.step };
@@ -322,6 +407,10 @@ export interface MealDetailView {
  * profile to have written to. The stored preference is the fallback, and the only
  * answer available to a background job, which has no request at all.
  */
+function isoToday(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 async function localeFor(userId: string, requested: string | null): Promise<string> {
   return requested ?? (await ProfileRepository.findByUserId(userId))?.locale ?? FALLBACK_LOCALE;
 }

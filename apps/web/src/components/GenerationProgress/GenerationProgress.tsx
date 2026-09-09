@@ -7,11 +7,12 @@ import styles from './GenerationProgress.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Text } from 'ui/components/Text';
-import { useDictionary } from 'i18n/LocaleProvider';
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { CtaLink } from 'components/CtaLink';
 
 import { api, ApiError, messageFor } from 'lib/api';
+import { formatDate, interpolate } from 'lib/format';
 import { generationError, stepLabel } from 'lib/generation';
 
 import type { JobView } from 'core/controllers/Plan';
@@ -33,6 +34,7 @@ type Phase = { code: string | null; detail: string | null; kind: 'failed' } | { 
 export function GenerationProgress() {
   const router = useRouter();
   const dictionary = useDictionary();
+  const locale = useLocale();
   const [phase, setPhase] = useState<Phase>({ kind: 'starting' });
   const [fatal, setFatal] = useState<string>();
   const started = useRef(false);
@@ -48,7 +50,13 @@ export function GenerationProgress() {
     } catch (error) {
       // 429 is the generation limit, not a failure of the plan itself.
       // 429 is the generation limit, not a failure of the plan itself.
-      setFatal(error instanceof ApiError && error.status === 429 ? dictionary.generation.rateLimited : messageFor(error, dictionary));
+      setFatal(
+        error instanceof ApiError && error.code === 'QUOTA_EXCEEDED'
+          ? interpolate(dictionary.generation.quotaExceeded, { date: error.retryAt ? formatDate(error.retryAt, locale, { day: 'numeric', month: 'long' }) : '' })
+          : error instanceof ApiError && error.status === 429
+            ? dictionary.generation.rateLimited
+            : messageFor(error, dictionary)
+      );
 
       return;
     }
@@ -81,7 +89,7 @@ export function GenerationProgress() {
     }
 
     setPhase({ code: 'GENERATION_ABANDONED', detail: null, kind: 'failed' });
-  }, [dictionary, router]);
+  }, [dictionary, locale, router]);
 
   useEffect(() => {
     // React 18+ mounts effects twice in development; without this the user would

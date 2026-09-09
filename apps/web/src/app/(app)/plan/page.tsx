@@ -7,7 +7,7 @@ import { PlanBrowser } from 'components/PlanBrowser';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
-import type { PlanView } from 'core/controllers/Plan';
+import type { AllowancesView, PlanView } from 'core/controllers/Plan';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,9 +16,9 @@ export default async function PlanPage() {
 
   // `active` returns null rather than 404 when there is no plan — having none is a
   // normal state, so the empty state is an ordinary render, not an error path.
-  const [dictionary, plan] = await Promise.all([getDictionary(), serverApi<PlanView | null>('/meal-plans/active')]);
+  const [dictionary, plan, allowances] = await Promise.all([getDictionary(), serverApi<PlanView | null>('/meal-plans/active'), serverApi<AllowancesView>('/meal-plans/allowances')]);
 
-  if (plan) {return <PlanBrowser plan={plan} />;}
+  if (plan) {return <PlanBrowser plan={plan} redo={allowances?.planRedo ?? null} />;}
 
   return (
     <EmptyState body={dictionary.plan.emptyBody} title={dictionary.plan.emptyTitle}>

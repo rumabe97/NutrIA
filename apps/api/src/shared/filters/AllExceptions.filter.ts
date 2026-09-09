@@ -6,6 +6,7 @@ import {
   InputParseError,
   NotFoundError,
   OnboardingIncompleteError,
+  QuotaExceededError,
   SafetyViolationError,
   UnauthorizedError
 } from 'core/entities/Error';
@@ -17,6 +18,8 @@ type ErrorBody = {
   readonly code: string;
   readonly fieldErrors?: Record<string, readonly string[]>;
   readonly message: string;
+  /** ISO date an exhausted allowance renews, when it renews on a date. */
+  readonly retryAt?: string;
   readonly statusCode: number;
 };
 
@@ -66,6 +69,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // an authorisation denial this one is meant to be understood. The client
       // switches on `code` and sends the person back to their resume step.
       return { code: 'ONBOARDING_INCOMPLETE', message: 'Termina tu perfil antes de continuar.', statusCode: HttpStatus.CONFLICT };
+    }
+
+    if (exception instanceof QuotaExceededError) {
+      // 429, the status for "not now": the request was fine, the allowance is
+      // spent. `kind` in the message lets the client say which, `retryAt` when.
+      return { code: 'QUOTA_EXCEEDED', message: exception.kind, statusCode: HttpStatus.TOO_MANY_REQUESTS, ...(exception.nextAt ? { retryAt: exception.nextAt } : {}) };
     }
 
     if (exception instanceof SafetyViolationError) {

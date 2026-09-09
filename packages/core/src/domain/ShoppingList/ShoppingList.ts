@@ -1,4 +1,7 @@
-import type { Catalogue, PlanAssignment, ShoppingDraft, ShoppingDraftItem } from 'core/entities/Plan';
+import type { Catalogue, ShoppingDraft, ShoppingDraftItem } from 'core/entities/Plan';
+
+/** Anything shaped like a plan: days of meals, each with its scaled ingredients. A scheduled plan is one; a plan read back for a swap is another. */
+export type ShoppingSource = { readonly days: readonly { readonly meals: readonly { readonly ingredients: readonly { readonly grams: number; readonly slug: string }[] }[] }[] };
 
 /** Aisle order, so the list reads the way a supermarket is walked. */
 const CATEGORY_ORDER = ['produce', 'protein', 'dairy', 'bakery', 'frozen', 'pantry', 'beverages', 'other'] as const;
@@ -14,7 +17,7 @@ const CATEGORY_ORDER = ['produce', 'protein', 'dairy', 'bakery', 'frozen', 'pant
  * `name` and `category` are snapshotted from the catalogue rather than referenced,
  * so a list stays readable after the catalogue moves on.
  */
-export function buildShoppingList(assignment: PlanAssignment, catalogue: Catalogue, locale = 'es-ES'): ShoppingDraft {
+export function buildShoppingList(assignment: ShoppingSource, catalogue: Catalogue, locale = 'es-ES'): ShoppingDraft {
   const totals = new Map<string, number>();
 
   for (const day of assignment.days) {
@@ -53,7 +56,7 @@ export function buildShoppingList(assignment: PlanAssignment, catalogue: Catalog
 }
 
 /** Slugs in the assignment that the catalogue cannot resolve. Empty on a valid plan. */
-export function unresolvedSlugs(assignment: PlanAssignment, catalogue: Catalogue): readonly string[] {
+export function unresolvedSlugs(assignment: ShoppingSource, catalogue: Catalogue): readonly string[] {
   const missing = new Set<string>();
 
   for (const day of assignment.days) {

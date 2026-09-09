@@ -211,6 +211,11 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   records what the session's user thinks of a recipe. Generation reads them: disliked
   slugs join the rotation's `avoidSlugs`, liked ones its `preferSlugs`, and both are named
   to the model. The verdict is on the recipe, never on the meal.
+- **Allowances** (`0015`): `GET /meal-plans/allowances` says what the fortnight still allows;
+  `POST /meal-plans/meals/:id/swap` replaces one meal of the active plan (library first, the
+  model only when the library has nothing for the slot) and rebuilds the shopping list in the
+  same transaction. A spent allowance is 429 `QUOTA_EXCEEDED`, with `retryAt` when it renews
+  on a date. The redo check lives in `PlanJobController.start`, never in a route.
 
 ## Commands
 

@@ -1,16 +1,27 @@
 import { aliasedTable, and, desc, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
 
 import { database } from 'database';
-import { mealPlans, meals, planDays } from 'database/schema/plan';
+import { mealPlans, meals, mealSwaps, planDays } from 'database/schema/plan';
 import { ingredientAllergens, ingredientNames, ingredients, ingredientSubstitutions } from 'database/schema/food';
 import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 import { shoppingListItems, shoppingLists } from 'database/schema/shopping';
 
-import { ConflictError, DatabaseOperationError } from 'core/entities/Error';
+import { ConflictError, DatabaseOperationError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
 import { FALLBACK_LOCALE } from '#repositories/Recipe';
-import type { PlanDraft } from 'core/entities/Plan';
+import type { Macros, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
 
 export const PlanRepository = {
+  /** Swaps recorded against one plan — what the fortnight's allowance is counted from. */
+  async countSwaps(planId: string): Promise<number> {
+    try {
+      const [row] = await database().select({ n: sql<number>`count(*)::int` }).from(mealSwaps).where(eq(mealSwaps.planId, planId));
+
+      return row?.n ?? 0;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   /**
    * Writes an entire plan, or nothing.
    *
@@ -32,51 +43,7 @@ export const PlanRepository = {
   async createPlanAtomically(userId: string, draft: PlanDraft): Promise<string> {
     try {
       return await database().transaction(async tx => {
-        const recipeIdBySlug = new Map<string, string>();
-
-        if (draft.newRecipes.length > 0) {
-          const inserted = await tx
-            .insert(recipes)
-            .values(
-              draft.newRecipes.map(recipe => ({
-                cookMinutes: recipe.cookMinutes,
-                createdBy: userId,
-                cuisine: recipe.cuisine,
-                difficulty: recipe.difficulty,
-                instructions: recipe.steps,
-                // The language the model was told to write in. Reuse is scoped to
-                // it, so this is what keeps a Spanish dish out of an English plan.
-                locale: draft.locale,
-                mealSlots: [...recipe.mealSlots],
-                name: recipe.name,
-                prepMinutes: recipe.prepMinutes,
-                servings: recipe.servings,
-                slug: recipe.slug,
-                source: 'ai' as const,
-                stepsVersion: recipe.stepsVersion
-              }))
-            )
-            // Another user's generation may have produced the same dish first.
-            // That is a race to win harmlessly, not an error.
-            .onConflictDoNothing({ target: recipes.slug })
-            .returning({ id: recipes.id, slug: recipes.slug });
-
-          for (const row of inserted) {recipeIdBySlug.set(row.slug, row.id);}
-
-          const ingredientRows = draft.newRecipes
-            .filter(recipe => recipeIdBySlug.has(recipe.slug))
-            .flatMap(recipe =>
-              recipe.ingredients.map(item => ({
-                grams: String(item.grams),
-                ingredientId: item.ingredientId,
-                quantity: String(item.grams),
-                recipeId: recipeIdBySlug.get(recipe.slug) as string,
-                unit: item.unit
-              }))
-            );
-
-          if (ingredientRows.length > 0) {await tx.insert(recipeIngredients).values(ingredientRows);}
-        }
+        const recipeIdBySlug = await insertRecipes(tx, draft.newRecipes, draft.locale, userId);
 
         // Resolve every slug the plan references — reused recipes, plus any new one
         // whose insert lost the race above.
@@ -207,6 +174,19 @@ export const PlanRepository = {
     }
   },
 
+  /** Every plan the user has had, newest first: the chain `redosInFortnight` walks. */
+  async findChain(userId: string) {
+    try {
+      return await database()
+        .select({ id: mealPlans.id, completedAt: mealPlans.completedAt, endDate: mealPlans.endDate, startDate: mealPlans.startDate, status: mealPlans.status, version: mealPlans.version })
+        .from(mealPlans)
+        .where(eq(mealPlans.userId, userId))
+        .orderBy(desc(mealPlans.version));
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   /** Days and meals for a plan the caller has already been confirmed to own. */
   async findDaysWithMeals(planId: string, locale: string) {
     try {
@@ -252,12 +232,12 @@ export const PlanRepository = {
               .leftJoin(fallback, and(eq(fallback.ingredientId, ingredients.id), eq(fallback.locale, FALLBACK_LOCALE)))
               .where(and(inArray(recipeIngredients.recipeId, recipeIds), eq(recipeIngredients.isOptional, false)));
 
-      const byRecipe = new Map<string, { grams: string; name: string }[]>();
+      const byRecipe = new Map<string, { grams: string; name: string; slug: string }[]>();
 
       for (const item of items) {
         const name = item.requestedName ?? item.fallbackName ?? item.slug;
 
-        byRecipe.set(item.recipeId, [...(byRecipe.get(item.recipeId) ?? []), { grams: item.grams, name }]);
+        byRecipe.set(item.recipeId, [...(byRecipe.get(item.recipeId) ?? []), { grams: item.grams, name, slug: item.slug }]);
       }
 
       return days.map(day => ({
@@ -376,6 +356,29 @@ export const PlanRepository = {
     }
   },
 
+  /** The meal, its day and plan, owner-scoped — the anchor of a swap. */
+  async findMealForSwap(userId: string, mealId: string) {
+    try {
+      const [row] = await database()
+        .select({
+          day: { id: planDays.id, dayIndex: planDays.dayIndex },
+          meal: meals,
+          plan: { id: mealPlans.id, endDate: mealPlans.endDate, startDate: mealPlans.startDate, status: mealPlans.status, strategy: mealPlans.strategy },
+          recipe: { id: recipes.id, name: recipes.name, servings: recipes.servings, slug: recipes.slug }
+        })
+        .from(meals)
+        .innerJoin(planDays, eq(planDays.id, meals.planDayId))
+        .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))
+        .innerJoin(recipes, eq(recipes.id, meals.recipeId))
+        .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId)))
+        .limit(1);
+
+      return row;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   async findShoppingList(planId: string) {
     try {
       const db = database();
@@ -416,6 +419,108 @@ export const PlanRepository = {
 
       return updated.length > 0;
     } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Replaces one meal's dish in place and rebuilds the plan's shopping list, in
+   * one transaction that also counts the allowance — so two swaps racing for the
+   * last one cannot both land.
+   *
+   * The list is rebuilt from the whole plan rather than patched, because
+   * quantities aggregate across meals. What the person had already ticked stays
+   * ticked when the ingredient is still on the list; items they added by hand
+   * are never touched.
+   */
+  async swapMeal(
+    userId: string,
+    mealId: string,
+    change: {
+      readonly limit: number;
+      readonly locale: string;
+      readonly macros: Macros;
+      readonly newRecipe: RecipeDraft | null;
+      readonly recipeSlug: string;
+      readonly servings: number;
+      readonly source: 'library' | 'model';
+    },
+    shoppingItems: readonly ShoppingItemDraft[]
+  ): Promise<void> {
+    try {
+      await database().transaction(async tx => {
+        const [owned] = await tx
+          .select({ mealId: meals.id, planId: mealPlans.id, recipeId: meals.recipeId })
+          .from(meals)
+          .innerJoin(planDays, eq(planDays.id, meals.planDayId))
+          .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))
+          .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId)))
+          .limit(1);
+
+        if (!owned) {throw new NotFoundError('Meal not found');}
+
+        const [used] = await tx.select({ n: sql<number>`count(*)::int` }).from(mealSwaps).where(eq(mealSwaps.planId, owned.planId));
+
+        if ((used?.n ?? 0) >= change.limit) {throw new QuotaExceededError('meal_swap');}
+
+        const inserted = change.newRecipe ? await insertRecipes(tx, [change.newRecipe], change.locale, userId) : new Map<string, string>();
+        let recipeId = inserted.get(change.recipeSlug);
+
+        if (!recipeId) {
+          const [found] = await tx.select({ id: recipes.id }).from(recipes).where(eq(recipes.slug, change.recipeSlug)).limit(1);
+
+          recipeId = found?.id;
+        }
+
+        if (!recipeId) {throw new DatabaseOperationError(`Swap references a recipe that does not exist: ${change.recipeSlug}`);}
+
+        await tx
+          .update(meals)
+          .set({
+            carbsG: String(change.macros.carbsG),
+            fatG: String(change.macros.fatG),
+            fiberG: String(change.macros.fiberG),
+            kcal: String(change.macros.kcal),
+            proteinG: String(change.macros.proteinG),
+            recipeId,
+            servings: String(change.servings),
+            updatedAt: new Date()
+          })
+          .where(eq(meals.id, mealId));
+
+        await tx.insert(mealSwaps).values({ fromRecipeId: owned.recipeId, mealId, planId: owned.planId, source: change.source, toRecipeId: recipeId, userId });
+
+        const [list] = await tx.select({ id: shoppingLists.id }).from(shoppingLists).where(eq(shoppingLists.planId, owned.planId)).limit(1);
+
+        if (!list) {return;}
+
+        const existing = await tx
+          .select({ id: shoppingListItems.id, addedManually: shoppingListItems.addedManually, checked: shoppingListItems.checked, ingredientId: shoppingListItems.ingredientId })
+          .from(shoppingListItems)
+          .where(eq(shoppingListItems.listId, list.id));
+        const ticked = new Set(existing.filter(item => item.checked && item.ingredientId).map(item => item.ingredientId));
+        const generated = existing.filter(item => !item.addedManually).map(item => item.id);
+
+        if (generated.length > 0) {await tx.delete(shoppingListItems).where(inArray(shoppingListItems.id, generated));}
+
+        if (shoppingItems.length > 0) {
+          await tx.insert(shoppingListItems).values(
+            shoppingItems.map(item => ({
+              category: item.category,
+              checked: ticked.has(item.ingredientId),
+              displayQuantity: String(item.displayQuantity),
+              displayUnit: item.displayUnit,
+              ingredientId: item.ingredientId,
+              listId: list.id,
+              name: item.name,
+              totalGrams: String(item.totalGrams)
+            }))
+          );
+        }
+      });
+    } catch (error: unknown) {
+      if (error instanceof NotFoundError || error instanceof QuotaExceededError) {throw error;}
+
       throw wrap(error);
     }
   }
@@ -491,6 +596,63 @@ async function findSubstitutes(ingredientIds: readonly string[], locale: string)
   }
 
   return bySource;
+}
+
+type Transaction = Parameters<Parameters<ReturnType<typeof database>['transaction']>[0]>[0];
+
+/**
+ * Writes the dishes the model composed, and their ingredient rows, returning
+ * slug → id for the ones this call inserted. Shared by a plan's creation and a
+ * meal swap, so a recipe is written the same way whichever route wrote it.
+ */
+async function insertRecipes(tx: Transaction, newRecipes: readonly RecipeDraft[], locale: string, userId: string): Promise<Map<string, string>> {
+    const recipeIdBySlug = new Map<string, string>();
+
+    if (newRecipes.length > 0) {
+      const inserted = await tx
+        .insert(recipes)
+        .values(
+          newRecipes.map(recipe => ({
+            cookMinutes: recipe.cookMinutes,
+            createdBy: userId,
+            cuisine: recipe.cuisine,
+            difficulty: recipe.difficulty,
+            instructions: recipe.steps,
+            // The language the model was told to write in. Reuse is scoped to
+            // it, so this is what keeps a Spanish dish out of an English plan.
+            locale: locale,
+            mealSlots: [...recipe.mealSlots],
+            name: recipe.name,
+            prepMinutes: recipe.prepMinutes,
+            servings: recipe.servings,
+            slug: recipe.slug,
+            source: 'ai' as const,
+            stepsVersion: recipe.stepsVersion
+          }))
+        )
+        // Another user's generation may have produced the same dish first.
+        // That is a race to win harmlessly, not an error.
+        .onConflictDoNothing({ target: recipes.slug })
+        .returning({ id: recipes.id, slug: recipes.slug });
+
+      for (const row of inserted) {recipeIdBySlug.set(row.slug, row.id);}
+
+      const ingredientRows = newRecipes
+        .filter(recipe => recipeIdBySlug.has(recipe.slug))
+        .flatMap(recipe =>
+          recipe.ingredients.map(item => ({
+            grams: String(item.grams),
+            ingredientId: item.ingredientId,
+            quantity: String(item.grams),
+            recipeId: recipeIdBySlug.get(recipe.slug) as string,
+            unit: item.unit
+          }))
+        );
+
+      if (ingredientRows.length > 0) {await tx.insert(recipeIngredients).values(ingredientRows);}
+    }
+
+    return recipeIdBySlug;
 }
 
 function wrap(error: unknown): DatabaseOperationError {

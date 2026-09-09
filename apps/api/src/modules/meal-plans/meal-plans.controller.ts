@@ -4,9 +4,10 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { PlanController } from 'core/controllers/Plan';
 
 import { CurrentUser, Locale, RateLimit, RequiresOnboarding } from '../../shared/decorators/index.js';
+import { MealSwapService } from './MealSwap.service.js';
 import { PlanJobRunner } from './PlanJobRunner.service.js';
 
-import type { JobView, MealDetailView, PlanDayView, PlanSummaryView, PlanView } from 'core/controllers/Plan';
+import type { AllowancesView, JobView, MealDetailView, PlanDayView, PlanSummaryView, PlanView } from 'core/controllers/Plan';
 import type { SessionUser } from '../../shared/decorators/index.js';
 
 const HISTORY_PAGE = { default: 20, max: 50 } as const;
@@ -27,7 +28,10 @@ const HISTORY_PAGE = { default: 20, max: 50 } as const;
 @Controller('meal-plans')
 @RequiresOnboarding()
 export class MealPlansController {
-  constructor(private readonly runner: PlanJobRunner) {}
+  constructor(
+    private readonly runner: PlanJobRunner,
+    private readonly swaps: MealSwapService
+  ) {}
 
   @ApiOperation({ summary: 'Start generating a plan. Returns a job to poll; 409 if one is already running.' })
   @Post('generate')
@@ -36,6 +40,21 @@ export class MealPlansController {
   @RateLimit({ limit: 3, ttlSeconds: 3600 })
   async generate(@CurrentUser() user: SessionUser): Promise<JobView> {
     return this.runner.start(user.id);
+  }
+
+  @ApiOperation({ summary: 'What the person may still do this fortnight: redo the plan, swap meals.' })
+  @Get('allowances')
+  async allowances(@CurrentUser() user: SessionUser): Promise<AllowancesView> {
+    return PlanController.allowances(user.id);
+  }
+
+  @ApiOperation({ summary: 'Replace one meal of the active plan with a dish that fits — from the library, or new. Counts against the plan\'s swaps.' })
+  @Post('meals/:id/swap')
+  // A swap may reach the model; this keeps a stuck retry loop from spending the
+  // fortnight's allowance in a minute, and it sits well above the allowance itself.
+  @RateLimit({ limit: 10, ttlSeconds: 3600 })
+  async swap(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Locale() locale: string | null): Promise<MealDetailView> {
+    return this.swaps.swap(user.id, id, locale);
   }
 
   @ApiOperation({ summary: 'Progress of a generation. `step` is the stage the pipeline actually reached.' })
