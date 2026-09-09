@@ -64,6 +64,7 @@ export const enGB: Dictionary = {
     signingIn: 'Signing in…',
     signInSubtitle: 'Sign in to see today’s plan.',
     signInTitle: 'Welcome back',
+    signInUnavailable: 'We could not sign you in (error {status}). Try again in a moment.',
     signUp: 'Create my plan',
     signUpFailed: 'We could not create the account. Please try again.',
     signUpPending: 'Creating your account…',

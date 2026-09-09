@@ -67,6 +67,7 @@ export const esES = {
     signingIn: 'Accediendo…',
     signInSubtitle: 'Accede para ver tu plan de hoy.',
     signInTitle: 'Bienvenido de nuevo',
+    signInUnavailable: 'No hemos podido iniciar sesión (error {status}). Inténtalo de nuevo en un momento.',
     signUp: 'Crear mi plan',
     signUpFailed: 'No hemos podido crear la cuenta. Inténtalo de nuevo.',
     signUpPending: 'Creando tu cuenta…',

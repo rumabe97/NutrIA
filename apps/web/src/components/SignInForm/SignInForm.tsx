@@ -11,6 +11,7 @@ import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
+import { interpolate } from 'lib/format';
 import { signIn } from 'lib/auth-client';
 import { syncLocaleFromProfile } from 'lib/locale-sync';
 
@@ -40,8 +41,11 @@ export function SignInForm() {
 
     if (signInError) {
       // One message for wrong password and unknown account alike: telling them
-      // apart turns this form into an account-enumeration oracle.
-      setError(dictionary.auth.invalidCredentials);
+      // apart turns this form into an account-enumeration oracle. Anything that
+      // is *not* a refusal — the service down, a rejected origin, a database the
+      // API cannot reach — says so instead: for a whole afternoon those read as
+      // "wrong password" and sent the owner looking in the wrong place.
+      setError(signInError.status === 401 ? dictionary.auth.invalidCredentials : interpolate(dictionary.auth.signInUnavailable, { status: signInError.status }));
 
       return;
     }
