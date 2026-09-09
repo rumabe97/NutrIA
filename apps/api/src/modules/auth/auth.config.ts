@@ -56,6 +56,7 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
       sendResetPassword: ({ url, user: recipient }, request) =>
         sendPasswordResetMail(mailer, {
           acceptLanguage: request?.headers.get('accept-language') ?? null,
+          appUrl: env.APP_URL,
           to: recipient.email,
           url,
           userId: recipient.id

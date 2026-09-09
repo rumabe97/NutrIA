@@ -210,6 +210,12 @@ the app password grants full send rights on it.
    has one line per attempt: `password reset mail sent` or `mail NOT sent` with the
    provider's reason, never the address.
 
+The page the link lands on is written into the link as an absolute URL on `APP_URL`
+before it is mailed. Better Auth resolves a relative one against the host *it*
+received the request on — the API's own host behind the proxy — and the first
+production link ended on the API's 404 page. `APP_URL` must therefore be the web
+origin (it is, in §2) whichever shape the deployment has.
+
 Gmail allows a few hundred messages a day from an ordinary account, which a
 hand-activated user base does not approach.
 

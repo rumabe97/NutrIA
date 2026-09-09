@@ -7,6 +7,27 @@ import type { EmailLocale } from '../email/templates/Layout.js';
 const DEFAULT_LOCALE: EmailLocale = 'es-ES';
 
 /**
+ * The link Better Auth issues carries the page to land on as `callbackURL`.
+ * The web app names it as a path, and Better Auth resolves a path against the
+ * host *it* received the request on — which, behind the proxy, is the API's
+ * own host, where `/restablecer` does not exist. In production the mailed link
+ * ended on the API's 404 page. So the page is made absolute on `APP_URL`, the
+ * one place that says where the web app lives, before the link leaves.
+ */
+export function absoluteCallback(url: string, appUrl: string): string {
+  try {
+    const parsed = new URL(url);
+    const callback = parsed.searchParams.get('callbackURL');
+
+    if (callback?.startsWith('/')) {parsed.searchParams.set('callbackURL', new URL(callback, appUrl).toString());}
+
+    return parsed.toString();
+  } catch {
+    return url;
+  }
+}
+
+/**
  * Better Auth's `sendResetPassword` hook, as a function that can be exercised
  * without standing up Better Auth.
  *
@@ -21,9 +42,10 @@ const DEFAULT_LOCALE: EmailLocale = 'es-ES';
  */
 export async function sendPasswordResetMail(
   mailer: Pick<EmailService, 'configured' | 'send'>,
-  { acceptLanguage, to, url, userId }: { acceptLanguage: string | null; to: string; url: string; userId: string }
+  { acceptLanguage, appUrl, to, url: issued, userId }: { acceptLanguage: string | null; appUrl: string; to: string; url: string; userId: string }
 ): Promise<void> {
   const locale = (localeFromHeader(acceptLanguage ?? undefined) ?? DEFAULT_LOCALE) as EmailLocale;
+  const url = absoluteCallback(issued, appUrl);
 
   if (!mailer.configured) {
     console.info(`[auth] password reset requested (user ${userId}); no SMTP configured, url: ${url}`);

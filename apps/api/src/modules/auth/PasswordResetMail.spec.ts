@@ -1,17 +1,35 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { sendPasswordResetMail } from './PasswordResetMail.js';
+import { absoluteCallback, sendPasswordResetMail } from './PasswordResetMail.js';
 
 import type { OutgoingEmail } from '../email/Email.service.js';
 
 const URL = 'https://nutria.example/api/v1/auth/reset-password/tok?callbackURL=/restablecer';
-const request = { acceptLanguage: 'es-ES', to: 'ana@example.com', url: URL, userId: 'user_1' };
+const APP = 'https://nutria.example';
+const request = { acceptLanguage: 'es-ES', appUrl: APP, to: 'ana@example.com', url: URL, userId: 'user_1' };
 
 function mailer(configured: boolean, outcome = true) {
   const send = jest.fn<(message: OutgoingEmail) => Promise<boolean>>().mockResolvedValue(outcome);
 
   return { configured, send };
 }
+
+describe('absoluteCallback', () => {
+  it('makes a path callback absolute on the app origin', () => {
+    expect(absoluteCallback(URL, APP)).toBe('https://nutria.example/api/v1/auth/reset-password/tok?callbackURL=https%3A%2F%2Fnutria.example%2Frestablecer');
+  });
+
+  it('leaves an absolute callback alone', () => {
+    const absolute = 'https://api.example/api/v1/auth/reset-password/tok?callbackURL=https%3A%2F%2Fapp.example%2Frestablecer';
+
+    expect(absoluteCallback(absolute, APP)).toBe(absolute);
+  });
+
+  it('leaves a link with no callback, or no parseable url, alone', () => {
+    expect(absoluteCallback('https://api.example/api/v1/auth/reset-password/tok', APP)).toBe('https://api.example/api/v1/auth/reset-password/tok');
+    expect(absoluteCallback('not a url', APP)).toBe('not a url');
+  });
+});
 
 describe('sendPasswordResetMail', () => {
   let info: jest.SpiedFunction<typeof console.info>;
@@ -34,7 +52,7 @@ describe('sendPasswordResetMail', () => {
 
     expect(message?.to).toBe('ana@example.com');
     expect(message?.subject).toBe('Reset your NutrIA password');
-    expect(message?.text).toContain(URL);
+    expect(message?.text).toContain('reset-password/tok?callbackURL=https%3A%2F%2Fnutria.example%2Frestablecer');
   });
 
   it('falls back to Spanish when the request names no supported language', async () => {
@@ -53,7 +71,7 @@ describe('sendPasswordResetMail', () => {
     expect(stub.send).not.toHaveBeenCalled();
     const line = String(info.mock.calls[0]?.[0]);
 
-    expect(line).toContain(URL);
+    expect(line).toContain('reset-password/tok?callbackURL=https%3A%2F%2Fnutria.example%2Frestablecer');
     expect(line).not.toContain('ana@example.com');
   });
 
