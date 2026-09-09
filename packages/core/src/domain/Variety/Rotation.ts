@@ -19,6 +19,33 @@ import type { CandidateDish, MealSlot } from 'core/entities/Plan';
  */
 export const DISHES_NEEDED_PER_SLOT = Math.ceil(14 / VARIETY_RULES.maxOccurrencesPerPlan) + 5;
 
+/**
+ * The share of every slot's pool that is written fresh for this plan, whatever
+ * the library could fill ([`0013`](../../../../docs/decisions/0013-a-third-of-every-plan-is-fresh.md)).
+ *
+ * Reuse-first ([`0006`](../../../../docs/decisions/0006-reuse-before-generating.md))
+ * with a library of a hundred dishes shared by every user means every user eats
+ * from the same hundred. Rotation ([`0009`](../../../../docs/decisions/0009-rotate-reuse-per-user.md))
+ * keeps one person from repeating their own fortnight; it cannot make two people's
+ * plans differ when both are drawn from the same shelf. The only thing that does
+ * is dishes that did not exist before this plan — and each one joins the library,
+ * so the shelf grows with every plan instead of with none.
+ *
+ * A third, not a half: the scheduler spreads a pool evenly, so a third of the
+ * pool is close to a third of the fortnight, and one model call per plan is what
+ * the free tier can carry. The owner chose the fraction.
+ *
+ * A preference, like every variety rule: when the provider is out, the library
+ * fills the whole pool and the plan is delivered anyway.
+ */
+export const FRESH_SHARE = 1 / 3;
+
+/** Dishes per slot the model is always asked for — the pool's fresh floor. */
+export const FRESH_DISHES_PER_SLOT = Math.ceil(DISHES_NEEDED_PER_SLOT * FRESH_SHARE);
+
+/** Dishes per slot the library may contribute: the rest. */
+export const REUSED_DISHES_PER_SLOT = DISHES_NEEDED_PER_SLOT - FRESH_DISHES_PER_SLOT;
+
 export type Rotation = {
   /** Slugs this user was served last fortnight. Never offered again. */
   readonly avoidSlugs: ReadonlySet<string>;
@@ -92,7 +119,7 @@ export function rotatePool(
   dishes: readonly CandidateDish[],
   slots: readonly MealSlot[],
   rotation: Rotation,
-  perSlot: number = DISHES_NEEDED_PER_SLOT
+  perSlot: number = REUSED_DISHES_PER_SLOT
 ): CandidateDish[] {
   const shuffled = seededShuffle(dishes.filter(dish => !rotation.avoidSlugs.has(dish.slug)), rotation.seed);
   const taken = new Map<string, CandidateDish>();

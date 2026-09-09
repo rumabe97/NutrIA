@@ -1,3 +1,12 @@
+import { BAKERY_NAMES_EN_GB } from './ingredients/bakery';
+import { BEVERAGES_NAMES_EN_GB } from './ingredients/beverages';
+import { DAIRY_NAMES_EN_GB } from './ingredients/dairy';
+import { FROZEN_NAMES_EN_GB } from './ingredients/frozen';
+import { OTHER_NAMES_EN_GB } from './ingredients/other';
+import { PANTRY_NAMES_EN_GB } from './ingredients/pantry';
+import { PRODUCE_NAMES_EN_GB } from './ingredients/produce';
+import { PROTEIN_NAMES_EN_GB } from './ingredients/protein';
+
 /**
  * English names for the starter catalogue, keyed by slug.
  *
@@ -13,7 +22,7 @@
  * British English, matching the `en-GB` dictionary in `apps/web`: courgette,
  * aubergine, rocket, mince, wholemeal.
  */
-export const INGREDIENT_NAMES_EN_GB: Record<string, string> = {
+const STARTER_NAMES: Record<string, string> = {
   'aceite-de-coco': 'Coconut oil',
   'aceite-de-girasol': 'Sunflower oil',
   'aceite-de-oliva-virgen-extra': 'Extra virgin olive oil',
@@ -214,4 +223,21 @@ export const INGREDIENT_NAMES_EN_GB: Record<string, string> = {
   'yogur-griego-natural': 'Natural Greek yoghurt',
   'yogur-natural-desnatado': 'Fat-free natural yoghurt',
   zanahoria: 'Carrot'
+};
+
+/**
+ * The whole map: the starter set's names, then each expansion file's own —
+ * a category file carries its names beside its rows so a row is never added
+ * without one, and the merge here is what the seed and the test read.
+ */
+export const INGREDIENT_NAMES_EN_GB: Record<string, string> = {
+  ...STARTER_NAMES,
+  ...PRODUCE_NAMES_EN_GB,
+  ...PROTEIN_NAMES_EN_GB,
+  ...DAIRY_NAMES_EN_GB,
+  ...PANTRY_NAMES_EN_GB,
+  ...FROZEN_NAMES_EN_GB,
+  ...BAKERY_NAMES_EN_GB,
+  ...BEVERAGES_NAMES_EN_GB,
+  ...OTHER_NAMES_EN_GB
 };

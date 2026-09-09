@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { ALLERGEN_SEED } from './allergens';
 import { INGREDIENT_NAMES_EN_GB } from './ingredient-names';
 import { INGREDIENT_SEED } from './ingredients';
+
+import type { FoodClass, IngredientSeed } from './ingredients';
 import { SUBSTITUTION_EXTRAS, SUBSTITUTION_GROUPS, substitutionPairs } from './substitutions';
 
 const ALLERGEN_KEYS = new Set(ALLERGEN_SEED.map(a => a.key));
@@ -108,12 +110,15 @@ describe('INGREDIENT_NAMES_EN_GB', () => {
   });
 
   it('does not leave a name untranslated', () => {
-    // Not a spell check — a handful of words are genuinely the same in both
-    // (Kiwi, Tempeh, Hummus). This catches the copy-paste that leaves a whole
-    // Spanish phrase sitting in the English column.
+    // Not a spell check — plenty of names are genuinely the same in both (Kiwi,
+    // Tempeh, Hummus, Pak choi, Skyr, Ricotta). This catches the copy-paste that
+    // leaves a whole Spanish phrase sitting in the English column: an identical
+    // name is a problem when it reads as Spanish — an accent, a Spanish
+    // connective, or a Spanish kitchen word.
+    const readsAsSpanish = /[áéíóúñü]|\b(?:al|con|de|del|en|para|y)\b|cocid|congelad|fresc|picad|rallad|salsa|queso/iu;
     const identical = INGREDIENT_SEED.filter(ingredient => INGREDIENT_NAMES_EN_GB[ingredient.slug] === ingredient.name)
-      .map(ingredient => ingredient.slug)
-      .filter(slug => !['bagel', 'chorizo', 'croissant', 'guacamole', 'hummus', 'kiwi', 'muesli', 'tahini', 'tempeh'].includes(slug));
+      .filter(ingredient => readsAsSpanish.test(ingredient.name))
+      .map(ingredient => ingredient.slug);
 
     expect(identical).toEqual([]);
   });
@@ -152,23 +157,43 @@ describe('SUBSTITUTION_GROUPS and SUBSTITUTION_EXTRAS', () => {
    * The rule that keeps a vegetarian, pescatarian or halal plan intact without the
    * code knowing the person's pattern: a swap may leave a class of food, never
    * enter one. Dietary patterns are enforced only in the prompt, so this is the
-   * one place a substitute could otherwise undo them.
+   * one place a substitute could otherwise undo them. The classes come from the
+   * rows themselves — `foodClasses` — so a new pork cut or a new fish is covered
+   * the moment it is seeded, not when someone remembers to extend a list here.
    */
   it('never introduce a class of food the dish did not already have', () => {
-    const PORK = new Set(['chorizo', 'costillas-de-cerdo', 'jamon-cocido', 'jamon-serrano', 'lomo-de-cerdo', 'panceta']);
-    const MEAT = new Set([...PORK, 'carne-picada-de-ternera', 'conejo', 'muslo-de-pollo', 'pavo', 'pechuga-de-pollo', 'solomillo-de-ternera', 'ternera-magra']);
-    const SHELLFISH = new Set(['almeja', 'calamar', 'gambas', 'mejillon', 'pulpo-cocido']);
-    const FISH = new Set(['atun-al-natural', 'bacalao-desalado', 'dorada', 'filete-de-merluza-congelado', 'lubina', 'merluza', 'salmon', 'sardina']);
-    const EGG = new Set(['clara-de-huevo', 'huevo', 'mayonesa', 'salsa-alioli']);
-    const DAIRY = new Set(INGREDIENT_SEED.filter(entry => entry.category === 'dairy').map(entry => entry.slug));
-    const ANIMAL = new Set([...MEAT, ...SHELLFISH, ...FISH, ...EGG, ...DAIRY, 'caldo-de-pollo', 'gelatina-neutra', 'miel']);
+    const classesOf = new Map(INGREDIENT_SEED.map(entry => [entry.slug, foodClasses(entry)]));
 
-    for (const [label, set] of Object.entries({ ANIMAL, DAIRY, EGG, FISH, MEAT, PORK, SHELLFISH })) {
-      for (const pair of pairs) {
-        if (!set.has(pair.ingredient)) {
-          expect(set.has(pair.substitute), `${label}: ${pair.ingredient} → ${pair.substitute}`).toBe(false);
-        }
+    for (const pair of pairs) {
+      const from = classesOf.get(pair.ingredient) ?? new Set<FoodClass>();
+      const to = classesOf.get(pair.substitute) ?? new Set<FoodClass>();
+
+      for (const cls of to) {
+        expect(from.has(cls), `${pair.ingredient} → ${pair.substitute} introduces ${cls}`).toBe(true);
       }
     }
   });
 });
+
+/**
+ * Every class a row belongs to: what it tags, what its allergens reveal, and
+ * what those imply — pork is meat, and all of them are animal.
+ */
+function foodClasses(entry: IngredientSeed): ReadonlySet<FoodClass> {
+  const classes = new Set<FoodClass>(entry.classes ?? []);
+  const allergens = new Set((entry.allergens ?? []).filter(link => (link.presence ?? 'contains') === 'contains').map(link => link.key));
+
+  if (allergens.has('milk') || allergens.has('lactose')) {classes.add('dairy');}
+
+  if (allergens.has('eggs')) {classes.add('egg');}
+
+  if (allergens.has('fish')) {classes.add('fish');}
+
+  if (allergens.has('crustaceans') || allergens.has('molluscs')) {classes.add('shellfish');}
+
+  if (classes.has('pork')) {classes.add('meat');}
+
+  if (classes.size > 0) {classes.add('animal');}
+
+  return classes;
+}

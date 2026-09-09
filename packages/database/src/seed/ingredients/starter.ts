@@ -1,24 +1,4 @@
-import type { AllergenKey } from './allergens';
-
-type Category = 'bakery' | 'beverages' | 'dairy' | 'frozen' | 'other' | 'pantry' | 'produce' | 'protein';
-type Unit = 'cup' | 'g' | 'ml' | 'pinch' | 'slice' | 'tbsp' | 'tsp' | 'unit';
-
-export type IngredientSeed = {
-  readonly allergens?: readonly { readonly key: AllergenKey; readonly presence?: 'contains' | 'may_contain' }[];
-  readonly carbs: number;
-  readonly category: Category;
-  readonly defaultUnit?: Unit;
-  readonly fat: number;
-  readonly fiber?: number;
-  readonly gramsPerUnit?: number;
-  readonly kcal: number;
-  /** Spanish. The other locales live in `ingredient-names.ts`, keyed by slug. */
-  readonly name: string;
-  readonly protein: number;
-  readonly slug: string;
-  /** Composition table the macros came from. Defaults to `manual` when unset. */
-  readonly source?: 'bedca' | 'manual' | 'usda';
-};
+import type { IngredientSeed } from './types';
 
 /**
  * Starter catalogue for the Spanish/Mediterranean market. Macros are **per 100 g**
@@ -32,7 +12,7 @@ export type IngredientSeed = {
  * not: meals snapshot their macros at generation time, so historical plans keep
  * the numbers the user actually ate, but the row still feeds every future plan.
  */
-export const INGREDIENT_SEED: readonly IngredientSeed[] = [
+export const STARTER: readonly IngredientSeed[] = [
   // ── Produce ───────────────────────────────────────────────────────────
   { carbs: 3.9, category: 'produce', fat: 0.2, fiber: 1.2, kcal: 18, name: 'Tomate', protein: 0.9, slug: 'tomate' },
   { carbs: 2.2, category: 'produce', fat: 0.2, fiber: 1.2, kcal: 16, name: 'Cebolla', protein: 1.2, slug: 'cebolla' },
@@ -81,11 +61,11 @@ export const INGREDIENT_SEED: readonly IngredientSeed[] = [
   { carbs: 7.6, category: 'produce', fat: 0.2, fiber: 0.4, kcal: 35, name: 'Sandía', protein: 0.6, slug: 'sandia', source: 'bedca' },
 
   // ── Protein ───────────────────────────────────────────────────────────
-  { carbs: 0, category: 'protein', fat: 3.6, kcal: 165, name: 'Pechuga de pollo', protein: 31, slug: 'pechuga-de-pollo' },
-  { carbs: 0, category: 'protein', fat: 8.1, kcal: 172, name: 'Muslo de pollo', protein: 24.8, slug: 'muslo-de-pollo' },
-  { carbs: 0, category: 'protein', fat: 4.3, kcal: 143, name: 'Pavo', protein: 29, slug: 'pavo' },
-  { carbs: 0, category: 'protein', fat: 10.7, kcal: 195, name: 'Ternera magra', protein: 26.1, slug: 'ternera-magra' },
-  { carbs: 0, category: 'protein', fat: 6.6, kcal: 143, name: 'Lomo de cerdo', protein: 22.2, slug: 'lomo-de-cerdo' },
+  { carbs: 0, category: 'protein', classes: ['meat'], fat: 3.6, kcal: 165, name: 'Pechuga de pollo', protein: 31, slug: 'pechuga-de-pollo' },
+  { carbs: 0, category: 'protein', classes: ['meat'], fat: 8.1, kcal: 172, name: 'Muslo de pollo', protein: 24.8, slug: 'muslo-de-pollo' },
+  { carbs: 0, category: 'protein', classes: ['meat'], fat: 4.3, kcal: 143, name: 'Pavo', protein: 29, slug: 'pavo' },
+  { carbs: 0, category: 'protein', classes: ['meat'], fat: 10.7, kcal: 195, name: 'Ternera magra', protein: 26.1, slug: 'ternera-magra' },
+  { carbs: 0, category: 'protein', classes: ['pork'], fat: 6.6, kcal: 143, name: 'Lomo de cerdo', protein: 22.2, slug: 'lomo-de-cerdo' },
   { allergens: [{ key: 'fish' }], carbs: 0, category: 'protein', fat: 13.4, kcal: 208, name: 'Salmón', protein: 20.4, slug: 'salmon' },
   { allergens: [{ key: 'fish' }], carbs: 0, category: 'protein', fat: 1, kcal: 82, name: 'Merluza', protein: 17.8, slug: 'merluza' },
   { allergens: [{ key: 'fish' }], carbs: 0, category: 'protein', fat: 1, kcal: 116, name: 'Atún al natural', protein: 25.5, slug: 'atun-al-natural' },
@@ -96,14 +76,14 @@ export const INGREDIENT_SEED: readonly IngredientSeed[] = [
   { carbs: 27.4, category: 'protein', fat: 2.6, fiber: 7.6, kcal: 164, name: 'Garbanzos cocidos', protein: 8.9, slug: 'garbanzos-cocidos' },
   { carbs: 20.1, category: 'protein', fat: 0.4, fiber: 7.9, kcal: 116, name: 'Lentejas cocidas', protein: 9, slug: 'lentejas-cocidas' },
   { carbs: 21.2, category: 'protein', fat: 0.5, fiber: 6.4, kcal: 127, name: 'Alubias blancas cocidas', protein: 8.7, slug: 'alubias-blancas-cocidas' },
-  { carbs: 0.5, category: 'protein', fat: 14, kcal: 248, name: 'Jamón serrano', protein: 30.1, slug: 'jamon-serrano', source: 'bedca' },
-  { carbs: 1.5, category: 'protein', fat: 3, kcal: 101, name: 'Jamón cocido', protein: 17, slug: 'jamon-cocido', source: 'bedca' },
-  { carbs: 2, category: 'protein', fat: 31, kcal: 375, name: 'Chorizo', protein: 22, slug: 'chorizo', source: 'bedca' },
-  { carbs: 1.4, category: 'protein', fat: 45, kcal: 448, name: 'Panceta', protein: 9.3, slug: 'panceta', source: 'bedca' },
-  { carbs: 0, category: 'protein', fat: 8, kcal: 156, name: 'Solomillo de ternera', protein: 21, slug: 'solomillo-de-ternera', source: 'bedca' },
-  { carbs: 0, category: 'protein', fat: 5, kcal: 129, name: 'Carne picada de ternera', protein: 21, slug: 'carne-picada-de-ternera', source: 'bedca' },
-  { carbs: 0, category: 'protein', fat: 23, kcal: 279, name: 'Costillas de cerdo', protein: 18, slug: 'costillas-de-cerdo', source: 'bedca' },
-  { carbs: 0, category: 'protein', fat: 4, kcal: 120, name: 'Conejo', protein: 21, slug: 'conejo', source: 'bedca' },
+  { carbs: 0.5, category: 'protein', classes: ['pork'], fat: 14, kcal: 248, name: 'Jamón serrano', protein: 30.1, slug: 'jamon-serrano', source: 'bedca' },
+  { carbs: 1.5, category: 'protein', classes: ['pork'], fat: 3, kcal: 101, name: 'Jamón cocido', protein: 17, slug: 'jamon-cocido', source: 'bedca' },
+  { carbs: 2, category: 'protein', classes: ['pork'], fat: 31, kcal: 375, name: 'Chorizo', protein: 22, slug: 'chorizo', source: 'bedca' },
+  { carbs: 1.4, category: 'protein', classes: ['pork'], fat: 45, kcal: 448, name: 'Panceta', protein: 9.3, slug: 'panceta', source: 'bedca' },
+  { carbs: 0, category: 'protein', classes: ['meat'], fat: 8, kcal: 156, name: 'Solomillo de ternera', protein: 21, slug: 'solomillo-de-ternera', source: 'bedca' },
+  { carbs: 0, category: 'protein', classes: ['meat'], fat: 5, kcal: 129, name: 'Carne picada de ternera', protein: 21, slug: 'carne-picada-de-ternera', source: 'bedca' },
+  { carbs: 0, category: 'protein', classes: ['pork'], fat: 23, kcal: 279, name: 'Costillas de cerdo', protein: 18, slug: 'costillas-de-cerdo', source: 'bedca' },
+  { carbs: 0, category: 'protein', classes: ['meat'], fat: 4, kcal: 120, name: 'Conejo', protein: 21, slug: 'conejo', source: 'bedca' },
   { allergens: [{ key: 'fish' }], carbs: 0, category: 'protein', fat: 0.7, kcal: 78, name: 'Bacalao desalado', protein: 17.8, slug: 'bacalao-desalado', source: 'bedca' },
   { allergens: [{ key: 'fish' }], carbs: 0, category: 'protein', fat: 3, kcal: 103, name: 'Dorada', protein: 19, slug: 'dorada', source: 'bedca' },
   { allergens: [{ key: 'fish' }], carbs: 0, category: 'protein', fat: 3, kcal: 99, name: 'Lubina', protein: 18, slug: 'lubina', source: 'bedca' },
@@ -171,7 +151,7 @@ export const INGREDIENT_SEED: readonly IngredientSeed[] = [
   { carbs: 0.9, category: 'pantry', defaultUnit: 'tbsp', fat: 0, gramsPerUnit: 15, kcal: 4, name: 'Vinagre de manzana', protein: 0, slug: 'vinagre-de-manzana', source: 'bedca' },
   { carbs: 1, category: 'pantry', defaultUnit: 'tbsp', fat: 0, gramsPerUnit: 15, kcal: 5, name: 'Vinagre de Jerez', protein: 0.2, slug: 'vinagre-de-jerez', source: 'bedca' },
   { carbs: 11, category: 'pantry', fat: 4, fiber: 1.5, kcal: 86, name: 'Tomate frito', protein: 1.5, slug: 'tomate-frito', source: 'bedca' },
-  { carbs: 1.2, category: 'pantry', defaultUnit: 'ml', fat: 0.5, kcal: 13, name: 'Caldo de pollo', protein: 0.8, slug: 'caldo-de-pollo', source: 'bedca' },
+  { carbs: 1.2, category: 'pantry', classes: ['meat'], defaultUnit: 'ml', fat: 0.5, kcal: 13, name: 'Caldo de pollo', protein: 0.8, slug: 'caldo-de-pollo', source: 'bedca' },
   { carbs: 1.5, category: 'pantry', defaultUnit: 'ml', fat: 0.2, kcal: 10, name: 'Caldo de verduras', protein: 0.5, slug: 'caldo-de-verduras', source: 'bedca' },
   { allergens: [{ key: 'gluten', presence: 'may_contain' }], carbs: 84, category: 'pantry', fat: 0.9, fiber: 3, kcal: 372, name: 'Copos de maíz', protein: 7, slug: 'copos-de-maiz', source: 'usda' },
   { allergens: [{ key: 'gluten' }], carbs: 66, category: 'pantry', fat: 6, fiber: 8, kcal: 358, name: 'Muesli', protein: 10, slug: 'muesli', source: 'usda' },
@@ -213,7 +193,7 @@ export const INGREDIENT_SEED: readonly IngredientSeed[] = [
   { carbs: 0.3, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 2, name: 'Té verde', protein: 0.2, slug: 'te-verde', source: 'bedca' },
 
   // ── Other ─────────────────────────────────────────────────────────────
-  { carbs: 82, category: 'other', defaultUnit: 'tbsp', fat: 0, gramsPerUnit: 21, kcal: 304, name: 'Miel', protein: 0.3, slug: 'miel', source: 'bedca' },
+  { carbs: 82, category: 'other', classes: ['animal'], defaultUnit: 'tbsp', fat: 0, gramsPerUnit: 21, kcal: 304, name: 'Miel', protein: 0.3, slug: 'miel', source: 'bedca' },
   { carbs: 100, category: 'other', defaultUnit: 'tsp', fat: 0, gramsPerUnit: 4.2, kcal: 400, name: 'Azúcar blanco', protein: 0, slug: 'azucar-blanco', source: 'usda' },
   { carbs: 76, category: 'other', defaultUnit: 'tbsp', fat: 0, gramsPerUnit: 21, kcal: 304, name: 'Sirope de agave', protein: 0, slug: 'sirope-de-agave', source: 'usda' },
   { carbs: 50, category: 'other', defaultUnit: 'tbsp', fat: 0.1, fiber: 0.6, gramsPerUnit: 20, kcal: 203, name: 'Mermelada de fresa', protein: 0.4, slug: 'mermelada-de-fresa', source: 'usda' },
@@ -245,7 +225,7 @@ export const INGREDIENT_SEED: readonly IngredientSeed[] = [
   { carbs: 75, category: 'other', defaultUnit: 'unit', fat: 8.4, fiber: 26, gramsPerUnit: 0.2, kcal: 406, name: 'Laurel', protein: 7.6, slug: 'laurel', source: 'usda' },
   { carbs: 0, category: 'other', defaultUnit: 'pinch', fat: 0, gramsPerUnit: 0.5, kcal: 0, name: 'Sal', protein: 0, slug: 'sal', source: 'usda' },
   { carbs: 36, category: 'other', defaultUnit: 'tbsp', fat: 8, fiber: 20, gramsPerUnit: 5, kcal: 416, name: 'Levadura nutricional', protein: 50, slug: 'levadura-nutricional', source: 'usda' },
-  { carbs: 2, category: 'other', fat: 0.1, kcal: 349, name: 'Gelatina neutra', protein: 85, slug: 'gelatina-neutra', source: 'usda' },
+  { carbs: 2, category: 'other', classes: ['animal'], fat: 0.1, kcal: 349, name: 'Gelatina neutra', protein: 85, slug: 'gelatina-neutra', source: 'usda' },
   { carbs: 13, category: 'other', defaultUnit: 'tsp', fat: 0.1, gramsPerUnit: 4.2, kcal: 53, name: 'Extracto de vainilla', protein: 0.1, slug: 'extracto-de-vainilla', source: 'usda' },
   { carbs: 24, category: 'other', fat: 65, fiber: 16, kcal: 709, name: 'Coco rallado', protein: 6.9, slug: 'coco-rallado', source: 'usda' }
 ];

@@ -1,6 +1,6 @@
-import { SNACK_SLOTS } from 'core/entities/Plan';
+import { INGREDIENT_CATEGORIES, SNACK_SLOTS } from 'core/entities/Plan';
 
-import type { CatalogueIngredient, MealSlot } from 'core/entities/Plan';
+import type { CatalogueIngredient, IngredientCategory, MealSlot } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 
 /**
@@ -104,6 +104,37 @@ const SLOT_LABEL: Record<MealSlot, string> = {
 };
 
 /**
+ * The catalogue is listed one aisle per line rather than as one comma-separated
+ * run. At two hundred rows a flat list was readable; at nine hundred it is a
+ * wall, and a model asked for "a protein source" finds one faster when the
+ * proteins sit together. Order within an aisle is by slug, so the prompt is
+ * stable across calls and the cache can do its work.
+ */
+const CATEGORY_LABEL: Record<IngredientCategory, string> = {
+  bakery: 'Bakery',
+  beverages: 'Drinks',
+  dairy: 'Dairy and plant alternatives',
+  frozen: 'Frozen',
+  other: 'Prepared foods, dips and sweets',
+  pantry: 'Pantry: grains, pasta, tins, oils, sauces, spices',
+  produce: 'Fresh produce and herbs',
+  protein: 'Meat, fish, seafood, eggs and pulses'
+};
+
+function catalogueByAisle(safeIngredients: readonly CatalogueIngredient[]): string {
+  return INGREDIENT_CATEGORIES.map(category => {
+    const rows = safeIngredients
+      .filter(ingredient => ingredient.category === category)
+      .sort((a, b) => a.slug.localeCompare(b.slug))
+      .map(ingredient => `${ingredient.slug} (${ingredient.name})`);
+
+    return rows.length > 0 ? `${CATEGORY_LABEL[category]}:\n${rows.join(', ')}` : '';
+  })
+    .filter(Boolean)
+    .join('\n\n');
+}
+
+/**
  * The system prompt, in English for every user.
  *
  * English because it steers these models better, and because one prompt is one
@@ -194,7 +225,7 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
     })
     .join('\n');
 
-  const catalogue = safeIngredients.map(ingredient => `${ingredient.slug} (${ingredient.name})`).join(', ');
+  const catalogue = catalogueByAisle(safeIngredients);
 
   return [
     'Design dishes for a 14-day meal plan.',

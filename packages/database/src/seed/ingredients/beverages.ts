@@ -1,0 +1,91 @@
+import type { IngredientSeed } from './types';
+
+/**
+ * Drinks. Water, teas and infusions sit below the kcal floor and carry zeros
+ * that are true. Beer and cider are absent on purpose: alcohol carries energy
+ * the macro formula cannot see, so their honest numbers fail the ratio test —
+ * the test is right, and the plan has no use for them. Cooking wine is in the
+ * pantry, where its kcal fall under the floor.
+ */
+export const BEVERAGES: readonly IngredientSeed[] = [
+  { carbs: 0, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 0, name: 'Agua', protein: 0, slug: 'agua' },
+  { carbs: 0, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 0, name: 'Agua con gas', protein: 0, slug: 'agua-con-gas' },
+  { carbs: 3.7, category: 'beverages', defaultUnit: 'ml', fat: 0.2, kcal: 19, name: 'Agua de coco', protein: 0.7, slug: 'agua-de-coco' },
+  { carbs: 10.4, category: 'beverages', defaultUnit: 'ml', fat: 0.2, kcal: 45, name: 'Zumo de naranja', protein: 0.7, slug: 'zumo-de-naranja' },
+  { carbs: 11.3, category: 'beverages', defaultUnit: 'ml', fat: 0.1, kcal: 46, name: 'Zumo de manzana', protein: 0.1, slug: 'zumo-de-manzana' },
+  { carbs: 12.2, category: 'beverages', defaultUnit: 'ml', fat: 0.1, kcal: 50, name: 'Zumo de piña', protein: 0.4, slug: 'zumo-de-pina' },
+  { carbs: 11, category: 'beverages', defaultUnit: 'ml', fat: 0.1, kcal: 46, name: 'Zumo de arándanos', protein: 0.4, slug: 'zumo-de-arandanos' },
+  { carbs: 11.5, category: 'beverages', defaultUnit: 'ml', fat: 0.1, kcal: 48, name: 'Zumo multifrutas', protein: 0.3, slug: 'zumo-multifrutas' },
+  { carbs: 3.5, category: 'beverages', defaultUnit: 'ml', fat: 0.1, fiber: 0.4, kcal: 17, name: 'Zumo de tomate', protein: 0.8, slug: 'zumo-de-tomate' },
+  { carbs: 0.3, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 1, name: 'Té negro', protein: 0, slug: 'te-negro' },
+  { carbs: 0.2, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 1, name: 'Infusión de manzanilla', protein: 0, slug: 'infusion-de-manzanilla' },
+  { carbs: 0.2, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 1, name: 'Infusión de rooibos', protein: 0, slug: 'infusion-de-rooibos' },
+  { carbs: 0.3, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 1, name: 'Café descafeinado', protein: 0.1, slug: 'cafe-descafeinado' },
+  { carbs: 39, category: 'beverages', defaultUnit: 'tsp', fat: 5, fiber: 30, gramsPerUnit: 2, kcal: 320, name: 'Té matcha en polvo', protein: 29, slug: 'te-matcha' },
+  { carbs: 5, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 20, name: 'Kombucha', protein: 0, slug: 'kombucha' },
+  { carbs: 6.5, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 26, name: 'Bebida isotónica', protein: 0, slug: 'bebida-isotonica' },
+  { allergens: [{ key: 'gluten' }], carbs: 5.5, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 25, name: 'Cerveza sin alcohol', protein: 0.4, slug: 'cerveza-sin-alcohol' },
+  { carbs: 14, category: 'beverages', defaultUnit: 'ml', fat: 1.2, kcal: 66, name: 'Horchata de chufa', protein: 0.5, slug: 'horchata' },
+  { allergens: [{ key: 'milk' }, { key: 'lactose' }], carbs: 11, category: 'beverages', defaultUnit: 'ml', fat: 1.6, kcal: 75, name: 'Batido de cacao', protein: 3.2, slug: 'batido-de-cacao' },
+  { allergens: [{ key: 'milk' }, { key: 'lactose' }], carbs: 4, category: 'beverages', defaultUnit: 'ml', fat: 1, kcal: 60, name: 'Bebida de proteínas', protein: 10, slug: 'bebida-de-proteinas' },
+  { carbs: 10.6, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 42, name: 'Refresco de cola', protein: 0, slug: 'refresco-de-cola' },
+  { carbs: 0, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 0, name: 'Refresco light', protein: 0, slug: 'refresco-light' },
+  { carbs: 8.5, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 34, name: 'Tónica', protein: 0, slug: 'tonica' },
+  { carbs: 10, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 40, name: 'Limonada', protein: 0, slug: 'limonada' },
+  { carbs: 10, category: 'beverages', defaultUnit: 'ml', fat: 1, kcal: 50, name: 'Bebida de arroz', protein: 0.3, slug: 'bebida-de-arroz' },
+  { carbs: 2.7, category: 'beverages', defaultUnit: 'ml', fat: 1, kcal: 20, name: 'Bebida de coco', protein: 0.2, slug: 'bebida-de-coco' },
+  { allergens: [{ key: 'tree_nuts' }], carbs: 3.1, category: 'beverages', defaultUnit: 'ml', fat: 1.6, kcal: 29, name: 'Bebida de avellanas', protein: 0.4, slug: 'bebida-de-avellanas' },
+  { allergens: [{ key: 'tree_nuts' }], carbs: 1, category: 'beverages', defaultUnit: 'ml', fat: 2, kcal: 25, name: 'Bebida de anacardos', protein: 0.5, slug: 'bebida-de-anacardos' },
+  { allergens: [{ key: 'milk', presence: 'may_contain' }, { key: 'soy', presence: 'may_contain' }], carbs: 80, category: 'beverages', defaultUnit: 'tbsp', fat: 3, gramsPerUnit: 12, kcal: 380, name: 'Cacao soluble', protein: 6, slug: 'cacao-soluble' },
+  // ── Second pass ───────────────────────────────────────────────────────
+  { carbs: 0.2, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 1, name: 'Infusión de menta poleo', protein: 0, slug: 'infusion-de-menta-poleo' },
+  { carbs: 15, category: 'beverages', defaultUnit: 'ml', fat: 0.1, kcal: 60, name: 'Zumo de uva', protein: 0.4, slug: 'zumo-de-uva' },
+  { carbs: 12, category: 'beverages', defaultUnit: 'ml', fat: 0.1, kcal: 50, name: 'Zumo de melocotón', protein: 0.5, slug: 'zumo-de-melocoton' },
+  { carbs: 13, category: 'beverages', defaultUnit: 'ml', fat: 0.3, kcal: 54, name: 'Zumo de granada', protein: 0.2, slug: 'zumo-de-granada' },
+  { carbs: 8, category: 'beverages', defaultUnit: 'ml', fat: 0.2, fiber: 0.5, kcal: 35, name: 'Zumo verde', protein: 0.8, slug: 'zumo-verde' },
+  { carbs: 11, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 45, name: 'Bebida energética', protein: 0, slug: 'bebida-energetica' },
+  { allergens: [{ key: 'sulphites' }], carbs: 5.5, category: 'beverages', defaultUnit: 'ml', fat: 0, kcal: 25, name: 'Vino sin alcohol', protein: 0.2, slug: 'vino-sin-alcohol' },
+  { allergens: [{ key: 'milk' }, { key: 'lactose' }], carbs: 11, category: 'beverages', defaultUnit: 'ml', fat: 1.5, kcal: 70, name: 'Batido de fresa', protein: 3, slug: 'batido-de-fresa' },
+  { allergens: [{ key: 'soy' }], carbs: 4, category: 'beverages', defaultUnit: 'ml', fat: 1, kcal: 55, name: 'Bebida de proteínas vegetal', protein: 8, slug: 'bebida-de-proteinas-vegetal' }
+];
+
+export const BEVERAGES_NAMES_EN_GB: Record<string, string> = {
+  agua: 'Water',
+  'agua-con-gas': 'Sparkling water',
+  'agua-de-coco': 'Coconut water',
+  'batido-de-cacao': 'Chocolate milkshake',
+  'batido-de-fresa': 'Strawberry milkshake',
+  'bebida-de-anacardos': 'Cashew drink',
+  'bebida-de-arroz': 'Rice drink',
+  'bebida-de-avellanas': 'Hazelnut drink',
+  'bebida-de-coco': 'Coconut drink',
+  'bebida-de-proteinas': 'Protein shake',
+  'bebida-de-proteinas-vegetal': 'Plant protein shake',
+  'bebida-energetica': 'Energy drink',
+  'bebida-isotonica': 'Isotonic drink',
+  'cacao-soluble': 'Drinking chocolate powder',
+  'cafe-descafeinado': 'Decaffeinated coffee',
+  'cerveza-sin-alcohol': 'Alcohol-free beer',
+  horchata: 'Tiger nut milk (horchata)',
+  'infusion-de-manzanilla': 'Camomile tea',
+  'infusion-de-menta-poleo': 'Pennyroyal mint tea',
+  'infusion-de-rooibos': 'Rooibos tea',
+  kombucha: 'Kombucha',
+  limonada: 'Lemonade',
+  'refresco-de-cola': 'Cola',
+  'refresco-light': 'Diet soft drink',
+  'te-matcha': 'Matcha powder',
+  'te-negro': 'Black tea',
+  tonica: 'Tonic water',
+  'vino-sin-alcohol': 'Alcohol-free wine',
+  'zumo-de-arandanos': 'Cranberry juice',
+  'zumo-de-granada': 'Pomegranate juice',
+  'zumo-de-manzana': 'Apple juice',
+  'zumo-de-melocoton': 'Peach juice',
+  'zumo-de-naranja': 'Orange juice',
+  'zumo-de-pina': 'Pineapple juice',
+  'zumo-de-tomate': 'Tomato juice',
+  'zumo-de-uva': 'Grape juice',
+  'zumo-multifrutas': 'Mixed fruit juice',
+  'zumo-verde': 'Green juice'
+};

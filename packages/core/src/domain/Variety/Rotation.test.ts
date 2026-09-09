@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { DISHES_NEEDED_PER_SLOT, rotatePool, seededShuffle } from 'core/domain/Variety';
+import { DISHES_NEEDED_PER_SLOT, FRESH_DISHES_PER_SLOT, REUSED_DISHES_PER_SLOT, rotatePool, seededShuffle } from 'core/domain/Variety';
 import type { CandidateDish, MealSlot } from 'core/entities/Plan';
 
 import { makeDish } from '#test/fixtures';
@@ -44,9 +44,17 @@ describe('rotatePool', () => {
     const first = rotatePool(dishes, ['lunch'], { avoidSlugs: nothingAvoided, seed: 'user-a:1' }).map(dish => dish.slug);
     const second = rotatePool(dishes, ['lunch'], { avoidSlugs: nothingAvoided, seed: 'user-b:1' }).map(dish => dish.slug);
 
-    expect(first).toHaveLength(DISHES_NEEDED_PER_SLOT);
-    expect(second).toHaveLength(DISHES_NEEDED_PER_SLOT);
+    expect(first).toHaveLength(REUSED_DISHES_PER_SLOT);
+    expect(second).toHaveLength(REUSED_DISHES_PER_SLOT);
     expect(first).not.toEqual(second);
+  });
+
+  it('leaves a third of every slot for dishes that do not exist yet, however large the library', () => {
+    const dishes = library(200, ['lunch']);
+    const picked = rotatePool(dishes, ['lunch'], { avoidSlugs: nothingAvoided, seed: 'user-a:1' });
+
+    expect(picked.length + FRESH_DISHES_PER_SLOT).toBe(DISHES_NEEDED_PER_SLOT);
+    expect(FRESH_DISHES_PER_SLOT).toBeGreaterThanOrEqual(Math.ceil(DISHES_NEEDED_PER_SLOT / 3));
   });
 
   it('hands the same user the same dishes for the same plan version, and different ones next fortnight', () => {
