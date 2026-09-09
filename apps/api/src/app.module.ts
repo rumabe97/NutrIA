@@ -10,6 +10,7 @@ import { CheckInsModule } from './modules/check-ins/check-ins.module.js';
 import { HealthDataModule } from './modules/health-data/health-data.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { MealPlansModule } from './modules/meal-plans/meal-plans.module.js';
+import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { OnboardingModule } from './modules/onboarding/onboarding.module.js';
 import { ProfilesModule } from './modules/profiles/profiles.module.js';
 import { ProgressModule } from './modules/progress/progress.module.js';
@@ -37,6 +38,7 @@ import { LoggingModule } from './shared/logging/index.js';
     HealthDataModule,
     HealthModule,
     MealPlansModule,
+    NotificationsModule,
     OnboardingModule,
     ProfilesModule,
     ProgressModule,

@@ -56,8 +56,9 @@ screens at phone width, which closes project 002's two open gates.
 4. **The assistant.** Nutrition-scoped, context-efficient, with the medical boundaries in
    `PRODUCT.md` enforced rather than requested.
 5. **Settings and notifications.** Preference editing outside onboarding (done, from the
-   profile), password-reset mail (done, `0019`), reminders and notification preferences —
-   and verification mail, the day access opens to everyone (`0017`).
+   profile), password-reset mail (done, `0019`), the check-in reminder and its switch
+   (done, `0027`). Remaining: verification mail, the day access opens to everyone (`0017`),
+   and any further reminder that can argue for itself.
 
 ## Later / someday
 

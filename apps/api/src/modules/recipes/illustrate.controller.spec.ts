@@ -5,6 +5,7 @@ import request from 'supertest';
 import { ENV } from '../../config/index.js';
 import { RecipeIllustrator } from '../ai/RecipeIllustrator.service.js';
 import { RecipeRewriter } from '../ai/RecipeRewriter.service.js';
+import { CheckInReminderService } from '../notifications/CheckInReminder.service.js';
 import { IllustrateController } from './illustrate.controller.js';
 
 import type { INestApplication } from '@nestjs/common';
@@ -18,6 +19,7 @@ describe('GET /cron/illustrate', () => {
   let app: INestApplication;
   const illustrateMissing = jest.fn<(limit: number) => Promise<{ drawn: number; failed: number; pending: number }>>();
   const rewriteOutdated = jest.fn<(limit: number) => Promise<{ pending: number; rewritten: number; skipped: number }>>();
+  const sweep = jest.fn(async () => Promise.resolve({ considered: 0, failed: 0, sent: 0 }));
 
   afterEach(async () => {
     jest.clearAllMocks();
@@ -30,7 +32,8 @@ describe('GET /cron/illustrate', () => {
       providers: [
         { provide: ENV, useValue: { CRON_SECRET: secret } },
         { provide: RecipeIllustrator, useValue: { illustrateMissing } },
-        { provide: RecipeRewriter, useValue: { rewriteOutdated } }
+        { provide: RecipeRewriter, useValue: { rewriteOutdated } },
+        { provide: CheckInReminderService, useValue: { sweep } }
       ]
     }).compile();
 

@@ -9,6 +9,7 @@ import { DeleteAccount } from 'components/DeleteAccount';
 import { HealthPanel } from 'components/HealthPanel';
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
 import { ProfileSection } from 'components/ProfileSection';
+import { ReminderToggle } from 'components/ReminderToggle';
 import { TargetsPanel } from 'components/TargetsPanel';
 
 import { formatNumber, interpolate } from 'lib/format';
@@ -18,6 +19,7 @@ import { serverApi } from 'lib/server-api';
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { HealthView } from 'core/controllers/Health';
+import type { NotificationSettingsView } from 'core/controllers/Notification';
 import type { UserView } from 'core/controllers/User';
 
 export const dynamic = 'force-dynamic';
@@ -57,12 +59,13 @@ export default async function ProfilePage() {
   // Health data is fetched here and only here. It is not folded into
   // `/profile`, which the dashboard also loads — a medication has no business
   // travelling to a screen that does not show it.
-  const [dictionary, locale, user, profile, health] = await Promise.all([
+  const [dictionary, locale, user, profile, health, notifications] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<UserView>('/users/me'),
     serverApi<FullProfileView>('/profile'),
-    serverApi<HealthView>('/health-data')
+    serverApi<HealthView>('/health-data'),
+    serverApi<NotificationSettingsView>('/notifications/settings')
   ]);
   const t = dictionary.profile;
   const kg = (value: number) => `${formatNumber(value, locale)} ${dictionary.units.kilogram}`;
@@ -168,6 +171,13 @@ export default async function ProfilePage() {
           ]}
           title={t.preferences}
         />
+
+        <div className={styles.card}>
+          <div className={styles.cardHead}>
+            <Text weight="semibold">{t.reminders}</Text>
+          </div>
+          <ReminderToggle enabled={notifications?.checkInEmail ?? true} />
+        </div>
 
         <div className={`${styles.card} ${styles.danger}`}>
           <div className={styles.cardHead}>

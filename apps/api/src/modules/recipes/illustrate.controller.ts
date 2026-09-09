@@ -3,11 +3,13 @@ import { ApiExcludeController } from '@nestjs/swagger';
 
 import { ENV } from '../../config/index.js';
 import { Public, SkipRateLimit } from '../../shared/decorators/index.js';
+import { CheckInReminderService } from '../notifications/CheckInReminder.service.js';
 import { RecipeIllustrator } from '../ai/RecipeIllustrator.service.js';
 import { RecipeRewriter } from '../ai/RecipeRewriter.service.js';
 
 import type { Env } from '../../config/index.js';
 import type { IllustrationRun } from '../ai/RecipeIllustrator.service.js';
+import type { ReminderRun } from '../notifications/CheckInReminder.service.js';
 import type { RewriteRun } from '../ai/RecipeRewriter.service.js';
 
 /** Six images a sweep: ten seconds each, a minute of work, well inside the function's ceiling. */
@@ -35,6 +37,7 @@ export class IllustrateController {
   constructor(
     @Inject(ENV) private readonly env: Env,
     private readonly illustrator: RecipeIllustrator,
+    private readonly reminders: CheckInReminderService,
     private readonly rewriter: RecipeRewriter
   ) {}
 
@@ -45,6 +48,16 @@ export class IllustrateController {
     this.authorise(authorization);
 
     return this.illustrator.illustrateMissing(IMAGES_PER_SWEEP);
+  }
+
+  /** Once a day: everyone whose fortnight closed and who has not been told. */
+  @Get('reminders')
+  @Public()
+  @SkipRateLimit()
+  async checkInReminders(@Headers('authorization') authorization: string | undefined): Promise<ReminderRun> {
+    this.authorise(authorization);
+
+    return this.reminders.sweep();
   }
 
   @Get('rewrite-steps')
