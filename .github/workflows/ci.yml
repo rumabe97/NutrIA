@@ -1,0 +1,44 @@
+# The gate, run by a machine instead of by memory.
+#
+# Nothing here deploys: the host builds whatever lands on `main` on its own, and
+# that is the point — a red run is the record that a commit should not have gone
+# out, and it arrives in a minute rather than in a bug report.
+#
+# The end-to-end suites are deliberately absent. They need a live throwaway
+# database (see apps/api/test/README.md), which means a secret and a branch to
+# reset; they stay a deliberate local run until that exists.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A second push to the same branch cancels the first: the older answer is about
+# code nobody has any more.
+concurrency:
+  cancel-in-progress: true
+  group: ci-${{ github.ref }}
+
+jobs:
+  gate:
+    name: lint · types · tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The versions the repository pins, read from package.json rather than
+      # written here, so this file cannot drift from what a developer runs.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          cache: pnpm
+          node-version-file: package.json
+
+      - run: pnpm install --frozen-lockfile
+
+      # One command, the same one the working pattern uses; turbo's own cache
+      # keeps a re-run of an unchanged package cheap.
+      - run: pnpm turbo lint ts:check test

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { DISHES_NEEDED_PER_SLOT, FRESH_DISHES_PER_SLOT, REUSED_DISHES_PER_SLOT, rotatePool, seededShuffle } from 'core/domain/Variety';
+import { DISHES_NEEDED_PER_SLOT, FRESH_DISHES_PER_SLOT, isPreferredDish, REUSED_DISHES_PER_SLOT, rotatePool, seededShuffle } from 'core/domain/Variety';
 import type { CandidateDish, MealSlot } from 'core/entities/Plan';
 
 import { makeDish } from '#test/fixtures';
@@ -107,5 +107,36 @@ describe('rotatePool', () => {
     const picked = rotatePool(dishes, slots, { avoidSlugs: nothingAvoided, seed: 's' });
 
     expect(new Set(picked.map(dish => dish.slug)).size).toBe(picked.length);
+  });
+});
+
+describe('isPreferredDish — the three reasons a dish goes first', () => {
+  const dish = (slug: string, cuisine: string | null, slugs: readonly string[]) => ({
+    ...makeDish({ ingredients: slugs.map(ingredient => ({ grams: 100, slug: ingredient })), name: slug, slug }),
+    cuisine
+  });
+
+  it('takes a dish they asked for by name', () => {
+    expect(isPreferredDish(dish('a', null, []), { preferSlugs: new Set(['a']) })).toBe(true);
+    expect(isPreferredDish(dish('b', null, []), { preferSlugs: new Set(['a']) })).toBe(false);
+  });
+
+  it('takes a kitchen they chose, however it was written', () => {
+    const leaning = { preferCuisines: new Set(['mediterranea']) };
+
+    expect(isPreferredDish(dish('a', 'mediterranea', []), leaning)).toBe(true);
+    expect(isPreferredDish(dish('a', 'japonesa', []), leaning)).toBe(false);
+    expect(isPreferredDish(dish('a', null, []), leaning)).toBe(false);
+  });
+
+  it('takes a food they said they like', () => {
+    const leaning = { preferIngredientSlugs: new Set(['salmon']) };
+
+    expect(isPreferredDish(dish('a', null, ['arroz', 'salmon']), leaning)).toBe(true);
+    expect(isPreferredDish(dish('a', null, ['arroz']), leaning)).toBe(false);
+  });
+
+  it('prefers nothing when nothing was said', () => {
+    expect(isPreferredDish(dish('a', 'mediterranea', ['salmon']), {})).toBe(false);
   });
 });

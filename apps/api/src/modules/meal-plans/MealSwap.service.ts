@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import { normaliseForMatching } from 'core/domain/Safety';
 import { buildShoppingList } from 'core/domain/ShoppingList';
 import { axisFilter, pickReplacement } from 'core/domain/Scheduler';
 import { ConflictError, QuotaExceededError } from 'core/entities/Error';
@@ -87,7 +88,12 @@ export class MealSwapService {
     // the fit is scored against, so a richer plate ranks as the better one.
     const filter = axisFilter(axis, { cookMinutes: anchor.recipe.cookMinutes, macros: current.macros, prepMinutes: anchor.recipe.prepMinutes }, context.catalogue);
     const budget = { kcal: current.macros.kcal, proteinG: axis === 'more_protein' ? current.macros.proteinG * MORE_PROTEIN_BUDGET : current.macros.proteinG };
-    const pick = { budget, catalogue: context.catalogue, dayIndex: current.dayIndex, filter, placed, prefer: new Set(verdicts.liked.map(dish => dish.slug)), slot: current.slot };
+    const leaning = {
+      preferCuisines: new Set(profile.cuisines.map(cuisine => normaliseForMatching(cuisine))),
+      preferIngredientSlugs: context.preferences.preferredIngredientSlugs,
+      preferSlugs: new Set(verdicts.liked.map(dish => dish.slug))
+    };
+    const pick = { budget, catalogue: context.catalogue, dayIndex: current.dayIndex, filter, leaning, placed, slot: current.slot };
 
     const library = (await RecipeController.reusablePool([current.slot], context)).filter(dish => !inPlan.has(dish.slug) && !disliked.has(dish.slug));
     let replacement = pickReplacement({ ...pick, pool: library });

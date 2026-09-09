@@ -65,7 +65,8 @@ screens at phone width, which closes project 002's two open gates.
 - English alongside Spanish; country-aware ingredient availability.
 - Vacation mode — a temporary lifestyle override that does not destroy the normal plan.
 - Analytics on the events already reserved in `analytics_events`.
-- CI. The deployment is live (`docs/reference/deployment.md`) but no workflow runs the gate
-  before the host builds `main`, and nothing runs the end-to-end suites automatically.
+- CI: the gate runs on every push and pull request (`.github/workflows/ci.yml`). Two things
+  remain — a branch protection rule so a red run actually blocks a merge, and the end-to-end
+  suites, which need a throwaway database in CI.
 - Error visibility: done (`0024`). Set `SENTRY_DSN` on the API project to turn it on; unset,
   nothing is sent.

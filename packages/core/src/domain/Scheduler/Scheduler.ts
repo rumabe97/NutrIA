@@ -1,7 +1,7 @@
 import { composePerServing, scaleIngredients, scaleMacros, sumMacros } from 'core/domain/Composition';
-import { canPlace } from 'core/domain/Variety';
+import { canPlace, isPreferredDish } from 'core/domain/Variety';
 import { MEAL_SLOTS } from 'core/entities/Plan';
-import type { Placement } from 'core/domain/Variety';
+import type { Leaning, Placement } from 'core/domain/Variety';
 import type { CandidateDish, Catalogue, Macros, MealSlot, PlanAssignment, PlanDayAssignment, ScheduledMeal, SwapAxis } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 
@@ -186,9 +186,10 @@ export function pickReplacement(input: {
   readonly dayIndex: number;
   /** What the person asked of the swap, as a test every candidate must pass — see `axisFilter`. */
   readonly filter?: (dish: CandidateDish, perServing: Macros) => boolean;
+  /** What they lean towards: dishes by name, kitchens, foods they like (0026). */
+  readonly leaning?: Leaning;
   readonly placed: readonly Placement[];
   readonly pool: readonly CandidateDish[];
-  readonly prefer?: ReadonlySet<string>;
   readonly slot: MealSlot;
 }): Replacement | undefined {
   const perServing = perServingIndex(input.pool, input.catalogue);
@@ -205,7 +206,8 @@ export function pickReplacement(input: {
     return base ? scaledFitCost(base, input.budget) : Number.MAX_VALUE;
   };
 
-  const rank = (dish: CandidateDish): number => (input.prefer?.has(dish.slug) && costOf(dish.slug) <= PREFERRED_FIT_TOLERANCE ? 0 : 1);
+  const rank = (dish: CandidateDish): number =>
+    input.leaning !== undefined && isPreferredDish(dish, input.leaning) && costOf(dish.slug) <= PREFERRED_FIT_TOLERANCE ? 0 : 1;
 
   const dish = input.pool
     .filter(candidate => candidate.slots.includes(input.slot) && passes(candidate) && canPlace(candidate.slug, input.slot, input.dayIndex, input.placed))

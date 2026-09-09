@@ -1,3 +1,4 @@
+import { normaliseForMatching } from 'core/domain/Safety';
 import { VARIETY_RULES } from './Variety';
 
 import type { CandidateDish, MealSlot } from 'core/entities/Plan';
@@ -50,6 +51,15 @@ export type Rotation = {
   /** Slugs this user was served last fortnight, and dishes they disliked. Never offered. */
   readonly avoidSlugs: ReadonlySet<string>;
   /**
+   * Kitchens they chose. A dish of one goes to the front of the pick — never
+   * to the exclusion of the rest, because a fortnight of one cuisine is not
+   * what "prefiero mediterránea" asks for, and a library short of it would
+   * otherwise cost them a plan (0026).
+   */
+  readonly preferCuisines?: ReadonlySet<string>;
+  /** Foods they said they like, as catalogue slugs. A dish that uses one goes to the front. */
+  readonly preferIngredientSlugs?: ReadonlySet<string>;
+  /**
    * Dishes this user asked to see again. They go to the front of the pick, so a
    * favourite is in the pool whenever the library may offer it — still never
    * from last fortnight, which is what `avoidSlugs` says.
@@ -58,6 +68,29 @@ export type Rotation = {
   /** Anything stable per user and per plan — the same seed always yields the same pick. */
   readonly seed: string;
 };
+
+/** The three reasons a dish goes to the front of the pick. */
+export type Leaning = {
+  readonly preferCuisines?: ReadonlySet<string>;
+  readonly preferIngredientSlugs?: ReadonlySet<string>;
+  readonly preferSlugs?: ReadonlySet<string>;
+};
+
+/**
+ * Whether the library should offer this dish before the others: they asked for
+ * it by name, it comes from a kitchen they chose, or it uses something they
+ * said they like.
+ *
+ * One function so the plan's rotation and a single swap agree about what
+ * "prefers" means, and so a fourth reason can be added in one place.
+ */
+export function isPreferredDish(dish: CandidateDish, rotation: Leaning): boolean {
+  if (rotation.preferSlugs?.has(dish.slug)) {return true;}
+
+  if (dish.cuisine && rotation.preferCuisines?.has(normaliseForMatching(dish.cuisine))) {return true;}
+
+  return dish.ingredients.some(item => rotation.preferIngredientSlugs?.has(item.slug) ?? false);
+}
 
 /** FNV-1a. A string in, a well-mixed 32-bit integer out; enough to seed a generator. */
 function hash(seed: string): number {
@@ -128,9 +161,10 @@ export function rotatePool(
   perSlot: number = REUSED_DISHES_PER_SLOT
 ): CandidateDish[] {
   const eligible = seededShuffle(dishes.filter(dish => !rotation.avoidSlugs.has(dish.slug)), rotation.seed);
-  const preferred = rotation.preferSlugs ?? new Set<string>();
-  // A stable partition: favourites first in their shuffled order, then the rest in theirs.
-  const shuffled = [...eligible.filter(dish => preferred.has(dish.slug)), ...eligible.filter(dish => !preferred.has(dish.slug))];
+  // A stable partition: what they lean towards first in its shuffled order, then
+  // the rest in theirs. Never a filter — the tail is still there, so a thin
+  // library or a narrow taste costs variety, never a plan.
+  const shuffled = [...eligible.filter(dish => isPreferredDish(dish, rotation)), ...eligible.filter(dish => !isPreferredDish(dish, rotation))];
   const taken = new Map<string, CandidateDish>();
 
   for (const slot of slots) {

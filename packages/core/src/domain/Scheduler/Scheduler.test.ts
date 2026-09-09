@@ -438,8 +438,8 @@ describe('pickReplacement', () => {
   it('puts a favourite first when it fits, and not when it does not', () => {
     const alsoFits = lunch('turkey-rice', [{ grams: 210, slug: 'chicken' }, { grams: 240, slug: 'rice' }]);
 
-    expect(pickReplacement({ budget, catalogue, dayIndex: 3, placed: [], pool: [fits, alsoFits], prefer: new Set(['turkey-rice']), slot: 'lunch' })?.dish.slug).toBe('turkey-rice');
-    expect(pickReplacement({ budget, catalogue, dayIndex: 3, placed: [], pool: [fits, heavy], prefer: new Set(['oil-bomb']), slot: 'lunch' })?.dish.slug).toBe('chicken-rice');
+    expect(pickReplacement({ budget, catalogue, dayIndex: 3, leaning: { preferSlugs: new Set(['turkey-rice']) }, placed: [], pool: [fits, alsoFits], slot: 'lunch' })?.dish.slug).toBe('turkey-rice');
+    expect(pickReplacement({ budget, catalogue, dayIndex: 3, leaning: { preferSlugs: new Set(['oil-bomb']) }, placed: [], pool: [fits, heavy], slot: 'lunch' })?.dish.slug).toBe('chicken-rice');
   });
 
   it('returns nothing when the pool has nothing for the slot', () => {

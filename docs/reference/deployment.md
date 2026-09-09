@@ -246,9 +246,12 @@ live database, so it is not part of the green gate.
 - **The rate limiter counts per instance.** `RateLimitGuard` holds its windows in
   memory, so the effective limit multiplies by however many instances are warm. It
   was already a documented trade; serverless is the moment it wants a shared store.
-- **Nothing here is automated.** No CI workflow runs the gate before a deploy; the
-  host builds whatever lands on `main`. Running `pnpm turbo lint ts:check test`
-  before merging is currently a human step.
+- **The gate runs, the deploy does not wait for it.** `.github/workflows/ci.yml` runs
+  `pnpm turbo lint ts:check test` on every push to `main` and every pull request, but the
+  host still builds whatever lands on `main` regardless. A red run is a record, not a
+  brake; making it one means a branch protection rule on the repository, which is a
+  setting rather than a file. The end-to-end suites are not in CI: they need a live
+  throwaway database, which means a secret and a branch to reset.
 - **Backups are undocumented.** The database host has its own retention and this
   repository does not say what it is, how to restore, or who checks. A migration that
   drops a column after back-filling is exactly when that matters.

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import { normaliseForMatching } from 'core/domain/Safety';
 import { buildShoppingList, unresolvedSlugs } from 'core/domain/ShoppingList';
 import { dishSafety } from 'core/domain/Safety';
 import { PLAN_DAYS, schedulePlan, slotsFor } from 'core/domain/Scheduler';
@@ -98,6 +99,11 @@ export class PlanGenerationService {
     // the front of the library pick. Both are also named to the model (0014).
     const rotation: Rotation = {
       avoidSlugs: new Set([...history.recentDishes.map(dish => dish.slug), ...verdicts.disliked.map(dish => dish.slug)]),
+      // Their kitchens and their foods lean the library pick without narrowing
+      // it (0026): a dish of a chosen cuisine, or using something they said they
+      // like, is offered first and the rest still follow.
+      preferCuisines: new Set(profile.cuisines.map(cuisine => normaliseForMatching(cuisine))),
+      preferIngredientSlugs: context.preferences.preferredIngredientSlugs,
       preferSlugs: new Set(verdicts.liked.map(dish => dish.slug)),
       seed: `${userId}:${history.nextVersion}`
     };

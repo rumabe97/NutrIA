@@ -82,9 +82,59 @@ export type PreferenceExclusions = {
    * ignored, and the model is the wrong place to guarantee it.
    */
   readonly maxMinutesPerDish: number | null;
+  /**
+   * Foods they said they like, as catalogue slugs.
+   *
+   * Not a rule: a like cannot be enforced the way a dislike can — you can serve
+   * someone salmon, you cannot make them enjoy it. It is a weight on the pick
+   * (0026), which is why these are slugs for the rotation rather than ids for a
+   * filter.
+   */
+  readonly preferredIngredientSlugs: ReadonlySet<string>;
   /** Dislikes that named nothing the catalogue knows. Asked of the model, never claimed as applied. */
   readonly unenforceableLabels: readonly string[];
 };
+
+/**
+ * Every catalogue row a label names, or null when it names nothing the
+ * catalogue knows.
+ *
+ * The two are different answers and the caller needs both: an empty list from a
+ * word we understand ("pescado" on a catalogue with no fish) still keeps its
+ * promise; a null means all we can do is ask the model.
+ */
+function named(
+  raw: string,
+  ingredients: readonly CatalogueIngredient[],
+  byKey: ReadonlyMap<string, CatalogueIngredient>
+): readonly CatalogueIngredient[] | null {
+  const key = normaliseForMatching(raw.trim());
+
+  if (key === '') {return null;}
+
+  const group = GROUP_LABELS.get(key);
+
+  if (group) {
+    const wanted = new Set(group);
+
+    return ingredients.filter(ingredient => inClasses(ingredient, wanted));
+  }
+
+  const match = byKey.get(key);
+
+  if (!match) {return null;}
+
+  // The row itself and everything made of it, by the same whole-token rule the
+  // allergy layer uses: `salmon` is a run inside `salmon-ahumado`, and is not a
+  // run inside `salmonete`.
+  const run = match.slug.split('-');
+
+  return ingredients.filter(ingredient => {
+    const tokens = ingredient.slug.split('-');
+
+    return tokens.some((_token, start) => run.every((word, offset) => tokens[start + offset] === word));
+  });
+}
 
 /** Whether an ingredient belongs to any of these classes. */
 function inClasses(ingredient: CatalogueIngredient, classes: ReadonlySet<FoodClass>): boolean {
@@ -109,6 +159,7 @@ export function resolvePreferences(input: {
   readonly dietaryPatterns: readonly string[];
   readonly dislikedLabels: readonly string[];
   readonly ingredients: readonly CatalogueIngredient[];
+  readonly likedLabels?: readonly string[];
   readonly maxMinutesPerDish?: number | null;
 }): PreferenceExclusions {
   const classes = new Set<FoodClass>(input.dietaryPatterns.flatMap(pattern => PATTERN_EXCLUSIONS[pattern] ?? []));
@@ -130,47 +181,37 @@ export function resolvePreferences(input: {
   }
 
   for (const raw of input.dislikedLabels) {
-    const label = raw.trim();
-    const key = normaliseForMatching(label);
+    const rows = named(raw, input.ingredients, byKey);
 
-    if (key === '') {continue;}
-
-    const group = GROUP_LABELS.get(key);
-
-    if (group) {
-      const wanted = new Set(group);
-
-      for (const ingredient of input.ingredients) {
-        if (inClasses(ingredient, wanted)) {excluded.add(ingredient.id);}
-      }
-
+    if (rows === null) {
+      unenforceable.push(raw.trim());
       continue;
     }
 
-    const match = byKey.get(key);
-
-    if (!match) {
-      unenforceable.push(label);
-      continue;
-    }
-
-    // The row itself and everything made of it, by the same whole-token rule the
-    // allergy layer uses: `salmon` is a run inside `salmon-ahumado`, and is not
-    // a run inside `salmonete`.
-    const run = match.slug.split('-');
-
-    for (const ingredient of input.ingredients) {
-      const tokens = ingredient.slug.split('-');
-
-      if (tokens.some((_token, start) => run.every((word, offset) => tokens[start + offset] === word))) {excluded.add(ingredient.id);}
-    }
+    for (const ingredient of rows) {excluded.add(ingredient.id);}
   }
 
-  return { excludedIngredientIds: excluded, maxMinutesPerDish: input.maxMinutesPerDish ?? null, unenforceableLabels: unenforceable };
+  const preferred = new Set<string>();
+
+  for (const raw of input.likedLabels ?? []) {
+    for (const ingredient of named(raw, input.ingredients, byKey) ?? []) {preferred.add(ingredient.slug);}
+  }
+
+  return {
+    excludedIngredientIds: excluded,
+    maxMinutesPerDish: input.maxMinutesPerDish ?? null,
+    preferredIngredientSlugs: preferred,
+    unenforceableLabels: unenforceable
+  };
 }
 
 /** Nothing excluded — for a caller with no profile to read, and for tests. */
-export const NO_PREFERENCE_EXCLUSIONS: PreferenceExclusions = { excludedIngredientIds: new Set(), maxMinutesPerDish: null, unenforceableLabels: [] };
+export const NO_PREFERENCE_EXCLUSIONS: PreferenceExclusions = {
+  excludedIngredientIds: new Set(),
+  maxMinutesPerDish: null,
+  preferredIngredientSlugs: new Set(),
+  unenforceableLabels: []
+};
 
 /** Whether a dish can be cooked in the time they said they have. */
 export function withinTime(dish: { readonly cookMinutes: number; readonly prepMinutes: number }, limit: number | null): boolean {

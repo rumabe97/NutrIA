@@ -221,6 +221,10 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   reports a failed generation. It sends the error, its stack and the route *pattern* only:
   `beforeSend` deletes request, user and response context, and messages go through
   `redactSecrets`. Never add a body, a header or an id to a report.
+- **Weights, not filters** (`0026`): `isPreferredDish` (core `domain/Variety`) decides what the
+  library offers first — a liked dish, a chosen cuisine, a liked food. `rotatePool` partitions
+  on it and `pickReplacement` ranks on it; neither ever removes a dish, so a preference here
+  cannot leave a slot unfillable. Exclusions are `0023`'s job and stay separate.
 - **Every answer changes something** (`0025`): before adding an onboarding field, decide which
   it is — a rule in code or a line in the prompt — and say so where it is read. The cooking-time
   limit is a rule (`withinTime`, applied in `PoolBuilder` and in reuse); the day

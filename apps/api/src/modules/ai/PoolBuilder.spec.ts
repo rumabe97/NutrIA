@@ -217,7 +217,7 @@ describe('PoolBuilder', () => {
     // nothing else, so the model served salmon anyway. The catalogue it is shown
     // no longer holds it (0023).
     const { client, generate } = stubClient([{ dishes: [] }]);
-    const wanted = { excludedIngredientIds: new Set(['ing-pollo']), maxMinutesPerDish: null, unenforceableLabels: [] };
+    const wanted = { excludedIngredientIds: new Set(['ing-pollo']), maxMinutesPerDish: null, preferredIngredientSlugs: new Set<string>(), unenforceableLabels: [] };
 
     await new PoolBuilder(client).build({ context: { ...context(), preferences: wanted }, preferences, reusable: [], slots: ['breakfast'] });
 
@@ -229,7 +229,7 @@ describe('PoolBuilder', () => {
 
   it('drops a dish that uses a ruled-out ingredient even when the model writes one anyway', async () => {
     const { client } = stubClient([{ dishes: [dish('Pollo al horno', ['breakfast'], ['pollo'])] }]);
-    const wanted = { excludedIngredientIds: new Set(['ing-pollo']), maxMinutesPerDish: null, unenforceableLabels: [] };
+    const wanted = { excludedIngredientIds: new Set(['ing-pollo']), maxMinutesPerDish: null, preferredIngredientSlugs: new Set<string>(), unenforceableLabels: [] };
 
     const result = await new PoolBuilder(client).build({
       context: { ...context(), preferences: wanted },

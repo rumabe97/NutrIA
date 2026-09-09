@@ -103,6 +103,7 @@ export const RecipeController = {
       dietaryPatterns,
       dislikedLabels: foodPreferences.filter(item => item.sentiment === 'disliked').map(item => item.label),
       ingredients: catalogue,
+      likedLabels: foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label),
       maxMinutesPerDish: preferred?.cookingTimeMinutes ?? null
     });
 
