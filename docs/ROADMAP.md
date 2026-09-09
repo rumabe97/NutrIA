@@ -53,12 +53,11 @@ screens at phone width, which closes project 002's two open gates.
 3. **The loop closes.** Weight tracking (done), eaten / skipped on each meal (done, `0016`),
    the fortnightly check-in feeding the next plan (done, `0018`), a progress screen over
    the data already kept (done, `0020`), plan history, read-only (done, `0021`).
-4. **The assistant.** Nutrition-scoped, context-efficient, with the medical boundaries in
-   `PRODUCT.md` enforced rather than requested.
-5. **Settings and notifications.** Preference editing outside onboarding (done, from the
+4. **Settings and notifications.** Preference editing outside onboarding (done, from the
    profile), password-reset mail (done, `0019`), the check-in reminder and its switch
-   (done, `0027`). Remaining: verification mail, the day access opens to everyone (`0017`),
-   and any further reminder that can argue for itself.
+   (done, `0027`), the owner told when an account is waiting (done, `0029`). Remaining:
+   verification mail, the day access opens to everyone (`0017`), and any further reminder
+   that can argue for itself.
 
 ## Later / someday
 
@@ -73,3 +72,20 @@ screens at phone width, which closes project 002's two open gates.
   suites, which need a throwaway database in CI.
 - Error visibility: done (`0024`). Set `SENTRY_DSN` on the API project to turn it on; unset,
   nothing is sent.
+
+## Last, and deliberately so
+
+**The assistant.** Nutrition-scoped, context-efficient, with the medical boundaries in
+`PRODUCT.md` enforced rather than requested.
+
+It sits at the end of this file, not because it is the least valuable — it may be the most
+— but because of what it costs. Every message a user sends is a model call, on the same
+free-tier daily cap that plan generation needs, and unlike generation it has no ceiling: a
+plan is one call a fortnight per person, a conversation is as many as they feel like. Until
+there is billing, shipping it would mean choosing between answering a question and building
+a plan.
+
+Two things to settle before writing any of it, both of them harder than the plumbing: what
+it refuses to answer and how that refusal is enforced in code rather than asked for in a
+prompt (`0004`); and what it is allowed to read, given that everything it could usefully
+know about someone is health data.

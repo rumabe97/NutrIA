@@ -200,6 +200,10 @@ update "user" set email_verified = true, updated_at = now() where email = 'perso
 ```
 
 To see who is waiting: `select email, created_at from "user" where not email_verified order by created_at;`.
+
+With `OWNER_EMAIL` set on the API project, you do not have to look: every sign-up sends that
+address one mail naming the account and carrying the statement above, ready to paste
+(`0029`). Unset, nothing is sent and the query is the only way to know.
 The change takes effect on the person's next page load; nothing needs redeploying.
 
 ## 5c. Mail: the password-reset link

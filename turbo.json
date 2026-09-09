@@ -23,6 +23,7 @@
     "LOG_LEVEL",
     "NEXT_PUBLIC_API_URL",
     "NODE_ENV",
+    "OWNER_EMAIL",
     "PORT",
     "RATE_LIMIT_MAX",
     "RATE_LIMIT_TTL",

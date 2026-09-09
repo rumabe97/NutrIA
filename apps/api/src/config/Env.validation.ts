@@ -103,6 +103,11 @@ const envObject = z
     GOOGLE_API_KEY: optional(z.string()),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
     NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
+    /**
+     * Where the "an account is waiting" notice goes (`0029`). Unset means it is
+     * not sent; nobody else is ever told about a sign-up.
+     */
+    OWNER_EMAIL: optional(z.email()),
     PORT: z.coerce.number().int().positive().default(3001),
     RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
     RATE_LIMIT_TTL: z.coerce.number().int().positive().default(60),
