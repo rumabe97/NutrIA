@@ -95,5 +95,10 @@ export const UserController = {
     if (!user) {throw new NotFoundError(`User "${input.id}" not found`);}
 
     return presentUser(user);
+  },
+
+  /** The runbook's role statement (see the repository). No route reaches it. */
+  async grantAdmin(email: string): Promise<boolean> {
+    return UserRepository.grantAdmin(email);
   }
 };

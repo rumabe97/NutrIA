@@ -14,6 +14,19 @@ import type { EmailLocale } from '../email/templates/Layout.js';
 import type { EmailService } from '../email/Email.service.js';
 
 const MINUTES = 60;
+
+/**
+ * Better Auth guards sign-up and sign-in harder than everything else — three in
+ * ten seconds, per address, whatever the global ceiling says — which is right,
+ * because those are the requests that guess passwords.
+ *
+ * The end-to-end suites open dozens of accounts in a couple of minutes from one
+ * address, which is precisely that shape of traffic. Only the two paths they
+ * hammer are raised, only under `NODE_ENV=test`, and raised rather than switched
+ * off: the limiter stays on its real path, so a broken `rate_limit` table still
+ * fails the suites, and every other route keeps the production rule.
+ */
+const TEST_AUTH_RULE = { max: 100_000, window: 60 };
 const SESSION_MAX_AGE_DAYS = 30;
 const SESSION_REFRESH_AGE_DAYS = 1;
 
@@ -109,7 +122,11 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
      * requests, which is a price worth paying exactly here and nowhere else
      * (`0007`, amended).
      */
-    rateLimit: { enabled: true, storage: 'database' },
+    rateLimit: {
+      customRules: env.NODE_ENV === 'test' ? { '/sign-in/*': TEST_AUTH_RULE, '/sign-up/*': TEST_AUTH_RULE } : undefined,
+      enabled: true,
+      storage: 'database'
+    },
     secret: env.BETTER_AUTH_SECRET,
     session: {
       expiresIn: SESSION_MAX_AGE_DAYS * 24 * MINUTES * MINUTES,

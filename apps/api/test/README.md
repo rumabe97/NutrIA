@@ -8,6 +8,12 @@ part of `pnpm test`. Run them deliberately.
 | Spec | What it proves |
 | --- | --- |
 | `isolation.e2e-spec.ts` | User A cannot read or write User B's data, by any route. |
+| `access.e2e-spec.ts` | Both locks are required, each denial names which one is missing, a caller with no session gets 404 everywhere, and deleting an account takes its data and its credentials with it. |
+| `admin.e2e-spec.ts` | The admin routes do not exist for an ordinary account, answer the owner, carry no content column, and open a waiting account. |
+| `vacations.e2e-spec.ts` | A trip moves the days after it by exactly its length, leaves the days before it alone, holds no plan day while it lasts, and gives the days back when cancelled. |
+| `swaps.e2e-spec.ts` | A replacement is a different dish in the same slot, the shopping list is rebuilt with it, and the fifth swap is the last — the sixth is 429. |
+| `plan-lifecycle.e2e-spec.ts` | Meals remember being eaten or skipped, one plan is active at a time, a replaced plan stays readable, the fortnight redo is spent once, and a weight logged twice in a day is a correction. |
+| `preferences.e2e-spec.ts` | A disliked ingredient and a dietary pattern are enforced in code — the model is told to serve fish on purpose and none reaches the plan — while a preference nothing can match is kept and shown as unenforceable. |
 | `generation.e2e-spec.ts` | The core loop: onboarding → a 14-day plan → a shopping list that reconciles with it, with history preserved and one active plan. |
 | `allergy-safety.e2e-spec.ts` | A declared allergen never reaches a stored meal or a shopping list — **even when the model deliberately proposes one**. |
 | `custom-allergens.e2e-spec.ts` | A free-text allergy that matched the catalogue is enforced exactly as a listed one; one that did not is stored, surfaced as unenforceable, and named to the model. |
@@ -54,13 +60,14 @@ to the dev branch's direct endpoint, then point both URLs above at it by replaci
 seed run against it like any other database (the seed takes about ten minutes from here);
 dropping it afterwards is `drop database nutria_e2e;`.
 
-### Accounts are opened by hand
+### Accounts have two locks
 
-Access opens account by account (`0017`): a fresh sign-up answers 409 `EMAIL_UNVERIFIED`
-on every route past sign-in. `harness.ts` → `activate()` flips the flag the way the owner
-does, through `UserController.activate`, right after each registration. A suite that
-registers on its own must call it too, or its first `PATCH /profile` fails with the
-product working exactly as designed.
+An account is usable when its address is confirmed **and** the owner has opened it
+(`0030`, `0031`): a fresh sign-up answers 409 `EMAIL_NOT_VERIFIED`, then 409
+`ACCOUNT_NOT_ACTIVATED`, on every route past sign-in. `harness.ts` → `activate()` opens
+both, the way the owner and the person each do. A suite that registers on its own must
+call it too, or its first `PATCH /profile` fails with the product working exactly as
+designed — which is what `access.e2e-spec.ts` exists to prove on purpose.
 
 ## Why the seed is required
 

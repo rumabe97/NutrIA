@@ -347,13 +347,62 @@ Three things to be honest about:
   and the expensive paths are quota'd in Postgres already (one redo a fortnight, five swaps
   a plan). What is left is a coarse abuse guard on ordinary reads, where a database write
   per request would cost more than it protects.
-- **The gate runs, the deploy does not wait for it.** `.github/workflows/ci.yml` runs
-  `pnpm turbo lint ts:check test` on every push to `main` and every pull request, but the
+- **The gate runs, the deploy does not wait for it.** `.github/workflows/ci.yml` runs the
+  gate and the end-to-end suites on every push to `main` and every pull request, but the
   host still builds whatever lands on `main` regardless. A red run is a record, not a
-  brake; making it one means a branch protection rule on the repository, which is a
-  setting rather than a file. The end-to-end suites are not in CI: they need a live
-  throwaway database, which means a secret and a branch to reset.
+  brake. Making it a brake is §9 — a repository setting, not a file, which is why it is
+  the one thing here an agent cannot do.
 - **No backup runs on a schedule, and no restore has been rehearsed.** §8 says how to take
   an export and how the host's own restore works, and the export has been run; neither has
   been used in anger. The restore window's length is still a blank in §8 that only the
   console can fill.
+
+## 9. Protecting `main` — the settings only the owner can change
+
+Everything below is on github.com, under **Settings** for the repository. None of it lives
+in this repo, which is why it keeps being listed as a gap rather than fixed in a commit.
+
+### The rule that makes a red run a brake
+
+**Settings → Rules → Rulesets → New branch ruleset.**
+
+| Field | Value |
+| --- | --- |
+| Ruleset name | `main` |
+| Enforcement status | **Active** (a ruleset left in "Evaluate" reports and blocks nothing) |
+| Target branches | Add target → **Include default branch** |
+| Restrict deletions | on |
+| Block force pushes | on |
+| Require a pull request before merging | on — *Required approvals: 0* |
+| Require status checks to pass | on → **Add checks**: `lint · types · tests` and `end-to-end` |
+
+Two of those deserve a word:
+
+- **Required approvals: 0.** A solo owner cannot approve their own pull request, and a rule
+  demanding one approval would lock the repository against its only developer. Zero still
+  forces the branch → pull request → checks path, which is the part that matters.
+- **The check names are the job `name:` fields**, not the job ids. GitHub only offers a
+  check it has seen run at least once, so if the list is empty, push a branch first and
+  come back.
+
+With that in place the workflow becomes: branch, push, open a pull request, wait for both
+checks, merge. A direct push to `main` is refused, and the host never sees a commit the
+gate has not agreed to.
+
+### Deploys
+
+Vercel builds whatever reaches `main`. Once `main` can only be reached through a green pull
+request, that *is* the deploy protection — there is nothing to configure on the host side,
+and nothing that would help if there were: a host-side gate would still be building a commit
+this repository had already accepted.
+
+If a deploy must ever be stopped without touching the code: **Vercel → project → Settings →
+Git → Ignored Build Step**, or disconnect the repository. Both are levers for an incident,
+not for everyday work.
+
+### While there is one developer
+
+The rule is worth having even alone, and not because of mistakes an approval would catch.
+It is worth having because it makes "the tests passed" a fact about `main` rather than a
+thing that was true on a laptop at some point. Every gap in this document was found that
+way.

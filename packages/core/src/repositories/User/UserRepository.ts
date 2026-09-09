@@ -110,6 +110,28 @@ export const UserRepository = {
     } catch (error: unknown) {
       throw wrap(error);
     }
+  },
+
+  /**
+   * Makes an account an administrator.
+   *
+   * The runbook's other statement (`update "user" set role = 'admin' …`), and
+   * nothing over HTTP reaches it: there is no route that grants a role, because
+   * a product where an admin can be created by a request is a product where one
+   * bug creates an admin.
+   */
+  async grantAdmin(email: string): Promise<boolean> {
+    try {
+      const rows = await database()
+        .update(user)
+        .set({ role: 'admin', updatedAt: new Date() })
+        .where(eq(user.email, email))
+        .returning({ email: user.email });
+
+      return rows.length > 0;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
   }
 };
 
