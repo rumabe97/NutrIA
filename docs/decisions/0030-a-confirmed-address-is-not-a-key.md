@@ -50,3 +50,31 @@ decision. Neither is evidence of the other.
   truth, and `/pendiente` says both things.
 - The runbook's SQL changes to `set activated_at = now()`. The old statement
   now only confirms an address and opens nothing.
+
+## Amendment — 2026-09-09 — the web asked the wrong question
+
+The split was made in the API and never carried into the web app. Both of its
+gates still read `emailVerified`:
+
+- `apps/web/src/lib/access.ts`, called by the signed-in layout, only sent an
+  account to `/pendiente` when its address was unconfirmed.
+- `/pendiente` itself redirected to `/inicio` as soon as the address was
+  confirmed — the waiting room threw the waiting person out.
+
+So somebody who signed up and clicked their confirmation link walked into the
+app shell with `activated_at` null. Every read was refused, exactly as designed
+— but `serverApi` turns any failure into `null` so that one dead section cannot
+take a page down, and a page of empty states looks like being let in. Reported
+in production against a real account.
+
+The fix makes the question askable: `UserView` carries `activated`
+(`activatedAt !== null`), the layout redirects on that, and `/pendiente` leaves
+only when the owner has opened the account. `emailVerified` stays in the view
+for the one thing it means — the secondary line telling someone their address
+is still unconfirmed.
+
+The lesson is narrower than "test the web": a boolean was renamed in meaning,
+not in name. `emailVerified` kept working, kept type-checking, and kept
+answering a question nobody was asking any more. `UserController.getUser` now
+has the two cases as tests — confirmed and closed, opened and unconfirmed —
+because those are the two states the old code could not tell apart.

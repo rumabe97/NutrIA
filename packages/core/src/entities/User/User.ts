@@ -7,9 +7,13 @@ import { z } from 'zod';
  *
  * `id` is a string, not a UUID: Better Auth generates its own ids and they are
  * not UUID-shaped. Validating them as UUIDs would reject every real user.
+ *
+ * `activatedAt` is ours, not Better Auth's: the moment the owner opened the
+ * account (`0030`). Null means waiting, whatever the address says.
  */
 export const userSchema = z.object({
   id: z.string().min(1),
+  activatedAt: z.date().nullable(),
   createdAt: z.date(),
   email: z.email(),
   emailVerified: z.boolean(),

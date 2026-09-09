@@ -28,7 +28,9 @@ export default async function PendingPage() {
 
   if (!user) {redirect('/acceder');}
 
-  if (user.emailVerified) {redirect('/inicio');}
+  // The owner's switch, not the address (`0030`) — asking about the address here
+  // sent a confirmed-but-unopened account straight back into the app.
+  if (user.activated) {redirect('/inicio');}
 
   return (
     <Fragment>

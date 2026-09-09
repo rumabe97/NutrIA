@@ -25,6 +25,8 @@ import type { User } from 'core/entities/User';
 
 export interface UserView {
   id: string;
+  /** The owner opened this account. What every gate in the product asks (`0030`). */
+  activated: boolean;
   createdAt: string;
   email: string;
   emailVerified: boolean;
@@ -36,6 +38,7 @@ export interface UserView {
 function presentUser(user: User): UserView {
   return {
     id: user.id,
+    activated: user.activatedAt !== null,
     createdAt: user.createdAt.toISOString(),
     email: user.email,
     emailVerified: user.emailVerified,

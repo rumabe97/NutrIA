@@ -27,6 +27,7 @@ export const ALLERGEN_IDS = { gluten: ALLERGEN_GLUTEN, milk: ALLERGEN_MILK, pean
 export function makeUser(overrides?: Partial<User>): User {
   return {
     id: USER_ID,
+    activatedAt: new Date('2026-01-15T10:00:00.000Z'),
     createdAt: new Date('2026-01-15T10:00:00.000Z'),
     email: 'ada@example.com',
     emailVerified: true,
