@@ -9,18 +9,9 @@ import { DatabaseOperationError } from 'core/entities/Error';
 import { progressEntrySchema } from 'core/entities/Progress';
 import type { ProgressEntry } from 'core/entities/Progress';
 
-export type MealMarks = { readonly completed: number; readonly planId: string; readonly planned: number; readonly skipped: number };
+export type MealMark = { readonly date: string; readonly n: number; readonly planId: string; readonly status: 'completed' | 'planned' | 'skipped' };
 
 export const ProgressRepository = {
-  /**
-   * One weight per day, replaced rather than appended.
-   *
-   * There is no unique index on `(user_id, logged_on)` to lean on — the table
-   * carries energy, hunger and measurements too, and a check-in may write those
-   * separately — so the day is looked up first and updated if present. Two
-   * weights logged in the same second could still race; the loser is a duplicate
-   * reading on one day, which is a cosmetic problem rather than a correctness one.
-   */
   /** The most recent weight the person logged, if any — what the targets are computed against. */
   async findLatestWeight(userId: string): Promise<number | null> {
     try {
@@ -54,35 +45,38 @@ export const ProgressRepository = {
   },
 
   /**
-   * How every plan's meals were marked, counting only days on or before `upTo`.
+   * How every plan's meals were marked, per day, for days on or before `upTo`.
    *
    * A meal three days from now is neither eaten nor missed; counting it would
    * make a plan that is going well look half-abandoned on its first morning.
+   * Per day rather than per plan because a plan replaced mid-fortnight only
+   * counts up to the day it was replaced, and the caller knows that day.
    */
-  async mealMarksByPlan(userId: string, upTo: string): Promise<readonly MealMarks[]> {
+  async mealMarksByDay(userId: string, upTo: string): Promise<readonly MealMark[]> {
     try {
       const rows = await database()
-        .select({ n: sql<number>`count(*)::int`, planId: planDays.planId, status: meals.status })
+        .select({ date: planDays.date, n: sql<number>`count(*)::int`, planId: planDays.planId, status: meals.status })
         .from(meals)
         .innerJoin(planDays, eq(planDays.id, meals.planDayId))
         .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))
         .where(and(eq(mealPlans.userId, userId), lte(planDays.date, upTo)))
-        .groupBy(planDays.planId, meals.status);
-      const byPlan = new Map<string, MealMarks>();
+        .groupBy(planDays.planId, planDays.date, meals.status);
 
-      for (const row of rows) {
-        const marks = byPlan.get(row.planId) ?? { completed: 0, planId: row.planId, planned: 0, skipped: 0 };
-        const key = row.status === 'completed' ? 'completed' : row.status === 'skipped' ? 'skipped' : 'planned';
-
-        byPlan.set(row.planId, { ...marks, [key]: marks[key] + row.n });
-      }
-
-      return [...byPlan.values()];
+      return rows.map(row => ({ date: row.date, n: row.n, planId: row.planId, status: row.status === 'completed' ? 'completed' : row.status === 'skipped' ? 'skipped' : 'planned' }));
     } catch (error: unknown) {
       throw wrap(error);
     }
   },
 
+  /**
+   * One weight per day, replaced rather than appended.
+   *
+   * There is no unique index on `(user_id, logged_on)` to lean on — the table
+   * carries energy, hunger and measurements too, and a check-in may write those
+   * separately — so the day is looked up first and updated if present. Two
+   * weights logged in the same second could still race; the loser is a duplicate
+   * reading on one day, which is a cosmetic problem rather than a correctness one.
+   */
   async upsertWeight(userId: string, loggedOn: string, weightKg: number): Promise<ProgressEntry> {
     try {
       const db = database();

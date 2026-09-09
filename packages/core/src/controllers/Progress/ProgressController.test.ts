@@ -4,18 +4,18 @@ import { ProgressController } from './ProgressController';
 
 import type { CheckInRow } from '#repositories/CheckIn';
 import type { Goal } from 'core/entities/Profile';
-import type { MealMarks } from '#repositories/Progress';
+import type { MealMark } from '#repositories/Progress';
 import type { ProgressEntry } from 'core/entities/Progress';
 
 type Plan = { id: string; completedAt: string | null; endDate: string; redo: boolean; startDate: string; status: string; version: number };
 
 const findRecent = vi.fn<(userId: string, limit: number) => Promise<readonly ProgressEntry[]>>();
-const mealMarksByPlan = vi.fn<(userId: string, upTo: string) => Promise<readonly MealMarks[]>>();
+const mealMarksByDay = vi.fn<(userId: string, upTo: string) => Promise<readonly MealMark[]>>();
 const findActiveGoal = vi.fn<(userId: string) => Promise<Goal | undefined>>();
 const findChain = vi.fn<(userId: string) => Promise<readonly Plan[]>>();
 const findAll = vi.fn<(userId: string) => Promise<readonly CheckInRow[]>>();
 
-vi.mock('#repositories/Progress', () => ({ ProgressRepository: { findRecent: (u: string, l: number) => findRecent(u, l), mealMarksByPlan: (u: string, d: string) => mealMarksByPlan(u, d), upsertWeight: vi.fn() } }));
+vi.mock('#repositories/Progress', () => ({ ProgressRepository: { findRecent: (u: string, l: number) => findRecent(u, l), mealMarksByDay: (u: string, d: string) => mealMarksByDay(u, d), upsertWeight: vi.fn() } }));
 vi.mock('#repositories/Profile', () => ({ ProfileRepository: { findActiveGoal: (u: string) => findActiveGoal(u) } }));
 vi.mock('#repositories/Plan', () => ({ PlanRepository: { findChain: (u: string) => findChain(u) } }));
 vi.mock('#repositories/CheckIn', () => ({ CheckInRepository: { findAll: (u: string) => findAll(u) } }));
@@ -31,13 +31,24 @@ function plan(overrides: Partial<Plan> & { id: string; version: number }): Plan 
   return { completedAt: null, endDate: '2026-09-14', redo: false, startDate: '2026-09-01', status: 'active', ...overrides };
 }
 
+/** `n` meals a day with the given status, one row per day in the range. */
+function days(planId: string, status: MealMark['status'], from: string, to: string, n: number): MealMark[] {
+  const marks: MealMark[] = [];
+
+  for (let date = from; date <= to; date = new Date(Date.parse(`${date}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10)) {
+    marks.push({ date, n, planId, status });
+  }
+
+  return marks;
+}
+
 const goal: Goal = { id: '11111111-2222-4333-8444-555555555555', paceKgPerWeek: 0.5, startingWeightKg: 90, targetWeightKg: 80, type: 'weight_loss' } as Goal;
 
 describe('ProgressController.summary — weight', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     findChain.mockResolvedValue([]);
-    mealMarksByPlan.mockResolvedValue([]);
+    mealMarksByDay.mockResolvedValue([]);
     findAll.mockResolvedValue([]);
     findActiveGoal.mockResolvedValue(goal);
   });
@@ -96,9 +107,13 @@ describe('ProgressController.summary — fortnights', () => {
       plan({ id: 'p1', endDate: '2026-08-31', startDate: '2026-08-18', status: 'completed', version: 1 }),
       plan({ id: 'p0', status: 'failed', version: 0 })
     ]);
-    mealMarksByPlan.mockResolvedValue([
-      { completed: 20, planId: 'p1', planned: 4, skipped: 4 },
-      { completed: 9, planId: 'p2', planned: 2, skipped: 1 }
+    mealMarksByDay.mockResolvedValue([
+      ...days('p1', 'completed', '2026-08-18', '2026-08-27', 2),
+      ...days('p1', 'skipped', '2026-08-28', '2026-08-31', 1),
+      ...days('p1', 'planned', '2026-08-28', '2026-08-31', 1),
+      ...days('p2', 'completed', '2026-09-01', '2026-09-09', 1),
+      { date: '2026-09-09', n: 1, planId: 'p2', status: 'skipped' },
+      ...days('p2', 'planned', '2026-09-08', '2026-09-09', 1)
     ]);
     findAll.mockResolvedValue([
       { id: 'c1', comments: null, completedAt: '2026-08-31', difficultyRating: 2, hungerRating: 1, planId: 'p1', satisfactionRating: 4, weightKg: 88.4 }
@@ -106,20 +121,59 @@ describe('ProgressController.summary — fortnights', () => {
 
     const { fortnights, overall } = await ProgressController.summary(USER, TODAY);
 
-    expect(mealMarksByPlan).toHaveBeenCalledWith(USER, TODAY);
+    expect(mealMarksByDay).toHaveBeenCalledWith(USER, TODAY);
     expect(fortnights.map(fortnight => fortnight.version)).toEqual([2, 1]);
-    expect(fortnights[0]).toMatchObject({ adherence: 90, checkIn: null, meals: { eaten: 9, skipped: 1, soFar: 12 } });
+    expect(fortnights[0]).toMatchObject({ adherence: 90, checkIn: null, endDate: '2026-09-14', meals: { eaten: 9, skipped: 1, soFar: 12 }, replaced: false });
     expect(fortnights[1]).toMatchObject({
       adherence: 83,
       checkIn: { difficulty: 'ok', hunger: 'hungry', satisfaction: 4, weightKg: 88.4 },
-      meals: { eaten: 20, skipped: 4, soFar: 28 }
+      meals: { eaten: 20, skipped: 4, soFar: 28 },
+      replaced: false
     });
     expect(overall).toEqual({ adherence: 85, eaten: 29, marked: 34 });
   });
 
+  it('drops a plan that was replaced before a single meal was marked', async () => {
+    // The owner's own history: a plan, a regeneration the same day, a redo two days later.
+    findChain.mockResolvedValue([
+      plan({ id: 'p3', endDate: '2026-09-22', startDate: '2026-09-09', status: 'active', version: 3 }),
+      plan({ id: 'p2', endDate: '2026-09-20', startDate: '2026-09-07', status: 'completed', version: 2 }),
+      plan({ id: 'p1', endDate: '2026-09-20', startDate: '2026-09-07', status: 'completed', version: 1 })
+    ]);
+    mealMarksByDay.mockResolvedValue([
+      ...days('p1', 'planned', '2026-09-07', '2026-09-09', 4),
+      ...days('p2', 'planned', '2026-09-07', '2026-09-09', 4),
+      ...days('p3', 'planned', '2026-09-09', '2026-09-09', 4)
+    ]);
+
+    const { fortnights } = await ProgressController.summary(USER, TODAY);
+
+    expect(fortnights.map(fortnight => fortnight.version)).toEqual([3]);
+    expect(fortnights[0]).toMatchObject({ meals: { eaten: 0, skipped: 0, soFar: 4 }, replaced: false });
+  });
+
+  it('keeps a replaced plan that was lived, counting only the days before its successor', async () => {
+    findChain.mockResolvedValue([
+      plan({ id: 'p2', endDate: '2026-09-22', startDate: '2026-09-09', status: 'active', version: 2 }),
+      plan({ id: 'p1', endDate: '2026-09-20', startDate: '2026-09-07', status: 'completed', version: 1 })
+    ]);
+    mealMarksByDay.mockResolvedValue([
+      ...days('p1', 'completed', '2026-09-07', '2026-09-08', 3),
+      ...days('p1', 'planned', '2026-09-07', '2026-09-09', 1),
+      // A mark on the day of the redo belongs to the plan that replaced it.
+      { date: '2026-09-09', n: 4, planId: 'p1', status: 'completed' },
+      ...days('p2', 'completed', '2026-09-09', '2026-09-09', 2)
+    ]);
+
+    const { fortnights } = await ProgressController.summary(USER, TODAY);
+
+    expect(fortnights.map(fortnight => fortnight.version)).toEqual([2, 1]);
+    expect(fortnights[1]).toMatchObject({ adherence: 100, endDate: '2026-09-08', meals: { eaten: 6, skipped: 0, soFar: 8 }, replaced: true, startDate: '2026-09-07' });
+  });
+
   it('reports no adherence rather than zero when nothing was marked', async () => {
     findChain.mockResolvedValue([plan({ id: 'p1', version: 1 })]);
-    mealMarksByPlan.mockResolvedValue([{ completed: 0, planId: 'p1', planned: 6, skipped: 0 }]);
+    mealMarksByDay.mockResolvedValue(days('p1', 'planned', '2026-09-01', '2026-09-02', 3));
 
     const { fortnights, overall } = await ProgressController.summary(USER, TODAY);
 
@@ -129,7 +183,7 @@ describe('ProgressController.summary — fortnights', () => {
 
   it('is empty, not broken, for someone with no plan yet', async () => {
     findChain.mockResolvedValue([]);
-    mealMarksByPlan.mockResolvedValue([]);
+    mealMarksByDay.mockResolvedValue([]);
 
     await expect(ProgressController.summary(USER, TODAY)).resolves.toMatchObject({ fortnights: [], overall: { adherence: null, eaten: 0, marked: 0 } });
   });

@@ -20,6 +20,7 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
   const locale = useLocale();
   const t = dictionary.progress;
   const status = { active: t.statusActive, archived: t.statusArchived, completed: t.statusCompleted } as const;
+  const chip = (fortnight: FortnightView) => (fortnight.replaced ? t.statusReplaced : (status[fortnight.status as keyof typeof status] ?? fortnight.status));
   const hunger = { hungry: t.hungerHungry, right: t.hungerRight, too_much: t.hungerTooMuch } as const;
   const difficulty = { easy: t.difficultyEasy, hard: t.difficultyHard, ok: t.difficultyOk } as const;
   const dateOptions = { day: 'numeric', month: 'short' } as const;
@@ -31,15 +32,21 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
 
         return (
           <li className={styles.card} key={fortnight.planId}>
+            {/* Dated, not numbered: a redo or a regeneration makes a new plan of the
+                same fortnight, and "Quincena 3" of a person on their first fortnight
+                asked more than it answered. The plan number stays, small, for the
+                owner reading the database. */}
             <div className={styles.head}>
               <div>
-                <h3 className={styles.title}>{interpolate(t.fortnightTitle, { version: fortnight.version })}</h3>
-                <Text size="xs" tone="tertiary">
+                <h3 className={styles.title}>
                   {interpolate(t.fortnightRange, { from: formatDate(fortnight.startDate, locale, dateOptions), to: formatDate(fortnight.endDate, locale, dateOptions) })}
+                </h3>
+                <Text size="xs" tone="tertiary">
+                  {interpolate(t.planNumber, { version: fortnight.version })}
                 </Text>
               </div>
-              <span className={styles.status} data-status={fortnight.status}>
-                {status[fortnight.status as keyof typeof status] ?? fortnight.status}
+              <span className={styles.status} data-status={fortnight.replaced ? 'replaced' : fortnight.status}>
+                {chip(fortnight)}
               </span>
             </div>
 

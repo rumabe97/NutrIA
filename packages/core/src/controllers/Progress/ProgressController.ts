@@ -47,10 +47,13 @@ export interface FortnightView {
   /** Meals marked eaten over meals with any mark, in percent — the check-in's definition — or null when nothing was marked. */
   adherence: number | null;
   checkIn: { difficulty: DifficultyAnswer | null; hunger: HungerAnswer | null; satisfaction: number | null; weightKg: number | null } | null;
+  /** The last day this plan was lived: its own end, or the day before the plan that replaced it began. */
   endDate: string;
   /** `soFar` is every meal whose day has arrived; the rest of the plan is not yet a fact. */
   meals: { eaten: number; skipped: number; soFar: number };
   planId: string;
+  /** True when a later plan began before this one ended — a redo, or a regeneration. */
+  replaced: boolean;
   startDate: string;
   status: string;
   version: number;
@@ -147,18 +150,31 @@ export const ProgressController = {
       ProgressRepository.findRecent(userId, HISTORY_LIMIT),
       ProfileRepository.findActiveGoal(userId),
       PlanRepository.findChain(userId),
-      ProgressRepository.mealMarksByPlan(userId, today),
+      ProgressRepository.mealMarksByDay(userId, today),
       CheckInRepository.findAll(userId)
     ]);
 
-    const fortnights = chain
-      .filter(plan => LIVED.has(plan.status))
-      .map((plan): FortnightView => {
-        const mark = marks.find(row => row.planId === plan.id) ?? { completed: 0, planned: 0, skipped: 0 };
-        const checkIn = checkIns.find(row => row.planId === plan.id);
+    // Newest first. A plan is *replaced* when the next lived plan began before
+    // it ended — a redo, or a regeneration — and from that day on its meals were
+    // never on anyone's table: they are counted up to the day before, and a
+    // plan replaced before a single meal was marked was not a fortnight at all.
+    const lived = chain.filter(plan => LIVED.has(plan.status));
+    const fortnights = lived.flatMap((plan, index): FortnightView[] => {
+      const successor = lived[index - 1];
+      const replaced = successor !== undefined && successor.startDate <= plan.endDate;
+      const endDate = replaced ? daysBefore(successor.startDate, 1) : plan.endDate;
+      const counted = marks.filter(mark => mark.planId === plan.id && mark.date <= endDate);
+      const count = (status: (typeof counted)[number]['status']) => counted.filter(mark => mark.status === status).reduce((sum, mark) => sum + mark.n, 0);
+      const eaten = count('completed');
+      const skipped = count('skipped');
 
-        return {
-          adherence: percent(mark.completed, mark.completed + mark.skipped),
+      if (replaced && eaten + skipped === 0) {return [];}
+
+      const checkIn = checkIns.find(row => row.planId === plan.id);
+
+      return [
+        {
+          adherence: percent(eaten, eaten + skipped),
           checkIn: checkIn
             ? {
                 difficulty: difficultyAnswer(checkIn.difficultyRating),
@@ -167,14 +183,16 @@ export const ProgressController = {
                 weightKg: checkIn.weightKg
               }
             : null,
-          endDate: plan.endDate,
-          meals: { eaten: mark.completed, skipped: mark.skipped, soFar: mark.completed + mark.skipped + mark.planned },
+          endDate,
+          meals: { eaten, skipped, soFar: eaten + skipped + count('planned') },
           planId: plan.id,
+          replaced,
           startDate: plan.startDate,
           status: plan.status,
           version: plan.version
-        };
-      });
+        }
+      ];
+    });
     const eaten = fortnights.reduce((sum, fortnight) => sum + fortnight.meals.eaten, 0);
     const marked = fortnights.reduce((sum, fortnight) => sum + fortnight.meals.eaten + fortnight.meals.skipped, 0);
 

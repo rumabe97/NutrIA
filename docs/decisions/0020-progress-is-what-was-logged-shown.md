@@ -27,6 +27,12 @@ leads nowhere is worse than none.
 - Meals are counted only for days that have arrived. A meal three days from now
   is neither eaten nor missed, and counting it would make a plan going well look
   half-abandoned on its first morning.
+- A plan *replaced* — the next plan began before it ended, by a redo or a
+  regeneration — counts only the days before its successor, and one replaced
+  before a single meal was marked was never a fortnight and is not shown. The
+  owner's own history had three plans for one fortnight, two of them never on
+  the table. Cards are dated, not numbered, for the same reason; the plan
+  number stays in small print.
 - Adherence keeps the check-in's definition — meals marked eaten over meals
   with any mark — so the number here and the one on the check-in never
   disagree. When nothing was marked the screen says so; it does not show 0 %.
