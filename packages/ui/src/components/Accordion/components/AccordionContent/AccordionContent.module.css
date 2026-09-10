@@ -7,8 +7,18 @@
   animation: slide-down var(--duration-normal) var(--ease-default);
 }
 
+/*
+ * `forceMount` keeps closed content in the document, so this rule is what
+ * actually closes it — and `display: none` rather than a height of zero because
+ * a collapsed box is still read out and still catches Tab.
+ *
+ * It costs the closing animation: Radix measures the panel to fill
+ * `--radix-accordion-content-height`, and it measures it while this rule
+ * applies, so slide-up would run from zero to zero. Opening — the movement that
+ * carries the meaning — still animates.
+ */
 .content[data-state='closed'] {
-  animation: slide-up var(--duration-normal) var(--ease-default);
+  display: none;
 }
 
 .inner {
@@ -22,14 +32,5 @@
   }
   to {
     height: var(--radix-accordion-content-height);
-  }
-}
-
-@keyframes slide-up {
-  from {
-    height: var(--radix-accordion-content-height);
-  }
-  to {
-    height: 0;
   }
 }

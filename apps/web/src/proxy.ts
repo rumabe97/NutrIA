@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
 
+import { DEFAULT_LOCALE, LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE, parseLocale } from './i18n/config';
+import { isLocalised, localeFromPathname, withLocale, withoutLocale } from './i18n/routes';
+
+import type { Locale } from './i18n/config';
 import type { NextRequest } from 'next/server';
 
 // Next.js v16 renamed `middleware.ts` → `proxy.ts` and the exported function
@@ -12,33 +16,80 @@ import type { NextRequest } from 'next/server';
 // cookie-presence test that looks like a security control is how apps end up
 // with none.
 const SESSION_COOKIE = 'better-auth.session_token';
+// Written without a language segment and matched against the stripped path, so
+// each route is named once and `/en/inicio` is as protected as `/inicio`. `/en`
+// is a language, not a route, and must never match any of these.
 const PROTECTED = ['/admin', '/compra', '/inicio', '/onboarding', '/pendiente', '/perfil', '/plan', '/progreso'];
 const AUTH_ROUTES = ['/acceder', '/registro'];
 
 export function proxy(request: NextRequest): NextResponse {
   const { nextUrl } = request;
   const hasSession = request.cookies.has(SESSION_COOKIE) || request.cookies.has(`__Secure-${SESSION_COOKIE}`);
+  const path = withoutLocale(nextUrl.pathname);
+  const asked = localeFromPathname(nextUrl.pathname);
+  const chosen = parseLocale(request.cookies.get(LOCALE_COOKIE)?.value);
+  // The URL wins whenever it names a language. The cookie speaks only for the
+  // addresses that cannot carry one — every unprefixed path, which is all of
+  // Spanish and all of the signed-in app.
+  const locale = asked === DEFAULT_LOCALE ? (chosen ?? DEFAULT_LOCALE) : asked;
+  // Only a page somebody is reading says anything about the language they read
+  // in. A manifest or any other resource fetched from under `/en` does not, and
+  // a subresource quietly rewriting a preference is how these things go wrong.
+  const arriving = isLocalised(nextUrl.pathname) && asked !== DEFAULT_LOCALE && asked !== chosen ? asked : null;
 
-  if (!hasSession && PROTECTED.some(path => nextUrl.pathname.startsWith(path))) {
+  // The links this app shares with its signed-in chrome — the header's sign-in
+  // link, the footer's — are unprefixed and cannot know which language they are
+  // being read in. Somebody who has chosen English would land on the Spanish
+  // page; send them to the twin instead, so a URL and its language never
+  // disagree. Nobody who has chosen nothing is ever redirected: Spanish URLs
+  // stay exactly as they were for every first-time visitor and every crawler.
+  if (locale !== asked && isLocalised(nextUrl.pathname)) {
     const url = nextUrl.clone();
 
-    url.pathname = '/acceder';
-    // Bring them back where they were going once they are signed in.
-    url.searchParams.set('siguiente', nextUrl.pathname);
+    url.pathname = withLocale(path, locale);
 
     return NextResponse.redirect(url);
   }
 
-  if (hasSession && AUTH_ROUTES.some(path => nextUrl.pathname.startsWith(path))) {
+  if (!hasSession && PROTECTED.some(protectedPath => path.startsWith(protectedPath))) {
+    const url = nextUrl.clone();
+
+    url.pathname = withLocale('/acceder', locale);
+    // Bring them back where they were going once they are signed in. The
+    // stripped path, because that is the address the signed-in screens have.
+    url.searchParams.set('siguiente', path);
+
+    return remember(NextResponse.redirect(url), arriving);
+  }
+
+  if (hasSession && AUTH_ROUTES.some(authPath => path.startsWith(authPath))) {
     const url = nextUrl.clone();
 
     url.pathname = '/inicio';
     url.search = '';
 
-    return NextResponse.redirect(url);
+    return remember(NextResponse.redirect(url), arriving);
   }
 
-  return NextResponse.next();
+  return remember(NextResponse.next(), arriving);
+}
+
+/**
+ * Records the language the URL asked for.
+ *
+ * Following a link into `/en` is a choice, and the pages that cannot carry the
+ * prefix — the signed-in screens, and the shared header and footer — have
+ * nothing else to read. Without this, a visitor who arrives at `/en` from a
+ * search result is thrown back into Spanish by the first link they click.
+ *
+ * `null` when the cookie already says it, so the steady state adds no header.
+ */
+function remember(response: NextResponse, arriving: Locale | null): NextResponse {
+  if (arriving === null) {return response;}
+
+  response.cookies.set(LOCALE_COOKIE, arriving, { maxAge: LOCALE_COOKIE_MAX_AGE, path: '/', sameSite: 'lax' });
+
+  return response;
 }
 
 // `api/` is excluded: when the API is proxied through this host (`next.config.js`),

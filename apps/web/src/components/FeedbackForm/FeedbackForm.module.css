@@ -14,10 +14,16 @@
   justify-items: start;
 }
 
+/* A fieldset for the group semantics only — the browser's box, and the
+   `min-content` floor it imposes on a flex row, are both in the way. */
 .kinds {
+  border: 0;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-02);
+  margin: 0;
+  min-width: 0;
+  padding: 0;
 }
 
 .kind input {
@@ -27,7 +33,7 @@
 }
 
 .pill {
-  border: 1px solid var(--border-01);
+  border: 1px solid var(--border-interactive);
   border-radius: var(--radius-full);
   cursor: pointer;
   display: inline-flex;
@@ -47,7 +53,7 @@
 
 .message {
   background: var(--background-01);
-  border: 1px solid var(--border-01);
+  border: 1px solid var(--border-interactive);
   border-radius: var(--radius-03);
   color: inherit;
   font: inherit;

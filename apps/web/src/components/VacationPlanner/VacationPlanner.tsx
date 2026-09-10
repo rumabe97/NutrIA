@@ -84,7 +84,16 @@ export function VacationPlanner({ trips }: { trips: readonly VacationView[] }) {
                   {interpolate(trip.away ? t.awayNow : t.days, { count: String(trip.days) })}
                 </Text>
               </span>
-              <Button disabled={pending} onClick={() => void cancel(trip.id)} size="sm" type="button" variant="secondary">
+              {/* Every row's button says the same two words; the label says which
+                  trip it belongs to, so a rotor list of them is navigable. */}
+              <Button
+                aria-label={interpolate(trip.away ? t.backEarlyFor : t.cancelFor, { from: day(trip.startsOn), to: day(trip.endsOn) })}
+                disabled={pending}
+                onClick={() => void cancel(trip.id)}
+                size="sm"
+                type="button"
+                variant="secondary"
+              >
                 {trip.away ? t.backEarly : t.cancel}
               </Button>
             </li>
@@ -101,7 +110,7 @@ export function VacationPlanner({ trips }: { trips: readonly VacationView[] }) {
       </form>
 
       {error ? (
-        <Text className={styles.error} size="xs">
+        <Text className={styles.error} role="alert" size="xs">
           {error}
         </Text>
       ) : null}

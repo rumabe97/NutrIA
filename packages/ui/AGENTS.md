@@ -38,6 +38,54 @@ This is intentional in the current monorepo (every app is Next.js), and the inte
 
 Don't add new Next-specific dependencies to other components without a similarly clear justification. Reaching for `next/font`, `next/dynamic`, or `next/headers` from a DS component would compound the coupling.
 
+## Fonts
+
+`src/fonts/` ships two files, and the difference between them matters:
+
+| File | What it is | Shipped to browsers |
+| --- | --- | --- |
+| `font.full.woff2` | Inter Variable (RSMS), untouched upstream. 352,240 bytes, 2,937 glyphs, axes `opsz` 14–32 and `wght` 100–900 | **no** — nothing imports it |
+| `font.woff2` | the subset derived from it, and the only file `font.ts` loads. 116,308 bytes, 1,167 glyphs, axes `opsz` 14–32 and `wght` 400–700 | yes, and preloaded on every response |
+
+The full file is kept purely so the subset can be rebuilt. Delete it and the subset becomes a binary nobody can regenerate.
+
+### Regenerating `font.woff2`
+
+Needs `fonttools` and `brotli`, which are Python and not workspace dependencies — install them into a throwaway virtualenv rather than the repo:
+
+```sh
+python3 -m venv /tmp/fontenv
+/tmp/fontenv/bin/pip install 'fonttools[woff]' brotli
+```
+
+Then, from `packages/ui/src/fonts/`:
+
+```sh
+# 1. Narrow the weight axis to the range the token scale actually defines.
+/tmp/fontenv/bin/fonttools varLib.instancer font.full.woff2 wght=400:700 --output=/tmp/wght.ttf
+
+# 2. Subset to the characters the products render, and recompress.
+/tmp/fontenv/bin/pyftsubset /tmp/wght.ttf \
+  --output-file=font.woff2 \
+  --unicodes='U+0000-00FF,U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2000-206F,U+20A0-20C0,U+2113,U+2122,U+2190-2199,U+21E7,U+2200-22FF,U+2300-232B,U+2325,U+2713,U+2717,U+26A0,U+2C60-2C7F,U+A720-A7FF,U+FEFF,U+FFFD' \
+  --layout-features+=tnum \
+  --flavor=woff2 \
+  --with-zopfli
+```
+
+### Why those flags
+
+- **The unicode ranges** are Google Fonts' published `latin` and `latin-ext`, plus the symbols this workspace prints that neither covers: the arrow block (`←→↑↓↔↕`), the maths operators (`−≤≥≠≈`), the Mac modifier keys `Spotlight` and `ContextMenu` render (`⌘⌫⇧⌥⌃`), `✓✗` and `⚠`. Spanish needs nothing beyond Latin-1; `latin-ext` is there for foreign ingredient and account names, and it is the expensive half — dropping it would save roughly another 59KB if that trade ever looks worth making.
+- **`--layout-features+=tnum`** is not optional. `tnum` is absent from pyftsubset's default feature set, and ~25 rules across the apps set `font-variant-numeric: tabular-nums`. Drop it and every figure in every table starts jittering. The `+=` matters too: plain `=` would replace the defaults and take `kern`, `calt`, `ccmp` and `mark` with it.
+- **`wght=400:700`** is the whole range `--font-weight-regular` … `--font-weight-bold` spans. Widening the token scale means widening this *and* the `weight` string in `font.ts` — all three have to agree, or the browser silently clamps.
+- **Optical sizing is deliberately kept.** `font-optical-sizing: auto` is the CSS initial value, so browsers drive the `opsz` axis from the font size on their own and headings genuinely use it. Pinning it to `opsz=14` would save about 41KB and quietly flatten every display heading to the 14pt design.
+- **Stylistic sets are deliberately dropped** (`ss01`–`ss08`, `cv01`–`cv14`, `salt`, `dlig`, `zero`, `case`, `sups`, `subs`, `ordn`). Nothing sets `font-feature-settings`. If a component ever needs one, add it with `--layout-features+=` and regenerate.
+
+Whatever changes, keep these true:
+
+- **The Arial fallback override must not move.** Next.js computes `ascent-override: 89.79%` / `descent-override: 22.36%` / `size-adjust: 107.89%` from `unitsPerEm`, the `hhea` metrics, and the mean advance width of `a`–`z` and space. Subsetting preserves all of them — but instancing the *weight default* away from 400, or dropping a lowercase letter, would shift `size-adjust` and reintroduce the layout shift the override exists to prevent. Verify after regenerating: build `apps/web` and grep the emitted CSS for `@font-face`.
+- **No `unicode-range` descriptor.** It looks like it belongs and would do nothing: `next/font/local` preloads the file with a `Link` header on every response, so the browser has already fetched it before any range check could spare it. It would only start paying if the font were split into a preloaded `latin` file and a lazy `latin-ext` one — which `next/font/local` cannot express in a single family, since each call mints its own family name.
+
 ## Component structure
 
 Every component follows this exact layout:
@@ -292,7 +340,7 @@ The full token catalog lives in [`src/styles/variables.css`](src/styles/variable
 | Radius                           | `--radius-01` … `--radius-05`, `--radius-full`                               |
 | Surfaces                         | `--background-01` / `02` / `highlight`, `--color-glass`, `--color-overlay`   |
 | Text                             | `--foreground-01` / `02` / `03` / `disabled`                                 |
-| Border                           | `--border-01`                                                                |
+| Border                           | `--border-01` (dividers), `--border-interactive` (the edge of a control)     |
 | Interactive                      | `--color-hover`, `--color-highlighted`, `--color-selected`, `--color-switch` |
 | State                            | `--color-success`, `--color-error`, `--color-warning`                        |
 | Brand                            | `--color-brand-01` … `--color-brand-12`                                      |
@@ -520,6 +568,7 @@ These aren't landmarks but they have specific requirements:
 - **`<dialog>` / modal** — needs `aria-labelledby` (or `aria-label`) plus focus management (trap focus while open, restore on close). The DS `Dialog`, `Drawer`, and `Sidebar` components handle all of this internally and require `title` at the prop level. They also accept an **optional `description`** prop: pass it when there's explanatory content the modal needs to convey to assistive tech (e.g. "Are you sure? This will permanently delete the project."). Skip it for simple confirmation modals where the title alone is enough. When omitted, the components explicitly opt out of `aria-describedby` so Radix/vaul don't warn — but if there's any explanatory copy in the modal body, prefer to surface it via `description` so it gets announced.
 - **`<table>`** (data tables) — should include `<caption>`. We don't currently have a data-table primitive in the DS; if you build one, enforce caption.
 - **`<video>` / `<audio>`** — provide captions or a transcript.
+- **The edge of a control** — an input, a secondary button, a checkbox: whatever line says where the target is must be `--border-interactive` (≈3:1), not `--border-01`. `--border-01` is for dividers, where the line carries no information and WCAG 1.4.11 does not apply.
 - **Interactive controls (`<button>`, `<a>`, form inputs)** — need an accessible name. For inputs, use a `<label>` (the DS `Input` requires `label` at the prop level). For icon-only buttons, add `aria-label`.
 - **Active navigation links** — when a link points at the current page, add `aria-current="page"`. The DS `Link` accepts `aria-current` and forwards it. Screen readers announce "current page" so non-sighted users know where they are in the nav. CSS-only `.active` styling doesn't reach them.
 - **Inline links in prose** — when a `Link` sits inside body text, set `inline` on it so it gets an underline + brand colour. WCAG 1.4.1 says colour alone can't identify a link; the default `Link` inherits its parent's style (good for nav, breadcrumbs, headers) so prose contexts must opt in to the visible affordance.

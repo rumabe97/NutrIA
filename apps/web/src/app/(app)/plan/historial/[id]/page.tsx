@@ -5,9 +5,16 @@ import { PlanBrowser } from 'components/PlanBrowser';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
+import { appMetadata } from '../../../../_shared/metadata';
+
+import type { Metadata } from 'next';
 import type { PlanSummaryView, PlanView } from 'core/controllers/Plan';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return appMetadata('/plan/historial/[id]');
+}
 
 /**
  * One earlier plan, as it was (0021). The plan being lived has its own screen,

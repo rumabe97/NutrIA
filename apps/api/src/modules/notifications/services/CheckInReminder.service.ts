@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { NotificationController } from 'core/controllers/Notification';
+import { webUrl } from 'core/domain/WebUrl';
 
 import { checkInReminderEmail, checkInReminderRecord } from '../../email/templates/CheckInReminder.js';
 import { EmailService } from '../../email/Email.service.js';
@@ -56,7 +57,9 @@ export class CheckInReminderService {
 
     for (const recipient of due) {
       const locale: EmailLocale = recipient.locale === 'en-GB' ? 'en-GB' : FALLBACK_LOCALE;
-      const url = `${this.env.APP_URL}/check-in`;
+      // The same path is a different page in each language, so the link follows
+      // the copy rather than the product's default (`webUrl`).
+      const url = webUrl(this.env.APP_URL, '/check-in', locale);
 
       try {
         const accepted = await this.mailer.send({ ...checkInReminderEmail({ locale, url }), to: recipient.email });

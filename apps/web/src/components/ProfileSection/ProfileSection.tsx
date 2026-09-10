@@ -3,7 +3,6 @@ import Link from 'next/link';
 
 import styles from './ProfileSection.module.css';
 
-import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
 import { SummaryRow } from 'components/SummaryRow';
@@ -29,7 +28,7 @@ export function ProfileSection({ editHref, rows, title }: ProfileSectionProps) {
   return (
     <section className={styles.card}>
       <div className={styles.head}>
-        <Text weight="semibold">{title}</Text>
+        <h2 className={styles.title}>{title}</h2>
         <Link className={styles.editLink} href={editHref}>
           {dictionary.common.edit}
         </Link>

@@ -16,7 +16,7 @@ Main web application. Rules here are more specific than root `AGENTS.md` — bot
   - `components/*` → `./src/components/*`
   - `hooks/*` → `./src/hooks/*`
   - `lib/*` → `./src/lib/*`
-  - `styles/*` → `./src/styles/*` (used for `import 'styles/globals.css'` / `import 'styles/variables.css'` in `layout.tsx`)
+  - `styles/*` → `./src/styles/*` (used for `import 'styles/globals.css'` / `import 'styles/variables.css'` in `_shared/RootShell.tsx`)
 - No utility class frameworks — Module CSS only
 
 ## Proxy (replaces Middleware in Next.js v16)
@@ -49,17 +49,25 @@ Before building a component here, check `packages/ui` first. If a component is r
 Route groups carry the layout, so put a page in the right one and it inherits the correct
 chrome for free:
 
-- `src/app/(auth)/…` — signed-out screens. Centred card, brand mark, no nav.
+- `src/app/(es)/…` — the Spanish public tree: the landing, and the signed-out screens in a
+  centred card with a brand mark and no nav.
+- `src/app/en/…` — the same pages in English, at `/en/…`.
 - `src/app/(app)/…` — signed-in screens. `AppNav` (desktop header + mobile bottom bar) and
   the content shell.
-- `src/app/page.tsx` — the marketing landing page, its own header and footer.
+- `src/app/_shared/…` — the page bodies both public trees render, plus `metadata.ts` and
+  `manifest.ts`. The leading underscore is what keeps the folder out of the router.
 
-Routes are **Spanish**: `/acceder`, `/registro`, `/recuperar`, `/restablecer`, `/pendiente`,
-`/inicio`, `/plan`, `/plan/historial`, `/compra`, `/progreso`, `/check-in`, `/perfil`,
-`/onboarding/[paso]`, and `/admin` — owner-only, unlinked, 404 for everyone else (`0028`).
-Add any new signed-in route to `PROTECTED` in
-`src/proxy.ts` so signed-out visitors are redirected instead of seeing a flash of empty
-page.
+**Each language is its own root layout** (`0040`), because `<html lang>` can only be set by
+one, and that is also what lets the public pages prerender: nothing in them reads a cookie
+or a header. Spanish is unprefixed so its URLs never changed.
+
+Routes are **Spanish words in both languages** — `/registro` and `/en/registro`, never a
+translated slug: the API prefixes a path to build a mailed link and does not translate it.
+`/acceder`, `/registro`, `/recuperar`, `/restablecer`, `/pendiente`, `/inicio`, `/plan`,
+`/plan/historial`, `/compra`, `/progreso`, `/check-in`, `/perfil`, `/onboarding/[paso]`,
+and `/admin` — owner-only, unlinked, 404 for everyone else (`0028`). Add any new signed-in
+route to `PROTECTED` in `src/proxy.ts`, which matches against the **locale-stripped** path,
+so each route is named once for both languages.
 
 Pages are Server Components by default and fetch through `serverApi`. A page that needs a
 session-scoped fetch must set `export const dynamic = 'force-dynamic'` — otherwise Next
@@ -163,7 +171,8 @@ nothing.
 
 ## Styles
 
-This app imports tokens in this order (defined in `src/app/layout.tsx`):
+This app imports tokens in this order (defined in `src/app/_shared/RootShell.tsx`, which
+every root layout renders):
 
 1. `ui/styles/colors` — palette primitives
 2. `ui/styles/variables` — semantic tokens
@@ -220,10 +229,17 @@ says two things are happening.
 
 ## Environment variables
 
-**This app has two, and no secret among them.** No database URL, no auth secret, no AI key
+**This app has three, and no secret among them.** No database URL, no auth secret, no AI key
 exists in this app, because `apps/api` holds all of them.
 
 - `NEXT_PUBLIC_API_URL` — where the **browser** reaches the API. Public by construction.
+- `NEXT_PUBLIC_SITE_URL` — this app's own origin, and the base every canonical, `hreflang`,
+  Open Graph URL and `sitemap.xml` entry is built from (`0040`). Not a secret: it is printed
+  in the head of every page. It is a variable rather than a constant because the production
+  origin is a `*.vercel.app` host today and a real domain later, and **unset it falls back to
+  `http://localhost:3000`** — which on a production build means every page declares itself a
+  copy of a page on localhost, which is worse than declaring nothing. Read in
+  `src/app/_shared/metadata.ts`.
 - `API_UPSTREAM_URL` — server-only. Where **this server** reaches the API for server-rendered
   reads, and what `next.config.js` proxies `/api/v1/*` to. Set only when the API is on a host
   the browser must not talk to directly: two `*.vercel.app` hosts are different *sites* to a

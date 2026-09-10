@@ -130,3 +130,13 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* The panel's name, as a heading: it is a peer of the profile's other cards,
+   and a page whose outline is one h1 and nothing else is a page a screen
+   reader cannot skim. The size is the design's, not the heading scale's. */
+.title {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  margin: 0;
+}

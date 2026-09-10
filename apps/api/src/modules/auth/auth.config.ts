@@ -8,11 +8,10 @@ import { account, rateLimit, session, user, verification } from 'database/schema
 
 import { absoluteCallback, sendPasswordResetMail } from './services/PasswordResetMail.js';
 import { onAddressConfirmed } from './services/SelfService.js';
-import { localeFromHeader } from '../../shared/decorators/Locale.decorator.js';
+import { recipientLocale } from '../email/RecipientLocale.js';
 import { verifyEmail } from '../email/templates/VerifyEmail.js';
 
 import type { Env } from '../../config/index.js';
-import type { EmailLocale } from '../email/templates/Layout.js';
 import type { EmailService } from '../email/Email.service.js';
 
 const MINUTES = 60;
@@ -115,15 +114,19 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
        */
       sendOnSignUp: true,
       sendVerificationEmail: async ({ url, user: recipient }, request) => {
-        const locale = (localeFromHeader(request?.headers.get('accept-language') ?? undefined) ?? 'es-ES') as EmailLocale;
+        // Nobody has a profile at sign-up, so this is the one mail whose language
+        // the request really does decide — but a resent confirmation reaches an
+        // account that has one, and then the profile is the better answer.
+        const locale = await recipientLocale(recipient.id, request?.headers.get('accept-language'));
+        const link = absoluteCallback(url, env.APP_URL, locale);
 
         if (!mailer.configured) {
-          console.info(`[auth] no SMTP configured; verification url for ${recipient.id}: ${url}`);
+          console.info(`[auth] no SMTP configured; verification url for ${recipient.id}: ${link}`);
 
           return;
         }
 
-        const sent = await mailer.send({ ...verifyEmail({ locale, url: absoluteCallback(url, env.APP_URL) }), to: recipient.email });
+        const sent = await mailer.send({ ...verifyEmail({ locale, url: link }), to: recipient.email });
 
         console.info(`[auth] verification ${sent ? 'mail sent' : 'mail NOT sent'} (user ${recipient.id})`);
       }

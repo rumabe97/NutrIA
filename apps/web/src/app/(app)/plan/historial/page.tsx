@@ -16,9 +16,16 @@ import { formatDate, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
+import { appMetadata } from '../../../_shared/metadata';
+
+import type { Metadata } from 'next';
 import type { PlanSummaryView } from 'core/controllers/Plan';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return appMetadata('/plan/historial');
+}
 
 /**
  * Every plan the person has lived, newest first, each one a door to the plan

@@ -10,6 +10,13 @@ import type { Request } from 'express';
  */
 const SUPPORTED = ['es-ES', 'en-GB'] as const;
 
+export type SupportedLocale = (typeof SUPPORTED)[number];
+
+/** The tag back, if this API speaks it — the one place a language name is admitted. */
+export function supportedLocale(tag: string | null | undefined): SupportedLocale | null {
+  return SUPPORTED.find(locale => locale === tag) ?? null;
+}
+
 /**
  * The language this *request* wants, or null.
  *
@@ -25,15 +32,13 @@ const SUPPORTED = ['es-ES', 'en-GB'] as const;
  * interface full of Spanish ingredient names. Letting the request carry the
  * answer collapses the two into one for anything a request can reach.
  */
-export function localeFromHeader(header: string | string[] | undefined): string | null {
+export function localeFromHeader(header: string | string[] | undefined): SupportedLocale | null {
   if (typeof header !== 'string') {return null;}
 
   // Not full RFC 4647 negotiation: the web app sends one exact tag, and anything
   // else is a browser's own preference list, which should not override a
   // preference the user actually set on their profile.
-  const tag = header.split(',')[0]?.trim();
-
-  return SUPPORTED.find(locale => locale === tag) ?? null;
+  return supportedLocale(header.split(',')[0]?.trim());
 }
 
 export const Locale = createParamDecorator((_data: unknown, context: ExecutionContext): string | null =>

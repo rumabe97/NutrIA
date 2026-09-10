@@ -49,6 +49,8 @@ describe('CheckInReminderService', () => {
     expect(spanish?.subject).toContain('quincena');
     expect(spanish?.text).toContain('https://nutria.example/check-in');
     expect(english?.subject).toContain('fortnight');
+    // The link opens the page the copy is written in, not the product's default.
+    expect(english?.text).toContain('https://nutria.example/en/check-in');
     // The record is written per account, so the next sweep skips them.
     expect(record.mock.calls.map(call => call[0])).toEqual(['usr-1', 'usr-2']);
   });

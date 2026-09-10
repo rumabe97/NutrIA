@@ -1,7 +1,7 @@
 .root {
   background-color: var(--color-switch);
   border-radius: var(--radius-full);
-  border: 1px solid var(--border-01);
+  border: 1px solid var(--border-interactive);
   height: 25px;
   margin: 0;
   padding: 0;

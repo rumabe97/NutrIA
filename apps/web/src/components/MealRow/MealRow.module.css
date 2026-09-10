@@ -15,7 +15,7 @@
 .tick {
   align-items: center;
   background: none;
-  border: 1.5px solid var(--border-02, var(--border-01));
+  border: 1.5px solid var(--border-interactive);
   border-radius: var(--radius-full);
   color: transparent;
   cursor: pointer;
@@ -24,11 +24,24 @@
   justify-content: center;
   margin-top: 0.1rem;
   padding: 0;
+  position: relative;
   transition:
     background-color var(--duration-fast) var(--ease-default),
     border-color var(--duration-fast) var(--ease-default),
     color var(--duration-fast) var(--ease-default);
   width: 1.5rem;
+}
+
+/*
+ * 24px passes and still misses. This is the action of the product — four or
+ * five taps a day, often one-handed at a table — so what a thumb hits is 44px
+ * while the dot stays the small mark the row was designed around. It grows into
+ * the row's own padding and the 12px column gap, so it overlaps nothing.
+ */
+.tick::after {
+  content: '';
+  inset: -0.625rem;
+  position: absolute;
 }
 
 .tick:hover {
@@ -201,7 +214,7 @@
 }
 
 .tick[data-static='true']:hover {
-  border-color: var(--border-02, var(--border-01));
+  border-color: var(--border-interactive);
   color: transparent;
 }
 

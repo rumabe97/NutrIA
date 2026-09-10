@@ -7,6 +7,10 @@ import type { Dictionary } from './es-ES';
  * build. That is the whole reason this file has no keys of its own.
  */
 export const enGB: Dictionary = {
+  a11y: {
+    skipToContent: 'Skip to content'
+  },
+
   activity: {
     athlete: 'Athlete',
     high: 'High',
@@ -19,6 +23,7 @@ export const enGB: Dictionary = {
     accounts: 'Accounts',
     accountsTitle: 'Accounts and access',
     activate: 'Open account',
+    activateFor: 'Open the account of {email}',
     activationTitle: 'New accounts',
     activityPeople: '{count} people signed in during this window.',
     activityTitle: 'Activity ({days} days)',
@@ -40,7 +45,9 @@ export const enGB: Dictionary = {
     failureNote: '{count} generations failed. The code says whether it was the quota, the key or the catalogue.',
     failures: 'Failures',
     feedbackHandled: 'Mark as seen',
+    feedbackHandledFor: 'Mark the message from {email} as seen',
     feedbackReopen: 'Reopen',
+    feedbackReopenFor: 'Reopen the message from {email}',
     feedbackTitle: 'Inbox ({count} unseen)',
     funnel: {
       activated: 'Account opened',
@@ -294,6 +301,8 @@ export const enGB: Dictionary = {
   feedback: {
     intro: 'A person reads this: me. Tell me what is missing, what is in the way, or what does not work.',
     kinds: { idea: 'An idea', other: 'Something else', problem: 'Something is broken' },
+    kindsLabel: 'What is this about?',
+    messageLabel: 'Your message',
     placeholder: 'Write here…',
     send: 'Send',
     thanks: 'Got it. Thanks for taking the time.',
@@ -489,6 +498,10 @@ export const enGB: Dictionary = {
     protein: 'Protein'
   },
 
+  manifest: {
+    description: 'Personalised meal plans, adjusted every two weeks.'
+  },
+
   meal: {
     alternatives: 'If you can’t find it',
     back: '← Back to the plan',
@@ -594,6 +607,7 @@ export const enGB: Dictionary = {
       targetWeightKg: 'Target weight (kg)',
       traceHint: 'Tick “traces” if products that may contain the allergen affect you too.',
       traceLabel: 'traces',
+      traceLabelFor: 'Traces of {allergen}',
       trainingDays: 'Training days per week',
       trainingTime: 'What time do you train?',
       weightKg: 'Current weight (kg)',
@@ -677,6 +691,38 @@ export const enGB: Dictionary = {
       lifestyle: { subtitle: 'So meals land when you can actually eat them.', title: 'Your days' },
       review: { subtitle: 'Check everything is right before you finish.', title: 'Review' }
     }
+  },
+
+  pages: {
+    '/': {
+      description:
+        'Fourteen-day plans with recipes, quantities and the shopping list already done, built around your goals, your timetable and your allergies.',
+      title: 'NutrIA — Personalised meal plans'
+    },
+    '/acceder': {
+      description: "Sign in to NutrIA to see today's plan, your shopping list and your progress.",
+      title: 'Sign in'
+    },
+    '/admin': { title: 'Admin' },
+    '/check-in': { title: "The fortnight's check-in" },
+    '/compra': { title: 'The shopping' },
+    '/inicio': { title: 'Today' },
+    '/onboarding': { title: 'Your profile' },
+    '/pendiente': { title: 'Account pending' },
+    '/perfil': { title: 'Your profile' },
+    '/plan': { title: 'Your plan' },
+    '/plan/comida': { title: 'A meal' },
+    '/plan/generando': { title: 'Building your plan' },
+    '/plan/historial': { title: 'Your earlier plans' },
+    '/plan/historial/[id]': { title: 'An earlier plan' },
+    '/progreso': { title: 'Your progress' },
+    '/recuperar': { title: 'Reset your password' },
+    '/registro': {
+      description: 'Create your account and answer a few questions: you will have fourteen days of meals with the shopping list already done. No card needed.',
+      title: 'Create your account'
+    },
+    '/restablecer': { title: 'Choose a new password' },
+    '/verificar-email': { title: 'Confirm your email' }
   },
 
   plan: {
@@ -766,6 +812,7 @@ export const enGB: Dictionary = {
     adherenceNone: 'No meals marked',
     allPlans: 'All your plans →',
     chartEmpty: 'Log two weights and the line appears.',
+    chartSummary: 'From {from} kg on {fromDate} to {to} kg on {toDate}.',
     checkInWeight: 'You weighed {value} kg',
     difficultyEasy: 'Easy to follow',
     difficultyHard: 'Hard to follow',
@@ -931,7 +978,9 @@ export const enGB: Dictionary = {
     awayNow: 'right now, {count} days',
     awayTitle: 'You are away',
     backEarly: 'I am back',
+    backEarlyFor: 'I am back from the trip from {from} to {to}',
     cancel: 'Remove',
+    cancelFor: 'Remove the trip from {from} to {to}',
     days: '{count} days',
     from: 'From',
     intro: 'Mark the days you will be away and the plan pauses: those days do not count as skipped, and when you return it carries on where it stopped.',
