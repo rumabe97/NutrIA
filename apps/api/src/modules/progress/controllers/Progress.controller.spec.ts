@@ -2,10 +2,11 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { ProgressController } from 'core/controllers/Progress';
 
-import { ProgressRestController } from './progress.controller.js';
+import { ProgressController as ProgressRoutes } from './Progress.controller.js';
+import { ProgressService } from '../services/index.js';
 
 import type { ProgressSummaryView, WeightView } from 'core/controllers/Progress';
-import type { SessionUser } from '../../shared/decorators/index.js';
+import type { SessionUser } from '../../../shared/index.js';
 
 const ALICE: SessionUser = { id: 'usr-alice', activated: true, email: 'alice@example.invalid', emailVerified: true, name: 'Alice', role: 'user' };
 
@@ -17,8 +18,8 @@ const summary: ProgressSummaryView = {
 };
 
 /** Every read is scoped to the session user; nothing in a request names another person. */
-describe('ProgressRestController', () => {
-  const controller = new ProgressRestController();
+describe('ProgressController', () => {
+  const controller = new ProgressRoutes(new ProgressService());
 
   afterEach(() => {
     jest.restoreAllMocks();

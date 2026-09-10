@@ -3,10 +3,11 @@ import express from 'express';
 import request from 'supertest';
 import { Test } from '@nestjs/testing';
 
-import { OnboardingController as OnboardingService } from 'core/controllers/Onboarding';
+import { OnboardingController as CoreOnboarding } from 'core/controllers/Onboarding';
 
-import { AllExceptionsFilter } from '../../shared/filters/index.js';
-import { OnboardingRestController } from './onboarding.controller.js';
+import { AllExceptionsFilter } from '../../../shared/filters/index.js';
+import { OnboardingController } from './Onboarding.controller.js';
+import { OnboardingService } from '../services/index.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
@@ -28,7 +29,7 @@ describe('POST /onboarding (through the real pipeline)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ controllers: [OnboardingRestController] }).compile();
+    const moduleRef = await Test.createTestingModule({ controllers: [OnboardingController], providers: [OnboardingService] }).compile();
 
     app = moduleRef.createNestApplication();
     app.useGlobalFilters(new AllExceptionsFilter());
@@ -46,7 +47,7 @@ describe('POST /onboarding (through the real pipeline)', () => {
   });
 
   it('accepts a valid first step instead of validating the session user against the body schema', async () => {
-    const saveStep = jest.spyOn(OnboardingService, 'saveStep').mockResolvedValue(STATE as never);
+    const saveStep = jest.spyOn(CoreOnboarding, 'saveStep').mockResolvedValue(STATE as never);
 
     const response: Response = await request(app.getHttpServer() as Server)
       .patch('/onboarding')
@@ -66,7 +67,7 @@ describe('POST /onboarding (through the real pipeline)', () => {
   });
 
   it('still strips unknown keys from the body', async () => {
-    const saveStep = jest.spyOn(OnboardingService, 'saveStep').mockResolvedValue(STATE as never);
+    const saveStep = jest.spyOn(CoreOnboarding, 'saveStep').mockResolvedValue(STATE as never);
 
     await request(app.getHttpServer() as Server)
       .patch('/onboarding')

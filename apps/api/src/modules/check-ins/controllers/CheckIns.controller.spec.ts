@@ -2,9 +2,10 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { CheckInController } from 'core/controllers/CheckIn';
 
-import { CheckInsController } from './check-ins.controller.js';
+import { CheckInsController } from './CheckIns.controller.js';
+import { CheckInsService } from '../services/index.js';
 
-import type { SessionUser } from '../../shared/decorators/index.js';
+import type { SessionUser } from '../../../shared/index.js';
 
 const ALICE: SessionUser = { id: 'usr-alice', activated: true, email: 'alice@example.invalid', emailVerified: true, name: 'Alice', role: 'user' };
 const PLAN = '11111111-2222-4333-8444-555555555555';
@@ -14,7 +15,7 @@ const PLAN = '11111111-2222-4333-8444-555555555555';
  * names a plan, never a person, and the controller passes the id through.
  */
 describe('CheckInsController', () => {
-  const controller = new CheckInsController();
+  const controller = new CheckInsController(new CheckInsService());
 
   afterEach(() => {
     jest.restoreAllMocks();

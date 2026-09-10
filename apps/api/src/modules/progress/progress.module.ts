@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
-import { ProgressRestController } from './progress.controller.js';
+import { ProgressController } from './controllers/index.js';
+import { ProgressService } from './services/index.js';
 
-@Module({ controllers: [ProgressRestController] })
+@Module({ controllers: [ProgressController], providers: [ProgressService] })
 export class ProgressModule {}

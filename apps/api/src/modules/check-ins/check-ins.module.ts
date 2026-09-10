@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
-import { CheckInsController } from './check-ins.controller.js';
+import { CheckInsController } from './controllers/index.js';
+import { CheckInsService } from './services/index.js';
 
-@Module({ controllers: [CheckInsController] })
+@Module({ controllers: [CheckInsController], providers: [CheckInsService] })
 export class CheckInsModule {}
