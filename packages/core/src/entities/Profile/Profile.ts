@@ -13,15 +13,25 @@ export const MEAL_SIZES = ['off', 'light', 'normal', 'large'] as const;
 
 export type MealSize = (typeof MEAL_SIZES)[number];
 
-/** One answer per slot: the shape of somebody's day. */
-export const mealShapeSchema = z.object({
-  afternoon_snack: z.enum(MEAL_SIZES),
-  breakfast: z.enum(MEAL_SIZES),
-  dinner: z.enum(MEAL_SIZES),
-  lunch: z.enum(MEAL_SIZES),
-  morning_snack: z.enum(MEAL_SIZES),
-  supper: z.enum(MEAL_SIZES)
-});
+/**
+ * One answer per slot: the shape of somebody's day.
+ *
+ * At least one meal has to survive. A day of nothing is not a way of eating this
+ * product can plan for — the scheduler would build an empty plan and validation
+ * would refuse it, which is a failed generation and an error code where a
+ * sentence belongs. One is the floor rather than two because somebody eating
+ * once a day is describing themselves, not making a mistake.
+ */
+export const mealShapeSchema = z
+  .object({
+    afternoon_snack: z.enum(MEAL_SIZES),
+    breakfast: z.enum(MEAL_SIZES),
+    dinner: z.enum(MEAL_SIZES),
+    lunch: z.enum(MEAL_SIZES),
+    morning_snack: z.enum(MEAL_SIZES),
+    supper: z.enum(MEAL_SIZES)
+  })
+  .refine(shape => Object.values(shape).some(size => size !== 'off'), { message: 'Marca al menos una comida al día' });
 
 export type MealShape = z.infer<typeof mealShapeSchema>;
 

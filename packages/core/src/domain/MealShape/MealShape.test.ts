@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { shapeFor, slotsIn, weightsFor } from './MealShape';
 
+import { mealShapeSchema } from 'core/entities/Profile';
+
 import type { MealShape } from 'core/entities/Profile';
 
 const ORDINARY: MealShape = { afternoon_snack: 'off', breakfast: 'normal', dinner: 'normal', lunch: 'normal', morning_snack: 'off', supper: 'off' };
@@ -52,6 +54,21 @@ describe('how big each one is', () => {
 
   it('never gives a skipped meal a share', () => {
     expect(weightsFor({ ...ORDINARY, breakfast: 'off' }).has('breakfast')).toBe(false);
+  });
+});
+
+describe('a day has to have a meal in it', () => {
+  it('refuses a shape where everything is skipped', () => {
+    const nothing = { afternoon_snack: 'off', breakfast: 'off', dinner: 'off', lunch: 'off', morning_snack: 'off', supper: 'off' };
+
+    // Not a taste to respect: the scheduler would build an empty plan and
+    // validation would refuse it, which is an error code where a sentence
+    // belongs (`0036`).
+    expect(mealShapeSchema.safeParse(nothing).success).toBe(false);
+  });
+
+  it('accepts one meal a day, which is somebody describing themselves', () => {
+    expect(mealShapeSchema.safeParse({ ...ORDINARY, breakfast: 'off', dinner: 'off' }).success).toBe(true);
   });
 });
 

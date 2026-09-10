@@ -55,6 +55,16 @@ many meals a day is exactly the disagreement this codebase keeps removing.
 this one is written by hand — which it had to be regardless: no generator can
 invent a backfill.
 
+## One meal is the floor
+
+A shape where everything is `off` is refused. Not a taste to respect: the
+scheduler would build an empty plan, validation would refuse it, and somebody
+would get a failed generation and an error code where a sentence belongs.
+
+One rather than two, because somebody who eats once a day is describing
+themselves rather than making a mistake, and a product that argues with that is
+a product that has decided it knows better.
+
 ## Consequences
 
 - A day can now be one meal or six, in any combination. The scheduler's pool
