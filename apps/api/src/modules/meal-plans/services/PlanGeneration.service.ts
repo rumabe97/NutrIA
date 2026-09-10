@@ -199,6 +199,9 @@ export class PlanGenerationService {
     const check = (assignment: PlanAssignment) =>
       validatePlan({
         assignment,
+        // A loaded day is judged against what it was built to (`0043`), or every
+        // plan with an event in it would record its own load as drift.
+        dayTargets: loads.dayTargets,
         expectedDays: PLAN_DAYS,
         expectedSlots: slots,
         sex: profile.profile?.sex ?? 'prefer_not_to_say',

@@ -81,6 +81,13 @@ const BLOCKING_KINDS = new Set<PlanViolation['kind']>([
 
 export type ValidationInput = {
   readonly assignment: PlanAssignment;
+  /**
+   * Days that eat for something (`0043`), by day index, with the targets they
+   * were built to. A loaded day is judged against those, not the plan's: the
+   * band asks whether a day hit what it was aiming at, and a day aiming higher
+   * on purpose has not drifted. Absent, or absent for a day, the plan's `targets`.
+   */
+  readonly dayTargets?: ReadonlyMap<number, NutritionTargets>;
   readonly expectedDays: number;
   readonly expectedSlots: readonly MealSlot[];
   readonly sex: 'female' | 'male' | 'other' | 'prefer_not_to_say';
@@ -110,6 +117,8 @@ export function validatePlan(input: ValidationInput): readonly PlanViolation[] {
   }
 
   for (const day of days) {
+    const targets = input.dayTargets?.get(day.dayIndex) ?? input.targets;
+
     if (day.meals.length === 0) {
       violations.push({ dayIndex: day.dayIndex, kind: 'empty_day' });
       continue;
@@ -125,12 +134,12 @@ export function validatePlan(input: ValidationInput): readonly PlanViolation[] {
       violations.push({ actual: day.totals.kcal, dayIndex: day.dayIndex, kind: 'below_minimum_kcal', minimum: floor });
     }
 
-    if (outOfBand(day.totals.kcal, input.targets.kcal, PLAN_TOLERANCE.kcal)) {
+    if (outOfBand(day.totals.kcal, targets.kcal, PLAN_TOLERANCE.kcal)) {
       violations.push({
         actual: day.totals.kcal,
         dayIndex: day.dayIndex,
         kind: 'kcal_out_of_band',
-        target: input.targets.kcal,
+        target: targets.kcal,
         tolerance: PLAN_TOLERANCE.kcal
       });
     }
@@ -145,12 +154,12 @@ export function validatePlan(input: ValidationInput): readonly PlanViolation[] {
         dayIndex: day.dayIndex,
         kind: 'protein_above_ceiling'
       });
-    } else if (day.totals.proteinG < input.targets.proteinG * (1 - PLAN_TOLERANCE.proteinUnder)) {
+    } else if (day.totals.proteinG < targets.proteinG * (1 - PLAN_TOLERANCE.proteinUnder)) {
       violations.push({
         actual: day.totals.proteinG,
         dayIndex: day.dayIndex,
         kind: 'protein_below_target',
-        target: input.targets.proteinG,
+        target: targets.proteinG,
         tolerance: PLAN_TOLERANCE.proteinUnder
       });
     }
