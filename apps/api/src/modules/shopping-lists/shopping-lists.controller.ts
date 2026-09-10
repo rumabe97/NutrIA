@@ -28,7 +28,7 @@ export class ShoppingListsController {
 
     if (!plan) {throw new NotFoundException();}
 
-    return PlanController.getShoppingList(user.id, plan.id);
+    return PlanController.getShoppingList(user.id, plan.id, locale);
   }
 
   @ApiOperation({ summary: 'Tick an item off, or put it back. An item on another account\u2019s list is not found.' })

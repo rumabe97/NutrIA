@@ -132,6 +132,19 @@ export class EmailNotVerifiedError extends Error {
   }
 }
 
+/**
+ * The plan is paused for a trip, so nothing about it may change (`0032`).
+ *
+ * A state, not a denial: the person owns this plan and will own it again on
+ * Thursday. 409, like the other two states a screen has to explain.
+ */
+export class PlanPausedError extends Error {
+  constructor(message = 'Plan paused') {
+    super(message);
+    this.name = 'PlanPausedError';
+  }
+}
+
 export class OnboardingIncompleteError extends Error {
   constructor(public readonly missingSteps: readonly string[] = []) {
     super('Onboarding incomplete');

@@ -13,6 +13,10 @@ vi.mock('#repositories/Plan', () => ({
   PlanRepository: { findHistory: (u: string, l: number, o: number) => findHistory(u, l, o), setMealStatus: (u: string, m: string, s: string) => setMealStatus(u, m, s) }
 }));
 
+// Nobody in this file is away. The pause is its own suite; here it must not be
+// the reason a mark is refused, or these tests would pass for the wrong reason.
+vi.mock('#repositories/Vacation', () => ({ VacationRepository: { findUpcoming: () => Promise.resolve([]) } }));
+
 function row(overrides: Partial<Row> & { id: string; version: number }): Row {
   return { endDate: '2026-09-22', startDate: '2026-09-09', status: 'completed', ...overrides };
 }

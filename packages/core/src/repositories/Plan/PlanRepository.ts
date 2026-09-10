@@ -392,16 +392,31 @@ export const PlanRepository = {
     }
   },
 
-  async findShoppingList(planId: string) {
+  /**
+   * The list for a plan, with every name read in the caller's language.
+   *
+   * The stored `name` is a snapshot from the day the list was built, so a person
+   * who switches language keeps a Spanish shopping list forever — which is what
+   * happened. The catalogue's own name for the ingredient is the truth, and it
+   * has one per locale; the snapshot survives as the fallback, because an item
+   * somebody typed in themselves has no ingredient to look up.
+   */
+  async findShoppingList(planId: string, locale: string = FALLBACK_LOCALE) {
     try {
       const db = database();
       const [list] = await db.select().from(shoppingLists).where(eq(shoppingLists.planId, planId)).limit(1);
 
       if (!list) {return undefined;}
 
-      const items = await db.select().from(shoppingListItems).where(eq(shoppingListItems.listId, list.id)).orderBy(shoppingListItems.category, shoppingListItems.name);
+      const translated = aliasedTable(ingredientNames, 'shopping_item_name');
+      const rows = await db
+        .select({ item: getTableColumns(shoppingListItems), translated: translated.name })
+        .from(shoppingListItems)
+        .leftJoin(translated, and(eq(translated.ingredientId, shoppingListItems.ingredientId), eq(translated.locale, locale)))
+        .where(eq(shoppingListItems.listId, list.id))
+        .orderBy(shoppingListItems.category, shoppingListItems.name);
 
-      return { ...list, items };
+      return { ...list, items: rows.map(row => ({ ...row.item, name: row.translated ?? row.item.name })) };
     } catch (error: unknown) {
       throw wrap(error);
     }

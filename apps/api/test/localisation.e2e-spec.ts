@@ -124,6 +124,23 @@ describe('an English account, end to end', () => {
     expect(prompt).not.toContain('Arroz blanco cocido');
   }, 200_000);
 
+  it('reads the shopping list back in whatever language they are in now', async () => {
+    const server = httpServer(app);
+
+    // Built while they were English; read again in Spanish. The stored name is a
+    // snapshot of the day the list was made, and a person who switches language
+    // was keeping it forever.
+    await setLocale(app, account, 'es-ES');
+
+    const spanish: Response = await request(server).get(`/${PREFIX}/shopping-lists/active`).set('Cookie', account.cookie).expect(200);
+    const names = (spanish.body as { items: { name: string }[] }).items.map(item => item.name);
+
+    expect(names.length).toBeGreaterThan(0);
+    expect(names.some(name => Object.values(ENGLISH_NAMES).includes(name))).toBe(false);
+
+    await setLocale(app, account, 'en-GB');
+  }, 60_000);
+
   it('never offers them a food that is only sold in Spain', async () => {
     const prompt = ai.prompts[0] as string;
 

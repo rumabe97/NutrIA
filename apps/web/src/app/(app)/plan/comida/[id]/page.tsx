@@ -15,12 +15,14 @@ import { RecipeVerdict } from 'components/RecipeVerdict';
 
 import { API_URL } from 'lib/env';
 import { difficultyLabel, slotLabel } from 'lib/generation';
-import { formatNumber, formatQuantity, interpolate } from 'lib/format';
+import { formatDate, formatNumber, formatQuantity, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
+import { resumesOn } from 'lib/vacation';
 import { serverApi } from 'lib/server-api';
 
 import type { AllowancesView, MealDetailView } from 'core/controllers/Plan';
 import type { MealStatus as Status } from 'core/entities/Plan';
+import type { VacationView } from 'core/controllers/Vacation';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,14 +30,17 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
   await redirectIfOnboardingIncomplete();
 
   const { id } = await params;
-  const [dictionary, locale, meal, allowances] = await Promise.all([
+  const [dictionary, locale, meal, allowances, trips] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<MealDetailView>(`/meal-plans/meals/${id}`),
-    serverApi<AllowancesView>('/meal-plans/allowances')
+    serverApi<AllowancesView>('/meal-plans/allowances'),
+    serverApi<readonly VacationView[]>('/vacations')
   ]);
 
   if (!meal) {notFound();}
+
+  const away = trips?.find(trip => trip.away);
 
   const totalMinutes = meal.prepMinutes + meal.cookMinutes;
   // Only a meal of the plan being lived can be marked or swapped (0021); one of
@@ -63,8 +68,20 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
           the buttons carry it, and nothing is explained under them. */}
       {editable ? (
         <div className={styles.toolbar}>
-          <MealStatus mealId={meal.id} status={meal.status as Status} />
-          {allowances && meal.status === 'planned' ? <MealSwap limit={allowances.mealSwaps.limit} mealId={meal.id} remaining={allowances.mealSwaps.remaining} totalMinutes={totalMinutes} /> : null}
+          {/* Paused means paused (`0032`): marking a meal you are not eating
+              records something that did not happen, and a swap spends an
+              allowance on a fortnight nobody is living. The API refuses all
+              three; this is so nobody is invited to try. */}
+          {away ? (
+            <Text size="sm" tone="tertiary">
+              {interpolate(dictionary.vacations.pausedUntil, { date: formatDate(resumesOn(away.endsOn), locale, { day: 'numeric', month: 'long' }) })}
+            </Text>
+          ) : (
+            <Fragment>
+              <MealStatus mealId={meal.id} status={meal.status as Status} />
+              {allowances && meal.status === 'planned' ? <MealSwap limit={allowances.mealSwaps.limit} mealId={meal.id} remaining={allowances.mealSwaps.remaining} totalMinutes={totalMinutes} /> : null}
+            </Fragment>
+          )}
         </div>
       ) : (
         <Text className={styles.readOnly} size="sm" tone="tertiary">
@@ -167,7 +184,7 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
           cooked or eaten the dish, and that is where they are when they reach it. */}
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{dictionary.meal.verdictTitle}</h2>
-        <RecipeVerdict recipeId={meal.recipeId} verdict={meal.verdict} />
+        {away ? null : <RecipeVerdict recipeId={meal.recipeId} verdict={meal.verdict} />}
       </section>
     </Fragment>
   );

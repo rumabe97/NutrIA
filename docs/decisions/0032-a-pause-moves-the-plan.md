@@ -82,3 +82,26 @@ tidiness:
   quota problem, that is a separate feature and a separate decision — it does
   not change this one, because a person who wants no plan while away still wants
   their fortnight back when they return.
+
+## Amendment — 2026-09-10 — a paused plan is read-only, and the API is what says so
+
+Reported from a phone: while away, the plan screen still offered to mark a meal
+eaten, swap a dish, and like or dislike a recipe. The pause moved the days; it
+did not stop the buttons.
+
+Marking a meal you are not eating records something that did not happen, and
+adherence is built from those marks. A swap spends one of five allowances on a
+fortnight nobody is living. Both are worse than a stale screen: they put wrong
+data in a place the next plan reads from.
+
+So a paused plan is read-only, and **the refusal lives in the controller**. The
+screen hides the three controls and says when the plan picks up again, but that
+is courtesy — a disabled button is a suggestion, and the request behind it is
+one `curl` away. `setMealStatus`, `swapMeal` and `setVerdict` answer 409
+`PLAN_PAUSED`, which is a state a screen explains rather than a denial it hides.
+
+The verdict is included even though it is harmless on its own. It is the third
+control on the same screen, and the rule a person can hold is "while I am away,
+my plan does not change". One exception to that is a rule nobody remembers.
+
+Reading is untouched. The plan is paused, not hidden.
