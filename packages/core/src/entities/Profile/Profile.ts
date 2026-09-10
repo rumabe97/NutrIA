@@ -3,6 +3,39 @@ import { z } from 'zod';
 export const SEXES = ['female', 'male', 'other', 'prefer_not_to_say'] as const;
 
 /**
+ * How big a meal is for this person, or that they do not eat it (`0036`).
+ *
+ * Four answers rather than a percentage. "How much of your day is breakfast"
+ * is a question about arithmetic; "do you eat breakfast, and is it small" is a
+ * question about breakfast, and people can answer the second one.
+ */
+export const MEAL_SIZES = ['off', 'light', 'normal', 'large'] as const;
+
+export type MealSize = (typeof MEAL_SIZES)[number];
+
+/**
+ * One answer per slot: the shape of somebody's day.
+ *
+ * At least one meal has to survive. A day of nothing is not a way of eating this
+ * product can plan for — the scheduler would build an empty plan and validation
+ * would refuse it, which is a failed generation and an error code where a
+ * sentence belongs. One is the floor rather than two because somebody eating
+ * once a day is describing themselves, not making a mistake.
+ */
+export const mealShapeSchema = z
+  .object({
+    afternoon_snack: z.enum(MEAL_SIZES),
+    breakfast: z.enum(MEAL_SIZES),
+    dinner: z.enum(MEAL_SIZES),
+    lunch: z.enum(MEAL_SIZES),
+    morning_snack: z.enum(MEAL_SIZES),
+    supper: z.enum(MEAL_SIZES)
+  })
+  .refine(shape => Object.values(shape).some(size => size !== 'off'), { message: 'Marca al menos una comida al día' });
+
+export type MealShape = z.infer<typeof mealShapeSchema>;
+
+/**
  * The countries this product can actually feed somebody in (`0034`).
  *
  * Two, because the catalogue speaks two languages and knows which of its foods
@@ -130,8 +163,7 @@ export const preferencesSchema = z.object({
   cookingFrequency: z.enum(COOKING_FREQUENCIES).nullable(),
   cookingTimeMinutes: z.number().int().nullable(),
   createdAt: z.date(),
-  includesSnacks: z.boolean(),
-  mealsPerDay: z.number().int().nullable(),
+  mealShape: mealShapeSchema,
   portionPreference: z.string().nullable(),
   sleepEnd: z.string().nullable(),
   sleepStart: z.string().nullable(),
@@ -152,8 +184,7 @@ export const updatePreferencesSchema = z.object({
   budget: z.enum(BUDGET_TIERS).nullish(),
   cookingFrequency: z.enum(COOKING_FREQUENCIES).nullish(),
   cookingTimeMinutes: z.number().int().min(5).max(240).nullish(),
-  includesSnacks: z.boolean().optional(),
-  mealsPerDay: z.number().int().min(2).max(6).nullish(),
+  mealShape: mealShapeSchema.optional(),
   portionPreference: z.string().max(120).nullish(),
   sleepEnd: z.string().regex(TIME_OF_DAY).nullish(),
   sleepStart: z.string().regex(TIME_OF_DAY).nullish(),

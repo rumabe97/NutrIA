@@ -59,7 +59,7 @@ export const onboardingStepSchema = z.discriminatedUnion('step', [
     step: z.literal('body-activity')
   }),
   z.object({
-    data: updatePreferencesSchema.pick({ breakfastStyle: true, includesSnacks: true, mealsPerDay: true, portionPreference: true }),
+    data: updatePreferencesSchema.pick({ breakfastStyle: true, mealShape: true, portionPreference: true }),
     step: z.literal('how-you-eat')
   }),
   z.object({

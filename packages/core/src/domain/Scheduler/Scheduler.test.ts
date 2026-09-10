@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { axisFilter, pickReplacement, PLAN_DAYS, schedulePlan, SERVING_BOUNDS, slotsFor } from 'core/domain/Scheduler';
+import { axisFilter, pickReplacement, PLAN_DAYS, schedulePlan, SERVING_BOUNDS } from 'core/domain/Scheduler';
+import { shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
+
+/** The old question, asked of the new answer: "N meals, snacks or not" is still how a test wants to describe a day. */
+function slotsForTest(mealsPerDay: number, includesSnacks: boolean) {
+  return slotsIn(shapeFor(mealsPerDay, includesSnacks));
+}
+
 import { VARIETY_RULES, varietyViolations } from 'core/domain/Variety';
 import { validatePlan } from 'core/domain/PlanValidation';
 import { makeCatalogue, makeCatalogueIngredient, makeDish, makePool, TARGETS } from '#test/fixtures';
@@ -10,30 +17,30 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
 const catalogue = makeCatalogue();
 
 function schedule(overrides: Partial<Parameters<typeof schedulePlan>[0]> = {}) {
-  const slots = overrides.pool ? slotsFor(3, false) : slotsFor(3, false);
+  const slots = overrides.pool ? slotsForTest(3, false) : slotsForTest(3, false);
 
-  return schedulePlan({ catalogue, includesSnacks: false, mealsPerDay: 3, pool: makePool(slots), targets: TARGETS, ...overrides });
+  return schedulePlan({ catalogue, pool: makePool(slots), targets: TARGETS, weights: weightsFor(shapeFor(3, false)), ...overrides });
 }
 
-describe('slotsFor', () => {
+describe('the slots a shape leaves', () => {
   it('gives three meals the core slots', () => {
-    expect(slotsFor(3, false)).toEqual(['breakfast', 'lunch', 'dinner']);
+    expect(slotsForTest(3, false)).toEqual(['breakfast', 'lunch', 'dinner']);
   });
 
   it('adds an afternoon snack at four meals when the user snacks', () => {
-    expect(slotsFor(4, true)).toEqual(['breakfast', 'lunch', 'afternoon_snack', 'dinner']);
+    expect(slotsForTest(4, true)).toEqual(['breakfast', 'lunch', 'afternoon_snack', 'dinner']);
   });
 
   it('adds supper instead when the user does not snack', () => {
-    expect(slotsFor(4, false)).toEqual(['breakfast', 'lunch', 'dinner', 'supper']);
+    expect(slotsForTest(4, false)).toEqual(['breakfast', 'lunch', 'dinner', 'supper']);
   });
 
   it('returns slots in chronological order, not the order they were added', () => {
-    expect(slotsFor(5, true)).toEqual(['breakfast', 'morning_snack', 'lunch', 'afternoon_snack', 'dinner']);
+    expect(slotsForTest(5, true)).toEqual(['breakfast', 'morning_snack', 'lunch', 'afternoon_snack', 'dinner']);
   });
 
   it('never returns more slots than meals requested', () => {
-    for (const meals of [2, 3, 4, 5, 6]) {expect(slotsFor(meals, true)).toHaveLength(meals);}
+    for (const meals of [2, 3, 4, 5, 6]) {expect(slotsForTest(meals, true)).toHaveLength(meals);}
   });
 });
 
@@ -97,7 +104,7 @@ describe('schedulePlan', () => {
     // With one dish per slot the spacing rule bites before the occurrence cap
     // does: the same dish cannot fill the same slot again until the gap has
     // passed, so the plan fails on day 2 whatever that gap is.
-    const result = schedule({ pool: makePool(slotsFor(3, false), 1) });
+    const result = schedule({ pool: makePool(slotsForTest(3, false), 1) });
 
     expect(result.ok).toBe(false);
 
@@ -109,7 +116,7 @@ describe('schedulePlan', () => {
   });
 
   it('names the day and slot it could not fill, so a retry can ask for exactly that', () => {
-    const result = schedule({ pool: makePool(slotsFor(3, false), 2) });
+    const result = schedule({ pool: makePool(slotsForTest(3, false), 2) });
 
     expect(result.ok).toBe(false);
 
@@ -165,10 +172,9 @@ describe('schedulePlan', () => {
     const result = schedulePlan({
       catalogue,
       days: 1,
-      includesSnacks: false,
-      mealsPerDay: 1,
       pool,
-      targets: { ...TARGETS, kcal: 400 }
+      targets: { ...TARGETS, kcal: 400 },
+      weights: weightsFor(shapeFor(1, false))
     });
 
     expect(result.ok).toBe(true);
@@ -183,7 +189,7 @@ describe('schedulePlan', () => {
   });
 
   it('ignores a dish whose ingredients are not in the catalogue', () => {
-    const pool = [...makePool(slotsFor(3, false)), makeDish({ ingredients: [{ grams: 100, slug: 'no-existe' }], slots: ['lunch'], slug: 'fantasma' })];
+    const pool = [...makePool(slotsForTest(3, false)), makeDish({ ingredients: [{ grams: 100, slug: 'no-existe' }], slots: ['lunch'], slug: 'fantasma' })];
     const result = schedule({ pool });
 
     expect(result.ok).toBe(true);
@@ -210,7 +216,7 @@ describe('schedulePlan — protein, not just calories', () => {
     makeCatalogueIngredient({ id: 'i-yogur', carbsPer100g: 3.6, fatPer100g: 4, fiberPer100g: 0, kcalPer100g: 97, name: 'Yogur', proteinPer100g: 9, slug: 'yogur' })
   ]);
 
-  const slots = slotsFor(3, false);
+  const slots = slotsForTest(3, false);
 
   /** The share of the day each slot carries, mirroring the scheduler's own weights. */
   const SHARE: Record<string, number> = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 };
@@ -275,7 +281,7 @@ describe('schedulePlan — protein, not just calories', () => {
   }
 
   it('lands within the protein tolerance, not only the calorie one', () => {
-    const result = schedulePlan({ catalogue: realistic, includesSnacks: false, mealsPerDay: 3, pool: mixedPool(), targets: TARGETS });
+    const result = schedulePlan({ catalogue: realistic, pool: mixedPool(), targets: TARGETS, weights: weightsFor(shapeFor(3, false)) });
 
     expect(result.ok).toBe(true);
 
@@ -288,7 +294,7 @@ describe('schedulePlan — protein, not just calories', () => {
   });
 
   it('prefers protein-bearing dishes when the pool offers both', () => {
-    const result = schedulePlan({ catalogue: realistic, includesSnacks: false, mealsPerDay: 3, pool: mixedPool(), targets: TARGETS });
+    const result = schedulePlan({ catalogue: realistic, pool: mixedPool(), targets: TARGETS, weights: weightsFor(shapeFor(3, false)) });
 
     expect(result.ok).toBe(true);
 
@@ -313,7 +319,7 @@ describe('schedulePlan — protein, not just calories', () => {
         makeDish({ ingredients: [{ grams, slug: 'arroz' }], name: `${slot} ${index}`, slots: [slot], slug: `${slot}-${index}` })
       )
     );
-    const result = schedulePlan({ catalogue: realistic, includesSnacks: false, mealsPerDay: 3, pool: carbsOnly, targets: TARGETS });
+    const result = schedulePlan({ catalogue: realistic, pool: carbsOnly, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) });
 
     expect(result.ok).toBe(true);
 
@@ -342,7 +348,7 @@ describe('schedulePlan — a large athlete on three meals a day', () => {
     makeCatalogueIngredient({ id: 'i-aceite', carbsPer100g: 0, fatPer100g: 100, fiberPer100g: 0, kcalPer100g: 884, name: 'Aceite', proteinPer100g: 0, slug: 'aceite' })
   ]);
 
-  const slots = slotsFor(3, false);
+  const slots = slotsForTest(3, false);
 
   /**
    * Dishes around 450 kcal, spread either side of the target's own protein density
@@ -371,7 +377,7 @@ describe('schedulePlan — a large athlete on three meals a day', () => {
   );
 
   it('reaches a high calorie target by scaling portions', () => {
-    const result = schedulePlan({ catalogue, includesSnacks: false, mealsPerDay: 3, pool: modestPool, targets: BIG });
+    const result = schedulePlan({ catalogue, pool: modestPool, targets: BIG, weights: weightsFor(shapeFor(3, false)) });
 
     expect(result.ok).toBe(true);
 
@@ -383,7 +389,7 @@ describe('schedulePlan — a large athlete on three meals a day', () => {
   });
 
   it('does so without running the protein ceiling over', () => {
-    const result = schedulePlan({ catalogue, includesSnacks: false, mealsPerDay: 3, pool: modestPool, targets: BIG });
+    const result = schedulePlan({ catalogue, pool: modestPool, targets: BIG, weights: weightsFor(shapeFor(3, false)) });
 
     expect(result.ok).toBe(true);
 
@@ -396,7 +402,7 @@ describe('schedulePlan — a large athlete on three meals a day', () => {
   });
 
   it('passes the same validation the pipeline applies', () => {
-    const result = schedulePlan({ catalogue, includesSnacks: false, mealsPerDay: 3, pool: modestPool, targets: BIG });
+    const result = schedulePlan({ catalogue, pool: modestPool, targets: BIG, weights: weightsFor(shapeFor(3, false)) });
 
     expect(result.ok).toBe(true);
 

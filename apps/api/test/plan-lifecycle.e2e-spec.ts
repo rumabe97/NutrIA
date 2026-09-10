@@ -63,6 +63,42 @@ describe('plan lifecycle', () => {
     expect(marks.get(skipped.id)).toBe('skipped');
   });
 
+  it('builds a plan without the meals somebody does not eat, and leans the day to the rest', async () => {
+    const server = httpServer(app);
+    const stamp = Date.now();
+    const skipper = await register(app, `no-breakfast-${stamp}@e2e.invalid`);
+
+    await completeOnboarding(app, skipper);
+    // No breakfast, and a light dinner: the two things the old question — a
+    // count of meals — could not say (`0036`).
+    await request(server)
+      .patch(`/${PREFIX}/onboarding`)
+      .set('Cookie', skipper.cookie)
+      .send({ data: { mealShape: { afternoon_snack: 'off', breakfast: 'off', dinner: 'light', lunch: 'normal', morning_snack: 'off', supper: 'off' } }, step: 'how-you-eat' })
+      .expect(200);
+
+    const job = await generateAndWait(app, skipper);
+
+    expect(job.status).toBe('succeeded');
+
+    const built: Response = await request(server).get(`/${PREFIX}/meal-plans/active`).set('Cookie', skipper.cookie).expect(200);
+    const days = (built.body as PlanView).days;
+
+    for (const day of days) {
+      const slots = day.meals.map(meal => meal.slot);
+
+      expect(slots).not.toContain('breakfast');
+      expect(slots).toEqual(['lunch', 'dinner']);
+
+      // The day is still whole: what dinner gives up, lunch takes. Compared
+      // within the day so a single dish's size cannot decide it.
+      const lunch = day.meals.find(meal => meal.slot === 'lunch');
+      const dinner = day.meals.find(meal => meal.slot === 'dinner');
+
+      expect((lunch?.kcal ?? 0)).toBeGreaterThan(dinner?.kcal ?? 0);
+    }
+  }, 200_000);
+
   it('will not mark a meal whose day has not come', async () => {
     const server = httpServer(app);
     // Day one is today, so day two is tomorrow whatever the clock says.

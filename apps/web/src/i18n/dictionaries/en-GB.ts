@@ -567,8 +567,8 @@ export const enGB: Dictionary = {
       intolerances: 'Intolerances',
       liked: 'Foods you like',
       likedHint: 'Separate with commas.',
-      mealsPerDay: 'Meals per day',
-      mealsPerDayHint: 'Between 2 and 6.',
+      mealShape: 'Which meals do you eat, and how big?',
+      mealShapeHint: 'Mark the ones you skip. If one is light, the rest of the day takes on those macros.',
       otherAllergies: 'Other allergies',
       pace: 'Pace (kg per week)',
       paceHint: 'Between 0 and 1 kg per week; your goal sets the direction. If you ask for more than is safe for you, we adjust it and say so in the summary.',
@@ -620,6 +620,8 @@ export const enGB: Dictionary = {
         performance: { hint: 'Eat to train and recover better.', label: 'Performance' },
         weight_loss: { hint: 'Lose fat while keeping muscle.', label: 'Lose weight' }
       },
+      mealSizes: { large: 'Large', light: 'Light', normal: 'Normal', off: 'I skip it' },
+      mealSlots: { afternoon_snack: 'Afternoon snack', breakfast: 'Breakfast', dinner: 'Dinner', lunch: 'Lunch', morning_snack: 'Mid-morning', supper: 'Supper' },
       sex: { female: 'Female', male: 'Male', other: 'Other', prefer_not_to_say: 'Prefer not to say' }
     },
     percent: '{value}%',
@@ -638,7 +640,7 @@ export const enGB: Dictionary = {
       cuisines: 'Cuisines',
       height: 'Height',
       intolerances: 'Intolerances',
-      mealsPerDay: 'Meals per day',
+      mealShape: 'Meals in a day',
       name: 'Name',
       noCuisinePreference: 'No preference',
       objective: 'Goal',

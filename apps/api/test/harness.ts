@@ -5,6 +5,7 @@ import type { Response } from 'supertest';
 import { Test } from '@nestjs/testing';
 
 import { UserController } from 'core/controllers/User';
+import { shapeFor } from 'core/domain/MealShape';
 
 import { AiClient } from '../src/modules/ai/clients/AiClient.js';
 import { AppModule } from '../src/app.module.js';
@@ -256,7 +257,7 @@ export async function completeOnboarding(
   await patch('about-you', { birthDate: '1994-03-11', country: 'ES', displayName: 'Test', sex: 'female' });
   await patch('goal', { paceKgPerWeek: null, startingWeightKg: 72, targetWeightKg: 70, type: 'maintenance' });
   await patch('body-activity', { activityLevel: 'moderate', currentWeightKg: 72, heightCm: 168 });
-  await patch('how-you-eat', { includesSnacks: false, mealsPerDay: 3 });
+  await patch('how-you-eat', { mealShape: shapeFor(3, false) });
   await patch('food-preferences', { cuisines: ['Mediterránea'], preferences: [] });
   await patch('allergies', {
     allergies: allergenIds.map(allergenId => ({ allergenId, crossContaminationSensitive, severity: 'moderate' as const })),

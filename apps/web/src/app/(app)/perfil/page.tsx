@@ -13,6 +13,8 @@ import { ReminderToggle } from 'components/ReminderToggle';
 import { TargetsPanel } from 'components/TargetsPanel';
 import { VacationPlanner } from 'components/VacationPlanner';
 
+import { MEAL_SLOTS } from 'core/entities/Plan';
+
 import { formatNumber, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
@@ -151,10 +153,21 @@ export default async function ProfilePage() {
           editHref="/onboarding/4?volver=perfil"
           rows={[
             {
-              label: dictionary.onboarding.fields.mealsPerDay,
-              value: preferences?.mealsPerDay ? formatNumber(preferences.mealsPerDay, locale) : undefined
+              // The meals they eat, named, with the ones they eat differently
+              // said so. A count would hide the whole point of the answer (`0036`).
+              label: dictionary.onboarding.fields.mealShape,
+              value: preferences?.mealShape
+                ? MEAL_SLOTS.filter(slot => preferences.mealShape[slot] !== 'off')
+                    .map(slot => {
+                      const size = preferences.mealShape[slot];
+
+                      return size === 'normal'
+                        ? dictionary.onboarding.options.mealSlots[slot]
+                        : `${dictionary.onboarding.options.mealSlots[slot]} (${dictionary.onboarding.options.mealSizes[size].toLowerCase()})`;
+                    })
+                    .join(', ')
+                : undefined
             },
-            { label: t.snacks, value: preferences?.includesSnacks ? t.yes : t.no },
             { label: t.activity, value: preferences?.activityLevel ? dictionary.activity[preferences.activityLevel] : undefined },
             {
               label: t.cookingTime,

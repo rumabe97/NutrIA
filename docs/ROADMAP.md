@@ -65,7 +65,7 @@ screens at phone width, which closes project 002's two open gates.
 Seven things the owner asked for on 2026-09-10, analysed against the code and
 reordered by what each unblocks. The order is a recommendation; the owner decides.
 
-### 1. A meal may be marked only once it could have been eaten
+### 1. A meal may be marked only once it could have been eaten — done
 
 **A bug, and it puts wrong data where the next plan reads from.**
 `PlanRepository.setMealStatus` checks that the plan is active and nothing else, so
@@ -78,7 +78,7 @@ up, which is legitimate and common.
 
 Small: one clause in the statement, one refusal, one end-to-end test.
 
-### 2. Which meals somebody eats, and how big each one is
+### 2. Which meals somebody eats, and how big each one is — done (`0036`)
 
 **Two of the owner's items, and they are the same change.** People who do not eat
 breakfast cannot describe themselves today: `slotsFor(mealsPerDay, includesSnacks)`

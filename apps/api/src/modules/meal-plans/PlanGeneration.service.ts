@@ -3,7 +3,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { normaliseForMatching } from 'core/domain/Safety';
 import { buildShoppingList, unresolvedSlugs } from 'core/domain/ShoppingList';
 import { dishSafety } from 'core/domain/Safety';
-import { PLAN_DAYS, schedulePlan, slotsFor } from 'core/domain/Scheduler';
+import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
+import { DEFAULT_MEAL_SHAPE, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { isBlocking, validatePlan } from 'core/domain/PlanValidation';
 import { CheckInController } from 'core/controllers/CheckIn';
 import { OnboardingController } from 'core/controllers/Onboarding';
@@ -86,9 +87,12 @@ export class PlanGenerationService {
     this.reportUntranslatedIngredients(context);
 
     const targets = this.targetsFor(profile);
-    const mealsPerDay = profile.preferences?.mealsPerDay ?? 4;
-    const includesSnacks = profile.preferences?.includesSnacks ?? true;
-    const slots = slotsFor(mealsPerDay, includesSnacks);
+    // Which meals they eat and how big each is (`0036`). The default is the
+    // ordinary three plus an afternoon snack, which is what the column carries
+    // for a profile that has not answered.
+    const shape = profile.preferences?.mealShape ?? DEFAULT_MEAL_SHAPE;
+    const weights = weightsFor(shape);
+    const slots = slotsIn(shape);
 
     await markStep(STEPS.choosing);
 
@@ -137,7 +141,7 @@ export class PlanGenerationService {
       return [...new Map([...everything, ...built.generated].map(dish => [dish.slug, dish])).values()];
     };
 
-    let scheduled = schedulePlan({ catalogue: context.catalogue, includesSnacks, mealsPerDay, pool: built.dishes, targets });
+    let scheduled = schedulePlan({ catalogue: context.catalogue, pool: built.dishes, targets, weights });
     let fallback: 'full_library' | null = null;
 
     if (!scheduled.ok) {
@@ -158,7 +162,7 @@ export class PlanGenerationService {
       const widened = await wholeLibrary();
 
       this.logger.warn(`Retrying with the full library (${widened.length} dishes, last fortnight included)`);
-      scheduled = schedulePlan({ catalogue: context.catalogue, includesSnacks, mealsPerDay, pool: widened, targets });
+      scheduled = schedulePlan({ catalogue: context.catalogue, pool: widened, targets, weights });
       fallback = 'full_library';
     }
 
@@ -200,7 +204,7 @@ export class PlanGenerationService {
     if (violations.some(isBlocking) && fallback === null) {
       this.logger.warn(`Plan rejected by validation (${summarise(violations.filter(isBlocking))}); retrying with the full library`);
 
-      const retried = schedulePlan({ catalogue: context.catalogue, includesSnacks, mealsPerDay, pool: await wholeLibrary(), targets });
+      const retried = schedulePlan({ catalogue: context.catalogue, pool: await wholeLibrary(), targets, weights });
 
       if (retried.ok) {
         const retriedViolations = check(retried.assignment);

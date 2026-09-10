@@ -15,6 +15,7 @@ import { PlanGenerationService, STEPS } from './PlanGeneration.service.js';
 
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 import type { PoolBuilder, PoolResult } from '../ai/PoolBuilder.service.js';
+import { shapeFor } from 'core/domain/MealShape';
 
 const GLUTEN = 'allergen-gluten';
 const SLOTS: readonly MealSlot[] = ['breakfast', 'lunch', 'dinner'];
@@ -114,7 +115,7 @@ const PROFILE = {
   foodPreferences: [],
   goal: { id: 'g1', customGoal: null, paceKgPerWeek: null, startingWeightKg: 72, targetWeightKg: 70, type: 'maintenance' as const },
   intolerances: [],
-  preferences: { activityLevel: 'moderate' as const, includesSnacks: false, mealsPerDay: 3 },
+  preferences: { activityLevel: 'moderate' as const, mealShape: shapeFor(3, false) },
   profile: { birthDate: '1994-03-11', heightCm: 168, sex: 'female' as const },
   targets: RESOLVED
 };
