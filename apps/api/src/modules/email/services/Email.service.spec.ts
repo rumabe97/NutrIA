@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { Logger } from '@nestjs/common';
 
-import type { Env } from '../../config/index.js';
+import type { Env } from '../../../config/index.js';
 
 type SendMail = (message: Record<string, unknown>) => Promise<unknown>;
 

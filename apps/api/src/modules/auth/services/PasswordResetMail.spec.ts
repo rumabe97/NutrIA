@@ -4,7 +4,7 @@ import { ProfileController } from 'core/controllers/Profile';
 
 import { absoluteCallback, sendPasswordResetMail } from './PasswordResetMail.js';
 
-import type { OutgoingEmail } from '../../email/Email.service.js';
+import type { OutgoingEmail } from '../../email/services/Email.service.js';
 
 const URL = 'https://nutria.example/api/v1/auth/reset-password/tok?callbackURL=/restablecer';
 const APP = 'https://nutria.example';

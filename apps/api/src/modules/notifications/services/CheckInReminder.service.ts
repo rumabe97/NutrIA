@@ -4,7 +4,7 @@ import { NotificationController } from 'core/controllers/Notification';
 import { webUrl } from 'core/domain/WebUrl';
 
 import { checkInReminderEmail, checkInReminderRecord } from '../../email/templates/CheckInReminder.js';
-import { EmailService } from '../../email/Email.service.js';
+import { EmailService } from '../../email/services/Email.service.js';
 import { ENV } from '../../../config/index.js';
 import { ErrorReporter } from '../../../shared/observability/index.js';
 

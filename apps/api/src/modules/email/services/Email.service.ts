@@ -1,9 +1,9 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { createTransport } from 'nodemailer';
 
-import { ENV } from '../../config/index.js';
+import { ENV } from '../../../config/index.js';
 
-import type { Env } from '../../config/index.js';
+import type { Env } from '../../../config/index.js';
 import type { Transporter } from 'nodemailer';
 
 const DEFAULT_SMTP_PORT = 587;

@@ -4,7 +4,7 @@ import { AUTH, createAuth } from './auth.config.js';
 import { AuthController } from './controllers/index.js';
 import { AuthHandlerService } from './services/index.js';
 import { EmailModule } from '../email/email.module.js';
-import { EmailService } from '../email/Email.service.js';
+import { EmailService } from '../email/services/Email.service.js';
 import { ENV, envProvider } from '../../config/index.js';
 import { SessionGuard } from '../../shared/guards/Session.guard.js';
 
