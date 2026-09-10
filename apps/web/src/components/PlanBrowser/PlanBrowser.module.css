@@ -51,26 +51,31 @@
   margin-top: var(--gap-block);
 }
 
+/* Wraps, because the chip beside the date carries a name somebody typed. */
 .dayHeading {
   align-items: baseline;
   display: flex;
-  gap: var(--space-04);
+  flex-wrap: wrap;
+  gap: var(--space-03) var(--space-04);
   justify-content: space-between;
   margin-bottom: var(--gap-heading);
 }
 
-/* The flag on a day that eats for something: a chip, so it reads as a label and not as a heading. */
+/* The flag on a day that eats for something: a chip, so it reads as a label
+   and not as a heading. It drops under the date rather than refusing to
+   shrink: a sixty-character event name in a chip that cannot wrap is a page
+   that scrolls sideways on a phone. */
 .loaded {
   align-self: center;
   background: var(--color-brand-03);
   border: 1px solid var(--color-brand-06);
   border-radius: var(--radius-full);
   color: var(--color-brand-11);
-  flex-shrink: 0;
   font-size: var(--font-size-01);
   font-weight: 600;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
   padding: var(--space-01) var(--space-03);
-  white-space: nowrap;
 }
 
 @media (width >= 64rem) {

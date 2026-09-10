@@ -48,11 +48,22 @@
   color: var(--color-error-text);
 }
 
-/* The three direction pickers, side by side, and stacked where three will not fit. */
+/* The three direction pickers, side by side, and stacked where three will not fit.
+   A fieldset for the group semantics only — the browser's box, and the
+   `min-content` floor it imposes on a flex row, are both in the way. */
 .shape {
+  border: 0;
   display: grid;
   gap: var(--space-03);
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  min-width: 0;
+  padding: 0;
+}
+
+/* The rule the disabled button is enforcing, under all three pickers. */
+.hint {
+  grid-column: 1 / -1;
 }
 
 @media (width < 30rem) {

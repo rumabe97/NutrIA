@@ -9,6 +9,7 @@ import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { CtaLink } from 'components/CtaLink';
+import { MacroShift } from 'components/MacroShift';
 import { MacroSummary } from 'components/MacroSummary';
 import { MealRow } from 'components/MealRow';
 import { PlanDayNav } from 'components/PlanDayNav';
@@ -106,7 +107,14 @@ export function PlanBrowser({ history = null, plan, redo }: PlanBrowserProps) {
               {day.loadedFor ? (
                 <span className={styles.loaded}>
                   {interpolate(dictionary.plan.loadedFor, { name: day.loadedFor })}
-                  {day.targets && plan.strategy ? ` ${loadArrows(day.targets, plan.strategy, dictionary)}` : ''}
+                  {day.targets && plan.strategy
+                    ? loadShifts(day.targets, plan.strategy).map(shift => (
+                        <Fragment key={shift.macro}>
+                          {' · '}
+                          <MacroShift direction={shift.direction} label={dictionary.events[shift.macro].toLowerCase()} />
+                        </Fragment>
+                      ))
+                    : null}
                 </span>
               ) : null}
             </div>
@@ -144,21 +152,16 @@ export function PlanBrowser({ history = null, plan, redo }: PlanBrowserProps) {
   );
 }
 
+type Grams = { carbsG: number; fatG: number; proteinG: number };
+type Shift = { direction: 'down' | 'up'; macro: 'carbs' | 'fat' | 'protein' };
+
 /** "hidratos ↑ · grasa ↓": which macros a loaded day moved, read off the numbers rather than stored. */
-function loadArrows(
-  targets: { carbsG: number; fatG: number; proteinG: number },
-  strategy: { carbsG: number; fatG: number; proteinG: number },
-  dictionary: ReturnType<typeof useDictionary>
-): string {
-  const arrow = (day: number, plan: number): string | null => (day > plan ? '↑' : day < plan ? '↓' : null);
-  const parts = [
-    { direction: arrow(targets.carbsG, strategy.carbsG), label: dictionary.events.carbs },
-    { direction: arrow(targets.proteinG, strategy.proteinG), label: dictionary.events.protein },
-    { direction: arrow(targets.fatG, strategy.fatG), label: dictionary.events.fat }
+function loadShifts(targets: Grams, strategy: Grams): Shift[] {
+  const pairs: [Shift['macro'], number, number][] = [
+    ['carbs', targets.carbsG, strategy.carbsG],
+    ['protein', targets.proteinG, strategy.proteinG],
+    ['fat', targets.fatG, strategy.fatG]
   ];
 
-  return parts
-    .filter(part => part.direction !== null)
-    .map(part => `${part.label.toLowerCase()} ${part.direction ?? ''}`)
-    .join(' · ');
+  return pairs.flatMap(([macro, day, plan]) => (day === plan ? [] : [{ direction: day > plan ? 'up' : 'down', macro }]));
 }

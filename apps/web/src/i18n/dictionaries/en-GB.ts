@@ -303,8 +303,9 @@ export const enGB: Dictionary = {
 
   events: {
     add: 'Add',
+    added: 'Added. You will see it in the next plan you generate.',
     cancel: 'Remove',
-    cancelFor: 'Remove {name}',
+    cancelFor: 'Remove {name} on {date}',
     carbs: 'Carbs',
     daysBefore: 'Days before',
     daysBeforeMany: 'The {count} days before',
@@ -313,12 +314,17 @@ export const enGB: Dictionary = {
     fat: 'Fat',
     intro:
       'A race, a match, a Hyrox, a long session: give it a name and a date, and choose what the days before it eat. Applied to the next plan you generate.',
+    less: 'less',
     loading: 'already eating for this',
+    more: 'more',
     name: 'What it is',
     namePlaceholder: 'Half marathon, match, Hyrox…',
+    nothingMoves: 'At least one has to go up or down.',
     on: 'When',
     protein: 'Protein',
+    removed: 'Event removed.',
     same: 'Same',
+    shapeLabel: 'What changes on the days before',
     title: 'Events',
     up: 'Raise'
   },

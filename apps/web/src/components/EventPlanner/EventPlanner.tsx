@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { Fragment, useId, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -10,6 +10,8 @@ import { Input } from 'ui/components/Input';
 import { Select, SelectOption } from 'ui/components/Select';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
+
+import { MacroShift } from 'components/MacroShift';
 
 import { api, messageFor } from 'lib/api';
 import { formatDate, interpolate } from 'lib/format';
@@ -37,25 +39,44 @@ export function EventPlanner({ events }: { events: readonly EventView[] }) {
   const dictionary = useDictionary();
   const locale = useLocale();
   const t = dictionary.events;
+  const id = useId();
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const [name, setName] = useState('');
   const [on, setOn] = useState('');
   const [daysBefore, setDaysBefore] = useState('2');
   const [shape, setShape] = useState<Record<(typeof MACROS)[number], MacroDirection>>({ carbs: 'up', fat: 'same', protein: 'same' });
   const [pending, setPending] = useState(false);
+  const [removing, setRemoving] = useState<string>();
+  const [outcome, setOutcome] = useState<'added' | 'removed'>();
   const [error, setError] = useState<string>();
   const today = new Date().toISOString().slice(0, 10);
   const nothingMoves = MACROS.every(macro => shape[macro] === 'same');
+  // One spinner per request: the submit shows it while adding, a row's own
+  // button while removing, and the other buttons are merely disabled.
+  const adding = pending && removing === undefined;
+
+  // The button that was pressed disables itself while the request is out, and
+  // a disabled element cannot hold focus — so without this, focus falls to the
+  // page body and the next Tab starts from the top. The heading is where the
+  // list and the form both hang from, and it is not an input, so landing on it
+  // opens no keyboard on a phone.
+  function settle(what: 'added' | 'removed') {
+    setOutcome(what);
+    titleRef.current?.focus();
+    router.refresh();
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setPending(true);
+    setOutcome(undefined);
     setError(undefined);
 
     try {
       await api('/events', { body: { ...shape, daysBefore: Number(daysBefore), name, on }, method: 'POST' });
       setName('');
       setOn('');
-      router.refresh();
+      settle('added');
     } catch (caught) {
       setError(messageFor(caught, dictionary));
     } finally {
@@ -63,27 +84,32 @@ export function EventPlanner({ events }: { events: readonly EventView[] }) {
     }
   }
 
-  async function remove(id: string) {
+  async function remove(eventId: string) {
     setPending(true);
+    setRemoving(eventId);
+    setOutcome(undefined);
     setError(undefined);
 
     try {
-      await api(`/events/${id}`, { method: 'DELETE' });
-      router.refresh();
+      await api(`/events/${eventId}`, { method: 'DELETE' });
+      settle('removed');
     } catch (caught) {
       setError(messageFor(caught, dictionary));
     } finally {
       setPending(false);
+      setRemoving(undefined);
     }
   }
 
   const day = (date: string) => formatDate(date, locale, { day: 'numeric', month: 'short' });
-  const direction = (macro: (typeof MACROS)[number], value: MacroDirection) =>
-    value === 'same' ? null : `${t[macro]} ${value === 'up' ? '↑' : '↓'}`;
+  const daysBeforeLabel = (count: number | string) =>
+    String(count) === '1' ? t.daysBeforeOne : interpolate(t.daysBeforeMany, { count: String(count) });
 
   return (
     <section className={styles.root}>
-      <h2 className={styles.title}>{t.title}</h2>
+      <h2 className={styles.title} ref={titleRef} tabIndex={-1}>
+        {t.title}
+      </h2>
       <Text size="sm" tone="secondary">
         {t.intro}
       </Text>
@@ -97,17 +123,23 @@ export function EventPlanner({ events }: { events: readonly EventView[] }) {
                   {event.name} · {day(event.on)}
                 </span>
                 <Text as="span" size="xs" tone="tertiary">
-                  {event.daysBefore === 1 ? t.daysBeforeOne : interpolate(t.daysBeforeMany, { count: String(event.daysBefore) })}
-                  {' · '}
-                  {MACROS.map(macro => direction(macro, event[macro]))
-                    .filter(Boolean)
-                    .join(' · ')}
+                  {daysBeforeLabel(event.daysBefore)}
+                  {MACROS.filter(macro => event[macro] !== 'same').map(macro => (
+                    <Fragment key={macro}>
+                      {' · '}
+                      <MacroShift direction={event[macro] === 'up' ? 'up' : 'down'} label={t[macro].toLowerCase()} />
+                    </Fragment>
+                  ))}
                   {event.loading ? ` · ${t.loading}` : ''}
                 </Text>
               </span>
+              {/* Every row's button says the same word; the label says which
+                  event it belongs to — name *and* date, because two "partido"s
+                  a week apart are two different rows. */}
               <Button
-                aria-label={interpolate(t.cancelFor, { name: event.name })}
+                aria-label={interpolate(t.cancelFor, { date: day(event.on), name: event.name })}
                 disabled={pending}
+                loading={removing === event.id}
                 onClick={() => void remove(event.id)}
                 size="sm"
                 type="button"
@@ -131,43 +163,64 @@ export function EventPlanner({ events }: { events: readonly EventView[] }) {
         />
         <Input label={t.on} min={today} onChange={event => setOn(event.target.value)} required={true} type="date" value={on} />
         {/* Radix's Select root is not labelable, so each one carries a visible
-            label by id — the way the component documents it. */}
+            label by id — the way the component documents it. The ids come from
+            `useId`, so a second copy of this form on a page would not steal
+            the first one's labels. */}
         <div className={styles.field}>
-          <span className={styles.label} id="event-days-before">
+          <span className={styles.label} id={`${id}-days`}>
             {t.daysBefore}
           </span>
-          <Select aria-labelledby="event-days-before" onValueChange={setDaysBefore} value={daysBefore}>
+          <Select aria-labelledby={`${id}-days`} onValueChange={setDaysBefore} value={daysBefore}>
             {['1', '2', '3'].map(count => (
-              <SelectOption indicator={null} key={count} value={count}>
-                {count === '1' ? t.daysBeforeOne : interpolate(t.daysBeforeMany, { count })}
+              <SelectOption indicator="✓" key={count} value={count}>
+                {daysBeforeLabel(count)}
               </SelectOption>
             ))}
           </Select>
         </div>
-        <div className={styles.shape}>
+        {/* Three pickers named "Hidratos", "Proteína", "Grasa" are three
+            unexplained comboboxes to a screen reader; the group is what says
+            they are one question. The legend is hidden, not dropped: the
+            sighted reader gets the same from the layout. */}
+        <fieldset className={styles.shape}>
+          <legend className="visually-hidden">{t.shapeLabel}</legend>
           {MACROS.map(macro => (
             <div className={styles.field} key={macro}>
-              <span className={styles.label} id={`event-${macro}`}>
+              <span className={styles.label} id={`${id}-${macro}`}>
                 {t[macro]}
               </span>
               <Select
-                aria-labelledby={`event-${macro}`}
+                aria-labelledby={`${id}-${macro}`}
                 onValueChange={value => setShape(current => ({ ...current, [macro]: value as MacroDirection }))}
                 value={shape[macro]}
               >
                 {DIRECTIONS.map(value => (
-                  <SelectOption indicator={null} key={value} value={value}>
+                  <SelectOption indicator="✓" key={value} value={value}>
                     {t[value]}
                   </SelectOption>
                 ))}
               </Select>
             </div>
           ))}
-        </div>
-        <Button disabled={pending || !name || !on || nothingMoves} loading={pending} type="submit">
+          {/* A disabled button explains nothing; this is the rule it is
+              enforcing, said where the pickers are and announced when it
+              starts to apply. */}
+          {nothingMoves ? (
+            <Text className={styles.hint} role="status" size="xs" tone="tertiary">
+              {t.nothingMoves}
+            </Text>
+          ) : null}
+        </fieldset>
+        <Button disabled={pending || !name || !on || nothingMoves} loading={adding} type="submit">
           {t.add}
         </Button>
       </form>
+
+      {outcome ? (
+        <Text role="status" size="sm" tone="secondary">
+          {t[outcome]}
+        </Text>
+      ) : null}
 
       {error ? (
         <Text className={styles.error} role="alert" size="xs">

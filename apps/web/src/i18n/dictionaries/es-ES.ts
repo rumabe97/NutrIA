@@ -308,22 +308,29 @@ export const esES = {
 
   events: {
     add: 'Añadir',
+    added: 'Añadido. Lo verás en el próximo plan que generes.',
     cancel: 'Quitar',
-    cancelFor: 'Quitar {name}',
+    cancelFor: 'Quitar {name} del {date}',
     carbs: 'Hidratos',
     daysBefore: 'Días antes',
-    daysBeforeMany: 'Los {count} días anteriores',
-    daysBeforeOne: 'El día anterior',
+    daysBeforeMany: 'Los {count} días previos',
+    daysBeforeOne: 'El día previo',
     down: 'Bajar',
     fat: 'Grasa',
     intro:
       'Una carrera, un partido, un Hyrox, una sesión larga: ponle nombre y fecha, y elige qué comen los días de antes. Se aplica al próximo plan que generes.',
+    /* What a screen reader says where the sighted see ↓ and ↑: "menos grasa", "más hidratos". */
+    less: 'menos',
     loading: 'ya está comiendo para esto',
+    more: 'más',
     name: 'Qué es',
     namePlaceholder: 'Media maratón, partido, Hyrox…',
+    nothingMoves: 'Al menos uno tiene que subir o bajar.',
     on: 'Cuándo',
     protein: 'Proteína',
+    removed: 'Evento quitado.',
     same: 'Igual',
+    shapeLabel: 'Qué cambia en los días de antes',
     title: 'Eventos',
     up: 'Subir'
   },
