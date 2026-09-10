@@ -3,6 +3,7 @@ import type { SafetyProfile } from 'core/entities/Safety';
 import type { User } from 'core/entities/User';
 import { toCatalogue } from 'core/entities/Plan';
 import { VARIETY_RULES } from 'core/domain/Variety';
+import { DEFAULT_MEAL_SHAPE } from 'core/domain/MealShape';
 
 import type { CandidateDish, Catalogue, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 import type { CheckedIngredient } from 'core/domain/Safety';
@@ -80,8 +81,7 @@ export function makePreferences(overrides?: Partial<Preferences>): Preferences {
     cookingFrequency: 'often',
     cookingTimeMinutes: 30,
     createdAt: new Date('2026-01-15T10:00:00.000Z'),
-    includesSnacks: true,
-    mealsPerDay: 4,
+    mealShape: DEFAULT_MEAL_SHAPE,
     portionPreference: null,
     sleepEnd: null,
     sleepStart: null,

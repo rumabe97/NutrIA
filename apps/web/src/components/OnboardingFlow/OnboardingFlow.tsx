@@ -12,6 +12,7 @@ import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { ChipGroup } from 'components/ChipGroup';
+import { MealShapePicker } from 'components/MealShapePicker';
 import { OptionCards } from 'components/OptionCards';
 import { SummaryRow } from 'components/SummaryRow';
 
@@ -45,6 +46,10 @@ interface OnboardingFlowProps {
 const GOAL_VALUES = ['weight_loss', 'maintenance', 'muscle_gain', 'performance', 'healthy_eating', 'custom'] as const;
 const ACTIVITY_VALUES = ['sedentary', 'light', 'moderate', 'high', 'athlete'] as const;
 const COUNTRY_VALUES = ['ES', 'GB'] as const;
+const MEAL_SLOT_VALUES = ['breakfast', 'morning_snack', 'lunch', 'afternoon_snack', 'dinner', 'supper'] as const;
+
+/** What somebody sees before they answer: the ordinary three, plus something in the afternoon. */
+const DEFAULT_SHAPE = { afternoon_snack: 'normal', breakfast: 'normal', dinner: 'normal', lunch: 'normal', morning_snack: 'off', supper: 'off' } as const;
 const SEX_VALUES = ['female', 'male', 'other', 'prefer_not_to_say'] as const;
 const COOKING_FREQUENCY_VALUES = ['rarely', 'sometimes', 'often', 'daily'] as const;
 const BUDGET_VALUES = ['low', 'medium', 'high'] as const;
@@ -174,8 +179,8 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
       case 'how-you-eat':
         return {
           breakfastStyle: text('breakfastStyle'),
-          includesSnacks: form.get('includesSnacks') === 'on',
-          mealsPerDay: number('mealsPerDay'),
+          // One radio group per slot, so the whole shape arrives in this submit.
+          mealShape: Object.fromEntries(MEAL_SLOT_VALUES.map(slot => [slot, form.get(`shape.${slot}`) ?? 'off'])),
           portionPreference: text('portionPreference')
         };
 
@@ -378,16 +383,15 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
 
         {current?.key === 'how-you-eat' ? (
           <Fragment>
-            <Input
-              defaultValue={preferences?.mealsPerDay ?? 4}
-              hint={f.mealsPerDayHint}
-              label={f.mealsPerDay}
-              max="6"
-              min="2"
-              name="mealsPerDay"
-              type="number"
-            />
-            <Checkbox defaultChecked={preferences?.includesSnacks ?? true} label={f.includesSnacks} name="includesSnacks" />
+            {/* Which meals, and how big — one question instead of a count and a
+                checkbox that between them could not say "I skip breakfast" (`0036`). */}
+            <fieldset className={styles.fieldset}>
+              <legend className={styles.legend}>{f.mealShape}</legend>
+              <MealShapePicker labels={{ sizes: t.options.mealSizes, slots: t.options.mealSlots }} value={preferences?.mealShape ?? DEFAULT_SHAPE} />
+              <Text className={styles.hint} size="xs" tone="tertiary">
+                {f.mealShapeHint}
+              </Text>
+            </fieldset>
             <Input defaultValue={preferences?.breakfastStyle ?? ''} label={f.breakfastStyle} name="breakfastStyle" />
             <Input defaultValue={preferences?.portionPreference ?? ''} label={f.portionPreference} name="portionPreference" />
           </Fragment>
@@ -535,7 +539,10 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
               label={t.review.activity}
               value={preferences?.activityLevel ? dictionary.activity[preferences.activityLevel] : undefined}
             />
-            <SummaryRow label={t.review.mealsPerDay} value={preferences?.mealsPerDay ? formatNumber(preferences.mealsPerDay, locale) : undefined} />
+            <SummaryRow
+              label={t.review.mealShape}
+              value={preferences?.mealShape ? MEAL_SLOT_VALUES.filter(slot => preferences.mealShape[slot] !== 'off').map(slot => t.options.mealSlots[slot]).join(', ') : undefined}
+            />
             <SummaryRow label={t.review.allergies} value={profile?.allergies.map(a => a.allergenLabel).join(', ') || dictionary.common.none} />
             <SummaryRow label={t.review.intolerances} value={profile?.intolerances.map(i => i.allergenLabel).join(', ') || dictionary.common.none} />
             <SummaryRow label={t.review.cuisines} value={profile?.cuisines.join(', ') || t.review.noCuisinePreference} />

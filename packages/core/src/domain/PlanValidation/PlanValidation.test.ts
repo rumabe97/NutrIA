@@ -1,15 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
-import { schedulePlan, slotsFor } from 'core/domain/Scheduler';
+import { schedulePlan } from 'core/domain/Scheduler';
+import { shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { makeCatalogue, makePool, TARGETS } from '#test/fixtures';
 import type { PlanAssignment } from 'core/entities/Plan';
 
 const catalogue = makeCatalogue();
-const slots = slotsFor(3, false);
+const slots = slotsIn(shapeFor(3, false));
 
 function scheduled(days = 14) {
-  const result = schedulePlan({ catalogue, days, includesSnacks: false, mealsPerDay: 3, pool: makePool(slots), targets: TARGETS });
+  const result = schedulePlan({ catalogue, days, pool: makePool(slots), targets: TARGETS, weights: weightsFor(shapeFor(3, false)) });
 
   if (!result.ok) {throw new Error('fixture pool should schedule');}
 

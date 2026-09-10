@@ -572,8 +572,8 @@ export const esES = {
       intolerances: 'Intolerancias',
       liked: 'Alimentos que te gustan',
       likedHint: 'Separa con comas.',
-      mealsPerDay: 'Comidas al día',
-      mealsPerDayHint: 'Entre 2 y 6.',
+      mealShape: '¿Qué comidas haces, y de qué tamaño?',
+      mealShapeHint: 'Marca las que no hagas. Si una la haces ligera, el resto del día asume esos macros.',
       otherAllergies: 'Otras alergias',
       pace: 'Ritmo (kg por semana)',
       paceHint: 'Entre 0 y 1 kg por semana; el sentido lo marca tu objetivo. Si pides más de lo que es seguro para ti, lo ajustamos y te lo decimos en el resumen.',
@@ -625,6 +625,8 @@ export const esES = {
         performance: { hint: 'Comer para entrenar y recuperar mejor.', label: 'Rendimiento' },
         weight_loss: { hint: 'Reducir grasa manteniendo la masa muscular.', label: 'Perder peso' }
       },
+      mealSizes: { large: 'Fuerte', light: 'Ligera', normal: 'Normal', off: 'No la hago' },
+      mealSlots: { afternoon_snack: 'Merienda', breakfast: 'Desayuno', dinner: 'Cena', lunch: 'Comida', morning_snack: 'Media mañana', supper: 'Recena' },
       sex: { female: 'Mujer', male: 'Hombre', other: 'Otro', prefer_not_to_say: 'Prefiero no decirlo' }
     },
     percent: '{value} %',
@@ -643,7 +645,7 @@ export const esES = {
       cuisines: 'Cocinas',
       height: 'Altura',
       intolerances: 'Intolerancias',
-      mealsPerDay: 'Comidas al día',
+      mealShape: 'Comidas del día',
       name: 'Nombre',
       noCuisinePreference: 'Sin preferencia',
       objective: 'Objetivo',

@@ -1,6 +1,16 @@
-import { boolean, date, integer, numeric, smallint, text, time, timestamp } from 'drizzle-orm/pg-core';
+import { date, integer, jsonb, numeric, smallint, text, time, timestamp } from 'drizzle-orm/pg-core';
 
 import { activityLevel, budgetTier, cookingFrequency, dietaryPattern, goalType, sentiment, sex } from './_enums';
+
+/**
+ * The four sizes a meal can be. Written out here rather than imported: this
+ * package sits *below* `packages/core`, so the authority on the shape —
+ * `mealShapeSchema` — cannot be reached from a schema file. Four strings is a
+ * cheap duplication; the Zod schema is what validates anything written.
+ */
+type MealSize = 'large' | 'light' | 'normal' | 'off';
+
+type MealShape = Record<'afternoon_snack' | 'breakfast' | 'dinner' | 'lunch' | 'morning_snack' | 'supper', MealSize>;
 import { userOwned, userOwnedSingleton } from './_utils';
 
 /**
@@ -36,8 +46,22 @@ export const userPreferences = userOwnedSingleton('user_preferences', {
   cookingFrequency: cookingFrequency(),
   /** Minutes the user is willing to spend on one meal. */
   cookingTimeMinutes: smallint(),
-  includesSnacks: boolean().notNull().default(true),
-  mealsPerDay: smallint(),
+  /**
+   * Which meals this person eats and how big each one is (`0036`).
+   *
+   * Replaced `mealsPerDay` + `includesSnacks`, which could say how many meals
+   * somebody ate but never *which*: asking for two always dropped dinner, so a
+   * person who skips breakfast had no way to say so. Six answers instead of a
+   * count, each `off`, `light`, `normal` or `large`.
+   */
+  mealShape: jsonb().$type<MealShape>().notNull().default({
+    afternoon_snack: 'normal',
+    breakfast: 'normal',
+    dinner: 'normal',
+    lunch: 'normal',
+    morning_snack: 'off',
+    supper: 'off'
+  }),
   portionPreference: text(),
   sleepEnd: time(),
   sleepStart: time(),

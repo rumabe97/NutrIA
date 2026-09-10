@@ -1,25 +1,13 @@
 import { composePerServing, scaleIngredients, scaleMacros, sumMacros } from 'core/domain/Composition';
 import { canPlace, isPreferredDish } from 'core/domain/Variety';
-import { MEAL_SLOTS } from 'core/entities/Plan';
 import type { Leaning, Placement } from 'core/domain/Variety';
 import type { CandidateDish, Catalogue, Macros, MealSlot, PlanAssignment, PlanDayAssignment, ScheduledMeal, SwapAxis } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 
 export const PLAN_DAYS = 14;
 
-/**
- * Share of the day's energy each slot carries, before normalising over whichever
- * slots the user actually eats. Snacks are deliberately small: they exist to
- * bridge gaps, and a 600 kcal "snack" is a meal wearing a disguise.
- */
-const SLOT_WEIGHT: Record<MealSlot, number> = {
-  afternoon_snack: 0.09,
-  breakfast: 0.25,
-  dinner: 0.3,
-  lunch: 0.33,
-  morning_snack: 0.08,
-  supper: 0.1
-};
+
+
 
 /**
  * Portions are quantised to quarters. A quarter portion is a thing a person can
@@ -57,10 +45,10 @@ const FIT_TIE = 0.05;
 export type SchedulerInput = {
   readonly catalogue: Catalogue;
   readonly days?: number;
-  readonly includesSnacks: boolean;
-  readonly mealsPerDay: number;
   readonly pool: readonly CandidateDish[];
   readonly targets: NutritionTargets;
+  /** Each eaten slot's share of the day, unnormalised — see `weightsFor` (`0036`). */
+  readonly weights: ReadonlyMap<MealSlot, number>;
 };
 
 export type SchedulerShortfall = {
@@ -71,25 +59,6 @@ export type SchedulerShortfall = {
 };
 
 export type ScheduleResult = { readonly assignment: PlanAssignment; readonly ok: true } | { readonly ok: false; readonly shortfall: SchedulerShortfall };
-
-/**
- * Which slots a day has, given how many meals the user wants and whether they
- * snack. Order follows `MEAL_SLOTS`, so a day always reads chronologically.
- */
-export function slotsFor(mealsPerDay: number, includesSnacks: boolean): readonly MealSlot[] {
-  const core: MealSlot[] = ['breakfast', 'lunch', 'dinner'];
-  const extras: MealSlot[] = includesSnacks ? ['afternoon_snack', 'morning_snack', 'supper'] : ['supper'];
-
-  const chosen = new Set<MealSlot>(core.slice(0, Math.max(1, Math.min(mealsPerDay, core.length))));
-
-  for (const slot of extras) {
-    if (chosen.size >= mealsPerDay) {break;}
-
-    chosen.add(slot);
-  }
-
-  return MEAL_SLOTS.filter(slot => chosen.has(slot));
-}
 
 /**
  * Assigns pool dishes across the fortnight.
@@ -104,8 +73,8 @@ export function slotsFor(mealsPerDay: number, includesSnacks: boolean): readonly
  */
 export function schedulePlan(input: SchedulerInput): ScheduleResult {
   const days = input.days ?? PLAN_DAYS;
-  const slots = slotsFor(input.mealsPerDay, input.includesSnacks);
-  const budgets = slotBudgets(slots, input.targets);
+  const slots = [...input.weights.keys()];
+  const budgets = slotBudgets(input.weights, input.targets);
   const perServing = perServingIndex(input.pool, input.catalogue);
 
   const placed: Placement[] = [];
@@ -290,11 +259,11 @@ export function axisFilter(
  * scheduler cannot correct for a carb-heavy pool afterwards, and every plan it
  * builds from one is rejected.
  */
-function slotBudgets(slots: readonly MealSlot[], targets: NutritionTargets): ReadonlyMap<MealSlot, SlotBudget> {
-  const total = slots.reduce((sum, slot) => sum + SLOT_WEIGHT[slot], 0);
+function slotBudgets(weights: ReadonlyMap<MealSlot, number>, targets: NutritionTargets): ReadonlyMap<MealSlot, SlotBudget> {
+  const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0) || 1;
 
   return new Map(
-    slots.map(slot => [slot, { kcal: (targets.kcal * SLOT_WEIGHT[slot]) / total, proteinG: (targets.proteinG * SLOT_WEIGHT[slot]) / total }])
+    [...weights].map(([slot, weight]) => [slot, { kcal: (targets.kcal * weight) / total, proteinG: (targets.proteinG * weight) / total }])
   );
 }
 

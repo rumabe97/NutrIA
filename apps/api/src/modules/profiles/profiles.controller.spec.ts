@@ -84,10 +84,10 @@ describe('body validation is scoped to the body', () => {
   it('accepts a valid preferences update', async () => {
     const update = jest.spyOn(ProfileController, 'updatePreferences').mockResolvedValue({} as never);
 
-    const response: Response = await request(app.getHttpServer() as Server).patch('/profile/preferences').send({ mealsPerDay: 4 });
+    const response: Response = await request(app.getHttpServer() as Server).patch('/profile/preferences').send({ cookingTimeMinutes: 30 });
 
     expect(response.status).toBe(200);
-    expect(update).toHaveBeenCalledWith('usr-1', { mealsPerDay: 4 });
+    expect(update).toHaveBeenCalledWith('usr-1', { cookingTimeMinutes: 30 });
   });
 
   it('accepts a targets override and passes only the fields that were sent', async () => {
