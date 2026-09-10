@@ -41,6 +41,15 @@ const FIT_TIE = 0.05;
 
 export type SchedulerInput = {
   readonly catalogue: Catalogue;
+  /**
+   * Which days to lay out. Defaults to the whole fortnight, `1..days`.
+   *
+   * Given a subset, only those days are built and returned — that is what a
+   * mid-plan rebuild needs (`0044`): an event declared on Tuesday touches three
+   * days of a plan whose other eleven are already being lived, and rebuilding
+   * the eleven would throw away meals somebody had already shopped for.
+   */
+  readonly dayIndexes?: readonly number[];
   readonly days?: number;
   /**
    * Days that eat for something (`0043`), by day index, with the targets they
@@ -49,6 +58,14 @@ export type SchedulerInput = {
    * is what it always was.
    */
   readonly dayTargets?: ReadonlyMap<number, NutritionTargets>;
+  /**
+   * What is already on the plate and is *not* being laid out again.
+   *
+   * The variety rules are enforced against these exactly as against the days
+   * this call places, so a rebuilt Tuesday cannot serve the same dish the
+   * untouched Monday does. Empty for a generation, which starts with nothing.
+   */
+  readonly placed?: readonly Placement[];
   readonly pool: readonly CandidateDish[];
   readonly targets: NutritionTargets;
   /** Each eaten slot's share of the day, unnormalised — see `weightsFor` (`0036`). */
@@ -86,11 +103,14 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
   const days = input.days ?? PLAN_DAYS;
   const slots = [...input.weights.keys()];
   const perServing = perServingIndex(input.pool, input.catalogue);
+  const indexes = input.dayIndexes ?? Array.from({ length: days }, (_none, offset) => offset + 1);
 
-  const placed: Placement[] = [];
+  // The days that are not being laid out go in first, so every `canPlace` below
+  // sees the whole plan rather than only the part of it this call is building.
+  const placed: Placement[] = [...(input.placed ?? [])];
   const assignedDays: PlanDayAssignment[] = [];
 
-  for (let dayIndex = 1; dayIndex <= days; dayIndex += 1) {
+  for (const dayIndex of indexes) {
     // Per day rather than once: a day that eats for an event has its own targets
     // (`0043`), and the budgets are what turn targets into a plate.
     const targets = targetsOn(input, dayIndex);

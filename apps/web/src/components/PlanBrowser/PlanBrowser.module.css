@@ -83,6 +83,11 @@
     align-items: start;
     grid-template-columns: var(--rail-width-narrow) minmax(0, 1fr);
   }
+
+  /* Under the day, in the day's column — not under the rail. */
+  .events {
+    grid-column: 2;
+  }
 }
 
 /* The allowance line sits with the title block: one step below the range, and

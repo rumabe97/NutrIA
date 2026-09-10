@@ -136,8 +136,13 @@ A user's request, relayed by the owner: add the race, or the long session, and
 let the days before it eat for it. An event is a name, a date, one to three days
 before, and per macro *up / down / same* — never an amount; the size is one
 constant in code. Applied at the next generation; the plan day remembers what it
-was built to. In-place rescheduling of a live fortnight, the days after,
-recurring events and per-type suggestions are deliberately later.
+was built to. The days after, recurring events and per-type suggestions are
+deliberately later.
+
+In-place rescheduling arrived the same day, for premium
+([`0044`](./decisions/0044-a-fortnight-rebuilt-for-an-event.md)): an event added
+mid-fortnight rebuilds its loaded days from the library — no model call — and
+a fortnight holds at most three events free, ten paid.
 
 ### 6. Advertising — recommended against
 
@@ -185,6 +190,13 @@ sells the people.
   been failing unnoticed for months — an advisory check is how that happens.
 - Error visibility: done (`0024`). Set `SENTRY_DSN` on the API project to turn it on; unset,
   nothing is sent.
+
+- A library window with no order: `RecipeRepository.findReusable` takes `.limit(300)` with
+  no `ORDER BY`, so the rows a reuse pool — and, since `0044`, a mid-plan rebuild — draws
+  from are whichever Postgres returns first. On a large shared library a heavily restricted
+  account could land on a window with too few safe dishes and get an empty rebuild. Found by
+  the tests agent on 2026-09-10, not yet seen in practice. The fix is an order that favours
+  the caller's constraints, or a window sized to them.
 
 ## Last, and deliberately so
 

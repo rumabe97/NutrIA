@@ -1,0 +1,1 @@
+ALTER TABLE "meal_plans" ADD COLUMN "mid_plan_loads" smallint DEFAULT 0 NOT NULL;

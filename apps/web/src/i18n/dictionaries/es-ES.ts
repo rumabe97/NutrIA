@@ -308,7 +308,8 @@ export const esES = {
 
   events: {
     add: 'Añadir',
-    added: 'Añadido. Lo verás en el próximo plan que generes.',
+    addedMidPlan: 'Añadido. Los días de antes ya se han rehecho para comer para ello.',
+    addedNow: 'Añadido. Este plan ya contará con ello.',
     cancel: 'Quitar',
     cancelFor: 'Quitar {name} del {date}',
     carbs: 'Hidratos',
@@ -317,15 +318,22 @@ export const esES = {
     daysBeforeOne: 'El día previo',
     down: 'Bajar',
     fat: 'Grasa',
-    intro:
-      'Una carrera, un partido, un Hyrox, una sesión larga: ponle nombre y fecha, y elige qué comen los días de antes. Se aplica al próximo plan que generes.',
+    full: 'Has puesto los {limit} eventos que caben en un plan. Quita uno para añadir otro.',
+    left: 'Te quedan {remaining} de {limit} eventos para este plan.',
+    leftOne: 'Te queda 1 evento de {limit} para este plan.',
     /* What a screen reader says where the sighted see ↓ and ↑: "menos grasa", "más hidratos". */
     less: 'menos',
     loading: 'ya está comiendo para esto',
+    midPlanFull: 'Este plan ya no admite más eventos en marcha. El siguiente entra al crear el próximo plan.',
+    midPlanIntro: 'Una carrera que no estaba cuando se creó el plan: añádela y los días de antes se rehacen para comer para ella.',
+    midPlanLeft: 'Puedes añadir {remaining} eventos más con el plan en marcha.',
+    midPlanLeftOne: 'Puedes añadir 1 evento más con el plan en marcha.',
     more: 'más',
     name: 'Qué es',
     namePlaceholder: 'Media maratón, partido, Hyrox…',
     nothingMoves: 'Al menos uno tiene que subir o bajar.',
+    nowIntro: 'Una carrera, un partido, una sesión larga: si cae en estas dos semanas, añádelo ahora y el plan se crea contando con ello.',
+    nowTitle: 'Días que comen distinto',
     on: 'Cuándo',
     protein: 'Proteína',
     removed: 'Evento quitado.',
@@ -379,8 +387,12 @@ export const esES = {
     profileIncompleteTitle: 'Falta información en tu perfil',
     quotaExceeded: 'Ya has rehecho tu plan esta quincena. Podrás crear el siguiente el {date}.',
     rateLimited: 'Has pedido varios planes seguidos. Espera un momento antes de volver a intentarlo.',
+    readyBody:
+      'Lo creamos con lo que ya sabemos de ti. Antes de empezar, repasa los días que comerán distinto: una vez en marcha, añadir uno obliga a rehacer el plan.',
+    readyTitle: 'Tu plan de dos semanas',
     safetyNote: 'Comprobamos tus alergias antes de guardar nada.',
     serverDetail: 'Detalle del servidor:',
+    start: 'Generar mi plan',
     starting: 'Empezando…',
     steps: {
       BUILDING_LIST: 'Preparando tu lista de la compra',
@@ -1031,9 +1043,11 @@ export const esES = {
   },
   vacations: {
     add: 'Pausar el plan',
+    added: 'Viaje añadido. Tu plan se pausa esos días.',
     awayBody: 'Tu plan te espera. Retoma el {until}, justo donde lo dejaste.',
     awayNow: 'ahora mismo, {count} días',
     awayTitle: 'Estás de vacaciones',
+    back: 'Ya estás de vuelta. Tu plan sigue desde hoy.',
     backEarly: 'He vuelto',
     backEarlyFor: 'He vuelto del viaje del {from} al {to}',
     cancel: 'Quitar',
@@ -1043,6 +1057,7 @@ export const esES = {
     intro: 'Marca los días que estarás fuera y el plan se pausa: esos días no cuentan como saltados y, al volver, sigue donde lo dejaste.',
     pausedUntil: 'Tu plan está en pausa · se reanuda el {date}',
     range: 'Del {from} al {to}',
+    removed: 'Viaje quitado.',
     seePlan: 'Ver mi plan',
     title: 'Vacaciones',
     to: 'Hasta'

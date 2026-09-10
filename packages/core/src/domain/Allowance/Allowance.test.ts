@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
-import { ALLOWANCES, allowancesFor, mealSwapStanding, planRedoStanding, redosInFortnight } from 'core/domain/Allowance';
+import {
+  ALLOWANCES,
+  allowancesFor,
+  eventStanding,
+  mealSwapStanding,
+  midPlanEventStanding,
+  planRedoStanding,
+  redosInFortnight
+} from 'core/domain/Allowance';
 
 describe('planRedoStanding', () => {
   it('always allows a first plan, and the next fortnight once the current one has ended', () => {
@@ -45,10 +53,43 @@ describe('mealSwapStanding', () => {
   });
 });
 
+describe('eventStanding — days that eat for something, per fortnight', () => {
+  it('is three a plan on the free tier and ten on premium', () => {
+    expect(allowancesFor('free').eventsPerPlan).toBe(3);
+    expect(allowancesFor('premium').eventsPerPlan).toBe(10);
+  });
+
+  it('allows up to the limit and not one past it', () => {
+    expect(eventStanding(2)).toEqual({ allowed: true, limit: 3, remaining: 1, used: 2 });
+    expect(eventStanding(3)).toMatchObject({ allowed: false, remaining: 0 });
+    expect(eventStanding(9, 'premium')).toMatchObject({ allowed: true, remaining: 1 });
+    expect(eventStanding(10, 'premium')).toMatchObject({ allowed: false, remaining: 0 });
+  });
+});
+
+describe('midPlanEventStanding — rebuilding the fortnight under way', () => {
+  it('is none on the free tier and three on premium', () => {
+    expect(allowancesFor('free').midPlanEventsPerPlan).toBe(0);
+    expect(allowancesFor('premium').midPlanEventsPerPlan).toBe(3);
+  });
+
+  /*
+   * Zero, not absent: the free answer is still a standing the screen can read,
+   * and it reads `allowed: false` before anyone asks which tier it is on.
+   */
+  it('never allows a free account one, and stops premium at its number', () => {
+    expect(midPlanEventStanding(0)).toEqual({ allowed: false, limit: 0, remaining: 0, used: 0 });
+    expect(midPlanEventStanding(2, 'premium')).toEqual({ allowed: true, limit: 3, remaining: 1, used: 2 });
+    expect(midPlanEventStanding(3, 'premium')).toMatchObject({ allowed: false, remaining: 0 });
+  });
+});
+
 describe('allowancesFor', () => {
-  it('gives premium more of both', () => {
+  it('gives premium more of everything', () => {
     expect(allowancesFor('premium').planRedosPerFortnight).toBeGreaterThan(allowancesFor('free').planRedosPerFortnight);
     expect(allowancesFor('premium').mealSwapsPerPlan).toBeGreaterThan(allowancesFor('free').mealSwapsPerPlan);
+    expect(allowancesFor('premium').eventsPerPlan).toBeGreaterThan(allowancesFor('free').eventsPerPlan);
+    expect(allowancesFor('premium').midPlanEventsPerPlan).toBeGreaterThan(allowancesFor('free').midPlanEventsPerPlan);
   });
 
   /*

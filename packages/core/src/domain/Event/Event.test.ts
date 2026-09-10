@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { eventOn, LOAD_STEP, loadedDates, loadedTargets, overlaps, problemWith } from 'core/domain/Event';
+import { eventOn, eventsInWindow, LOAD_STEP, loadedDates, loadedTargets, overlaps, planWindow, problemWith, windowFor } from 'core/domain/Event';
 import { targetViolations } from 'core/domain/Nutrition';
 
 import type { AddEvent } from 'core/entities/Event';
@@ -95,5 +95,45 @@ describe('problemWith', () => {
 
   it('refuses a day that would eat for two events', () => {
     expect(problemWith(race({ on: '2026-09-14' }), '2026-09-01', [race({ on: '2026-09-13' })])).toBe('overlaps');
+  });
+});
+
+describe('planWindow', () => {
+  it('is the active plan’s own days when there is one', () => {
+    expect(planWindow({ endDate: '2026-09-21', startDate: '2026-09-08' }, '2026-09-10')).toEqual({ from: '2026-09-08', to: '2026-09-21' });
+  });
+
+  it('is the fourteen days from today with no plan, or with one already over', () => {
+    expect(planWindow(undefined, '2026-09-10')).toEqual({ from: '2026-09-10', to: '2026-09-23' });
+    expect(planWindow({ endDate: '2026-09-09', startDate: '2026-08-27' }, '2026-09-10')).toEqual({ from: '2026-09-10', to: '2026-09-23' });
+  });
+});
+
+describe('eventsInWindow', () => {
+  const window = { from: '2026-09-08', to: '2026-09-21' };
+
+  it('counts an event by the days that eat for it, not by its own date', () => {
+    // The day after the window ends, loading the last two days inside it.
+    expect(eventsInWindow([race({ daysBefore: 2, on: '2026-09-22' })], window)).toHaveLength(1);
+    // On the window's first day: its load is entirely the fortnight before.
+    expect(eventsInWindow([race({ daysBefore: 2, on: '2026-09-08' })], window)).toHaveLength(0);
+  });
+
+  it('leaves out anything whose load is elsewhere', () => {
+    expect(eventsInWindow([race({ on: '2026-10-05' }), race({ on: '2026-09-01' })], window)).toHaveLength(0);
+  });
+});
+
+describe('windowFor', () => {
+  const base = { from: '2026-09-08', to: '2026-09-21' };
+
+  it('is the base when the load touches it', () => {
+    expect(windowFor(race({ daysBefore: 2, on: '2026-09-22' }), base)).toEqual(base);
+    expect(windowFor(race({ on: '2026-09-13' }), base)).toEqual(base);
+  });
+
+  it('tiles fortnights forward until one holds the load', () => {
+    expect(windowFor(race({ daysBefore: 1, on: '2026-09-30' }), base)).toEqual({ from: '2026-09-22', to: '2026-10-05' });
+    expect(windowFor(race({ daysBefore: 1, on: '2026-10-20' }), base)).toEqual({ from: '2026-10-06', to: '2026-10-19' });
   });
 });

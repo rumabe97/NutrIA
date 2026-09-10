@@ -1,4 +1,4 @@
-import { aliasedTable, and, desc, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
+import { aliasedTable, and, desc, eq, getTableColumns, inArray, lt, sql } from 'drizzle-orm';
 
 import { database } from 'database';
 import { mealCompletions, mealPlans, meals, mealSwaps, planDays } from 'database/schema/plan';
@@ -8,7 +8,8 @@ import { shoppingListItems, shoppingLists } from 'database/schema/shopping';
 
 import { ConflictError, DatabaseOperationError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
 import { FALLBACK_LOCALE } from '#repositories/Recipe';
-import type { Macros, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
+import type { Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
+import type { NutritionTargets } from 'core/entities/Nutrition';
 
 export const PlanRepository = {
   /** Swaps recorded against one plan — what the fortnight's allowance is counted from. */
@@ -491,6 +492,138 @@ export const PlanRepository = {
   },
 
   /**
+   * Rewrites the meals of some days of the active plan, and the plan's shopping
+   * list with them, in one transaction that also spends the allowance (`0044`).
+   *
+   * **All of it or none of it.** A fortnight with three days rebuilt and a
+   * shopping list still listing what they used to be is worse than a fortnight
+   * nobody touched, so the days, the list and the counter commit together.
+   *
+   * The meal rows are **updated in place** rather than deleted and re-inserted,
+   * and that is not a style choice: `meal_swaps.meal_id` cascades on delete, so
+   * throwing a meal away would throw away the record that a swap happened and
+   * quietly hand the person their swap allowance back. `meals_slot_unique` gives
+   * each day one meal per slot, which is what makes the update addressable.
+   *
+   * The allowance is spent by a guarded `UPDATE … WHERE mid_plan_loads < limit`
+   * rather than by reading the count and then writing it. Under READ COMMITTED
+   * the second of two racing transactions re-evaluates that predicate against
+   * the row the first one wrote, so they cannot both spend the last one.
+   */
+  async rebuildLoadedDays(
+    userId: string,
+    planId: string,
+    rebuild: {
+      readonly days: readonly {
+        readonly dayIndex: number;
+        readonly loadedFor: string;
+        readonly meals: readonly { readonly macros: Macros; readonly recipeSlug: string; readonly servings: number; readonly slot: MealSlot }[];
+        readonly targets: NutritionTargets;
+      }[];
+      readonly limit: number;
+    },
+    shoppingItems: readonly ShoppingItemDraft[]
+  ): Promise<void> {
+    try {
+      await database().transaction(async tx => {
+        const [plan] = await tx
+          .select({ id: mealPlans.id, status: mealPlans.status })
+          .from(mealPlans)
+          .where(and(eq(mealPlans.id, planId), eq(mealPlans.userId, userId)))
+          .limit(1);
+
+        if (!plan) {
+          throw new NotFoundError('Plan not found');
+        }
+
+        if (plan.status !== 'active') {
+          throw new ConflictError('Only the active plan can be changed');
+        }
+
+        const spent = await tx
+          .update(mealPlans)
+          .set({ midPlanLoads: sql`${mealPlans.midPlanLoads} + 1` })
+          .where(and(eq(mealPlans.id, planId), lt(mealPlans.midPlanLoads, rebuild.limit)))
+          .returning({ id: mealPlans.id });
+
+        if (spent.length === 0) {
+          throw new QuotaExceededError('mid_plan_event');
+        }
+
+        const wanted = [...new Set(rebuild.days.flatMap(day => day.meals.map(meal => meal.recipeSlug)))];
+        const recipeIdBySlug = new Map(
+          (await tx.select({ id: recipes.id, slug: recipes.slug }).from(recipes).where(inArray(recipes.slug, wanted))).map(row => [row.slug, row.id])
+        );
+        const unresolved = wanted.filter(slug => !recipeIdBySlug.has(slug));
+
+        if (unresolved.length > 0) {
+          throw new DatabaseOperationError(`Rebuild references recipes that do not exist: ${unresolved.join(', ')}`);
+        }
+
+        const dayIdByIndex = new Map(
+          (
+            await tx
+              .select({ id: planDays.id, dayIndex: planDays.dayIndex })
+              .from(planDays)
+              .where(
+                and(
+                  eq(planDays.planId, planId),
+                  inArray(
+                    planDays.dayIndex,
+                    rebuild.days.map(day => day.dayIndex)
+                  )
+                )
+              )
+          ).map(row => [row.dayIndex, row.id])
+        );
+
+        for (const day of rebuild.days) {
+          const planDayId = dayIdByIndex.get(day.dayIndex);
+
+          if (!planDayId) {
+            throw new DatabaseOperationError(`Rebuild references day ${day.dayIndex}, which this plan does not have`);
+          }
+
+          // Stamped exactly as generation stamps it: the name is what the day
+          // says it ate for once the event itself is gone (`0021`, `0043`).
+          await tx.update(planDays).set({ loadedFor: day.loadedFor, targets: day.targets }).where(eq(planDays.id, planDayId));
+
+          for (const meal of day.meals) {
+            const updated = await tx
+              .update(meals)
+              .set({
+                carbsG: String(meal.macros.carbsG),
+                fatG: String(meal.macros.fatG),
+                fiberG: String(meal.macros.fiberG),
+                kcal: String(meal.macros.kcal),
+                proteinG: String(meal.macros.proteinG),
+                recipeId: recipeIdBySlug.get(meal.recipeSlug) as string,
+                servings: String(meal.servings),
+                updatedAt: new Date()
+              })
+              .where(and(eq(meals.planDayId, planDayId), eq(meals.slot, meal.slot)))
+              .returning({ id: meals.id });
+
+            // A slot the day does not have would leave the old meal standing
+            // beside the new ones — a day half rebuilt. Roll the lot back.
+            if (updated.length === 0) {
+              throw new DatabaseOperationError(`Rebuild references ${meal.slot} on day ${day.dayIndex}, which that day does not eat`);
+            }
+          }
+        }
+
+        await replaceGeneratedItems(tx, planId, shoppingItems);
+      });
+    } catch (error: unknown) {
+      if (error instanceof ConflictError || error instanceof NotFoundError || error instanceof QuotaExceededError) {
+        throw error;
+      }
+
+      throw wrap(error);
+    }
+  },
+
+  /**
    * Ticks or unticks one item.
    *
    * Ownership is resolved *inside* the statement, by walking item → list → plan →
@@ -655,44 +788,7 @@ export const PlanRepository = {
           .insert(mealSwaps)
           .values({ fromRecipeId: owned.recipeId, mealId, planId: owned.planId, source: change.source, toRecipeId: recipeId, userId });
 
-        const [list] = await tx.select({ id: shoppingLists.id }).from(shoppingLists).where(eq(shoppingLists.planId, owned.planId)).limit(1);
-
-        if (!list) {
-          return;
-        }
-
-        const existing = await tx
-          .select({
-            id: shoppingListItems.id,
-            addedManually: shoppingListItems.addedManually,
-            checked: shoppingListItems.checked,
-            ingredientId: shoppingListItems.ingredientId
-          })
-          .from(shoppingListItems)
-          .where(eq(shoppingListItems.listId, list.id));
-        const ticked = new Set(existing.filter(item => item.checked && item.ingredientId).map(item => item.ingredientId));
-        const generated = existing.filter(item => !item.addedManually).map(item => item.id);
-
-        if (generated.length > 0) {
-          await tx.delete(shoppingListItems).where(inArray(shoppingListItems.id, generated));
-        }
-
-        if (shoppingItems.length > 0) {
-          await tx
-            .insert(shoppingListItems)
-            .values(
-              shoppingItems.map(item => ({
-                category: item.category,
-                checked: ticked.has(item.ingredientId),
-                displayQuantity: String(item.displayQuantity),
-                displayUnit: item.displayUnit,
-                ingredientId: item.ingredientId,
-                listId: list.id,
-                name: item.name,
-                totalGrams: String(item.totalGrams)
-              }))
-            );
-        }
+        await replaceGeneratedItems(tx, owned.planId, shoppingItems);
       });
     } catch (error: unknown) {
       if (error instanceof NotFoundError || error instanceof QuotaExceededError) {
@@ -703,6 +799,59 @@ export const PlanRepository = {
     }
   }
 };
+
+/**
+ * Rewrites everything the plan put on the shopping list, leaving alone
+ * everything the person did (`0015`).
+ *
+ * The list is rebuilt from the whole plan rather than patched, because
+ * quantities aggregate across meals — two meals using tomato are one line. What
+ * they had already ticked stays ticked when the ingredient is still on the
+ * list; items they added by hand are never touched.
+ *
+ * Shared by the swap and the mid-plan rebuild, because "the list matches the
+ * active plan" is one rule, and two copies of it are two chances to break it.
+ */
+async function replaceGeneratedItems(tx: Transaction, planId: string, shoppingItems: readonly ShoppingItemDraft[]): Promise<void> {
+  const [list] = await tx.select({ id: shoppingLists.id }).from(shoppingLists).where(eq(shoppingLists.planId, planId)).limit(1);
+
+  if (!list) {
+    return;
+  }
+
+  const existing = await tx
+    .select({
+      id: shoppingListItems.id,
+      addedManually: shoppingListItems.addedManually,
+      checked: shoppingListItems.checked,
+      ingredientId: shoppingListItems.ingredientId
+    })
+    .from(shoppingListItems)
+    .where(eq(shoppingListItems.listId, list.id));
+  const ticked = new Set(existing.filter(item => item.checked && item.ingredientId).map(item => item.ingredientId));
+  const generated = existing.filter(item => !item.addedManually).map(item => item.id);
+
+  if (generated.length > 0) {
+    await tx.delete(shoppingListItems).where(inArray(shoppingListItems.id, generated));
+  }
+
+  if (shoppingItems.length > 0) {
+    await tx
+      .insert(shoppingListItems)
+      .values(
+        shoppingItems.map(item => ({
+          category: item.category,
+          checked: ticked.has(item.ingredientId),
+          displayQuantity: String(item.displayQuantity),
+          displayUnit: item.displayUnit,
+          ingredientId: item.ingredientId,
+          listId: list.id,
+          name: item.name,
+          totalGrams: String(item.totalGrams)
+        }))
+      );
+  }
+}
 
 /** Postgres 23505. Here it means the one-active-plan or version constraint fired. */
 function isUniqueViolation(error: unknown): boolean {

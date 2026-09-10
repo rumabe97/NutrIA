@@ -15,6 +15,17 @@
  * - **Swaps** go from five a plan to twenty. A swap is usually served from the
  *   library and costs nothing; the limit exists so a plan stays a plan rather
  *   than becoming a menu. Twenty is generous without removing the shape.
+ * - **Events** go from three a plan to ten (`0043`, `0044`). Declaring a day
+ *   that eats differently costs nothing at all — it is scheduling, not a model
+ *   call — so the free number exists to keep a fortnight a fortnight rather
+ *   than a periodisation, and the paid one is deliberately generous: the
+ *   overlap rule already bounds how many loads fit in fourteen days.
+ * - **Mid-plan events** go from none to three. This is the one that is really
+ *   sold: free declares an event and it applies at the next generation, which
+ *   is what `0043` shipped; premium may add one to the fortnight *already under
+ *   way* and have its days rebuilt on the spot. The rebuild is served from the
+ *   library and spends no generation, so three is about how much churn a lived
+ *   plan can take, not about cost.
  *
  * Nothing about safety, allergies or the quality of a plan is behind this, and
  * nothing ever should be. A free account gets the same allergy gate, the same
@@ -23,11 +34,16 @@
  */
 export type Tier = 'free' | 'premium';
 
-export type Allowances = { readonly mealSwapsPerPlan: number; readonly planRedosPerFortnight: number };
+export type Allowances = {
+  readonly eventsPerPlan: number;
+  readonly mealSwapsPerPlan: number;
+  readonly midPlanEventsPerPlan: number;
+  readonly planRedosPerFortnight: number;
+};
 
 const BY_TIER: Readonly<Record<Tier, Allowances>> = {
-  free: { mealSwapsPerPlan: 5, planRedosPerFortnight: 1 },
-  premium: { mealSwapsPerPlan: 20, planRedosPerFortnight: 3 }
+  free: { eventsPerPlan: 3, mealSwapsPerPlan: 5, midPlanEventsPerPlan: 0, planRedosPerFortnight: 1 },
+  premium: { eventsPerPlan: 10, mealSwapsPerPlan: 20, midPlanEventsPerPlan: 3, planRedosPerFortnight: 3 }
 };
 
 /** The free tier, still named for the callers whose answer does not depend on a person. */
@@ -55,7 +71,17 @@ export type PlanRedoStanding = {
   readonly used: number;
 };
 
-export type MealSwapStanding = { readonly allowed: boolean; readonly limit: number; readonly remaining: number; readonly used: number };
+/**
+ * An allowance that counts down: how many, how many are gone, how many are
+ * left, and whether one more is permitted.
+ *
+ * One shape for every counted allowance rather than one per feature, because
+ * the screen sentence is the same sentence — *"2 of 3 left"* — and a second
+ * shape would only be a second way to render it.
+ */
+export type CountedStanding = { readonly allowed: boolean; readonly limit: number; readonly remaining: number; readonly used: number };
+
+export type MealSwapStanding = CountedStanding;
 
 /**
  * Generating the next fortnight is always allowed: that is the product. Only
@@ -80,8 +106,34 @@ export function planRedoStanding(
 }
 
 export function mealSwapStanding(used: number, tier: Tier = 'free'): MealSwapStanding {
-  const limit = allowancesFor(tier).mealSwapsPerPlan;
+  return countDown(used, allowancesFor(tier).mealSwapsPerPlan);
+}
 
+/**
+ * How many more days that eat for something this fortnight may hold (`0044`).
+ *
+ * Counted over the plan's own window rather than over a calendar month: an
+ * event belongs to the fortnight its loaded days fall in, and that is the unit
+ * the person experiences.
+ */
+export function eventStanding(used: number, tier: Tier = 'free'): CountedStanding {
+  return countDown(used, allowancesFor(tier).eventsPerPlan);
+}
+
+/**
+ * Whether the fortnight already under way may be rebuilt for one more event
+ * (`0044`).
+ *
+ * Free is zero, and that is the whole of the difference: a free account's event
+ * is read at the next generation, exactly as `0043` shipped it. The standing
+ * still answers `allowed: false` with `limit: 0` rather than being absent, so
+ * the screen has one thing to read whichever tier is asking.
+ */
+export function midPlanEventStanding(used: number, tier: Tier = 'free'): CountedStanding {
+  return countDown(used, allowancesFor(tier).midPlanEventsPerPlan);
+}
+
+function countDown(used: number, limit: number): CountedStanding {
   return { allowed: used < limit, limit, remaining: Math.max(limit - used, 0), used };
 }
 

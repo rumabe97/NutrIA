@@ -4,9 +4,11 @@ Main web application. Rules here are more specific than root `AGENTS.md` — bot
 
 ---
 
-> **Status.** Built: the landing page, the five auth screens, the ten-step onboarding, the
-> profile, and the dashboard's empty state. Not built: the 14-day plan, meal detail and
-> replacement, the shopping list, progress, check-ins and the assistant — see
+> **Status.** Everything on the roadmap's "Next" list is built and in production: the
+> landing page, auth, the ten-step onboarding, the profile, the 14-day plan with meal
+> detail, swaps along an axis, the shopping list, progress, check-ins, vacations, the
+> tour, the feedback box, events that shape the days before them, and the admin screen.
+> Not built: the assistant — deliberately last, see
 > [`docs/ROADMAP.md`](../../docs/ROADMAP.md).
 
 ## Stack
@@ -165,9 +167,10 @@ compile error. Spanish stays the first language: write it there first, then tran
 Code identifiers, comments and docs stay English.
 
 Tone follows [`docs/PRODUCT.md`](../../docs/PRODUCT.md) § Experience principles: concise,
-concrete, no AI marketing. And never claim something works that does not — the dashboard's
-empty state says plan generation is not built yet rather than showing a button that calls
-nothing.
+concrete, no AI marketing. And never claim something works that does not — an event added
+mid-plan on the free tier says it applies to the next plan rather than pretending the
+fortnight changed, and a control the tier does not grant is not drawn disabled, it is not
+drawn.
 
 ## Styles
 

@@ -1,4 +1,4 @@
-import { and, asc, eq, gte } from 'drizzle-orm';
+import { and, asc, eq, gte, lte } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -18,6 +18,34 @@ export const EventRepository = {
         .returning();
 
       return eventSchema.parse(row);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Events dated inside a stretch of days, soonest first — what the per-plan
+   * cap is counted from (`0044`).
+   *
+   * By the event's own date, and deliberately wider than the fortnight it is
+   * asked about: an event up to `MAX_DAYS_BEFORE` days past the window's end
+   * still loads days inside it. Which of these actually touch the window is
+   * `eventsInWindow`'s decision, in `core/domain/Event`, where the load rule
+   * already lives — a repository does not own arithmetic.
+   *
+   * Unlike `findUpcoming` this includes events that have already happened: a
+   * race lived through on Tuesday still spent days of the fortnight it belongs
+   * to, and pretending otherwise would let somebody past the cap by waiting.
+   */
+  async findInRange(userId: string, from: string, to: string): Promise<readonly Event[]> {
+    try {
+      const rows = await database()
+        .select()
+        .from(events)
+        .where(and(eq(events.userId, userId), gte(events.on, from), lte(events.on, to)))
+        .orderBy(asc(events.on));
+
+      return rows.map(row => eventSchema.parse(row));
     } catch (error: unknown) {
       throw wrap(error);
     }
