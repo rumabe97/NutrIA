@@ -15,10 +15,17 @@ import { interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
+import { appMetadata } from '../../_shared/metadata';
+
 import type { CheckInStatusView } from 'core/controllers/CheckIn';
+import type { Metadata } from 'next';
 import type { WeightView } from 'core/controllers/Progress';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return appMetadata('/check-in');
+}
 
 export default async function CheckInPage() {
   await redirectIfOnboardingIncomplete();

@@ -14,7 +14,15 @@ import { formatNumber, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
+import { appMetadata } from '../../_shared/metadata';
+
+import type { Metadata } from 'next';
+
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return appMetadata('/compra');
+}
 
 type ShoppingListView = {
   id: string;

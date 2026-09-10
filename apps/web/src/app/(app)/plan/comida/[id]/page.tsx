@@ -20,11 +20,18 @@ import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { resumesOn } from 'lib/vacation';
 import { serverApi } from 'lib/server-api';
 
+import { appMetadata } from '../../../../_shared/metadata';
+
 import type { AllowancesView, MealDetailView } from 'core/controllers/Plan';
 import type { MealStatus as Status } from 'core/entities/Plan';
+import type { Metadata } from 'next';
 import type { VacationView } from 'core/controllers/Vacation';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return appMetadata('/plan/comida');
+}
 
 export default async function MealDetailPage({ params }: { params: Promise<{ id: string }> }) {
   await redirectIfOnboardingIncomplete();

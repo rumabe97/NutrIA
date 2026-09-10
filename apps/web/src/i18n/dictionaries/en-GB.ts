@@ -689,6 +689,38 @@ export const enGB: Dictionary = {
     }
   },
 
+  pages: {
+    '/': {
+      description:
+        'Fourteen-day plans with recipes, quantities and the shopping list already done, built around your goals, your timetable and your allergies.',
+      title: 'NutrIA — Personalised meal plans'
+    },
+    '/acceder': {
+      description: "Sign in to NutrIA to see today's plan, your shopping list and your progress.",
+      title: 'Sign in'
+    },
+    '/admin': { title: 'Admin' },
+    '/check-in': { title: "The fortnight's check-in" },
+    '/compra': { title: 'The shopping' },
+    '/inicio': { title: 'Today' },
+    '/onboarding': { title: 'Your profile' },
+    '/pendiente': { title: 'Account pending' },
+    '/perfil': { title: 'Your profile' },
+    '/plan': { title: 'Your plan' },
+    '/plan/comida': { title: 'A meal' },
+    '/plan/generando': { title: 'Building your plan' },
+    '/plan/historial': { title: 'Your earlier plans' },
+    '/plan/historial/[id]': { title: 'An earlier plan' },
+    '/progreso': { title: 'Your progress' },
+    '/recuperar': { title: 'Reset your password' },
+    '/registro': {
+      description: 'Create your account and answer a few questions: you will have fourteen days of meals with the shopping list already done. No card needed.',
+      title: 'Create your account'
+    },
+    '/restablecer': { title: 'Choose a new password' },
+    '/verificar-email': { title: 'Confirm your email' }
+  },
+
   plan: {
     createCta: 'Create my plan',
     day: 'Day {index}',

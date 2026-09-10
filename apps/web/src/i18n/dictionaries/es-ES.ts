@@ -695,6 +695,47 @@ export const esES = {
     }
   },
 
+  /*
+   * One title and, where a search result is possible, one description per
+   * address.
+   *
+   * Keyed by the path itself so a route and its words cannot drift apart: the
+   * type of these keys is what `pageMetadata` accepts, and a page nobody wrote
+   * a title for does not compile. Titles are written without the brand — the
+   * layout's template appends it — except the landing page, which leads with it.
+   */
+  pages: {
+    '/': {
+      description:
+        'Planes de catorce días con recetas, cantidades y la lista de la compra hecha, construidos alrededor de tus objetivos, tus horarios y tus alergias.',
+      title: 'NutrIA — Planes de alimentación personalizados'
+    },
+    '/acceder': {
+      description: 'Entra en NutrIA para ver tu plan de hoy, tu lista de la compra y tu progreso.',
+      title: 'Acceder'
+    },
+    '/admin': { title: 'Panel' },
+    '/check-in': { title: 'Check-in de la quincena' },
+    '/compra': { title: 'La compra' },
+    '/inicio': { title: 'Hoy' },
+    '/onboarding': { title: 'Tu perfil' },
+    '/pendiente': { title: 'Cuenta pendiente' },
+    '/perfil': { title: 'Tu perfil' },
+    '/plan': { title: 'Tu plan' },
+    '/plan/comida': { title: 'Una comida' },
+    '/plan/generando': { title: 'Creando tu plan' },
+    '/plan/historial': { title: 'Tus planes anteriores' },
+    '/plan/historial/[id]': { title: 'Un plan anterior' },
+    '/progreso': { title: 'Tu progreso' },
+    '/recuperar': { title: 'Recuperar tu contraseña' },
+    '/registro': {
+      description: 'Crea tu cuenta y responde unas preguntas: tendrás catorce días de comidas con la lista de la compra hecha. Sin tarjeta.',
+      title: 'Crear tu cuenta'
+    },
+    '/restablecer': { title: 'Elegir una contraseña nueva' },
+    '/verificar-email': { title: 'Confirmar tu correo' }
+  },
+
   plan: {
     createCta: 'Crear mi plan',
     day: 'Día {index}',
