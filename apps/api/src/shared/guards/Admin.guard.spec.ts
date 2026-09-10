@@ -1,6 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { describe, expect, it } from '@jest/globals';
 
+import { IS_PUBLIC_KEY } from '../decorators/Public.decorator.js';
 import { AdminGuard } from './Admin.guard.js';
 
 import type { ExecutionContext } from '@nestjs/common';
@@ -14,8 +15,9 @@ function makeContext(user?: { role: string }): ExecutionContext {
   } as unknown as ExecutionContext;
 }
 
-function makeGuard(roles?: readonly string[]) {
-  return new AdminGuard({ getAllAndOverride: () => roles } as unknown as Reflector);
+/** The reflector answers per key, because the guard now asks it two questions. */
+function makeGuard(roles?: readonly string[], isPublic = false) {
+  return new AdminGuard({ getAllAndOverride: (key: string) => (key === IS_PUBLIC_KEY ? isPublic : roles) } as unknown as Reflector);
 }
 
 describe('AdminGuard', () => {
@@ -39,5 +41,15 @@ describe('AdminGuard', () => {
 
   it('denies when the request carries no user at all', () => {
     expect(() => makeGuard(['admin']).canActivate(makeContext())).toThrow(NotFoundException);
+  });
+
+  /*
+   * The owner's one-click activation link is `@Public()` on a controller that
+   * is `@Roles('admin')`, so it arrives here with no user and a role list it
+   * inherited. It used to 404 every time, which read as a broken link rather
+   * than as a guard.
+   */
+  it('lets a public route through even when its controller declares a role', () => {
+    expect(makeGuard(['admin'], true).canActivate(makeContext())).toBe(true);
   });
 });

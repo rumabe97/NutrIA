@@ -4,6 +4,8 @@ import request from 'supertest';
 import { SettingsController } from 'core/controllers/Settings';
 import { UserController } from 'core/controllers/User';
 
+import { activationToken } from '../src/modules/auth/services/ActivationLink.js';
+
 import { createApp, httpServer, PREFIX, register, ScriptedAiClient } from './harness.js';
 
 import type { Account } from './harness.js';
@@ -176,6 +178,37 @@ describe('admin', () => {
 
   it('refuses an empty message rather than filing it', async () => {
     await request(httpServer(app)).post(`/${PREFIX}/feedback`).set('Cookie', ordinary.cookie).send({ kind: 'idea', message: '   ' }).expect(422);
+  });
+
+  /*
+   * The button in the owner's mail (`0030`), which nothing covered until it was
+   * found dead: the handler is `@Public()` on a controller that is
+   * `@Roles('admin')`, so it arrived at `AdminGuard` with no session and a role
+   * list it had inherited, and 404'd every click — indistinguishable from a
+   * stale token, which is why nobody noticed.
+   */
+  it('opens an account from the link in the owner\u2019s mail, and refuses a forged one', async () => {
+    const server = httpServer(app);
+    const email = `admin-link-${Date.now()}@e2e.invalid`;
+
+    await request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: 'Link', password: 'correct-horse-battery-staple-9' }).expect(200);
+
+    const listed: Response = await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', owner.cookie).expect(200);
+    const queued = (listed.body as Paged<AccountView>).rows.find(account => account.email === email);
+
+    expect(queued).toMatchObject({ activated: false });
+
+    const token = activationToken(queued?.id ?? '', process.env.BETTER_AUTH_SECRET ?? '');
+
+    await request(server).get(`/${PREFIX}/admin/activate`).query({ token }).expect(302);
+
+    const after: Response = await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', owner.cookie).expect(200);
+
+    expect((after.body as Paged<AccountView>).rows.find(account => account.email === email)).toMatchObject({ activated: true });
+
+    // A forged token is the same 404 as everything else this service denies.
+    await request(server).get(`/${PREFIX}/admin/activate`).query({ token: 'not.a.token' }).expect(404);
+    await request(server).get(`/${PREFIX}/admin/activate`).expect(404);
   });
 
   it('refuses an account id that is not an account', async () => {

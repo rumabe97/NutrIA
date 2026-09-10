@@ -1,6 +1,7 @@
 import { CanActivate, Injectable, NotFoundException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 
+import { IS_PUBLIC_KEY } from '../decorators/Public.decorator.js';
 import { ROLES_KEY } from '../decorators/Roles.decorator.js';
 
 import type { AuthenticatedRequest } from '../decorators/CurrentUser.decorator.js';
@@ -18,6 +19,21 @@ export class AdminGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
+    /*
+     * A public route on a role-protected controller is public.
+     *
+     * `@Roles` is read from the handler *or its class*, so a controller-wide
+     * `@Roles('admin')` also lands on the one handler that deliberately runs
+     * without a session — `SessionGuard` returns early for `@Public()` and
+     * never sets `request.user`, so this guard would then deny a route whose
+     * authority was never a role in the first place. That is what silently
+     * killed the owner's one-click activation link: it 404'd every click,
+     * indistinguishably from a bad token.
+     */
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [context.getHandler(), context.getClass()]);
+
+    if (isPublic) {return true;}
+
     const roles = this.reflector.getAllAndOverride<readonly string[]>(ROLES_KEY, [context.getHandler(), context.getClass()]);
 
     if (!roles || roles.length === 0) {return true;}
