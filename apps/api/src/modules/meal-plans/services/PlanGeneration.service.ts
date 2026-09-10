@@ -359,7 +359,8 @@ export class PlanGenerationService {
       const violations = targetViolations(loaded, bounds);
 
       if (violations.length > 0) {
-        refused.push(`day ${dayIndex}: load for "${event.name}" not applied (${violations.map(violation => violation.kind).join(', ')})`);
+        // Spanish like the advisories beside it: this reaches the person, not only the log.
+        refused.push(`día ${dayIndex}: la carga para «${event.name}» no se aplicó (${violations.map(violation => violation.kind).join(', ')})`);
         continue;
       }
 
