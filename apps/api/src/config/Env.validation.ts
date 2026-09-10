@@ -68,6 +68,21 @@ const envObject = z
     AI_MODEL: optional(z.string()),
     AI_PROVIDER: z.enum(['anthropic', 'google', 'ollama', 'stub']).default('stub'),
     /*
+     * The provider's own allowances, as the console reports them, so `/admin` can
+     * say how close today is to the wall.
+     *
+     * Configured rather than hard-coded because they belong to an account and a
+     * model, not to this codebase — Gemini's free tier gives one model twenty
+     * requests a day and another five hundred. Unset means the screen shows the
+     * count and no bar, which is honest: a limit nobody stated is not a limit
+     * this product may invent.
+     *
+     * They are also **our** count against **their** number. Google publishes no
+     * endpoint for what is left, so a difference between this and the console is
+     * calls that did not come through here.
+     */
+    AI_REQUESTS_PER_DAY: optional(z.coerce.number().int().positive()),
+    /*
      * Off by default, like illustrations, and for the same reason: the provider's
      * free tier caps requests per day and generation draws on the same cap. The
      * rewrite sweep alone would spend a day's allowance in about two hours. Turn
@@ -77,6 +92,7 @@ const envObject = z
       .enum(['true', 'false'])
       .default('false')
       .transform(value => value === 'true'),
+    AI_TOKENS_PER_MINUTE: optional(z.coerce.number().int().positive()),
     ALLOWED_ORIGINS: optional(z.string()),
     ANTHROPIC_API_KEY: optional(z.string()),
     API_PREFIX: z.string().default('api/v1'),

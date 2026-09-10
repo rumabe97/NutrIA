@@ -56,14 +56,27 @@ function presentUser(user: User): UserView {
  */
 export type AccountView = { id: string; activated: boolean; createdAt: string; email: string; emailVerified: boolean; role: 'admin' | 'user'; };
 
+/** What a caller may ask for, and what it gets back with it. A screen needs the total to draw the pager. */
+export type Page = { readonly offset?: number; readonly size?: number };
+export type Paged<T> = { readonly offset: number; readonly rows: readonly T[]; readonly size: number; readonly total: number };
+
+/** Enough rows to see a pattern, few enough to read on a phone. */
+const PAGE_SIZE = 25;
+const MAX_PAGE_SIZE = 100;
+
 export const UserController = {
-  /** Every account, oldest first, each saying which of its two locks are open. */
-  async accounts(limit = 200): Promise<readonly AccountView[]> {
-    return (await UserRepository.findAll(limit)).map(({ activatedAt, createdAt, ...row }) => ({
-      ...row,
-      activated: activatedAt !== null,
-      createdAt: createdAt.toISOString()
-    }));
+  /** One page of accounts, newest first, each saying which of its two locks are open. */
+  async accounts(page: Page = {}): Promise<Paged<AccountView>> {
+    const size = Math.min(Math.max(page.size ?? PAGE_SIZE, 1), MAX_PAGE_SIZE);
+    const offset = Math.max(page.offset ?? 0, 0);
+    const { rows, total } = await UserRepository.findAll(size, offset);
+
+    return {
+      offset,
+      rows: rows.map(({ activatedAt, createdAt, ...row }) => ({ ...row, activated: activatedAt !== null, createdAt: createdAt.toISOString() })),
+      size,
+      total
+    };
   },
 
   /**

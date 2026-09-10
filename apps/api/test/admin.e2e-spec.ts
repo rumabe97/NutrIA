@@ -7,8 +7,8 @@ import { UserController } from 'core/controllers/User';
 import { createApp, httpServer, PREFIX, register, ScriptedAiClient } from './harness.js';
 
 import type { Account } from './harness.js';
-import type { AccountView } from 'core/controllers/User';
-import type { AdminAnalyticsView } from 'core/controllers/Admin';
+import type { AccountView, Paged } from 'core/controllers/User';
+import type { AdminAnalyticsView, AiUsageView } from 'core/controllers/Admin';
 import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
 
@@ -23,7 +23,7 @@ import type { Response } from 'supertest';
  *
  * Requires a real database — see ./README.md.
  */
-const ROUTES = ['overview', 'failures', 'accounts', 'settings', 'analytics'];
+const ROUTES = ['overview', 'failures', 'accounts', 'settings', 'analytics', 'ai'];
 
 describe('admin', () => {
   let app: INestApplication;
@@ -64,8 +64,13 @@ describe('admin', () => {
 
   it('lists every account with the state of its two locks, and nothing about anybody', async () => {
     const listed: Response = await request(httpServer(app)).get(`/${PREFIX}/admin/accounts`).set('Cookie', owner.cookie).expect(200);
-    const accounts = listed.body as AccountView[];
-    const queued = accounts.find(account => account.email === waiting);
+    const page = listed.body as Paged<AccountView>;
+    // Newest first, so the three this suite just made are on the first page
+    // however many thousand accounts came before them.
+    const queued = page.rows.find(account => account.email === waiting);
+
+    expect(page.total).toBeGreaterThanOrEqual(page.rows.length);
+    expect(page.rows.length).toBeLessThanOrEqual(page.size);
 
     expect(queued).toMatchObject({ activated: false, emailVerified: false });
     // Address, dates and role. A screen that can read what somebody eats is how
@@ -75,7 +80,7 @@ describe('admin', () => {
 
   it('opens a waiting account, and the account is open afterwards', async () => {
     const accounts: Response = await request(httpServer(app)).get(`/${PREFIX}/admin/accounts`).set('Cookie', owner.cookie).expect(200);
-    const queued = (accounts.body as AccountView[]).find(account => account.email === waiting);
+    const queued = (accounts.body as Paged<AccountView>).rows.find(account => account.email === waiting);
 
     const opened: Response = await request(httpServer(app)).post(`/${PREFIX}/admin/accounts/${queued?.id}/activate`).set('Cookie', owner.cookie).expect(201);
 
@@ -83,7 +88,7 @@ describe('admin', () => {
 
     const after: Response = await request(httpServer(app)).get(`/${PREFIX}/admin/accounts`).set('Cookie', owner.cookie).expect(200);
 
-    expect((after.body as AccountView[]).find(account => account.email === waiting)).toMatchObject({ activated: true, emailVerified: false });
+    expect((after.body as Paged<AccountView>).rows.find(account => account.email === waiting)).toMatchObject({ activated: true, emailVerified: false });
   });
 
   it('throws the activation switch, and the switch is what the product reads', async () => {
@@ -112,6 +117,31 @@ describe('admin', () => {
     expect(view.funnel.activated).toBeGreaterThanOrEqual(view.funnel.onboarded);
     expect(view.activity.events.some(row => row.event === 'session_started')).toBe(true);
     expect(view.activity.people).toBeGreaterThan(0);
+  });
+
+  it('pages the account list rather than capping it', async () => {
+    const server = httpServer(app);
+    const first: Response = await request(server).get(`/${PREFIX}/admin/accounts?size=2`).set('Cookie', owner.cookie).expect(200);
+    const second: Response = await request(server).get(`/${PREFIX}/admin/accounts?size=2&offset=2`).set('Cookie', owner.cookie).expect(200);
+    const one = first.body as Paged<AccountView>;
+    const two = second.body as Paged<AccountView>;
+
+    expect(one.rows).toHaveLength(2);
+    expect(one.total).toBe(two.total);
+    // A page is a different page, not the same rows with a different number on it.
+    expect(one.rows.map(row => row.id)).not.toEqual(two.rows.map(row => row.id));
+  });
+
+  it('counts what the provider was asked for today, and says whose number the limit is', async () => {
+    const response: Response = await request(httpServer(app)).get(`/${PREFIX}/admin/ai`).set('Cookie', owner.cookie).expect(200);
+    const usage = response.body as AiUsageView;
+
+    // The suites script the model, so nothing reaches a provider and the count
+    // is zero — which is the assertion: it counts real requests, not scripted
+    // ones. `limits` is null unless an operator configured it (`0035`).
+    expect(usage).toMatchObject({ calls: 0, refused: 0 });
+    expect(usage.limits).toEqual({ requestsPerDay: null, tokensPerMinute: null });
+    expect(Date.parse(usage.resetsAt)).toBeGreaterThan(Date.now());
   });
 
   it('refuses an account id that is not an account', async () => {

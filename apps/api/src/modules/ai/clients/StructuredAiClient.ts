@@ -1,7 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { generateObject, NoObjectGeneratedError } from 'ai';
 
+import { AnalyticsController } from 'core/controllers/Analytics';
+
 import { AiClient } from './AiClient.js';
+import { isQuotaExhausted } from './quota.js';
 import { redactSecrets } from './redact.js';
 import { AI_MODEL } from '../ai.config.js';
 
@@ -30,19 +33,23 @@ export class StructuredAiClient extends AiClient {
   async generate<T>({ prompt, schema, system }: AiRequest<T>): Promise<AiResponse<T>> {
     if (!this.model) {throw new Error('No AI model configured; check AI_PROVIDER');}
 
+    const model = typeof this.model === 'string' ? this.model : this.model.modelId;
+
     try {
       const result = await generateObject({ model: this.model, prompt, schema, system });
+      const usage = { calls: 1, inputTokens: result.usage.inputTokens ?? 0, model, outputTokens: result.usage.outputTokens ?? 0 };
 
-      return {
-        object: result.object,
-        usage: {
-          calls: 1,
-          inputTokens: result.usage.inputTokens ?? 0,
-          model: typeof this.model === 'string' ? this.model : this.model.modelId,
-          outputTokens: result.usage.outputTokens ?? 0
-        }
-      };
+      // Counted here rather than at a caller because this is the only place a
+      // request actually leaves the building. Never awaited into a failure: the
+      // repository swallows its own errors (`0033`).
+      await AnalyticsController.record('ai_call', null, { inputTokens: usage.inputTokens, model, ok: true, outputTokens: usage.outputTokens });
+
+      return { object: result.object, usage };
     } catch (error: unknown) {
+      // A refused call is the one that matters most on a free tier: it spent the
+      // allowance and returned nothing.
+      await AnalyticsController.record('ai_call', null, { model, ok: false, quotaExhausted: isQuotaExhausted(error) });
+
       // The model's raw text can contain anything, including a partial dish. It is
       // never surfaced and never stored — the caller sees a failure and retries.
       if (NoObjectGeneratedError.isInstance(error)) {

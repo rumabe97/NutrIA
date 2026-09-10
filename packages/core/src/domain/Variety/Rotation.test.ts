@@ -57,6 +57,15 @@ describe('rotatePool', () => {
     expect(FRESH_DISHES_PER_SLOT).toBeGreaterThanOrEqual(Math.ceil(DISHES_NEEDED_PER_SLOT / 3));
   });
 
+  it('offers a slot enough dishes to fill a fortnight without repeating one', () => {
+    const dishes = library(200, ['lunch']);
+    const picked = rotatePool(dishes, ['lunch'], { avoidSlugs: nothingAvoided, seed: 'user-a:1' });
+
+    // Fourteen days, fourteen picks. A pool below that made a repeat an
+    // arithmetic certainty rather than a scheduler's choice (`0013`, amended).
+    expect(picked.length + FRESH_DISHES_PER_SLOT).toBeGreaterThanOrEqual(14);
+  });
+
   it('hands the same user the same dishes for the same plan version, and different ones next fortnight', () => {
     const dishes = library(60, ['lunch']);
     const rotation = { avoidSlugs: nothingAvoided, seed: 'user-a:1' };

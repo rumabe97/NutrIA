@@ -9,12 +9,13 @@ import { Text } from 'ui/components/Text';
 
 import { AccountList } from 'components/AccountList';
 import { ActivationSwitch } from 'components/ActivationSwitch';
+import { Pager } from 'components/Pager';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
-import type { AccountView } from 'core/controllers/User';
-import type { AdminAnalyticsView, AdminOverviewView } from 'core/controllers/Admin';
+import type { AccountView, Paged } from 'core/controllers/User';
+import type { AdminAnalyticsView, AdminOverviewView, AiUsageView } from 'core/controllers/Admin';
 import type { SettingsView } from 'core/controllers/Settings';
 
 export const dynamic = 'force-dynamic';
@@ -33,15 +34,18 @@ const FUNNEL_STAGES = ['signedUp', 'confirmed', 'activated', 'onboarded', 'plann
  * It shows no plan, no profile and no email on purpose. "Is generation working"
  * and "how big is the catalogue" are answerable without reading anybody's food.
  */
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ abierta?: string }> }) {
-  const [dictionary, locale, overview, accounts, settings, analytics, opened] = await Promise.all([
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ abierta?: string; cuentas?: string }> }) {
+  const query = await searchParams;
+  const accountsOffset = Number.parseInt(query.cuentas ?? '', 10) || 0;
+  const [dictionary, locale, overview, accounts, settings, analytics, ai, opened] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<AdminOverviewView>('/admin/overview'),
-    serverApi<readonly AccountView[]>('/admin/accounts'),
+    serverApi<Paged<AccountView>>(`/admin/accounts?offset=${accountsOffset}`),
     serverApi<SettingsView>('/admin/settings'),
     serverApi<AdminAnalyticsView>('/admin/analytics'),
-    searchParams
+    serverApi<AiUsageView>('/admin/ai'),
+    Promise.resolve(query)
   ]);
 
   if (!overview) {notFound();}
@@ -88,10 +92,58 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       </section>
 
       {/* Accounts next: the only thing on this page somebody is waiting on. */}
-      <section className={styles.section}>
+      <section className={styles.section} id="cuentas">
         <h2 className={styles.subtitle}>{t.accountsTitle}</h2>
-        <AccountList accounts={accounts ?? []} />
+        <AccountList accounts={accounts?.rows ?? []} />
+        {accounts ? (
+          <Pager
+            labels={{ next: t.pagerNext, of: t.pagerOf, previous: t.pagerPrevious }}
+            offset={accounts.offset}
+            param="cuentas"
+            size={accounts.size}
+            total={accounts.total}
+          />
+        ) : null}
       </section>
+
+      {ai ? (
+        <section className={styles.section} id="ia">
+          <h2 className={styles.subtitle}>{t.aiTitle}</h2>
+          <Text className={styles.hint} size="sm" tone="tertiary">
+            {t.aiHint}
+          </Text>
+
+          <ul className={styles.rows}>
+            <li className={styles.row}>
+              <span>{t.aiCalls}</span>
+              <span className={styles.count}>
+                {number(ai.calls)}
+                {ai.limits.requestsPerDay === null ? '' : ` / ${number(ai.limits.requestsPerDay)}`}
+              </span>
+            </li>
+            {ai.refused > 0 ? (
+              <li className={styles.row}>
+                <span>{t.aiRefused}</span>
+                <span className={styles.count}>{number(ai.refused)}</span>
+              </li>
+            ) : null}
+            <li className={styles.row}>
+              <span>{t.aiTokens}</span>
+              <span className={styles.count}>{`${number(ai.inputTokens)} / ${number(ai.outputTokens)}`}</span>
+            </li>
+            <li className={styles.row}>
+              <span>{t.aiResets}</span>
+              <span className={styles.count}>{formatDate(ai.resetsAt.slice(0, 10), locale, { day: 'numeric', month: 'short' })} · {ai.resetsAt.slice(11, 16)} UTC</span>
+            </li>
+            {ai.model ? (
+              <li className={styles.row}>
+                <span>{t.aiModel}</span>
+                <span className={styles.count}>{ai.model}</span>
+              </li>
+            ) : null}
+          </ul>
+        </section>
+      ) : null}
 
       {analytics ? (
         <section className={styles.section}>

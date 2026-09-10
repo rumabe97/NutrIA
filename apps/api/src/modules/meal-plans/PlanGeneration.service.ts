@@ -14,7 +14,7 @@ import { RecipeController } from 'core/controllers/Recipe';
 import { PoolBuilder } from '../ai/PoolBuilder.service.js';
 import { promptPreferences, toRecipeDraft } from './GenerationShared.js';
 
-import type { PlanAssignment } from 'core/entities/Plan';
+import type { CandidateDish, PlanAssignment } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PlanViolation } from 'core/domain/PlanValidation';
 import type { GenerationContext } from 'core/controllers/Recipe';
@@ -131,6 +131,12 @@ export class PlanGenerationService {
 
     await markStep(STEPS.scheduling);
 
+    const wholeLibrary = async (): Promise<CandidateDish[]> => {
+      const everything = await RecipeController.reusablePool(slots, context);
+
+      return [...new Map([...everything, ...built.generated].map(dish => [dish.slug, dish])).values()];
+    };
+
     let scheduled = schedulePlan({ catalogue: context.catalogue, includesSnacks, mealsPerDay, pool: built.dishes, targets });
     let fallback: 'full_library' | null = null;
 
@@ -149,11 +155,10 @@ export class PlanGenerationService {
       // — the one that failed is not asked again — and the plan says it happened.
       // Returning users were the ones this hit: a new user has no history to
       // exclude, and a full library needs no model.
-      const everything = await RecipeController.reusablePool(slots, context);
-      const widened = new Map([...everything, ...built.generated].map(dish => [dish.slug, dish]));
+      const widened = await wholeLibrary();
 
-      this.logger.warn(`Retrying with the full library (${widened.size} dishes, last fortnight included)`);
-      scheduled = schedulePlan({ catalogue: context.catalogue, includesSnacks, mealsPerDay, pool: [...widened.values()], targets });
+      this.logger.warn(`Retrying with the full library (${widened.length} dishes, last fortnight included)`);
+      scheduled = schedulePlan({ catalogue: context.catalogue, includesSnacks, mealsPerDay, pool: widened, targets });
       fallback = 'full_library';
     }
 
@@ -168,15 +173,45 @@ export class PlanGenerationService {
 
     await markStep(STEPS.validating);
 
-    const violations = validatePlan({
-      assignment: scheduled.assignment,
-      expectedDays: PLAN_DAYS,
-      expectedSlots: slots,
-      sex: profile.profile?.sex ?? 'prefer_not_to_say',
-      targets,
-      // Present by construction: targets resolve to null without a starting weight.
-      weightKg: profile.goal?.startingWeightKg ?? 0
-    });
+    const check = (assignment: PlanAssignment) =>
+      validatePlan({
+        assignment,
+        expectedDays: PLAN_DAYS,
+        expectedSlots: slots,
+        sex: profile.profile?.sex ?? 'prefer_not_to_say',
+        targets,
+        // Present by construction: targets resolve to null without a starting weight.
+        weightKg: profile.goal?.startingWeightKg ?? 0
+      });
+
+    let violations = check(scheduled.assignment);
+
+    /*
+     * A plan the gate refuses is not a plan — but refusing it and *giving up* is
+     * a different decision, and it was being made by accident. The escape hatch
+     * below existed only for a pool too short to fill; a pool that filled but
+     * came out unbalanced went straight to a failed generation, which is how a
+     * person ends up with nothing and an error code.
+     *
+     * More dishes is exactly what an unbalanced day needs, and the whole library
+     * costs no call, no tokens and no quota. So: try once more before failing,
+     * and only take the result if the gate accepts it.
+     */
+    if (violations.some(isBlocking) && fallback === null) {
+      this.logger.warn(`Plan rejected by validation (${summarise(violations.filter(isBlocking))}); retrying with the full library`);
+
+      const retried = schedulePlan({ catalogue: context.catalogue, includesSnacks, mealsPerDay, pool: await wholeLibrary(), targets });
+
+      if (retried.ok) {
+        const retriedViolations = check(retried.assignment);
+
+        if (!retriedViolations.some(isBlocking)) {
+          scheduled = retried;
+          violations = retriedViolations;
+          fallback = 'full_library';
+        }
+      }
+    }
 
     const blocking = violations.filter(isBlocking);
     const advisories = violations.filter(violation => !isBlocking(violation));
