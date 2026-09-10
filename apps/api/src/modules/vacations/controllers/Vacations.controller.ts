@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUser, ZodBody } from '../../../shared/index.js';
@@ -39,7 +39,7 @@ export class VacationsController {
   @ApiOperation({ summary: 'Cancel a trip, giving the plan back the days it has not spent' })
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async cancel(@CurrentUser() user: SessionUser, @Param('id') id: string): Promise<void> {
+  async cancel(@CurrentUser() user: SessionUser, @Param('id', ParseUUIDPipe) id: string): Promise<void> {
     await this.vacations.cancel(user.id, id);
   }
 }

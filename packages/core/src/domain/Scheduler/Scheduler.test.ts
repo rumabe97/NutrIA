@@ -669,3 +669,57 @@ describe('a day that eats for something (0043)', () => {
     expect(withEmptyMap).toEqual(plain);
   });
 });
+
+describe('schedulePlan — laying out some days against a plan that keeps the rest (0044)', () => {
+  const slots = slotsForTest(3, false);
+  const weights = weightsFor(shapeFor(3, false));
+  const pool = makePool(slots);
+
+  it('builds only the days asked for, and returns nothing else', () => {
+    const result = schedulePlan({ catalogue, dayIndexes: [5, 6], pool, targets: TARGETS, weights });
+
+    expect(result.ok).toBe(true);
+
+    if (result.ok) {
+      expect(result.assignment.days.map(day => day.dayIndex)).toEqual([5, 6]);
+      expect(result.assignment.days.every(day => day.meals.length === slots.length)).toBe(true);
+    }
+  });
+
+  it('holds the variety rules against the days it was told to keep', () => {
+    const whole = schedulePlan({ catalogue, pool, targets: TARGETS, weights });
+
+    expect(whole.ok).toBe(true);
+
+    if (!whole.ok) {
+      return;
+    }
+
+    // Every placement of the fortnight except days 5 and 6, as a rebuild hands it over.
+    const kept = whole.assignment.days.filter(day => day.dayIndex !== 5 && day.dayIndex !== 6);
+    const placed = kept.flatMap(day => day.meals.map(meal => ({ dayIndex: day.dayIndex, dishSlug: meal.dish.slug, slot: meal.slot })));
+    const rebuilt = schedulePlan({ catalogue, dayIndexes: [5, 6], placed, pool, targets: TARGETS, weights });
+
+    expect(rebuilt.ok).toBe(true);
+
+    if (rebuilt.ok) {
+      const merged = [...kept, ...rebuilt.assignment.days].sort((a, b) => a.dayIndex - b.dayIndex);
+
+      expect(varietyViolations(merged)).toEqual([]);
+    }
+  });
+
+  it('is the fortnight it always was when neither is given', () => {
+    const plain = schedulePlan({ catalogue, pool, targets: TARGETS, weights });
+    const explicit = schedulePlan({
+      catalogue,
+      dayIndexes: Array.from({ length: PLAN_DAYS }, (_none, index) => index + 1),
+      placed: [],
+      pool,
+      targets: TARGETS,
+      weights
+    });
+
+    expect(explicit).toEqual(plain);
+  });
+});

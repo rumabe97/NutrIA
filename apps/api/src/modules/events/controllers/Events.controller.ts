@@ -5,7 +5,7 @@ import { AddEventDto } from '../dto/in/index.js';
 import { CurrentUser, ZodBody } from '../../../shared/index.js';
 import { EventsService } from '../services/index.js';
 
-import type { EventDto } from '../dto/out/index.js';
+import type { AddedEventDto, EventDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
 /**
@@ -29,10 +29,15 @@ export class EventsController {
     return this.events.list(user.id);
   }
 
-  @ApiCreatedResponse({ description: 'The event, and the days that will eat for it at the next generation.' })
-  @ApiOperation({ summary: 'Declare a day the days before it should eat for' })
+  @ApiCreatedResponse({
+    description:
+      'The event, the days that eat for it, and which of those were rebuilt in the active plan right now (`rebuiltDates`, empty when it waits for the next generation). 429 QUOTA_EXCEEDED when the fortnight already holds all the events its tier allows.'
+  })
+  @ApiOperation({
+    summary: 'Declare a day the days before it should eat for. Counts against the fortnight’s events; premium rebuilds the days on the spot.'
+  })
   @Post()
-  async add(@CurrentUser() user: SessionUser, @ZodBody(AddEventDto) body: AddEventDto): Promise<EventDto> {
+  async add(@CurrentUser() user: SessionUser, @ZodBody(AddEventDto) body: AddEventDto): Promise<AddedEventDto> {
     return this.events.add(user.id, body);
   }
 
