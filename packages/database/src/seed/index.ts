@@ -9,6 +9,7 @@ import { ingredientAllergens, ingredientNames, ingredients, ingredientSubstituti
 import { ALLERGEN_SEED } from './allergens';
 import { INGREDIENT_NAMES_EN_GB } from './ingredient-names';
 import { INGREDIENT_SEED } from './ingredients';
+import { countriesFor } from './ingredients/countries';
 import { foodClasses } from './ingredients/classes';
 import { substitutionPairs } from './substitutions';
 
@@ -68,6 +69,7 @@ async function main(): Promise<void> {
         carbsPer100g: String(seed.carbs),
         category: seed.category,
         classes: [...foodClasses(seed)].sort(),
+        countries: [...countriesFor(seed)],
         defaultUnit: seed.defaultUnit ?? 'g',
         fatPer100g: String(seed.fat),
         fiberPer100g: String(seed.fiber ?? 0),
@@ -81,6 +83,7 @@ async function main(): Promise<void> {
         set: {
           carbsPer100g: sql`excluded.carbs_per100g`,
           classes: sql`excluded.classes`,
+          countries: sql`excluded.countries`,
           fatPer100g: sql`excluded.fat_per100g`,
           fiberPer100g: sql`excluded.fiber_per100g`,
           kcalPer100g: sql`excluded.kcal_per100g`,

@@ -37,6 +37,16 @@ export const ingredients = pgTable(
     category: ingredientCategory().notNull(),
     /** See `FOOD_CLASSES`. Empty for anything with no animal origin. */
     classes: text().array().notNull().default([]),
+    /**
+     * Where this can ordinarily be bought, as ISO 3166-1 alpha-2 codes.
+     *
+     * **Empty means everywhere**, and almost everything is empty: rice, eggs and
+     * chicken need no list. A non-empty list is the exception — sobrasada,
+     * pimentón, a Manchego — and reads as "only here". The default keeps every
+     * existing row universal, so the column changes nothing until a row says
+     * otherwise (`0034`).
+     */
+    countries: text().array().notNull().default([]),
     /** Grams in one `defaultUnit`, so "2 eggs" becomes grams without a guess. */
     defaultUnit: measurementUnit().notNull().default('g'),
     fatPer100g: numeric({ precision: 6, scale: 2 }).notNull(),
