@@ -88,9 +88,13 @@ export const RecipeController = {
     // a second source would drift from the first.
     const profile = await ProfileRepository.findByUserId(userId);
     const locale = profile?.locale ?? FALLBACK_LOCALE;
+    // Same reasoning as the locale, and the same source: a plan is built from
+    // what this person can buy, and where they are is a fact about them rather
+    // than about the request that happens to trigger the job (`0034`).
+    const country = profile?.country ?? null;
 
     const [catalogue, safety, dietaryPatterns, foodPreferences, preferred] = await Promise.all([
-      RecipeRepository.loadCatalogue(locale),
+      RecipeRepository.loadCatalogue(locale, country),
       SafetyController.getSafetyProfile(userId),
       ProfileRepository.findDietaryPatterns(userId),
       ProfileRepository.findFoodPreferences(userId),

@@ -44,6 +44,7 @@ interface OnboardingFlowProps {
  */
 const GOAL_VALUES = ['weight_loss', 'maintenance', 'muscle_gain', 'performance', 'healthy_eating', 'custom'] as const;
 const ACTIVITY_VALUES = ['sedentary', 'light', 'moderate', 'high', 'athlete'] as const;
+const COUNTRY_VALUES = ['ES', 'GB'] as const;
 const SEX_VALUES = ['female', 'male', 'other', 'prefer_not_to_say'] as const;
 const COOKING_FREQUENCY_VALUES = ['rarely', 'sometimes', 'often', 'daily'] as const;
 const BUDGET_VALUES = ['low', 'medium', 'high'] as const;
@@ -87,6 +88,7 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
     activity: ACTIVITY_VALUES.map(value => ({ ...t.options.activity[value], value })),
     budget: BUDGET_VALUES.map(value => ({ ...t.options.budget[value], value })),
     cookingFrequency: COOKING_FREQUENCY_VALUES.map(value => ({ label: t.options.cookingFrequency[value], value })),
+    countries: COUNTRY_VALUES.map(value => ({ label: t.options.countries[value], value })),
     dietaryPatterns: DIETARY_PATTERN_VALUES.map(value => ({ label: t.options.dietaryPatterns[value], value })),
     goals: GOAL_VALUES.map(value => ({ ...t.options.goals[value], value })),
     sex: SEX_VALUES.map(value => ({ label: t.options.sex[value], value }))
@@ -300,10 +302,18 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
         {current?.key === 'about-you' ? (
           <Fragment>
             <Input defaultValue={person?.displayName ?? ''} error={fieldError('displayName')} label={f.displayName} name="displayName" />
-            {/* No country field: nothing reads it, the catalogue is Spanish, and a
-                question whose answer changes nothing is a question not worth asking
-                (0025). The column and the stored values stay for the day the
-                catalogue knows more than one country. */}
+            {/* Asked now that something reads it: the catalogue knows which of
+                its foods are sold only in Spain, and a plan is built from what
+                this person can actually buy (`0034`). Two options, because two
+                is what the catalogue can serve — a longer list would be the
+                question whose answer changes nothing that `0025` warns about. */}
+            <fieldset className={styles.fieldset}>
+              <legend className={styles.legend}>{f.country}</legend>
+              <OptionCards name="country" options={options.countries} value={person?.country ?? undefined} />
+              <Text className={styles.hint} size="xs" tone="tertiary">
+                {f.countryHint}
+              </Text>
+            </fieldset>
             <Input defaultValue={person?.birthDate ?? ''} error={fieldError('birthDate')} label={f.birthDate} name="birthDate" type="date" />
             <fieldset className={styles.fieldset}>
               <legend className={styles.legend}>{f.sex}</legend>

@@ -236,6 +236,11 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `AdminRepository` selects no column that carries content — no dish, no profile. The account
   list carries address, dates and role and nothing else. Keep it that way: the questions worth
   a screen are "is generation working", "how big is the catalogue" and "who is waiting".
+- **Country** (`0034`): `loadCatalogue(locale, country)` drops ingredients sold only
+  elsewhere — `ingredients.countries`, where empty means everywhere. Null country filters
+  nothing, which is what an account that never said where it is had before the column.
+  `COUNTRIES` in `core/entities/Profile` is the list onboarding offers, and it is short
+  because it is what the catalogue can serve.
 - **Analytics** (`0033`): the funnel on `/admin` is counted from state — `AdminRepository.funnel()`
   — never from events, so it is correct retroactively and cannot disagree with the rows it
   counts. `analytics_events` holds only what leaves no row: `session_started` and

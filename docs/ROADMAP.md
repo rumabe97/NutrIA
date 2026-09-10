@@ -65,7 +65,13 @@ screens at phone width, which closes project 002's two open gates.
 - Admin: generation monitoring and failure review are done (`0028`, `/admin`). Safety-flag
   triage has no flags to triage yet; catalogue management is a seed file in git, which is a
   better place to edit a catalogue than a form.
-- English alongside Spanish; country-aware ingredient availability.
+- English alongside Spanish: done — both dictionaries at parity, recipes bound to a locale
+  with reuse scoped to it, catalogue names in both, mail in both, and an end-to-end suite
+  proving an English account gets an English prompt, plan and shopping list.
+- Country-aware ingredient availability: done (`0034`) — an ingredient may name where it is
+  sold, a plan is built only from what the person can buy, and a country nobody stated
+  filters nothing. What remains is catalogue work: a British shelf to offer *instead* of the
+  thirty Spanish rows a British account no longer sees.
 - Vacation mode: done (`0032`) — a trip pauses the plan and the days after it move with it,
   so nothing counts as skipped and the fortnight resumes on return. A generated plan *for*
   the trip is deliberately not built: it costs a model call per trip, and the question it

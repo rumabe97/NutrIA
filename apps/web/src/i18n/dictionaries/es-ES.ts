@@ -543,6 +543,8 @@ export const esES = {
       cookingFrequency: '¿Con qué frecuencia cocinas?',
       cookingTime: 'Minutos que puedes dedicar a cocinar',
       cookingTimeHint: 'Por comida, entre 5 y 240.',
+      country: '¿Dónde haces la compra?',
+      countryHint: 'Decide qué ingredientes entran en tu plan: no te propondremos nada que no puedas comprar donde estás.',
       cuisines: 'Cocinas que te apetecen',
       customAllergens: 'Algo que no esté en la lista',
       customAllergensHint: 'Separa con comas. Al guardar buscamos cada una en nuestro catálogo y te decimos qué podemos aplicar.',
@@ -590,6 +592,7 @@ export const esES = {
         medium: { hint: 'Sin pensarlo demasiado.', label: 'Normal' }
       },
       cookingFrequency: { daily: 'A diario', often: 'A menudo', rarely: 'Casi nunca', sometimes: 'A veces' },
+      countries: { ES: 'España', GB: 'Reino Unido' },
       dietaryPatterns: {
         flexitarian: 'Flexitariana',
         gluten_free: 'Sin gluten',

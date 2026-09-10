@@ -538,6 +538,8 @@ export const enGB: Dictionary = {
       cookingFrequency: 'How often do you cook?',
       cookingTime: 'Minutes you can spend cooking',
       cookingTimeHint: 'Per meal, between 5 and 240.',
+      country: 'Where do you do your shopping?',
+      countryHint: 'It decides which ingredients reach your plan: nothing will be suggested that you cannot buy where you are.',
       cuisines: 'Cuisines you fancy',
       customAllergens: 'Something not on the list',
       customAllergensHint: 'Separate with commas. When you save we look each one up in our catalogue and tell you what we can apply.',
@@ -585,6 +587,7 @@ export const enGB: Dictionary = {
         medium: { hint: 'Without thinking about it too hard.', label: 'Normal' }
       },
       cookingFrequency: { daily: 'Daily', often: 'Often', rarely: 'Almost never', sometimes: 'Sometimes' },
+      countries: { ES: 'Spain', GB: 'United Kingdom' },
       dietaryPatterns: {
         flexitarian: 'Flexitarian',
         gluten_free: 'Gluten-free',

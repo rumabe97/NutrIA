@@ -259,9 +259,20 @@ export const RecipeRepository = {
     }
   },
 
-  async loadCatalogue(locale: string): Promise<readonly CatalogueIngredient[]> {
+  /**
+   * The catalogue this person can actually shop from.
+   *
+   * `country` drops the rows that are only sold somewhere else (`0034`). Null
+   * means no claim — an account that never said where it is gets the whole
+   * catalogue, which is what it got before the column existed and is better
+   * than guessing a country and quietly withholding food over it.
+   */
+  async loadCatalogue(locale: string, country: string | null = null): Promise<readonly CatalogueIngredient[]> {
     try {
       const db = database();
+      // Empty means everywhere, so an ingredient survives when it names no
+      // country or names this one.
+      const sold = country === null ? undefined : sql`(cardinality(${ingredients.countries}) = 0 or ${country} = any(${ingredients.countries}))`;
       // Two joins rather than one, so a missing translation is visible instead of
       // absent: `requested` is null exactly when this locale has no name, and the
       // caller is told which locale it actually got.
@@ -287,7 +298,8 @@ export const RecipeRepository = {
           })
           .from(ingredients)
           .leftJoin(requested, and(eq(requested.ingredientId, ingredients.id), eq(requested.locale, locale)))
-          .leftJoin(fallback, and(eq(fallback.ingredientId, ingredients.id), eq(fallback.locale, FALLBACK_LOCALE))),
+          .leftJoin(fallback, and(eq(fallback.ingredientId, ingredients.id), eq(fallback.locale, FALLBACK_LOCALE)))
+          .where(sold),
         db.select({ allergenId: ingredientAllergens.allergenId, ingredientId: ingredientAllergens.ingredientId, presence: ingredientAllergens.presence }).from(ingredientAllergens)
       ]);
 

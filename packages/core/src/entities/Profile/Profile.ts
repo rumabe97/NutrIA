@@ -1,6 +1,18 @@
 import { z } from 'zod';
 
 export const SEXES = ['female', 'male', 'other', 'prefer_not_to_say'] as const;
+
+/**
+ * The countries this product can actually feed somebody in (`0034`).
+ *
+ * Two, because the catalogue speaks two languages and knows which of its foods
+ * are sold only in Spain. Offering a third would be a question whose answer
+ * changes nothing — the thing `0025` calls a field that lies — and the fix for
+ * that is catalogue work, not a longer list.
+ */
+export const COUNTRIES = ['ES', 'GB'] as const;
+
+export type Country = (typeof COUNTRIES)[number];
 export const GOAL_TYPES = ['weight_loss', 'maintenance', 'muscle_gain', 'performance', 'healthy_eating', 'custom'] as const;
 export const ACTIVITY_LEVELS = ['sedentary', 'light', 'moderate', 'high', 'athlete'] as const;
 export const COOKING_FREQUENCIES = ['rarely', 'sometimes', 'often', 'daily'] as const;
@@ -59,7 +71,7 @@ export type Profile = z.infer<typeof profileSchema>;
 /** What a user may send. `userId` is never accepted from input — the session decides it. */
 export const updateProfileSchema = z.object({
   birthDate: z.iso.date().nullish(),
-  country: z.string().length(2).nullish(),
+  country: z.enum(COUNTRIES).nullish(),
   displayName: z.string().min(1).max(80).nullish(),
   heightCm: z.number().int().min(HEIGHT_CM.min).max(HEIGHT_CM.max).nullish(),
   locale: z.string().min(2).max(10).optional(),

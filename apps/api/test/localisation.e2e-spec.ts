@@ -96,6 +96,8 @@ describe('an English account, end to end', () => {
     account = await register(app, `locale-${Date.now()}@example.invalid`);
     await completeOnboarding(app, account);
     await setLocale(app, account, 'en-GB');
+    // Shopping in Britain, so the Spain-only shelf is not theirs (`0034`).
+    await request(httpServer(app)).patch(`/${PREFIX}/profile`).set('Cookie', account.cookie).send({ country: 'GB' }).expect(200);
   }, 120_000);
 
   afterAll(async () => {
@@ -120,6 +122,20 @@ describe('an English account, end to end', () => {
     // back using words they know.
     expect(prompt).toContain(`${SEEDED.arroz} (${ENGLISH_NAMES[SEEDED.arroz] as string})`);
     expect(prompt).not.toContain('Arroz blanco cocido');
+  }, 200_000);
+
+  it('never offers them a food that is only sold in Spain', async () => {
+    const prompt = ai.prompts[0] as string;
+
+    // The catalogue the model is given is already filtered: a dish it cannot
+    // propose is a dish nothing downstream has to reject. Sobrasada is the
+    // clearest case — a Mallorcan sausage with no British shelf.
+    expect(prompt).not.toContain('sobrasada');
+    expect(prompt).not.toContain('jamon-serrano');
+    expect(prompt).not.toContain('pimenton-dulce');
+    // And the rest of the catalogue is still there, which is why filtering
+    // cannot starve a plan: thirty rows out of nine hundred.
+    expect(prompt).toContain(SEEDED.arroz);
   }, 200_000);
 
   it('gives them a shopping list with no Spanish in it', async () => {

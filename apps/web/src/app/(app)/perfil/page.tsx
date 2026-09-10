@@ -115,7 +115,10 @@ export default async function ProfilePage() {
           rows={[
             { label: t.displayName, value: person?.displayName },
             { label: dictionary.onboarding.fields.birthDate, value: person?.birthDate },
-            { label: t.height, value: person?.heightCm ? `${formatNumber(person.heightCm, locale)} cm` : undefined }
+            { label: t.height, value: person?.heightCm ? `${formatNumber(person.heightCm, locale)} cm` : undefined },
+            // Shown because it changes the plan (`0034`): a figure somebody can
+            // see is a figure they can correct.
+            { label: dictionary.onboarding.fields.country, value: person?.country ? dictionary.onboarding.options.countries[person.country as 'ES' | 'GB'] : undefined }
           ]}
           title={t.personalData}
         />
