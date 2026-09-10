@@ -3,18 +3,19 @@ import { Fragment, useState } from 'react';
 
 import Link from 'next/link';
 
-import styles from '../../../components/AuthForm/AuthForm.module.css';
+import styles from 'components/AuthForm/AuthForm.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
+import { withLocale } from 'i18n/routes';
 
 import { authClient } from 'lib/auth-client';
 
 import type { FormEvent } from 'react';
 
-export default function ForgotPasswordPage() {
+export function RecoverScreen() {
   const dictionary = useDictionary();
   const locale = useLocale();
   const [sent, setSent] = useState(false);
@@ -31,7 +32,8 @@ export default function ForgotPasswordPage() {
     await authClient.requestPasswordReset({
       email: String(form.get('email')),
       fetchOptions: { headers: { 'Accept-Language': locale } },
-      redirectTo: '/restablecer'
+      // The link in the mail lands on the page in the language it was written in.
+      redirectTo: withLocale('/restablecer', locale)
     });
 
     setPending(false);
@@ -46,7 +48,7 @@ export default function ForgotPasswordPage() {
         <h1 className={styles.title}>{dictionary.auth.checkEmail}</h1>
         <p className={styles.success}>{dictionary.auth.recoverSent}</p>
         <div className={styles.footer}>
-          <Link className={styles.link} href="/acceder">
+          <Link className={styles.link} href={withLocale('/acceder', locale)}>
             {dictionary.auth.backToSignIn}
           </Link>
         </div>
@@ -69,7 +71,7 @@ export default function ForgotPasswordPage() {
         </Button>
 
         <div className={styles.footer}>
-          <Link className={styles.link} href="/acceder">
+          <Link className={styles.link} href={withLocale('/acceder', locale)}>
             {dictionary.auth.backToSignIn}
           </Link>
         </div>

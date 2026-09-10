@@ -1,19 +1,27 @@
 import { Fragment } from 'react';
 
-import styles from './page.module.css';
+import styles from './Landing.module.css';
 
 import { Accordion, AccordionItem } from 'ui/components/Accordion';
-import { getDictionary } from 'i18n/server';
+import { dictionaryFor } from 'i18n/server';
 import { Text } from 'ui/components/Text';
+import { withLocale } from 'i18n/routes';
 
 import { CtaLink } from 'components/CtaLink';
 import { Reveal } from 'components/Reveal';
 import { SiteFooter } from 'components/SiteFooter';
 import { SiteHeader } from 'components/SiteHeader';
 
-export default async function LandingPage() {
-  const dictionary = await getDictionary();
+import type { Locale } from 'i18n/config';
+
+/** The marketing page. Its language comes from the route it is mounted under, so it can be built once and served from the edge. */
+export function Landing({ locale }: Readonly<{ locale: Locale }>) {
+  const dictionary = dictionaryFor(locale);
   const t = dictionary.landing;
+  // The header's own links are shared with the signed-in chrome and stay
+  // unprefixed; these two are the page's main call to action, and a reader in
+  // English should not be handed a Spanish form to fill in.
+  const signUp = withLocale('/registro', locale);
 
   return (
     <Fragment>
@@ -30,7 +38,7 @@ export default async function LandingPage() {
             </Text>
 
             <div className={styles.heroActions}>
-              <CtaLink href="/registro" size="lg">
+              <CtaLink href={signUp} size="lg">
                 {t.ctaPrimary}
               </CtaLink>
               <CtaLink href="#como-funciona" size="lg" variant="secondary">
@@ -186,7 +194,7 @@ export default async function LandingPage() {
               {t.finalLede}
             </Text>
             <div className={styles.heroActions}>
-              <CtaLink href="/registro" size="lg">
+              <CtaLink href={signUp} size="lg">
                 {t.ctaPrimary}
               </CtaLink>
             </div>

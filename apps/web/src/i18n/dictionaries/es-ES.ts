@@ -499,6 +499,11 @@ export const esES = {
     protein: 'Proteína'
   },
 
+  /* What a phone shows under the icon when somebody installs the app. */
+  manifest: {
+    description: 'Planes de alimentación personalizados, ajustados cada dos semanas.'
+  },
+
   meal: {
     alternatives: 'Si no lo encuentras',
     back: '← Volver al plan',

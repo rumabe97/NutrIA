@@ -78,11 +78,14 @@
     color var(--duration-fast) var(--ease-default);
 }
 
+/* The same inverted pill the full switcher above uses, and for the same reason.
+   This was `--surface-card` on `--surface-sunken`: a contrast ratio of 1.06:1,
+   which is not a faint state, it is no state at all — a sighted person could not
+   tell which language was selected. A thumb told apart only by a shadow is a
+   hope, not an indicator. */
 .compactOption[aria-pressed='true'] {
-  background-color: var(--surface-card);
-  /* A thumb inside a track, not a card on a page — a much shallower lift. */
-  box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
-  color: var(--foreground-01);
+  background-color: var(--foreground-01);
+  color: var(--surface-card);
 }
 
 .compactOption:disabled {

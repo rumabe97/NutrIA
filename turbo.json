@@ -24,6 +24,7 @@
     "GOOGLE_API_KEY",
     "LOG_LEVEL",
     "NEXT_PUBLIC_API_URL",
+    "NEXT_PUBLIC_SITE_URL",
     "NODE_ENV",
     "OWNER_EMAIL",
     "PORT",

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import styles from './LocaleSwitcher.module.css';
 
+import { isLocalised, withLocale, withoutLocale } from 'i18n/routes';
 import { LOCALES } from 'i18n/config';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
@@ -23,14 +24,21 @@ const LOCALE_SHORT: Record<Locale, string> = { 'en-GB': 'EN', 'es-ES': 'ES' };
 const NOT_FOUND = 404;
 
 /**
- * The language control, and the one place the cookie and the profile column are
- * written together.
+ * The language control, and the one place the URL, the cookie and the profile
+ * column are all written together.
  *
- * The cookie is what the next render reads; `profiles.locale` is the durable
- * preference that survives a new device. The cookie is written **first**, and
- * always, because it is the half that works signed out — the landing page needs
- * this control as much as the dashboard does, and someone deciding whether to
- * sign up at all has no profile to persist to yet.
+ * A public page's language is its address, so switching is a *navigation*: the
+ * same page at its other URL. The cookie still records the choice, because the
+ * signed-in screens have no second address and because the links this app shares
+ * with its chrome cannot carry a prefix; `profiles.locale` is the durable
+ * preference that survives a new device — and is what decides the language of
+ * every mail the API sends. All three, or the product ends up speaking two
+ * languages at once.
+ *
+ * The cookie is written **first**, and always, because it is the half that works
+ * signed out — the landing page needs this control as much as the dashboard
+ * does, and someone deciding whether to sign up at all has no profile to persist
+ * to yet.
  *
  * `compact` is the header form: two marks, no heading, no hint. The full form
  * lives on the profile screen, where there is room to say what it does.
@@ -64,11 +72,38 @@ export function LocaleSwitcher({ compact = false }: { compact?: boolean }) {
       }
     } finally {
       setPending(null);
-      // A full refresh rather than local state: every server-rendered string on
-      // the page came from the old dictionary, and half a translated screen is
-      // worse than a moment's wait.
-      router.refresh();
+      // After the request, not before: a navigation tears down this document,
+      // and an aborted PATCH would leave the account still receiving mail in the
+      // language nobody chose.
+      show(locale);
     }
+  }
+
+  /**
+   * Goes to the same page in the chosen language.
+   *
+   * A navigation rather than local state, and a whole document rather than a
+   * refresh: every server-rendered string on the page came from the old
+   * dictionary, and half a translated screen is worse than a moment's wait.
+   *
+   * The signed-in screens have no second address — there the cookie is the whole
+   * mechanism, and a refresh is what applies it.
+   *
+   * The location is read here rather than through `useSearchParams`, which would
+   * opt every page carrying this control out of static rendering — which is the
+   * whole reason the language moved into the URL in the first place. A handler
+   * runs in the browser, where `window.location` is simply true.
+   */
+  function show(locale: Locale) {
+    const { pathname, search } = window.location;
+
+    if (!isLocalised(pathname)) {
+      router.refresh();
+
+      return;
+    }
+
+    router.push(`${withLocale(withoutLocale(pathname), locale)}${search}`);
   }
 
   const options = (

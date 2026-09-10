@@ -1,8 +1,8 @@
-import styles from './loading.module.css';
+import styles from './AuthLoading.module.css';
 
 import { Skeleton } from 'ui/components/Skeleton';
 
-export default function AuthLoading() {
+export function AuthLoading() {
   return (
     <div className={styles.header}>
       <Skeleton animation="wave" height="2rem" width="min(12rem, 100%)" />
