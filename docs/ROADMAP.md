@@ -116,15 +116,19 @@ what makes the next one fit better. The shopping list and the progress chart are
 out — they are in the navigation bar with their own names, and a tour that reads
 out the menu is one nobody finishes.
 
-### 5. Premium
+### 5. Premium — the entitlement half is delivered (`0042`), switched off
 
 The honest line is the one that costs money: **AI generations beyond a free
-allowance**. The machinery is half-built — `ALLOWANCES` already caps redos and
-swaps per fortnight, so a paid tier is an entitlement that raises numbers that
-already exist, not a new concept.
+allowance**. That half is built and in production, off: `user.tier`, allowances
+per tier, granted by the owner from `/admin`, behind a `premium` flag that
+outranks the column so turning the tier off is one click. Recorded as
+[`0042`](./decisions/0042-what-a-paid-account-may-spend.md).
 
-What it needs first: something worth paying for (2), and something that says what
-people miss (3). Billing itself is the smallest part.
+What remains is taking money, and most of it is not code: a Stripe account, tax
+registration, the legal pages a subscription needs. The order, and which steps an
+agent can do, are in [`docs/reference/payments.md`](./reference/payments.md).
+Stripe's test mode needs nothing but an email address, so the code can be built
+and exercised before any of the business setup exists.
 
 ### 6. Advertising — recommended against
 
