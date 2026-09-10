@@ -138,6 +138,15 @@ describe('vacations', () => {
     expect(restored.endDate).toBe(before.endDate);
   });
 
+  it('answers 400 to a trip id that is not an id', async () => {
+    // Malformed is a client error, where a missing trip is a 404: the pipe
+    // refuses it before anything is looked up, so a bad id is never a database
+    // error with a Sentry report — and never a hint about what exists.
+    const refused: Response = await request(httpServer(app)).delete(`/${PREFIX}/vacations/not-a-uuid`).set('Cookie', account.cookie).expect(400);
+
+    expect((refused.body as { code: string }).code).toBe('REQUEST_ERROR');
+  });
+
   it('will not let one account cancel another account trip', async () => {
     const server = httpServer(app);
     const today = new Date().toISOString().slice(0, 10);
