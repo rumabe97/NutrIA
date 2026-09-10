@@ -225,6 +225,12 @@ A named `export const` object of async methods. Each method:
 
 Controllers accept **typed parameters** — not `unknown`. Input validation (Zod parsing, form parsing) belongs at the **app boundary** (server action, CLI command, API route), not here.
 
+**A controller method's return type is declared, never inferred.** `Promise<UserView>`,
+not whatever the object literal at the `return` happened to hold. Two methods here had
+drifted into the inferred form and their shapes were the API's response shapes, declared
+nowhere: `RestrictionsView` and `ShoppingListView` exist because of that. A view an app
+can name is a view an app can be checked against.
+
 ```ts
 export const UserController = {
   async getUser(input: Pick<User, 'id'>): Promise<UserView> {

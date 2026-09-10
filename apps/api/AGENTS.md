@@ -45,6 +45,11 @@ modules/<name>/
 Two modules carry a folder beyond those five, because they have a concern the five
 do not name: `ai/clients/` and `ai/prompts/`, and `email/templates/`.
 
+`email` is the one module still holding its service at the module root rather than in
+`services/`. It was left alone during the reshape because it was being edited at the
+same time, and moving a file somebody else is changing is the one thing that makes a
+rebase expensive. Move it when the tree is quiet; nothing else depends on the delay.
+
 ## Layering — what belongs here and what does not
 
 ```
