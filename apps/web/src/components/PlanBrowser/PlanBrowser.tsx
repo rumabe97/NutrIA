@@ -100,6 +100,15 @@ export function PlanBrowser({ history = null, plan, redo }: PlanBrowserProps) {
                   {day.dayIndex === today ? dictionary.plan.dayIsToday : ''}
                 </Text>
               </div>
+              {/* A day that eats for something says so, and says what (0043). The
+                  arrows come from comparing the day's own targets with the plan's,
+                  so an old plan whose event was deleted still explains itself. */}
+              {day.loadedFor ? (
+                <span className={styles.loaded}>
+                  {interpolate(dictionary.plan.loadedFor, { name: day.loadedFor })}
+                  {day.targets && plan.strategy ? ` ${loadArrows(day.targets, plan.strategy, dictionary)}` : ''}
+                </span>
+              ) : null}
             </div>
 
             <MacroSummary
@@ -133,4 +142,23 @@ export function PlanBrowser({ history = null, plan, redo }: PlanBrowserProps) {
       </div>
     </Fragment>
   );
+}
+
+/** "hidratos ↑ · grasa ↓": which macros a loaded day moved, read off the numbers rather than stored. */
+function loadArrows(
+  targets: { carbsG: number; fatG: number; proteinG: number },
+  strategy: { carbsG: number; fatG: number; proteinG: number },
+  dictionary: ReturnType<typeof useDictionary>
+): string {
+  const arrow = (day: number, plan: number): string | null => (day > plan ? '↑' : day < plan ? '↓' : null);
+  const parts = [
+    { direction: arrow(targets.carbsG, strategy.carbsG), label: dictionary.events.carbs },
+    { direction: arrow(targets.proteinG, strategy.proteinG), label: dictionary.events.protein },
+    { direction: arrow(targets.fatG, strategy.fatG), label: dictionary.events.fat }
+  ];
+
+  return parts
+    .filter(part => part.direction !== null)
+    .map(part => `${part.label.toLowerCase()} ${part.direction ?? ''}`)
+    .join(' · ');
 }

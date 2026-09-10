@@ -6,6 +6,7 @@ import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { DeleteAccount } from 'components/DeleteAccount';
+import { EventPlanner } from 'components/EventPlanner';
 import { FeedbackForm } from 'components/FeedbackForm';
 import { HealthPanel } from 'components/HealthPanel';
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
@@ -24,6 +25,7 @@ import { serverApi } from 'lib/server-api';
 import { appMetadata } from '../../_shared/metadata';
 
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
+import type { EventView } from 'core/controllers/Event';
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { HealthView } from 'core/controllers/Health';
 import type { Metadata } from 'next';
@@ -74,14 +76,15 @@ export default async function ProfilePage() {
   // Health data is fetched here and only here. It is not folded into
   // `/profile`, which the dashboard also loads — a medication has no business
   // travelling to a screen that does not show it.
-  const [dictionary, locale, user, profile, health, notifications, trips] = await Promise.all([
+  const [dictionary, locale, user, profile, health, notifications, trips, events] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<UserView>('/users/me'),
     serverApi<FullProfileView>('/profile'),
     serverApi<HealthView>('/health-data'),
     serverApi<NotificationSettingsView>('/notifications/settings'),
-    serverApi<readonly VacationView[]>('/vacations')
+    serverApi<readonly VacationView[]>('/vacations'),
+    serverApi<readonly EventView[]>('/events')
   ]);
   const t = dictionary.profile;
   const kg = (value: number) => `${formatNumber(value, locale)} ${dictionary.units.kilogram}`;
@@ -112,6 +115,7 @@ export default async function ProfilePage() {
         <LocaleSwitcher />
 
         <VacationPlanner trips={trips ?? []} />
+        <EventPlanner events={events ?? []} />
 
         <Tour replay={true} />
 

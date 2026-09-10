@@ -11,6 +11,7 @@ import { CheckInsModule } from './modules/check-ins/index.js';
 import { FeedbackModule } from './modules/feedback/index.js';
 import { HealthDataModule } from './modules/health-data/index.js';
 import { HealthModule } from './modules/health/index.js';
+import { EventsModule } from './modules/events/index.js';
 import { MealPlansModule } from './modules/meal-plans/index.js';
 import { NotificationsModule } from './modules/notifications/index.js';
 import { OnboardingModule } from './modules/onboarding/index.js';
@@ -51,7 +52,8 @@ import { LoggingModule } from './shared/logging/index.js';
     SettingsModule,
     ShoppingListsModule,
     UsersModule,
-    VacationsModule
+    VacationsModule,
+    EventsModule
   ],
   providers: [
     envProvider,

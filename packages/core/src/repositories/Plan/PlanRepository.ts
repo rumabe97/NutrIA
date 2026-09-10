@@ -111,7 +111,9 @@ export const PlanRepository = {
 
         const insertedDays = await tx
           .insert(planDays)
-          .values(draft.days.map(day => ({ date: day.date, dayIndex: day.dayIndex, planId: plan.id })))
+          .values(
+            draft.days.map(day => ({ date: day.date, dayIndex: day.dayIndex, loadedFor: day.loadedFor, planId: plan.id, targets: day.targets }))
+          )
           .returning({ id: planDays.id, dayIndex: planDays.dayIndex });
 
         const dayIdByIndex = new Map(insertedDays.map(day => [day.dayIndex, day.id]));

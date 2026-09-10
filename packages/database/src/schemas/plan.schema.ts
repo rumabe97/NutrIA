@@ -1,7 +1,7 @@
 import { date, index, integer, jsonb, numeric, pgTable, smallint, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-import { jobStatus, mealSlot, mealStatus, planStatus } from './_enums';
+import { jobStatus, macroDirection, mealSlot, mealStatus, planStatus } from './_enums';
 import { recipes } from './recipe.schema';
 import { user } from './auth.schema';
 import { timestamps } from './_columns';
@@ -61,10 +61,21 @@ export const planDays = pgTable(
     date: date().notNull(),
     /** 1..14 */
     dayIndex: smallint().notNull(),
+    /**
+     * The event this day ate for, by the name the person gave it, or null for
+     * an ordinary day. Stored rather than looked up because the event may be
+     * deleted afterwards and this plan is history (`0021`, `0043`).
+     */
+    loadedFor: text(),
     notes: text(),
     planId: uuid()
       .notNull()
       .references(() => mealPlans.id, { onDelete: 'cascade' }),
+    /**
+     * What this day was built to hit. Null on plans from before loads existed,
+     * which means "the plan's `strategy`", the same as every other day then.
+     */
+    targets: jsonb().$type<NutritionTargets>(),
     ...timestamps
   },
   table => [unique('plan_days_unique').on(table.planId, table.dayIndex), index('plan_days_plan_idx').on(table.planId)]
@@ -119,6 +130,21 @@ export const meals = pgTable(
  * plan day's date is the date it is.
  */
 export const vacations = userOwned('vacations', { endsOn: date().notNull(), startsOn: date().notNull() });
+
+/**
+ * A day that asks more of the body, and the days before it that eat for it
+ * (`0043`). The name is the person's; the three directions are the shape the
+ * code reads. No amount is stored because no amount is chosen — the size of a
+ * load is `core/domain/Event`'s, in one constant.
+ */
+export const events = userOwned('events', {
+  carbs: macroDirection().notNull(),
+  daysBefore: smallint().notNull(),
+  fat: macroDirection().notNull(),
+  name: text().notNull(),
+  on: date().notNull(),
+  protein: macroDirection().notNull()
+});
 
 export const mealCompletions = userOwned('meal_completions', {
   loggedAt: date().notNull(),

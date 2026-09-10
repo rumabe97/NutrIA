@@ -306,6 +306,28 @@ export const esES = {
     unsafeContent: 'Ese contenido no cumple tus restricciones alimentarias.'
   },
 
+  events: {
+    add: 'Añadir',
+    cancel: 'Quitar',
+    cancelFor: 'Quitar {name}',
+    carbs: 'Hidratos',
+    daysBefore: 'Días antes',
+    daysBeforeMany: 'Los {count} días anteriores',
+    daysBeforeOne: 'El día anterior',
+    down: 'Bajar',
+    fat: 'Grasa',
+    intro:
+      'Una carrera, un partido, un Hyrox, una sesión larga: ponle nombre y fecha, y elige qué comen los días de antes. Se aplica al próximo plan que generes.',
+    loading: 'ya está comiendo para esto',
+    name: 'Qué es',
+    namePlaceholder: 'Media maratón, partido, Hyrox…',
+    on: 'Cuándo',
+    protein: 'Proteína',
+    same: 'Igual',
+    title: 'Eventos',
+    up: 'Subir'
+  },
+
   feedback: {
     intro: 'Lo lee una persona: yo. Cuenta lo que te falta, lo que te sobra o lo que no funciona.',
     kinds: { idea: 'Una idea', other: 'Otra cosa', problem: 'Algo falla' },
@@ -777,6 +799,7 @@ export const esES = {
     historyPlan: 'Plan {version}',
     historyReplaced: 'Sustituido',
     historyTitle: 'Tus planes',
+    loadedFor: 'Comiendo para: {name}',
     range: '14 días · del {start} al {end}',
     redoAvailable: 'Puedes rehacer este plan una vez esta quincena: recetas nuevas para los mismos días.',
     redoCta: 'Rehacer el plan',
@@ -999,7 +1022,6 @@ export const esES = {
     slice: 'reb.',
     unit: 'ud.'
   },
-
   vacations: {
     add: 'Pausar el plan',
     awayBody: 'Tu plan te espera. Retoma el {until}, justo donde lo dejaste.',

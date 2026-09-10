@@ -42,11 +42,23 @@ const FIT_TIE = 0.05;
 export type SchedulerInput = {
   readonly catalogue: Catalogue;
   readonly days?: number;
+  /**
+   * Days that eat for something (`0043`), by day index, with the targets they
+   * eat to. Every other day uses `targets`. Kept as an override map rather than
+   * a per-day array so a caller with no events passes nothing and the fortnight
+   * is what it always was.
+   */
+  readonly dayTargets?: ReadonlyMap<number, NutritionTargets>;
   readonly pool: readonly CandidateDish[];
   readonly targets: NutritionTargets;
   /** Each eaten slot's share of the day, unnormalised — see `weightsFor` (`0036`). */
   readonly weights: ReadonlyMap<MealSlot, number>;
 };
+
+/** What a given day is built to hit: its own targets if it eats for something, the plan's otherwise. */
+function targetsOn(input: SchedulerInput, dayIndex: number): NutritionTargets {
+  return input.dayTargets?.get(dayIndex) ?? input.targets;
+}
 
 export type SchedulerShortfall = {
   readonly available: number;
@@ -73,13 +85,16 @@ export type ScheduleResult =
 export function schedulePlan(input: SchedulerInput): ScheduleResult {
   const days = input.days ?? PLAN_DAYS;
   const slots = [...input.weights.keys()];
-  const budgets = slotBudgets(input.weights, input.targets);
   const perServing = perServingIndex(input.pool, input.catalogue);
 
   const placed: Placement[] = [];
   const assignedDays: PlanDayAssignment[] = [];
 
   for (let dayIndex = 1; dayIndex <= days; dayIndex += 1) {
+    // Per day rather than once: a day that eats for an event has its own targets
+    // (`0043`), and the budgets are what turn targets into a plate.
+    const targets = targetsOn(input, dayIndex);
+    const budgets = slotBudgets(input.weights, targets);
     const meals: ScheduledMeal[] = [];
 
     const picks: { base: Macros; dish: CandidateDish; servings: number; slot: MealSlot; sortOrder: number }[] = [];
@@ -118,7 +133,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       }
     }
 
-    for (const pick of balanceDay(improved, input.targets)) {
+    for (const pick of balanceDay(improved, targets)) {
       meals.push({
         dish: pick.dish,
         ingredients: scaleIngredients(pick.dish.ingredients, pick.servings / pick.dish.servings),
@@ -477,7 +492,7 @@ function improveDay(
   let current = [...picks];
 
   for (let round = 0; round < MAX_SWAP_ROUNDS; round += 1) {
-    let bestCost = dayFitCost(current, input.targets);
+    let bestCost = dayFitCost(current, targetsOn(input, dayIndex));
     let bestIndex = -1;
     let bestPick: Pick | undefined;
 
@@ -503,7 +518,7 @@ function improveDay(
         const swapped = current.map((entry, position) =>
           position === index ? { base, dish: candidate, servings, slot: entry.slot, sortOrder: entry.sortOrder } : entry
         );
-        const cost = dayFitCost(swapped, input.targets);
+        const cost = dayFitCost(swapped, targetsOn(input, dayIndex));
 
         if (cost < bestCost) {
           bestCost = cost;

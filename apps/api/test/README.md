@@ -11,6 +11,7 @@ part of `pnpm test`. Run them deliberately.
 | `access.e2e-spec.ts` | Both locks are required, each denial names which one is missing, a caller with no session gets 404 everywhere, and deleting an account takes its data and its credentials with it. |
 | `admin.e2e-spec.ts` | The admin routes do not exist for an ordinary account, answer the owner, carry no content column, and open a waiting account. |
 | `vacations.e2e-spec.ts` | A trip moves the days after it by exactly its length, leaves the days before it alone, holds no plan day while it lasts, and gives the days back when cancelled. |
+| `events.e2e-spec.ts` | A day that eats for something (`0043`): the days before it carry its name and their own targets, every other day carries the plan's, the two refusals, and a stranger's 404. |
 | `swaps.e2e-spec.ts` | A replacement is a different dish in the same slot, the shopping list is rebuilt with it, and the fifth swap is the last — the sixth is 429. |
 | `plan-lifecycle.e2e-spec.ts` | Meals remember being eaten or skipped, one plan is active at a time, a replaced plan stays readable, the fortnight redo is spent once, and a weight logged twice in a day is a correction. |
 | `fortnight.e2e-spec.ts` | The rest of what a person does with a plan: ticking the shopping list, a verdict on a dish, the check-in that closes the cycle and refuses a second, the reminder switch, and a restriction changed outside onboarding. |

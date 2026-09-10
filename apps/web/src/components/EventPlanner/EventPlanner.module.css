@@ -1,0 +1,74 @@
+.root {
+  display: grid;
+  gap: var(--space-03);
+}
+
+.title {
+  font-size: var(--font-size-04);
+  margin: 0;
+}
+
+.list {
+  display: grid;
+  gap: var(--space-02);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  align-items: center;
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-03);
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+  padding: var(--space-03) var(--space-04);
+}
+
+.what {
+  display: grid;
+  gap: var(--space-01);
+  min-inline-size: 0;
+}
+
+.name {
+  font-size: var(--font-size-03);
+}
+
+/* Two dates and a button; on a phone they stack, which is where this is used. */
+.form {
+  align-items: end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+}
+
+.error {
+  color: var(--color-error-text);
+}
+
+/* The three direction pickers, side by side, and stacked where three will not fit. */
+.shape {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (width < 30rem) {
+  .shape {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* A label over a control that cannot be wrapped in one. */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-01);
+}
+
+.label {
+  font-size: var(--font-size-01);
+  font-weight: 600;
+}

@@ -160,7 +160,15 @@ export type ShoppingItemDraft = {
 };
 
 export type PlanDraft = {
-  readonly days: readonly { readonly date: string; readonly dayIndex: number; readonly meals: readonly MealDraft[] }[];
+  readonly days: readonly {
+    readonly date: string;
+    readonly dayIndex: number;
+    /** The event this day eats for, by name, or null (`0043`). */
+    readonly loadedFor: string | null;
+    readonly meals: readonly MealDraft[];
+    /** What this day was built to hit. The plan's `strategy` for an ordinary day. */
+    readonly targets: NutritionTargets;
+  }[];
   readonly endDate: string;
   readonly generationMetadata: Record<string, unknown>;
   /** The language the dishes were written in. Stored on each new recipe, and what scopes reuse. */
