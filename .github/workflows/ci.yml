@@ -25,6 +25,10 @@ concurrency:
 
 jobs:
   gate:
+    # This string is a required status check on `main`, matched by name. It now
+    # runs two more things than it says; renaming it to suit means updating the
+    # ruleset in the same breath, or the rule waits forever on a check that no
+    # longer reports and nothing can be merged.
     name: lint · types · tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -42,9 +46,30 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Cheapest first, and the cheapest to fix: a formatting failure is one
+      # command away from green, so there is no reason to spend two minutes on
+      # the rest before saying so.
+      #
+      # It earns its place. `format` failed on 218 files for months, because
+      # eslint's `curly` fixer and Prettier disagree about `if (x) {return y;}`
+      # and nothing made anyone close the loop. Nobody noticed, which is the
+      # argument for a machine noticing.
+      - run: pnpm format
+
       # One command, the same one the working pattern uses; turbo's own cache
       # keeps a re-run of an unchanged package cheap.
       - run: pnpm turbo lint ts:check test
+
+      # Last, because it is the only check here that can be wrong. knip infers
+      # reachability, so a dynamically loaded file or a subpath imports map it
+      # cannot follow reads as dead code — `#repositories/*` already does, and
+      # knip.config.ts names every such case. When this is the step that fails,
+      # everything else has already passed, and the question is whether the
+      # finding is real or the config is behind.
+      #
+      # Blocking anyway. It once reported `src/main.ts` among 348 dead files and
+      # nobody read it; an advisory check is how it got that way.
+      - run: pnpm deadcode
 
   e2e:
     name: end-to-end
