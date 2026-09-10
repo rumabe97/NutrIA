@@ -2,11 +2,12 @@ import { Fragment } from 'react';
 
 import { redirect } from 'next/navigation';
 
-import own from './page.module.css';
-import styles from '../../../components/AuthForm/AuthForm.module.css';
+import own from './PendingScreen.module.css';
+import styles from 'components/AuthForm/AuthForm.module.css';
 
-import { getDictionary } from 'i18n/server';
+import { dictionaryFor } from 'i18n/server';
 import { Text } from 'ui/components/Text';
+import { withLocale } from 'i18n/routes';
 
 import { CheckAgainButton } from 'components/CheckAgainButton';
 import { SignOutLink } from 'components/SignOutLink';
@@ -14,10 +15,9 @@ import { SignOutLink } from 'components/SignOutLink';
 import { interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
+import type { Locale } from 'i18n/config';
 import type { SettingsView } from 'core/controllers/Settings';
 import type { UserView } from 'core/controllers/User';
-
-export const dynamic = 'force-dynamic';
 
 /**
  * Where a signed-in account lands while either of its two locks is closed
@@ -31,14 +31,11 @@ export const dynamic = 'force-dynamic';
  * Honest about the last one: accounts are opened by hand while the product runs
  * on a free-tier provider, and the only thing to do is check again later.
  */
-export default async function PendingPage() {
-  const [dictionary, user, settings] = await Promise.all([
-    getDictionary(),
-    serverApi<UserView>('/users/me'),
-    serverApi<SettingsView>('/settings')
-  ]);
+export async function PendingScreen({ locale }: Readonly<{ locale: Locale }>) {
+  const dictionary = dictionaryFor(locale);
+  const [user, settings] = await Promise.all([serverApi<UserView>('/users/me'), serverApi<SettingsView>('/settings')]);
 
-  if (!user) {redirect('/acceder');}
+  if (!user) {redirect(withLocale('/acceder', locale));}
 
   if (user.activated && user.emailVerified) {redirect('/inicio');}
 

@@ -2,13 +2,15 @@ import { Fragment, Suspense } from 'react';
 
 import styles from 'components/AuthForm/AuthForm.module.css';
 
-import { getDictionary } from 'i18n/server';
+import { dictionaryFor } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { ResetPasswordForm } from 'components/ResetPasswordForm';
 
-export default async function ResetPasswordPage() {
-  const dictionary = await getDictionary();
+import type { Locale } from 'i18n/config';
+
+export function ResetScreen({ locale }: Readonly<{ locale: Locale }>) {
+  const dictionary = dictionaryFor(locale);
 
   return (
     <Fragment>

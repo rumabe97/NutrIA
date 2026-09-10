@@ -4,12 +4,13 @@ import { Fragment, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-import styles from '../../../components/AuthForm/AuthForm.module.css';
+import styles from 'components/AuthForm/AuthForm.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
-import { useDictionary } from 'i18n/LocaleProvider';
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
+import { withLocale } from 'i18n/routes';
 
 import { interpolate } from 'lib/format';
 import { signUp } from 'lib/auth-client';
@@ -18,9 +19,10 @@ import type { FormEvent } from 'react';
 
 const MIN_PASSWORD_LENGTH = 8;
 
-export default function RegisterPage() {
+export function RegisterScreen() {
   const router = useRouter();
   const dictionary = useDictionary();
+  const locale = useLocale();
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
 
@@ -93,7 +95,7 @@ export default function RegisterPage() {
         <div className={styles.footer}>
           <Text size="sm" tone="secondary">
             {dictionary.auth.haveAccount}{' '}
-            <Link className={styles.link} href="/acceder">
+            <Link className={styles.link} href={withLocale('/acceder', locale)}>
               {dictionary.auth.toSignIn}
             </Link>
           </Text>
