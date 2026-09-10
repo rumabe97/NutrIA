@@ -135,6 +135,20 @@ const envObject = z.object({
   SMTP_PASS: optional(z.string()),
   SMTP_PORT: optional(z.coerce.number().int().positive()),
   SMTP_USER: optional(z.string()),
+  /**
+   * Payments (`0042`, `docs/reference/payments.md`). All three unset — the
+   * shipped default — means payments do not exist and nothing about them is
+   * reachable; the tier is then whatever the owner granted by hand.
+   *
+   * The prefix is checked rather than the whole shape because it is the half
+   * that goes wrong: a publishable key (`pk_`) pasted where the secret belongs
+   * fails every call at Stripe with a message about the wrong key type, and a
+   * live key (`sk_live_`) reaching a preview deployment is the mistake that
+   * charges somebody real money from a test.
+   */
+  STRIPE_PRICE_ID: optional(z.string().startsWith('price_', 'must be a Stripe price id')),
+  STRIPE_SECRET_KEY: optional(z.string().startsWith('sk_', 'must be a Stripe secret key, never a publishable one')),
+  STRIPE_WEBHOOK_SECRET: optional(z.string().startsWith('whsec_', 'must be a Stripe webhook signing secret')),
   /*
    * No fixed default. Unset means "on in development, off everywhere else",
    * resolved below once NODE_ENV is known. It used to default to `true`, which
