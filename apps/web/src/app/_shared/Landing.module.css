@@ -207,6 +207,18 @@
   transform: translateY(-2px);
 }
 
+/* The step, feature and safety titles name a topic under a section, so they are
+   headings — they were paragraphs, which left the page with one h1, five h2s
+   and nothing in between for either a screen reader's rotor or a crawler. The
+   size stays the design's rather than the heading scale's: a card label that
+   grew because its tag changed would be a redesign smuggled in as a fix. */
+.subheading {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
 .featureTitle {
   margin-bottom: var(--space-02);
 }

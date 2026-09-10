@@ -112,9 +112,7 @@ export function Landing({ locale }: Readonly<{ locale: Locale }>) {
           <div className={styles.steps}>
             {t.steps.map((step, index) => (
               <Reveal className={styles.step} delay={index * 80} key={step.title}>
-                <Text size="md" weight="semibold">
-                  {step.title}
-                </Text>
+                <h3 className={styles.subheading}>{step.title}</h3>
                 <Text size="sm" tone="secondary">
                   {step.body}
                 </Text>
@@ -135,9 +133,7 @@ export function Landing({ locale }: Readonly<{ locale: Locale }>) {
           <div className={styles.features}>
             {t.features.map((feature, index) => (
               <Reveal className={styles.feature} delay={index * 60} key={feature.title}>
-                <Text className={styles.featureTitle} weight="semibold">
-                  {feature.title}
-                </Text>
+                <h3 className={`${styles.subheading} ${styles.featureTitle}`}>{feature.title}</h3>
                 <Text size="sm" tone="secondary">
                   {feature.body}
                 </Text>
@@ -160,7 +156,7 @@ export function Landing({ locale }: Readonly<{ locale: Locale }>) {
               <div className={styles.safetyGrid}>
                 {t.safety.map((item, index) => (
                   <Reveal className={styles.safetyItem} delay={index * 80} key={item.title}>
-                    <Text weight="semibold">{item.title}</Text>
+                    <h3 className={styles.subheading}>{item.title}</h3>
                     <Text size="sm" tone="secondary">
                       {item.body}
                     </Text>

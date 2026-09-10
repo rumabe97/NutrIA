@@ -16,6 +16,17 @@
   margin-bottom: var(--gap-heading);
 }
 
+/* The card's name, as a heading: these sections are peers of the two cards the
+   profile page already titles with an h2, and a page whose outline is one h1
+   and nothing else is a page a screen reader cannot skim. The size is the
+   design's, not the heading scale's. */
+.title {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
 .rows {
   display: grid;
   gap: var(--space-03);
