@@ -4,6 +4,7 @@ import { DEFAULT_LOCALE, isLocale, LOCALES, negotiateLocale, parseLocale } from 
 import { enGB } from './dictionaries/en-GB';
 import { esES } from './dictionaries/es-ES';
 import { interpolate } from './interpolate';
+import { isLocalised, LOCALISED_PATHS, localeFromPathname, withLocale, withoutLocale } from './routes';
 
 describe('negotiateLocale', () => {
   it('falls back to the default when the header is absent', () => {
@@ -41,6 +42,51 @@ describe('parseLocale', () => {
     expect(parseLocale('en-US')).toBeNull();
     expect(parseLocale(undefined)).toBeNull();
     expect(isLocale('nonsense')).toBe(false);
+  });
+});
+
+describe('the locale in the URL', () => {
+  it('reads English from the prefix and everything else as the default', () => {
+    expect(localeFromPathname('/en')).toBe('en-GB');
+    expect(localeFromPathname('/en/registro')).toBe('en-GB');
+    expect(localeFromPathname('/registro')).toBe(DEFAULT_LOCALE);
+    expect(localeFromPathname('/')).toBe(DEFAULT_LOCALE);
+  });
+
+  it('matches whole segments, so a Spanish route starting with "en" is not English', () => {
+    // `/entrenamiento` would be a Spanish page, not the English tree.
+    expect(localeFromPathname('/entrenamiento')).toBe(DEFAULT_LOCALE);
+    expect(withoutLocale('/entrenamiento')).toBe('/entrenamiento');
+  });
+
+  it('strips the prefix back to the shared path', () => {
+    expect(withoutLocale('/en')).toBe('/');
+    expect(withoutLocale('/en/')).toBe('/');
+    expect(withoutLocale('/en/acceder')).toBe('/acceder');
+    expect(withoutLocale('/acceder')).toBe('/acceder');
+  });
+
+  it('builds the same page in the other language', () => {
+    expect(withLocale('/', 'en-GB')).toBe('/en');
+    expect(withLocale('/acceder', 'en-GB')).toBe('/en/acceder');
+    expect(withLocale('/acceder', 'es-ES')).toBe('/acceder');
+    expect(withLocale('/', 'es-ES')).toBe('/');
+  });
+
+  it('round-trips every localised path in both languages', () => {
+    for (const path of LOCALISED_PATHS) {
+      for (const locale of LOCALES) {
+        expect(withoutLocale(withLocale(path, locale))).toBe(path);
+        expect(localeFromPathname(withLocale(path, locale))).toBe(locale);
+      }
+    }
+  });
+
+  it('knows which pages have a twin, so the signed-in screens keep their Spanish URLs', () => {
+    expect(isLocalised('/registro')).toBe(true);
+    expect(isLocalised('/en/registro')).toBe(true);
+    expect(isLocalised('/inicio')).toBe(false);
+    expect(isLocalised('/plan/historial')).toBe(false);
   });
 });
 
