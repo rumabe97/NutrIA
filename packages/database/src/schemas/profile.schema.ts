@@ -63,14 +63,10 @@ export const userPreferences = userOwnedSingleton('user_preferences', {
    * person who skips breakfast had no way to say so. Six answers instead of a
    * count, each `off`, `light`, `normal` or `large`.
    */
-  mealShape: jsonb().$type<MealShape>().notNull().default({
-    afternoon_snack: 'normal',
-    breakfast: 'normal',
-    dinner: 'normal',
-    lunch: 'normal',
-    morning_snack: 'off',
-    supper: 'off'
-  }),
+  mealShape: jsonb()
+    .$type<MealShape>()
+    .notNull()
+    .default({ afternoon_snack: 'normal', breakfast: 'normal', dinner: 'normal', lunch: 'normal', morning_snack: 'off', supper: 'off' }),
   portionPreference: text(),
   sleepEnd: time(),
   sleepStart: time(),
@@ -146,9 +142,7 @@ export const healthConditions = userOwned('health_conditions', {
  * read is a field that should not exist: it is health data whose only possible
  * use is one we have ruled out.
  */
-export const medications = userOwned('medications', {
-  name: text().notNull()
-});
+export const medications = userOwned('medications', { name: text().notNull() });
 
 /**
  * A supplement and, optionally, the protein it supplies.

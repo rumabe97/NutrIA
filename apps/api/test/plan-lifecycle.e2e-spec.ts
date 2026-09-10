@@ -53,8 +53,16 @@ describe('plan lifecycle', () => {
     const server = httpServer(app);
     const [eaten, skipped] = plan.days[0].meals;
 
-    await request(server).patch(`/${PREFIX}/meal-plans/meals/${eaten.id}/status`).set('Cookie', account.cookie).send({ status: 'completed' }).expect(200);
-    await request(server).patch(`/${PREFIX}/meal-plans/meals/${skipped.id}/status`).set('Cookie', account.cookie).send({ status: 'skipped' }).expect(200);
+    await request(server)
+      .patch(`/${PREFIX}/meal-plans/meals/${eaten.id}/status`)
+      .set('Cookie', account.cookie)
+      .send({ status: 'completed' })
+      .expect(200);
+    await request(server)
+      .patch(`/${PREFIX}/meal-plans/meals/${skipped.id}/status`)
+      .set('Cookie', account.cookie)
+      .send({ status: 'skipped' })
+      .expect(200);
 
     const after = await activePlan(account);
     const marks = new Map(after.days[0].meals.map(meal => [meal.id, meal.status]));
@@ -74,7 +82,10 @@ describe('plan lifecycle', () => {
     await request(server)
       .patch(`/${PREFIX}/onboarding`)
       .set('Cookie', skipper.cookie)
-      .send({ data: { mealShape: { afternoon_snack: 'off', breakfast: 'off', dinner: 'light', lunch: 'normal', morning_snack: 'off', supper: 'off' } }, step: 'how-you-eat' })
+      .send({
+        data: { mealShape: { afternoon_snack: 'off', breakfast: 'off', dinner: 'light', lunch: 'normal', morning_snack: 'off', supper: 'off' } },
+        step: 'how-you-eat'
+      })
       .expect(200);
 
     const job = await generateAndWait(app, skipper);
@@ -95,7 +106,7 @@ describe('plan lifecycle', () => {
       const lunch = day.meals.find(meal => meal.slot === 'lunch');
       const dinner = day.meals.find(meal => meal.slot === 'dinner');
 
-      expect((lunch?.kcal ?? 0)).toBeGreaterThan(dinner?.kcal ?? 0);
+      expect(lunch?.kcal ?? 0).toBeGreaterThan(dinner?.kcal ?? 0);
     }
   }, 200_000);
 
@@ -103,17 +114,29 @@ describe('plan lifecycle', () => {
     const server = httpServer(app);
     // Day one is today, so day two is tomorrow whatever the clock says.
     const tomorrow = plan.days[1].meals[0];
-    const refused: Response = await request(server).patch(`/${PREFIX}/meal-plans/meals/${tomorrow.id}/status`).set('Cookie', account.cookie).send({ status: 'completed' }).expect(409);
+    const refused: Response = await request(server)
+      .patch(`/${PREFIX}/meal-plans/meals/${tomorrow.id}/status`)
+      .set('Cookie', account.cookie)
+      .send({ status: 'completed' })
+      .expect(409);
 
     expect((refused.body as { code: string }).code).toBe('MEAL_IN_FUTURE');
 
     // Today's is fine, and so is yesterday's would be: catching up is ordinary,
     // predicting is not.
-    await request(server).patch(`/${PREFIX}/meal-plans/meals/${plan.days[0].meals[0].id}/status`).set('Cookie', account.cookie).send({ status: 'completed' }).expect(200);
+    await request(server)
+      .patch(`/${PREFIX}/meal-plans/meals/${plan.days[0].meals[0].id}/status`)
+      .set('Cookie', account.cookie)
+      .send({ status: 'completed' })
+      .expect(200);
   });
 
   it('will not let one account mark another account meal', async () => {
-    await request(httpServer(app)).patch(`/${PREFIX}/meal-plans/meals/${plan.days[1].meals[0].id}/status`).set('Cookie', stranger.cookie).send({ status: 'completed' }).expect(404);
+    await request(httpServer(app))
+      .patch(`/${PREFIX}/meal-plans/meals/${plan.days[1].meals[0].id}/status`)
+      .set('Cookie', stranger.cookie)
+      .send({ status: 'completed' })
+      .expect(404);
   });
 
   it('shows one plan and one only as active, and lists the fortnight in the history', async () => {
@@ -175,7 +198,11 @@ describe('plan lifecycle', () => {
 
     await request(server).post(`/${PREFIX}/progress/weight`).set('Cookie', account.cookie).send({ weightKg: 71.5 }).expect(201);
 
-    const corrected: Response = await request(server).post(`/${PREFIX}/progress/weight`).set('Cookie', account.cookie).send({ weightKg: 71.2 }).expect(201);
+    const corrected: Response = await request(server)
+      .post(`/${PREFIX}/progress/weight`)
+      .set('Cookie', account.cookie)
+      .send({ weightKg: 71.2 })
+      .expect(201);
     const weight = corrected.body as WeightView;
 
     // Two readings on one day are a correction, not a trend.

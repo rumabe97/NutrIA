@@ -11,17 +11,9 @@
  */
 export const esES = {
   /* Words that only a screen reader or a keyboard ever reaches. */
-  a11y: {
-    skipToContent: 'Saltar al contenido'
-  },
+  a11y: { skipToContent: 'Saltar al contenido' },
 
-  activity: {
-    athlete: 'Deportista',
-    high: 'Alto',
-    light: 'Ligero',
-    moderate: 'Moderado',
-    sedentary: 'Sedentario'
-  },
+  activity: { athlete: 'Deportista', high: 'Alto', light: 'Ligero', moderate: 'Moderado', sedentary: 'Sedentario' },
 
   admin: {
     accounts: 'Cuentas',
@@ -32,7 +24,8 @@ export const esES = {
     activityPeople: '{count} personas han entrado en este tiempo.',
     activityTitle: 'Actividad ({days} días)',
     aiCalls: 'Peticiones hoy',
-    aiHint: 'Nuestro recuento de lo que ha salido de aquí, contra el límite que hayas configurado. Google no publica cuánta cuota te queda de verdad: si su consola dice otra cifra, la diferencia son llamadas que no pasaron por este servicio.',
+    aiHint:
+      'Nuestro recuento de lo que ha salido de aquí, contra el límite que hayas configurado. Google no publica cuánta cuota te queda de verdad: si su consola dice otra cifra, la diferencia son llamadas que no pasaron por este servicio.',
     aiModel: 'Modelo',
     aiRefused: 'Rechazadas por cuota',
     aiResets: 'La cuenta diaria se reinicia',
@@ -42,10 +35,7 @@ export const esES = {
     automaticActivation: 'Activación automática',
     automaticHint: 'Quien confirma su correo entra directamente. Tú no tienes que hacer nada.',
     confirmed: 'correo confirmado',
-    events: {
-      session_started: 'Entradas',
-      swap_requested: 'Cambios de comida pedidos'
-    },
+    events: { session_started: 'Entradas', swap_requested: 'Cambios de comida pedidos' },
     failureNote: '{count} generaciones han fallado. El código dice si fue la cuota, la clave o el catálogo.',
     failures: 'Fallos',
     feedbackHandled: 'Marcar como visto',
@@ -63,7 +53,8 @@ export const esES = {
       returned: 'Han vuelto a por un segundo plan',
       signedUp: 'Se han registrado'
     },
-    funnelHint: 'Contado sobre los datos, no sobre eventos: cubre también las cuentas anteriores a esta pantalla. El porcentaje es sobre el paso de arriba.',
+    funnelHint:
+      'Contado sobre los datos, no sobre eventos: cubre también las cuentas anteriores a esta pantalla. El porcentaje es sobre el paso de arriba.',
     funnelTitle: 'Embudo',
     inDays: 'en {days} días',
     ingredients: 'Ingredientes',
@@ -185,7 +176,8 @@ export const esES = {
     hungerHungry: 'Me quedaba con hambre',
     hungerRight: 'Bien',
     hungerTooMuch: 'Era demasiado',
-    intro: 'Cinco preguntas. Lo que digas aquí cambia el siguiente plan: tu peso ajusta los objetivos, las cantidades los suben o bajan un 5 %, y tus palabras llegan al modelo tal cual.',
+    intro:
+      'Cinco preguntas. Lo que digas aquí cambia el siguiente plan: tu peso ajusta los objetivos, las cantidades los suben o bajan un 5 %, y tus palabras llegan al modelo tal cual.',
     nextPlan: 'Crear mi próximo plan',
     notYetBody: 'El check-in se abre el último día del plan.',
     notYetTitle: 'Todavía no toca',
@@ -235,7 +227,8 @@ export const esES = {
     availableNow: 'ya disponible',
     checkIn: '· próxima revisión {when}',
     checkInDoneNote: 'Check-in hecho. Cuando quieras, crea el siguiente plan.',
-    checkInDueBody: 'Han pasado catorce días. Cuéntanos en un minuto cómo ha ido: peso, cantidades y qué cambiarías. El siguiente plan lo tendrá en cuenta.',
+    checkInDueBody:
+      'Han pasado catorce días. Cuéntanos en un minuto cómo ha ido: peso, cantidades y qué cambiarías. El siguiente plan lo tendrá en cuenta.',
     checkInDueCta: 'Hacer el check-in',
     checkInDueTitle: 'Tu check-in de la quincena',
     dayOf: 'Día {current} de {total}',
@@ -250,7 +243,8 @@ export const esES = {
     lastDay: 'Último día',
     nextMeal: 'Lo siguiente',
     nextMealNone: 'Ya no queda nada por hoy.',
-    noPlanBody: 'Ya tenemos todo lo que necesitamos sobre ti. Crearemos catorce días completos con recetas, cantidades y la lista de la compra hecha.',
+    noPlanBody:
+      'Ya tenemos todo lo que necesitamos sobre ti. Crearemos catorce días completos con recetas, cantidades y la lista de la compra hecha.',
     noPlanCta: 'Crear mi plan',
     noPlanTitle: 'Todavía no tienes plan',
     ofTarget: '{value} de {target} {unit}',
@@ -335,7 +329,8 @@ export const esES = {
     couldNotStart: 'No hemos podido empezar',
     failedBody: 'Algo ha ido mal por nuestra parte. No se ha guardado nada, así que puedes volver a intentarlo.',
     failedTitle: 'No hemos podido crear tu plan',
-    invalidPlanBody: 'Hemos construido un plan pero le faltaban comidas o cruzaba un límite de seguridad, así que lo hemos descartado en lugar de dártelo. Vuelve a intentarlo.',
+    invalidPlanBody:
+      'Hemos construido un plan pero le faltaban comidas o cruzaba un límite de seguridad, así que lo hemos descartado en lugar de dártelo. Vuelve a intentarlo.',
     invalidPlanTitle: 'El plan no salía bien',
     onboardingIncompleteBody: 'Nos faltan datos tuyos para poder calcular tus necesidades.',
     onboardingIncompleteTitle: 'Falta terminar tu perfil',
@@ -358,7 +353,8 @@ export const esES = {
       VALIDATING_PLAN: 'Comprobando que todo encaja'
     },
     title: 'Estamos creando tu plan',
-    unsafeBody: 'Hemos bloqueado el plan porque una comida no respetaba tus alergias. Preferimos no darte nada antes que darte algo que no puedes comer.',
+    unsafeBody:
+      'Hemos bloqueado el plan porque una comida no respetaba tus alergias. Preferimos no darte nada antes que darte algo que no puedes comer.',
     unsafeTitle: 'Lo hemos bloqueado por seguridad',
     wait: 'Tarda un par de minutos. Puedes dejar esta página abierta.'
   },
@@ -413,11 +409,13 @@ export const esES = {
         question: '¿Por qué catorce días?'
       },
       {
-        answer: 'Sí. Puedes cambiar cualquier comida por otra que respete tus restricciones y encaje en tus objetivos del día. El plan se reajusta solo.',
+        answer:
+          'Sí. Puedes cambiar cualquier comida por otra que respete tus restricciones y encaje en tus objetivos del día. El plan se reajusta solo.',
         question: '¿Puedo cambiar una comida que no me gusta?'
       },
       {
-        answer: 'Se excluyen del catálogo por completo. Si además te afectan las trazas, también descartamos los ingredientes marcados como «puede contener».',
+        answer:
+          'Se excluyen del catálogo por completo. Si además te afectan las trazas, también descartamos los ingredientes marcados como «puede contener».',
         question: '¿Cómo tratáis las alergias?'
       },
       {
@@ -445,8 +443,14 @@ export const esES = {
         body: 'Una lista por plan, agrupada por pasillo y con las cantidades ya sumadas. Tres tomates sueltos son 450 g.',
         title: 'Lista de la compra automática'
       },
-      { body: 'Peso, adherencia, energía y hambre. Solo las tendencias que significan algo, sin convertirlo en un examen.', title: 'Progreso sin obsesión' },
-      { body: 'Tus alergias e intolerancias se aplican como filtro del sistema, no como una instrucción a un modelo.', title: 'Alergias como límite duro' },
+      {
+        body: 'Peso, adherencia, energía y hambre. Solo las tendencias que significan algo, sin convertirlo en un examen.',
+        title: 'Progreso sin obsesión'
+      },
+      {
+        body: 'Tus alergias e intolerancias se aplican como filtro del sistema, no como una instrucción a un modelo.',
+        title: 'Alergias como límite duro'
+      },
       { body: 'Pregunta por una sustitución, por qué elegimos un plato o qué comprar mañana. Conoce tu plan.', title: 'Asistente de nutrición' }
     ],
     finalCtaTitle: 'Deja de decidir qué cenar.',
@@ -481,7 +485,10 @@ export const esES = {
         body: 'Las calorías y los macros salen de tablas de composición y de tu perfil, con un mínimo diario que ningún objetivo puede saltarse.',
         title: 'Los números no se improvisan'
       },
-      { body: 'NutrIA planifica comidas. No diagnostica, no receta y no sustituye a un profesional sanitario.', title: 'Sabemos dónde está el límite' }
+      {
+        body: 'NutrIA planifica comidas. No diagnostica, no receta y no sustituye a un profesional sanitario.',
+        title: 'Sabemos dónde está el límite'
+      }
     ],
     safetyLede: 'La IA propone comidas. Lo que puede hacerte daño lo comprueba el sistema.',
     safetyTitle: 'Lo importante no lo decide un modelo.',
@@ -505,9 +512,7 @@ export const esES = {
   },
 
   /* What a phone shows under the icon when somebody installs the app. */
-  manifest: {
-    description: 'Planes de alimentación personalizados, ajustados cada dos semanas.'
-  },
+  manifest: { description: 'Planes de alimentación personalizados, ajustados cada dos semanas.' },
 
   meal: {
     alternatives: 'Si no lo encuentras',
@@ -604,7 +609,8 @@ export const esES = {
       mealShapeHint: 'Marca las que no hagas. Si una la haces ligera, el resto del día asume esos macros.',
       otherAllergies: 'Otras alergias',
       pace: 'Ritmo (kg por semana)',
-      paceHint: 'Entre 0 y 1 kg por semana; el sentido lo marca tu objetivo. Si pides más de lo que es seguro para ti, lo ajustamos y te lo decimos en el resumen.',
+      paceHint:
+        'Entre 0 y 1 kg por semana; el sentido lo marca tu objetivo. Si pides más de lo que es seguro para ti, lo ajustamos y te lo decimos en el resumen.',
       paceRange: 'El ritmo tiene que estar entre 0 y 1 kg por semana.',
       portionPreference: '¿Prefieres platos grandes o ligeros?',
       sex: 'Sexo',
@@ -655,7 +661,14 @@ export const esES = {
         weight_loss: { hint: 'Reducir grasa manteniendo la masa muscular.', label: 'Perder peso' }
       },
       mealSizes: { large: 'Fuerte', light: 'Ligera', normal: 'Normal', off: 'No la hago' },
-      mealSlots: { afternoon_snack: 'Merienda', breakfast: 'Desayuno', dinner: 'Cena', lunch: 'Comida', morning_snack: 'Media mañana', supper: 'Recena' },
+      mealSlots: {
+        afternoon_snack: 'Merienda',
+        breakfast: 'Desayuno',
+        dinner: 'Cena',
+        lunch: 'Comida',
+        morning_snack: 'Media mañana',
+        supper: 'Recena'
+      },
       sex: { female: 'Mujer', male: 'Hombre', other: 'Otro', prefer_not_to_say: 'Prefiero no decirlo' }
     },
     percent: '{value} %',
@@ -715,10 +728,7 @@ export const esES = {
         'Planes de catorce días con recetas, cantidades y la lista de la compra hecha, construidos alrededor de tus objetivos, tus horarios y tus alergias.',
       title: 'NutrIA — Planes de alimentación personalizados'
     },
-    '/acceder': {
-      description: 'Entra en NutrIA para ver tu plan de hoy, tu lista de la compra y tu progreso.',
-      title: 'Acceder'
-    },
+    '/acceder': { description: 'Entra en NutrIA para ver tu plan de hoy, tu lista de la compra y tu progreso.', title: 'Acceder' },
     '/admin': { title: 'Panel' },
     '/check-in': { title: 'Check-in de la quincena' },
     '/compra': { title: 'La compra' },
@@ -891,14 +901,7 @@ export const esES = {
     signUp: 'Crear mi plan'
   },
 
-  slots: {
-    afternoon_snack: 'Merienda',
-    breakfast: 'Desayuno',
-    dinner: 'Cena',
-    lunch: 'Comida',
-    morning_snack: 'Almuerzo',
-    supper: 'Recena'
-  },
+  slots: { afternoon_snack: 'Merienda', breakfast: 'Desayuno', dinner: 'Cena', lunch: 'Comida', morning_snack: 'Almuerzo', supper: 'Recena' },
 
   targets: {
     activity: 'Actividad',

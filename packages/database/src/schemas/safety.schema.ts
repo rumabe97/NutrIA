@@ -69,9 +69,6 @@ export const intolerances = userOwned(
  */
 export const customAllergens = userOwned(
   'custom_allergens',
-  {
-    ingredientId: uuid().references(() => ingredients.id, { onDelete: 'set null' }),
-    label: text().notNull()
-  },
+  { ingredientId: uuid().references(() => ingredients.id, { onDelete: 'set null' }), label: text().notNull() },
   table => [index('custom_allergens_ingredient_idx').on(table.ingredientId)]
 );

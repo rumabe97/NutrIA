@@ -33,7 +33,7 @@ export const UserRepository = {
    * Deliberately does **not** touch `emailVerified`: that says the address is
    * real and only the person holding it can prove that.
    */
-  async activate(match: { readonly id?: string; readonly email?: string; }): Promise<{ readonly email: string } | null> {
+  async activate(match: { readonly id?: string; readonly email?: string }): Promise<{ readonly email: string } | null> {
     try {
       const where = match.id === undefined ? eq(user.email, match.email ?? '') : eq(user.id, match.id);
       const rows = await database()
@@ -84,12 +84,32 @@ export const UserRepository = {
    * people's health data (`0028`), and none of it helps decide whether to open
    * an account.
    */
-  async findAll(limit: number, offset: number): Promise<{ readonly rows: readonly { readonly id: string; readonly activatedAt: Date | null; readonly createdAt: Date; readonly email: string; readonly emailVerified: boolean; readonly role: 'admin' | 'user'; }[]; readonly total: number }> {
+  async findAll(
+    limit: number,
+    offset: number
+  ): Promise<{
+    readonly rows: readonly {
+      readonly id: string;
+      readonly activatedAt: Date | null;
+      readonly createdAt: Date;
+      readonly email: string;
+      readonly emailVerified: boolean;
+      readonly role: 'admin' | 'user';
+    }[];
+    readonly total: number;
+  }> {
     try {
       const db = database();
       const [rows, counted] = await Promise.all([
         db
-          .select({ id: user.id, activatedAt: user.activatedAt, createdAt: user.createdAt, email: user.email, emailVerified: user.emailVerified, role: user.role })
+          .select({
+            id: user.id,
+            activatedAt: user.activatedAt,
+            createdAt: user.createdAt,
+            email: user.email,
+            emailVerified: user.emailVerified,
+            role: user.role
+          })
           .from(user)
           .orderBy(desc(user.createdAt))
           .limit(limit)
@@ -147,7 +167,9 @@ export const UserRepository = {
 };
 
 function wrap(error: unknown): DatabaseOperationError {
-  if (error instanceof ZodError) {return new DatabaseOperationError(`Schema mismatch on user: ${error.message}`);}
+  if (error instanceof ZodError) {
+    return new DatabaseOperationError(`Schema mismatch on user: ${error.message}`);
+  }
 
   return new DatabaseOperationError();
 }

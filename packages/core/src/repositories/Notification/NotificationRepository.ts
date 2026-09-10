@@ -71,7 +71,9 @@ export const NotificationRepository = {
         .from(user)
         .innerJoin(mealPlans, and(eq(mealPlans.userId, user.id), eq(mealPlans.status, 'active')))
         .leftJoin(profiles, eq(profiles.userId, user.id))
-        .where(and(eq(user.emailVerified, true), lte(mealPlans.endDate, today), not(exists(checkedIn)), not(exists(alreadySent)), not(exists(optedOut))))
+        .where(
+          and(eq(user.emailVerified, true), lte(mealPlans.endDate, today), not(exists(checkedIn)), not(exists(alreadySent)), not(exists(optedOut)))
+        )
         .limit(limit);
 
       return rows.map(row => ({ email: row.email, endDate: row.endDate, locale: row.locale, planId: row.planId, userId: row.id }));

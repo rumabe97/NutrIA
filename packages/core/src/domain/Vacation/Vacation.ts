@@ -41,13 +41,21 @@ export type VacationProblem = 'ends-before-it-starts' | 'overlaps' | 'starts-in-
  * already ate cannot be moved to make room for a holiday they already took.
  */
 export function problemWith(trip: PlanVacation, today: string, existing: readonly PlanVacation[]): VacationProblem | null {
-  if (trip.endsOn < trip.startsOn) {return 'ends-before-it-starts';}
+  if (trip.endsOn < trip.startsOn) {
+    return 'ends-before-it-starts';
+  }
 
-  if (trip.startsOn < today) {return 'starts-in-the-past';}
+  if (trip.startsOn < today) {
+    return 'starts-in-the-past';
+  }
 
-  if (daysAway(trip) > MAX_VACATION_DAYS) {return 'too-long';}
+  if (daysAway(trip) > MAX_VACATION_DAYS) {
+    return 'too-long';
+  }
 
-  if (existing.some(other => overlaps(trip, other))) {return 'overlaps';}
+  if (existing.some(other => overlaps(trip, other))) {
+    return 'overlaps';
+  }
 
   return null;
 }
@@ -61,7 +69,9 @@ export function problemWith(trip: PlanVacation, today: string, existing: readonl
  * days in the past.
  */
 export function daysToGiveBack(trip: PlanVacation, today: string): number {
-  if (trip.endsOn < today) {return 0;}
+  if (trip.endsOn < today) {
+    return 0;
+  }
 
   return daysAway({ endsOn: trip.endsOn, startsOn: trip.startsOn > today ? trip.startsOn : today });
 }

@@ -8,9 +8,7 @@ import type { User } from 'core/entities/User';
 
 const findById = vi.fn<(id: string) => Promise<User | undefined>>();
 
-vi.mock('#repositories/User', () => ({
-  UserRepository: { findById: (id: string) => findById(id) }
-}));
+vi.mock('#repositories/User', () => ({ UserRepository: { findById: (id: string) => findById(id) } }));
 
 /*
  * The account view is what every gate in the web app reads. It carried only

@@ -41,7 +41,9 @@ export function resolveModel(env: Env): LanguageModel | null {
 function required(value: string | undefined, name: string): string {
   // Env validation enforces this at boot; this guards the case where a provider is
   // switched at runtime in a test.
-  if (!value) {throw new Error(`${name} is required when AI_PROVIDER selects it`);}
+  if (!value) {
+    throw new Error(`${name} is required when AI_PROVIDER selects it`);
+  }
 
   return value;
 }
@@ -56,8 +58,9 @@ function required(value: string | undefined, name: string): string {
  * model, so the image model is fixed rather than read from it (0010).
  */
 export function resolveImageModel(env: Env): ImageModel | null {
-  if (!env.AI_ILLUSTRATIONS || env.AI_PROVIDER !== 'google') {return null;}
+  if (!env.AI_ILLUSTRATIONS || env.AI_PROVIDER !== 'google') {
+    return null;
+  }
 
   return createGoogleGenerativeAI({ apiKey: required(env.GOOGLE_API_KEY, 'GOOGLE_API_KEY') }).image('gemini-2.5-flash-image');
 }
-

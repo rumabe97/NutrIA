@@ -43,7 +43,9 @@ export function WeightChart({ entries, targetKg }: WeightChartProps) {
   const first = entries[0];
   const last = entries[entries.length - 1];
 
-  if (!first || !last) {return null;}
+  if (!first || !last) {
+    return null;
+  }
 
   const start = Date.parse(`${first.loggedOn}T00:00:00Z`);
   const span = Math.max(Date.parse(`${last.loggedOn}T00:00:00Z`) - start, DAY_MS);

@@ -122,7 +122,9 @@ export const RecipeController = {
   },
 
   /** What the illustrator still has to draw. Bounded, oldest first. */
-  async pendingIllustrations(limit: number): Promise<readonly { readonly id: string; readonly ingredientNames: readonly string[]; readonly locale: string; readonly name: string }[]> {
+  async pendingIllustrations(
+    limit: number
+  ): Promise<readonly { readonly id: string; readonly ingredientNames: readonly string[]; readonly locale: string; readonly name: string }[]> {
     return RecipeRepository.findWithoutImage(limit);
   },
 
@@ -186,12 +188,26 @@ export const RecipeController = {
      */
     const today = new Date().toISOString().slice(0, 10);
 
-    if ((await VacationRepository.findUpcoming(userId, today)).some(trip => isAway(trip, today))) {throw new PlanPausedError();}
+    if ((await VacationRepository.findUpcoming(userId, today)).some(trip => isAway(trip, today))) {
+      throw new PlanPausedError();
+    }
 
-    if (!(await RecipeRepository.setVerdict(userId, recipeId, verdict))) {throw new NotFoundError('Recipe not found');}
+    if (!(await RecipeRepository.setVerdict(userId, recipeId, verdict))) {
+      throw new NotFoundError('Recipe not found');
+    }
   },
 
-  async storeIllustration(recipeId: string, image: { readonly bytes: Buffer; readonly contentType: string; readonly height: number; readonly model: string; readonly promptVersion: string; readonly width: number }): Promise<void> {
+  async storeIllustration(
+    recipeId: string,
+    image: {
+      readonly bytes: Buffer;
+      readonly contentType: string;
+      readonly height: number;
+      readonly model: string;
+      readonly promptVersion: string;
+      readonly width: number;
+    }
+  ): Promise<void> {
     await RecipeRepository.saveImage(recipeId, image);
   },
 

@@ -103,8 +103,12 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
        * session cookie is set, and `SessionGuard` re-reads the row on every
        * request, so the person is in on their next navigation.
        */
-      afterEmailVerification: async (verified: { id: string; email: string; }) => {
-        await onAddressConfirmed(verified, { link: { apiUrl: `${env.BETTER_AUTH_URL}/${env.API_PREFIX}`, secret: env.BETTER_AUTH_SECRET }, mailer, ownerEmail: env.OWNER_EMAIL });
+      afterEmailVerification: async (verified: { id: string; email: string }) => {
+        await onAddressConfirmed(verified, {
+          link: { apiUrl: `${env.BETTER_AUTH_URL}/${env.API_PREFIX}`, secret: env.BETTER_AUTH_SECRET },
+          mailer,
+          ownerEmail: env.OWNER_EMAIL
+        });
       },
       autoSignInAfterVerification: true,
       /*
@@ -148,10 +152,7 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
       storage: 'database'
     },
     secret: env.BETTER_AUTH_SECRET,
-    session: {
-      expiresIn: SESSION_MAX_AGE_DAYS * 24 * MINUTES * MINUTES,
-      updateAge: SESSION_REFRESH_AGE_DAYS * 24 * MINUTES * MINUTES
-    },
+    session: { expiresIn: SESSION_MAX_AGE_DAYS * 24 * MINUTES * MINUTES, updateAge: SESSION_REFRESH_AGE_DAYS * 24 * MINUTES * MINUTES },
     trustedOrigins: (env.ALLOWED_ORIGINS ?? env.APP_URL).split(',').map(origin => origin.trim()),
     user: {
       additionalFields: {

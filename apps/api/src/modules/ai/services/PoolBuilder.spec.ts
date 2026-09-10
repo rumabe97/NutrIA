@@ -82,7 +82,7 @@ function fullReusablePool(): CandidateDish[] {
 
 function stubClient(responses: readonly GeneratedPool[], available = true): { client: AiClient; generate: jest.Mock } {
   let call = 0;
-  const generate = jest.fn(async <T,>(_request: AiRequest<T>): Promise<AiResponse<T>> => {
+  const generate = jest.fn(async <T>(_request: AiRequest<T>): Promise<AiResponse<T>> => {
     const object = responses[Math.min(call, responses.length - 1)] ?? { dishes: [] };
     call += 1;
 
@@ -114,7 +114,8 @@ describe('PoolBuilder', () => {
     avoidNames: [],
     breakfastStyle: null,
     budget: null,
-    cookingFrequency: null, cookingTimeMinutes: 30,
+    cookingFrequency: null,
+    cookingTimeMinutes: 30,
     cuisines: [],
     dayShape: null,
     dietaryPatterns: [],
@@ -146,7 +147,15 @@ describe('PoolBuilder', () => {
 
     // One request per slot, all in the first round; usage adds up across them.
     expect(generate).toHaveBeenCalledTimes(SLOTS.length);
-    expect(result.metadata).toMatchObject({ attempts: 1, calls: SLOTS.length, inputTokens: 100 * SLOTS.length, model: 'stub-model', outputTokens: 500 * SLOTS.length, rejected: 0, reused: 0 });
+    expect(result.metadata).toMatchObject({
+      attempts: 1,
+      calls: SLOTS.length,
+      inputTokens: 100 * SLOTS.length,
+      model: 'stub-model',
+      outputTokens: 500 * SLOTS.length,
+      rejected: 0,
+      reused: 0
+    });
     expect(result.dishes.length).toBeGreaterThanOrEqual(SLOTS.length * DISHES_NEEDED_PER_SLOT);
   });
 
@@ -217,7 +226,12 @@ describe('PoolBuilder', () => {
     // nothing else, so the model served salmon anyway. The catalogue it is shown
     // no longer holds it (0023).
     const { client, generate } = stubClient([{ dishes: [] }]);
-    const wanted = { excludedIngredientIds: new Set(['ing-pollo']), maxMinutesPerDish: null, preferredIngredientSlugs: new Set<string>(), unenforceableLabels: [] };
+    const wanted = {
+      excludedIngredientIds: new Set(['ing-pollo']),
+      maxMinutesPerDish: null,
+      preferredIngredientSlugs: new Set<string>(),
+      unenforceableLabels: []
+    };
 
     await new PoolBuilder(client).build({ context: { ...context(), preferences: wanted }, preferences, reusable: [], slots: ['breakfast'] });
 
@@ -229,7 +243,12 @@ describe('PoolBuilder', () => {
 
   it('drops a dish that uses a ruled-out ingredient even when the model writes one anyway', async () => {
     const { client } = stubClient([{ dishes: [dish('Pollo al horno', ['breakfast'], ['pollo'])] }]);
-    const wanted = { excludedIngredientIds: new Set(['ing-pollo']), maxMinutesPerDish: null, preferredIngredientSlugs: new Set<string>(), unenforceableLabels: [] };
+    const wanted = {
+      excludedIngredientIds: new Set(['ing-pollo']),
+      maxMinutesPerDish: null,
+      preferredIngredientSlugs: new Set<string>(),
+      unenforceableLabels: []
+    };
 
     const result = await new PoolBuilder(client).build({
       context: { ...context(), preferences: wanted },
@@ -298,12 +317,7 @@ describe('PoolBuilder', () => {
   it('names an allergy it could not resolve, because there is no ingredient to withhold', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client).build({
-      context: context({ unenforceableLabels: ['marisco'] }),
-      preferences,
-      reusable: [],
-      slots: ['breakfast']
-    });
+    await new PoolBuilder(client).build({ context: context({ unenforceableLabels: ['marisco'] }), preferences, reusable: [], slots: ['breakfast'] });
 
     expect((generate.mock.calls[0]?.[0] as { prompt: string }).prompt).toContain('marisco');
   });
@@ -369,7 +383,12 @@ describe('PoolBuilder', () => {
     it('tells the model what they were served last fortnight, so it proposes something else', async () => {
       const { client, generate } = stubClient([{ dishes: [] }]);
 
-      await new PoolBuilder(client).build({ context: context(), preferences: { ...preferences, avoidNames: ['Pollo al limón', 'Lentejas con chorizo'] }, reusable: [], slots: ['lunch'] });
+      await new PoolBuilder(client).build({
+        context: context(),
+        preferences: { ...preferences, avoidNames: ['Pollo al limón', 'Lentejas con chorizo'] },
+        reusable: [],
+        slots: ['lunch']
+      });
 
       const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
 
@@ -408,7 +427,13 @@ describe('PoolBuilder', () => {
 
       await new PoolBuilder(client).build({
         context: context(),
-        preferences: { ...preferences, breakfastStyle: 'No desayuno,\n  almuerzo   a las 11', cookingFrequency: 'often', portionPreference: 'Ligeros', scheduleNotes: 'Turnos de noche' },
+        preferences: {
+          ...preferences,
+          breakfastStyle: 'No desayuno,\n  almuerzo   a las 11',
+          cookingFrequency: 'often',
+          portionPreference: 'Ligeros',
+          scheduleNotes: 'Turnos de noche'
+        },
         reusable: [],
         slots: ['lunch']
       });
@@ -426,7 +451,12 @@ describe('PoolBuilder', () => {
       const { client, generate } = stubClient([{ dishes: [] }]);
       const essay = 'x'.repeat(500);
 
-      await new PoolBuilder(client).build({ context: context(), preferences: { ...preferences, scheduleNotes: essay }, reusable: [], slots: ['lunch'] });
+      await new PoolBuilder(client).build({
+        context: context(),
+        preferences: { ...preferences, scheduleNotes: essay },
+        reusable: [],
+        slots: ['lunch']
+      });
 
       const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
       const line = prompt.split('\n').find(candidate => candidate.startsWith('- Their week:')) ?? '';
@@ -465,7 +495,17 @@ describe('PoolBuilder', () => {
 
   it('drops an empty cue from the wire rather than storing an empty string', async () => {
     const { client } = stubClient([
-      { dishes: [{ ...dish('Arroz', ['lunch']), steps: [{ cue: '', minutes: 2, text: 'Calentar el aceite a fuego medio en la sartén' }, { cue: 'hasta que dore', text: 'Añadir el arroz y remover dos minutos' }] }] }
+      {
+        dishes: [
+          {
+            ...dish('Arroz', ['lunch']),
+            steps: [
+              { cue: '', minutes: 2, text: 'Calentar el aceite a fuego medio en la sartén' },
+              { cue: 'hasta que dore', text: 'Añadir el arroz y remover dos minutos' }
+            ]
+          }
+        ]
+      }
     ]);
 
     const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
@@ -494,10 +534,7 @@ describe('PoolBuilder', () => {
   });
 
   it('degrades to reuse when the provider fails, instead of failing the generation here', async () => {
-    const failing = {
-      generate: jest.fn(async () => Promise.reject(new Error('AI_UNAVAILABLE'))),
-      isAvailable: true
-    } as unknown as AiClient;
+    const failing = { generate: jest.fn(async () => Promise.reject(new Error('AI_UNAVAILABLE'))), isAvailable: true } as unknown as AiClient;
     const result = await new PoolBuilder(failing).build({ context: context(), preferences, reusable: [dish2('sopa')], slots: SLOTS });
 
     // The scheduler decides whether this pool is enough and names the slot it
@@ -524,7 +561,8 @@ describe('PoolBuilder — telling a broken provider from an absent one', () => {
     avoidNames: [],
     breakfastStyle: null,
     budget: null,
-    cookingFrequency: null, cookingTimeMinutes: 30,
+    cookingFrequency: null,
+    cookingTimeMinutes: 30,
     cuisines: [],
     dayShape: null,
     dietaryPatterns: [],

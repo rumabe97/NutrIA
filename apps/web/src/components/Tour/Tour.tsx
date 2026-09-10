@@ -64,7 +64,9 @@ export function Tour({ replay = false, seen = true }: TourProps) {
   const show = useCallback(() => {
     // `showModal` throws on a dialog that is already open, which is what a
     // second run of the mount effect would be.
-    if (!dialog.current || dialog.current.open) {return;}
+    if (!dialog.current || dialog.current.open) {
+      return;
+    }
 
     dialog.current.showModal();
     /*
@@ -76,7 +78,9 @@ export function Tour({ replay = false, seen = true }: TourProps) {
   }, []);
 
   useEffect(() => {
-    if (!replay && !seen) {show();}
+    if (!replay && !seen) {
+      show();
+    }
   }, [replay, seen, show]);
 
   function open() {
@@ -99,12 +103,16 @@ export function Tour({ replay = false, seen = true }: TourProps) {
 
     const target = trigger.current ?? document.querySelector<HTMLElement>('main h1') ?? document.querySelector<HTMLElement>('h1');
 
-    if (!target) {return;}
+    if (!target) {
+      return;
+    }
 
     // A heading is not focusable by itself, and a page-level heading with a
     // permanent `tabindex` is a stop in everyone's tab order for the sake of
     // this one moment.
-    if (!target.hasAttribute('tabindex')) {target.tabIndex = -1;}
+    if (!target.hasAttribute('tabindex')) {
+      target.tabIndex = -1;
+    }
 
     target.focus();
   }
@@ -124,7 +132,9 @@ export function Tour({ replay = false, seen = true }: TourProps) {
    * starts at the top of the new stop rather than in the middle of it.
    */
   useEffect(() => {
-    if (dialog.current?.open) {title.current?.focus();}
+    if (dialog.current?.open) {
+      title.current?.focus();
+    }
   }, [step]);
 
   const stop = STOPS[step];

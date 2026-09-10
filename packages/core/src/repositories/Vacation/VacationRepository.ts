@@ -26,7 +26,9 @@ export const VacationRepository = {
     try {
       const trips = await VacationRepository.findUpcoming(userId, today);
 
-      if (trips.length === 0) {return;}
+      if (trips.length === 0) {
+        return;
+      }
 
       await database().transaction(async tx => {
         for (const trip of trips) {
@@ -83,18 +85,29 @@ export const VacationRepository = {
   async remove(userId: string, id: string, today: string): Promise<boolean> {
     try {
       return await database().transaction(async tx => {
-        const [trip] = await tx.select().from(vacations).where(and(eq(vacations.id, id), eq(vacations.userId, userId))).limit(1);
+        const [trip] = await tx
+          .select()
+          .from(vacations)
+          .where(and(eq(vacations.id, id), eq(vacations.userId, userId)))
+          .limit(1);
 
-        if (!trip) {return false;}
+        if (!trip) {
+          return false;
+        }
 
         const back = daysToGiveBack(trip, today);
 
-        if (back > 0) {await shift(tx, userId, trip.startsOn > today ? trip.startsOn : today, -back);}
+        if (back > 0) {
+          await shift(tx, userId, trip.startsOn > today ? trip.startsOn : today, -back);
+        }
 
         if (trip.startsOn > today) {
           await tx.delete(vacations).where(eq(vacations.id, id));
         } else {
-          await tx.update(vacations).set({ endsOn: addDays(today, -1), updatedAt: new Date() }).where(eq(vacations.id, id));
+          await tx
+            .update(vacations)
+            .set({ endsOn: addDays(today, -1), updatedAt: new Date() })
+            .where(eq(vacations.id, id));
         }
 
         return true;
@@ -141,7 +154,9 @@ async function shift(tx: Transaction, userId: string, from: string, days: number
 type Transaction = Parameters<Parameters<ReturnType<typeof database>['transaction']>[0]>[0];
 
 function wrap(error: unknown): DatabaseOperationError {
-  if (error instanceof ZodError) {return new DatabaseOperationError(`Schema mismatch on vacation: ${error.message}`);}
+  if (error instanceof ZodError) {
+    return new DatabaseOperationError(`Schema mismatch on vacation: ${error.message}`);
+  }
 
   return new DatabaseOperationError();
 }

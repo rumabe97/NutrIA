@@ -15,7 +15,13 @@ const findActiveGoal = vi.fn<(userId: string) => Promise<Goal | undefined>>();
 const findChain = vi.fn<(userId: string) => Promise<readonly Plan[]>>();
 const findAll = vi.fn<(userId: string) => Promise<readonly CheckInRow[]>>();
 
-vi.mock('#repositories/Progress', () => ({ ProgressRepository: { findRecent: (u: string, l: number) => findRecent(u, l), mealMarksByDay: (u: string, d: string) => mealMarksByDay(u, d), upsertWeight: vi.fn() } }));
+vi.mock('#repositories/Progress', () => ({
+  ProgressRepository: {
+    findRecent: (u: string, l: number) => findRecent(u, l),
+    mealMarksByDay: (u: string, d: string) => mealMarksByDay(u, d),
+    upsertWeight: vi.fn()
+  }
+}));
 vi.mock('#repositories/Profile', () => ({ ProfileRepository: { findActiveGoal: (u: string) => findActiveGoal(u) } }));
 vi.mock('#repositories/Plan', () => ({ PlanRepository: { findChain: (u: string) => findChain(u) } }));
 vi.mock('#repositories/CheckIn', () => ({ CheckInRepository: { findAll: (u: string) => findAll(u) } }));
@@ -42,7 +48,13 @@ function days(planId: string, status: MealMark['status'], from: string, to: stri
   return marks;
 }
 
-const goal: Goal = { id: '11111111-2222-4333-8444-555555555555', paceKgPerWeek: 0.5, startingWeightKg: 90, targetWeightKg: 80, type: 'weight_loss' } as Goal;
+const goal: Goal = {
+  id: '11111111-2222-4333-8444-555555555555',
+  paceKgPerWeek: 0.5,
+  startingWeightKg: 90,
+  targetWeightKg: 80,
+  type: 'weight_loss'
+} as Goal;
 
 describe('ProgressController.summary — weight', () => {
   beforeEach(() => {
@@ -60,7 +72,14 @@ describe('ProgressController.summary — weight', () => {
     const { weight } = await ProgressController.summary(USER, TODAY);
 
     expect(weight.entries.map(point => point.loggedOn)).toEqual(['2026-08-01', '2026-08-20', '2026-09-09']);
-    expect(weight).toMatchObject({ changeKg: -3.8, goalType: 'weight_loss', latestKg: 86.2, startingWeightKg: 90, targetWeightKg: 80, toTargetKg: -6.2 });
+    expect(weight).toMatchObject({
+      changeKg: -3.8,
+      goalType: 'weight_loss',
+      latestKg: 86.2,
+      startingWeightKg: 90,
+      targetWeightKg: 80,
+      toTargetKg: -6.2
+    });
   });
 
   it('falls back to the first reading as the baseline when the goal has no starting weight', async () => {
@@ -82,7 +101,13 @@ describe('ProgressController.summary — weight', () => {
   });
 
   it('compares with the reading on or before a fortnight earlier, skipping days with no weight', async () => {
-    findRecent.mockResolvedValue([entry('2026-09-09', 86), entry('2026-09-01', 87), entry('2026-08-24', 88), entry('2026-08-10', 89.5), entry('2026-08-11', null)]);
+    findRecent.mockResolvedValue([
+      entry('2026-09-09', 86),
+      entry('2026-09-01', 87),
+      entry('2026-08-24', 88),
+      entry('2026-08-10', 89.5),
+      entry('2026-08-11', null)
+    ]);
 
     const { weight } = await ProgressController.summary(USER, TODAY);
 
@@ -116,14 +141,29 @@ describe('ProgressController.summary — fortnights', () => {
       ...days('p2', 'planned', '2026-09-08', '2026-09-09', 1)
     ]);
     findAll.mockResolvedValue([
-      { id: 'c1', comments: null, completedAt: '2026-08-31', difficultyRating: 2, hungerRating: 1, planId: 'p1', satisfactionRating: 4, weightKg: 88.4 }
+      {
+        id: 'c1',
+        comments: null,
+        completedAt: '2026-08-31',
+        difficultyRating: 2,
+        hungerRating: 1,
+        planId: 'p1',
+        satisfactionRating: 4,
+        weightKg: 88.4
+      }
     ]);
 
     const { fortnights, overall } = await ProgressController.summary(USER, TODAY);
 
     expect(mealMarksByDay).toHaveBeenCalledWith(USER, TODAY);
     expect(fortnights.map(fortnight => fortnight.version)).toEqual([2, 1]);
-    expect(fortnights[0]).toMatchObject({ adherence: 90, checkIn: null, endDate: '2026-09-14', meals: { eaten: 9, skipped: 1, soFar: 12 }, replaced: false });
+    expect(fortnights[0]).toMatchObject({
+      adherence: 90,
+      checkIn: null,
+      endDate: '2026-09-14',
+      meals: { eaten: 9, skipped: 1, soFar: 12 },
+      replaced: false
+    });
     expect(fortnights[1]).toMatchObject({
       adherence: 83,
       checkIn: { difficulty: 'ok', hunger: 'hungry', satisfaction: 4, weightKg: 88.4 },
@@ -168,7 +208,13 @@ describe('ProgressController.summary — fortnights', () => {
     const { fortnights } = await ProgressController.summary(USER, TODAY);
 
     expect(fortnights.map(fortnight => fortnight.version)).toEqual([2, 1]);
-    expect(fortnights[1]).toMatchObject({ adherence: 100, endDate: '2026-09-08', meals: { eaten: 6, skipped: 0, soFar: 8 }, replaced: true, startDate: '2026-09-07' });
+    expect(fortnights[1]).toMatchObject({
+      adherence: 100,
+      endDate: '2026-09-08',
+      meals: { eaten: 6, skipped: 0, soFar: 8 },
+      replaced: true,
+      startDate: '2026-09-07'
+    });
   });
 
   it('reports no adherence rather than zero when nothing was marked', async () => {
@@ -185,6 +231,9 @@ describe('ProgressController.summary — fortnights', () => {
     findChain.mockResolvedValue([]);
     mealMarksByDay.mockResolvedValue([]);
 
-    await expect(ProgressController.summary(USER, TODAY)).resolves.toMatchObject({ fortnights: [], overall: { adherence: null, eaten: 0, marked: 0 } });
+    await expect(ProgressController.summary(USER, TODAY)).resolves.toMatchObject({
+      fortnights: [],
+      overall: { adherence: null, eaten: 0, marked: 0 }
+    });
   });
 });

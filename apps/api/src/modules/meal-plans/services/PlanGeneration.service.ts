@@ -51,7 +51,10 @@ export type GenerationFailure =
   | 'GENERATION_UNSAFE_CONTENT';
 
 export class GenerationError extends Error {
-  constructor(public readonly code: GenerationFailure, detail?: string) {
+  constructor(
+    public readonly code: GenerationFailure,
+    detail?: string
+  ) {
     super(detail ?? code);
     this.name = 'GenerationError';
   }
@@ -82,7 +85,9 @@ export class PlanGenerationService {
       CheckInController.latestForGeneration(userId)
     ]);
 
-    if (!onboarding.isComplete) {throw new GenerationError('GENERATION_ONBOARDING_INCOMPLETE');}
+    if (!onboarding.isComplete) {
+      throw new GenerationError('GENERATION_ONBOARDING_INCOMPLETE');
+    }
 
     this.reportUntranslatedIngredients(context);
 
@@ -111,7 +116,10 @@ export class PlanGenerationService {
       preferSlugs: new Set(verdicts.liked.map(dish => dish.slug)),
       seed: `${userId}:${history.nextVersion}`
     };
-    const [reusable, everything] = await Promise.all([RecipeController.reusablePool(slots, context, rotation), RecipeController.reusablePool(slots, context)]);
+    const [reusable, everything] = await Promise.all([
+      RecipeController.reusablePool(slots, context, rotation),
+      RecipeController.reusablePool(slots, context)
+    ]);
     // What rotation held back for freshness, minus last fortnight's and the
     // dislikes: the builder covers a short first round from here rather than
     // asking the model again.
@@ -170,7 +178,9 @@ export class PlanGenerationService {
       // A configured provider that failed is a different problem from no provider,
       // and telling someone to "configure AI_PROVIDER" when they already have is
       // the worst possible answer. Distinguish them.
-      if (built.metadata.providerError) {throw new GenerationError('GENERATION_AI_UNAVAILABLE', built.metadata.providerError);}
+      if (built.metadata.providerError) {
+        throw new GenerationError('GENERATION_AI_UNAVAILABLE', built.metadata.providerError);
+      }
 
       throw new GenerationError('GENERATION_POOL_TOO_SMALL', scheduled.shortfall.slot);
     }
@@ -246,13 +256,18 @@ export class PlanGenerationService {
 
     const missing = unresolvedSlugs(scheduled.assignment, context.catalogue);
 
-    if (missing.length > 0) {throw new GenerationError('GENERATION_INVALID_PLAN', `unresolved ingredients: ${missing.join(', ')}`);}
+    if (missing.length > 0) {
+      throw new GenerationError('GENERATION_INVALID_PLAN', `unresolved ingredients: ${missing.join(', ')}`);
+    }
 
     const shopping = buildShoppingList(scheduled.assignment, context.catalogue, context.locale);
 
     await markStep(STEPS.saving);
 
-    return PlanJobController.persist(userId, this.toDraft(scheduled.assignment, shopping, built, targets, context, jobId, rotation, advisorySummary, fallback));
+    return PlanJobController.persist(
+      userId,
+      this.toDraft(scheduled.assignment, shopping, built, targets, context, jobId, rotation, advisorySummary, fallback)
+    );
   }
 
   /**
@@ -267,11 +282,16 @@ export class PlanGenerationService {
   private reportUntranslatedIngredients(context: GenerationContext): void {
     const missing = [...context.catalogue.values()].filter(ingredient => ingredient.nameLocale !== context.locale);
 
-    if (missing.length === 0) {return;}
+    if (missing.length === 0) {
+      return;
+    }
 
     this.logger.warn(
       `${missing.length} ingredient(s) have no ${context.locale} name and fell back to ${missing[0]?.nameLocale ?? 'es-ES'}: ` +
-        `${missing.slice(0, 10).map(ingredient => ingredient.slug).join(', ')}${missing.length > 10 ? '…' : ''}`
+        `${missing
+          .slice(0, 10)
+          .map(ingredient => ingredient.slug)
+          .join(', ')}${missing.length > 10 ? '…' : ''}`
     );
   }
 
@@ -286,7 +306,9 @@ export class PlanGenerationService {
    * other.
    */
   private targetsFor(profile: Awaited<ReturnType<typeof ProfileController.getFullProfile>>): NutritionTargets {
-    if (!profile.targets) {throw new GenerationError('GENERATION_PROFILE_INCOMPLETE');}
+    if (!profile.targets) {
+      throw new GenerationError('GENERATION_PROFILE_INCOMPLETE');
+    }
 
     return profile.targets.effective;
   }
@@ -296,7 +318,9 @@ export class PlanGenerationService {
       for (const meal of day.meals) {
         const safety = dishSafety(meal.ingredients, context.catalogue, context.safety);
 
-        if (safety.kind === 'safe') {continue;}
+        if (safety.kind === 'safe') {
+          continue;
+        }
 
         // Reaching here means an upstream check let something through. Logged at
         // error level regardless of how the request is answered.
@@ -343,7 +367,16 @@ export class PlanGenerationService {
       endDate: isoDate(end),
       // The seed and the number of dishes held back say *why* this plan differs from
       // the last one, which is the first thing anyone asks when two plans look alike.
-      generationMetadata: { ...built.metadata, advisories, avoidedDishes: rotation.avoidSlugs.size, fallback, jobId, locale: context.locale, poolSeed: rotation.seed, scheduledAt: start.toISOString() },
+      generationMetadata: {
+        ...built.metadata,
+        advisories,
+        avoidedDishes: rotation.avoidSlugs.size,
+        fallback,
+        jobId,
+        locale: context.locale,
+        poolSeed: rotation.seed,
+        scheduledAt: start.toISOString()
+      },
       // Only dishes the plan actually uses are persisted — a generated dish the
       // scheduler never placed is not worth a row.
       locale: context.locale,
@@ -399,12 +432,17 @@ function describe(violation: PlanViolation): string {
 }
 
 function detailOf(violation: PlanViolation): string {
-  if ('actual' in violation && 'target' in violation) {return `${Math.round(violation.actual)} frente a ${Math.round(violation.target)}`;}
+  if ('actual' in violation && 'target' in violation) {
+    return `${Math.round(violation.actual)} frente a ${Math.round(violation.target)}`;
+  }
 
-  if ('actual' in violation && 'ceiling' in violation) {return `${Math.round(violation.actual)} sobre un techo de ${Math.round(violation.ceiling)}`;}
+  if ('actual' in violation && 'ceiling' in violation) {
+    return `${Math.round(violation.actual)} sobre un techo de ${Math.round(violation.ceiling)}`;
+  }
 
-  if ('actual' in violation && 'minimum' in violation) {return `${Math.round(violation.actual)} bajo un mínimo de ${Math.round(violation.minimum)}`;}
+  if ('actual' in violation && 'minimum' in violation) {
+    return `${Math.round(violation.actual)} bajo un mínimo de ${Math.round(violation.minimum)}`;
+  }
 
   return '';
 }
-

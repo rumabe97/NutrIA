@@ -27,9 +27,13 @@ export default async function EarlierPlanPage({ params }: { params: Promise<{ id
   const { id } = await params;
   const [plan, plans] = await Promise.all([serverApi<PlanView>(`/meal-plans/${id}`), serverApi<readonly PlanSummaryView[]>('/meal-plans')]);
 
-  if (!plan) {notFound();}
+  if (!plan) {
+    notFound();
+  }
 
-  if (plan.status === 'active') {redirect('/plan');}
+  if (plan.status === 'active') {
+    redirect('/plan');
+  }
 
   const summary = (plans ?? []).find(candidate => candidate.id === plan.id);
 

@@ -51,7 +51,10 @@ class ScriptedAi extends AiClient {
   generate<T>(request: AiRequest<T>): Promise<AiResponse<T>> {
     this.prompts.push(request.prompt);
 
-    return Promise.resolve({ object: (this.objects[this.prompts.length - 1] ?? this.objects[0]) as T, usage: { calls: 1, inputTokens: 0, model: 'scripted', outputTokens: 0 } });
+    return Promise.resolve({
+      object: (this.objects[this.prompts.length - 1] ?? this.objects[0]) as T,
+      usage: { calls: 1, inputTokens: 0, model: 'scripted', outputTokens: 0 }
+    });
   }
 }
 
@@ -118,14 +121,23 @@ describe('RecipeRewriter', () => {
     jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE]);
     const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
 
-    const run = await new RecipeRewriter(new ScriptedAi([{ steps: [{ text: 'Cocer.' }, { text: 'Servir.' }, { text: 'Comer.' }, { text: 'Fin.' }] }]), ON).rewriteOutdated(10);
+    const run = await new RecipeRewriter(
+      new ScriptedAi([{ steps: [{ text: 'Cocer.' }, { text: 'Servir.' }, { text: 'Comer.' }, { text: 'Fin.' }] }]),
+      ON
+    ).rewriteOutdated(10);
 
     expect(run.rewritten).toBe(0);
     expect(rewrite).not.toHaveBeenCalled();
   });
 
   it('stops the sweep the moment the provider says it is out of budget', async () => {
-    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE, { ...RECIPE, id: '22222222-2222-4222-8222-222222222222' }, { ...RECIPE, id: '33333333-3333-4333-8333-333333333333' }]);
+    jest
+      .spyOn(RecipeController, 'pendingStepUpgrades')
+      .mockResolvedValue([
+        RECIPE,
+        { ...RECIPE, id: '22222222-2222-4222-8222-222222222222' },
+        { ...RECIPE, id: '33333333-3333-4333-8333-333333333333' }
+      ]);
     jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
     const ai = new (class extends AiClient {
       public calls = 0;

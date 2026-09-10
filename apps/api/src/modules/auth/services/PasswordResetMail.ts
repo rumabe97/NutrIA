@@ -23,7 +23,9 @@ export function absoluteCallback(url: string, appUrl: string, locale: string | n
     const parsed = new URL(url);
     const callback = parsed.searchParams.get('callbackURL');
 
-    if (callback?.startsWith('/')) {parsed.searchParams.set('callbackURL', webUrl(appUrl, callback, locale));}
+    if (callback?.startsWith('/')) {
+      parsed.searchParams.set('callbackURL', webUrl(appUrl, callback, locale));
+    }
 
     return parsed.toString();
   } catch {

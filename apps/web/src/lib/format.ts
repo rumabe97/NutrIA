@@ -41,9 +41,13 @@ export function formatQuantity(quantity: number, unit: string, locale: Locale, d
 
   const value = formatNumber(quantity, locale, { maximumFractionDigits: 1 });
 
-  if (unit === 'unit') {return `${value} ${dictionary.units.unit}`;}
+  if (unit === 'unit') {
+    return `${value} ${dictionary.units.unit}`;
+  }
 
-  if (unit === 'slice') {return `${value} ${dictionary.units.slice}`;}
+  if (unit === 'slice') {
+    return `${value} ${dictionary.units.slice}`;
+  }
 
   return `${value} ${unit}`;
 }

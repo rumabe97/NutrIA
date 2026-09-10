@@ -49,26 +49,26 @@ export function MealStatus({ mealId, status: initial }: MealStatusProps) {
 
   return (
     <div className={styles.buttons}>
-        <Button
-          aria-pressed={status === 'completed'}
-          disabled={pending}
-          onClick={() => void choose('completed')}
-          size="sm"
-          type="button"
-          variant={status === 'completed' ? 'primary' : 'secondary'}
-        >
-          {t.done}
-        </Button>
-        <Button
-          aria-pressed={status === 'skipped'}
-          disabled={pending}
-          onClick={() => void choose('skipped')}
-          size="sm"
-          type="button"
-          variant={status === 'skipped' ? 'primary' : 'secondary'}
-        >
-          {t.skipped}
-        </Button>
+      <Button
+        aria-pressed={status === 'completed'}
+        disabled={pending}
+        onClick={() => void choose('completed')}
+        size="sm"
+        type="button"
+        variant={status === 'completed' ? 'primary' : 'secondary'}
+      >
+        {t.done}
+      </Button>
+      <Button
+        aria-pressed={status === 'skipped'}
+        disabled={pending}
+        onClick={() => void choose('skipped')}
+        size="sm"
+        type="button"
+        variant={status === 'skipped' ? 'primary' : 'secondary'}
+      >
+        {t.skipped}
+      </Button>
     </div>
   );
 }

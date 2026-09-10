@@ -2,16 +2,9 @@ import type { Catalogue } from 'core/entities/Plan';
 import type { MatchableIngredient } from './CustomAllergen';
 import type { SafetyProfile } from 'core/entities/Safety';
 
-export type IngredientAllergenLink = {
-  readonly allergenId: string;
-  readonly presence: 'contains' | 'may_contain';
-};
+export type IngredientAllergenLink = { readonly allergenId: string; readonly presence: 'contains' | 'may_contain' };
 
-export type CheckedIngredient = {
-  readonly id: string;
-  readonly allergens: readonly IngredientAllergenLink[];
-  readonly name: string;
-};
+export type CheckedIngredient = { readonly id: string; readonly allergens: readonly IngredientAllergenLink[]; readonly name: string };
 
 export type SafetyViolation = {
   /** Null for a free-text allergy: it excludes an ingredient, not an allergen. */
@@ -66,11 +59,15 @@ export function findSafetyViolations(ingredients: readonly CheckedIngredient[], 
       const isAllergy = profile.allergenIds.has(link.allergenId);
       const isIntolerance = profile.intoleranceAllergenIds.has(link.allergenId);
 
-      if (!isAllergy && !isIntolerance) {continue;}
+      if (!isAllergy && !isIntolerance) {
+        continue;
+      }
 
       // A trace warning only disqualifies the ingredient for users who said
       // traces affect them.
-      if (link.presence === 'may_contain' && !profile.crossContaminationAllergenIds.has(link.allergenId)) {continue;}
+      if (link.presence === 'may_contain' && !profile.crossContaminationAllergenIds.has(link.allergenId)) {
+        continue;
+      }
 
       violations.push({
         allergenId: link.allergenId,
@@ -131,7 +128,9 @@ export function toSafetyProfile(
  * match — the matching rule itself is unchanged.
  */
 export function madeOf(anchorIds: readonly string[], ingredients: readonly MatchableIngredient[]): readonly string[] {
-  if (anchorIds.length === 0 || ingredients.length === 0) {return [];}
+  if (anchorIds.length === 0 || ingredients.length === 0) {
+    return [];
+  }
 
   const byId = new Map(ingredients.map(ingredient => [ingredient.id, ingredient]));
   const runs = anchorIds.map(id => byId.get(id)?.slug.split('-') ?? []).filter(tokens => tokens.length > 0);
@@ -174,7 +173,9 @@ export function dishSafety(ingredients: readonly { readonly slug: string }[], ca
     resolved.push({ id: ingredient.id, allergens: ingredient.allergens, name: ingredient.name });
   }
 
-  if (slugs.length > 0) {return { kind: 'unknown_ingredients', slugs: [...new Set(slugs)] };}
+  if (slugs.length > 0) {
+    return { kind: 'unknown_ingredients', slugs: [...new Set(slugs)] };
+  }
 
   const violations = findSafetyViolations(resolved, profile);
 

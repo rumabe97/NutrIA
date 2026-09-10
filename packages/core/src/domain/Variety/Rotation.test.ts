@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { DISHES_NEEDED_PER_SLOT, FRESH_DISHES_PER_SLOT, isPreferredDish, REUSED_DISHES_PER_SLOT, rotatePool, seededShuffle } from 'core/domain/Variety';
+import {
+  DISHES_NEEDED_PER_SLOT,
+  FRESH_DISHES_PER_SLOT,
+  isPreferredDish,
+  REUSED_DISHES_PER_SLOT,
+  rotatePool,
+  seededShuffle
+} from 'core/domain/Variety';
 import type { CandidateDish, MealSlot } from 'core/entities/Plan';
 
 import { makeDish } from '#test/fixtures';
@@ -76,7 +83,11 @@ describe('rotatePool', () => {
 
   it('puts what the user asked to see again at the front, however large the library', () => {
     const dishes = library(300, ['lunch']);
-    const picked = rotatePool(dishes, ['lunch'], { avoidSlugs: nothingAvoided, preferSlugs: new Set(['dish-250', 'dish-299']), seed: 'user-a:1' }).map(dish => dish.slug);
+    const picked = rotatePool(dishes, ['lunch'], {
+      avoidSlugs: nothingAvoided,
+      preferSlugs: new Set(['dish-250', 'dish-299']),
+      seed: 'user-a:1'
+    }).map(dish => dish.slug);
 
     expect(picked.slice(0, 2).sort()).toEqual(['dish-250', 'dish-299']);
     expect(picked).toHaveLength(REUSED_DISHES_PER_SLOT);
@@ -84,7 +95,9 @@ describe('rotatePool', () => {
 
   it('does not let a favourite override last fortnight', () => {
     const dishes = library(20, ['lunch']);
-    const picked = rotatePool(dishes, ['lunch'], { avoidSlugs: new Set(['dish-3']), preferSlugs: new Set(['dish-3']), seed: 'user-a:1' }).map(dish => dish.slug);
+    const picked = rotatePool(dishes, ['lunch'], { avoidSlugs: new Set(['dish-3']), preferSlugs: new Set(['dish-3']), seed: 'user-a:1' }).map(
+      dish => dish.slug
+    );
 
     expect(picked).not.toContain('dish-3');
   });
@@ -94,7 +107,9 @@ describe('rotatePool', () => {
     const avoid = new Set(['dish-3', 'dish-7', 'dish-11']);
     const picked = rotatePool(dishes, ['lunch'], { avoidSlugs: avoid, seed: 'user-a:2' }).map(dish => dish.slug);
 
-    for (const slug of avoid) {expect(picked).not.toContain(slug);}
+    for (const slug of avoid) {
+      expect(picked).not.toContain(slug);
+    }
   });
 
   it('covers every slot up to the per-slot need, counting a dish for each slot it suits', () => {

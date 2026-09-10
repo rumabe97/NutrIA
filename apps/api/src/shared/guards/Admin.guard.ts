@@ -32,16 +32,22 @@ export class AdminGuard implements CanActivate {
      */
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [context.getHandler(), context.getClass()]);
 
-    if (isPublic) {return true;}
+    if (isPublic) {
+      return true;
+    }
 
     const roles = this.reflector.getAllAndOverride<readonly string[]>(ROLES_KEY, [context.getHandler(), context.getClass()]);
 
-    if (!roles || roles.length === 0) {return true;}
+    if (!roles || roles.length === 0) {
+      return true;
+    }
 
     const { user } = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
     // 404 again: a 403 tells someone probing /admin that /admin is real.
-    if (!user || !roles.includes(user.role)) {throw new NotFoundException();}
+    if (!user || !roles.includes(user.role)) {
+      throw new NotFoundException();
+    }
 
     return true;
   }

@@ -8,10 +8,7 @@ import type { StoredHealthData } from '#repositories/Health';
 
 // --- Presenters ---------------------------------------------------------------
 
-export type ConditionEffect = {
-  readonly allergenLabel: string;
-  readonly conditionLabel: string;
-};
+export type ConditionEffect = { readonly allergenLabel: string; readonly conditionLabel: string };
 
 export interface HealthView {
   conditions: readonly HealthCondition[];
@@ -57,7 +54,9 @@ function effects(
 
     // An allergen key with no catalogue row is a seeding gap, not a restriction
     // to invent a label for.
-    if (!allergen || skipAllergenIds.has(allergen.id)) {return [];}
+    if (!allergen || skipAllergenIds.has(allergen.id)) {
+      return [];
+    }
 
     return [{ allergenLabel: allergen.labelEs, conditionLabel: implication.conditionLabel }];
   });

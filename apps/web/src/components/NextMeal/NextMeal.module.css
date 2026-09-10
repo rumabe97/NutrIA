@@ -5,9 +5,7 @@
  * opens the dashboard to act on. Everything else is reference.
  */
 .card {
-  background:
-    linear-gradient(140deg, var(--color-brand-03), var(--color-brand-02) 60%),
-    var(--surface-card);
+  background: linear-gradient(140deg, var(--color-brand-03), var(--color-brand-02) 60%), var(--surface-card);
   border: 1px solid var(--color-brand-06);
   border-radius: var(--radius-04);
   box-shadow:
@@ -62,4 +60,3 @@
   object-fit: cover;
   width: 100%;
 }
-

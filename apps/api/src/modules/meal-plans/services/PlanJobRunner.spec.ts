@@ -34,7 +34,9 @@ function build(generate: () => Promise<string>) {
   const illustrator = { illustrateMissing: jest.fn(), isAvailable: false } as unknown as RecipeIllustrator;
   // Reporting is off in a test the way it is off without a DSN in production.
   const report = jest.fn();
-  const runner = new PlanJobRunner(new BackgroundTaskService(), { generate: jest.fn(generate) } as unknown as PlanGenerationService, illustrator, { report } as unknown as ErrorReporter);
+  const runner = new PlanJobRunner(new BackgroundTaskService(), { generate: jest.fn(generate) } as unknown as PlanGenerationService, illustrator, {
+    report
+  } as unknown as ErrorReporter);
 
   return { markFailed, markStarted, markStep, markSucceeded, runner, start };
 }

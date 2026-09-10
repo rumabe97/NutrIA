@@ -92,9 +92,7 @@ function pool(slug = 'arroz'): CandidateDish[] {
       // pool is denser rather than more extreme at its edges.
       ingredients: [
         {
-          grams: Math.round(
-            ((TARGETS.kcal * (SHARE[slot] ?? 0.3)) / (KCAL_PER_100G / 100)) * (0.8 + (index / Math.max(POOL_PER_SLOT - 1, 1)) * 0.4)
-          ),
+          grams: Math.round(((TARGETS.kcal * (SHARE[slot] ?? 0.3)) / (KCAL_PER_100G / 100)) * (0.8 + (index / Math.max(POOL_PER_SLOT - 1, 1)) * 0.4)),
           slug
         }
       ],
@@ -127,29 +125,35 @@ function build(overrides: Partial<Mocks> = {}) {
   const reusable = overrides.reusable ?? pool();
   const safety = overrides.safety ?? new Set<string>();
 
-  jest.spyOn(OnboardingController, 'getState').mockResolvedValue({
-    completedAt: '2026-09-01',
-    completedSteps: [],
-    currentStep: 9,
-    isComplete: true,
-    missingSteps: [],
-    totalSteps: 10,
-    ...(overrides.onboarding as object)
-  } as never);
+  jest
+    .spyOn(OnboardingController, 'getState')
+    .mockResolvedValue({
+      completedAt: '2026-09-01',
+      completedSteps: [],
+      currentStep: 9,
+      isComplete: true,
+      missingSteps: [],
+      totalSteps: 10,
+      ...(overrides.onboarding as object)
+    } as never);
   jest.spyOn(ProfileController, 'getFullProfile').mockResolvedValue({ ...PROFILE, ...(overrides.profile as object) } as never);
-  jest.spyOn(RecipeController, 'generationContext').mockResolvedValue({
-    catalogue: CATALOGUE,
-    locale: 'es-ES',
-    preferences: NO_PREFERENCE_EXCLUSIONS,
-    safety: {
-      allergenIds: safety,
-      crossContaminationAllergenIds: new Set(),
-      excludedIngredientIds: new Set(),
-      intoleranceAllergenIds: new Set(),
-      unenforceableLabels: []
-    }
-  });
-  jest.spyOn(PlanController, 'generationHistory').mockResolvedValue({ nextVersion: 3, recentDishes: [{ name: 'Pollo al limón', slug: 'pollo-al-limon' }] });
+  jest
+    .spyOn(RecipeController, 'generationContext')
+    .mockResolvedValue({
+      catalogue: CATALOGUE,
+      locale: 'es-ES',
+      preferences: NO_PREFERENCE_EXCLUSIONS,
+      safety: {
+        allergenIds: safety,
+        crossContaminationAllergenIds: new Set(),
+        excludedIngredientIds: new Set(),
+        intoleranceAllergenIds: new Set(),
+        unenforceableLabels: []
+      }
+    });
+  jest
+    .spyOn(PlanController, 'generationHistory')
+    .mockResolvedValue({ nextVersion: 3, recentDishes: [{ name: 'Pollo al limón', slug: 'pollo-al-limon' }] });
   jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(reusable);
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [], liked: [] });
   jest.spyOn(CheckInController, 'latestForGeneration').mockResolvedValue(null);
@@ -159,7 +163,18 @@ function build(overrides: Partial<Mocks> = {}) {
     Promise.resolve({
       dishes: reusable,
       generated: [],
-      metadata: { attempts: 0, backfilled: 0, calls: 0, inputTokens: 0, model: 'none', outputTokens: 0, promptVersion: '1.0.0', providerUsed: false, rejected: 0, reused: reusable.length }
+      metadata: {
+        attempts: 0,
+        backfilled: 0,
+        calls: 0,
+        inputTokens: 0,
+        model: 'none',
+        outputTokens: 0,
+        promptVersion: '1.0.0',
+        providerUsed: false,
+        rejected: 0,
+        reused: reusable.length
+      }
     })
   );
   const poolBuilder = { build: buildPool } as unknown as PoolBuilder;
@@ -202,10 +217,12 @@ describe('PlanGenerationService', () => {
   it('holds back disliked dishes, puts liked ones first, and names both to the model', async () => {
     const { buildPool, service } = build();
 
-    jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({
-      disliked: [{ name: 'Lentejas con chorizo', slug: 'lentejas-con-chorizo' }],
-      liked: [{ name: 'Salmón al horno con eneldo', slug: 'salmon-al-horno-con-eneldo' }]
-    });
+    jest
+      .spyOn(RecipeController, 'verdicts')
+      .mockResolvedValue({
+        disliked: [{ name: 'Lentejas con chorizo', slug: 'lentejas-con-chorizo' }],
+        liked: [{ name: 'Salmón al horno con eneldo', slug: 'salmon-al-horno-con-eneldo' }]
+      });
     const reusablePool = jest.spyOn(RecipeController, 'reusablePool');
 
     await service.generate('user-1', 'job-1', async () => Promise.resolve());
@@ -222,10 +239,12 @@ describe('PlanGenerationService', () => {
     expect(input?.preferences.lovedNames).toEqual(['Salmón al horno con eneldo']);
   });
 
-  it('tells the model how the last fortnight went, in the person\'s terms', async () => {
+  it("tells the model how the last fortnight went, in the person's terms", async () => {
     const { buildPool, service } = build();
 
-    jest.spyOn(CheckInController, 'latestForGeneration').mockResolvedValue({ comments: 'Las cenas eran enormes', difficulty: 'hard', hunger: 'too_much', satisfaction: 3 });
+    jest
+      .spyOn(CheckInController, 'latestForGeneration')
+      .mockResolvedValue({ comments: 'Las cenas eran enormes', difficulty: 'hard', hunger: 'too_much', satisfaction: 3 });
 
     await service.generate('user-1', 'job-1', async () => Promise.resolve());
 
@@ -271,7 +290,19 @@ describe('PlanGenerationService', () => {
     buildPool.mockResolvedValueOnce({
       dishes: thin,
       generated: [],
-      metadata: { attempts: 1, backfilled: 0, calls: 1, inputTokens: 0, model: 'gemini', outputTokens: 0, promptVersion: '2.4.2', providerError: 'You exceeded your current quota', providerUsed: true, rejected: 0, reused: thin.length }
+      metadata: {
+        attempts: 1,
+        backfilled: 0,
+        calls: 1,
+        inputTokens: 0,
+        model: 'gemini',
+        outputTokens: 0,
+        promptVersion: '2.4.2',
+        providerError: 'You exceeded your current quota',
+        providerUsed: true,
+        rejected: 0,
+        reused: thin.length
+      }
     });
 
     const planId = await service.generate('user-1', 'job-1', async () => Promise.resolve());
@@ -295,7 +326,19 @@ describe('PlanGenerationService', () => {
     buildPool.mockResolvedValueOnce({
       dishes: thin,
       generated: [],
-      metadata: { attempts: 1, backfilled: 0, calls: 1, inputTokens: 0, model: 'gemini', outputTokens: 0, promptVersion: '2.4.2', providerError: 'quota', providerUsed: true, rejected: 0, reused: 1 }
+      metadata: {
+        attempts: 1,
+        backfilled: 0,
+        calls: 1,
+        inputTokens: 0,
+        model: 'gemini',
+        outputTokens: 0,
+        promptVersion: '2.4.2',
+        providerError: 'quota',
+        providerUsed: true,
+        rejected: 0,
+        reused: 1
+      }
     });
 
     await expect(service.generate('user-1', 'job-1', async () => Promise.resolve())).rejects.toMatchObject({ code: 'GENERATION_AI_UNAVAILABLE' });

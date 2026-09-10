@@ -26,7 +26,10 @@ describe('body validation is scoped to the body', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ controllers: [ProfilesController, SafetyRoutes], providers: [ProfilesService, SafetyService] }).compile();
+    const moduleRef = await Test.createTestingModule({
+      controllers: [ProfilesController, SafetyRoutes],
+      providers: [ProfilesService, SafetyService]
+    }).compile();
 
     app = moduleRef.createNestApplication();
     app.useGlobalFilters(new AllExceptionsFilter());
@@ -53,14 +56,18 @@ describe('body validation is scoped to the body', () => {
   it('carries a lone locale through to the controller', async () => {
     const update = jest.spyOn(ProfileController, 'updateProfile').mockResolvedValue({} as never);
 
-    const response: Response = await request(app.getHttpServer() as Server).patch('/profile').send({ locale: 'en-GB' });
+    const response: Response = await request(app.getHttpServer() as Server)
+      .patch('/profile')
+      .send({ locale: 'en-GB' });
 
     expect(response.status).toBe(200);
     expect(update).toHaveBeenCalledWith('usr-1', { locale: 'en-GB' });
   });
 
   it('refuses a locale it does not ship rather than storing it', async () => {
-    const response: Response = await request(app.getHttpServer() as Server).patch('/profile').send({ locale: 'x' });
+    const response: Response = await request(app.getHttpServer() as Server)
+      .patch('/profile')
+      .send({ locale: 'x' });
 
     expect(response.status).toBe(422);
   });
@@ -68,7 +75,9 @@ describe('body validation is scoped to the body', () => {
   it('accepts a valid profile update', async () => {
     const update = jest.spyOn(ProfileController, 'updateProfile').mockResolvedValue({} as never);
 
-    const response: Response = await request(app.getHttpServer() as Server).patch('/profile').send({ displayName: 'Ada', heightCm: 168 });
+    const response: Response = await request(app.getHttpServer() as Server)
+      .patch('/profile')
+      .send({ displayName: 'Ada', heightCm: 168 });
 
     expect(response.status).toBe(200);
     expect(update).toHaveBeenCalledWith('usr-1', { displayName: 'Ada', heightCm: 168 });
@@ -77,7 +86,9 @@ describe('body validation is scoped to the body', () => {
   it('accepts a valid goal update', async () => {
     const update = jest.spyOn(ProfileController, 'updateGoal').mockResolvedValue({} as never);
 
-    const response: Response = await request(app.getHttpServer() as Server).patch('/profile/goal').send({ startingWeightKg: 72, type: 'maintenance' });
+    const response: Response = await request(app.getHttpServer() as Server)
+      .patch('/profile/goal')
+      .send({ startingWeightKg: 72, type: 'maintenance' });
 
     expect(response.status).toBe(200);
     expect(update).toHaveBeenCalledWith('usr-1', { startingWeightKg: 72, type: 'maintenance' });
@@ -86,7 +97,9 @@ describe('body validation is scoped to the body', () => {
   it('accepts a valid preferences update', async () => {
     const update = jest.spyOn(ProfileController, 'updatePreferences').mockResolvedValue({} as never);
 
-    const response: Response = await request(app.getHttpServer() as Server).patch('/profile/preferences').send({ cookingTimeMinutes: 30 });
+    const response: Response = await request(app.getHttpServer() as Server)
+      .patch('/profile/preferences')
+      .send({ cookingTimeMinutes: 30 });
 
     expect(response.status).toBe(200);
     expect(update).toHaveBeenCalledWith('usr-1', { cookingTimeMinutes: 30 });
@@ -95,7 +108,9 @@ describe('body validation is scoped to the body', () => {
   it('accepts a targets override and passes only the fields that were sent', async () => {
     const update = jest.spyOn(ProfileController, 'updateTargets').mockResolvedValue({} as never);
 
-    const response: Response = await request(app.getHttpServer() as Server).patch('/profile/targets').send({ kcal: 2400 });
+    const response: Response = await request(app.getHttpServer() as Server)
+      .patch('/profile/targets')
+      .send({ kcal: 2400 });
 
     expect(response.status).toBe(200);
     expect(update).toHaveBeenCalledWith('usr-1', { kcal: 2400 });
@@ -115,7 +130,9 @@ describe('body validation is scoped to the body', () => {
   it('rejects a non-numeric target without reaching the controller', async () => {
     const update = jest.spyOn(ProfileController, 'updateTargets').mockResolvedValue({} as never);
 
-    const response: Response = await request(app.getHttpServer() as Server).patch('/profile/targets').send({ kcal: 'muchas' });
+    const response: Response = await request(app.getHttpServer() as Server)
+      .patch('/profile/targets')
+      .send({ kcal: 'muchas' });
 
     expect(response.status).toBe(422);
     expect(update).not.toHaveBeenCalled();
@@ -124,7 +141,9 @@ describe('body validation is scoped to the body', () => {
   it('accepts a valid restrictions replacement', async () => {
     const set = jest.spyOn(SafetyController, 'setRestrictions').mockResolvedValue(undefined);
 
-    const response: Response = await request(app.getHttpServer() as Server).put('/safety/restrictions').send({ allergies: [], intolerances: [] });
+    const response: Response = await request(app.getHttpServer() as Server)
+      .put('/safety/restrictions')
+      .send({ allergies: [], intolerances: [] });
 
     expect(response.status).toBe(204);
     // `customAllergens` defaults to an empty list rather than arriving undefined:
@@ -134,7 +153,9 @@ describe('body validation is scoped to the body', () => {
   });
 
   it('still rejects an out-of-range height', async () => {
-    const response: Response = await request(app.getHttpServer() as Server).patch('/profile').send({ heightCm: 3 });
+    const response: Response = await request(app.getHttpServer() as Server)
+      .patch('/profile')
+      .send({ heightCm: 3 });
 
     expect(response.status).toBe(422);
     expect((response.body as { fieldErrors: Record<string, string[]> }).fieldErrors).toHaveProperty('heightCm');
@@ -143,7 +164,9 @@ describe('body validation is scoped to the body', () => {
   it('still strips a userId smuggled into the body', async () => {
     const update = jest.spyOn(ProfileController, 'updateProfile').mockResolvedValue({} as never);
 
-    await request(app.getHttpServer() as Server).patch('/profile').send({ displayName: 'Ada', userId: 'usr-somebody-else' });
+    await request(app.getHttpServer() as Server)
+      .patch('/profile')
+      .send({ displayName: 'Ada', userId: 'usr-somebody-else' });
 
     expect(update).toHaveBeenCalledWith('usr-1', { displayName: 'Ada' });
   });

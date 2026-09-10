@@ -25,14 +25,9 @@ describe('which meals somebody eats', () => {
   });
 
   it('keeps a day in the order it is lived', () => {
-    expect(slotsIn({ afternoon_snack: 'normal', breakfast: 'normal', dinner: 'normal', lunch: 'normal', morning_snack: 'normal', supper: 'normal' })).toEqual([
-      'breakfast',
-      'morning_snack',
-      'lunch',
-      'afternoon_snack',
-      'dinner',
-      'supper'
-    ]);
+    expect(
+      slotsIn({ afternoon_snack: 'normal', breakfast: 'normal', dinner: 'normal', lunch: 'normal', morning_snack: 'normal', supper: 'normal' })
+    ).toEqual(['breakfast', 'morning_snack', 'lunch', 'afternoon_snack', 'dinner', 'supper']);
   });
 });
 

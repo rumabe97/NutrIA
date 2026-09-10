@@ -1,7 +1,9 @@
 import type { Catalogue, ShoppingDraft, ShoppingDraftItem } from 'core/entities/Plan';
 
 /** Anything shaped like a plan: days of meals, each with its scaled ingredients. A scheduled plan is one; a plan read back for a swap is another. */
-export type ShoppingSource = { readonly days: readonly { readonly meals: readonly { readonly ingredients: readonly { readonly grams: number; readonly slug: string }[] }[] }[] };
+export type ShoppingSource = {
+  readonly days: readonly { readonly meals: readonly { readonly ingredients: readonly { readonly grams: number; readonly slug: string }[] }[] }[];
+};
 
 /** Aisle order, so the list reads the way a supermarket is walked. */
 const CATEGORY_ORDER = ['produce', 'protein', 'dairy', 'bakery', 'frozen', 'pantry', 'beverages', 'other'] as const;
@@ -36,7 +38,9 @@ export function buildShoppingList(assignment: ShoppingSource, catalogue: Catalog
     // A slug absent from the catalogue cannot be priced, bought or checked for
     // allergens. Skipping it would put an invisible hole in the list, so the
     // caller validates first — by here, every slug resolves.
-    if (!ingredient) {continue;}
+    if (!ingredient) {
+      continue;
+    }
 
     const totalGrams = roundTo(grams, 1);
     const display = toDisplay(totalGrams, ingredient.defaultUnit, ingredient.gramsPerUnit);
@@ -62,7 +66,9 @@ export function unresolvedSlugs(assignment: ShoppingSource, catalogue: Catalogue
   for (const day of assignment.days) {
     for (const meal of day.meals) {
       for (const item of meal.ingredients) {
-        if (!catalogue.has(item.slug)) {missing.add(item.slug);}
+        if (!catalogue.has(item.slug)) {
+          missing.add(item.slug);
+        }
       }
     }
   }
@@ -81,7 +87,9 @@ function toDisplay(totalGrams: number, defaultUnit: ShoppingDraftItem['displayUn
     return { quantity: Math.ceil(totalGrams / gramsPerUnit), unit: defaultUnit };
   }
 
-  if (defaultUnit === 'ml') {return { quantity: totalGrams, unit: 'ml' as const };}
+  if (defaultUnit === 'ml') {
+    return { quantity: totalGrams, unit: 'ml' as const };
+  }
 
   return { quantity: totalGrams, unit: 'g' as const };
 }

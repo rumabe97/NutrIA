@@ -36,11 +36,11 @@ describe('RateLimitGuard', () => {
   it('rejects the request after the limit with 429 and a stable code', () => {
     const guard = makeGuard();
 
-    for (let attempt = 0; attempt < ENV_STUB.RATE_LIMIT_MAX; attempt += 1) {guard.canActivate(makeContext({ ...anonymous }));}
+    for (let attempt = 0; attempt < ENV_STUB.RATE_LIMIT_MAX; attempt += 1) {
+      guard.canActivate(makeContext({ ...anonymous }));
+    }
 
-    expect(() => guard.canActivate(makeContext({ ...anonymous }))).toThrow(
-      expect.objectContaining({ status: 429 }) as unknown as Error
-    );
+    expect(() => guard.canActivate(makeContext({ ...anonymous }))).toThrow(expect.objectContaining({ status: 429 }) as unknown as Error);
   });
 
   it('counts each user separately, so one heavy user does not block another', () => {
@@ -48,7 +48,9 @@ describe('RateLimitGuard', () => {
     const alice = { ...anonymous, user: { id: 'usr-alice' } };
     const bob = { ...anonymous, user: { id: 'usr-bob' } };
 
-    for (let attempt = 0; attempt < ENV_STUB.RATE_LIMIT_MAX; attempt += 1) {guard.canActivate(makeContext({ ...alice }));}
+    for (let attempt = 0; attempt < ENV_STUB.RATE_LIMIT_MAX; attempt += 1) {
+      guard.canActivate(makeContext({ ...alice }));
+    }
 
     expect(() => guard.canActivate(makeContext({ ...alice }))).toThrow();
     expect(guard.canActivate(makeContext({ ...bob }))).toBe(true);
@@ -68,7 +70,9 @@ describe('RateLimitGuard', () => {
   it('counts each route separately', () => {
     const guard = makeGuard();
 
-    for (let attempt = 0; attempt < ENV_STUB.RATE_LIMIT_MAX; attempt += 1) {guard.canActivate(makeContext({ ...anonymous }));}
+    for (let attempt = 0; attempt < ENV_STUB.RATE_LIMIT_MAX; attempt += 1) {
+      guard.canActivate(makeContext({ ...anonymous }));
+    }
 
     expect(guard.canActivate(makeContext({ ...anonymous, route: { path: '/other' } }))).toBe(true);
   });
@@ -99,7 +103,9 @@ describe('RateLimitGuard', () => {
     const guard = makeGuard();
     const bare = { method: 'GET', url: '/x' };
 
-    for (let attempt = 0; attempt < ENV_STUB.RATE_LIMIT_MAX; attempt += 1) {guard.canActivate(makeContext({ ...bare }));}
+    for (let attempt = 0; attempt < ENV_STUB.RATE_LIMIT_MAX; attempt += 1) {
+      guard.canActivate(makeContext({ ...bare }));
+    }
 
     expect(() => guard.canActivate(makeContext({ ...bare }))).toThrow();
   });

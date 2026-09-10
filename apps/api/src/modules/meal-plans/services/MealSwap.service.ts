@@ -61,11 +61,15 @@ export class MealSwapService {
   async swap(userId: string, mealId: string, locale: string | null, axis?: SwapAxis): Promise<MealDetailView> {
     const anchor = await PlanController.mealForSwap(userId, mealId);
 
-    if (anchor.plan.status !== 'active') {throw new ConflictError('Only the active plan can be changed');}
+    if (anchor.plan.status !== 'active') {
+      throw new ConflictError('Only the active plan can be changed');
+    }
 
     const { mealSwaps } = await PlanController.allowances(userId);
 
-    if (!mealSwaps.allowed) {throw new QuotaExceededError('meal_swap');}
+    if (!mealSwaps.allowed) {
+      throw new QuotaExceededError('meal_swap');
+    }
 
     const [context, verdicts, profile, meals] = await Promise.all([
       RecipeController.generationContext(userId),
@@ -75,19 +79,30 @@ export class MealSwapService {
     ]);
     const current = meals.find(meal => meal.id === mealId);
 
-    if (!current) {throw new ConflictError('Meal is not part of its plan');}
+    if (!current) {
+      throw new ConflictError('Meal is not part of its plan');
+    }
 
     // The rest of the plan, as the variety rules see it: the meal being replaced
     // is out, so its own dish may not come straight back into the same slot.
-    const placed: Placement[] = meals.filter(meal => meal.id !== mealId).map(meal => ({ dayIndex: meal.dayIndex, dishSlug: meal.recipeSlug, slot: meal.slot }));
+    const placed: Placement[] = meals
+      .filter(meal => meal.id !== mealId)
+      .map(meal => ({ dayIndex: meal.dayIndex, dishSlug: meal.recipeSlug, slot: meal.slot }));
     const inPlan = new Set(meals.map(meal => meal.recipeSlug));
     const disliked = new Set(verdicts.disliked.map(dish => dish.slug));
     // The meal's own planned figures are the budget: the day's totals stay where
     // they were. An axis (0022) is a test every candidate must pass, judged
     // against the dish being replaced; "more protein" also raises the protein
     // the fit is scored against, so a richer plate ranks as the better one.
-    const filter = axisFilter(axis, { cookMinutes: anchor.recipe.cookMinutes, macros: current.macros, prepMinutes: anchor.recipe.prepMinutes }, context.catalogue);
-    const budget = { kcal: current.macros.kcal, proteinG: axis === 'more_protein' ? current.macros.proteinG * MORE_PROTEIN_BUDGET : current.macros.proteinG };
+    const filter = axisFilter(
+      axis,
+      { cookMinutes: anchor.recipe.cookMinutes, macros: current.macros, prepMinutes: anchor.recipe.prepMinutes },
+      context.catalogue
+    );
+    const budget = {
+      kcal: current.macros.kcal,
+      proteinG: axis === 'more_protein' ? current.macros.proteinG * MORE_PROTEIN_BUDGET : current.macros.proteinG
+    };
     const leaning = {
       preferCuisines: new Set(profile.cuisines.map(cuisine => normaliseForMatching(cuisine))),
       preferIngredientSlugs: context.preferences.preferredIngredientSlugs,
@@ -105,7 +120,15 @@ export class MealSwapService {
       const built = await this.pool.build({
         context,
         needPerSlot: SWAP_CANDIDATES,
-        preferences: promptPreferences(profile, verdicts, [...inPlan], targets, null, wishFor(axis, anchor.recipe), context.preferences.unenforceableLabels),
+        preferences: promptPreferences(
+          profile,
+          verdicts,
+          [...inPlan],
+          targets,
+          null,
+          wishFor(axis, anchor.recipe),
+          context.preferences.unenforceableLabels
+        ),
         reusable: [],
         slots: [current.slot]
       });
@@ -113,7 +136,9 @@ export class MealSwapService {
       replacement = pickReplacement({ ...pick, pool: built.generated.filter(dish => !inPlan.has(dish.slug)) });
 
       if (!replacement) {
-        this.logger.warn(`No replacement for meal ${mealId} (${current.slot}${axis ? `, ${axis}` : ''}): library empty for the slot and the model returned nothing usable`);
+        this.logger.warn(
+          `No replacement for meal ${mealId} (${current.slot}${axis ? `, ${axis}` : ''}): library empty for the slot and the model returned nothing usable`
+        );
         throw new ConflictError('No dish fits this meal right now');
       }
 
@@ -150,7 +175,9 @@ export class MealSwapService {
 function groupByDay(meals: readonly MealCompositionView[]): readonly { readonly meals: readonly MealCompositionView[] }[] {
   const days = new Map<number, MealCompositionView[]>();
 
-  for (const meal of meals) {days.set(meal.dayIndex, [...(days.get(meal.dayIndex) ?? []), meal]);}
+  for (const meal of meals) {
+    days.set(meal.dayIndex, [...(days.get(meal.dayIndex) ?? []), meal]);
+  }
 
   return [...days.values()].map(entries => ({ meals: entries }));
 }

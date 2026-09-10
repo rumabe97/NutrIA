@@ -30,10 +30,16 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function CheckInPage() {
   await redirectIfOnboardingIncomplete();
 
-  const [dictionary, status, weight] = await Promise.all([getDictionary(), serverApi<CheckInStatusView>('/check-ins/status'), serverApi<WeightView>('/progress/weight')]);
+  const [dictionary, status, weight] = await Promise.all([
+    getDictionary(),
+    serverApi<CheckInStatusView>('/check-ins/status'),
+    serverApi<WeightView>('/progress/weight')
+  ]);
   const t = dictionary.checkIn;
 
-  if (!status?.plan) {redirect('/inicio');}
+  if (!status?.plan) {
+    redirect('/inicio');
+  }
 
   if (status.done) {
     return (
@@ -65,7 +71,9 @@ export default async function CheckInPage() {
         {t.intro}
       </Text>
       <Text className={styles.adherence} size="sm" tone="tertiary">
-        {status.adherence === null ? t.adherenceNone : interpolate(t.adherence, { completed: status.stats.completed, marked, percent: status.adherence })}
+        {status.adherence === null
+          ? t.adherenceNone
+          : interpolate(t.adherence, { completed: status.stats.completed, marked, percent: status.adherence })}
       </Text>
 
       <CheckInForm latestKg={weight?.latestKg ?? null} planEnded={status.plan.endDate < today} planId={status.plan.id} />

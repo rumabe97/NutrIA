@@ -231,7 +231,9 @@ describe('dishSafety — the one gate both generation and reuse pass through', (
 
     expect(result.kind).toBe('unsafe');
 
-    if (result.kind === 'unsafe') {expect(result.violations[0]?.ingredientName).toBe('Pan integral');}
+    if (result.kind === 'unsafe') {
+      expect(result.violations[0]?.ingredientName).toBe('Pan integral');
+    }
   });
 
   it('gates a reused dish exactly as it gates a generated one — the database is not a safety claim', () => {
@@ -247,7 +249,9 @@ describe('dishSafety — the one gate both generation and reuse pass through', (
 
     expect(result.kind).toBe('unknown_ingredients');
 
-    if (result.kind === 'unknown_ingredients') {expect(result.slugs).toEqual(['no-existe']);}
+    if (result.kind === 'unknown_ingredients') {
+      expect(result.slugs).toEqual(['no-existe']);
+    }
   });
 
   it('reports resolution failure before safety, since an unresolved dish cannot be judged', () => {
@@ -295,7 +299,15 @@ describe('madeOf — a free-text allergy excludes what is made of it', () => {
   });
 
   it('lands in the profile as excluded ingredients, alongside the anchor', () => {
-    const profile = toSafetyProfile([], [], [{ ingredientId: 'i-tomate', label: 'tomate' }, { ingredientId: null, label: 'polen' }], catalogue);
+    const profile = toSafetyProfile(
+      [],
+      [],
+      [
+        { ingredientId: 'i-tomate', label: 'tomate' },
+        { ingredientId: null, label: 'polen' }
+      ],
+      catalogue
+    );
 
     expect([...profile.excludedIngredientIds].sort()).toEqual(['i-frito', 'i-tomate', 'i-zumo']);
     expect(profile.unenforceableLabels).toEqual(['polen']);

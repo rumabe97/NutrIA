@@ -44,7 +44,9 @@ export const VacationController = {
   },
 
   async cancel(userId: string, id: string, today = isoToday()): Promise<void> {
-    if (!(await VacationRepository.remove(userId, id, today))) {throw new NotFoundError(`Vacation "${id}" not found`);}
+    if (!(await VacationRepository.remove(userId, id, today))) {
+      throw new NotFoundError(`Vacation "${id}" not found`);
+    }
   },
 
   async list(userId: string, today = isoToday()): Promise<readonly VacationView[]> {
@@ -62,13 +64,21 @@ export const VacationController = {
   async plan(userId: string, trip: PlanVacation, today = isoToday()): Promise<VacationView> {
     const problem = problemWith(trip, today, await VacationRepository.findUpcoming(userId, today));
 
-    if (problem === 'overlaps') {throw new ConflictError('That overlaps a trip already planned');}
+    if (problem === 'overlaps') {
+      throw new ConflictError('That overlaps a trip already planned');
+    }
 
-    if (problem === 'too-long') {throw new InputParseError('A pause may not be longer than a season', { endsOn: [`must be at most ${MAX_VACATION_DAYS} days after the start`] });}
+    if (problem === 'too-long') {
+      throw new InputParseError('A pause may not be longer than a season', { endsOn: [`must be at most ${MAX_VACATION_DAYS} days after the start`] });
+    }
 
-    if (problem === 'starts-in-the-past') {throw new InputParseError('A pause cannot start in the past', { startsOn: ['must not be before today'] });}
+    if (problem === 'starts-in-the-past') {
+      throw new InputParseError('A pause cannot start in the past', { startsOn: ['must not be before today'] });
+    }
 
-    if (problem === 'ends-before-it-starts') {throw new InputParseError('A pause cannot end before it starts', { endsOn: ['must not be before the start'] });}
+    if (problem === 'ends-before-it-starts') {
+      throw new InputParseError('A pause cannot end before it starts', { endsOn: ['must not be before the start'] });
+    }
 
     return present(await VacationRepository.create(userId, trip), today);
   }

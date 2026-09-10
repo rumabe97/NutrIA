@@ -27,52 +27,96 @@ import type { ResolvedTargets } from 'core/domain/Nutrition';
 const POOL = [
   dish('Yogur natural', ['breakfast'], [{ grams: 250, slug: SEEDED.yogur }]),
   dish('Huevos revueltos', ['breakfast'], [{ grams: 160, slug: SEEDED.huevo }]),
-  dish('Yogur con huevo', ['breakfast'], [
-    { grams: 150, slug: SEEDED.yogur },
-    { grams: 100, slug: SEEDED.huevo }
-  ]),
-  dish('Huevo con tomate', ['breakfast'], [
-    { grams: 120, slug: SEEDED.huevo },
-    { grams: 120, slug: SEEDED.tomate }
-  ]),
+  dish(
+    'Yogur con huevo',
+    ['breakfast'],
+    [
+      { grams: 150, slug: SEEDED.yogur },
+      { grams: 100, slug: SEEDED.huevo }
+    ]
+  ),
+  dish(
+    'Huevo con tomate',
+    ['breakfast'],
+    [
+      { grams: 120, slug: SEEDED.huevo },
+      { grams: 120, slug: SEEDED.tomate }
+    ]
+  ),
   dish('Yogur doble', ['breakfast'], [{ grams: 300, slug: SEEDED.yogur }]),
-  dish('Arroz con pollo', ['lunch'], [
-    { grams: 220, slug: SEEDED.arroz },
-    { grams: 180, slug: SEEDED.pollo }
-  ]),
-  dish('Lentejas con arroz', ['lunch'], [
-    { grams: 250, slug: SEEDED.lentejas },
-    { grams: 150, slug: SEEDED.arroz }
-  ]),
-  dish('Pollo con patata', ['lunch'], [
-    { grams: 200, slug: SEEDED.pollo },
-    { grams: 250, slug: SEEDED.patata }
-  ]),
-  dish('Arroz con tomate', ['lunch'], [
-    { grams: 260, slug: SEEDED.arroz },
-    { grams: 150, slug: SEEDED.tomate }
-  ]),
+  dish(
+    'Arroz con pollo',
+    ['lunch'],
+    [
+      { grams: 220, slug: SEEDED.arroz },
+      { grams: 180, slug: SEEDED.pollo }
+    ]
+  ),
+  dish(
+    'Lentejas con arroz',
+    ['lunch'],
+    [
+      { grams: 250, slug: SEEDED.lentejas },
+      { grams: 150, slug: SEEDED.arroz }
+    ]
+  ),
+  dish(
+    'Pollo con patata',
+    ['lunch'],
+    [
+      { grams: 200, slug: SEEDED.pollo },
+      { grams: 250, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Arroz con tomate',
+    ['lunch'],
+    [
+      { grams: 260, slug: SEEDED.arroz },
+      { grams: 150, slug: SEEDED.tomate }
+    ]
+  ),
   dish('Lentejas solas', ['lunch'], [{ grams: 350, slug: SEEDED.lentejas }]),
-  dish('Merluza con patata', ['dinner'], [
-    { grams: 200, slug: SEEDED.merluza },
-    { grams: 220, slug: SEEDED.patata }
-  ]),
-  dish('Merluza con arroz', ['dinner'], [
-    { grams: 190, slug: SEEDED.merluza },
-    { grams: 200, slug: SEEDED.arroz }
-  ]),
-  dish('Pollo con arroz', ['dinner'], [
-    { grams: 190, slug: SEEDED.pollo },
-    { grams: 210, slug: SEEDED.arroz }
-  ]),
-  dish('Huevo con patata', ['dinner'], [
-    { grams: 150, slug: SEEDED.huevo },
-    { grams: 250, slug: SEEDED.patata }
-  ]),
-  dish('Merluza con lentejas', ['dinner'], [
-    { grams: 180, slug: SEEDED.merluza },
-    { grams: 200, slug: SEEDED.lentejas }
-  ])
+  dish(
+    'Merluza con patata',
+    ['dinner'],
+    [
+      { grams: 200, slug: SEEDED.merluza },
+      { grams: 220, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Merluza con arroz',
+    ['dinner'],
+    [
+      { grams: 190, slug: SEEDED.merluza },
+      { grams: 200, slug: SEEDED.arroz }
+    ]
+  ),
+  dish(
+    'Pollo con arroz',
+    ['dinner'],
+    [
+      { grams: 190, slug: SEEDED.pollo },
+      { grams: 210, slug: SEEDED.arroz }
+    ]
+  ),
+  dish(
+    'Huevo con patata',
+    ['dinner'],
+    [
+      { grams: 150, slug: SEEDED.huevo },
+      { grams: 250, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Merluza con lentejas',
+    ['dinner'],
+    [
+      { grams: 180, slug: SEEDED.merluza },
+      { grams: 200, slug: SEEDED.lentejas }
+    ]
+  )
 ];
 
 describe('a corrected target, end to end', () => {
@@ -91,7 +135,9 @@ describe('a corrected target, end to end', () => {
   }, 120_000);
 
   afterAll(async () => {
-    if (account) {await request(httpServer(app)).delete(`/${PREFIX}/users/me`).set('Cookie', account.cookie);}
+    if (account) {
+      await request(httpServer(app)).delete(`/${PREFIX}/users/me`).set('Cookie', account.cookie);
+    }
 
     await app.close();
   });

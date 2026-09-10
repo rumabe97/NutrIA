@@ -73,7 +73,8 @@ export default async function ProgressPage() {
 
   // A change of exactly nothing is "no change", not "0 kg": the second reads as
   // a measurement that came out at zero.
-  const change = (value: number | null) => (value === null ? { note: null, value: t.noData } : value === 0 ? { note: null, value: t.noChange } : { note: unit, value: signed(value, locale) });
+  const change = (value: number | null) =>
+    value === null ? { note: null, value: t.noData } : value === 0 ? { note: null, value: t.noChange } : { note: unit, value: signed(value, locale) };
   const toTarget =
     weight.toTargetKg === null
       ? { note: null, value: t.noData }
@@ -121,7 +122,11 @@ export default async function ProgressPage() {
           </Link>
         </div>
 
-        {weight.latestKg === null ? <Text tone="secondary">{t.weightNone}</Text> : <WeightChart entries={weight.entries} targetKg={weight.targetWeightKg} />}
+        {weight.latestKg === null ? (
+          <Text tone="secondary">{t.weightNone}</Text>
+        ) : (
+          <WeightChart entries={weight.entries} targetKg={weight.targetWeightKg} />
+        )}
       </section>
 
       <section className={styles.fortnights}>

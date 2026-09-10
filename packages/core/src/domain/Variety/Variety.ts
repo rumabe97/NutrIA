@@ -39,13 +39,13 @@ export type Placement = { readonly dayIndex: number; readonly dishSlug: string; 
 export function canPlace(dishSlug: string, slot: MealSlot, dayIndex: number, placed: readonly Placement[]): boolean {
   const occurrences = placed.filter(placement => placement.dishSlug === dishSlug).length;
 
-  if (occurrences >= VARIETY_RULES.maxOccurrencesPerPlan) {return false;}
+  if (occurrences >= VARIETY_RULES.maxOccurrencesPerPlan) {
+    return false;
+  }
 
   return !placed.some(
     placement =>
-      placement.dishSlug === dishSlug &&
-      placement.slot === slot &&
-      Math.abs(placement.dayIndex - dayIndex) < VARIETY_RULES.minDaysBetweenSameSlot
+      placement.dishSlug === dishSlug && placement.slot === slot && Math.abs(placement.dayIndex - dayIndex) < VARIETY_RULES.minDaysBetweenSameSlot
   );
 }
 

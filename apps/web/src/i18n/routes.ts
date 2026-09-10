@@ -29,15 +29,7 @@ const SEGMENTS: Record<Locale, string> = { 'en-GB': '/en', 'es-ES': '' };
  * public route here when you add it to both `src/app/(es)` and `src/app/en`, or
  * the switcher and the proxy will keep sending people to the Spanish one.
  */
-export const LOCALISED_PATHS: readonly string[] = [
-  '/',
-  '/acceder',
-  '/pendiente',
-  '/recuperar',
-  '/registro',
-  '/restablecer',
-  '/verificar-email'
-];
+export const LOCALISED_PATHS: readonly string[] = ['/', '/acceder', '/pendiente', '/recuperar', '/registro', '/restablecer', '/verificar-email'];
 
 /** The language a URL asks for. Anything unprefixed is the default one. */
 export function localeFromPathname(pathname: string): Locale {
@@ -48,7 +40,9 @@ export function localeFromPathname(pathname: string): Locale {
 export function withoutLocale(pathname: string): string {
   const segment = SEGMENTS[localeFromPathname(pathname)];
 
-  if (segment === '') {return pathname;}
+  if (segment === '') {
+    return pathname;
+  }
 
   const rest = pathname.slice(segment.length);
 
@@ -59,7 +53,9 @@ export function withoutLocale(pathname: string): string {
 export function withLocale(path: string, locale: Locale): string {
   const segment = SEGMENTS[locale];
 
-  if (segment === '') {return path;}
+  if (segment === '') {
+    return path;
+  }
 
   // `/en/` and `/en` are different URLs to Next, and only the second is a route.
   return path === '/' ? segment : `${segment}${path}`;

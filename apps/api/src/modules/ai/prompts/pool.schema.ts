@@ -12,43 +12,44 @@ import { MEAL_SLOTS } from 'core/entities/Plan';
  * be stored even by accident — macros are computed from the catalogue
  * (`docs/decisions/0004-deterministic-safety-layer.md`).
  */
-export const generatedDishSchema = z.object({
-  cookMinutes: z.number().int().min(0).max(180).describe('Minutos de cocción. 0 si no requiere cocinar.'),
-  // The wire schema has no nullable, so 'none' arrives as an empty string.
-  cuisine: z
-    .string()
-    .max(60)
-    .nullish()
-    .transform(value => value || null)
-    .describe('Cocina de origen, por ejemplo "mediterranea".'),
-  difficulty: z.enum(['easy', 'medium', 'hard']),
-  ingredients: z
-    .array(
-      z.object({
-        grams: z.number().positive().max(2000).describe('Gramos para el total de raciones indicado.'),
-        slug: z.string().min(1).describe('Debe ser exactamente uno de los slugs disponibles.')
-      })
-    )
-    .min(1)
-    .max(12),
-  name: z.string().min(1).max(120).describe('Nombre del plato en español.'),
-  prepMinutes: z.number().int().min(0).max(120),
-  servings: z.number().min(1).max(4).describe('Número de raciones que rinden las cantidades indicadas.'),
-  slots: z.array(z.enum(MEAL_SLOTS)).min(1).describe('Momentos del día en los que este plato encaja.'),
-  steps: z
-    .array(
-      z.object({
-        // What to look for before moving on. Optional on the wire; the prompt asks for it.
-        cue: z.string().max(160).optional(),
-        minutes: z.number().int().min(0).max(240).optional(),
-        // Twenty characters is the floor under "Cocer el arroz." — a step that names
-        // an action and nothing about how, how hot or how long is not documented.
-        text: z.string().min(20).max(400)
-      })
-    )
-    .max(10)
-    .describe('Pasos de preparación. Al menos uno, siempre.')
-})
+export const generatedDishSchema = z
+  .object({
+    cookMinutes: z.number().int().min(0).max(180).describe('Minutos de cocción. 0 si no requiere cocinar.'),
+    // The wire schema has no nullable, so 'none' arrives as an empty string.
+    cuisine: z
+      .string()
+      .max(60)
+      .nullish()
+      .transform(value => value || null)
+      .describe('Cocina de origen, por ejemplo "mediterranea".'),
+    difficulty: z.enum(['easy', 'medium', 'hard']),
+    ingredients: z
+      .array(
+        z.object({
+          grams: z.number().positive().max(2000).describe('Gramos para el total de raciones indicado.'),
+          slug: z.string().min(1).describe('Debe ser exactamente uno de los slugs disponibles.')
+        })
+      )
+      .min(1)
+      .max(12),
+    name: z.string().min(1).max(120).describe('Nombre del plato en español.'),
+    prepMinutes: z.number().int().min(0).max(120),
+    servings: z.number().min(1).max(4).describe('Número de raciones que rinden las cantidades indicadas.'),
+    slots: z.array(z.enum(MEAL_SLOTS)).min(1).describe('Momentos del día en los que este plato encaja.'),
+    steps: z
+      .array(
+        z.object({
+          // What to look for before moving on. Optional on the wire; the prompt asks for it.
+          cue: z.string().max(160).optional(),
+          minutes: z.number().int().min(0).max(240).optional(),
+          // Twenty characters is the floor under "Cocer el arroz." — a step that names
+          // an action and nothing about how, how hot or how long is not documented.
+          text: z.string().min(20).max(400)
+        })
+      )
+      .max(10)
+      .describe('Pasos de preparación. Al menos uno, siempre.')
+  })
   /*
    * The floor lives here rather than only in the prompt because 2.1.0 asked for
    * three to eight steps and a quarter of the library still came back with none.
@@ -111,16 +112,17 @@ export const wirePoolSchema = jsonSchema<GeneratedPool>({
           name: { description: 'Nombre del plato en español.', type: 'string' },
           prepMinutes: { description: 'Minutos de preparación.', type: 'integer' },
           servings: { description: 'Raciones que rinden las cantidades indicadas.', type: 'number' },
-          slots: {
-            description: 'Momentos del día en los que encaja.',
-            items: { enum: [...MEAL_SLOTS], type: 'string' },
-            type: 'array'
-          },
+          slots: { description: 'Momentos del día en los que encaja.', items: { enum: [...MEAL_SLOTS], type: 'string' }, type: 'array' },
           steps: {
-            description: 'Pasos de preparación, uno por acción. Cada paso: qué hacer, cómo, a qué fuego y cuánto tiempo, y qué señal indica que está listo.',
+            description:
+              'Pasos de preparación, uno por acción. Cada paso: qué hacer, cómo, a qué fuego y cuánto tiempo, y qué señal indica que está listo.',
             items: {
               properties: {
-                cue: { description: 'La señal de que el paso está hecho: "hasta que los bordes doren", "hasta que deje de humear". Cadena vacía si no aplica.', type: 'string' },
+                cue: {
+                  description:
+                    'La señal de que el paso está hecho: "hasta que los bordes doren", "hasta que deje de humear". Cadena vacía si no aplica.',
+                  type: 'string'
+                },
                 minutes: { description: 'Minutos que ocupa este paso. 0 si es instantáneo.', type: 'integer' },
                 text: { description: 'La acción, en una a tres frases: qué, cómo, a qué fuego.', type: 'string' }
               },

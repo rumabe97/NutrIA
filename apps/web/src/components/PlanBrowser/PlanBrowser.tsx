@@ -90,19 +90,25 @@ export function PlanBrowser({ history = null, plan, redo }: PlanBrowserProps) {
 
         {day ? (
           <section className={`${styles.card} motion-enter`} key={day.dayIndex}>
-          <div className={styles.dayHeading}>
-            <div>
-              <Text size="lg" weight="semibold">
-                {interpolate(dictionary.plan.day, { index: day.dayIndex })}
-              </Text>
-              <Text size="sm" tone="tertiary">
-                {formatDate(day.date, locale, { day: 'numeric', month: 'long', weekday: 'long' })}
-                {day.dayIndex === today ? dictionary.plan.dayIsToday : ''}
-              </Text>
+            <div className={styles.dayHeading}>
+              <div>
+                <Text size="lg" weight="semibold">
+                  {interpolate(dictionary.plan.day, { index: day.dayIndex })}
+                </Text>
+                <Text size="sm" tone="tertiary">
+                  {formatDate(day.date, locale, { day: 'numeric', month: 'long', weekday: 'long' })}
+                  {day.dayIndex === today ? dictionary.plan.dayIsToday : ''}
+                </Text>
+              </div>
             </div>
-          </div>
 
-          <MacroSummary carbsG={day.totals.carbsG} fatG={day.totals.fatG} kcal={day.totals.kcal} note={dictionary.macros.note} proteinG={day.totals.proteinG} />
+            <MacroSummary
+              carbsG={day.totals.carbsG}
+              fatG={day.totals.fatG}
+              kcal={day.totals.kcal}
+              note={dictionary.macros.note}
+              proteinG={day.totals.proteinG}
+            />
 
             {/* Keyed on the day so switching days replays the entrance — the
                 content changed, and motion is how a reader is told that. */}
@@ -128,4 +134,3 @@ export function PlanBrowser({ history = null, plan, redo }: PlanBrowserProps) {
     </Fragment>
   );
 }
-

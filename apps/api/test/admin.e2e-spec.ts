@@ -43,7 +43,10 @@ describe('admin', () => {
     ordinary = await register(app, `admin-user-${stamp}@e2e.invalid`);
     waiting = `admin-waiting-${stamp}@e2e.invalid`;
 
-    await request(httpServer(app)).post(`/${PREFIX}/auth/sign-up/email`).send({ email: waiting, name: 'Waiting', password: 'correct-horse-battery-staple-9' }).expect(200);
+    await request(httpServer(app))
+      .post(`/${PREFIX}/auth/sign-up/email`)
+      .send({ email: waiting, name: 'Waiting', password: 'correct-horse-battery-staple-9' })
+      .expect(200);
     await UserController.grantAdmin(owner.email);
   });
 
@@ -85,13 +88,19 @@ describe('admin', () => {
     const accounts: Response = await request(httpServer(app)).get(`/${PREFIX}/admin/accounts`).set('Cookie', owner.cookie).expect(200);
     const queued = (accounts.body as Paged<AccountView>).rows.find(account => account.email === waiting);
 
-    const opened: Response = await request(httpServer(app)).post(`/${PREFIX}/admin/accounts/${queued?.id}/activate`).set('Cookie', owner.cookie).expect(201);
+    const opened: Response = await request(httpServer(app))
+      .post(`/${PREFIX}/admin/accounts/${queued?.id}/activate`)
+      .set('Cookie', owner.cookie)
+      .expect(201);
 
     expect(opened.body).toMatchObject({ email: waiting });
 
     const after: Response = await request(httpServer(app)).get(`/${PREFIX}/admin/accounts`).set('Cookie', owner.cookie).expect(200);
 
-    expect((after.body as Paged<AccountView>).rows.find(account => account.email === waiting)).toMatchObject({ activated: true, emailVerified: false });
+    expect((after.body as Paged<AccountView>).rows.find(account => account.email === waiting)).toMatchObject({
+      activated: true,
+      emailVerified: false
+    });
   });
 
   it('throws the activation switch, and the switch is what the product reads', async () => {
@@ -150,7 +159,11 @@ describe('admin', () => {
   it('carries a message from the person who wrote it to the owner, and back again', async () => {
     const server = httpServer(app);
 
-    await request(server).post(`/${PREFIX}/feedback`).set('Cookie', ordinary.cookie).send({ kind: 'problem', message: 'La cena sale muy tarde' }).expect(204);
+    await request(server)
+      .post(`/${PREFIX}/feedback`)
+      .set('Cookie', ordinary.cookie)
+      .send({ kind: 'problem', message: 'La cena sale muy tarde' })
+      .expect(204);
 
     const inbox: Response = await request(server).get(`/${PREFIX}/admin/feedback`).set('Cookie', owner.cookie).expect(200);
     const page = inbox.body as Paged<FeedbackView> & { waiting: number };

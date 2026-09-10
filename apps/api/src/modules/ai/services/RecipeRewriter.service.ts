@@ -49,7 +49,9 @@ export class RecipeRewriter {
 
   async rewriteOutdated(limit: number): Promise<RewriteRun> {
     // The sweep's own availability, not the client's: the owner's switch lives here.
-    if (!this.isAvailable) {return { pending: 0, rewritten: 0, skipped: 0 };}
+    if (!this.isAvailable) {
+      return { pending: 0, rewritten: 0, skipped: 0 };
+    }
 
     const pending = await RecipeController.pendingStepUpgrades(PROMPT_VERSION, limit);
     let rewritten = 0;

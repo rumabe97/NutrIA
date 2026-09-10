@@ -7,17 +7,9 @@ import type { Dictionary } from './es-ES';
  * build. That is the whole reason this file has no keys of its own.
  */
 export const enGB: Dictionary = {
-  a11y: {
-    skipToContent: 'Skip to content'
-  },
+  a11y: { skipToContent: 'Skip to content' },
 
-  activity: {
-    athlete: 'Athlete',
-    high: 'High',
-    light: 'Light',
-    moderate: 'Moderate',
-    sedentary: 'Sedentary'
-  },
+  activity: { athlete: 'Athlete', high: 'High', light: 'Light', moderate: 'Moderate', sedentary: 'Sedentary' },
 
   admin: {
     accounts: 'Accounts',
@@ -28,7 +20,8 @@ export const enGB: Dictionary = {
     activityPeople: '{count} people signed in during this window.',
     activityTitle: 'Activity ({days} days)',
     aiCalls: 'Requests today',
-    aiHint: 'Our count of what left this service, against the limit you configured. Google publishes no endpoint for what is left: if their console says something else, the difference is calls that did not come through here.',
+    aiHint:
+      'Our count of what left this service, against the limit you configured. Google publishes no endpoint for what is left: if their console says something else, the difference is calls that did not come through here.',
     aiModel: 'Model',
     aiRefused: 'Refused for quota',
     aiResets: 'The daily count starts again',
@@ -38,10 +31,7 @@ export const enGB: Dictionary = {
     automaticActivation: 'Automatic activation',
     automaticHint: 'Whoever confirms their address is in. Nothing for you to do.',
     confirmed: 'email confirmed',
-    events: {
-      session_started: 'Sign-ins',
-      swap_requested: 'Meal swaps asked for'
-    },
+    events: { session_started: 'Sign-ins', swap_requested: 'Meal swaps asked for' },
     failureNote: '{count} generations failed. The code says whether it was the quota, the key or the catalogue.',
     failures: 'Failures',
     feedbackHandled: 'Mark as seen',
@@ -59,7 +49,8 @@ export const enGB: Dictionary = {
       returned: 'Came back for a second plan',
       signedUp: 'Signed up'
     },
-    funnelHint: 'Counted from the data rather than from events, so it covers the accounts that predate this screen. The percentage is of the step above.',
+    funnelHint:
+      'Counted from the data rather than from events, so it covers the accounts that predate this screen. The percentage is of the step above.',
     funnelTitle: 'Funnel',
     inDays: 'in {days} days',
     ingredients: 'Ingredients',
@@ -181,7 +172,8 @@ export const enGB: Dictionary = {
     hungerHungry: 'I was left hungry',
     hungerRight: 'Right',
     hungerTooMuch: 'Too much',
-    intro: 'Five questions. What you say here changes the next plan: your weight adjusts the targets, the portions move them 5 % up or down, and your words reach the model as written.',
+    intro:
+      'Five questions. What you say here changes the next plan: your weight adjusts the targets, the portions move them 5 % up or down, and your words reach the model as written.',
     nextPlan: 'Create my next plan',
     notYetBody: "The check-in opens on the plan's last day.",
     notYetTitle: 'Not yet',
@@ -231,7 +223,8 @@ export const enGB: Dictionary = {
     availableNow: 'available now',
     checkIn: '· next review {when}',
     checkInDoneNote: 'Check-in done. Create the next plan whenever you like.',
-    checkInDueBody: 'Fourteen days are up. Take a minute to tell us how it went: weight, portions and what you would change. The next plan will take it into account.',
+    checkInDueBody:
+      'Fourteen days are up. Take a minute to tell us how it went: weight, portions and what you would change. The next plan will take it into account.',
     checkInDueCta: 'Do the check-in',
     checkInDueTitle: 'Your fortnight check-in',
     dayOf: 'Day {current} of {total}',
@@ -260,7 +253,8 @@ export const enGB: Dictionary = {
     shoppingCta: 'See the list →',
     shoppingTitle: 'Your shopping list',
     targetsAdjust: 'Adjust →',
-    targetsClamped: 'We adjusted your pace: it asked for {requested} kcal and we raised it to {floor}, the daily minimum we consider safe without professional supervision.',
+    targetsClamped:
+      'We adjusted your pace: it asked for {requested} kcal and we raised it to {floor}, the daily minimum we consider safe without professional supervision.',
     targetsEstimate: 'These are an estimate from your profile. You can adjust them.',
     targetsLabel: 'Your daily targets · {status}',
     targetsStatusEstimated: 'estimated',
@@ -353,7 +347,8 @@ export const enGB: Dictionary = {
       VALIDATING_PLAN: 'Checking everything adds up'
     },
     title: 'We are building your plan',
-    unsafeBody: 'We blocked the plan because a meal did not respect your allergies. We would rather give you nothing than give you something you cannot eat.',
+    unsafeBody:
+      'We blocked the plan because a meal did not respect your allergies. We would rather give you nothing than give you something you cannot eat.',
     unsafeTitle: 'We blocked it for safety',
     wait: 'It takes a couple of minutes. You can leave this page open.'
   },
@@ -416,11 +411,13 @@ export const enGB: Dictionary = {
         question: 'How do you handle allergies?'
       },
       {
-        answer: 'No. NutrIA is a meal-planning tool. If you have a medical condition, are pregnant, or take medication, speak to a healthcare professional.',
+        answer:
+          'No. NutrIA is a meal-planning tool. If you have a medical condition, are pregnant, or take medication, speak to a healthcare professional.',
         question: 'Does this replace a dietitian or my doctor?'
       },
       {
-        answer: 'All of them. Past plans are kept with their recipes, their shopping lists and your notes, and you can look them up whenever you like.',
+        answer:
+          'All of them. Past plans are kept with their recipes, their shopping lists and your notes, and you can look them up whenever you like.',
         question: 'What happens to my previous plans?'
       },
       {
@@ -439,8 +436,14 @@ export const enGB: Dictionary = {
         body: 'One list per plan, grouped by aisle with the quantities already added up. Three loose tomatoes become 450 g.',
         title: 'Shopping list, done for you'
       },
-      { body: 'Weight, adherence, energy and hunger. Only the trends that mean something, without turning it into an exam.', title: 'Progress without obsession' },
-      { body: 'Your allergies and intolerances are applied as a system filter, not as an instruction to a model.', title: 'Allergies are a hard limit' },
+      {
+        body: 'Weight, adherence, energy and hunger. Only the trends that mean something, without turning it into an exam.',
+        title: 'Progress without obsession'
+      },
+      {
+        body: 'Your allergies and intolerances are applied as a system filter, not as an instruction to a model.',
+        title: 'Allergies are a hard limit'
+      },
       { body: 'Ask for a substitution, why we chose a dish, or what to buy tomorrow. It knows your plan.', title: 'Nutrition assistant' }
     ],
     finalCtaTitle: 'Stop deciding what’s for dinner.',
@@ -475,12 +478,18 @@ export const enGB: Dictionary = {
         body: 'Calories and macros come from composition tables and your profile, with a daily floor no goal is allowed to cross.',
         title: 'The numbers are not improvised'
       },
-      { body: 'NutrIA plans meals. It does not diagnose, does not prescribe, and does not replace a healthcare professional.', title: 'We know where the line is' }
+      {
+        body: 'NutrIA plans meals. It does not diagnose, does not prescribe, and does not replace a healthcare professional.',
+        title: 'We know where the line is'
+      }
     ],
     safetyLede: 'The AI proposes meals. Anything that could harm you is checked by the system.',
     safetyTitle: 'A model does not decide what matters.',
     steps: [
-      { body: 'Your goal, your schedule, your allergies, your budget, and what you have no intention of cooking on a Tuesday.', title: 'You tell us how you live' },
+      {
+        body: 'Your goal, your schedule, your allergies, your budget, and what you have no intention of cooking on a Tuesday.',
+        title: 'You tell us how you live'
+      },
       { body: 'We work out what you need and build fourteen complete days, meal by meal.', title: 'We build your plan' },
       { body: 'Tick off what you eat, swap what you don’t fancy, shop with a list already written.', title: 'You follow it at your pace' },
       { body: 'Every fortnight we look at what worked, and the next plan arrives better tuned.', title: 'It adapts' }
@@ -498,9 +507,7 @@ export const enGB: Dictionary = {
     protein: 'Protein'
   },
 
-  manifest: {
-    description: 'Personalised meal plans, adjusted every two weeks.'
-  },
+  manifest: { description: 'Personalised meal plans, adjusted every two weeks.' },
 
   meal: {
     alternatives: 'If you can’t find it',
@@ -597,7 +604,8 @@ export const enGB: Dictionary = {
       mealShapeHint: 'Mark the ones you skip. If one is light, the rest of the day takes on those macros.',
       otherAllergies: 'Other allergies',
       pace: 'Pace (kg per week)',
-      paceHint: 'Between 0 and 1 kg per week; your goal sets the direction. If you ask for more than is safe for you, we adjust it and say so in the summary.',
+      paceHint:
+        'Between 0 and 1 kg per week; your goal sets the direction. If you ask for more than is safe for you, we adjust it and say so in the summary.',
       paceRange: 'The pace has to be between 0 and 1 kg per week.',
       portionPreference: 'Do you prefer large plates or light ones?',
       sex: 'Sex',
@@ -648,7 +656,14 @@ export const enGB: Dictionary = {
         weight_loss: { hint: 'Lose fat while keeping muscle.', label: 'Lose weight' }
       },
       mealSizes: { large: 'Large', light: 'Light', normal: 'Normal', off: 'I skip it' },
-      mealSlots: { afternoon_snack: 'Afternoon snack', breakfast: 'Breakfast', dinner: 'Dinner', lunch: 'Lunch', morning_snack: 'Mid-morning', supper: 'Supper' },
+      mealSlots: {
+        afternoon_snack: 'Afternoon snack',
+        breakfast: 'Breakfast',
+        dinner: 'Dinner',
+        lunch: 'Lunch',
+        morning_snack: 'Mid-morning',
+        supper: 'Supper'
+      },
       sex: { female: 'Female', male: 'Male', other: 'Other', prefer_not_to_say: 'Prefer not to say' }
     },
     percent: '{value}%',
@@ -699,10 +714,7 @@ export const enGB: Dictionary = {
         'Fourteen-day plans with recipes, quantities and the shopping list already done, built around your goals, your timetable and your allergies.',
       title: 'NutrIA — Personalised meal plans'
     },
-    '/acceder': {
-      description: "Sign in to NutrIA to see today's plan, your shopping list and your progress.",
-      title: 'Sign in'
-    },
+    '/acceder': { description: "Sign in to NutrIA to see today's plan, your shopping list and your progress.", title: 'Sign in' },
     '/admin': { title: 'Admin' },
     '/check-in': { title: "The fortnight's check-in" },
     '/compra': { title: 'The shopping' },
@@ -718,7 +730,8 @@ export const enGB: Dictionary = {
     '/progreso': { title: 'Your progress' },
     '/recuperar': { title: 'Reset your password' },
     '/registro': {
-      description: 'Create your account and answer a few questions: you will have fourteen days of meals with the shopping list already done. No card needed.',
+      description:
+        'Create your account and answer a few questions: you will have fourteen days of meals with the shopping list already done. No card needed.',
       title: 'Create your account'
     },
     '/restablecer': { title: 'Choose a new password' },
@@ -817,7 +830,8 @@ export const enGB: Dictionary = {
     difficultyEasy: 'Easy to follow',
     difficultyHard: 'Hard to follow',
     difficultyOk: 'Could be followed',
-    emptyBody: 'Once you have your first plan, every fortnight shows up here: which meals you ate, what you said at the check-in and how your weight is going.',
+    emptyBody:
+      'Once you have your first plan, every fortnight shows up here: which meals you ate, what you said at the check-in and how your weight is going.',
     emptyCta: 'Go home',
     emptyTitle: 'Nothing to measure yet',
     fortnightRange: '{from} – {to}',
@@ -892,7 +906,8 @@ export const enGB: Dictionary = {
     badgeYours: 'Yours',
     basalRate: 'Basal metabolic rate',
     clampedCeiling: 'Your pace asked for {requested} kcal and we brought it down to {ceiling}: a bigger surplus becomes fat, not muscle.',
-    clampedFloor: 'Your pace asked for {requested} kcal and we raised it to {floor}: below that we will not build a plan without professional supervision.',
+    clampedFloor:
+      'Your pace asked for {requested} kcal and we raised it to {floor}: below that we will not build a plan without professional supervision.',
     computed: 'Result of the calculation',
     disclaimer:
       'These are an estimate, not a prescription. The equations are right on average, not for every person: use them as a starting point and adjust as you go.',
@@ -950,7 +965,7 @@ export const enGB: Dictionary = {
       swap: {
         body: 'Every meal has a button to change it, and you can say what you want instead: quicker, no cooking, more protein or vegetarian. You get a few changes each fortnight.',
         cta: 'See the plan',
-        title: 'Don\'t fancy a dish? Change it'
+        title: "Don't fancy a dish? Change it"
       },
       trip: {
         body: 'Mark the days you will be away and the fortnight pauses: the days that were left are still there when you get back.',
@@ -983,7 +998,8 @@ export const enGB: Dictionary = {
     cancelFor: 'Remove the trip from {from} to {to}',
     days: '{count} days',
     from: 'From',
-    intro: 'Mark the days you will be away and the plan pauses: those days do not count as skipped, and when you return it carries on where it stopped.',
+    intro:
+      'Mark the days you will be away and the plan pauses: those days do not count as skipped, and when you return it carries on where it stopped.',
     pausedUntil: 'Your plan is paused · it picks up on {date}',
     range: '{from} to {to}',
     seePlan: 'See my plan',

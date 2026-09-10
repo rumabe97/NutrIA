@@ -19,56 +19,104 @@ import type { PlanView } from 'core/controllers/Plan';
  * Requires DATABASE_URL and a seeded catalogue. See ./README.md.
  */
 const POOL = [
-  dish('Avena con yogur', ['breakfast'], [
-    { grams: 80, slug: SEEDED.avena },
-    { grams: 150, slug: SEEDED.yogur }
-  ]),
-  dish('Tostada con huevo', ['breakfast'], [
-    { grams: 80, slug: SEEDED.pan },
-    { grams: 120, slug: SEEDED.huevo }
-  ]),
-  dish('Yogur con avena', ['breakfast'], [
-    { grams: 200, slug: SEEDED.yogur },
-    { grams: 60, slug: SEEDED.avena }
-  ]),
-  dish('Huevos con pan', ['breakfast'], [
-    { grams: 140, slug: SEEDED.huevo },
-    { grams: 60, slug: SEEDED.pan }
-  ]),
+  dish(
+    'Avena con yogur',
+    ['breakfast'],
+    [
+      { grams: 80, slug: SEEDED.avena },
+      { grams: 150, slug: SEEDED.yogur }
+    ]
+  ),
+  dish(
+    'Tostada con huevo',
+    ['breakfast'],
+    [
+      { grams: 80, slug: SEEDED.pan },
+      { grams: 120, slug: SEEDED.huevo }
+    ]
+  ),
+  dish(
+    'Yogur con avena',
+    ['breakfast'],
+    [
+      { grams: 200, slug: SEEDED.yogur },
+      { grams: 60, slug: SEEDED.avena }
+    ]
+  ),
+  dish(
+    'Huevos con pan',
+    ['breakfast'],
+    [
+      { grams: 140, slug: SEEDED.huevo },
+      { grams: 60, slug: SEEDED.pan }
+    ]
+  ),
   dish('Avena sola', ['breakfast'], [{ grams: 110, slug: SEEDED.avena }]),
-  dish('Arroz con pollo', ['lunch'], [
-    { grams: 220, slug: SEEDED.arroz },
-    { grams: 180, slug: SEEDED.pollo }
-  ]),
-  dish('Lentejas con arroz', ['lunch'], [
-    { grams: 250, slug: SEEDED.lentejas },
-    { grams: 150, slug: SEEDED.arroz }
-  ]),
-  dish('Pollo con patata', ['lunch'], [
-    { grams: 200, slug: SEEDED.pollo },
-    { grams: 250, slug: SEEDED.patata }
-  ]),
-  dish('Arroz con tomate', ['lunch'], [
-    { grams: 260, slug: SEEDED.arroz },
-    { grams: 150, slug: SEEDED.tomate }
-  ]),
+  dish(
+    'Arroz con pollo',
+    ['lunch'],
+    [
+      { grams: 220, slug: SEEDED.arroz },
+      { grams: 180, slug: SEEDED.pollo }
+    ]
+  ),
+  dish(
+    'Lentejas con arroz',
+    ['lunch'],
+    [
+      { grams: 250, slug: SEEDED.lentejas },
+      { grams: 150, slug: SEEDED.arroz }
+    ]
+  ),
+  dish(
+    'Pollo con patata',
+    ['lunch'],
+    [
+      { grams: 200, slug: SEEDED.pollo },
+      { grams: 250, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Arroz con tomate',
+    ['lunch'],
+    [
+      { grams: 260, slug: SEEDED.arroz },
+      { grams: 150, slug: SEEDED.tomate }
+    ]
+  ),
   dish('Lentejas solas', ['lunch'], [{ grams: 350, slug: SEEDED.lentejas }]),
-  dish('Merluza con patata', ['dinner'], [
-    { grams: 200, slug: SEEDED.merluza },
-    { grams: 220, slug: SEEDED.patata }
-  ]),
-  dish('Pollo con tomate', ['dinner'], [
-    { grams: 170, slug: SEEDED.pollo },
-    { grams: 200, slug: SEEDED.tomate }
-  ]),
-  dish('Merluza con arroz', ['dinner'], [
-    { grams: 180, slug: SEEDED.merluza },
-    { grams: 180, slug: SEEDED.arroz }
-  ]),
-  dish('Patata con huevo', ['dinner'], [
-    { grams: 250, slug: SEEDED.patata },
-    { grams: 110, slug: SEEDED.huevo }
-  ]),
+  dish(
+    'Merluza con patata',
+    ['dinner'],
+    [
+      { grams: 200, slug: SEEDED.merluza },
+      { grams: 220, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Pollo con tomate',
+    ['dinner'],
+    [
+      { grams: 170, slug: SEEDED.pollo },
+      { grams: 200, slug: SEEDED.tomate }
+    ]
+  ),
+  dish(
+    'Merluza con arroz',
+    ['dinner'],
+    [
+      { grams: 180, slug: SEEDED.merluza },
+      { grams: 180, slug: SEEDED.arroz }
+    ]
+  ),
+  dish(
+    'Patata con huevo',
+    ['dinner'],
+    [
+      { grams: 250, slug: SEEDED.patata },
+      { grams: 110, slug: SEEDED.huevo }
+    ]
+  ),
   dish('Merluza sola', ['dinner'], [{ grams: 300, slug: SEEDED.merluza }])
 ];
 
@@ -184,7 +232,11 @@ describe('plan generation', () => {
 
       // Shaped so a failure names the ingredient, the drift and how many meals it
       // was added over — the three things needed to tell rounding from an error.
-      expect({ drift: drift <= tolerance ? 0 : Math.round(drift * 100) / 100, meals: count, name: item.name }).toEqual({ drift: 0, meals: count, name: item.name });
+      expect({ drift: drift <= tolerance ? 0 : Math.round(drift * 100) / 100, meals: count, name: item.name }).toEqual({
+        drift: 0,
+        meals: count,
+        name: item.name
+      });
     }
   }, 120_000);
 

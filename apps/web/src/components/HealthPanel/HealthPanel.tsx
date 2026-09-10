@@ -215,9 +215,7 @@ export function HealthPanel({ health }: { health: HealthView }) {
         </div>
       ) : null}
 
-      {!health.consentIsCurrent && recorded > 0 ? (
-        <p className={styles.notice}>{t.consentStale}</p>
-      ) : null}
+      {!health.consentIsCurrent && recorded > 0 ? <p className={styles.notice}>{t.consentStale}</p> : null}
 
       {open ? (
         <Fragment>
@@ -229,7 +227,9 @@ export function HealthPanel({ health }: { health: HealthView }) {
                   checked={conditionKeys.includes(key)}
                   key={key}
                   label={dictionary.conditions[key]}
-                  onCheckedChange={value => setConditionKeys(value === true ? [...conditionKeys, key] : conditionKeys.filter(current => current !== key))}
+                  onCheckedChange={value =>
+                    setConditionKeys(value === true ? [...conditionKeys, key] : conditionKeys.filter(current => current !== key))
+                  }
                 />
               ))}
             </div>
@@ -243,12 +243,7 @@ export function HealthPanel({ health }: { health: HealthView }) {
 
           <fieldset className={styles.fieldset}>
             <legend className={styles.legend}>{t.medications}</legend>
-            <Input
-              hint={t.medicationsHint}
-              label={t.medicationsLabel}
-              onChange={event => setMedications(event.target.value)}
-              value={medications}
-            />
+            <Input hint={t.medicationsHint} label={t.medicationsLabel} onChange={event => setMedications(event.target.value)} value={medications} />
             <Text className={styles.hint} size="xs" tone="tertiary">
               {t.medicationsNote}
             </Text>
@@ -291,12 +286,7 @@ export function HealthPanel({ health }: { health: HealthView }) {
           </fieldset>
 
           <div className={styles.consent}>
-            <Checkbox
-              checked={consented}
-              label={t.consentLabel}
-              name="consent"
-              onCheckedChange={value => setConsented(value === true)}
-            />
+            <Checkbox checked={consented} label={t.consentLabel} name="consent" onCheckedChange={value => setConsented(value === true)} />
             <Text className={styles.hint} size="xs" tone="tertiary">
               {t.consentNote}
             </Text>

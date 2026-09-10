@@ -73,7 +73,9 @@ export const RecipeRepository = {
    * particular person. See `docs/decisions/0006-reuse-before-generating.md`.
    */
   async findReusable(slots: readonly MealSlot[], limit: number, locale: string): Promise<readonly ReusableRecipe[]> {
-    if (slots.length === 0) {return [];}
+    if (slots.length === 0) {
+      return [];
+    }
 
     try {
       const db = database();
@@ -87,12 +89,12 @@ export const RecipeRepository = {
         // method are one artefact written in one language. Handing "Tostada de
         // aguacate" to an English user is not a translation gap, it is the wrong
         // dish — and reuse would otherwise quietly undo everything else here.
-        .where(
-          and(eq(recipes.locale, locale), sql`${recipes.mealSlots} && ${sql.raw(`ARRAY[${slots.map(slot => `'${slot}'`).join(',')}]::text[]`)}`)
-        )
+        .where(and(eq(recipes.locale, locale), sql`${recipes.mealSlots} && ${sql.raw(`ARRAY[${slots.map(slot => `'${slot}'`).join(',')}]::text[]`)}`))
         .limit(limit);
 
-      if (rows.length === 0) {return [];}
+      if (rows.length === 0) {
+        return [];
+      }
 
       const items = await db
         .select({ grams: recipeIngredients.grams, recipeId: recipeIngredients.recipeId, slug: ingredients.slug })
@@ -167,7 +169,9 @@ export const RecipeRepository = {
         .orderBy(recipes.id)
         .limit(limit);
 
-      if (rows.length === 0) {return [];}
+      if (rows.length === 0) {
+        return [];
+      }
 
       const items = await db
         .select({ grams: recipeIngredients.grams, locale: ingredientNames.locale, name: ingredientNames.name, recipeId: recipeIngredients.recipeId })
@@ -201,8 +205,16 @@ export const RecipeRepository = {
     try {
       const db = database();
       const [liked, disliked] = await Promise.all([
-        db.select({ id: favoriteRecipes.id }).from(favoriteRecipes).where(and(eq(favoriteRecipes.userId, userId), eq(favoriteRecipes.recipeId, recipeId))).limit(1),
-        db.select({ id: dislikedRecipes.id }).from(dislikedRecipes).where(and(eq(dislikedRecipes.userId, userId), eq(dislikedRecipes.recipeId, recipeId))).limit(1)
+        db
+          .select({ id: favoriteRecipes.id })
+          .from(favoriteRecipes)
+          .where(and(eq(favoriteRecipes.userId, userId), eq(favoriteRecipes.recipeId, recipeId)))
+          .limit(1),
+        db
+          .select({ id: dislikedRecipes.id })
+          .from(dislikedRecipes)
+          .where(and(eq(dislikedRecipes.userId, userId), eq(dislikedRecipes.recipeId, recipeId)))
+          .limit(1)
       ]);
 
       return liked.length > 0 ? 'liked' : disliked.length > 0 ? 'disliked' : null;
@@ -216,8 +228,16 @@ export const RecipeRepository = {
     try {
       const db = database();
       const [liked, disliked] = await Promise.all([
-        db.select({ name: recipes.name, slug: recipes.slug }).from(favoriteRecipes).innerJoin(recipes, eq(recipes.id, favoriteRecipes.recipeId)).where(eq(favoriteRecipes.userId, userId)),
-        db.select({ name: recipes.name, slug: recipes.slug }).from(dislikedRecipes).innerJoin(recipes, eq(recipes.id, dislikedRecipes.recipeId)).where(eq(dislikedRecipes.userId, userId))
+        db
+          .select({ name: recipes.name, slug: recipes.slug })
+          .from(favoriteRecipes)
+          .innerJoin(recipes, eq(recipes.id, favoriteRecipes.recipeId))
+          .where(eq(favoriteRecipes.userId, userId)),
+        db
+          .select({ name: recipes.name, slug: recipes.slug })
+          .from(dislikedRecipes)
+          .innerJoin(recipes, eq(recipes.id, dislikedRecipes.recipeId))
+          .where(eq(dislikedRecipes.userId, userId))
       ]);
 
       return { disliked, liked };
@@ -226,7 +246,9 @@ export const RecipeRepository = {
     }
   },
 
-  async findWithoutImage(limit: number): Promise<readonly { readonly id: string; readonly ingredientNames: readonly string[]; readonly locale: string; readonly name: string }[]> {
+  async findWithoutImage(
+    limit: number
+  ): Promise<readonly { readonly id: string; readonly ingredientNames: readonly string[]; readonly locale: string; readonly name: string }[]> {
     try {
       const db = database();
       const rows = await db
@@ -237,7 +259,9 @@ export const RecipeRepository = {
         .orderBy(recipes.id)
         .limit(limit);
 
-      if (rows.length === 0) {return [];}
+      if (rows.length === 0) {
+        return [];
+      }
 
       const names = await db
         .select({ locale: ingredientNames.locale, name: ingredientNames.name, recipeId: recipeIngredients.recipeId })
@@ -300,13 +324,22 @@ export const RecipeRepository = {
           .leftJoin(requested, and(eq(requested.ingredientId, ingredients.id), eq(requested.locale, locale)))
           .leftJoin(fallback, and(eq(fallback.ingredientId, ingredients.id), eq(fallback.locale, FALLBACK_LOCALE)))
           .where(sold),
-        db.select({ allergenId: ingredientAllergens.allergenId, ingredientId: ingredientAllergens.ingredientId, presence: ingredientAllergens.presence }).from(ingredientAllergens)
+        db
+          .select({
+            allergenId: ingredientAllergens.allergenId,
+            ingredientId: ingredientAllergens.ingredientId,
+            presence: ingredientAllergens.presence
+          })
+          .from(ingredientAllergens)
       ]);
 
       const byIngredient = new Map<string, { allergenId: string; presence: 'contains' | 'may_contain' }[]>();
 
       for (const link of links) {
-        byIngredient.set(link.ingredientId, [...(byIngredient.get(link.ingredientId) ?? []), { allergenId: link.allergenId, presence: link.presence }]);
+        byIngredient.set(link.ingredientId, [
+          ...(byIngredient.get(link.ingredientId) ?? []),
+          { allergenId: link.allergenId, presence: link.presence }
+        ]);
       }
 
       return rows.map(row => ({
@@ -334,7 +367,17 @@ export const RecipeRepository = {
   },
 
   /** Replaces any existing illustration; a re-drawn recipe keeps one row. */
-  async saveImage(recipeId: string, image: { readonly bytes: Buffer; readonly contentType: string; readonly height: number; readonly model: string; readonly promptVersion: string; readonly width: number }): Promise<void> {
+  async saveImage(
+    recipeId: string,
+    image: {
+      readonly bytes: Buffer;
+      readonly contentType: string;
+      readonly height: number;
+      readonly model: string;
+      readonly promptVersion: string;
+      readonly width: number;
+    }
+  ): Promise<void> {
     try {
       await database()
         .insert(recipeImages)
@@ -362,15 +405,21 @@ export const RecipeRepository = {
       const db = database();
       const [exists] = await db.select({ id: recipes.id }).from(recipes).where(eq(recipes.id, recipeId)).limit(1);
 
-      if (!exists) {return false;}
+      if (!exists) {
+        return false;
+      }
 
       await db.transaction(async tx => {
         await tx.delete(favoriteRecipes).where(and(eq(favoriteRecipes.userId, userId), eq(favoriteRecipes.recipeId, recipeId)));
         await tx.delete(dislikedRecipes).where(and(eq(dislikedRecipes.userId, userId), eq(dislikedRecipes.recipeId, recipeId)));
 
-        if (verdict === 'liked') {await tx.insert(favoriteRecipes).values({ recipeId, userId });}
+        if (verdict === 'liked') {
+          await tx.insert(favoriteRecipes).values({ recipeId, userId });
+        }
 
-        if (verdict === 'disliked') {await tx.insert(dislikedRecipes).values({ recipeId, userId });}
+        if (verdict === 'disliked') {
+          await tx.insert(dislikedRecipes).values({ recipeId, userId });
+        }
       });
 
       return true;
@@ -389,7 +438,9 @@ export const RecipeRepository = {
 };
 
 function wrap(error: unknown, table: string): DatabaseOperationError {
-  if (error instanceof ZodError) {return new DatabaseOperationError(`Schema mismatch on ${table}: ${error.message}`);}
+  if (error instanceof ZodError) {
+    return new DatabaseOperationError(`Schema mismatch on ${table}: ${error.message}`);
+  }
 
   return new DatabaseOperationError();
 }

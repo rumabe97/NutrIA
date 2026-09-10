@@ -47,7 +47,9 @@ export async function syncLocaleFromProfile(): Promise<void> {
     const profile = await api<FullProfileView>('/profile');
     const stored = parseLocale(profile.profile?.locale);
 
-    if (stored) {writeLocaleCookie(stored);}
+    if (stored) {
+      writeLocaleCookie(stored);
+    }
   } catch {
     // Keep whatever language this session already has.
   }

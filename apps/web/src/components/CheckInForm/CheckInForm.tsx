@@ -71,7 +71,9 @@ export function CheckInForm({ latestKg, planEnded, planId }: CheckInFormProps) {
     try {
       setResult(await api<CheckInResultView>('/check-ins', { body, method: 'POST' }));
     } catch (caught) {
-      if (caught instanceof ApiError) {setFieldErrors(caught.fieldErrors);}
+      if (caught instanceof ApiError) {
+        setFieldErrors(caught.fieldErrors);
+      }
 
       setError(messageFor(caught, dictionary));
     } finally {
@@ -88,7 +90,11 @@ export function CheckInForm({ latestKg, planEnded, planId }: CheckInFormProps) {
         <Text tone="secondary">{t.doneBody}</Text>
         <ul className={styles.effects}>
           {result.weightLogged ? <li>{t.doneWeight}</li> : null}
-          <li>{result.targets ? interpolate(t.doneTargets, { from: formatNumber(result.targets.fromKcal, locale), to: formatNumber(result.targets.toKcal, locale) }) : t.doneNoTargets}</li>
+          <li>
+            {result.targets
+              ? interpolate(t.doneTargets, { from: formatNumber(result.targets.fromKcal, locale), to: formatNumber(result.targets.toKcal, locale) })
+              : t.doneNoTargets}
+          </li>
           <li>{t.doneWords}</li>
         </ul>
         <div className={styles.actions}>
@@ -125,7 +131,15 @@ export function CheckInForm({ latestKg, planEnded, planId }: CheckInFormProps) {
         </p>
       ) : null}
 
-      <Input defaultValue={latestKg ?? ''} error={fieldErrors.weightKg?.[0]} hint={t.weightHint} label={t.weight} name="weightKg" step="0.1" type="number" />
+      <Input
+        defaultValue={latestKg ?? ''}
+        error={fieldErrors.weightKg?.[0]}
+        hint={t.weightHint}
+        label={t.weight}
+        name="weightKg"
+        step="0.1"
+        type="number"
+      />
 
       <fieldset className={styles.fieldset}>
         <legend className={styles.legend}>{t.hunger}</legend>

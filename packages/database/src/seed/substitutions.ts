@@ -22,46 +22,160 @@
  * twice as much of the substitute.
  */
 
-export type SubstitutionGroup = {
-  readonly members: readonly string[];
-  readonly name: string;
-};
+export type SubstitutionGroup = { readonly members: readonly string[]; readonly name: string };
 
-export type SubstitutionExtra = {
-  readonly from: string;
-  readonly ratio?: number;
-  readonly to: string;
-};
+export type SubstitutionExtra = { readonly from: string; readonly ratio?: number; readonly to: string };
 
-export type SubstitutionPair = {
-  readonly ingredient: string;
-  readonly ratio: number;
-  readonly substitute: string;
-};
+export type SubstitutionPair = { readonly ingredient: string; readonly ratio: number; readonly substitute: string };
 
 export const SUBSTITUTION_GROUPS: readonly SubstitutionGroup[] = [
   // ── Pulses and plant proteins ─────────────────────────────────────────
-  { members: ['lentejas-cocidas', 'garbanzos-cocidos', 'alubias-blancas-cocidas', 'alubias-pintas-cocidas', 'lentejas-rojas-cocidas', 'judias-rojas-cocidas', 'alubias-negras-cocidas', 'soja-cocida'], name: 'legumbres cocidas' },
-  { members: ['lentejas-secas', 'garbanzos-secos', 'alubias-blancas-secas', 'alubias-pintas-secas', 'judiones', 'azukis', 'judia-mungo', 'guisantes-secos-partidos', 'habas-secas'], name: 'legumbres secas' },
+  {
+    members: [
+      'lentejas-cocidas',
+      'garbanzos-cocidos',
+      'alubias-blancas-cocidas',
+      'alubias-pintas-cocidas',
+      'lentejas-rojas-cocidas',
+      'judias-rojas-cocidas',
+      'alubias-negras-cocidas',
+      'soja-cocida'
+    ],
+    name: 'legumbres cocidas'
+  },
+  {
+    members: [
+      'lentejas-secas',
+      'garbanzos-secos',
+      'alubias-blancas-secas',
+      'alubias-pintas-secas',
+      'judiones',
+      'azukis',
+      'judia-mungo',
+      'guisantes-secos-partidos',
+      'habas-secas'
+    ],
+    name: 'legumbres secas'
+  },
   { members: ['seitan', 'tofu-firme', 'tempeh', 'soja-texturizada', 'heura', 'tofu-ahumado'], name: 'proteína vegetal' },
   { members: ['hamburguesa-vegetal', 'salchichas-vegetales', 'nuggets-vegetales'], name: 'vegetal preparado' },
   // ── Fish ──────────────────────────────────────────────────────────────
-  { members: ['merluza', 'filete-de-merluza-congelado', 'bacalao-desalado', 'bacalao-fresco', 'bacalao-congelado', 'dorada', 'lubina', 'rape', 'mero', 'rodaballo', 'lenguado', 'gallo', 'pescadilla', 'rosada', 'tilapia', 'perca', 'corvina', 'besugo', 'abadejo', 'fletan', 'raya', 'congrio', 'bacaladilla', 'filete-de-panga-congelado'], name: 'pescado blanco' },
-  { members: ['salmon', 'salmon-congelado', 'sardina', 'caballa', 'jurel', 'boquerones', 'atun-fresco', 'bonito', 'pez-espada', 'trucha', 'salmonete', 'palometa'], name: 'pescado azul' },
+  {
+    members: [
+      'merluza',
+      'filete-de-merluza-congelado',
+      'bacalao-desalado',
+      'bacalao-fresco',
+      'bacalao-congelado',
+      'dorada',
+      'lubina',
+      'rape',
+      'mero',
+      'rodaballo',
+      'lenguado',
+      'gallo',
+      'pescadilla',
+      'rosada',
+      'tilapia',
+      'perca',
+      'corvina',
+      'besugo',
+      'abadejo',
+      'fletan',
+      'raya',
+      'congrio',
+      'bacaladilla',
+      'filete-de-panga-congelado'
+    ],
+    name: 'pescado blanco'
+  },
+  {
+    members: [
+      'salmon',
+      'salmon-congelado',
+      'sardina',
+      'caballa',
+      'jurel',
+      'boquerones',
+      'atun-fresco',
+      'bonito',
+      'pez-espada',
+      'trucha',
+      'salmonete',
+      'palometa'
+    ],
+    name: 'pescado azul'
+  },
   { members: ['merluza', 'filete-de-merluza-congelado', 'bacalao-desalado', 'dorada', 'lubina', 'salmon', 'sardina'], name: 'pescado' },
-  { members: ['atun-al-natural', 'atun-en-aceite', 'ventresca-de-atun', 'sardinas-en-aceite', 'caballa-en-conserva', 'melva-en-conserva', 'atun-en-escabeche'], name: 'conserva de pescado' },
+  {
+    members: [
+      'atun-al-natural',
+      'atun-en-aceite',
+      'ventresca-de-atun',
+      'sardinas-en-aceite',
+      'caballa-en-conserva',
+      'melva-en-conserva',
+      'atun-en-escabeche'
+    ],
+    name: 'conserva de pescado'
+  },
   { members: ['salmon-ahumado', 'trucha-ahumada', 'bacalao-ahumado'], name: 'ahumado' },
   // ── Shellfish ─────────────────────────────────────────────────────────
   { members: ['gambas', 'langostinos', 'gambon', 'cigalas', 'gambas-peladas-congeladas', 'langostinos-congelados'], name: 'gambas' },
-  { members: ['calamar', 'sepia', 'chipirones', 'pulpo-cocido', 'pulpo-fresco', 'pulpo-congelado', 'anillas-de-calamar-congeladas', 'sepia-congelada'], name: 'cefalópodos' },
-  { members: ['mejillon', 'almeja', 'berberechos', 'navajas', 'vieiras', 'zamburinas', 'mejillones-congelados', 'almejas-al-natural', 'berberechos-al-natural', 'navajas-al-natural'], name: 'bivalvos' },
+  {
+    members: [
+      'calamar',
+      'sepia',
+      'chipirones',
+      'pulpo-cocido',
+      'pulpo-fresco',
+      'pulpo-congelado',
+      'anillas-de-calamar-congeladas',
+      'sepia-congelada'
+    ],
+    name: 'cefalópodos'
+  },
+  {
+    members: [
+      'mejillon',
+      'almeja',
+      'berberechos',
+      'navajas',
+      'vieiras',
+      'zamburinas',
+      'mejillones-congelados',
+      'almejas-al-natural',
+      'berberechos-al-natural',
+      'navajas-al-natural'
+    ],
+    name: 'bivalvos'
+  },
   { members: ['gambas', 'calamar', 'mejillon', 'almeja', 'pulpo-cocido'], name: 'marisco' },
   // ── Meat, no pork ─────────────────────────────────────────────────────
-  { members: ['ternera-magra', 'solomillo-de-ternera', 'entrecot-de-ternera', 'chuleton-de-ternera', 'filete-de-ternera', 'redondo-de-ternera'], name: 'ternera para plancha' },
-  { members: ['morcillo-de-ternera', 'ternera-para-guisar', 'carrillera-de-ternera', 'falda-de-ternera', 'costilla-de-ternera', 'rabo-de-toro'], name: 'ternera para guisar' },
+  {
+    members: ['ternera-magra', 'solomillo-de-ternera', 'entrecot-de-ternera', 'chuleton-de-ternera', 'filete-de-ternera', 'redondo-de-ternera'],
+    name: 'ternera para plancha'
+  },
+  {
+    members: ['morcillo-de-ternera', 'ternera-para-guisar', 'carrillera-de-ternera', 'falda-de-ternera', 'costilla-de-ternera', 'rabo-de-toro'],
+    name: 'ternera para guisar'
+  },
   { members: ['carne-picada-de-ternera', 'pollo-picado', 'pavo-picado', 'cordero-picado'], name: 'carne picada' },
   { members: ['pierna-de-cordero', 'paletilla-de-cordero', 'chuletas-de-cordero', 'cabrito'], name: 'cordero' },
-  { members: ['pechuga-de-pollo', 'muslo-de-pollo', 'pavo', 'conejo', 'contramuslo-de-pollo', 'pechuga-de-pavo', 'muslo-de-pavo', 'codorniz', 'perdiz'], name: 'carne blanca' },
+  {
+    members: [
+      'pechuga-de-pollo',
+      'muslo-de-pollo',
+      'pavo',
+      'conejo',
+      'contramuslo-de-pollo',
+      'pechuga-de-pavo',
+      'muslo-de-pavo',
+      'codorniz',
+      'perdiz'
+    ],
+    name: 'carne blanca'
+  },
   { members: ['magret-de-pato', 'confit-de-pato'], name: 'pato' },
   { members: ['fiambre-de-pollo', 'fiambre-de-pavo'], name: 'fiambre de ave' },
   { members: ['lasana-preparada', 'canelones-preparados'], name: 'pasta rellena preparada' },
@@ -79,8 +193,48 @@ export const SUBSTITUTION_GROUPS: readonly SubstitutionGroup[] = [
   // ── Dairy ─────────────────────────────────────────────────────────────
   { members: ['leche-entera', 'leche-semidesnatada', 'leche-desnatada', 'leche-sin-lactosa', 'leche-de-cabra', 'leche-de-oveja'], name: 'leche' },
   { members: ['yogur-griego-natural', 'yogur-natural-desnatado', 'kefir', 'skyr', 'queso-batido-desnatado', 'yogur-proteico'], name: 'yogur' },
-  { members: ['queso-de-burgos', 'queso-cottage', 'requeson', 'queso-fresco-de-cabra', 'queso-mozzarella', 'queso-feta', 'ricotta', 'mozzarella-fresca', 'burrata', 'queso-tierno', 'rulo-de-cabra'], name: 'queso fresco' },
-  { members: ['queso-curado', 'queso-parmesano', 'queso-manchego-semicurado', 'queso-de-oveja-curado', 'queso-idiazabal', 'queso-pecorino', 'queso-cheddar', 'queso-gouda', 'queso-emmental', 'queso-gruyere', 'queso-provolone', 'queso-edam', 'queso-havarti', 'queso-raclette', 'queso-scamorza', 'queso-de-mahon', 'queso-de-cabra-curado', 'queso-rallado', 'queso-en-lonchas', 'queso-de-tetilla', 'queso-de-arzua'], name: 'queso curado' },
+  {
+    members: [
+      'queso-de-burgos',
+      'queso-cottage',
+      'requeson',
+      'queso-fresco-de-cabra',
+      'queso-mozzarella',
+      'queso-feta',
+      'ricotta',
+      'mozzarella-fresca',
+      'burrata',
+      'queso-tierno',
+      'rulo-de-cabra'
+    ],
+    name: 'queso fresco'
+  },
+  {
+    members: [
+      'queso-curado',
+      'queso-parmesano',
+      'queso-manchego-semicurado',
+      'queso-de-oveja-curado',
+      'queso-idiazabal',
+      'queso-pecorino',
+      'queso-cheddar',
+      'queso-gouda',
+      'queso-emmental',
+      'queso-gruyere',
+      'queso-provolone',
+      'queso-edam',
+      'queso-havarti',
+      'queso-raclette',
+      'queso-scamorza',
+      'queso-de-mahon',
+      'queso-de-cabra-curado',
+      'queso-rallado',
+      'queso-en-lonchas',
+      'queso-de-tetilla',
+      'queso-de-arzua'
+    ],
+    name: 'queso curado'
+  },
   { members: ['queso-azul', 'queso-cabrales'], name: 'queso azul' },
   { members: ['queso-brie', 'queso-camembert', 'queso-de-la-serena'], name: 'queso blando' },
   { members: ['queso-crema', 'queso-de-untar-light', 'mascarpone', 'queso-fundido'], name: 'queso cremoso' },
@@ -100,41 +254,147 @@ export const SUBSTITUTION_GROUPS: readonly SubstitutionGroup[] = [
   // ── Egg-based sauces ──────────────────────────────────────────────────
   { members: ['salsa-alioli', 'mayonesa', 'salsa-tartara'], name: 'salsa cremosa' },
   // ── Plant milks and creams ────────────────────────────────────────────
-  { members: ['leche-de-almendra', 'leche-de-avena', 'leche-de-soja', 'bebida-de-arroz', 'bebida-de-coco', 'bebida-de-avellanas', 'bebida-de-anacardos'], name: 'bebida vegetal' },
+  {
+    members: [
+      'leche-de-almendra',
+      'leche-de-avena',
+      'leche-de-soja',
+      'bebida-de-arroz',
+      'bebida-de-coco',
+      'bebida-de-avellanas',
+      'bebida-de-anacardos'
+    ],
+    name: 'bebida vegetal'
+  },
   { members: ['nata-vegetal-de-soja', 'nata-vegetal-de-avena', 'leche-de-coco', 'leche-de-coco-ligera'], name: 'nata vegetal' },
   { members: ['yogur-de-soja', 'yogur-de-coco'], name: 'yogur vegetal' },
   // ── Grains, pasta, flours, bread ──────────────────────────────────────
-  { members: ['arroz-bomba-crudo', 'arroz-largo-crudo', 'arroz-basmati-crudo', 'arroz-jazmin-crudo', 'arroz-vaporizado', 'arroz-integral-crudo', 'arroz-para-sushi', 'arroz-salvaje-crudo', 'arroz-negro-crudo'], name: 'arroz crudo' },
-  { members: ['quinoa-cruda', 'bulgur-crudo', 'cuscus-crudo', 'mijo', 'trigo-sarraceno', 'amaranto', 'cebada-perlada', 'espelta-en-grano', 'freekeh'], name: 'grano crudo' },
-  { members: ['arroz-blanco-cocido', 'arroz-basmati-cocido', 'arroz-integral-cocido', 'quinoa-cocida', 'bulgur-cocido', 'cuscus-cocido', 'mijo-cocido', 'trigo-sarraceno-cocido', 'cebada-cocida', 'espelta-cocida', 'arroz-salvaje-cocido'], name: 'cereal cocido' },
-  { members: ['espaguetis-secos', 'macarrones-secos', 'pasta-integral-seca', 'fideos-finos', 'pasta-sin-gluten', 'pasta-de-lentejas', 'pasta-de-garbanzos'], name: 'pasta seca' },
+  {
+    members: [
+      'arroz-bomba-crudo',
+      'arroz-largo-crudo',
+      'arroz-basmati-crudo',
+      'arroz-jazmin-crudo',
+      'arroz-vaporizado',
+      'arroz-integral-crudo',
+      'arroz-para-sushi',
+      'arroz-salvaje-crudo',
+      'arroz-negro-crudo'
+    ],
+    name: 'arroz crudo'
+  },
+  {
+    members: ['quinoa-cruda', 'bulgur-crudo', 'cuscus-crudo', 'mijo', 'trigo-sarraceno', 'amaranto', 'cebada-perlada', 'espelta-en-grano', 'freekeh'],
+    name: 'grano crudo'
+  },
+  {
+    members: [
+      'arroz-blanco-cocido',
+      'arroz-basmati-cocido',
+      'arroz-integral-cocido',
+      'quinoa-cocida',
+      'bulgur-cocido',
+      'cuscus-cocido',
+      'mijo-cocido',
+      'trigo-sarraceno-cocido',
+      'cebada-cocida',
+      'espelta-cocida',
+      'arroz-salvaje-cocido'
+    ],
+    name: 'cereal cocido'
+  },
+  {
+    members: [
+      'espaguetis-secos',
+      'macarrones-secos',
+      'pasta-integral-seca',
+      'fideos-finos',
+      'pasta-sin-gluten',
+      'pasta-de-lentejas',
+      'pasta-de-garbanzos'
+    ],
+    name: 'pasta seca'
+  },
   { members: ['pasta-cocida', 'pasta-integral-cocida', 'fideos-de-arroz-cocidos'], name: 'pasta' },
   { members: ['noodles-de-trigo', 'noodles-udon', 'fideos-soba', 'fideos-de-arroz-secos', 'fideos-de-cristal'], name: 'noodles' },
   { members: ['harina-de-trigo', 'harina-de-avena', 'harina-integral', 'harina-de-espelta', 'harina-de-fuerza'], name: 'harina' },
   { members: ['harina-de-arroz', 'harina-de-maiz', 'harina-de-garbanzo', 'harina-de-trigo-sarraceno'], name: 'harina sin gluten' },
   { members: ['maicena', 'fecula-de-patata', 'tapioca'], name: 'espesante' },
   { members: ['pan-rallado', 'panko', 'pan-rallado-sin-gluten'], name: 'pan rallado' },
-  { members: ['pan-blanco', 'pan-integral', 'pan-de-centeno', 'pan-de-molde', 'hogaza-de-pan', 'baguette', 'chapata', 'pan-de-espelta', 'pan-de-semillas', 'pan-de-masa-madre', 'pan-de-cristal', 'panecillos', 'mollete', 'pan-sin-gluten', 'pan-de-molde-integral'], name: 'pan' },
+  {
+    members: [
+      'pan-blanco',
+      'pan-integral',
+      'pan-de-centeno',
+      'pan-de-molde',
+      'hogaza-de-pan',
+      'baguette',
+      'chapata',
+      'pan-de-espelta',
+      'pan-de-semillas',
+      'pan-de-masa-madre',
+      'pan-de-cristal',
+      'panecillos',
+      'mollete',
+      'pan-sin-gluten',
+      'pan-de-molde-integral'
+    ],
+    name: 'pan'
+  },
   { members: ['pan-de-pita', 'pan-naan', 'tortilla-de-trigo', 'wrap-integral', 'tortilla-de-maiz', 'pan-bao'], name: 'pan plano' },
   { members: ['pan-de-hamburguesa', 'pan-de-hamburguesa-integral', 'pan-de-perrito'], name: 'bollo de pan' },
-  { members: ['pan-tostado', 'tostas-de-centeno', 'picos-de-pan', 'regana', 'crackers', 'tortitas-de-arroz', 'tortitas-de-maiz'], name: 'pan tostado' },
+  {
+    members: ['pan-tostado', 'tostas-de-centeno', 'picos-de-pan', 'regana', 'crackers', 'tortitas-de-arroz', 'tortitas-de-maiz'],
+    name: 'pan tostado'
+  },
   { members: ['masa-de-pizza', 'base-de-pizza-fresca'], name: 'masa de pizza' },
   { members: ['galletas-maria', 'galletas-de-avena', 'galletas-digestive', 'galletas-sin-gluten'], name: 'galletas' },
   { members: ['copos-de-maiz', 'muesli', 'granola', 'cereales-integrales', 'cereales-de-chocolate'], name: 'cereal de desayuno' },
   { members: ['copos-de-avena', 'copos-de-espelta', 'copos-de-centeno'], name: 'copos' },
   // ── Nuts, seeds, dried fruit ──────────────────────────────────────────
-  { members: ['almendras', 'avellanas', 'nueces', 'anacardos', 'pistachos', 'cacahuetes', 'nueces-pecanas', 'nueces-de-macadamia', 'nueces-de-brasil', 'pinones', 'mix-de-frutos-secos'], name: 'frutos secos' },
+  {
+    members: [
+      'almendras',
+      'avellanas',
+      'nueces',
+      'anacardos',
+      'pistachos',
+      'cacahuetes',
+      'nueces-pecanas',
+      'nueces-de-macadamia',
+      'nueces-de-brasil',
+      'pinones',
+      'mix-de-frutos-secos'
+    ],
+    name: 'frutos secos'
+  },
   { members: ['pipas-de-girasol', 'semillas-de-calabaza', 'sesamo', 'semillas-de-canamo', 'semillas-de-amapola'], name: 'semillas' },
   { members: ['semillas-de-chia', 'semillas-de-lino'], name: 'semillas que espesan' },
   { members: ['mantequilla-de-cacahuete', 'crema-de-almendras', 'crema-de-anacardos', 'crema-de-pistacho', 'tahini'], name: 'crema de frutos secos' },
   { members: ['pasas', 'datiles', 'orejones', 'higos-secos', 'ciruelas-pasas', 'arandanos-deshidratados'], name: 'fruta desecada' },
   // ── Fruit ─────────────────────────────────────────────────────────────
-  { members: ['manzana', 'pera', 'platano', 'naranja', 'mandarina', 'kiwi', 'uva', 'melocoton', 'nectarina', 'ciruela', 'mango', 'pina'], name: 'fruta fresca' },
+  {
+    members: ['manzana', 'pera', 'platano', 'naranja', 'mandarina', 'kiwi', 'uva', 'melocoton', 'nectarina', 'ciruela', 'mango', 'pina'],
+    name: 'fruta fresca'
+  },
   { members: ['naranja', 'mandarina', 'pomelo'], name: 'cítricos' },
   { members: ['limon', 'lima'], name: 'cítrico ácido' },
   { members: ['melocoton', 'nectarina', 'paraguayo', 'albaricoque', 'ciruela', 'cereza'], name: 'fruta de hueso' },
   { members: ['mango', 'pina', 'papaya', 'maracuya', 'lichi', 'pitaya', 'chirimoya', 'mango-congelado', 'pina-congelada'], name: 'fruta tropical' },
-  { members: ['fresa', 'frambuesa', 'mora', 'arandano', 'grosella', 'frutos-rojos-congelados', 'arandanos-congelados', 'frambuesas-congeladas', 'fresas-congeladas'], name: 'frutos rojos' },
+  {
+    members: [
+      'fresa',
+      'frambuesa',
+      'mora',
+      'arandano',
+      'grosella',
+      'frutos-rojos-congelados',
+      'arandanos-congelados',
+      'frambuesas-congeladas',
+      'fresas-congeladas'
+    ],
+    name: 'frutos rojos'
+  },
   { members: ['melon', 'sandia', 'melon-cantalupo'], name: 'melón' },
   { members: ['caqui', 'granada', 'higo', 'higo-chumbo', 'nispero'], name: 'fruta de otoño' },
   { members: ['aguacate', 'guacamole'], name: 'aguacate' },
@@ -142,8 +402,36 @@ export const SUBSTITUTION_GROUPS: readonly SubstitutionGroup[] = [
   { members: ['brocoli', 'coliflor', 'brocoli-congelado', 'coliflor-congelada', 'romanesco', 'bimi', 'coles-de-bruselas'], name: 'crucíferas' },
   { members: ['col-blanca', 'lombarda', 'col-china', 'pak-choi', 'col-rizada'], name: 'col' },
   { members: ['espinaca', 'col-rizada', 'espinacas-congeladas', 'acelga', 'grelos', 'borraja'], name: 'hoja verde' },
-  { members: ['lechuga', 'escarola', 'rucula', 'lechuga-romana', 'lechuga-iceberg', 'lechuga-hoja-de-roble', 'canonigos', 'berros', 'endibia', 'mezcla-de-brotes'], name: 'ensalada' },
-  { members: ['champinon', 'portobello', 'seta-shiitake', 'seta-ostra', 'seta-de-cardo', 'boletus', 'niscalos', 'setas-variadas', 'setas-congeladas', 'champinones-en-conserva'], name: 'setas' },
+  {
+    members: [
+      'lechuga',
+      'escarola',
+      'rucula',
+      'lechuga-romana',
+      'lechuga-iceberg',
+      'lechuga-hoja-de-roble',
+      'canonigos',
+      'berros',
+      'endibia',
+      'mezcla-de-brotes'
+    ],
+    name: 'ensalada'
+  },
+  {
+    members: [
+      'champinon',
+      'portobello',
+      'seta-shiitake',
+      'seta-ostra',
+      'seta-de-cardo',
+      'boletus',
+      'niscalos',
+      'setas-variadas',
+      'setas-congeladas',
+      'champinones-en-conserva'
+    ],
+    name: 'setas'
+  },
   { members: ['calabacin', 'berenjena'], name: 'verdura de sartén' },
   { members: ['pimiento-rojo', 'pimiento-verde', 'pimiento-amarillo', 'pimiento-italiano', 'pimientos-tricolor-congelados'], name: 'pimiento' },
   { members: ['pimiento-del-piquillo', 'pimientos-asados-en-conserva'], name: 'pimiento asado' },
@@ -156,17 +444,57 @@ export const SUBSTITUTION_GROUPS: readonly SubstitutionGroup[] = [
   { members: ['remolacha', 'remolacha-cocida', 'remolacha-en-conserva'], name: 'remolacha' },
   { members: ['tomate', 'tomate-cherry', 'tomate-pera'], name: 'tomate' },
   { members: ['tomate-triturado', 'tomate-frito', 'tomate-entero-pelado', 'tomate-troceado-en-conserva'], name: 'tomate en conserva' },
-  { members: ['judia-verde', 'judia-verde-congelada', 'guisantes-congelados', 'guisantes-frescos', 'tirabeques', 'habas-frescas', 'habas-congeladas', 'guisantes-en-conserva', 'habas-en-conserva', 'judias-verdes-en-conserva', 'edamame-cocido', 'edamame-congelado'], name: 'verdura verde' },
+  {
+    members: [
+      'judia-verde',
+      'judia-verde-congelada',
+      'guisantes-congelados',
+      'guisantes-frescos',
+      'tirabeques',
+      'habas-frescas',
+      'habas-congeladas',
+      'guisantes-en-conserva',
+      'habas-en-conserva',
+      'judias-verdes-en-conserva',
+      'edamame-cocido',
+      'edamame-congelado'
+    ],
+    name: 'verdura verde'
+  },
   { members: ['maiz-dulce', 'maiz-congelado', 'mazorca-de-maiz'], name: 'maíz' },
   { members: ['esparrago-verde', 'esparrago-blanco', 'esparragos-blancos-en-conserva'], name: 'espárrago' },
   { members: ['alcachofa', 'alcachofas-congeladas', 'alcachofas-en-conserva'], name: 'alcachofa' },
-  { members: ['menestra-congelada', 'menestra-en-conserva', 'mix-de-verduras-congelado', 'salteado-de-verduras-congelado', 'verduras-para-sopa-congeladas'], name: 'menestra' },
+  {
+    members: [
+      'menestra-congelada',
+      'menestra-en-conserva',
+      'mix-de-verduras-congelado',
+      'salteado-de-verduras-congelado',
+      'verduras-para-sopa-congeladas'
+    ],
+    name: 'menestra'
+  },
   { members: ['pisto-congelado', 'pisto-en-conserva', 'sofrito-envasado'], name: 'pisto' },
   { members: ['patatas-fritas-congeladas', 'patatas-gajo-congeladas'], name: 'patata congelada' },
   { members: ['kimchi', 'chucrut'], name: 'fermentado' },
   // ── Herbs and spices ──────────────────────────────────────────────────
   { members: ['perejil', 'cilantro', 'albahaca-fresca', 'hierbabuena', 'eneldo-fresco', 'cebollino'], name: 'hierba fresca' },
-  { members: ['oregano-seco', 'tomillo-seco', 'romero-seco', 'albahaca-seca', 'perejil-seco', 'hierbas-provenzales', 'mejorana', 'salvia-seca', 'estragon-seco', 'eneldo-seco', 'hierbabuena-seca'], name: 'hierba seca' },
+  {
+    members: [
+      'oregano-seco',
+      'tomillo-seco',
+      'romero-seco',
+      'albahaca-seca',
+      'perejil-seco',
+      'hierbas-provenzales',
+      'mejorana',
+      'salvia-seca',
+      'estragon-seco',
+      'eneldo-seco',
+      'hierbabuena-seca'
+    ],
+    name: 'hierba seca'
+  },
   { members: ['pimenton-dulce', 'pimenton-ahumado', 'pimenton-picante'], name: 'pimentón' },
   { members: ['pimienta-negra', 'pimienta-blanca'], name: 'pimienta' },
   { members: ['curry-en-polvo', 'garam-masala', 'ras-el-hanout'], name: 'curry' },
@@ -175,7 +503,18 @@ export const SUBSTITUTION_GROUPS: readonly SubstitutionGroup[] = [
   { members: ['pasta-de-curry-rojo', 'pasta-de-curry-verde'], name: 'pasta de curry' },
   { members: ['cacao-en-polvo-puro', 'harina-de-algarroba'], name: 'cacao' },
   // ── Sauces, condiments, fats, sweet ───────────────────────────────────
-  { members: ['vinagre-de-jerez', 'vinagre-de-manzana', 'vinagre-de-vino-tinto', 'vinagre-balsamico', 'vinagre-de-arroz', 'vinagre-blanco', 'vinagre-de-vino-blanco'], name: 'vinagre' },
+  {
+    members: [
+      'vinagre-de-jerez',
+      'vinagre-de-manzana',
+      'vinagre-de-vino-tinto',
+      'vinagre-balsamico',
+      'vinagre-de-arroz',
+      'vinagre-blanco',
+      'vinagre-de-vino-blanco'
+    ],
+    name: 'vinagre'
+  },
   { members: ['salsa-de-soja', 'tamari', 'salsa-de-soja-baja-en-sal'], name: 'salsa de soja' },
   { members: ['salsa-teriyaki', 'salsa-hoisin', 'salsa-agridulce', 'salsa-de-chile-dulce'], name: 'salsa asiática dulce' },
   { members: ['salsa-sriracha', 'salsa-picante-tabasco', 'harissa', 'gochujang'], name: 'picante' },
@@ -183,11 +522,17 @@ export const SUBSTITUTION_GROUPS: readonly SubstitutionGroup[] = [
   { members: ['tomate-frito', 'salsa-de-tomate-para-pizza', 'sofrito-envasado', 'tomate-triturado'], name: 'salsa de tomate' },
   { members: ['ketchup', 'salsa-barbacoa'], name: 'salsa dulce de tomate' },
   { members: ['mojo-picon', 'mojo-verde', 'chimichurri'], name: 'mojo' },
-  { members: ['aceite-de-oliva-suave', 'aceite-de-girasol', 'aceite-de-aguacate', 'aceite-de-cacahuete', 'aceite-de-coco'], name: 'aceite para cocinar' },
+  {
+    members: ['aceite-de-oliva-suave', 'aceite-de-girasol', 'aceite-de-aguacate', 'aceite-de-cacahuete', 'aceite-de-coco'],
+    name: 'aceite para cocinar'
+  },
   { members: ['aceite-de-sesamo', 'aceite-de-nuez', 'aceite-de-lino'], name: 'aceite para aliñar' },
   { members: ['azucar-blanco', 'azucar-moreno', 'panela'], name: 'azúcar' },
   { members: ['sirope-de-agave', 'sirope-de-arce', 'sirope-de-datiles', 'miel-de-cana'], name: 'sirope' },
-  { members: ['mermelada-de-fresa', 'mermelada-de-melocoton', 'mermelada-de-naranja', 'mermelada-de-frutos-rojos', 'mermelada-light'], name: 'mermelada' },
+  {
+    members: ['mermelada-de-fresa', 'mermelada-de-melocoton', 'mermelada-de-naranja', 'mermelada-de-frutos-rojos', 'mermelada-light'],
+    name: 'mermelada'
+  },
   { members: ['dulce-de-membrillo', 'cabello-de-angel'], name: 'dulce de fruta' },
   { members: ['chocolate-negro-70', 'chocolate-negro-85', 'chocolate-de-cobertura', 'chips-de-chocolate'], name: 'chocolate negro' },
   { members: ['turron-de-jijona', 'mazapan'], name: 'turrón' },
@@ -195,13 +540,28 @@ export const SUBSTITUTION_GROUPS: readonly SubstitutionGroup[] = [
   { members: ['alcaparras', 'pepinillos-en-vinagre', 'cebolletas-en-vinagre', 'guindillas-en-vinagre'], name: 'encurtidos' },
   { members: ['aceitunas-negras', 'aceitunas-verdes'], name: 'aceitunas' },
   { members: ['hummus', 'hummus-de-remolacha', 'baba-ganoush'], name: 'dip' },
-  { members: ['patatas-fritas-de-bolsa', 'chips-de-verduras', 'nachos', 'palomitas-hechas', 'pretzels', 'kikos', 'garbanzos-tostados'], name: 'aperitivo salado' },
+  {
+    members: ['patatas-fritas-de-bolsa', 'chips-de-verduras', 'nachos', 'palomitas-hechas', 'pretzels', 'kikos', 'garbanzos-tostados'],
+    name: 'aperitivo salado'
+  },
   { members: ['garbanzos-con-espinacas-en-lata', 'alubias-con-verduras-en-lata'], name: 'legumbre guisada en lata' },
   { members: ['crema-de-verduras-envasada', 'crema-de-calabaza-envasada', 'sopa-de-verduras-envasada'], name: 'crema de verduras' },
   { members: ['gazpacho-envasado', 'salmorejo-envasado'], name: 'sopa fría' },
   { members: ['sorbete-de-limon', 'polo-de-fruta'], name: 'helado sin lácteos' },
   // ── Drinks ────────────────────────────────────────────────────────────
-  { members: ['zumo-de-naranja', 'zumo-de-manzana', 'zumo-de-pina', 'zumo-de-uva', 'zumo-de-melocoton', 'zumo-multifrutas', 'zumo-de-granada', 'zumo-de-arandanos'], name: 'zumo' },
+  {
+    members: [
+      'zumo-de-naranja',
+      'zumo-de-manzana',
+      'zumo-de-pina',
+      'zumo-de-uva',
+      'zumo-de-melocoton',
+      'zumo-multifrutas',
+      'zumo-de-granada',
+      'zumo-de-arandanos'
+    ],
+    name: 'zumo'
+  },
   { members: ['te-verde', 'te-negro', 'infusion-de-manzanilla', 'infusion-de-rooibos', 'infusion-de-menta-poleo'], name: 'infusión' },
   { members: ['cafe-solo', 'cafe-descafeinado'], name: 'café' },
   { members: ['refresco-de-cola', 'refresco-light', 'tonica', 'limonada'], name: 'refresco' },
@@ -384,7 +744,9 @@ export function substitutionPairs(): readonly SubstitutionPair[] {
   const add = (ingredient: string, substitute: string, ratio: number) => {
     const key = `${ingredient}→${substitute}`;
 
-    if (ingredient === substitute || seen.has(key)) {return;}
+    if (ingredient === substitute || seen.has(key)) {
+      return;
+    }
 
     seen.add(key);
     pairs.push({ ingredient, ratio, substitute });
@@ -392,11 +754,15 @@ export function substitutionPairs(): readonly SubstitutionPair[] {
 
   for (const group of SUBSTITUTION_GROUPS) {
     for (const ingredient of group.members) {
-      for (const substitute of group.members) {add(ingredient, substitute, 1);}
+      for (const substitute of group.members) {
+        add(ingredient, substitute, 1);
+      }
     }
   }
 
-  for (const extra of SUBSTITUTION_EXTRAS) {add(extra.from, extra.to, extra.ratio ?? 1);}
+  for (const extra of SUBSTITUTION_EXTRAS) {
+    add(extra.from, extra.to, extra.ratio ?? 1);
+  }
 
   return pairs;
 }

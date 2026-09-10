@@ -30,11 +30,15 @@ export class RequiresOnboardingGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const required = this.reflector.getAllAndOverride<boolean>(REQUIRES_ONBOARDING_KEY, [context.getHandler(), context.getClass()]);
 
-    if (!required) {return true;}
+    if (!required) {
+      return true;
+    }
 
     const { user } = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
-    if (!user) {throw new NotFoundException();}
+    if (!user) {
+      throw new NotFoundException();
+    }
 
     const state = await OnboardingController.getState(user.id);
 
@@ -42,7 +46,9 @@ export class RequiresOnboardingGuard implements CanActivate {
     // can be in and the flow still unfinished. Refusing on the flag rather than
     // on `missingSteps` keeps one definition of done — the same one
     // `OnboardingController.complete` refuses to set early.
-    if (!state.isComplete) {throw new OnboardingIncompleteError(state.missingSteps);}
+    if (!state.isComplete) {
+      throw new OnboardingIncompleteError(state.missingSteps);
+    }
 
     return true;
   }

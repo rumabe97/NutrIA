@@ -91,22 +91,38 @@ describe('vacations', () => {
   it('refuses a trip that would move a day somebody has already eaten', async () => {
     const yesterday = addDays(new Date().toISOString().slice(0, 10), -1);
 
-    await request(httpServer(app)).post(`/${PREFIX}/vacations`).set('Cookie', account.cookie).send({ endsOn: addDays(yesterday, 3), startsOn: yesterday }).expect(422);
+    await request(httpServer(app))
+      .post(`/${PREFIX}/vacations`)
+      .set('Cookie', account.cookie)
+      .send({ endsOn: addDays(yesterday, 3), startsOn: yesterday })
+      .expect(422);
   });
 
   it('refuses a second trip over the same days — two shifts for one absence', async () => {
     const trips: Response = await request(httpServer(app)).get(`/${PREFIX}/vacations`).set('Cookie', account.cookie).expect(200);
     const [trip] = trips.body as VacationView[];
 
-    await request(httpServer(app)).post(`/${PREFIX}/vacations`).set('Cookie', account.cookie).send({ endsOn: addDays(trip.endsOn, 2), startsOn: trip.endsOn }).expect(409);
+    await request(httpServer(app))
+      .post(`/${PREFIX}/vacations`)
+      .set('Cookie', account.cookie)
+      .send({ endsOn: addDays(trip.endsOn, 2), startsOn: trip.endsOn })
+      .expect(409);
   });
 
   it('refuses one that ends before it starts, and one longer than a season', async () => {
     const today = new Date().toISOString().slice(0, 10);
     const server = httpServer(app);
 
-    await request(server).post(`/${PREFIX}/vacations`).set('Cookie', account.cookie).send({ endsOn: addDays(today, 30), startsOn: addDays(today, 40) }).expect(422);
-    await request(server).post(`/${PREFIX}/vacations`).set('Cookie', account.cookie).send({ endsOn: addDays(today, 400), startsOn: addDays(today, 300) }).expect(422);
+    await request(server)
+      .post(`/${PREFIX}/vacations`)
+      .set('Cookie', account.cookie)
+      .send({ endsOn: addDays(today, 30), startsOn: addDays(today, 40) })
+      .expect(422);
+    await request(server)
+      .post(`/${PREFIX}/vacations`)
+      .set('Cookie', account.cookie)
+      .send({ endsOn: addDays(today, 400), startsOn: addDays(today, 300) })
+      .expect(422);
   });
 
   it('gives the plan its days back when the trip is cancelled', async () => {
@@ -125,13 +141,21 @@ describe('vacations', () => {
   it('will not let one account cancel another account trip', async () => {
     const server = httpServer(app);
     const today = new Date().toISOString().slice(0, 10);
-    const mine: Response = await request(server).post(`/${PREFIX}/vacations`).set('Cookie', account.cookie).send({ endsOn: addDays(today, 22), startsOn: addDays(today, 20) }).expect(201);
+    const mine: Response = await request(server)
+      .post(`/${PREFIX}/vacations`)
+      .set('Cookie', account.cookie)
+      .send({ endsOn: addDays(today, 22), startsOn: addDays(today, 20) })
+      .expect(201);
     const id = (mine.body as VacationView).id;
 
     await request(server).delete(`/${PREFIX}/vacations/${id}`).set('Cookie', stranger.cookie).expect(404);
-    await request(server).get(`/${PREFIX}/vacations`).set('Cookie', stranger.cookie).expect(200).expect(response => {
-      expect(response.body).toEqual([]);
-    });
+    await request(server)
+      .get(`/${PREFIX}/vacations`)
+      .set('Cookie', stranger.cookie)
+      .expect(200)
+      .expect(response => {
+        expect(response.body).toEqual([]);
+      });
 
     await request(server).delete(`/${PREFIX}/vacations/${id}`).set('Cookie', account.cookie).expect(204);
   });
@@ -144,16 +168,34 @@ describe('vacations', () => {
     const detail: Response = await request(server).get(`/${PREFIX}/meal-plans/meals/${meal.id}`).set('Cookie', account.cookie).expect(200);
     const recipeId = (detail.body as { recipeId: string }).recipeId;
 
-    await request(server).post(`/${PREFIX}/vacations`).set('Cookie', account.cookie).send({ endsOn: addDays(today, 2), startsOn: today }).expect(201);
+    await request(server)
+      .post(`/${PREFIX}/vacations`)
+      .set('Cookie', account.cookie)
+      .send({ endsOn: addDays(today, 2), startsOn: today })
+      .expect(201);
 
     // Marking a meal records something that did not happen; a swap spends an
     // allowance on a fortnight nobody is living; a verdict is the third control
     // on the same screen. One rule, no exceptions to remember (`0032`).
     const code = async (response: Response) => (response.body as { code?: string }).code;
 
-    expect(await code(await request(server).patch(`/${PREFIX}/meal-plans/meals/${meal.id}/status`).set('Cookie', account.cookie).send({ status: 'completed' }).expect(409))).toBe('PLAN_PAUSED');
-    expect(await code(await request(server).post(`/${PREFIX}/meal-plans/meals/${meal.id}/swap`).set('Cookie', account.cookie).send({}).expect(409))).toBe('PLAN_PAUSED');
-    expect(await code(await request(server).put(`/${PREFIX}/recipes/${recipeId}/verdict`).set('Cookie', account.cookie).send({ verdict: 'liked' }).expect(409))).toBe('PLAN_PAUSED');
+    expect(
+      await code(
+        await request(server)
+          .patch(`/${PREFIX}/meal-plans/meals/${meal.id}/status`)
+          .set('Cookie', account.cookie)
+          .send({ status: 'completed' })
+          .expect(409)
+      )
+    ).toBe('PLAN_PAUSED');
+    expect(
+      await code(await request(server).post(`/${PREFIX}/meal-plans/meals/${meal.id}/swap`).set('Cookie', account.cookie).send({}).expect(409))
+    ).toBe('PLAN_PAUSED');
+    expect(
+      await code(
+        await request(server).put(`/${PREFIX}/recipes/${recipeId}/verdict`).set('Cookie', account.cookie).send({ verdict: 'liked' }).expect(409)
+      )
+    ).toBe('PLAN_PAUSED');
 
     // Reading is untouched: the plan is paused, not hidden.
     await request(server).get(`/${PREFIX}/meal-plans/active`).set('Cookie', account.cookie).expect(200);
@@ -163,7 +205,11 @@ describe('vacations', () => {
 
     await request(server).delete(`/${PREFIX}/vacations/${running?.id}`).set('Cookie', account.cookie).expect(204);
     // And back to normal the moment the trip ends.
-    await request(server).patch(`/${PREFIX}/meal-plans/meals/${meal.id}/status`).set('Cookie', account.cookie).send({ status: 'planned' }).expect(200);
+    await request(server)
+      .patch(`/${PREFIX}/meal-plans/meals/${meal.id}/status`)
+      .set('Cookie', account.cookie)
+      .send({ status: 'planned' })
+      .expect(200);
   });
 
   it('applies a trip declared before the plan existed, when the plan is made', async () => {
@@ -173,7 +219,11 @@ describe('vacations', () => {
     const startsOn = addDays(today, 2);
 
     await completeOnboarding(app, traveller);
-    await request(httpServer(app)).post(`/${PREFIX}/vacations`).set('Cookie', traveller.cookie).send({ endsOn: addDays(startsOn, 2), startsOn }).expect(201);
+    await request(httpServer(app))
+      .post(`/${PREFIX}/vacations`)
+      .set('Cookie', traveller.cookie)
+      .send({ endsOn: addDays(startsOn, 2), startsOn })
+      .expect(201);
 
     const job = await generateAndWait(app, traveller);
 

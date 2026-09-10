@@ -14,7 +14,9 @@ describe('updateGoalSchema pace', () => {
 
     expect(result.success).toBe(false);
 
-    if (result.success) {return;}
+    if (result.success) {
+      return;
+    }
 
     const issue = result.error.issues.find(candidate => candidate.path.join('.') === 'paceKgPerWeek');
 

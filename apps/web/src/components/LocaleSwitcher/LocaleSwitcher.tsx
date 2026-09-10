@@ -53,7 +53,9 @@ export function LocaleSwitcher({ compact = false }: { compact?: boolean }) {
   const [error, setError] = useState<string>();
 
   async function choose(locale: Locale) {
-    if (locale === active || pending !== null) {return;}
+    if (locale === active || pending !== null) {
+      return;
+    }
 
     setError(undefined);
     setPending(locale);
@@ -125,7 +127,9 @@ export function LocaleSwitcher({ compact = false }: { compact?: boolean }) {
     </div>
   );
 
-  if (compact) {return options;}
+  if (compact) {
+    return options;
+  }
 
   return (
     <section className={styles.panel}>

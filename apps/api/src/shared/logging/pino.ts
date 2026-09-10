@@ -48,11 +48,7 @@ export function createPino({ level, pretty }: { readonly level: LevelWithSilent;
   // the deployed function once died at boot on exactly that, from a development
   // `NODE_ENV` that should never have reached it. Degrade to JSON and say so.
   const usePretty = pretty && prettyAvailable();
-  const logger = pino({
-    level,
-    redact: { paths: [...REDACTED_PATHS], remove: true },
-    transport: usePretty ? { target: 'pino-pretty' } : undefined
-  });
+  const logger = pino({ level, redact: { paths: [...REDACTED_PATHS], remove: true }, transport: usePretty ? { target: 'pino-pretty' } : undefined });
 
   if (pretty && !usePretty) {
     logger.warn('pino-pretty was requested but is not installed here; logging JSON instead');

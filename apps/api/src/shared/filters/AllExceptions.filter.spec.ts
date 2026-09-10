@@ -1,7 +1,16 @@
 import { BadRequestException, HttpStatus, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, jest } from '@jest/globals';
 
-import { AccountNotActivatedError, ConflictError, DatabaseOperationError, InputParseError, NotFoundError, QuotaExceededError, SafetyViolationError, UnauthorizedError } from 'core/entities/Error';
+import {
+  AccountNotActivatedError,
+  ConflictError,
+  DatabaseOperationError,
+  InputParseError,
+  NotFoundError,
+  QuotaExceededError,
+  SafetyViolationError,
+  UnauthorizedError
+} from 'core/entities/Error';
 
 import { AllExceptionsFilter } from './AllExceptions.filter.js';
 
@@ -37,7 +46,12 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('maps a spent allowance to 429, naming which one and when it renews', () => {
-    expect(capture(new QuotaExceededError('plan_redo', '2026-09-21')).body).toMatchObject({ code: 'QUOTA_EXCEEDED', message: 'plan_redo', retryAt: '2026-09-21', statusCode: HttpStatus.TOO_MANY_REQUESTS });
+    expect(capture(new QuotaExceededError('plan_redo', '2026-09-21')).body).toMatchObject({
+      code: 'QUOTA_EXCEEDED',
+      message: 'plan_redo',
+      retryAt: '2026-09-21',
+      statusCode: HttpStatus.TOO_MANY_REQUESTS
+    });
     expect(capture(new QuotaExceededError('meal_swap')).body).not.toHaveProperty('retryAt');
   });
 

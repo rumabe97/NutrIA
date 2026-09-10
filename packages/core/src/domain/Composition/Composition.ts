@@ -2,9 +2,7 @@ import type { CandidateDish, Catalogue, Macros } from 'core/entities/Plan';
 
 const PER_100G = 100;
 
-export type CompositionResult =
-  | { readonly macros: Macros; readonly ok: true }
-  | { readonly ok: false; readonly unknownSlugs: readonly string[] };
+export type CompositionResult = { readonly macros: Macros; readonly ok: true } | { readonly ok: false; readonly unknownSlugs: readonly string[] };
 
 /**
  * Sums a dish's macros from the catalogue.
@@ -20,7 +18,9 @@ export type CompositionResult =
 export function composeMacros(ingredients: readonly { grams: number; slug: string }[], catalogue: Catalogue): CompositionResult {
   const unknownSlugs = ingredients.map(item => item.slug).filter(slug => !catalogue.has(slug));
 
-  if (unknownSlugs.length > 0) {return { ok: false, unknownSlugs: [...new Set(unknownSlugs)] };}
+  if (unknownSlugs.length > 0) {
+    return { ok: false, unknownSlugs: [...new Set(unknownSlugs)] };
+  }
 
   const macros = ingredients.reduce<Macros>(
     (total, item) => {
@@ -46,7 +46,9 @@ export function composeMacros(ingredients: readonly { grams: number; slug: strin
 export function composePerServing(dish: CandidateDish, catalogue: Catalogue): CompositionResult {
   const composed = composeMacros(dish.ingredients, catalogue);
 
-  if (!composed.ok) {return composed;}
+  if (!composed.ok) {
+    return composed;
+  }
 
   return { macros: scaleMacros(composed.macros, 1 / dish.servings), ok: true };
 }

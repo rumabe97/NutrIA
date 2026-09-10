@@ -29,14 +29,18 @@ export function RouteAnnouncer() {
 
     previous.current = pathname;
 
-    if (!changed) {return;}
+    if (!changed) {
+      return;
+    }
 
     const main = document.getElementById(MAIN_ID);
     // The heading when there is one, the region itself when there is not, so a
     // screen that has yet to grow an `<h1>` still announces something.
     const target = main?.querySelector('h1') ?? main;
 
-    if (!target) {return;}
+    if (!target) {
+      return;
+    }
 
     target.setAttribute('tabindex', '-1');
     // Next has already restored the scroll position by now; focusing without

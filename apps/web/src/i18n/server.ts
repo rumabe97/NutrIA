@@ -27,7 +27,9 @@ export async function activeLocale(): Promise<Locale> {
   const [cookieStore, headerStore] = await Promise.all([cookies(), headers()]);
   const chosen = parseLocale(cookieStore.get(LOCALE_COOKIE)?.value);
 
-  if (chosen) {return chosen;}
+  if (chosen) {
+    return chosen;
+  }
 
   return negotiateLocale(headerStore.get('accept-language')) ?? DEFAULT_LOCALE;
 }

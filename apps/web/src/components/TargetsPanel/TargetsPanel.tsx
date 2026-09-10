@@ -109,7 +109,10 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
             { label: t.computed, value: interpolate(t.kcalValue, { value: formatNumber(derivation.requestedKcal, locale) }) },
             {
               label: t.allowedRange,
-              value: interpolate(t.rangeValue, { ceiling: formatNumber(derivation.ceilingKcal, locale), floor: formatNumber(derivation.floorKcal, locale) })
+              value: interpolate(t.rangeValue, {
+                ceiling: formatNumber(derivation.ceilingKcal, locale),
+                floor: formatNumber(derivation.floorKcal, locale)
+              })
             }
           ].map(row => (
             <div className={styles.row} key={row.label}>
@@ -123,14 +126,18 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
       {derivation.clampedBy ? (
         <p className={styles.notice}>
           {derivation.clampedBy === 'floor'
-            ? interpolate(t.clampedFloor, { floor: formatNumber(derivation.floorKcal, locale), requested: formatNumber(derivation.requestedKcal, locale) })
-            : interpolate(t.clampedCeiling, { ceiling: formatNumber(derivation.ceilingKcal, locale), requested: formatNumber(derivation.requestedKcal, locale) })}
+            ? interpolate(t.clampedFloor, {
+                floor: formatNumber(derivation.floorKcal, locale),
+                requested: formatNumber(derivation.requestedKcal, locale)
+              })
+            : interpolate(t.clampedCeiling, {
+                ceiling: formatNumber(derivation.ceilingKcal, locale),
+                requested: formatNumber(derivation.requestedKcal, locale)
+              })}
         </p>
       ) : null}
 
-      {overrideStatus === 'stale' ? (
-        <p className={styles.notice}>{t.stale}</p>
-      ) : null}
+      {overrideStatus === 'stale' ? <p className={styles.notice}>{t.stale}</p> : null}
 
       {errors.length > 0 ? (
         <div className={styles.errors} role="alert">
@@ -145,16 +152,14 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
           className={styles.form}
           onSubmit={event => {
             event.preventDefault();
-            void save({
-              carbsG: toNumber(draft.carbsG),
-              fatG: toNumber(draft.fatG),
-              kcal: toNumber(draft.kcal),
-              proteinG: toNumber(draft.proteinG)
-            });
+            void save({ carbsG: toNumber(draft.carbsG), fatG: toNumber(draft.fatG), kcal: toNumber(draft.kcal), proteinG: toNumber(draft.proteinG) });
           }}
         >
           <Input
-            hint={interpolate(t.hintRange, { max: formatNumber(Math.floor(bounds.ceilingKcal), locale), min: formatNumber(Math.ceil(bounds.floorKcal), locale) })}
+            hint={interpolate(t.hintRange, {
+              max: formatNumber(Math.floor(bounds.ceilingKcal), locale),
+              min: formatNumber(Math.ceil(bounds.floorKcal), locale)
+            })}
             inputMode="numeric"
             label={t.labelKcal}
             onChange={event => setDraft({ ...draft, kcal: event.target.value })}

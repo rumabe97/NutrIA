@@ -29,7 +29,9 @@ export function BrandMark({ size, tiled = false }: { readonly size: number; read
   const mark = tiled ? Math.round(size * 0.56) : size;
   const shape = <div style={{ background: BRAND_GREEN, borderRadius: markRadius(mark), display: 'flex', height: mark, width: mark }} />;
 
-  if (!tiled) {return shape;}
+  if (!tiled) {
+    return shape;
+  }
 
   return (
     <div style={{ alignItems: 'center', background: TILE_BACKGROUND, display: 'flex', height: size, justifyContent: 'center', width: size }}>

@@ -45,7 +45,9 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
     serverApi<readonly VacationView[]>('/vacations')
   ]);
 
-  if (!meal) {notFound();}
+  if (!meal) {
+    notFound();
+  }
 
   const away = trips?.find(trip => trip.away);
   // Its day has not come. Offering the control anyway is offering something the
@@ -67,7 +69,11 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
       <h1 className={styles.title}>{meal.name}</h1>
 
       <div className={styles.facts}>
-        {totalMinutes > 0 ? <span>{interpolate(dictionary.meal.totalMinutes, { minutes: totalMinutes })}</span> : <span>{dictionary.meal.noCooking}</span>}
+        {totalMinutes > 0 ? (
+          <span>{interpolate(dictionary.meal.totalMinutes, { minutes: totalMinutes })}</span>
+        ) : (
+          <span>{dictionary.meal.noCooking}</span>
+        )}
         <span>{difficultyLabel(meal.difficulty, dictionary)}</span>
         {meal.cuisine ? <span>{meal.cuisine}</span> : null}
       </div>
@@ -97,7 +103,14 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
               ) : (
                 <MealStatus mealId={meal.id} status={meal.status as Status} />
               )}
-              {allowances && meal.status === 'planned' ? <MealSwap limit={allowances.mealSwaps.limit} mealId={meal.id} remaining={allowances.mealSwaps.remaining} totalMinutes={totalMinutes} /> : null}
+              {allowances && meal.status === 'planned' ? (
+                <MealSwap
+                  limit={allowances.mealSwaps.limit}
+                  mealId={meal.id}
+                  remaining={allowances.mealSwaps.remaining}
+                  totalMinutes={totalMinutes}
+                />
+              ) : null}
             </Fragment>
           )}
         </div>
@@ -124,7 +137,8 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
           { label: dictionary.meal.prep, value: interpolate(dictionary.meal.minutes, { value: formatNumber(meal.prepMinutes, locale) }) },
           {
             label: dictionary.meal.cook,
-            value: meal.cookMinutes > 0 ? interpolate(dictionary.meal.minutes, { value: formatNumber(meal.cookMinutes, locale) }) : dictionary.meal.none
+            value:
+              meal.cookMinutes > 0 ? interpolate(dictionary.meal.minutes, { value: formatNumber(meal.cookMinutes, locale) }) : dictionary.meal.none
           },
           { label: dictionary.meal.servingsLabel, value: formatNumber(Math.round(meal.servings * 100) / 100, locale) },
           { label: dictionary.meal.difficultyLabel, value: difficultyLabel(meal.difficulty, dictionary) }
@@ -165,7 +179,9 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
               {ingredient.alternatives.length > 0 ? (
                 <Text as="span" className={styles.alternatives} size="sm" tone="secondary">
                   {dictionary.meal.alternatives}:{' '}
-                  {ingredient.alternatives.map(alternative => `${alternative.name} (${formatQuantity(alternative.grams, 'g', locale, dictionary)})`).join(' · ')}
+                  {ingredient.alternatives
+                    .map(alternative => `${alternative.name} (${formatQuantity(alternative.grams, 'g', locale, dictionary)})`)
+                    .join(' · ')}
                 </Text>
               ) : null}
             </li>
@@ -188,7 +204,9 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
                     <Text as="span" className={styles.stepCue} size="sm" tone="secondary">
                       {step.cue ? <span>{step.cue}</span> : null}
                       {step.cue && step.minutes ? <span aria-hidden="true"> · </span> : null}
-                      {step.minutes ? <span className={styles.stepTime}>{interpolate(dictionary.meal.minutes, { value: formatNumber(step.minutes, locale) })}</span> : null}
+                      {step.minutes ? (
+                        <span className={styles.stepTime}>{interpolate(dictionary.meal.minutes, { value: formatNumber(step.minutes, locale) })}</span>
+                      ) : null}
                     </Text>
                   ) : null}
                 </div>
@@ -207,4 +225,3 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
     </Fragment>
   );
 }
-

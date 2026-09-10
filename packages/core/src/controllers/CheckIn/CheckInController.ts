@@ -44,7 +44,7 @@ function isoToday(): string {
 }
 
 function answerFor<T extends string>(table: Record<T, number>, rating: number | null, fallback: T): T {
-  return ((Object.keys(table) as T[]).find(key => table[key] === rating) ?? fallback);
+  return (Object.keys(table) as T[]).find(key => table[key] === rating) ?? fallback;
 }
 
 export const CheckInController = {
@@ -52,7 +52,9 @@ export const CheckInController = {
   async latestForGeneration(userId: string): Promise<CheckInForGeneration | null> {
     const latest = await CheckInRepository.findLatest(userId);
 
-    if (!latest) {return null;}
+    if (!latest) {
+      return null;
+    }
 
     return {
       comments: latest.comments,
@@ -70,7 +72,9 @@ export const CheckInController = {
   async status(userId: string): Promise<CheckInStatusView> {
     const [latest] = await PlanRepository.findChain(userId);
 
-    if (!latest) {return { adherence: null, done: false, due: false, plan: null, stats: { completed: 0, planned: 0, skipped: 0, total: 0 } };}
+    if (!latest) {
+      return { adherence: null, done: false, due: false, plan: null, stats: { completed: 0, planned: 0, skipped: 0, total: 0 } };
+    }
 
     const [existing, stats] = await Promise.all([CheckInRepository.findByPlan(userId, latest.id), CheckInRepository.planStats(userId, latest.id)]);
     const marked = stats.completed + stats.skipped;
@@ -93,9 +97,13 @@ export const CheckInController = {
   async submit(userId: string, input: SubmitCheckIn): Promise<CheckInResultView> {
     const plan = await PlanRepository.findById(userId, input.planId);
 
-    if (!plan) {throw new NotFoundError('Plan not found');}
+    if (!plan) {
+      throw new NotFoundError('Plan not found');
+    }
 
-    if (await CheckInRepository.findByPlan(userId, plan.id)) {throw new ConflictError('This fortnight has its check-in already');}
+    if (await CheckInRepository.findByPlan(userId, plan.id)) {
+      throw new ConflictError('This fortnight has its check-in already');
+    }
 
     const today = isoToday();
 
@@ -110,7 +118,9 @@ export const CheckInController = {
       weightKg: input.weightKg ?? null
     });
 
-    if (input.weightKg) {await ProgressRepository.upsertWeight(userId, today, input.weightKg);}
+    if (input.weightKg) {
+      await ProgressRepository.upsertWeight(userId, today, input.weightKg);
+    }
 
     let targets: CheckInResultView['targets'] = null;
 

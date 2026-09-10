@@ -67,7 +67,11 @@ export const AdminRepository = {
       const [accounts, waiting, jobs, plans, recipeCount, ingredientCount, withoutImage] = await Promise.all([
         db.select({ n: count() }).from(user),
         db.select({ n: count() }).from(user).where(isNull(user.activatedAt)),
-        db.select({ n: count(), status: planGenerationJobs.status }).from(planGenerationJobs).where(gte(planGenerationJobs.createdAt, since)).groupBy(planGenerationJobs.status),
+        db
+          .select({ n: count(), status: planGenerationJobs.status })
+          .from(planGenerationJobs)
+          .where(gte(planGenerationJobs.createdAt, since))
+          .groupBy(planGenerationJobs.status),
         db.select({ n: count(), status: mealPlans.status }).from(mealPlans).groupBy(mealPlans.status),
         db.select({ n: count() }).from(recipes),
         db.select({ n: count() }).from(ingredients),

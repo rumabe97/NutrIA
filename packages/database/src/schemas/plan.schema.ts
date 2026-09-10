@@ -118,10 +118,7 @@ export const meals = pgTable(
  * Storing the shift rather than deriving it keeps every other query honest: a
  * plan day's date is the date it is.
  */
-export const vacations = userOwned('vacations', {
-  endsOn: date().notNull(),
-  startsOn: date().notNull()
-});
+export const vacations = userOwned('vacations', { endsOn: date().notNull(), startsOn: date().notNull() });
 
 export const mealCompletions = userOwned('meal_completions', {
   loggedAt: date().notNull(),

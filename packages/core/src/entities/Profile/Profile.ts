@@ -144,20 +144,12 @@ export const updateGoalSchema = z
      */
     // `.transform` before `.nullish`, so the field stays optional rather than
     // becoming a required key that happens to accept undefined.
-    paceKgPerWeek: z
-      .number()
-      .min(-PACE_KG_PER_WEEK.max, PACE_MESSAGE)
-      .max(PACE_KG_PER_WEEK.max, PACE_MESSAGE)
-      .transform(Math.abs)
-      .nullish(),
+    paceKgPerWeek: z.number().min(-PACE_KG_PER_WEEK.max, PACE_MESSAGE).max(PACE_KG_PER_WEEK.max, PACE_MESSAGE).transform(Math.abs).nullish(),
     startingWeightKg: z.number().min(WEIGHT_KG.min).max(WEIGHT_KG.max).nullish(),
     targetWeightKg: z.number().min(WEIGHT_KG.min).max(WEIGHT_KG.max).nullish(),
     type: z.enum(GOAL_TYPES)
   })
-  .refine(value => value.type !== 'custom' || Boolean(value.customGoal), {
-    message: 'Describe tu objetivo personalizado',
-    path: ['customGoal']
-  });
+  .refine(value => value.type !== 'custom' || Boolean(value.customGoal), { message: 'Describe tu objetivo personalizado', path: ['customGoal'] });
 
 export type UpdateGoal = z.infer<typeof updateGoalSchema>;
 

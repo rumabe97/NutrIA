@@ -21,62 +21,114 @@ import type { Response } from 'supertest';
  * Requires a real database and a seeded catalogue — see ./README.md.
  */
 const POOL = [
-  dish('Avena con yogur', ['breakfast'], [
-    { grams: 80, slug: SEEDED.avena },
-    { grams: 150, slug: SEEDED.yogur }
-  ]),
-  dish('Tostada con huevo', ['breakfast'], [
-    { grams: 80, slug: SEEDED.pan },
-    { grams: 120, slug: SEEDED.huevo }
-  ]),
-  dish('Yogur con avena', ['breakfast'], [
-    { grams: 200, slug: SEEDED.yogur },
-    { grams: 60, slug: SEEDED.avena }
-  ]),
-  dish('Huevos con pan', ['breakfast'], [
-    { grams: 140, slug: SEEDED.huevo },
-    { grams: 60, slug: SEEDED.pan }
-  ]),
+  dish(
+    'Avena con yogur',
+    ['breakfast'],
+    [
+      { grams: 80, slug: SEEDED.avena },
+      { grams: 150, slug: SEEDED.yogur }
+    ]
+  ),
+  dish(
+    'Tostada con huevo',
+    ['breakfast'],
+    [
+      { grams: 80, slug: SEEDED.pan },
+      { grams: 120, slug: SEEDED.huevo }
+    ]
+  ),
+  dish(
+    'Yogur con avena',
+    ['breakfast'],
+    [
+      { grams: 200, slug: SEEDED.yogur },
+      { grams: 60, slug: SEEDED.avena }
+    ]
+  ),
+  dish(
+    'Huevos con pan',
+    ['breakfast'],
+    [
+      { grams: 140, slug: SEEDED.huevo },
+      { grams: 60, slug: SEEDED.pan }
+    ]
+  ),
   dish('Avena sola', ['breakfast'], [{ grams: 110, slug: SEEDED.avena }]),
   // Fish in every slot the plan has to fill, so a plan that avoids it can only
   // have done so by refusing these dishes rather than by not needing them.
-  dish('Merluza con arroz', ['lunch'], [
-    { grams: 200, slug: SEEDED.merluza },
-    { grams: 200, slug: SEEDED.arroz }
-  ]),
-  dish('Arroz con pollo', ['lunch'], [
-    { grams: 220, slug: SEEDED.arroz },
-    { grams: 180, slug: SEEDED.pollo }
-  ]),
-  dish('Lentejas con arroz', ['lunch'], [
-    { grams: 250, slug: SEEDED.lentejas },
-    { grams: 150, slug: SEEDED.arroz }
-  ]),
-  dish('Pollo con patata', ['lunch'], [
-    { grams: 200, slug: SEEDED.pollo },
-    { grams: 250, slug: SEEDED.patata }
-  ]),
+  dish(
+    'Merluza con arroz',
+    ['lunch'],
+    [
+      { grams: 200, slug: SEEDED.merluza },
+      { grams: 200, slug: SEEDED.arroz }
+    ]
+  ),
+  dish(
+    'Arroz con pollo',
+    ['lunch'],
+    [
+      { grams: 220, slug: SEEDED.arroz },
+      { grams: 180, slug: SEEDED.pollo }
+    ]
+  ),
+  dish(
+    'Lentejas con arroz',
+    ['lunch'],
+    [
+      { grams: 250, slug: SEEDED.lentejas },
+      { grams: 150, slug: SEEDED.arroz }
+    ]
+  ),
+  dish(
+    'Pollo con patata',
+    ['lunch'],
+    [
+      { grams: 200, slug: SEEDED.pollo },
+      { grams: 250, slug: SEEDED.patata }
+    ]
+  ),
   dish('Lentejas solas', ['lunch'], [{ grams: 350, slug: SEEDED.lentejas }]),
-  dish('Merluza con patata', ['dinner'], [
-    { grams: 200, slug: SEEDED.merluza },
-    { grams: 220, slug: SEEDED.patata }
-  ]),
-  dish('Pollo con tomate', ['dinner'], [
-    { grams: 200, slug: SEEDED.pollo },
-    { grams: 150, slug: SEEDED.tomate }
-  ]),
-  dish('Huevos con patata', ['dinner'], [
-    { grams: 160, slug: SEEDED.huevo },
-    { grams: 250, slug: SEEDED.patata }
-  ]),
-  dish('Lentejas con tomate', ['dinner'], [
-    { grams: 300, slug: SEEDED.lentejas },
-    { grams: 120, slug: SEEDED.tomate }
-  ]),
-  dish('Arroz con huevo', ['dinner'], [
-    { grams: 250, slug: SEEDED.arroz },
-    { grams: 120, slug: SEEDED.huevo }
-  ])
+  dish(
+    'Merluza con patata',
+    ['dinner'],
+    [
+      { grams: 200, slug: SEEDED.merluza },
+      { grams: 220, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Pollo con tomate',
+    ['dinner'],
+    [
+      { grams: 200, slug: SEEDED.pollo },
+      { grams: 150, slug: SEEDED.tomate }
+    ]
+  ),
+  dish(
+    'Huevos con patata',
+    ['dinner'],
+    [
+      { grams: 160, slug: SEEDED.huevo },
+      { grams: 250, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Lentejas con tomate',
+    ['dinner'],
+    [
+      { grams: 300, slug: SEEDED.lentejas },
+      { grams: 120, slug: SEEDED.tomate }
+    ]
+  ),
+  dish(
+    'Arroz con huevo',
+    ['dinner'],
+    [
+      { grams: 250, slug: SEEDED.arroz },
+      { grams: 120, slug: SEEDED.huevo }
+    ]
+  )
 ];
 
 describe('preferences are enforced, not requested', () => {

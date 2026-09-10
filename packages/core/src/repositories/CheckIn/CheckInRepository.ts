@@ -54,7 +54,9 @@ export const CheckInRepository = {
         .values({ ...input, userId, weightKg: input.weightKg === null ? null : String(input.weightKg) })
         .returning(COLUMNS);
 
-      if (!row) {throw new DatabaseOperationError('Check-in insert returned no row');}
+      if (!row) {
+        throw new DatabaseOperationError('Check-in insert returned no row');
+      }
 
       return present(row);
     } catch (error: unknown) {
@@ -75,7 +77,11 @@ export const CheckInRepository = {
 
   async findByPlan(userId: string, planId: string): Promise<CheckInRow | undefined> {
     try {
-      const [row] = await database().select(COLUMNS).from(checkIns).where(and(eq(checkIns.userId, userId), eq(checkIns.planId, planId))).limit(1);
+      const [row] = await database()
+        .select(COLUMNS)
+        .from(checkIns)
+        .where(and(eq(checkIns.userId, userId), eq(checkIns.planId, planId)))
+        .limit(1);
 
       return row ? present(row) : undefined;
     } catch (error: unknown) {

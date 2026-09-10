@@ -59,7 +59,9 @@ export const FeedbackController = {
    * a note you cannot take back is one people stop making.
    */
   async setHandled(id: string, handled: boolean): Promise<void> {
-    if (!(await FeedbackRepository.setHandled(id, handled))) {throw new NotFoundError(`Feedback "${id}" not found`);}
+    if (!(await FeedbackRepository.setHandled(id, handled))) {
+      throw new NotFoundError(`Feedback "${id}" not found`);
+    }
   },
 
   async submit(userId: string, input: SubmitFeedback): Promise<void> {

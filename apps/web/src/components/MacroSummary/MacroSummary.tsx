@@ -37,22 +37,22 @@ export function MacroSummary({ carbsG, fatG, kcal, note, proteinG }: MacroSummar
     // is narrower than a phone, and the window's width said nothing about it.
     <div className={styles.root}>
       <div className={styles.summary} data-note={note ? true : undefined}>
-      {items.map(item => (
-        <div className={styles.item} data-accent={item.accent} key={item.label}>
-          <div className={styles.value}>
-            {formatNumber(Math.round(item.value), locale)}
-            <span className={styles.unit}> {item.unit}</span>
+        {items.map(item => (
+          <div className={styles.item} data-accent={item.accent} key={item.label}>
+            <div className={styles.value}>
+              {formatNumber(Math.round(item.value), locale)}
+              <span className={styles.unit}> {item.unit}</span>
+            </div>
+            <Text size="xs" tone="tertiary">
+              {item.label}
+            </Text>
           </div>
-          <Text size="xs" tone="tertiary">
-            {item.label}
+        ))}
+        {note ? (
+          <Text as="p" className={styles.note} size="xs" tone="tertiary">
+            {note}
           </Text>
-        </div>
-      ))}
-      {note ? (
-        <Text as="p" className={styles.note} size="xs" tone="tertiary">
-          {note}
-        </Text>
-      ) : null}
+        ) : null}
       </div>
     </div>
   );

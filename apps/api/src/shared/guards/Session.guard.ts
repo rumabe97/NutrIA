@@ -30,7 +30,9 @@ export class SessionGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [context.getHandler(), context.getClass()]);
 
-    if (isPublic) {return true;}
+    if (isPublic) {
+      return true;
+    }
 
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const session = await this.auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
@@ -39,7 +41,9 @@ export class SessionGuard implements CanActivate {
     // unauthenticated caller learns that the path exists either way, but keeping
     // one shape for every denial means no handler can accidentally become the
     // one that confirms a resource.
-    if (!session?.user) {throw new NotFoundException();}
+    if (!session?.user) {
+      throw new NotFoundException();
+    }
 
     request.user = {
       id: session.user.id,

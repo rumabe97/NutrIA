@@ -31,7 +31,9 @@ export class StructuredAiClient extends AiClient {
   }
 
   async generate<T>({ prompt, schema, system }: AiRequest<T>): Promise<AiResponse<T>> {
-    if (!this.model) {throw new Error('No AI model configured; check AI_PROVIDER');}
+    if (!this.model) {
+      throw new Error('No AI model configured; check AI_PROVIDER');
+    }
 
     const model = typeof this.model === 'string' ? this.model : this.model.modelId;
 
@@ -66,7 +68,10 @@ export class StructuredAiClient extends AiClient {
       // An AI SDK APICallError carries the provider's response body, which is where
       // Gemini names the offending schema field — the message alone is just
       // "Request contains an invalid argument".
-      const body = typeof error === 'object' && error !== null && 'responseBody' in error ? String((error as { responseBody?: unknown }).responseBody ?? '') : '';
+      const body =
+        typeof error === 'object' && error !== null && 'responseBody' in error
+          ? String((error as { responseBody?: unknown }).responseBody ?? '')
+          : '';
       const detail = redactSecrets([error instanceof Error ? error.message : 'Unknown AI failure', body].filter(Boolean).join(' — '));
 
       this.logger.error(`AI provider rejected the request: ${detail}`);

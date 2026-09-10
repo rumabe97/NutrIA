@@ -24,12 +24,7 @@ export const intoleranceSchema = z.object({
 
 export type Intolerance = z.infer<typeof intoleranceSchema>;
 
-export const allergenSchema = z.object({
-  id: z.uuid(),
-  isEuMandatory: z.boolean(),
-  key: z.string().min(1),
-  labelEs: z.string().min(1)
-});
+export const allergenSchema = z.object({ id: z.uuid(), isEuMandatory: z.boolean(), key: z.string().min(1), labelEs: z.string().min(1) });
 
 export type Allergen = z.infer<typeof allergenSchema>;
 

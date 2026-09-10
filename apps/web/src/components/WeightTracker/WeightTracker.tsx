@@ -43,7 +43,9 @@ export function WeightTracker({ weight }: { weight: WeightView }) {
   async function log() {
     const weightKg = Number(value.replace(',', '.'));
 
-    if (!Number.isFinite(weightKg) || weightKg <= 0) {return;}
+    if (!Number.isFinite(weightKg) || weightKg <= 0) {
+      return;
+    }
 
     setError(undefined);
     setPending(true);

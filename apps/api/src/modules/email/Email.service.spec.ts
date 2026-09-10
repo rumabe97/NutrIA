@@ -67,7 +67,13 @@ describe('EmailService', () => {
     const service = new EmailService(configured);
 
     await expect(service.send(message)).resolves.toBe(true);
-    expect(sendMail).toHaveBeenCalledWith({ from: '"NutrIA" <hola@nutria.example>', html: '<p>hi</p>', subject: 'Hola', text: 'hi', to: 'ana@example.com' });
+    expect(sendMail).toHaveBeenCalledWith({
+      from: '"NutrIA" <hola@nutria.example>',
+      html: '<p>hi</p>',
+      subject: 'Hola',
+      text: 'hi',
+      to: 'ana@example.com'
+    });
   });
 
   it('reports a refusal as false and keeps the address out of the log', async () => {

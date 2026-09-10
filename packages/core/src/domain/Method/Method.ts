@@ -34,7 +34,9 @@ export const METHOD_RULES = {
 
 /** The floor for a dish, given how long it cooks. */
 export function minimumSteps(cookMinutes: number): number {
-  if (cookMinutes >= METHOD_RULES.longCookMinutes) {return METHOD_RULES.minStepsCookedLong;}
+  if (cookMinutes >= METHOD_RULES.longCookMinutes) {
+    return METHOD_RULES.minStepsCookedLong;
+  }
 
   return cookMinutes > 0 ? METHOD_RULES.minStepsCooked : METHOD_RULES.minStepsUncooked;
 }

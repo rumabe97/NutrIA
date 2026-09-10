@@ -92,12 +92,19 @@ export async function api<T>(path: string, { body, headers, ...options }: Option
     throw new ApiError('NETWORK', 'Network error', 0);
   }
 
-  if (response.status === 204) {return undefined as T;}
+  if (response.status === 204) {
+    return undefined as T;
+  }
 
   const payload: unknown = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const { code, fieldErrors, message, retryAt } = payload as { code?: ApiErrorCode; fieldErrors?: Record<string, string[]>; message?: string; retryAt?: string };
+    const { code, fieldErrors, message, retryAt } = payload as {
+      code?: ApiErrorCode;
+      fieldErrors?: Record<string, string[]>;
+      message?: string;
+      retryAt?: string;
+    };
 
     throw new ApiError(code ?? 'REQUEST_ERROR', message ?? 'Request failed', response.status, fieldErrors ?? {}, retryAt ?? null);
   }
@@ -107,7 +114,9 @@ export async function api<T>(path: string, { body, headers, ...options }: Option
 
 /** The presentation locale, from the cookie the switcher writes. */
 function readLocaleCookie(): string {
-  if (typeof document === 'undefined') {return DEFAULT_LOCALE;}
+  if (typeof document === 'undefined') {
+    return DEFAULT_LOCALE;
+  }
 
   const match = document.cookie.split('; ').find(entry => entry.startsWith(`${LOCALE_COOKIE}=`));
 

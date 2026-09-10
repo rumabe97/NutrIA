@@ -41,11 +41,7 @@ export function RegisterScreen() {
 
     setPending(true);
 
-    const { error: signUpError } = await signUp.email({
-      email: String(form.get('email')),
-      name: String(form.get('name')),
-      password
-    });
+    const { error: signUpError } = await signUp.email({ email: String(form.get('email')), name: String(form.get('name')), password });
 
     setPending(false);
 

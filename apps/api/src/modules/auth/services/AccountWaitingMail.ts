@@ -24,10 +24,12 @@ const OWNER_LOCALE: EmailLocale = 'es-ES';
 export async function notifyOwnerOfWaitingAccount(
   mailer: Pick<EmailService, 'configured' | 'send'>,
   ownerEmail: string | undefined,
-  account: { readonly id: string; readonly email: string; },
+  account: { readonly id: string; readonly email: string },
   link: { readonly apiUrl: string; readonly secret: string }
 ): Promise<void> {
-  if (!ownerEmail || !mailer.configured) {return;}
+  if (!ownerEmail || !mailer.configured) {
+    return;
+  }
 
   try {
     // One click, signed and expiring: the owner opens the account from their

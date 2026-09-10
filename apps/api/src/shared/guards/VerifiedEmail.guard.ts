@@ -30,9 +30,13 @@ export class VerifiedEmailGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const targets = [context.getHandler(), context.getClass()];
 
-    if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, targets)) {return true;}
+    if (this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, targets)) {
+      return true;
+    }
 
-    if (this.reflector.getAllAndOverride<boolean>(ALLOW_UNVERIFIED_KEY, targets)) {return true;}
+    if (this.reflector.getAllAndOverride<boolean>(ALLOW_UNVERIFIED_KEY, targets)) {
+      return true;
+    }
 
     const { user } = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
@@ -44,9 +48,13 @@ export class VerifiedEmailGuard implements CanActivate {
      *
      * A confirmed address is still not a key (`0030`) — it is one of two locks.
      */
-    if (user && !user.emailVerified) {throw new EmailNotVerifiedError();}
+    if (user && !user.emailVerified) {
+      throw new EmailNotVerifiedError();
+    }
 
-    if (user && !user.activated) {throw new AccountNotActivatedError();}
+    if (user && !user.activated) {
+      throw new AccountNotActivatedError();
+    }
 
     return true;
   }

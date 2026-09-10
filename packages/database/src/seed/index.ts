@@ -93,7 +93,9 @@ async function main(): Promise<void> {
       })
       .returning({ id: ingredients.id });
 
-    if (!row) {continue;}
+    if (!row) {
+      continue;
+    }
 
     ingredientCount += 1;
     idBySlug.set(seed.slug, row.id);
@@ -103,7 +105,9 @@ async function main(): Promise<void> {
     // is a moment a lookup falls back to the wrong language.
     const english = INGREDIENT_NAMES_EN_GB[seed.slug];
 
-    if (english === undefined) {throw new Error(`No en-GB name for ingredient "${seed.slug}"`);}
+    if (english === undefined) {
+      throw new Error(`No en-GB name for ingredient "${seed.slug}"`);
+    }
 
     await db
       .insert(ingredientNames)
@@ -123,7 +127,9 @@ async function main(): Promise<void> {
     for (const link of seed.allergens ?? []) {
       const allergenId = allergenIdByKey.get(link.key);
 
-      if (!allergenId) {throw new Error(`Unknown allergen key "${link.key}" on ingredient "${seed.slug}"`);}
+      if (!allergenId) {
+        throw new Error(`Unknown allergen key "${link.key}" on ingredient "${seed.slug}"`);
+      }
 
       await db.insert(ingredientAllergens).values({ allergenId, ingredientId: row.id, presence: link.presence ?? 'contains' });
       linkCount += 1;
@@ -139,7 +145,9 @@ async function main(): Promise<void> {
     const ingredientId = idBySlug.get(pair.ingredient);
     const substituteId = idBySlug.get(pair.substitute);
 
-    if (!ingredientId || !substituteId) {throw new Error(`Substitution names an unseeded ingredient: "${pair.ingredient}" → "${pair.substitute}"`);}
+    if (!ingredientId || !substituteId) {
+      throw new Error(`Substitution names an unseeded ingredient: "${pair.ingredient}" → "${pair.substitute}"`);
+    }
 
     return { ingredientId, ratio: String(pair.ratio), substituteId };
   });

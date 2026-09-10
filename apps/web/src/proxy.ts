@@ -85,7 +85,9 @@ export function proxy(request: NextRequest): NextResponse {
  * `null` when the cookie already says it, so the steady state adds no header.
  */
 function remember(response: NextResponse, arriving: Locale | null): NextResponse {
-  if (arriving === null) {return response;}
+  if (arriving === null) {
+    return response;
+  }
 
   response.cookies.set(LOCALE_COOKIE, arriving, { maxAge: LOCALE_COOKIE_MAX_AGE, path: '/', sameSite: 'lax' });
 

@@ -31,14 +31,21 @@ class ScriptedImageClient extends ImageClient {
   generate({ prompt }: ImageRequest): Promise<ImageResponse> {
     this.prompts.push(prompt);
 
-    if (this.fail(prompt)) {return Promise.reject(new Error(this.failure));}
+    if (this.fail(prompt)) {
+      return Promise.reject(new Error(this.failure));
+    }
 
     return Promise.resolve({ bytes: new Uint8Array(PNG), mediaType: 'image/png', model: 'scripted-image' });
   }
 }
 
 const pending = [
-  { id: '11111111-1111-4111-8111-111111111111', ingredientNames: ['calamar', 'ajo', 'perejil', 'arroz integral'], locale: 'es-ES', name: 'Calamares a la plancha con ajo y perejil' },
+  {
+    id: '11111111-1111-4111-8111-111111111111',
+    ingredientNames: ['calamar', 'ajo', 'perejil', 'arroz integral'],
+    locale: 'es-ES',
+    name: 'Calamares a la plancha con ajo y perejil'
+  },
   { id: '22222222-2222-4222-8222-222222222222', ingredientNames: ['yogur griego', 'nueces'], locale: 'es-ES', name: 'Yogur griego con nueces' }
 ];
 
@@ -65,7 +72,10 @@ describe('RecipeIllustrator', () => {
     expect(run).toEqual({ drawn: 2, failed: 0, pending: 2 });
     expect(store).toHaveBeenCalledTimes(2);
 
-    const [recipeId, image] = store.mock.calls[0] as [string, { bytes: Buffer; contentType: string; height: number; model: string; promptVersion: string; width: number }];
+    const [recipeId, image] = store.mock.calls[0] as [
+      string,
+      { bytes: Buffer; contentType: string; height: number; model: string; promptVersion: string; width: number }
+    ];
 
     expect(recipeId).toBe(pending[0]?.id);
     expect(image.contentType).toBe('image/webp');
@@ -125,7 +135,10 @@ describe('illustrationPrompt', () => {
   });
 
   it('caps the ingredient list so a twenty-item dish does not become a shopping list', () => {
-    const many = illustrationPrompt({ ...pending[0], ingredientNames: Array.from({ length: 20 }, (_, index) => `ing-${index}`) } as (typeof pending)[number]);
+    const many = illustrationPrompt({
+      ...pending[0],
+      ingredientNames: Array.from({ length: 20 }, (_, index) => `ing-${index}`)
+    } as (typeof pending)[number]);
 
     expect(many).toContain('ing-7');
     expect(many).not.toContain('ing-8');

@@ -61,7 +61,11 @@ export default async function PlanHistoryPage() {
       <ol className={styles.list}>
         {lived.map(plan => (
           <li key={plan.id}>
-            <Link className={styles.card} data-status={plan.status === 'active' ? 'active' : plan.replaced ? 'replaced' : 'finished'} href={plan.status === 'active' ? '/plan' : `/plan/historial/${plan.id}`}>
+            <Link
+              className={styles.card}
+              data-status={plan.status === 'active' ? 'active' : plan.replaced ? 'replaced' : 'finished'}
+              href={plan.status === 'active' ? '/plan' : `/plan/historial/${plan.id}`}
+            >
               <span className={styles.range}>{interpolate(t.range, { end: shortDate(plan.endDate), start: shortDate(plan.startDate) })}</span>
               <span className={styles.meta}>
                 <span>{interpolate(t.historyPlan, { version: plan.version })}</span>

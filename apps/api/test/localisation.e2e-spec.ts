@@ -3,7 +3,20 @@ import request from 'supertest';
 
 import type { Response } from 'supertest';
 
-import { activeShoppingList, completeOnboarding, createApp, dish, generateAndWait, httpServer, PREFIX, register, ScriptedAiClient, scriptedName, SEEDED, setLocale } from './harness.js';
+import {
+  activeShoppingList,
+  completeOnboarding,
+  createApp,
+  dish,
+  generateAndWait,
+  httpServer,
+  PREFIX,
+  register,
+  ScriptedAiClient,
+  scriptedName,
+  SEEDED,
+  setLocale
+} from './harness.js';
 
 import type { Account } from './harness.js';
 import type { INestApplication } from '@nestjs/common';
@@ -37,52 +50,96 @@ const ENGLISH_NAMES: Record<string, string> = {
 const POOL = [
   dish('Greek yoghurt bowl', ['breakfast'], [{ grams: 250, slug: SEEDED.yogur }]),
   dish('Scrambled eggs', ['breakfast'], [{ grams: 160, slug: SEEDED.huevo }]),
-  dish('Yoghurt and egg', ['breakfast'], [
-    { grams: 150, slug: SEEDED.yogur },
-    { grams: 100, slug: SEEDED.huevo }
-  ]),
-  dish('Egg and potato hash', ['breakfast'], [
-    { grams: 120, slug: SEEDED.huevo },
-    { grams: 120, slug: SEEDED.patata }
-  ]),
+  dish(
+    'Yoghurt and egg',
+    ['breakfast'],
+    [
+      { grams: 150, slug: SEEDED.yogur },
+      { grams: 100, slug: SEEDED.huevo }
+    ]
+  ),
+  dish(
+    'Egg and potato hash',
+    ['breakfast'],
+    [
+      { grams: 120, slug: SEEDED.huevo },
+      { grams: 120, slug: SEEDED.patata }
+    ]
+  ),
   dish('Yoghurt bowl, large', ['breakfast'], [{ grams: 300, slug: SEEDED.yogur }]),
-  dish('Rice with chicken', ['lunch'], [
-    { grams: 220, slug: SEEDED.arroz },
-    { grams: 180, slug: SEEDED.pollo }
-  ]),
-  dish('Lentils with rice', ['lunch'], [
-    { grams: 250, slug: SEEDED.lentejas },
-    { grams: 150, slug: SEEDED.arroz }
-  ]),
-  dish('Chicken with potato', ['lunch'], [
-    { grams: 200, slug: SEEDED.pollo },
-    { grams: 250, slug: SEEDED.patata }
-  ]),
-  dish('Rice and lentils', ['lunch'], [
-    { grams: 200, slug: SEEDED.arroz },
-    { grams: 200, slug: SEEDED.lentejas }
-  ]),
+  dish(
+    'Rice with chicken',
+    ['lunch'],
+    [
+      { grams: 220, slug: SEEDED.arroz },
+      { grams: 180, slug: SEEDED.pollo }
+    ]
+  ),
+  dish(
+    'Lentils with rice',
+    ['lunch'],
+    [
+      { grams: 250, slug: SEEDED.lentejas },
+      { grams: 150, slug: SEEDED.arroz }
+    ]
+  ),
+  dish(
+    'Chicken with potato',
+    ['lunch'],
+    [
+      { grams: 200, slug: SEEDED.pollo },
+      { grams: 250, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Rice and lentils',
+    ['lunch'],
+    [
+      { grams: 200, slug: SEEDED.arroz },
+      { grams: 200, slug: SEEDED.lentejas }
+    ]
+  ),
   dish('Lentil bowl', ['lunch'], [{ grams: 350, slug: SEEDED.lentejas }]),
-  dish('Hake with potato', ['dinner'], [
-    { grams: 200, slug: SEEDED.merluza },
-    { grams: 220, slug: SEEDED.patata }
-  ]),
-  dish('Hake with rice', ['dinner'], [
-    { grams: 190, slug: SEEDED.merluza },
-    { grams: 200, slug: SEEDED.arroz }
-  ]),
-  dish('Chicken with rice', ['dinner'], [
-    { grams: 190, slug: SEEDED.pollo },
-    { grams: 210, slug: SEEDED.arroz }
-  ]),
-  dish('Egg with potato', ['dinner'], [
-    { grams: 150, slug: SEEDED.huevo },
-    { grams: 250, slug: SEEDED.patata }
-  ]),
-  dish('Hake with lentils', ['dinner'], [
-    { grams: 180, slug: SEEDED.merluza },
-    { grams: 200, slug: SEEDED.lentejas }
-  ])
+  dish(
+    'Hake with potato',
+    ['dinner'],
+    [
+      { grams: 200, slug: SEEDED.merluza },
+      { grams: 220, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Hake with rice',
+    ['dinner'],
+    [
+      { grams: 190, slug: SEEDED.merluza },
+      { grams: 200, slug: SEEDED.arroz }
+    ]
+  ),
+  dish(
+    'Chicken with rice',
+    ['dinner'],
+    [
+      { grams: 190, slug: SEEDED.pollo },
+      { grams: 210, slug: SEEDED.arroz }
+    ]
+  ),
+  dish(
+    'Egg with potato',
+    ['dinner'],
+    [
+      { grams: 150, slug: SEEDED.huevo },
+      { grams: 250, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Hake with lentils',
+    ['dinner'],
+    [
+      { grams: 180, slug: SEEDED.merluza },
+      { grams: 200, slug: SEEDED.lentejas }
+    ]
+  )
 ];
 
 describe('an English account, end to end', () => {
@@ -101,7 +158,9 @@ describe('an English account, end to end', () => {
   }, 120_000);
 
   afterAll(async () => {
-    if (account) {await request(httpServer(app)).delete(`/${PREFIX}/users/me`).set('Cookie', account.cookie);}
+    if (account) {
+      await request(httpServer(app)).delete(`/${PREFIX}/users/me`).set('Cookie', account.cookie);
+    }
 
     await app.close();
   });

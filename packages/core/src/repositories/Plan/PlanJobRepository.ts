@@ -35,7 +35,9 @@ export const PlanJobRepository = {
         .from(planGenerationJobs)
         .where(and(eq(planGenerationJobs.userId, userId), eq(planGenerationJobs.status, 'running'), lt(planGenerationJobs.startedAt, cutoff)));
 
-      if (stale.length === 0) {return 0;}
+      if (stale.length === 0) {
+        return 0;
+      }
 
       const ids = stale.map(row => row.id);
       const plans = await db
@@ -64,7 +66,9 @@ export const PlanJobRepository = {
     try {
       const [row] = await database().insert(planGenerationJobs).values({ status: 'queued', userId }).returning();
 
-      if (!row) {throw new DatabaseOperationError('Job insert returned no row');}
+      if (!row) {
+        throw new DatabaseOperationError('Job insert returned no row');
+      }
 
       return row;
     } catch (error: unknown) {
@@ -181,7 +185,9 @@ export const PlanJobRepository = {
 };
 
 function wrap(error: unknown): DatabaseOperationError {
-  if (error instanceof DatabaseOperationError) {return error;}
+  if (error instanceof DatabaseOperationError) {
+    return error;
+  }
 
   return new DatabaseOperationError();
 }

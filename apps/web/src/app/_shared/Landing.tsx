@@ -218,10 +218,6 @@ function faqSchema(faq: Dictionary['landing']['faq']): object {
   return {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
-    mainEntity: faq.map(item => ({
-      '@type': 'Question',
-      acceptedAnswer: { '@type': 'Answer', text: item.answer },
-      name: item.question
-    }))
+    mainEntity: faq.map(item => ({ '@type': 'Question', acceptedAnswer: { '@type': 'Answer', text: item.answer }, name: item.question }))
   };
 }

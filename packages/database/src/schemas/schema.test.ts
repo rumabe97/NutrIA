@@ -41,7 +41,9 @@ function isUserId(name: string): boolean {
 function config(name: string) {
   const table = tables.find(candidate => getTableConfig(candidate).name === name);
 
-  if (!table) {throw new Error(`No table named "${name}" in the schema barrel`);}
+  if (!table) {
+    throw new Error(`No table named "${name}" in the schema barrel`);
+  }
 
   return getTableConfig(table);
 }

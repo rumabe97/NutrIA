@@ -40,7 +40,9 @@ describe('the slots a shape leaves', () => {
   });
 
   it('never returns more slots than meals requested', () => {
-    for (const meals of [2, 3, 4, 5, 6]) {expect(slotsForTest(meals, true)).toHaveLength(meals);}
+    for (const meals of [2, 3, 4, 5, 6]) {
+      expect(slotsForTest(meals, true)).toHaveLength(meals);
+    }
   });
 });
 
@@ -50,7 +52,9 @@ describe('schedulePlan', () => {
 
     expect(result.ok).toBe(true);
 
-    if (result.ok) {expect(result.assignment.days).toHaveLength(PLAN_DAYS);}
+    if (result.ok) {
+      expect(result.assignment.days).toHaveLength(PLAN_DAYS);
+    }
   });
 
   it('gives every day every slot, in order', () => {
@@ -58,7 +62,9 @@ describe('schedulePlan', () => {
 
     expect(result.ok).toBe(true);
 
-    if (!result.ok) {return;}
+    if (!result.ok) {
+      return;
+    }
 
     for (const day of result.assignment.days) {
       expect(day.meals.map(meal => meal.slot)).toEqual(['breakfast', 'lunch', 'dinner']);
@@ -70,7 +76,9 @@ describe('schedulePlan', () => {
 
     expect(result.ok).toBe(true);
 
-    if (result.ok) {expect(varietyViolations(result.assignment.days)).toEqual([]);}
+    if (result.ok) {
+      expect(varietyViolations(result.assignment.days)).toEqual([]);
+    }
   });
 
   it('keeps every day within 10% of the calorie target', () => {
@@ -78,7 +86,9 @@ describe('schedulePlan', () => {
 
     expect(result.ok).toBe(true);
 
-    if (!result.ok) {return;}
+    if (!result.ok) {
+      return;
+    }
 
     for (const day of result.assignment.days) {
       expect(Math.abs(day.totals.kcal - TARGETS.kcal), `day ${day.dayIndex} at ${day.totals.kcal} kcal`).toBeLessThanOrEqual(TARGETS.kcal * 0.1);
@@ -97,7 +107,9 @@ describe('schedulePlan', () => {
 
     expect(result.ok).toBe(false);
 
-    if (!result.ok) {expect(result.shortfall).toMatchObject({ dayIndex: 1, reason: 'insufficient_pool', slot: 'dinner' });}
+    if (!result.ok) {
+      expect(result.shortfall).toMatchObject({ dayIndex: 1, reason: 'insufficient_pool', slot: 'dinner' });
+    }
   });
 
   it('reports a shortfall when the pool is too small for the variety rules', () => {
@@ -131,7 +143,9 @@ describe('schedulePlan', () => {
 
     expect(result.ok).toBe(true);
 
-    if (!result.ok) {return;}
+    if (!result.ok) {
+      return;
+    }
 
     for (const day of result.assignment.days) {
       for (const meal of day.meals) {
@@ -145,7 +159,9 @@ describe('schedulePlan', () => {
 
     expect(result.ok).toBe(true);
 
-    if (!result.ok) {return;}
+    if (!result.ok) {
+      return;
+    }
 
     for (const day of result.assignment.days) {
       for (const meal of day.meals) {
@@ -164,22 +180,20 @@ describe('schedulePlan', () => {
 
     expect(result.ok).toBe(true);
 
-    if (result.ok) {expect(result.assignment.days[0]?.totals.kcal).toBeGreaterThan(600);}
+    if (result.ok) {
+      expect(result.assignment.days[0]?.totals.kcal).toBeGreaterThan(600);
+    }
   });
 
   it('scales a dish ingredients alongside its servings', () => {
     const pool = [makeDish({ ingredients: [{ grams: 100, slug: 'base' }], servings: 1, slots: ['breakfast'], slug: 'only-breakfast' })];
-    const result = schedulePlan({
-      catalogue,
-      days: 1,
-      pool,
-      targets: { ...TARGETS, kcal: 400 },
-      weights: weightsFor(shapeFor(1, false))
-    });
+    const result = schedulePlan({ catalogue, days: 1, pool, targets: { ...TARGETS, kcal: 400 }, weights: weightsFor(shapeFor(1, false)) });
 
     expect(result.ok).toBe(true);
 
-    if (!result.ok) {return;}
+    if (!result.ok) {
+      return;
+    }
 
     const meal = result.assignment.days[0]?.meals[0];
 
@@ -189,12 +203,17 @@ describe('schedulePlan', () => {
   });
 
   it('ignores a dish whose ingredients are not in the catalogue', () => {
-    const pool = [...makePool(slotsForTest(3, false)), makeDish({ ingredients: [{ grams: 100, slug: 'no-existe' }], slots: ['lunch'], slug: 'fantasma' })];
+    const pool = [
+      ...makePool(slotsForTest(3, false)),
+      makeDish({ ingredients: [{ grams: 100, slug: 'no-existe' }], slots: ['lunch'], slug: 'fantasma' })
+    ];
     const result = schedule({ pool });
 
     expect(result.ok).toBe(true);
 
-    if (!result.ok) {return;}
+    if (!result.ok) {
+      return;
+    }
 
     const used = result.assignment.days.flatMap(day => day.meals.map(meal => meal.dish.slug));
 
@@ -211,9 +230,36 @@ describe('schedulePlan — protein, not just calories', () => {
    * did, repeatedly, before the scheduler learned to weigh both.
    */
   const realistic = makeCatalogue([
-    makeCatalogueIngredient({ id: 'i-arroz', carbsPer100g: 28, fatPer100g: 0.3, fiberPer100g: 0.4, kcalPer100g: 130, name: 'Arroz', proteinPer100g: 2.7, slug: 'arroz' }),
-    makeCatalogueIngredient({ id: 'i-pollo', carbsPer100g: 0, fatPer100g: 3.6, fiberPer100g: 0, kcalPer100g: 165, name: 'Pollo', proteinPer100g: 31, slug: 'pollo' }),
-    makeCatalogueIngredient({ id: 'i-yogur', carbsPer100g: 3.6, fatPer100g: 4, fiberPer100g: 0, kcalPer100g: 97, name: 'Yogur', proteinPer100g: 9, slug: 'yogur' })
+    makeCatalogueIngredient({
+      id: 'i-arroz',
+      carbsPer100g: 28,
+      fatPer100g: 0.3,
+      fiberPer100g: 0.4,
+      kcalPer100g: 130,
+      name: 'Arroz',
+      proteinPer100g: 2.7,
+      slug: 'arroz'
+    }),
+    makeCatalogueIngredient({
+      id: 'i-pollo',
+      carbsPer100g: 0,
+      fatPer100g: 3.6,
+      fiberPer100g: 0,
+      kcalPer100g: 165,
+      name: 'Pollo',
+      proteinPer100g: 31,
+      slug: 'pollo'
+    }),
+    makeCatalogueIngredient({
+      id: 'i-yogur',
+      carbsPer100g: 3.6,
+      fatPer100g: 4,
+      fiberPer100g: 0,
+      kcalPer100g: 97,
+      name: 'Yogur',
+      proteinPer100g: 9,
+      slug: 'yogur'
+    })
   ]);
 
   const slots = slotsForTest(3, false);
@@ -285,7 +331,9 @@ describe('schedulePlan — protein, not just calories', () => {
 
     expect(result.ok).toBe(true);
 
-    if (!result.ok) {return;}
+    if (!result.ok) {
+      return;
+    }
 
     for (const day of result.assignment.days) {
       expect(Math.abs(day.totals.proteinG - TARGETS.proteinG) <= TARGETS.proteinG * 0.15).toBe(true);
@@ -298,7 +346,9 @@ describe('schedulePlan — protein, not just calories', () => {
 
     expect(result.ok).toBe(true);
 
-    if (!result.ok) {return;}
+    if (!result.ok) {
+      return;
+    }
 
     const used = result.assignment.days.flatMap(day => day.meals.map(meal => meal.dish.slug));
 
@@ -323,7 +373,9 @@ describe('schedulePlan — protein, not just calories', () => {
 
     expect(result.ok).toBe(true);
 
-    if (!result.ok) {return;}
+    if (!result.ok) {
+      return;
+    }
 
     expect(result.assignment.days[0]?.totals.proteinG ?? 0).toBeLessThan(TARGETS.proteinG * 0.85);
   });
@@ -343,9 +395,36 @@ describe('schedulePlan — a large athlete on three meals a day', () => {
   const BIG: NutritionTargets = { carbsG: 566, fatG: 128, fiberG: 57, kcal: 4099, proteinG: 171 };
 
   const catalogue = makeCatalogue([
-    makeCatalogueIngredient({ id: 'i-arroz', carbsPer100g: 28, fatPer100g: 0.3, fiberPer100g: 0.4, kcalPer100g: 130, name: 'Arroz', proteinPer100g: 2.7, slug: 'arroz' }),
-    makeCatalogueIngredient({ id: 'i-pollo', carbsPer100g: 0, fatPer100g: 3.6, fiberPer100g: 0, kcalPer100g: 165, name: 'Pollo', proteinPer100g: 31, slug: 'pollo' }),
-    makeCatalogueIngredient({ id: 'i-aceite', carbsPer100g: 0, fatPer100g: 100, fiberPer100g: 0, kcalPer100g: 884, name: 'Aceite', proteinPer100g: 0, slug: 'aceite' })
+    makeCatalogueIngredient({
+      id: 'i-arroz',
+      carbsPer100g: 28,
+      fatPer100g: 0.3,
+      fiberPer100g: 0.4,
+      kcalPer100g: 130,
+      name: 'Arroz',
+      proteinPer100g: 2.7,
+      slug: 'arroz'
+    }),
+    makeCatalogueIngredient({
+      id: 'i-pollo',
+      carbsPer100g: 0,
+      fatPer100g: 3.6,
+      fiberPer100g: 0,
+      kcalPer100g: 165,
+      name: 'Pollo',
+      proteinPer100g: 31,
+      slug: 'pollo'
+    }),
+    makeCatalogueIngredient({
+      id: 'i-aceite',
+      carbsPer100g: 0,
+      fatPer100g: 100,
+      fiberPer100g: 0,
+      kcalPer100g: 884,
+      name: 'Aceite',
+      proteinPer100g: 0,
+      slug: 'aceite'
+    })
   ]);
 
   const slots = slotsForTest(3, false);
@@ -381,7 +460,9 @@ describe('schedulePlan — a large athlete on three meals a day', () => {
 
     expect(result.ok).toBe(true);
 
-    if (!result.ok) {return;}
+    if (!result.ok) {
+      return;
+    }
 
     for (const day of result.assignment.days) {
       expect(Math.abs(day.totals.kcal - BIG.kcal) <= BIG.kcal * 0.1).toBe(true);
@@ -393,7 +474,9 @@ describe('schedulePlan — a large athlete on three meals a day', () => {
 
     expect(result.ok).toBe(true);
 
-    if (!result.ok) {return;}
+    if (!result.ok) {
+      return;
+    }
 
     for (const day of result.assignment.days) {
       expect(day.totals.proteinG).toBeGreaterThanOrEqual(BIG.proteinG * 0.85);
@@ -406,9 +489,13 @@ describe('schedulePlan — a large athlete on three meals a day', () => {
 
     expect(result.ok).toBe(true);
 
-    if (!result.ok) {return;}
+    if (!result.ok) {
+      return;
+    }
 
-    expect(validatePlan({ assignment: result.assignment, expectedDays: 14, expectedSlots: slots, sex: 'male', targets: BIG, weightKg: 95 })).toEqual([]);
+    expect(validatePlan({ assignment: result.assignment, expectedDays: 14, expectedSlots: slots, sex: 'male', targets: BIG, weightKg: 95 })).toEqual(
+      []
+    );
   });
 });
 
@@ -419,9 +506,16 @@ describe('pickReplacement', () => {
     makeCatalogueIngredient({ id: 'i-oil', fatPer100g: 100, kcalPer100g: 884, proteinPer100g: 0, slug: 'oil' })
   ]);
   const budget = { kcal: 600, proteinG: 45 };
-  const lunch = (slug: string, ingredients: { grams: number; slug: string }[]) => makeDish({ ingredients, name: slug, servings: 1, slots: ['lunch'], slug });
-  const fits = lunch('chicken-rice', [{ grams: 200, slug: 'chicken' }, { grams: 250, slug: 'rice' }]);
-  const heavy = lunch('oil-bomb', [{ grams: 60, slug: 'oil' }, { grams: 50, slug: 'rice' }]);
+  const lunch = (slug: string, ingredients: { grams: number; slug: string }[]) =>
+    makeDish({ ingredients, name: slug, servings: 1, slots: ['lunch'], slug });
+  const fits = lunch('chicken-rice', [
+    { grams: 200, slug: 'chicken' },
+    { grams: 250, slug: 'rice' }
+  ]);
+  const heavy = lunch('oil-bomb', [
+    { grams: 60, slug: 'oil' },
+    { grams: 50, slug: 'rice' }
+  ]);
   const dinnerOnly = makeDish({ ingredients: [{ grams: 200, slug: 'chicken' }], name: 'dinner', slots: ['dinner'], slug: 'dinner-only' });
 
   it('picks the dish whose scaled macros land closest to the budget, for that slot only', () => {
@@ -442,10 +536,33 @@ describe('pickReplacement', () => {
   });
 
   it('puts a favourite first when it fits, and not when it does not', () => {
-    const alsoFits = lunch('turkey-rice', [{ grams: 210, slug: 'chicken' }, { grams: 240, slug: 'rice' }]);
+    const alsoFits = lunch('turkey-rice', [
+      { grams: 210, slug: 'chicken' },
+      { grams: 240, slug: 'rice' }
+    ]);
 
-    expect(pickReplacement({ budget, catalogue, dayIndex: 3, leaning: { preferSlugs: new Set(['turkey-rice']) }, placed: [], pool: [fits, alsoFits], slot: 'lunch' })?.dish.slug).toBe('turkey-rice');
-    expect(pickReplacement({ budget, catalogue, dayIndex: 3, leaning: { preferSlugs: new Set(['oil-bomb']) }, placed: [], pool: [fits, heavy], slot: 'lunch' })?.dish.slug).toBe('chicken-rice');
+    expect(
+      pickReplacement({
+        budget,
+        catalogue,
+        dayIndex: 3,
+        leaning: { preferSlugs: new Set(['turkey-rice']) },
+        placed: [],
+        pool: [fits, alsoFits],
+        slot: 'lunch'
+      })?.dish.slug
+    ).toBe('turkey-rice');
+    expect(
+      pickReplacement({
+        budget,
+        catalogue,
+        dayIndex: 3,
+        leaning: { preferSlugs: new Set(['oil-bomb']) },
+        placed: [],
+        pool: [fits, heavy],
+        slot: 'lunch'
+      })?.dish.slug
+    ).toBe('chicken-rice');
   });
 
   it('returns nothing when the pool has nothing for the slot', () => {
@@ -453,7 +570,14 @@ describe('pickReplacement', () => {
   });
 
   it('offers only what passes the filter, and nothing when nothing does', () => {
-    const quick = { ...lunch('quick-rice', [{ grams: 200, slug: 'chicken' }, { grams: 250, slug: 'rice' }]), cookMinutes: 0, prepMinutes: 5 };
+    const quick = {
+      ...lunch('quick-rice', [
+        { grams: 200, slug: 'chicken' },
+        { grams: 250, slug: 'rice' }
+      ]),
+      cookMinutes: 0,
+      prepMinutes: 5
+    };
     const slow = { ...fits, cookMinutes: 30, prepMinutes: 15 };
     const filter = axisFilter('quicker', { cookMinutes: 10, macros: { carbsG: 0, fatG: 0, fiberG: 0, kcal: 600, proteinG: 45 }, prepMinutes: 10 });
 
@@ -465,7 +589,11 @@ describe('pickReplacement', () => {
 describe('axisFilter', () => {
   const macros = { carbsG: 50, fatG: 10, fiberG: 5, kcal: 600, proteinG: 30 };
   const current = { cookMinutes: 20, macros, prepMinutes: 10 };
-  const dish = (prepMinutes: number, cookMinutes: number) => ({ ...makeDish({ ingredients: [], name: 'x', slots: ['lunch'], slug: 'x' }), cookMinutes, prepMinutes });
+  const dish = (prepMinutes: number, cookMinutes: number) => ({
+    ...makeDish({ ingredients: [], name: 'x', slots: ['lunch'], slug: 'x' }),
+    cookMinutes,
+    prepMinutes
+  });
 
   it('asks nothing when no axis was chosen', () => {
     expect(axisFilter(undefined, current)).toBeUndefined();

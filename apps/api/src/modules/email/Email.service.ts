@@ -64,7 +64,9 @@ export class EmailService {
 
   /** True when the provider accepted the message. Never throws: a mail failure is the caller's to interpret. */
   async send(message: OutgoingEmail): Promise<boolean> {
-    if (!this.transporter || !this.from) {return false;}
+    if (!this.transporter || !this.from) {
+      return false;
+    }
 
     try {
       await this.transporter.sendMail({ from: this.from, html: message.html, subject: message.subject, text: message.text, to: message.to });

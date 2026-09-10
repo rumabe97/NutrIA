@@ -22,5 +22,7 @@ import type { UserView } from 'core/controllers/User';
 export async function redirectUnlessReady(): Promise<void> {
   const user = await serverApi<UserView>('/users/me');
 
-  if (user && (!user.activated || !user.emailVerified)) {redirect('/pendiente');}
+  if (user && (!user.activated || !user.emailVerified)) {
+    redirect('/pendiente');
+  }
 }
