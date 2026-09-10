@@ -23,6 +23,12 @@ export const DEFAULT_LOCALE: Locale = 'es-ES';
  */
 export const LOCALE_COOKIE = 'nutria_locale';
 
+/**
+ * How long that cookie lives. A year: a language preference does not go stale,
+ * and asking again every session would be asking for nothing.
+ */
+export const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
+
 export function isLocale(value: unknown): value is Locale {
   return typeof value === 'string' && LOCALES.includes(value as Locale);
 }

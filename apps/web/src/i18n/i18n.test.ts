@@ -4,7 +4,7 @@ import { DEFAULT_LOCALE, isLocale, LOCALES, negotiateLocale, parseLocale } from 
 import { enGB } from './dictionaries/en-GB';
 import { esES } from './dictionaries/es-ES';
 import { interpolate } from './interpolate';
-import { isLocalised, LOCALISED_PATHS, localeFromPathname, withLocale, withoutLocale } from './routes';
+import { isLocalised, localeFromPathname, LOCALISED_PATHS, withLocale, withoutLocale } from './routes';
 
 describe('negotiateLocale', () => {
   it('falls back to the default when the header is absent', () => {
