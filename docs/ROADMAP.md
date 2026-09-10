@@ -60,6 +60,86 @@ screens at phone width, which closes project 002's two open gates.
    Opening access to everyone is now one switch: with automatic activation on, confirming
    the address opens the account (`0031`, amended); off, an admin turns the key.
 
+## Next, in this order
+
+Seven things the owner asked for on 2026-09-10, analysed against the code and
+reordered by what each unblocks. The order is a recommendation; the owner decides.
+
+### 1. A meal may be marked only once it could have been eaten
+
+**A bug, and it puts wrong data where the next plan reads from.**
+`PlanRepository.setMealStatus` checks that the plan is active and nothing else, so
+tomorrow's dinner can be marked eaten today. Adherence is built from those marks,
+and the check-in feeds them to the next fortnight.
+
+The rule that is actually wanted: a meal may be marked up to and including today,
+never in the future. Marking yesterday's lunch this morning is somebody catching
+up, which is legitimate and common.
+
+Small: one clause in the statement, one refusal, one end-to-end test.
+
+### 2. Which meals somebody eats, and how big each one is
+
+**Two of the owner's items, and they are the same change.** People who do not eat
+breakfast cannot describe themselves today: `slotsFor(mealsPerDay, includesSnacks)`
+takes the *first* N of breakfast, lunch, dinner — so "two meals" always means
+dropping dinner, never breakfast. And `slotBudgets` splits the day by a **global**
+`SLOT_WEIGHT` per slot, so "I eat lightly at breakfast" has nowhere to live.
+
+Both are answered by replacing "how many meals" with **a set of slots and a weight
+each** — the shape of somebody's day rather than a count of it. The scheduler needs
+no change at all: `slotBudgets` already normalises over whatever weights it is
+handed, so a lighter breakfast redistributes to the rest for free. What changes is
+onboarding, the profile, and one column.
+
+The onboarding question stops being "how many meals a day" and becomes "which of
+these do you eat, and how big is each" — which is also a better question.
+
+### 3. A box for what people think
+
+Cheap, and it starts collecting signal the day it ships. A table, a form, a section
+on `/admin` next to the funnel. It is listed third rather than last because
+everything after it is a guess until somebody writes in.
+
+### 4. A tour of what is already here
+
+The owner's own diagnosis: people do not know what the product does. Shown once to
+everyone — existing accounts included — and replayable from the profile, which means
+a `tour_seen_at` rather than browser storage: a tour that reappears on a second
+device is worse than one nobody sees.
+
+Worth doing **after** the meal shape, so the tour covers the product as it will be
+rather than as it was.
+
+### 5. Premium
+
+The honest line is the one that costs money: **AI generations beyond a free
+allowance**. The machinery is half-built — `ALLOWANCES` already caps redos and
+swaps per fortnight, so a paid tier is an entitlement that raises numbers that
+already exist, not a new concept.
+
+What it needs first: something worth paying for (2), and something that says what
+people miss (3). Billing itself is the smallest part.
+
+### 6. Advertising — recommended against
+
+Two reasons, and the first is arithmetic. Display advertising in this niche pays
+roughly one to five euros per thousand impressions. Covering even a small monthly
+model bill needs six figures of impressions a month, which needs tens of thousands
+of active people. At any scale this product will see in the next year, ads pay
+cents.
+
+The second is what it would cost. This is a health product: the pages that would
+carry the ads are the ones showing somebody's allergies, their weight and their
+conditions. An ad network's script in those pages hands a third party the context
+to infer all of it, and health data is a special category under GDPR Article 9 —
+consent for that is not a banner. Every deliberate decision in this codebase runs
+the other way: the browser never holds a database connection, the admin screen
+cannot read anybody's food, an analytics event carries no content.
+
+Premium sells the thing that costs money to the people who value it. Advertising
+sells the people.
+
 ## Later / someday
 
 - Admin: generation monitoring and failure review are done (`0028`, `/admin`). Safety-flag
