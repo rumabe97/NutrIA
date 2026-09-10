@@ -298,6 +298,8 @@ export const esES = {
   feedback: {
     intro: 'Lo lee una persona: yo. Cuenta lo que te falta, lo que te sobra o lo que no funciona.',
     kinds: { idea: 'Una idea', other: 'Otra cosa', problem: 'Algo falla' },
+    kindsLabel: '¿De qué se trata?',
+    messageLabel: 'Tu mensaje',
     placeholder: 'Escribe aquí…',
     send: 'Enviar',
     thanks: 'Recibido. Gracias por tomarte el rato.',

@@ -80,7 +80,7 @@ export function FeedbackInbox({ messages }: { messages: readonly FeedbackView[] 
       </ul>
 
       {error ? (
-        <Text className={styles.error} size="xs">
+        <Text className={styles.error} role="alert" size="xs">
           {error}
         </Text>
       ) : null}

@@ -101,7 +101,7 @@ export function VacationPlanner({ trips }: { trips: readonly VacationView[] }) {
       </form>
 
       {error ? (
-        <Text className={styles.error} size="xs">
+        <Text className={styles.error} role="alert" size="xs">
           {error}
         </Text>
       ) : null}

@@ -294,6 +294,8 @@ export const enGB: Dictionary = {
   feedback: {
     intro: 'A person reads this: me. Tell me what is missing, what is in the way, or what does not work.',
     kinds: { idea: 'An idea', other: 'Something else', problem: 'Something is broken' },
+    kindsLabel: 'What is this about?',
+    messageLabel: 'Your message',
     placeholder: 'Write here…',
     send: 'Send',
     thanks: 'Got it. Thanks for taking the time.',

@@ -46,11 +46,6 @@
   width: 100%;
 }
 
-.textarea:focus-visible {
-  border-color: var(--color-brand-09);
-  outline: none;
-}
-
 .done {
   display: grid;
   gap: var(--space-04);

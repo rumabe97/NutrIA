@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import styles from './CheckInForm.module.css';
 
@@ -37,6 +37,19 @@ export function CheckInForm({ latestKg, planEnded, planId }: CheckInFormProps) {
   const [error, setError] = useState<string>();
   const [fieldErrors, setFieldErrors] = useState<Record<string, readonly string[]>>({});
   const [result, setResult] = useState<CheckInResultView>();
+  const doneTitle = useRef<HTMLHeadingElement>(null);
+
+  /*
+   * Sending the form replaces it with the confirmation, so the button that was
+   * pressed no longer exists and focus falls to <body>. Nothing is announced
+   * and the next Tab starts again from the top of the page — after the one
+   * action of the fortnight. A live region would read the heading out while
+   * leaving focus in a form that is gone; moving to the heading matches what
+   * happened on screen.
+   */
+  useEffect(() => {
+    doneTitle.current?.focus();
+  }, [result]);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -69,7 +82,9 @@ export function CheckInForm({ latestKg, planEnded, planId }: CheckInFormProps) {
   if (result) {
     return (
       <section className={styles.done}>
-        <h2 className={styles.doneTitle}>{t.doneTitle}</h2>
+        <h2 className={styles.doneTitle} ref={doneTitle} tabIndex={-1}>
+          {t.doneTitle}
+        </h2>
         <Text tone="secondary">{t.doneBody}</Text>
         <ul className={styles.effects}>
           {result.weightLogged ? <li>{t.doneWeight}</li> : null}
