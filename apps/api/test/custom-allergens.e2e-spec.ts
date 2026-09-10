@@ -121,8 +121,9 @@ describe('free-text allergies, end to end', () => {
     const tomato = entries.find(entry => entry.label === 'Tomate');
     const shellfish = entries.find(entry => entry.label === 'marisco');
 
-    // Matched: it names the exact ingredient it will withhold.
-    expect(tomato?.ingredientName).toBe('Tomate');
+    // Matched: it names the exact ingredient it will withhold — the catalogue's
+    // name for it, which is not always the word the person typed.
+    expect(tomato?.ingredientName).toBe('Tomate fresco');
     // Unmatched, and stored as such. Storing it is the point — it has to reach
     // the screen that says we cannot guarantee it.
     expect(shellfish?.ingredientName).toBeNull();

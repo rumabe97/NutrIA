@@ -71,7 +71,7 @@ describe('AllExceptionsFilter', () => {
   });
 
   it('never leaks an unrecognised error, stack included', () => {
-    const body = capture(new Error('ENOENT: /home/ruben/secret/path')).body;
+    const body = capture(new Error('ENOENT: /srv/data/secret/path')).body;
 
     expect(body).toEqual({ code: 'INTERNAL_ERROR', message: 'Algo ha ido mal. Inténtalo de nuevo.', statusCode: 500 });
   });

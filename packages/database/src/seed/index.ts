@@ -2,6 +2,7 @@ import { config } from 'dotenv';
 import { eq, sql } from 'drizzle-orm';
 
 import { closeDatabase, database } from '../client';
+import { required } from '../env';
 import { allergens } from '../schemas/safety.schema';
 import { ingredientAllergens, ingredientNames, ingredients, ingredientSubstitutions } from '../schemas/food.schema';
 
@@ -21,8 +22,30 @@ config({ path: '.env' });
  * against these rows in production, so an empty `allergens` table means the
  * safety layer has nothing to enforce. It is not optional.
  */
+/** Host and database of `DATABASE_URL`, with everything secret about it left out. */
+function target(): string {
+  try {
+    const url = new URL(required('DATABASE_URL'));
+
+    return `${url.host}${url.pathname}`;
+  } catch {
+    return 'unreadable — DATABASE_URL is missing or malformed';
+  }
+}
+
 async function main(): Promise<void> {
   const db = database();
+
+  /*
+   * Says where it is about to write, before it writes.
+   *
+   * The connection string comes from whichever `.env` was found or whichever
+   * variable happened to be exported, and a shell that silently dropped one —
+   * an unquoted Neon URL, whose `&` ends the line — points this at a different
+   * database without a word. The credentials never appear; the host and the
+   * database name are what tell you it is the wrong one.
+   */
+  console.log(`[seed] target: ${target()}`);
 
   const allergenRows = await db
     .insert(allergens)
