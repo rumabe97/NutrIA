@@ -76,15 +76,23 @@ body::after {
 
 /* Reveal-on-scroll, driven by an IntersectionObserver in
    components/Reveal. Declared globally rather than per-module so every section
-   animates identically and there is one place to disable it. */
-[data-reveal] {
+   animates identically and there is one place to disable it.
+
+   A bare `[data-reveal]` is styled by nothing at all, deliberately: the resting
+   state is *visible*. Only the observer in components/Reveal moves an element
+   into `hidden`, and it only does that to elements sitting below the fold when
+   it runs. So the server's HTML is what paints — hero included, at first paint,
+   with no script involved — and a reader whose JavaScript is slow, blocked or
+   broken still gets the whole page rather than an empty one.
+
+   The reverse (everything starts at `opacity: 0`) is the version this replaced.
+   It cost the landing page its LCP: Chrome does not count a transparent element
+   as painted, so the largest element on the page did not exist as far as the
+   metric was concerned until React had hydrated, an effect had run, an observer
+   had fired and a 0.7s transition had played out. */
+[data-reveal='hidden'] {
   opacity: 0;
   transform: translateY(1.25rem);
-  transition:
-    opacity 0.7s var(--ease-spring),
-    transform 0.7s var(--ease-spring);
-  transition-delay: var(--reveal-delay, 0ms);
-  will-change: opacity, transform;
 }
 
 [data-reveal='shown'] {
@@ -92,11 +100,28 @@ body::after {
   transform: none;
 }
 
+/* On the two animated states only. An element that never animates has no
+   business holding a compositing layer for the life of the page. */
+[data-reveal='hidden'],
+[data-reveal='shown'] {
+  transition:
+    opacity 0.7s var(--ease-spring),
+    transform 0.7s var(--ease-spring);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
+
 /* Motion is decoration here, so it goes away entirely rather than being
    shortened — and the content must still be visible, which is why this resets
-   opacity rather than only the duration. */
+   opacity rather than only the duration. Reveal's effect already declines to
+   hide anything when this matches; these rules are what catches an element
+   mid-flight if the setting changes after the page has loaded.
+
+   All three selectors carry the same specificity as the rules above, so it is
+   source order that settles it. Keep this block last. */
 @media (prefers-reduced-motion: reduce) {
   [data-reveal],
+  [data-reveal='hidden'],
   [data-reveal='shown'] {
     opacity: 1;
     transform: none;
