@@ -2,20 +2,38 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
 import { CheckInController } from 'core/controllers/CheckIn';
+import { EventController } from 'core/controllers/Event';
 import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController, PlanJobController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
 
 import { ageInYears, resolveTargets } from 'core/domain/Nutrition';
+import { loadedDates, loadedTargets } from 'core/domain/Event';
+import { addDays } from 'core/domain/Vacation';
 import { toCatalogue } from 'core/entities/Plan';
 import { VARIETY_RULES } from 'core/domain/Variety';
 
-import { PlanGenerationService, STEPS } from './PlanGeneration.service.js';
+import { shapeFor } from 'core/domain/MealShape';
 
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
+import type { EventView } from 'core/controllers/Event';
+import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PoolBuilder, PoolResult } from '../../ai/services/PoolBuilder.service.js';
-import { shapeFor } from 'core/domain/MealShape';
+import type * as Scheduler from 'core/domain/Scheduler';
+
+/*
+ * The service's `schedulePlan` is a named import of a CommonJS export, fixed at
+ * link time, so a spy on the module object would never be seen. Mocked at the
+ * module seam instead, wrapping the real scheduler: every case still runs it,
+ * and the event cases can read what it was handed.
+ */
+const scheduler = jest.requireActual<typeof Scheduler>('core/domain/Scheduler');
+const schedulePlan = jest.fn<typeof scheduler.schedulePlan>(scheduler.schedulePlan);
+
+jest.unstable_mockModule('core/domain/Scheduler', () => ({ ...scheduler, schedulePlan }));
+
+const { PlanGenerationService, STEPS } = await import('./PlanGeneration.service.js');
 
 const GLUTEN = 'allergen-gluten';
 const SLOTS: readonly MealSlot[] = ['breakfast', 'lunch', 'dinner'];
@@ -118,7 +136,29 @@ const PROFILE = {
   targets: RESOLVED
 };
 
-type Mocks = { onboarding: unknown; persist: jest.Mock; profile: unknown; reusable: CandidateDish[]; safety: Set<string> };
+type Mocks = {
+  events: readonly EventView[];
+  onboarding: unknown;
+  persist: jest.Mock;
+  profile: unknown;
+  reusable: CandidateDish[];
+  safety: Set<string>;
+};
+
+/** What `persist` is handed, as far as these cases read it. */
+type Draft = {
+  days: { dayIndex: number; loadedFor: string | null; targets: NutritionTargets }[];
+  generationMetadata: { advisories: readonly string[] };
+  startDate: string;
+  strategy: NutritionTargets;
+};
+
+/** An event five days out that eats for two: days 4 and 5 of a plan laid out from today. */
+function race(on: string): EventView {
+  const shape = { carbs: 'up' as const, daysBefore: 2, fat: 'same' as const, on, protein: 'same' as const };
+
+  return { id: 'event-1', ...shape, loadedDates: loadedDates(shape), loading: false, name: 'Media maratón' };
+}
 
 function build(overrides: Partial<Mocks> = {}) {
   const persist = overrides.persist ?? (jest.fn(async () => Promise.resolve('plan-1')) as jest.Mock);
@@ -157,6 +197,7 @@ function build(overrides: Partial<Mocks> = {}) {
   jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(reusable);
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [], liked: [] });
   jest.spyOn(CheckInController, 'latestForGeneration').mockResolvedValue(null);
+  jest.spyOn(EventController, 'list').mockResolvedValue(overrides.events ?? []);
   jest.spyOn(PlanJobController, 'persist').mockImplementation(persist as never);
 
   const buildPool = jest.fn<(input: unknown) => Promise<PoolResult>>(async () =>
@@ -185,6 +226,7 @@ function build(overrides: Partial<Mocks> = {}) {
 describe('PlanGenerationService', () => {
   afterEach(() => {
     jest.restoreAllMocks();
+    schedulePlan.mockClear();
   });
 
   /*
@@ -435,5 +477,60 @@ describe('PlanGenerationService', () => {
     await service.generate('usr-1', 'job-1', async () => Promise.resolve());
 
     expect((persist.mock.calls[0]?.[1] as { newRecipes: unknown[] }).newRecipes).toEqual([]);
+  });
+
+  /*
+   * A day that eats for something (0043). The events are read as of the very
+   * date the plan is laid out from, so an event's days become day indices with
+   * nothing in between to be a day off; the scheduler is handed exactly those
+   * days, with their own targets; and the draft stamps them, by name.
+   */
+  it('hands the scheduler the days that eat for an event, and stamps them on the draft', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const event = race(addDays(today, 5));
+    const { persist, service } = build({ events: [event] });
+    const list = jest.spyOn(EventController, 'list');
+
+    await service.generate('user-1', 'job-1', async () => Promise.resolve());
+
+    const draft = persist.mock.calls[0]?.[1] as Draft;
+
+    expect(list).toHaveBeenCalledWith('user-1', draft.startDate);
+
+    const loaded = loadedTargets(TARGETS, event);
+    const dayTargets = schedulePlan.mock.calls[0]?.[0].dayTargets;
+
+    expect([...(dayTargets?.keys() ?? [])]).toEqual([4, 5]);
+    expect(dayTargets?.get(4)).toEqual(loaded);
+    expect(dayTargets?.get(5)).toEqual(loaded);
+
+    expect(draft.days.filter(day => day.loadedFor !== null).map(day => day.dayIndex)).toEqual([4, 5]);
+    expect(draft.days[3]).toMatchObject({ loadedFor: 'Media maratón', targets: loaded });
+    expect(draft.days[5]).toMatchObject({ loadedFor: null, targets: draft.strategy });
+  });
+
+  /*
+   * The bounds are the safety, and there is no other rule (0043, 0008). A load
+   * the profile's own bounds refuse is not applied: the day is built to the
+   * plan's targets like any other, carries no name, and the plan's record says
+   * what was refused and why.
+   */
+  it('leaves a day ordinary when the bounds refuse its load, and records the refusal', async () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const event = race(addDays(today, 5));
+    const { persist, service } = build({
+      events: [event],
+      profile: { targets: { ...RESOLVED, bounds: { ...RESOLVED.bounds, ceilingKcal: TARGETS.kcal } } }
+    });
+
+    await service.generate('user-1', 'job-1', async () => Promise.resolve());
+
+    expect(schedulePlan.mock.calls[0]?.[0].dayTargets?.size).toBe(0);
+
+    const draft = persist.mock.calls[0]?.[1] as Draft;
+
+    expect(draft.days.every(day => day.loadedFor === null)).toBe(true);
+    expect(draft.days.every(day => day.targets.kcal === draft.strategy.kcal)).toBe(true);
+    expect(draft.generationMetadata.advisories.join(' ')).toContain('kcal_above_ceiling');
   });
 });

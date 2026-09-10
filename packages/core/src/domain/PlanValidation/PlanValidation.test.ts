@@ -197,3 +197,30 @@ describe('isBlocking — what is worth discarding fourteen days of food for', ()
     ).toBe(true);
   });
 });
+
+/*
+ * A day that eats for something (`0043`) is aiming somewhere else on purpose.
+ * Judged against the plan's targets it would be recorded as drift on every plan
+ * with an event in it — and the record would be wrong, not the day.
+ */
+describe('validatePlan — a day that eats for something is judged against its own targets', () => {
+  const loaded = { ...TARGETS, carbsG: Math.round(TARGETS.carbsG * 1.2), kcal: Math.round(TARGETS.kcal * 1.2) };
+
+  const withLoadedDay = () => {
+    const assignment = scheduled();
+
+    return { days: assignment.days.map((day, index) => (index === 2 ? { ...day, totals: { ...day.totals, kcal: loaded.kcal } } : day)) };
+  };
+
+  it('reports no drift on a loaded day that hit its own targets', () => {
+    const violations = validatePlan({ ...base, assignment: withLoadedDay(), dayTargets: new Map([[3, loaded]]) });
+
+    expect(violations.some(violation => violation.kind === 'kcal_out_of_band')).toBe(false);
+  });
+
+  it("is the same day reported as drift when judged against the plan's alone", () => {
+    const violations = validatePlan({ ...base, assignment: withLoadedDay() });
+
+    expect(violations.some(violation => violation.kind === 'kcal_out_of_band' && violation.dayIndex === 3)).toBe(true);
+  });
+});
