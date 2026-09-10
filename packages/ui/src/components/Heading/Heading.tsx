@@ -23,7 +23,7 @@ export interface HeadingProps extends ComponentPropsWithRef<HeadingTag> {
   level: HeadingLevel;
   /** Visual size tier (`--font-size-05`–`09`, 18→36px). Defaults to a per-level value; override when visual and semantic hierarchy diverge. */
   size?: HeadingSize;
-  /** Text colour (`--foreground-01/02/03`). `tertiary` is sub-AA — use sparingly. Defaults to `primary`. */
+  /** Text colour (`--foreground-01/02/03`). Every tone meets WCAG AA. Defaults to `primary`. */
   tone?: HeadingTone;
   /** Font weight. Defaults to `semibold`. */
   weight?: HeadingWeight;

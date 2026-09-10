@@ -37,7 +37,7 @@
 
 .textarea {
   background-color: var(--surface-card);
-  border: 1px solid var(--border-01);
+  border: 1px solid var(--border-interactive);
   border-radius: var(--radius-03);
   color: inherit;
   font: inherit;

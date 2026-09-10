@@ -82,7 +82,7 @@
 
 .button.secondary {
   background-color: var(--background-01);
-  border: 1px solid var(--border-01);
+  border: 1px solid var(--border-interactive);
   color: var(--foreground-01);
 }
 

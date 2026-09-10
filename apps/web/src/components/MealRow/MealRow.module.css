@@ -15,7 +15,7 @@
 .tick {
   align-items: center;
   background: none;
-  border: 1.5px solid var(--border-02, var(--border-01));
+  border: 1.5px solid var(--border-interactive);
   border-radius: var(--radius-full);
   color: transparent;
   cursor: pointer;
@@ -201,7 +201,7 @@
 }
 
 .tick[data-static='true']:hover {
-  border-color: var(--border-02, var(--border-01));
+  border-color: var(--border-interactive);
   color: transparent;
 }
 

@@ -292,7 +292,7 @@ The full token catalog lives in [`src/styles/variables.css`](src/styles/variable
 | Radius                           | `--radius-01` … `--radius-05`, `--radius-full`                               |
 | Surfaces                         | `--background-01` / `02` / `highlight`, `--color-glass`, `--color-overlay`   |
 | Text                             | `--foreground-01` / `02` / `03` / `disabled`                                 |
-| Border                           | `--border-01`                                                                |
+| Border                           | `--border-01` (dividers), `--border-interactive` (the edge of a control)     |
 | Interactive                      | `--color-hover`, `--color-highlighted`, `--color-selected`, `--color-switch` |
 | State                            | `--color-success`, `--color-error`, `--color-warning`                        |
 | Brand                            | `--color-brand-01` … `--color-brand-12`                                      |
@@ -520,6 +520,7 @@ These aren't landmarks but they have specific requirements:
 - **`<dialog>` / modal** — needs `aria-labelledby` (or `aria-label`) plus focus management (trap focus while open, restore on close). The DS `Dialog`, `Drawer`, and `Sidebar` components handle all of this internally and require `title` at the prop level. They also accept an **optional `description`** prop: pass it when there's explanatory content the modal needs to convey to assistive tech (e.g. "Are you sure? This will permanently delete the project."). Skip it for simple confirmation modals where the title alone is enough. When omitted, the components explicitly opt out of `aria-describedby` so Radix/vaul don't warn — but if there's any explanatory copy in the modal body, prefer to surface it via `description` so it gets announced.
 - **`<table>`** (data tables) — should include `<caption>`. We don't currently have a data-table primitive in the DS; if you build one, enforce caption.
 - **`<video>` / `<audio>`** — provide captions or a transcript.
+- **The edge of a control** — an input, a secondary button, a checkbox: whatever line says where the target is must be `--border-interactive` (≈3:1), not `--border-01`. `--border-01` is for dividers, where the line carries no information and WCAG 1.4.11 does not apply.
 - **Interactive controls (`<button>`, `<a>`, form inputs)** — need an accessible name. For inputs, use a `<label>` (the DS `Input` requires `label` at the prop level). For icon-only buttons, add `aria-label`.
 - **Active navigation links** — when a link points at the current page, add `aria-current="page"`. The DS `Link` accepts `aria-current` and forwards it. Screen readers announce "current page" so non-sighted users know where they are in the nav. CSS-only `.active` styling doesn't reach them.
 - **Inline links in prose** — when a `Link` sits inside body text, set `inline` on it so it gets an underline + brand colour. WCAG 1.4.1 says colour alone can't identify a link; the default `Link` inherits its parent's style (good for nav, breadcrumbs, headers) so prose contexts must opt in to the visible affordance.
