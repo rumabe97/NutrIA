@@ -32,6 +32,19 @@ export const mealPlans = pgTable(
     endDate: date().notNull(),
     /** Model, prompt version, token counts, retries — for the admin failure view. */
     generationMetadata: jsonb().$type<Record<string, unknown>>(),
+    /**
+     * How many times this fortnight has been rebuilt for an event declared
+     * *after* it was generated (`0044`). Its own counter, on the plan, because
+     * the allowance is per plan and the plan row is where a per-plan count
+     * belongs — and because incrementing it in the same transaction that writes
+     * the rebuilt days is what stops two requests spending the last one.
+     *
+     * Deliberately not derived from `plan_days.loaded_for`: a day loaded at
+     * generation time and a day loaded mid-plan look identical there, and
+     * counting both would charge somebody for an event they declared before
+     * they ever had a plan.
+     */
+    midPlanLoads: smallint().notNull().default(0),
     previousPlanId: uuid(),
     startDate: date().notNull(),
     status: planStatus().notNull().default('draft'),

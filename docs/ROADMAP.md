@@ -136,8 +136,13 @@ A user's request, relayed by the owner: add the race, or the long session, and
 let the days before it eat for it. An event is a name, a date, one to three days
 before, and per macro *up / down / same* — never an amount; the size is one
 constant in code. Applied at the next generation; the plan day remembers what it
-was built to. In-place rescheduling of a live fortnight, the days after,
-recurring events and per-type suggestions are deliberately later.
+was built to. The days after, recurring events and per-type suggestions are
+deliberately later.
+
+In-place rescheduling arrived the same day, for premium
+([`0044`](./decisions/0044-a-fortnight-rebuilt-for-an-event.md)): an event added
+mid-fortnight rebuilds its loaded days from the library — no model call — and
+a fortnight holds at most three events free, ten paid.
 
 ### 6. Advertising — recommended against
 

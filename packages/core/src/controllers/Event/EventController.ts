@@ -1,6 +1,8 @@
-import { ConflictError, InputParseError, NotFoundError } from 'core/entities/Error';
+import { ConflictError, InputParseError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
 import { EventRepository } from '#repositories/Event';
-import { loadedDates, loadStartsOn, problemWith } from 'core/domain/Event';
+import { PlanRepository } from '#repositories/Plan';
+import { loadedDates, loadStartsOn, planWindow, problemWith, windowFor } from 'core/domain/Event';
+import { PlanController } from 'core/controllers/Plan';
 
 import type { AddEvent, Event, MacroDirection } from 'core/entities/Event';
 
@@ -45,12 +47,14 @@ function present(event: Event, today: string): EventView {
  * A day that asks more of the body, and the days before it that eat for it
  * (`0043`).
  *
- * Declaring one changes nothing about a plan already made. It is read at the
- * next generation, which lays the days out from today and gives each date that
- * eats for an event the targets `core/domain/Event` derives — and stamps the
- * name on the day, so the plan says why. A person who wants it in the fortnight
- * already under way regenerates, which spends a redo; that is the existing
- * machinery and the honest price.
+ * Declaring one changes nothing about a plan already made, here. It is read at
+ * the next generation, which lays the days out from today and gives each date
+ * that eats for an event the targets `core/domain/Event` derives — and stamps
+ * the name on the day, so the plan says why. A paid account may instead have
+ * the fortnight under way rebuilt for it on the spot (`0044`); that is the
+ * API's `PlanLoadRebuildService`, which runs after this and writes through
+ * `PlanController.rebuildLoadedDays`. Everybody else regenerates, which spends
+ * a redo — the existing machinery and the honest price.
  */
 export const EventController = {
   /**
@@ -58,6 +62,8 @@ export const EventController = {
    *
    * The refusals are about days that cannot be re-eaten: a load that would
    * already have started, and a day that would have to eat for two things.
+   * Then the fortnight's own cap (`0044`), which is an allowance rather than a
+   * mistake — 429, the status for "not now", the same answer a spent swap gets.
    */
   async add(userId: string, event: AddEvent, today = isoToday()): Promise<EventView> {
     const problem = problemWith(event, today, await EventRepository.findUpcoming(userId, today));
@@ -70,6 +76,16 @@ export const EventController = {
       throw new InputParseError('The days before this event have already happened', {
         on: [`must be at least ${event.daysBefore} day(s) after today`]
       });
+    }
+
+    // Counted against the fortnight this event's load lands in, which is not
+    // necessarily the one under way: a race the week after next belongs to the
+    // fortnight that will cover it, and is held to that fortnight's number.
+    const window = windowFor(event, planWindow(await PlanRepository.findActive(userId), today));
+    const standing = await PlanController.eventStanding(userId, window);
+
+    if (!standing.allowed) {
+      throw new QuotaExceededError('event');
     }
 
     return present(await EventRepository.create(userId, event), today);

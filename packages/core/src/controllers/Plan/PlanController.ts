@@ -1,6 +1,10 @@
 import { ConflictError, MealInFutureError, NotFoundError, PlanPausedError, QuotaExceededError } from 'core/entities/Error';
 import { LIVED_PLAN_STATUSES } from 'core/entities/Plan';
-import { allowancesFor, mealSwapStanding, planRedoStanding, redosInFortnight } from 'core/domain/Allowance';
+import { allowancesFor, eventStanding, mealSwapStanding, midPlanEventStanding, planRedoStanding, redosInFortnight } from 'core/domain/Allowance';
+import { eventsInWindow, planWindow } from 'core/domain/Event';
+import { MAX_DAYS_BEFORE } from 'core/entities/Event';
+import { addDays } from 'core/domain/Vacation';
+import { EventRepository } from '#repositories/Event';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { PlanJobRepository, PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
@@ -11,8 +15,9 @@ import { SafetyController } from 'core/controllers/Safety';
 import { SettingsController } from 'core/controllers/Settings';
 import { alternativesFor } from 'core/domain/Substitution';
 import type { Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
-import type { MealSwapStanding, PlanRedoStanding, Tier } from 'core/domain/Allowance';
+import type { CountedStanding, MealSwapStanding, PlanRedoStanding, Tier } from 'core/domain/Allowance';
 import type { NutritionTargets } from 'core/entities/Nutrition';
+import type { PlanWindow } from 'core/domain/Event';
 
 // --- Presenters ---------------------------------------------------------------
 
@@ -99,8 +104,26 @@ export interface ShoppingListView {
   planId: string;
 }
 
+/**
+ * Days that eat for something this fortnight (`0044`): how many the plan
+ * window may hold and how many it still may. Counted over the active plan's
+ * days, or over the fortnight the next generation will cover.
+ */
+export interface EventAllowancesView {
+  limit: number;
+  /**
+   * Rebuilding the fortnight under way for one more event, or **null** on a
+   * tier that has none. Null rather than a zero limit on purpose: the screen
+   * shows the control when this is present and shows nothing at all otherwise
+   * — no upsell, no disabled button — and a zero would have to be read as one.
+   */
+  midPlan: { limit: number; remaining: number } | null;
+  remaining: number;
+}
+
 /** What the person may still do this fortnight, for the screen to say before they try. */
 export interface AllowancesView {
+  events: EventAllowancesView;
   mealSwaps: MealSwapStanding;
   planRedo: PlanRedoStanding;
   /**
@@ -176,11 +199,23 @@ export const PlanController = {
       PlanController.tierOf(userId)
     ]);
     const fromActive = active ? chain.filter(plan => plan.version <= active.version) : [];
-    const swaps = active ? await PlanRepository.countSwaps(active.id) : 0;
+    const today = isoToday();
+    const [swaps, events] = await Promise.all([
+      active ? PlanRepository.countSwaps(active.id) : 0,
+      PlanController.eventStanding(userId, planWindow(active, today), tier)
+    ]);
+    // The counter is on the plan row and dies with the plan, which is what
+    // "per plan" means; a plan that has ended is not one that can be rebuilt.
+    const midPlan = midPlanEventStanding(active && active.endDate >= today ? active.midPlanLoads : 0, tier);
 
     return {
+      events: {
+        limit: events.limit,
+        midPlan: midPlan.limit > 0 ? { limit: midPlan.limit, remaining: midPlan.remaining } : null,
+        remaining: events.remaining
+      },
       mealSwaps: mealSwapStanding(swaps, tier),
-      planRedo: planRedoStanding(active ? { endDate: active.endDate } : undefined, redosInFortnight(fromActive), isoToday(), tier),
+      planRedo: planRedoStanding(active ? { endDate: active.endDate } : undefined, redosInFortnight(fromActive), today, tier),
       tier
     };
   },
@@ -217,6 +252,27 @@ export const PlanController = {
         };
       })
     );
+  },
+
+  /**
+   * How many events a fortnight already eats for, and how many more it may
+   * (`0044`).
+   *
+   * The window is a parameter rather than resolved here because two callers
+   * want different ones: `allowances` asks about the fortnight under way, and
+   * `EventController.add` asks about the fortnight a new event would land in.
+   * Here rather than on `EventController` because that controller already
+   * needs `tierOf` from this one, and a controller that imports back is a cycle.
+   */
+  async eventStanding(userId: string, window: PlanWindow, tier?: Tier): Promise<CountedStanding> {
+    const [resolved, dated] = await Promise.all([
+      tier ?? PlanController.tierOf(userId),
+      // Widened by the longest load: an event just past the window's end can
+      // still move days inside it. `eventsInWindow` then decides which do.
+      EventRepository.findInRange(userId, window.from, addDays(window.to, MAX_DAYS_BEFORE))
+    ]);
+
+    return eventStanding(eventsInWindow(dated, window).length, resolved);
   },
 
   /** For generation: the next plan version, and what the user was served last fortnight. */
@@ -330,6 +386,33 @@ export const PlanController = {
     }
 
     return found;
+  },
+
+  /**
+   * Rewrites the days of the active plan that eat for an event declared after
+   * the plan was made (`0044`), spending one of the tier's mid-plan events.
+   *
+   * The days, the meals, the shopping list and the counter commit together or
+   * not at all — see `PlanRepository.rebuildLoadedDays`. Paused like every
+   * other change to a plan (`0032`): while somebody is away their plan does not
+   * change, and this is a change.
+   *
+   * The caller has already done the food: which days, from which library, past
+   * which gate. What is decided here is only whether this account may.
+   */
+  async rebuildLoadedDays(
+    userId: string,
+    planId: string,
+    days: Parameters<typeof PlanRepository.rebuildLoadedDays>[2]['days'],
+    shoppingItems: readonly ShoppingItemDraft[]
+  ): Promise<void> {
+    await assertNotPaused(userId);
+    await PlanRepository.rebuildLoadedDays(
+      userId,
+      planId,
+      { days, limit: allowancesFor(await PlanController.tierOf(userId)).midPlanEventsPerPlan },
+      shoppingItems
+    );
   },
 
   /**

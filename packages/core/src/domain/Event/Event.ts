@@ -1,4 +1,5 @@
 import { KCAL_PER_G } from 'core/entities/Nutrition';
+import { PLAN_DAYS } from 'core/domain/Scheduler';
 import { addDays } from 'core/domain/Vacation';
 
 import type { AddEvent, MacroDirection } from 'core/entities/Event';
@@ -78,6 +79,60 @@ export function overlaps(one: Pick<AddEvent, 'daysBefore' | 'on'>, other: Pick<A
  */
 export function eventOn<T extends Pick<AddEvent, 'daysBefore' | 'on'>>(date: string, events: readonly T[]): T | null {
   return events.find(event => loadedDates(event).includes(date)) ?? null;
+}
+
+/** A stretch of dated days, both ends included — the fortnight an event is counted against. */
+export type PlanWindow = { readonly from: string; readonly to: string };
+
+/**
+ * The fortnight an event belongs to (`0044`).
+ *
+ * The active plan's own days when there is one, because that is the fortnight
+ * the person is living and the one a load would change. With no plan it is
+ * today and the thirteen days after — the fortnight the next generation will
+ * lay out — so that somebody declaring three races before their first plan
+ * exists is held to the same number as everybody else, rather than to none.
+ */
+export function planWindow(active: { readonly endDate: string; readonly startDate: string } | null | undefined, today: string): PlanWindow {
+  if (!active || active.endDate < today) {
+    return { from: today, to: addDays(today, PLAN_DAYS - 1) };
+  }
+
+  return { from: active.startDate, to: active.endDate };
+}
+
+/**
+ * The events whose load lands inside the window — the ones this fortnight is
+ * actually eating for.
+ *
+ * By loaded days rather than by the event's own date, because the load is what
+ * touches the plan: a race on the Sunday after a plan ends still moves the
+ * Friday and Saturday inside it, and an event on the plan's first day moves
+ * only days that belong to the fortnight before.
+ */
+export function eventsInWindow<T extends Pick<AddEvent, 'daysBefore' | 'on'>>(events: readonly T[], window: PlanWindow): readonly T[] {
+  return events.filter(event => loadedDates(event).some(date => window.from <= date && date <= window.to));
+}
+
+/**
+ * The fortnight a new event is counted against: `base` when its load touches
+ * it, otherwise the fortnights that follow, tiled forward from `base`, the
+ * first one the load touches.
+ *
+ * Without this, an event declared for the week after next would be counted
+ * against nothing — the fortnight it belongs to has no plan yet — and the cap
+ * would be a cap only on people who declare things late. Fortnights follow one
+ * another, so the fortnight after this one is a real thing to count against.
+ */
+export function windowFor(event: Pick<AddEvent, 'daysBefore' | 'on'>, base: PlanWindow): PlanWindow {
+  const startsOn = loadStartsOn(event);
+  let window = base;
+
+  while (window.to < startsOn) {
+    window = { from: addDays(window.to, 1), to: addDays(window.to, PLAN_DAYS) };
+  }
+
+  return window;
 }
 
 export type EventProblem = 'in-the-past' | 'overlaps';

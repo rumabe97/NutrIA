@@ -90,12 +90,17 @@ export class SafetyViolationError extends Error {
  */
 /**
  * Thrown when a person has used up an allowance — a redo of the fortnight's
- * plan, a swap of a meal. `nextAt` is the ISO date the allowance renews, when
- * it renews on a date rather than with the next plan.
+ * plan, a swap of a meal, a day that eats for something. `nextAt` is the ISO
+ * date the allowance renews, when it renews on a date rather than with the next
+ * plan.
+ *
+ * `event` is the cap on how many loaded days a fortnight may hold; the fifth
+ * race in a fortnight is not a fifth plan, it is a training block. `mid_plan_event`
+ * is the paid one: rebuilding the fortnight already under way (`0044`).
  */
 export class QuotaExceededError extends Error {
   constructor(
-    public readonly kind: 'meal_swap' | 'plan_redo',
+    public readonly kind: 'event' | 'meal_swap' | 'mid_plan_event' | 'plan_redo',
     public readonly nextAt: string | null = null
   ) {
     super('Quota exceeded');
