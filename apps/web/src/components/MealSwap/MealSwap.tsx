@@ -1,5 +1,5 @@
 'use client';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -41,12 +41,34 @@ export function MealSwap({ limit, mealId, remaining, totalMinutes }: MealSwapPro
   const dictionary = useDictionary();
   const t = dictionary.meal;
   const name = useId();
+  const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const wasOpen = useRef(false);
   const [open, setOpen] = useState(false);
   const [choice, setChoice] = useState<Choice>('any');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [left, setLeft] = useState(remaining);
   const spent = left <= 0;
+
+  /*
+   * Closing unmounts the panel with focus still inside it, which leaves focus on
+   * <body>: no announcement, and the next Tab restarts the page. Back to the
+   * button that opened it — or, when the last change has just been spent and
+   * that button is now disabled, to the toolbar around it. After the render, so
+   * `disabled` is the one on screen and not the one of a moment ago.
+   */
+  useEffect(() => {
+    if (wasOpen.current && !open) {
+      if (trigger.current?.disabled === false) {
+        trigger.current.focus();
+      } else {
+        root.current?.focus();
+      }
+    }
+
+    wasOpen.current = open;
+  }, [open]);
 
   const options: readonly { hint: string; label: string; value: Choice }[] = [
     { hint: t.swapAxisAnyHint, label: t.swapAxisAny, value: 'any' },
@@ -81,13 +103,16 @@ export function MealSwap({ limit, mealId, remaining, totalMinutes }: MealSwapPro
   const hint = spent ? interpolate(t.swapSpent, { limit }) : left === 1 ? interpolate(t.swapHintOne, { limit }) : interpolate(t.swapHint, { limit, remaining: left });
 
   return (
-    <div className={styles.root}>
+    <div className={styles.root} ref={root} tabIndex={-1}>
       <Button
-        aria-controls={`${name}-panel`}
+        // Only while the panel is on the page: `aria-controls` pointing at an id
+        // that does not exist is a promise the DOM cannot keep.
+        aria-controls={open ? `${name}-panel` : undefined}
         aria-expanded={open}
         className={styles.trigger}
         disabled={spent || pending}
         onClick={() => setOpen(value => !value)}
+        ref={trigger}
         size="sm"
         type="button"
         variant="secondary"
@@ -132,9 +157,21 @@ export function MealSwap({ limit, mealId, remaining, totalMinutes }: MealSwapPro
             >
               {dictionary.common.cancel}
             </Button>
-            <Text as="p" className={styles.hint} size="xs" tone={error ? 'secondary' : 'tertiary'}>
-              {error ?? hint}
-            </Text>
+            {/* An alert only when something failed: the idle line is a count of
+                what is left, and a live region around it would read the footer
+                out every time the panel opens. Separate keys so the alert is
+                *inserted* rather than edited in place — a role appearing on an
+                element that was already there is announced by some readers and
+                not others. */}
+            {error ? (
+              <Text as="p" className={styles.hint} key="error" role="alert" size="xs" tone="secondary">
+                {error}
+              </Text>
+            ) : (
+              <Text as="p" className={styles.hint} key="hint" size="xs" tone="tertiary">
+                {hint}
+              </Text>
+            )}
           </div>
         </div>
       ) : null}

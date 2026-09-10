@@ -60,7 +60,6 @@ export function GenerationProgress() {
       job = await api<JobView>('/meal-plans/generate', { method: 'POST' });
     } catch (error) {
       // 429 is the generation limit, not a failure of the plan itself.
-      // 429 is the generation limit, not a failure of the plan itself.
       setFatal(
         error instanceof ApiError && error.code === 'QUOTA_EXCEEDED'
           ? interpolate(dictionary.generation.quotaExceeded, { date: error.retryAt ? formatDate(error.retryAt, locale, { day: 'numeric', month: 'long' }) : '' })
@@ -115,7 +114,7 @@ export function GenerationProgress() {
     return (
       <div className={styles.shell}>
         <h1 className={styles.title}>{dictionary.generation.couldNotStart}</h1>
-        <p className={styles.error}>{fatal}</p>
+        <p className={styles.error} role="alert">{fatal}</p>
         <div className={styles.actions}>
           <Button onClick={() => void start()} type="button">
             {dictionary.common.retry}
@@ -134,7 +133,7 @@ export function GenerationProgress() {
     return (
       <div className={styles.shell}>
         <h1 className={styles.title}>{copy.title}</h1>
-        <p className={styles.error}>{copy.body}</p>
+        <p className={styles.error} role="alert">{copy.body}</p>
 
         {/* The provider's own words, already redacted server-side. This product is
             self-hosted — whoever sees this screen is also whoever can fix it, so
