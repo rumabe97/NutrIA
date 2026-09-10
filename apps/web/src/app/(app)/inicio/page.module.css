@@ -68,6 +68,24 @@
   margin-bottom: var(--gap-heading);
 }
 
+/*
+ * These two are `<h2>` for the outline and styled back down to what they looked
+ * like as text — a heading is a structural claim, not a size. Weight and colour
+ * come from the shared heading reset; only what `<Text size="lg">` and
+ * `<Text size="sm" tone="tertiary">` were adding is restated here.
+ */
+.todayTitle {
+  font-size: var(--font-size-04);
+  line-height: var(--line-height-04);
+}
+
+.targetsTitle {
+  color: var(--foreground-03);
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-04);
+}
+
 .meals {
   display: grid;
   margin-top: var(--gap-block);

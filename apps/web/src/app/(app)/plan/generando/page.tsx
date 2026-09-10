@@ -2,7 +2,15 @@ import { GenerationProgress } from 'components/GenerationProgress';
 
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 
+import { appMetadata } from '../../../_shared/metadata';
+
+import type { Metadata } from 'next';
+
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return appMetadata('/plan/generando');
+}
 
 export default async function GeneratingPage() {
   // The API refuses to start a job without a finished profile; this stops the

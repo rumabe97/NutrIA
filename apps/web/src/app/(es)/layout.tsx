@@ -1,5 +1,6 @@
 import { rootMetadata, siteViewport } from '../_shared/metadata';
 import { RootShell } from '../_shared/RootShell';
+import { SiteJsonLd } from '../_shared/SiteJsonLd';
 
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
@@ -19,5 +20,10 @@ export const viewport: Viewport = siteViewport;
  * and served from the edge instead of rendered per visitor.
  */
 export default function SpanishRootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  return <RootShell locale="es-ES">{children}</RootShell>;
+  return (
+    <RootShell locale="es-ES">
+      <SiteJsonLd locale="es-ES" />
+      {children}
+    </RootShell>
+  );
 }

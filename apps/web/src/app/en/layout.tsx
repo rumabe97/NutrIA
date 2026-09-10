@@ -1,5 +1,6 @@
 import { rootMetadata, siteViewport } from '../_shared/metadata';
 import { RootShell } from '../_shared/RootShell';
+import { SiteJsonLd } from '../_shared/SiteJsonLd';
 
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
@@ -16,5 +17,10 @@ export const viewport: Viewport = siteViewport;
  * `<html lang>` can only be set by a root layout, which is why this is one.
  */
 export default function EnglishRootLayout({ children }: Readonly<{ children: ReactNode }>) {
-  return <RootShell locale="en-GB">{children}</RootShell>;
+  return (
+    <RootShell locale="en-GB">
+      <SiteJsonLd locale="en-GB" />
+      {children}
+    </RootShell>
+  );
 }

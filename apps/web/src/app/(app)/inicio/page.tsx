@@ -21,9 +21,12 @@ import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { resumesOn } from 'lib/vacation';
 import { serverApi } from 'lib/server-api';
 
+import { appMetadata } from '../../_shared/metadata';
+
 import type { CheckInStatusView } from 'core/controllers/CheckIn';
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { FullProfileView } from 'core/controllers/Profile';
+import type { Metadata } from 'next';
 import type { PlanView } from 'core/controllers/Plan';
 import type { UserView } from 'core/controllers/User';
 import type { VacationView } from 'core/controllers/Vacation';
@@ -31,6 +34,9 @@ import type { WeightView } from 'core/controllers/Progress';
 
 export const dynamic = 'force-dynamic';
 
+export async function generateMetadata(): Promise<Metadata> {
+  return appMetadata('/inicio');
+}
 
 /** Only the fields the dashboard's snapshot needs. The shopping screen reads the rest. */
 type ShoppingListView = { items: readonly { category: string }[] };
@@ -130,9 +136,10 @@ export default async function DashboardPage() {
 
                   <section className={styles.todayCard}>
                     <div className={styles.todayHeading}>
-                      <Text size="lg" weight="semibold">
-                        {t.today}
-                      </Text>
+                      {/* A heading, not a bold paragraph: this screen had one
+                          `<h1>` and nothing else, so navigating it by heading
+                          landed on the greeting and stopped. */}
+                      <h2 className={styles.todayTitle}>{t.today}</h2>
                       <CtaLink href="/plan" size="sm" variant="ghost">
                         {t.seeAllDays}
                       </CtaLink>
@@ -184,11 +191,11 @@ export default async function DashboardPage() {
                 between them rather than a margin each one invents. */}
             <div className={styles.railBlock}>
               <div className={styles.targetsLabel}>
-                <Text size="sm" tone="tertiary">
+                <h2 className={styles.targetsTitle}>
                   {interpolate(t.targetsLabel, {
                     status: profile.targets.overrideStatus === 'applied' ? t.targetsStatusOverridden : t.targetsStatusEstimated
                   })}
-                </Text>
+                </h2>
                 <CtaLink href="/perfil" size="sm" variant="ghost">
                   {t.targetsAdjust}
                 </CtaLink>

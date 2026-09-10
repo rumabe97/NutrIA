@@ -4,10 +4,17 @@ import { FLOW, OnboardingFlow, TOTAL_STEPS } from 'components/OnboardingFlow';
 
 import { serverApi } from 'lib/server-api';
 
+import { appMetadata } from '../../../_shared/metadata';
+
 import type { Allergen } from 'core/entities/Safety';
 import type { FullProfileView } from 'core/controllers/Profile';
+import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return appMetadata('/onboarding');
+}
 
 /**
  * Server-rendered so every step arrives with the user's saved answers already
