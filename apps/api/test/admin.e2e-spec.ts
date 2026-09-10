@@ -79,9 +79,12 @@ describe('admin', () => {
     expect(page.rows.length).toBeLessThanOrEqual(page.size);
 
     expect(queued).toMatchObject({ activated: false, emailVerified: false });
-    // Address, dates and role. A screen that can read what somebody eats is how
-    // an admin surface becomes a way to read health data.
-    expect(Object.keys(queued ?? {}).sort()).toEqual(['activated', 'createdAt', 'email', 'emailVerified', 'id', 'role']);
+    // Address, dates, role and tier. A screen that can read what somebody eats is
+    // how an admin surface becomes a way to read health data — `tier` is on this
+    // list because it is a fact about billing that the owner has to see to know
+    // who they granted, and nothing about a person's body or their food ever
+    // joins it. The assertion is exhaustive so adding a field is a decision.
+    expect(Object.keys(queued ?? {}).sort()).toEqual(['activated', 'createdAt', 'email', 'emailVerified', 'id', 'role', 'tier']);
   });
 
   it('opens a waiting account, and the account is open afterwards', async () => {
@@ -123,6 +126,36 @@ describe('admin', () => {
       .send({ enabled: true, flag: 'automaticActivation' })
       .expect(200);
     await expect(SettingsController.automaticActivation()).resolves.toBe(true);
+  });
+
+  /**
+   * The owner's half of the tier (`0042`): the column moves, and the list says
+   * so. That the *allowances* follow is proved where an account has a plan to
+   * spend them on — `plan-lifecycle`, which is also where the switch outranking
+   * the column can be seen as behaviour rather than as a number.
+   *
+   * Granted with the `premium` switch off on purpose: that is how the owner sets
+   * up who should have it before turning it on, and the grant must not depend on
+   * the switch's position.
+   */
+  it('moves an account between tiers, and the list says which it is on', async () => {
+    const server = httpServer(app);
+
+    await request(server).patch(`/${PREFIX}/admin/accounts/${ordinary.id}/tier`).set('Cookie', owner.cookie).send({ tier: 'premium' }).expect(200);
+
+    const listed: Response = await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', owner.cookie).expect(200);
+
+    expect((listed.body as Paged<AccountView>).rows.find(account => account.id === ordinary.id)).toMatchObject({ tier: 'premium' });
+
+    await request(server).patch(`/${PREFIX}/admin/accounts/${ordinary.id}/tier`).set('Cookie', owner.cookie).send({ tier: 'free' }).expect(200);
+  });
+
+  it('answers 404 when the account whose tier is being moved does not exist', async () => {
+    await request(httpServer(app))
+      .patch(`/${PREFIX}/admin/accounts/usr-nobody/tier`)
+      .set('Cookie', owner.cookie)
+      .send({ tier: 'premium' })
+      .expect(404);
   });
 
   /*

@@ -15,3 +15,8 @@ import type { FlagName } from 'core/domain/Flag';
 export const setFlagSchema = z.object({ enabled: z.boolean(), flag: z.enum(FLAG_NAMES as [FlagName, ...FlagName[]]) });
 
 export type SetFlag = z.infer<typeof setFlagSchema>;
+
+/** Moving one account between tiers (`0042`). The owner's decision, so the body is only the destination. */
+export const setTierSchema = z.object({ tier: z.enum(['free', 'premium']) });
+
+export type SetTier = z.infer<typeof setTierSchema>;

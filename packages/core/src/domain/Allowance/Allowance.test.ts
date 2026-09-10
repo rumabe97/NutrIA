@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ALLOWANCES, mealSwapStanding, planRedoStanding, redosInFortnight } from 'core/domain/Allowance';
+import { ALLOWANCES, allowancesFor, mealSwapStanding, planRedoStanding, redosInFortnight } from 'core/domain/Allowance';
 
 describe('planRedoStanding', () => {
   it('always allows a first plan, and the next fortnight once the current one has ended', () => {
@@ -42,5 +42,37 @@ describe('mealSwapStanding', () => {
     expect(mealSwapStanding(0)).toEqual({ allowed: true, limit: ALLOWANCES.mealSwapsPerPlan, remaining: ALLOWANCES.mealSwapsPerPlan, used: 0 });
     expect(mealSwapStanding(ALLOWANCES.mealSwapsPerPlan)).toMatchObject({ allowed: false, remaining: 0 });
     expect(mealSwapStanding(ALLOWANCES.mealSwapsPerPlan + 2)).toMatchObject({ allowed: false, remaining: 0 });
+  });
+});
+
+describe('allowancesFor', () => {
+  it('gives premium more of both', () => {
+    expect(allowancesFor('premium').planRedosPerFortnight).toBeGreaterThan(allowancesFor('free').planRedosPerFortnight);
+    expect(allowancesFor('premium').mealSwapsPerPlan).toBeGreaterThan(allowancesFor('free').mealSwapsPerPlan);
+  });
+
+  /*
+   * This is read where the answer decides whether somebody may spend a model
+   * call. A value nobody recognises must grant the smaller number, never the
+   * larger — the failure that costs money is the one that grants too much.
+   */
+  it('falls back to free for anything it does not recognise', () => {
+    expect(allowancesFor(null)).toEqual(allowancesFor('free'));
+    expect(allowancesFor(undefined)).toEqual(allowancesFor('free'));
+    expect(allowancesFor('gold' as never)).toEqual(allowancesFor('free'));
+  });
+
+  it('is what the standings count against', () => {
+    expect(mealSwapStanding(6, 'premium')).toMatchObject({ allowed: true, limit: allowancesFor('premium').mealSwapsPerPlan });
+    expect(mealSwapStanding(6, 'free')).toMatchObject({ allowed: false, limit: allowancesFor('free').mealSwapsPerPlan });
+
+    expect(planRedoStanding({ endDate: '2026-09-20' }, 1, '2026-09-09', 'premium')).toMatchObject({ allowed: true });
+    expect(planRedoStanding({ endDate: '2026-09-20' }, 1, '2026-09-09', 'free')).toMatchObject({ allowed: false });
+  });
+
+  /* A caller that forgets to say which tier gets the free one, not the generous one. */
+  it('treats an unstated tier as free', () => {
+    expect(mealSwapStanding(6)).toMatchObject({ allowed: false });
+    expect(planRedoStanding({ endDate: '2026-09-20' }, 1, '2026-09-09')).toMatchObject({ allowed: false });
   });
 });

@@ -5,6 +5,16 @@ import { timestamps } from './_columns';
 export const userRole = pgEnum('user_role', ['user', 'admin']);
 
 /**
+ * What an account is allowed to spend (`0042`).
+ *
+ * Two values and no dates: while the owner grants this by hand there is nothing
+ * to expire. If billing ever writes it, it will bring a subscription table with
+ * its own periods, and this column will say what that table decided rather than
+ * trying to hold the decision itself.
+ */
+export const userTier = pgEnum('user_tier', ['free', 'premium']);
+
+/**
  * Better Auth owns the four tables below and maps onto them **by name** through
  * its Drizzle adapter — column names here are its contract, not our choice.
  * `role` is the one column we add; it is the only thing `AdminGuard` trusts.
@@ -28,6 +38,7 @@ export const user = pgTable('user', {
   image: text(),
   name: text().notNull(),
   role: userRole().notNull().default('user'),
+  tier: userTier().notNull().default('free'),
   ...timestamps
 });
 

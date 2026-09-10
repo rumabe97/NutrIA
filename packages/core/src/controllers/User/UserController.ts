@@ -1,6 +1,6 @@
 import { NotFoundError } from 'core/entities/Error';
 import { UserRepository } from '#repositories/User';
-import type { User } from 'core/entities/User';
+import type { User, UserTier } from 'core/entities/User';
 
 /**
  * Structure every controller here follows:
@@ -33,6 +33,13 @@ export interface UserView {
   image: string | null;
   name: string;
   role: 'admin' | 'user';
+  /**
+   * What the account may spend, as its row has it — *not* what it may spend
+   * today. The `premium` switch can be off, in which case the allowances are
+   * free ones regardless. `PlanController.allowances` is the only answer that
+   * has taken the switch into account; this is the column.
+   */
+  tier: 'free' | 'premium';
 }
 
 function presentUser(user: User): UserView {
@@ -44,7 +51,8 @@ function presentUser(user: User): UserView {
     emailVerified: user.emailVerified,
     image: user.image,
     name: user.name,
-    role: user.role
+    role: user.role,
+    tier: user.tier
   };
 }
 
@@ -54,7 +62,15 @@ function presentUser(user: User): UserView {
  * One account on the admin list: the two locks, when it arrived and what it is.
  * No profile, no answers — only what a decision about access needs (`0028`).
  */
-export type AccountView = { id: string; activated: boolean; createdAt: string; email: string; emailVerified: boolean; role: 'admin' | 'user' };
+export type AccountView = {
+  id: string;
+  activated: boolean;
+  createdAt: string;
+  email: string;
+  emailVerified: boolean;
+  role: 'admin' | 'user';
+  tier: 'free' | 'premium';
+};
 
 /** What a caller may ask for, and what it gets back with it. A screen needs the total to draw the pager. */
 export type Page = { readonly offset?: number; readonly size?: number };
@@ -115,5 +131,18 @@ export const UserController = {
   /** The runbook's role statement (see the repository). No route reaches it. */
   async grantAdmin(email: string): Promise<boolean> {
     return UserRepository.grantAdmin(email);
+  },
+
+  /**
+   * Moves an account between tiers (`0042`).
+   *
+   * Deliberately not gated on the `premium` switch. The switch decides whether
+   * the tier is *worth* anything today, and granting one while it is off is how
+   * the owner sets up whoever should have it before turning it on. Reading the
+   * switch here would make the two settings depend on the order they are used
+   * in, which is the kind of rule nobody remembers a week later.
+   */
+  async setTier(id: string, tier: UserTier): Promise<{ readonly email: string } | null> {
+    return UserRepository.setTier(id, tier);
   }
 };

@@ -1,13 +1,14 @@
-import { Controller, Get, Inject, Param, Post, Query, Res } from '@nestjs/common';
+import { Controller, Get, Inject, Param, Patch, Post, Query, Res } from '@nestjs/common';
 import { ApiCreatedResponse, ApiExcludeEndpoint, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { DEFAULT_WEB_LOCALE, webUrl } from 'core/domain/WebUrl';
 
 import { AdminAccountsService } from '../services/index.js';
 import { ENV } from '../../../config/index.js';
-import { Public, Roles } from '../../../shared/index.js';
+import { Public, Roles, ZodBody } from '../../../shared/index.js';
+import { SetTierDto } from '../dto/in/index.js';
 
-import type { AccountsDto, ActivatedAccountDto } from '../dto/out/index.js';
+import type { AccountsDto, ActivatedAccountDto, TierChangedDto } from '../dto/out/index.js';
 import type { Env } from '../../../config/index.js';
 import type { Response } from 'express';
 
@@ -41,6 +42,13 @@ export class AdminAccountsController {
   @Post('accounts/:id/activate')
   async activate(@Param('id') id: string): Promise<ActivatedAccountDto> {
     return this.accounts.activate(id);
+  }
+
+  @ApiOkResponse({ description: 'The address whose tier moved, and where it moved to.' })
+  @ApiOperation({ summary: 'Move one account between tiers' })
+  @Patch('accounts/:id/tier')
+  async setTier(@Param('id') id: string, @ZodBody(SetTierDto) body: SetTierDto): Promise<TierChangedDto> {
+    return this.accounts.setTier(id, body);
   }
 
   /**

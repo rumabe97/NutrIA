@@ -272,11 +272,22 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   Signing up is never refused. Opening an account is `UserController.activate({ email | id })`,
   by button from the owner's mail (a signed, expiring token, one account, nothing else) or from
   the list on `/admin`.
-- **One switch** (`0031`, amended): `app_settings.automatic_activation` decides what confirming
-  an address does — opens the account, or leaves it in the owner's queue. Read in Better Auth's
-  `emailVerification.afterEmailVerification` at the moment of the click, never remembered from
-  sign-up. Automatic is the default: a missing settings row must never start queueing people.
-  `GET /settings` (`@AllowUnverified()`) is how the waiting screen knows which wait it is.
+- **The switches** (`0031` amended, `0042`): `app_settings` holds them, one row each, and
+  **`core/domain/Flag` is the only place that says which exist**. Never invent a key at a call
+  site and never rename one — the row *is* the state, so a renamed key reads as a switch nobody
+  ever threw and silently restores the fallback somebody moved away from. Every flag declares
+  which way it fails when no row exists (a product question, different per flag) and who may
+  read it. `GET /settings` (`@AllowUnverified()`) carries only the `signed-in` ones; `/admin`
+  gets all of them. `automatic_activation` decides what confirming an address does, read in
+  Better Auth's `emailVerification.afterEmailVerification` at the moment of the click and never
+  remembered from sign-up; automatic is its fallback, because a missing row must never start
+  queueing people.
+- **Tiers** (`0042`): `user.tier` is `free` or `premium`, moved by the owner from `/admin`.
+  What an account may *actually* spend is `PlanController.tierOf` — **the `premium` flag first,
+  then the column** — so turning the tier off is one click rather than a migration over
+  everybody ever granted it. Never read a tier from the caller; it decides whether a model call
+  may be spent. `allowancesFor` falls back to free for anything it does not recognise, because
+  the failure that costs money is the one that grants too much.
 - **Owner notice** (`0029`, amended): sent from `afterEmailVerification` when activation is
   manual — the only moment an account joins the queue. It never throws (a confirmation must not
   fail because a mailbox did) and it is the only mail carrying a user's address, because

@@ -5,7 +5,8 @@ import { UserController } from 'core/controllers/User';
 import { ENV } from '../../../config/index.js';
 import { verifyActivationToken } from '../../auth/services/ActivationLink.js';
 
-import type { AccountsDto, ActivatedAccountDto } from '../dto/out/index.js';
+import type { SetTierDto } from '../dto/in/index.js';
+import type { AccountsDto, ActivatedAccountDto, TierChangedDto } from '../dto/out/index.js';
 import type { Env } from '../../../config/index.js';
 
 @Injectable()
@@ -36,6 +37,22 @@ export class AdminAccountsService {
     }
 
     return this.activate(userId);
+  }
+
+  /**
+   * Moves one account between tiers (`0042`).
+   *
+   * A 404 when nothing matched, like every other denial: the owner typing an id
+   * that does not exist learns the same thing a stranger would.
+   */
+  async setTier(id: string, body: SetTierDto): Promise<TierChangedDto> {
+    const moved = await UserController.setTier(id, body.tier);
+
+    if (!moved) {
+      throw new NotFoundException();
+    }
+
+    return { email: moved.email, tier: body.tier };
   }
 
   /**

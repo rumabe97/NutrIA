@@ -20,8 +20,10 @@ export const userSchema = z.object({
   image: z.string().nullable(),
   name: z.string().min(1).max(100),
   role: z.enum(['user', 'admin']),
+  tier: z.enum(['free', 'premium']),
   updatedAt: z.date()
 });
 
 export type User = z.infer<typeof userSchema>;
 export type UserRole = User['role'];
+export type UserTier = User['tier'];

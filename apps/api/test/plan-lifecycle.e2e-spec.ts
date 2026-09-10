@@ -3,6 +3,9 @@ import request from 'supertest';
 
 import { completeOnboarding, createApp, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
 
+import { SettingsController } from 'core/controllers/Settings';
+import { UserController } from 'core/controllers/User';
+
 import type { Account } from './harness.js';
 import type { AllowancesView, PlanSummaryView, PlanView } from 'core/controllers/Plan';
 import type { INestApplication } from '@nestjs/common';
@@ -178,6 +181,51 @@ describe('plan lifecycle', () => {
     expect((after.body as AllowancesView).planRedo).toMatchObject({ allowed: false, used: 1 });
     // A spent allowance is a 429 with a date, never a silent refusal.
     await request(server).post(`/${PREFIX}/meal-plans/generate`).set('Cookie', account.cookie).expect(429);
+  });
+
+  /**
+   * The paid tier, as behaviour rather than as a number (`0042`).
+   *
+   * This account has just spent its one free redo and is being refused. Premium
+   * is three, so the same account should be allowed again — but only while the
+   * switch says the tier exists at all.
+   *
+   * The order is the decision: the flag outranks the column, so a granted
+   * account with the switch off is still on the free allowances, and throwing
+   * the switch gives them back without touching a row. Both directions are
+   * checked, because a switch that only works one way is worse than none.
+   */
+  it('gives a spent redo back on premium, and takes it away again with the switch', async () => {
+    const server = httpServer(app);
+
+    const redo = async () => {
+      const response: Response = await request(server).get(`/${PREFIX}/meal-plans/allowances`).set('Cookie', account.cookie).expect(200);
+
+      return (response.body as AllowancesView).planRedo;
+    };
+
+    await UserController.setTier(account.id, 'premium');
+
+    // Granted, switch off: nothing changes, and the tier reads free.
+    expect(await redo()).toMatchObject({ allowed: false, limit: 1 });
+    await expect(request(server).get(`/${PREFIX}/meal-plans/allowances`).set('Cookie', account.cookie)).resolves.toMatchObject({
+      body: { tier: 'free' }
+    });
+
+    await SettingsController.setFlag('premium', true);
+
+    // Switch on: the same spent redo is allowed again, against a higher limit.
+    const granted = await redo();
+
+    expect(granted.allowed).toBe(true);
+    expect(granted.limit).toBeGreaterThan(1);
+    expect(granted.used).toBe(1);
+
+    await SettingsController.setFlag('premium', false);
+
+    // Switch off again: back to the free numbers, with the grant still on the row.
+    expect(await redo()).toMatchObject({ allowed: false, limit: 1 });
+    await UserController.setTier(account.id, 'free');
   });
 
   it('keeps the replaced plan in the history, and it is still readable as it was', async () => {
