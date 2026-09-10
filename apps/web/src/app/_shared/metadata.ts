@@ -40,7 +40,14 @@ export const siteViewport: Viewport = {
 export function rootMetadata(locale: Locale): Metadata {
   const dictionary = dictionaryFor(locale);
 
-  return { description: dictionary.landing.lede, metadataBase: new URL(SITE_URL), title: `NutrIA — ${dictionary.landing.title}` };
+  return {
+    description: dictionary.landing.lede,
+    // Per language, because a manifest's `start_url` decides which language an
+    // installed app opens in, and an installed app has no address bar to correct.
+    manifest: withLocale('/manifest.webmanifest', locale),
+    metadataBase: new URL(SITE_URL),
+    title: `NutrIA — ${dictionary.landing.title}`
+  };
 }
 
 /**

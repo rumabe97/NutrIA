@@ -489,6 +489,10 @@ export const enGB: Dictionary = {
     protein: 'Protein'
   },
 
+  manifest: {
+    description: 'Personalised meal plans, adjusted every two weeks.'
+  },
+
   meal: {
     alternatives: 'If you can’t find it',
     back: '← Back to the plan',
