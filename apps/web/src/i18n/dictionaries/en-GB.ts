@@ -874,6 +874,45 @@ export const enGB: Dictionary = {
     unknown: '—'
   },
 
+  tour: {
+    back: 'Back',
+    closing: 'You can see this again from your profile whenever you like. And if something is missing, tell me right there.',
+    done: 'Got it',
+    next: 'Next',
+    progress: '{step} of {of}',
+    replayBody: 'A quick run through what NutrIA does, in case you skipped it or want to see it again.',
+    replayCta: 'See the tour',
+    replayTitle: 'How NutrIA works',
+    skip: 'Skip',
+    stops: {
+      checkIn: {
+        body: 'When the fourteen days are up we ask for your weight and how it went. That is what sets the targets for the next plan — it is what makes each fortnight fit you better.',
+        cta: 'Go to the check-in',
+        title: 'The fortnight check-in'
+      },
+      plan: {
+        body: 'Every fourteen days NutrIA builds a whole plan around your targets, your allergies and what you like. You do not have to choose anything: it is already done.',
+        cta: 'See the plan',
+        title: 'Your fortnight, already planned'
+      },
+      shape: {
+        body: 'If you skip breakfast, take it out. If you eat a light dinner, say so. The day is shared out between the meals you actually eat.',
+        cta: 'Adjust my meals',
+        title: 'Say which meals you eat, and how big'
+      },
+      swap: {
+        body: 'Every meal has a button to change it, and you can say what you want instead: quicker, no cooking, more protein or vegetarian. You get a few changes each fortnight.',
+        cta: 'See the plan',
+        title: 'Don\'t fancy a dish? Change it'
+      },
+      trip: {
+        body: 'Mark the days you will be away and the fortnight pauses: the days that were left are still there when you get back.',
+        cta: 'Mark a trip',
+        title: 'Going away? The plan waits'
+      }
+    }
+  },
+
   units: {
     gram: 'g',
     kcal: 'kcal',

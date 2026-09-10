@@ -142,6 +142,18 @@ export const ProfileRepository = {
     }
   },
 
+  /** Writes when the tour was shown, or clears it so it is offered again (`0038`). */
+  async setTourSeen(userId: string, seen: boolean): Promise<void> {
+    try {
+      await database()
+        .update(profiles)
+        .set({ tourSeenAt: seen ? new Date() : null, updatedAt: new Date() })
+        .where(eq(profiles.userId, userId));
+    } catch (error: unknown) {
+      throw wrap(error, 'profiles');
+    }
+  },
+
   /** Insert-or-update, because onboarding writes the profile one step at a time. */
   async upsert(userId: string, input: UpdateProfile): Promise<Profile> {
     try {

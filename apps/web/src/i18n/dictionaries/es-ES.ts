@@ -879,6 +879,45 @@ export const esES = {
     unknown: '—'
   },
 
+  tour: {
+    back: 'Atrás',
+    closing: 'Puedes volver a ver esto cuando quieras desde tu perfil. Y si te falta algo, cuéntamelo ahí mismo.',
+    done: 'Ya está',
+    next: 'Siguiente',
+    progress: '{step} de {of}',
+    replayBody: 'Un repaso de lo que hace NutrIA, por si te lo saltaste o quieres verlo otra vez.',
+    replayCta: 'Ver el tutorial',
+    replayTitle: 'Cómo funciona NutrIA',
+    skip: 'Saltar',
+    stops: {
+      checkIn: {
+        body: 'Al terminar los catorce días te preguntamos el peso y cómo ha ido. Con eso se ajustan los objetivos del plan siguiente: es lo que hace que cada quincena se parezca más a ti.',
+        cta: 'Ir al check-in',
+        title: 'El check-in de cada quincena'
+      },
+      plan: {
+        body: 'Cada catorce días NutrIA arma un plan completo con tus objetivos, tus alergias y lo que te gusta. No tienes que elegir nada: ya está hecho.',
+        cta: 'Ver el plan',
+        title: 'Tu quincena, ya planificada'
+      },
+      shape: {
+        body: 'Si no desayunas, quítalo. Si cenas ligero, dilo. Las calorías del día se reparten entre las comidas que sí haces.',
+        cta: 'Ajustar mis comidas',
+        title: 'Di qué comidas haces y de qué tamaño'
+      },
+      swap: {
+        body: 'Cada comida tiene un botón para cambiarla, y puedes pedir qué quieres a cambio: más rápida, sin cocinar, con más proteína o vegetariana. Tienes unos cuantos cambios por quincena.',
+        cta: 'Ver el plan',
+        title: '¿No te apetece un plato? Cámbialo'
+      },
+      trip: {
+        body: 'Marca los días que estarás fuera y la quincena se pausa: los días que quedaban siguen ahí cuando vuelvas, no los pierdes.',
+        cta: 'Marcar un viaje',
+        title: 'Si te vas, el plan te espera'
+      }
+    }
+  },
+
   units: {
     gram: 'g',
     kcal: 'kcal',

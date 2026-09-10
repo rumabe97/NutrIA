@@ -2,7 +2,7 @@ import { Body, Controller, Get, Patch } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { ProfileController } from 'core/controllers/Profile';
-import { updateGoalSchema, updatePreferencesSchema, updateProfileSchema } from 'core/entities/Profile';
+import { setTourSeenSchema, updateGoalSchema, updatePreferencesSchema, updateProfileSchema } from 'core/entities/Profile';
 import { updateTargetOverrideSchema } from 'core/entities/Nutrition';
 
 import { CurrentUser, Locale } from '../../shared/decorators/index.js';
@@ -12,7 +12,7 @@ import type { FullProfileView, GoalView, PreferencesView, ProfileView } from 'co
 import type { ResolvedTargets } from 'core/domain/Nutrition';
 import type { UpdateTargetOverride } from 'core/entities/Nutrition';
 import type { SessionUser } from '../../shared/decorators/index.js';
-import type { UpdateGoal, UpdatePreferences, UpdateProfile } from 'core/entities/Profile';
+import type { SetTourSeen, UpdateGoal, UpdatePreferences, UpdateProfile } from 'core/entities/Profile';
 
 /**
  * The user id is taken from `@CurrentUser()` on every route and passed as the
@@ -50,6 +50,19 @@ export class ProfilesController {
     @Body(new ZodValidationPipe(updateTargetOverrideSchema)) body: UpdateTargetOverride
   ): Promise<ResolvedTargets> {
     return ProfileController.updateTargets(user.id, body);
+  }
+
+  /**
+   * The tour is marked seen by the screen that showed it, and unmarked by the
+   * person who wants it again (`0038`). Both directions are the same route
+   * because they are the same fact, written twice.
+   */
+  @ApiOperation({ summary: 'Mark the tour as seen, or ask for it again' })
+  @Patch('tour')
+  async setTourSeen(@CurrentUser() user: SessionUser, @Body(new ZodValidationPipe(setTourSeenSchema)) body: SetTourSeen): Promise<{ seen: boolean }> {
+    await ProfileController.setTourSeen(user.id, body.seen);
+
+    return { seen: body.seen };
   }
 
   @ApiOperation({ summary: 'Update eating, lifestyle and cooking preferences' })

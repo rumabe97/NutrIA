@@ -20,6 +20,8 @@ export interface ProfileView {
   locale: string;
   sex: Profile['sex'];
   timezone: string;
+  /** Whether the tour has been shown, so a screen knows to offer it (`0038`). */
+  tourSeen: boolean;
   updatedAt: string;
 }
 
@@ -76,6 +78,7 @@ function presentProfile(profile: Profile): ProfileView {
     locale: profile.locale,
     sex: profile.sex,
     timezone: profile.timezone,
+    tourSeen: profile.tourSeenAt !== null,
     updatedAt: profile.updatedAt.toISOString()
   };
 }
@@ -235,6 +238,17 @@ export const ProfileController = {
     if (!profile) {throw new NotFoundError('Profile not found');}
 
     return presentProfile(profile);
+  },
+
+  /**
+   * Marks the tour shown, or asks for it again (`0038`).
+   *
+   * A timestamp rather than a flag, because "when" answers a question a flag
+   * cannot: whether somebody saw the tour before or after the thing it now
+   * describes existed.
+   */
+  async setTourSeen(userId: string, seen: boolean): Promise<void> {
+    await ProfileRepository.setTourSeen(userId, seen);
   },
 
   async updateGoal(userId: string, input: UpdateGoal): Promise<GoalView> {

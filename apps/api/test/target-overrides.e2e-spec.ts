@@ -6,6 +6,7 @@ import type { Response } from 'supertest';
 import { completeOnboarding, createApp, dish, generateAndWait, httpServer, PREFIX, register, ScriptedAiClient, SEEDED } from './harness.js';
 
 import type { Account } from './harness.js';
+import type { FullProfileView } from 'core/controllers/Profile';
 import type { INestApplication } from '@nestjs/common';
 import type { PlanView } from 'core/controllers/Plan';
 import type { ResolvedTargets } from 'core/domain/Nutrition';
@@ -124,6 +125,36 @@ describe('a corrected target, end to end', () => {
     // The macros are re-derived around the new figure rather than left as they
     // were, so the set stays coherent.
     expect(resolved.effective.proteinG).not.toBe(0);
+  });
+
+  /*
+   * The tour's mark lives here rather than in the browser (`0038`), so these
+   * assert the only thing that makes that worth a column: it is remembered
+   * across requests, and it can be undone.
+   */
+  it('starts with the tour unseen, so a new account is offered it', async () => {
+    const response: Response = await request(httpServer(app)).get(`/${PREFIX}/profile`).set('Cookie', account.cookie).expect(200);
+
+    expect((response.body as FullProfileView).profile?.tourSeen).toBe(false);
+  });
+
+  it('remembers the tour was shown, and gives it back when it is asked for again', async () => {
+    await request(httpServer(app)).patch(`/${PREFIX}/profile/tour`).set('Cookie', account.cookie).send({ seen: true }).expect(200);
+
+    const after: Response = await request(httpServer(app)).get(`/${PREFIX}/profile`).set('Cookie', account.cookie).expect(200);
+
+    expect((after.body as FullProfileView).profile?.tourSeen).toBe(true);
+
+    await request(httpServer(app)).patch(`/${PREFIX}/profile/tour`).set('Cookie', account.cookie).send({ seen: false }).expect(200);
+
+    const again: Response = await request(httpServer(app)).get(`/${PREFIX}/profile`).set('Cookie', account.cookie).expect(200);
+
+    expect((again.body as FullProfileView).profile?.tourSeen).toBe(false);
+  });
+
+  it('refuses a mark that is not a yes or a no, and refuses a stranger with a 404', async () => {
+    await request(httpServer(app)).patch(`/${PREFIX}/profile/tour`).set('Cookie', account.cookie).send({ seen: 'later' }).expect(422);
+    await request(httpServer(app)).patch(`/${PREFIX}/profile/tour`).send({ seen: true }).expect(404);
   });
 
   it('builds the plan against the corrected figure, not the computed one', async () => {

@@ -12,6 +12,7 @@ import { LocaleSwitcher } from 'components/LocaleSwitcher';
 import { ProfileSection } from 'components/ProfileSection';
 import { ReminderToggle } from 'components/ReminderToggle';
 import { TargetsPanel } from 'components/TargetsPanel';
+import { Tour } from 'components/Tour';
 import { VacationPlanner } from 'components/VacationPlanner';
 
 import { MEAL_SLOTS } from 'core/entities/Plan';
@@ -102,6 +103,8 @@ export default async function ProfilePage() {
         <LocaleSwitcher />
 
         <VacationPlanner trips={trips ?? []} />
+
+        <Tour replay={true} />
 
         <FeedbackForm />
 

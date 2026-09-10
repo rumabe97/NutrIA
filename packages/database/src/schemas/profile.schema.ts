@@ -26,7 +26,16 @@ export const profiles = userOwnedSingleton('profiles', {
   heightCm: smallint(),
   locale: text().notNull().default('es-ES'),
   sex: sex(),
-  timezone: text().notNull().default('Europe/Madrid')
+  timezone: text().notNull().default('Europe/Madrid'),
+  /**
+   * When this person was last shown the tour (`0038`).
+   *
+   * On the profile rather than in the browser: a tour that reappears on a second
+   * device is worse than one nobody sees, and "have I already been told this" is
+   * a fact about a person, not about a laptop. Null means never — which is every
+   * account that existed before the tour did, on purpose.
+   */
+  tourSeenAt: timestamp({ withTimezone: true })
 });
 
 export const goals = userOwned('goals', {
