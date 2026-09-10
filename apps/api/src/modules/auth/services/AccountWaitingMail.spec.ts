@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 
 import { notifyOwnerOfWaitingAccount } from './AccountWaitingMail.js';
 
-import type { OutgoingEmail } from '../../email/Email.service.js';
+import type { OutgoingEmail } from '../../email/services/Email.service.js';
 
 const ACCOUNT = { id: 'usr-1', email: 'ana@example.invalid' };
 const OWNER = 'owner@example.invalid';

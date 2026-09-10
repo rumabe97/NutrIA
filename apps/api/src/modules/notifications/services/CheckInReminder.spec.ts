@@ -4,7 +4,7 @@ import { NotificationController } from 'core/controllers/Notification';
 
 import { CheckInReminderService } from './CheckInReminder.service.js';
 
-import type { EmailService, OutgoingEmail } from '../../email/Email.service.js';
+import type { EmailService, OutgoingEmail } from '../../email/services/Email.service.js';
 import type { Env } from '../../../config/index.js';
 import type { ErrorReporter } from '../../../shared/observability/index.js';
 import type { Recipient } from 'core/controllers/Notification';

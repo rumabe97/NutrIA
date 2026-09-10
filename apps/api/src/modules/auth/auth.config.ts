@@ -8,11 +8,11 @@ import { account, rateLimit, session, user, verification } from 'database/schema
 
 import { absoluteCallback, sendPasswordResetMail } from './services/PasswordResetMail.js';
 import { onAddressConfirmed } from './services/SelfService.js';
-import { recipientLocale } from '../email/RecipientLocale.js';
+import { recipientLocale } from '../email/services/RecipientLocale.js';
 import { verifyEmail } from '../email/templates/VerifyEmail.js';
 
 import type { Env } from '../../config/index.js';
-import type { EmailService } from '../email/Email.service.js';
+import type { EmailService } from '../email/services/Email.service.js';
 
 const MINUTES = 60;
 

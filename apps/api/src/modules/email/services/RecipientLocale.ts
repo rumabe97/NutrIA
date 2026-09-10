@@ -1,8 +1,8 @@
 import { ProfileController } from 'core/controllers/Profile';
 
-import { supportedLocale } from '../../shared/decorators/Locale.decorator.js';
+import { supportedLocale } from '../../../shared/decorators/Locale.decorator.js';
 
-import type { EmailLocale } from './templates/Layout.js';
+import type { EmailLocale } from '../templates/Layout.js';
 
 const DEFAULT_LOCALE: EmailLocale = 'es-ES';
 

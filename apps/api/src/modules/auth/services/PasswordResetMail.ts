@@ -1,9 +1,9 @@
 import { webUrl } from 'core/domain/WebUrl';
 
 import { passwordResetEmail } from '../../email/templates/PasswordReset.js';
-import { recipientLocale } from '../../email/RecipientLocale.js';
+import { recipientLocale } from '../../email/services/RecipientLocale.js';
 
-import type { EmailService } from '../../email/Email.service.js';
+import type { EmailService } from '../../email/services/Email.service.js';
 
 /**
  * The link Better Auth issues carries the page to land on as `callbackURL`.
