@@ -172,8 +172,8 @@ Four-file token system. **Never hardcode colors, sizes, or shadows — always us
 | Radius      | `--radius-01` (4px) … `--radius-05` (16px), `--radius-full` (9999px)                                                    |
 | Sizing      | `--height-xs` (20px), `--height-s` (24px), `--height-m` (32px), `--height-l` (40px), `--height-xl` (48px)               |
 | Surfaces    | `--background-01`, `--background-02`, `--background-highlight`                                                          |
-| Text        | `--foreground-01`, `--foreground-02`, `--foreground-03`, `--foreground-disabled`                                        |
-| Borders     | `--border-01`                                                                                                           |
+| Text        | `--foreground-01`, `--foreground-02`, `--foreground-03` (all three meet AA — 02 and 03 are the same value today, see `0041`), `--foreground-disabled` |
+| Borders     | `--border-01` (dividers, card edges), `--border-interactive` (what says a control is a control — inputs, secondary buttons, checkboxes; `0041`) |
 | Interactive | `--color-hover`, `--color-highlighted`, `--color-selected`, `--color-glass`, `--color-overlay`, `--color-switch`        |
 | States      | `--color-success`, `--color-error`, `--color-warning`                                                                   |
 | Shadows     | `--shadow-s`, `--shadow-m`, `--shadow-l`, `--shadow-focus`                                                              |
