@@ -6,6 +6,7 @@ import { AppNav } from 'components/AppNav';
 
 import { redirectUnlessReady } from 'lib/access';
 
+import { MAIN_ID } from '../_shared/mainId';
 import { rootMetadata, siteViewport } from '../_shared/metadata';
 import { RootShell } from '../_shared/RootShell';
 
@@ -35,7 +36,9 @@ export default async function AppLayout({ children }: Readonly<{ children: React
     <RootShell locale={locale}>
       <div className={styles.shell}>
         <AppNav />
-        <main className={styles.content}>{children}</main>
+        <main className={styles.content} id={MAIN_ID}>
+          {children}
+        </main>
       </div>
     </RootShell>
   );

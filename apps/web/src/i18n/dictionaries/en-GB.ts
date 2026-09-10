@@ -7,6 +7,10 @@ import type { Dictionary } from './es-ES';
  * build. That is the whole reason this file has no keys of its own.
  */
 export const enGB: Dictionary = {
+  a11y: {
+    skipToContent: 'Skip to content'
+  },
+
   activity: {
     athlete: 'Athlete',
     high: 'High',

@@ -7,6 +7,8 @@ import { withLocale } from 'i18n/routes';
 
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
 
+import { MAIN_ID } from './mainId';
+
 import type { Locale } from 'i18n/config';
 import type { ReactNode } from 'react';
 
@@ -26,7 +28,9 @@ export function AuthShell({ children, locale }: Readonly<{ children: ReactNode; 
         <div className={styles.locale}>
           <LocaleSwitcher compact={true} />
         </div>
-        {children}
+        {/* The brand link and the language switcher sit above it, so the form is
+            what the skip link and a route change both land on. */}
+        <main id={MAIN_ID}>{children}</main>
       </div>
     </div>
   );

@@ -1,0 +1,32 @@
+/*
+ * Hidden the way `ui/styles/classnames`' `.visually-hidden` hides things —
+ * clipped rather than `display: none`, which would take it out of the focus
+ * order and make the link unreachable by the only people who need it — and
+ * unclipped the moment it takes focus.
+ */
+.link {
+  clip-path: inset(100%);
+  height: 1px;
+  overflow: clip;
+  position: absolute;
+  white-space: nowrap;
+  width: 1px;
+}
+
+.link:focus {
+  background-color: var(--background-01);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-03);
+  box-shadow: var(--shadow-m);
+  clip-path: none;
+  color: var(--foreground-01);
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+  height: auto;
+  inset-block-start: var(--space-04);
+  inset-inline-start: var(--space-04);
+  padding: var(--space-03) var(--space-05);
+  text-decoration: none;
+  width: auto;
+  z-index: var(--z-toast);
+}

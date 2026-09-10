@@ -13,6 +13,7 @@ import { SiteFooter } from 'components/SiteFooter';
 import { SiteHeader } from 'components/SiteHeader';
 
 import { JsonLd } from './JsonLd';
+import { MAIN_ID } from './mainId';
 
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { Locale } from 'i18n/config';
@@ -30,7 +31,7 @@ export function Landing({ locale }: Readonly<{ locale: Locale }>) {
     <Fragment>
       <SiteHeader />
 
-      <main className={styles.main}>
+      <main className={styles.main} id={MAIN_ID}>
         {/* ── Hero ─────────────────────────────────────────────────────── */}
         <section className={styles.hero}>
           <Reveal>

@@ -10,6 +10,11 @@
  * which would put a translation lookup at the mercy of what someone typed.
  */
 export const esES = {
+  /* Words that only a screen reader or a keyboard ever reaches. */
+  a11y: {
+    skipToContent: 'Saltar al contenido'
+  },
+
   activity: {
     athlete: 'Deportista',
     high: 'Alto',
