@@ -236,6 +236,11 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `AdminRepository` selects no column that carries content — no dish, no profile. The account
   list carries address, dates and role and nothing else. Keep it that way: the questions worth
   a screen are "is generation working", "how big is the catalogue" and "who is waiting".
+- **Analytics** (`0033`): the funnel on `/admin` is counted from state — `AdminRepository.funnel()`
+  — never from events, so it is correct retroactively and cannot disagree with the rows it
+  counts. `analytics_events` holds only what leaves no row: `session_started` and
+  `swap_requested`. The set is closed in `ANALYTICS_EVENTS`, no HTTP route writes one, an
+  event never carries content, and `AnalyticsController.record` never throws.
 - **Vacations** (`0032`): `POST /vacations` moves every plan day at or after the trip forward
   by its length, in one transaction, so those dates hold no plan day at all. Nothing else was
   taught about holidays — skipping, adherence and the check-in mail all follow the dates.

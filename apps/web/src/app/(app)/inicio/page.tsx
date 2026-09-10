@@ -29,6 +29,18 @@ import type { WeightView } from 'core/controllers/Progress';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * The day the plan picks up again: the morning **after** the last day away.
+ *
+ * The shift moves every plan day at or after the trip forward by its whole
+ * length (`0032`), so a trip ending on the 11th puts the next meal on the 12th.
+ * Showing the last day away as the day you come back is a day of somebody's
+ * holiday spent wondering where dinner is.
+ */
+function resumesOn(endsOn: string): string {
+  return new Date(Date.parse(`${endsOn}T00:00:00Z`) + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
 /** Only the fields the dashboard's snapshot needs. The shopping screen reads the rest. */
 type ShoppingListView = { items: readonly { category: string }[] };
 
@@ -82,7 +94,15 @@ export default async function DashboardPage() {
       <div className={styles.layout}>
         <div className={`${styles.main} motion-enter`}>
           {away ? (
-            <EmptyState body={interpolate(dictionary.vacations.awayBody, { until: formatDate(away.endsOn, locale, { day: 'numeric', month: 'long' }) })} title={dictionary.vacations.awayTitle} />
+            <EmptyState body={interpolate(dictionary.vacations.awayBody, { until: formatDate(resumesOn(away.endsOn), locale, { day: 'numeric', month: 'long' }) })} title={dictionary.vacations.awayTitle}>
+              {/* A way back into the plan, and deliberately the only action here:
+                  generating a new one would throw away the paused fortnight. */}
+              {plan ? (
+                <CtaLink href="/plan" size="lg" variant="secondary">
+                  {dictionary.vacations.seePlan}
+                </CtaLink>
+              ) : null}
+            </EmptyState>
           ) : null}
 
           {/* The fortnight's check-in, first, when it is due: the one thing this
@@ -98,8 +118,9 @@ export default async function DashboardPage() {
           {plan ? (
             <Fragment>
               <Text tone="secondary">
-                {day ? interpolate(t.dayOf, { current: day.dayIndex, total: plan.days.length }) : t.activePlan}{' '}
-                {interpolate(t.checkIn, { when: checkInLabel(plan.endDate, t) })}
+                {away
+                  ? interpolate(dictionary.vacations.pausedUntil, { date: formatDate(resumesOn(away.endsOn), locale, { day: 'numeric', month: 'long' }) })
+                  : `${day ? interpolate(t.dayOf, { current: day.dayIndex, total: plan.days.length }) : t.activePlan} ${interpolate(t.checkIn, { when: checkInLabel(plan.endDate, t) })}`}
               </Text>
 
               <PlanProgress days={plan.days} today={day?.dayIndex} />
@@ -129,9 +150,12 @@ export default async function DashboardPage() {
                     </div>
                   </section>
                 </Fragment>
-              ) : (
-            // The plan is active but today falls outside its dates — the fortnight
-            // has run its course and the next one is due.
+              ) : away ? null : (
+            // The plan is active but today falls outside its dates and nobody is
+            // away — the fortnight has run its course and the next one is due.
+            // While away there is no day for today *by design* (`0032`), and
+            // calling that "finished" would offer to replace a plan that is
+            // merely waiting.
             <EmptyState body={checkIn?.done ? `${t.planEndedBody} ${t.checkInDoneNote}` : t.planEndedBody} title={t.planEndedTitle}>
               <CtaLink href="/plan/generando" size="lg">
                 {t.planEndedCta}

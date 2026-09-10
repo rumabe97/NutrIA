@@ -32,3 +32,18 @@
 .warning {
   border-color: var(--color-amber-06);
 }
+
+/*
+ * Stacked and stretched on a phone.
+ *
+ * Two actions side by side wrap onto separate lines at this width, each taking
+ * the width of its own words — so the second one reads as smaller and less
+ * important than it is. Stretching makes them the same button, one under the
+ * other, which is the truth: both are things you may do next.
+ */
+@media (width < 34rem) {
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

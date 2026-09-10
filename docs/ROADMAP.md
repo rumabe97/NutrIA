@@ -70,7 +70,10 @@ screens at phone width, which closes project 002's two open gates.
   so nothing counts as skipped and the fortnight resumes on return. A generated plan *for*
   the trip is deliberately not built: it costs a model call per trip, and the question it
   answers is not the one people were asking.
-- Analytics on the events already reserved in `analytics_events`.
+- Analytics: done (`0033`) — a funnel counted from state, so it is right for the accounts
+  that predate it, and exactly two events for what leaves no row: a session started and the
+  axis a swap was asked for. Cohorts and anything needing a browser-side beacon are
+  deliberately not built.
 - CI: the gate and the end-to-end suites both run on every push and pull request
   (`.github/workflows/ci.yml`); the suites get a Postgres container that dies with the job,
   so they need no secret and no shared branch. One thing remains, and it is the owner's: a

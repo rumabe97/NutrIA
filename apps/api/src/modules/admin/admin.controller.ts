@@ -11,7 +11,7 @@ import { Public, Roles } from '../../shared/decorators/index.js';
 import { ZodValidationPipe } from '../../shared/pipes/index.js';
 import { verifyActivationToken } from '../auth/ActivationLink.js';
 
-import type { AdminJobView, AdminOverviewView } from 'core/controllers/Admin';
+import type { AdminAnalyticsView, AdminJobView, AdminOverviewView } from 'core/controllers/Admin';
 import type { AccountView } from 'core/controllers/User';
 import type { AdminSettings } from 'core/entities/Settings';
 import type { Env } from '../../config/index.js';
@@ -33,6 +33,12 @@ export class AdminRestController {
   @Get('overview')
   async overview(): Promise<AdminOverviewView> {
     return AdminController.overview();
+  }
+
+  @ApiOperation({ summary: 'Whether the product is working for the people using it' })
+  @Get('analytics')
+  async analytics(): Promise<AdminAnalyticsView> {
+    return AdminController.analytics();
   }
 
   @ApiOperation({ summary: 'Only the generations that failed' })

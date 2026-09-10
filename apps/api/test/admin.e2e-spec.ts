@@ -8,6 +8,7 @@ import { createApp, httpServer, PREFIX, register, ScriptedAiClient } from './har
 
 import type { Account } from './harness.js';
 import type { AccountView } from 'core/controllers/User';
+import type { AdminAnalyticsView } from 'core/controllers/Admin';
 import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
 
@@ -22,7 +23,7 @@ import type { Response } from 'supertest';
  *
  * Requires a real database — see ./README.md.
  */
-const ROUTES = ['overview', 'failures', 'accounts', 'settings'];
+const ROUTES = ['overview', 'failures', 'accounts', 'settings', 'analytics'];
 
 describe('admin', () => {
   let app: INestApplication;
@@ -97,6 +98,20 @@ describe('admin', () => {
 
     await request(server).patch(`/${PREFIX}/admin/settings`).set('Cookie', owner.cookie).send({ automaticActivation: true }).expect(200);
     await expect(SettingsController.automaticActivation()).resolves.toBe(true);
+  });
+
+  it('counts the funnel from the rows, so it covers accounts older than the counting', async () => {
+    const response: Response = await request(httpServer(app)).get(`/${PREFIX}/admin/analytics`).set('Cookie', owner.cookie).expect(200);
+    const view = response.body as AdminAnalyticsView;
+
+    // These accounts were made by this suite, and every one of them signed up
+    // and signed in — so the first stage cannot be smaller than the accounts,
+    // and somebody came back, because `register` signs in.
+    expect(view.funnel.signedUp).toBeGreaterThanOrEqual(3);
+    expect(view.funnel.signedUp).toBeGreaterThanOrEqual(view.funnel.activated);
+    expect(view.funnel.activated).toBeGreaterThanOrEqual(view.funnel.onboarded);
+    expect(view.activity.events.some(row => row.event === 'session_started')).toBe(true);
+    expect(view.activity.people).toBeGreaterThan(0);
   });
 
   it('refuses an account id that is not an account', async () => {
