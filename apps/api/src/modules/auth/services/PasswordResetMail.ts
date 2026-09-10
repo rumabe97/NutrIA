@@ -1,8 +1,8 @@
-import { passwordResetEmail } from '../email/templates/PasswordReset.js';
-import { localeFromHeader } from '../../shared/decorators/Locale.decorator.js';
+import { passwordResetEmail } from '../../email/templates/PasswordReset.js';
+import { localeFromHeader } from '../../../shared/decorators/Locale.decorator.js';
 
-import type { EmailService } from '../email/Email.service.js';
-import type { EmailLocale } from '../email/templates/Layout.js';
+import type { EmailService } from '../../email/Email.service.js';
+import type { EmailLocale } from '../../email/templates/Layout.js';
 
 const DEFAULT_LOCALE: EmailLocale = 'es-ES';
 

@@ -4,13 +4,13 @@ import { ConfigModule } from '@nestjs/config';
 
 import { envProvider, validateEnv } from './config/index.js';
 import { DatabaseModule } from './database/database.module.js';
-import { AdminModule } from './modules/admin/admin.module.js';
+import { AdminModule } from './modules/admin/index.js';
 import { AiModule } from './modules/ai/ai.module.js';
-import { AuthModule } from './modules/auth/auth.module.js';
+import { AuthModule } from './modules/auth/index.js';
 import { CheckInsModule } from './modules/check-ins/index.js';
 import { FeedbackModule } from './modules/feedback/index.js';
 import { HealthDataModule } from './modules/health-data/index.js';
-import { HealthModule } from './modules/health/health.module.js';
+import { HealthModule } from './modules/health/index.js';
 import { MealPlansModule } from './modules/meal-plans/index.js';
 import { NotificationsModule } from './modules/notifications/index.js';
 import { OnboardingModule } from './modules/onboarding/index.js';

@@ -1,11 +1,12 @@
 import { Controller, Get } from '@nestjs/common';
 import { HealthCheck, HealthCheckService, MemoryHealthIndicator } from '@nestjs/terminus';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { DatabaseHealthIndicator } from '../../database/database.health.js';
-import { Public, SkipRateLimit } from '../../shared/decorators/index.js';
+import { DatabaseHealthIndicator } from '../../../database/database.health.js';
+import { Public, SkipRateLimit } from '../../../shared/index.js';
 
 import type { HealthCheckResult } from '@nestjs/terminus';
+import type { LivenessDto } from '../dto/out/index.js';
 
 const HEAP_LIMIT_BYTES = 512 * 1024 * 1024;
 
@@ -25,6 +26,7 @@ export class HealthController {
     private readonly memory: MemoryHealthIndicator
   ) {}
 
+  @ApiOkResponse({ description: 'Every indicator, with the database among them.' })
   @ApiOperation({ summary: 'Full check — dependencies included' })
   @Get()
   @HealthCheck()
@@ -32,12 +34,14 @@ export class HealthController {
     return this.health.check([() => this.database.isHealthy('database'), () => this.memory.checkHeap('memory_heap', HEAP_LIMIT_BYTES)]);
   }
 
+  @ApiOkResponse({ description: 'Alive. Nothing else is claimed.' })
   @ApiOperation({ summary: 'Is the process alive? No dependencies are touched.' })
   @Get('liveness')
-  liveness(): { status: 'ok' } {
+  liveness(): LivenessDto {
     return { status: 'ok' };
   }
 
+  @ApiOkResponse({ description: 'Ready to serve. 503 when the database is not reachable.' })
   @ApiOperation({ summary: 'Can this instance serve traffic? Checks the database.' })
   @Get('readiness')
   @HealthCheck()

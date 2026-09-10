@@ -6,8 +6,8 @@ import { AnalyticsController } from 'core/controllers/Analytics';
 import { database } from 'database';
 import { account, rateLimit, session, user, verification } from 'database/schema/auth';
 
-import { absoluteCallback, sendPasswordResetMail } from './PasswordResetMail.js';
-import { onAddressConfirmed } from './SelfService.js';
+import { absoluteCallback, sendPasswordResetMail } from './services/PasswordResetMail.js';
+import { onAddressConfirmed } from './services/SelfService.js';
 import { localeFromHeader } from '../../shared/decorators/Locale.decorator.js';
 import { verifyEmail } from '../email/templates/VerifyEmail.js';
 

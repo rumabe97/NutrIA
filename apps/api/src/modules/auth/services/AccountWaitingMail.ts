@@ -1,8 +1,8 @@
-import { accountWaitingEmail } from '../email/templates/AccountWaiting.js';
+import { accountWaitingEmail } from '../../email/templates/AccountWaiting.js';
 import { activationToken } from './ActivationLink.js';
 
-import type { EmailLocale } from '../email/templates/Layout.js';
-import type { EmailService } from '../email/Email.service.js';
+import type { EmailLocale } from '../../email/templates/Layout.js';
+import type { EmailService } from '../../email/Email.service.js';
 
 const OWNER_LOCALE: EmailLocale = 'es-ES';
 

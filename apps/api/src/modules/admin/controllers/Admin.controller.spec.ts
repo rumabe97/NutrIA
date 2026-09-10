@@ -4,12 +4,13 @@ import express from 'express';
 import request from 'supertest';
 import { Test } from '@nestjs/testing';
 
-import { AdminController } from 'core/controllers/Admin';
+import { AdminController as CoreAdmin } from 'core/controllers/Admin';
 
-import { AdminGuard } from '../../shared/guards/index.js';
-import { ENV } from '../../config/index.js';
-import { AdminRestController } from './admin.controller.js';
-import { AllExceptionsFilter } from '../../shared/filters/index.js';
+import { AdminController } from './Admin.controller.js';
+import { AdminGuard } from '../../../shared/guards/index.js';
+import { AdminService } from '../services/index.js';
+import { AllExceptionsFilter } from '../../../shared/filters/index.js';
+import { ENV } from '../../../config/index.js';
 
 import type { AdminOverviewView } from 'core/controllers/Admin';
 import type { INestApplication } from '@nestjs/common';
@@ -33,14 +34,15 @@ const OVERVIEW: AdminOverviewView = {
  * way to read the whole service, and the answer to anyone else must be the
  * same 404 every other denial gives — never a 403, which confirms the route.
  */
-describe('AdminRestController', () => {
+describe('AdminController', () => {
   let app: INestApplication;
   let role = 'user';
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
-      controllers: [AdminRestController],
+      controllers: [AdminController],
       providers: [
+        AdminService,
         { provide: ENV, useValue: { APP_URL: 'https://nutria.example', BETTER_AUTH_SECRET: 'a'.repeat(48) } },
         // Registration order is execution order: the session stand-in has to put
         // the user on the request before the role is checked, exactly as
@@ -68,7 +70,7 @@ describe('AdminRestController', () => {
 
   it('is 404 for an ordinary account, whatever it asks for', async () => {
     role = 'user';
-    const overview = jest.spyOn(AdminController, 'overview');
+    const overview = jest.spyOn(CoreAdmin, 'overview');
 
     await request(app.getHttpServer() as Server).get(`/${PREFIX}/admin/overview`).expect(404);
     await request(app.getHttpServer() as Server).get(`/${PREFIX}/admin/failures`).expect(404);
@@ -77,7 +79,7 @@ describe('AdminRestController', () => {
 
   it('answers the owner', async () => {
     role = 'admin';
-    jest.spyOn(AdminController, 'overview').mockResolvedValue(OVERVIEW);
+    jest.spyOn(CoreAdmin, 'overview').mockResolvedValue(OVERVIEW);
 
     const response = await request(app.getHttpServer() as Server).get(`/${PREFIX}/admin/overview`).expect(200);
 

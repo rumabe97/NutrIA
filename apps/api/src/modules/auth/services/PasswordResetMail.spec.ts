@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals
 
 import { absoluteCallback, sendPasswordResetMail } from './PasswordResetMail.js';
 
-import type { OutgoingEmail } from '../email/Email.service.js';
+import type { OutgoingEmail } from '../../email/Email.service.js';
 
 const URL = 'https://nutria.example/api/v1/auth/reset-password/tok?callbackURL=/restablecer';
 const APP = 'https://nutria.example';

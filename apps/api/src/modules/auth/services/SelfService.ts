@@ -3,7 +3,7 @@ import { UserController } from 'core/controllers/User';
 
 import { notifyOwnerOfWaitingAccount } from './AccountWaitingMail.js';
 
-import type { EmailService } from '../email/Email.service.js';
+import type { EmailService } from '../../email/Email.service.js';
 
 /**
  * What confirming an address does, decided by the owner's switch (`0031`).
