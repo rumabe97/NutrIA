@@ -45,6 +45,15 @@ const MAX_BALANCE_STEPS = 24;
 /** Swap rounds per day. Each takes the single best improvement; they converge fast. */
 const MAX_SWAP_ROUNDS = 8;
 
+/**
+ * How close two fit costs must be to count as the same fit.
+ *
+ * `fitCost` sums relative errors, so this is five points of one — a difference
+ * no eater could taste, and small enough that nutrition still decides whenever
+ * it has anything to say.
+ */
+const FIT_TIE = 0.05;
+
 export type SchedulerInput = {
   readonly catalogue: Catalogue;
   readonly days?: number;
@@ -352,6 +361,9 @@ function pickBest(
   placed: readonly Placement[]
 ): CandidateDish | undefined {
   const usage = new Map<string, number>();
+  // Where each dish sat in the pool handed to the scheduler, which is the order
+  // rotation shuffled for this user.
+  const order = new Map(eligible.map((dish, index) => [dish.slug, index]));
 
   for (const placement of placed) {usage.set(placement.dishSlug, (usage.get(placement.dishSlug) ?? 0) + 1);}
 
@@ -363,9 +375,20 @@ function pickBest(
 
       const first = perServing.get(a.slug);
       const second = perServing.get(b.slug);
-      const distance = (first ? scaledFitCost(first, budget) : Number.MAX_VALUE) - (second ? scaledFitCost(second, budget) : Number.MAX_VALUE);
+      const costA = first ? scaledFitCost(first, budget) : Number.MAX_VALUE;
+      const costB = second ? scaledFitCost(second, budget) : Number.MAX_VALUE;
 
-      return distance !== 0 ? distance : a.slug.localeCompare(b.slug);
+      /*
+       * Two dishes that fit this budget equally well are decided by the order
+       * the pool arrived in — which is this user's own seeded shuffle (`0009`).
+       *
+       * It used to be the alphabet, and that was the bug two users reported as
+       * "we got the same plan": the pool is shuffled per person, but sorting it
+       * again by fit and then by slug threw that away, so the best-fitting dish
+       * on the shelf landed on day one of everybody drawing from it. Their
+       * fortnights differed; their first days did not.
+       */
+      return Math.abs(costA - costB) > FIT_TIE ? costA - costB : (order.get(a.slug) ?? 0) - (order.get(b.slug) ?? 0);
     })
     .at(0);
 }

@@ -1,0 +1,25 @@
+.pager {
+  align-items: center;
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+  margin-top: var(--space-03);
+}
+
+.step {
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-03);
+  color: inherit;
+  font-size: var(--font-size-02);
+  padding: var(--space-02) var(--space-04);
+  text-decoration: none;
+}
+
+.step:hover {
+  background: var(--color-hover);
+}
+
+/* Holds the row's shape when one end has nowhere to go, so the count stays put. */
+.spacer {
+  inline-size: 1px;
+}

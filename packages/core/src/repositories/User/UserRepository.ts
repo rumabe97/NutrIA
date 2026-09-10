@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { count, desc, eq } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -72,21 +72,32 @@ export const UserRepository = {
   },
 
   /**
-   * Every account with the two locks and its role, oldest first — the list the
-   * admin screen shows.
+   * A page of accounts, **newest first**, and how many there are in total.
+   *
+   * Newest first because the useful end is the recent one: the account waiting
+   * to be opened is the one that just signed up. Oldest-first with a cap meant
+   * that past a few hundred accounts the screen showed the founders and lost
+   * everybody who needed something.
    *
    * Address, dates and role only. No profile, no plan, no answers: an admin
    * surface that can read what people eat is how one becomes a way to read
    * people's health data (`0028`), and none of it helps decide whether to open
    * an account.
    */
-  async findAll(limit: number): Promise<readonly { readonly id: string; readonly activatedAt: Date | null; readonly createdAt: Date; readonly email: string; readonly emailVerified: boolean; readonly role: 'admin' | 'user'; }[]> {
+  async findAll(limit: number, offset: number): Promise<{ readonly rows: readonly { readonly id: string; readonly activatedAt: Date | null; readonly createdAt: Date; readonly email: string; readonly emailVerified: boolean; readonly role: 'admin' | 'user'; }[]; readonly total: number }> {
     try {
-      return await database()
-        .select({ id: user.id, activatedAt: user.activatedAt, createdAt: user.createdAt, email: user.email, emailVerified: user.emailVerified, role: user.role })
-        .from(user)
-        .orderBy(user.createdAt)
-        .limit(limit);
+      const db = database();
+      const [rows, counted] = await Promise.all([
+        db
+          .select({ id: user.id, activatedAt: user.activatedAt, createdAt: user.createdAt, email: user.email, emailVerified: user.emailVerified, role: user.role })
+          .from(user)
+          .orderBy(desc(user.createdAt))
+          .limit(limit)
+          .offset(offset),
+        db.select({ n: count() }).from(user)
+      ]);
+
+      return { rows, total: counted[0]?.n ?? 0 };
     } catch (error: unknown) {
       throw wrap(error);
     }

@@ -241,6 +241,11 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   nothing, which is what an account that never said where it is had before the column.
   `COUNTRIES` in `core/entities/Profile` is the list onboarding offers, and it is short
   because it is what the catalogue can serve.
+- **AI usage** (`0035`): every provider request records an `ai_call` event from
+  `StructuredAiClient` — the only place a request leaves the building. `/admin/ai` counts
+  today's against `AI_REQUESTS_PER_DAY` and `AI_TOKENS_PER_MINUTE`, which are configuration
+  because they belong to an account and a model; unset means a count with no bar. It is our
+  count, not the provider's: there is no remaining-quota endpoint to read.
 - **Analytics** (`0033`): the funnel on `/admin` is counted from state — `AdminRepository.funnel()`
   — never from events, so it is correct retroactively and cannot disagree with the rows it
   counts. `analytics_events` holds only what leaves no row: `session_started` and

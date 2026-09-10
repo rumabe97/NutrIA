@@ -51,3 +51,33 @@ quota, the library fills the whole pool and the plan is delivered, with
   reuse-first mechanism does, for the other two thirds.
 - The fraction is one constant. Raising it is a one-line change and a quota
   decision, in that order.
+
+## Amendment — 2026-09-10 — a fortnight is fourteen dishes, not seven served twice
+
+Two users reported getting "the same plan". They had not: 56 meals against 42,
+different targets, different seeds, and one meal of forty-two was the same dish
+on the same day. But six recipes were shared, and all three of one person's day
+one appeared in the other's fortnight — so what they compared, they were right
+about.
+
+Two causes. The scheduler discarding the per-user shuffle belongs to `0009`.
+This one is the pool.
+
+The target was `ceil(14 / maxOccurrencesPerPlan) + 5` — twelve dishes for
+fourteen days, on the reasoning that the rules *allow* a dish twice. What the
+rules allow is not what anybody wants: twelve against fourteen made two repeats
+per slot an arithmetic certainty, every plan, for everyone. The target is now
+`14 + 5`, so a slot can be fourteen different dinners and the repeat rule goes
+back to being a ceiling nobody reaches rather than a schedule.
+
+The third holds, and it had to: **the pool builder asks the model only for the
+shortfall**, so the library's share is the whole mechanism behind this decision.
+The first attempt at this amendment raised the library's contribution instead of
+the target — the shortfall went to zero, the model was never called, and the
+end-to-end suites caught it as "no prompt was ever sent". A shelf that stops
+growing is the exact failure this ADR exists to prevent, and it was one constant
+away.
+
+What it costs: the model now writes seven dishes per slot instead of four. The
+same one call per plan — which is what the free tier counts hardest — with more
+asked of it.

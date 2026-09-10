@@ -23,6 +23,23 @@ export const AnalyticsRepository = {
   },
 
   /**
+   * Every provider request since a moment, with what it cost.
+   *
+   * Rows rather than a sum, because the screen wants three answers from one
+   * read: how many requests, how many tokens, and how many of them the provider
+   * refused for want of quota.
+   */
+  async aiCallsSince(since: Date): Promise<readonly { readonly at: Date; readonly properties: Record<string, unknown> }[]> {
+    const rows = await database()
+      .select({ at: analyticsEvents.createdAt, properties: analyticsEvents.properties })
+      .from(analyticsEvents)
+      .where(and(gte(analyticsEvents.createdAt, since), eq(analyticsEvents.event, 'ai_call')))
+      .orderBy(analyticsEvents.createdAt);
+
+    return rows.map(row => ({ at: row.at, properties: row.properties ?? {} }));
+  },
+
+  /**
    * Writes one event, and never throws.
    *
    * Analytics is the least important write in the system: a person's plan must

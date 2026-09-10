@@ -12,6 +12,16 @@
  * is a second answer waiting to disagree with the first.
  */
 export const ANALYTICS_EVENTS = [
+  /**
+   * One request to the model provider, whether it answered or refused.
+   *
+   * Qualifies under the rule above: a call that fails leaves no row anywhere —
+   * the plan it was for is never written — and a call that succeeds only leaves
+   * its token counts inside a plan's metadata, which is unreachable for "how
+   * many requests today". The free tier counts requests per day, so that is the
+   * number that decides whether the product works tomorrow.
+   */
+  'ai_call',
   /** Somebody signed in. Sessions expire and are deleted, so coming back leaves no other trace. */
   'session_started',
   /** What somebody asked a swap for — quicker, no cooking, more protein, vegetarian, or nothing in particular. The answer is stored; the question was not. */

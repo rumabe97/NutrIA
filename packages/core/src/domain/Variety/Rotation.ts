@@ -1,24 +1,30 @@
 import { normaliseForMatching } from 'core/domain/Safety';
-import { VARIETY_RULES } from './Variety';
 
 import type { CandidateDish, MealSlot } from 'core/entities/Plan';
+
+/** Days a plan covers: the number of picks each slot has to fill. */
+const PLAN_DAYS = 14;
 
 /**
  * Distinct dishes a fortnight needs per slot.
  *
- * The bare minimum is `ceil(14 / maxOccurrencesPerPlan)` — seven under the
- * current rules. Asking for exactly that leaves the scheduler no freedom: it
- * must use every dish the maximum number of times, so one protein-dense outlier
- * lands on several days and takes them out of band. The slack is what lets it
- * choose a combination that meets the targets, and it rises with the floor
- * because the thing it protects against is a *fraction* of the pool being
- * rejected, not a fixed count.
+ * One per day, plus slack.
+ *
+ * It used to be `ceil(14 / maxOccurrencesPerPlan)` — seven — on the reasoning
+ * that a dish may be served twice. That is what the *rules* allow, not what
+ * anybody wants: twelve dishes against fourteen days made two repeats per slot
+ * an arithmetic certainty rather than a scheduler's choice, and users said so.
+ * Fourteen is the number that lets a fortnight be fourteen different dinners.
+ *
+ * The slack on top is what lets the scheduler choose a combination that meets
+ * the targets instead of being forced into one: without it, one protein-dense
+ * outlier lands on several days and takes them out of band.
  *
  * Lives here, not in the pool builder, because two things need the same number:
  * how many dishes to ask a model for, and how many library dishes to hand one
  * user. Two copies of it would drift.
  */
-export const DISHES_NEEDED_PER_SLOT = Math.ceil(14 / VARIETY_RULES.maxOccurrencesPerPlan) + 5;
+export const DISHES_NEEDED_PER_SLOT = PLAN_DAYS + 5;
 
 /**
  * The share of every slot's pool that is written fresh for this plan, whatever
@@ -44,7 +50,14 @@ export const FRESH_SHARE = 1 / 3;
 /** Dishes per slot the model is always asked for — the pool's fresh floor. */
 export const FRESH_DISHES_PER_SLOT = Math.ceil(DISHES_NEEDED_PER_SLOT * FRESH_SHARE);
 
-/** Dishes per slot the library may contribute: the rest. */
+/**
+ * Dishes per slot the library may contribute: the rest.
+ *
+ * Held back deliberately. The pool builder asks the model only for the
+ * shortfall, so this number *is* the mechanism behind "a third of every plan is
+ * fresh" (`0013`) — hand the library the whole target and the shortfall is zero,
+ * the model is never called, and the shelf everybody draws from stops growing.
+ */
 export const REUSED_DISHES_PER_SLOT = DISHES_NEEDED_PER_SLOT - FRESH_DISHES_PER_SLOT;
 
 export type Rotation = {

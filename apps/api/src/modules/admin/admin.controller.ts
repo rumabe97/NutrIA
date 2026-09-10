@@ -11,8 +11,8 @@ import { Public, Roles } from '../../shared/decorators/index.js';
 import { ZodValidationPipe } from '../../shared/pipes/index.js';
 import { verifyActivationToken } from '../auth/ActivationLink.js';
 
-import type { AdminAnalyticsView, AdminJobView, AdminOverviewView } from 'core/controllers/Admin';
-import type { AccountView } from 'core/controllers/User';
+import type { AdminAnalyticsView, AdminJobView, AdminOverviewView, AiUsageView } from 'core/controllers/Admin';
+import type { AccountView, Paged } from 'core/controllers/User';
 import type { AdminSettings } from 'core/entities/Settings';
 import type { Env } from '../../config/index.js';
 import type { SettingsView } from 'core/controllers/Settings';
@@ -33,6 +33,12 @@ export class AdminRestController {
   @Get('overview')
   async overview(): Promise<AdminOverviewView> {
     return AdminController.overview();
+  }
+
+  @ApiOperation({ summary: "Today against the provider's allowance, counted here" })
+  @Get('ai')
+  async ai(): Promise<AiUsageView> {
+    return AdminController.aiUsage({ requestsPerDay: this.env.AI_REQUESTS_PER_DAY, tokensPerMinute: this.env.AI_TOKENS_PER_MINUTE });
   }
 
   @ApiOperation({ summary: 'Whether the product is working for the people using it' })
@@ -59,10 +65,12 @@ export class AdminRestController {
     return SettingsController.setAutomaticActivation(body.automaticActivation);
   }
 
-  @ApiOperation({ summary: 'Every account with the state of its two locks, oldest first' })
+  @ApiOperation({ summary: 'One page of accounts with the state of their two locks, newest first' })
   @Get('accounts')
-  async accounts(): Promise<readonly AccountView[]> {
-    return UserController.accounts();
+  async accounts(@Query('offset') offset?: string, @Query('size') size?: string): Promise<Paged<AccountView>> {
+    // Parsed leniently on purpose: a pager that 422s on a hand-typed URL is a
+    // pager that costs the owner a page load to learn nothing.
+    return UserController.accounts({ offset: Number.parseInt(offset ?? '', 10) || 0, size: Number.parseInt(size ?? '', 10) || undefined });
   }
 
   @ApiOperation({ summary: 'Open one account' })
