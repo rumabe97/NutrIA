@@ -83,11 +83,18 @@ textarea {
    Spotlight scroll-into-view, and anything else with motion.
 
    The 0.01ms duration (instead of 0ms) keeps `animationend` / `transitionend` events firing
-   so JS that depends on them still works. */
+   so JS that depends on them still works.
+
+   `animation-delay` has to go with the duration. A staggered list (`.motion-list`, up to
+   320ms of delay on the last child) starts at `opacity: 0`, and collapsing only the duration
+   leaves each item invisible for the whole of its delay — reduced motion turned into missing
+   content. `transition-delay` is deliberately left alone: a delay on a transition is used
+   here to sequence state (the bottom bar's return after a keyboard closes), not to animate. */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
   *::after {
+    animation-delay: 0ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;

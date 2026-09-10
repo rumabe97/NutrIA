@@ -10,7 +10,7 @@ import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { api, messageFor } from 'lib/api';
-import { formatDate } from 'lib/format';
+import { formatDate, interpolate } from 'lib/format';
 
 import type { AccountView } from 'core/controllers/User';
 
@@ -87,7 +87,14 @@ export function AccountList({ accounts }: AccountListProps) {
             </span>
 
             {account.activated ? null : (
-              <Button disabled={pending !== undefined} loading={pending === account.id} onClick={() => void activate(account.id)} size="sm" type="button">
+              <Button
+                aria-label={interpolate(t.activateFor, { email: account.email })}
+                disabled={pending !== undefined}
+                loading={pending === account.id}
+                onClick={() => void activate(account.id)}
+                size="sm"
+                type="button"
+              >
                 {t.activate}
               </Button>
             )}

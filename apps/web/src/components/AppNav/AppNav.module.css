@@ -60,6 +60,9 @@
   color: var(--foreground-01);
 }
 
+/* A bare text button computes to the height of its own line — 21px, under the
+   24px WCAG 2.2 asks for, in a sticky header that a thumb reaches for while the
+   page moves under it. The row is centred, so the extra height costs nothing. */
 .signOut {
   background: none;
   border: none;
@@ -67,7 +70,9 @@
   cursor: pointer;
   font: inherit;
   font-size: var(--font-size-03);
-  padding: 0;
+  min-height: var(--height-s);
+  padding-block: var(--space-01);
+  padding-inline: 0;
   /* A two-word control never breaks in half; if the row is short, it shrinks elsewhere. */
   white-space: nowrap;
 }
