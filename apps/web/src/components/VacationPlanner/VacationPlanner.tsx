@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -28,22 +28,37 @@ export function VacationPlanner({ trips }: { trips: readonly VacationView[] }) {
   const dictionary = useDictionary();
   const locale = useLocale();
   const t = dictionary.vacations;
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const [startsOn, setStartsOn] = useState('');
   const [endsOn, setEndsOn] = useState('');
   const [pending, setPending] = useState(false);
+  const [outcome, setOutcome] = useState<'added' | 'back' | 'removed'>();
   const [error, setError] = useState<string>();
   const today = new Date().toISOString().slice(0, 10);
+
+  // The button that was pressed disables itself while the request is out, and
+  // a disabled element cannot hold focus — so without this, focus falls to the
+  // page body and the next Tab starts from the top. The heading is where the
+  // list and the form both hang from, and it is not an input, so landing on it
+  // opens no keyboard on a phone. The same defect and the same fix as
+  // `EventPlanner`.
+  function settle(what: 'added' | 'back' | 'removed') {
+    setOutcome(what);
+    titleRef.current?.focus();
+    router.refresh();
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setPending(true);
+    setOutcome(undefined);
     setError(undefined);
 
     try {
       await api('/vacations', { body: { endsOn, startsOn }, method: 'POST' });
       setStartsOn('');
       setEndsOn('');
-      router.refresh();
+      settle('added');
     } catch (caught) {
       setError(messageFor(caught, dictionary));
     } finally {
@@ -51,13 +66,16 @@ export function VacationPlanner({ trips }: { trips: readonly VacationView[] }) {
     }
   }
 
-  async function cancel(id: string) {
+  async function cancel(id: string, away: boolean) {
     setPending(true);
+    setOutcome(undefined);
     setError(undefined);
 
     try {
       await api(`/vacations/${id}`, { method: 'DELETE' });
-      router.refresh();
+      // "He vuelto" ends a trip under way today; "Quitar" deletes one not yet
+      // begun. Two buttons, two outcomes, and the announcement says which.
+      settle(away ? 'back' : 'removed');
     } catch (caught) {
       setError(messageFor(caught, dictionary));
     } finally {
@@ -69,7 +87,9 @@ export function VacationPlanner({ trips }: { trips: readonly VacationView[] }) {
 
   return (
     <section className={styles.root}>
-      <h2 className={styles.title}>{t.title}</h2>
+      <h2 className={styles.title} ref={titleRef} tabIndex={-1}>
+        {t.title}
+      </h2>
       <Text size="sm" tone="secondary">
         {t.intro}
       </Text>
@@ -89,7 +109,7 @@ export function VacationPlanner({ trips }: { trips: readonly VacationView[] }) {
               <Button
                 aria-label={interpolate(trip.away ? t.backEarlyFor : t.cancelFor, { from: day(trip.startsOn), to: day(trip.endsOn) })}
                 disabled={pending}
-                onClick={() => void cancel(trip.id)}
+                onClick={() => void cancel(trip.id, trip.away)}
                 size="sm"
                 type="button"
                 variant="secondary"
@@ -108,6 +128,12 @@ export function VacationPlanner({ trips }: { trips: readonly VacationView[] }) {
           {t.add}
         </Button>
       </form>
+
+      {outcome ? (
+        <Text role="status" size="sm" tone="secondary">
+          {t[outcome]}
+        </Text>
+      ) : null}
 
       {error ? (
         <Text className={styles.error} role="alert" size="xs">

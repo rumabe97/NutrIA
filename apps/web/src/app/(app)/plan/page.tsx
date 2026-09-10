@@ -10,6 +10,8 @@ import { serverApi } from 'lib/server-api';
 import { appMetadata } from '../../_shared/metadata';
 
 import type { AllowancesView, PlanView } from 'core/controllers/Plan';
+import type { EventAllowance } from 'components/EventPlanner';
+import type { EventView } from 'core/controllers/Event';
 import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
@@ -23,14 +25,22 @@ export default async function PlanPage() {
 
   // `active` returns null rather than 404 when there is no plan — having none is a
   // normal state, so the empty state is an ordinary render, not an error path.
-  const [dictionary, plan, allowances] = await Promise.all([
+  const [dictionary, plan, allowances, events] = await Promise.all([
     getDictionary(),
     serverApi<PlanView | null>('/meal-plans/active'),
-    serverApi<AllowancesView>('/meal-plans/allowances')
+    // `events` is the field `EventAllowance` waits for; until the API sends
+    // it, the day view shows no event form.
+    serverApi<AllowancesView & { events?: EventAllowance | null }>('/meal-plans/allowances'),
+    serverApi<readonly EventView[]>('/events')
   ]);
 
   if (plan) {
-    return <PlanBrowser plan={plan} redo={allowances?.planRedo ?? null} />;
+    // Adding an event to a plan under way is premium's alone (`0043` left the
+    // rebuild out; the paid tier buys it). Free sees nothing — no upsell, no
+    // disabled control — which is why the standing is null rather than zero.
+    const midPlan = allowances?.tier === 'premium' ? (allowances.events?.midPlan ?? null) : null;
+
+    return <PlanBrowser events={events ?? []} midPlan={midPlan} plan={plan} redo={allowances?.planRedo ?? null} />;
   }
 
   return (

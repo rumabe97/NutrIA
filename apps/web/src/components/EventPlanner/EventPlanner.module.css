@@ -36,50 +36,88 @@
   font-size: var(--font-size-03);
 }
 
-/* Two dates and a button; on a phone they stack, which is where this is used. */
+/* One column, one question per row: what it is, when, how many days before, what
+   those days eat, add.
+
+   It was a wrapping flex row copied from `VacationPlanner`, where the form is
+   two dates and a button of nearly equal height. Here the items are labelled
+   blocks and a fieldset, so where the line broke depended on how long the words
+   were: at 390px "Días antes" ended up beside "Grasa" and the submit landed in
+   the middle of the macro row. A grid decides instead of the text.
+
+   `--prose-max` so the same form is not a 68rem-wide row on a desktop profile. */
 .form {
-  align-items: end;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-03);
+  display: grid;
+  gap: var(--space-05);
+  max-width: var(--prose-max);
+}
+
+/* Full width, like every field above it: a pill button floating at half the
+   width of the form it closes reads as unrelated to it. */
+.submit {
+  width: 100%;
 }
 
 .error {
   color: var(--color-error-text);
 }
 
-/* The three direction pickers, side by side, and stacked where three will not fit.
-   A fieldset for the group semantics only — the browser's box, and the
-   `min-content` floor it imposes on a flex row, are both in the way. */
+/* The three direction pickers are one question, and this box is what says so to
+   the eye — the `<legend>` that says it to a screen reader is hidden, so
+   without the box the three sat in the form as three unrelated controls. */
 .shape {
+  background-color: var(--surface-sunken);
   border: 0;
+  border-radius: var(--radius-03);
+  display: grid;
+  gap: var(--space-03);
+  margin: 0;
+  min-width: 0;
+  padding: var(--space-04);
+}
+
+/* The hidden legend's words, for the reader who is not using a screen reader. */
+.shapeCaption {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+}
+
+.pickers {
   display: grid;
   gap: var(--space-03);
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 0;
-  min-width: 0;
-  padding: 0;
-}
-
-/* The rule the disabled button is enforcing, under all three pickers. */
-.hint {
-  grid-column: 1 / -1;
-}
-
-@media (width < 30rem) {
-  .shape {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* A label over a control that cannot be wrapped in one. */
 .field {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: var(--space-01);
 }
 
 .label {
-  font-size: var(--font-size-01);
-  font-weight: 600;
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Quieter than `.label`: these three sit under a caption that already named the
+   question, and three labels at the size of the form's own would compete with it. */
+.macroLabel {
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
+}
+
+@media (width < 30rem) {
+  /* Three pickers will not fit across a phone. Stacked with the label beside
+     its own picker rather than above it: three pairs is three lines instead of
+     six, the labels share a column so the answers line up, and the group still
+     reads as one list of three. */
+  .pickers {
+    grid-template-columns: 1fr;
+  }
+
+  .pickers .field {
+    align-items: center;
+    gap: var(--space-03);
+    grid-template-columns: 1fr minmax(0, 9rem);
+  }
 }

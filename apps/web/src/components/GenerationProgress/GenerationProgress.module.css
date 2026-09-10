@@ -54,6 +54,13 @@
   }
 }
 
+/* The event form, before the job starts. The shell centres its copy; a form
+   does not centre. */
+.before {
+  margin-top: var(--gap-block);
+  text-align: start;
+}
+
 .note {
   margin-top: var(--gap-block);
 }
