@@ -54,6 +54,10 @@ yarn-error.log*
 # Agent tooling state — local to a machine, not to the project.
 .serena/
 .claude/.headroom_*
+
+# Agent worktrees. Real checkouts of this repository living inside it — committing
+# them would embed the repo in itself as an unfetchable gitlink.
+.claude/worktrees/
 :memory:*
 
 # Knowledge graph output (graphify): 11 MB of generated artefacts, rebuilt on demand.

@@ -7,6 +7,7 @@ import { AdminController } from 'core/controllers/Admin';
 import { FeedbackController } from 'core/controllers/Feedback';
 import { SettingsController } from 'core/controllers/Settings';
 import { UserController } from 'core/controllers/User';
+import { DEFAULT_WEB_LOCALE, webUrl } from 'core/domain/WebUrl';
 
 import { ENV } from '../../config/index.js';
 import { Public, Roles } from '../../shared/decorators/index.js';
@@ -123,6 +124,9 @@ export class AdminRestController {
 
     if (!opened) {throw new NotFoundException();}
 
-    response.redirect(`${this.env.APP_URL}/admin?abierta=${encodeURIComponent(opened.email)}`);
+    // Whoever clicked is the owner, out of the owner's own mail, which is
+    // Spanish (`AccountWaitingMail`) — not the account holder, whose language
+    // has nothing to do with which admin screen the owner lands on.
+    response.redirect(webUrl(this.env.APP_URL, `/admin?abierta=${encodeURIComponent(opened.email)}`, DEFAULT_WEB_LOCALE));
   }
 }

@@ -16,10 +16,17 @@ import { formatNumber, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
+import { appMetadata } from '../../_shared/metadata';
+
 import type { Locale } from 'i18n/config';
+import type { Metadata } from 'next';
 import type { ProgressSummaryView } from 'core/controllers/Progress';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return appMetadata('/progreso');
+}
 
 function kg(value: number, locale: Locale): string {
   return formatNumber(value, locale, { maximumFractionDigits: 1 });

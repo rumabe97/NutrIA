@@ -21,14 +21,21 @@ import { formatNumber, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
+import { appMetadata } from '../../_shared/metadata';
+
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { HealthView } from 'core/controllers/Health';
+import type { Metadata } from 'next';
 import type { NotificationSettingsView } from 'core/controllers/Notification';
 import type { UserView } from 'core/controllers/User';
 import type { VacationView } from 'core/controllers/Vacation';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return appMetadata('/perfil');
+}
 
 function list(values: readonly string[], empty: string): string {
   return values.length > 0 ? values.join(', ') : empty;
@@ -201,14 +208,16 @@ export default async function ProfilePage() {
 
         <div className={styles.card}>
           <div className={styles.cardHead}>
-            <Text weight="semibold">{t.reminders}</Text>
+            {/* Headings rather than bold paragraphs, so these two cards appear
+                in the outline a screen reader navigates by. */}
+            <h2 className={styles.cardTitle}>{t.reminders}</h2>
           </div>
           <ReminderToggle enabled={notifications?.checkInEmail ?? true} />
         </div>
 
         <div className={`${styles.card} ${styles.danger}`}>
           <div className={styles.cardHead}>
-            <Text weight="semibold">{t.dangerTitle}</Text>
+            <h2 className={styles.cardTitle}>{t.dangerTitle}</h2>
           </div>
           <Text size="sm" tone="secondary">
             {t.deleteAllBody}

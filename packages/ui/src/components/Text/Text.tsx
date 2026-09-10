@@ -21,7 +21,7 @@ export interface TextProps extends ComponentPropsWithRef<'p'> {
   as?: TextElement;
   /** Visual size tier (`--font-size-01`–`04`, 12→16px). Defaults to `md` (14px). */
   size?: TextSize;
-  /** Text colour (`--foreground-01/02/03/disabled`). `tertiary` is sub-AA — use sparingly. `disabled` is WCAG-exempt. */
+  /** Text colour (`--foreground-01/02/03/disabled`). Every tone but `disabled` meets WCAG AA; `disabled` is WCAG-exempt. */
   tone?: TextTone;
   /** Font weight. Omit to inherit (useful when nested inside a `<Heading>` or styled block). */
   weight?: TextWeight;

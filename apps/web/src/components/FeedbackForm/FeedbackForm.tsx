@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 import styles from './FeedbackForm.module.css';
 
@@ -21,6 +21,7 @@ const KINDS = ['idea', 'problem', 'other'] as const;
 export function FeedbackForm() {
   const dictionary = useDictionary();
   const t = dictionary.feedback;
+  const messageId = useId();
   const [kind, setKind] = useState<(typeof KINDS)[number]>('idea');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -51,17 +52,26 @@ export function FeedbackForm() {
       </Text>
 
       <form className={styles.form} onSubmit={event => void submit(event)}>
-        <div className={styles.kinds}>
+        {/* The three pills read as one question, and a question a screen reader
+            never hears is three unexplained radios. The legend is hidden rather
+            than dropped: the pills say what they are, but only to somebody
+            looking at them. */}
+        <fieldset className={styles.kinds}>
+          <legend className="visually-hidden">{t.kindsLabel}</legend>
           {KINDS.map(option => (
             <label className={styles.kind} key={option}>
               <input checked={kind === option} name="kind" onChange={() => setKind(option)} type="radio" value={option} />
               <span className={styles.pill}>{t.kinds[option]}</span>
             </label>
           ))}
-        </div>
+        </fieldset>
 
+        <label className="visually-hidden" htmlFor={messageId}>
+          {t.messageLabel}
+        </label>
         <textarea
           className={styles.message}
+          id={messageId}
           maxLength={2000}
           onChange={event => {
             setMessage(event.target.value);
@@ -80,13 +90,13 @@ export function FeedbackForm() {
       {/* Said once and plainly. A product that thanks you three times for one
           message is a product that wants credit for listening. */}
       {sent ? (
-        <Text size="sm" tone="secondary">
+        <Text role="status" size="sm" tone="secondary">
           {t.thanks}
         </Text>
       ) : null}
 
       {error ? (
-        <Text className={styles.error} size="xs">
+        <Text className={styles.error} role="alert" size="xs">
           {error}
         </Text>
       ) : null}

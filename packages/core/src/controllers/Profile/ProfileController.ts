@@ -241,6 +241,19 @@ export const ProfileController = {
   },
 
   /**
+   * The language this account reads the product in, or null when it has not
+   * said — which is every account between signing up and finishing onboarding,
+   * because the profile row does not exist yet.
+   *
+   * Its own read rather than a field of `getFullProfile`: the callers that need
+   * it are the mails, they need nothing else about the person, and the full
+   * profile is ten queries and a body of health data.
+   */
+  async localeOf(userId: string): Promise<string | null> {
+    return (await ProfileRepository.findByUserId(userId))?.locale ?? null;
+  },
+
+  /**
    * Marks the tour shown, or asks for it again (`0038`).
    *
    * A timestamp rather than a flag, because "when" answers a question a flag

@@ -41,6 +41,12 @@
   margin-bottom: var(--gap-heading);
 }
 
+/* Structure without a size change: what `<Text weight="semibold">` looked like, as an `<h2>`. */
+.cardTitle {
+  font-size: var(--font-size-03);
+  line-height: var(--line-height-04);
+}
+
 .rows {
   display: grid;
   gap: var(--space-03);

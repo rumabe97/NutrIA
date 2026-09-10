@@ -121,20 +121,38 @@
   --background-highlight: var(--color-gray-04);
 
   /* ── Text ──────────────────────────────────────────────────────────
-     `--foreground-01` / `--foreground-02` are the body-text tiers — both meet
-     WCAG AA against `--background-01` in light and dark mode.
-     `--foreground-03` is intentionally sub-AA — it is for **decorative
-     non-text** surfaces only (carousel dots, input placeholders, etc.). Do
-     NOT use it for body or label text — reach for `--foreground-02` instead.
-     `--foreground-disabled` is exempt from contrast requirements (WCAG 1.4.3
-     explicitly exempts inactive UI components). */
+     All three tiers are text tiers, and all three meet WCAG AA (4.5:1) against
+     `--background-01` and against a white card in both modes.
+
+     `--foreground-03` used to be `--color-gray-09` — 3.15:1 in light, 3.65:1 in
+     dark — on the theory that a third tier would only ever be decorative. It
+     was read as text in sixty-three places instead, which is what a token in
+     the `--foreground-*` family will always be used for. Nothing between step
+     10 (3.60:1 light) and step 11 clears 4.5:1 on a near-white ground, so the
+     tier now *is* step 11: it survives as a semantic name for "the quietest
+     thing on the screen", not as a lighter colour. Reach for size or weight to
+     step something down, not for a paler grey.
+
+     Grey that is not text has its own tokens — `--border-01` for dividers,
+     `--border-interactive` for the edge of a control. `--foreground-disabled`
+     is exempt from contrast requirements (WCAG 1.4.3 explicitly exempts
+     inactive UI components). */
   --foreground-01: var(--color-gray-12);
   --foreground-02: var(--color-gray-11);
-  --foreground-03: var(--color-gray-09);
+  --foreground-03: var(--color-gray-11);
   --foreground-disabled: var(--color-gray-08);
 
-  /* ── Borders ─────────────────────────────────────────────────────── */
+  /* ── Borders ─────────────────────────────────────────────────────────
+     `--border-01` is decoration: a divider, a hairline, an edge nobody has to
+     see to use the page. At 1.26:1 it is well under the 3:1 WCAG 1.4.11 asks
+     for, which is fine for a line that carries no information.
+
+     `--border-interactive` is for a line that *is* the control — the edge of an
+     input or of a secondary button, where the border is the only thing saying
+     where the target starts. Step 09 measures 3.15:1 against `--background-01`
+     and 3.23:1 against a white card in light, 3.65:1 / 3.51:1 in dark. */
   --border-01: var(--color-gray-06);
+  --border-interactive: var(--color-gray-09);
 
   /* ── Interactive ─────────────────────────────────────────────────── */
   --color-hover: var(--color-gray-03-alpha);

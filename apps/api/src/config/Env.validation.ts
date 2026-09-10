@@ -96,6 +96,12 @@ const envObject = z
     ALLOWED_ORIGINS: optional(z.string()),
     ANTHROPIC_API_KEY: optional(z.string()),
     API_PREFIX: z.string().default('api/v1'),
+    /*
+     * Where the web app answers, and only its origin: the web app serves each
+     * language on its own path, so the rest of a link is `webUrl`'s to decide
+     * (`core/domain/WebUrl`). Never concatenate a path onto this by hand — that
+     * is how an English reader gets a Spanish page.
+     */
     APP_URL: z.url(),
     BETTER_AUTH_SECRET: z.string().min(SECRET_MIN_LENGTH, `must be at least ${SECRET_MIN_LENGTH} characters`),
     BETTER_AUTH_URL: z.url(),

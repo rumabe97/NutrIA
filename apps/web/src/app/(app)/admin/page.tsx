@@ -15,12 +15,19 @@ import { Pager } from 'components/Pager';
 import { formatDate, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
+import { appMetadata } from '../../_shared/metadata';
+
 import type { AccountView, Paged } from 'core/controllers/User';
 import type { AdminAnalyticsView, AdminOverviewView, AiUsageView } from 'core/controllers/Admin';
 import type { FeedbackView } from 'core/controllers/Feedback';
+import type { Metadata } from 'next';
 import type { SettingsView } from 'core/controllers/Settings';
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return appMetadata('/admin');
+}
 
 /** The order people actually move through, so each row can say what share of the one above it got here. */
 const FUNNEL_STAGES = ['signedUp', 'confirmed', 'activated', 'onboarded', 'planned', 'lived', 'checkedIn', 'returned'] as const;

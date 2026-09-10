@@ -74,7 +74,7 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
     <section className={styles.panel}>
       <div className={styles.head}>
         <div>
-          <Text weight="semibold">{t.title}</Text>
+          <h2 className={styles.title}>{t.title}</h2>
           <Text size="sm" tone="tertiary">
             {overrideStatus === 'applied' ? t.subtitleOwn : t.subtitleEstimated}
           </Text>

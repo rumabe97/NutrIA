@@ -5,9 +5,11 @@ import request from 'supertest';
 import { Test } from '@nestjs/testing';
 
 import { AdminController } from 'core/controllers/Admin';
+import { UserController } from 'core/controllers/User';
 
 import { AdminGuard } from '../../shared/guards/index.js';
 import { ENV } from '../../config/index.js';
+import { activationToken } from '../auth/ActivationLink.js';
 import { AdminRestController } from './admin.controller.js';
 import { AllExceptionsFilter } from '../../shared/filters/index.js';
 
@@ -16,6 +18,7 @@ import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
 
 const PREFIX = 'api/v1';
+const SECRET = 'a'.repeat(48);
 
 const OVERVIEW: AdminOverviewView = {
   counts: {
@@ -41,7 +44,7 @@ describe('AdminRestController', () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [AdminRestController],
       providers: [
-        { provide: ENV, useValue: { APP_URL: 'https://nutria.example', BETTER_AUTH_SECRET: 'a'.repeat(48) } },
+        { provide: ENV, useValue: { APP_URL: 'https://nutria.example', BETTER_AUTH_SECRET: SECRET } },
         // Registration order is execution order: the session stand-in has to put
         // the user on the request before the role is checked, exactly as
         // `SessionGuard` runs before `AdminGuard` in the real application.
@@ -82,5 +85,22 @@ describe('AdminRestController', () => {
     const response = await request(app.getHttpServer() as Server).get(`/${PREFIX}/admin/overview`).expect(200);
 
     expect((response.body as AdminOverviewView).counts.accounts.total).toBe(6);
+  });
+
+  /**
+   * The owner clicked a button in their own mail, which is Spanish, so the
+   * queue they land on is the Spanish one — the account they just opened may
+   * read the product in anything.
+   */
+  it('sends the one-click link back to the queue, in the owner\'s language', async () => {
+    role = 'admin';
+    jest.spyOn(UserController, 'activate').mockResolvedValue({ email: 'ana@example.invalid' });
+
+    const response = await request(app.getHttpServer() as Server)
+      .get(`/${PREFIX}/admin/activate`)
+      .query({ token: activationToken('usr-9', SECRET) })
+      .expect(302);
+
+    expect(response.headers.location).toBe('https://nutria.example/admin?abierta=ana%40example.invalid');
   });
 });
