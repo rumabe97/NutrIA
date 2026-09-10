@@ -38,6 +38,54 @@ This is intentional in the current monorepo (every app is Next.js), and the inte
 
 Don't add new Next-specific dependencies to other components without a similarly clear justification. Reaching for `next/font`, `next/dynamic`, or `next/headers` from a DS component would compound the coupling.
 
+## Fonts
+
+`src/fonts/` ships two files, and the difference between them matters:
+
+| File | What it is | Shipped to browsers |
+| --- | --- | --- |
+| `font.full.woff2` | Inter Variable (RSMS), untouched upstream. 352,240 bytes, 2,937 glyphs, axes `opsz` 14–32 and `wght` 100–900 | **no** — nothing imports it |
+| `font.woff2` | the subset derived from it, and the only file `font.ts` loads. 116,308 bytes, 1,167 glyphs, axes `opsz` 14–32 and `wght` 400–700 | yes, and preloaded on every response |
+
+The full file is kept purely so the subset can be rebuilt. Delete it and the subset becomes a binary nobody can regenerate.
+
+### Regenerating `font.woff2`
+
+Needs `fonttools` and `brotli`, which are Python and not workspace dependencies — install them into a throwaway virtualenv rather than the repo:
+
+```sh
+python3 -m venv /tmp/fontenv
+/tmp/fontenv/bin/pip install 'fonttools[woff]' brotli
+```
+
+Then, from `packages/ui/src/fonts/`:
+
+```sh
+# 1. Narrow the weight axis to the range the token scale actually defines.
+/tmp/fontenv/bin/fonttools varLib.instancer font.full.woff2 wght=400:700 --output=/tmp/wght.ttf
+
+# 2. Subset to the characters the products render, and recompress.
+/tmp/fontenv/bin/pyftsubset /tmp/wght.ttf \
+  --output-file=font.woff2 \
+  --unicodes='U+0000-00FF,U+0100-02AF,U+0304,U+0308,U+0329,U+1E00-1E9F,U+1EF2-1EFF,U+2000-206F,U+20A0-20C0,U+2113,U+2122,U+2190-2199,U+21E7,U+2200-22FF,U+2300-232B,U+2325,U+2713,U+2717,U+26A0,U+2C60-2C7F,U+A720-A7FF,U+FEFF,U+FFFD' \
+  --layout-features+=tnum \
+  --flavor=woff2 \
+  --with-zopfli
+```
+
+### Why those flags
+
+- **The unicode ranges** are Google Fonts' published `latin` and `latin-ext`, plus the symbols this workspace prints that neither covers: the arrow block (`←→↑↓↔↕`), the maths operators (`−≤≥≠≈`), the Mac modifier keys `Spotlight` and `ContextMenu` render (`⌘⌫⇧⌥⌃`), `✓✗` and `⚠`. Spanish needs nothing beyond Latin-1; `latin-ext` is there for foreign ingredient and account names, and it is the expensive half — dropping it would save roughly another 59KB if that trade ever looks worth making.
+- **`--layout-features+=tnum`** is not optional. `tnum` is absent from pyftsubset's default feature set, and ~25 rules across the apps set `font-variant-numeric: tabular-nums`. Drop it and every figure in every table starts jittering. The `+=` matters too: plain `=` would replace the defaults and take `kern`, `calt`, `ccmp` and `mark` with it.
+- **`wght=400:700`** is the whole range `--font-weight-regular` … `--font-weight-bold` spans. Widening the token scale means widening this *and* the `weight` string in `font.ts` — all three have to agree, or the browser silently clamps.
+- **Optical sizing is deliberately kept.** `font-optical-sizing: auto` is the CSS initial value, so browsers drive the `opsz` axis from the font size on their own and headings genuinely use it. Pinning it to `opsz=14` would save about 41KB and quietly flatten every display heading to the 14pt design.
+- **Stylistic sets are deliberately dropped** (`ss01`–`ss08`, `cv01`–`cv14`, `salt`, `dlig`, `zero`, `case`, `sups`, `subs`, `ordn`). Nothing sets `font-feature-settings`. If a component ever needs one, add it with `--layout-features+=` and regenerate.
+
+Whatever changes, keep these true:
+
+- **The Arial fallback override must not move.** Next.js computes `ascent-override: 89.79%` / `descent-override: 22.36%` / `size-adjust: 107.89%` from `unitsPerEm`, the `hhea` metrics, and the mean advance width of `a`–`z` and space. Subsetting preserves all of them — but instancing the *weight default* away from 400, or dropping a lowercase letter, would shift `size-adjust` and reintroduce the layout shift the override exists to prevent. Verify after regenerating: build `apps/web` and grep the emitted CSS for `@font-face`.
+- **No `unicode-range` descriptor.** It looks like it belongs and would do nothing: `next/font/local` preloads the file with a `Link` header on every response, so the browser has already fetched it before any range check could spare it. It would only start paying if the font were split into a preloaded `latin` file and a lazy `latin-ext` one — which `next/font/local` cannot express in a single family, since each call mints its own family name.
+
 ## Component structure
 
 Every component follows this exact layout:
