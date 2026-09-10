@@ -2,13 +2,13 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { NotificationController } from 'core/controllers/Notification';
 
-import { checkInReminderEmail, checkInReminderRecord } from '../email/templates/CheckInReminder.js';
-import { EmailService } from '../email/Email.service.js';
-import { ENV } from '../../config/index.js';
-import { ErrorReporter } from '../../shared/observability/index.js';
+import { checkInReminderEmail, checkInReminderRecord } from '../../email/templates/CheckInReminder.js';
+import { EmailService } from '../../email/Email.service.js';
+import { ENV } from '../../../config/index.js';
+import { ErrorReporter } from '../../../shared/observability/index.js';
 
-import type { EmailLocale } from '../email/templates/Layout.js';
-import type { Env } from '../../config/index.js';
+import type { EmailLocale } from '../../email/templates/Layout.js';
+import type { Env } from '../../../config/index.js';
 
 /**
  * How many reminders one sweep may send.

@@ -1,11 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { SettingsController } from 'core/controllers/Settings';
+import { AllowUnverified } from '../../../shared/index.js';
+import { SettingsService } from '../services/index.js';
 
-import { AllowUnverified } from '../../shared/decorators/index.js';
-
-import type { SettingsView } from 'core/controllers/Settings';
+import type { SettingsDto } from '../dto/out/index.js';
 
 /**
  * The one switch a signed-in person needs to know about themselves: whether
@@ -21,11 +20,14 @@ import type { SettingsView } from 'core/controllers/Settings';
  */
 @ApiTags('settings')
 @Controller('settings')
-export class SettingsRestController {
+export class SettingsController {
+  constructor(private readonly settings: SettingsService) {}
+
   @AllowUnverified()
+  @ApiOkResponse({ description: 'Whether confirming an address opens the account by itself.' })
   @ApiOperation({ summary: 'Whether signing up is open' })
   @Get()
-  async read(): Promise<SettingsView> {
-    return SettingsController.read();
+  async read(): Promise<SettingsDto> {
+    return this.settings.read();
   }
 }

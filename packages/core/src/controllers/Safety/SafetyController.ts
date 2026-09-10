@@ -2,8 +2,23 @@ import { allergenKeysForConditions, CONDITION_EXCLUSIONS } from 'core/domain/Hea
 import { HealthRepository } from '#repositories/Health';
 import { resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
 import { SafetyRepository } from '#repositories/Safety';
-import type { Allergen, SafetyProfile, SetAllergies } from 'core/entities/Safety';
+import type { Allergen, Allergy, CustomAllergen, Intolerance, SafetyProfile, SetAllergies } from 'core/entities/Safety';
 import type { ResolvedCustomAllergen } from 'core/domain/Safety';
+
+// --- Presenters ---------------------------------------------------------------
+
+/**
+ * The three sets a person declared, as stored.
+ *
+ * Declared rather than inferred from the object the controller builds: this is
+ * what `/safety/restrictions` answers with, and a response shape read off a
+ * literal is one nothing can be checked against.
+ */
+export interface RestrictionsView {
+  readonly allergies: readonly Allergy[];
+  readonly customAllergens: readonly CustomAllergen[];
+  readonly intolerances: readonly Intolerance[];
+}
 
 // --- Controller ---------------------------------------------------------------
 
@@ -21,7 +36,7 @@ export async function resolveFreeTextAllergens(labels: readonly string[]): Promi
 }
 
 export const SafetyController = {
-  async getRestrictions(userId: string) {
+  async getRestrictions(userId: string): Promise<RestrictionsView> {
     const [allergies, customAllergens, intolerances] = await Promise.all([
       SafetyRepository.findAllergies(userId),
       SafetyRepository.findCustomAllergens(userId),

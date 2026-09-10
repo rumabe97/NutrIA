@@ -6,9 +6,11 @@ import { Test } from '@nestjs/testing';
 import { ProfileController } from 'core/controllers/Profile';
 import { SafetyController } from 'core/controllers/Safety';
 
-import { AllExceptionsFilter } from '../../shared/filters/index.js';
-import { ProfilesController } from './profiles.controller.js';
-import { SafetyRestController } from '../safety/safety.controller.js';
+import { AllExceptionsFilter } from '../../../shared/filters/index.js';
+import { ProfilesController } from './Profiles.controller.js';
+import { ProfilesService } from '../services/index.js';
+import { SafetyController as SafetyRoutes } from '../../safety/controllers/index.js';
+import { SafetyService } from '../../safety/services/index.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
@@ -24,7 +26,7 @@ describe('body validation is scoped to the body', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    const moduleRef = await Test.createTestingModule({ controllers: [ProfilesController, SafetyRestController] }).compile();
+    const moduleRef = await Test.createTestingModule({ controllers: [ProfilesController, SafetyRoutes], providers: [ProfilesService, SafetyService] }).compile();
 
     app = moduleRef.createNestApplication();
     app.useGlobalFilters(new AllExceptionsFilter());

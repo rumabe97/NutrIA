@@ -5,7 +5,7 @@ import request from 'supertest';
 import { ENV } from '../../config/index.js';
 import { RecipeIllustrator } from '../ai/RecipeIllustrator.service.js';
 import { RecipeRewriter } from '../ai/RecipeRewriter.service.js';
-import { CheckInReminderService } from '../notifications/CheckInReminder.service.js';
+import { CheckInReminderService } from '../notifications/index.js';
 import { IllustrateController } from './illustrate.controller.js';
 
 import type { INestApplication } from '@nestjs/common';

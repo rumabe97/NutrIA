@@ -3,13 +3,13 @@ import { ApiExcludeController } from '@nestjs/swagger';
 
 import { ENV } from '../../config/index.js';
 import { Public, SkipRateLimit } from '../../shared/decorators/index.js';
-import { CheckInReminderService } from '../notifications/CheckInReminder.service.js';
+import { CheckInReminderService } from '../notifications/index.js';
 import { RecipeIllustrator } from '../ai/RecipeIllustrator.service.js';
 import { RecipeRewriter } from '../ai/RecipeRewriter.service.js';
 
 import type { Env } from '../../config/index.js';
 import type { IllustrationRun } from '../ai/RecipeIllustrator.service.js';
-import type { ReminderRun } from '../notifications/CheckInReminder.service.js';
+import type { ReminderRun } from '../notifications/index.js';
 import type { RewriteRun } from '../ai/RecipeRewriter.service.js';
 
 /** Six images a sweep: ten seconds each, a minute of work, well inside the function's ceiling. */

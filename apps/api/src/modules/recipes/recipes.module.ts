@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { envProvider } from '../../config/index.js';
 import { IllustrateController } from './illustrate.controller.js';
-import { NotificationsModule } from '../notifications/notifications.module.js';
+import { NotificationsModule } from '../notifications/index.js';
 import { RecipesController } from './recipes.controller.js';
 
 /**
