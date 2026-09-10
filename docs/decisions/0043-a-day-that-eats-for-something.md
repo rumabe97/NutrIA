@@ -1,6 +1,6 @@
 # 0043 — A day that eats for something
 
-**Status**: accepted · **Date**: 2026-09-10 · **Deciders**: owner, agent
+**Status**: accepted · **Date**: 2026-09-10 · **Deciders**: owner, agent · **Amended**: 2026-09-10, see below
 
 ## Context
 
@@ -93,3 +93,21 @@ The scheduler takes an optional per-day override map. With none, it produces
 exactly the fortnight it always did — checked by a test that compares the two.
 Everything else is one table, one domain module with its tests, and a chip on
 the day.
+
+## Amendment — 2026-09-10, the same day
+
+**An event is a fortnight's, not the person's.** It was first declared from the
+profile, beside vacations. The owner's reading is the right one: the profile is
+for what lasts — allergies, how somebody eats — and a race in ten days is not
+that. Declaring one belongs where a fortnight is made. So the form left the
+profile and lives in two places: on the generation screen, before a plan is
+built, as the ordinary entry; and under a day of the plan, for the paid tier's
+mid-plan addition that [`0044`](./0044-a-fortnight-rebuilt-for-an-event.md)
+introduces. One consequence accepted knowingly: the generation screen no longer
+starts on arrival — it shows the fortnight's events and waits for a tap. That
+is one more tap on every regeneration, and the price of being able to say what
+the plan should eat for before it is built.
+
+The "left for later" list above is shorter now: in-place rescheduling shipped
+as `0044`, for premium. The days after an event, recurring events, per-type
+suggestions and multi-week periodisation remain later.
