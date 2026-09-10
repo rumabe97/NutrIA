@@ -308,7 +308,6 @@ export const esES = {
 
   events: {
     add: 'Añadir',
-    added: 'Añadido. Lo verás en el próximo plan que generes.',
     addedMidPlan: 'Añadido. Los días de antes ya se han rehecho para comer para ello.',
     addedNow: 'Añadido. Este plan ya contará con ello.',
     cancel: 'Quitar',
@@ -320,8 +319,6 @@ export const esES = {
     down: 'Bajar',
     fat: 'Grasa',
     full: 'Has puesto los {limit} eventos que caben en un plan. Quita uno para añadir otro.',
-    intro:
-      'Una carrera, un partido, un Hyrox, una sesión larga: ponle nombre y fecha, y elige qué comen los días de antes. Se aplica al próximo plan que generes.',
     left: 'Te quedan {remaining} de {limit} eventos para este plan.',
     leftOne: 'Te queda 1 evento de {limit} para este plan.',
     /* What a screen reader says where the sighted see ↓ and ↑: "menos grasa", "más hidratos". */

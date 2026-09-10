@@ -303,7 +303,6 @@ export const enGB: Dictionary = {
 
   events: {
     add: 'Add',
-    added: 'Added. You will see it in the next plan you generate.',
     addedMidPlan: 'Added. The days before it have been rebuilt to eat for it.',
     addedNow: 'Added. This plan will be built with it.',
     cancel: 'Remove',
@@ -315,8 +314,6 @@ export const enGB: Dictionary = {
     down: 'Lower',
     fat: 'Fat',
     full: 'You have added the {limit} events a plan holds. Remove one to add another.',
-    intro:
-      'A race, a match, a Hyrox, a long session: give it a name and a date, and choose what the days before it eat. Applied to the next plan you generate.',
     left: '{remaining} of {limit} events left for this plan.',
     leftOne: '1 event of {limit} left for this plan.',
     less: 'less',
