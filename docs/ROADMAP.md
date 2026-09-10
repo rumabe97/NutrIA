@@ -191,6 +191,13 @@ sells the people.
 - Error visibility: done (`0024`). Set `SENTRY_DSN` on the API project to turn it on; unset,
   nothing is sent.
 
+- A library window with no order: `RecipeRepository.findReusable` takes `.limit(300)` with
+  no `ORDER BY`, so the rows a reuse pool — and, since `0044`, a mid-plan rebuild — draws
+  from are whichever Postgres returns first. On a large shared library a heavily restricted
+  account could land on a window with too few safe dishes and get an empty rebuild. Found by
+  the tests agent on 2026-09-10, not yet seen in practice. The fix is an order that favours
+  the caller's constraints, or a window sized to them.
+
 ## Last, and deliberately so
 
 **The assistant.** Nutrition-scoped, context-efficient, with the medical boundaries in
