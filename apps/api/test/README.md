@@ -37,6 +37,12 @@ pnpm --filter database seed      # allergens + ingredients — NOT optional, see
 pnpm --filter api test:e2e
 ```
 
+`--forceExit` is in the script on purpose. The suites close their Nest app and their
+database pool (`setup-e2e.ts`), and something below them — the platform's own handles —
+still holds the loop open afterwards. Without it the run finishes its tests and then sits
+there until a CI job timeout kills it, which GitHub reports as "cancelled" and which reads
+like somebody pressed a button rather than like a run that passed.
+
 **Never point these at a database holding real user data.** Every suite registers accounts
 and deletes them again in `afterAll`.
 

@@ -14,7 +14,7 @@
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --passWithNoTests",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch",
     "test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
-    "test:e2e": "NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-e2e.json --runInBand",
+    "test:e2e": "NODE_OPTIONS=--experimental-vm-modules jest --config ./test/jest-e2e.json --runInBand --forceExit",
     "format": "prettier --check 'src/**/*.ts' 'test/**/*.ts'",
     "format:fix": "prettier --write 'src/**/*.ts' 'test/**/*.ts'",
     "smoke:function": "node --env-file=.env scripts/smoke-function.mjs"
