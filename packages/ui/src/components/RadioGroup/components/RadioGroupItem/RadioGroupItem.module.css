@@ -19,7 +19,7 @@
 .item {
   align-items: center;
   background-color: transparent;
-  border: 1.5px solid var(--border-01);
+  border: 1.5px solid var(--border-interactive);
   border-radius: var(--radius-full);
   cursor: inherit;
   display: flex;

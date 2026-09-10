@@ -306,7 +306,11 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
 
         {current?.key === 'about-you' ? (
           <Fragment>
-            <Input defaultValue={person?.displayName ?? ''} error={fieldError('displayName')} label={f.displayName} name="displayName" />
+            {/* `nickname`, not `name`: the question is what to call you, and
+                the browser has a token for exactly that. Height, weight and pace
+                have none — an invented token autofills nothing and claims a
+                purpose that is not the field's. */}
+            <Input autoComplete="nickname" defaultValue={person?.displayName ?? ''} error={fieldError('displayName')} label={f.displayName} name="displayName" />
             {/* Asked now that something reads it: the catalogue knows which of
                 its foods are sold only in Spain, and a plan is built from what
                 this person can actually buy (`0034`). Two options, because two
@@ -319,7 +323,7 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
                 {f.countryHint}
               </Text>
             </fieldset>
-            <Input defaultValue={person?.birthDate ?? ''} error={fieldError('birthDate')} label={f.birthDate} name="birthDate" type="date" />
+            <Input autoComplete="bday" defaultValue={person?.birthDate ?? ''} error={fieldError('birthDate')} label={f.birthDate} name="birthDate" type="date" />
             <fieldset className={styles.fieldset}>
               <legend className={styles.legend}>{f.sex}</legend>
               <OptionCards name="sex" options={options.sex} value={person?.sex} />
@@ -433,8 +437,12 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
                     name="allergy"
                     value={allergen.id}
                   />
+                  {/* Fourteen boxes all called "trazas" are fourteen identical
+                      stops in a rotor list; the visible word stays short and the
+                      label says which allergen this one belongs to. */}
                   <label className={styles.allergenTrace}>
                     <input
+                      aria-label={interpolate(f.traceLabelFor, { allergen: allergen.labelEs })}
                       defaultChecked={profile?.allergies.some(a => a.allergenId === allergen.id && a.crossContaminationSensitive)}
                       name="trace"
                       type="checkbox"

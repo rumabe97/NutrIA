@@ -37,18 +37,13 @@
 
 .textarea {
   background-color: var(--surface-card);
-  border: 1px solid var(--border-01);
+  border: 1px solid var(--border-interactive);
   border-radius: var(--radius-03);
   color: inherit;
   font: inherit;
   padding: var(--space-03) var(--space-04);
   resize: vertical;
   width: 100%;
-}
-
-.textarea:focus-visible {
-  border-color: var(--color-brand-09);
-  outline: none;
 }
 
 .done {

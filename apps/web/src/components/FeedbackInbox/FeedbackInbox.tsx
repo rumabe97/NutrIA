@@ -10,7 +10,7 @@ import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { api, messageFor } from 'lib/api';
-import { formatDate } from 'lib/format';
+import { formatDate, interpolate } from 'lib/format';
 
 import type { FeedbackView } from 'core/controllers/Feedback';
 
@@ -72,7 +72,15 @@ export function FeedbackInbox({ messages }: { messages: readonly FeedbackView[] 
             {/* Their words, as typed. Nothing here summarises or interprets. */}
             <p className={styles.message}>{row.message}</p>
 
-            <Button disabled={pending !== undefined} loading={pending === row.id} onClick={() => void toggle(row.id, !row.handled)} size="sm" type="button" variant="secondary">
+            <Button
+              aria-label={interpolate(row.handled ? t.feedbackReopenFor : t.feedbackHandledFor, { email: row.email })}
+              disabled={pending !== undefined}
+              loading={pending === row.id}
+              onClick={() => void toggle(row.id, !row.handled)}
+              size="sm"
+              type="button"
+              variant="secondary"
+            >
               {row.handled ? t.feedbackReopen : t.feedbackHandled}
             </Button>
           </li>
@@ -80,7 +88,7 @@ export function FeedbackInbox({ messages }: { messages: readonly FeedbackView[] 
       </ul>
 
       {error ? (
-        <Text className={styles.error} size="xs">
+        <Text className={styles.error} role="alert" size="xs">
           {error}
         </Text>
       ) : null}

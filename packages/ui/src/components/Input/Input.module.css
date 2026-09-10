@@ -13,7 +13,7 @@
 
 .input {
   background-color: var(--background-01);
-  border: 1px solid var(--border-01);
+  border: 1px solid var(--border-interactive);
   border-radius: var(--radius-02);
   color: var(--foreground-01);
   font-family: inherit;

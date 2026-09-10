@@ -4,7 +4,7 @@ import styles from './WeightChart.module.css';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
-import { formatDate, formatNumber } from 'lib/format';
+import { formatDate, formatNumber, interpolate } from 'lib/format';
 
 const WIDTH = 100;
 const HEIGHT = 40;
@@ -77,6 +77,18 @@ export function WeightChart({ entries, targetKg }: WeightChartProps) {
       </div>
 
       <figcaption className={styles.caption}>
+        {/* The svg is `aria-hidden`, so without this the trend — the only thing
+            the chart is for — reaches nobody who cannot see it. Not drawn: the
+            two axes already say the same numbers to anyone who can. */}
+        <Text className="visually-hidden">
+          {interpolate(dictionary.progress.chartSummary, {
+            from: formatNumber(first.weightKg, locale, { maximumFractionDigits: 1 }),
+            fromDate: formatDate(first.loggedOn, locale, dateOptions),
+            to: formatNumber(last.weightKg, locale, { maximumFractionDigits: 1 }),
+            toDate: formatDate(last.loggedOn, locale, dateOptions)
+          })}
+        </Text>
+
         {targetKg === null ? null : (
           <Text size="xs" tone="tertiary">
             {dictionary.progress.weightTarget.replace('{value}', formatNumber(targetKg, locale, { maximumFractionDigits: 1 }))}
