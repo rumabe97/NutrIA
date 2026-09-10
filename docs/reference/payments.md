@@ -82,6 +82,11 @@ All three are optional in `Env.validation.ts`, in the same way `SENTRY_DSN` is:
 **unset, payments are off and nothing about them is reachable.** That is what
 lets this ship before the account exists.
 
+Each one checks its prefix, because that is the half that goes wrong. A
+publishable key pasted where the secret belongs fails every call at Stripe with a
+message about key types, and an `sk_live_` key reaching a preview deployment is
+the mistake that charges somebody real money from a test.
+
 ### 3b. The webhook endpoint
 
 *Developers → Webhooks → Add endpoint*, pointing at

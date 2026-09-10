@@ -158,6 +158,31 @@ pnpm migrate
 pnpm push
 ```
 
+### If `generate` starts asking whether a column is a rename
+
+That question means the snapshots have drifted: `generate` diffs the schema
+against the **last snapshot in `meta/`**, and if a migration was written by hand
+it left no snapshot, so the tool is comparing against a state several migrations
+old and cannot tell an addition from a rename. It happened here — `0019`–`0022`
+were hand-written and the snapshots stopped at `0018` — and it makes `generate`
+unusable, which is what tempts the next person to write one by hand too.
+
+Do **not** answer the prompt to get past it. Repair the chain:
+
+1. Move `src/migrations` aside and put an empty journal in its place
+   (`{"version":"7","dialect":"postgresql","entries":[]}`).
+2. `pnpm generate`. From an empty baseline nothing can look like a rename, so it
+   runs without prompting and writes a snapshot of the schema **as it is now**.
+3. Keep only that snapshot. Restore the real `src/migrations`, set the new
+   snapshot's `prevId` to the id of the last real snapshot, and save it under the
+   index of the newest migration (`meta/<NNNN>_snapshot.json`).
+4. `pnpm generate` again. It must say *"No schema changes"*. Then make a throwaway
+   schema change and check it emits exactly that change and nothing else.
+
+`--custom` does not do this: the snapshot it writes is a copy of the previous
+one, because a hand-written migration can do anything and the tool cannot know
+what. It preserves the drift rather than repairing it.
+
 ## Adding a new table
 
 1. Create `src/schemas/<table>.schema.ts` and export the table const.
