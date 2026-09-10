@@ -32,6 +32,10 @@ export function proxy(request: NextRequest): NextResponse {
   // addresses that cannot carry one — every unprefixed path, which is all of
   // Spanish and all of the signed-in app.
   const locale = asked === DEFAULT_LOCALE ? (chosen ?? DEFAULT_LOCALE) : asked;
+  // Only a page somebody is reading says anything about the language they read
+  // in. A manifest or any other resource fetched from under `/en` does not, and
+  // a subresource quietly rewriting a preference is how these things go wrong.
+  const arriving = isLocalised(nextUrl.pathname) && asked !== DEFAULT_LOCALE && asked !== chosen ? asked : null;
 
   // The links this app shares with its signed-in chrome — the header's sign-in
   // link, the footer's — are unprefixed and cannot know which language they are
@@ -55,7 +59,7 @@ export function proxy(request: NextRequest): NextResponse {
     // stripped path, because that is the address the signed-in screens have.
     url.searchParams.set('siguiente', path);
 
-    return remember(NextResponse.redirect(url), asked, chosen);
+    return remember(NextResponse.redirect(url), arriving);
   }
 
   if (hasSession && AUTH_ROUTES.some(authPath => path.startsWith(authPath))) {
@@ -64,10 +68,10 @@ export function proxy(request: NextRequest): NextResponse {
     url.pathname = '/inicio';
     url.search = '';
 
-    return remember(NextResponse.redirect(url), asked, chosen);
+    return remember(NextResponse.redirect(url), arriving);
   }
 
-  return remember(NextResponse.next(), asked, chosen);
+  return remember(NextResponse.next(), arriving);
 }
 
 /**
@@ -78,13 +82,12 @@ export function proxy(request: NextRequest): NextResponse {
  * nothing else to read. Without this, a visitor who arrives at `/en` from a
  * search result is thrown back into Spanish by the first link they click.
  *
- * Only ever written when the URL names a language the cookie does not already
- * hold, so the steady state adds no header at all.
+ * `null` when the cookie already says it, so the steady state adds no header.
  */
-function remember(response: NextResponse, asked: Locale, chosen: Locale | null): NextResponse {
-  if (asked === DEFAULT_LOCALE || asked === chosen) {return response;}
+function remember(response: NextResponse, arriving: Locale | null): NextResponse {
+  if (arriving === null) {return response;}
 
-  response.cookies.set(LOCALE_COOKIE, asked, { maxAge: LOCALE_COOKIE_MAX_AGE, path: '/', sameSite: 'lax' });
+  response.cookies.set(LOCALE_COOKIE, arriving, { maxAge: LOCALE_COOKIE_MAX_AGE, path: '/', sameSite: 'lax' });
 
   return response;
 }
