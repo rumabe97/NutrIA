@@ -44,4 +44,18 @@ describe('Accordion', () => {
     await userEvent.click(screen.getByRole('button', { name: 'One' }));
     expect(screen.getByRole('button', { name: 'One' })).toHaveAttribute('aria-expanded', 'true');
   });
+
+  // Radix unmounts closed content. Everything an accordion holds on a marketing
+  // page — the answers to the questions — would then be absent from the served
+  // HTML, present only once JavaScript had run.
+  it('keeps closed content in the document', () => {
+    renderAccordion();
+    expect(screen.getByText('content-one')).toBeInTheDocument();
+    expect(screen.getByText('content-two')).toBeInTheDocument();
+  });
+
+  it('marks closed content closed, so CSS can take it off the screen', () => {
+    renderAccordion();
+    expect(screen.getByText('content-one').parentElement).toHaveAttribute('data-state', 'closed');
+  });
 });
