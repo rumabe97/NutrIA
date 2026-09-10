@@ -1,0 +1,51 @@
+.root {
+  display: grid;
+  gap: var(--space-03);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-03);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-03);
+  display: grid;
+  gap: var(--space-02);
+  justify-items: start;
+  padding: var(--space-03) var(--space-04);
+}
+
+/* Dealt with, not gone: still readable, just no longer asking for attention. */
+.handled {
+  opacity: 0.55;
+}
+
+.head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+}
+
+.chip {
+  background: var(--background-02);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-01);
+  padding: 0 var(--space-02);
+}
+
+.message {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.error {
+  color: var(--color-error-text);
+}

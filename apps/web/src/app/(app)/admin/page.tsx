@@ -9,6 +9,7 @@ import { Text } from 'ui/components/Text';
 
 import { AccountList } from 'components/AccountList';
 import { ActivationSwitch } from 'components/ActivationSwitch';
+import { FeedbackInbox } from 'components/FeedbackInbox';
 import { Pager } from 'components/Pager';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
@@ -16,6 +17,7 @@ import { serverApi } from 'lib/server-api';
 
 import type { AccountView, Paged } from 'core/controllers/User';
 import type { AdminAnalyticsView, AdminOverviewView, AiUsageView } from 'core/controllers/Admin';
+import type { FeedbackView } from 'core/controllers/Feedback';
 import type { SettingsView } from 'core/controllers/Settings';
 
 export const dynamic = 'force-dynamic';
@@ -34,10 +36,11 @@ const FUNNEL_STAGES = ['signedUp', 'confirmed', 'activated', 'onboarded', 'plann
  * It shows no plan, no profile and no email on purpose. "Is generation working"
  * and "how big is the catalogue" are answerable without reading anybody's food.
  */
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ abierta?: string; cuentas?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ abierta?: string; buzon?: string; cuentas?: string }> }) {
   const query = await searchParams;
   const accountsOffset = Number.parseInt(query.cuentas ?? '', 10) || 0;
-  const [dictionary, locale, overview, accounts, settings, analytics, ai, opened] = await Promise.all([
+  const feedbackOffset = Number.parseInt(query.buzon ?? '', 10) || 0;
+  const [dictionary, locale, overview, accounts, settings, analytics, ai, inbox, opened] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<AdminOverviewView>('/admin/overview'),
@@ -45,6 +48,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     serverApi<SettingsView>('/admin/settings'),
     serverApi<AdminAnalyticsView>('/admin/analytics'),
     serverApi<AiUsageView>('/admin/ai'),
+    serverApi<Paged<FeedbackView> & { waiting: number }>(`/admin/feedback?offset=${feedbackOffset}`),
     Promise.resolve(query)
   ]);
 
@@ -105,6 +109,20 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           />
         ) : null}
       </section>
+
+      {inbox ? (
+        <section className={styles.section} id="buzon">
+          <h2 className={styles.subtitle}>{interpolate(t.feedbackTitle, { count: number(inbox.waiting) })}</h2>
+          <FeedbackInbox messages={inbox.rows} />
+          <Pager
+            labels={{ next: t.pagerNext, of: t.pagerOf, previous: t.pagerPrevious }}
+            offset={inbox.offset}
+            param="buzon"
+            size={inbox.size}
+            total={inbox.total}
+          />
+        </section>
+      ) : null}
 
       {ai ? (
         <section className={styles.section} id="ia">

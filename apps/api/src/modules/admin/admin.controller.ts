@@ -1,8 +1,10 @@
-import { Body, Controller, Get, Inject, NotFoundException, Param, Patch, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Inject, NotFoundException, Param, ParseUUIDPipe, Patch, Post, Query, Res } from '@nestjs/common';
 import { ApiExcludeEndpoint, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { adminSettingsSchema } from 'core/entities/Settings';
+import { handleFeedbackSchema } from 'core/entities/Feedback';
 import { AdminController } from 'core/controllers/Admin';
+import { FeedbackController } from 'core/controllers/Feedback';
 import { SettingsController } from 'core/controllers/Settings';
 import { UserController } from 'core/controllers/User';
 
@@ -13,6 +15,8 @@ import { verifyActivationToken } from '../auth/ActivationLink.js';
 
 import type { AdminAnalyticsView, AdminJobView, AdminOverviewView, AiUsageView } from 'core/controllers/Admin';
 import type { AccountView, Paged } from 'core/controllers/User';
+import type { FeedbackView } from 'core/controllers/Feedback';
+import type { HandleFeedback } from 'core/entities/Feedback';
 import type { AdminSettings } from 'core/entities/Settings';
 import type { Env } from '../../config/index.js';
 import type { SettingsView } from 'core/controllers/Settings';
@@ -33,6 +37,19 @@ export class AdminRestController {
   @Get('overview')
   async overview(): Promise<AdminOverviewView> {
     return AdminController.overview();
+  }
+
+  @ApiOperation({ summary: 'What people wrote, newest first' })
+  @Get('feedback')
+  async feedback(@Query('offset') offset?: string, @Query('size') size?: string): Promise<Paged<FeedbackView> & { waiting: number }> {
+    return FeedbackController.list({ offset: Number.parseInt(offset ?? '', 10) || 0, size: Number.parseInt(size ?? '', 10) || undefined });
+  }
+
+  @ApiOperation({ summary: 'Mark a message dealt with, or put it back' })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Patch('feedback/:id')
+  async setFeedbackHandled(@Param('id', ParseUUIDPipe) id: string, @Body(new ZodValidationPipe(handleFeedbackSchema)) body: HandleFeedback): Promise<void> {
+    await FeedbackController.setHandled(id, body.handled);
   }
 
   @ApiOperation({ summary: "Today against the provider's allowance, counted here" })

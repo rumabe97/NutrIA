@@ -9,6 +9,7 @@ import { createApp, httpServer, PREFIX, register, ScriptedAiClient } from './har
 import type { Account } from './harness.js';
 import type { AccountView, Paged } from 'core/controllers/User';
 import type { AdminAnalyticsView, AiUsageView } from 'core/controllers/Admin';
+import type { FeedbackView } from 'core/controllers/Feedback';
 import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
 
@@ -23,7 +24,7 @@ import type { Response } from 'supertest';
  *
  * Requires a real database — see ./README.md.
  */
-const ROUTES = ['overview', 'failures', 'accounts', 'settings', 'analytics', 'ai'];
+const ROUTES = ['overview', 'failures', 'accounts', 'settings', 'analytics', 'ai', 'feedback'];
 
 describe('admin', () => {
   let app: INestApplication;
@@ -142,6 +143,39 @@ describe('admin', () => {
     expect(usage).toMatchObject({ calls: 0, refused: 0 });
     expect(usage.limits).toEqual({ requestsPerDay: null, tokensPerMinute: null });
     expect(Date.parse(usage.resetsAt)).toBeGreaterThan(Date.now());
+  });
+
+  it('carries a message from the person who wrote it to the owner, and back again', async () => {
+    const server = httpServer(app);
+
+    await request(server).post(`/${PREFIX}/feedback`).set('Cookie', ordinary.cookie).send({ kind: 'problem', message: 'La cena sale muy tarde' }).expect(204);
+
+    const inbox: Response = await request(server).get(`/${PREFIX}/admin/feedback`).set('Cookie', owner.cookie).expect(200);
+    const page = inbox.body as Paged<FeedbackView> & { waiting: number };
+    const mine = page.rows.find(row => row.message === 'La cena sale muy tarde');
+
+    // Their words as typed, and the address that makes a reply possible — the
+    // one admin read that carries something about a person, because the message
+    // was written to be read (`0037`).
+    expect(mine).toMatchObject({ email: ordinary.email, handled: false, kind: 'problem' });
+    expect(page.waiting).toBeGreaterThan(0);
+
+    // Handled is a note the owner leaves themselves, and it can be taken back.
+    await request(server).patch(`/${PREFIX}/admin/feedback/${mine?.id}`).set('Cookie', owner.cookie).send({ handled: true }).expect(204);
+
+    const seen: Response = await request(server).get(`/${PREFIX}/admin/feedback`).set('Cookie', owner.cookie).expect(200);
+
+    expect((seen.body as Paged<FeedbackView>).rows.find(row => row.id === mine?.id)?.handled).toBe(true);
+
+    await request(server).patch(`/${PREFIX}/admin/feedback/${mine?.id}`).set('Cookie', owner.cookie).send({ handled: false }).expect(204);
+  });
+
+  it('will not let an ordinary account read what other people wrote', async () => {
+    await request(httpServer(app)).get(`/${PREFIX}/admin/feedback`).set('Cookie', ordinary.cookie).expect(404);
+  });
+
+  it('refuses an empty message rather than filing it', async () => {
+    await request(httpServer(app)).post(`/${PREFIX}/feedback`).set('Cookie', ordinary.cookie).send({ kind: 'idea', message: '   ' }).expect(422);
   });
 
   it('refuses an account id that is not an account', async () => {

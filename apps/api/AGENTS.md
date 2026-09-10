@@ -241,6 +241,10 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   nothing, which is what an account that never said where it is had before the column.
   `COUNTRIES` in `core/entities/Profile` is the list onboarding offers, and it is short
   because it is what the catalogue can serve.
+- **Feedback** (`0037`): `POST /feedback` is signed-in and rate limited; `/admin/feedback` is
+  the inbox, paged, with a reversible `handled` mark. It is the one admin read that carries a
+  person's own words and address — allowed because the message was written to be read and
+  answered. Nothing summarises it and it never reaches a model.
 - **AI usage** (`0035`): every provider request records an `ai_call` event from
   `StructuredAiClient` — the only place a request leaves the building. `/admin/ai` counts
   today's against `AI_REQUESTS_PER_DAY` and `AI_TOKENS_PER_MINUTE`, which are configuration

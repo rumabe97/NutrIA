@@ -39,6 +39,9 @@ export const enGB: Dictionary = {
     },
     failureNote: '{count} generations failed. The code says whether it was the quota, the key or the catalogue.',
     failures: 'Failures',
+    feedbackHandled: 'Mark as seen',
+    feedbackReopen: 'Reopen',
+    feedbackTitle: 'Inbox ({count} unseen)',
     funnel: {
       activated: 'Account opened',
       checkedIn: 'Did the check-in',
@@ -59,6 +62,7 @@ export const enGB: Dictionary = {
     manualHint: 'Confirming their address leaves the account waiting and sends you a mail. You open it from this list.',
     noAccounts: 'No account yet.',
     noActivity: 'No activity recorded yet.',
+    noFeedback: 'Nobody has written yet.',
     noJobs: 'No generation yet.',
     notOpened: 'not opened',
     opened: 'account open',
@@ -285,6 +289,15 @@ export const enGB: Dictionary = {
     quotaExceeded: 'You have used up what your plan allows this fortnight.',
     request: 'We could not complete that action.',
     unsafeContent: 'That content does not meet your dietary restrictions.'
+  },
+
+  feedback: {
+    intro: 'A person reads this: me. Tell me what is missing, what is in the way, or what does not work.',
+    kinds: { idea: 'An idea', other: 'Something else', problem: 'Something is broken' },
+    placeholder: 'Write here…',
+    send: 'Send',
+    thanks: 'Got it. Thanks for taking the time.',
+    title: 'What would you improve?'
   },
 
   footer: {

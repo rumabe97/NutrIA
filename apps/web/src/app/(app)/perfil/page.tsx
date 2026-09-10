@@ -6,6 +6,7 @@ import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { DeleteAccount } from 'components/DeleteAccount';
+import { FeedbackForm } from 'components/FeedbackForm';
 import { HealthPanel } from 'components/HealthPanel';
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
 import { ProfileSection } from 'components/ProfileSection';
@@ -101,6 +102,8 @@ export default async function ProfilePage() {
         <LocaleSwitcher />
 
         <VacationPlanner trips={trips ?? []} />
+
+        <FeedbackForm />
 
         <ProfileSection
           editHref="/onboarding/1?volver=perfil"
