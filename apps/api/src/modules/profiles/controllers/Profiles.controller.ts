@@ -3,13 +3,7 @@ import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUser, Locale, ZodBody } from '../../../shared/index.js';
 import { ProfilesService } from '../services/index.js';
-import {
-  SetTourSeenDto,
-  UpdateGoalDto,
-  UpdatePreferencesDto,
-  UpdateProfileDto,
-  UpdateTargetOverrideDto
-} from '../dto/in/index.js';
+import { SetTourSeenDto, UpdateGoalDto, UpdatePreferencesDto, UpdateProfileDto, UpdateTargetOverrideDto } from '../dto/in/index.js';
 
 import type { FullProfileDto, GoalDto, PreferencesDto, ProfileDto, TargetsDto, TourSeenDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';

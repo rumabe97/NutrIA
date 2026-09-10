@@ -100,7 +100,11 @@ export function MealSwap({ limit, mealId, remaining, totalMinutes }: MealSwapPro
     }
   }
 
-  const hint = spent ? interpolate(t.swapSpent, { limit }) : left === 1 ? interpolate(t.swapHintOne, { limit }) : interpolate(t.swapHint, { limit, remaining: left });
+  const hint = spent
+    ? interpolate(t.swapSpent, { limit })
+    : left === 1
+      ? interpolate(t.swapHintOne, { limit })
+      : interpolate(t.swapHint, { limit, remaining: left });
 
   return (
     <div className={styles.root} ref={root} tabIndex={-1}>
@@ -128,7 +132,15 @@ export function MealSwap({ limit, mealId, remaining, totalMinutes }: MealSwapPro
           <div className={styles.options}>
             {options.map(option => (
               <label className={styles.option} key={option.value}>
-                <input checked={choice === option.value} className={styles.input} disabled={pending} name={name} onChange={() => setChoice(option.value)} type="radio" value={option.value} />
+                <input
+                  checked={choice === option.value}
+                  className={styles.input}
+                  disabled={pending}
+                  name={name}
+                  onChange={() => setChoice(option.value)}
+                  type="radio"
+                  value={option.value}
+                />
                 <span className={styles.optionText}>
                   <Text as="span" size="sm" weight="medium">
                     {option.label}

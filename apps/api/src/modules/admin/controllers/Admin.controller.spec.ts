@@ -47,11 +47,16 @@ describe('AdminController', () => {
         // Registration order is execution order: the session stand-in has to put
         // the user on the request before the role is checked, exactly as
         // `SessionGuard` runs before `AdminGuard` in the real application.
-        { provide: APP_GUARD, useValue: { canActivate: (context: { switchToHttp: () => { getRequest: () => { user?: unknown } } }) => {
-          context.switchToHttp().getRequest().user = { id: 'usr-1', activated: true, email: 'a@b.invalid', emailVerified: true, name: 'A', role };
+        {
+          provide: APP_GUARD,
+          useValue: {
+            canActivate: (context: { switchToHttp: () => { getRequest: () => { user?: unknown } } }) => {
+              context.switchToHttp().getRequest().user = { id: 'usr-1', activated: true, email: 'a@b.invalid', emailVerified: true, name: 'A', role };
 
-          return true;
-        } } },
+              return true;
+            }
+          }
+        },
         { provide: APP_GUARD, useClass: AdminGuard }
       ]
     }).compile();
@@ -72,8 +77,12 @@ describe('AdminController', () => {
     role = 'user';
     const overview = jest.spyOn(CoreAdmin, 'overview');
 
-    await request(app.getHttpServer() as Server).get(`/${PREFIX}/admin/overview`).expect(404);
-    await request(app.getHttpServer() as Server).get(`/${PREFIX}/admin/failures`).expect(404);
+    await request(app.getHttpServer() as Server)
+      .get(`/${PREFIX}/admin/overview`)
+      .expect(404);
+    await request(app.getHttpServer() as Server)
+      .get(`/${PREFIX}/admin/failures`)
+      .expect(404);
     expect(overview).not.toHaveBeenCalled();
   });
 
@@ -81,7 +90,9 @@ describe('AdminController', () => {
     role = 'admin';
     jest.spyOn(CoreAdmin, 'overview').mockResolvedValue(OVERVIEW);
 
-    const response = await request(app.getHttpServer() as Server).get(`/${PREFIX}/admin/overview`).expect(200);
+    const response = await request(app.getHttpServer() as Server)
+      .get(`/${PREFIX}/admin/overview`)
+      .expect(200);
 
     expect((response.body as AdminOverviewView).counts.accounts.total).toBe(6);
   });

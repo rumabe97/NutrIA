@@ -12,7 +12,9 @@ const slots = slotsIn(shapeFor(3, false));
 function scheduled(days = 14) {
   const result = schedulePlan({ catalogue, days, pool: makePool(slots), targets: TARGETS, weights: weightsFor(shapeFor(3, false)) });
 
-  if (!result.ok) {throw new Error('fixture pool should schedule');}
+  if (!result.ok) {
+    throw new Error('fixture pool should schedule');
+  }
 
   return result.assignment;
 }
@@ -81,9 +83,7 @@ describe('validatePlan', () => {
 
   it('reports every violation rather than stopping at the first', () => {
     const assignment = scheduled();
-    const broken = {
-      days: assignment.days.map((day, index) => (index < 3 ? { ...day, totals: { ...day.totals, kcal: 3500 } } : day))
-    };
+    const broken = { days: assignment.days.map((day, index) => (index < 3 ? { ...day, totals: { ...day.totals, kcal: 3500 } } : day)) };
 
     expect(validatePlan({ ...base, assignment: broken }).filter(v => v.kind === 'kcal_out_of_band')).toHaveLength(3);
   });
@@ -132,7 +132,9 @@ describe('validatePlan — protein has a floor, not a symmetric band', () => {
   it('keeps energy symmetric — a calorie goal is missed in both directions', () => {
     const assignment = scheduled();
     const over = { days: assignment.days.map((day, index) => (index === 0 ? { ...day, totals: { ...day.totals, kcal: TARGETS.kcal * 1.2 } } : day)) };
-    const under = { days: assignment.days.map((day, index) => (index === 0 ? { ...day, totals: { ...day.totals, kcal: TARGETS.kcal * 0.8 } } : day)) };
+    const under = {
+      days: assignment.days.map((day, index) => (index === 0 ? { ...day, totals: { ...day.totals, kcal: TARGETS.kcal * 0.8 } } : day))
+    };
 
     expect(validatePlan({ ...base, assignment: over }).some(v => v.kind === 'kcal_out_of_band')).toBe(true);
     expect(validatePlan({ ...base, assignment: under }).some(v => v.kind === 'kcal_out_of_band')).toBe(true);
@@ -183,8 +185,15 @@ describe('isBlocking — what is worth discarding fourteen days of food for', ()
     const assignment = scheduled();
     const empty = { days: assignment.days.map((d, index) => (index === 0 ? { ...d, meals: [] } : d)) };
 
-    expect(validatePlan({ ...base, assignment: empty }).filter(isBlocking).some(violation => violation.kind === 'empty_day')).toBe(true);
-    expect(validatePlan({ ...base, assignment: { days: assignment.days.slice(0, 13) } }).filter(isBlocking).some(v => v.kind === 'wrong_day_count')).toBe(true);
+    expect(
+      validatePlan({ ...base, assignment: empty })
+        .filter(isBlocking)
+        .some(violation => violation.kind === 'empty_day')
+    ).toBe(true);
+    expect(
+      validatePlan({ ...base, assignment: { days: assignment.days.slice(0, 13) } })
+        .filter(isBlocking)
+        .some(v => v.kind === 'wrong_day_count')
+    ).toBe(true);
   });
 });
-

@@ -67,7 +67,16 @@ describe('resolvePreferences — a way of eating', () => {
   it('keeps fish and shellfish off a vegetarian plate, and meat off a pescatarian one', () => {
     const vegetarian = resolvePreferences({ dietaryPatterns: ['vegetarian'], dislikedLabels: [], ingredients: CATALOGUE });
 
-    expect(ids(vegetarian)).toEqual(['i-gambas', 'i-lomo-de-cerdo', 'i-merluza', 'i-pechuga-de-pollo', 'i-salmon', 'i-salmon-ahumado', 'i-salmon-congelado', 'i-salmonete']);
+    expect(ids(vegetarian)).toEqual([
+      'i-gambas',
+      'i-lomo-de-cerdo',
+      'i-merluza',
+      'i-pechuga-de-pollo',
+      'i-salmon',
+      'i-salmon-ahumado',
+      'i-salmon-congelado',
+      'i-salmonete'
+    ]);
     // Eggs, dairy and honey stay: a vegetarian eats them.
     expect(vegetarian.excludedIngredientIds.has('i-huevo')).toBe(false);
     expect(vegetarian.excludedIngredientIds.has('i-yogur-griego-natural')).toBe(false);

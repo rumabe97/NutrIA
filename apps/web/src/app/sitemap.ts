@@ -24,9 +24,6 @@ import type { MetadataRoute } from 'next';
  */
 export default function sitemap(): MetadataRoute.Sitemap {
   return INDEXABLE_PATHS.flatMap(path =>
-    LOCALES.map(locale => ({
-      alternates: { languages: languageUrls(path, true) },
-      url: absoluteUrl(withLocale(path, locale))
-    }))
+    LOCALES.map(locale => ({ alternates: { languages: languageUrls(path, true) }, url: absoluteUrl(withLocale(path, locale)) }))
   );
 }

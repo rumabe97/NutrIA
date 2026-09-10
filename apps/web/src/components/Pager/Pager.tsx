@@ -27,7 +27,9 @@ interface PagerProps {
 export function Pager({ labels, offset, param, size, total }: PagerProps) {
   const rangeId = useId();
 
-  if (total <= size) {return null;}
+  if (total <= size) {
+    return null;
+  }
 
   const from = offset + 1;
   const to = Math.min(offset + size, total);

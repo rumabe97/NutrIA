@@ -146,15 +146,17 @@ export const SafetyRepository = {
         await tx.delete(intolerances).where(eq(intolerances.userId, userId));
 
         if (input.allergies.length > 0) {
-          await tx.insert(allergies).values(
-            input.allergies.map(a => ({
-              allergenId: a.allergenId,
-              crossContaminationSensitive: a.crossContaminationSensitive,
-              notes: a.notes ?? null,
-              severity: a.severity,
-              userId
-            }))
-          );
+          await tx
+            .insert(allergies)
+            .values(
+              input.allergies.map(a => ({
+                allergenId: a.allergenId,
+                crossContaminationSensitive: a.crossContaminationSensitive,
+                notes: a.notes ?? null,
+                severity: a.severity,
+                userId
+              }))
+            );
         }
 
         if (input.intolerances.length > 0) {
@@ -164,7 +166,9 @@ export const SafetyRepository = {
         // Resolution happens above this layer, against the domain matcher. The
         // repository stores what it is given and never decides what a word means.
         if (resolvedCustomAllergens.length > 0) {
-          await tx.insert(customAllergens).values(resolvedCustomAllergens.map(entry => ({ ingredientId: entry.ingredientId, label: entry.label, userId })));
+          await tx
+            .insert(customAllergens)
+            .values(resolvedCustomAllergens.map(entry => ({ ingredientId: entry.ingredientId, label: entry.label, userId })));
         }
       });
     } catch (error: unknown) {
@@ -174,7 +178,9 @@ export const SafetyRepository = {
 };
 
 function wrap(error: unknown, table: string): DatabaseOperationError {
-  if (error instanceof ZodError) {return new DatabaseOperationError(`Schema mismatch on ${table}: ${error.message}`);}
+  if (error instanceof ZodError) {
+    return new DatabaseOperationError(`Schema mismatch on ${table}: ${error.message}`);
+  }
 
   return new DatabaseOperationError();
 }

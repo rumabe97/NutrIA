@@ -17,12 +17,7 @@ export type PlanRedoStanding = {
   readonly used: number;
 };
 
-export type MealSwapStanding = {
-  readonly allowed: boolean;
-  readonly limit: number;
-  readonly remaining: number;
-  readonly used: number;
-};
+export type MealSwapStanding = { readonly allowed: boolean; readonly limit: number; readonly remaining: number; readonly used: number };
 
 /**
  * Generating the next fortnight is always allowed: that is the product. Only
@@ -32,7 +27,9 @@ export type MealSwapStanding = {
 export function planRedoStanding(active: { readonly endDate: string } | undefined, redosUsed: number, today: string): PlanRedoStanding {
   const limit = ALLOWANCES.planRedosPerFortnight;
 
-  if (!active || active.endDate < today) {return { allowed: true, kind: 'new_fortnight', limit, nextAt: null, used: 0 };}
+  if (!active || active.endDate < today) {
+    return { allowed: true, kind: 'new_fortnight', limit, nextAt: null, used: 0 };
+  }
 
   const allowed = redosUsed < limit;
 
@@ -60,7 +57,9 @@ export function redosInFortnight(chainFromActive: readonly { readonly redo: bool
   let count = 0;
 
   for (const plan of chainFromActive) {
-    if (!plan.redo) {break;}
+    if (!plan.redo) {
+      break;
+    }
 
     count += 1;
   }

@@ -9,7 +9,11 @@ const ACCOUNT = { id: 'usr-1', email: 'ada@example.invalid' };
 const LINK = { apiUrl: 'https://api.example.invalid/api/v1', secret: 'a'.repeat(48) };
 
 function deps(sent = true) {
-  return { link: LINK, mailer: { configured: true, send: jest.fn<() => Promise<boolean>>().mockResolvedValue(sent) }, ownerEmail: 'owner@example.invalid' };
+  return {
+    link: LINK,
+    mailer: { configured: true, send: jest.fn<() => Promise<boolean>>().mockResolvedValue(sent) },
+    ownerEmail: 'owner@example.invalid'
+  };
 }
 
 /**

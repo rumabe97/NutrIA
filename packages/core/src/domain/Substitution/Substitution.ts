@@ -4,12 +4,7 @@ import type { IngredientAllergenLink } from 'core/domain/Safety';
 import type { SafetyProfile } from 'core/entities/Safety';
 
 /** Per 100 g, as the catalogue stores them. */
-export type Macros = {
-  readonly carbsPer100g: number;
-  readonly fatPer100g: number;
-  readonly kcalPer100g: number;
-  readonly proteinPer100g: number;
-};
+export type Macros = { readonly carbsPer100g: number; readonly fatPer100g: number; readonly kcalPer100g: number; readonly proteinPer100g: number };
 
 export type SubstituteCandidate = Macros & {
   readonly id: string;
@@ -19,10 +14,7 @@ export type SubstituteCandidate = Macros & {
   readonly ratio: number;
 };
 
-export type Alternative = {
-  readonly grams: number;
-  readonly name: string;
-};
+export type Alternative = { readonly grams: number; readonly name: string };
 
 /** Enough to be a real choice, few enough to read at a glance in a shop. */
 export const ALTERNATIVES_SHOWN = 3;
@@ -41,7 +33,13 @@ export const ALTERNATIVES_SHOWN = 3;
  * carries no rank of its own; nutritional distance is deterministic and it is
  * the right order anyway.
  */
-export function alternativesFor(original: Macros, grams: number, candidates: readonly SubstituteCandidate[], profile: SafetyProfile, limit = ALTERNATIVES_SHOWN): readonly Alternative[] {
+export function alternativesFor(
+  original: Macros,
+  grams: number,
+  candidates: readonly SubstituteCandidate[],
+  profile: SafetyProfile,
+  limit = ALTERNATIVES_SHOWN
+): readonly Alternative[] {
   return candidates
     .filter(candidate => isSafe([{ id: candidate.id, allergens: candidate.allergens, name: candidate.name }], profile))
     .map(candidate => ({ candidate, distance: macroDistance(original, candidate) }))

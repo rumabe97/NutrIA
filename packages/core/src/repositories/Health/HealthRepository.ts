@@ -47,7 +47,11 @@ export const HealthRepository = {
           .from(healthConditions)
           .where(eq(healthConditions.userId, userId))
           .orderBy(asc(healthConditions.label)),
-        db.select({ id: medications.id, name: medications.name }).from(medications).where(eq(medications.userId, userId)).orderBy(asc(medications.name)),
+        db
+          .select({ id: medications.id, name: medications.name })
+          .from(medications)
+          .where(eq(medications.userId, userId))
+          .orderBy(asc(medications.name)),
         db
           .select({
             id: supplements.id,
@@ -98,14 +102,16 @@ export const HealthRepository = {
         }
 
         if (input.supplements.length > 0) {
-          await tx.insert(supplements).values(
-            input.supplements.map(s => ({
-              name: s.name,
-              proteinGPerServing: s.proteinGPerServing === null || s.proteinGPerServing === undefined ? null : String(s.proteinGPerServing),
-              servingsPerDay: s.servingsPerDay,
-              userId
-            }))
-          );
+          await tx
+            .insert(supplements)
+            .values(
+              input.supplements.map(s => ({
+                name: s.name,
+                proteinGPerServing: s.proteinGPerServing === null || s.proteinGPerServing === undefined ? null : String(s.proteinGPerServing),
+                servingsPerDay: s.servingsPerDay,
+                userId
+              }))
+            );
         }
 
         const consent = { grantedAt: new Date(), version: input.consentVersion };
@@ -122,7 +128,9 @@ export const HealthRepository = {
 };
 
 function wrap(error: unknown, table: string): DatabaseOperationError {
-  if (error instanceof ZodError) {return new DatabaseOperationError(`Schema mismatch on ${table}: ${error.message}`);}
+  if (error instanceof ZodError) {
+    return new DatabaseOperationError(`Schema mismatch on ${table}: ${error.message}`);
+  }
 
   return new DatabaseOperationError();
 }

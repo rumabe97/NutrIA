@@ -14,7 +14,16 @@ const weight: WeightView = { changeKg: -1.2, entries: [{ loggedOn: '2026-09-09',
 const summary: ProgressSummaryView = {
   fortnights: [],
   overall: { adherence: null, eaten: 0, marked: 0 },
-  weight: { changeKg: null, entries: [], fortnightChangeKg: null, goalType: null, latestKg: null, startingWeightKg: null, targetWeightKg: null, toTargetKg: null }
+  weight: {
+    changeKg: null,
+    entries: [],
+    fortnightChangeKg: null,
+    goalType: null,
+    latestKg: null,
+    startingWeightKg: null,
+    targetWeightKg: null,
+    toTargetKg: null
+  }
 };
 
 /** Every read is scoped to the session user; nothing in a request names another person. */

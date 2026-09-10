@@ -26,14 +26,20 @@ export function activationToken(userId: string, secret: string, now = Date.now()
 export function verifyActivationToken(token: string, secret: string, now = Date.now()): string | null {
   const parts = token.split('.');
 
-  if (parts.length !== 3) {return null;}
+  if (parts.length !== 3) {
+    return null;
+  }
 
   const [userId, expiresAt, signature] = parts as [string, string, string];
   const expected = sign(`${userId}.${expiresAt}`, secret);
 
-  if (signature.length !== expected.length) {return null;}
+  if (signature.length !== expected.length) {
+    return null;
+  }
 
-  if (!timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {return null;}
+  if (!timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
+    return null;
+  }
 
   return Number(expiresAt) > now ? userId : null;
 }

@@ -82,7 +82,9 @@ export class CheckInReminderService {
       }
     }
 
-    if (sent > 0 || failed > 0) {this.logger.log(`Check-in reminders: ${sent} sent, ${failed} failed, ${due.length} due`);}
+    if (sent > 0 || failed > 0) {
+      this.logger.log(`Check-in reminders: ${sent} sent, ${failed} failed, ${due.length} due`);
+    }
 
     return { considered: due.length, failed, sent };
   }

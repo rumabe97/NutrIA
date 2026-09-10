@@ -121,7 +121,12 @@
  * returns a beat after focus leaves, so a tap that blurred the field lands
  * where it was aimed and not on a bar that appeared under the finger.
  */
-body:has(input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit'], [type='file']):focus, select:focus, textarea:focus) .bottomBar {
+body:has(
+    input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit'], [type='file']):focus,
+    select:focus,
+    textarea:focus
+  )
+  .bottomBar {
   transition-delay: 0s;
   visibility: hidden;
 }

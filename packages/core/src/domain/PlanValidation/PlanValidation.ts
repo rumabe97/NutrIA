@@ -34,8 +34,14 @@ export const PLAN_TOLERANCE = { kcal: 0.1, proteinUnder: 0.15 } as const;
 export type PlanViolation =
   | { readonly actual: number; readonly ceiling: number; readonly dayIndex: number; readonly kind: 'protein_above_ceiling' }
   | { readonly actual: number; readonly dayIndex: number; readonly kind: 'below_minimum_kcal'; readonly minimum: number }
-  | { readonly actual: number; readonly dayIndex: number; readonly kind: 'kcal_out_of_band' | 'protein_below_target'; readonly target: number; readonly tolerance: number }
-  | { readonly actual: number; readonly expected: number; readonly kind: 'wrong_day_count'; }
+  | {
+      readonly actual: number;
+      readonly dayIndex: number;
+      readonly kind: 'kcal_out_of_band' | 'protein_below_target';
+      readonly target: number;
+      readonly tolerance: number;
+    }
+  | { readonly actual: number; readonly expected: number; readonly kind: 'wrong_day_count' }
   | { readonly dayIndex: number; readonly kind: 'empty_day' }
   | { readonly dayIndex: number; readonly kind: 'missing_slot'; readonly slot: MealSlot }
   | { readonly kind: 'variety'; readonly violation: VarietyViolation };
@@ -65,7 +71,13 @@ export function isBlocking(violation: PlanViolation): boolean {
   return BLOCKING_KINDS.has(violation.kind);
 }
 
-const BLOCKING_KINDS = new Set<PlanViolation['kind']>(['below_minimum_kcal', 'empty_day', 'missing_slot', 'protein_above_ceiling', 'wrong_day_count']);
+const BLOCKING_KINDS = new Set<PlanViolation['kind']>([
+  'below_minimum_kcal',
+  'empty_day',
+  'missing_slot',
+  'protein_above_ceiling',
+  'wrong_day_count'
+]);
 
 export type ValidationInput = {
   readonly assignment: PlanAssignment;
@@ -104,7 +116,9 @@ export function validatePlan(input: ValidationInput): readonly PlanViolation[] {
     }
 
     for (const slot of input.expectedSlots) {
-      if (!day.meals.some(meal => meal.slot === slot)) {violations.push({ dayIndex: day.dayIndex, kind: 'missing_slot', slot });}
+      if (!day.meals.some(meal => meal.slot === slot)) {
+        violations.push({ dayIndex: day.dayIndex, kind: 'missing_slot', slot });
+      }
     }
 
     if (day.totals.kcal < floor) {
@@ -112,7 +126,13 @@ export function validatePlan(input: ValidationInput): readonly PlanViolation[] {
     }
 
     if (outOfBand(day.totals.kcal, input.targets.kcal, PLAN_TOLERANCE.kcal)) {
-      violations.push({ actual: day.totals.kcal, dayIndex: day.dayIndex, kind: 'kcal_out_of_band', target: input.targets.kcal, tolerance: PLAN_TOLERANCE.kcal });
+      violations.push({
+        actual: day.totals.kcal,
+        dayIndex: day.dayIndex,
+        kind: 'kcal_out_of_band',
+        target: input.targets.kcal,
+        tolerance: PLAN_TOLERANCE.kcal
+      });
     }
 
     // The two halves of the old `protein_out_of_band` are different questions and
@@ -136,7 +156,9 @@ export function validatePlan(input: ValidationInput): readonly PlanViolation[] {
     }
   }
 
-  for (const violation of varietyViolations(days)) {violations.push({ kind: 'variety', violation });}
+  for (const violation of varietyViolations(days)) {
+    violations.push({ kind: 'variety', violation });
+  }
 
   return violations;
 }
@@ -144,4 +166,3 @@ export function validatePlan(input: ValidationInput): readonly PlanViolation[] {
 function outOfBand(actual: number, target: number, tolerance: number): boolean {
   return Math.abs(actual - target) > target * tolerance;
 }
-

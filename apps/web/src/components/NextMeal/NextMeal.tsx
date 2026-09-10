@@ -17,14 +17,7 @@ import { slotLabel } from 'lib/generation';
  * meals to put first, and being an hour out changes nothing that matters. A
  * schedule the user could set would be a promise to honour it everywhere else.
  */
-const SLOT_HOUR: Record<string, number> = {
-  afternoon_snack: 17,
-  breakfast: 9,
-  dinner: 21,
-  lunch: 14,
-  morning_snack: 11,
-  supper: 23
-};
+const SLOT_HOUR: Record<string, number> = { afternoon_snack: 17, breakfast: 9, dinner: 21, lunch: 14, morning_snack: 11, supper: 23 };
 
 interface NextMealProps {
   hour: number;
@@ -42,7 +35,9 @@ export function NextMeal({ hour, meals }: NextMealProps) {
   const dictionary = useDictionary();
   const locale = useLocale();
 
-  const upcoming = [...meals].sort((a, b) => (SLOT_HOUR[a.slot] ?? 12) - (SLOT_HOUR[b.slot] ?? 12)).find(meal => (SLOT_HOUR[meal.slot] ?? 12) >= hour);
+  const upcoming = [...meals]
+    .sort((a, b) => (SLOT_HOUR[a.slot] ?? 12) - (SLOT_HOUR[b.slot] ?? 12))
+    .find(meal => (SLOT_HOUR[meal.slot] ?? 12) >= hour);
 
   if (!upcoming) {
     // One element, not a `<Text>` inside a `<p>`: `Text` renders a `<p>` itself, and

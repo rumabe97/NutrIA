@@ -99,8 +99,8 @@ function summariseWeight(entries: readonly ProgressEntry[], goal: Goal | undefin
   const first = weighed.at(0) ?? null;
   const starting = goal?.startingWeightKg ?? null;
   const target = goal?.targetWeightKg ?? null;
-  const baseline = starting ?? (weighed.length > 1 ? first?.weightKg ?? null : null);
-  const fortnightAgo = latest ? weighed.filter(entry => entry.loggedOn <= daysBefore(latest.loggedOn, FORTNIGHT_DAYS)).at(-1) ?? null : null;
+  const baseline = starting ?? (weighed.length > 1 ? (first?.weightKg ?? null) : null);
+  const fortnightAgo = latest ? (weighed.filter(entry => entry.loggedOn <= daysBefore(latest.loggedOn, FORTNIGHT_DAYS)).at(-1) ?? null) : null;
 
   return {
     changeKg: latest && baseline !== null ? round1(latest.weightKg - baseline) : null,
@@ -163,11 +163,14 @@ export const ProgressController = {
       const replaced = successor !== undefined && successor.startDate <= plan.endDate;
       const endDate = replaced ? daysBefore(successor.startDate, 1) : plan.endDate;
       const counted = marks.filter(mark => mark.planId === plan.id && mark.date <= endDate);
-      const count = (status: (typeof counted)[number]['status']) => counted.filter(mark => mark.status === status).reduce((sum, mark) => sum + mark.n, 0);
+      const count = (status: (typeof counted)[number]['status']) =>
+        counted.filter(mark => mark.status === status).reduce((sum, mark) => sum + mark.n, 0);
       const eaten = count('completed');
       const skipped = count('skipped');
 
-      if (replaced && eaten + skipped === 0) {return [];}
+      if (replaced && eaten + skipped === 0) {
+        return [];
+      }
 
       const checkIn = checkIns.find(row => row.planId === plan.id);
 

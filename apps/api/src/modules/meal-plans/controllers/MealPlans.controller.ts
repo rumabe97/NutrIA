@@ -5,15 +5,7 @@ import { CurrentUser, Locale, RateLimit, RequiresOnboarding, ZodBody } from '../
 import { HISTORY_PAGE, MealPlansService } from '../services/index.js';
 import { SetMealStatusDto, SwapMealDto } from '../dto/in/index.js';
 
-import type {
-  AllowancesDto,
-  JobDto,
-  MealDetailDto,
-  MealStatusDto,
-  PlanDayDto,
-  PlanDto,
-  PlanSummaryDto
-} from '../dto/out/index.js';
+import type { AllowancesDto, JobDto, MealDetailDto, MealStatusDto, PlanDayDto, PlanDto, PlanSummaryDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
 /**

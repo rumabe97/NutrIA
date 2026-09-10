@@ -52,7 +52,9 @@ export const OnboardingRepository = {
 };
 
 function wrap(error: unknown): DatabaseOperationError {
-  if (error instanceof ZodError) {return new DatabaseOperationError(`Schema mismatch on onboarding_state: ${error.message}`);}
+  if (error instanceof ZodError) {
+    return new DatabaseOperationError(`Schema mismatch on onboarding_state: ${error.message}`);
+  }
 
   return new DatabaseOperationError();
 }

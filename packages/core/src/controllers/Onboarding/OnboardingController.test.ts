@@ -8,7 +8,9 @@ import type { OnboardingState, OnboardingStep } from 'core/entities/Onboarding';
 
 const find = vi.fn<(userId: string) => Promise<OnboardingState | undefined>>();
 
-vi.mock('#repositories/Onboarding', () => ({ OnboardingRepository: { find: (userId: string) => find(userId), markComplete: vi.fn(), markStepComplete: vi.fn() } }));
+vi.mock('#repositories/Onboarding', () => ({
+  OnboardingRepository: { find: (userId: string) => find(userId), markComplete: vi.fn(), markStepComplete: vi.fn() }
+}));
 vi.mock('#repositories/Profile', () => ({ ProfileRepository: {} }));
 vi.mock('#repositories/Safety', () => ({ SafetyRepository: {} }));
 

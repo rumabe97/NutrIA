@@ -21,7 +21,7 @@ export function httpServer(app: INestApplication): Server {
   return app.getHttpServer() as Server;
 }
 
-export type Account = { readonly id: string; readonly cookie: string; readonly email: string; };
+export type Account = { readonly id: string; readonly cookie: string; readonly email: string };
 
 /**
  * How many named variants of each scripted dish a call returns. The variety
@@ -82,10 +82,7 @@ export class ScriptedAiClient extends AiClient {
       })
     );
 
-    return Promise.resolve({
-      object: { dishes } as T,
-      usage: { calls: 1, inputTokens: 0, model: 'scripted', outputTokens: 0 }
-    });
+    return Promise.resolve({ object: { dishes } as T, usage: { calls: 1, inputTokens: 0, model: 'scripted', outputTokens: 0 } });
   }
 }
 
@@ -132,56 +129,104 @@ export function dish(name: string, slots: readonly string[], ingredients: readon
  * one. A suite about a particular dish still writes its own.
  */
 export const POOL = [
-  dish('Avena con yogur', ['breakfast'], [
-    { grams: 80, slug: SEEDED.avena },
-    { grams: 150, slug: SEEDED.yogur }
-  ]),
-  dish('Tostada con huevo', ['breakfast'], [
-    { grams: 80, slug: SEEDED.pan },
-    { grams: 120, slug: SEEDED.huevo }
-  ]),
-  dish('Yogur con avena', ['breakfast'], [
-    { grams: 200, slug: SEEDED.yogur },
-    { grams: 60, slug: SEEDED.avena }
-  ]),
-  dish('Huevos con pan', ['breakfast'], [
-    { grams: 140, slug: SEEDED.huevo },
-    { grams: 60, slug: SEEDED.pan }
-  ]),
+  dish(
+    'Avena con yogur',
+    ['breakfast'],
+    [
+      { grams: 80, slug: SEEDED.avena },
+      { grams: 150, slug: SEEDED.yogur }
+    ]
+  ),
+  dish(
+    'Tostada con huevo',
+    ['breakfast'],
+    [
+      { grams: 80, slug: SEEDED.pan },
+      { grams: 120, slug: SEEDED.huevo }
+    ]
+  ),
+  dish(
+    'Yogur con avena',
+    ['breakfast'],
+    [
+      { grams: 200, slug: SEEDED.yogur },
+      { grams: 60, slug: SEEDED.avena }
+    ]
+  ),
+  dish(
+    'Huevos con pan',
+    ['breakfast'],
+    [
+      { grams: 140, slug: SEEDED.huevo },
+      { grams: 60, slug: SEEDED.pan }
+    ]
+  ),
   dish('Avena sola', ['breakfast'], [{ grams: 110, slug: SEEDED.avena }]),
-  dish('Arroz con pollo', ['lunch'], [
-    { grams: 220, slug: SEEDED.arroz },
-    { grams: 180, slug: SEEDED.pollo }
-  ]),
-  dish('Lentejas con arroz', ['lunch'], [
-    { grams: 250, slug: SEEDED.lentejas },
-    { grams: 150, slug: SEEDED.arroz }
-  ]),
-  dish('Pollo con patata', ['lunch'], [
-    { grams: 200, slug: SEEDED.pollo },
-    { grams: 250, slug: SEEDED.patata }
-  ]),
-  dish('Arroz con tomate', ['lunch'], [
-    { grams: 260, slug: SEEDED.arroz },
-    { grams: 150, slug: SEEDED.tomate }
-  ]),
+  dish(
+    'Arroz con pollo',
+    ['lunch'],
+    [
+      { grams: 220, slug: SEEDED.arroz },
+      { grams: 180, slug: SEEDED.pollo }
+    ]
+  ),
+  dish(
+    'Lentejas con arroz',
+    ['lunch'],
+    [
+      { grams: 250, slug: SEEDED.lentejas },
+      { grams: 150, slug: SEEDED.arroz }
+    ]
+  ),
+  dish(
+    'Pollo con patata',
+    ['lunch'],
+    [
+      { grams: 200, slug: SEEDED.pollo },
+      { grams: 250, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Arroz con tomate',
+    ['lunch'],
+    [
+      { grams: 260, slug: SEEDED.arroz },
+      { grams: 150, slug: SEEDED.tomate }
+    ]
+  ),
   dish('Lentejas solas', ['lunch'], [{ grams: 350, slug: SEEDED.lentejas }]),
-  dish('Merluza con patata', ['dinner'], [
-    { grams: 200, slug: SEEDED.merluza },
-    { grams: 220, slug: SEEDED.patata }
-  ]),
-  dish('Pollo con tomate', ['dinner'], [
-    { grams: 170, slug: SEEDED.pollo },
-    { grams: 200, slug: SEEDED.tomate }
-  ]),
-  dish('Merluza con arroz', ['dinner'], [
-    { grams: 180, slug: SEEDED.merluza },
-    { grams: 180, slug: SEEDED.arroz }
-  ]),
-  dish('Patata con huevo', ['dinner'], [
-    { grams: 250, slug: SEEDED.patata },
-    { grams: 110, slug: SEEDED.huevo }
-  ]),
+  dish(
+    'Merluza con patata',
+    ['dinner'],
+    [
+      { grams: 200, slug: SEEDED.merluza },
+      { grams: 220, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Pollo con tomate',
+    ['dinner'],
+    [
+      { grams: 170, slug: SEEDED.pollo },
+      { grams: 200, slug: SEEDED.tomate }
+    ]
+  ),
+  dish(
+    'Merluza con arroz',
+    ['dinner'],
+    [
+      { grams: 180, slug: SEEDED.merluza },
+      { grams: 180, slug: SEEDED.arroz }
+    ]
+  ),
+  dish(
+    'Patata con huevo',
+    ['dinner'],
+    [
+      { grams: 250, slug: SEEDED.patata },
+      { grams: 110, slug: SEEDED.huevo }
+    ]
+  ),
   dish('Merluza sola', ['dinner'], [{ grams: 300, slug: SEEDED.merluza }])
 ];
 
@@ -210,16 +255,23 @@ export async function createApp(ai: AiClient): Promise<INestApplication> {
  * the suite failing.
  */
 export async function activate(email: string): Promise<void> {
-  if (!(await UserController.confirmAddress(email))) {throw new Error(`No account to confirm for ${email}`);}
+  if (!(await UserController.confirmAddress(email))) {
+    throw new Error(`No account to confirm for ${email}`);
+  }
 
-  if (!(await UserController.activate({ email }))) {throw new Error(`No account to activate for ${email}`);}
+  if (!(await UserController.activate({ email }))) {
+    throw new Error(`No account to activate for ${email}`);
+  }
 }
 
 export async function register(app: INestApplication, email: string): Promise<Account> {
   const password = 'correct-horse-battery-staple-9';
   const server = httpServer(app);
 
-  await request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: email.split('@')[0], password }).expect(200);
+  await request(server)
+    .post(`/${PREFIX}/auth/sign-up/email`)
+    .send({ email, name: email.split('@')[0], password })
+    .expect(200);
   await activate(email);
 
   const signIn: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password }).expect(200);
@@ -286,7 +338,9 @@ export async function generateAndWait(app: INestApplication, account: Account, t
     const polled: Response = await request(server).get(`/${PREFIX}/meal-plans/jobs/${jobId}`).set('Cookie', account.cookie).expect(200);
     const job = polled.body as JobResult;
 
-    if (job.status === 'succeeded' || job.status === 'failed') {return job;}
+    if (job.status === 'succeeded' || job.status === 'failed') {
+      return job;
+    }
   }
 
   throw new Error('Generation did not finish within the timeout');

@@ -10,11 +10,7 @@ export const MAX_VACATION_DAYS = 90;
  * A stretch of days the plan is paused for, both ends included: leaving on the
  * 12th and coming back on the 19th is eight days away, not seven.
  */
-export const vacationSchema = z.object({
-  id: z.uuid(),
-  endsOn: z.string(),
-  startsOn: z.string()
-});
+export const vacationSchema = z.object({ id: z.uuid(), endsOn: z.string(), startsOn: z.string() });
 
 export type Vacation = z.infer<typeof vacationSchema>;
 

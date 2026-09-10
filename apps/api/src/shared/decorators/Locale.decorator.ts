@@ -33,7 +33,9 @@ export function supportedLocale(tag: string | null | undefined): SupportedLocale
  * answer collapses the two into one for anything a request can reach.
  */
 export function localeFromHeader(header: string | string[] | undefined): SupportedLocale | null {
-  if (typeof header !== 'string') {return null;}
+  if (typeof header !== 'string') {
+    return null;
+  }
 
   // Not full RFC 4647 negotiation: the web app sends one exact tag, and anything
   // else is a browser's own preference list, which should not override a

@@ -30,7 +30,9 @@ export interface RestrictionsView {
  * `core/domain/Safety`; this is the one place that feeds it the catalogue.
  */
 export async function resolveFreeTextAllergens(labels: readonly string[]): Promise<readonly ResolvedCustomAllergen[]> {
-  if (labels.length === 0) {return [];}
+  if (labels.length === 0) {
+    return [];
+  }
 
   return resolveCustomAllergens(labels, await SafetyRepository.listMatchableIngredients());
 }

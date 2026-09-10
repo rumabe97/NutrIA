@@ -44,11 +44,17 @@ type ShoppingListView = { items: readonly { category: string }[] };
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 function greetingKey(hour: number): 'goodAfternoon' | 'goodEvening' | 'goodMorning' {
-  if (hour < 6) {return 'goodEvening';}
+  if (hour < 6) {
+    return 'goodEvening';
+  }
 
-  if (hour < 14) {return 'goodMorning';}
+  if (hour < 14) {
+    return 'goodMorning';
+  }
 
-  if (hour < 21) {return 'goodAfternoon';}
+  if (hour < 21) {
+    return 'goodAfternoon';
+  }
 
   return 'goodEvening';
 }
@@ -97,7 +103,12 @@ export default async function DashboardPage() {
       <div className={styles.layout}>
         <div className={`${styles.main} motion-enter`}>
           {away ? (
-            <EmptyState body={interpolate(dictionary.vacations.awayBody, { until: formatDate(resumesOn(away.endsOn), locale, { day: 'numeric', month: 'long' }) })} title={dictionary.vacations.awayTitle}>
+            <EmptyState
+              body={interpolate(dictionary.vacations.awayBody, {
+                until: formatDate(resumesOn(away.endsOn), locale, { day: 'numeric', month: 'long' })
+              })}
+              title={dictionary.vacations.awayTitle}
+            >
               {/* A way back into the plan, and deliberately the only action here:
                   generating a new one would throw away the paused fortnight. */}
               {plan ? (
@@ -122,7 +133,9 @@ export default async function DashboardPage() {
             <Fragment>
               <Text tone="secondary">
                 {away
-                  ? interpolate(dictionary.vacations.pausedUntil, { date: formatDate(resumesOn(away.endsOn), locale, { day: 'numeric', month: 'long' }) })
+                  ? interpolate(dictionary.vacations.pausedUntil, {
+                      date: formatDate(resumesOn(away.endsOn), locale, { day: 'numeric', month: 'long' })
+                    })
                   : `${day ? interpolate(t.dayOf, { current: day.dayIndex, total: plan.days.length }) : t.activePlan} ${interpolate(t.checkIn, { when: checkInLabel(plan.endDate, t) })}`}
               </Text>
 
@@ -145,25 +158,41 @@ export default async function DashboardPage() {
                       </CtaLink>
                     </div>
 
-                    <MacroSummary carbsG={day.totals.carbsG} fatG={day.totals.fatG} kcal={day.totals.kcal} note={dictionary.macros.note} proteinG={day.totals.proteinG} />
+                    <MacroSummary
+                      carbsG={day.totals.carbsG}
+                      fatG={day.totals.fatG}
+                      kcal={day.totals.kcal}
+                      note={dictionary.macros.note}
+                      proteinG={day.totals.proteinG}
+                    />
 
                     <div className={`${styles.meals} motion-list`}>
                       {day.meals.map(meal => (
-                        <MealRow id={meal.id} illustrationPath={meal.illustrationPath} ingredients={meal.ingredients} kcal={meal.kcal} key={meal.id} name={meal.name} proteinG={meal.proteinG} slot={meal.slot} status={meal.status} />
+                        <MealRow
+                          id={meal.id}
+                          illustrationPath={meal.illustrationPath}
+                          ingredients={meal.ingredients}
+                          kcal={meal.kcal}
+                          key={meal.id}
+                          name={meal.name}
+                          proteinG={meal.proteinG}
+                          slot={meal.slot}
+                          status={meal.status}
+                        />
                       ))}
                     </div>
                   </section>
                 </Fragment>
               ) : away ? null : (
-            // The plan is active but today falls outside its dates and nobody is
-            // away — the fortnight has run its course and the next one is due.
-            // While away there is no day for today *by design* (`0032`), and
-            // calling that "finished" would offer to replace a plan that is
-            // merely waiting.
-            <EmptyState body={checkIn?.done ? `${t.planEndedBody} ${t.checkInDoneNote}` : t.planEndedBody} title={t.planEndedTitle}>
-              <CtaLink href="/plan/generando" size="lg">
-                {t.planEndedCta}
-              </CtaLink>
+                // The plan is active but today falls outside its dates and nobody is
+                // away — the fortnight has run its course and the next one is due.
+                // While away there is no day for today *by design* (`0032`), and
+                // calling that "finished" would offer to replace a plan that is
+                // merely waiting.
+                <EmptyState body={checkIn?.done ? `${t.planEndedBody} ${t.checkInDoneNote}` : t.planEndedBody} title={t.planEndedTitle}>
+                  <CtaLink href="/plan/generando" size="lg">
+                    {t.planEndedCta}
+                  </CtaLink>
                   <CtaLink href="/plan" size="lg" variant="secondary">
                     {t.seePreviousPlan}
                   </CtaLink>
@@ -171,16 +200,16 @@ export default async function DashboardPage() {
               )}
             </Fragment>
           ) : (
-        // No "finish your profile" branch: an unfinished profile never reaches
-        // this page, it is redirected to its resume step above.
-        <Fragment>
-          <Text tone="secondary">{t.profileComplete}</Text>
+            // No "finish your profile" branch: an unfinished profile never reaches
+            // this page, it is redirected to its resume step above.
+            <Fragment>
+              <Text tone="secondary">{t.profileComplete}</Text>
 
-          <EmptyState body={t.noPlanBody} title={t.noPlanTitle}>
-            <CtaLink href="/plan/generando" size="lg">
-              {t.noPlanCta}
-            </CtaLink>
-          </EmptyState>
+              <EmptyState body={t.noPlanBody} title={t.noPlanTitle}>
+                <CtaLink href="/plan/generando" size="lg">
+                  {t.noPlanCta}
+                </CtaLink>
+              </EmptyState>
             </Fragment>
           )}
         </div>
@@ -240,11 +269,17 @@ export default async function DashboardPage() {
 function checkInLabel(endDate: string, t: Dictionary['dashboard']): string {
   const remaining = Math.ceil((new Date(`${endDate}T00:00:00`).getTime() - Date.now()) / MS_PER_DAY);
 
-  if (remaining < 0) {return t.availableNow;}
+  if (remaining < 0) {
+    return t.availableNow;
+  }
 
-  if (remaining === 0) {return t.today.toLowerCase();}
+  if (remaining === 0) {
+    return t.today.toLowerCase();
+  }
 
-  if (remaining === 1) {return t.tomorrow;}
+  if (remaining === 1) {
+    return t.tomorrow;
+  }
 
   return interpolate(t.inDays, { count: remaining });
 }

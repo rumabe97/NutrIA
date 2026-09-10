@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import { MINIMUM_DAILY_KCAL } from 'core/entities/Nutrition';
-import { ageInYears, basalMetabolicRate, macrosForKcal, nutritionTargets, resolveTargets, targetBounds, targetViolations, totalDailyEnergyExpenditure } from 'core/domain/Nutrition';
+import {
+  ageInYears,
+  basalMetabolicRate,
+  macrosForKcal,
+  nutritionTargets,
+  resolveTargets,
+  targetBounds,
+  targetViolations,
+  totalDailyEnergyExpenditure
+} from 'core/domain/Nutrition';
 import type { TargetInput } from 'core/domain/Nutrition';
 
 const base: TargetInput = {
@@ -171,7 +180,15 @@ describe('nutritionTargets — the goal decides direction, not the sign', () => 
 });
 
 describe('the derivation, so a number is never shown as a bare fact', () => {
-  const ruben: TargetInput = { activityLevel: 'moderate', ageYears: 29, goal: 'weight_loss', heightCm: 180, paceKgPerWeek: 0.5, sex: 'male', weightKg: 95 };
+  const ruben: TargetInput = {
+    activityLevel: 'moderate',
+    ageYears: 29,
+    goal: 'weight_loss',
+    heightCm: 180,
+    paceKgPerWeek: 0.5,
+    sex: 'male',
+    weightKg: 95
+  };
 
   it('reports every input the figure was built from', () => {
     const { derivation } = nutritionTargets(ruben);
@@ -202,7 +219,15 @@ describe('the derivation, so a number is never shown as a bare fact', () => {
 });
 
 describe('targetViolations — the one place a target set is judged', () => {
-  const input: TargetInput = { activityLevel: 'moderate', ageYears: 29, goal: 'weight_loss', heightCm: 180, paceKgPerWeek: 0.5, sex: 'male', weightKg: 95 };
+  const input: TargetInput = {
+    activityLevel: 'moderate',
+    ageYears: 29,
+    goal: 'weight_loss',
+    heightCm: 180,
+    paceKgPerWeek: 0.5,
+    sex: 'male',
+    weightKg: 95
+  };
   const bounds = targetBounds(input);
 
   it('accepts what the calculator produces', () => {
@@ -286,7 +311,15 @@ describe('every goal, pace and body produces a reachable target', () => {
 });
 
 describe('resolveTargets — computed, corrected, and which is in effect', () => {
-  const input: TargetInput = { activityLevel: 'moderate', ageYears: 29, goal: 'weight_loss', heightCm: 180, paceKgPerWeek: 0.5, sex: 'male', weightKg: 95 };
+  const input: TargetInput = {
+    activityLevel: 'moderate',
+    ageYears: 29,
+    goal: 'weight_loss',
+    heightCm: 180,
+    paceKgPerWeek: 0.5,
+    sex: 'male',
+    weightKg: 95
+  };
 
   function override(fields: Partial<Record<'carbsG' | 'fatG' | 'kcal' | 'proteinG', number | null>>) {
     return { carbsG: null, fatG: null, kcal: null, overriddenAt: new Date(), proteinG: null, ...fields };

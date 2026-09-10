@@ -14,7 +14,10 @@ export const PlanRepository = {
   /** Swaps recorded against one plan — what the fortnight's allowance is counted from. */
   async countSwaps(planId: string): Promise<number> {
     try {
-      const [row] = await database().select({ n: sql<number>`count(*)::int` }).from(mealSwaps).where(eq(mealSwaps.planId, planId));
+      const [row] = await database()
+        .select({ n: sql<number>`count(*)::int` })
+        .from(mealSwaps)
+        .where(eq(mealSwaps.planId, planId));
 
       return row?.n ?? 0;
     } catch (error: unknown) {
@@ -53,12 +56,16 @@ export const PlanRepository = {
         if (missing.length > 0) {
           const found = await tx.select({ id: recipes.id, slug: recipes.slug }).from(recipes).where(inArray(recipes.slug, missing));
 
-          for (const row of found) {recipeIdBySlug.set(row.slug, row.id);}
+          for (const row of found) {
+            recipeIdBySlug.set(row.slug, row.id);
+          }
         }
 
         const unresolved = wanted.filter(slug => !recipeIdBySlug.has(slug));
 
-        if (unresolved.length > 0) {throw new DatabaseOperationError(`Plan references recipes that do not exist: ${unresolved.join(', ')}`);}
+        if (unresolved.length > 0) {
+          throw new DatabaseOperationError(`Plan references recipes that do not exist: ${unresolved.join(', ')}`);
+        }
 
         const previous = await tx
           .select({ id: mealPlans.id, endDate: mealPlans.endDate, status: mealPlans.status, version: mealPlans.version })
@@ -98,7 +105,9 @@ export const PlanRepository = {
           })
           .returning({ id: mealPlans.id });
 
-        if (!plan) {throw new DatabaseOperationError('Plan insert returned no row');}
+        if (!plan) {
+          throw new DatabaseOperationError('Plan insert returned no row');
+        }
 
         const insertedDays = await tx
           .insert(planDays)
@@ -122,30 +131,38 @@ export const PlanRepository = {
           }))
         );
 
-        if (mealRows.length > 0) {await tx.insert(meals).values(mealRows);}
+        if (mealRows.length > 0) {
+          await tx.insert(meals).values(mealRows);
+        }
 
         const [list] = await tx.insert(shoppingLists).values({ planId: plan.id, userId }).returning({ id: shoppingLists.id });
 
-        if (!list) {throw new DatabaseOperationError('Shopping list insert returned no row');}
+        if (!list) {
+          throw new DatabaseOperationError('Shopping list insert returned no row');
+        }
 
         if (draft.shoppingItems.length > 0) {
-          await tx.insert(shoppingListItems).values(
-            draft.shoppingItems.map(item => ({
-              category: item.category,
-              displayQuantity: String(item.displayQuantity),
-              displayUnit: item.displayUnit,
-              ingredientId: item.ingredientId,
-              listId: list.id,
-              name: item.name,
-              totalGrams: String(item.totalGrams)
-            }))
-          );
+          await tx
+            .insert(shoppingListItems)
+            .values(
+              draft.shoppingItems.map(item => ({
+                category: item.category,
+                displayQuantity: String(item.displayQuantity),
+                displayUnit: item.displayUnit,
+                ingredientId: item.ingredientId,
+                listId: list.id,
+                name: item.name,
+                totalGrams: String(item.totalGrams)
+              }))
+            );
         }
 
         return plan.id;
       });
     } catch (error: unknown) {
-      if (isUniqueViolation(error)) {throw new ConflictError('A plan is already being created for this account');}
+      if (isUniqueViolation(error)) {
+        throw new ConflictError('A plan is already being created for this account');
+      }
 
       throw wrap(error);
     }
@@ -184,7 +201,15 @@ export const PlanRepository = {
   async findChain(userId: string) {
     try {
       const rows = await database()
-        .select({ id: mealPlans.id, completedAt: mealPlans.completedAt, endDate: mealPlans.endDate, generationMetadata: mealPlans.generationMetadata, startDate: mealPlans.startDate, status: mealPlans.status, version: mealPlans.version })
+        .select({
+          id: mealPlans.id,
+          completedAt: mealPlans.completedAt,
+          endDate: mealPlans.endDate,
+          generationMetadata: mealPlans.generationMetadata,
+          startDate: mealPlans.startDate,
+          status: mealPlans.status,
+          version: mealPlans.version
+        })
         .from(mealPlans)
         .where(eq(mealPlans.userId, userId))
         .orderBy(desc(mealPlans.version));
@@ -201,11 +226,19 @@ export const PlanRepository = {
       const db = database();
       const days = await db.select().from(planDays).where(eq(planDays.planId, planId)).orderBy(planDays.dayIndex);
 
-      if (days.length === 0) {return [];}
+      if (days.length === 0) {
+        return [];
+      }
 
       const rows = await db
         // `hasImage` rides on the recipe so every consumer of a recipe row can offer the picture.
-        .select({ meal: meals, recipe: { ...getTableColumns(recipes), hasImage: sql<boolean>`exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id})` } })
+        .select({
+          meal: meals,
+          recipe: {
+            ...getTableColumns(recipes),
+            hasImage: sql<boolean>`exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id})`
+          }
+        })
         .from(meals)
         .innerJoin(recipes, eq(recipes.id, meals.recipeId))
         .where(
@@ -265,7 +298,9 @@ export const PlanRepository = {
    * theirs and reproducible; the dishes are what they will not be served again.
    * One method, because the two answers come from the same plan.
    */
-  async findGenerationHistory(userId: string): Promise<{ readonly nextVersion: number; readonly recentDishes: readonly { readonly name: string; readonly slug: string }[] }> {
+  async findGenerationHistory(
+    userId: string
+  ): Promise<{ readonly nextVersion: number; readonly recentDishes: readonly { readonly name: string; readonly slug: string }[] }> {
     try {
       const db = database();
       const [latest] = await db
@@ -275,7 +310,9 @@ export const PlanRepository = {
         .orderBy(desc(mealPlans.version))
         .limit(1);
 
-      if (!latest) {return { nextVersion: 1, recentDishes: [] };}
+      if (!latest) {
+        return { nextVersion: 1, recentDishes: [] };
+      }
 
       const served = await db
         .selectDistinct({ name: recipes.name, slug: recipes.slug })
@@ -292,7 +329,13 @@ export const PlanRepository = {
 
   async findHistory(userId: string, limit: number, offset: number) {
     try {
-      return await database().select().from(mealPlans).where(eq(mealPlans.userId, userId)).orderBy(desc(mealPlans.version)).limit(limit).offset(offset);
+      return await database()
+        .select()
+        .from(mealPlans)
+        .where(eq(mealPlans.userId, userId))
+        .orderBy(desc(mealPlans.version))
+        .limit(limit)
+        .offset(offset);
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -313,7 +356,10 @@ export const PlanRepository = {
           day: planDays,
           meal: meals,
           plan: { id: mealPlans.id, status: mealPlans.status },
-          recipe: { ...getTableColumns(recipes), hasImage: sql<boolean>`exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id})` }
+          recipe: {
+            ...getTableColumns(recipes),
+            hasImage: sql<boolean>`exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id})`
+          }
         })
         .from(meals)
         .innerJoin(planDays, eq(planDays.id, meals.planDayId))
@@ -322,7 +368,9 @@ export const PlanRepository = {
         .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId)))
         .limit(1);
 
-      if (!row) {return undefined;}
+      if (!row) {
+        return undefined;
+      }
 
       // Resolved live rather than snapshotted, unlike the shopping list: the
       // ingredient list on a meal is a lookup into the current catalogue, so a
@@ -349,7 +397,10 @@ export const PlanRepository = {
         .leftJoin(fallback, and(eq(fallback.ingredientId, ingredients.id), eq(fallback.locale, FALLBACK_LOCALE)))
         .where(eq(recipeIngredients.recipeId, row.recipe.id));
 
-      const substitutes = await findSubstitutes(rows.map(item => item.ingredientId), locale);
+      const substitutes = await findSubstitutes(
+        rows.map(item => item.ingredientId),
+        locale
+      );
 
       const items = rows.map(item => ({
         carbsPer100g: Number(item.carbsPer100g),
@@ -376,8 +427,21 @@ export const PlanRepository = {
         .select({
           day: { id: planDays.id, date: planDays.date, dayIndex: planDays.dayIndex },
           meal: meals,
-          plan: { id: mealPlans.id, endDate: mealPlans.endDate, startDate: mealPlans.startDate, status: mealPlans.status, strategy: mealPlans.strategy },
-          recipe: { id: recipes.id, cookMinutes: recipes.cookMinutes, name: recipes.name, prepMinutes: recipes.prepMinutes, servings: recipes.servings, slug: recipes.slug }
+          plan: {
+            id: mealPlans.id,
+            endDate: mealPlans.endDate,
+            startDate: mealPlans.startDate,
+            status: mealPlans.status,
+            strategy: mealPlans.strategy
+          },
+          recipe: {
+            id: recipes.id,
+            cookMinutes: recipes.cookMinutes,
+            name: recipes.name,
+            prepMinutes: recipes.prepMinutes,
+            servings: recipes.servings,
+            slug: recipes.slug
+          }
         })
         .from(meals)
         .innerJoin(planDays, eq(planDays.id, meals.planDayId))
@@ -406,7 +470,9 @@ export const PlanRepository = {
       const db = database();
       const [list] = await db.select().from(shoppingLists).where(eq(shoppingLists.planId, planId)).limit(1);
 
-      if (!list) {return undefined;}
+      if (!list) {
+        return undefined;
+      }
 
       const translated = aliasedTable(ingredientNames, 'shopping_item_name');
       const rows = await db
@@ -458,7 +524,12 @@ export const PlanRepository = {
    * meal is not theirs (a 404 upstream); `closed` when its plan is no longer
    * the active one — the past is read-only (0021).
    */
-  async setMealStatus(userId: string, mealId: string, status: MealStatus, today: string = new Date().toISOString().slice(0, 10)): Promise<'closed' | 'done' | 'future' | 'missing'> {
+  async setMealStatus(
+    userId: string,
+    mealId: string,
+    status: MealStatus,
+    today: string = new Date().toISOString().slice(0, 10)
+  ): Promise<'closed' | 'done' | 'future' | 'missing'> {
     try {
       return await database().transaction(async tx => {
         const [owned] = await tx
@@ -469,9 +540,13 @@ export const PlanRepository = {
           .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId)))
           .limit(1);
 
-        if (!owned) {return 'missing';}
+        if (!owned) {
+          return 'missing';
+        }
 
-        if (owned.planStatus !== 'active') {return 'closed';}
+        if (owned.planStatus !== 'active') {
+          return 'closed';
+        }
 
         /*
          * A meal can be marked once it could have been eaten, and not before.
@@ -482,7 +557,9 @@ export const PlanRepository = {
          * the next fortnight, so a wrong one does not just look wrong, it
          * changes what somebody is served.
          */
-        if (owned.date > today) {return 'future';}
+        if (owned.date > today) {
+          return 'future';
+        }
 
         await tx.update(meals).set({ status, updatedAt: new Date() }).where(eq(meals.id, mealId));
         await tx.delete(mealCompletions).where(and(eq(mealCompletions.userId, userId), eq(mealCompletions.mealId, mealId)));
@@ -532,11 +609,18 @@ export const PlanRepository = {
           .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId)))
           .limit(1);
 
-        if (!owned) {throw new NotFoundError('Meal not found');}
+        if (!owned) {
+          throw new NotFoundError('Meal not found');
+        }
 
-        const [used] = await tx.select({ n: sql<number>`count(*)::int` }).from(mealSwaps).where(eq(mealSwaps.planId, owned.planId));
+        const [used] = await tx
+          .select({ n: sql<number>`count(*)::int` })
+          .from(mealSwaps)
+          .where(eq(mealSwaps.planId, owned.planId));
 
-        if ((used?.n ?? 0) >= change.limit) {throw new QuotaExceededError('meal_swap');}
+        if ((used?.n ?? 0) >= change.limit) {
+          throw new QuotaExceededError('meal_swap');
+        }
 
         const inserted = change.newRecipe ? await insertRecipes(tx, [change.newRecipe], change.locale, userId) : new Map<string, string>();
         let recipeId = inserted.get(change.recipeSlug);
@@ -547,7 +631,9 @@ export const PlanRepository = {
           recipeId = found?.id;
         }
 
-        if (!recipeId) {throw new DatabaseOperationError(`Swap references a recipe that does not exist: ${change.recipeSlug}`);}
+        if (!recipeId) {
+          throw new DatabaseOperationError(`Swap references a recipe that does not exist: ${change.recipeSlug}`);
+        }
 
         await tx
           .update(meals)
@@ -563,38 +649,53 @@ export const PlanRepository = {
           })
           .where(eq(meals.id, mealId));
 
-        await tx.insert(mealSwaps).values({ fromRecipeId: owned.recipeId, mealId, planId: owned.planId, source: change.source, toRecipeId: recipeId, userId });
+        await tx
+          .insert(mealSwaps)
+          .values({ fromRecipeId: owned.recipeId, mealId, planId: owned.planId, source: change.source, toRecipeId: recipeId, userId });
 
         const [list] = await tx.select({ id: shoppingLists.id }).from(shoppingLists).where(eq(shoppingLists.planId, owned.planId)).limit(1);
 
-        if (!list) {return;}
+        if (!list) {
+          return;
+        }
 
         const existing = await tx
-          .select({ id: shoppingListItems.id, addedManually: shoppingListItems.addedManually, checked: shoppingListItems.checked, ingredientId: shoppingListItems.ingredientId })
+          .select({
+            id: shoppingListItems.id,
+            addedManually: shoppingListItems.addedManually,
+            checked: shoppingListItems.checked,
+            ingredientId: shoppingListItems.ingredientId
+          })
           .from(shoppingListItems)
           .where(eq(shoppingListItems.listId, list.id));
         const ticked = new Set(existing.filter(item => item.checked && item.ingredientId).map(item => item.ingredientId));
         const generated = existing.filter(item => !item.addedManually).map(item => item.id);
 
-        if (generated.length > 0) {await tx.delete(shoppingListItems).where(inArray(shoppingListItems.id, generated));}
+        if (generated.length > 0) {
+          await tx.delete(shoppingListItems).where(inArray(shoppingListItems.id, generated));
+        }
 
         if (shoppingItems.length > 0) {
-          await tx.insert(shoppingListItems).values(
-            shoppingItems.map(item => ({
-              category: item.category,
-              checked: ticked.has(item.ingredientId),
-              displayQuantity: String(item.displayQuantity),
-              displayUnit: item.displayUnit,
-              ingredientId: item.ingredientId,
-              listId: list.id,
-              name: item.name,
-              totalGrams: String(item.totalGrams)
-            }))
-          );
+          await tx
+            .insert(shoppingListItems)
+            .values(
+              shoppingItems.map(item => ({
+                category: item.category,
+                checked: ticked.has(item.ingredientId),
+                displayQuantity: String(item.displayQuantity),
+                displayUnit: item.displayUnit,
+                ingredientId: item.ingredientId,
+                listId: list.id,
+                name: item.name,
+                totalGrams: String(item.totalGrams)
+              }))
+            );
         }
       });
     } catch (error: unknown) {
-      if (error instanceof NotFoundError || error instanceof QuotaExceededError) {throw error;}
+      if (error instanceof NotFoundError || error instanceof QuotaExceededError) {
+        throw error;
+      }
 
       throw wrap(error);
     }
@@ -613,15 +714,32 @@ function isUniqueViolation(error: unknown): boolean {
  * who is asking.
  */
 async function findSubstitutes(ingredientIds: readonly string[], locale: string) {
-  const bySource = new Map<string, { readonly id: string; readonly allergens: { readonly allergenId: string; readonly presence: 'contains' | 'may_contain' }[]; readonly carbsPer100g: number; readonly fatPer100g: number; readonly kcalPer100g: number; readonly name: string; readonly proteinPer100g: number; readonly ratio: number }[]>();
+  const bySource = new Map<
+    string,
+    {
+      readonly id: string;
+      readonly allergens: { readonly allergenId: string; readonly presence: 'contains' | 'may_contain' }[];
+      readonly carbsPer100g: number;
+      readonly fatPer100g: number;
+      readonly kcalPer100g: number;
+      readonly name: string;
+      readonly proteinPer100g: number;
+      readonly ratio: number;
+    }[]
+  >();
 
-  if (ingredientIds.length === 0) {return bySource;}
+  if (ingredientIds.length === 0) {
+    return bySource;
+  }
 
   const db = database();
   const substitute = aliasedTable(ingredients, 'substitute');
   const requested = aliasedTable(ingredientNames, 'substitute_requested_name');
   const fallback = aliasedTable(ingredientNames, 'substitute_fallback_name');
-  const substituteIds = db.select({ id: ingredientSubstitutions.substituteId }).from(ingredientSubstitutions).where(inArray(ingredientSubstitutions.ingredientId, ingredientIds));
+  const substituteIds = db
+    .select({ id: ingredientSubstitutions.substituteId })
+    .from(ingredientSubstitutions)
+    .where(inArray(ingredientSubstitutions.ingredientId, ingredientIds));
 
   const [rows, links] = await Promise.all([
     db
@@ -681,57 +799,63 @@ type Transaction = Parameters<Parameters<ReturnType<typeof database>['transactio
  * meal swap, so a recipe is written the same way whichever route wrote it.
  */
 async function insertRecipes(tx: Transaction, newRecipes: readonly RecipeDraft[], locale: string, userId: string): Promise<Map<string, string>> {
-    const recipeIdBySlug = new Map<string, string>();
+  const recipeIdBySlug = new Map<string, string>();
 
-    if (newRecipes.length > 0) {
-      const inserted = await tx
-        .insert(recipes)
-        .values(
-          newRecipes.map(recipe => ({
-            cookMinutes: recipe.cookMinutes,
-            createdBy: userId,
-            cuisine: recipe.cuisine,
-            difficulty: recipe.difficulty,
-            instructions: recipe.steps,
-            // The language the model was told to write in. Reuse is scoped to
-            // it, so this is what keeps a Spanish dish out of an English plan.
-            locale: locale,
-            mealSlots: [...recipe.mealSlots],
-            name: recipe.name,
-            prepMinutes: recipe.prepMinutes,
-            servings: recipe.servings,
-            slug: recipe.slug,
-            source: 'ai' as const,
-            stepsVersion: recipe.stepsVersion
-          }))
-        )
-        // Another user's generation may have produced the same dish first.
-        // That is a race to win harmlessly, not an error.
-        .onConflictDoNothing({ target: recipes.slug })
-        .returning({ id: recipes.id, slug: recipes.slug });
+  if (newRecipes.length > 0) {
+    const inserted = await tx
+      .insert(recipes)
+      .values(
+        newRecipes.map(recipe => ({
+          cookMinutes: recipe.cookMinutes,
+          createdBy: userId,
+          cuisine: recipe.cuisine,
+          difficulty: recipe.difficulty,
+          instructions: recipe.steps,
+          // The language the model was told to write in. Reuse is scoped to
+          // it, so this is what keeps a Spanish dish out of an English plan.
+          locale: locale,
+          mealSlots: [...recipe.mealSlots],
+          name: recipe.name,
+          prepMinutes: recipe.prepMinutes,
+          servings: recipe.servings,
+          slug: recipe.slug,
+          source: 'ai' as const,
+          stepsVersion: recipe.stepsVersion
+        }))
+      )
+      // Another user's generation may have produced the same dish first.
+      // That is a race to win harmlessly, not an error.
+      .onConflictDoNothing({ target: recipes.slug })
+      .returning({ id: recipes.id, slug: recipes.slug });
 
-      for (const row of inserted) {recipeIdBySlug.set(row.slug, row.id);}
-
-      const ingredientRows = newRecipes
-        .filter(recipe => recipeIdBySlug.has(recipe.slug))
-        .flatMap(recipe =>
-          recipe.ingredients.map(item => ({
-            grams: String(item.grams),
-            ingredientId: item.ingredientId,
-            quantity: String(item.grams),
-            recipeId: recipeIdBySlug.get(recipe.slug) as string,
-            unit: item.unit
-          }))
-        );
-
-      if (ingredientRows.length > 0) {await tx.insert(recipeIngredients).values(ingredientRows);}
+    for (const row of inserted) {
+      recipeIdBySlug.set(row.slug, row.id);
     }
 
-    return recipeIdBySlug;
+    const ingredientRows = newRecipes
+      .filter(recipe => recipeIdBySlug.has(recipe.slug))
+      .flatMap(recipe =>
+        recipe.ingredients.map(item => ({
+          grams: String(item.grams),
+          ingredientId: item.ingredientId,
+          quantity: String(item.grams),
+          recipeId: recipeIdBySlug.get(recipe.slug) as string,
+          unit: item.unit
+        }))
+      );
+
+    if (ingredientRows.length > 0) {
+      await tx.insert(recipeIngredients).values(ingredientRows);
+    }
+  }
+
+  return recipeIdBySlug;
 }
 
 function wrap(error: unknown): DatabaseOperationError {
-  if (error instanceof DatabaseOperationError) {return error;}
+  if (error instanceof DatabaseOperationError) {
+    return error;
+  }
 
   return new DatabaseOperationError();
 }

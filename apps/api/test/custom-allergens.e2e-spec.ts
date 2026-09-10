@@ -3,7 +3,18 @@ import request from 'supertest';
 
 import type { Response } from 'supertest';
 
-import { activeShoppingList, completeOnboarding, createApp, dish, generateAndWait, httpServer, PREFIX, register, ScriptedAiClient, SEEDED } from './harness.js';
+import {
+  activeShoppingList,
+  completeOnboarding,
+  createApp,
+  dish,
+  generateAndWait,
+  httpServer,
+  PREFIX,
+  register,
+  ScriptedAiClient,
+  SEEDED
+} from './harness.js';
 
 import type { Account } from './harness.js';
 import type { INestApplication } from '@nestjs/common';
@@ -27,71 +38,131 @@ import type { PlanView } from 'core/controllers/Plan';
 const SAFE = [
   dish('Yogur natural', ['breakfast'], [{ grams: 250, slug: SEEDED.yogur }]),
   dish('Huevos revueltos', ['breakfast'], [{ grams: 160, slug: SEEDED.huevo }]),
-  dish('Avena con yogur', ['breakfast'], [
-    { grams: 60, slug: SEEDED.avena },
-    { grams: 150, slug: SEEDED.yogur }
-  ]),
-  dish('Huevo con pan', ['breakfast'], [
-    { grams: 120, slug: SEEDED.huevo },
-    { grams: 60, slug: SEEDED.pan }
-  ]),
-  dish('Yogur con avena', ['breakfast'], [
-    { grams: 200, slug: SEEDED.yogur },
-    { grams: 40, slug: SEEDED.avena }
-  ]),
-  dish('Arroz con pollo', ['lunch'], [
-    { grams: 220, slug: SEEDED.arroz },
-    { grams: 180, slug: SEEDED.pollo }
-  ]),
-  dish('Lentejas con arroz', ['lunch'], [
-    { grams: 250, slug: SEEDED.lentejas },
-    { grams: 150, slug: SEEDED.arroz }
-  ]),
-  dish('Pollo con patata', ['lunch'], [
-    { grams: 200, slug: SEEDED.pollo },
-    { grams: 250, slug: SEEDED.patata }
-  ]),
-  dish('Lentejas con patata', ['lunch'], [
-    { grams: 250, slug: SEEDED.lentejas },
-    { grams: 200, slug: SEEDED.patata }
-  ]),
-  dish('Arroz con lentejas', ['lunch'], [
-    { grams: 200, slug: SEEDED.arroz },
-    { grams: 200, slug: SEEDED.lentejas }
-  ]),
-  dish('Merluza con patata', ['dinner'], [
-    { grams: 200, slug: SEEDED.merluza },
-    { grams: 220, slug: SEEDED.patata }
-  ]),
-  dish('Merluza con arroz', ['dinner'], [
-    { grams: 190, slug: SEEDED.merluza },
-    { grams: 200, slug: SEEDED.arroz }
-  ]),
-  dish('Pollo con arroz', ['dinner'], [
-    { grams: 190, slug: SEEDED.pollo },
-    { grams: 210, slug: SEEDED.arroz }
-  ]),
-  dish('Huevo con patata', ['dinner'], [
-    { grams: 150, slug: SEEDED.huevo },
-    { grams: 250, slug: SEEDED.patata }
-  ]),
-  dish('Merluza con lentejas', ['dinner'], [
-    { grams: 180, slug: SEEDED.merluza },
-    { grams: 200, slug: SEEDED.lentejas }
-  ])
+  dish(
+    'Avena con yogur',
+    ['breakfast'],
+    [
+      { grams: 60, slug: SEEDED.avena },
+      { grams: 150, slug: SEEDED.yogur }
+    ]
+  ),
+  dish(
+    'Huevo con pan',
+    ['breakfast'],
+    [
+      { grams: 120, slug: SEEDED.huevo },
+      { grams: 60, slug: SEEDED.pan }
+    ]
+  ),
+  dish(
+    'Yogur con avena',
+    ['breakfast'],
+    [
+      { grams: 200, slug: SEEDED.yogur },
+      { grams: 40, slug: SEEDED.avena }
+    ]
+  ),
+  dish(
+    'Arroz con pollo',
+    ['lunch'],
+    [
+      { grams: 220, slug: SEEDED.arroz },
+      { grams: 180, slug: SEEDED.pollo }
+    ]
+  ),
+  dish(
+    'Lentejas con arroz',
+    ['lunch'],
+    [
+      { grams: 250, slug: SEEDED.lentejas },
+      { grams: 150, slug: SEEDED.arroz }
+    ]
+  ),
+  dish(
+    'Pollo con patata',
+    ['lunch'],
+    [
+      { grams: 200, slug: SEEDED.pollo },
+      { grams: 250, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Lentejas con patata',
+    ['lunch'],
+    [
+      { grams: 250, slug: SEEDED.lentejas },
+      { grams: 200, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Arroz con lentejas',
+    ['lunch'],
+    [
+      { grams: 200, slug: SEEDED.arroz },
+      { grams: 200, slug: SEEDED.lentejas }
+    ]
+  ),
+  dish(
+    'Merluza con patata',
+    ['dinner'],
+    [
+      { grams: 200, slug: SEEDED.merluza },
+      { grams: 220, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Merluza con arroz',
+    ['dinner'],
+    [
+      { grams: 190, slug: SEEDED.merluza },
+      { grams: 200, slug: SEEDED.arroz }
+    ]
+  ),
+  dish(
+    'Pollo con arroz',
+    ['dinner'],
+    [
+      { grams: 190, slug: SEEDED.pollo },
+      { grams: 210, slug: SEEDED.arroz }
+    ]
+  ),
+  dish(
+    'Huevo con patata',
+    ['dinner'],
+    [
+      { grams: 150, slug: SEEDED.huevo },
+      { grams: 250, slug: SEEDED.patata }
+    ]
+  ),
+  dish(
+    'Merluza con lentejas',
+    ['dinner'],
+    [
+      { grams: 180, slug: SEEDED.merluza },
+      { grams: 200, slug: SEEDED.lentejas }
+    ]
+  )
 ];
 
 /** Tomato, proposed anyway. The gate is what has to stop these, not the prompt. */
 const WITH_TOMATO = [
   dish('Ensalada de tomate', ['breakfast'], [{ grams: 200, slug: SEEDED.tomate }]),
-  dish('Tomate con huevo', ['lunch'], [
-    { grams: 180, slug: SEEDED.tomate },
-    { grams: 140, slug: SEEDED.huevo }
-  ]),
-  dish('Arroz con tomate', ['dinner'], [
-    { grams: 220, slug: SEEDED.arroz },
-    { grams: 160, slug: SEEDED.tomate }
-  ])
+  dish(
+    'Tomate con huevo',
+    ['lunch'],
+    [
+      { grams: 180, slug: SEEDED.tomate },
+      { grams: 140, slug: SEEDED.huevo }
+    ]
+  ),
+  dish(
+    'Arroz con tomate',
+    ['dinner'],
+    [
+      { grams: 220, slug: SEEDED.arroz },
+      { grams: 160, slug: SEEDED.tomate }
+    ]
+  )
 ];
 
 describe('free-text allergies, end to end', () => {
@@ -107,7 +178,9 @@ describe('free-text allergies, end to end', () => {
   }, 120_000);
 
   afterAll(async () => {
-    if (account) {await request(httpServer(app)).delete(`/${PREFIX}/users/me`).set('Cookie', account.cookie);}
+    if (account) {
+      await request(httpServer(app)).delete(`/${PREFIX}/users/me`).set('Cookie', account.cookie);
+    }
 
     await app.close();
   });

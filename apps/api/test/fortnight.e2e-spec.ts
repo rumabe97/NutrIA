@@ -136,7 +136,11 @@ describe('living the fortnight', () => {
     await request(server)
       .put(`/${PREFIX}/safety/restrictions`)
       .set('Cookie', account.cookie)
-      .send({ allergies: [{ allergenId: gluten?.id, crossContaminationSensitive: false, severity: 'moderate' }], customAllergens: [], intolerances: [] })
+      .send({
+        allergies: [{ allergenId: gluten?.id, crossContaminationSensitive: false, severity: 'moderate' }],
+        customAllergens: [],
+        intolerances: []
+      })
       .expect(204);
 
     const profile: Response = await request(server).get(`/${PREFIX}/profile`).set('Cookie', account.cookie).expect(200);

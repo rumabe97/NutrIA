@@ -45,7 +45,11 @@ export function SignInForm() {
       // is *not* a refusal — the service down, a rejected origin, a database the
       // API cannot reach — says so instead: for a whole afternoon those read as
       // "wrong password" and sent the owner looking in the wrong place.
-      setError(signInError.status === 401 ? dictionary.auth.invalidCredentials : interpolate(dictionary.auth.signInUnavailable, { status: signInError.status }));
+      setError(
+        signInError.status === 401
+          ? dictionary.auth.invalidCredentials
+          : interpolate(dictionary.auth.signInUnavailable, { status: signInError.status })
+      );
 
       return;
     }

@@ -21,13 +21,21 @@ export async function generateMetadata(): Promise<Metadata> {
  * filled in — that is what makes the flow resumable rather than merely
  * restartable.
  */
-export default async function OnboardingStepPage({ params, searchParams }: { params: Promise<{ paso: string }>; searchParams: Promise<{ volver?: string }> }) {
+export default async function OnboardingStepPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ paso: string }>;
+  searchParams: Promise<{ volver?: string }>;
+}) {
   const [{ paso }, { volver }] = await Promise.all([params, searchParams]);
   // Only the profile sends people here to edit one step; anything else is the flow itself.
   const returnTo = volver === 'perfil' ? '/perfil' : null;
   const step = Number(paso);
 
-  if (!Number.isInteger(step) || step < 1 || step > TOTAL_STEPS) {notFound();}
+  if (!Number.isInteger(step) || step < 1 || step > TOTAL_STEPS) {
+    notFound();
+  }
 
   // Only the allergies step renders the catalogue. Fetching it for the other
   // eight is a whole extra API invocation per step for nothing.

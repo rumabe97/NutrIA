@@ -6,15 +6,7 @@ import { PlanController } from 'core/controllers/Plan';
 import { MealSwapService } from './MealSwap.service.js';
 import { PlanJobRunner } from './PlanJobRunner.service.js';
 
-import type {
-  AllowancesDto,
-  JobDto,
-  MealDetailDto,
-  MealStatusDto,
-  PlanDayDto,
-  PlanDto,
-  PlanSummaryDto
-} from '../dto/out/index.js';
+import type { AllowancesDto, JobDto, MealDetailDto, MealStatusDto, PlanDayDto, PlanDto, PlanSummaryDto } from '../dto/out/index.js';
 import type { SetMealStatusDto, SwapMealDto } from '../dto/in/index.js';
 
 /**

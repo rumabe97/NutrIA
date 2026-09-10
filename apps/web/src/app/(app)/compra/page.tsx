@@ -26,7 +26,15 @@ export async function generateMetadata(): Promise<Metadata> {
 
 type ShoppingListView = {
   id: string;
-  items: readonly { id: string; category: string; checked: boolean; displayQuantity: number; displayUnit: string; name: string; totalGrams: number }[];
+  items: readonly {
+    id: string;
+    category: string;
+    checked: boolean;
+    displayQuantity: number;
+    displayUnit: string;
+    name: string;
+    totalGrams: number;
+  }[];
   planId: string;
 };
 
@@ -48,7 +56,9 @@ export default async function ShoppingPage() {
     );
   }
 
-  const groups = ORDER.map(category => ({ category, items: list.items.filter(item => item.category === category) })).filter(group => group.items.length > 0);
+  const groups = ORDER.map(category => ({ category, items: list.items.filter(item => item.category === category) })).filter(
+    group => group.items.length > 0
+  );
 
   return (
     <Fragment>

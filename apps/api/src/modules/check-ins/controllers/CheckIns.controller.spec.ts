@@ -22,7 +22,9 @@ describe('CheckInsController', () => {
   });
 
   it('reads the status for the session user', async () => {
-    const status = jest.spyOn(CheckInController, 'status').mockResolvedValue({ adherence: 80, done: false, due: true, plan: null, stats: { completed: 8, planned: 4, skipped: 2, total: 14 } });
+    const status = jest
+      .spyOn(CheckInController, 'status')
+      .mockResolvedValue({ adherence: 80, done: false, due: true, plan: null, stats: { completed: 8, planned: 4, skipped: 2, total: 14 } });
 
     await expect(controller.status(ALICE)).resolves.toMatchObject({ adherence: 80, due: true });
     expect(status).toHaveBeenCalledWith('usr-alice');

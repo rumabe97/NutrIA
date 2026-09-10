@@ -40,7 +40,9 @@ export class RecipeIllustrator {
   }
 
   async illustrateMissing(limit: number): Promise<IllustrationRun> {
-    if (!this.isAvailable) {return { drawn: 0, failed: 0, pending: 0 };}
+    if (!this.isAvailable) {
+      return { drawn: 0, failed: 0, pending: 0 };
+    }
 
     const pending = await RecipeController.pendingIllustrations(limit);
     let drawn = 0;

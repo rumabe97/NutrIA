@@ -14,5 +14,7 @@
 export function isQuotaExhausted(error: unknown): boolean {
   const message = (error instanceof Error ? error.message : String(error)).toLowerCase();
 
-  return ['exceeded your current quota', 'resource_exhausted', 'quota exceeded', 'insufficient_quota', 'billing'].some(phrase => message.includes(phrase));
+  return ['exceeded your current quota', 'resource_exhausted', 'quota exceeded', 'insufficient_quota', 'billing'].some(phrase =>
+    message.includes(phrase)
+  );
 }

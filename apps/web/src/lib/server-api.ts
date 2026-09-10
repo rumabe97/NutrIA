@@ -24,7 +24,9 @@ export async function serverApi<T>(path: string): Promise<T | null> {
       headers: { 'Accept-Language': locale, Cookie: cookieStore.toString() }
     });
 
-    if (!response.ok) {return null;}
+    if (!response.ok) {
+      return null;
+    }
 
     return (await response.json()) as T;
   } catch {

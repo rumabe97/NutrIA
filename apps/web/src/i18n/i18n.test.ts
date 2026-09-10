@@ -138,7 +138,9 @@ describe('the dictionaries agree on more than their keys', () => {
     const mismatched: string[] = [];
 
     walk(esES, enGB, 'root', (spanish, english, path) => {
-      if (placeholders(spanish).join(',') !== placeholders(english).join(',')) {mismatched.push(path);}
+      if (placeholders(spanish).join(',') !== placeholders(english).join(',')) {
+        mismatched.push(path);
+      }
     });
 
     expect(mismatched).toEqual([]);
@@ -148,7 +150,9 @@ describe('the dictionaries agree on more than their keys', () => {
     const empty: string[] = [];
 
     walk(esES, enGB, 'root', (spanish, english, path) => {
-      if (spanish.trim() === '' || english.trim() === '') {empty.push(path);}
+      if (spanish.trim() === '' || english.trim() === '') {
+        empty.push(path);
+      }
     });
 
     expect(empty).toEqual([]);

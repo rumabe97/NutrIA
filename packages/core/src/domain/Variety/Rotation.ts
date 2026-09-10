@@ -98,9 +98,13 @@ export type Leaning = {
  * "prefers" means, and so a fourth reason can be added in one place.
  */
 export function isPreferredDish(dish: CandidateDish, rotation: Leaning): boolean {
-  if (rotation.preferSlugs?.has(dish.slug)) {return true;}
+  if (rotation.preferSlugs?.has(dish.slug)) {
+    return true;
+  }
 
-  if (dish.cuisine && rotation.preferCuisines?.has(normaliseForMatching(dish.cuisine))) {return true;}
+  if (dish.cuisine && rotation.preferCuisines?.has(normaliseForMatching(dish.cuisine))) {
+    return true;
+  }
 
   return dish.ingredients.some(item => rotation.preferIngredientSlugs?.has(item.slug) ?? false);
 }
@@ -173,7 +177,10 @@ export function rotatePool(
   rotation: Rotation,
   perSlot: number = REUSED_DISHES_PER_SLOT
 ): CandidateDish[] {
-  const eligible = seededShuffle(dishes.filter(dish => !rotation.avoidSlugs.has(dish.slug)), rotation.seed);
+  const eligible = seededShuffle(
+    dishes.filter(dish => !rotation.avoidSlugs.has(dish.slug)),
+    rotation.seed
+  );
   // A stable partition: what they lean towards first in its shuffled order, then
   // the rest in theirs. Never a filter — the tail is still there, so a thin
   // library or a narrow taste costs variety, never a plan.
@@ -184,11 +191,17 @@ export function rotatePool(
     let count = 0;
 
     for (const dish of shuffled) {
-      if (count >= perSlot) {break;}
+      if (count >= perSlot) {
+        break;
+      }
 
-      if (!dish.slots.includes(slot)) {continue;}
+      if (!dish.slots.includes(slot)) {
+        continue;
+      }
 
-      if (!taken.has(dish.slug)) {taken.set(dish.slug, dish);}
+      if (!taken.has(dish.slug)) {
+        taken.set(dish.slug, dish);
+      }
 
       count += 1;
     }

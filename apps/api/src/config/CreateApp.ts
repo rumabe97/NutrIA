@@ -81,7 +81,9 @@ export async function createApp(expressApp?: Express): Promise<NestExpressApplic
   app.enableVersioning({ defaultVersion: false as never, type: VersioningType.URI });
   app.enableShutdownHooks();
 
-  if (config.get('SWAGGER_ENABLED', { infer: true }) && !isProduction) {setupSwagger(app, prefix);}
+  if (config.get('SWAGGER_ENABLED', { infer: true }) && !isProduction) {
+    setupSwagger(app, prefix);
+  }
 
   // Nest mounts its router during init(), and `app.use()` before that would sit
   // *ahead* of every route. Initialising first is what makes the fallback below a
@@ -91,7 +93,8 @@ export async function createApp(expressApp?: Express): Promise<NestExpressApplic
   // Express's finalhandler answers unmatched routes with an HTML error page that
   // names the framework and lacks the { code, message, statusCode } envelope every
   // client switches on.
-  app.getHttpAdapter()
+  app
+    .getHttpAdapter()
     .getInstance()
     .use((_request: express.Request, response: express.Response) => {
       response.status(HttpStatus.NOT_FOUND).json({ code: 'NOT_FOUND', message: 'Not found', statusCode: HttpStatus.NOT_FOUND });

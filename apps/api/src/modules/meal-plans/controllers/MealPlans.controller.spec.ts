@@ -23,7 +23,9 @@ const ALICE: SessionUser = { id: 'usr-alice', activated: true, email: 'alice@exa
 const BOB_PLAN = '11111111-2222-4333-8444-555555555555';
 
 function build() {
-  const start = jest.fn(async (_userId: string) => Promise.resolve({ id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null }));
+  const start = jest.fn(async (_userId: string) =>
+    Promise.resolve({ id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null })
+  );
   const swap = jest.fn(async (_userId: string, _mealId: string, _locale: string | null, _axis?: SwapAxis) => Promise.resolve({ id: 'meal-1' }));
 
   const plans = new MealPlansService({ start } as unknown as PlanJobRunner, { swap } as unknown as MealSwapService);
@@ -51,10 +53,12 @@ describe('MealPlansController', () => {
   });
 
   it('reads the allowances for the session user', async () => {
-    const allowances = jest.spyOn(PlanController, 'allowances').mockResolvedValue({
-      mealSwaps: { allowed: true, limit: 5, remaining: 5, used: 0 },
-      planRedo: { allowed: true, kind: 'new_fortnight', limit: 1, nextAt: null, used: 0 }
-    });
+    const allowances = jest
+      .spyOn(PlanController, 'allowances')
+      .mockResolvedValue({
+        mealSwaps: { allowed: true, limit: 5, remaining: 5, used: 0 },
+        planRedo: { allowed: true, kind: 'new_fortnight', limit: 1, nextAt: null, used: 0 }
+      });
 
     await expect(controller.allowances(ALICE)).resolves.toMatchObject({ mealSwaps: { remaining: 5 } });
     expect(allowances).toHaveBeenCalledWith('usr-alice');
@@ -126,7 +130,6 @@ describe('MealPlansController', () => {
 
     expect(listPlans).toHaveBeenCalledWith('usr-alice', 20, 0);
   });
-
 });
 
 /**
@@ -138,7 +141,9 @@ describe('MealPlansController', () => {
  */
 describe('meal-plan routes behind onboarding (through the real pipeline)', () => {
   let app: INestApplication;
-  const start = jest.fn(async (_userId: string) => Promise.resolve({ id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null }));
+  const start = jest.fn(async (_userId: string) =>
+    Promise.resolve({ id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null })
+  );
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({

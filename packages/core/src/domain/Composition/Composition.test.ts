@@ -5,7 +5,16 @@ import { makeCatalogue, makeCatalogueIngredient, makeDish } from '#test/fixtures
 
 const catalogue = makeCatalogue([
   makeCatalogueIngredient(),
-  makeCatalogueIngredient({ id: 'ing-chicken', carbsPer100g: 0, fatPer100g: 3.6, fiberPer100g: 0, kcalPer100g: 165, name: 'Pollo', proteinPer100g: 31, slug: 'pollo' })
+  makeCatalogueIngredient({
+    id: 'ing-chicken',
+    carbsPer100g: 0,
+    fatPer100g: 3.6,
+    fiberPer100g: 0,
+    kcalPer100g: 165,
+    name: 'Pollo',
+    proteinPer100g: 31,
+    slug: 'pollo'
+  })
 ]);
 
 describe('composeMacros', () => {
@@ -14,7 +23,9 @@ describe('composeMacros', () => {
 
     expect(result.ok).toBe(true);
 
-    if (result.ok) {expect(result.macros).toEqual({ carbsG: 0, fatG: 7.2, fiberG: 0, kcal: 330, proteinG: 62 });}
+    if (result.ok) {
+      expect(result.macros).toEqual({ carbsG: 0, fatG: 7.2, fiberG: 0, kcal: 330, proteinG: 62 });
+    }
   });
 
   it('adds across several ingredients', () => {
@@ -28,7 +39,9 @@ describe('composeMacros', () => {
 
     expect(result.ok).toBe(true);
 
-    if (result.ok) {expect(result.macros.kcal).toBe(365);}
+    if (result.ok) {
+      expect(result.macros.kcal).toBe(365);
+    }
   });
 
   it('reports unknown slugs instead of guessing or skipping them', () => {
@@ -42,7 +55,9 @@ describe('composeMacros', () => {
 
     expect(result.ok).toBe(false);
 
-    if (!result.ok) {expect(result.unknownSlugs).toEqual(['unicornio']);}
+    if (!result.ok) {
+      expect(result.unknownSlugs).toEqual(['unicornio']);
+    }
   });
 
   it('deduplicates repeated unknown slugs', () => {
@@ -56,7 +71,9 @@ describe('composeMacros', () => {
 
     expect(result.ok).toBe(false);
 
-    if (!result.ok) {expect(result.unknownSlugs).toEqual(['x']);}
+    if (!result.ok) {
+      expect(result.unknownSlugs).toEqual(['x']);
+    }
   });
 
   it('is zero for an empty ingredient list', () => {
@@ -64,7 +81,9 @@ describe('composeMacros', () => {
 
     expect(result.ok).toBe(true);
 
-    if (result.ok) {expect(result.macros).toEqual(ZERO_MACROS);}
+    if (result.ok) {
+      expect(result.macros).toEqual(ZERO_MACROS);
+    }
   });
 });
 
@@ -76,7 +95,9 @@ describe('composePerServing', () => {
     expect(result.ok).toBe(true);
 
     // 200 g of a 200 kcal/100 g ingredient is 400 kcal for two servings.
-    if (result.ok) {expect(result.macros.kcal).toBe(200);}
+    if (result.ok) {
+      expect(result.macros.kcal).toBe(200);
+    }
   });
 });
 

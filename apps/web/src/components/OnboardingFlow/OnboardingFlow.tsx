@@ -49,7 +49,14 @@ const COUNTRY_VALUES = ['ES', 'GB'] as const;
 const MEAL_SLOT_VALUES = ['breakfast', 'morning_snack', 'lunch', 'afternoon_snack', 'dinner', 'supper'] as const;
 
 /** What somebody sees before they answer: the ordinary three, plus something in the afternoon. */
-const DEFAULT_SHAPE = { afternoon_snack: 'normal', breakfast: 'normal', dinner: 'normal', lunch: 'normal', morning_snack: 'off', supper: 'off' } as const;
+const DEFAULT_SHAPE = {
+  afternoon_snack: 'normal',
+  breakfast: 'normal',
+  dinner: 'normal',
+  lunch: 'normal',
+  morning_snack: 'off',
+  supper: 'off'
+} as const;
 const SEX_VALUES = ['female', 'male', 'other', 'prefer_not_to_say'] as const;
 const COOKING_FREQUENCY_VALUES = ['rarely', 'sometimes', 'often', 'daily'] as const;
 const BUDGET_VALUES = ['low', 'medium', 'high'] as const;
@@ -123,7 +130,9 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
   // the one the lint rule is protecting.
   const [travel, setTravel] = useState({ goingBack: false, step });
 
-  if (travel.step !== step) {setTravel({ goingBack: step < travel.step, step });}
+  if (travel.step !== step) {
+    setTravel({ goingBack: step < travel.step, step });
+  }
 
   const goingBack = travel.step === step ? travel.goingBack : step < travel.step;
   const current = FLOW[step - 1];
@@ -171,7 +180,12 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
         return { birthDate: text('birthDate'), displayName: text('displayName'), sex: text('sex') };
 
       case 'goal':
-        return { customGoal: text('customGoal'), paceKgPerWeek: number('paceKgPerWeek'), targetWeightKg: number('targetWeightKg'), type: text('type') };
+        return {
+          customGoal: text('customGoal'),
+          paceKgPerWeek: number('paceKgPerWeek'),
+          targetWeightKg: number('targetWeightKg'),
+          type: text('type')
+        };
 
       case 'body-activity':
         return { activityLevel: text('activityLevel'), currentWeightKg: number('currentWeightKg'), heightCm: number('heightCm') };
@@ -195,11 +209,13 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
 
       case 'allergies':
         return {
-          allergies: form.getAll('allergy').map(id => ({
-            allergenId: String(id),
-            crossContaminationSensitive: form.getAll('trace').includes(String(id)),
-            severity: 'moderate' as const
-          })),
+          allergies: form
+            .getAll('allergy')
+            .map(id => ({
+              allergenId: String(id),
+              crossContaminationSensitive: form.getAll('trace').includes(String(id)),
+              severity: 'moderate' as const
+            })),
           customAllergens: splitList(text('customAllergens')),
           dietaryPatterns: form.getAll('dietaryPatterns').map(String),
           intolerances: form.getAll('intolerance').map(id => ({ allergenId: String(id) }))
@@ -261,7 +277,9 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
         router.refresh();
       });
     } catch (caught) {
-      if (caught instanceof ApiError) {setFieldErrors(caught.fieldErrors);}
+      if (caught instanceof ApiError) {
+        setFieldErrors(caught.fieldErrors);
+      }
 
       setError(messageFor(caught, dictionary));
     } finally {
@@ -310,7 +328,13 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
                 the browser has a token for exactly that. Height, weight and pace
                 have none — an invented token autofills nothing and claims a
                 purpose that is not the field's. */}
-            <Input autoComplete="nickname" defaultValue={person?.displayName ?? ''} error={fieldError('displayName')} label={f.displayName} name="displayName" />
+            <Input
+              autoComplete="nickname"
+              defaultValue={person?.displayName ?? ''}
+              error={fieldError('displayName')}
+              label={f.displayName}
+              name="displayName"
+            />
             {/* Asked now that something reads it: the catalogue knows which of
                 its foods are sold only in Spain, and a plan is built from what
                 this person can actually buy (`0034`). Two options, because two
@@ -323,7 +347,14 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
                 {f.countryHint}
               </Text>
             </fieldset>
-            <Input autoComplete="bday" defaultValue={person?.birthDate ?? ''} error={fieldError('birthDate')} label={f.birthDate} name="birthDate" type="date" />
+            <Input
+              autoComplete="bday"
+              defaultValue={person?.birthDate ?? ''}
+              error={fieldError('birthDate')}
+              label={f.birthDate}
+              name="birthDate"
+              type="date"
+            />
             <fieldset className={styles.fieldset}>
               <legend className={styles.legend}>{f.sex}</legend>
               <OptionCards name="sex" options={options.sex} value={person?.sex} />
@@ -403,18 +434,8 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
 
         {current?.key === 'food-preferences' ? (
           <Fragment>
-            <Input
-              defaultValue={joinList(profile?.foodPreferences, 'liked')}
-              hint={f.likedHint}
-              label={f.liked}
-              name="liked"
-            />
-            <Input
-              defaultValue={joinList(profile?.foodPreferences, 'disliked')}
-              hint={f.dislikedHint}
-              label={f.disliked}
-              name="disliked"
-            />
+            <Input defaultValue={joinList(profile?.foodPreferences, 'liked')} hint={f.likedHint} label={f.liked} name="liked" />
+            <Input defaultValue={joinList(profile?.foodPreferences, 'disliked')} hint={f.dislikedHint} label={f.disliked} name="disliked" />
             <fieldset className={styles.fieldset}>
               <legend className={styles.legend}>{f.cuisines}</legend>
               <ChipGroup name="cuisines" options={CUISINES} selected={profile?.cuisines ?? []} />
@@ -543,13 +564,16 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
               value={goal?.startingWeightKg ? `${formatNumber(goal.startingWeightKg, locale)} ${dictionary.units.kilogram}` : undefined}
             />
             <SummaryRow label={t.review.objective} value={goal?.type ? dictionary.goals[goal.type] : undefined} />
-            <SummaryRow
-              label={t.review.activity}
-              value={preferences?.activityLevel ? dictionary.activity[preferences.activityLevel] : undefined}
-            />
+            <SummaryRow label={t.review.activity} value={preferences?.activityLevel ? dictionary.activity[preferences.activityLevel] : undefined} />
             <SummaryRow
               label={t.review.mealShape}
-              value={preferences?.mealShape ? MEAL_SLOT_VALUES.filter(slot => preferences.mealShape[slot] !== 'off').map(slot => t.options.mealSlots[slot]).join(', ') : undefined}
+              value={
+                preferences?.mealShape
+                  ? MEAL_SLOT_VALUES.filter(slot => preferences.mealShape[slot] !== 'off')
+                      .map(slot => t.options.mealSlots[slot])
+                      .join(', ')
+                  : undefined
+              }
             />
             <SummaryRow label={t.review.allergies} value={profile?.allergies.map(a => a.allergenLabel).join(', ') || dictionary.common.none} />
             <SummaryRow label={t.review.intolerances} value={profile?.intolerances.map(i => i.allergenLabel).join(', ') || dictionary.common.none} />
@@ -604,7 +628,13 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
             {returnTo ? dictionary.common.cancel : dictionary.common.back}
           </Button>
           <Button disabled={pending} loading={advancing} type="submit">
-            {advancing ? dictionary.common.saving : returnTo ? dictionary.common.save : isReview ? dictionary.common.finish : dictionary.common.continue}
+            {advancing
+              ? dictionary.common.saving
+              : returnTo
+                ? dictionary.common.save
+                : isReview
+                  ? dictionary.common.finish
+                  : dictionary.common.continue}
           </Button>
         </div>
 
@@ -621,7 +651,6 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
     </div>
   );
 }
-
 
 function splitList(value: string | null): string[] {
   return (value ?? '')

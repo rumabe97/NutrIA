@@ -22,5 +22,7 @@ import type { OnboardingView } from 'core/controllers/Onboarding';
 export async function redirectIfOnboardingIncomplete(): Promise<void> {
   const state = await serverApi<OnboardingView>('/onboarding');
 
-  if (state && !state.isComplete) {redirect(`/onboarding/${state.resumeStep}`);}
+  if (state && !state.isComplete) {
+    redirect(`/onboarding/${state.resumeStep}`);
+  }
 }

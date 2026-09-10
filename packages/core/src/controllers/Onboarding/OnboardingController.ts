@@ -58,9 +58,13 @@ export const OnboardingController = {
     const state = await OnboardingRepository.find(userId);
     const view = presentOnboarding(state);
 
-    if (view.missingSteps.length > 0) {return view;}
+    if (view.missingSteps.length > 0) {
+      return view;
+    }
 
-    if (view.isComplete) {return view;}
+    if (view.isComplete) {
+      return view;
+    }
 
     return presentOnboarding(await OnboardingRepository.markComplete(userId, new Date().toISOString().slice(0, 10)));
   },

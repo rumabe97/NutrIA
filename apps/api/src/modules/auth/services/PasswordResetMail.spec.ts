@@ -23,11 +23,15 @@ function profileLocale(locale: string | null) {
 
 describe('absoluteCallback', () => {
   it('makes a path callback absolute on the app origin', () => {
-    expect(absoluteCallback(URL, APP, 'es-ES')).toBe('https://nutria.example/api/v1/auth/reset-password/tok?callbackURL=https%3A%2F%2Fnutria.example%2Frestablecer');
+    expect(absoluteCallback(URL, APP, 'es-ES')).toBe(
+      'https://nutria.example/api/v1/auth/reset-password/tok?callbackURL=https%3A%2F%2Fnutria.example%2Frestablecer'
+    );
   });
 
   it('sends an English reader to the English page', () => {
-    expect(absoluteCallback(URL, APP, 'en-GB')).toBe('https://nutria.example/api/v1/auth/reset-password/tok?callbackURL=https%3A%2F%2Fnutria.example%2Fen%2Frestablecer');
+    expect(absoluteCallback(URL, APP, 'en-GB')).toBe(
+      'https://nutria.example/api/v1/auth/reset-password/tok?callbackURL=https%3A%2F%2Fnutria.example%2Fen%2Frestablecer'
+    );
   });
 
   it('leaves an absolute callback alone', () => {
@@ -37,7 +41,9 @@ describe('absoluteCallback', () => {
   });
 
   it('leaves a link with no callback, or no parseable url, alone', () => {
-    expect(absoluteCallback('https://api.example/api/v1/auth/reset-password/tok', APP, 'es-ES')).toBe('https://api.example/api/v1/auth/reset-password/tok');
+    expect(absoluteCallback('https://api.example/api/v1/auth/reset-password/tok', APP, 'es-ES')).toBe(
+      'https://api.example/api/v1/auth/reset-password/tok'
+    );
     expect(absoluteCallback('not a url', APP, 'es-ES')).toBe('not a url');
   });
 });

@@ -6,7 +6,7 @@ import { user } from './auth.schema';
 import { timestamps } from './_columns';
 
 /** `cue` is what the cook looks for before moving on — "until the edges brown", "until it stops steaming". */
-export type RecipeStep = { readonly cue?: string; readonly minutes?: number; readonly text: string; };
+export type RecipeStep = { readonly cue?: string; readonly minutes?: number; readonly text: string };
 
 /**
  * Recipes are shared, not user-owned: an AI-generated one is reusable, and plan
@@ -121,4 +121,3 @@ export const recipeImages = pgTable('recipe_images', {
   width: smallint().notNull(),
   ...timestamps
 });
-

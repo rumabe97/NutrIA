@@ -19,4 +19,14 @@ export type { Category, FoodClass, IngredientSeed, Unit } from './types';
  * so every row carries its allergens — the catalogue is the safety boundary
  * ([`0004`](../../../../../docs/decisions/0004-ai-provider-and-deterministic-safety.md)).
  */
-export const INGREDIENT_SEED: readonly IngredientSeed[] = [...STARTER, ...PRODUCE, ...PROTEIN, ...DAIRY, ...PANTRY, ...FROZEN, ...BAKERY, ...BEVERAGES, ...OTHER];
+export const INGREDIENT_SEED: readonly IngredientSeed[] = [
+  ...STARTER,
+  ...PRODUCE,
+  ...PROTEIN,
+  ...DAIRY,
+  ...PANTRY,
+  ...FROZEN,
+  ...BAKERY,
+  ...BEVERAGES,
+  ...OTHER
+];

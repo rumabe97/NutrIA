@@ -15,13 +15,7 @@ type ActivityLevel = (typeof ACTIVITY_LEVELS)[number];
 type GoalType = (typeof GOAL_TYPES)[number];
 
 /** Mifflin-St Jeor multipliers. */
-const ACTIVITY_FACTOR: Record<ActivityLevel, number> = {
-  athlete: 1.9,
-  high: 1.725,
-  light: 1.375,
-  moderate: 1.55,
-  sedentary: 1.2
-};
+const ACTIVITY_FACTOR: Record<ActivityLevel, number> = { athlete: 1.9, high: 1.725, light: 1.375, moderate: 1.55, sedentary: 1.2 };
 
 /** Grams of protein per kg of body weight, by goal. */
 const PROTEIN_G_PER_KG: Record<GoalType, number> = {
@@ -195,15 +189,25 @@ export function targetViolations(targets: NutritionTargets, bounds: TargetBounds
   const fatFloorG = (targets.kcal * MIN_FAT_KCAL_SHARE) / KCAL_PER_G.fat;
   const macroKcal = targets.proteinG * KCAL_PER_G.protein + targets.carbsG * KCAL_PER_G.carbs + targets.fatG * KCAL_PER_G.fat;
 
-  if (targets.kcal < Math.floor(bounds.floorKcal)) {violations.push({ floor: bounds.floorKcal, kind: 'kcal_below_floor', value: targets.kcal });}
+  if (targets.kcal < Math.floor(bounds.floorKcal)) {
+    violations.push({ floor: bounds.floorKcal, kind: 'kcal_below_floor', value: targets.kcal });
+  }
 
-  if (targets.kcal > Math.ceil(bounds.ceilingKcal)) {violations.push({ ceiling: bounds.ceilingKcal, kind: 'kcal_above_ceiling', value: targets.kcal });}
+  if (targets.kcal > Math.ceil(bounds.ceilingKcal)) {
+    violations.push({ ceiling: bounds.ceilingKcal, kind: 'kcal_above_ceiling', value: targets.kcal });
+  }
 
-  if (targets.proteinG < bounds.proteinFloorG) {violations.push({ floor: bounds.proteinFloorG, kind: 'protein_below_floor', value: targets.proteinG });}
+  if (targets.proteinG < bounds.proteinFloorG) {
+    violations.push({ floor: bounds.proteinFloorG, kind: 'protein_below_floor', value: targets.proteinG });
+  }
 
-  if (targets.proteinG > bounds.proteinCeilingG) {violations.push({ ceiling: bounds.proteinCeilingG, kind: 'protein_above_ceiling', value: targets.proteinG });}
+  if (targets.proteinG > bounds.proteinCeilingG) {
+    violations.push({ ceiling: bounds.proteinCeilingG, kind: 'protein_above_ceiling', value: targets.proteinG });
+  }
 
-  if (targets.fatG < fatFloorG) {violations.push({ floor: fatFloorG, kind: 'fat_below_floor', value: targets.fatG });}
+  if (targets.fatG < fatFloorG) {
+    violations.push({ floor: fatFloorG, kind: 'fat_below_floor', value: targets.fatG });
+  }
 
   // Last, because it is the one that makes the set incoherent rather than
   // merely aggressive: macros that do not add up to the calorie figure mean the
@@ -264,7 +268,9 @@ export function nutritionTargets(input: TargetInput): NutritionTargets & { reado
 
   const violations = targetViolations(targets, bounds);
 
-  if (violations.length > 0) {throw new TargetsUnreachableError(violations);}
+  if (violations.length > 0) {
+    throw new TargetsUnreachableError(violations);
+  }
 
   return {
     ...targets,
@@ -332,7 +338,9 @@ export function ageInYears(birthDate: string, on: Date = new Date()): number {
   let age = on.getUTCFullYear() - born.getUTCFullYear();
   const monthDelta = on.getUTCMonth() - born.getUTCMonth();
 
-  if (monthDelta < 0 || (monthDelta === 0 && on.getUTCDate() < born.getUTCDate())) {age -= 1;}
+  if (monthDelta < 0 || (monthDelta === 0 && on.getUTCDate() < born.getUTCDate())) {
+    age -= 1;
+  }
 
   return age;
 }

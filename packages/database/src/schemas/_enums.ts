@@ -38,16 +38,7 @@ export const allergenPresence = pgEnum('allergen_presence', ['contains', 'may_co
 export const allergySeverity = pgEnum('allergy_severity', ['mild', 'moderate', 'severe', 'anaphylaxis']);
 
 /** Doubles as the shopping-list grouping (§ Shopping list). */
-export const ingredientCategory = pgEnum('ingredient_category', [
-  'produce',
-  'protein',
-  'dairy',
-  'pantry',
-  'frozen',
-  'bakery',
-  'beverages',
-  'other'
-]);
+export const ingredientCategory = pgEnum('ingredient_category', ['produce', 'protein', 'dairy', 'pantry', 'frozen', 'bakery', 'beverages', 'other']);
 
 export const measurementUnit = pgEnum('measurement_unit', ['g', 'ml', 'unit', 'tbsp', 'tsp', 'cup', 'slice', 'pinch']);
 

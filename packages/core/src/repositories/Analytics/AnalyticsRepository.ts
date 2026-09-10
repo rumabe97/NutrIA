@@ -9,10 +9,14 @@ export type ActivityRow = { readonly event: string; readonly n: number };
 
 export const AnalyticsRepository = {
   /** How many of each event since a date, and how many distinct people came back. */
-  async activitySince(since: Date): Promise<{ readonly people: number; readonly rows: readonly ActivityRow[]; }> {
+  async activitySince(since: Date): Promise<{ readonly people: number; readonly rows: readonly ActivityRow[] }> {
     const db = database();
     const [rows, people] = await Promise.all([
-      db.select({ event: analyticsEvents.event, n: count() }).from(analyticsEvents).where(gte(analyticsEvents.createdAt, since)).groupBy(analyticsEvents.event),
+      db
+        .select({ event: analyticsEvents.event, n: count() })
+        .from(analyticsEvents)
+        .where(gte(analyticsEvents.createdAt, since))
+        .groupBy(analyticsEvents.event),
       db
         .select({ n: countDistinct(analyticsEvents.userId) })
         .from(analyticsEvents)
@@ -51,7 +55,9 @@ export const AnalyticsRepository = {
    */
   async record(event: AnalyticsEvent, userId: string | null, properties?: Record<string, unknown>): Promise<void> {
     try {
-      await database().insert(analyticsEvents).values({ event, properties: properties ?? null, userId });
+      await database()
+        .insert(analyticsEvents)
+        .values({ event, properties: properties ?? null, userId });
     } catch (error: unknown) {
       console.info(`[analytics] "${event}" not recorded: ${error instanceof Error ? error.message : 'unknown error'}`);
     }

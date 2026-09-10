@@ -13,14 +13,16 @@ import type { EmailLocale, RenderedEmail } from './Layout.js';
 const COPY: Record<EmailLocale, { button: string; intro: string; optOut: string; subject: string; why: string }> = {
   'en-GB': {
     button: 'Do the check-in',
-    intro: 'Your fortnight is done. Tell us in a minute how it went — the weight, the portions and what you would change — and your next plan starts from that.',
+    intro:
+      'Your fortnight is done. Tell us in a minute how it went — the weight, the portions and what you would change — and your next plan starts from that.',
     optOut: 'You can turn these reminders off in your profile.',
     subject: 'Your fortnight is done — two minutes and the next one is better',
     why: 'Without it the next plan is built from the same answers as this one.'
   },
   'es-ES': {
     button: 'Hacer el check-in',
-    intro: 'Tu quincena ha terminado. Cuéntanos en un minuto cómo ha ido — el peso, las cantidades y qué cambiarías — y el siguiente plan parte de ahí.',
+    intro:
+      'Tu quincena ha terminado. Cuéntanos en un minuto cómo ha ido — el peso, las cantidades y qué cambiarías — y el siguiente plan parte de ahí.',
     optOut: 'Puedes desactivar estos avisos desde tu perfil.',
     subject: 'Tu quincena ha terminado — dos minutos y la siguiente va mejor',
     why: 'Sin él, el siguiente plan se construye con las mismas respuestas que este.'
@@ -45,4 +47,3 @@ export function checkInReminderEmail({ locale, url }: { locale: EmailLocale; url
 export function checkInReminderRecord(locale: EmailLocale): { readonly body: string; readonly title: string } {
   return { body: COPY[locale].intro, title: COPY[locale].subject };
 }
-

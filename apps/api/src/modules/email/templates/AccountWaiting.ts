@@ -31,7 +31,17 @@ const COPY: Record<EmailLocale, { activate: string; button: string; byHand: stri
   }
 };
 
-export function accountWaitingEmail({ email, emailVerified = true, locale, url }: { email: string; emailVerified?: boolean; locale: EmailLocale; url: string }): RenderedEmail {
+export function accountWaitingEmail({
+  email,
+  emailVerified = true,
+  locale,
+  url
+}: {
+  email: string;
+  emailVerified?: boolean;
+  locale: EmailLocale;
+  url: string;
+}): RenderedEmail {
   const copy = COPY[locale];
   const statement = `update "user" set activated_at = now(), updated_at = now() where email = '${email}';`;
 

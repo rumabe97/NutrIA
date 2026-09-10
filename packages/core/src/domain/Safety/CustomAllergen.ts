@@ -11,11 +11,7 @@
  * mean". Every one of those turns a typo into a promise.
  */
 
-export type MatchableIngredient = {
-  readonly id: string;
-  readonly name: string;
-  readonly slug: string;
-};
+export type MatchableIngredient = { readonly id: string; readonly name: string; readonly slug: string };
 
 export type ResolvedCustomAllergen = {
   /** Null when the text matched nothing — best-effort, never presented as enforced. */
@@ -109,7 +105,9 @@ export function toMatchIndex(ingredients: readonly MatchableIngredient[]): Match
 
   for (const ingredient of ingredients) {
     for (const key of [normaliseForMatching(ingredient.name), normaliseForMatching(ingredient.slug)]) {
-      if (key === '') {continue;}
+      if (key === '') {
+        continue;
+      }
 
       const existing = index.get(key);
 
@@ -122,7 +120,9 @@ export function toMatchIndex(ingredients: readonly MatchableIngredient[]): Match
     }
   }
 
-  for (const key of ambiguous) {index.delete(key);}
+  for (const key of ambiguous) {
+    index.delete(key);
+  }
 
   return index;
 }
@@ -131,11 +131,15 @@ export function toMatchIndex(ingredients: readonly MatchableIngredient[]): Match
 export function matchCustomAllergen(label: string, index: MatchIndex): string | null {
   const normalised = normaliseForMatching(label);
 
-  if (normalised === '') {return null;}
+  if (normalised === '') {
+    return null;
+  }
 
   const direct = index.get(normalised);
 
-  if (direct !== undefined) {return direct;}
+  if (direct !== undefined) {
+    return direct;
+  }
 
   const synonym = SYNONYMS.get(normalised);
 
@@ -155,7 +159,9 @@ export function resolveCustomAllergens(labels: readonly string[], ingredients: r
     const label = raw.trim();
     const key = normaliseForMatching(label);
 
-    if (key === '' || seen.has(key)) {continue;}
+    if (key === '' || seen.has(key)) {
+      continue;
+    }
 
     seen.add(key);
     resolved.push({ ingredientId: matchCustomAllergen(label, index), label });

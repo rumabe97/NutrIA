@@ -67,7 +67,12 @@ export function DeleteAccount() {
         {interpolate(dictionary.profile.deletePrompt, { word })}
       </Text>
 
-      <Input autoComplete="off" label={interpolate(dictionary.profile.deleteTypeLabel, { word })} onChange={event => setValue(event.target.value)} value={value} />
+      <Input
+        autoComplete="off"
+        label={interpolate(dictionary.profile.deleteTypeLabel, { word })}
+        onChange={event => setValue(event.target.value)}
+        value={value}
+      />
 
       <div className={styles.actions}>
         <Button disabled={value !== word} loading={pending} onClick={remove} type="button">

@@ -20,13 +20,19 @@ export class ProviderImageClient extends ImageClient {
   }
 
   async generate({ aspectRatio, prompt }: ImageRequest): Promise<ImageResponse> {
-    if (!this.model) {throw new Error('No image model configured');}
+    if (!this.model) {
+      throw new Error('No image model configured');
+    }
 
     try {
       const result = await generateImage({ aspectRatio, model: this.model, prompt });
 
       // `ImageModel` admits a bare id string as well as a model object.
-      return { bytes: result.image.uint8Array, mediaType: result.image.mediaType, model: typeof this.model === 'string' ? this.model : this.model.modelId };
+      return {
+        bytes: result.image.uint8Array,
+        mediaType: result.image.mediaType,
+        model: typeof this.model === 'string' ? this.model : this.model.modelId
+      };
     } catch (error: unknown) {
       // The provider's message names the key, the quota or the model — the one thing
       // an operator needs — and is redacted before it can reach a log.

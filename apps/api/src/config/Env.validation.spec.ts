@@ -74,7 +74,16 @@ describe('validateEnv', () => {
 describe('empty values from a copied .env.example', () => {
   // `cp .env.example .env` is the documented first step and leaves every unset
   // variable as an empty string. Those must read as absent, not as malformed.
-  const copied = { ...valid, AI_BASE_URL: '', ALLOWED_ORIGINS: '', ANTHROPIC_API_KEY: '', EMAIL_FROM: '', SMTP_HOST: '', SMTP_PORT: '', SMTP_USER: '' };
+  const copied = {
+    ...valid,
+    AI_BASE_URL: '',
+    ALLOWED_ORIGINS: '',
+    ANTHROPIC_API_KEY: '',
+    EMAIL_FROM: '',
+    SMTP_HOST: '',
+    SMTP_PORT: '',
+    SMTP_USER: ''
+  };
 
   it('boots with every optional variable left empty', () => {
     expect(() => validateEnv({ ...copied })).not.toThrow();
@@ -97,7 +106,14 @@ describe('empty values from a copied .env.example', () => {
   });
 
   it('accepts a complete mail configuration', () => {
-    const env = validateEnv({ ...copied, EMAIL_FROM: 'hola@example.com', SMTP_HOST: 'smtp.example.com', SMTP_PASS: 'x', SMTP_PORT: '465', SMTP_USER: 'hola@example.com' });
+    const env = validateEnv({
+      ...copied,
+      EMAIL_FROM: 'hola@example.com',
+      SMTP_HOST: 'smtp.example.com',
+      SMTP_PASS: 'x',
+      SMTP_PORT: '465',
+      SMTP_USER: 'hola@example.com'
+    });
 
     expect(env.SMTP_PORT).toBe(465);
   });

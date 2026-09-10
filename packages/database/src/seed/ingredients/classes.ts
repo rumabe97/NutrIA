@@ -13,17 +13,29 @@ export function foodClasses(entry: IngredientSeed): ReadonlySet<FoodClass> {
   const classes = new Set<FoodClass>(entry.classes ?? []);
   const allergens = new Set((entry.allergens ?? []).filter(link => (link.presence ?? 'contains') === 'contains').map(link => link.key));
 
-  if (allergens.has('milk') || allergens.has('lactose')) {classes.add('dairy');}
+  if (allergens.has('milk') || allergens.has('lactose')) {
+    classes.add('dairy');
+  }
 
-  if (allergens.has('eggs')) {classes.add('egg');}
+  if (allergens.has('eggs')) {
+    classes.add('egg');
+  }
 
-  if (allergens.has('fish')) {classes.add('fish');}
+  if (allergens.has('fish')) {
+    classes.add('fish');
+  }
 
-  if (allergens.has('crustaceans') || allergens.has('molluscs')) {classes.add('shellfish');}
+  if (allergens.has('crustaceans') || allergens.has('molluscs')) {
+    classes.add('shellfish');
+  }
 
-  if (classes.has('pork')) {classes.add('meat');}
+  if (classes.has('pork')) {
+    classes.add('meat');
+  }
 
-  if (classes.size > 0) {classes.add('animal');}
+  if (classes.size > 0) {
+    classes.add('animal');
+  }
 
   return classes;
 }

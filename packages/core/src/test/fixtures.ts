@@ -181,14 +181,7 @@ const PLAN_DAYS = 14;
 export const POOL_PER_SLOT = Math.ceil(PLAN_DAYS / VARIETY_RULES.maxOccurrencesPerPlan) + 2;
 
 export function makePool(slots: readonly MealSlot[], perSlot = POOL_PER_SLOT): readonly CandidateDish[] {
-  const SHARE: Record<MealSlot, number> = {
-    afternoon_snack: 0.1,
-    breakfast: 0.28,
-    dinner: 0.34,
-    lunch: 0.37,
-    morning_snack: 0.09,
-    supper: 0.11
-  };
+  const SHARE: Record<MealSlot, number> = { afternoon_snack: 0.1, breakfast: 0.28, dinner: 0.34, lunch: 0.37, morning_snack: 0.09, supper: 0.11 };
 
   return slots.flatMap(slot => {
     // The base ingredient is 200 kcal per 100 g, so grams = kcal / 2.
@@ -196,7 +189,7 @@ export function makePool(slots: readonly MealSlot[], perSlot = POOL_PER_SLOT): r
 
     return Array.from({ length: perSlot }, (_unused, index) =>
       makeDish({
-            // Spread across the same 0.8–1.2 range whatever the pool size, so growing
+        // Spread across the same 0.8–1.2 range whatever the pool size, so growing
         // the pool adds density rather than pushing the extremes further out.
         ingredients: [{ grams: Math.round(centre * (0.8 + (index / Math.max(perSlot - 1, 1)) * 0.4)), slug: 'base' }],
         name: `${slot} ${index}`,

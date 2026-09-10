@@ -166,7 +166,9 @@ export const PlanController = {
   async composition(userId: string, planId: string): Promise<readonly MealCompositionView[]> {
     const plan = await PlanRepository.findById(userId, planId);
 
-    if (!plan) {throw new NotFoundError('Plan not found');}
+    if (!plan) {
+      throw new NotFoundError('Plan not found');
+    }
 
     const days = await PlanRepository.findDaysWithMeals(plan.id, FALLBACK_LOCALE);
 
@@ -178,7 +180,13 @@ export const PlanController = {
           id: meal.id,
           dayIndex: day.dayIndex,
           ingredients: items.map(item => ({ grams: Math.round(Number(item.grams) * factor * 10) / 10, slug: item.slug })),
-          macros: { carbsG: Number(meal.carbsG), fatG: Number(meal.fatG), fiberG: Number(meal.fiberG), kcal: Number(meal.kcal), proteinG: Number(meal.proteinG) },
+          macros: {
+            carbsG: Number(meal.carbsG),
+            fatG: Number(meal.fatG),
+            fiberG: Number(meal.fiberG),
+            kcal: Number(meal.kcal),
+            proteinG: Number(meal.proteinG)
+          },
           recipeSlug: recipe.slug,
           servings: Number(meal.servings),
           slot: meal.slot,
@@ -189,7 +197,9 @@ export const PlanController = {
   },
 
   /** For generation: the next plan version, and what the user was served last fortnight. */
-  async generationHistory(userId: string): Promise<{ readonly nextVersion: number; readonly recentDishes: readonly { readonly name: string; readonly slug: string }[] }> {
+  async generationHistory(
+    userId: string
+  ): Promise<{ readonly nextVersion: number; readonly recentDishes: readonly { readonly name: string; readonly slug: string }[] }> {
     return PlanRepository.findGenerationHistory(userId);
   },
 
@@ -197,7 +207,9 @@ export const PlanController = {
   async getActivePlan(userId: string, locale: string | null = null): Promise<PlanView | null> {
     const plan = await PlanRepository.findActive(userId);
 
-    if (!plan) {return null;}
+    if (!plan) {
+      return null;
+    }
 
     return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
   },
@@ -206,7 +218,9 @@ export const PlanController = {
     const plan = await PlanController.getPlan(userId, planId, locale);
     const day = plan.days.find(candidate => candidate.dayIndex === dayIndex);
 
-    if (!day) {throw new NotFoundError('Day not found');}
+    if (!day) {
+      throw new NotFoundError('Day not found');
+    }
 
     return day;
   },
@@ -214,7 +228,9 @@ export const PlanController = {
   async getJob(userId: string, jobId: string): Promise<JobView> {
     const job = await PlanJobRepository.findById(userId, jobId);
 
-    if (!job) {throw new NotFoundError('Job not found');}
+    if (!job) {
+      throw new NotFoundError('Job not found');
+    }
 
     return { id: job.id, error: job.error, errorDetail: job.errorDetail, planId: job.planId, status: job.status, step: job.step };
   },
@@ -227,7 +243,9 @@ export const PlanController = {
   async getPlan(userId: string, planId: string, locale: string | null = null): Promise<PlanView> {
     const plan = await PlanRepository.findById(userId, planId);
 
-    if (!plan) {throw new NotFoundError('Plan not found');}
+    if (!plan) {
+      throw new NotFoundError('Plan not found');
+    }
 
     return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
   },
@@ -236,11 +254,15 @@ export const PlanController = {
     // Ownership is resolved on the plan; the list hangs off it.
     const plan = await PlanRepository.findById(userId, planId);
 
-    if (!plan) {throw new NotFoundError('Plan not found');}
+    if (!plan) {
+      throw new NotFoundError('Plan not found');
+    }
 
     const list = await PlanRepository.findShoppingList(plan.id, await localeFor(userId, locale));
 
-    if (!list) {throw new NotFoundError('Shopping list not found');}
+    if (!list) {
+      throw new NotFoundError('Shopping list not found');
+    }
 
     return {
       id: list.id,
@@ -280,7 +302,9 @@ export const PlanController = {
   async mealForSwap(userId: string, mealId: string) {
     const found = await PlanRepository.findMealForSwap(userId, mealId);
 
-    if (!found) {throw new NotFoundError('Meal not found');}
+    if (!found) {
+      throw new NotFoundError('Meal not found');
+    }
 
     return found;
   },
@@ -295,11 +319,17 @@ export const PlanController = {
 
     const result = await PlanRepository.setMealStatus(userId, mealId, status);
 
-    if (result === 'missing') {throw new NotFoundError('Meal not found');}
+    if (result === 'missing') {
+      throw new NotFoundError('Meal not found');
+    }
 
-    if (result === 'closed') {throw new ConflictError('Only the active plan can be changed');}
+    if (result === 'closed') {
+      throw new ConflictError('Only the active plan can be changed');
+    }
 
-    if (result === 'future') {throw new MealInFutureError();}
+    if (result === 'future') {
+      throw new MealInFutureError();
+    }
   },
 
   /**
@@ -319,7 +349,14 @@ export const PlanController = {
   async swapMeal(
     userId: string,
     mealId: string,
-    change: { readonly locale: string; readonly macros: Macros; readonly newRecipe: RecipeDraft | null; readonly recipeSlug: string; readonly servings: number; readonly source: 'library' | 'model' },
+    change: {
+      readonly locale: string;
+      readonly macros: Macros;
+      readonly newRecipe: RecipeDraft | null;
+      readonly recipeSlug: string;
+      readonly servings: number;
+      readonly source: 'library' | 'model';
+    },
     shoppingItems: readonly ShoppingItemDraft[]
   ): Promise<void> {
     await assertNotPaused(userId);
@@ -327,8 +364,13 @@ export const PlanController = {
   }
 };
 
-function assemble(plan: Awaited<ReturnType<typeof PlanRepository.findActive>>, days: Awaited<ReturnType<typeof PlanRepository.findDaysWithMeals>>): PlanView {
-  if (!plan) {throw new NotFoundError('Plan not found');}
+function assemble(
+  plan: Awaited<ReturnType<typeof PlanRepository.findActive>>,
+  days: Awaited<ReturnType<typeof PlanRepository.findDaysWithMeals>>
+): PlanView {
+  if (!plan) {
+    throw new NotFoundError('Plan not found');
+  }
 
   return {
     id: plan.id,
@@ -412,14 +454,18 @@ export const PlanJobController = {
 
     const inFlight = await PlanJobRepository.findInFlight(userId);
 
-    if (inFlight) {throw new ConflictError('A plan is already being generated');}
+    if (inFlight) {
+      throw new ConflictError('A plan is already being generated');
+    }
 
     // The next fortnight is always allowed; redoing the one in progress is an
     // allowance, and it is checked here — the one place a generation starts —
     // rather than in the route, so no second route can forget it.
     const { planRedo } = await PlanController.allowances(userId);
 
-    if (!planRedo.allowed) {throw new QuotaExceededError('plan_redo', planRedo.nextAt);}
+    if (!planRedo.allowed) {
+      throw new QuotaExceededError('plan_redo', planRedo.nextAt);
+    }
 
     const job = await PlanJobRepository.create(userId);
 
@@ -497,7 +543,9 @@ async function assertNotPaused(userId: string): Promise<void> {
   const today = new Date().toISOString().slice(0, 10);
   const trips = await VacationRepository.findUpcoming(userId, today);
 
-  if (trips.some(trip => isAway(trip, today))) {throw new PlanPausedError();}
+  if (trips.some(trip => isAway(trip, today))) {
+    throw new PlanPausedError();
+  }
 }
 
 async function localeFor(userId: string, requested: string | null): Promise<string> {
@@ -511,7 +559,9 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
   // and a gate loaded lazily is a gate that can be skipped by mistake.
   const [found, safety] = await Promise.all([PlanRepository.findMealDetail(userId, mealId, locale), SafetyController.getSafetyProfile(userId)]);
 
-  if (!found) {throw new NotFoundError('Meal not found');}
+  if (!found) {
+    throw new NotFoundError('Meal not found');
+  }
 
   const { day, items, meal, plan, recipe } = found;
   const factor = Number(meal.servings) / (recipe.servings || 1);

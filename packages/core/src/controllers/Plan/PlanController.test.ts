@@ -10,7 +10,10 @@ const findHistory = vi.fn<(userId: string, limit: number, offset: number) => Pro
 const setMealStatus = vi.fn<(userId: string, mealId: string, status: string) => Promise<'closed' | 'done' | 'missing'>>();
 
 vi.mock('#repositories/Plan', () => ({
-  PlanRepository: { findHistory: (u: string, l: number, o: number) => findHistory(u, l, o), setMealStatus: (u: string, m: string, s: string) => setMealStatus(u, m, s) }
+  PlanRepository: {
+    findHistory: (u: string, l: number, o: number) => findHistory(u, l, o),
+    setMealStatus: (u: string, m: string, s: string) => setMealStatus(u, m, s)
+  }
 }));
 
 // Nobody in this file is away. The pause is its own suite; here it must not be
@@ -46,7 +49,10 @@ describe('PlanController.listPlans — the history', () => {
 
   it('ignores a plan that was never lived when looking for a successor', async () => {
     // A failed generation between two plans is not what replaced the older one.
-    findHistory.mockResolvedValue([row({ id: 'p2', status: 'failed', version: 2 }), row({ id: 'p1', endDate: '2026-09-20', startDate: '2026-09-07', status: 'active', version: 1 })]);
+    findHistory.mockResolvedValue([
+      row({ id: 'p2', status: 'failed', version: 2 }),
+      row({ id: 'p1', endDate: '2026-09-20', startDate: '2026-09-07', status: 'active', version: 1 })
+    ]);
 
     const plans = await PlanController.listPlans('usr-1');
 

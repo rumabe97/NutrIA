@@ -40,7 +40,14 @@ export const FeedbackRepository = {
       const db = database();
       const [rows, counted, unhandled] = await Promise.all([
         db
-          .select({ id: feedback.id, createdAt: feedback.createdAt, email: user.email, handledAt: feedback.handledAt, kind: feedback.kind, message: feedback.message })
+          .select({
+            id: feedback.id,
+            createdAt: feedback.createdAt,
+            email: user.email,
+            handledAt: feedback.handledAt,
+            kind: feedback.kind,
+            message: feedback.message
+          })
           .from(feedback)
           .innerJoin(user, eq(user.id, feedback.userId))
           .orderBy(desc(feedback.createdAt))
@@ -73,7 +80,9 @@ export const FeedbackRepository = {
 };
 
 function wrap(error: unknown): DatabaseOperationError {
-  if (error instanceof ZodError) {return new DatabaseOperationError(`Schema mismatch on feedback: ${error.message}`);}
+  if (error instanceof ZodError) {
+    return new DatabaseOperationError(`Schema mismatch on feedback: ${error.message}`);
+  }
 
   return new DatabaseOperationError();
 }

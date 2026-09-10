@@ -13,14 +13,7 @@ const catalogue = makeCatalogue([
 ]);
 
 function meal(ingredients: readonly { grams: number; slug: string }[]): ScheduledMeal {
-  return {
-    dish: makeDish(),
-    ingredients,
-    macros: { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 },
-    servings: 1,
-    slot: 'lunch',
-    sortOrder: 0
-  };
+  return { dish: makeDish(), ingredients, macros: { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 }, servings: 1, slot: 'lunch', sortOrder: 0 };
 }
 
 function assignment(...meals: readonly ScheduledMeal[]): PlanAssignment {

@@ -10,7 +10,11 @@ describe('planRedoStanding', () => {
 
   it('allows one redo of the fortnight in progress, then names the day the next one opens', () => {
     expect(planRedoStanding({ endDate: '2026-09-20' }, 0, '2026-09-09')).toMatchObject({ allowed: true, kind: 'redo', nextAt: null, used: 0 });
-    expect(planRedoStanding({ endDate: '2026-09-20' }, ALLOWANCES.planRedosPerFortnight, '2026-09-09')).toMatchObject({ allowed: false, kind: 'redo', nextAt: '2026-09-21' });
+    expect(planRedoStanding({ endDate: '2026-09-20' }, ALLOWANCES.planRedosPerFortnight, '2026-09-09')).toMatchObject({
+      allowed: false,
+      kind: 'redo',
+      nextAt: '2026-09-21'
+    });
   });
 
   it('treats the last day of the plan as still in progress', () => {

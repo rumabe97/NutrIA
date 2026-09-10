@@ -50,12 +50,20 @@ export type PromptPreferences = Omit<PromptContext, 'excludeSlugs' | 'forbiddenL
 export function dayShapeOf(preferences: FullProfileView['preferences']): string | null {
   const parts: string[] = [];
 
-  if (preferences?.sleepEnd) {parts.push(`wakes at ${preferences.sleepEnd}`);}
+  if (preferences?.sleepEnd) {
+    parts.push(`wakes at ${preferences.sleepEnd}`);
+  }
 
-  if (preferences?.sleepStart) {parts.push(`sleeps at ${preferences.sleepStart}`);}
+  if (preferences?.sleepStart) {
+    parts.push(`sleeps at ${preferences.sleepStart}`);
+  }
 
   if (preferences?.trainingDaysPerWeek) {
-    parts.push(preferences.trainingTime ? `trains ${preferences.trainingDaysPerWeek} days a week at ${preferences.trainingTime}` : `trains ${preferences.trainingDaysPerWeek} days a week`);
+    parts.push(
+      preferences.trainingTime
+        ? `trains ${preferences.trainingDaysPerWeek} days a week at ${preferences.trainingTime}`
+        : `trains ${preferences.trainingDaysPerWeek} days a week`
+    );
   }
 
   return parts.length > 0 ? parts.join('; ') : null;

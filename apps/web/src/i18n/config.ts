@@ -45,7 +45,9 @@ export function parseLocale(value: string | null | undefined): Locale | null {
  * getting Spanish because we only ship `en-GB` would be a silly way to lose them.
  */
 export function negotiateLocale(acceptLanguage: string | null | undefined): Locale {
-  if (!acceptLanguage) {return DEFAULT_LOCALE;}
+  if (!acceptLanguage) {
+    return DEFAULT_LOCALE;
+  }
 
   const ranked = acceptLanguage
     .split(',')
@@ -62,7 +64,9 @@ export function negotiateLocale(acceptLanguage: string | null | undefined): Loca
     const language = tag.split('-')[0];
     const match = LOCALES.find(locale => locale.toLowerCase() === tag || locale.split('-')[0] === language);
 
-    if (match) {return match;}
+    if (match) {
+      return match;
+    }
   }
 
   return DEFAULT_LOCALE;

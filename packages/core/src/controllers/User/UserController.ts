@@ -54,7 +54,7 @@ function presentUser(user: User): UserView {
  * One account on the admin list: the two locks, when it arrived and what it is.
  * No profile, no answers — only what a decision about access needs (`0028`).
  */
-export type AccountView = { id: string; activated: boolean; createdAt: string; email: string; emailVerified: boolean; role: 'admin' | 'user'; };
+export type AccountView = { id: string; activated: boolean; createdAt: string; email: string; emailVerified: boolean; role: 'admin' | 'user' };
 
 /** What a caller may ask for, and what it gets back with it. A screen needs the total to draw the pager. */
 export type Page = { readonly offset?: number; readonly size?: number };
@@ -84,7 +84,7 @@ export const UserController = {
    * admin screen and by email from the runbook. Returns the address opened, or
    * null when there was no such account.
    */
-  async activate(match: { readonly id?: string; readonly email?: string; }): Promise<{ readonly email: string } | null> {
+  async activate(match: { readonly id?: string; readonly email?: string }): Promise<{ readonly email: string } | null> {
     return UserRepository.activate(match);
   },
 
@@ -105,7 +105,9 @@ export const UserController = {
   async getUser(input: { id: string }): Promise<UserView> {
     const user = await UserRepository.findById(input.id);
 
-    if (!user) {throw new NotFoundError(`User "${input.id}" not found`);}
+    if (!user) {
+      throw new NotFoundError(`User "${input.id}" not found`);
+    }
 
     return presentUser(user);
   },

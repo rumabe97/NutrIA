@@ -23,7 +23,8 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
   const locale = useLocale();
   const t = dictionary.progress;
   const status = { active: t.statusActive, archived: t.statusArchived, completed: t.statusCompleted } as const;
-  const chip = (fortnight: FortnightView) => (fortnight.replaced ? t.statusReplaced : (status[fortnight.status as keyof typeof status] ?? fortnight.status));
+  const chip = (fortnight: FortnightView) =>
+    fortnight.replaced ? t.statusReplaced : (status[fortnight.status as keyof typeof status] ?? fortnight.status);
   const hunger = { hungry: t.hungerHungry, right: t.hungerRight, too_much: t.hungerTooMuch } as const;
   const difficulty = { easy: t.difficultyEasy, hard: t.difficultyHard, ok: t.difficultyOk } as const;
   const dateOptions = { day: 'numeric', month: 'short' } as const;
@@ -41,7 +42,10 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
             <div className={styles.head}>
               <div>
                 <h3 className={styles.title}>
-                  {interpolate(t.fortnightRange, { from: formatDate(fortnight.startDate, locale, dateOptions), to: formatDate(fortnight.endDate, locale, dateOptions) })}
+                  {interpolate(t.fortnightRange, {
+                    from: formatDate(fortnight.startDate, locale, dateOptions),
+                    to: formatDate(fortnight.endDate, locale, dateOptions)
+                  })}
                 </h3>
                 <Text size="xs" tone="tertiary">
                   {interpolate(t.planNumber, { version: fortnight.version })}
@@ -72,7 +76,9 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
                 {fortnight.checkIn.satisfaction === null ? null : <li>{interpolate(t.satisfaction, { value: fortnight.checkIn.satisfaction })}</li>}
                 {fortnight.checkIn.hunger ? <li>{hunger[fortnight.checkIn.hunger]}</li> : null}
                 {fortnight.checkIn.difficulty ? <li>{difficulty[fortnight.checkIn.difficulty]}</li> : null}
-                {fortnight.checkIn.weightKg === null ? null : <li>{interpolate(t.checkInWeight, { value: formatNumber(fortnight.checkIn.weightKg, locale, { maximumFractionDigits: 1 }) })}</li>}
+                {fortnight.checkIn.weightKg === null ? null : (
+                  <li>{interpolate(t.checkInWeight, { value: formatNumber(fortnight.checkIn.weightKg, locale, { maximumFractionDigits: 1 }) })}</li>
+                )}
               </ul>
             ) : null}
 

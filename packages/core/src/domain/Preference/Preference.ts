@@ -64,9 +64,13 @@ const GROUP_LABELS: ReadonlyMap<string, readonly FoodClass[]> = new Map([
 export function isEnforceableDislike(label: string, ingredients: readonly { readonly name: string; readonly slug: string }[]): boolean {
   const key = normaliseForMatching(label);
 
-  if (key === '') {return false;}
+  if (key === '') {
+    return false;
+  }
 
-  if (GROUP_LABELS.has(key)) {return true;}
+  if (GROUP_LABELS.has(key)) {
+    return true;
+  }
 
   return ingredients.some(ingredient => normaliseForMatching(ingredient.name) === key || normaliseForMatching(ingredient.slug) === key);
 }
@@ -110,7 +114,9 @@ function named(
 ): readonly CatalogueIngredient[] | null {
   const key = normaliseForMatching(raw.trim());
 
-  if (key === '') {return null;}
+  if (key === '') {
+    return null;
+  }
 
   const group = GROUP_LABELS.get(key);
 
@@ -122,7 +128,9 @@ function named(
 
   const match = byKey.get(key);
 
-  if (!match) {return null;}
+  if (!match) {
+    return null;
+  }
 
   // The row itself and everything made of it, by the same whole-token rule the
   // allergy layer uses: `salmon` is a run inside `salmon-ahumado`, and is not a
@@ -168,7 +176,9 @@ export function resolvePreferences(input: {
 
   if (classes.size > 0) {
     for (const ingredient of input.ingredients) {
-      if (inClasses(ingredient, classes)) {excluded.add(ingredient.id);}
+      if (inClasses(ingredient, classes)) {
+        excluded.add(ingredient.id);
+      }
     }
   }
 
@@ -176,7 +186,9 @@ export function resolvePreferences(input: {
 
   for (const ingredient of input.ingredients) {
     for (const key of [normaliseForMatching(ingredient.name), normaliseForMatching(ingredient.slug)]) {
-      if (key !== '' && !byKey.has(key)) {byKey.set(key, ingredient);}
+      if (key !== '' && !byKey.has(key)) {
+        byKey.set(key, ingredient);
+      }
     }
   }
 
@@ -188,13 +200,17 @@ export function resolvePreferences(input: {
       continue;
     }
 
-    for (const ingredient of rows) {excluded.add(ingredient.id);}
+    for (const ingredient of rows) {
+      excluded.add(ingredient.id);
+    }
   }
 
   const preferred = new Set<string>();
 
   for (const raw of input.likedLabels ?? []) {
-    for (const ingredient of named(raw, input.ingredients, byKey) ?? []) {preferred.add(ingredient.slug);}
+    for (const ingredient of named(raw, input.ingredients, byKey) ?? []) {
+      preferred.add(ingredient.slug);
+    }
   }
 
   return {

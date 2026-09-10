@@ -23,7 +23,9 @@ import type { EmailService } from '../../email/Email.service.js';
  */
 async function activateIfAutomatic(userId: string): Promise<boolean> {
   try {
-    if (!(await SettingsController.automaticActivation())) {return false;}
+    if (!(await SettingsController.automaticActivation())) {
+      return false;
+    }
 
     const opened = await UserController.activate({ id: userId });
 
@@ -54,7 +56,9 @@ export async function onAddressConfirmed(
     readonly ownerEmail: string | undefined;
   }
 ): Promise<'opened' | 'waiting'> {
-  if (await activateIfAutomatic(account.id)) {return 'opened';}
+  if (await activateIfAutomatic(account.id)) {
+    return 'opened';
+  }
 
   await notifyOwnerOfWaitingAccount(deps.mailer, deps.ownerEmail, account, deps.link);
 

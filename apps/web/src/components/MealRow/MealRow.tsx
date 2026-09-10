@@ -45,7 +45,17 @@ interface MealRowProps {
  * Optimistic; a failure puts it back. "Skipped" stays on the meal's own page,
  * where it is a considered choice rather than a tap in passing.
  */
-export function MealRow({ id, illustrationPath = null, ingredients = [], kcal, name, proteinG, readOnly = false, slot, status: initial = 'planned' }: MealRowProps) {
+export function MealRow({
+  id,
+  illustrationPath = null,
+  ingredients = [],
+  kcal,
+  name,
+  proteinG,
+  readOnly = false,
+  slot,
+  status: initial = 'planned'
+}: MealRowProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -74,7 +84,17 @@ export function MealRow({ id, illustrationPath = null, ingredients = [], kcal, n
     <div className={styles.row} data-status={status}>
       {readOnly ? (
         <span aria-hidden="true" className={styles.tick} data-done={done} data-static="true">
-          <svg className={styles.tickMark} fill="none" height="12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 12 12" width="12">
+          <svg
+            className={styles.tickMark}
+            fill="none"
+            height="12"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2.5"
+            viewBox="0 0 12 12"
+            width="12"
+          >
             <path d="M2 6.5 4.8 9.2 10 3.5" />
           </svg>
         </span>
@@ -88,41 +108,53 @@ export function MealRow({ id, illustrationPath = null, ingredients = [], kcal, n
           onClick={() => void toggleDone()}
           type="button"
         >
-          <svg aria-hidden="true" className={styles.tickMark} fill="none" height="12" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" viewBox="0 0 12 12" width="12">
+          <svg
+            aria-hidden="true"
+            className={styles.tickMark}
+            fill="none"
+            height="12"
+            stroke="currentColor"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2.5"
+            viewBox="0 0 12 12"
+            width="12"
+          >
             <path d="M2 6.5 4.8 9.2 10 3.5" />
           </svg>
         </button>
       )}
       <div className={styles.body}>
-      <Link className={styles.head} data-illustrated={illustrationPath ? 'true' : undefined} href={`/plan/comida/${id}`}>
-        {/* Decorative here — the name beside it is the content — so the alt is empty and
+        <Link className={styles.head} data-illustrated={illustrationPath ? 'true' : undefined} href={`/plan/comida/${id}`}>
+          {/* Decorative here — the name beside it is the content — so the alt is empty and
             the label lives on the detail page, where the picture is large enough to matter. */}
-        {/* eslint-disable-next-line @next/next/no-img-element -- the API serves a phone-sized, immutable WebP already; next/image would add an optimiser hop and per-image billing for nothing */}
-        {illustrationPath ? <img alt="" className={styles.thumb} loading="lazy" src={`${API_URL}${illustrationPath}`} /> : null}
-        <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
-        <span className={styles.name}>
-          {name}
-          {status === 'completed' ? <span className={styles.badge}>{dictionary.meal.badgeDone}</span> : null}
-          {status === 'skipped' ? <span className={styles.badge}>{dictionary.meal.badgeSkipped}</span> : null}
-        </span>
-        <span className={styles.meta}>
-          {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(proteinG), locale)} {dictionary.units.proteinShort}
-        </span>
-      </Link>
+          {/* eslint-disable-next-line @next/next/no-img-element -- the API serves a phone-sized, immutable WebP already; next/image would add an optimiser hop and per-image billing for nothing */}
+          {illustrationPath ? <img alt="" className={styles.thumb} loading="lazy" src={`${API_URL}${illustrationPath}`} /> : null}
+          <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
+          <span className={styles.name}>
+            {name}
+            {status === 'completed' ? <span className={styles.badge}>{dictionary.meal.badgeDone}</span> : null}
+            {status === 'skipped' ? <span className={styles.badge}>{dictionary.meal.badgeSkipped}</span> : null}
+          </span>
+          <span className={styles.meta}>
+            {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(proteinG), locale)}{' '}
+            {dictionary.units.proteinShort}
+          </span>
+        </Link>
 
-      {ingredients.length > 0 ? (
-        <details className={styles.details}>
-          <summary className={styles.summary}>{dictionary.meal.ingredients}</summary>
-          <ul className={styles.ingredients}>
-            {ingredients.map(ingredient => (
-              <li className={styles.ingredient} key={ingredient.name}>
-                <span>{ingredient.name}</span>
-                <span className={styles.grams}>{formatQuantity(ingredient.grams, 'g', locale, dictionary)}</span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      ) : null}
+        {ingredients.length > 0 ? (
+          <details className={styles.details}>
+            <summary className={styles.summary}>{dictionary.meal.ingredients}</summary>
+            <ul className={styles.ingredients}>
+              {ingredients.map(ingredient => (
+                <li className={styles.ingredient} key={ingredient.name}>
+                  <span>{ingredient.name}</span>
+                  <span className={styles.grams}>{formatQuantity(ingredient.grams, 'g', locale, dictionary)}</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
       </div>
     </div>
   );

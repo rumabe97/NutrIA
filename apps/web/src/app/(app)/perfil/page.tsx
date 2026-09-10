@@ -50,7 +50,9 @@ function list(values: readonly string[], empty: string): string {
  * has no way to tell which half they are in (0025).
  */
 function avoidValue(disliked: readonly { enforced: boolean; label: string }[], t: Dictionary['profile']): string | undefined {
-  if (disliked.length === 0) {return undefined;}
+  if (disliked.length === 0) {
+    return undefined;
+  }
 
   const enforced = disliked.filter(item => item.enforced).map(item => item.label);
   const asked = disliked.filter(item => !item.enforced).map(item => item.label);
@@ -133,7 +135,10 @@ export default async function ProfilePage() {
             { label: t.height, value: person?.heightCm ? `${formatNumber(person.heightCm, locale)} cm` : undefined },
             // Shown because it changes the plan (`0034`): a figure somebody can
             // see is a figure they can correct.
-            { label: dictionary.onboarding.fields.country, value: person?.country ? dictionary.onboarding.options.countries[person.country as 'ES' | 'GB'] : undefined }
+            {
+              label: dictionary.onboarding.fields.country,
+              value: person?.country ? dictionary.onboarding.options.countries[person.country as 'ES' | 'GB'] : undefined
+            }
           ]}
           title={t.personalData}
         />
@@ -155,8 +160,20 @@ export default async function ProfilePage() {
         <ProfileSection
           editHref="/onboarding/6?volver=perfil"
           rows={[
-            { label: t.allergies, value: list((profile?.allergies ?? []).map(allergy => allergy.allergenLabel), t.none) },
-            { label: t.intolerances, value: list((profile?.intolerances ?? []).map(intolerance => intolerance.allergenLabel), t.none) },
+            {
+              label: t.allergies,
+              value: list(
+                (profile?.allergies ?? []).map(allergy => allergy.allergenLabel),
+                t.none
+              )
+            },
+            {
+              label: t.intolerances,
+              value: list(
+                (profile?.intolerances ?? []).map(intolerance => intolerance.allergenLabel),
+                t.none
+              )
+            },
             { label: t.dietaryPatterns, value: list(profile?.dietaryPatterns ?? [], t.noRestriction) }
           ]}
           title={t.restrictions}
@@ -184,7 +201,9 @@ export default async function ProfilePage() {
             { label: t.activity, value: preferences?.activityLevel ? dictionary.activity[preferences.activityLevel] : undefined },
             {
               label: t.cookingTime,
-              value: preferences?.cookingTimeMinutes ? interpolate(t.minutes, { value: formatNumber(preferences.cookingTimeMinutes, locale) }) : undefined
+              value: preferences?.cookingTimeMinutes
+                ? interpolate(t.minutes, { value: formatNumber(preferences.cookingTimeMinutes, locale) })
+                : undefined
             }
           ]}
           title={t.howYouEat}
@@ -193,7 +212,13 @@ export default async function ProfilePage() {
         <ProfileSection
           editHref="/onboarding/5?volver=perfil"
           rows={[
-            { label: t.youLike, value: list(foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label), t.unset) },
+            {
+              label: t.youLike,
+              value: list(
+                foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label),
+                t.unset
+              )
+            },
             {
               label: t.youAvoid,
               value: avoidValue(

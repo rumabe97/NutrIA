@@ -33,7 +33,9 @@ export class RecipesController {
   async image(@Param('id', new ParseUUIDPipe()) id: string, @Res() response: Response): Promise<void> {
     const image = await this.recipes.illustration(id);
 
-    if (!image) {throw new NotFoundException();}
+    if (!image) {
+      throw new NotFoundException();
+    }
 
     response.setHeader('Cache-Control', IMMUTABLE_FOR_A_YEAR);
     response.setHeader('Content-Type', image.contentType);

@@ -57,7 +57,10 @@ export const ProfileRepository = {
 
   async findDietaryPatterns(userId: string): Promise<readonly string[]> {
     try {
-      const rows = await database().select({ pattern: userDietaryPatterns.pattern }).from(userDietaryPatterns).where(eq(userDietaryPatterns.userId, userId));
+      const rows = await database()
+        .select({ pattern: userDietaryPatterns.pattern })
+        .from(userDietaryPatterns)
+        .where(eq(userDietaryPatterns.userId, userId));
 
       return rows.map(row => row.pattern);
     } catch (error: unknown) {
@@ -135,7 +138,9 @@ export const ProfileRepository = {
       await db.delete(foodPreferences).where(eq(foodPreferences.userId, userId));
 
       if (preferences.length > 0) {
-        await db.insert(foodPreferences).values(preferences.map(p => ({ ingredientId: p.ingredientId ?? null, label: p.label, sentiment: p.sentiment, userId })));
+        await db
+          .insert(foodPreferences)
+          .values(preferences.map(p => ({ ingredientId: p.ingredientId ?? null, label: p.label, sentiment: p.sentiment, userId })));
       }
     } catch (error: unknown) {
       throw wrap(error, 'food_preferences');
@@ -238,7 +243,9 @@ export const ProfileRepository = {
 
 /** Drizzle returns `numeric` columns as strings to avoid float loss; entities want numbers. */
 function toNumbers<T extends Record<string, unknown>>(row: T | undefined, keys: readonly string[]): T | undefined {
-  if (!row) {return row;}
+  if (!row) {
+    return row;
+  }
 
   const parsed: Record<string, unknown> = { ...row };
 
@@ -255,7 +262,9 @@ function toNumeric(value: number | null | undefined): string | null {
 }
 
 function wrap(error: unknown, table: string): DatabaseOperationError {
-  if (error instanceof ZodError) {return new DatabaseOperationError(`Schema mismatch on ${table}: ${error.message}`);}
+  if (error instanceof ZodError) {
+    return new DatabaseOperationError(`Schema mismatch on ${table}: ${error.message}`);
+  }
 
   return new DatabaseOperationError();
 }

@@ -29,7 +29,9 @@ export class ErrorReporter {
   constructor(@Inject(ENV) env: Env) {
     this.enabled = Boolean(env.SENTRY_DSN);
 
-    if (!this.enabled) {return;}
+    if (!this.enabled) {
+      return;
+    }
 
     Sentry.init({
       beforeSend(event) {
@@ -38,10 +40,14 @@ export class ErrorReporter {
         delete event.user;
         delete event.contexts?.response;
 
-        if (event.message) {event.message = redactSecrets(event.message);}
+        if (event.message) {
+          event.message = redactSecrets(event.message);
+        }
 
         for (const value of event.exception?.values ?? []) {
-          if (value.value) {value.value = redactSecrets(value.value);}
+          if (value.value) {
+            value.value = redactSecrets(value.value);
+          }
         }
 
         return event;
@@ -63,7 +69,9 @@ export class ErrorReporter {
    * same fault groups across releases; never a value from a request.
    */
   report(error: unknown, where: string): void {
-    if (!this.enabled) {return;}
+    if (!this.enabled) {
+      return;
+    }
 
     Sentry.withScope(scope => {
       scope.setTag('where', where);

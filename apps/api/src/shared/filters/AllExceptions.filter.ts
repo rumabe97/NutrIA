@@ -112,7 +112,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (exception instanceof QuotaExceededError) {
       // 429, the status for "not now": the request was fine, the allowance is
       // spent. `kind` in the message lets the client say which, `retryAt` when.
-      return { code: 'QUOTA_EXCEEDED', message: exception.kind, statusCode: HttpStatus.TOO_MANY_REQUESTS, ...(exception.nextAt ? { retryAt: exception.nextAt } : {}) };
+      return {
+        code: 'QUOTA_EXCEEDED',
+        message: exception.kind,
+        statusCode: HttpStatus.TOO_MANY_REQUESTS,
+        ...(exception.nextAt ? { retryAt: exception.nextAt } : {})
+      };
     }
 
     if (exception instanceof SafetyViolationError) {

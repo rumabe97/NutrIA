@@ -16,11 +16,7 @@ import type { MetadataRoute } from 'next';
  */
 export default function robots(): MetadataRoute.Robots {
   return {
-    rules: {
-      allow: '/',
-      disallow: DISALLOWED_PATHS.flatMap(path => LOCALES.map(locale => withLocale(path, locale))),
-      userAgent: '*'
-    },
+    rules: { allow: '/', disallow: DISALLOWED_PATHS.flatMap(path => LOCALES.map(locale => withLocale(path, locale))), userAgent: '*' },
     sitemap: absoluteUrl('/sitemap.xml')
   };
 }

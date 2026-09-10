@@ -32,13 +32,7 @@ export function SiteJsonLd({ locale }: Readonly<{ locale: Locale }>) {
       data={{
         '@context': 'https://schema.org',
         '@graph': [
-          {
-            '@id': organisation,
-            '@type': 'Organization',
-            logo: absoluteUrl('/icon'),
-            name: 'NutrIA',
-            url: SITE_URL
-          },
+          { '@id': organisation, '@type': 'Organization', logo: absoluteUrl('/icon'), name: 'NutrIA', url: SITE_URL },
           {
             '@id': `${home}#website`,
             '@type': 'WebSite',

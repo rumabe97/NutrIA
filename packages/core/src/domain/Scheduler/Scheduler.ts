@@ -6,9 +6,6 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
 
 export const PLAN_DAYS = 14;
 
-
-
-
 /**
  * Portions are quantised to quarters. A quarter portion is a thing a person can
  * serve; 1.37 servings is not, and printing it would make the plan look
@@ -58,7 +55,9 @@ export type SchedulerShortfall = {
   readonly slot: MealSlot;
 };
 
-export type ScheduleResult = { readonly assignment: PlanAssignment; readonly ok: true } | { readonly ok: false; readonly shortfall: SchedulerShortfall };
+export type ScheduleResult =
+  | { readonly assignment: PlanAssignment; readonly ok: true }
+  | { readonly ok: false; readonly shortfall: SchedulerShortfall };
 
 /**
  * Assigns pool dishes across the fortnight.
@@ -114,7 +113,9 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
     for (let index = placed.length - picks.length; index < placed.length; index += 1) {
       const replacement = improved[index - (placed.length - picks.length)];
 
-      if (replacement) {placed[index] = { dayIndex, dishSlug: replacement.dish.slug, slot: replacement.slot };}
+      if (replacement) {
+        placed[index] = { dayIndex, dishSlug: replacement.dish.slug, slot: replacement.slot };
+      }
     }
 
     for (const pick of balanceDay(improved, input.targets)) {
@@ -188,12 +189,16 @@ export function pickReplacement(input: {
     input.leaning !== undefined && isPreferredDish(dish, input.leaning) && costOf(dish.slug) <= PREFERRED_FIT_TOLERANCE ? 0 : 1;
 
   const dish = input.pool
-    .filter(candidate => candidate.slots.includes(input.slot) && passes(candidate) && canPlace(candidate.slug, input.slot, input.dayIndex, input.placed))
+    .filter(
+      candidate => candidate.slots.includes(input.slot) && passes(candidate) && canPlace(candidate.slug, input.slot, input.dayIndex, input.placed)
+    )
     .sort((a, b) => rank(a) - rank(b) || costOf(a.slug) - costOf(b.slug) || a.slug.localeCompare(b.slug))
     .at(0);
   const base = dish ? perServing.get(dish.slug) : undefined;
 
-  if (!dish || !base) {return undefined;}
+  if (!dish || !base) {
+    return undefined;
+  }
 
   const servings = servingsFor(base, input.budget);
 
@@ -224,7 +229,9 @@ export function axisFilter(
   current: { readonly cookMinutes: number; readonly macros: Macros; readonly prepMinutes: number },
   catalogue?: Catalogue
 ): ((dish: CandidateDish, perServing: Macros) => boolean) | undefined {
-  if (axis === undefined) {return undefined;}
+  if (axis === undefined) {
+    return undefined;
+  }
 
   const currentMinutes = current.prepMinutes + current.cookMinutes;
   const currentDensity = current.macros.kcal > 0 ? current.macros.proteinG / current.macros.kcal : 0;
@@ -307,7 +314,9 @@ function perServingIndex(pool: readonly CandidateDish[], catalogue: Catalogue) {
   for (const dish of pool) {
     const composed = composePerServing(dish, catalogue);
 
-    if (composed.ok) {index.set(dish.slug, composed.macros);}
+    if (composed.ok) {
+      index.set(dish.slug, composed.macros);
+    }
   }
 
   return index;
@@ -334,13 +343,17 @@ function pickBest(
   // rotation shuffled for this user.
   const order = new Map(eligible.map((dish, index) => [dish.slug, index]));
 
-  for (const placement of placed) {usage.set(placement.dishSlug, (usage.get(placement.dishSlug) ?? 0) + 1);}
+  for (const placement of placed) {
+    usage.set(placement.dishSlug, (usage.get(placement.dishSlug) ?? 0) + 1);
+  }
 
   return [...eligible]
     .sort((a, b) => {
       const used = (usage.get(a.slug) ?? 0) - (usage.get(b.slug) ?? 0);
 
-      if (used !== 0) {return used;}
+      if (used !== 0) {
+        return used;
+      }
 
       const first = perServing.get(a.slug);
       const second = perServing.get(b.slug);
@@ -470,18 +483,26 @@ function improveDay(
 
     for (const [index, pick] of current.entries()) {
       // Everything already on the plate today except the one being replaced.
-      const siblings = current.filter((_entry, position) => position !== index).map(entry => ({ dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }));
+      const siblings = current
+        .filter((_entry, position) => position !== index)
+        .map(entry => ({ dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }));
       const budget = budgets.get(pick.slot) ?? { kcal: 0, proteinG: 0 };
 
       for (const candidate of input.pool) {
-        if (!candidate.slots.includes(pick.slot) || candidate.slug === pick.dish.slug) {continue;}
+        if (!candidate.slots.includes(pick.slot) || candidate.slug === pick.dish.slug) {
+          continue;
+        }
 
         const base = perServing.get(candidate.slug);
 
-        if (!base || !canPlace(candidate.slug, pick.slot, dayIndex, [...others, ...siblings])) {continue;}
+        if (!base || !canPlace(candidate.slug, pick.slot, dayIndex, [...others, ...siblings])) {
+          continue;
+        }
 
         const servings = servingsFor(base, budget);
-        const swapped = current.map((entry, position) => (position === index ? { base, dish: candidate, servings, slot: entry.slot, sortOrder: entry.sortOrder } : entry));
+        const swapped = current.map((entry, position) =>
+          position === index ? { base, dish: candidate, servings, slot: entry.slot, sortOrder: entry.sortOrder } : entry
+        );
         const cost = dayFitCost(swapped, input.targets);
 
         if (cost < bestCost) {
@@ -492,7 +513,9 @@ function improveDay(
       }
     }
 
-    if (bestIndex < 0 || !bestPick) {break;}
+    if (bestIndex < 0 || !bestPick) {
+      break;
+    }
 
     current = current.map((entry, index) => (index === bestIndex ? bestPick : entry));
   }

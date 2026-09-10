@@ -37,7 +37,12 @@ describe('isAway / overlaps', () => {
   const trip = { endsOn: '2026-09-19', startsOn: '2026-09-12' };
 
   it('includes both ends and excludes the days either side', () => {
-    expect([isAway(trip, '2026-09-11'), isAway(trip, '2026-09-12'), isAway(trip, '2026-09-19'), isAway(trip, '2026-09-20')]).toEqual([false, true, true, false]);
+    expect([isAway(trip, '2026-09-11'), isAway(trip, '2026-09-12'), isAway(trip, '2026-09-19'), isAway(trip, '2026-09-20')]).toEqual([
+      false,
+      true,
+      true,
+      false
+    ]);
   });
 
   it('counts a single shared day as an overlap', () => {

@@ -81,7 +81,9 @@ export function conditionImplications(
     // no consequence. Both fall through to nothing, which is the safe default:
     // inventing a restriction from an unrecognised word is exactly the kind of
     // reasoning this layer exists to refuse.
-    if (condition.conditionKey === null) {continue;}
+    if (condition.conditionKey === null) {
+      continue;
+    }
 
     for (const allergenKey of exclusions.get(condition.conditionKey) ?? []) {
       implications.push({ allergenKey, conditionLabel: condition.label });

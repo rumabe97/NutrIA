@@ -1,11 +1,6 @@
 import type { FlexibleSchema } from 'ai';
 
-export type AiUsage = {
-  readonly calls: number;
-  readonly inputTokens: number;
-  readonly model: string;
-  readonly outputTokens: number;
-};
+export type AiUsage = { readonly calls: number; readonly inputTokens: number; readonly model: string; readonly outputTokens: number };
 
 export type AiRequest<T> = {
   readonly prompt: string;

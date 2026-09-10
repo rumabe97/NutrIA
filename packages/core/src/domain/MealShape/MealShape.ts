@@ -10,14 +10,7 @@ import type { MealSlot } from 'core/entities/Plan';
  * Snacks are deliberately small: they exist to bridge gaps, and a 600 kcal
  * "snack" is a meal wearing a disguise.
  */
-const SLOT_WEIGHT: Record<MealSlot, number> = {
-  afternoon_snack: 0.09,
-  breakfast: 0.25,
-  dinner: 0.3,
-  lunch: 0.33,
-  morning_snack: 0.08,
-  supper: 0.1
-};
+const SLOT_WEIGHT: Record<MealSlot, number> = { afternoon_snack: 0.09, breakfast: 0.25, dinner: 0.3, lunch: 0.33, morning_snack: 0.08, supper: 0.1 };
 
 /**
  * What each answer does to a slot's share.

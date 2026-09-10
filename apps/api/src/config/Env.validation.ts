@@ -29,10 +29,7 @@ const DEFAULT_MODEL = {
 } as const;
 
 /** Cheap sanity check on a hand-edited pairing; substrings, not an allowlist. */
-const MODEL_PREFIX: Partial<Record<keyof typeof DEFAULT_MODEL, readonly string[]>> = {
-  anthropic: ['claude'],
-  google: ['gemini', 'gemma']
-};
+const MODEL_PREFIX: Partial<Record<keyof typeof DEFAULT_MODEL, readonly string[]>> = { anthropic: ['claude'], google: ['gemini', 'gemma'] };
 
 /**
  * Treats an empty string as absent.
@@ -53,111 +50,118 @@ function optional<T extends z.ZodType>(schema: T) {
  * to name every one of these, and a variable it omits is silently absent from
  * every task it runs. A spec asserts the two agree.
  */
-const envObject = z
-  .object({
-    AI_BASE_URL: optional(z.url()),
-    /*
-     * Off by default: the configured provider's free tier allows zero image
-     * generations, so this is the switch the owner throws once billing is on.
-     * When off, no image model is resolved and the sweeps do nothing (0010).
-     */
-    AI_ILLUSTRATIONS: z
-      .enum(['true', 'false'])
-      .default('false')
-      .transform(value => value === 'true'),
-    AI_MODEL: optional(z.string()),
-    AI_PROVIDER: z.enum(['anthropic', 'google', 'ollama', 'stub']).default('stub'),
-    /*
-     * The provider's own allowances, as the console reports them, so `/admin` can
-     * say how close today is to the wall.
-     *
-     * Configured rather than hard-coded because they belong to an account and a
-     * model, not to this codebase — Gemini's free tier gives one model twenty
-     * requests a day and another five hundred. Unset means the screen shows the
-     * count and no bar, which is honest: a limit nobody stated is not a limit
-     * this product may invent.
-     *
-     * They are also **our** count against **their** number. Google publishes no
-     * endpoint for what is left, so a difference between this and the console is
-     * calls that did not come through here.
-     */
-    AI_REQUESTS_PER_DAY: optional(z.coerce.number().int().positive()),
-    /*
-     * Off by default, like illustrations, and for the same reason: the provider's
-     * free tier caps requests per day and generation draws on the same cap. The
-     * rewrite sweep alone would spend a day's allowance in about two hours. Turn
-     * it on with billing, or deliberately, for a while, on a project you can spare.
-     */
-    AI_REWRITE_STEPS: z
-      .enum(['true', 'false'])
-      .default('false')
-      .transform(value => value === 'true'),
-    AI_TOKENS_PER_MINUTE: optional(z.coerce.number().int().positive()),
-    ALLOWED_ORIGINS: optional(z.string()),
-    ANTHROPIC_API_KEY: optional(z.string()),
-    API_PREFIX: z.string().default('api/v1'),
-    /*
-     * Where the web app answers, and only its origin: the web app serves each
-     * language on its own path, so the rest of a link is `webUrl`'s to decide
-     * (`core/domain/WebUrl`). Never concatenate a path onto this by hand — that
-     * is how an English reader gets a Spanish page.
-     */
-    APP_URL: z.url(),
-    BETTER_AUTH_SECRET: z.string().min(SECRET_MIN_LENGTH, `must be at least ${SECRET_MIN_LENGTH} characters`),
-    BETTER_AUTH_URL: z.url(),
-    /*
-     * The parent domain the session cookie is written for, with the leading dot
-     * (`.nutria.app`). Unset for local development, where API and web share an
-     * origin's site by both being localhost.
-     *
-     * This is not a nicety. `proxy.ts` and `server-api.ts` in the web app both
-     * read the session cookie from the *web* domain, so a cookie scoped to the
-     * API's host alone means every protected route redirects to sign-in and every
-     * server-side read comes back empty. Sign-in appears to work and nothing else
-     * does.
-     */
-    COOKIE_DOMAIN: optional(z.string().startsWith('.', 'must start with a dot, e.g. .example.com')),
-    /** The platform sends it as a bearer on cron calls; unset means the cron route does not exist. */
-    CRON_SECRET: optional(z.string().min(16, 'must be at least 16 characters')),
-    DATABASE_URL: z.string().startsWith('postgres'),
-    DIRECT_DATABASE_URL: optional(z.string().startsWith('postgres')),
-    EMAIL_FROM: optional(z.email()),
-    GOOGLE_API_KEY: optional(z.string()),
-    LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
-    NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
-    /**
-     * Where the "an account is waiting" notice goes (`0029`). Unset means it is
-     * not sent; nobody else is ever told about a sign-up.
-     */
-    OWNER_EMAIL: optional(z.email()),
-    PORT: z.coerce.number().int().positive().default(3001),
-    RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
-    RATE_LIMIT_TTL: z.coerce.number().int().positive().default(60),
-    /** Unset means no error reporting at all — nothing is sent, and the log is the only record. */
-    SENTRY_DSN: optional(z.url()),
-    SMTP_HOST: optional(z.string()),
-    SMTP_PASS: optional(z.string()),
-    SMTP_PORT: optional(z.coerce.number().int().positive()),
-    SMTP_USER: optional(z.string()),
-    /*
-     * No fixed default. Unset means "on in development, off everywhere else",
-     * resolved below once NODE_ENV is known. It used to default to `true`, which
-     * production then refused — so the first production deploy failed on a
-     * variable nobody had set, to say that not publishing the schema must be
-     * asked for. The safe thing has to be what happens when nothing is said.
-     */
-    SWAGGER_ENABLED: optional(z.enum(['true', 'false'])),
-    /*
-     * Set by the platform on every deployment, never by hand. It exists in this
-     * schema for one cross-check below: a production deployment running with a
-     * development `NODE_ENV` has every production-only rule switched off, and the
-     * first sign of it was the function crashing on a pretty-printer.
-     */
-    VERCEL_ENV: optional(z.enum(['development', 'preview', 'production'])),
-    /** Set by the platform; used as the release a report is filed against. */
-    VERCEL_GIT_COMMIT_SHA: optional(z.string())
-  });
+const envObject = z.object({
+  AI_BASE_URL: optional(z.url()),
+  /*
+   * Off by default: the configured provider's free tier allows zero image
+   * generations, so this is the switch the owner throws once billing is on.
+   * When off, no image model is resolved and the sweeps do nothing (0010).
+   */
+  AI_ILLUSTRATIONS: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform(value => value === 'true'),
+  AI_MODEL: optional(z.string()),
+  AI_PROVIDER: z.enum(['anthropic', 'google', 'ollama', 'stub']).default('stub'),
+  /*
+   * The provider's own allowances, as the console reports them, so `/admin` can
+   * say how close today is to the wall.
+   *
+   * Configured rather than hard-coded because they belong to an account and a
+   * model, not to this codebase — Gemini's free tier gives one model twenty
+   * requests a day and another five hundred. Unset means the screen shows the
+   * count and no bar, which is honest: a limit nobody stated is not a limit
+   * this product may invent.
+   *
+   * They are also **our** count against **their** number. Google publishes no
+   * endpoint for what is left, so a difference between this and the console is
+   * calls that did not come through here.
+   */
+  AI_REQUESTS_PER_DAY: optional(z.coerce.number().int().positive()),
+  /*
+   * Off by default, like illustrations, and for the same reason: the provider's
+   * free tier caps requests per day and generation draws on the same cap. The
+   * rewrite sweep alone would spend a day's allowance in about two hours. Turn
+   * it on with billing, or deliberately, for a while, on a project you can spare.
+   */
+  AI_REWRITE_STEPS: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform(value => value === 'true'),
+  AI_TOKENS_PER_MINUTE: optional(z.coerce.number().int().positive()),
+  ALLOWED_ORIGINS: optional(z.string()),
+  ANTHROPIC_API_KEY: optional(z.string()),
+  API_PREFIX: z.string().default('api/v1'),
+  /*
+   * Where the web app answers, and only its origin: the web app serves each
+   * language on its own path, so the rest of a link is `webUrl`'s to decide
+   * (`core/domain/WebUrl`). Never concatenate a path onto this by hand — that
+   * is how an English reader gets a Spanish page.
+   */
+  APP_URL: z.url(),
+  BETTER_AUTH_SECRET: z.string().min(SECRET_MIN_LENGTH, `must be at least ${SECRET_MIN_LENGTH} characters`),
+  BETTER_AUTH_URL: z.url(),
+  /*
+   * The parent domain the session cookie is written for, with the leading dot
+   * (`.nutria.app`). Unset for local development, where API and web share an
+   * origin's site by both being localhost.
+   *
+   * This is not a nicety. `proxy.ts` and `server-api.ts` in the web app both
+   * read the session cookie from the *web* domain, so a cookie scoped to the
+   * API's host alone means every protected route redirects to sign-in and every
+   * server-side read comes back empty. Sign-in appears to work and nothing else
+   * does.
+   */
+  COOKIE_DOMAIN: optional(z.string().startsWith('.', 'must start with a dot, e.g. .example.com')),
+  /** The platform sends it as a bearer on cron calls; unset means the cron route does not exist. */
+  CRON_SECRET: optional(z.string().min(16, 'must be at least 16 characters')),
+  DATABASE_URL: z.string().startsWith('postgres'),
+  DIRECT_DATABASE_URL: optional(z.string().startsWith('postgres')),
+  EMAIL_FROM: optional(z.email()),
+  GOOGLE_API_KEY: optional(z.string()),
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
+  /**
+   * Where the "an account is waiting" notice goes (`0029`). Unset means it is
+   * not sent; nobody else is ever told about a sign-up.
+   */
+  OWNER_EMAIL: optional(z.email()),
+  PORT: z.coerce.number().int().positive().default(3001),
+  RATE_LIMIT_MAX: z.coerce.number().int().positive().default(120),
+  RATE_LIMIT_TTL: z.coerce.number().int().positive().default(60),
+  /** Unset means no error reporting at all — nothing is sent, and the log is the only record. */
+  SENTRY_DSN: optional(z.url()),
+  SMTP_HOST: optional(z.string()),
+  SMTP_PASS: optional(z.string()),
+  SMTP_PORT: optional(z.coerce.number().int().positive()),
+  SMTP_USER: optional(z.string()),
+  /*
+   * No fixed default. Unset means "on in development, off everywhere else",
+   * resolved below once NODE_ENV is known. It used to default to `true`, which
+   * production then refused — so the first production deploy failed on a
+   * variable nobody had set, to say that not publishing the schema must be
+   * asked for. The safe thing has to be what happens when nothing is said.
+   */
+  SWAGGER_ENABLED: optional(z.enum(['true', 'false'])),
+  /*
+   * Set by the platform on every deployment, never by hand. It exists in this
+   * schema for one cross-check below: a production deployment running with a
+   * development `NODE_ENV` has every production-only rule switched off, and the
+   * first sign of it was the function crashing on a pretty-printer.
+   */
+  VERCEL_ENV: optional(z.enum(['development', 'preview', 'production'])),
+  /** Set by the platform; used as the release a report is filed against. */
+  VERCEL_GIT_COMMIT_SHA: optional(z.string())
+});
 
+/**
+ * Every name this service reads from the environment.
+ *
+ * @knipignore Its only consumer is the spec that asserts `turbo.json`'s
+ * `globalEnv` lists all of them — a test, so a production-only dead-code run
+ * cannot see the use, and dropping it would silently stop guarding the two
+ * lists against drifting apart.
+ */
 export const ENV_KEYS = Object.keys(envObject.shape);
 
 const envSchema = envObject
@@ -195,10 +199,14 @@ const envSchema = envObject
     // Mail is all or nothing. A host with no credentials, or credentials with no
     // sender, would boot, accept every reset request, and deliver none of them —
     // and the form on the other side says "we have sent you a link".
-    if (!env.SMTP_HOST) {return;}
+    if (!env.SMTP_HOST) {
+      return;
+    }
 
     for (const key of ['SMTP_USER', 'SMTP_PASS', 'EMAIL_FROM'] as const) {
-      if (!env[key]) {ctx.addIssue({ code: 'custom', message: 'is required when SMTP_HOST is set', path: [key] });}
+      if (!env[key]) {
+        ctx.addIssue({ code: 'custom', message: 'is required when SMTP_HOST is set', path: [key] });
+      }
     }
   })
   .superRefine((env, ctx) => {
@@ -215,10 +223,16 @@ const envSchema = envObject
     }
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV !== 'production') {return;}
+    if (env.NODE_ENV !== 'production') {
+      return;
+    }
 
     if (!env.ALLOWED_ORIGINS) {
-      ctx.addIssue({ code: 'custom', message: 'is required in production — CORS must not fall back to a permissive default', path: ['ALLOWED_ORIGINS'] });
+      ctx.addIssue({
+        code: 'custom',
+        message: 'is required in production — CORS must not fall back to a permissive default',
+        path: ['ALLOWED_ORIGINS']
+      });
     }
 
     if (env.ALLOWED_ORIGINS?.includes('localhost')) {
@@ -235,7 +249,9 @@ export type Env = z.infer<typeof envSchema>;
 export function validateEnv(raw: Record<string, unknown>): Env {
   const result = envSchema.safeParse(raw);
 
-  if (result.success) {return result.data;}
+  if (result.success) {
+    return result.data;
+  }
 
   // Values are never echoed — some of these are secrets, and a startup crash is
   // frequently the most widely-read log line a service ever produces.

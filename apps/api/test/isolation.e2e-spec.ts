@@ -20,7 +20,7 @@ import type { UserView } from 'core/controllers/User';
  */
 const PREFIX = 'api/v1';
 
-type Account = { id: string; cookie: string; email: string; };
+type Account = { id: string; cookie: string; email: string };
 
 describe('user data isolation', () => {
   let app: INestApplication;
@@ -30,7 +30,10 @@ describe('user data isolation', () => {
   async function register(email: string): Promise<Account> {
     const password = 'correct-horse-battery-staple-9';
 
-    await request(httpServer(app)).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: email.split('@')[0], password }).expect(200);
+    await request(httpServer(app))
+      .post(`/${PREFIX}/auth/sign-up/email`)
+      .send({ email, name: email.split('@')[0], password })
+      .expect(200);
     await activate(email);
 
     const signIn = await request(httpServer(app)).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password }).expect(200);

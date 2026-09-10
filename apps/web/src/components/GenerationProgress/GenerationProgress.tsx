@@ -62,7 +62,9 @@ export function GenerationProgress() {
       // 429 is the generation limit, not a failure of the plan itself.
       setFatal(
         error instanceof ApiError && error.code === 'QUOTA_EXCEEDED'
-          ? interpolate(dictionary.generation.quotaExceeded, { date: error.retryAt ? formatDate(error.retryAt, locale, { day: 'numeric', month: 'long' }) : '' })
+          ? interpolate(dictionary.generation.quotaExceeded, {
+              date: error.retryAt ? formatDate(error.retryAt, locale, { day: 'numeric', month: 'long' }) : ''
+            })
           : error instanceof ApiError && error.status === 429
             ? dictionary.generation.rateLimited
             : messageFor(error, dictionary)
@@ -104,7 +106,9 @@ export function GenerationProgress() {
   useEffect(() => {
     // React 18+ mounts effects twice in development; without this the user would
     // burn two of their three hourly generations on one visit.
-    if (started.current) {return;}
+    if (started.current) {
+      return;
+    }
 
     started.current = true;
     void start();
@@ -114,7 +118,9 @@ export function GenerationProgress() {
     return (
       <div className={styles.shell}>
         <h1 className={styles.title}>{dictionary.generation.couldNotStart}</h1>
-        <p className={styles.error} role="alert">{fatal}</p>
+        <p className={styles.error} role="alert">
+          {fatal}
+        </p>
         <div className={styles.actions}>
           <Button onClick={() => void start()} type="button">
             {dictionary.common.retry}
@@ -133,7 +139,9 @@ export function GenerationProgress() {
     return (
       <div className={styles.shell}>
         <h1 className={styles.title}>{copy.title}</h1>
-        <p className={styles.error} role="alert">{copy.body}</p>
+        <p className={styles.error} role="alert">
+          {copy.body}
+        </p>
 
         {/* The provider's own words, already redacted server-side. This product is
             self-hosted — whoever sees this screen is also whoever can fix it, so
@@ -161,20 +169,20 @@ export function GenerationProgress() {
 
   return (
     <div className={styles.shell}>
-        <h1 className={styles.title}>{dictionary.generation.title}</h1>
-        <Text tone="secondary">{dictionary.generation.wait}</Text>
+      <h1 className={styles.title}>{dictionary.generation.title}</h1>
+      <Text tone="secondary">{dictionary.generation.wait}</Text>
 
-        <div aria-atomic="true" aria-live="polite" className={styles.step}>
-          <Text weight="medium">{phase.kind === 'running' && phase.step ? stepLabel(phase.step, dictionary) : dictionary.generation.starting}</Text>
-        </div>
-
-        <div className={styles.track}>
-          <div className={styles.bar} />
-        </div>
-
-        <Text className={styles.note} size="sm" tone="tertiary">
-          {dictionary.generation.safetyNote}
-        </Text>
+      <div aria-atomic="true" aria-live="polite" className={styles.step}>
+        <Text weight="medium">{phase.kind === 'running' && phase.step ? stepLabel(phase.step, dictionary) : dictionary.generation.starting}</Text>
       </div>
+
+      <div className={styles.track}>
+        <div className={styles.bar} />
+      </div>
+
+      <Text className={styles.note} size="sm" tone="tertiary">
+        {dictionary.generation.safetyNote}
+      </Text>
+    </div>
   );
 }

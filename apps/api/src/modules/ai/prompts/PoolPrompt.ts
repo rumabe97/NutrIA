@@ -43,14 +43,7 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
 export const PROMPT_VERSION = '2.8.0';
 
 /** Share of the day each slot carries; mirrors the scheduler's own weights. */
-const SLOT_SHARE: Record<MealSlot, number> = {
-  afternoon_snack: 0.09,
-  breakfast: 0.25,
-  dinner: 0.3,
-  lunch: 0.33,
-  morning_snack: 0.08,
-  supper: 0.1
-};
+const SLOT_SHARE: Record<MealSlot, number> = { afternoon_snack: 0.09, breakfast: 0.25, dinner: 0.3, lunch: 0.33, morning_snack: 0.08, supper: 0.1 };
 
 /**
  * How to name the output language to the model.
@@ -155,7 +148,9 @@ const DIFFICULTY_LINE: Record<CheckInForGeneration['difficulty'], string> = {
  * the prompt.
  */
 function checkInLines(checkIn: CheckInForGeneration | null): readonly string[] {
-  if (!checkIn) {return [];}
+  if (!checkIn) {
+    return [];
+  }
 
   const words = oneLine(checkIn.comments, 300);
 
@@ -234,7 +229,9 @@ function oneLine(text: string | null, max = 160): string | null {
  * "Varied" alone produced eight chicken dishes; a ceiling per protein does not.
  */
 function spreadRules(total: number): string[] {
-  if (total < 4) {return [];}
+  if (total < 4) {
+    return [];
+  }
 
   const perProtein = Math.max(2, Math.ceil(total / 4));
   const perMethod = Math.max(2, Math.ceil(total / 3));

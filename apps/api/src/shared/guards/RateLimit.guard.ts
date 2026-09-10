@@ -43,7 +43,9 @@ export class RateLimitGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const targets = [context.getHandler(), context.getClass()];
 
-    if (this.reflector.getAllAndOverride<boolean>(SKIP_RATE_LIMIT_KEY, targets)) {return true;}
+    if (this.reflector.getAllAndOverride<boolean>(SKIP_RATE_LIMIT_KEY, targets)) {
+      return true;
+    }
 
     const options: RateLimitOptions = this.reflector.getAllAndOverride<RateLimitOptions>(RATE_LIMIT_KEY, targets) ?? {
       limit: this.env.RATE_LIMIT_MAX,
@@ -82,12 +84,16 @@ export class RateLimitGuard implements CanActivate {
 
   /** Drops expired windows so the map cannot grow without bound. */
   private prune(now: number): void {
-    if (now - this.lastPrune < PRUNE_INTERVAL_MS) {return;}
+    if (now - this.lastPrune < PRUNE_INTERVAL_MS) {
+      return;
+    }
 
     this.lastPrune = now;
 
     for (const [key, window] of this.windows) {
-      if (window.expiresAt <= now) {this.windows.delete(key);}
+      if (window.expiresAt <= now) {
+        this.windows.delete(key);
+      }
     }
   }
 }

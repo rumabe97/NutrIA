@@ -29,32 +29,30 @@ export function shareImage(locale: Locale): ImageResponse {
   const dictionary = dictionaryFor(locale);
 
   return new ImageResponse(
-    (
-      <div
-        style={{
-          background: TILE_BACKGROUND,
-          display: 'flex',
-          flexDirection: 'column',
-          height: '100%',
-          justifyContent: 'space-between',
-          padding: 80,
-          width: '100%'
-        }}
-      >
-        <div style={{ alignItems: 'center', display: 'flex' }}>
-          <BrandMark size={72} />
-          <span style={{ color: PAPER, fontSize: 44, fontWeight: 600, marginLeft: 28 }}>NutrIA</span>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ color: PAPER, fontSize: 76, lineHeight: 1.15 }}>{dictionary.landing.title}</span>
-          <span style={{ color: MUTED, fontSize: 34, marginTop: 28 }}>{dictionary.manifest.description}</span>
-        </div>
-
-        {/* The brand's one colour, as a rule the eye reads before the words. */}
-        <div style={{ background: BRAND_GREEN, borderRadius: 4, display: 'flex', height: 8, width: 180 }} />
+    <div
+      style={{
+        background: TILE_BACKGROUND,
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
+        justifyContent: 'space-between',
+        padding: 80,
+        width: '100%'
+      }}
+    >
+      <div style={{ alignItems: 'center', display: 'flex' }}>
+        <BrandMark size={72} />
+        <span style={{ color: PAPER, fontSize: 44, fontWeight: 600, marginLeft: 28 }}>NutrIA</span>
       </div>
-    ),
+
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <span style={{ color: PAPER, fontSize: 76, lineHeight: 1.15 }}>{dictionary.landing.title}</span>
+        <span style={{ color: MUTED, fontSize: 34, marginTop: 28 }}>{dictionary.manifest.description}</span>
+      </div>
+
+      {/* The brand's one colour, as a rule the eye reads before the words. */}
+      <div style={{ background: BRAND_GREEN, borderRadius: 4, display: 'flex', height: 8, width: 180 }} />
+    </div>,
     SHARE_IMAGE_SIZE
   );
 }

@@ -35,9 +35,13 @@ export function Reveal({ as: Component = 'div', children, className, delay = 0 }
   useEffect(() => {
     const element = ref.current;
 
-    if (!element) {return;}
+    if (!element) {
+      return;
+    }
 
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {return;}
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return;
+    }
 
     /*
      * Measured now rather than at render, because "now" is the only moment that
@@ -45,7 +49,9 @@ export function Reveal({ as: Component = 'div', children, className, delay = 0 }
      * and anything they have reached has been read. Animating it in at that
      * point is a flash, not a reveal.
      */
-    if (element.getBoundingClientRect().top < window.innerHeight) {return;}
+    if (element.getBoundingClientRect().top < window.innerHeight) {
+      return;
+    }
 
     /*
      * Built before the element is hidden, never after. If the constructor is
@@ -55,7 +61,9 @@ export function Reveal({ as: Component = 'div', children, className, delay = 0 }
      */
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry?.isIntersecting) {return;}
+        if (!entry?.isIntersecting) {
+          return;
+        }
 
         element.dataset.reveal = 'shown';
         observer.disconnect();

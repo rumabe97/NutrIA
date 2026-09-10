@@ -20,7 +20,9 @@ export function CheckAgainButton({ children }: { children: ReactNode }) {
   // back-forward cache, spinner and all. Restored means nothing is in flight.
   useEffect(() => {
     const reset = (event: PageTransitionEvent) => {
-      if (event.persisted) {setChecking(false);}
+      if (event.persisted) {
+        setChecking(false);
+      }
     };
 
     window.addEventListener('pageshow', reset);

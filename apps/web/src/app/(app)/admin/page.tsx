@@ -59,7 +59,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     Promise.resolve(query)
   ]);
 
-  if (!overview) {notFound();}
+  if (!overview) {
+    notFound();
+  }
 
   const t = dictionary.admin;
   const { counts, jobs, windowDays } = overview;
@@ -67,9 +69,17 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const failures = jobs.filter(job => job.status === 'failed');
   const tiles = [
     { label: t.accounts, note: interpolate(t.waiting, { count: number(counts.accounts.waiting) }), value: number(counts.accounts.total) },
-    { label: t.recipes, note: interpolate(t.withoutImage, { count: number(counts.catalogue.withoutImage) }), value: number(counts.catalogue.recipes) },
+    {
+      label: t.recipes,
+      note: interpolate(t.withoutImage, { count: number(counts.catalogue.withoutImage) }),
+      value: number(counts.catalogue.recipes)
+    },
     { label: t.ingredients, note: null, value: number(counts.catalogue.ingredients) },
-    { label: t.failures, note: interpolate(t.inDays, { days: number(windowDays) }), value: number(counts.jobs.find(row => row.status === 'failed')?.n ?? 0) }
+    {
+      label: t.failures,
+      note: interpolate(t.inDays, { days: number(windowDays) }),
+      value: number(counts.jobs.find(row => row.status === 'failed')?.n ?? 0)
+    }
   ];
 
   return (
@@ -93,9 +103,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         ))}
       </dl>
 
-      {opened.abierta ? (
-        <p className={styles.opened}>{interpolate(t.justOpened, { email: opened.abierta })}</p>
-      ) : null}
+      {opened.abierta ? <p className={styles.opened}>{interpolate(t.justOpened, { email: opened.abierta })}</p> : null}
 
       <section className={styles.section}>
         <h2 className={styles.subtitle}>{t.activationTitle}</h2>
@@ -158,7 +166,9 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             </li>
             <li className={styles.row}>
               <span>{t.aiResets}</span>
-              <span className={styles.count}>{formatDate(ai.resetsAt.slice(0, 10), locale, { day: 'numeric', month: 'short' })} · {ai.resetsAt.slice(11, 16)} UTC</span>
+              <span className={styles.count}>
+                {formatDate(ai.resetsAt.slice(0, 10), locale, { day: 'numeric', month: 'short' })} · {ai.resetsAt.slice(11, 16)} UTC
+              </span>
             </li>
             {ai.model ? (
               <li className={styles.row}>

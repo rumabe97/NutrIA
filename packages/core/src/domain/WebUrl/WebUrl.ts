@@ -44,7 +44,9 @@ function namesALanguage(pathname: string): boolean {
 function localePath(pathname: string, locale: WebLocale): string {
   const segment = SEGMENT[locale];
 
-  if (segment === '' || namesALanguage(pathname)) {return pathname;}
+  if (segment === '' || namesALanguage(pathname)) {
+    return pathname;
+  }
 
   return pathname === '/' ? `/${segment}` : `/${segment}${pathname}`;
 }

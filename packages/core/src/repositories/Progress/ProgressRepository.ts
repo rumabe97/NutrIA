@@ -62,7 +62,12 @@ export const ProgressRepository = {
         .where(and(eq(mealPlans.userId, userId), lte(planDays.date, upTo)))
         .groupBy(planDays.planId, planDays.date, meals.status);
 
-      return rows.map(row => ({ date: row.date, n: row.n, planId: row.planId, status: row.status === 'completed' ? 'completed' : row.status === 'skipped' ? 'skipped' : 'planned' }));
+      return rows.map(row => ({
+        date: row.date,
+        n: row.n,
+        planId: row.planId,
+        status: row.status === 'completed' ? 'completed' : row.status === 'skipped' ? 'skipped' : 'planned'
+      }));
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -97,7 +102,9 @@ export const ProgressRepository = {
             .values({ loggedOn, userId, weightKg: String(weightKg) })
             .returning({ id: progressEntries.id, loggedOn: progressEntries.loggedOn, weightKg: progressEntries.weightKg });
 
-      if (!row) {throw new DatabaseOperationError('Progress insert returned no row');}
+      if (!row) {
+        throw new DatabaseOperationError('Progress insert returned no row');
+      }
 
       return progressEntrySchema.parse({ ...row, weightKg: row.weightKg === null ? null : Number(row.weightKg) });
     } catch (error: unknown) {
@@ -107,7 +114,9 @@ export const ProgressRepository = {
 };
 
 function wrap(error: unknown): DatabaseOperationError {
-  if (error instanceof ZodError) {return new DatabaseOperationError(`Schema mismatch on progress_entries: ${error.message}`);}
+  if (error instanceof ZodError) {
+    return new DatabaseOperationError(`Schema mismatch on progress_entries: ${error.message}`);
+  }
 
   return new DatabaseOperationError();
 }

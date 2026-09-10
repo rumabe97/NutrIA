@@ -43,7 +43,9 @@ export function buildRewritePrompt(recipe: UndocumentedRecipe, language: string)
  * what the schema then rejects.
  */
 function guidanceFor(cookMinutes: number): string[] {
-  if (cookMinutes === 0) {return assembledGuidance();}
+  if (cookMinutes === 0) {
+    return assembledGuidance();
+  }
 
   return cookMinutes < METHOD_RULES.longCookMinutes ? brieflyCookedGuidance() : cookedGuidance();
 }
@@ -105,4 +107,3 @@ function brieflyCookedGuidance(): string[] {
     '- Combine the trivial preparations into one step rather than one line each.'
   ];
 }
-

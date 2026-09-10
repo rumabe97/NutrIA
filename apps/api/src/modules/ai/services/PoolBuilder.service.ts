@@ -95,7 +95,9 @@ export class PoolBuilder {
     // The model is shown only what this person may and would eat: an ingredient
     // absent from the prompt cannot be proposed, which is cheaper and more
     // reliable than asking for it to be avoided and checking afterwards.
-    const safeIngredients = [...context.catalogue.values()].filter(ingredient => isSafeIngredient(ingredient, context) && isWantedIngredient(ingredient, context));
+    const safeIngredients = [...context.catalogue.values()].filter(
+      ingredient => isSafeIngredient(ingredient, context) && isWantedIngredient(ingredient, context)
+    );
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       let needBySlot = shortfall(slots, [...accepted.values()], needPerSlot);
@@ -105,9 +107,13 @@ export class PoolBuilder {
       // arrives minutes later; a library dish arrives now.
       if (attempt > 1) {
         for (const dish of backfill) {
-          if ([...needBySlot.values()].every(count => count === 0)) {break;}
+          if ([...needBySlot.values()].every(count => count === 0)) {
+            break;
+          }
 
-          if (accepted.has(dish.slug) || !dish.slots.some(slot => (needBySlot.get(slot) ?? 0) > 0)) {continue;}
+          if (accepted.has(dish.slug) || !dish.slots.some(slot => (needBySlot.get(slot) ?? 0) > 0)) {
+            continue;
+          }
 
           accepted.set(dish.slug, dish);
           metadata.backfilled += 1;
@@ -117,7 +123,9 @@ export class PoolBuilder {
 
       const wanted = [...needBySlot].filter(([, count]) => count > 0).map(([slot]) => slot);
 
-      if (wanted.length === 0) {break;}
+      if (wanted.length === 0) {
+        break;
+      }
 
       if (!this.ai.isAvailable) {
         this.logger.warn('No AI provider available; serving reuse only');
@@ -179,7 +187,9 @@ export class PoolBuilder {
         }
       }
 
-      if (succeeded === 0) {break;}
+      if (succeeded === 0) {
+        break;
+      }
     }
 
     return { dishes: [...accepted.values()], generated, metadata };
@@ -208,7 +218,9 @@ export class PoolBuilder {
     const dish = parsed.data;
     const slug = slugify(dish.name);
 
-    if (accepted.has(slug)) {return undefined;}
+    if (accepted.has(slug)) {
+      return undefined;
+    }
 
     const safety = dishSafety(dish.ingredients, context.catalogue, context.safety);
 
@@ -219,7 +231,9 @@ export class PoolBuilder {
     }
 
     if (safety.kind === 'unsafe') {
-      this.logger.error(`Dish "${dish.name}" rejected by the allergy gate: ${safety.violations.map(violation => violation.ingredientName).join(', ')}`);
+      this.logger.error(
+        `Dish "${dish.name}" rejected by the allergy gate: ${safety.violations.map(violation => violation.ingredientName).join(', ')}`
+      );
 
       return undefined;
     }
@@ -236,7 +250,9 @@ export class PoolBuilder {
 
     // The prompt states the limit; this is what makes it true.
     if (!withinTime(dish, context.preferences.maxMinutesPerDish)) {
-      this.logger.warn(`Dish "${dish.name}" rejected: ${dish.prepMinutes + dish.cookMinutes} min over their ${String(context.preferences.maxMinutesPerDish)} min limit`);
+      this.logger.warn(
+        `Dish "${dish.name}" rejected: ${dish.prepMinutes + dish.cookMinutes} min over their ${String(context.preferences.maxMinutesPerDish)} min limit`
+      );
 
       return undefined;
     }
@@ -259,7 +275,11 @@ export class PoolBuilder {
 }
 
 /** How many more distinct dishes each slot needs. Drives both the retry and the prompt. */
-export function shortfall(slots: readonly MealSlot[], have: readonly CandidateDish[], needed: number = DISHES_NEEDED_PER_SLOT): ReadonlyMap<MealSlot, number> {
+export function shortfall(
+  slots: readonly MealSlot[],
+  have: readonly CandidateDish[],
+  needed: number = DISHES_NEEDED_PER_SLOT
+): ReadonlyMap<MealSlot, number> {
   return new Map(slots.map(slot => [slot, Math.max(needed - have.filter(dish => dish.slots.includes(slot)).length, 0)]));
 }
 

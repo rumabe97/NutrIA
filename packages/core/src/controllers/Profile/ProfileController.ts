@@ -126,12 +126,21 @@ function presentPreferences(preferences: Preferences): PreferencesView {
  * onboarding. A target computed from a weight a fortnight old is a target for
  * someone else.
  */
-function targetInput(profile: Profile | undefined, goal: Goal | undefined, preferences: Preferences | undefined, latestWeightKg: number | null): TargetInput | null {
-  if (!profile?.birthDate || !profile.heightCm || !profile.sex || !goal || !preferences?.activityLevel) {return null;}
+function targetInput(
+  profile: Profile | undefined,
+  goal: Goal | undefined,
+  preferences: Preferences | undefined,
+  latestWeightKg: number | null
+): TargetInput | null {
+  if (!profile?.birthDate || !profile.heightCm || !profile.sex || !goal || !preferences?.activityLevel) {
+    return null;
+  }
 
   const weightKg = latestWeightKg ?? goal.startingWeightKg;
 
-  if (!weightKg) {return null;}
+  if (!weightKg) {
+    return null;
+  }
 
   return {
     activityLevel: preferences.activityLevel,
@@ -190,7 +199,19 @@ export const ProfileController = {
     const profile = await ProfileRepository.findByUserId(userId);
     const effectiveLocale = locale ?? profile?.locale ?? FALLBACK_LOCALE;
 
-    const [goal, preferences, dietaryPatterns, foodPreferences, cuisines, allergies, intolerances, customAllergens, override, latestWeightKg, matchable] = await Promise.all([
+    const [
+      goal,
+      preferences,
+      dietaryPatterns,
+      foodPreferences,
+      cuisines,
+      allergies,
+      intolerances,
+      customAllergens,
+      override,
+      latestWeightKg,
+      matchable
+    ] = await Promise.all([
       ProfileRepository.findActiveGoal(userId),
       ProfileRepository.findPreferences(userId),
       ProfileRepository.findDietaryPatterns(userId),
@@ -235,7 +256,9 @@ export const ProfileController = {
   async getProfile(userId: string): Promise<ProfileView> {
     const profile = await ProfileRepository.findByUserId(userId);
 
-    if (!profile) {throw new NotFoundError('Profile not found');}
+    if (!profile) {
+      throw new NotFoundError('Profile not found');
+    }
 
     return presentProfile(profile);
   },
@@ -297,7 +320,9 @@ export const ProfileController = {
 
     const input = targetInput(profile, goal, preferences, latestWeightKg);
 
-    if (!input) {throw new NotFoundError('Profile not found');}
+    if (!input) {
+      throw new NotFoundError('Profile not found');
+    }
 
     const stored = await ProfileRepository.findTargetOverride(userId);
     const candidate = resolveTargets(input, {

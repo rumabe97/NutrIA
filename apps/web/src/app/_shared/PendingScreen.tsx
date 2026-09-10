@@ -35,9 +35,13 @@ export async function PendingScreen({ locale }: Readonly<{ locale: Locale }>) {
   const dictionary = dictionaryFor(locale);
   const [user, settings] = await Promise.all([serverApi<UserView>('/users/me'), serverApi<SettingsView>('/settings')]);
 
-  if (!user) {redirect(withLocale('/acceder', locale));}
+  if (!user) {
+    redirect(withLocale('/acceder', locale));
+  }
 
-  if (user.activated && user.emailVerified) {redirect('/inicio');}
+  if (user.activated && user.emailVerified) {
+    redirect('/inicio');
+  }
 
   const t = dictionary.auth;
   /*

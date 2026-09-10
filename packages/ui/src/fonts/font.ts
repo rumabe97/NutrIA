@@ -15,8 +15,4 @@ import localFont from 'next/font/local';
  * carries, which matches `--font-weight-regular` through `--font-weight-bold`;
  * widen all three together or not at all.
  */
-export const font = localFont({
-  src: './font.woff2',
-  variable: '--main-font',
-  weight: '400 700'
-});
+export const font = localFont({ src: './font.woff2', variable: '--main-font', weight: '400 700' });

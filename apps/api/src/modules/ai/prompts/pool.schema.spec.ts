@@ -40,8 +40,8 @@ describe('the schema sent to the provider', () => {
   });
 
   it('still describes every field the pipeline needs', () => {
-    const dish = (wirePoolSchema.jsonSchema as { properties: { dishes: { items: { properties: Record<string, unknown>; required: string[] } } } }).properties
-      .dishes.items;
+    const dish = (wirePoolSchema.jsonSchema as { properties: { dishes: { items: { properties: Record<string, unknown>; required: string[] } } } })
+      .properties.dishes.items;
 
     expect(Object.keys(dish.properties).sort()).toEqual(
       ['cookMinutes', 'cuisine', 'difficulty', 'ingredients', 'name', 'prepMinutes', 'servings', 'slots', 'steps'].sort()
@@ -114,7 +114,11 @@ describe('the strict schema still enforces what the wire schema cannot', () => {
     });
 
     expect(parsed.success).toBe(true);
-    expect(parsed.success && parsed.data.steps[0]).toEqual({ cue: 'hasta que el ajo dore sin quemarse', minutes: 1, text: 'Sofreír el ajo laminado en el aceite a fuego medio' });
+    expect(parsed.success && parsed.data.steps[0]).toEqual({
+      cue: 'hasta que el ajo dore sin quemarse',
+      minutes: 1,
+      text: 'Sofreír el ajo laminado en el aceite a fuego medio'
+    });
   });
 
   it('rejects a step that is only a verb and a noun', () => {
@@ -122,7 +126,9 @@ describe('the strict schema still enforces what the wire schema cannot', () => {
   });
 
   it('accepts one honest sentence for something that is only assembled', () => {
-    expect(generatedDishSchema.safeParse({ ...valid, cookMinutes: 0, steps: [{ text: 'Verter el yogur y esparcir las almendras' }] }).success).toBe(true);
+    expect(generatedDishSchema.safeParse({ ...valid, cookMinutes: 0, steps: [{ text: 'Verter el yogur y esparcir las almendras' }] }).success).toBe(
+      true
+    );
   });
 
   it('turns the wire’s empty-string cuisine back into null', () => {

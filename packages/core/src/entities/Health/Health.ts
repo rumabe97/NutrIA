@@ -74,10 +74,7 @@ export type Supplement = z.infer<typeof supplementSchema>;
 export const setHealthDataSchema = z.object({
   conditions: z
     .array(
-      z.object({
-        conditionKey: z.enum(CONDITION_KEYS as [ConditionKey, ...ConditionKey[]]).nullish(),
-        label: z.string().trim().min(1).max(120)
-      })
+      z.object({ conditionKey: z.enum(CONDITION_KEYS as [ConditionKey, ...ConditionKey[]]).nullish(), label: z.string().trim().min(1).max(120) })
     )
     .max(20),
   /** Must be the current version. An older string is consent to a different notice. */
