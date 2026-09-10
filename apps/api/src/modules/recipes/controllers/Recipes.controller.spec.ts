@@ -7,8 +7,9 @@ import express from 'express';
 import { NotFoundError } from 'core/entities/Error';
 import { RecipeController } from 'core/controllers/Recipe';
 
-import { AllExceptionsFilter } from '../../shared/filters/index.js';
-import { RecipesController } from './recipes.controller.js';
+import { AllExceptionsFilter } from '../../../shared/filters/index.js';
+import { RecipesController } from './Recipes.controller.js';
+import { RecipesService } from '../services/index.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
@@ -30,7 +31,7 @@ describe('GET /recipes/:id/image', () => {
   });
 
   async function boot(): Promise<Server> {
-    const moduleRef = await Test.createTestingModule({ controllers: [RecipesController] }).compile();
+    const moduleRef = await Test.createTestingModule({ controllers: [RecipesController], providers: [RecipesService] }).compile();
 
     app = moduleRef.createNestApplication();
     await app.init();
@@ -82,7 +83,7 @@ describe('PUT /recipes/:id/verdict', () => {
   });
 
   async function boot(): Promise<Server> {
-    const moduleRef = await Test.createTestingModule({ controllers: [RecipesController] }).compile();
+    const moduleRef = await Test.createTestingModule({ controllers: [RecipesController], providers: [RecipesService] }).compile();
 
     app = moduleRef.createNestApplication();
     app.useGlobalFilters(new AllExceptionsFilter());

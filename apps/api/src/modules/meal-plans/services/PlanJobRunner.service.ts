@@ -2,9 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 
 import { PlanJobController } from 'core/controllers/Plan';
 
-import { RecipeIllustrator } from '../ai/RecipeIllustrator.service.js';
-import { BackgroundTaskService } from '../../shared/services/index.js';
-import { ErrorReporter } from '../../shared/observability/index.js';
+import { RecipeIllustrator } from '../../ai/RecipeIllustrator.service.js';
+import { BackgroundTaskService } from '../../../shared/services/index.js';
+import { ErrorReporter } from '../../../shared/observability/index.js';
 import { GenerationError, PlanGenerationService } from './PlanGeneration.service.js';
 
 import type { JobView } from 'core/controllers/Plan';

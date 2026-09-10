@@ -2,13 +2,13 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { PlanJobController } from 'core/controllers/Plan';
 
-import { BackgroundTaskService } from '../../shared/services/index.js';
+import { BackgroundTaskService } from '../../../shared/services/index.js';
 import { GenerationError } from './PlanGeneration.service.js';
 import { PlanJobRunner } from './PlanJobRunner.service.js';
 
-import type { ErrorReporter } from '../../shared/observability/index.js';
+import type { ErrorReporter } from '../../../shared/observability/index.js';
 import type { PlanGenerationService } from './PlanGeneration.service.js';
-import type { RecipeIllustrator } from '../ai/RecipeIllustrator.service.js';
+import type { RecipeIllustrator } from '../../ai/RecipeIllustrator.service.js';
 
 const JOB = { id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null };
 

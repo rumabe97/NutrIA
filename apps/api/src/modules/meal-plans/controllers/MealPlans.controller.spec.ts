@@ -7,18 +7,17 @@ import { Test } from '@nestjs/testing';
 import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController } from 'core/controllers/Plan';
 
-import { AllExceptionsFilter } from '../../shared/filters/index.js';
-import { RequiresOnboardingGuard } from '../../shared/guards/index.js';
-import { MealPlansController } from './meal-plans.controller.js';
-import { MealSwapService } from './MealSwap.service.js';
-import { PlanJobRunner } from './PlanJobRunner.service.js';
+import { AllExceptionsFilter } from '../../../shared/filters/index.js';
+import { MealPlansController } from './MealPlans.controller.js';
+import { MealPlansService, MealSwapService, PlanJobRunner } from '../services/index.js';
+import { RequiresOnboardingGuard } from '../../../shared/guards/index.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { SwapAxis } from 'core/entities/Plan';
 import type { OnboardingView } from 'core/controllers/Onboarding';
 import type { Response } from 'supertest';
 import type { Server } from 'node:http';
-import type { SessionUser } from '../../shared/decorators/index.js';
+import type { SessionUser } from '../../../shared/index.js';
 
 const ALICE: SessionUser = { id: 'usr-alice', activated: true, email: 'alice@example.invalid', emailVerified: true, name: 'Alice', role: 'user' };
 const BOB_PLAN = '11111111-2222-4333-8444-555555555555';
@@ -27,7 +26,9 @@ function build() {
   const start = jest.fn(async (_userId: string) => Promise.resolve({ id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null }));
   const swap = jest.fn(async (_userId: string, _mealId: string, _locale: string | null, _axis?: SwapAxis) => Promise.resolve({ id: 'meal-1' }));
 
-  return { controller: new MealPlansController({ start } as unknown as PlanJobRunner, { swap } as unknown as MealSwapService), start, swap };
+  const plans = new MealPlansService({ start } as unknown as PlanJobRunner, { swap } as unknown as MealSwapService);
+
+  return { controller: new MealPlansController(plans), start, swap };
 }
 
 function onboardingState(patch: Partial<OnboardingView>): OnboardingView {
@@ -143,6 +144,7 @@ describe('meal-plan routes behind onboarding (through the real pipeline)', () =>
     const moduleRef = await Test.createTestingModule({
       controllers: [MealPlansController],
       providers: [
+        MealPlansService,
         { provide: PlanJobRunner, useValue: { start } },
         { provide: MealSwapService, useValue: { swap: jest.fn() } },
         { provide: APP_GUARD, useClass: RequiresOnboardingGuard }

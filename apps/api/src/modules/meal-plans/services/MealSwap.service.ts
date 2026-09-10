@@ -8,7 +8,7 @@ import { PlanController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
 
-import { PoolBuilder } from '../ai/PoolBuilder.service.js';
+import { PoolBuilder } from '../../ai/PoolBuilder.service.js';
 import { promptPreferences, toRecipeDraft } from './GenerationShared.js';
 
 import type { MealCompositionView, MealDetailView } from 'core/controllers/Plan';

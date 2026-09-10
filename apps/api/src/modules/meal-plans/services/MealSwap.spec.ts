@@ -11,7 +11,7 @@ import { MealSwapService } from './MealSwap.service.js';
 
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 import type { MealCompositionView } from 'core/controllers/Plan';
-import type { PoolBuilder, PoolResult } from '../ai/PoolBuilder.service.js';
+import type { PoolBuilder, PoolResult } from '../../ai/PoolBuilder.service.js';
 
 const MEAL = '11111111-1111-4111-8111-111111111111';
 

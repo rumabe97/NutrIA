@@ -2,11 +2,10 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 
-import { ENV } from '../../config/index.js';
-import { RecipeIllustrator } from '../ai/RecipeIllustrator.service.js';
-import { RecipeRewriter } from '../ai/RecipeRewriter.service.js';
-import { CheckInReminderService } from '../notifications/index.js';
-import { IllustrateController } from './illustrate.controller.js';
+import { CheckInReminderService } from '../../notifications/index.js';
+import { CronController } from './Cron.controller.js';
+import { ENV } from '../../../config/index.js';
+import { RecipeIllustrator, RecipeRewriter } from '../../ai/index.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
@@ -28,7 +27,7 @@ describe('GET /cron/illustrate', () => {
 
   async function boot(secret: string | undefined): Promise<Server> {
     const moduleRef = await Test.createTestingModule({
-      controllers: [IllustrateController],
+      controllers: [CronController],
       providers: [
         { provide: ENV, useValue: { CRON_SECRET: secret } },
         { provide: RecipeIllustrator, useValue: { illustrateMissing } },
