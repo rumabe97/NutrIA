@@ -14,10 +14,13 @@ import { formatDate, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import type { AccountView } from 'core/controllers/User';
-import type { AdminOverviewView } from 'core/controllers/Admin';
+import type { AdminAnalyticsView, AdminOverviewView } from 'core/controllers/Admin';
 import type { SettingsView } from 'core/controllers/Settings';
 
 export const dynamic = 'force-dynamic';
+
+/** The order people actually move through, so each row can say what share of the one above it got here. */
+const FUNNEL_STAGES = ['signedUp', 'confirmed', 'activated', 'onboarded', 'planned', 'lived', 'checkedIn', 'returned'] as const;
 
 /**
  * The owner's window on their own service.
@@ -31,12 +34,13 @@ export const dynamic = 'force-dynamic';
  * and "how big is the catalogue" are answerable without reading anybody's food.
  */
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ abierta?: string }> }) {
-  const [dictionary, locale, overview, accounts, settings, opened] = await Promise.all([
+  const [dictionary, locale, overview, accounts, settings, analytics, opened] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<AdminOverviewView>('/admin/overview'),
     serverApi<readonly AccountView[]>('/admin/accounts'),
     serverApi<SettingsView>('/admin/settings'),
+    serverApi<AdminAnalyticsView>('/admin/analytics'),
     searchParams
   ]);
 
@@ -88,6 +92,54 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         <h2 className={styles.subtitle}>{t.accountsTitle}</h2>
         <AccountList accounts={accounts ?? []} />
       </section>
+
+      {analytics ? (
+        <section className={styles.section}>
+          <h2 className={styles.subtitle}>{t.funnelTitle}</h2>
+          <Text className={styles.hint} size="sm" tone="tertiary">
+            {t.funnelHint}
+          </Text>
+
+          {/* Each step with how many of the step before it got here. The last
+              one is the only figure about the product working rather than about
+              somebody signing up. */}
+          <ul className={styles.rows}>
+            {FUNNEL_STAGES.map((stage, index) => {
+              const reached = analytics.funnel[stage];
+              const previous = index === 0 ? reached : analytics.funnel[FUNNEL_STAGES[index - 1]];
+              const share = previous > 0 ? Math.round((reached / previous) * 100) : null;
+
+              return (
+                <li className={styles.row} key={stage}>
+                  <span>{t.funnel[stage]}</span>
+                  <span className={styles.count}>
+                    {number(reached)}
+                    {index > 0 && share !== null ? ` · ${number(share)}%` : ''}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+
+          <h3 className={styles.subtitle}>{interpolate(t.activityTitle, { days: number(analytics.windowDays) })}</h3>
+          <Text className={styles.hint} size="sm" tone="tertiary">
+            {interpolate(t.activityPeople, { count: number(analytics.activity.people) })}
+          </Text>
+
+          {analytics.activity.events.length === 0 ? (
+            <Text tone="secondary">{t.noActivity}</Text>
+          ) : (
+            <ul className={styles.rows}>
+              {analytics.activity.events.map(row => (
+                <li className={styles.row} key={row.event}>
+                  <span>{t.events[row.event as keyof typeof t.events] ?? row.event}</span>
+                  <span className={styles.count}>{number(row.n)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
 
       <section className={styles.section}>
         <h2 className={styles.subtitle}>{t.plansTitle}</h2>

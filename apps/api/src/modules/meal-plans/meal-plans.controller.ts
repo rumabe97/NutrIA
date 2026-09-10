@@ -1,6 +1,7 @@
 import { Body, Controller, DefaultValuePipe, Get, Param, ParseIntPipe, ParseUUIDPipe, Patch, Post, Query } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 
+import { AnalyticsController } from 'core/controllers/Analytics';
 import { PlanController } from 'core/controllers/Plan';
 import { setMealStatusSchema, swapMealSchema } from 'core/entities/Plan';
 
@@ -62,7 +63,13 @@ export class MealPlansController {
     @Locale() locale: string | null,
     @Body(new ZodValidationPipe(swapMealSchema)) body: SwapMeal
   ): Promise<MealDetailView> {
-    return this.swaps.swap(user.id, id, locale, body.axis);
+    const swapped = await this.swaps.swap(user.id, id, locale, body.axis);
+
+    // What was asked for, never what came back (`0033`). Awaited because the
+    // repository swallows its own failures; nothing here can fail the swap.
+    await AnalyticsController.record('swap_requested', user.id, { axis: body.axis ?? 'none' });
+
+    return swapped;
   }
 
   @ApiOperation({ summary: 'Mark a meal eaten or skipped, or take it back.' })

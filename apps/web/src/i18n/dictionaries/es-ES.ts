@@ -23,12 +23,30 @@ export const esES = {
     accountsTitle: 'Cuentas y accesos',
     activate: 'Abrir cuenta',
     activationTitle: 'Altas',
+    activityPeople: '{count} personas han entrado en este tiempo.',
+    activityTitle: 'Actividad ({days} días)',
     attempts: '{count} intentos',
     automaticActivation: 'Activación automática',
     automaticHint: 'Quien confirma su correo entra directamente. Tú no tienes que hacer nada.',
     confirmed: 'correo confirmado',
+    events: {
+      session_started: 'Entradas',
+      swap_requested: 'Cambios de comida pedidos'
+    },
     failureNote: '{count} generaciones han fallado. El código dice si fue la cuota, la clave o el catálogo.',
     failures: 'Fallos',
+    funnel: {
+      activated: 'Cuenta abierta',
+      checkedIn: 'Han hecho el check-in',
+      confirmed: 'Correo confirmado',
+      lived: 'Han marcado alguna comida',
+      onboarded: 'Perfil terminado',
+      planned: 'Tienen un plan',
+      returned: 'Han vuelto a por un segundo plan',
+      signedUp: 'Se han registrado'
+    },
+    funnelHint: 'Contado sobre los datos, no sobre eventos: cubre también las cuentas anteriores a esta pantalla. El porcentaje es sobre el paso de arriba.',
+    funnelTitle: 'Embudo',
     inDays: 'en {days} días',
     ingredients: 'Ingredientes',
     intro: 'Cómo va el servicio. No hay ningún plan ni ningún perfil aquí: solo si la generación funciona y cuánto hay en el catálogo.',
@@ -36,6 +54,7 @@ export const esES = {
     justOpened: 'Cuenta abierta: {email}',
     manualHint: 'Al confirmar su correo la cuenta queda esperando y te avisamos a ti. La abres tú desde esta lista.',
     noAccounts: 'No hay ninguna cuenta todavía.',
+    noActivity: 'Ninguna actividad registrada todavía.',
     noJobs: 'Ninguna generación todavía.',
     notOpened: 'sin abrir',
     opened: 'cuenta abierta',
@@ -851,7 +870,9 @@ export const esES = {
     days: '{count} días',
     from: 'Desde',
     intro: 'Marca los días que estarás fuera y el plan se pausa: esos días no cuentan como saltados y, al volver, sigue donde lo dejaste.',
+    pausedUntil: 'Tu plan está en pausa · se reanuda el {date}',
     range: 'Del {from} al {to}',
+    seePlan: 'Ver mi plan',
     title: 'Vacaciones',
     to: 'Hasta'
   }

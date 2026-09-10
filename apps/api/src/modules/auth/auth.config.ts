@@ -1,6 +1,8 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 
+import { AnalyticsController } from 'core/controllers/Analytics';
+
 import { database } from 'database';
 import { account, rateLimit, session, user, verification } from 'database/schema/auth';
 
@@ -62,6 +64,21 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
     basePath: `/${env.API_PREFIX}/auth`,
     baseURL: env.BETTER_AUTH_URL,
     database: drizzleAdapter(database(), { provider: 'pg', schema: { account, rateLimit, session, user, verification } }),
+    databaseHooks: {
+      session: {
+        create: {
+          /*
+           * The one thing the schema cannot answer afterwards (`0033`): a
+           * session row is deleted when it expires, so "did anybody come back"
+           * is unanswerable a fortnight later unless it is written down as it
+           * happens. Nothing about the visit travels but the fact of it.
+           */
+          after: async (created: { userId: string }) => {
+            await AnalyticsController.record('session_started', created.userId);
+          }
+        }
+      }
+    },
     emailAndPassword: {
       enabled: true,
       // Verification is required before a session is useful, but sign-up still

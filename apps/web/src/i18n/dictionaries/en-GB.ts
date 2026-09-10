@@ -20,12 +20,30 @@ export const enGB: Dictionary = {
     accountsTitle: 'Accounts and access',
     activate: 'Open account',
     activationTitle: 'New accounts',
+    activityPeople: '{count} people signed in during this window.',
+    activityTitle: 'Activity ({days} days)',
     attempts: '{count} attempts',
     automaticActivation: 'Automatic activation',
     automaticHint: 'Whoever confirms their address is in. Nothing for you to do.',
     confirmed: 'email confirmed',
+    events: {
+      session_started: 'Sign-ins',
+      swap_requested: 'Meal swaps asked for'
+    },
     failureNote: '{count} generations failed. The code says whether it was the quota, the key or the catalogue.',
     failures: 'Failures',
+    funnel: {
+      activated: 'Account opened',
+      checkedIn: 'Did the check-in',
+      confirmed: 'Address confirmed',
+      lived: 'Marked at least one meal',
+      onboarded: 'Finished the profile',
+      planned: 'Have a plan',
+      returned: 'Came back for a second plan',
+      signedUp: 'Signed up'
+    },
+    funnelHint: 'Counted from the data rather than from events, so it covers the accounts that predate this screen. The percentage is of the step above.',
+    funnelTitle: 'Funnel',
     inDays: 'in {days} days',
     ingredients: 'Ingredients',
     intro: 'How the service is doing. No plan and no profile here: only whether generation works and how much the catalogue holds.',
@@ -33,6 +51,7 @@ export const enGB: Dictionary = {
     justOpened: 'Account opened: {email}',
     manualHint: 'Confirming their address leaves the account waiting and sends you a mail. You open it from this list.',
     noAccounts: 'No account yet.',
+    noActivity: 'No activity recorded yet.',
     noJobs: 'No generation yet.',
     notOpened: 'not opened',
     opened: 'account open',
@@ -846,7 +865,9 @@ export const enGB: Dictionary = {
     days: '{count} days',
     from: 'From',
     intro: 'Mark the days you will be away and the plan pauses: those days do not count as skipped, and when you return it carries on where it stopped.',
+    pausedUntil: 'Your plan is paused · it picks up on {date}',
     range: '{from} to {to}',
+    seePlan: 'See my plan',
     title: 'Holidays',
     to: 'Until'
   }
