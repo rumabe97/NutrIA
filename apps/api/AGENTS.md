@@ -282,6 +282,13 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   Better Auth's `emailVerification.afterEmailVerification` at the moment of the click and never
   remembered from sign-up; automatic is its fallback, because a missing row must never start
   queueing people.
+- **Events** (`0043`): `modules/events`, mirroring `vacations`. A day named by the person
+  and the one to three days before it that eat for it — per macro *up / down / same*, never an
+  amount; `LOAD_STEP` in `core/domain/Event` is the size. Read at generation only:
+  `PlanGeneration.loadsFor` turns event dates into a `dayTargets` map for the scheduler, holds
+  every loaded day to the profile's bounds via `targetViolations`, and records a refused load
+  as an advisory. The plan day stores `targets` and `loadedFor` — history, not a lookup. No
+  refusal keyed on a condition, per `0008`.
 - **Tiers** (`0042`): `user.tier` is `free` or `premium`, moved by the owner from `/admin`.
   What an account may *actually* spend is `PlanController.tierOf` — **the `premium` flag first,
   then the column** — so turning the tier off is one click rather than a migration over

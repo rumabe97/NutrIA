@@ -130,6 +130,15 @@ agent can do, are in [`docs/reference/payments.md`](./reference/payments.md).
 Stripe's test mode needs nothing but an email address, so the code can be built
 and exercised before any of the business setup exists.
 
+### 5b. A day that eats for something — done (`0043`)
+
+A user's request, relayed by the owner: add the race, or the long session, and
+let the days before it eat for it. An event is a name, a date, one to three days
+before, and per macro *up / down / same* — never an amount; the size is one
+constant in code. Applied at the next generation; the plan day remembers what it
+was built to. In-place rescheduling of a live fortnight, the days after,
+recurring events and per-type suggestions are deliberately later.
+
 ### 6. Advertising — recommended against
 
 Two reasons, and the first is arithmetic. Display advertising in this niche pays

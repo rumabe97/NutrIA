@@ -641,3 +641,31 @@ describe('axisFilter', () => {
     expect(passes?.(dish(0, 0), { ...macros, kcal: 0, proteinG: 0 })).toBe(false);
   });
 });
+
+describe('a day that eats for something (0043)', () => {
+  const dayKcal = (result: ReturnType<typeof schedule>, dayIndex: number): number => {
+    if (!result.ok) {
+      throw new Error('expected a plan');
+    }
+
+    const day = result.assignment.days.find(candidate => candidate.dayIndex === dayIndex);
+
+    return (day?.meals ?? []).reduce((sum, meal) => sum + meal.macros.kcal, 0);
+  };
+
+  it("builds a loaded day to its own targets and every other day to the plan's", () => {
+    const loaded = { ...TARGETS, carbsG: Math.round(TARGETS.carbsG * 1.4), kcal: Math.round(TARGETS.kcal * 1.25) };
+    const result = schedule({ dayTargets: new Map([[3, loaded]]) });
+
+    expect(result.ok).toBe(true);
+    expect(dayKcal(result, 3)).toBeGreaterThan(dayKcal(result, 2));
+    expect(dayKcal(result, 3)).toBeGreaterThan(dayKcal(result, 4));
+  });
+
+  it('is the same fortnight as before when nothing eats for anything', () => {
+    const plain = schedule();
+    const withEmptyMap = schedule({ dayTargets: new Map() });
+
+    expect(withEmptyMap).toEqual(plain);
+  });
+});

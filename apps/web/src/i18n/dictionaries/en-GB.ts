@@ -301,6 +301,34 @@ export const enGB: Dictionary = {
     unsafeContent: 'That content does not meet your dietary restrictions.'
   },
 
+  events: {
+    add: 'Add',
+    added: 'Added. You will see it in the next plan you generate.',
+    cancel: 'Remove',
+    cancelFor: 'Remove {name} on {date}',
+    carbs: 'Carbs',
+    daysBefore: 'Days before',
+    daysBeforeMany: 'The {count} days before',
+    daysBeforeOne: 'The day before',
+    down: 'Lower',
+    fat: 'Fat',
+    intro:
+      'A race, a match, a Hyrox, a long session: give it a name and a date, and choose what the days before it eat. Applied to the next plan you generate.',
+    less: 'less',
+    loading: 'already eating for this',
+    more: 'more',
+    name: 'What it is',
+    namePlaceholder: 'Half marathon, match, Hyrox…',
+    nothingMoves: 'At least one has to go up or down.',
+    on: 'When',
+    protein: 'Protein',
+    removed: 'Event removed.',
+    same: 'Same',
+    shapeLabel: 'What changes on the days before',
+    title: 'Events',
+    up: 'Raise'
+  },
+
   feedback: {
     intro: 'A person reads this: me. Tell me what is missing, what is in the way, or what does not work.',
     kinds: { idea: 'An idea', other: 'Something else', problem: 'Something is broken' },
@@ -764,6 +792,7 @@ export const enGB: Dictionary = {
     historyPlan: 'Plan {version}',
     historyReplaced: 'Replaced',
     historyTitle: 'Your plans',
+    loadedFor: 'Eating for: {name}',
     range: '14 days · {start} to {end}',
     redoAvailable: 'You can redo this plan once this fortnight: new dishes for the same days.',
     redoCta: 'Redo the plan',
@@ -995,7 +1024,6 @@ export const enGB: Dictionary = {
     slice: 'slices',
     unit: 'units'
   },
-
   vacations: {
     add: 'Pause the plan',
     awayBody: 'Your plan is waiting. It picks up on {until}, exactly where you left it.',

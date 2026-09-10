@@ -6,7 +6,10 @@ import { dishSafety } from 'core/domain/Safety';
 import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
 import { DEFAULT_MEAL_SHAPE, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { isBlocking, validatePlan } from 'core/domain/PlanValidation';
+import { eventOn, loadedTargets } from 'core/domain/Event';
+import { targetViolations } from 'core/domain/Nutrition';
 import { CheckInController } from 'core/controllers/CheckIn';
+import { EventController } from 'core/controllers/Event';
 import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController, PlanJobController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
@@ -17,6 +20,7 @@ import { promptPreferences, toRecipeDraft } from './GenerationShared.js';
 
 import type { CandidateDish, PlanAssignment } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
+import type { TargetBounds } from 'core/domain/Nutrition';
 import type { PlanViolation } from 'core/domain/PlanValidation';
 import type { GenerationContext } from 'core/controllers/Recipe';
 import type { Rotation } from 'core/domain/Variety';
@@ -99,6 +103,11 @@ export class PlanGenerationService {
     const weights = weightsFor(shape);
     const slots = slotsIn(shape);
 
+    // Laid out from today, one day after another, which is what a fortnight is
+    // — and what lets an event's date become a day index before scheduling.
+    const start = new Date();
+    const loads = await this.loadsFor(userId, targets, profile.targets?.bounds ?? null, start);
+
     await markStep(STEPS.choosing);
 
     // The seed is the user and the plan version: the library pick is theirs, it is
@@ -149,7 +158,7 @@ export class PlanGenerationService {
       return [...new Map([...everything, ...built.generated].map(dish => [dish.slug, dish])).values()];
     };
 
-    let scheduled = schedulePlan({ catalogue: context.catalogue, pool: built.dishes, targets, weights });
+    let scheduled = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, pool: built.dishes, targets, weights });
     let fallback: 'full_library' | null = null;
 
     if (!scheduled.ok) {
@@ -170,7 +179,7 @@ export class PlanGenerationService {
       const widened = await wholeLibrary();
 
       this.logger.warn(`Retrying with the full library (${widened.length} dishes, last fortnight included)`);
-      scheduled = schedulePlan({ catalogue: context.catalogue, pool: widened, targets, weights });
+      scheduled = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, pool: widened, targets, weights });
       fallback = 'full_library';
     }
 
@@ -190,6 +199,9 @@ export class PlanGenerationService {
     const check = (assignment: PlanAssignment) =>
       validatePlan({
         assignment,
+        // A loaded day is judged against what it was built to (`0043`), or every
+        // plan with an event in it would record its own load as drift.
+        dayTargets: loads.dayTargets,
         expectedDays: PLAN_DAYS,
         expectedSlots: slots,
         sex: profile.profile?.sex ?? 'prefer_not_to_say',
@@ -214,7 +226,7 @@ export class PlanGenerationService {
     if (violations.some(isBlocking) && fallback === null) {
       this.logger.warn(`Plan rejected by validation (${summarise(violations.filter(isBlocking))}); retrying with the full library`);
 
-      const retried = schedulePlan({ catalogue: context.catalogue, pool: await wholeLibrary(), targets, weights });
+      const retried = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, pool: await wholeLibrary(), targets, weights });
 
       if (retried.ok) {
         const retriedViolations = check(retried.assignment);
@@ -237,7 +249,7 @@ export class PlanGenerationService {
       throw new GenerationError('GENERATION_INVALID_PLAN', summary);
     }
 
-    const advisorySummary = advisories.map(describe);
+    const advisorySummary = [...advisories.map(describe), ...loads.refused];
 
     if (advisories.length > 0) {
       // Delivered, not discarded. The targets are an estimate — the profile screen
@@ -266,7 +278,7 @@ export class PlanGenerationService {
 
     return PlanJobController.persist(
       userId,
-      this.toDraft(scheduled.assignment, shopping, built, targets, context, jobId, rotation, advisorySummary, fallback)
+      this.toDraft(scheduled.assignment, shopping, built, targets, context, jobId, rotation, advisorySummary, fallback, start, loads)
     );
   }
 
@@ -313,6 +325,52 @@ export class PlanGenerationService {
     return profile.targets.effective;
   }
 
+  /**
+   * Which days of this fortnight eat for something, and what they eat (`0043`).
+   *
+   * Resolved by date: the plan runs from `start`, an event is a date, and the
+   * days before it are dates. Each loaded day's targets come from
+   * `core/domain/Event` and are then held to the same bounds the profile's own
+   * targets are held to — a load the bounds refuse is not applied, the day is
+   * built to the plan's targets like any other, and the refusal is recorded
+   * with the plan's advisories so the person can be told rather than left to
+   * wonder why Saturday looks ordinary. With no bounds to check against (a
+   * profile that has none) nothing is loaded, because "we could not check" must
+   * never quietly become "so we did it anyway".
+   */
+  private async loadsFor(userId: string, targets: NutritionTargets, bounds: TargetBounds | null, start: Date): Promise<Loads> {
+    const dayTargets = new Map<number, NutritionTargets>();
+    const loadedFor = new Map<number, string>();
+    const refused: string[] = [];
+    const events = await EventController.list(userId, isoDate(start));
+
+    if (events.length === 0 || !bounds) {
+      return { dayTargets, loadedFor, refused };
+    }
+
+    for (let dayIndex = 1; dayIndex <= PLAN_DAYS; dayIndex += 1) {
+      const event = eventOn(isoDate(addDays(start, dayIndex - 1)), events);
+
+      if (!event) {
+        continue;
+      }
+
+      const loaded = loadedTargets(targets, event);
+      const violations = targetViolations(loaded, bounds);
+
+      if (violations.length > 0) {
+        // Spanish like the advisories beside it: this reaches the person, not only the log.
+        refused.push(`día ${dayIndex}: la carga para «${event.name}» no se aplicó (${violations.map(violation => violation.kind).join(', ')})`);
+        continue;
+      }
+
+      dayTargets.set(dayIndex, loaded);
+      loadedFor.set(dayIndex, event.name);
+    }
+
+    return { dayTargets, loadedFor, refused };
+  }
+
   private assertPlanIsSafe(assignment: PlanAssignment, context: GenerationContext): void {
     for (const day of assignment.days) {
       for (const meal of day.meals) {
@@ -339,9 +397,10 @@ export class PlanGenerationService {
     jobId: string,
     rotation: Rotation,
     advisories: readonly string[],
-    fallback: 'full_library' | null
+    fallback: 'full_library' | null,
+    start: Date,
+    loads: Loads
   ): PlanDraft {
-    const start = new Date();
     const end = new Date(start);
 
     end.setUTCDate(end.getUTCDate() + PLAN_DAYS - 1);
@@ -352,6 +411,9 @@ export class PlanGenerationService {
       days: assignment.days.map(day => ({
         date: isoDate(addDays(start, day.dayIndex - 1)),
         dayIndex: day.dayIndex,
+        // Stamped on the day, not looked up later: the event may be deleted and
+        // this plan is history (`0021`, `0043`).
+        loadedFor: loads.loadedFor.get(day.dayIndex) ?? null,
         meals: day.meals.map(meal => ({
           carbsG: meal.macros.carbsG,
           fatG: meal.macros.fatG,
@@ -362,7 +424,14 @@ export class PlanGenerationService {
           servings: meal.servings,
           slot: meal.slot,
           sortOrder: meal.sortOrder
-        }))
+        })),
+        targets: loads.dayTargets.get(day.dayIndex) ?? {
+          carbsG: targets.carbsG,
+          fatG: targets.fatG,
+          fiberG: targets.fiberG,
+          kcal: targets.kcal,
+          proteinG: targets.proteinG
+        }
       })),
       endDate: isoDate(end),
       // The seed and the number of dishes held back say *why* this plan differs from
@@ -394,6 +463,13 @@ export class PlanGenerationService {
     };
   }
 }
+
+/** The days that eat for something, by index, and what the bounds would not allow. */
+type Loads = {
+  readonly dayTargets: ReadonlyMap<number, NutritionTargets>;
+  readonly loadedFor: ReadonlyMap<number, string>;
+  readonly refused: readonly string[];
+};
 
 function addDays(date: Date, days: number): Date {
   const next = new Date(date);

@@ -46,7 +46,15 @@ export interface MealView {
 export interface PlanDayView {
   date: string;
   dayIndex: number;
+  /**
+   * The event this day eats for, by the name the person gave it, or null
+   * (`0043`). Stored on the day, not looked up: the event may be gone and
+   * this plan is history.
+   */
+  loadedFor: string | null;
   meals: readonly MealView[];
+  /** What the day was built to hit. Null on plans older than loads, meaning the plan's `strategy`. */
+  targets: NutritionTargets | null;
   totals: { carbsG: number; fatG: number; fiberG: number; kcal: number; proteinG: number };
 }
 
@@ -422,7 +430,9 @@ function assemble(
       return {
         date: day.date,
         dayIndex: day.dayIndex,
+        loadedFor: day.loadedFor ?? null,
         meals: presented,
+        targets: day.targets ?? null,
         // Summed from the stored per-meal snapshots, so a historical plan keeps the
         // totals the user actually ate.
         totals: {
