@@ -9,37 +9,30 @@
 
 **Milestone: a user receives a real 14-day plan.**
 
-[`002-plan-generation`](./projects/002-plan-generation/) — **delivered**, confirmed
-working end to end by the owner on 2026-09-07 against a live database and a real AI
-provider. Phase 7's end-to-end suites now run: 31 tests, seven suites, against a
-throwaway database on the dev branch with a scripted model (see
-`apps/api/test/README.md`). Their first execution found a real safety gap in
-free-text allergies, fixed in `0004`'s amendment.
+The milestone is met, and has been in production since 2026-09-07.
 
-Next: [`003-trust-depth-and-polish`](./projects/003-trust-depth-and-polish/) — PRD
-approved, plan being written. Trustworthy and overridable targets, onboarding that
-resumes and is enforced server-side, a deeper profile (free-text allergens, conditions,
-medications, supplements), English throughout, and a design pass.
+*Delivered:*
 
-*Delivered:* [`001-workspace-kickoff`](./projects/001-workspace-kickoff/) — landing page,
-authentication, the ten-step onboarding, the profile, computed daily targets, the allergy
-validator, the full schema, and the NestJS foundation.
+- [`001-workspace-kickoff`](./projects/001-workspace-kickoff/) — landing page,
+  authentication, the ten-step onboarding, the profile, computed daily targets, the
+  allergy validator, the full schema, and the NestJS foundation.
+- [`002-plan-generation`](./projects/002-plan-generation/) — confirmed working end to
+  end by the owner against a live database and a real AI provider. Its first
+  end-to-end run found a real safety gap in free-text allergies, fixed in `0004`'s
+  amendment.
+- [`003-trust-depth-and-polish`](./projects/003-trust-depth-and-polish/) — all eight
+  phases, logged 2026-09-07: overridable targets, onboarding that resumes and is
+  enforced server-side, a deeper profile (free-text allergens, conditions, medications,
+  supplements), English throughout, and a design pass.
 
-**Blocked on the owner.** Nothing further can be verified without this:
+The end-to-end suites stand at 14 suites and 88 tests, run against a throwaway database
+with a scripted model (`apps/api/test/README.md`), and on every pull request against a
+Postgres container that dies with the job.
 
-1. A Neon project; `DATABASE_URL` (pooled) and `DIRECT_DATABASE_URL` (direct) in
-   `apps/api/.env` and `packages/database/.env`.
-2. `BETTER_AUTH_SECRET` — `openssl rand -base64 48`.
-3. `pnpm --filter database migrate` then `pnpm --filter database seed`. The seed is
-   **reference data, not sample data**: the allergy layer has nothing to enforce without it,
-   and generation cannot resolve a single ingredient.
-4. Optionally `AI_PROVIDER=google` with a free key from `aistudio.google.com/apikey`.
-   Without a provider the engine runs on reuse alone, so the first generation against an
-   empty recipe library fails with `GENERATION_POOL_TOO_SMALL` — by design, and the UI
-   says so.
-
-Then: `pnpm --filter api test:e2e` (see `apps/api/test/README.md`) and a look at the plan
-screens at phone width, which closes project 002's two open gates.
+Nothing here is blocked on the owner any more. The environment this section used to
+list as missing — a Neon project, a session secret, the migration, the seed, an AI
+key — has been in place since 2026-09-07, and `docs/reference/deployment.md` is where
+that setup lives now rather than here.
 
 ## Next
 
@@ -64,6 +57,14 @@ screens at phone width, which closes project 002's two open gates.
 
 Seven things the owner asked for on 2026-09-10, analysed against the code and
 reordered by what each unblocks. The order is a recommendation; the owner decides.
+
+Four are delivered. Of the two that remain, one is recommended against, which leaves
+**premium** — and its own entry says what it waits on: something worth paying for and
+something that says what people miss. Both now exist, so what it really waits on is
+somebody using the second. The feedback box shipped on 2026-09-10, and what it has
+gathered since is the input this decision wants: choosing what to charge for is the
+most expensive guess on this page to undo, and `/admin` is where to look before
+making it.
 
 ### 1. A meal may be marked only once it could have been eaten — done
 
@@ -164,10 +165,11 @@ sells the people.
   that predate it, and exactly two events for what leaves no row: a session started and the
   axis a swap was asked for. Cohorts and anything needing a browser-side beacon are
   deliberately not built.
-- CI: the gate and the end-to-end suites both run on every push and pull request
+- CI: done. The gate and the end-to-end suites both run on every push and pull request
   (`.github/workflows/ci.yml`); the suites get a Postgres container that dies with the job,
-  so they need no secret and no shared branch. One thing remains, and it is the owner's: a
-  branch protection rule, so a red run actually blocks a merge.
+  so they need no secret and no shared branch. A ruleset on `main` makes both required, so
+  a red run blocks the merge. The gate also runs `format` and `deadcode`, which had each
+  been failing unnoticed for months — an advisory check is how that happens.
 - Error visibility: done (`0024`). Set `SENTRY_DSN` on the API project to turn it on; unset,
   nothing is sent.
 
