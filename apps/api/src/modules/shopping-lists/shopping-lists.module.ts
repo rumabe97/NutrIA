@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
-import { ShoppingListsController } from './shopping-lists.controller.js';
+import { ShoppingListsController } from './controllers/index.js';
+import { ShoppingListsService } from './services/index.js';
 
-@Module({ controllers: [ShoppingListsController] })
+@Module({ controllers: [ShoppingListsController], providers: [ShoppingListsService] })
 export class ShoppingListsModule {}
