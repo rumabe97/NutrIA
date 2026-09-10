@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 
 import { BackgroundTaskService } from '../../shared/services/index.js';
-import { MealPlansController } from './meal-plans.controller.js';
-import { MealSwapService } from './MealSwap.service.js';
-import { PlanGenerationService } from './PlanGeneration.service.js';
-import { PlanJobRunner } from './PlanJobRunner.service.js';
+import { MealPlansController } from './controllers/index.js';
+import { MealPlansService, MealSwapService, PlanGenerationService, PlanJobRunner } from './services/index.js';
 
-@Module({ controllers: [MealPlansController], exports: [PlanJobRunner], providers: [BackgroundTaskService, MealSwapService, PlanGenerationService, PlanJobRunner] })
+@Module({
+  controllers: [MealPlansController],
+  exports: [PlanJobRunner],
+  providers: [BackgroundTaskService, MealPlansService, MealSwapService, PlanGenerationService, PlanJobRunner]
+})
 export class MealPlansModule {}

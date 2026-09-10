@@ -3,10 +3,10 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from '@jest/globals';
 import { dirname, join } from 'node:path';
 
-import { buildPoolPrompt } from './PoolPrompt.js';
+import { buildPoolPrompt } from './prompts/PoolPrompt.js';
 
 import type { MealSlot } from 'core/entities/Plan';
-import type { PromptContext } from './PoolPrompt.js';
+import type { PromptContext } from './prompts/PoolPrompt.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 

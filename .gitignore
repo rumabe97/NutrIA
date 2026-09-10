@@ -30,7 +30,12 @@ coverage
 
 # Build Outputs
 .next/
-out/
+# Anchored, because Next's static export only ever lands at an app root and a
+# bare `out/` matches any directory of that name at any depth — which silently
+# swallowed every `dto/out/` in apps/api. It compiled locally and could not
+# compile from a fresh clone.
+/out/
+apps/*/out/
 build
 dist
 dist-ssr

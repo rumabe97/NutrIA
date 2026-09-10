@@ -68,6 +68,27 @@ export interface PlanSummaryView {
   version: number;
 }
 
+/**
+ * One line of the list. `name` resolves against the catalogue in the reader's
+ * language, with the stored name surviving as the fallback for anything hand-added.
+ */
+export interface ShoppingListItemView {
+  id: string;
+  category: string | null;
+  checked: boolean;
+  displayQuantity: number;
+  displayUnit: string;
+  name: string;
+  totalGrams: number;
+}
+
+/** The list a plan needs, ticked or not. */
+export interface ShoppingListView {
+  id: string;
+  items: readonly ShoppingListItemView[];
+  planId: string;
+}
+
 /** What the person may still do this fortnight, for the screen to say before they try. */
 export interface AllowancesView {
   mealSwaps: MealSwapStanding;
@@ -211,7 +232,7 @@ export const PlanController = {
     return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
   },
 
-  async getShoppingList(userId: string, planId: string, locale: string | null = null) {
+  async getShoppingList(userId: string, planId: string, locale: string | null = null): Promise<ShoppingListView> {
     // Ownership is resolved on the plan; the list hangs off it.
     const plan = await PlanRepository.findById(userId, planId);
 

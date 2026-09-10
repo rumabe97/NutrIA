@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
-import { VacationsRestController } from './vacations.controller.js';
+import { VacationsController } from './controllers/index.js';
+import { VacationsService } from './services/index.js';
 
-@Module({ controllers: [VacationsRestController] })
+@Module({ controllers: [VacationsController], providers: [VacationsService] })
 export class VacationsModule {}

@@ -1,10 +1,11 @@
 import { Global, Module } from '@nestjs/common';
 
-import { ENV, envProvider } from '../../config/index.js';
 import { AUTH, createAuth } from './auth.config.js';
-import { AuthController } from './auth.controller.js';
+import { AuthController } from './controllers/index.js';
+import { AuthHandlerService } from './services/index.js';
 import { EmailModule } from '../email/email.module.js';
 import { EmailService } from '../email/Email.service.js';
+import { ENV, envProvider } from '../../config/index.js';
 import { SessionGuard } from '../../shared/guards/Session.guard.js';
 
 import type { Env } from '../../config/index.js';
@@ -21,6 +22,7 @@ import type { Env } from '../../config/index.js';
   imports: [EmailModule],
   providers: [
     { inject: [ENV, EmailService], provide: AUTH, useFactory: (env: Env, mailer: EmailService) => createAuth(env, mailer) },
+    AuthHandlerService,
     SessionGuard,
     envProvider
   ]
