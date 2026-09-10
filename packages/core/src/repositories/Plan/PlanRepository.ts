@@ -374,7 +374,7 @@ export const PlanRepository = {
     try {
       const [row] = await database()
         .select({
-          day: { id: planDays.id, dayIndex: planDays.dayIndex },
+          day: { id: planDays.id, date: planDays.date, dayIndex: planDays.dayIndex },
           meal: meals,
           plan: { id: mealPlans.id, endDate: mealPlans.endDate, startDate: mealPlans.startDate, status: mealPlans.status, strategy: mealPlans.strategy },
           recipe: { id: recipes.id, cookMinutes: recipes.cookMinutes, name: recipes.name, prepMinutes: recipes.prepMinutes, servings: recipes.servings, slug: recipes.slug }
@@ -458,11 +458,11 @@ export const PlanRepository = {
    * meal is not theirs (a 404 upstream); `closed` when its plan is no longer
    * the active one — the past is read-only (0021).
    */
-  async setMealStatus(userId: string, mealId: string, status: MealStatus): Promise<'closed' | 'done' | 'missing'> {
+  async setMealStatus(userId: string, mealId: string, status: MealStatus, today: string = new Date().toISOString().slice(0, 10)): Promise<'closed' | 'done' | 'future' | 'missing'> {
     try {
       return await database().transaction(async tx => {
         const [owned] = await tx
-          .select({ id: meals.id, planStatus: mealPlans.status })
+          .select({ id: meals.id, date: planDays.date, planStatus: mealPlans.status })
           .from(meals)
           .innerJoin(planDays, eq(planDays.id, meals.planDayId))
           .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))
@@ -472,6 +472,17 @@ export const PlanRepository = {
         if (!owned) {return 'missing';}
 
         if (owned.planStatus !== 'active') {return 'closed';}
+
+        /*
+         * A meal can be marked once it could have been eaten, and not before.
+         *
+         * Yesterday's lunch marked this morning is somebody catching up, which is
+         * ordinary. Tomorrow's dinner marked today is a fact about the future,
+         * and adherence is built from these marks — the check-in hands them to
+         * the next fortnight, so a wrong one does not just look wrong, it
+         * changes what somebody is served.
+         */
+        if (owned.date > today) {return 'future';}
 
         await tx.update(meals).set({ status, updatedAt: new Date() }).where(eq(meals.id, mealId));
         await tx.delete(mealCompletions).where(and(eq(mealCompletions.userId, userId), eq(mealCompletions.mealId, mealId)));

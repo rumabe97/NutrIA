@@ -6,6 +6,7 @@ import {
   DatabaseOperationError,
   EmailNotVerifiedError,
   InputParseError,
+  MealInFutureError,
   NotFoundError,
   OnboardingIncompleteError,
   PlanPausedError,
@@ -91,6 +92,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // Same shape as an unopened account, different fix: this one is undone by
       // the person, from their own inbox.
       return { code: 'EMAIL_NOT_VERIFIED', message: 'Confirma tu correo para continuar.', statusCode: HttpStatus.CONFLICT };
+    }
+
+    if (exception instanceof MealInFutureError) {
+      return { code: 'MEAL_IN_FUTURE', message: 'Todavía no puedes marcar esta comida.', statusCode: HttpStatus.CONFLICT };
     }
 
     if (exception instanceof PlanPausedError) {
