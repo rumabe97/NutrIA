@@ -298,6 +298,15 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `email_verified = false` gets 409 `EMAIL_UNVERIFIED` on every route not marked `@Public()`
   or `@AllowUnverified()`. Keep the allow-list to what an unactivated account needs: who am
   I, and leave.
+- **A link into the web app names its language**: the web app serves Spanish at `/` and
+  every other language behind its own segment (`/en/…`), so `APP_URL` plus a path is not an
+  address — the same path is a different page in each language. `webUrl` (core
+  `domain/WebUrl`) is the only place one is built: it takes the origin, a path and a locale,
+  it is idempotent (a path that already names a language is left alone), and an unknown
+  locale is Spanish. The locale is the **recipient's**, resolved by `recipientLocale`
+  (`modules/email`) — the stored profile first, the request's `Accept-Language` only for the
+  confirmation at sign-up, when no profile exists yet. Copy and link always agree, because
+  they are one message. Never concatenate `APP_URL` and a path by hand.
 - **Mail** (`0019`): `modules/email` is the one door mail leaves through — `EmailService.send`
   over SMTP (nodemailer), unconfigured without `SMTP_HOST` and then returning `false`. The only
   message today is the password-reset link, composed in `modules/email/templates` in the
