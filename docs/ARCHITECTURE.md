@@ -46,6 +46,25 @@ every relative import. `packages/core` and `packages/database` compile to **Comm
 `types` to source (so no build is needed to typecheck) and `default` to `dist`. See
 [`0002`](./decisions/0002-drizzle-on-neon.md).
 
+### API module shape
+
+Every module in `apps/api/src/modules` has the same parts, and creates only the ones it
+has ([`0039`](./decisions/0039-a-route-names-what-it-takes-and-what-it-answers.md)):
+
+```
+<name>.module.ts   wiring, and nothing else
+controllers/       HTTP: routing, guards, validation, status codes
+services/          orchestration — the only caller of packages/core in this app
+dto/in/            one declared input per route body, naming a core Zod schema
+dto/out/           one declared answer per route
+index.ts           the module's public surface
+```
+
+A controller takes `@CurrentUser()`, binds the body with `@ZodBody(SomeDto)`, calls one
+method on its own service and returns. Business rules stay in `packages/core`: if the
+logic needs NestJS or an I/O provider it is a service here, and if it does not it is a
+core controller.
+
 ### Current state
 
 **Built and working:** the NestJS skeleton (env validation, health, logging, global
@@ -291,7 +310,11 @@ user, so a double submit cannot produce two.
 
 **Every route body has a Zod schema**, applied through `ZodValidationPipe`. An unvalidated
 body reaches the service as whatever was sent, and unknown keys are stripped rather than
-forwarded to a repository.
+forwarded to a repository. The schema is named by a DTO in the module's `dto/in`, bound
+with `@ZodBody`, which applies the pipe *and* generates the OpenAPI request schema from
+that same Zod schema — so the published contract cannot drift from the enforced one
+([`0039`](./decisions/0039-a-route-names-what-it-takes-and-what-it-answers.md)). There is
+no second definition of a validation rule in `apps/api`.
 
 **Nothing internal reaches a response.** `AllExceptionsFilter` is the single translation
 point; an unrecognised error becomes a bare 500. Driver messages carry connection strings,
