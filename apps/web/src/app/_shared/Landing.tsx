@@ -12,6 +12,9 @@ import { Reveal } from 'components/Reveal';
 import { SiteFooter } from 'components/SiteFooter';
 import { SiteHeader } from 'components/SiteHeader';
 
+import { JsonLd } from './JsonLd';
+
+import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { Locale } from 'i18n/config';
 
 /** The marketing page. Its language comes from the route it is mounted under, so it can be built once and served from the edge. */
@@ -182,6 +185,12 @@ export function Landing({ locale }: Readonly<{ locale: Locale }>) {
               ))}
             </Accordion>
           </Reveal>
+
+          {/* Built from the same array the accordion above renders, so the
+              markup a search engine reads and the words a visitor reads cannot
+              disagree — which is the one thing Google's FAQ guidance is
+              actually strict about. */}
+          <JsonLd data={faqSchema(t.faq)} />
         </section>
 
         {/* ── Final CTA ────────────────────────────────────────────────── */}
@@ -205,4 +214,17 @@ export function Landing({ locale }: Readonly<{ locale: Locale }>) {
       <SiteFooter />
     </Fragment>
   );
+}
+
+/** The questions on the page, as the shape schema.org wants them in. */
+function faqSchema(faq: Dictionary['landing']['faq']): object {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faq.map(item => ({
+      '@type': 'Question',
+      acceptedAnswer: { '@type': 'Answer', text: item.answer },
+      name: item.question
+    }))
+  };
 }
