@@ -7,6 +7,23 @@ import { DatabaseOperationError } from 'core/entities/Error';
 
 export const SettingsRepository = {
   /**
+   * Every switch anybody has ever thrown.
+   *
+   * All of them in one read rather than one read per flag: the table is a
+   * handful of rows and the caller wants the whole set, so a query per key
+   * would be a round trip per flag to answer one screen. Absent keys are absent
+   * here — what their absence means belongs to `core/domain/Flag`, not to the
+   * table.
+   */
+  async all(): Promise<readonly { readonly enabled: boolean; readonly key: string }[]> {
+    try {
+      return await database().select({ enabled: appSettings.enabled, key: appSettings.key }).from(appSettings);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
    * A switch's position, or the default when nobody has touched it.
    *
    * The default is the caller's to state rather than the table's: an absent row

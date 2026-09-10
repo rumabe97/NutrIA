@@ -98,7 +98,7 @@ describe('access: two locks, and the shape of a denial', () => {
     const settings: Response = await request(server).get(`/${PREFIX}/settings`).set('Cookie', cookie).expect(200);
 
     expect(me.body).toMatchObject({ activated: false, emailVerified: false });
-    expect(settings.body).toHaveProperty('automaticActivation');
+    expect(settings.body).toHaveProperty('flags.automaticActivation');
   });
 
   it('answers 404, never 401 or 403, to a caller with no session', async () => {

@@ -1,9 +1,9 @@
 import { Controller, Get, Patch } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { AdminSettingsDto } from '../dto/in/index.js';
 import { AdminSettingsService } from '../services/index.js';
 import { Roles, ZodBody } from '../../../shared/index.js';
+import { SetFlagDto } from '../dto/in/index.js';
 
 import type { AdminSettingsViewDto } from '../dto/out/index.js';
 
@@ -14,17 +14,17 @@ import type { AdminSettingsViewDto } from '../dto/out/index.js';
 export class AdminSettingsController {
   constructor(private readonly settings: AdminSettingsService) {}
 
-  @ApiOkResponse({ description: 'The switches as they stand.' })
+  @ApiOkResponse({ description: 'Every switch, including the ones a signed-in reader is not shown.' })
   @ApiOperation({ summary: 'The switches the owner can throw' })
   @Get('settings')
   async read(): Promise<AdminSettingsViewDto> {
     return this.settings.read();
   }
 
-  @ApiOkResponse({ description: 'The switches as they now stand.' })
-  @ApiOperation({ summary: 'Open or close registration' })
+  @ApiOkResponse({ description: 'Every switch as it now stands.' })
+  @ApiOperation({ summary: 'Throw one switch' })
   @Patch('settings')
-  async setSettings(@ZodBody(AdminSettingsDto) body: AdminSettingsDto): Promise<AdminSettingsViewDto> {
-    return this.settings.setAutomaticActivation(body);
+  async setFlag(@ZodBody(SetFlagDto) body: SetFlagDto): Promise<AdminSettingsViewDto> {
+    return this.settings.setFlag(body);
   }
 }

@@ -1,2 +1,2 @@
-export * from './AdminSettings.dto.js';
+export * from './SetFlag.dto.js';
 export * from './HandleFeedback.dto.js';

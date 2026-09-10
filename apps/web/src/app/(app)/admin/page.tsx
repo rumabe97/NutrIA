@@ -8,8 +8,8 @@ import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { AccountList } from 'components/AccountList';
-import { ActivationSwitch } from 'components/ActivationSwitch';
 import { FeedbackInbox } from 'components/FeedbackInbox';
+import { FlagSwitch } from 'components/FlagSwitch';
 import { Pager } from 'components/Pager';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
@@ -107,7 +107,13 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       <section className={styles.section}>
         <h2 className={styles.subtitle}>{t.activationTitle}</h2>
-        <ActivationSwitch automatic={settings?.automaticActivation ?? true} />
+        <FlagSwitch
+          enabled={settings?.flags?.automaticActivation ?? true}
+          flag="automaticActivation"
+          label={t.automaticActivation}
+          offHint={t.manualHint}
+          onHint={t.automaticHint}
+        />
       </section>
 
       {/* Accounts next: the only thing on this page somebody is waiting on. */}

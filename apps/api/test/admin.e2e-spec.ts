@@ -106,15 +106,36 @@ describe('admin', () => {
   it('throws the activation switch, and the switch is what the product reads', async () => {
     const server = httpServer(app);
 
-    await request(server).patch(`/${PREFIX}/admin/settings`).set('Cookie', owner.cookie).send({ automaticActivation: false }).expect(200);
+    await request(server)
+      .patch(`/${PREFIX}/admin/settings`)
+      .set('Cookie', owner.cookie)
+      .send({ enabled: false, flag: 'automaticActivation' })
+      .expect(200);
     await expect(SettingsController.automaticActivation()).resolves.toBe(false);
 
     const read: Response = await request(server).get(`/${PREFIX}/settings`).set('Cookie', ordinary.cookie).expect(200);
 
-    expect(read.body).toMatchObject({ automaticActivation: false });
+    expect(read.body).toMatchObject({ flags: { automaticActivation: false } });
 
-    await request(server).patch(`/${PREFIX}/admin/settings`).set('Cookie', owner.cookie).send({ automaticActivation: true }).expect(200);
+    await request(server)
+      .patch(`/${PREFIX}/admin/settings`)
+      .set('Cookie', owner.cookie)
+      .send({ enabled: true, flag: 'automaticActivation' })
+      .expect(200);
     await expect(SettingsController.automaticActivation()).resolves.toBe(true);
+  });
+
+  /*
+   * The registry is what says a flag exists. A route that wrote whatever key it
+   * was handed would let a typo create a row nothing ever reads, and the switch
+   * would look thrown while the product carried on with the fallback.
+   */
+  it('refuses a flag the registry does not declare', async () => {
+    await request(httpServer(app))
+      .patch(`/${PREFIX}/admin/settings`)
+      .set('Cookie', owner.cookie)
+      .send({ enabled: true, flag: 'not_a_flag' })
+      .expect(422);
   });
 
   it('counts the funnel from the rows, so it covers accounts older than the counting', async () => {
