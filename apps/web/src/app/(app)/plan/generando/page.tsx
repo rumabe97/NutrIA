@@ -6,7 +6,6 @@ import { serverApi } from 'lib/server-api';
 import { appMetadata } from '../../../_shared/metadata';
 
 import type { AllowancesView } from 'core/controllers/Plan';
-import type { EventAllowance } from 'components/EventPlanner';
 import type { EventView } from 'core/controllers/Event';
 import type { Metadata } from 'next';
 
@@ -23,13 +22,7 @@ export default async function GeneratingPage() {
   await redirectIfOnboardingIncomplete();
 
   // What will shape this fortnight, fetched before the job exists: the events
-  // are why the screen stops to ask before starting, and the allowance is how
-  // many more it will take. Read for its `events` field alone — the one
-  // `EventAllowance` waits for; until the API sends it, no count shows.
-  const [events, allowances] = await Promise.all([
-    serverApi<readonly EventView[]>('/events'),
-    serverApi<AllowancesView & { events?: EventAllowance | null }>('/meal-plans/allowances')
-  ]);
+  const [events, allowances] = await Promise.all([serverApi<readonly EventView[]>('/events'), serverApi<AllowancesView>('/meal-plans/allowances')]);
 
   return <GenerationProgress allowance={allowances?.events ?? null} events={events ?? []} />;
 }

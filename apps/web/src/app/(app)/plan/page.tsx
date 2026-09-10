@@ -10,7 +10,6 @@ import { serverApi } from 'lib/server-api';
 import { appMetadata } from '../../_shared/metadata';
 
 import type { AllowancesView, PlanView } from 'core/controllers/Plan';
-import type { EventAllowance } from 'components/EventPlanner';
 import type { EventView } from 'core/controllers/Event';
 import type { Metadata } from 'next';
 
@@ -28,9 +27,7 @@ export default async function PlanPage() {
   const [dictionary, plan, allowances, events] = await Promise.all([
     getDictionary(),
     serverApi<PlanView | null>('/meal-plans/active'),
-    // `events` is the field `EventAllowance` waits for; until the API sends
-    // it, the day view shows no event form.
-    serverApi<AllowancesView & { events?: EventAllowance | null }>('/meal-plans/allowances'),
+    serverApi<AllowancesView>('/meal-plans/allowances'),
     serverApi<readonly EventView[]>('/events')
   ]);
 

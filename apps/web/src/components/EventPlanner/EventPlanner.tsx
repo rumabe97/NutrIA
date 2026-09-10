@@ -16,34 +16,22 @@ import { MacroShift } from 'components/MacroShift';
 import { api, messageFor } from 'lib/api';
 import { formatDate, interpolate } from 'lib/format';
 
+import type { EventAllowancesView } from 'core/controllers/Plan';
 import type { EventView } from 'core/controllers/Event';
 import type { MacroDirection } from 'core/entities/Event';
 
 const MACROS = ['carbs', 'protein', 'fat'] as const;
 const DIRECTIONS: readonly MacroDirection[] = ['same', 'up', 'down'];
 
-/** A cap and what is left of it — the pair `mealSwaps` already answers with. */
-export type EventStanding = { limit: number; remaining: number };
-
 /**
- * How many more events a plan will still take, and whether one may still be
- * added with the plan under way.
- *
- * TODO(events-allowance): narrow local shape, pending the per-tier caps being
- * added to the API (3 events per plan on free, 10 on premium; the mid-plan
- * addition premium only). Every screen here expects `GET /meal-plans/allowances`
- * to answer with one field, `events`, of this shape:
- * `{ limit, remaining, midPlan: { limit, remaining } | null }` — `midPlan`
- * null on a tier without it. Both pages read exactly that field off the
- * response and the tier off the existing `tier`. Until the field exists it is
- * absent, the props arrive `null`, no count shows and the day view draws no
- * form. Reconcile the names with `AllowancesView` in `core/controllers/Plan`
- * once the API side lands; this is the only place they are spelled.
+ * The cap and what is left of it, as `GET /meal-plans/allowances` answers on
+ * its `events` field (`core/controllers/Plan`). Two names for the two places it
+ * is read: the plan's cap on the generation screen, and the mid-plan one under
+ * a day — which is `null` on a tier that has none, and then the day draws no
+ * form at all.
  */
-export type EventAllowance = EventStanding & {
-  /** Additions with the plan under way — the rebuild of the loaded days that `0043` left out. */
-  midPlan: EventStanding | null;
-};
+export type EventAllowance = EventAllowancesView;
+export type EventStanding = Pick<EventAllowancesView, 'limit' | 'remaining'>;
 
 interface EventPlannerProps {
   /**
