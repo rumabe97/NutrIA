@@ -21,7 +21,13 @@
   background: transparent;
   border: 0;
   color: inherit;
+  /* A phone held sideways has less height than a stop's text needs. The panel
+     scrolls rather than growing past the screen, which is the failure mode
+     that hides the buttons. */
+  max-block-size: calc(100dvh - var(--space-05));
   max-inline-size: min(30rem, calc(100vw - var(--space-05)));
+  overflow: auto;
+  overscroll-behavior: contain;
   padding: 0;
 }
 
