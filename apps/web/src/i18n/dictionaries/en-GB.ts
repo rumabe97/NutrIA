@@ -280,6 +280,7 @@ export const enGB: Dictionary = {
     network: 'We could not connect. Check your connection.',
     notFound: 'We could not find what you were looking for.',
     onboardingIncomplete: 'Part of your profile is missing. Finish it and try again.',
+    planPaused: 'Your plan is paused while you are away.',
     quotaExceeded: 'You have used up what your plan allows this fortnight.',
     request: 'We could not complete that action.',
     unsafeContent: 'That content does not meet your dietary restrictions.'

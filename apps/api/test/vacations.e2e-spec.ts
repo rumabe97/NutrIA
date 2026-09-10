@@ -136,6 +136,36 @@ describe('vacations', () => {
     await request(server).delete(`/${PREFIX}/vacations/${id}`).set('Cookie', account.cookie).expect(204);
   });
 
+  it('refuses every change to a plan while its owner is away', async () => {
+    const server = httpServer(app);
+    const today = new Date().toISOString().slice(0, 10);
+    const plan = await activePlan(account);
+    const meal = plan.days[0].meals[0];
+    const detail: Response = await request(server).get(`/${PREFIX}/meal-plans/meals/${meal.id}`).set('Cookie', account.cookie).expect(200);
+    const recipeId = (detail.body as { recipeId: string }).recipeId;
+
+    await request(server).post(`/${PREFIX}/vacations`).set('Cookie', account.cookie).send({ endsOn: addDays(today, 2), startsOn: today }).expect(201);
+
+    // Marking a meal records something that did not happen; a swap spends an
+    // allowance on a fortnight nobody is living; a verdict is the third control
+    // on the same screen. One rule, no exceptions to remember (`0032`).
+    const code = async (response: Response) => (response.body as { code?: string }).code;
+
+    expect(await code(await request(server).patch(`/${PREFIX}/meal-plans/meals/${meal.id}/status`).set('Cookie', account.cookie).send({ status: 'completed' }).expect(409))).toBe('PLAN_PAUSED');
+    expect(await code(await request(server).post(`/${PREFIX}/meal-plans/meals/${meal.id}/swap`).set('Cookie', account.cookie).send({}).expect(409))).toBe('PLAN_PAUSED');
+    expect(await code(await request(server).put(`/${PREFIX}/recipes/${recipeId}/verdict`).set('Cookie', account.cookie).send({ verdict: 'liked' }).expect(409))).toBe('PLAN_PAUSED');
+
+    // Reading is untouched: the plan is paused, not hidden.
+    await request(server).get(`/${PREFIX}/meal-plans/active`).set('Cookie', account.cookie).expect(200);
+
+    const trips: Response = await request(server).get(`/${PREFIX}/vacations`).set('Cookie', account.cookie).expect(200);
+    const running = (trips.body as VacationView[]).find(trip => trip.away);
+
+    await request(server).delete(`/${PREFIX}/vacations/${running?.id}`).set('Cookie', account.cookie).expect(204);
+    // And back to normal the moment the trip ends.
+    await request(server).patch(`/${PREFIX}/meal-plans/meals/${meal.id}/status`).set('Cookie', account.cookie).send({ status: 'planned' }).expect(200);
+  });
+
   it('applies a trip declared before the plan existed, when the plan is made', async () => {
     const stamp = Date.now();
     const traveller = await register(app, `vacation-first-${stamp}@e2e.invalid`);

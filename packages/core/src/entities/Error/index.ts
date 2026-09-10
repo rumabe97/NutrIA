@@ -1,1 +1,1 @@
-export { AccountNotActivatedError, ConflictError, DatabaseOperationError, EmailNotVerifiedError, InputParseError, NotFoundError, OnboardingIncompleteError, QuotaExceededError, SafetyViolationError, UnauthorizedError } from './Error';
+export { AccountNotActivatedError, ConflictError, DatabaseOperationError, EmailNotVerifiedError, InputParseError, NotFoundError, OnboardingIncompleteError, PlanPausedError, QuotaExceededError, SafetyViolationError, UnauthorizedError } from './Error';

@@ -16,6 +16,7 @@ export type ApiErrorCode =
   | 'NETWORK'
   | 'NOT_FOUND'
   | 'ONBOARDING_INCOMPLETE'
+  | 'PLAN_PAUSED'
   | 'QUOTA_EXCEEDED'
   | 'REQUEST_ERROR'
   | 'UNSAFE_CONTENT';
@@ -47,6 +48,7 @@ const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   NETWORK: 'network',
   NOT_FOUND: 'notFound',
   ONBOARDING_INCOMPLETE: 'onboardingIncomplete',
+  PLAN_PAUSED: 'planPaused',
   QUOTA_EXCEEDED: 'quotaExceeded',
   REQUEST_ERROR: 'request',
   UNSAFE_CONTENT: 'unsafeContent'

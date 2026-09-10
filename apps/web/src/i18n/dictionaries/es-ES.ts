@@ -284,6 +284,7 @@ export const esES = {
     network: 'No hemos podido conectar. Comprueba tu conexión.',
     notFound: 'No hemos encontrado lo que buscabas.',
     onboardingIncomplete: 'Nos falta parte de tu perfil. Termínalo y vuelve a intentarlo.',
+    planPaused: 'Tu plan está en pausa mientras estás de vacaciones.',
     quotaExceeded: 'Has agotado lo que permite tu plan esta quincena.',
     request: 'No hemos podido completar la acción.',
     unsafeContent: 'Ese contenido no cumple tus restricciones alimentarias.'

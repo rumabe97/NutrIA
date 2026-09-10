@@ -5,7 +5,9 @@ import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
 import { resolvePreferences, withinTime } from 'core/domain/Preference';
 import { SafetyController } from 'core/controllers/Safety';
-import { NotFoundError } from 'core/entities/Error';
+import { NotFoundError, PlanPausedError } from 'core/entities/Error';
+import { VacationRepository } from '#repositories/Vacation';
+import { isAway } from 'core/domain/Vacation';
 import { toCatalogue } from 'core/entities/Plan';
 import type { CandidateDish, Catalogue, MealSlot, RecipeVerdict } from 'core/entities/Plan';
 import type { Rotation } from 'core/domain/Variety';
@@ -176,6 +178,16 @@ export const RecipeController = {
   /** Replaces a recipe's method and records which prompt wrote it. Ingredients are never touched. */
   /** A verdict on a recipe that does not exist is a 404, like every other denial. */
   async setVerdict(userId: string, recipeId: string, verdict: RecipeVerdict): Promise<void> {
+    /*
+     * Paused too (`0032`). A verdict is harmless on its own, but it is one of
+     * the three things the plan screen offers and the rule people can hold is
+     * "while I am away, my plan does not change". One exception to that is a
+     * rule nobody remembers.
+     */
+    const today = new Date().toISOString().slice(0, 10);
+
+    if ((await VacationRepository.findUpcoming(userId, today)).some(trip => isAway(trip, today))) {throw new PlanPausedError();}
+
     if (!(await RecipeRepository.setVerdict(userId, recipeId, verdict))) {throw new NotFoundError('Recipe not found');}
   },
 

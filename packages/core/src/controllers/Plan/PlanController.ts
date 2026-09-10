@@ -1,10 +1,11 @@
-import { ConflictError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
+import { ConflictError, NotFoundError, PlanPausedError, QuotaExceededError } from 'core/entities/Error';
 import { LIVED_PLAN_STATUSES } from 'core/entities/Plan';
 import { ALLOWANCES, mealSwapStanding, planRedoStanding, redosInFortnight } from 'core/domain/Allowance';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { PlanJobRepository, PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
 import { VacationRepository } from '#repositories/Vacation';
+import { isAway } from 'core/domain/Vacation';
 import { SafetyController } from 'core/controllers/Safety';
 import { alternativesFor } from 'core/domain/Substitution';
 import type { Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
@@ -210,13 +211,13 @@ export const PlanController = {
     return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
   },
 
-  async getShoppingList(userId: string, planId: string) {
+  async getShoppingList(userId: string, planId: string, locale: string | null = null) {
     // Ownership is resolved on the plan; the list hangs off it.
     const plan = await PlanRepository.findById(userId, planId);
 
     if (!plan) {throw new NotFoundError('Plan not found');}
 
-    const list = await PlanRepository.findShoppingList(plan.id);
+    const list = await PlanRepository.findShoppingList(plan.id, await localeFor(userId, locale));
 
     if (!list) {throw new NotFoundError('Shopping list not found');}
 
@@ -269,6 +270,8 @@ export const PlanController = {
    * denial: the past is read-only (0021), and the screen says so.
    */
   async setMealStatus(userId: string, mealId: string, status: MealStatus): Promise<void> {
+    await assertNotPaused(userId);
+
     const result = await PlanRepository.setMealStatus(userId, mealId, status);
 
     if (result === 'missing') {throw new NotFoundError('Meal not found');}
@@ -296,6 +299,7 @@ export const PlanController = {
     change: { readonly locale: string; readonly macros: Macros; readonly newRecipe: RecipeDraft | null; readonly recipeSlug: string; readonly servings: number; readonly source: 'library' | 'model' },
     shoppingItems: readonly ShoppingItemDraft[]
   ): Promise<void> {
+    await assertNotPaused(userId);
     await PlanRepository.swapMeal(userId, mealId, { ...change, limit: ALLOWANCES.mealSwapsPerPlan }, shoppingItems);
   }
 };
@@ -453,6 +457,22 @@ export interface MealDetailView {
  */
 function isoToday(): string {
   return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Refuses anything that would change a plan while its owner is away (`0032`).
+ *
+ * The pause is the whole point: those days hold no meals, so marking one eaten
+ * records something that did not happen, and spending a swap buys a change to a
+ * fortnight nobody is living. The screen greys the controls; this is what makes
+ * that true rather than polite — a disabled button is a suggestion, and the
+ * request behind it is one `curl` away.
+ */
+async function assertNotPaused(userId: string): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  const trips = await VacationRepository.findUpcoming(userId, today);
+
+  if (trips.some(trip => isAway(trip, today))) {throw new PlanPausedError();}
 }
 
 async function localeFor(userId: string, requested: string | null): Promise<string> {

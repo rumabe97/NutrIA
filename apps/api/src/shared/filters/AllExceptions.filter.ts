@@ -8,6 +8,7 @@ import {
   InputParseError,
   NotFoundError,
   OnboardingIncompleteError,
+  PlanPausedError,
   QuotaExceededError,
   SafetyViolationError,
   UnauthorizedError
@@ -90,6 +91,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // Same shape as an unopened account, different fix: this one is undone by
       // the person, from their own inbox.
       return { code: 'EMAIL_NOT_VERIFIED', message: 'Confirma tu correo para continuar.', statusCode: HttpStatus.CONFLICT };
+    }
+
+    if (exception instanceof PlanPausedError) {
+      return { code: 'PLAN_PAUSED', message: 'Tu plan está en pausa mientras estás de vacaciones.', statusCode: HttpStatus.CONFLICT };
     }
 
     if (exception instanceof OnboardingIncompleteError) {

@@ -17,6 +17,7 @@ import { WeightTracker } from 'components/WeightTracker';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
+import { resumesOn } from 'lib/vacation';
 import { serverApi } from 'lib/server-api';
 
 import type { CheckInStatusView } from 'core/controllers/CheckIn';
@@ -29,17 +30,6 @@ import type { WeightView } from 'core/controllers/Progress';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * The day the plan picks up again: the morning **after** the last day away.
- *
- * The shift moves every plan day at or after the trip forward by its whole
- * length (`0032`), so a trip ending on the 11th puts the next meal on the 12th.
- * Showing the last day away as the day you come back is a day of somebody's
- * holiday spent wondering where dinner is.
- */
-function resumesOn(endsOn: string): string {
-  return new Date(Date.parse(`${endsOn}T00:00:00Z`) + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-}
 
 /** Only the fields the dashboard's snapshot needs. The shopping screen reads the rest. */
 type ShoppingListView = { items: readonly { category: string }[] };
