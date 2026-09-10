@@ -42,6 +42,9 @@ export const esES = {
     },
     failureNote: '{count} generaciones han fallado. El código dice si fue la cuota, la clave o el catálogo.',
     failures: 'Fallos',
+    feedbackHandled: 'Marcar como visto',
+    feedbackReopen: 'Volver a abrir',
+    feedbackTitle: 'Buzón ({count} sin ver)',
     funnel: {
       activated: 'Cuenta abierta',
       checkedIn: 'Han hecho el check-in',
@@ -62,6 +65,7 @@ export const esES = {
     manualHint: 'Al confirmar su correo la cuenta queda esperando y te avisamos a ti. La abres tú desde esta lista.',
     noAccounts: 'No hay ninguna cuenta todavía.',
     noActivity: 'Ninguna actividad registrada todavía.',
+    noFeedback: 'Nadie ha escrito todavía.',
     noJobs: 'Ninguna generación todavía.',
     notOpened: 'sin abrir',
     opened: 'cuenta abierta',
@@ -289,6 +293,15 @@ export const esES = {
     quotaExceeded: 'Has agotado lo que permite tu plan esta quincena.',
     request: 'No hemos podido completar la acción.',
     unsafeContent: 'Ese contenido no cumple tus restricciones alimentarias.'
+  },
+
+  feedback: {
+    intro: 'Lo lee una persona: yo. Cuenta lo que te falta, lo que te sobra o lo que no funciona.',
+    kinds: { idea: 'Una idea', other: 'Otra cosa', problem: 'Algo falla' },
+    placeholder: 'Escribe aquí…',
+    send: 'Enviar',
+    thanks: 'Recibido. Gracias por tomarte el rato.',
+    title: '¿Qué mejorarías?'
   },
 
   footer: {

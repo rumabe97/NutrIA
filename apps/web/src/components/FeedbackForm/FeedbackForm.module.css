@@ -1,0 +1,61 @@
+.root {
+  display: grid;
+  gap: var(--space-03);
+}
+
+.title {
+  font-size: var(--font-size-04);
+  margin: 0;
+}
+
+.form {
+  display: grid;
+  gap: var(--space-03);
+  justify-items: start;
+}
+
+.kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+}
+
+.kind input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pill {
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: var(--font-size-02);
+  padding: var(--space-01) var(--space-03);
+}
+
+.kind input:checked + .pill {
+  background: var(--color-selected);
+  border-color: var(--foreground-02);
+}
+
+.kind input:focus-visible + .pill {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.message {
+  background: var(--background-01);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-03);
+  color: inherit;
+  font: inherit;
+  inline-size: 100%;
+  padding: var(--space-03);
+  resize: vertical;
+}
+
+.error {
+  color: var(--color-error-text);
+}

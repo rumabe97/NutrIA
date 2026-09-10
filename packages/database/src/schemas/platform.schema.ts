@@ -5,6 +5,20 @@ import { user } from './auth.schema';
 import { timestamps } from './_columns';
 import { userOwned } from './_utils';
 
+/**
+ * What somebody wrote to the owner (`0037`).
+ *
+ * Their words, addressed to a person, which is what makes this different from
+ * every other row here: the admin screen is allowed to read it because it was
+ * written to be read. `handled_at` is what makes it an inbox rather than a
+ * growing wall — a message that has been dealt with stops asking for attention.
+ */
+export const feedback = userOwned('feedback', {
+  handledAt: timestamp({ withTimezone: true }),
+  kind: text().notNull().default('other'),
+  message: text().notNull()
+});
+
 export const notifications = userOwned('notifications', {
   body: text(),
   channel: notificationChannel().notNull().default('in_app'),

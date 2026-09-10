@@ -8,6 +8,7 @@ import { AdminModule } from './modules/admin/admin.module.js';
 import { AiModule } from './modules/ai/ai.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CheckInsModule } from './modules/check-ins/check-ins.module.js';
+import { FeedbackModule } from './modules/feedback/feedback.module.js';
 import { HealthDataModule } from './modules/health-data/health-data.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { MealPlansModule } from './modules/meal-plans/meal-plans.module.js';
@@ -39,6 +40,7 @@ import { LoggingModule } from './shared/logging/index.js';
     AiModule,
     AuthModule,
     CheckInsModule,
+    FeedbackModule,
     HealthDataModule,
     HealthModule,
     MealPlansModule,

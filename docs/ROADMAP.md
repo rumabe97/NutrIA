@@ -95,7 +95,7 @@ onboarding, the profile, and one column.
 The onboarding question stops being "how many meals a day" and becomes "which of
 these do you eat, and how big is each" — which is also a better question.
 
-### 3. A box for what people think
+### 3. A box for what people think — done (`0037`)
 
 Cheap, and it starts collecting signal the day it ships. A table, a form, a section
 on `/admin` next to the funnel. It is listed third rather than last because
