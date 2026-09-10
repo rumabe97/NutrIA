@@ -16,6 +16,12 @@ import type { AccountView } from 'core/controllers/User';
 
 interface AccountListProps {
   accounts: readonly AccountView[];
+  /**
+   * Whether the paid tier exists today. With the switch off the tier control is
+   * not drawn at all: a button that moves an account to a tier that grants
+   * nothing is a button that lies about what it did.
+   */
+  premium: boolean;
 }
 
 /**
@@ -30,7 +36,7 @@ interface AccountListProps {
  * Address, date and role, and nothing else. What somebody eats is not on this
  * page and never will be (`0028`).
  */
-export function AccountList({ accounts }: AccountListProps) {
+export function AccountList({ accounts, premium }: AccountListProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -48,6 +54,24 @@ export function AccountList({ accounts }: AccountListProps) {
 
     try {
       await api(`/admin/accounts/${id}/activate`, { method: 'POST' });
+      router.refresh();
+    } catch (caught) {
+      setRows(previous);
+      setError(messageFor(caught, dictionary));
+    } finally {
+      setPending(undefined);
+    }
+  }
+
+  async function setTier(id: string, tier: 'free' | 'premium') {
+    const previous = rows;
+
+    setPending(id);
+    setError(undefined);
+    setRows(list => list.map(account => (account.id === id ? { ...account, tier } : account)));
+
+    try {
+      await api(`/admin/accounts/${id}/tier`, { body: { tier }, method: 'PATCH' });
       router.refresh();
     } catch (caught) {
       setRows(previous);
@@ -79,6 +103,11 @@ export function AccountList({ accounts }: AccountListProps) {
                 <span className={styles.chip} data-on={account.activated}>
                   {account.activated ? t.opened : t.notOpened}
                 </span>
+                {premium && account.tier === 'premium' ? (
+                  <span className={styles.chip} data-on={true}>
+                    {t.tierPremium}
+                  </span>
+                ) : null}
                 <Text as="span" className={styles.role} size="xs">
                   {formatDate(account.createdAt.slice(0, 10), locale, { day: 'numeric', month: 'short' })}
                   {account.role === 'admin' ? ` · ${t.roleAdmin}` : ''}
@@ -86,18 +115,33 @@ export function AccountList({ accounts }: AccountListProps) {
               </span>
             </span>
 
-            {account.activated ? null : (
-              <Button
-                aria-label={interpolate(t.activateFor, { email: account.email })}
-                disabled={pending !== undefined}
-                loading={pending === account.id}
-                onClick={() => void activate(account.id)}
-                size="sm"
-                type="button"
-              >
-                {t.activate}
-              </Button>
-            )}
+            <span className={styles.actions}>
+              {account.activated ? null : (
+                <Button
+                  aria-label={interpolate(t.activateFor, { email: account.email })}
+                  disabled={pending !== undefined}
+                  loading={pending === account.id}
+                  onClick={() => void activate(account.id)}
+                  size="sm"
+                  type="button"
+                >
+                  {t.activate}
+                </Button>
+              )}
+
+              {premium ? (
+                <Button
+                  aria-label={interpolate(account.tier === 'premium' ? t.makeFreeFor : t.makePremiumFor, { email: account.email })}
+                  disabled={pending !== undefined}
+                  onClick={() => void setTier(account.id, account.tier === 'premium' ? 'free' : 'premium')}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  {account.tier === 'premium' ? t.makeFree : t.makePremium}
+                </Button>
+              ) : null}
+            </span>
           </li>
         ))}
       </ul>

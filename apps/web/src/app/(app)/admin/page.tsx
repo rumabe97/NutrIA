@@ -8,8 +8,8 @@ import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { AccountList } from 'components/AccountList';
-import { ActivationSwitch } from 'components/ActivationSwitch';
 import { FeedbackInbox } from 'components/FeedbackInbox';
+import { FlagSwitch } from 'components/FlagSwitch';
 import { Pager } from 'components/Pager';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
@@ -107,13 +107,31 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       <section className={styles.section}>
         <h2 className={styles.subtitle}>{t.activationTitle}</h2>
-        <ActivationSwitch automatic={settings?.automaticActivation ?? true} />
+        <FlagSwitch
+          enabled={settings?.flags?.automaticActivation ?? true}
+          flag="automaticActivation"
+          label={t.automaticActivation}
+          offHint={t.manualHint}
+          onHint={t.automaticHint}
+        />
+      </section>
+
+      {/* The paid tier: whether it exists at all. Granting it per account is on the rows below. */}
+      <section className={styles.section}>
+        <h2 className={styles.subtitle}>{t.premiumTitle}</h2>
+        <FlagSwitch
+          enabled={settings?.flags?.premium ?? false}
+          flag="premium"
+          label={t.premiumLabel}
+          offHint={t.premiumOffHint}
+          onHint={t.premiumHint}
+        />
       </section>
 
       {/* Accounts next: the only thing on this page somebody is waiting on. */}
       <section className={styles.section} id="cuentas">
         <h2 className={styles.subtitle}>{t.accountsTitle}</h2>
-        <AccountList accounts={accounts?.rows ?? []} />
+        <AccountList accounts={accounts?.rows ?? []} premium={settings?.flags?.premium ?? false} />
         {accounts ? (
           <Pager
             labels={{ next: t.pagerNext, of: t.pagerOf, previous: t.pagerPrevious }}

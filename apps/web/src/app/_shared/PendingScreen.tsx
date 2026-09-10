@@ -50,7 +50,7 @@ export async function PendingScreen({ locale }: Readonly<{ locale: Locale }>) {
    * confirming will open it (0031). Unknown counts as manual — promising
    * somebody they are one click away when we could not ask is the worse lie.
    */
-  const oneClickAway = user.activated || settings?.automaticActivation === true;
+  const oneClickAway = user.activated || settings?.flags?.automaticActivation === true;
   const body = user.emailVerified ? t.pendingBody : oneClickAway ? t.pendingConfirmBody : t.pendingConfirmWaitBody;
 
   return (

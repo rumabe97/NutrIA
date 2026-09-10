@@ -1,6 +1,6 @@
 import type { AccountView, Paged } from 'core/controllers/User';
 
-/** One page of accounts: address, dates and role, and nothing else (`0028`). */
+/** One page of accounts: address, dates, role and tier, and nothing else (`0028`). */
 export type AccountsDto = Paged<AccountView>;
 
 /**
@@ -10,4 +10,10 @@ export type AccountsDto = Paged<AccountView>;
  */
 export interface ActivatedAccountDto {
   readonly email: string;
+}
+
+/** The address of the account whose tier moved, and where it moved to. */
+export interface TierChangedDto {
+  readonly email: string;
+  readonly tier: 'free' | 'premium';
 }

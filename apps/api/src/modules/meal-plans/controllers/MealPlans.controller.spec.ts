@@ -57,7 +57,8 @@ describe('MealPlansController', () => {
       .spyOn(PlanController, 'allowances')
       .mockResolvedValue({
         mealSwaps: { allowed: true, limit: 5, remaining: 5, used: 0 },
-        planRedo: { allowed: true, kind: 'new_fortnight', limit: 1, nextAt: null, used: 0 }
+        planRedo: { allowed: true, kind: 'new_fortnight', limit: 1, nextAt: null, used: 0 },
+        tier: 'free'
       });
 
     await expect(controller.allowances(ALICE)).resolves.toMatchObject({ mealSwaps: { remaining: 5 } });

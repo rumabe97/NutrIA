@@ -6,7 +6,7 @@ import { user } from 'database/schema/auth';
 
 import { DatabaseOperationError } from 'core/entities/Error';
 import { userSchema } from 'core/entities/User';
-import type { User } from 'core/entities/User';
+import type { User, UserTier } from 'core/entities/User';
 
 /**
  * Reads the account row. Writes are Better Auth's job — it owns `user`,
@@ -95,6 +95,7 @@ export const UserRepository = {
       readonly email: string;
       readonly emailVerified: boolean;
       readonly role: 'admin' | 'user';
+      readonly tier: UserTier;
     }[];
     readonly total: number;
   }> {
@@ -108,7 +109,8 @@ export const UserRepository = {
             createdAt: user.createdAt,
             email: user.email,
             emailVerified: user.emailVerified,
-            role: user.role
+            role: user.role,
+            tier: user.tier
           })
           .from(user)
           .orderBy(desc(user.createdAt))
@@ -160,6 +162,42 @@ export const UserRepository = {
         .returning({ email: user.email });
 
       return rows.length > 0;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Moves an account between tiers (`0042`).
+   *
+   * The owner's decision, like activation, and the second write this repository
+   * makes to a table Better Auth owns. Returns the address moved, or null when
+   * there was no such account — the caller turns that into the same 404 every
+   * other denial gives.
+   */
+  async setTier(id: string, tier: UserTier): Promise<{ readonly email: string } | null> {
+    try {
+      const [row] = await database().update(user).set({ tier, updatedAt: new Date() }).where(eq(user.id, id)).returning({ email: user.email });
+
+      return row ?? null;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * What this account may spend, as the database has it.
+   *
+   * One column rather than the whole row: this is read on the path that decides
+   * whether a model call is allowed, and nothing else about the person matters
+   * there. An account that does not exist reads as `free`, which is the answer
+   * that grants the least.
+   */
+  async tierOf(id: string): Promise<UserTier> {
+    try {
+      const [row] = await database().select({ tier: user.tier }).from(user).where(eq(user.id, id)).limit(1);
+
+      return row?.tier ?? 'free';
     } catch (error: unknown) {
       throw wrap(error);
     }

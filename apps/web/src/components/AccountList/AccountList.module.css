@@ -63,3 +63,10 @@
 .role {
   color: var(--foreground-02);
 }
+
+/* The buttons on a row, side by side and wrapping before the row does. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+}

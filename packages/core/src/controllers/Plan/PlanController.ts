@@ -1,15 +1,17 @@
 import { ConflictError, MealInFutureError, NotFoundError, PlanPausedError, QuotaExceededError } from 'core/entities/Error';
 import { LIVED_PLAN_STATUSES } from 'core/entities/Plan';
-import { ALLOWANCES, mealSwapStanding, planRedoStanding, redosInFortnight } from 'core/domain/Allowance';
+import { allowancesFor, mealSwapStanding, planRedoStanding, redosInFortnight } from 'core/domain/Allowance';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { PlanJobRepository, PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
+import { UserRepository } from '#repositories/User';
 import { VacationRepository } from '#repositories/Vacation';
 import { isAway } from 'core/domain/Vacation';
 import { SafetyController } from 'core/controllers/Safety';
+import { SettingsController } from 'core/controllers/Settings';
 import { alternativesFor } from 'core/domain/Substitution';
 import type { Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
-import type { MealSwapStanding, PlanRedoStanding } from 'core/domain/Allowance';
+import type { MealSwapStanding, PlanRedoStanding, Tier } from 'core/domain/Allowance';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 
 // --- Presenters ---------------------------------------------------------------
@@ -93,6 +95,14 @@ export interface ShoppingListView {
 export interface AllowancesView {
   mealSwaps: MealSwapStanding;
   planRedo: PlanRedoStanding;
+  /**
+   * Which allowances these are — the tier as it applies right now, with the
+   * `premium` switch already taken into account. It is here so a screen can say
+   * *why* the numbers are what they are without asking a second question, and
+   * so that with the switch off every account reads `free` and no screen has a
+   * reason to mention paying.
+   */
+  tier: Tier;
 }
 
 /**
@@ -152,13 +162,18 @@ function presentMeal({ items, meal, recipe }: MealRow): MealView {
 
 export const PlanController = {
   async allowances(userId: string): Promise<AllowancesView> {
-    const [active, chain] = await Promise.all([PlanRepository.findActive(userId), PlanRepository.findChain(userId)]);
+    const [active, chain, tier] = await Promise.all([
+      PlanRepository.findActive(userId),
+      PlanRepository.findChain(userId),
+      PlanController.tierOf(userId)
+    ]);
     const fromActive = active ? chain.filter(plan => plan.version <= active.version) : [];
     const swaps = active ? await PlanRepository.countSwaps(active.id) : 0;
 
     return {
-      mealSwaps: mealSwapStanding(swaps),
-      planRedo: planRedoStanding(active ? { endDate: active.endDate } : undefined, redosInFortnight(fromActive), isoToday())
+      mealSwaps: mealSwapStanding(swaps, tier),
+      planRedo: planRedoStanding(active ? { endDate: active.endDate } : undefined, redosInFortnight(fromActive), isoToday(), tier),
+      tier
     };
   },
 
@@ -360,7 +375,34 @@ export const PlanController = {
     shoppingItems: readonly ShoppingItemDraft[]
   ): Promise<void> {
     await assertNotPaused(userId);
-    await PlanRepository.swapMeal(userId, mealId, { ...change, limit: ALLOWANCES.mealSwapsPerPlan }, shoppingItems);
+    await PlanRepository.swapMeal(
+      userId,
+      mealId,
+      { ...change, limit: allowancesFor(await PlanController.tierOf(userId)).mealSwapsPerPlan },
+      shoppingItems
+    );
+  },
+
+  /**
+   * What this account may spend, once the switch has had its say.
+   *
+   * The flag wins over the column, in that order and never the other way: with
+   * `premium` off every account is on the free allowances no matter what its row
+   * says, so turning the tier off is one switch rather than a migration over
+   * everybody who was ever granted it. The column is what the flag then reads.
+   *
+   * Never taken from the caller. A tier decides whether somebody may spend a
+   * model call, so it is read here, from the database, on every request that
+   * asks — the same rule as every other authorisation in this codebase.
+   */
+  async tierOf(userId: string): Promise<Tier> {
+    const { premium } = await SettingsController.flags();
+
+    if (!premium) {
+      return 'free';
+    }
+
+    return UserRepository.tierOf(userId);
   }
 };
 

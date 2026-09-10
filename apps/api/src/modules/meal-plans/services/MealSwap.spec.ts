@@ -105,7 +105,8 @@ function harness(
     .spyOn(PlanController, 'allowances')
     .mockResolvedValue({
       mealSwaps: { allowed: (options.remaining ?? 5) > 0, limit: 5, remaining: options.remaining ?? 5, used: 5 - (options.remaining ?? 5) },
-      planRedo: { allowed: true, kind: 'redo', limit: 1, nextAt: null, used: 0 }
+      planRedo: { allowed: true, kind: 'redo', limit: 1, nextAt: null, used: 0 },
+      tier: 'free'
     });
   jest
     .spyOn(RecipeController, 'generationContext')
