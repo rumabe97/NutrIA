@@ -1,3 +1,7 @@
+/* Styles only, on purpose: the auth pages share this stylesheet rather than a
+   component, because each form's fields and submit behaviour differ enough that
+   a shared component would be a prop soup. */
+
 .form {
   display: grid;
   gap: var(--space-05);
