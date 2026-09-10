@@ -95,11 +95,17 @@ export const profileSchema = z.object({
   locale: z.string(),
   sex: z.enum(SEXES).nullable(),
   timezone: z.string(),
+  tourSeenAt: z.date().nullable(),
   updatedAt: z.date(),
   userId: z.string().min(1)
 });
 
 export type Profile = z.infer<typeof profileSchema>;
+
+/** Whether somebody has been shown the tour, or wants to see it again (`0038`). */
+export const setTourSeenSchema = z.object({ seen: z.boolean() });
+
+export type SetTourSeen = z.infer<typeof setTourSeenSchema>;
 
 /** What a user may send. `userId` is never accepted from input — the session decides it. */
 export const updateProfileSchema = z.object({

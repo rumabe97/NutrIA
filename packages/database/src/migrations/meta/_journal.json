@@ -148,6 +148,13 @@
       "when": 1789026779526,
       "tag": "0020_the_inbox",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1789027672457,
+      "tag": "0021_the_tour",
+      "breakpoints": true
     }
   ]
 }

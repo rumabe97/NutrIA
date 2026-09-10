@@ -13,6 +13,7 @@ import { NextMeal } from 'components/NextMeal';
 import { PlanProgress } from 'components/PlanProgress';
 import { ShoppingSnapshot } from 'components/ShoppingSnapshot';
 import { TargetProgress } from 'components/TargetProgress';
+import { Tour } from 'components/Tour';
 import { WeightTracker } from 'components/WeightTracker';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
@@ -79,6 +80,12 @@ export default async function DashboardPage() {
 
   return (
     <Fragment>
+      {/* Shown once, here, to somebody who has just arrived — and only here: a
+          tour that can open on any screen is a tour that interrupts the
+          shopping list. A missing profile counts as seen, so a failed request
+          never turns into a nag (`0038`). */}
+      <Tour seen={profile?.profile?.tourSeen ?? true} />
+
       <h1 className={styles.greeting}>{hello}</h1>
 
       <div className={styles.layout}>

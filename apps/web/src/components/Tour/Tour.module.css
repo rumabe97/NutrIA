@@ -1,0 +1,73 @@
+/*
+ * On the dashboard the component renders nothing but the dialog, and a section
+ * with no box of its own must not take a row in the grid it sits in.
+ */
+.headless {
+  display: contents;
+}
+
+.replay {
+  display: grid;
+  gap: var(--space-03);
+  justify-items: start;
+}
+
+.replayTitle {
+  font-size: var(--font-size-04);
+  margin: 0;
+}
+
+.dialog {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  max-inline-size: min(30rem, calc(100vw - var(--space-05)));
+  padding: 0;
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+.panel {
+  background-color: var(--surface-card);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-05);
+  box-shadow:
+    inset 0 1px 0 var(--card-highlight),
+    var(--card-shadow);
+  display: grid;
+  gap: var(--space-03);
+  padding: var(--card-padding-lg);
+}
+
+.title {
+  font-size: var(--font-size-06);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.015em;
+  margin: 0;
+}
+
+.link {
+  color: var(--color-brand-11);
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
+  justify-self: start;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-02);
+  justify-content: flex-end;
+  margin-top: var(--space-02);
+}
+
+/* Pinned to the far end, away from the buttons that continue. */
+.skip {
+  margin-inline-end: auto;
+}

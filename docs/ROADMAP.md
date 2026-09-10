@@ -101,15 +101,19 @@ Cheap, and it starts collecting signal the day it ships. A table, a form, a sect
 on `/admin` next to the funnel. It is listed third rather than last because
 everything after it is a guess until somebody writes in.
 
-### 4. A tour of what is already here
+### 4. A tour of what is already here — done (`0038`)
 
 The owner's own diagnosis: people do not know what the product does. Shown once to
 everyone — existing accounts included — and replayable from the profile, which means
 a `tour_seen_at` rather than browser storage: a tour that reappears on a second
 device is worse than one nobody sees.
 
-Worth doing **after** the meal shape, so the tour covers the product as it will be
-rather than as it was.
+Five stops, and the choice of which five is the whole feature: the plan exists, a
+dish can be changed and you can say how, the meals of a day can be shaped (`0036`,
+which is why this came after it), a trip pauses the fortnight, and the check-in is
+what makes the next one fit better. The shopping list and the progress chart are
+out — they are in the navigation bar with their own names, and a tour that reads
+out the menu is one nobody finishes.
 
 ### 5. Premium
 
