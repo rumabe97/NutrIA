@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
 import { addDays } from 'core/domain/Vacation';
+import { loadedTargets } from 'core/domain/Event';
 
 import { completeOnboarding, createApp, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
 
@@ -16,9 +17,9 @@ import type { Response } from 'supertest';
  * (`0043`).
  *
  * The assertion that matters is on real plan rows: the days that eat for the
- * event carry its name and higher carbohydrate targets than the plan's, and
- * every other day carries neither. Then the two refusals, and that a
- * stranger's event is a 404.
+ * event carry its name and exactly the targets `core/domain/Event` derives from
+ * the plan's own strategy, and every other day carries neither. Then the two
+ * refusals, and that a stranger's event is a 404.
  *
  * Requires a real database and a seeded catalogue — see ./README.md.
  */
@@ -27,6 +28,12 @@ describe('events', () => {
   let account: Account;
   let stranger: Account;
   let today: string;
+
+  /** The shape the person chooses. Its size is the code's, which is what the plan test checks. */
+  const shape = { carbs: 'up', daysBefore: 2, fat: 'down', protein: 'same' } as const;
+
+  const refusal = (response: Response): { code?: string; fieldErrors?: Record<string, string[]> } =>
+    response.body as { code?: string; fieldErrors?: Record<string, string[]> };
 
   beforeAll(async () => {
     app = await createApp(new ScriptedAiClient(POOL));
@@ -48,10 +55,17 @@ describe('events', () => {
     const response: Response = await request(httpServer(app))
       .post(`/${PREFIX}/events`)
       .set('Cookie', account.cookie)
-      .send({ carbs: 'up', daysBefore: 2, fat: 'down', name: 'Media maratón', on, protein: 'same' })
+      .send({ ...shape, name: 'Media maratón', on })
       .expect(201);
 
-    expect(response.body as EventView).toMatchObject({ loadedDates: [addDays(on, -2), addDays(on, -1)], loading: false, name: 'Media maratón', on });
+    // The two days before it, not the day itself; and nothing has begun yet.
+    expect(response.body as EventView).toMatchObject({
+      ...shape,
+      loadedDates: [addDays(on, -2), addDays(on, -1)],
+      loading: false,
+      name: 'Media maratón',
+      on
+    });
   });
 
   it('builds the days before it to their own targets, and stamps the name on them', async () => {
@@ -76,6 +90,9 @@ describe('events', () => {
       expect(day.loadedFor).toBe('Media maratón');
       expect(day.targets?.carbsG).toBeGreaterThan(strategy.carbsG);
       expect(day.targets?.fatG).toBeLessThan(strategy.fatG);
+      // Not merely up and down: exactly the step the domain chose, from the
+      // plan's own strategy. The person picks the direction, the code the size.
+      expect(day.targets).toEqual(loadedTargets(strategy, shape));
     }
 
     // The event day itself and every ordinary day are built to the plan's targets.
@@ -85,34 +102,57 @@ describe('events', () => {
   });
 
   it('refuses a day that would eat for two events, with 409', async () => {
-    await request(httpServer(app))
+    const refused: Response = await request(httpServer(app))
       .post(`/${PREFIX}/events`)
       .set('Cookie', account.cookie)
       .send({ carbs: 'up', daysBefore: 1, fat: 'same', name: 'Partido', on: addDays(today, 4), protein: 'same' })
       .expect(409);
+
+    // A 409 for this reason, not the account's or the plan's.
+    expect(refusal(refused).code).toBe('CONFLICT');
   });
 
   it('refuses a load that has already begun, with 422', async () => {
-    await request(httpServer(app))
+    const refused: Response = await request(httpServer(app))
       .post(`/${PREFIX}/events`)
       .set('Cookie', account.cookie)
       .send({ carbs: 'up', daysBefore: 3, fat: 'same', name: 'Ayer', on: addDays(today, 1), protein: 'same' })
       .expect(422);
+
+    // The past is the problem, and the refusal names the date field.
+    expect(refusal(refused).code).toBe('INVALID_INPUT');
+    expect(refusal(refused).fieldErrors?.on).toBeDefined();
   });
 
   it('refuses an event where nothing moves, with 422', async () => {
-    await request(httpServer(app))
+    const refused: Response = await request(httpServer(app))
       .post(`/${PREFIX}/events`)
       .set('Cookie', account.cookie)
       .send({ carbs: 'same', daysBefore: 1, fat: 'same', name: 'Nada', on: addDays(today, 20), protein: 'same' })
       .expect(422);
+
+    expect(refusal(refused).code).toBe('INVALID_INPUT');
+    expect(refusal(refused).fieldErrors?.carbs).toBeDefined();
   });
 
   it("answers 404 to a stranger removing somebody else's event", async () => {
-    const mine: Response = await request(httpServer(app)).get(`/${PREFIX}/events`).set('Cookie', account.cookie).expect(200);
-    const [event] = mine.body as EventView[];
+    const server = httpServer(app);
+    const mine: Response = await request(server).get(`/${PREFIX}/events`).set('Cookie', account.cookie).expect(200);
+    const events = mine.body as EventView[];
 
-    await request(httpServer(app)).delete(`/${PREFIX}/events/${event?.id ?? 'none'}`).set('Cookie', stranger.cookie).expect(404);
-    await request(httpServer(app)).delete(`/${PREFIX}/events/${event?.id ?? 'none'}`).set('Cookie', account.cookie).expect(204);
+    // Only the one that was accepted exists; the refused ones left no row.
+    expect(events).toHaveLength(1);
+
+    const [event] = events;
+    const theirs: Response = await request(server).get(`/${PREFIX}/events`).set('Cookie', stranger.cookie).expect(200);
+
+    expect(theirs.body).toEqual([]);
+
+    await request(server).delete(`/${PREFIX}/events/${event.id}`).set('Cookie', stranger.cookie).expect(404);
+    await request(server).delete(`/${PREFIX}/events/${event.id}`).set('Cookie', account.cookie).expect(204);
+
+    const after: Response = await request(server).get(`/${PREFIX}/events`).set('Cookie', account.cookie).expect(200);
+
+    expect(after.body).toEqual([]);
   });
 });
