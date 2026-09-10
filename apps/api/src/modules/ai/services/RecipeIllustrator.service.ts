@@ -3,8 +3,8 @@ import sharp from 'sharp';
 
 import { RecipeController } from 'core/controllers/Recipe';
 
-import { ImageClient } from './clients/ImageClient.js';
-import { isQuotaExhausted } from './clients/quota.js';
+import { ImageClient } from '../clients/ImageClient.js';
+import { isQuotaExhausted } from '../clients/quota.js';
 
 /** Bumped when the wording changes; stored with each image so a better prompt can tell its own rows apart. */
 export const ILLUSTRATION_PROMPT_VERSION = '1.0.0';

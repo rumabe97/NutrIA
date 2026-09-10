@@ -2,13 +2,13 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { RecipeController } from 'core/controllers/Recipe';
 
-import { buildRewritePrompt } from './RewritePrompt.js';
-import { PROMPT_VERSION } from './PoolPrompt.js';
+import { buildRewritePrompt } from '../prompts/RewritePrompt.js';
+import { PROMPT_VERSION } from '../prompts/PoolPrompt.js';
 import { RecipeRewriter } from './RecipeRewriter.service.js';
-import { AiClient } from './clients/AiClient.js';
+import { AiClient } from '../clients/AiClient.js';
 
-import type { AiRequest, AiResponse } from './clients/AiClient.js';
-import type { Env } from '../../config/index.js';
+import type { AiRequest, AiResponse } from '../clients/AiClient.js';
+import type { Env } from '../../../config/index.js';
 import type { UndocumentedRecipe } from 'core/controllers/Recipe';
 
 const ON = { AI_REWRITE_STEPS: true } as Env;

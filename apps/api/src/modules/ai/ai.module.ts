@@ -5,9 +5,7 @@ import { AI_IMAGE_MODEL, AI_MODEL, resolveImageModel, resolveModel } from './ai.
 import { AiClient } from './clients/AiClient.js';
 import { ImageClient } from './clients/ImageClient.js';
 import { ProviderImageClient } from './clients/ProviderImageClient.js';
-import { PoolBuilder } from './PoolBuilder.service.js';
-import { RecipeIllustrator } from './RecipeIllustrator.service.js';
-import { RecipeRewriter } from './RecipeRewriter.service.js';
+import { PoolBuilder, RecipeIllustrator, RecipeRewriter } from './services/index.js';
 import { StructuredAiClient } from './clients/StructuredAiClient.js';
 
 import type { Env } from '../../config/index.js';

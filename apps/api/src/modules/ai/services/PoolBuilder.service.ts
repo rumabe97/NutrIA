@@ -4,14 +4,14 @@ import { dishSafety, findSafetyViolations } from 'core/domain/Safety';
 import { withinTime } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
-import { AiClient } from './clients/AiClient.js';
-import { buildPoolPrompt, languageName, POOL_SYSTEM_PROMPT, PROMPT_VERSION } from './PoolPrompt.js';
-import { generatedDishSchema, wirePoolSchema } from './pool.schema.js';
+import { AiClient } from '../clients/AiClient.js';
+import { buildPoolPrompt, languageName, POOL_SYSTEM_PROMPT, PROMPT_VERSION } from '../prompts/PoolPrompt.js';
+import { generatedDishSchema, wirePoolSchema } from '../prompts/pool.schema.js';
 
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
-import type { GeneratedDish } from './pool.schema.js';
+import type { GeneratedDish } from '../prompts/pool.schema.js';
 import type { GenerationContext } from 'core/controllers/Recipe';
-import type { PromptContext } from './PoolPrompt.js';
+import type { PromptContext } from '../prompts/PoolPrompt.js';
 
 /**
  * Re-exported from `core/domain/Variety`, where it is defined once: the pool

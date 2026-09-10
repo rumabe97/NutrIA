@@ -2,15 +2,15 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { RecipeController } from 'core/controllers/Recipe';
 
-import { ENV } from '../../config/index.js';
+import { ENV } from '../../../config/index.js';
 
-import { AiClient } from './clients/AiClient.js';
-import { buildRewritePrompt } from './RewritePrompt.js';
-import { isQuotaExhausted } from './clients/quota.js';
-import { languageName, PROMPT_VERSION } from './PoolPrompt.js';
-import { rewrittenStepsSchema, wireRewriteSchema } from './rewrite.schema.js';
+import { AiClient } from '../clients/AiClient.js';
+import { buildRewritePrompt } from '../prompts/RewritePrompt.js';
+import { isQuotaExhausted } from '../clients/quota.js';
+import { languageName, PROMPT_VERSION } from '../prompts/PoolPrompt.js';
+import { rewrittenStepsSchema, wireRewriteSchema } from '../prompts/rewrite.schema.js';
 
-import type { Env } from '../../config/index.js';
+import type { Env } from '../../../config/index.js';
 import type { UndocumentedRecipe } from 'core/controllers/Recipe';
 
 const SYSTEM = 'You rewrite cooking methods. You never change the dish, its ingredients or its timings — only how clearly the method is written.';

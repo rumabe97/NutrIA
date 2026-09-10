@@ -8,7 +8,7 @@ import { PlanJobRunner } from './PlanJobRunner.service.js';
 
 import type { ErrorReporter } from '../../../shared/observability/index.js';
 import type { PlanGenerationService } from './PlanGeneration.service.js';
-import type { RecipeIllustrator } from '../../ai/RecipeIllustrator.service.js';
+import type { RecipeIllustrator } from '../../ai/services/RecipeIllustrator.service.js';
 
 const JOB = { id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null };
 

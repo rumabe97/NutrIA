@@ -14,7 +14,7 @@ import { VARIETY_RULES } from 'core/domain/Variety';
 import { PlanGenerationService, STEPS } from './PlanGeneration.service.js';
 
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
-import type { PoolBuilder, PoolResult } from '../../ai/PoolBuilder.service.js';
+import type { PoolBuilder, PoolResult } from '../../ai/services/PoolBuilder.service.js';
 import { shapeFor } from 'core/domain/MealShape';
 
 const GLUTEN = 'allergen-gluten';

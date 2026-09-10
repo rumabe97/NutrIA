@@ -1,11 +1,11 @@
-import { PROMPT_VERSION } from '../../ai/PoolPrompt.js';
+import { PROMPT_VERSION } from '../../ai/prompts/PoolPrompt.js';
 
 import type { CandidateDish, RecipeDraft } from 'core/entities/Plan';
 import type { CheckInForGeneration } from 'core/controllers/CheckIn';
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { GenerationContext } from 'core/controllers/Recipe';
 import type { NutritionTargets } from 'core/entities/Nutrition';
-import type { PromptContext } from '../../ai/PoolPrompt.js';
+import type { PromptContext } from '../../ai/prompts/PoolPrompt.js';
 
 /** A dish the model composed, as the repository stores it. */
 export function toRecipeDraft(dish: CandidateDish, context: GenerationContext): RecipeDraft {

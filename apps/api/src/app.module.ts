@@ -5,7 +5,7 @@ import { ConfigModule } from '@nestjs/config';
 import { envProvider, validateEnv } from './config/index.js';
 import { DatabaseModule } from './database/database.module.js';
 import { AdminModule } from './modules/admin/index.js';
-import { AiModule } from './modules/ai/ai.module.js';
+import { AiModule } from './modules/ai/index.js';
 import { AuthModule } from './modules/auth/index.js';
 import { CheckInsModule } from './modules/check-ins/index.js';
 import { FeedbackModule } from './modules/feedback/index.js';

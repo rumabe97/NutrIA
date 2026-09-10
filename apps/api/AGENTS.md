@@ -14,10 +14,36 @@ apps/api/src/
   app.module.ts      — root module; registers the global guards, filter, interceptor
   config/            — Env.validation.ts (boot-time contract), swagger.config.ts
   database/          — DatabaseModule + the health indicator
-  shared/            — decorators/ guards/ filters/ interceptors/ pipes/
+  shared/            — decorators/ dto/ guards/ filters/ interceptors/ pipes/
+                       plus logging/ observability/ services/
   modules/           — auth, users, profiles, onboarding, safety, health, email, …
 test/                — e2e specs; need a real database (see test/README.md)
 ```
+
+**`shared/index.ts` re-exports only what a controller writes** — decorators, DTO
+helpers, pipes. Not the filter, which would pull Sentry, and not the guards, which
+would pull Better Auth, into the import graph of every module and every unit spec
+that touches one. `app.module.ts` reaches those through their own barrels, and
+nothing inside `shared/` imports the top barrel.
+
+### Every module has the same parts
+
+Per [`0039`](../../docs/decisions/0039-a-route-names-what-it-takes-and-what-it-answers.md).
+A module creates only the parts it has — `settings` takes no body, `ai` and `email`
+have no routes — but never a different part under a different name.
+
+```
+modules/<name>/
+  <name>.module.ts   wiring, and nothing else
+  controllers/       HTTP: routing, guards, validation, status codes
+  services/          orchestration — the only caller of packages/core in this app
+  dto/in/            one declared input per route body, naming a core Zod schema
+  dto/out/           one declared answer per route
+  index.ts           the module's public surface — what app.module.ts imports
+```
+
+Two modules carry a folder beyond those five, because they have a concern the five
+do not name: `ai/clients/` and `ai/prompts/`, and `email/templates/`.
 
 ## Layering — what belongs here and what does not
 
@@ -30,7 +56,18 @@ packages/core      ← controllers/ (business rules) → repositories/ (Drizzle)
 packages/database  ← schemas + the Neon client
 ```
 
-A Nest controller method should read as: take `@CurrentUser()`, validate the body, call one `packages/core` controller, return. **If a route method contains a business rule, it is in the wrong file.**
+A Nest controller method should read as: take `@CurrentUser()`, bind the body with
+`@ZodBody(SomeDto)`, call one method on its own service, return. **If a route method
+contains a business rule, it is in the wrong file** — and so is a second call to
+`packages/core`, which belongs in the service.
+
+**The controller does not call `packages/core`; its service does.** Most services are
+one line, and that is the point: the seam exists before the day something needs to go
+in it, rather than being cut into a handler under pressure.
+
+Business rules stay in `packages/core`. The test is: if the logic needs NestJS or an
+I/O provider it is a service here, and if it does not it is a core controller. An API
+service that grew a rule is a bug.
 
 Nest controllers never import `database` or `drizzle-orm`. Data access lives in `packages/core/repositories`.
 
@@ -53,7 +90,7 @@ Not style preferences. Changing one is a security regression.
 - **The session is re-read on every request.** Never cache authorisation. A logout or a deleted account must take effect immediately, not at token expiry.
 - **Completeness of a profile is the API's judgement, not the client's.** `RequiresOnboardingGuard` is global and opted into per route with `@RequiresOnboarding()`; the meal-plan controller carries it on the class. Opt-in, not deny-by-default, because most routes are how someone *finishes* onboarding. It is the one refusal that is **not** a 404 — a 409 with code `ONBOARDING_INCOMPLETE` — because the caller owns the account and the only useful answer is which step they left. A check the web app performs and the API does not is a suggestion.
 - **`@CurrentUser()` is the only sanctioned source of a user id.** An id from a path param, query string or body is an id the caller chose. Never scope a query with one.
-- **Every route body has a schema, bound to the `@Body()` parameter.** `@Body() body: SomeType` with no pipe gets *no* validation and arrives as whatever was sent. Use `@Body(new ZodValidationPipe(schema))` with a schema from `packages/core/entities` — the same one the web form uses. **Never `@UsePipes(...)` at the handler**: that binds the pipe to *every* parameter, so the body schema also validates `@CurrentUser()` and rejects every valid request. That shipped once; see the traps below.
+- **Every route body is declared by a DTO and bound with `@ZodBody`.** `@Body() body: SomeType` with no pipe gets *no* validation and arrives as whatever was sent. A DTO in the module's `dto/in` names a Zod schema from `packages/core/entities` — the same one the web form uses, never a second copy of the rule — and `@ZodBody(SomeDto)` binds the validation pipe, the parameter's type and the published OpenAPI request schema together, all three from that one schema. **Never `@UsePipes(...)` at the handler**: that binds the pipe to *every* parameter, so the body schema also validates `@CurrentUser()` and rejects every valid request. That shipped once; routing the binding through one decorator is what stops it shipping again. See the traps below.
 - **Nothing internal reaches a response.** `AllExceptionsFilter` is the single translation point. Driver messages carry connection strings, Zod issues describe the schema, stacks carry paths. An unrecognised error is a bare 500.
 - **`code` is stable, `message` is not.** The frontend switches on `code`; messages are free to be reworded.
 - **Responses default to `no-store`.** Absent an explicit directive a shared cache may apply heuristic freshness to an authenticated body — here, someone's health data.
@@ -72,10 +109,19 @@ Allergies are a hard constraint enforced in **code**, never by prompting a model
 
 ## Adding a module
 
-1. `src/modules/<name>/<name>.controller.ts` + `<name>.module.ts`, registered in `app.module.ts`.
-2. Routes take `@CurrentUser()` and delegate to a `packages/core` controller.
-3. Bodies go through `ZodValidationPipe` with a schema from `packages/core/entities`.
-4. `@ApiTags` / `@ApiOperation` on everything — Swagger is the API's documentation.
+Copy the folders of an existing one — `feedback` is the smallest complete example.
+
+1. `src/modules/<name>/` with `<name>.module.ts`, `controllers/`, `services/`, the
+   `dto/in` and `dto/out` it needs, and an `index.ts`; `app.module.ts` imports the
+   barrel, never the module file.
+2. Routes take `@CurrentUser()` and delegate to the module's own service; the service
+   is what calls a `packages/core` controller.
+3. Every body gets a DTO in `dto/in` naming a schema from `packages/core/entities`,
+   bound with `@ZodBody`. Every answer gets a type in `dto/out` — core's view named,
+   or, where this app composes the shape, declared.
+4. `@ApiTags` / `@ApiOperation` and the response the route actually returns
+   (`@ApiOkResponse`, `@ApiCreatedResponse`, `@ApiNoContentResponse`) on everything —
+   Swagger is the API's documentation.
 5. Public routes need an explicit `@Public()`, and a comment saying why.
 
 ## Environment
@@ -330,10 +376,18 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `@UsePipes(new ZodValidationPipe(bodySchema))` also runs that schema over
   `@CurrentUser()`, which has none of the body's fields — so a valid request fails with a
   confusing validation error naming a field the client did send correctly. Bind the pipe to
-  the parameter: `@Body(new ZodValidationPipe(schema))`. Unit-testing the controller method
+  the parameter, which is what `@ZodBody(SomeDto)` does. Unit-testing the controller method
   directly cannot see this, because it bypasses the pipeline entirely; the specs that catch
-  it (`onboarding.controller.spec.ts`, `profiles.controller.spec.ts`) go through a real
-  Nest application with supertest.
+  it (`onboarding/controllers/Onboarding.controller.spec.ts`,
+  `profiles/controllers/Profiles.controller.spec.ts`) go through a real Nest application
+  with supertest.
+- **`@ZodBody` applies a method decorator from a parameter decorator.** That is unusual
+  and deliberate: `@ApiBody` and the pipe have to come from the same DTO or they can
+  disagree, and asking each route for two decorators is asking for one of them to be
+  forgotten. It works because TypeScript runs parameter decorators before the method's
+  own, on a prototype whose methods already exist. `ZodBody.decorator.spec.ts` pins both
+  halves against one route; if that spec ever fails on a Nest or swagger upgrade, this
+  is why.
 - **Better Auth must receive an unread request body.** `CreateApp.ts` mounts `express.json()` *after* the auth path. Moving the parser earlier makes sign-in receive an empty body, and the failure looks like bad credentials.
 - **A CommonJS package that `require()`s `@nestjs/*` works locally and dies on the platform.** See § Deployment. `preflight` catches it; run it after adding any dependency that touches Nest.
 - **`emitDecoratorMetadata` is what makes DI work.** Without it every injection needs an explicit `@Inject`. It is on in `tsconfig.json`; `verbatimModuleSyntax` must stay off, or type-only imports stop producing metadata.

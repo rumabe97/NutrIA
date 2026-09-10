@@ -3,10 +3,10 @@ import sharp from 'sharp';
 
 import { RecipeController } from 'core/controllers/Recipe';
 
-import { ImageClient } from './clients/ImageClient.js';
+import { ImageClient } from '../clients/ImageClient.js';
 import { illustrationPrompt, RecipeIllustrator } from './RecipeIllustrator.service.js';
 
-import type { ImageRequest, ImageResponse } from './clients/ImageClient.js';
+import type { ImageRequest, ImageResponse } from '../clients/ImageClient.js';
 
 /** A real 8×6 PNG, made by sharp itself so it is exactly what a provider would return. */
 const PNG = await sharp({ create: { background: '#6d8a46', channels: 3, height: 6, width: 8 } })

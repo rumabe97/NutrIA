@@ -5,9 +5,9 @@ import { toCatalogue } from 'core/entities/Plan';
 
 import { DISHES_NEEDED_PER_SLOT, PoolBuilder, shortfall } from './PoolBuilder.service.js';
 
-import type { AiClient, AiRequest, AiResponse } from './clients/AiClient.js';
+import type { AiClient, AiRequest, AiResponse } from '../clients/AiClient.js';
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
-import type { GeneratedPool } from './pool.schema.js';
+import type { GeneratedPool } from '../prompts/pool.schema.js';
 import type { GenerationContext } from 'core/controllers/Recipe';
 
 const GLUTEN = 'allergen-gluten';
