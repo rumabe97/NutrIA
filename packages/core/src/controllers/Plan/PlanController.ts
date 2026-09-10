@@ -1,4 +1,4 @@
-import { ConflictError, NotFoundError, PlanPausedError, QuotaExceededError } from 'core/entities/Error';
+import { ConflictError, MealInFutureError, NotFoundError, PlanPausedError, QuotaExceededError } from 'core/entities/Error';
 import { LIVED_PLAN_STATUSES } from 'core/entities/Plan';
 import { ALLOWANCES, mealSwapStanding, planRedoStanding, redosInFortnight } from 'core/domain/Allowance';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
@@ -277,6 +277,8 @@ export const PlanController = {
     if (result === 'missing') {throw new NotFoundError('Meal not found');}
 
     if (result === 'closed') {throw new ConflictError('Only the active plan can be changed');}
+
+    if (result === 'future') {throw new MealInFutureError();}
   },
 
   /**
@@ -409,6 +411,8 @@ export interface MealDetailView {
   carbsG: number;
   cookMinutes: number;
   cuisine: string | null;
+  /** The day this meal belongs to, so a screen can tell "not yet" from "not allowed". */
+  date: string;
   dayIndex: number;
   difficulty: string;
   fatG: number;
@@ -497,6 +501,7 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
     carbsG: Number(meal.carbsG),
     cookMinutes: recipe.cookMinutes,
     cuisine: recipe.cuisine,
+    date: day.date,
     dayIndex: day.dayIndex,
     difficulty: recipe.difficulty,
     fatG: Number(meal.fatG),

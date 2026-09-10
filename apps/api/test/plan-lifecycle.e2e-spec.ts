@@ -63,6 +63,19 @@ describe('plan lifecycle', () => {
     expect(marks.get(skipped.id)).toBe('skipped');
   });
 
+  it('will not mark a meal whose day has not come', async () => {
+    const server = httpServer(app);
+    // Day one is today, so day two is tomorrow whatever the clock says.
+    const tomorrow = plan.days[1].meals[0];
+    const refused: Response = await request(server).patch(`/${PREFIX}/meal-plans/meals/${tomorrow.id}/status`).set('Cookie', account.cookie).send({ status: 'completed' }).expect(409);
+
+    expect((refused.body as { code: string }).code).toBe('MEAL_IN_FUTURE');
+
+    // Today's is fine, and so is yesterday's would be: catching up is ordinary,
+    // predicting is not.
+    await request(server).patch(`/${PREFIX}/meal-plans/meals/${plan.days[0].meals[0].id}/status`).set('Cookie', account.cookie).send({ status: 'completed' }).expect(200);
+  });
+
   it('will not let one account mark another account meal', async () => {
     await request(httpServer(app)).patch(`/${PREFIX}/meal-plans/meals/${plan.days[1].meals[0].id}/status`).set('Cookie', stranger.cookie).send({ status: 'completed' }).expect(404);
   });

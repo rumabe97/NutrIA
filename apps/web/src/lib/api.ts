@@ -13,6 +13,7 @@ export type ApiErrorCode =
   | 'EMAIL_NOT_VERIFIED'
   | 'INTERNAL_ERROR'
   | 'INVALID_INPUT'
+  | 'MEAL_IN_FUTURE'
   | 'NETWORK'
   | 'NOT_FOUND'
   | 'ONBOARDING_INCOMPLETE'
@@ -45,6 +46,7 @@ const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   EMAIL_NOT_VERIFIED: 'emailNotVerified',
   INTERNAL_ERROR: 'internal',
   INVALID_INPUT: 'invalidInput',
+  MEAL_IN_FUTURE: 'mealInFuture',
   NETWORK: 'network',
   NOT_FOUND: 'notFound',
   ONBOARDING_INCOMPLETE: 'onboardingIncomplete',

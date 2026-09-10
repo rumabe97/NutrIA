@@ -138,6 +138,19 @@ export class EmailNotVerifiedError extends Error {
  * A state, not a denial: the person owns this plan and will own it again on
  * Thursday. 409, like the other two states a screen has to explain.
  */
+/**
+ * A meal that has not happened yet cannot be marked eaten or skipped.
+ *
+ * A state a screen explains, not a denial — the meal is theirs, and on Thursday
+ * the same request is fine.
+ */
+export class MealInFutureError extends Error {
+  constructor(message = 'Meal is in the future') {
+    super(message);
+    this.name = 'MealInFutureError';
+  }
+}
+
 export class PlanPausedError extends Error {
   constructor(message = 'Plan paused') {
     super(message);

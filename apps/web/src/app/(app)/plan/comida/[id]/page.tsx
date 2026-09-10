@@ -41,6 +41,9 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
   if (!meal) {notFound();}
 
   const away = trips?.find(trip => trip.away);
+  // Its day has not come. Offering the control anyway is offering something the
+  // API will refuse, which is how a screen teaches somebody not to trust it.
+  const notYet = meal.date > new Date().toISOString().slice(0, 10);
 
   const totalMinutes = meal.prepMinutes + meal.cookMinutes;
   // Only a meal of the plan being lived can be marked or swapped (0021); one of
@@ -78,7 +81,15 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
             </Text>
           ) : (
             <Fragment>
-              <MealStatus mealId={meal.id} status={meal.status as Status} />
+              {/* Marking waits for the day; swapping does not — changing tomorrow's
+                  dinner today is the whole point of a plan you can steer. */}
+              {notYet ? (
+                <Text size="sm" tone="tertiary">
+                  {interpolate(dictionary.meal.notYet, { date: formatDate(meal.date, locale, { day: 'numeric', month: 'long' }) })}
+                </Text>
+              ) : (
+                <MealStatus mealId={meal.id} status={meal.status as Status} />
+              )}
               {allowances && meal.status === 'planned' ? <MealSwap limit={allowances.mealSwaps.limit} mealId={meal.id} remaining={allowances.mealSwaps.remaining} totalMinutes={totalMinutes} /> : null}
             </Fragment>
           )}
