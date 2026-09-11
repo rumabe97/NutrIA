@@ -89,6 +89,24 @@ next lever is trimming one ingredient of one dish — a bounded, per-ingredient
 adjustment — and that is a product decision about what a recipe means, not a
 tuning change. It was not needed here.
 
+It does not reach 5% on a day of two meals, one of them light. A quarter
+serving of a 1,500-kcal lunch is about 375 kcal — a sixth of the day — and at
+that grain no combination lands all four macros inside 5% without making the
+light dinner the bigger meal, which the order forbids. Measured on the real
+library for a lunch-and-light-dinner shape: energy and carbohydrate inside 5%,
+protein worst 12%, fat worst 15%, and the order kept on every day. Three and
+four meals, which is what nearly everyone eats, reach 5% on all four. The
+lever for two-meal days would be a finer serving quantum or the per-ingredient
+trim above; neither was taken, and the bands say so on the plan when it
+happens.
+
+The hinge that keeps the order is a step plus the gap, not the gap alone. The
+end-to-end suite caught a light dinner twelve calories over the lunch beside it
+— priced by the gap that cost 0.016, and the search paid it for a slightly
+better fit. A fixed cost for the fact of inverting is more than any few per
+cent of macro fit can buy, so the best combination that keeps the order always
+wins over any that breaks it.
+
 The synthetic scheduler fixtures had to be made nutritionally honest to test
 this. Rice and chicken breast are both genuinely low in fat, and a three-food
 catalogue with no oil in the pan could never have reached a fat target, so the

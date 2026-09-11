@@ -46,6 +46,14 @@ const BALANCE_WINDOW_STEPS = 4;
  * Only pairs whose shares differ by more than `SHARE_ORDER_GAP` are ordered.
  * The default weights put lunch at 0.33 and dinner at 0.30, and nobody chose
  * that; light against normal is a factor of two, and that they did.
+ *
+ * The hinge is a step plus the gap, not the gap alone. Priced by the gap, an
+ * inversion of twelve calories on a light dinner cost 0.016 and the search
+ * paid it gladly for a slightly better fit — the end-to-end suite caught a
+ * "light" dinner twelve calories over the lunch beside it. A fixed cost for
+ * the fact of inverting, at this weight, is more than any few per cent of
+ * macro fit can buy, so the best combination that keeps the order always wins
+ * over any that breaks it.
  */
 const SHARE_ORDER_GAP = 0.2;
 const SHARE_INVERSION_WEIGHT = 2;
@@ -525,7 +533,7 @@ function balancedDay(
         const smallerKcal = smaller.base.kcal * (servings[j] ?? smaller.servings);
 
         if (smallerKcal > biggerKcal) {
-          inversions += (smallerKcal - biggerKcal) / biggerBudget;
+          inversions += 1 + (smallerKcal - biggerKcal) / biggerBudget;
         }
       }
     }
