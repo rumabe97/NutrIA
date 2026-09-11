@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { RecipeController } from 'core/controllers/Recipe';
 
 import { buildRewritePrompt } from '../prompts/RewritePrompt.js';
-import { PROMPT_VERSION } from '../prompts/PoolPrompt.js';
+import { STEPS_VERSION } from '../prompts/PoolPrompt.js';
 import { RecipeRewriter } from './RecipeRewriter.service.js';
 import { AiClient } from '../clients/AiClient.js';
 
@@ -93,13 +93,13 @@ describe('RecipeRewriter', () => {
 
     const run = await new RecipeRewriter(new ScriptedAi([GOOD]), ON).rewriteOutdated(10);
 
-    expect(pending).toHaveBeenCalledWith(PROMPT_VERSION, 10);
+    expect(pending).toHaveBeenCalledWith(STEPS_VERSION, 10);
     expect(run).toEqual({ pending: 1, rewritten: 1, skipped: 0 });
 
     const [recipeId, steps, version] = rewrite.mock.calls[0] as [string, readonly { cue?: string; minutes?: number; text: string }[], string];
 
     expect(recipeId).toBe(RECIPE.id);
-    expect(version).toBe(PROMPT_VERSION);
+    expect(version).toBe(STEPS_VERSION);
     expect(steps).toHaveLength(4);
     expect(steps[0]?.cue).toBe('hasta que doren por fuera');
     // An empty cue on the wire leaves as none, not as an empty string.

@@ -49,12 +49,14 @@ describe('the health-data boundary around the AI module', () => {
       dislikedNames: ['Lentejas con chorizo'],
       excludeSlugs: [],
       forbiddenLabels: [],
+      goal: null,
       language: 'Spanish (Spain)',
       likedLabels: ['salmón'],
       lovedNames: ['Salmón al horno con eneldo'],
       needBySlot: new Map<MealSlot, number>([['breakfast', 2]]),
       portionPreference: null,
       scheduleNotes: null,
+      slotShares: new Map(),
       targets: { carbsG: 200, fatG: 60, fiberG: 28, kcal: 2000, proteinG: 150 }
     };
 

@@ -121,10 +121,12 @@ describe('PoolBuilder', () => {
     dietaryPatterns: [],
     dislikedLabels: [],
     dislikedNames: [],
+    goal: null,
     likedLabels: [],
     lovedNames: [],
     portionPreference: null,
     scheduleNotes: null,
+    slotShares: new Map(),
     targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
   };
 
@@ -568,10 +570,12 @@ describe('PoolBuilder — telling a broken provider from an absent one', () => {
     dietaryPatterns: [],
     dislikedLabels: [],
     dislikedNames: [],
+    goal: null,
     likedLabels: [],
     lovedNames: [],
     portionPreference: null,
     scheduleNotes: null,
+    slotShares: new Map(),
     targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
   };
 
