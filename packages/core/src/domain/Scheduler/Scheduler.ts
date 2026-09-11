@@ -32,6 +32,26 @@ export const SERVING_BOUNDS = { max: 4, min: 0.5 } as const;
 const BALANCE_WINDOW_STEPS = 4;
 
 /**
+ * How many portion combinations one day may price, at most.
+ *
+ * The search is exhaustive, so its cost is the product of every dish's sizes:
+ * nine sizes each is 6,561 for four meals, 59,049 for five — and 531,441 for
+ * six, which took 98 seconds to schedule one fortnight, a third of a serverless
+ * function's five minutes before the model had written a dish, twice over when
+ * a plan is scheduled again (`0046`). So the window
+ * is shared out under a ceiling (`windowsFor`): every day of five meals or
+ * fewer keeps the whole window it always had, and a sixth meal narrows the
+ * light ones first, where a quarter serving moves the day least.
+ */
+const BALANCE_MAX_COMBOS = 59_049;
+
+/**
+ * The same ceiling inside the spread pass, which sizes two days for every
+ * exchange it prices and may price hundreds. A four-meal day's whole search.
+ */
+const SPREAD_MAX_COMBOS = 6561;
+
+/**
  * The portion search may size any meal freely, but may never make a meal
  * bigger than one the person said should be bigger (`0036`).
  *
@@ -518,6 +538,39 @@ function pickBest(
 type Pick = { readonly base: Macros; readonly dish: CandidateDish; readonly servings: number; readonly slot: MealSlot; readonly sortOrder: number };
 
 /**
+ * Each dish's window, in quarter steps, under a ceiling on the combinations
+ * the day will price — see `BALANCE_MAX_COMBOS`.
+ *
+ * Grown a step at a time, biggest meal first, round after round, until the
+ * next step would pass the ceiling or every window is whole. So the windows
+ * stay even, and when they cannot all be whole it is the lighter meals that
+ * are sized more coarsely. Deterministic: ties keep slot order.
+ */
+function windowsFor(picks: readonly Pick[], budgets: ReadonlyMap<MealSlot, SlotBudget>, maxCombos: number): number[] {
+  const order = picks.map((pick, index) => ({ index, kcal: budgets.get(pick.slot)?.kcal ?? 0 })).sort((a, b) => b.kcal - a.kcal || a.index - b.index);
+  const windows = picks.map(() => 0);
+  let combos = 1;
+  let grew = true;
+
+  while (grew) {
+    grew = false;
+
+    for (const { index } of order) {
+      const window = windows[index] ?? 0;
+      const next = (combos / (2 * window + 1)) * (2 * window + 3);
+
+      if (window < BALANCE_WINDOW_STEPS && next <= maxCombos) {
+        windows[index] = window + 1;
+        combos = next;
+        grew = true;
+      }
+    }
+  }
+
+  return windows;
+}
+
+/**
  * How far a day's portions break the order of its meals' sizes — zero while a
  * meal the person said should be bigger is bigger (`SHARE_ORDER_GAP`). At the
  * sizes given, or each pick's own.
@@ -602,12 +655,14 @@ function balancedDay(
     );
   };
 
-  // The sizes each dish may take: its own, and up to the window either side,
+  // The sizes each dish may take: its own, and up to its window either side,
   // never past what a person can be served.
-  const options = picks.map(pick => {
+  const windows = windowsFor(picks, budgets, banded ? SPREAD_MAX_COMBOS : BALANCE_MAX_COMBOS);
+  const options = picks.map((pick, index) => {
     const sizes: number[] = [];
+    const window = windows[index] ?? 0;
 
-    for (let step = -BALANCE_WINDOW_STEPS; step <= BALANCE_WINDOW_STEPS; step += 1) {
+    for (let step = -window; step <= window; step += 1) {
       const servings = roundServings(pick.servings + step * SERVING_STEP);
 
       if (servings >= SERVING_BOUNDS.min && servings <= SERVING_BOUNDS.max) {
