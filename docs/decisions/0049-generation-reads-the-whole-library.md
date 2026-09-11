@@ -44,7 +44,11 @@ On the development copy with 535 dishes, one fortnight at a time:
 | Profiles that can be scheduled from the library alone | 5 of 7 | 6 of 7 |
 
 Days inside 5% across every profile with a plan: energy 84 of 84, protein 84,
-carbohydrate 83, fat 81. Before the whole library was read, the 15%-protein
+carbohydrate 83, fat 81. With the seed grown to 475 dishes (778 recipes), every
+one of the seven profiles on the copy can be scheduled from the library alone,
+and all 98 of their days land inside 5% on all four macros, with no day serving
+its meals out of the size order the person chose; a six-meal fortnight on that
+library schedules in 33 seconds, fourteen of fourteen days inside. Before the whole library was read, the 15%-protein
 profile of `0048` missed protein on all fourteen days; with it, none. The
 fat days still missing belong to one restricted account whose supper and lunch
 dishes are few; the batches still to load are written for it.
