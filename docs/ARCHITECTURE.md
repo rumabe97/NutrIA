@@ -261,12 +261,17 @@ redaction list carries the three health fields. The failure worth catching is th
 that makes a medication reachable from a prompt, not the prompt that finally contains one.
 
 **Nutrition tolerances are asymmetric where the nutrition is, and measured in the units
-the rule actually means.** Energy is held to ±10% in both directions — a calorie goal is
-missed by overshooting as surely as by undershooting. Protein has a floor at −15% of
-target, because that is what the goal depends on; its ceiling is **3 g per kg of body
-weight**, not a percentage, because plausibility is a function of body mass rather than of
-a target that itself shifts between 1.6 and 1.9 g/kg by goal. A percentage ceiling was
-stricter for someone maintaining than for someone bulking, which is backwards.
+the rule actually means.** Energy, carbohydrate and fat are each held to ±5% in both
+directions — a goal is missed by overshooting as surely as by undershooting. Protein has a
+floor at −5% of target, because that is what the goal depends on; its ceiling is **3 g per
+kg of body weight**, not a percentage, because plausibility is a function of body mass
+rather than of a target that itself shifts between 1.6 and 1.9 g/kg by goal. A percentage
+ceiling was stricter for someone maintaining than for someone bulking, which is backwards.
+The four bands are guidance — a day outside one is recorded on the plan and delivered —
+while the calorie floor and the protein ceiling are bounds and block. Carbohydrate and fat
+had no band at all until `0045`, and the scheduler fitted neither; a real plan missed
+carbohydrate by 46% on every day and passed. The scheduler now fits all four, and 5% is
+what it reaches on a real library.
 
 **Nutrition targets are computed, not generated.** `nutritionTargets` in
 `packages/core/domain/Nutrition` derives kcal and macros from Mifflin-St Jeor and the

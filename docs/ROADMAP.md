@@ -191,6 +191,12 @@ sells the people.
 - Error visibility: done (`0024`). Set `SENTRY_DSN` on the API project to turn it on; unset,
   nothing is sent.
 
+- Macros to 5%, on every day, on all four: done (`0045`). The scheduler fitted energy
+  and protein only, so carbohydrate and fat drifted by up to half with nothing to say so.
+  Now all four are fitted, portions are searched exhaustively, swaps are judged after
+  re-sizing, and validation holds every macro to a 5% advisory band. Measured on a real
+  profile and library: fourteen of fourteen days inside 5%. The lever left unused is
+  per-ingredient trimming of a dish, which changes what a recipe means and was not needed.
 - A library window with no order: `RecipeRepository.findReusable` takes `.limit(300)` with
   no `ORDER BY`, so the rows a reuse pool — and, since `0044`, a mid-plan rebuild — draws
   from are whichever Postgres returns first. On a large shared library a heavily restricted

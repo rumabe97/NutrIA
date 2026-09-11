@@ -99,7 +99,14 @@ export class MealSwapService {
       { cookMinutes: anchor.recipe.cookMinutes, macros: current.macros, prepMinutes: anchor.recipe.prepMinutes },
       context.catalogue
     );
+    // The plate being replaced is the budget, on all four macros (`0045`): a
+    // swap that only matched energy and protein could hand back a dish that
+    // spent the same calories as fat instead of carbohydrate, and the day
+    // would drift with nothing having asked it not to. "More protein" raises
+    // that one number and leaves the other three as the plate had them.
     const budget = {
+      carbsG: current.macros.carbsG,
+      fatG: current.macros.fatG,
       kcal: current.macros.kcal,
       proteinG: axis === 'more_protein' ? current.macros.proteinG * MORE_PROTEIN_BUDGET : current.macros.proteinG
     };
