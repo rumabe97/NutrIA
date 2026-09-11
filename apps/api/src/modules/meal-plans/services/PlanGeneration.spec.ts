@@ -454,6 +454,86 @@ describe('PlanGenerationService', () => {
     expect(draft.generationMetadata.providerError).toContain('quota');
   });
 
+  /*
+   * The rescue from an empty fortnight read the library with no rotation, so it
+   * could serve a dish the person had marked as disliked — the one thing `0014`
+   * says never comes back. Last fortnight's dishes may return in a rescue; a
+   * refused one may not.
+   */
+  it('never serves a disliked dish, even in the full-library rescue', async () => {
+    const full = pool('arroz');
+    const thin = full.slice(0, 1);
+    // One dish per slot: the rest still covers a fortnight under the variety rules.
+    const refused = full.filter(dish => dish.slug.endsWith('-0'));
+    const { buildPool, persist, service } = build({ reusable: full });
+
+    jest.spyOn(RecipeController, 'reusablePool').mockImplementation(async (_slots, _context, rotation) => Promise.resolve(rotation ? thin : full));
+    jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: refused.map(dish => ({ name: dish.name, slug: dish.slug })), liked: [] });
+    buildPool.mockResolvedValueOnce({
+      dishes: thin,
+      generated: [],
+      metadata: {
+        attempts: 1,
+        backfilled: 0,
+        calls: 1,
+        inputTokens: 0,
+        model: 'gemini',
+        outputTokens: 0,
+        promptVersion: '2.4.2',
+        providerError: 'You exceeded your current quota',
+        providerUsed: true,
+        rejected: 0,
+        reused: thin.length
+      }
+    });
+
+    await service.generate('user-1', 'job-1', async () => Promise.resolve());
+
+    const draft = persist.mock.calls[0]?.[1] as {
+      days: readonly { meals: readonly { recipeSlug: string }[] }[];
+      generationMetadata: { fallback: string | null };
+    };
+    const served = new Set(draft.days.flatMap(day => day.meals.map(meal => meal.recipeSlug)));
+
+    expect(draft.generationMetadata.fallback).toBe('full_library');
+    expect(refused.some(dish => served.has(dish.slug))).toBe(false);
+    // Still one model attempt: the rescue reads the library, it does not ask again.
+    expect(buildPool).toHaveBeenCalledTimes(1);
+  });
+
+  it('answers with the honest error rather than a refused plate when the dislikes leave too little', async () => {
+    const full = pool('arroz');
+    const thin = full.slice(0, 1);
+    // A third of every slot refused: what is left cannot cover fourteen days
+    // under the variety rules, so there is no plan to give without them.
+    const refused = full.filter((_dish, index) => index % 3 === 0);
+    const { buildPool, persist, service } = build({ reusable: full });
+
+    jest.spyOn(RecipeController, 'reusablePool').mockImplementation(async (_slots, _context, rotation) => Promise.resolve(rotation ? thin : full));
+    jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: refused.map(dish => ({ name: dish.name, slug: dish.slug })), liked: [] });
+    buildPool.mockResolvedValueOnce({
+      dishes: thin,
+      generated: [],
+      metadata: {
+        attempts: 1,
+        backfilled: 0,
+        calls: 1,
+        inputTokens: 0,
+        model: 'gemini',
+        outputTokens: 0,
+        promptVersion: '2.4.2',
+        providerError: 'You exceeded your current quota',
+        providerUsed: true,
+        rejected: 0,
+        reused: thin.length
+      }
+    });
+
+    await expect(service.generate('user-1', 'job-1', async () => Promise.resolve())).rejects.toMatchObject({ code: 'GENERATION_AI_UNAVAILABLE' });
+    expect(persist).not.toHaveBeenCalled();
+    expect(buildPool).toHaveBeenCalledTimes(1);
+  });
+
   it('still fails when even the full library cannot fill a fortnight', async () => {
     const thin = pool('arroz').slice(0, 1);
     const { buildPool, service } = build({ reusable: thin });
