@@ -19,8 +19,19 @@ export type { UndocumentedRecipe } from '#repositories/Recipe';
 import type { PreferenceExclusions } from 'core/domain/Preference';
 import type { SafetyProfile } from 'core/entities/Safety';
 
-/** How many library recipes to consider per generation. */
-const REUSE_FETCH_LIMIT = 300;
+/**
+ * How many library recipes to consider per generation — a ceiling on the read,
+ * sized well above the library rather than to a sample of it.
+ *
+ * It was 300, with no order, and that was a sample: once the library passed
+ * three hundred Spanish dishes, whichever rows Postgres returned first were the
+ * only ones any generation, swap or rebuild could see, and a five-hundred-dish
+ * seed would have been mostly invisible. Everything that follows — safety,
+ * dislikes, the per-person rotation — filters what this reads, so it has to
+ * read all of it. Five hundred recipes and their ingredients are a few
+ * thousand rows; the read is not where a generation spends its time.
+ */
+const REUSE_FETCH_LIMIT = 5000;
 
 export type GenerationContext = {
   readonly catalogue: Catalogue;
