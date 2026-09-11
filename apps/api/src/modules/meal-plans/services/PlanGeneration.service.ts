@@ -153,10 +153,21 @@ export class PlanGenerationService {
 
     await markStep(STEPS.scheduling);
 
+    // Last fortnight's dishes come back in a rescue — a repeat beats no plan.
+    // A dish the person said they do not want does not (`0014`: excluded for
+    // good). It used to: this read the library with no rotation at all, so the
+    // one path meant to spare somebody an empty fortnight could serve them the
+    // thing they had turned down. Taking the dislikes out leaves a library of
+    // well over a hundred dishes, and if that still cannot fill a fortnight the
+    // honest answer is the error below, not a plate they refused. No extra
+    // model call either: this runs mostly when the model has just failed, and
+    // it has already been asked for exactly the shortfall (`0046`).
+    const disliked = new Set(verdicts.disliked.map(dish => dish.slug));
+
     const wholeLibrary = async (): Promise<CandidateDish[]> => {
       const everything = await RecipeController.reusablePool(slots, context);
 
-      return [...new Map([...everything, ...built.generated].map(dish => [dish.slug, dish])).values()];
+      return [...new Map([...everything, ...built.generated].map(dish => [dish.slug, dish])).values()].filter(dish => !disliked.has(dish.slug));
     };
 
     let scheduled = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, pool: built.dishes, targets, weights });

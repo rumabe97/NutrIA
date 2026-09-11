@@ -68,9 +68,14 @@ from the user's own rotation, at no model cost, and keeps whichever is better.
 When even that misses — a thin library, a narrow taste — the plan is delivered
 and says so, as `0045` already arranged.
 
-Found and left alone: the older `full_library` rescue, which exists so a
-person never ends up with no plan, reads the library with no rotation at all
-and therefore does not exclude the dishes a person marked as disliked
-(`0014`). It only runs when the pool cannot fill a fortnight or the gate
-blocks. Whether a disliked dish is acceptable to avoid "no plan" is the
-owner's call, not a scheduling detail.
+The older `full_library` rescue, which exists so a person never ends up with
+no plan, read the library with no rotation and so could serve a dish they had
+marked as disliked (`0014`). Put to the owner, who first asked whether the
+model could write a replacement instead. It mostly cannot help: that rescue
+runs when the model has just failed — quota, key, outage — and the first pass
+had already asked it for exactly the shortfall. **Decided (owner): dislikes
+are excluded from the rescue too, with no extra model call.** Last
+fortnight's dishes may still return in a rescue; a refused one may not. When
+the library without dislikes cannot fill a fortnight, the person gets the
+honest error (`GENERATION_AI_UNAVAILABLE` or `GENERATION_POOL_TOO_SMALL`), not
+a plate they turned down.
