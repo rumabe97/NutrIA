@@ -38,7 +38,10 @@ number.**
   trades a meal with the same meal of another day, both re-sized to the bands,
   whenever the two end up with fewer macros outside — or as many, less far
   outside. Every move is checked with `canPlace`, including against the days a
-  mid-plan rebuild leaves alone. Bounded (60 rounds, 24 exchanges priced
+  mid-plan rebuild leaves alone, and no move may leave a day's meals further
+  out of the size order the person chose ([`0036`](./0036-which-meals-and-how-big.md)):
+  the end-to-end suite caught a band-sized "light" dinner twice the large lunch
+  beside it, so the order outranks the bands. Bounded (60 rounds, 24 exchanges priced
   properly per round), deterministic.
 - **Prompt 3.1.0**: protein is a figure to land on, not a minimum; each meal's
   dishes straddle every figure, and protein is given as a range per meal —
@@ -55,11 +58,14 @@ the live plans exactly: 10 of 14 protein days and a worst day of +18.6%):
 | `main` | protein 5 / 11 of 14 | protein 8 / 10 of 14, carbs 11 / 14 |
 | A band penalty inside each day's build | worse on every pool — the best dishes went faster | — |
 | Spread pass, days counted | protein 8 / 13 | protein 11 / 12 |
-| Spread pass, macros counted, band-sized (chosen) | **all four 14 / 14** | protein 13 / 13, the rest 14 / 14 |
+| Spread pass, macros counted, band-sized, meal order kept (chosen) | **all four 14 / 14** | **all four 14 / 14** |
 
 Across every profile with a plan on the copy, from the library alone: protein
-inside on 54 days of 70 against 43, fat 70 against 63, carbohydrate 69 against
-66, energy 70 in both. A real regeneration with everything above landed
+inside on 56 days of 70 against 43, fat 70 against 63, carbohydrate 69 against
+66, energy 70 in both, and no day with its meals out of the size order the
+person chose. The fourteen days that still miss belong to one profile whose
+day is 15% protein — the library has no dishes for it, and only the model's
+can supply them. A real regeneration with everything above landed
 **all four macros inside 5% on all fourteen days**, events included, with a
 worst protein day of +4.9% — while one of its four model requests failed on a
 network timeout and was covered from the library.
@@ -85,4 +91,6 @@ network timeout and was covered from the library.
 - The spread pass costs well under a second on a fortnight; the whole schedule
   stays at two to seven seconds.
 - `Scheduler.test.ts` pins the mechanism on a toy pool whose last three days
-  ran 8–14% over on protein without it.
+  ran 8–14% over on protein without it, and the size order on the same pool
+  with a large lunch and a light dinner; each test fails with its half of the
+  pass disabled.

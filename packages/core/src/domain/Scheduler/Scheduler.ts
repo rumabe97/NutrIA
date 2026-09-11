@@ -90,6 +90,18 @@ const SPREAD_SHORTLIST = 24;
  */
 const BAND_MISS_WEIGHT = 10;
 
+/**
+ * What an inverted meal costs while the spread pass sizes a day to its bands:
+ * more than every band of the day together can.
+ *
+ * The bands are priced steeply there, and at the ordinary inversion weight
+ * they won — the end-to-end suite caught a "light" dinner of 1,475 kcal
+ * beside a large lunch of 738, a day brought inside its bands by serving the
+ * person's day back to front. The size order is something they chose; the
+ * bands are something we promised. Theirs comes first.
+ */
+const ORDER_OUTRANKS_BANDS = 1000;
+
 /** Swap rounds per day. Each takes the single best improvement; they converge fast. */
 const MAX_SWAP_ROUNDS = 8;
 
@@ -506,6 +518,36 @@ function pickBest(
 type Pick = { readonly base: Macros; readonly dish: CandidateDish; readonly servings: number; readonly slot: MealSlot; readonly sortOrder: number };
 
 /**
+ * How far a day's portions break the order of its meals' sizes — zero while a
+ * meal the person said should be bigger is bigger (`SHARE_ORDER_GAP`). At the
+ * sizes given, or each pick's own.
+ */
+function inversionsOf(picks: readonly Pick[], budgets: ReadonlyMap<MealSlot, SlotBudget>, servings: readonly number[] = []): number {
+  let inversions = 0;
+
+  for (const [i, bigger] of picks.entries()) {
+    const biggerBudget = budgets.get(bigger.slot)?.kcal ?? 0;
+
+    for (const [j, smaller] of picks.entries()) {
+      const smallerBudget = budgets.get(smaller.slot)?.kcal ?? 0;
+
+      if (i === j || biggerBudget <= 0 || biggerBudget < smallerBudget * (1 + SHARE_ORDER_GAP)) {
+        continue;
+      }
+
+      const biggerKcal = bigger.base.kcal * (servings[i] ?? bigger.servings);
+      const smallerKcal = smaller.base.kcal * (servings[j] ?? smaller.servings);
+
+      if (smallerKcal > biggerKcal) {
+        inversions += 1 + (smallerKcal - biggerKcal) / biggerBudget;
+      }
+    }
+  }
+
+  return inversions;
+}
+
+/**
  * Sizes a day's portions to its targets, a quarter serving at a time — every
  * combination, not a walk.
  *
@@ -551,31 +593,12 @@ function balancedDay(
     );
     // A meal the person said should be bigger must stay bigger — see
     // `SHARE_ORDER_GAP`. Priced as a hinge on every ordered pair.
-    let inversions = 0;
-
-    for (const [i, bigger] of picks.entries()) {
-      const biggerBudget = budgets.get(bigger.slot)?.kcal ?? 0;
-
-      for (const [j, smaller] of picks.entries()) {
-        const smallerBudget = budgets.get(smaller.slot)?.kcal ?? 0;
-
-        if (i === j || biggerBudget <= 0 || biggerBudget < smallerBudget * (1 + SHARE_ORDER_GAP)) {
-          continue;
-        }
-
-        const biggerKcal = bigger.base.kcal * (servings[i] ?? bigger.servings);
-        const smallerKcal = smaller.base.kcal * (servings[j] ?? smaller.servings);
-
-        if (smallerKcal > biggerKcal) {
-          inversions += 1 + (smallerKcal - biggerKcal) / biggerBudget;
-        }
-      }
-    }
+    const inversions = inversionsOf(picks, budgets, servings);
 
     return (
       fitCost(totals, { carbsG: targets.carbsG, fatG: targets.fatG, kcal: targets.kcal, proteinG: targets.proteinG }) +
       (banded ? bandMiss(totals, targets) * BAND_MISS_WEIGHT : 0) +
-      inversions * SHARE_INVERSION_WEIGHT
+      inversions * (banded ? ORDER_OUTRANKS_BANDS : SHARE_INVERSION_WEIGHT)
     );
   };
 
@@ -796,6 +819,10 @@ const SPREAD_EPSILON = 1e-6;
 function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]): readonly BuiltDay[] {
   const current = [...days];
   const missOf = (picks: readonly Pick[], day: BuiltDay): number => bandMiss(totalsOf(picks), day.targets);
+  // No repair may leave a day's meals further out of the order the person set
+  // than the day already was — see `ORDER_OUTRANKS_BANDS`.
+  const keepsOrder = (picks: readonly Pick[], day: BuiltDay): boolean =>
+    inversionsOf(picks, day.budgets) <= inversionsOf(day.picks, day.budgets) + SPREAD_EPSILON;
   const resized = (day: BuiltDay, index: number, replacement: Pick): Pick[] =>
     day.picks.map((pick, position) =>
       position === index
@@ -815,7 +842,7 @@ function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]
     if (before > SPREAD_EPSILON) {
       const picks = balancedDay(day.picks, day.targets, day.budgets, true).picks;
 
-      if (missOf(picks, day) < before - SPREAD_EPSILON) {
+      if (missOf(picks, day) < before - SPREAD_EPSILON && keepsOrder(picks, day)) {
         current[position] = { ...day, picks };
       }
     }
@@ -874,6 +901,10 @@ function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]
         const toWorst = balancedDay(entry.toWorst, worst.targets, worst.budgets, true).picks;
         const toOther = balancedDay(entry.toOther, other.targets, other.budgets, true).picks;
         const gain = entry.before - missOf(toWorst, worst) - missOf(toOther, other);
+
+        if (!keepsOrder(toWorst, worst) || !keepsOrder(toOther, other)) {
+          continue;
+        }
 
         if (gain > SPREAD_EPSILON && (!best || gain > best.gain + SPREAD_EPSILON)) {
           best = { gain, otherAt: entry.otherAt, toOther, toWorst };

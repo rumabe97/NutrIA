@@ -770,6 +770,29 @@ describe('schedulePlan — the fortnight is repaired as a whole (0048)', () => {
     }
   });
 
+  /**
+   * Sizing a day to its bands priced steeply enough to beat the size order, and
+   * the end-to-end suite caught the result: a "light" dinner twice the large
+   * lunch beside it. The order the person chose outranks the bands.
+   */
+  it('never serves the day back to front to bring it inside its bands', () => {
+    const shape = { afternoon_snack: 'off', breakfast: 'normal', dinner: 'light', lunch: 'large', morning_snack: 'off', supper: 'off' } as const;
+    const result = schedulePlan({ catalogue: spreadCatalogue, pool: spreadPool, targets: T, weights: weightsFor(shape) });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    for (const day of result.assignment.days) {
+      const kcal = (slot: string) => day.meals.find(meal => meal.slot === slot)?.macros.kcal ?? 0;
+
+      expect(kcal('lunch')).toBeGreaterThan(kcal('dinner'));
+      expect(kcal('breakfast')).toBeGreaterThan(kcal('dinner'));
+    }
+  });
+
   it('never breaks variety to do it, and does it the same way every time', () => {
     const first = run();
     const second = run();
