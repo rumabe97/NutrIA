@@ -89,7 +89,7 @@ describe('validatePlan', () => {
   });
 });
 
-describe('validatePlan — protein has a floor, not a symmetric band', () => {
+describe('validatePlan — protein has a band both ways, and only the ceiling blocks (0048)', () => {
   const withProtein = (proteinG: number) => {
     const assignment = scheduled();
 
@@ -97,24 +97,35 @@ describe('validatePlan — protein has a floor, not a symmetric band', () => {
   };
 
   const proteinViolations = (proteinG: number) =>
-    validatePlan({ ...base, assignment: withProtein(proteinG) }).filter(
-      violation => violation.kind === 'protein_below_target' || violation.kind === 'protein_above_ceiling'
-    );
+    validatePlan({ ...base, assignment: withProtein(proteinG) }).filter(violation => violation.kind.startsWith('protein_'));
+  const kindsAt = (proteinG: number) => proteinViolations(proteinG).map(violation => violation.kind);
 
   it('rejects a day meaningfully short of the protein target', () => {
     expect(proteinViolations(TARGETS.proteinG * 0.8)).toHaveLength(1);
   });
 
-  it('accepts a day well over the protein target — a surplus is not a nutritional failure', () => {
-    // Two real plans were discarded this way: 204 g and then 233 g against a 171 g
-    // target, both nutritionally unremarkable for the person they were built for.
-    expect(proteinViolations(TARGETS.proteinG * 1.4)).toEqual([]);
+  it('reports a day over the protein band as guidance, never as a reason to discard the plan', () => {
+    // Two real plans were once discarded for a surplus — 204 g and then 233 g
+    // against a 171 g target — so a surplus stays advisory. But a day 17% over
+    // is not a day on target, and a real plan ran that way on nine days of
+    // fourteen with nothing reporting it.
+    const over = proteinViolations(TARGETS.proteinG * 1.4);
+
+    expect(over.map(violation => violation.kind)).toEqual(['protein_above_target']);
+    expect(over.some(isBlocking)).toBe(false);
   });
 
-  it('rejects only what is implausible for the body it is feeding', () => {
-    // 75 kg × 3 g/kg = 225 g. Below that is food; above it is a bug.
-    expect(proteinViolations(224)).toEqual([]);
-    expect(proteinViolations(240)).toHaveLength(1);
+  it('holds protein to five per cent on either side of the target', () => {
+    expect(kindsAt(TARGETS.proteinG * 1.04)).toEqual([]);
+    expect(kindsAt(TARGETS.proteinG * 0.96)).toEqual([]);
+    expect(kindsAt(TARGETS.proteinG * 1.06)).toEqual(['protein_above_target']);
+    expect(kindsAt(TARGETS.proteinG * 0.94)).toEqual(['protein_below_target']);
+  });
+
+  it('blocks only what is implausible for the body it is feeding, and says so once', () => {
+    // 75 kg × 3 g/kg = 225 g. Below that is food, over the band; above it is a bug.
+    expect(kindsAt(224)).toEqual(['protein_above_target']);
+    expect(kindsAt(240)).toEqual(['protein_above_ceiling']);
   });
 
   it('scales the ceiling with body mass rather than with the target', () => {
@@ -175,9 +186,11 @@ describe('validatePlan — carbs and fat have bands too (0045)', () => {
     // Just outside on one: exactly one report, and it names the right macro.
     const outside = withTotals({ fatG: TARGETS.fatG * 1.06 });
 
-    expect(kinds(inside).filter(kind => kind.endsWith('_out_of_band') || kind === 'protein_below_target')).toEqual([]);
+    expect(kinds(inside).filter(kind => kind.endsWith('_out_of_band') || kind === 'protein_below_target' || kind === 'protein_above_target')).toEqual(
+      []
+    );
     expect(kinds(outside).filter(kind => kind.endsWith('_out_of_band'))).toEqual(['fat_out_of_band']);
-    expect(PLAN_TOLERANCE).toEqual({ carbs: 0.05, fat: 0.05, kcal: 0.05, proteinUnder: 0.05 });
+    expect(PLAN_TOLERANCE).toEqual({ carbs: 0.05, fat: 0.05, kcal: 0.05, proteinOver: 0.05, proteinUnder: 0.05 });
   });
 
   it('reports them as guidance, never as a reason to discard the plan', () => {

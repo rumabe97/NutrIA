@@ -694,6 +694,97 @@ describe('schedulePlan — a large athlete on three meals a day', () => {
   });
 });
 
+describe('schedulePlan — the fortnight is repaired as a whole (0048)', () => {
+  /**
+   * Days are built in order and each dish may appear twice, so the dishes that
+   * fit best are spent first and the last days get what is left. This pool
+   * reproduces it at toy scale: without the spread pass its last three days
+   * ran 8–14% over on protein and up to 24% under on carbohydrate, though the
+   * fortnight as a whole could land every day — which is what a real plan did.
+   */
+  const T: NutritionTargets = { carbsG: 330, fatG: 67, fiberG: 30, kcal: 2400, proteinG: 120 };
+  const spreadCatalogue = makeCatalogue([
+    makeCatalogueIngredient({
+      id: 'i-arroz',
+      carbsPer100g: 28,
+      fatPer100g: 0.3,
+      fiberPer100g: 1,
+      kcalPer100g: 125.5,
+      name: 'Arroz',
+      proteinPer100g: 2.7,
+      slug: 'arroz'
+    }),
+    makeCatalogueIngredient({
+      id: 'i-pollo',
+      carbsPer100g: 0,
+      fatPer100g: 3.6,
+      fiberPer100g: 1,
+      kcalPer100g: 156.4,
+      name: 'Pollo',
+      proteinPer100g: 31,
+      slug: 'pollo'
+    }),
+    makeCatalogueIngredient({
+      id: 'i-aceite',
+      carbsPer100g: 0,
+      fatPer100g: 100,
+      fiberPer100g: 1,
+      kcalPer100g: 900,
+      name: 'Aceite',
+      proteinPer100g: 0,
+      slug: 'aceite'
+    })
+  ]);
+  const spreadSlots = slotsForTest(3, false);
+  // From starchy to chicken-heavy, eight a meal: sixteen uses for fourteen days.
+  const spreadPool = spreadSlots.flatMap(slot =>
+    [0, 1, 2, 3, 4, 5, 6, 7].map(n =>
+      makeDish({
+        ingredients: [
+          { grams: 200 - n * 12, slug: 'arroz' },
+          { grams: 25 + n * 6, slug: 'pollo' },
+          { grams: 8, slug: 'aceite' }
+        ],
+        name: `${slot} ${n}`,
+        slots: [slot],
+        slug: `${slot}-${n}`
+      })
+    )
+  );
+  const run = () => schedulePlan({ catalogue: spreadCatalogue, pool: spreadPool, targets: T, weights: weightsFor(shapeFor(3, false)) });
+
+  it('brings the last days inside the bands the first days already sat in', () => {
+    const result = run();
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    for (const day of result.assignment.days) {
+      expect(Math.abs(day.totals.proteinG - T.proteinG)).toBeLessThanOrEqual(T.proteinG * 0.05);
+      expect(Math.abs(day.totals.carbsG - T.carbsG)).toBeLessThanOrEqual(T.carbsG * 0.05);
+      expect(Math.abs(day.totals.kcal - T.kcal)).toBeLessThanOrEqual(T.kcal * 0.05);
+      expect(Math.abs(day.totals.fatG - T.fatG)).toBeLessThanOrEqual(T.fatG * FIXTURE_BAND);
+    }
+  });
+
+  it('never breaks variety to do it, and does it the same way every time', () => {
+    const first = run();
+    const second = run();
+
+    expect(first.ok && second.ok).toBe(true);
+
+    if (!first.ok || !second.ok) {
+      return;
+    }
+
+    expect(varietyViolations(first.assignment.days)).toEqual([]);
+    expect(second.assignment).toEqual(first.assignment);
+  });
+});
+
 describe('pickReplacement', () => {
   const catalogue = makeCatalogue([
     makeCatalogueIngredient({ id: 'i-rice', kcalPer100g: 130, proteinPer100g: 2.7, slug: 'rice' }),

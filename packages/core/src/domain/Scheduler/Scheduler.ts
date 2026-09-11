@@ -1,5 +1,6 @@
 import { composePerServing, scaleIngredients, scaleMacros, sumMacros } from 'core/domain/Composition';
 import { canPlace, isPreferredDish } from 'core/domain/Variety';
+import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
 import type { Leaning, Placement } from 'core/domain/Variety';
 import type { CandidateDish, Catalogue, Macros, MealSlot, PlanAssignment, PlanDayAssignment, ScheduledMeal, SwapAxis } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
@@ -57,6 +58,37 @@ const BALANCE_WINDOW_STEPS = 4;
  */
 const SHARE_ORDER_GAP = 0.2;
 const SHARE_INVERSION_WEIGHT = 2;
+
+/**
+ * The fortnight pass that spreads what a day could not fix on its own across
+ * the days that have room for it (`0048`).
+ *
+ * Days are built in order, and each dish may appear twice a plan, so the
+ * dishes that fit a person best are spent in the first week and the last days
+ * are built from what is left. On a real plan that was protein: days one to
+ * ten inside a point of target, days eleven to fourteen 7–19% over — while the
+ * fortnight's surplus, spread evenly, was under 4% a day. No choice inside one
+ * day can move that; an exchange between two days can. So once every day is
+ * built, the day furthest outside its bands trades a meal with the same meal
+ * of another day, both re-sized, whenever that leaves the two days with fewer
+ * macros outside their bands — or as many, less far outside (`bandMiss`).
+ *
+ * Rounds are bounded, and each is two-stage like the day's own swaps: every
+ * exchange is screened at its first sizes, and only the most promising
+ * `SPREAD_SHORTLIST` are re-sized properly.
+ */
+const MAX_SPREAD_ROUNDS = 60;
+const SPREAD_SHORTLIST = 24;
+
+/**
+ * Inside the spread pass, what a day pays for each point a macro sits outside
+ * its band, on top of its ordinary fit — so the portions of a day being
+ * repaired are sized to bring every macro inside first, and to fit closely
+ * second. Not used while days are first built: there, pricing the band made
+ * each day take the dishes that fit best and left the last days nothing,
+ * measured worse on a real library.
+ */
+const BAND_MISS_WEIGHT = 10;
 
 /** Swap rounds per day. Each takes the single best improvement; they converge fast. */
 const MAX_SWAP_ROUNDS = 8;
@@ -140,14 +172,13 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
   // The days that are not being laid out go in first, so every `canPlace` below
   // sees the whole plan rather than only the part of it this call is building.
   const placed: Placement[] = [...(input.placed ?? [])];
-  const assignedDays: PlanDayAssignment[] = [];
+  const built: BuiltDay[] = [];
 
   for (const dayIndex of indexes) {
     // Per day rather than once: a day that eats for an event has its own targets
     // (`0043`), and the budgets are what turn targets into a plate.
     const targets = targetsOn(input, dayIndex);
     const budgets = slotBudgets(input.weights, targets);
-    const meals: ScheduledMeal[] = [];
 
     const picks: { base: Macros; dish: CandidateDish; servings: number; slot: MealSlot; sortOrder: number }[] = [];
 
@@ -185,19 +216,21 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       }
     }
 
-    for (const pick of balanceDay(improved, targets, budgets)) {
-      meals.push({
-        dish: pick.dish,
-        ingredients: scaleIngredients(pick.dish.ingredients, pick.servings / pick.dish.servings),
-        macros: scaleMacros(pick.base, pick.servings),
-        servings: pick.servings,
-        slot: pick.slot,
-        sortOrder: pick.sortOrder
-      });
-    }
-
-    assignedDays.push({ dayIndex, meals, totals: sumMacros(meals.map(meal => meal.macros)) });
+    built.push({ budgets, dayIndex, picks: balanceDay(improved, targets, budgets), targets });
   }
+
+  const assignedDays: PlanDayAssignment[] = spreadAcrossDays(built, input.placed ?? []).map(day => {
+    const meals: ScheduledMeal[] = day.picks.map(pick => ({
+      dish: pick.dish,
+      ingredients: scaleIngredients(pick.dish.ingredients, pick.servings / pick.dish.servings),
+      macros: scaleMacros(pick.base, pick.servings),
+      servings: pick.servings,
+      slot: pick.slot,
+      sortOrder: pick.sortOrder
+    }));
+
+    return { dayIndex: day.dayIndex, meals, totals: sumMacros(meals.map(meal => meal.macros)) };
+  });
 
   return { assignment: { days: assignedDays }, ok: true };
 }
@@ -498,7 +531,8 @@ function balanceDay(picks: readonly Pick[], targets: NutritionTargets, budgets: 
 function balancedDay(
   picks: readonly Pick[],
   targets: NutritionTargets,
-  budgets: ReadonlyMap<MealSlot, SlotBudget>
+  budgets: ReadonlyMap<MealSlot, SlotBudget>,
+  banded = false
 ): { readonly cost: number; readonly picks: readonly Pick[] } {
   const dayCost = (servings: readonly number[]): number => {
     const totals = picks.reduce<Macros>(
@@ -540,6 +574,7 @@ function balancedDay(
 
     return (
       fitCost(totals, { carbsG: targets.carbsG, fatG: targets.fatG, kcal: targets.kcal, proteinG: targets.proteinG }) +
+      (banded ? bandMiss(totals, targets) * BAND_MISS_WEIGHT : 0) +
       inversions * SHARE_INVERSION_WEIGHT
     );
   };
@@ -689,9 +724,9 @@ function improveDay(
   return current;
 }
 
-/** The day's totals measured against the day's targets. */
-function dayFitCost(picks: readonly Pick[], targets: NutritionTargets): number {
-  const totals = picks.reduce<Macros>(
+/** A day's macros at the sizes its picks carry. */
+function totalsOf(picks: readonly Pick[]): Macros {
+  return picks.reduce<Macros>(
     (sum, pick) => ({
       carbsG: sum.carbsG + pick.base.carbsG * pick.servings,
       fatG: sum.fatG + pick.base.fatG * pick.servings,
@@ -701,8 +736,164 @@ function dayFitCost(picks: readonly Pick[], targets: NutritionTargets): number {
     }),
     { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 }
   );
+}
 
-  return fitCost(totals, { carbsG: targets.carbsG, fatG: targets.fatG, kcal: targets.kcal, proteinG: targets.proteinG });
+/** The day's totals measured against the day's targets. */
+function dayFitCost(picks: readonly Pick[], targets: NutritionTargets): number {
+  return fitCost(totalsOf(picks), { carbsG: targets.carbsG, fatG: targets.fatG, kcal: targets.kcal, proteinG: targets.proteinG });
+}
+
+/**
+ * How far a day sits from `PLAN_TOLERANCE` — the same bands validation
+ * reports, so what the spread pass removes is exactly what a plan would
+ * otherwise be delivered with as advice.
+ *
+ * Macros outside first, how far outside second: each macro outside its band
+ * counts one, plus the fraction it is out by. Priced by distance alone, a day
+ * whose fat could not reach its band pushed carbohydrate and protein a point
+ * outside theirs to pull the fat a few points closer — less total distance,
+ * two more numbers the person sees missed. Zero for a day inside every band.
+ */
+function bandMiss(totals: Macros, targets: NutritionTargets): number {
+  const outside = (actual: number, target: number, under: number, over: number): number => {
+    if (target <= 0) {
+      return 0;
+    }
+
+    const error = (actual - target) / target;
+
+    return error < 0 ? Math.max(0, -error - under) : Math.max(0, error - over);
+  };
+
+  return [
+    outside(totals.kcal, targets.kcal, PLAN_TOLERANCE.kcal, PLAN_TOLERANCE.kcal),
+    outside(totals.proteinG, targets.proteinG, PLAN_TOLERANCE.proteinUnder, PLAN_TOLERANCE.proteinOver),
+    outside(totals.carbsG, targets.carbsG, PLAN_TOLERANCE.carbs, PLAN_TOLERANCE.carbs),
+    outside(totals.fatG, targets.fatG, PLAN_TOLERANCE.fat, PLAN_TOLERANCE.fat)
+  ].reduce((sum, excess) => sum + excess + (excess > SPREAD_EPSILON ? 1 : 0), 0);
+}
+
+type BuiltDay = {
+  readonly budgets: ReadonlyMap<MealSlot, SlotBudget>;
+  readonly dayIndex: number;
+  readonly picks: readonly Pick[];
+  readonly targets: NutritionTargets;
+};
+
+/** Small enough to be rounding; an exchange has to buy more than this to be made. */
+const SPREAD_EPSILON = 1e-6;
+
+/**
+ * Exchanges meals between days until no exchange brings the fortnight closer
+ * to its bands — see `MAX_SPREAD_ROUNDS`.
+ *
+ * An exchange is the same meal on two days, each dish moving to the other
+ * day. It can never break variety: a dish keeps its count, and each move is
+ * checked with `canPlace` against everything else on the plan, including the
+ * days a mid-plan rebuild is not touching. Deterministic: days and meals are
+ * visited in order and a tie keeps the first.
+ */
+function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]): readonly BuiltDay[] {
+  const current = [...days];
+  const missOf = (picks: readonly Pick[], day: BuiltDay): number => bandMiss(totalsOf(picks), day.targets);
+  const resized = (day: BuiltDay, index: number, replacement: Pick): Pick[] =>
+    day.picks.map((pick, position) =>
+      position === index
+        ? {
+            ...pick,
+            base: replacement.base,
+            dish: replacement.dish,
+            servings: servingsFor(replacement.base, day.budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 })
+          }
+        : pick
+    );
+
+  // First the cheapest repair: the same dishes, sized to the bands.
+  for (const [position, day] of current.entries()) {
+    const before = missOf(day.picks, day);
+
+    if (before > SPREAD_EPSILON) {
+      const picks = balancedDay(day.picks, day.targets, day.budgets, true).picks;
+
+      if (missOf(picks, day) < before - SPREAD_EPSILON) {
+        current[position] = { ...day, picks };
+      }
+    }
+  }
+
+  for (let round = 0; round < MAX_SPREAD_ROUNDS; round += 1) {
+    const outside = current
+      .map((day, position) => ({ miss: missOf(day.picks, day), position }))
+      .filter(entry => entry.miss > SPREAD_EPSILON)
+      .sort((a, b) => b.miss - a.miss || a.position - b.position);
+    let exchanged = false;
+
+    for (const { miss, position: worstAt } of outside) {
+      const worst = current[worstAt] as BuiltDay;
+      const placements: Placement[] = [
+        ...fixed,
+        ...current.flatMap(day => day.picks.map(pick => ({ dayIndex: day.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot })))
+      ];
+      const screened: { before: number; otherAt: number; quick: number; toOther: Pick[]; toWorst: Pick[] }[] = [];
+
+      for (const [otherAt, other] of current.entries()) {
+        if (otherAt === worstAt) {
+          continue;
+        }
+
+        const before = miss + missOf(other.picks, other);
+
+        for (const [worstIndex, mine] of worst.picks.entries()) {
+          const otherIndex = other.picks.findIndex(pick => pick.slot === mine.slot);
+          const theirs = other.picks[otherIndex];
+
+          if (!theirs || theirs.dish.slug === mine.dish.slug) {
+            continue;
+          }
+
+          const rest = placements.filter(
+            placement => placement.slot !== mine.slot || (placement.dayIndex !== worst.dayIndex && placement.dayIndex !== other.dayIndex)
+          );
+
+          if (!canPlace(theirs.dish.slug, mine.slot, worst.dayIndex, rest) || !canPlace(mine.dish.slug, mine.slot, other.dayIndex, rest)) {
+            continue;
+          }
+
+          const toWorst = resized(worst, worstIndex, theirs);
+          const toOther = resized(other, otherIndex, mine);
+
+          screened.push({ before, otherAt, quick: missOf(toWorst, worst) + missOf(toOther, other) - before, toOther, toWorst });
+        }
+      }
+
+      let best: { gain: number; otherAt: number; toOther: readonly Pick[]; toWorst: readonly Pick[] } | undefined;
+
+      // Stable: a tie on the screen keeps the order the exchanges were found in.
+      for (const entry of screened.sort((a, b) => a.quick - b.quick).slice(0, SPREAD_SHORTLIST)) {
+        const other = current[entry.otherAt] as BuiltDay;
+        const toWorst = balancedDay(entry.toWorst, worst.targets, worst.budgets, true).picks;
+        const toOther = balancedDay(entry.toOther, other.targets, other.budgets, true).picks;
+        const gain = entry.before - missOf(toWorst, worst) - missOf(toOther, other);
+
+        if (gain > SPREAD_EPSILON && (!best || gain > best.gain + SPREAD_EPSILON)) {
+          best = { gain, otherAt: entry.otherAt, toOther, toWorst };
+        }
+      }
+
+      if (best) {
+        current[worstAt] = { ...worst, picks: best.toWorst };
+        current[best.otherAt] = { ...(current[best.otherAt] as BuiltDay), picks: best.toOther };
+        exchanged = true;
+        break;
+      }
+    }
+
+    if (!exchanged) {
+      break;
+    }
+  }
+
+  return current;
 }
 
 /** Quarter-serving arithmetic in floats needs snapping, or 0.75 + 0.25 drifts. */

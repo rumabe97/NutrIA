@@ -117,7 +117,7 @@ describe('buildPoolPrompt', () => {
 
     expect(prompt).toContain('- 2400 kcal · 150 g protein · 250 g carbohydrate · 70 g fat · at least 30 g fibre');
     expect(prompt).toContain('The split: 27% protein · 45% carbohydrate · 28% fat.');
-    expect(prompt).toContain('Energy, carbohydrate and fat are each held to 5% of target on every day');
+    expect(prompt).toContain('Energy, protein, carbohydrate and fat are each held to 5% of target on every day, over and under');
     // No longer true since `0045`: the bands are advisory, and nothing is discarded for protein.
     expect(prompt).not.toContain('discarded in full');
   });
@@ -129,6 +129,24 @@ describe('buildPoolPrompt', () => {
     expect(prompt).toContain('fat carries 9');
     expect(prompt).toContain('When it asks for little carbohydrate');
     expect(prompt).toContain('is weighed dry, as bought');
+  });
+
+  /**
+   * 3.0.0's dishes all landed at or over their protein, and a day built from
+   * dishes on one side of a figure cannot land on it (`0048`).
+   */
+  it('asks for protein as a figure to land on, and for each meal’s set to straddle every figure', () => {
+    const prompt = buildPoolPrompt(context(), []);
+
+    expect(prompt).toContain('Protein is a figure to land on, not a minimum.');
+    expect(prompt).toContain('land about half a little under each figure and half a little over');
+    // In numbers per meal, since prose alone still came back high.
+    const lunch = briefIn(prompt, 'lunch');
+
+    expect(prompt).toContain(
+      `Protein: half the set between ${Math.round(lunch.proteinG * 0.9)} and ${lunch.proteinG} g, half between ${lunch.proteinG} and ${Math.round(lunch.proteinG * 1.1)} g`
+    );
+    expect(prompt).not.toContain('protein to a floor');
   });
 
   it('puts way of eating with allergy, above the numbers', () => {
