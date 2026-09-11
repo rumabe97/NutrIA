@@ -18,14 +18,17 @@ const SERVING_STEP = 0.25;
 export const SERVING_BOUNDS = { max: 4, min: 0.5 } as const;
 
 /**
- * The band the balancing pass aims for. Deliberately tighter than
- * `PLAN_TOLERANCE.kcal`, so a plan leaves the scheduler comfortably inside what
- * validation will later demand rather than on its edge.
+ * How far, in quarter servings, the portion search looks either side of the
+ * size each dish was first scaled to.
+ *
+ * Four steps is a whole serving each way. The search is exhaustive over every
+ * combination inside that window — four dishes at nine sizes each is 6,561
+ * days to price, which costs nothing — so the day always leaves with the best
+ * portions its dishes allow, not the first local minimum a greedy walk found
+ * (`0045`). Wider than this and the sizes stop being the dish's own; narrower
+ * and fat, which arrives in small grams inside a plate, cannot be steered.
  */
-const BALANCE_TARGET = 0.05;
-
-/** Enough passes to walk any day into band from a quarter-portion start. */
-const MAX_BALANCE_STEPS = 24;
+const BALANCE_WINDOW_STEPS = 4;
 
 /** Swap rounds per day. Each takes the single best improvement; they converge fast. */
 const MAX_SWAP_ROUNDS = 8;
@@ -92,8 +95,9 @@ export type ScheduleResult =
  * Assigns pool dishes across the fortnight.
  *
  * Deterministic by construction: candidates are ranked by how close their
- * per-serving energy sits to the slot's budget, ties broken on slug. The same
- * input always produces the same plan, which is what makes the scheduler
+ * per-serving macros sit to the slot's budget — energy, protein, carbs and fat
+ * all four — ties broken by usage then by the pool's own order (`0009`). The
+ * same input always produces the same plan, which is what makes the scheduler
  * testable and a failed generation reproducible.
  *
  * Variety is *prevented*, not detected — `canPlace` gates every placement, so a
@@ -120,7 +124,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
     const picks: { base: Macros; dish: CandidateDish; servings: number; slot: MealSlot; sortOrder: number }[] = [];
 
     for (const [sortOrder, slot] of slots.entries()) {
-      const budget = budgets.get(slot) ?? { kcal: 0, proteinG: 0 };
+      const budget = budgets.get(slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
       const eligible = input.pool
         .filter(dish => dish.slots.includes(slot))
         .filter(dish => perServing.has(dish.slug))
@@ -170,7 +174,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
   return { assignment: { days: assignedDays }, ok: true };
 }
 
-export type SlotBudget = { readonly kcal: number; readonly proteinG: number };
+export type SlotBudget = { readonly carbsG: number; readonly fatG: number; readonly kcal: number; readonly proteinG: number };
 
 export type Replacement = {
   readonly dish: CandidateDish;
@@ -181,8 +185,9 @@ export type Replacement = {
 
 /**
  * A favourite goes first only if it lands near the budget — this much fit cost
- * is roughly 20 % off on energy. Past that, a favourite is the wrong dish for
- * this slot however much the person likes it, and the fit decides.
+ * is roughly 20 % off on energy alone, or a smaller miss spread across energy
+ * and composition. Past that, a favourite is the wrong dish for this slot
+ * however much the person likes it, and the fit decides.
  */
 const PREFERRED_FIT_TOLERANCE = 0.35;
 
@@ -300,12 +305,30 @@ export function axisFilter(
  * plan's protein is decided entirely at *selection* time — an energy-only
  * scheduler cannot correct for a carb-heavy pool afterwards, and every plan it
  * builds from one is rejected.
+ *
+ * Carbs and fat are budgeted the same way, for the reason protein was: a real
+ * dish's energy is not free to land wherever, it comes as some mix of carbs,
+ * protein and fat, and scaling a portion moves all four together. A scheduler
+ * that only watched kcal and protein could hit both while carbs and fat drifted
+ * however the pool happened to be built — which is exactly what real Spanish
+ * dishes did, meat- and fish-heavy and starch-light, delivering a day short on
+ * carbohydrate and over on fat by up to half, with nothing anywhere to catch it
+ * because validation never checked the split either. Found on a real plan, not
+ * in a test (`0045`).
  */
 function slotBudgets(weights: ReadonlyMap<MealSlot, number>, targets: NutritionTargets): ReadonlyMap<MealSlot, SlotBudget> {
   const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0) || 1;
 
   return new Map(
-    [...weights].map(([slot, weight]) => [slot, { kcal: (targets.kcal * weight) / total, proteinG: (targets.proteinG * weight) / total }])
+    [...weights].map(([slot, weight]) => [
+      slot,
+      {
+        carbsG: (targets.carbsG * weight) / total,
+        fatG: (targets.fatG * weight) / total,
+        kcal: (targets.kcal * weight) / total,
+        proteinG: (targets.proteinG * weight) / total
+      }
+    ])
   );
 }
 
@@ -331,10 +354,19 @@ function servingsFor(perServing: Macros, budget: SlotBudget): number {
 function fitCost(macros: Macros, budget: SlotBudget): number {
   const energy = budget.kcal > 0 ? Math.abs(macros.kcal - budget.kcal) / budget.kcal : 0;
   const protein = budget.proteinG > 0 ? Math.abs(macros.proteinG - budget.proteinG) / budget.proteinG : 0;
+  const carbs = budget.carbsG > 0 ? Math.abs(macros.carbsG - budget.carbsG) / budget.carbsG : 0;
+  const fat = budget.fatG > 0 ? Math.abs(macros.fatG - budget.fatG) / budget.fatG : 0;
 
-  // Energy is weighted higher: its tolerance is tighter (10% against 15%), and a
-  // day that misses on calories misses on the thing the goal depends on.
-  return energy * 1.5 + protein;
+  // Energy and protein keep their weights (10%/15% tolerance → 1.5/1, by
+  // 1/tolerance normalised on protein's). Carbs and fat are new (`0045`) and
+  // looser — 20% tolerance each, the same scale gives 0.75 — because a day's
+  // carb/fat split is more a matter of what dishes exist than protein is, and
+  // this is meant to steer the split, not police it to the gram. Before this,
+  // carbs and fat were not fitted at all: two dishes tying on kcal and protein
+  // were indistinguishable here however differently they spent that energy,
+  // which is what let a whole pool's fat-heavy lean pass through every check
+  // unnoticed.
+  return energy * 1.5 + protein + carbs * 0.75 + fat * 0.75;
 }
 
 /**
@@ -413,77 +445,106 @@ function pickBest(
 type Pick = { readonly base: Macros; readonly dish: CandidateDish; readonly servings: number; readonly slot: MealSlot; readonly sortOrder: number };
 
 /**
- * Walks a day's portions into band, a quarter serving at a time.
+ * Sizes a day's portions to its targets, a quarter serving at a time — every
+ * combination, not a walk.
  *
- * Each slot's serving is quantised independently against its own share of the
- * day, so three slots each rounding a little the same way can put the day 10%
- * out — which is exactly the tolerance validation rejects at. Rather than
- * loosening the quantum (and printing 1.37 servings) or loosening the band,
- * this corrects afterwards: at each step it applies the single quarter-serving
- * change that moves the day's total closest to target, and stops when it is
- * inside `BALANCE_TARGET` or when no change helps.
+ * Each slot's serving is first quantised independently against its own share
+ * of the day, so four slots each rounding a little the same way can put the
+ * day well outside its band. This used to correct that greedily: one quarter
+ * step per pass, whichever helped most, until a pass helped nothing. Greedy
+ * stops at the first local minimum, and with four macros to satisfy at once
+ * there are many — a day that could have landed inside 5% on everything sat at
+ * 8% on fat because no single quarter step improved the sum, though a pair of
+ * opposite steps on two dishes would have. So the search is now exhaustive
+ * inside a window around each dish's starting size (`BALANCE_WINDOW_STEPS`),
+ * and the day takes the combination with the lowest cost.
  *
- * Deterministic: ties break on slot order, so the same day always balances the
- * same way.
+ * Deterministic: combinations are visited in slot order, and a tie keeps the
+ * earlier one, so the same day always sizes the same way.
  */
 function balanceDay(picks: readonly Pick[], targets: NutritionTargets): readonly Pick[] {
-  const dayCost = (entries: readonly Pick[]): number =>
+  return balancedDay(picks, targets).picks;
+}
+
+/** `balanceDay`, and what the day costs once sized — the number a swap is judged by. */
+function balancedDay(picks: readonly Pick[], targets: NutritionTargets): { readonly cost: number; readonly picks: readonly Pick[] } {
+  const dayCost = (servings: readonly number[]): number =>
     fitCost(
-      entries.reduce<Macros>(
-        (sum, pick) => ({
-          carbsG: sum.carbsG + pick.base.carbsG * pick.servings,
-          fatG: sum.fatG + pick.base.fatG * pick.servings,
-          fiberG: sum.fiberG + pick.base.fiberG * pick.servings,
-          kcal: sum.kcal + pick.base.kcal * pick.servings,
-          proteinG: sum.proteinG + pick.base.proteinG * pick.servings
-        }),
+      picks.reduce<Macros>(
+        (sum, pick, index) => {
+          const factor = servings[index] ?? pick.servings;
+
+          return {
+            carbsG: sum.carbsG + pick.base.carbsG * factor,
+            fatG: sum.fatG + pick.base.fatG * factor,
+            fiberG: sum.fiberG + pick.base.fiberG * factor,
+            kcal: sum.kcal + pick.base.kcal * factor,
+            proteinG: sum.proteinG + pick.base.proteinG * factor
+          };
+        },
         { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 }
       ),
-      { kcal: targets.kcal, proteinG: targets.proteinG }
+      { carbsG: targets.carbsG, fatG: targets.fatG, kcal: targets.kcal, proteinG: targets.proteinG }
     );
 
-  let current = [...picks];
+  // The sizes each dish may take: its own, and up to the window either side,
+  // never past what a person can be served.
+  const options = picks.map(pick => {
+    const sizes: number[] = [];
 
-  for (let step = 0; step < MAX_BALANCE_STEPS; step += 1) {
-    const cost = dayCost(current);
+    for (let step = -BALANCE_WINDOW_STEPS; step <= BALANCE_WINDOW_STEPS; step += 1) {
+      const servings = roundServings(pick.servings + step * SERVING_STEP);
 
-    // `fitCost` weights energy at 1.5 against protein's 1, so this threshold keeps
-    // both comfortably inside the tolerances validation applies.
-    if (cost <= BALANCE_TARGET * 2.5) {
-      break;
-    }
-
-    let bestIndex = -1;
-    let bestServings = 0;
-    let bestCost = cost;
-
-    for (const [index, pick] of current.entries()) {
-      for (const delta of [SERVING_STEP, -SERVING_STEP]) {
-        const servings = roundServings(pick.servings + delta);
-
-        if (servings < SERVING_BOUNDS.min || servings > SERVING_BOUNDS.max) {
-          continue;
-        }
-
-        const candidateCost = dayCost(current.map((entry, position) => (position === index ? { ...entry, servings } : entry)));
-
-        if (candidateCost < bestCost) {
-          bestCost = candidateCost;
-          bestIndex = index;
-          bestServings = servings;
-        }
+      if (servings >= SERVING_BOUNDS.min && servings <= SERVING_BOUNDS.max) {
+        sizes.push(servings);
       }
     }
 
-    if (bestIndex < 0) {
-      break;
+    return sizes;
+  });
+
+  let best: readonly number[] = picks.map(pick => pick.servings);
+  let bestCost = dayCost(best);
+
+  const visit = (index: number, chosen: number[]): void => {
+    if (index === picks.length) {
+      const cost = dayCost(chosen);
+
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = [...chosen];
+      }
+
+      return;
     }
 
-    current = current.map((pick, index) => (index === bestIndex ? { ...pick, servings: bestServings } : pick));
-  }
+    for (const servings of options[index] ?? []) {
+      chosen.push(servings);
+      visit(index + 1, chosen);
+      chosen.pop();
+    }
+  };
 
-  return current;
+  visit(0, []);
+
+  return { cost: bestCost, picks: picks.map((pick, index) => ({ ...pick, servings: best[index] ?? pick.servings })) };
 }
+
+/**
+ * How many candidate swaps per round are priced properly — sized by the
+ * exhaustive portion search — after a cheap first pass over the whole pool.
+ *
+ * The cheap pass judges a swap with the dish at the size it was first scaled
+ * to; the expensive one asks what the day would cost once every portion is
+ * re-fitted around it, which is the question that matters and the one the
+ * greedy version never asked. A swap that only helps once the other plates
+ * shrink a quarter to make room for it was invisible before, and fat — small
+ * grams inside a plate, unreachable by scaling alone — is exactly what such
+ * swaps fix. Twenty-four, measured on a real library: eight left one day of
+ * fourteen at 7% on fat, twenty-four brought every day inside 5% on all four
+ * macros, and the whole fortnight still prices in about four seconds.
+ */
+const SWAP_SHORTLIST = 24;
 
 /**
  * Swaps whole dishes to improve the day as a whole.
@@ -495,8 +556,9 @@ function balanceDay(picks: readonly Pick[], targets: NutritionTargets): readonly
  * a portion changes a dish's size, never its composition — so the repair has to
  * happen at selection.
  *
- * Bounded and greedy: it takes the single best-improving swap each round and stops
- * when nothing improves. Variety is re-checked against the other days and the rest
+ * Bounded and greedy over rounds: each takes the single best-improving swap and
+ * stops when nothing improves. Within a round it is two-stage — see
+ * `SWAP_SHORTLIST`. Variety is re-checked against the other days and the rest
  * of this one, so a swap can never introduce a violation.
  */
 function improveDay(
@@ -509,19 +571,22 @@ function improveDay(
   const perServing = perServingIndex(input.pool, input.catalogue);
   const others = placed.filter(placement => placement.dayIndex !== dayIndex);
 
+  const targets = targetsOn(input, dayIndex);
   let current = [...picks];
 
   for (let round = 0; round < MAX_SWAP_ROUNDS; round += 1) {
-    let bestCost = dayFitCost(current, targetsOn(input, dayIndex));
-    let bestIndex = -1;
-    let bestPick: Pick | undefined;
+    // Priced the same way the candidates will be, or a swap could "win" against
+    // a day that was never sized.
+    let bestCost = balancedDay(current, targets).cost;
+    let bestDay: readonly Pick[] | undefined;
+    const shortlist: { readonly cost: number; readonly swapped: readonly Pick[] }[] = [];
 
     for (const [index, pick] of current.entries()) {
       // Everything already on the plate today except the one being replaced.
       const siblings = current
         .filter((_entry, position) => position !== index)
         .map(entry => ({ dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }));
-      const budget = budgets.get(pick.slot) ?? { kcal: 0, proteinG: 0 };
+      const budget = budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
 
       for (const candidate of input.pool) {
         if (!candidate.slots.includes(pick.slot) || candidate.slug === pick.dish.slug) {
@@ -538,21 +603,30 @@ function improveDay(
         const swapped = current.map((entry, position) =>
           position === index ? { base, dish: candidate, servings, slot: entry.slot, sortOrder: entry.sortOrder } : entry
         );
-        const cost = dayFitCost(swapped, targetsOn(input, dayIndex));
 
-        if (cost < bestCost) {
-          bestCost = cost;
-          bestIndex = index;
-          bestPick = swapped[index];
-        }
+        shortlist.push({ cost: dayFitCost(swapped, targets), swapped });
       }
     }
 
-    if (bestIndex < 0 || !bestPick) {
+    // Stable: a tie on the cheap cost keeps pool order, which is the user's own
+    // rotation (`0009`), and the shortlist is then priced in that order.
+    const priced = shortlist
+      .sort((a, b) => a.cost - b.cost)
+      .slice(0, SWAP_SHORTLIST)
+      .map(entry => ({ cost: balancedDay(entry.swapped, targets).cost, swapped: entry.swapped }));
+
+    for (const entry of priced) {
+      if (entry.cost < bestCost) {
+        bestCost = entry.cost;
+        bestDay = entry.swapped;
+      }
+    }
+
+    if (!bestDay) {
       break;
     }
 
-    current = current.map((entry, index) => (index === bestIndex ? bestPick : entry));
+    current = [...bestDay];
   }
 
   return current;
@@ -571,7 +645,7 @@ function dayFitCost(picks: readonly Pick[], targets: NutritionTargets): number {
     { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 }
   );
 
-  return fitCost(totals, { kcal: targets.kcal, proteinG: targets.proteinG });
+  return fitCost(totals, { carbsG: targets.carbsG, fatG: targets.fatG, kcal: targets.kcal, proteinG: targets.proteinG });
 }
 
 /** Quarter-serving arithmetic in floats needs snapping, or 0.75 + 0.25 drifts. */

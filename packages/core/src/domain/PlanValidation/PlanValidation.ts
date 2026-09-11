@@ -28,8 +28,17 @@ import type { VarietyViolation } from 'core/domain/Variety';
  * discarded, then a percentage ceiling until one carrying 233 g was. Both were
  * nutritionally unremarkable. The rule was wrong twice because it measured the
  * wrong thing.
+ *
+ * **Carbs and fat have bands too, since `0045`, and every band is 5%.** They
+ * had none: a plan could miss its carbohydrate target by 46% on every day of
+ * the fortnight and pass, which is what a real plan did, because nothing here
+ * asked. The scheduler now fits all four macros and lands inside 5% on nearly
+ * every day of a real library, so 5% is the bar this product holds itself to —
+ * the owner's word for it was "perfect, or it is no use". These bands are
+ * advisory (see `isBlocking`): a day at 7% on fat is delivered and written
+ * down, not thrown away, because the person with no plan eats worse still.
  */
-export const PLAN_TOLERANCE = { kcal: 0.1, proteinUnder: 0.15 } as const;
+export const PLAN_TOLERANCE = { carbs: 0.05, fat: 0.05, kcal: 0.05, proteinUnder: 0.05 } as const;
 
 export type PlanViolation =
   | { readonly actual: number; readonly ceiling: number; readonly dayIndex: number; readonly kind: 'protein_above_ceiling' }
@@ -37,7 +46,7 @@ export type PlanViolation =
   | {
       readonly actual: number;
       readonly dayIndex: number;
-      readonly kind: 'kcal_out_of_band' | 'protein_below_target';
+      readonly kind: 'carbs_out_of_band' | 'fat_out_of_band' | 'kcal_out_of_band' | 'protein_below_target';
       readonly target: number;
       readonly tolerance: number;
     }
@@ -57,8 +66,8 @@ export type PlanViolation =
  * - **Safety** — a day under the minimum energy a body needs, or protein above the
  *   sanity ceiling. These are not targets, they are bounds, and the project's rule
  *   is that safety is never softened for convenience. Blocking.
- * - **Guidance** — a day a little under the protein target, or outside the calorie
- *   band. **Advisory.** The targets are an estimate the profile screen already
+ * - **Guidance** — a day a little under the protein target, or outside the
+ *   calorie, carbohydrate or fat band. **Advisory.** The targets are an estimate the profile screen already
  *   calls an estimate; missing one by a few per cent on two days out of fourteen
  *   is information, not a fault, and discarding a good plan over it leaves the
  *   user with no plan at all — which serves their nutrition strictly worse than
@@ -141,6 +150,29 @@ export function validatePlan(input: ValidationInput): readonly PlanViolation[] {
         kind: 'kcal_out_of_band',
         target: targets.kcal,
         tolerance: PLAN_TOLERANCE.kcal
+      });
+    }
+
+    // Symmetric like energy: a carbohydrate target is missed by a day that eats
+    // its energy as fat as surely as by one that eats too little, and it was
+    // the first of those that went unnoticed for a whole fortnight (`0045`).
+    if (outOfBand(day.totals.carbsG, targets.carbsG, PLAN_TOLERANCE.carbs)) {
+      violations.push({
+        actual: day.totals.carbsG,
+        dayIndex: day.dayIndex,
+        kind: 'carbs_out_of_band',
+        target: targets.carbsG,
+        tolerance: PLAN_TOLERANCE.carbs
+      });
+    }
+
+    if (outOfBand(day.totals.fatG, targets.fatG, PLAN_TOLERANCE.fat)) {
+      violations.push({
+        actual: day.totals.fatG,
+        dayIndex: day.dayIndex,
+        kind: 'fat_out_of_band',
+        target: targets.fatG,
+        tolerance: PLAN_TOLERANCE.fat
       });
     }
 

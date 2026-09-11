@@ -141,6 +141,71 @@ describe('validatePlan — protein has a floor, not a symmetric band', () => {
   });
 });
 
+describe('validatePlan — carbs and fat have bands too (0045)', () => {
+  const withTotals = (totals: Partial<PlanAssignment['days'][number]['totals']>) => {
+    const assignment = scheduled();
+
+    return { days: assignment.days.map((day, index) => (index === 0 ? { ...day, totals: { ...day.totals, ...totals } } : day)) };
+  };
+
+  const kinds = (assignment: PlanAssignment) => validatePlan({ ...base, assignment }).map(violation => violation.kind);
+
+  /*
+   * The gap this closes: a real plan missed carbohydrate by 46% and overshot fat
+   * by 75% on every day of a fortnight and passed, because nothing here asked.
+   */
+  it('flags a day whose carbohydrate is out of band, in both directions', () => {
+    expect(kinds(withTotals({ carbsG: TARGETS.carbsG * 0.8 }))).toContain('carbs_out_of_band');
+    expect(kinds(withTotals({ carbsG: TARGETS.carbsG * 1.2 }))).toContain('carbs_out_of_band');
+  });
+
+  it('flags a day whose fat is out of band, in both directions', () => {
+    expect(kinds(withTotals({ fatG: TARGETS.fatG * 0.8 }))).toContain('fat_out_of_band');
+    expect(kinds(withTotals({ fatG: TARGETS.fatG * 1.2 }))).toContain('fat_out_of_band');
+  });
+
+  it('holds every band to the same five per cent', () => {
+    // Just inside on every macro at once: nothing to report.
+    const inside = withTotals({
+      carbsG: TARGETS.carbsG * 1.04,
+      fatG: TARGETS.fatG * 0.96,
+      kcal: TARGETS.kcal * 1.04,
+      proteinG: TARGETS.proteinG * 0.96
+    });
+    // Just outside on one: exactly one report, and it names the right macro.
+    const outside = withTotals({ fatG: TARGETS.fatG * 1.06 });
+
+    expect(kinds(inside).filter(kind => kind.endsWith('_out_of_band') || kind === 'protein_below_target')).toEqual([]);
+    expect(kinds(outside).filter(kind => kind.endsWith('_out_of_band'))).toEqual(['fat_out_of_band']);
+    expect(PLAN_TOLERANCE).toEqual({ carbs: 0.05, fat: 0.05, kcal: 0.05, proteinUnder: 0.05 });
+  });
+
+  it('reports them as guidance, never as a reason to discard the plan', () => {
+    const violations = validatePlan({ ...base, assignment: withTotals({ carbsG: TARGETS.carbsG * 0.5, fatG: TARGETS.fatG * 2 }) });
+
+    expect(violations.some(violation => violation.kind === 'carbs_out_of_band')).toBe(true);
+    expect(violations.some(violation => violation.kind === 'fat_out_of_band')).toBe(true);
+    expect(violations.filter(isBlocking)).toEqual([]);
+  });
+
+  it("judges a loaded day against its own carbs and fat, not the plan's", () => {
+    const assignment = scheduled();
+    const first = assignment.days[0];
+
+    if (!first) {
+      throw new Error('fixture has days');
+    }
+
+    // A day built to eat a fifth more carbohydrate, and that did.
+    const loaded = { ...TARGETS, carbsG: Math.round(TARGETS.carbsG * 1.2) };
+    const hit = { days: assignment.days.map((day, index) => (index === 0 ? { ...day, totals: { ...day.totals, carbsG: loaded.carbsG } } : day)) };
+    const dayTargets = new Map([[first.dayIndex, loaded]]);
+
+    expect(validatePlan({ ...base, assignment: hit, dayTargets }).filter(v => v.kind === 'carbs_out_of_band')).toEqual([]);
+    expect(validatePlan({ ...base, assignment: hit }).filter(v => v.kind === 'carbs_out_of_band')).toHaveLength(1);
+  });
+});
+
 /*
  * A plan was discarded for coming in at 141 g of protein against a 185 g target
  * on two days out of fourteen. The owner's instruction was plain: the nutrition
