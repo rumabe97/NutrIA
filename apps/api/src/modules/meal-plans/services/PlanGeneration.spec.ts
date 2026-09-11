@@ -317,6 +317,100 @@ describe('PlanGenerationService', () => {
   });
 
   /*
+   * The rotation hands the scheduler about a dozen library dishes per slot, held
+   * short on purpose so the model writes the fresh third (`0013`). On a real
+   * plan that was too few to keep the macros: the dishes carrying the
+   * carbohydrate were spent in the first week and days ten to fourteen missed
+   * fat by up to half. When a plan misses a band, it is scheduled once more from
+   * what it had plus the rest of the rotation, and the better plan is kept
+   * (`0046`). A pool of pure fat stands in for the thin rotation here; the
+   * balanced library is what the uncapped rotation reaches.
+   */
+  describe('when the rotated pool misses its macros (0046)', () => {
+    const skewed = toCatalogue([
+      ingredient('arroz'),
+      ingredient('pan', [{ allergenId: GLUTEN, presence: 'contains' }]),
+      // All of its energy as fat: a day built from it misses every band but energy.
+      { ...ingredient('graso'), carbsPer100g: 0, fatPer100g: Math.round((KCAL_PER_100G / 9) * 10) / 10, fiberPer100g: 0, proteinPer100g: 0 }
+    ]);
+    // Two fifths of each dish's energy as pure fat, the rest in the target's
+    // ratio: about twice the fat a day wants, with carbohydrate and protein
+    // short. Pure fat would be too much — the scheduler, fitting all four,
+    // would shrink the plates to contain it and trip the calorie floor.
+    const fatty = pool('arroz').map(dish => {
+      const grams = dish.ingredients[0]?.grams ?? 0;
+
+      return {
+        ...dish,
+        ingredients: [
+          { grams: Math.round(grams * 0.6), slug: 'arroz' },
+          { grams: Math.round(grams * 0.4), slug: 'graso' }
+        ],
+        name: `graso ${dish.name}`,
+        slug: `graso-${dish.slug}`
+      };
+    });
+    const bands = new Set(['carbs_out_of_band', 'fat_out_of_band', 'kcal_out_of_band', 'protein_below_target']);
+    const bandAdvisories = (advisories: readonly string[]) => advisories.filter(line => bands.has(line.split(' ')[0] ?? ''));
+
+    function withSkewedCatalogue(rotated: CandidateDish[], library: CandidateDish[]) {
+      const mocks = build({ reusable: rotated });
+
+      jest
+        .spyOn(RecipeController, 'generationContext')
+        .mockResolvedValue({
+          catalogue: skewed,
+          locale: 'es-ES',
+          preferences: NO_PREFERENCE_EXCLUSIONS,
+          safety: {
+            allergenIds: new Set(),
+            crossContaminationAllergenIds: new Set(),
+            excludedIngredientIds: new Set(),
+            intoleranceAllergenIds: new Set(),
+            unenforceableLabels: []
+          }
+        });
+      jest
+        .spyOn(RecipeController, 'reusablePool')
+        .mockImplementation(async (_slots, _context, rotation) => Promise.resolve(rotation ? rotated : library));
+
+      return mocks;
+    }
+
+    it('reschedules from the uncapped rotation and keeps the plan that misses by less', async () => {
+      const { buildPool, persist, service } = withSkewedCatalogue(fatty, pool('arroz'));
+
+      await service.generate('user-1', 'job-1', async () => Promise.resolve());
+
+      const draft = persist.mock.calls[0]?.[1] as {
+        days: readonly { meals: readonly { recipeSlug: string }[] }[];
+        generationMetadata: { advisories: readonly string[]; fallback: string | null };
+      };
+
+      expect(draft.generationMetadata.fallback).toBe('wider_rotation');
+      expect(bandAdvisories(draft.generationMetadata.advisories)).toEqual([]);
+      // Built from the balanced dishes the cap had held back, not the fat.
+      expect(draft.days.flatMap(day => day.meals.map(meal => meal.recipeSlug)).some(slug => slug.startsWith('graso-'))).toBe(false);
+      // The second schedule costs no model call: the library is only read.
+      expect(buildPool).toHaveBeenCalledTimes(1);
+      expect(schedulePlan).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the first plan when the wider pool does not do better', async () => {
+      // Nothing wider to reach: the uncapped rotation is the same fat.
+      const { persist, service } = withSkewedCatalogue(fatty, fatty);
+
+      await service.generate('user-1', 'job-1', async () => Promise.resolve());
+
+      const draft = persist.mock.calls[0]?.[1] as { generationMetadata: { advisories: readonly string[]; fallback: string | null } };
+
+      expect(draft.generationMetadata.fallback).toBeNull();
+      // And it still says where it missed, rather than hiding it.
+      expect(bandAdvisories(draft.generationMetadata.advisories).length).toBeGreaterThan(0);
+    });
+  });
+
+  /*
    * Returning users hit AI_UNAVAILABLE while new users did not. The rotation held
    * back last fortnight's dishes and the model was meant to fill the gap; with the
    * quota gone, the gap stayed open and the plan was refused. A repeated dish beats
