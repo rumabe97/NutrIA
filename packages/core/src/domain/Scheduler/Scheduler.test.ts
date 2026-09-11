@@ -842,6 +842,50 @@ describe('axisFilter', () => {
   });
 });
 
+describe('schedulePlan — the portions keep the shape of the day (0036, 0045)', () => {
+  /*
+   * A real end-to-end run caught this: with lunch "normal" and dinner "light",
+   * the exhaustive portion search fed the day's four totals by making dinner
+   * the bigger meal — the combination priced the totals a little lower, and
+   * nothing in the cost said which meal was which. The share is something the
+   * person was asked about by name; it holds.
+   */
+  const shape = { afternoon_snack: 'off', breakfast: 'off', dinner: 'light', lunch: 'normal', morning_snack: 'off', supper: 'off' } as const;
+
+  it('keeps a light dinner smaller than a normal lunch on every day', () => {
+    const slots = slotsIn(shape);
+    const result = schedulePlan({ catalogue, pool: makePool(slots), targets: TARGETS, weights: weightsFor(shape) });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    for (const day of result.assignment.days) {
+      const lunch = day.meals.find(meal => meal.slot === 'lunch');
+      const dinner = day.meals.find(meal => meal.slot === 'dinner');
+
+      expect(lunch?.macros.kcal ?? 0, `day ${day.dayIndex}`).toBeGreaterThan(dinner?.macros.kcal ?? 0);
+    }
+  });
+
+  it('still lands the day inside the fixture band while keeping the shape', () => {
+    const slots = slotsIn(shape);
+    const result = schedulePlan({ catalogue, pool: makePool(slots), targets: TARGETS, weights: weightsFor(shape) });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    for (const day of result.assignment.days) {
+      expect(Math.abs(day.totals.kcal - TARGETS.kcal), `day ${day.dayIndex}`).toBeLessThanOrEqual(TARGETS.kcal * FIXTURE_BAND);
+    }
+  });
+});
+
 describe('a day that eats for something (0043)', () => {
   const dayKcal = (result: ReturnType<typeof schedule>, dayIndex: number): number => {
     if (!result.ok) {

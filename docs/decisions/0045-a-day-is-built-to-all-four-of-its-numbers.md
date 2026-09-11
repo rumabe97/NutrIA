@@ -60,6 +60,22 @@ estimate, and a person handed no plan eats worse than one handed a day at 7%.
 The safety bounds — the calorie floor, the protein ceiling — are untouched and
 still block.
 
+**4b. The portions keep the shape of the day, as an order, not a size.** The
+exhaustive search found this out for itself: with lunch "normal" and dinner
+"light" (`0036`), it fed the day's four totals by making dinner the bigger
+meal, because that combination priced the totals a little lower and nothing
+in the cost said which meal was which. A soft penalty on every meal's drift
+from its share was tried first and rejected — at a weight that kept the light
+dinner smaller, it also pulled protein and fat back outside 5% on the real
+library. The promise is not "each meal within a few per cent of its share";
+it is that a light dinner is lighter than a normal lunch. So the cost is a
+hinge: nothing while the order holds, steep once it breaks, and only between
+meals whose shares differ by more than a fifth — light against normal is a
+factor of two and the person chose it; lunch 0.33 against dinner 0.30 is the
+app's own default and is left free. Measured: the normal shape stays at
+fourteen of fourteen inside 5% on all four macros, and the light-dinner shape
+lands the same with lunch above dinner on every day.
+
 **5. Loaded days are held to their own numbers.** Unchanged in mechanism from
 `0043`; now actually met. The two event days in the measurement landed within
 1.3% of their raised targets on every macro.

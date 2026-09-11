@@ -30,6 +30,26 @@ export const SERVING_BOUNDS = { max: 4, min: 0.5 } as const;
  */
 const BALANCE_WINDOW_STEPS = 4;
 
+/**
+ * The portion search may size any meal freely, but may never make a meal
+ * bigger than one the person said should be bigger (`0036`).
+ *
+ * A soft penalty on every meal's drift from its share was tried first, and it
+ * traded the thing that matters: at a weight that kept a light dinner smaller
+ * than lunch it also pulled protein and fat back outside 5% on a real library.
+ * The promise is not "each meal within a few per cent of its share" — the
+ * person did not ask for that — it is that a light dinner is lighter than a
+ * normal lunch, a large lunch larger than a normal one. So the cost is a
+ * hinge: nothing while the order holds, and steep once it breaks, so the
+ * search is free inside the order and cannot leave it.
+ *
+ * Only pairs whose shares differ by more than `SHARE_ORDER_GAP` are ordered.
+ * The default weights put lunch at 0.33 and dinner at 0.30, and nobody chose
+ * that; light against normal is a factor of two, and that they did.
+ */
+const SHARE_ORDER_GAP = 0.2;
+const SHARE_INVERSION_WEIGHT = 2;
+
 /** Swap rounds per day. Each takes the single best improvement; they converge fast. */
 const MAX_SWAP_ROUNDS = 8;
 
@@ -157,7 +177,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       }
     }
 
-    for (const pick of balanceDay(improved, targets)) {
+    for (const pick of balanceDay(improved, targets, budgets)) {
       meals.push({
         dish: pick.dish,
         ingredients: scaleIngredients(pick.dish.ingredients, pick.servings / pick.dish.servings),
@@ -462,30 +482,59 @@ type Pick = { readonly base: Macros; readonly dish: CandidateDish; readonly serv
  * Deterministic: combinations are visited in slot order, and a tie keeps the
  * earlier one, so the same day always sizes the same way.
  */
-function balanceDay(picks: readonly Pick[], targets: NutritionTargets): readonly Pick[] {
-  return balancedDay(picks, targets).picks;
+function balanceDay(picks: readonly Pick[], targets: NutritionTargets, budgets: ReadonlyMap<MealSlot, SlotBudget>): readonly Pick[] {
+  return balancedDay(picks, targets, budgets).picks;
 }
 
 /** `balanceDay`, and what the day costs once sized — the number a swap is judged by. */
-function balancedDay(picks: readonly Pick[], targets: NutritionTargets): { readonly cost: number; readonly picks: readonly Pick[] } {
-  const dayCost = (servings: readonly number[]): number =>
-    fitCost(
-      picks.reduce<Macros>(
-        (sum, pick, index) => {
-          const factor = servings[index] ?? pick.servings;
+function balancedDay(
+  picks: readonly Pick[],
+  targets: NutritionTargets,
+  budgets: ReadonlyMap<MealSlot, SlotBudget>
+): { readonly cost: number; readonly picks: readonly Pick[] } {
+  const dayCost = (servings: readonly number[]): number => {
+    const totals = picks.reduce<Macros>(
+      (sum, pick, index) => {
+        const factor = servings[index] ?? pick.servings;
 
-          return {
-            carbsG: sum.carbsG + pick.base.carbsG * factor,
-            fatG: sum.fatG + pick.base.fatG * factor,
-            fiberG: sum.fiberG + pick.base.fiberG * factor,
-            kcal: sum.kcal + pick.base.kcal * factor,
-            proteinG: sum.proteinG + pick.base.proteinG * factor
-          };
-        },
-        { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 }
-      ),
-      { carbsG: targets.carbsG, fatG: targets.fatG, kcal: targets.kcal, proteinG: targets.proteinG }
+        return {
+          carbsG: sum.carbsG + pick.base.carbsG * factor,
+          fatG: sum.fatG + pick.base.fatG * factor,
+          fiberG: sum.fiberG + pick.base.fiberG * factor,
+          kcal: sum.kcal + pick.base.kcal * factor,
+          proteinG: sum.proteinG + pick.base.proteinG * factor
+        };
+      },
+      { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 }
     );
+    // A meal the person said should be bigger must stay bigger — see
+    // `SHARE_ORDER_GAP`. Priced as a hinge on every ordered pair.
+    let inversions = 0;
+
+    for (const [i, bigger] of picks.entries()) {
+      const biggerBudget = budgets.get(bigger.slot)?.kcal ?? 0;
+
+      for (const [j, smaller] of picks.entries()) {
+        const smallerBudget = budgets.get(smaller.slot)?.kcal ?? 0;
+
+        if (i === j || biggerBudget <= 0 || biggerBudget < smallerBudget * (1 + SHARE_ORDER_GAP)) {
+          continue;
+        }
+
+        const biggerKcal = bigger.base.kcal * (servings[i] ?? bigger.servings);
+        const smallerKcal = smaller.base.kcal * (servings[j] ?? smaller.servings);
+
+        if (smallerKcal > biggerKcal) {
+          inversions += (smallerKcal - biggerKcal) / biggerBudget;
+        }
+      }
+    }
+
+    return (
+      fitCost(totals, { carbsG: targets.carbsG, fatG: targets.fatG, kcal: targets.kcal, proteinG: targets.proteinG }) +
+      inversions * SHARE_INVERSION_WEIGHT
+    );
+  };
 
   // The sizes each dish may take: its own, and up to the window either side,
   // never past what a person can be served.
@@ -577,7 +626,7 @@ function improveDay(
   for (let round = 0; round < MAX_SWAP_ROUNDS; round += 1) {
     // Priced the same way the candidates will be, or a swap could "win" against
     // a day that was never sized.
-    let bestCost = balancedDay(current, targets).cost;
+    let bestCost = balancedDay(current, targets, budgets).cost;
     let bestDay: readonly Pick[] | undefined;
     const shortlist: { readonly cost: number; readonly swapped: readonly Pick[] }[] = [];
 
@@ -613,7 +662,7 @@ function improveDay(
     const priced = shortlist
       .sort((a, b) => a.cost - b.cost)
       .slice(0, SWAP_SHORTLIST)
-      .map(entry => ({ cost: balancedDay(entry.swapped, targets).cost, swapped: entry.swapped }));
+      .map(entry => ({ cost: balancedDay(entry.swapped, targets, budgets).cost, swapped: entry.swapped }));
 
     for (const entry of priced) {
       if (entry.cost < bestCost) {
