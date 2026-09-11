@@ -197,12 +197,9 @@ sells the people.
   re-sizing, and validation holds every macro to a 5% advisory band. Measured on a real
   profile and library: fourteen of fourteen days inside 5%. The lever left unused is
   per-ingredient trimming of a dish, which changes what a recipe means and was not needed.
-- A library window with no order: `RecipeRepository.findReusable` takes `.limit(300)` with
-  no `ORDER BY`, so the rows a reuse pool — and, since `0044`, a mid-plan rebuild — draws
-  from are whichever Postgres returns first. On a large shared library a heavily restricted
-  account could land on a window with too few safe dishes and get an empty rebuild. Found by
-  the tests agent on 2026-09-10, not yet seen in practice. The fix is an order that favours
-  the caller's constraints, or a window sized to them.
+- ~~A library window with no order~~ — fixed 2026-09-11: `findReusable` reads the whole
+  locale's library (a ceiling of 5,000, not a sample of 300) in slug order, ahead of a
+  five-hundred-dish seed that the old window would have hidden.
 
 ## Last, and deliberately so
 

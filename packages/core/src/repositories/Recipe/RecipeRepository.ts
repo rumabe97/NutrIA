@@ -90,6 +90,10 @@ export const RecipeRepository = {
         // aguacate" to an English user is not a translation gap, it is the wrong
         // dish — and reuse would otherwise quietly undo everything else here.
         .where(and(eq(recipes.locale, locale), sql`${recipes.mealSlots} && ${sql.raw(`ARRAY[${slots.map(slot => `'${slot}'`).join(',')}]::text[]`)}`))
+        // A fixed order, so the same library gives the same pool: the rotation
+        // shuffles it per person from a seed, and a seed only reproduces a plan
+        // if what it shuffles arrives in the same order every time.
+        .orderBy(recipes.slug)
         .limit(limit);
 
       if (rows.length === 0) {
