@@ -138,15 +138,21 @@ export class PlanGenerationService {
     const built = await this.pool.build({
       backfill,
       context,
-      preferences: promptPreferences(
-        profile,
-        verdicts,
-        history.recentDishes.map(dish => dish.name),
-        targets,
-        checkIn,
-        null,
-        context.preferences.unenforceableLabels
-      ),
+      preferences: {
+        ...promptPreferences(
+          profile,
+          verdicts,
+          history.recentDishes.map(dish => dish.name),
+          targets,
+          checkIn,
+          null,
+          context.preferences.unenforceableLabels
+        ),
+        // The days that eat for an event draw from this same pool; the model is
+        // asked for some dishes at their split, or they have nothing built for
+        // them (`0047`). Distinct targets, since several days share one load.
+        loadedTargets: [...new Map([...loads.dayTargets.values()].map(load => [JSON.stringify(load), load])).values()]
+      },
       reusable,
       slots
     });

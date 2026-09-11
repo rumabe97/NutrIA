@@ -1,7 +1,9 @@
+import { DEFAULT_MEAL_SHAPE, weightsFor } from 'core/domain/MealShape';
 import { INGREDIENT_CATEGORIES, SNACK_SLOTS } from 'core/entities/Plan';
 
 import type { CatalogueIngredient, IngredientCategory, MealSlot } from 'core/entities/Plan';
 import type { CheckInForGeneration } from 'core/controllers/CheckIn';
+import type { Goal } from 'core/entities/Profile';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 
 /**
@@ -39,11 +41,32 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * they disliked, never to recreate (0014).
  * 2.6.0: the last fortnight's check-in — how the portions felt, how hard the plan
  * was, their own words (0018).
+ * 3.0.0: designs to the whole macro split, per serving, sized to the person's
+ * own day (`0047`). The per-slot figure was computed over the slots *in the
+ * request*, and since `0016` every request carries one slot — so every dish was
+ * asked to hold the whole day's energy and protein in one serving. The model
+ * half-ignored it, and the library came back 20–45% oversized and 40–43% fat in
+ * every slot. The model was also never told carbohydrate or fat at all, and was
+ * told a plan short on protein "is discarded in full", which stopped being true
+ * with `0045`. Now: four macros and fibre per serving from the person's meal
+ * shape (`0036`), how to build a plate to them, what their goal asks of it, and
+ * the days that eat for an event.
  */
-export const PROMPT_VERSION = '2.8.0';
+export const PROMPT_VERSION = '3.0.0';
 
-/** Share of the day each slot carries; mirrors the scheduler's own weights. */
-const SLOT_SHARE: Record<MealSlot, number> = { afternoon_snack: 0.09, breakfast: 0.25, dinner: 0.3, lunch: 0.33, morning_snack: 0.08, supper: 0.1 };
+/**
+ * The version of the rules for *writing steps*, stamped on every recipe and
+ * compared by the rewrite sweep, which re-writes the method of any recipe whose
+ * stamp differs.
+ *
+ * Separate from `PROMPT_VERSION` since 3.0.0, and that separation is the point.
+ * The two moved together while every change to the prompt was a change to how
+ * steps are written. 3.0.0 changes what a dish is made of and leaves the steps
+ * rules alone — and bumping the stamp with it would have marked every recipe in
+ * the library for a model rewrite of a method nothing had changed about. Bump
+ * this only when the steps rules below change.
+ */
+export const STEPS_VERSION = '2.8.0';
 
 /**
  * How to name the output language to the model.
@@ -87,9 +110,22 @@ export type PromptContext = {
    * says so to the user in the same words.
    */
   readonly forbiddenLabels: readonly string[];
+  /**
+   * What they are eating for — lose weight, build muscle, perform, maintain.
+   * Already folded into the numbers by `core/domain/Nutrition`; here because the
+   * same numbers are reached by different plates depending on it, and choosing
+   * the plate is the model's half of the split (`0004`). Null when unset.
+   */
+  readonly goal: Goal['type'] | null;
   /** The language the dish names and steps must come back in. */
   readonly language: string;
   readonly likedLabels: readonly string[];
+  /**
+   * The targets of the days this fortnight that eat for an event (`0043`), when
+   * there are any. The scheduler draws those days from the same pool, and a
+   * pool with nothing at their split leaves them short however it sizes them.
+   */
+  readonly loadedTargets?: readonly NutritionTargets[];
   /** Dishes the person marked as liked: the taste to design towards, and dishes that may return. */
   readonly lovedNames: readonly string[];
   readonly needBySlot: ReadonlyMap<MealSlot, number>;
@@ -97,6 +133,15 @@ export type PromptContext = {
   readonly portionPreference: string | null;
   /** Free text about the working week, e.g. shifts. */
   readonly scheduleNotes: string | null;
+  /**
+   * Each eaten slot's share of the person's whole day, from their meal shape
+   * (`0036`): a large lunch carries more than a normal one, a light snack less.
+   *
+   * Across the *whole day*, never across the slots in one request. The pool
+   * builder sends one request per slot (`0016`), and a share computed over the
+   * request made every slot's share 1 — each dish asked to be the whole day.
+   */
+  readonly slotShares: ReadonlyMap<MealSlot, number>;
   /** For a swap: what the person asked of this one dish, when they asked something (0022). */
   readonly swapWish?: string | null;
   readonly targets: NutritionTargets;
@@ -182,10 +227,11 @@ function catalogueByAisle(safeIngredients: readonly CatalogueIngredient[]): stri
  * this that varies.
  */
 export const POOL_SYSTEM_PROMPT = [
-  'You are a working cook designing dishes for personalised meal plans.',
-  'You only return dishes composed of ingredients from the catalogue you are given.',
-  'You never invent an ingredient or a slug: if something is not on the list, it does not exist.',
-  'You never state calories or macronutrients: the system computes those from the catalogue.',
+  'You are a professional chef who is also a registered sports dietitian, designing dishes for personalised meal plans.',
+  'You build every dish to a nutritional brief: a target per serving for energy, protein, carbohydrate, fat and fibre.',
+  'You hit that brief by choosing ingredients and weighing them in grams, using what you know about the composition of food.',
+  'You only use ingredients from the catalogue you are given, by their exact slug; if something is not on the list, it does not exist.',
+  'You never write calories or macronutrients in your answer: the system recomputes every dish from the catalogue and builds the days from the dishes that land closest to the brief.',
   'You cook: you season, you use technique, and you build texture and contrast.',
   'You do not return two ingredients on a plate and call it a dish.'
 ].join(' ');
@@ -247,96 +293,226 @@ function spreadRules(total: number): string[] {
   ];
 }
 
+/**
+ * What each goal asks of a plate, beyond the numbers it already set.
+ *
+ * The targets come from code and already encode the goal; the same targets can
+ * still be met by very different plates, and which one serves the goal is a
+ * cook's and a dietitian's judgement — the model's half of `0004`. Nothing here
+ * is a rule the plan is validated against; the numbers are.
+ */
+const GOAL_GUIDANCE: Record<Goal['type'], string> = {
+  custom: 'Their targets were set by hand. Follow the numbers exactly; do not second-guess the split.',
+  healthy_eating:
+    'Eating well is the goal: whole foods, vegetables at every meal, legumes, fish, olive oil in measured amounts, whole grains over refined, little processed food.',
+  maintenance: 'Keeping their weight: balanced home cooking they could eat for years — nothing extreme, every meal complete.',
+  muscle_gain:
+    'Building muscle: protein in every meal and snack, spread across the day rather than stacked in one; the extra energy from starch and dairy, not from added fat.',
+  performance:
+    'Training performance: carbohydrate is the fuel and the priority — every main dish is built on a starch. Meals near training are easy to digest (moderate fat and fibre); recovery meals pair carbohydrate with protein.',
+  weight_loss:
+    'Losing weight: the most food for the energy — volume, vegetables, lean protein at every meal for satiety, broths and roasting over frying, dressings and cheese measured, never poured.'
+};
+
+/**
+ * How a plate reaches a split, in the terms a dietitian would brief a cook.
+ *
+ * Written from what the library turned out to be: 40–43% fat in every slot,
+ * because a dish short of its energy had been topped up the easy way. Fat is
+ * the one macro at nine calories a gram, so it is where a dish overshoots, and
+ * the one to add last.
+ */
+const COMPOSITION_RULES = [
+  'HOW TO BUILD EACH DISH TO ITS NUMBERS:',
+  '- Energy: protein and carbohydrate carry 4 kcal per gram, fat carries 9. Ten grams of oil is 90 kcal — the easiest way to overshoot a dish, and the last thing to add.',
+  '- Weigh the fat. Oil, butter, cheese, nuts, seeds, avocado, cured meats and oily fish are dense: give each an exact gram amount that fits the fat target, not a generous splash.',
+  '- When the split asks for a lot of carbohydrate, build the plate on a starch — rice, pasta, couscous, potato, bread, oats, legumes — and add fruit to breakfasts and snacks.',
+  '- When it asks for a lot of protein and little fat, reach for the lean sources their way of eating allows: poultry breast, white fish, tuna in water, eggs and whites, fresh cheese, skyr or natural yoghurt, legumes, tofu, tempeh, soy yoghurt.',
+  '- When it asks for little carbohydrate, build the plate on vegetables and protein, with a small starch or none, and let olive oil, nuts or avocado carry the energy the split gives to fat.',
+  '- If a dish is short of energy, add starch or protein first — whichever the split is short of — and fat only if the fat target has room. A large brief is a large plate, or a plate with bread, fruit or dairy beside it; a small brief is a full plate of lighter food, never a smaller portion of a rich one.',
+  '- A snack follows the same split as the day, scaled down. A snack of nuts alone is three quarters fat; pair it with fruit, dairy or bread.',
+  '- Fibre: at least two plant components in a main dish — vegetables, legumes, whole grains, fruit.',
+  '- Weigh each ingredient as it is named. A slug that says cooked (cocido, cocida) is weighed cooked; one that says raw or dry (crudo, seco) — or says neither, for rice, pasta, grains and pulses — is weighed dry, as bought. Dry rice or pasta roughly triples in weight when cooked: 80 g dry is a normal plate, 250 g dry is three.',
+  '- Real portions. The grams are for the number of servings you declare, and one serving is a plate a person would recognise as one.',
+  ''
+];
+
+type SlotBrief = { readonly carbsG: number; readonly fatG: number; readonly fiberG: number; readonly kcal: number; readonly proteinG: number };
+
+/** A day's targets, scaled to one slot's share of it. */
+function briefFor(targets: NutritionTargets, share: number): SlotBrief {
+  return {
+    carbsG: Math.round(targets.carbsG * share),
+    fatG: Math.round(targets.fatG * share),
+    fiberG: Math.round(targets.fiberG * share),
+    kcal: Math.round(targets.kcal * share),
+    proteinG: Math.round(targets.proteinG * share)
+  };
+}
+
+/** "P% protein · C% carbohydrate · F% fat" — the split, which is what a dish's composition has to match whatever its size. */
+function splitOf(targets: { readonly carbsG: number; readonly fatG: number; readonly kcal: number; readonly proteinG: number }): string {
+  const energy = targets.proteinG * 4 + targets.carbsG * 4 + targets.fatG * 9 || 1;
+  const pct = (kcal: number) => Math.round((kcal / energy) * 100);
+
+  return `${pct(targets.proteinG * 4)}% protein · ${pct(targets.carbsG * 4)}% carbohydrate · ${pct(targets.fatG * 9)}% fat`;
+}
+
+function numbersOf(brief: SlotBrief): string {
+  return `~${brief.kcal} kcal · ${brief.proteinG} g protein · ${brief.carbsG} g carbohydrate · ${brief.fatG} g fat · at least ${brief.fiberG} g fibre`;
+}
+
+/**
+ * Each eaten slot's share of the whole day, normalised over the whole day.
+ *
+ * The person's own shape when the context carries it; the default shape (`0036`) otherwise.
+ * Normalised over every slot the person eats — never over the slots in this
+ * request, which is the mistake 3.0.0 exists to fix. A requested slot the shape
+ * does not eat (the shape changed after the request was planned) joins at its
+ * normal size rather than being briefed as a dish of nothing.
+ */
+function sharesOf(context: PromptContext): ReadonlyMap<MealSlot, number> {
+  const raw = new Map(context.slotShares.size > 0 ? context.slotShares : weightsFor(DEFAULT_MEAL_SHAPE));
+
+  for (const slot of context.needBySlot.keys()) {
+    if (!raw.has(slot)) {
+      raw.set(slot, weightsFor({ ...DEFAULT_MEAL_SHAPE, [slot]: 'normal' }).get(slot) ?? 0);
+    }
+  }
+
+  const total = [...raw.values()].reduce((sum, share) => sum + share, 0) || 1;
+
+  return new Map([...raw].map(([slot, share]) => [slot, share / total]));
+}
+
+/**
+ * The days this fortnight that eat for an event, as a design request.
+ *
+ * The scheduler builds those days from the same pool as the rest; a pool with
+ * nothing at their split leaves them short however it sizes the plates. So a
+ * share of the dishes is asked for at that split too.
+ */
+function loadedLines(context: PromptContext, share: number, count: number): readonly string[] {
+  const loaded = context.loadedTargets ?? [];
+
+  if (loaded.length === 0 || count < 2) {
+    return [];
+  }
+
+  const wanted = Math.max(1, Math.round(count / 3));
+
+  return [
+    'SOME DAYS THIS FORTNIGHT EAT FOR AN EVENT (a race, a match, a long session) at a different split:',
+    ...loaded.map(targets => `- ${numbersOf(briefFor(targets, share))} per serving (${splitOf(targets)})`),
+    `Make ${wanted} of these dishes fit that split instead, so those days have plates built for them.`,
+    ''
+  ];
+}
+
 export function buildPoolPrompt(context: PromptContext, safeIngredients: readonly CatalogueIngredient[]): string {
-  const active = [...context.needBySlot.keys()];
-  const totalShare = active.reduce((sum, slot) => sum + SLOT_SHARE[slot], 0) || 1;
+  const shares = sharesOf(context);
+  const wanted = [...context.needBySlot.entries()].filter(([, count]) => count > 0);
 
-  // Per-slot targets, not just a daily figure. A model told only "2000 kcal,
-  // 120 g protein" produces dishes that hit the calories and miss the protein,
-  // and no amount of portion scaling can fix a dish's composition afterwards.
-  const needs = [...context.needBySlot.entries()]
-    .filter(([, count]) => count > 0)
+  // Per serving, per slot, on all four macros and fibre. A model told only a
+  // daily figure — or only energy and protein — writes dishes that hit those
+  // and land the rest wherever the ingredients fall, and no portion scaling can
+  // fix a dish's composition afterwards (`0045`).
+  const needs = wanted
     .map(([slot, count]) => {
-      const share = SLOT_SHARE[slot] / totalShare;
-      const kcal = Math.round(context.targets.kcal * share);
-      const protein = Math.round(context.targets.proteinG * share);
-      const shape = SNACK_SLOTS.includes(slot) ? ' — snack: 2-4 ingredients, little or no cooking, but still 1-3 steps' : '';
+      const brief = briefFor(context.targets, shares.get(slot) ?? 0);
+      const shape = SNACK_SLOTS.includes(slot) ? '\n  Snack: 2-4 ingredients, little or no cooking, but still 1-3 steps.' : '';
 
-      return `- ${SLOT_LABEL[slot]}: ${count} distinct dishes of ~${kcal} kcal and ~${protein} g protein per serving${shape}`;
+      return `- ${SLOT_LABEL[slot]}: ${count} distinct dishes, each ${numbersOf(brief)} per serving.${shape}`;
     })
     .join('\n');
 
+  const firstSlot = wanted[0];
+  const loaded = firstSlot ? loadedLines(context, shares.get(firstSlot[0]) ?? 0, firstSlot[1]) : [];
   const catalogue = catalogueByAisle(safeIngredients);
 
-  return [
-    'Design dishes for a 14-day meal plan.',
-    '',
-    `WRITE EVERY DISH NAME AND EVERY STEP IN ${context.language.toUpperCase()}. Slugs stay exactly as given; only the prose is in that language.`,
-    '',
-    "THE USER'S DAILY TARGETS (to size the dishes; do not state them in the response):",
-    `- ${Math.round(context.targets.kcal)} kcal and ${Math.round(context.targets.proteinG)} g of protein per day`,
-    '',
-    'IMPORTANT: every main dish must carry a protein source (meat, fish, egg, dairy or pulses).',
-    'A plan that meets the calories but falls short on protein is discarded in full.',
-    '',
-    'WHAT MAKES A DISH GOOD ENOUGH TO SEND BACK:',
-    '- A name a cook would recognise, describing the dish — not a list of its ingredients.',
-    '- Seasoning. The catalogue has salt, paprika, cumin, oregano, cinnamon, bay, garlic, lemon,',
-    '  vinegars and olive oil. A dish that uses none of them is not finished.',
-    '- Technique in the steps: roast, sear, sauté, braise, griddle, marinate, rest. Say the heat',
-    '  and the time. "Cook the chicken" is not a step; "sear 4 minutes a side, then rest 5" is.',
-    '- Contrast in texture and temperature — something crisp against something soft, something',
-    '  fresh against something rich.',
-    '- ONE ACTION PER STEP. Five to eight steps for a main that cooks, two to four for a',
-    '  snack. Never zero: a dish with no method is rejected before it is stored. "Sear the',
-    '  pork 3 minutes, add the mushrooms, cook 4 more, stir in the rice" is four steps, not one.',
-    '- EVERY STEP DOCUMENTED, in one to three sentences: what to do, how (the cut, the vessel,',
-    '  the heat), and how long — put the time in `minutes` as well as the text. Then the sign',
-    '  it is done, in `cue`: "until the edges brown", "until the liquid has halved", "until it',
-    '  no longer sticks". A cook who has never made this dish follows it without guessing.',
-    '- Include the quiet steps a recipe book includes: bring to temperature, rest the meat,',
-    '  taste for seasoning, plate. They are where a dish goes right or wrong.',
-    '- Variety of method across the set you return: do not send eight roasted dishes.',
-    '',
-    'DISHES NEEDED:',
-    needs,
-    '',
-    ...spreadRules([...context.needBySlot.values()].reduce((sum, count) => sum + count, 0)),
-    'THIS PERSON (design for them, not for a profile):',
-    oneLine(context.breakfastStyle) ? `- Breakfast, in their words: ${oneLine(context.breakfastStyle)}` : '',
-    oneLine(context.portionPreference) ? `- Plates they like: ${oneLine(context.portionPreference)}` : '',
-    context.cookingFrequency ? `- Cooks: ${context.cookingFrequency}` : '',
-    oneLine(context.scheduleNotes) ? `- Their week: ${oneLine(context.scheduleNotes)}` : '',
-    context.dayShape ? `- Their day: ${context.dayShape}` : '',
-    '',
-    context.avoidNames.length > 0
-      ? `SERVED TO THEM LAST FORTNIGHT — propose different dishes, not these or close variations of them: ${context.avoidNames.slice(0, 60).join('; ')}`
-      : '',
-    ...checkInLines(context.checkIn ?? null),
-    context.swapWish ? `THIS ONE DISH IS A REPLACEMENT THE PERSON ASKED FOR: ${context.swapWish}. Every dish proposed must satisfy that.` : '',
-    context.lovedNames.length > 0
-      ? `DISHES THEY SAID THEY LOVED — this is their taste; design new dishes in the same spirit (technique, seasoning, kind of dish), not copies: ${context.lovedNames.slice(0, 40).join('; ')}`
-      : '',
-    context.dislikedNames.length > 0
-      ? `DISHES THEY SAID THEY DISLIKED — do not propose these, close variations of them, or their defining ingredient in the same role: ${context.dislikedNames.slice(0, 40).join('; ')}`
-      : '',
-    context.dietaryPatterns.length > 0 ? `WAY OF EATING: ${context.dietaryPatterns.join(', ')}` : 'WAY OF EATING: no restriction declared',
-    context.cookingTimeMinutes ? `MAXIMUM TIME PER DISH: ${context.cookingTimeMinutes} minutes (prep + cooking)` : '',
-    context.budget ? `BUDGET: ${context.budget}` : '',
-    context.cuisines.length > 0 ? `PREFERRED CUISINES: ${context.cuisines.join(', ')}` : '',
-    context.likedLabels.length > 0 ? `LIKES: ${context.likedLabels.join(', ')}` : '',
-    context.dislikedLabels.length > 0 ? `DISLIKES: ${context.dislikedLabels.join(', ')}` : '',
-    context.forbiddenLabels.length > 0
-      ? `FORBIDDEN BY ALLERGY (do not use it, and do not mention it in names, steps or garnishes): ${context.forbiddenLabels.join(', ')}`
-      : '',
-    context.excludeSlugs.length > 0 ? `DO NOT REPEAT THESE ALREADY-PROPOSED DISHES: ${context.excludeSlugs.join(', ')}` : '',
-    '',
-    'AVAILABLE INGREDIENTS (use these slugs and no others):',
-    catalogue,
-    '',
-    'Each dish lists its ingredients in grams for the number of servings you declare.',
-    'Aim for four to eight ingredients in a main dish, two to four in a snack; fifteen is a shopping trip.'
-  ]
-    .filter(Boolean)
-    .join('\n');
+  return (
+    [
+      'Design dishes for a 14-day meal plan.',
+      '',
+      `WRITE EVERY DISH NAME AND EVERY STEP IN ${context.language.toUpperCase()}. Slugs stay exactly as given; only the prose is in that language.`,
+      '',
+      'PRIORITIES, in this order when they conflict:',
+      '1. Only ingredients from the list below: nothing forbidden by allergy, nothing their way of eating rules out.',
+      '2. Each dish lands on its numbers per serving — the split matters as much as the energy.',
+      '3. The time limit, the budget and how they like to eat.',
+      '4. Taste, technique and variety.',
+      '',
+      "THE PERSON'S DAILY TARGETS (to build the dishes to; never write them in the answer):",
+      `- ${Math.round(context.targets.kcal)} kcal · ${Math.round(context.targets.proteinG)} g protein · ${Math.round(context.targets.carbsG)} g carbohydrate · ${Math.round(context.targets.fatG)} g fat · at least ${Math.round(context.targets.fiberG)} g fibre`,
+      `- The split: ${splitOf(context.targets)}. Every dish should sit close to this split on its own, so any combination of them lands on the day.`,
+      context.goal ? `- ${GOAL_GUIDANCE[context.goal]}` : null,
+      '',
+      'Every main dish carries a protein source — meat, fish, egg, dairy or legumes. Energy, carbohydrate and fat are each held to 5% of target on every day, protein to a floor 5% under it: a dish that hits the protein and misses the split is the wrong dish.',
+      '',
+      ...COMPOSITION_RULES,
+      'WHAT MAKES A DISH GOOD ENOUGH TO SEND BACK:',
+      '- A name a cook would recognise, describing the dish — not a list of its ingredients.',
+      '- Seasoning. The catalogue has salt, paprika, cumin, oregano, cinnamon, bay, garlic, lemon,',
+      '  vinegars and olive oil. A dish that uses none of them is not finished.',
+      '- Technique in the steps: roast, sear, sauté, braise, griddle, marinate, rest. Say the heat',
+      '  and the time. "Cook the chicken" is not a step; "sear 4 minutes a side, then rest 5" is.',
+      '- Contrast in texture and temperature — something crisp against something soft, something',
+      '  fresh against something rich.',
+      '- ONE ACTION PER STEP. Five to eight steps for a main that cooks, two to four for a',
+      '  snack. Never zero: a dish with no method is rejected before it is stored. "Sear the',
+      '  pork 3 minutes, add the mushrooms, cook 4 more, stir in the rice" is four steps, not one.',
+      '- EVERY STEP DOCUMENTED, in one to three sentences: what to do, how (the cut, the vessel,',
+      '  the heat), and how long — put the time in `minutes` as well as the text. Then the sign',
+      '  it is done, in `cue`: "until the edges brown", "until the liquid has halved", "until it',
+      '  no longer sticks". A cook who has never made this dish follows it without guessing.',
+      '- Include the quiet steps a recipe book includes: bring to temperature, rest the meat,',
+      '  taste for seasoning, plate. They are where a dish goes right or wrong.',
+      '- Variety of method across the set you return: do not send eight roasted dishes.',
+      '',
+      'DISHES NEEDED:',
+      needs,
+      '',
+      ...loaded,
+      ...spreadRules([...context.needBySlot.values()].reduce((sum, count) => sum + count, 0)),
+      'THIS PERSON (design for them, not for a profile):',
+      oneLine(context.breakfastStyle) ? `- Breakfast, in their words: ${oneLine(context.breakfastStyle)}` : null,
+      oneLine(context.portionPreference) ? `- Plates they like: ${oneLine(context.portionPreference)}` : null,
+      context.cookingFrequency ? `- Cooks: ${context.cookingFrequency}` : null,
+      oneLine(context.scheduleNotes) ? `- Their week: ${oneLine(context.scheduleNotes)}` : null,
+      context.dayShape ? `- Their day: ${context.dayShape}` : null,
+      '',
+      context.avoidNames.length > 0
+        ? `SERVED TO THEM LAST FORTNIGHT — propose different dishes, not these or close variations of them: ${context.avoidNames.slice(0, 60).join('; ')}`
+        : null,
+      ...checkInLines(context.checkIn ?? null),
+      context.swapWish ? `THIS ONE DISH IS A REPLACEMENT THE PERSON ASKED FOR: ${context.swapWish}. Every dish proposed must satisfy that.` : null,
+      context.lovedNames.length > 0
+        ? `DISHES THEY SAID THEY LOVED — this is their taste; design new dishes in the same spirit (technique, seasoning, kind of dish), not copies: ${context.lovedNames.slice(0, 40).join('; ')}`
+        : null,
+      context.dislikedNames.length > 0
+        ? `DISHES THEY SAID THEY DISLIKED — do not propose these, close variations of them, or their defining ingredient in the same role: ${context.dislikedNames.slice(0, 40).join('; ')}`
+        : null,
+      context.dietaryPatterns.length > 0 ? `WAY OF EATING: ${context.dietaryPatterns.join(', ')}` : 'WAY OF EATING: no restriction declared',
+      context.cookingTimeMinutes ? `MAXIMUM TIME PER DISH: ${context.cookingTimeMinutes} minutes (prep + cooking)` : null,
+      context.budget ? `BUDGET: ${context.budget}` : null,
+      context.cuisines.length > 0 ? `PREFERRED CUISINES: ${context.cuisines.join(', ')}` : null,
+      context.likedLabels.length > 0 ? `LIKES: ${context.likedLabels.join(', ')}` : null,
+      context.dislikedLabels.length > 0 ? `DISLIKES: ${context.dislikedLabels.join(', ')}` : null,
+      context.forbiddenLabels.length > 0
+        ? `FORBIDDEN BY ALLERGY (do not use it, and do not mention it in names, steps or garnishes): ${context.forbiddenLabels.join(', ')}`
+        : null,
+      context.excludeSlugs.length > 0 ? `DO NOT REPEAT THESE ALREADY-PROPOSED DISHES: ${context.excludeSlugs.join(', ')}` : null,
+      '',
+      'AVAILABLE INGREDIENTS (use these slugs and no others):',
+      catalogue,
+      '',
+      'Each dish lists its ingredients in grams for the number of servings you declare.',
+      'Aim for four to eight ingredients in a main dish, two to four in a snack; fifteen is a shopping trip.'
+    ]
+      // Null is an optional line with nothing to say; an empty string is a
+      // section break, and a model follows a sectioned brief better than a wall.
+      .filter((line): line is string => line !== null)
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+  );
 }

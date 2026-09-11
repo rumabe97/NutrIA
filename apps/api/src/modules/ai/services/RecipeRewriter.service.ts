@@ -7,7 +7,7 @@ import { ENV } from '../../../config/index.js';
 import { AiClient } from '../clients/AiClient.js';
 import { buildRewritePrompt } from '../prompts/RewritePrompt.js';
 import { isQuotaExhausted } from '../clients/quota.js';
-import { languageName, PROMPT_VERSION } from '../prompts/PoolPrompt.js';
+import { languageName, STEPS_VERSION } from '../prompts/PoolPrompt.js';
 import { rewrittenStepsSchema, wireRewriteSchema } from '../prompts/rewrite.schema.js';
 
 import type { Env } from '../../../config/index.js';
@@ -53,7 +53,7 @@ export class RecipeRewriter {
       return { pending: 0, rewritten: 0, skipped: 0 };
     }
 
-    const pending = await RecipeController.pendingStepUpgrades(PROMPT_VERSION, limit);
+    const pending = await RecipeController.pendingStepUpgrades(STEPS_VERSION, limit);
     let rewritten = 0;
     let skipped = 0;
 
@@ -96,6 +96,6 @@ export class RecipeRewriter {
     // An empty cue and a zero duration are the wire saying "none"; store neither.
     const steps = parsed.data.steps.map(step => ({ ...step, cue: step.cue || undefined, minutes: step.minutes || undefined }));
 
-    await RecipeController.rewriteSteps(recipe.id, steps, PROMPT_VERSION);
+    await RecipeController.rewriteSteps(recipe.id, steps, STEPS_VERSION);
   }
 }

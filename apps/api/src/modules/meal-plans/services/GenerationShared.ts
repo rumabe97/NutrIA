@@ -1,4 +1,6 @@
-import { PROMPT_VERSION } from '../../ai/prompts/PoolPrompt.js';
+import { DEFAULT_MEAL_SHAPE, weightsFor } from 'core/domain/MealShape';
+
+import { STEPS_VERSION } from '../../ai/prompts/PoolPrompt.js';
 
 import type { CandidateDish, RecipeDraft } from 'core/entities/Plan';
 import type { CheckInForGeneration } from 'core/controllers/CheckIn';
@@ -25,8 +27,10 @@ export function toRecipeDraft(dish: CandidateDish, context: GenerationContext): 
     servings: dish.servings,
     slug: dish.slug,
     steps: dish.steps,
-    // Stamped with the prompt that wrote them, so a later one can find its predecessors.
-    stepsVersion: PROMPT_VERSION
+    // Stamped with the steps rules that wrote them, so a later version of those
+    // rules can find its predecessors — not with the prompt version, which also
+    // moves for reasons that have nothing to do with how a method is written.
+    stepsVersion: STEPS_VERSION
   };
 }
 
@@ -99,10 +103,15 @@ export function promptPreferences(
     // would suggest the request is what enforces them (0023).
     dislikedLabels: unenforceable,
     dislikedNames: verdicts.disliked.map(dish => dish.name),
+    goal: profile.goal?.type ?? null,
     likedLabels: profile.foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label),
     lovedNames: verdicts.liked.map(dish => dish.name),
     portionPreference: profile.preferences?.portionPreference ?? null,
     scheduleNotes: profile.preferences?.workScheduleNotes ?? null,
+    // The person's own day, the same weights the scheduler budgets with (`0036`),
+    // so the brief the model builds to and the budget the dish is chosen against
+    // are one number rather than two that happen to agree.
+    slotShares: weightsFor(profile.preferences?.mealShape ?? DEFAULT_MEAL_SHAPE),
     swapWish,
     targets
   };

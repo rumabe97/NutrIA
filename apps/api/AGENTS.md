@@ -205,8 +205,10 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `GET /cron/rewrite-steps`. Only `instructions` changes: ingredients, grams and the
   macros every past plan computed from them are untouched, so a rewrite cannot alter
   what a plan says anyone ate, and cannot reach the allergy layer, which matches ids
-  and never prose. Bump `PROMPT_VERSION` when the standard for steps changes and the
-  library re-sweeps itself; the stamp is why a rewrite that comes back terse is not
+  and never prose. Bump `STEPS_VERSION` when the standard for steps changes and the
+  library re-sweeps itself — not `PROMPT_VERSION`, which moves with any wording and
+  since [`0047`](../../docs/decisions/0047-dishes-are-designed-to-the-whole-split.md)
+  no longer stamps recipes; the stamp is why a rewrite that comes back terse is not
   swept for ever. What it asks for scales in the same three bands `domain/Method`
   enforces — uncooked, briefly cooked, properly cooked — because a prompt that asks
   for more than the schema accepts just fails twice.
