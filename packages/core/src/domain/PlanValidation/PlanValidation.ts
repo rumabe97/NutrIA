@@ -37,8 +37,15 @@ import type { VarietyViolation } from 'core/domain/Variety';
  * the owner's word for it was "perfect, or it is no use". These bands are
  * advisory (see `isBlocking`): a day at 7% on fat is delivered and written
  * down, not thrown away, because the person with no plan eats worse still.
+ *
+ * **Protein gained a band above the target too, in `0048`.** Above it there
+ * was only the safety ceiling, so a day 17% over its protein passed as though
+ * it had hit it — and a real plan did that on nine days of fourteen, because
+ * the library's dishes carry more protein than a high-carbohydrate day wants.
+ * The ceiling still blocks and still measures body mass; the band above the
+ * target is advice, like the others, and the scheduler prices both.
  */
-export const PLAN_TOLERANCE = { carbs: 0.05, fat: 0.05, kcal: 0.05, proteinUnder: 0.05 } as const;
+export const PLAN_TOLERANCE = { carbs: 0.05, fat: 0.05, kcal: 0.05, proteinOver: 0.05, proteinUnder: 0.05 } as const;
 
 export type PlanViolation =
   | { readonly actual: number; readonly ceiling: number; readonly dayIndex: number; readonly kind: 'protein_above_ceiling' }
@@ -46,7 +53,7 @@ export type PlanViolation =
   | {
       readonly actual: number;
       readonly dayIndex: number;
-      readonly kind: 'carbs_out_of_band' | 'fat_out_of_band' | 'kcal_out_of_band' | 'protein_below_target';
+      readonly kind: 'carbs_out_of_band' | 'fat_out_of_band' | 'kcal_out_of_band' | 'protein_above_target' | 'protein_below_target';
       readonly target: number;
       readonly tolerance: number;
     }
@@ -66,8 +73,8 @@ export type PlanViolation =
  * - **Safety** — a day under the minimum energy a body needs, or protein above the
  *   sanity ceiling. These are not targets, they are bounds, and the project's rule
  *   is that safety is never softened for convenience. Blocking.
- * - **Guidance** — a day a little under the protein target, or outside the
- *   calorie, carbohydrate or fat band. **Advisory.** The targets are an estimate the profile screen already
+ * - **Guidance** — a day outside the protein band on either side of the
+ *   target, or outside the calorie, carbohydrate or fat band. **Advisory.** The targets are an estimate the profile screen already
  *   calls an estimate; missing one by a few per cent on two days out of fourteen
  *   is information, not a fault, and discarding a good plan over it leaves the
  *   user with no plan at all — which serves their nutrition strictly worse than
@@ -176,15 +183,23 @@ export function validatePlan(input: ValidationInput): readonly PlanViolation[] {
       });
     }
 
-    // The two halves of the old `protein_out_of_band` are different questions and
-    // were never the same rule: under the target is a goal missed, over the ceiling
-    // is a bound broken. Only one of them is a reason to discard the plan.
+    // Three questions, not one: under the band is a goal missed, over the band a
+    // goal overshot (`0048`), over the ceiling a bound broken. Only the last is a
+    // reason to discard the plan, and it is asked first.
     if (day.totals.proteinG > input.weightKg * PROTEIN_CEILING_G_PER_KG) {
       violations.push({
         actual: day.totals.proteinG,
         ceiling: input.weightKg * PROTEIN_CEILING_G_PER_KG,
         dayIndex: day.dayIndex,
         kind: 'protein_above_ceiling'
+      });
+    } else if (day.totals.proteinG > targets.proteinG * (1 + PLAN_TOLERANCE.proteinOver)) {
+      violations.push({
+        actual: day.totals.proteinG,
+        dayIndex: day.dayIndex,
+        kind: 'protein_above_target',
+        target: targets.proteinG,
+        tolerance: PLAN_TOLERANCE.proteinOver
       });
     } else if (day.totals.proteinG < targets.proteinG * (1 - PLAN_TOLERANCE.proteinUnder)) {
       violations.push({

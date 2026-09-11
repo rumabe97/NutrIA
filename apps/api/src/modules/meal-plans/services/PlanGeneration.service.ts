@@ -523,7 +523,13 @@ export class PlanGenerationService {
  */
 type Fallback = 'full_library' | 'wider_rotation' | null;
 
-const BAND_KINDS = new Set<PlanViolation['kind']>(['carbs_out_of_band', 'fat_out_of_band', 'kcal_out_of_band', 'protein_below_target']);
+const BAND_KINDS = new Set<PlanViolation['kind']>([
+  'carbs_out_of_band',
+  'fat_out_of_band',
+  'kcal_out_of_band',
+  'protein_above_target',
+  'protein_below_target'
+]);
 
 /**
  * How far a plan's days fall outside their macro bands, summed: zero when every

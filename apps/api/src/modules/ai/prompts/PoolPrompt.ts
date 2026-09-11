@@ -51,8 +51,15 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * with `0045`. Now: four macros and fibre per serving from the person's meal
  * shape (`0036`), how to build a plate to them, what their goal asks of it, and
  * the days that eat for an event.
+ * 3.1.0: protein is a figure to land on, and the set straddles every figure
+ * (`0048`). 3.0.0's dishes came back at or above their protein on every slot —
+ * never below — and the library below them is protein-heavy, so no combination
+ * could land a day within 5%: nine days of fourteen ran 7–17% over. A day is
+ * built by combining dishes, and a combination can only land on a figure the
+ * dishes sit on both sides of. So each meal's dishes are now asked to fall
+ * about half a little under and half a little over each number.
  */
-export const PROMPT_VERSION = '3.0.0';
+export const PROMPT_VERSION = '3.1.0';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -307,11 +314,11 @@ const GOAL_GUIDANCE: Record<Goal['type'], string> = {
     'Eating well is the goal: whole foods, vegetables at every meal, legumes, fish, olive oil in measured amounts, whole grains over refined, little processed food.',
   maintenance: 'Keeping their weight: balanced home cooking they could eat for years — nothing extreme, every meal complete.',
   muscle_gain:
-    'Building muscle: protein in every meal and snack, spread across the day rather than stacked in one; the extra energy from starch and dairy, not from added fat.',
+    'Building muscle: protein in every meal and snack, to its figure, spread across the day rather than stacked in one; the extra energy from starch and dairy, not from added fat.',
   performance:
     'Training performance: carbohydrate is the fuel and the priority — every main dish is built on a starch. Meals near training are easy to digest (moderate fat and fibre); recovery meals pair carbohydrate with protein.',
   weight_loss:
-    'Losing weight: the most food for the energy — volume, vegetables, lean protein at every meal for satiety, broths and roasting over frying, dressings and cheese measured, never poured.'
+    'Losing weight: the most food for the energy — volume, vegetables, lean protein at every meal, to its figure, for satiety, broths and roasting over frying, dressings and cheese measured, never poured.'
 };
 
 /**
@@ -324,6 +331,8 @@ const GOAL_GUIDANCE: Record<Goal['type'], string> = {
  */
 const COMPOSITION_RULES = [
   'HOW TO BUILD EACH DISH TO ITS NUMBERS:',
+  '- Protein is a figure to land on, not a minimum. A dish 20% over its protein is as far off as one 20% under, and the day cannot absorb it: the other meals cannot give protein back. Give the protein source the grams its figure asks for, and let starch and vegetables carry the rest of the plate.',
+  '- Straddle the numbers. Across the dishes of one meal, land about half a little under each figure and half a little over — within a tenth either way — never all on the same side. The days are built by combining your dishes, and a set that runs high on protein makes every day run high.',
   '- Energy: protein and carbohydrate carry 4 kcal per gram, fat carries 9. Ten grams of oil is 90 kcal — the easiest way to overshoot a dish, and the last thing to add.',
   '- Weigh the fat. Oil, butter, cheese, nuts, seeds, avocado, cured meats and oily fish are dense: give each an exact gram amount that fits the fat target, not a generous splash.',
   '- When the split asks for a lot of carbohydrate, build the plate on a starch — rice, pasta, couscous, potato, bread, oats, legumes — and add fruit to breakfasts and snacks.',
@@ -422,7 +431,11 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
       const brief = briefFor(context.targets, shares.get(slot) ?? 0);
       const shape = SNACK_SLOTS.includes(slot) ? '\n  Snack: 2-4 ingredients, little or no cooking, but still 1-3 steps.' : '';
 
-      return `- ${SLOT_LABEL[slot]}: ${count} distinct dishes, each ${numbersOf(brief)} per serving.${shape}`;
+      // As numbers, because prose was not enough: asked to straddle, 3.1.0's
+      // main dishes still came back at 16–20% protein against a 17% day.
+      const straddle = `\n  Protein: half the set between ${Math.round(brief.proteinG * 0.9)} and ${brief.proteinG} g, half between ${brief.proteinG} and ${Math.round(brief.proteinG * 1.1)} g — not all at the top.`;
+
+      return `- ${SLOT_LABEL[slot]}: ${count} distinct dishes, each ${numbersOf(brief)} per serving.${straddle}${shape}`;
     })
     .join('\n');
 
@@ -447,7 +460,7 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
       `- The split: ${splitOf(context.targets)}. Every dish should sit close to this split on its own, so any combination of them lands on the day.`,
       context.goal ? `- ${GOAL_GUIDANCE[context.goal]}` : null,
       '',
-      'Every main dish carries a protein source — meat, fish, egg, dairy or legumes. Energy, carbohydrate and fat are each held to 5% of target on every day, protein to a floor 5% under it: a dish that hits the protein and misses the split is the wrong dish.',
+      'Every main dish carries a protein source — meat, fish, egg, dairy or legumes — sized to its protein figure. Energy, protein, carbohydrate and fat are each held to 5% of target on every day, over and under: a dish that hits the protein and misses the split is the wrong dish.',
       '',
       ...COMPOSITION_RULES,
       'WHAT MAKES A DISH GOOD ENOUGH TO SEND BACK:',
