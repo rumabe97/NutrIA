@@ -23,6 +23,7 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { TargetBounds } from 'core/domain/Nutrition';
 import type { PlanViolation } from 'core/domain/PlanValidation';
 import type { GenerationContext } from 'core/controllers/Recipe';
+import { rotatePool } from 'core/domain/Variety';
 import type { Rotation } from 'core/domain/Variety';
 import type { PlanDraft } from 'core/entities/Plan';
 
@@ -159,7 +160,7 @@ export class PlanGenerationService {
     };
 
     let scheduled = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, pool: built.dishes, targets, weights });
-    let fallback: 'full_library' | null = null;
+    let fallback: Fallback = null;
 
     if (!scheduled.ok) {
       this.logger.warn(
@@ -235,6 +236,40 @@ export class PlanGenerationService {
           scheduled = retried;
           violations = retriedViolations;
           fallback = 'full_library';
+        }
+      }
+    }
+
+    /*
+     * A plan inside every bound can still miss its macros, and it did: the
+     * rotation hands the scheduler about a dozen library dishes per slot — held
+     * short on purpose, so the model writes the fresh third (`0013`) — and the
+     * scheduler builds the days in order. The dishes that carry the carbohydrate
+     * reach their two uses a plan in the first week, and days ten to fourteen
+     * are built from what is left: 20–50% off on fat, measured on a real plan.
+     *
+     * The same rotation without the cap fixes it — every day inside 5% on all
+     * four macros, on the same user's library, same seed, same exclusions. So
+     * when a plan misses a band, it is scheduled once more from what it already
+     * had plus the rest of this user's rotation, and whichever plan misses by
+     * less is kept (`0046`). What the rotation protects is kept too: this
+     * user's shuffled order, nothing from last fortnight, nothing they said
+     * they dislike. The fresh dishes the model wrote stay first in the pool.
+     * No second model call — the library costs nothing to read.
+     */
+    if (fallback === null && bandMiss(violations) > 0) {
+      const rest = rotatePool(everything, slots, rotation, Number.POSITIVE_INFINITY);
+      const wider = [...new Map([...built.dishes, ...rest].map(dish => [dish.slug, dish])).values()];
+      const retried = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, pool: wider, targets, weights });
+
+      if (retried.ok) {
+        const retriedViolations = check(retried.assignment);
+
+        if (!retriedViolations.some(isBlocking) && bandMiss(retriedViolations) < bandMiss(violations)) {
+          this.logger.log(`Macros missed with the rotated pool; the uncapped rotation (${wider.length} dishes) missed by less`);
+          scheduled = retried;
+          violations = retriedViolations;
+          fallback = 'wider_rotation';
         }
       }
     }
@@ -397,7 +432,7 @@ export class PlanGenerationService {
     jobId: string,
     rotation: Rotation,
     advisories: readonly string[],
-    fallback: 'full_library' | null,
+    fallback: Fallback,
     start: Date,
     loads: Loads
   ): PlanDraft {
@@ -462,6 +497,31 @@ export class PlanGenerationService {
       strategy: { carbsG: targets.carbsG, fatG: targets.fatG, fiberG: targets.fiberG, kcal: targets.kcal, proteinG: targets.proteinG }
     };
   }
+}
+
+/**
+ * How the plan came to be scheduled from something other than its first pool.
+ * `full_library` is the rescue from no plan at all; `wider_rotation` is the
+ * rescue from a plan that missed its macros (`0046`).
+ */
+type Fallback = 'full_library' | 'wider_rotation' | null;
+
+const BAND_KINDS = new Set<PlanViolation['kind']>(['carbs_out_of_band', 'fat_out_of_band', 'kcal_out_of_band', 'protein_below_target']);
+
+/**
+ * How far a plan's days fall outside their macro bands, summed: zero when every
+ * day of every macro is inside. A count would call a plan with one day at 30%
+ * better than one with two days at 6%, which is not what "misses by less"
+ * means to someone reading their Tuesday.
+ */
+function bandMiss(violations: readonly PlanViolation[]): number {
+  return violations.reduce((sum, violation) => {
+    if (!BAND_KINDS.has(violation.kind) || !('target' in violation) || violation.target <= 0) {
+      return sum;
+    }
+
+    return sum + Math.max(0, Math.abs(violation.actual - violation.target) / violation.target - violation.tolerance);
+  }, 0);
 }
 
 /** The days that eat for something, by index, and what the bounds would not allow. */
