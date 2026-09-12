@@ -14,7 +14,7 @@ import { isAway } from 'core/domain/Vacation';
 import { SafetyController } from 'core/controllers/Safety';
 import { SettingsController } from 'core/controllers/Settings';
 import { alternativesFor } from 'core/domain/Substitution';
-import type { Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
+import type { AiCallRecord, Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
 import type { CountedStanding, MealSwapStanding, PlanRedoStanding, Tier } from 'core/domain/Allowance';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PlanWindow } from 'core/domain/Event';
@@ -577,6 +577,10 @@ export const PlanJobController = {
     await VacationRepository.applyTo(userId);
 
     return planId;
+  },
+
+  async recordAiCalls(jobId: string, calls: readonly AiCallRecord[]): Promise<void> {
+    await PlanJobRepository.recordAiCalls(jobId, calls);
   },
 
   /** Refuses a second concurrent generation, after clearing anything a restart abandoned. */

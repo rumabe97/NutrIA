@@ -3,6 +3,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
 import { toCatalogue } from 'core/entities/Plan';
 
+import { AiCallError } from '../clients/AiClient.js';
 import { DISHES_NEEDED_PER_SLOT, PoolBuilder, shortfall } from './PoolBuilder.service.js';
 
 import type { AiClient, AiRequest, AiResponse } from '../clients/AiClient.js';
@@ -621,5 +622,130 @@ describe('PoolBuilder — telling a broken provider from an absent one', () => {
     expect(result.metadata.providerError).toMatch(/dishes/);
     // The call still happened and still cost tokens; that much is honest to keep.
     expect(result.metadata.calls).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The call log (`0050`): what an operator reads a generation back from. A
+ * call that failed belongs in it as much as one that answered — that is when
+ * it is read.
+ */
+describe('PoolBuilder — the call log', () => {
+  const preferences = {
+    avoidNames: [],
+    breakfastStyle: null,
+    budget: null,
+    cookingFrequency: null,
+    cookingTimeMinutes: 30,
+    cuisines: [],
+    dayShape: null,
+    dietaryPatterns: [],
+    dislikedLabels: [],
+    dislikedNames: [],
+    goal: null,
+    likedLabels: [],
+    lovedNames: [],
+    portionPreference: null,
+    scheduleNotes: null,
+    slotShares: new Map(),
+    targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
+  };
+
+  it('records who answered, through whom, the tokens, and why each dish was dropped', async () => {
+    const generate = jest.fn(
+      async <T>(request: AiRequest<T>): Promise<AiResponse<T>> => ({
+        call: {
+          answeredModel: 'muse-spark-1.2-contributor-free',
+          cachedInputTokens: null,
+          gateway: {
+            cache: 'MISS',
+            comboTrace: 'combo-1',
+            correlationId: 'corr-1',
+            costUsd: 0,
+            latencyMs: 900,
+            model: 'muse-spark-1.2-contributor-free',
+            provider: 'opencode-zen',
+            requestId: 'req-1',
+            session: `ext:${request.session ?? ''}`,
+            strategy: 'priority',
+            version: '3.8.50'
+          },
+          ms: 1000,
+          reasoningTokens: 800
+        },
+        object: {
+          dishes: [
+            dish('Arroz con pollo', ['lunch'], ['arroz', 'pollo']),
+            dish('Pan con tomate', ['lunch'], ['pan', 'tomate']),
+            dish('Arroz con caviar', ['lunch'], ['arroz', 'caviar'])
+          ]
+        } as T,
+        usage: { calls: 1, inputTokens: 5600, model: 'NutrIA-Fallback', outputTokens: 1200 }
+      })
+    );
+    const client = { generate, isAvailable: true } as unknown as AiClient;
+    const result = await new PoolBuilder(client).build({
+      context: context({ allergenIds: new Set([GLUTEN]) }),
+      preferences,
+      reusable: [],
+      session: 'job-1',
+      slots: ['lunch']
+    });
+
+    // The job id travels with every call, so the gateway files them together.
+    expect(generate).toHaveBeenCalledWith(expect.objectContaining({ session: 'job-1' }));
+    expect(result.metadata.aiCalls[0]).toMatchObject({
+      answeredModel: 'muse-spark-1.2-contributor-free',
+      dishes: 3,
+      error: null,
+      gatewayMs: 900,
+      inputTokens: 5600,
+      kept: 1,
+      model: 'NutrIA-Fallback',
+      ms: 1000,
+      outputTokens: 1200,
+      provider: 'opencode-zen',
+      reasoningTokens: 800,
+      rejected: { allergen: 1, unknown_ingredient: 1 },
+      requestId: 'req-1',
+      round: 1,
+      session: 'ext:job-1',
+      slot: 'lunch',
+      strategy: 'priority'
+    });
+  });
+
+  it('keeps a refused call, with the quota the provider wrote into the refusal', async () => {
+    const quota = { limit: 20, metric: 'generate_content_free_tier_requests', model: 'gemini-3.6-flash', retryAfterSeconds: 26 };
+    const refusal = new AiCallError('[429]: You exceeded your current quota', {
+      gateway: null,
+      kind: 'provider',
+      model: 'gemini-3.6-flash',
+      ms: 400,
+      quota,
+      status: 429
+    });
+    const failing = { generate: jest.fn(async () => Promise.reject(refusal)), isAvailable: true } as unknown as AiClient;
+    const result = await new PoolBuilder(failing).build({ context: context(), preferences, reusable: [], slots: ['dinner'] });
+
+    expect(result.metadata.aiCalls).toEqual([
+      expect.objectContaining({
+        answeredModel: null,
+        dishes: 0,
+        error: { kind: 'provider', message: '[429]: You exceeded your current quota', quota, status: 429 },
+        kept: 0,
+        model: 'gemini-3.6-flash',
+        ms: 400,
+        round: 1,
+        slot: 'dinner'
+      })
+    ]);
+  });
+
+  it('keeps nothing when the library covered everything and no call was made', async () => {
+    const { client } = stubClient([{ dishes: [] }]);
+    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: fullReusablePool(), slots: SLOTS });
+
+    expect(result.metadata.aiCalls).toEqual([]);
   });
 });

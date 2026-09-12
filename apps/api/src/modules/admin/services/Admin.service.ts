@@ -4,7 +4,7 @@ import { AdminController } from 'core/controllers/Admin';
 
 import { ENV } from '../../../config/index.js';
 
-import type { AdminAnalyticsDto, AdminJobDto, AdminOverviewDto, AiUsageDto } from '../dto/out/index.js';
+import type { AdminAnalyticsDto, AdminGenerationDto, AdminJobDto, AdminOverviewDto, AiUsageDto } from '../dto/out/index.js';
 import type { Env } from '../../../config/index.js';
 
 @Injectable()
@@ -27,6 +27,10 @@ export class AdminService {
 
   async failures(): Promise<readonly AdminJobDto[]> {
     return AdminController.failures();
+  }
+
+  async generations(): Promise<readonly AdminGenerationDto[]> {
+    return AdminController.generations();
   }
 
   async overview(): Promise<AdminOverviewDto> {

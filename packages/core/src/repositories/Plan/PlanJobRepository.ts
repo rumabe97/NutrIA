@@ -5,6 +5,8 @@ import { mealPlans, planGenerationJobs } from 'database/schema/plan';
 
 import { DatabaseOperationError } from 'core/entities/Error';
 
+import type { AiCallRecord } from 'core/entities/Plan';
+
 /** A `running` job older than this is presumed dead — the process that owned it restarted. */
 export const STALE_JOB_MINUTES = 15;
 
@@ -178,6 +180,15 @@ export const PlanJobRepository = {
         .update(planGenerationJobs)
         .set({ finishedAt: new Date(), planId, status: 'succeeded', step: 'done' })
         .where(eq(planGenerationJobs.id, jobId));
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /** Keeps the generation's model calls on its row, whatever becomes of the job afterwards. */
+  async recordAiCalls(jobId: string, calls: readonly AiCallRecord[]) {
+    try {
+      await database().update(planGenerationJobs).set({ aiCalls: calls }).where(eq(planGenerationJobs.id, jobId));
     } catch (error: unknown) {
       throw wrap(error);
     }

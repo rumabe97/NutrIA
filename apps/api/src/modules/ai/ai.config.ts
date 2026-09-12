@@ -8,7 +8,15 @@ import type { ImageModel, LanguageModel } from 'ai';
 
 export const AI_MODEL = Symbol('AI_MODEL');
 export const AI_IMAGE_MODEL = Symbol('AI_IMAGE_MODEL');
-export const AI_MAX_RETRIES = Symbol('AI_MAX_RETRIES');
+export const AI_CALL_SETTINGS = Symbol('AI_CALL_SETTINGS');
+
+/** How each call is made, which depends on who is on the other end. */
+export type AiCallSettings = {
+  /** How many times the SDK repeats a failed call before the caller hears of it. */
+  readonly maxRetries: number;
+  /** The header a gateway files a call's session under. Null for a direct provider, which is sent none. */
+  readonly sessionHeader: string | null;
+};
 
 /**
  * Resolves the configured provider to a model.
@@ -88,18 +96,22 @@ export function nonStrictSchema(body: Record<string, unknown>): Record<string, u
 }
 
 /**
- * How many times the SDK repeats a failed call before the caller hears of it.
+ * How calls are made, per provider.
  *
- * Zero behind a gateway, because the gateway already retries, and better: it
- * moves a failed call to the next model of its combo instead of asking the one
- * that just failed again. Repeating the request after the gateway gave up
- * repeats its whole wait — a model that hung to OmniRoute's 180 s limit held
- * one slot for nine minutes over three tries, before `PoolBuilder` could reach
- * for the library. Every other provider keeps the SDK's own default of two:
- * nothing else retries for them.
+ * **No SDK retries behind a gateway**, because the gateway already retries,
+ * and better: it moves a failed call to the next model of its combo instead of
+ * asking the one that just failed again. Repeating the request after the
+ * gateway gave up repeats its whole wait — a model that hung to OmniRoute's
+ * 180 s limit held one slot for nine minutes over three tries, before
+ * `PoolBuilder` could reach for the library. Every other provider keeps the
+ * SDK's own default of two: nothing else retries for them.
+ *
+ * **A session header behind a gateway**, so its own log files a generation's
+ * calls together under the job id; OmniRoute answers with the session it used,
+ * "ext:<job>". A direct provider is not sent our ids.
  */
-export function resolveMaxRetries(env: Env): number {
-  return env.AI_PROVIDER === 'omniroute' ? 0 : 2;
+export function resolveCallSettings(env: Env): AiCallSettings {
+  return env.AI_PROVIDER === 'omniroute' ? { maxRetries: 0, sessionHeader: 'x-omniroute-session' } : { maxRetries: 2, sessionHeader: null };
 }
 
 function required(value: string | undefined, name: string): string {

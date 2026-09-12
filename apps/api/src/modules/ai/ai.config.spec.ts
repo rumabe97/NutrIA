@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { nonStrictSchema, resolveMaxRetries } from './ai.config.js';
+import { nonStrictSchema, resolveCallSettings } from './ai.config.js';
 
 import type { Env } from '../../config/index.js';
 
@@ -35,13 +35,14 @@ describe('nonStrictSchema', () => {
  * call on top of that repeated the gateway's whole wait: one slot held for nine
  * minutes over three tries before the pool builder heard of the failure.
  */
-describe('resolveMaxRetries', () => {
-  it('leaves retrying to the gateway', () => {
-    expect(resolveMaxRetries({ AI_PROVIDER: 'omniroute' } as Env)).toBe(0);
+describe('resolveCallSettings', () => {
+  it('leaves retrying to the gateway, and files each call under a session there', () => {
+    expect(resolveCallSettings({ AI_PROVIDER: 'omniroute' } as Env)).toEqual({ maxRetries: 0, sessionHeader: 'x-omniroute-session' });
   });
 
-  it('keeps the SDK’s default for a provider nothing else retries for', () => {
-    expect(resolveMaxRetries({ AI_PROVIDER: 'google' } as Env)).toBe(2);
-    expect(resolveMaxRetries({ AI_PROVIDER: 'anthropic' } as Env)).toBe(2);
+  it('keeps the SDK’s default for a provider nothing else retries for, and sends it none of our ids', () => {
+    for (const provider of ['google', 'anthropic', 'ollama'] as const) {
+      expect(resolveCallSettings({ AI_PROVIDER: provider } as Env)).toEqual({ maxRetries: 2, sessionHeader: null });
+    }
   });
 });

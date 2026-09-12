@@ -18,7 +18,7 @@ import { RecipeController } from 'core/controllers/Recipe';
 import { PoolBuilder } from '../../ai/services/PoolBuilder.service.js';
 import { promptPreferences, toRecipeDraft } from './GenerationShared.js';
 
-import type { CandidateDish, PlanAssignment } from 'core/entities/Plan';
+import type { AiCallRecord, CandidateDish, PlanAssignment } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { TargetBounds } from 'core/domain/Nutrition';
 import type { PlanViolation } from 'core/domain/PlanValidation';
@@ -78,7 +78,14 @@ export class PlanGenerationService {
    * computation over data loaded up front, so a failure at any point leaves the
    * database exactly as it was, including the user's previous plan.
    */
-  async generate(userId: string, jobId: string, markStep: (step: string) => Promise<void>): Promise<string> {
+  async generate(
+    userId: string,
+    jobId: string,
+    markStep: (step: string) => Promise<void>,
+    // Where the model calls are kept, as soon as the pool is built: a job that
+    // fails after that point still has them (`0050`).
+    recordCalls: (calls: readonly AiCallRecord[]) => Promise<void> = () => Promise.resolve()
+  ): Promise<string> {
     await markStep(STEPS.loading);
 
     const [onboarding, profile, context, history, verdicts, checkIn] = await Promise.all([
@@ -154,8 +161,12 @@ export class PlanGenerationService {
         loadedTargets: [...new Map([...loads.dayTargets.values()].map(load => [JSON.stringify(load), load])).values()]
       },
       reusable,
+      // The job id, so a gateway's own log files this generation's calls together.
+      session: jobId,
       slots
     });
+
+    await recordCalls(built.metadata.aiCalls);
 
     await markStep(STEPS.scheduling);
 

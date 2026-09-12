@@ -18,7 +18,7 @@ import { serverApi } from 'lib/server-api';
 import { appMetadata } from '../../_shared/metadata';
 
 import type { AccountView, Paged } from 'core/controllers/User';
-import type { AdminAnalyticsView, AdminOverviewView, AiUsageView } from 'core/controllers/Admin';
+import type { AdminAnalyticsView, AdminGenerationView, AdminOverviewView, AiUsageView } from 'core/controllers/Admin';
 import type { FeedbackView } from 'core/controllers/Feedback';
 import type { Metadata } from 'next';
 import type { SettingsView } from 'core/controllers/Settings';
@@ -40,14 +40,16 @@ const FUNNEL_STAGES = ['signedUp', 'confirmed', 'activated', 'onboarded', 'plann
  * itself to anyone who guesses it. There is no link to it anywhere: the person
  * who needs it knows the address.
  *
- * It shows no plan, no profile and no email on purpose. "Is generation working"
- * and "how big is the catalogue" are answerable without reading anybody's food.
+ * It shows no plan and no profile on purpose. "Is generation working" and "how
+ * big is the catalogue" are answerable without reading anybody's food. The
+ * reads that name somebody — the accounts, the inbox, and the address on each
+ * generation in the log — come from endpoints of their own (`0028`, `0050`).
  */
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ abierta?: string; buzon?: string; cuentas?: string }> }) {
   const query = await searchParams;
   const accountsOffset = Number.parseInt(query.cuentas ?? '', 10) || 0;
   const feedbackOffset = Number.parseInt(query.buzon ?? '', 10) || 0;
-  const [dictionary, locale, overview, accounts, settings, analytics, ai, inbox, opened] = await Promise.all([
+  const [dictionary, locale, overview, accounts, settings, analytics, ai, inbox, generations, opened] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<AdminOverviewView>('/admin/overview'),
@@ -56,6 +58,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     serverApi<AdminAnalyticsView>('/admin/analytics'),
     serverApi<AiUsageView>('/admin/ai'),
     serverApi<Paged<FeedbackView> & { waiting: number }>(`/admin/feedback?offset=${feedbackOffset}`),
+    serverApi<readonly AdminGenerationView[]>('/admin/generations'),
     Promise.resolve(query)
   ]);
 
@@ -66,6 +69,8 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const t = dictionary.admin;
   const { counts, jobs, windowDays } = overview;
   const number = (value: number) => formatNumber(value, locale);
+  // Milliseconds as seconds with one decimal, which is the grain a model call is felt at.
+  const seconds = (ms: number | null) => (ms === null ? '—' : number(Math.round(ms / 100) / 10));
   const failures = jobs.filter(job => job.status === 'failed');
   const tiles = [
     { label: t.accounts, note: interpolate(t.waiting, { count: number(counts.accounts.waiting) }), value: number(counts.accounts.total) },
@@ -194,7 +199,44 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                 <span className={styles.count}>{ai.model}</span>
               </li>
             ) : null}
+            {ai.lastRefusal ? (
+              <li className={styles.row}>
+                <span>{t.aiLastRefusal}</span>
+                <span className={styles.count}>
+                  {interpolate(t.aiLastRefusalValue, {
+                    limit: ai.lastRefusal.limit === null ? '?' : number(ai.lastRefusal.limit),
+                    model: ai.lastRefusal.model,
+                    seconds: ai.lastRefusal.retryAfterSeconds === null ? '?' : number(ai.lastRefusal.retryAfterSeconds),
+                    time: ai.lastRefusal.at.slice(11, 16)
+                  })}
+                </span>
+              </li>
+            ) : null}
           </ul>
+
+          {/* Through a gateway the name asked for is a combo; the allowance went to
+              whatever answered, and that is the row that says so. */}
+          {ai.byModel.length > 0 ? (
+            <Fragment>
+              <h3 className={styles.subtitle}>{t.aiByModel}</h3>
+              <ul className={styles.rows}>
+                {ai.byModel.map(row => (
+                  <li className={styles.row} key={`${row.model}·${row.provider ?? ''}`}>
+                    <span>{row.provider ? `${row.model} · ${row.provider}` : row.model}</span>
+                    <span className={styles.count}>
+                      {interpolate(t.aiModelUsage, {
+                        calls: number(row.calls),
+                        failed: number(row.failed),
+                        input: number(row.inputTokens),
+                        output: number(row.outputTokens),
+                        seconds: seconds(row.averageMs)
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Fragment>
+          ) : null}
         </section>
       ) : null}
 
@@ -288,6 +330,97 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           </Text>
         ) : null}
       </section>
+
+      {/* The log: each generation with who asked, and every call it made to a
+          model — the calls folded away until somebody needs them. */}
+      {generations ? (
+        <section className={styles.section} id="registro">
+          <h2 className={styles.subtitle}>{t.logTitle}</h2>
+          <Text className={styles.hint} size="sm" tone="tertiary">
+            {t.logHint}
+          </Text>
+
+          {generations.length === 0 ? (
+            <Text tone="secondary">{t.logEmpty}</Text>
+          ) : (
+            <ul className={styles.jobs}>
+              {generations.map(generation => (
+                <li className={styles.job} data-status={generation.status} key={generation.id}>
+                  <span className={styles.jobStatus}>{generation.status}</span>
+                  <span className={styles.jobWhen}>
+                    {generation.account.email}
+                    {generation.startedAt
+                      ? ` · ${formatDate(generation.startedAt.slice(0, 10), locale, { day: 'numeric', month: 'short' })} ${generation.startedAt.slice(11, 16)} UTC`
+                      : ''}
+                    {generation.seconds === null ? '' : ` · ${number(generation.seconds)} s`}
+                  </span>
+                  {generation.plan ? (
+                    <span className={styles.jobCode}>
+                      {interpolate(t.logPlan, {
+                        model: generation.plan.model ?? '—',
+                        prompt: generation.plan.promptVersion ?? '—',
+                        reused: number(generation.plan.reused ?? 0),
+                        version: number(generation.plan.version)
+                      })}
+                    </span>
+                  ) : null}
+                  {generation.code ? <span className={styles.jobCode}>{generation.code}</span> : null}
+                  {generation.detail ? <span className={styles.jobDetail}>{generation.detail}</span> : null}
+
+                  {generation.calls.length === 0 ? (
+                    <span className={styles.jobDetail}>{t.logNoCalls}</span>
+                  ) : (
+                    <details className={styles.calls}>
+                      <summary>{interpolate(t.logCalls, { count: number(generation.calls.length) })}</summary>
+                      <ol className={styles.callList}>
+                        {generation.calls.map(call => {
+                          const answered = call.answeredModel ?? call.model;
+                          const dropped = Object.entries(call.rejected)
+                            .map(([reason, count]) => `${t.rejection[reason as keyof typeof t.rejection]} ${number(count)}`)
+                            .join(', ');
+
+                          return (
+                            <li className={styles.call} data-failed={call.error ? 'true' : undefined} key={`${call.round}-${call.slot}`}>
+                              <span>
+                                {interpolate(t.logCall, { model: answered, round: number(call.round), slot: dictionary.slots[call.slot] })}
+                                {answered === call.model ? '' : ` (${interpolate(t.logCallAsked, { model: call.model })})`}
+                                {call.provider ? ` · ${interpolate(t.logCallVia, { provider: call.provider })}` : ''}
+                                {call.ms === null ? '' : ` · ${seconds(call.ms)} s`}
+                              </span>
+                              {call.error ? (
+                                <span>
+                                  {interpolate(t.logCallFailed, { status: call.error.status === null ? '—' : String(call.error.status) })}
+                                  {call.error.quota
+                                    ? ` · ${interpolate(t.logCallQuota, {
+                                        limit: call.error.quota.limit === null ? '?' : number(call.error.quota.limit),
+                                        seconds: call.error.quota.retryAfterSeconds === null ? '?' : number(call.error.quota.retryAfterSeconds)
+                                      })}`
+                                    : ''}
+                                  {` · ${call.error.message}`}
+                                </span>
+                              ) : (
+                                <span>
+                                  {interpolate(t.logCallTokens, { input: number(call.inputTokens ?? 0), output: number(call.outputTokens ?? 0) })}
+                                  {call.reasoningTokens ? ` (${interpolate(t.logCallReasoning, { count: number(call.reasoningTokens) })})` : ''}
+                                  {` · ${interpolate(t.logCallKept, { dishes: number(call.dishes), kept: number(call.kept) })}`}
+                                  {dropped ? ` · ${interpolate(t.logCallDropped, { reasons: dropped })}` : ''}
+                                </span>
+                              )}
+                              {call.requestId ? (
+                                <span className={styles.callIds}>{interpolate(t.logCallIds, { request: call.requestId })}</span>
+                              ) : null}
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    </details>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ) : null}
     </Fragment>
   );
 }

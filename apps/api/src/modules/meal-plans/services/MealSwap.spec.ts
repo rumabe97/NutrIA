@@ -126,6 +126,7 @@ function harness(
       dishes: options.generated ?? [],
       generated: options.generated ?? [],
       metadata: {
+        aiCalls: [],
         attempts: 1,
         backfilled: 0,
         calls: 1,

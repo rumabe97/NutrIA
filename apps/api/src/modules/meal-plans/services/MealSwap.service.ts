@@ -137,6 +137,8 @@ export class MealSwapService {
           context.preferences.unenforceableLabels
         ),
         reusable: [],
+        // Filed together in a gateway's log, like a generation's calls under its job.
+        session: `swap:${mealId}`,
         slots: [current.slot]
       });
 
