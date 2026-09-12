@@ -1,0 +1,1 @@
+ALTER TABLE "plan_generation_jobs" ADD COLUMN "ai_calls" jsonb;

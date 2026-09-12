@@ -220,6 +220,13 @@ export const dislikedRecipes = userOwned('disliked_recipes', {
  * table for failures. `step` is the user-facing stage label.
  */
 export const planGenerationJobs = userOwned('plan_generation_jobs', {
+  /**
+   * Every model call the generation made — who answered, how long, the tokens,
+   * what a gateway reported, what came of the dishes — written as soon as the
+   * pool is built, so a job that fails afterwards keeps them (`0050`). Null
+   * for a job that never reached the model, or that predates this column.
+   */
+  aiCalls: jsonb().$type<readonly Record<string, unknown>[]>(),
   attempts: smallint().notNull().default(0),
   error: text(),
   /** The provider's own (redacted) message. Stable codes go in `error`. */

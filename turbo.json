@@ -3,6 +3,7 @@
   "ui": "tui",
   "globalEnv": [
     "AI_BASE_URL",
+    "AI_BUDGET_SECONDS",
     "AI_ILLUSTRATIONS",
     "AI_MODEL",
     "AI_PROVIDER",
@@ -26,6 +27,8 @@
     "NEXT_PUBLIC_API_URL",
     "NEXT_PUBLIC_SITE_URL",
     "NODE_ENV",
+    "OMNIROUTE_API_KEY",
+    "OMNIROUTE_MODEL",
     "OWNER_EMAIL",
     "PORT",
     "RATE_LIMIT_MAX",

@@ -5,6 +5,24 @@ import { hasUsableMethod, METHOD_RULES } from 'core/domain/Method';
 import { MEAL_SLOTS } from 'core/entities/Plan';
 
 /**
+ * A returned slug in the catalogue's own spelling (3.2.1).
+ *
+ * Every catalogue slug is lowercase ASCII, so a model that writes "brócoli" or
+ * "calabacín" — putting back the accents a bare slug drops, which the 3.2.0
+ * list invites — can only mean `brocoli` and `calabacin`. Folded before the
+ * lookup, the dish resolves, and the allergy gate runs on the ingredient it
+ * resolved to, as for any other dish. A slug wrong in any other way
+ * ("salmón-fresco") still resolves to nothing, and the dish is still rejected.
+ */
+function canonicalSlug(slug: string): string {
+  return slug
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .trim();
+}
+
+/**
  * What the model is allowed to return.
  *
  * Note what is absent: no calories, no macros, no ingredient names. Only catalogue
@@ -27,14 +45,20 @@ export const generatedDishSchema = z
       .array(
         z.object({
           grams: z.number().positive().max(2000).describe('Gramos para el total de raciones indicado.'),
-          slug: z.string().min(1).describe('Debe ser exactamente uno de los slugs disponibles.')
+          slug: z.string().min(1).transform(canonicalSlug).describe('Debe ser exactamente uno de los slugs disponibles.')
         })
       )
       .min(1)
-      .max(12),
+      // Fifteen, seasonings and oil included (3.2.2). Twelve rejected a large
+      // plate for its salt and cumin: on one day's calls, 41 of the 77 dishes the
+      // schema refused had 13 to 15 ingredients, and none had more.
+      .max(15),
     name: z.string().min(1).max(120).describe('Nombre del plato en español.'),
     prepMinutes: z.number().int().min(0).max(120),
-    servings: z.number().min(1).max(4).describe('Número de raciones que rinden las cantidades indicadas.'),
+    // Up to eight, as `candidateDishSchema` stores: a batch of six is a real
+    // recipe, and per-serving figures are computed from the grams whatever the
+    // yield. Four refused eleven lunches in a day for that alone.
+    servings: z.number().min(1).max(8).describe('Número de raciones que rinden las cantidades indicadas.'),
     slots: z.array(z.enum(MEAL_SLOTS)).min(1).describe('Momentos del día en los que este plato encaja.'),
     steps: z
       .array(
@@ -44,7 +68,10 @@ export const generatedDishSchema = z
           minutes: z.number().int().min(0).max(240).optional(),
           // Twenty characters is the floor under "Cocer el arroz." — a step that names
           // an action and nothing about how, how hot or how long is not documented.
-          text: z.string().min(20).max(400)
+          // Six hundred is the ceiling, as `candidateDishSchema` stores (3.2.2): a
+          // documented step — how, how hot, how long, the sign — ran to 404–561
+          // characters on ten dishes in a day, and four hundred refused them.
+          text: z.string().min(20).max(600)
         })
       )
       .max(10)
@@ -98,7 +125,7 @@ export const wirePoolSchema = jsonSchema<GeneratedPool>({
           cuisine: { description: 'Cocina de origen, por ejemplo "mediterranea". Cadena vacía si no aplica.', type: 'string' },
           difficulty: { enum: ['easy', 'medium', 'hard'], type: 'string' },
           ingredients: {
-            description: 'Entre 1 y 12 ingredientes, todos del catálogo.',
+            description: 'Entre 1 y 15 ingredientes, todos del catálogo; la sal, las especias y el aceite cuentan.',
             items: {
               properties: {
                 grams: { description: 'Gramos para el total de raciones indicado.', type: 'number' },

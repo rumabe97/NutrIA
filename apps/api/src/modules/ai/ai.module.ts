@@ -1,7 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 
 import { ENV, envProvider } from '../../config/index.js';
-import { AI_IMAGE_MODEL, AI_MODEL, resolveImageModel, resolveModel } from './ai.config.js';
+import { AI_CALL_SETTINGS, AI_IMAGE_MODEL, AI_MODEL, AI_MODEL_BUDGET, resolveCallSettings, resolveImageModel, resolveModel } from './ai.config.js';
 import { AiClient } from './clients/AiClient.js';
 import { ImageClient } from './clients/ImageClient.js';
 import { ProviderImageClient } from './clients/ProviderImageClient.js';
@@ -22,6 +22,8 @@ import type { Env } from '../../config/index.js';
   providers: [
     envProvider,
     { inject: [ENV], provide: AI_MODEL, useFactory: (env: Env) => resolveModel(env) },
+    { inject: [ENV], provide: AI_CALL_SETTINGS, useFactory: (env: Env) => resolveCallSettings(env) },
+    { inject: [ENV], provide: AI_MODEL_BUDGET, useFactory: (env: Env) => env.AI_BUDGET_SECONDS * 1000 },
     { provide: AiClient, useClass: StructuredAiClient },
     { inject: [ENV], provide: AI_IMAGE_MODEL, useFactory: (env: Env) => resolveImageModel(env) },
     { provide: ImageClient, useClass: ProviderImageClient },

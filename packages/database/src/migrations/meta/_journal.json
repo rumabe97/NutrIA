@@ -176,6 +176,13 @@
       "when": 1789060101860,
       "tag": "0024_a_fortnight_rebuilt_for_an_event",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1789195203719,
+      "tag": "0025_a_generation_keeps_its_calls",
+      "breakpoints": true
     }
   ]
 }

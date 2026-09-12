@@ -22,6 +22,16 @@ export type JobRow = {
   readonly step: string | null;
 };
 
+/** A job with the account that asked for it and the plan it produced, for the generation log (`0050`). */
+export type GenerationRow = JobRow & {
+  readonly aiCalls: readonly Record<string, unknown>[] | null;
+  readonly email: string;
+  /** What the plan recorded about its own making; null when the job produced none. */
+  readonly metadata: Record<string, unknown> | null;
+  readonly name: string | null;
+  readonly planVersion: number | null;
+};
+
 /**
  * How many people reached each step, counted from the rows that prove it.
  *
@@ -55,10 +65,12 @@ export type Counts = {
  * Reads for the owner's own screen. Nothing here is scoped to a user — that is
  * the point of it, and why every route that calls it carries `@Roles('admin')`.
  *
- * **No column here carries content.** Not a dish, not a profile, not an email:
- * the questions this answers are "is generation working" and "what is the
- * catalogue's size", and a screen that answered them with someone's plan on it
- * would be a health-data leak wearing a dashboard.
+ * **No column here carries content.** Not a dish, not a profile: the questions
+ * this answers are "is generation working" and "what is the catalogue's size",
+ * and a screen that answered them with someone's plan on it would be a
+ * health-data leak wearing a dashboard. The one read that names somebody is
+ * `recentGenerations` — an address per job, for the generation log — and only
+ * a controller of its own calls it (`0028`, `0050`).
  */
 export const AdminRepository = {
   async counts(since: Date): Promise<Counts> {
@@ -122,6 +134,35 @@ export const AdminRepository = {
         returned: plansPerUser.filter(row => row.n > 1).length,
         signedUp: signedUp[0]?.n ?? 0
       };
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /** The latest jobs, newest first, with the account that asked and the plan each produced. */
+  async recentGenerations(limit: number): Promise<readonly GenerationRow[]> {
+    try {
+      return await database()
+        .select({
+          id: planGenerationJobs.id,
+          aiCalls: planGenerationJobs.aiCalls,
+          attempts: planGenerationJobs.attempts,
+          email: user.email,
+          error: planGenerationJobs.error,
+          errorDetail: planGenerationJobs.errorDetail,
+          finishedAt: planGenerationJobs.finishedAt,
+          metadata: mealPlans.generationMetadata,
+          name: user.name,
+          planVersion: mealPlans.version,
+          startedAt: planGenerationJobs.startedAt,
+          status: planGenerationJobs.status,
+          step: planGenerationJobs.step
+        })
+        .from(planGenerationJobs)
+        .innerJoin(user, eq(user.id, planGenerationJobs.userId))
+        .leftJoin(mealPlans, eq(mealPlans.id, planGenerationJobs.planId))
+        .orderBy(desc(planGenerationJobs.createdAt))
+        .limit(limit);
     } catch (error: unknown) {
       throw wrap(error);
     }

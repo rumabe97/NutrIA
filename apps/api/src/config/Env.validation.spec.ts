@@ -125,6 +125,10 @@ describe('empty values from a copied .env.example', () => {
   it('needs no key at all on the default stub provider', () => {
     expect(validateEnv({ ...copied }).AI_PROVIDER).toBe('stub');
   });
+
+  it('treats an empty gateway key as missing when omniroute is selected', () => {
+    expect(() => validateEnv({ ...copied, AI_PROVIDER: 'omniroute' })).toThrow(/OMNIROUTE_API_KEY/);
+  });
 });
 
 describe('AI provider and model pairing', () => {
@@ -149,6 +153,45 @@ describe('AI provider and model pairing', () => {
 
   it('does not second-guess a local model name', () => {
     expect(validateEnv({ ...valid, AI_MODEL: 'llama3.1:70b', AI_PROVIDER: 'ollama' }).AI_MODEL).toBe('llama3.1:70b');
+  });
+
+  it('takes the gateway’s model from OMNIROUTE_MODEL, beside its key, over AI_MODEL', () => {
+    const env = validateEnv({
+      ...valid,
+      AI_MODEL: 'ignored',
+      AI_PROVIDER: 'omniroute',
+      OMNIROUTE_API_KEY: 'k',
+      OMNIROUTE_MODEL: 'gemini/gemini-3.6-flash'
+    });
+
+    expect(env.AI_MODEL).toBe('gemini/gemini-3.6-flash');
+  });
+
+  it('ignores OMNIROUTE_MODEL for every other provider', () => {
+    expect(validateEnv({ ...valid, AI_PROVIDER: 'google', GOOGLE_API_KEY: 'k', OMNIROUTE_MODEL: 'gemini/gemini-3.6-flash' }).AI_MODEL).toBe(
+      'gemini-3.6-flash'
+    );
+  });
+
+  it('does not second-guess a gateway alias either, and defaults to the gateway’s own', () => {
+    // "NutrIA-Fallback" names nothing at Anthropic or Google; there is no vendor
+    // substring to check it against, unlike `google` and `anthropic` above.
+    expect(validateEnv({ ...valid, AI_PROVIDER: 'omniroute', OMNIROUTE_API_KEY: 'k' }).AI_MODEL).toBe('NutrIA-Fallback');
+    expect(validateEnv({ ...valid, AI_MODEL: 'auto/best-coding', AI_PROVIDER: 'omniroute', OMNIROUTE_API_KEY: 'k' }).AI_MODEL).toBe(
+      'auto/best-coding'
+    );
+  });
+});
+
+describe('AI_BUDGET_SECONDS', () => {
+  it('defaults to what fits inside a 300-second function, including when copied empty', () => {
+    expect(validateEnv({ ...valid }).AI_BUDGET_SECONDS).toBe(170);
+    expect(validateEnv({ ...valid, AI_BUDGET_SECONDS: '' }).AI_BUDGET_SECONDS).toBe(170);
+  });
+
+  it('takes a host’s own figure, and refuses one too short for any model to answer in', () => {
+    expect(validateEnv({ ...valid, AI_BUDGET_SECONDS: '600' }).AI_BUDGET_SECONDS).toBe(600);
+    expect(() => validateEnv({ ...valid, AI_BUDGET_SECONDS: '5' })).toThrow(/AI_BUDGET_SECONDS/);
   });
 });
 

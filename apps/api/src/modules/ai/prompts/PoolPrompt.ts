@@ -1,5 +1,6 @@
 import { DEFAULT_MEAL_SHAPE, weightsFor } from 'core/domain/MealShape';
 import { INGREDIENT_CATEGORIES, SNACK_SLOTS } from 'core/entities/Plan';
+import { normaliseForMatching } from 'core/domain/Safety';
 
 import type { CatalogueIngredient, IngredientCategory, MealSlot } from 'core/entities/Plan';
 import type { CheckInForGeneration } from 'core/controllers/CheckIn';
@@ -58,8 +59,21 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * built by combining dishes, and a combination can only land on a figure the
  * dishes sit on both sides of. So each meal's dishes are now asked to fall
  * about half a little under and half a little over each number.
+ * 3.2.0: the ingredient list names an ingredient only where its slug does not
+ * already say it. The list was 70% of the prompt, and 525 of the 570 names on a
+ * real one were the slug with its accents put back — "acelga (Acelga)". Every
+ * ingredient is still offered; only the repeat is gone (a third of the prompt).
+ * 3.2.1: the wording is 3.2.0's; what changed is how a returned slug is read. A
+ * model shown bare slugs wrote some back with their accents — "brócoli",
+ * "calabacín" — and each such dish was rejected as unknown. `pool.schema.ts`
+ * now folds the accents before the lookup.
+ * 3.2.2: the ingredient ceiling is stated, and raised. The prompt said "fifteen
+ * is a shopping trip" while the schema refused thirteen, so a large lunch came
+ * back with fourteen and all seven were dropped. Fifteen now, salt, spices and
+ * oil included, in both; one to eight servings and six-hundred-character
+ * steps, as the store allows.
  */
-export const PROMPT_VERSION = '3.1.0';
+export const PROMPT_VERSION = '3.2.2';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -212,12 +226,27 @@ function checkInLines(checkIn: CheckInForGeneration | null): readonly string[] {
   ];
 }
 
+/**
+ * An ingredient as the model is shown it: its slug, and its name only where
+ * the name says something the slug does not (3.2.0).
+ *
+ * The slug is what the model returns, and it reads the language the slugs are
+ * written in; "calabacin (Calabacín)" paid for the same word twice on every
+ * call. A name that differs still travels — a plural, a translation on an
+ * English catalogue, or an "ñ", which a slug cannot hold ("nora (Ñora)").
+ */
+function listed(ingredient: CatalogueIngredient): string {
+  const redundant = !/ñ/i.test(ingredient.name) && normaliseForMatching(ingredient.name).replaceAll(' ', '-') === ingredient.slug;
+
+  return redundant ? ingredient.slug : `${ingredient.slug} (${ingredient.name})`;
+}
+
 function catalogueByAisle(safeIngredients: readonly CatalogueIngredient[]): string {
   return INGREDIENT_CATEGORIES.map(category => {
     const rows = safeIngredients
       .filter(ingredient => ingredient.category === category)
       .sort((a, b) => a.slug.localeCompare(b.slug))
-      .map(ingredient => `${ingredient.slug} (${ingredient.name})`);
+      .map(listed);
 
     return rows.length > 0 ? `${CATEGORY_LABEL[category]}:\n${rows.join(', ')}` : '';
   })
@@ -516,11 +545,12 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
         : null,
       context.excludeSlugs.length > 0 ? `DO NOT REPEAT THESE ALREADY-PROPOSED DISHES: ${context.excludeSlugs.join(', ')}` : null,
       '',
-      'AVAILABLE INGREDIENTS (use these slugs and no others):',
+      'AVAILABLE INGREDIENTS (use these slugs and no others; a name follows in brackets only where the slug does not already say it):',
       catalogue,
       '',
       'Each dish lists its ingredients in grams for the number of servings you declare.',
-      'Aim for four to eight ingredients in a main dish, two to four in a snack; fifteen is a shopping trip.'
+      'Aim for five to ten ingredients in a main dish, two to five in a snack. Never more than fifteen, salt, spices and oil included — a dish with more is rejected.',
+      'Declare between one and eight servings.'
     ]
       // Null is an optional line with nothing to say; an empty string is a
       // section break, and a model follows a sectioned brief better than a wall.

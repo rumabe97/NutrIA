@@ -205,6 +205,7 @@ function build(overrides: Partial<Mocks> = {}) {
       dishes: reusable,
       generated: [],
       metadata: {
+        aiCalls: [],
         attempts: 0,
         backfilled: 0,
         calls: 0,
@@ -427,6 +428,7 @@ describe('PlanGenerationService', () => {
       dishes: thin,
       generated: [],
       metadata: {
+        aiCalls: [],
         attempts: 1,
         backfilled: 0,
         calls: 1,
@@ -473,6 +475,7 @@ describe('PlanGenerationService', () => {
       dishes: thin,
       generated: [],
       metadata: {
+        aiCalls: [],
         attempts: 1,
         backfilled: 0,
         calls: 1,
@@ -515,6 +518,7 @@ describe('PlanGenerationService', () => {
       dishes: thin,
       generated: [],
       metadata: {
+        aiCalls: [],
         attempts: 1,
         backfilled: 0,
         calls: 1,
@@ -543,6 +547,7 @@ describe('PlanGenerationService', () => {
       dishes: thin,
       generated: [],
       metadata: {
+        aiCalls: [],
         attempts: 1,
         backfilled: 0,
         calls: 1,

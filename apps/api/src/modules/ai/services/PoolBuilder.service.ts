@@ -1,14 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
 import { dishSafety, findSafetyViolations } from 'core/domain/Safety';
 import { withinTime } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
-import { AiClient } from '../clients/AiClient.js';
+import { AI_MODEL_BUDGET } from '../ai.config.js';
+import { AiCallError, AiClient } from '../clients/AiClient.js';
 import { buildPoolPrompt, languageName, POOL_SYSTEM_PROMPT, PROMPT_VERSION } from '../prompts/PoolPrompt.js';
 import { generatedDishSchema, wirePoolSchema } from '../prompts/pool.schema.js';
 
-import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
+import type { AiCall, AiFailure, AiUsage } from '../clients/AiClient.js';
+import type { AiCallFailure, AiCallRecord, CandidateDish, CatalogueIngredient, DishRejection, MealSlot } from 'core/entities/Plan';
 import type { GeneratedDish } from '../prompts/pool.schema.js';
 import type { GenerationContext } from 'core/controllers/Recipe';
 import type { PromptContext } from '../prompts/PoolPrompt.js';
@@ -23,16 +25,29 @@ export { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
 const MAX_ATTEMPTS = 3;
 
+/** How much of a provider's message a call's record keeps: enough for the quota line, never a page. */
+const MESSAGE_LIMIT = 400;
+
+/** The model half's whole time when the module passes none — as when a spec builds this by hand. */
+const DEFAULT_MODEL_BUDGET_MS = 170_000;
+
+/** A later round with less than this left cannot bring a dish back in time; the library covers the rest. */
+const MIN_ROUND_MS = 15_000;
+
 export type PoolResult = {
   readonly dishes: readonly CandidateDish[];
   readonly generated: readonly CandidateDish[];
   readonly metadata: {
+    /** Every model call, answered or not, in the order the rounds came back (`0050`). */
+    readonly aiCalls: readonly AiCallRecord[];
     readonly attempts: number;
     /** Library dishes used to cover what the model's first round left short. */
     readonly backfilled: number;
     readonly calls: number;
     readonly inputTokens: number;
     readonly model: string;
+    /** Set when the time budget cut the model short: a call timed out, or a later round never started. */
+    readonly outOfTime?: true;
     readonly outputTokens: number;
     readonly promptVersion: string;
     /** Set when a configured provider actually failed, as opposed to being absent. */
@@ -56,8 +71,12 @@ export type BuildPoolInput = {
   readonly needPerSlot?: number;
   readonly preferences: Omit<PromptContext, 'excludeSlugs' | 'forbiddenLabels' | 'language' | 'needBySlot'>;
   readonly reusable: readonly CandidateDish[];
+  /** Files every call of this build under one session in a gateway's log — a generation's job id. */
+  readonly session?: string;
   readonly slots: readonly MealSlot[];
 };
+
+type Verdict = { readonly dish: CandidateDish } | { readonly reason: DishRejection };
 
 /**
  * Assembles the pool the scheduler consumes: reuse first, generate the shortfall.
@@ -66,22 +85,43 @@ export type BuildPoolInput = {
  * covered by the library triggers **no model call at all** — which is the mechanism
  * that keeps this product's running cost from scaling with users
  * ([`0006`](../../../../docs/decisions/0006-reuse-before-generating.md)).
+ *
+ * Every call it makes is recorded — who answered, how long, the tokens, what a
+ * gateway reported, and what became of each dish — in `metadata.aiCalls` and as
+ * one log line, so a generation can be read back call by call (`0050`).
  */
 @Injectable()
 export class PoolBuilder {
+  private readonly budgetMs: number;
   private readonly logger = new Logger(PoolBuilder.name);
 
-  constructor(private readonly ai: AiClient) {}
+  constructor(
+    private readonly ai: AiClient,
+    // The model half's whole time, from `AI_BUDGET_SECONDS` (`0050`).
+    @Optional() @Inject(AI_MODEL_BUDGET) budgetMs?: number
+  ) {
+    this.budgetMs = budgetMs ?? DEFAULT_MODEL_BUDGET_MS;
+  }
 
-  async build({ backfill = [], context, needPerSlot = DISHES_NEEDED_PER_SLOT, preferences, reusable, slots }: BuildPoolInput): Promise<PoolResult> {
+  async build({
+    backfill = [],
+    context,
+    needPerSlot = DISHES_NEEDED_PER_SLOT,
+    preferences,
+    reusable,
+    session,
+    slots
+  }: BuildPoolInput): Promise<PoolResult> {
     const accepted = new Map<string, CandidateDish>(reusable.map(dish => [dish.slug, dish]));
     const generated: CandidateDish[] = [];
     const metadata = {
+      aiCalls: [] as AiCallRecord[],
       attempts: 0,
       backfilled: 0,
       calls: 0,
       inputTokens: 0,
       model: 'none',
+      outOfTime: undefined as true | undefined,
       outputTokens: 0,
       promptVersion: PROMPT_VERSION,
       providerError: undefined as string | undefined,
@@ -98,6 +138,7 @@ export class PoolBuilder {
     const safeIngredients = [...context.catalogue.values()].filter(
       ingredient => isSafeIngredient(ingredient, context) && isWantedIngredient(ingredient, context)
     );
+    const deadline = Date.now() + this.budgetMs;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       let needBySlot = shortfall(slots, [...accepted.values()], needPerSlot);
@@ -132,7 +173,20 @@ export class PoolBuilder {
         break;
       }
 
+      // One budget for every round, so a slow model cannot hold a job past the
+      // function's own limit (`0050`): the first round has all of it, and a
+      // later one starts only with enough left to bring something back.
+      const remaining = deadline - Date.now();
+
+      if (attempt > 1 && remaining < MIN_ROUND_MS) {
+        metadata.outOfTime = true;
+        this.logger.warn(`The model's ${this.budgetMs / 1000} s are spent; the library covers what is still short`);
+        break;
+      }
+
       metadata.attempts = attempt;
+
+      const signal = AbortSignal.timeout(Math.max(remaining, 1));
 
       // One request per slot, all at once. Latency is set by the longest single
       // response, and a response for one slot is a quarter the size of one for
@@ -152,6 +206,8 @@ export class PoolBuilder {
               safeIngredients
             ),
             schema: wirePoolSchema,
+            session,
+            signal,
             system: POOL_SYSTEM_PROMPT
           })
         )
@@ -159,32 +215,95 @@ export class PoolBuilder {
 
       let succeeded = 0;
 
-      for (const round of rounds) {
-        if (round.status === 'rejected') {
-          const error: unknown = round.reason;
+      for (const [index, slot] of wanted.entries()) {
+        const round = rounds[index];
 
-          metadata.providerError = error instanceof Error ? error.message : 'unknown';
-          this.logger.error(`Pool generation attempt ${attempt} failed against ${metadata.model}: ${metadata.providerError}`);
+        if (!round) {
           continue;
         }
 
-        succeeded += 1;
+        if (round.status === 'rejected') {
+          const error: unknown = round.reason;
+          const failure = error instanceof AiCallError ? error.failure : undefined;
+
+          if (failure?.kind === 'timeout') {
+            metadata.outOfTime = true;
+          }
+
+          metadata.providerError = error instanceof Error ? error.message : 'unknown';
+          this.logger.error(`Pool generation attempt ${attempt} failed against ${metadata.model}: ${metadata.providerError}`);
+          this.record(metadata.aiCalls, {
+            error: {
+              kind: failure?.kind ?? 'provider',
+              message: metadata.providerError.slice(0, MESSAGE_LIMIT),
+              quota: failure?.quota ?? null,
+              status: failure?.status ?? null
+            },
+            failure,
+            model: metadata.model,
+            round: attempt,
+            slot
+          });
+          continue;
+        }
+
         metadata.calls += round.value.usage.calls;
         metadata.inputTokens += round.value.usage.inputTokens;
         metadata.model = round.value.usage.model;
         metadata.outputTokens += round.value.usage.outputTokens;
 
-        for (const dish of round.value.object.dishes) {
-          const candidate = this.validate(dish, context, accepted);
+        // `wirePoolSchema` is deliberately loose (see its own comment: Gemini
+        // rejects the stricter keywords outright), so nothing here has checked
+        // that a *parsed* response actually has a `dishes` array — only that it
+        // parsed as JSON at all. A provider whose "JSON mode" is looser than
+        // Gemini's or Anthropic's tool-calling can hand back well-formed JSON
+        // shaped some other way, and this round is a failure to report, not a
+        // crash to propagate through the whole build.
+        const dishes = round.value.object.dishes;
 
-          if (!candidate) {
+        if (!Array.isArray(dishes)) {
+          metadata.providerError = 'the model returned JSON without a "dishes" array';
+          this.logger.error(`Pool generation attempt ${attempt} against ${metadata.model} was not shaped { dishes: [...] }`);
+          this.record(metadata.aiCalls, {
+            call: round.value.call,
+            error: { kind: 'shape', message: metadata.providerError, quota: null, status: null },
+            model: metadata.model,
+            round: attempt,
+            slot,
+            usage: round.value.usage
+          });
+          continue;
+        }
+
+        succeeded += 1;
+
+        const rejected: Partial<Record<DishRejection, number>> = {};
+        let kept = 0;
+
+        for (const dish of dishes) {
+          const verdict = this.validate(dish, context, accepted);
+
+          if ('reason' in verdict) {
             metadata.rejected += 1;
+            rejected[verdict.reason] = (rejected[verdict.reason] ?? 0) + 1;
             continue;
           }
 
-          accepted.set(candidate.slug, candidate);
-          generated.push(candidate);
+          accepted.set(verdict.dish.slug, verdict.dish);
+          generated.push(verdict.dish);
+          kept += 1;
         }
+
+        this.record(metadata.aiCalls, {
+          call: round.value.call,
+          dishes: dishes.length,
+          kept,
+          model: metadata.model,
+          rejected,
+          round: attempt,
+          slot,
+          usage: round.value.usage
+        });
       }
 
       if (succeeded === 0) {
@@ -195,6 +314,51 @@ export class PoolBuilder {
     return { dishes: [...accepted.values()], generated, metadata };
   }
 
+  /** Adds one call to the build's log and writes its line: the two places an operator reads a generation back from. */
+  private record(
+    log: AiCallRecord[],
+    parts: {
+      readonly call?: AiCall;
+      readonly dishes?: number;
+      readonly error?: AiCallFailure;
+      readonly failure?: AiFailure;
+      readonly kept?: number;
+      readonly model: string;
+      readonly rejected?: Partial<Record<DishRejection, number>>;
+      readonly round: number;
+      readonly slot: MealSlot;
+      readonly usage?: AiUsage;
+    }
+  ): void {
+    const entry = callRecord(parts);
+    const who = `${entry.answeredModel ?? entry.model}${entry.provider ? ` via ${entry.provider}` : ''}`;
+    const time = entry.ms === null ? '' : ` in ${entry.ms} ms`;
+    const session = entry.session ? ` [${entry.session}]` : '';
+
+    log.push(entry);
+
+    if (entry.error) {
+      const quota = entry.error.quota
+        ? `; quota limit ${entry.error.quota.limit ?? '?'}, retry in ${entry.error.quota.retryAfterSeconds ?? '?'} s`
+        : '';
+
+      this.logger.warn(
+        `AI call ${entry.slot}, round ${entry.round}: ${who} failed${entry.error.status === null ? '' : ` (${entry.error.status})`}${time}${quota}${session}`
+      );
+
+      return;
+    }
+
+    const reasoning = entry.reasoningTokens ? ` (${entry.reasoningTokens} reasoning)` : '';
+    const dropped = Object.entries(entry.rejected)
+      .map(([reason, count]) => `${reason} ${count}`)
+      .join(', ');
+
+    this.logger.log(
+      `AI call ${entry.slot}, round ${entry.round}: ${who}${time}, ${entry.inputTokens ?? 0}/${entry.outputTokens ?? 0} tokens${reasoning}, kept ${entry.kept} of ${entry.dishes}${dropped ? ` (dropped: ${dropped})` : ''}${session}`
+    );
+  }
+
   /**
    * Schema → catalogue → **allergy gate**, in that order.
    *
@@ -202,8 +366,10 @@ export class PoolBuilder {
    * ingredients, because a prompt is a request and this is a guarantee. A rejection
    * here is logged at error level: it means the model returned something it was
    * never shown, which is a drift worth investigating rather than a routine miss.
+   *
+   * Returns the dish, or why it was dropped — counted per call in its record.
    */
-  private validate(raw: GeneratedDish, context: GenerationContext, accepted: ReadonlyMap<string, CandidateDish>): CandidateDish | undefined {
+  private validate(raw: GeneratedDish, context: GenerationContext, accepted: ReadonlyMap<string, CandidateDish>): Verdict {
     // The wire schema is deliberately loose so the provider can express it; the
     // bounds are enforced here, against the strict schema. Anything failing this
     // is discarded exactly like an unsafe dish.
@@ -212,14 +378,14 @@ export class PoolBuilder {
     if (!parsed.success) {
       this.logger.warn(`Dish "${raw.name}" rejected: ${parsed.error.issues.map(issue => `${issue.path.join('.')} ${issue.message}`).join('; ')}`);
 
-      return undefined;
+      return { reason: 'schema' };
     }
 
     const dish = parsed.data;
     const slug = slugify(dish.name);
 
     if (accepted.has(slug)) {
-      return undefined;
+      return { reason: 'duplicate' };
     }
 
     const safety = dishSafety(dish.ingredients, context.catalogue, context.safety);
@@ -227,7 +393,7 @@ export class PoolBuilder {
     if (safety.kind === 'unknown_ingredients') {
       this.logger.warn(`Dish "${dish.name}" rejected: unknown ingredient slugs ${safety.slugs.join(', ')}`);
 
-      return undefined;
+      return { reason: 'unknown_ingredient' };
     }
 
     if (safety.kind === 'unsafe') {
@@ -235,7 +401,7 @@ export class PoolBuilder {
         `Dish "${dish.name}" rejected by the allergy gate: ${safety.violations.map(violation => violation.ingredientName).join(', ')}`
       );
 
-      return undefined;
+      return { reason: 'allergen' };
     }
 
     // The catalogue it was given held none of these, so this is a model that
@@ -245,33 +411,80 @@ export class PoolBuilder {
     if (unwanted.length > 0) {
       this.logger.warn(`Dish "${dish.name}" rejected: ${unwanted.join(', ')} is ruled out by their way of eating or dislikes`);
 
-      return undefined;
+      return { reason: 'unwanted' };
     }
 
     // The prompt states the limit; this is what makes it true.
     if (!withinTime(dish, context.preferences.maxMinutesPerDish)) {
       this.logger.warn(
-        `Dish "${dish.name}" rejected: ${dish.prepMinutes + dish.cookMinutes} min over their ${String(context.preferences.maxMinutesPerDish)} min limit`
+        `Dish "${dish.name}" rejected: ${dish.prepMinutes + dish.cookMinutes} min, over their ${String(context.preferences.maxMinutesPerDish)} min limit and its margin`
       );
 
-      return undefined;
+      return { reason: 'over_time' };
     }
 
     return {
-      cookMinutes: dish.cookMinutes,
-      cuisine: dish.cuisine,
-      difficulty: dish.difficulty,
-      ingredients: dish.ingredients,
-      name: dish.name,
-      prepMinutes: dish.prepMinutes,
-      servings: dish.servings,
-      slots: dish.slots,
-      slug,
-      // The wire has no nullable, so "none" arrives as an empty string or a zero.
-      // Both leave as no key at all, which is what the pages test for.
-      steps: dish.steps.map(step => ({ ...step, cue: step.cue || undefined, minutes: step.minutes || undefined }))
+      dish: {
+        cookMinutes: dish.cookMinutes,
+        cuisine: dish.cuisine,
+        difficulty: dish.difficulty,
+        ingredients: dish.ingredients,
+        name: dish.name,
+        prepMinutes: dish.prepMinutes,
+        servings: dish.servings,
+        slots: dish.slots,
+        slug,
+        // The wire has no nullable, so "none" arrives as an empty string or a zero.
+        // Both leave as no key at all, which is what the pages test for.
+        steps: dish.steps.map(step => ({ ...step, cue: step.cue || undefined, minutes: step.minutes || undefined }))
+      }
     };
   }
+}
+
+/**
+ * One call as its record: the client's account of it (or of its failure) and
+ * what the build made of its dishes. A failed call has no dishes and no usage;
+ * it may still have what the gateway said about it.
+ */
+function callRecord(parts: {
+  readonly call?: AiCall;
+  readonly dishes?: number;
+  readonly error?: AiCallFailure;
+  readonly failure?: AiFailure;
+  readonly kept?: number;
+  readonly model: string;
+  readonly rejected?: Partial<Record<DishRejection, number>>;
+  readonly round: number;
+  readonly slot: MealSlot;
+  readonly usage?: AiUsage;
+}): AiCallRecord {
+  const gateway = parts.call?.gateway ?? parts.failure?.gateway ?? null;
+
+  return {
+    answeredModel: parts.call?.answeredModel ?? gateway?.model ?? null,
+    cache: gateway?.cache ?? null,
+    cachedInputTokens: parts.call?.cachedInputTokens ?? null,
+    comboTrace: gateway?.comboTrace ?? null,
+    correlationId: gateway?.correlationId ?? null,
+    costUsd: gateway?.costUsd ?? null,
+    dishes: parts.dishes ?? 0,
+    error: parts.error ?? null,
+    gatewayMs: gateway?.latencyMs ?? null,
+    inputTokens: parts.usage?.inputTokens ?? null,
+    kept: parts.kept ?? 0,
+    model: parts.usage?.model ?? parts.failure?.model ?? parts.model,
+    ms: parts.call?.ms ?? parts.failure?.ms ?? null,
+    outputTokens: parts.usage?.outputTokens ?? null,
+    provider: gateway?.provider ?? null,
+    reasoningTokens: parts.call?.reasoningTokens ?? null,
+    rejected: parts.rejected ?? {},
+    requestId: gateway?.requestId ?? null,
+    round: parts.round,
+    session: gateway?.session ?? null,
+    slot: parts.slot,
+    strategy: gateway?.strategy ?? null
+  };
 }
 
 /** How many more distinct dishes each slot needs. Drives both the retry and the prompt. */

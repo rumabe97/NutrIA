@@ -15,7 +15,8 @@ export const rewrittenStepsSchema = z
     cookMinutes: z.number().int().min(0).max(240),
     steps: z
       .array(
-        z.object({ cue: z.string().max(160).optional(), minutes: z.number().int().min(0).max(240).optional(), text: z.string().min(20).max(400) })
+        // Six hundred, like a generated dish's step and what the store keeps (3.2.2).
+        z.object({ cue: z.string().max(160).optional(), minutes: z.number().int().min(0).max(240).optional(), text: z.string().min(20).max(600) })
       )
       .min(1)
       .max(12)

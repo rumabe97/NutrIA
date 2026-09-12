@@ -4,7 +4,7 @@ import { DEFAULT_MEAL_SHAPE, weightsFor } from 'core/domain/MealShape';
 import { buildPoolPrompt, STEPS_VERSION } from './PoolPrompt.js';
 
 import type { Goal } from 'core/entities/Profile';
-import type { MealSlot } from 'core/entities/Plan';
+import type { CatalogueIngredient, IngredientCategory, MealSlot } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PromptContext } from './PoolPrompt.js';
 
@@ -199,6 +199,34 @@ describe('buildPoolPrompt', () => {
     expect(prompt).toContain('FORBIDDEN BY ALLERGY');
     expect(prompt).toContain('altramuz');
     expect(prompt).toContain('WRITE EVERY DISH NAME AND EVERY STEP IN BRITISH ENGLISH.');
+  });
+
+  /**
+   * 3.2.0. The list was 70% of the prompt, and most of its names were the slug
+   * again with the accents put back. Every ingredient is still offered.
+   */
+  it('offers every ingredient, and names one only where its slug does not already say it', () => {
+    const ingredient = (slug: string, name: string, category: IngredientCategory = 'produce') => ({ category, name, slug }) as CatalogueIngredient;
+    const prompt = buildPoolPrompt(context(), [
+      ingredient('calabacin', 'Calabacín'),
+      ingredient('arandano', 'Arándanos'),
+      ingredient('aceite-de-oliva-virgen-extra', 'Aceite de oliva virgen extra', 'pantry'),
+      ingredient('nora', 'Ñora', 'pantry')
+    ]);
+
+    expect(prompt).toContain('Fresh produce and herbs:\narandano (Arándanos), calabacin\n');
+    expect(prompt).toContain('Pantry: grains, pasta, tins, oils, sauces, spices:\naceite-de-oliva-virgen-extra, nora (Ñora)\n');
+  });
+
+  /**
+   * 3.2.2. The prompt said "fifteen is a shopping trip" while the schema
+   * refused thirteen; the model believed the prompt. The two now say the same.
+   */
+  it('states the ingredient ceiling and the servings the schema enforces', () => {
+    const prompt = buildPoolPrompt(context(), []);
+
+    expect(prompt).toContain('Never more than fifteen, salt, spices and oil included');
+    expect(prompt).toContain('Declare between one and eight servings.');
   });
 
   /**

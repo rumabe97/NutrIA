@@ -54,7 +54,17 @@ export class PlanJobRunner {
     try {
       await PlanJobController.markStarted(jobId);
 
-      const planId = await this.generation.generate(userId, jobId, step => PlanJobController.markStep(jobId, step));
+      const planId = await this.generation.generate(
+        userId,
+        jobId,
+        step => PlanJobController.markStep(jobId, step),
+        // The call log is how an operator reads what the model did; losing it
+        // must never cost somebody their plan, so a failed write is only a warning.
+        calls =>
+          PlanJobController.recordAiCalls(jobId, calls).catch((failure: unknown) => {
+            this.logger.warn(`Job ${jobId}: the AI call log was not saved: ${failure instanceof Error ? failure.message : 'unknown'}`);
+          })
+      );
 
       await PlanJobController.markSucceeded(jobId, planId);
       this.logger.log(`Plan ${planId} generated for job ${jobId}`);

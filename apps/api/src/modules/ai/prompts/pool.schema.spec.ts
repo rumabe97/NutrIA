@@ -137,4 +137,38 @@ describe('the strict schema still enforces what the wire schema cannot', () => {
     expect(parsed.success).toBe(true);
     expect(parsed.success && parsed.data.cuisine).toBeNull();
   });
+
+  /**
+   * 3.2.1. Shown bare slugs, a model wrote some back with the accents a slug
+   * drops. Every catalogue slug is lowercase ASCII, so the fold lands on the one
+   * it meant — or on nothing, and the dish is rejected downstream as before.
+   */
+  it('reads a slug written with accents in the catalogue’s own spelling', () => {
+    const parsed = generatedDishSchema.safeParse({
+      ...valid,
+      ingredients: [
+        { grams: 150, slug: 'Brócoli' },
+        { grams: 80, slug: 'salmón-fresco' }
+      ]
+    });
+
+    expect(parsed.success && parsed.data.ingredients.map(item => item.slug)).toEqual(['brocoli', 'salmon-fresco']);
+  });
+
+  /**
+   * 3.2.2. The ceilings are what the store keeps (`candidateDishSchema`), no
+   * tighter: on one day's calls, lower ones refused 41 dishes for their
+   * seasonings, 11 lunches for a batch of six and 10 for a documented step.
+   */
+  it('accepts fifteen ingredients, a batch of eight and a six-hundred-character step, and nothing past them', () => {
+    const ingredients = (count: number) => Array.from({ length: count }, (_unused, index) => ({ grams: 10, slug: `ingrediente-${index}` }));
+    const step = (length: number) => ({ text: 'Remover a fuego medio '.padEnd(length, '.') });
+
+    expect(generatedDishSchema.safeParse({ ...valid, ingredients: ingredients(15) }).success).toBe(true);
+    expect(generatedDishSchema.safeParse({ ...valid, ingredients: ingredients(16) }).success).toBe(false);
+    expect(generatedDishSchema.safeParse({ ...valid, servings: 8 }).success).toBe(true);
+    expect(generatedDishSchema.safeParse({ ...valid, servings: 9 }).success).toBe(false);
+    expect(generatedDishSchema.safeParse({ ...valid, steps: [step(600), step(40)] }).success).toBe(true);
+    expect(generatedDishSchema.safeParse({ ...valid, steps: [step(601), step(40)] }).success).toBe(false);
+  });
 });

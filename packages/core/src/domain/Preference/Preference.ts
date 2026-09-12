@@ -229,7 +229,23 @@ export const NO_PREFERENCE_EXCLUSIONS: PreferenceExclusions = {
   unenforceableLabels: []
 };
 
-/** Whether a dish can be cooked in the time they said they have. */
+/**
+ * The most minutes a dish may take and still be offered to someone whose
+ * limit is `limit`: the limit plus a fifth, rounded up to the next ten.
+ *
+ * The minutes on a dish are an estimate — the model's, or the recipe's author's
+ * — and a strict limit threw dishes away for running a minute or two over it:
+ * across a week's benchmark, time was a routine reason to drop a dish, and a
+ * real generation lost its only model dinner to it. The owner's rule: 30
+ * admits 40, 55 admits 70 (55 × 1.2 = 66), 25 admits 30. Integer arithmetic,
+ * so an exact multiple of ten stays where it is. The prompt still asks for the
+ * limit itself; this margin is only for accepting what comes back.
+ */
+export function timeAllowance(limit: number): number {
+  return Math.ceil((limit * 12) / 100) * 10;
+}
+
+/** Whether a dish can be cooked in the time they said they have, give or take the margin `timeAllowance` allows. */
 export function withinTime(dish: { readonly cookMinutes: number; readonly prepMinutes: number }, limit: number | null): boolean {
-  return limit === null || dish.prepMinutes + dish.cookMinutes <= limit;
+  return limit === null || dish.prepMinutes + dish.cookMinutes <= timeAllowance(limit);
 }

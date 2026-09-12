@@ -3,6 +3,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
 import { toCatalogue } from 'core/entities/Plan';
 
+import { AiCallError } from '../clients/AiClient.js';
 import { DISHES_NEEDED_PER_SLOT, PoolBuilder, shortfall } from './PoolBuilder.service.js';
 
 import type { AiClient, AiRequest, AiResponse } from '../clients/AiClient.js';
@@ -600,5 +601,232 @@ describe('PoolBuilder — telling a broken provider from an absent one', () => {
     const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: SLOTS });
 
     expect(result.metadata.providerError).toBeUndefined();
+  });
+
+  /**
+   * `wirePoolSchema` is deliberately loose — Gemini rejects the stricter JSON
+   * Schema keywords outright — so nothing validates that parsed JSON actually
+   * has a `dishes` array; only that it parsed as JSON at all. A provider whose
+   * "JSON mode" is looser than Gemini's or Anthropic's tool-calling (an
+   * OpenAI-compatible gateway in plain `json_object` mode, say) can hand back
+   * well-formed JSON shaped some other way. Found running against a real local
+   * gateway: it crashed the whole build with an uncaught `TypeError`, rather
+   * than reporting the round as failed like every other kind of bad response.
+   */
+  it('reports a round whose JSON parsed but was not shaped { dishes: [...] }, instead of crashing', async () => {
+    const malformed = { plates: [dish('Arroz con pollo', ['lunch'], ['arroz', 'pollo'])] } as unknown as GeneratedPool;
+    const { client } = stubClient([malformed]);
+    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+
+    expect(result.generated).toEqual([]);
+    expect(result.metadata.providerError).toMatch(/dishes/);
+    // The call still happened and still cost tokens; that much is honest to keep.
+    expect(result.metadata.calls).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * The call log (`0050`): what an operator reads a generation back from. A
+ * call that failed belongs in it as much as one that answered — that is when
+ * it is read.
+ */
+describe('PoolBuilder — the call log', () => {
+  const preferences = {
+    avoidNames: [],
+    breakfastStyle: null,
+    budget: null,
+    cookingFrequency: null,
+    cookingTimeMinutes: 30,
+    cuisines: [],
+    dayShape: null,
+    dietaryPatterns: [],
+    dislikedLabels: [],
+    dislikedNames: [],
+    goal: null,
+    likedLabels: [],
+    lovedNames: [],
+    portionPreference: null,
+    scheduleNotes: null,
+    slotShares: new Map(),
+    targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
+  };
+
+  it('records who answered, through whom, the tokens, and why each dish was dropped', async () => {
+    const generate = jest.fn(
+      async <T>(request: AiRequest<T>): Promise<AiResponse<T>> => ({
+        call: {
+          answeredModel: 'muse-spark-1.2-contributor-free',
+          cachedInputTokens: null,
+          gateway: {
+            cache: 'MISS',
+            comboTrace: 'combo-1',
+            correlationId: 'corr-1',
+            costUsd: 0,
+            latencyMs: 900,
+            model: 'muse-spark-1.2-contributor-free',
+            provider: 'opencode-zen',
+            requestId: 'req-1',
+            session: `ext:${request.session ?? ''}`,
+            strategy: 'priority',
+            version: '3.8.50'
+          },
+          ms: 1000,
+          reasoningTokens: 800
+        },
+        object: {
+          dishes: [
+            dish('Arroz con pollo', ['lunch'], ['arroz', 'pollo']),
+            dish('Pan con tomate', ['lunch'], ['pan', 'tomate']),
+            dish('Arroz con caviar', ['lunch'], ['arroz', 'caviar'])
+          ]
+        } as T,
+        usage: { calls: 1, inputTokens: 5600, model: 'NutrIA-Fallback', outputTokens: 1200 }
+      })
+    );
+    const client = { generate, isAvailable: true } as unknown as AiClient;
+    const result = await new PoolBuilder(client).build({
+      context: context({ allergenIds: new Set([GLUTEN]) }),
+      preferences,
+      reusable: [],
+      session: 'job-1',
+      slots: ['lunch']
+    });
+
+    // The job id travels with every call, so the gateway files them together.
+    expect(generate).toHaveBeenCalledWith(expect.objectContaining({ session: 'job-1' }));
+    expect(result.metadata.aiCalls[0]).toMatchObject({
+      answeredModel: 'muse-spark-1.2-contributor-free',
+      dishes: 3,
+      error: null,
+      gatewayMs: 900,
+      inputTokens: 5600,
+      kept: 1,
+      model: 'NutrIA-Fallback',
+      ms: 1000,
+      outputTokens: 1200,
+      provider: 'opencode-zen',
+      reasoningTokens: 800,
+      rejected: { allergen: 1, unknown_ingredient: 1 },
+      requestId: 'req-1',
+      round: 1,
+      session: 'ext:job-1',
+      slot: 'lunch',
+      strategy: 'priority'
+    });
+  });
+
+  it('keeps a refused call, with the quota the provider wrote into the refusal', async () => {
+    const quota = { limit: 20, metric: 'generate_content_free_tier_requests', model: 'gemini-3.6-flash', retryAfterSeconds: 26 };
+    const refusal = new AiCallError('[429]: You exceeded your current quota', {
+      gateway: null,
+      kind: 'provider',
+      model: 'gemini-3.6-flash',
+      ms: 400,
+      quota,
+      status: 429
+    });
+    const failing = { generate: jest.fn(async () => Promise.reject(refusal)), isAvailable: true } as unknown as AiClient;
+    const result = await new PoolBuilder(failing).build({ context: context(), preferences, reusable: [], slots: ['dinner'] });
+
+    expect(result.metadata.aiCalls).toEqual([
+      expect.objectContaining({
+        answeredModel: null,
+        dishes: 0,
+        error: { kind: 'provider', message: '[429]: You exceeded your current quota', quota, status: 429 },
+        kept: 0,
+        model: 'gemini-3.6-flash',
+        ms: 400,
+        round: 1,
+        slot: 'dinner'
+      })
+    ]);
+  });
+
+  it('keeps nothing when the library covered everything and no call was made', async () => {
+    const { client } = stubClient([{ dishes: [] }]);
+    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: fullReusablePool(), slots: SLOTS });
+
+    expect(result.metadata.aiCalls).toEqual([]);
+  });
+
+  it('keeps a dish a little over the time limit, and drops one past its margin', async () => {
+    // Thirty minutes admits forty (`timeAllowance`): 35 stays, 41 goes. The extra
+    // minutes are prep, so a long cook's floor on steps (`domain/Method`) is not
+    // what decides it.
+    const quick = { ...dish('Arroz a la cubana', ['lunch'], ['arroz', 'tomate']), prepMinutes: 25 };
+    const slow = { ...dish('Estofado de pollo', ['lunch'], ['pollo', 'tomate']), prepMinutes: 31 };
+    const { client } = stubClient([{ dishes: [quick, slow] }]);
+    const result = await new PoolBuilder(client).build({
+      context: { ...context(), preferences: { ...NO_PREFERENCE_EXCLUSIONS, maxMinutesPerDish: 30 } },
+      preferences,
+      reusable: [],
+      slots: ['lunch']
+    });
+
+    expect(result.generated.map(generated => generated.name)).toContain('Arroz a la cubana');
+    expect(result.generated.map(generated => generated.name)).not.toContain('Estofado de pollo');
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({ over_time: 1 });
+  });
+});
+
+/**
+ * The time budget (`0050`). A generation runs inside one 300-second function,
+ * and a combo that failed hop after hop once took 645 seconds: the model half
+ * has to end on its own, and leave the library to cover what it did not bring.
+ */
+describe('PoolBuilder — the time budget', () => {
+  const preferences = {
+    avoidNames: [],
+    breakfastStyle: null,
+    budget: null,
+    cookingFrequency: null,
+    cookingTimeMinutes: 30,
+    cuisines: [],
+    dayShape: null,
+    dietaryPatterns: [],
+    dislikedLabels: [],
+    dislikedNames: [],
+    goal: null,
+    likedLabels: [],
+    lovedNames: [],
+    portionPreference: null,
+    scheduleNotes: null,
+    slotShares: new Map(),
+    targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
+  };
+
+  it('stops waiting for a model at the end of the budget, and says the budget ran out', async () => {
+    // A model that never answers: only the budget's signal ends the call.
+    const generate = jest.fn(
+      async <T>({ signal }: AiRequest<T>): Promise<AiResponse<T>> =>
+        new Promise<AiResponse<T>>((_resolve, reject) => {
+          signal?.addEventListener('abort', () =>
+            reject(new AiCallError('AI_TIMEOUT', { gateway: null, kind: 'timeout', model: 'NutrIA-Fallback', ms: 50, quota: null, status: null }))
+          );
+        })
+    );
+    const client = { generate, isAvailable: true } as unknown as AiClient;
+    const started = Date.now();
+    const result = await new PoolBuilder(client, 50).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+
+    expect(Date.now() - started).toBeLessThan(2000);
+    expect(result.metadata.outOfTime).toBe(true);
+    expect(result.metadata.aiCalls).toEqual([expect.objectContaining({ error: expect.objectContaining({ kind: 'timeout' }), slot: 'lunch' })]);
+  });
+
+  it('does not start a later round without the time to bring something back', async () => {
+    // One dish where five are wanted, so a second round is due; ten seconds leave no room for it.
+    const { client, generate } = stubClient([{ dishes: [dish('Arroz con pollo', ['lunch'], ['arroz', 'pollo'])] }]);
+    const result = await new PoolBuilder(client, 10_000).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(result.metadata.outOfTime).toBe(true);
+  });
+
+  it('leaves a build that finished in time unmarked', async () => {
+    const { client } = stubClient([{ dishes: Array.from({ length: DISHES_NEEDED_PER_SLOT }, (_u, i) => dish(`Plato ${i}`, ['lunch'])) }]);
+    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+
+    expect(result.metadata.outOfTime).toBeUndefined();
   });
 });
