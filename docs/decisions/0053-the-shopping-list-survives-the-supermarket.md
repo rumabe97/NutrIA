@@ -88,3 +88,31 @@ response is `no-store`, so that no shared cache keeps somebody's health data
   - signing out emptied the copies.
 
   Not yet checked on a phone.
+
+## Amended 2026-09-13 — the plan, today's recipes, and a menu that knows
+
+Once the first version worked on the iPhone, the owner asked for more: "¿podríamos
+ponerlo para todas las pantallas? O al menos modificar el menú para que solo aparezcan
+las opciones sin conexión".
+
+- **`/plan` is kept too.** It is fourteen days of meals, and holds no health data.
+- **Meals' own pages are kept.** A meal's page (`/plan/comida/<id>`) holds its recipe
+  and method, which is what gets read in a kitchen.
+  - Every meal page read online is kept.
+  - Each refresh fetches the pages of today's meals, once each.
+  - A refresh drops the page of any meal the plan no longer has.
+
+  Fetching all fourteen days' recipes on every refresh would cost some fifty renders for
+  pages most people never open.
+- **Offline, or when reading a copy, only what opens is drawn.** This follows the rule
+  that a control that cannot be used is not drawn disabled; it is not drawn.
+  - The menu shows only the screens with a copy on this device.
+  - It hides the language switch and signing out, since both need the server.
+  - A meal whose page has no copy is shown without its link.
+
+  `components/OfflineProvider` answers "is this live, and what opens" for the notice, the
+  menu and each meal.
+- **Still not kept: `/perfil`, `/progreso`, `/check-in`.** They hold health data, and
+  they are forms that cannot save without a connection. Drawing them offline would
+  promise what they cannot do.
+

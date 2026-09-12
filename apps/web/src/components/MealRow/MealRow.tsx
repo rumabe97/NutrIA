@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -7,6 +7,8 @@ import Link from 'next/link';
 import styles from './MealRow.module.css';
 
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
+
+import { useOffline } from 'components/OfflineProvider';
 
 import { api } from 'lib/api';
 import { API_URL } from 'lib/env';
@@ -62,6 +64,28 @@ export function MealRow({
   const [status, setStatus] = useState(initial);
   const [pending, setPending] = useState(false);
   const done = status === 'completed';
+  const recipe = `/plan/comida/${id}`;
+  // Offline, the recipe opens only if this device has a copy of it (`0053`): a
+  // link that leads to "not connected" is worse than a row that is not a link.
+  const opens = useOffline().available(recipe);
+  const head = (
+    <Fragment>
+      {/* Decorative here — the name beside it is the content — so the alt is empty and
+        the label lives on the detail page, where the picture is large enough to matter. */}
+      {/* eslint-disable-next-line @next/next/no-img-element -- the API serves a phone-sized, immutable WebP already; next/image would add an optimiser hop and per-image billing for nothing */}
+      {illustrationPath ? <img alt="" className={styles.thumb} loading="lazy" src={`${API_URL}${illustrationPath}`} /> : null}
+      <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
+      <span className={styles.name}>
+        {name}
+        {status === 'completed' ? <span className={styles.badge}>{dictionary.meal.badgeDone}</span> : null}
+        {status === 'skipped' ? <span className={styles.badge}>{dictionary.meal.badgeSkipped}</span> : null}
+      </span>
+      <span className={styles.meta}>
+        {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(proteinG), locale)}{' '}
+        {dictionary.units.proteinShort}
+      </span>
+    </Fragment>
+  );
 
   async function toggleDone() {
     const previous = status;
@@ -125,22 +149,15 @@ export function MealRow({
         </button>
       )}
       <div className={styles.body}>
-        <Link className={styles.head} data-illustrated={illustrationPath ? 'true' : undefined} href={`/plan/comida/${id}`}>
-          {/* Decorative here — the name beside it is the content — so the alt is empty and
-            the label lives on the detail page, where the picture is large enough to matter. */}
-          {/* eslint-disable-next-line @next/next/no-img-element -- the API serves a phone-sized, immutable WebP already; next/image would add an optimiser hop and per-image billing for nothing */}
-          {illustrationPath ? <img alt="" className={styles.thumb} loading="lazy" src={`${API_URL}${illustrationPath}`} /> : null}
-          <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
-          <span className={styles.name}>
-            {name}
-            {status === 'completed' ? <span className={styles.badge}>{dictionary.meal.badgeDone}</span> : null}
-            {status === 'skipped' ? <span className={styles.badge}>{dictionary.meal.badgeSkipped}</span> : null}
-          </span>
-          <span className={styles.meta}>
-            {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(proteinG), locale)}{' '}
-            {dictionary.units.proteinShort}
-          </span>
-        </Link>
+        {opens ? (
+          <Link className={styles.head} data-illustrated={illustrationPath ? 'true' : undefined} href={recipe}>
+            {head}
+          </Link>
+        ) : (
+          <div className={styles.head} data-illustrated={illustrationPath ? 'true' : undefined}>
+            {head}
+          </div>
+        )}
 
         {ingredients.length > 0 ? (
           <details className={styles.details}>

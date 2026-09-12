@@ -5,8 +5,9 @@
  * list, so both still open in a supermarket with no signal. Every other request
  * goes to the network exactly as it would without it.
  *
- * - `/inicio` and `/compra`: the network first, always; the last good copy only
- *   when the network cannot be reached.
+ * - `/inicio`, `/plan` and `/compra`, and the page of every meal read online or
+ *   on today's screen: the network first, always; the last good copy only when
+ *   the network cannot be reached.
  * - `/_next/static/…`: the cache first. Next names those files by their content,
  *   so a stored one is never wrong, and a stored page is no use without them.
  * - `/` and `/en`, where the installed app opens: offline, today's screen, if a
@@ -23,7 +24,11 @@
  */
 const PAGES = 'nutria-pages-v1';
 const ASSETS = 'nutria-assets-v1';
-const OFFLINE_PATHS = ['/inicio', '/compra'];
+const OFFLINE_PATHS = ['/inicio', '/plan', '/compra'];
+/** A meal's own page — its recipe and method, which is what gets read in a kitchen. */
+const MEAL_PREFIX = '/plan/comida/';
+const MEAL_PAGE = /^\/plan\/comida\/[\w-]+$/;
+const MEAL_LINK = /\/plan\/comida\/[\w-]+/g;
 const START_PATHS = ['/', '/en'];
 const TODAY = '/inicio';
 /** A file Next names by its content — in a tag as `/_next/static/…`, in the flight data sometimes without the `/_next/`. */
@@ -95,7 +100,7 @@ function respond(event) {
     return null;
   }
 
-  if (OFFLINE_PATHS.includes(url.pathname)) {
+  if (kept(url.pathname)) {
     return fromNetworkFirst(event, url.pathname);
   }
 
@@ -224,7 +229,7 @@ function assetsIn(html) {
   return found;
 }
 
-/** Fetches both pages again, as the person who is signed in now. Called by the page; see `REFRESH_EVERY_MS`. */
+/** Fetches every kept screen again, as the person who is signed in now. Called by the page; see `REFRESH_EVERY_MS`. */
 async function refresh(force) {
   const now = Date.now();
 
@@ -235,20 +240,56 @@ async function refresh(force) {
   lastRefresh = now;
 
   const asOf = generation;
-  const stored = await Promise.all(
-    OFFLINE_PATHS.map(async path => {
-      try {
-        return await settle(path, await fetch(absolute(path), { cache: 'no-store', credentials: 'same-origin', redirect: 'manual' }), asOf);
-      } catch {
-        // No network, or no answer: the last good copy stays.
-        return false;
-      }
-    })
-  );
+  const stored = await Promise.all(OFFLINE_PATHS.map(path => fetchCopy(path, asOf)));
+  const meals = await keepMealPages(asOf);
 
-  if (stored.some(Boolean)) {
+  if (stored.some(Boolean) || meals) {
     await keepAssets();
   }
+}
+
+async function fetchCopy(path, asOf) {
+  try {
+    return await settle(path, await fetch(absolute(path), { cache: 'no-store', credentials: 'same-origin', redirect: 'manual' }), asOf);
+  } catch {
+    // No network, or no answer: the last good copy stays.
+    return false;
+  }
+}
+
+/**
+ * The pages of today's meals, fetched once each — what matters offline is the
+ * recipe, and reading the page online brings the rest up to date — and the
+ * pages of meals the plan no longer has, dropped. Resolves to whether anything
+ * was stored.
+ */
+async function keepMealPages(asOf) {
+  const pages = await caches.open(PAGES);
+  const today = await pages.match(absolute(TODAY));
+
+  if (!today) {
+    return false;
+  }
+
+  const todayHtml = await today.text();
+  const plan = await pages.match(absolute('/plan'));
+  const held = (await pages.keys()).map(key => new URL(key.url).pathname).filter(path => MEAL_PAGE.test(path));
+
+  if (plan) {
+    // Every meal of the fortnight is named in one of these two, if only by id in the plan's data.
+    const known = todayHtml + (await plan.text());
+
+    await Promise.all(held.filter(path => !known.includes(path.slice(MEAL_PREFIX.length))).map(path => pages.delete(absolute(path))));
+  }
+
+  const wanted = [...new Set(todayHtml.match(MEAL_LINK) ?? [])].filter(path => !held.includes(path));
+  const stored = await Promise.all(wanted.map(path => fetchCopy(path, asOf)));
+
+  return stored.some(Boolean);
+}
+
+function kept(pathname) {
+  return OFFLINE_PATHS.includes(pathname) || MEAL_PAGE.test(pathname);
 }
 
 async function forget() {

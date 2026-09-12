@@ -4,6 +4,7 @@ import { activeLocale } from 'i18n/server';
 
 import { AppNav } from 'components/AppNav';
 import { OfflineCopy } from 'components/OfflineCopy';
+import { OfflineProvider } from 'components/OfflineProvider';
 
 import { redirectUnlessReady } from 'lib/access';
 
@@ -38,14 +39,16 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   return (
     <RootShell locale={locale}>
-      <div className={styles.shell}>
-        <AppNav />
-        <main className={styles.content} id={MAIN_ID}>
-          {/* Stamped with the moment this screen was made, so a stored copy can say how old it is (`0053`). */}
-          <OfflineCopy renderedAt={renderedAt} />
-          {children}
-        </main>
-      </div>
+      {/* Stamped with the moment this screen was made, so a stored copy can say how old it is (`0053`). */}
+      <OfflineProvider renderedAt={renderedAt}>
+        <div className={styles.shell}>
+          <AppNav />
+          <main className={styles.content} id={MAIN_ID}>
+            <OfflineCopy />
+            {children}
+          </main>
+        </div>
+      </OfflineProvider>
     </RootShell>
   );
 }

@@ -4,6 +4,9 @@
  */
 export const OFFLINE_PAGES_CACHE = 'nutria-pages-v1';
 
+/** The screens the worker always keeps a copy of — the same list as `OFFLINE_PATHS` in `sw.js`. */
+export const OFFLINE_PATHS: readonly string[] = ['/inicio', '/plan', '/compra'];
+
 /** At the site root, so the worker's scope is the whole site. */
 const SERVICE_WORKER_URL = '/sw.js';
 
@@ -45,6 +48,17 @@ export async function refreshOfflineCopies(leaving = false): Promise<void> {
   }
 
   (await navigator.serviceWorker.ready).active?.postMessage({ force: leaving, type: 'refresh' });
+}
+
+/** The screens with a copy on this device, by path — so that, offline, only those are drawn as links. */
+export async function storedPages(): Promise<ReadonlySet<string>> {
+  if (typeof caches === 'undefined') {
+    return new Set();
+  }
+
+  const cache = await caches.open(OFFLINE_PAGES_CACHE);
+
+  return new Set((await cache.keys()).map(request => new URL(request.url).pathname));
 }
 
 /**
