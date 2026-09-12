@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { axisFilter, pickReplacement, PLAN_DAYS, schedulePlan, SERVING_BOUNDS } from 'core/domain/Scheduler';
+import { axisFilter, pickReplacement, PLAN_DAYS, schedulePlan, SERVING_BOUNDS, SHARE_BAND } from 'core/domain/Scheduler';
 import { shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 
 /** The old question, asked of the new answer: "N meals, snacks or not" is still how a test wants to describe a day. */
@@ -8,7 +8,7 @@ function slotsForTest(mealsPerDay: number, includesSnacks: boolean) {
   return slotsIn(shapeFor(mealsPerDay, includesSnacks));
 }
 
-import { VARIETY_RULES, varietyViolations } from 'core/domain/Variety';
+import { mainProtein, proteinCap, VARIETY_RULES, varietyViolations } from 'core/domain/Variety';
 import { isBlocking, validatePlan } from 'core/domain/PlanValidation';
 import { makeCatalogue, makeCatalogueIngredient, makeDish, makePool, TARGETS } from '#test/fixtures';
 
@@ -688,9 +688,159 @@ describe('schedulePlan — a large athlete on three meals a day', () => {
     // so its days sit under 128 g and say so, as guidance. More oil moves the
     // energy from rice and chicken and the day misses carbohydrate and protein
     // instead; a fixture of three foods cannot land all four at 5%, which is
-    // exactly why the 5% is asserted on a real library and not here.
+    // exactly why the 5% is asserted on a real library and not here. Since
+    // `SHARE_BAND` one day also ends a hair over protein (5.03%): the portions
+    // that would land its last gram put a plate far past its share, and on
+    // three foods nothing else can.
     expect(violations.filter(isBlocking)).toEqual([]);
-    expect(violations.every(violation => violation.kind === 'fat_out_of_band')).toBe(true);
+    expect(
+      violations.every(
+        violation =>
+          violation.kind === 'fat_out_of_band' || (violation.kind === 'protein_above_target' && violation.actual <= violation.target * 1.06)
+      )
+    ).toBe(true);
+  });
+});
+
+describe('schedulePlan — each meal near its share of the day (SHARE_BAND)', () => {
+  /**
+   * Breakfasts heavy on protein, lunches leaning to starch, dinners a little
+   * to protein: the day lands its macros by making lunch big and dinner small,
+   * and with nothing bounding a meal's share it did — measured on this pool,
+   * meals from 0.49 to 1.65 of their share, every day still on its macros. A
+   * real plan did the same with a 388-kcal lunch and a 1,247-kcal dinner.
+   */
+  const T: NutritionTargets = { carbsG: 250, fatG: 58, fiberG: 25, kcal: 2000, proteinG: 120 };
+  // Three pure foods at 100 kcal per 100 g, so a dish's grams are its energy.
+  const pureCatalogue = makeCatalogue([
+    makeCatalogueIngredient({ id: 'p', carbsPer100g: 0, fatPer100g: 0, kcalPer100g: 100, name: 'Proteína', proteinPer100g: 25, slug: 'proteina' }),
+    makeCatalogueIngredient({ id: 'c', carbsPer100g: 25, fatPer100g: 0, kcalPer100g: 100, name: 'Hidrato', proteinPer100g: 0, slug: 'hidrato' }),
+    makeCatalogueIngredient({ id: 'f', carbsPer100g: 0, fatPer100g: 11.11, kcalPer100g: 100, name: 'Grasa', proteinPer100g: 0, slug: 'grasa' })
+  ]);
+  const weights = weightsFor(shapeFor(3, false));
+  const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0);
+  const budgetOf = (slot: MealSlotName): number => (T.kcal * (weights.get(slot) ?? 0)) / total;
+  const LEAN: Record<MealSlotName, number> = { breakfast: 0.3, dinner: 0.09, lunch: -0.3 };
+  const pool = (['breakfast', 'lunch', 'dinner'] as const).flatMap(slot =>
+    Array.from({ length: 9 }, (_none, n) => {
+      const kcal = budgetOf(slot) * (0.92 + n * 0.02);
+      const protein = 0.24 * (1 + LEAN[slot]);
+
+      return makeDish({
+        ingredients: [
+          { grams: Math.round(protein * kcal), slug: 'proteina' },
+          { grams: Math.round((0.74 - protein) * kcal), slug: 'hidrato' },
+          { grams: Math.round(0.26 * kcal), slug: 'grasa' }
+        ],
+        name: `${slot} ${n}`,
+        slots: [slot],
+        slug: `${slot}-${n}`
+      });
+    })
+  );
+
+  it('keeps every meal inside its band of the energy its share gives it, and every day on its macros', () => {
+    const result = schedulePlan({ catalogue: pureCatalogue, pool, targets: T, weights });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    for (const day of result.assignment.days) {
+      for (const meal of day.meals) {
+        const share = meal.macros.kcal / budgetOf(meal.slot as MealSlotName);
+
+        expect(share, `day ${day.dayIndex} ${meal.slot} at ${share.toFixed(2)} of its share`).toBeGreaterThanOrEqual(SHARE_BAND.min);
+        expect(share, `day ${day.dayIndex} ${meal.slot} at ${share.toFixed(2)} of its share`).toBeLessThanOrEqual(SHARE_BAND.max);
+      }
+
+      for (const [actual, target] of [
+        [day.totals.kcal, T.kcal],
+        [day.totals.proteinG, T.proteinG],
+        [day.totals.carbsG, T.carbsG],
+        [day.totals.fatG, T.fatG]
+      ] as const) {
+        expect(Math.abs(actual - target) / target, `day ${day.dayIndex}`).toBeLessThanOrEqual(0.05);
+      }
+    }
+  });
+});
+
+type MealSlotName = 'breakfast' | 'dinner' | 'lunch';
+
+describe('schedulePlan — one main protein, once a day (PROTEIN_RULES)', () => {
+  const kinds = [
+    'atun-al-natural',
+    'bacalao-fresco',
+    'clara-de-huevo',
+    'garbanzos-cocidos',
+    'lentejas-cocidas',
+    'merluza',
+    'pechuga-de-pavo',
+    'pechuga-de-pollo',
+    'salmon',
+    'ternera-magra'
+  ];
+  // Every food the same composition, so fit ties everywhere and the pool's
+  // order decides — tuna first in every slot, which a scheduler with no word
+  // for "the same protein" would serve at every meal of the first day.
+  const proteinCatalogue = makeCatalogue(
+    kinds.map((slug, index) => makeCatalogueIngredient({ id: `p-${index}`, category: 'protein', name: slug, slug }))
+  );
+  const SHARE = { breakfast: 0.28, dinner: 0.34, lunch: 0.37 } as const;
+  const slots = ['breakfast', 'lunch', 'dinner'] as const;
+  const pool = slots.flatMap(slot =>
+    kinds.flatMap(kind =>
+      [0, 1].map(n =>
+        makeDish({
+          ingredients: [{ grams: Math.round((TARGETS.kcal * SHARE[slot]) / 2) + n * 5, slug: kind }],
+          name: `${slot} ${kind} ${n}`,
+          slots: [slot],
+          slug: `${slot}-${kind}-${n}`
+        })
+      )
+    )
+  );
+
+  it('never serves one main protein twice in a day, nor past its share of the fortnight', () => {
+    const result = schedulePlan({ catalogue: proteinCatalogue, pool, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const perPlan = new Map<string, number>();
+
+    for (const day of result.assignment.days) {
+      const today = day.meals.map(meal => mainProtein(meal.dish, proteinCatalogue) ?? 'none');
+
+      expect(new Set(today).size, `day ${day.dayIndex}: ${today.join(', ')}`).toBe(today.length);
+
+      for (const kind of today) {
+        perPlan.set(kind, (perPlan.get(kind) ?? 0) + 1);
+      }
+    }
+
+    expect(Math.max(...perPlan.values())).toBeLessThanOrEqual(proteinCap(42));
+  });
+
+  it('still gives somebody a plan when the pool is one protein throughout', () => {
+    const tuna = slots.flatMap(slot =>
+      Array.from({ length: 8 }, (_none, n) =>
+        makeDish({
+          ingredients: [{ grams: Math.round((TARGETS.kcal * SHARE[slot]) / 2) + n * 5, slug: 'atun-al-natural' }],
+          name: `${slot} atún ${n}`,
+          slots: [slot],
+          slug: `${slot}-atun-${n}`
+        })
+      )
+    );
+
+    expect(schedulePlan({ catalogue: proteinCatalogue, pool: tuna, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) }).ok).toBe(true);
   });
 });
 
