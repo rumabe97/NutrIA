@@ -561,7 +561,10 @@ describe('schedulePlan — protein, not just calories', () => {
   });
 });
 
-describe('schedulePlan — a large athlete on three meals a day', () => {
+// The file's heaviest schedule — nine sizes a meal on a day of 4,099 kcal. A
+// shared CI runner took it from three seconds to five on the same code, past
+// the default limit, so this block states its own.
+describe('schedulePlan — a large athlete on three meals a day', { timeout: 20_000 }, () => {
   /**
    * The case that broke in production: 4,099 kcal and 171 g of protein over three
    * slots is ~1,370 kcal a meal, far larger than a model proposes unprompted. Two
@@ -635,8 +638,17 @@ describe('schedulePlan — a large athlete on three meals a day', () => {
     )
   );
 
+  // Every test here asks the same question of the same pool: one answer, computed once.
+  let scheduled: ReturnType<typeof schedulePlan> | undefined;
+
+  function athletePlan(): ReturnType<typeof schedulePlan> {
+    scheduled ??= schedulePlan({ catalogue, pool: modestPool, targets: BIG, weights: weightsFor(shapeFor(3, false)) });
+
+    return scheduled;
+  }
+
   it('reaches a high calorie target by scaling portions', () => {
-    const result = schedulePlan({ catalogue, pool: modestPool, targets: BIG, weights: weightsFor(shapeFor(3, false)) });
+    const result = athletePlan();
 
     expect(result.ok).toBe(true);
 
@@ -650,7 +662,7 @@ describe('schedulePlan — a large athlete on three meals a day', () => {
   });
 
   it('does so without running the protein ceiling over', () => {
-    const result = schedulePlan({ catalogue, pool: modestPool, targets: BIG, weights: weightsFor(shapeFor(3, false)) });
+    const result = athletePlan();
 
     expect(result.ok).toBe(true);
 
@@ -665,7 +677,7 @@ describe('schedulePlan — a large athlete on three meals a day', () => {
   });
 
   it('passes the same validation the pipeline applies', () => {
-    const result = schedulePlan({ catalogue, pool: modestPool, targets: BIG, weights: weightsFor(shapeFor(3, false)) });
+    const result = athletePlan();
 
     expect(result.ok).toBe(true);
 
