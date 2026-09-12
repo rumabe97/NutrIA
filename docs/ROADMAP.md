@@ -163,6 +163,48 @@ cannot read anybody's food, an analytics event carries no content.
 Premium sells the thing that costs money to the people who value it. Advertising
 sells the people.
 
+### 7. Generation through a gateway — built, waiting on the gateway's setup (`0050`)
+
+The owner's free Gemini tier is twenty requests a day, and generation spends them. An
+OpenAI-compatible gateway (OmniRoute) puts free non-Google models in front of Gemini, in
+a combo that falls from one to the next. Built on 2026-09-12, measured on a demanding
+weekly benchmark and on real regenerations, not yet in production:
+
+- the `omniroute` provider, with its key and model in the environment;
+- a log of every model call on the job — who answered, how long, the tokens, what the
+  gateway reported, which dishes were kept — read on `/admin`, failures included;
+- a time budget for the model half, so a generation ends inside the 300-second function;
+- a dish's time held to the limit plus a fifth, rounded up to ten;
+- the dish ceilings the store already had — fifteen ingredients, eight servings,
+  six-hundred-character steps — which recovered sixty of seventy-seven rejections.
+
+What is left, in order — the first two are the owner's, on the gateway and the API
+project, and [`docs/reference/ai-gateway.md`](./reference/ai-gateway.md) is the checklist:
+
+1. The gateway: the combo's order, its execution limit, and the permissions of the key
+   the API will use.
+2. The API's environment on the platform.
+3. Push, pull request and merge. The deploy applies one migration, a nullable column on
+   the generation jobs.
+4. One generation in production, read back on `/admin`.
+
+Measured along the way and worth doing after, none of it blocking:
+
+- **Keep what was asked for.** The builder keeps every valid dish a model returns: one
+  returned 175 when thirty were asked, 78 of them valid and far from their split. Keep
+  the ones closest to the brief, per slot.
+- **The race day.** A day eating 600 g of carbohydrate on 70 g of fat is the first to
+  leave the 5% band whenever anything is off — with the library alone, too.
+- **Gemini directly on prompt 3.2.x.** The run that would say whether the compact
+  ingredient list holds on the provider production uses was cut short by the daily cap.
+  It matters only while production stays on `google`.
+- **The gateway on `/admin`.** The combo's order and per-step health, and the month's
+  usage of the key — the last needs no management key.
+- **The gateway's own calls.** It called a model again after answering, and probes
+  models nobody asked for. Its configuration, but it spends the same free quota.
+- **If the budget cuts often**, generation belongs on a host without a function limit —
+  the owner's own server, beside the gateway — rather than behind a queue service.
+
 ## Later / someday
 
 - Admin: generation monitoring and failure review are done (`0028`, `/admin`). Safety-flag
@@ -217,3 +259,14 @@ Two things to settle before writing any of it, both of them harder than the plum
 it refuses to answer and how that refusal is enforced in code rather than asked for in a
 prompt (`0004`); and what it is allowed to read, given that everything it could usefully
 know about someone is health data.
+
+The cost half may have an answer in the gateway (§7): a combo of its own, of free
+models, would not touch the daily cap generation needs. Probed on 2026-09-12 with a
+short assistant prompt and five questions, streamed: `big-pickle` — useless for
+generation — started answering in under three seconds and finished in under five,
+eleven calls of twelve; `muse-spark` took about eight. Both refused almonds to a
+tree-nut allergy and refused to dose insulin. But `big-pickle` also invented a
+per-meal carbohydrate split in the insulin answer — exactly the figure a diabetic
+would dose from — so figures about the plan must come from this service, never from
+the model; free text needs its own allergen check before it is shown; and the free
+models' terms on what they keep must be read before anybody's words are sent to them.

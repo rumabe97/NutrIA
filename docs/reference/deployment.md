@@ -82,6 +82,8 @@ from local development:
 | `AI_ILLUSTRATIONS` | `false` until billing is enabled on the Google AI project (its free tier allows **zero** image generations); then `true` |
 | `CRON_SECRET` | any 16+ characters (`openssl rand -base64 32`); the platform sends it as a bearer on a cron call. **No cron is scheduled today** — see §3b. Unset, the routes 404 and say so in the log |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | the password-reset sender (`0019`), see §5c. All five together or none: a host without credentials or a sender is refused at boot. With none, reset links go to the log and nobody receives them |
+| `AI_PROVIDER` | `google` calls Gemini directly with `GOOGLE_API_KEY`; `omniroute` goes through a gateway and needs `AI_BASE_URL`, `OMNIROUTE_API_KEY` and `OMNIROUTE_MODEL` — the whole setup is in [`ai-gateway.md`](./ai-gateway.md) |
+| `AI_BUDGET_SECONDS` | leave empty: 170 seconds for the model half of a generation, which fits the 300-second function (§4) |
 
 `Env.validation.ts` refuses to boot on a bad environment and reports every problem at
 once. In production it is stricter than in development on purpose — and it checks
@@ -167,6 +169,12 @@ Two consequences worth knowing before the first real generation:
 - `maxDuration` in `vercel.json` is **300 seconds**. That needs a plan whose ceiling
   allows it; a 60-second ceiling does not leave enough headroom over a 45-second
   generation for one slow provider response.
+- Through a gateway's free models a generation takes longer — a model call runs 50 to
+  100 seconds, and a combo that falls to its second model adds the first one's failure
+  to it. So the model half has a budget of its own, `AI_BUDGET_SECONDS` (170 by
+  default): every round of calls shares it, a call still waiting when it ends is cut
+  and logged as a `timeout`, and the library covers the rest. The job ends inside the
+  function whatever the model does.
 - If the invocation dies anyway, the job row is the contract. `adoptCompleted` recovers
   the case where the plan committed, and `failStale` releases the rest. Nothing partial
   is ever stored — the plan is written in one transaction at the end.
