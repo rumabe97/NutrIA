@@ -4,7 +4,7 @@ import { RecipeController } from 'core/controllers/Recipe';
 
 import { buildRewritePrompt } from '../prompts/RewritePrompt.js';
 import { STEPS_VERSION } from '../prompts/PoolPrompt.js';
-import { RecipeRewriter } from './RecipeRewriter.service.js';
+import { RecipeRewriter, REWRITE_LIMITS } from './RecipeRewriter.service.js';
 import { AiClient } from '../clients/AiClient.js';
 
 import type { AiRequest, AiResponse } from '../clients/AiClient.js';
@@ -76,14 +76,14 @@ describe('RecipeRewriter', () => {
   it('does nothing while the owner has not switched it on, however able the provider is', async () => {
     const pending = jest.spyOn(RecipeController, 'pendingStepUpgrades');
 
-    expect(await new RecipeRewriter(new ScriptedAi([GOOD]), OFF).rewriteOutdated(10)).toEqual({ pending: 0, rewritten: 0, skipped: 0 });
+    expect(await new RecipeRewriter(new ScriptedAi([GOOD]), OFF).rewriteOutdated(10)).toEqual({ pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
     expect(pending).not.toHaveBeenCalled();
   });
 
   it('does nothing when no provider is configured', async () => {
     const pending = jest.spyOn(RecipeController, 'pendingStepUpgrades');
 
-    expect(await new RecipeRewriter(new UnavailableAi(), ON).rewriteOutdated(10)).toEqual({ pending: 0, rewritten: 0, skipped: 0 });
+    expect(await new RecipeRewriter(new UnavailableAi(), ON).rewriteOutdated(10)).toEqual({ pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
     expect(pending).not.toHaveBeenCalled();
   });
 
@@ -94,7 +94,7 @@ describe('RecipeRewriter', () => {
     const run = await new RecipeRewriter(new ScriptedAi([GOOD]), ON).rewriteOutdated(10);
 
     expect(pending).toHaveBeenCalledWith(STEPS_VERSION, 10);
-    expect(run).toEqual({ pending: 1, rewritten: 1, skipped: 0 });
+    expect(run).toEqual({ pending: 1, rewritten: 1, skipped: 0, unreached: 0 });
 
     const [recipeId, steps, version] = rewrite.mock.calls[0] as [string, readonly { cue?: string; minutes?: number; text: string }[], string];
 
@@ -113,7 +113,7 @@ describe('RecipeRewriter', () => {
     // Three steps for a twenty-minute cook is exactly what this exists to replace.
     const run = await new RecipeRewriter(new ScriptedAi([{ steps: GOOD.steps.slice(0, 3) }]), ON).rewriteOutdated(10);
 
-    expect(run).toEqual({ pending: 1, rewritten: 0, skipped: 1 });
+    expect(run).toEqual({ pending: 1, rewritten: 0, skipped: 1, unreached: 0 });
     expect(rewrite).not.toHaveBeenCalled();
   });
 
@@ -154,9 +154,10 @@ describe('RecipeRewriter', () => {
     const run = await new RecipeRewriter(ai, ON).rewriteOutdated(10);
 
     // One attempt, not three: the other two would have spent the allowance
-    // plan generation needs on calls that could not have succeeded.
+    // plan generation needs on calls that could not have succeeded. The first
+    // call runs alone for exactly this, before any lane opens.
     expect(ai.calls).toBe(1);
-    expect(run).toEqual({ pending: 3, rewritten: 0, skipped: 1 });
+    expect(run).toEqual({ pending: 3, rewritten: 0, skipped: 1, unreached: 2 });
   });
 
   it('counts one failure and carries on with the rest', async () => {
@@ -165,7 +166,109 @@ describe('RecipeRewriter', () => {
 
     const run = await new RecipeRewriter(new ScriptedAi([{ steps: [] }, GOOD]), ON).rewriteOutdated(10);
 
-    expect(run).toEqual({ pending: 2, rewritten: 1, skipped: 1 });
+    expect(run).toEqual({ pending: 2, rewritten: 1, skipped: 1, unreached: 0 });
+  });
+});
+
+/**
+ * A sweep is one invocation of the 300-second function. Ten rewrites in a row,
+ * as it used to run them, took longer than that through the gateway — so time
+ * is now part of the sweep, measured in milliseconds here.
+ */
+describe('RecipeRewriter — inside the function’s time', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  function many(count: number): UndocumentedRecipe[] {
+    return Array.from({ length: count }, (_none, index) => ({ ...RECIPE, id: `${String(index).padStart(8, '0')}-1111-4111-8111-111111111111` }));
+  }
+
+  /** Answers after `ms`, and counts how many calls it holds at once. */
+  class SlowAi extends AiClient {
+    public inFlight = 0;
+    public most = 0;
+    public requests: AiRequest<unknown>[] = [];
+
+    constructor(private readonly ms: number) {
+      super();
+    }
+
+    get isAvailable(): boolean {
+      return true;
+    }
+
+    async generate<T>(request: AiRequest<T>): Promise<AiResponse<T>> {
+      this.requests.push(request as AiRequest<unknown>);
+      this.inFlight += 1;
+      this.most = Math.max(this.most, this.inFlight);
+      await new Promise(resolve => {
+        setTimeout(resolve, this.ms);
+      });
+      this.inFlight -= 1;
+
+      return { object: GOOD as T, usage: { calls: 1, inputTokens: 0, model: 'slow', outputTokens: 0 } };
+    }
+  }
+
+  it('abandons a call that outlives the sweep, even one that ignores its signal, and writes nothing late', async () => {
+    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue(many(3));
+    const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
+    const hung = new (class extends AiClient {
+      get isAvailable(): boolean {
+        return true;
+      }
+
+      generate<T>(): Promise<AiResponse<T>> {
+        return new Promise<AiResponse<T>>(() => undefined);
+      }
+    })();
+    const started = Date.now();
+
+    const run = await new RecipeRewriter(hung, ON, { lanes: 2, minCallMs: 20, sweepMs: 60 }).rewriteOutdated(12);
+
+    expect(Date.now() - started).toBeLessThan(1000);
+    // The hung call is dropped at the deadline; nothing else had time to start.
+    expect(run).toEqual({ pending: 3, rewritten: 0, skipped: 1, unreached: 2 });
+    expect(rewrite).not.toHaveBeenCalled();
+  });
+
+  it('keeps no more calls in flight than it has lanes, and finishes the batch when there is time', async () => {
+    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue(many(7));
+    jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
+    const ai = new SlowAi(15);
+
+    const run = await new RecipeRewriter(ai, ON, { lanes: 3, minCallMs: 10, sweepMs: 5000 }).rewriteOutdated(12);
+
+    expect(run).toEqual({ pending: 7, rewritten: 7, skipped: 0, unreached: 0 });
+    expect(ai.most).toBe(3);
+  });
+
+  it('starts no call it could not finish, and leaves the rest for the next sweep', async () => {
+    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue(many(5));
+    jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
+
+    // One lane, 60 ms a call, 100 ms needed to start one, 250 ms in all: calls
+    // start at about 0, 60 and 120; at 180 only 70 ms are left.
+    const run = await new RecipeRewriter(new SlowAi(60), ON, { lanes: 1, minCallMs: 100, sweepMs: 250 }).rewriteOutdated(12);
+
+    expect(run).toEqual({ pending: 5, rewritten: 3, skipped: 0, unreached: 2 });
+  });
+
+  it('bounds each call by the sweep and files it under its recipe in a gateway’s log', async () => {
+    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE]);
+    jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
+    const ai = new SlowAi(1);
+
+    await new RecipeRewriter(ai, ON).rewriteOutdated(12);
+
+    expect(ai.requests[0]?.signal).toBeInstanceOf(AbortSignal);
+    expect(ai.requests[0]?.session).toBe(`rewrite:${RECIPE.id}`);
+  });
+
+  /** The numbers, pinned: they are what fits the function, and loosening them is what gets a sweep killed mid-write. */
+  it('holds a sweep to three lanes, ninety seconds to start a call, and 240 in all', () => {
+    expect(REWRITE_LIMITS).toEqual({ lanes: 3, minCallMs: 90_000, sweepMs: 240_000 });
   });
 });
 

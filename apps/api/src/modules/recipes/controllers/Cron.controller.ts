@@ -11,8 +11,13 @@ import type { IllustrationRunDto, ReminderRunDto, RewriteRunDto } from '../dto/o
 /** Six images a sweep: ten seconds each, a minute of work, well inside the function's ceiling. */
 const IMAGES_PER_SWEEP = 6;
 
-/** Text is faster and free-tier, so the library drains in a few sweeps rather than a day. */
-const REWRITES_PER_SWEEP = 10;
+/**
+ * What one sweep fetches: as many as three lanes can finish inside its time
+ * (`RewriteLimits`) — nine cooked mains at about seventy seconds each, a few
+ * more when the batch holds quicker dishes. What is not reached is left for
+ * the next sweep, never started and cut.
+ */
+const REWRITES_PER_SWEEP = 12;
 
 /**
  * The platform's cron calls these; nothing else may.

@@ -17,7 +17,7 @@ import type { Server } from 'node:http';
 describe('GET /cron/illustrate', () => {
   let app: INestApplication;
   const illustrateMissing = jest.fn<(limit: number) => Promise<{ drawn: number; failed: number; pending: number }>>();
-  const rewriteOutdated = jest.fn<(limit: number) => Promise<{ pending: number; rewritten: number; skipped: number }>>();
+  const rewriteOutdated = jest.fn<(limit: number) => Promise<{ pending: number; rewritten: number; skipped: number; unreached: number }>>();
   const sweep = jest.fn(async () => Promise.resolve({ considered: 0, failed: 0, sent: 0 }));
 
   afterEach(async () => {
@@ -53,13 +53,13 @@ describe('GET /cron/illustrate', () => {
   });
 
   it('runs a bounded rewrite sweep on its own route', async () => {
-    rewriteOutdated.mockResolvedValue({ pending: 10, rewritten: 9, skipped: 1 });
+    rewriteOutdated.mockResolvedValue({ pending: 12, rewritten: 9, skipped: 1, unreached: 2 });
     const server = await boot('a-secret-of-sixteen-chars');
 
     const response = await request(server).get('/cron/rewrite-steps').set('Authorization', 'Bearer a-secret-of-sixteen-chars').expect(200);
 
-    expect(response.body).toEqual({ pending: 10, rewritten: 9, skipped: 1 });
-    expect(rewriteOutdated).toHaveBeenCalledWith(10);
+    expect(response.body).toEqual({ pending: 12, rewritten: 9, skipped: 1, unreached: 2 });
+    expect(rewriteOutdated).toHaveBeenCalledWith(12);
   });
 
   it('guards the rewrite route exactly as it guards the other', async () => {

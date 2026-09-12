@@ -227,7 +227,8 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   provider again, and the plan records `fallback: full_library`. What still fails is
   a library that genuinely cannot fill a fortnight, which is `GENERATION_AI_UNAVAILABLE`
   when the provider failed and `POOL_TOO_SMALL` when there simply is none.
-- **Both sweeps are off by default** (`AI_ILLUSTRATIONS`, `AI_REWRITE_STEPS`), because a free-tier project's daily request cap is generation's. Turn them on with billing, or deliberately, for a while.
+- **Both sweeps are off by default** (`AI_ILLUSTRATIONS`, `AI_REWRITE_STEPS`), because a free-tier project's daily request cap is generation's. Turn them on with billing, or deliberately, for a while. Through the gateway the rewrite sweep runs on free models — `AI_REWRITE_MODEL` can keep it off a combo's Gemini step — and the daily cron in `vercel.json` calls it.
+- **A sweep is bounded in time, not only in number** (`RewriteLimits`). One cron call is one invocation of the 300-second function, and through the gateway a rewrite takes 22–74 seconds: ten in a row outlived the function. Three lanes, no call started with under 90 seconds left, every call ended by 240 seconds with `untilAborted` — a transport that ignores its signal cannot keep the sweep past its deadline.
 - **Both sweeps stop at the first exhausted quota** (`isQuotaExhausted`). The provider's
   free tier caps *requests*, not only spend, and generation draws on the same allowance:
   a sweep that keeps going after a refusal attempted eighteen recipes three times each

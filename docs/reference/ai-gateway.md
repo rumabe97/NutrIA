@@ -75,6 +75,9 @@ On the API project, beside what [`deployment.md`](./deployment.md) §2 lists:
 | `AI_BUDGET_SECONDS` | leave empty — 170, which fits the 300-second function. Raise it only on a host without that limit |
 | `GOOGLE_API_KEY` | keep it: it is the rollback (§4) |
 | `AI_REQUESTS_PER_DAY`, `AI_TOKENS_PER_MINUTE` | leave empty: they describe a Google allowance, not the gateway's |
+| `AI_REWRITE_STEPS` | `true` to let the daily cron rewrite old recipe methods (§6) |
+| `AI_REWRITE_MODEL` | a combo of the free models without the Gemini step, e.g. `muse-spark` then `mimo`; empty uses `OMNIROUTE_MODEL` (§6) |
+| `CRON_SECRET` | sixteen characters or more; the platform sends it on the cron's call |
 
 Nothing here is `NEXT_PUBLIC_`, and nothing goes on the web project.
 
@@ -114,3 +117,30 @@ log are the same for every provider.
 - **A combo hop costs real time.** The first model failing after 48 seconds and the
   second answering in 17 made a 65-second call (**confirmed**). The budget in §2 is what
   keeps a string of those inside the function.
+
+## 6. The rewrite sweep
+
+`/api/v1/cron/rewrite-steps` rewrites the method of recipes an older prompt wrote
+(`STEPS_VERSION`), one model call each, through the same provider as generation — the
+gateway, with `AI_PROVIDER=omniroute`. Measured through it on 2026-09-12, three calls, all
+answered by `muse-spark` with no hop and all valid (**confirmed**):
+
+| Dish | Prompt | Answer | Time |
+| --- | --- | --- | --- |
+| cooked main (15 min) | 637 tokens | 8,580 (7,810 reasoning) | 74 s |
+| briefly cooked (6 min) | 491 | 3,209 (2,865) | 33 s |
+| assembled | 432 | 2,375 (2,247) | 22 s |
+
+A fifteenth of a generation's prompt, and a third to a half of its time — the reasoning is
+what the time goes on. So one cron call is one bounded sweep inside the 300-second
+function: three calls at a time, none started with less than 90 seconds left, every one
+ended by 240 seconds whatever the transport does with its signal, twelve recipes fetched.
+What a run does not reach is the next run's first. On 2026-09-12 production held 160 stale
+recipes: two weeks at the daily run the Hobby plan allows, about fourteen hours hourly.
+
+`AI_REWRITE_MODEL` gives the sweep a model of its own. `NutrIA-Fallback` ends in Gemini,
+and a sweep that fell that far would spend the twenty requests a day generation may need;
+a combo of the free models alone cannot (*hypothesis*: `muse-spark` then `mimo`, as
+generation's first two steps — not yet created on the gateway). Each call is filed under
+`rewrite:<recipe id>` in the gateway's log, and the API logs one line per rewrite: the
+model that answered, the time and the tokens.
