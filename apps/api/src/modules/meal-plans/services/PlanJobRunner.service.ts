@@ -27,6 +27,28 @@ import type { JobView } from 'core/controllers/Plan';
 /** Enough for a fresh plan's new dishes to have pictures within a minute or two; the cron draws the rest. */
 const ILLUSTRATIONS_AFTER_PLAN = 8;
 
+/**
+ * How long a generation may run before its job is failed. `vercel.json` ends
+ * the function at 300 seconds, and the job has to say it failed before then:
+ * otherwise it stays `running` and the screen waits on it. That happened in
+ * production — a model call outlived its budget, and the job sat `running`
+ * until the platform killed the function (`0050`).
+ */
+const GENERATION_DEADLINE_MS = 280_000;
+
+/** Rejects when the deadline passes, with the code the screen explains as "it took too long". */
+function failAt(deadline: AbortSignal): Promise<never> {
+  return new Promise((_resolve, reject) => {
+    deadline.addEventListener(
+      'abort',
+      () => {
+        reject(new GenerationError('GENERATION_TIMED_OUT', `The generation did not finish within ${GENERATION_DEADLINE_MS / 1000} s`));
+      },
+      { once: true }
+    );
+  });
+}
+
 @Injectable()
 export class PlanJobRunner {
   private readonly logger = new Logger(PlanJobRunner.name);
@@ -51,20 +73,31 @@ export class PlanJobRunner {
   }
 
   private async run(userId: string, jobId: string): Promise<void> {
+    const deadline = new AbortController();
+    const timer = setTimeout(() => {
+      deadline.abort();
+    }, GENERATION_DEADLINE_MS);
+
     try {
       await PlanJobController.markStarted(jobId);
 
-      const planId = await this.generation.generate(
-        userId,
-        jobId,
-        step => PlanJobController.markStep(jobId, step),
-        // The call log is how an operator reads what the model did; losing it
-        // must never cost somebody their plan, so a failed write is only a warning.
-        calls =>
-          PlanJobController.recordAiCalls(jobId, calls).catch((failure: unknown) => {
-            this.logger.warn(`Job ${jobId}: the AI call log was not saved: ${failure instanceof Error ? failure.message : 'unknown'}`);
-          })
-      );
+      const planId = await Promise.race([
+        this.generation.generate(
+          userId,
+          jobId,
+          // Past the deadline the job is already failed; a late stage must not
+          // mark it running again.
+          step => (deadline.signal.aborted ? Promise.resolve() : PlanJobController.markStep(jobId, step)),
+          // The call log is how an operator reads what the model did; losing it
+          // must never cost somebody their plan, so a failed write is only a warning.
+          calls =>
+            PlanJobController.recordAiCalls(jobId, calls).catch((failure: unknown) => {
+              this.logger.warn(`Job ${jobId}: the AI call log was not saved: ${failure instanceof Error ? failure.message : 'unknown'}`);
+            }),
+          deadline.signal
+        ),
+        failAt(deadline.signal)
+      ]);
 
       await PlanJobController.markSucceeded(jobId, planId);
       this.logger.log(`Plan ${planId} generated for job ${jobId}`);
@@ -90,6 +123,8 @@ export class PlanJobRunner {
       await PlanJobController.markFailed(jobId, code, detail === code ? undefined : detail).catch((failure: unknown) => {
         this.logger.error(`Could not record failure for job ${jobId}: ${failure instanceof Error ? failure.message : 'unknown'}`);
       });
+    } finally {
+      clearTimeout(timer);
     }
   }
 }

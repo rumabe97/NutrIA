@@ -237,4 +237,40 @@ describe('buildPoolPrompt', () => {
   it('keeps the steps stamp where the steps rules last changed', () => {
     expect(STEPS_VERSION).toBe('2.8.0');
   });
+
+  /**
+   * 3.3.0. Forty grams of protein at breakfast came back as pasta with turkey,
+   * and a snack as a bowl of turkey with strawberries: on the numbers, and not
+   * what anybody eats at that hour.
+   */
+  it('tells breakfast and a snack what kind of food they are', () => {
+    const prompt = buildPoolPrompt(
+      context({
+        needBySlot: new Map<MealSlot, number>([
+          ['breakfast', 4],
+          ['afternoon_snack', 4]
+        ])
+      }),
+      []
+    );
+
+    expect(prompt).toContain('Breakfast: morning food, built on bread, oats, dairy, eggs or fruit');
+    expect(prompt).toContain('Not lunch food: no pasta, rice, stews, pulses or plated salads.');
+    expect(prompt).toContain('Not a plated main: no rice, pasta, potato or pulses as its base');
+    expect(prompt).not.toContain('come first');
+  });
+
+  it('lets the person’s own words about breakfast win over that', () => {
+    const prompt = buildPoolPrompt(context({ breakfastStyle: 'Salado y rápido', needBySlot: new Map<MealSlot, number>([['breakfast', 4]]) }), []);
+
+    expect(prompt).toContain('Their own words about breakfast, below, come first.');
+    expect(prompt).toContain('- Breakfast, in their words: Salado y rápido');
+  });
+
+  it('says nothing of the kind of food a lunch is', () => {
+    const prompt = buildPoolPrompt(context(), []);
+
+    expect(prompt).not.toContain('Breakfast: morning food');
+    expect(prompt).not.toContain('Not a plated main');
+  });
 });

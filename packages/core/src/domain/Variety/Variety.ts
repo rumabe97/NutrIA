@@ -17,15 +17,25 @@ import type { MealSlot, PlanDayAssignment } from 'core/entities/Plan';
  * for more, and a thin reuse library makes `GENERATION_POOL_TOO_SMALL` likelier.
  * Variety is the thing the user notices; pool size is the thing the operator
  * notices, and `PoolBuilder` carries slack over the floor for exactly this.
+ *
+ * **And never on the same day or the next, whatever the meal.** The four-day
+ * gap was per slot, so a dish that suits both lunch and dinner could be dinner
+ * on Tuesday and lunch on Wednesday — a real plan served the same tuna salad
+ * back to back that way, twice at two and a quarter servings.
  */
-export const VARIETY_RULES = { maxOccurrencesPerPlan: 2, minDaysBetweenSameSlot: 4 } as const;
+export const VARIETY_RULES = { maxOccurrencesPerPlan: 2, minDaysBetween: 2, minDaysBetweenSameSlot: 4 } as const;
 
 export type VarietyViolation = {
   readonly dayIndex: number;
   readonly dishSlug: string;
-  readonly kind: 'repeated_in_slot_too_soon' | 'too_many_occurrences';
+  readonly kind: 'repeated_in_slot_too_soon' | 'repeated_too_soon' | 'too_many_occurrences';
   readonly slot: MealSlot;
 };
+
+/** The days that must separate two servings of one dish: the slot's own gap, or the plan-wide one. */
+function gapBetween(slot: MealSlot, other: MealSlot): number {
+  return slot === other ? VARIETY_RULES.minDaysBetweenSameSlot : VARIETY_RULES.minDaysBetween;
+}
 
 /** Placements made so far, in the order the scheduler made them. */
 export type Placement = { readonly dayIndex: number; readonly dishSlug: string; readonly slot: MealSlot };
@@ -43,10 +53,7 @@ export function canPlace(dishSlug: string, slot: MealSlot, dayIndex: number, pla
     return false;
   }
 
-  return !placed.some(
-    placement =>
-      placement.dishSlug === dishSlug && placement.slot === slot && Math.abs(placement.dayIndex - dayIndex) < VARIETY_RULES.minDaysBetweenSameSlot
-  );
+  return !placed.some(placement => placement.dishSlug === dishSlug && Math.abs(placement.dayIndex - dayIndex) < gapBetween(slot, placement.slot));
 }
 
 /** Audits a finished assignment. Used by `validatePlan` and by tests. */
@@ -61,7 +68,14 @@ export function varietyViolations(days: readonly PlanDayAssignment[]): readonly 
       if (placed.filter(other => other.dishSlug === placement.dishSlug).length >= VARIETY_RULES.maxOccurrencesPerPlan) {
         violations.push({ ...placement, kind: 'too_many_occurrences' });
       } else if (!canPlace(placement.dishSlug, placement.slot, placement.dayIndex, placed)) {
-        violations.push({ ...placement, kind: 'repeated_in_slot_too_soon' });
+        const inSlot = placed.some(
+          other =>
+            other.dishSlug === placement.dishSlug &&
+            other.slot === placement.slot &&
+            Math.abs(other.dayIndex - placement.dayIndex) < VARIETY_RULES.minDaysBetweenSameSlot
+        );
+
+        violations.push({ ...placement, kind: inSlot ? 'repeated_in_slot_too_soon' : 'repeated_too_soon' });
       }
 
       placed.push(placement);

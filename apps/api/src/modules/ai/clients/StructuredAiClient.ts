@@ -14,6 +14,39 @@ import type { AiCallSettings } from '../ai.config.js';
 import type { LanguageModel } from 'ai';
 
 /**
+ * The work, or the signal's abort — whichever settles first. The abandoned
+ * work keeps its own handlers, so its late rejection is not an unhandled one.
+ */
+function untilAborted<T>(work: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (!signal) {
+    return work;
+  }
+
+  return new Promise<T>((resolve, reject) => {
+    const abort = () => {
+      reject(signal.reason instanceof Error ? signal.reason : new Error('aborted'));
+    };
+
+    if (signal.aborted) {
+      abort();
+    } else {
+      signal.addEventListener('abort', abort, { once: true });
+    }
+
+    work.then(
+      value => {
+        signal.removeEventListener('abort', abort);
+        resolve(value);
+      },
+      (error: unknown) => {
+        signal.removeEventListener('abort', abort);
+        reject(error instanceof Error ? error : new Error(String(error)));
+      }
+    );
+  });
+}
+
+/**
  * The real client: `generateObject` against whichever model the environment chose.
  *
  * Structured output is the whole point — the schema is enforced by the SDK and
@@ -53,15 +86,14 @@ export class StructuredAiClient extends AiClient {
     const started = Date.now();
 
     try {
-      const result = await generateObject({
-        abortSignal: signal,
-        headers,
-        maxRetries: this.settings.maxRetries,
-        model: this.model,
-        prompt,
-        schema,
-        system
-      });
+      // Raced against the signal as well as handed to it. On the platform a call
+      // ran on past its aborted signal until the function was killed at 300 s,
+      // and the generation waited with it; whatever the transport does with the
+      // signal, a call that outlives its budget is abandoned here, not awaited.
+      const result = await untilAborted(
+        generateObject({ abortSignal: signal, headers, maxRetries: this.settings.maxRetries, model: this.model, prompt, schema, system }),
+        signal
+      );
       const usage = { calls: 1, inputTokens: result.usage.inputTokens ?? 0, model, outputTokens: result.usage.outputTokens ?? 0 };
       const call: AiCall = {
         answeredModel: result.response.modelId || null,

@@ -72,8 +72,14 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * back with fourteen and all seven were dropped. Fifteen now, salt, spices and
  * oil included, in both; one to eight servings and six-hundred-character
  * steps, as the store allows.
+ * 3.3.0: each meal is told what kind of food it is. Asked for forty grams of
+ * protein at breakfast, the model wrote pasta with turkey and a warm potato
+ * salad with tuna — on the figure, and nobody's breakfast — and a snack came
+ * back as a bowl of turkey with strawberries. Breakfast is morning food now,
+ * and a snack something eaten between meals rather than a plated main; the
+ * person's own words about breakfast still come first.
  */
-export const PROMPT_VERSION = '3.2.2';
+export const PROMPT_VERSION = '3.3.0';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -375,6 +381,27 @@ const COMPOSITION_RULES = [
   ''
 ];
 
+/**
+ * What kind of food a meal is, where the numbers alone led a model astray
+ * (3.3.0). Forty grams of protein at breakfast came back as pasta with turkey;
+ * a snack's figure, as a bowl of turkey with strawberries. Both on the brief,
+ * neither what anybody eats at that hour.
+ */
+const BREAKFAST_CHARACTER =
+  'Breakfast: morning food, built on bread, oats, dairy, eggs or fruit — toast, porridge, a yoghurt or skyr bowl, eggs, a sandwich. Not lunch food: no pasta, rice, stews, pulses or plated salads.';
+const SNACK_CHARACTER =
+  'Snack: 2-4 ingredients, little or no cooking, but still 1-3 steps. Eaten between meals, in the hand or with a spoon — fruit, yoghurt, a small sandwich or toast, a spread with bread or vegetables. Not a plated main: no rice, pasta, potato or pulses as its base, no skewers, no meat or fish served as a plate; in bread it is a snack.';
+
+function characterOf(slot: MealSlot, ownBreakfastWords: boolean): string | null {
+  if (slot === 'breakfast') {
+    // Somebody who said "salado y rápido, antes de entrenar" knows their own
+    // mornings better than this line does.
+    return ownBreakfastWords ? `${BREAKFAST_CHARACTER} Their own words about breakfast, below, come first.` : BREAKFAST_CHARACTER;
+  }
+
+  return SNACK_SLOTS.includes(slot) ? SNACK_CHARACTER : null;
+}
+
 type SlotBrief = { readonly carbsG: number; readonly fatG: number; readonly fiberG: number; readonly kcal: number; readonly proteinG: number };
 
 /** A day's targets, scaled to one slot's share of it. */
@@ -458,7 +485,8 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
   const needs = wanted
     .map(([slot, count]) => {
       const brief = briefFor(context.targets, shares.get(slot) ?? 0);
-      const shape = SNACK_SLOTS.includes(slot) ? '\n  Snack: 2-4 ingredients, little or no cooking, but still 1-3 steps.' : '';
+      const character = characterOf(slot, oneLine(context.breakfastStyle) !== null);
+      const shape = character ? `\n  ${character}` : '';
 
       // As numbers, because prose was not enough: asked to straddle, 3.1.0's
       // main dishes still came back at 16–20% protein against a 17% day.

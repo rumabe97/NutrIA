@@ -41,7 +41,10 @@ const ENGLISH_NAMES: Record<string, string> = {
   [SEEDED.arroz]: 'Cooked white rice',
   [SEEDED.huevo]: 'Egg',
   [SEEDED.lentejas]: 'Cooked lentils',
-  [SEEDED.merluza]: 'Hake',
+  // The seed has said "Fresh hake" since `92d26a6`; this read "Hake" and nobody
+  // noticed, because no plan here served hake until meals kept their proteins
+  // apart (`0051`).
+  [SEEDED.merluza]: 'Fresh hake',
   [SEEDED.patata]: 'Potato',
   [SEEDED.pollo]: 'Chicken breast',
   [SEEDED.yogur]: 'Natural Greek yoghurt'
@@ -225,7 +228,8 @@ describe('an English account, end to end', () => {
     const english = new Set(Object.values(ENGLISH_NAMES));
 
     for (const item of list.items) {
-      expect(english.has(item.name)).toBe(true);
+      // Named, so a failure says which item, since Jest's expect takes no message.
+      expect({ english: english.has(item.name), name: item.name }).toEqual({ english: true, name: item.name });
     }
   });
 

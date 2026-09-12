@@ -53,6 +53,7 @@ export type GenerationFailure =
   | 'GENERATION_ONBOARDING_INCOMPLETE'
   | 'GENERATION_POOL_TOO_SMALL'
   | 'GENERATION_PROFILE_INCOMPLETE'
+  | 'GENERATION_TIMED_OUT'
   | 'GENERATION_UNSAFE_CONTENT';
 
 export class GenerationError extends Error {
@@ -84,7 +85,9 @@ export class PlanGenerationService {
     markStep: (step: string) => Promise<void>,
     // Where the model calls are kept, as soon as the pool is built: a job that
     // fails after that point still has them (`0050`).
-    recordCalls: (calls: readonly AiCallRecord[]) => Promise<void> = () => Promise.resolve()
+    recordCalls: (calls: readonly AiCallRecord[]) => Promise<void> = () => Promise.resolve(),
+    // Aborted when the job's deadline passes; checked before anything is saved.
+    deadline?: AbortSignal
   ): Promise<string> {
     await markStep(STEPS.loading);
 
@@ -336,6 +339,12 @@ export class PlanGenerationService {
     }
 
     const shopping = buildShoppingList(scheduled.assignment, context.catalogue, context.locale);
+
+    // Past its job's deadline this generation has already been reported as
+    // failed; saving now would hand somebody a plan after telling them to retry.
+    if (deadline?.aborted) {
+      throw new GenerationError('GENERATION_TIMED_OUT');
+    }
 
     await markStep(STEPS.saving);
 

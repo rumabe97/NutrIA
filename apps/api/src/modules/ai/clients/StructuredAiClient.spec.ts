@@ -27,4 +27,22 @@ describe('StructuredAiClient', () => {
     expect(failure).toBeInstanceOf(AiCallError);
     expect((failure as AiCallError).failure).toMatchObject({ kind: 'timeout', status: null });
   });
+
+  /**
+   * What happened on the platform: the signal fired and the request ran on
+   * until the function was killed. Here the model never answers and never
+   * listens to the signal — the budget still ends the call.
+   */
+  it('ends a call whose transport ignores the abort, instead of waiting on it', async () => {
+    const model = new MockLanguageModelV4({ doGenerate: async () => new Promise<never>(() => undefined) });
+    const client = new StructuredAiClient(model, { maxRetries: 0, sessionHeader: null });
+    const started = Date.now();
+    const failure = await client
+      .generate({ prompt: 'Diseña platos', schema: jsonSchema({ type: 'object' }), signal: AbortSignal.timeout(20), system: 'Chef' })
+      .catch((error: unknown) => error);
+
+    expect(Date.now() - started).toBeLessThan(2000);
+    expect(failure).toBeInstanceOf(AiCallError);
+    expect((failure as AiCallError).failure).toMatchObject({ kind: 'timeout' });
+  });
 });
