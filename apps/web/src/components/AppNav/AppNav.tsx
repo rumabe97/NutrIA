@@ -9,6 +9,7 @@ import styles from './AppNav.module.css';
 import { useDictionary } from 'i18n/LocaleProvider';
 
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
+import { useOffline } from 'components/OfflineProvider';
 
 import { forgetOfflineCopies } from 'lib/offline';
 import { signOut } from 'lib/auth-client';
@@ -31,6 +32,10 @@ export function AppNav() {
   const pathname = usePathname();
   const router = useRouter();
   const isCurrent = (href: string) => (pathname.startsWith(href) ? 'page' : undefined);
+  const { available, offline } = useOffline();
+  // Offline, only what opens: the screens with a copy on this device, and nothing
+  // that needs the server — switching language and signing out both do (`0053`).
+  const destinations = DESTINATIONS.filter(destination => available(destination.href));
 
   async function handleSignOut() {
     await signOut();
@@ -50,23 +55,27 @@ export function AppNav() {
           </Link>
 
           <nav aria-label={dictionary.appNav.sectionsLabel} className={styles.desktopNav}>
-            {DESTINATIONS.map(destination => (
+            {destinations.map(destination => (
               <Link aria-current={isCurrent(destination.href)} className={styles.navLink} href={destination.href} key={destination.href}>
                 {dictionary.appNav[destination.label]}
               </Link>
             ))}
           </nav>
 
-          <LocaleSwitcher compact={true} />
+          {offline ? null : (
+            <Fragment>
+              <LocaleSwitcher compact={true} />
 
-          <button className={styles.signOut} onClick={handleSignOut} type="button">
-            {dictionary.appNav.signOut}
-          </button>
+              <button className={styles.signOut} onClick={handleSignOut} type="button">
+                {dictionary.appNav.signOut}
+              </button>
+            </Fragment>
+          )}
         </div>
       </header>
 
       <nav aria-label={dictionary.appNav.mainLabel} className={styles.bottomBar}>
-        {DESTINATIONS.map(destination => (
+        {destinations.map(destination => (
           <Link aria-current={isCurrent(destination.href)} className={styles.bottomLink} href={destination.href} key={destination.href}>
             <svg aria-hidden="true" className={styles.bottomIcon} fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
               <path d={destination.icon} strokeLinecap="round" strokeLinejoin="round" />

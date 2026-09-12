@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
-import { forgetOfflineCopies, OFFLINE_PAGES_CACHE, refreshOfflineCopies } from './offline';
+import { forgetOfflineCopies, OFFLINE_PAGES_CACHE, OFFLINE_PATHS, refreshOfflineCopies, storedPages } from './offline';
 
 /*
  * The worker is plain JavaScript served as is from `public/`, so this loads that
@@ -162,6 +162,40 @@ describe('the offline worker', () => {
     expect(SOURCE).toContain(`const PAGES = '${OFFLINE_PAGES_CACHE}';`);
   });
 
+  it('keeps the same screens the page draws as available offline', () => {
+    const declared = SOURCE.match(/const OFFLINE_PATHS = (\[[^\]]*\]);/)?.[1] ?? '[]';
+
+    expect(JSON.parse(declared.replaceAll("'", '"'))).toEqual([...OFFLINE_PATHS]);
+  });
+
+  it("keeps a meal's page read online, and fetches today's meals when refreshing", async () => {
+    const worker = load();
+
+    worker.server.set('/plan/comida/lunch-1', page());
+    await worker.request('/plan/comida/lunch-1');
+    expect(worker.stored(PAGES)).toEqual(['/plan/comida/lunch-1']);
+
+    worker.server.set('/inicio', async () => new Response('<a href="/plan/comida/breakfast-1"></a><a href="/plan/comida/lunch-1"></a>'));
+    worker.server.set('/plan', async () => new Response('"id":"breakfast-1","id":"lunch-1"'));
+    await worker.message({ type: 'refresh' });
+
+    expect(worker.stored(PAGES).sort()).toEqual(['/compra', '/inicio', '/plan', '/plan/comida/breakfast-1', '/plan/comida/lunch-1']);
+    // Kept already, so not fetched a second time.
+    expect(worker.asked.filter(path => path === '/plan/comida/lunch-1')).toHaveLength(1);
+  });
+
+  it('drops the pages of meals the plan no longer has', async () => {
+    const worker = load();
+
+    worker.server.set('/plan/comida/old-1', page());
+    await worker.request('/plan/comida/old-1');
+    worker.server.set('/inicio', async () => new Response('<a href="/plan/comida/new-1"></a>'));
+    worker.server.set('/plan', async () => new Response('"id":"new-1"'));
+    await worker.message({ type: 'refresh' });
+
+    expect(worker.stored(PAGES).filter(path => path.startsWith('/plan/comida/'))).toEqual(['/plan/comida/new-1']);
+  });
+
   it('keeps the shopping list and the files it names, and opens it when the network is gone', async () => {
     const worker = load();
 
@@ -224,6 +258,7 @@ describe('the offline worker', () => {
 
     expect(await worker.request('/perfil')).toBeUndefined();
     expect(await worker.request('/progreso')).toBeUndefined();
+    expect(await worker.request('/plan/historial')).toBeUndefined();
     expect(await worker.request('/api/v1/shopping-lists/active', { mode: 'cors' })).toBeUndefined();
     expect(await worker.request('/compra', { method: 'POST' })).toBeUndefined();
     // A client-side navigation fetches the page's data, not the page: left alone.
@@ -255,7 +290,7 @@ describe('the offline worker', () => {
     worker.server.set('/compra', page());
 
     await worker.message({ type: 'refresh' });
-    expect(worker.stored(PAGES).sort()).toEqual(['/compra', '/inicio']);
+    expect(worker.stored(PAGES).sort()).toEqual(['/compra', '/inicio', '/plan']);
 
     worker.clock.now += 30_000;
     await worker.message({ type: 'refresh' });
@@ -307,6 +342,14 @@ describe('the page asking the worker', () => {
     await refreshOfflineCopies();
 
     expect(postMessage).toHaveBeenCalledWith({ force: false, type: 'refresh' });
+  });
+
+  it('lists the screens with a copy, by path', async () => {
+    vi.stubGlobal('caches', {
+      open: async () => ({ keys: async () => [{ url: 'https://nutria.test/inicio' }, { url: 'https://nutria.test/plan/comida/a-1' }] })
+    });
+
+    expect([...(await storedPages())]).toEqual(['/inicio', '/plan/comida/a-1']);
   });
 
   it('forgets without waiting for a worker that never came', async () => {

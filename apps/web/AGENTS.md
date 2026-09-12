@@ -129,14 +129,20 @@ previous session's data.
 
 ## Offline
 
-`public/sw.js` keeps a copy of `/inicio` and `/compra` for reading without a network
-([`0053`](../../docs/decisions/0053-the-shopping-list-survives-the-supermarket.md)). It is
-plain JavaScript with no build step, and it is tested by loading the file itself
-(`src/lib/offline.test.ts`). `components/OfflineCopy` keeps the copies fresh and says when
-one is on screen.
+`public/sw.js` keeps copies for reading without a network
+([`0053`](../../docs/decisions/0053-the-shopping-list-survives-the-supermarket.md)): `/inicio`,
+`/plan`, `/compra`, and the meal pages that were read online or are on today's screen. It
+is plain JavaScript with no build step, and it is tested by loading the file itself
+(`src/lib/offline.test.ts`).
 
+`components/OfflineProvider` answers whether the screen is live and what opens without
+one. `components/OfflineCopy` keeps the copies fresh and says when one is on screen.
+
+- Offline, draw a link only when `useOffline().available(path)` says it opens. Anything
+  else leads to the browser's "not connected" page. The menu and `MealRow` already do this.
 - Adding a screen to `OFFLINE_PATHS` means storing more personal data on the device. Only
-  add one that shows no health data, and only with the owner's say-so.
+  add one that shows no health data, and only with the owner's say-so. Change the list
+  in `sw.js` and in `lib/offline.ts` together; a test checks that they agree.
 - Anything that ends or changes a session calls `forgetOfflineCopies()`. Sign-in, sign-up,
   sign-out and account deletion already do.
 - If what a cache holds changes, give it a new name (`-v2`) in `sw.js` and in
