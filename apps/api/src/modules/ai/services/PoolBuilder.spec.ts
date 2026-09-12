@@ -601,4 +601,25 @@ describe('PoolBuilder — telling a broken provider from an absent one', () => {
 
     expect(result.metadata.providerError).toBeUndefined();
   });
+
+  /**
+   * `wirePoolSchema` is deliberately loose — Gemini rejects the stricter JSON
+   * Schema keywords outright — so nothing validates that parsed JSON actually
+   * has a `dishes` array; only that it parsed as JSON at all. A provider whose
+   * "JSON mode" is looser than Gemini's or Anthropic's tool-calling (an
+   * OpenAI-compatible gateway in plain `json_object` mode, say) can hand back
+   * well-formed JSON shaped some other way. Found running against a real local
+   * gateway: it crashed the whole build with an uncaught `TypeError`, rather
+   * than reporting the round as failed like every other kind of bad response.
+   */
+  it('reports a round whose JSON parsed but was not shaped { dishes: [...] }, instead of crashing', async () => {
+    const malformed = { plates: [dish('Arroz con pollo', ['lunch'], ['arroz', 'pollo'])] } as unknown as GeneratedPool;
+    const { client } = stubClient([malformed]);
+    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+
+    expect(result.generated).toEqual([]);
+    expect(result.metadata.providerError).toMatch(/dishes/);
+    // The call still happened and still cost tokens; that much is honest to keep.
+    expect(result.metadata.calls).toBeGreaterThan(0);
+  });
 });

@@ -25,6 +25,13 @@ const DEFAULT_MODEL = {
   // model to move to.
   google: 'gemini-3.6-flash',
   ollama: 'llama3.1',
+  // An OpenAI-compatible gateway (OmniRoute) that holds the vendor keys itself
+  // and routes each request by model name. Which account a call spends against
+  // — a paid one, a free tier, a community model — is decided by the model the
+  // gateway is asked for, not here. The default is an alias the gateway defines,
+  // not a vendor name, so there is nothing to sanity-check it against (see
+  // `MODEL_PREFIX` below). `OMNIROUTE_MODEL` picks another.
+  omniroute: 'NutrIA-Fallback',
   stub: 'none'
 } as const;
 
@@ -62,7 +69,7 @@ const envObject = z.object({
     .default('false')
     .transform(value => value === 'true'),
   AI_MODEL: optional(z.string()),
-  AI_PROVIDER: z.enum(['anthropic', 'google', 'ollama', 'stub']).default('stub'),
+  AI_PROVIDER: z.enum(['anthropic', 'google', 'ollama', 'omniroute', 'stub']).default('stub'),
   /*
    * The provider's own allowances, as the console reports them, so `/admin` can
    * say how close today is to the wall.
@@ -121,6 +128,16 @@ const envObject = z.object({
   GOOGLE_API_KEY: optional(z.string()),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
+  /** The gateway's own bearer key, required only when `AI_PROVIDER` is `omniroute`. */
+  OMNIROUTE_API_KEY: optional(z.string()),
+  /**
+   * The model the gateway is asked for when `AI_PROVIDER` is `omniroute` — one of
+   * its aliases (`NutrIA-Fallback`) or a routed model (`gemini/gemini-3.6-flash`).
+   * Kept beside the gateway's key so switching gateway or model is two lines
+   * next to each other; it wins over `AI_MODEL` for this provider, and is
+   * ignored by every other.
+   */
+  OMNIROUTE_MODEL: optional(z.string()),
   /**
    * Where the "an account is waiting" notice goes (`0029`). Unset means it is
    * not sent; nobody else is ever told about a sign-up.
@@ -187,7 +204,7 @@ const envSchema = envObject
   // Fill the provider's own default before anything reads AI_MODEL.
   .transform(env => ({
     ...env,
-    AI_MODEL: env.AI_MODEL ?? DEFAULT_MODEL[env.AI_PROVIDER],
+    AI_MODEL: (env.AI_PROVIDER === 'omniroute' ? env.OMNIROUTE_MODEL : undefined) ?? env.AI_MODEL ?? DEFAULT_MODEL[env.AI_PROVIDER],
     SWAGGER_ENABLED: env.SWAGGER_ENABLED === undefined ? env.NODE_ENV === 'development' : env.SWAGGER_ENABLED === 'true'
   }))
   .superRefine((env, ctx) => {
@@ -207,6 +224,10 @@ const envSchema = envObject
 
     if (env.AI_PROVIDER === 'google' && !env.GOOGLE_API_KEY) {
       ctx.addIssue({ code: 'custom', message: 'is required when AI_PROVIDER is "google"', path: ['GOOGLE_API_KEY'] });
+    }
+
+    if (env.AI_PROVIDER === 'omniroute' && !env.OMNIROUTE_API_KEY) {
+      ctx.addIssue({ code: 'custom', message: 'is required when AI_PROVIDER is "omniroute"', path: ['OMNIROUTE_API_KEY'] });
     }
   })
   .superRefine((env, ctx) => {

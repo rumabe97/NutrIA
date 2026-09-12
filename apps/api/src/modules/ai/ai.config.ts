@@ -1,5 +1,6 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createOllama } from 'ollama-ai-provider-v2';
 
 import type { Env } from '../../config/index.js';
@@ -7,6 +8,7 @@ import type { ImageModel, LanguageModel } from 'ai';
 
 export const AI_MODEL = Symbol('AI_MODEL');
 export const AI_IMAGE_MODEL = Symbol('AI_IMAGE_MODEL');
+export const AI_MAX_RETRIES = Symbol('AI_MAX_RETRIES');
 
 /**
  * Resolves the configured provider to a model.
@@ -33,9 +35,71 @@ export function resolveModel(env: Env): LanguageModel | null {
       // Local, so no key. `AI_BASE_URL` points at the daemon.
       return createOllama({ baseURL: env.AI_BASE_URL ?? 'http://localhost:11434/api' })(env.AI_MODEL);
 
+    case 'omniroute':
+      // An OpenAI-compatible gateway (e.g. OmniRoute) that holds the vendor keys
+      // and routes by model name — `OMNIROUTE_MODEL`, resolved into `AI_MODEL`.
+      // Which account a call spends against is the gateway's routing, not this
+      // code's. `name` only labels the provider in telemetry the SDK emits; it
+      // never reaches the gateway or changes the request.
+      //
+      // `supportsStructuredOutputs: true` is load-bearing, not cosmetic. Without
+      // it the SDK asks for the loose `{ type: 'json_object' }` mode — "return
+      // JSON", no shape — and a real model answered in prose, then another in
+      // JSON of another shape (which `PoolBuilder` now reports instead of
+      // crashing on). With it, the exact `wirePoolSchema` travels as a
+      // `json_schema` response format — sent non-strict: see `nonStrictSchema`.
+      return createOpenAICompatible({
+        apiKey: required(env.OMNIROUTE_API_KEY, 'OMNIROUTE_API_KEY'),
+        baseURL: env.AI_BASE_URL ?? 'http://localhost:20128/v1',
+        name: 'omniroute',
+        supportsStructuredOutputs: true,
+        transformRequestBody: nonStrictSchema
+      })(env.AI_MODEL);
+
     case 'stub':
       return null;
   }
+}
+
+/**
+ * The body a gateway is sent, with a `json_schema` response format's `strict`
+ * flag off; every other body is returned as it came.
+ *
+ * Strict mode is OpenAI's contract, and some models behind a gateway enforce
+ * it to the letter: every object must carry `additionalProperties: false` and
+ * list every property as required. `wirePoolSchema` cannot carry the first —
+ * Gemini rejects the keyword outright, which is why the wire schema is
+ * hand-written — so a strict request fails at the door on those models
+ * (`muse-spark` answered 400 in under a second). Non-strict still sends the
+ * whole shape as guidance; the guarantee was never the wire schema but
+ * `generatedDishSchema` and `PoolBuilder`'s gates downstream. Measured on the
+ * same prompt: strict, 400; non-strict, two valid dishes.
+ *
+ * @knipignore Exported for its spec; the provider below is its only caller.
+ */
+export function nonStrictSchema(body: Record<string, unknown>): Record<string, unknown> {
+  const format = body['response_format'] as { json_schema?: Record<string, unknown>; type?: string } | undefined;
+
+  if (format?.type !== 'json_schema' || !format.json_schema) {
+    return body;
+  }
+
+  return { ...body, response_format: { ...format, json_schema: { ...format.json_schema, strict: false } } };
+}
+
+/**
+ * How many times the SDK repeats a failed call before the caller hears of it.
+ *
+ * Zero behind a gateway, because the gateway already retries, and better: it
+ * moves a failed call to the next model of its combo instead of asking the one
+ * that just failed again. Repeating the request after the gateway gave up
+ * repeats its whole wait — a model that hung to OmniRoute's 180 s limit held
+ * one slot for nine minutes over three tries, before `PoolBuilder` could reach
+ * for the library. Every other provider keeps the SDK's own default of two:
+ * nothing else retries for them.
+ */
+export function resolveMaxRetries(env: Env): number {
+  return env.AI_PROVIDER === 'omniroute' ? 0 : 2;
 }
 
 function required(value: string | undefined, name: string): string {

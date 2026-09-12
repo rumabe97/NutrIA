@@ -6,7 +6,7 @@ import { AnalyticsController } from 'core/controllers/Analytics';
 import { AiClient } from './AiClient.js';
 import { isQuotaExhausted } from './quota.js';
 import { redactSecrets } from './redact.js';
-import { AI_MODEL } from '../ai.config.js';
+import { AI_MAX_RETRIES, AI_MODEL } from '../ai.config.js';
 
 import type { AiRequest, AiResponse } from './AiClient.js';
 import type { LanguageModel } from 'ai';
@@ -22,7 +22,11 @@ import type { LanguageModel } from 'ai';
 export class StructuredAiClient extends AiClient {
   private readonly logger = new Logger(StructuredAiClient.name);
 
-  constructor(@Inject(AI_MODEL) private readonly model: LanguageModel | null) {
+  constructor(
+    @Inject(AI_MODEL) private readonly model: LanguageModel | null,
+    // Per provider, from `resolveMaxRetries`: none behind a gateway that retries itself.
+    @Inject(AI_MAX_RETRIES) private readonly maxRetries: number
+  ) {
     super();
   }
 
@@ -38,7 +42,7 @@ export class StructuredAiClient extends AiClient {
     const model = typeof this.model === 'string' ? this.model : this.model.modelId;
 
     try {
-      const result = await generateObject({ model: this.model, prompt, schema, system });
+      const result = await generateObject({ maxRetries: this.maxRetries, model: this.model, prompt, schema, system });
       const usage = { calls: 1, inputTokens: result.usage.inputTokens ?? 0, model, outputTokens: result.usage.outputTokens ?? 0 };
 
       // Counted here rather than at a caller because this is the only place a

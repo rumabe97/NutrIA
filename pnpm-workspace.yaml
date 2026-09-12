@@ -29,3 +29,6 @@ minimumReleaseAgeExclude:
   - '@better-auth/prisma-adapter@1.7.3'
   - '@better-auth/telemetry@1.7.3'
   - better-auth@1.7.3
+  - '@ai-sdk/openai-compatible@3.0.48'
+  - '@ai-sdk/provider-utils@5.0.40'
+  - '@ai-sdk/provider@4.0.14'

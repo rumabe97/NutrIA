@@ -168,13 +168,29 @@ export class PoolBuilder {
           continue;
         }
 
-        succeeded += 1;
         metadata.calls += round.value.usage.calls;
         metadata.inputTokens += round.value.usage.inputTokens;
         metadata.model = round.value.usage.model;
         metadata.outputTokens += round.value.usage.outputTokens;
 
-        for (const dish of round.value.object.dishes) {
+        // `wirePoolSchema` is deliberately loose (see its own comment: Gemini
+        // rejects the stricter keywords outright), so nothing here has checked
+        // that a *parsed* response actually has a `dishes` array — only that it
+        // parsed as JSON at all. A provider whose "JSON mode" is looser than
+        // Gemini's or Anthropic's tool-calling can hand back well-formed JSON
+        // shaped some other way, and this round is a failure to report, not a
+        // crash to propagate through the whole build.
+        const dishes = round.value.object.dishes;
+
+        if (!Array.isArray(dishes)) {
+          metadata.providerError = 'the model returned JSON without a "dishes" array';
+          this.logger.error(`Pool generation attempt ${attempt} against ${metadata.model} was not shaped { dishes: [...] }`);
+          continue;
+        }
+
+        succeeded += 1;
+
+        for (const dish of dishes) {
           const candidate = this.validate(dish, context, accepted);
 
           if (!candidate) {
