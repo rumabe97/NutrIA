@@ -105,6 +105,12 @@ log are the same for every provider.
   called the fallback model once more with the same correlation id after answering, and
   its log shows probes to models this service never asks for. They spend free quota; they
   are the gateway's configuration to change, not this code's.
+- **On the platform a call can outlive its aborted signal** (**confirmed** in production,
+  2026-09-12: the function's log listed one gateway request as still waiting when the
+  function was killed at 300 s, well past its budget). The client therefore gives up on
+  a call at its budget whatever the transport does, and the job runner fails a
+  generation still running at 280 s — so a stuck call costs the model's dishes, never
+  the plan or a frozen screen.
 - **A combo hop costs real time.** The first model failing after 48 seconds and the
   second answering in 17 made a 65-second call (**confirmed**). The budget in §2 is what
   keeps a string of those inside the function.

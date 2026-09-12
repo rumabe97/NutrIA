@@ -431,6 +431,8 @@ export const esES = {
       SCHEDULING_MEALS: 'Repartiendo las comidas de los 14 días',
       VALIDATING_PLAN: 'Comprobando que todo encaja'
     },
+    timedOutBody: 'El modelo no terminó a tiempo. No se ha guardado nada a medias, así que puedes volver a intentarlo.',
+    timedOutTitle: 'Ha tardado demasiado',
     title: 'Estamos creando tu plan',
     unsafeBody:
       'Hemos bloqueado el plan porque una comida no respetaba tus alergias. Preferimos no darte nada antes que darte algo que no puedes comer.',

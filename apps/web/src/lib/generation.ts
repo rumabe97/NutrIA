@@ -24,6 +24,7 @@ const CAN_RETRY: Record<string, boolean> = {
   GENERATION_ONBOARDING_INCOMPLETE: false,
   GENERATION_POOL_TOO_SMALL: true,
   GENERATION_PROFILE_INCOMPLETE: false,
+  GENERATION_TIMED_OUT: true,
   GENERATION_UNSAFE_CONTENT: true
 };
 
@@ -37,6 +38,7 @@ export function generationError(code: string | null, dictionary: Dictionary): Ge
     GENERATION_ONBOARDING_INCOMPLETE: { body: g.onboardingIncompleteBody, title: g.onboardingIncompleteTitle },
     GENERATION_POOL_TOO_SMALL: { body: g.poolTooSmallBody, title: g.poolTooSmallTitle },
     GENERATION_PROFILE_INCOMPLETE: { body: g.profileIncompleteBody, title: g.profileIncompleteTitle },
+    GENERATION_TIMED_OUT: { body: g.timedOutBody, title: g.timedOutTitle },
     GENERATION_UNSAFE_CONTENT: { body: g.unsafeBody, title: g.unsafeTitle }
   };
 
