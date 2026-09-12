@@ -1,12 +1,13 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
 import { RecipeController } from 'core/controllers/Recipe';
+import { isAboutTheBrief, lowerIngredientNames, methodMentions } from 'core/domain/Method';
 
 import { ENV } from '../../../config/index.js';
 
 import { AI_REWRITE_CLIENT } from '../ai.config.js';
 import { AiCallError, AiClient } from '../clients/AiClient.js';
-import { buildRewritePrompt } from '../prompts/RewritePrompt.js';
+import { buildRewritePrompt, REWRITE_SYSTEM_PROMPT } from '../prompts/RewritePrompt.js';
 import { isQuotaExhausted } from '../clients/quota.js';
 import { languageName, STEPS_VERSION } from '../prompts/PoolPrompt.js';
 import { rewrittenStepsSchema, wireRewriteSchema } from '../prompts/rewrite.schema.js';
@@ -16,8 +17,6 @@ import type { AiResponse } from '../clients/AiClient.js';
 import type { Env } from '../../../config/index.js';
 import type { RewrittenSteps } from '../prompts/rewrite.schema.js';
 import type { UndocumentedRecipe } from 'core/controllers/Recipe';
-
-const SYSTEM = 'You rewrite cooking methods. You never change the dish, its ingredients or its timings — only how clearly the method is written.';
 
 /**
  * What one sweep may spend in time, and how.
@@ -61,7 +60,9 @@ export type RewriteRun = {
  * **Only `instructions` changes.** Ingredients, grams, macros and every figure a
  * past plan already computed are untouched, so a rewrite cannot alter what a
  * plan says anyone ate — and cannot reach the allergy layer, which matches on
- * ingredient ids and never on prose.
+ * ingredient ids and never on prose. The prose is read back instead
+ * (`methodMentions`): a rewrite that names a food the dish does not contain, or
+ * never says where one of its own goes, is refused before it is stored.
  *
  * Best-effort and bounded, like the illustrator: a refusal is counted and
  * skipped, and the recipe is simply swept again next time. Bounded in time as
@@ -96,6 +97,8 @@ export class RecipeRewriter {
     const deadline = Date.now() + this.limits.sweepMs;
     const pending = await RecipeController.pendingStepUpgrades(STEPS_VERSION, limit);
     const queue = [...pending];
+    // One read of the catalogue per language per sweep, not one per recipe.
+    const vocabularies = new Map<string, Promise<readonly string[]>>();
     let rewritten = 0;
     let skipped = 0;
     let stopped = false;
@@ -110,7 +113,7 @@ export class RecipeRewriter {
       }
 
       try {
-        await this.rewrite(recipe, AbortSignal.timeout(remaining));
+        await this.rewrite(recipe, AbortSignal.timeout(remaining), vocabularies);
         rewritten += 1;
       } catch (error: unknown) {
         skipped += 1;
@@ -143,14 +146,14 @@ export class RecipeRewriter {
     return { pending: pending.length, rewritten, skipped, unreached: queue.length };
   }
 
-  private async rewrite(recipe: UndocumentedRecipe, signal: AbortSignal): Promise<void> {
+  private async rewrite(recipe: UndocumentedRecipe, signal: AbortSignal, vocabularies: Map<string, Promise<readonly string[]>>): Promise<void> {
     const request = {
       prompt: buildRewritePrompt(recipe, languageName(recipe.locale)),
       schema: wireRewriteSchema,
       // Files every call of a recipe together in a gateway's own log.
       session: `rewrite:${recipe.id}`,
       signal,
-      system: SYSTEM
+      system: REWRITE_SYSTEM_PROMPT
     };
     // Raced here too, not only inside the client: whichever `AiClient` is bound,
     // a call that outlives the sweep is abandoned rather than awaited.
@@ -164,12 +167,72 @@ export class RecipeRewriter {
       throw new Error(parsed.error.issues.map(issue => `${issue.path.join('.')} ${issue.message}`).join('; '));
     }
 
+    // Read back before it is stored: the ingredient list was checked against
+    // somebody's allergies, and these words were not.
+    const mentions = methodMentions({
+      dish: recipe.ingredients.map(item => item.name),
+      steps: parsed.data.steps,
+      vocabulary: await vocabularyFor(recipe.locale, vocabularies)
+    });
+
+    if (mentions.foreign.length > 0) {
+      throw new Error(`names ${mentions.foreign.join(', ')}, which the dish does not contain`);
+    }
+
+    if (mentions.missing.length > 0) {
+      throw new Error(`never says where ${mentions.missing.join(', ')} goes`);
+    }
+
+    if (parsed.data.steps.some(step => isAboutTheBrief(`${step.text} ${step.cue ?? ''}`))) {
+      throw new Error('writes about its instructions instead of the method');
+    }
+
     // An empty cue and a zero duration are the wire saying "none"; store neither.
-    const steps = parsed.data.steps.map(step => ({ ...step, cue: step.cue || undefined, minutes: step.minutes || undefined }));
+    // Names lose the catalogue's capital inside a sentence ("pela el boniato"),
+    // and a field's name echoed into the prose — "(`1 minutes`)", seen on a real
+    // rewrite — is taken out: the text is what a cook reads.
+    const names = recipe.ingredients.map(item => item.name);
+    const prose = (text: string): string => lowerIngredientNames(withoutFieldNames(text), names);
+    const steps = parsed.data.steps.map(step => ({
+      ...step,
+      cue: step.cue ? prose(step.cue) : undefined,
+      minutes: step.minutes || undefined,
+      text: prose(step.text)
+    }));
 
     await RecipeController.rewriteSteps(recipe.id, steps, STEPS_VERSION);
     this.logger.log(describeCall(recipe.id, response, steps.length));
   }
+}
+
+/**
+ * A step's text without the wire's vocabulary: a backticked aside, a stray
+ * backtick, or a zero-minute clause ("sin cocción, durante 0 minutos"), each seen
+ * on a real rewrite. A step that takes no time says none.
+ */
+function withoutFieldNames(text: string): string {
+  return text
+    .replace(/\s*\(`[^`]*`\)/g, '')
+    .replace(/`/g, '')
+    .replace(/,?\s*(?:sin cocción,\s*)?durante 0 minutos?/giu, '')
+    .replace(/,?\s*for 0 minutes?/giu, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/** The catalogue's foods in one language, read once per sweep however many of its recipes are rewritten. */
+function vocabularyFor(locale: string, cache: Map<string, Promise<readonly string[]>>): Promise<readonly string[]> {
+  const known = cache.get(locale);
+
+  if (known) {
+    return known;
+  }
+
+  const vocabulary = RecipeController.methodVocabulary(locale);
+
+  cache.set(locale, vocabulary);
+
+  return vocabulary;
 }
 
 /** One line per rewrite, the way `PoolBuilder` logs a call: who answered, how long, the tokens. */

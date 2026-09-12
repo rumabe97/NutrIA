@@ -132,6 +132,16 @@ export const RecipeController = {
     return RecipeRepository.findImage(recipeId);
   },
 
+  /**
+   * Every food the catalogue knows, by name, in one language — what a rewritten
+   * method is read against, so that it names no food its dish does not contain.
+   */
+  async methodVocabulary(locale: string): Promise<readonly string[]> {
+    const catalogue = await RecipeRepository.loadCatalogue(locale);
+
+    return catalogue.map(ingredient => ingredient.name);
+  },
+
   /** What the illustrator still has to draw. Bounded, oldest first. */
   async pendingIllustrations(
     limit: number
