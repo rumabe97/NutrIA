@@ -326,7 +326,10 @@ point; an unrecognised error becomes a bare 500. Driver messages carry connectio
 Zod issues describe the schema, stacks carry paths.
 
 **Responses default to `no-store`.** Absent an explicit directive, RFC 9111 lets a shared
-cache apply heuristic freshness to an authenticated body — here, someone's health data.
+cache apply heuristic freshness to an authenticated body — here, someone's health data. The
+one copy kept on purpose is the offline worker's: today's screen and the shopping list, on
+the device, for as long as the session lasts, never an API response
+([`0053`](./decisions/0053-the-shopping-list-survives-the-supermarket.md)).
 
 **Account deletion actually deletes.** Every user-scoped table references `user.id` with
 `ON DELETE CASCADE`. That cascade is the privacy control, not a convenience.

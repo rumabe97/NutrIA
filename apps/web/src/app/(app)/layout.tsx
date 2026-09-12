@@ -3,6 +3,7 @@ import styles from './layout.module.css';
 import { activeLocale } from 'i18n/server';
 
 import { AppNav } from 'components/AppNav';
+import { OfflineCopy } from 'components/OfflineCopy';
 
 import { redirectUnlessReady } from 'lib/access';
 
@@ -31,12 +32,17 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function AppLayout({ children }: Readonly<{ children: ReactNode }>) {
   const [locale] = await Promise.all([activeLocale(), redirectUnlessReady()]);
+  // When this screen was made. A server component runs once per request, so
+  // this is the request's moment, not a value that drifts between renders.
+  const renderedAt = new Date().getTime();
 
   return (
     <RootShell locale={locale}>
       <div className={styles.shell}>
         <AppNav />
         <main className={styles.content} id={MAIN_ID}>
+          {/* Stamped with the moment this screen was made, so a stored copy can say how old it is (`0053`). */}
+          <OfflineCopy renderedAt={renderedAt} />
           {children}
         </main>
       </div>

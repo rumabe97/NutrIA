@@ -225,7 +225,9 @@ the scheduler or the safety layer changes for it.
    where the signal drops. Web push can carry the check-in reminder, and iOS delivers it
    to a web app added to the home screen (16.4 onwards). Days of work, no store and no
    fee, and it answers whether people want the product on their phone before paying for
-   that.
+   that. *Installable and readable offline since 2026-09-12
+   ([`0053`](./decisions/0053-the-shopping-list-survives-the-supermarket.md)); web push
+   for the check-in is what remains.*
 2. **Then native, with Expo (React Native)**, once there is something the web cannot do:
    dependable push, a place in the stores, weight read from Apple Health or Health
    Connect. One codebase for both platforms, typed from `core/controllers/*` the way the

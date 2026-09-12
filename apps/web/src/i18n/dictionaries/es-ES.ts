@@ -665,6 +665,12 @@ export const esES = {
     verdictTitle: '¿Qué te ha parecido?'
   },
 
+  offline: {
+    copyEarlier: 'Sin conexión: estás viendo la copia del {date}. Lo que marques no se guardará hasta que vuelva.',
+    copyToday: 'Sin conexión: estás viendo la copia de las {time}. Lo que marques no se guardará hasta que vuelva.',
+    offline: 'Sin conexión. Lo que marques no se guardará hasta que vuelva.'
+  },
+
   onboarding: {
     customAllergen: {
       bestEffort:

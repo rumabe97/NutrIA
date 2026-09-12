@@ -21,6 +21,11 @@ export function formatDate(isoDate: string, locale: Locale, options: Intl.DateTi
   return new Intl.DateTimeFormat(locale, options).format(new Date(`${isoDate}T00:00:00`));
 }
 
+/** A moment rather than a calendar day — milliseconds since the epoch, read in the reader's own time zone. */
+export function formatInstant(epochMs: number, locale: Locale, options: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat(locale, options).format(new Date(epochMs));
+}
+
 const KILO = 1000;
 
 /**

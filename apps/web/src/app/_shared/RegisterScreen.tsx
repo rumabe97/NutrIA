@@ -12,6 +12,7 @@ import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { withLocale } from 'i18n/routes';
 
+import { forgetOfflineCopies } from 'lib/offline';
 import { interpolate } from 'lib/format';
 import { signUp } from 'lib/auth-client';
 
@@ -55,6 +56,8 @@ export function RegisterScreen() {
       return;
     }
 
+    // A new account on a device somebody else used: their copies go first (`0053`).
+    await forgetOfflineCopies();
     router.push('/onboarding');
   }
 

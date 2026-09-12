@@ -1,0 +1,8 @@
+/* The tone of a warning, not an error: nothing is broken, it is only not live. */
+.notice {
+  background-color: var(--surface-card);
+  border: 1px solid var(--color-amber-06);
+  border-radius: var(--radius-05);
+  margin: 0 0 var(--gap-block);
+  padding: var(--space-03);
+}

@@ -38,7 +38,9 @@ const config: KnipConfig = {
       ignore: ['src/content/**', 'src/components/examples/**', 'mdx-components.tsx']
     },
     'apps/web': {
-      entry: ['eslint.config.js']
+      // The offline worker (`0053`) is fetched by the browser from its URL, which no
+      // import names.
+      entry: ['eslint.config.js', 'public/sw.js!']
     },
     'configurations/eslint': {
       entry: ['base.js!', 'node.js!', 'next.js!', 'react-internal.js!', 'monk.js!']
