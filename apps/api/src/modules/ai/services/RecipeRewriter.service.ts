@@ -171,6 +171,7 @@ export class RecipeRewriter {
     // somebody's allergies, and these words were not.
     const mentions = methodMentions({
       dish: recipe.ingredients.map(item => item.name),
+      name: recipe.name,
       steps: parsed.data.steps,
       vocabulary: await vocabularyFor(recipe.locale, vocabularies)
     });

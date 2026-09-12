@@ -93,6 +93,46 @@ describe('methodMentions', () => {
     expect(result.foreign).toEqual(['Pan de molde']);
   });
 
+  /** Measured on the stored library: 43 methods said an egg white was "cuajada" — set, not curd. */
+  it('does not take a set egg for curd', () => {
+    const result = methodMentions({
+      dish: ['Clara de huevo', 'Tomate'],
+      steps: steps('Verter las claras sobre el tomate y remover hasta que la clara esté cuajada.'),
+      vocabulary: [...VOCABULARY, 'Cuajada']
+    });
+
+    expect(result.foreign).toEqual([]);
+  });
+
+  /** "Pechuga de pavo" in a dish of "Pavo" is the dish's turkey; "Caldo de pollo" is still a broth. */
+  it('counts a part of an ingredient as the ingredient, and a product made from it as another food', () => {
+    const parts = methodMentions({
+      dish: ['Pavo', 'Ternera magra', 'Naranja', 'Huevo'],
+      steps: steps('Cortar la pechuga de pavo y el filete de ternera en tiras.', 'Añadir el zumo de naranja y la clara de huevo.'),
+      vocabulary: ['Pechuga de pavo', 'Filete de ternera', 'Zumo de naranja', 'Clara de huevo', 'Caldo de ternera']
+    });
+    const broth = methodMentions({
+      dish: ['Ternera magra'],
+      steps: steps('Mojar la ternera con caldo de ternera.'),
+      vocabulary: ['Caldo de ternera']
+    });
+
+    expect(parts.foreign).toEqual([]);
+    expect(broth.foreign).toEqual(['Caldo de ternera']);
+  });
+
+  /** Three stored methods called their dish by its name: "el arroz negro", "el guacamole", "el pico de gallo". */
+  it('does not count the dish’s own name as a food it adds', () => {
+    const result = methodMentions({
+      dish: ['Arroz', 'Calamar', 'Tinta de calamar'],
+      name: 'Arroz negro con calamares',
+      steps: steps('Sofreír el calamar, añadir el arroz y la tinta de calamar y dejar que el arroz negro se haga.'),
+      vocabulary: ['Arroz negro', 'Arroz', 'Calamar', 'Tinta de calamar']
+    });
+
+    expect(result.foreign).toEqual([]);
+  });
+
   /** A real rewrite was refused for "dorada por fuera": golden, not the sea bream. */
   it('does not mistake a cook’s ordinary words for the fish or fruit they also name', () => {
     const result = methodMentions({

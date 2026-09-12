@@ -53,7 +53,9 @@ const ALWAYS_ALLOWED: ReadonlySet<string> = new Set([
  */
 const ALSO_A_WORD: ReadonlySet<string> = new Set([
   'bonito', // pretty
+  'cuajada', // set, of an egg — 43 stored methods said "hasta que la clara esté cuajada"
   'dorada', // golden
+  'gallo', // "pico de gallo", a salsa
   'mango', // a pan's handle
   'naranja', // the colour
   'orange', // the colour
@@ -88,16 +90,22 @@ const QUALIFIERS: ReadonlySet<string> = new Set([
   'fresh',
   'frozen',
   'ground',
+  'gruesa',
+  'grueso',
   'integral',
   'la',
   'las',
   'los',
+  'magra',
+  'magro',
   'molida',
   'molido',
   'natural',
   'of',
   'picada',
   'picado',
+  'rallada',
+  'rallado',
   'raw',
   'seca',
   'seco',
@@ -107,6 +115,47 @@ const QUALIFIERS: ReadonlySet<string> = new Set([
   'with',
   'y'
 ]);
+
+/**
+ * Words that name a part of a food rather than another food: the breast or the
+ * thigh of the bird on the list, the white of its egg, the juice or the zest of
+ * its orange. "Pechuga de pavo" in a dish of "Pavo" is the dish's turkey.
+ */
+const PARTS: ReadonlySet<string> = new Set([
+  'alitas',
+  'clara',
+  'claras',
+  'contramuslo',
+  'dientes',
+  'filete',
+  'filetes',
+  'hojas',
+  'lomo',
+  'loncha',
+  'lonchas',
+  'muslo',
+  'pechuga',
+  'piel',
+  'pierna',
+  'ralladura',
+  'solomillo',
+  'yema',
+  'yemas',
+  'zumo'
+]);
+
+/**
+ * Whether a catalogue food is one of the dish's ingredients under a more
+ * particular name: take away the parts and the states, and what is left is all
+ * in the ingredient's own name. "Filete de ternera" in a dish of "Ternera
+ * magra" is; "Caldo de pollo" in a dish of "Pechuga de pollo" is not — broth is
+ * not a part of a chicken breast.
+ */
+function isPartOf(food: readonly string[], ingredient: readonly string[]): boolean {
+  const core = food.filter(word => !PARTS.has(word) && !QUALIFIERS.has(word));
+
+  return core.length > 0 && core.every(word => ingredient.some(own => sameWord(own, word)));
+}
 
 function words(text: string): string[] {
   return normaliseForMatching(text).split(' ').filter(Boolean);
@@ -135,12 +184,19 @@ function containsRun(haystack: readonly string[], needle: readonly string[]): bo
 export function methodMentions(input: {
   /** The dish's ingredients, by the names the method is written in. */
   readonly dish: readonly string[];
+  /**
+   * The dish's own name. A method that calls the dish what it is — "el arroz
+   * negro", "el guacamole" of a bowl named for it — adds no food; the stored
+   * library had three such.
+   */
+  readonly name?: string;
   readonly steps: readonly { readonly cue?: string; readonly text: string }[];
   /** Every food the catalogue knows, in the same language. */
   readonly vocabulary: readonly string[];
 }): MethodMentions {
   const text = words(input.steps.map(step => `${step.text} ${step.cue ?? ''}`).join(' '));
   const dishWords = input.dish.map(words);
+  const title = words(input.name ?? '');
 
   const missing = input.dish.filter((name, index) => {
     const all = dishWords[index] ?? [];
@@ -158,8 +214,13 @@ export function methodMentions(input: {
           return false;
         }
 
-        // The dish's own ingredient under a shorter name is not a foreign food.
-        return !dishWords.some(ingredient => containsRun(ingredient, food)) && containsRun(text, food);
+        // The dish's own ingredient under a shorter name, or under a more
+        // particular one, is not a foreign food.
+        return (
+          !dishWords.some(ingredient => containsRun(ingredient, food) || isPartOf(food, ingredient)) &&
+          !containsRun(title, food) &&
+          containsRun(text, food)
+        );
       })
     )
   ];
