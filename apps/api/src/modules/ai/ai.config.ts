@@ -10,6 +10,9 @@ export const AI_MODEL = Symbol('AI_MODEL');
 export const AI_IMAGE_MODEL = Symbol('AI_IMAGE_MODEL');
 export const AI_CALL_SETTINGS = Symbol('AI_CALL_SETTINGS');
 
+/** How long the model half of a pool build may take in all, in milliseconds — `AI_BUDGET_SECONDS`. */
+export const AI_MODEL_BUDGET = Symbol('AI_MODEL_BUDGET');
+
 /** How each call is made, which depends on who is on the other end. */
 export type AiCallSettings = {
   /** How many times the SDK repeats a failed call before the caller hears of it. */

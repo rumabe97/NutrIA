@@ -60,6 +60,14 @@ function optional<T extends z.ZodType>(schema: T) {
 const envObject = z.object({
   AI_BASE_URL: optional(z.url()),
   /*
+   * How long the model half of a generation may take in all — every round of
+   * calls together (`0050`). The default is what fits inside the 300-second
+   * function `vercel.json` gives a generation, with room left to schedule and
+   * save the plan in the same invocation; when it runs out, the library covers
+   * what the model did not bring. A host with no function limit raises it.
+   */
+  AI_BUDGET_SECONDS: z.preprocess(value => (value === '' ? undefined : value), z.coerce.number().int().min(30).max(3600).default(170)),
+  /*
    * Off by default: the configured provider's free tier allows zero image
    * generations, so this is the switch the owner throws once billing is on.
    * When off, no image model is resolved and the sweeps do nothing (0010).

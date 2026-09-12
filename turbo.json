@@ -3,6 +3,7 @@
   "ui": "tui",
   "globalEnv": [
     "AI_BASE_URL",
+    "AI_BUDGET_SECONDS",
     "AI_ILLUSTRATIONS",
     "AI_MODEL",
     "AI_PROVIDER",

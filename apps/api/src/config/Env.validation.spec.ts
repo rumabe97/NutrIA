@@ -183,6 +183,18 @@ describe('AI provider and model pairing', () => {
   });
 });
 
+describe('AI_BUDGET_SECONDS', () => {
+  it('defaults to what fits inside a 300-second function, including when copied empty', () => {
+    expect(validateEnv({ ...valid }).AI_BUDGET_SECONDS).toBe(170);
+    expect(validateEnv({ ...valid, AI_BUDGET_SECONDS: '' }).AI_BUDGET_SECONDS).toBe(170);
+  });
+
+  it('takes a host’s own figure, and refuses one too short for any model to answer in', () => {
+    expect(validateEnv({ ...valid, AI_BUDGET_SECONDS: '600' }).AI_BUDGET_SECONDS).toBe(600);
+    expect(() => validateEnv({ ...valid, AI_BUDGET_SECONDS: '5' })).toThrow(/AI_BUDGET_SECONDS/);
+  });
+});
+
 /*
  * A default that production refuses is a trap, not a default: the first
  * production deploy failed on SWAGGER_ENABLED, which nobody had set. Unset now

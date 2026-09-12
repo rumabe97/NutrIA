@@ -21,6 +21,8 @@ export type AiRequest<T> = {
   readonly schema: FlexibleSchema<T>;
   /** Files the call under a session in a gateway's own log — a generation's job id. Direct providers are not sent it. */
   readonly session?: string;
+  /** Ends the call when the generation's time budget does; it then fails as a `timeout`. */
+  readonly signal?: AbortSignal;
   readonly system: string;
 };
 
@@ -30,8 +32,12 @@ export type AiResponse<T> = { readonly call?: AiCall; readonly object: T; readon
 /** A call that failed, with what the provider said about it. */
 export type AiFailure = {
   readonly gateway: GatewayCall | null;
-  /** `invalid_output`: the model answered, but not to the schema. `provider`: the provider or the gateway refused or failed. */
-  readonly kind: 'invalid_output' | 'provider';
+  /**
+   * `invalid_output`: the model answered, but not to the schema. `provider`: the
+   * provider or the gateway refused or failed. `timeout`: the generation's time
+   * budget ended the call before it answered.
+   */
+  readonly kind: 'invalid_output' | 'provider' | 'timeout';
   /** The model that was asked for. */
   readonly model: string;
   readonly ms: number;

@@ -5,8 +5,11 @@ export type DishRejection = 'allergen' | 'duplicate' | 'over_time' | 'schema' | 
 
 /** What a failed call said about itself. */
 export type AiCallFailure = {
-  /** `invalid_output`: answered, not to the schema. `provider`: refused or failed. `shape`: valid JSON, not `{ dishes }`. */
-  readonly kind: 'invalid_output' | 'provider' | 'shape';
+  /**
+   * `invalid_output`: answered, not to the schema. `provider`: refused or failed.
+   * `shape`: valid JSON, not `{ dishes }`. `timeout`: the time budget ended it first.
+   */
+  readonly kind: 'invalid_output' | 'provider' | 'shape' | 'timeout';
   /** The provider's own message, redacted and bounded. */
   readonly message: string;
   /** What a quota refusal said about the allowance — Google writes the limit into the message. */

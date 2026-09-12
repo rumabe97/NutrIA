@@ -749,3 +749,65 @@ describe('PoolBuilder — the call log', () => {
     expect(result.metadata.aiCalls).toEqual([]);
   });
 });
+
+/**
+ * The time budget (`0050`). A generation runs inside one 300-second function,
+ * and a combo that failed hop after hop once took 645 seconds: the model half
+ * has to end on its own, and leave the library to cover what it did not bring.
+ */
+describe('PoolBuilder — the time budget', () => {
+  const preferences = {
+    avoidNames: [],
+    breakfastStyle: null,
+    budget: null,
+    cookingFrequency: null,
+    cookingTimeMinutes: 30,
+    cuisines: [],
+    dayShape: null,
+    dietaryPatterns: [],
+    dislikedLabels: [],
+    dislikedNames: [],
+    goal: null,
+    likedLabels: [],
+    lovedNames: [],
+    portionPreference: null,
+    scheduleNotes: null,
+    slotShares: new Map(),
+    targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
+  };
+
+  it('stops waiting for a model at the end of the budget, and says the budget ran out', async () => {
+    // A model that never answers: only the budget's signal ends the call.
+    const generate = jest.fn(
+      async <T>({ signal }: AiRequest<T>): Promise<AiResponse<T>> =>
+        new Promise<AiResponse<T>>((_resolve, reject) => {
+          signal?.addEventListener('abort', () =>
+            reject(new AiCallError('AI_TIMEOUT', { gateway: null, kind: 'timeout', model: 'NutrIA-Fallback', ms: 50, quota: null, status: null }))
+          );
+        })
+    );
+    const client = { generate, isAvailable: true } as unknown as AiClient;
+    const started = Date.now();
+    const result = await new PoolBuilder(client, 50).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+
+    expect(Date.now() - started).toBeLessThan(2000);
+    expect(result.metadata.outOfTime).toBe(true);
+    expect(result.metadata.aiCalls).toEqual([expect.objectContaining({ error: expect.objectContaining({ kind: 'timeout' }), slot: 'lunch' })]);
+  });
+
+  it('does not start a later round without the time to bring something back', async () => {
+    // One dish where five are wanted, so a second round is due; ten seconds leave no room for it.
+    const { client, generate } = stubClient([{ dishes: [dish('Arroz con pollo', ['lunch'], ['arroz', 'pollo'])] }]);
+    const result = await new PoolBuilder(client, 10_000).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+
+    expect(generate).toHaveBeenCalledTimes(1);
+    expect(result.metadata.outOfTime).toBe(true);
+  });
+
+  it('leaves a build that finished in time unmarked', async () => {
+    const { client } = stubClient([{ dishes: Array.from({ length: DISHES_NEEDED_PER_SLOT }, (_u, i) => dish(`Plato ${i}`, ['lunch'])) }]);
+    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+
+    expect(result.metadata.outOfTime).toBeUndefined();
+  });
+});

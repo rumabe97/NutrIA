@@ -41,7 +41,7 @@ export class StructuredAiClient extends AiClient {
     return this.model !== null;
   }
 
-  async generate<T>({ prompt, schema, session, system }: AiRequest<T>): Promise<AiResponse<T>> {
+  async generate<T>({ prompt, schema, session, signal, system }: AiRequest<T>): Promise<AiResponse<T>> {
     if (!this.model) {
       throw new Error('No AI model configured; check AI_PROVIDER');
     }
@@ -53,7 +53,15 @@ export class StructuredAiClient extends AiClient {
     const started = Date.now();
 
     try {
-      const result = await generateObject({ headers, maxRetries: this.settings.maxRetries, model: this.model, prompt, schema, system });
+      const result = await generateObject({
+        abortSignal: signal,
+        headers,
+        maxRetries: this.settings.maxRetries,
+        model: this.model,
+        prompt,
+        schema,
+        system
+      });
       const usage = { calls: 1, inputTokens: result.usage.inputTokens ?? 0, model, outputTokens: result.usage.outputTokens ?? 0 };
       const call: AiCall = {
         answeredModel: result.response.modelId || null,
@@ -97,10 +105,15 @@ export class StructuredAiClient extends AiClient {
       // found") is the single most useful thing an operator can be told, and this
       // product is self-hosted — the operator *is* the user. Redacted, then carried
       // rather than replaced with a constant that says nothing.
-      const detail = redactSecrets([error instanceof Error ? error.message : 'Unknown AI failure', body].filter(Boolean).join(' — '));
+      // Ended by the generation's time budget rather than by the provider: said
+      // as such, so the log reads "the model was slow", not "the key or the quota".
+      const timedOut = !invalid && signal?.aborted === true;
+      const detail = timedOut
+        ? `AI_TIMEOUT: no answer within the generation's time budget (${Math.round((Date.now() - started) / 1000)} s)`
+        : redactSecrets([error instanceof Error ? error.message : 'Unknown AI failure', body].filter(Boolean).join(' — '));
       const failure: AiFailure = {
         gateway: readGateway(api?.responseHeaders ?? invalid?.response?.headers),
-        kind: invalid ? 'invalid_output' : 'provider',
+        kind: invalid ? 'invalid_output' : timedOut ? 'timeout' : 'provider',
         model,
         ms: Date.now() - started,
         quota: readQuota(detail),
@@ -117,7 +130,8 @@ export class StructuredAiClient extends AiClient {
         quotaExhausted: isQuotaExhausted(error),
         quotaLimit: failure.quota?.limit ?? null,
         retryAfterSeconds: failure.quota?.retryAfterSeconds ?? null,
-        status: failure.status
+        status: failure.status,
+        timedOut
       });
 
       // The model's raw text can contain anything, including a partial dish. It is
@@ -129,7 +143,12 @@ export class StructuredAiClient extends AiClient {
         throw new AiCallError('AI_INVALID_OUTPUT: el modelo no devolvió un objeto válido para el esquema', failure, { cause: error });
       }
 
-      this.logger.error(`AI provider rejected the request: ${detail}`);
+      if (timedOut) {
+        this.logger.warn(detail);
+      } else {
+        this.logger.error(`AI provider rejected the request: ${detail}`);
+      }
+
       throw new AiCallError(detail, failure, { cause: error });
     }
   }

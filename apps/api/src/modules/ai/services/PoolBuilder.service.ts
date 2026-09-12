@@ -1,9 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
 import { dishSafety, findSafetyViolations } from 'core/domain/Safety';
 import { withinTime } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
+import { AI_MODEL_BUDGET } from '../ai.config.js';
 import { AiCallError, AiClient } from '../clients/AiClient.js';
 import { buildPoolPrompt, languageName, POOL_SYSTEM_PROMPT, PROMPT_VERSION } from '../prompts/PoolPrompt.js';
 import { generatedDishSchema, wirePoolSchema } from '../prompts/pool.schema.js';
@@ -27,6 +28,12 @@ const MAX_ATTEMPTS = 3;
 /** How much of a provider's message a call's record keeps: enough for the quota line, never a page. */
 const MESSAGE_LIMIT = 400;
 
+/** The model half's whole time when the module passes none — as when a spec builds this by hand. */
+const DEFAULT_MODEL_BUDGET_MS = 170_000;
+
+/** A later round with less than this left cannot bring a dish back in time; the library covers the rest. */
+const MIN_ROUND_MS = 15_000;
+
 export type PoolResult = {
   readonly dishes: readonly CandidateDish[];
   readonly generated: readonly CandidateDish[];
@@ -39,6 +46,8 @@ export type PoolResult = {
     readonly calls: number;
     readonly inputTokens: number;
     readonly model: string;
+    /** Set when the time budget cut the model short: a call timed out, or a later round never started. */
+    readonly outOfTime?: true;
     readonly outputTokens: number;
     readonly promptVersion: string;
     /** Set when a configured provider actually failed, as opposed to being absent. */
@@ -83,9 +92,16 @@ type Verdict = { readonly dish: CandidateDish } | { readonly reason: DishRejecti
  */
 @Injectable()
 export class PoolBuilder {
+  private readonly budgetMs: number;
   private readonly logger = new Logger(PoolBuilder.name);
 
-  constructor(private readonly ai: AiClient) {}
+  constructor(
+    private readonly ai: AiClient,
+    // The model half's whole time, from `AI_BUDGET_SECONDS` (`0050`).
+    @Optional() @Inject(AI_MODEL_BUDGET) budgetMs?: number
+  ) {
+    this.budgetMs = budgetMs ?? DEFAULT_MODEL_BUDGET_MS;
+  }
 
   async build({
     backfill = [],
@@ -105,6 +121,7 @@ export class PoolBuilder {
       calls: 0,
       inputTokens: 0,
       model: 'none',
+      outOfTime: undefined as true | undefined,
       outputTokens: 0,
       promptVersion: PROMPT_VERSION,
       providerError: undefined as string | undefined,
@@ -121,6 +138,7 @@ export class PoolBuilder {
     const safeIngredients = [...context.catalogue.values()].filter(
       ingredient => isSafeIngredient(ingredient, context) && isWantedIngredient(ingredient, context)
     );
+    const deadline = Date.now() + this.budgetMs;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
       let needBySlot = shortfall(slots, [...accepted.values()], needPerSlot);
@@ -155,7 +173,20 @@ export class PoolBuilder {
         break;
       }
 
+      // One budget for every round, so a slow model cannot hold a job past the
+      // function's own limit (`0050`): the first round has all of it, and a
+      // later one starts only with enough left to bring something back.
+      const remaining = deadline - Date.now();
+
+      if (attempt > 1 && remaining < MIN_ROUND_MS) {
+        metadata.outOfTime = true;
+        this.logger.warn(`The model's ${this.budgetMs / 1000} s are spent; the library covers what is still short`);
+        break;
+      }
+
       metadata.attempts = attempt;
+
+      const signal = AbortSignal.timeout(Math.max(remaining, 1));
 
       // One request per slot, all at once. Latency is set by the longest single
       // response, and a response for one slot is a quarter the size of one for
@@ -176,6 +207,7 @@ export class PoolBuilder {
             ),
             schema: wirePoolSchema,
             session,
+            signal,
             system: POOL_SYSTEM_PROMPT
           })
         )
@@ -193,6 +225,10 @@ export class PoolBuilder {
         if (round.status === 'rejected') {
           const error: unknown = round.reason;
           const failure = error instanceof AiCallError ? error.failure : undefined;
+
+          if (failure?.kind === 'timeout') {
+            metadata.outOfTime = true;
+          }
 
           metadata.providerError = error instanceof Error ? error.message : 'unknown';
           this.logger.error(`Pool generation attempt ${attempt} failed against ${metadata.model}: ${metadata.providerError}`);
