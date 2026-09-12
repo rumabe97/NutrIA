@@ -56,7 +56,8 @@ that setup lives now rather than here.
 ## Next, in this order
 
 Seven things the owner asked for on 2026-09-10, analysed against the code and
-reordered by what each unblocks. The order is a recommendation; the owner decides.
+reordered by what each unblocks, and an eighth added on 2026-09-12 — the apps (§8). The
+order is a recommendation; the owner decides.
 
 Four are delivered. Of the two that remain, one is recommended against, which leaves
 **premium** — and its own entry says what it waits on: something worth paying for and
@@ -163,12 +164,12 @@ cannot read anybody's food, an analytics event carries no content.
 Premium sells the thing that costs money to the people who value it. Advertising
 sells the people.
 
-### 7. Generation through a gateway — built, waiting on the gateway's setup (`0050`)
+### 7. Generation through a gateway — done, in production since 2026-09-12 (`0050`, `0051`)
 
 The owner's free Gemini tier is twenty requests a day, and generation spends them. An
 OpenAI-compatible gateway (OmniRoute) puts free non-Google models in front of Gemini, in
 a combo that falls from one to the next. Built on 2026-09-12, measured on a demanding
-weekly benchmark and on real regenerations, not yet in production:
+weekly benchmark and on real regenerations, and in production the same day:
 
 - the `omniroute` provider, with its key and model in the environment;
 - a log of every model call on the job — who answered, how long, the tokens, what the
@@ -178,15 +179,18 @@ weekly benchmark and on real regenerations, not yet in production:
 - the dish ceilings the store already had — fifteen ingredients, eight servings,
   six-hundred-character steps — which recovered sixty of seventy-seven rejections.
 
-What is left, in order — the first two are the owner's, on the gateway and the API
-project, and [`docs/reference/ai-gateway.md`](./reference/ai-gateway.md) is the checklist:
+The gateway's setup and the API's environment were the owner's
+([`docs/reference/ai-gateway.md`](./reference/ai-gateway.md) is the checklist); the code
+went out in #27 and #28. Production then found two things no benchmark had:
 
-1. The gateway: the combo's order, its execution limit, and the permissions of the key
-   the API will use.
-2. The API's environment on the platform.
-3. Push, pull request and merge. The deploy applies one migration, a nullable column on
-   the generation jobs.
-4. One generation in production, read back on `/admin`.
+- **A call that outlived its signal.** The first regeneration hung on one model call the
+  platform never cut, and the screen waited on it. A call is now abandoned at its budget
+  whatever the transport does, and a generation fails itself at 280 seconds
+  (`GENERATION_TIMED_OUT`), so the worst case is "try again", never a frozen screen.
+- **A plan inside its macros that still read wrong** — a 388-kcal lunch beside a
+  1,247-kcal dinner, tuna in nine meals, pasta at breakfast. `0051`: each meal near its
+  share of the day, a main protein once a day, no dish back the next day, breakfast that
+  is breakfast.
 
 Measured along the way and worth doing after, none of it blocking:
 
@@ -204,6 +208,44 @@ Measured along the way and worth doing after, none of it blocking:
   models nobody asked for. Its configuration, but it spends the same free quota.
 - **If the budget cuts often**, generation belongs on a host without a function limit —
   the owner's own server, beside the gateway — rather than behind a queue service.
+
+### 8. The apps in the stores — Android and iOS, after premium, in two steps
+
+The owner's request of 2026-09-12. It comes after premium on purpose: the stores are
+where the question of how premium is paid for gets answered, and that answer should be
+chosen rather than discovered in review.
+
+Everything an app needs is already behind one boundary. The browser never touches the
+database; every piece of data arrives from the API over HTTPS; the rules live in
+`packages/core`. An app is one more client of the same API, and nothing in generation,
+the scheduler or the safety layer changes for it.
+
+1. **First, the web app made installable** — a manifest, icons, and a service worker that
+   keeps today's meals and the shopping list readable offline, since the supermarket is
+   where the signal drops. Web push can carry the check-in reminder, and iOS delivers it
+   to a web app added to the home screen (16.4 onwards). Days of work, no store and no
+   fee, and it answers whether people want the product on their phone before paying for
+   that.
+2. **Then native, with Expo (React Native)**, once there is something the web cannot do:
+   dependable push, a place in the stores, weight read from Apple Health or Health
+   Connect. One codebase for both platforms, typed from `core/controllers/*` the way the
+   web is. Wrapping the web app in Capacitor is the cheaper road, and the right one if all
+   that is wanted is the store listing.
+
+To settle before step 2, and none of it is code:
+
+- **Payments.** A digital subscription sold inside an iOS or Android app goes through
+  the store's own purchase, at 15–30%, so Stripe (§5) covers the web alone. Either the
+  apps sell premium through the stores, or they sell nothing and premium stays a web
+  purchase. The rules on pointing to a web price differ by country and have been
+  changing; read them when this starts, not from here.
+- **Sessions.** Better Auth signs a browser in with a cookie. An app needs a token kept
+  in the device's secure storage, and the API's guards must accept both.
+- **Review of a health app.** The privacy labels declare health data, deleting the
+  account must be reachable inside the app (it is on the web), and anything the app says
+  about conditions and medication keeps the boundaries in `PRODUCT.md`.
+- **What it costs.** Apple's developer programme is 99 USD a year, Google's a one-off
+  25 USD, and signing for iOS needs a Mac or a cloud build (Expo's has a free tier).
 
 ## Later / someday
 
