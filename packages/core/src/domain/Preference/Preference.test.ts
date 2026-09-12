@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { NO_PREFERENCE_EXCLUSIONS, PATTERN_EXCLUSIONS, resolvePreferences, withinTime } from 'core/domain/Preference';
+import { NO_PREFERENCE_EXCLUSIONS, PATTERN_EXCLUSIONS, resolvePreferences, timeAllowance, withinTime } from 'core/domain/Preference';
 import { makeCatalogueIngredient } from '#test/fixtures';
 
 import type { CatalogueIngredient } from 'core/entities/Plan';
@@ -124,9 +124,25 @@ describe('resolvePreferences — a way of eating', () => {
 describe('withinTime — the minutes they said they have', () => {
   const dish = (prepMinutes: number, cookMinutes: number) => ({ cookMinutes, prepMinutes });
 
-  it('counts prep and cooking together, against the limit', () => {
-    expect(withinTime(dish(10, 20), 30)).toBe(true);
-    expect(withinTime(dish(10, 21), 30)).toBe(false);
+  it('counts prep and cooking together, against the limit and its margin', () => {
+    // Thirty minutes admits forty: a fifth more, rounded up to the next ten.
+    expect(withinTime(dish(10, 30), 30)).toBe(true);
+    expect(withinTime(dish(10, 31), 30)).toBe(false);
+  });
+
+  /**
+   * The minutes on a dish are an estimate, and a strict limit dropped dishes for
+   * a minute over it. The owner's rule: a fifth more, always rounded up to ten.
+   */
+  it('allows a fifth more than the limit, rounded up to the next ten minutes', () => {
+    expect(timeAllowance(30)).toBe(40);
+    expect(timeAllowance(55)).toBe(70);
+    expect(timeAllowance(28)).toBe(40);
+    expect(timeAllowance(15)).toBe(20);
+    expect(timeAllowance(60)).toBe(80);
+    // An exact multiple of ten is not pushed to the next one.
+    expect(timeAllowance(25)).toBe(30);
+    expect(timeAllowance(50)).toBe(60);
   });
 
   it('lets everything through when no limit was set', () => {

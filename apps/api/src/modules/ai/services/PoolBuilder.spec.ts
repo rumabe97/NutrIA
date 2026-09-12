@@ -748,6 +748,25 @@ describe('PoolBuilder — the call log', () => {
 
     expect(result.metadata.aiCalls).toEqual([]);
   });
+
+  it('keeps a dish a little over the time limit, and drops one past its margin', async () => {
+    // Thirty minutes admits forty (`timeAllowance`): 35 stays, 41 goes. The extra
+    // minutes are prep, so a long cook's floor on steps (`domain/Method`) is not
+    // what decides it.
+    const quick = { ...dish('Arroz a la cubana', ['lunch'], ['arroz', 'tomate']), prepMinutes: 25 };
+    const slow = { ...dish('Estofado de pollo', ['lunch'], ['pollo', 'tomate']), prepMinutes: 31 };
+    const { client } = stubClient([{ dishes: [quick, slow] }]);
+    const result = await new PoolBuilder(client).build({
+      context: { ...context(), preferences: { ...NO_PREFERENCE_EXCLUSIONS, maxMinutesPerDish: 30 } },
+      preferences,
+      reusable: [],
+      slots: ['lunch']
+    });
+
+    expect(result.generated.map(generated => generated.name)).toContain('Arroz a la cubana');
+    expect(result.generated.map(generated => generated.name)).not.toContain('Estofado de pollo');
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({ over_time: 1 });
+  });
 });
 
 /**

@@ -417,7 +417,7 @@ export class PoolBuilder {
     // The prompt states the limit; this is what makes it true.
     if (!withinTime(dish, context.preferences.maxMinutesPerDish)) {
       this.logger.warn(
-        `Dish "${dish.name}" rejected: ${dish.prepMinutes + dish.cookMinutes} min over their ${String(context.preferences.maxMinutesPerDish)} min limit`
+        `Dish "${dish.name}" rejected: ${dish.prepMinutes + dish.cookMinutes} min, over their ${String(context.preferences.maxMinutesPerDish)} min limit and its margin`
       );
 
       return { reason: 'over_time' };
