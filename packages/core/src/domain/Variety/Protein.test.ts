@@ -68,7 +68,7 @@ describe('mainProtein', () => {
 describe('proteinCap', () => {
   /** The numbers, pinned: loosening them is the change worth noticing. */
   it('is once a day and one meal in ten, never under two a plan', () => {
-    expect(PROTEIN_RULES).toEqual({ mealsPerAppearance: 10, perDay: 1 });
+    expect(PROTEIN_RULES).toEqual({ mealsPerAppearance: 10, perDay: 1, perSlot: 3 });
     expect(proteinCap(56)).toBe(6);
     expect(proteinCap(42)).toBe(5);
     expect(proteinCap(14)).toBe(2);

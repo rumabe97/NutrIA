@@ -54,9 +54,21 @@ export const medicationSchema = z.object({ id: z.uuid(), name: z.string().min(1)
 
 export type Medication = z.infer<typeof medicationSchema>;
 
+/**
+ * What a supplement is (`0052`), as a short list rather than a guess from its
+ * name. The kind decides two things: whether protein grams mean anything —
+ * only `protein` carries them, creatine has none — and whether protein
+ * supplements may appear in this person's dishes at all.
+ */
+export const SUPPLEMENT_KINDS = ['protein', 'creatine', 'vitamins_minerals', 'omega_3', 'other'] as const;
+
+export type SupplementKind = (typeof SUPPLEMENT_KINDS)[number];
+
 export const supplementSchema = z.object({
   id: z.uuid(),
+  kind: z.enum(SUPPLEMENT_KINDS),
   name: z.string().min(1),
+  /** Null for every kind but `protein`. */
   proteinGPerServing: z.number().nullable(),
   servingsPerDay: z.number().int()
 });
@@ -83,7 +95,10 @@ export const setHealthDataSchema = z.object({
   supplements: z
     .array(
       z.object({
+        // Defaulted, so a client that predates kinds still saves; its rows are "other".
+        kind: z.enum(SUPPLEMENT_KINDS).default('other'),
         name: z.string().trim().min(1).max(120),
+        /** Kept only for a `protein` supplement; any other kind stores none. */
         proteinGPerServing: z.number().min(0).max(200).nullish(),
         servingsPerDay: z.number().int().min(1).max(10).default(1)
       })
