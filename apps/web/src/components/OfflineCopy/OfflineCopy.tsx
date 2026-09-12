@@ -77,13 +77,13 @@ export function OfflineCopy({ renderedAt }: Readonly<{ renderedAt: number }>) {
   const copy = useSyncExternalStore(unchanging, () => copyOf(renderedAt), neverOnServer);
 
   useEffect(() => {
-    refreshOfflineCopies();
+    void refreshOfflineCopies();
   }, [pathname]);
 
   useEffect(() => {
     function onHidden() {
       if (document.visibilityState === 'hidden') {
-        refreshOfflineCopies(true);
+        void refreshOfflineCopies(true);
       }
     }
 

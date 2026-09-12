@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { runInNewContext } from 'node:vm';
 
-import { OFFLINE_PAGES_CACHE } from './offline';
+import { forgetOfflineCopies, OFFLINE_PAGES_CACHE, refreshOfflineCopies } from './offline';
 
 /*
  * The worker is plain JavaScript served as is from `public/`, so this loads that
@@ -290,5 +290,32 @@ describe('the offline worker', () => {
     await worker.request('/compra');
 
     expect(worker.stored(ASSETS)).toEqual(['/_next/static/chunks/new.js']);
+  });
+});
+
+describe('the page asking the worker', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it('reaches a worker that does not control the page yet, as on the first visit', async () => {
+    const postMessage = vi.fn();
+
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubGlobal('navigator', { serviceWorker: { controller: null, ready: Promise.resolve({ active: { postMessage } }) } });
+    await refreshOfflineCopies();
+
+    expect(postMessage).toHaveBeenCalledWith({ force: false, type: 'refresh' });
+  });
+
+  it('forgets without waiting for a worker that never came', async () => {
+    const deleted = vi.fn(async () => true);
+
+    vi.stubGlobal('navigator', { serviceWorker: { getRegistration: async () => undefined, ready: new Promise(() => undefined) } });
+    vi.stubGlobal('caches', { delete: deleted });
+    await forgetOfflineCopies();
+
+    expect(deleted).toHaveBeenCalledWith(OFFLINE_PAGES_CACHE);
   });
 });
