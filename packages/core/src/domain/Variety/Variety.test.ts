@@ -26,8 +26,18 @@ describe('canPlace', () => {
     expect(canPlace('paella', 'lunch', clear, placements(['paella', 'lunch', 1]))).toBe(true);
   });
 
-  it('allows the same dish in a different slot on the next day', () => {
-    expect(canPlace('paella', 'dinner', 2, placements(['paella', 'lunch', 1]))).toBe(true);
+  /**
+   * A dish that suits lunch and dinner was dinner one day and lunch the next
+   * on a real plan: the slot gap never saw it, because the slots differed.
+   */
+  it('blocks the same dish in another slot on the same day or the next', () => {
+    expect(canPlace('paella', 'dinner', 1, placements(['paella', 'lunch', 1]))).toBe(false);
+    expect(canPlace('paella', 'dinner', 2, placements(['paella', 'lunch', 1]))).toBe(false);
+    expect(canPlace('paella', 'lunch', 1, placements(['paella', 'dinner', 2]))).toBe(false);
+  });
+
+  it('allows it in another slot once the plan-wide gap has passed', () => {
+    expect(canPlace('paella', 'dinner', 1 + VARIETY_RULES.minDaysBetween, placements(['paella', 'lunch', 1]))).toBe(true);
   });
 
   it('blocks a dish that has hit the per-plan cap', () => {
@@ -47,8 +57,8 @@ describe('canPlace', () => {
    * the change worth noticing — "certain meals are repeated each week" was this
    * pair of numbers, not a scheduling bug.
    */
-  it('is at most twice a fortnight, never within four days', () => {
-    expect(VARIETY_RULES).toEqual({ maxOccurrencesPerPlan: 2, minDaysBetweenSameSlot: 4 });
+  it('is at most twice a fortnight, never within four days in one slot, never on consecutive days', () => {
+    expect(VARIETY_RULES).toEqual({ maxOccurrencesPerPlan: 2, minDaysBetween: 2, minDaysBetweenSameSlot: 4 });
   });
 
   it('does not let one dish be blocked by another dish history', () => {
@@ -96,5 +106,13 @@ describe('varietyViolations', () => {
 
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ dayIndex: 3, kind: 'repeated_in_slot_too_soon' });
+  });
+
+  it('flags the same dish back to back in different slots as its own kind', () => {
+    const dinner = { ...day(1, ['a']), meals: day(1, ['a']).meals.map(meal => ({ ...meal, slot: 'dinner' as const })) };
+    const found = varietyViolations([dinner, day(2, ['a'])]);
+
+    expect(found).toHaveLength(1);
+    expect(found[0]).toMatchObject({ dayIndex: 2, kind: 'repeated_too_soon', slot: 'lunch' });
   });
 });

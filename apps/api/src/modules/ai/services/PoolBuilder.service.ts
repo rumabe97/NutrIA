@@ -188,6 +188,12 @@ export class PoolBuilder {
 
       const signal = AbortSignal.timeout(Math.max(remaining, 1));
 
+      // Which slots a round asks for and how much time it has: the line that
+      // says, in a platform's log, where a generation was when it stopped.
+      this.logger.log(
+        `AI round ${attempt}: ${wanted.join(', ')}, with ${Math.round(remaining / 1000)} s of the budget left${session ? ` [${session}]` : ''}`
+      );
+
       // One request per slot, all at once. Latency is set by the longest single
       // response, and a response for one slot is a quarter the size of one for
       // four; the token cost is the same either way.

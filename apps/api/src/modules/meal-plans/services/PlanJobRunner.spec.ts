@@ -19,7 +19,7 @@ async function settle(): Promise<void> {
   });
 }
 
-function build(generate: () => Promise<string>) {
+function build(generate: (...args: Parameters<PlanGenerationService['generate']>) => Promise<string>) {
   const start = jest.spyOn(PlanJobController, 'start').mockResolvedValue(JOB);
   const markStarted = jest.spyOn(PlanJobController, 'markStarted').mockResolvedValue(undefined);
   const markStep = jest.spyOn(PlanJobController, 'markStep').mockResolvedValue(undefined);
@@ -110,6 +110,46 @@ describe('PlanJobRunner', () => {
 
     await runner.start('usr-1');
     await expect(settle()).resolves.toBeUndefined();
+  });
+});
+
+/**
+ * A model call once outlived its budget on the platform, and the job sat
+ * `running` until the function was killed at 300 s while the screen waited on
+ * it. The runner now fails the job itself before then (`0050`).
+ */
+describe('PlanJobRunner — the deadline', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+    jest.restoreAllMocks();
+  });
+
+  it('fails a generation still running at the deadline, with a code the screen explains', async () => {
+    jest.useFakeTimers();
+    const { markFailed, markSucceeded, runner } = build(async () => new Promise<string>(() => undefined));
+
+    await runner.start('usr-1');
+    await jest.advanceTimersByTimeAsync(280_000);
+
+    expect(markFailed).toHaveBeenCalledWith('job-1', 'GENERATION_TIMED_OUT', expect.stringContaining('280 s'));
+    expect(markSucceeded).not.toHaveBeenCalled();
+  });
+
+  it('does not mark the failed job running again when a late stage reports in', async () => {
+    jest.useFakeTimers();
+    const { markStep, runner } = build(async (_userId, _jobId, step, _record, deadline) => {
+      await new Promise(resolve => {
+        deadline?.addEventListener('abort', resolve);
+      });
+      await step('SCHEDULING_MEALS');
+
+      return 'plan-late';
+    });
+
+    await runner.start('usr-1');
+    await jest.advanceTimersByTimeAsync(280_000);
+
+    expect(markStep).not.toHaveBeenCalledWith('job-1', 'SCHEDULING_MEALS');
   });
 });
 

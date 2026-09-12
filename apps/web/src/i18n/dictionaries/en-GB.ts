@@ -424,6 +424,8 @@ export const enGB: Dictionary = {
       SCHEDULING_MEALS: 'Spreading the meals across the 14 days',
       VALIDATING_PLAN: 'Checking everything adds up'
     },
+    timedOutBody: 'The model did not finish in time. Nothing was saved half-finished, so you can try again.',
+    timedOutTitle: 'It took too long',
     title: 'We are building your plan',
     unsafeBody:
       'We blocked the plan because a meal did not respect your allergies. We would rather give you nothing than give you something you cannot eat.',
