@@ -219,6 +219,17 @@ describe('buildPoolPrompt', () => {
   });
 
   /**
+   * 3.2.2. The prompt said "fifteen is a shopping trip" while the schema
+   * refused thirteen; the model believed the prompt. The two now say the same.
+   */
+  it('states the ingredient ceiling and the servings the schema enforces', () => {
+    const prompt = buildPoolPrompt(context(), []);
+
+    expect(prompt).toContain('Never more than fifteen, salt, spices and oil included');
+    expect(prompt).toContain('Declare between one and eight servings.');
+  });
+
+  /**
    * A tripwire, not a spec. The rewrite sweep re-writes the method of every
    * recipe whose stamp differs from this, with a model call each. Change it only
    * with the steps rules, and change this test on purpose when you do.

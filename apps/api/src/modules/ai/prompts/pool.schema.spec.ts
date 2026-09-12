@@ -154,4 +154,21 @@ describe('the strict schema still enforces what the wire schema cannot', () => {
 
     expect(parsed.success && parsed.data.ingredients.map(item => item.slug)).toEqual(['brocoli', 'salmon-fresco']);
   });
+
+  /**
+   * 3.2.2. The ceilings are what the store keeps (`candidateDishSchema`), no
+   * tighter: on one day's calls, lower ones refused 41 dishes for their
+   * seasonings, 11 lunches for a batch of six and 10 for a documented step.
+   */
+  it('accepts fifteen ingredients, a batch of eight and a six-hundred-character step, and nothing past them', () => {
+    const ingredients = (count: number) => Array.from({ length: count }, (_unused, index) => ({ grams: 10, slug: `ingrediente-${index}` }));
+    const step = (length: number) => ({ text: 'Remover a fuego medio '.padEnd(length, '.') });
+
+    expect(generatedDishSchema.safeParse({ ...valid, ingredients: ingredients(15) }).success).toBe(true);
+    expect(generatedDishSchema.safeParse({ ...valid, ingredients: ingredients(16) }).success).toBe(false);
+    expect(generatedDishSchema.safeParse({ ...valid, servings: 8 }).success).toBe(true);
+    expect(generatedDishSchema.safeParse({ ...valid, servings: 9 }).success).toBe(false);
+    expect(generatedDishSchema.safeParse({ ...valid, steps: [step(600), step(40)] }).success).toBe(true);
+    expect(generatedDishSchema.safeParse({ ...valid, steps: [step(601), step(40)] }).success).toBe(false);
+  });
 });

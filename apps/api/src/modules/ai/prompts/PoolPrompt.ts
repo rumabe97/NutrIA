@@ -67,8 +67,13 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * model shown bare slugs wrote some back with their accents — "brócoli",
  * "calabacín" — and each such dish was rejected as unknown. `pool.schema.ts`
  * now folds the accents before the lookup.
+ * 3.2.2: the ingredient ceiling is stated, and raised. The prompt said "fifteen
+ * is a shopping trip" while the schema refused thirteen, so a large lunch came
+ * back with fourteen and all seven were dropped. Fifteen now, salt, spices and
+ * oil included, in both; one to eight servings and six-hundred-character
+ * steps, as the store allows.
  */
-export const PROMPT_VERSION = '3.2.1';
+export const PROMPT_VERSION = '3.2.2';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -544,7 +549,8 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
       catalogue,
       '',
       'Each dish lists its ingredients in grams for the number of servings you declare.',
-      'Aim for four to eight ingredients in a main dish, two to four in a snack; fifteen is a shopping trip.'
+      'Aim for five to ten ingredients in a main dish, two to five in a snack. Never more than fifteen, salt, spices and oil included — a dish with more is rejected.',
+      'Declare between one and eight servings.'
     ]
       // Null is an optional line with nothing to say; an empty string is a
       // section break, and a model follows a sectioned brief better than a wall.
