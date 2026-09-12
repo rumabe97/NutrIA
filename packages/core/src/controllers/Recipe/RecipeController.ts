@@ -3,6 +3,8 @@ import { rotatePool } from 'core/domain/Variety';
 import { dishSafety } from 'core/domain/Safety';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
+import { HealthRepository } from '#repositories/Health';
+import { proteinSupplementExclusions } from 'core/domain/Health';
 import { resolvePreferences, withinTime } from 'core/domain/Preference';
 import { SafetyController } from 'core/controllers/Safety';
 import { NotFoundError, PlanPausedError } from 'core/entities/Error';
@@ -106,23 +108,30 @@ export const RecipeController = {
     // than about the request that happens to trigger the job (`0034`).
     const country = profile?.country ?? null;
 
-    const [catalogue, safety, dietaryPatterns, foodPreferences, preferred] = await Promise.all([
+    const [catalogue, safety, dietaryPatterns, foodPreferences, preferred, takesProteinSupplement] = await Promise.all([
       RecipeRepository.loadCatalogue(locale, country),
       SafetyController.getSafetyProfile(userId),
       ProfileRepository.findDietaryPatterns(userId),
       ProfileRepository.findFoodPreferences(userId),
-      ProfileRepository.findPreferences(userId)
+      ProfileRepository.findPreferences(userId),
+      HealthRepository.takesProteinSupplement(userId)
     ]);
 
     // Resolved here, once, for the same reason the safety profile is: a rule
     // rebuilt at each call site is a rule that disagrees with itself.
-    const preferences = resolvePreferences({
+    const resolved = resolvePreferences({
       dietaryPatterns,
       dislikedLabels: foodPreferences.filter(item => item.sentiment === 'disliked').map(item => item.label),
       ingredients: catalogue,
       likedLabels: foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label),
       maxMinutesPerDish: preferred?.cookingTimeMinutes ?? null
     });
+    // Protein powder is for the people who take it (`0052`). Excluded the way a
+    // dislike is, so the prompt, the library and the gate all agree — and what
+    // reaches the model is a catalogue without it, never the supplement.
+    const supplements = proteinSupplementExclusions(takesProteinSupplement, catalogue);
+    const preferences =
+      supplements.size === 0 ? resolved : { ...resolved, excludedIngredientIds: new Set([...resolved.excludedIngredientIds, ...supplements]) };
 
     return { catalogue: toCatalogue(catalogue), locale, preferences, safety };
   },

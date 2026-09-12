@@ -8,7 +8,7 @@ function slotsForTest(mealsPerDay: number, includesSnacks: boolean) {
   return slotsIn(shapeFor(mealsPerDay, includesSnacks));
 }
 
-import { mainProtein, proteinCap, VARIETY_RULES, varietyViolations } from 'core/domain/Variety';
+import { mainProtein, PROTEIN_RULES, proteinCap, VARIETY_RULES, varietyViolations } from 'core/domain/Variety';
 import { isBlocking, validatePlan } from 'core/domain/PlanValidation';
 import { makeCatalogue, makeCatalogueIngredient, makeDish, makePool, TARGETS } from '#test/fixtures';
 
@@ -826,18 +826,22 @@ describe('schedulePlan — one main protein, once a day (PROTEIN_RULES)', () => 
     }
 
     const perPlan = new Map<string, number>();
+    const perSlot = new Map<string, number>();
 
     for (const day of result.assignment.days) {
       const today = day.meals.map(meal => mainProtein(meal.dish, proteinCatalogue) ?? 'none');
 
       expect(new Set(today).size, `day ${day.dayIndex}: ${today.join(', ')}`).toBe(today.length);
 
-      for (const kind of today) {
+      for (const [index, kind] of today.entries()) {
         perPlan.set(kind, (perPlan.get(kind) ?? 0) + 1);
+        perSlot.set(`${day.meals[index]?.slot}:${kind}`, (perSlot.get(`${day.meals[index]?.slot}:${kind}`) ?? 0) + 1);
       }
     }
 
     expect(Math.max(...perPlan.values())).toBeLessThanOrEqual(proteinCap(42));
+    // Ten proteins a meal is room enough for the per-meal allowance itself.
+    expect(Math.max(...perSlot.values())).toBeLessThanOrEqual(PROTEIN_RULES.perSlot);
   });
 
   it('still gives somebody a plan when the pool is one protein throughout', () => {

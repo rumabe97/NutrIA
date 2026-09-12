@@ -1,4 +1,4 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -55,6 +55,7 @@ export const HealthRepository = {
         db
           .select({
             id: supplements.id,
+            kind: supplements.kind,
             name: supplements.name,
             proteinGPerServing: supplements.proteinGPerServing,
             servingsPerDay: supplements.servingsPerDay
@@ -102,16 +103,18 @@ export const HealthRepository = {
         }
 
         if (input.supplements.length > 0) {
-          await tx
-            .insert(supplements)
-            .values(
-              input.supplements.map(s => ({
-                name: s.name,
-                proteinGPerServing: s.proteinGPerServing === null || s.proteinGPerServing === undefined ? null : String(s.proteinGPerServing),
-                servingsPerDay: s.servingsPerDay,
-                userId
-              }))
-            );
+          await tx.insert(supplements).values(
+            input.supplements.map(s => ({
+              kind: s.kind,
+              name: s.name,
+              // Protein grams mean something for a protein supplement only
+              // (`0052`); a figure sent against creatine is not stored.
+              proteinGPerServing:
+                s.kind !== 'protein' || s.proteinGPerServing === null || s.proteinGPerServing === undefined ? null : String(s.proteinGPerServing),
+              servingsPerDay: s.servingsPerDay,
+              userId
+            }))
+          );
         }
 
         const consent = { grantedAt: new Date(), version: input.consentVersion };
@@ -123,6 +126,25 @@ export const HealthRepository = {
       });
     } catch (error: unknown) {
       throw wrap(error, 'health data');
+    }
+  },
+
+  /**
+   * Whether this person records a protein supplement (`0052`) — the one fact
+   * about their supplements generation reads. Not the name, not the dose, and
+   * nothing else in the health section.
+   */
+  async takesProteinSupplement(userId: string): Promise<boolean> {
+    try {
+      const rows = await database()
+        .select({ id: supplements.id })
+        .from(supplements)
+        .where(and(eq(supplements.userId, userId), eq(supplements.kind, 'protein')))
+        .limit(1);
+
+      return rows.length > 0;
+    } catch (error: unknown) {
+      throw wrap(error, 'supplements');
     }
   }
 };

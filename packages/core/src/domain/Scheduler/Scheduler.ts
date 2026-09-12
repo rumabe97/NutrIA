@@ -271,7 +271,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
         .filter(dish => perServing.has(dish.slug))
         .filter(dish => canPlace(dish.slug, slot, dayIndex, placed));
 
-      const chosen = pickBest(eligible, budget, perServing, placed, slug => crowded(slug, dayIndex, placed, proteins, cap));
+      const chosen = pickBest(eligible, budget, perServing, placed, slug => crowded(slug, { dayIndex, slot }, placed, proteins, cap));
 
       if (!chosen) {
         return {
@@ -539,45 +539,70 @@ function proteinIndex(pool: readonly CandidateDish[], catalogue: Catalogue): Pro
   return new Map(pool.map(dish => [dish.slug, mainProtein(dish, catalogue)]));
 }
 
+/** A day's meal as the protein rules see it: its main protein, and which meal it is. */
+type ProteinMeal = { readonly protein: string | null; readonly slot: MealSlot };
+
+/** Meals per main protein over a plan, and within each meal of it, keyed `slot:protein`. */
+type ProteinCounts = { readonly bySlot: ReadonlyMap<string, number>; readonly plan: ReadonlyMap<string, number> };
+
+const NO_PROTEIN_COUNTS: ProteinCounts = { bySlot: new Map(), plan: new Map() };
+
 /** Meals per main protein in these placements. A dish from outside the pool counts for nothing. */
-function proteinCounts(placements: readonly Placement[], proteins: ProteinIndex): ReadonlyMap<string, number> {
-  const counts = new Map<string, number>();
+function proteinCounts(placements: readonly Placement[], proteins: ProteinIndex): ProteinCounts {
+  const plan = new Map<string, number>();
+  const bySlot = new Map<string, number>();
 
   for (const placement of placements) {
     const protein = proteins.get(placement.dishSlug);
 
     if (protein) {
-      counts.set(protein, (counts.get(protein) ?? 0) + 1);
+      plan.set(protein, (plan.get(protein) ?? 0) + 1);
+      bySlot.set(`${placement.slot}:${protein}`, (bySlot.get(`${placement.slot}:${protein}`) ?? 0) + 1);
     }
   }
 
-  return counts;
+  return { bySlot, plan };
 }
 
 /**
- * How far one day's main proteins break `PROTEIN_RULES`, given the rest of
- * the plan: each repeat inside the day, and each appearance past the cap.
+ * How many of one day's meals break `PROTEIN_RULES`, given the rest of the
+ * plan — each meal once per rule it breaks: a repeat inside the day, a meal
+ * past the fortnight's cap, a meal past the three its slot may have.
+ *
+ * Counted by the meal, never by how far the plan is already over. Summed as the
+ * overshoot, a slot six hake dinners past its line made one more hake cost as
+ * much as four repeats — enough to buy a day 10% off its energy on the
+ * end-to-end suite's three-protein dinners. A meal over the line is one meal.
  */
-function proteinExcess(day: readonly (string | null)[], elsewhere: ReadonlyMap<string, number>, cap: number): number {
+function proteinExcess(day: readonly ProteinMeal[], elsewhere: ProteinCounts, cap: number): number {
   const counts = new Map<string, number>();
+  let excess = 0;
 
-  for (const protein of day) {
+  for (const { protein, slot } of day) {
     if (protein) {
       counts.set(protein, (counts.get(protein) ?? 0) + 1);
+      // A day has one meal per slot, so this meal is the slot's only addition.
+      excess += (elsewhere.bySlot.get(`${slot}:${protein}`) ?? 0) >= PROTEIN_RULES.perSlot ? 1 : 0;
     }
   }
 
-  let excess = 0;
-
   for (const [protein, count] of counts) {
-    excess += Math.max(0, count - PROTEIN_RULES.perDay) + Math.max(0, (elsewhere.get(protein) ?? 0) + count - cap);
+    const room = Math.max(0, cap - (elsewhere.plan.get(protein) ?? 0));
+
+    excess += Math.max(0, count - PROTEIN_RULES.perDay) + Math.max(0, count - room);
   }
 
   return excess;
 }
 
-/** Whether this dish would repeat a main protein the day already has, or pass its fortnight's allowance. */
-function crowded(slug: string, dayIndex: number, placed: readonly Placement[], proteins: ProteinIndex, cap: number): boolean {
+/** Whether this dish would repeat a main protein the day already has, or pass its fortnight's or its meal's allowance. */
+function crowded(
+  slug: string,
+  at: { readonly dayIndex: number; readonly slot: MealSlot },
+  placed: readonly Placement[],
+  proteins: ProteinIndex,
+  cap: number
+): boolean {
   const protein = proteins.get(slug);
 
   if (!protein) {
@@ -586,15 +611,17 @@ function crowded(slug: string, dayIndex: number, placed: readonly Placement[], p
 
   let today = 0;
   let inPlan = 0;
+  let inSlot = 0;
 
   for (const placement of placed) {
     if (proteins.get(placement.dishSlug) === protein) {
       inPlan += 1;
-      today += placement.dayIndex === dayIndex ? 1 : 0;
+      today += placement.dayIndex === at.dayIndex ? 1 : 0;
+      inSlot += placement.slot === at.slot ? 1 : 0;
     }
   }
 
-  return today >= PROTEIN_RULES.perDay || inPlan >= cap;
+  return today >= PROTEIN_RULES.perDay || inPlan >= cap || inSlot >= PROTEIN_RULES.perSlot;
 }
 
 /**
@@ -899,8 +926,8 @@ function improveDay(
 
   for (let round = 0; round < MAX_SWAP_ROUNDS; round += 1) {
     // A repeated main protein is priced, not refused (`PROTEIN_REPEAT_WEIGHT`).
-    const today = current.map(entry => proteinOf(entry.dish.slug));
-    const repeatsOf = (day: readonly (string | null)[]): number => proteinExcess(day, elsewhere, protein.cap) * PROTEIN_REPEAT_WEIGHT;
+    const today = current.map(entry => ({ protein: proteinOf(entry.dish.slug), slot: entry.slot }));
+    const repeatsOf = (day: readonly ProteinMeal[]): number => proteinExcess(day, elsewhere, protein.cap) * PROTEIN_REPEAT_WEIGHT;
     // Priced the same way the candidates will be, or a swap could "win" against
     // a day that was never sized.
     let bestCost = balancedDay(current, targets, budgets).cost + repeatsOf(today);
@@ -925,7 +952,9 @@ function improveDay(
           continue;
         }
 
-        const repeats = repeatsOf(today.map((entry, position) => (position === index ? proteinOf(candidate.slug) : entry)));
+        const repeats = repeatsOf(
+          today.map((entry, position) => (position === index ? { protein: proteinOf(candidate.slug), slot: entry.slot } : entry))
+        );
         const servings = servingsFor(base, budget);
         const swapped = current.map((entry, position) =>
           position === index ? { base, dish: candidate, servings, slot: entry.slot, sortOrder: entry.sortOrder } : entry
@@ -1040,8 +1069,8 @@ function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]
   // counts cannot change; only a day's own repeats can.
   const repeatsIn = (picks: readonly Pick[]): number =>
     proteinExcess(
-      picks.map(pick => proteins.get(pick.dish.slug) ?? null),
-      new Map(),
+      picks.map(pick => ({ protein: proteins.get(pick.dish.slug) ?? null, slot: pick.slot })),
+      NO_PROTEIN_COUNTS,
       Number.POSITIVE_INFINITY
     );
   const resized = (day: BuiltDay, index: number, replacement: Pick): Pick[] =>

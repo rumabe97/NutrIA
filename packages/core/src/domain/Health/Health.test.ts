@@ -5,18 +5,20 @@ import {
   CONDITION_EXCLUSIONS,
   CONDITION_SUGGESTIONS,
   conditionImplications,
+  PROTEIN_SUPPLEMENT_SLUGS,
+  proteinSupplementExclusions,
   supervisionRecommended,
   supplementProteinG
 } from 'core/domain/Health';
 
-import type { ConditionKey, HealthCondition, Medication, Supplement } from 'core/entities/Health';
+import type { ConditionKey, HealthCondition, Medication, Supplement, SupplementKind } from 'core/entities/Health';
 
 function condition(conditionKey: ConditionKey | null, label = 'algo'): HealthCondition {
   return { id: '11111111-2222-4333-8444-555555555555', conditionKey, label };
 }
 
-function supplement(proteinGPerServing: number | null, servingsPerDay = 1): Supplement {
-  return { id: '11111111-2222-4333-8444-555555555555', name: 'Proteína', proteinGPerServing, servingsPerDay };
+function supplement(proteinGPerServing: number | null, servingsPerDay = 1, kind: SupplementKind = 'protein'): Supplement {
+  return { id: '11111111-2222-4333-8444-555555555555', kind, name: 'Proteína', proteinGPerServing, servingsPerDay };
 }
 
 const NOTHING: ReadonlyMap<ConditionKey, readonly string[]> = new Map();
@@ -129,9 +131,49 @@ describe('supervisionRecommended', () => {
   });
 });
 
+describe('protein supplements in the catalogue (0052)', () => {
+  const catalogue = [
+    { id: 'whey', slug: 'proteina-de-suero' },
+    { id: 'pea', slug: 'proteina-de-guisante' },
+    { id: 'skyr', slug: 'skyr' },
+    { id: 'yogurt', slug: 'yogur-proteico' }
+  ];
+
+  /** The list, pinned: what counts as a supplement is a decision, and an unreviewed addition should fail here. */
+  it('is exactly the protein powders, drinks and bars', () => {
+    expect(PROTEIN_SUPPLEMENT_SLUGS).toEqual([
+      'barritas-de-proteinas',
+      'bebida-de-proteinas',
+      'bebida-de-proteinas-vegetal',
+      'proteina-de-guisante',
+      'proteina-de-suero'
+    ]);
+  });
+
+  it('keeps them out of the dishes of somebody who takes no protein supplement', () => {
+    expect([...proteinSupplementExclusions(false, catalogue)].sort()).toEqual(['pea', 'whey']);
+  });
+
+  it('offers them to somebody who records one', () => {
+    expect(proteinSupplementExclusions(true, catalogue).size).toBe(0);
+  });
+
+  it('leaves food alone, a high-protein yoghurt included', () => {
+    const excluded = proteinSupplementExclusions(false, catalogue);
+
+    expect(excluded.has('skyr')).toBe(false);
+    expect(excluded.has('yogurt')).toBe(false);
+  });
+});
+
 describe('supplementProteinG', () => {
   it('is zero without supplements', () => {
     expect(supplementProteinG([])).toBe(0);
+  });
+
+  /** Creatine has no protein; a number typed against it is not protein anybody eats. */
+  it('counts only protein supplements', () => {
+    expect(supplementProteinG([supplement(25, 1), supplement(5, 1, 'creatine')])).toBe(25);
   });
 
   it('multiplies protein per serving by servings per day', () => {
