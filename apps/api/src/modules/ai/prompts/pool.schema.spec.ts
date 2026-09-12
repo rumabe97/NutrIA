@@ -137,4 +137,21 @@ describe('the strict schema still enforces what the wire schema cannot', () => {
     expect(parsed.success).toBe(true);
     expect(parsed.success && parsed.data.cuisine).toBeNull();
   });
+
+  /**
+   * 3.2.1. Shown bare slugs, a model wrote some back with the accents a slug
+   * drops. Every catalogue slug is lowercase ASCII, so the fold lands on the one
+   * it meant — or on nothing, and the dish is rejected downstream as before.
+   */
+  it('reads a slug written with accents in the catalogue’s own spelling', () => {
+    const parsed = generatedDishSchema.safeParse({
+      ...valid,
+      ingredients: [
+        { grams: 150, slug: 'Brócoli' },
+        { grams: 80, slug: 'salmón-fresco' }
+      ]
+    });
+
+    expect(parsed.success && parsed.data.ingredients.map(item => item.slug)).toEqual(['brocoli', 'salmon-fresco']);
+  });
 });

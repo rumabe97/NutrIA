@@ -5,6 +5,24 @@ import { hasUsableMethod, METHOD_RULES } from 'core/domain/Method';
 import { MEAL_SLOTS } from 'core/entities/Plan';
 
 /**
+ * A returned slug in the catalogue's own spelling (3.2.1).
+ *
+ * Every catalogue slug is lowercase ASCII, so a model that writes "brócoli" or
+ * "calabacín" — putting back the accents a bare slug drops, which the 3.2.0
+ * list invites — can only mean `brocoli` and `calabacin`. Folded before the
+ * lookup, the dish resolves, and the allergy gate runs on the ingredient it
+ * resolved to, as for any other dish. A slug wrong in any other way
+ * ("salmón-fresco") still resolves to nothing, and the dish is still rejected.
+ */
+function canonicalSlug(slug: string): string {
+  return slug
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase()
+    .trim();
+}
+
+/**
  * What the model is allowed to return.
  *
  * Note what is absent: no calories, no macros, no ingredient names. Only catalogue
@@ -27,7 +45,7 @@ export const generatedDishSchema = z
       .array(
         z.object({
           grams: z.number().positive().max(2000).describe('Gramos para el total de raciones indicado.'),
-          slug: z.string().min(1).describe('Debe ser exactamente uno de los slugs disponibles.')
+          slug: z.string().min(1).transform(canonicalSlug).describe('Debe ser exactamente uno de los slugs disponibles.')
         })
       )
       .min(1)
