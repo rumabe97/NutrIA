@@ -41,7 +41,10 @@ const ENGLISH_NAMES: Record<string, string> = {
   [SEEDED.arroz]: 'Cooked white rice',
   [SEEDED.huevo]: 'Egg',
   [SEEDED.lentejas]: 'Cooked lentils',
-  [SEEDED.merluza]: 'Hake',
+  // The seed has said "Fresh hake" since `92d26a6`; this read "Hake" and nobody
+  // noticed, because no plan here served hake until meals kept their proteins
+  // apart (`0051`).
+  [SEEDED.merluza]: 'Fresh hake',
   [SEEDED.patata]: 'Potato',
   [SEEDED.pollo]: 'Chicken breast',
   [SEEDED.yogur]: 'Natural Greek yoghurt'
