@@ -225,7 +225,8 @@ describe('an English account, end to end', () => {
     const english = new Set(Object.values(ENGLISH_NAMES));
 
     for (const item of list.items) {
-      expect(english.has(item.name)).toBe(true);
+      // Named, so a failure says which item, since Jest's expect takes no message.
+      expect({ english: english.has(item.name), name: item.name }).toEqual({ english: true, name: item.name });
     }
   });
 
