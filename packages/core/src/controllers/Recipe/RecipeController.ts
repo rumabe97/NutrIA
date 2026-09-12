@@ -35,6 +35,13 @@ import type { SafetyProfile } from 'core/entities/Safety';
  */
 const REUSE_FETCH_LIMIT = 5000;
 
+/**
+ * How long a sweep holds the recipes it took. Longer than a sweep's own 240
+ * seconds, so no second sweep takes a recipe the first is still rewriting;
+ * short enough that one it could not finish is free again within minutes.
+ */
+const REWRITE_CLAIM_MINUTES = 5;
+
 export type GenerationContext = {
   readonly catalogue: Catalogue;
   /** The user's language. Names are resolved into it, reuse is scoped to it, and the model is told to write in it. */
@@ -85,6 +92,11 @@ function toCandidateDish(recipe: ReusableRecipe): CandidateDish {
 // --- Controller ---------------------------------------------------------------
 
 export const RecipeController = {
+  /** Recipes still written by an older prompt, held for this sweep so no other takes them. Bounded. */
+  async claimStepUpgrades(stepsVersion: string, limit: number): Promise<readonly UndocumentedRecipe[]> {
+    return RecipeRepository.claimUndocumented(stepsVersion, limit, REWRITE_CLAIM_MINUTES);
+  },
+
   /**
    * Everything a generation needs to reason about food: the catalogue, and the
    * user's safety profile as sets.
@@ -156,11 +168,6 @@ export const RecipeController = {
     limit: number
   ): Promise<readonly { readonly id: string; readonly ingredientNames: readonly string[]; readonly locale: string; readonly name: string }[]> {
     return RecipeRepository.findWithoutImage(limit);
-  },
-
-  /** Recipes still written by an older prompt, oldest first. Bounded. */
-  async pendingStepUpgrades(stepsVersion: string, limit: number): Promise<readonly UndocumentedRecipe[]> {
-    return RecipeRepository.findUndocumented(stepsVersion, limit);
   },
 
   /**

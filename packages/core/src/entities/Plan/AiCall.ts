@@ -1,7 +1,7 @@
 import type { MealSlot } from './Plan';
 
 /** Why a dish the model returned was not kept. */
-export type DishRejection = 'allergen' | 'duplicate' | 'over_time' | 'schema' | 'unknown_ingredient' | 'unwanted';
+export type DishRejection = 'allergen' | 'duplicate' | 'foreign_food' | 'over_time' | 'schema' | 'unknown_ingredient' | 'unwanted';
 
 /** What a failed call said about itself. */
 export type AiCallFailure = {

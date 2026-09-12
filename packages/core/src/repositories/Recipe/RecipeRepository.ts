@@ -1,4 +1,4 @@
-import { aliasedTable, and, eq, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { aliasedTable, and, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -49,6 +49,89 @@ export type UndocumentedRecipe = {
 };
 
 export const RecipeRepository = {
+  /**
+   * The whole ingredient catalogue, with allergen links attached.
+   *
+   * Loaded once per generation and passed down: every macro sum and every allergy
+   * check reads from this, so it must be one query rather than a lookup per
+   * ingredient inside a loop over fourteen days of meals.
+   */
+  /**
+   * Recipes whose steps predate the current prompt, with everything needed to
+   * rewrite them: the dish, its times, its ingredients in its own language, and
+   * the steps as they stand.
+   *
+   * Nothing about any person is here and nothing can be — a recipe is shared, and
+   * the rewriter is given a dish, not a diner.
+   */
+  /**
+   * Recipes still written by an older prompt, **claimed** for `holdMinutes` in
+   * the same statement that picks them.
+   *
+   * Picking and claiming are one `UPDATE … RETURNING`, over a subquery locked
+   * `FOR UPDATE SKIP LOCKED`: two sweeps started together — the owner pressing
+   * "Run" twice — each take recipes the other did not, instead of both
+   * rewriting the same twelve. A claim that outlives its sweep, because the
+   * run failed or ran out of time, lapses on its own and the recipe is taken
+   * again.
+   */
+  async claimUndocumented(stepsVersion: string, limit: number, holdMinutes: number): Promise<readonly UndocumentedRecipe[]> {
+    try {
+      const db = database();
+      const free = db
+        .select({ id: recipes.id })
+        .from(recipes)
+        .where(
+          and(
+            or(isNull(recipes.stepsVersion), ne(recipes.stepsVersion, stepsVersion)),
+            or(isNull(recipes.stepsClaimedUntil), lt(recipes.stepsClaimedUntil, sql`now()`))
+          )
+        )
+        .orderBy(recipes.id)
+        .limit(limit)
+        .for('update', { skipLocked: true });
+      const claimed = await db
+        .update(recipes)
+        .set({ stepsClaimedUntil: sql`now() + make_interval(mins => ${holdMinutes})` })
+        .where(inArray(recipes.id, free))
+        .returning({
+          id: recipes.id,
+          cookMinutes: recipes.cookMinutes,
+          locale: recipes.locale,
+          name: recipes.name,
+          prepMinutes: recipes.prepMinutes,
+          servings: recipes.servings,
+          steps: recipes.instructions
+        });
+      // `RETURNING` keeps no order; the sweep's is the recipes' own.
+      const rows = [...claimed].sort((a, b) => a.id.localeCompare(b.id));
+
+      if (rows.length === 0) {
+        return [];
+      }
+
+      const items = await db
+        .select({ grams: recipeIngredients.grams, locale: ingredientNames.locale, name: ingredientNames.name, recipeId: recipeIngredients.recipeId })
+        .from(recipeIngredients)
+        .innerJoin(ingredientNames, eq(ingredientNames.ingredientId, recipeIngredients.ingredientId))
+        .where(
+          inArray(
+            recipeIngredients.recipeId,
+            rows.map(row => row.id)
+          )
+        );
+
+      return rows.map(row => ({
+        ...row,
+        ingredients: items
+          .filter(item => item.recipeId === row.id && item.locale === row.locale)
+          .map(item => ({ grams: Number(item.grams), name: item.name }))
+      }));
+    } catch (error: unknown) {
+      throw wrap(error, 'recipes');
+    }
+  },
+
   /** The stored illustration, or nothing. Bytes only — the route adds the headers. */
   async findImage(recipeId: string): Promise<{ readonly bytes: Buffer; readonly contentType: string } | undefined> {
     try {
@@ -135,65 +218,6 @@ export const RecipeRepository = {
           steps: row.instructions
         }))
         .filter(recipe => recipe.ingredients.length > 0);
-    } catch (error: unknown) {
-      throw wrap(error, 'recipes');
-    }
-  },
-
-  /**
-   * The whole ingredient catalogue, with allergen links attached.
-   *
-   * Loaded once per generation and passed down: every macro sum and every allergy
-   * check reads from this, so it must be one query rather than a lookup per
-   * ingredient inside a loop over fourteen days of meals.
-   */
-  /**
-   * Recipes whose steps predate the current prompt, with everything needed to
-   * rewrite them: the dish, its times, its ingredients in its own language, and
-   * the steps as they stand.
-   *
-   * Nothing about any person is here and nothing can be — a recipe is shared, and
-   * the rewriter is given a dish, not a diner.
-   */
-  async findUndocumented(stepsVersion: string, limit: number): Promise<readonly UndocumentedRecipe[]> {
-    try {
-      const db = database();
-      const rows = await db
-        .select({
-          id: recipes.id,
-          cookMinutes: recipes.cookMinutes,
-          locale: recipes.locale,
-          name: recipes.name,
-          prepMinutes: recipes.prepMinutes,
-          servings: recipes.servings,
-          steps: recipes.instructions
-        })
-        .from(recipes)
-        .where(or(isNull(recipes.stepsVersion), ne(recipes.stepsVersion, stepsVersion)))
-        .orderBy(recipes.id)
-        .limit(limit);
-
-      if (rows.length === 0) {
-        return [];
-      }
-
-      const items = await db
-        .select({ grams: recipeIngredients.grams, locale: ingredientNames.locale, name: ingredientNames.name, recipeId: recipeIngredients.recipeId })
-        .from(recipeIngredients)
-        .innerJoin(ingredientNames, eq(ingredientNames.ingredientId, recipeIngredients.ingredientId))
-        .where(
-          inArray(
-            recipeIngredients.recipeId,
-            rows.map(row => row.id)
-          )
-        );
-
-      return rows.map(row => ({
-        ...row,
-        ingredients: items
-          .filter(item => item.recipeId === row.id && item.locale === row.locale)
-          .map(item => ({ grams: Number(item.grams), name: item.name }))
-      }));
     } catch (error: unknown) {
       throw wrap(error, 'recipes');
     }

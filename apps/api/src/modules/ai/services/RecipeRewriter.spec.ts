@@ -83,7 +83,7 @@ describe('RecipeRewriter', () => {
 
   /** The case the read-back exists for: the list was checked against somebody's allergies, the prose was not. */
   it('refuses a rewrite that names a food the dish does not contain, and stores nothing', async () => {
-    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE]);
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
     const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
     const seeded = {
       steps: [...GOOD.steps.slice(0, 3), { ...GOOD.steps[3], text: 'Saltear un par de minutos más y servir espolvoreado con sésamo' }]
@@ -96,7 +96,7 @@ describe('RecipeRewriter', () => {
   });
 
   it('refuses a rewrite that never says where one of the dish’s ingredients goes', async () => {
-    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE]);
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
     const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
     const noRice = {
       steps: [GOOD.steps[0], GOOD.steps[1], { ...GOOD.steps[2], text: 'Remover para que todo se impregne del fondo de la sartén' }, GOOD.steps[3]]
@@ -109,7 +109,7 @@ describe('RecipeRewriter', () => {
   });
 
   it('allows water, which a technique adds and no list carries', async () => {
-    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE]);
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
     const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
     const withWater = {
       steps: [...GOOD.steps.slice(0, 3), { ...GOOD.steps[3], text: 'Añadir un chorrito de agua, saltear un par de minutos y servir' }]
@@ -124,7 +124,7 @@ describe('RecipeRewriter', () => {
   it('reads the catalogue once per language, however many recipes it rewrites', async () => {
     const vocabulary = jest.spyOn(RecipeController, 'methodVocabulary').mockResolvedValue(VOCABULARY);
 
-    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE, { ...RECIPE, id: '22222222-2222-4222-8222-222222222222' }]);
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE, { ...RECIPE, id: '22222222-2222-4222-8222-222222222222' }]);
     jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
 
     await new RecipeRewriter(new ScriptedAi([GOOD]), ON).rewriteOutdated(10);
@@ -135,7 +135,7 @@ describe('RecipeRewriter', () => {
 
   /** A real rewrite closed a cottage-cheese cup with a step certifying its own instructions. */
   it('refuses a rewrite with a step about its brief instead of the dish', async () => {
-    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE]);
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
     const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
     const certified = { steps: [...GOOD.steps, { text: 'Todos los ingredientes listados aparecen en los pasos, sin alimentos adicionales.' }] };
 
@@ -146,7 +146,7 @@ describe('RecipeRewriter', () => {
   });
 
   it('stores an ingredient’s name without the catalogue’s capital inside a sentence', async () => {
-    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE]);
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
     const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
     const capitals = {
       steps: [
@@ -163,21 +163,21 @@ describe('RecipeRewriter', () => {
   });
 
   it('does nothing while the owner has not switched it on, however able the provider is', async () => {
-    const pending = jest.spyOn(RecipeController, 'pendingStepUpgrades');
+    const pending = jest.spyOn(RecipeController, 'claimStepUpgrades');
 
     expect(await new RecipeRewriter(new ScriptedAi([GOOD]), OFF).rewriteOutdated(10)).toEqual({ pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
     expect(pending).not.toHaveBeenCalled();
   });
 
   it('does nothing when no provider is configured', async () => {
-    const pending = jest.spyOn(RecipeController, 'pendingStepUpgrades');
+    const pending = jest.spyOn(RecipeController, 'claimStepUpgrades');
 
     expect(await new RecipeRewriter(new UnavailableAi(), ON).rewriteOutdated(10)).toEqual({ pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
     expect(pending).not.toHaveBeenCalled();
   });
 
   it('asks only for recipes an older prompt wrote, and stamps the new one', async () => {
-    const pending = jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE]);
+    const pending = jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
     const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
 
     const run = await new RecipeRewriter(new ScriptedAi([GOOD]), ON).rewriteOutdated(10);
@@ -196,7 +196,7 @@ describe('RecipeRewriter', () => {
   });
 
   it('refuses a rewrite that is still too compressed, and leaves the recipe for next time', async () => {
-    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE]);
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
     const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
 
     // Three steps for a twenty-minute cook is exactly what this exists to replace.
@@ -207,7 +207,7 @@ describe('RecipeRewriter', () => {
   });
 
   it('refuses a bare action, whatever else it returns', async () => {
-    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE]);
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
     const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
 
     const run = await new RecipeRewriter(
@@ -221,7 +221,7 @@ describe('RecipeRewriter', () => {
 
   it('stops the sweep the moment the provider says it is out of budget', async () => {
     jest
-      .spyOn(RecipeController, 'pendingStepUpgrades')
+      .spyOn(RecipeController, 'claimStepUpgrades')
       .mockResolvedValue([
         RECIPE,
         { ...RECIPE, id: '22222222-2222-4222-8222-222222222222' },
@@ -250,7 +250,7 @@ describe('RecipeRewriter', () => {
   });
 
   it('counts one failure and carries on with the rest', async () => {
-    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE, { ...RECIPE, id: '22222222-2222-4222-8222-222222222222' }]);
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE, { ...RECIPE, id: '22222222-2222-4222-8222-222222222222' }]);
     jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
 
     const run = await new RecipeRewriter(new ScriptedAi([{ steps: [] }, GOOD]), ON).rewriteOutdated(10);
@@ -305,7 +305,7 @@ describe('RecipeRewriter — inside the function’s time', () => {
   }
 
   it('abandons a call that outlives the sweep, even one that ignores its signal, and writes nothing late', async () => {
-    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue(many(3));
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue(many(3));
     const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
     const hung = new (class extends AiClient {
       get isAvailable(): boolean {
@@ -327,7 +327,7 @@ describe('RecipeRewriter — inside the function’s time', () => {
   });
 
   it('keeps no more calls in flight than it has lanes, and finishes the batch when there is time', async () => {
-    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue(many(7));
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue(many(7));
     jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
     const ai = new SlowAi(15);
 
@@ -338,7 +338,7 @@ describe('RecipeRewriter — inside the function’s time', () => {
   });
 
   it('starts no call it could not finish, and leaves the rest for the next sweep', async () => {
-    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue(many(5));
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue(many(5));
     jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
 
     // One lane, 60 ms a call, 100 ms needed to start one, 250 ms in all: calls
@@ -349,7 +349,7 @@ describe('RecipeRewriter — inside the function’s time', () => {
   });
 
   it('bounds each call by the sweep and files it under its recipe in a gateway’s log', async () => {
-    jest.spyOn(RecipeController, 'pendingStepUpgrades').mockResolvedValue([RECIPE]);
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
     jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
     const ai = new SlowAi(1);
 

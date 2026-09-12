@@ -1,4 +1,4 @@
-import { boolean, customType, index, jsonb, numeric, pgTable, smallint, text, unique, uuid } from 'drizzle-orm/pg-core';
+import { boolean, customType, index, jsonb, numeric, pgTable, smallint, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 
 import { difficulty, measurementUnit, recipeSource } from './_enums';
 import { ingredients } from './food.schema';
@@ -41,6 +41,13 @@ export const recipes = pgTable(
     servings: smallint().notNull().default(1),
     slug: text().notNull().unique(),
     source: recipeSource().notNull().default('seed'),
+    /**
+     * Until when a rewrite sweep holds this recipe. Taken in the same statement
+     * that picks it, so two sweeps started together — "Run" pressed twice — each
+     * rewrite different recipes instead of the same twelve. Null for a recipe no
+     * sweep has held, and a past time is a claim that lapsed.
+     */
+    stepsClaimedUntil: timestamp({ withTimezone: true }),
     /**
      * Which prompt wrote `instructions`. Null for everything written before the
      * versions were recorded — the seed, and every dish generated up to 2.3.0.

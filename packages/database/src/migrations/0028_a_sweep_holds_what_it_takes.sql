@@ -1,0 +1,1 @@
+ALTER TABLE "recipes" ADD COLUMN "steps_claimed_until" timestamp with time zone;

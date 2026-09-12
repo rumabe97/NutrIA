@@ -95,7 +95,7 @@ export class RecipeRewriter {
     }
 
     const deadline = Date.now() + this.limits.sweepMs;
-    const pending = await RecipeController.pendingStepUpgrades(STEPS_VERSION, limit);
+    const pending = await RecipeController.claimStepUpgrades(STEPS_VERSION, limit);
     const queue = [...pending];
     // One read of the catalogue per language per sweep, not one per recipe.
     const vocabularies = new Map<string, Promise<readonly string[]>>();

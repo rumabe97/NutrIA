@@ -101,6 +101,7 @@ export const enGB: Dictionary = {
     rejection: {
       allergen: 'allergen',
       duplicate: 'repeated',
+      foreign_food: 'names what it lacks',
       over_time: 'too long',
       schema: 'schema',
       unknown_ingredient: 'invented ingredient',

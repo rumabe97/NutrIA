@@ -213,6 +213,23 @@ describe('PoolBuilder', () => {
     expect(result.metadata.rejected).toBeGreaterThan(0);
   });
 
+  /** The ingredients were checked against their allergies; the steps were not, until they were read back. */
+  it('rejects a generated dish whose method names a food it does not contain', async () => {
+    const withBread = {
+      dishes: [
+        {
+          ...dish('Arroz con tomate', ['lunch'], ['arroz', 'tomate']),
+          steps: [{ text: 'Cocer el arroz 12 minutos y escurrirlo' }, { text: 'Mezclar con el tomate y servir con pan tostado' }]
+        }
+      ]
+    };
+    const { client } = stubClient([withBread]);
+    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+
+    expect(result.generated).toEqual([]);
+    expect(result.metadata.aiCalls[0]?.rejected).toMatchObject({ foreign_food: 1 });
+  });
+
   it('never offers an unsafe ingredient to the model in the first place', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
