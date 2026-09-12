@@ -127,6 +127,23 @@ After `signIn` / `signOut`, call `router.refresh()` as well as `router.push()` â
 components cache per-request, and without the refresh the next page renders with the
 previous session's data.
 
+## Offline
+
+`public/sw.js` keeps a copy of `/inicio` and `/compra` for reading without a network
+([`0053`](../../docs/decisions/0053-the-shopping-list-survives-the-supermarket.md)). It is
+plain JavaScript with no build step, and it is tested by loading the file itself
+(`src/lib/offline.test.ts`). `components/OfflineCopy` keeps the copies fresh and says when
+one is on screen.
+
+- Adding a screen to `OFFLINE_PATHS` means storing more personal data on the device. Only
+  add one that shows no health data, and only with the owner's say-so.
+- Anything that ends or changes a session calls `forgetOfflineCopies()`. Sign-in, sign-up,
+  sign-out and account deletion already do.
+- If what a cache holds changes, give it a new name (`-v2`) in `sw.js` and in
+  `lib/offline.ts` together. On activation the worker deletes every other `nutria-` cache.
+- The worker is registered in production builds only. To try it locally, run
+  `pnpm build && pnpm start`.
+
 ## Forms
 
 Uncontrolled by default: `<form onSubmit>` + `new FormData(event.currentTarget)`, with

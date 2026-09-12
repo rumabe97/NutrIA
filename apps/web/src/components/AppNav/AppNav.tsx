@@ -10,6 +10,7 @@ import { useDictionary } from 'i18n/LocaleProvider';
 
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
 
+import { forgetOfflineCopies } from 'lib/offline';
 import { signOut } from 'lib/auth-client';
 
 /**
@@ -33,6 +34,8 @@ export function AppNav() {
 
   async function handleSignOut() {
     await signOut();
+    // Today's screen and the list stay on the device only while the session does (`0053`).
+    await forgetOfflineCopies();
     router.push('/');
     router.refresh();
   }

@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 
 import styles from './SignOutLink.module.css';
 
+import { forgetOfflineCopies } from 'lib/offline';
 import { signOut } from 'lib/auth-client';
 
 import type { ReactNode } from 'react';
@@ -13,6 +14,7 @@ export function SignOutLink({ children }: { children: ReactNode }) {
 
   async function handle() {
     await signOut();
+    await forgetOfflineCopies();
     router.push('/');
     router.refresh();
   }

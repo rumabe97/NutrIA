@@ -659,6 +659,12 @@ export const enGB: Dictionary = {
     verdictTitle: 'What did you think?'
   },
 
+  offline: {
+    copyEarlier: 'Offline: this is the copy from {date}. Nothing you tick is saved until you are back online.',
+    copyToday: 'Offline: this is the copy from {time}. Nothing you tick is saved until you are back online.',
+    offline: 'Offline. Nothing you tick is saved until you are back online.'
+  },
+
   onboarding: {
     customAllergen: {
       bestEffort:

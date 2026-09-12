@@ -11,6 +11,7 @@ import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
+import { forgetOfflineCopies } from 'lib/offline';
 import { interpolate } from 'lib/format';
 import { signIn } from 'lib/auth-client';
 import { syncLocaleFromProfile } from 'lib/locale-sync';
@@ -53,6 +54,10 @@ export function SignInForm() {
 
       return;
     }
+
+    // Whoever used this device before leaves no copy of their plan behind for
+    // the next person, even one who never signed out (`0053`).
+    await forgetOfflineCopies();
 
     // The profile column is the durable preference; the cookie is only a cache of
     // it. Syncing here is what makes a language chosen on one device survive

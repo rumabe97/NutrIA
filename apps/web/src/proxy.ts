@@ -97,4 +97,6 @@ function remember(response: NextResponse, arriving: Locale | null): NextResponse
 // `api/` is excluded: when the API is proxied through this host (`next.config.js`),
 // every API call would otherwise pass through here first — a redirect check that
 // can never apply to it, paid on the hottest path in the app.
-export const config = { matcher: ['/((?!api/|_next/static|_next/image|favicon.ico).*)'] };
+// `sw.js` for the same reason: the offline worker's script (`0053`), which the
+// browser fetches again on every visit to see whether it changed.
+export const config = { matcher: ['/((?!api/|_next/static|_next/image|favicon.ico|sw.js).*)'] };

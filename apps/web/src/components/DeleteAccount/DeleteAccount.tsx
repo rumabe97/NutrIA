@@ -11,6 +11,7 @@ import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
 import { api, messageFor } from 'lib/api';
+import { forgetOfflineCopies } from 'lib/offline';
 import { interpolate } from 'lib/format';
 
 /**
@@ -37,6 +38,7 @@ export function DeleteAccount() {
 
     try {
       await api('/users/me', { method: 'DELETE' });
+      await forgetOfflineCopies();
       router.push('/');
       router.refresh();
     } catch (caught) {

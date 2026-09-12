@@ -13,6 +13,7 @@ import { font } from 'ui/fonts';
 import { LocaleProvider } from 'i18n/LocaleProvider';
 
 import { RouteAnnouncer } from './RouteAnnouncer';
+import { ServiceWorker } from './ServiceWorker';
 import { SkipLink } from './SkipLink';
 
 import type { Locale } from 'i18n/config';
@@ -33,7 +34,9 @@ import type { ReactNode } from 'react';
  * The skip link is the document's first focusable node, which is the only
  * position it can occupy and still be a skip link, and the announcer is the one
  * client island every tree needs — both here so no root can be built without
- * them.
+ * them. The offline worker is registered from here for the same reason
+ * (`0053`): whichever root somebody arrives at, it is running by the time a
+ * signed-in screen opens.
  */
 export function RootShell({ children, locale }: Readonly<{ children: ReactNode; locale: Locale }>) {
   return (
@@ -42,6 +45,7 @@ export function RootShell({ children, locale }: Readonly<{ children: ReactNode; 
         <SkipLink locale={locale} />
         <LocaleProvider dictionary={dictionaryFor(locale)} locale={locale}>
           <RouteAnnouncer />
+          <ServiceWorker />
           {children}
         </LocaleProvider>
       </body>
