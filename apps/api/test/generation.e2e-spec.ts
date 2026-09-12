@@ -125,9 +125,11 @@ describe('plan generation', () => {
   let alice: Account;
   let bob: Account;
   let plan: PlanView;
+  let ai: ScriptedAiClient;
 
   beforeAll(async () => {
-    app = await createApp(new ScriptedAiClient(POOL));
+    ai = new ScriptedAiClient(POOL);
+    app = await createApp(ai);
 
     const stamp = Date.now();
 
@@ -154,6 +156,20 @@ describe('plan generation', () => {
     await request(httpServer(app)).delete(`/${PREFIX}/users/me`).set('Cookie', alice.cookie);
     await request(httpServer(app)).delete(`/${PREFIX}/users/me`).set('Cookie', bob.cookie);
     await app?.close();
+  });
+
+  /**
+   * Protein powder is for the people who take it (`0052`). Alice records no
+   * supplement, so the catalogue the model is shown has none — and neither
+   * does the library, since both are filtered by the same exclusion.
+   */
+  it('offers no protein powder to somebody who takes none', () => {
+    expect(ai.prompts.length).toBeGreaterThan(0);
+
+    for (const prompt of ai.prompts) {
+      expect(prompt).not.toContain('proteina-de-suero');
+      expect(prompt).not.toContain('proteina-de-guisante');
+    }
   });
 
   it('produces exactly fourteen days', () => {

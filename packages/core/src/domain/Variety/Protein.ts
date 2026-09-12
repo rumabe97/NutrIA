@@ -44,15 +44,17 @@ function kindOf(slug: string): string {
 }
 
 /**
- * **Once a day, and in about one meal in ten** (`0051`).
+ * **Once a day, in about one meal in ten, and three times at most in any one
+ * meal** (`0051`, `0052`).
  *
  * At four meals a day that is six appearances a fortnight — three a week —
- * and never twice on one day. Unlike `VARIETY_RULES` these are preferences
- * the scheduler keeps whenever the pool lets it, not rules it fails a plan
- * over: a pool that is mostly tuna still gives somebody a plan, with tuna in
- * it more often than this.
+ * never twice on one day, and never more than three of one meal's fourteen:
+ * a plan kept to six tuna meals still put all six at the afternoon snack.
+ * Unlike `VARIETY_RULES` these are preferences the scheduler keeps whenever
+ * the pool lets it, not rules it fails a plan over: a pool that is mostly tuna
+ * still gives somebody a plan, with tuna in it more often than this.
  */
-export const PROTEIN_RULES = { mealsPerAppearance: 10, perDay: 1 } as const;
+export const PROTEIN_RULES = { mealsPerAppearance: 10, perDay: 1, perSlot: 3 } as const;
 
 /** How often one main protein may appear in a plan of `meals` meals. */
 export function proteinCap(meals: number): number {

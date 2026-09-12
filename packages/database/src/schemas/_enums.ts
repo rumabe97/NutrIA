@@ -56,3 +56,6 @@ export const aiRole = pgEnum('ai_role', ['user', 'assistant']);
 
 /** Which way one macro moves on a day that eats for an event (`0043`). */
 export const macroDirection = pgEnum('macro_direction', ['up', 'down', 'same']);
+
+/** What a recorded supplement is (`0052`). Only `protein` carries protein grams. */
+export const supplementKind = pgEnum('supplement_kind', ['protein', 'creatine', 'vitamins_minerals', 'omega_3', 'other']);

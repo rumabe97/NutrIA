@@ -1,6 +1,6 @@
 import { date, integer, jsonb, numeric, smallint, text, time, timestamp } from 'drizzle-orm/pg-core';
 
-import { activityLevel, budgetTier, cookingFrequency, dietaryPattern, goalType, sentiment, sex } from './_enums';
+import { activityLevel, budgetTier, cookingFrequency, dietaryPattern, goalType, sentiment, sex, supplementKind } from './_enums';
 
 /**
  * The four sizes a meal can be. Written out here rather than imported: this
@@ -145,13 +145,17 @@ export const healthConditions = userOwned('health_conditions', {
 export const medications = userOwned('medications', { name: text().notNull() });
 
 /**
- * A supplement and, optionally, the protein it supplies.
+ * A supplement, what kind it is, and — for a protein supplement only — the
+ * protein it supplies.
  *
  * Protein only. The other macros a supplement might carry are not what anyone
  * records a supplement for, and a column per macro would invite treating this
- * table as a second, unvalidated food catalogue.
+ * table as a second, unvalidated food catalogue. The kind is what says whether
+ * the protein column means anything: creatine has none, and asking for it was
+ * the question that made no sense (`0052`).
  */
 export const supplements = userOwned('supplements', {
+  kind: supplementKind().notNull().default('other'),
   name: text().notNull(),
   proteinGPerServing: numeric({ precision: 5, scale: 1 }),
   servingsPerDay: smallint().notNull().default(1)

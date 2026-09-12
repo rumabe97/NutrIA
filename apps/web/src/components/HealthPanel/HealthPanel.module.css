@@ -99,7 +99,18 @@
   align-items: end;
   display: grid;
   gap: var(--space-03);
-  grid-template-columns: 2fr 1fr 1fr auto;
+  grid-template-columns: 2fr 1.5fr 1fr 1fr auto;
+}
+
+/* The type picker, labelled the way the component documents it. */
+.field {
+  display: grid;
+  gap: var(--space-01);
+}
+
+.label {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
 }
 
 .consent {

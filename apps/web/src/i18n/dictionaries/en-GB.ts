@@ -461,6 +461,14 @@ export const enGB: Dictionary = {
     suggestion:
       'We could exclude {allergen} because of your {condition}, but we do not do it on our own: many people tolerate small amounts. If you want us to, add it to your intolerances in',
     supplementAdd: 'Add a supplement',
+    supplementKind: 'Type',
+    supplementKinds: {
+      creatine: 'Creatine',
+      omega_3: 'Omega-3',
+      other: 'Other',
+      protein: 'Protein powder',
+      vitamins_minerals: 'Vitamins and minerals'
+    },
     supplementName: 'Name',
     supplementProtein: 'Protein per serving (g)',
     supplementProteinLabel: 'Protein from supplements',
@@ -469,6 +477,7 @@ export const enGB: Dictionary = {
     supplementProteinTotalTail: 'what the plan provides.',
     supplements: 'Supplements',
     supplementServings: 'Servings per day',
+    supplementsHint: 'Protein powder only goes into your recipes if you record a protein supplement here.',
     title: 'Health',
     withdraw: 'Delete all my health data'
   },

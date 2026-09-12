@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -9,13 +9,14 @@ import styles from './HealthPanel.module.css';
 import { Button } from 'ui/components/Button';
 import { Checkbox } from 'ui/components/Checkbox';
 import { Input } from 'ui/components/Input';
+import { Select, SelectOption } from 'ui/components/Select';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { api, messageFor } from 'lib/api';
 import { formatNumber, interpolate } from 'lib/format';
 
-import type { ConditionKey } from 'core/entities/Health';
+import type { ConditionKey, SupplementKind } from 'core/entities/Health';
 import type { HealthView } from 'core/controllers/Health';
 
 /**
@@ -42,8 +43,11 @@ const CONDITION_KEYS = [
 
 const CONSENT_VERSION = '1.0.0';
 
+/** The kinds `core/entities/Health` accepts, in the order the picker offers them (`0052`). */
+const SUPPLEMENT_KINDS: readonly SupplementKind[] = ['protein', 'creatine', 'vitamins_minerals', 'omega_3', 'other'];
+
 /** `key` is a stable client-side row identity — new rows have no server id yet, and an array index changes the moment one is removed. */
-type SupplementRow = { key: string; name: string; proteinGPerServing: string; servingsPerDay: string };
+type SupplementRow = { key: string; kind: SupplementKind; name: string; proteinGPerServing: string; servingsPerDay: string };
 
 /**
  * Conditions, medications and supplements — collected as health data or not at all.
@@ -60,6 +64,8 @@ export function HealthPanel({ health }: { health: HealthView }) {
   const dictionary = useDictionary();
   const locale = useLocale();
   const t = dictionary.health;
+  // Prefixes each type picker's label id, so two panels on a page cannot share one.
+  const id = useId();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
@@ -77,6 +83,7 @@ export function HealthPanel({ health }: { health: HealthView }) {
   const [supplements, setSupplements] = useState<readonly SupplementRow[]>(() =>
     health.supplements.map(supplement => ({
       key: supplement.id,
+      kind: supplement.kind,
       name: supplement.name,
       proteinGPerServing: supplement.proteinGPerServing === null ? '' : String(supplement.proteinGPerServing),
       servingsPerDay: String(supplement.servingsPerDay)
@@ -99,8 +106,10 @@ export function HealthPanel({ health }: { health: HealthView }) {
           supplements: supplements
             .filter(row => row.name.trim() !== '')
             .map(row => ({
+              kind: row.kind,
               name: row.name.trim(),
-              proteinGPerServing: row.proteinGPerServing === '' ? null : Number(row.proteinGPerServing),
+              // Grams only for a protein supplement: creatine has none to give.
+              proteinGPerServing: row.kind !== 'protein' || row.proteinGPerServing === '' ? null : Number(row.proteinGPerServing),
               servingsPerDay: row.servingsPerDay === '' ? 1 : Number(row.servingsPerDay)
             }))
         },
@@ -167,8 +176,8 @@ export function HealthPanel({ health }: { health: HealthView }) {
                 ? health.supplements
                     .map(supplement =>
                       supplement.proteinGPerServing === null
-                        ? supplement.name
-                        : `${supplement.name} (${supplement.proteinGPerServing} g × ${supplement.servingsPerDay})`
+                        ? `${supplement.name} (${t.supplementKinds[supplement.kind]})`
+                        : `${supplement.name} (${t.supplementKinds[supplement.kind]}, ${supplement.proteinGPerServing} g × ${supplement.servingsPerDay})`
                     )
                     .join(', ')
                 : dictionary.common.noneMasculine}
@@ -251,6 +260,9 @@ export function HealthPanel({ health }: { health: HealthView }) {
 
           <fieldset className={styles.fieldset}>
             <legend className={styles.legend}>{t.supplements}</legend>
+            <Text className={styles.hint} size="xs" tone="tertiary">
+              {t.supplementsHint}
+            </Text>
             {supplements.map((row, index) => (
               <div className={styles.supplement} key={row.key}>
                 <Input
@@ -258,12 +270,35 @@ export function HealthPanel({ health }: { health: HealthView }) {
                   onChange={event => setSupplements(update(supplements, index, { ...row, name: event.target.value }))}
                   value={row.name}
                 />
-                <Input
-                  label={t.supplementProtein}
-                  onChange={event => setSupplements(update(supplements, index, { ...row, proteinGPerServing: event.target.value }))}
-                  type="number"
-                  value={row.proteinGPerServing}
-                />
+                <div className={styles.field}>
+                  <span className={styles.label} id={`${id}-kind-${row.key}`}>
+                    {t.supplementKind}
+                  </span>
+                  <Select
+                    aria-labelledby={`${id}-kind-${row.key}`}
+                    onValueChange={value => setSupplements(update(supplements, index, { ...row, kind: value as SupplementKind }))}
+                    value={row.kind}
+                  >
+                    {SUPPLEMENT_KINDS.map(kind => (
+                      <SelectOption indicator="✓" key={kind} value={kind}>
+                        {t.supplementKinds[kind]}
+                      </SelectOption>
+                    ))}
+                  </Select>
+                </div>
+                {/* Asked only where it means something: creatine, vitamins and
+                    omega-3 carry no protein, and the question used to be put to
+                    them all (`0052`). The empty cell keeps the row's columns. */}
+                {row.kind === 'protein' ? (
+                  <Input
+                    label={t.supplementProtein}
+                    onChange={event => setSupplements(update(supplements, index, { ...row, proteinGPerServing: event.target.value }))}
+                    type="number"
+                    value={row.proteinGPerServing}
+                  />
+                ) : (
+                  <div aria-hidden="true" />
+                )}
                 <Input
                   label={t.supplementServings}
                   min="1"
@@ -277,7 +312,9 @@ export function HealthPanel({ health }: { health: HealthView }) {
               </div>
             ))}
             <Button
-              onClick={() => setSupplements([...supplements, { key: crypto.randomUUID(), name: '', proteinGPerServing: '', servingsPerDay: '1' }])}
+              onClick={() =>
+                setSupplements([...supplements, { key: crypto.randomUUID(), kind: 'other', name: '', proteinGPerServing: '', servingsPerDay: '1' }])
+              }
               type="button"
               variant="secondary"
             >

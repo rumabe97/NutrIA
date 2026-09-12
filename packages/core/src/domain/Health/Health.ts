@@ -121,5 +121,50 @@ export function supervisionRecommended(conditions: readonly HealthCondition[], m
  * and it would do it invisibly. The dashboard shows both and says which is which.
  */
 export function supplementProteinG(supplements: readonly Supplement[]): number {
-  return Math.round(supplements.reduce((total, supplement) => total + (supplement.proteinGPerServing ?? 0) * supplement.servingsPerDay, 0));
+  return Math.round(
+    supplements
+      .filter(supplement => supplement.kind === 'protein')
+      .reduce((total, supplement) => total + (supplement.proteinGPerServing ?? 0) * supplement.servingsPerDay, 0)
+  );
+}
+
+/**
+ * The catalogue rows that are protein supplements rather than food (`0052`).
+ *
+ * A model asked for forty grams of protein at breakfast reached for twenty
+ * grams of whey or pea protein in seven breakfasts of fourteen — for somebody
+ * who had never said they own a tub of it. So these are offered only to a
+ * person who records a protein supplement. A curated list, pinned by a test,
+ * for the reason `CONDITION_EXCLUSIONS` is: what counts as a supplement is a
+ * decision, and an unreviewed addition should fail loudly. By slug, because
+ * the slug is what does not change between languages.
+ */
+export const PROTEIN_SUPPLEMENT_SLUGS: readonly string[] = [
+  'barritas-de-proteinas',
+  'bebida-de-proteinas',
+  'bebida-de-proteinas-vegetal',
+  'proteina-de-guisante',
+  'proteina-de-suero'
+];
+
+/**
+ * The catalogue ids a person's dishes must not use because they take no
+ * protein supplement. Empty for somebody who records one.
+ *
+ * Only the kind is read — never a name, a dose or anything else in the health
+ * section — and the result is a list of ingredients, so what reaches the
+ * model is a catalogue without protein powder in it, never the supplement
+ * (`0004`).
+ */
+export function proteinSupplementExclusions(
+  takesProteinSupplement: boolean,
+  catalogue: readonly { readonly id: string; readonly slug: string }[]
+): ReadonlySet<string> {
+  if (takesProteinSupplement) {
+    return new Set();
+  }
+
+  const slugs = new Set(PROTEIN_SUPPLEMENT_SLUGS);
+
+  return new Set(catalogue.filter(ingredient => slugs.has(ingredient.slug)).map(ingredient => ingredient.id));
 }

@@ -147,7 +147,7 @@ describe('recorded health data, end to end', () => {
         medications: [{ name: MEDICATION }],
         // Not a catalogue ingredient: whey protein is one, and a supplement that shares
         // its name with something the model may legitimately be offered proves nothing.
-        supplements: [{ name: SUPPLEMENT, proteinGPerServing: 24, servingsPerDay: 1 }]
+        supplements: [{ kind: 'protein', name: SUPPLEMENT, proteinGPerServing: 24, servingsPerDay: 1 }]
       })
       .expect(200);
   }, 120_000);
@@ -191,6 +191,11 @@ describe('recorded health data, end to end', () => {
       expect(prompt).not.toContain('hipotiroidismo');
       expect(prompt).not.toContain('hypothyroid');
       expect(prompt).not.toContain(SUPPLEMENT.toLowerCase());
+      // What a protein supplement changes is the catalogue, not the prompt's
+      // words about them: protein powder is offered, the supplement never named
+      // (`0052`). The other half — no powder for somebody who takes none — is in
+      // `generation.e2e-spec.ts`.
+      expect(prompt).toContain('proteina-de-suero');
     }
   }, 200_000);
 

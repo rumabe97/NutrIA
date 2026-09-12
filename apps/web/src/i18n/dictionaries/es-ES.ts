@@ -468,6 +468,14 @@ export const esES = {
     suggestion:
       'Podemos excluir {allergen} por tu {condition}, pero no lo hacemos por nuestra cuenta: mucha gente tolera cantidades pequeñas. Si quieres que lo hagamos, añádelo a tus intolerancias en',
     supplementAdd: 'Añadir suplemento',
+    supplementKind: 'Tipo',
+    supplementKinds: {
+      creatine: 'Creatina',
+      omega_3: 'Omega-3',
+      other: 'Otro',
+      protein: 'Proteína en polvo',
+      vitamins_minerals: 'Vitaminas y minerales'
+    },
     supplementName: 'Nombre',
     supplementProtein: 'Proteína por toma (g)',
     supplementProteinLabel: 'Proteína de suplementos',
@@ -476,6 +484,7 @@ export const esES = {
     supplementProteinTotalTail: 'de lo que aporta el plan.',
     supplements: 'Suplementos',
     supplementServings: 'Tomas al día',
+    supplementsHint: 'La proteína en polvo solo entra en tus recetas si anotas aquí un suplemento de proteína.',
     title: 'Salud',
     withdraw: 'Borrar todos mis datos de salud'
   },

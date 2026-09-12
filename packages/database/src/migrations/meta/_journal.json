@@ -190,6 +190,13 @@
       "when": 1789225563654,
       "tag": "0026_a_plated_dish_is_not_a_snack",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1789236709909,
+      "tag": "0027_a_supplement_says_what_it_is",
+      "breakpoints": true
     }
   ]
 }
