@@ -94,10 +94,18 @@ const envObject = z.object({
    */
   AI_REQUESTS_PER_DAY: optional(z.coerce.number().int().positive()),
   /*
-   * Off by default, like illustrations, and for the same reason: the provider's
-   * free tier caps requests per day and generation draws on the same cap. The
-   * rewrite sweep alone would spend a day's allowance in about two hours. Turn
-   * it on with billing, or deliberately, for a while, on a project you can spare.
+   * The model the rewrite sweep asks, when it should not be the generation's.
+   * Through the gateway, a combo of free models without the Gemini step, so
+   * the sweep cannot spend the twenty daily requests a plan may need. Empty:
+   * the generation's model.
+   */
+  AI_REWRITE_MODEL: optional(z.string()),
+  /*
+   * Off by default, like illustrations. On Google's free tier directly, the
+   * rewrite sweep would spend the daily cap generation draws on in about two
+   * hours. Through the gateway (`AI_PROVIDER=omniroute`) its free models carry
+   * it — unless its combo falls to a Gemini step, which `AI_REWRITE_MODEL` can
+   * leave out. Turn it on deliberately; the cron is what runs it.
    */
   AI_REWRITE_STEPS: z
     .enum(['true', 'false'])
@@ -223,6 +231,15 @@ const envSchema = envObject
         code: 'custom',
         message: `"${env.AI_MODEL}" does not look like a ${env.AI_PROVIDER} model (expected one containing ${expected.join(' or ')}). Leave AI_MODEL empty to use the provider's default, "${DEFAULT_MODEL[env.AI_PROVIDER]}".`,
         path: ['AI_MODEL']
+      });
+    }
+
+    // The sweep's model answers to the same provider, so the same check.
+    if (expected && env.AI_REWRITE_MODEL && !expected.some(prefix => env.AI_REWRITE_MODEL?.toLowerCase().includes(prefix))) {
+      ctx.addIssue({
+        code: 'custom',
+        message: `"${env.AI_REWRITE_MODEL}" does not look like a ${env.AI_PROVIDER} model (expected one containing ${expected.join(' or ')}). Leave it empty to use the generation's model.`,
+        path: ['AI_REWRITE_MODEL']
       });
     }
 

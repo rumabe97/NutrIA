@@ -137,17 +137,22 @@ one, and a preview that half-works is worse than none.
 
 ## 3b. The crons are off
 
-`apps/api/vercel.json` has **no `crons` block**, so the platform schedules nothing and the
-three routes are only reachable by hand with the bearer. They were removed on 2026-09-09,
-at the owner's request, while the project runs on free tiers.
+`apps/api/vercel.json` schedules **one** of the three: the rewrite sweep, daily at 03:30 UTC,
+when nobody is building a plan. The other two stay off — removed on 2026-09-09, at the
+owner's request, while the project runs on free tiers — and are only reachable by hand with
+the bearer. Every cron call needs `CRON_SECRET` on the API project: the platform sends it as
+the bearer, and without it the route answers 404.
 
 | Route | What it spends | Also gated by |
 | --- | --- | --- |
 | `/api/v1/cron/illustrate` | one image generation per recipe — the expensive one | `AI_ILLUSTRATIONS`, off by default |
-| `/api/v1/cron/rewrite-steps` | one text generation per recipe, from the same daily cap generation needs | `AI_REWRITE_STEPS`, off by default |
+| `/api/v1/cron/rewrite-steps` | one text generation per recipe, at most twelve a run, ending by 240 s. Through the gateway, its free models; on Google directly, the daily cap generation needs | `AI_REWRITE_STEPS`, off by default; `AI_REWRITE_MODEL` picks its model ([`ai-gateway.md`](./ai-gateway.md) §6) |
 | `/api/v1/cron/reminders` | **nothing from the AI provider** — one SMTP send per account, at most once a fortnight | `SMTP_HOST`; sends nothing without it |
 
-Turning one back on is putting its entry back:
+A daily run is what the Hobby plan allows. On a plan that runs crons hourly, `0 * * * *`
+clears the 160 stale recipes of 2026-09-12 in about fourteen hours instead of two weeks.
+
+Turning another one back on is adding its entry:
 
 ```jsonc
 "crons": [{ "path": "/api/v1/cron/reminders", "schedule": "0 8 * * *" }]

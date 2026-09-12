@@ -7,44 +7,12 @@ import { AiCallError, AiClient } from './AiClient.js';
 import { isQuotaExhausted } from './quota.js';
 import { readGateway, readQuota } from './gateway.js';
 import { redactSecrets } from './redact.js';
+import { untilAborted } from './untilAborted.js';
 import { AI_CALL_SETTINGS, AI_MODEL } from '../ai.config.js';
 
 import type { AiCall, AiFailure, AiRequest, AiResponse } from './AiClient.js';
 import type { AiCallSettings } from '../ai.config.js';
 import type { LanguageModel } from 'ai';
-
-/**
- * The work, or the signal's abort — whichever settles first. The abandoned
- * work keeps its own handlers, so its late rejection is not an unhandled one.
- */
-function untilAborted<T>(work: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
-  if (!signal) {
-    return work;
-  }
-
-  return new Promise<T>((resolve, reject) => {
-    const abort = () => {
-      reject(signal.reason instanceof Error ? signal.reason : new Error('aborted'));
-    };
-
-    if (signal.aborted) {
-      abort();
-    } else {
-      signal.addEventListener('abort', abort, { once: true });
-    }
-
-    work.then(
-      value => {
-        signal.removeEventListener('abort', abort);
-        resolve(value);
-      },
-      (error: unknown) => {
-        signal.removeEventListener('abort', abort);
-        reject(error instanceof Error ? error : new Error(String(error)));
-      }
-    );
-  });
-}
 
 /**
  * The real client: `generateObject` against whichever model the environment chose.

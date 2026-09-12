@@ -13,6 +13,22 @@ export const AI_CALL_SETTINGS = Symbol('AI_CALL_SETTINGS');
 /** How long the model half of a pool build may take in all, in milliseconds — `AI_BUDGET_SECONDS`. */
 export const AI_MODEL_BUDGET = Symbol('AI_MODEL_BUDGET');
 
+/** The client the rewrite sweep asks — see `resolveRewriteModel`. */
+export const AI_REWRITE_CLIENT = Symbol('AI_REWRITE_CLIENT');
+
+/**
+ * The model the rewrite sweep asks: `AI_REWRITE_MODEL` where it is set, and
+ * the generation's model otherwise.
+ *
+ * Its own because the sweep is background work with no one waiting on it, and
+ * the generation combo ends in the one step whose quota is precious — Gemini,
+ * twenty requests a day. Pointed at a combo without that step, a sweep can
+ * never be what spends a plan's calls.
+ */
+export function resolveRewriteModel(env: Env): LanguageModel | null {
+  return resolveModel(env.AI_REWRITE_MODEL ? { ...env, AI_MODEL: env.AI_REWRITE_MODEL } : env);
+}
+
 /** How each call is made, which depends on who is on the other end. */
 export type AiCallSettings = {
   /** How many times the SDK repeats a failed call before the caller hears of it. */
