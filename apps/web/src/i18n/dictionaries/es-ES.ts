@@ -105,6 +105,7 @@ export const esES = {
     rejection: {
       allergen: 'alérgeno',
       duplicate: 'repetido',
+      foreign_food: 'nombra algo que no lleva',
       over_time: 'demasiado tiempo',
       schema: 'esquema',
       unknown_ingredient: 'ingrediente inventado',

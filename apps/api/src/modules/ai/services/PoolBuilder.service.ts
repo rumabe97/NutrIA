@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
 import { dishSafety, findSafetyViolations } from 'core/domain/Safety';
+import { methodMentions } from 'core/domain/Method';
 import { withinTime } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
@@ -427,6 +428,24 @@ export class PoolBuilder {
       );
 
       return { reason: 'over_time' };
+    }
+
+    // The method, read back the way a rewritten one is (`methodMentions`): the
+    // ingredients above were checked against their allergies, the steps were
+    // not, and 5 of 278 stored dishes named a food they did not contain — salt,
+    // "lemon if you like". Only a food outside the list refuses the dish; an
+    // ingredient its steps never name does not, since no one is harmed by it.
+    const foreign = methodMentions({
+      dish: dish.ingredients.map(item => context.catalogue.get(item.slug)?.name ?? item.slug),
+      name: dish.name,
+      steps: dish.steps,
+      vocabulary: [...context.catalogue.values()].map(ingredient => ingredient.name)
+    }).foreign;
+
+    if (foreign.length > 0) {
+      this.logger.warn(`Dish "${dish.name}" rejected: its method names ${foreign.join(', ')}, which it does not contain`);
+
+      return { reason: 'foreign_food' };
     }
 
     return {
