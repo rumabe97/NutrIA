@@ -18,6 +18,11 @@ export const NotificationController = {
     await NotificationRepository.dropPushSubscription(endpoint);
   },
 
+  /** The browsers one person subscribed — for the owner's test from `/admin` (`0054`). */
+  async pushTargets(userId: string): Promise<readonly PushTarget[]> {
+    return NotificationRepository.findPushTargets(userId);
+  },
+
   async recordCheckInReminder(userId: string, title: string, body: string, channel: 'email' | 'push'): Promise<void> {
     await NotificationRepository.recordSent(userId, { body, channel, title, type: 'checkin_due' });
   },

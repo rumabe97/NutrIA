@@ -157,6 +157,18 @@ export const NotificationRepository = {
     }
   },
 
+  /** Every browser one person subscribed. */
+  async findPushTargets(userId: string): Promise<readonly PushTarget[]> {
+    try {
+      return await database()
+        .select({ auth: pushSubscriptions.auth, endpoint: pushSubscriptions.endpoint, p256dh: pushSubscriptions.p256dh })
+        .from(pushSubscriptions)
+        .where(eq(pushSubscriptions.userId, userId));
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   /**
    * The proof that a reminder went out. Written after a channel accepted it,
    * never before; `channel` says which carried it.

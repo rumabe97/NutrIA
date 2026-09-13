@@ -7,7 +7,7 @@ import { NotificationsController } from './controllers/index.js';
 
 @Module({
   controllers: [NotificationsController],
-  exports: [CheckInReminderService],
+  exports: [CheckInReminderService, PushService],
   imports: [EmailModule],
   providers: [CheckInReminderService, envProvider, NotificationsService, PushService]
 })

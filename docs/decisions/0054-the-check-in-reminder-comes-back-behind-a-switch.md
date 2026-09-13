@@ -56,6 +56,14 @@ activar y desactivar".
 - **iPhone.** Apple delivers web push only to an app added to the home screen (iOS 16.4
   and later). In Safari, the profile says how to do that instead of drawing a switch that
   cannot work.
+- **A test from `/admin`** (added the same day, at the owner's request).
+  - "Enviarme un aviso de prueba" sends the reminder's own words, marked "Prueba", to the
+    browsers of the person who pressed it, and nobody else's.
+  - It works whatever the switch says, and it records nothing, so the real reminder still
+    comes.
+  - The answer tells apart four cases: push not set up, no device subscribed, every
+    device refused, and sent.
+  - Owner-only (`POST /admin/push-test`), with a limit of ten an hour.
 
 ## Alternatives considered
 

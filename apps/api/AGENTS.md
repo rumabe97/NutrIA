@@ -389,9 +389,10 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   leaves through: Web Push signed with `VAPID_*`, and unconfigured without all three. Browsers
   subscribe at `PUT /notifications/push` and leave at `DELETE`. An endpoint is accepted only on a
   push service that browsers use (`pushSubscriptionSchema`), because the server POSTs to what
-  is stored. A 404 or 410 from the push service drops the row. The check-in sweep is the only
-  sender. It sends nothing while the `checkInReminders` flag is off, and a message never
-  carries health data.
+  is stored. A 404 or 410 from the push service drops the row. There are two senders. The
+  check-in sweep sends nothing while the `checkInReminders` flag is off. The owner's
+  `POST /admin/push-test` reaches only the caller's own browsers and records nothing. A
+  message never carries health data.
 - **Progress** (`0020`): `GET /progress/summary` — the weight line and one entry per fortnight
   lived, with meal marks counted only for days that have arrived and the check-in that closed
   it. Reads only; nothing is collected for it. `GET`/`POST /progress/weight` are the dashboard's.

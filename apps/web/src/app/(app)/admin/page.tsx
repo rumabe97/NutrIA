@@ -11,6 +11,7 @@ import { AccountList } from 'components/AccountList';
 import { FeedbackInbox } from 'components/FeedbackInbox';
 import { FlagSwitch } from 'components/FlagSwitch';
 import { Pager } from 'components/Pager';
+import { PushTestButton } from 'components/PushTestButton';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
@@ -143,6 +144,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           offHint={t.remindersOffHint}
           onHint={t.remindersHint}
         />
+        <PushTestButton />
       </section>
 
       {/* Accounts next: the only thing on this page somebody is waiting on. */}

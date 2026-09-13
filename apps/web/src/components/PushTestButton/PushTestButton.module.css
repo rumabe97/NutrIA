@@ -1,0 +1,12 @@
+.root {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-03);
+  margin-top: var(--space-03);
+}
+
+.result {
+  margin: 0;
+  max-width: var(--prose-max);
+}
