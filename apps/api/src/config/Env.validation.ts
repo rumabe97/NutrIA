@@ -182,6 +182,8 @@ const envObject = z.object({
   STRIPE_PRICE_ID: optional(z.string().startsWith('price_', 'must be a Stripe price id')),
   STRIPE_SECRET_KEY: optional(z.string().startsWith('sk_', 'must be a Stripe secret key, never a publishable one')),
   STRIPE_WEBHOOK_SECRET: optional(z.string().startsWith('whsec_', 'must be a Stripe webhook signing secret')),
+  /** A second, yearly price (`0056`, amended). Optional: without it, checkout offers the monthly price alone. */
+  STRIPE_YEARLY_PRICE_ID: optional(z.string().startsWith('price_', 'must be a Stripe price id')),
   /*
    * No fixed default. Unset means "on in development, off everywhere else",
    * resolved below once NODE_ENV is known. It used to default to `true`, which
@@ -307,6 +309,11 @@ const envSchema = envObject
           ctx.addIssue({ code: 'custom', message: 'is required when any STRIPE_* is set', path: [key] });
         }
       }
+    }
+
+    // A yearly price is an addition to payments, never a way to have them without the other three.
+    if (env.STRIPE_YEARLY_PRICE_ID && !env.STRIPE_SECRET_KEY) {
+      ctx.addIssue({ code: 'custom', message: 'needs the other STRIPE_* values set', path: ['STRIPE_YEARLY_PRICE_ID'] });
     }
 
     // A preview deployment is a test by definition; a live key there charges real cards from one.

@@ -63,3 +63,22 @@ build, and the owner asked for it ("Continúa con el premium").
   again.
 - Before live keys, the non-code list in the runbook still stands: business
   verification, VAT, the legal pages, a domain.
+
+## Amendment — 2026-09-13: a free week, and a yearly price
+
+The owner asked for both before live keys.
+
+- **Seven free days** (`TRIAL_DAYS`) for somebody who has never subscribed.
+  - Stripe takes the card at the start and charges when the trial ends, unless it is
+    cancelled before.
+  - Somebody who subscribed and cancelled has had their trial, so trials cannot be
+    chained into a free tier. The rule is "no subscription on record", and the
+    `subscriptions` row keeps the last one.
+  - A trial is `trialing`, which already paid for premium.
+- **A yearly price, optional** (`STRIPE_YEARLY_PRICE_ID`).
+  - With it, the card offers monthly and yearly, and shows what the year saves against
+    twelve months.
+  - Without it, there is one price, as before.
+  - A yearly price cannot be set without the other three values.
+- **Checkout takes `{ plan }`**, validated by `checkoutSchema`. Monthly is the default;
+  asking for yearly when none is set is a 404.

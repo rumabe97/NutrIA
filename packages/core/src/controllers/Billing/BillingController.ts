@@ -20,11 +20,14 @@ export type BillingStatusView =
   | { readonly available: false }
   | {
       readonly available: true;
-      readonly price: PriceView | null;
+      /** Yearly is `null` unless the owner has set a yearly price. */
+      readonly prices: { readonly monthly: PriceView | null; readonly yearly: PriceView | null };
       readonly subscription: SubscriptionView | null;
       /** Test keys: only the owner sees this, and nothing they pay is real money. */
       readonly testMode: boolean;
       readonly tier: 'free' | 'premium';
+      /** The free days checkout would open with, or `null` for somebody who has subscribed before. */
+      readonly trialDays: number | null;
     };
 
 export const BillingController = {
