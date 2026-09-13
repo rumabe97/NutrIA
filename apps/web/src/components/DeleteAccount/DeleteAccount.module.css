@@ -15,7 +15,7 @@
 
 .error {
   background-color: var(--color-red-03);
-  border-radius: var(--radius-02);
+  border-radius: var(--radius-control);
   color: var(--color-error-text);
   font-size: var(--font-size-03);
   padding: var(--space-03) var(--space-04);

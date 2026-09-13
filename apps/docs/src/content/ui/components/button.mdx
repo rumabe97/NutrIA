@@ -3,7 +3,7 @@ import { PropsTable } from 'components/PropsTable';
 
 # Button
 
-A clickable element that triggers an action. Supports `primary` and `secondary` variants, and three sizes.
+A clickable element that triggers an action. Supports `primary`, `secondary`, `tertiary` and `destructive` variants, and three sizes (32/40/48px; at least 44px on a coarse pointer). A toggle is a `secondary` with `aria-pressed`. For a link that should look like a button, keep the `<a>` and use `buttonClassName()` from the same module.
 
 ## Examples
 
@@ -48,7 +48,7 @@ export default function Example() {
 ## Props
 
 <PropsTable data={[
-  { prop: 'variant', type: "'primary' | 'secondary'", default: "'primary'", description: 'Visual style of the button' },
+  { prop: 'variant', type: "'primary' | 'secondary' | 'tertiary' | 'destructive'", default: "'primary'", description: 'Visual style of the button' },
   { prop: 'size', type: "'sm' | 'md' | 'lg'", default: "'md'", description: 'Height and padding preset' },
   { prop: 'children', type: 'ReactNode', default: '—', description: 'Button label' },
   { prop: 'disabled', type: 'boolean', default: 'false', description: 'Disables interaction' },

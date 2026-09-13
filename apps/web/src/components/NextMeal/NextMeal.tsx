@@ -6,6 +6,8 @@ import styles from './NextMeal.module.css';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
+import { Card } from 'components/Card';
+
 import { API_URL } from 'lib/env';
 import { formatNumber } from 'lib/format';
 import { slotLabel } from 'lib/generation';
@@ -51,7 +53,7 @@ export function NextMeal({ hour, meals }: NextMealProps) {
   }
 
   return (
-    <Link className={styles.card} href={`/plan/comida/${upcoming.id}`}>
+    <Card as={Link} className={styles.card} href={`/plan/comida/${upcoming.id}`}>
       {/* eslint-disable-next-line @next/next/no-img-element -- the API serves a phone-sized, immutable WebP already; next/image would add an optimiser hop and per-image billing for nothing */}
       {upcoming.illustrationPath ? <img alt="" className={styles.picture} src={`${API_URL}${upcoming.illustrationPath}`} /> : null}
       <span className={styles.eyebrow}>
@@ -62,6 +64,6 @@ export function NextMeal({ hour, meals }: NextMealProps) {
         {formatNumber(Math.round(upcoming.kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(upcoming.proteinG), locale)}{' '}
         {dictionary.units.proteinShort}
       </span>
-    </Link>
+    </Card>
   );
 }

@@ -21,17 +21,11 @@
   margin: 0 0 var(--gap-block);
 }
 
+/* Each tile is a `components/Card` with the tight padding. */
 .tile {
-  background-color: var(--surface-card);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-04);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
   display: grid;
   gap: var(--space-01);
   min-inline-size: 0;
-  padding: var(--space-04) var(--space-05);
 }
 
 .tileLabel {
@@ -56,17 +50,11 @@
   letter-spacing: normal;
 }
 
+/* The weight chart's card. */
 .card {
-  background-color: var(--surface-card);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-04);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
   display: grid;
   gap: var(--space-04);
   margin: 0 0 var(--gap-region);
-  padding: var(--card-padding);
 }
 
 .head {
@@ -85,7 +73,9 @@
 }
 
 .link {
+  align-items: center;
   color: var(--color-brand-11);
+  display: inline-flex;
   font-size: var(--font-size-02);
   text-decoration: none;
   white-space: nowrap;
@@ -93,6 +83,12 @@
 
 .link:hover {
   text-decoration: underline;
+}
+
+@media (pointer: coarse) {
+  .link {
+    min-block-size: var(--target-min);
+  }
 }
 
 .fortnights {

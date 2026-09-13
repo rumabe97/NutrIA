@@ -9,11 +9,13 @@
 }
 
 .week {
+  align-items: center;
   background: none;
-  border: 1px solid var(--border-01);
+  border: 1px solid var(--border-interactive);
   border-radius: var(--radius-full);
   color: var(--foreground-02);
   cursor: pointer;
+  display: inline-flex;
   font: inherit;
   font-size: var(--font-size-02);
   padding: var(--space-02) var(--space-04);
@@ -21,8 +23,14 @@
 
 .week[aria-pressed='true'] {
   background-color: var(--color-brand-03);
-  border-color: var(--color-brand-09);
-  color: var(--color-brand-12);
+  border-color: var(--color-brand-fill);
+  color: var(--color-brand-11);
+}
+
+@media (pointer: coarse) {
+  .week {
+    min-block-size: var(--target-min);
+  }
 }
 
 /*
@@ -41,7 +49,7 @@
 .day {
   background-color: var(--surface-card);
   border: 1px solid var(--border-01);
-  border-radius: var(--radius-03);
+  border-radius: var(--radius-control);
   color: var(--foreground-02);
   cursor: pointer;
   display: grid;
@@ -59,10 +67,11 @@
   border-color: var(--color-brand-07);
 }
 
+/* The chosen day wears the fill that carries a white label in both schemes. */
 .day[aria-current='true'] {
-  background-color: var(--color-brand-09);
-  border-color: var(--color-brand-09);
-  color: var(--color-white);
+  background-color: var(--color-brand-fill);
+  border-color: var(--color-brand-fill);
+  color: var(--color-on-brand-fill);
 }
 
 .dayIndex {
@@ -73,7 +82,6 @@
 
 .dayLabel {
   font-size: var(--font-size-01);
-  opacity: 0.85;
 }
 
 .dayDate {
@@ -81,7 +89,7 @@
 }
 
 .today {
-  border-color: var(--color-brand-09);
+  border-color: var(--color-brand-fill);
 }
 
 /* With room to spare, the chips get their gaps and side padding back. */
@@ -121,7 +129,6 @@
 
   .dayLabel {
     font-size: var(--font-size-02);
-    opacity: 1;
     text-transform: capitalize;
   }
 
@@ -129,6 +136,5 @@
     display: inline;
     font-size: var(--font-size-02);
     margin-inline-start: auto;
-    opacity: 0.7;
   }
 }

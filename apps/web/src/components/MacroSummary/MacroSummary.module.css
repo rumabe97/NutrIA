@@ -28,7 +28,7 @@
 }
 
 .item[data-accent='true'] {
-  border-top-color: var(--color-brand-09);
+  border-top-color: var(--color-brand-fill);
 }
 
 .value {
@@ -37,7 +37,7 @@
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
   font-weight: var(--font-weight-semibold);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-title);
   line-height: var(--line-height-02);
 }
 

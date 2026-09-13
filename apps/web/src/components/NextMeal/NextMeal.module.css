@@ -1,43 +1,39 @@
 /*
- * The one card on the dashboard that carries the accent as a fill.
+ * The one card on the dashboard that carries the accent as a wash.
  *
  * The accent marks actions, and this is the only thing on the screen a user
  * opens the dashboard to act on. Everything else is reference.
+ *
+ * `a.card`, element and class: `components/Card` paints the surface, and a
+ * selector one step more specific is what lets this one restate the ground and
+ * the border whatever order the two stylesheets land in.
  */
-.card {
+a.card {
   background: linear-gradient(140deg, var(--color-brand-03), var(--color-brand-02) 60%), var(--surface-card);
-  border: 1px solid var(--color-brand-06);
-  border-radius: var(--radius-04);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
+  border-color: var(--color-brand-06);
   color: inherit;
   display: grid;
   gap: var(--space-01);
-  padding: var(--card-padding);
   text-decoration: none;
-  transition:
-    border-color var(--duration-fast) var(--ease-default),
-    transform var(--duration-fast) var(--ease-default);
+  transition: border-color var(--duration-fast) var(--ease-default);
 }
 
-.card:hover {
+a.card:hover {
   border-color: var(--color-brand-08);
-  transform: translateY(-1px);
 }
 
 .eyebrow {
   color: var(--color-brand-11);
   font-size: var(--font-size-01);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.04em;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
 
 .name {
   font-size: var(--font-size-06);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: -0.015em;
+  letter-spacing: var(--tracking-title);
   line-height: var(--line-height-02);
 }
 
@@ -55,7 +51,7 @@
 /* The picture is the first thing in the card and the only thing that is not text. */
 .picture {
   aspect-ratio: 16 / 7;
-  border-radius: var(--radius-03);
+  border-radius: var(--radius-control);
   margin-bottom: var(--space-03);
   object-fit: cover;
   width: 100%;

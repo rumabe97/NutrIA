@@ -1,18 +1,12 @@
+/* A `components/Card` with the roomy padding; this only centres what is in it. */
 .empty {
-  background-color: var(--surface-card);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-05);
-  padding: var(--card-padding-lg);
   text-align: center;
 }
 
 .title {
   font-size: var(--font-size-07);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: -0.015em;
+  letter-spacing: var(--tracking-title);
   margin: 0 0 var(--gap-heading);
 }
 

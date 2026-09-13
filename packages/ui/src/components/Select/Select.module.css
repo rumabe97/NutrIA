@@ -2,16 +2,17 @@
   -moz-user-select: none;
   -webkit-user-select: none;
   align-items: center;
-  background-color: transparent;
-  border-radius: var(--radius-full);
+  background-color: var(--background-01);
+  border-radius: var(--radius-control);
   border: 1px solid var(--border-interactive);
   cursor: pointer;
   display: inline-flex;
-  font-size: var(--font-size-02);
+  font-size: var(--font-size-03);
   font-weight: var(--font-weight-medium);
   gap: var(--space-02);
-  height: var(--height-m);
-  justify-content: center;
+  /* The height of an input and of a `md` button: the three sit in the same rows. */
+  height: var(--height-l);
+  justify-content: space-between;
   padding: 0 var(--space-03);
   text-decoration: none;
   transition:
@@ -20,6 +21,12 @@
     border-color var(--duration-fast) var(--ease-default);
   user-select: none;
   width: 100%;
+}
+
+@media (pointer: coarse) {
+  .trigger {
+    min-block-size: var(--target-min);
+  }
 }
 
 .trigger:disabled {
@@ -36,7 +43,7 @@
   -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   background-color: var(--color-glass);
-  border-radius: var(--radius-03);
+  border-radius: var(--radius-card);
   border: 1px solid var(--border-01);
   box-shadow: var(--shadow-m);
   max-width: 240px;
@@ -47,9 +54,10 @@
   z-index: var(--z-dropdown);
 }
 
+/* The chosen value, in the text colour: it is the answer, not a hint. Clipped
+   only by the trigger's own width, never by a character count. */
 .label {
-  color: var(--foreground-02);
-  max-width: 20ch;
+  color: var(--foreground-01);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

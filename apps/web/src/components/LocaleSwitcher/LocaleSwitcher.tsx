@@ -10,6 +10,8 @@ import { LOCALES } from 'i18n/config';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
+import { Card } from 'components/Card';
+
 import { api, ApiError, messageFor } from 'lib/api';
 import { writeLocaleCookie } from 'lib/locale-sync';
 
@@ -132,8 +134,8 @@ export function LocaleSwitcher({ compact = false }: { compact?: boolean }) {
   }
 
   return (
-    <section className={styles.panel}>
-      <Text weight="semibold">{dictionary.profile.locale}</Text>
+    <Card as="section" className={styles.panel}>
+      <h3 className={styles.title}>{dictionary.profile.locale}</h3>
       <Text size="sm" tone="secondary">
         {dictionary.profile.localeHint}
       </Text>
@@ -145,6 +147,6 @@ export function LocaleSwitcher({ compact = false }: { compact?: boolean }) {
           {error}
         </p>
       ) : null}
-    </section>
+    </Card>
   );
 }

@@ -8,6 +8,7 @@ import styles from './page.module.css';
 import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
+import { Card } from 'components/Card';
 import { MacroSummary } from 'components/MacroSummary';
 import { MealStatus } from 'components/MealStatus';
 import { MealSwap } from 'components/MealSwap';
@@ -132,7 +133,7 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
         </figure>
       ) : null}
       {/* The four numbers a cook checks before starting. */}
-      <dl className={styles.spec}>
+      <Card as="dl" className={styles.spec}>
         {[
           { label: dictionary.meal.prep, value: interpolate(dictionary.meal.minutes, { value: formatNumber(meal.prepMinutes, locale) }) },
           {
@@ -148,7 +149,7 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
             <dd className={styles.specValue}>{item.value}</dd>
           </div>
         ))}
-      </dl>
+      </Card>
 
       <MacroSummary carbsG={meal.carbsG} fatG={meal.fatG} kcal={meal.kcal} note={dictionary.macros.note} proteinG={meal.proteinG} />
 

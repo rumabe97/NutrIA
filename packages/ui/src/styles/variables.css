@@ -64,6 +64,10 @@
   --height-m: 32px;
   --height-l: 40px;
   --height-xl: 48px;
+  /* The smallest thing a finger can hit (HIG: 44pt; WCAG 2.2 settles for 24).
+     Controls adopt it under `(pointer: coarse)` only, so a desktop row keeps
+     its height and a phone gets a target a thumb finds. */
+  --target-min: 44px;
 
   /* ── Motion ──────────────────────────────────────────────────────────
      Use these for all transition-duration and animation-duration values.
@@ -114,6 +118,14 @@
   --radius-04: 12px;
   --radius-05: 16px;
   --radius-full: 9999px;
+
+  /* Semantic radii, one per kind of thing, so every control agrees with every
+     other control and every card with every card. The values are iOS's:
+     controls and grouped rows 10, cards 14, sheets and dialogs 20. Reach for
+     these before the numeric scale above. */
+  --radius-control: 10px;
+  --radius-card: 14px;
+  --radius-sheet: 20px;
 
   /* ── Surfaces ────────────────────────────────────────────────────── */
   --background-01: var(--color-gray-01);
@@ -200,6 +212,18 @@
   --color-brand-10: var(--color-blue-10);
   --color-brand-11: var(--color-blue-11);
   --color-brand-12: var(--color-blue-12);
+
+  /* The fill under a white label — a filled button, a selected chip, a tick.
+     Step 09 is the scale's solid, but a scale lightens its solid in dark mode
+     and a white label on it can drop under 4.5:1 there. An app whose step 09
+     does not clear that in both schemes overrides these two with a deeper
+     value; the label stays white either way. */
+  --color-brand-fill: var(--color-brand-09);
+  --color-brand-fill-hover: var(--color-brand-10);
+  --color-on-brand-fill: var(--color-white);
+  /* The same for a destructive button. Red 11 clears 4.5:1 with white in
+     light; in dark the scale's 11 is a pastel, so the deeper 08 carries it. */
+  --color-error-fill: light-dark(var(--color-red-11), var(--color-red-08));
 }
 
 /*

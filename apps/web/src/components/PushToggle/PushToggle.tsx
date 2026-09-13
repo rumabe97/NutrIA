@@ -1,11 +1,10 @@
 'use client';
 import { useEffect, useState } from 'react';
 
-import styles from 'components/ReminderToggle/ReminderToggle.module.css';
-
-import { Switch } from 'ui/components/Switch';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
+
+import { SettingSwitch } from 'components/SettingSwitch';
 
 import { messageFor } from 'lib/api';
 import { pushState, turnPushOff, turnPushOn } from 'lib/push';
@@ -74,20 +73,5 @@ export function PushToggle({ publicKey }: Readonly<{ publicKey: string }>) {
     );
   }
 
-  return (
-    <div className={styles.root}>
-      <label className={styles.line}>
-        <Switch checked={state === 'on'} onCheckedChange={next => void change(next)} />
-        <Text size="sm">{t.pushLabel}</Text>
-      </label>
-      <Text size="xs" tone="tertiary">
-        {t.pushHint}
-      </Text>
-      {error ? (
-        <Text className={styles.error} size="xs">
-          {error}
-        </Text>
-      ) : null}
-    </div>
-  );
+  return <SettingSwitch checked={state === 'on'} error={error} hint={t.pushHint} label={t.pushLabel} onCheckedChange={next => void change(next)} />;
 }

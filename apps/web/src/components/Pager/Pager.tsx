@@ -1,10 +1,10 @@
 import { useId } from 'react';
 
-import Link from 'next/link';
-
 import styles from './Pager.module.css';
 
 import { Text } from 'ui/components/Text';
+
+import { CtaLink } from 'components/CtaLink';
 
 interface PagerProps {
   /** Copy, passed in so this stays a server component and the page keeps the dictionary. */
@@ -44,9 +44,9 @@ export function Pager({ labels, offset, param, size, total }: PagerProps) {
      */
     <nav aria-labelledby={rangeId} className={styles.pager}>
       {offset > 0 ? (
-        <Link className={styles.step} href={href(offset - size)} rel="prev">
+        <CtaLink href={href(offset - size)} rel="prev" size="sm" variant="secondary">
           {labels.previous}
-        </Link>
+        </CtaLink>
       ) : (
         <span className={styles.spacer} />
       )}
@@ -56,9 +56,9 @@ export function Pager({ labels, offset, param, size, total }: PagerProps) {
       </Text>
 
       {to < total ? (
-        <Link className={styles.step} href={href(offset + size)} rel="next">
+        <CtaLink href={href(offset + size)} rel="next" size="sm" variant="secondary">
           {labels.next}
-        </Link>
+        </CtaLink>
       ) : (
         <span className={styles.spacer} />
       )}

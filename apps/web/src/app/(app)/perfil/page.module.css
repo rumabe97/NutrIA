@@ -9,7 +9,7 @@
 .supervision {
   background-color: var(--surface-sunken);
   border-inline-start: 3px solid var(--color-warning);
-  border-radius: var(--radius-02);
+  border-radius: var(--radius-control);
   color: var(--foreground-02);
   font-size: var(--font-size-03);
   line-height: var(--line-height-04);
@@ -17,20 +17,30 @@
   padding: var(--space-04);
 }
 
+/*
+ * The screen is a settings list: five sections, each a small caps heading and
+ * its cards beneath, the way a phone's Settings app groups its rows. Thirteen
+ * cards in one undivided column was a page nobody could find anything on.
+ */
 .sections {
   display: grid;
-  gap: var(--gap-block);
+  gap: var(--gap-region);
   margin-top: var(--gap-region);
 }
 
-.card {
-  background-color: var(--surface-card);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-04);
-  padding: var(--card-padding);
+.section {
+  display: grid;
+  gap: var(--gap-block);
+}
+
+.sectionTitle {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  line-height: var(--line-height-04);
+  margin: 0 0 calc(var(--gap-heading) - var(--gap-block));
+  text-transform: uppercase;
 }
 
 .cardHead {
@@ -41,47 +51,12 @@
   margin-bottom: var(--gap-heading);
 }
 
-/* Structure without a size change: what `<Text weight="semibold">` looked like, as an `<h2>`. */
+/* A card's name: one step above the body, semibold, the same on every card here. */
 .cardTitle {
-  font-size: var(--font-size-03);
+  font-size: var(--font-size-04);
   line-height: var(--line-height-04);
-}
-
-.rows {
-  display: grid;
-  gap: var(--space-03);
-}
-
-.row {
-  border-bottom: 1px solid var(--border-01);
-  display: grid;
-  gap: var(--space-01) var(--space-05);
-  grid-template-columns: var(--label-column) 1fr;
-  padding-bottom: var(--space-03);
-}
-
-.row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.editLink {
-  color: var(--color-brand-11);
-  font-size: var(--font-size-03);
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.editLink:hover {
-  text-decoration: underline;
 }
 
 .danger {
   border-color: var(--color-red-06);
-}
-
-@media (width < 34rem) {
-  .row {
-    grid-template-columns: 1fr;
-  }
 }

@@ -2,6 +2,8 @@ import styles from './loading.module.css';
 
 import { Skeleton } from 'ui/components/Skeleton';
 
+import { Card } from 'components/Card';
+
 /**
  * Shown while any signed-in route resolves.
  *
@@ -21,7 +23,7 @@ export default function AppLoading() {
         <Skeleton height="1rem" width="min(22rem, 100%)" />
       </div>
 
-      <div className={styles.card}>
+      <Card className={styles.card}>
         <Skeleton height="1.25rem" width="8rem" />
 
         <div className={styles.stats}>
@@ -37,7 +39,7 @@ export default function AppLoading() {
             <Skeleton height="0.875rem" />
           </div>
         ))}
-      </div>
+      </Card>
     </div>
   );
 }

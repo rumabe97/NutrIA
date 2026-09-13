@@ -14,13 +14,21 @@
 .input {
   background-color: var(--background-01);
   border: 1px solid var(--border-interactive);
-  border-radius: var(--radius-02);
+  border-radius: var(--radius-control);
   color: var(--foreground-01);
   font-family: inherit;
   font-size: var(--font-size-03);
-  height: 2.25rem;
+  /* The same height as a `md` button, so a field and the button beside it are one row. */
+  height: var(--height-l);
   padding-inline: var(--space-03);
   width: 100%;
+}
+
+/* A finger's height on a phone, like every other control. */
+@media (pointer: coarse) {
+  .input {
+    min-block-size: var(--target-min);
+  }
 }
 
 .input::placeholder {
@@ -39,7 +47,7 @@
 .input[type='date'] {
   appearance: none;
   -webkit-appearance: none;
-  min-height: 2.25rem;
+  min-height: var(--height-l);
 }
 
 .input[type='time']::-webkit-date-and-time-value,

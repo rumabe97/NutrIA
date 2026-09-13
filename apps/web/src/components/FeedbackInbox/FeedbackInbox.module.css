@@ -13,16 +13,18 @@
 
 .row {
   border: 1px solid var(--border-01);
-  border-radius: var(--radius-03);
+  border-radius: var(--radius-control);
   display: grid;
   gap: var(--space-02);
   justify-items: start;
   padding: var(--space-03) var(--space-04);
 }
 
-/* Dealt with, not gone: still readable, just no longer asking for attention. */
-.handled {
-  opacity: 0.55;
+/* Dealt with, not gone: the message steps back to the secondary tone, which
+   still reads, and a chip says why. Fading the whole row put the address and
+   the date at 2.2:1 — a note the owner could no longer read. */
+.handled .message {
+  color: var(--foreground-02);
 }
 
 .head {
@@ -38,6 +40,12 @@
   border-radius: var(--radius-full);
   font-size: var(--font-size-01);
   padding: 0 var(--space-02);
+}
+
+.chipDone {
+  background: var(--color-brand-03);
+  border-color: transparent;
+  color: var(--color-brand-11);
 }
 
 .message {

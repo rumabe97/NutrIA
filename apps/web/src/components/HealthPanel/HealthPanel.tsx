@@ -13,6 +13,8 @@ import { Select, SelectOption } from 'ui/components/Select';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
+import { Card } from 'components/Card';
+
 import { api, messageFor } from 'lib/api';
 import { formatNumber, interpolate } from 'lib/format';
 
@@ -147,9 +149,9 @@ export function HealthPanel({ health }: { health: HealthView }) {
   const recorded = health.conditions.length + health.medications.length + health.supplements.length;
 
   return (
-    <section className={styles.panel}>
+    <Card as="section" className={styles.panel}>
       <div className={styles.heading}>
-        <h2 className={styles.title}>{t.title}</h2>
+        <h3 className={styles.title}>{t.title}</h3>
         <Button onClick={() => setOpen(!open)} type="button" variant="secondary">
           {open ? dictionary.common.close : recorded > 0 ? dictionary.common.edit : dictionary.common.add}
         </Button>
@@ -347,7 +349,7 @@ export function HealthPanel({ health }: { health: HealthView }) {
           </div>
         </Fragment>
       ) : null}
-    </section>
+    </Card>
   );
 }
 

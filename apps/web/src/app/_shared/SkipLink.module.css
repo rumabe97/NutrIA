@@ -16,7 +16,7 @@
 .link:focus {
   background-color: var(--background-01);
   border: 1px solid var(--border-01);
-  border-radius: var(--radius-03);
+  border-radius: var(--radius-control);
   box-shadow: var(--shadow-m);
   clip-path: none;
   color: var(--foreground-01);

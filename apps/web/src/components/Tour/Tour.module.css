@@ -14,6 +14,7 @@
 
 .replayTitle {
   font-size: var(--font-size-04);
+  line-height: var(--line-height-04);
   margin: 0;
 }
 
@@ -32,30 +33,52 @@
 }
 
 .dialog::backdrop {
-  background: rgb(0 0 0 / 45%);
+  background: var(--color-overlay);
 }
 
+/* A sheet, not a card: it floats over the page, so it has a sheet's radius and
+   the shadow of something raised — which is why it is not `components/Card`. */
 .panel {
   background-color: var(--surface-card);
   border: 1px solid var(--border-01);
-  border-radius: var(--radius-05);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
+  border-radius: var(--radius-sheet);
+  box-shadow: var(--shadow-l);
   display: grid;
   gap: var(--space-03);
   padding: var(--card-padding-lg);
 }
 
+/*
+ * On a phone the sheet rises from the bottom edge, where the thumb is, and
+ * keeps the whole width; only its top corners are rounded.
+ */
+@media (width < 34rem) {
+  .dialog {
+    inset-block: auto 0;
+    margin-block-end: 0;
+    max-block-size: 100dvh;
+    max-inline-size: 100vw;
+    width: 100%;
+  }
+
+  .panel {
+    border-block-end: 0;
+    border-radius: var(--radius-sheet) var(--radius-sheet) 0 0;
+    padding-block-end: calc(var(--card-padding-lg) + env(safe-area-inset-bottom));
+  }
+}
+
 .title {
   font-size: var(--font-size-06);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: -0.015em;
+  letter-spacing: var(--tracking-title);
   margin: 0;
 }
 
 .link {
+  align-items: center;
   color: var(--color-brand-11);
+  display: inline-flex;
   font-size: var(--font-size-02);
   font-weight: var(--font-weight-medium);
   justify-self: start;
@@ -64,6 +87,12 @@
 
 .link:hover {
   text-decoration: underline;
+}
+
+@media (pointer: coarse) {
+  .link {
+    min-block-size: var(--target-min);
+  }
 }
 
 .actions {

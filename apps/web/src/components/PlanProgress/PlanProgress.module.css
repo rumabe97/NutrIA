@@ -30,7 +30,7 @@
 }
 
 .cell[data-state='today'] {
-  background-color: var(--color-brand-09);
+  background-color: var(--color-brand-fill);
   /* The only cell that is taller. Position in a fortnight is the one thing this
      strip has to answer at a glance, and colour alone does not survive being
      glanced at. */

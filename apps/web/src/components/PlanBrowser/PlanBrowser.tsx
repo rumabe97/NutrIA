@@ -8,6 +8,7 @@ import styles from './PlanBrowser.module.css';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
+import { Card } from 'components/Card';
 import { CtaLink } from 'components/CtaLink';
 import { EventPlanner } from 'components/EventPlanner';
 import { MacroShift } from 'components/MacroShift';
@@ -101,7 +102,7 @@ export function PlanBrowser({ events = [], history = null, midPlan = null, plan,
         <PlanDayNav days={plan.days} onSelect={setSelected} selected={selected} today={today} />
 
         {day ? (
-          <section className={`${styles.card} motion-enter`} key={day.dayIndex}>
+          <Card as="section" className={`${styles.card} motion-enter`} key={day.dayIndex}>
             <div className={styles.dayHeading}>
               <div>
                 <Text size="lg" weight="semibold">
@@ -156,7 +157,7 @@ export function PlanBrowser({ events = [], history = null, midPlan = null, plan,
                 />
               ))}
             </div>
-          </section>
+          </Card>
         ) : null}
 
         {/* Adding an event with the plan under way, for the tier that has it
@@ -164,9 +165,9 @@ export function PlanBrowser({ events = [], history = null, midPlan = null, plan,
             on purpose: that card is keyed on the day and remounts on every
             switch, which would empty a half-typed form. */}
         {canAddMidPlan ? (
-          <section className={`${styles.card} ${styles.events}`}>
+          <Card as="section" className={`${styles.card} ${styles.events}`}>
             <EventPlanner allowance={midPlan} events={events} variant="plan" />
-          </section>
+          </Card>
         ) : null}
       </div>
     </Fragment>

@@ -23,7 +23,7 @@
    losing the user's place in the form. */
 .error {
   background-color: var(--color-red-03);
-  border-radius: var(--radius-02);
+  border-radius: var(--radius-control);
   color: var(--color-error-text);
   font-size: var(--font-size-03);
   padding: var(--space-03) var(--space-04);
@@ -31,7 +31,7 @@
 
 .success {
   background-color: var(--color-brand-03);
-  border-radius: var(--radius-02);
+  border-radius: var(--radius-control);
   color: var(--color-brand-11);
   font-size: var(--font-size-03);
   padding: var(--space-04);

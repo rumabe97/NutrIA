@@ -8,6 +8,7 @@ import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { AccountList } from 'components/AccountList';
+import { Card } from 'components/Card';
 import { FeedbackInbox } from 'components/FeedbackInbox';
 import { FlagSwitch } from 'components/FlagSwitch';
 import { Pager } from 'components/Pager';
@@ -97,7 +98,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       <dl className={styles.tiles}>
         {tiles.map(tile => (
-          <div className={styles.tile} key={tile.label}>
+          <Card className={styles.tile} key={tile.label} padding="sm">
             <dt className={styles.tileLabel}>{tile.label}</dt>
             <dd className={styles.tileValue}>{tile.value}</dd>
             {tile.note ? (
@@ -105,7 +106,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
                 {tile.note}
               </Text>
             ) : null}
-          </div>
+          </Card>
         ))}
       </dl>
 

@@ -5,10 +5,12 @@
 }
 
 .chip {
+  align-items: center;
   background-color: var(--surface-card);
-  border: 1px solid var(--border-01);
+  border: 1px solid var(--border-interactive);
   border-radius: var(--radius-full);
   cursor: pointer;
+  display: inline-flex;
   font-size: var(--font-size-03);
   padding: var(--space-02) var(--space-04);
   position: relative;
@@ -17,10 +19,17 @@
     border-color var(--duration-fast) var(--ease-default);
 }
 
+/* A finger tall on a phone: these are chosen with a thumb in the onboarding. */
+@media (pointer: coarse) {
+  .chip {
+    min-block-size: var(--target-min);
+  }
+}
+
 .chip:has(input:checked) {
   background-color: var(--color-brand-03);
-  border-color: var(--color-brand-09);
-  color: var(--color-brand-12);
+  border-color: var(--color-brand-fill);
+  color: var(--color-brand-11);
 }
 
 .chip:has(input:focus-visible) {

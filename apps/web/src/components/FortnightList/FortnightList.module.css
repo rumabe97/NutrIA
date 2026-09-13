@@ -8,18 +8,12 @@
   padding: 0;
 }
 
+/* Each fortnight is a `components/Card`; this is its inside. */
 .card {
   align-content: start;
-  background-color: var(--surface-card);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-04);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
   display: grid;
   gap: var(--space-04);
   min-inline-size: 0;
-  padding: var(--card-padding);
 }
 
 .head {
@@ -78,7 +72,7 @@
 }
 
 .bar {
-  background-color: var(--color-brand-09);
+  background-color: var(--color-brand-fill);
   block-size: 100%;
   border-radius: var(--radius-full);
 }
@@ -104,7 +98,9 @@
 }
 
 .open {
+  align-items: center;
   color: var(--color-brand-11);
+  display: inline-flex;
   font-size: var(--font-size-02);
   justify-self: start;
   text-decoration: none;
@@ -112,6 +108,12 @@
 
 .open:hover {
   text-decoration: underline;
+}
+
+@media (pointer: coarse) {
+  .open {
+    min-block-size: var(--target-min);
+  }
 }
 
 @media (width >= 48rem) {

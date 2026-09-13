@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useCallback, useEffect, useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
 import Link from 'next/link';
 
@@ -8,6 +8,8 @@ import styles from './Tour.module.css';
 import { Button } from 'ui/components/Button';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
+
+import { Card } from 'components/Card';
 
 import { api } from 'lib/api';
 import { interpolate } from 'lib/format';
@@ -140,70 +142,75 @@ export function Tour({ replay = false, seen = true }: TourProps) {
   const stop = STOPS[step];
   const last = step === STOPS.length - 1;
 
-  return (
-    <section className={replay ? styles.replay : styles.headless}>
-      {replay ? (
-        <Fragment>
-          <h2 className={styles.replayTitle}>{t.replayTitle}</h2>
-          <Text size="sm" tone="secondary">
-            {t.replayBody}
-          </Text>
-          <Button onClick={open} ref={trigger} size="sm" type="button" variant="secondary">
-            {t.replayCta}
-          </Button>
-        </Fragment>
-      ) : null}
+  const sheet = (
+    <dialog aria-describedby={bodyId} aria-labelledby={titleId} className={styles.dialog} onClose={leave} ref={dialog}>
+      <div className={styles.panel}>
+        <Text size="xs" tone="tertiary">
+          {interpolate(t.progress, { of: STOPS.length, step: step + 1 })}
+        </Text>
 
-      <dialog aria-describedby={bodyId} aria-labelledby={titleId} className={styles.dialog} onClose={leave} ref={dialog}>
-        <div className={styles.panel}>
-          <Text size="xs" tone="tertiary">
-            {interpolate(t.progress, { of: STOPS.length, step: step + 1 })}
-          </Text>
+        <h2 className={styles.title} id={titleId} ref={title} tabIndex={-1}>
+          {t.stops[stop.key].title}
+        </h2>
 
-          <h2 className={styles.title} id={titleId} ref={title} tabIndex={-1}>
-            {t.stops[stop.key].title}
-          </h2>
+        <Text id={bodyId} tone="secondary">
+          {t.stops[stop.key].body}
+        </Text>
 
-          <Text id={bodyId} tone="secondary">
-            {t.stops[stop.key].body}
-          </Text>
-
-          {/* The stop's own screen, one click away. Somebody who wants to see
+        {/* The stop's own screen, one click away. Somebody who wants to see
               the thing being described should not have to remember where it
               was — and going there ends the tour, which is the right trade. */}
-          <Link className={styles.link} href={stop.href} onClick={close}>
-            {t.stops[stop.key].cta}
-          </Link>
+        <Link className={styles.link} href={stop.href} onClick={close}>
+          {t.stops[stop.key].cta}
+        </Link>
 
-          {last ? (
-            <Text size="sm" tone="tertiary">
-              {t.closing}
-            </Text>
-          ) : null}
+        {last ? (
+          <Text size="sm" tone="tertiary">
+            {t.closing}
+          </Text>
+        ) : null}
 
-          <div className={styles.actions}>
-            {/* The way out is at the other end of the row from the way on: a
+        <div className={styles.actions}>
+          {/* The way out is at the other end of the row from the way on: a
                 button that leaves and a button that continues should never be
                 neighbours a thumb can confuse. On the last stop there is no
                 way out to offer — leaving and finishing are the same thing. */}
-            {last ? null : (
-              <Button className={styles.skip} onClick={close} size="sm" type="button" variant="secondary">
-                {t.skip}
-              </Button>
-            )}
-
-            {step > 0 ? (
-              <Button onClick={() => setStep(value => value - 1)} size="sm" type="button" variant="secondary">
-                {t.back}
-              </Button>
-            ) : null}
-
-            <Button onClick={last ? close : () => setStep(value => value + 1)} size="sm" type="button">
-              {last ? t.done : t.next}
+          {last ? null : (
+            <Button className={styles.skip} onClick={close} size="sm" type="button" variant="secondary">
+              {t.skip}
             </Button>
-          </div>
+          )}
+
+          {step > 0 ? (
+            <Button onClick={() => setStep(value => value - 1)} size="sm" type="button" variant="secondary">
+              {t.back}
+            </Button>
+          ) : null}
+
+          <Button onClick={last ? close : () => setStep(value => value + 1)} size="sm" type="button">
+            {last ? t.done : t.next}
+          </Button>
         </div>
-      </dialog>
-    </section>
+      </div>
+    </dialog>
+  );
+
+  // On the dashboard there is nothing to draw but the sheet; on the profile
+  // the replay is one card among the others.
+  if (!replay) {
+    return <section className={styles.headless}>{sheet}</section>;
+  }
+
+  return (
+    <Card as="section" className={styles.replay}>
+      <h3 className={styles.replayTitle}>{t.replayTitle}</h3>
+      <Text size="sm" tone="secondary">
+        {t.replayBody}
+      </Text>
+      <Button onClick={open} ref={trigger} size="sm" type="button" variant="secondary">
+        {t.replayCta}
+      </Button>
+      {sheet}
+    </Card>
   );
 }

@@ -22,7 +22,7 @@
 }
 
 .bar {
-  background-color: var(--color-brand-09);
+  background-color: var(--color-brand-fill);
   block-size: 100%;
   border-radius: inherit;
   transition: inline-size var(--duration-slow) var(--ease-spring);
@@ -113,7 +113,7 @@
 
 .error {
   background-color: var(--color-red-03);
-  border-radius: var(--radius-02);
+  border-radius: var(--radius-control);
   color: var(--color-error-text);
   font-size: var(--font-size-03);
   padding: var(--space-03) var(--space-04);
@@ -127,7 +127,7 @@
 .targetsBox {
   background-color: var(--color-brand-02);
   border: 1px solid var(--color-brand-06);
-  border-radius: var(--radius-04);
+  border-radius: var(--radius-card);
   margin-top: var(--space-06);
   padding: var(--space-05);
 }

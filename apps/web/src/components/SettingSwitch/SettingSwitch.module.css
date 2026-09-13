@@ -10,6 +10,12 @@
   gap: var(--space-03);
 }
 
+@media (pointer: coarse) {
+  .line {
+    min-block-size: var(--target-min);
+  }
+}
+
 .error {
   color: var(--color-error-text);
 }

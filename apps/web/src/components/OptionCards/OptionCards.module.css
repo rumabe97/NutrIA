@@ -9,8 +9,8 @@
 .option {
   align-items: flex-start;
   background-color: var(--surface-card);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-03);
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-control);
   cursor: pointer;
   display: flex;
   gap: var(--space-03);
@@ -26,7 +26,7 @@
 
 .option:has(input:checked) {
   background-color: var(--color-brand-02);
-  border-color: var(--color-brand-09);
+  border-color: var(--color-brand-fill);
 }
 
 .option:has(input:focus-visible) {
@@ -35,7 +35,7 @@
 }
 
 .input {
-  accent-color: var(--color-brand-09);
+  accent-color: var(--color-brand-fill);
   margin-top: 0.2em;
 }
 

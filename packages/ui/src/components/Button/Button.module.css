@@ -1,18 +1,27 @@
 .button {
   align-items: center;
-  border-radius: var(--radius-full);
-  border: none;
+  border-radius: var(--radius-control);
+  border: 1px solid transparent;
   cursor: pointer;
   display: inline-flex;
   font-weight: var(--font-weight-medium);
   justify-content: center;
   line-height: var(--line-height-01);
   transition:
-    background var(--duration-fast) var(--ease-default),
+    background-color var(--duration-fast) var(--ease-default),
+    border-color var(--duration-fast) var(--ease-default),
     color var(--duration-fast) var(--ease-default),
     opacity var(--duration-fast) var(--ease-default);
   user-select: none;
   white-space: nowrap;
+}
+
+/* On a phone every button is at least the size of a fingertip. The three
+   tiers below still set the height a pointer sees; a finger gets the floor. */
+@media (pointer: coarse) {
+  .button {
+    min-block-size: var(--target-min);
+  }
 }
 
 .button:disabled {
@@ -49,43 +58,69 @@
 /* ── Sizes ── */
 
 .sm {
-  font-size: var(--font-size-01);
-  gap: var(--space-01);
-  height: var(--height-s);
-  padding: 0 var(--space-03);
-}
-
-.md {
   font-size: var(--font-size-02);
   gap: var(--space-02);
   height: var(--height-m);
   padding: 0 var(--space-04);
 }
 
-.lg {
+.md {
   font-size: var(--font-size-03);
   gap: var(--space-02);
   height: var(--height-l);
   padding: 0 var(--space-05);
 }
 
+.lg {
+  font-size: var(--font-size-04);
+  gap: var(--space-02);
+  height: var(--height-xl);
+  padding: 0 var(--space-07);
+}
+
 /* ── Variants ── */
 
 .button.primary {
-  background-color: var(--foreground-01);
-  color: var(--background-01);
+  background-color: var(--color-brand-fill);
+  color: var(--color-on-brand-fill);
 }
 
 .button.primary:hover:not(:disabled) {
-  opacity: 0.85;
+  background-color: var(--color-brand-fill-hover);
 }
 
 .button.secondary {
   background-color: var(--background-01);
-  border: 1px solid var(--border-interactive);
+  border-color: var(--border-interactive);
   color: var(--foreground-01);
 }
 
 .button.secondary:hover:not(:disabled) {
-  background: var(--color-hover);
+  background-color: var(--color-hover);
+}
+
+/* A secondary button that is also a toggle says so when it is on: the tint
+   as a wash, not as a fill, so it never competes with the primary action. */
+.button.secondary[aria-pressed='true'] {
+  background-color: var(--color-brand-03);
+  border-color: var(--color-brand-fill);
+  color: var(--color-brand-11);
+}
+
+.button.tertiary {
+  background-color: transparent;
+  color: var(--color-brand-11);
+}
+
+.button.tertiary:hover:not(:disabled) {
+  background-color: var(--color-hover);
+}
+
+.button.destructive {
+  background-color: var(--color-error-fill);
+  color: var(--color-white);
+}
+
+.button.destructive:hover:not(:disabled) {
+  opacity: 0.85;
 }

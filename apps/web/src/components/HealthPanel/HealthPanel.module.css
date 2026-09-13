@@ -1,13 +1,7 @@
+/* A `components/Card`; this is its inside. */
 .panel {
-  background-color: var(--surface-card);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-03);
   display: grid;
   gap: var(--gap-block);
-  padding: var(--card-padding);
 }
 
 .heading {
@@ -42,7 +36,7 @@
 .applied,
 .suggestion {
   border-inline-start: 3px solid;
-  border-radius: var(--radius-02);
+  border-radius: var(--radius-control);
   display: grid;
   font-size: var(--font-size-02);
   gap: var(--space-02);
@@ -69,7 +63,7 @@
 
 .notice {
   background-color: var(--surface-sunken);
-  border-radius: var(--radius-02);
+  border-radius: var(--radius-control);
   color: var(--foreground-02);
   font-size: var(--font-size-02);
   padding: var(--space-03) var(--space-04);
@@ -124,7 +118,7 @@
 
 .error {
   background-color: var(--color-red-03);
-  border-radius: var(--radius-02);
+  border-radius: var(--radius-control);
   color: var(--color-error-text);
   font-size: var(--font-size-03);
   padding: var(--space-03) var(--space-04);
@@ -142,9 +136,8 @@
   }
 }
 
-/* The panel's name, as a heading: it is a peer of the profile's other cards,
-   and a page whose outline is one h1 and nothing else is a page a screen
-   reader cannot skim. The size is the design's, not the heading scale's. */
+/* The panel's name, as a heading, at the size every card on the profile gives
+   its title. */
 .title {
   font-size: var(--font-size-04);
   font-weight: var(--font-weight-semibold);
