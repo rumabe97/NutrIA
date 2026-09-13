@@ -9,6 +9,7 @@ import { DeleteAccount } from 'components/DeleteAccount';
 import { FeedbackForm } from 'components/FeedbackForm';
 import { HealthPanel } from 'components/HealthPanel';
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
+import { PremiumCard } from 'components/PremiumCard';
 import { ProfileSection } from 'components/ProfileSection';
 import { PushToggle } from 'components/PushToggle';
 import { ReminderToggle } from 'components/ReminderToggle';
@@ -24,6 +25,7 @@ import { serverApi } from 'lib/server-api';
 
 import { appMetadata } from '../../_shared/metadata';
 
+import type { BillingStatusView } from 'core/controllers/Billing';
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { HealthView } from 'core/controllers/Health';
@@ -66,7 +68,7 @@ function avoidValue(disliked: readonly { enforced: boolean; label: string }[], t
     .join('\n');
 }
 
-export default async function ProfilePage() {
+export default async function ProfilePage({ searchParams }: Readonly<{ searchParams: Promise<{ premium?: string }> }>) {
   // The profile screen and onboarding edit the same tables. Someone who has not
   // finished belongs in the flow that is filling them in, not in a read-only
   // view of half of them.
@@ -75,7 +77,7 @@ export default async function ProfilePage() {
   // Health data is fetched here and only here. It is not folded into
   // `/profile`, which the dashboard also loads — a medication has no business
   // travelling to a screen that does not show it.
-  const [dictionary, locale, user, profile, health, notifications, push, trips] = await Promise.all([
+  const [dictionary, locale, user, profile, health, notifications, push, billing, trips, query] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<UserView>('/users/me'),
@@ -84,7 +86,10 @@ export default async function ProfilePage() {
     serverApi<NotificationSettingsView>('/notifications/settings'),
     // Null when push is not set up on the API (`0054`), and then no switch is offered for it.
     serverApi<{ readonly publicKey: string | null }>('/notifications/push'),
-    serverApi<readonly VacationView[]>('/vacations')
+    // Unavailable unless payments are set up and open to this person (`0056`); then no card is drawn.
+    serverApi<BillingStatusView>('/billing'),
+    serverApi<readonly VacationView[]>('/vacations'),
+    searchParams
   ]);
   const t = dictionary.profile;
   const kg = (value: number) => `${formatNumber(value, locale)} ${dictionary.units.kilogram}`;
@@ -243,6 +248,16 @@ export default async function ProfilePage() {
           <ReminderToggle enabled={notifications?.checkInEmail ?? true} />
           {push?.publicKey ? <PushToggle publicKey={push.publicKey} /> : null}
         </div>
+
+        {billing?.available ? (
+          <div className={styles.card}>
+            <div className={styles.cardHead}>
+              <h2 className={styles.cardTitle}>{t.premiumTitle}</h2>
+            </div>
+            {/* `?premium=gracias` is where Stripe's checkout sends somebody back to. */}
+            <PremiumCard justPaid={query.premium === 'gracias'} status={billing} />
+          </div>
+        ) : null}
 
         <div className={`${styles.card} ${styles.danger}`}>
           <div className={styles.cardHead}>

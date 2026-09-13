@@ -218,6 +218,13 @@
       "when": 1789256799188,
       "tag": "0030_a_browser_may_ask_to_be_told",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1789318794138,
+      "tag": "0031_a_subscription_is_what_stripe_says",
+      "breakpoints": true
     }
   ]
 }

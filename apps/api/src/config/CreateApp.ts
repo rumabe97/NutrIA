@@ -68,6 +68,10 @@ export async function createApp(expressApp?: Express): Promise<NestExpressApplic
   // parser *after* the auth path — rather than globally before it — is the
   // difference between sign-in working and sign-in receiving an empty body.
   app.use(`/${prefix}/auth`, (_request: express.Request, _response: express.Response, next: express.NextFunction) => next());
+  // Stripe signs the webhook's bytes, not what a JSON parser makes of them, so
+  // that one route reads its body raw (`0056`). The JSON parser below leaves a
+  // body that has already been read alone.
+  app.use(`/${prefix}/billing/webhook`, express.raw({ limit: '256kb', type: 'application/json' }));
   app.use(express.json({ limit: '256kb' }));
   app.use(express.urlencoded({ extended: true, limit: '256kb' }));
 

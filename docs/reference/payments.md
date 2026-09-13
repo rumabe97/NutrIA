@@ -80,7 +80,10 @@ On the **`nutria-api`** Vercel project, not the web one:
 
 All three are optional in `Env.validation.ts`, in the same way `SENTRY_DSN` is:
 **unset, payments are off and nothing about them is reachable.** That is what
-lets this ship before the account exists.
+lets this ship before the account exists. They are **all three or none**: the API
+refuses to boot with only some of them, because a checkout without the webhook
+secret would take a card and never grant what was paid for. Create the webhook
+(3b) before setting any of them.
 
 Each one checks its prefix, because that is the half that goes wrong. A
 publishable key pasted where the secret belongs fails every call at Stripe with a
@@ -105,7 +108,22 @@ is signed, and its signature is verified against the secret above before a singl
 byte of it is trusted. This is the same rule as everywhere else here: never trust
 state that arrives from a client.
 
-## 4. What gets built (agent)
+### 3c. The customer portal, once, in test mode
+
+*Settings → Billing → Customer portal*: save the settings once, even unchanged. Until
+they are saved, Stripe refuses to open a portal session in test mode, and "Gestionar la
+suscripción" answers with an error.
+
+### 3d. Trying it
+
+With the test keys set and the API redeployed, the premium card appears on **your**
+profile, and on nobody else's: test keys open billing to the owner alone, whatever the
+`premium` switch says (`0056`). Pay with `4242 4242 4242 4242`, any future date and any
+CVC. You come back to the profile, and within seconds the webhook has made you premium.
+"Gestionar la suscripción" opens the portal, where cancelling shows the end date on the
+card.
+
+## 4. What gets built (agent) — built 2026-09-13 (`0056`)
 
 - A `subscriptions` table: the Stripe customer and subscription ids, the status,
   and the period end. `user.tier` stays the one thing the product reads, and the
