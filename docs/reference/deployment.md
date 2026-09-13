@@ -80,8 +80,9 @@ from local development:
 | `DIRECT_DATABASE_URL` | Neon's **direct** endpoint — the build runs migrations through it |
 | `AI_REWRITE_STEPS` | `false` on a free-tier project: the rewrite sweep would spend the daily request cap generation needs in ~2 hours; `true` with billing |
 | `AI_ILLUSTRATIONS` | `false` until billing is enabled on the Google AI project (its free tier allows **zero** image generations); then `true` |
-| `CRON_SECRET` | any 16+ characters (`openssl rand -base64 32`); the platform sends it as a bearer on a cron call. **No cron is scheduled today** — see §3b. Unset, the routes 404 and say so in the log |
+| `CRON_SECRET` | any 16+ characters (`openssl rand -base64 32`); the platform sends it as a bearer on a cron call. Two crons are scheduled: the rewrite sweep and the check-in reminder (§3b). Unset, the routes 404 and say so in the log |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | the password-reset sender (`0019`), see §5c. All five together or none: a host without credentials or a sender is refused at boot. With none, reset links go to the log and nobody receives them |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | the check-in reminder on phones (`0054`). Generate the pair once with `npx web-push generate-vapid-keys`; the subject is a `mailto:` or an `https:` URL. All three or none. With none, reminders go by mail only and the profile offers no switch for phones |
 | `AI_PROVIDER` | `google` calls Gemini directly with `GOOGLE_API_KEY`; `omniroute` goes through a gateway and needs `AI_BASE_URL`, `OMNIROUTE_API_KEY` and `OMNIROUTE_MODEL` — the whole setup is in [`ai-gateway.md`](./ai-gateway.md) |
 | `AI_BUDGET_SECONDS` | leave empty: 170 seconds for the model half of a generation, which fits the 300-second function (§4) |
 
@@ -135,19 +136,22 @@ them), the entry has been pointed back at a `.ts` file — see `apps/api/AGENTS.
 in neither `ALLOWED_ORIGINS` nor `COOKIE_DOMAIN`, so authentication cannot work on
 one, and a preview that half-works is worse than none.
 
-## 3b. The crons are off
+## 3b. The crons
 
-`apps/api/vercel.json` schedules **one** of the three: the rewrite sweep, daily at 03:30 UTC,
-when nobody is building a plan. The other two stay off — removed on 2026-09-09, at the
-owner's request, while the project runs on free tiers — and are only reachable by hand with
-the bearer. Every cron call needs `CRON_SECRET` on the API project: the platform sends it as
-the bearer, and without it the route answers 404.
+`apps/api/vercel.json` schedules **two** of the three:
+- the rewrite sweep, daily at 03:30 UTC, when nobody is building a plan;
+- the check-in reminder, daily at 08:00 UTC ([`0054`](../decisions/0054-the-check-in-reminder-comes-back-behind-a-switch.md)).
+
+The illustration sweep stays off. It was removed on 2026-09-09, at the owner's request, while
+the project runs on free tiers, and can only be reached by hand with the bearer. Every cron
+call needs `CRON_SECRET` on the API project: the platform sends it as the bearer, and without
+it the route answers 404.
 
 | Route | What it spends | Also gated by |
 | --- | --- | --- |
 | `/api/v1/cron/illustrate` | one image generation per recipe — the expensive one | `AI_ILLUSTRATIONS`, off by default |
 | `/api/v1/cron/rewrite-steps` | one text generation per recipe, at most twelve a run, ending by 240 s. Through the gateway, its free models; on Google directly, the daily cap generation needs | `AI_REWRITE_STEPS`, off by default; `AI_REWRITE_MODEL` picks its model ([`ai-gateway.md`](./ai-gateway.md) §6) |
-| `/api/v1/cron/reminders` | **nothing from the AI provider** — one SMTP send per account, at most once a fortnight | `SMTP_HOST`; sends nothing without it |
+| `/api/v1/cron/reminders` | **nothing from the AI provider**: a mail and/or a push per account, at most once a fortnight | the **Check-in reminder** switch on `/admin`, off until thrown; `SMTP_HOST` for the mail and `VAPID_*` for the push. Sends nothing without either |
 
 A daily run is what the Hobby plan allows. On a plan that runs crons hourly, `0 * * * *`
 clears the 160 stale recipes of 2026-09-12 in about fourteen hours instead of two weeks.
@@ -155,7 +159,7 @@ clears the 160 stale recipes of 2026-09-12 in about fourteen hours instead of tw
 Turning another one back on is adding its entry:
 
 ```jsonc
-"crons": [{ "path": "/api/v1/cron/reminders", "schedule": "0 8 * * *" }]
+"crons": [{ "path": "/api/v1/cron/illustrate", "schedule": "0 4 * * *" }]
 ```
 
 Vercel reads the block at deploy time, so a redeploy is what starts it. Note that a
@@ -347,7 +351,7 @@ Three things to be honest about:
 - **The file carries every user's health data.** It is not encrypted and it is not uploaded
   anywhere — `backups/` is in `.gitignore` and the script picks no destination, because
   where a file like that lives is a decision, not a default.
-- **Nothing runs it on a schedule.** No cron is scheduled at all right now (§3b), and a
+- **Nothing runs it on a schedule.** Neither of the two scheduled crons is a backup (§3b), and a
   backup nobody runs is worth what it sounds like. Until that changes, it is a habit: before
   a migration that drops or rewrites a column, and before anything else you would not want
   to do twice.

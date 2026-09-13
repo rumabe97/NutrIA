@@ -107,6 +107,11 @@ export const enGB: Dictionary = {
       unknown_ingredient: 'invented ingredient',
       unwanted: 'diet or dislikes'
     },
+    remindersHint:
+      'On: every morning, whoever has finished their fortnight without checking in is told, by email and on the phones that asked. Once a fortnight, and each person can turn it off on their profile.',
+    remindersLabel: 'Send the reminder',
+    remindersOffHint: 'Off: no reminder goes out. The check-in only shows on the Today screen.',
+    remindersTitle: 'Check-in reminder',
     roleAdmin: 'admin',
     tierPremium: 'Premium',
     title: 'Service',
@@ -898,6 +903,11 @@ export const enGB: Dictionary = {
     pace: 'Pace',
     personalData: 'Personal details',
     preferences: 'Preferences',
+    pushBlocked: 'This browser is blocking notifications from NutrIA. You can allow them in its settings.',
+    pushHint: 'One notification on check-in day. Each device is turned on separately.',
+    pushInstallFirst: 'To get notifications on an iPhone, add NutrIA to your home screen (Share → Add to Home Screen) and turn them on from there.',
+    pushLabel: 'Also notify me on this device',
+    pushUnsupported: 'This browser cannot receive notifications.',
     reminderCheckIn: 'Email me when the fortnight ends',
     reminderCheckInHint: 'One email every fourteen days, on check-in day. Nothing else.',
     reminders: 'Reminders',

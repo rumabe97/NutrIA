@@ -59,3 +59,10 @@ invocation, and one exception is a thing to remember rather than a rule.
 The sweep, the switch and the mail are unchanged and tested; nothing calls them
 until an entry goes back into `apps/api/vercel.json` (§3b of the runbook). Until
 then the check-in card on the dashboard is the only nudge, as it was before.
+
+## Amendment — 2026-09-13
+
+The schedule is back, and the reminder can reach a phone as well
+([`0054`](./0054-the-check-in-reminder-comes-back-behind-a-switch.md)). Whether it goes
+out at all is a switch on `/admin`, which is off until the owner turns it on.
+"Already sent" now counts any channel, so it is still one reminder a fortnight.

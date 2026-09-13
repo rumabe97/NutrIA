@@ -18,7 +18,7 @@ describe('GET /cron/illustrate', () => {
   let app: INestApplication;
   const illustrateMissing = jest.fn<(limit: number) => Promise<{ drawn: number; failed: number; pending: number }>>();
   const rewriteOutdated = jest.fn<(limit: number) => Promise<{ pending: number; rewritten: number; skipped: number; unreached: number }>>();
-  const sweep = jest.fn(async () => Promise.resolve({ considered: 0, failed: 0, sent: 0 }));
+  const sweep = jest.fn(async () => Promise.resolve({ considered: 0, failed: 0, pushed: 0, sent: 0 }));
 
   afterEach(async () => {
     jest.clearAllMocks();

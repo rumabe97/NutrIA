@@ -12,6 +12,7 @@ import { useDictionary } from 'i18n/LocaleProvider';
 
 import { api, messageFor } from 'lib/api';
 import { forgetOfflineCopies } from 'lib/offline';
+import { forgetPushOnThisDevice } from 'lib/push';
 import { interpolate } from 'lib/format';
 
 /**
@@ -39,6 +40,8 @@ export function DeleteAccount() {
     try {
       await api('/users/me', { method: 'DELETE' });
       await forgetOfflineCopies();
+      // The subscription's row went with the account; this undoes the browser's half.
+      await forgetPushOnThisDevice();
       router.push('/');
       router.refresh();
     } catch (caught) {

@@ -47,3 +47,17 @@ export function checkInReminderEmail({ locale, url }: { locale: EmailLocale; url
 export function checkInReminderRecord(locale: EmailLocale): { readonly body: string; readonly title: string } {
   return { body: COPY[locale].intro, title: COPY[locale].subject };
 }
+
+/**
+ * What a phone shows (`0054`). Short enough for a lock screen, and like the
+ * mail, nothing about anybody's health: a lock screen is the most public place
+ * this product ever writes to.
+ */
+const PUSH: Record<EmailLocale, { readonly body: string; readonly title: string }> = {
+  'en-GB': { body: 'Two minutes of check-in, and your next plan starts from there.', title: 'Your fortnight is done' },
+  'es-ES': { body: 'Dos minutos de check-in y el siguiente plan parte de ahí.', title: 'Tu quincena ha terminado' }
+};
+
+export function checkInReminderPush(locale: EmailLocale): { readonly body: string; readonly title: string } {
+  return PUSH[locale];
+}
