@@ -97,6 +97,12 @@ export const enGB: Dictionary = {
     premiumLabel: 'Paid tier',
     premiumOffHint: 'Premium is off: everybody is on the free limits, including anyone already granted it. Turning it on gives it back.',
     premiumTitle: 'Paid tier',
+    pushTest: 'Send me a test notification',
+    pushTestNoDevice: 'No device of yours has notifications on. Turn them on in your profile, from your phone, and try again.',
+    pushTestRefused:
+      'None of your {count} devices accepted it. If you removed the permission or the app, turn notifications on again in your profile.',
+    pushTestSent: 'Sent: {count} of your devices accepted it. It should arrive in a few seconds.',
+    pushTestUnconfigured: 'Push is not set up on the server: the VAPID variables are missing on the API project in Vercel, or it needs a redeploy.',
     recipes: 'Recipes',
     rejection: {
       allergen: 'allergen',

@@ -61,3 +61,10 @@ const PUSH: Record<EmailLocale, { readonly body: string; readonly title: string 
 export function checkInReminderPush(locale: EmailLocale): { readonly body: string; readonly title: string } {
   return PUSH[locale];
 }
+
+const TEST: Record<EmailLocale, string> = { 'en-GB': 'Test', 'es-ES': 'Prueba' };
+
+/** The owner's test from `/admin`: the reminder's own words, so what arrives is what people will get, marked as a test. */
+export function checkInReminderTest(locale: EmailLocale): { readonly body: string; readonly title: string } {
+  return { body: PUSH[locale].body, title: `${TEST[locale]} · ${PUSH[locale].title}` };
+}

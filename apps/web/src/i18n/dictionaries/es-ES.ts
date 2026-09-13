@@ -101,6 +101,12 @@ export const esES = {
     premiumLabel: 'Nivel de pago',
     premiumOffHint: 'Premium está apagado: todo el mundo usa los límites gratuitos, incluido quien ya lo tenga concedido. Encenderlo se lo devuelve.',
     premiumTitle: 'Nivel de pago',
+    pushTest: 'Enviarme un aviso de prueba',
+    pushTestNoDevice: 'No tienes avisos activados en ningún dispositivo. Actívalos en tu perfil, desde el móvil, y vuelve a probar.',
+    pushTestRefused:
+      'Ninguno de tus {count} dispositivos lo aceptó. Si quitaste el permiso o borraste la app, vuelve a activar los avisos en tu perfil.',
+    pushTestSent: 'Enviado: lo han aceptado {count} de tus dispositivos. Debería llegar en unos segundos.',
+    pushTestUnconfigured: 'El push no está configurado en el servidor: faltan las variables VAPID en la API de Vercel, o falta el redeploy.',
     recipes: 'Recetas',
     rejection: {
       allergen: 'alérgeno',

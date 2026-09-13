@@ -68,6 +68,15 @@ describe('admin', () => {
     }
   });
 
+  it('sends a test notification to the owner alone, and says why when it cannot', async () => {
+    await request(httpServer(app)).post(`/${PREFIX}/admin/push-test`).set('Cookie', ordinary.cookie).expect(404);
+
+    const sent: Response = await request(httpServer(app)).post(`/${PREFIX}/admin/push-test`).set('Cookie', owner.cookie).expect(200);
+
+    // The suite has no VAPID keys: nothing can be sent, and the answer says so rather than "sent".
+    expect(sent.body).toEqual({ configured: false, delivered: 0, devices: 0 });
+  });
+
   it('lists every account with the state of its two locks, and nothing about anybody', async () => {
     const listed: Response = await request(httpServer(app)).get(`/${PREFIX}/admin/accounts`).set('Cookie', owner.cookie).expect(200);
     const page = listed.body as Paged<AccountView>;

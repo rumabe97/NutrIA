@@ -5,10 +5,12 @@ import {
   AdminController,
   AdminFeedbackController,
   AdminGenerationsController,
+  AdminPushTestController,
   AdminSettingsController
 } from './controllers/index.js';
-import { AdminAccountsService, AdminFeedbackService, AdminService, AdminSettingsService } from './services/index.js';
+import { AdminAccountsService, AdminFeedbackService, AdminPushTestService, AdminService, AdminSettingsService } from './services/index.js';
 import { envProvider } from '../../config/index.js';
+import { NotificationsModule } from '../notifications/index.js';
 
 /**
  * One controller per question the screen asks, so the reads that carry a
@@ -16,7 +18,16 @@ import { envProvider } from '../../config/index.js';
  * visibly their own thing rather than three methods among ten.
  */
 @Module({
-  controllers: [AdminController, AdminAccountsController, AdminFeedbackController, AdminGenerationsController, AdminSettingsController],
-  providers: [AdminAccountsService, AdminFeedbackService, AdminService, AdminSettingsService, envProvider]
+  controllers: [
+    AdminController,
+    AdminAccountsController,
+    AdminFeedbackController,
+    AdminGenerationsController,
+    AdminPushTestController,
+    AdminSettingsController
+  ],
+  // For `PushService`: the owner's test goes out through the one door every push does.
+  imports: [NotificationsModule],
+  providers: [AdminAccountsService, AdminFeedbackService, AdminPushTestService, AdminService, AdminSettingsService, envProvider]
 })
 export class AdminModule {}

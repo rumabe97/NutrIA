@@ -277,11 +277,12 @@ describe('RecipeRewriter — inside the function’s time', () => {
     return Array.from({ length: count }, (_none, index) => ({ ...RECIPE, id: `${String(index).padStart(8, '0')}-1111-4111-8111-111111111111` }));
   }
 
-  /** Answers after `ms`, and counts how many calls it holds at once. */
+  /** Answers after `ms`, counts how many calls it holds at once, and notes when each began. */
   class SlowAi extends AiClient {
     public inFlight = 0;
     public most = 0;
     public requests: AiRequest<unknown>[] = [];
+    public starts: number[] = [];
 
     constructor(private readonly ms: number) {
       super();
@@ -293,6 +294,7 @@ describe('RecipeRewriter — inside the function’s time', () => {
 
     async generate<T>(request: AiRequest<T>): Promise<AiResponse<T>> {
       this.requests.push(request as AiRequest<unknown>);
+      this.starts.push(Date.now());
       this.inFlight += 1;
       this.most = Math.max(this.most, this.inFlight);
       await new Promise(resolve => {
@@ -341,11 +343,23 @@ describe('RecipeRewriter — inside the function’s time', () => {
     jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue(many(5));
     jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
 
-    // One lane, 60 ms a call, 100 ms needed to start one, 250 ms in all: calls
-    // start at about 0, 60 and 120; at 180 only 70 ms are left.
-    const run = await new RecipeRewriter(new SlowAi(60), ON, { lanes: 1, minCallMs: 100, sweepMs: 250 }).rewriteOutdated(12);
+    const ai = new SlowAi(60);
+    const started = Date.now();
 
-    expect(run).toEqual({ pending: 5, rewritten: 3, skipped: 0, unreached: 2 });
+    // One lane, 60 ms a call at the least, 100 ms needed to start one, 250 ms in
+    // all: three calls fit at most, however fast the machine. How many fit on a
+    // slow one is its own business, so the rule is asserted rather than a count.
+    // A count pinned to three failed twice on a busy CI runner, which fitted two.
+    const run = await new RecipeRewriter(ai, ON, { lanes: 1, minCallMs: 100, sweepMs: 250 }).rewriteOutdated(12);
+
+    expect(run).toMatchObject({ pending: 5, skipped: 0 });
+    expect(run.rewritten + run.unreached).toBe(5);
+    expect(run.rewritten).toBeGreaterThanOrEqual(1);
+    expect(run.unreached).toBeGreaterThanOrEqual(2);
+    // Every call it started, it finished.
+    expect(ai.starts).toHaveLength(run.rewritten);
+    // None began with less than 100 of the 250 ms left, give or take the timer itself.
+    expect(Math.max(...ai.starts.map(at => at - started))).toBeLessThanOrEqual(150 + 20);
   });
 
   it('bounds each call by the sweep and files it under its recipe in a gateway’s log', async () => {
