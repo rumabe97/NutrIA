@@ -1,0 +1,10 @@
+.root {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-03);
+}
+
+.error {
+  color: var(--color-red-07, currentColor);
+}

@@ -296,6 +296,25 @@ const envSchema = envObject
     }
   })
   .superRefine((env, ctx) => {
+    // Payments are all or nothing as well (`0056`), and here the half-way state
+    // costs somebody money: a checkout with no webhook secret takes their card
+    // and never grants what they paid for.
+    const stripe = ['STRIPE_SECRET_KEY', 'STRIPE_PRICE_ID', 'STRIPE_WEBHOOK_SECRET'] as const;
+
+    if (stripe.some(key => env[key])) {
+      for (const key of stripe) {
+        if (!env[key]) {
+          ctx.addIssue({ code: 'custom', message: 'is required when any STRIPE_* is set', path: [key] });
+        }
+      }
+    }
+
+    // A preview deployment is a test by definition; a live key there charges real cards from one.
+    if (env.VERCEL_ENV === 'preview' && env.STRIPE_SECRET_KEY?.startsWith('sk_live_')) {
+      ctx.addIssue({ code: 'custom', message: 'must be a test key (sk_test_) on a preview deployment', path: ['STRIPE_SECRET_KEY'] });
+    }
+  })
+  .superRefine((env, ctx) => {
     // The platform says this is production; the process must agree, or every
     // rule below is skipped, cookies are not `secure`, and Swagger is one flag
     // from public. This is the only place the two are compared, so it fails

@@ -3,7 +3,7 @@ import { boolean, index, jsonb, pgTable, text, time, timestamp, unique, uuid } f
 import { notificationChannel, notificationType } from './_enums';
 import { user } from './auth.schema';
 import { timestamps } from './_columns';
-import { userOwned } from './_utils';
+import { userOwned, userOwnedSingleton } from './_utils';
 
 /**
  * What somebody wrote to the owner (`0037`).
@@ -50,6 +50,22 @@ export const pushSubscriptions = userOwned(
   { auth: text().notNull(), endpoint: text().notNull(), p256dh: text().notNull() },
   table => [unique('push_subscriptions_endpoint_key').on(table.endpoint)]
 );
+
+/**
+ * What Stripe says about somebody's subscription (`0056`), one row per account.
+ *
+ * The customer id outlives any one subscription: it is who they are to Stripe,
+ * and the portal and the next checkout both need it. The status is Stripe's own
+ * word, stored as it comes; what it means for the tier is decided in
+ * `core/domain/Billing`, and `user.tier` is written with it in one transaction.
+ */
+export const subscriptions = userOwnedSingleton('subscriptions', {
+  cancelAtPeriodEnd: boolean().notNull().default(false),
+  currentPeriodEnd: timestamp({ withTimezone: true }),
+  status: text(),
+  stripeCustomerId: text().notNull().unique(),
+  stripeSubscriptionId: text().unique()
+});
 
 /**
  * Security-relevant actions only. `actorId` is `set null` on delete so the trail
