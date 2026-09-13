@@ -1,0 +1,25 @@
+.root {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  margin: 0 0 var(--gap-block);
+}
+
+/* A link that leaves the site, drawn to sit beside the share button as its equal. */
+.link {
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-03);
+  color: inherit;
+  padding: var(--space-02) var(--space-04);
+  text-decoration: none;
+}
+
+.link:hover {
+  background-color: var(--surface-sunken);
+}
+
+.note {
+  flex-basis: 100%;
+  margin: 0;
+}

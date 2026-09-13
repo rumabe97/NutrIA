@@ -2,15 +2,17 @@ import { Fragment } from 'react';
 
 import styles from './page.module.css';
 
-import { getDictionary } from 'i18n/server';
+import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { CtaLink } from 'components/CtaLink';
 import { EmptyState } from 'components/EmptyState';
+import { ShoppingActions } from 'components/ShoppingActions';
 import { ShoppingItem } from 'components/ShoppingItem';
 import { ShoppingProgress } from 'components/ShoppingProgress';
 
 import { categoryLabel } from 'lib/generation';
+import { formatQuantity } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
@@ -44,7 +46,7 @@ const ORDER = ['produce', 'protein', 'dairy', 'bakery', 'frozen', 'pantry', 'bev
 export default async function ShoppingPage() {
   await redirectIfOnboardingIncomplete();
 
-  const [dictionary, list] = await Promise.all([getDictionary(), serverApi<ShoppingListView>('/shopping-lists/active')]);
+  const [dictionary, locale, list] = await Promise.all([getDictionary(), activeLocale(), serverApi<ShoppingListView>('/shopping-lists/active')]);
 
   if (!list) {
     return (
@@ -69,6 +71,19 @@ export default async function ShoppingPage() {
       <div className={styles.progress}>
         <ShoppingProgress items={list.items} />
       </div>
+
+      {/* In the aisles' order and the reader's words, so a message reads like the list on screen. */}
+      <ShoppingActions
+        groups={groups.map(group => ({
+          items: group.items.map(item => ({
+            id: item.id,
+            checked: item.checked,
+            name: item.name,
+            quantity: formatQuantity(item.displayQuantity, item.displayUnit, locale, dictionary)
+          })),
+          label: categoryLabel(group.category, dictionary)
+        }))}
+      />
 
       {groups.map(group => (
         <section className={`${styles.group} motion-enter`} key={group.category}>
