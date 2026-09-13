@@ -12,7 +12,7 @@
  * service is first deployed and every day a migration runs before a seed.
  */
 
-export type FlagName = 'automaticActivation' | 'premium';
+export type FlagName = 'automaticActivation' | 'checkInReminders' | 'premium';
 
 export type FlagAudience =
   /** The owner, on `/admin`, and nobody else. */
@@ -54,6 +54,19 @@ export const FLAGS: Readonly<Record<FlagName, Flag>> = {
    * deliberate act and it leaves a row saying so.
    */
   automaticActivation: { audience: 'signed-in', fallback: true, key: 'automatic_activation' },
+
+  /**
+   * Whether the check-in reminder goes out at all: by mail, and to the phones
+   * that asked for it (`0054`).
+   *
+   * Falls back to off. The sweep runs every day, so the day the settings table
+   * is empty must not be the day a message reaches everybody whose fortnight
+   * has closed. Starting to contact people is the owner's call, made on
+   * `/admin`, and it leaves a row saying so. Owner-only: no screen depends on
+   * it. Each person's own answer is the switch on their profile; this one is
+   * the service's.
+   */
+  checkInReminders: { audience: 'owner', fallback: false, key: 'check_in_reminders' },
 
   /**
    * Whether the paid tier exists at all.

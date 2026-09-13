@@ -133,6 +133,18 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
         />
       </section>
 
+      {/* Whether the check-in reminder goes out at all (`0054`). Each person's own switch is on their profile. */}
+      <section className={styles.section}>
+        <h2 className={styles.subtitle}>{t.remindersTitle}</h2>
+        <FlagSwitch
+          enabled={settings?.flags?.checkInReminders ?? false}
+          flag="checkInReminders"
+          label={t.remindersLabel}
+          offHint={t.remindersOffHint}
+          onHint={t.remindersHint}
+        />
+      </section>
+
       {/* Accounts next: the only thing on this page somebody is waiting on. */}
       <section className={styles.section} id="cuentas">
         <h2 className={styles.subtitle}>{t.accountsTitle}</h2>

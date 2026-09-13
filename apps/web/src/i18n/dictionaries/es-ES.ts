@@ -111,6 +111,11 @@ export const esES = {
       unknown_ingredient: 'ingrediente inventado',
       unwanted: 'dieta o gustos'
     },
+    remindersHint:
+      'Encendido: cada mañana se avisa, por correo y en los móviles que lo pidieron, a quien ha terminado su quincena sin hacer el check-in. Una vez por quincena, y cada persona puede desactivarlo en su perfil.',
+    remindersLabel: 'Enviar el recordatorio',
+    remindersOffHint: 'Apagado: no sale ningún recordatorio. El check-in solo aparece en la pantalla de Hoy.',
+    remindersTitle: 'Recordatorio del check-in',
     roleAdmin: 'admin',
     tierPremium: 'Premium',
     title: 'Servicio',
@@ -912,6 +917,12 @@ export const esES = {
     pace: 'Ritmo',
     personalData: 'Datos personales',
     preferences: 'Preferencias',
+    pushBlocked: 'Este navegador tiene bloqueados los avisos de NutrIA. Puedes permitirlos en sus ajustes.',
+    pushHint: 'Una notificación el día que toca el check-in. Se activa en cada dispositivo por separado.',
+    pushInstallFirst:
+      'Para recibir avisos en el iPhone, añade NutrIA a la pantalla de inicio (Compartir → Añadir a la pantalla de inicio) y actívalos desde ahí.',
+    pushLabel: 'Avisarme también en este dispositivo',
+    pushUnsupported: 'Este navegador no puede recibir avisos.',
     reminderCheckIn: 'Avísame por correo cuando acabe la quincena',
     reminderCheckInHint: 'Un correo cada catorce días, el día que toca el check-in. Nada más.',
     reminders: 'Avisos',

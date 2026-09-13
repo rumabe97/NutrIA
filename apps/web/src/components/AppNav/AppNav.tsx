@@ -12,6 +12,7 @@ import { LocaleSwitcher } from 'components/LocaleSwitcher';
 import { useOffline } from 'components/OfflineProvider';
 
 import { forgetOfflineCopies } from 'lib/offline';
+import { forgetPushOnThisDevice } from 'lib/push';
 import { signOut } from 'lib/auth-client';
 
 /**
@@ -38,6 +39,8 @@ export function AppNav() {
   const destinations = DESTINATIONS.filter(destination => available(destination.href));
 
   async function handleSignOut() {
+    // This browser stops being told about this account, while the session can still say so (`0054`).
+    await forgetPushOnThisDevice();
     await signOut();
     // Today's screen and the list stay on the device only while the session does (`0053`).
     await forgetOfflineCopies();

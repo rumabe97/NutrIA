@@ -211,6 +211,13 @@
       "when": 1789247798425,
       "tag": "0029_a_method_that_names_another_food_is_written_again",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1789256799188,
+      "tag": "0030_a_browser_may_ask_to_be_told",
+      "breakpoints": true
     }
   ]
 }

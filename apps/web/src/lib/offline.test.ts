@@ -100,10 +100,24 @@ function load() {
       return store;
     }
   };
+  const shown: { options: Record<string, unknown>; title: string }[] = [];
+  const opened: string[] = [];
+  const windows: AppWindow[] = [];
   const self = {
     addEventListener: (type: string, listener: Listener) => listeners.set(type, listener),
-    clients: { claim: async () => undefined },
+    clients: {
+      claim: async () => undefined,
+      matchAll: async () => windows,
+      openWindow: async (url: string) => {
+        opened.push(url);
+      }
+    },
     location: new URL(`${ORIGIN}/sw.js`),
+    registration: {
+      showNotification: async (title: string, options: Record<string, unknown>) => {
+        shown.push({ options, title });
+      }
+    },
     skipWaiting: () => undefined
   };
 
@@ -150,12 +164,93 @@ function load() {
   return {
     asked,
     clock,
+    /** Any other event, the way the browser would send it. */
+    event: (type: string, payload: Record<string, unknown>) => drain(dispatch(type, payload)),
     message: (data: Record<string, unknown>) => drain(dispatch('message', { data })),
+    opened,
     request,
     server,
-    stored: (cache: string) => [...(stores.get(cache)?.entries.keys() ?? [])].map(url => new URL(url).pathname)
+    shown,
+    stored: (cache: string) => [...(stores.get(cache)?.entries.keys() ?? [])].map(url => new URL(url).pathname),
+    windows
   };
 }
+
+type AppWindow = { focus: () => Promise<void>; focused: boolean; navigate: (url: string) => Promise<void>; navigated: string[]; url: string };
+
+/** The app, open in a window on some page of this site. */
+function appWindow(url: string): AppWindow {
+  const window: AppWindow = {
+    focus: async () => {
+      window.focused = true;
+    },
+    focused: false,
+    navigate: async (to: string) => {
+      window.navigated.push(to);
+    },
+    navigated: [],
+    url
+  };
+
+  return window;
+}
+
+function tapped(url: string): Record<string, unknown> {
+  return { notification: { close: () => undefined, data: { url } } };
+}
+
+describe('the worker and a push', () => {
+  it('shows what arrives, replacing an older reminder rather than stacking beside it', async () => {
+    const worker = load();
+
+    await worker.event('push', { data: { json: () => ({ body: 'Dos minutos.', title: 'Tu quincena ha terminado', url: at('/check-in') }) } });
+
+    expect(worker.shown).toEqual([
+      { options: { body: 'Dos minutos.', data: { url: at('/check-in') }, icon: '/icon', tag: 'check-in' }, title: 'Tu quincena ha terminado' }
+    ]);
+  });
+
+  /* A browser that is told something and shows nothing may stop delivering to the site. */
+  it('still shows something when a push cannot be read', async () => {
+    const worker = load();
+
+    await worker.event('push', {
+      data: {
+        json: () => {
+          throw new SyntaxError('not JSON');
+        }
+      }
+    });
+    await worker.event('push', {});
+
+    expect(worker.shown.map(notification => notification.title)).toEqual(['NutrIA', 'NutrIA']);
+  });
+
+  it('opens the page a notification is about, or brings the open app to it', async () => {
+    const worker = load();
+
+    await worker.event('notificationclick', tapped(at('/check-in')));
+    expect(worker.opened).toEqual([at('/check-in')]);
+
+    const open = appWindow(at('/plan'));
+
+    worker.windows.push(open);
+    await worker.event('notificationclick', tapped(at('/check-in')));
+
+    expect(open).toMatchObject({ focused: true, navigated: [at('/check-in')] });
+    expect(worker.opened).toHaveLength(1);
+  });
+
+  it('never sends somebody to another site, whatever the message says', async () => {
+    const worker = load();
+
+    await worker.event('push', { data: { json: () => ({ title: 'x', url: 'https://elsewhere.example/login' }) } });
+    await worker.event('notificationclick', tapped('https://elsewhere.example/login'));
+
+    expect(worker.shown[0]?.options).toMatchObject({ data: { url: at('/inicio') } });
+    expect(worker.opened).toEqual([at('/inicio')]);
+  });
+});
 
 describe('the offline worker', () => {
   it('names the same cache the page forgets', () => {

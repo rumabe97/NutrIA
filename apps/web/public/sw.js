@@ -69,6 +69,75 @@ self.addEventListener('message', event => {
   }
 });
 
+self.addEventListener('push', event => {
+  event.waitUntil(showMessage(event.data));
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(openFrom(event.notification.data));
+});
+
+/**
+ * What arrives by push (`0054`): a title, a line, and where tapping goes —
+ * never anything about anyone's health, which the server does not put in one.
+ * Always shown, even when it cannot be read: a browser that is told something
+ * and shows nothing may stop delivering to this site at all.
+ */
+async function showMessage(data) {
+  let message = {};
+
+  try {
+    message = data ? data.json() : {};
+  } catch {
+    message = {};
+  }
+
+  await self.registration.showNotification(message.title || 'NutrIA', {
+    body: message.body || '',
+    data: { url: onThisSite(message.url) },
+    icon: '/icon',
+    // A newer reminder replaces an older one rather than stacking beside it.
+    tag: 'check-in'
+  });
+}
+
+/** The app, on the page the message was about: focused if it is open, opened if not. */
+async function openFrom(data) {
+  const url = onThisSite(data && data.url);
+  const windows = await self.clients.matchAll({ includeUncontrolled: true, type: 'window' });
+  const open = windows.find(client => new URL(client.url).origin === self.location.origin);
+
+  if (!open) {
+    await self.clients.openWindow(url);
+
+    return;
+  }
+
+  await open.focus();
+
+  try {
+    await open.navigate(url);
+  } catch {
+    // A window this worker does not control cannot be sent anywhere; focused is enough.
+  }
+}
+
+/** Only ever a page of this site: whatever a message says, a tap cannot send somebody elsewhere. */
+function onThisSite(url) {
+  if (!url) {
+    return absolute(TODAY);
+  }
+
+  try {
+    const target = new URL(url, self.location.origin);
+
+    return target.origin === self.location.origin ? target.href : absolute(TODAY);
+  } catch {
+    return absolute(TODAY);
+  }
+}
+
 async function activate() {
   const names = await caches.keys();
 

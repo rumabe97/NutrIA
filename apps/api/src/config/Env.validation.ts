@@ -190,6 +190,16 @@ const envObject = z.object({
    * asked for. The safe thing has to be what happens when nothing is said.
    */
   SWAGGER_ENABLED: optional(z.enum(['true', 'false'])),
+  /**
+   * Web Push (`0054`). All three or none. None — the shipped default — means
+   * the check-in reminder goes by mail only, and the profile offers no switch
+   * for phones. Generate the pair once with `npx web-push generate-vapid-keys`;
+   * the subject is how a push service reaches the sender, a `mailto:` or an
+   * `https:` URL.
+   */
+  VAPID_PRIVATE_KEY: optional(z.string()),
+  VAPID_PUBLIC_KEY: optional(z.string()),
+  VAPID_SUBJECT: optional(z.string().regex(/^(mailto:|https:\/\/)/, 'must be a mailto: address or an https: URL')),
   /*
    * Set by the platform on every deployment, never by hand. It exists in this
    * schema for one cross-check below: a production deployment running with a
@@ -266,6 +276,22 @@ const envSchema = envObject
     for (const key of ['SMTP_USER', 'SMTP_PASS', 'EMAIL_FROM'] as const) {
       if (!env[key]) {
         ctx.addIssue({ code: 'custom', message: 'is required when SMTP_HOST is set', path: [key] });
+      }
+    }
+  })
+  .superRefine((env, ctx) => {
+    // Push is all or nothing too. The public key alone lets a browser subscribe
+    // to messages this server can never sign, and the profile's switch would
+    // promise reminders that never arrive.
+    const vapid = ['VAPID_PUBLIC_KEY', 'VAPID_PRIVATE_KEY', 'VAPID_SUBJECT'] as const;
+
+    if (!vapid.some(key => env[key])) {
+      return;
+    }
+
+    for (const key of vapid) {
+      if (!env[key]) {
+        ctx.addIssue({ code: 'custom', message: 'is required when any VAPID_* is set', path: [key] });
       }
     }
   })

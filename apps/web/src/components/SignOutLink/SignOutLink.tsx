@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import styles from './SignOutLink.module.css';
 
 import { forgetOfflineCopies } from 'lib/offline';
+import { forgetPushOnThisDevice } from 'lib/push';
 import { signOut } from 'lib/auth-client';
 
 import type { ReactNode } from 'react';
@@ -13,6 +14,7 @@ export function SignOutLink({ children }: { children: ReactNode }) {
   const router = useRouter();
 
   async function handle() {
+    await forgetPushOnThisDevice();
     await signOut();
     await forgetOfflineCopies();
     router.push('/');

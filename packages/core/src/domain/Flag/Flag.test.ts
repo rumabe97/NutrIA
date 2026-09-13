@@ -4,7 +4,7 @@ import { fallbackFlags, FLAG_NAMES, FLAGS, flagsFor, flagsFrom } from 'core/doma
 
 describe('flagsFrom', () => {
   it('gives every flag its declared fallback when the table is empty', () => {
-    expect(flagsFrom([])).toEqual({ automaticActivation: true, premium: false });
+    expect(flagsFrom([])).toEqual({ automaticActivation: true, checkInReminders: false, premium: false });
   });
 
   it('lets a stored row override the fallback, in both directions', () => {
@@ -26,7 +26,7 @@ describe('flagsFrom', () => {
         { enabled: true, key: 'premium' },
         { enabled: false, key: 'automatic_activation' }
       ])
-    ).toEqual({ automaticActivation: false, premium: true });
+    ).toEqual({ automaticActivation: false, checkInReminders: false, premium: true });
   });
 });
 
@@ -59,5 +59,10 @@ describe('the registry itself', () => {
    */
   it('leaves the paid tier off until somebody says otherwise', () => {
     expect(FLAGS.premium.fallback).toBe(false);
+  });
+
+  /* An empty settings table must never be what starts mailing people. */
+  it('leaves the check-in reminder off until somebody says otherwise, and tells only the owner', () => {
+    expect(FLAGS.checkInReminders).toMatchObject({ audience: 'owner', fallback: false });
   });
 });

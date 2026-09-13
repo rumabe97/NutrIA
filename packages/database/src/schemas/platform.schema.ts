@@ -1,4 +1,4 @@
-import { boolean, index, jsonb, pgTable, text, time, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, jsonb, pgTable, text, time, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 
 import { notificationChannel, notificationType } from './_enums';
 import { user } from './auth.schema';
@@ -36,6 +36,20 @@ export const notificationPreferences = userOwned('notification_preferences', {
   quietHoursStart: time(),
   type: notificationType().notNull()
 });
+
+/**
+ * Where a browser asked to be told things (`0054`): the endpoint its push
+ * service gave it, and the two keys a message is encrypted to.
+ *
+ * One row per browser, not per person. The endpoint is unique, so a phone that
+ * changes hands belongs to whoever subscribed on it last, and the previous
+ * owner's reminders stop arriving there.
+ */
+export const pushSubscriptions = userOwned(
+  'push_subscriptions',
+  { auth: text().notNull(), endpoint: text().notNull(), p256dh: text().notNull() },
+  table => [unique('push_subscriptions_endpoint_key').on(table.endpoint)]
+);
 
 /**
  * Security-relevant actions only. `actorId` is `set null` on delete so the trail

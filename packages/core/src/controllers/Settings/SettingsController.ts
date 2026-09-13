@@ -28,6 +28,11 @@ export const SettingsController = {
     return SettingsRepository.isEnabled(FLAGS.automaticActivation.key, FLAGS.automaticActivation.fallback);
   },
 
+  /** Whether the check-in reminder goes out at all (`0054`). Asked once a day, by the sweep and nothing else. */
+  async checkInReminders(): Promise<boolean> {
+    return SettingsRepository.isEnabled(FLAGS.checkInReminders.key, FLAGS.checkInReminders.fallback);
+  },
+
   /** Every flag, in one read, with absent rows resolved to their declared fallback. */
   async flags(): Promise<FlagSet> {
     return flagsFrom(await SettingsRepository.all());

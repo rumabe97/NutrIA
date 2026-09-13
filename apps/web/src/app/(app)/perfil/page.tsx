@@ -10,6 +10,7 @@ import { FeedbackForm } from 'components/FeedbackForm';
 import { HealthPanel } from 'components/HealthPanel';
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
 import { ProfileSection } from 'components/ProfileSection';
+import { PushToggle } from 'components/PushToggle';
 import { ReminderToggle } from 'components/ReminderToggle';
 import { TargetsPanel } from 'components/TargetsPanel';
 import { Tour } from 'components/Tour';
@@ -74,13 +75,15 @@ export default async function ProfilePage() {
   // Health data is fetched here and only here. It is not folded into
   // `/profile`, which the dashboard also loads — a medication has no business
   // travelling to a screen that does not show it.
-  const [dictionary, locale, user, profile, health, notifications, trips] = await Promise.all([
+  const [dictionary, locale, user, profile, health, notifications, push, trips] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<UserView>('/users/me'),
     serverApi<FullProfileView>('/profile'),
     serverApi<HealthView>('/health-data'),
     serverApi<NotificationSettingsView>('/notifications/settings'),
+    // Null when push is not set up on the API (`0054`), and then no switch is offered for it.
+    serverApi<{ readonly publicKey: string | null }>('/notifications/push'),
     serverApi<readonly VacationView[]>('/vacations')
   ]);
   const t = dictionary.profile;
@@ -238,6 +241,7 @@ export default async function ProfilePage() {
             <h2 className={styles.cardTitle}>{t.reminders}</h2>
           </div>
           <ReminderToggle enabled={notifications?.checkInEmail ?? true} />
+          {push?.publicKey ? <PushToggle publicKey={push.publicKey} /> : null}
         </div>
 
         <div className={`${styles.card} ${styles.danger}`}>
