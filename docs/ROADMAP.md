@@ -59,13 +59,13 @@ Seven things the owner asked for on 2026-09-10, analysed against the code and
 reordered by what each unblocks, and an eighth added on 2026-09-12 — the apps (§8). The
 order is a recommendation; the owner decides.
 
-Four are delivered. Of the two that remain, one is recommended against, which leaves
-**premium** — and its own entry says what it waits on: something worth paying for and
-something that says what people miss. Both now exist, so what it really waits on is
-somebody using the second. The feedback box shipped on 2026-09-10, and what it has
-gathered since is the input this decision wants: choosing what to charge for is the
-most expensive guess on this page to undo, and `/admin` is where to look before
-making it.
+Five are delivered, premium's code among them. What premium waits on now is the
+owner: a Stripe account, then the business setup before live keys (§5). The one that
+remains is advertising, which is recommended against (§6). The apps (§8) have their
+first step done; the second waits on how premium would be sold in the stores. What
+people write in the feedback box (`/admin`) is still the input to read before
+settling a price: choosing what to charge for is the most expensive guess on this
+page to undo.
 
 ### 1. A meal may be marked only once it could have been eaten — done
 
@@ -117,19 +117,21 @@ what makes the next one fit better. The shopping list and the progress chart are
 out — they are in the navigation bar with their own names, and a tour that reads
 out the menu is one nobody finishes.
 
-### 5. Premium — the entitlement half is delivered (`0042`), switched off
+### 5. Premium — built (`0042`, `0056`), waiting on the owner's Stripe account
 
 The honest line is the one that costs money: **AI generations beyond a free
-allowance**. That half is built and in production, off: `user.tier`, allowances
-per tier, granted by the owner from `/admin`, behind a `premium` flag that
-outranks the column so turning the tier off is one click. Recorded as
+allowance**. The entitlement is built and in production, switched off: `user.tier`,
+allowances per tier, granted by the owner from `/admin`, behind a `premium` flag
+that outranks the column so turning the tier off is one click. Recorded as
 [`0042`](./decisions/0042-what-a-paid-account-may-spend.md).
 
-What remains is taking money, and most of it is not code: a Stripe account, tax
-registration, the legal pages a subscription needs. The order, and which steps an
-agent can do, are in [`docs/reference/payments.md`](./reference/payments.md).
-Stripe's test mode needs nothing but an email address, so the code can be built
-and exercised before any of the business setup exists.
+Taking money is built too, since 2026-09-13
+([`0056`](./decisions/0056-premium-is-paid-through-stripe.md)): Stripe Checkout
+and the Customer Portal, a signed webhook that writes the tier, and a premium card
+on the profile. With test keys only the owner sees it. What remains is not code.
+First the owner's Stripe account and its three keys. Then, before live keys, tax
+registration, the legal pages and a domain. The order is in
+[`docs/reference/payments.md`](./reference/payments.md).
 
 ### 5b. A day that eats for something — done (`0043`)
 
