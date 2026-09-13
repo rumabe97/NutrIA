@@ -9,6 +9,7 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { useOffline } from 'components/OfflineProvider';
 
+import { flushTicks } from 'lib/pendingTicks';
 import { formatInstant, interpolate } from 'lib/format';
 import { refreshOfflineCopies } from 'lib/offline';
 
@@ -31,6 +32,34 @@ export function OfflineCopy() {
   useEffect(() => {
     void refreshOfflineCopies();
   }, [pathname]);
+
+  useEffect(() => {
+    // Ticks made without a connection go out when there is one (`0055`): on
+    // opening a screen, on reconnecting, and on coming back to the app. The
+    // stored copies are then refreshed, so they no longer show them unticked.
+    function flush() {
+      void flushTicks().then(sent => {
+        if (sent > 0) {
+          void refreshOfflineCopies(true);
+        }
+      });
+    }
+
+    function onVisible() {
+      if (document.visibilityState === 'visible') {
+        flush();
+      }
+    }
+
+    flush();
+    window.addEventListener('online', flush);
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      window.removeEventListener('online', flush);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
 
   useEffect(() => {
     function onHidden() {

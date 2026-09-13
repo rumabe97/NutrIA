@@ -1,3 +1,5 @@
+import { forgetPendingTicks } from './pendingTicks';
+
 /**
  * The page's half of the offline copies (`0053`). The other half is
  * `public/sw.js`, which keeps them, and names the same cache.
@@ -71,6 +73,9 @@ export async function storedPages(): Promise<ReadonlySet<string>> {
  * for, not waited on: signing out must not hang on a worker that never came.
  */
 export async function forgetOfflineCopies(): Promise<void> {
+  // Ticks still waiting for a connection belong to the session that made them (`0055`).
+  forgetPendingTicks();
+
   if ('serviceWorker' in navigator) {
     try {
       (await navigator.serviceWorker.getRegistration())?.active?.postMessage({ type: 'forget' });

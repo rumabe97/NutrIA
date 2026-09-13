@@ -53,7 +53,8 @@ response is `no-store`, so that no shared cache keeps somebody's health data
   renderer for the same two screens, one that only ever runs without a connection, which is
   exactly when nobody is watching it.
 - **Ticking offline and sending the ticks once the connection is back.** This is what
-  people will ask for next. It needs either background sync, which Safari does not have, or
+  people will ask for next. *Done since 2026-09-13
+  ([`0055`](./0055-a-tick-in-the-aisle-waits-for-the-signal.md)).* It needs either background sync, which Safari does not have, or
   a queue in the page, plus a rule for a list ticked on two devices. It is left for when
   someone asks.
 

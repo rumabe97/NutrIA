@@ -671,9 +671,11 @@ export const enGB: Dictionary = {
   },
 
   offline: {
-    copyEarlier: 'Offline: this is the copy from {date}. Nothing you tick is saved until you are back online.',
-    copyToday: 'Offline: this is the copy from {time}. Nothing you tick is saved until you are back online.',
-    offline: 'Offline. Nothing you tick is saved until you are back online.'
+    copyEarlier:
+      'Offline: this is the copy from {date}. What you tick on the shopping list is saved when you are back online; anything else needs a connection.',
+    copyToday:
+      'Offline: this is the copy from {time}. What you tick on the shopping list is saved when you are back online; anything else needs a connection.',
+    offline: 'Offline. What you tick on the shopping list is saved when you are back online; anything else needs a connection.'
   },
 
   onboarding: {

@@ -677,9 +677,11 @@ export const esES = {
   },
 
   offline: {
-    copyEarlier: 'Sin conexión: estás viendo la copia del {date}. Lo que marques no se guardará hasta que vuelva.',
-    copyToday: 'Sin conexión: estás viendo la copia de las {time}. Lo que marques no se guardará hasta que vuelva.',
-    offline: 'Sin conexión. Lo que marques no se guardará hasta que vuelva.'
+    copyEarlier:
+      'Sin conexión: estás viendo la copia del {date}. Lo que taches en la compra se guardará cuando vuelva la conexión; el resto de cambios la necesita.',
+    copyToday:
+      'Sin conexión: estás viendo la copia de las {time}. Lo que taches en la compra se guardará cuando vuelva la conexión; el resto de cambios la necesita.',
+    offline: 'Sin conexión. Lo que taches en la compra se guardará cuando vuelva; el resto de cambios necesita conexión.'
   },
 
   onboarding: {

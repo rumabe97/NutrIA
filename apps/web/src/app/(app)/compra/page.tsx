@@ -2,15 +2,15 @@ import { Fragment } from 'react';
 
 import styles from './page.module.css';
 
-import { activeLocale, getDictionary } from 'i18n/server';
+import { getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { CtaLink } from 'components/CtaLink';
 import { EmptyState } from 'components/EmptyState';
 import { ShoppingItem } from 'components/ShoppingItem';
+import { ShoppingProgress } from 'components/ShoppingProgress';
 
 import { categoryLabel } from 'lib/generation';
-import { formatNumber, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
 
@@ -44,7 +44,7 @@ const ORDER = ['produce', 'protein', 'dairy', 'bakery', 'frozen', 'pantry', 'bev
 export default async function ShoppingPage() {
   await redirectIfOnboardingIncomplete();
 
-  const [dictionary, locale, list] = await Promise.all([getDictionary(), activeLocale(), serverApi<ShoppingListView>('/shopping-lists/active')]);
+  const [dictionary, list] = await Promise.all([getDictionary(), serverApi<ShoppingListView>('/shopping-lists/active')]);
 
   if (!list) {
     return (
@@ -65,15 +65,9 @@ export default async function ShoppingPage() {
       <h1 className={styles.title}>{dictionary.shopping.title}</h1>
       <Text tone="secondary">{dictionary.shopping.subtitle}</Text>
 
-      {/* Progress, not a promise: the count is derived from the ticks, so it
-          cannot claim something the list does not show. */}
+      {/* Counted on the device, so a tick still waiting for a connection counts too (`0055`). */}
       <div className={styles.progress}>
-        <Text size="sm" tone="secondary">
-          {interpolate(dictionary.shopping.progress, {
-            done: formatNumber(list.items.filter(item => item.checked).length, locale),
-            total: formatNumber(list.items.length, locale)
-          })}
-        </Text>
+        <ShoppingProgress items={list.items} />
       </div>
 
       {groups.map(group => (
