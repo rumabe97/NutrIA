@@ -2,7 +2,8 @@ import { Controller, Get, Headers, HttpCode, HttpStatus, Post, Req } from '@nest
 import { ApiExcludeEndpoint, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { BillingService } from '../services/index.js';
-import { CurrentUser, Public, RateLimit, SkipRateLimit } from '../../../shared/index.js';
+import { CheckoutDto } from '../dto/in/index.js';
+import { CurrentUser, Public, RateLimit, SkipRateLimit, ZodBody } from '../../../shared/index.js';
 
 import type { BillingStatusDto, BillingUrlDto } from '../dto/out/index.js';
 import type { Request } from 'express';
@@ -23,8 +24,8 @@ export class BillingController {
   @HttpCode(HttpStatus.OK)
   @Post('checkout')
   @RateLimit({ limit: 10, ttlSeconds: 3600 })
-  async checkout(@CurrentUser() user: SessionUser): Promise<BillingUrlDto> {
-    return this.billing.checkout(user);
+  async checkout(@CurrentUser() user: SessionUser, @ZodBody(CheckoutDto) body: CheckoutDto): Promise<BillingUrlDto> {
+    return this.billing.checkout(user, body.plan);
   }
 
   @ApiOkResponse({ description: 'Where Stripe’s customer portal is, for this account.' })

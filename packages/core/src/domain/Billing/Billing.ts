@@ -1,4 +1,14 @@
 /**
+ * How long premium is free before the first charge (`0056`, amended).
+ *
+ * Offered once per account: to somebody who has never subscribed. Somebody who
+ * subscribed and cancelled has had theirs, so a trial cannot be chained into a
+ * free tier. Stripe takes the card at the start and charges when the trial ends,
+ * unless it is cancelled before.
+ */
+export const TRIAL_DAYS = 7;
+
+/**
  * Whether a subscription in this state pays for premium (`0056`).
  *
  * The status is Stripe's word, stored as it arrives. What it means for the tier

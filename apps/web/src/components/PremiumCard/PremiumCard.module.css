@@ -5,6 +5,12 @@
   gap: var(--space-03);
 }
 
+.plans {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+}
+
 .error {
   color: var(--color-red-07, currentColor);
 }

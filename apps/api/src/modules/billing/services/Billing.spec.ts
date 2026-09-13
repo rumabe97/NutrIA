@@ -9,13 +9,15 @@ import { BillingService } from './Billing.service.js';
 
 import type { Env } from '../../../config/index.js';
 import type { SessionUser } from '../../../shared/index.js';
-import type { CheckoutRequest, StripeGateway, SubscriptionSnapshot } from './StripeGateway.js';
+import type { CheckoutRequest, Prices, StripeGateway, SubscriptionSnapshot } from './StripeGateway.js';
+import type { SubscriptionView } from 'core/controllers/Billing';
 import type Stripe from 'stripe';
 
 const ENV = { APP_URL: 'https://nutria.example' } as Env;
 const OWNER = { id: 'usr-owner', activated: true, email: 'owner@example.invalid', emailVerified: true, name: 'Owner', role: 'admin' } as SessionUser;
 const PERSON = { ...OWNER, id: 'usr-ana', email: 'ana@example.invalid', name: 'Ana', role: 'user' } as SessionUser;
-const PRICE = { amount: 399, currency: 'eur', interval: 'month' };
+const PRICES: Prices = { monthly: { amount: 499, currency: 'eur', interval: 'month' }, yearly: { amount: 3999, currency: 'eur', interval: 'year' } };
+const CANCELLED: SubscriptionView = { cancelAtPeriodEnd: false, currentPeriodEnd: null, status: 'canceled' };
 const SNAPSHOT: SubscriptionSnapshot = {
   cancelAtPeriodEnd: false,
   currentPeriodEnd: new Date('2026-10-13T00:00:00Z'),
@@ -30,7 +32,15 @@ function event(type: string, object: Record<string, unknown>): Stripe.Event {
 }
 
 function harness(
-  options: { configured?: boolean; customer?: string | null; event?: Stripe.Event | null; premium?: boolean; testMode?: boolean } = {}
+  options: {
+    configured?: boolean;
+    customer?: string | null;
+    event?: Stripe.Event | null;
+    premium?: boolean;
+    subscription?: SubscriptionView | null;
+    testMode?: boolean;
+    yearly?: boolean;
+  } = {}
 ) {
   const gateway = {
     checkoutUrl: jest.fn<(request: CheckoutRequest) => Promise<string>>().mockResolvedValue('https://checkout.stripe.com/c/session'),
@@ -38,14 +48,15 @@ function harness(
     createCustomer: jest.fn<(email: string, userId: string) => Promise<string>>().mockResolvedValue('cus_new'),
     event: jest.fn(() => (options.event === undefined ? event('invoice.paid', {}) : options.event)),
     portalUrl: jest.fn<(customerId: string, returnUrl: string) => Promise<string>>().mockResolvedValue('https://billing.stripe.com/p/session'),
-    price: jest.fn(async () => PRICE),
+    prices: jest.fn(async () => PRICES),
     subscription: jest.fn<(id: string) => Promise<SubscriptionSnapshot>>().mockResolvedValue(SNAPSHOT),
-    testMode: options.testMode ?? false
+    testMode: options.testMode ?? false,
+    yearly: options.yearly ?? true
   };
 
   jest.spyOn(SettingsController, 'flags').mockResolvedValue({ automaticActivation: true, checkInReminders: false, premium: options.premium ?? true });
   jest.spyOn(ProfileController, 'localeOf').mockResolvedValue('es-ES');
-  jest.spyOn(BillingController, 'standing').mockResolvedValue({ subscription: null, tier: 'free' });
+  jest.spyOn(BillingController, 'standing').mockResolvedValue({ subscription: options.subscription ?? null, tier: 'free' });
   jest.spyOn(BillingController, 'customerOf').mockResolvedValue(options.customer ?? null);
 
   const remember = jest.spyOn(BillingController, 'rememberCustomer').mockResolvedValue(undefined);
@@ -64,7 +75,7 @@ describe('BillingService', () => {
     const { service } = harness({ configured: false });
 
     await expect(service.status(OWNER)).resolves.toEqual({ available: false });
-    await expect(service.checkout(OWNER)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(service.checkout(OWNER, 'monthly')).rejects.toBeInstanceOf(NotFoundError);
   });
 
   /* A checkout that takes no real money is never offered to anybody but the owner. */
@@ -72,7 +83,7 @@ describe('BillingService', () => {
     const { service } = harness({ premium: false, testMode: true });
 
     await expect(service.status(PERSON)).resolves.toEqual({ available: false });
-    await expect(service.status(OWNER)).resolves.toMatchObject({ available: true, price: PRICE, testMode: true, tier: 'free' });
+    await expect(service.status(OWNER)).resolves.toMatchObject({ available: true, prices: PRICES, testMode: true, tier: 'free', trialDays: 7 });
   });
 
   it('with live keys, is everybody’s once the premium switch is on, and nobody’s before', async () => {
@@ -81,38 +92,48 @@ describe('BillingService', () => {
     await expect(harness({ premium: true }).service.status(PERSON)).resolves.toMatchObject({ available: true, testMode: false });
   });
 
-  it('opens checkout for a new customer, remembering who they are to Stripe, and comes back to the profile', async () => {
+  it('opens checkout for a new customer with the free trial, remembering who they are to Stripe', async () => {
     const { gateway, remember, service } = harness();
 
-    await expect(service.checkout(PERSON)).resolves.toEqual({ url: 'https://checkout.stripe.com/c/session' });
+    await expect(service.checkout(PERSON, 'monthly')).resolves.toEqual({ url: 'https://checkout.stripe.com/c/session' });
     expect(gateway.createCustomer).toHaveBeenCalledWith('ana@example.invalid', 'usr-ana');
     expect(remember).toHaveBeenCalledWith('usr-ana', 'cus_new');
     expect(gateway.checkoutUrl).toHaveBeenCalledWith({
       cancelUrl: 'https://nutria.example/perfil',
       customerId: 'cus_new',
       locale: 'es-ES',
+      plan: 'monthly',
       successUrl: 'https://nutria.example/perfil?premium=gracias',
+      trialDays: 7,
       userId: 'usr-ana'
     });
   });
 
-  it('reuses the customer somebody already is to Stripe', async () => {
-    const { gateway, service } = harness({ customer: 'cus_known' });
+  /* A trial cannot be chained into a free tier: somebody who cancelled has had theirs. */
+  it('offers no second trial to somebody who has subscribed before, however it ended', async () => {
+    const { gateway, service } = harness({ customer: 'cus_known', subscription: CANCELLED });
 
-    await service.checkout(PERSON);
+    await expect(service.status(PERSON)).resolves.toMatchObject({ trialDays: null });
+    await service.checkout(PERSON, 'monthly');
 
     expect(gateway.createCustomer).not.toHaveBeenCalled();
-    expect(gateway.checkoutUrl).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'cus_known' }));
+    expect(gateway.checkoutUrl).toHaveBeenCalledWith(expect.objectContaining({ customerId: 'cus_known', trialDays: null }));
   });
 
-  it('does not open a second checkout for somebody already paying', async () => {
+  it('opens the yearly price when it is chosen, and only when one is set', async () => {
     const { gateway, service } = harness();
 
-    jest
-      .spyOn(BillingController, 'standing')
-      .mockResolvedValue({ subscription: { cancelAtPeriodEnd: false, currentPeriodEnd: null, status: 'active' }, tier: 'premium' });
+    await service.checkout(PERSON, 'yearly');
+    expect(gateway.checkoutUrl).toHaveBeenCalledWith(expect.objectContaining({ plan: 'yearly' }));
 
-    await expect(service.checkout(PERSON)).rejects.toBeInstanceOf(ConflictError);
+    jest.restoreAllMocks();
+    await expect(harness({ yearly: false }).service.checkout(PERSON, 'yearly')).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('does not open a second checkout for somebody already paying, or trialling', async () => {
+    const { gateway, service } = harness({ subscription: { ...CANCELLED, status: 'trialing' } });
+
+    await expect(service.checkout(PERSON, 'monthly')).rejects.toBeInstanceOf(ConflictError);
     expect(gateway.checkoutUrl).not.toHaveBeenCalled();
   });
 

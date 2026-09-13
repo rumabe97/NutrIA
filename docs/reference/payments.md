@@ -77,6 +77,11 @@ On the **`nutria-api`** Vercel project, not the web one:
 | `STRIPE_SECRET_KEY` | `sk_test_…` | Secret. Rotate it if it is ever pasted anywhere it should not be. |
 | `STRIPE_PRICE_ID` | `price_…` | Which price checkout opens with. |
 | `STRIPE_WEBHOOK_SECRET` | `whsec_…` | From step 3b. Without it, every webhook is rejected — which is correct. |
+| `STRIPE_YEARLY_PRICE_ID` | `price_…` | Optional: a second, yearly price on the same product. With it, the card offers monthly and yearly; without it, monthly alone. |
+
+Checkout opens with a **seven-day free trial** for somebody who has never subscribed
+(`TRIAL_DAYS`, `0056` amended). Stripe takes the card at the start and charges when
+the trial ends. Nothing needs setting for it.
 
 All three are optional in `Env.validation.ts`, in the same way `SENTRY_DSN` is:
 **unset, payments are off and nothing about them is reachable.** That is what

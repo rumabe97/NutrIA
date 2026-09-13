@@ -39,7 +39,8 @@ describe('billing', () => {
     const status: Response = await request(server).get(`/${PREFIX}/billing`).set('Cookie', account.cookie).expect(200);
 
     expect(status.body).toEqual({ available: false });
-    await request(server).post(`/${PREFIX}/billing/checkout`).set('Cookie', account.cookie).expect(404);
+    await request(server).post(`/${PREFIX}/billing/checkout`).set('Cookie', account.cookie).send({ plan: 'monthly' }).expect(404);
+    await request(server).post(`/${PREFIX}/billing/checkout`).set('Cookie', account.cookie).send({ plan: 'lifetime' }).expect(422);
     await request(server).post(`/${PREFIX}/billing/portal`).set('Cookie', account.cookie).expect(404);
     // No session and no signature: the webhook answers like any other denial.
     await request(server).post(`/${PREFIX}/billing/webhook`).send({ type: 'checkout.session.completed' }).expect(404);

@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { BillingController } from 'core/controllers/Billing';
 import { ConflictError, NotFoundError } from 'core/entities/Error';
-import { paysForPremium } from 'core/domain/Billing';
+import { paysForPremium, TRIAL_DAYS } from 'core/domain/Billing';
 import { SettingsController } from 'core/controllers/Settings';
 import { webUrl } from 'core/domain/WebUrl';
 
@@ -10,10 +10,20 @@ import { ENV } from '../../../config/index.js';
 import { recipientLocale } from '../../email/services/RecipientLocale.js';
 import { StripeGateway } from './StripeGateway.js';
 
+import type { BillingPlan } from 'core/entities/Billing';
 import type { BillingStatusDto, BillingUrlDto } from '../dto/out/index.js';
+import type { SubscriptionView } from 'core/controllers/Billing';
 import type { Env } from '../../../config/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 import type Stripe from 'stripe';
+
+/**
+ * The free days checkout opens with: the full trial for somebody who has never
+ * subscribed, none for somebody who has — however that subscription ended.
+ */
+function trialFor(subscription: SubscriptionView | null): number | null {
+  return subscription ? null : TRIAL_DAYS;
+}
 
 /** The subscription an event is about, when it is one that can change what somebody pays for. */
 function subscriptionOf(event: Stripe.Event): string | null {
@@ -71,13 +81,15 @@ export class BillingService {
     return (await SettingsController.flags()).premium;
   }
 
-  async checkout(user: SessionUser): Promise<BillingUrlDto> {
-    if (!(await this.open(user))) {
+  async checkout(user: SessionUser, plan: BillingPlan): Promise<BillingUrlDto> {
+    if (!(await this.open(user)) || (plan === 'yearly' && !this.stripe.yearly)) {
       throw new NotFoundError('Not found');
     }
 
+    const { subscription } = await BillingController.standing(user.id);
+
     // Somebody already paying is sent to the portal, not charged twice.
-    if (paysForPremium((await BillingController.standing(user.id)).subscription?.status ?? null)) {
+    if (paysForPremium(subscription?.status ?? null)) {
       throw new ConflictError('Already subscribed');
     }
 
@@ -86,7 +98,15 @@ export class BillingService {
     const profile = webUrl(this.env.APP_URL, '/perfil', locale);
 
     return {
-      url: await this.stripe.checkoutUrl({ cancelUrl: profile, customerId, locale, successUrl: `${profile}?premium=gracias`, userId: user.id })
+      url: await this.stripe.checkoutUrl({
+        cancelUrl: profile,
+        customerId,
+        locale,
+        plan,
+        successUrl: `${profile}?premium=gracias`,
+        trialDays: trialFor(subscription),
+        userId: user.id
+      })
     };
   }
 
@@ -108,9 +128,9 @@ export class BillingService {
       return { available: false };
     }
 
-    const [standing, price] = await Promise.all([BillingController.standing(user.id), this.stripe.price()]);
+    const [standing, prices] = await Promise.all([BillingController.standing(user.id), this.stripe.prices()]);
 
-    return { available: true, price, testMode: this.stripe.testMode, ...standing };
+    return { available: true, prices, testMode: this.stripe.testMode, trialDays: trialFor(standing.subscription), ...standing };
   }
 
   /**
