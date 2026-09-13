@@ -138,6 +138,10 @@ is plain JavaScript with no build step, and it is tested by loading the file its
 `components/OfflineProvider` answers whether the screen is live and what opens without
 one. `components/OfflineCopy` keeps the copies fresh and says when one is on screen.
 
+- Ticks on the shopping list go through `lib/pendingTicks` (`0055`): queued on the device,
+  sent at once, and sent again when a connection may be back (`OfflineCopy`). A new offline
+  action would follow the same pattern. Until one does, everything else needs a connection,
+  and the offline notice says so.
 - Offline, draw a link only when `useOffline().available(path)` says it opens. Anything
   else leads to the browser's "not connected" page. The menu and `MealRow` already do this.
 - Adding a screen to `OFFLINE_PATHS` means storing more personal data on the device. Only
