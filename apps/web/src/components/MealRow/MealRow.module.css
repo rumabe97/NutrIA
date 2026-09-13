@@ -45,15 +45,15 @@
 }
 
 .tick:hover {
-  border-color: var(--color-brand-09);
-  color: var(--color-brand-09);
+  border-color: var(--color-brand-fill);
+  color: var(--color-brand-fill);
 }
 
 .tick[aria-pressed='true'],
 .tick[data-done='true'] {
-  background-color: var(--color-brand-09);
-  border-color: var(--color-brand-09);
-  color: var(--color-brand-01, #fff);
+  background-color: var(--color-brand-fill);
+  border-color: var(--color-brand-fill);
+  color: var(--color-on-brand-fill);
 }
 
 .tick[disabled] {
@@ -89,7 +89,7 @@
 
 .thumb {
   aspect-ratio: 4 / 3;
-  border-radius: var(--radius-02);
+  border-radius: var(--radius-control);
   grid-row: 1 / -1;
   object-fit: cover;
   width: 3.5rem;
@@ -98,7 +98,7 @@
 .slot {
   color: var(--foreground-02);
   font-size: var(--font-size-01);
-  letter-spacing: 0.02em;
+  letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
 
@@ -120,11 +120,20 @@
 }
 
 .summary {
+  align-items: center;
   color: var(--color-brand-11);
   cursor: pointer;
+  display: flex;
   font-size: var(--font-size-01);
   list-style: none;
   width: fit-content;
+}
+
+/* Twelve-point text is not a target; on a phone the toggle is a finger tall. */
+@media (pointer: coarse) {
+  .summary {
+    min-block-size: var(--target-min);
+  }
 }
 
 .summary::-webkit-details-marker {
@@ -219,6 +228,6 @@
 }
 
 .tick[data-static='true'][data-done='true']:hover {
-  border-color: var(--color-brand-09);
-  color: var(--color-white);
+  border-color: var(--color-brand-fill);
+  color: var(--color-on-brand-fill);
 }

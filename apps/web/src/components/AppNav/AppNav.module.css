@@ -7,12 +7,13 @@
   background-color: var(--color-glass);
 }
 
+/* A minimum, not a height: at 200% zoom the row grows instead of clipping. */
 .inner {
   align-items: center;
   display: flex;
   gap: var(--space-06);
   justify-content: space-between;
-  height: 56px;
+  min-block-size: 3.5rem;
   margin-inline: auto;
   max-width: var(--content-max);
   padding-inline: var(--space-05);
@@ -25,14 +26,14 @@
   gap: var(--space-02);
   font-size: var(--font-size-04);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-title);
   text-decoration: none;
 }
 
 .mark {
   width: 16px;
   height: 16px;
-  background-color: var(--color-brand-09);
+  background-color: var(--color-brand-fill);
   border-radius: var(--radius-01) var(--radius-full) var(--radius-full) var(--radius-full);
 }
 
@@ -60,21 +61,30 @@
   color: var(--foreground-01);
 }
 
-/* A bare text button computes to the height of its own line — 21px, under the
-   24px WCAG 2.2 asks for, in a sticky header that a thumb reaches for while the
-   page moves under it. The row is centred, so the extra height costs nothing. */
+/* A bare text button computes to the height of its own line — 21px — in a
+   sticky header that a thumb reaches for while the page moves under it. The
+   row is centred, so the extra height costs nothing: a control's height on a
+   pointer, a finger's on a phone. */
 .signOut {
+  align-items: center;
   background: none;
   border: none;
   color: var(--foreground-02);
   cursor: pointer;
+  display: inline-flex;
   font: inherit;
   font-size: var(--font-size-03);
-  min-height: var(--height-s);
+  min-height: var(--height-m);
   padding-block: var(--space-01);
   padding-inline: 0;
   /* A two-word control never breaks in half; if the row is short, it shrinks elsewhere. */
   white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .signOut {
+    min-height: var(--target-min);
+  }
 }
 
 /*
@@ -144,13 +154,23 @@ body:has(
   text-decoration: none;
 }
 
+/*
+ * Where you are, said twice: the tint, and a heavier word and stroke. The tint
+ * alone measured 1.5:1 against the resting grey — the same lightness in a
+ * different hue — which is invisible in greyscale and to most colour blindness.
+ */
 .bottomLink[aria-current='page'] {
   color: var(--color-brand-11);
+  font-weight: var(--font-weight-semibold);
 }
 
 .bottomIcon {
   block-size: 20px;
   inline-size: 20px;
+}
+
+.bottomLink[aria-current='page'] .bottomIcon {
+  stroke-width: 2.2;
 }
 
 @media (width >= 48rem) {

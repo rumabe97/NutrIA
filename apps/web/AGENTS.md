@@ -237,6 +237,31 @@ screen), never a `--space-*` pair chosen per component. Label/value grids use
 `.tabular-nums` or the property directly. Not inside a sentence: there is nothing to line a
 number up with there, and tabular digits read as slightly wrong in running text.
 
+### Surfaces and controls (`0057`)
+
+- **A card is `components/Card`.** It is the one raised surface: `--surface-card`, a
+  hairline border, `--radius-card`, the highlight-and-shadow pair, `--card-padding`. A
+  stylesheet that declares that recipe itself is a regression. `padding="sm"` for a tile,
+  `padding="lg"` for a card that is the whole screen; `as` for the element (`section`,
+  `li`, `dl`, a `Link`). A module that overrides the card's own properties on a link card
+  uses `a.card` (element + class) so it wins whatever order the stylesheets land in.
+- **A button is `ui/components/Button`**, and a link that should look like one wears
+  `buttonClassName(…)` (`CtaLink` does this). One `primary` per view; toggles are
+  `secondary` with `aria-pressed`; `tertiary` for a quiet action; `destructive` for the
+  one that deletes. Filled things use `--color-brand-fill`, never `--color-brand-09`: the
+  fill is what clears 4.5:1 under a white label in both schemes.
+- **Radii are semantic**: `--radius-control` (inputs, buttons, chips that are not pills,
+  notices), `--radius-card`, `--radius-sheet` (dialogs, the hero preview). Not the numeric
+  scale.
+- **Every tappable thing is `--target-min` tall under `(pointer: coarse)`** — `Button`,
+  `Input`, `Select`, `Checkbox` and `SettingSwitch` already are; a new chip, pill,
+  disclosure `summary` or standalone link adds the media query itself. A pointer keeps the
+  desktop height.
+- **Tracking is one of four tokens**: `--tracking-display`, `--tracking-headline`,
+  `--tracking-title`, `--tracking-caps`. A card's title is `--font-size-04` semibold.
+- **Nothing by colour alone**: a current tab, a chosen chip, a pressed toggle each carry a
+  second cue (weight, stroke, border).
+
 ### Motion
 
 Use the utilities from `ui/styles/motion`: `.motion-enter` for something arriving,

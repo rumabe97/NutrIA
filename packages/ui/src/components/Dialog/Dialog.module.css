@@ -1,6 +1,6 @@
 .content {
   background-color: var(--background-01);
-  border-radius: var(--radius-04);
+  border-radius: var(--radius-sheet);
   border: 1px solid var(--border-01);
   box-shadow: var(--shadow-m);
   display: flex;

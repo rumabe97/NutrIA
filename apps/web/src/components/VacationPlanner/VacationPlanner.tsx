@@ -10,6 +10,8 @@ import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
+import { Card } from 'components/Card';
+
 import { api, messageFor } from 'lib/api';
 import { formatDate, interpolate } from 'lib/format';
 
@@ -86,10 +88,10 @@ export function VacationPlanner({ trips }: { trips: readonly VacationView[] }) {
   const day = (date: string) => formatDate(date, locale, { day: 'numeric', month: 'short' });
 
   return (
-    <section className={styles.root}>
-      <h2 className={styles.title} ref={titleRef} tabIndex={-1}>
+    <Card as="section" className={styles.root}>
+      <h3 className={styles.title} ref={titleRef} tabIndex={-1}>
         {t.title}
-      </h2>
+      </h3>
       <Text size="sm" tone="secondary">
         {t.intro}
       </Text>
@@ -140,6 +142,6 @@ export function VacationPlanner({ trips }: { trips: readonly VacationView[] }) {
           {error}
         </Text>
       ) : null}
-    </section>
+    </Card>
   );
 }

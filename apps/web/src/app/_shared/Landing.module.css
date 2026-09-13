@@ -76,13 +76,12 @@
 }
 
 /* ── Product preview ──────────────────────────────────────────────────── */
+/* Not `components/Card`: a card sits on the page, and this floats above the
+   hero, with a sheet's radius and the deepest shadow the product has. */
 .preview {
   background-color: var(--surface-card);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
   border: 1px solid var(--border-01);
-  border-radius: var(--radius-05);
+  border-radius: var(--radius-sheet);
   box-shadow: var(--shadow-l);
   margin-top: var(--space-10);
   overflow: hidden;
@@ -189,22 +188,10 @@
   margin-top: var(--space-09);
 }
 
+/* A feature is a card (`components/Card`); this only says it is not a link:
+   nothing lifts or changes on hover, because nothing happens on a click. */
 .feature {
-  background-color: var(--surface-card);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-04);
-  padding: var(--space-06);
-  transition:
-    border-color var(--duration-normal) var(--ease-default),
-    transform var(--duration-normal) var(--ease-spring);
-}
-
-.feature:hover {
-  border-color: var(--color-brand-07);
-  transform: translateY(-2px);
+  min-inline-size: 0;
 }
 
 /* The step, feature and safety titles name a topic under a section, so they are
@@ -226,7 +213,7 @@
 /* ── Safety ───────────────────────────────────────────────────────────── */
 .safety {
   background-color: var(--surface-sunken);
-  border-radius: var(--radius-05);
+  border-radius: var(--radius-sheet);
   margin-inline: auto;
   max-width: var(--content-max);
   padding: var(--space-09) var(--space-06);

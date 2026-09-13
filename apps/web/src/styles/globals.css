@@ -100,14 +100,21 @@ body::after {
   transform: none;
 }
 
-/* On the two animated states only. An element that never animates has no
-   business holding a compositing layer for the life of the page. */
+/* On the two animated states only, and at the duration of a large surface
+   arriving (`--duration-slow`): the old 0.7s read as the page being slow rather
+   than as content arriving. */
 [data-reveal='hidden'],
 [data-reveal='shown'] {
   transition:
-    opacity 0.7s var(--ease-spring),
-    transform 0.7s var(--ease-spring);
+    opacity var(--duration-slow) var(--ease-spring),
+    transform var(--duration-slow) var(--ease-spring);
   transition-delay: var(--reveal-delay, 0ms);
+}
+
+/* A compositing layer only while there is something to composite. `shown` is
+   the resting state for the rest of the page's life, and an element that has
+   finished moving has no business holding one. */
+[data-reveal='hidden'] {
   will-change: opacity, transform;
 }
 

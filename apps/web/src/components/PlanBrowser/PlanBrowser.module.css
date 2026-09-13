@@ -36,14 +36,9 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* The day is a `components/Card`; this class only exists for the grid rule below. */
 .card {
-  background-color: var(--surface-card);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-04);
-  padding: var(--card-padding);
+  min-inline-size: 0;
 }
 
 .meals {
@@ -72,7 +67,7 @@
   border-radius: var(--radius-full);
   color: var(--color-brand-11);
   font-size: var(--font-size-01);
-  font-weight: 600;
+  font-weight: var(--font-weight-semibold);
   max-inline-size: 100%;
   overflow-wrap: anywhere;
   padding: var(--space-01) var(--space-03);
@@ -101,8 +96,9 @@
 }
 
 .back {
+  align-items: center;
   color: var(--foreground-02);
-  display: inline-block;
+  display: inline-flex;
   font-size: var(--font-size-02);
   margin-block-end: var(--gap-heading);
   text-decoration: none;
@@ -114,8 +110,18 @@
 }
 
 .historyLink {
+  align-items: center;
   color: var(--color-brand-11);
+  display: inline-flex;
   font-size: var(--font-size-02);
   text-decoration: none;
   white-space: nowrap;
+}
+
+/* Two links that stand alone: on a phone each is a finger tall. */
+@media (pointer: coarse) {
+  .back,
+  .historyLink {
+    min-block-size: var(--target-min);
+  }
 }

@@ -1,11 +1,9 @@
 'use client';
 import { useState } from 'react';
 
-import styles from './ReminderToggle.module.css';
-
-import { Switch } from 'ui/components/Switch';
-import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
+
+import { SettingSwitch } from 'components/SettingSwitch';
 
 import { api, messageFor } from 'lib/api';
 
@@ -37,19 +35,6 @@ export function ReminderToggle({ enabled }: { enabled: boolean }) {
   }
 
   return (
-    <div className={styles.root}>
-      <label className={styles.line}>
-        <Switch checked={on} onCheckedChange={next => void change(next)} />
-        <Text size="sm">{t.reminderCheckIn}</Text>
-      </label>
-      <Text size="xs" tone="tertiary">
-        {t.reminderCheckInHint}
-      </Text>
-      {error ? (
-        <Text className={styles.error} size="xs">
-          {error}
-        </Text>
-      ) : null}
-    </div>
+    <SettingSwitch checked={on} error={error} hint={t.reminderCheckInHint} label={t.reminderCheckIn} onCheckedChange={next => void change(next)} />
   );
 }

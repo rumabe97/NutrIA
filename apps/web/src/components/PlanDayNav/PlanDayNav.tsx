@@ -38,7 +38,8 @@ export function PlanDayNav({ days, onSelect, selected, today }: PlanDayNavProps)
         ))}
       </div>
 
-      <nav aria-label={dictionary.plan.daysLabel} className={styles.days}>
+      {/* A group, not a `<nav>`: these buttons change what the page shows, they do not go anywhere. */}
+      <div aria-label={dictionary.plan.daysLabel} className={styles.days} role="group">
         {visible.map(day => (
           <button
             aria-current={day.dayIndex === selected}
@@ -53,7 +54,7 @@ export function PlanDayNav({ days, onSelect, selected, today }: PlanDayNavProps)
             <span className={styles.dayDate}>{formatDate(day.date, locale, { day: 'numeric', month: 'short' })}</span>
           </button>
         ))}
-      </nav>
+      </div>
     </div>
   );
 }

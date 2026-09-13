@@ -27,16 +27,31 @@
   --color-brand-11: light-dark(#475c2c, #a3c07a);
   --color-brand-12: light-dark(#232d15, #e8f0dc);
 
+  /* The fill under a white label, in both schemes. The dark step 09 above is
+     lightened so it reads on a dark ground, and a white label on it measures
+     3.9:1 — under the 4.5:1 a button's text needs. The light step 09 clears it
+     (4.8:1) and still stands 3.9:1 off the dark page, so the fill is that value
+     in both schemes; hover is one step deeper (5.8:1). WCAG relative luminance,
+     measured, not eyeballed. */
+  --color-brand-fill: #5f7a3d;
+  --color-brand-fill-hover: #546d35;
+
   /* ── Editorial type scale ─────────────────────────────────────────────
      Extends (never replaces) the ui scale, which tops out at 60px. Marketing
      headlines need to breathe; product screens keep using the base scale. */
   --font-size-display: clamp(2.5rem, 1.6rem + 4.2vw, 5.25rem);
-  --font-size-headline: clamp(1.875rem, 1.3rem + 2.4vw, 3.25rem);
+  /* Capped near a Large Title (34px): the hero is the one display size on the
+     page, and a section title that grew to 52px competed with it. */
+  --font-size-headline: clamp(1.75rem, 1.3rem + 1.6vw, 2.5rem);
   --font-size-lede: clamp(1.0625rem, 0.98rem + 0.5vw, 1.375rem);
 
-  /* Tight tracking is what stops large type reading as a system dialog. */
+  /* Tight tracking is what stops large type reading as a system dialog. Four
+     steps and no others: display, headline, a title inside a screen, and the
+     small caps of a label — every `letter-spacing` in the app is one of these. */
   --tracking-display: -0.035em;
   --tracking-headline: -0.025em;
+  --tracking-title: -0.015em;
+  --tracking-caps: 0.04em;
 
   /* ── Layout rhythm ──────────────────────────────────────────────────────
      The owner's words for the first build were "empty", "bland" and "bunched
@@ -58,10 +73,13 @@
   --gap-region: var(--space-09);
   --section-gap: clamp(4rem, 2.5rem + 7vw, 9rem);
 
-  /* Card padding, once. Two tiers: the default, and a roomier one for a card
-     that is the whole point of the screen it sits on. */
+  /* Card padding, once. Three tiers: the default, a roomier one for a card
+     that is the whole point of the screen it sits on, and a tighter one for a
+     tile that holds a single figure. `components/Card` is the only place
+     these are read. */
   --card-padding: var(--space-05) var(--space-06);
   --card-padding-lg: var(--space-07);
+  --card-padding-sm: var(--space-04) var(--space-05);
 
   --content-max: 68rem;
   --prose-max: 34rem;

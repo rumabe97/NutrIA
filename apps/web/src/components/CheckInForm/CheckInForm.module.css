@@ -5,9 +5,9 @@
 }
 
 .error {
-  background-color: var(--surface-sunken);
-  border-radius: var(--radius-03);
-  color: var(--foreground-01);
+  background-color: var(--color-red-03);
+  border-radius: var(--radius-control);
+  color: var(--color-error-text);
   margin: 0;
   padding: var(--space-03) var(--space-04);
 }
@@ -36,9 +36,9 @@
 }
 
 .textarea {
-  background-color: var(--surface-card);
+  background-color: var(--background-01);
   border: 1px solid var(--border-interactive);
-  border-radius: var(--radius-03);
+  border-radius: var(--radius-control);
   color: inherit;
   font: inherit;
   padding: var(--space-03) var(--space-04);

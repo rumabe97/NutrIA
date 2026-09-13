@@ -36,7 +36,7 @@
 }
 
 .bar {
-  background-color: var(--color-brand-09);
+  background-color: var(--color-brand-fill);
   block-size: 100%;
   border-radius: inherit;
   transition: inline-size var(--duration-slow) var(--ease-spring);

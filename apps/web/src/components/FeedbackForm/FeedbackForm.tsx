@@ -7,6 +7,8 @@ import { Button } from 'ui/components/Button';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
+import { Card } from 'components/Card';
+
 import { api, messageFor } from 'lib/api';
 
 const KINDS = ['idea', 'problem', 'other'] as const;
@@ -45,8 +47,8 @@ export function FeedbackForm() {
   }
 
   return (
-    <section className={styles.root}>
-      <h2 className={styles.title}>{t.title}</h2>
+    <Card as="section" className={styles.root}>
+      <h3 className={styles.title}>{t.title}</h3>
       <Text size="sm" tone="secondary">
         {t.intro}
       </Text>
@@ -66,7 +68,7 @@ export function FeedbackForm() {
           ))}
         </fieldset>
 
-        <label className="visually-hidden" htmlFor={messageId}>
+        <label className={styles.label} htmlFor={messageId}>
           {t.messageLabel}
         </label>
         <textarea
@@ -100,6 +102,6 @@ export function FeedbackForm() {
           {error}
         </Text>
       ) : null}
-    </section>
+    </Card>
   );
 }

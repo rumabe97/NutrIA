@@ -6,6 +6,8 @@ import styles from './FortnightList.module.css';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
+import { Card } from 'components/Card';
+
 import { formatDate, formatNumber, interpolate } from 'lib/format';
 
 import type { FortnightView } from 'core/controllers/Progress';
@@ -35,7 +37,7 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
         const unmarked = fortnight.meals.soFar - fortnight.meals.eaten - fortnight.meals.skipped;
 
         return (
-          <li className={styles.card} key={fortnight.planId}>
+          <Card as="li" className={styles.card} key={fortnight.planId}>
             {/* Dated, not numbered: a redo or a regeneration makes a new plan of the
                 same fortnight, and "Quincena 3" of a person on their first fortnight
                 asked more than it answered. The plan number stays, small. */}
@@ -85,7 +87,7 @@ export function FortnightList({ fortnights }: { fortnights: readonly FortnightVi
             <Link className={styles.open} href={fortnight.status === 'active' ? '/plan' : `/plan/historial/${fortnight.planId}`}>
               {t.openPlan}
             </Link>
-          </li>
+          </Card>
         );
       })}
     </ol>

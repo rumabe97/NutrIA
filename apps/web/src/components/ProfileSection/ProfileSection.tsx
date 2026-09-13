@@ -5,6 +5,7 @@ import styles from './ProfileSection.module.css';
 
 import { useDictionary } from 'i18n/LocaleProvider';
 
+import { Card } from 'components/Card';
 import { SummaryRow } from 'components/SummaryRow';
 
 interface ProfileSectionProps {
@@ -26,9 +27,9 @@ export function ProfileSection({ editHref, rows, title }: ProfileSectionProps) {
   const dictionary = useDictionary();
 
   return (
-    <section className={styles.card}>
+    <Card as="section">
       <div className={styles.head}>
-        <h2 className={styles.title}>{title}</h2>
+        <h3 className={styles.title}>{title}</h3>
         <Link className={styles.editLink} href={editHref}>
           {dictionary.common.edit}
         </Link>
@@ -38,6 +39,6 @@ export function ProfileSection({ editHref, rows, title }: ProfileSectionProps) {
           <SummaryRow key={row.label} label={row.label} value={row.value} />
         ))}
       </div>
-    </section>
+    </Card>
   );
 }

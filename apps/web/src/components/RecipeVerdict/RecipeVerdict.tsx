@@ -50,6 +50,8 @@ export function RecipeVerdict({ recipeId, verdict: initial }: RecipeVerdictProps
 
   return (
     <div className={styles.root}>
+      {/* Both secondary: `aria-pressed` draws the one that is on, and the filled
+          look stays the page's one primary action. */}
       <div className={styles.buttons}>
         <Button
           aria-pressed={verdict === 'liked'}
@@ -57,7 +59,7 @@ export function RecipeVerdict({ recipeId, verdict: initial }: RecipeVerdictProps
           onClick={() => void choose('liked')}
           size="sm"
           type="button"
-          variant={verdict === 'liked' ? 'primary' : 'secondary'}
+          variant="secondary"
         >
           {t.like}
         </Button>
@@ -67,7 +69,7 @@ export function RecipeVerdict({ recipeId, verdict: initial }: RecipeVerdictProps
           onClick={() => void choose('disliked')}
           size="sm"
           type="button"
-          variant={verdict === 'disliked' ? 'primary' : 'secondary'}
+          variant="secondary"
         >
           {t.dislike}
         </Button>

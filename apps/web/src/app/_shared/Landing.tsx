@@ -7,6 +7,7 @@ import { dictionaryFor } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 import { withLocale } from 'i18n/routes';
 
+import { Card } from 'components/Card';
 import { CtaLink } from 'components/CtaLink';
 import { Reveal } from 'components/Reveal';
 import { SiteFooter } from 'components/SiteFooter';
@@ -133,10 +134,12 @@ export function Landing({ locale }: Readonly<{ locale: Locale }>) {
           <div className={styles.features}>
             {t.features.map((feature, index) => (
               <Reveal className={styles.feature} delay={index * 60} key={feature.title}>
-                <h3 className={`${styles.subheading} ${styles.featureTitle}`}>{feature.title}</h3>
-                <Text size="sm" tone="secondary">
-                  {feature.body}
-                </Text>
+                <Card>
+                  <h3 className={`${styles.subheading} ${styles.featureTitle}`}>{feature.title}</h3>
+                  <Text size="sm" tone="secondary">
+                    {feature.body}
+                  </Text>
+                </Card>
               </Reveal>
             ))}
           </div>

@@ -47,6 +47,9 @@ export function MealStatus({ mealId, status: initial }: MealStatusProps) {
     }
   }
 
+  // Two toggles, both secondary: `aria-pressed` is what draws the one that is
+  // on. The filled look is the page's one primary action, and a state is not
+  // an action.
   return (
     <div className={styles.buttons}>
       <Button
@@ -55,7 +58,7 @@ export function MealStatus({ mealId, status: initial }: MealStatusProps) {
         onClick={() => void choose('completed')}
         size="sm"
         type="button"
-        variant={status === 'completed' ? 'primary' : 'secondary'}
+        variant="secondary"
       >
         {t.done}
       </Button>
@@ -65,7 +68,7 @@ export function MealStatus({ mealId, status: initial }: MealStatusProps) {
         onClick={() => void choose('skipped')}
         size="sm"
         type="button"
-        variant={status === 'skipped' ? 'primary' : 'secondary'}
+        variant="secondary"
       >
         {t.skipped}
       </Button>

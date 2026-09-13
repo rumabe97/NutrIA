@@ -9,6 +9,13 @@
   cursor: not-allowed;
 }
 
+/* The whole label is the target, and on a phone it is at least a finger tall. */
+@media (pointer: coarse) {
+  .wrapper {
+    min-block-size: var(--target-min);
+  }
+}
+
 .label {
   color: var(--foreground-01);
   font-size: var(--font-size-03);
@@ -36,8 +43,8 @@
 
 .root[data-state='checked'],
 .root[data-state='indeterminate'] {
-  background-color: var(--color-brand-09);
-  border-color: var(--color-brand-09);
+  background-color: var(--color-brand-fill);
+  border-color: var(--color-brand-fill);
 }
 
 .root[data-disabled] {

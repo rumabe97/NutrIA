@@ -10,6 +10,7 @@ import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
+import { Card } from 'components/Card';
 import { MacroSummary } from 'components/MacroSummary';
 
 import { api, ApiError, messageFor } from 'lib/api';
@@ -71,10 +72,10 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
   }
 
   return (
-    <section className={styles.panel}>
+    <Card as="section" className={styles.panel}>
       <div className={styles.head}>
         <div>
-          <h2 className={styles.title}>{t.title}</h2>
+          <h3 className={styles.title}>{t.title}</h3>
           <Text size="sm" tone="tertiary">
             {overrideStatus === 'applied' ? t.subtitleOwn : t.subtitleEstimated}
           </Text>
@@ -215,7 +216,7 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
           </Button>
         </div>
       )}
-    </section>
+    </Card>
   );
 }
 

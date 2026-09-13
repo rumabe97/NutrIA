@@ -11,6 +11,8 @@
   gap: var(--space-03);
 }
 
+/* The text step of the red: the fill step was a pastel that measured 1.8:1
+   here, and a payment error nobody can read is a payment nobody can fix. */
 .error {
-  color: var(--color-red-07, currentColor);
+  color: var(--color-error-text);
 }

@@ -2,6 +2,8 @@ import styles from './EmptyState.module.css';
 
 import { Text } from 'ui/components/Text';
 
+import { Card } from 'components/Card';
+
 import type { ReactNode } from 'react';
 
 interface EmptyStateProps {
@@ -19,12 +21,12 @@ interface EmptyStateProps {
  */
 export function EmptyState({ body, children, title, tone = 'neutral' }: EmptyStateProps) {
   return (
-    <section className={tone === 'warning' ? `${styles.empty} ${styles.warning}` : styles.empty}>
+    <Card as="section" className={tone === 'warning' ? `${styles.empty} ${styles.warning}` : styles.empty} padding="lg">
       <h2 className={styles.title}>{title}</h2>
       <Text className={styles.body} tone="secondary">
         {body}
       </Text>
       {children ? <div className={styles.actions}>{children}</div> : null}
-    </section>
+    </Card>
   );
 }

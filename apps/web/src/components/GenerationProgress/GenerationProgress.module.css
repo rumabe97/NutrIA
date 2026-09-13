@@ -31,7 +31,7 @@
    explicitly refuses. */
 .bar {
   animation: slide 1.6s var(--ease-spring) infinite;
-  background-color: var(--color-brand-09);
+  background-color: var(--color-brand-fill);
   block-size: 100%;
   inline-size: 40%;
 }
@@ -75,7 +75,7 @@
 
 .error {
   background-color: var(--color-red-03);
-  border-radius: var(--radius-03);
+  border-radius: var(--radius-control);
   color: var(--color-error-text);
   padding: var(--space-04) var(--space-05);
   text-align: start;
@@ -85,7 +85,7 @@
    server, not copy for whoever is hungry. */
 .detail {
   background-color: var(--surface-sunken);
-  border-radius: var(--radius-02);
+  border-radius: var(--radius-control);
   color: var(--foreground-02);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: var(--font-size-01);

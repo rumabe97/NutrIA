@@ -1,3 +1,4 @@
+/* A `components/Card` on the profile; this is its inside. */
 .root {
   display: grid;
   gap: var(--space-03);
@@ -5,6 +6,7 @@
 
 .title {
   font-size: var(--font-size-04);
+  line-height: var(--line-height-04);
   margin: 0;
 }
 
@@ -33,17 +35,25 @@
 }
 
 .pill {
+  align-items: center;
   border: 1px solid var(--border-interactive);
   border-radius: var(--radius-full);
   cursor: pointer;
   display: inline-flex;
   font-size: var(--font-size-02);
-  padding: var(--space-01) var(--space-03);
+  padding: var(--space-01) var(--space-04);
+}
+
+@media (pointer: coarse) {
+  .pill {
+    min-block-size: var(--target-min);
+  }
 }
 
 .kind input:checked + .pill {
-  background: var(--color-selected);
-  border-color: var(--foreground-02);
+  background-color: var(--color-brand-03);
+  border-color: var(--color-brand-fill);
+  color: var(--color-brand-11);
 }
 
 .kind input:focus-visible + .pill {
@@ -51,10 +61,18 @@
   outline-offset: var(--focus-ring-offset);
 }
 
+/* The label of the box, visible: a placeholder disappears at the first
+   letter, and this is the one field on the screen someone writes prose into. */
+.label {
+  color: var(--foreground-01);
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+}
+
 .message {
   background: var(--background-01);
   border: 1px solid var(--border-interactive);
-  border-radius: var(--radius-03);
+  border-radius: var(--radius-control);
   color: inherit;
   font: inherit;
   inline-size: 100%;

@@ -80,7 +80,8 @@ export function DeleteAccount() {
       />
 
       <div className={styles.actions}>
-        <Button disabled={value !== word} loading={pending} onClick={remove} type="button">
+        {/* Red, because this one cannot be undone: the colour is the last warning before the word typed above takes effect. */}
+        <Button disabled={value !== word} loading={pending} onClick={remove} type="button" variant="destructive">
           {pending ? dictionary.profile.deletePending : dictionary.profile.deleteConfirm}
         </Button>
         <Button onClick={() => setConfirming(false)} type="button" variant="secondary">

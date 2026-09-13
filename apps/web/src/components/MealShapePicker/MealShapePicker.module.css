@@ -32,8 +32,8 @@
 
 .pill {
   align-items: center;
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-03);
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-control);
   cursor: pointer;
   display: flex;
   font-size: var(--font-size-02);
@@ -42,9 +42,17 @@
   text-align: center;
 }
 
+/* Four in a row on a phone, each a finger tall. */
+@media (pointer: coarse) {
+  .pill {
+    min-block-size: var(--target-min);
+  }
+}
+
 .size input:checked + .pill {
-  background: var(--color-selected);
-  border-color: var(--foreground-02);
+  background-color: var(--color-brand-03);
+  border-color: var(--color-brand-fill);
+  color: var(--color-brand-11);
 }
 
 .size input:focus-visible + .pill {

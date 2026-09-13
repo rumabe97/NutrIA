@@ -2,7 +2,7 @@
 .notice {
   background-color: var(--surface-card);
   border: 1px solid var(--color-amber-06);
-  border-radius: var(--radius-05);
+  border-radius: var(--radius-card);
   margin: 0 0 var(--gap-block);
   padding: var(--space-03);
 }

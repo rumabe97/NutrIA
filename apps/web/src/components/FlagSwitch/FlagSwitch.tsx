@@ -1,11 +1,9 @@
 'use client';
 import { useState } from 'react';
 
-import styles from './FlagSwitch.module.css';
-
-import { Switch } from 'ui/components/Switch';
-import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
+
+import { SettingSwitch } from 'components/SettingSwitch';
 
 import { api, messageFor } from 'lib/api';
 
@@ -51,20 +49,5 @@ export function FlagSwitch({ enabled, flag, label, offHint, onHint }: FlagSwitch
     }
   }
 
-  return (
-    <div className={styles.root}>
-      <label className={styles.line}>
-        <Switch checked={on} onCheckedChange={next => void change(next)} />
-        <Text size="sm">{label}</Text>
-      </label>
-      <Text size="xs" tone="tertiary">
-        {on ? onHint : offHint}
-      </Text>
-      {error ? (
-        <Text className={styles.error} size="xs">
-          {error}
-        </Text>
-      ) : null}
-    </div>
-  );
+  return <SettingSwitch checked={on} error={error} hint={on ? onHint : offHint} label={label} onCheckedChange={next => void change(next)} />;
 }

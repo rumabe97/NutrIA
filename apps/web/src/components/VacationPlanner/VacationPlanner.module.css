@@ -1,3 +1,4 @@
+/* A `components/Card` on the profile; this is its inside. */
 .root {
   display: grid;
   gap: var(--space-03);
@@ -5,6 +6,7 @@
 
 .title {
   font-size: var(--font-size-04);
+  line-height: var(--line-height-04);
   margin: 0;
 }
 
@@ -19,7 +21,7 @@
 .row {
   align-items: center;
   border: 1px solid var(--border-01);
-  border-radius: var(--radius-03);
+  border-radius: var(--radius-control);
   display: flex;
   gap: var(--space-04);
   justify-content: space-between;

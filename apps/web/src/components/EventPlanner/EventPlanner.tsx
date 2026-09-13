@@ -288,7 +288,16 @@ export function EventPlanner({ allowance, events, variant }: EventPlannerProps) 
             </Text>
           ) : null}
 
-          <Button className={styles.submit} disabled={pending || !name || !on || nothingMoves} loading={adding} type="submit">
+          {/* Under a day of the plan this is the form's own action. On the
+              generation screen the primary action is starting the plan, and
+              two filled buttons in one view is two things claiming to be it. */}
+          <Button
+            className={styles.submit}
+            disabled={pending || !name || !on || nothingMoves}
+            loading={adding}
+            type="submit"
+            variant={variant === 'generation' ? 'secondary' : 'primary'}
+          >
             {t.add}
           </Button>
         </form>

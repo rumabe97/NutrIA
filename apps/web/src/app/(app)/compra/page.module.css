@@ -8,7 +8,7 @@
 
 .progress {
   background-color: var(--surface-sunken);
-  border-radius: var(--radius-03);
+  border-radius: var(--radius-control);
   margin: var(--gap-block) 0;
   padding: var(--space-04) var(--space-05);
 }

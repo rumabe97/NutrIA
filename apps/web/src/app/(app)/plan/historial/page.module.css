@@ -21,23 +21,18 @@
   padding: 0;
 }
 
-.card {
-  background-color: var(--surface-card);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-04);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
+/* A `components/Card` that is a link. `a.card`, element and class, so these
+   rules outrank the card's own whatever order the stylesheets land in. */
+a.card {
   color: inherit;
   display: grid;
   gap: var(--space-02);
-  padding: var(--card-padding);
   text-decoration: none;
   transition: border-color var(--duration-fast) var(--ease-default);
 }
 
-.card:hover {
-  border-color: var(--color-brand-09);
+a.card:hover {
+  border-color: var(--color-brand-fill);
 }
 
 .range {

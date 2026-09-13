@@ -9,8 +9,11 @@
   width: 42px;
 }
 
+/* On is the brand's fill, like a ticked checkbox and a chosen radio: one
+   colour says "chosen" everywhere, and the status green stays for status. */
 .root[data-state='checked'] {
-  background-color: var(--color-success);
+  background-color: var(--color-brand-fill);
+  border-color: var(--color-brand-fill);
 }
 
 .root:disabled {

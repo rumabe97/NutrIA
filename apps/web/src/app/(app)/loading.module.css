@@ -16,13 +16,10 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
+/* A `components/Card` the shape of the one it stands in for. */
 .card {
-  background-color: var(--surface-card);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-04);
   display: grid;
   gap: var(--space-05);
-  padding: var(--space-06);
 }
 
 .row {

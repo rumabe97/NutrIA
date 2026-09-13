@@ -7,6 +7,7 @@ import styles from './page.module.css';
 import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
+import { Card } from 'components/Card';
 import { CtaLink } from 'components/CtaLink';
 import { EmptyState } from 'components/EmptyState';
 
@@ -61,7 +62,8 @@ export default async function PlanHistoryPage() {
       <ol className={styles.list}>
         {lived.map(plan => (
           <li key={plan.id}>
-            <Link
+            <Card
+              as={Link}
               className={styles.card}
               data-status={plan.status === 'active' ? 'active' : plan.replaced ? 'replaced' : 'finished'}
               href={plan.status === 'active' ? '/plan' : `/plan/historial/${plan.id}`}
@@ -71,7 +73,7 @@ export default async function PlanHistoryPage() {
                 <span>{interpolate(t.historyPlan, { version: plan.version })}</span>
                 <span className={styles.chip}>{chip(plan)}</span>
               </span>
-            </Link>
+            </Card>
           </li>
         ))}
       </ol>

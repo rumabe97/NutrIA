@@ -5,6 +5,7 @@ import styles from './page.module.css';
 import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
+import { Card } from 'components/Card';
 import { DeleteAccount } from 'components/DeleteAccount';
 import { FeedbackForm } from 'components/FeedbackForm';
 import { HealthPanel } from 'components/HealthPanel';
@@ -113,161 +114,184 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
       ) : null}
 
       <div className={`${styles.sections} motion-list`}>
-        {profile?.targets ? <TargetsPanel targets={profile.targets} /> : null}
+        {/* What the plan is built from: the figures, the health record, trips
+            that pause it, and what paying adds. */}
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>{t.sectionPlan}</h2>
 
-        {health ? <HealthPanel health={health} /> : null}
+          {profile?.targets ? <TargetsPanel targets={profile.targets} /> : null}
 
-        <LocaleSwitcher />
+          {health ? <HealthPanel health={health} /> : null}
 
-        <VacationPlanner trips={trips ?? []} />
+          <VacationPlanner trips={trips ?? []} />
 
-        <Tour replay={true} />
+          {billing?.available ? (
+            <Card>
+              <div className={styles.cardHead}>
+                <h3 className={styles.cardTitle}>{t.premiumTitle}</h3>
+              </div>
+              {/* `?premium=gracias` is where Stripe's checkout sends somebody back to. */}
+              <PremiumCard justPaid={query.premium === 'gracias'} status={billing} />
+            </Card>
+          ) : null}
+        </section>
 
-        <FeedbackForm />
+        {/* What was answered at the start, each block with its way back to the step that owns it. */}
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>{t.sectionData}</h2>
 
-        <ProfileSection
-          editHref="/onboarding/1?volver=perfil"
-          rows={[
-            { label: t.name, value: user?.name },
-            { label: t.email, value: user?.email },
-            { label: t.emailVerified, value: user?.emailVerified ? t.emailVerifiedYes : t.emailVerifiedNo }
-          ]}
-          title={t.account}
-        />
+          <ProfileSection
+            editHref="/onboarding/1?volver=perfil"
+            rows={[
+              { label: t.name, value: user?.name },
+              { label: t.email, value: user?.email },
+              { label: t.emailVerified, value: user?.emailVerified ? t.emailVerifiedYes : t.emailVerifiedNo }
+            ]}
+            title={t.account}
+          />
 
-        <ProfileSection
-          editHref="/onboarding/1?volver=perfil"
-          rows={[
-            { label: t.displayName, value: person?.displayName },
-            { label: dictionary.onboarding.fields.birthDate, value: person?.birthDate },
-            { label: t.height, value: person?.heightCm ? `${formatNumber(person.heightCm, locale)} cm` : undefined },
-            // Shown because it changes the plan (`0034`): a figure somebody can
-            // see is a figure they can correct.
-            {
-              label: dictionary.onboarding.fields.country,
-              value: person?.country ? dictionary.onboarding.options.countries[person.country as 'ES' | 'GB'] : undefined
-            }
-          ]}
-          title={t.personalData}
-        />
+          <ProfileSection
+            editHref="/onboarding/1?volver=perfil"
+            rows={[
+              { label: t.displayName, value: person?.displayName },
+              { label: dictionary.onboarding.fields.birthDate, value: person?.birthDate },
+              { label: t.height, value: person?.heightCm ? `${formatNumber(person.heightCm, locale)} cm` : undefined },
+              // Shown because it changes the plan (`0034`): a figure somebody can
+              // see is a figure they can correct.
+              {
+                label: dictionary.onboarding.fields.country,
+                value: person?.country ? dictionary.onboarding.options.countries[person.country as 'ES' | 'GB'] : undefined
+              }
+            ]}
+            title={t.personalData}
+          />
 
-        <ProfileSection
-          editHref="/onboarding/2?volver=perfil"
-          rows={[
-            { label: t.goal, value: goal ? dictionary.goals[goal.type] : undefined },
-            { label: t.startingWeight, value: goal?.startingWeightKg ? kg(goal.startingWeightKg) : undefined },
-            { label: t.targetWeight, value: goal?.targetWeightKg ? kg(goal.targetWeightKg) : undefined },
-            {
-              label: t.pace,
-              value: goal?.paceKgPerWeek ? interpolate(dictionary.units.perWeek, { value: formatNumber(goal.paceKgPerWeek, locale) }) : undefined
-            }
-          ]}
-          title={t.goal}
-        />
+          <ProfileSection
+            editHref="/onboarding/2?volver=perfil"
+            rows={[
+              { label: t.goal, value: goal ? dictionary.goals[goal.type] : undefined },
+              { label: t.startingWeight, value: goal?.startingWeightKg ? kg(goal.startingWeightKg) : undefined },
+              { label: t.targetWeight, value: goal?.targetWeightKg ? kg(goal.targetWeightKg) : undefined },
+              {
+                label: t.pace,
+                value: goal?.paceKgPerWeek ? interpolate(dictionary.units.perWeek, { value: formatNumber(goal.paceKgPerWeek, locale) }) : undefined
+              }
+            ]}
+            title={t.goal}
+          />
 
-        <ProfileSection
-          editHref="/onboarding/6?volver=perfil"
-          rows={[
-            {
-              label: t.allergies,
-              value: list(
-                (profile?.allergies ?? []).map(allergy => allergy.allergenLabel),
-                t.none
-              )
-            },
-            {
-              label: t.intolerances,
-              value: list(
-                (profile?.intolerances ?? []).map(intolerance => intolerance.allergenLabel),
-                t.none
-              )
-            },
-            { label: t.dietaryPatterns, value: list(profile?.dietaryPatterns ?? [], t.noRestriction) }
-          ]}
-          title={t.restrictions}
-        />
+          <ProfileSection
+            editHref="/onboarding/6?volver=perfil"
+            rows={[
+              {
+                label: t.allergies,
+                value: list(
+                  (profile?.allergies ?? []).map(allergy => allergy.allergenLabel),
+                  t.none
+                )
+              },
+              {
+                label: t.intolerances,
+                value: list(
+                  (profile?.intolerances ?? []).map(intolerance => intolerance.allergenLabel),
+                  t.none
+                )
+              },
+              { label: t.dietaryPatterns, value: list(profile?.dietaryPatterns ?? [], t.noRestriction) }
+            ]}
+            title={t.restrictions}
+          />
 
-        <ProfileSection
-          editHref="/onboarding/4?volver=perfil"
-          rows={[
-            {
-              // The meals they eat, named, with the ones they eat differently
-              // said so. A count would hide the whole point of the answer (`0036`).
-              label: dictionary.onboarding.fields.mealShape,
-              value: preferences?.mealShape
-                ? MEAL_SLOTS.filter(slot => preferences.mealShape[slot] !== 'off')
-                    .map(slot => {
-                      const size = preferences.mealShape[slot];
+          <ProfileSection
+            editHref="/onboarding/4?volver=perfil"
+            rows={[
+              {
+                // The meals they eat, named, with the ones they eat differently
+                // said so. A count would hide the whole point of the answer (`0036`).
+                label: dictionary.onboarding.fields.mealShape,
+                value: preferences?.mealShape
+                  ? MEAL_SLOTS.filter(slot => preferences.mealShape[slot] !== 'off')
+                      .map(slot => {
+                        const size = preferences.mealShape[slot];
 
-                      return size === 'normal'
-                        ? dictionary.onboarding.options.mealSlots[slot]
-                        : `${dictionary.onboarding.options.mealSlots[slot]} (${dictionary.onboarding.options.mealSizes[size].toLowerCase()})`;
-                    })
-                    .join(', ')
-                : undefined
-            },
-            { label: t.activity, value: preferences?.activityLevel ? dictionary.activity[preferences.activityLevel] : undefined },
-            {
-              label: t.cookingTime,
-              value: preferences?.cookingTimeMinutes
-                ? interpolate(t.minutes, { value: formatNumber(preferences.cookingTimeMinutes, locale) })
-                : undefined
-            }
-          ]}
-          title={t.howYouEat}
-        />
+                        return size === 'normal'
+                          ? dictionary.onboarding.options.mealSlots[slot]
+                          : `${dictionary.onboarding.options.mealSlots[slot]} (${dictionary.onboarding.options.mealSizes[size].toLowerCase()})`;
+                      })
+                      .join(', ')
+                  : undefined
+              },
+              { label: t.activity, value: preferences?.activityLevel ? dictionary.activity[preferences.activityLevel] : undefined },
+              {
+                label: t.cookingTime,
+                value: preferences?.cookingTimeMinutes
+                  ? interpolate(t.minutes, { value: formatNumber(preferences.cookingTimeMinutes, locale) })
+                  : undefined
+              }
+            ]}
+            title={t.howYouEat}
+          />
 
-        <ProfileSection
-          editHref="/onboarding/5?volver=perfil"
-          rows={[
-            {
-              label: t.youLike,
-              value: list(
-                foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label),
-                t.unset
-              )
-            },
-            {
-              label: t.youAvoid,
-              value: avoidValue(
-                foodPreferences.filter(item => item.sentiment === 'disliked'),
-                t
-              )
-            },
-            { label: t.cuisines, value: list(profile?.cuisines ?? [], t.unset) }
-          ]}
-          title={t.preferences}
-        />
+          <ProfileSection
+            editHref="/onboarding/5?volver=perfil"
+            rows={[
+              {
+                label: t.youLike,
+                value: list(
+                  foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label),
+                  t.unset
+                )
+              },
+              {
+                label: t.youAvoid,
+                value: avoidValue(
+                  foodPreferences.filter(item => item.sentiment === 'disliked'),
+                  t
+                )
+              },
+              { label: t.cuisines, value: list(profile?.cuisines ?? [], t.unset) }
+            ]}
+            title={t.preferences}
+          />
+        </section>
 
-        <div className={styles.card}>
-          <div className={styles.cardHead}>
-            {/* Headings rather than bold paragraphs, so these two cards appear
-                in the outline a screen reader navigates by. */}
-            <h2 className={styles.cardTitle}>{t.reminders}</h2>
-          </div>
-          <ReminderToggle enabled={notifications?.checkInEmail ?? true} />
-          {push?.publicKey ? <PushToggle publicKey={push.publicKey} /> : null}
-        </div>
+        {/* How the product speaks to this person: which reminders, and in which language. */}
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>{t.sectionNotices}</h2>
 
-        {billing?.available ? (
-          <div className={styles.card}>
+          <Card>
             <div className={styles.cardHead}>
-              <h2 className={styles.cardTitle}>{t.premiumTitle}</h2>
+              <h3 className={styles.cardTitle}>{t.reminders}</h3>
             </div>
-            {/* `?premium=gracias` is where Stripe's checkout sends somebody back to. */}
-            <PremiumCard justPaid={query.premium === 'gracias'} status={billing} />
-          </div>
-        ) : null}
+            <ReminderToggle enabled={notifications?.checkInEmail ?? true} />
+            {push?.publicKey ? <PushToggle publicKey={push.publicKey} /> : null}
+          </Card>
 
-        <div className={`${styles.card} ${styles.danger}`}>
-          <div className={styles.cardHead}>
-            <h2 className={styles.cardTitle}>{t.dangerTitle}</h2>
-          </div>
-          <Text size="sm" tone="secondary">
-            {t.deleteAllBody}
-          </Text>
-          <DeleteAccount />
-        </div>
+          <LocaleSwitcher />
+        </section>
+
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>{t.sectionHelp}</h2>
+
+          <Tour replay={true} />
+
+          <FeedbackForm />
+        </section>
+
+        {/* Last, on its own, and named for what it does. */}
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>{t.sectionDanger}</h2>
+
+          <Card className={styles.danger}>
+            <div className={styles.cardHead}>
+              <h3 className={styles.cardTitle}>{t.dangerTitle}</h3>
+            </div>
+            <Text size="sm" tone="secondary">
+              {t.deleteAllBody}
+            </Text>
+            <DeleteAccount />
+          </Card>
+        </section>
       </div>
     </Fragment>
   );

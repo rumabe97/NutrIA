@@ -5,6 +5,7 @@ import styles from './page.module.css';
 import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
+import { Card } from 'components/Card';
 import { CtaLink } from 'components/CtaLink';
 import { EmptyState } from 'components/EmptyState';
 import { MacroSummary } from 'components/MacroSummary';
@@ -147,13 +148,13 @@ export default async function DashboardPage() {
                       first and on its own. The full day is below it. */}
                   <NextMeal hour={hour} meals={day.meals} />
 
-                  <section className={styles.todayCard}>
+                  <Card as="section">
                     <div className={styles.todayHeading}>
                       {/* A heading, not a bold paragraph: this screen had one
                           `<h1>` and nothing else, so navigating it by heading
                           landed on the greeting and stopped. */}
                       <h2 className={styles.todayTitle}>{t.today}</h2>
-                      <CtaLink href="/plan" size="sm" variant="ghost">
+                      <CtaLink href="/plan" size="sm" variant="tertiary">
                         {t.seeAllDays}
                       </CtaLink>
                     </div>
@@ -181,7 +182,7 @@ export default async function DashboardPage() {
                         />
                       ))}
                     </div>
-                  </section>
+                  </Card>
                 </Fragment>
               ) : away ? null : (
                 // The plan is active but today falls outside its dates and nobody is
@@ -218,14 +219,14 @@ export default async function DashboardPage() {
           <aside className={`${styles.rail} motion-enter`}>
             {/* Each rail block is its own panel, so the grid's gap is the rhythm
                 between them rather than a margin each one invents. */}
-            <div className={styles.railBlock}>
+            <Card className={styles.railBlock}>
               <div className={styles.targetsLabel}>
                 <h2 className={styles.targetsTitle}>
                   {interpolate(t.targetsLabel, {
                     status: profile.targets.overrideStatus === 'applied' ? t.targetsStatusOverridden : t.targetsStatusEstimated
                   })}
                 </h2>
-                <CtaLink href="/perfil" size="sm" variant="ghost">
+                <CtaLink href="/perfil" size="sm" variant="tertiary">
                   {t.targetsAdjust}
                 </CtaLink>
               </div>
@@ -258,7 +259,7 @@ export default async function DashboardPage() {
                   })}
                 </p>
               ) : null}
-            </div>
+            </Card>
           </aside>
         ) : null}
       </div>

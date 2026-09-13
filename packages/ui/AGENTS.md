@@ -336,14 +336,14 @@ The full token catalog lives in [`src/styles/variables.css`](src/styles/variable
 | Font size                        | `--font-size-01` … `--font-size-11`                                          |
 | Line height                      | `--line-height-01` … `--line-height-06`                                      |
 | Font weight                      | `--font-weight-regular` / `medium` / `semibold` / `bold`                     |
-| Component height                 | `--height-xs` / `s` / `m` / `l` / `xl`                                       |
-| Radius                           | `--radius-01` … `--radius-05`, `--radius-full`                               |
+| Component height                 | `--height-xs` / `s` / `m` / `l` / `xl`; `--target-min` (44px, applied under `(pointer: coarse)`) |
+| Radius                           | `--radius-control` / `card` / `sheet` (10/14/20 — reach for these first); `--radius-01` … `--radius-05`, `--radius-full` |
 | Surfaces                         | `--background-01` / `02` / `highlight`, `--color-glass`, `--color-overlay`   |
 | Text                             | `--foreground-01` / `02` / `03` / `disabled`                                 |
 | Border                           | `--border-01` (dividers), `--border-interactive` (the edge of a control)     |
 | Interactive                      | `--color-hover`, `--color-highlighted`, `--color-selected`, `--color-switch` |
-| State                            | `--color-success`, `--color-error`, `--color-warning`                        |
-| Brand                            | `--color-brand-01` … `--color-brand-12`                                      |
+| State                            | `--color-success`, `--color-error`, `--color-warning` (+ `-text` variants); `--color-error-fill` under a white label |
+| Brand                            | `--color-brand-01` … `--color-brand-12`; `--color-brand-fill` / `-fill-hover` / `--color-on-brand-fill` for anything filled — an app overrides the fill when its step 09 does not clear 4.5:1 with white in both schemes |
 | Shadow                           | `--shadow-s` / `m` / `l`                                                     |
 | Focus ring                       | `--focus-ring-color` / `-width` / `-offset` (applied globally via `:focus-visible`) |
 | Motion                           | `--duration-fast` / `normal` / `slow`, `--ease-default` / `spring`           |

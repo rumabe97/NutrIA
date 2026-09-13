@@ -33,7 +33,7 @@
 }
 
 .checkbox {
-  accent-color: var(--color-brand-09);
+  accent-color: var(--color-brand-fill);
   block-size: 1.15rem;
   cursor: pointer;
   flex: 0 0 auto;

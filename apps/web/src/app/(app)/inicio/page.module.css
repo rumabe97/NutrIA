@@ -35,29 +35,21 @@
 }
 
 /*
- * The rail's contents are reference, so they sit on one quiet card rather than
- * four competing ones. A stack of separately-bordered boxes down the side of a
- * screen is the thing that made this feel assembled.
+ * The rail's contents are reference, so they sit on one quiet card
+ * (`components/Card`) rather than four competing ones. A stack of
+ * separately-bordered boxes down the side of a screen is the thing that made
+ * this feel assembled.
  */
-.railBlock,
-.rail > section {
-  background-color: var(--surface-card);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-04);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
-  padding: var(--card-padding);
+.railBlock {
+  min-inline-size: 0;
 }
 
-.todayCard {
-  background-color: var(--surface-card);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-04);
-  padding: var(--card-padding);
+/* Three reference panels on the one card, told apart by a hairline rather
+   than by three boxes: the targets, the shopping count, the weight. */
+.railBlock > section {
+  border-top: 1px solid var(--border-01);
+  margin-top: var(--gap-block);
+  padding-top: var(--gap-block);
 }
 
 .todayHeading {
@@ -69,20 +61,13 @@
 }
 
 /*
- * These two are `<h2>` for the outline and styled back down to what they looked
- * like as text — a heading is a structural claim, not a size. Weight and colour
- * come from the shared heading reset; only what `<Text size="lg">` and
- * `<Text size="sm" tone="tertiary">` were adding is restated here.
+ * These two are `<h2>` for the outline and sized as the title of a card — one
+ * step above the body, semibold — so the dashboard's cards and the profile's
+ * agree on what a card's name looks like.
  */
-.todayTitle {
-  font-size: var(--font-size-04);
-  line-height: var(--line-height-04);
-}
-
+.todayTitle,
 .targetsTitle {
-  color: var(--foreground-03);
-  font-size: var(--font-size-02);
-  font-weight: var(--font-weight-regular);
+  font-size: var(--font-size-04);
   line-height: var(--line-height-04);
 }
 
@@ -104,90 +89,12 @@
   margin-top: var(--gap-heading);
 }
 
-.empty {
-  background-color: var(--surface-card);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-05);
-  margin-top: var(--gap-region);
-  padding: var(--space-09) var(--space-06);
-  text-align: center;
-}
-
-.emptyTitle {
-  font-size: var(--font-size-07);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: -0.015em;
-  margin: 0 0 var(--space-03);
-}
-
-.emptyBody {
-  margin-inline: auto;
-  max-width: 32rem;
-}
-
-.emptyActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-03);
-  justify-content: center;
-  margin-top: var(--gap-block);
-}
-
-.progress {
-  background-color: var(--color-gray-04);
-  border-radius: var(--radius-full);
-  height: 6px;
-  margin: var(--space-06) auto 0;
-  max-width: 22rem;
-  overflow: hidden;
-}
-
-.progressBar {
-  background-color: var(--color-brand-09);
-  block-size: 100%;
-  border-radius: inherit;
-  transition: inline-size var(--duration-slow) var(--ease-spring);
-}
-
-.targets {
-  display: grid;
-  gap: var(--space-05);
-  grid-template-columns: repeat(2, 1fr);
-  margin-top: var(--gap-region);
-}
-
-.target {
-  background-color: var(--surface-card);
-  box-shadow:
-    inset 0 1px 0 var(--card-highlight),
-    var(--card-shadow);
-  border: 1px solid var(--border-01);
-  border-radius: var(--radius-04);
-  padding: var(--space-05);
-}
-
-.targetValue {
-  font-size: var(--font-size-07);
-  font-variant-numeric: tabular-nums;
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: -0.02em;
-}
-
 .notice {
   background-color: var(--color-amber-03);
-  border-radius: var(--radius-03);
+  border-radius: var(--radius-control);
   color: var(--color-warning-text);
   margin-top: var(--gap-heading);
   padding: var(--space-04) var(--space-05);
-}
-
-@media (width >= 40rem) {
-  .targets {
-    grid-template-columns: repeat(4, 1fr);
-  }
 }
 
 @media (width >= 64rem) {

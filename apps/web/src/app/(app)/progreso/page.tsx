@@ -7,6 +7,7 @@ import styles from './page.module.css';
 import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
+import { Card } from 'components/Card';
 import { CtaLink } from 'components/CtaLink';
 import { EmptyState } from 'components/EmptyState';
 import { FortnightList } from 'components/FortnightList';
@@ -97,17 +98,17 @@ export default async function ProgressPage() {
 
       <dl className={styles.tiles}>
         {tiles.map(tile => (
-          <div className={styles.tile} key={tile.label}>
+          <Card className={styles.tile} key={tile.label} padding="sm">
             <dt className={styles.tileLabel}>{tile.label}</dt>
             <dd className={styles.tileValue}>
               {tile.value}
               {tile.note ? <span className={styles.tileNote}> {tile.note}</span> : null}
             </dd>
-          </div>
+          </Card>
         ))}
       </dl>
 
-      <section className={styles.card}>
+      <Card as="section" className={styles.card}>
         <div className={styles.head}>
           <div>
             <h2 className={styles.subtitle}>{t.weightTitle}</h2>
@@ -127,7 +128,7 @@ export default async function ProgressPage() {
         ) : (
           <WeightChart entries={weight.entries} targetKg={weight.targetWeightKg} />
         )}
-      </section>
+      </Card>
 
       <section className={styles.fortnights}>
         <div className={styles.head}>

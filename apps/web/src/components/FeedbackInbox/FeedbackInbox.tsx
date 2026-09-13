@@ -64,6 +64,7 @@ export function FeedbackInbox({ messages }: { messages: readonly FeedbackView[] 
           <li className={row.handled ? `${styles.row} ${styles.handled}` : styles.row} key={row.id}>
             <div className={styles.head}>
               <span className={styles.chip}>{dictionary.feedback.kinds[row.kind as 'idea' | 'other' | 'problem'] ?? row.kind}</span>
+              {row.handled ? <span className={`${styles.chip} ${styles.chipDone}`}>{t.feedbackHandledState}</span> : null}
               <Text as="span" size="xs" tone="tertiary">
                 {row.email} · {formatDate(row.createdAt.slice(0, 10), locale, { day: 'numeric', month: 'short' })}
               </Text>
