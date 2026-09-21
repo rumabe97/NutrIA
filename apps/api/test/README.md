@@ -22,6 +22,7 @@ part of `pnpm test`. Run them deliberately.
 | `custom-allergens.e2e-spec.ts` | A free-text allergy that matched the catalogue is enforced exactly as a listed one; one that did not is stored, surfaced as unenforceable, and named to the model. |
 | `health-data.e2e-spec.ts` | A recorded medication or condition never appears in a prompt, and withdrawal deletes the data and the consent together. |
 | `target-overrides.e2e-spec.ts` | A corrected target is refused outside its bounds, and *is the figure the stored plan was built against* when accepted. The tour's mark is remembered across requests and can be undone. |
+| `social-sign-in.e2e-spec.ts` | Arriving through a provider (`0058`), with Google's token exchange answered by the test: the public list of providers, the address somebody is sent to, an account born confirmed opening itself or waiting for the owner, the same person the second time, a confirmed password account joined — and **an unconfirmed one never joined**, left exactly as it was. |
 | `localisation.e2e-spec.ts` | An English account gets an English prompt, an English shopping list, and no Spanish recipe from the shared library. |
 
 ## Running them

@@ -127,6 +127,20 @@ After `signIn` / `signOut`, call `router.refresh()` as well as `router.push()` �
 components cache per-request, and without the refresh the next page renders with the
 previous session's data.
 
+**Providers (`0058`).** `components/SocialSignIn` draws one "Continue with…" per provider
+the API lists at `GET /settings/sign-in-providers`, read **on the server** by
+`lib/sign-in-providers.ts` and kept five minutes — so the sign-in and sign-up pages stay
+static and the buttons are in the first paint. Never move that list to a `NEXT_PUBLIC_`
+variable: the API holds the credentials, and a button it cannot honour ends in an error
+page. With no provider the component renders nothing, divider included. The buttons are
+`secondary` and identical in size; Google's mark keeps its four colours (the one hex value
+here that is not a token), Apple's takes the label's colour. Callback addresses are
+absolute, on this origin — a relative one is resolved against the API's. A tab that leaves
+for a provider clears the offline copies first and leaves a note (`lib/arrival.ts`);
+`ArrivalSync`, in the app shell, reads it once and reconciles the language, which is what
+the password form does before it navigates. A refusal comes back as `/acceder?error=…`,
+and `SignInForm` turns the code into copy.
+
 ## Offline
 
 `public/sw.js` keeps copies for reading without a network

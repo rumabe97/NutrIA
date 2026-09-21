@@ -35,7 +35,7 @@ export const HOME: PagePath = '/';
  * search for "nutria acceder" and should land on the form rather than on a
  * homepage they then have to navigate.
  */
-export const INDEXABLE_PATHS: readonly PagePath[] = ['/', '/acceder', '/registro'];
+export const INDEXABLE_PATHS: readonly PagePath[] = ['/', '/acceder', '/privacidad', '/registro'];
 
 /**
  * Public, reachable, and meaningless in a search result.

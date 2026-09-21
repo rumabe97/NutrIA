@@ -7,10 +7,13 @@ import { Text } from 'ui/components/Text';
 
 import { SignInForm } from 'components/SignInForm';
 
+import { signInProviders } from 'lib/sign-in-providers';
+
 import type { Locale } from 'i18n/config';
 
-export function SignInScreen({ locale }: Readonly<{ locale: Locale }>) {
+export async function SignInScreen({ locale }: Readonly<{ locale: Locale }>) {
   const dictionary = dictionaryFor(locale);
+  const providers = await signInProviders();
 
   return (
     <Fragment>
@@ -22,7 +25,7 @@ export function SignInScreen({ locale }: Readonly<{ locale: Locale }>) {
       {/* useSearchParams needs a Suspense boundary, otherwise the whole route
           opts out of static rendering. */}
       <Suspense fallback={null}>
-        <SignInForm />
+        <SignInForm providers={providers} />
       </Suspense>
     </Fragment>
   );

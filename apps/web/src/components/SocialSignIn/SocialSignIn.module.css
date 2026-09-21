@@ -1,0 +1,46 @@
+/* Sits between the screen's subtitle and its form, and closes with the divider
+   that introduces the form — so with no provider there is nothing to close. */
+.group {
+  display: grid;
+  gap: var(--space-03);
+  margin-bottom: var(--space-05);
+}
+
+/* Full width, like the fields and the submit below them: one column, one edge. */
+.provider {
+  inline-size: 100%;
+}
+
+/* In `em`, so the mark tracks the label across the button's size tiers. */
+.mark {
+  block-size: 1.15em;
+  flex: 0 0 auto;
+  inline-size: 1.15em;
+}
+
+.error {
+  background-color: var(--color-red-03);
+  border-radius: var(--radius-control);
+  color: var(--color-error-text);
+  font-size: var(--font-size-03);
+  margin: 0;
+  padding: var(--space-03) var(--space-04);
+}
+
+/* A rule either side of the words, drawn by the paragraph itself: the text is
+   real text for a screen reader, and the lines are nobody's content. */
+.divider {
+  align-items: center;
+  color: var(--foreground-02);
+  display: flex;
+  font-size: var(--font-size-02);
+  gap: var(--space-04);
+  margin: var(--space-03) 0 0;
+}
+
+.divider::before,
+.divider::after {
+  border-top: 1px solid var(--border-01);
+  content: '';
+  flex: 1;
+}

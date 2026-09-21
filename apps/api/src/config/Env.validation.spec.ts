@@ -1,3 +1,4 @@
+import { generateKeyPairSync } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from '@jest/globals';
 
@@ -257,5 +258,55 @@ describe('turbo.json globalEnv', () => {
     const missing = ENV_KEYS.filter(key => !turbo.globalEnv.includes(key));
 
     expect(missing).toEqual([]);
+  });
+}); /**
+ * `0058`. A provider is whole or absent: half of one draws a button that sends
+ * somebody to Google or Apple and brings them back to an error page.
+ */
+describe('sign-in providers', () => {
+  const pem = generateKeyPairSync('ec', { namedCurve: 'P-256' }).privateKey.export({ format: 'pem', type: 'pkcs8' }).toString();
+  const google = { GOOGLE_OAUTH_CLIENT_ID: 'nutria.apps.googleusercontent.com', GOOGLE_OAUTH_CLIENT_SECRET: 'not-a-real-secret' };
+  const apple = {
+    APPLE_OAUTH_CLIENT_ID: 'app.nutria.web',
+    APPLE_OAUTH_KEY_ID: 'ABCDEFGHIJ',
+    APPLE_OAUTH_PRIVATE_KEY: pem,
+    APPLE_OAUTH_TEAM_ID: 'KLMNOPQRST'
+  };
+
+  it('boots with none, which is how it ships, including when copied empty', () => {
+    const empty = Object.fromEntries(Object.keys({ ...apple, ...google }).map(key => [key, '']));
+
+    expect(validateEnv({ ...valid, ...empty }).GOOGLE_OAUTH_CLIENT_ID).toBeUndefined();
+  });
+
+  it('accepts each provider whole', () => {
+    expect(() => validateEnv({ ...valid, ...google })).not.toThrow();
+    expect(() => validateEnv({ ...valid, ...apple })).not.toThrow();
+  });
+
+  it('refuses half of Google, and names the half that is missing', () => {
+    expect(() => validateEnv({ ...valid, GOOGLE_OAUTH_CLIENT_ID: google.GOOGLE_OAUTH_CLIENT_ID })).toThrow(/GOOGLE_OAUTH_CLIENT_SECRET/);
+    expect(() => validateEnv({ ...valid, GOOGLE_OAUTH_CLIENT_SECRET: google.GOOGLE_OAUTH_CLIENT_SECRET })).toThrow(/GOOGLE_OAUTH_CLIENT_ID/);
+  });
+
+  it('refuses a Google value that is not an OAuth client id — the AI key pasted in the wrong box', () => {
+    expect(() => validateEnv({ ...valid, ...google, GOOGLE_OAUTH_CLIENT_ID: 'AIza-not-a-client-id' })).toThrow(/GOOGLE_OAUTH_CLIENT_ID/);
+  });
+
+  it('refuses part of Apple', () => {
+    expect(() => validateEnv({ ...valid, ...apple, APPLE_OAUTH_TEAM_ID: '' })).toThrow(/APPLE_OAUTH_TEAM_ID/);
+  });
+
+  it('reads an Apple key pasted on one line as the same key', () => {
+    const oneLine = pem.trim().replaceAll('\n', '\\n');
+
+    expect(validateEnv({ ...valid, ...apple, APPLE_OAUTH_PRIVATE_KEY: oneLine }).APPLE_OAUTH_PRIVATE_KEY).toBe(pem.trim());
+  });
+
+  it('refuses an Apple key that is not one, without echoing it', () => {
+    const run = () => validateEnv({ ...valid, ...apple, APPLE_OAUTH_PRIVATE_KEY: 'definitely-not-a-pem' });
+
+    expect(run).toThrow(/APPLE_OAUTH_PRIVATE_KEY/);
+    expect(run).not.toThrow(/definitely-not-a-pem/);
   });
 });

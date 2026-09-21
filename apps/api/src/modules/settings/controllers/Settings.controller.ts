@@ -1,10 +1,10 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { AllowUnverified } from '../../../shared/index.js';
+import { AllowUnverified, Public } from '../../../shared/index.js';
 import { SettingsService } from '../services/index.js';
 
-import type { SettingsDto } from '../dto/out/index.js';
+import type { SettingsDto, SignInProvidersDto } from '../dto/out/index.js';
 
 /**
  * The one switch a signed-in person needs to know about themselves: whether
@@ -29,5 +29,19 @@ export class SettingsController {
   @Get()
   async read(): Promise<SettingsDto> {
     return this.settings.read();
+  }
+
+  /*
+   * `@Public()`, unlike the switch above, because the pages that ask are the
+   * ones nobody has a session on yet. It says which buttons this deployment
+   * can honour and nothing about anybody: the same answer the sign-in page
+   * gives away by drawing them (`0058`).
+   */
+  @ApiOkResponse({ description: 'The providers with credentials on this deployment, in display order. Empty when there are none.' })
+  @ApiOperation({ summary: 'Which providers somebody can sign in through' })
+  @Get('sign-in-providers')
+  @Public()
+  signInProviders(): SignInProvidersDto {
+    return this.settings.signInProviders();
   }
 }

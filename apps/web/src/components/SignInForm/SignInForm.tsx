@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -11,23 +11,45 @@ import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
+import { SocialSignIn } from 'components/SocialSignIn';
+
 import { forgetOfflineCopies } from 'lib/offline';
 import { interpolate } from 'lib/format';
 import { signIn } from 'lib/auth-client';
 import { syncLocaleFromProfile } from 'lib/locale-sync';
 
+import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { FormEvent } from 'react';
+import type { SocialProvider } from 'lib/sign-in-providers';
+
+/**
+ * What to say to somebody a provider sent back without a session (`0058`).
+ *
+ * Better Auth returns them to this page with `?error=`. Two codes are worth
+ * their own words. `account_not_linked` is an address that already has an
+ * account nobody confirmed: joining them would hand the account to whoever
+ * arrives, so the way in is the password, and the page says so. `access_denied`
+ * is somebody pressing Cancel at the provider, which is not an error and gets no
+ * red box. Everything else is one sentence that offers the form.
+ */
+function arrivalError(code: string | null, dictionary: Dictionary): string | undefined {
+  if (!code || code === 'access_denied') {
+    return undefined;
+  }
+
+  return code === 'account_not_linked' ? dictionary.auth.socialNotLinked : dictionary.auth.socialFailed;
+}
 
 /**
  * Reads `?siguiente` so the proxy's redirect returns the user to where they
  * were headed. That needs useSearchParams, which is why this is a separate
  * client component behind a Suspense boundary rather than part of the page.
  */
-export function SignInForm() {
+export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly SocialProvider[] }>) {
   const router = useRouter();
   const dictionary = useDictionary();
   const params = useSearchParams();
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<string | undefined>(() => arrivalError(params.get('error'), dictionary));
   const [pending, setPending] = useState(false);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
@@ -70,32 +92,36 @@ export function SignInForm() {
   }
 
   return (
-    <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
-      {error ? (
-        <p className={styles.error} role="alert">
-          {error}
-        </p>
-      ) : null}
+    <Fragment>
+      <SocialSignIn next={params.get('siguiente') ?? undefined} providers={providers} />
 
-      <Input autoComplete="email" label={dictionary.auth.email} name="email" required={true} type="email" />
-      <Input autoComplete="current-password" label={dictionary.auth.password} name="password" required={true} type="password" />
+      <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
+        {error ? (
+          <p className={styles.error} role="alert">
+            {error}
+          </p>
+        ) : null}
 
-      <Link className={`${styles.link} ${styles.forgot}`} href="/recuperar">
-        {dictionary.auth.forgotPassword}
-      </Link>
+        <Input autoComplete="email" label={dictionary.auth.email} name="email" required={true} type="email" />
+        <Input autoComplete="current-password" label={dictionary.auth.password} name="password" required={true} type="password" />
 
-      <Button loading={pending} type="submit">
-        {pending ? dictionary.auth.signingIn : dictionary.auth.signIn}
-      </Button>
+        <Link className={`${styles.link} ${styles.forgot}`} href="/recuperar">
+          {dictionary.auth.forgotPassword}
+        </Link>
 
-      <div className={styles.footer}>
-        <Text size="sm" tone="secondary">
-          {dictionary.auth.noAccount}{' '}
-          <Link className={styles.link} href="/registro">
-            {dictionary.auth.toSignUp}
-          </Link>
-        </Text>
-      </div>
-    </form>
+        <Button loading={pending} type="submit">
+          {pending ? dictionary.auth.signingIn : dictionary.auth.signIn}
+        </Button>
+
+        <div className={styles.footer}>
+          <Text size="sm" tone="secondary">
+            {dictionary.auth.noAccount}{' '}
+            <Link className={styles.link} href="/registro">
+              {dictionary.auth.toSignUp}
+            </Link>
+          </Text>
+        </div>
+      </form>
+    </Fragment>
   );
 }
