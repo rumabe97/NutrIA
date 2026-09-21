@@ -12,6 +12,13 @@
 }
 
 .input {
+  /* The least a field may be tall: a `md` button's height under a pointer, a
+     finger's on a phone. One value that both rules below read, because the two
+     of them used to state a minimum each — and `min-height` on the date and time
+     types, being the more specific, beat the touch floor. Seven fields sat at
+     40px on a phone until the probe measured one. */
+  --input-floor: var(--height-l);
+
   background-color: var(--background-01);
   border: 1px solid var(--border-interactive);
   border-radius: var(--radius-control);
@@ -20,6 +27,7 @@
   font-size: var(--font-size-03);
   /* The same height as a `md` button, so a field and the button beside it are one row. */
   height: var(--height-l);
+  min-block-size: var(--input-floor);
   padding-inline: var(--space-03);
   width: 100%;
 }
@@ -27,7 +35,7 @@
 /* A finger's height on a phone, like every other control. */
 @media (pointer: coarse) {
   .input {
-    min-block-size: var(--target-min);
+    --input-floor: var(--target-min);
   }
 }
 
@@ -39,15 +47,16 @@
  * iOS draws its own oversized, centred picker for these types, so the native
  * look is dropped and the value is left-aligned like every other input. They
  * keep the full width of the form: a narrower field beside full-width ones
- * looked like a different kind of control, not a shorter value. `min-height`
- * rather than relying on `height`: iOS ignores `height` on this type and uses
- * its own.
+ * looked like a different kind of control, not a shorter value. The floor is
+ * restated here, as the same `--input-floor`, rather than left to the rule
+ * above: iOS ignores `height` on these types and uses its own, so the minimum
+ * is the only height they have.
  */
 .input[type='time'],
 .input[type='date'] {
   appearance: none;
   -webkit-appearance: none;
-  min-height: var(--height-l);
+  min-block-size: var(--input-floor);
 }
 
 .input[type='time']::-webkit-date-and-time-value,

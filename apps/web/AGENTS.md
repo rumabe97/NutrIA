@@ -282,11 +282,40 @@ number up with there, and tabular digits read as slightly wrong in running text.
 - **Every tappable thing is `--target-min` tall under `(pointer: coarse)`** — `Button`,
   `Input`, `Select`, `Checkbox` and `SettingSwitch` already are; a new chip, pill,
   disclosure `summary` or standalone link adds the media query itself. A pointer keeps the
-  desktop height.
+  desktop height. **A second, more specific `min-height` on the same element silently
+  beats that floor** — `min-height` and `min-block-size` are one property — which is how
+  every date and time field sat at 40px until `/local-probe` measured one. State a minimum
+  once, as a custom property both rules read (`--input-floor` in `Input`).
 - **Tracking is one of four tokens**: `--tracking-display`, `--tracking-headline`,
   `--tracking-title`, `--tracking-caps`. A card's title is `--font-size-04` semibold.
 - **Nothing by colour alone**: a current tab, a chosen chip, a pressed toggle each carry a
   second cue (weight, stroke, border).
+
+### Design review — every change to what somebody sees
+
+The rules above are what an audit with the owner's **`apple-web-design`** skill left behind
+(`0057`). They are the floor, not the review. **Any change to a screen, a component, a
+stylesheet or the words on a control is reviewed with that skill before it ships, and what
+the review finds is fixed in the same change** — not filed, not left for an audit:
+
+1. Build it with the skill's CREATE or FIX mode, using **this project's tokens**. Never
+   import the skill's CSS and never bring its class names: the principles travel, the
+   stylesheet does not.
+2. Run its REVIEW on what you touched — the component, and every screen that renders it.
+   Its severities are P0–P3.
+3. **P0 and P1 are fixed before the change goes out.** P2 and P3 are fixed too when they
+   sit in the code you are already changing; otherwise they go in the report, by name.
+4. Look at it: `/local-probe`, at 320 px and in the dark scheme first. A `hint:` line is
+   judged, and the judgement written down.
+5. The verdict goes in the pull request's `## Checked`: what was reviewed, what was found,
+   what was fixed.
+
+A finding in code you did **not** touch is not yours to fix in passing — say so in the
+report and let the owner decide — unless it is a P0, which is fixed wherever it is.
+
+The skill is installed on the owner's machine (`~/.claude/skills/apple-web-design`), not
+in this repository. **Without it, do not skip the review: do it against this section and
+`0057`**, run `/local-probe`, and say in the report that the skill was not available.
 
 ### Motion
 
