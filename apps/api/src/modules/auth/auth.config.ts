@@ -7,7 +7,8 @@ import { database } from 'database';
 import { account, rateLimit, session, user, verification } from 'database/schema/auth';
 
 import { absoluteCallback, sendPasswordResetMail } from './services/PasswordResetMail.js';
-import { onAddressConfirmed } from './services/SelfService.js';
+import { APPLE_ORIGIN, configuredSocialProviders, socialProviderOptions } from './services/SocialProviders.js';
+import { onAccountCreated, onAddressConfirmed } from './services/SelfService.js';
 import { recipientLocale } from '../email/services/RecipientLocale.js';
 import { verifyEmail } from '../email/templates/VerifyEmail.js';
 
@@ -42,8 +43,33 @@ const SESSION_REFRESH_AGE_DAYS = 1;
  * ON DELETE CASCADE (see `packages/database/src/schemas/_utils.ts`).
  */
 export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | 'send'>) {
+  const providers = configuredSocialProviders(env);
+  const selfService = {
+    link: { apiUrl: `${env.BETTER_AUTH_URL}/${env.API_PREFIX}`, secret: env.BETTER_AUTH_SECRET },
+    mailer,
+    ownerEmail: env.OWNER_EMAIL
+  };
+
   return betterAuth({
-    account: { accountLinking: { enabled: false } },
+    account: {
+      /*
+       * Linking exists only while a provider does (`0058`), and only ever in one
+       * shape: somebody who signed up with a password and later arrives through
+       * Google with the same address is the same person, not a second account.
+       *
+       * Two conditions, both Better Auth's and both left at their strict
+       * setting. The provider must itself say the address is verified — no
+       * provider is listed as trusted, which would waive that. And the local
+       * account must have confirmed its address already
+       * (`requireLocalEmailVerified`, on by default): otherwise anybody could
+       * sign up with a stranger's address and a password of their own, wait for
+       * the stranger to arrive through Google, and walk into their health data.
+       */
+      accountLinking: { enabled: providers.length > 0 },
+      // Nothing is ever called on anybody's behalf, but the adapter keeps what
+      // the provider hands back. At rest it is ciphertext.
+      encryptOAuthTokens: true
+    },
     advanced: {
       /*
        * Written for the parent domain when API and web sit on sibling subdomains,
@@ -76,6 +102,20 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
             await AnalyticsController.record('session_started', created.userId);
           }
         }
+      },
+      user: {
+        create: {
+          /*
+           * An account created through a provider is born with its address
+           * confirmed, so the verification link — and the hook behind it, which
+           * is what opens an account or tells the owner one is waiting — never
+           * runs for it (`0058`). This is that moment for them. It runs after
+           * the row is committed, so the activation finds it.
+           */
+          after: async (created: { id: string; email: string; emailVerified: boolean }) => {
+            await onAccountCreated(created, selfService);
+          }
+        }
       }
     },
     emailAndPassword: {
@@ -84,6 +124,15 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
       // succeeds — bouncing the user back to the form with "check your email"
       // half-completed is worse than letting them in and gating the plan.
       requireEmailVerification: false,
+      /*
+       * A reset is somebody proving the address is theirs, often because
+       * somebody else got there first: signed up with it, never confirmed it,
+       * and still holds a session. That session must not outlive the proof —
+       * more so now that "reset the password" is what the sign-in page says to
+       * a person whose address was taken before they arrived through a
+       * provider (`0058`).
+       */
+      revokeSessionsOnPasswordReset: true,
       // The one mail the product sends (0019). The request's language picks
       // the copy; the web app sends the tag it is rendering in.
       sendResetPassword: ({ url, user: recipient }, request) =>
@@ -104,11 +153,7 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
        * request, so the person is in on their next navigation.
        */
       afterEmailVerification: async (verified: { id: string; email: string }) => {
-        await onAddressConfirmed(verified, {
-          link: { apiUrl: `${env.BETTER_AUTH_URL}/${env.API_PREFIX}`, secret: env.BETTER_AUTH_SECRET },
-          mailer,
-          ownerEmail: env.OWNER_EMAIL
-        });
+        await onAddressConfirmed(verified, selfService);
       },
       autoSignInAfterVerification: true,
       /*
@@ -153,7 +198,13 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
     },
     secret: env.BETTER_AUTH_SECRET,
     session: { expiresIn: SESSION_MAX_AGE_DAYS * 24 * MINUTES * MINUTES, updateAge: SESSION_REFRESH_AGE_DAYS * 24 * MINUTES * MINUTES },
-    trustedOrigins: (env.ALLOWED_ORIGINS ?? env.APP_URL).split(',').map(origin => origin.trim()),
+    socialProviders: socialProviderOptions(env),
+    // Apple posts the person back from its own origin; without it here the
+    // callback is refused as a cross-site request, which is what it is.
+    trustedOrigins: [
+      ...(env.ALLOWED_ORIGINS ?? env.APP_URL).split(',').map(origin => origin.trim()),
+      ...(providers.includes('apple') ? [APPLE_ORIGIN] : [])
+    ],
     user: {
       additionalFields: {
         /*

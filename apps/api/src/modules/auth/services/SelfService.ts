@@ -64,3 +64,25 @@ export async function onAddressConfirmed(
 
   return 'waiting';
 }
+
+/**
+ * The same moment, for an account that never gets a verification link (`0058`).
+ *
+ * Somebody who arrives through Google or Apple is created with the address
+ * already confirmed — the provider vouched for it — so the first lock is open
+ * from the first row and `afterEmailVerification` never fires. Without this the
+ * account would sit in the waiting room with nobody told, open door or shut.
+ *
+ * An account created with a password is born unconfirmed and is left alone:
+ * its link is on its way, and that is where its moment comes.
+ */
+export async function onAccountCreated(
+  created: { readonly id: string; readonly email: string; readonly emailVerified: boolean },
+  deps: Parameters<typeof onAddressConfirmed>[1]
+): Promise<'opened' | 'unconfirmed' | 'waiting'> {
+  if (!created.emailVerified) {
+    return 'unconfirmed';
+  }
+
+  return onAddressConfirmed({ id: created.id, email: created.email }, deps);
+}

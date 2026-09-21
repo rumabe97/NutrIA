@@ -275,6 +275,16 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   Signing up is never refused. Opening an account is `UserController.activate({ email | id })`,
   by button from the owner's mail (a signed, expiring token, one account, nothing else) or from
   the list on `/admin`.
+- **Providers** (`0058`): Google and Apple, each present only when its `GOOGLE_OAUTH_*` /
+  `APPLE_OAUTH_*` set is whole (`modules/auth/services/SocialProviders.ts`); none by default.
+  An account born through one has its address confirmed already, so
+  `afterEmailVerification` never runs for it — `onAccountCreated`, on Better Auth's
+  `user.create.after`, is what turns the second lock or tells the owner. **Linking is on only
+  while a provider is, never into an account that has not confirmed its address, and no
+  provider is ever listed as trusted**: loosen any of the three and signing up with a
+  stranger's address becomes a way into their account. `GET /settings/sign-in-providers` is
+  `@Public()` and is how the web app knows which buttons to draw. Apple's client secret is
+  signed at boot; never add a variable for a pasted one.
 - **The switches** (`0031` amended, `0042`): `app_settings` holds them, one row each, and
   **`core/domain/Flag` is the only place that says which exist**. Never invent a key at a call
   site and never rename one — the row *is* the state, so a renamed key reads as a switch nobody

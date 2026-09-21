@@ -3,6 +3,7 @@ import styles from './layout.module.css';
 import { activeLocale } from 'i18n/server';
 
 import { AppNav } from 'components/AppNav';
+import { ArrivalSync } from 'components/ArrivalSync';
 import { OfflineCopy } from 'components/OfflineCopy';
 import { OfflineProvider } from 'components/OfflineProvider';
 
@@ -39,6 +40,8 @@ export default async function AppLayout({ children }: Readonly<{ children: React
 
   return (
     <RootShell locale={locale}>
+      {/* Somebody back from Google or Apple has the after-sign-in step still to run (`0058`). */}
+      <ArrivalSync />
       {/* Stamped with the moment this screen was made, so a stored copy can say how old it is (`0053`). */}
       <OfflineProvider renderedAt={renderedAt}>
         <div className={styles.shell}>

@@ -12,15 +12,18 @@ import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { withLocale } from 'i18n/routes';
 
+import { SocialSignIn } from 'components/SocialSignIn';
+
 import { forgetOfflineCopies } from 'lib/offline';
 import { interpolate } from 'lib/format';
 import { signUp } from 'lib/auth-client';
 
 import type { FormEvent } from 'react';
+import type { SocialProvider } from 'lib/sign-in-providers';
 
 const MIN_PASSWORD_LENGTH = 8;
 
-export function RegisterScreen() {
+export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readonly SocialProvider[] }>) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -67,6 +70,9 @@ export function RegisterScreen() {
       <Text className={styles.subtitle} tone="secondary">
         {dictionary.auth.createAccountSubtitle}
       </Text>
+
+      {/* A new account lands on onboarding whichever way it was made. */}
+      <SocialSignIn next="/onboarding" providers={providers} />
 
       <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
         {error ? (

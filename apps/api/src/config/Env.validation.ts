@@ -1,3 +1,5 @@
+import { createPrivateKey } from 'node:crypto';
+
 import { z } from 'zod';
 
 /**
@@ -48,6 +50,19 @@ const MODEL_PREFIX: Partial<Record<keyof typeof DEFAULT_MODEL, readonly string[]
  */
 function optional<T extends z.ZodType>(schema: T) {
   return z.preprocess(value => (value === '' ? undefined : value), schema.optional());
+}
+
+/**
+ * A PEM pasted into a dashboard arrives one of two ways: with its line breaks,
+ * or on one line with `\n` written out. Both are the same key, so both are
+ * accepted and only the real one travels further.
+ */
+function isEcPrivateKey(pem: string): boolean {
+  try {
+    return createPrivateKey(pem).asymmetricKeyType === 'ec';
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -122,6 +137,22 @@ const envObject = z.object({
    * is how an English reader gets a Spanish page.
    */
   APP_URL: z.url(),
+  /**
+   * Sign in with Apple (`0058`). All four or none, and none is the shipped
+   * default. The client id is the *Services ID*, not the app's bundle id; the
+   * key is the `.p8` downloaded once from the developer account, as it is or
+   * with its line breaks written `\n`. The client secret Apple wants is a JWT
+   * signed from these at boot (`SocialProviders.ts`), so nothing here expires.
+   */
+  APPLE_OAUTH_CLIENT_ID: optional(z.string()),
+  APPLE_OAUTH_KEY_ID: optional(z.string().length(10, 'must be the ten-character key id')),
+  APPLE_OAUTH_PRIVATE_KEY: optional(
+    z
+      .string()
+      .transform(value => value.replaceAll('\\n', '\n'))
+      .refine(isEcPrivateKey, 'must be the EC private key from the .p8 file, in PEM')
+  ),
+  APPLE_OAUTH_TEAM_ID: optional(z.string().length(10, 'must be the ten-character team id')),
   BETTER_AUTH_SECRET: z.string().min(SECRET_MIN_LENGTH, `must be at least ${SECRET_MIN_LENGTH} characters`),
   BETTER_AUTH_URL: z.url(),
   /*
@@ -142,6 +173,16 @@ const envObject = z.object({
   DIRECT_DATABASE_URL: optional(z.string().startsWith('postgres')),
   EMAIL_FROM: optional(z.email()),
   GOOGLE_API_KEY: optional(z.string()),
+  /**
+   * Sign in with Google (`0058`). Both or none. Nothing to do with
+   * `GOOGLE_API_KEY`, which is the AI provider's: this pair is an OAuth client
+   * from the Google Cloud console, whose one authorised redirect is
+   * `{BETTER_AUTH_URL}/{API_PREFIX}/auth/callback/google`.
+   */
+  GOOGLE_OAUTH_CLIENT_ID: optional(
+    z.string().endsWith('.apps.googleusercontent.com', 'must be an OAuth client id, ending .apps.googleusercontent.com')
+  ),
+  GOOGLE_OAUTH_CLIENT_SECRET: optional(z.string()),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
   NODE_ENV: z.enum(['development', 'test', 'staging', 'production']).default('development'),
   /** The gateway's own bearer key, required only when `AI_PROVIDER` is `omniroute`. */
@@ -294,6 +335,24 @@ const envSchema = envObject
     for (const key of vapid) {
       if (!env[key]) {
         ctx.addIssue({ code: 'custom', message: 'is required when any VAPID_* is set', path: [key] });
+      }
+    }
+  })
+  .superRefine((env, ctx) => {
+    // A provider is whole or absent (`0058`). Half of one draws a button that
+    // sends somebody to Google or Apple and brings them back to an error.
+    const providers = [
+      ['GOOGLE_OAUTH_CLIENT_ID', 'GOOGLE_OAUTH_CLIENT_SECRET'],
+      ['APPLE_OAUTH_CLIENT_ID', 'APPLE_OAUTH_KEY_ID', 'APPLE_OAUTH_PRIVATE_KEY', 'APPLE_OAUTH_TEAM_ID']
+    ] as const;
+
+    for (const keys of providers) {
+      if (keys.some(key => env[key])) {
+        for (const key of keys) {
+          if (!env[key]) {
+            ctx.addIssue({ code: 'custom', message: `is required when any of ${keys.join(', ')} is set`, path: [key] });
+          }
+        }
       }
     }
   })
