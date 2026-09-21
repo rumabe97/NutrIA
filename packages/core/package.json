@@ -48,7 +48,7 @@
     "eslint-configuration": "workspace:*",
     "prettier": "^3.8.3",
     "typescript-configuration": "workspace:*",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.11"
   },
   "files": [
     "dist"
