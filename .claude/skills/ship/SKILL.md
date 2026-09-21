@@ -115,8 +115,10 @@ git switch main && git pull origin main
 sh .claude/skills/ship/scripts/wait-for-deploy.sh "$(git rev-parse origin/main)" <pages from the arguments>
 ```
 
-It waits for Vercel to report both production deployments of that commit to GitHub, then
-asks the API's health route and each page for a 200. A migration in the change runs during
+It waits for Vercel to report both production deployments of that commit to GitHub, **reads
+the CI run `main` made for the merge itself** — a green pull request says nothing about it,
+and a test that passes by a margin fails there on another runner — then asks the API's
+health route and each page for a 200. A red `main` is fixed before anything else is merged. A migration in the change runs during
 the API's build, against production — say so in the report. A failed deployment is
 reported with its state and left alone: no revert, no redeploy, without the owner.
 
