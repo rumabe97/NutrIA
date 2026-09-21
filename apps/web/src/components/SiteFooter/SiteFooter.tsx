@@ -28,11 +28,13 @@ export function SiteFooter() {
       title: footer.account
     },
     {
-      // Just the one page for now (`0058`): a privacy policy is what Google's
-      // and Apple's sign-in both require somebody to read before this button
-      // existed. Terms of service is a different promise — pricing, cancelling
-      // a subscription — and comes when there is something to say about them.
-      links: [{ href: '/privacidad', label: footer.privacyPolicy }],
+      // The pages came first, then the links: this column once pointed at two
+      // addresses that did not exist, and every visitor's browser prefetched
+      // both and logged two 404s a page.
+      links: [
+        { href: '/privacidad', label: footer.privacyPolicy },
+        { href: '/condiciones', label: footer.terms }
+      ],
       title: footer.legal
     }
   ];

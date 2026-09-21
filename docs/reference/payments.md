@@ -25,7 +25,7 @@ granting the tier by hand.
 | Build checkout, the webhook, the portal, the screens | Agent |
 | Exercise it with test cards | Agent |
 | Business verification, bank account, tax registration | Owner |
-| Write the legal pages | Owner, with an agent drafting |
+| Write the legal pages | Drafted by an agent and live since 2026-09-21 (`/privacidad`, `/condiciones`); the owner still owes them a reading by somebody who knows Spanish consumer law |
 | Switch to live keys | Owner |
 
 The important line is the first one: **test keys need nothing but an email
@@ -166,8 +166,11 @@ a problem after it is.
   Article 9 and is already treated as such in the architecture), and a
   cancellation and refund policy. EU consumers have a 14-day withdrawal right on
   distance contracts; for a service that starts immediately it can be waived, but
-  only with express consent recorded at the point of sale. An agent can draft
-  these; somebody who knows Spanish consumer law should read them.
+  only with express consent recorded at the point of sale. Both pages exist since
+  2026-09-21, at `/privacidad` and `/condiciones`, written from what the code does.
+  The terms do **not** use the waiver: they give the 14 days from the first charge,
+  in full, because checkout records no such consent. Somebody who knows Spanish
+  consumer law should still read them before the first real sale.
 - **A domain.** Checkout works from a `*.vercel.app` origin, but a payment page on
   a hostname that is not yours is a payment page people abandon.
 

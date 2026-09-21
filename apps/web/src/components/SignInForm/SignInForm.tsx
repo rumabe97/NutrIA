@@ -11,6 +11,7 @@ import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
+import { LegalNotice } from 'components/LegalNotice';
 import { SocialSignIn } from 'components/SocialSignIn';
 
 import { forgetOfflineCopies } from 'lib/offline';
@@ -112,6 +113,8 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
         <Button loading={pending} type="submit">
           {pending ? dictionary.auth.signingIn : dictionary.auth.signIn}
         </Button>
+
+        <LegalNotice />
 
         <div className={styles.footer}>
           <Text size="sm" tone="secondary">

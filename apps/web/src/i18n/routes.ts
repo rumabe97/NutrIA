@@ -32,6 +32,7 @@ const SEGMENTS: Record<Locale, string> = { 'en-GB': '/en', 'es-ES': '' };
 export const LOCALISED_PATHS: readonly string[] = [
   '/',
   '/acceder',
+  '/condiciones',
   '/pendiente',
   '/privacidad',
   '/recuperar',

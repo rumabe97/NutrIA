@@ -12,6 +12,7 @@ import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { withLocale } from 'i18n/routes';
 
+import { LegalNotice } from 'components/LegalNotice';
 import { SocialSignIn } from 'components/SocialSignIn';
 
 import { forgetOfflineCopies } from 'lib/offline';
@@ -96,6 +97,8 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
         <Button loading={pending} type="submit">
           {pending ? dictionary.auth.signUpPending : dictionary.auth.signUp}
         </Button>
+
+        <LegalNotice />
 
         <div className={styles.footer}>
           <Text size="sm" tone="secondary">
