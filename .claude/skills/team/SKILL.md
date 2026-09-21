@@ -85,6 +85,11 @@ git rev-parse HEAD                       # <base-sha>: every agent starts from h
 Add any **new dependency now**, yourself, and commit it: two agents adding one each is a
 lockfile conflict nobody owns. Then `<base-sha>` is the commit after that.
 
+**Once an agent has been given `<base-sha>`, that commit stays in the branch's history**:
+add commits, never amend or rebase. `merge-back.sh` measures an agent's branch from where
+the two histories meet; rewrite yours and everything you did since looks like the agent's,
+outside its directories. (It happened on this skill's first run.)
+
 ## 3. Write the contract
 
 Before spawning `backend` and `frontend`: the routes and methods, each body, **the view
