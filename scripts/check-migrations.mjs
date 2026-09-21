@@ -94,7 +94,7 @@ if (process.argv.includes('--drift')) {
   try {
     execFileSync('pnpm', ['--filter', 'database', 'generate'], {
       encoding: 'utf8',
-      env: { ...process.env, DIRECT_DATABASE_URL: process.env.DIRECT_DATABASE_URL || 'postgresql://nobody:nothing@localhost:5432/none' },
+      env: { ...process.env, DIRECT_DATABASE_URL: process.env.DIRECT_DATABASE_URL || 'postgresql://localhost:5432/none' },
       stdio: ['ignore', 'pipe', 'pipe'],
       timeout: 120_000
     });
