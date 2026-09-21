@@ -1,10 +1,11 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
+import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 import { toCatalogue } from 'core/entities/Plan';
 
 import { AiCallError } from '../clients/AiClient.js';
-import { DISHES_NEEDED_PER_SLOT, PoolBuilder, shortfall } from './PoolBuilder.service.js';
+import { PoolBuilder, shortfall } from './PoolBuilder.service.js';
 
 import type { AiClient, AiRequest, AiResponse } from '../clients/AiClient.js';
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';

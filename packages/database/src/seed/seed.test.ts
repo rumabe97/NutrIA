@@ -6,7 +6,7 @@ import { INGREDIENT_SEED } from './ingredients';
 import { foodClasses } from './ingredients/classes';
 
 import type { AllergenKey } from './allergens';
-import type { FoodClass } from './ingredients';
+import type { FoodClass } from './ingredients/types';
 import { SUBSTITUTION_EXTRAS, SUBSTITUTION_GROUPS, substitutionPairs } from './substitutions';
 
 const ALLERGEN_KEYS = new Set(ALLERGEN_SEED.map(a => a.key));

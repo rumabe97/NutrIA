@@ -16,14 +16,6 @@ import type { GeneratedDish } from '../prompts/pool.schema.js';
 import type { GenerationContext } from 'core/controllers/Recipe';
 import type { PromptContext } from '../prompts/PoolPrompt.js';
 
-/**
- * Re-exported from `core/domain/Variety`, where it is defined once: the pool
- * builder asks a model for this many per slot, and the reuse rotation hands a
- * user this many per slot. The same number, or two plans differ only by how
- * large the library happens to be.
- */
-export { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
-
 const MAX_ATTEMPTS = 3;
 
 /** How much of a provider's message a call's record keeps: enough for the quota line, never a page. */

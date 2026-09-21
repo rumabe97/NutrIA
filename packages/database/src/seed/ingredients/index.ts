@@ -10,7 +10,7 @@ import { STARTER } from './starter';
 
 import type { IngredientSeed } from './types';
 
-export type { Category, FoodClass, IngredientSeed, Unit } from './types';
+export type { IngredientSeed } from './types';
 
 /**
  * The whole catalogue: the starter set, then the expansion by category. Order
