@@ -421,6 +421,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
 | `pnpm --filter api test:e2e` | e2e specs — **needs a real database**, see `test/README.md` |
 | `pnpm --filter api ts:check` | Type-check, specs included |
 | `pnpm --filter api smoke:function` | Serve the deployed entry locally — **needs a real database** |
+| `node --env-file-if-exists=.env scripts/evaluate-plans.mjs` | From `apps/api`, after a build: schedule and validate a fortnight for five fixed profiles over the **real dish library** — days inside 5 % on all four macros, every violation, any allergen on a plate (exit 2). `--json <file>` to keep a run, `--compare <file>` to set one against it. Refuses production, reads inside one read-only transaction, calls no model |
 
 ## Traps
 

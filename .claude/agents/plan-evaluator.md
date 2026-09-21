@@ -19,6 +19,13 @@ You edit nothing. `backend` owns the code you measure; your numbers go to it and
 
 ## How you measure
 
+- **The instrument exists: `apps/api/scripts/evaluate-plans.mjs`.** From `apps/api`, after a
+  build: `node --env-file-if-exists=.env scripts/evaluate-plans.mjs --json <file>` on `main`,
+  then the same with `--compare <file>` on the change. It carries the fixed profiles, refuses
+  production, reads inside one read-only transaction and is deterministic, so you run it and
+  read it — you do not write a measuring script of your own. Exit 2 is an allergen on a
+  plate; exit 1 is something it could not measure. What it does not cover yet, say so.
+  One run reads the whole library over the network: measure once per side, not in a loop.
 - **The library is the dev database's, read-only.** `node .claude/skills/local-probe/scripts/guard.mjs`
   first: it refuses production. Read inside a read-only transaction. Never write, never
   generate a plan through the API for a real account, never call a model: `AI_PROVIDER=stub`.
