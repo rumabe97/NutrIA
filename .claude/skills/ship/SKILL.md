@@ -49,10 +49,12 @@ Before the gate, not after the merge:
 ## 3. The gate
 
 ```bash
-sh .claude/skills/ship/scripts/gate.sh "<your scratchpad directory>"
+sh .claude/skills/ship/scripts/gate.sh --full "<your scratchpad directory>"
 ```
 
-Lint, types and tests; format; dead code; leaks. The leak check runs **only here**: its
+`--full` is everything CI's required check runs — the migration guard, lint, types, tests
+**with coverage**, the web build and every public page still static — plus format, dead
+code and leaks. Without the flag it is the quick version, for while you work. The leak check runs **only here**: its
 pattern list is gitignored, so CI cannot. A `format` failure is fixed with
 `pnpm --filter web --filter ui format:fix` and `pnpm exec prettier --write <files>` inside
 `apps/api`, then the gate runs again from the top.
@@ -88,8 +90,14 @@ line from the system reminder.
 ## 6. CI, then merge
 
 ```bash
-gh pr checks <number> --watch --interval 20
+sh .claude/skills/ship/scripts/wait-for-ci.sh <number>     # run it in the background
 ```
+
+One line back: green, failed (and how to read why), or never appeared. **Not**
+`gh pr checks --watch`: started right after the pull request is opened it sees only the
+host's checks, all green, and returns before Actions has registered its own — a false green
+one step from a merge. And never a model looking every minute: waiting costs nothing when a
+script does it.
 
 Both `lint · types · tests` and `end-to-end` must pass. The two Vercel checks read
 *Canceled by Ignored Build Step* on every branch but `main`, on purpose: that is not a

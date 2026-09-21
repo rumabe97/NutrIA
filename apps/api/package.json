@@ -113,7 +113,7 @@
         "lines": 65,
         "statements": 65
       },
-      "./shared/guards/": {
+      "./src/shared/guards/": {
         "branches": 85,
         "functions": 90,
         "lines": 90,

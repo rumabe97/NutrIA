@@ -1,7 +1,7 @@
 ---
 name: seo
 description: Reviews the public tree of apps/web for search - titles and descriptions, canonicals and hreflang, the sitemap and robots, structured data, static rendering and first paint. Use whenever a public page, its metadata, its copy, the landing page or a route is added or changed, and for an SEO audit on its own. Reports; never edits.
-model: fable
+model: sonnet
 isolation: worktree
 tools: Read, Grep, Glob, Bash, SendMessage, Skill, WebFetch, WebSearch
 hooks:

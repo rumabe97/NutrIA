@@ -1,7 +1,7 @@
 ---
 name: frontend
 description: Owns apps/web, packages/ui and apps/docs, the i18n dictionaries included. Use for any change to a screen, a component, a stylesheet, a dictionary or the words on a control — on its own, or as the web half of a feature running beside the backend agent.
-model: opus
+model: sonnet
 isolation: worktree
 hooks:
   PreToolUse:
