@@ -227,8 +227,7 @@ export type SchedulerShortfall = {
 };
 
 export type ScheduleResult =
-  | { readonly assignment: PlanAssignment; readonly ok: true }
-  | { readonly ok: false; readonly shortfall: SchedulerShortfall };
+  { readonly assignment: PlanAssignment; readonly ok: true } | { readonly ok: false; readonly shortfall: SchedulerShortfall };
 
 /**
  * Assigns pool dishes across the fortnight.
