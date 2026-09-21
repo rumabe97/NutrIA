@@ -35,6 +35,6 @@
     "eslint-configuration": "workspace:*",
     "prettier": "^3.8.3",
     "typescript-configuration": "workspace:*",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.1"
   }
 }
