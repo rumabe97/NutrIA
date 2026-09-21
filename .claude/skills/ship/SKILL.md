@@ -2,14 +2,16 @@
 name: ship
 description: Take the work in the tree to production - gate, commit, push, pull request, wait for CI, merge, and watch the deploy until production serves it. Only the owner starts this, by typing /ship; it commits, merges and deploys.
 disable-model-invocation: true
-argument-hint: "[pages to check in production, e.g. /condiciones] [anything to leave out]"
+argument-hint: "[public pages to check in production, e.g. /condiciones] [anything to leave out]"
 ---
 
 # Ship
 
 The owner typed `/ship`, and that is the go-ahead for everything below, merge included —
 for the work in the tree now, and nothing later. Arguments, if any: `$ARGUMENTS`. Read
-them as pages to check in production once it is out, and as notes on what to leave out.
+them as **public** pages to check in production once it is out, and as notes on what to
+leave out. A signed-in screen among them is not an error, but it cannot be checked by
+address — see step 7.
 
 You stop, and say why, rather than work around any of these: a red gate, a red CI run, a
 file you cannot account for, something that looks like a secret. Never `--no-verify`,
@@ -109,6 +111,14 @@ It waits for Vercel to report both production deployments of that commit to GitH
 asks the API's health route and each page for a 200. A migration in the change runs during
 the API's build, against production — say so in the report. A failed deployment is
 reported with its state and left alone: no revert, no redeploy, without the owner.
+
+**Only public pages can be asked for a 200.** A signed-in screen (`PROTECTED` in
+`apps/web/src/proxy.ts`: `/perfil`, `/plan`, `/inicio`…) redirects a caller with no session
+to sign-in, and the script reports it as *needs a session, not checked* rather than as a
+failure. The two deployments succeeding is what says the commit is live. To show the
+**change** is, find it in what production serves: for a stylesheet, fetch a public page,
+follow its `/_next/static/…css` links and grep for the new rule; for markup only a session
+reaches, say in the report that it was not seen in production and how the owner can see it.
 
 For a change whose effect is not a page — an endpoint, a header, a redirect — ask
 production for that, by hand, and show the answer.
