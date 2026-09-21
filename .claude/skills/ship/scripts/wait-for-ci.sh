@@ -3,7 +3,7 @@
 #
 # Usage: sh .claude/skills/ship/scripts/wait-for-ci.sh <pr-number>
 #   exit 0 — every required check passed;  exit 1 — one failed, with how to read why;
-#   exit 2 — they never appeared, or never finished.
+#   exit 2 — they never appeared, or never finished;  exit 3 — green, on a head that is behind its base.
 #
 # Waiting is a machine's job. A model that polls spends a turn per look and learns nothing
 # between them; this spends none, and is run in the background so the session is told when
@@ -51,6 +51,15 @@ while [ "$attempt" -lt "$ATTEMPTS" ]; do
   fi
 
   if [ "$missing" -eq 0 ] && [ "$pending" -eq 0 ]; then
+    # Green on a head that is behind its base is an answer about code nobody will merge:
+    # the ruleset wants the branch up to date, and the checks have to run again once it is.
+    # This script once said "green" about a pull request that was waiting for a rebase that
+    # never came, and the checks it read were an hour old.
+    if [ "$(gh pr view "$pr" --json mergeStateStatus --jq .mergeStateStatus 2>/dev/null)" = "BEHIND" ]; then
+      echo "[ci] #$pr is green but BEHIND its base: update the branch, and these checks run again"
+      exit 3
+    fi
+
     echo "[ci] #$pr green: every required check passed"
     exit 0
   fi

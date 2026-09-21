@@ -62,6 +62,28 @@ done
 failed=0
 unchecked=0
 
+# The pull request was green, and that says nothing about this commit: `main` runs the gate
+# again on the merge, on another runner, and a test that passes by a margin can fail there.
+# It did, the day coverage became what CI runs — and nothing was watching, so nobody was
+# told. A red run on `main` does not stop the host deploying; it is still a broken `main`.
+ci=''
+for look in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
+  ci=$(gh run list --workflow CI --branch main --commit "$sha" --json status,conclusion,databaseId --jq '.[0] | "\(.status) \(.conclusion // "-") \(.databaseId)"' 2>/dev/null)
+  case "$ci" in
+    completed*) break ;;
+  esac
+  sleep "$PAUSE"
+done
+
+case "$ci" in
+  'completed success'*) echo '[deploy] CI on main for this commit: green' ;;
+  completed*)
+    echo "[deploy] CI on main for this commit: ${ci#completed } — main is RED. Read why: gh run view ${ci##* } --log-failed"
+    failed=1
+    ;;
+  *) echo "[deploy] CI on main for this commit never finished (${ci:-no run found}) — look at it by hand" ; failed=1 ;;
+esac
+
 check() {
   code=$(curl -s -o /dev/null -w '%{http_code}' "$1")
   echo "[deploy] $code  $1"
@@ -95,7 +117,7 @@ check "$API_URL/health"
 check "$WEB_URL/"
 for path in "$@"; do check_page "$WEB_URL$path"; done
 
-[ "$failed" -eq 0 ] || { echo '[deploy] something does not answer 200'; exit 1; }
+[ "$failed" -eq 0 ] || { echo '[deploy] not right yet — see the lines above'; exit 1; }
 
 if [ "$unchecked" -gt 0 ]; then
   echo "[deploy] $unchecked signed-in page(s) could not be asked from here. The deployments above"

@@ -27,6 +27,13 @@ export default defineConfig({
       thresholds: { 'src/domain/**': { branches: 90, functions: 100, lines: 95, statements: 95 } }
     },
     environment: 'node',
-    globals: false
+    globals: false,
+    // The scheduler and the plan validator are tested by searching — every portion, a whole
+    // fortnight — so their tests are slow on purpose, and slower under coverage: about two
+    // seconds each on a developer's machine, and 4.7s for one of them on CI's shared runner,
+    // against a default limit of 5. One crossed it on `main` the day coverage became what
+    // CI runs, after passing on the pull request an hour earlier. A limit that a correct
+    // test reaches by chance is a coin, not a check. This one only ends a test that hangs.
+    testTimeout: 30_000
   }
 });
