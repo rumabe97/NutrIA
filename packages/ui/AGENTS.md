@@ -361,6 +361,17 @@ The full token catalog lives in [`src/styles/variables.css`](src/styles/variable
 
 Don't reach for `0.9375rem` (15px) when the scale offers `0.875rem` (`--font-size-03`, 14px) and `1rem` (`--font-size-04`, 16px) — that's how scales decay into 30-value soup. Either pick the nearest tier or propose adding a new tier to `variables.css`. Never silently introduce a new size outside the scale.
 
+### Design review
+
+A component here is drawn on every screen that uses it, so a change to one is a change to
+all of them. It goes through the design review in
+[`apps/web/AGENTS.md` § Design review](../../apps/web/AGENTS.md#design-review--every-change-to-what-somebody-sees):
+the owner's `apple-web-design` skill on what you touched, P0 and P1 fixed in the same
+change, and `/local-probe` on at least one screen that renders the component. Two rules
+from it bite here more than anywhere: a control is `--target-min` tall under
+`(pointer: coarse)`, and a minimum height is stated **once** — a second, more specific
+`min-height` beats the touch floor without a warning.
+
 ### Other styling rules
 
 - **No inline styles**, except in layout primitives (`VStack`, `HStack`, `Flex`, `Grid`, `Container`) where the value is a dynamic reference to a design token (e.g. `style={{ gap: \`var(--space-${gap})\` }}`). That is the only acceptable exception. `Section` is CSS-class-driven (`size` tier classes), not inline-styled.

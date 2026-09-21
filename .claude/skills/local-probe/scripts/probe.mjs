@@ -115,8 +115,9 @@ for (const path of paths) {
             return style.content !== 'none' && style.position === 'absolute' && Number.isFinite(top) && Number.isFinite(bottom) ? box - top - bottom : 0;
           });
 
-          // A radio or a checkbox is as tall as the label that wraps it: that is what is pressed.
-          const wrapper = node.matches('input[type="radio"], input[type="checkbox"]') ? node.closest('label') : null;
+          // A control inside a `<label>` is as tall as the label: the whole line is what is
+          // pressed — a radio, a checkbox, a switch in a settings row.
+          const wrapper = node.closest('label');
 
           return Math.round(Math.max(box, wrapper?.getBoundingClientRect().height ?? 0, ...grown));
         };

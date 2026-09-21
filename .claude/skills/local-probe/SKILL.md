@@ -57,8 +57,9 @@ redirected, how far it scrolls sideways, and its `h1`. It exits 1 on a 4xx/5xx, 
 sideways scroll, or when the page throws.
 
 `hint:` lines are for you to judge, not to obey. A control under 44 px on a touch viewport
-may have its target elsewhere — a switch's row is what gets pressed — and the probe already
-counts a wrapping `<label>` and a pseudo-element that grows the target (`0057`).
+may have its target elsewhere, and the probe already counts a wrapping `<label>` (a
+switch's row, a radio's line) and a pseudo-element that grows the target (`0057`). What is
+left is usually real: its first run found every date and time field at 40 px.
 
 **Then open the screenshots** in `$PROBE_DIR/shots` with the Read tool. A green line says
 the page fits; it does not say the page is right. Look at the narrow one and the dark one

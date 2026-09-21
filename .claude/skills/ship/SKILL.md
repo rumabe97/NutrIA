@@ -55,8 +55,10 @@ pattern list is gitignored, so CI cannot. A `format` failure is fixed with
 `pnpm --filter web --filter ui format:fix` and `pnpm exec prettier --write <files>` inside
 `apps/api`, then the gate runs again from the top.
 
-A change to a screen has also been looked at in a browser — `/local-probe` — before it
-ships, not after.
+A change to what somebody sees has been through the design review
+(`apps/web/AGENTS.md` § Design review) **before** it ships: reviewed with the owner's
+`apple-web-design` skill, P0 and P1 fixed, looked at with `/local-probe`. If it has not,
+do that now and fix what it finds; the verdict goes in the pull request's `## Checked`.
 
 ## 4. Commit
 
