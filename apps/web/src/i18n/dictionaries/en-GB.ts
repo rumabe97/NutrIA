@@ -156,6 +156,9 @@ export const enGB: Dictionary = {
     haveAccount: 'Already have an account?',
     invalidCredentials: 'Wrong email or password.',
     invalidLink: 'This link is not valid, or it has expired.',
+    legalNotice: 'By continuing you accept the {terms} and the {privacy}.',
+    legalPrivacy: 'privacy policy',
+    legalTerms: 'terms of use',
     name: 'Name',
     newPassword: 'New password',
     noAccount: 'No account yet?',
@@ -404,7 +407,8 @@ export const enGB: Dictionary = {
     privacyPolicy: 'Privacy',
     product: 'Product',
     signIn: 'Sign in',
-    tagline: 'Nutrition that adapts to you.'
+    tagline: 'Nutrition that adapts to you.',
+    terms: 'Terms'
   },
 
   generation: {
@@ -835,6 +839,10 @@ export const enGB: Dictionary = {
     '/admin': { title: 'Admin' },
     '/check-in': { title: "The fortnight's check-in" },
     '/compra': { title: 'The shopping' },
+    '/condiciones': {
+      description: 'The terms for using NutrIA: what it is and is not, your account, allergies, Premium and how to cancel it.',
+      title: 'Terms of use'
+    },
     '/inicio': { title: 'Today' },
     '/onboarding': { title: 'Your profile' },
     '/pendiente': { title: 'Account pending' },
@@ -894,7 +902,7 @@ export const enGB: Dictionary = {
       {
         heading: 'Who processes your data',
         paragraphs: [
-          'The data controller is Rubén Martínez, a private individual — not a company or a registered self-employed business. You can write to rumabe97@gmail.com for anything about your data, including a request to access, correct or delete it.'
+          'The data controller is {name}, a private individual — not a company or a registered self-employed business. You can write to {email} for anything about your data, including a request to access, correct or delete it.'
         ]
       },
       {
@@ -1178,6 +1186,107 @@ export const enGB: Dictionary = {
     subtitleOwn: 'You set these',
     title: 'Your daily targets',
     unknown: '—'
+  },
+
+  terms: {
+    intro: [
+      'These terms are the agreement between you and NutrIA. By creating an account or using the service you accept them.',
+      'The most important thing first: NutrIA helps you plan what you eat. It is not a medical service, it does not diagnose or treat anything, and it does not replace advice from a doctor or a registered dietitian.'
+    ],
+    sections: [
+      {
+        heading: 'Who provides the service',
+        paragraphs: ['NutrIA is offered by {name}, a private individual resident in Spain. For anything about these terms, write to {email}.']
+      },
+      {
+        heading: 'What NutrIA is, and what it is not',
+        paragraphs: [
+          'NutrIA works out indicative nutritional targets from what you tell us and proposes fourteen-day meal plans, with recipes, quantities and a shopping list.',
+          'The plans are general, and NutrIA is not meant for clinical nutrition. If you have a medical condition, are pregnant or breastfeeding, take medication, or have or have had an eating disorder, speak to a professional before following a plan, and show it to them.',
+          'Nutritional values are approximate: they are calculated from food composition tables, and real foods vary.'
+        ]
+      },
+      {
+        heading: 'Allergies and intolerances',
+        paragraphs: [
+          'The allergies and intolerances you declare are checked in our own code against the ingredients of every recipe, and a dish with a declared allergen never reaches your plan. That check works on the recipe, not on the product you buy.',
+          'So always read the label of what you buy: NutrIA does not know about traces, cross-contamination or a manufacturer changing a formula. An allergy you type by hand that we do not recognise in our catalogue cannot be checked automatically, and your profile tells you when that happens. If you have a severe allergy, treat every plan as a proposal to review, not as a guarantee.'
+        ]
+      },
+      {
+        heading: 'Your account',
+        list: [
+          'You must be at least 16.',
+          'The details you give us must be your own and true: the plans are calculated from them.',
+          'The account is personal. Keep your password safe and tell us if you think somebody has been in your account.',
+          'While we open NutrIA gradually, your account may have to wait for us to activate it.',
+          'You can delete your account whenever you like from your profile. Everything in it is deleted, as the privacy policy explains.'
+        ],
+        paragraphs: []
+      },
+      {
+        heading: 'Content generated with artificial intelligence',
+        paragraphs: [
+          'Recipes and plans are generated with the help of artificial intelligence and validated by our own code before you see them. They can still contain mistakes: a cooking time, a quantity, an unclear step. Use your judgement in the kitchen, above all with food safety: cook meat, fish and eggs through, and keep the cold chain.'
+        ]
+      },
+      {
+        heading: 'The free plan and Premium',
+        list: [
+          'The first time you subscribe to Premium you get a free trial, whose length is shown before it starts: nothing is charged until it ends, and if you cancel before then you pay nothing.',
+          'The subscription renews by itself at the end of each period until you cancel it.',
+          'You can cancel whenever you like from your profile. You keep Premium until the end of the period already paid for, and you are not charged again.',
+          'You have 14 days from the first charge to withdraw without giving a reason: write to us and we will refund what you paid.',
+          'If we change the price, we will tell you in advance and you can cancel before it applies.'
+        ],
+        paragraphs: [
+          'NutrIA can be used for free, with limits on the plans you can redo, the meals you can swap and the events in each plan. Food safety — allergies, intolerances and nutrients — is the same with Premium and without it.',
+          'Premium, when it is available, raises those limits for a monthly or yearly subscription. The price is shown, tax included, before you pay, and the payment is handled by Stripe.'
+        ]
+      },
+      {
+        heading: 'Acceptable use',
+        list: [
+          "Accessing, or trying to access, other people's data.",
+          'Extracting the content automatically, or reselling the plans or the recipes.',
+          'Using the service in a way that degrades it for others, for example generating plans in bulk or by script.',
+          'Trying to get around the limits of the free plan or the security measures.'
+        ],
+        paragraphs: ['NutrIA is for your personal use. We may suspend or close an account that does any of the following:']
+      },
+      {
+        heading: 'Intellectual property',
+        paragraphs: [
+          'The application, its design and its words belong to NutrIA. The plans and recipes you receive are for your personal use: cook them, print them, share them with the people you eat with. What you write — your profile, your comments — remains yours; if you send us a suggestion, we may use it to improve the product without owing you anything for it.'
+        ]
+      },
+      {
+        heading: 'Availability and changes to the service',
+        paragraphs: [
+          'We do what we can to keep NutrIA working, but we cannot guarantee it: there may be interruptions, and features may change or disappear. If we ever close the service, we will give notice in good time so you can keep what you need, and we will refund the unused part of any paid subscription.'
+        ]
+      },
+      {
+        heading: 'Liability',
+        paragraphs: [
+          'We answer for damage we cause deliberately or through gross negligence, and for everything the law does not allow us to exclude. We do not answer for health decisions you take from a plan without speaking to a professional, nor for the products you buy. None of this limits the rights you have as a consumer.'
+        ]
+      },
+      {
+        heading: 'Changes to these terms',
+        paragraphs: [
+          'If we change anything important, we will say so here with the date of the update and tell you by email before it applies. If you do not agree, you can delete your account; continuing to use NutrIA after the change means you accept it.'
+        ]
+      },
+      {
+        heading: 'Governing law',
+        paragraphs: [
+          'These terms are governed by Spanish law. If you are a consumer living in another country, you keep the protection of the mandatory rules of the country where you live, and you may bring a claim before the courts of your home address.'
+        ]
+      }
+    ],
+    title: 'Terms of use',
+    updated: 'Last updated: 21 September 2026'
   },
 
   tour: {

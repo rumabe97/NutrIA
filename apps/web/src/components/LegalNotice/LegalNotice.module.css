@@ -1,0 +1,15 @@
+.notice {
+  margin: 0;
+}
+
+/* Underlined, not only coloured: inside a sentence of the same size, colour
+   alone is the one cue `0057` says a link may never rely on. */
+.link {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+.link:hover {
+  color: var(--foreground-01);
+}

@@ -71,6 +71,18 @@ and `/admin` — owner-only, unlinked, 404 for everyone else (`0028`). Add any n
 route to `PROTECTED` in `src/proxy.ts`, which matches against the **locale-stripped** path,
 so each route is named once for both languages.
 
+**Legal pages.** `/privacidad` and `/condiciones` are one screen, `_shared/LegalScreen`,
+printing a document from the dictionary (`dictionary.privacy`, `dictionary.terms`: an
+intro, then sections of paragraphs and an optional list). A third document is a dictionary
+entry, a `pages` title and two route files. They describe what the code does — what is
+collected, what reaches the AI provider, how Premium renews and cancels — so **a change to
+any of those is a change to these pages too**, with a new `updated` date.
+The documents say `{name}` and `{email}`; who that is lives in `i18n/legalIdentity.ts`, the
+one file `scripts/check-leaks.sh` lets name a person, so never write either into a
+dictionary (`i18n/legal.test.ts` fails if you do).
+`components/LegalNotice` is the sentence under the sign-in and sign-up buttons that links
+both: one dictionary string with `{terms}` and `{privacy}` placeholders, never fragments.
+
 Pages are Server Components by default and fetch through `serverApi`. A page that needs a
 session-scoped fetch must set `export const dynamic = 'force-dynamic'` — otherwise Next
 prerenders it at build time, where there is no cookie, and every visitor gets the

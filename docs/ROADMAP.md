@@ -56,8 +56,9 @@ that setup lives now rather than here.
 ## Next, in this order
 
 Seven things the owner asked for on 2026-09-10, analysed against the code and
-reordered by what each unblocks, and an eighth added on 2026-09-12 — the apps (§8). The
-order is a recommendation; the owner decides.
+reordered by what each unblocks, an eighth added on 2026-09-12 — the apps (§8) — and a
+ninth on 2026-09-21: a professional's seat (§9). The order is a recommendation; the owner
+decides.
 
 Five are delivered, premium's code among them. What premium waits on now is the
 owner: a Stripe account, then the business setup before live keys (§5). The one that
@@ -130,7 +131,9 @@ Taking money is built too, since 2026-09-13
 and the Customer Portal, a signed webhook that writes the tier, and a premium card
 on the profile. With test keys only the owner sees it. What remains is not code.
 First the owner's Stripe account and its three keys. Then, before live keys, tax
-registration, the legal pages and a domain. The order is in
+registration and a domain; the legal pages are written and live since 2026-09-21
+(`/privacidad`, `/condiciones`) and want a reading by somebody who knows Spanish
+consumer law. The order is in
 [`docs/reference/payments.md`](./reference/payments.md).
 
 ### 5b. A day that eats for something — done (`0043`)
@@ -251,6 +254,35 @@ To settle before step 2, and none of it is code:
   about conditions and medication keeps the boundaries in `PRODUCT.md`.
 - **What it costs.** Apple's developer programme is 99 USD a year, Google's a one-off
   25 USD, and signing for iOS needs a Mac or a cloud build (Expo's has a free tier).
+
+### 9. A professional can run their practice on it — proposed, PRD in draft
+
+Added on 2026-09-21, when everything above it was either done or waiting on something
+that is not code. The product already tells anybody with a recorded condition to *show
+this plan to a professional*; the professional has nowhere to stand in it. A
+dietitian-nutritionist writes a fortnight of meals by hand, hands it over as a document,
+and hears how it went at the next visit. Targets, portions, the shopping list, keeping an
+allergen out of fourteen days, adherence and the check-in are all built — for one person
+looking at their own plan.
+
+What it adds is a second kind of account: a professional, granted by the owner, who
+invites clients, sets their targets within the calculator's bounds, reviews a meal plan
+before the client sees it, and watches adherence and check-ins between visits. The
+professional pays; the client does not.
+
+Two things make it a project rather than a feature, and both are settled in the PRD
+before any code:
+
+- **Ownership has had exactly one rule** — `userId` from the session, denials are 404. A
+  professional reading a client's data is the first second way in, and it has to be a
+  named, consented, revocable, audited path rather than an exception to the rule.
+- **`PRODUCT.md` draws the line at clinical nutrition.** A professional in the loop does
+  not move that line by itself; the PRD proposes that it stays where it is for v1, and
+  asks the owner.
+
+The proposal is [`004-dietitian-workspace`](./projects/004-dietitian-workspace/), at
+`Status: draft`. Its open questions are the owner's; the plan is written once they are
+answered.
 
 ## Later / someday
 

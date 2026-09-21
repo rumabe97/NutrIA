@@ -11,6 +11,9 @@
 #      docs/local/ are the forbidden middle state — commit them or move them to
 #      docs/local/. A warning, not a failure: freshly authored docs legitimately sit
 #      untracked until the owner's next commit.
+# apps/web/src/i18n/legalIdentity.ts is excluded from the custom patterns too: it is the
+# one file that names the person who answers for the service, because a privacy policy
+# must, and it says so on a public page. Nothing else may.
 # docs/upstream/ is excluded from the custom patterns: those files may name their
 # destination repo (that is their function); the destination's rules re-check them.
 # Scans tracked files only otherwise — docs/local/ and gitignored paths are never scanned.
@@ -27,7 +30,7 @@ if [ -f docs/local/leak-patterns.txt ]; then
       '' | \#*) continue ;;
     esac
 
-    if git grep -inE "$pattern" -- ':!pnpm-lock.yaml' ':!scripts/check-leaks.sh' ':!docs/upstream'; then
+    if git grep -inE "$pattern" -- ':!pnpm-lock.yaml' ':!scripts/check-leaks.sh' ':!docs/upstream' ':!apps/web/src/i18n/legalIdentity.ts'; then
       fail=1
     fi
   done <docs/local/leak-patterns.txt
