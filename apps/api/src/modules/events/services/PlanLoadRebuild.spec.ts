@@ -143,7 +143,7 @@ function race(on = '2026-09-12', daysBefore = 2): EventView {
 
 type Written = Parameters<typeof PlanController.rebuildLoadedDays>;
 
-function build(overrides: { allowed?: boolean; safety?: Set<string> } = {}) {
+function build(overrides: { allowed?: boolean; profile?: Partial<typeof PROFILE>; safety?: Set<string> } = {}) {
   const rebuild = jest.spyOn(PlanController, 'rebuildLoadedDays').mockResolvedValue(undefined);
   const reusable = jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(LIBRARY);
 
@@ -159,7 +159,7 @@ function build(overrides: { allowed?: boolean; safety?: Set<string> } = {}) {
     });
   jest.spyOn(PlanController, 'getActivePlan').mockResolvedValue(PLAN as never);
   jest.spyOn(PlanController, 'composition').mockResolvedValue(COMPOSITION);
-  jest.spyOn(ProfileController, 'getFullProfile').mockResolvedValue(PROFILE as never);
+  jest.spyOn(ProfileController, 'getFullProfile').mockResolvedValue({ ...PROFILE, ...overrides.profile } as never);
   jest
     .spyOn(RecipeController, 'generationContext')
     .mockResolvedValue({
@@ -197,6 +197,17 @@ describe('PlanLoadRebuildService — a fortnight rebuilt for an event (0044)', (
     expect(days.map(day => day.dayIndex)).toEqual([4]);
     expect(days[0]).toMatchObject({ loadedFor: 'Media maratón', targets: loadedTargets(TARGETS, event) });
     expect(days[0]?.meals.map(meal => meal.slot)).toEqual(SLOTS);
+  });
+
+  it('validates what it is about to write, as generation does, and writes nothing that is blocked', async () => {
+    // The rebuild never ran `validatePlan`: a day it remade went to the database
+    // on the allergy gate alone. A body mass of 20 kg puts the protein ceiling far
+    // under what any day of this plan carries, so every rebuilt day is blocked —
+    // the bound is not the point, that a blocked day is not written is.
+    const { rebuild, service } = build({ profile: { goal: { ...PROFILE.goal, startingWeightKg: 20 } } });
+
+    await expect(service.forEvent('usr-1', race(), TODAY)).resolves.toEqual([]);
+    expect(rebuild).not.toHaveBeenCalled();
   });
 
   it('leaves a free account’s plan alone: the event waits for the next generation', async () => {
