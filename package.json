@@ -20,9 +20,9 @@
     "up:latest": "pnpm up --latest --recursive && pnpm add -D eslint@9.39.2 --filter=eslint-configuration"
   },
   "devDependencies": {
-    "knip": "^6.14.2",
+    "knip": "^6.37.0",
     "prettier-configuration": "workspace:*",
-    "turbo": "^2.9.14",
+    "turbo": "^2.11.0",
     "typescript": "^6.0.3"
   },
   "engines": {
