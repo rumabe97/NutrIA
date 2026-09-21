@@ -4,6 +4,7 @@ import type { User } from 'core/entities/User';
 import { toCatalogue } from 'core/entities/Plan';
 import { VARIETY_RULES } from 'core/domain/Variety';
 import { DEFAULT_MEAL_SHAPE } from 'core/domain/MealShape';
+import { minimumDailyKcal } from 'core/domain/Nutrition';
 
 import type { CandidateDish, Catalogue, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 import type { CheckedIngredient } from 'core/domain/Safety';
@@ -202,3 +203,6 @@ export function makePool(slots: readonly MealSlot[], perSlot = POOL_PER_SLOT): r
 }
 
 export const TARGETS: NutritionTargets = { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 };
+
+/** The floor of the person `TARGETS` is for — what every scheduling call is handed, as the API hands it. */
+export const MINIMUM_KCAL = minimumDailyKcal('female');

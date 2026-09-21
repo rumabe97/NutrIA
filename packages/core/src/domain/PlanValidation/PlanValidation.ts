@@ -1,5 +1,6 @@
 import { varietyViolations } from 'core/domain/Variety';
-import { MINIMUM_DAILY_KCAL, PROTEIN_CEILING_G_PER_KG } from 'core/entities/Nutrition';
+import { minimumDailyKcal } from 'core/domain/Nutrition';
+import { PROTEIN_CEILING_G_PER_KG } from 'core/entities/Nutrition';
 import type { MealSlot, PlanAssignment } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { VarietyViolation } from 'core/domain/Variety';
@@ -126,7 +127,7 @@ export type ValidationInput = {
 export function validatePlan(input: ValidationInput): readonly PlanViolation[] {
   const violations: PlanViolation[] = [];
   const { days } = input.assignment;
-  const floor = MINIMUM_DAILY_KCAL[input.sex === 'male' ? 'male' : 'female'];
+  const floor = minimumDailyKcal(input.sex);
 
   if (days.length !== input.expectedDays) {
     violations.push({ actual: days.length, expected: input.expectedDays, kind: 'wrong_day_count' });

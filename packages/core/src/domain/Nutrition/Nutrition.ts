@@ -159,6 +159,20 @@ export function totalDailyEnergyExpenditure(input: Pick<TargetInput, 'activityLe
 }
 
 /**
+ * The energy nobody's day may go under, whatever pace they asked for.
+ *
+ * One function because three places read it and they must read the same number:
+ * the targets are clamped *to* it, the scheduler sizes a day so as never to land
+ * under it, and validation throws away a plan that did. When the second of those
+ * did not know the number, a target clamped to exactly the floor was aimed at
+ * with a band either side, half the days landed a few calories under, and the
+ * person got no plan at all.
+ */
+export function minimumDailyKcal(sex: TargetInput['sex']): number {
+  return MINIMUM_DAILY_KCAL[sex === 'male' ? 'male' : 'female'];
+}
+
+/**
  * The bounds for one profile.
  *
  * The single definition of "how far from maintenance is allowed", used by the
@@ -171,7 +185,7 @@ export function targetBounds(input: TargetInput): TargetBounds {
 
   return {
     ceilingKcal: maintenanceKcal * (1 + MAX_SURPLUS_FRACTION),
-    floorKcal: Math.max(MINIMUM_DAILY_KCAL[input.sex === 'male' ? 'male' : 'female'], maintenanceKcal * (1 - MAX_DEFICIT_FRACTION)),
+    floorKcal: Math.max(minimumDailyKcal(input.sex), maintenanceKcal * (1 - MAX_DEFICIT_FRACTION)),
     maintenanceKcal,
     proteinCeilingG: input.weightKg * PROTEIN_CEILING_G_PER_KG,
     proteinFloorG: input.weightKg * PROTEIN_FLOOR_G_PER_KG

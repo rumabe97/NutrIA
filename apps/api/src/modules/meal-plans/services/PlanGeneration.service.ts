@@ -7,7 +7,7 @@ import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
 import { DEFAULT_MEAL_SHAPE, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { isBlocking, validatePlan } from 'core/domain/PlanValidation';
 import { eventOn, loadedTargets } from 'core/domain/Event';
-import { targetViolations } from 'core/domain/Nutrition';
+import { minimumDailyKcal, targetViolations } from 'core/domain/Nutrition';
 import { CheckInController } from 'core/controllers/CheckIn';
 import { EventController } from 'core/controllers/Event';
 import { OnboardingController } from 'core/controllers/Onboarding';
@@ -190,7 +190,13 @@ export class PlanGenerationService {
       return [...new Map([...everything, ...built.generated].map(dish => [dish.slug, dish])).values()].filter(dish => !disliked.has(dish.slug));
     };
 
-    let scheduled = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, pool: built.dishes, targets, weights });
+    // The floor validation blocks on, handed to the scheduler so that it never
+    // sizes a day under it — the two read one function, or a target clamped to
+    // the floor is scheduled and then thrown away (`FLOOR_OUTRANKS_ORDER`).
+    const sex = profile.profile?.sex ?? 'prefer_not_to_say';
+    const minimumKcal = minimumDailyKcal(sex);
+
+    let scheduled = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, minimumKcal, pool: built.dishes, targets, weights });
     let fallback: Fallback = null;
 
     if (!scheduled.ok) {
@@ -211,7 +217,7 @@ export class PlanGenerationService {
       const widened = await wholeLibrary();
 
       this.logger.warn(`Retrying with the full library (${widened.length} dishes, last fortnight included)`);
-      scheduled = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, pool: widened, targets, weights });
+      scheduled = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, minimumKcal, pool: widened, targets, weights });
       fallback = 'full_library';
     }
 
@@ -236,7 +242,7 @@ export class PlanGenerationService {
         dayTargets: loads.dayTargets,
         expectedDays: PLAN_DAYS,
         expectedSlots: slots,
-        sex: profile.profile?.sex ?? 'prefer_not_to_say',
+        sex,
         targets,
         // Present by construction: targets resolve to null without a starting weight.
         weightKg: profile.goal?.startingWeightKg ?? 0
@@ -258,7 +264,14 @@ export class PlanGenerationService {
     if (violations.some(isBlocking) && fallback === null) {
       this.logger.warn(`Plan rejected by validation (${summarise(violations.filter(isBlocking))}); retrying with the full library`);
 
-      const retried = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, pool: await wholeLibrary(), targets, weights });
+      const retried = schedulePlan({
+        catalogue: context.catalogue,
+        dayTargets: loads.dayTargets,
+        minimumKcal,
+        pool: await wholeLibrary(),
+        targets,
+        weights
+      });
 
       if (retried.ok) {
         const retriedViolations = check(retried.assignment);
@@ -291,7 +304,7 @@ export class PlanGenerationService {
     if (fallback === null && bandMiss(violations) > 0) {
       const rest = rotatePool(everything, slots, rotation, Number.POSITIVE_INFINITY);
       const wider = [...new Map([...built.dishes, ...rest].map(dish => [dish.slug, dish])).values()];
-      const retried = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, pool: wider, targets, weights });
+      const retried = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, minimumKcal, pool: wider, targets, weights });
 
       if (retried.ok) {
         const retriedViolations = check(retried.assignment);

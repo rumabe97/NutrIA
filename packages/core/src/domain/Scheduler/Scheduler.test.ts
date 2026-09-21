@@ -9,8 +9,8 @@ function slotsForTest(mealsPerDay: number, includesSnacks: boolean) {
 }
 
 import { mainProtein, PROTEIN_RULES, proteinCap, VARIETY_RULES, varietyViolations } from 'core/domain/Variety';
-import { isBlocking, validatePlan } from 'core/domain/PlanValidation';
-import { makeCatalogue, makeCatalogueIngredient, makeDish, makePool, TARGETS } from '#test/fixtures';
+import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
+import { makeCatalogue, makeCatalogueIngredient, makeDish, makePool, MINIMUM_KCAL, TARGETS } from '#test/fixtures';
 
 import type { NutritionTargets } from 'core/entities/Nutrition';
 
@@ -27,7 +27,14 @@ const FIXTURE_BAND = 0.1;
 function schedule(overrides: Partial<Parameters<typeof schedulePlan>[0]> = {}) {
   const slots = overrides.pool ? slotsForTest(3, false) : slotsForTest(3, false);
 
-  return schedulePlan({ catalogue, pool: makePool(slots), targets: TARGETS, weights: weightsFor(shapeFor(3, false)), ...overrides });
+  return schedulePlan({
+    catalogue,
+    minimumKcal: MINIMUM_KCAL,
+    pool: makePool(slots),
+    targets: TARGETS,
+    weights: weightsFor(shapeFor(3, false)),
+    ...overrides
+  });
 }
 
 describe('the slots a shape leaves', () => {
@@ -195,7 +202,17 @@ describe('schedulePlan', () => {
 
   it('scales a dish ingredients alongside its servings', () => {
     const pool = [makeDish({ ingredients: [{ grams: 100, slug: 'base' }], servings: 1, slots: ['breakfast'], slug: 'only-breakfast' })];
-    const result = schedulePlan({ catalogue, days: 1, pool, targets: { ...TARGETS, kcal: 400 }, weights: weightsFor(shapeFor(1, false)) });
+    const result = schedulePlan({
+      catalogue,
+      days: 1,
+      // A day of one dish and 400 kcal is a fixture, not a person: nobody's target
+      // is under the floor. Out of play here, so that what is measured is the
+      // arithmetic of a serving and not the scheduler pulling the day up to 1,200.
+      minimumKcal: 0,
+      pool,
+      targets: { ...TARGETS, kcal: 400 },
+      weights: weightsFor(shapeFor(1, false))
+    });
 
     expect(result.ok).toBe(true);
 
@@ -337,7 +354,13 @@ describe('schedulePlan — the carb/fat split, not just calories and protein (00
   });
 
   it('now tells the two apart, and prefers whichever is closer to the stated split', () => {
-    const result = schedulePlan({ catalogue: carbsVsFat, pool: splitPool(), targets: TARGETS, weights: weightsFor(shapeFor(3, false)) });
+    const result = schedulePlan({
+      catalogue: carbsVsFat,
+      minimumKcal: MINIMUM_KCAL,
+      pool: splitPool(),
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    });
 
     expect(result.ok).toBe(true);
 
@@ -496,7 +519,13 @@ describe('schedulePlan — protein, not just calories', () => {
   }
 
   it('lands within the protein tolerance, not only the calorie one', () => {
-    const result = schedulePlan({ catalogue: realistic, pool: mixedPool(), targets: TARGETS, weights: weightsFor(shapeFor(3, false)) });
+    const result = schedulePlan({
+      catalogue: realistic,
+      minimumKcal: MINIMUM_KCAL,
+      pool: mixedPool(),
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    });
 
     expect(result.ok).toBe(true);
 
@@ -522,7 +551,13 @@ describe('schedulePlan — protein, not just calories', () => {
   });
 
   it('prefers protein-bearing dishes when the pool offers both', () => {
-    const result = schedulePlan({ catalogue: realistic, pool: mixedPool(), targets: TARGETS, weights: weightsFor(shapeFor(3, false)) });
+    const result = schedulePlan({
+      catalogue: realistic,
+      minimumKcal: MINIMUM_KCAL,
+      pool: mixedPool(),
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    });
 
     expect(result.ok).toBe(true);
 
@@ -549,7 +584,13 @@ describe('schedulePlan — protein, not just calories', () => {
         makeDish({ ingredients: [{ grams, slug: 'arroz' }], name: `${slot} ${index}`, slots: [slot], slug: `${slot}-${index}` })
       )
     );
-    const result = schedulePlan({ catalogue: realistic, pool: carbsOnly, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) });
+    const result = schedulePlan({
+      catalogue: realistic,
+      minimumKcal: MINIMUM_KCAL,
+      pool: carbsOnly,
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    });
 
     expect(result.ok).toBe(true);
 
@@ -642,7 +683,7 @@ describe('schedulePlan — a large athlete on three meals a day', { timeout: 20_
   let scheduled: ReturnType<typeof schedulePlan> | undefined;
 
   function athletePlan(): ReturnType<typeof schedulePlan> {
-    scheduled ??= schedulePlan({ catalogue, pool: modestPool, targets: BIG, weights: weightsFor(shapeFor(3, false)) });
+    scheduled ??= schedulePlan({ catalogue, minimumKcal: MINIMUM_KCAL, pool: modestPool, targets: BIG, weights: weightsFor(shapeFor(3, false)) });
 
     return scheduled;
   }
@@ -752,7 +793,7 @@ describe('schedulePlan — each meal near its share of the day (SHARE_BAND)', ()
   );
 
   it('keeps every meal inside its band of the energy its share gives it, and every day on its macros', () => {
-    const result = schedulePlan({ catalogue: pureCatalogue, pool, targets: T, weights });
+    const result = schedulePlan({ catalogue: pureCatalogue, minimumKcal: MINIMUM_KCAL, pool, targets: T, weights });
 
     expect(result.ok).toBe(true);
 
@@ -817,7 +858,13 @@ describe('schedulePlan — one main protein, once a day (PROTEIN_RULES)', () => 
   );
 
   it('never serves one main protein twice in a day, nor past its share of the fortnight', () => {
-    const result = schedulePlan({ catalogue: proteinCatalogue, pool, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) });
+    const result = schedulePlan({
+      catalogue: proteinCatalogue,
+      minimumKcal: MINIMUM_KCAL,
+      pool,
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    });
 
     expect(result.ok).toBe(true);
 
@@ -856,7 +903,10 @@ describe('schedulePlan — one main protein, once a day (PROTEIN_RULES)', () => 
       )
     );
 
-    expect(schedulePlan({ catalogue: proteinCatalogue, pool: tuna, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) }).ok).toBe(true);
+    expect(
+      schedulePlan({ catalogue: proteinCatalogue, minimumKcal: MINIMUM_KCAL, pool: tuna, targets: TARGETS, weights: weightsFor(shapeFor(3, false)) })
+        .ok
+    ).toBe(true);
   });
 });
 
@@ -917,7 +967,8 @@ describe('schedulePlan — the fortnight is repaired as a whole (0048)', () => {
       })
     )
   );
-  const run = () => schedulePlan({ catalogue: spreadCatalogue, pool: spreadPool, targets: T, weights: weightsFor(shapeFor(3, false)) });
+  const run = () =>
+    schedulePlan({ catalogue: spreadCatalogue, minimumKcal: MINIMUM_KCAL, pool: spreadPool, targets: T, weights: weightsFor(shapeFor(3, false)) });
 
   it('brings the last days inside the bands the first days already sat in', () => {
     const result = run();
@@ -943,7 +994,7 @@ describe('schedulePlan — the fortnight is repaired as a whole (0048)', () => {
    */
   it('never serves the day back to front to bring it inside its bands', () => {
     const shape = { afternoon_snack: 'off', breakfast: 'normal', dinner: 'light', lunch: 'large', morning_snack: 'off', supper: 'off' } as const;
-    const result = schedulePlan({ catalogue: spreadCatalogue, pool: spreadPool, targets: T, weights: weightsFor(shape) });
+    const result = schedulePlan({ catalogue: spreadCatalogue, minimumKcal: MINIMUM_KCAL, pool: spreadPool, targets: T, weights: weightsFor(shape) });
 
     expect(result.ok).toBe(true);
 
@@ -1134,7 +1185,7 @@ describe('schedulePlan — the portions keep the shape of the day (0036, 0045)',
 
   it('keeps a light dinner smaller than a normal lunch on every day', () => {
     const slots = slotsIn(shape);
-    const result = schedulePlan({ catalogue, pool: makePool(slots), targets: TARGETS, weights: weightsFor(shape) });
+    const result = schedulePlan({ catalogue, minimumKcal: MINIMUM_KCAL, pool: makePool(slots), targets: TARGETS, weights: weightsFor(shape) });
 
     expect(result.ok).toBe(true);
 
@@ -1152,7 +1203,7 @@ describe('schedulePlan — the portions keep the shape of the day (0036, 0045)',
 
   it('still lands the day inside the fixture band while keeping the shape', () => {
     const slots = slotsIn(shape);
-    const result = schedulePlan({ catalogue, pool: makePool(slots), targets: TARGETS, weights: weightsFor(shape) });
+    const result = schedulePlan({ catalogue, minimumKcal: MINIMUM_KCAL, pool: makePool(slots), targets: TARGETS, weights: weightsFor(shape) });
 
     expect(result.ok).toBe(true);
 
@@ -1200,7 +1251,7 @@ describe('schedulePlan — laying out some days against a plan that keeps the re
   const pool = makePool(slots);
 
   it('builds only the days asked for, and returns nothing else', () => {
-    const result = schedulePlan({ catalogue, dayIndexes: [5, 6], pool, targets: TARGETS, weights });
+    const result = schedulePlan({ catalogue, dayIndexes: [5, 6], minimumKcal: MINIMUM_KCAL, pool, targets: TARGETS, weights });
 
     expect(result.ok).toBe(true);
 
@@ -1211,7 +1262,7 @@ describe('schedulePlan — laying out some days against a plan that keeps the re
   });
 
   it('holds the variety rules against the days it was told to keep', () => {
-    const whole = schedulePlan({ catalogue, pool, targets: TARGETS, weights });
+    const whole = schedulePlan({ catalogue, minimumKcal: MINIMUM_KCAL, pool, targets: TARGETS, weights });
 
     expect(whole.ok).toBe(true);
 
@@ -1222,7 +1273,7 @@ describe('schedulePlan — laying out some days against a plan that keeps the re
     // Every placement of the fortnight except days 5 and 6, as a rebuild hands it over.
     const kept = whole.assignment.days.filter(day => day.dayIndex !== 5 && day.dayIndex !== 6);
     const placed = kept.flatMap(day => day.meals.map(meal => ({ dayIndex: day.dayIndex, dishSlug: meal.dish.slug, slot: meal.slot })));
-    const rebuilt = schedulePlan({ catalogue, dayIndexes: [5, 6], placed, pool, targets: TARGETS, weights });
+    const rebuilt = schedulePlan({ catalogue, dayIndexes: [5, 6], minimumKcal: MINIMUM_KCAL, placed, pool, targets: TARGETS, weights });
 
     expect(rebuilt.ok).toBe(true);
 
@@ -1234,10 +1285,11 @@ describe('schedulePlan — laying out some days against a plan that keeps the re
   });
 
   it('is the fortnight it always was when neither is given', () => {
-    const plain = schedulePlan({ catalogue, pool, targets: TARGETS, weights });
+    const plain = schedulePlan({ catalogue, minimumKcal: MINIMUM_KCAL, pool, targets: TARGETS, weights });
     const explicit = schedulePlan({
       catalogue,
       dayIndexes: Array.from({ length: PLAN_DAYS }, (_none, index) => index + 1),
+      minimumKcal: MINIMUM_KCAL,
       placed: [],
       pool,
       targets: TARGETS,
@@ -1245,5 +1297,115 @@ describe('schedulePlan — laying out some days against a plan that keeps the re
     });
 
     expect(explicit).toEqual(plain);
+  });
+});
+
+describe('schedulePlan — no day is sized under the energy floor', () => {
+  /**
+   * Somebody light and sedentary who asks for a fast pace has their target
+   * clamped *to* the floor, so the target and the floor are one number. Aimed at
+   * with a band either side, about half the days land a few calories under it —
+   * a fine fit, and a blocking violation: measured on the real library, nine
+   * days of fourteen, and the person was given no plan. This pool reproduces it
+   * at toy scale, which the first test proves before the second relies on it.
+   */
+  const ON_THE_FLOOR: NutritionTargets = { carbsG: 120, fatG: 40, fiberG: 25, kcal: MINIMUM_KCAL, proteinG: 90 };
+  const floorCatalogue = makeCatalogue([
+    makeCatalogueIngredient({
+      id: 'f-arroz',
+      carbsPer100g: 28,
+      fatPer100g: 0.3,
+      fiberPer100g: 1,
+      kcalPer100g: 125.5,
+      name: 'Arroz',
+      proteinPer100g: 2.7,
+      slug: 'arroz'
+    }),
+    makeCatalogueIngredient({
+      id: 'f-pollo',
+      carbsPer100g: 0,
+      fatPer100g: 3.6,
+      fiberPer100g: 1,
+      kcalPer100g: 156.4,
+      name: 'Pollo',
+      proteinPer100g: 31,
+      slug: 'pollo'
+    }),
+    makeCatalogueIngredient({
+      id: 'f-aceite',
+      carbsPer100g: 0,
+      fatPer100g: 100,
+      fiberPer100g: 1,
+      kcalPer100g: 900,
+      name: 'Aceite',
+      proteinPer100g: 0,
+      slug: 'aceite'
+    })
+  ]);
+  const floorSlots = slotsForTest(3, false);
+  const floorPool = floorSlots.flatMap(slot =>
+    [0, 1, 2, 3, 4, 5, 6, 7].map(n =>
+      makeDish({
+        ingredients: [
+          { grams: 118 - n * 7, slug: 'arroz' },
+          { grams: 62 + n * 9, slug: 'pollo' },
+          { grams: 9 + (n % 3), slug: 'aceite' }
+        ],
+        name: `${slot} ${n}`,
+        slots: [slot],
+        slug: `floor-${slot}-${n}`
+      })
+    )
+  );
+  const run = (minimumKcal: number, targets: NutritionTargets = ON_THE_FLOOR) =>
+    schedulePlan({ catalogue: floorCatalogue, minimumKcal, pool: floorPool, targets, weights: weightsFor(shapeFor(3, false)) });
+  const person = { expectedDays: 14, expectedSlots: floorSlots, sex: 'female' as const, targets: ON_THE_FLOOR, weightKg: 58 };
+
+  it('reproduces the fault when the floor is not in play: days inside their band and under the floor', () => {
+    const result = run(0);
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const under = result.assignment.days.filter(day => day.totals.kcal < MINIMUM_KCAL);
+
+    expect(under.length).toBeGreaterThan(0);
+    // The trap: some of them are a fine fit by the band's lights — inside 5% of
+    // the target — and thrown away all the same, because the target is the floor.
+    expect(under.some(day => day.totals.kcal >= MINIMUM_KCAL * (1 - PLAN_TOLERANCE.kcal))).toBe(true);
+
+    expect(
+      validatePlan({ ...person, assignment: result.assignment })
+        .filter(isBlocking)
+        .map(v => v.kind)
+    ).toContain('below_minimum_kcal');
+  });
+
+  it('sizes every day at or over the floor, as validation will read it, and still inside the band', () => {
+    const result = run(MINIMUM_KCAL);
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    for (const day of result.assignment.days) {
+      expect(day.totals.kcal).toBeGreaterThanOrEqual(MINIMUM_KCAL);
+      expect(day.totals.kcal).toBeLessThanOrEqual(MINIMUM_KCAL * (1 + FIXTURE_BAND));
+    }
+
+    // The totals above are the delivered ones — every meal rounded to a decimal,
+    // then summed — which is the number the floor is judged on in both places.
+    expect(validatePlan({ ...person, assignment: result.assignment }).filter(isBlocking)).toEqual([]);
+  });
+
+  it('changes nothing for a plan whose target is nowhere near the floor', () => {
+    const far: NutritionTargets = { carbsG: 250, fatG: 70, fiberG: 30, kcal: 2100, proteinG: 117.5 };
+
+    expect(run(MINIMUM_KCAL, far)).toEqual(run(0, far));
   });
 });
