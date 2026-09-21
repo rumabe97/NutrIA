@@ -20,6 +20,35 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
 
+# Security overrides: a transitive dependency with a known advisory, which the package that
+# pulls it in has not moved past yet. Dependabot cannot make these updates by itself
+# (`security_update_not_possible`) because no direct dependency of ours names them.
+#
+# Each key is scoped to the VULNERABLE RANGE, so it forces nothing that is already safe and
+# never crosses a major version. Each one is a debt: when the parent catches up, the entry
+# stops matching anything and should be deleted — `pnpm why <package>` says whether it does.
+#
+#   brace-expansion, js-yaml   — denial of service on crafted input (via eslint, glob, …)
+#   browserslist, baseline-…   — unbounded memory / a crash on an untrusted config
+#   multer                     — denial of service on multipart bodies (via @nestjs/platform-express)
+#   vite, esbuild, @babel/core — the dev server and the build toolchain
+#   smol-toml                  — development only
+#   esbuild@<=0.24.2           — drizzle-kit's loader pins 0.18; the advisory is about esbuild's
+#                                dev server, which drizzle-kit never starts. Checked:
+#                                `pnpm --filter database generate` still runs on 0.25.
+overrides:
+  'brace-expansion@<1.1.18': '^1.1.18'
+  'brace-expansion@>=2.0.0 <2.1.4': '^2.1.4'
+  'browserslist@<4.28.7': '^4.28.7'
+  'baseline-browser-mapping@<2.11.0': '^2.11.0'
+  'js-yaml@>=4.0.0 <4.3.2': '^4.3.2'
+  'multer@<2.3.0': '^2.3.0'
+  'smol-toml@<1.7.1': '^1.7.1'
+  'vite@>=8.0.0 <8.0.16': '^8.0.16'
+  '@babel/core@<7.29.6': '^7.29.6'
+  'esbuild@>=0.27.3 <0.28.1': '^0.28.1'
+  'esbuild@<=0.24.2': '^0.25.0'
+
 minimumReleaseAgeExclude:
   - '@better-auth/core@1.7.3'
   - '@better-auth/drizzle-adapter@1.7.3'
