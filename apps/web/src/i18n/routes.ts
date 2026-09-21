@@ -29,7 +29,16 @@ const SEGMENTS: Record<Locale, string> = { 'en-GB': '/en', 'es-ES': '' };
  * public route here when you add it to both `src/app/(es)` and `src/app/en`, or
  * the switcher and the proxy will keep sending people to the Spanish one.
  */
-export const LOCALISED_PATHS: readonly string[] = ['/', '/acceder', '/pendiente', '/recuperar', '/registro', '/restablecer', '/verificar-email'];
+export const LOCALISED_PATHS: readonly string[] = [
+  '/',
+  '/acceder',
+  '/pendiente',
+  '/privacidad',
+  '/recuperar',
+  '/registro',
+  '/restablecer',
+  '/verificar-email'
+];
 
 /** The language a URL asks for. Anything unprefixed is the default one. */
 export function localeFromPathname(pathname: string): Locale {

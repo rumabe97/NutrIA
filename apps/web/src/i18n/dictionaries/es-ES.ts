@@ -406,6 +406,8 @@ export const esES = {
     createAccount: 'Crear cuenta',
     disclaimer:
       'NutrIA elabora planes de alimentación generales. No sustituye el consejo de un médico ni de un dietista-nutricionista colegiado. Consulta a un profesional si tienes una condición médica, estás embarazada o tomas medicación.',
+    legal: 'Legal',
+    privacyPolicy: 'Privacidad',
     product: 'Producto',
     signIn: 'Acceder',
     tagline: 'Nutrición que se adapta a ti.'
@@ -857,6 +859,10 @@ export const esES = {
     '/plan/generando': { title: 'Creando tu plan' },
     '/plan/historial': { title: 'Tus planes anteriores' },
     '/plan/historial/[id]': { title: 'Un plan anterior' },
+    '/privacidad': {
+      description: 'Qué datos guarda NutrIA sobre ti, para qué los usa, con quién los comparte y cómo verlos, corregirlos o borrarlos.',
+      title: 'Política de privacidad'
+    },
     '/progreso': { title: 'Tu progreso' },
     '/recuperar': { title: 'Recuperar tu contraseña' },
     '/registro': {
@@ -893,6 +899,93 @@ export const esES = {
     week: 'Semana {number}'
   },
 
+  privacy: {
+    intro: [
+      'Esta política explica qué datos guarda NutrIA sobre ti, para qué los usa, con quién los comparte y qué puedes hacer para verlos, corregirlos o borrarlos.',
+      'NutrIA es una herramienta de planificación de comidas. No es un servicio médico y no sustituye el consejo de un médico ni de un dietista-nutricionista colegiado.'
+    ],
+    sections: [
+      {
+        heading: 'Quién trata tus datos',
+        paragraphs: [
+          'El responsable del tratamiento es Rubén Martínez, una persona física — no una empresa ni un autónomo registrado. Puedes escribir a rumabe97@gmail.com para cualquier cuestión sobre tus datos, incluida una solicitud de acceso, rectificación o borrado.'
+        ]
+      },
+      {
+        heading: 'Qué datos recogemos y para qué',
+        list: [
+          'Cuenta: tu nombre y tu correo electrónico y, si accedes con Google o Apple, el nombre y el correo que ese servicio nos confirma. Para crear tu cuenta y que puedas entrar en ella.',
+          'Perfil y objetivos: tu edad, sexo, altura, peso, nivel de actividad y tus objetivos nutricionales. Para calcular cuánto necesitas comer.',
+          'Alergias e intolerancias: los alimentos que no puedes comer. Para que ningún plan te proponga uno de ellos.',
+          'Enfermedades, medicación y suplementos: solo si decides contárnoslo, bajo un consentimiento aparte que puedes retirar en cualquier momento sin borrar el resto de tu cuenta.',
+          'Preferencias: la cocina que prefieres, los alimentos que no te gustan, tus horarios de comida. Para ajustar tus planes a ti.',
+          'Uso del plan: qué comidas marcas como hechas o saltadas, tu peso a lo largo del tiempo, tus check-ins quincenales. Para que tu siguiente plan tenga esto en cuenta.',
+          'Pagos: si contratas Premium, Stripe procesa el cobro y nosotros guardamos solo un identificador de tu suscripción y su estado. Nunca vemos ni guardamos el número de tu tarjeta.',
+          'Uso técnico: qué acciones haces en la app (por ejemplo, que abriste sesión o que pediste un cambio de receta), sin más detalle que ese, para saber qué funciona y qué no.'
+        ],
+        paragraphs: []
+      },
+      {
+        heading: 'Por qué podemos tratar estos datos',
+        paragraphs: [
+          'Los datos de cuenta, perfil, objetivos, alergias y uso del plan se tratan porque son necesarios para darte el servicio que nos pides: sin ellos, NutrIA no puede calcular ni proponerte nada. Tus enfermedades, tu medicación y tus suplementos se tratan solo con tu consentimiento explícito, que registramos con su fecha y puedes retirar cuando quieras desde tu perfil. El uso técnico anónimo se trata por nuestro interés legítimo en saber si el producto funciona.'
+        ]
+      },
+      {
+        heading: 'Con quién compartimos tus datos',
+        list: [
+          'Un proveedor de generación por inteligencia artificial, para proponer tus recetas y planes. Solo recibe tus objetivos nutricionales, tus preferencias y tus alergias e intolerancias — nunca tus enfermedades, tu medicación ni tus suplementos. Lo que la IA propone se comprueba siempre con nuestro propio código antes de llegarte: un alérgeno declarado no llega a tu plan aunque el modelo se equivocara.',
+          'Stripe, si contratas Premium, para cobrar la suscripción. Stripe procesa y conserva los datos de pago según sus propias políticas.',
+          'Nuestro proveedor de correo, para enviarte los correos de confirmación, recuperación de contraseña y recordatorio del check-in que tú actives.',
+          'El servicio de notificaciones push de tu propio navegador, si activas los avisos en el teléfono.',
+          'Sentry, un servicio de monitorización de errores, solo si está activado. Recibe el error y en qué parte del código ocurrió, nunca tus datos personales ni lo que escribiste.',
+          'Vercel y Neon, que alojan la aplicación y la base de datos. Nadie más tiene acceso a ellas.'
+        ],
+        paragraphs: ['No vendemos tus datos a nadie. No hay anuncios en NutrIA ni cookies publicitarias.']
+      },
+      {
+        heading: 'Cuánto tiempo guardamos tus datos',
+        paragraphs: [
+          'Guardamos tus datos mientras tu cuenta exista. Al borrar tu cuenta se borra todo lo que hay en ella de forma inmediata y en cascada: perfil, alergias, planes, listas de la compra, progreso y consentimientos. Una copia de seguridad técnica puede conservar esa información unos días más, solo para poder recuperarnos de un fallo, y se elimina automáticamente pasado ese plazo.',
+          'Si contrataste Premium, Stripe conserva los datos de facturación durante el plazo que le exige la ley, al margen de que borres tu cuenta.'
+        ]
+      },
+      {
+        heading: 'Tus derechos',
+        list: [
+          'Acceder a los datos que tenemos sobre ti, desde tu perfil o pidiéndolos por correo.',
+          'Corregirlos, desde tu propio perfil en la mayoría de los casos.',
+          'Borrarlos, borrando tu cuenta desde tu perfil o pidiéndolo por correo.',
+          'Retirar tu consentimiento a guardar enfermedades, medicación o suplementos, sin que afecte al resto de tu cuenta.',
+          'Oponerte al uso técnico anónimo, escribiéndonos.',
+          'Reclamar ante la Agencia Española de Protección de Datos (aepd.es) si crees que no hemos respetado tus derechos.'
+        ],
+        paragraphs: []
+      },
+      {
+        heading: 'Cómo protegemos tus datos',
+        paragraphs: [
+          'Tu contraseña nunca se guarda en texto plano. La conexión entre tu dispositivo y NutrIA va siempre cifrada. Tus enfermedades, tu medicación y tus suplementos viven en una parte del código que nunca habla con la inteligencia artificial. El acceso a la base de datos está restringido y nadie lo consulta salvo para arreglar un fallo.'
+        ]
+      },
+      {
+        heading: 'Cookies y almacenamiento en tu dispositivo',
+        paragraphs: [
+          'Usamos dos cookies, ninguna con fines publicitarios: una guarda tu sesión iniciada, la otra el idioma que has elegido. Ninguna rastrea tu actividad en otras webs, y no hay ninguna cookie de terceros.',
+          'Si instalas NutrIA en tu teléfono, el navegador guarda una copia de tu plan de hoy y de la lista de la compra para que funcionen sin conexión. Esa copia se queda en tu propio dispositivo: nunca nos llega ni la vemos.'
+        ]
+      },
+      { heading: 'Menores de edad', paragraphs: ['NutrIA no está dirigida a menores de 16 años, y no solicitamos deliberadamente datos suyos.'] },
+      {
+        heading: 'Cambios en esta política',
+        paragraphs: [
+          'Si cambiamos algo importante, lo diremos aquí con la fecha de la actualización. Si el cambio afecta a cómo tratamos tus enfermedades, tu medicación o tus suplementos, te pediremos tu consentimiento de nuevo antes de aplicarlo.'
+        ]
+      }
+    ],
+    title: 'Política de privacidad',
+    updated: 'Última actualización: 21 de septiembre de 2026'
+  },
   profile: {
     account: 'Cuenta',
     activity: 'Actividad',

@@ -11,10 +11,6 @@ export function SiteFooter() {
   const { footer, siteNav } = dictionary;
 
   // The hrefs are fixed; only the words move.
-  // No "Legal" column: it linked to /privacidad and /terminos, which do not exist,
-  // and every visitor's browser prefetched both and logged two 404s per page. A
-  // link to a page that is not there is a promise the product does not keep;
-  // the pages come first, then the links.
   const columns = [
     {
       links: [
@@ -30,6 +26,14 @@ export function SiteFooter() {
         { href: '/acceder', label: footer.signIn }
       ],
       title: footer.account
+    },
+    {
+      // Just the one page for now (`0058`): a privacy policy is what Google's
+      // and Apple's sign-in both require somebody to read before this button
+      // existed. Terms of service is a different promise — pricing, cancelling
+      // a subscription — and comes when there is something to say about them.
+      links: [{ href: '/privacidad', label: footer.privacyPolicy }],
+      title: footer.legal
     }
   ];
 

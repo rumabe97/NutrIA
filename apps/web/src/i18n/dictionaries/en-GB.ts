@@ -400,6 +400,8 @@ export const enGB: Dictionary = {
     createAccount: 'Create account',
     disclaimer:
       'NutrIA produces general meal plans. It does not replace advice from a doctor or a registered dietitian. Speak to a professional if you have a medical condition, are pregnant, or take medication.',
+    legal: 'Legal',
+    privacyPolicy: 'Privacy',
     product: 'Product',
     signIn: 'Sign in',
     tagline: 'Nutrition that adapts to you.'
@@ -842,6 +844,10 @@ export const enGB: Dictionary = {
     '/plan/generando': { title: 'Building your plan' },
     '/plan/historial': { title: 'Your earlier plans' },
     '/plan/historial/[id]': { title: 'An earlier plan' },
+    '/privacidad': {
+      description: 'What NutrIA holds about you, what it is used for, who it is shared with, and how to see, correct or delete it.',
+      title: 'Privacy policy'
+    },
     '/progreso': { title: 'Your progress' },
     '/recuperar': { title: 'Reset your password' },
     '/registro': {
@@ -877,6 +883,94 @@ export const enGB: Dictionary = {
     redoSpent: 'You have already redone your plan this fortnight. The next one opens on {date}.',
     title: 'Your plan',
     week: 'Week {number}'
+  },
+
+  privacy: {
+    intro: [
+      'This policy explains what data NutrIA holds about you, what it is used for, who it is shared with, and what you can do to see, correct or delete it.',
+      'NutrIA is a meal-planning tool. It is not a medical service and does not replace advice from a doctor or a registered dietitian.'
+    ],
+    sections: [
+      {
+        heading: 'Who processes your data',
+        paragraphs: [
+          'The data controller is Rubén Martínez, a private individual — not a company or a registered self-employed business. You can write to rumabe97@gmail.com for anything about your data, including a request to access, correct or delete it.'
+        ]
+      },
+      {
+        heading: 'What we collect, and why',
+        list: [
+          'Account: your name and email address and, if you sign in with Google or Apple, the name and email that service confirms to us. So you can create an account and get into it.',
+          'Profile and targets: your age, sex, height, weight, activity level and nutritional targets. To work out how much you need to eat.',
+          'Allergies and intolerances: the foods you cannot eat. So no plan ever proposes one of them.',
+          'Conditions, medication and supplements: only if you choose to tell us, under a separate consent you can withdraw at any time without deleting the rest of your account.',
+          'Preferences: the cuisine you prefer, foods you dislike, your meal times. To fit your plans to you.',
+          'Use of the plan: which meals you mark eaten or skipped, your weight over time, your fortnightly check-ins. So your next plan takes this into account.',
+          'Payments: if you subscribe to Premium, Stripe processes the charge and we store only an identifier for your subscription and its status. We never see or store your card number.',
+          'Technical use: which actions you take in the app (for example, that you signed in, or asked for a different recipe), with nothing more than that, to know what works and what does not.'
+        ],
+        paragraphs: []
+      },
+      {
+        heading: 'Why we may process this data',
+        paragraphs: [
+          'Account, profile, targets, allergy and plan-use data are processed because they are necessary to give you the service you asked for: without them NutrIA cannot calculate or propose anything. Your conditions, medication and supplements are processed only with your explicit consent, recorded with its date and withdrawable at any time from your profile. Anonymous technical use is processed under our legitimate interest in knowing whether the product works.'
+        ]
+      },
+      {
+        heading: 'Who we share your data with',
+        list: [
+          'An AI generation provider, to propose your recipes and plans. It receives only your nutritional targets, your preferences, and your allergies and intolerances — never your conditions, your medication or your supplements. What the AI proposes is always checked against our own code before it reaches you: a declared allergen never reaches your plan even if the model got it wrong.',
+          'Stripe, if you subscribe to Premium, to charge the subscription. Stripe processes and retains payment data under its own policies.',
+          'Our email provider, to send you the confirmation, password-reset and check-in reminder emails you ask for.',
+          "Your own browser's push notification service, if you turn on reminders on your phone.",
+          'Sentry, an error-monitoring service, only when it is switched on. It receives the error and where in the code it happened, never your personal data or anything you wrote.',
+          'Vercel and Neon, who host the application and the database. Nobody else has access to them.'
+        ],
+        paragraphs: ['We do not sell your data to anyone. There are no adverts on NutrIA and no advertising cookies.']
+      },
+      {
+        heading: 'How long we keep your data',
+        paragraphs: [
+          'We keep your data for as long as your account exists. Deleting your account deletes everything in it at once and in cascade: profile, allergies, plans, shopping lists, progress and consents. A technical backup may hold that information for a few more days, only so we can recover from a fault, and it is removed automatically once that period passes.',
+          'If you subscribed to Premium, Stripe keeps billing data for as long as the law requires, regardless of whether you delete your account.'
+        ]
+      },
+      {
+        heading: 'Your rights',
+        list: [
+          'Access the data we hold about you, from your profile or by asking by email.',
+          'Correct it, from your own profile in most cases.',
+          'Delete it, by deleting your account from your profile or by asking by email.',
+          'Withdraw your consent to hold conditions, medication or supplements, without it affecting the rest of your account.',
+          'Object to anonymous technical use, by writing to us.',
+          "Complain to Spain's data protection authority, the Agencia Española de Protección de Datos (aepd.es), or to your own country's authority, if you believe we have not respected your rights."
+        ],
+        paragraphs: []
+      },
+      {
+        heading: 'How we protect your data',
+        paragraphs: [
+          'Your password is never stored in plain text. The connection between your device and NutrIA is always encrypted. Your conditions, medication and supplements live in a part of the code that never talks to the AI. Access to the database is restricted, and nobody looks at it except to fix a fault.'
+        ]
+      },
+      {
+        heading: 'Cookies and storage on your device',
+        paragraphs: [
+          'We use two cookies, neither for advertising: one holds your signed-in session, the other the language you chose. Neither tracks your activity on other sites, and there is no third-party cookie.',
+          "If you install NutrIA on your phone, your browser keeps a copy of today's plan and the shopping list so they work offline. That copy stays on your own device: it never reaches us, and we never see it."
+        ]
+      },
+      { heading: 'Children', paragraphs: ['NutrIA is not directed at anyone under 16, and we do not deliberately ask for their data.'] },
+      {
+        heading: 'Changes to this policy',
+        paragraphs: [
+          'If we change anything important, we will say so here with the date of the update. If the change affects how we treat your conditions, your medication or your supplements, we will ask for your consent again before applying it.'
+        ]
+      }
+    ],
+    title: 'Privacy policy',
+    updated: 'Last updated: 21 September 2026'
   },
 
   profile: {
