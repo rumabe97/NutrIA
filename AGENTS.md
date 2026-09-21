@@ -20,12 +20,15 @@ Agent-focused guidance for this monorepo. The closest `AGENTS.md` to the file yo
 | `pnpm lint:fix`        | Lint with `--fix`                                                                                             |
 | `pnpm test`            | Run all package test suites (Vitest, orchestrated by Turbo)                                                   |
 | `pnpm test:watch`      | Watch mode — re-runs affected tests on save                                                                   |
-| `pnpm test:coverage`   | Run tests with coverage (Istanbul) — gates against `vitest.config.ts` thresholds                              |
+| `pnpm test:coverage`   | Run tests with coverage — **this is what CI runs**, and the thresholds are blocking. They are ratchets: raise them when tests are added, never lower one to get a change through |
 | `pnpm deadcode`        | Find unused exports (knip)                                                                                    |
 | `pnpm format`          | Format-check with Prettier (via Turbo)                                                                        |
 | `pnpm format:fix`      | Format with Prettier (`--write`, via Turbo)                                                                   |
 | `pnpm up:latest`       | Update all deps to latest stable                                                                              |
 | `pnpm check:leaks`     | Grep tracked files for absolute paths and the patterns in `docs/local/leak-patterns.txt`                       |
+| `node scripts/check-migrations.mjs [--drift]` | What a machine can refuse about a migration before production runs it: a merged one edited, a destructive statement with no `-- reviewed-destructive:` line, a journal that does not match its files, a schema changed with no migration (`--drift`). In CI's required check |
+| `node scripts/check-static-pages.mjs` | After a web build: every public page, in every language, is still prerendered. In CI's required check |
+| `node scripts/smoke.mjs` | Asks **production** what a person would after a deploy — hosts up, proxy, public pages, the doors that must be shut. Runs after every deployment and hourly (`.github/workflows/production.yml`); a failure opens an issue |
 | `pnpm --filter database generate` | Generate a migration from the schemas (needs `DIRECT_DATABASE_URL`)                                 |
 | `pnpm --filter database migrate`  | Apply pending migrations                                                                            |
 | `pnpm --filter database seed`     | Seed the allergen catalogue and ingredients — **reference data, not sample data**                   |

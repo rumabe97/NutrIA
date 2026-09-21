@@ -129,6 +129,21 @@ is migrated — naming each problem.
 stops the deploy before it touches anything; a bad migration still blocks every
 subsequent deploy. Review migrations as production changes, not as code.
 
+There is no staging database between a merged migration and production, so three things
+stand in front of the merge instead:
+
+- **`node scripts/check-migrations.mjs --drift`**, in CI's required check. It refuses a
+  merged migration that was edited, a schema changed with no migration, a journal that does
+  not describe its files, and any statement that destroys data or fails on the rows already
+  there — `DROP`, a type change, a rename, `NOT NULL` with no default — unless the file says
+  a person looked: `-- reviewed-destructive: <where the data goes, and why it is safe>`.
+- **The upgrade is rehearsed.** When a pull request brings a migration, the end-to-end job
+  first builds the database the way `main` does, with the reference data in it, and only
+  then applies what is new. A constraint the existing rows do not satisfy fails there. The
+  user tables are empty in that container, which is what the third thing is for.
+- **The `migration-reviewer` agent**, on every schema change: whether the API still running
+  during the deploy survives the new schema, locks, and the way back.
+
 The build log is expected to be clean. If it ever shows TypeScript errors from the
 builder itself (`Property 'headers' does not exist on type 'Request'`, hundreds of
 them), the entry has been pointed back at a `.ts` file — see `apps/api/AGENTS.md`
@@ -366,14 +381,11 @@ Three things to be honest about:
   and the expensive paths are quota'd in Postgres already (one redo a fortnight, five swaps
   a plan). What is left is a coarse abuse guard on ordinary reads, where a database write
   per request would cost more than it protects.
-- **The gate runs, the deploy does not wait for it.** `.github/workflows/ci.yml` runs the
-  gate on every push and pull request and the end-to-end suites on every pull request, but
-  the host still builds whatever lands on `main` regardless. A red run is a record, not a
-  brake, and it cannot be made one on this plan: GitHub does not enforce branch rules on a
-  private repository owned by a personal account on Free (§9). `.githooks/pre-push` is the
-  stand-in — the gate, locally, refusing the push — and it is bypassable by the one person
-  who would bypass it. A direct push to `main` also skips the end-to-end suites, because
-  there is no pull request to run them on.
+- **The deploy does not wait for the gate — the merge does.** The host builds whatever
+  lands on `main`, regardless. What changed is that nothing lands there unchecked any more:
+  the repository is public, so the ruleset on `main` is enforced (§9) — a pull request,
+  both checks green and up to date, no force push. A red run is now a brake. What is left
+  is the window *after* the merge, which §10 watches.
 - **No backup runs on a schedule, and no restore has been rehearsed.** §8 says how to take
   an export and how the host's own restore works, and the export has been run; neither has
   been used in anger. The restore window's length is still a blank in §8 that only the
@@ -446,3 +458,34 @@ The rule is worth having even alone, and not because of mistakes an approval wou
 It is worth having because it makes "the tests passed" a fact about `main` rather than a
 thing that was true on a laptop at some point. Every gap in this document was found that
 way.
+
+## 10. Production, watched
+
+`.github/workflows/production.yml` runs `scripts/smoke.mjs` after every production
+deployment the host reports to GitHub, and hourly. It asks what a person would: both hosts
+up, the web app reaching the API through its proxy, every public page there and marked
+with its language, the sitemap and `robots.txt`, and **the doors that must be shut still
+shut** — a stranger asking for a profile, health data or the admin overview gets a 404, an
+unsigned payment webhook gets a 404, a signed-in screen redirects to sign-in. It signs in
+to nothing, writes nothing and holds no secret.
+
+- A wrong answer, three times a minute apart, **opens an issue** labelled `production-down`
+  — one, added to on every further failure — and the first right answer closes it. Watch
+  the repository's issues by mail and that is the alarm.
+- Nothing is rolled back by a machine. The way back is the host's own: promote the previous
+  deployment from its dashboard. A migration is **not** undone by that — which is why the
+  migration reviewer asks, before the merge, whether the previous API survives the new schema.
+- `WEB_URL` and `API_URL` are repository *variables*, not secrets; unset, the script uses
+  the origins of Shape A. Set them the day there is a domain.
+- To ask by hand: `node scripts/smoke.mjs`.
+
+**Dependencies.** Dependabot opens one grouped pull request a week for minor and patch
+updates and one per major (`.github/dependabot.yml`); each goes through the whole gate.
+Security updates do not wait for the week. In the repository's settings, **secret scanning,
+push protection, Dependabot alerts and security updates are on** since 2026-09-21 — free on
+a public repository, and the only secret check that runs on the server: `pnpm check:leaks`
+reads a pattern list that is gitignored, so it runs on the owner's machine and nowhere else.
+
+**What is still not here: a preview environment.** Everything goes from CI to production.
+`docs/reference/preview-environment.md` says what it would take.
+
