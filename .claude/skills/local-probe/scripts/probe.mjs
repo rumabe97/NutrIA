@@ -146,6 +146,25 @@ for (const path of paths) {
       const name = `${path.replace(/^\/|\/$/g, '').replace(/[^a-z0-9]+/gi, '-') || 'home'}-${view}-${scheme}.png`;
       const bad = status >= 400 || seen.overflow > 0 || complaints.some(line => line.startsWith('threw'));
 
+      // A full-page screenshot is taken without scrolling, and the landing page reveals its
+      // sections as they are scrolled into view — so an unscrolled capture shows a page that is
+      // two thirds blank, which looks exactly like hydration having failed. Walk the page first.
+      if (!flag('viewport-only')) {
+        const height = await page.evaluate(() => document.documentElement.scrollHeight);
+
+        for (let y = 0; y <= height; y += 500) {
+          await page.evaluate(top => window.scrollTo(0, top), y);
+          await page.waitForTimeout(80);
+        }
+
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForTimeout(400);
+      }
+
+      const stillHidden = await page.$$eval('[data-reveal="hidden"]', nodes => nodes.length);
+
+      if (stillHidden > 0) complaints.push(`${stillHidden} reveal block(s) still hidden after the whole page was scrolled — the observer did not run`);
+
       await page.screenshot({ fullPage: !flag('viewport-only'), path: join(shots, name) });
 
       failed ||= bad;
