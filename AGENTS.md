@@ -265,6 +265,47 @@ API-specific ones are in [`apps/api/AGENTS.md`](./apps/api/AGENTS.md). The short
 - **Never log** a request body, a cookie, an `Authorization` header, an email address, or
   any secret. Bodies here carry health data.
 
+### Guard rails — what a session here is stopped from doing
+
+The owner's standing rules, enforced rather than remembered. **Start Claude Code at the
+repository root, or at a worktree's root**: project settings are read from where the
+session starts, and one started in `apps/api` has none of what follows.
+
+| Stopped | Why | Do this instead |
+| --- | --- | --- |
+| Printing a real `.env`, with the Read tool or a shell command | its contents land in a transcript | `node .claude/hooks/env-names.mjs <file>` for the names; `guard.mjs` to know whether the database is production; read a value **inside** a script and never log it |
+| `git stash`, in any form but `list` and `show` | the stash is shared by every worktree | a `wip/…` branch, or a worktree |
+| Skipping a check: no-verify, a force push, an `--admin` merge | each is how a red commit reaches production | read why it failed, fix it, push again |
+| A process dump: `ps aux`, `ps -o args`, `/proc/<pid>/environ`, `pgrep -f`, `pkill -f` | a command line can carry a key — one was printed here that way | `ss -ltnpH "sport = :3001"`, then `ps -o comm= -p <pid>` |
+| A credential on a command line: an `Authorization` header to `curl`, a literal key | process list, shell history, transcript | `curl -K <file in the scratchpad>`, or `fetch` inside a script |
+| Deploying, promoting, rolling back, or touching environment variables with the `vercel` CLI | production is reached one way: a green pull request | say what production needs; the owner sets it |
+| `rm -r` on a root, a home directory, `.` or `*` | | name the exact directory |
+| An agent editing a directory another agent owns | [`docs/reference/agent-team.md`](./docs/reference/agent-team.md) | message the owner of the file |
+
+Three more only **warn**, because a pattern cannot tell a right use from a wrong one: a
+command that names `DATABASE_URL_PRO` (production is read-only, always), one that deletes
+or overwrites (`reset --hard`, `clean -f`, `worktree remove`, `branch -D`, `rm -r` — look
+at the target first), and a file that gains an absolute home path or something shaped like
+a credential (the repository is public).
+
+**How it is built.** The rules are `.claude/hookify.*.local.md`, read by the hookify
+plugin (`claude plugin install hookify@claude-plugins-official`) — committed, despite the
+name, because an agent's worktree only has what git has. hookify stops a call and tells only the
+*person* why, and it looks for its rules in the current directory, so a `cd` switches them
+off; `.claude/hooks/rules-to-the-model.py` runs the same rules through hookify's own engine
+from the project root and hands the reason to the **agent**, which is what turns a block
+into the right next step instead of a workaround. The `.env` denial and the agents'
+directories are native, in `.claude/settings.json`. Without the plugin the pattern rules
+are inert; the native ones are not.
+
+**Changing a rule**: a pattern matches a command being *run* — at the start, or after `;`
+`&` `|` `(` or a newline — never one merely named in a commit message or a search; it must
+not contain three dashes in a row (hookify cuts the rule there, and what is left matches
+everything); and the engine ignores case, so `-D` is written `(?-i:-D)`. Then
+`python3 .claude/hooks/test-hookify-rules.py`, which holds every rule to what it must stop
+**and** what it must let through. A file that has to *contain* such a command — a test, a
+doc — is written with the Write or Edit tool, not from a shell heredoc.
+
 ---
 
 ## Code conventions
