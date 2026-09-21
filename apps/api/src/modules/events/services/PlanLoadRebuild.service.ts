@@ -5,7 +5,7 @@ import { DEFAULT_MEAL_SHAPE, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { dishSafety } from 'core/domain/Safety';
 import { loadedTargets } from 'core/domain/Event';
 import { schedulePlan } from 'core/domain/Scheduler';
-import { targetViolations } from 'core/domain/Nutrition';
+import { minimumDailyKcal, targetViolations } from 'core/domain/Nutrition';
 import { PlanPausedError, QuotaExceededError } from 'core/entities/Error';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
@@ -125,6 +125,8 @@ export class PlanLoadRebuildService {
       catalogue: context.catalogue,
       dayIndexes,
       dayTargets: new Map(dayIndexes.map(dayIndex => [dayIndex, targets])),
+      // As at generation: a day rebuilt around an event is sized over the floor too.
+      minimumKcal: minimumDailyKcal(profile.profile?.sex ?? 'prefer_not_to_say'),
       placed,
       pool,
       targets: base,

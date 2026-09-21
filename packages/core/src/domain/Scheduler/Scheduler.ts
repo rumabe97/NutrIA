@@ -152,6 +152,25 @@ const BAND_MISS_WEIGHT = 10;
  */
 const ORDER_OUTRANKS_BANDS = 1000;
 
+/**
+ * What a day under the energy floor costs while it is being sized: more than
+ * anything else about the day can save, the order of its meals included.
+ *
+ * The floor was validation's alone, and the scheduler aimed at the target with
+ * a band either side. For most people the two never meet. For somebody light
+ * and sedentary who asks for a fast pace they are the same number — the target
+ * is clamped *to* the floor — and a day at 1,190 against 1,200 is a fine fit
+ * and a blocking violation at once. Measured on the real library: fourteen days
+ * of fourteen inside 5% on every macro, nine of them thrown away, so the plan
+ * was, and the full-library retry aimed the same way and failed the same way.
+ *
+ * So it is a wall and not a band: a meal out of order is a plan the person can
+ * eat, a day under the floor is one they are never given. It costs nothing to a
+ * day that is over the floor at every size it could take, which is every day of
+ * every plan whose target is not within a few points of it.
+ */
+const FLOOR_OUTRANKS_ORDER = 1_000_000;
+
 /** Swap rounds per day. Each takes the single best improvement; they converge fast. */
 const MAX_SWAP_ROUNDS = 8;
 
@@ -200,6 +219,13 @@ export type SchedulerInput = {
    * is what it always was.
    */
   readonly dayTargets?: ReadonlyMap<number, NutritionTargets>;
+  /**
+   * The energy no day may be sized under — `minimumDailyKcal` of the person's
+   * sex, the number validation blocks on. Required, not defaulted: a caller
+   * that forgot it would schedule plans validation then throws away, which is
+   * the bug this field exists for (`FLOOR_OUTRANKS_ORDER`).
+   */
+  readonly minimumKcal: number;
   /**
    * What is already on the plate and is *not* being laid out again.
    *
@@ -297,10 +323,10 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
       }
     }
 
-    built.push({ budgets, dayIndex, picks: balanceDay(improved, targets, budgets), targets });
+    built.push({ budgets, dayIndex, picks: balanceDay(improved, targets, budgets, input.minimumKcal), targets });
   }
 
-  const assignedDays: PlanDayAssignment[] = spreadAcrossDays(built, input.placed ?? [], proteins).map(day => {
+  const assignedDays: PlanDayAssignment[] = spreadAcrossDays(built, input.placed ?? [], proteins, input.minimumKcal).map(day => {
     const meals: ScheduledMeal[] = day.picks.map(pick => ({
       dish: pick.dish,
       ingredients: scaleIngredients(pick.dish.ingredients, pick.servings / pick.dish.servings),
@@ -793,8 +819,13 @@ function straysOf(picks: readonly Pick[], budgets: ReadonlyMap<MealSlot, SlotBud
  * Deterministic: combinations are visited in slot order, and a tie keeps the
  * earlier one, so the same day always sizes the same way.
  */
-function balanceDay(picks: readonly Pick[], targets: NutritionTargets, budgets: ReadonlyMap<MealSlot, SlotBudget>): readonly Pick[] {
-  return balancedDay(picks, targets, budgets).picks;
+function balanceDay(
+  picks: readonly Pick[],
+  targets: NutritionTargets,
+  budgets: ReadonlyMap<MealSlot, SlotBudget>,
+  minimumKcal: number
+): readonly Pick[] {
+  return balancedDay(picks, targets, budgets, minimumKcal).picks;
 }
 
 /** `balanceDay`, and what the day costs once sized — the number a swap is judged by. */
@@ -802,6 +833,7 @@ function balancedDay(
   picks: readonly Pick[],
   targets: NutritionTargets,
   budgets: ReadonlyMap<MealSlot, SlotBudget>,
+  minimumKcal: number,
   banded = false
 ): { readonly cost: number; readonly picks: readonly Pick[] } {
   const dayCost = (servings: readonly number[]): number => {
@@ -827,7 +859,8 @@ function balancedDay(
       fitCost(totals, { carbsG: targets.carbsG, fatG: targets.fatG, kcal: targets.kcal, proteinG: targets.proteinG }) +
       (banded ? bandMiss(totals, targets) * BAND_MISS_WEIGHT : 0) +
       inversions * (banded ? ORDER_OUTRANKS_BANDS : SHARE_INVERSION_WEIGHT) +
-      straysOf(picks, budgets, servings) * SHARE_BAND_WEIGHT
+      straysOf(picks, budgets, servings) * SHARE_BAND_WEIGHT +
+      floorMiss(deliveredKcal(picks, servings), minimumKcal) * FLOOR_OUTRANKS_ORDER
     );
   };
 
@@ -929,7 +962,7 @@ function improveDay(
     const repeatsOf = (day: readonly ProteinMeal[]): number => proteinExcess(day, elsewhere, protein.cap) * PROTEIN_REPEAT_WEIGHT;
     // Priced the same way the candidates will be, or a swap could "win" against
     // a day that was never sized.
-    let bestCost = balancedDay(current, targets, budgets).cost + repeatsOf(today);
+    let bestCost = balancedDay(current, targets, budgets, input.minimumKcal).cost + repeatsOf(today);
     let bestDay: readonly Pick[] | undefined;
     const shortlist: { readonly cost: number; readonly repeats: number; readonly swapped: readonly Pick[] }[] = [];
 
@@ -968,7 +1001,7 @@ function improveDay(
     const priced = shortlist
       .sort((a, b) => a.cost - b.cost)
       .slice(0, SWAP_SHORTLIST)
-      .map(entry => ({ cost: balancedDay(entry.swapped, targets, budgets).cost + entry.repeats, swapped: entry.swapped }));
+      .map(entry => ({ cost: balancedDay(entry.swapped, targets, budgets, input.minimumKcal).cost + entry.repeats, swapped: entry.swapped }));
 
     for (const entry of priced) {
       if (entry.cost < bestCost) {
@@ -1036,6 +1069,29 @@ function bandMiss(totals: Macros, targets: NutritionTargets): number {
   ].reduce((sum, excess) => sum + excess + (excess > SPREAD_EPSILON ? 1 : 0), 0);
 }
 
+/**
+ * A day's energy as the plan will carry it, not as the search sums it.
+ *
+ * Every meal's macros are rounded to a decimal when the plan is assembled
+ * (`scaleMacros`) and the day's total is the sum of those, so a day the search
+ * holds at 1,200.02 can be delivered — and validated — at 1,199.9. The floor is
+ * judged on the delivered number, so it is judged on the same one here.
+ */
+function deliveredKcal(picks: readonly Pick[], servings: readonly number[] = []): number {
+  const tenths = picks.reduce((sum, pick, index) => sum + Math.round(pick.base.kcal * (servings[index] ?? pick.servings) * 10), 0);
+
+  return tenths / 10;
+}
+
+/**
+ * How far under the floor a day's energy sits: nothing at or over it, otherwise
+ * one for being under plus the fraction it is under by — the shape of
+ * `bandMiss`, so the spread pass can add the two.
+ */
+function floorMiss(kcal: number, minimumKcal: number): number {
+  return kcal >= minimumKcal ? 0 : 1 + (minimumKcal - kcal) / minimumKcal;
+}
+
 type BuiltDay = {
   readonly budgets: ReadonlyMap<MealSlot, SlotBudget>;
   readonly dayIndex: number;
@@ -1056,9 +1112,12 @@ const SPREAD_EPSILON = 1e-6;
  * days a mid-plan rebuild is not touching. Deterministic: days and meals are
  * visited in order and a tie keeps the first.
  */
-function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[], proteins: ProteinIndex): readonly BuiltDay[] {
+function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[], proteins: ProteinIndex, minimumKcal: number): readonly BuiltDay[] {
   const current = [...days];
-  const missOf = (picks: readonly Pick[], day: BuiltDay): number => bandMiss(totalsOf(picks), day.targets);
+  // A day under the floor is a day outside, whatever its bands say: it is
+  // repaired like one, and no exchange is a gain if it leaves a day there.
+  const missOf = (picks: readonly Pick[], day: BuiltDay): number =>
+    bandMiss(totalsOf(picks), day.targets) + floorMiss(deliveredKcal(picks), minimumKcal);
   // No repair may leave a day's meals further out of the order the person set
   // than the day already was — see `ORDER_OUTRANKS_BANDS`.
   const keepsOrder = (picks: readonly Pick[], day: BuiltDay): boolean =>
@@ -1089,7 +1148,7 @@ function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]
     const before = missOf(day.picks, day);
 
     if (before > SPREAD_EPSILON) {
-      const picks = balancedDay(day.picks, day.targets, day.budgets, true).picks;
+      const picks = balancedDay(day.picks, day.targets, day.budgets, minimumKcal, true).picks;
 
       if (missOf(picks, day) < before - SPREAD_EPSILON && keepsOrder(picks, day)) {
         current[position] = { ...day, picks };
@@ -1147,8 +1206,8 @@ function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]
       // Stable: a tie on the screen keeps the order the exchanges were found in.
       for (const entry of screened.sort((a, b) => a.quick - b.quick).slice(0, SPREAD_SHORTLIST)) {
         const other = current[entry.otherAt] as BuiltDay;
-        const toWorst = balancedDay(entry.toWorst, worst.targets, worst.budgets, true).picks;
-        const toOther = balancedDay(entry.toOther, other.targets, other.budgets, true).picks;
+        const toWorst = balancedDay(entry.toWorst, worst.targets, worst.budgets, minimumKcal, true).picks;
+        const toOther = balancedDay(entry.toOther, other.targets, other.budgets, minimumKcal, true).picks;
         const added = Math.max(0, repeatsIn(toWorst) - repeatsIn(worst.picks)) + Math.max(0, repeatsIn(toOther) - repeatsIn(other.picks));
         const gain = entry.before - missOf(toWorst, worst) - missOf(toOther, other) - added * SPREAD_REPEAT_WEIGHT;
 

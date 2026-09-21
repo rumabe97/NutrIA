@@ -45,7 +45,7 @@ import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts
 import { RecipeController } from 'core/controllers/Recipe';
 import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { loadedTargets } from 'core/domain/Event';
-import { TargetsUnreachableError, nutritionTargets } from 'core/domain/Nutrition';
+import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
 import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
 import { resolvePreferences } from 'core/domain/Preference';
 import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
@@ -251,7 +251,14 @@ async function measureProfile(profile, shared) {
 
   const pool = await RecipeController.reusablePool(slots, context);
 
-  const scheduled = schedulePlan({ catalogue: context.catalogue, dayTargets, pool, targets, weights });
+  const scheduled = schedulePlan({
+    catalogue: context.catalogue,
+    dayTargets,
+    minimumKcal: minimumDailyKcal(profile.target.sex),
+    pool,
+    targets,
+    weights
+  });
 
   if (!scheduled.ok) {
     return { measured: false, note, poolSize: pool.length, shortfall: scheduled.shortfall, slug: profile.slug };
