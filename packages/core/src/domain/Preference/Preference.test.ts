@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { NO_PREFERENCE_EXCLUSIONS, PATTERN_EXCLUSIONS, resolvePreferences, timeAllowance, withinTime } from 'core/domain/Preference';
+import {
+  isEnforceableDislike,
+  NO_PREFERENCE_EXCLUSIONS,
+  PATTERN_EXCLUSIONS,
+  resolvePreferences,
+  timeAllowance,
+  withinTime
+} from 'core/domain/Preference';
 import { makeCatalogueIngredient } from '#test/fixtures';
 
 import type { CatalogueIngredient } from 'core/entities/Plan';
@@ -31,6 +38,27 @@ function ids(result: { excludedIngredientIds: ReadonlySet<string> }): readonly s
   return [...result.excludedIngredientIds].sort();
 }
 
+describe('isEnforceableDislike — the same question, asked without building a plan', () => {
+  const names = CATALOGUE.map(ingredient => ({ name: ingredient.name, slug: ingredient.slug }));
+
+  it('is false for a blank label', () => {
+    expect(isEnforceableDislike('   ', names)).toBe(false);
+  });
+
+  it('is true for a group word, whatever its case or accent', () => {
+    expect(isEnforceableDislike('Pescado', names)).toBe(true);
+  });
+
+  it('is true for a catalogue row named exactly, by name or by slug', () => {
+    expect(isEnforceableDislike('Salmón', names)).toBe(true);
+    expect(isEnforceableDislike('lomo-de-cerdo', names)).toBe(true);
+  });
+
+  it('is false for a label the catalogue does not know', () => {
+    expect(isEnforceableDislike('comida picante', names)).toBe(false);
+  });
+});
+
 describe('resolvePreferences — a dislike names a food, not one row', () => {
   it('excludes the named row and everything made of it, and nothing that merely starts alike', () => {
     // The reported bug in miniature: "salmón" left smoked and frozen salmon on the list.
@@ -60,6 +88,29 @@ describe('resolvePreferences — a dislike names a food, not one row', () => {
 
     expect(result.unenforceableLabels).toEqual(['comida picante']);
     expect(ids(result)).toEqual(['i-salmon', 'i-salmon-ahumado', 'i-salmon-congelado']);
+  });
+
+  it('reports a blank label as unenforceable rather than matching everything', () => {
+    const result = resolvePreferences({ dietaryPatterns: [], dislikedLabels: ['   '], ingredients: CATALOGUE });
+
+    expect(result.unenforceableLabels).toEqual(['']);
+    expect(ids(result)).toEqual([]);
+  });
+});
+
+describe('resolvePreferences — likes are a weight, not a rule', () => {
+  it('resolves a liked label to the catalogue slugs it names, group words included', () => {
+    const result = resolvePreferences({ dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE, likedLabels: ['pescado'] });
+
+    expect([...result.preferredIngredientSlugs].sort()).toEqual(['merluza', 'salmon', 'salmon-ahumado', 'salmon-congelado', 'salmonete']);
+  });
+
+  it('leaves preferences empty when nothing liked was said, or nothing liked resolves', () => {
+    expect(resolvePreferences({ dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE }).preferredIngredientSlugs.size).toBe(0);
+    expect(
+      resolvePreferences({ dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE, likedLabels: ['comida picante'] })
+        .preferredIngredientSlugs.size
+    ).toBe(0);
   });
 });
 

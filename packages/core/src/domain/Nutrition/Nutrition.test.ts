@@ -8,10 +8,11 @@ import {
   nutritionTargets,
   resolveTargets,
   targetBounds,
+  TargetsUnreachableError,
   targetViolations,
   totalDailyEnergyExpenditure
 } from 'core/domain/Nutrition';
-import type { TargetInput } from 'core/domain/Nutrition';
+import type { TargetInput, TargetViolation } from 'core/domain/Nutrition';
 
 const base: TargetInput = {
   activityLevel: 'moderate',
@@ -22,6 +23,21 @@ const base: TargetInput = {
   sex: 'female',
   weightKg: 72
 };
+
+describe('TargetsUnreachableError', () => {
+  it('carries every violation and names them in its message', () => {
+    const violations: readonly TargetViolation[] = [
+      { floor: 76, kind: 'protein_below_floor', value: 40 },
+      { kcal: 2000, kind: 'macros_do_not_sum', macroKcal: 2400 }
+    ];
+    const error = new TargetsUnreachableError(violations);
+
+    expect(error).toBeInstanceOf(Error);
+    expect(error.name).toBe('TargetsUnreachableError');
+    expect(error.violations).toBe(violations);
+    expect(error.message).toBe('Computed targets are unreachable: protein_below_floor, macros_do_not_sum');
+  });
+});
 
 describe('basalMetabolicRate', () => {
   it('matches Mifflin-St Jeor for a woman', () => {
@@ -249,6 +265,15 @@ describe('targetViolations — the one place a target set is judged', () => {
     expect(violations.map(violation => violation.kind)).toContain('macros_do_not_sum');
   });
 
+  it('names the floor when protein falls short of it, not just "invalid"', () => {
+    // bounds.proteinFloorG for this 95 kg input is 76 g (0.8 g/kg) — 40 g is under
+    // it, while the macros still sum to a kcal figure inside every other bound so
+    // this is the only violation.
+    const violations = targetViolations({ carbsG: 400, fatG: 60, fiberG: 34, kcal: 2300, proteinG: 40 }, bounds);
+
+    expect(violations).toEqual([{ floor: bounds.proteinFloorG, kind: 'protein_below_floor', value: 40 }]);
+  });
+
   it('applies the same protein ceiling a finished plan is held to', () => {
     const violations = targetViolations({ carbsG: 0, fatG: 44, fiberG: 34, kcal: 2400, proteinG: 400 }, bounds);
 
@@ -306,6 +331,40 @@ describe('every goal, pace and body produces a reachable target', () => {
           }
         }
       }
+    }
+  });
+});
+
+describe('nutritionTargets — the assertion fires when it should', () => {
+  // The domain layer validates nothing at its own boundary (packages/core AGENTS.md):
+  // that is the app boundary's job. A profile onboarding would ever produce sits
+  // inside the matrix above and never throws. This input does not — an implausible
+  // body (300 kg, 50 cm) paired with an aggressive weight-loss pace pushes the
+  // calorie floor low enough, relative to body mass, that the protein cap built
+  // into `macrosForKcal` lands under `PROTEIN_FLOOR_G_PER_KG`. It exists to prove
+  // the assertion in `nutritionTargets` actually throws — with the right error and
+  // the right violation — rather than silently returning numbers nobody checked.
+  it('throws TargetsUnreachableError, naming the violation, for an input outside what onboarding sends', () => {
+    const implausible: TargetInput = {
+      activityLevel: 'sedentary',
+      ageYears: 100,
+      goal: 'weight_loss',
+      heightCm: 50,
+      paceKgPerWeek: 3,
+      sex: 'male',
+      weightKg: 300
+    };
+
+    expect(() => nutritionTargets(implausible)).toThrow(TargetsUnreachableError);
+
+    try {
+      nutritionTargets(implausible);
+      expect.unreachable('expected nutritionTargets to throw');
+    } catch (error) {
+      expect(error).toBeInstanceOf(TargetsUnreachableError);
+      const unreachable = error as TargetsUnreachableError;
+
+      expect(unreachable.violations.map(violation => violation.kind)).toContain('protein_below_floor');
     }
   });
 });
