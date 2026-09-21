@@ -66,9 +66,22 @@ unchecked=0
 # again on the merge, on another runner, and a test that passes by a margin can fail there.
 # It did, the day coverage became what CI runs — and nothing was watching, so nobody was
 # told. A red run on `main` does not stop the host deploying; it is still a broken `main`.
+#
+# One commit can have several runs: a merge that fires two push events starts two, and the
+# workflow's concurrency rule cancels one of them. A cancelled run that another one replaced
+# says nothing about the commit, so it is set aside; of what is left, a run still going is
+# waited for, a failure outranks a success, and only then does a success count.
+RUN_THAT_COUNTS='
+  [.[] | select(.conclusion != "cancelled")] as $live
+  | (if ($live | length) > 0 then $live else . end) as $runs
+  | (($runs | map(select(.status != "completed")) | .[0])
+      // ($runs | map(select(.conclusion != "success")) | .[0])
+      // $runs[0])
+  | if . == null then empty else "\(.status) \(.conclusion // "-") \(.databaseId)" end
+'
 ci=''
 for look in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do
-  ci=$(gh run list --workflow CI --branch main --commit "$sha" --json status,conclusion,databaseId --jq '.[0] | "\(.status) \(.conclusion // "-") \(.databaseId)"' 2>/dev/null)
+  ci=$(gh run list --workflow CI --branch main --commit "$sha" --json status,conclusion,databaseId --jq "$RUN_THAT_COUNTS" 2>/dev/null)
   case "$ci" in
     completed*) break ;;
   esac
