@@ -30,11 +30,11 @@
     "@types/node": "^25.9.1",
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
-    "@vitest/coverage-istanbul": "^4.1.7",
+    "@vitest/coverage-istanbul": "^5.0.1",
     "eslint": "^9.39.2",
     "eslint-configuration": "workspace:*",
     "prettier": "^3.8.3",
     "typescript-configuration": "workspace:*",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.1"
   }
 }
