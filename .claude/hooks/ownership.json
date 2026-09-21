@@ -1,0 +1,8 @@
+{
+  "backend": { "owns": ["packages/core/", "packages/database/", "apps/api/", "turbo.json"], "except": ["apps/api/test/"] },
+  "frontend": { "owns": ["apps/web/", "packages/ui/", "apps/docs/"], "except": [] },
+  "tests": { "owns": ["apps/api/test/"], "except": [] },
+  "seo": { "owns": [], "except": [] },
+  "accessibility": { "owns": [], "except": [] },
+  "invariant-reviewer": { "owns": [], "except": [] }
+}
