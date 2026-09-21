@@ -12,6 +12,11 @@ import type { KnipConfig } from 'knip';
 const config: KnipConfig = {
   ignoreExportsUsedInFile: true,
   workspaces: {
+    '.': {
+      // The skills' scripts are run by hand (`node .claude/skills/<skill>/scripts/x.mjs`),
+      // so nothing imports them and each is its own entry point.
+      entry: ['.claude/skills/*/scripts/*.mjs!']
+    },
     'apps/*': {
       entry: ['eslint.config.js']
     },

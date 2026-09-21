@@ -31,6 +31,13 @@ Agent-focused guidance for this monorepo. The closest `AGENTS.md` to the file yo
 | `pnpm --filter database seed`     | Seed the allergen catalogue and ingredients — **reference data, not sample data**                   |
 | `pnpm --filter api test:e2e`      | End-to-end suite, incl. user isolation. **Needs a real database** — see `apps/api/test/README.md`    |
 
+Two skills under `.claude/skills/` wrap the sequences that were otherwise retyped every time:
+
+| Skill | What it does |
+| --- | --- |
+| `/local-probe` | A production build of `apps/web` against the local API — mail off, no model call, never the production database — opened in a real Chrome at 320, 390 and 1280 px, light and dark, with a throwaway account for the signed-in screens. **Run it after changing a screen, before shipping it.** |
+| `/ship` | Gate (the four commands above **plus `check:leaks`, which CI cannot run**) → commit → pull request → CI → merge → wait until production serves the commit. Owner-invoked only: typing it is the go-ahead to merge. |
+
 > **After editing `packages/core` or `packages/database`, run `pnpm --filter core build`**
 > (or leave `pnpm dev` running, which watches). They compile to CommonJS `dist/` for
 > `apps/api`; without a rebuild the API keeps running the previous build.
