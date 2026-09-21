@@ -36,14 +36,14 @@ jobs:
     steps:
       # The whole history: the migration check below measures this change against
       # the branch it is going into, and a shallow clone has no such branch.
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       # The versions the repository pins, read from package.json rather than
       # written here, so this file cannot drift from what a developer runs.
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           cache: pnpm
           node-version-file: package.json
@@ -150,10 +150,10 @@ jobs:
       AI_REWRITE_STEPS: 'false'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
         with:
           cache: pnpm
           node-version-file: package.json
