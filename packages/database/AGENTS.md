@@ -147,6 +147,21 @@ mark it clearly as hand-added and say why — `0007` is the worked example. Edit
 statements drizzle-kit generated is still off limits; adding a data step between them is
 the only way the tool supports.
 
+**A statement that can destroy data, or fail on the rows already there, needs a person's
+line.** `node scripts/check-migrations.mjs` runs in CI's required check and refuses a new
+migration that drops a table or a column, changes a type, renames, truncates, deletes
+without a `WHERE`, or adds `NOT NULL` with no default — unless the file says
+
+```sql
+-- reviewed-destructive: <where the data goes, and why this is safe on the rows already there>
+```
+
+It is a comment, so it changes nothing drizzle-kit wrote. It is also not a formality: the
+migration runs against production during the API's build, with no staging database before
+it, and the `migration-reviewer` agent reads the line against the statements. The same
+script refuses a merged migration that was edited — production has run it as it was — and,
+with `--drift`, a schema changed with no migration written.
+
 ```bash
 # Generate a migration after changing a schema
 pnpm generate
