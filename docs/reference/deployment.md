@@ -481,6 +481,13 @@ to nothing, writes nothing and holds no secret.
 
 **Dependencies.** Dependabot opens one grouped pull request a week for minor and patch
 updates and one per major (`.github/dependabot.yml`); each goes through the whole gate.
+**Patch and minor updates merge themselves** once both required checks are green on an
+up-to-date branch (`.github/workflows/dependabot-automerge.yml`) — a red run merges nothing,
+and after the merge §10's smoke asks production whether it still answers. A **major**
+version is left for a person and says so. To hold one back: `gh pr merge --disable-auto <n>`;
+to stop it all, switch off *Allow auto-merge* in the repository's settings.
+A security update Dependabot cannot make by itself (`security_update_not_possible`: a
+transitive dependency its parent pins) needs a `pnpm.overrides` entry written by hand.
 Security updates do not wait for the week. In the repository's settings, **secret scanning,
 push protection, Dependabot alerts and security updates are on** since 2026-09-21 — free on
 a public repository, and the only secret check that runs on the server: `pnpm check:leaks`
