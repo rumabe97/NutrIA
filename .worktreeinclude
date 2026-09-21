@@ -1,0 +1,8 @@
+# Gitignored files Claude Code copies into every worktree it creates (gitignore syntax;
+# only paths that are ALSO gitignored are copied). An agent's worktree is a fresh checkout:
+# without these it has no database to talk to and the API refuses to boot.
+# Names only — nothing in this file is a secret, and nothing listed here is ever committed.
+apps/api/.env
+apps/web/.env
+apps/web/.env.local
+packages/database/.env
