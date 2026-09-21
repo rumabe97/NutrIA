@@ -85,7 +85,13 @@ function meal(id: string, dayIndex: number, slot: MealSlot, dish: CandidateDish)
 }
 
 function harness(
-  options: { readonly generated?: readonly CandidateDish[]; readonly library?: readonly CandidateDish[]; readonly remaining?: number } = {}
+  options: {
+    readonly composition?: readonly MealCompositionView[];
+    readonly generated?: readonly CandidateDish[];
+    readonly library?: readonly CandidateDish[];
+    readonly remaining?: number;
+    readonly sex?: 'female' | 'male';
+  } = {}
 ) {
   jest
     .spyOn(PlanController, 'mealForSwap')
@@ -115,8 +121,16 @@ function harness(
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [{ name: 'Bad', slug: 'chicken-rice-bad' }], liked: [] });
   jest
     .spyOn(ProfileController, 'getFullProfile')
-    .mockResolvedValue({ cuisines: [], dietaryPatterns: [], foodPreferences: [], preferences: null } as never);
-  jest.spyOn(PlanController, 'composition').mockResolvedValue([meal(MEAL, 3, 'lunch', CURRENT), meal('m-2', 4, 'dinner', FITS)]);
+    .mockResolvedValue({
+      cuisines: [],
+      dietaryPatterns: [],
+      foodPreferences: [],
+      preferences: null,
+      profile: options.sex ? { sex: options.sex } : null
+    } as never);
+  jest
+    .spyOn(PlanController, 'composition')
+    .mockResolvedValue([...(options.composition ?? [meal(MEAL, 3, 'lunch', CURRENT), meal('m-2', 4, 'dinner', FITS)])]);
   jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(options.library ?? []);
   const swapMeal = jest.spyOn(PlanController, 'swapMeal').mockResolvedValue(undefined);
   jest.spyOn(PlanController, 'getMeal').mockResolvedValue({ id: MEAL } as never);
@@ -293,6 +307,52 @@ describe('MealSwapService', () => {
     await service.swap('user-1', MEAL, 'es-ES', 'more_protein');
 
     expect(swapMeal.mock.calls[0]?.[2]?.recipeSlug).toBe('chicken-plate');
+  });
+
+  describe('a day built just over the energy floor', () => {
+    // 300 + 560 + 343.5 = 1,203.5 kcal: where the scheduler leaves the days of
+    // somebody whose target is the floor. The lunch is the 560.
+    const breakfast = { ...meal('m-b', 3, 'breakfast', FITS), macros: { carbsG: 40, fatG: 8, fiberG: 5, kcal: 300, proteinG: 15 } };
+    const dinner = { ...meal('m-d', 3, 'dinner', FITS), macros: { carbsG: 30, fatG: 12, fiberG: 6, kcal: 343.5, proteinG: 30 } };
+    const day = [breakfast, meal(MEAL, 3, 'lunch', CURRENT), dinner];
+    // 505 kcal a serving: sized to the 560-kcal plate in quarters, that is one
+    // serving, and the day would be stored at 1,148.5.
+    const lighter = lunch('chicken-rice-light', [
+      { grams: 150, slug: 'chicken' },
+      { grams: 250, slug: 'rice' }
+    ]);
+
+    it('serves the new plate a quarter larger, so the day stays over the floor', async () => {
+      const { service, swapMeal } = harness({ composition: day, library: [lighter], sex: 'female' });
+
+      await service.swap('user-1', MEAL, 'es-ES');
+
+      const change = swapMeal.mock.calls[0]?.[2];
+
+      expect(change?.servings).toBe(1.25);
+      expect(300 + 343.5 + (change?.macros.kcal ?? 0)).toBeGreaterThanOrEqual(1200);
+    });
+
+    it("holds a man's day to a man's floor", async () => {
+      const { service, swapMeal } = harness({ composition: day, library: [lighter], sex: 'male' });
+
+      await service.swap('user-1', MEAL, 'es-ES');
+
+      expect(300 + 343.5 + (swapMeal.mock.calls[0]?.[2]?.macros.kcal ?? 0)).toBeGreaterThanOrEqual(1500);
+    });
+
+    it('leaves the plate as it fits when the rest of the day clears the floor alone', async () => {
+      const bigDinner = { ...dinner, macros: { ...dinner.macros, kcal: 1100 } };
+      const { service, swapMeal } = harness({
+        composition: [breakfast, meal(MEAL, 3, 'lunch', CURRENT), bigDinner],
+        library: [lighter],
+        sex: 'female'
+      });
+
+      await service.swap('user-1', MEAL, 'es-ES');
+
+      expect(swapMeal.mock.calls[0]?.[2]?.servings).toBe(1);
+    });
   });
 
   it('refuses when the plan has no swaps left, before looking anything up', async () => {

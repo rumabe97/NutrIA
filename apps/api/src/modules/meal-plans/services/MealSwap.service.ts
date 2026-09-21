@@ -3,6 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { normaliseForMatching } from 'core/domain/Safety';
 import { buildShoppingList } from 'core/domain/ShoppingList';
 import { axisFilter, pickReplacement } from 'core/domain/Scheduler';
+import { minimumDailyKcal } from 'core/domain/Nutrition';
 import { ConflictError, QuotaExceededError } from 'core/entities/Error';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
@@ -115,7 +116,14 @@ export class MealSwapService {
       preferIngredientSlugs: context.preferences.preferredIngredientSlugs,
       preferSlugs: new Set(verdicts.liked.map(dish => dish.slug))
     };
-    const pick = { budget, catalogue: context.catalogue, dayIndex: current.dayIndex, filter, leaning, placed, slot: current.slot };
+    // What this plate must carry for its day to stay over the floor: the floor,
+    // less the day's other meals. Nothing validates a day after generation, so the
+    // swap is where a day built just over 1,200 would otherwise slip under it.
+    const restOfDayKcal = meals
+      .filter(meal => meal.dayIndex === current.dayIndex && meal.id !== mealId)
+      .reduce((sum, meal) => sum + meal.macros.kcal, 0);
+    const plateMinimumKcal = minimumDailyKcal(profile.profile?.sex ?? 'prefer_not_to_say') - restOfDayKcal;
+    const pick = { budget, catalogue: context.catalogue, dayIndex: current.dayIndex, filter, leaning, placed, plateMinimumKcal, slot: current.slot };
 
     const library = (await RecipeController.reusablePool([current.slot], context)).filter(dish => !inPlan.has(dish.slug) && !disliked.has(dish.slug));
     let replacement = pickReplacement({ ...pick, pool: library });

@@ -1050,7 +1050,15 @@ describe('pickReplacement', () => {
   const dinnerOnly = makeDish({ ingredients: [{ grams: 200, slug: 'chicken' }], name: 'dinner', slots: ['dinner'], slug: 'dinner-only' });
 
   it('picks the dish whose scaled macros land closest to the budget, for that slot only', () => {
-    const picked = pickReplacement({ budget, catalogue, dayIndex: 3, placed: [], pool: [heavy, dinnerOnly, fits], slot: 'lunch' });
+    const picked = pickReplacement({
+      budget,
+      catalogue,
+      dayIndex: 3,
+      placed: [],
+      plateMinimumKcal: 0,
+      pool: [heavy, dinnerOnly, fits],
+      slot: 'lunch'
+    });
 
     expect(picked?.dish.slug).toBe('chicken-rice');
     expect(picked?.servings).toBeGreaterThan(0);
@@ -1063,7 +1071,7 @@ describe('pickReplacement', () => {
       { dayIndex: 8, dishSlug: 'chicken-rice', slot: 'lunch' as const }
     ];
 
-    expect(pickReplacement({ budget, catalogue, dayIndex: 3, placed, pool: [fits], slot: 'lunch' })).toBeUndefined();
+    expect(pickReplacement({ budget, catalogue, dayIndex: 3, placed, plateMinimumKcal: 0, pool: [fits], slot: 'lunch' })).toBeUndefined();
   });
 
   it('puts a favourite first when it fits, and not when it does not', () => {
@@ -1079,6 +1087,7 @@ describe('pickReplacement', () => {
         dayIndex: 3,
         leaning: { preferSlugs: new Set(['turkey-rice']) },
         placed: [],
+        plateMinimumKcal: 0,
         pool: [fits, alsoFits],
         slot: 'lunch'
       })?.dish.slug
@@ -1090,6 +1099,7 @@ describe('pickReplacement', () => {
         dayIndex: 3,
         leaning: { preferSlugs: new Set(['oil-bomb']) },
         placed: [],
+        plateMinimumKcal: 0,
         pool: [fits, heavy],
         slot: 'lunch'
       })?.dish.slug
@@ -1097,7 +1107,7 @@ describe('pickReplacement', () => {
   });
 
   it('returns nothing when the pool has nothing for the slot', () => {
-    expect(pickReplacement({ budget, catalogue, dayIndex: 3, placed: [], pool: [dinnerOnly], slot: 'lunch' })).toBeUndefined();
+    expect(pickReplacement({ budget, catalogue, dayIndex: 3, placed: [], plateMinimumKcal: 0, pool: [dinnerOnly], slot: 'lunch' })).toBeUndefined();
   });
 
   it('offers only what passes the filter, and nothing when nothing does', () => {
@@ -1112,8 +1122,36 @@ describe('pickReplacement', () => {
     const slow = { ...fits, cookMinutes: 30, prepMinutes: 15 };
     const filter = axisFilter('quicker', { cookMinutes: 10, macros: { carbsG: 0, fatG: 0, fiberG: 0, kcal: 600, proteinG: 45 }, prepMinutes: 10 });
 
-    expect(pickReplacement({ budget, catalogue, dayIndex: 3, filter, placed: [], pool: [slow, quick], slot: 'lunch' })?.dish.slug).toBe('quick-rice');
-    expect(pickReplacement({ budget, catalogue, dayIndex: 3, filter, placed: [], pool: [slow], slot: 'lunch' })).toBeUndefined();
+    expect(
+      pickReplacement({ budget, catalogue, dayIndex: 3, filter, placed: [], plateMinimumKcal: 0, pool: [slow, quick], slot: 'lunch' })?.dish.slug
+    ).toBe('quick-rice');
+    expect(pickReplacement({ budget, catalogue, dayIndex: 3, filter, placed: [], plateMinimumKcal: 0, pool: [slow], slot: 'lunch' })).toBeUndefined();
+  });
+
+  it('serves the new plate a quarter larger when its day would otherwise slip under the floor', () => {
+    // 565 kcal a serving against a 600-kcal plate: quarter servings round that to
+    // one, 35 kcal short of the plate it replaces. For most days that is nothing.
+    // For a day built just over the floor it is the floor.
+    const asFits = pickReplacement({ budget, catalogue, dayIndex: 3, placed: [], plateMinimumKcal: 0, pool: [fits], slot: 'lunch' });
+
+    expect(asFits?.servings).toBe(1);
+    expect(asFits?.macros.kcal).toBe(565);
+
+    const owed = pickReplacement({ budget, catalogue, dayIndex: 3, placed: [], plateMinimumKcal: 600, pool: [fits], slot: 'lunch' });
+
+    expect(owed?.servings).toBe(1.25);
+    expect(owed?.macros.kcal).toBeGreaterThanOrEqual(600);
+    // The ingredients follow the serving, or the list would shop for the smaller plate.
+    expect(owed?.ingredients).toEqual([
+      { grams: 250, slug: 'chicken' },
+      { grams: 312.5, slug: 'rice' }
+    ]);
+  });
+
+  it('does not offer a dish that cannot carry the plate at any size a person is served', () => {
+    const tooMuch = 565 * SERVING_BOUNDS.max + 1;
+
+    expect(pickReplacement({ budget, catalogue, dayIndex: 3, placed: [], plateMinimumKcal: tooMuch, pool: [fits], slot: 'lunch' })).toBeUndefined();
   });
 });
 

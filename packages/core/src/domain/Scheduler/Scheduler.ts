@@ -376,6 +376,22 @@ export function pickReplacement(input: {
   /** What they lean towards: dishes by name, kitchens, foods they like (0026). */
   readonly leaning?: Leaning;
   readonly placed: readonly Placement[];
+  /**
+   * The least energy this plate may carry: the person's floor, less what the
+   * day's other meals deliver. Zero or less for a day the rest of which clears
+   * the floor alone, which is nearly everybody's. Required, like the scheduler's
+   * `minimumKcal`, and for the same reason.
+   *
+   * A swap sizes the new dish to the old plate in quarter servings, so it lands a
+   * little under or over it. For a day built just over the floor — which is where
+   * `FLOOR_OUTRANKS_ORDER` leaves the days of somebody whose target *is* the
+   * floor — a little under is under the floor: 1,203.5 became 1,163.5 on a
+   * 400-kcal plate swapped for a dish of 360 a serving, and nothing validates a
+   * day after generation. So the plate is served a quarter larger until the day
+   * clears, and a dish that cannot get there at any size a person can be served
+   * is not a candidate.
+   */
+  readonly plateMinimumKcal: number;
   readonly pool: readonly CandidateDish[];
   readonly slot: MealSlot;
 }): Replacement | undefined {
@@ -384,7 +400,7 @@ export function pickReplacement(input: {
   const passes = (dish: CandidateDish): boolean => {
     const base = perServing.get(dish.slug);
 
-    return base !== undefined && (input.filter?.(dish, base) ?? true);
+    return base !== undefined && plateKcal(base, SERVING_BOUNDS.max) >= input.plateMinimumKcal && (input.filter?.(dish, base) ?? true);
   };
 
   const costOf = (slug: string): number => {
@@ -408,9 +424,19 @@ export function pickReplacement(input: {
     return undefined;
   }
 
-  const servings = servingsFor(base, input.budget);
+  let servings = servingsFor(base, input.budget);
+
+  // Ends: `passes` kept only dishes that reach it at the largest size.
+  while (plateKcal(base, servings) < input.plateMinimumKcal && servings < SERVING_BOUNDS.max) {
+    servings = roundServings(servings + SERVING_STEP);
+  }
 
   return { dish, ingredients: scaleIngredients(dish.ingredients, servings / dish.servings), macros: scaleMacros(base, servings), servings };
+}
+
+/** One plate's energy as it is stored and summed — `scaleMacros`' rounding, see `deliveredKcal`. */
+function plateKcal(perServing: Macros, servings: number): number {
+  return Math.round(perServing.kcal * servings * 10) / 10;
 }
 
 /** "More protein" means this much more protein per calorie than the dish being replaced. */
@@ -1114,10 +1140,17 @@ const SPREAD_EPSILON = 1e-6;
  */
 function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[], proteins: ProteinIndex, minimumKcal: number): readonly BuiltDay[] {
   const current = [...days];
-  // A day under the floor is a day outside, whatever its bands say: it is
-  // repaired like one, and no exchange is a gain if it leaves a day there.
+  // A day under the floor is a day outside, whatever its bands say, so it is
+  // repaired like one. That prices the floor at one band's worth, which is not
+  // enough to protect it: an exchange that brought three macros inside and left
+  // the day under the floor would read as a gain, and turn a plan delivered with
+  // advice into one thrown away. So the floor is also a condition, like the
+  // order of the meals — see `keepsFloor`.
   const missOf = (picks: readonly Pick[], day: BuiltDay): number =>
     bandMiss(totalsOf(picks), day.targets) + floorMiss(deliveredKcal(picks), minimumKcal);
+  // No repair may leave a day further under the floor than it already was.
+  const keepsFloor = (picks: readonly Pick[], day: BuiltDay): boolean =>
+    floorMiss(deliveredKcal(picks), minimumKcal) <= floorMiss(deliveredKcal(day.picks), minimumKcal) + SPREAD_EPSILON;
   // No repair may leave a day's meals further out of the order the person set
   // than the day already was — see `ORDER_OUTRANKS_BANDS`.
   const keepsOrder = (picks: readonly Pick[], day: BuiltDay): boolean =>
@@ -1150,7 +1183,7 @@ function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]
     if (before > SPREAD_EPSILON) {
       const picks = balancedDay(day.picks, day.targets, day.budgets, minimumKcal, true).picks;
 
-      if (missOf(picks, day) < before - SPREAD_EPSILON && keepsOrder(picks, day)) {
+      if (missOf(picks, day) < before - SPREAD_EPSILON && keepsOrder(picks, day) && keepsFloor(picks, day)) {
         current[position] = { ...day, picks };
       }
     }
@@ -1211,7 +1244,7 @@ function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]
         const added = Math.max(0, repeatsIn(toWorst) - repeatsIn(worst.picks)) + Math.max(0, repeatsIn(toOther) - repeatsIn(other.picks));
         const gain = entry.before - missOf(toWorst, worst) - missOf(toOther, other) - added * SPREAD_REPEAT_WEIGHT;
 
-        if (!keepsOrder(toWorst, worst) || !keepsOrder(toOther, other)) {
+        if (!keepsOrder(toWorst, worst) || !keepsOrder(toOther, other) || !keepsFloor(toWorst, worst) || !keepsFloor(toOther, other)) {
           continue;
         }
 

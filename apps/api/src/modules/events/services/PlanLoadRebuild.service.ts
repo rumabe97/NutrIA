@@ -5,6 +5,7 @@ import { DEFAULT_MEAL_SHAPE, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { dishSafety } from 'core/domain/Safety';
 import { loadedTargets } from 'core/domain/Event';
 import { schedulePlan } from 'core/domain/Scheduler';
+import { isBlocking, validatePlan } from 'core/domain/PlanValidation';
 import { minimumDailyKcal, targetViolations } from 'core/domain/Nutrition';
 import { PlanPausedError, QuotaExceededError } from 'core/entities/Error';
 import { PlanController } from 'core/controllers/Plan';
@@ -121,12 +122,13 @@ export class PlanLoadRebuildService {
     const kept = composition.filter(meal => !rebuilding.has(meal.dayIndex));
     const placed: Placement[] = kept.map(meal => ({ dayIndex: meal.dayIndex, dishSlug: meal.recipeSlug, slot: meal.slot }));
     const dayIndexes = [...rebuilding].sort((a, b) => a - b);
+    const sex = profile.profile?.sex ?? 'prefer_not_to_say';
     const scheduled = schedulePlan({
       catalogue: context.catalogue,
       dayIndexes,
       dayTargets: new Map(dayIndexes.map(dayIndex => [dayIndex, targets])),
       // As at generation: a day rebuilt around an event is sized over the floor too.
-      minimumKcal: minimumDailyKcal(profile.profile?.sex ?? 'prefer_not_to_say'),
+      minimumKcal: minimumDailyKcal(sex),
       placed,
       pool,
       targets: base,
@@ -154,6 +156,27 @@ export class PlanLoadRebuildService {
           return [];
         }
       }
+    }
+
+    // And the bounds, as generation checks them before it writes. The scheduler
+    // keeps a day over the floor whenever some size of its dishes can; when none
+    // can it hands back the closest, and that day is not written either.
+    const blocking = validatePlan({
+      assignment: scheduled.assignment,
+      dayTargets: new Map(dayIndexes.map(dayIndex => [dayIndex, targets])),
+      expectedDays: dayIndexes.length,
+      expectedSlots: slots,
+      sex,
+      targets: base,
+      weightKg: profile.goal?.startingWeightKg ?? 0
+    }).filter(isBlocking);
+
+    if (blocking.length > 0) {
+      this.logger.warn(
+        `Rebuilt days of plan ${plan.id} for "${event.name}" refused by validation (${[...new Set(blocking.map(violation => violation.kind))].join(', ')}); untouched`
+      );
+
+      return [];
     }
 
     const missing = unresolvedSlugs(scheduled.assignment, context.catalogue);
