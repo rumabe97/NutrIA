@@ -1,0 +1,597 @@
+#!/usr/bin/env node
+/**
+ * Does a plan, scheduled and validated against the REAL dish library, land every
+ * day inside 5% on all four macros — and does no declared allergen reach a plate?
+ *
+ * The scheduler and the validator carry unit tests, and unit tests run on fixtures.
+ * A fixture is a library somebody wrote to make a test pass; the library people
+ * actually get plans from is a few hundred dishes with the distribution a seed and
+ * a model happened to produce. This runs the same `schedulePlan` / `validatePlan`
+ * the API calls, over that real library, for a fixed set of profiles, and reports
+ * what actually happened — never an estimate.
+ *
+ * What it is NOT: a copy of `PlanGenerationService`. It calls no model
+ * (`AI_PROVIDER` is never read), asks for no fallback retry, and touches no real
+ * account — `RecipeController.generationContext` is called with a fresh random
+ * UUID that matches no row, which is exactly why every repository behind it comes
+ * back empty rather than throwing (see the hand-back for the read-by-read proof).
+ * A plan this script cannot schedule is reported as "could not measure", the way
+ * `PlanGenerationService` would report `GENERATION_POOL_TOO_SMALL` — this script
+ * does not retry with a wider pool, because a retry would measure a different,
+ * more forgiving question than the one asked.
+ *
+ * Read-only, provably: every database call this process makes runs inside one
+ * Postgres transaction opened `BEGIN ... READ ONLY` (via `db.transaction(fn,
+ * { accessMode: 'read only' })`), which is engine-enforced — a write inside it
+ * errors rather than applies. See "why one transaction, and why it is provable"
+ * below for the mechanism and its one caveat.
+ *
+ * Usage (from apps/api):
+ *   node --env-file-if-exists=.env scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json]
+ *
+ * Exit codes:
+ *   0  every profile measured; no plate carried a declared allergen
+ *   1  something could not be measured (a pool too small for a profile, a
+ *      target set the equations reject) — never guessed at, always said
+ *   2  a plate carried a declared allergen — a P0 on its own, checked last so it
+ *      overrides a 1
+ */
+import { createRequire } from 'node:module';
+import { randomUUID } from 'node:crypto';
+import { readFileSync, writeFileSync } from 'node:fs';
+
+import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts/guard.mjs';
+
+import { RecipeController } from 'core/controllers/Recipe';
+import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
+import { loadedTargets } from 'core/domain/Event';
+import { TargetsUnreachableError, nutritionTargets } from 'core/domain/Nutrition';
+import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
+import { resolvePreferences } from 'core/domain/Preference';
+import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
+import { dishSafety, toSafetyProfile } from 'core/domain/Safety';
+
+// ---------------------------------------------------------------------------
+// The profiles. Fixed here, printed in the report, so the next run measures the
+// same thing this one did — a number only means something next to the one it
+// replaced, and that only holds if nobody quietly changed what was asked.
+//
+// Each covers a distinct axis the agent's brief names as load-bearing: a small
+// energy target, a large one, three meals a day, five, an allergen that removes
+// a whole food class, a dietary pattern, and a fortnight carrying an event.
+// ---------------------------------------------------------------------------
+const PROFILES = [
+  {
+    slug: 'objetivo-bajo-3-comidas',
+    description: 'Small energy target, three meals a day, no restrictions',
+    target: { activityLevel: 'sedentary', ageYears: 28, goal: 'weight_loss', heightCm: 158, paceKgPerWeek: 0.5, sex: 'female', weightKg: 52 },
+    shape: shapeFor(3, false)
+  },
+  {
+    slug: 'objetivo-alto-5-comidas',
+    description: 'Large energy target, five meals a day, no restrictions',
+    target: { activityLevel: 'athlete', ageYears: 26, goal: 'muscle_gain', heightCm: 190, paceKgPerWeek: 0.25, sex: 'male', weightKg: 98 },
+    shape: shapeFor(5, true)
+  },
+  {
+    slug: 'alergia-lacteos',
+    description: 'A declared allergy removing a whole food class (dairy), ordinary shape',
+    target: { activityLevel: 'moderate', ageYears: 35, goal: 'maintenance', heightCm: 167, sex: 'female', weightKg: 65 },
+    shape: DEFAULT_MEAL_SHAPE,
+    allergenClass: 'dairy'
+  },
+  {
+    slug: 'patron-vegetariano',
+    description: 'A declared dietary pattern (vegetarian), ordinary shape',
+    target: { activityLevel: 'light', ageYears: 40, goal: 'healthy_eating', heightCm: 175, sex: 'male', weightKg: 80 },
+    shape: DEFAULT_MEAL_SHAPE,
+    dietaryPattern: 'vegetarian'
+  },
+  {
+    slug: 'quincena-con-evento',
+    description: 'Ordinary shape, two days of the fortnight loaded for an event (carbs up)',
+    target: { activityLevel: 'moderate', ageYears: 30, goal: 'performance', heightCm: 170, sex: 'female', weightKg: 63 },
+    shape: DEFAULT_MEAL_SHAPE,
+    // Two days "before the race", the way `PlanGeneration.service.ts` loads them —
+    // a day is judged against its own loaded target, not the plan's (`0043`).
+    event: { carbs: 'up', daysBefore: 2, fat: 'same', loadedDayIndexes: [9, 10], protein: 'same' }
+  }
+];
+
+const BAND_KINDS = new Set(['carbs_out_of_band', 'fat_out_of_band', 'kcal_out_of_band', 'protein_above_target', 'protein_below_target']);
+
+// ---------------------------------------------------------------------------
+// CLI
+// ---------------------------------------------------------------------------
+function parseArgs(argv) {
+  const options = { compare: null, json: null, locale: 'es-ES' };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+
+    if (arg === '--locale') {
+      options.locale = argv[(index += 1)];
+    } else if (arg === '--json') {
+      options.json = argv[(index += 1)];
+    } else if (arg === '--compare') {
+      options.compare = argv[(index += 1)];
+    } else {
+      console.error(`unknown argument: ${arg}`);
+      process.exit(2);
+    }
+  }
+
+  return options;
+}
+
+// ---------------------------------------------------------------------------
+// Building a profile's context without a real account.
+//
+// `RecipeController.generationContext` takes a `userId` and, behind it, seven
+// repository reads — every one of them a `WHERE user_id = $1` (or, for
+// `SafetyRepository.listAllergens`, no user filter at all: it is reference
+// data). None of them checks that the id exists first; a `SELECT ... WHERE
+// user_id = $1` against an id nothing owns returns zero rows, not an error.
+// A freshly random UUID is therefore guaranteed to name no account and to read
+// back the empty profile — no allergies, no dietary pattern, no preferences —
+// which is exactly the "nobody has told us anything about this person" state a
+// synthetic profile starts from. Nothing is ever written with this id.
+// ---------------------------------------------------------------------------
+async function baseContext(locale) {
+  const context = await RecipeController.generationContext(randomUUID());
+
+  // `generationContext` resolves locale from the (nonexistent) profile row, so
+  // it is always the fallback. Overridden here because it is `context.locale`
+  // — not the catalogue's own name-resolution — that decides which locale's
+  // *recipes* `reusablePool` reads (`recipes.locale`; ingredient names are a
+  // separate, always-safe-to-fall-back concern and are not re-resolved here).
+  return { ...context, locale };
+}
+
+/**
+ * The allergen id that, declared, removes the whole of one food class — found
+ * empirically from the real catalogue's `ingredient_allergens` links rather
+ * than assumed from a seed key, so it is exactly what `findSafetyViolations`
+ * would enforce, not a guess at what the seed currently calls "dairy".
+ */
+function dominantAllergenForClass(ingredients, foodClass) {
+  const inClass = ingredients.filter(ingredient => ingredient.classes.includes(foodClass));
+
+  if (inClass.length === 0) {
+    return null;
+  }
+
+  const counts = new Map();
+
+  for (const ingredient of inClass) {
+    for (const link of ingredient.allergens) {
+      if (link.presence !== 'contains') {
+        continue;
+      }
+
+      counts.set(link.allergenId, (counts.get(link.allergenId) ?? 0) + 1);
+    }
+  }
+
+  let best = null;
+
+  for (const [allergenId, count] of counts) {
+    if (!best || count > best.count) {
+      best = { allergenId, count };
+    }
+  }
+
+  return best ? { allergenId: best.allergenId, classSize: inClass.length, coverage: best.count / inClass.length } : null;
+}
+
+function contextFor(profile, shared) {
+  const ingredients = [...shared.catalogue.values()];
+
+  if (profile.allergenClass) {
+    const dominant = dominantAllergenForClass(ingredients, profile.allergenClass);
+
+    if (!dominant) {
+      return { context: null, note: `no allergen in the real catalogue covers any "${profile.allergenClass}" ingredient` };
+    }
+
+    const safety = toSafetyProfile([{ allergenId: dominant.allergenId, crossContaminationSensitive: false }], [], [], []);
+
+    return {
+      context: { ...shared, safety },
+      note: `allergen covers ${dominant.classSize} of ${dominant.classSize} "${profile.allergenClass}" ingredients by id, ${(dominant.coverage * 100).toFixed(0)}% linked to one allergen`
+    };
+  }
+
+  if (profile.dietaryPattern) {
+    const preferences = resolvePreferences({ dietaryPatterns: [profile.dietaryPattern], dislikedLabels: [], ingredients, maxMinutesPerDish: null });
+
+    return {
+      context: { ...shared, preferences },
+      note: `${preferences.excludedIngredientIds.size} ingredients excluded by "${profile.dietaryPattern}"`
+    };
+  }
+
+  return { context: shared, note: null };
+}
+
+// ---------------------------------------------------------------------------
+// Measuring one profile
+// ---------------------------------------------------------------------------
+async function measureProfile(profile, shared) {
+  const { context, note } = contextFor(profile, shared);
+
+  if (!context) {
+    return { measured: false, note, slug: profile.slug };
+  }
+
+  let targets;
+
+  try {
+    targets = nutritionTargets(profile.target);
+  } catch (error) {
+    if (error instanceof TargetsUnreachableError) {
+      return { measured: false, note: `targets unreachable: ${error.message}`, slug: profile.slug };
+    }
+
+    throw error;
+  }
+
+  const weights = weightsFor(profile.shape);
+  const slots = slotsIn(profile.shape);
+
+  const dayTargets = new Map();
+
+  if (profile.event) {
+    const loaded = loadedTargets(targets, profile.event);
+
+    for (const dayIndex of profile.event.loadedDayIndexes) {
+      dayTargets.set(dayIndex, loaded);
+    }
+  }
+
+  const pool = await RecipeController.reusablePool(slots, context);
+
+  const scheduled = schedulePlan({ catalogue: context.catalogue, dayTargets, pool, targets, weights });
+
+  if (!scheduled.ok) {
+    return { measured: false, note, poolSize: pool.length, shortfall: scheduled.shortfall, slug: profile.slug };
+  }
+
+  const violations = validatePlan({
+    assignment: scheduled.assignment,
+    dayTargets,
+    expectedDays: PLAN_DAYS,
+    expectedSlots: slots,
+    sex: profile.target.sex,
+    targets,
+    weightKg: profile.target.weightKg
+  });
+
+  // A second, independent safety pass over the assembled plan — the same check
+  // `PlanGenerationService.assertPlanIsSafe` makes immediately before saving.
+  // `reusablePool` already filtered by `dishSafety`; this re-checks what was
+  // actually scheduled, so a placement bug that somehow introduced an unsafe
+  // dish cannot hide behind "the pool was already safe".
+  const unsafe = [];
+
+  for (const day of scheduled.assignment.days) {
+    for (const meal of day.meals) {
+      const safety = dishSafety(meal.ingredients, context.catalogue, context.safety);
+
+      if (safety.kind === 'unsafe') {
+        for (const violation of safety.violations) {
+          unsafe.push({ dayIndex: day.dayIndex, dish: meal.dish.name, ingredient: violation.ingredientName, kind: violation.kind, slot: meal.slot });
+        }
+      }
+    }
+  }
+
+  const blockingViolations = violations.filter(isBlocking);
+  const bandViolations = violations.filter(violation => BAND_KINDS.has(violation.kind));
+  const varietyViolations = violations.filter(violation => violation.kind === 'variety');
+  const otherAdvisories = violations.filter(violation => !isBlocking(violation) && violation.kind !== 'variety' && !BAND_KINDS.has(violation.kind));
+
+  const daysOutside = new Set(bandViolations.map(violation => violation.dayIndex));
+  const daysInsideAll4 = PLAN_DAYS - daysOutside.size;
+
+  let worst = null;
+
+  for (const violation of bandViolations) {
+    if (violation.target <= 0) {
+      continue;
+    }
+
+    const deviation = Math.abs(violation.actual - violation.target) / violation.target;
+
+    if (!worst || deviation > worst.deviation) {
+      worst = { actual: violation.actual, dayIndex: violation.dayIndex, deviation, macro: violation.kind, target: violation.target };
+    }
+  }
+
+  const tally = list => {
+    const counts = new Map();
+
+    for (const item of list) {
+      counts.set(item.kind, (counts.get(item.kind) ?? 0) + 1);
+    }
+
+    return Object.fromEntries(counts);
+  };
+
+  // Blocking violations are structural or safety, never a target this profile
+  // chose — worth the actual figures, not just a count, because "9 days" reads
+  // very differently from "1188 kcal against a 1200 floor" (a target clamped to
+  // the floor itself) versus "1188 kcal against a 1200 floor" from a target that
+  // was nowhere near it.
+  const blockingDetail = blockingViolations.map(violation => {
+    if (violation.kind === 'below_minimum_kcal') {
+      return { actual: violation.actual, dayIndex: violation.dayIndex, kind: violation.kind, minimum: violation.minimum };
+    }
+
+    if (violation.kind === 'protein_above_ceiling') {
+      return { actual: violation.actual, ceiling: violation.ceiling, dayIndex: violation.dayIndex, kind: violation.kind };
+    }
+
+    if (violation.kind === 'wrong_day_count') {
+      return { actual: violation.actual, expected: violation.expected, kind: violation.kind };
+    }
+
+    if (violation.kind === 'missing_slot') {
+      return { dayIndex: violation.dayIndex, kind: violation.kind, slot: violation.slot };
+    }
+
+    return { dayIndex: violation.dayIndex, kind: violation.kind };
+  });
+
+  return {
+    advisories: tally([...bandViolations, ...otherAdvisories]),
+    blocking: tally(blockingViolations),
+    blockingDetail,
+    daysInsideAll4,
+    fallback: null,
+    measured: true,
+    note,
+    poolSize: pool.length,
+    slug: profile.slug,
+    unsafe,
+    variety: varietyViolations.map(violation => ({
+      dayIndex: violation.violation.dayIndex,
+      dishSlug: violation.violation.dishSlug,
+      kind: violation.violation.kind,
+      slot: violation.violation.slot
+    })),
+    worst
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Reporting
+// ---------------------------------------------------------------------------
+function pct(fraction) {
+  return `${(fraction * 100).toFixed(1)}%`;
+}
+
+function printProfile(profile, result) {
+  console.log(`\n${profile.slug} — ${profile.description}`);
+
+  if (result.note) {
+    console.log(`  note: ${result.note}`);
+  }
+
+  if (!result.measured) {
+    console.log(
+      `  COULD NOT MEASURE: ${result.shortfall ? `pool too small for ${result.shortfall.slot} on day ${result.shortfall.dayIndex} (available: ${result.shortfall.available})` : result.note}`
+    );
+
+    return;
+  }
+
+  console.log(`  pool: ${result.poolSize} dishes`);
+  console.log(`  days inside 5% on all four macros: ${result.daysInsideAll4} / ${PLAN_DAYS}`);
+
+  if (result.worst) {
+    console.log(
+      `  worst day: day ${result.worst.dayIndex}, ${result.worst.macro} — actual ${result.worst.actual.toFixed(0)} vs target ${result.worst.target.toFixed(0)} (${pct(result.worst.deviation)} off, tolerance ${pct(PLAN_TOLERANCE.kcal)})`
+    );
+  } else {
+    console.log('  worst day: none — every day inside band');
+  }
+
+  const advisoryEntries = Object.entries(result.advisories);
+
+  console.log(
+    advisoryEntries.length > 0 ? `  advisories: ${advisoryEntries.map(([kind, count]) => `${kind} (${count})`).join(', ')}` : '  advisories: none'
+  );
+
+  const blockingEntries = Object.entries(result.blocking);
+
+  if (blockingEntries.length > 0) {
+    console.log(`  BLOCKING: ${blockingEntries.map(([kind, count]) => `${kind} (${count})`).join(', ')}`);
+
+    for (const detail of result.blockingDetail.slice(0, 5)) {
+      if (detail.kind === 'below_minimum_kcal') {
+        console.log(`    day ${detail.dayIndex}: ${detail.actual.toFixed(0)} kcal, under the ${detail.minimum} floor`);
+      } else if (detail.kind === 'protein_above_ceiling') {
+        console.log(`    day ${detail.dayIndex}: ${detail.actual.toFixed(0)}g protein, over the ${detail.ceiling.toFixed(0)}g ceiling`);
+      } else if (detail.kind === 'missing_slot') {
+        console.log(`    day ${detail.dayIndex}: missing ${detail.slot}`);
+      } else {
+        console.log(`    ${detail.kind}${'dayIndex' in detail ? ` day ${detail.dayIndex}` : ''}`);
+      }
+    }
+  }
+
+  console.log(result.variety.length > 0 ? `  variety violations: ${result.variety.length}` : '  variety violations: none');
+
+  for (const violation of result.variety.slice(0, 10)) {
+    console.log(`    day ${violation.dayIndex} ${violation.slot}: ${violation.dishSlug} (${violation.kind})`);
+  }
+
+  if (result.unsafe.length > 0) {
+    console.log(`  UNSAFE — declared allergen reached a plate (${result.unsafe.length}):`);
+
+    for (const item of result.unsafe) {
+      console.log(`    day ${item.dayIndex} ${item.slot}: "${item.dish}" contains "${item.ingredient}" (${item.kind})`);
+    }
+  } else {
+    console.log('  unsafe dishes: none');
+  }
+}
+
+function verdict(before, after) {
+  if (!before.measured || !after.measured) {
+    return `cannot compare — ${!before.measured ? 'before' : 'after'} was not measured`;
+  }
+
+  if (after.unsafe.length > before.unsafe.length) {
+    return `WORSE — an allergen now reaches a plate that did not before (${before.unsafe.length} → ${after.unsafe.length})`;
+  }
+
+  const daysDelta = after.daysInsideAll4 - before.daysInsideAll4;
+  const beforeWorst = before.worst?.deviation ?? 0;
+  const afterWorst = after.worst?.deviation ?? 0;
+  const worstDelta = afterWorst - beforeWorst;
+
+  if (daysDelta === 0 && worstDelta === 0) {
+    return 'the same';
+  }
+
+  if (daysDelta >= 0 && worstDelta <= 0 && (daysDelta > 0 || worstDelta < 0)) {
+    return `better — days inside 5% ${before.daysInsideAll4} → ${after.daysInsideAll4}, worst deviation ${pct(beforeWorst)} → ${pct(afterWorst)}`;
+  }
+
+  if (daysDelta <= 0 && worstDelta >= 0 && (daysDelta < 0 || worstDelta > 0)) {
+    return `worse — days inside 5% ${before.daysInsideAll4} → ${after.daysInsideAll4}, worst deviation ${pct(beforeWorst)} → ${pct(afterWorst)}, for ${after.worst ? after.worst.macro : 'no single macro'}`;
+  }
+
+  return `mixed — days inside 5% ${before.daysInsideAll4} → ${after.daysInsideAll4}, worst deviation ${pct(beforeWorst)} → ${pct(afterWorst)} (${after.worst ? after.worst.macro : 'n/a'})`;
+}
+
+function printComparison(before, results) {
+  console.log('\n--- comparison ---');
+
+  for (const after of results) {
+    const previous = before.find(entry => entry.slug === after.slug);
+
+    if (!previous) {
+      console.log(`${after.slug}: no matching profile in the comparison file`);
+      continue;
+    }
+
+    console.log(`${after.slug}: ${verdict(previous, after)}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Entry point
+//
+// Why one transaction, and why it is provable: every core repository method
+// this script's call graph reaches — `RecipeRepository.loadCatalogue`,
+// `.findReusable`; `SafetyRepository.findAllergies/.findCustomAllergens/
+// .findIntolerances/.listAllergens`; `ProfileRepository.findByUserId/
+// .findDietaryPatterns/.findFoodPreferences/.findPreferences`;
+// `HealthRepository.findAll/.takesProteinSupplement` — is a bare `SELECT`
+// (confirmed by reading each one; see the hand-back). None of them accepts a
+// transaction handle, so a check-then-select in the caller cannot make them
+// participate in one on its own.
+//
+// `database()` in `packages/database` is a lazily-created module-level
+// singleton, and TypeScript's CommonJS output calls it as `(0, database_1
+// .database)()` — a property read at call time, not a value captured at
+// import time (confirmed by inspecting the built `dist`). So for the
+// lifetime of one `db.transaction(fn, { accessMode: 'read only' })` block,
+// reassigning the *exported* `database` function to always return the
+// transaction's own session makes every repository call above run inside
+// that one `BEGIN ... READ ONLY` — enforced by Postgres itself: a write
+// statement inside errors, it does not silently apply. The one caveat: this
+// relies on `require('database')` in this process resolving to the same
+// cached module object `packages/core`'s compiled `dist` resolves to, which
+// holds for a single pnpm workspace process and is what the hand-back's
+// determinism check (running the whole script twice) also exercises.
+// ---------------------------------------------------------------------------
+async function main() {
+  assertNotProduction();
+
+  const options = parseArgs(process.argv.slice(2));
+  const require = createRequire(import.meta.url);
+  const databaseModule = require('database');
+  const originalDatabase = databaseModule.database;
+  const pooled = originalDatabase();
+
+  let results;
+
+  try {
+    await pooled.transaction(
+      async tx => {
+        databaseModule.database = () => tx;
+
+        try {
+          const shared = await baseContext(options.locale);
+
+          results = [];
+
+          for (const profile of PROFILES) {
+            // eslint-disable-next-line no-await-in-loop -- profiles are measured one at a
+            // time inside a single transaction; concurrent reads would not change the
+            // result, only make a failure harder to attribute to one profile.
+            results.push(await measureProfile(profile, shared));
+          }
+        } finally {
+          databaseModule.database = originalDatabase;
+        }
+      },
+      { accessMode: 'read only' }
+    );
+  } finally {
+    await databaseModule.closeDatabase();
+  }
+
+  console.log(`Locale: ${options.locale}`);
+  console.log(`Profiles (fixed, reuse for the next run): ${PROFILES.map(profile => profile.slug).join(', ')}`);
+
+  for (const profile of PROFILES) {
+    printProfile(
+      profile,
+      results.find(result => result.slug === profile.slug)
+    );
+  }
+
+  if (options.json) {
+    writeFileSync(
+      options.json,
+      JSON.stringify(
+        { locale: options.locale, profiles: PROFILES.map(profile => ({ description: profile.description, slug: profile.slug })), results },
+        null,
+        2
+      )
+    );
+    console.log(`\nWritten to ${options.json}`);
+  }
+
+  if (options.compare) {
+    const before = JSON.parse(readFileSync(options.compare, 'utf8'));
+
+    printComparison(before.results, results);
+  }
+
+  const anyUnsafe = results.some(result => result.measured && result.unsafe.length > 0);
+  const anyUnmeasured = results.some(result => !result.measured);
+
+  if (anyUnsafe) {
+    console.error('\nEXIT 2 — a declared allergen reached a plate. See "UNSAFE" above.');
+    process.exit(2);
+  }
+
+  if (anyUnmeasured) {
+    console.error('\nEXIT 1 — at least one profile could not be measured. See "COULD NOT MEASURE" above.');
+    process.exit(1);
+  }
+
+  console.log('\nEXIT 0 — every profile measured; no plate carried a declared allergen.');
+  process.exit(0);
+}
+
+main().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
