@@ -669,37 +669,35 @@ describe('PoolBuilder — the call log', () => {
   };
 
   it('records who answered, through whom, the tokens, and why each dish was dropped', async () => {
-    const generate = jest.fn(
-      async <T>(request: AiRequest<T>): Promise<AiResponse<T>> => ({
-        call: {
-          answeredModel: 'muse-spark-1.2-contributor-free',
-          cachedInputTokens: null,
-          gateway: {
-            cache: 'MISS',
-            comboTrace: 'combo-1',
-            correlationId: 'corr-1',
-            costUsd: 0,
-            latencyMs: 900,
-            model: 'muse-spark-1.2-contributor-free',
-            provider: 'opencode-zen',
-            requestId: 'req-1',
-            session: `ext:${request.session ?? ''}`,
-            strategy: 'priority',
-            version: '3.8.50'
-          },
-          ms: 1000,
-          reasoningTokens: 800
+    const generate = jest.fn(async <T>(request: AiRequest<T>): Promise<AiResponse<T>> => ({
+      call: {
+        answeredModel: 'muse-spark-1.2-contributor-free',
+        cachedInputTokens: null,
+        gateway: {
+          cache: 'MISS',
+          comboTrace: 'combo-1',
+          correlationId: 'corr-1',
+          costUsd: 0,
+          latencyMs: 900,
+          model: 'muse-spark-1.2-contributor-free',
+          provider: 'opencode-zen',
+          requestId: 'req-1',
+          session: `ext:${request.session ?? ''}`,
+          strategy: 'priority',
+          version: '3.8.50'
         },
-        object: {
-          dishes: [
-            dish('Arroz con pollo', ['lunch'], ['arroz', 'pollo']),
-            dish('Pan con tomate', ['lunch'], ['pan', 'tomate']),
-            dish('Arroz con caviar', ['lunch'], ['arroz', 'caviar'])
-          ]
-        } as T,
-        usage: { calls: 1, inputTokens: 5600, model: 'NutrIA-Fallback', outputTokens: 1200 }
-      })
-    );
+        ms: 1000,
+        reasoningTokens: 800
+      },
+      object: {
+        dishes: [
+          dish('Arroz con pollo', ['lunch'], ['arroz', 'pollo']),
+          dish('Pan con tomate', ['lunch'], ['pan', 'tomate']),
+          dish('Arroz con caviar', ['lunch'], ['arroz', 'caviar'])
+        ]
+      } as T,
+      usage: { calls: 1, inputTokens: 5600, model: 'NutrIA-Fallback', outputTokens: 1200 }
+    }));
     const client = { generate, isAvailable: true } as unknown as AiClient;
     const result = await new PoolBuilder(client).build({
       context: context({ allergenIds: new Set([GLUTEN]) }),

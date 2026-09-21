@@ -139,7 +139,7 @@ function load() {
 
   /** Waits out everything the worker is still doing, including work it only hands over once a response is on its way. */
   async function drain(pending: Promise<unknown>[]): Promise<void> {
-    for (let seen = -1; seen !== pending.length; ) {
+    for (let seen = -1; seen !== pending.length;) {
       seen = pending.length;
       await Promise.all(pending);
     }
