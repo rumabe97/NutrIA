@@ -39,16 +39,16 @@
   "dependencies": {
     "database": "workspace:^",
     "drizzle-orm": "^0.45.2",
-    "zod": "^4.4.3"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
-    "@vitest/coverage-istanbul": "^4.1.7",
+    "@vitest/coverage-istanbul": "^5.0.1",
     "eslint": "^9.39.2",
     "eslint-configuration": "workspace:*",
-    "prettier": "^3.8.3",
+    "prettier": "^3.9.8",
     "typescript-configuration": "workspace:*",
-    "vitest": "^4.1.11"
+    "vitest": "^5.0.1"
   },
   "files": [
     "dist"

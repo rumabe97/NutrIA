@@ -19,7 +19,24 @@ updates:
       time: '07:00'
       timezone: Europe/Madrid
     open-pull-requests-limit: 5
+    # A dependency joins the FIRST group it matches, so the families come before the
+    # catch-all. They exist for majors only: packages released in lockstep break when one
+    # moves alone. vitest 5 arrived without its coverage plugin, the runner refused the
+    # mix ("running mixed versions is not supported"), and a green update sat red for a
+    # day looking like a broken major. Their minors and patches still ride the weekly one.
     groups:
+      test-runner:
+        patterns: ['vitest', '@vitest/*']
+        update-types: [major]
+      next:
+        patterns: ['next', '@next/*', 'eslint-config-next']
+        update-types: [major]
+      nest:
+        patterns: ['@nestjs/*']
+        update-types: [major]
+      react:
+        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
+        update-types: [major]
       minor-and-patch:
         update-types: [minor, patch]
     ignore:
