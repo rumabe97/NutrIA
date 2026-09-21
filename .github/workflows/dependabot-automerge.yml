@@ -1,0 +1,56 @@
+# Dependabot's pull requests merge themselves — the ones a machine can vouch for.
+#
+# The owner asked whether every one had to be merged by hand. No: that is how they pile up,
+# and a pile of unmerged security fixes is worse than none being offered. What is decided
+# here is only WHO presses the button; what has to be true first does not change. "Auto"
+# means: merge the moment the ruleset on `main` allows it — both required checks green, on
+# a branch that is up to date — and not a second before. A red run merges nothing.
+#
+#   - patch and minor updates, and the weekly grouped one: set to merge when green. After
+#     the merge the host deploys, and `production.yml` asks production whether it still
+#     answers; a wrong answer opens an issue.
+#   - a MAJOR version is left alone and says so on the pull request: it is a migration to
+#     read, not an update to wave through.
+#
+# To stop it: delete this file, or switch off "Allow auto-merge" in the repository's
+# settings. A single pull request is held back with `gh pr merge --disable-auto <number>`.
+name: Dependabot auto-merge
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    name: set to merge when green
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # The author, not the actor: a person pushing to Dependabot's branch does not make the
+    # change Dependabot's. A fork cannot be this author, and gets no write token anyway.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+
+    steps:
+      - name: What kind of update is this?
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ github.token }}
+
+      - name: Patch or minor — merge it when the checks allow
+        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --squash "$PR_URL"
+
+      - name: Major — leave it for a person, once
+        if: steps.metadata.outputs.update-type == 'version-update:semver-major' && github.event.action == 'opened'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          gh pr comment "$PR_URL" --body "A major version: this one is not merged automatically. Read its changelog, and run it through \`/team\` if it touches more than a version number."
