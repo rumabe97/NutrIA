@@ -1,7 +1,7 @@
 ---
 name: backend
 description: Owns packages/core, packages/database and apps/api. Use for any change to entities, domain rules, repositories, schemas, migrations, NestJS modules, DTOs or their unit specs — on its own, or as the API half of a feature running beside the frontend agent.
-model: opus
+model: sonnet
 isolation: worktree
 hooks:
   PreToolUse:

@@ -1,0 +1,44 @@
+# Dependencies, kept current by a machine that opens one pull request a week rather than
+# by whoever remembers.
+#
+# Every pull request here goes through the same gate as a person's — lint, types, tests
+# with coverage, the web build, the end-to-end suites — so an update that breaks something
+# says so before it is merged. Security updates do not wait for the weekly run: they are
+# switched on in the repository's settings and arrive when the advisory does.
+#
+# Minor and patch updates come as ONE pull request per ecosystem, because thirty of them a
+# week is how these get ignored. A major version comes on its own, to be read.
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+      timezone: Europe/Madrid
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Pinned by hand in `pnpm up:latest`: the shared lint configuration is written for
+      # this major, and the next one is a migration, not an update.
+      - dependency-name: eslint
+        update-types: ['version-update:semver-major']
+    commit-message:
+      prefix: deps
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '07:00'
+      timezone: Europe/Madrid
+    groups:
+      actions:
+        patterns: ['*']
+    commit-message:
+      prefix: ci

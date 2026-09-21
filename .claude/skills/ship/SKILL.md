@@ -88,8 +88,14 @@ line from the system reminder.
 ## 6. CI, then merge
 
 ```bash
-gh pr checks <number> --watch --interval 20
+sh .claude/skills/ship/scripts/wait-for-ci.sh <number>     # run it in the background
 ```
+
+One line back: green, failed (and how to read why), or never appeared. **Not**
+`gh pr checks --watch`: started right after the pull request is opened it sees only the
+host's checks, all green, and returns before Actions has registered its own — a false green
+one step from a merge. And never a model looking every minute: waiting costs nothing when a
+script does it.
 
 Both `lint · types · tests` and `end-to-end` must pass. The two Vercel checks read
 *Canceled by Ignored Build Step* on every branch but `main`, on purpose: that is not a

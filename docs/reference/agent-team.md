@@ -54,6 +54,8 @@ another server's editing tool goes round it, which is why the merge check is the
 | `seo` | nothing — reviews the public tree and reports | |
 | `accessibility` | nothing — reviews every screen and reports | |
 | `invariant-reviewer` | nothing — reads the diff and reports | |
+| `migration-reviewer` | nothing — reads every migration before it can reach production, and reports | |
+| `plan-evaluator` | nothing — measures plans on the real library, before and after, and reports numbers | |
 | the lead | everything else: `docs/`, root configuration, `.claude/`, the lockfile | an agent's directory while that agent is working |
 
 A dependency is added by the lead **before** the agents start: two agents adding one each
@@ -153,8 +155,20 @@ A rate limit ends an agent in the middle; its worktree and its uncommitted files
 `git status` and `git diff` first. Do not spawn another: a new one re-derives everything
 and redoes what is on disk.
 
-## Models
+## Models, and what a run costs
 
-The routing profile in `AGENTS.md` decides: implementers on `opus`, reviewers on `fable`.
-Work on **authentication, allergy validation or the validation of model output** is
-`quality-max` — the lead names `fable` in the spawn prompt, which outranks the definition.
+**The lead chooses each agent's model, per task, when it spawns it** — the rubric is in
+`.claude/skills/team/SKILL.md` § 1. Measured: the Agent tool's `model` outranks the
+definition's (a definition asking for `fable`, spawned with `haiku`, ran as `haiku` and kept
+its prompt). Effort cannot be set per agent; agents inherit the lead's — **confirmed** by the
+documentation, not measured.
+
+- The lead runs on `fable`: its mistakes are paid for by every agent after it. It does not
+  wait, read in bulk or do mechanical work — scripts and `haiku` do.
+- An agent starts on the cheapest model its task's *specification* allows, and climbs only
+  on evidence: red at the gate twice, or the same P0 twice.
+- **Two floors never move**: `invariant-reviewer` and `migration-reviewer` are `fable`, and
+  so is whoever implements authentication, allergy validation or the validation of model
+  output (`quality-max` in `AGENTS.md`). A one-line change there is not a small change.
+- A definition's own `model` is only the default for a spawn nobody priced: `sonnet` for
+  the agents that build and verify, `fable` for the two reviewers above.

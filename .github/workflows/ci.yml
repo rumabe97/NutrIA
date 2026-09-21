@@ -34,7 +34,11 @@ jobs:
     timeout-minutes: 15
 
     steps:
+      # The whole history: the migration check below measures this change against
+      # the branch it is going into, and a shallow clone has no such branch.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # The versions the repository pins, read from package.json rather than
       # written here, so this file cannot drift from what a developer runs.
@@ -56,9 +60,35 @@ jobs:
       # argument for a machine noticing.
       - run: pnpm format
 
-      # One command, the same one the working pattern uses; turbo's own cache
-      # keeps a re-run of an unchanged package cheap.
-      - run: pnpm turbo lint ts:check test
+      # What no test can take back. A migration runs against production during the
+      # API's build, with no staging database before it, so a machine refuses here
+      # what it can recognise: a merged migration edited, a statement that destroys
+      # data or fails on the rows already there with no line saying a person looked,
+      # a journal that does not describe its files, a schema changed with no
+      # migration. What it cannot judge is the `migration-reviewer` agent's.
+      - name: Migrations
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'origin/main' }}
+        run: node scripts/check-migrations.mjs --drift
+
+      # With coverage, not plain `test`. The thresholds were written at the start
+      # and never run here, and by the time anybody looked three of them were not
+      # met: `src/domain/**` in core had untested functions, the guards' threshold
+      # in the API named a path jest could not find, and ui had drifted three
+      # points. A threshold nothing enforces is a number in a file.
+      - run: pnpm turbo lint ts:check test:coverage
+
+      # The web app builds, and every public page is still built once. A page that
+      # starts reading a cookie becomes a page rendered per visitor, and the only
+      # sign is a different glyph in a build table nobody reads. The API is not
+      # there during this build, which is fine: the sign-in pages ask it which
+      # provider buttons to draw, and draw none when it does not answer.
+      - name: Web build, and every public page still static
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001/api/v1
+        run: |
+          pnpm --filter web build
+          node scripts/check-static-pages.mjs
 
       # Last, because it is the only check here that can be wrong. knip infers
       # reachability, so a dynamically loaded file or a subpath imports map it
@@ -134,6 +164,32 @@ jobs:
       # holding the sessions, so there is no secret here to leak or to rotate.
       - name: A session secret for this run only
         run: echo "BETTER_AUTH_SECRET=$(openssl rand -base64 48)" >> "$GITHUB_ENV"
+
+      # The container below starts empty, so `migrate` alone only proves the SQL
+      # runs on no data — and production is not empty. When a change brings a
+      # migration, the database is first built the way `main` builds it, with the
+      # reference data in it, by `main`'s own code; the ordinary `migrate` further
+      # down then applies only what is new, on top of rows. It catches the constraint
+      # that the rows already there do not satisfy. The user tables are still empty
+      # here: for those, `check-migrations.mjs` and the migration reviewer.
+      - name: Did this change bring a migration?
+        id: migrations
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          if git diff --quiet FETCH_HEAD HEAD -- packages/database/src/migrations; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Rehearse the upgrade — the schema as main has it, with data, first
+        if: steps.migrations.outputs.changed == 'true'
+        run: |
+          git worktree add --detach /tmp/base FETCH_HEAD
+          cd /tmp/base
+          pnpm install --frozen-lockfile
+          pnpm --filter database migrate
+          pnpm --filter database seed
 
       # `packages/core` is consumed as its CJS build, so the suites resolve
       # yesterday's exports without this.

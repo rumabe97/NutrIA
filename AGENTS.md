@@ -36,7 +36,7 @@ Skills under `.claude/skills/` wrap the sequences that were otherwise retyped ev
 | Skill | What it does |
 | --- | --- |
 | `/local-probe` | A production build of `apps/web` against the local API — mail off, no model call, never the production database — opened in a real Chrome at 320, 390 and 1280 px, light and dark, with a throwaway account for the signed-in screens. **Run it after changing a screen, before shipping it.** |
-| `/team` | **Feature work runs as the agent team, every time**: `backend`, `frontend`, `tests`, `seo`, `accessibility` and `invariant-reviewer` (`.claude/agents/`), in parallel, each in its own worktree, messaging each other by name. Who owns which directory, which resources have one owner, and what the lead checks before merging an agent's branch are in [`docs/reference/agent-team.md`](./docs/reference/agent-team.md). |
+| `/team` | **Feature work runs as the agent team, every time**: `backend`, `frontend`, `tests`, `seo`, `accessibility`, `invariant-reviewer`, `migration-reviewer` and `plan-evaluator` (`.claude/agents/`) — only the ones a change calls for, each on the cheapest model its task allows, in parallel, each in its own worktree, messaging each other by name. Who owns which directory, which resources have one owner, and what the lead checks before merging an agent's branch are in [`docs/reference/agent-team.md`](./docs/reference/agent-team.md). |
 | `apple-web-design` | The owner's design skill, installed on their machine rather than here. **Every change to what somebody sees is reviewed with it and its P0/P1 findings fixed in the same change** — the rule, and what to do without the skill, is in [`apps/web/AGENTS.md` § Design review](./apps/web/AGENTS.md#design-review--every-change-to-what-somebody-sees). |
 | `/ship` | Gate (the four commands above **plus `check:leaks`, which CI cannot run**) → commit → pull request → CI → merge → wait until production serves the commit. Owner-invoked only: typing it is the go-ahead to merge. |
 
@@ -565,7 +565,12 @@ Below projects sit **tasks** (see Vocabulary): committed record, zero ceremony. 
 
 ### Model routing
 
-**Routing profile: `tiered`.**
+**Routing profile: `tiered`** for a project's phases, **`routed`** inside a `/team` run —
+where the lead prices every task before spawning anybody, by the rubric in
+`.claude/skills/team/SKILL.md`, and says in its report what ran on what and why. The owner's
+instruction, 2026-09-21: the orchestrator decides the split and each agent's model, spends
+the least that still guarantees the result, and never a strong model on something simple or
+on a wait. The exception below is a floor under both profiles.
 
 Chosen because this workspace is large and much of what remains is well-specified
 mechanical work. The exception: phases touching **allergy validation, authentication, or AI
@@ -576,5 +581,6 @@ failure, not a bug. Record that deviation in the plan phase as usual. `/plan-pro
 | --- | --- | --- | --- | --- |
 | `quality-max` | fable | fable | fable | haiku |
 | `tiered` | fable | opus | sonnet | haiku |
+| `routed` | fable | the cheapest the task's specification allows: sonnet from a complete contract, opus when a decision is still open | haiku, or a script | a script |
 
 Guidance: small or high-stakes workspaces tend toward `quality-max`; larger ones with many well-specified mechanical phases tend toward `tiered`. The built-in rows are conventions, not laws — some workspaces invert them (plan on opus, implement on fable); custom profiles are fine, define them as rows in this table. Tasks and exploratory rounds get a single routing decision (one model for the session), not per-phase routing.

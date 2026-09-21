@@ -1,0 +1,105 @@
+# Production, watched by a machine instead of by whoever happens to look.
+#
+# CI proves the code. This proves the deployment, at the two moments it can be wrong:
+# right after a deploy, and at any other time for a reason nobody caused on purpose —
+# a lapsed certificate, an exhausted quota, a host having a bad afternoon.
+#
+#   - After every production deployment the host reports to GitHub, and hourly besides,
+#     `scripts/smoke.mjs` asks production what a person would: both hosts up, the web app
+#     reaching the API through its proxy, the public pages there in both languages, and
+#     the doors that must be shut still shut (a stranger gets a 404, never a 200).
+#   - A wrong answer opens an issue — one, kept open and added to, not one per run — and
+#     the first right answer after it closes it. An issue is a mail to the owner's phone;
+#     a red run in the Actions tab is a thing nobody opens.
+#
+# Nothing here signs in, writes, deploys or rolls back, and it holds no secret: what to do
+# about a failure is a person's decision.
+name: Production
+
+on:
+  deployment_status:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+# The two projects finish a minute apart and each reports; the later answer is the one
+# that matters, so an earlier run still going is dropped.
+concurrency:
+  cancel-in-progress: true
+  group: production-smoke
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  smoke:
+    name: smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # A deployment event counts only when it is production's, and only when it succeeded:
+    # a failed one leaves the previous deployment serving, which the hourly run covers.
+    if: >-
+      github.event_name != 'deployment_status' ||
+      (github.event.deployment_status.state == 'success' && startsWith(github.event.deployment.environment, 'Production'))
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+
+      # A deployment is "successful" a moment before every region serves it. Three
+      # looks a minute apart tell a deploy settling from a deploy that is broken.
+      - name: Ask production
+        id: smoke
+        env:
+          WEB_URL: ${{ vars.WEB_URL }}
+          API_URL: ${{ vars.API_URL }}
+        run: |
+          for attempt in 1 2 3; do
+            if node scripts/smoke.mjs >smoke.log 2>&1; then
+              cat smoke.log
+              echo "ok=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            cat smoke.log
+            [ "$attempt" -lt 3 ] && sleep 60
+          done
+          echo "ok=false" >> "$GITHUB_OUTPUT"
+
+      - name: Tell the owner, once
+        if: steps.smoke.outputs.ok == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create production-down --color B60205 --description "Production is answering wrongly" 2>/dev/null || true
+          {
+            echo "Production answered wrongly three times, a minute apart."
+            echo
+            echo "- Trigger: \`${{ github.event_name }}\`${{ github.event_name == 'deployment_status' && format(' — {0}, commit {1}', github.event.deployment.environment, github.event.deployment.sha) || '' }}"
+            echo "- Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            echo '```'
+            cat smoke.log
+            echo '```'
+            echo
+            echo "What to do is in \`docs/reference/deployment.md\`. Nothing was rolled back: that is a person's decision."
+          } > body.md
+          open=$(gh issue list --label production-down --state open --json number --jq '.[0].number')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body-file body.md
+          else
+            gh issue create --title "Production is answering wrongly" --label production-down --body-file body.md
+          fi
+          exit 1
+
+      - name: Close the issue when production is right again
+        if: steps.smoke.outputs.ok == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          open=$(gh issue list --label production-down --state open --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$open" ]; then
+            gh issue close "$open" --comment "Every answer is right again: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi

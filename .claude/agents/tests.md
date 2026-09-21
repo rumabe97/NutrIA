@@ -1,7 +1,7 @@
 ---
 name: tests
 description: Owns apps/api/test — the end-to-end suites, their harness and README — and is the only agent that runs them. Use whenever a change adds or alters a route, a guard, an ownership rule or a user-visible flow, and to find out why an end-to-end suite fails.
-model: opus
+model: sonnet
 isolation: worktree
 hooks:
   PreToolUse:

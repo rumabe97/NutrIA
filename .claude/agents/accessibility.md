@@ -1,7 +1,7 @@
 ---
 name: accessibility
 description: Reviews every screen of apps/web and every component of packages/ui for accessibility - names and roles, labels, keyboard and focus, touch targets, contrast, motion, zoom and reflow - and owns the local browser probe. Use whenever a screen, a component, a form or a stylesheet is added or changed, and for an accessibility audit on its own. Reports; never edits.
-model: fable
+model: sonnet
 isolation: worktree
 tools: Read, Grep, Glob, Bash, SendMessage, Skill, WebFetch, WebSearch
 hooks:
