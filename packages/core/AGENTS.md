@@ -188,8 +188,11 @@ Four related rules:
 - **Spend an allowance atomically, never by read-then-compare.** A transaction is not a
   lock: under READ COMMITTED two transactions that count and then insert both count before
   either commits, and both land. Spend by a guarded `UPDATE … WHERE counter < limit`
-  (`PlanRepository.rebuildLoadedDays`) or count with the row the allowance belongs to held
-  `FOR UPDATE` (`PlanRepository.swapMeal`).
+  (`PlanRepository.rebuildLoadedDays`), count with the row the allowance belongs to held
+  `FOR UPDATE` (`PlanRepository.swapMeal`), or — where there is no row to hold, because
+  what is being counted is spread across many rows rather than owned by one — a
+  transaction-scoped advisory lock that re-counts inside it, with a bounded, jittered retry
+  so a blocking wait never pins a pooled connection (`EventRepository.createWithinQuota`).
 - **"Is there one already?" and "make one" are a single statement.** A transaction is not a
   lock: under READ COMMITTED two requests that both read *none* before either inserts both
   insert. Where a row exists to hold, hold it (`FOR UPDATE`); where the thing being defended
