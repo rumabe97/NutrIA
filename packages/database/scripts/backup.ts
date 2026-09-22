@@ -31,8 +31,16 @@ if (!DATABASE_URL) {
 
 const OUT_ROOT = process.env.BACKUP_DIR ?? 'backups';
 
+// A loopback target is the operator's own machine: the "MITM the TLS handshake"
+// threat this script guards against doesn't apply to a socket that never leaves
+// localhost, so it keeps the previous `ssl: 'require'` behaviour verbatim. Any
+// other host — in particular the production Neon endpoint — gets the full
+// certificate and hostname check.
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
+
 async function main(): Promise<void> {
-  const sql = postgres(DATABASE_URL as string, { max: 1, ssl: 'require' });
+  const sslMode = LOOPBACK_HOSTS.has(new URL(DATABASE_URL as string).hostname) ? 'require' : 'verify-full';
+  const sql = postgres(DATABASE_URL as string, { max: 1, ssl: sslMode });
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const directory = join(OUT_ROOT, stamp);
 
