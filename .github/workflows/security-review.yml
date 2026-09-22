@@ -1,0 +1,160 @@
+# A fast, diff-only first pass, not the claude-security plugin's full audit.
+#
+# That plugin's own /claude-security:scan is a multi-agent pipeline (inventory,
+# threat model, research, sweep, an adversarial verifier panel) built to run once
+# against a whole tree — right for an audit, too slow and too expensive to run on
+# every pull request. This is a single Sonnet pass over only the files the PR
+# touched, read-only, judged against the same confidence bar Anthropic's own
+# security-review tooling uses (>80% sure it is real and exploitable), so it
+# comments and fails loud rather than drowning a PR in maybes.
+#
+# Paid with the owner's own Claude Code subscription (an OAuth token from
+# `claude setup-token`, in the CLAUDE_CODE_OAUTH_TOKEN secret) rather than a
+# metered API key — no new per-token billing, same as everywhere else in this
+# repository's CI.
+#
+# Comments always when it finds something; the job itself only fails on a HIGH
+# finding, so a PR isn't blocked on a maybe. Add this job's name to the branch
+# ruleset's required checks to make a failure actually block the merge button.
+name: Security review
+
+on:
+  pull_request:
+
+concurrency:
+  cancel-in-progress: true
+  group: security-review-${{ github.event.pull_request.number }}
+
+permissions:
+  contents: read
+  pull-requests: write
+  # claude-code-action authenticates over OIDC to exchange the OAuth token
+  # for a short-lived one; without this it fails outright, three times, with
+  # "Could not fetch an OIDC token" before saying so.
+  id-token: write
+
+jobs:
+  review:
+    name: security review
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # The diff, not the tree: the base ref is fetched shallow, same as the
+      # e2e job's own migration check, and nothing downstream reads outside it.
+      - name: List the files this PR changed
+        id: diff
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          {
+            echo 'files<<EOF'
+            git diff --name-only FETCH_HEAD HEAD
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Claude reviews the diff
+        id: review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Security review of one pull request's diff — nothing else.
+
+            Files this PR changed:
+            ${{ steps.diff.outputs.files }}
+
+            Run `git diff FETCH_HEAD HEAD` yourself to see the actual changes
+            — FETCH_HEAD is this PR's base branch, fetched shallow by an
+            earlier step; the checkout has no shared history with it, so
+            `git diff base...HEAD` (three dots, needs a merge-base) fails
+            where this two-ref form does not. Look only at what changed. Do
+            not review, comment on, or fix anything the diff did not touch,
+            and do not edit any file — you are reporting, not patching.
+
+            Report a finding only if you are more than 80% confident it is
+            real and exploitable, the bar a security engineer would use before
+            raising it in a PR review. Look for: injection (SQL, command,
+            path traversal, template, NoSQL, XXE), broken authentication or
+            authorization (session handling, ownership checks, privilege
+            escalation, JWT misuse), hardcoded secrets or weak cryptography,
+            unsafe deserialization, XSS, and sensitive data reaching a log,
+            an error response or the wrong reader.
+
+            Do not report: denial-of-service or resource-exhaustion concerns,
+            missing rate limiting, style or quality issues, or an input-
+            validation gap with no shown exploit path. Do not flag something
+            the diff did not introduce or change.
+
+            Respond with the findings array the schema asks for — empty if
+            there is nothing you're confident about. `why` is the concrete
+            failure scenario: what input, what happens, who is affected.
+          claude_args: |
+            --model claude-sonnet-5
+            --max-turns 8
+            --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git show:*),Bash(git log:*)"
+            --json-schema "{\"type\":\"object\",\"properties\":{\"findings\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"file\":{\"type\":\"string\"},\"line\":{\"type\":\"number\"},\"severity\":{\"type\":\"string\",\"enum\":[\"high\",\"medium\",\"low\"]},\"summary\":{\"type\":\"string\"},\"why\":{\"type\":\"string\"}},\"required\":[\"file\",\"severity\",\"summary\",\"why\"]}}},\"required\":[\"findings\"]}"
+
+      # The model's own output is untrusted text (it read a PR diff someone
+      # else wrote): passed through env, never spliced into a script body, so
+      # nothing in a finding's text can run as a command or as JavaScript.
+      - name: Comment on the PR
+        if: always() && steps.review.outputs.structured_output != ''
+        uses: actions/github-script@v7
+        env:
+          REVIEW_JSON: ${{ steps.review.outputs.structured_output }}
+        with:
+          script: |
+            let result;
+            try {
+              result = JSON.parse(process.env.REVIEW_JSON);
+            } catch {
+              return;
+            }
+            const findings = Array.isArray(result.findings) ? result.findings : [];
+            if (findings.length === 0) {
+              return;
+            }
+            const rank = { high: 0, medium: 1, low: 2 };
+            const sorted = [...findings].sort((a, b) => (rank[a.severity] ?? 3) - (rank[b.severity] ?? 3));
+            const icon = { high: '🔴', medium: '🟠', low: '⚪' };
+            const lines = sorted.map(f => {
+              const where = f.file + (f.line ? `:${f.line}` : '');
+              return `- ${icon[f.severity] ?? '⚪'} **${f.severity ?? 'unknown'}** \`${where}\` — ${f.summary}\n  ${f.why}`;
+            });
+            const hasHigh = sorted.some(f => f.severity === 'high');
+            const body = [
+              `### 🔒 Security review — ${findings.length} finding(s)`,
+              '',
+              ...lines,
+              '',
+              hasHigh
+                ? '_A high-severity finding blocks this check. Fix it, or if this is a false positive, say so in a reply and ask for a re-run._'
+                : '_None of these are high severity, so this check passed — worth a look anyway._',
+              '',
+              '_Automated first pass, one Sonnet call scoped to this diff — not the full claude-security audit. Can miss things and can be wrong; a human still decides._'
+            ].join('\n');
+
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            });
+
+      - name: Block on a high-severity finding
+        if: steps.review.outputs.structured_output != ''
+        env:
+          REVIEW_JSON: ${{ steps.review.outputs.structured_output }}
+        run: |
+          node -e "
+            const result = JSON.parse(process.env.REVIEW_JSON);
+            const findings = Array.isArray(result.findings) ? result.findings : [];
+            const high = findings.filter(f => f.severity === 'high');
+            if (high.length > 0) {
+              console.error(high.length + ' high-severity finding(s) — see the PR comment.');
+              process.exit(1);
+            }
+            console.log(findings.length + ' finding(s), none high severity.');
+          "
