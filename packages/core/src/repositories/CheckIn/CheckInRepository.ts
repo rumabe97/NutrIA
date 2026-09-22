@@ -4,7 +4,7 @@ import { database } from 'database';
 import { checkIns } from 'database/schema/progress';
 import { mealPlans, meals, planDays } from 'database/schema/plan';
 
-import { DatabaseOperationError } from 'core/entities/Error';
+import { ConflictError, DatabaseOperationError } from 'core/entities/Error';
 
 export type CheckInRow = {
   readonly id: string;
@@ -70,6 +70,17 @@ export const CheckInRepository = {
 
       return row ? present(row) : undefined;
     } catch (error: unknown) {
+      // Belt and braces: `onConflictDoNothing` is what actually resolves the
+      // race in the code running now, by returning no row rather than raising.
+      // This exists for whichever build is NOT running that statement yet — a
+      // rollback, or the previous deploy's few minutes against the migrated
+      // schema — so a raw 23505 still reaches the caller as the same refusal,
+      // never a bare 500 (`core/AGENTS.md`'s own rule, and PlanRepository's
+      // `isUniqueViolation`).
+      if (isUniqueViolation(error)) {
+        throw new ConflictError('This fortnight has its check-in already');
+      }
+
       throw wrap(error);
     }
   },
@@ -133,4 +144,9 @@ export const CheckInRepository = {
 
 function wrap(error: unknown): DatabaseOperationError {
   return error instanceof DatabaseOperationError ? error : new DatabaseOperationError();
+}
+
+/** Postgres 23505. Here it means `check_ins_one_per_plan` fired. */
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: string }).code === '23505';
 }
