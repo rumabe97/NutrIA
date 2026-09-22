@@ -1,7 +1,10 @@
-import { ConflictError, InputParseError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
+import { ConflictError, InputParseError, NotFoundError } from 'core/entities/Error';
 import { EventRepository } from '#repositories/Event';
 import { PlanRepository } from '#repositories/Plan';
-import { loadedDates, loadStartsOn, planWindow, problemWith, windowFor } from 'core/domain/Event';
+import { eventStanding } from 'core/domain/Allowance';
+import { eventsInWindow, loadedDates, loadStartsOn, planWindow, problemWith, windowFor } from 'core/domain/Event';
+import { MAX_DAYS_BEFORE } from 'core/entities/Event';
+import { addDays } from 'core/domain/Vacation';
 import { PlanController } from 'core/controllers/Plan';
 
 import type { AddEvent, Event, MacroDirection } from 'core/entities/Event';
@@ -82,13 +85,25 @@ export const EventController = {
     // necessarily the one under way: a race the week after next belongs to the
     // fortnight that will cover it, and is held to that fortnight's number.
     const window = windowFor(event, planWindow(await PlanRepository.findActive(userId), today));
-    const standing = await PlanController.eventStanding(userId, window);
 
-    if (!standing.allowed) {
-      throw new QuotaExceededError('event');
-    }
+    // The cap check and the insert happen as one statement, under one lock,
+    // inside the repository (`EventRepository.createWithinQuota`) — not here.
+    // A transaction is not a lock, and reading the standing before calling
+    // `create` was exactly the race a security scan found. `quota` re-reads
+    // the tier on every retry, never once before the lock is taken
+    // (`core/AGENTS.md`'s allowance rule).
+    const created = await EventRepository.createWithinQuota(
+      userId,
+      event,
+      { from: window.from, to: addDays(window.to, MAX_DAYS_BEFORE) },
+      async dated => {
+        const tier = await PlanController.tierOf(userId);
 
-    return present(await EventRepository.create(userId, event), today);
+        return eventStanding(eventsInWindow(dated, window).length, tier).allowed;
+      }
+    );
+
+    return present(created, today);
   },
 
   async list(userId: string, today = isoToday()): Promise<readonly EventView[]> {
