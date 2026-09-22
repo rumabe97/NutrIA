@@ -225,6 +225,13 @@
       "when": 1789318794138,
       "tag": "0031_a_subscription_is_what_stripe_says",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1790065082071,
+      "tag": "0032_a_fortnight_is_answered_once",
+      "breakpoints": true
     }
   ]
 }

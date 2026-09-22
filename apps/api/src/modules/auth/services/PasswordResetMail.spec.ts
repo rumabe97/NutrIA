@@ -8,7 +8,7 @@ import type { OutgoingEmail } from '../../email/services/Email.service.js';
 
 const URL = 'https://nutria.example/api/v1/auth/reset-password/tok?callbackURL=/restablecer';
 const APP = 'https://nutria.example';
-const request = { acceptLanguage: 'es-ES', appUrl: APP, to: 'ana@example.com', url: URL, userId: 'user_1' };
+const request = { acceptLanguage: 'es-ES', appUrl: APP, nodeEnv: 'development' as const, to: 'ana@example.com', url: URL, userId: 'user_1' };
 
 function mailer(configured: boolean, outcome = true) {
   const send = jest.fn<(message: OutgoingEmail) => Promise<boolean>>().mockResolvedValue(outcome);
@@ -103,16 +103,31 @@ describe('sendPasswordResetMail', () => {
     expect(stub.send.mock.calls[0]?.[0]?.subject).toBe('Reset your NutrIA password');
   });
 
-  it('logs the link instead when no mail is configured, without the address', async () => {
+  it.each(['development', 'test'] as const)('logs the link instead when no mail is configured in %s, without the address', async nodeEnv => {
     const stub = mailer(false);
 
-    await sendPasswordResetMail(stub, request);
+    await sendPasswordResetMail(stub, { ...request, nodeEnv });
 
     expect(stub.send).not.toHaveBeenCalled();
     const line = info.mock.calls.map(call => String(call[0])).find(entry => entry.includes('password reset')) ?? '';
 
     expect(line).toContain('reset-password/tok?callbackURL=https%3A%2F%2Fnutria.example%2Frestablecer');
     expect(line).not.toContain('ana@example.com');
+  });
+
+  it.each(['staging', 'production'] as const)('keeps the link out of the log in %s, even with no mail configured', async nodeEnv => {
+    const stub = mailer(false);
+
+    await sendPasswordResetMail(stub, { ...request, nodeEnv });
+
+    expect(stub.send).not.toHaveBeenCalled();
+    const lines = info.mock.calls.map(call => String(call[0]));
+    const line = lines.find(entry => entry.includes('password reset')) ?? '';
+
+    expect(line).toContain('user_1');
+    expect(line).toContain('link suppressed');
+    expect(lines.some(entry => entry.includes('reset-password/tok'))).toBe(false);
+    expect(lines.some(entry => entry.includes('ana@example.com'))).toBe(false);
   });
 
   it('never throws when the provider refuses the mail, and never logs the address', async () => {

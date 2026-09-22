@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import * as Sentry from '@sentry/node';
 
 import { ENV } from '../../config/index.js';
-import { redactSecrets } from '../../modules/ai/clients/redact.js';
+import { providerCredentials, redactSecrets } from '../../modules/ai/clients/redact.js';
 
 import type { Env } from '../../config/index.js';
 
@@ -25,13 +25,18 @@ import type { Env } from '../../config/index.js';
 export class ErrorReporter {
   private readonly logger = new Logger(ErrorReporter.name);
   private readonly enabled: boolean;
+  /** Resolved once at boot: a report is built inside a callback the SDK owns, which has no `Env`. */
+  private readonly secrets: readonly string[];
 
   constructor(@Inject(ENV) env: Env) {
     this.enabled = Boolean(env.SENTRY_DSN);
+    this.secrets = providerCredentials(env);
 
     if (!this.enabled) {
       return;
     }
+
+    const secrets = this.secrets;
 
     Sentry.init({
       beforeSend(event) {
@@ -41,12 +46,12 @@ export class ErrorReporter {
         delete event.contexts?.response;
 
         if (event.message) {
-          event.message = redactSecrets(event.message);
+          event.message = redactSecrets(event.message, secrets);
         }
 
         for (const value of event.exception?.values ?? []) {
           if (value.value) {
-            value.value = redactSecrets(value.value);
+            value.value = redactSecrets(value.value, secrets);
           }
         }
 
@@ -75,7 +80,7 @@ export class ErrorReporter {
 
     Sentry.withScope(scope => {
       scope.setTag('where', where);
-      Sentry.captureException(error instanceof Error ? error : new Error(redactSecrets(String(error))));
+      Sentry.captureException(error instanceof Error ? error : new Error(redactSecrets(String(error), this.secrets)));
     });
   }
 }

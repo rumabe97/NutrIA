@@ -5,6 +5,9 @@ import type { Response } from 'supertest';
 
 import { completeOnboarding, createApp, dish, generateAndWait, httpServer, PREFIX, register, ScriptedAiClient, SEEDED } from './harness.js';
 
+import { ConflictError } from 'core/entities/Error';
+import { PlanJobController } from 'core/controllers/Plan';
+
 import type { Account } from './harness.js';
 import type { INestApplication } from '@nestjs/common';
 import type { PlanView } from 'core/controllers/Plan';
@@ -286,4 +289,39 @@ describe('plan generation', () => {
     expect(plans.length).toBeGreaterThanOrEqual(2);
     expect(plans.some(entry => entry.status === 'completed')).toBe(true);
   }, 120_000);
+
+  /*
+   * Three starts fired together — a double-pressed button, a client that
+   * retries, a script.
+   *
+   * "Is one already running?" and "start one" were two statements against two
+   * snapshots: each of the three read *nothing in flight* before any of them had
+   * written its job row, and each went on to start its own pipeline. Three
+   * fortnights of model calls for one press, of which
+   * `meal_plans_one_active_per_user` keeps one — at the end, after every one of
+   * them is paid for.
+   *
+   * Asked of the controller rather than of the route, as this suite's other
+   * questions about the database are: what is being proved is what three
+   * simultaneous claims do to `plan_generation_jobs`, and the route's rate
+   * limiter counts a fixed window this suite has already been spending, so it
+   * can only answer sooner and for a different reason. Nothing runs the
+   * pipeline here, so the claim Bob wins stays queued until `afterAll` deletes
+   * him and it together.
+   */
+  it('gives one of three simultaneous starts the slot, and refuses the other two', async () => {
+    const outcomes = await Promise.allSettled(Array.from({ length: 3 }, () => PlanJobController.start(bob.id)));
+    const claimed = outcomes.filter(outcome => outcome.status === 'fulfilled');
+    const refused = outcomes.filter(outcome => outcome.status === 'rejected');
+
+    expect(claimed).toHaveLength(1);
+    expect(claimed[0]?.value).toMatchObject({ status: 'queued' });
+    // Refused as a conflict — the answer the route turns into a 409 — and not
+    // because something else broke on the way.
+    expect(refused.map(outcome => outcome.reason instanceof ConflictError)).toEqual([true, true]);
+
+    // The slot is a row, not a return value: the next attempt reads the claim
+    // the winner left behind and is refused in its turn.
+    await expect(PlanJobController.start(bob.id)).rejects.toBeInstanceOf(ConflictError);
+  });
 });

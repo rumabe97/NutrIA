@@ -52,6 +52,7 @@ describe('EmailService', () => {
       auth: { pass: 'app-password', user: 'hola@nutria.example' },
       host: 'smtp.example.com',
       port: 465,
+      requireTLS: false,
       secure: true
     });
   });
@@ -59,7 +60,13 @@ describe('EmailService', () => {
   it('defaults to 587 with STARTTLS when no port is given', () => {
     new EmailService({ ...configured, SMTP_PORT: undefined } as unknown as Env);
 
-    expect(createTransport.mock.calls[0]?.[0]).toMatchObject({ port: 587, secure: false });
+    expect(createTransport.mock.calls[0]?.[0]).toMatchObject({ port: 587, requireTLS: true, secure: false });
+  });
+
+  it('requires STARTTLS on every port that is not implicit TLS, rather than upgrading if offered', () => {
+    new EmailService({ ...configured, SMTP_PORT: 2525 } as unknown as Env);
+
+    expect(createTransport.mock.calls[0]?.[0]).toMatchObject({ port: 2525, requireTLS: true, secure: false });
   });
 
   it('sends from the product name and reports acceptance', async () => {

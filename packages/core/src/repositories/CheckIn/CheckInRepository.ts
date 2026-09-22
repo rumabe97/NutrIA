@@ -35,6 +35,19 @@ function present(row: { weightKg: string | null } & Omit<CheckInRow, 'weightKg'>
 }
 
 export const CheckInRepository = {
+  /**
+   * Writes the fortnight's answers, or reports that it was already answered.
+   *
+   * The insert **is** the check. Reading `findByPlan` first and inserting after
+   * was two statements against two snapshots: under READ COMMITTED two submits
+   * fired together both read *none* before either had written, both passed, and
+   * both landed — two check-ins for one plan, and the caller nudged twice.
+   * `ON CONFLICT DO NOTHING` against `check_ins_one_per_plan` collapses the two
+   * into one statement, which is the only thing Postgres will serialise for us.
+   *
+   * `undefined` therefore means the plan already has its check-in, and nothing
+   * else: it is the conflict, not a write that mysteriously returned no row.
+   */
   async create(
     userId: string,
     input: {
@@ -47,18 +60,15 @@ export const CheckInRepository = {
       readonly satisfactionRating: number;
       readonly weightKg: number | null;
     }
-  ): Promise<CheckInRow> {
+  ): Promise<CheckInRow | undefined> {
     try {
       const [row] = await database()
         .insert(checkIns)
         .values({ ...input, userId, weightKg: input.weightKg === null ? null : String(input.weightKg) })
+        .onConflictDoNothing({ target: [checkIns.userId, checkIns.planId] })
         .returning(COLUMNS);
 
-      if (!row) {
-        throw new DatabaseOperationError('Check-in insert returned no row');
-      }
-
-      return present(row);
+      return row ? present(row) : undefined;
     } catch (error: unknown) {
       throw wrap(error);
     }

@@ -96,6 +96,7 @@ Not style preferences. Changing one is a security regression.
 - **`@CurrentUser()` is the only sanctioned source of a user id.** An id from a path param, query string or body is an id the caller chose. Never scope a query with one.
 - **Every route body is declared by a DTO and bound with `@ZodBody`.** `@Body() body: SomeType` with no pipe gets *no* validation and arrives as whatever was sent. A DTO in the module's `dto/in` names a Zod schema from `packages/core/entities` — the same one the web form uses, never a second copy of the rule — and `@ZodBody(SomeDto)` binds the validation pipe, the parameter's type and the published OpenAPI request schema together, all three from that one schema. **Never `@UsePipes(...)` at the handler**: that binds the pipe to *every* parameter, so the body schema also validates `@CurrentUser()` and rejects every valid request. That shipped once; routing the binding through one decorator is what stops it shipping again. See the traps below.
 - **Nothing internal reaches a response.** `AllExceptionsFilter` is the single translation point. Driver messages carry connection strings, Zod issues describe the schema, stacks carry paths. An unrecognised error is a bare 500.
+- **A provider's message is scrubbed of the configured credentials by value, not only by shape.** `redactSecrets` (`modules/ai/clients/redact.ts`) is the one scrub between what a provider or gateway answers and the job row's `errorDetail`, which the job's owner reads back. Its patterns catch a key this process never held; `AI_SECRETS` — `providerCredentials(env)`, the set `*_API_KEY` values — catches ours in a phrasing no pattern knows ("Incorrect API key provided: <key>") and a gateway key with no prefix at all. Every caller passes it; a new caller that scrubs by pattern alone leaks the live key to whoever triggered the failing job.
 - **`code` is stable, `message` is not.** The frontend switches on `code`; messages are free to be reworded.
 - **Responses default to `no-store`.** Absent an explicit directive a shared cache may apply heuristic freshness to an authenticated body — here, someone's health data.
 - **Roles come from the database row, never the request.**
@@ -352,7 +353,8 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `SENTRY_DSN`. The exception filter reports what it turns into a 5xx and `PlanJobRunner`
   reports a failed generation. It sends the error, its stack and the route *pattern* only:
   `beforeSend` deletes request, user and response context, and messages go through
-  `redactSecrets`. Never add a body, a header or an id to a report.
+  `redactSecrets` with the configured credentials scrubbed by value. Never add a body, a
+  header or an id to a report.
 - **Weights, not filters** (`0026`): `isPreferredDish` (core `domain/Variety`) decides what the
   library offers first — a liked dish, a chosen cuisine, a liked food. `rotatePool` partitions
   on it and `pickReplacement` ranks on it; neither ever removes a dish, so a preference here

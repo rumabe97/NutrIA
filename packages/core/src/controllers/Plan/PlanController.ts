@@ -591,22 +591,36 @@ export const PlanJobController = {
     await PlanJobRepository.adoptCompleted(userId);
     await PlanJobRepository.failStale(userId);
 
-    const inFlight = await PlanJobRepository.findInFlight(userId);
+    // The claim is the refusal: "is one in flight?" and "start one" are a single
+    // atomic step in `claim`, because asked as two they both answered *no* to
+    // requests fired together and every one of them started a pipeline.
+    const job = await PlanJobRepository.claim(userId);
 
-    if (inFlight) {
+    if (!job) {
       throw new ConflictError('A plan is already being generated');
     }
 
-    // The next fortnight is always allowed; redoing the one in progress is an
-    // allowance, and it is checked here — the one place a generation starts —
-    // rather than in the route, so no second route can forget it.
-    const { planRedo } = await PlanController.allowances(userId);
+    try {
+      // The next fortnight is always allowed; redoing the one in progress is an
+      // allowance, and it is checked here — the one place a generation starts —
+      // rather than in the route, so no second route can forget it.
+      //
+      // Counted *after* the claim, not before: holding the slot is what makes
+      // the count honest. A plan can only be committed by a generation, no
+      // generation can begin while this claim stands, so the chain this reads
+      // is the whole chain and cannot grow underneath the decision.
+      const { planRedo } = await PlanController.allowances(userId);
 
-    if (!planRedo.allowed) {
-      throw new QuotaExceededError('plan_redo', planRedo.nextAt);
+      if (!planRedo.allowed) {
+        throw new QuotaExceededError('plan_redo', planRedo.nextAt);
+      }
+    } catch (error: unknown) {
+      // Nothing was started, so nothing may stay claimed — a slot held by a
+      // generation that never begins refuses the next one for fifteen minutes.
+      await PlanJobRepository.release(job.id);
+
+      throw error;
     }
-
-    const job = await PlanJobRepository.create(userId);
 
     return { id: job.id, error: job.error, errorDetail: job.errorDetail, planId: job.planId, status: job.status, step: job.step };
   }

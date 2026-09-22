@@ -8,7 +8,7 @@ import { isQuotaExhausted } from './quota.js';
 import { readGateway, readQuota } from './gateway.js';
 import { redactSecrets } from './redact.js';
 import { untilAborted } from './untilAborted.js';
-import { AI_CALL_SETTINGS, AI_MODEL } from '../ai.config.js';
+import { AI_CALL_SETTINGS, AI_MODEL, AI_SECRETS } from '../ai.config.js';
 
 import type { AiCall, AiFailure, AiRequest, AiResponse } from './AiClient.js';
 import type { AiCallSettings } from '../ai.config.js';
@@ -33,7 +33,10 @@ export class StructuredAiClient extends AiClient {
   constructor(
     @Inject(AI_MODEL) private readonly model: LanguageModel | null,
     // Per provider, from `resolveCallSettings`: behind a gateway, no retries and a session header.
-    @Inject(AI_CALL_SETTINGS) private readonly settings: AiCallSettings
+    @Inject(AI_CALL_SETTINGS) private readonly settings: AiCallSettings,
+    // The configured credentials, scrubbed from whatever the provider says back:
+    // this failure is logged and stored on the job row.
+    @Inject(AI_SECRETS) private readonly secrets: readonly string[]
   ) {
     super();
   }
@@ -110,7 +113,7 @@ export class StructuredAiClient extends AiClient {
       const timedOut = !invalid && signal?.aborted === true;
       const detail = timedOut
         ? `AI_TIMEOUT: no answer within the generation's time budget (${Math.round((Date.now() - started) / 1000)} s)`
-        : redactSecrets([error instanceof Error ? error.message : 'Unknown AI failure', body].filter(Boolean).join(' — '));
+        : redactSecrets([error instanceof Error ? error.message : 'Unknown AI failure', body].filter(Boolean).join(' — '), this.secrets);
       const failure: AiFailure = {
         gateway: readGateway(api?.responseHeaders ?? invalid?.response?.headers),
         kind: invalid ? 'invalid_output' : timedOut ? 'timeout' : 'provider',

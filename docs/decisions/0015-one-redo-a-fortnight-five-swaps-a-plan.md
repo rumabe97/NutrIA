@@ -29,7 +29,14 @@ times. Both are two numbers in `core/domain/Allowance`.**
   end date was cut short — a redo. `redosInFortnight` walks back from the active
   plan and stops at the first plan that ran its course. No extra column, no
   window arithmetic at the edges. The check lives in `PlanJobController.start`,
-  the one place a generation begins.
+  the one place a generation begins — **after** that user's single generation
+  slot has been claimed, not before. Asking "is one already running?" and then
+  inserting the job was two statements: requests fired together all read *none*
+  and all started a pipeline, and the count they were each checked against was
+  a count nothing held still. `PlanJobRepository.claim` makes the check and the
+  insert one step, under a transaction-scoped advisory lock keyed on the user;
+  a claim that may not generate after all is released again, never failed.
+  (Amended 2026-09-22, on a security finding.)
 - **Swap, library first.** `POST /meal-plans/meals/:id/swap` replaces one meal
   of the active plan with the dish that lands closest to that meal's own
   calories and protein — judged exactly as the scheduler judges, scaled and then
@@ -43,8 +50,12 @@ times. Both are two numbers in `core/domain/Allowance`.**
   the whole plan in the same transaction, keeping what was already ticked when
   the ingredient is still on it and never touching items added by hand. The
   variety rules hold after the swap as before it. `meal_swaps` records each one:
-  it is what the allowance is counted from, inside the transaction, so two swaps
-  racing for the last one cannot both land.
+  it is what the allowance is counted from, inside the transaction and **with
+  the plan row locked `FOR UPDATE`**. Counting inside the transaction was not
+  enough on its own: under READ COMMITTED two swaps racing for the last one each
+  counted before either had committed, both saw four, and both landed. The lock
+  makes the second count after the first has committed, so it counts five and
+  is refused. (Amended 2026-09-22, on a security finding.)
 - **Said before the press.** `GET /meal-plans/allowances` tells the screen what
   is left; the plan shows "rehacer" or the date the next fortnight opens, the
   meal shows how many swaps remain. A spent allowance answers 429

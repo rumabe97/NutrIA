@@ -64,15 +64,57 @@ export const PlanJobRepository = {
     }
   },
 
-  async create(userId: string) {
+  /**
+   * Takes this user's one generation slot, or reports that it is taken.
+   *
+   * Reading "is one in flight?" and then inserting was two statements against
+   * two snapshots. Under READ COMMITTED three requests fired together each read
+   * *nothing in flight* before any of them had inserted, and each started its
+   * own pipeline: three fortnights of model calls for one press, all but one of
+   * them thrown away by `meal_plans_one_active_per_user` at the very end —
+   * after the money was spent.
+   *
+   * There is no row to hold `FOR UPDATE` here, because what is being defended
+   * is the row that does not exist yet. A **transaction-scoped advisory lock**
+   * keyed on the user is the lock that can be taken over an absence: it costs
+   * no schema change, it is released by the commit whatever happens, and it is
+   * keyed per user, so two people never wait on each other. `try` rather than
+   * the blocking form — a request that cannot take it is racing one that is
+   * creating the job right now, which *is* the "already being generated"
+   * answer, and no request ever sits on a pooled connection waiting for it.
+   *
+   * Returns the claimed job, or `undefined` when a generation is already under
+   * way. `release` gives the slot back if the generation may not start after all.
+   */
+  async claim(userId: string) {
     try {
-      const [row] = await database().insert(planGenerationJobs).values({ status: 'queued', userId }).returning();
+      return await database().transaction(async tx => {
+        const [lock] = await tx.execute<{ held: boolean }>(
+          sql`select pg_try_advisory_xact_lock(hashtext('plan_generation_jobs'), hashtext(${userId})) as held`
+        );
 
-      if (!row) {
-        throw new DatabaseOperationError('Job insert returned no row');
-      }
+        if (!lock?.held) {
+          return undefined;
+        }
 
-      return row;
+        const [inFlight] = await tx
+          .select({ id: planGenerationJobs.id })
+          .from(planGenerationJobs)
+          .where(and(eq(planGenerationJobs.userId, userId), inArray(planGenerationJobs.status, ['queued', 'running'])))
+          .limit(1);
+
+        if (inFlight) {
+          return undefined;
+        }
+
+        const [row] = await tx.insert(planGenerationJobs).values({ status: 'queued', userId }).returning();
+
+        if (!row) {
+          throw new DatabaseOperationError('Job insert returned no row');
+        }
+
+        return row;
+      });
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -85,6 +127,13 @@ export const PlanJobRepository = {
    * nobody is advancing. Without this the user's next attempt is refused forever by
    * the in-flight check.
    *
+   * A `queued` row is swept on the same cutoff and for the same reason: it is a
+   * claim (`claim`) whose runner never picked it up — the process died between
+   * the claim and `markStarted`, or between the claim and the allowance check
+   * that would have released it. Its `startedAt` is null, so the `running` arm
+   * cannot see it, and a claim nobody will ever advance refuses every future
+   * generation for that user for good.
+   *
    * Run `adoptCompleted` first: a job whose plan exists did not fail, and calling
    * it abandoned would throw away a fortnight of work the user already paid for.
    */
@@ -95,7 +144,15 @@ export const PlanJobRepository = {
       const failed = await database()
         .update(planGenerationJobs)
         .set({ error: 'GENERATION_ABANDONED', finishedAt: new Date(), status: 'failed' })
-        .where(and(eq(planGenerationJobs.userId, userId), eq(planGenerationJobs.status, 'running'), lt(planGenerationJobs.startedAt, cutoff)))
+        .where(
+          and(
+            eq(planGenerationJobs.userId, userId),
+            or(
+              and(eq(planGenerationJobs.status, 'running'), lt(planGenerationJobs.startedAt, cutoff)),
+              and(eq(planGenerationJobs.status, 'queued'), lt(planGenerationJobs.createdAt, cutoff))
+            )
+          )
+        )
         .returning({ id: planGenerationJobs.id });
 
       return failed.length;
@@ -110,21 +167,6 @@ export const PlanJobRepository = {
         .select()
         .from(planGenerationJobs)
         .where(and(eq(planGenerationJobs.id, jobId), eq(planGenerationJobs.userId, userId)))
-        .limit(1);
-
-      return row;
-    } catch (error: unknown) {
-      throw wrap(error);
-    }
-  },
-
-  /** Any job still in flight for this user. Used to refuse a second concurrent generation. */
-  async findInFlight(userId: string) {
-    try {
-      const [row] = await database()
-        .select()
-        .from(planGenerationJobs)
-        .where(and(eq(planGenerationJobs.userId, userId), or(eq(planGenerationJobs.status, 'queued'), eq(planGenerationJobs.status, 'running'))))
         .limit(1);
 
       return row;
@@ -189,6 +231,24 @@ export const PlanJobRepository = {
   async recordAiCalls(jobId: string, calls: readonly AiCallRecord[]) {
     try {
       await database().update(planGenerationJobs).set({ aiCalls: calls }).where(eq(planGenerationJobs.id, jobId));
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Gives a claimed slot back, for a generation that turned out not to be allowed.
+   *
+   * Deleted rather than failed: no model was called and no plan was attempted,
+   * and a `failed` row would tell whoever reads the job log that a generation
+   * broke when none ever began. Guarded on `queued`, so it can never remove a
+   * job a runner has already taken up.
+   */
+  async release(jobId: string): Promise<void> {
+    try {
+      await database()
+        .delete(planGenerationJobs)
+        .where(and(eq(planGenerationJobs.id, jobId), eq(planGenerationJobs.status, 'queued')));
     } catch (error: unknown) {
       throw wrap(error);
     }

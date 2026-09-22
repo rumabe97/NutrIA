@@ -102,18 +102,43 @@ describe('meal swaps', () => {
     }
   });
 
-  it('spends one allowance per swap and refuses the sixth with 429, not silence', async () => {
+  it('spends one allowance per swap, gives a contested last one to exactly one, and refuses the sixth with 429, not silence', async () => {
     const server = httpServer(app);
     const start = await allowances();
 
     expect(start.mealSwaps.used).toBe(1);
     expect(start.mealSwaps.limit).toBe(SWAPS_PER_PLAN);
 
-    for (let spent = start.mealSwaps.used; spent < SWAPS_PER_PLAN; spent += 1) {
+    for (let spent = start.mealSwaps.used; spent < SWAPS_PER_PLAN - 1; spent += 1) {
       const current = await activePlan(account);
       const meal = current.days[spent].meals[0];
 
       await request(server).post(`/${PREFIX}/meal-plans/meals/${meal.id}/swap`).set('Cookie', account.cookie).send({}).expect(201);
+    }
+
+    expect((await allowances()).mealSwaps.used).toBe(SWAPS_PER_PLAN - 1);
+
+    /*
+     * The last one is contested: three swaps of three different meals, fired
+     * together. Each counts the allowance inside its own transaction, and the
+     * count is only honest because the plan row is locked while it is taken —
+     * the second and third count after the first has committed, and see it.
+     * Read-then-compare without the lock let all three count four, pass, and
+     * land: six swaps of five.
+     *
+     * Three and not more: the route allows ten requests an hour, and this suite
+     * spends eight of them on this account.
+     */
+    const contested = await activePlan(account);
+    const contenders = contested.days.slice(SWAPS_PER_PLAN - 1, SWAPS_PER_PLAN + 2).map(day => day.meals[0].id);
+    const raced: Response[] = await Promise.all(
+      contenders.map(mealId => request(server).post(`/${PREFIX}/meal-plans/meals/${mealId}/swap`).set('Cookie', account.cookie).send({}))
+    );
+
+    expect(raced.map(response => response.status).sort((a, b) => a - b)).toEqual([201, 429, 429]);
+
+    for (const lost of raced.filter(response => response.status === 429)) {
+      expect((lost.body as { code: string }).code).toBe('QUOTA_EXCEEDED');
     }
 
     const spent = await allowances();
@@ -122,7 +147,7 @@ describe('meal swaps', () => {
 
     const current = await activePlan(account);
     const refused: Response = await request(server)
-      .post(`/${PREFIX}/meal-plans/meals/${current.days[6].meals[0].id}/swap`)
+      .post(`/${PREFIX}/meal-plans/meals/${current.days[8].meals[0].id}/swap`)
       .set('Cookie', account.cookie)
       .send({})
       .expect(429);

@@ -23,7 +23,10 @@ type Window = { count: number; expiresAt: number };
  *
  * Keyed on the authenticated user where there is one, and only on IP otherwise, so
  * a shared network (an office, a mobile carrier's NAT) does not have one user's
- * traffic throttle everyone behind it.
+ * traffic throttle everyone behind it — and so a limit meant per account is not
+ * shed by calling from a new address. That keying only works because this guard
+ * runs *after* `SessionGuard`, which is what puts the user on the request; the
+ * order is pinned in [`GlobalGuards`](./GlobalGuards.ts).
  *
  * **Counters live in this process.** With several instances the effective limit
  * multiplies by instance count, and a restart resets them. That is a deliberate

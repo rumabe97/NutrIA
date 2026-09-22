@@ -19,7 +19,7 @@ describe('StructuredAiClient', () => {
           abortSignal?.addEventListener('abort', () => reject(abortSignal.reason));
         })
     });
-    const client = new StructuredAiClient(model, { maxRetries: 0, sessionHeader: null });
+    const client = new StructuredAiClient(model, { maxRetries: 0, sessionHeader: null }, []);
     const failure = await client
       .generate({ prompt: 'Diseña platos', schema: jsonSchema({ type: 'object' }), signal: AbortSignal.timeout(20), system: 'Chef' })
       .catch((error: unknown) => error);
@@ -35,7 +35,7 @@ describe('StructuredAiClient', () => {
    */
   it('ends a call whose transport ignores the abort, instead of waiting on it', async () => {
     const model = new MockLanguageModelV4({ doGenerate: async () => new Promise<never>(() => undefined) });
-    const client = new StructuredAiClient(model, { maxRetries: 0, sessionHeader: null });
+    const client = new StructuredAiClient(model, { maxRetries: 0, sessionHeader: null }, []);
     const started = Date.now();
     const failure = await client
       .generate({ prompt: 'Diseña platos', schema: jsonSchema({ type: 'object' }), signal: AbortSignal.timeout(20), system: 'Chef' })
@@ -44,5 +44,27 @@ describe('StructuredAiClient', () => {
     expect(Date.now() - started).toBeLessThan(2000);
     expect(failure).toBeInstanceOf(AiCallError);
     expect((failure as AiCallError).failure).toMatchObject({ kind: 'timeout' });
+  });
+
+  /**
+   * The thrown message is logged and stored on the job row, where an admin
+   * reads it back. A gateway key has no shape the redaction patterns know, so
+   * the configured credential is what has to be matched.
+   */
+  it('keeps the configured credential out of the failure it logs and stores', async () => {
+    const key = ['4d1f8b', '2e07ac', '93b5d6', 'f0a284'].join('');
+    const model = new MockLanguageModelV4({
+      doGenerate: async () => {
+        throw new Error(`401 Unauthorized: key ${key} is not allowed on this model`);
+      }
+    });
+    const client = new StructuredAiClient(model, { maxRetries: 0, sessionHeader: null }, [key]);
+    const failure = await client
+      .generate({ prompt: 'Diseña platos', schema: jsonSchema({ type: 'object' }), system: 'Chef' })
+      .catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(AiCallError);
+    expect((failure as AiCallError).message).not.toContain(key);
+    expect((failure as AiCallError).message).toContain('[redacted]');
   });
 });
