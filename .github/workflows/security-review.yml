@@ -46,7 +46,7 @@ jobs:
           git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
           {
             echo 'files<<EOF'
-            git diff --name-only "origin/${{ github.base_ref }}"...HEAD
+            git diff --name-only FETCH_HEAD HEAD
             echo EOF
           } >> "$GITHUB_OUTPUT"
 
@@ -61,10 +61,13 @@ jobs:
             Files this PR changed:
             ${{ steps.diff.outputs.files }}
 
-            Run `git diff origin/${{ github.base_ref }}...HEAD` yourself to see
-            the actual changes. Look only at what changed. Do not review,
-            comment on, or fix anything the diff did not touch, and do not
-            edit any file — you are reporting, not patching.
+            Run `git diff FETCH_HEAD HEAD` yourself to see the actual changes
+            — FETCH_HEAD is this PR's base branch, fetched shallow by an
+            earlier step; the checkout has no shared history with it, so
+            `git diff base...HEAD` (three dots, needs a merge-base) fails
+            where this two-ref form does not. Look only at what changed. Do
+            not review, comment on, or fix anything the diff did not touch,
+            and do not edit any file — you are reporting, not patching.
 
             Report a finding only if you are more than 80% confident it is
             real and exploitable, the bar a security engineer would use before
