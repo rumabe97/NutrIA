@@ -73,7 +73,9 @@ export async function listDocSlugs(): Promise<string[][]> {
 export async function readDoc(slug: ReadonlyArray<string>): Promise<string | undefined> {
   const target = resolve(DOCS_DIR, `${join(...slug)}.md`);
   const insideDocs = target.startsWith(`${DOCS_DIR}${sep}`);
-  const excluded = EXCLUDED_DIRS.has(slug[0]);
+  // Case-insensitively, since the underlying filesystem read below may be case-insensitive
+  // (macOS, Windows) even though slug[0] here is untrusted, URL-supplied casing.
+  const excluded = EXCLUDED_DIRS.has(slug[0].toLowerCase());
 
   if (!insideDocs || excluded) {
     return undefined;
