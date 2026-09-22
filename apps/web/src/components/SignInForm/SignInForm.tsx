@@ -16,6 +16,7 @@ import { SocialSignIn } from 'components/SocialSignIn';
 
 import { forgetOfflineCopies } from 'lib/offline';
 import { interpolate } from 'lib/format';
+import { ownPath } from 'lib/ownPath';
 import { signIn } from 'lib/auth-client';
 import { syncLocaleFromProfile } from 'lib/locale-sync';
 
@@ -88,7 +89,7 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
     // browser negotiated.
     await syncLocaleFromProfile();
 
-    router.push(params.get('siguiente') ?? '/inicio');
+    router.push(ownPath(params.get('siguiente') ?? undefined, '/inicio'));
     router.refresh();
   }
 
