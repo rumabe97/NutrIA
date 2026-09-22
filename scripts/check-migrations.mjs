@@ -28,7 +28,13 @@ const DESTRUCTIVE = [
   [/\bRENAME\s+(COLUMN|TO)\b/i, 'renames something the API still running reads by its old name'],
   [/\bALTER\s+COLUMN\s+"?\w+"?\s+SET\s+NOT\s+NULL\b/i, 'adds NOT NULL to a column that may hold nulls'],
   [/\bADD\s+COLUMN\s+(?:(?!DEFAULT|;|-->)[\s\S])*?\bNOT\s+NULL\b(?:(?!DEFAULT|;|-->)[\s\S])*?(;|-->|$)/i, 'adds a NOT NULL column with no DEFAULT, which fails on a table with rows'],
-  [/\bDELETE\s+FROM\s+"?\w+"?\s*(;|-->|$)/i, 'deletes every row of a table']
+  // Not anchored to what follows the table name: an alias (`AS "c"`), a schema
+  // qualifier (`public.check_ins`) or a self-join (`USING ... WHERE ...`) all
+  // defeated an earlier version of this pattern that expected the statement to
+  // end (`;`, `-->` or EOF) right after the name — confirmed missing real,
+  // whole-table deletes shaped that way. A DELETE with a WHERE clause is not
+  // "every row", but it is still destructive enough to earn a human's line.
+  [/\bDELETE\s+FROM\b/i, 'deletes rows from a table']
 ];
 
 const git = (...args) => execFileSync('git', args, { encoding: 'utf8' }).trim();
