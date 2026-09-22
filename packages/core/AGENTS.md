@@ -180,11 +180,22 @@ a query missing it returns another user's rows.
 A repository must never receive an id that came from a path parameter, a query string or a
 request body.
 
-Two related rules:
+Four related rules:
 
 - **Wrap delete-then-insert in a transaction.** `SafetyRepository.replaceAll` does, because
   the intermediate state — allergies deleted, not yet re-inserted — is a profile with *no*
   restrictions. Nothing may observe that gap.
+- **Spend an allowance atomically, never by read-then-compare.** A transaction is not a
+  lock: under READ COMMITTED two transactions that count and then insert both count before
+  either commits, and both land. Spend by a guarded `UPDATE … WHERE counter < limit`
+  (`PlanRepository.rebuildLoadedDays`) or count with the row the allowance belongs to held
+  `FOR UPDATE` (`PlanRepository.swapMeal`).
+- **"Is there one already?" and "make one" are a single statement.** A transaction is not a
+  lock: under READ COMMITTED two requests that both read *none* before either inserts both
+  insert. Where a row exists to hold, hold it (`FOR UPDATE`); where the thing being defended
+  is the row that does **not** exist yet, take a transaction-scoped advisory lock keyed on
+  the owner — `PlanJobRepository.claim` — or give the table a partial unique index and let
+  the insert fail, as `meal_plans_one_active_per_user` does.
 - **Drizzle returns `numeric` columns as strings** to avoid float loss. Convert at the
   repository boundary so entities and controllers only ever see numbers.
 

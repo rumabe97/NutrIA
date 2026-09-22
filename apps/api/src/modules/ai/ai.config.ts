@@ -10,6 +10,9 @@ export const AI_MODEL = Symbol('AI_MODEL');
 export const AI_IMAGE_MODEL = Symbol('AI_IMAGE_MODEL');
 export const AI_CALL_SETTINGS = Symbol('AI_CALL_SETTINGS');
 
+/** The configured provider credentials, scrubbed from anything an upstream echoes back — `providerCredentials`. */
+export const AI_SECRETS = Symbol('AI_SECRETS');
+
 /** How long the model half of a pool build may take in all, in milliseconds — `AI_BUDGET_SECONDS`. */
 export const AI_MODEL_BUDGET = Symbol('AI_MODEL_BUDGET');
 

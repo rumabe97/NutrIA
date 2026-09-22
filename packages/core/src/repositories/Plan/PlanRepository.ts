@@ -712,8 +712,16 @@ export const PlanRepository = {
 
   /**
    * Replaces one meal's dish in place and rebuilds the plan's shopping list, in
-   * one transaction that also counts the allowance — so two swaps racing for the
-   * last one cannot both land.
+   * one transaction that also counts the allowance.
+   *
+   * The allowance is counted from `meal_swaps` **with the plan row held
+   * `FOR UPDATE`**. Counting inside the transaction is not enough on its own:
+   * under READ COMMITTED two swaps racing for the last one each count before
+   * either has committed, both see four, both pass, and six land. The lock makes
+   * the second wait until the first has committed, and a statement that begins
+   * after a commit sees it — so the second counts five and is refused. The
+   * `0044` counter spends by a guarded `UPDATE` instead; this one keeps the swap
+   * rows as the single record and locks the row they belong to.
    *
    * The list is rebuilt from the whole plan rather than patched, because
    * quantities aggregate across meals. What the person had already ticked stays
@@ -736,13 +744,16 @@ export const PlanRepository = {
   ): Promise<void> {
     try {
       await database().transaction(async tx => {
+        // Locks the plan row for the rest of the transaction: every other swap
+        // of this plan queues here, and counts only once this one has committed.
         const [owned] = await tx
           .select({ mealId: meals.id, planId: mealPlans.id, recipeId: meals.recipeId })
           .from(meals)
           .innerJoin(planDays, eq(planDays.id, meals.planDayId))
           .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))
           .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId)))
-          .limit(1);
+          .limit(1)
+          .for('update', { of: mealPlans });
 
         if (!owned) {
           throw new NotFoundError('Meal not found');

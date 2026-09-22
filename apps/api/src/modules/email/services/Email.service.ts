@@ -47,13 +47,18 @@ export class EmailService {
     }
 
     const port = env.SMTP_PORT ?? DEFAULT_SMTP_PORT;
+    const secure = port === SMTPS_PORT;
 
     this.transporter = createTransport({
       auth: { pass: env.SMTP_PASS, user: env.SMTP_USER },
       host: env.SMTP_HOST,
       port,
-      // 465 is implicit TLS; everything else upgrades with STARTTLS.
-      secure: port === SMTPS_PORT
+      // 465 is implicit TLS; everything else upgrades with STARTTLS — required,
+      // never opportunistic. An on-path attacker who strips the server's
+      // STARTTLS line would otherwise get the password and the reset link in
+      // cleartext; this refuses to send instead.
+      requireTLS: !secure,
+      secure
     });
     this.from = `"${SENDER_NAME}" <${env.EMAIL_FROM}>`;
   }

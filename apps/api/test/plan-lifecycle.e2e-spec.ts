@@ -3,6 +3,8 @@ import request from 'supertest';
 
 import { completeOnboarding, createApp, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
 
+import { PlanJobController } from 'core/controllers/Plan';
+import { QuotaExceededError } from 'core/entities/Error';
 import { SettingsController } from 'core/controllers/Settings';
 import { UserController } from 'core/controllers/User';
 
@@ -181,6 +183,22 @@ describe('plan lifecycle', () => {
     expect((after.body as AllowancesView).planRedo).toMatchObject({ allowed: false, used: 1 });
     // A spent allowance is a 429 with a date, never a silent refusal.
     await request(server).post(`/${PREFIX}/meal-plans/generate`).set('Cookie', account.cookie).expect(429);
+
+    /*
+     * And the refusal left nothing claimed. The allowance is counted with this
+     * user's generation slot already taken — that is what stops a second request
+     * counting the same fortnight — so a refusal has to give the slot back, or
+     * the next quarter of an hour answers "already being generated" to somebody
+     * who never generated anything.
+     *
+     * Through the controller, like the tier and the flag above: the question is
+     * about what the refusal left in the database, not about the route.
+     */
+    await expect(PlanJobController.start(account.id)).rejects.toBeInstanceOf(QuotaExceededError);
+    // Twice: the first answer is the same whether or not the slot was given
+    // back, so it is the second call — reading what the first left behind —
+    // that tells a released claim from a stuck one.
+    await expect(PlanJobController.start(account.id)).rejects.toBeInstanceOf(QuotaExceededError);
   });
 
   /**

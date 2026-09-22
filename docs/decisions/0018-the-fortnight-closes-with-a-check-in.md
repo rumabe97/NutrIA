@@ -38,6 +38,14 @@ in a way the person can see, and no answer is a restriction.**
   when due, and after a plan ends the next-plan card says whether it was done.
   Not required to generate the next plan: a gate would cost more plans than it
   would improve.
+- **"Done once" is a constraint, not a check before the insert.** Asking whether
+  the fortnight was answered and answering it were two round trips: under READ
+  COMMITTED two submits fired together both read *none* before either had
+  written, both passed, and both landed — two check-ins for one plan, and two
+  calorie nudges for one fortnight, because everything after the insert runs per
+  accepted check-in. `check_ins_one_per_plan` on `(user_id, plan_id)` makes the
+  insert itself the check, and the second comes back 409 as it always should
+  have. (Amended 2026-09-22, on a security finding.)
 
 ## Consequences
 

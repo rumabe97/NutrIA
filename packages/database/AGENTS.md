@@ -107,6 +107,15 @@ easy to forget — an index on `userId`, which every ownership-scoped query filt
 cascade is what makes account deletion actually delete a person's data; it is not a
 convenience.
 
+**"One per X" is a constraint, not a check before the insert.** A repository that reads
+"does one exist?" and inserts after is two statements against two snapshots: under READ
+COMMITTED two requests fired together both read *none* before either has written, both
+pass, and both land. Declare the UNIQUE — `userOwned()` takes extra table constraints, and
+`check_ins_one_per_plan` on `(user_id, plan_id)` is the worked example — and have the
+repository insert with `.onConflictDoNothing({ target: [...] })`, returning nothing when
+the row was already there so the controller can raise its own `ConflictError`. The
+constraint is the check; anything else is a race with a comment on it.
+
 **Enums** live in `_enums.ts`, shared column groups in `_columns.ts`. `_columns.ts` exists
 separately from `_utils.ts` because `userOwned()` needs the `user` table while
 `auth.schema.ts` needs the timestamp columns — putting both in one module is a cycle that

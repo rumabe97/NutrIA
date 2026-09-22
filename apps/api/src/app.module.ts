@@ -26,7 +26,7 @@ import { UsersModule } from './modules/users/index.js';
 import { VacationsModule } from './modules/vacations/index.js';
 import { AllExceptionsFilter } from './shared/filters/index.js';
 import { ObservabilityModule } from './shared/observability/index.js';
-import { AdminGuard, RateLimitGuard, RequiresOnboardingGuard, SessionGuard, VerifiedEmailGuard } from './shared/guards/index.js';
+import { GLOBAL_GUARDS } from './shared/guards/index.js';
 import { NoStoreCacheInterceptor } from './shared/interceptors/index.js';
 import { LoggingModule } from './shared/logging/index.js';
 
@@ -59,13 +59,8 @@ import { LoggingModule } from './shared/logging/index.js';
   ],
   providers: [
     envProvider,
-    // Order matters: throttling before authentication, so an unauthenticated
-    // flood is rejected before it costs a session lookup per request.
-    { provide: APP_GUARD, useClass: RateLimitGuard },
-    { provide: APP_GUARD, useClass: SessionGuard },
-    { provide: APP_GUARD, useClass: VerifiedEmailGuard },
-    { provide: APP_GUARD, useClass: AdminGuard },
-    { provide: APP_GUARD, useClass: RequiresOnboardingGuard },
+    // Order matters, and it is kept — with its reasons — in `GLOBAL_GUARDS`.
+    ...GLOBAL_GUARDS.map(useClass => ({ provide: APP_GUARD, useClass })),
     { provide: APP_FILTER, useClass: AllExceptionsFilter },
     { provide: APP_INTERCEPTOR, useClass: NoStoreCacheInterceptor }
   ]

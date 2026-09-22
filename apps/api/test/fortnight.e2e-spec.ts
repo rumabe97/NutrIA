@@ -4,7 +4,7 @@ import request from 'supertest';
 import { completeOnboarding, createApp, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
 
 import type { Account } from './harness.js';
-import type { CheckInStatusView } from 'core/controllers/CheckIn';
+import type { CheckInResultView, CheckInStatusView } from 'core/controllers/CheckIn';
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { INestApplication } from '@nestjs/common';
 import type { NotificationSettingsView } from 'core/controllers/Notification';
@@ -88,13 +88,45 @@ describe('living the fortnight', () => {
     expect((status.body as CheckInStatusView).plan?.id).toBe(plan.id);
   });
 
-  it('accepts a check-in, records the weight with it, and will not take a second', async () => {
+  it('gives a fortnight answered three times at once to exactly one of them, weight and nudge included', async () => {
     const server = httpServer(app);
-    const answers = { difficulty: 'ok', hunger: 'right', planId: plan.id, satisfaction: 4, weightKg: 70.4 };
+    const answers = { difficulty: 'ok', hunger: 'hungry', planId: plan.id, satisfaction: 4, weightKg: 70.4 };
 
-    const first: Response = await request(server).post(`/${PREFIX}/check-ins`).set('Cookie', account.cookie).send(answers).expect(201);
+    /*
+     * The same fortnight answered three times, fired together. Asking whether it
+     * was answered and answering it used to be two round trips with nothing
+     * between them: under READ COMMITTED all three read *none* before any had
+     * written, all three passed, and all three landed — and everything after the
+     * insert runs once per accepted check-in, so one fortnight moved the calorie
+     * target by three nudges.
+     *
+     * `check_ins_one_per_plan` makes the insert itself the check, so two of the
+     * three are refused and neither reaches the nudge. The answer is "hungry"
+     * rather than "right" so that a second landing shows up as a number the
+     * product itself reports, and not only as a row nobody counts.
+     */
+    const raced: Response[] = await Promise.all(
+      Array.from({ length: 3 }, () => request(server).post(`/${PREFIX}/check-ins`).set('Cookie', account.cookie).send(answers))
+    );
 
-    expect(first.body).toMatchObject({ weightLogged: true });
+    expect(raced.map(response => response.status).sort((a, b) => a - b)).toEqual([201, 409, 409]);
+
+    for (const lost of raced.filter(response => response.status === 409)) {
+      // The refusal is the product's, not the driver's: a unique violation reaching
+      // the filter unconverted would be a 500 called INTERNAL_ERROR.
+      expect((lost.body as { code: string }).code).toBe('CONFLICT');
+    }
+
+    const accepted = raced.find(response => response.status === 201)?.body as CheckInResultView;
+
+    expect(accepted).toMatchObject({ weightLogged: true });
+    expect(accepted.targets).not.toBeNull();
+
+    const profile: Response = await request(server).get(`/${PREFIX}/profile`).set('Cookie', account.cookie).expect(200);
+
+    // One check-in, one nudge. A second would have read the target this one set
+    // and moved it again, leaving the profile above the number reported here.
+    expect((profile.body as FullProfileView).targets?.effective.kcal).toBe(accepted.targets?.toKcal);
 
     const status: Response = await request(server).get(`/${PREFIX}/check-ins/status`).set('Cookie', account.cookie).expect(200);
 

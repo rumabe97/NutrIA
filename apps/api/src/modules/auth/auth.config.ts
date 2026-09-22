@@ -6,11 +6,10 @@ import { AnalyticsController } from 'core/controllers/Analytics';
 import { database } from 'database';
 import { account, rateLimit, session, user, verification } from 'database/schema/auth';
 
-import { absoluteCallback, sendPasswordResetMail } from './services/PasswordResetMail.js';
 import { APPLE_ORIGIN, configuredSocialProviders, socialProviderOptions } from './services/SocialProviders.js';
 import { onAccountCreated, onAddressConfirmed } from './services/SelfService.js';
-import { recipientLocale } from '../email/services/RecipientLocale.js';
-import { verifyEmail } from '../email/templates/VerifyEmail.js';
+import { sendPasswordResetMail } from './services/PasswordResetMail.js';
+import { sendVerificationMail } from './services/VerificationMail.js';
 
 import type { Env } from '../../config/index.js';
 import type { EmailService } from '../email/services/Email.service.js';
@@ -139,6 +138,7 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
         sendPasswordResetMail(mailer, {
           acceptLanguage: request?.headers.get('accept-language') ?? null,
           appUrl: env.APP_URL,
+          nodeEnv: env.NODE_ENV,
           to: recipient.email,
           url,
           userId: recipient.id
@@ -162,23 +162,15 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
        * what the person can prove and nothing more.
        */
       sendOnSignUp: true,
-      sendVerificationEmail: async ({ url, user: recipient }, request) => {
-        // Nobody has a profile at sign-up, so this is the one mail whose language
-        // the request really does decide — but a resent confirmation reaches an
-        // account that has one, and then the profile is the better answer.
-        const locale = await recipientLocale(recipient.id, request?.headers.get('accept-language'));
-        const link = absoluteCallback(url, env.APP_URL, locale);
-
-        if (!mailer.configured) {
-          console.info(`[auth] no SMTP configured; verification url for ${recipient.id}: ${link}`);
-
-          return;
-        }
-
-        const sent = await mailer.send({ ...verifyEmail({ locale, url: link }), to: recipient.email });
-
-        console.info(`[auth] verification ${sent ? 'mail sent' : 'mail NOT sent'} (user ${recipient.id})`);
-      }
+      sendVerificationEmail: ({ url, user: recipient }, request) =>
+        sendVerificationMail(mailer, {
+          acceptLanguage: request?.headers.get('accept-language') ?? null,
+          appUrl: env.APP_URL,
+          nodeEnv: env.NODE_ENV,
+          to: recipient.email,
+          url,
+          userId: recipient.id
+        })
     },
     /*
      * Counted in the database, not in the process.

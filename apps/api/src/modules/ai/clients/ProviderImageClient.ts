@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { generateImage } from 'ai';
 
-import { AI_IMAGE_MODEL } from '../ai.config.js';
+import { AI_IMAGE_MODEL, AI_SECRETS } from '../ai.config.js';
 import { ImageClient } from './ImageClient.js';
 import { redactSecrets } from './redact.js';
 
@@ -11,7 +11,10 @@ import type { ImageRequest, ImageResponse } from './ImageClient.js';
 /** The real client: `generateImage` against whichever image model the environment chose. */
 @Injectable()
 export class ProviderImageClient extends ImageClient {
-  constructor(@Inject(AI_IMAGE_MODEL) private readonly model: ImageModel | null) {
+  constructor(
+    @Inject(AI_IMAGE_MODEL) private readonly model: ImageModel | null,
+    @Inject(AI_SECRETS) private readonly secrets: readonly string[]
+  ) {
     super();
   }
 
@@ -36,7 +39,7 @@ export class ProviderImageClient extends ImageClient {
     } catch (error: unknown) {
       // The provider's message names the key, the quota or the model — the one thing
       // an operator needs — and is redacted before it can reach a log.
-      throw new Error(redactSecrets(error instanceof Error ? error.message : 'Unknown image failure'), { cause: error });
+      throw new Error(redactSecrets(error instanceof Error ? error.message : 'Unknown image failure', this.secrets), { cause: error });
     }
   }
 }

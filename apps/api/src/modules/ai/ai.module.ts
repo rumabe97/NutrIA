@@ -7,6 +7,7 @@ import {
   AI_MODEL,
   AI_MODEL_BUDGET,
   AI_REWRITE_CLIENT,
+  AI_SECRETS,
   resolveCallSettings,
   resolveImageModel,
   resolveModel,
@@ -14,6 +15,7 @@ import {
 } from './ai.config.js';
 import { AiClient } from './clients/AiClient.js';
 import { ImageClient } from './clients/ImageClient.js';
+import { providerCredentials } from './clients/redact.js';
 import { ProviderImageClient } from './clients/ProviderImageClient.js';
 import { PoolBuilder, RecipeIllustrator, RecipeRewriter } from './services/index.js';
 import { StructuredAiClient } from './clients/StructuredAiClient.js';
@@ -35,12 +37,14 @@ import type { Env } from '../../config/index.js';
     { inject: [ENV], provide: AI_MODEL, useFactory: (env: Env) => resolveModel(env) },
     { inject: [ENV], provide: AI_CALL_SETTINGS, useFactory: (env: Env) => resolveCallSettings(env) },
     { inject: [ENV], provide: AI_MODEL_BUDGET, useFactory: (env: Env) => env.AI_BUDGET_SECONDS * 1000 },
+    { inject: [ENV], provide: AI_SECRETS, useFactory: (env: Env) => providerCredentials(env) },
     { provide: AiClient, useClass: StructuredAiClient },
     // The rewrite sweep's own client, on `AI_REWRITE_MODEL` where it is set.
     {
-      inject: [ENV, AI_CALL_SETTINGS],
+      inject: [ENV, AI_CALL_SETTINGS, AI_SECRETS],
       provide: AI_REWRITE_CLIENT,
-      useFactory: (env: Env, settings: AiCallSettings) => new StructuredAiClient(resolveRewriteModel(env), settings)
+      useFactory: (env: Env, settings: AiCallSettings, secrets: readonly string[]) =>
+        new StructuredAiClient(resolveRewriteModel(env), settings, secrets)
     },
     { inject: [ENV], provide: AI_IMAGE_MODEL, useFactory: (env: Env) => resolveImageModel(env) },
     { provide: ImageClient, useClass: ProviderImageClient },

@@ -93,6 +93,13 @@ export const CheckInController = {
    * targets read below already follow it; then the portion answer nudges the
    * calorie target through the same override an edit by hand uses, clamped by
    * the same bounds. Words stay words: they reach the next plan's prompt.
+   *
+   * "Has this fortnight been answered?" and "answer it" are one statement, not
+   * two. Asking first and inserting after let two submits fired together both
+   * see *none* and both land — and everything below the insert runs per accepted
+   * check-in, so the calorie target moved by two nudges for one fortnight.
+   * `CheckInRepository.create` returns nothing when the plan already has its
+   * check-in, and that refusal happens before any of it.
    */
   async submit(userId: string, input: SubmitCheckIn): Promise<CheckInResultView> {
     const plan = await PlanRepository.findById(userId, input.planId);
@@ -101,13 +108,9 @@ export const CheckInController = {
       throw new NotFoundError('Plan not found');
     }
 
-    if (await CheckInRepository.findByPlan(userId, plan.id)) {
-      throw new ConflictError('This fortnight has its check-in already');
-    }
-
     const today = isoToday();
 
-    await CheckInRepository.create(userId, {
+    const recorded = await CheckInRepository.create(userId, {
       comments: input.comments?.trim() ? input.comments.trim() : null,
       completedAt: today,
       difficultyRating: DIFFICULTY_RATING[input.difficulty],
@@ -117,6 +120,10 @@ export const CheckInController = {
       satisfactionRating: input.satisfaction,
       weightKg: input.weightKg ?? null
     });
+
+    if (!recorded) {
+      throw new ConflictError('This fortnight has its check-in already');
+    }
 
     if (input.weightKg) {
       await ProgressRepository.upsertWeight(userId, today, input.weightKg);
