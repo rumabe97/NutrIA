@@ -90,10 +90,18 @@ jobs:
             Respond with the findings array the schema asks for — empty if
             there is nothing you're confident about. `why` is the concrete
             failure scenario: what input, what happens, who is affected.
+          # A real multi-file diff needs more room than the tool-only PR that
+          # first exercised this workflow did (that one never got past the
+          # GitHub App's own workflow-validation skip). The first real run
+          # hit error_max_turns at 8 with 6 permission denials -- too few
+          # turns, and too narrow an allow-list for the read-only exploring
+          # a genuine review does (git status, blame, find, ls, alongside
+          # the diff itself). Still read-only: no Write, no Edit, no Bash
+          # outside these prefixes.
           claude_args: |
             --model claude-sonnet-5
-            --max-turns 8
-            --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git show:*),Bash(git log:*)"
+            --max-turns 20
+            --allowedTools "Read,Grep,Glob,Bash(git diff:*),Bash(git show:*),Bash(git log:*),Bash(git status:*),Bash(git blame:*),Bash(find:*),Bash(ls:*)"
             --json-schema "{\"type\":\"object\",\"properties\":{\"findings\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"file\":{\"type\":\"string\"},\"line\":{\"type\":\"number\"},\"severity\":{\"type\":\"string\",\"enum\":[\"high\",\"medium\",\"low\"]},\"summary\":{\"type\":\"string\"},\"why\":{\"type\":\"string\"}},\"required\":[\"file\",\"severity\",\"summary\",\"why\"]}}},\"required\":[\"findings\"]}"
 
       # The model's own output is untrusted text (it read a PR diff someone
