@@ -232,6 +232,13 @@
       "when": 1790065082071,
       "tag": "0032_a_fortnight_is_answered_once",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1790170134774,
+      "tag": "0033_a_professional_is_an_account_the_owner_grants",
+      "breakpoints": true
     }
   ]
 }

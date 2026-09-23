@@ -17,7 +17,7 @@ exception that is not named, consented, revocable and audited is a hole
 
 **A professional is a row, granted by the owner.** A `professionals` table, one row per
 account (`userOwnedSingleton`), holds the collegiate number, when and by whom it was
-granted. Only `POST /admin/professionals`, behind the admin role, writes it; no sign-up
+granted. Only `POST /admin/accounts/:id/professional`, behind the admin role, writes it; no sign-up
 field, request body or client state can. `user.role` is untouched: the owner may be both an
 admin and a professional, and the admin guard keeps meaning one thing.
 

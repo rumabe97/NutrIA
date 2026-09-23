@@ -1,4 +1,5 @@
 import type { Goal, Preferences, Profile } from 'core/entities/Profile';
+import type { Professional } from 'core/entities/Professional';
 import type { SafetyProfile } from 'core/entities/Safety';
 import type { User } from 'core/entities/User';
 import { toCatalogue } from 'core/entities/Plan';
@@ -93,6 +94,22 @@ export function makePreferences(overrides?: Partial<Preferences>): Preferences {
     updatedAt: new Date('2026-01-15T10:00:00.000Z'),
     userId: USER_ID,
     workScheduleNotes: null,
+    ...overrides
+  };
+}
+
+/** An account the owner made a professional (`0059`), with no practice paid for yet. */
+export function makeProfessional(overrides?: Partial<Professional>): Professional {
+  return {
+    id: 'e5f6a7b8-9c0d-4e1f-a2b3-c4d5e6f70a1b',
+    collegiateNumber: 'MAD00123',
+    createdAt: new Date('2026-09-23T10:00:00.000Z'),
+    grantedAt: new Date('2026-09-23T10:00:00.000Z'),
+    grantedBy: 'usr_owner',
+    includedClients: 0,
+    practiceOpen: false,
+    updatedAt: new Date('2026-09-23T10:00:00.000Z'),
+    userId: USER_ID,
     ...overrides
   };
 }

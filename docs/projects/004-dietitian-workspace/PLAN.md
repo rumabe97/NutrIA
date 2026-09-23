@@ -45,7 +45,7 @@ then the documents. Each phase ends green.
 
 ### Phase 1 — A professional is an account the owner grants
 
-- [ ] pending
+- [x] done — `test:e2e -- professionals` verified by the pull request's CI (required to merge)
 - **Dispatch**: fable @ high — `/execute-project 004 phase 1`
 - **Goal**: an account becomes a professional only by the owner's act, with a collegiate number, and nothing else can make it one.
 - **Scope**: `packages/database/src/schemas` (new `professional.schema.ts`), one generated migration, `packages/core/src/{entities,repositories,controllers}/Professional/`, `packages/core/src/domain/Flag`, `apps/api/src/modules/admin`, `apps/api/src/shared/guards` (new `Professional.guard.ts`), `apps/api/test`.
@@ -53,7 +53,7 @@ then the documents. Each phase ends green.
   1. `professionals` table via `userOwnedSingleton`: `collegiateNumber` (text, not null), `grantedAt`, `grantedBy` (FK `user.id`, on delete set null), and for Phase 7 `practiceOpen` (boolean, default false) and `includedClients` (integer, default 0). Add it to the singleton list in `packages/database/src/schemas/schema.test.ts`. Generate the migration; nothing in it is destructive.
   2. `core/entities/Professional` (`grantProfessionalSchema`: collegiate number, trimmed, 3–20 characters of letters, digits and `/-`), `ProfessionalRepository` (`grant`, `revoke`, `find`, `list`), `ProfessionalController` with a `present` view that never includes another account's data.
   3. A `professional` flag in `core/domain/Flag` that fails **off**, readable by the owner only.
-  4. Admin routes on `AdminAccounts.controller.ts` or a new `AdminProfessionals.controller.ts`, class `@Roles('admin')`: `POST /admin/accounts/:id/professional` (body: the collegiate number) and `DELETE` of the same; `GET /admin/professionals` (email, collegiate number, granted date, link counts by status — **no client identities**, `0028`).
+  4. Admin routes on `AdminAccounts.controller.ts` or a new `AdminProfessionals.controller.ts`, class `@Roles('admin')`: `POST /admin/accounts/:id/professional` (body: the collegiate number) and `DELETE` of the same; `GET /admin/professionals` (email, collegiate number, granted date, link counts by status — **no client identities**, `0028`). A grant needs a confirmed address (amended in execution: anybody can register a dietitian's address without owning it).
   5. `ProfessionalGuard`: the route requires the `professional` flag on and a `professionals` row for the session's user; anything else is a 404. Not global — applied per controller from Phase 2 on.
 - **Acceptance criteria**: PRD 1.
 - **Verification**:
