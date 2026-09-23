@@ -2,7 +2,8 @@
 name: team
 description: Run a piece of work as the agent team - backend, frontend, tests, seo, accessibility and invariant-reviewer in parallel, each in its own worktree, talking to each other. Use for EVERY feature or fix that touches more than one of API, web, tests or a public page - the owner's standing rule - and whenever the owner says team, agents, in parallel or equipo. Not for a one-file change, a doc or a question.
 argument-hint: "[what to build, or the project and phase it belongs to]"
-model: fable
+model: claude-opus-5-5
+effort: high
 ---
 
 # Lead the team
@@ -17,11 +18,11 @@ because it looked small.
 
 ## 0. What you are paid for, and what you are not
 
-You run on the strongest model because your mistakes multiply: a wrong split, a vague
+You run on Opus 5.5 at `high` effort because your mistakes multiply: a wrong split, a vague
 contract or a missed invariant is paid for by every agent after you. (This skill asks for
-`fable` for the turn that plans; later turns run on the session's model — if that is a
-weaker one, say so in the report.) **Everything else you do as cheaply as it can be done
-well.** The owner's words: no cannons for flies.
+both for the turn that plans; later turns run on the session's model and effort — if that
+is a weaker one, say so in the report.) **Everything else you do as cheaply as it can be
+done well.** The owner's words: no cannons for flies.
 
 - **You do not wait.** Waiting is a script in the background; the session is told when it
   ends. `sh .claude/skills/ship/scripts/wait-for-ci.sh <pr>` and
@@ -37,8 +38,8 @@ well.** The owner's words: no cannons for flies.
 ## 1. Split the work, pick the roster, and price every task
 
 Write the task list **before** anything is spawned, one line each: what, which agent, which
-model, and why that model. It goes in your report, so the owner can see what was spent on
-what.
+model, which effort, and why. It goes in your report, so the owner can see what was spent
+on what.
 
 | The change | Agents |
 | --- | --- |
@@ -50,27 +51,55 @@ what.
 | A feature, end to end | whichever of the above its parts call for — not all eight by reflex |
 | A review, nothing to build | the reviewer alone |
 
-**The model is yours to choose, per task, at spawn** — the Agent tool's `model` outranks the
-definition's (measured: a definition asking for `fable`, spawned with `haiku`, ran as
-`haiku` and kept its prompt). Effort cannot be set per agent: agents inherit yours, so the
-model and the size of the prompt are the two levers you have.
+**Model and effort are both yours to choose, per task, at spawn.**
 
-| Model | A task belongs here when… | For instance |
+- **Model**: the Agent tool's `model` outranks the definition's (measured: a definition
+  asking for `fable`, spawned with `haiku`, ran as `haiku` and kept its prompt).
+- **Effort**: the Agent tool takes none, so it comes from the definition you spawn. Each
+  building or verifying agent has three — `backend` is `medium`, `backend-low` and
+  `backend-high` are the same agent at those levels (same for `frontend`, `tests`, `seo`,
+  `accessibility`). Pick the level with `subagent_type`; **the `name` is always the plain
+  role** (`backend`), so the others address it the same way at any effort. The variants are
+  generated — `node .claude/skills/team/scripts/effort-variants.mjs` after editing a base;
+  CI refuses them stale. The two reviewers are fixed at `fable`/`high` and `plan-evaluator`
+  at `medium`: no variants, because their floor is the point.
+
+Prices per million tokens, input/output: `haiku` (Haiku 4.5) $1/$5 · `sonnet` (Sonnet 5)
+$2/$10 · `opus` (Opus 5.5) $4/$20 · `fable` (Fable 5.1) $10/$50. Effort multiplies what a
+model spends on thinking and tool calls, so a level down is often the cheaper trade than a
+model down — `sonnet` at `low` for a character-exact edit, `opus` at `low` before `sonnet`
+at `high` when the task needs judgement but not depth. Haiku 4.5 has no effort control: a
+`haiku` task spawns the plain definition, and the definition's level is expected to be
+dropped as the session's always was — **not yet measured**: the first run that does it says
+so in its report, and if it errors, that is a finding.
+
+**Older models are not cheaper here** — Opus 4.6–4.8 cost what Opus 5 does ($5/$25) and
+Sonnet 4.6 costs more than Sonnet 5 ($3/$15) — so price never picks one. The Agent tool's
+`model` takes only the four aliases; an older model is reachable only through a
+definition's `model:` (a full id, e.g. `claude-sonnet-4-6`), and only for a behaviour the
+current one lacks — say which in the report.
+
+| Model · effort | A task belongs here when… | For instance |
 | --- | --- | --- |
 | *none — a script* | a machine can do it and say so in a line | waiting for CI or a deploy, the gate, `merge-back.sh`, the probe's measurements, formatting |
 | `haiku` | it is finding, counting, summarising, or an edit whose every character you can specify | where a symbol is used; what a failed run's log says; add one key to both dictionaries; re-check that a fixed finding is fixed |
-| `sonnet` | the contract is complete: files named, shapes given, the test that proves it named | a route from a written contract; unit tests for named uncovered lines; an end-to-end suite from the contract; an SEO or accessibility verification pass |
-| `opus` | a decision is still open inside the task, or the cause is unknown | a feature whose design you could not finish; a failure nobody understands yet; a refactor across modules |
-| `fable` | a mistake is a safety or privacy failure, or the judgement is the deliverable | `invariant-reviewer` and `migration-reviewer`, always; implementing authentication, allergy validation or the validation of model output (`quality-max`); an SEO audit of the landing page; ruling on a disputed P0 |
+| `sonnet` · `low` | the contract is complete and the work is mechanical across named files | a rename you listed; a dictionary key set; a verification pass against a checklist |
+| `sonnet` · `medium` | the contract is complete: files named, shapes given, the test that proves it named | a route from a written contract; unit tests for named uncovered lines; an end-to-end suite from the contract; an SEO or accessibility verification pass |
+| `sonnet` · `high` | complete contract, but the code it lands in is intricate | a change inside the scheduler or a transaction you specified; a suite for a race |
+| `opus` · `low`/`medium` | a small decision is still open, or the cause of a failure is narrow but unknown | choosing between two shapes you named; a red test whose cause you could not see |
+| `opus` · `high` | a decision is still open inside the task, or the cause is unknown | a feature whose design you could not finish; a failure nobody understands yet; a refactor across modules |
+| `fable` · `high` | a mistake is a safety or privacy failure, or the judgement is the deliverable | `invariant-reviewer` and `migration-reviewer`, always; implementing authentication, allergy validation or the validation of model output (`quality-max`); an SEO audit of the landing page; ruling on a disputed P0 |
 
 **The more precisely you specify, the cheaper the agent that can do it.** A paragraph of
 yours that names the file, the function and the failing case moves a task from `opus` to
 `sonnet`; that is the best trade in this skill, and the reason the lead is the strong model.
 
-**Start at the cheapest model the specification allows, and climb only on evidence**: the
-same task red at the gate twice, or a reviewer's P0 on the same point twice. Then spawn the
-next model up **on the same branch**, with the failing output — the one case where an agent
-is replaced rather than resumed. Never climb because a task *feels* important, and never
+**Start at the cheapest model and effort the specification allows, and climb only on
+evidence**: the same task red at the gate twice, or a reviewer's P0 on the same point twice.
+Climb effort first within the model (`low` → `medium` → `high`) when the miss is
+carelessness — a missed case, a half-read file; climb the model when it is capability — the
+approach itself was wrong. Either way spawn the replacement **on the same branch**, with the
+failing output — the one case where an agent is replaced rather than resumed. Never climb because a task *feels* important, and never
 drop below the floors above because a change *looks* small: a one-line migration drops a
 column as thoroughly as a long one.
 
@@ -105,8 +134,9 @@ moment. A name is what gives an agent a mailbox; without one it can talk to nobo
 Spawn only agent types this session lists as available: a definition it has not noticed
 yet yields a generic agent wearing the name, with none of the prompt.
 
-- `subagent_type` and `name` both the agent's name (`backend`, `frontend`, …): the name is
-  how the others address it. Do **not** pass `isolation`: the agent makes its own worktree.
+- `subagent_type`: the role at the effort your task list gave it (`backend`, `backend-low`,
+  `backend-high`, …). `name`: always the plain role (`backend`) — the name is how the
+  others address it. Do **not** pass `isolation`: the agent makes its own worktree.
 - `model`: the one your task list gave it. Always pass it; the definition's is only the
   default for a spawn nobody priced.
 - The prompt: the feature slug and `<base-sha>`; the contract; its part; **who else is
@@ -176,6 +206,6 @@ owner's to decide on.
 
 ## Report, in Spanish
 
-The task list as it was run — task, agent, model, and any climb with its reason; what each
+The task list as it was run — task, agent, model, effort, and any climb with its reason; what each
 delivered; what they told each other that changed the result; every P0 and P1 and what
 became of it; what was not verified; what is the owner's to do.

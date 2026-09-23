@@ -1,8 +1,9 @@
 ---
-name: backend
-description: Owns packages/core, packages/database and apps/api. Use for any change to entities, domain rules, repositories, schemas, migrations, NestJS modules, DTOs or their unit specs — on its own, or as the API half of a feature running beside the frontend agent.
+# Generated from backend.md by .claude/skills/team/scripts/effort-variants.mjs — edit the base, then run it.
+name: backend-high
+description: The backend agent at high effort — same role, prompt and file ownership. Spawned only by the /team lead when it prices a task at high; never pick it directly.
 model: sonnet
-effort: medium
+effort: high
 isolation: worktree
 hooks:
   PreToolUse:

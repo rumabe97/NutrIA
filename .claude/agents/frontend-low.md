@@ -1,8 +1,9 @@
 ---
-name: frontend
-description: Owns apps/web, packages/ui and apps/docs, the i18n dictionaries included. Use for any change to a screen, a component, a stylesheet, a dictionary or the words on a control — on its own, or as the web half of a feature running beside the backend agent.
+# Generated from frontend.md by .claude/skills/team/scripts/effort-variants.mjs — edit the base, then run it.
+name: frontend-low
+description: The frontend agent at low effort — same role, prompt and file ownership. Spawned only by the /team lead when it prices a task at low; never pick it directly.
 model: sonnet
-effort: medium
+effort: low
 isolation: worktree
 hooks:
   PreToolUse:

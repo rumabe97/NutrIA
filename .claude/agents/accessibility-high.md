@@ -1,8 +1,9 @@
 ---
-name: accessibility
-description: Reviews every screen of apps/web and every component of packages/ui for accessibility - names and roles, labels, keyboard and focus, touch targets, contrast, motion, zoom and reflow - and owns the local browser probe. Use whenever a screen, a component, a form or a stylesheet is added or changed, and for an accessibility audit on its own. Reports; never edits.
+# Generated from accessibility.md by .claude/skills/team/scripts/effort-variants.mjs — edit the base, then run it.
+name: accessibility-high
+description: The accessibility agent at high effort — same role, prompt and file ownership. Spawned only by the /team lead when it prices a task at high; never pick it directly.
 model: sonnet
-effort: medium
+effort: high
 isolation: worktree
 tools: Read, Grep, Glob, Bash, SendMessage, Skill, WebFetch, WebSearch
 hooks:

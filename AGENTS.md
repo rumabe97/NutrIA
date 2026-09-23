@@ -573,7 +573,8 @@ where the lead prices every task before spawning anybody, by the rubric in
 `.claude/skills/team/SKILL.md`, and says in its report what ran on what and why. The owner's
 instruction, 2026-09-21: the orchestrator decides the split and each agent's model, spends
 the least that still guarantees the result, and never a strong model on something simple or
-on a wait. The exception below is a floor under both profiles.
+on a wait. Amended 2026-09-23: the orchestrator is Opus 5.5 and chooses each agent's effort
+too, not only its model; older models are allowed when they are the better fit. The exception below is a floor under both profiles.
 
 Chosen because this workspace is large and much of what remains is well-specified
 mechanical work. The exception: phases touching **allergy validation, authentication, or AI
@@ -584,6 +585,6 @@ failure, not a bug. Record that deviation in the plan phase as usual. `/plan-pro
 | --- | --- | --- | --- | --- |
 | `quality-max` | fable | fable | fable | haiku |
 | `tiered` | fable | opus | sonnet | haiku |
-| `routed` | fable | the cheapest the task's specification allows: sonnet from a complete contract, opus when a decision is still open | haiku, or a script | a script |
+| `routed` | opus 5.5 at `high` (the lead); fable for the two reviewers | the cheapest model **and effort** the task's specification allows: sonnet from a complete contract, opus when a decision is still open | haiku, or a script | a script |
 
 Guidance: small or high-stakes workspaces tend toward `quality-max`; larger ones with many well-specified mechanical phases tend toward `tiered`. The built-in rows are conventions, not laws — some workspaces invert them (plan on opus, implement on fable); custom profiles are fine, define them as rows in this table. Tasks and exploratory rounds get a single routing decision (one model for the session), not per-phase routing.
