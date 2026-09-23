@@ -69,9 +69,8 @@ $2/$10 · `opus` (Opus 5.5) $4/$20 · `fable` (Fable 5.1) $10/$50. Effort multip
 model spends on thinking and tool calls, so a level down is often the cheaper trade than a
 model down — `sonnet` at `low` for a character-exact edit, `opus` at `low` before `sonnet`
 at `high` when the task needs judgement but not depth. Haiku 4.5 has no effort control: a
-`haiku` task spawns the plain definition, and the definition's level is expected to be
-dropped as the session's always was — **not yet measured**: the first run that does it says
-so in its report, and if it errors, that is a finding.
+`haiku` task spawns the plain definition, and the definition's level is dropped without an
+error (measured 2026-09-23: `accessibility-low` spawned on `haiku` ran and answered).
 
 **Older models are not cheaper here** — Opus 4.6–4.8 cost what Opus 5 does ($5/$25) and
 Sonnet 4.6 costs more than Sonnet 5 ($3/$15) — so price never picks one. The Agent tool's
