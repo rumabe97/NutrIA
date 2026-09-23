@@ -574,7 +574,10 @@ where the lead prices every task before spawning anybody, by the rubric in
 instruction, 2026-09-21: the orchestrator decides the split and each agent's model, spends
 the least that still guarantees the result, and never a strong model on something simple or
 on a wait. Amended 2026-09-23: the orchestrator is Opus 5.5 and chooses each agent's effort
-too, not only its model; older models are allowed when they are the better fit. The exception below is a floor under both profiles.
+too, not only its model; older models are allowed when they are the better fit. Amended again
+the same day: **no agent or phase runs on `fable`** — it spends usage credits that run out
+mid-phase — so `opus` is the ceiling and the table below has no `fable` in it. The exception
+below is a floor under both profiles.
 
 Chosen because this workspace is large and much of what remains is well-specified
 mechanical work. The exception: phases touching **allergy validation, authentication, or AI
@@ -583,8 +586,8 @@ failure, not a bug. Record that deviation in the plan phase as usual. `/plan-pro
 
 | Profile | Planning / design / review | Implementation | Mechanical phases | Tooling & formatting |
 | --- | --- | --- | --- | --- |
-| `quality-max` | fable | fable | fable | haiku |
-| `tiered` | fable | opus | sonnet | haiku |
-| `routed` | opus 5.5 at `high` (the lead); fable for the two reviewers | the cheapest model **and effort** the task's specification allows: sonnet from a complete contract, opus when a decision is still open | haiku, or a script | a script |
+| `quality-max` | opus @ high | opus @ high | opus @ high | haiku |
+| `tiered` | opus @ high | opus @ medium | sonnet | haiku |
+| `routed` | opus 5.5 at `high` (the lead); opus at `high` for the two reviewers | the cheapest model **and effort** the task's specification allows: sonnet from a complete contract, opus when a decision is still open | haiku, or a script | a script |
 
-Guidance: small or high-stakes workspaces tend toward `quality-max`; larger ones with many well-specified mechanical phases tend toward `tiered`. The built-in rows are conventions, not laws — some workspaces invert them (plan on opus, implement on fable); custom profiles are fine, define them as rows in this table. Tasks and exploratory rounds get a single routing decision (one model for the session), not per-phase routing.
+Guidance: small or high-stakes workspaces tend toward `quality-max`; larger ones with many well-specified mechanical phases tend toward `tiered`. The built-in rows are conventions, not laws — some workspaces invert them (plan on sonnet, implement on opus); custom profiles are fine, define them as rows in this table. Tasks and exploratory rounds get a single routing decision (one model for the session), not per-phase routing.

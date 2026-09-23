@@ -52,7 +52,7 @@
 ### Phase 1 — Title
 
 - [ ] pending
-- **Dispatch**: fable | opus | sonnet | haiku @ low | medium | high | max — `/execute-project NNN phase 1`
+- **Dispatch**: opus | sonnet | haiku @ low | medium | high | max — `/execute-project NNN phase 1`
 - **Goal**: one sentence.
 - **Scope**: the files/packages this phase may touch.
 - **Steps**: numbered, concrete.
