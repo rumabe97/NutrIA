@@ -24,6 +24,18 @@ status `approved` or `in progress` — if that's ambiguous, ask.
    matches your own, do the work directly. Otherwise spawn a subagent with that model
    (Agent tool, `model` option), passing it the phase block verbatim plus only the
    context it needs — not the whole conversation.
+   **The effort comes from the agent type, not from the call**: the Agent tool takes a
+   model but no effort, and a definition's `effort:` overrides yours. Pick the role by
+   what the phase's scope touches — `backend` (packages/core, packages/database,
+   apps/api), `frontend` (apps/web, packages/ui), `tests` (apps/api/test alone) — and the
+   level by its variant: `<role>` is `medium`, `<role>-low` and `<role>-high` are the
+   others (`.claude/skills/team/scripts/effort-variants.mjs`). `xhigh` or `max` have no
+   variant: use `-high` and say so in LOG.md. A phase that fits no role (docs, config)
+   goes to `general-purpose`, which inherits your effort — say that too. Record the
+   agent type actually spawned in the LOG entry's **Executor** line.
+   The role agents run in their own worktree. When one returns, bring its changes into
+   this checkout from the worktree its result names, then remove that worktree
+   (`git worktree remove <path>`) — a phase leaves one copy of its work, not several.
    Honor the gate annotations: `owner-gated: <action>` — do everything up to it, then
    hand the owner the exact steps; `owner-approves: <what>` — assemble the evidence the
    owner needs to decide, then stop; `human-verify: <what>` — stop at acceptance and ask
