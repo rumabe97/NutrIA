@@ -4,7 +4,7 @@ import { fallbackFlags, FLAG_NAMES, FLAGS, flagsFor, flagsFrom } from 'core/doma
 
 describe('flagsFrom', () => {
   it('gives every flag its declared fallback when the table is empty', () => {
-    expect(flagsFrom([])).toEqual({ automaticActivation: true, checkInReminders: false, premium: false });
+    expect(flagsFrom([])).toEqual({ automaticActivation: true, checkInReminders: false, premium: false, professional: false });
   });
 
   it('lets a stored row override the fallback, in both directions', () => {
@@ -26,7 +26,7 @@ describe('flagsFrom', () => {
         { enabled: true, key: 'premium' },
         { enabled: false, key: 'automatic_activation' }
       ])
-    ).toEqual({ automaticActivation: false, checkInReminders: false, premium: true });
+    ).toEqual({ automaticActivation: false, checkInReminders: false, premium: true, professional: false });
   });
 });
 
@@ -64,5 +64,15 @@ describe('the registry itself', () => {
   /* An empty settings table must never be what starts mailing people. */
   it('leaves the check-in reminder off until somebody says otherwise, and tells only the owner', () => {
     expect(FLAGS.checkInReminders).toMatchObject({ audience: 'owner', fallback: false });
+  });
+
+  /*
+   * An empty settings table must never be what opens one account's data to
+   * another (`0059`). Off, a granted professional is an ordinary account; and
+   * nobody but the owner has any business knowing the workspace exists.
+   */
+  it('leaves the dietitian workspace off until somebody says otherwise, and tells only the owner', () => {
+    expect(FLAGS.professional).toMatchObject({ audience: 'owner', fallback: false });
+    expect('professional' in flagsFor(fallbackFlags(), 'signed-in')).toBe(false);
   });
 });

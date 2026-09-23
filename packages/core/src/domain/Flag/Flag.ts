@@ -12,7 +12,7 @@
  * service is first deployed and every day a migration runs before a seed.
  */
 
-export type FlagName = 'automaticActivation' | 'checkInReminders' | 'premium';
+export type FlagName = 'automaticActivation' | 'checkInReminders' | 'premium' | 'professional';
 
 export type FlagAudience =
   /** The owner, on `/admin`, and nobody else. */
@@ -77,7 +77,20 @@ export const FLAGS: Readonly<Record<FlagName, Flag>> = {
    * before this flag existed. A missing row must never be what puts a price in
    * front of somebody or quietly raises what an account is allowed to spend.
    */
-  premium: { audience: 'signed-in', fallback: false, key: 'premium' }
+  premium: { audience: 'signed-in', fallback: false, key: 'premium' },
+
+  /**
+   * Whether the dietitian's workspace exists at all (`0059`, `0061`).
+   *
+   * Falls back to off. Every professional route sits behind `ProfessionalGuard`,
+   * which asks this first: off, a granted professional is an ordinary account
+   * and no route of the workspace answers anything but 404 — which is the
+   * product exactly as it was before the feature. It is switched on only after
+   * the owner's legal review, so the phases can land on `main` without anybody
+   * seeing a half-built workspace. Owner-only: no signed-in screen decides
+   * anything on it, and the guard reads it from the table, not from a response.
+   */
+  professional: { audience: 'owner', fallback: false, key: 'professional' }
 };
 
 export const FLAG_NAMES = Object.keys(FLAGS) as readonly FlagName[];

@@ -318,6 +318,15 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `AdminRepository` selects no column that carries content — no dish, no profile. The account
   list carries address, dates and role and nothing else. Keep it that way: the questions worth
   a screen are "is generation working", "how big is the catalogue" and "who is waiting".
+- **Professionals** (`0059`): an account is a professional because a `professionals` row
+  says so, and only `POST /admin/accounts/:id/professional` (the collegiate number, nothing
+  else) writes one; `DELETE` of the same takes it back and `GET /admin/professionals` lists
+  them with link *counts*, never a client. `user.role` is untouched. `ProfessionalGuard`
+  (`shared/guards`) is the door to the workspace — the `professional` switch on **and** the
+  row, both read per request, anything else 404 — and it is **not global**: every workspace
+  controller carries `@UseGuards(ProfessionalGuard)` on its class, and never
+  `@RequiresOnboarding()` (its 409 would answer a non-professional before the guard's 404).
+  Only an account with a confirmed address can be granted.
 - **Country** (`0034`): `loadCatalogue(locale, country)` drops ingredients sold only
   elsewhere — `ingredients.countries`, where empty means everywhere. Null country filters
   nothing, which is what an account that never said where it is had before the column.

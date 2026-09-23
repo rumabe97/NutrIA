@@ -12,6 +12,7 @@ export * from './auth.schema';
 export * from './food.schema';
 export * from './plan.schema';
 export * from './platform.schema';
+export * from './professional.schema';
 export * from './profile.schema';
 export * from './progress.schema';
 export * from './recipe.schema';

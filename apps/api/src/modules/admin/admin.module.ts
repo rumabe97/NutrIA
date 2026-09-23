@@ -5,10 +5,18 @@ import {
   AdminController,
   AdminFeedbackController,
   AdminGenerationsController,
+  AdminProfessionalsController,
   AdminPushTestController,
   AdminSettingsController
 } from './controllers/index.js';
-import { AdminAccountsService, AdminFeedbackService, AdminPushTestService, AdminService, AdminSettingsService } from './services/index.js';
+import {
+  AdminAccountsService,
+  AdminFeedbackService,
+  AdminProfessionalsService,
+  AdminPushTestService,
+  AdminService,
+  AdminSettingsService
+} from './services/index.js';
 import { envProvider } from '../../config/index.js';
 import { NotificationsModule } from '../notifications/index.js';
 
@@ -23,11 +31,20 @@ import { NotificationsModule } from '../notifications/index.js';
     AdminAccountsController,
     AdminFeedbackController,
     AdminGenerationsController,
+    AdminProfessionalsController,
     AdminPushTestController,
     AdminSettingsController
   ],
   // For `PushService`: the owner's test goes out through the one door every push does.
   imports: [NotificationsModule],
-  providers: [AdminAccountsService, AdminFeedbackService, AdminPushTestService, AdminService, AdminSettingsService, envProvider]
+  providers: [
+    AdminAccountsService,
+    AdminFeedbackService,
+    AdminProfessionalsService,
+    AdminPushTestService,
+    AdminService,
+    AdminSettingsService,
+    envProvider
+  ]
 })
 export class AdminModule {}

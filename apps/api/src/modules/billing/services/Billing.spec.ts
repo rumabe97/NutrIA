@@ -54,7 +54,9 @@ function harness(
     yearly: options.yearly ?? true
   };
 
-  jest.spyOn(SettingsController, 'flags').mockResolvedValue({ automaticActivation: true, checkInReminders: false, premium: options.premium ?? true });
+  jest
+    .spyOn(SettingsController, 'flags')
+    .mockResolvedValue({ automaticActivation: true, checkInReminders: false, premium: options.premium ?? true, professional: false });
   jest.spyOn(ProfileController, 'localeOf').mockResolvedValue('es-ES');
   jest.spyOn(BillingController, 'standing').mockResolvedValue({ subscription: options.subscription ?? null, tier: 'free' });
   jest.spyOn(BillingController, 'customerOf').mockResolvedValue(options.customer ?? null);
