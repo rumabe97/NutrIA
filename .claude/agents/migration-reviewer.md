@@ -2,6 +2,7 @@
 name: migration-reviewer
 description: Reviews every database migration before it can reach production - whether it destroys data, locks a table, survives the old API still running during the deploy, and can be undone. Use on any change under packages/database/src/migrations or packages/database/src/schemas. Reports; never edits. Never below the fable model - a migration runs against production during the API's build, with no staging in between.
 model: fable
+effort: high
 tools: Read, Grep, Glob, Bash, SendMessage, Skill
 ---
 

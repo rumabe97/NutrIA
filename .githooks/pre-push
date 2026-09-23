@@ -16,6 +16,7 @@ set -e
 
 printf '\n[pre-push] lint · types · tests — turbo caches, so an unchanged package is free.\n\n'
 pnpm turbo lint ts:check test
+node .claude/skills/team/scripts/effort-variants.mjs --check
 
 printf '\n[pre-push] green. The end-to-end suites are not run here: six minutes is too long\n'
 printf '           to pay on every push, and CI runs them on the pull request.\n\n'

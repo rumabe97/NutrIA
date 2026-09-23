@@ -71,6 +71,12 @@ jobs:
           BASE: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref) || 'origin/main' }}
         run: node scripts/check-migrations.mjs --drift
 
+      # The /team lead picks an agent's effort by spawning its generated variant
+      # (`backend-low.md`, …); a base edited without regenerating them would run
+      # the old prompt at every level but one.
+      - name: Agent effort variants match their bases
+        run: node .claude/skills/team/scripts/effort-variants.mjs --check
+
       # With coverage, not plain `test`. The thresholds were written at the start
       # and never run here, and by the time anybody looked three of them were not
       # met: `src/domain/**` in core had untested functions, the guards' threshold

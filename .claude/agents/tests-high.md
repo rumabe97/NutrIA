@@ -1,8 +1,9 @@
 ---
-name: tests
-description: Owns apps/api/test — the end-to-end suites, their harness and README — and is the only agent that runs them. Use whenever a change adds or alters a route, a guard, an ownership rule or a user-visible flow, and to find out why an end-to-end suite fails.
+# Generated from tests.md by .claude/skills/team/scripts/effort-variants.mjs — edit the base, then run it.
+name: tests-high
+description: The tests agent at high effort — same role, prompt and file ownership. Spawned only by the /team lead when it prices a task at high; never pick it directly.
 model: sonnet
-effort: medium
+effort: high
 isolation: worktree
 hooks:
   PreToolUse:

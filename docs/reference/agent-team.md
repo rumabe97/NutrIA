@@ -157,16 +157,23 @@ and redoes what is on disk.
 
 ## Models, and what a run costs
 
-**The lead chooses each agent's model, per task, when it spawns it** — the rubric is in
-`.claude/skills/team/SKILL.md` § 1. Measured: the Agent tool's `model` outranks the
-definition's (a definition asking for `fable`, spawned with `haiku`, ran as `haiku` and kept
-its prompt). Effort cannot be set per agent; agents inherit the lead's — **confirmed** by the
-documentation, not measured.
+**The lead chooses each agent's model and effort, per task, when it spawns it** — the
+rubric is in `.claude/skills/team/SKILL.md` § 1. Measured: the Agent tool's `model` outranks
+the definition's (a definition asking for `fable`, spawned with `haiku`, ran as `haiku` and
+kept its prompt). The Agent tool takes no effort — **confirmed** by the documentation — but a
+definition's `effort:` frontmatter overrides the session's, so each building or verifying
+agent exists at three levels: `backend` (`medium`), `backend-low`, `backend-high`, the last
+two generated from the first by `.claude/skills/team/scripts/effort-variants.mjs` and checked
+in CI. The lead picks the level by `subagent_type` and always spawns under the plain name.
 
-- The lead runs on `fable`: its mistakes are paid for by every agent after it. It does not
-  wait, read in bulk or do mechanical work — scripts and `haiku` do.
-- An agent starts on the cheapest model its task's *specification* allows, and climbs only
-  on evidence: red at the gate twice, or the same P0 twice.
+- The lead runs on Opus 5.5 at `high` (owner's instruction, 2026-09-23): its mistakes are
+  paid for by every agent after it. It does not wait, read in bulk or do mechanical work —
+  scripts and `haiku` do.
+- An agent starts on the cheapest model and effort its task's *specification* allows, and
+  climbs only on evidence: red at the gate twice, or the same P0 twice — effort first when
+  the miss was carelessness, the model when the approach was wrong.
+- Older models are allowed but never cheaper in the current lineup, so they are chosen only
+  for a behaviour the current one lacks, through a definition's full-id `model:`.
 - **Two floors never move**: `invariant-reviewer` and `migration-reviewer` are `fable`, and
   so is whoever implements authentication, allergy validation or the validation of model
   output (`quality-max` in `AGENTS.md`). A one-line change there is not a small change.

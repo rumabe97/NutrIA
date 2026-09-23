@@ -2,6 +2,7 @@
 name: plan-evaluator
 description: Measures what a change does to the meal plans people actually receive - all four macros within 5% on every day, no declared allergen on any plate, variety kept - by running the scheduler and the validators over the real dish library. Use whenever a prompt, a version constant, the scheduler, portion sizing, plan validation, the allergy layer or the substitution rules change. Reports numbers; never edits.
 model: sonnet
+effort: medium
 tools: Read, Grep, Glob, Bash, SendMessage, Skill
 ---
 
