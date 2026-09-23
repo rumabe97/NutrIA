@@ -6,7 +6,7 @@
 > `/plan-project` — to be approved by the owner before the plan is written.
 > Write repo-relative: no absolute paths, no references to other private repos.
 
-- **Status**: draft
+- **Status**: draft — open questions answered by the owner 2026-09-23; awaiting approval
 - **Roadmap item**: [`ROADMAP.md`](../../ROADMAP.md) § 9, *"A professional can run their
   practice on it"*.
 
@@ -145,10 +145,40 @@ When this ships:
 16. `pnpm turbo lint ts:check test`, `pnpm format`, `pnpm -w run deadcode` and the
     end-to-end suites are green, and `PRODUCT.md`, `ARCHITECTURE.md`, the payments
     runbook and the roadmap say what is now true.
+17. A professional with 30 active links cannot send another invitation until one ends, and
+    the refusal says why; a 14-day trial opens the workspace exactly as a paid subscription
+    does and ends through the same signed webhook.
 
-## Open questions
+## Decisions
 
-The owner decides these; the plan is not written until they are answered.
+Answered by the owner on 2026-09-23. Each takes the proposal below unless it says
+otherwise.
+
+1. **Who is a professional** — the owner grants it by hand on `/admin` after seeing a
+   collegiate number, which is **required**, not a declaration.
+2. **The legal shape** — still open, and not the owner's to answer alone: a lawyer's hour on
+   controller/processor and the professional's agreement **before launch**. It changes copy
+   and a consent version, not the architecture, so it does not block the plan; the plan
+   carries it as an owner-gated step before release.
+3. **Clients have their own account** — yes, as proposed.
+4. **Conditions and medications** — visible only under a separate, explicit consent line
+   (criterion 12); never to a model.
+5. **Review before publishing** — on by default for each link, switchable per client by the
+   professional.
+6. **The price** — a flat monthly fee per professional with a ceiling of **30 active
+   clients**, and a **14-day trial** through Stripe. The fee itself lives outside this file.
+7. **A linked client pays nothing** and has the paid allowances while the link lasts.
+8. **After a lapsed or ended link** the client keeps the account, the history and the last
+   published meal plan, on the free allowances.
+9. **Printable meal plan** — out of v1, the first thing after.
+10. **The words** — the workspace is `/consulta` and the people in it are **pacientes** in
+    Spanish (the vocabulary of a regulated health profession); `/practice` and **clients**
+    in English. The client's side says *tu dietista* / *your dietitian*.
+11. **"Not a user"** — the line in `PRODUCT.md` stays where it is for v1 (diagnosed
+    metabolic disease, pregnancy, eating-disorder recovery, paediatric feeding); only the
+    supervision notice changes its wording when a professional is linked.
+
+## The questions as they were asked
 
 1. **Who may be a professional, and how is it checked?** Proposed: the owner grants it by
    hand after seeing a collegiate number, as accounts were opened by hand at the start.
