@@ -67,6 +67,7 @@
     assertion in `ProfessionalController.test.ts`, and add an end-to-end assertion that the
     owner's list carries no client email or id.
   - Apply `@UseGuards(ProfessionalGuard)` on each `care` controller class, and never
-    `@RequiresOnboarding()` there.
+    `@RequiresOnboarding()` there. Then remove the guard's `@knipignore` tag: it was added
+    in this phase only because `pnpm deadcode` (CI) refused an export nothing used yet.
   - The `professional` flag fails off: suites that need it switch it on through
     `PATCH /admin/settings` and back off in `afterAll`, as `professionals.e2e-spec.ts` does.
