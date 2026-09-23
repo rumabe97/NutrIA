@@ -6,7 +6,7 @@
 > `/plan-project` — to be approved by the owner before the plan is written.
 > Write repo-relative: no absolute paths, no references to other private repos.
 
-- **Status**: draft — open questions answered by the owner 2026-09-23; awaiting approval
+- **Status**: approved — by the owner, 2026-09-23
 - **Roadmap item**: [`ROADMAP.md`](../../ROADMAP.md) § 9, *"A professional can run their
   practice on it"*.
 
@@ -145,9 +145,11 @@ When this ships:
 16. `pnpm turbo lint ts:check test`, `pnpm format`, `pnpm -w run deadcode` and the
     end-to-end suites are green, and `PRODUCT.md`, `ARCHITECTURE.md`, the payments
     runbook and the roadmap say what is now true.
-17. A professional with 30 active links cannot send another invitation until one ends, and
-    the refusal says why; a 14-day trial opens the workspace exactly as a paid subscription
-    does and ends through the same signed webhook.
+17. A professional's plan includes a number of active clients; at that number a new
+    invitation is refused with the way up — the larger plan, or ending a link — and moving
+    between plans changes the limit through the same signed webhook, never a request body.
+    A 14-day trial opens the workspace exactly as a paid subscription does and ends the same
+    way.
 
 ## Decisions
 
@@ -165,15 +167,23 @@ otherwise.
    (criterion 12); never to a model.
 5. **Review before publishing** — on by default for each link, switchable per client by the
    professional.
-6. **The price** — a flat monthly fee per professional with a ceiling of **30 active
-   clients**, and a **14-day trial** through Stripe. The fee itself lives outside this file.
+6. **The price** — plans with a flat monthly fee per professional, each including a number
+   of active clients: the first includes **30**, and a larger plan includes more (for
+   instance 60). At the limit the professional is offered the larger plan; moving between
+   plans goes through Stripe's customer portal. A **14-day trial** on the first. Charging per
+   client beyond the included number was considered and left for later: it makes every
+   link change a billing event and the bill different every month. Fees and the larger
+   plan's size live outside this file, as configuration.
 7. **A linked client pays nothing** and has the paid allowances while the link lasts.
 8. **After a lapsed or ended link** the client keeps the account, the history and the last
    published meal plan, on the free allowances.
 9. **Printable meal plan** — out of v1, the first thing after.
 10. **The words** — the workspace is `/consulta` and the people in it are **pacientes** in
-    Spanish (the vocabulary of a regulated health profession); `/practice` and **clients**
-    in English. The client's side says *tu dietista* / *your dietitian*.
+    Spanish (the vocabulary of a regulated health profession); in English the screens call
+    it the **Practice** and the people **clients**. The client's side says *tu dietista* /
+    *your dietitian*. The address is `/consulta` in both languages: signed-in screens have
+    no English twin and take their language from the account (`0040`), so the owner's
+    `/practice` survives as the English name on screen, not as a route.
 11. **"Not a user"** — the line in `PRODUCT.md` stays where it is for v1 (diagnosed
     metabolic disease, pregnancy, eating-disorder recovery, paediatric feeding); only the
     supervision notice changes its wording when a professional is linked.
