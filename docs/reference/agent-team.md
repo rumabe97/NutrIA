@@ -174,8 +174,11 @@ in CI. The lead picks the level by `subagent_type` and always spawns under the p
   the miss was carelessness, the model when the approach was wrong.
 - Older models are allowed but never cheaper in the current lineup, so they are chosen only
   for a behaviour the current one lacks, through a definition's full-id `model:`.
-- **Two floors never move**: `invariant-reviewer` and `migration-reviewer` are `fable`, and
-  so is whoever implements authentication, allergy validation or the validation of model
-  output (`quality-max` in `AGENTS.md`). A one-line change there is not a small change.
+- **No agent runs on `fable`** (owner, 2026-09-23): it spends usage credits that run out —
+  one did in the middle of project 004's first phase. `opus` is the ceiling.
+- **Two floors never move**: `invariant-reviewer` and `migration-reviewer` are `opus` at
+  `high`, and so is whoever implements authentication, allergy validation or the validation
+  of model output (`quality-max` in `AGENTS.md`). A one-line change there is not a small
+  change.
 - A definition's own `model` is only the default for a spawn nobody priced: `sonnet` for
-  the agents that build and verify, `fable` for the two reviewers above.
+  the agents that build and verify, `opus` for the two reviewers above.

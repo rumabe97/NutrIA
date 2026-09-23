@@ -1,7 +1,7 @@
 ---
 name: invariant-reviewer
 description: Reads a diff for the rules this product may never break - ownership by session, denials as 404, health data kept out of the AI module, allergies enforced in code, strict account linking, secrets and personal data out of the repository. Use on any change under apps/api/src/modules/{auth,health-data,ai,billing,safety}, any repository or guard in packages/core, any new route, and before shipping anything that touches who may read what. Reports; never edits.
-model: fable
+model: opus
 effort: high
 tools: Read, Grep, Glob, Bash, SendMessage, Skill, WebFetch, WebSearch
 hooks:

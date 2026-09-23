@@ -61,11 +61,15 @@ on what.
   `accessibility`). Pick the level with `subagent_type`; **the `name` is always the plain
   role** (`backend`), so the others address it the same way at any effort. The variants are
   generated — `node .claude/skills/team/scripts/effort-variants.mjs` after editing a base;
-  CI refuses them stale. The two reviewers are fixed at `fable`/`high` and `plan-evaluator`
+  CI refuses them stale. The two reviewers are fixed at `opus`/`high` and `plan-evaluator`
   at `medium`: no variants, because their floor is the point.
 
+**No agent runs on `fable`** (owner, 2026-09-23): it spends usage credits that run out
+mid-phase — one did during project 004's first phase. `opus` is the ceiling for every spawn;
+where a task once called for `fable`, it runs on `opus` at `high`.
+
 Prices per million tokens, input/output: `haiku` (Haiku 4.5) $1/$5 · `sonnet` (Sonnet 5)
-$2/$10 · `opus` (Opus 5.5) $4/$20 · `fable` (Fable 5.1) $10/$50. Effort multiplies what a
+$2/$10 · `opus` (Opus 5.5) $4/$20. Effort multiplies what a
 model spends on thinking and tool calls, so a level down is often the cheaper trade than a
 model down — `sonnet` at `low` for a character-exact edit, `opus` at `low` before `sonnet`
 at `high` when the task needs judgement but not depth. Haiku 4.5 has no effort control: a
@@ -87,7 +91,7 @@ current one lacks — say which in the report.
 | `sonnet` · `high` | complete contract, but the code it lands in is intricate | a change inside the scheduler or a transaction you specified; a suite for a race |
 | `opus` · `low`/`medium` | a small decision is still open, or the cause of a failure is narrow but unknown | choosing between two shapes you named; a red test whose cause you could not see |
 | `opus` · `high` | a decision is still open inside the task, or the cause is unknown | a feature whose design you could not finish; a failure nobody understands yet; a refactor across modules |
-| `fable` · `high` | a mistake is a safety or privacy failure, or the judgement is the deliverable | `invariant-reviewer` and `migration-reviewer`, always; implementing authentication, allergy validation or the validation of model output (`quality-max`); an SEO audit of the landing page; ruling on a disputed P0 |
+| `opus` · `high`, the floor | a mistake is a safety or privacy failure, or the judgement is the deliverable — never lowered, whatever the change looks like | `invariant-reviewer` and `migration-reviewer`, always; implementing authentication, allergy validation or the validation of model output (`quality-max`); an SEO audit of the landing page; ruling on a disputed P0 |
 
 **The more precisely you specify, the cheaper the agent that can do it.** A paragraph of
 yours that names the file, the function and the failing case moves a task from `opus` to

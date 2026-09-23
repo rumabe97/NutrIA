@@ -10,8 +10,10 @@
 - **Type**: standard
 - **PRD**: [./PRD.md](./PRD.md) — every acceptance criterion is mapped at the end of this file.
 - **Routing profile**: `tiered`. Phases 1–3 build the second way into a user's data — the
-  authorisation and consent path — and run at `quality-max` (fable), the exception
-  `AGENTS.md` § Model routing names for authentication.
+  authorisation and consent path — and run at `quality-max`, the exception
+  `AGENTS.md` § Model routing names for authentication. Phase 1 ran on fable; from
+  2026-09-23 no phase or agent does (owner: fable's usage credits ran out mid-phase), so
+  `quality-max` is opus at `high` and phases 2–3 dispatch there.
 
 ## Design summary
 
@@ -67,7 +69,7 @@ then the documents. Each phase ends green.
 ### Phase 2 — The link: invitation, consent, revocation
 
 - [ ] pending
-- **Dispatch**: fable @ high — `/execute-project 004 phase 2`
+- **Dispatch**: opus @ high — `/execute-project 004 phase 2`
 - **Goal**: a professional invites by email, the client accepts knowing exactly what is shared, and either side ends it in one action.
 - **Scope**: `packages/database/src/schemas` (new `care.schema.ts`), one generated migration, `packages/core/src/{entities,repositories,controllers}/Care/`, new `apps/api/src/modules/care/`, `apps/api/src/modules/email` (one template), `apps/api/test`.
 - **Steps**:
@@ -94,7 +96,7 @@ then the documents. Each phase ends green.
 ### Phase 3 — Delegated reading, and the trail the client sees
 
 - [ ] pending
-- **Dispatch**: fable @ high — `/execute-project 004 phase 3`
+- **Dispatch**: opus @ high — `/execute-project 004 phase 3`
 - **Goal**: the professional sees each client's state and progress through the one named path, every read leaves a row the client can read, and nothing crosses between professionals.
 - **Scope**: `packages/database/src/schemas/care.schema.ts` (the log), one generated migration, `packages/core/src/controllers/{Care,Progress,Health}`, `apps/api/src/modules/care`, `apps/api/src/modules/ai/health-boundary.spec.ts`, `apps/api/test`.
 - **Steps**:
