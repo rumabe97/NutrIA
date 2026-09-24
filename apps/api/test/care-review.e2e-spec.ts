@@ -108,6 +108,10 @@ describe('care review', () => {
   let ended: Account;
   /** B's one client. */
   let theirs: Account;
+  /** Linked before finishing onboarding. */
+  let unready: Account;
+  /** Sent the link whose grant is taken back under a waiting plan. */
+  let proE: Account;
   const links: Record<string, string> = {};
   /** Every session this suite opened, so `afterAll` can delete each account it made. */
   const made: string[] = [];
@@ -285,8 +289,36 @@ describe('care review', () => {
     await request(server()).post(`/${PREFIX}/meal-plans/meals/${mealId}/swap`).set('Cookie', who.cookie).send({}).expect(404);
     await request(server()).patch(`/${PREFIX}/meal-plans/meals/${mealId}/status`).set('Cookie', who.cookie).send({ status: 'completed' }).expect(404);
     expect((await historyOf(who)).map(row => row.id)).not.toContain(plan.id);
+    expect((await progressOf(who)).fortnights.map(row => row.planId)).not.toContain(plan.id);
+
+    // The waiting plan's list has rows; ticking one is the same 404, and leaves it as it was.
+    const [item] = await tables()<{ id: string; checked: boolean }>`
+      select i.id, i.checked from shopping_list_items i join shopping_lists l on l.id = i.list_id where l.plan_id = ${plan.id} limit 1`;
+
+    expect(item).toBeDefined();
+    await request(server())
+      .patch(`/${PREFIX}/shopping-lists/items/${item?.id ?? ''}`)
+      .set('Cookie', who.cookie)
+      .send({ checked: !item?.checked })
+      .expect(404);
+
+    const [after] = await tables()<{ checked: boolean }>`select checked from shopping_list_items where id = ${item?.id ?? ''}`;
+
+    expect(after?.checked).toBe(item?.checked);
     expect((await activeOf(who))?.id).not.toBe(plan.id);
     expect((await checkInOf(who)).plan?.id).not.toBe(plan.id);
+  }
+
+  async function progressOf(who: Account): Promise<{ fortnights: readonly { planId: string }[] }> {
+    const response: Response = await request(server()).get(`/${PREFIX}/progress/summary`).set('Cookie', who.cookie).expect(200);
+
+    return response.body as { fortnights: { planId: string }[] };
+  }
+
+  async function allowancesOf(who: Account): Promise<{ planRedo: { allowed: boolean; kind: string; used: number } }> {
+    const response: Response = await request(server()).get(`/${PREFIX}/meal-plans/allowances`).set('Cookie', who.cookie).expect(200);
+
+    return response.body as { planRedo: { allowed: boolean; kind: string; used: number } };
   }
 
   /** The client's own poll of a job, as the progress screen reads it. */
@@ -351,12 +383,14 @@ describe('care review', () => {
     proB = await account('pro-b');
     proC = await account('pro-c');
     proD = await account('pro-d');
+    proE = await account('pro-e');
     await UserController.grantAdmin(owner.email);
     await setSwitch(true);
     await grant(proA);
     await grant(proB);
     await grant(proC);
     await grant(proD);
+    await grant(proE);
 
     lived = await account('lived');
     fresh = await account('fresh');
@@ -364,6 +398,7 @@ describe('care review', () => {
     paused = await account('paused');
     ended = await account('ended');
     theirs = await account('theirs');
+    unready = await account('unready');
 
     const allergens: Response = await request(server()).get(`/${PREFIX}/safety/allergens`).expect(200);
     const glutenId = (allergens.body as readonly { id: string; key: string }[]).find(allergen => allergen.key === 'gluten')?.id ?? '';
@@ -386,6 +421,7 @@ describe('care review', () => {
     links.paused = await link(proD, paused);
     links.ended = await link(proD, ended);
     links.theirs = await link(proB, theirs);
+    links.unready = await link(proD, unready);
 
     await tables()`update care_links set status = 'paused' where id = ${links.paused}`;
     await request(server()).delete(`/${PREFIX}/care/links/${links.ended}`).set('Cookie', ended.cookie).expect(204);
@@ -514,6 +550,17 @@ describe('care review', () => {
       expect((await pending(proA, links.lived))?.id).toBe(next.id);
     });
 
+    it('keeps the check-in on the plan being lived, not the one waiting', async () => {
+      // The fortnight being lived ended yesterday, unanswered: it is due, whatever waits behind it.
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+      await tables()`update meal_plans set end_date = ${yesterday} where id = ${first.id}`;
+
+      expect(await checkInOf(lived)).toMatchObject({ due: true, plan: { id: first.id } });
+      // The professional's list names the waiting plan first; nothing on it says the check-in moved to it.
+      expect(await stageOf(proA, links.lived)).toMatchObject({ stage: 'plan_awaiting_review' });
+    });
+
     it('publishes in one step: the waiting plan active, the old one completed', async () => {
       let published: PlanView | undefined;
 
@@ -538,7 +585,8 @@ describe('care review', () => {
       const list: Response = await shoppingListOf(lived).expect(200);
 
       expect((list.body as ShoppingListView).planId).toBe(next.id);
-      expect((await checkInOf(lived)).plan?.id).toBe(next.id);
+      // The new fortnight is the one read now, and it has not ended.
+      expect(await checkInOf(lived)).toMatchObject({ due: false, plan: { id: next.id } });
       expect((await historyOf(lived)).map(row => row.id)).toEqual(expect.arrayContaining([first.id, next.id]));
 
       const old: Response = await request(server()).get(`/${PREFIX}/meal-plans/${first.id}`).set('Cookie', lived.cookie).expect(200);
@@ -624,6 +672,13 @@ describe('care review', () => {
       await publishFor(proC, links.fresh).expect(200);
       expect((await activeOf(fresh))?.id).toBe(replacement.id);
     });
+
+    it('refuses the professional a new plan over the one being lived, with review on, and writes nothing', async () => {
+      const plans = await planRows(fresh.id);
+
+      await expect(rowsWrittenBy(fresh.id, () => generateFor(proC, links.fresh).expect(404))).resolves.toEqual([]);
+      expect(await planRows(fresh.id)).toEqual(plans);
+    });
   });
 
   describe('with review off, or no active link', () => {
@@ -670,6 +725,21 @@ describe('care review', () => {
       expect((await activeOf(unreviewed))?.id).toBe(job.planId);
       expect((await planRows(unreviewed.id)).map(row => row.status)).toEqual(['active']);
       expect(await pending(proA, links.unreviewed)).toBeNull();
+    });
+
+    it('refuses the professional a new plan over the one being lived, with review off, and writes nothing', async () => {
+      const plans = await planRows(unreviewed.id);
+
+      await expect(rowsWrittenBy(unreviewed.id, () => generateFor(proA, links.unreviewed).expect(404))).resolves.toEqual([]);
+      expect(await planRows(unreviewed.id)).toEqual(plans);
+    });
+
+    it("fails the professional's job for a client still onboarding, and makes no plan", async () => {
+      // Not refused at the door (the lead's call, 2026-09-24): the job starts and the pipeline fails it.
+      const job = await generateForAndWait(proD, links.unready);
+
+      expect(job).toMatchObject({ error: 'GENERATION_ONBOARDING_INCOMPLETE', planId: null, status: 'failed' });
+      expect(await planRows(unready.id)).toEqual([]);
     });
 
     it('gives a client whose link is paused their plan at once', async () => {
@@ -780,6 +850,77 @@ describe('care review', () => {
       // Still waiting, still the professional's alone.
       expect(await pending(proA, links.unreviewed)).toMatchObject({ status: 'pending_review' });
       expect((await activeOf(unreviewed))?.status).toBe('active');
+    });
+  });
+
+  /*
+   * A waiting plan whose review can no longer happen (owner, 2026-09-24): the
+   * link ended, paused, or the professional's grant taken back. It stops
+   * counting against the client — their next generation is neither refused nor
+   * charged for it, and replaces it. On the free tier a charged redo would be
+   * the second of one, a 429, so a success is the proof.
+   */
+  describe('a waiting plan stranded', () => {
+    type Stranded = { readonly client: Account; readonly first: string; readonly waiting: string; readonly waitingJob: string };
+
+    const cases: Record<'ended' | 'paused' | 'revoked', Stranded | undefined> = { ended: undefined, paused: undefined, revoked: undefined };
+
+    /** A client living a plan who asks for the next one, which waits for `professional`. */
+    async function waitingFor(professional: Account, name: string): Promise<Stranded & { readonly linkId: string }> {
+      const client = await account(name);
+
+      await completeOnboarding(app, client);
+      expect((await generateAndWait(app, client)).status).toBe('succeeded');
+
+      const first = (await activeOf(client))?.id ?? '';
+      const linkId = await link(professional, client);
+
+      expect(await generateAndWait(app, client)).toMatchObject({ planId: null, status: 'succeeded' });
+
+      const waiting = (await planRows(client.id)).find(row => row.status === 'pending_review')?.id ?? '';
+
+      expect(waiting).not.toBe('');
+      // Waiting, it is the fortnight's one redo.
+      expect((await allowancesOf(client)).planRedo).toMatchObject({ allowed: false, used: 1 });
+
+      return { client, first, linkId, waiting, waitingJob: (await latestJob(client)).id };
+    }
+
+    beforeAll(async () => {
+      const ended = await waitingFor(proD, 'stranded-ended');
+      const paused = await waitingFor(proD, 'stranded-paused');
+      const revoked = await waitingFor(proE, 'stranded-revoked');
+
+      await request(server()).delete(`/${PREFIX}/care/links/${ended.linkId}`).set('Cookie', ended.client.cookie).expect(204);
+      await tables()`update care_links set status = 'paused' where id = ${paused.linkId}`;
+      await request(server()).delete(`/${PREFIX}/admin/accounts/${proE.id}/professional`).set('Cookie', owner.cookie).expect(204);
+
+      cases.ended = ended;
+      cases.paused = paused;
+      cases.revoked = revoked;
+    });
+
+    it.each(['ended', 'paused', 'revoked'] as const)('with the link %s, costs the client nothing and is replaced by their next plan', async name => {
+      const stranded = cases[name] as Stranded;
+
+      // No longer counted: the fortnight's redo is there again.
+      expect((await allowancesOf(stranded.client)).planRedo).toMatchObject({ allowed: true, used: 0 });
+
+      const job = await generateAndWait(app, stranded.client);
+
+      expect(job).toMatchObject({ planId: expect.any(String), status: 'succeeded' });
+      expect(await clientJob(stranded.client, (await latestJob(stranded.client)).id)).toMatchObject({ pendingReview: false, planId: job.planId });
+
+      // The waiting plan is gone, its job points nowhere, the new plan is the one lived, the old one is history.
+      const rows = await planRows(stranded.client.id);
+
+      expect(rows.map(row => row.id)).not.toContain(stranded.waiting);
+      expect(rows.filter(row => row.status === 'pending_review')).toEqual([]);
+      expect(rows.filter(row => row.status === 'active').map(row => row.id)).toEqual([job.planId]);
+      expect(rows.find(row => row.id === stranded.first)?.status).toBe('completed');
+      expect(await clientJob(stranded.client, stranded.waitingJob)).toMatchObject({ pendingReview: false, planId: null });
+      expect((await activeOf(stranded.client))?.id).toBe(job.planId);
+      expect((await allowancesOf(stranded.client)).planRedo).toMatchObject({ used: 1 });
     });
   });
 });

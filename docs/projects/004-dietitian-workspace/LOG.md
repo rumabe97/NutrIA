@@ -332,3 +332,69 @@
   - For the owner: after a link ends, the targets stay in force still labelled with the professional's name; a second
     professional's overview shows the first one's name until the client edits them. The plan says nothing about either.
   - The whole end-to-end run still leaves 34 accounts from other, unchanged suites (as Phase 3 noted).
+
+## Phase 5 — Review before publishing (2026-09-24)
+
+- **Executor**: Opus 5.5 at `high` throughout.
+  - `backend-high` (on opus) built the phase and three fix rounds.
+  - `tests-high` (on opus) wrote `care-review.e2e-spec.ts`. It stalled for 16 minutes after its last edit without reading its messages, so the lead stopped it.
+  - The lead finished the suite: it merged both branches into `feat/004-phase-5`, applied the agent's uncommitted last round, adapted the onboarding test and ran the suites.
+  - `migration-reviewer` and `invariant-reviewer` ran on opus, the invariant review in three passes.
+- **Result**: done locally. The end-to-end suite passed on a throwaway Postgres; the pull request's CI runs it again.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test build --filter=core --filter=database --filter=api`: 12 of 12 tasks, api 621 tests in 61 suites.
+  - `BASE=origin/main node scripts/check-migrations.mjs --drift`: 1 new, 38 in all, journal and snapshot in order, schema and migrations agree.
+  - `pnpm -w run deadcode`, `sh scripts/check-leaks.sh`, `pnpm --filter api format` and `lint`: clean.
+  - `test:e2e -- care-review care`: **81 of 81**. The whole end-to-end run: **23 of 23 suites, 290 of 290 tests**.
+    - Both ran on a fresh database on a throwaway embedded Postgres 17 on a local port, migrated from empty through 0037 and seeded.
+    - `AI_PROVIDER=stub`; every mail, payment, OAuth, push and error-reporting variable blanked.
+  - The agent's baseline at `dfb9ee8` was 22 of 22 suites, 263 of 263 tests. Its run on the first backend commit was 23 of 23 suites, 283 of 283. No existing suite changed.
+  - `migration-reviewer` (opus): no P0 or P1.
+    - P2: the "add it to the list" rule for the index condition could not be followed. Fixed: the comment is reworded, and a unit test fails when the list and the enum disagree.
+    - P2: after a rollback past this phase, `publish` could activate an older draft over a newer plan. Fixed: `publish` refuses a pending plan older than the active one and deletes it.
+    - P3s: fixed. The enum comment no longer calls its order a lifecycle, and a comment says why the index cannot be built concurrently.
+  - `invariant-reviewer` (opus), first pass: no P0.
+    - **P1: a pending plan outlived its review.** After the link ended it could not be published, yet it still counted against the client's allowance. Fixed as the owner decided (see Deviations).
+    - **P1: the professional's generate had no guard.** With review off it could replace a client's current fortnight. Fixed as the owner decided.
+    - P2: review was decided only when the plan was saved. Fixed: a professional-started job is re-checked at save.
+    - P2: the allowance check ran on a second connection inside the claim's transaction and could exhaust the pool. Fixed: it now runs after the claim, as on the client's own path.
+  - `invariant-reviewer`, second and third passes: nothing reopened and no new P0–P2. No professional path can replace an active plan, and every refused write leaves no trail row. Two P3s:
+    - The save-time guard asked for an active plan indirectly. Fixed: it is now a direct select.
+    - The allowance screen can disagree with the generate check (below). Accepted.
+- **Deviations from plan** (step 4 is amended, and `0060` gains a dated amendment):
+  - **The owner's decisions (2026-09-24):**
+    - A pending plan counts toward the client's allowance only while it can still be published: the switch on, an active link, a standing grant. Review turned off still counts. Once the link ends, pauses or loses its grant, the client's next generation replaces the plan at no charge.
+    - The professional generates only when a plan is pending or the client has no active plan. Otherwise it is a 404 with no trail row.
+  - **Any new generation replaces a pending plan.** The pending row is deleted, and its job keeps `planId = null`. The deleted plan's redo carries over in `generationMetadata.replacedRedos`, so regenerating is never free.
+  - **What happens to a professional's plan at save:**
+    - the link can still publish and a plan is pending: it lands pending, even with review turned off;
+    - review is on: pending;
+    - the client has no active plan: active;
+    - otherwise: `ConflictError`, nothing written, the job fails.
+  - **Where the hiding lives.** The client's reads exclude `pending_review` inside `PlanRepository` by default, not per route. That covers the five reads the plan names, plus the day, the meal detail, the swap, a meal's status (now 404, not 409) and the shopping-item toggle.
+  - **The one-pending-plan index lists the old values.** Its condition is `status NOT IN (the six old values)`: Drizzle applies migrations in one transaction, and Postgres refuses a new enum value used there.
+  - **Smaller choices:**
+    - `JobView.pendingReview` is new. A client's job for a pending plan answers `planId: null`.
+    - An empty pending read is an empty 200 body, as `/meal-plans/active` is.
+    - A trip moves a pending plan too.
+  - **Touched outside the listed scope, all minimal:**
+    - `controllers/Care`, `repositories/Care`, `entities/Care`;
+    - `domain/Allowance`;
+    - `repositories/Vacation`;
+    - `repositories/Plan/PlanJobRepository`;
+    - `meal-plans/services/PlanGeneration.service.ts` (a `byProfessional` flag passed through to `persist`);
+    - `apps/api/AGENTS.md`;
+    - `apps/api/test/README.md`.
+- **Decisions**: none new. `0060` gains a dated amendment: replacement and the carried redo, hiding by default, the two owner decisions, and the index condition.
+- **Notes for the next phase**:
+  - **Before any new plan status:** a migration must rewrite the index condition as `= 'pending_review'`, once 0037 is in production. Until then no release can add a status and stay green, because the list test and Postgres contradict each other. Phase 6's migration is the natural place; try it on an empty chain first.
+  - **The allowance screen can promise a new fortnight that generate refuses.** It takes `kind` and `nextAt` from the active plan only, but the generate check counts a publishable pending plan's redo. So a client can see "new fortnight, allowed" and then get a 429. Accepted: Phase 8 shows "with your dietitian" whenever a plan is pending.
+  - "Active" is by status, so a fortnight that has ended but not been replaced still counts. The professional cannot start the next fortnight; the client starts it, and it lands pending. For the owner to confirm.
+  - A published plan keeps the dates it was generated with, so days between generating and publishing are lost; it is not re-dated.
+  - A professional's generate for a client who has not finished onboarding is not refused at the door. The job starts and fails with `GENERATION_ONBOARDING_INCOMPLETE`, and the trail keeps its `review` row.
+  - When a professional names another client's job id through their own valid link, one `review`/`read` row is written before the 404. That is Phase 3's rule (a read's row before the read).
+  - `POST …/plan/generate` has a rate limit of 3 an hour per professional. It is a global guard, so over the limit it answers 429 before `ProfessionalGuard`, even on a dead link or with the switch off. It reveals nothing about the link.
+  - Not covered end to end, only by unit specs: a professional's regeneration with review off and a plan pending, which lands pending.
+  - `pendingReview` on `JobView` and the six new routes are Phase 8's and Phase 9's to read.
+  - Agents in one session share one scratchpad. The backend deleted a Postgres data folder the tests agent was using. Worth a line in `docs/reference/agent-team.md`.
+  - The whole run still leaves accounts from other, unchanged suites, as Phase 3 noted.
