@@ -9,6 +9,7 @@ import type { Dictionary } from '../i18n/dictionaries/es-ES';
  */
 export type ApiErrorCode =
   | 'ACCOUNT_NOT_ACTIVATED'
+  | 'CARE_LINK_EXISTS'
   | 'CONFLICT'
   | 'EMAIL_NOT_VERIFIED'
   | 'INTERNAL_ERROR'
@@ -29,7 +30,9 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly fieldErrors: Record<string, readonly string[]> = {},
     /** ISO date a spent allowance renews, when the API said so. */
-    public readonly retryAt: string | null = null
+    public readonly retryAt: string | null = null,
+    /** The link `CARE_LINK_EXISTS` names — the professional, since when, its status. Null for every other code. */
+    public readonly link: { professionalName: string; since: string; status: 'active' | 'paused' } | null = null
   ) {
     super(message);
     this.name = 'ApiError';
@@ -42,6 +45,7 @@ export class ApiError extends Error {
  */
 const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   ACCOUNT_NOT_ACTIVATED: 'accountNotActivated',
+  CARE_LINK_EXISTS: 'careLinkExists',
   CONFLICT: 'conflict',
   EMAIL_NOT_VERIFIED: 'emailNotVerified',
   INTERNAL_ERROR: 'internal',
@@ -99,14 +103,15 @@ export async function api<T>(path: string, { body, headers, ...options }: Option
   const payload: unknown = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const { code, fieldErrors, message, retryAt } = payload as {
+    const { code, fieldErrors, link, message, retryAt } = payload as {
       code?: ApiErrorCode;
       fieldErrors?: Record<string, string[]>;
+      link?: { professionalName: string; since: string; status: 'active' | 'paused' };
       message?: string;
       retryAt?: string;
     };
 
-    throw new ApiError(code ?? 'REQUEST_ERROR', message ?? 'Request failed', response.status, fieldErrors ?? {}, retryAt ?? null);
+    throw new ApiError(code ?? 'REQUEST_ERROR', message ?? 'Request failed', response.status, fieldErrors ?? {}, retryAt ?? null, link ?? null);
   }
 
   return payload as T;

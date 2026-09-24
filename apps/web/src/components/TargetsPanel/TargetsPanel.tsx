@@ -49,7 +49,8 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
   const [errors, setErrors] = useState<readonly string[]>([]);
   const [draft, setDraft] = useState<Draft>(() => toDraft(targets));
 
-  const { bounds, derivation, effective, overrideStatus } = targets;
+  const { bounds, derivation, effective, overrideStatus, setBy } = targets;
+  const setByProfessional = overrideStatus === 'applied' && setBy?.kind === 'professional';
 
   async function save(body: Record<string, number | null>) {
     setErrors([]);
@@ -77,11 +78,15 @@ export function TargetsPanel({ targets }: { targets: ResolvedTargets }) {
         <div>
           <h3 className={styles.title}>{t.title}</h3>
           <Text size="sm" tone="tertiary">
-            {overrideStatus === 'applied' ? t.subtitleOwn : t.subtitleEstimated}
+            {setByProfessional && setBy?.kind === 'professional'
+              ? interpolate(t.subtitleProfessional, { name: setBy.name })
+              : overrideStatus === 'applied'
+                ? t.subtitleOwn
+                : t.subtitleEstimated}
           </Text>
         </div>
         <span className={styles.badge} data-own={overrideStatus === 'applied'}>
-          {overrideStatus === 'applied' ? t.badgeYours : t.badgeEstimate}
+          {setByProfessional ? t.badgeProfessional : overrideStatus === 'applied' ? t.badgeYours : t.badgeEstimate}
         </span>
       </div>
 
