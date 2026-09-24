@@ -145,7 +145,10 @@ export class BillingService {
     };
   }
 
-  /** Stripe's own portal, where somebody changes their card or cancels. Not rebuilt here: a hand-written cancellation is one with a bug in it. */
+  /**
+   * Stripe's own portal, where somebody changes their card or cancels. Not rebuilt here: a hand-written cancellation is one with a bug in it.
+   * It returns where checkout does: to the workspace for a practice's subscription, read off its price at Stripe; to the profile otherwise.
+   */
   async portal(user: SessionUser): Promise<BillingUrlDto> {
     // A professional reaches it for their practice — its plans are switched there — whatever the `premium` switch says.
     const customerId = (await this.open(user)) || (await this.practiceOpen(user)) ? await BillingController.customerOf(user.id) : null;
@@ -154,9 +157,11 @@ export class BillingService {
       throw new NotFoundError('Not found');
     }
 
-    const locale = await recipientLocale(user.id);
+    const [locale, subscriptions] = await Promise.all([recipientLocale(user.id), this.stripe.subscriptionsOf(customerId)]);
+    // One account holds one subscription at a time; an ended one says nothing about where somebody manages theirs.
+    const practice = subscriptions.some(({ priceId, status }) => !hasEnded(status) && priceId !== null && this.stripe.isPracticePrice(priceId));
 
-    return { url: await this.stripe.portalUrl(customerId, webUrl(this.env.APP_URL, '/perfil', locale)) };
+    return { url: await this.stripe.portalUrl(customerId, webUrl(this.env.APP_URL, practice ? '/consulta' : '/perfil', locale)) };
   }
 
   /**
