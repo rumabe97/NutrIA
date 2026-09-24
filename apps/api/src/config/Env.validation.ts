@@ -52,6 +52,43 @@ function optional<T extends z.ZodType>(schema: T) {
   return z.preprocess(value => (value === '' ? undefined : value), schema.optional());
 }
 
+/** A practice plan (`0061`): the Stripe price, and how many active clients it includes. */
+export type PracticePrice = { readonly includedClients: number; readonly priceId: string };
+
+/** More clients than any practice plan could honestly include; a typo's extra zero, refused at boot. */
+const MAX_INCLUDED_CLIENTS = 10_000;
+
+/**
+ * `price_a=30,price_b=60` into a list, or an issue naming what is wrong —
+ * never the value itself. Each price once, each number a whole number of
+ * clients above zero: a plan that includes nobody is a checkout that sells
+ * nothing.
+ */
+function practicePrices(raw: string, ctx: z.RefinementCtx): readonly PracticePrice[] {
+  const prices: PracticePrice[] = [];
+
+  for (const pair of raw.split(',')) {
+    const [priceId = '', count = '', ...rest] = pair.split('=').map(part => part.trim());
+    const includedClients = /^\d+$/.test(count) ? Number(count) : Number.NaN;
+
+    if (rest.length > 0 || !/^price_\w+$/.test(priceId) || !(includedClients >= 1 && includedClients <= MAX_INCLUDED_CLIENTS)) {
+      ctx.addIssue({ code: 'custom', message: `must be price_…=N pairs, comma-separated, N from 1 to ${MAX_INCLUDED_CLIENTS}` });
+
+      return z.NEVER;
+    }
+
+    if (prices.some(price => price.priceId === priceId)) {
+      ctx.addIssue({ code: 'custom', message: 'names one price twice' });
+
+      return z.NEVER;
+    }
+
+    prices.push({ includedClients, priceId });
+  }
+
+  return prices;
+}
+
 /**
  * A PEM pasted into a dashboard arrives one of two ways: with its line breaks,
  * or on one line with `\n` written out. Both are the same key, so both are
@@ -220,6 +257,14 @@ const envObject = z.object({
    * live key (`sk_live_`) reaching a preview deployment is the mistake that
    * charges somebody real money from a test.
    */
+  /**
+   * The practice plans (`0061`): `price_…=N` pairs, comma-separated, each a
+   * Stripe price and the number of active clients it includes. Read into a
+   * list here, once, so nothing downstream parses it again. A price not in the
+   * list opens no practice, whatever it charges: the number a practice gets is
+   * this list's, never a request's.
+   */
+  STRIPE_PRACTICE_PRICES: optional(z.string().transform(practicePrices)),
   STRIPE_PRICE_ID: optional(z.string().startsWith('price_', 'must be a Stripe price id')),
   STRIPE_SECRET_KEY: optional(z.string().startsWith('sk_', 'must be a Stripe secret key, never a publishable one')),
   STRIPE_WEBHOOK_SECRET: optional(z.string().startsWith('whsec_', 'must be a Stripe webhook signing secret')),
@@ -373,6 +418,18 @@ const envSchema = envObject
     // A yearly price is an addition to payments, never a way to have them without the other three.
     if (env.STRIPE_YEARLY_PRICE_ID && !env.STRIPE_SECRET_KEY) {
       ctx.addIssue({ code: 'custom', message: 'needs the other STRIPE_* values set', path: ['STRIPE_YEARLY_PRICE_ID'] });
+    }
+
+    // Practices are an addition to payments too: a practice checkout with no webhook secret takes a card and opens nothing.
+    if (env.STRIPE_PRACTICE_PRICES && !env.STRIPE_SECRET_KEY) {
+      ctx.addIssue({ code: 'custom', message: 'needs the other STRIPE_* values set', path: ['STRIPE_PRACTICE_PRICES'] });
+    }
+
+    // One price, one thing it grants: a price that were both premium and a practice would grant whichever was read first.
+    const premium = [env.STRIPE_PRICE_ID, env.STRIPE_YEARLY_PRICE_ID];
+
+    if (env.STRIPE_PRACTICE_PRICES?.some(({ priceId }) => premium.includes(priceId))) {
+      ctx.addIssue({ code: 'custom', message: 'must not name a premium price', path: ['STRIPE_PRACTICE_PRICES'] });
     }
 
     // A preview deployment is a test by definition; a live key there charges real cards from one.

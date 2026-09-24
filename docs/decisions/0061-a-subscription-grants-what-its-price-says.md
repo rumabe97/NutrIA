@@ -54,3 +54,19 @@ portal, or ending a link).
   one account; v1 accepts it.
 - The payments runbook gains the practice prices, the portal's plan-switching setting and
   the new variable.
+
+*Amended 2026-09-24 (project 004 Phase 7):*
+
+- **Any price that is not a listed practice price is premium**, including a subscription
+  with no price to read. This replaces "a price the configuration does not know grants
+  nothing". Before practices existed every subscription was premium, and a subscriber left
+  on a premium price the owner has since replaced keeps it until the owner decides
+  otherwise.
+- **The consequence:** a practice price removed from `STRIPE_PRACTICE_PRICES` turns its
+  subscribers into premium at their next event. Their practice closes and their links
+  pause. The payments runbook must say never to remove a practice price that still has
+  subscribers.
+- **An invitation accepted while the practice is closed** makes the link `paused`, as a
+  lapse leaves the others. Paying again reactivates it with them. The acceptance takes
+  the practice's row `FOR SHARE` before the invitation, so it cannot slip between the
+  counts behind `PRACTICE_FULL`.

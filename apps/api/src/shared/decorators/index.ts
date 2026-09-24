@@ -1,4 +1,5 @@
 export * from './AllowUnverified.decorator.js';
+export * from './BeforePractice.decorator.js';
 export * from './CurrentUser.decorator.js';
 export * from './Locale.decorator.js';
 export * from './Public.decorator.js';

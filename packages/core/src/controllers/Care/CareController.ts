@@ -17,7 +17,7 @@ import {
   CARE_TOKEN_PATTERN,
   careLinkIdSchema
 } from 'core/entities/Care';
-import { CareLinkExistsError, DatabaseOperationError, InputParseError, NotFoundError } from 'core/entities/Error';
+import { CareLinkExistsError, DatabaseOperationError, InputParseError, NotFoundError, PracticeFullError } from 'core/entities/Error';
 
 import type { LinkWithProfessional, OpenInvitation, RecordAccess, RosterLink } from '#repositories/Care';
 import type {
@@ -33,6 +33,7 @@ import type {
   SetClientReview
 } from 'core/entities/Care';
 import type { JobView, MealDetailView, PlanSummaryView, PlanView } from 'core/controllers/Plan';
+import type { PracticeOfferView } from 'core/controllers/Billing';
 import type { ProgressSummaryView } from 'core/controllers/Progress';
 import type { ResolvedTargets } from 'core/domain/Nutrition';
 import type { SharedHealthView } from 'core/controllers/Health';
@@ -180,6 +181,28 @@ export interface CareClientOverviewView {
   targets: ResolvedTargets | null;
 }
 
+/**
+ * Where the professional's practice stands (`0061`): whether it is paid for,
+ * how many active clients the plan includes, and how many seats are taken —
+ * active links, and invitations still live, which count too. Counts only:
+ * nothing here names a client, so reading it leaves no row in any trail.
+ */
+export interface CarePracticeStandingView {
+  activeClients: number;
+  includedClients: number;
+  open: boolean;
+  pendingInvitations: number;
+}
+
+/**
+ * The workspace's own page (`GET /care/practice`), open to a professional
+ * whether or not the practice is paid for — it is where the way to pay is
+ * shown. `billing` is what checkout can open with.
+ */
+export interface CarePracticeView extends CarePracticeStandingView {
+  billing: PracticeOfferView;
+}
+
 /** One row of a client's own trail: who, what kind of data, read or changed, and when. */
 export interface CareAccessEntryView {
   id: string;
@@ -316,6 +339,16 @@ async function isProfessional(userId: string): Promise<boolean> {
   return (await switchedOn()) && (await ProfessionalRepository.find(userId)) !== null;
 }
 
+/**
+ * Whether this account may work with clients today: a professional, as
+ * `isProfessional`, whose practice is paid for (`0061`) — the question
+ * `ProfessionalGuard` asks for every client route, asked again here as the
+ * second line.
+ */
+async function practises(userId: string): Promise<boolean> {
+  return (await switchedOn()) && (await ProfessionalRepository.find(userId))?.practiceOpen === true;
+}
+
 // --- Controller ---------------------------------------------------------------
 
 /**
@@ -395,12 +428,12 @@ export const CareController = {
    * out of it; the link id each row carries is the only way on, and every way
    * on is `withClient`.
    *
-   * The switch and the grant are asked here too, as `withClient` asks them:
-   * the guard is the first line, this the second for any caller that is not a
-   * route.
+   * The switch, the grant and a practice paid for are asked here too, as
+   * `withClient` asks them: the guard is the first line, this the second for
+   * any caller that is not a route.
    */
   async clients(professional: Pick<CareSession, 'id'>, now: Date = new Date()): Promise<CareClientsView> {
-    if (!(await isProfessional(professional.id))) {
+    if (!(await practises(professional.id))) {
       throw new NotFoundError('Client not found');
     }
 
@@ -431,7 +464,12 @@ export const CareController = {
    * stranger's link, an ended one, an id that is nobody's, something that is
    * not an id at all — is the same 404. What ending does to access is Phase
    * 3's: every professional read resolves the link as `active`, so it closes
-   * on the next request.
+   * on the next request. A professional whose practice has lapsed may still
+   * end a link: ending one is a way up from a full practice, and a lapse must
+   * not trap a link either side wants gone.
+   *
+   * The targets the professional set stay, and become the client's own, in
+   * the same transaction (owner's decision, 2026-09-24; `CareRepository.end`).
    */
   async end(session: CareSession, linkId: string, now: Date = new Date()): Promise<void> {
     if (!careLinkIdSchema.safeParse(linkId).success) {
@@ -516,6 +554,12 @@ export const CareController = {
    *
    * The professional's own address is refused: a link to oneself is not a
    * link, and the answer reveals nothing the caller does not know.
+   *
+   * The practice's number is the limit (`0061`, PRD 004 criterion 17): with
+   * active links plus live invitations at `includedClients`, a
+   * `PracticeFullError` naming the number — 409 `PRACTICE_FULL`, whose ways
+   * up are the larger plan or ending a link. A practice not paid for is a 404,
+   * as the guard answers it; this is the second line.
    */
   async invite(
     professional: Pick<CareSession, 'email' | 'id'>,
@@ -530,9 +574,17 @@ export const CareController = {
 
     const token = randomBytes(TOKEN_BYTES).toString('base64url');
     const expiresAt = new Date(now.getTime() + CARE_INVITATION_TTL_DAYS * DAY_MS);
-    const row = await CareRepository.invite(professional.id, email, hashOf(token), expiresAt, now);
+    const outcome = await CareRepository.invite(professional.id, email, hashOf(token), expiresAt, now);
 
-    return { invitation: presentInvitation(row), token };
+    if (outcome.kind === 'closed') {
+      throw new NotFoundError('Not found');
+    }
+
+    if (outcome.kind === 'full') {
+      throw new PracticeFullError(outcome.includedClients);
+    }
+
+    return { invitation: presentInvitation(outcome.invitation), token };
   },
 
   /**
@@ -603,6 +655,24 @@ export const CareController = {
     }
 
     return CareController.withClient(professional.id, linkId, 'review', 'read', clientId => PlanController.getJob(clientId, jobId, 'professional'));
+  },
+
+  /**
+   * Where the professional's own practice stands (`0061`) — for the workspace
+   * page, which opens whether or not it is paid for, because it is where the
+   * way to pay is shown. Counts only: no client is read, and no trail row is
+   * written. A 404 unless the switch is on and the grant stands.
+   */
+  async practice(professional: Pick<CareSession, 'id'>, now: Date = new Date()): Promise<CarePracticeStandingView> {
+    const row = (await switchedOn()) ? await ProfessionalRepository.find(professional.id) : null;
+
+    if (!row) {
+      throw new NotFoundError('Not found');
+    }
+
+    const use = await CareRepository.practiceUse(professional.id, now);
+
+    return { ...use, includedClients: row.includedClients, open: row.practiceOpen };
   },
 
   /**
@@ -684,7 +754,8 @@ export const CareController = {
    *    the guard asked too, this is the second line for any caller that is not
    *    a route;
    * 2. the link is resolved by `(id, professionalId, status = 'active')` with
-   *    the grant still standing — one query, `CareRepository.activeLink`. A
+   *    the grant still standing and the practice paid for (`0061`) — one
+   *    query, `CareRepository.activeLink`. A
    *    link that is someone else's, paused, ended, unknown or not an id is
    *    one `NotFoundError`, the 404 of every denial; nothing is written;
    * 3. the client's trail gets its row — who (the professional's id and name

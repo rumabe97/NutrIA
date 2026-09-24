@@ -9,6 +9,14 @@
 export const TRIAL_DAYS = 7;
 
 /**
+ * How long a practice is free before the first charge (`0061`): fourteen days,
+ * once per account, by the same rule as premium's — no subscription on record,
+ * whichever it was for — so a trial of one cannot be followed by a trial of
+ * the other.
+ */
+export const PRACTICE_TRIAL_DAYS = 14;
+
+/**
  * Whether a subscription in this state pays for premium (`0056`).
  *
  * The status is Stripe's word, stored as it arrives. What it means for the tier

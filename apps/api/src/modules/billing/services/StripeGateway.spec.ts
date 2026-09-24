@@ -212,3 +212,38 @@ describe('StripeGateway', () => {
     });
   });
 });
+
+/*
+ * What a price grants (`0061`). Premium stays exactly as it was before
+ * practices: every subscription is premium's — an older premium price the
+ * owner has since replaced, or none to read at all — unless its price is a
+ * listed practice price. Only the list opens a practice, with its number.
+ */
+describe('StripeGateway.grantOf', () => {
+  const gateway = new StripeGateway({
+    ...ENV,
+    STRIPE_PRACTICE_PRICES: [
+      { includedClients: 30, priceId: 'price_practice_30' },
+      { includedClients: 60, priceId: 'price_practice_60' }
+    ]
+  } as Env);
+
+  it('opens a practice of the configured number for a listed practice price', () => {
+    expect(gateway.grantOf('price_practice_30')).toEqual({ includedClients: 30, kind: 'practice' });
+    expect(gateway.grantOf('price_practice_60')).toEqual({ includedClients: 60, kind: 'practice' });
+  });
+
+  it('is premium for the configured premium price, as today', () => {
+    expect(gateway.grantOf(ENV.STRIPE_PRICE_ID ?? '')).toEqual({ kind: 'premium' });
+  });
+
+  /* A subscriber stranded on a replaced price keeps premium until the owner decides otherwise. */
+  it('is premium for a price no longer configured, and for a subscription with no price to read', () => {
+    expect(gateway.grantOf('price_premium_of_last_year')).toEqual({ kind: 'premium' });
+    expect(gateway.grantOf(null)).toEqual({ kind: 'premium' });
+  });
+
+  it('opens no practice without the list, whatever the price', () => {
+    expect(new StripeGateway(ENV).grantOf('price_practice_30')).toEqual({ kind: 'premium' });
+  });
+});

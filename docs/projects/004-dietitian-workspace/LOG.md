@@ -398,3 +398,57 @@
   - `pendingReview` on `JobView` and the six new routes are Phase 8's and Phase 9's to read.
   - Agents in one session share one scratchpad. The backend deleted a Postgres data folder the tests agent was using. Worth a line in `docs/reference/agent-team.md`.
   - The whole run still leaves accounts from other, unchanged suites, as Phase 3 noted.
+
+## Phase 7 — The practice is paid for (2026-09-24)
+
+- **Executor**: Opus 5.5 at `high`.
+  - `backend-high` (on opus) built steps 1–7.
+  - `tests-high` (on opus) wrote `care-practice.e2e-spec.ts` and adapted the care suites.
+  - `invariant-reviewer` (on opus) reviewed in two passes.
+  - The machine rebooted twice and killed the agents. The lead finished the premium revert, made both review fixes (`accept`, the checkout schema), and ran the end-to-end suites.
+- **Result**: done locally. The end-to-end suite passed on a throwaway Postgres; the pull request's CI runs it again.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test`: 21 of 21 tasks.
+  - `pnpm --filter api format`, `lint`, `pnpm -w run deadcode` and `sh scripts/check-leaks.sh`: clean.
+  - `test:e2e -- billing care`: **4 of 4 suites, 178 of 178 tests**.
+  - The whole end-to-end run: **24 of 24 suites, 325 of 325 tests**, and the run-end check found no account left behind.
+    - Both ran on a fresh embedded Postgres 17 on local port 54337, migrated from empty and seeded, with `AI_PROVIDER=stub` and every mail, payment, OAuth, push and error-reporting variable blanked.
+  - `invariant-reviewer`, first pass: no P0. Money moves only through the signed webhook: `BillingRepository.writePractice` is the only writer of `practiceOpen`, `includedClients` and link status for billing, and runs in the `subscriptions` row's transaction. The number is read from configuration, never from the event or a body.
+    - P1 (documents): `0061` and step 3 said an unknown price grants nothing. Amended (see Deviations).
+    - P2: accepting took no lock, so an acceptance between invite's two counts could put the practice one client over its number. An invitation accepted during a lapse made an `active` link to a closed practice. Fixed: `accept` holds the practice's row `FOR SHARE` before the invitation, in `invite`'s lock order, and inserts `paused` when the practice is closed.
+    - P2: a practice price removed from `STRIPE_PRACTICE_PRICES` turns its subscribers into premium. Runbook rule for Phase 10.
+    - P2: two checkouts finished in two tabs, one premium and one practice, make each renewal switch the account between them. Accepted under `0061` (one subscription per account). For the owner.
+  - `invariant-reviewer`, second pass on the `accept` fix: no P0–P2. Every path locks the professional's row before any invitation, so there is no deadlock and no overshoot. The paused link is covered by the open-link index and is reactivated by the webhook.
+- **Deviations from plan** (steps 3 and 4 amended; `0061` gains a dated amendment):
+  - **Any price that is not a listed practice price is premium**, including a subscription with no price to read. "An unknown price grants nothing" would have taken premium from a subscriber left on a replaced price.
+  - **A `price` sent with a premium checkout is dropped**, as any unknown field was before practices existed. It is not a 422.
+  - **An invitation accepted while the practice is closed makes a `paused` link.** Paying again reactivates it with the others.
+  - **`GET /care/practice`, new.** It shows the practice's state, counts and prices, with no client data and no trail row. It is the one route marked `@BeforePractice()`; the guard requires `practiceOpen` everywhere else. Phase 9's plan card reads it.
+  - **A practice subscription writes the professional's own tier `free`.** Premium the owner granted to that account by hand is overwritten, as `0056`'s "whatever Stripe says last" already does.
+  - **Existing suites:**
+    - `care` and `care-review` open a practice after each grant (`openPractice` in `harness.ts`); their assertions are unchanged.
+    - `billing` empties `STRIPE_PRACTICE_PRICES` for its deployments.
+    - Two `care-review` allowance cases now expect three redos, not one: a linked client of an open practice is premium by step 6. The refusal case uses a client and a professional of its own.
+  - **Touched outside the listed scope, all minimal:**
+    - `core/entities/{Billing,Error}` and `core/domain/Billing`;
+    - `repositories/Care`;
+    - `apps/api/src/shared/{guards/Professional.guard.ts,decorators/BeforePractice.decorator.ts,filters/AllExceptions.filter.ts}`;
+    - `turbo.json`, `apps/api/.env.example`;
+    - `apps/api/test/{harness.ts,README.md}`.
+- **Decisions**: none new. `0061` gains a dated amendment.
+- **Notes for the next phase**:
+  - **Phase 9:**
+    - The plan card reads `GET /care/practice`.
+    - Checkout is `POST /billing/checkout { plan: 'practice', price }`, and Stripe returns to `/consulta?practica=gracias`.
+    - `PRACTICE_FULL.practice.waysUp` drives the refusal copy; `larger_plan` makes sense only when a larger practice price exists.
+    - `GET /billing`, the premium card on `/perfil`, shows a practice subscription with tier `free`: hide or reword it for a professional.
+  - **Phase 8:**
+    - A linked client's `/users/me` still shows the stored tier (`free`), although `tierOf` makes them premium.
+    - A link can be `paused` from acceptance on; the copy should say the professional's practice is not active.
+  - **Phase 10 runbook:**
+    - Never remove a practice price, or change `STRIPE_PRICE_ID`, while subscribers remain on it.
+    - The portal allows switching only between practice prices.
+    - A downgrade leaves existing links above the new number: the number is counted only at invitation (PRD 17).
+    - After a grant is revoked and given again, the practice stays closed until the next Stripe event.
+    - `docs/reference/deployment.md` gains the row: `STRIPE_PRACTICE_PRICES` | API | optional | the practice plans as `price_…=N` pairs, comma-separated; needs the other `STRIPE_*`; a practice subscription on an unlisted price is premium.
+  - The agents' worktrees are removed; their branches `agent/004-phase-7/{backend,tests}` stay for the owner to delete after the merge.

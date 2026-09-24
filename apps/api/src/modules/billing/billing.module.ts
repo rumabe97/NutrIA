@@ -7,7 +7,8 @@ import { envProvider } from '../../config/index.js';
 /**
  * Paying for premium through Stripe (`0056`). Unconfigured, every route answers as if there were nothing to buy.
  *
- * The service is exported for account deletion, which cancels at Stripe before the account goes.
+ * The service is exported for account deletion, which cancels at Stripe before the account goes, and for the
+ * workspace, which shows what a practice costs (`0061`).
  */
 @Module({ controllers: [BillingController], exports: [BillingService], providers: [BillingService, envProvider, StripeGateway] })
 export class BillingModule {}
