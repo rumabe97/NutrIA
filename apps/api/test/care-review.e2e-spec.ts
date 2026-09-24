@@ -85,8 +85,17 @@ describe('care review', () => {
   let app: INestApplication;
   let stamp: number;
   let owner: Account;
+  /*
+   * Four professionals, because generating is limited to three calls an hour per
+   * professional account (a global guard, counted before the door answers), and
+   * the refusals below call it on every link they try.
+   */
   let proA: Account;
   let proB: Account;
+  /** Makes `fresh`'s first plan and regenerates it. */
+  let proC: Account;
+  /** Sent the paused and the ended link. */
+  let proD: Account;
   /** Has a plan of their own before the link, and asks for the next one with review on. */
   let lived: Account;
   /** Allergic to gluten, no plan: the professional makes their first. */
@@ -268,7 +277,10 @@ describe('care review', () => {
     const mealId = plan.days[0]?.meals[0]?.id ?? '';
 
     await request(server()).get(`/${PREFIX}/meal-plans/${plan.id}`).set('Cookie', who.cookie).expect(404);
-    await request(server()).get(`/${PREFIX}/meal-plans/${plan.id}/days/0`).set('Cookie', who.cookie).expect(404);
+    await request(server())
+      .get(`/${PREFIX}/meal-plans/${plan.id}/days/${plan.days[0]?.dayIndex ?? 1}`)
+      .set('Cookie', who.cookie)
+      .expect(404);
     await request(server()).get(`/${PREFIX}/meal-plans/meals/${mealId}`).set('Cookie', who.cookie).expect(404);
     await request(server()).post(`/${PREFIX}/meal-plans/meals/${mealId}/swap`).set('Cookie', who.cookie).send({}).expect(404);
     await request(server()).patch(`/${PREFIX}/meal-plans/meals/${mealId}/status`).set('Cookie', who.cookie).send({ status: 'completed' }).expect(404);
@@ -337,10 +349,14 @@ describe('care review', () => {
     owner = await account('owner');
     proA = await account('pro-a');
     proB = await account('pro-b');
+    proC = await account('pro-c');
+    proD = await account('pro-d');
     await UserController.grantAdmin(owner.email);
     await setSwitch(true);
     await grant(proA);
     await grant(proB);
+    await grant(proC);
+    await grant(proD);
 
     lived = await account('lived');
     fresh = await account('fresh');
@@ -365,10 +381,10 @@ describe('care review', () => {
     await expect(generateAndWait(app, lived)).resolves.toMatchObject({ status: 'succeeded' });
 
     links.lived = await link(proA, lived);
-    links.fresh = await link(proA, fresh);
+    links.fresh = await link(proC, fresh);
     links.unreviewed = await link(proA, unreviewed);
-    links.paused = await link(proA, paused);
-    links.ended = await link(proA, ended);
+    links.paused = await link(proD, paused);
+    links.ended = await link(proD, ended);
     links.theirs = await link(proB, theirs);
 
     await tables()`update care_links set status = 'paused' where id = ${links.paused}`;
@@ -528,7 +544,10 @@ describe('care review', () => {
       const old: Response = await request(server()).get(`/${PREFIX}/meal-plans/${first.id}`).set('Cookie', lived.cookie).expect(200);
 
       expect((old.body as PlanView).status).toBe('completed');
-      await request(server()).get(`/${PREFIX}/meal-plans/${next.id}/days/0`).set('Cookie', lived.cookie).expect(200);
+      await request(server())
+        .get(`/${PREFIX}/meal-plans/${next.id}/days/${next.days[0]?.dayIndex ?? 1}`)
+        .set('Cookie', lived.cookie)
+        .expect(200);
       expect(await stageOf(proA, links.lived)).toMatchObject({ stage: 'plan_under_way' });
 
       // The client's job now leads to the plan.
@@ -556,7 +575,7 @@ describe('care review', () => {
 
     it('generates through the link, into review, with every poll a read', async () => {
       const before = (await reviewRows(fresh.id)).length;
-      const job = await generateForAndWait(proA, links.fresh);
+      const job = await generateForAndWait(proC, links.fresh);
 
       expect(job.status).toBe('succeeded');
 
@@ -567,9 +586,9 @@ describe('care review', () => {
       expect(written.slice(1).every(action => action === 'read')).toBe(true);
       expect(written.length).toBeGreaterThan(1);
 
-      firstDraft = (await pending(proA, links.fresh)) as PlanView;
+      firstDraft = (await pending(proC, links.fresh)) as PlanView;
       expect(firstDraft).toMatchObject({ status: 'pending_review' });
-      expect(await stageOf(proA, links.fresh)).toMatchObject({ stage: 'plan_awaiting_review' });
+      expect(await stageOf(proC, links.fresh)).toMatchObject({ stage: 'plan_awaiting_review' });
     });
 
     it('kept the client’s allergy: the model proposed bread and oats, none reached the plan', () => {
@@ -588,11 +607,11 @@ describe('care review', () => {
     });
 
     it('regenerates, replacing the waiting plan', async () => {
-      const job = await generateForAndWait(proA, links.fresh);
+      const job = await generateForAndWait(proC, links.fresh);
 
       expect(job.status).toBe('succeeded');
 
-      const replacement = (await pending(proA, links.fresh)) as PlanView;
+      const replacement = (await pending(proC, links.fresh)) as PlanView;
 
       expect(replacement.id).not.toBe(firstDraft.id);
 
@@ -602,7 +621,7 @@ describe('care review', () => {
       expect(rows.map(row => row.id)).not.toContain(firstDraft.id);
       expect(rows.filter(row => row.status === 'active')).toEqual([]);
 
-      await publishFor(proA, links.fresh).expect(200);
+      await publishFor(proC, links.fresh).expect(200);
       expect((await activeOf(fresh))?.id).toBe(replacement.id);
     });
   });
@@ -705,22 +724,30 @@ describe('care review', () => {
     });
 
     it('is one 404 for another professional naming the job or the meal through their own link', async () => {
-      const before = await allTrailRows(theirs.id);
+      const written: string[][] = [];
 
       await expectNothingMoved(async () => {
-        await jobOf(proB, links.theirs, ids.jobId).expect(404);
-        await swapFor(proB, links.theirs, ids.mealId).expect(404);
-        await publishFor(proB, links.theirs).expect(404);
+        written.push(await rowsWrittenBy(theirs.id, () => jobOf(proB, links.theirs, ids.jobId).expect(404)));
+        written.push(await rowsWrittenBy(theirs.id, () => swapFor(proB, links.theirs, ids.mealId).expect(404)));
+        written.push(await rowsWrittenBy(theirs.id, () => publishFor(proB, links.theirs).expect(404)));
       });
-      expect(await allTrailRows(theirs.id)).toBe(before);
+      // A read's row is written before the read (`0059`): B did look, through their own link, at their own client. The refused writes wrote nothing.
+      expect(written).toEqual([['read'], [], []]);
       expect(await activeOf(theirs)).toBeNull();
     });
 
     it('is one 404 on an ended link, a paused one, an unknown id and a non-id, and writes nothing', async () => {
       const before = { ended: await allTrailRows(ended.id), paused: await allTrailRows(paused.id) };
 
-      for (const linkId of [links.ended, links.paused, NOBODYS_LINK, 'not-a-link']) {
-        for (const call of everyRoute(proA, linkId)) {
+      const tries: [Account, string][] = [
+        [proD, links.ended],
+        [proD, links.paused],
+        [proB, NOBODYS_LINK],
+        [proB, 'not-a-link']
+      ];
+
+      for (const [professional, linkId] of tries) {
+        for (const call of everyRoute(professional, linkId)) {
           expect((await call()).status).toBe(404);
         }
       }
