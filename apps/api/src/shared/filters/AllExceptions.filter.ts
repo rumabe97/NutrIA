@@ -192,6 +192,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       };
     }
 
-    return parserRefusal(exception) ?? { code: 'INTERNAL_ERROR', message: 'Algo ha ido mal. Inténtalo de nuevo.', statusCode: HttpStatus.INTERNAL_SERVER_ERROR };
+    return (
+      parserRefusal(exception) ?? {
+        code: 'INTERNAL_ERROR',
+        message: 'Algo ha ido mal. Inténtalo de nuevo.',
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR
+      }
+    );
   }
 }
