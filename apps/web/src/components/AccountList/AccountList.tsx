@@ -58,7 +58,7 @@ export function AccountList({ accounts, premium, professionalIds }: AccountListP
     setRows(list => list.map(account => (account.id === id ? { ...account, activated: true } : account)));
 
     try {
-      await api(`/admin/accounts/${id}/activate`, { method: 'POST' });
+      await api(`/admin/accounts/${encodeURIComponent(id)}/activate`, { method: 'POST' });
       router.refresh();
     } catch (caught) {
       setRows(previous);
@@ -76,7 +76,7 @@ export function AccountList({ accounts, premium, professionalIds }: AccountListP
     setRows(list => list.map(account => (account.id === id ? { ...account, tier } : account)));
 
     try {
-      await api(`/admin/accounts/${id}/tier`, { body: { tier }, method: 'PATCH' });
+      await api(`/admin/accounts/${encodeURIComponent(id)}/tier`, { body: { tier }, method: 'PATCH' });
       router.refresh();
     } catch (caught) {
       setRows(previous);
