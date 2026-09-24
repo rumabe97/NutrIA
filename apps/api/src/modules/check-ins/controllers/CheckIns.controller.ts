@@ -25,6 +25,6 @@ export class CheckInsController {
   @ApiOperation({ summary: 'Close the fortnight: weight to the log, portions to the targets, words to the next plan. Once per plan.' })
   @Post()
   async submit(@CurrentUser() user: SessionUser, @ZodBody(SubmitCheckInDto) body: SubmitCheckInDto): Promise<CheckInResultDto> {
-    return this.checkIns.submit(user.id, body);
+    return this.checkIns.submit(user, body);
   }
 }

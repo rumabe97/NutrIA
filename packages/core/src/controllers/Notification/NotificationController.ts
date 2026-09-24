@@ -27,6 +27,11 @@ export const NotificationController = {
     await NotificationRepository.recordSent(userId, { body, channel, title, type: 'checkin_due' });
   },
 
+  /** The proof that a professional was told their client checked in (`0059`, PRD 004 criterion 10). */
+  async recordCheckinSubmitted(professionalId: string, title: string, body: string, channel: 'email' | 'push'): Promise<void> {
+    await NotificationRepository.recordSent(professionalId, { body, channel, title, type: 'checkin_submitted' });
+  },
+
   async removePushSubscription(userId: string, endpoint: string): Promise<void> {
     await NotificationRepository.removePushSubscription(userId, endpoint);
   },

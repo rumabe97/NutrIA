@@ -175,7 +175,7 @@ export const NotificationRepository = {
    */
   async recordSent(
     userId: string,
-    input: { readonly body: string; readonly channel: 'email' | 'push'; readonly title: string; readonly type: 'checkin_due' }
+    input: { readonly body: string; readonly channel: 'email' | 'push'; readonly title: string; readonly type: 'checkin_due' | 'checkin_submitted' }
   ): Promise<void> {
     try {
       await database()
