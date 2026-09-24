@@ -10,16 +10,16 @@ vi.mock('database', () => ({ database: () => ({}) }));
  * row read in the plan's own transaction — is covered end to end.
  */
 describe('refusesProfessionalSave', () => {
-  it('refuses a professional’s plan that would go active over an active plan', () => {
-    expect(refusesProfessionalSave({ byProfessional: true, hasActive: true, review: false })).toBe(true);
+  it('refuses a professional’s plan that would go active over a fortnight still running', () => {
+    expect(refusesProfessionalSave({ byProfessional: true, review: false, running: true })).toBe(true);
   });
 
-  it('lets it through when it waits for review, or when there is no active plan to replace', () => {
-    expect(refusesProfessionalSave({ byProfessional: true, hasActive: true, review: true })).toBe(false);
-    expect(refusesProfessionalSave({ byProfessional: true, hasActive: false, review: false })).toBe(false);
+  it('lets it through when it waits for review, or when nothing runs on its first day — no plan, or one that has ended', () => {
+    expect(refusesProfessionalSave({ byProfessional: true, review: true, running: true })).toBe(false);
+    expect(refusesProfessionalSave({ byProfessional: true, review: false, running: false })).toBe(false);
   });
 
   it('never refuses the client’s own generation', () => {
-    expect(refusesProfessionalSave({ byProfessional: false, hasActive: true, review: false })).toBe(false);
+    expect(refusesProfessionalSave({ byProfessional: false, review: false, running: true })).toBe(false);
   });
 });
