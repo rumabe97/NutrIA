@@ -6,6 +6,7 @@ import type {
   CareInvitationView,
   CareLinkView
 } from 'core/controllers/Care';
+import type { ResolvedTargets } from 'core/domain/Nutrition';
 
 /**
  * What the professional is told after inviting: the address and until when.
@@ -27,3 +28,9 @@ export type CareClientOverviewDto = CareClientOverviewView;
 
 /** One page of the client's own trail. */
 export type CareAccessPageDto = CareAccessPageView;
+
+/**
+ * A client's targets after their professional set them: the same resolved set
+ * the client's own route answers, `setBy` naming the professional.
+ */
+export type CareClientTargetsDto = ResolvedTargets;

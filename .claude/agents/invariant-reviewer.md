@@ -32,7 +32,8 @@ code around it, as far as it takes to be sure.
    consented, revocable and audited. The one named way in is `CareController.withClient`
    (`0059`): the only function that turns a professional's session into another account's
    id. It resolves `(link id, professionalId = session, status = 'active')` with the grant
-   standing, writes the client's `care_access_log` row, then calls `fn(clientId)`. A
+   standing, writes the client's `care_access_log` row, then calls `fn(clientId)` (a write's
+   row goes in the write's own transaction, through the `record` it hands `fn`). A
    professional route whose data reaches a repository any other way is a P0. The
    professional's list (`CareRepository.roster`) is not an exception to the audit: it writes
    one `list` row per active client before reading their stages, in one snapshot. A read of

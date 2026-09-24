@@ -188,7 +188,10 @@ resolves the link by `(link id, professionalId = session, status = 'active')` wi
 grant still standing (`CareRepository.activeLink`, the only query that returns a client's
 id to a professional), answers every other case with the same `NotFoundError`, writes the
 client's `care_access_log` row, and only then calls `fn(clientId)` — which passes that id
-to the existing controllers exactly as a session's would be passed. So:
+to the existing controllers exactly as a session's would be passed. A **write**'s row is the
+exception to "before": `fn` gets a third argument, `record`, and hands it to the repository
+that writes, which calls it inside the write's own transaction — so a refused or failed
+write leaves no row, and a write that returns without having recorded fails. So:
 
 - a professional route takes a **link** id, never a client's user id;
 - any code that reads or writes a client's data on a professional's behalf goes through

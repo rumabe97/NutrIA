@@ -8,6 +8,7 @@ import { SafetyRepository } from '#repositories/Safety';
 import type { Goal, Preferences, Profile, UpdateGoal, UpdatePreferences, UpdateProfile } from 'core/entities/Profile';
 import type { ResolvedTargets, TargetInput, TargetViolation } from 'core/domain/Nutrition';
 import type { UpdateTargetOverride } from 'core/entities/Nutrition';
+import type { ProfessionalSetter } from '#repositories/Profile';
 
 // --- Presenters ---------------------------------------------------------------
 
@@ -330,8 +331,17 @@ export const ProfileController = {
    * The candidate is assembled by `resolveTargets` before it is judged, because
    * a correction to calories alone re-derives its macros: judging the raw patch
    * would reject a perfectly coherent request for having only one field.
+   *
+   * `setter` says who is writing (PRD 004, criterion 7): the person's own
+   * routes pass nothing, which records the targets as theirs — clearing a
+   * professional's name if one was there; a professional passes their
+   * session's id and the trail row `CareController.withClient` handed them —
+   * only from inside it, which is what resolved `userId` for them — and the
+   * row is written with the change, so a refusal here leaves none. Either way the bounds, the
+   * refusal and its sentence are these same ones — a professional may not put
+   * a target where the person could not.
    */
-  async updateTargets(userId: string, patch: UpdateTargetOverride): Promise<ResolvedTargets> {
+  async updateTargets(userId: string, patch: UpdateTargetOverride, setter: ProfessionalSetter | null = null): Promise<ResolvedTargets> {
     const [profile, goal, preferences, latestWeightKg] = await Promise.all([
       ProfileRepository.findByUserId(userId),
       ProfileRepository.findActiveGoal(userId),
@@ -351,14 +361,16 @@ export const ProfileController = {
       fatG: merge(patch.fatG, stored?.fatG),
       kcal: merge(patch.kcal, stored?.kcal),
       overriddenAt: new Date(),
-      proteinG: merge(patch.proteinG, stored?.proteinG)
+      proteinG: merge(patch.proteinG, stored?.proteinG),
+      // Judged by bounds alone; who sets it changes nothing about whether it may be set.
+      setBy: { kind: 'self' }
     });
 
     if (candidate.overrideViolations.length > 0) {
       throw new InputParseError('Targets out of bounds', { targets: candidate.overrideViolations.map(explain) });
     }
 
-    const saved = await ProfileRepository.upsertTargetOverride(userId, patch);
+    const saved = await ProfileRepository.upsertTargetOverride(userId, patch, setter);
 
     return resolveTargets(input, saved);
   }

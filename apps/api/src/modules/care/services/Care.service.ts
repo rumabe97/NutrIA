@@ -8,11 +8,12 @@ import { careInvitationEmail } from '../../email/templates/CareInvitation.js';
 import { EmailService, recipientLocale } from '../../email/services/index.js';
 import { ENV } from '../../../config/index.js';
 
-import type { AcceptInvitationDto, InviteClientDto } from '../dto/in/index.js';
+import type { AcceptInvitationDto, InviteClientDto, SetClientTargetsDto } from '../dto/in/index.js';
 import type {
   CareAccessPageDto,
   CareClientOverviewDto,
   CareClientsDto,
+  CareClientTargetsDto,
   CareInvitationDetailDto,
   CareInvitationDto,
   CareLinkDto
@@ -78,6 +79,11 @@ export class CareService {
   /** Through `CareController.withClient`, inside the core call: the client's id never reaches this app. */
   async overview(professional: SessionUser, linkId: string, locale: string | null): Promise<CareClientOverviewDto> {
     return CareController.overview(professional, linkId, locale);
+  }
+
+  /** Through `CareController.withClient` too: the professional as the setter, the client's own bounds. */
+  async setTargets(professional: SessionUser, linkId: string, body: SetClientTargetsDto): Promise<CareClientTargetsDto> {
+    return CareController.setTargets(professional, linkId, body);
   }
 
   /**

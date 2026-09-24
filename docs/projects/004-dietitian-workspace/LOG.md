@@ -274,3 +274,61 @@
     way, never against `.env`.
   - The whole end-to-end run leaves 34 accounts from other, unchanged suites (one each). Worth a separate fix, as the
     Phase 2 note said.
+
+## Phase 4 — Supervised targets (2026-09-24)
+
+- **Executor**: Opus 5.5 throughout.
+  - `backend` (medium, the plan's effort) on opus built steps 1–3 and their unit specs.
+  - `tests` (medium) on opus wrote the end-to-end half in `care.e2e-spec.ts`.
+  - `migration-reviewer` ran on opus.
+  - The lead (Opus 5.5) made the review fix itself (see Deviations), with the owner's choice of design.
+- **Result**: done locally. The end-to-end suite passed on a throwaway Postgres; the pull request's CI runs it again.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test`: 21 of 21 tasks. core 534 tests in 36 files, database 27, api 583.
+  - `BASE=origin/main node scripts/check-migrations.mjs --drift`: 37 migrations, journal and snapshot in order, schema and
+    migrations agree. 0036 read by hand and by `migration-reviewer`: it only adds a nullable column, its foreign key
+    (`on delete set null`) and an index.
+  - `pnpm -w run deadcode`: clean. `sh scripts/check-leaks.sh`: clean. `pnpm --filter core format` and
+    `pnpm --filter api format`: clean.
+  - `pnpm --filter api test:e2e -- care target-overrides`: **60 of 60**. The whole end-to-end run: **22 of 22 suites,
+    203 of 203 tests**.
+    - Both ran on a throwaway embedded Postgres 17 on a local port, migrated from empty through 0036 and seeded;
+      `AI_PROVIDER=stub`, every outside service blanked, no `.env` in the checkout. Stopped and deleted afterwards.
+    - `target-overrides` is unchanged and passes. No existing test changed; `care.e2e-spec.ts` only gains a block.
+    - Before the fix below, the new out-of-bounds test failed (a trail row after a 422): the test bites.
+  - `migration-reviewer` (opus): no P0 or P1.
+    - P2: a rollback can mislabel targets. A professional sets them on the new API, the deploy is rolled back, the client
+      edits them on the old API (which does not write the new column), the deploy rolls forward: the client's own
+      numbers read "set by" the professional. Only the label is wrong. For the pull request's rollback note.
+    - P3: `userOwnedSingleton`'s new `extraIndexes` argument is loosely typed. It copies `userOwned`'s existing one;
+      left alone.
+    - P3: no `lock_timeout` on the migrate step, so a lock it cannot get hangs the build instead of failing it. Repo-wide,
+      not this phase's.
+- **Deviations from plan** (step 2 is amended):
+  - **A write's trail row goes in with the change.** `withClient` wrote every row before `fn`, so a professional's
+    out-of-bounds target (422) left a `targets`/`write` row for a change that never happened; the tests agent's suite
+    caught it. The owner chose, over "log the attempt" and "validate before the row":
+    - `withClient` hands `fn` a third argument, `record`. A read's row is written before the read, as before. A write's
+      row is written by the writing repository inside its own transaction (`ProfileRepository.upsertTargetOverride` with a
+      `ProfessionalSetter`). A write that returns without having recorded is a `DatabaseOperationError`.
+    - Touched outside the listed scope: `controllers/Care`, `repositories/{Care,Profile}`, `packages/core/AGENTS.md`,
+      `.claude/agents/invariant-reviewer.md` item 1, and `0059` (a dated amendment).
+  - **An index on `set_by_professional_id`**, beyond the plan: Postgres does not index a foreign key, and without it
+    every account deletion would scan `target_overrides`. `userOwnedSingleton` gains an optional `extraIndexes` argument
+    for it; every other table's generated schema is byte-identical.
+  - The upsert reads the row back to get the setter's name (`RETURNING` cannot join).
+- **Decisions**: none new. `0059` gains a dated amendment (a write's row goes in the write's transaction).
+- **Notes for the next phase**:
+  - Phase 5's professional writes (publish, swap, regenerate, generate, the review toggle) go through
+    `withClient(…, 'review', 'write', (clientId, access, record) => …)`, and the repository that writes must call
+    `record(tx)` inside its transaction. `PlanRepository` already opens transactions; thread `record` into them.
+  - The view is `ResolvedTargets.setBy`: `null` with no override, `{ kind: 'self' }`, or
+    `{ kind: 'professional', name }`. No account id. Phase 8's `TargetsPanel` reads it.
+  - **The check-in's kcal nudge clears the professional's mark.** `CheckInController.submit` calls `updateTargets`
+    with no setter (the plan's letter), so a supervised client who answers hungry/full makes the whole override
+    `self`, including the macros the professional named. For the owner or Phase 5/6 to decide.
+  - An older problem, not new here: if a stored override names carbs and the nudged kcal no longer adds up,
+    `updateTargets` refuses (`macros_do_not_sum`) after the check-in row is written, so the submit fails.
+  - For the owner: after a link ends, the targets stay in force still labelled with the professional's name; a second
+    professional's overview shows the first one's name until the client edits them. The plan says nothing about either.
+  - The whole end-to-end run still leaves 34 accounts from other, unchanged suites (as Phase 3 noted).

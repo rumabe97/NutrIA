@@ -1,0 +1,3 @@
+ALTER TABLE "target_overrides" ADD COLUMN "set_by_professional_id" text;--> statement-breakpoint
+ALTER TABLE "target_overrides" ADD CONSTRAINT "target_overrides_set_by_professional_id_user_id_fk" FOREIGN KEY ("set_by_professional_id") REFERENCES "public"."user"("id") ON DELETE set null ON UPDATE cascade;--> statement-breakpoint
+CREATE INDEX "target_overrides_set_by_professional_id_idx" ON "target_overrides" USING btree ("set_by_professional_id");

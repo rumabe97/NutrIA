@@ -1,11 +1,12 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Patch, UseGuards } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CareService } from '../services/index.js';
-import { CurrentUser, Locale, RateLimit } from '../../../shared/index.js';
+import { CurrentUser, Locale, RateLimit, ZodBody } from '../../../shared/index.js';
+import { SetClientTargetsDto } from '../dto/in/index.js';
 import { ProfessionalGuard } from '../../../shared/guards/Professional.guard.js';
 
-import type { CareClientOverviewDto, CareClientsDto } from '../dto/out/index.js';
+import type { CareClientOverviewDto, CareClientsDto, CareClientTargetsDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
 /**
@@ -50,5 +51,26 @@ export class CareClientsController {
     @Locale() locale: string | null
   ): Promise<CareClientOverviewDto> {
     return this.care.overview(professional, linkId, locale);
+  }
+
+  /**
+   * The client's own `PATCH /profiles/targets`, set by their professional (PRD
+   * 004, criterion 7): the same body, the same bounds, the same refusal — 422
+   * `INVALID_INPUT` with the sentence under `fieldErrors.targets` — and the same answer,
+   * whose `setBy` names the professional. One `targets` `write` row in the
+   * client's trail, written before the change.
+   */
+  @ApiOkResponse({
+    description:
+      'The client’s resolved targets, `setBy` naming the professional. 422 `INVALID_INPUT` with the same field errors as the client’s own route when a value is out of bounds. One `targets` write row in the client’s trail. 404 for any link that is not the caller’s and active.'
+  })
+  @ApiOperation({ summary: 'Set a client’s daily targets, through their link' })
+  @Patch('clients/:linkId/targets')
+  async setTargets(
+    @CurrentUser() professional: SessionUser,
+    @Param('linkId') linkId: string,
+    @ZodBody(SetClientTargetsDto) body: SetClientTargetsDto
+  ): Promise<CareClientTargetsDto> {
+    return this.care.setTargets(professional, linkId, body);
   }
 }

@@ -13,6 +13,7 @@ import {
   totalDailyEnergyExpenditure
 } from 'core/domain/Nutrition';
 import type { TargetInput, TargetViolation } from 'core/domain/Nutrition';
+import type { TargetSetter } from 'core/entities/Nutrition';
 
 const base: TargetInput = {
   activityLevel: 'moderate',
@@ -380,8 +381,8 @@ describe('resolveTargets — computed, corrected, and which is in effect', () =>
     weightKg: 95
   };
 
-  function override(fields: Partial<Record<'carbsG' | 'fatG' | 'kcal' | 'proteinG', number | null>>) {
-    return { carbsG: null, fatG: null, kcal: null, overriddenAt: new Date(), proteinG: null, ...fields };
+  function override(fields: Partial<Record<'carbsG' | 'fatG' | 'kcal' | 'proteinG', number | null>>, setBy: TargetSetter = { kind: 'self' }) {
+    return { carbsG: null, fatG: null, kcal: null, overriddenAt: new Date(), proteinG: null, setBy, ...fields };
   }
 
   it('uses the computed targets when there is no override', () => {
@@ -433,6 +434,28 @@ describe('resolveTargets — computed, corrected, and which is in effect', () =>
 
     expect(resolved.overrideStatus).toBe('stale');
     expect(resolved.effective.kcal).toBe(resolved.computed.kcal);
+  });
+
+  it('says nobody set the targets when there is no override', () => {
+    expect(resolveTargets(input, null).setBy).toBeNull();
+    expect(resolveTargets(input, override({}, { kind: 'professional', name: 'Laura' })).setBy).toBeNull();
+  });
+
+  it('says who set an applied override: the person, or their professional by name', () => {
+    expect(resolveTargets(input, override({ kcal: 2600 })).setBy).toEqual({ kind: 'self' });
+    expect(resolveTargets(input, override({ kcal: 2600 }, { kind: 'professional', name: 'Laura' })).setBy).toEqual({
+      kind: 'professional',
+      name: 'Laura'
+    });
+  });
+
+  it("holds a professional's target to the same bounds as the person's own", () => {
+    const own = resolveTargets(input, override({ kcal: 900 }));
+    const professional = resolveTargets(input, override({ kcal: 900 }, { kind: 'professional', name: 'Laura' }));
+
+    expect(professional.overrideStatus).toBe('stale');
+    expect(professional.overrideViolations).toEqual(own.overrideViolations);
+    expect(professional.setBy).toEqual({ kind: 'professional', name: 'Laura' });
   });
 
   it('holds a hand-typed target to exactly the bounds the calculator obeys', () => {

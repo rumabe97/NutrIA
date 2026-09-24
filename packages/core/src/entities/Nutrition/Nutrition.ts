@@ -87,12 +87,29 @@ export const updateTargetOverrideSchema = z.object({
 
 export type UpdateTargetOverride = z.infer<typeof updateTargetOverrideSchema>;
 
+/**
+ * Who set a stored override (PRD 004, criterion 7): the person themselves, or
+ * the professional they are linked to, by name. A name and never an account id,
+ * because it reaches the client's screens.
+ *
+ * An override whose professional has since deleted their account reads as
+ * `self`: the column is set null with the account, and there is nobody left to
+ * name.
+ */
+export const targetSetterSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('self') }),
+  z.object({ kind: z.literal('professional'), name: z.string() })
+]);
+
+export type TargetSetter = z.infer<typeof targetSetterSchema>;
+
 export const targetOverrideSchema = z.object({
   carbsG: z.number().nullable(),
   fatG: z.number().nullable(),
   kcal: z.number().nullable(),
   overriddenAt: z.date(),
-  proteinG: z.number().nullable()
+  proteinG: z.number().nullable(),
+  setBy: targetSetterSchema
 });
 
 export type TargetOverride = z.infer<typeof targetOverrideSchema>;
