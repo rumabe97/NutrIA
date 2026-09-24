@@ -45,5 +45,5 @@ export function passwordResetEmail({ locale, url }: { locale: EmailLocale; url: 
 
   const text = [copy.intro, '', url, '', copy.expires, copy.ignore].join('\n');
 
-  return { html, subject: copy.subject, text };
+  return { html, kind: 'password-reset', subject: copy.subject, text };
 }

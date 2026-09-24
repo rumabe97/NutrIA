@@ -106,9 +106,40 @@ function pick(headers: IncomingHttpHeaders | OutgoingHttpHeaders, allowed: reado
   return Object.fromEntries(allowed.filter(name => headers[name] !== undefined).map(name => [name, headers[name]]));
 }
 
+/**
+ * Paths that carry a secret in a segment: a professional's invitation token
+ * (`0059`), in the API's route and in the web page that calls it — which is
+ * what a same-origin `referer` names. Only its hash is stored; a log line that
+ * kept the token would hold the one copy that opens the invitation.
+ *
+ * A separator is `/` or its percent-encoding (`%2F`, and `%252F` encoded twice),
+ * because the same path travels inside a query string — `?next=%2Fen%2Finvitacion%2F<token>`,
+ * a Better Auth `callbackURL` — and case-insensitively, because Express routes
+ * `/CARE/Invitations/<token>` to the same handler. The token stops at the next
+ * separator, query, fragment or `&`. Its own alphabet is base64url, which needs
+ * no encoding, but Express decodes a percent-encoded character in it into a
+ * working token, so an encoded character that is not a separator is part of it.
+ */
+const SEPARATOR = String.raw`(?:\/|%(?:25)*2f)`;
+const SECRET_SEGMENTS = new RegExp(
+  String.raw`(${SEPARATOR}(?:care${SEPARATOR}invitations|invitacion)${SEPARATOR})(?:[^/?#&%\s]|%(?!(?:25)*2f)[0-9a-f]{2})+`,
+  'gi'
+);
+
+/** The same path with every secret segment replaced — the route stays readable, the secret does not. */
+function withoutSecrets(value: string): string {
+  return value.replace(SECRET_SEGMENTS, '$1[redacted]');
+}
+
 export function serializeRequest(request: SerializedRequest): Record<string, unknown> {
+  const headers = pick(request.headers, LOGGED_REQUEST_HEADERS);
+
+  if (typeof headers.referer === 'string') {
+    headers.referer = withoutSecrets(headers.referer);
+  }
+
   // No `remoteAddress`: behind the proxy it is always the loopback address.
-  return { id: request.id, headers: pick(request.headers, LOGGED_REQUEST_HEADERS), method: request.method, url: request.url };
+  return { id: request.id, headers, method: request.method, url: request.url === undefined ? undefined : withoutSecrets(request.url) };
 }
 
 export function serializeResponse(response: SerializedResponse): Record<string, unknown> {

@@ -9,6 +9,7 @@ export * from './_utils';
 
 export * from './ai.schema';
 export * from './auth.schema';
+export * from './care.schema';
 export * from './food.schema';
 export * from './plan.schema';
 export * from './platform.schema';

@@ -61,5 +61,10 @@ export function accountWaitingEmail({
     title: copy.subject
   });
 
-  return { html, subject: copy.subject, text: [copy.intro, '', email, '', copy.activate, url, '', copy.byHand, statement].join('\n') };
+  return {
+    html,
+    kind: 'account-waiting',
+    subject: copy.subject,
+    text: [copy.intro, '', email, '', copy.activate, url, '', copy.byHand, statement].join('\n')
+  };
 }

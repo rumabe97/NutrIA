@@ -20,7 +20,7 @@ const configured = {
   SMTP_USER: 'hola@nutria.example'
 } as unknown as Env;
 
-const message = { html: '<p>hi</p>', subject: 'Hola', text: 'hi', to: 'ana@example.com' };
+const message = { html: '<p>hi</p>', kind: 'verify-email' as const, subject: 'Hola de Ana Dietista', text: 'hi', to: 'ana@example.com' };
 
 describe('EmailService', () => {
   beforeEach(() => {
@@ -77,19 +77,37 @@ describe('EmailService', () => {
     expect(sendMail).toHaveBeenCalledWith({
       from: '"NutrIA" <hola@nutria.example>',
       html: '<p>hi</p>',
-      subject: 'Hola',
+      subject: 'Hola de Ana Dietista',
       text: 'hi',
       to: 'ana@example.com'
     });
   });
 
-  it('reports a refusal as false and keeps the address out of the log', async () => {
-    sendMail.mockRejectedValue(new Error('535 bad credentials'));
+  it('reports a refusal as false, logged as the message’s kind and the error’s code — never its subject or the server’s words', async () => {
+    // What SMTP servers really answer: the rejected recipient, quoted in the message.
+    sendMail.mockRejectedValue(
+      Object.assign(new Error("Can't send mail - all recipients were rejected: 550 5.1.1 <ana@example.com>: Recipient address rejected"), {
+        code: 'EENVELOPE',
+        responseCode: 550
+      })
+    );
     const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     const service = new EmailService(configured);
 
     await expect(service.send(message)).resolves.toBe(false);
-    expect(String(error.mock.calls[0]?.[0])).toContain('535 bad credentials');
-    expect(String(error.mock.calls[0]?.[0])).not.toContain('ana@example.com');
+    const line = String(error.mock.calls[0]?.[0]);
+
+    expect(line).toBe('mail not sent (verify-email): EENVELOPE 550');
+    expect(line).not.toContain('ana@example.com');
+    expect(line).not.toContain('Ana Dietista');
+  });
+
+  it('logs a failure with no code as unknown, and nothing of its message', async () => {
+    sendMail.mockRejectedValue(new Error('connect ECONNREFUSED ana@example.com'));
+    const error = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+    const service = new EmailService(configured);
+
+    await expect(service.send({ ...message, kind: 'care-invitation' })).resolves.toBe(false);
+    expect(String(error.mock.calls.at(-1)?.[0])).toBe('mail not sent (care-invitation): unknown');
   });
 });

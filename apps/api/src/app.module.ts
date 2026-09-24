@@ -8,6 +8,7 @@ import { AdminModule } from './modules/admin/index.js';
 import { AiModule } from './modules/ai/index.js';
 import { AuthModule } from './modules/auth/index.js';
 import { BillingModule } from './modules/billing/index.js';
+import { CareModule } from './modules/care/index.js';
 import { CheckInsModule } from './modules/check-ins/index.js';
 import { FeedbackModule } from './modules/feedback/index.js';
 import { HealthDataModule } from './modules/health-data/index.js';
@@ -40,6 +41,7 @@ import { LoggingModule } from './shared/logging/index.js';
     AiModule,
     AuthModule,
     BillingModule,
+    CareModule,
     CheckInsModule,
     FeedbackModule,
     HealthDataModule,

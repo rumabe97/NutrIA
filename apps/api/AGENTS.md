@@ -327,6 +327,20 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   controller carries `@UseGuards(ProfessionalGuard)` on its class, and never
   `@RequiresOnboarding()` (its 409 would answer a non-professional before the guard's 404).
   Only an account with a confirmed address can be granted.
+- **The link** (`0059`): `modules/care`. `POST /care/invitations` is the professional's
+  (`CareInvitationsController`, `ProfessionalGuard` on the class); reading, accepting and
+  declining an invitation are the client's (`CareAnswersController`, `ProfessionalSwitchGuard`
+  on the class, so the switch is asked before any pipe); `GET /care/links/me` and
+  `DELETE /care/links/:linkId` are `CareLinksController`, with no guard — a client sees and
+  ends their own link whatever the switch says (a link stays revocable), and ending is also
+  the professional's, which needs the switch and the grant, checked in `CareController.end`.
+  Every other care route 404s while the `professional` switch is off. An invitation stores only the SHA-256 of its token; the token travels in one
+  mail, queued with `BackgroundTaskService` so the answer is the same whether or not the
+  address has an account, and nothing reads `user` by that address. It is read and answered
+  only by a confirmed account whose address is the invited one — the session's address is the
+  ownership boundary there — and every other case is one 404. `shared/logging` rewrites the
+  token out of the logged URL and `referer`. One open link per client is a partial unique
+  index; accepting into it is 409 `CARE_LINK_EXISTS`, naming the link in the way.
 - **Country** (`0034`): `loadCatalogue(locale, country)` drops ingredients sold only
   elsewhere — `ingredients.countries`, where empty means everywhere. Null country filters
   nothing, which is what an account that never said where it is had before the column.

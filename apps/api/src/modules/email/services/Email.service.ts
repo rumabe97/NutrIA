@@ -3,6 +3,7 @@ import { createTransport } from 'nodemailer';
 
 import { ENV } from '../../../config/index.js';
 
+import type { EmailKind } from '../templates/Layout.js';
 import type { Env } from '../../../config/index.js';
 import type { Transporter } from 'nodemailer';
 
@@ -12,9 +13,26 @@ const SENDER_NAME = 'NutrIA';
 
 export interface OutgoingEmail {
   html: string;
+  /** What the log calls this message when it fails — never its subject. */
+  kind: EmailKind;
   subject: string;
   text: string;
   to: string;
+}
+
+/**
+ * What a failure may say: nodemailer's error code (`EAUTH`, `EENVELOPE`, …)
+ * and the server's numeric reply, never the error's message — SMTP servers
+ * quote the rejected recipient in it.
+ */
+function failureOf(error: unknown): string {
+  const { code, responseCode } = (typeof error === 'object' && error !== null ? error : {}) as { code?: unknown; responseCode?: unknown };
+  const parts = [
+    typeof code === 'string' && /^[A-Z_]+$/.test(code) ? code : 'unknown',
+    typeof responseCode === 'number' ? String(responseCode) : null
+  ];
+
+  return parts.filter(part => part !== null).join(' ');
 }
 
 /**
@@ -29,7 +47,10 @@ export interface OutgoingEmail {
  * log the link instead, so local development still works end to end).
  *
  * Addresses never reach the log. A recipient is an account identifier, and the
- * log stream is the most widely read output a service has.
+ * log stream is the most widely read output a service has. Nor does a subject
+ * (an invitation's names the professional) or a provider's error message (it
+ * quotes the rejected recipient): a failure is logged as the message's `kind`
+ * and the error's code.
  */
 @Injectable()
 export class EmailService {
@@ -78,7 +99,7 @@ export class EmailService {
 
       return true;
     } catch (error) {
-      this.logger.error(`mail not sent (${message.subject}): ${error instanceof Error ? error.message : 'unknown error'}`);
+      this.logger.error(`mail not sent (${message.kind}): ${failureOf(error)}`);
 
       return false;
     }

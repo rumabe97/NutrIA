@@ -47,7 +47,7 @@ then the documents. Each phase ends green.
 
 ### Phase 1 — A professional is an account the owner grants
 
-- [x] done — `test:e2e -- professionals` verified by the pull request's CI (required to merge)
+- [x] done — `test:e2e -- professionals` verified by the pull request's CI (required to merge) — commit `5a0df05` ("Project 004 phase 1: a professional is an account the owner grants (#82)")
 - **Dispatch**: fable @ high — `/execute-project 004 phase 1`
 - **Goal**: an account becomes a professional only by the owner's act, with a collegiate number, and nothing else can make it one.
 - **Scope**: `packages/database/src/schemas` (new `professional.schema.ts`), one generated migration, `packages/core/src/{entities,repositories,controllers}/Professional/`, `packages/core/src/domain/Flag`, `apps/api/src/modules/admin`, `apps/api/src/shared/guards` (new `Professional.guard.ts`), `apps/api/test`.
@@ -68,20 +68,20 @@ then the documents. Each phase ends green.
 
 ### Phase 2 — The link: invitation, consent, revocation
 
-- [ ] pending
+- [x] done — `test:e2e -- care` to be verified by the pull request's CI (required to merge)
 - **Dispatch**: opus @ high — `/execute-project 004 phase 2`
 - **Goal**: a professional invites by email, the client accepts knowing exactly what is shared, and either side ends it in one action.
 - **Scope**: `packages/database/src/schemas` (new `care.schema.ts`), one generated migration, `packages/core/src/{entities,repositories,controllers}/Care/`, new `apps/api/src/modules/care/`, `apps/api/src/modules/email` (one template), `apps/api/test`.
 - **Steps**:
-  1. `care_invitations`: `professionalId` (FK cascade), `email` (lowercased), `tokenHash` (sha-256, unique), `expiresAt` (14 days), `usedAt`, `revokedAt`.
+  1. `care_invitations`: `professionalId` (FK cascade), `email` (lowercased), `tokenHash` (sha-256, unique), `expiresAt` (14 days). A row exists only while the invitation is live: unique on (`professionalId`, `email`); accepting, declining or re-inviting deletes it, writing one purges every expired row, revoking a grant deletes that professional's, and deleting an account deletes every invitation to its address (amended in execution: a used or revoked row kept a deleted client's address, against PRD 14).
   2. `care_links`: `professionalId` and `clientId` (both FK `user.id`, cascade), `status` enum (`active`, `paused`, `ended`), `consentVersion`, `consentedAt`, `sharesHealth` (boolean — the separate consent line), `reviewBeforePublish` (boolean, default true), `endedAt`, `endedBy` (`professional` | `client` | `lapse` | `account`). Partial unique index: one `active` or `paused` link per client.
   3. `CARE_CONSENT_VERSION` in `core/entities/Care`; the consent list is dictionary copy (Phase 8), the version is code, as `HEALTH_CONSENT_VERSION` is.
   4. Routes (module `care`):
      - `POST /care/invitations` — `ProfessionalGuard`. Creates the invitation and queues the mail with `BackgroundTaskService`; **the response is identical and immediate whether or not the address has an account**. Refuses the professional's own address.
      - `GET /care/invitations/:token` — signed in; answers the professional's name, the consent version and the list of what is shared, only when the token is valid, unused, unexpired and addressed to the session's email; 404 otherwise, the same 404 for every reason.
-     - `POST /care/invitations/:token/accept` — body `{ consentVersion, sharesHealth }`; the version must be the current one; creates the link, marks the invitation used, in one transaction. A client who already has an active link gets a 409 that names it.
-     - `POST /care/invitations/:token/decline` — marks it used; nothing is created.
-     - `DELETE /care/links/:linkId` — either side: the professional through the guard and `professionalId = session`, the client through `clientId = session`. Ends the link.
+     - `POST /care/invitations/:token/accept` — body `{ consentVersion, sharesHealth }`; the version must be the current one; creates the link and deletes the invitation, in one transaction. A client who already has an active link gets a 409 that names it.
+     - `POST /care/invitations/:token/decline` — deletes it; nothing is created.
+     - `DELETE /care/links/:linkId` — either side: the professional through the guard and `professionalId = session`, the client through `clientId = session`. Ends the link. The client's side, and `GET /care/links/me`, work with the `professional` flag off too (amended in execution: a link must stay revocable, `0059`); every other care route is a 404 while it is off, before any validation.
      - `GET /care/links/me` — the client's own link, if any: professional's name, status, what is shared, the date.
   5. The invitation mail (Spanish and English, the recipient's locale unknown so the inviter's): who invites, what accepting means, the link; no health word in it.
 - **Acceptance criteria**: PRD 2, 3, 4 (the ending itself; its effect on access is Phase 3), 14 (link rows go with either account).

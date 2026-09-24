@@ -2,6 +2,7 @@ import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 
 import { AnalyticsController } from 'core/controllers/Analytics';
+import { CareController } from 'core/controllers/Care';
 
 import { database } from 'database';
 import { account, rateLimit, session, user, verification } from 'database/schema/auth';
@@ -208,7 +209,23 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
         activatedAt: { input: false, required: false, type: 'date' },
         role: { defaultValue: 'user', input: false, required: false, type: 'string' }
       },
-      deleteUser: { enabled: true }
+      deleteUser: {
+        /*
+         * The cascade from `user.id` takes everything that references the
+         * account. An invitation addressed to it does not — it holds an
+         * address a professional typed, never an account id, because whether
+         * that address has an account is what an invitation must not say — so
+         * it is deleted here, by the account's own address (PRD 004,
+         * criterion 14). Before the delete: if this fails the account stays,
+         * rather than going and leaving its address behind. Not one transaction
+         * with the delete: an invitation written in the milliseconds between
+         * the two survives, and expires or is purged like any other.
+         */
+        beforeDelete: async (deleted: { email: string }) => {
+          await CareController.forgetAddress(deleted.email);
+        },
+        enabled: true
+      }
     }
   });
 }

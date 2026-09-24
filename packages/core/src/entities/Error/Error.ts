@@ -169,3 +169,20 @@ export class OnboardingIncompleteError extends Error {
     this.name = 'OnboardingIncompleteError';
   }
 }
+
+/**
+ * A client accepting an invitation while a link is still theirs — another
+ * professional's, or this same one's (`0059`: one open link per client).
+ *
+ * A state, not a denial — the caller owns both the invitation and the link in
+ * the way, and the only useful answer names that link so the screen can say
+ * whose it is and how to end it. 409, like the other states a screen explains.
+ * It carries the professional's name, the link's status and since when: what
+ * the client's own `GET /care/links/me` already shows them, and nothing more.
+ */
+export class CareLinkExistsError extends Error {
+  constructor(public readonly link: { readonly professionalName: string; readonly since: string; readonly status: 'active' | 'paused' }) {
+    super('Care link exists');
+    this.name = 'CareLinkExistsError';
+  }
+}
