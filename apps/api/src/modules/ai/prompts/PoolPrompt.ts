@@ -86,8 +86,16 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * library every other user is served from. The quotes in it are turned
  * typographic, the invisible characters dropped, and the line now says what it
  * is: a comment to design for, not an instruction.
+ * 3.4.0: one number per rule. A snack's steps and ingredients were stated twice
+ * with different figures — one to three steps and two to four ingredients in
+ * its character line, two to four and two to five further down — and the system
+ * prompt ruled out the two-ingredient snack that line allows. The character
+ * line's figures stand everywhere, and the system line speaks of main dishes.
+ * The schema's descriptions stop saying Spanish for the dish name, which the
+ * brief asks for in the person's language, and stop asking for `0` minutes on an
+ * instant step, which the rewrite brief asks to leave empty.
  */
-export const PROMPT_VERSION = '3.3.1';
+export const PROMPT_VERSION = '3.4.0';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -304,7 +312,7 @@ export const POOL_SYSTEM_PROMPT = [
   'You only use ingredients from the catalogue you are given, by their exact slug; if something is not on the list, it does not exist.',
   'You never write calories or macronutrients in your answer: the system recomputes every dish from the catalogue and builds the days from the dishes that land closest to the brief.',
   'You cook: you season, you use technique, and you build texture and contrast.',
-  'You do not return two ingredients on a plate and call it a dish.'
+  'A main dish is cooked, seasoned food, not two ingredients set side by side.'
 ].join(' ');
 
 /**
@@ -577,7 +585,7 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
       '  and the time. "Cook the chicken" is not a step; "sear 4 minutes a side, then rest 5" is.',
       '- Contrast in texture and temperature — something crisp against something soft, something',
       '  fresh against something rich.',
-      '- ONE ACTION PER STEP. Five to eight steps for a main that cooks, two to four for a',
+      '- ONE ACTION PER STEP. Five to eight steps for a main that cooks, one to three for a',
       '  snack. Never zero: a dish with no method is rejected before it is stored. "Sear the',
       '  pork 3 minutes, add the mushrooms, cook 4 more, stir in the rice" is four steps, not one.',
       '- EVERY STEP DOCUMENTED, in one to three sentences: what to do, how (the cut, the vessel,',
@@ -624,7 +632,7 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
       catalogue,
       '',
       'Each dish lists its ingredients in grams for the number of servings you declare.',
-      'Aim for five to ten ingredients in a main dish, two to five in a snack. Never more than fifteen, salt, spices and oil included — a dish with more is rejected.',
+      'Aim for five to ten ingredients in a main dish, two to four in a snack. Never more than fifteen, salt, spices and oil included — a dish with more is rejected.',
       'Declare between one and eight servings.'
     ]
       // Null is an optional line with nothing to say; an empty string is a
