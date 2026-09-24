@@ -6,6 +6,8 @@ import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { Card } from 'components/Card';
+import { CareAccessLog } from 'components/CareAccessLog';
+import { CareLinkCard } from 'components/CareLinkCard';
 import { DeleteAccount } from 'components/DeleteAccount';
 import { FeedbackForm } from 'components/FeedbackForm';
 import { HealthPanel } from 'components/HealthPanel';
@@ -27,6 +29,7 @@ import { serverApi } from 'lib/server-api';
 import { appMetadata } from '../../_shared/metadata';
 
 import type { BillingStatusView } from 'core/controllers/Billing';
+import type { CareAccessPageView, CareLinkView } from 'core/controllers/Care';
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { HealthView } from 'core/controllers/Health';
@@ -78,7 +81,7 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
   // Health data is fetched here and only here. It is not folded into
   // `/profile`, which the dashboard also loads — a medication has no business
   // travelling to a screen that does not show it.
-  const [dictionary, locale, user, profile, health, notifications, push, billing, trips, query] = await Promise.all([
+  const [dictionary, locale, user, profile, health, notifications, push, billing, trips, careLink, accessLog, query] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<UserView>('/users/me'),
@@ -90,6 +93,12 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
     // Unavailable unless payments are set up and open to this person (`0056`); then no card is drawn.
     serverApi<BillingStatusView>('/billing'),
     serverApi<readonly VacationView[]>('/vacations'),
+    // Null with no active or paused link — not behind the `professional` switch,
+    // because consent is revocable whatever it says.
+    serverApi<CareLinkView | null>('/care/links/me'),
+    // The client's own trail (`0059`): what was read about them stays theirs to
+    // see whatever the switch says, so this is fetched whether or not a link exists.
+    serverApi<CareAccessPageView>('/care/access-log'),
     searchParams
   ]);
   const t = dictionary.profile;
@@ -135,6 +144,19 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
             </Card>
           ) : null}
         </section>
+
+        {/* The link to a professional, if any (PRD 004, criterion 4), and the
+            trail of who read what — shown whether or not a link exists, because
+            what was once read about somebody stays theirs to see. */}
+        {careLink || (accessLog && accessLog.entries.length > 0) ? (
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>{t.sectionCare}</h2>
+
+            {careLink ? <CareLinkCard link={careLink} /> : null}
+
+            {accessLog ? <CareAccessLog initial={accessLog} /> : null}
+          </section>
+        ) : null}
 
         {/* What was answered at the start, each block with its way back to the step that owns it. */}
         <section className={styles.section}>

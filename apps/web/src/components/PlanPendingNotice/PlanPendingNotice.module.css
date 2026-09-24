@@ -1,0 +1,12 @@
+.notice {
+  border-left: 3px solid var(--color-brand-fill);
+  display: grid;
+  gap: var(--space-02);
+}
+
+.title {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
