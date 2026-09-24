@@ -582,18 +582,34 @@ export const PlanRepository = {
    * The pending row is held `FOR UPDATE`, so a generation replacing it and a
    * publish of it queue behind each other. Completing first is what
    * `meal_plans_one_active_per_user` requires, as in `createPlanAtomically`.
+   * A pending plan older than the active one is refused (see below).
    */
   async publish(userId: string, record: RecordAccess, today: string = new Date().toISOString().slice(0, 10)): Promise<string | undefined> {
     try {
       return await database().transaction(async tx => {
         const [pending] = await tx
-          .select({ id: mealPlans.id })
+          .select({ id: mealPlans.id, version: mealPlans.version })
           .from(mealPlans)
           .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, PENDING)))
           .limit(1)
           .for('update');
 
         if (!pending) {
+          return undefined;
+        }
+
+        // A pending plan older than the active one can only be left over by an API
+        // rolled back to before `0060`, which generated past it without knowing
+        // the state. Publishing it would replace the client's newer plan with a
+        // stale draft, so it is refused like nothing pending; the next generation
+        // replaces it.
+        const [active] = await tx
+          .select({ version: mealPlans.version })
+          .from(mealPlans)
+          .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active')))
+          .limit(1);
+
+        if (active && active.version > pending.version) {
           return undefined;
         }
 
