@@ -26,3 +26,52 @@ export const TRIAL_DAYS = 7;
 export function paysForPremium(status: string | null): boolean {
   return status === 'active' || status === 'trialing' || status === 'past_due';
 }
+
+/**
+ * Whether a subscription in this state has ended for good. Stripe never
+ * brings a `canceled` or `incomplete_expired` subscription back: paying again
+ * is a new subscription, with a new id.
+ */
+export function hasEnded(status: string | null): boolean {
+  return status === 'canceled' || status === 'incomplete_expired';
+}
+
+type Described = { readonly status: string | null; readonly subscriptionId: string | null };
+
+/**
+ * Whether what Stripe says now about a subscription may replace what is stored
+ * for the account. The webhook already re-reads Stripe under a lock, so this is
+ * the invariant that holds even if that ordering ever slips:
+ *
+ * - An ended subscription stays ended. A live status for the same id can only
+ *   be an old answer arriving late.
+ * - One subscription ending never displaces a different one. A retried
+ *   `deleted` for last year's subscription must not take premium from this
+ *   year's.
+ * - A subscription that does not pay never takes the row from a different one
+ *   that does. Two checkouts finished in two tabs are two subscriptions: the
+ *   second one's `incomplete`, on its way to paying or failing, must not take
+ *   premium from the first while the first still charges.
+ */
+export function replacesStored(stored: Described | null, incoming: Described): boolean {
+  if (!stored?.subscriptionId) {
+    return true;
+  }
+
+  if (stored.subscriptionId === incoming.subscriptionId) {
+    return !hasEnded(stored.status) || hasEnded(incoming.status);
+  }
+
+  return !hasEnded(incoming.status) && (paysForPremium(incoming.status) || !paysForPremium(stored.status));
+}
+
+/**
+ * What to write instead of a subscription that has stopped paying, when the
+ * same customer has another that still does: that one. The account keeps
+ * premium for as long as anything of theirs is charged for it, and the row
+ * follows the subscription that is. `null` when there is none, and the one
+ * that stopped is written as it is.
+ */
+export function payingSibling<T extends Described>(stopped: Described, siblings: readonly T[]): T | null {
+  return siblings.find(sibling => sibling.subscriptionId !== stopped.subscriptionId && paysForPremium(sibling.status)) ?? null;
+}

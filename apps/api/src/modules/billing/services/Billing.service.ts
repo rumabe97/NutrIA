@@ -2,11 +2,12 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { BillingController } from 'core/controllers/Billing';
 import { ConflictError, NotFoundError } from 'core/entities/Error';
-import { paysForPremium, TRIAL_DAYS } from 'core/domain/Billing';
+import { hasEnded, paysForPremium, TRIAL_DAYS } from 'core/domain/Billing';
 import { SettingsController } from 'core/controllers/Settings';
 import { webUrl } from 'core/domain/WebUrl';
 
 import { ENV } from '../../../config/index.js';
+import { ErrorReporter } from '../../../shared/observability/index.js';
 import { recipientLocale } from '../../email/services/RecipientLocale.js';
 import { StripeGateway } from './StripeGateway.js';
 
@@ -57,7 +58,8 @@ export class BillingService {
 
   constructor(
     @Inject(ENV) private readonly env: Env,
-    private readonly stripe: StripeGateway
+    private readonly stripe: StripeGateway,
+    private readonly reporter: ErrorReporter
   ) {}
 
   /**
@@ -93,7 +95,13 @@ export class BillingService {
       throw new ConflictError('Already subscribed');
     }
 
-    const customerId = (await BillingController.customerOf(user.id)) ?? (await this.newCustomer(user));
+    const customerId = await BillingController.customerFor(user.id, () => this.stripe.createCustomer(user.email, user.id));
+
+    // The session's account was deleted while this was on its way.
+    if (!customerId) {
+      throw new NotFoundError('Not found');
+    }
+
     const locale = await recipientLocale(user.id);
     const profile = webUrl(this.env.APP_URL, '/perfil', locale);
 
@@ -134,6 +142,51 @@ export class BillingService {
   }
 
   /**
+   * Before an account is deleted: every subscription it still has at Stripe is
+   * cancelled, now. Somebody whose account is gone must not be charged for it
+   * next month, and nothing here would ever notice that they were.
+   *
+   * Open checkouts are expired first, so none can turn into a subscription
+   * once the list below has been read. One that completed before its expiry
+   * is in that list. Should a subscription slip through anyway, the webhook
+   * cancels it when Stripe announces it (`webhook`).
+   *
+   * A failure throws, and the deletion does not happen: the account stays and
+   * the person can try again, which is better than an account gone and a card
+   * still charged. Without Stripe set up there is nothing to cancel, and an
+   * account that never reached checkout has no customer to ask about.
+   *
+   * Stripe's keys removed from an account that does have a customer is the
+   * one case where something may still be charging and nothing can be asked:
+   * the deletion goes ahead, and it is reported so the owner cancels by hand.
+   */
+  async cancelEverything(userId: string): Promise<void> {
+    const customerId = await BillingController.customerOf(userId);
+
+    if (!customerId) {
+      return;
+    }
+
+    if (!this.stripe.configured) {
+      this.alert(`Stripe customer ${customerId} is being deleted with Stripe not configured; nothing was cancelled`);
+
+      return;
+    }
+
+    await this.stripe.expireOpenCheckouts(customerId);
+
+    const open = (await this.stripe.subscriptionsOf(customerId)).filter(subscription => !hasEnded(subscription.status));
+
+    for (const subscription of open) {
+      await this.stripe.cancel(subscription.subscriptionId);
+    }
+
+    if (open.length > 0) {
+      this.logger.log(`Cancelled ${open.length} subscription(s) of an account being deleted`);
+    }
+  }
+
+  /**
    * What Stripe says happened. Only a signed payload is read, and a request
    * whose signature does not hold is a 404 like every other denial.
    *
@@ -141,6 +194,43 @@ export class BillingService {
    * so an event arriving late, or twice, sets the state Stripe has now and
    * never an old one. The account is the one its customer was created for; the
    * id written into the subscription at checkout is the fallback.
+   *
+   * It is fetched twice. The first answer says whose it is, and is asked with
+   * nothing held. The second is asked with that account locked, just before
+   * the write (`BillingController.applySubscription`): two deliveries for one
+   * subscription write one after the other, and each writes what Stripe said
+   * after the one before it had finished, so a slow answer can no longer land
+   * last with an old state. The first fetch stays outside the lock on purpose:
+   * a delivery waiting on Stripe holds nothing, so a later one is never stuck
+   * behind it.
+   *
+   * An account that does not exist — one the metadata names but that was
+   * never made, or one deleted since, whose renewals Stripe still sends — is
+   * acknowledged and nothing is written. A 500 there is a delivery Stripe
+   * retries for days, and it can never succeed. If that subscription is still
+   * live and this deployment opened it (`StripeGateway.deployment`, which
+   * checkout writes into the metadata), it is cancelled at Stripe first:
+   * nobody is left to use what it charges for. A checkout that finished while
+   * its account was being deleted ends here. If the cancel fails, the answer
+   * is a 500 and Stripe's retry tries again.
+   *
+   * A subscription another deployment opened is not this one's at all, and
+   * is acknowledged before any account is looked for. Local development and
+   * production share one Stripe test account and both receive its events:
+   * a customer or an account that happens to exist on both sides says
+   * nothing about whose it is. One opened before the mark existed is
+   * followed as it always was, but never cancelled: a live one whose
+   * account is missing is reported instead, for the owner to look at.
+   *
+   * A customer nobody knows is left alone unless the metadata names an
+   * account. A deleted account's customer row goes with it, so the metadata
+   * is what still names it. A subscription with neither was not made here:
+   * the owner's own, from the dashboard, or another product's on the same
+   * Stripe account. Cancelling it would be charging nobody by breaking
+   * something that is not this service's to break.
+   *
+   * A subscription of a different customer than the one the account has is
+   * not written (`mismatch`), and is reported.
    */
   async webhook(payload: unknown, signature: string | undefined): Promise<void> {
     const event = Buffer.isBuffer(payload) && signature ? this.stripe.event(payload, signature) : null;
@@ -155,25 +245,57 @@ export class BillingService {
       return;
     }
 
-    const { userIdHint, ...record } = await this.stripe.subscription(subscriptionId);
-    const userId = (await BillingController.userOfCustomer(record.customerId)) ?? userIdHint;
+    const { customerId, deploymentHint, status, userIdHint } = await this.stripe.subscription(subscriptionId);
+    const ours = deploymentHint === this.stripe.deployment;
 
-    if (!userId) {
-      this.logger.warn(`Subscription ${record.subscriptionId ?? '?'} belongs to a customer this service does not know`);
+    if (deploymentHint !== null && !ours) {
+      this.logger.warn(`Subscription ${subscriptionId} was opened by another deployment; nothing written`);
 
       return;
     }
 
-    const tier = await BillingController.applySubscription(userId, record);
+    const userId = (await BillingController.userOfCustomer(customerId)) ?? userIdHint;
 
-    this.logger.log(`Subscription ${record.subscriptionId ?? '?'} is ${record.status ?? 'unknown'}: the account is ${tier}`);
+    if (!userId) {
+      this.logger.warn(`Subscription ${subscriptionId} belongs to a customer this service does not know`);
+
+      return;
+    }
+
+    const outcome = await BillingController.applySubscription(
+      userId,
+      () => this.stripe.subscription(subscriptionId, { underLock: true }),
+      customer => this.stripe.subscriptionsOf(customer, { underLock: true })
+    );
+
+    switch (outcome) {
+      case 'absent':
+        if (hasEnded(status)) {
+          this.logger.warn(`Subscription ${subscriptionId} names an account that does not exist; nothing written`);
+        } else if (ours) {
+          await this.stripe.cancel(subscriptionId);
+          this.logger.warn(`Subscription ${subscriptionId} names an account that does not exist; cancelled at Stripe, nothing written`);
+        } else {
+          this.alert(
+            `Subscription ${subscriptionId} is live and names an account that does not exist, but it carries no deployment mark; not cancelled`
+          );
+        }
+
+        break;
+      case 'mismatch':
+        this.alert(`Subscription ${subscriptionId} belongs to customer ${customerId}, not the one its account has; nothing written`);
+        break;
+      case 'kept':
+        this.logger.log(`Subscription ${subscriptionId}: Stripe's answer does not replace what is stored; nothing written`);
+        break;
+      default:
+        this.logger.log(`Subscription ${subscriptionId} is written: the account is ${outcome}`);
+    }
   }
 
-  private async newCustomer(user: SessionUser): Promise<string> {
-    const customerId = await this.stripe.createCustomer(user.email, user.id);
-
-    await BillingController.rememberCustomer(user.id, customerId);
-
-    return customerId;
+  /** Something the owner must act on by hand: the log at error level, and Sentry. */
+  private alert(message: string): void {
+    this.logger.error(message);
+    this.reporter.report(new Error(message), 'billing');
   }
 }

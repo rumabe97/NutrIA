@@ -33,6 +33,32 @@ type ErrorBody = {
 };
 
 /**
+ * What Express's body parsers refuse a request with, by the `type` they give
+ * the error (`http-errors`). Each is the client's mistake — too big, not a
+ * format read here, cut off halfway — and answering it as a 500 would log,
+ * report and invite a retry of a request that can never succeed. Nest turns a
+ * malformed JSON body (`entity.parse.failed`, a `SyntaxError`) into a 400
+ * itself; these are the ones it lets through. The parser's own message is not
+ * sent: it names limits and lengths nobody needs.
+ */
+const PARSER_REFUSALS: Readonly<Record<string, { readonly message: string; readonly statusCode: number }>> = {
+  'charset.unsupported': { message: 'El formato de la petición no se admite.', statusCode: HttpStatus.UNSUPPORTED_MEDIA_TYPE },
+  'encoding.unsupported': { message: 'El formato de la petición no se admite.', statusCode: HttpStatus.UNSUPPORTED_MEDIA_TYPE },
+  'entity.parse.failed': { message: 'La petición no se puede leer.', statusCode: HttpStatus.BAD_REQUEST },
+  'entity.too.large': { message: 'La petición es demasiado grande.', statusCode: HttpStatus.PAYLOAD_TOO_LARGE },
+  'parameters.too.many': { message: 'La petición es demasiado grande.', statusCode: HttpStatus.PAYLOAD_TOO_LARGE },
+  'request.aborted': { message: 'La petición no se puede leer.', statusCode: HttpStatus.BAD_REQUEST },
+  'request.size.invalid': { message: 'La petición no se puede leer.', statusCode: HttpStatus.BAD_REQUEST }
+};
+
+function parserRefusal(exception: unknown): ErrorBody | null {
+  const type = exception instanceof Error ? (exception as { type?: unknown }).type : undefined;
+  const refusal = typeof type === 'string' && Object.hasOwn(PARSER_REFUSALS, type) ? PARSER_REFUSALS[type] : undefined;
+
+  return refusal ? { code: 'REQUEST_ERROR', ...refusal } : null;
+}
+
+/**
  * The single translation point from domain errors to HTTP.
  *
  * Two rules it exists to enforce:
@@ -166,6 +192,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       };
     }
 
-    return { code: 'INTERNAL_ERROR', message: 'Algo ha ido mal. Inténtalo de nuevo.', statusCode: HttpStatus.INTERNAL_SERVER_ERROR };
+    return (
+      parserRefusal(exception) ?? {
+        code: 'INTERNAL_ERROR',
+        message: 'Algo ha ido mal. Inténtalo de nuevo.',
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR
+      }
+    );
   }
 }
