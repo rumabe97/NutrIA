@@ -140,13 +140,13 @@ export const BillingRepository = {
           cancelAtPeriodEnd: record.cancelAtPeriodEnd,
           currentPeriodEnd: record.currentPeriodEnd,
           status: record.status,
-          stripeCustomerId: record.customerId,
           stripeSubscriptionId: record.subscriptionId
         };
 
+        // The customer is written once, with the row, and never replaced (`BillingController.applySubscription`).
         await tx
           .insert(subscriptions)
-          .values({ ...values, userId })
+          .values({ ...values, stripeCustomerId: record.customerId, userId })
           .onConflictDoUpdate({ set: { ...values, updatedAt: new Date() }, target: subscriptions.userId });
         await tx.update(user).set({ tier, updatedAt: new Date() }).where(eq(user.id, userId));
 
@@ -154,18 +154,6 @@ export const BillingRepository = {
       });
     } catch (error: unknown) {
       throw error instanceof DecisionFailed ? error.cause : wrap(error);
-    }
-  },
-
-  /** Who somebody is to Stripe, kept before they have ever paid: checkout and the portal both need it. */
-  async saveCustomer(userId: string, customerId: string): Promise<void> {
-    try {
-      await database()
-        .insert(subscriptions)
-        .values({ stripeCustomerId: customerId, userId })
-        .onConflictDoUpdate({ set: { stripeCustomerId: customerId, updatedAt: new Date() }, target: subscriptions.userId });
-    } catch (error: unknown) {
-      throw wrap(error);
     }
   }
 };

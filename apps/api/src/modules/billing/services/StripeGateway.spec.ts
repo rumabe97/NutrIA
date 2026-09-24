@@ -8,6 +8,7 @@ import type { Env } from '../../../config/index.js';
 const SECRET = 'whsec_test_secret';
 const ENV = {
   BETTER_AUTH_URL: 'https://api.nutria.example',
+  DATABASE_URL: 'postgresql://app:hunter2@ep-calm-sea-123-pooler.eu-central-1.aws.neon.tech/nutria?sslmode=require',
   STRIPE_PRICE_ID: 'price_test',
   STRIPE_SECRET_KEY: 'sk_test_key',
   STRIPE_WEBHOOK_SECRET: SECRET
@@ -86,7 +87,7 @@ describe('StripeGateway', () => {
 
     const underLock = { maxNetworkRetries: 0, timeout: 5000 };
 
-    expect(options).toEqual([underLock, underLock, underLock, undefined]);
+    expect(options).toEqual([{ ...underLock, idempotencyKey: 'customer-usr-ana' }, underLock, underLock, undefined]);
   });
 
   it('reads back the account and the deployment checkout wrote into a subscription', async () => {
@@ -108,12 +109,36 @@ describe('StripeGateway', () => {
   });
 
   /* Local development and production share one Stripe test account: this is how each tells its own apart. */
-  it('names its deployment by its own origin, the same every time, and differently for another', () => {
+  it('names its deployment by the database it writes to, pooled or direct, whatever the credentials', () => {
     const here = new StripeGateway(ENV).deployment;
+    const at = (url: string) => new StripeGateway({ ...ENV, DATABASE_URL: url } as Env).deployment;
 
     expect(here).toMatch(/^[0-9a-f]{16}$/);
-    expect(new StripeGateway({ ...ENV, BETTER_AUTH_URL: 'https://api.nutria.example/some/path' } as Env).deployment).toBe(here);
-    expect(new StripeGateway({ ...ENV, BETTER_AUTH_URL: 'http://localhost:3001' } as Env).deployment).not.toBe(here);
+    expect(at('postgresql://owner:other@ep-calm-sea-123.eu-central-1.aws.neon.tech/nutria')).toBe(here);
+    expect(at('postgresql://app:hunter2@ep-calm-sea-123-pooler.eu-central-1.aws.neon.tech/nutria_dev')).not.toBe(here);
+    expect(at('postgresql://app:hunter2@ep-other-lake-456-pooler.eu-central-1.aws.neon.tech/nutria')).not.toBe(here);
+    expect(at('postgres://postgres:postgres@localhost:5432/nutria')).not.toBe(here);
+  });
+
+  describe('cancelling', () => {
+    function gatewayWith(cancel: (id: string) => Promise<unknown>, statusNow: string) {
+      const gateway = new StripeGateway(ENV);
+
+      Object.assign(gateway, { client: { subscriptions: { cancel, retrieve: (id: string) => Promise.resolve(stripeSubscription(id, statusNow)) } } });
+
+      return gateway;
+    }
+
+    /* A second delivery for an orphan the first one already cancelled: nothing left to do. */
+    it('carries on when the subscription had already ended', async () => {
+      await expect(gatewayWith(() => Promise.reject(new Error('No such subscription')), 'canceled').cancel('sub_1')).resolves.toBeUndefined();
+    });
+
+    it('fails when a subscription that has not ended could not be cancelled', async () => {
+      await expect(gatewayWith(() => Promise.reject(new Error('Stripe is unreachable')), 'active').cancel('sub_1')).rejects.toThrow(
+        'Stripe is unreachable'
+      );
+    });
   });
 
   it('opens a checkout that expires in 31 minutes and marks the subscription with the account and the deployment', async () => {

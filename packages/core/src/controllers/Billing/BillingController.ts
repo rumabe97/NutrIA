@@ -47,18 +47,31 @@ export const BillingController = {
    * charged for it. `siblings` lists the customer's subscriptions, under the
    * same lock, and is asked only then.
    *
+   * The account's customer is never replaced by another: a subscription of a
+   * different customer than the one stored is `mismatch`, and nothing is
+   * written. One account has one customer (`customerFor`), so a second one is
+   * something to look at, not to follow.
+   *
    * Resolves to the tier written, `kept` when Stripe's answer was older than
-   * what is stored, or `absent` when the account does not exist — deleted, or
-   * never this product's — and then nothing is written and Stripe is not asked.
+   * what is stored, `mismatch`, or `absent` when the account does not exist —
+   * deleted, or never this product's — and then nothing is written and
+   * Stripe is not asked.
    */
   async applySubscription(
     userId: string,
     latest: () => Promise<SubscriptionRecord>,
     siblings: (customerId: string) => Promise<readonly SubscriptionRecord[]>
-  ): Promise<'absent' | 'free' | 'kept' | 'premium'> {
+  ): Promise<'absent' | 'free' | 'kept' | 'mismatch' | 'premium'> {
     let tier: 'free' | 'premium' = 'free';
+    let mismatch = false;
     const outcome = await BillingRepository.recordSubscription(userId, async stored => {
       const answer = await latest();
+
+      if (stored && stored.customerId !== answer.customerId) {
+        mismatch = true;
+
+        return null;
+      }
 
       if (!replacesStored(stored, answer)) {
         return null;
@@ -70,6 +83,10 @@ export const BillingController = {
 
       return { record, tier };
     });
+
+    if (mismatch) {
+      return 'mismatch';
+    }
 
     return outcome === 'written' ? tier : outcome;
   },
@@ -87,10 +104,6 @@ export const BillingController = {
 
   async customerOf(userId: string): Promise<string | null> {
     return (await BillingRepository.findByUser(userId))?.customerId ?? null;
-  },
-
-  async rememberCustomer(userId: string, customerId: string): Promise<void> {
-    await BillingRepository.saveCustomer(userId, customerId);
   },
 
   /**

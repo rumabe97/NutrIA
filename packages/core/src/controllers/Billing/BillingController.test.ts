@@ -107,6 +107,16 @@ describe('BillingController.applySubscription', () => {
     expect(written).toEqual([{ record: row('canceled'), tier: 'free' }]);
   });
 
+  /* One account, one customer: the stored customer is never replaced by another. */
+  it('writes nothing for a subscription of another customer than the account’s', async () => {
+    stored = row('active');
+
+    await expect(
+      BillingController.applySubscription('usr-1', async () => ({ ...row('trialing', 'sub_2'), customerId: 'cus_2' }), noSiblings)
+    ).resolves.toBe('mismatch');
+    expect(written).toEqual([]);
+  });
+
   it('does not list the customer’s subscriptions while the answer pays', async () => {
     stored = row(null, null);
 
