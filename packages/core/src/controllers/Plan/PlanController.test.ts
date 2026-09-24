@@ -254,6 +254,16 @@ describe('PlanController.allowances — a pending plan is the fortnight under wa
     await expect(PlanController.allowances('usr-1')).resolves.toMatchObject({ planRedo: { allowed: false, used: 3 } });
   });
 
+  it('never shows the client when a plan they cannot see ends — a generation is still judged against it', async () => {
+    findActive.mockResolvedValue(undefined);
+    findChain.mockResolvedValue([{ id: 'p2', endDate: '2026-12-31', redo: true, replacedRedos: 0, status: 'pending_review', version: 2 }]);
+
+    await expect(PlanController.allowances('usr-1')).resolves.toMatchObject({ planRedo: { kind: 'new_fortnight', nextAt: null } });
+    await expect(PlanController.allowances('usr-1', true)).resolves.toMatchObject({
+      planRedo: { allowed: false, kind: 'redo', nextAt: '2027-01-01', used: 1 }
+    });
+  });
+
   it('with no plan pending, counts from the active plan as before', async () => {
     findChain.mockResolvedValue([active]);
 

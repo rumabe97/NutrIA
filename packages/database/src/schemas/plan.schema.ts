@@ -74,7 +74,9 @@ export const mealPlans = pgTable(
     // it cannot be listed in the migration that adds it (the same error): add the
     // value in one release and list it in the next — or, once 0037 is in
     // production, rewrite this predicate as `= 'pending_review'`, which no future
-    // value can join. `schema.test.ts` fails while the list and the enum disagree.
+    // value can join. `schema.test.ts` fails while the list and the enum
+    // disagree, so while this is NOT IN no release can add a value and stay
+    // green: the rewrite comes before the next plan status.
     // Not CONCURRENTLY: drizzle's migrator runs every pending migration in one
     // transaction, which CONCURRENTLY cannot run inside.
     uniqueIndex('meal_plans_one_pending_review_per_user')

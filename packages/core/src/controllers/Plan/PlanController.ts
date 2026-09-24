@@ -221,7 +221,15 @@ function presentMeal({ items, meal, recipe }: MealRow): MealView {
 // --- Controller ---------------------------------------------------------------
 
 export const PlanController = {
-  async allowances(userId: string): Promise<AllowancesView> {
+  /**
+   * What the fortnight still allows. `forGeneration` is `PlanJobController.start`'s
+   * question (`0060`): whether a generation may begin counts a pending plan that
+   * can still be published as the fortnight under way — its redo and its end.
+   * The client's own screen (the default) counts its redos too, but takes
+   * `kind` and `nextAt` from the plans the client can see, never from one
+   * they cannot.
+   */
+  async allowances(userId: string, forGeneration = false): Promise<AllowancesView> {
     const [active, chain, tier] = await Promise.all([
       PlanRepository.findActive(userId),
       PlanRepository.findChain(userId, true),
@@ -244,6 +252,8 @@ export const PlanController = {
     // The counter is on the plan row and dies with the plan, which is what
     // "per plan" means; a plan that has ended is not one that can be rebuilt.
     const midPlan = midPlanEventStanding(active && active.endDate >= today ? active.midPlanLoads : 0, tier);
+    // Which fortnight a redo would redo: a pending plan only when a generation asks.
+    const ends = forGeneration ? current : active;
 
     return {
       events: {
@@ -252,7 +262,7 @@ export const PlanController = {
         remaining: events.remaining
       },
       mealSwaps: mealSwapStanding(swaps, tier),
-      planRedo: planRedoStanding(current ? { endDate: current.endDate } : undefined, redosInFortnight(fromActive), today, tier),
+      planRedo: planRedoStanding(ends ? { endDate: ends.endDate } : undefined, redosInFortnight(fromActive), today, tier),
       tier
     };
   },
@@ -718,7 +728,7 @@ export const PlanJobController = {
       // the count honest. A plan can only be committed by a generation, no
       // generation can begin while this claim stands, so the chain this reads
       // is the whole chain and cannot grow underneath the decision.
-      const { planRedo } = await PlanController.allowances(userId);
+      const { planRedo } = await PlanController.allowances(userId, true);
 
       if (!planRedo.allowed) {
         throw new QuotaExceededError('plan_redo', planRedo.nextAt);

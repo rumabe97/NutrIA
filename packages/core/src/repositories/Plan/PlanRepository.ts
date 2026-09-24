@@ -78,11 +78,13 @@ export const PlanRepository = {
    * by a link that ended, paused or lost its grant costs nothing, is not the
    * fortnight under way, and is replaced at no charge.
    *
-   * `byProfessional` is a professional's generation (`0060`): it **never
-   * replaces a fortnight under way**. If review no longer holds by the time it
-   * is saved — the link ended or paused, review went off, during the
-   * generation — and the client has an active plan, it is refused with a
-   * `ConflictError` and nothing is written; the job fails.
+   * `byProfessional` is a professional's generation (`0060`), and it **never
+   * replaces a fortnight under way**. Re-checked here, when it is saved: while
+   * the link can publish and a plan is pending, it lands pending (whatever the
+   * review toggle now says); with review on, pending; with no active plan,
+   * active. Otherwise — the link ended, paused or lost its grant during the
+   * generation, and the client has an active plan — it is refused with a
+   * `ConflictError`, nothing is written, and the job fails.
    */
   async createPlanAtomically(userId: string, draft: PlanDraft, reviewable = false, byProfessional = false): Promise<string> {
     try {
@@ -117,7 +119,10 @@ export const PlanRepository = {
           .limit(1)
           .for('update');
         const link = reviewable ? await publishingLink(tx, userId) : undefined;
-        const review = link?.reviewBeforePublish === true;
+        // A professional's regeneration of a pending plan lands pending again even
+        // with review turned off since: it replaces what they were reviewing, and a
+        // professional never replaces the fortnight under way.
+        const review = link?.reviewBeforePublish === true || (byProfessional && link !== undefined && pending !== undefined);
         // A pending plan nobody can publish any more is not the fortnight under way.
         const counted = link !== undefined ? pending : undefined;
 
@@ -382,9 +387,10 @@ export const PlanRepository = {
    *
    * The version seeds which library dishes the user is handed, so the pick is
    * theirs and reproducible; the dishes are what they will not be served again.
-   * One method, because the two answers come from the same plan. The version
-   * counts a plan under review (it is taken); the dishes are the latest plan the
-   * client has seen, so they are never kept from a dish they were not served.
+   * One method, because the two answers come from the same plan. The latest
+   * plan may be one under review (`0060`): a regeneration of it then avoids its
+   * dishes, as a redo avoids the plan it redoes — variety, on purpose, even
+   * though the client never saw them.
    */
   async findGenerationHistory(
     userId: string
@@ -402,23 +408,12 @@ export const PlanRepository = {
         return { nextVersion: 1, recentDishes: [] };
       }
 
-      const [seen] = await db
-        .select({ id: mealPlans.id })
-        .from(mealPlans)
-        .where(and(eq(mealPlans.userId, userId), visible()))
-        .orderBy(desc(mealPlans.version))
-        .limit(1);
-
-      if (!seen) {
-        return { nextVersion: latest.version + 1, recentDishes: [] };
-      }
-
       const served = await db
         .selectDistinct({ name: recipes.name, slug: recipes.slug })
         .from(meals)
         .innerJoin(planDays, eq(planDays.id, meals.planDayId))
         .innerJoin(recipes, eq(recipes.id, meals.recipeId))
-        .where(eq(planDays.planId, seen.id));
+        .where(eq(planDays.planId, latest.id));
 
       return { nextVersion: latest.version + 1, recentDishes: served };
     } catch (error: unknown) {

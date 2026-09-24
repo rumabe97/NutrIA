@@ -363,10 +363,11 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   pending plan (deleted, its job kept with no plan) and carries its redo as `replacedRedos`, so a
   regeneration costs what the client's own would — **but only while that plan can still be
   published** (active link, standing grant, switch on): a plan stranded by an ended, paused or
-  revoked link costs the client nothing. The professional generates only for a client with no
-  active plan, or to regenerate a pending plan with review on — anything else is a 404 — and a
-  professional's job that finds review gone when it saves, with an active plan in place, fails
-  rather than replace the fortnight under way. The professional's generate and swap run in this
+  revoked link costs the client nothing, and the client's allowance screen never takes `kind` or
+  `nextAt` from it. The professional generates only for a client with no active plan, or to
+  regenerate a pending plan (which lands pending again, review toggle or not) — anything else is a
+  404 — and a professional's job that finds the link unable to publish when it saves, with an
+  active plan in place, fails rather than replace the fortnight under way. The professional's generate and swap run in this
   app (the model is here) but are reached only through `CareController.generatePlan` /
   `swapPendingMeal`, which hand the runner and the swap service the client's id and the write's
   `record`; the job's trail row goes in the claim's transaction, the swap's in the swap's.

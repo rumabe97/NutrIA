@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CARE_CONSENT_VERSION } from 'core/entities/Care';
-import { ConflictError, DatabaseOperationError, InputParseError, NotFoundError } from 'core/entities/Error';
+import { DatabaseOperationError, InputParseError, NotFoundError } from 'core/entities/Error';
 
 import { CareController } from './CareController';
 
@@ -53,7 +53,6 @@ const getPendingPlan = vi.fn<(userId: string, locale: string | null) => Promise<
 const getJob = vi.fn<(userId: string, jobId: string, reader: string) => Promise<JobView>>();
 const publish = vi.fn<(userId: string, record: RecordAccess, locale: string | null) => Promise<PlanView>>();
 const planStanding = vi.fn<(userId: string) => Promise<{ active: boolean; pending: boolean }>>();
-const onboardingState = vi.fn<(userId: string) => Promise<{ isComplete: boolean }>>();
 
 vi.mock('#repositories/Care', () => ({
   CareRepository: {
@@ -83,7 +82,6 @@ vi.mock('core/controllers/Profile', () => ({
     updateTargets: (...args: Parameters<typeof updateTargets>) => updateTargets(...args)
   }
 }));
-vi.mock('core/controllers/Onboarding', () => ({ OnboardingController: { getState: (userId: string) => onboardingState(userId) } }));
 vi.mock('core/controllers/Health', () => ({ HealthController: { shared: (userId: string) => shared(userId) } }));
 
 const NOW = new Date('2026-09-24T10:00:00.000Z');
@@ -162,8 +160,7 @@ beforeEach(() => {
     getPendingPlan,
     getJob,
     publish,
-    planStanding,
-    onboardingState
+    planStanding
   ]) {
     mock.mockReset();
   }
@@ -177,7 +174,6 @@ beforeEach(() => {
   targets.mockResolvedValue(null);
   shared.mockResolvedValue(HEALTH);
   planStanding.mockResolvedValue({ active: false, pending: false });
-  onboardingState.mockResolvedValue({ isComplete: true });
 });
 
 describe('CareController.withClient', () => {
@@ -624,7 +620,7 @@ describe('review before publishing (0060)', () => {
 describe('CareController.generatePlan — only when there is a reason (0060)', () => {
   const JOB: JobView = { id: 'job-1', error: null, errorDetail: null, pendingReview: false, planId: null, status: 'queued', step: null };
 
-  it('generates for a client with no plan, or regenerates a pending plan with review on', async () => {
+  it('generates for a client with no plan, or regenerates a pending plan — review on or off', async () => {
     activeLink.mockResolvedValue(access());
     const start = vi.fn(async (_clientId: string, record: RecordAccess) => {
       await record({} as never);
@@ -636,30 +632,19 @@ describe('CareController.generatePlan — only when there is a reason (0060)', (
 
     planStanding.mockResolvedValue({ active: true, pending: true });
     await expect(CareController.generatePlan(PRO, LINK_ID, start)).resolves.toBe(JOB);
-    expect(start).toHaveBeenCalledTimes(2);
+
+    activeLink.mockResolvedValue(access({ reviewBeforePublish: false }));
+    await expect(CareController.generatePlan(PRO, LINK_ID, start)).resolves.toBe(JOB);
+    expect(start).toHaveBeenCalledTimes(3);
   });
 
-  it('never replaces a fortnight under way: an active plan and nothing pending, or review off, is a 404 with no row', async () => {
+  it('never replaces a fortnight under way: an active plan and nothing pending is a 404 with no row', async () => {
     const start = vi.fn();
 
     activeLink.mockResolvedValue(access());
     planStanding.mockResolvedValue({ active: true, pending: false });
     await expect(CareController.generatePlan(PRO, LINK_ID, start)).rejects.toBeInstanceOf(NotFoundError);
 
-    activeLink.mockResolvedValue(access({ reviewBeforePublish: false }));
-    planStanding.mockResolvedValue({ active: true, pending: true });
-    await expect(CareController.generatePlan(PRO, LINK_ID, start)).rejects.toBeInstanceOf(NotFoundError);
-
-    expect(start).not.toHaveBeenCalled();
-    expect(logAccess).not.toHaveBeenCalled();
-  });
-
-  it('refuses a client who has not finished onboarding before any job, with no row', async () => {
-    activeLink.mockResolvedValue(access());
-    onboardingState.mockResolvedValue({ isComplete: false });
-    const start = vi.fn();
-
-    await expect(CareController.generatePlan(PRO, LINK_ID, start)).rejects.toBeInstanceOf(ConflictError);
     expect(start).not.toHaveBeenCalled();
     expect(logAccess).not.toHaveBeenCalled();
   });
