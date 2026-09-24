@@ -87,7 +87,10 @@ export class PlanGenerationService {
     // fails after that point still has them (`0050`).
     recordCalls: (calls: readonly AiCallRecord[]) => Promise<void> = () => Promise.resolve(),
     // Aborted when the job's deadline passes; checked before anything is saved.
-    deadline?: AbortSignal
+    deadline?: AbortSignal,
+    // A professional's generation for their client (`0060`): saved as one, so it
+    // never replaces a fortnight under way if review ended while it ran.
+    byProfessional = false
   ): Promise<string> {
     await markStep(STEPS.loading);
 
@@ -363,7 +366,8 @@ export class PlanGenerationService {
 
     return PlanJobController.persist(
       userId,
-      this.toDraft(scheduled.assignment, shopping, built, targets, context, jobId, rotation, advisorySummary, fallback, start, loads)
+      this.toDraft(scheduled.assignment, shopping, built, targets, context, jobId, rotation, advisorySummary, fallback, start, loads),
+      byProfessional
     );
   }
 

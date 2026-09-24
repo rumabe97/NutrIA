@@ -3,6 +3,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { CareRepository } from '#repositories/Care';
 import { HealthController } from 'core/controllers/Health';
 import { isCheckInDue } from 'core/controllers/CheckIn';
+import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfessionalRepository } from '#repositories/Professional';
 import { ProfileController } from 'core/controllers/Profile';
@@ -17,7 +18,7 @@ import {
   CARE_TOKEN_PATTERN,
   careLinkIdSchema
 } from 'core/entities/Care';
-import { CareLinkExistsError, DatabaseOperationError, InputParseError, NotFoundError } from 'core/entities/Error';
+import { CareLinkExistsError, ConflictError, DatabaseOperationError, InputParseError, NotFoundError } from 'core/entities/Error';
 
 import type { LinkWithProfessional, OpenInvitation, RecordAccess, RosterLink } from '#repositories/Care';
 import type {
@@ -466,11 +467,30 @@ export const CareController = {
    * `write`); `start` is the API's `PlanJobRunner`, which counts it against
    * the client's allowance exactly as the client's own generation would and
    * writes the trail row with the job, so a refused one leaves neither. With
-   * review on the plan waits for the professional; with it off it is active
-   * at once, as the client's own would be.
+   * review on the plan waits for the professional; with it off (a client with
+   * no plan) it is active at once, as the client's own would be.
+   *
+   * **Only when there is a reason** (owner's decision, `0060`): the client has
+   * no active plan, or a plan is pending on a link with review on — a
+   * regeneration. A professional never replaces a fortnight under way; any
+   * other request is the same 404, and writes nothing. A client who has not
+   * finished onboarding is a `ConflictError` before any job, as their own
+   * route refuses at the door.
    */
   async generatePlan(professional: Pick<CareSession, 'id'>, linkId: string, start: ForClient<JobView>): Promise<JobView> {
-    return CareController.withClient(professional.id, linkId, 'review', 'write', (clientId, _access, record) => start(clientId, record));
+    return CareController.withClient(professional.id, linkId, 'review', 'write', async (clientId, access, record) => {
+      const standing = await PlanController.planStanding(clientId);
+
+      if (standing.active && !(standing.pending && access.link.reviewBeforePublish)) {
+        throw new NotFoundError('Client not found');
+      }
+
+      if (!(await OnboardingController.getState(clientId)).isComplete) {
+        throw new ConflictError('The client has not finished onboarding');
+      }
+
+      return start(clientId, record);
+    });
   },
 
   /**

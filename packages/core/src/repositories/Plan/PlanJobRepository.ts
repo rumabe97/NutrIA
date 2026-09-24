@@ -3,7 +3,7 @@ import { and, eq, getTableColumns, inArray, lt, or, sql } from 'drizzle-orm';
 import { database } from 'database';
 import { mealPlans, planGenerationJobs } from 'database/schema/plan';
 
-import { ConflictError, DatabaseOperationError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
+import { ConflictError, DatabaseOperationError } from 'core/entities/Error';
 
 import type { AiCallRecord } from 'core/entities/Plan';
 
@@ -13,6 +13,37 @@ export const STALE_JOB_MINUTES = 15;
 export type JobStatus = 'failed' | 'queued' | 'running' | 'succeeded';
 
 export const PlanJobRepository = {
+  /**
+   * Admits a claimed job as a professional's generation (`0060`): the trail row
+   * (`record`) goes in one transaction with the job's own row, once the
+   * allowance has been checked after the claim, as for the client's own. A job
+   * no longer `queued` admits nothing and is a `ConflictError`. If this fails
+   * the caller releases the claim, so a refused generation leaves neither.
+   */
+  async admit(jobId: string, record: (tx: Transaction) => Promise<void>): Promise<void> {
+    try {
+      await database().transaction(async tx => {
+        const [row] = await tx
+          .update(planGenerationJobs)
+          .set({ updatedAt: new Date() })
+          .where(and(eq(planGenerationJobs.id, jobId), eq(planGenerationJobs.status, 'queued')))
+          .returning({ id: planGenerationJobs.id });
+
+        if (!row) {
+          throw new ConflictError('The generation is no longer waiting to start');
+        }
+
+        await record(tx);
+      });
+    } catch (error: unknown) {
+      if (error instanceof ConflictError) {
+        throw error;
+      }
+
+      throw wrap(error);
+    }
+  },
+
   /**
    * Adopts jobs whose plan committed but whose runner died before saying so.
    *
@@ -85,13 +116,8 @@ export const PlanJobRepository = {
    *
    * Returns the claimed job, or `undefined` when a generation is already under
    * way. `release` gives the slot back if the generation may not start after all.
-   *
-   * `admit` is a professional's generation (`0060`): it runs inside this
-   * transaction once the job row is in — the allowance check, then the trail
-   * row — so a refused generation leaves neither a job nor a row, and an
-   * admitted one has both.
    */
-  async claim(userId: string, admit?: (tx: Transaction) => Promise<void>) {
+  async claim(userId: string) {
     try {
       return await database().transaction(async tx => {
         const [lock] = await tx.execute<{ held: boolean }>(
@@ -118,15 +144,9 @@ export const PlanJobRepository = {
           throw new DatabaseOperationError('Job insert returned no row');
         }
 
-        await admit?.(tx);
-
         return row;
       });
     } catch (error: unknown) {
-      if (error instanceof ConflictError || error instanceof NotFoundError || error instanceof QuotaExceededError) {
-        throw error;
-      }
-
       throw wrap(error);
     }
   },
