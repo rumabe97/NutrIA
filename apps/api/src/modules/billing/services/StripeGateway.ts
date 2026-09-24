@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto';
 import { Inject, Injectable } from '@nestjs/common';
 import Stripe from 'stripe';
 
+import { hasEnded } from 'core/domain/Billing';
+
 import { ENV } from '../../../config/index.js';
 
 import type { BillingPlan } from 'core/entities/Billing';
@@ -21,8 +23,11 @@ const STRIPE_TIMEOUT_MS = 15_000;
 /**
  * A call made with an account's row locked: one attempt, five seconds, so the
  * lock (and the pooled connection waiting behind it) is held for five seconds
- * at the very most. A failure there is a 500, and Stripe delivers the event
- * again, which is the retry.
+ * per request at the very most. A list is one request per page, so listing a
+ * customer's subscriptions under the lock is bounded per page, not in total;
+ * a customer with more than a hundred subscriptions is not one this product
+ * makes. A failure there is a 500, and Stripe delivers the event again, which
+ * is the retry.
  */
 const UNDER_LOCK: Stripe.RequestOptions = { maxNetworkRetries: 0, timeout: 5000 };
 /** Stripe's page size ceiling for a list. */
@@ -85,16 +90,26 @@ export class StripeGateway {
 
   /**
    * Which deployment this is, as checkout writes it into every subscription:
-   * a short hash of this API's own public origin. Not a secret, and not
-   * meant to be one. Local development and production share one Stripe test
-   * account, and both receive its events. This is how one tells a
-   * subscription it opened itself from one the other opened. Moving the API
-   * to another origin changes it: subscriptions opened before are then
-   * another deployment's, which only means they are never cancelled
-   * automatically (`BillingService.webhook`).
+   * a short hash of the database it writes to — the host, without Neon's
+   * `-pooler` so the pooled and the direct address agree, and the database's
+   * name. Never the credentials, and not a secret: a hash of where, not how.
+   *
+   * Local development and production share one Stripe test account, and both
+   * receive its events. The question the webhook asks is whether an account
+   * is missing from the database that opened the subscription, so the
+   * database is what names the deployment — not the API's public address,
+   * which has changed under the same database before. Moving to another
+   * database changes it: subscriptions opened before are then another
+   * deployment's, which the webhook leaves alone (`BillingService.webhook`).
    */
   get deployment(): string {
-    return createHash('sha256').update(new URL(this.env.BETTER_AUTH_URL).origin).digest('hex').slice(0, 16);
+    const url = new URL(this.env.DATABASE_URL);
+    const host = url.hostname.replace(/-pooler(?=\.|$)/, '');
+
+    return createHash('sha256')
+      .update(`${host}/${url.pathname.replace(/^\//, '')}`)
+      .digest('hex')
+      .slice(0, 16);
   }
 
   /** Whether a yearly price is on offer as well as the monthly one. */
@@ -108,9 +123,20 @@ export class StripeGateway {
     return this.client;
   }
 
-  /** Ends a subscription now, not at the end of the period: nothing more is charged. */
+  /**
+   * Ends a subscription now, not at the end of the period: nothing more is
+   * charged. One that had already ended — cancelled by a delivery before this
+   * one, or by the owner — is not a failure: ending it was the whole point.
+   */
   async cancel(subscriptionId: string): Promise<void> {
-    await this.stripe().subscriptions.cancel(subscriptionId);
+    try {
+      await this.stripe().subscriptions.cancel(subscriptionId);
+    } catch (error: unknown) {
+      // Asked rather than read from the error: whether it has ended is the whole question.
+      if (!hasEnded((await this.stripe().subscriptions.retrieve(subscriptionId)).status)) {
+        throw error;
+      }
+    }
   }
 
   async checkoutUrl(request: CheckoutRequest): Promise<string> {
@@ -142,9 +168,14 @@ export class StripeGateway {
     return session.url;
   }
 
-  /** Called with the account's row locked, so that one account never has two customers. */
+  /**
+   * Called with the account's row locked, so that one account never has two
+   * customers. The idempotency key makes a retry after a lost answer (or a
+   * transaction that failed after Stripe said yes) the same customer, for as
+   * long as Stripe keeps the key.
+   */
   async createCustomer(email: string, userId: string): Promise<string> {
-    return (await this.stripe().customers.create({ email, metadata: { userId } }, UNDER_LOCK)).id;
+    return (await this.stripe().customers.create({ email, metadata: { userId } }, { ...UNDER_LOCK, idempotencyKey: `customer-${userId}` })).id;
   }
 
   /** The signed event, or `null` when the signature does not hold — which is every request not from Stripe. */

@@ -214,19 +214,23 @@ export class BillingService {
    * its account was being deleted ends here. If the cancel fails, the answer
    * is a 500 and Stripe's retry tries again.
    *
-   * Opened by another deployment, or before the mark existed, it is not
-   * cancelled. Local development and production share one Stripe test
-   * account and both receive its events, and an account missing here says
-   * nothing about the other's. A live one is reported instead, for the owner
-   * to look at.
+   * A subscription another deployment opened is not this one's at all, and
+   * is acknowledged before any account is looked for. Local development and
+   * production share one Stripe test account and both receive its events:
+   * a customer or an account that happens to exist on both sides says
+   * nothing about whose it is. One opened before the mark existed is
+   * followed as it always was, but never cancelled: a live one whose
+   * account is missing is reported instead, for the owner to look at.
    *
    * A customer nobody knows is left alone unless the metadata names an
-   * account and no other deployment opened it. A deleted account's customer
-   * row goes with it, so the metadata is what still names it. A subscription
-   * with neither was not made here: the owner's own, from the dashboard, or
-   * another product's on the same Stripe account. Cancelling it would be
-   * charging nobody by breaking something that is not this service's to
-   * break.
+   * account. A deleted account's customer row goes with it, so the metadata
+   * is what still names it. A subscription with neither was not made here:
+   * the owner's own, from the dashboard, or another product's on the same
+   * Stripe account. Cancelling it would be charging nobody by breaking
+   * something that is not this service's to break.
+   *
+   * A subscription of a different customer than the one the account has is
+   * not written (`mismatch`), and is reported.
    */
   async webhook(payload: unknown, signature: string | undefined): Promise<void> {
     const event = Buffer.isBuffer(payload) && signature ? this.stripe.event(payload, signature) : null;
@@ -243,8 +247,14 @@ export class BillingService {
 
     const { customerId, deploymentHint, status, userIdHint } = await this.stripe.subscription(subscriptionId);
     const ours = deploymentHint === this.stripe.deployment;
-    const foreign = deploymentHint !== null && !ours;
-    const userId = (await BillingController.userOfCustomer(customerId)) ?? (foreign ? null : userIdHint);
+
+    if (deploymentHint !== null && !ours) {
+      this.logger.warn(`Subscription ${subscriptionId} was opened by another deployment; nothing written`);
+
+      return;
+    }
+
+    const userId = (await BillingController.userOfCustomer(customerId)) ?? userIdHint;
 
     if (!userId) {
       this.logger.warn(`Subscription ${subscriptionId} belongs to a customer this service does not know`);
@@ -267,10 +277,13 @@ export class BillingService {
           this.logger.warn(`Subscription ${subscriptionId} names an account that does not exist; cancelled at Stripe, nothing written`);
         } else {
           this.alert(
-            `Subscription ${subscriptionId} is live and names an account that does not exist, but this deployment did not open it; not cancelled`
+            `Subscription ${subscriptionId} is live and names an account that does not exist, but it carries no deployment mark; not cancelled`
           );
         }
 
+        break;
+      case 'mismatch':
+        this.alert(`Subscription ${subscriptionId} belongs to customer ${customerId}, not the one its account has; nothing written`);
         break;
       case 'kept':
         this.logger.log(`Subscription ${subscriptionId}: Stripe's answer does not replace what is stored; nothing written`);

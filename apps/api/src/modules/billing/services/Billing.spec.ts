@@ -224,14 +224,11 @@ describe('BillingService', () => {
    * receive its events: an account missing here says nothing about the
    * other's, so only this deployment's own subscriptions are ever cancelled.
    */
-  it.each([
-    ['another deployment opened', 'dep_elsewhere'],
-    ['nobody marked', null]
-  ])('does not cancel a live subscription of a missing account that %s, and reports it', async (_case, deploymentHint) => {
+  it('does not cancel a live subscription of a missing account that carries no mark, and reports it', async () => {
     const { apply, gateway, reporter, service } = harness({ event: event('customer.subscription.updated', { id: 'sub_1' }) });
 
     apply.mockResolvedValue('absent');
-    gateway.subscription.mockResolvedValue({ ...SNAPSHOT, deploymentHint });
+    gateway.subscription.mockResolvedValue({ ...SNAPSHOT, deploymentHint: null });
 
     await expect(service.webhook(Buffer.from('{}'), 'signed')).resolves.toBeUndefined();
     expect(gateway.cancel).not.toHaveBeenCalled();
@@ -241,17 +238,29 @@ describe('BillingService', () => {
     expect(String(reporter.report.mock.calls[0]?.[0])).not.toMatch(/usr-ana|cus_1/);
   });
 
-  /* The other deployment's checkout names an account of the other deployment's: never looked for here. */
-  it('does not act on the account another deployment’s subscription names, when its customer is not one it knows', async () => {
+  /* Another database opened it: a customer or an account that exists on both sides says nothing about whose it is. */
+  it('acknowledges a subscription another deployment opened before looking for any account, and changes nothing', async () => {
     const { apply, gateway, owner, reporter, service } = harness({ event: event('customer.subscription.updated', { id: 'sub_1' }) });
 
-    owner.mockResolvedValue(null);
     gateway.subscription.mockResolvedValue({ ...SNAPSHOT, deploymentHint: 'dep_elsewhere' });
 
     await expect(service.webhook(Buffer.from('{}'), 'signed')).resolves.toBeUndefined();
+    expect(owner).not.toHaveBeenCalled();
     expect(apply).not.toHaveBeenCalled();
     expect(gateway.cancel).not.toHaveBeenCalled();
     expect(reporter.report).not.toHaveBeenCalled();
+  });
+
+  /* One account, one customer: a second one is something to look at, not to follow. */
+  it('writes nothing, and reports it, when the subscription is another customer’s than the account’s', async () => {
+    const { apply, gateway, reporter, service } = harness({ event: event('customer.subscription.updated', { id: 'sub_1' }) });
+
+    apply.mockResolvedValue('mismatch');
+
+    await expect(service.webhook(Buffer.from('{}'), 'signed')).resolves.toBeUndefined();
+    expect(gateway.cancel).not.toHaveBeenCalled();
+    expect(reporter.report).toHaveBeenCalledTimes(1);
+    expect(String(reporter.report.mock.calls[0]?.[0])).not.toMatch(/usr-ana/);
   });
 
   /* Opened before the mark existed: still followed by the account it names. */
