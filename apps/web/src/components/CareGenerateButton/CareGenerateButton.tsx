@@ -78,7 +78,14 @@ export function CareGenerateButton({ disabled = false, hint, label, linkId, vari
 
       try {
         current = await api<JobView>(`${base}/jobs/${encodeURIComponent(job.id)}`);
-      } catch {
+      } catch (caught) {
+        // The link ended or paused mid-generation: no amount of waiting brings the job back.
+        if (caught instanceof ApiError && caught.code === 'NOT_FOUND') {
+          setPhase({ kind: 'failed', message: t.gone });
+
+          return;
+        }
+
         continue;
       }
 

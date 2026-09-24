@@ -93,7 +93,7 @@ export function AccountList({ accounts, premium, professionalIds }: AccountListP
     setNumberError(undefined);
 
     try {
-      await api(`/admin/accounts/${id}/professional`, { body: { collegiateNumber }, method: 'POST' });
+      await api(`/admin/accounts/${encodeURIComponent(id)}/professional`, { body: { collegiateNumber }, method: 'POST' });
       setGranting(undefined);
       router.refresh();
     } catch (caught) {
