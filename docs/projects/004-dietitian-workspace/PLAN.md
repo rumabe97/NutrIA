@@ -246,8 +246,25 @@ then the documents. Each phase ends green.
 - [ ] pending
 - **Dispatch**: opus @ medium — `/execute-project 004 phase 9`
 - **Goal**: the professional's workspace at `/consulta`, and the owner's view of professionals on `/admin`.
-- **Scope**: `apps/web/src/app/(app)/{consulta,admin}`, new components, `apps/web/src/i18n/dictionaries`, `apps/web/src/proxy.ts`, `packages/ui` only if a component is genuinely shared.
+- **Scope**: `apps/web/src/app/(app)/{consulta,admin}`, new components, `apps/web/src/i18n/dictionaries`, `apps/web/src/proxy.ts`, `packages/ui` only if a component is genuinely shared. Step 0 adds `packages/core/src/{controllers/Plan,controllers/Care,repositories/Plan}`, `apps/api/src/modules/{care,meal-plans}` and `apps/api/test`, and no migration.
 - **Steps**:
+  0. **Owner's decision, 2026-09-24 (Phase 5's LOG, notes): a professional can start the client's next fortnight.**
+     - What happens today: a fortnight that has ended but not been replaced is still `active`, so Phase 5's guard
+       refuses the professional's `POST …/plan/generate`. Only the client can start it, and it lands pending.
+     - Change: the professional may generate when the active plan's fortnight **has ended**. Use the same rule, and the
+       same date, that makes the client's allowance offer a new fortnight (`nextAt`). It is never earlier: an active
+       fortnight that is still running stays unreplaceable by a professional, as Phase 5 guarantees.
+     - What the new plan does: it follows the review switch exactly as a client-started one does. With review on it lands
+       `pending_review`; with review off it becomes active on success. It counts against the client's allowance once,
+       like the client's own start, and keeps the rate limit and the audited `review` row.
+     - Race: if the client and the professional start it at the same moment, one generation wins and the other gets the
+       existing "already generating" answer. No second plan, no second charge.
+     - Tests: unit specs, and cases in `care-review.e2e-spec.ts`:
+       - an ended fortnight, with review on and with review off;
+       - a still-running fortnight, still refused;
+       - both starting at once.
+
+     Reviews: `invariant-reviewer`. It is built first, by `backend`, then the screen's *Nueva quincena* button uses it.
   1. `/consulta` (added to `PROTECTED`; shown only to a professional, 404 otherwise, as `/admin` is): the client list with each state, the invitation form, the plan card (subscribe, the portal, trial days left, *n de N pacientes*, the full-practice refusal with its way up).
   2. `/consulta/[linkId]`: the overview — adherence, the weight line, the check-ins, the plan and its history; the targets form; the pending plan with swap, regenerate and *Publicar*; the review toggle; *Terminar vínculo*; conditions and medications only if shared.
   3. `/admin`: grant and revoke a professional with the collegiate number; the professionals list with link counts, no client identities.
