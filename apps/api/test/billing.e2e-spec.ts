@@ -118,10 +118,23 @@ class FakeStripe {
 
   readonly subscriptions = {
     cancel: (id: string) => {
+      const held = this.now.get(id);
+
       this.cancelled.push(id);
+
+      // As Stripe does: the subscription is cancelled from now on, so a retried deletion finds nothing to cancel.
+      if (held) {
+        this.now.set(id, { ...held, status: 'canceled' });
+      }
 
       return Promise.resolve({ id, status: 'canceled' });
     },
+    /** Stripe's default list leaves cancelled subscriptions out. */
+    list: (params: { customer: string; limit?: number; starting_after?: string }) =>
+      Promise.resolve({
+        data: [...this.now.values()].filter(held => held.customer === params.customer && held.status !== 'canceled'),
+        has_more: false
+      }),
     retrieve: (id: string) => {
       this.refetched.push(id);
 
@@ -744,31 +757,29 @@ describe('billing', () => {
       });
     });
 
-    // 17
-    describe('status mapping', () => {
-      let who: { customer: string; subscription: string; who: Account };
+    // 17. One account a status: a stored terminal status is never overwritten
+    // (Stripe cannot reactivate a subscription), so the cases cannot share one.
+    // Each starts paying, so a free answer is a change and not a leftover.
+    it.each([
+      ['active', 'premium'],
+      ['trialing', 'premium'],
+      ['past_due', 'premium'],
+      ['canceled', 'free'],
+      ['unpaid', 'free'],
+      ['incomplete', 'free'],
+      ['incomplete_expired', 'free'],
+      ['paused', 'free'],
+      ['a_status_stripe_adds_later', 'free']
+    ])('maps %s → %s', async (state, tier) => {
+      const { customer, subscription, who } = await subscriber(`status-${state}`);
 
-      beforeAll(async () => {
-        who = await subscriber('statuses');
-      });
+      test.stripe.hold(subscription, customer, 'active');
+      await deliver(test.app, aboutSubscription('customer.subscription.created', subscription, customer, 'active')).expect(200);
+      expect(await stateOf(who.id)).toMatchObject({ tier: 'premium' });
 
-      it.each([
-        ['active', 'premium'],
-        ['trialing', 'premium'],
-        ['past_due', 'premium'],
-        ['canceled', 'free'],
-        ['unpaid', 'free'],
-        ['incomplete', 'free'],
-        ['incomplete_expired', 'free'],
-        ['paused', 'free'],
-        ['a_status_stripe_adds_later', 'free'],
-        // Back to paying after a free one, so every row above is a change and not a leftover.
-        ['active', 'premium']
-      ])('%s → %s', async (state, tier) => {
-        test.stripe.hold(who.subscription, who.customer, state);
-        await deliver(test.app, aboutSubscription('customer.subscription.updated', who.subscription, who.customer, 'active')).expect(200);
-        expect(await stateOf(who.who.id)).toMatchObject({ rows: [{ status: state }], tier });
-      });
+      test.stripe.hold(subscription, customer, state);
+      await deliver(test.app, aboutSubscription('customer.subscription.updated', subscription, customer, 'active')).expect(200);
+      expect(await stateOf(who.id)).toMatchObject({ rows: [{ status: state }], tier });
     });
 
     // 18
