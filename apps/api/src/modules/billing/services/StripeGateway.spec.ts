@@ -8,7 +8,7 @@ import type { Env } from '../../../config/index.js';
 const SECRET = 'whsec_test_secret';
 const ENV = {
   BETTER_AUTH_URL: 'https://api.nutria.example',
-  DATABASE_URL: 'postgresql://app:hunter2@ep-calm-sea-123-pooler.eu-central-1.aws.neon.tech/nutria?sslmode=require',
+  DATABASE_URL: 'postgresql://app@ep-calm-sea-123-pooler.eu-central-1.aws.neon.tech/nutria?sslmode=require',
   STRIPE_PRICE_ID: 'price_test',
   STRIPE_SECRET_KEY: 'sk_test_key',
   STRIPE_WEBHOOK_SECRET: SECRET
@@ -114,9 +114,9 @@ describe('StripeGateway', () => {
     const at = (url: string) => new StripeGateway({ ...ENV, DATABASE_URL: url } as Env).deployment;
 
     expect(here).toMatch(/^[0-9a-f]{16}$/);
-    expect(at('postgresql://owner:other@ep-calm-sea-123.eu-central-1.aws.neon.tech/nutria')).toBe(here);
-    expect(at('postgresql://app:hunter2@ep-calm-sea-123-pooler.eu-central-1.aws.neon.tech/nutria_dev')).not.toBe(here);
-    expect(at('postgresql://app:hunter2@ep-other-lake-456-pooler.eu-central-1.aws.neon.tech/nutria')).not.toBe(here);
+    expect(at('postgresql://owner@ep-calm-sea-123.eu-central-1.aws.neon.tech/nutria')).toBe(here);
+    expect(at('postgresql://app@ep-calm-sea-123-pooler.eu-central-1.aws.neon.tech/nutria_dev')).not.toBe(here);
+    expect(at('postgresql://app@ep-other-lake-456-pooler.eu-central-1.aws.neon.tech/nutria')).not.toBe(here);
     expect(at('postgres://postgres:postgres@localhost:5432/nutria')).not.toBe(here);
   });
 
