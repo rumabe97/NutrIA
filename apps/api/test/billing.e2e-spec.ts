@@ -78,6 +78,8 @@ class FakeStripe {
   readonly refetched: string[] = [];
   /** What Stripe holds now, by subscription id. */
   readonly now = new Map<string, StripeSubscription>();
+  /** Cancelling fails, as it does when Stripe cannot be reached. */
+  failCancel = false;
   /** Answers a re-fetch instead of `now` — to fail, or to hold an answer back. */
   refetch: ((id: string) => Promise<StripeSubscription>) | null = null;
 
@@ -118,6 +120,10 @@ class FakeStripe {
 
   readonly subscriptions = {
     cancel: (id: string) => {
+      if (this.failCancel) {
+        return Promise.reject(new Stripe.errors.StripeConnectionError({ message: 'Stripe is unreachable' }));
+      }
+
       const held = this.now.get(id);
 
       this.cancelled.push(id);
@@ -663,15 +669,13 @@ describe('billing', () => {
       await expectUntouched(who, customer);
     });
 
-    // DEFECT: the raw parser's 413 reaches `AllExceptionsFilter`, which knows no
-    // body-parser error and answers 500 INTERNAL_ERROR — a client's mistake
-    // reported, logged and retried as a server failure (AllExceptions.filter.ts,
-    // the fallback at the end of its mapping).
-    it.failing('answers an oversized body with 413, not a server error', async () => {
+    // A client's mistake is not reported, logged and retried as a server failure.
+    it('answers an oversized body with 413, not a server error', async () => {
       const { customer, subscription } = ids('oversized');
       const answer: Response = await deliver(test.app, oversized(customer, subscription));
 
       expect(answer.status).toBe(413);
+      expect(answer.body).toMatchObject({ code: 'REQUEST_ERROR', statusCode: 413 });
     });
 
     // 14
@@ -701,10 +705,8 @@ describe('billing', () => {
       expect(await rowsOfCustomer(customer)).toEqual([]);
     });
 
-    // 15b — DEFECT: the hint is written without checking the account exists; the
-    // foreign key refuses it, `DatabaseOperationError` becomes a 500, and Stripe
-    // retries a delivery that can never succeed (Billing.service.ts, webhook).
-    it.failing('writes nothing, and acknowledges, when the metadata names an account that does not exist', async () => {
+    // 15b. A 5xx here would be retried by Stripe for days, for a delivery that can never succeed.
+    it('writes nothing, and acknowledges, when the metadata names an account that does not exist', async () => {
       const { customer, subscription } = ids('ghost');
 
       test.stripe.hold(subscription, customer, 'active', { userId: `ghost-${stamp}` });
@@ -853,12 +855,10 @@ describe('billing', () => {
       expect(await rowsOfSubscription(subscription)).toHaveLength(1);
     });
 
-    // 21b — DEFECT: nothing orders two writes for one subscription. A delivery
-    // whose re-fetch answered first but wrote last leaves the older state
-    // standing — premium for a subscription Stripe has cancelled — until the next
-    // event, which for a cancelled subscription never comes (Billing.service.ts,
-    // webhook → BillingRepository.recordSubscription).
-    it.failing('ends on Stripe’s latest state when a slow re-fetch finishes after a newer one', async () => {
+    // 21b. A delivery whose re-fetch answered first but would write last must not
+    // leave the older state standing: premium for a subscription Stripe has
+    // cancelled, until an event that for a cancelled subscription never comes.
+    it('ends on Stripe’s latest state when a slow re-fetch finishes after a newer one', async () => {
       const { customer, subscription, who } = await subscriber('slow-refetch');
       let release: (subscription: StripeSubscription) => void = () => undefined;
       const heldBack = new Promise<StripeSubscription>(resolve => {
@@ -889,6 +889,37 @@ describe('billing', () => {
       }
 
       expect(await stateOf(who.id)).toMatchObject({ rows: [{ status: 'canceled' }], tier: 'free' });
+    });
+
+    it('keeps a cancelled subscription cancelled, whatever a later re-fetch claims', async () => {
+      const { customer, subscription, who } = await subscriber('stays-ended');
+
+      test.stripe.hold(subscription, customer, 'active');
+      await deliver(test.app, aboutSubscription('customer.subscription.created', subscription, customer, 'active')).expect(200);
+      test.stripe.hold(subscription, customer, 'canceled');
+      await deliver(test.app, aboutSubscription('customer.subscription.deleted', subscription, customer, 'canceled')).expect(200);
+      expect(await stateOf(who.id)).toMatchObject({ rows: [{ status: 'canceled' }], tier: 'free' });
+
+      // Stripe cannot reactivate a cancelled subscription; an answer saying so is not believed.
+      test.stripe.hold(subscription, customer, 'active');
+      await deliver(test.app, aboutSubscription('customer.subscription.updated', subscription, customer, 'active')).expect(200);
+      expect(await stateOf(who.id)).toMatchObject({ rows: [{ status: 'canceled', stripeSubscriptionId: subscription }], tier: 'free' });
+    });
+
+    it('never lets an older subscription’s end replace the one the account pays for now', async () => {
+      const { customer, who } = await subscriber('two-subscriptions');
+      const older = `sub_${stamp}_two-subscriptions-older`;
+      const newer = `sub_${stamp}_two-subscriptions-newer`;
+
+      test.stripe.hold(older, customer, 'active');
+      await deliver(test.app, aboutSubscription('customer.subscription.created', older, customer, 'active')).expect(200);
+      test.stripe.hold(newer, customer, 'active');
+      await deliver(test.app, aboutSubscription('customer.subscription.created', newer, customer, 'active')).expect(200);
+      expect(await stateOf(who.id)).toMatchObject({ rows: [{ status: 'active', stripeSubscriptionId: newer }], tier: 'premium' });
+
+      test.stripe.hold(older, customer, 'canceled');
+      await deliver(test.app, aboutSubscription('customer.subscription.deleted', older, customer, 'canceled')).expect(200);
+      expect(await stateOf(who.id)).toMatchObject({ rows: [{ status: 'active', stripeSubscriptionId: newer }], tier: 'premium' });
     });
 
     // 22
@@ -947,41 +978,97 @@ describe('billing', () => {
   describe('deleting an account that pays', () => {
     let deletedId = '';
 
-    // 24. The product deletes its own rows and does not touch Stripe: the
-    // subscription itself is NOT cancelled, and Stripe keeps charging the card
-    // until somebody cancels it there (`subscriptions.cancel` is never called).
-    it('takes the account and its subscriptions row, and leaves the Stripe subscription alone', async () => {
-      const payer = await account(test, 'deleted');
-      const { customer, subscription } = ids('deleted');
-
-      deletedId = payer.id;
+    /** An account paying through `on`, with its subscription held at Stripe. */
+    async function paying(on: Deployment, label: string) {
+      const payer = await account(on, label);
+      const { customer, subscription } = ids(label);
 
       await BillingController.rememberCustomer(payer.id, customer);
-      test.stripe.hold(subscription, customer, 'active', { userId: payer.id });
-      await deliver(test.app, aboutSubscription('customer.subscription.created', subscription, customer, 'active')).expect(200);
+      on.stripe.hold(subscription, customer, 'active', { userId: payer.id });
+      await deliver(on.app, aboutSubscription('customer.subscription.created', subscription, customer, 'active')).expect(200);
       expect(await stateOf(payer.id)).toMatchObject({ rows: [{ status: 'active' }], tier: 'premium' });
 
-      await request(httpServer(test.app)).delete(`/${PREFIX}/users/me`).set('Cookie', payer.cookie).expect(204);
+      return { customer, payer, subscription };
+    }
+
+    const remove = (on: Deployment, who: Account) => request(httpServer(on.app)).delete(`/${PREFIX}/users/me`).set('Cookie', who.cookie);
+
+    // 24
+    it('takes the account and its subscriptions row, and cancels its Stripe subscription — not the ones already ended', async () => {
+      const { customer, payer, subscription } = await paying(test, 'deleted');
+      const cancelled = `sub_${stamp}_deleted-cancelled`;
+      const expired = `sub_${stamp}_deleted-expired`;
+
+      deletedId = payer.id;
+      test.stripe.hold(cancelled, customer, 'canceled');
+      test.stripe.hold(expired, customer, 'incomplete_expired');
+
+      await remove(test, payer).expect(204);
 
       expect(await stateOf(payer.id)).toEqual({ rows: [], tier: null });
       expect(await rowsOfCustomer(customer)).toEqual([]);
       await expect(BillingController.userOfCustomer(customer)).resolves.toBeNull();
-      expect(test.stripe.cancelled).toEqual([]);
+      expect(test.stripe.cancelled).toContain(subscription);
+      expect(test.stripe.cancelled).not.toContain(cancelled);
+      expect(test.stripe.cancelled).not.toContain(expired);
+      expect(test.stripe.now.get(subscription)?.status).toBe('canceled');
     });
 
-    // DEFECT, the realistic face of 15b: the renewal Stripe sends next month for
-    // the subscription nobody cancelled names the deleted account in its
-    // metadata; the write fails its foreign key and the answer is a 500, which
-    // Stripe retries for days (Billing.service.ts, webhook).
-    it.failing('acknowledges the next renewal for a deleted account and writes nothing', async () => {
+    it('refuses the deletion while Stripe cannot cancel, keeps everything, and deletes on the retry', async () => {
+      const { customer, payer, subscription } = await paying(test, 'deleted-stripe-down');
+
+      test.stripe.failCancel = true;
+
+      try {
+        const answer: Response = await remove(test, payer);
+
+        expect(answer.status).toBeGreaterThanOrEqual(500);
+      } finally {
+        test.stripe.failCancel = false;
+      }
+
+      expect(await stateOf(payer.id)).toMatchObject({ rows: [{ status: 'active', stripeCustomerId: customer }], tier: 'premium' });
+      expect(test.stripe.now.get(subscription)?.status).toBe('active');
+
+      await remove(test, payer).expect(204);
+      expect(await stateOf(payer.id)).toEqual({ rows: [], tier: null });
+      expect(test.stripe.cancelled).toContain(subscription);
+    });
+
+    it('deletes without asking Stripe anything where billing is not set up', async () => {
+      const payer = await account(unconfigured, 'deleted-unconfigured');
+      const { customer, subscription } = ids('deleted-unconfigured');
+
+      await BillingController.rememberCustomer(payer.id, customer);
+      unconfigured.stripe.hold(subscription, customer, 'active');
+      await remove(unconfigured, payer).expect(204);
+
+      expect(await stateOf(payer.id)).toEqual({ rows: [], tier: null });
+      expect(unconfigured.stripe.cancelled).toEqual([]);
+    });
+
+    // A 5xx here would be retried by Stripe for days, for an account that is gone.
+    it('acknowledges the deletion Stripe reports afterwards, and writes nothing', async () => {
       const { customer, subscription } = ids('deleted');
 
-      test.stripe.hold(subscription, customer, 'active', { userId: deletedId });
+      expect(test.stripe.now.get(subscription)).toMatchObject({ metadata: { userId: deletedId }, status: 'canceled' });
 
-      const answer: Response = await deliver(test.app, aboutSubscription('customer.subscription.updated', subscription, customer, 'active'));
+      const answer: Response = await deliver(test.app, aboutSubscription('customer.subscription.deleted', subscription, customer, 'canceled'));
 
-      expect(await rowsOfCustomer(customer)).toEqual([]);
       expect(answer.status).toBe(200);
+      expect(await rowsOfCustomer(customer)).toEqual([]);
+    });
+
+    it('acknowledges a renewal naming a deleted account, and writes nothing', async () => {
+      const { customer } = ids('deleted');
+      const renewed = `sub_${stamp}_deleted-renewed`;
+
+      test.stripe.hold(renewed, customer, 'active', { userId: deletedId });
+
+      const answer: Response = await deliver(test.app, aboutSubscription('customer.subscription.updated', renewed, customer, 'active'));
+
+      expect(answer.status).toBe(200);
+      expect(await rowsOfCustomer(customer)).toEqual([]);
     });
   });
 });
