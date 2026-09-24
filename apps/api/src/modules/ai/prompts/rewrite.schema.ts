@@ -41,7 +41,7 @@ export const wireRewriteSchema = jsonSchema<RewrittenSteps>({
       items: {
         properties: {
           cue: { description: 'La señal de que el paso está hecho. Cadena vacía si no aplica.', type: 'string' },
-          minutes: { description: 'Minutos que ocupa este paso. 0 si es instantáneo.', type: 'integer' },
+          minutes: { description: 'Minutos que ocupa este paso. Se omite si el paso es instantáneo.', type: 'integer' },
           text: { description: 'La acción: qué, cómo, a qué fuego.', type: 'string' }
         },
         required: ['text'],
