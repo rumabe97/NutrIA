@@ -12,6 +12,7 @@ import { onAccountCreated, onAddressConfirmed } from './services/SelfService.js'
 import { sendPasswordResetMail } from './services/PasswordResetMail.js';
 import { sendVerificationMail } from './services/VerificationMail.js';
 
+import type { BillingService } from '../billing/services/Billing.service.js';
 import type { Env } from '../../config/index.js';
 import type { EmailService } from '../email/services/Email.service.js';
 
@@ -42,7 +43,7 @@ const SESSION_REFRESH_AGE_DAYS = 1;
  * removes a person's health data — every user-scoped table references it with
  * ON DELETE CASCADE (see `packages/database/src/schemas/_utils.ts`).
  */
-export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | 'send'>) {
+export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | 'send'>, billing: Pick<BillingService, 'cancelEverything'>) {
   const providers = configuredSocialProviders(env);
   const selfService = {
     link: { apiUrl: `${env.BETTER_AUTH_URL}/${env.API_PREFIX}`, secret: env.BETTER_AUTH_SECRET },
@@ -211,6 +212,16 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
       },
       deleteUser: {
         /*
+         * Stripe first (`0056`): every subscription the account still has is
+         * cancelled before anything of it is deleted. If Stripe cannot be
+         * reached this throws and the account stays — a deletion to retry is
+         * better than a card charged for an account that is gone. A failure
+         * halfway leaves some subscriptions cancelled and the account still
+         * there: Stripe's `deleted` events for those reach the webhook while
+         * the account exists, and it writes them as it would any other, so the
+         * tier follows what is still charged. Trying the deletion again cancels
+         * the rest.
+         *
          * The cascade from `user.id` takes everything that references the
          * account. An invitation addressed to it does not — it holds an
          * address a professional typed, never an account id, because whether
@@ -221,7 +232,8 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
          * with the delete: an invitation written in the milliseconds between
          * the two survives, and expires or is purged like any other.
          */
-        beforeDelete: async (deleted: { email: string }) => {
+        beforeDelete: async (deleted: { id: string; email: string }) => {
+          await billing.cancelEverything(deleted.id);
           await CareController.forgetAddress(deleted.email);
         },
         enabled: true

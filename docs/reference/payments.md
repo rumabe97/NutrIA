@@ -165,6 +165,45 @@ lost, and the way to recover one is any change to the subscription in the dashbo
   than not selling is not letting somebody stop paying.
 - The screens, in both languages, behind the `premium` flag.
 
+### 4a. What the webhook and account deletion guarantee — 2026-09-24
+
+The end-to-end suite `apps/api/test/billing.e2e-spec.ts` pins each of these.
+
+- **Stripe's state now, one account at a time.** Every handled event re-fetches the
+  subscription. The write locks the account's row, fetches once more under the lock, then
+  writes, so a slow delivery cannot leave an older state standing. Stripe calls made under the
+  lock take one attempt of at most 5 s per request.
+- **Ended stays ended.**
+  - `canceled` and `incomplete_expired` are never overwritten by a live status for the same
+    subscription.
+  - A subscription that doesn't pay never takes the row from one that does.
+  - When the stored subscription ends and the customer has another paying one, that other one
+    is written instead.
+- **One customer per account.** Checkout creates the Stripe customer under the account's row
+  lock, and reuses a stored one.
+- **Stripe is never told to retry what cannot succeed.** An event whose account no longer
+  exists is answered 200 with nothing written, and so is a body the parser refuses (413 or
+  415, never a 500).
+- **Deleting an account stops the charges first.** Before the account goes:
+  1. every open Checkout Session of its customer is expired (sessions are also created to
+     expire after 31 minutes);
+  2. every subscription that has not ended is cancelled immediately.
+
+  If Stripe fails, the deletion is refused and can be retried.
+- **Each deployment only cancels its own orphans.** Local development and production (in test
+  mode) share one Stripe account, and both receive its events. So checkout stamps
+  `metadata.deployment`, a hash of the database host and name, not a secret. When the
+  account is gone:
+  - the webhook cancels a live subscription only if the marker is its own;
+  - with another deployment's marker, it writes nothing;
+  - with no marker (subscriptions opened before the marker existed), it writes nothing
+    and reports an error.
+
+  A subscription whose customer differs from the one stored for the account is not written,
+  and is reported.
+- **Not closed:** a subscription created by hand in the dashboard for a customer this product
+  doesn't know is left alone. It isn't ours.
+
 Exercised with Stripe's test cards, including the ones that fail: `4242…4242`
 succeeds, `4000…0341` fails after attaching, `4000…3155` requires
 authentication. A payment path is not tested until the failures are.
