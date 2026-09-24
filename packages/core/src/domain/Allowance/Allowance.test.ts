@@ -43,6 +43,12 @@ describe('redosInFortnight', () => {
     // Plans generated before the stamp existed carry no flag, however many there were.
     expect(redosInFortnight([{ redo: false }, { redo: false }, { redo: false }, { redo: false }])).toBe(0);
   });
+
+  it('counts the redos of pending plans a plan replaced, which are no longer in the chain (0060)', () => {
+    // v4 pending, a redo that replaced two pending redos; v1 active opened the fortnight.
+    expect(redosInFortnight([{ redo: true, replacedRedos: 2 }, { redo: false }])).toBe(3);
+    expect(redosInFortnight([{ redo: false, replacedRedos: 2 }])).toBe(0);
+  });
 });
 
 describe('mealSwapStanding', () => {

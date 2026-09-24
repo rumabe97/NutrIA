@@ -7,6 +7,7 @@ import { BackgroundTaskService } from '../../../shared/services/index.js';
 import { ErrorReporter } from '../../../shared/observability/index.js';
 import { GenerationError, PlanGenerationService } from './PlanGeneration.service.js';
 
+import type { ForClient } from 'core/controllers/Care';
 import type { JobView } from 'core/controllers/Plan';
 
 /**
@@ -60,19 +61,25 @@ export class PlanJobRunner {
     private readonly reporter: ErrorReporter
   ) {}
 
-  /** Creates the job and returns immediately; the work continues after the response. */
-  async start(userId: string): Promise<JobView> {
-    const job = await PlanJobController.start(userId);
+  /**
+   * Creates the job and returns immediately; the work continues after the response.
+   *
+   * `record` is a professional's generation for their client, reached through
+   * `CareController.generatePlan` (`0060`): the job and the trail row go in
+   * together. The generation itself is the client's, on the client's profile.
+   */
+  async start(userId: string, record?: Parameters<ForClient<JobView>>[1]): Promise<JobView> {
+    const job = await PlanJobController.start(userId, record);
 
     // Deliberately not awaited: the HTTP request returns a job id in milliseconds
     // and the client polls. Handing it over rather than voiding it is what keeps
     // the work alive once this function has already answered.
-    this.background.run(`plan-generation:${job.id}`, () => this.run(userId, job.id));
+    this.background.run(`plan-generation:${job.id}`, () => this.run(userId, job.id, record !== undefined));
 
     return job;
   }
 
-  private async run(userId: string, jobId: string): Promise<void> {
+  private async run(userId: string, jobId: string, byProfessional: boolean): Promise<void> {
     const deadline = new AbortController();
     const timer = setTimeout(() => {
       deadline.abort();
@@ -94,7 +101,8 @@ export class PlanJobRunner {
             PlanJobController.recordAiCalls(jobId, calls).catch((failure: unknown) => {
               this.logger.warn(`Job ${jobId}: the AI call log was not saved: ${failure instanceof Error ? failure.message : 'unknown'}`);
             }),
-          deadline.signal
+          deadline.signal,
+          byProfessional
         ),
         failAt(deadline.signal)
       ]);

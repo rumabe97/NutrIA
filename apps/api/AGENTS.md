@@ -351,6 +351,27 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `list` row per active client, in the same snapshot it reads their stages from.
   `GET /care/access-log` is the client's own trail, on `CareLinksController`: no switch, like
   their link, 100 rows a page (`?before=` the previous page's `next`).
+- **Review before publishing** (`0060`): with the `professional` switch on, a client whose
+  `active` link has `reviewBeforePublish` (the column's default) and whose professional's grant
+  stands gets each new plan as `pending_review`; the active plan keeps running until the
+  professional publishes (`POST /care/clients/:linkId/plan/publish`, one transaction). Every other
+  case is today's path. **Every client read hides a pending plan** — `findActive` by construction,
+  the rest through `PlanRepository`'s `visible()` (by id, history, the chain, a meal, a meal's
+  status, a swap, a shopping item, a check-in) — and only the professional's reads, through
+  `withClient`, pass `withPending`. A new plan read must do the same. The client's job answers
+  `planId: null, pendingReview: true` for a plan under review. Any new generation replaces a
+  pending plan (deleted, its job kept with no plan) and carries its redo as `replacedRedos`, so a
+  regeneration costs what the client's own would — **but only while that plan can still be
+  published** (active link, standing grant, switch on): a plan stranded by an ended, paused or
+  revoked link costs the client nothing, and the client's allowance screen never takes `kind` or
+  `nextAt` from it. The professional generates only for a client with no active plan, or to
+  regenerate a pending plan (which lands pending again, review toggle or not) — anything else is a
+  404 — and a professional's job that finds the link unable to publish when it saves, with an
+  active plan in place, fails rather than replace the fortnight under way. The professional's generate and swap run in this
+  app (the model is here) but are reached only through `CareController.generatePlan` /
+  `swapPendingMeal`, which hand the runner and the swap service the client's id and the write's
+  `record`; the job's trail row goes in the claim's transaction, the swap's in the swap's.
+  `PATCH /care/clients/:linkId` toggles review; turning it off publishes nothing.
 - **Country** (`0034`): `loadCatalogue(locale, country)` drops ingredients sold only
   elsewhere — `ingredients.countries`, where empty means everywhere. Null country filters
   nothing, which is what an account that never said where it is had before the column.

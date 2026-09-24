@@ -7,7 +7,9 @@ import { CareController } from './CareController';
 
 import type { ActiveLink, Roster, RosterLink } from '#repositories/Care';
 import type { CareAccessAction, CareAccessEntry, CareAccessKind, CareLink } from 'core/entities/Care';
+import type { JobView, PlanView } from 'core/controllers/Plan';
 import type { ProgressSummaryView } from 'core/controllers/Progress';
+import type { RecordAccess } from '#repositories/Care';
 import type { ResolvedTargets } from 'core/domain/Nutrition';
 import type { SharedHealthView } from 'core/controllers/Health';
 import type { UpdateTargetOverride } from 'core/entities/Nutrition';
@@ -46,13 +48,19 @@ const summary = vi.fn<(userId: string) => Promise<ProgressSummaryView>>();
 const targets = vi.fn<(userId: string) => Promise<null>>();
 const updateTargets = vi.fn<(userId: string, patch: UpdateTargetOverride, setter?: ProfessionalSetter | null) => Promise<ResolvedTargets>>();
 const shared = vi.fn<(userId: string) => Promise<SharedHealthView>>();
+const setReview = vi.fn<(professionalId: string, linkId: string, value: boolean, record: RecordAccess) => Promise<CareLink | null>>();
+const getPendingPlan = vi.fn<(userId: string, locale: string | null) => Promise<PlanView | null>>();
+const getJob = vi.fn<(userId: string, jobId: string, reader: string) => Promise<JobView>>();
+const publish = vi.fn<(userId: string, record: RecordAccess, locale: string | null) => Promise<PlanView>>();
+const planStanding = vi.fn<(userId: string) => Promise<{ active: boolean; pending: boolean }>>();
 
 vi.mock('#repositories/Care', () => ({
   CareRepository: {
     accessLog: (...args: Parameters<typeof accessLog>) => accessLog(...args),
     activeLink: (...args: Parameters<typeof activeLink>) => activeLink(...args),
     logAccess: (...args: Parameters<typeof logAccess>) => logAccess(...args),
-    roster: (...args: Parameters<typeof roster>) => roster(...args)
+    roster: (...args: Parameters<typeof roster>) => roster(...args),
+    setReview: (...args: Parameters<typeof setReview>) => setReview(...args)
   }
 }));
 vi.mock('#repositories/Professional', () => ({ ProfessionalRepository: { find: (userId: string) => findProfessional(userId) } }));
@@ -60,7 +68,11 @@ vi.mock('#repositories/Settings', () => ({ SettingsRepository: { isEnabled: (key
 vi.mock('core/controllers/Plan', () => ({
   PlanController: {
     getActivePlan: (...args: Parameters<typeof getActivePlan>) => getActivePlan(...args),
-    listPlans: (userId: string) => listPlans(userId)
+    getJob: (...args: Parameters<typeof getJob>) => getJob(...args),
+    getPendingPlan: (...args: Parameters<typeof getPendingPlan>) => getPendingPlan(...args),
+    listPlans: (userId: string) => listPlans(userId),
+    planStanding: (userId: string) => planStanding(userId),
+    publish: (...args: Parameters<typeof publish>) => publish(...args)
   }
 }));
 vi.mock('core/controllers/Progress', () => ({ ProgressController: { summary: (userId: string) => summary(userId) } }));
@@ -143,7 +155,12 @@ beforeEach(() => {
     summary,
     targets,
     updateTargets,
-    shared
+    shared,
+    setReview,
+    getPendingPlan,
+    getJob,
+    publish,
+    planStanding
   ]) {
     mock.mockReset();
   }
@@ -156,6 +173,7 @@ beforeEach(() => {
   summary.mockResolvedValue(PROGRESS);
   targets.mockResolvedValue(null);
   shared.mockResolvedValue(HEALTH);
+  planStanding.mockResolvedValue({ active: false, pending: false });
 });
 
 describe('CareController.withClient', () => {
@@ -488,5 +506,146 @@ describe('CareController.accessLog', () => {
 
     await expect(CareController.accessLog({ id: CLIENT_ID })).resolves.toEqual({ entries: [], next: null });
     expect(isEnabled).not.toHaveBeenCalled();
+  });
+});
+
+describe('review before publishing (0060)', () => {
+  const TX = { transaction: 'the write’s' };
+  const PLAN = { id: 'plan-2', status: 'active' } as PlanView;
+  const JOB: JobView = { id: 'job-1', error: null, errorDetail: null, pendingReview: true, planId: 'plan-2', status: 'succeeded', step: 'done' };
+  const JOB_ID = '2d3e4f5a-6b7c-4d8e-9f0a-1b2c3d4e5f6a';
+  const MEAL_ID = '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f';
+  const reviewRow = (action: CareAccessAction) => ({ action, kind: 'review', professionalId: PRO.id, professionalName: 'Dra. Pérez' });
+
+  it('reads the pending plan through the link — one review read row, the client’s id from the link', async () => {
+    activeLink.mockResolvedValue(access());
+    getPendingPlan.mockResolvedValue(null);
+
+    await expect(CareController.pendingPlan(PRO, LINK_ID, 'en-GB')).resolves.toBeNull();
+    expect(logAccess).toHaveBeenCalledExactlyOnceWith(CLIENT_ID, reviewRow('read'));
+    expect(getPendingPlan).toHaveBeenCalledWith(CLIENT_ID, 'en-GB');
+  });
+
+  it('follows a job as the professional, who is handed the plan id; a job id that is not an id is a 404 with no row', async () => {
+    activeLink.mockResolvedValue(access());
+    getJob.mockResolvedValue(JOB);
+
+    await expect(CareController.planJob(PRO, LINK_ID, JOB_ID)).resolves.toBe(JOB);
+    expect(getJob).toHaveBeenCalledWith(CLIENT_ID, JOB_ID, 'professional');
+
+    logAccess.mockClear();
+    await expect(CareController.planJob(PRO, LINK_ID, 'not-a-job')).rejects.toBeInstanceOf(NotFoundError);
+    expect(logAccess).not.toHaveBeenCalled();
+  });
+
+  it('publishes with the row inside the publish’s transaction, and writes none when nothing is pending', async () => {
+    activeLink.mockResolvedValue(access());
+    publish.mockImplementation(async (_clientId, record) => {
+      await record(TX as never);
+
+      return PLAN;
+    });
+
+    await expect(CareController.publishPlan(PRO, LINK_ID)).resolves.toBe(PLAN);
+    expect(publish).toHaveBeenCalledWith(CLIENT_ID, expect.any(Function), null);
+    expect(logAccess).toHaveBeenCalledExactlyOnceWith(CLIENT_ID, reviewRow('write'), TX);
+
+    logAccess.mockClear();
+    publish.mockRejectedValue(new NotFoundError('Plan not found'));
+    await expect(CareController.publishPlan(PRO, LINK_ID)).rejects.toBeInstanceOf(NotFoundError);
+    expect(logAccess).not.toHaveBeenCalled();
+  });
+
+  it('hands the API’s generation and swap the client’s id and the write’s record — and a meal id that is not an id is a 404 before the link', async () => {
+    activeLink.mockResolvedValue(access());
+    const start = vi.fn(async (_clientId: string, record: RecordAccess) => {
+      await record(TX as never);
+
+      return JOB;
+    });
+
+    await expect(CareController.generatePlan(PRO, LINK_ID, start)).resolves.toBe(JOB);
+    expect(start).toHaveBeenCalledWith(CLIENT_ID, expect.any(Function));
+    expect(logAccess).toHaveBeenCalledExactlyOnceWith(CLIENT_ID, reviewRow('write'), TX);
+
+    const swap = vi.fn();
+
+    await expect(CareController.swapPendingMeal(PRO, LINK_ID, 'not-a-meal', swap)).rejects.toBeInstanceOf(NotFoundError);
+    expect(swap).not.toHaveBeenCalled();
+    expect(activeLink).toHaveBeenCalledOnce();
+
+    await expect(CareController.swapPendingMeal(PRO, LINK_ID, MEAL_ID, async () => ({}) as never)).rejects.toBeInstanceOf(DatabaseOperationError);
+  });
+
+  it('turns review off for the link, with its row in the same transaction, and answers the link as its professional sees it', async () => {
+    activeLink.mockResolvedValue(access());
+    setReview.mockImplementation(async (_pro, _link, value, record) => {
+      await record(TX as never);
+
+      return makeLink({ reviewBeforePublish: value });
+    });
+
+    await expect(CareController.setReview(PRO, LINK_ID, { reviewBeforePublish: false })).resolves.toEqual({
+      linkId: LINK_ID,
+      name: 'Lucía',
+      reviewBeforePublish: false,
+      sharesHealth: false,
+      since: NOW.toISOString(),
+      status: 'active'
+    });
+    expect(setReview).toHaveBeenCalledWith(PRO.id, LINK_ID, false, expect.any(Function));
+    expect(logAccess).toHaveBeenCalledExactlyOnceWith(CLIENT_ID, reviewRow('write'), TX);
+  });
+
+  it('is a 404 with no row when the link closed between resolving it and writing', async () => {
+    activeLink.mockResolvedValue(access());
+    setReview.mockResolvedValue(null);
+
+    await expect(CareController.setReview(PRO, LINK_ID, { reviewBeforePublish: true })).rejects.toBeInstanceOf(NotFoundError);
+    expect(logAccess).not.toHaveBeenCalled();
+  });
+
+  it('is a 404 with nothing reached for another professional’s link', async () => {
+    activeLink.mockResolvedValue(null);
+    const start = vi.fn();
+
+    await expect(CareController.generatePlan({ id: 'usr-other-pro' }, LINK_ID, start)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(CareController.publishPlan({ id: 'usr-other-pro' }, LINK_ID)).rejects.toBeInstanceOf(NotFoundError);
+    expect(start).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
+    expect(logAccess).not.toHaveBeenCalled();
+  });
+});
+
+describe('CareController.generatePlan — only when there is a reason (0060)', () => {
+  const JOB: JobView = { id: 'job-1', error: null, errorDetail: null, pendingReview: false, planId: null, status: 'queued', step: null };
+
+  it('generates for a client with no plan, or regenerates a pending plan — review on or off', async () => {
+    activeLink.mockResolvedValue(access());
+    const start = vi.fn(async (_clientId: string, record: RecordAccess) => {
+      await record({} as never);
+
+      return JOB;
+    });
+
+    await expect(CareController.generatePlan(PRO, LINK_ID, start)).resolves.toBe(JOB);
+
+    planStanding.mockResolvedValue({ active: true, pending: true });
+    await expect(CareController.generatePlan(PRO, LINK_ID, start)).resolves.toBe(JOB);
+
+    activeLink.mockResolvedValue(access({ reviewBeforePublish: false }));
+    await expect(CareController.generatePlan(PRO, LINK_ID, start)).resolves.toBe(JOB);
+    expect(start).toHaveBeenCalledTimes(3);
+  });
+
+  it('never replaces a fortnight under way: an active plan and nothing pending is a 404 with no row', async () => {
+    const start = vi.fn();
+
+    activeLink.mockResolvedValue(access());
+    planStanding.mockResolvedValue({ active: true, pending: false });
+    await expect(CareController.generatePlan(PRO, LINK_ID, start)).rejects.toBeInstanceOf(NotFoundError);
+
+    expect(start).not.toHaveBeenCalled();
+    expect(logAccess).not.toHaveBeenCalled();
   });
 });
