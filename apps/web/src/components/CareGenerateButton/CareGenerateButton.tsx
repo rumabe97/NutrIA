@@ -15,10 +15,16 @@ import { stepLabel } from 'lib/generation';
 
 import type { JobView } from 'core/controllers/Plan';
 
-/** The same back-off as the client's own generation screen: quick while queued, then every six seconds. */
-const POLL_DELAYS_MS = [1000, 2000, 4000] as const;
-const POLL_MAX_MS = 6000;
-const MAX_POLLS = 100;
+/**
+ * Slower than the client's own screen: every read of this job writes a row in
+ * the client's trail, and a generation takes minutes. Quick while queued, then
+ * every ten seconds — a third of the rows, and no slower to notice the end
+ * than a person would.
+ */
+const POLL_DELAYS_MS = [2000, 4000] as const;
+const POLL_MAX_MS = 10_000;
+/** Ten minutes at the capped interval; the job itself gives up well before. */
+const MAX_POLLS = 60;
 
 interface CareGenerateButtonProps {
   /** Drawn but not pressable, with `hint` saying why — never a way round a running fortnight. */
