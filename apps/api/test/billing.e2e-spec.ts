@@ -74,6 +74,8 @@ class FakeStripe {
   readonly bought: Checkout[] = [];
   readonly cancelled: string[] = [];
   readonly madeCustomers: { readonly email?: string; readonly metadata?: Stripe.MetadataParam }[] = [];
+  /** The idempotency key each customer was asked for with, in the same order. */
+  readonly customerKeys: (string | undefined)[] = [];
   readonly portals: Portal[] = [];
   readonly refetched: string[] = [];
   /** Every call that changes something at Stripe, in the order it was made: `expire:<session>`, `cancel:<subscription>`. */
@@ -151,9 +153,10 @@ class FakeStripe {
   };
 
   readonly customers = {
-    create: async (params: { email?: string; metadata?: Stripe.MetadataParam }, _options?: Stripe.RequestOptions) => {
+    create: async (params: { email?: string; metadata?: Stripe.MetadataParam }, options?: Stripe.RequestOptions) => {
       this.asked.push('customers.create');
       this.madeCustomers.push(params);
+      this.customerKeys.push(options?.idempotencyKey);
 
       const id = `cus_e2e_${Date.now()}_${this.madeCustomers.length}`;
 
@@ -358,7 +361,7 @@ async function stateOf(userId: string): Promise<{ rows: Row[]; tier: string | nu
 }
 
 /** Gives an account this Stripe customer the product's way (`customerFor`): kept only if it has none yet. */
-function rememberCustomer(userId: string, customerId: string): Promise<string | null> {
+function giveCustomer(userId: string, customerId: string): Promise<string | null> {
   return BillingController.customerFor(userId, () => Promise.resolve(customerId));
 }
 
@@ -520,6 +523,8 @@ describe('billing', () => {
 
       expect((answer.body as { url: string }).url).toMatch(/^https:\/\/checkout\.stripe\.test\//);
       expect(test.stripe.madeCustomers.at(-1)).toEqual({ email: buyer.email, metadata: { userId: buyer.id } });
+      // A retry after a lost answer is the same customer.
+      expect(test.stripe.customerKeys.at(-1)).toBe(`customer-${buyer.id}`);
       expect(row).toMatchObject({ status: null, stripeSubscriptionId: null });
       expect(bought).toMatchObject({
         client_reference_id: buyer.id,
@@ -564,7 +569,7 @@ describe('billing', () => {
       const buyer = await account(test, 'forger', 'admin');
       const victim = await account(test, 'forged');
 
-      await rememberCustomer(victim.id, ids('forged').customer);
+      await giveCustomer(victim.id, ids('forged').customer);
       await checkout(test, buyer, {
         customer: ids('forged').customer,
         customerId: ids('forged').customer,
@@ -678,7 +683,7 @@ describe('billing', () => {
       const buyer = await account(test, `paying-${state}`, 'admin');
       const { customer, subscription } = ids(`paying-${state}`);
 
-      await rememberCustomer(buyer.id, customer);
+      await giveCustomer(buyer.id, customer);
       test.stripe.hold(subscription, customer, state);
       await deliver(test.app, aboutSubscription('customer.subscription.updated', subscription, customer, state)).expect(200);
 
@@ -699,8 +704,8 @@ describe('billing', () => {
       await portal(test, stranger).expect(404);
       expect(test.stripe.portals.filter(call => call.customer === undefined)).toEqual([]);
 
-      await rememberCustomer(mine.id, ids('portal-mine').customer);
-      await rememberCustomer(theirs.id, ids('portal-theirs').customer);
+      await giveCustomer(mine.id, ids('portal-mine').customer);
+      await giveCustomer(theirs.id, ids('portal-theirs').customer);
 
       const answer: Response = await portal(test, mine).expect(200);
 
@@ -732,7 +737,7 @@ describe('billing', () => {
       const who = await account(test, label);
       const { customer, subscription } = ids(label);
 
-      await rememberCustomer(who.id, customer);
+      await giveCustomer(who.id, customer);
       test.stripe.hold(subscription, customer, 'active');
 
       return { customer, subscription, who };
@@ -941,7 +946,7 @@ describe('billing', () => {
       const who = await account(test, label);
       const { customer, subscription } = ids(label);
 
-      await rememberCustomer(who.id, customer);
+      await giveCustomer(who.id, customer);
 
       return { customer, subscription, who };
     }
@@ -1219,7 +1224,7 @@ describe('billing', () => {
       const { customer, subscription } = ids('switch-off');
 
       await completeOnboarding(live.app, payer);
-      await rememberCustomer(payer.id, customer);
+      await giveCustomer(payer.id, customer);
       live.stripe.hold(subscription, customer, 'active');
       await deliver(live.app, aboutSubscription('customer.subscription.created', subscription, customer, 'active')).expect(200);
       expect(await stateOf(payer.id)).toMatchObject({ tier: 'premium' });
@@ -1251,7 +1256,7 @@ describe('billing', () => {
       const payer = await account(on, label);
       const { customer, subscription } = ids(label);
 
-      await rememberCustomer(payer.id, customer);
+      await giveCustomer(payer.id, customer);
       on.stripe.hold(subscription, customer, 'active', { userId: payer.id });
       await deliver(on.app, aboutSubscription('customer.subscription.created', subscription, customer, 'active')).expect(200);
       expect(await stateOf(payer.id)).toMatchObject({ rows: [{ status: 'active' }], tier: 'premium' });
@@ -1307,7 +1312,7 @@ describe('billing', () => {
       const payer = await account(unconfigured, 'deleted-unconfigured');
       const { customer, subscription } = ids('deleted-unconfigured');
 
-      await rememberCustomer(payer.id, customer);
+      await giveCustomer(payer.id, customer);
       unconfigured.stripe.hold(subscription, customer, 'active');
       await remove(unconfigured, payer).expect(204);
 
