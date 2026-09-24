@@ -180,6 +180,11 @@ class FakeStripe {
 
       const held = this.now.get(id);
 
+      // As Stripe does: a subscription already cancelled cannot be cancelled again.
+      if (held?.status === 'canceled') {
+        return Promise.reject(new Stripe.errors.StripeInvalidRequestError({ message: `Subscription ${id} is already canceled` }));
+      }
+
       this.cancelled.push(id);
       this.changes.push(`cancel:${id}`);
 
@@ -350,6 +355,11 @@ async function stateOf(userId: string): Promise<{ rows: Row[]; tier: string | nu
   const [rows, [account]] = await Promise.all([rowsWhere('user_id', userId), sql<{ tier: string }[]>`select tier from "user" where id = ${userId}`]);
 
   return { rows, tier: account?.tier ?? null };
+}
+
+/** Gives an account this Stripe customer the product's way (`customerFor`): kept only if it has none yet. */
+function rememberCustomer(userId: string, customerId: string): Promise<string | null> {
+  return BillingController.customerFor(userId, () => Promise.resolve(customerId));
 }
 
 function rowsOfCustomer(customerId: string): Promise<Row[]> {
@@ -554,7 +564,7 @@ describe('billing', () => {
       const buyer = await account(test, 'forger', 'admin');
       const victim = await account(test, 'forged');
 
-      await BillingController.rememberCustomer(victim.id, ids('forged').customer);
+      await rememberCustomer(victim.id, ids('forged').customer);
       await checkout(test, buyer, {
         customer: ids('forged').customer,
         customerId: ids('forged').customer,
@@ -668,7 +678,7 @@ describe('billing', () => {
       const buyer = await account(test, `paying-${state}`, 'admin');
       const { customer, subscription } = ids(`paying-${state}`);
 
-      await BillingController.rememberCustomer(buyer.id, customer);
+      await rememberCustomer(buyer.id, customer);
       test.stripe.hold(subscription, customer, state);
       await deliver(test.app, aboutSubscription('customer.subscription.updated', subscription, customer, state)).expect(200);
 
@@ -689,8 +699,8 @@ describe('billing', () => {
       await portal(test, stranger).expect(404);
       expect(test.stripe.portals.filter(call => call.customer === undefined)).toEqual([]);
 
-      await BillingController.rememberCustomer(mine.id, ids('portal-mine').customer);
-      await BillingController.rememberCustomer(theirs.id, ids('portal-theirs').customer);
+      await rememberCustomer(mine.id, ids('portal-mine').customer);
+      await rememberCustomer(theirs.id, ids('portal-theirs').customer);
 
       const answer: Response = await portal(test, mine).expect(200);
 
@@ -722,7 +732,7 @@ describe('billing', () => {
       const who = await account(test, label);
       const { customer, subscription } = ids(label);
 
-      await BillingController.rememberCustomer(who.id, customer);
+      await rememberCustomer(who.id, customer);
       test.stripe.hold(subscription, customer, 'active');
 
       return { customer, subscription, who };
@@ -885,6 +895,45 @@ describe('billing', () => {
       expect(await rowsOfCustomer(customer)).toEqual([]);
       expect(test.stripe.cancelled).not.toContain(subscription);
     });
+
+    // A customer that exists on both sides says nothing about whose the subscription is.
+    it('writes nothing for another deployment’s subscription, even for a customer this one knows', async () => {
+      const { customer, subscription, who } = await target('foreign-known');
+
+      test.stripe.hold(subscription, customer, 'active', { deployment: `${test.deployment}-another`, userId: who.id });
+      await deliver(test.app, aboutSubscription('customer.subscription.created', subscription, customer, 'active')).expect(200);
+
+      await expectUntouched(who, customer);
+      expect(test.stripe.cancelled).not.toContain(subscription);
+    });
+
+    it('acknowledges a second delivery for an orphan it has already cancelled', async () => {
+      const { customer, subscription } = ids('ghost-twice');
+      const payload = aboutSubscription('customer.subscription.updated', subscription, customer, 'active');
+
+      test.stripe.hold(subscription, customer, 'active', { deployment: test.deployment, userId: `ghost-twice-${stamp}` });
+      await deliver(test.app, payload).expect(200);
+      expect(test.stripe.now.get(subscription)?.status).toBe('canceled');
+
+      // The second delivery's first read still says active, as a stale answer would; Stripe refuses the cancel, and asked again, says it has ended.
+      const stale = { ...(test.stripe.now.get(subscription) as StripeSubscription), status: 'active' };
+      const reads = test.stripe.refetched.length;
+      const cancels = test.stripe.asked.filter(call => call === 'subscriptions.cancel').length;
+
+      test.stripe.refetch = id =>
+        Promise.resolve(test.stripe.refetched.length === reads + 1 ? stale : (test.stripe.now.get(id) as StripeSubscription));
+
+      try {
+        await deliver(test.app, payload).expect(200);
+      } finally {
+        test.stripe.refetch = null;
+      }
+
+      // Asked to cancel again, refused, and not an error.
+      expect(test.stripe.asked.filter(call => call === 'subscriptions.cancel')).toHaveLength(cancels + 1);
+      expect(test.stripe.cancelled.filter(id => id === subscription)).toHaveLength(1);
+      expect(await rowsOfCustomer(customer)).toEqual([]);
+    });
   });
 
   describe('webhook: Stripe’s state now, whatever the delivery', () => {
@@ -892,7 +941,7 @@ describe('billing', () => {
       const who = await account(test, label);
       const { customer, subscription } = ids(label);
 
-      await BillingController.rememberCustomer(who.id, customer);
+      await rememberCustomer(who.id, customer);
 
       return { customer, subscription, who };
     }
@@ -1108,6 +1157,26 @@ describe('billing', () => {
       expect(await stateOf(who.id)).toMatchObject({ rows: [{ status: 'active', stripeSubscriptionId: kept }], tier: 'premium' });
     });
 
+    // One account, one customer: a subscription of another customer is something to look at, not to follow.
+    it('keeps the row when a subscription of another customer names the account', async () => {
+      const { customer, subscription, who } = await subscriber('customer-mismatch');
+      const other = `cus_${stamp}_customer-mismatch-other`;
+      const stranger = `sub_${stamp}_customer-mismatch-other`;
+
+      test.stripe.hold(subscription, customer, 'active');
+      await deliver(test.app, aboutSubscription('customer.subscription.created', subscription, customer, 'active')).expect(200);
+
+      const before = await stateOf(who.id);
+
+      // Paying, so that were it followed it would take the row.
+      test.stripe.hold(stranger, other, 'active', { userId: who.id });
+      await deliver(test.app, aboutSubscription('customer.subscription.created', stranger, other, 'active')).expect(200);
+
+      expect(await stateOf(who.id)).toEqual(before);
+      expect(before).toMatchObject({ rows: [{ status: 'active', stripeCustomerId: customer, stripeSubscriptionId: subscription }], tier: 'premium' });
+      expect(await rowsOfCustomer(other)).toEqual([]);
+    });
+
     it('does not let a second subscription that does not pay yet take the row from one that does', async () => {
       const { customer, who } = await subscriber('incomplete-second');
       const paying = `sub_${stamp}_incomplete-second-paying`;
@@ -1150,7 +1219,7 @@ describe('billing', () => {
       const { customer, subscription } = ids('switch-off');
 
       await completeOnboarding(live.app, payer);
-      await BillingController.rememberCustomer(payer.id, customer);
+      await rememberCustomer(payer.id, customer);
       live.stripe.hold(subscription, customer, 'active');
       await deliver(live.app, aboutSubscription('customer.subscription.created', subscription, customer, 'active')).expect(200);
       expect(await stateOf(payer.id)).toMatchObject({ tier: 'premium' });
@@ -1182,7 +1251,7 @@ describe('billing', () => {
       const payer = await account(on, label);
       const { customer, subscription } = ids(label);
 
-      await BillingController.rememberCustomer(payer.id, customer);
+      await rememberCustomer(payer.id, customer);
       on.stripe.hold(subscription, customer, 'active', { userId: payer.id });
       await deliver(on.app, aboutSubscription('customer.subscription.created', subscription, customer, 'active')).expect(200);
       expect(await stateOf(payer.id)).toMatchObject({ rows: [{ status: 'active' }], tier: 'premium' });
@@ -1238,7 +1307,7 @@ describe('billing', () => {
       const payer = await account(unconfigured, 'deleted-unconfigured');
       const { customer, subscription } = ids('deleted-unconfigured');
 
-      await BillingController.rememberCustomer(payer.id, customer);
+      await rememberCustomer(payer.id, customer);
       unconfigured.stripe.hold(subscription, customer, 'active');
       await remove(unconfigured, payer).expect(204);
 
