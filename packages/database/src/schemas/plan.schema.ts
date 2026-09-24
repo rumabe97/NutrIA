@@ -63,7 +63,16 @@ export const mealPlans = pgTable(
     // index enforces it in the database, so a double-submit cannot produce two.
     uniqueIndex('meal_plans_one_active_per_user')
       .on(table.userId)
-      .where(sql`${table.status} = 'active'`)
+      .where(sql`${table.status} = 'active'`),
+    // At most one plan waiting for review per user (`0060`). Written as "none of
+    // the other statuses" because `pending_review` is added in the same migration
+    // transaction, and Postgres refuses a new enum value used before the
+    // transaction that added it commits (a cast to text is not immutable, so an
+    // index predicate cannot compare as text either). A status added after
+    // `pending_review` must be listed here, or it joins this index.
+    uniqueIndex('meal_plans_one_pending_review_per_user')
+      .on(table.userId)
+      .where(sql`${table.status} not in ('draft', 'generating', 'active', 'completed', 'archived', 'failed')`)
   ]
 );
 

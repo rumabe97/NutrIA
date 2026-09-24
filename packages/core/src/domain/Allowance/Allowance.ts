@@ -146,9 +146,10 @@ function countDown(used: number, limit: number): CountedStanding {
  * is not one: that plan opened the fortnight, and everything behind it belongs
  * to earlier ones. Plans from before the stamp existed carry none, so a person
  * whose history predates the allowance starts with it untouched. No calendar
- * arithmetic, no extra column.
+ * arithmetic, no extra column. A pending plan, when there is one, heads the
+ * chain: it is the fortnight under way for this count.
  */
-export function redosInFortnight(chainFromActive: readonly { readonly redo: boolean }[]): number {
+export function redosInFortnight(chainFromActive: readonly { readonly redo: boolean; readonly replacedRedos?: number }[]): number {
   let count = 0;
 
   for (const plan of chainFromActive) {
@@ -156,7 +157,9 @@ export function redosInFortnight(chainFromActive: readonly { readonly redo: bool
       break;
     }
 
-    count += 1;
+    // A plan that replaced plans still under review (`0060`) carries the redos
+    // they were: deleted, they are not in the chain, and they were spent.
+    count += 1 + (plan.replacedRedos ?? 0);
   }
 
   return count;

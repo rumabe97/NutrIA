@@ -1,5 +1,7 @@
+import type { JobView, MealDetailView, PlanView } from 'core/controllers/Plan';
 import type {
   CareAccessPageView,
+  CareClientLinkView,
   CareClientOverviewView,
   CareClientsView,
   CareInvitationDetailView,
@@ -34,3 +36,15 @@ export type CareAccessPageDto = CareAccessPageView;
  * the client's own route answers, `setBy` naming the professional.
  */
 export type CareClientTargetsDto = ResolvedTargets;
+
+/** A link as its professional sees it, after turning review on or off (`0060`). */
+export type CareClientLinkDto = CareClientLinkView;
+
+/** A client's plan as their professional reviews or publishes it: the same shape `GET /meal-plans/:id` answers. */
+export type CareClientPlanDto = PlanView;
+
+/** One of the client's generations; `planId` is carried while the plan waits for review. */
+export type CareClientJobDto = JobView;
+
+/** A meal of the plan under review after the professional swapped it. */
+export type CareClientMealDto = MealDetailView;

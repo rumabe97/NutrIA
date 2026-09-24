@@ -63,6 +63,15 @@ export const acceptInvitationSchema = z.object({ consentVersion: z.literal(CARE_
 export type AcceptInvitation = z.infer<typeof acceptInvitationSchema>;
 
 /**
+ * The professional turns review before publishing on or off for one link
+ * (`0060`). The one thing on a link a professional may change: what it shares
+ * is the client's consent, never theirs to edit.
+ */
+export const setClientReviewSchema = z.object({ reviewBeforePublish: z.boolean() });
+
+export type SetClientReview = z.infer<typeof setClientReviewSchema>;
+
+/**
  * A link's id as a path carries it. Anything else names no link and is
  * answered as every unknown link is — a 404, never a 400 that would tell a
  * caller the route is there.

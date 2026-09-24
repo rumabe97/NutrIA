@@ -1,9 +1,9 @@
-import { and, eq, inArray, lt, or, sql } from 'drizzle-orm';
+import { and, eq, getTableColumns, inArray, lt, or, sql } from 'drizzle-orm';
 
 import { database } from 'database';
 import { mealPlans, planGenerationJobs } from 'database/schema/plan';
 
-import { DatabaseOperationError } from 'core/entities/Error';
+import { ConflictError, DatabaseOperationError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
 
 import type { AiCallRecord } from 'core/entities/Plan';
 
@@ -85,8 +85,13 @@ export const PlanJobRepository = {
    *
    * Returns the claimed job, or `undefined` when a generation is already under
    * way. `release` gives the slot back if the generation may not start after all.
+   *
+   * `admit` is a professional's generation (`0060`): it runs inside this
+   * transaction once the job row is in — the allowance check, then the trail
+   * row — so a refused generation leaves neither a job nor a row, and an
+   * admitted one has both.
    */
-  async claim(userId: string) {
+  async claim(userId: string, admit?: (tx: Transaction) => Promise<void>) {
     try {
       return await database().transaction(async tx => {
         const [lock] = await tx.execute<{ held: boolean }>(
@@ -113,9 +118,15 @@ export const PlanJobRepository = {
           throw new DatabaseOperationError('Job insert returned no row');
         }
 
+        await admit?.(tx);
+
         return row;
       });
     } catch (error: unknown) {
+      if (error instanceof ConflictError || error instanceof NotFoundError || error instanceof QuotaExceededError) {
+        throw error;
+      }
+
       throw wrap(error);
     }
   },
@@ -161,11 +172,13 @@ export const PlanJobRepository = {
     }
   },
 
+  /** Owner-scoped. `planStatus` is the status of the plan it made, so a plan under review can be kept from its client (`0060`). */
   async findById(userId: string, jobId: string) {
     try {
       const [row] = await database()
-        .select()
+        .select({ ...getTableColumns(planGenerationJobs), planStatus: mealPlans.status })
         .from(planGenerationJobs)
+        .leftJoin(mealPlans, eq(mealPlans.id, planGenerationJobs.planId))
         .where(and(eq(planGenerationJobs.id, jobId), eq(planGenerationJobs.userId, userId)))
         .limit(1);
 
@@ -254,6 +267,8 @@ export const PlanJobRepository = {
     }
   }
 };
+
+type Transaction = Parameters<Parameters<ReturnType<typeof database>['transaction']>[0]>[0];
 
 function wrap(error: unknown): DatabaseOperationError {
   if (error instanceof DatabaseOperationError) {

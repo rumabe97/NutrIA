@@ -40,17 +40,13 @@ export type ActiveLink = { readonly clientName: string; readonly link: CareLink;
 /** One row of a professional's list, as stored: the link, the client's name, and where they are. */
 export type RosterLink = {
   readonly clientName: string;
-  /** The client's latest plan by version, whatever its status — the one a check-in is due on — or null. */
+  /** The client's latest plan by version, but never one under review — the one a check-in is due on — or null. */
   readonly latestPlan: { readonly answered: boolean; readonly endDate: string } | null;
   readonly link: Pick<CareLink, 'consentedAt' | 'id' | 'reviewBeforePublish' | 'sharesHealth' | 'status'>;
   readonly onboarded: boolean;
   /** Whether a plan is under way. */
   readonly planActive: boolean;
-  /**
-   * Whether a plan is waiting for this professional's review (`0060`). Always
-   * false until Phase 5 of project 004 adds the `pending_review` plan status:
-   * the question cannot be asked of a status the database does not have yet.
-   */
+  /** Whether a plan is waiting for this professional's review (`0060`). */
   readonly planPendingReview: boolean;
 };
 
@@ -390,10 +386,10 @@ export const CareRepository = {
    * is). No client id leaves this method — rows are keyed by link id, which is
    * all a professional route ever takes.
    *
-   * The latest plan is the highest version whatever its status, as
-   * `CheckInController.status` reads it, so "check-in due" here and on the
-   * client's own screen are the same fact. Phase 5 (`0060`) must teach this
-   * read the `pending_review` status, as it does the four named in `0060`.
+   * The latest plan is the highest version whatever its status except
+   * `pending_review`, as `CheckInController.status` reads it, so "check-in
+   * due" here and on the client's own screen are the same fact; a plan under
+   * review (`0060`) is `planPendingReview` instead.
    */
   async roster(professionalId: string, now: Date): Promise<Roster> {
     try {
@@ -429,6 +425,35 @@ export const CareRepository = {
     } catch (error: unknown) {
       throw wrap(error);
     }
+  },
+
+  /**
+   * Turns review before publishing on or off for one link (`0060`), with the
+   * professional's trail row (`record`) in the same transaction. Guarded by
+   * the link id, the professional (the session's) and `active`, as
+   * `activeLink` resolved it; null when the link closed in between. A plan
+   * already pending stays pending: turning review off publishes nothing.
+   */
+  async setReview(professionalId: string, linkId: string, reviewBeforePublish: boolean, record: RecordAccess): Promise<CareLink | null> {
+    try {
+      return await database().transaction(async tx => {
+        const [row] = await tx
+          .update(careLinks)
+          .set({ reviewBeforePublish, updatedAt: new Date() })
+          .where(and(eq(careLinks.id, linkId), eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active')))
+          .returning();
+
+        if (!row) {
+          return null;
+        }
+
+        await record(tx);
+
+        return careLinkSchema.parse(row);
+      });
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
   }
 };
 
@@ -455,6 +480,12 @@ async function rosterOf(db: Transaction, professionalId: string, now: Date): Pro
             .from(mealPlans)
             .where(and(eq(mealPlans.userId, careLinks.clientId), eq(mealPlans.status, 'active')))
         )}`,
+        planPendingReview: sql<boolean>`${careLinks.status} = 'active' and ${exists(
+          db
+            .select({ id: mealPlans.id })
+            .from(mealPlans)
+            .where(and(eq(mealPlans.userId, careLinks.clientId), eq(mealPlans.status, 'pending_review')))
+        )}`,
         reviewBeforePublish: careLinks.reviewBeforePublish,
         sharesHealth: careLinks.sharesHealth,
         status: careLinks.status
@@ -478,7 +509,7 @@ async function rosterOf(db: Transaction, professionalId: string, now: Date): Pro
       })
       .from(mealPlans)
       .innerJoin(careLinks, eq(careLinks.clientId, mealPlans.userId))
-      .where(and(eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active')))
+      .where(and(eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active'), ne(mealPlans.status, 'pending_review')))
       .orderBy(mealPlans.userId, desc(mealPlans.version))
   ]);
 
@@ -496,7 +527,7 @@ async function rosterOf(db: Transaction, professionalId: string, now: Date): Pro
       },
       onboarded: row.onboarded,
       planActive: row.planActive,
-      planPendingReview: false
+      planPendingReview: row.planPendingReview
     }))
   };
 }

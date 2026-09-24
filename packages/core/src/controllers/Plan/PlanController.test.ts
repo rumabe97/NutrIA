@@ -7,9 +7,13 @@ import { PlanController, PlanJobController } from './PlanController';
 import type { AllowancesView } from './PlanController';
 
 type Job = { id: string; error: string | null; errorDetail: string | null; planId: string | null; status: string; step: string | null };
+type ChainRow = { id: string; endDate: string; redo: boolean; replacedRedos: number; status: string; version: number };
 type Row = { id: string; endDate: string; startDate: string; status: string; version: number };
 
-const claim = vi.fn<(userId: string) => Promise<Job | undefined>>();
+const claim = vi.fn<(userId: string, admit?: (tx: unknown) => Promise<void>) => Promise<Job | undefined>>();
+const findJob = vi.fn<(userId: string, jobId: string) => Promise<(Job & { planStatus: string | null }) | undefined>>();
+const findActive = vi.fn<(userId: string) => Promise<ChainRow | undefined>>();
+const findChain = vi.fn<(userId: string, withPending?: boolean) => Promise<readonly ChainRow[]>>();
 const findHistory = vi.fn<(userId: string, limit: number, offset: number) => Promise<readonly Row[]>>();
 const release = vi.fn<(jobId: string) => Promise<void>>();
 const setMealStatus = vi.fn<(userId: string, mealId: string, status: string) => Promise<'closed' | 'done' | 'missing'>>();
@@ -17,11 +21,15 @@ const setMealStatus = vi.fn<(userId: string, mealId: string, status: string) => 
 vi.mock('#repositories/Plan', () => ({
   PlanJobRepository: {
     adoptCompleted: () => Promise.resolve(0),
-    claim: (u: string) => claim(u),
+    claim: (...args: Parameters<typeof claim>) => claim(...args),
     failStale: () => Promise.resolve(0),
+    findById: (...args: Parameters<typeof findJob>) => findJob(...args),
     release: (j: string) => release(j)
   },
   PlanRepository: {
+    countSwaps: () => Promise.resolve(0),
+    findActive: (u: string) => findActive(u),
+    findChain: (...args: Parameters<typeof findChain>) => findChain(...args),
     findHistory: (u: string, l: number, o: number) => findHistory(u, l, o),
     setMealStatus: (u: string, m: string, s: string) => setMealStatus(u, m, s)
   }
@@ -99,6 +107,48 @@ describe('PlanController.setMealStatus — the past is read-only', () => {
 describe('PlanJobController.start — one generation at a time', () => {
   const job: Job = { id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null };
 
+  describe('for a professional, through the link (0060)', () => {
+    const tx = { transaction: 'the claim’s' };
+
+    beforeEach(() => {
+      // The claim runs `admit` inside its transaction, as the repository does.
+      claim.mockImplementation(async (_userId, admit) => {
+        await admit?.(tx);
+
+        return job;
+      });
+    });
+
+    it('checks the client’s allowance and writes the trail row inside the claim, and releases nothing', async () => {
+      allowing(true);
+      const record = vi.fn(async () => undefined);
+
+      await expect(PlanJobController.start('usr-client', record)).resolves.toMatchObject({ id: 'job-1', pendingReview: false });
+      expect(claim).toHaveBeenCalledWith('usr-client', expect.any(Function));
+      expect(record).toHaveBeenCalledExactlyOnceWith(tx);
+      expect(release).not.toHaveBeenCalled();
+    });
+
+    it('refuses a spent redo as the client’s own would be refused — before the row, so the claim rolls back with nothing written', async () => {
+      allowing(false);
+      const record = vi.fn(async () => undefined);
+
+      await expect(PlanJobController.start('usr-client', record)).rejects.toBeInstanceOf(QuotaExceededError);
+      expect(record).not.toHaveBeenCalled();
+    });
+
+    it('answers a conflict when a generation is already under way', async () => {
+      claim.mockResolvedValue(undefined);
+
+      await expect(
+        PlanJobController.start(
+          'usr-client',
+          vi.fn(async () => undefined)
+        )
+      ).rejects.toBeInstanceOf(ConflictError);
+    });
+  });
+
   function allowing(allowed: boolean) {
     return vi
       .spyOn(PlanController, 'allowances')
@@ -139,5 +189,60 @@ describe('PlanJobController.start — one generation at a time', () => {
 
     await expect(PlanJobController.start('usr-1')).resolves.toMatchObject({ id: 'job-1', status: 'queued' });
     expect(release).not.toHaveBeenCalled();
+  });
+});
+
+describe('PlanController.getJob — a plan under review is kept from its client (0060)', () => {
+  const done = { id: 'job-1', error: null, errorDetail: null, planId: 'plan-2', status: 'succeeded', step: 'done' };
+
+  it('tells the client the plan is waiting, without its id', async () => {
+    findJob.mockResolvedValue({ ...done, planStatus: 'pending_review' });
+
+    await expect(PlanController.getJob('usr-1', 'job-1')).resolves.toMatchObject({ pendingReview: true, planId: null, status: 'succeeded' });
+  });
+
+  it('hands the professional the id', async () => {
+    findJob.mockResolvedValue({ ...done, planStatus: 'pending_review' });
+
+    await expect(PlanController.getJob('usr-1', 'job-1', 'professional')).resolves.toMatchObject({ pendingReview: true, planId: 'plan-2' });
+  });
+
+  it('answers everybody else as before', async () => {
+    findJob.mockResolvedValue({ ...done, planStatus: 'active' });
+
+    await expect(PlanController.getJob('usr-1', 'job-1')).resolves.toEqual({ ...done, pendingReview: false });
+  });
+});
+
+describe('PlanController.allowances — a pending plan is the fortnight under way (0060)', () => {
+  const active: ChainRow = { id: 'p1', endDate: '2026-12-31', redo: false, replacedRedos: 0, status: 'active', version: 1 };
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    vi.spyOn(PlanController, 'tierOf').mockResolvedValue('free');
+    vi.spyOn(PlanController, 'eventStanding').mockResolvedValue({ allowed: true, limit: 3, remaining: 3, used: 0 });
+    findActive.mockResolvedValue(active);
+  });
+
+  it('counts the pending plan’s redo, and asks for the chain with it', async () => {
+    findChain.mockResolvedValue([{ id: 'p2', endDate: '2026-12-31', redo: true, replacedRedos: 0, status: 'pending_review', version: 2 }, active]);
+
+    const { planRedo } = await PlanController.allowances('usr-1');
+
+    expect(findChain).toHaveBeenCalledWith('usr-1', true);
+    expect(planRedo).toMatchObject({ allowed: false, kind: 'redo', used: 1 });
+  });
+
+  it('counts the redos of pending plans it replaced', async () => {
+    vi.spyOn(PlanController, 'tierOf').mockResolvedValue('premium');
+    findChain.mockResolvedValue([{ id: 'p4', endDate: '2026-12-31', redo: true, replacedRedos: 2, status: 'pending_review', version: 2 }, active]);
+
+    await expect(PlanController.allowances('usr-1')).resolves.toMatchObject({ planRedo: { allowed: false, used: 3 } });
+  });
+
+  it('with no plan pending, counts from the active plan as before', async () => {
+    findChain.mockResolvedValue([active]);
+
+    await expect(PlanController.allowances('usr-1')).resolves.toMatchObject({ planRedo: { allowed: true, kind: 'redo', used: 0 } });
   });
 });
