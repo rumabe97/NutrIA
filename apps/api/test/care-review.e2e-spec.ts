@@ -20,7 +20,7 @@ import {
 } from './harness.js';
 import { EmailService } from '../src/modules/email/services/index.js';
 
-import type { Account, JobResult } from './harness.js';
+import type { Account } from './harness.js';
 import type { CareLinkView } from 'core/controllers/Care';
 import type { CheckInStatusView } from 'core/controllers/CheckIn';
 import type { JobView, MealDetailView, PlanSummaryView, PlanView, ShoppingListView } from 'core/controllers/Plan';
@@ -271,9 +271,17 @@ describe('care review', () => {
     await request(server()).get(`/${PREFIX}/meal-plans/${plan.id}/days/0`).set('Cookie', who.cookie).expect(404);
     await request(server()).get(`/${PREFIX}/meal-plans/meals/${mealId}`).set('Cookie', who.cookie).expect(404);
     await request(server()).post(`/${PREFIX}/meal-plans/meals/${mealId}/swap`).set('Cookie', who.cookie).send({}).expect(404);
+    await request(server()).patch(`/${PREFIX}/meal-plans/meals/${mealId}/status`).set('Cookie', who.cookie).send({ status: 'completed' }).expect(404);
     expect((await historyOf(who)).map(row => row.id)).not.toContain(plan.id);
     expect((await activeOf(who))?.id).not.toBe(plan.id);
     expect((await checkInOf(who)).plan?.id).not.toBe(plan.id);
+  }
+
+  /** The client's own poll of a job, as the progress screen reads it. */
+  async function clientJob(who: Account, jobId: string): Promise<JobView & { pendingReview: boolean }> {
+    const response: Response = await request(server()).get(`/${PREFIX}/meal-plans/jobs/${jobId}`).set('Cookie', who.cookie).expect(200);
+
+    return response.body as JobView & { pendingReview: boolean };
   }
 
   // --- The tables --------------------------------------------------------------
@@ -290,6 +298,13 @@ describe('care review', () => {
     await call();
 
     return (await reviewRows(clientId)).slice(before).map(row => row.action);
+  }
+
+  async function latestJob(who: Account): Promise<{ id: string }> {
+    const [job] = await tables()<{ id: string }>`
+      select id from plan_generation_jobs where user_id = ${who.id} order by created_at desc limit 1`;
+
+    return job ?? { id: '' };
   }
 
   async function allTrailRows(clientId: string): Promise<number> {
@@ -391,7 +406,8 @@ describe('care review', () => {
   describe('a client who asks for their next plan', () => {
     let first: PlanView;
     let next: PlanView;
-    let job: JobResult;
+    /** The client's own job answer, re-read after the professional publishes. */
+    let clientJobId: string;
 
     beforeAll(async () => {
       first = (await activeOf(lived)) as PlanView;
@@ -404,10 +420,11 @@ describe('care review', () => {
     });
 
     it('gets a plan that waits for the professional, and no plan id to go to', async () => {
-      job = await generateAndWait(app, lived);
+      await expect(generateAndWait(app, lived)).resolves.toMatchObject({ planId: null, status: 'succeeded' });
 
-      expect(job.status).toBe('succeeded');
-      expect(job.planId).toBeNull();
+      // The poll's own answer, read again: finished, and with the professional rather than a plan to open.
+      clientJobId = (await latestJob(lived)).id;
+      expect(await clientJob(lived, clientJobId)).toMatchObject({ pendingReview: true, planId: null, status: 'succeeded' });
 
       // One waiting, the one they live still active: nothing completed it.
       const rows = await planRows(lived.id);
@@ -426,6 +443,11 @@ describe('care review', () => {
       expect(next.days).toHaveLength(14);
       expect((await planRows(lived.id)).find(row => row.status === 'pending_review')?.id).toBe(next.id);
       expect(await stageOf(proA, links.lived)).toMatchObject({ stage: 'plan_awaiting_review' });
+
+      // The same job, through the link: the professional is given the plan to open.
+      const polled: Response = await jobOf(proA, links.lived, clientJobId).expect(200);
+
+      expect(polled.body).toMatchObject({ pendingReview: true, planId: next.id, status: 'succeeded' });
     });
 
     it('is invisible to the client by every read, while the plan they live stays theirs to use', async () => {
@@ -455,13 +477,25 @@ describe('care review', () => {
           swapped = response.body as MealDetailView;
         })
       ).resolves.toEqual(['write']);
-      expect(swapped).toMatchObject({ id: target?.id, planId: next.id, slot: target?.slot });
+      expect(swapped).toMatchObject({ id: target?.id, planId: next.id, planStatus: 'pending_review', slot: target?.slot });
       expect((await pending(proA, links.lived))?.days[2]?.meals.find(meal => meal.id === target?.id)?.name).not.toBe(target?.name);
 
       // A meal of the plan the client lives is not the professional's to change.
       const lived0 = first.days[3]?.meals[0]?.id ?? '';
 
       await expect(rowsWrittenBy(lived.id, () => swapFor(proA, links.lived, lived0).expect(404))).resolves.toEqual([]);
+    });
+
+    it('refuses the professional a second redo of a free client’s fortnight, and writes nothing', async () => {
+      // The client's own generation spent the fortnight's one redo; a waiting plan is the fortnight under way.
+      await expect(
+        rowsWrittenBy(lived.id, async () => {
+          const refused: Response = await generateFor(proA, links.lived).expect(429);
+
+          expect((refused.body as { code: string }).code).toBe('QUOTA_EXCEEDED');
+        })
+      ).resolves.toEqual([]);
+      expect((await pending(proA, links.lived))?.id).toBe(next.id);
     });
 
     it('publishes in one step: the waiting plan active, the old one completed', async () => {
@@ -496,6 +530,9 @@ describe('care review', () => {
       expect((old.body as PlanView).status).toBe('completed');
       await request(server()).get(`/${PREFIX}/meal-plans/${next.id}/days/0`).set('Cookie', lived.cookie).expect(200);
       expect(await stageOf(proA, links.lived)).toMatchObject({ stage: 'plan_under_way' });
+
+      // The client's job now leads to the plan.
+      expect(await clientJob(lived, clientJobId)).toMatchObject({ pendingReview: false, planId: next.id, status: 'succeeded' });
     });
 
     it('has nothing left to publish, and a refused publish writes nothing', async () => {
@@ -562,7 +599,7 @@ describe('care review', () => {
       const rows = await planRows(fresh.id);
 
       expect(rows.filter(row => row.status === 'pending_review').map(row => row.id)).toEqual([replacement.id]);
-      expect(rows.find(row => row.id === firstDraft.id)?.status ?? 'gone').not.toBe('pending_review');
+      expect(rows.map(row => row.id)).not.toContain(firstDraft.id);
       expect(rows.filter(row => row.status === 'active')).toEqual([]);
 
       await publishFor(proA, links.fresh).expect(201);
@@ -572,7 +609,31 @@ describe('care review', () => {
 
   describe('with review off, or no active link', () => {
     it('lets the professional switch review off, one write', async () => {
-      await expect(rowsWrittenBy(unreviewed.id, () => setReview(proA, links.unreviewed, false).expect(200))).resolves.toEqual(['write']);
+      let answer: unknown;
+
+      await expect(
+        rowsWrittenBy(unreviewed.id, async () => {
+          answer = (await setReview(proA, links.unreviewed, false).expect(200)).body;
+        })
+      ).resolves.toEqual(['write']);
+      expect(answer).toEqual({
+        linkId: links.unreviewed,
+        name: nameOf(unreviewed),
+        reviewBeforePublish: false,
+        sharesHealth: false,
+        since: expect.any(String),
+        status: 'active'
+      });
+      // Anything but the one field is refused, and changes nothing.
+      await expect(
+        rowsWrittenBy(unreviewed.id, () =>
+          request(server())
+            .patch(clientPath(links.unreviewed))
+            .set('Cookie', proA.cookie)
+            .send({ reviewBeforePublish: true, sharesHealth: true })
+            .expect(422)
+        )
+      ).resolves.toEqual([]);
       expect(await stageOf(proA, links.unreviewed)).toMatchObject({ reviewBeforePublish: false });
     });
 
@@ -616,10 +677,7 @@ describe('care review', () => {
       expect((await generateAndWait(app, unreviewed)).status).toBe('succeeded');
 
       const waiting = (await pending(proA, links.unreviewed)) as PlanView;
-      const [job] = await tables()<{ id: string }>`
-        select id from plan_generation_jobs where user_id = ${unreviewed.id} order by created_at desc limit 1`;
-
-      ids = { jobId: job?.id ?? '', mealId: waiting.days[0]?.meals[0]?.id ?? '' };
+      ids = { jobId: (await latestJob(unreviewed)).id, mealId: waiting.days[0]?.meals[0]?.id ?? '' };
     });
 
     async function expectNothingMoved(run: () => Promise<void>): Promise<void> {
