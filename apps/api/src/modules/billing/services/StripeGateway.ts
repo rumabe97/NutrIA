@@ -120,17 +120,29 @@ export class StripeGateway {
    * two subscriptions, and both charge.
    */
   async subscriptionsOf(customerId: string): Promise<{ readonly id: string; readonly status: string }[]> {
-    const found: { readonly id: string; readonly status: string }[] = [];
-    let after: string | undefined;
+    const found = await everyPage(after => this.stripe().subscriptions.list({ customer: customerId, limit: PAGE, ...after }));
 
-    for (;;) {
-      const page = await this.stripe().subscriptions.list({ customer: customerId, limit: PAGE, ...(after ? { starting_after: after } : {}) });
+    return found.map(subscription => ({ id: subscription.id, status: subscription.status }));
+  }
 
-      found.push(...page.data.map(subscription => ({ id: subscription.id, status: subscription.status })));
-      after = page.data.at(-1)?.id;
+  /**
+   * Expires every checkout this customer still has open, so that none of them
+   * can become a subscription after this. A session that completes or expires
+   * between the list and the expiry is no longer open, and that is not a
+   * failure: one that completed has a subscription, which the caller cancels
+   * next. Any other failure throws.
+   */
+  async expireOpenCheckouts(customerId: string): Promise<void> {
+    const open = await everyPage(after => this.stripe().checkout.sessions.list({ customer: customerId, limit: PAGE, status: 'open', ...after }));
 
-      if (!page.has_more || !after) {
-        return found;
+    for (const session of open) {
+      try {
+        await this.stripe().checkout.sessions.expire(session.id);
+      } catch (error: unknown) {
+        // Asked rather than read from the error: whether it is still open is the whole question.
+        if ((await this.stripe().checkout.sessions.retrieve(session.id)).status === 'open') {
+          throw error;
+        }
       }
     }
   }
@@ -185,5 +197,24 @@ export class StripeGateway {
       subscriptionId: subscription.id,
       userIdHint: subscription.metadata.userId ?? null
     };
+  }
+}
+
+/** Every item of a Stripe list, page after page. */
+async function everyPage<T extends { readonly id: string }>(
+  page: (after: { starting_after?: string }) => Promise<{ readonly data: readonly T[]; readonly has_more: boolean }>
+): Promise<T[]> {
+  const found: T[] = [];
+  let after: string | undefined;
+
+  for (;;) {
+    const { data, has_more: more } = await page(after ? { starting_after: after } : {});
+
+    found.push(...data);
+    after = data.at(-1)?.id;
+
+    if (!more || !after) {
+      return found;
+    }
   }
 }

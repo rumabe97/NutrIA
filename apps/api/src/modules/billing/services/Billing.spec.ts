@@ -48,6 +48,7 @@ function harness(
     configured: options.configured ?? true,
     createCustomer: jest.fn<(email: string, userId: string) => Promise<string>>().mockResolvedValue('cus_new'),
     event: jest.fn(() => (options.event === undefined ? event('invoice.paid', {}) : options.event)),
+    expireOpenCheckouts: jest.fn<(customerId: string) => Promise<void>>().mockResolvedValue(undefined),
     portalUrl: jest.fn<(customerId: string, returnUrl: string) => Promise<string>>().mockResolvedValue('https://billing.stripe.com/p/session'),
     prices: jest.fn(async () => PRICES),
     subscription: jest.fn<(id: string) => Promise<SubscriptionSnapshot>>().mockResolvedValue(SNAPSHOT),
@@ -169,12 +170,45 @@ describe('BillingService', () => {
   });
 
   /* Deleted since, or never made: a 500 here is a delivery Stripe retries for days. */
-  it('acknowledges a subscription whose account does not exist, and writes nothing', async () => {
-    const { apply, service } = harness({ event: event('customer.subscription.updated', { id: 'sub_1' }) });
+  it('acknowledges a subscription whose account does not exist, writes nothing, and cancels it at Stripe while it is live', async () => {
+    const { apply, gateway, service } = harness({ event: event('customer.subscription.updated', { id: 'sub_1' }) });
 
     apply.mockResolvedValue('absent');
 
     await expect(service.webhook(Buffer.from('{}'), 'signed')).resolves.toBeUndefined();
+    expect(gateway.cancel).toHaveBeenCalledWith('sub_1');
+  });
+
+  it('does not cancel again a subscription of a missing account that has already ended', async () => {
+    const { apply, gateway, service } = harness({ event: event('customer.subscription.deleted', { id: 'sub_1' }) });
+
+    apply.mockResolvedValue('absent');
+    gateway.subscription.mockResolvedValue({ ...SNAPSHOT, status: 'canceled' });
+
+    await expect(service.webhook(Buffer.from('{}'), 'signed')).resolves.toBeUndefined();
+    expect(gateway.cancel).not.toHaveBeenCalled();
+  });
+
+  /* Still charging with nobody behind it: fail, so Stripe delivers again and the cancel is tried again. */
+  it('fails the delivery when the cancel for a missing account fails', async () => {
+    const { apply, gateway, service } = harness({ event: event('customer.subscription.updated', { id: 'sub_1' }) });
+
+    apply.mockResolvedValue('absent');
+    gateway.cancel.mockRejectedValue(new Error('Stripe is unreachable'));
+
+    await expect(service.webhook(Buffer.from('{}'), 'signed')).rejects.toThrow('Stripe is unreachable');
+  });
+
+  /* No account named and a customer nobody knows: not made here, so not this service's to cancel. */
+  it('leaves alone a subscription that names no account and whose customer nobody knows', async () => {
+    const { apply, gateway, owner, service } = harness({ event: event('customer.subscription.created', { id: 'sub_1' }) });
+
+    owner.mockResolvedValue(null);
+    gateway.subscription.mockResolvedValue({ ...SNAPSHOT, userIdHint: null });
+
+    await expect(service.webhook(Buffer.from('{}'), 'signed')).resolves.toBeUndefined();
+    expect(apply).not.toHaveBeenCalled();
+    expect(gateway.cancel).not.toHaveBeenCalled();
   });
 
   it('writes nothing when Stripe cannot be asked, so that Stripe retries', async () => {
@@ -218,6 +252,25 @@ describe('BillingService', () => {
 
       expect(gateway.subscriptionsOf).toHaveBeenCalledWith('cus_1');
       expect(gateway.cancel.mock.calls).toEqual([['sub_live'], ['sub_second_tab']]);
+    });
+
+    /* Expired first: no checkout can become a subscription after the list is read. */
+    it('expires its open checkouts before it reads its subscriptions', async () => {
+      const { gateway, service } = harness({ customer: 'cus_1' });
+
+      await service.cancelEverything('usr-ana');
+
+      expect(gateway.expireOpenCheckouts).toHaveBeenCalledWith('cus_1');
+      expect(gateway.expireOpenCheckouts.mock.invocationCallOrder[0]).toBeLessThan(gateway.subscriptionsOf.mock.invocationCallOrder[0] ?? 0);
+    });
+
+    it('fails, so the deletion does not happen, when an open checkout cannot be expired', async () => {
+      const { gateway, service } = harness({ customer: 'cus_1' });
+
+      gateway.expireOpenCheckouts.mockRejectedValue(new Error('Stripe is unreachable'));
+
+      await expect(service.cancelEverything('usr-ana')).rejects.toThrow('Stripe is unreachable');
+      expect(gateway.subscriptionsOf).not.toHaveBeenCalled();
     });
 
     /* The account stays: a deletion to retry beats a card charged for an account that is gone. */

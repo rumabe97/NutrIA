@@ -138,6 +138,11 @@ export class BillingService {
    * cancelled, now. Somebody whose account is gone must not be charged for it
    * next month, and nothing here would ever notice that they were.
    *
+   * Open checkouts are expired first, so none can turn into a subscription
+   * once the list below has been read. One that completed before its expiry
+   * is in that list. Should a subscription slip through anyway, the webhook
+   * cancels it when Stripe announces it (`webhook`).
+   *
    * A failure throws, and the deletion does not happen: the account stays and
    * the person can try again, which is better than an account gone and a card
    * still charged. Without Stripe set up there is nothing to cancel, and an
@@ -149,6 +154,8 @@ export class BillingService {
     if (!customerId) {
       return;
     }
+
+    await this.stripe.expireOpenCheckouts(customerId);
 
     const open = (await this.stripe.subscriptionsOf(customerId)).filter(subscription => !hasEnded(subscription.status));
 
@@ -182,7 +189,20 @@ export class BillingService {
    * An account that does not exist — one the metadata names but that was
    * never made, or one deleted since, whose renewals Stripe still sends — is
    * acknowledged and nothing is written. A 500 there is a delivery Stripe
-   * retries for days, and it can never succeed.
+   * retries for days, and it can never succeed. If that subscription is still
+   * live it is cancelled at Stripe first: it can only be ours, since the
+   * metadata is read from Stripe and only this product's checkout writes it,
+   * and nobody is left to use what it charges for. A checkout that finished
+   * while its account was being deleted ends here. If the cancel fails, the
+   * answer is a 500 and Stripe's retry tries again.
+   *
+   * A customer nobody knows, with no account named at all, is left alone.
+   * Every subscription this product has ever opened carries the account in
+   * its metadata, and a deleted account's customer row goes with it, so the
+   * metadata is still there to name it. A subscription with neither was not
+   * made here: the owner's own, from the dashboard, or another product's on
+   * the same Stripe account. Cancelling it would be charging nobody by
+   * breaking something that is not this service's to break.
    */
   async webhook(payload: unknown, signature: string | undefined): Promise<void> {
     const event = Buffer.isBuffer(payload) && signature ? this.stripe.event(payload, signature) : null;
@@ -197,7 +217,7 @@ export class BillingService {
       return;
     }
 
-    const { customerId, userIdHint } = await this.stripe.subscription(subscriptionId);
+    const { customerId, status, userIdHint } = await this.stripe.subscription(subscriptionId);
     const userId = (await BillingController.userOfCustomer(customerId)) ?? userIdHint;
 
     if (!userId) {
@@ -210,7 +230,13 @@ export class BillingService {
 
     switch (outcome) {
       case 'absent':
-        this.logger.warn(`Subscription ${subscriptionId} names an account that does not exist; nothing written`);
+        if (!hasEnded(status)) {
+          await this.stripe.cancel(subscriptionId);
+          this.logger.warn(`Subscription ${subscriptionId} names an account that does not exist; cancelled at Stripe, nothing written`);
+        } else {
+          this.logger.warn(`Subscription ${subscriptionId} names an account that does not exist; nothing written`);
+        }
+
         break;
       case 'kept':
         this.logger.log(`Subscription ${subscriptionId}: Stripe's answer does not replace what is stored; nothing written`);
