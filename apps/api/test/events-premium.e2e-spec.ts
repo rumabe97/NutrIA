@@ -10,6 +10,7 @@ import {
   activeShoppingList,
   completeOnboarding,
   createApp,
+  deleteAccounts,
   dish,
   generateAndWait,
   httpServer,
@@ -90,6 +91,8 @@ describe('events on premium', () => {
   /** The same fortnight after the first rebuild, and the event it was rebuilt for. */
   let after: PlanView;
   let race: AddedEventDto;
+  /** Every account this suite registered, so `afterAll` can delete each one. */
+  const made: string[] = [];
 
   /** The shape the person chooses; the same one the free suite proves at generation, so the bounds are known to accept it. */
   const shape = { carbs: 'up', daysBefore: 2, fat: 'down', protein: 'same' } as const;
@@ -130,7 +133,9 @@ describe('events on premium', () => {
     expect(glutenId).not.toBe('');
 
     athlete = await register(app, `premium-event-${stamp}@e2e.invalid`);
+    made.push(athlete.cookie);
     celiac = await register(app, `premium-celiac-${stamp}@e2e.invalid`);
+    made.push(celiac.cookie);
     await completeOnboarding(app, athlete);
     // Trace-sensitive, so oats count too: the library's breakfasts carry bread
     // and oats, and the premise of the safety case is that neither may be served.
@@ -159,6 +164,7 @@ describe('events on premium', () => {
       }
     }
 
+    await deleteAccounts(app, made);
     await app?.close();
   });
 

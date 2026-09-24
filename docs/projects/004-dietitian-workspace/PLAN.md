@@ -160,11 +160,22 @@ then the documents. Each phase ends green.
 - [ ] pending
 - **Dispatch**: sonnet @ medium — `/execute-project 004 phase 6`
 - **Goal**: when a linked client checks in, their professional is told once, and the message carries nothing about their health.
-- **Scope**: `packages/database/src/schemas/_enums.ts`, one generated migration, `packages/core/src/controllers/{CheckIn,Notification}`, `apps/api/src/modules/{check-ins,notifications,email}`, `apps/api/test`.
+- **Scope**: `packages/database/src/schemas/_enums.ts`, one generated migration, `packages/core/src/controllers/{CheckIn,Notification,Care}`, `apps/api/src/modules/{check-ins,notifications,email,care}`, `apps/api/test` (step 4 adds `Care` and `care`).
 - **Steps**:
   1. `checkin_submitted` added to `notificationType`.
   2. After `CheckInController.submit` succeeds, and only for a client with an `active` link, a background task tells the professional by mail and push, following `CheckInReminderService`'s shape (record the notification, dedupe on it, `EmailService.send`, `PushService.send`). Text: the client's name and a link to `/consulta`; no answer, no weight, no word about health.
   3. Once per check-in: a retried request or a second worker does not send twice.
+  4. **Owner's decision, 2026-09-24: the check-in's kcal nudge never touches a professional's targets.** Today
+     `CheckInController.submit` calls `updateTargets` with no setter, so a supervised client who answers hungry or full
+     turns the whole override into their own, macros included (Phase 4's LOG notes).
+     - When the client has an `active` link **and** their override carries `setByProfessionalId`: skip the nudge. The
+       targets, and their mark, stay exactly as they are.
+     - The check-in is still recorded, and the professional is told as in step 2.
+     - The professional's read of that check-in, through `withClient`, carries the kcal the nudge would have set
+       (`suggestedKcal`, computed, no column). The professional applies it, or doesn't, through Phase 4's targets route.
+     - Step 2's message still says nothing about it: the suggestion lives behind the audited read, never in a mail or a
+       push.
+     - With no link, or with targets the client set themselves, the nudge works as today.
 - **Acceptance criteria**: PRD 10.
 - **Verification**:
   ```
@@ -187,7 +198,20 @@ then the documents. Each phase ends green.
   4. `ProfessionalGuard` also requires `practiceOpen` for the client routes; the workspace itself still opens to show the way to pay.
   5. `POST /care/invitations` refuses when active links plus unexpired invitations reach `includedClients`: a 409 `PRACTICE_FULL` whose body says the included number and that the larger plan or ending a link are the ways up.
   6. `PlanController.tierOf`: behind the `professional` flag, a client with an `active` link to an open practice is `premium`, before the column is read.
-- **Acceptance criteria**: PRD 13, 17 (the refusal and the plan change), 14 (a lapse deletes nothing).
+  7. **Owner's decision, 2026-09-24: when a link ends, the targets stay but become the client's own.**
+     - In the same transaction that sets a link `ended`, whoever ends it: clear `setByProfessionalId` on the client's
+       target override, but only where it names that link's professional. The numbers are untouched.
+     - A second professional then sees no earlier professional's name, and the client's screens show the targets as
+       their own.
+     - A **pause** (this phase's lapse, step 3) keeps the mark. The link can come back, and the targets are still that
+       professional's while it is paused.
+     - Deleting the professional's account already clears it (`on delete set null`).
+     - Tests:
+       - end by the client, and end by the professional: the mark is cleared and the numbers are equal before and
+         after;
+       - a lapse and a resume keep the mark;
+       - another professional's mark on the same client, which can't exist today, is never touched by this link's end.
+- **Acceptance criteria**: PRD 13, 17 (the refusal and the plan change), 14 (a lapse deletes nothing). Step 7 is the owner's decision of 2026-09-24.
 - **Verification**:
   ```
   pnpm turbo lint ts:check test

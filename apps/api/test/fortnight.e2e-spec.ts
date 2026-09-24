@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
-import { completeOnboarding, createApp, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import { completeOnboarding, createApp, deleteAccounts, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
 
 import type { Account } from './harness.js';
 import type { CheckInResultView, CheckInStatusView } from 'core/controllers/CheckIn';
@@ -26,6 +26,8 @@ describe('living the fortnight', () => {
   let account: Account;
   let stranger: Account;
   let plan: PlanView;
+  /** Every account this suite registered, so `afterAll` can delete each one. */
+  const made: string[] = [];
 
   const activePlan = async (): Promise<PlanView> => {
     const response: Response = await request(httpServer(app)).get(`/${PREFIX}/meal-plans/active`).set('Cookie', account.cookie).expect(200);
@@ -39,7 +41,9 @@ describe('living the fortnight', () => {
     const stamp = Date.now();
 
     account = await register(app, `fortnight-${stamp}@e2e.invalid`);
+    made.push(account.cookie);
     stranger = await register(app, `fortnight-other-${stamp}@e2e.invalid`);
+    made.push(stranger.cookie);
     await completeOnboarding(app, account);
     await completeOnboarding(app, stranger);
 
@@ -50,6 +54,7 @@ describe('living the fortnight', () => {
   });
 
   afterAll(async () => {
+    await deleteAccounts(app, made);
     await app?.close();
   });
 

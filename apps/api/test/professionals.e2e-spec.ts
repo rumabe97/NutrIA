@@ -4,7 +4,7 @@ import request from 'supertest';
 import { ProfessionalController } from 'core/controllers/Professional';
 import { UserController } from 'core/controllers/User';
 
-import { activate, createApp, httpServer, PREFIX, register, ScriptedAiClient } from './harness.js';
+import { activate, createApp, deleteAccounts, httpServer, PREFIX, register, ScriptedAiClient } from './harness.js';
 
 import type { Account } from './harness.js';
 import type { AccountView, Paged } from 'core/controllers/User';
@@ -37,6 +37,8 @@ describe('professionals', () => {
   let owner: Account;
   let ordinary: Account;
   let granted: Account;
+  /** Every account this suite registered, so `afterAll` can delete each one. */
+  const made: string[] = [];
 
   async function professionals(): Promise<readonly ProfessionalAccountView[]> {
     const listed: Response = await request(httpServer(app)).get(`/${PREFIX}/admin/professionals`).set('Cookie', owner.cookie).expect(200);
@@ -73,8 +75,11 @@ describe('professionals', () => {
     const stamp = Date.now();
 
     owner = await register(app, `pro-owner-${stamp}@e2e.invalid`);
+    made.push(owner.cookie);
     ordinary = await register(app, `pro-user-${stamp}@e2e.invalid`);
+    made.push(ordinary.cookie);
     granted = await register(app, `pro-granted-${stamp}@e2e.invalid`);
+    made.push(granted.cookie);
     await UserController.grantAdmin(owner.email);
     // On for the whole suite, so every "changed nothing" below is checked with
     // the switch in the position where a row *would* open the workspace.
@@ -87,6 +92,7 @@ describe('professionals', () => {
       await setSwitch(false);
     }
 
+    await deleteAccounts(app, made);
     await app?.close();
   });
 
@@ -138,6 +144,7 @@ describe('professionals', () => {
     const cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
     const me: Response = await request(server).get(`/${PREFIX}/users/me`).set('Cookie', cookie).expect(200);
 
+    made.push(cookie);
     await expectOrdinary({ id: (me.body as { id: string }).id, cookie, email });
   });
 

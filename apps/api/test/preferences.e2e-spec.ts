@@ -1,7 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
-import { completeOnboarding, createApp, dish, generateAndWait, httpServer, PREFIX, register, ScriptedAiClient, SEEDED } from './harness.js';
+import {
+  completeOnboarding,
+  createApp,
+  deleteAccounts,
+  dish,
+  generateAndWait,
+  httpServer,
+  PREFIX,
+  register,
+  ScriptedAiClient,
+  SEEDED
+} from './harness.js';
 
 import type { Account } from './harness.js';
 import type { FullProfileView } from 'core/controllers/Profile';
@@ -133,6 +144,8 @@ const POOL = [
 
 describe('preferences are enforced, not requested', () => {
   let app: INestApplication;
+  /** Every account this suite registered, so `afterAll` can delete each one. */
+  const made: string[] = [];
 
   const mealNames = (plan: PlanView) => plan.days.flatMap(day => day.meals.map(meal => meal.name.toLowerCase()));
 
@@ -147,12 +160,14 @@ describe('preferences are enforced, not requested', () => {
   });
 
   afterAll(async () => {
+    await deleteAccounts(app, made);
     await app?.close();
   });
 
   it('never serves fish to somebody who said they dislike fish', async () => {
     const account = await register(app, `dislike-fish-${Date.now()}@e2e.invalid`);
 
+    made.push(account.cookie);
     await completeOnboarding(app, account);
     await request(httpServer(app))
       .patch(`/${PREFIX}/onboarding`)
@@ -175,6 +190,7 @@ describe('preferences are enforced, not requested', () => {
   it('never serves meat or fish to a vegetarian, whatever the model proposes', async () => {
     const account = await register(app, `vegetarian-${Date.now()}@e2e.invalid`);
 
+    made.push(account.cookie);
     await completeOnboarding(app, account);
     await request(httpServer(app))
       .patch(`/${PREFIX}/onboarding`)
@@ -194,6 +210,7 @@ describe('preferences are enforced, not requested', () => {
   it('keeps a preference that cannot be matched, and says it cannot enforce it', async () => {
     const account = await register(app, `unenforceable-${Date.now()}@e2e.invalid`);
 
+    made.push(account.cookie);
     await completeOnboarding(app, account);
     await request(httpServer(app))
       .patch(`/${PREFIX}/onboarding`)

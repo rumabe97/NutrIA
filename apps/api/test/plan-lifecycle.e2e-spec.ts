@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
-import { completeOnboarding, createApp, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import { completeOnboarding, createApp, deleteAccounts, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
 
 import { PlanJobController } from 'core/controllers/Plan';
 import { QuotaExceededError } from 'core/entities/Error';
@@ -25,6 +25,8 @@ describe('plan lifecycle', () => {
   let account: Account;
   let stranger: Account;
   let plan: PlanView;
+  /** Every account this suite registered, so `afterAll` can delete each one. */
+  const made: string[] = [];
 
   const activePlan = async (who: Account): Promise<PlanView> => {
     const response: Response = await request(httpServer(app)).get(`/${PREFIX}/meal-plans/active`).set('Cookie', who.cookie).expect(200);
@@ -38,7 +40,9 @@ describe('plan lifecycle', () => {
     const stamp = Date.now();
 
     account = await register(app, `lifecycle-${stamp}@e2e.invalid`);
+    made.push(account.cookie);
     stranger = await register(app, `lifecycle-other-${stamp}@e2e.invalid`);
+    made.push(stranger.cookie);
     await completeOnboarding(app, account);
     // Finished too, so a refusal below is about ownership and not about a
     // half-filled profile — those are different guards and different codes.
@@ -51,6 +55,7 @@ describe('plan lifecycle', () => {
   });
 
   afterAll(async () => {
+    await deleteAccounts(app, made);
     await app?.close();
   });
 
@@ -81,6 +86,7 @@ describe('plan lifecycle', () => {
     const stamp = Date.now();
     const skipper = await register(app, `no-breakfast-${stamp}@e2e.invalid`);
 
+    made.push(skipper.cookie);
     await completeOnboarding(app, skipper);
     // No breakfast, and a light dinner: the two things the old question — a
     // count of meals — could not say (`0036`).

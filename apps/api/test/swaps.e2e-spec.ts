@@ -5,6 +5,7 @@ import {
   activeShoppingList,
   completeOnboarding,
   createApp,
+  deleteAccounts,
   generateAndWait,
   httpServer,
   POOL,
@@ -35,6 +36,8 @@ describe('meal swaps', () => {
   let account: Account;
   let stranger: Account;
   let plan: PlanView;
+  /** Every account this suite registered, so `afterAll` can delete each one. */
+  const made: string[] = [];
 
   const activePlan = async (who: Account): Promise<PlanView> => {
     const response: Response = await request(httpServer(app)).get(`/${PREFIX}/meal-plans/active`).set('Cookie', who.cookie).expect(200);
@@ -54,7 +57,9 @@ describe('meal swaps', () => {
     const stamp = Date.now();
 
     account = await register(app, `swap-${stamp}@e2e.invalid`);
+    made.push(account.cookie);
     stranger = await register(app, `swap-other-${stamp}@e2e.invalid`);
+    made.push(stranger.cookie);
     await completeOnboarding(app, account);
     // Finished too, so the refusal below is about ownership rather than about a
     // half-filled profile.
@@ -67,6 +72,7 @@ describe('meal swaps', () => {
   });
 
   afterAll(async () => {
+    await deleteAccounts(app, made);
     await app?.close();
   });
 
