@@ -124,6 +124,29 @@ export const ProfileRepository = {
     }
   },
 
+  /**
+   * The override's raw setter, or null with no override or no professional's.
+   * `findTargetOverride`'s `setBy` is a *view* — an override with every field
+   * null resolves as "no override at all" (`resolveTargets`), which would
+   * report `self` even though the column names a professional. A caller asking
+   * only "did a professional set this" (`CheckInController.submit`, Phase 6's
+   * nudge guard) reads the column directly rather than through a view built to
+   * answer a different question.
+   */
+  async findTargetSetterId(userId: string): Promise<string | null> {
+    try {
+      const [row] = await database()
+        .select({ setByProfessionalId: targetOverrides.setByProfessionalId })
+        .from(targetOverrides)
+        .where(eq(targetOverrides.userId, userId))
+        .limit(1);
+
+      return row?.setByProfessionalId ?? null;
+    } catch (error: unknown) {
+      throw wrap(error, 'target_overrides');
+    }
+  },
+
   async setCuisines(userId: string, cuisines: readonly string[]): Promise<void> {
     try {
       const db = database();

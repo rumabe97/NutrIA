@@ -136,7 +136,7 @@ then the documents. Each phase ends green.
 
 ### Phase 5 — Review before publishing
 
-- [x] done — `test:e2e -- care-review care` 81/81 and the whole suite 290/290 on a throwaway Postgres; the pull request's CI runs it again
+- [x] done — `test:e2e -- care-review care` 81/81 and the whole suite 290/290 on a throwaway Postgres; the pull request's CI runs it again — commit `2d48c09` ("Project 004 phase 5: review before publishing (#93)")
 - **Dispatch**: opus @ high — `/execute-project 004 phase 5`
 - **Goal**: for a linked client with review on, a new plan is the professional's to look at, change and publish before the client sees it; for everybody else nothing moves.
 - **Scope**: `packages/database/src/schemas/{_enums.ts,plan.schema.ts}`, one generated migration, `packages/core/src/{repositories/Plan,controllers/Plan,controllers/CheckIn}`, `apps/api/src/modules/{meal-plans,care}`, `apps/api/test`.
@@ -157,7 +157,7 @@ then the documents. Each phase ends green.
 
 ### Phase 6 — A check-in reaches the professional
 
-- [ ] pending
+- [x] done — `pnpm turbo lint ts:check test build` 12/12, 641/641 tests; local `test:e2e -- care fortnight` not run on this machine (ICU mismatch, see LOG); the pull request's CI runs the whole suite against a real `postgres:17`
 - **Dispatch**: sonnet @ medium — `/execute-project 004 phase 6`
 - **Goal**: when a linked client checks in, their professional is told once, and the message carries nothing about their health.
 - **Scope**: `packages/database/src/schemas/_enums.ts`, one generated migration, `packages/core/src/controllers/{CheckIn,Notification,Care}`, `apps/api/src/modules/{check-ins,notifications,email,care}`, `apps/api/test` (step 4 adds `Care` and `care`).

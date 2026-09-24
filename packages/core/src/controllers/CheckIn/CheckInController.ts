@@ -1,13 +1,16 @@
+import { CareRepository } from '#repositories/Care';
 import { CheckInRepository } from '#repositories/CheckIn';
 import { ConflictError, NotFoundError } from 'core/entities/Error';
 import { PlanRepository } from '#repositories/Plan';
 import { ProfileController } from 'core/controllers/Profile';
+import { ProfileRepository } from '#repositories/Profile';
 import { ProgressRepository } from '#repositories/Progress';
 
 import { DIFFICULTY_RATING, HUNGER_RATING } from 'core/entities/CheckIn';
 
 import type { DifficultyAnswer, HungerAnswer, SubmitCheckIn } from 'core/entities/CheckIn';
 import type { PlanStats } from '#repositories/CheckIn';
+import type { ResolvedTargets } from 'core/domain/Nutrition';
 
 /**
  * How far the calorie target moves on "I was left hungry" / "it was too much"
@@ -55,6 +58,38 @@ export function isCheckInDue(plan: { readonly endDate: string }, answered: boole
 
 function answerFor<T extends string>(table: Record<T, number>, rating: number | null, fallback: T): T {
   return (Object.keys(table) as T[]).find(key => table[key] === rating) ?? fallback;
+}
+
+/**
+ * What the portion nudge would move kcal to, from a set of targets — the exact
+ * formula `submit` applies, exported so a professional's read of a check-in
+ * (`CareController.overview`) can show the same number as a suggestion,
+ * without a second copy of the maths (`0059`, Phase 6). Null for "right", and
+ * null when the clamp leaves the figure unchanged.
+ */
+export function nudgedKcal(hunger: HungerAnswer, targets: Pick<ResolvedTargets, 'bounds' | 'effective'>): number | null {
+  if (hunger === 'right') {
+    return null;
+  }
+
+  const factor = hunger === 'hungry' ? 1 + PORTION_NUDGE : 1 - PORTION_NUDGE;
+  const toKcal = Math.round(Math.min(Math.max(targets.effective.kcal * factor, targets.bounds.floorKcal), targets.bounds.ceilingKcal));
+
+  return toKcal !== Math.round(targets.effective.kcal) ? toKcal : null;
+}
+
+/**
+ * Whether this fortnight's nudge is somebody else's to give — an `active` link
+ * **and** a stored override that names a professional (owner's decision,
+ * 2026-09-24). The raw column, not `findTargetOverride`'s merged `setBy`: an
+ * override with every numeric field null resolves as "no override at all"
+ * (`resolveTargets`), which would read as `self` even though the column names
+ * a professional.
+ */
+async function supervisedElsewhere(userId: string): Promise<boolean> {
+  const [link, setterId] = await Promise.all([CareRepository.clientLink(userId), ProfileRepository.findTargetSetterId(userId)]);
+
+  return link?.link.status === 'active' && setterId !== null;
 }
 
 export const CheckInController = {
@@ -111,7 +146,20 @@ export const CheckInController = {
    * see *none* and both land — and everything below the insert runs per accepted
    * check-in, so the calorie target moved by two nudges for one fortnight.
    * `CheckInRepository.create` returns nothing when the plan already has its
-   * check-in, and that refusal happens before any of it.
+   * check-in, and that refusal happens before any of it. The same uniqueness is
+   * what makes a professional's notification (the caller's job, once this
+   * returns) at most once too: a retried request or a concurrent one never
+   * gets a second `recorded` row to act on.
+   *
+   * **The nudge never touches a professional's targets** (owner's decision,
+   * 2026-09-24): with an `active` link whose override carries
+   * `setByProfessionalId`, the answer is still recorded and the weight still
+   * logged, but the targets and their mark stay exactly as they are — a
+   * supervised client answering "hungry" must not silently make the whole
+   * override their own, macros included (Phase 4's `LOG.md` note). The
+   * professional sees the number the nudge would have set through their own
+   * read of the check-in (`nudgedKcal`, `CareController.overview`) and applies
+   * it, or does not, through their own targets route.
    */
   async submit(userId: string, input: SubmitCheckIn): Promise<CheckInResultView> {
     // A plan under review is not found here either (`0060`).
@@ -144,14 +192,13 @@ export const CheckInController = {
 
     let targets: CheckInResultView['targets'] = null;
 
-    if (input.hunger !== 'right') {
+    if (input.hunger !== 'right' && !(await supervisedElsewhere(userId))) {
       const current = (await ProfileController.getFullProfile(userId)).targets;
 
       if (current) {
-        const factor = input.hunger === 'hungry' ? 1 + PORTION_NUDGE : 1 - PORTION_NUDGE;
-        const toKcal = Math.round(Math.min(Math.max(current.effective.kcal * factor, current.bounds.floorKcal), current.bounds.ceilingKcal));
+        const toKcal = nudgedKcal(input.hunger, current);
 
-        if (toKcal !== Math.round(current.effective.kcal)) {
+        if (toKcal !== null) {
           await ProfileController.updateTargets(userId, { kcal: toKcal });
           targets = { fromKcal: Math.round(current.effective.kcal), toKcal };
         }
