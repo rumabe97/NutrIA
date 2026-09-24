@@ -32,6 +32,25 @@ fi
 PORT=$(sed -n 's/^PORT=//p' "$ENV_FILE" | tail -n 1)
 PREFIX=$(sed -n 's/^API_PREFIX=//p' "$ENV_FILE" | tail -n 1)
 
-exec "$STRIPE" listen \
-  --events checkout.session.completed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted \
-  --forward-to "localhost:${PORT:-3001}/${PREFIX:-api/v1}/billing/webhook"
+# The CLI exits when its websocket to Stripe drops (seen: "i/o timeout" on a
+# ping), and nothing brings it back — so a flaky connection left `pnpm dev`
+# running with no forwarder and every payment stuck on free. It is restarted
+# after a pause; stopping `pnpm dev` (INT/TERM) ends the loop, not just one run.
+# Each child runs in the background and is waited on, because a shell only
+# acts on a signal between commands: a foreground `sleep` or `stripe` would
+# hold the stop back, and the child would outlive the loop.
+set +e
+child=
+trap '[ -n "$child" ] && kill "$child" 2>/dev/null; exit 0' INT TERM
+
+while true; do
+  "$STRIPE" listen \
+    --events checkout.session.completed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted \
+    --forward-to "localhost:${PORT:-3001}/${PREFIX:-api/v1}/billing/webhook" &
+  child=$!
+  wait "$child"
+  echo "[stripe] listen stopped (exit $?) — restarting in 5 s; events sent meanwhile are lost, re-send them from the dashboard"
+  sleep 5 &
+  child=$!
+  wait "$child"
+done

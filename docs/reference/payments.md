@@ -143,7 +143,10 @@ four events the webhook acts on to `localhost:<PORT>/<API_PREFIX>/billing/webhoo
 needs the Stripe CLI installed and `stripe login` done once; without either, or without
 `STRIPE_SECRET_KEY` in `apps/api/.env`, it says so and steps aside. The `whsec_…` it
 prints is the **local** `STRIPE_WEBHOOK_SECRET` — the same on every run on one machine,
-and different from the dashboard endpoint's.
+and different from the dashboard endpoint's. The CLI exits when its connection to Stripe
+drops, so the script restarts it after five seconds; an event sent while it was down is
+lost, and the way to recover one is any change to the subscription in the dashboard
+(a metadata key will do) — the webhook re-reads the subscription, whatever the event.
 
 ## 4. What gets built (agent) — built 2026-09-13 (`0056`)
 
