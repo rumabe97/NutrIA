@@ -19,6 +19,7 @@ export type ApiErrorCode =
   | 'NOT_FOUND'
   | 'ONBOARDING_INCOMPLETE'
   | 'PLAN_PAUSED'
+  | 'PRACTICE_FULL'
   | 'QUOTA_EXCEEDED'
   | 'REQUEST_ERROR'
   | 'UNSAFE_CONTENT';
@@ -32,7 +33,9 @@ export class ApiError extends Error {
     /** ISO date a spent allowance renews, when the API said so. */
     public readonly retryAt: string | null = null,
     /** The link `CARE_LINK_EXISTS` names — the professional, since when, its status. Null for every other code. */
-    public readonly link: { professionalName: string; since: string; status: 'active' | 'paused' } | null = null
+    public readonly link: { professionalName: string; since: string; status: 'active' | 'paused' } | null = null,
+    /** The number `PRACTICE_FULL` names — how many clients the practice's plan includes. Null for every other code. */
+    public readonly practice: { includedClients: number } | null = null
   ) {
     super(message);
     this.name = 'ApiError';
@@ -55,6 +58,7 @@ const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   NOT_FOUND: 'notFound',
   ONBOARDING_INCOMPLETE: 'onboardingIncomplete',
   PLAN_PAUSED: 'planPaused',
+  PRACTICE_FULL: 'practiceFull',
   QUOTA_EXCEEDED: 'quotaExceeded',
   REQUEST_ERROR: 'request',
   UNSAFE_CONTENT: 'unsafeContent'
@@ -103,15 +107,24 @@ export async function api<T>(path: string, { body, headers, ...options }: Option
   const payload: unknown = await response.json().catch(() => ({}));
 
   if (!response.ok) {
-    const { code, fieldErrors, link, message, retryAt } = payload as {
+    const { code, fieldErrors, link, message, practice, retryAt } = payload as {
       code?: ApiErrorCode;
       fieldErrors?: Record<string, string[]>;
       link?: { professionalName: string; since: string; status: 'active' | 'paused' };
       message?: string;
+      practice?: { includedClients: number };
       retryAt?: string;
     };
 
-    throw new ApiError(code ?? 'REQUEST_ERROR', message ?? 'Request failed', response.status, fieldErrors ?? {}, retryAt ?? null, link ?? null);
+    throw new ApiError(
+      code ?? 'REQUEST_ERROR',
+      message ?? 'Request failed',
+      response.status,
+      fieldErrors ?? {},
+      retryAt ?? null,
+      link ?? null,
+      practice ?? null
+    );
   }
 
   return payload as T;

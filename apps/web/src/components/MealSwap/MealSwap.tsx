@@ -15,9 +15,18 @@ import { interpolate } from 'lib/format';
 import type { SwapAxis } from 'core/entities/Plan';
 
 interface MealSwapProps {
-  limit: number;
+  /**
+   * The swaps this plan allows and has left. Omitted where they are not known —
+   * a professional's swap on the plan under review (`0060`), which the API
+   * still counts — and then `notes` says what the count would have.
+   */
+  limit?: number;
   mealId: string;
-  remaining: number;
+  /** The footer's line, idle and once spent, when there is no count to say it with. */
+  notes?: { readonly idle: string; readonly spent: string };
+  /** Where the swap is asked for. The client's own route unless a professional's is given. */
+  path?: string;
+  remaining?: number;
   /** Prep and cooking of the current dish, so "quicker" can say what it means. */
   totalMinutes: number;
 }
@@ -36,7 +45,7 @@ type Choice = 'any' | SwapAxis;
  * result, and a refresh is the whole navigation. Errors stay on the panel's
  * own line — a spent allowance and "nothing like that fits" are answers.
  */
-export function MealSwap({ limit, mealId, remaining, totalMinutes }: MealSwapProps) {
+export function MealSwap({ limit, mealId, notes, path = `/meal-plans/meals/${mealId}/swap`, remaining, totalMinutes }: MealSwapProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const t = dictionary.meal;
@@ -48,7 +57,7 @@ export function MealSwap({ limit, mealId, remaining, totalMinutes }: MealSwapPro
   const [choice, setChoice] = useState<Choice>('any');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
-  const [left, setLeft] = useState(remaining);
+  const [left, setLeft] = useState(remaining ?? Number.POSITIVE_INFINITY);
   const spent = left <= 0;
 
   /*
@@ -83,7 +92,7 @@ export function MealSwap({ limit, mealId, remaining, totalMinutes }: MealSwapPro
     setPending(true);
 
     try {
-      await api(`/meal-plans/meals/${mealId}/swap`, { body: { axis: choice === 'any' ? undefined : choice }, method: 'POST' });
+      await api(path, { body: { axis: choice === 'any' ? undefined : choice }, method: 'POST' });
       setLeft(count => Math.max(count - 1, 0));
       setOpen(false);
       router.refresh();
@@ -100,11 +109,16 @@ export function MealSwap({ limit, mealId, remaining, totalMinutes }: MealSwapPro
     }
   }
 
-  const hint = spent
-    ? interpolate(t.swapSpent, { limit })
-    : left === 1
-      ? interpolate(t.swapHintOne, { limit })
-      : interpolate(t.swapHint, { limit, remaining: left });
+  const hint =
+    limit === undefined
+      ? spent
+        ? (notes?.spent ?? '')
+        : (notes?.idle ?? '')
+      : spent
+        ? interpolate(t.swapSpent, { limit })
+        : left === 1
+          ? interpolate(t.swapHintOne, { limit })
+          : interpolate(t.swapHint, { limit, remaining: left });
 
   return (
     <div className={styles.root} ref={root} tabIndex={-1}>
@@ -122,7 +136,7 @@ export function MealSwap({ limit, mealId, remaining, totalMinutes }: MealSwapPro
         variant="secondary"
       >
         {spent ? t.swapSpentShort : t.swap}
-        {spent ? null : <span className={styles.count}>{interpolate(t.swapCount, { limit, remaining: left })}</span>}
+        {spent || limit === undefined ? null : <span className={styles.count}>{interpolate(t.swapCount, { limit, remaining: left })}</span>}
       </Button>
 
       {open ? (

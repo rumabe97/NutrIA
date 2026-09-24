@@ -1,0 +1,74 @@
+.list {
+  display: grid;
+  gap: var(--gap-block);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item {
+  border-top: 1px solid var(--border-01);
+  display: grid;
+  gap: var(--space-02);
+  padding-top: var(--space-04);
+}
+
+.item:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.head {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-04);
+  justify-content: space-between;
+}
+
+.title {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
+.percent {
+  font-size: var(--font-size-05);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+}
+
+.track {
+  background-color: var(--color-hover);
+  block-size: 0.375rem;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.bar {
+  background-color: var(--color-brand-fill);
+  block-size: 100%;
+  border-radius: var(--radius-full);
+}
+
+.answers {
+  color: var(--foreground-02);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-02);
+  gap: var(--space-01) var(--space-04);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* A suggestion, not a change: set apart by an edge and said in words, not by colour alone. */
+.suggestion {
+  background-color: var(--surface-sunken);
+  border-inline-start: 3px solid var(--color-brand-fill);
+  border-radius: var(--radius-control);
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  margin: 0;
+  padding: var(--space-02) var(--space-04);
+}
