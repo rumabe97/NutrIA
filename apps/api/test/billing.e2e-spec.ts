@@ -288,15 +288,15 @@ describe('billing', () => {
   async function account(on: Deployment, label: string, role: 'admin' | 'user' = 'user'): Promise<Account> {
     serial += 1;
 
-    const made_ = await register(on.app, `billing-${stamp}-${serial}-${label}@e2e.invalid`);
+    const registered = await register(on.app, `billing-${stamp}-${serial}-${label}@e2e.invalid`);
 
-    made.push({ app: on.app, cookie: made_.cookie });
+    made.push({ app: on.app, cookie: registered.cookie });
 
     if (role === 'admin') {
-      await UserController.grantAdmin(made_.email);
+      await UserController.grantAdmin(registered.email);
     }
 
-    return made_;
+    return registered;
   }
 
   const ids = (label: string) => ({ customer: `cus_${stamp}_${label}`, subscription: `sub_${stamp}_${label}` });
