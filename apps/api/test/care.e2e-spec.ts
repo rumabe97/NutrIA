@@ -1861,7 +1861,7 @@ describe('care', () => {
         });
 
         it('carries the kcal the nudge would have set on the professional’s own read, never on the client’s', async () => {
-          type CareCheckIn = { hunger: string | null; planId: string; suggestedKcal: number | null };
+          type CareCheckIn = { checkIn: { hunger: string | null; suggestedKcal: number | null } | null; planId: string };
           const page = (await overview(setter, checkinLinkId).expect(200)).body as Overview & {
             progress: { fortnights: readonly CareCheckIn[] };
             targets: ResolvedTargets;
@@ -1870,8 +1870,8 @@ describe('care', () => {
           const expected = nudgedKcal('hungry', page.targets);
 
           expect(expected).not.toBeNull();
-          expect(fortnight?.hunger).toBe('hungry');
-          expect(fortnight?.suggestedKcal).toBe(expected);
+          expect(fortnight?.checkIn?.hunger).toBe('hungry');
+          expect(fortnight?.checkIn?.suggestedKcal).toBe(expected);
 
           // Never on the client's own reads.
           const mine: Response = await request(server()).get(`/${PREFIX}/progress/summary`).set('Cookie', checkinClient.cookie).expect(200);
@@ -1898,12 +1898,12 @@ describe('care', () => {
             .send({ difficulty: 'ok', hunger: 'right', planId: rightPlan.id, satisfaction: 5 })
             .expect(201);
 
-          type CareCheckIn = { hunger: string | null; planId: string; suggestedKcal: number | null };
+          type CareCheckIn = { checkIn: { hunger: string | null; suggestedKcal: number | null } | null; planId: string };
           const page = (await overview(setter, rightLinkId).expect(200)).body as Overview & { progress: { fortnights: readonly CareCheckIn[] } };
           const fortnight = page.progress.fortnights.find(row => row.planId === rightPlan.id);
 
-          expect(fortnight?.hunger).toBe('right');
-          expect(fortnight?.suggestedKcal).toBeNull();
+          expect(fortnight?.checkIn?.hunger).toBe('right');
+          expect(fortnight?.checkIn?.suggestedKcal).toBeNull();
         });
       });
     });
