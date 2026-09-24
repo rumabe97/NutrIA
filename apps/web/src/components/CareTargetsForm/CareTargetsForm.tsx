@@ -20,6 +20,8 @@ import type { ResolvedTargets } from 'core/domain/Nutrition';
 
 type Draft = { carbsG: string; fatG: string; kcal: string; proteinG: string };
 
+const FIELDS = ['kcal', 'proteinG', 'carbsG', 'fatG'] as const;
+
 interface CareTargetsFormProps {
   linkId: string;
   targets: ResolvedTargets;
@@ -41,6 +43,9 @@ export function CareTargetsForm({ linkId, targets }: CareTargetsFormProps) {
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
   const [errors, setErrors] = useState<readonly string[]>([]);
+  // Which fields the schema refused. The API's sentence for a field is the validator's, in English, so the
+  // field says so in the reader's words; the personalised bounds come back under `targets`, verbatim.
+  const [invalid, setInvalid] = useState<ReadonlySet<keyof Draft>>(new Set());
   const [draft, setDraft] = useState<Draft>(() => toDraft(targets));
   const trigger = useRef<HTMLButtonElement>(null);
   const firstField = useRef<HTMLInputElement>(null);
@@ -64,6 +69,7 @@ export function CareTargetsForm({ linkId, targets }: CareTargetsFormProps) {
 
   async function save(body: Record<string, number | null>) {
     setErrors([]);
+    setInvalid(new Set());
     setPending(true);
 
     try {
@@ -73,6 +79,7 @@ export function CareTargetsForm({ linkId, targets }: CareTargetsFormProps) {
     } catch (caught) {
       const named = caught instanceof ApiError ? caught.fieldErrors.targets : undefined;
 
+      setInvalid(new Set(FIELDS.filter(field => caught instanceof ApiError && (caught.fieldErrors[field]?.length ?? 0) > 0)));
       setErrors(
         named && named.length > 0 ? named : [caught instanceof ApiError && caught.code === 'NOT_FOUND' ? t.gone : messageFor(caught, dictionary)]
       );
@@ -118,6 +125,7 @@ export function CareTargetsForm({ linkId, targets }: CareTargetsFormProps) {
           }}
         >
           <Input
+            error={invalid.has('kcal') ? t.targetsFieldInvalid : undefined}
             hint={interpolate(t.targetsBounds, {
               max: formatNumber(Math.floor(bounds.ceilingKcal), locale),
               min: formatNumber(Math.ceil(bounds.floorKcal), locale)
@@ -129,6 +137,7 @@ export function CareTargetsForm({ linkId, targets }: CareTargetsFormProps) {
             value={draft.kcal}
           />
           <Input
+            error={invalid.has('proteinG') ? t.targetsFieldInvalid : undefined}
             hint={interpolate(labels.hintUpTo, { max: formatNumber(Math.floor(bounds.proteinCeilingG), locale) })}
             inputMode="numeric"
             label={labels.labelProtein}
@@ -136,12 +145,14 @@ export function CareTargetsForm({ linkId, targets }: CareTargetsFormProps) {
             value={draft.proteinG}
           />
           <Input
+            error={invalid.has('carbsG') ? t.targetsFieldInvalid : undefined}
             inputMode="numeric"
             label={labels.labelCarbs}
             onChange={event => setDraft({ ...draft, carbsG: event.target.value })}
             value={draft.carbsG}
           />
           <Input
+            error={invalid.has('fatG') ? t.targetsFieldInvalid : undefined}
             inputMode="numeric"
             label={labels.labelFat}
             onChange={event => setDraft({ ...draft, fatG: event.target.value })}
@@ -157,6 +168,7 @@ export function CareTargetsForm({ linkId, targets }: CareTargetsFormProps) {
               onClick={() => {
                 setDraft(toDraft(targets));
                 setErrors([]);
+                setInvalid(new Set());
                 setEditing(false);
               }}
               type="button"

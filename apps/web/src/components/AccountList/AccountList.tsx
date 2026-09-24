@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -49,6 +49,27 @@ export function AccountList({ accounts, premium, professionalIds }: AccountListP
   const [error, setError] = useState<string>();
   const [granting, setGranting] = useState<string>();
   const [numberError, setNumberError] = useState<string>();
+  const grantTriggers = useRef(new Map<string, HTMLButtonElement>());
+  const rowElements = useRef(new Map<string, HTMLLIElement>());
+  const closedGrant = useRef<{ id: string; granted: boolean }>(undefined);
+
+  // The grant form unmounts with focus inside it. Back to the button that opened it after a cancel;
+  // to the row itself after a grant, because that button leaves once the list is read again.
+  useEffect(() => {
+    const closed = closedGrant.current;
+
+    if (granting !== undefined || !closed) {
+      return;
+    }
+
+    closedGrant.current = undefined;
+    (closed.granted ? rowElements.current.get(closed.id) : grantTriggers.current.get(closed.id))?.focus();
+  }, [granting]);
+
+  function closeGrant(id: string, granted: boolean) {
+    closedGrant.current = { id, granted };
+    setGranting(undefined);
+  }
 
   async function activate(id: string) {
     const previous = rows;
@@ -94,7 +115,7 @@ export function AccountList({ accounts, premium, professionalIds }: AccountListP
 
     try {
       await api(`/admin/accounts/${encodeURIComponent(id)}/professional`, { body: { collegiateNumber }, method: 'POST' });
-      setGranting(undefined);
+      closeGrant(id, true);
       router.refresh();
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === 'INVALID_INPUT') {
@@ -119,7 +140,18 @@ export function AccountList({ accounts, premium, professionalIds }: AccountListP
     <div className={styles.root}>
       <ul className={styles.list}>
         {rows.map(account => (
-          <li className={styles.row} key={account.id}>
+          <li
+            className={styles.row}
+            key={account.id}
+            ref={element => {
+              if (element) {
+                rowElements.current.set(account.id, element);
+              } else {
+                rowElements.current.delete(account.id);
+              }
+            }}
+            tabIndex={-1}
+          >
             <span className={styles.who}>
               <span className={styles.email}>{account.email}</span>
               <span className={styles.state}>
@@ -181,6 +213,13 @@ export function AccountList({ accounts, premium, professionalIds }: AccountListP
                     setNumberError(undefined);
                     setGranting(account.id);
                   }}
+                  ref={element => {
+                    if (element) {
+                      grantTriggers.current.set(account.id, element);
+                    } else {
+                      grantTriggers.current.delete(account.id);
+                    }
+                  }}
                   size="sm"
                   type="button"
                   variant="secondary"
@@ -214,7 +253,7 @@ export function AccountList({ accounts, premium, professionalIds }: AccountListP
                   <Button disabled={pending === undefined ? false : pending !== account.id} loading={pending === account.id} size="sm" type="submit">
                     {t.professionalGrant}
                   </Button>
-                  <Button disabled={pending === account.id} onClick={() => setGranting(undefined)} size="sm" type="button" variant="secondary">
+                  <Button disabled={pending === account.id} onClick={() => closeGrant(account.id, false)} size="sm" type="button" variant="secondary">
                     {dictionary.common.cancel}
                   </Button>
                 </span>

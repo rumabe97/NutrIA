@@ -39,7 +39,8 @@ interface CareGenerateButtonProps {
 /** The failures the professional can do nothing about but wait for the client; everything else is worth another try. */
 const INCOMPLETE = new Set(['GENERATION_ONBOARDING_INCOMPLETE', 'GENERATION_PROFILE_INCOMPLETE']);
 
-type Phase = { kind: 'failed'; message: string } | { kind: 'idle' } | { kind: 'running'; step: string | null };
+type Phase =
+  { kind: 'done'; pendingReview: boolean } | { kind: 'failed'; message: string } | { kind: 'idle' } | { kind: 'running'; step: string | null };
 
 /**
  * Starts a generation for a client through their link and follows it to the
@@ -91,7 +92,8 @@ export function CareGenerateButton({ disabled = false, hint, label, linkId, vari
 
       if (current.status === 'succeeded') {
         router.refresh();
-        setPhase({ kind: 'idle' });
+        // Said where the button is: the new plan appears elsewhere on the page, and a refresh announces nothing.
+        setPhase({ kind: 'done', pendingReview: current.pendingReview });
 
         return;
       }
@@ -141,6 +143,10 @@ export function CareGenerateButton({ disabled = false, hint, label, linkId, vari
       {running ? (
         <Text as="p" className={styles.line} role="status" size="sm" tone="secondary">
           {phase.step ? stepLabel(phase.step, dictionary) : t.generating}
+        </Text>
+      ) : phase.kind === 'done' ? (
+        <Text as="p" className={styles.line} key="done" role="status" size="sm" tone="secondary">
+          {phase.pendingReview ? t.generateDoneReview : t.generateDoneDirect}
         </Text>
       ) : phase.kind === 'failed' ? (
         <p className={styles.error} role="alert">
