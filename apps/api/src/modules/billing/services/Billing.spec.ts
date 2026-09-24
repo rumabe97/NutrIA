@@ -471,6 +471,24 @@ describe('BillingService — a practice', () => {
     await expect(service.portal(PERSON)).resolves.toEqual({ url: 'https://billing.stripe.com/p/session' });
   });
 
+  it('returns from the portal to the workspace for a practice’s subscription, and to the profile otherwise', async () => {
+    const { gateway, service } = harness({ customer: 'cus_1', professional: true });
+
+    gateway.subscriptionsOf.mockResolvedValue([{ ...SNAPSHOT, priceId: 'price_practice_30' }]);
+    await service.portal(PERSON);
+    expect(gateway.subscriptionsOf).toHaveBeenCalledWith('cus_1');
+    expect(gateway.portalUrl).toHaveBeenLastCalledWith('cus_1', 'https://nutria.example/consulta');
+
+    gateway.subscriptionsOf.mockResolvedValue([SNAPSHOT]);
+    await service.portal(PERSON);
+    expect(gateway.portalUrl).toHaveBeenLastCalledWith('cus_1', 'https://nutria.example/perfil');
+
+    // A practice that has ended is not where they manage what they pay for now.
+    gateway.subscriptionsOf.mockResolvedValue([{ ...SNAPSHOT, priceId: 'price_practice_30', status: 'canceled' }]);
+    await service.portal(PERSON);
+    expect(gateway.portalUrl).toHaveBeenLastCalledWith('cus_1', 'https://nutria.example/perfil');
+  });
+
   it('offers the plans, the subscription and the trial', async () => {
     const { service } = harness({ professional: true });
 
