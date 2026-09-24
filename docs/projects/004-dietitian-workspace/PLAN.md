@@ -157,7 +157,7 @@ then the documents. Each phase ends green.
 
 ### Phase 6 — A check-in reaches the professional
 
-- [ ] pending
+- [x] done — `pnpm turbo lint ts:check test build` 12/12, 641/641 tests; local `test:e2e -- care fortnight` not run on this machine (ICU mismatch, see LOG); the pull request's CI runs the whole suite against a real `postgres:17`
 - **Dispatch**: sonnet @ medium — `/execute-project 004 phase 6`
 - **Goal**: when a linked client checks in, their professional is told once, and the message carries nothing about their health.
 - **Scope**: `packages/database/src/schemas/_enums.ts`, one generated migration, `packages/core/src/controllers/{CheckIn,Notification,Care}`, `apps/api/src/modules/{check-ins,notifications,email,care}`, `apps/api/test` (step 4 adds `Care` and `care`).

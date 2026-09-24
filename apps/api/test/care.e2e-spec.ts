@@ -5,6 +5,7 @@ import { CARE_CONSENT_VERSION, CARE_HEALTH_SHARED, CARE_SHARED } from 'core/enti
 import { CareController } from 'core/controllers/Care';
 import { HEALTH_CONSENT_VERSION } from 'core/entities/Health';
 import { NotFoundError } from 'core/entities/Error';
+import { nudgedKcal } from 'core/controllers/CheckIn';
 import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
@@ -14,6 +15,8 @@ import { EmailService } from '../src/modules/email/services/index.js';
 import type { Account } from './harness.js';
 import type { AcceptInvitation } from 'core/entities/Care';
 import type { CareInvitationDetailView, CareLinkView, CareSession } from 'core/controllers/Care';
+import type { CheckInResultView } from 'core/controllers/CheckIn';
+import type { PlanView } from 'core/controllers/Plan';
 import type { ProfessionalAccountView } from 'core/controllers/Professional';
 import type { ResolvedTargets } from 'core/domain/Nutrition';
 import type { INestApplication } from '@nestjs/common';
@@ -1336,6 +1339,53 @@ describe('care', () => {
       });
     });
 
+    /*
+     * `CareController.activeProfessional` end to end (project 004 Phase 6; PRD
+     * criterion 10) — who a client's check-in notice goes to. Exercised by
+     * calling core directly against the real database, the way
+     * `reminders.e2e-spec.ts` exercises `NotificationController.checkInDue`:
+     * the e2e environment never configures mail or push (see ./README.md), so
+     * `CheckInSubmittedService.notify` no-ops at its first line and never
+     * writes a `notifications` row the HTTP surface could observe. This is
+     * where the eligibility itself — the real link and grant rows — is
+     * checked instead.
+     */
+    describe('CareController.activeProfessional', () => {
+      it('finds the professional of an active link, by id and address', async () => {
+        await expect(CareController.activeProfessional(underWay.id)).resolves.toEqual({ id: readerA.id, email: readerA.email });
+      });
+
+      it('is null for a paused link', async () => {
+        await expect(CareController.activeProfessional(paused.id)).resolves.toBeNull();
+      });
+
+      it('is null for an ended link', async () => {
+        await expect(CareController.activeProfessional(ended.id)).resolves.toBeNull();
+      });
+
+      it('is null with no link at all', async () => {
+        const alone = await account('checkin-no-link');
+
+        await expect(CareController.activeProfessional(alone.id)).resolves.toBeNull();
+      });
+
+      it('is null once the professional’s grant is revoked, even though the link row stays active', async () => {
+        const revokedPro = await account('checkin-pro-revoked');
+        const revokedClient = await account('checkin-pro-revoked-client');
+
+        await grant(revokedPro);
+        const linkId = await link(revokedPro, revokedClient);
+
+        await expect(CareController.activeProfessional(revokedClient.id)).resolves.toEqual({ id: revokedPro.id, email: revokedPro.email });
+
+        await request(server()).delete(`/${PREFIX}/admin/accounts/${revokedPro.id}/professional`).set('Cookie', owner.cookie).expect(204);
+
+        // At the door, as `access that closes` proves for the HTTP route — the link row is untouched.
+        await expect(CareController.activeProfessional(revokedClient.id)).resolves.toBeNull();
+        await expect(myLink(revokedClient)).resolves.toMatchObject({ id: linkId, status: 'active' });
+      });
+    });
+
     describe('the client’s trail, paged', () => {
       it('comes newest first, a hundred at a time, every row exactly once — rows a microsecond apart included', async () => {
         const client = await account('reader-paged');
@@ -1744,6 +1794,119 @@ describe('care', () => {
         expect(await targetRows(kept)).toEqual([
           expect.objectContaining({ action: 'write', professionalId: null, professionalName: nameOf(leaving) })
         ]);
+      });
+
+      /*
+       * The check-in's nudge is somebody else's to give (project 004 Phase 6;
+       * PRD criterion 10, owner's decision 2026-09-24). A supervised client
+       * answering "hungry" or "full" must not silently turn a professional's
+       * override into their own — the check-in is still recorded, the weight
+       * still logged, but the targets and their `setByProfessionalId` mark
+       * stand exactly as they were. The professional's own read carries the
+       * kcal the nudge would have set; the client's own reads never do.
+       */
+      describe('a check-in from a client whose targets a professional set', () => {
+        let checkinClient: Account;
+        let checkinLinkId: string;
+        let plan: PlanView;
+
+        beforeAll(async () => {
+          checkinClient = await account('targets-checkin');
+          await completeOnboarding(app, checkinClient);
+
+          // Generated before the link exists: a link's `reviewBeforePublish` (on by
+          // default, project 004 Phase 5) only holds back a plan generated *after*
+          // it — this suite is not about that gate, so the client gets their plan
+          // the ordinary way, then is linked and put under supervision.
+          const job = await generateAndWait(app, checkinClient);
+
+          expect(job.status).toBe('succeeded');
+
+          const active: Response = await request(server()).get(`/${PREFIX}/meal-plans/active`).set('Cookie', checkinClient.cookie).expect(200);
+
+          plan = active.body as PlanView;
+
+          checkinLinkId = await link(setter, checkinClient);
+
+          const target = Math.round((await ownTargets(checkinClient)).computed.kcal) - 120;
+
+          await setTargets(setter, checkinLinkId, { kcal: target }).expect(200);
+        });
+
+        it('is recorded, with the weight logged, and does not move the professional’s targets', async () => {
+          const before = await overrideRow(checkinClient);
+
+          expect(before?.setByProfessionalId).toBe(setter.id);
+
+          const response: Response = await request(server())
+            .post(`/${PREFIX}/check-ins`)
+            .set('Cookie', checkinClient.cookie)
+            .send({ difficulty: 'ok', hunger: 'hungry', planId: plan.id, satisfaction: 4, weightKg: 71 })
+            .expect(201);
+          const body = response.body as CheckInResultView;
+
+          expect(body.targets).toBeNull();
+          expect(body.weightLogged).toBe(true);
+          // Byte-identical: not just the same kcal, the same row.
+          expect(await overrideRow(checkinClient)).toEqual(before);
+
+          // Still recorded: a second submission for the same plan is a conflict, not a silent no-op.
+          await request(server())
+            .post(`/${PREFIX}/check-ins`)
+            .set('Cookie', checkinClient.cookie)
+            .send({ difficulty: 'ok', hunger: 'hungry', planId: plan.id, satisfaction: 4, weightKg: 71 })
+            .expect(409);
+
+          const status: Response = await request(server()).get(`/${PREFIX}/check-ins/status`).set('Cookie', checkinClient.cookie).expect(200);
+
+          expect(status.body).toMatchObject({ done: true });
+        });
+
+        it('carries the kcal the nudge would have set on the professional’s own read, never on the client’s', async () => {
+          type CareCheckIn = { checkIn: { hunger: string | null; suggestedKcal: number | null } | null; planId: string };
+          const page = (await overview(setter, checkinLinkId).expect(200)).body as Overview & {
+            progress: { fortnights: readonly CareCheckIn[] };
+            targets: ResolvedTargets;
+          };
+          const fortnight = page.progress.fortnights.find(row => row.planId === plan.id);
+          const expected = nudgedKcal('hungry', page.targets);
+
+          expect(expected).not.toBeNull();
+          expect(fortnight?.checkIn?.hunger).toBe('hungry');
+          expect(fortnight?.checkIn?.suggestedKcal).toBe(expected);
+
+          // Never on the client's own reads.
+          const mine: Response = await request(server()).get(`/${PREFIX}/progress/summary`).set('Cookie', checkinClient.cookie).expect(200);
+
+          expect(JSON.stringify(mine.body)).not.toContain('suggestedKcal');
+        });
+
+        it('carries no suggestion for a check-in that answered "right"', async () => {
+          const right = await account('targets-checkin-right');
+
+          await completeOnboarding(app, right);
+
+          const job = await generateAndWait(app, right);
+
+          expect(job.status).toBe('succeeded');
+
+          const active: Response = await request(server()).get(`/${PREFIX}/meal-plans/active`).set('Cookie', right.cookie).expect(200);
+          const rightPlan = active.body as PlanView;
+          const rightLinkId = await link(setter, right);
+
+          await request(server())
+            .post(`/${PREFIX}/check-ins`)
+            .set('Cookie', right.cookie)
+            .send({ difficulty: 'ok', hunger: 'right', planId: rightPlan.id, satisfaction: 5 })
+            .expect(201);
+
+          type CareCheckIn = { checkIn: { hunger: string | null; suggestedKcal: number | null } | null; planId: string };
+          const page = (await overview(setter, rightLinkId).expect(200)).body as Overview & { progress: { fortnights: readonly CareCheckIn[] } };
+          const fortnight = page.progress.fortnights.find(row => row.planId === rightPlan.id);
+
+          expect(fortnight?.checkIn?.hunger).toBe('right');
+          expect(fortnight?.checkIn?.suggestedKcal).toBeNull();
+        });
       });
     });
   });
