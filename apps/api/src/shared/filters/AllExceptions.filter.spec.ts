@@ -99,6 +99,39 @@ describe('AllExceptionsFilter', () => {
     expect(body).toEqual({ code: 'INTERNAL_ERROR', message: 'Algo ha ido mal. Inténtalo de nuevo.', statusCode: 500 });
   });
 
+  /* What `express.raw` / `express.json` throw: `http-errors` with a status and a `type`. */
+  function parserError(message: string, status: number, type: string): Error {
+    return Object.assign(new Error(message), { expose: true, status, statusCode: status, type });
+  }
+
+  it('answers a body the parsers refused with the client status, not a 500', () => {
+    expect(capture(parserError('request entity too large', 413, 'entity.too.large')).body).toEqual({
+      code: 'REQUEST_ERROR',
+      message: 'La petición es demasiado grande.',
+      statusCode: HttpStatus.PAYLOAD_TOO_LARGE
+    });
+    expect(capture(parserError('unsupported content encoding "br"', 415, 'encoding.unsupported')).body.statusCode).toBe(
+      HttpStatus.UNSUPPORTED_MEDIA_TYPE
+    );
+    expect(capture(parserError('request aborted', 400, 'request.aborted')).body.statusCode).toBe(HttpStatus.BAD_REQUEST);
+  });
+
+  it('does not log or report a refused body as a server failure', () => {
+    const report = jest.fn();
+    const filter = new AllExceptionsFilter({ report } as never);
+    const json = jest.fn();
+    const host = {
+      switchToHttp: () => ({ getRequest: () => ({ method: 'POST' }), getResponse: () => ({ status: () => ({ json }) }) })
+    } as unknown as ArgumentsHost;
+
+    filter.catch(parserError('request entity too large', 413, 'entity.too.large'), host);
+    expect(report).not.toHaveBeenCalled();
+  });
+
+  it('still hides an unknown error that merely carries a `type`', () => {
+    expect(capture(Object.assign(new Error('boom'), { type: 'StripeConnectionError' })).body.statusCode).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+  });
+
   it('passes through a Nest HttpException status', () => {
     expect(capture(new BadRequestException('bad')).body.statusCode).toBe(HttpStatus.BAD_REQUEST);
   });

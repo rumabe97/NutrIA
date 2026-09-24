@@ -1,6 +1,6 @@
 import { BillingRepository } from '#repositories/Billing';
 import { UserRepository } from '#repositories/User';
-import { paysForPremium } from 'core/domain/Billing';
+import { payingSibling, paysForPremium, replacesStored } from 'core/domain/Billing';
 
 import type { SubscriptionRecord } from '#repositories/Billing';
 
@@ -34,24 +34,76 @@ export const BillingController = {
   /**
    * Stripe's word on a subscription becomes the tier (`0056`).
    *
-   * The webhook is the only caller, with a subscription it has just fetched
-   * from Stripe rather than the one inside the event, so the order events
-   * arrive in cannot leave an old state standing. Resolves to the tier written.
+   * The webhook is the only caller. `latest` asks Stripe for the subscription
+   * and is called with the account locked, just before the write, so of two
+   * deliveries for one account the one that writes last also asked last: the
+   * order their answers come back in cannot leave an old state standing. What
+   * it answers is written only if it may replace what is stored
+   * (`replacesStored`).
+   *
+   * An answer that no longer pays is not written while the customer has
+   * another subscription that still does (`payingSibling`): that one is
+   * written instead, so the tier does not drop while a card is still being
+   * charged for it. `siblings` lists the customer's subscriptions, under the
+   * same lock, and is asked only then.
+   *
+   * The account's customer is never replaced by another: a subscription of a
+   * different customer than the one stored is `mismatch`, and nothing is
+   * written. One account has one customer (`customerFor`), so a second one is
+   * something to look at, not to follow.
+   *
+   * Resolves to the tier written, `kept` when Stripe's answer was older than
+   * what is stored, `mismatch`, or `absent` when the account does not exist —
+   * deleted, or never this product's — and then nothing is written and
+   * Stripe is not asked.
    */
-  async applySubscription(userId: string, record: SubscriptionRecord): Promise<'free' | 'premium'> {
-    const tier = paysForPremium(record.status) ? 'premium' : 'free';
+  async applySubscription(
+    userId: string,
+    latest: () => Promise<SubscriptionRecord>,
+    siblings: (customerId: string) => Promise<readonly SubscriptionRecord[]>
+  ): Promise<'absent' | 'free' | 'kept' | 'mismatch' | 'premium'> {
+    let tier: 'free' | 'premium' = 'free';
+    let mismatch = false;
+    const outcome = await BillingRepository.recordSubscription(userId, async stored => {
+      const answer = await latest();
 
-    await BillingRepository.recordSubscription(userId, record, tier);
+      if (stored && stored.customerId !== answer.customerId) {
+        mismatch = true;
 
-    return tier;
+        return null;
+      }
+
+      if (!replacesStored(stored, answer)) {
+        return null;
+      }
+
+      const record = paysForPremium(answer.status) ? answer : (payingSibling(answer, await siblings(answer.customerId)) ?? answer);
+
+      tier = paysForPremium(record.status) ? 'premium' : 'free';
+
+      return { record, tier };
+    });
+
+    if (mismatch) {
+      return 'mismatch';
+    }
+
+    return outcome === 'written' ? tier : outcome;
+  },
+
+  /**
+   * Who somebody is to Stripe, made the first time it is asked. `create` makes
+   * the customer at Stripe and is called with the account locked, so two
+   * checkouts started at once make one customer between them: the second waits,
+   * then finds the first one's. Resolves to `null` when the account does not
+   * exist, and then `create` is never called.
+   */
+  async customerFor(userId: string, create: () => Promise<string>): Promise<string | null> {
+    return BillingRepository.customerFor(userId, create);
   },
 
   async customerOf(userId: string): Promise<string | null> {
     return (await BillingRepository.findByUser(userId))?.customerId ?? null;
-  },
-
-  async rememberCustomer(userId: string, customerId: string): Promise<void> {
-    await BillingRepository.saveCustomer(userId, customerId);
   },
 
   /**
