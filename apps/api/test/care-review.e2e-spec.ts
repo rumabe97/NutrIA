@@ -624,16 +624,23 @@ describe('care review', () => {
         since: expect.any(String),
         status: 'active'
       });
-      // Anything but the one field is refused, and changes nothing.
+      // A value that is not a yes or a no is refused, and writes nothing.
       await expect(
         rowsWrittenBy(unreviewed.id, () =>
-          request(server())
-            .patch(clientPath(links.unreviewed))
-            .set('Cookie', proA.cookie)
-            .send({ reviewBeforePublish: true, sharesHealth: true })
-            .expect(422)
+          request(server()).patch(clientPath(links.unreviewed)).set('Cookie', proA.cookie).send({ reviewBeforePublish: 'no' }).expect(422)
         )
       ).resolves.toEqual([]);
+
+      // The client's consent is not the professional's to widen: another field in the body changes nothing.
+      await request(server())
+        .patch(clientPath(links.unreviewed))
+        .set('Cookie', proA.cookie)
+        .send({ reviewBeforePublish: false, sharesHealth: true })
+        .expect(200);
+
+      const [row] = await tables()<{ sharesHealth: boolean }>`select shares_health as "sharesHealth" from care_links where id = ${links.unreviewed}`;
+
+      expect(row?.sharesHealth).toBe(false);
       expect(await stageOf(proA, links.unreviewed)).toMatchObject({ reviewBeforePublish: false });
     });
 
