@@ -341,6 +341,16 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   ownership boundary there — and every other case is one 404. `shared/logging` rewrites the
   token out of the logged URL and `referer`. One open link per client is a partial unique
   index; accepting into it is 409 `CARE_LINK_EXISTS`, naming the link in the way.
+- **Delegated reading** (`0059`): `GET /care/clients` and `GET /care/clients/:linkId` are
+  `CareClientsController` (`ProfessionalGuard` on the class). A professional route takes a
+  link id and hands it to a core method built on `CareController.withClient` — the only path
+  from a professional's session to a client's id, and the one that writes the client's
+  `care_access_log` row; a professional route whose service reaches any other core method
+  with client data is a P0. The client page writes one `overview` row, plus one `health` row
+  only when the link shares health, and has no `health` key otherwise; the list writes one
+  `list` row per active client, in the same snapshot it reads their stages from.
+  `GET /care/access-log` is the client's own trail, on `CareLinksController`: no switch, like
+  their link, 100 rows a page (`?before=` the previous page's `next`).
 - **Country** (`0034`): `loadCatalogue(locale, country)` drops ingredients sold only
   elsewhere — `ingredients.countries`, where empty means everywhere. Null country filters
   nothing, which is what an account that never said where it is had before the column.

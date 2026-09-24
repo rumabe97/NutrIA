@@ -72,3 +72,19 @@ export const careLinkStatus = pgEnum('care_link_status', ['active', 'paused', 'e
  * `account` is reserved and has no writer: while deleting an account cascades its link rows away, nothing is left to mark.
  */
 export const careLinkEndedBy = pgEnum('care_link_ended_by', ['professional', 'client', 'lapse', 'account']);
+
+/**
+ * What kind of a client's data a professional reached (`0059`): their entry in
+ * the professional's list (a stage worked out from their data), the overview,
+ * the plans, progress, the targets, the separate health line, or a plan under
+ * review. What the client reads in their own trail, one row per access.
+ *
+ * Adding a value to this or `careAccessAction`: make the reader
+ * (`careAccessEntrySchema`) tolerate unknown values one release before, or
+ * rolling back after a row with the new value is written breaks the old
+ * API's trail for that client.
+ */
+export const careAccessKind = pgEnum('care_access_kind', ['list', 'overview', 'plan', 'progress', 'targets', 'health', 'review']);
+
+/** Whether that access only read, or changed something. */
+export const careAccessAction = pgEnum('care_access_action', ['read', 'write']);

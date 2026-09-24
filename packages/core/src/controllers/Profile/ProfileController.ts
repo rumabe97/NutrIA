@@ -287,6 +287,27 @@ export const ProfileController = {
     await ProfileRepository.setTourSeen(userId, seen);
   },
 
+  /**
+   * The targets alone — computed, corrected, and which is in effect — resolved
+   * exactly as `getFullProfile` resolves them, or null until the profile can
+   * compute them honestly. Its own read for a caller that needs the targets
+   * and nothing else about the person: a professional's overview of a client
+   * (`CareController.overview`) must not load allergies, preferences or free
+   * text it has no consent to show.
+   */
+  async targets(userId: string): Promise<ResolvedTargets | null> {
+    const [profile, goal, preferences, latestWeightKg, override] = await Promise.all([
+      ProfileRepository.findByUserId(userId),
+      ProfileRepository.findActiveGoal(userId),
+      ProfileRepository.findPreferences(userId),
+      ProgressRepository.findLatestWeight(userId),
+      ProfileRepository.findTargetOverride(userId)
+    ]);
+    const input = targetInput(profile, goal, preferences, latestWeightKg);
+
+    return input ? resolveTargets(input, override ?? null) : null;
+  },
+
   async updateGoal(userId: string, input: UpdateGoal): Promise<GoalView> {
     return presentGoal(await ProfileRepository.upsertGoal(userId, input));
   },

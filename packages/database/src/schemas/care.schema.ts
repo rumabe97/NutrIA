@@ -1,9 +1,10 @@
 import { boolean, check, index, pgTable, text, timestamp, unique, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-import { careLinkEndedBy, careLinkStatus } from './_enums';
+import { careAccessAction, careAccessKind, careLinkEndedBy, careLinkStatus } from './_enums';
 import { timestamps } from './_columns';
 import { user } from './auth.schema';
+import { userOwned } from './_utils';
 
 /**
  * A professional's invitation to one address (`0059`).
@@ -94,5 +95,39 @@ export const careLinks = pgTable(
       .on(table.clientId)
       .where(sql`${table.status} in ('active', 'paused')`),
     check('care_links_not_self', sql`${table.professionalId} <> ${table.clientId}`)
+  ]
+);
+
+/**
+ * The client's trail (`0059`, PRD 004 criterion 6): one row for every time a
+ * professional reached this client's data, written by
+ * `CareController.withClient` — the only path there is — before the data is
+ * read.
+ *
+ * Owned by the **client** (`userOwned`: `userId` is the client's, cascading),
+ * so it is theirs to read and goes with their account (criterion 14). The
+ * professional is a reference set null when their account is deleted, with
+ * their name kept as it was then, so the client's record of who looked
+ * survives the professional leaving.
+ *
+ * `createdAt` is when. There is no payload column, on purpose: the trail says
+ * who, what kind of data and whether it was read or changed — never the data
+ * itself, which would make the log a second copy of it.
+ */
+export const careAccessLog = userOwned(
+  'care_access_log',
+  {
+    action: careAccessAction().notNull(),
+    kind: careAccessKind().notNull(),
+    professionalId: text().references(() => user.id, { onDelete: 'set null', onUpdate: 'cascade' }),
+    professionalName: text().notNull()
+  },
+  table => [
+    // What deleting a professional's account sets null by.
+    index('care_access_log_professional_id_idx').on(table.professionalId),
+    // The client's trail, newest first, without a sort (a backward scan). Created with the table: added
+    // later, the migration's plain CREATE INDEX would block every professional read
+    // (each writes a row here first) for the length of the build.
+    index('care_access_log_user_id_created_at_idx').on(table.userId, table.createdAt, table.id)
   ]
 );

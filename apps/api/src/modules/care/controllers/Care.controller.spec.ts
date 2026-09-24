@@ -13,6 +13,7 @@ import { ProfileController } from 'core/controllers/Profile';
 import { AllExceptionsFilter } from '../../../shared/filters/index.js';
 import { BackgroundTaskService } from '../../../shared/services/index.js';
 import { CareAnswersController } from './CareAnswers.controller.js';
+import { CareClientsController } from './CareClients.controller.js';
 import { CareInvitationsController } from './CareInvitations.controller.js';
 import { CareLinksController } from './CareLinks.controller.js';
 import { CareService } from '../services/index.js';
@@ -20,7 +21,7 @@ import { EmailService } from '../../email/services/index.js';
 import { ENV } from '../../../config/index.js';
 import { RateLimitGuard } from '../../../shared/guards/RateLimit.guard.js';
 
-import type { CareLinkView } from 'core/controllers/Care';
+import type { CareAccessPageView, CareClientOverviewView, CareClientsView, CareLinkView } from 'core/controllers/Care';
 import type { INestApplication } from '@nestjs/common';
 import type { OutgoingEmail } from '../../email/services/index.js';
 import type { Server } from 'node:http';
@@ -38,6 +39,49 @@ const LINK: CareLinkView = {
   sharesHealth: false,
   since: '2026-09-23T10:00:00.000Z',
   status: 'active'
+};
+
+const CLIENTS: CareClientsView = {
+  clients: [
+    {
+      linkId: LINK_ID,
+      name: 'Lucía',
+      reviewBeforePublish: true,
+      sharesHealth: false,
+      since: '2026-09-23T10:00:00.000Z',
+      stage: 'plan_under_way',
+      status: 'active'
+    }
+  ],
+  invitations: [{ email: 'nueva@example.invalid', expiresAt: '2026-10-07T10:00:00.000Z' }]
+};
+
+const OVERVIEW: CareClientOverviewView = {
+  client: { linkId: LINK_ID, name: 'Lucía', reviewBeforePublish: true, sharesHealth: false, since: '2026-09-23T10:00:00.000Z', status: 'active' },
+  plan: null,
+  plans: [],
+  progress: {
+    fortnights: [],
+    overall: { adherence: null, eaten: 0, marked: 0 },
+    weight: {
+      changeKg: null,
+      entries: [],
+      fortnightChangeKg: null,
+      goalType: null,
+      latestKg: null,
+      startingWeightKg: null,
+      targetWeightKg: null,
+      toTargetKg: null
+    }
+  },
+  targets: null
+};
+
+const TRAIL: CareAccessPageView = {
+  entries: [
+    { id: '9a8b7c6d-5e4f-4a2b-8b8e-7f4a3c2d4e1f', action: 'read', at: '2026-09-24T10:00:00.000Z', kind: 'overview', professionalName: 'Ana Dietista' }
+  ],
+  next: null
 };
 
 /** Lets the background task's promise chain run: the service deliberately does not await it. */
@@ -60,7 +104,7 @@ describe('care routes', () => {
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
-      controllers: [CareAnswersController, CareInvitationsController, CareLinksController],
+      controllers: [CareAnswersController, CareClientsController, CareInvitationsController, CareLinksController],
       providers: [
         BackgroundTaskService,
         CareService,
@@ -196,6 +240,31 @@ describe('care routes', () => {
       }
     });
 
+    it('answers the professional’s reading routes 404, whatever the path, and reads nothing', async () => {
+      const calls = [jest.spyOn(CareController, 'clients'), jest.spyOn(CareController, 'overview')];
+
+      const responses = [
+        await request(server()).get(`/${PREFIX}/care/clients`).expect(404),
+        await request(server()).get(`/${PREFIX}/care/clients/${LINK_ID}`).expect(404),
+        await request(server()).get(`/${PREFIX}/care/clients/not-a-link`).expect(404)
+      ];
+
+      for (const response of responses) {
+        expect(response.body).toMatchObject({ code: 'NOT_FOUND', statusCode: 404 });
+      }
+
+      for (const call of calls) {
+        expect(call).not.toHaveBeenCalled();
+      }
+    });
+
+    it('still shows the client their own trail — what was read about them stays theirs', async () => {
+      const accessLog = jest.spyOn(CareController, 'accessLog').mockResolvedValue(TRAIL);
+
+      expect((await request(server()).get(`/${PREFIX}/care/access-log`).expect(200)).body).toEqual(TRAIL);
+      expect(accessLog).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), null);
+    });
+
     it('still shows the client their own link — consent stays visible', async () => {
       jest.spyOn(CareController, 'myLink').mockResolvedValue(LINK);
 
@@ -209,6 +278,51 @@ describe('care routes', () => {
 
       await request(server()).delete(`/${PREFIX}/care/links/${LINK_ID}`).expect(204);
       expect(end).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), LINK_ID);
+    });
+  });
+
+  describe('the professional reading their clients', () => {
+    it('is a 404 for an account that is not a professional, and nothing is read', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+      const calls = [jest.spyOn(CareController, 'clients'), jest.spyOn(CareController, 'overview')];
+
+      await request(server()).get(`/${PREFIX}/care/clients`).expect(404);
+      await request(server()).get(`/${PREFIX}/care/clients/${LINK_ID}`).expect(404);
+
+      for (const call of calls) {
+        expect(call).not.toHaveBeenCalled();
+      }
+    });
+
+    it('lists the session’s own clients', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      const clients = jest.spyOn(CareController, 'clients').mockResolvedValue(CLIENTS);
+
+      expect((await request(server()).get(`/${PREFIX}/care/clients`).expect(200)).body).toEqual(CLIENTS);
+      expect(clients).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }));
+    });
+
+    it('reads one client by the link id in the path, for the session, in the reader’s language', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      const overview = jest.spyOn(CareController, 'overview').mockResolvedValue(OVERVIEW);
+
+      const response = await request(server()).get(`/${PREFIX}/care/clients/${LINK_ID}`).set('Accept-Language', 'en-GB').expect(200);
+
+      expect(overview).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), LINK_ID, 'en-GB');
+      expect(response.body).toEqual(OVERVIEW);
+      expect(response.body).not.toHaveProperty('health');
+    });
+
+    it('answers a path that is not a link id with the same 404 as a link that is not the caller’s — never a 400', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+
+      const notALink = await request(server()).get(`/${PREFIX}/care/clients/not-a-link`).expect(404);
+
+      jest.spyOn(CareController, 'overview').mockRejectedValue(new NotFoundError('Client not found'));
+      const notTheirs = await request(server()).get(`/${PREFIX}/care/clients/${LINK_ID}`).expect(404);
+
+      expect(notALink.body).toEqual({ code: 'NOT_FOUND', message: 'Client not found', statusCode: 404 });
+      expect(notTheirs.body).toEqual(notALink.body);
     });
   });
 

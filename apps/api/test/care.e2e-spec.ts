@@ -3,11 +3,12 @@ import request from 'supertest';
 
 import { CARE_CONSENT_VERSION, CARE_HEALTH_SHARED, CARE_SHARED } from 'core/entities/Care';
 import { CareController } from 'core/controllers/Care';
+import { HEALTH_CONSENT_VERSION } from 'core/entities/Health';
 import { NotFoundError } from 'core/entities/Error';
 import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
-import { createApp, httpServer, PREFIX, register, ScriptedAiClient } from './harness.js';
+import { completeOnboarding, createApp, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
 import { EmailService } from '../src/modules/email/services/index.js';
 
 import type { Account } from './harness.js';
@@ -45,6 +46,11 @@ import type { Response } from 'supertest';
  * `professional` switch, failing off — a 404 before any body is read. A
  * client's own link stays theirs to see and to end with the switch off. On for
  * the suite, off again in `afterAll`, as in `professionals.e2e-spec.ts`.
+ *
+ * Phase 3 (PRD criteria 5, 6, 9, 12 and 14) is the last block: the
+ * professional's list and one client's page, reached by link id alone, each
+ * read counted in the client's trail (`care_access_log`) on the table and
+ * through the client's own `GET /care/access-log`.
  *
  * Requires a real database — see ./README.md.
  */
@@ -202,7 +208,8 @@ describe('care', () => {
   }
 
   beforeAll(async () => {
-    app = await createApp(new ScriptedAiClient([]));
+    // A pool, because two clients below have a plan made for them the way anybody does.
+    app = await createApp(new ScriptedAiClient(POOL));
     stamp = Date.now();
     sent = [];
 
@@ -242,9 +249,11 @@ describe('care', () => {
         const suffix = `%-${stamp}@e2e.invalid`;
         const accounts = await tables()<{ id: string }>`select id from "user" where email like ${suffix}`;
         const invitations = await tables()<{ id: string }>`select id from care_invitations where email like ${suffix}`;
+        // Every professional here is named after an address ending in the stamp, and so is every trail row they left.
+        const trail = await tables()<{ id: string }>`select id from care_access_log where professional_name like ${`care-%-${stamp}`}`;
 
-        if (accounts.length > 0 || invitations.length > 0) {
-          throw new Error(`care left ${accounts.length} account(s) and ${invitations.length} invitation(s) behind`);
+        if (accounts.length > 0 || invitations.length > 0 || trail.length > 0) {
+          throw new Error(`care left ${accounts.length} account(s), ${invitations.length} invitation(s) and ${trail.length} trail row(s) behind`);
         }
       }
     } finally {
@@ -774,6 +783,646 @@ describe('care', () => {
       const profile: Response = await request(server()).get(`/${PREFIX}/profile`).set('Cookie', kept.cookie).expect(200);
 
       expect(profile.body).toMatchObject({ profile: { displayName: 'Kept' } });
+    });
+  });
+
+  /*
+   * The professional's side (project 004 Phase 3; PRD criteria 5, 6, 9, 12 and 14).
+   *
+   * Every way a professional reaches a client is a link id, and every reach
+   * leaves rows in the client's trail (`care_access_log`), which the suite
+   * counts on the table itself and reads back through the client's own
+   * `GET /care/access-log`. Counts are taken as a difference around each call,
+   * so a test says exactly how many rows that one call wrote — never "some".
+   *
+   * The two professionals here are fresh, so nothing the blocks above did is
+   * on their lists.
+   */
+  describe('a professional reading a client', () => {
+    type TrailRow = {
+      readonly id: string;
+      readonly action: string;
+      /** UTC, to the microsecond (`YYYY-MM-DDTHH:MM:SS.ffffffZ`): fixed width, so two compare as strings. */
+      readonly createdAt: string;
+      readonly kind: string;
+      readonly professionalId: string | null;
+      readonly professionalName: string;
+    };
+    type Entry = { readonly id: string; readonly action: string; readonly at: string; readonly kind: string; readonly professionalName: string };
+    /** `next` is the id of the last entry when there are more, and the next page's `?before=`. */
+    type Trail = { readonly entries: readonly Entry[]; readonly next: string | null };
+    type ClientRow = {
+      readonly linkId: string;
+      readonly name: string;
+      readonly reviewBeforePublish: boolean;
+      readonly sharesHealth: boolean;
+      readonly since: string;
+      readonly stage: string | null;
+      readonly status: string;
+    };
+    type Roster = { readonly clients: readonly ClientRow[]; readonly invitations: readonly { email: string; expiresAt: string }[] };
+    type Overview = {
+      readonly client: Omit<ClientRow, 'stage'>;
+      readonly health?: { conditions: unknown[]; medications: { name: string }[]; supplements: unknown[] };
+      readonly plan: { id: string } | null;
+      readonly plans: readonly { id: string }[];
+      readonly progress: unknown;
+      readonly targets: unknown;
+    };
+
+    /** The 404 of every refusal past the door: the same body whatever the reason. */
+    const NO_CLIENT = { code: 'NOT_FOUND', message: 'Client not found', statusCode: 404 };
+    /**
+     * The 404 of the door itself (`ProfessionalGuard`): what an account that was
+     * never a professional gets, and so what a revoked one and a switched-off
+     * one must get too.
+     */
+    const NO_DOOR = { code: 'NOT_FOUND', message: 'Not Found', statusCode: 404 };
+    const MEDICATION = 'Levotiroxina de prueba';
+
+    let readerA: Account;
+    let readerB: Account;
+    /** A's clients, one per place a client can be. */
+    let onboarding: Account;
+    let awaiting: Account;
+    let underWay: Account;
+    let due: Account;
+    let paused: Account;
+    let ended: Account;
+    /** B's one client. */
+    let theirs: Account;
+    /** An address A invited that has no account. */
+    let invited: string;
+    const links: Record<string, string> = {};
+
+    /** The client's trail as stored, oldest first. */
+    async function trail(clientId: string): Promise<TrailRow[]> {
+      return tables()<TrailRow>`
+        select id, action::text as action, kind::text as kind, professional_id as "professionalId",
+               professional_name as "professionalName",
+               to_char(created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as "createdAt"
+          from care_access_log
+         where user_id = ${clientId}
+         order by created_at, id`;
+    }
+
+    /** How many trail rows each account has now, keyed by account id. */
+    async function counts(who: readonly Account[]): Promise<Record<string, number>> {
+      const entries = await Promise.all(who.map(async account => [account.id, (await trail(account.id)).length] as const));
+
+      return Object.fromEntries(entries);
+    }
+
+    /** Links `client` to `professional` through the routes, as the two people do. */
+    async function link(professional: Account, client: Account, sharesHealth = false): Promise<string> {
+      const { token } = await invite(professional, client.email);
+      const accepted = await accept(client, token, { consentVersion: CARE_CONSENT_VERSION, sharesHealth });
+
+      expect(accepted.status).toBe(200);
+
+      return (accepted.body as CareLinkView).id;
+    }
+
+    async function roster(professional: Account): Promise<Roster> {
+      const response: Response = await request(server()).get(`/${PREFIX}/care/clients`).set('Cookie', professional.cookie).expect(200);
+
+      return response.body as Roster;
+    }
+
+    /** Not awaited here, so a caller may chain `.expect(200)` on it. */
+    function overview(professional: Account, linkId: string) {
+      return request(server()).get(`/${PREFIX}/care/clients/${linkId}`).set('Cookie', professional.cookie);
+    }
+
+    /** The trail's page before the row `before` names — the first page without it. */
+    function accessLogPage(who: Account, before?: string) {
+      return request(server())
+        .get(`/${PREFIX}/care/access-log`)
+        .query(before === undefined ? {} : { before })
+        .set('Cookie', who.cookie);
+    }
+
+    async function accessLog(who: Account, before?: string): Promise<Trail> {
+      const response: Response = await accessLogPage(who, before).expect(200);
+
+      return response.body as Trail;
+    }
+
+    /** Every page of the client's trail, following `next` until there is none. */
+    async function wholeTrail(who: Account): Promise<{ readonly entries: Entry[]; readonly pages: number[] }> {
+      const entries: Entry[] = [];
+      const pages: number[] = [];
+      let cursor: string | undefined;
+
+      do {
+        const page = await accessLog(who, cursor);
+
+        entries.push(...page.entries);
+        pages.push(page.entries.length);
+        cursor = page.next ?? undefined;
+      } while (cursor && pages.length < 20);
+
+      return { entries, pages };
+    }
+
+    beforeAll(async () => {
+      readerA = await account('reader-a');
+      readerB = await account('reader-b');
+      await grant(readerA);
+      await grant(readerB);
+
+      onboarding = await account('reader-onboarding');
+      awaiting = await account('reader-awaiting');
+      underWay = await account('reader-under-way');
+      due = await account('reader-due');
+      paused = await account('reader-paused');
+      ended = await account('reader-ended');
+      theirs = await account('reader-theirs');
+
+      // Where each one is, made the way a person gets there.
+      await completeOnboarding(app, awaiting);
+      await completeOnboarding(app, underWay);
+      await completeOnboarding(app, due);
+
+      for (const who of [underWay, due]) {
+        await expect(generateAndWait(app, who)).resolves.toMatchObject({ status: 'succeeded' });
+      }
+
+      // The fortnight ended yesterday, UTC — the rule the list reads is `today >= endDate`, and nobody answered it.
+      const yesterday = new Date(Date.now() - DAY_MS).toISOString().slice(0, 10);
+
+      await tables()`update meal_plans set end_date = ${yesterday} where user_id = ${due.id}`;
+
+      // Recorded by the client, under the health consent, before any link exists.
+      await request(server())
+        .put(`/${PREFIX}/health-data`)
+        .set('Cookie', underWay.cookie)
+        .send({
+          conditions: [{ conditionKey: 'hypothyroidism', label: 'Hipotiroidismo' }],
+          consentVersion: HEALTH_CONSENT_VERSION,
+          medications: [{ name: MEDICATION }],
+          supplements: []
+        })
+        .expect(200);
+
+      links.onboarding = await link(readerA, onboarding);
+      links.awaiting = await link(readerA, awaiting);
+      links.underWay = await link(readerA, underWay, true);
+      links.due = await link(readerA, due);
+      links.paused = await link(readerA, paused);
+      links.ended = await link(readerA, ended);
+      links.theirs = await link(readerB, theirs);
+
+      await tables()`update care_links set status = 'paused' where id = ${links.paused}`;
+      await request(server()).delete(`/${PREFIX}/care/links/${links.ended}`).set('Cookie', ended.cookie).expect(204);
+
+      invited = address('reader-invited');
+      await invite(readerA, invited);
+    });
+
+    describe('the list', () => {
+      it('shows each open link by name with where the client is, and the invitations unanswered', async () => {
+        const listed = await roster(readerA);
+
+        // Exhaustive, so a field added to either is a decision.
+        expect(Object.keys(listed).sort()).toEqual(['clients', 'invitations']);
+
+        for (const row of listed.clients) {
+          expect(Object.keys(row).sort()).toEqual(['linkId', 'name', 'reviewBeforePublish', 'sharesHealth', 'since', 'stage', 'status']);
+          expect(Number.isNaN(Date.parse(row.since))).toBe(false);
+        }
+
+        // By name, the ended link absent; a paused one shown, with nothing read about where its client is.
+        expect(listed.clients.map(row => row.linkId)).toEqual([links.awaiting, links.due, links.onboarding, links.paused, links.underWay]);
+        expect(listed.clients.map(row => [row.name, row.status, row.stage])).toEqual([
+          [nameOf(awaiting), 'active', 'awaiting_plan'],
+          [nameOf(due), 'active', 'check_in_due'],
+          [nameOf(onboarding), 'active', 'onboarding'],
+          [nameOf(paused), 'paused', null],
+          [nameOf(underWay), 'active', 'plan_under_way']
+        ]);
+        // Review is on unless somebody turned it off (`care_links` default); nobody here did.
+        expect(listed.clients.find(row => row.linkId === links.underWay)).toMatchObject({ reviewBeforePublish: true, sharesHealth: true });
+        expect(listed.clients.find(row => row.linkId === links.awaiting)).toMatchObject({ sharesHealth: false });
+        expect(listed.invitations).toEqual([{ email: invited, expiresAt: expect.any(String) }]);
+      });
+
+      it('leaves one `list` row in the trail of each client whose place it shows, and none for a paused or ended link', async () => {
+        const shown = [onboarding, awaiting, underWay, due];
+        const before = await counts([...shown, paused, ended, theirs]);
+
+        await roster(readerA);
+
+        const after = await counts([...shown, paused, ended, theirs]);
+
+        for (const who of shown) {
+          expect(after[who.id]).toBe((before[who.id] ?? 0) + 1);
+          expect((await trail(who.id)).at(-1)).toMatchObject({
+            action: 'read',
+            kind: 'list',
+            professionalId: readerA.id,
+            professionalName: nameOf(readerA)
+          });
+        }
+
+        // Paused: access is closed, so nothing was read. Ended: not on the list. B's client: not A's.
+        for (const who of [paused, ended, theirs]) {
+          expect(after[who.id]).toBe(before[who.id]);
+        }
+      });
+
+      it('carries no client’s account id or address', async () => {
+        const body = JSON.stringify(await roster(readerA));
+
+        for (const who of [onboarding, awaiting, underWay, due, paused, ended]) {
+          expect(body).not.toContain(who.id);
+          expect(body).not.toContain(who.email);
+        }
+      });
+    });
+
+    describe('one client’s page', () => {
+      it('writes exactly one row per read, and the client reads the same rows in their trail', async () => {
+        const before = await trail(awaiting.id);
+
+        const first = await overview(readerA, links.awaiting ?? '');
+
+        expect(first.status).toBe(200);
+        expect(await trail(awaiting.id)).toHaveLength(before.length + 1);
+
+        await overview(readerA, links.awaiting ?? '').expect(200);
+
+        const after = await trail(awaiting.id);
+
+        expect(after).toHaveLength(before.length + 2);
+
+        for (const row of after.slice(before.length)) {
+          expect(row).toMatchObject({ action: 'read', kind: 'overview', professionalId: readerA.id, professionalName: nameOf(readerA) });
+        }
+
+        // The same rows through the client's own door, newest first, and nothing that names the professional's account.
+        const read = await accessLog(awaiting);
+
+        expect(Object.keys(read).sort()).toEqual(['entries', 'next']);
+        expect(read.next).toBeNull();
+        expect(read.entries.map(entry => entry.id)).toEqual([...after].reverse().map(row => row.id));
+
+        for (const entry of read.entries) {
+          expect(Object.keys(entry).sort()).toEqual(['action', 'at', 'id', 'kind', 'professionalName']);
+        }
+
+        expect(read.entries[0]).toMatchObject({ action: 'read', kind: 'overview', professionalName: nameOf(readerA) });
+        // The stored instant, to the millisecond an ISO string carries.
+        expect(read.entries[0]?.at).toBe(`${after.at(-1)?.createdAt.slice(0, 23)}Z`);
+        expect(JSON.stringify(read)).not.toContain(readerA.id);
+      });
+
+      it('shows each client their own trail and nobody else’s', async () => {
+        await overview(readerA, links.onboarding ?? '').expect(200);
+
+        const mine = (await accessLog(onboarding)).entries.map(entry => entry.id);
+        const theirsToo = (await accessLog(awaiting)).entries.map(entry => entry.id);
+        const stored = (await trail(onboarding.id)).map(row => row.id);
+
+        expect(mine.length).toBeGreaterThan(0);
+        expect([...mine].sort()).toEqual([...stored].sort());
+        expect(mine.filter(id => theirsToo.includes(id))).toEqual([]);
+
+        // The professional was never read: their own trail is empty, not their clients'.
+        await expect(accessLog(readerA)).resolves.toEqual({ entries: [], next: null });
+      });
+
+      it('has no `health` key without the health line, and a health read under it is refused and leaves nothing', async () => {
+        const before = (await trail(awaiting.id)).length;
+        const read = await overview(readerA, links.awaiting ?? '').expect(200);
+        const page = read.body as Overview;
+
+        expect(page).not.toHaveProperty('health');
+        expect(Object.keys(page).sort()).toEqual(['client', 'plan', 'plans', 'progress', 'targets']);
+        expect(page.client).toEqual({
+          linkId: links.awaiting,
+          name: nameOf(awaiting),
+          reviewBeforePublish: true,
+          sharesHealth: false,
+          since: expect.any(String),
+          status: 'active'
+        });
+        expect(JSON.stringify(page)).not.toContain(MEDICATION);
+        expect((await trail(awaiting.id)).slice(before).map(row => row.kind)).toEqual(['overview']);
+
+        // Asked directly, the way a future route would: the link does not carry the line, so there is no such read.
+        const reached = jest.fn(async () => Promise.resolve('read'));
+
+        await expect(CareController.withClient(readerA.id, links.awaiting ?? '', 'health', 'read', reached)).rejects.toThrow(NotFoundError);
+        expect(reached).not.toHaveBeenCalled();
+        expect(await trail(awaiting.id)).toHaveLength(before + 1);
+      });
+
+      it('with the health line, shows what the client recorded and leaves an `overview` row and then a `health` row', async () => {
+        const before = (await trail(underWay.id)).length;
+        const read = await overview(readerA, links.underWay ?? '').expect(200);
+        const page = read.body as Overview;
+
+        expect(page).toHaveProperty('health');
+        expect(Object.keys(page.health ?? {}).sort()).toEqual(['conditions', 'medications', 'supplements']);
+        expect(page.health?.medications.map(medication => medication.name)).toEqual([MEDICATION]);
+        expect(page.health?.conditions).toEqual([expect.objectContaining({ conditionKey: 'hypothyroidism', label: 'Hipotiroidismo' })]);
+        expect(page.client).toMatchObject({ linkId: links.underWay, sharesHealth: true, status: 'active' });
+        // The plan under way and its history: the plan the client has, read through the link.
+        expect(page.plan).not.toBeNull();
+        expect(page.plans.map(plan => plan.id)).toContain(page.plan?.id);
+
+        const written = (await trail(underWay.id)).slice(before);
+
+        expect(written.map(row => [row.kind, row.action])).toEqual([
+          ['overview', 'read'],
+          ['health', 'read']
+        ]);
+        // Overview first, then health — not merely both, in either order.
+        expect((written[0]?.createdAt ?? '') <= (written[1]?.createdAt ?? '')).toBe(true);
+      });
+
+      it('carries no client’s account id or address, for any client', async () => {
+        for (const [key, who] of [
+          ['onboarding', onboarding],
+          ['awaiting', awaiting],
+          ['underWay', underWay],
+          ['due', due]
+        ] as const) {
+          const body = JSON.stringify((await overview(readerA, links[key] ?? '').expect(200)).body);
+
+          expect(body).not.toContain(who.id);
+          expect(body).not.toContain(who.email);
+        }
+      });
+
+      it('refuses a paused link, an ended one, an unknown id and anything that is not an id with one 404 that writes nothing', async () => {
+        const before = await counts([paused, ended, awaiting]);
+
+        for (const linkId of [links.paused, links.ended, NOBODYS_LINK, 'not-a-link', awaiting.id]) {
+          const refused = await overview(readerA, linkId ?? '');
+
+          expect(refused.status).toBe(404);
+          expect(refused.body).toEqual(NO_CLIENT);
+        }
+
+        expect(await counts([paused, ended, awaiting])).toEqual(before);
+      });
+
+      it('does not exist for an account that is not a professional, or for no session', async () => {
+        const before = await counts([awaiting]);
+
+        for (const path of ['/care/clients', `/care/clients/${links.awaiting}`]) {
+          const asClient: Response = await request(server()).get(`/${PREFIX}${path}`).set('Cookie', awaiting.cookie).expect(404);
+
+          expect(asClient.body).toEqual(NO_DOOR);
+          await request(server()).get(`/${PREFIX}${path}`).expect(404);
+        }
+
+        await request(server()).get(`/${PREFIX}/care/access-log`).expect(404);
+
+        expect(await counts([awaiting])).toEqual(before);
+      });
+    });
+
+    describe('another professional', () => {
+      it('cannot list, read or infer A’s clients — by link id, by guessing, or by the invitation route', async () => {
+        const mine = [onboarding, awaiting, underWay, due, paused, ended];
+        const before = await counts(mine);
+
+        // The list: B's client alone, and nothing of A's in it.
+        const listed = await roster(readerB);
+        const body = JSON.stringify(listed);
+
+        expect(listed.clients.map(row => row.linkId)).toEqual([links.theirs]);
+
+        for (const who of mine) {
+          expect(body).not.toContain(nameOf(who));
+          expect(body).not.toContain(who.id);
+          expect(body).not.toContain(who.email);
+        }
+
+        for (const linkId of Object.values(links).filter(id => id !== links.theirs)) {
+          expect(body).not.toContain(linkId);
+        }
+
+        // Every one of A's link ids answers B exactly as an id nobody holds, and as something that is not an id.
+        const unknown: Response = await overview(readerB, NOBODYS_LINK);
+        const malformed: Response = await overview(readerB, 'not-a-link');
+
+        expect(unknown.status).toBe(404);
+        expect(unknown.body).toEqual(NO_CLIENT);
+        expect(malformed.status).toBe(404);
+        expect(malformed.body).toEqual(NO_CLIENT);
+
+        for (const linkId of Object.values(links).filter(id => id !== links.theirs)) {
+          const refused = await overview(readerB, linkId);
+
+          expect(refused.status).toBe(404);
+          expect(refused.body).toEqual(unknown.body);
+        }
+
+        // And nothing was written about anybody by trying.
+        expect(await counts(mine)).toEqual(before);
+
+        // Inviting A's client answers exactly as inviting an address nobody holds.
+        const linkedElsewhere = await request(server())
+          .post(`/${PREFIX}/care/invitations`)
+          .set('Cookie', readerB.cookie)
+          .send({ email: awaiting.email });
+        const nobody = address('reader-nobody');
+        const unregistered = await request(server()).post(`/${PREFIX}/care/invitations`).set('Cookie', readerB.cookie).send({ email: nobody });
+
+        expect(linkedElsewhere.status).toBe(unregistered.status);
+        expect(linkedElsewhere.body).toEqual({ email: awaiting.email, expiresAt: expect.any(String) });
+        expect(unregistered.body).toEqual({ email: nobody, expiresAt: expect.any(String) });
+
+        // On B's list the two are the same kind of line, and A's client is still not a client of B's.
+        const after = await roster(readerB);
+
+        expect(after.clients.map(row => row.linkId)).toEqual([links.theirs]);
+        expect(after.invitations.map(invitation => Object.keys(invitation).sort())).toEqual([
+          ['email', 'expiresAt'],
+          ['email', 'expiresAt']
+        ]);
+        expect(await counts(mine)).toEqual(before);
+      });
+
+      it('is refused symmetrically: A cannot read B’s client', async () => {
+        const before = await counts([theirs]);
+        const refused = await overview(readerA, links.theirs ?? '');
+
+        expect(refused.status).toBe(404);
+        expect(refused.body).toEqual(NO_CLIENT);
+        expect(await counts([theirs])).toEqual(before);
+      });
+    });
+
+    describe('access that closes', () => {
+      it('ends mid-session: the professional’s very next request after the client ends the link is a 404', async () => {
+        await overview(readerA, links.due ?? '').expect(200);
+
+        const rows = (await trail(due.id)).length;
+
+        await request(server()).delete(`/${PREFIX}/care/links/${links.due}`).set('Cookie', due.cookie).expect(204);
+
+        const next = await overview(readerA, links.due ?? '');
+
+        expect(next.status).toBe(404);
+        expect(next.body).toEqual(NO_CLIENT);
+        expect(await trail(due.id)).toHaveLength(rows);
+
+        // Gone from the list too, and the list wrote nothing about them.
+        expect((await roster(readerA)).clients.map(row => row.linkId)).not.toContain(links.due);
+        expect(await trail(due.id)).toHaveLength(rows);
+      });
+
+      it('closes while the switch is off, and the client still reads their trail', async () => {
+        const before = await counts([awaiting]);
+        const trailBefore = await accessLog(awaiting);
+
+        await setSwitch(false);
+
+        try {
+          const listed: Response = await request(server()).get(`/${PREFIX}/care/clients`).set('Cookie', readerA.cookie).expect(404);
+          const refused = await overview(readerA, links.awaiting ?? '');
+
+          expect(listed.body).toEqual(NO_DOOR);
+          expect(refused.status).toBe(404);
+          expect(refused.body).toEqual(NO_DOOR);
+          // The core read asks the switch too, for any caller that is not a route.
+          await expect(
+            CareController.withClient(readerA.id, links.awaiting ?? '', 'overview', 'read', async () => Promise.resolve(0))
+          ).rejects.toThrow(NotFoundError);
+          await expect(accessLog(awaiting)).resolves.toEqual(trailBefore);
+        } finally {
+          await setSwitch(true);
+        }
+
+        expect(await counts([awaiting])).toEqual(before);
+      });
+
+      it('closes when the grant is taken back while the link is active', async () => {
+        const revoked = await account('reader-revoked');
+        const client = await account('reader-revoked-client');
+
+        await grant(revoked);
+        const linkId = await link(revoked, client);
+
+        await overview(revoked, linkId).expect(200);
+        const rows = (await trail(client.id)).length;
+
+        await request(server()).delete(`/${PREFIX}/admin/accounts/${revoked.id}/professional`).set('Cookie', owner.cookie).expect(204);
+
+        const refused = await overview(revoked, linkId);
+
+        // At the door, as for an account that never was a professional.
+        expect(refused.status).toBe(404);
+        expect(refused.body).toEqual(NO_DOOR);
+        const listed: Response = await request(server()).get(`/${PREFIX}/care/clients`).set('Cookie', revoked.cookie).expect(404);
+
+        expect(listed.body).toEqual(NO_DOOR);
+        // And behind it: the core read refuses the link on its own, for any caller that is not a route.
+        const reached = jest.fn(async () => Promise.resolve('read'));
+
+        await expect(CareController.withClient(revoked.id, linkId, 'overview', 'read', reached)).rejects.toThrow(NotFoundError);
+        expect(reached).not.toHaveBeenCalled();
+        expect(await trail(client.id)).toHaveLength(rows);
+        // The link itself is still the client's.
+        await expect(myLink(client)).resolves.toMatchObject({ id: linkId, status: 'active' });
+      });
+    });
+
+    describe('the client’s trail, paged', () => {
+      it('comes newest first, a hundred at a time, every row exactly once — rows a microsecond apart included', async () => {
+        const client = await account('reader-paged');
+
+        // 230 rows in threes at one instant, each three seven microseconds before the last: many share a
+        // millisecond and some share the microsecond, so a cursor that kept only milliseconds, or ignored
+        // the id that breaks a tie, would drop or repeat rows at a page boundary.
+        await tables()`
+          insert into care_access_log (user_id, action, kind, professional_id, professional_name, created_at)
+          select ${client.id}, 'read'::care_access_action, 'plan'::care_access_kind, null, ${`care-paging-${stamp}`},
+                 now() - (n / 3) * interval '7 microseconds'
+            from generate_series(1, 230) as n`;
+
+        const stored = await trail(client.id);
+        const { entries, pages } = await wholeTrail(client);
+
+        expect(stored).toHaveLength(230);
+        expect(new Set(stored.map(row => row.createdAt)).size).toBeLessThan(230);
+        expect(pages).toEqual([100, 100, 30]);
+        expect(entries.map(entry => entry.id)).toEqual([...stored].reverse().map(row => row.id));
+
+        // `next` is the last entry of its page, and null on the last one.
+        const first = await accessLog(client);
+
+        expect(first.next).toBe(first.entries.at(-1)?.id);
+        expect((await accessLog(client, entries.at(200)?.id)).next).toBeNull();
+      });
+
+      it('is a position in the session’s own trail: another client’s row id reads nothing, and a non-id is refused', async () => {
+        const somebodyElses = (await trail(awaiting.id)).at(-1)?.id;
+        const before = await counts([onboarding]);
+
+        expect(somebodyElses).toBeDefined();
+        await expect(accessLog(onboarding, somebodyElses)).resolves.toEqual({ entries: [], next: null });
+        // The owner of that row, following it, reads their own older rows — so it was a real position, just not theirs.
+        const own = await accessLog(awaiting, somebodyElses);
+        const theirsStored = (await trail(awaiting.id)).map(row => row.id);
+
+        for (const entry of own.entries) {
+          expect(theirsStored).toContain(entry.id);
+        }
+
+        // `InputParseError`, which this API answers with 422 everywhere.
+        const malformed: Response = await accessLogPage(onboarding, 'not-a-row').expect(422);
+
+        expect(malformed.body).toMatchObject({ code: 'INVALID_INPUT', fieldErrors: { before: ['invalid'] } });
+        expect(await counts([onboarding])).toEqual(before);
+      });
+    });
+
+    describe('deleting an account (PRD 14)', () => {
+      it('deleting the professional keeps the client’s trail, with the name they had and no account behind it', async () => {
+        const leaving = await account('reader-leaving');
+        const client = await account('reader-stays');
+
+        await grant(leaving);
+        const linkId = await link(leaving, client);
+
+        await roster(leaving);
+        await overview(leaving, linkId).expect(200);
+        const before = await trail(client.id);
+
+        expect(before.map(row => row.kind)).toEqual(['list', 'overview']);
+        expect(before.every(row => row.professionalId === leaving.id)).toBe(true);
+
+        await request(server()).delete(`/${PREFIX}/users/me`).set('Cookie', leaving.cookie).expect(204);
+
+        const after = await trail(client.id);
+
+        expect(after.map(row => row.id)).toEqual(before.map(row => row.id));
+        expect(after.every(row => row.professionalId === null && row.professionalName === nameOf(leaving))).toBe(true);
+        expect((await accessLog(client)).entries.map(entry => [entry.kind, entry.professionalName])).toEqual([
+          ['overview', nameOf(leaving)],
+          ['list', nameOf(leaving)]
+        ]);
+      });
+
+      it('deleting the client takes their trail with it', async () => {
+        const leaving = await account('reader-client-gone');
+        const linkId = await link(readerA, leaving);
+
+        await overview(readerA, linkId).expect(200);
+        expect(await trail(leaving.id)).toHaveLength(1);
+
+        await request(server()).delete(`/${PREFIX}/users/me`).set('Cookie', leaving.cookie).expect(204);
+
+        expect(await trail(leaving.id)).toEqual([]);
+        // And only theirs: another client of the same professional keeps every row.
+        expect((await trail(awaiting.id)).length).toBeGreaterThan(0);
+      });
     });
   });
 });

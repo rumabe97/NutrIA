@@ -246,6 +246,13 @@
       "when": 1790177020107,
       "tag": "0034_a_professional_reaches_a_client_through_a_link",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1790265660533,
+      "tag": "0035_a_professional_read_leaves_a_row_the_client_sees",
+      "breakpoints": true
     }
   ]
 }

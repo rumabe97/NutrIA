@@ -180,6 +180,28 @@ a query missing it returns another user's rows.
 A repository must never receive an id that came from a path parameter, a query string or a
 request body.
 
+**One named exception: a professional reading or changing a linked client's data
+([`0059`](../../docs/decisions/0059-a-professional-reaches-a-client-only-through-a-link.md)).**
+`CareController.withClient(professionalId, linkId, kind, action, fn)` is **the only function
+in the codebase that turns a professional's session into another account's id.** It
+resolves the link by `(link id, professionalId = session, status = 'active')` with the
+grant still standing (`CareRepository.activeLink`, the only query that returns a client's
+id to a professional), answers every other case with the same `NotFoundError`, writes the
+client's `care_access_log` row, and only then calls `fn(clientId)` — which passes that id
+to the existing controllers exactly as a session's would be passed. So:
+
+- a professional route takes a **link** id, never a client's user id;
+- any code that reads or writes a client's data on a professional's behalf goes through
+  `withClient`, one call per kind of data (the client page is one `overview` call plus, under
+  the health line only, one `health` call — one trail row each);
+- the professional's list (`CareRepository.roster`) reads every active client at once, so
+  it cannot be one `withClient` call; it keeps the same promise another way: in one
+  repeatable-read transaction it writes one `list` row in the trail of every client with an
+  active link whose grant stands, **then** reads their stages, and returns no client id and
+  no client data beyond a stage. Every read of a client's data leaves its row (PRD 004,
+  criterion 6) — there is no unaudited door. A new method that returns a client's id or data
+  to a professional without writing that client's row is a second way in, and a P0.
+
 Four related rules:
 
 - **Wrap delete-then-insert in a transaction.** `SafetyRepository.replaceAll` does, because

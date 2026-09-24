@@ -1,14 +1,15 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, Param } from '@nestjs/common';
-import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Query } from '@nestjs/common';
+import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { CareService } from '../services/index.js';
 import { CurrentUser } from '../../../shared/index.js';
 
-import type { CareLinkDto } from '../dto/out/index.js';
+import type { CareAccessPageDto, CareLinkDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
 /**
- * A link that exists (`0059`): the client seeing it, and either side ending it.
+ * A link that exists (`0059`): the client seeing it and its trail, and either
+ * side ending it.
  *
  * **No switch here, deliberately.** Consent is revocable (PRD 004, criterion
  * 4): a client sees what they agreed to and can take it back whatever the
@@ -16,7 +17,9 @@ import type { SessionUser } from '../../../shared/index.js';
  * part that needs the switch and the grant, and `CareController.end` asks
  * for both before it tries it. A client with no link gets the same answer
  * with the switch on or off — `null`, or a 404 for a link that is not theirs —
- * so leaving the switch off these routes tells nobody anything.
+ * so leaving the switch off these routes tells nobody anything. The trail
+ * (`GET /care/access-log`) is the same: what a professional read about
+ * somebody stays theirs to read, and an account nobody read gets an empty page.
  *
  * No `ParseUUIDPipe` either: a path that is not a link id is the same 404 as
  * a link that is not the caller's, never a 400 that confirms the route.
@@ -31,6 +34,17 @@ export class CareLinksController {
   @Get('links/me')
   async myLink(@CurrentUser() user: SessionUser): Promise<CareLinkDto | null> {
     return this.care.myLink(user);
+  }
+
+  @ApiOkResponse({
+    description:
+      'Every time a professional reached the account’s data — who, what kind, read or write, when — newest first, 100 a page; `next` is the following page’s `before`, null on the last.'
+  })
+  @ApiOperation({ summary: 'The signed-in client’s access trail' })
+  @ApiQuery({ description: 'The `next` of the previous page.', name: 'before', required: false })
+  @Get('access-log')
+  async accessLog(@CurrentUser() user: SessionUser, @Query('before') before?: string): Promise<CareAccessPageDto> {
+    return this.care.accessLog(user, before ?? null);
   }
 
   @ApiNoContentResponse({ description: 'Ended. 404 for a link the account is not on, one already ended, or anything that is not a link id.' })

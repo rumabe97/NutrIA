@@ -68,7 +68,7 @@ then the documents. Each phase ends green.
 
 ### Phase 2 — The link: invitation, consent, revocation
 
-- [x] done — `test:e2e -- care` to be verified by the pull request's CI (required to merge)
+- [x] done — `test:e2e -- care` verified by the pull request's CI (required to merge) — commit `9f48bef` ("Project 004 phase 2: the link — invitation, consent, revocation (#86)")
 - **Dispatch**: opus @ high — `/execute-project 004 phase 2`
 - **Goal**: a professional invites by email, the client accepts knowing exactly what is shared, and either side ends it in one action.
 - **Scope**: `packages/database/src/schemas` (new `care.schema.ts`), one generated migration, `packages/core/src/{entities,repositories,controllers}/Care/`, new `apps/api/src/modules/care/`, `apps/api/src/modules/email` (one template), `apps/api/test`.
@@ -95,16 +95,16 @@ then the documents. Each phase ends green.
 
 ### Phase 3 — Delegated reading, and the trail the client sees
 
-- [ ] pending
+- [x] done — `test:e2e -- care` 44/44 on a throwaway Postgres; the pull request's CI runs it again
 - **Dispatch**: opus @ high — `/execute-project 004 phase 3`
 - **Goal**: the professional sees each client's state and progress through the one named path, every read leaves a row the client can read, and nothing crosses between professionals.
 - **Scope**: `packages/database/src/schemas/care.schema.ts` (the log), one generated migration, `packages/core/src/controllers/{Care,Progress,Health}`, `apps/api/src/modules/care`, `apps/api/src/modules/ai/health-boundary.spec.ts`, `apps/api/test`.
 - **Steps**:
-  1. `care_access_log` via `userOwned` on the **client**: `professionalId` (FK, on delete set null), `professionalName` (snapshot), `kind` enum (`overview`, `plan`, `progress`, `targets`, `health`, `review`), `action` (`read` | `write`). No payload column.
-  2. `CareController.withClient(professionalId, linkId, kind, action, fn)` — resolves `care_links` by `(id, professionalId, status = 'active')`, throws `NotFoundError` otherwise, writes the log row, calls `fn(clientId)`. **The only function in the codebase that turns a professional's session into another account's id**; say so in `packages/core/AGENTS.md`'s ownership rules and in `.claude/agents/invariant-reviewer.md` item 1.
-  3. `GET /care/clients` — the professional's list: name, link state, and where each client is (invited, filling in the profile, plan awaiting review, plan under way, check-in due), from stored state only.
+  1. `care_access_log` via `userOwned` on the **client**: `professionalId` (FK, on delete set null), `professionalName` (snapshot), `kind` enum (`list`, `overview`, `plan`, `progress`, `targets`, `health`, `review`), `action` (`read` | `write`). No payload column. An index on (`userId`, `createdAt`, `id`) is created with the table (amended in execution: `list` is the list's own kind, step 3; the index would block every professional read if added later).
+  2. `CareController.withClient(professionalId, linkId, kind, action, fn)` — resolves `care_links` by `(id, professionalId, status = 'active')` with the grant standing, throws `NotFoundError` otherwise (and for kind `health` on a link without `sharesHealth`), writes the log row, calls `fn(clientId)` with the link stripped of both account ids. **The only function in the codebase that turns a professional's session into another account's id**; say so in `packages/core/AGENTS.md`'s ownership rules and in `.claude/agents/invariant-reviewer.md` item 1.
+  3. `GET /care/clients` — the professional's list: name, link state, and where each client is (invited, filling in the profile, plan awaiting review, plan under way, check-in due), from stored state only. A stage is read from the client's data, so the list writes one `list` row in the trail of every client with an active link, in one repeatable-read transaction before it reads the stages (amended in execution: PRD 6 — every read leaves a row; the invariant review held a list without rows as a P0). Invitations come back as their own array.
   4. `GET /care/clients/:linkId` — through `withClient`: the active plan and its history, `ProgressController.summary` (adherence per fortnight, weight series, check-ins), the resolved targets. `health` is **absent from the object**, not empty, unless the link's `sharesHealth` is true — and reading it is its own log row of kind `health`.
-  5. `GET /care/access-log` — the client's own trail: who, which kind, read or write, when.
+  5. `GET /care/access-log` — the client's own trail: who, which kind, read or write, when. 100 rows a page, `?before=` the previous page's `next` (a row id), so every row stays visible (amended in execution).
   6. Add `core/controllers/Care`, `core/entities/Care`, `#repositories/Care` and the new API module path to the AI boundary spec, as the health modules are.
 - **Acceptance criteria**: PRD 4, 5, 6, 9, 11, 12, 14 (log rows go with the client).
 - **Verification**:
@@ -145,7 +145,7 @@ then the documents. Each phase ends green.
   2. `PlanRepository.createPlanAtomically`: when the user has an `active` link with `reviewBeforePublish`, insert as `pending_review` and **do not complete** the active plan. Every other case: today's code path, unchanged.
   3. `publish(planId)`: one transaction — complete the `active` plan, set this one `active`. Through `withClient` (`review`, `write`): `POST /care/clients/:linkId/plan/publish`.
   4. The professional's changes to the pending plan, through `withClient`: a meal swap (`PlanRepository.swapMeal` with the client's id, the client's allowance), a regeneration (replaces the pending plan; counted as the client's own regeneration would be), and generating a plan for a client who has none. `PATCH /care/clients/:linkId` toggles `reviewBeforePublish`.
-  5. Hide the state from the client in the four reads that bypass `findActive` (`0060`): `CheckInController.status`'s `findChain`, `GET /meal-plans` (history), `GET /meal-plans/:id`, and the job route's success answer, which tells the client the plan is with their dietitian instead of sending them to it.
+  5. Hide the state from the client in the four reads that bypass `findActive` (`0060`): `CheckInController.status`'s `findChain`, `GET /meal-plans` (history), `GET /meal-plans/:id`, and the job route's success answer, which tells the client the plan is with their dietitian instead of sending them to it. On the professional's side, `CareRepository.roster`'s latest-plan read orders by version whatever the status: teach it `pending_review` (fill `planPendingReview`, and keep `check_in_due` on the plan under way) — a fifth read that bypasses `findActive` (found in Phase 3).
 - **Acceptance criteria**: PRD 8.
 - **Verification**:
   ```
