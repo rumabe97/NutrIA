@@ -143,7 +143,9 @@ export const PlanRepository = {
         const redo = latest !== undefined && (latest.status === 'active' || latest.status === PENDING) && latest.endDate >= draft.startDate;
         const replacedRedos = counted && redo ? replacedRedosOf(counted.generationMetadata) + (counted.generationMetadata?.redo === true ? 1 : 0) : 0;
 
-        if (byProfessional && !review && previous.at(0)?.status === 'active') {
+        // Asked of the table directly, not read off the latest plan: whatever row is
+        // `active` is the one the completion below would complete.
+        if (refusesProfessionalSave({ byProfessional, hasActive: await hasActivePlan(tx, userId), review })) {
           throw new ConflictError('The review this plan was generated for has ended; the fortnight under way stays');
         }
 
@@ -1076,6 +1078,27 @@ async function publishingLink(
     .limit(1);
 
   return row;
+}
+
+/**
+ * Whether a professional's generation must be refused when it is saved
+ * (`0060`): it is theirs, it will not wait for review, and saving it active
+ * would complete the client's fortnight under way — which a professional never
+ * replaces.
+ */
+export function refusesProfessionalSave(save: { readonly byProfessional: boolean; readonly hasActive: boolean; readonly review: boolean }): boolean {
+  return save.byProfessional && !save.review && save.hasActive;
+}
+
+/** Whether the user has an `active` plan, read in the caller's transaction. */
+async function hasActivePlan(tx: Transaction, userId: string): Promise<boolean> {
+  const [row] = await tx
+    .select({ id: mealPlans.id })
+    .from(mealPlans)
+    .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active')))
+    .limit(1);
+
+  return row !== undefined;
 }
 
 /** The redos spent by pending plans this one replaced (`createPlanAtomically`). */
