@@ -35,6 +35,12 @@ denial. One core function, `CareController.withClient`, is the only path: it res
 link, writes the audit row, and hands the client's id to the existing controller. Revoking a
 link therefore closes access on the very next request, with no cache to expire.
 
+*Amended 2026-09-24 (project 004 Phase 3):* the professional's list reads every active
+client at once, so it cannot be one `withClient` call. `CareRepository.roster` is the only
+other path to clients' data, and it keeps the same promise: in one snapshot it writes a
+`list` row in the trail of every client with an active link, then reads their stages, and
+returns no client id.
+
 **Every access leaves a row the client can read.** `care_access_log` is owned by the client
 (`userOwned`: it goes with the client's account), with the professional's id (set null if
 the professional's account is deleted, and their name kept, so the client's record

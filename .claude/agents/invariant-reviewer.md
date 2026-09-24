@@ -29,7 +29,14 @@ code around it, as far as it takes to be sure.
 1. **Whose data.** Every query over a user-scoped table is bounded by the `userId` **from
    the session** — not from a body, a path or a query string. A new route that returns a
    row by id without that bound is a P0. So is a second way in that is not named,
-   consented, revocable and audited.
+   consented, revocable and audited. The one named way in is `CareController.withClient`
+   (`0059`): the only function that turns a professional's session into another account's
+   id. It resolves `(link id, professionalId = session, status = 'active')` with the grant
+   standing, writes the client's `care_access_log` row, then calls `fn(clientId)`. A
+   professional route whose data reaches a repository any other way is a P0. The
+   professional's list (`CareRepository.roster`) is not an exception to the audit: it writes
+   one `list` row per active client before reading their stages, in one snapshot. A read of
+   a client's data that leaves no row in their trail is a P0, whatever the path.
 2. **The shape of a denial.** 404, never 401 or 403, and never a message, a timing or a
    status that tells a stranger whether something exists.
 3. **Deny by default.** A new route is protected unless it says `@Public()`, and each

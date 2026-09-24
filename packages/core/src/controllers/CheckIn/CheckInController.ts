@@ -43,6 +43,16 @@ function isoToday(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/**
+ * Whether a fortnight's check-in is due: the plan has reached its last day and
+ * has not been answered. One definition, read by the client's own status and
+ * by a professional's list (`CareController.clients`), so the two never
+ * disagree about the same fortnight.
+ */
+export function isCheckInDue(plan: { readonly endDate: string }, answered: boolean, today: string): boolean {
+  return !answered && today >= plan.endDate;
+}
+
 function answerFor<T extends string>(table: Record<T, number>, rating: number | null, fallback: T): T {
   return (Object.keys(table) as T[]).find(key => table[key] === rating) ?? fallback;
 }
@@ -82,7 +92,7 @@ export const CheckInController = {
     return {
       adherence: marked > 0 ? Math.round((stats.completed / marked) * 100) : null,
       done: existing !== undefined,
-      due: existing === undefined && isoToday() >= latest.endDate,
+      due: isCheckInDue(latest, existing !== undefined, isoToday()),
       plan: { id: latest.id, endDate: latest.endDate, startDate: latest.startDate, status: latest.status },
       stats
     };

@@ -29,8 +29,32 @@ describe('the health-data boundary around the AI module', () => {
     expect(sources.length).toBeGreaterThan(4);
   });
 
-  it.each(['core/controllers/Health', 'core/entities/Health', '#repositories/Health'])('imports nothing from %s', specifier => {
+  /*
+   * The professional's side goes behind the same wall (PRD 004, criterion 11):
+   * a link is how a professional reaches a client's conditions, and what a
+   * professional reads or writes about a client is theirs and the client's,
+   * never a prompt's (`0059`).
+   */
+  it.each([
+    'core/controllers/Health',
+    'core/entities/Health',
+    '#repositories/Health',
+    'core/controllers/Care',
+    'core/entities/Care',
+    '#repositories/Care',
+    'core/controllers/Professional',
+    'core/entities/Professional',
+    '#repositories/Professional'
+  ])('imports nothing from %s', specifier => {
     const offenders = sources.filter(path => readFileSync(path, 'utf8').includes(specifier));
+
+    expect(offenders).toEqual([]);
+  });
+
+  // The API modules that hold the same data, by any relative path into them.
+  it.each(['care', 'health-data'])('imports nothing from the %s module', module => {
+    const into = new RegExp(`(?:from\\s+|import\\(\\s*)['"][./]*(?:modules/)?${module}/`);
+    const offenders = sources.filter(path => into.test(readFileSync(path, 'utf8')));
 
     expect(offenders).toEqual([]);
   });

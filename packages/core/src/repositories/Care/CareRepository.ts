@@ -1,19 +1,61 @@
-import { and, eq, exists, gt, inArray, lte, ne, or } from 'drizzle-orm';
+import { and, asc, desc, eq, exists, gt, inArray, lte, ne, or, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
-import { careInvitations, careLinks } from 'database/schema/care';
+import { careAccessLog, careInvitations, careLinks } from 'database/schema/care';
+import { checkIns } from 'database/schema/progress';
+import { mealPlans } from 'database/schema/plan';
+import { onboardingState } from 'database/schema/profile';
 import { professionals } from 'database/schema/professional';
 import { user } from 'database/schema/auth';
 
 import { DatabaseOperationError } from 'core/entities/Error';
-import { careInvitationSchema, careLinkSchema } from 'core/entities/Care';
+import { careAccessEntrySchema, careInvitationSchema, careLinkSchema } from 'core/entities/Care';
 
-import type { AcceptInvitation, CareInvitation, CareLink, CareLinkEndedBy } from 'core/entities/Care';
+import type {
+  AcceptInvitation,
+  CareAccessAction,
+  CareAccessEntry,
+  CareAccessKind,
+  CareInvitation,
+  CareLink,
+  CareLinkEndedBy
+} from 'core/entities/Care';
 import type { SQL } from 'drizzle-orm';
 
 /** The statuses a link is still a link in. `ended` is history. */
 const OPEN_STATUSES = ['active', 'paused'] as const;
+
+/** The client's side of a link, joined under its own name: `user` is also the professional's. */
+const client = alias(user, 'client');
+
+/**
+ * An active link a professional reached through `CareController.withClient`,
+ * with both names: the client's, for the page, and the professional's, for the
+ * snapshot the client's trail keeps.
+ */
+export type ActiveLink = { readonly clientName: string; readonly link: CareLink; readonly professionalName: string };
+
+/** One row of a professional's list, as stored: the link, the client's name, and where they are. */
+export type RosterLink = {
+  readonly clientName: string;
+  /** The client's latest plan by version, whatever its status — the one a check-in is due on — or null. */
+  readonly latestPlan: { readonly answered: boolean; readonly endDate: string } | null;
+  readonly link: Pick<CareLink, 'consentedAt' | 'id' | 'reviewBeforePublish' | 'sharesHealth' | 'status'>;
+  readonly onboarded: boolean;
+  /** Whether a plan is under way. */
+  readonly planActive: boolean;
+  /**
+   * Whether a plan is waiting for this professional's review (`0060`). Always
+   * false until Phase 5 of project 004 adds the `pending_review` plan status:
+   * the question cannot be asked of a status the database does not have yet.
+   */
+  readonly planPendingReview: boolean;
+};
+
+/** Everything on a professional's list: the live invitations, and the open links. */
+export type Roster = { readonly invitations: readonly { readonly email: string; readonly expiresAt: Date }[]; readonly links: readonly RosterLink[] };
 
 /** An invitation the session's account may read, with who sent it. */
 export type OpenInvitation = { readonly expiresAt: Date; readonly professionalId: string; readonly professionalName: string };
@@ -112,6 +154,61 @@ export const CareRepository = {
 
         return { kind: 'created', link: careLinkSchema.parse(created), professionalName: invitation.professionalName };
       });
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * One page of the client's own trail, newest first — `clientId` is the
+   * session's and the only filter: the rows strictly older than
+   * the row `beforeId` names (by `createdAt`, then `id`, the order's two keys),
+   * or the newest when there is none. The cursor is compared in the database:
+   * a JavaScript date keeps milliseconds, `createdAt` keeps microseconds. A
+   * `beforeId` that is not one of this client's rows is an empty page.
+   */
+  async accessLog(clientId: string, limit: number, beforeId: string | null = null): Promise<readonly CareAccessEntry[]> {
+    try {
+      const older = beforeId
+        ? sql`(${careAccessLog.createdAt}, ${careAccessLog.id}) < (select c.created_at, c.id from ${careAccessLog} c where c.id = ${beforeId} and c.user_id = ${clientId})`
+        : undefined;
+      const rows = await database()
+        .select()
+        .from(careAccessLog)
+        .where(and(eq(careAccessLog.userId, clientId), older))
+        .orderBy(desc(careAccessLog.createdAt), desc(careAccessLog.id))
+        .limit(limit);
+
+      return rows.map(row => careAccessEntrySchema.parse(row));
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * The one question `CareController.withClient` asks (`0059`): is this link
+   * the professional's, active, and are they still a professional? All of it
+   * is the `WHERE` and the joins — the link id, `professionalId` (the
+   * session's), `status = 'active'`, and an inner join on `professionals` so a
+   * grant taken back closes the door on the next request. Every reason for
+   * "no" is the same empty result.
+   *
+   * **The only query that turns a professional's session into another
+   * account's id**: the client's id leaves this method inside the link, and
+   * only `withClient` calls it.
+   */
+  async activeLink(professionalId: string, linkId: string): Promise<ActiveLink | null> {
+    try {
+      const [row] = await database()
+        .select({ clientName: client.name, link: careLinks, professionalName: user.name })
+        .from(careLinks)
+        .innerJoin(professionals, eq(professionals.userId, careLinks.professionalId))
+        .innerJoin(user, eq(user.id, careLinks.professionalId))
+        .innerJoin(client, eq(client.id, careLinks.clientId))
+        .where(and(eq(careLinks.id, linkId), eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active')))
+        .limit(1);
+
+      return row ? { clientName: row.clientName, link: careLinkSchema.parse(row.link), professionalName: row.professionalName } : null;
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -240,6 +337,26 @@ export const CareRepository = {
   },
 
   /**
+   * One row of the client's trail. `clientId` came from an active link that
+   * `withClient` has just resolved against the professional's session — never
+   * from a request. An insert of its own, before the data is read: a read
+   * without its row is the one outcome the trail exists to rule out, so a
+   * failure here fails the read.
+   */
+  async logAccess(
+    clientId: string,
+    entry: { readonly action: CareAccessAction; readonly kind: CareAccessKind; readonly professionalId: string; readonly professionalName: string }
+  ): Promise<void> {
+    try {
+      await database()
+        .insert(careAccessLog)
+        .values({ ...entry, userId: clientId });
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
    * The invitation behind a token, for the account it was sent to — or null
    * for every other case, alike. The inviter must still be a professional.
    */
@@ -257,8 +374,141 @@ export const CareRepository = {
     } catch (error: unknown) {
       throw wrap(error);
     }
+  },
+
+  /**
+   * A professional's list: their live invitations and their open links, with
+   * where each client stands — from stored state only.
+   *
+   * Every query is bounded by `professionalId`, the session's, through
+   * `care_links`: a client's plans, check-ins and onboarding are reached only
+   * by joining them to a link of this professional's, and only for an `active`
+   * one (a paused link shows its name and status, nothing of where the client
+   * is). No client id leaves this method — rows are keyed by link id, which is
+   * all a professional route ever takes.
+   *
+   * The latest plan is the highest version whatever its status, as
+   * `CheckInController.status` reads it, so "check-in due" here and on the
+   * client's own screen are the same fact. Phase 5 (`0060`) must teach this
+   * read the `pending_review` status, as it does the four named in `0060`.
+   */
+  async roster(professionalId: string, now: Date): Promise<Roster> {
+    try {
+      // One snapshot for the rows written and the facts read: every client whose stage is
+      // worked out below has had their `list` row written first, and no other client has.
+      return await database().transaction(
+        async db => {
+          await db.insert(careAccessLog).select(
+            db
+              // Every column, in the table's order: drizzle's insert-select asks for both.
+              /* eslint-disable perfectionist/sort-objects -- the order is the table's, not the alphabet's */
+              .select({
+                id: sql<string>`gen_random_uuid()`.as('id'),
+                userId: careLinks.clientId,
+                action: sql<CareAccessAction>`'read'::care_access_action`.as('action'),
+                kind: sql<CareAccessKind>`'list'::care_access_kind`.as('kind'),
+                professionalId: careLinks.professionalId,
+                professionalName: user.name,
+                createdAt: sql<Date>`now()`.as('created_at'),
+                updatedAt: sql<Date>`now()`.as('updated_at')
+              })
+              /* eslint-enable perfectionist/sort-objects */
+              .from(careLinks)
+              .innerJoin(professionals, eq(professionals.userId, careLinks.professionalId))
+              .innerJoin(user, eq(user.id, careLinks.professionalId))
+              .where(and(eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active')))
+          );
+
+          return await rosterOf(db, professionalId, now);
+        },
+        { isolationLevel: 'repeatable read' }
+      );
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
   }
 };
+
+/**
+ * What `roster` reads, inside its transaction. Only links whose grant stands:
+ * the join on `professionals` is the same second line `activeLink` keeps.
+ */
+async function rosterOf(db: Transaction, professionalId: string, now: Date): Promise<Roster> {
+  const [invitations, links, latest] = await Promise.all([
+    db
+      .select({ email: careInvitations.email, expiresAt: careInvitations.expiresAt })
+      .from(careInvitations)
+      .where(and(eq(careInvitations.professionalId, professionalId), gt(careInvitations.expiresAt, now)))
+      .orderBy(desc(careInvitations.createdAt)),
+    db
+      .select({
+        id: careLinks.id,
+        clientName: client.name,
+        consentedAt: careLinks.consentedAt,
+        onboarded: sql<boolean>`${onboardingState.completedAt} is not null`,
+        planActive: sql<boolean>`${careLinks.status} = 'active' and ${exists(
+          db
+            .select({ id: mealPlans.id })
+            .from(mealPlans)
+            .where(and(eq(mealPlans.userId, careLinks.clientId), eq(mealPlans.status, 'active')))
+        )}`,
+        reviewBeforePublish: careLinks.reviewBeforePublish,
+        sharesHealth: careLinks.sharesHealth,
+        status: careLinks.status
+      })
+      .from(careLinks)
+      .innerJoin(professionals, eq(professionals.userId, careLinks.professionalId))
+      .innerJoin(client, eq(client.id, careLinks.clientId))
+      .leftJoin(onboardingState, and(eq(onboardingState.userId, careLinks.clientId), eq(careLinks.status, 'active')))
+      .where(and(eq(careLinks.professionalId, professionalId), inArray(careLinks.status, [...OPEN_STATUSES])))
+      .orderBy(asc(client.name), asc(careLinks.consentedAt)),
+    db
+      .selectDistinctOn([mealPlans.userId], {
+        answered: sql<boolean>`${exists(
+          db
+            .select({ id: checkIns.id })
+            .from(checkIns)
+            .where(and(eq(checkIns.userId, mealPlans.userId), eq(checkIns.planId, mealPlans.id)))
+        )}`,
+        endDate: mealPlans.endDate,
+        linkId: careLinks.id
+      })
+      .from(mealPlans)
+      .innerJoin(careLinks, eq(careLinks.clientId, mealPlans.userId))
+      .where(and(eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active')))
+      .orderBy(mealPlans.userId, desc(mealPlans.version))
+  ]);
+
+  return {
+    invitations,
+    links: links.map(row => ({
+      clientName: row.clientName,
+      latestPlan: latestOf(latest, row.id),
+      link: {
+        id: row.id,
+        consentedAt: row.consentedAt,
+        reviewBeforePublish: row.reviewBeforePublish,
+        sharesHealth: row.sharesHealth,
+        status: row.status
+      },
+      onboarded: row.onboarded,
+      planActive: row.planActive,
+      planPendingReview: false
+    }))
+  };
+}
+
+/** The latest plan behind one link, from the per-client rows `roster` read. */
+function latestOf(
+  rows: readonly { readonly answered: boolean; readonly endDate: string; readonly linkId: string }[],
+  linkId: string
+): RosterLink['latestPlan'] {
+  const row = rows.find(candidate => candidate.linkId === linkId);
+
+  return row ? { answered: row.answered, endDate: row.endDate } : null;
+}
+
+type Transaction = Parameters<Parameters<ReturnType<typeof database>['transaction']>[0]>[0];
 
 function wrap(error: unknown): DatabaseOperationError {
   if (error instanceof ZodError) {

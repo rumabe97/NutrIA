@@ -1,4 +1,11 @@
-import type { CareInvitationDetailView, CareInvitationView, CareLinkView } from 'core/controllers/Care';
+import type {
+  CareAccessPageView,
+  CareClientOverviewView,
+  CareClientsView,
+  CareInvitationDetailView,
+  CareInvitationView,
+  CareLinkView
+} from 'core/controllers/Care';
 
 /**
  * What the professional is told after inviting: the address and until when.
@@ -11,3 +18,12 @@ export type CareInvitationDetailDto = CareInvitationDetailView;
 
 /** The client's own link. */
 export type CareLinkDto = CareLinkView;
+
+/** The professional's list: open links with where each client is, and the invitations unanswered. */
+export type CareClientsDto = CareClientsView;
+
+/** One client's page, read through their link; `health` only under the health line. */
+export type CareClientOverviewDto = CareClientOverviewView;
+
+/** One page of the client's own trail. */
+export type CareAccessPageDto = CareAccessPageView;

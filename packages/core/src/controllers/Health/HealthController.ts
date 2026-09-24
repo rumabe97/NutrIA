@@ -43,6 +43,18 @@ export interface HealthView {
   supplements: readonly Supplement[];
 }
 
+/**
+ * The three things a client shares with their professional under the separate
+ * health line (`CARE_HEALTH_SHARED`, PRD 004 criterion 12), and nothing else:
+ * no consent state, no derived restriction, no suggestion. What the client
+ * recorded, shown to the person they chose to show it to.
+ */
+export interface SharedHealthView {
+  conditions: readonly HealthCondition[];
+  medications: readonly Medication[];
+  supplements: readonly Supplement[];
+}
+
 function effects(
   conditions: readonly HealthCondition[],
   map: ReadonlyMap<ConditionKey, readonly string[]>,
@@ -84,6 +96,18 @@ export const HealthController = {
     await HealthRepository.replaceAll(userId, input);
 
     return HealthController.get(userId);
+  },
+
+  /**
+   * What a professional may see of this account's health data, and only under
+   * the link's health line: `CareController.overview` asks for it through its
+   * own `withClient` call, of kind `health`, and never otherwise. `userId` is
+   * the one that call resolved from an active link.
+   */
+  async shared(userId: string): Promise<SharedHealthView> {
+    const { conditions, medications, supplements } = await HealthRepository.findAll(userId);
+
+    return { conditions, medications, supplements };
   },
 
   /** Withdrawal: the data and the consent go together, or neither does. */

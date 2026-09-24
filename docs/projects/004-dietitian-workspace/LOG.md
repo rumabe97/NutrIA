@@ -174,3 +174,103 @@
     instead of 404. It is accepted, as for `/admin`.
   - `professionals.e2e-spec.ts` and `access.e2e-spec.ts` leave their accounts behind. `care`
     deletes its own and checks that none is left. Worth a separate fix.
+
+## Phase 3 — Delegated reading, and the trail the client sees (2026-09-24)
+
+- **Executor**: Opus 5.5 at `high` throughout.
+  - `backend-high` built the phase.
+  - `tests-high` wrote the end-to-end half of `care.e2e-spec.ts`.
+  - `migration-reviewer` and `invariant-reviewer` ran on opus.
+  - The lead (Opus 5.5) made the review fixes itself, including the P0 (see Deviations).
+  - The lead also made the `.claude/agents/invariant-reviewer.md` edit that plan step 2 asks for: `.claude/` is outside the backend agent's ownership.
+- **Result**: done locally. The end-to-end suite passed on a throwaway Postgres; the pull request's CI runs it again.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test`: 21 of 21 tasks. core 519 tests, database 27, api 578 in 61 suites.
+  - `BASE=78ee240 node scripts/check-migrations.mjs --drift`: 36 migrations, journal and snapshot in order, schema and
+    migrations agree.
+    - The script counts only committed migrations, so 0035 counts as "0 new".
+    - `migration-reviewer` and the lead read 0035 by hand: it only creates two enum types, one table, two foreign keys and
+      three indexes.
+  - `pnpm -w run deadcode`: clean. `sh scripts/check-leaks.sh`: clean, with the private patterns loaded.
+    `pnpm --filter api format`: clean.
+  - `pnpm --filter api test:e2e -- care`: **44 of 44**. The whole end-to-end run: **22 of 22 suites, 193 of 193 tests**.
+    - Both ran on a throwaway embedded Postgres 17 on a local port, migrated from empty through 0035.
+    - `AI_PROVIDER=stub`; every mail, payment, OAuth, push and error-reporting variable blanked.
+    - The `.env` database was never touched.
+  - The new tests bite: on the backend before the review fixes, exactly the three contract gaps failed (6 tests). The care
+    suite leaves no account, link, invitation or trail row behind.
+  - A lead smoke test against a second throwaway Postgres covered the two new SQL paths:
+    - the list's `list` rows: one per active link, none for a paused link or another professional's client;
+    - a revoked grant: 404, nothing written;
+    - the trail's cursor: 206 rows with microsecond ties, 3 pages, none lost or repeated.
+  - `migration-reviewer` (opus): no P0 or P1.
+    - P2 (the trail sorted in memory; adding the index later would block every professional read during the build): fixed.
+      0035 creates `(user_id, created_at, id)`.
+    - P3 (a later enum value followed by a rollback breaks the old reader): a note on `careAccessKind`.
+  - `invariant-reviewer` (opus), first pass:
+    - **P0: the list read client data (stages) without writing any trail row.** Fixed (see Deviations).
+    - P2s, all fixed:
+      - the list had no second check behind the guard;
+      - the health line was enforced by the caller, not by `withClient`;
+      - the trail stopped at 100 rows;
+      - the roster needs `pending_review` in Phase 5 (added to the plan).
+    - P3s, both fixed:
+      - `fn` received both account ids;
+      - the boundary spec missed a dynamic `import(`.
+  - `invariant-reviewer`, second pass: no P0 or P1, and every first-pass finding closed. The new findings, all fixed:
+    - P2: each list call writes a row per active client, so repeated calls could bury an earlier read pages deep.
+      `GET /care/clients` is now limited to 10 a minute per account; the end-to-end suite stays under that (5 at most per
+      account).
+    - P3: `withClient` refuses kind `list` by type (`Exclude<CareAccessKind, 'list'>`); only `roster` writes it.
+    - P3: the kind list in `Care.ts` now names `list`, and a stale JSDoc is gone.
+    - P3: `0059` gets a dated amendment naming `roster` as the only other path, audited by its `list` rows.
+    - The optional `schema.test.ts` pin for `professional_id` set null is not added: the end-to-end suite covers it.
+  - After those fixes: `pnpm turbo lint ts:check test` 21 of 21, deadcode, leaks, format and drift clean. The end-to-end
+    run above predates them; they are a route limit and a type narrowing, and CI runs the suite again.
+- **Deviations from plan** (steps 1, 2, 3 and 5 are amended, and Phase 5 step 5):
+  - **The list leaves a row.** `care_access_kind` gains `list`.
+    - `GET /care/clients` writes one `list`/`read` row in the trail of every client with an active link and a standing
+      grant, in one repeatable-read transaction, before it reads their stages. A paused link shows its name, no stage, and
+      writes nothing.
+    - Why: a stage is worked out from the client's onboarding, plans and check-ins, so the list is a read, and PRD 6 says
+      every read leaves a row.
+    - The executor had first written the list as an unaudited "other door", with that exception added to three documents.
+      The review held it as a P0: a document is not a decision amendment. The exception text is gone.
+    - One `overview` row per client was rejected: it would tell the client that their plans and weight were opened when
+      they were not.
+  - **`withClient` is stricter than the plan.**
+    - It also checks the switch, and the grant (an inner join on `professionals`).
+    - It refuses kind `health` on a link without `sharesHealth`.
+    - Its callback gets the link without either account's id (`ClientAccess`).
+  - **The client page writes two rows under the health line.** One `overview` row, then one `health` row through a second
+    `withClient` call. If the link ends between the two, there is no `health` row and no `health` key.
+  - **The trail is paged.** `GET /care/access-log?before=<row id>` returns `{ entries, next }`, 100 a page.
+    - The cursor is a row id compared in SQL: a JavaScript date loses the microseconds `created_at` keeps.
+    - A cursor that is not a UUID is a 422 `INVALID_INPUT`.
+    - The trail ignores the switch, like `GET /care/links/me`.
+  - **Invitations are not a stage.** They have no account behind them, so they come back as their own array.
+    `plan_awaiting_review` is in the stage type but cannot occur until Phase 5.
+  - **Touched outside the listed scope, all minimal:**
+    - `CheckInController` (`isCheckInDue()` extracted, so the list and `status` share one rule);
+    - `ProfileController.targets`, so the overview reads targets without allergies or preferences;
+    - the care module wiring;
+    - `apps/api/AGENTS.md`;
+    - `apps/api/test/README.md`;
+    - `.claude/agents/invariant-reviewer.md` item 1 (plan step 2).
+    - The boundary spec also covers Professional and the `health-data` module (PRD 11).
+- **Decisions**: none new. `0059` gains a dated amendment: `roster` is the only other path, audited by its `list` rows.
+- **Notes for the next phase**:
+  - Phase 4's target write goes through `withClient(…, 'targets', 'write', …)`, which already exists and is logged; the
+    `ClientAccess` view has `sharesHealth` and `reviewBeforePublish`, not the client's id.
+  - Phase 5 must teach `CareRepository.roster`'s latest-plan read `pending_review` (now in the plan) and fill
+    `planPendingReview`.
+  - Adding a value to `care_access_kind` or `care_access_action`: make `careAccessEntrySchema` tolerate unknown values one
+    release before (the note on the enum).
+  - Revoking a grant still does not *end* its links: access closes (the join), and the client can end them. Phase 7 or the
+    owner decides.
+  - The trail screen (Phase 8) should group or filter `list` rows, so they do not crowd out the reads that matter.
+  - A throwaway Postgres works on this machine without Docker: the embedded-postgres binaries' `initdb` + `pg_ctl` on a
+    free local port, TCP only (`-k ''`; the scratchpad path is too long for a socket). The e2e suites can run locally that
+    way, never against `.env`.
+  - The whole end-to-end run leaves 34 accounts from other, unchanged suites (one each). Worth a separate fix, as the
+    Phase 2 note said.

@@ -96,6 +96,45 @@ export const careLinkSchema = z.object({
 export type CareLink = z.infer<typeof careLinkSchema>;
 
 /**
+ * What kind of a client's data a professional reached (`0059`), as the
+ * client's trail names it:
+ *
+ * - `list` — their entry in the professional's list: a stage worked out from their data,
+ *   written only by `CareRepository.roster`;
+ * - `overview` — the client page: the plans, progress and the targets, read together;
+ * - `plan` — a plan on its own;
+ * - `progress` — progress on its own;
+ * - `targets` — the daily targets (setting them is Phase 4's `write`);
+ * - `health` — conditions, medications and supplements, under the separate line;
+ * - `review` — a plan waiting for the professional before the client sees it (`0060`).
+ */
+export const CARE_ACCESS_KINDS = ['list', 'overview', 'plan', 'progress', 'targets', 'health', 'review'] as const;
+
+export type CareAccessKind = (typeof CARE_ACCESS_KINDS)[number];
+
+export const CARE_ACCESS_ACTIONS = ['read', 'write'] as const;
+
+export type CareAccessAction = (typeof CARE_ACCESS_ACTIONS)[number];
+
+/**
+ * One row of the client's trail as `care_access_log` holds it. `userId` is the
+ * client's; `professionalId` is null once that professional's account is gone,
+ * and `professionalName` is the name they had when they looked.
+ */
+export const careAccessEntrySchema = z.object({
+  id: z.uuid(),
+  action: z.enum(CARE_ACCESS_ACTIONS),
+  createdAt: z.date(),
+  kind: z.enum(CARE_ACCESS_KINDS),
+  professionalId: z.string().min(1).nullable(),
+  professionalName: z.string(),
+  updatedAt: z.date(),
+  userId: z.string().min(1)
+});
+
+export type CareAccessEntry = z.infer<typeof careAccessEntrySchema>;
+
+/**
  * An invitation as `care_invitations` holds it. The token is not here: only
  * its hash is ever stored, and only the mail ever carries the token. Nor is
  * any "answered" state: a row exists only while the invitation is live, and

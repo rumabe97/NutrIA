@@ -9,7 +9,14 @@ import { EmailService, recipientLocale } from '../../email/services/index.js';
 import { ENV } from '../../../config/index.js';
 
 import type { AcceptInvitationDto, InviteClientDto } from '../dto/in/index.js';
-import type { CareInvitationDetailDto, CareInvitationDto, CareLinkDto } from '../dto/out/index.js';
+import type {
+  CareAccessPageDto,
+  CareClientOverviewDto,
+  CareClientsDto,
+  CareInvitationDetailDto,
+  CareInvitationDto,
+  CareLinkDto
+} from '../dto/out/index.js';
 import type { Env } from '../../../config/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
@@ -29,6 +36,14 @@ export class CareService {
 
   async accept(user: SessionUser, token: string, body: AcceptInvitationDto): Promise<CareLinkDto> {
     return CareController.accept(user, token, body);
+  }
+
+  async accessLog(user: SessionUser, before: string | null): Promise<CareAccessPageDto> {
+    return CareController.accessLog(user, before);
+  }
+
+  async clients(professional: SessionUser): Promise<CareClientsDto> {
+    return CareController.clients(professional);
   }
 
   async decline(user: SessionUser, token: string): Promise<void> {
@@ -58,6 +73,11 @@ export class CareService {
 
   async myLink(user: SessionUser): Promise<CareLinkDto | null> {
     return CareController.myLink(user);
+  }
+
+  /** Through `CareController.withClient`, inside the core call: the client's id never reaches this app. */
+  async overview(professional: SessionUser, linkId: string, locale: string | null): Promise<CareClientOverviewDto> {
+    return CareController.overview(professional, linkId, locale);
   }
 
   /**

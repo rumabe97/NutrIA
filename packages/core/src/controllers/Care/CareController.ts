@@ -1,7 +1,12 @@
 import { createHash, randomBytes } from 'node:crypto';
 
 import { CareRepository } from '#repositories/Care';
+import { HealthController } from 'core/controllers/Health';
+import { isCheckInDue } from 'core/controllers/CheckIn';
+import { PlanController } from 'core/controllers/Plan';
 import { ProfessionalRepository } from '#repositories/Professional';
+import { ProfileController } from 'core/controllers/Profile';
+import { ProgressController } from 'core/controllers/Progress';
 import { SettingsRepository } from '#repositories/Settings';
 import { FLAGS } from 'core/domain/Flag';
 import {
@@ -14,11 +19,37 @@ import {
 } from 'core/entities/Care';
 import { CareLinkExistsError, InputParseError, NotFoundError } from 'core/entities/Error';
 
-import type { LinkWithProfessional, OpenInvitation } from '#repositories/Care';
-import type { AcceptInvitation, CareHealthShared, CareInvitation, CareLinkStatus, CareShared, InviteClient } from 'core/entities/Care';
+import type { LinkWithProfessional, OpenInvitation, RosterLink } from '#repositories/Care';
+import type {
+  AcceptInvitation,
+  CareAccessAction,
+  CareAccessEntry,
+  CareAccessKind,
+  CareHealthShared,
+  CareLink,
+  CareLinkStatus,
+  CareShared,
+  InviteClient
+} from 'core/entities/Care';
+import type { PlanSummaryView, PlanView } from 'core/controllers/Plan';
+import type { ProgressSummaryView } from 'core/controllers/Progress';
+import type { ResolvedTargets } from 'core/domain/Nutrition';
+import type { SharedHealthView } from 'core/controllers/Health';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TOKEN_BYTES = 32;
+/** One page of the client's trail, newest first. */
+const ACCESS_LOG_LIMIT = 100;
+
+/**
+ * What `withClient` hands its callback beside the client's id: the link
+ * without either account's id, and both names.
+ */
+export interface ClientAccess {
+  readonly clientName: string;
+  readonly link: Omit<CareLink, 'clientId' | 'professionalId'>;
+  readonly professionalName: string;
+}
 
 // --- Presenters ---------------------------------------------------------------
 
@@ -73,7 +104,127 @@ export interface CareLinkView {
   status: CareLinkStatus;
 }
 
-function presentInvitation(row: CareInvitation): CareInvitationView {
+/**
+ * Where a linked client is, from stored state only (PRD 004, Outcome), in the
+ * order a professional acts on it:
+ *
+ * - `onboarding` — still filling in the profile;
+ * - `plan_awaiting_review` — a plan is waiting for the professional (`0060`).
+ *   Part of the contract now, produced from Phase 5 on, when the
+ *   `pending_review` plan status exists;
+ * - `check_in_due` — the latest fortnight has ended and is unanswered;
+ * - `plan_under_way` — a plan is active;
+ * - `awaiting_plan` — the profile is complete and there is no plan yet.
+ *
+ * "Invited" is not here: an invitation has no account behind it that the
+ * product may name, so it is its own list (`CareClientsView.invitations`).
+ */
+export type CareClientStage = 'awaiting_plan' | 'check_in_due' | 'onboarding' | 'plan_awaiting_review' | 'plan_under_way';
+
+/**
+ * A link as its professional sees it: the id every professional route takes,
+ * the client's name, and what the client agreed to. Never the client's
+ * account id or address.
+ */
+export interface CareClientLinkView {
+  linkId: string;
+  name: string;
+  reviewBeforePublish: boolean;
+  sharesHealth: boolean;
+  since: string;
+  status: Exclude<CareLinkStatus, 'ended'>;
+}
+
+/** One client on the professional's list. */
+export interface CareClientView extends CareClientLinkView {
+  /** Null while the link is paused: access is closed, so where the client is is not read. */
+  stage: CareClientStage | null;
+}
+
+/**
+ * The professional's list: clients with an open link (active or paused), by
+ * name, and the invitations still waiting for an answer — the "invited" ones,
+ * known only by the address the professional typed.
+ */
+export interface CareClientsView {
+  clients: readonly CareClientView[];
+  invitations: readonly CareInvitationView[];
+}
+
+/**
+ * One client's page (PRD 004, criterion 9), read through `withClient`: the
+ * plan under way and the plan history, progress (adherence per fortnight, the
+ * weight line, every check-in) and the targets in effect.
+ *
+ * `health` is **absent from the object** — not empty, not null — unless the
+ * client said yes to the separate line (criterion 12); when present it was
+ * read through its own `withClient` call and left its own row in the trail.
+ */
+export interface CareClientOverviewView {
+  client: CareClientLinkView;
+  health?: SharedHealthView;
+  plan: PlanView | null;
+  plans: readonly PlanSummaryView[];
+  progress: ProgressSummaryView;
+  targets: ResolvedTargets | null;
+}
+
+/** One row of a client's own trail: who, what kind of data, read or changed, and when. */
+export interface CareAccessEntryView {
+  id: string;
+  action: CareAccessAction;
+  at: string;
+  kind: CareAccessKind;
+  professionalName: string;
+}
+
+/** One page of the trail, and the cursor for the next: the last entry's id, or null on the last page. */
+export interface CareAccessPageView {
+  entries: readonly CareAccessEntryView[];
+  next: string | null;
+}
+
+function presentAccess(row: CareAccessEntry): CareAccessEntryView {
+  return { id: row.id, action: row.action, at: row.createdAt.toISOString(), kind: row.kind, professionalName: row.professionalName };
+}
+
+function presentClientLink(
+  link: Pick<RosterLink['link'], 'consentedAt' | 'id' | 'reviewBeforePublish' | 'sharesHealth'> & { readonly status: CareLinkStatus },
+  name: string
+): CareClientLinkView {
+  return {
+    linkId: link.id,
+    name,
+    reviewBeforePublish: link.reviewBeforePublish,
+    sharesHealth: link.sharesHealth,
+    since: link.consentedAt.toISOString(),
+    // Only open links reach a professional's view: `roster` and `activeLink` both filter on it.
+    status: link.status === 'paused' ? 'paused' : 'active'
+  };
+}
+
+/** Where a client with an active link is, first match wins — see `CareClientStage`. */
+function stageOf(row: RosterLink, today: string): CareClientStage {
+  if (!row.onboarded) {
+    return 'onboarding';
+  }
+
+  if (row.planPendingReview) {
+    return 'plan_awaiting_review';
+  }
+
+  if (row.latestPlan && isCheckInDue(row.latestPlan, row.latestPlan.answered, today)) {
+    return 'check_in_due';
+  }
+
+  return row.planActive ? 'plan_under_way' : 'awaiting_plan';
+}
+
+function presentClient(row: RosterLink, today: string): CareClientView {
+  return { ...presentClientLink(row.link, row.clientName), stage: row.link.status === 'active' ? stageOf(row, today) : null };
+}
+
+function presentInvitation(row: { readonly email: string; readonly expiresAt: Date }): CareInvitationView {
   return { email: row.email, expiresAt: row.expiresAt.toISOString() };
 }
 
@@ -197,6 +348,57 @@ export const CareController = {
     return presentLink(outcome);
   },
 
+  /**
+   * The client's own trail (PRD 004, criterion 6): every time a professional
+   * reached their data, newest first, `ACCESS_LOG_LIMIT` at a time — `next` is
+   * the `before` of the following page, null on the last — so every row stays
+   * visible however long the trail grows. The session's own rows and nobody
+   * else's; a `before` that is not one of them is an empty page.
+   *
+   * Not behind the switch, like `myLink`: what was read about somebody is
+   * theirs to see whatever the switch says. With the switch off and nothing
+   * ever read, it is an empty list — the same answer every account gets.
+   */
+  async accessLog(session: Pick<CareSession, 'id'>, beforeId: string | null = null): Promise<CareAccessPageView> {
+    if (beforeId !== null && !careLinkIdSchema.safeParse(beforeId).success) {
+      throw new InputParseError('Invalid cursor', { before: ['invalid'] });
+    }
+
+    const rows = await CareRepository.accessLog(session.id, ACCESS_LOG_LIMIT + 1, beforeId);
+    const entries = rows.slice(0, ACCESS_LOG_LIMIT).map(presentAccess);
+
+    return { entries, next: rows.length > ACCESS_LOG_LIMIT ? (entries.at(-1)?.id ?? null) : null };
+  },
+
+  /**
+   * The professional's list: each client with an open link, by name, with
+   * where they are, and the invitations still unanswered. Behind
+   * `ProfessionalGuard`.
+   *
+   * A stage is worked out from the client's data (onboarding, plans,
+   * check-ins), so the list is a read and leaves its row (PRD 004, criterion
+   * 6): **one `list` row in the trail of every client with an active link**,
+   * written before the stages are read and in the same snapshot
+   * (`CareRepository.roster`), so no stage is shown without its row. A paused
+   * link shows its name and no stage, and writes nothing. No client id comes
+   * out of it; the link id each row carries is the only way on, and every way
+   * on is `withClient`.
+   *
+   * The switch and the grant are asked here too, as `withClient` asks them:
+   * the guard is the first line, this the second for any caller that is not a
+   * route.
+   */
+  async clients(professional: Pick<CareSession, 'id'>, now: Date = new Date()): Promise<CareClientsView> {
+    if (!(await isProfessional(professional.id))) {
+      throw new NotFoundError('Client not found');
+    }
+
+    const roster = await CareRepository.roster(professional.id, now);
+    const today = now.toISOString().slice(0, 10);
+
+    return { clients: roster.links.map(row => presentClient(row, today)), invitations: roster.invitations.map(presentInvitation) };
+  },
+
   /** The client says no. The invitation is deleted; nothing is shared and no link exists. */
   async decline(session: CareSession, token: string, now: Date = new Date()): Promise<void> {
     await assertOpen();
@@ -302,5 +504,98 @@ export const CareController = {
     const row = await CareRepository.clientLink(session.id);
 
     return row ? presentLink(row) : null;
+  },
+
+  /**
+   * One client's page, for their professional (PRD 004, criterion 9) —
+   * through `withClient`, like every professional read of a client.
+   *
+   * **The trail gets exactly one row per kind read**: one `overview` row, and,
+   * only when the link shares health, one `health` row — two for that page,
+   * never more, never fewer. The health read is its own `withClient` call, so
+   * it re-checks the link: a client who ended it between the two reads gets no
+   * `health` row, and the page no `health` key.
+   *
+   * `locale` is the reader's, so the dishes are named in the professional's
+   * language.
+   */
+  async overview(professional: Pick<CareSession, 'id'>, linkId: string, locale: string | null = null): Promise<CareClientOverviewView> {
+    return CareController.withClient(professional.id, linkId, 'overview', 'read', async (clientId, access) => {
+      const [plan, plans, progress, targets] = await Promise.all([
+        PlanController.getActivePlan(clientId, locale),
+        PlanController.listPlans(clientId),
+        ProgressController.summary(clientId),
+        ProfileController.targets(clientId)
+      ]);
+      const page: CareClientOverviewView = { client: presentClientLink(access.link, access.clientName), plan, plans, progress, targets };
+
+      if (!access.link.sharesHealth) {
+        return page;
+      }
+
+      try {
+        return { ...page, health: await CareController.withClient(professional.id, linkId, 'health', 'read', HealthController.shared) };
+      } catch (error: unknown) {
+        if (error instanceof NotFoundError) {
+          return page;
+        }
+
+        throw error;
+      }
+    });
+  },
+
+  /**
+   * **The only function in the codebase that turns a professional's session
+   * into another account's id** (`0059`). Every read or write a professional
+   * makes on a client's data goes through here, and nothing else may resolve a
+   * link for them.
+   *
+   * In order:
+   *
+   * 1. the link id must be an id at all, and the `professional` switch on —
+   *    the guard asked too, this is the second line for any caller that is not
+   *    a route;
+   * 2. the link is resolved by `(id, professionalId, status = 'active')` with
+   *    the grant still standing — one query, `CareRepository.activeLink`. A
+   *    link that is someone else's, paused, ended, unknown or not an id is
+   *    one `NotFoundError`, the 404 of every denial; nothing is written;
+   * 3. the client's trail gets its row — who (the professional's id and name
+   *    as it is now), `kind`, `action` — **before** `fn` runs, so there is no
+   *    read without its row; a failure to write it fails the call;
+   * 4. `fn` gets the client's id, from the link row and never from the
+   *    request, and the link without either account's id (`ClientAccess`), so
+   *    a view built from it cannot carry one.
+   *
+   * A `health` read is refused like any other denial unless the link shares
+   * health.
+   *
+   * Nothing is cached: ending the link closes access on the very next call.
+   */
+  async withClient<T>(
+    professionalId: string,
+    linkId: string,
+    // `list` is the list's own row, written by `CareRepository.roster` alone.
+    kind: Exclude<CareAccessKind, 'list'>,
+    action: CareAccessAction,
+    fn: (clientId: string, access: ClientAccess) => Promise<T>
+  ): Promise<T> {
+    if (!careLinkIdSchema.safeParse(linkId).success || !(await switchedOn())) {
+      throw new NotFoundError('Client not found');
+    }
+
+    const access = await CareRepository.activeLink(professionalId, linkId);
+
+    // The health line is the link's own consent (PRD 004, criterion 12): asked
+    // here, not left to the caller, so no caller can read health without it.
+    if (!access || (kind === 'health' && !access.link.sharesHealth)) {
+      throw new NotFoundError('Client not found');
+    }
+
+    await CareRepository.logAccess(access.link.clientId, { action, kind, professionalId, professionalName: access.professionalName });
+
+    const { clientId, professionalId: _professional, ...link } = access.link;
+
+    return fn(clientId, { clientName: access.clientName, link, professionalName: access.professionalName });
   }
 };
