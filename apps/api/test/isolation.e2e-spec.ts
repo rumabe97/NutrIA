@@ -4,7 +4,7 @@ import { Test } from '@nestjs/testing';
 import express from 'express';
 
 import { AppModule } from '../src/app.module.js';
-import { activate, httpServer } from './harness.js';
+import { activate, deleteAccounts, httpServer } from './harness.js';
 
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { INestApplication } from '@nestjs/common';
@@ -26,6 +26,8 @@ describe('user data isolation', () => {
   let app: INestApplication;
   let alice: Account;
   let bob: Account;
+  /** Every account this suite registered, so `afterAll` can delete each one. */
+  const made: string[] = [];
 
   async function register(email: string): Promise<Account> {
     const password = 'correct-horse-battery-staple-9';
@@ -54,13 +56,16 @@ describe('user data isolation', () => {
 
     const stamp = Date.now();
     alice = await register(`alice-${stamp}@e2e.invalid`);
+    made.push(alice.cookie);
     bob = await register(`bob-${stamp}@e2e.invalid`);
+    made.push(bob.cookie);
 
     await request(httpServer(app)).patch(`/${PREFIX}/profile`).set('Cookie', alice.cookie).send({ displayName: 'Alice', heightCm: 170 }).expect(200);
     await request(httpServer(app)).patch(`/${PREFIX}/profile`).set('Cookie', bob.cookie).send({ displayName: 'Bob', heightCm: 180 }).expect(200);
   });
 
   afterAll(async () => {
+    await deleteAccounts(app, made);
     await app?.close();
   });
 
