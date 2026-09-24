@@ -1,0 +1,139 @@
+.back {
+  align-items: center;
+  color: var(--foreground-02);
+  display: inline-flex;
+  font-size: var(--font-size-03);
+  margin-bottom: var(--gap-block);
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--foreground-01);
+}
+
+.title {
+  font-size: var(--font-size-09);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0 0 var(--gap-heading);
+  overflow-wrap: anywhere;
+}
+
+.meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02) var(--space-03);
+}
+
+.chip {
+  align-items: center;
+  background-color: var(--background-02);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-full);
+  color: var(--foreground-02);
+  display: inline-flex;
+  font-size: var(--font-size-01);
+  padding: 0 var(--space-02);
+}
+
+.regions {
+  display: grid;
+  gap: var(--gap-block);
+  margin-top: var(--gap-region);
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-04);
+}
+
+/* A card's name: the same on every card of the product. */
+.cardTitle {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
+.subTitle {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  margin: var(--space-02) 0 0;
+  text-transform: uppercase;
+}
+
+.actions {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03) var(--space-05);
+}
+
+.rows {
+  display: grid;
+  gap: var(--space-02);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  border-bottom: 1px solid var(--border-01);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-03);
+  gap: var(--space-01) var(--space-04);
+  justify-content: space-between;
+  padding-bottom: var(--space-02);
+}
+
+.rowValue {
+  color: var(--foreground-02);
+}
+
+.figure {
+  font-size: var(--font-size-07);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-01);
+  margin: 0;
+}
+
+.health {
+  display: grid;
+  gap: var(--space-03);
+  margin: 0;
+}
+
+.healthRow {
+  display: grid;
+  gap: var(--space-01) var(--space-04);
+  grid-template-columns: var(--label-column) 1fr;
+}
+
+.healthRow dt {
+  color: var(--foreground-02);
+  font-size: var(--font-size-03);
+}
+
+.healthRow dd {
+  font-size: var(--font-size-03);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (pointer: coarse) {
+  .back {
+    min-block-size: var(--target-min);
+  }
+}
+
+@media (width <= 40rem) {
+  .healthRow {
+    grid-template-columns: 1fr;
+  }
+}

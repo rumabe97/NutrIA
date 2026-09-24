@@ -6,10 +6,11 @@ import { useRouter } from 'next/navigation';
 import styles from './AccountList.module.css';
 
 import { Button } from 'ui/components/Button';
+import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
-import { api, messageFor } from 'lib/api';
+import { api, ApiError, messageFor } from 'lib/api';
 import { formatDate, interpolate } from 'lib/format';
 
 import type { AccountView } from 'core/controllers/User';
@@ -22,6 +23,8 @@ interface AccountListProps {
    * nothing is a button that lies about what it did.
    */
   premium: boolean;
+  /** The accounts already granted as professionals (`0059`), so their row says so instead of offering it again. */
+  professionalIds: readonly string[];
 }
 
 /**
@@ -36,7 +39,7 @@ interface AccountListProps {
  * Address, date and role, and nothing else. What somebody eats is not on this
  * page and never will be (`0028`).
  */
-export function AccountList({ accounts, premium }: AccountListProps) {
+export function AccountList({ accounts, premium, professionalIds }: AccountListProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -44,6 +47,8 @@ export function AccountList({ accounts, premium }: AccountListProps) {
   const [rows, setRows] = useState(accounts);
   const [pending, setPending] = useState<string>();
   const [error, setError] = useState<string>();
+  const [granting, setGranting] = useState<string>();
+  const [numberError, setNumberError] = useState<string>();
 
   async function activate(id: string) {
     const previous = rows;
@@ -81,6 +86,27 @@ export function AccountList({ accounts, premium }: AccountListProps) {
     }
   }
 
+  /** Makes an account a professional with the collegiate number the owner has checked (`0059`). */
+  async function grant(id: string, collegiateNumber: string) {
+    setPending(id);
+    setError(undefined);
+    setNumberError(undefined);
+
+    try {
+      await api(`/admin/accounts/${id}/professional`, { body: { collegiateNumber }, method: 'POST' });
+      setGranting(undefined);
+      router.refresh();
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === 'INVALID_INPUT') {
+        setNumberError(t.professionalCollegiateHint);
+      } else {
+        setError(messageFor(caught, dictionary));
+      }
+    } finally {
+      setPending(undefined);
+    }
+  }
+
   if (rows.length === 0) {
     return (
       <Text size="sm" tone="tertiary">
@@ -103,6 +129,11 @@ export function AccountList({ accounts, premium }: AccountListProps) {
                 <span className={styles.chip} data-on={account.activated}>
                   {account.activated ? t.opened : t.notOpened}
                 </span>
+                {professionalIds.includes(account.id) ? (
+                  <span className={styles.chip} data-on={true}>
+                    {t.professionalChip}
+                  </span>
+                ) : null}
                 {premium && account.tier === 'premium' ? (
                   <span className={styles.chip} data-on={true}>
                     {t.tierPremium}
@@ -141,7 +172,54 @@ export function AccountList({ accounts, premium }: AccountListProps) {
                   {account.tier === 'premium' ? t.makeFree : t.makePremium}
                 </Button>
               ) : null}
+
+              {professionalIds.includes(account.id) || granting === account.id ? null : (
+                <Button
+                  aria-label={interpolate(t.makeProfessionalFor, { email: account.email })}
+                  disabled={pending !== undefined}
+                  onClick={() => {
+                    setNumberError(undefined);
+                    setGranting(account.id);
+                  }}
+                  size="sm"
+                  type="button"
+                  variant="secondary"
+                >
+                  {t.makeProfessional}
+                </Button>
+              )}
             </span>
+
+            {/* The number is required, not a declaration: the owner types what they checked with the college. */}
+            {granting === account.id ? (
+              <form
+                aria-label={interpolate(t.makeProfessionalFor, { email: account.email })}
+                className={styles.grant}
+                onSubmit={event => {
+                  event.preventDefault();
+                  void grant(account.id, String(new FormData(event.currentTarget).get('collegiateNumber') ?? '').trim());
+                }}
+              >
+                <Input
+                  autoComplete="off"
+                  // The form was opened for this and nothing else: typing is the next thing to do.
+                  autoFocus={true}
+                  error={numberError}
+                  hint={numberError ? undefined : t.professionalCollegiateHint}
+                  label={t.professionalCollegiate}
+                  name="collegiateNumber"
+                  required={true}
+                />
+                <span className={styles.actions}>
+                  <Button disabled={pending === undefined ? false : pending !== account.id} loading={pending === account.id} size="sm" type="submit">
+                    {t.professionalGrant}
+                  </Button>
+                  <Button disabled={pending === account.id} onClick={() => setGranting(undefined)} size="sm" type="button" variant="secondary">
+                    {dictionary.common.cancel}
+                  </Button>
+                </span>
+              </form>
+            ) : null}
           </li>
         ))}
       </ul>

@@ -1,0 +1,110 @@
+.title {
+  font-size: var(--font-size-09);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0 0 var(--gap-heading);
+}
+
+.intro {
+  max-width: 40rem;
+  text-wrap: pretty;
+}
+
+.regions {
+  display: grid;
+  gap: var(--gap-region);
+  margin-top: var(--gap-region);
+}
+
+.region {
+  display: grid;
+  gap: var(--gap-block);
+}
+
+.regionTitle {
+  font-size: var(--font-size-06);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-02);
+  margin: 0 0 calc(var(--gap-heading) - var(--gap-block));
+}
+
+.clients {
+  display: grid;
+  gap: var(--space-03);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* The whole card is the way into the client's page: name first, where they are under it. */
+.client {
+  color: inherit;
+  display: grid;
+  gap: var(--space-02);
+  text-decoration: none;
+}
+
+a.client:hover {
+  border-color: var(--border-interactive);
+}
+
+.clientName {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.clientMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+}
+
+/* Each stage is its words; the chip's edge only helps the eye find the ones that are waiting on the professional. */
+.stage,
+.chip {
+  align-items: center;
+  background-color: var(--background-02);
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-full);
+  color: var(--foreground-02);
+  display: inline-flex;
+  font-size: var(--font-size-01);
+  padding: 0 var(--space-02);
+}
+
+.stage[data-stage='plan_awaiting_review'],
+.stage[data-stage='check_in_due'] {
+  border-color: var(--color-brand-fill);
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-semibold);
+}
+
+.stage[data-stage='paused'] {
+  border-color: var(--color-warning);
+  color: var(--color-warning-text);
+}
+
+.invitations {
+  display: grid;
+  gap: var(--space-02);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.invitation {
+  border-bottom: 1px solid var(--border-01);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-01) var(--space-04);
+  justify-content: space-between;
+  padding-bottom: var(--space-02);
+}
+
+.email {
+  font-size: var(--font-size-03);
+  overflow-wrap: anywhere;
+}

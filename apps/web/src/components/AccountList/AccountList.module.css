@@ -16,6 +16,7 @@
   border: 1px solid var(--border-01);
   border-radius: var(--radius-control);
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-04);
   justify-content: space-between;
   padding: var(--space-03) var(--space-04);
@@ -69,4 +70,17 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-02);
+}
+
+/* The collegiate number, under the whole row once asked for. */
+.grant {
+  align-items: end;
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+}
+
+.grant > :first-child {
+  flex: 1 1 14rem;
 }
