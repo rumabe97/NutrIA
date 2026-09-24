@@ -45,5 +45,5 @@ export function verifyEmail({ locale, url }: { locale: EmailLocale; url: string 
     title: copy.subject
   });
 
-  return { html, subject: copy.subject, text: [copy.intro, '', url, '', copy.next, copy.ignore].join('\n') };
+  return { html, kind: 'verify-email', subject: copy.subject, text: [copy.intro, '', url, '', copy.next, copy.ignore].join('\n') };
 }

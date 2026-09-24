@@ -59,3 +59,16 @@ export const macroDirection = pgEnum('macro_direction', ['up', 'down', 'same']);
 
 /** What a recorded supplement is (`0052`). Only `protein` carries protein grams. */
 export const supplementKind = pgEnum('supplement_kind', ['protein', 'creatine', 'vitamins_minerals', 'omega_3', 'other']);
+
+/**
+ * Where a link between a professional and a client stands (`0059`). `paused`
+ * is a practice that stopped paying (`0061`); `ended` is for good, whoever
+ * ended it, and a new link is a new row.
+ */
+export const careLinkStatus = pgEnum('care_link_status', ['active', 'paused', 'ended']);
+
+/**
+ * Who ended a link: one of its two sides, a practice that lapsed, or an account going away.
+ * `account` is reserved and has no writer: while deleting an account cascades its link rows away, nothing is left to mark.
+ */
+export const careLinkEndedBy = pgEnum('care_link_ended_by', ['professional', 'client', 'lapse', 'account']);

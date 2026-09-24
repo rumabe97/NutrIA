@@ -13,8 +13,16 @@ const MUTED = '#6b7263';
 
 export type EmailLocale = 'en-GB' | 'es-ES';
 
+/**
+ * Which message this is, as the log may name it. A subject can carry a
+ * person's name (an invitation's does) and is never logged; this is a fixed
+ * label per template, and says nothing about anybody.
+ */
+export type EmailKind = 'account-waiting' | 'care-invitation' | 'check-in-reminder' | 'password-reset' | 'verify-email';
+
 export interface RenderedEmail {
   html: string;
+  kind: EmailKind;
   subject: string;
   text: string;
 }

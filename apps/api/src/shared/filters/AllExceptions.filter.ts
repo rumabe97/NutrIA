@@ -2,6 +2,7 @@ import { ArgumentsHost, Catch, HttpException, HttpStatus, Logger } from '@nestjs
 
 import {
   AccountNotActivatedError,
+  CareLinkExistsError,
   ConflictError,
   DatabaseOperationError,
   EmailNotVerifiedError,
@@ -23,6 +24,8 @@ import type { Request, Response } from 'express';
 type ErrorBody = {
   readonly code: string;
   readonly fieldErrors?: Record<string, readonly string[]>;
+  /** The client's own open link, named when it is what stands in the way of accepting another (`0059`). */
+  readonly link?: { readonly professionalName: string; readonly since: string; readonly status: 'active' | 'paused' };
   readonly message: string;
   /** ISO date an exhausted allowance renews, when it renews on a date. */
   readonly retryAt?: string;
@@ -72,6 +75,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
   private toBody(exception: unknown): ErrorBody {
     if (exception instanceof NotFoundError) {
       return { code: 'NOT_FOUND', message: exception.message, statusCode: HttpStatus.NOT_FOUND };
+    }
+
+    if (exception instanceof CareLinkExistsError) {
+      // A state the client can act on: the link in the way is theirs, so it is
+      // named — whose, where it stands, since when — and the screen offers to end it.
+      return {
+        code: 'CARE_LINK_EXISTS',
+        link: { professionalName: exception.link.professionalName, since: exception.link.since, status: exception.link.status },
+        message: 'Ya tienes un dietista vinculado.',
+        statusCode: HttpStatus.CONFLICT
+      };
     }
 
     if (exception instanceof ConflictError) {

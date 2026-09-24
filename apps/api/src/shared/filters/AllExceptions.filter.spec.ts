@@ -3,6 +3,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 
 import {
   AccountNotActivatedError,
+  CareLinkExistsError,
   ConflictError,
   DatabaseOperationError,
   InputParseError,
@@ -39,6 +40,14 @@ describe('AllExceptionsFilter', () => {
 
   it('maps ConflictError to 409', () => {
     expect(capture(new ConflictError()).body).toMatchObject({ code: 'CONFLICT', statusCode: HttpStatus.CONFLICT });
+  });
+
+  it('maps a link in the way to 409, naming it and nothing more', () => {
+    const link = { professionalName: 'Ana Dietista', since: '2026-09-23T10:00:00.000Z', status: 'active' as const };
+    const { body } = capture(new CareLinkExistsError(link));
+
+    expect(body).toMatchObject({ code: 'CARE_LINK_EXISTS', link, statusCode: HttpStatus.CONFLICT });
+    expect(Object.keys((body as unknown as { link: object }).link).sort()).toEqual(['professionalName', 'since', 'status']);
   });
 
   it('maps an unactivated account to 409 with the code the screen routes on', () => {

@@ -29,7 +29,6 @@ import type { ExecutionContext } from '@nestjs/common';
  * switch off, closes access on the very next request.
  */
 @Injectable()
-/** @knipignore Unused until Phase 2 of project 004 puts it on the first `care` controller; that phase removes this tag. */
 export class ProfessionalGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const { user } = context.switchToHttp().getRequest<AuthenticatedRequest>();

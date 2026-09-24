@@ -50,20 +50,15 @@ function present(row: Professional): ProfessionalView {
 }
 
 /**
- * Zero of each, because there is no `care_links` table yet: Phase 2 of project
- * 004 creates it and replaces this with a count per status from the repository.
- * The shape is settled now so the owner's screen is built against it once.
+ * Copied field by field, so a column added to the count query cannot reach the
+ * owner's screen without somebody deciding it should.
  */
-function noLinksYet(): LinkCounts {
-  return { active: 0, ended: 0, paused: 0 };
-}
-
 function presentAccount(row: ProfessionalListRow): ProfessionalAccountView {
   return {
     collegiateNumber: row.collegiateNumber,
     email: row.email,
     grantedAt: row.grantedAt.toISOString(),
-    links: noLinksYet(),
+    links: { active: row.links.active, ended: row.links.ended, paused: row.links.paused },
     userId: row.userId
   };
 }
@@ -106,8 +101,10 @@ export const ProfessionalController = {
     }
 
     const row = await ProfessionalRepository.grant(userId, input.collegiateNumber, grantedBy);
+    // A grant made again — a corrected number — may be on an account with links already.
+    const links = await ProfessionalRepository.linkCounts(userId);
 
-    return presentAccount({ ...row, email: account.email });
+    return presentAccount({ ...row, email: account.email, links });
   },
 
   /**
@@ -120,13 +117,20 @@ export const ProfessionalController = {
    * sees, never cached: revoking must close access on the very next one.
    */
   async hasAccess(userId: string): Promise<boolean> {
-    const open = await SettingsRepository.isEnabled(FLAGS.professional.key, FLAGS.professional.fallback);
-
-    if (!open) {
+    if (!(await ProfessionalController.isOpen())) {
       return false;
     }
 
     return (await ProfessionalRepository.find(userId)) !== null;
+  },
+
+  /**
+   * Whether the workspace exists at all: the `professional` switch, failing
+   * off. The door for the routes an invited *client* uses — no grant to ask
+   * about — read on every request like `hasAccess`, never cached.
+   */
+  async isOpen(): Promise<boolean> {
+    return SettingsRepository.isEnabled(FLAGS.professional.key, FLAGS.professional.fallback);
   },
 
   /** Every professional for the owner's screen — accounts and counts, never a client. */

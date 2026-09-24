@@ -1,7 +1,8 @@
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
+import { careInvitations, careLinks } from 'database/schema/care';
 import { professionals } from 'database/schema/professional';
 import { user } from 'database/schema/auth';
 
@@ -20,9 +21,18 @@ export type ProfessionalListRow = {
   readonly email: string;
   readonly grantedAt: Date;
   readonly includedClients: number;
+  readonly links: LinkCountRow;
   readonly practiceOpen: boolean;
   readonly userId: string;
 };
+
+/** How many of one professional's links are in each status: counts, never a client. */
+export type LinkCountRow = { readonly active: number; readonly ended: number; readonly paused: number };
+
+/** Links of one status, counted over the joined rows; a professional with none counts zero. */
+function linksIn(status: 'active' | 'ended' | 'paused') {
+  return sql<number>`count(${careLinks.id}) filter (where ${careLinks.status} = ${status})`.mapWith(Number);
+}
 
 export const ProfessionalRepository = {
   /**
@@ -68,26 +78,51 @@ export const ProfessionalRepository = {
   },
 
   /**
-   * Every professional, most recently granted first.
+   * One professional's links, counted per status — for the grant's answer,
+   * which is a row of the owner's list. Only the status column is read.
+   */
+  async linkCounts(professionalId: string): Promise<LinkCountRow> {
+    try {
+      const [row] = await database()
+        .select({ active: linksIn('active'), ended: linksIn('ended'), paused: linksIn('paused') })
+        .from(careLinks)
+        .where(eq(careLinks.professionalId, professionalId));
+
+      return row ?? { active: 0, ended: 0, paused: 0 };
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Every professional, most recently granted first, with their links counted
+   * per status.
    *
-   * Reads for the owner's own screen and nothing about a client: no link is
-   * joined here, and none will be by name — a count per status is Phase 2's
-   * addition, and it stays a count.
+   * Reads for the owner's own screen and nothing about a client (`0028`): the
+   * links are joined only to be counted, and no column of theirs but the status
+   * is read — not a client's id, not a name, not an address.
    */
   async list(): Promise<readonly ProfessionalListRow[]> {
     try {
-      return await database()
+      const rows = await database()
         .select({
+          active: linksIn('active'),
           collegiateNumber: professionals.collegiateNumber,
           email: user.email,
+          ended: linksIn('ended'),
           grantedAt: professionals.grantedAt,
           includedClients: professionals.includedClients,
+          paused: linksIn('paused'),
           practiceOpen: professionals.practiceOpen,
           userId: professionals.userId
         })
         .from(professionals)
         .innerJoin(user, eq(user.id, professionals.userId))
+        .leftJoin(careLinks, eq(careLinks.professionalId, professionals.userId))
+        .groupBy(professionals.id, user.id)
         .orderBy(desc(professionals.grantedAt));
+
+      return rows.map(({ active, ended, paused, ...row }) => ({ ...row, links: { active, ended, paused } }));
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -96,9 +131,13 @@ export const ProfessionalRepository = {
   /** Takes the grant back. Returns false when the account was not a professional. */
   async revoke(userId: string): Promise<boolean> {
     try {
-      const rows = await database().delete(professionals).where(eq(professionals.userId, userId)).returning({ id: professionals.id });
+      // Their unanswered invitations go with the grant: nobody can answer them any more, and each holds an address somebody typed.
+      return await database().transaction(async tx => {
+        const rows = await tx.delete(professionals).where(eq(professionals.userId, userId)).returning({ id: professionals.id });
+        await tx.delete(careInvitations).where(eq(careInvitations.professionalId, userId));
 
-      return rows.length > 0;
+        return rows.length > 0;
+      });
     } catch (error: unknown) {
       throw wrap(error);
     }

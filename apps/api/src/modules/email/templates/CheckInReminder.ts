@@ -40,7 +40,7 @@ export function checkInReminderEmail({ locale, url }: { locale: EmailLocale; url
 
   const text = [copy.intro, '', url, '', copy.why, copy.optOut].join('\n');
 
-  return { html, subject: copy.subject, text };
+  return { html, kind: 'check-in-reminder', subject: copy.subject, text };
 }
 
 /** Kept for the notification row: what was sent, without the link. */

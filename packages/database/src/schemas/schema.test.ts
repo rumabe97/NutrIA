@@ -88,3 +88,42 @@ describe('user-scoped tables', () => {
     expect(notCascading).toEqual([]);
   });
 });
+
+describe('the link between a professional and a client (0059)', () => {
+  it.each(['care_links', 'care_invitations'])('%s goes with either account it names', name => {
+    // No `user_id` column here, so the check above does not see these: a link
+    // names two accounts, and deleting either must take it (PRD 004, criterion 14).
+    const keys = config(name).foreignKeys.map(key => ({ onDelete: key.onDelete, table: getTableConfig(key.reference().foreignTable).name }));
+
+    expect(keys.length).toBeGreaterThan(0);
+    expect(keys.every(key => key.table === 'user' && key.onDelete === 'cascade')).toBe(true);
+  });
+
+  it('allows one open link per client, and only one', () => {
+    const index = config('care_links').indexes.find(candidate => candidate.config.name === 'care_links_one_open_per_client');
+
+    expect(index?.config.unique).toBe(true);
+    expect(index?.config.where).toBeDefined();
+  });
+
+  it('stores a token only as its hash, unique', () => {
+    const table = config('care_invitations');
+
+    expect(table.columns.map(column => column.name)).not.toContain('token');
+    expect(
+      table.uniqueConstraints.some(constraint => constraint.columns.some(column => column.name === 'token_hash' || column.name === 'tokenHash'))
+    ).toBe(true);
+  });
+
+  it('keeps an invitation only while it is live: no answered or set-aside rows, one per professional and address', () => {
+    const table = config('care_invitations');
+    const names = table.columns.map(column => column.name);
+    const onePerAddress = table.indexes.find(candidate => candidate.config.name === 'care_invitations_one_per_address');
+
+    // Answering or replacing an invitation deletes it, so there is no state to record (PRD 004, criterion 14).
+    expect(names.some(name => /used|revoked/i.test(name))).toBe(false);
+    expect(onePerAddress?.config.unique).toBe(true);
+    expect(onePerAddress?.config.where).toBeUndefined();
+    expect(onePerAddress?.config.columns.map(column => (column as { name: string }).name)).toEqual(['professionalId', 'email']);
+  });
+});

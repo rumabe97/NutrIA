@@ -55,6 +55,53 @@ describe('serializeRequest', () => {
   it('never invents an allowed header that was not sent', () => {
     expect(serializeRequest({ headers: {}, method: 'GET', url: '/' }).headers).toEqual({});
   });
+
+  it('never writes an invitation token, in the path or in the page that called it (0059)', () => {
+    const token = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcde';
+    const lines = [
+      serializeRequest({ headers: {}, method: 'GET', url: `/api/v1/care/invitations/${token}` }),
+      serializeRequest({ headers: {}, method: 'POST', url: `/api/v1/care/invitations/${token}/accept?x=1` }),
+      serializeRequest({ headers: { referer: `https://nutria.example/en/invitacion/${token}#top` }, method: 'GET', url: '/api/v1/care/links/me' })
+    ];
+
+    for (const line of lines) {
+      expect(JSON.stringify(line)).not.toContain(token);
+    }
+
+    expect(lines[1]?.url).toBe('/api/v1/care/invitations/[redacted]/accept?x=1');
+    expect((lines[2]?.headers as { referer: string }).referer).toBe('https://nutria.example/en/invitacion/[redacted]#top');
+    // The professional's own route carries no secret and is left as it is.
+    expect(serializeRequest({ headers: {}, method: 'POST', url: '/api/v1/care/invitations' }).url).toBe('/api/v1/care/invitations');
+  });
+
+  it('never writes the token when the path travels percent-encoded, or in another case', () => {
+    const token = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcde';
+    const urls = [
+      // A Better Auth callback carrying the page to come back to.
+      `/api/v1/auth/sign-in/social?callbackURL=https%3A%2F%2Fnutria.example%2Fen%2Finvitacion%2F${token}&x=1`,
+      `/api/v1/auth/callback/google?next=%2fen%2finvitacion%2f${token}`,
+      `/api/v1/auth/verify?next=%252Fen%252Finvitacion%252F${token}%252F`,
+      // Express routes these to the same handler.
+      `/API/V1/CARE/INVITATIONS/${token}/accept`,
+      `/api/v1/Care/Invitations/${token}`,
+      // Express decodes `%41` into `A`: an encoded character is part of the token.
+      `/api/v1/care/invitations/%41${token.slice(1)}/accept`
+    ];
+
+    for (const url of urls) {
+      expect(serializeRequest({ headers: {}, method: 'GET', url }).url).not.toContain(token.slice(1));
+    }
+
+    const referer = `https://nutria.example/es/login?next=%2Fes%2FInvitacion%2F${token}`;
+
+    expect(JSON.stringify(serializeRequest({ headers: { referer }, method: 'GET', url: '/' }))).not.toContain(token);
+    expect(serializeRequest({ headers: {}, method: 'GET', url: urls[1] ?? '' }).url).toBe(
+      '/api/v1/auth/callback/google?next=%2fen%2finvitacion%2f[redacted]'
+    );
+    expect(serializeRequest({ headers: {}, method: 'GET', url: urls[0] ?? '' }).url).toBe(
+      '/api/v1/auth/sign-in/social?callbackURL=https%3A%2F%2Fnutria.example%2Fen%2Finvitacion%2F[redacted]&x=1'
+    );
+  });
 });
 
 describe('serializeResponse', () => {

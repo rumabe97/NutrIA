@@ -1,0 +1,328 @@
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { APP_GUARD } from '@nestjs/core';
+import express from 'express';
+import request from 'supertest';
+import { Test } from '@nestjs/testing';
+
+import { CARE_CONSENT_VERSION, CARE_HEALTH_SHARED, CARE_SHARED } from 'core/entities/Care';
+import { CareController } from 'core/controllers/Care';
+import { CareLinkExistsError, InputParseError, NotFoundError } from 'core/entities/Error';
+import { ProfessionalController } from 'core/controllers/Professional';
+import { ProfileController } from 'core/controllers/Profile';
+
+import { AllExceptionsFilter } from '../../../shared/filters/index.js';
+import { BackgroundTaskService } from '../../../shared/services/index.js';
+import { CareAnswersController } from './CareAnswers.controller.js';
+import { CareInvitationsController } from './CareInvitations.controller.js';
+import { CareLinksController } from './CareLinks.controller.js';
+import { CareService } from '../services/index.js';
+import { EmailService } from '../../email/services/index.js';
+import { ENV } from '../../../config/index.js';
+import { RateLimitGuard } from '../../../shared/guards/RateLimit.guard.js';
+
+import type { CareLinkView } from 'core/controllers/Care';
+import type { INestApplication } from '@nestjs/common';
+import type { OutgoingEmail } from '../../email/services/index.js';
+import type { Server } from 'node:http';
+
+const PREFIX = 'api/v1';
+const TOKEN = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcde';
+const LINK_ID = '0b8e7f4a-3c2d-4e1f-9a8b-7c6d5e4f3a2b';
+const SESSION = { id: 'usr-session', activated: true, email: 'ana@example.invalid', emailVerified: true, name: 'Ana Dietista', role: 'user' };
+
+const LINK: CareLinkView = {
+  id: LINK_ID,
+  consentVersion: CARE_CONSENT_VERSION,
+  professionalName: 'Ana Dietista',
+  shares: CARE_SHARED,
+  sharesHealth: false,
+  since: '2026-09-23T10:00:00.000Z',
+  status: 'active'
+};
+
+/** Lets the background task's promise chain run: the service deliberately does not await it. */
+async function settle(): Promise<void> {
+  for (let turn = 0; turn < 5; turn += 1) {
+    await new Promise(resolve => {
+      setImmediate(resolve);
+    });
+  }
+}
+
+/**
+ * The link's routes (`0059`) through a real Nest application: which door each
+ * route has, what reaches `CareController` from the session and the body, the
+ * 404s and the 409, and that the invitation's token leaves only in the mail.
+ */
+describe('care routes', () => {
+  let app: INestApplication;
+  const send = jest.fn<(message: OutgoingEmail) => Promise<boolean>>();
+
+  beforeAll(async () => {
+    const moduleRef = await Test.createTestingModule({
+      controllers: [CareAnswersController, CareInvitationsController, CareLinksController],
+      providers: [
+        BackgroundTaskService,
+        CareService,
+        { provide: EmailService, useValue: { send } },
+        { provide: ENV, useValue: { APP_URL: 'https://nutria.example', RATE_LIMIT_MAX: 1000, RATE_LIMIT_TTL: 60 } },
+        {
+          provide: APP_GUARD,
+          useValue: {
+            canActivate: (context: { switchToHttp: () => { getRequest: () => { user?: unknown } } }) => {
+              context.switchToHttp().getRequest().user = SESSION;
+
+              return true;
+            }
+          }
+        },
+        { provide: APP_GUARD, useClass: RateLimitGuard }
+      ]
+    }).compile();
+
+    app = moduleRef.createNestApplication();
+    app.setGlobalPrefix(PREFIX);
+    app.useGlobalFilters(new AllExceptionsFilter());
+    app.use(express.json());
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app?.close();
+  });
+
+  beforeEach(() => {
+    send.mockReset();
+    send.mockResolvedValue(true);
+    jest.spyOn(ProfileController, 'localeOf').mockResolvedValue('en-GB');
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  function server(): Server {
+    return app.getHttpServer() as Server;
+  }
+
+  describe('POST /care/invitations', () => {
+    it('is a 404 for an account that is not a professional, and nothing is written or sent', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+      const invite = jest.spyOn(CareController, 'invite');
+
+      await request(server()).post(`/${PREFIX}/care/invitations`).send({ email: 'cliente@example.invalid' }).expect(404);
+      await settle();
+
+      expect(invite).not.toHaveBeenCalled();
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('answers the view alone, and the token goes only into the mail, in the inviter’s language', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      const invite = jest
+        .spyOn(CareController, 'invite')
+        .mockResolvedValue({ invitation: { email: 'cliente@example.invalid', expiresAt: '2026-10-07T10:00:00.000Z' }, token: TOKEN });
+
+      const response = await request(server())
+        .post(`/${PREFIX}/care/invitations`)
+        .send({ email: ' Cliente@Example.invalid ', sharesHealth: true })
+        .expect(201);
+
+      // The body is parsed first: trimmed, lowercased, and nothing else carried.
+      expect(invite).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id, email: SESSION.email }), { email: 'cliente@example.invalid' });
+      expect(response.body).toEqual({ email: 'cliente@example.invalid', expiresAt: '2026-10-07T10:00:00.000Z' });
+      expect(JSON.stringify(response.body)).not.toContain(TOKEN);
+
+      await settle();
+
+      expect(send).toHaveBeenCalledTimes(1);
+      const mail = send.mock.calls[0]?.[0];
+
+      expect(mail?.to).toBe('cliente@example.invalid');
+      expect(mail?.text).toContain(`https://nutria.example/en/invitacion/${TOKEN}`);
+      expect(mail?.subject).toBe('Ana Dietista has invited you to NutrIA');
+    });
+
+    it('refuses a body that is not an address as 422', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      const invite = jest.spyOn(CareController, 'invite');
+
+      await request(server()).post(`/${PREFIX}/care/invitations`).send({ email: 'no' }).expect(422);
+      await request(server()).post(`/${PREFIX}/care/invitations`).send({}).expect(422);
+
+      expect(invite).not.toHaveBeenCalled();
+    });
+
+    it('turns the professional’s own address into a 422 on the field, and sends nothing', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      jest.spyOn(CareController, 'invite').mockRejectedValue(new InputParseError('You cannot invite your own address', { email: ['own_address'] }));
+
+      const response = await request(server()).post(`/${PREFIX}/care/invitations`).send({ email: SESSION.email }).expect(422);
+
+      expect(response.body).toMatchObject({ code: 'INVALID_INPUT', fieldErrors: { email: ['own_address'] } });
+      await settle();
+      expect(send).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('while the switch is off', () => {
+    beforeEach(() => {
+      jest.spyOn(ProfessionalController, 'isOpen').mockResolvedValue(false);
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+    });
+
+    it('answers every invitation route 404 before any pipe reads the body or the path', async () => {
+      const calls = [
+        jest.spyOn(CareController, 'invitation'),
+        jest.spyOn(CareController, 'accept'),
+        jest.spyOn(CareController, 'decline'),
+        jest.spyOn(CareController, 'invite')
+      ];
+
+      const responses = [
+        await request(server()).get(`/${PREFIX}/care/invitations/x`).expect(404),
+        // A body the pipe would refuse with 422 while the switch is on.
+        await request(server()).post(`/${PREFIX}/care/invitations/x/accept`).send({}).expect(404),
+        await request(server()).post(`/${PREFIX}/care/invitations/x/decline`).expect(404),
+        await request(server()).post(`/${PREFIX}/care/invitations`).send({}).expect(404)
+      ];
+
+      for (const response of responses) {
+        expect(response.body).toMatchObject({ code: 'NOT_FOUND', statusCode: 404 });
+      }
+
+      for (const call of calls) {
+        expect(call).not.toHaveBeenCalled();
+      }
+    });
+
+    it('still shows the client their own link — consent stays visible', async () => {
+      jest.spyOn(CareController, 'myLink').mockResolvedValue(LINK);
+
+      expect((await request(server()).get(`/${PREFIX}/care/links/me`).expect(200)).body).toEqual(LINK);
+    });
+
+    it('still lets the client end their link, and answers a path that is not a link id with 404, not 400', async () => {
+      await request(server()).delete(`/${PREFIX}/care/links/not-a-uuid`).expect(404);
+
+      const end = jest.spyOn(CareController, 'end').mockResolvedValue(undefined);
+
+      await request(server()).delete(`/${PREFIX}/care/links/${LINK_ID}`).expect(204);
+      expect(end).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), LINK_ID);
+    });
+  });
+
+  describe('the client’s routes', () => {
+    beforeEach(() => {
+      jest.spyOn(ProfessionalController, 'isOpen').mockResolvedValue(true);
+    });
+
+    it('are not behind the professional’s door, and a link is not behind the switch either', async () => {
+      const hasAccess = jest.spyOn(ProfessionalController, 'hasAccess');
+      const isOpen = jest.spyOn(ProfessionalController, 'isOpen');
+
+      jest.spyOn(CareController, 'myLink').mockResolvedValue(null);
+      await request(server()).get(`/${PREFIX}/care/links/me`).expect(200);
+
+      expect(hasAccess).not.toHaveBeenCalled();
+      expect(isOpen).not.toHaveBeenCalled();
+    });
+
+    it('read an invitation for the session, by the token in the path', async () => {
+      const invitation = jest
+        .spyOn(CareController, 'invitation')
+        .mockResolvedValue({
+          consentVersion: CARE_CONSENT_VERSION,
+          expiresAt: '2026-10-07T10:00:00.000Z',
+          healthShares: CARE_HEALTH_SHARED,
+          professionalName: 'Ana Dietista',
+          shares: CARE_SHARED
+        });
+
+      const response = await request(server()).get(`/${PREFIX}/care/invitations/${TOKEN}`).expect(200);
+
+      expect(invitation).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id, email: SESSION.email, emailVerified: true }), TOKEN);
+      expect(response.body).toMatchObject({ consentVersion: CARE_CONSENT_VERSION, professionalName: 'Ana Dietista' });
+    });
+
+    it('answer every invitation that cannot be answered with the same 404', async () => {
+      jest.spyOn(CareController, 'invitation').mockRejectedValue(new NotFoundError('Invitation not found'));
+      jest.spyOn(CareController, 'accept').mockRejectedValue(new NotFoundError('Invitation not found'));
+      jest.spyOn(CareController, 'decline').mockRejectedValue(new NotFoundError('Invitation not found'));
+
+      const read = await request(server()).get(`/${PREFIX}/care/invitations/${TOKEN}`).expect(404);
+      const accepted = await request(server())
+        .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
+        .send({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
+        .expect(404);
+      const declined = await request(server()).post(`/${PREFIX}/care/invitations/${TOKEN}/decline`).expect(404);
+
+      for (const response of [read, accepted, declined]) {
+        expect(response.body).toEqual({ code: 'NOT_FOUND', message: 'Invitation not found', statusCode: 404 });
+      }
+    });
+
+    it('accept only the current consent version, with an explicit health answer', async () => {
+      const accept = jest.spyOn(CareController, 'accept').mockResolvedValue(LINK);
+
+      await request(server()).post(`/${PREFIX}/care/invitations/${TOKEN}/accept`).send({ consentVersion: '0.0.1', sharesHealth: false }).expect(422);
+      await request(server()).post(`/${PREFIX}/care/invitations/${TOKEN}/accept`).send({ consentVersion: CARE_CONSENT_VERSION }).expect(422);
+      expect(accept).not.toHaveBeenCalled();
+
+      const response = await request(server())
+        .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
+        .send({ clientId: 'usr-other', consentVersion: CARE_CONSENT_VERSION, sharesHealth: true })
+        .expect(200);
+
+      expect(accept).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), TOKEN, {
+        consentVersion: CARE_CONSENT_VERSION,
+        sharesHealth: true
+      });
+      expect(response.body).toEqual(LINK);
+    });
+
+    it('name the link in the way as a 409 the screen can act on', async () => {
+      jest
+        .spyOn(CareController, 'accept')
+        .mockRejectedValue(new CareLinkExistsError({ professionalName: 'Otra Dietista', since: '2026-09-01T10:00:00.000Z', status: 'active' }));
+
+      const response = await request(server())
+        .post(`/${PREFIX}/care/invitations/${TOKEN}/accept`)
+        .send({ consentVersion: CARE_CONSENT_VERSION, sharesHealth: false })
+        .expect(409);
+
+      expect(response.body).toMatchObject({
+        code: 'CARE_LINK_EXISTS',
+        link: { professionalName: 'Otra Dietista', since: '2026-09-01T10:00:00.000Z', status: 'active' }
+      });
+    });
+
+    it('decline with no content', async () => {
+      const decline = jest.spyOn(CareController, 'decline').mockResolvedValue(undefined);
+
+      await request(server()).post(`/${PREFIX}/care/invitations/${TOKEN}/decline`).expect(204);
+      expect(decline).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), TOKEN);
+    });
+
+    it('answer the client’s own link, or null', async () => {
+      jest.spyOn(CareController, 'myLink').mockResolvedValueOnce(LINK).mockResolvedValueOnce(null);
+
+      expect((await request(server()).get(`/${PREFIX}/care/links/me`).expect(200)).body).toEqual(LINK);
+      await request(server()).get(`/${PREFIX}/care/links/me`).expect(200);
+    });
+
+    it('end a link by its id, for the session, and answer an id that is not one with the same 404', async () => {
+      const notALink = await request(server()).delete(`/${PREFIX}/care/links/not-a-link`).expect(404);
+
+      expect(notALink.body).toEqual({ code: 'NOT_FOUND', message: 'Link not found', statusCode: 404 });
+
+      const end = jest.spyOn(CareController, 'end').mockResolvedValue(undefined);
+
+      await request(server()).delete(`/${PREFIX}/care/links/${LINK_ID}`).expect(204);
+      expect(end).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), LINK_ID);
+
+      end.mockRejectedValue(new NotFoundError('Link not found'));
+      await request(server()).delete(`/${PREFIX}/care/links/${LINK_ID}`).expect(404);
+    });
+  });
+});

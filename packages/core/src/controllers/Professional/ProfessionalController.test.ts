@@ -12,6 +12,7 @@ import type { User } from 'core/entities/User';
 const find = vi.fn<(userId: string) => Promise<Professional | null>>();
 const grant = vi.fn<(userId: string, collegiateNumber: string, grantedBy: string) => Promise<Professional>>();
 const list = vi.fn<() => Promise<readonly ProfessionalListRow[]>>();
+const linkCounts = vi.fn<(professionalId: string) => Promise<ProfessionalListRow['links']>>();
 const revoke = vi.fn<(userId: string) => Promise<boolean>>();
 const findById = vi.fn<(id: string) => Promise<User | undefined>>();
 const isEnabled = vi.fn<(key: string, fallback: boolean) => Promise<boolean>>();
@@ -20,6 +21,7 @@ vi.mock('#repositories/Professional', () => ({
   ProfessionalRepository: {
     find: (userId: string) => find(userId),
     grant: (userId: string, collegiateNumber: string, grantedBy: string) => grant(userId, collegiateNumber, grantedBy),
+    linkCounts: (professionalId: string) => linkCounts(professionalId),
     list: () => list(),
     revoke: (userId: string) => revoke(userId)
   }
@@ -31,6 +33,8 @@ beforeEach(() => {
   find.mockReset();
   grant.mockReset();
   list.mockReset();
+  linkCounts.mockReset();
+  linkCounts.mockResolvedValue({ active: 0, ended: 0, paused: 0 });
   revoke.mockReset();
   findById.mockReset();
   isEnabled.mockReset();
@@ -126,6 +130,17 @@ describe('ProfessionalController.hasAccess', () => {
   });
 });
 
+describe('ProfessionalController.isOpen', () => {
+  it('is the switch alone, failing off, and asks about no account', async () => {
+    isEnabled.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+
+    await expect(ProfessionalController.isOpen()).resolves.toBe(false);
+    await expect(ProfessionalController.isOpen()).resolves.toBe(true);
+    expect(isEnabled).toHaveBeenCalledWith('professional', false);
+    expect(find).not.toHaveBeenCalled();
+  });
+});
+
 describe('ProfessionalController.list', () => {
   it('names each professional’s account and counts their links, and nothing about a client', async () => {
     list.mockResolvedValue([
@@ -134,6 +149,7 @@ describe('ProfessionalController.list', () => {
         email: 'b@example.com',
         grantedAt: new Date('2026-09-23T11:00:00.000Z'),
         includedClients: 0,
+        links: { active: 0, ended: 0, paused: 0 },
         practiceOpen: false,
         userId: 'usr-b'
       },
@@ -142,6 +158,7 @@ describe('ProfessionalController.list', () => {
         email: 'a@example.com',
         grantedAt: new Date('2026-09-23T10:00:00.000Z'),
         includedClients: 30,
+        links: { active: 12, ended: 3, paused: 1 },
         practiceOpen: true,
         userId: 'usr-a'
       }
@@ -161,11 +178,32 @@ describe('ProfessionalController.list', () => {
         collegiateNumber: 'MAD00123',
         email: 'a@example.com',
         grantedAt: '2026-09-23T10:00:00.000Z',
-        links: { active: 0, ended: 0, paused: 0 },
+        links: { active: 12, ended: 3, paused: 1 },
         userId: 'usr-a'
       }
     ]);
     // The keys are the whole contract of `0028` here: no client id, name or address may ever join them.
     expect(Object.keys(rows[0] ?? {}).sort()).toEqual(['collegiateNumber', 'email', 'grantedAt', 'links', 'userId']);
+    expect(Object.keys(rows[1]?.links ?? {}).sort()).toEqual(['active', 'ended', 'paused']);
+  });
+
+  it('carries only the three counts, whatever else a row brings', async () => {
+    const smuggled = { active: 1, clientIds: ['usr-client'], ended: 0, paused: 0 } as unknown as ProfessionalListRow['links'];
+
+    list.mockResolvedValue([
+      {
+        collegiateNumber: 'MAD00123',
+        email: 'a@example.com',
+        grantedAt: new Date('2026-09-23T10:00:00.000Z'),
+        includedClients: 30,
+        links: smuggled,
+        practiceOpen: true,
+        userId: 'usr-a'
+      }
+    ]);
+
+    const [row] = await ProfessionalController.list();
+
+    expect(row?.links).toEqual({ active: 1, ended: 0, paused: 0 });
   });
 });
