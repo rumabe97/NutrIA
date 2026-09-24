@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getTableConfig } from 'drizzle-orm/pg-core';
+import { getTableConfig, PgDialect } from 'drizzle-orm/pg-core';
 
 import * as schema from './index';
 
@@ -125,5 +125,20 @@ describe('the link between a professional and a client (0059)', () => {
     expect(onePerAddress?.config.unique).toBe(true);
     expect(onePerAddress?.config.where).toBeUndefined();
     expect(onePerAddress?.config.columns.map(column => (column as { name: string }).name)).toEqual(['professionalId', 'email']);
+  });
+});
+
+describe('a plan waiting for review (0060)', () => {
+  it('keeps the one-pending index excluding every other status — a value added later must not silently join it', () => {
+    const index = getTableConfig(schema.mealPlans).indexes.find(candidate => candidate.config.name === 'meal_plans_one_pending_review_per_user');
+    const where = index?.config.where;
+
+    expect(index?.config.unique).toBe(true);
+    expect(where).toBeDefined();
+
+    const predicate = new PgDialect().sqlToQuery(where as NonNullable<typeof where>).sql;
+    const excluded = [...predicate.matchAll(/'([a-z_]+)'/g)].map(match => match[1]).sort();
+
+    expect(excluded).toEqual(schema.planStatus.enumValues.filter(value => value !== 'pending_review').sort());
   });
 });

@@ -4,6 +4,7 @@ import { BackgroundTaskService } from '../../shared/services/index.js';
 import { CareAnswersController, CareClientsController, CareInvitationsController, CareLinksController } from './controllers/index.js';
 import { CareService } from './services/index.js';
 import { EmailModule } from '../email/email.module.js';
+import { MealPlansModule } from '../meal-plans/index.js';
 import { envProvider } from '../../config/index.js';
 
 /**
@@ -18,7 +19,7 @@ import { envProvider } from '../../config/index.js';
  */
 @Module({
   controllers: [CareAnswersController, CareClientsController, CareInvitationsController, CareLinksController],
-  imports: [EmailModule],
+  imports: [EmailModule, MealPlansModule],
   providers: [BackgroundTaskService, CareService, envProvider]
 })
 export class CareModule {}

@@ -4,7 +4,7 @@ import { normaliseForMatching } from 'core/domain/Safety';
 import { buildShoppingList } from 'core/domain/ShoppingList';
 import { axisFilter, pickReplacement } from 'core/domain/Scheduler';
 import { minimumDailyKcal } from 'core/domain/Nutrition';
-import { ConflictError, QuotaExceededError } from 'core/entities/Error';
+import { ConflictError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
@@ -15,6 +15,10 @@ import { promptPreferences, toRecipeDraft } from './GenerationShared.js';
 import type { MealCompositionView, MealDetailView } from 'core/controllers/Plan';
 import type { Placement } from 'core/domain/Variety';
 import type { RecipeDraft, SwapAxis } from 'core/entities/Plan';
+import type { ForClient } from 'core/controllers/Care';
+
+/** A professional's swap on their client's plan under review, with its trail row (`0060`). */
+type Review = { readonly record: Parameters<ForClient<unknown>>[1] };
 
 /**
  * How many dishes to ask the model for when the library has nothing for the
@@ -52,6 +56,12 @@ function wishFor(axis: SwapAxis | undefined, current: { readonly cookMinutes: nu
  * only when the library has nothing that fits, and then for a handful of dishes
  * for this one slot. Either way the dish passes the same allergen gate as a
  * plan's, the variety rules hold, and the shopping list is rebuilt to match.
+ *
+ * With `review`, it is a professional swapping a meal of their client's plan
+ * under review (`0060`), reached through `CareController.swapPendingMeal`: the
+ * same swap on the client's id, but only a meal of the pending plan (any other
+ * is not found), counted against that plan's own swaps, and the trail row goes
+ * in with the change.
  */
 @Injectable()
 export class MealSwapService {
@@ -59,14 +69,18 @@ export class MealSwapService {
 
   constructor(private readonly pool: PoolBuilder) {}
 
-  async swap(userId: string, mealId: string, locale: string | null, axis?: SwapAxis): Promise<MealDetailView> {
-    const anchor = await PlanController.mealForSwap(userId, mealId);
+  async swap(userId: string, mealId: string, locale: string | null, axis?: SwapAxis, review?: Review): Promise<MealDetailView> {
+    const anchor = await PlanController.mealForSwap(userId, mealId, review !== undefined);
 
-    if (anchor.plan.status !== 'active') {
+    if (review && anchor.plan.status !== 'pending_review') {
+      throw new NotFoundError('Meal not found');
+    }
+
+    if (!review && anchor.plan.status !== 'active') {
       throw new ConflictError('Only the active plan can be changed');
     }
 
-    const { mealSwaps } = await PlanController.allowances(userId);
+    const mealSwaps = review ? await PlanController.mealSwapStanding(userId, anchor.plan.id) : (await PlanController.allowances(userId)).mealSwaps;
 
     if (!mealSwaps.allowed) {
       throw new QuotaExceededError('meal_swap');
@@ -76,7 +90,7 @@ export class MealSwapService {
       RecipeController.generationContext(userId),
       RecipeController.verdicts(userId),
       ProfileController.getFullProfile(userId),
-      PlanController.composition(userId, anchor.plan.id)
+      PlanController.composition(userId, anchor.plan.id, review !== undefined)
     ]);
     const current = meals.find(meal => meal.id === mealId);
 
@@ -181,11 +195,12 @@ export class MealSwapService {
         ingredientId: item.ingredientId,
         name: item.name,
         totalGrams: item.totalGrams
-      }))
+      })),
+      review
     );
     this.logger.log(`Meal ${mealId} swapped from the ${source} (${current.recipeSlug} → ${swapped.dish.slug})`);
 
-    return PlanController.getMeal(userId, mealId, locale);
+    return PlanController.getMeal(userId, mealId, locale, review !== undefined);
   }
 }
 

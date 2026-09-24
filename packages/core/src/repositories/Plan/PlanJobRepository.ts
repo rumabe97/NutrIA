@@ -1,9 +1,9 @@
-import { and, eq, inArray, lt, or, sql } from 'drizzle-orm';
+import { and, eq, getTableColumns, inArray, lt, or, sql } from 'drizzle-orm';
 
 import { database } from 'database';
 import { mealPlans, planGenerationJobs } from 'database/schema/plan';
 
-import { DatabaseOperationError } from 'core/entities/Error';
+import { ConflictError, DatabaseOperationError } from 'core/entities/Error';
 
 import type { AiCallRecord } from 'core/entities/Plan';
 
@@ -13,6 +13,37 @@ export const STALE_JOB_MINUTES = 15;
 export type JobStatus = 'failed' | 'queued' | 'running' | 'succeeded';
 
 export const PlanJobRepository = {
+  /**
+   * Admits a claimed job as a professional's generation (`0060`): the trail row
+   * (`record`) goes in one transaction with the job's own row, once the
+   * allowance has been checked after the claim, as for the client's own. A job
+   * no longer `queued` admits nothing and is a `ConflictError`. If this fails
+   * the caller releases the claim, so a refused generation leaves neither.
+   */
+  async admit(jobId: string, record: (tx: Transaction) => Promise<void>): Promise<void> {
+    try {
+      await database().transaction(async tx => {
+        const [row] = await tx
+          .update(planGenerationJobs)
+          .set({ updatedAt: new Date() })
+          .where(and(eq(planGenerationJobs.id, jobId), eq(planGenerationJobs.status, 'queued')))
+          .returning({ id: planGenerationJobs.id });
+
+        if (!row) {
+          throw new ConflictError('The generation is no longer waiting to start');
+        }
+
+        await record(tx);
+      });
+    } catch (error: unknown) {
+      if (error instanceof ConflictError) {
+        throw error;
+      }
+
+      throw wrap(error);
+    }
+  },
+
   /**
    * Adopts jobs whose plan committed but whose runner died before saying so.
    *
@@ -161,11 +192,13 @@ export const PlanJobRepository = {
     }
   },
 
+  /** Owner-scoped. `planStatus` is the status of the plan it made, so a plan under review can be kept from its client (`0060`). */
   async findById(userId: string, jobId: string) {
     try {
       const [row] = await database()
-        .select()
+        .select({ ...getTableColumns(planGenerationJobs), planStatus: mealPlans.status })
         .from(planGenerationJobs)
+        .leftJoin(mealPlans, eq(mealPlans.id, planGenerationJobs.planId))
         .where(and(eq(planGenerationJobs.id, jobId), eq(planGenerationJobs.userId, userId)))
         .limit(1);
 
@@ -254,6 +287,8 @@ export const PlanJobRepository = {
     }
   }
 };
+
+type Transaction = Parameters<Parameters<ReturnType<typeof database>['transaction']>[0]>[0];
 
 function wrap(error: unknown): DatabaseOperationError {
   if (error instanceof DatabaseOperationError) {

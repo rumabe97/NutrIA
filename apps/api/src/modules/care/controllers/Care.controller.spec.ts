@@ -18,10 +18,12 @@ import { CareInvitationsController } from './CareInvitations.controller.js';
 import { CareLinksController } from './CareLinks.controller.js';
 import { CareService } from '../services/index.js';
 import { EmailService } from '../../email/services/index.js';
+import { MealSwapService, PlanJobRunner } from '../../meal-plans/index.js';
 import { ENV } from '../../../config/index.js';
 import { RateLimitGuard } from '../../../shared/guards/RateLimit.guard.js';
 
-import type { CareAccessPageView, CareClientOverviewView, CareClientsView, CareLinkView } from 'core/controllers/Care';
+import type { CareAccessPageView, CareClientLinkView, CareClientOverviewView, CareClientsView, CareLinkView, ForClient } from 'core/controllers/Care';
+import type { JobView, MealDetailView, PlanView } from 'core/controllers/Plan';
 import type { INestApplication } from '@nestjs/common';
 import type { ResolvedTargets } from 'core/domain/Nutrition';
 import type { OutgoingEmail } from '../../email/services/index.js';
@@ -102,6 +104,8 @@ async function settle(): Promise<void> {
 describe('care routes', () => {
   let app: INestApplication;
   const send = jest.fn<(message: OutgoingEmail) => Promise<boolean>>();
+  const start = jest.fn<PlanJobRunner['start']>();
+  const swap = jest.fn<MealSwapService['swap']>();
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -110,6 +114,8 @@ describe('care routes', () => {
         BackgroundTaskService,
         CareService,
         { provide: EmailService, useValue: { send } },
+        { provide: PlanJobRunner, useValue: { start } },
+        { provide: MealSwapService, useValue: { swap } },
         { provide: ENV, useValue: { APP_URL: 'https://nutria.example', RATE_LIMIT_MAX: 1000, RATE_LIMIT_TTL: 60 } },
         {
           provide: APP_GUARD,
@@ -382,6 +388,142 @@ describe('care routes', () => {
 
       expect(notALink.body).toEqual({ code: 'NOT_FOUND', message: 'Client not found', statusCode: 404 });
       expect(notTheirs.body).toEqual(notALink.body);
+    });
+  });
+
+  describe('the professional reviewing a client’s plan (0060)', () => {
+    const MEAL_ID = '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f';
+    const JOB_ID = '2d3e4f5a-6b7c-4d8e-9f0a-1b2c3d4e5f6a';
+    const JOB: JobView = { id: JOB_ID, error: null, errorDetail: null, pendingReview: false, planId: null, status: 'queued', step: null };
+    const PLAN = { id: 'plan-1', days: [], endDate: '2026-10-07', startDate: '2026-09-24', status: 'active', strategy: null, version: 2 } as PlanView;
+    const REVIEWED: CareClientLinkView = { ...OVERVIEW.client, reviewBeforePublish: false };
+    const record = jest.fn<Parameters<ForClient<unknown>>[1]>();
+
+    beforeEach(() => {
+      start.mockReset();
+      swap.mockReset();
+    });
+
+    it('is a 404 on every review route for an account that is not a professional, before any body, and nothing is reached', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+      const calls = [
+        jest.spyOn(CareController, 'pendingPlan'),
+        jest.spyOn(CareController, 'generatePlan'),
+        jest.spyOn(CareController, 'planJob'),
+        jest.spyOn(CareController, 'swapPendingMeal'),
+        jest.spyOn(CareController, 'publishPlan'),
+        jest.spyOn(CareController, 'setReview')
+      ];
+
+      const responses = [
+        await request(server()).get(`/${PREFIX}/care/clients/${LINK_ID}/plan/pending`).expect(404),
+        await request(server()).post(`/${PREFIX}/care/clients/${LINK_ID}/plan/generate`).expect(404),
+        await request(server()).get(`/${PREFIX}/care/clients/${LINK_ID}/plan/jobs/${JOB_ID}`).expect(404),
+        await request(server()).post(`/${PREFIX}/care/clients/${LINK_ID}/plan/meals/${MEAL_ID}/swap`).send({ axis: 'sideways' }).expect(404),
+        await request(server()).post(`/${PREFIX}/care/clients/${LINK_ID}/plan/publish`).expect(404),
+        await request(server()).patch(`/${PREFIX}/care/clients/${LINK_ID}`).send({ reviewBeforePublish: 'yes' }).expect(404)
+      ];
+
+      for (const response of responses) {
+        expect(response.body).toMatchObject({ code: 'NOT_FOUND', statusCode: 404 });
+      }
+
+      for (const call of [...calls, start, swap]) {
+        expect(call).not.toHaveBeenCalled();
+      }
+    });
+
+    it('reads the pending plan by the link id, for the session, in the reader’s language — null when there is none', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      const pendingPlan = jest.spyOn(CareController, 'pendingPlan').mockResolvedValue(null);
+
+      const response = await request(server()).get(`/${PREFIX}/care/clients/${LINK_ID}/plan/pending`).set('Accept-Language', 'en-GB').expect(200);
+
+      expect(pendingPlan).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), LINK_ID, 'en-GB');
+      // A null answer is an empty 200, as `GET /meal-plans/active` answers one.
+      expect(response.text).toBe('');
+    });
+
+    it('generates through core, which hands the runner the client’s id and the write’s record — never the route', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      start.mockResolvedValue(JOB);
+      const generatePlan = jest
+        .spyOn(CareController, 'generatePlan')
+        .mockImplementation(async (_professional, _link, starter: ForClient<JobView>) => starter('usr-client', record));
+
+      expect((await request(server()).post(`/${PREFIX}/care/clients/${LINK_ID}/plan/generate`).expect(201)).body).toEqual(JOB);
+      expect(generatePlan).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), LINK_ID, expect.any(Function));
+      expect(start).toHaveBeenCalledWith('usr-client', record);
+    });
+
+    it('follows a job of the client by its id', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      const planJob = jest.spyOn(CareController, 'planJob').mockResolvedValue({ ...JOB, pendingReview: true, planId: 'plan-2', status: 'succeeded' });
+
+      const response = await request(server()).get(`/${PREFIX}/care/clients/${LINK_ID}/plan/jobs/${JOB_ID}`).expect(200);
+
+      expect(planJob).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), LINK_ID, JOB_ID);
+      expect(response.body).toMatchObject({ pendingReview: true, planId: 'plan-2' });
+    });
+
+    it('swaps a meal through core with the client’s own body, and the swap service gets the review’s record', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      const detail = { id: MEAL_ID, planStatus: 'pending_review' } as MealDetailView;
+      swap.mockResolvedValue(detail);
+      const swapPendingMeal = jest
+        .spyOn(CareController, 'swapPendingMeal')
+        .mockImplementation(async (_professional, _link, _meal, swapper: ForClient<MealDetailView>) => swapper('usr-client', record));
+
+      const response = await request(server())
+        .post(`/${PREFIX}/care/clients/${LINK_ID}/plan/meals/${MEAL_ID}/swap`)
+        .set('Accept-Language', 'en-GB')
+        .send({ axis: 'quicker' })
+        .expect(201);
+
+      expect(response.body).toEqual(detail);
+      expect(swapPendingMeal).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), LINK_ID, MEAL_ID, expect.any(Function));
+      expect(swap).toHaveBeenCalledWith('usr-client', MEAL_ID, 'en-GB', 'quicker', { record });
+    });
+
+    it('refuses a swap body the client’s own route refuses, as 422, without reaching core', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      const swapPendingMeal = jest.spyOn(CareController, 'swapPendingMeal');
+
+      await request(server()).post(`/${PREFIX}/care/clients/${LINK_ID}/plan/meals/${MEAL_ID}/swap`).send({ axis: 'sideways' }).expect(422);
+      expect(swapPendingMeal).not.toHaveBeenCalled();
+    });
+
+    it('publishes with 200 and the plan now active, and answers “nothing pending” with the same 404', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      const publishPlan = jest.spyOn(CareController, 'publishPlan').mockResolvedValue(PLAN);
+
+      expect((await request(server()).post(`/${PREFIX}/care/clients/${LINK_ID}/plan/publish`).expect(200)).body).toEqual(PLAN);
+      expect(publishPlan).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), LINK_ID, null);
+
+      publishPlan.mockRejectedValue(new NotFoundError('Plan not found'));
+      expect((await request(server()).post(`/${PREFIX}/care/clients/${LINK_ID}/plan/publish`).expect(404)).body).toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('turns review off by the link id with the body as validated, and refuses any other body as 422', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      const setReview = jest.spyOn(CareController, 'setReview').mockResolvedValue(REVIEWED);
+
+      expect((await request(server()).patch(`/${PREFIX}/care/clients/${LINK_ID}`).send({ reviewBeforePublish: false }).expect(200)).body).toEqual(
+        REVIEWED
+      );
+      expect(setReview).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), LINK_ID, { reviewBeforePublish: false });
+
+      setReview.mockClear();
+      await request(server()).patch(`/${PREFIX}/care/clients/${LINK_ID}`).send({ reviewBeforePublish: 'no' }).expect(422);
+      expect(setReview).not.toHaveBeenCalled();
+    });
+
+    it('answers a path that is not a link id with the same 404 as every other denial', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+
+      const response = await request(server()).post(`/${PREFIX}/care/clients/not-a-link/plan/publish`).expect(404);
+
+      expect(response.body).toEqual({ code: 'NOT_FOUND', message: 'Client not found', statusCode: 404 });
     });
   });
 

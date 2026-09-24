@@ -6,7 +6,7 @@ import { MealPlansService, MealSwapService, PlanGenerationService, PlanJobRunner
 
 @Module({
   controllers: [MealPlansController],
-  exports: [PlanJobRunner],
+  exports: [MealSwapService, PlanJobRunner],
   providers: [BackgroundTaskService, MealPlansService, MealSwapService, PlanGenerationService, PlanJobRunner]
 })
 export class MealPlansModule {}

@@ -31,6 +31,35 @@ check-in status (`PlanRepository.findChain`), the plan history, and a plan fetch
 all exclude `pending_review` for the client, who gets a 404 for it like any plan that is not
 theirs to see.
 
+*Amended 2026-09-24 (project 004 Phase 5):*
+
+- **A new generation replaces a pending plan.** This holds whoever starts the new plan and
+  whether or not review is still on. The pending row is deleted, its job keeps
+  `planId = null`, and the new plan takes its version number.
+- **The deleted plan's redo still counts.** The new plan carries it in
+  `generationMetadata.replacedRedos`, and the allowance counts a pending plan as the
+  fortnight under way. Regenerating is never free.
+- **Hidden from the client by default.** The client's reads exclude the state inside
+  `PlanRepository` by default, not per route. That covers the four named reads and also the
+  days, the meal detail, a swap, a meal's status and the shopping list's toggle.
+- **A stranded plan costs the client nothing.** A pending plan counts toward the
+  allowance only while it can still be published. That means an active link, a standing
+  grant and the switch on; turning review off keeps it publishable. Once the link ends,
+  pauses or loses its grant, the plan is ignored and the client's next generation replaces
+  it at no charge. (Owner's decision.)
+- **The professional generates only when there is a reason.** Either a plan is pending (a
+  regeneration, counted as the client's own) or the client has no active plan. Any other
+  request is a 404 and writes nothing, so a professional never replaces a fortnight under
+  way. (Owner's decision.)
+- **Only a professional who could publish it holds a plan back.** A plan waits only while
+  the `professional` switch is on and the professional's grant stands.
+- **The index condition lists the old values.** It is written as `status NOT IN (<the other
+  values>)`, not `status = 'pending_review'`. Drizzle applies pending migrations in one
+  transaction, and Postgres refuses an enum value used in the transaction that added it.
+  A status added later cannot be listed in the migration that adds it, and one left off
+  the list silently joins the unique index. So add the value in one release, and list it
+  (or rewrite the condition as `= 'pending_review'`) in a migration of the next.
+
 ## Alternatives considered
 
 - **A `visibleToClient` flag on the plan.** Lost because every existing read would have to

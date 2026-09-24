@@ -117,7 +117,7 @@ then the documents. Each phase ends green.
 
 ### Phase 4 — Supervised targets
 
-- [x] done — `test:e2e -- care target-overrides` 60/60 and the whole suite 203/203 on a throwaway Postgres; the pull request's CI runs it again
+- [x] done — `test:e2e -- care target-overrides` 60/60 and the whole suite 203/203 on a throwaway Postgres; the pull request's CI runs it again — commit `dfb9ee8` ("Project 004 phase 4: supervised targets (#90)")
 - **Dispatch**: opus @ medium — `/execute-project 004 phase 4`
 - **Goal**: a professional sets a client's targets within the calculator's bounds, and the client's screens know whose they are.
 - **Scope**: `packages/database/src/schemas/profile.schema.ts`, one generated migration, `packages/core/src/{controllers/Profile,domain/Nutrition}`, `apps/api/src/modules/care`, `apps/api/test`.
@@ -136,7 +136,7 @@ then the documents. Each phase ends green.
 
 ### Phase 5 — Review before publishing
 
-- [ ] pending
+- [x] done — `test:e2e -- care-review care` 81/81 and the whole suite 290/290 on a throwaway Postgres; the pull request's CI runs it again
 - **Dispatch**: opus @ high — `/execute-project 004 phase 5`
 - **Goal**: for a linked client with review on, a new plan is the professional's to look at, change and publish before the client sees it; for everybody else nothing moves.
 - **Scope**: `packages/database/src/schemas/{_enums.ts,plan.schema.ts}`, one generated migration, `packages/core/src/{repositories/Plan,controllers/Plan,controllers/CheckIn}`, `apps/api/src/modules/{meal-plans,care}`, `apps/api/test`.
@@ -144,7 +144,7 @@ then the documents. Each phase ends green.
   1. `pending_review` added to `planStatus` (an added enum value; no rewrite). Partial unique index: one `pending_review` per user.
   2. `PlanRepository.createPlanAtomically`: when the user has an `active` link with `reviewBeforePublish`, insert as `pending_review` and **do not complete** the active plan. Every other case: today's code path, unchanged.
   3. `publish(planId)`: one transaction — complete the `active` plan, set this one `active`. Through `withClient` (`review`, `write`): `POST /care/clients/:linkId/plan/publish`.
-  4. The professional's changes to the pending plan, through `withClient`: a meal swap (`PlanRepository.swapMeal` with the client's id, the client's allowance), a regeneration (replaces the pending plan; counted as the client's own regeneration would be), and generating a plan for a client who has none. `PATCH /care/clients/:linkId` toggles `reviewBeforePublish`.
+  4. The professional's changes to the pending plan, through `withClient`: a meal swap (`PlanRepository.swapMeal` with the client's id, the client's allowance), a regeneration (replaces the pending plan; counted as the client's own regeneration would be), and generating a plan for a client who has none. `PATCH /care/clients/:linkId` toggles `reviewBeforePublish`. (Amended in execution, owner's decisions of 2026-09-24: the professional may generate only when a plan is pending or the client has no active plan, otherwise 404 with no trail row; a pending plan counts toward the client's allowance only while it can still be published, so a link that ends, pauses or loses its grant leaves it to be replaced by the client's next generation at no charge.)
   5. Hide the state from the client in the four reads that bypass `findActive` (`0060`): `CheckInController.status`'s `findChain`, `GET /meal-plans` (history), `GET /meal-plans/:id`, and the job route's success answer, which tells the client the plan is with their dietitian instead of sending them to it. On the professional's side, `CareRepository.roster`'s latest-plan read orders by version whatever the status: teach it `pending_review` (fill `planPendingReview`, and keep `check_in_due` on the plan under way) — a fifth read that bypasses `findActive` (found in Phase 3).
 - **Acceptance criteria**: PRD 8.
 - **Verification**:

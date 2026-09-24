@@ -1,7 +1,9 @@
-import { aliasedTable, and, desc, eq, getTableColumns, inArray, lt, sql } from 'drizzle-orm';
+import { aliasedTable, and, desc, eq, exists, getTableColumns, inArray, lt, ne, sql } from 'drizzle-orm';
 
 import { database } from 'database';
-import { mealCompletions, mealPlans, meals, mealSwaps, planDays } from 'database/schema/plan';
+import { careLinks } from 'database/schema/care';
+import { mealCompletions, mealPlans, meals, mealSwaps, planDays, planGenerationJobs } from 'database/schema/plan';
+import { professionals } from 'database/schema/professional';
 import { ingredientAllergens, ingredientNames, ingredients, ingredientSubstitutions } from 'database/schema/food';
 import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 import { shoppingListItems, shoppingLists } from 'database/schema/shopping';
@@ -10,6 +12,20 @@ import { ConflictError, DatabaseOperationError, NotFoundError, QuotaExceededErro
 import { FALLBACK_LOCALE } from '#repositories/Recipe';
 import type { Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
+import type { RecordAccess } from '#repositories/Care';
+
+/**
+ * A plan waiting for a professional's review (`0060`). Every read a client
+ * makes excludes it — `findActive` by asking for `active`, the rest through
+ * `visible` — and only the reads a professional reaches through
+ * `CareController.withClient` ask for it by name.
+ */
+const PENDING = 'pending_review';
+
+/** What a client may see of their own plans: everything but a plan still under review. */
+function visible() {
+  return ne(mealPlans.status, PENDING);
+}
 
 export const PlanRepository = {
   /** Swaps recorded against one plan — what the fortnight's allowance is counted from. */
@@ -43,8 +59,34 @@ export const PlanRepository = {
    * Persisting `newRecipes` inside this transaction is not incidental: it is what
    * grows the reusable library, and without it every user pays to generate dishes
    * that already exist (`docs/decisions/0006-reuse-before-generating.md`).
+   *
+   * **Review before publishing** (`0060`). When `reviewable` (the `professional`
+   * switch is on) and the user has an `active` link, whose professional's grant
+   * stands, with `reviewBeforePublish`, the plan goes in as `pending_review` and
+   * the active plan is **not** completed: the client keeps the fortnight they
+   * have until the professional publishes this one (`publish`). The link is read
+   * inside this transaction. Every other case is the path above, unchanged.
+   *
+   * A plan already pending is **replaced** by any new one, reviewed or not: it
+   * is deleted here, its job keeps its row with no plan. What it spent stays
+   * spent — a redo it was is carried onto the new plan as `replacedRedos`, so
+   * a regeneration of a pending plan is counted as the client's own
+   * regeneration would be (`redosInFortnight`). A plan generated while the
+   * pending one still had days to run is a redo of it, as of an active one.
+   * **Only while it can still be published** (an `active` link, a standing
+   * grant, the switch on — review itself may be off): a pending plan stranded
+   * by a link that ended, paused or lost its grant costs nothing, is not the
+   * fortnight under way, and is replaced at no charge.
+   *
+   * `byProfessional` is a professional's generation (`0060`), and it **never
+   * replaces a fortnight under way**. Re-checked here, when it is saved: while
+   * the link can publish and a plan is pending, it lands pending (whatever the
+   * review toggle now says); with review on, pending; with no active plan,
+   * active. Otherwise — the link ended, paused or lost its grant during the
+   * generation, and the client has an active plan — it is refused with a
+   * `ConflictError`, nothing is written, and the job fails.
    */
-  async createPlanAtomically(userId: string, draft: PlanDraft): Promise<string> {
+  async createPlanAtomically(userId: string, draft: PlanDraft, reviewable = false, byProfessional = false): Promise<string> {
     try {
       return await database().transaction(async tx => {
         const recipeIdBySlug = await insertRecipes(tx, draft.newRecipes, draft.locale, userId);
@@ -68,10 +110,26 @@ export const PlanRepository = {
           throw new DatabaseOperationError(`Plan references recipes that do not exist: ${unresolved.join(', ')}`);
         }
 
+        // Held, so a publish racing this generation either lands first (and this
+        // plan follows the one it made active) or waits for this to replace it.
+        const [pending] = await tx
+          .select({ id: mealPlans.id, endDate: mealPlans.endDate, generationMetadata: mealPlans.generationMetadata, status: mealPlans.status })
+          .from(mealPlans)
+          .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, PENDING)))
+          .limit(1)
+          .for('update');
+        const link = reviewable ? await publishingLink(tx, userId) : undefined;
+        // A professional's regeneration of a pending plan lands pending again even
+        // with review turned off since: it replaces what they were reviewing, and a
+        // professional never replaces the fortnight under way.
+        const review = link?.reviewBeforePublish === true || (byProfessional && link !== undefined && pending !== undefined);
+        // A pending plan nobody can publish any more is not the fortnight under way.
+        const counted = link !== undefined ? pending : undefined;
+
         const previous = await tx
           .select({ id: mealPlans.id, endDate: mealPlans.endDate, status: mealPlans.status, version: mealPlans.version })
           .from(mealPlans)
-          .where(eq(mealPlans.userId, userId))
+          .where(and(eq(mealPlans.userId, userId), visible()))
           .orderBy(desc(mealPlans.version))
           .limit(1);
 
@@ -80,26 +138,42 @@ export const PlanRepository = {
         // redo of that fortnight, and is stamped as one here, at the moment it
         // is known. Plans from before this stamp existed are not redos: they
         // carry no flag, and the allowance never counts what it did not see.
-        const latest = previous.at(0);
-        const redo = latest !== undefined && latest.status === 'active' && latest.endDate >= draft.startDate;
+        // A pending plan is the fortnight under way for this purpose (`0060`).
+        const latest = counted ?? previous.at(0);
+        const redo = latest !== undefined && (latest.status === 'active' || latest.status === PENDING) && latest.endDate >= draft.startDate;
+        const replacedRedos = counted && redo ? replacedRedosOf(counted.generationMetadata) + (counted.generationMetadata?.redo === true ? 1 : 0) : 0;
+
+        // Asked of the table directly, not read off the latest plan: whatever row is
+        // `active` is the one the completion below would complete.
+        if (refusesProfessionalSave({ byProfessional, hasActive: await hasActivePlan(tx, userId), review })) {
+          throw new ConflictError('The review this plan was generated for has ended; the fortnight under way stays');
+        }
+
+        if (pending) {
+          await tx.update(planGenerationJobs).set({ planId: null }).where(eq(planGenerationJobs.planId, pending.id));
+          await tx.delete(mealPlans).where(eq(mealPlans.id, pending.id));
+        }
 
         // Complete the outgoing plan first: the partial unique index permits only
         // one active row per user, so the new one cannot be inserted until this
         // lands — in the same transaction, so no window exists where a user has none.
-        await tx
-          .update(mealPlans)
-          .set({ completedAt: draft.startDate, status: 'completed' })
-          .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active')));
+        // A plan under review leaves it standing: the client lives it until publishing.
+        if (!review) {
+          await tx
+            .update(mealPlans)
+            .set({ completedAt: draft.startDate, status: 'completed' })
+            .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active')));
+        }
 
         const [plan] = await tx
           .insert(mealPlans)
           .values({
-            activatedAt: new Date(),
+            activatedAt: review ? null : new Date(),
             endDate: draft.endDate,
-            generationMetadata: { ...draft.generationMetadata, redo },
+            generationMetadata: { ...draft.generationMetadata, redo, ...(replacedRedos > 0 ? { replacedRedos } : {}) },
             previousPlanId: previous.at(0)?.id ?? null,
             startDate: draft.startDate,
-            status: 'active',
+            status: review ? PENDING : 'active',
             strategy: draft.strategy,
             userId,
             version: nextVersion
@@ -163,6 +237,10 @@ export const PlanRepository = {
         return plan.id;
       });
     } catch (error: unknown) {
+      if (error instanceof ConflictError) {
+        throw error;
+      }
+
       if (isUniqueViolation(error)) {
         throw new ConflictError('A plan is already being created for this account');
       }
@@ -185,13 +263,17 @@ export const PlanRepository = {
     }
   },
 
-  /** Owner-scoped by construction: a plan id from another account simply is not found. */
-  async findById(userId: string, planId: string) {
+  /**
+   * Owner-scoped by construction: a plan id from another account simply is not
+   * found — and neither is one still under review (`0060`), unless the caller
+   * is a professional's read through `withClient` and says so.
+   */
+  async findById(userId: string, planId: string, withPending = false) {
     try {
       const [row] = await database()
         .select()
         .from(mealPlans)
-        .where(and(eq(mealPlans.id, planId), eq(mealPlans.userId, userId)))
+        .where(and(eq(mealPlans.id, planId), eq(mealPlans.userId, userId), withPending ? undefined : visible()))
         .limit(1);
 
       return row;
@@ -200,8 +282,12 @@ export const PlanRepository = {
     }
   },
 
-  /** Every plan the user has had, newest first: the chain `redosInFortnight` walks. */
-  async findChain(userId: string) {
+  /**
+   * Every plan the user has had, newest first: the chain `redosInFortnight`
+   * walks. A plan under review is left out (`0060`) unless `withPending` — the
+   * allowance asks for it, because a pending plan spent what it spent.
+   */
+  async findChain(userId: string, withPending = false) {
     try {
       const rows = await database()
         .select({
@@ -214,10 +300,14 @@ export const PlanRepository = {
           version: mealPlans.version
         })
         .from(mealPlans)
-        .where(eq(mealPlans.userId, userId))
+        .where(and(eq(mealPlans.userId, userId), withPending ? undefined : visible()))
         .orderBy(desc(mealPlans.version));
 
-      return rows.map(({ generationMetadata, ...row }) => ({ ...row, redo: generationMetadata?.redo === true }));
+      return rows.map(({ generationMetadata, ...row }) => ({
+        ...row,
+        redo: generationMetadata?.redo === true,
+        replacedRedos: replacedRedosOf(generationMetadata)
+      }));
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -299,7 +389,10 @@ export const PlanRepository = {
    *
    * The version seeds which library dishes the user is handed, so the pick is
    * theirs and reproducible; the dishes are what they will not be served again.
-   * One method, because the two answers come from the same plan.
+   * One method, because the two answers come from the same plan. The latest
+   * plan may be one under review (`0060`): a regeneration of it then avoids its
+   * dishes, as a redo avoids the plan it redoes — variety, on purpose, even
+   * though the client never saw them.
    */
   async findGenerationHistory(
     userId: string
@@ -330,12 +423,13 @@ export const PlanRepository = {
     }
   },
 
+  /** Newest first, without a plan under review (`0060`). */
   async findHistory(userId: string, limit: number, offset: number) {
     try {
       return await database()
         .select()
         .from(mealPlans)
-        .where(eq(mealPlans.userId, userId))
+        .where(and(eq(mealPlans.userId, userId), visible()))
         .orderBy(desc(mealPlans.version))
         .limit(limit)
         .offset(offset);
@@ -349,8 +443,9 @@ export const PlanRepository = {
    *
    * The join to `meal_plans` on `userId` is what makes a meal id from another
    * account simply not found, rather than a resource we then have to refuse.
+   * A meal of a plan under review is not found either, unless `withPending`.
    */
-  async findMealDetail(userId: string, mealId: string, locale: string) {
+  async findMealDetail(userId: string, mealId: string, locale: string, withPending = false) {
     try {
       const db = database();
 
@@ -368,7 +463,7 @@ export const PlanRepository = {
         .innerJoin(planDays, eq(planDays.id, meals.planDayId))
         .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))
         .innerJoin(recipes, eq(recipes.id, meals.recipeId))
-        .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId)))
+        .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId), withPending ? undefined : visible()))
         .limit(1);
 
       if (!row) {
@@ -423,8 +518,8 @@ export const PlanRepository = {
     }
   },
 
-  /** The meal, its day and plan, owner-scoped — the anchor of a swap. */
-  async findMealForSwap(userId: string, mealId: string) {
+  /** The meal, its day and plan, owner-scoped — the anchor of a swap. A plan under review only with `withPending`. */
+  async findMealForSwap(userId: string, mealId: string, withPending = false) {
     try {
       const [row] = await database()
         .select({
@@ -450,7 +545,26 @@ export const PlanRepository = {
         .innerJoin(planDays, eq(planDays.id, meals.planDayId))
         .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))
         .innerJoin(recipes, eq(recipes.id, meals.recipeId))
-        .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId)))
+        .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId), withPending ? undefined : visible()))
+        .limit(1);
+
+      return row;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * The plan waiting for review (`0060`), or undefined — at most one, by
+   * `meal_plans_one_pending_review_per_user`. Only a professional's read
+   * through `withClient` asks for it.
+   */
+  async findPending(userId: string) {
+    try {
+      const [row] = await database()
+        .select()
+        .from(mealPlans)
+        .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, PENDING)))
         .limit(1);
 
       return row;
@@ -486,6 +600,75 @@ export const PlanRepository = {
         .orderBy(shoppingListItems.category, shoppingListItems.name);
 
       return { ...list, items: rows.map(row => ({ ...row.item, name: row.translated ?? row.item.name })) };
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Whether a plan waiting for this user's review could still be published
+   * (`0060`): an `active` link whose professional's grant stands. What the
+   * allowance asks before it counts a pending plan; the switch is the caller's.
+   */
+  async isPublishable(userId: string): Promise<boolean> {
+    try {
+      return (await publishingLink(database(), userId)) !== undefined;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Publishes the plan waiting for review (`0060`): the active plan is completed
+   * and this one set active, in one transaction with the professional's trail
+   * row (`record`), or nothing — returns undefined when no plan is pending.
+   *
+   * The pending row is held `FOR UPDATE`, so a generation replacing it and a
+   * publish of it queue behind each other. Completing first is what
+   * `meal_plans_one_active_per_user` requires, as in `createPlanAtomically`.
+   * A pending plan older than the active one is refused (see below).
+   */
+  async publish(userId: string, record: RecordAccess, today: string = new Date().toISOString().slice(0, 10)): Promise<string | undefined> {
+    try {
+      return await database().transaction(async tx => {
+        const [pending] = await tx
+          .select({ id: mealPlans.id, version: mealPlans.version })
+          .from(mealPlans)
+          .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, PENDING)))
+          .limit(1)
+          .for('update');
+
+        if (!pending) {
+          return undefined;
+        }
+
+        // A pending plan older than the active one can only be left over by an API
+        // rolled back to before `0060`, which generated past it without knowing
+        // the state. Publishing it would replace the client's newer plan with a
+        // stale draft, so it is refused like nothing pending — and deleted, with
+        // no trail row: the professional changed nothing.
+        const [active] = await tx
+          .select({ version: mealPlans.version })
+          .from(mealPlans)
+          .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active')))
+          .limit(1);
+
+        if (active && active.version > pending.version) {
+          await tx.update(planGenerationJobs).set({ planId: null }).where(eq(planGenerationJobs.planId, pending.id));
+          await tx.delete(mealPlans).where(eq(mealPlans.id, pending.id));
+
+          return undefined;
+        }
+
+        await tx
+          .update(mealPlans)
+          .set({ completedAt: today, status: 'completed', updatedAt: new Date() })
+          .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active')));
+        await tx.update(mealPlans).set({ activatedAt: new Date(), status: 'active', updatedAt: new Date() }).where(eq(mealPlans.id, pending.id));
+        await record(tx);
+
+        return pending.id;
+      });
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -638,7 +821,7 @@ export const PlanRepository = {
         .from(shoppingListItems)
         .innerJoin(shoppingLists, eq(shoppingLists.id, shoppingListItems.listId))
         .innerJoin(mealPlans, eq(mealPlans.id, shoppingLists.planId))
-        .where(and(eq(shoppingListItems.id, itemId), eq(mealPlans.userId, userId)));
+        .where(and(eq(shoppingListItems.id, itemId), eq(mealPlans.userId, userId), visible()));
 
       const updated = await database()
         .update(shoppingListItems)
@@ -656,8 +839,9 @@ export const PlanRepository = {
    * Marks a meal eaten or skipped, or takes it back. The meal row carries the
    * current answer; `meal_completions` keeps the day it was said, which is what
    * a check-in will read. Owner-scoped in the statement. `missing` when the
-   * meal is not theirs (a 404 upstream); `closed` when its plan is no longer
-   * the active one — the past is read-only (0021).
+   * meal is not theirs (a 404 upstream) or its plan is under review (`0060`);
+   * `closed` when its plan is no longer the active one — the past is
+   * read-only (0021).
    */
   async setMealStatus(
     userId: string,
@@ -672,7 +856,7 @@ export const PlanRepository = {
           .from(meals)
           .innerJoin(planDays, eq(planDays.id, meals.planDayId))
           .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))
-          .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId)))
+          .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId), visible()))
           .limit(1);
 
         if (!owned) {
@@ -727,6 +911,11 @@ export const PlanRepository = {
    * quantities aggregate across meals. What the person had already ticked stays
    * ticked when the ingredient is still on the list; items they added by hand
    * are never touched.
+   *
+   * `review` is a professional's swap on the plan under review (`0060`): the
+   * meal must belong to the pending plan — anything else is not found — and
+   * the trail row goes in with the change. Without it, a meal of a pending
+   * plan is not found.
    */
   async swapMeal(
     userId: string,
@@ -740,7 +929,8 @@ export const PlanRepository = {
       readonly servings: number;
       readonly source: 'library' | 'model';
     },
-    shoppingItems: readonly ShoppingItemDraft[]
+    shoppingItems: readonly ShoppingItemDraft[],
+    review?: { readonly record: RecordAccess }
   ): Promise<void> {
     try {
       await database().transaction(async tx => {
@@ -751,7 +941,7 @@ export const PlanRepository = {
           .from(meals)
           .innerJoin(planDays, eq(planDays.id, meals.planDayId))
           .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))
-          .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId)))
+          .where(and(eq(meals.id, mealId), eq(mealPlans.userId, userId), review ? eq(mealPlans.status, PENDING) : visible()))
           .limit(1)
           .for('update', { of: mealPlans });
 
@@ -800,6 +990,7 @@ export const PlanRepository = {
           .values({ fromRecipeId: owned.recipeId, mealId, planId: owned.planId, source: change.source, toRecipeId: recipeId, userId });
 
         await replaceGeneratedItems(tx, owned.planId, shoppingItems);
+        await review?.record(tx);
       });
     } catch (error: unknown) {
       if (error instanceof NotFoundError || error instanceof QuotaExceededError) {
@@ -862,6 +1053,59 @@ async function replaceGeneratedItems(tx: Transaction, planId: string, shoppingIt
         }))
       );
   }
+}
+
+/**
+ * The link a plan under review could be published through (`0060`): `active`,
+ * with the professional's grant still standing — a professional who can no
+ * longer publish must not be able to hold a plan back. Undefined otherwise.
+ * `reviewBeforePublish` says whether the next plan waits for them.
+ */
+async function publishingLink(
+  db: ReturnType<typeof database> | Transaction,
+  userId: string
+): Promise<{ readonly reviewBeforePublish: boolean } | undefined> {
+  const [row] = await db
+    .select({ reviewBeforePublish: careLinks.reviewBeforePublish })
+    .from(careLinks)
+    .where(
+      and(
+        eq(careLinks.clientId, userId),
+        eq(careLinks.status, 'active'),
+        exists(db.select({ userId: professionals.userId }).from(professionals).where(eq(professionals.userId, careLinks.professionalId)))
+      )
+    )
+    .limit(1);
+
+  return row;
+}
+
+/**
+ * Whether a professional's generation must be refused when it is saved
+ * (`0060`): it is theirs, it will not wait for review, and saving it active
+ * would complete the client's fortnight under way — which a professional never
+ * replaces.
+ */
+export function refusesProfessionalSave(save: { readonly byProfessional: boolean; readonly hasActive: boolean; readonly review: boolean }): boolean {
+  return save.byProfessional && !save.review && save.hasActive;
+}
+
+/** Whether the user has an `active` plan, read in the caller's transaction. */
+async function hasActivePlan(tx: Transaction, userId: string): Promise<boolean> {
+  const [row] = await tx
+    .select({ id: mealPlans.id })
+    .from(mealPlans)
+    .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active')))
+    .limit(1);
+
+  return row !== undefined;
+}
+
+/** The redos spent by pending plans this one replaced (`createPlanAtomically`). */
+function replacedRedosOf(metadata: Record<string, unknown> | null): number {
+  const value = metadata?.replacedRedos;
+
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : 0;
 }
 
 /** Postgres 23505. Here it means the one-active-plan or version constraint fired. */
