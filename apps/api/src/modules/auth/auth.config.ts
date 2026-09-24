@@ -215,7 +215,12 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
          * Stripe first (`0056`): every subscription the account still has is
          * cancelled before anything of it is deleted. If Stripe cannot be
          * reached this throws and the account stays — a deletion to retry is
-         * better than a card charged for an account that is gone.
+         * better than a card charged for an account that is gone. A failure
+         * halfway leaves some subscriptions cancelled and the account still
+         * there: Stripe's `deleted` events for those reach the webhook while
+         * the account exists, and it writes them as it would any other, so the
+         * tier follows what is still charged. Trying the deletion again cancels
+         * the rest.
          *
          * The cascade from `user.id` takes everything that references the
          * account. An invitation addressed to it does not — it holds an

@@ -1,6 +1,6 @@
 import { BillingRepository } from '#repositories/Billing';
 import { UserRepository } from '#repositories/User';
-import { paysForPremium, replacesStored } from 'core/domain/Billing';
+import { payingSibling, paysForPremium, replacesStored } from 'core/domain/Billing';
 
 import type { SubscriptionRecord } from '#repositories/Billing';
 
@@ -41,18 +41,30 @@ export const BillingController = {
    * it answers is written only if it may replace what is stored
    * (`replacesStored`).
    *
+   * An answer that no longer pays is not written while the customer has
+   * another subscription that still does (`payingSibling`): that one is
+   * written instead, so the tier does not drop while a card is still being
+   * charged for it. `siblings` lists the customer's subscriptions, under the
+   * same lock, and is asked only then.
+   *
    * Resolves to the tier written, `kept` when Stripe's answer was older than
    * what is stored, or `absent` when the account does not exist — deleted, or
    * never this product's — and then nothing is written and Stripe is not asked.
    */
-  async applySubscription(userId: string, latest: () => Promise<SubscriptionRecord>): Promise<'absent' | 'free' | 'kept' | 'premium'> {
+  async applySubscription(
+    userId: string,
+    latest: () => Promise<SubscriptionRecord>,
+    siblings: (customerId: string) => Promise<readonly SubscriptionRecord[]>
+  ): Promise<'absent' | 'free' | 'kept' | 'premium'> {
     let tier: 'free' | 'premium' = 'free';
     const outcome = await BillingRepository.recordSubscription(userId, async stored => {
-      const record = await latest();
+      const answer = await latest();
 
-      if (!replacesStored(stored, record)) {
+      if (!replacesStored(stored, answer)) {
         return null;
       }
+
+      const record = paysForPremium(answer.status) ? answer : (payingSibling(answer, await siblings(answer.customerId)) ?? answer);
 
       tier = paysForPremium(record.status) ? 'premium' : 'free';
 
@@ -60,6 +72,17 @@ export const BillingController = {
     });
 
     return outcome === 'written' ? tier : outcome;
+  },
+
+  /**
+   * Who somebody is to Stripe, made the first time it is asked. `create` makes
+   * the customer at Stripe and is called with the account locked, so two
+   * checkouts started at once make one customer between them: the second waits,
+   * then finds the first one's. Resolves to `null` when the account does not
+   * exist, and then `create` is never called.
+   */
+  async customerFor(userId: string, create: () => Promise<string>): Promise<string | null> {
+    return BillingRepository.customerFor(userId, create);
   },
 
   async customerOf(userId: string): Promise<string | null> {

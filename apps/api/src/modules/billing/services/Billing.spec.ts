@@ -8,6 +8,7 @@ import { SettingsController } from 'core/controllers/Settings';
 import { BillingService } from './Billing.service.js';
 
 import type { Env } from '../../../config/index.js';
+import type { ErrorReporter } from '../../../shared/observability/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 import type { CheckoutRequest, Prices, StripeGateway, SubscriptionSnapshot } from './StripeGateway.js';
 import type { SubscriptionView } from 'core/controllers/Billing';
@@ -22,6 +23,7 @@ const SNAPSHOT: SubscriptionSnapshot = {
   cancelAtPeriodEnd: false,
   currentPeriodEnd: new Date('2026-10-13T00:00:00Z'),
   customerId: 'cus_1',
+  deploymentHint: 'dep_here',
   status: 'active',
   subscriptionId: 'sub_1',
   userIdHint: 'usr-ana'
@@ -47,12 +49,13 @@ function harness(
     checkoutUrl: jest.fn<(request: CheckoutRequest) => Promise<string>>().mockResolvedValue('https://checkout.stripe.com/c/session'),
     configured: options.configured ?? true,
     createCustomer: jest.fn<(email: string, userId: string) => Promise<string>>().mockResolvedValue('cus_new'),
+    deployment: 'dep_here',
     event: jest.fn(() => (options.event === undefined ? event('invoice.paid', {}) : options.event)),
     expireOpenCheckouts: jest.fn<(customerId: string) => Promise<void>>().mockResolvedValue(undefined),
     portalUrl: jest.fn<(customerId: string, returnUrl: string) => Promise<string>>().mockResolvedValue('https://billing.stripe.com/p/session'),
     prices: jest.fn(async () => PRICES),
-    subscription: jest.fn<(id: string) => Promise<SubscriptionSnapshot>>().mockResolvedValue(SNAPSHOT),
-    subscriptionsOf: jest.fn<(customerId: string) => Promise<{ id: string; status: string }[]>>().mockResolvedValue([]),
+    subscription: jest.fn<(id: string, options?: { underLock?: boolean }) => Promise<SubscriptionSnapshot>>().mockResolvedValue(SNAPSHOT),
+    subscriptionsOf: jest.fn<(customerId: string, options?: { underLock?: boolean }) => Promise<SubscriptionSnapshot[]>>().mockResolvedValue([]),
     testMode: options.testMode ?? false,
     yearly: options.yearly ?? true
   };
@@ -64,7 +67,10 @@ function harness(
   jest.spyOn(BillingController, 'standing').mockResolvedValue({ subscription: options.subscription ?? null, tier: 'free' });
   jest.spyOn(BillingController, 'customerOf').mockResolvedValue(options.customer ?? null);
 
-  const remember = jest.spyOn(BillingController, 'rememberCustomer').mockResolvedValue(undefined);
+  // As the real one does: the stored customer, or one made under the account's lock.
+  const customerFor = jest
+    .spyOn(BillingController, 'customerFor')
+    .mockImplementation(async (_userId, create) => (options.customer === undefined || options.customer === null ? create() : options.customer));
   // As the real one does: the re-fetch runs inside, under the account's lock.
   const apply = jest.spyOn(BillingController, 'applySubscription').mockImplementation(async (_userId, latest) => {
     await latest();
@@ -73,7 +79,16 @@ function harness(
   });
   const owner = jest.spyOn(BillingController, 'userOfCustomer').mockResolvedValue('usr-ana');
 
-  return { apply, gateway, owner, remember, service: new BillingService(ENV, gateway as unknown as StripeGateway) };
+  const reporter = { report: jest.fn<(error: unknown, where: string) => void>() };
+
+  return {
+    apply,
+    customerFor,
+    gateway,
+    owner,
+    reporter,
+    service: new BillingService(ENV, gateway as unknown as StripeGateway, reporter as unknown as ErrorReporter)
+  };
 }
 
 describe('BillingService', () => {
@@ -102,12 +117,12 @@ describe('BillingService', () => {
     await expect(harness({ premium: true }).service.status(PERSON)).resolves.toMatchObject({ available: true, testMode: false });
   });
 
-  it('opens checkout for a new customer with the free trial, remembering who they are to Stripe', async () => {
-    const { gateway, remember, service } = harness();
+  it('opens checkout for a new customer with the free trial, made under the account’s lock', async () => {
+    const { customerFor, gateway, service } = harness();
 
     await expect(service.checkout(PERSON, 'monthly')).resolves.toEqual({ url: 'https://checkout.stripe.com/c/session' });
+    expect(customerFor).toHaveBeenCalledWith('usr-ana', expect.any(Function));
     expect(gateway.createCustomer).toHaveBeenCalledWith('ana@example.invalid', 'usr-ana');
-    expect(remember).toHaveBeenCalledWith('usr-ana', 'cus_new');
     expect(gateway.checkoutUrl).toHaveBeenCalledWith({
       cancelUrl: 'https://nutria.example/perfil',
       customerId: 'cus_new',
@@ -140,6 +155,15 @@ describe('BillingService', () => {
     await expect(harness({ yearly: false }).service.checkout(PERSON, 'yearly')).rejects.toBeInstanceOf(NotFoundError);
   });
 
+  it('opens nothing for an account deleted while its checkout was on its way', async () => {
+    const { customerFor, gateway, service } = harness();
+
+    customerFor.mockResolvedValue(null);
+
+    await expect(service.checkout(PERSON, 'monthly')).rejects.toBeInstanceOf(NotFoundError);
+    expect(gateway.checkoutUrl).not.toHaveBeenCalled();
+  });
+
   it('does not open a second checkout for somebody already paying, or trialling', async () => {
     const { gateway, service } = harness({ subscription: { ...CANCELLED, status: 'trialing' } });
 
@@ -164,19 +188,81 @@ describe('BillingService', () => {
 
     await service.webhook(Buffer.from('{}'), 'signed');
 
-    expect(apply).toHaveBeenCalledWith('usr-ana', expect.any(Function));
+    expect(apply).toHaveBeenCalledWith('usr-ana', expect.any(Function), expect.any(Function));
     // Once to learn whose it is, once more under the lock, just before the write.
-    expect(gateway.subscription.mock.calls).toEqual([['sub_1'], ['sub_1']]);
+    expect(gateway.subscription.mock.calls).toEqual([['sub_1'], ['sub_1', { underLock: true }]]);
+  });
+
+  /* Under the lock: one attempt, bounded, so the account's row is never held for long. */
+  it('lists the customer’s other subscriptions under the lock with the lock’s bound', async () => {
+    const { apply, gateway, service } = harness({ event: event('customer.subscription.deleted', { id: 'sub_1' }) });
+
+    apply.mockImplementation(async (_userId, _latest, siblings) => {
+      await siblings('cus_1');
+
+      return 'premium';
+    });
+
+    await service.webhook(Buffer.from('{}'), 'signed');
+
+    expect(gateway.subscriptionsOf).toHaveBeenCalledWith('cus_1', { underLock: true });
   });
 
   /* Deleted since, or never made: a 500 here is a delivery Stripe retries for days. */
   it('acknowledges a subscription whose account does not exist, writes nothing, and cancels it at Stripe while it is live', async () => {
-    const { apply, gateway, service } = harness({ event: event('customer.subscription.updated', { id: 'sub_1' }) });
+    const { apply, gateway, reporter, service } = harness({ event: event('customer.subscription.updated', { id: 'sub_1' }) });
 
     apply.mockResolvedValue('absent');
 
     await expect(service.webhook(Buffer.from('{}'), 'signed')).resolves.toBeUndefined();
     expect(gateway.cancel).toHaveBeenCalledWith('sub_1');
+    expect(reporter.report).not.toHaveBeenCalled();
+  });
+
+  /*
+   * Local development and production share one Stripe test account and both
+   * receive its events: an account missing here says nothing about the
+   * other's, so only this deployment's own subscriptions are ever cancelled.
+   */
+  it.each([
+    ['another deployment opened', 'dep_elsewhere'],
+    ['nobody marked', null]
+  ])('does not cancel a live subscription of a missing account that %s, and reports it', async (_case, deploymentHint) => {
+    const { apply, gateway, reporter, service } = harness({ event: event('customer.subscription.updated', { id: 'sub_1' }) });
+
+    apply.mockResolvedValue('absent');
+    gateway.subscription.mockResolvedValue({ ...SNAPSHOT, deploymentHint });
+
+    await expect(service.webhook(Buffer.from('{}'), 'signed')).resolves.toBeUndefined();
+    expect(gateway.cancel).not.toHaveBeenCalled();
+    expect(reporter.report).toHaveBeenCalledTimes(1);
+    // The subscription's id, and nothing that says whose it is.
+    expect(String(reporter.report.mock.calls[0]?.[0])).toContain('sub_1');
+    expect(String(reporter.report.mock.calls[0]?.[0])).not.toMatch(/usr-ana|cus_1/);
+  });
+
+  /* The other deployment's checkout names an account of the other deployment's: never looked for here. */
+  it('does not act on the account another deployment’s subscription names, when its customer is not one it knows', async () => {
+    const { apply, gateway, owner, reporter, service } = harness({ event: event('customer.subscription.updated', { id: 'sub_1' }) });
+
+    owner.mockResolvedValue(null);
+    gateway.subscription.mockResolvedValue({ ...SNAPSHOT, deploymentHint: 'dep_elsewhere' });
+
+    await expect(service.webhook(Buffer.from('{}'), 'signed')).resolves.toBeUndefined();
+    expect(apply).not.toHaveBeenCalled();
+    expect(gateway.cancel).not.toHaveBeenCalled();
+    expect(reporter.report).not.toHaveBeenCalled();
+  });
+
+  /* Opened before the mark existed: still followed by the account it names. */
+  it('falls back to the account an unmarked subscription names', async () => {
+    const { apply, gateway, owner, service } = harness({ event: event('customer.subscription.updated', { id: 'sub_1' }) });
+
+    owner.mockResolvedValue(null);
+    gateway.subscription.mockResolvedValue({ ...SNAPSHOT, deploymentHint: null });
+    await service.webhook(Buffer.from('{}'), 'signed');
+
+    expect(apply).toHaveBeenCalledWith('usr-ana', expect.any(Function), expect.any(Function));
   });
 
   it('does not cancel again a subscription of a missing account that has already ended', async () => {
@@ -226,7 +312,7 @@ describe('BillingService', () => {
     owner.mockResolvedValue(null);
     await service.webhook(Buffer.from('{}'), 'signed');
 
-    expect(apply).toHaveBeenCalledWith('usr-ana', expect.any(Function));
+    expect(apply).toHaveBeenCalledWith('usr-ana', expect.any(Function), expect.any(Function));
   });
 
   it('acknowledges and ignores an event that changes nothing about the tier', async () => {
@@ -243,9 +329,9 @@ describe('BillingService', () => {
       const { gateway, service } = harness({ customer: 'cus_1' });
 
       gateway.subscriptionsOf.mockResolvedValue([
-        { id: 'sub_live', status: 'active' },
-        { id: 'sub_second_tab', status: 'trialing' },
-        { id: 'sub_expired', status: 'incomplete_expired' }
+        { ...SNAPSHOT, subscriptionId: 'sub_live' },
+        { ...SNAPSHOT, status: 'trialing', subscriptionId: 'sub_second_tab' },
+        { ...SNAPSHOT, status: 'incomplete_expired', subscriptionId: 'sub_expired' }
       ]);
 
       await service.cancelEverything('usr-ana');
@@ -277,7 +363,7 @@ describe('BillingService', () => {
     it('fails, so the deletion does not happen, when Stripe will not cancel', async () => {
       const { gateway, service } = harness({ customer: 'cus_1' });
 
-      gateway.subscriptionsOf.mockResolvedValue([{ id: 'sub_live', status: 'active' }]);
+      gateway.subscriptionsOf.mockResolvedValue([{ ...SNAPSHOT, subscriptionId: 'sub_live' }]);
       gateway.cancel.mockRejectedValue(new Error('Stripe is unreachable'));
 
       await expect(service.cancelEverything('usr-ana')).rejects.toThrow('Stripe is unreachable');
@@ -288,6 +374,8 @@ describe('BillingService', () => {
 
       await unconfigured.service.cancelEverything('usr-ana');
       expect(unconfigured.gateway.subscriptionsOf).not.toHaveBeenCalled();
+      // Something may still be charging, and nothing could ask: the owner is told.
+      expect(unconfigured.reporter.report).toHaveBeenCalledTimes(1);
 
       jest.restoreAllMocks();
 
@@ -295,6 +383,7 @@ describe('BillingService', () => {
 
       await stranger.service.cancelEverything('usr-ana');
       expect(stranger.gateway.subscriptionsOf).not.toHaveBeenCalled();
+      expect(stranger.reporter.report).not.toHaveBeenCalled();
     });
   });
 });

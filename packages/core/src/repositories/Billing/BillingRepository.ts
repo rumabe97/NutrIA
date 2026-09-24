@@ -16,6 +16,46 @@ export type SubscriptionRecord = {
 };
 
 export const BillingRepository = {
+  /**
+   * The account's Stripe customer, or the one `create` makes when it has none,
+   * kept before it is returned. The account's row is locked first, the same
+   * lock the webhook takes, so a second call for the account waits for the
+   * first and reads what it kept: one account, one customer. `create` runs
+   * under the lock, calling out to Stripe, and should bound its own time.
+   * Resolves to `null` when there is no such account.
+   */
+  async customerFor(userId: string, create: () => Promise<string>): Promise<string | null> {
+    try {
+      return await database().transaction(async tx => {
+        const [account] = await tx.select({ id: user.id }).from(user).where(eq(user.id, userId)).for('no key update');
+
+        if (!account) {
+          return null;
+        }
+
+        const [stored] = await tx
+          .select({ customerId: subscriptions.stripeCustomerId })
+          .from(subscriptions)
+          .where(eq(subscriptions.userId, userId))
+          .limit(1);
+
+        if (stored) {
+          return stored.customerId;
+        }
+
+        const customerId = await create().catch((error: unknown) => {
+          throw new DecisionFailed(error);
+        });
+
+        await tx.insert(subscriptions).values({ stripeCustomerId: customerId, userId });
+
+        return customerId;
+      });
+    } catch (error: unknown) {
+      throw error instanceof DecisionFailed ? error.cause : wrap(error);
+    }
+  },
+
   async findByUser(userId: string): Promise<SubscriptionRecord | null> {
     try {
       const [row] = await database()
@@ -130,7 +170,7 @@ export const BillingRepository = {
   }
 };
 
-/** What `decide` threw is its own failure, not the database's: it goes out as it came, after the rollback. */
+/** What a callback (`decide`, `create`) threw is its own failure, not the database's: it goes out as it came, after the rollback. */
 class DecisionFailed {
   constructor(readonly cause: unknown) {}
 }

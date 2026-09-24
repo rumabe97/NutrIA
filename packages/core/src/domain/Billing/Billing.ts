@@ -48,6 +48,10 @@ type Described = { readonly status: string | null; readonly subscriptionId: stri
  * - One subscription ending never displaces a different one. A retried
  *   `deleted` for last year's subscription must not take premium from this
  *   year's.
+ * - A subscription that does not pay never takes the row from a different one
+ *   that does. Two checkouts finished in two tabs are two subscriptions: the
+ *   second one's `incomplete`, on its way to paying or failing, must not take
+ *   premium from the first while the first still charges.
  */
 export function replacesStored(stored: Described | null, incoming: Described): boolean {
   if (!stored?.subscriptionId) {
@@ -58,5 +62,16 @@ export function replacesStored(stored: Described | null, incoming: Described): b
     return !hasEnded(stored.status) || hasEnded(incoming.status);
   }
 
-  return !hasEnded(incoming.status);
+  return !hasEnded(incoming.status) && (paysForPremium(incoming.status) || !paysForPremium(stored.status));
+}
+
+/**
+ * What to write instead of a subscription that has stopped paying, when the
+ * same customer has another that still does: that one. The account keeps
+ * premium for as long as anything of theirs is charged for it, and the row
+ * follows the subscription that is. `null` when there is none, and the one
+ * that stopped is written as it is.
+ */
+export function payingSibling<T extends Described>(stopped: Described, siblings: readonly T[]): T | null {
+  return siblings.find(sibling => sibling.subscriptionId !== stopped.subscriptionId && paysForPremium(sibling.status)) ?? null;
 }

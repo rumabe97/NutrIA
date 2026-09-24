@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { Inject, Injectable } from '@nestjs/common';
 import Stripe from 'stripe';
 
@@ -10,16 +12,38 @@ import type { PriceView, SubscriptionRecord } from 'core/controllers/Billing';
 /** How long a price is trusted before it is asked for again. It changes when the owner changes it, which is rarely. */
 const PRICE_TTL_MS = 60 * 60 * 1000;
 /**
- * How long one call to Stripe may take. The webhook asks Stripe with an
- * account's row locked, so a hung call is a lock held: this bounds it well
- * below the SDK's default of 80 seconds.
+ * How long one attempt at a call to Stripe may take, down from the SDK's 80
+ * seconds. The SDK retries a failed attempt twice more by default, so an
+ * ordinary call can take about three times this. Calls made while an
+ * account's row is locked use `UNDER_LOCK` instead.
  */
 const STRIPE_TIMEOUT_MS = 15_000;
+/**
+ * A call made with an account's row locked: one attempt, five seconds, so the
+ * lock (and the pooled connection waiting behind it) is held for five seconds
+ * at the very most. A failure there is a 500, and Stripe delivers the event
+ * again, which is the retry.
+ */
+const UNDER_LOCK: Stripe.RequestOptions = { maxNetworkRetries: 0, timeout: 5000 };
 /** Stripe's page size ceiling for a list. */
 const PAGE = 100;
+/**
+ * How long a checkout stays payable: Stripe's minimum of 30 minutes, plus one,
+ * because Stripe measures from its own clock. The default is 24 hours, and a
+ * page left open that long can become a subscription after its account is gone.
+ */
+const CHECKOUT_TTL_SECONDS = 31 * 60;
 
-/** A subscription as Stripe describes it now, with the account it was opened for when Stripe was told. */
-export type SubscriptionSnapshot = SubscriptionRecord & { readonly customerId: string; readonly userIdHint: string | null };
+/**
+ * A subscription as Stripe describes it now, with what checkout wrote into it:
+ * the account it was opened for, and the deployment that opened it.
+ */
+export type SubscriptionSnapshot = SubscriptionRecord & {
+  readonly customerId: string;
+  readonly deploymentHint: string | null;
+  readonly subscriptionId: string;
+  readonly userIdHint: string | null;
+};
 
 export type Prices = { readonly monthly: PriceView | null; readonly yearly: PriceView | null };
 
@@ -59,6 +83,20 @@ export class StripeGateway {
     return this.env.STRIPE_SECRET_KEY?.startsWith('sk_test_') ?? false;
   }
 
+  /**
+   * Which deployment this is, as checkout writes it into every subscription:
+   * a short hash of this API's own public origin. Not a secret, and not
+   * meant to be one. Local development and production share one Stripe test
+   * account, and both receive its events. This is how one tells a
+   * subscription it opened itself from one the other opened. Moving the API
+   * to another origin changes it: subscriptions opened before are then
+   * another deployment's, which only means they are never cancelled
+   * automatically (`BillingService.webhook`).
+   */
+  get deployment(): string {
+    return createHash('sha256').update(new URL(this.env.BETTER_AUTH_URL).origin).digest('hex').slice(0, 16);
+  }
+
   /** Whether a yearly price is on offer as well as the monthly one. */
   get yearly(): boolean {
     return Boolean(this.env.STRIPE_YEARLY_PRICE_ID);
@@ -86,10 +124,14 @@ export class StripeGateway {
       cancel_url: request.cancelUrl,
       client_reference_id: request.userId,
       customer: request.customerId,
+      expires_at: Math.floor(Date.now() / 1000) + CHECKOUT_TTL_SECONDS,
       line_items: [{ price, quantity: 1 }],
       locale: request.locale === 'en-GB' ? 'en-GB' : 'es',
       mode: 'subscription',
-      subscription_data: { metadata: { userId: request.userId }, ...(request.trialDays ? { trial_period_days: request.trialDays } : {}) },
+      subscription_data: {
+        metadata: { deployment: this.deployment, userId: request.userId },
+        ...(request.trialDays ? { trial_period_days: request.trialDays } : {})
+      },
       success_url: request.successUrl
     });
 
@@ -100,8 +142,9 @@ export class StripeGateway {
     return session.url;
   }
 
+  /** Called with the account's row locked, so that one account never has two customers. */
   async createCustomer(email: string, userId: string): Promise<string> {
-    return (await this.stripe().customers.create({ email, metadata: { userId } })).id;
+    return (await this.stripe().customers.create({ email, metadata: { userId } }, UNDER_LOCK)).id;
   }
 
   /** The signed event, or `null` when the signature does not hold — which is every request not from Stripe. */
@@ -115,14 +158,17 @@ export class StripeGateway {
 
   /**
    * Every subscription this customer has at Stripe that Stripe still lists by
-   * default — all but the cancelled ones — with its status. All of them, not
-   * the one the account's row names: two checkouts finished in two tabs are
-   * two subscriptions, and both charge.
+   * default — all but the cancelled ones. All of them, not the one the
+   * account's row names: two checkouts finished in two tabs are two
+   * subscriptions, and both charge. `underLock` for a call made with the
+   * account's row locked.
    */
-  async subscriptionsOf(customerId: string): Promise<{ readonly id: string; readonly status: string }[]> {
-    const found = await everyPage(after => this.stripe().subscriptions.list({ customer: customerId, limit: PAGE, ...after }));
+  async subscriptionsOf(customerId: string, options: { readonly underLock?: boolean } = {}): Promise<SubscriptionSnapshot[]> {
+    const found = await everyPage(after =>
+      this.stripe().subscriptions.list({ customer: customerId, limit: PAGE, ...after }, options.underLock ? UNDER_LOCK : undefined)
+    );
 
-    return found.map(subscription => ({ id: subscription.id, status: subscription.status }));
+    return found.map(snapshotOf);
   }
 
   /**
@@ -182,22 +228,29 @@ export class StripeGateway {
   /**
    * A subscription as Stripe has it now — fetched rather than read from the
    * event that mentioned it, so an event arriving late cannot set an old state.
-   * The period end lives on the subscription's item in this API version; during
-   * a trial it is the day the trial ends.
+   * `underLock` for the fetch made with the account's row locked.
    */
-  async subscription(id: string): Promise<SubscriptionSnapshot> {
-    const subscription = await this.stripe().subscriptions.retrieve(id);
-    const end = subscription.items.data[0]?.current_period_end;
-
-    return {
-      cancelAtPeriodEnd: subscription.cancel_at_period_end,
-      currentPeriodEnd: end === undefined ? null : new Date(end * 1000),
-      customerId: typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id,
-      status: subscription.status,
-      subscriptionId: subscription.id,
-      userIdHint: subscription.metadata.userId ?? null
-    };
+  async subscription(id: string, options: { readonly underLock?: boolean } = {}): Promise<SubscriptionSnapshot> {
+    return snapshotOf(await this.stripe().subscriptions.retrieve(id, {}, options.underLock ? UNDER_LOCK : undefined));
   }
+}
+
+/**
+ * The fields this product reads. The period end lives on the subscription's
+ * item in this API version; during a trial it is the day the trial ends.
+ */
+function snapshotOf(subscription: Stripe.Subscription): SubscriptionSnapshot {
+  const end = subscription.items.data[0]?.current_period_end;
+
+  return {
+    cancelAtPeriodEnd: subscription.cancel_at_period_end,
+    currentPeriodEnd: end === undefined ? null : new Date(end * 1000),
+    customerId: typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id,
+    deploymentHint: subscription.metadata.deployment ?? null,
+    status: subscription.status,
+    subscriptionId: subscription.id,
+    userIdHint: subscription.metadata.userId ?? null
+  };
 }
 
 /** Every item of a Stripe list, page after page. */

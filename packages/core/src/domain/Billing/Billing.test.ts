@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasEnded, paysForPremium, replacesStored } from 'core/domain/Billing';
+import { hasEnded, payingSibling, paysForPremium, replacesStored } from 'core/domain/Billing';
 
 describe('paysForPremium', () => {
   it('pays while the subscription is running', () => {
@@ -60,5 +60,37 @@ describe('replacesStored', () => {
   it('lets a new subscription replace an old one, and never an old one ending replace a new one', () => {
     expect(replacesStored(ended, { status: 'trialing', subscriptionId: 'sub_2' })).toBe(true);
     expect(replacesStored({ status: 'active', subscriptionId: 'sub_2' }, ended)).toBe(false);
+  });
+
+  /* The second tab's checkout, still `incomplete`, must not take premium from the first while it charges. */
+  it('never lets a subscription that does not pay take the row from a different one that does', () => {
+    const paying = { status: 'active', subscriptionId: 'sub_1' };
+
+    expect(replacesStored(paying, { status: 'incomplete', subscriptionId: 'sub_2' })).toBe(false);
+    expect(replacesStored(paying, { status: 'unpaid', subscriptionId: 'sub_2' })).toBe(false);
+    expect(replacesStored(paying, { status: 'trialing', subscriptionId: 'sub_2' })).toBe(true);
+    expect(replacesStored({ status: 'unpaid', subscriptionId: 'sub_1' }, { status: 'incomplete', subscriptionId: 'sub_2' })).toBe(true);
+  });
+});
+
+describe('payingSibling', () => {
+  const stopped = { status: 'canceled', subscriptionId: 'sub_1' };
+
+  it('finds another subscription that still pays', () => {
+    const second = { status: 'past_due', subscriptionId: 'sub_2' };
+
+    expect(payingSibling(stopped, [{ status: 'active', subscriptionId: 'sub_1' }, { status: 'incomplete', subscriptionId: 'sub_3' }, second])).toBe(
+      second
+    );
+  });
+
+  it('finds nothing when no other subscription pays, and never the one that stopped', () => {
+    expect(payingSibling(stopped, [])).toBeNull();
+    expect(
+      payingSibling(stopped, [
+        { status: 'active', subscriptionId: 'sub_1' },
+        { status: 'unpaid', subscriptionId: 'sub_2' }
+      ])
+    ).toBeNull();
   });
 });
