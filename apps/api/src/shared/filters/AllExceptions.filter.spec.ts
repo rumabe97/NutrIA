@@ -110,7 +110,9 @@ describe('AllExceptionsFilter', () => {
       message: 'La petición es demasiado grande.',
       statusCode: HttpStatus.PAYLOAD_TOO_LARGE
     });
-    expect(capture(parserError('unsupported content encoding "br"', 415, 'encoding.unsupported')).body.statusCode).toBe(HttpStatus.UNSUPPORTED_MEDIA_TYPE);
+    expect(capture(parserError('unsupported content encoding "br"', 415, 'encoding.unsupported')).body.statusCode).toBe(
+      HttpStatus.UNSUPPORTED_MEDIA_TYPE
+    );
     expect(capture(parserError('request aborted', 400, 'request.aborted')).body.statusCode).toBe(HttpStatus.BAD_REQUEST);
   });
 
