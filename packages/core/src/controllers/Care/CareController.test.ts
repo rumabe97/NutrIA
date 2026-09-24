@@ -4,12 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { makeProfessional, makeUser } from '#test/fixtures';
 import { CARE_CONSENT_VERSION, CARE_HEALTH_SHARED, CARE_SHARED, CARE_TOKEN_PATTERN } from 'core/entities/Care';
-import { CareLinkExistsError, InputParseError, NotFoundError } from 'core/entities/Error';
+import { CareLinkExistsError, InputParseError, NotFoundError, PracticeFullError } from 'core/entities/Error';
 
 import { CareController } from './CareController';
 
-import type { AcceptOutcome, LinkWithProfessional, OpenInvitation } from '#repositories/Care';
-import type { AcceptInvitation, CareInvitation, CareLink } from 'core/entities/Care';
+import type { AcceptOutcome, InviteOutcome, LinkWithProfessional, OpenInvitation, PracticeUse } from '#repositories/Care';
+import type { AcceptInvitation, CareLink } from 'core/entities/Care';
 import type { Professional } from 'core/entities/Professional';
 import type { User } from 'core/entities/User';
 
@@ -18,7 +18,8 @@ const clientLink = vi.fn<(clientId: string) => Promise<LinkWithProfessional | nu
 const decline = vi.fn<(clientId: string, email: string, tokenHash: string, now: Date) => Promise<boolean>>();
 const end = vi.fn<(userId: string, side: 'client' | 'professional', linkId: string, now: Date) => Promise<boolean>>();
 const forgetAddress = vi.fn<(email: string) => Promise<void>>();
-const invite = vi.fn<(professionalId: string, email: string, tokenHash: string, expiresAt: Date, now: Date) => Promise<CareInvitation>>();
+const invite = vi.fn<(professionalId: string, email: string, tokenHash: string, expiresAt: Date, now: Date) => Promise<InviteOutcome>>();
+const practiceUse = vi.fn<(professionalId: string, now: Date) => Promise<PracticeUse>>();
 const openInvitation = vi.fn<(clientId: string, email: string, tokenHash: string, now: Date) => Promise<OpenInvitation | null>>();
 const find = vi.fn<(userId: string) => Promise<Professional | null>>();
 const isEnabled = vi.fn<(key: string, fallback: boolean) => Promise<boolean>>();
@@ -33,7 +34,8 @@ vi.mock('#repositories/Care', () => ({
     end: (...args: Parameters<typeof end>) => end(...args),
     forgetAddress: (email: string) => forgetAddress(email),
     invite: (...args: Parameters<typeof invite>) => invite(...args),
-    openInvitation: (...args: Parameters<typeof openInvitation>) => openInvitation(...args)
+    openInvitation: (...args: Parameters<typeof openInvitation>) => openInvitation(...args),
+    practiceUse: (...args: Parameters<typeof practiceUse>) => practiceUse(...args)
   }
 }));
 vi.mock('#repositories/Professional', () => ({ ProfessionalRepository: { find: (userId: string) => find(userId) } }));
@@ -64,7 +66,7 @@ function makeLink(overrides?: Partial<CareLink>): CareLink {
 }
 
 beforeEach(() => {
-  for (const mock of [accept, clientLink, decline, end, forgetAddress, invite, openInvitation, find, isEnabled, findUserById]) {
+  for (const mock of [accept, clientLink, decline, end, forgetAddress, invite, openInvitation, practiceUse, find, isEnabled, findUserById]) {
     mock.mockReset();
   }
 
@@ -74,13 +76,8 @@ beforeEach(() => {
 describe('CareController.invite', () => {
   it('stores only the hash of a fresh token, lowercased address, fourteen days out — and hands the token back for the mail alone', async () => {
     invite.mockImplementation(async (professionalId, email, tokenHash, expiresAt) => ({
-      id: '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f',
-      createdAt: NOW,
-      email,
-      expiresAt,
-      professionalId,
-      tokenHash,
-      updatedAt: NOW
+      invitation: { id: '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f', createdAt: NOW, email, expiresAt, professionalId, tokenHash, updatedAt: NOW },
+      kind: 'invited'
     }));
 
     const { invitation, token } = await CareController.invite(PRO, { email: '  Nueva@Example.COM ' }, NOW);
@@ -99,13 +96,8 @@ describe('CareController.invite', () => {
 
   it('makes a different token every time', async () => {
     invite.mockImplementation(async (professionalId, email, tokenHash, expiresAt) => ({
-      id: '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f',
-      createdAt: NOW,
-      email,
-      expiresAt,
-      professionalId,
-      tokenHash,
-      updatedAt: NOW
+      invitation: { id: '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f', createdAt: NOW, email, expiresAt, professionalId, tokenHash, updatedAt: NOW },
+      kind: 'invited'
     }));
 
     const first = await CareController.invite(PRO, { email: 'a@example.com' }, NOW);
@@ -114,9 +106,45 @@ describe('CareController.invite', () => {
     expect(first.token).not.toBe(second.token);
   });
 
+  /* `0061`, PRD 004 criterion 17: the refusal names the number, which the repository counted under the practice's lock. */
+  it('refuses one client more than the practice includes, naming the number', async () => {
+    invite.mockResolvedValue({ includedClients: 30, kind: 'full' });
+
+    await expect(CareController.invite(PRO, { email: 'n31@example.com' }, NOW)).rejects.toEqual(new PracticeFullError(30));
+    await expect(CareController.invite(PRO, { email: 'n31@example.com' }, NOW)).rejects.toMatchObject({ includedClients: 30 });
+  });
+
+  it('is a 404 when the practice is not paid for — the second line behind the guard', async () => {
+    invite.mockResolvedValue({ kind: 'closed' });
+
+    await expect(CareController.invite(PRO, { email: 'nueva@example.com' }, NOW)).rejects.toBeInstanceOf(NotFoundError);
+  });
+
   it('refuses the professional’s own address, whatever its case, and writes nothing', async () => {
     await expect(CareController.invite(PRO, { email: 'DIETISTA@example.com' }, NOW)).rejects.toThrow(InputParseError);
     expect(invite).not.toHaveBeenCalled();
+  });
+});
+
+describe('CareController.practice', () => {
+  it('says whether the practice is paid for, its number and the seats in use — counts only', async () => {
+    find.mockResolvedValue(makeProfessional({ includedClients: 30, practiceOpen: false }));
+    practiceUse.mockResolvedValue({ activeClients: 0, pendingInvitations: 2 });
+
+    await expect(CareController.practice(PRO, NOW)).resolves.toEqual({ activeClients: 0, includedClients: 30, open: false, pendingInvitations: 2 });
+    expect(find).toHaveBeenCalledWith(PRO.id);
+    expect(practiceUse).toHaveBeenCalledWith(PRO.id, NOW);
+  });
+
+  it.each([
+    ['the switch is off', () => isEnabled.mockResolvedValue(false)],
+    ['the account is not a professional', () => find.mockResolvedValue(null)]
+  ])('is a 404 that counts nothing when %s', async (_case, arrange) => {
+    find.mockResolvedValue(makeProfessional({ includedClients: 30, practiceOpen: true }));
+    arrange();
+
+    await expect(CareController.practice(PRO, NOW)).rejects.toBeInstanceOf(NotFoundError);
+    expect(practiceUse).not.toHaveBeenCalled();
   });
 });
 

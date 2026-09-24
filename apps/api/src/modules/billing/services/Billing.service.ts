@@ -2,7 +2,8 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { BillingController } from 'core/controllers/Billing';
 import { ConflictError, NotFoundError } from 'core/entities/Error';
-import { hasEnded, paysForPremium, TRIAL_DAYS } from 'core/domain/Billing';
+import { hasEnded, paysForPremium, PRACTICE_TRIAL_DAYS, TRIAL_DAYS } from 'core/domain/Billing';
+import { ProfessionalController } from 'core/controllers/Professional';
 import { SettingsController } from 'core/controllers/Settings';
 import { webUrl } from 'core/domain/WebUrl';
 
@@ -13,7 +14,7 @@ import { StripeGateway } from './StripeGateway.js';
 
 import type { BillingPlan } from 'core/entities/Billing';
 import type { BillingStatusDto, BillingUrlDto } from '../dto/out/index.js';
-import type { SubscriptionView } from 'core/controllers/Billing';
+import type { PracticeOfferView, SubscriptionView } from 'core/controllers/Billing';
 import type { Env } from '../../../config/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 import type Stripe from 'stripe';
@@ -22,8 +23,8 @@ import type Stripe from 'stripe';
  * The free days checkout opens with: the full trial for somebody who has never
  * subscribed, none for somebody who has — however that subscription ended.
  */
-function trialFor(subscription: SubscriptionView | null): number | null {
-  return subscription ? null : TRIAL_DAYS;
+function trialFor(subscription: SubscriptionView | null, days: number = TRIAL_DAYS): number | null {
+  return subscription ? null : days;
 }
 
 /** The subscription an event is about, when it is one that can change what somebody pays for. */
@@ -83,8 +84,32 @@ export class BillingService {
     return (await SettingsController.flags()).premium;
   }
 
-  async checkout(user: SessionUser, plan: BillingPlan): Promise<BillingUrlDto> {
-    if (!(await this.open(user)) || (plan === 'yearly' && !this.stripe.yearly)) {
+  /**
+   * Whether this person may pay for a practice (`0061`): practice prices set
+   * up, and a professional today — the `professional` switch on and the grant
+   * standing. The `premium` switch has no say: it governs personal premium
+   * alone. Test keys keep it to the owner, for the reason `open` does.
+   */
+  private async practiceOpen(user: SessionUser): Promise<boolean> {
+    if (!this.stripe.practices || (this.stripe.testMode && user.role !== 'admin')) {
+      return false;
+    }
+
+    return ProfessionalController.hasAccess(user.id);
+  }
+
+  /**
+   * `plan` and, for a practice, `price` — one of the configured practice
+   * prices, or a 404 as for any price that is not on offer. The price chooses
+   * the plan; what it includes is written by the webhook from configuration.
+   */
+  async checkout(user: SessionUser, plan: BillingPlan, price?: string): Promise<BillingUrlDto> {
+    const offered =
+      plan === 'practice'
+        ? price !== undefined && this.stripe.isPracticePrice(price) && (await this.practiceOpen(user))
+        : (await this.open(user)) && (plan === 'monthly' || this.stripe.yearly);
+
+    if (!offered) {
       throw new NotFoundError('Not found');
     }
 
@@ -103,16 +128,18 @@ export class BillingService {
     }
 
     const locale = await recipientLocale(user.id);
-    const profile = webUrl(this.env.APP_URL, '/perfil', locale);
+    // A practice comes back to the workspace; premium to the profile, as before.
+    const back = webUrl(this.env.APP_URL, plan === 'practice' ? '/consulta' : '/perfil', locale);
 
     return {
       url: await this.stripe.checkoutUrl({
-        cancelUrl: profile,
+        cancelUrl: back,
         customerId,
         locale,
         plan,
-        successUrl: `${profile}?premium=gracias`,
-        trialDays: trialFor(subscription),
+        ...(plan === 'practice' ? { price } : {}),
+        successUrl: plan === 'practice' ? `${back}?practica=gracias` : `${back}?premium=gracias`,
+        trialDays: plan === 'practice' ? trialFor(subscription, PRACTICE_TRIAL_DAYS) : trialFor(subscription),
         userId: user.id
       })
     };
@@ -120,7 +147,8 @@ export class BillingService {
 
   /** Stripe's own portal, where somebody changes their card or cancels. Not rebuilt here: a hand-written cancellation is one with a bug in it. */
   async portal(user: SessionUser): Promise<BillingUrlDto> {
-    const customerId = (await this.open(user)) ? await BillingController.customerOf(user.id) : null;
+    // A professional reaches it for their practice — its plans are switched there — whatever the `premium` switch says.
+    const customerId = (await this.open(user)) || (await this.practiceOpen(user)) ? await BillingController.customerOf(user.id) : null;
 
     if (!customerId) {
       throw new NotFoundError('Not found');
@@ -129,6 +157,27 @@ export class BillingService {
     const locale = await recipientLocale(user.id);
 
     return { url: await this.stripe.portalUrl(customerId, webUrl(this.env.APP_URL, '/perfil', locale)) };
+  }
+
+  /**
+   * What the workspace shows to pay for a practice (`0061`): the plans on
+   * offer, the account's subscription and the trial it would open with.
+   * Unavailable under the same conditions checkout refuses.
+   */
+  async practiceOffer(user: SessionUser): Promise<PracticeOfferView> {
+    if (!(await this.practiceOpen(user))) {
+      return { available: false };
+    }
+
+    const [standing, plans] = await Promise.all([BillingController.standing(user.id), this.stripe.practicePlans()]);
+
+    return {
+      available: true,
+      plans,
+      subscription: standing.subscription,
+      testMode: this.stripe.testMode,
+      trialDays: trialFor(standing.subscription, PRACTICE_TRIAL_DAYS)
+    };
   }
 
   async status(user: SessionUser): Promise<BillingStatusDto> {
@@ -265,7 +314,8 @@ export class BillingService {
     const outcome = await BillingController.applySubscription(
       userId,
       () => this.stripe.subscription(subscriptionId, { underLock: true }),
-      customer => this.stripe.subscriptionsOf(customer, { underLock: true })
+      customer => this.stripe.subscriptionsOf(customer, { underLock: true }),
+      price => this.stripe.grantOf(price)
     );
 
     switch (outcome) {

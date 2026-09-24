@@ -310,3 +310,46 @@ describe('sign-in providers', () => {
     expect(run).not.toThrow(/definitely-not-a-pem/);
   });
 });
+
+describe('STRIPE_PRACTICE_PRICES (0061)', () => {
+  const stripe = { ...valid, STRIPE_PRICE_ID: 'price_premium', STRIPE_SECRET_KEY: 'sk_test_x', STRIPE_WEBHOOK_SECRET: 'whsec_x' };
+
+  it('reads the pairs into a list, once, trimming what a dashboard adds', () => {
+    expect(validateEnv({ ...stripe, STRIPE_PRACTICE_PRICES: 'price_small=30, price_large = 60' }).STRIPE_PRACTICE_PRICES).toEqual([
+      { includedClients: 30, priceId: 'price_small' },
+      { includedClients: 60, priceId: 'price_large' }
+    ]);
+  });
+
+  it('is absent when left empty, as copied from the example', () => {
+    expect(validateEnv({ ...stripe, STRIPE_PRACTICE_PRICES: '' }).STRIPE_PRACTICE_PRICES).toBeUndefined();
+  });
+
+  it('needs the other STRIPE_* values: a practice checkout with no webhook secret opens nothing', () => {
+    expect(() => validateEnv({ ...valid, STRIPE_PRACTICE_PRICES: 'price_small=30' })).toThrow(/STRIPE_PRACTICE_PRICES: needs the other/);
+  });
+
+  it.each([
+    ['a missing number', 'price_small'],
+    ['a number of nobody', 'price_small=0'],
+    ['a number that is not whole', 'price_small=2.5'],
+    ['a typo’s extra zeros', 'price_small=300000'],
+    ['something that is not a price', 'prod_small=30'],
+    ['a pair with two numbers', 'price_small=30=60'],
+    ['an empty pair', 'price_small=30,']
+  ])('refuses %s', (_case, value) => {
+    expect(() => validateEnv({ ...stripe, STRIPE_PRACTICE_PRICES: value })).toThrow(/STRIPE_PRACTICE_PRICES: must be price_…=N pairs/);
+  });
+
+  it('refuses one price named twice', () => {
+    expect(() => validateEnv({ ...stripe, STRIPE_PRACTICE_PRICES: 'price_small=30,price_small=60' })).toThrow(/names one price twice/);
+  });
+
+  it('refuses a premium price among the practice ones: one price, one grant', () => {
+    expect(() => validateEnv({ ...stripe, STRIPE_PRACTICE_PRICES: 'price_premium=30' })).toThrow(/must not name a premium price/);
+  });
+
+  it('never echoes the value in the error', () => {
+    expect(() => validateEnv({ ...stripe, STRIPE_PRACTICE_PRICES: 'price_secretlooking=abc' })).toThrow(/^(?![\s\S]*secretlooking)/);
+  });
+});

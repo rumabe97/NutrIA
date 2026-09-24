@@ -11,6 +11,7 @@ import {
   dish,
   generateAndWait,
   httpServer,
+  openPractice,
   POOL,
   PREFIX,
   register,
@@ -147,6 +148,8 @@ describe('care review', () => {
       .set('Cookie', owner.cookie)
       .send({ collegiateNumber: `28/${String(stamp).slice(-6)}` })
       .expect(201);
+    // The client routes need a paid practice from Phase 7 on (`0061`); this suite is about the workspace, not paying for it.
+    await openPractice(who.id);
   }
 
   /** The token in the newest mail to `to`, waiting for the background task that sends it. */
@@ -538,16 +541,42 @@ describe('care review', () => {
       await expect(rowsWrittenBy(lived.id, () => swapFor(proA, links.lived, lived0).expect(404))).resolves.toEqual([]);
     });
 
-    it('refuses the professional a second redo of a free client’s fortnight, and writes nothing', async () => {
-      // The client's own generation spent the fortnight's one redo; a waiting plan is the fortnight under way.
+    it('refuses the professional a redo past the client’s fortnight allowance, and writes nothing', async () => {
+      /*
+       * From Phase 7 a client with an active link to an open practice has the paid
+       * allowances (`0061`): three redos a fortnight, not the free one. A client of
+       * its own, so this fortnight's redos are spent without replacing `next`: their
+       * own ask is the first, the professional's two regenerations the rest. A
+       * professional of its own too, so those two do not spend A's hourly generation
+       * limit, which the later cases rely on.
+       */
+      const spender = await account('pro-spender');
+      const spent = await account('spent');
+
+      await grant(spender);
+
+      await completeOnboarding(app, spent);
+      expect((await generateAndWait(app, spent)).status).toBe('succeeded');
+      links.spent = await link(spender, spent);
+      expect(await generateAndWait(app, spent)).toMatchObject({ planId: null, status: 'succeeded' });
+
+      for (const used of [2, 3]) {
+        expect((await generateForAndWait(spender, links.spent)).status).toBe('succeeded');
+        expect((await allowancesOf(spent)).planRedo).toMatchObject({ used });
+      }
+
+      expect((await allowancesOf(spent)).planRedo).toMatchObject({ allowed: false, used: 3 });
+
+      const waiting = (await pending(spender, links.spent))?.id;
+
       await expect(
-        rowsWrittenBy(lived.id, async () => {
-          const refused: Response = await generateFor(proA, links.lived).expect(429);
+        rowsWrittenBy(spent.id, async () => {
+          const refused: Response = await generateFor(spender, links.spent).expect(429);
 
           expect((refused.body as { code: string }).code).toBe('QUOTA_EXCEEDED');
         })
       ).resolves.toEqual([]);
-      expect((await pending(proA, links.lived))?.id).toBe(next.id);
+      expect((await pending(spender, links.spent))?.id).toBe(waiting);
     });
 
     it('keeps the check-in on the plan being lived, not the one waiting', async () => {
@@ -880,8 +909,8 @@ describe('care review', () => {
       const waiting = (await planRows(client.id)).find(row => row.status === 'pending_review')?.id ?? '';
 
       expect(waiting).not.toBe('');
-      // Waiting, it is the fortnight's one redo.
-      expect((await allowancesOf(client)).planRedo).toMatchObject({ allowed: false, used: 1 });
+      // Waiting, it is one of the fortnight's redos — of three while the link makes the client premium (`0061`, Phase 7).
+      expect((await allowancesOf(client)).planRedo).toMatchObject({ allowed: true, limit: 3, used: 1 });
 
       return { client, first, linkId, waiting, waitingJob: (await latestJob(client)).id };
     }

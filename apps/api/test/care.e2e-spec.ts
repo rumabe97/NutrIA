@@ -9,7 +9,7 @@ import { nudgedKcal } from 'core/controllers/CheckIn';
 import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
-import { completeOnboarding, createApp, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import { completeOnboarding, createApp, generateAndWait, httpServer, openPractice, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
 import { EmailService } from '../src/modules/email/services/index.js';
 
 import type { Account } from './harness.js';
@@ -157,6 +157,8 @@ describe('care', () => {
       .set('Cookie', owner.cookie)
       .send({ collegiateNumber: `28/${String(stamp).slice(-6)}` })
       .expect(201);
+    // The client routes need a paid practice from Phase 7 on (`0061`); this suite is about the workspace, not paying for it.
+    await openPractice(who.id);
   }
 
   /** The token in the newest mail to `to`, waiting for the background task that sends it. */

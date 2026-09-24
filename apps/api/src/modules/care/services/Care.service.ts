@@ -7,6 +7,7 @@ import { BackgroundTaskService } from '../../../shared/services/index.js';
 import { careInvitationEmail } from '../../email/templates/CareInvitation.js';
 import { EmailService, recipientLocale } from '../../email/services/index.js';
 import { ENV } from '../../../config/index.js';
+import { BillingService } from '../../billing/services/index.js';
 import { MealSwapService, PlanJobRunner } from '../../meal-plans/index.js';
 
 import type { AcceptInvitationDto, InviteClientDto, SetClientReviewDto, SetClientTargetsDto, SwapClientMealDto } from '../dto/in/index.js';
@@ -21,7 +22,8 @@ import type {
   CareClientTargetsDto,
   CareInvitationDetailDto,
   CareInvitationDto,
-  CareLinkDto
+  CareLinkDto,
+  CarePracticeDto
 } from '../dto/out/index.js';
 import type { Env } from '../../../config/index.js';
 import type { SessionUser } from '../../../shared/index.js';
@@ -37,6 +39,7 @@ export class CareService {
   constructor(
     @Inject(ENV) private readonly env: Env,
     private readonly background: BackgroundTaskService,
+    private readonly billing: BillingService,
     private readonly email: EmailService,
     private readonly runner: PlanJobRunner,
     private readonly swaps: MealSwapService
@@ -102,6 +105,13 @@ export class CareService {
 
   async planJob(professional: SessionUser, linkId: string, jobId: string): Promise<CareClientJobDto> {
     return CareController.planJob(professional, linkId, jobId);
+  }
+
+  /** The practice's standing from core, and the way to pay from billing: counts and prices, never a client. */
+  async practice(professional: SessionUser): Promise<CarePracticeDto> {
+    const [standing, billing] = await Promise.all([CareController.practice(professional), this.billing.practiceOffer(professional)]);
+
+    return { ...standing, billing };
   }
 
   async publishPlan(professional: SessionUser, linkId: string, locale: string | null): Promise<CareClientPlanDto> {

@@ -11,6 +11,7 @@ import {
   NotFoundError,
   OnboardingIncompleteError,
   PlanPausedError,
+  PracticeFullError,
   QuotaExceededError,
   SafetyViolationError,
   UnauthorizedError
@@ -27,6 +28,8 @@ type ErrorBody = {
   /** The client's own open link, named when it is what stands in the way of accepting another (`0059`). */
   readonly link?: { readonly professionalName: string; readonly since: string; readonly status: 'active' | 'paused' };
   readonly message: string;
+  /** A full practice's number, and the ways up from it (`0061`, PRD 004 criterion 17). */
+  readonly practice?: { readonly includedClients: number; readonly waysUp: readonly ('end_link' | 'larger_plan')[] };
   /** ISO date an exhausted allowance renews, when it renews on a date. */
   readonly retryAt?: string;
   readonly statusCode: number;
@@ -110,6 +113,17 @@ export class AllExceptionsFilter implements ExceptionFilter {
         code: 'CARE_LINK_EXISTS',
         link: { professionalName: exception.link.professionalName, since: exception.link.since, status: exception.link.status },
         message: 'Ya tienes un dietista vinculado.',
+        statusCode: HttpStatus.CONFLICT
+      };
+    }
+
+    if (exception instanceof PracticeFullError) {
+      // A state the professional can act on: the number is theirs, and the two ways up are named so the
+      // screen offers both — a larger plan through Stripe's portal, or ending a link.
+      return {
+        code: 'PRACTICE_FULL',
+        message: 'Tu consulta ya tiene todos los pacientes que incluye tu plan.',
+        practice: { includedClients: exception.includedClients, waysUp: ['larger_plan', 'end_link'] },
         statusCode: HttpStatus.CONFLICT
       };
     }

@@ -4,6 +4,7 @@ import { allowancesFor, eventStanding, mealSwapStanding, midPlanEventStanding, p
 import { eventsInWindow, planWindow } from 'core/domain/Event';
 import { MAX_DAYS_BEFORE } from 'core/entities/Event';
 import { addDays } from 'core/domain/Vacation';
+import { CareRepository } from '#repositories/Care';
 import { EventRepository } from '#repositories/Event';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { PlanJobRepository, PlanRepository } from '#repositories/Plan';
@@ -589,9 +590,20 @@ export const PlanController = {
    * Never taken from the caller. A tier decides whether somebody may spend a
    * model call, so it is read here, from the database, on every request that
    * asks — the same rule as every other authorisation in this codebase.
+   *
+   * **A client of a practice is premium first** (`0061`): behind the
+   * `professional` switch — which fails off — a client with an `active` link
+   * to a professional whose practice is paid for has the paid allowances,
+   * before the `premium` switch or the column is read. The `premium` switch
+   * governs personal premium alone. A pause, an end or a lapse is the next
+   * request's answer: nothing is cached.
    */
   async tierOf(userId: string): Promise<Tier> {
-    const { premium } = await SettingsController.flags();
+    const { premium, professional } = await SettingsController.flags();
+
+    if (professional && (await CareRepository.coveredByOpenPractice(userId))) {
+      return 'premium';
+    }
 
     if (!premium) {
       return 'free';

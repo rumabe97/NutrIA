@@ -20,12 +20,12 @@ export class BillingController {
   constructor(private readonly billing: BillingService) {}
 
   @ApiOkResponse({ description: 'Where Stripe’s checkout is, for this account.' })
-  @ApiOperation({ summary: 'Start paying for premium' })
+  @ApiOperation({ summary: 'Start paying for premium, or for a practice at one of its prices' })
   @HttpCode(HttpStatus.OK)
   @Post('checkout')
   @RateLimit({ limit: 10, ttlSeconds: 3600 })
   async checkout(@CurrentUser() user: SessionUser, @ZodBody(CheckoutDto) body: CheckoutDto): Promise<BillingUrlDto> {
-    return this.billing.checkout(user, body.plan);
+    return this.billing.checkout(user, body.plan, body.price);
   }
 
   @ApiOkResponse({ description: 'Where Stripe’s customer portal is, for this account.' })

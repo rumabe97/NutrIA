@@ -187,15 +187,15 @@ then the documents. Each phase ends green.
 
 ### Phase 7 — The practice is paid for
 
-- [ ] pending
+- [x] done — `test:e2e -- billing care` 178/178 and the whole suite 325/325 on a throwaway Postgres; the pull request's CI runs it again
 - **Dispatch**: opus @ high — `/execute-project 004 phase 7`
 - **Goal**: a professional's plan opens the workspace and sets how many clients it includes; a lapse pauses without deleting; a linked client has the paid allowances.
 - **Scope**: `apps/api/src/{config/Env.validation.ts,modules/billing,modules/care}`, `packages/core/src/{controllers/Billing,controllers/Plan,controllers/Care,repositories/Billing,domain/Allowance}`, `apps/api/test`.
 - **Steps**:
   1. `STRIPE_PRACTICE_PRICES` (`price_…=N` pairs, comma-separated): all or none with the core `STRIPE_*`, validated in `Env.validation.ts`.
   2. `POST /billing/checkout` accepts `plan: 'practice'` (and the price, from the configured list) for a professional only; a 14-day trial once per account, as `0056` does for premium.
-  3. The webhook (`0061`): a practice price writes `professionals.practiceOpen` and `includedClients` from configuration, in the same transaction as the `subscriptions` row; an unknown price grants nothing. A status that stops paying pauses every `active` link (`endedBy` untouched, `status = 'paused'`); paying again reactivates them.
-  4. `ProfessionalGuard` also requires `practiceOpen` for the client routes; the workspace itself still opens to show the way to pay.
+  3. The webhook (`0061`): a practice price writes `professionals.practiceOpen` and `includedClients` from configuration, in the same transaction as the `subscriptions` row; any other price is premium, as before practices existed (amended in execution: "an unknown price grants nothing" would have taken premium from a subscriber left on a replaced price; `0061` gains a dated amendment). A status that stops paying pauses every `active` link (`endedBy` untouched, `status = 'paused'`); paying again reactivates them, and an invitation accepted meanwhile makes its link `paused` (amended in execution).
+  4. `ProfessionalGuard` also requires `practiceOpen` for the client routes; the workspace itself still opens to show the way to pay (amended in execution: the guard requires it by default, and `@BeforePractice()` opens one route, `GET /care/practice`: the practice's state, its counts and its prices, no client data and no trail row. Phase 9's plan card reads it).
   5. `POST /care/invitations` refuses when active links plus unexpired invitations reach `includedClients`: a 409 `PRACTICE_FULL` whose body says the included number and that the larger plan or ending a link are the ways up.
   6. `PlanController.tierOf`: behind the `professional` flag, a client with an `active` link to an open practice is `premium`, before the column is read.
   7. **Owner's decision, 2026-09-24: when a link ends, the targets stay but become the client's own.**

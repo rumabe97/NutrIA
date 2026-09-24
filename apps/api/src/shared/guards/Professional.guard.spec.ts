@@ -1,15 +1,23 @@
 import { NotFoundException } from '@nestjs/common';
-import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import { Reflector } from '@nestjs/core';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { ProfessionalController } from 'core/controllers/Professional';
 
+import { BeforePractice } from '../decorators/BeforePractice.decorator.js';
 import { ProfessionalGuard } from './Professional.guard.js';
 
 import type { ExecutionContext } from '@nestjs/common';
 
-function makeContext(user?: { id: string }): ExecutionContext {
+const PRACTISING = { collegiateNumber: '28/12345', grantedAt: '2026-09-01T00:00:00.000Z', includedClients: 30, practiceOpen: true };
+
+/** A workspace page marked to open before the practice is paid for. */
+@BeforePractice()
+class WorkspacePage {}
+
+function makeContext(user?: { id: string }, page: new () => object = class {}): ExecutionContext {
   return {
-    getClass: () => class {},
+    getClass: () => page,
     getHandler: () => () => undefined,
     switchToHttp: () => ({ getRequest: () => ({ user }) })
   } as unknown as ExecutionContext;
@@ -22,6 +30,10 @@ function makeContext(user?: { id: string }): ExecutionContext {
  * refusal is the same 404.
  */
 describe('ProfessionalGuard', () => {
+  beforeEach(() => {
+    jest.spyOn(ProfessionalController, 'find').mockResolvedValue(PRACTISING);
+  });
+
   afterEach(() => {
     jest.restoreAllMocks();
   });
@@ -29,13 +41,13 @@ describe('ProfessionalGuard', () => {
   it('lets a granted account through while the switch is on', async () => {
     jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
 
-    await expect(new ProfessionalGuard().canActivate(makeContext({ id: 'usr-dietitian' }))).resolves.toBe(true);
+    await expect(new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-dietitian' }))).resolves.toBe(true);
   });
 
   it('denies an account without access, with 404 — a 403 would say the workspace is real', async () => {
     jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
 
-    await expect(new ProfessionalGuard().canActivate(makeContext({ id: 'usr-plain' }))).rejects.toThrow(
+    await expect(new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-plain' }))).rejects.toThrow(
       expect.objectContaining({ status: 404 }) as unknown as Error
     );
   });
@@ -43,7 +55,7 @@ describe('ProfessionalGuard', () => {
   it('asks about the session user, never an id from the request', async () => {
     const hasAccess = jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
 
-    await new ProfessionalGuard().canActivate(makeContext({ id: 'usr-alice' }));
+    await new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-alice' }));
 
     expect(hasAccess).toHaveBeenCalledWith('usr-alice');
   });
@@ -51,7 +63,30 @@ describe('ProfessionalGuard', () => {
   it('denies a request carrying no user at all, and does not even ask', async () => {
     const hasAccess = jest.spyOn(ProfessionalController, 'hasAccess');
 
-    await expect(new ProfessionalGuard().canActivate(makeContext())).rejects.toThrow(NotFoundException);
+    await expect(new ProfessionalGuard(new Reflector()).canActivate(makeContext())).rejects.toThrow(NotFoundException);
     expect(hasAccess).not.toHaveBeenCalled();
+  });
+
+  /* `0061`: every client route needs a practice paid for; the workspace's own page does not. */
+  it('denies a professional whose practice is not paid for, with the same 404', async () => {
+    jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+    jest.spyOn(ProfessionalController, 'find').mockResolvedValue({ ...PRACTISING, practiceOpen: false });
+
+    await expect(new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-lapsed' }))).rejects.toThrow(NotFoundException);
+  });
+
+  it('lets that professional reach a page marked to open before the practice is paid for', async () => {
+    jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+    jest.spyOn(ProfessionalController, 'find').mockResolvedValue({ ...PRACTISING, practiceOpen: false });
+
+    await expect(new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-lapsed' }, WorkspacePage))).resolves.toBe(true);
+  });
+
+  it('still asks for the grant on that page', async () => {
+    jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+
+    await expect(new ProfessionalGuard(new Reflector()).canActivate(makeContext({ id: 'usr-plain' }, WorkspacePage))).rejects.toThrow(
+      NotFoundException
+    );
   });
 });
