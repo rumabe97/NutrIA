@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { makeProfessional } from '#test/fixtures';
+import { makeProfessional, makeUser } from '#test/fixtures';
 import { CARE_CONSENT_VERSION, CARE_HEALTH_SHARED, CARE_SHARED, CARE_TOKEN_PATTERN } from 'core/entities/Care';
 import { CareLinkExistsError, InputParseError, NotFoundError } from 'core/entities/Error';
 
@@ -11,6 +11,7 @@ import { CareController } from './CareController';
 import type { AcceptOutcome, LinkWithProfessional, OpenInvitation } from '#repositories/Care';
 import type { AcceptInvitation, CareInvitation, CareLink } from 'core/entities/Care';
 import type { Professional } from 'core/entities/Professional';
+import type { User } from 'core/entities/User';
 
 const accept = vi.fn<(clientId: string, email: string, tokenHash: string, answer: AcceptInvitation, now: Date) => Promise<AcceptOutcome>>();
 const clientLink = vi.fn<(clientId: string) => Promise<LinkWithProfessional | null>>();
@@ -21,7 +22,9 @@ const invite = vi.fn<(professionalId: string, email: string, tokenHash: string, 
 const openInvitation = vi.fn<(clientId: string, email: string, tokenHash: string, now: Date) => Promise<OpenInvitation | null>>();
 const find = vi.fn<(userId: string) => Promise<Professional | null>>();
 const isEnabled = vi.fn<(key: string, fallback: boolean) => Promise<boolean>>();
+const findUserById = vi.fn<(id: string) => Promise<User | undefined>>();
 
+vi.mock('#repositories/User', () => ({ UserRepository: { findById: (id: string) => findUserById(id) } }));
 vi.mock('#repositories/Care', () => ({
   CareRepository: {
     accept: (...args: Parameters<typeof accept>) => accept(...args),
@@ -61,7 +64,7 @@ function makeLink(overrides?: Partial<CareLink>): CareLink {
 }
 
 beforeEach(() => {
-  for (const mock of [accept, clientLink, decline, end, forgetAddress, invite, openInvitation, find, isEnabled]) {
+  for (const mock of [accept, clientLink, decline, end, forgetAddress, invite, openInvitation, find, isEnabled, findUserById]) {
     mock.mockReset();
   }
 
@@ -331,6 +334,46 @@ describe('CareController.myLink', () => {
     clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
 
     await expect(CareController.myLink(CLIENT)).resolves.toMatchObject({ professionalName: 'Ana Dietista' });
+    expect(isEnabled).not.toHaveBeenCalled();
+  });
+});
+
+describe('CareController.activeProfessional', () => {
+  it('answers the client’s active professional, by id and address (PRD 004, criterion 10)', async () => {
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    find.mockResolvedValue(makeProfessional({ userId: PRO.id }));
+    findUserById.mockResolvedValue(makeUser({ id: PRO.id, email: 'dietista@example.com' }));
+
+    await expect(CareController.activeProfessional(CLIENT.id)).resolves.toEqual({ id: PRO.id, email: 'dietista@example.com' });
+    expect(clientLink).toHaveBeenCalledWith(CLIENT.id);
+    expect(find).toHaveBeenCalledWith(PRO.id);
+  });
+
+  it('is null with no link, a paused or ended one, or none at all', async () => {
+    clientLink.mockResolvedValue(null);
+
+    await expect(CareController.activeProfessional(CLIENT.id)).resolves.toBeNull();
+
+    clientLink.mockResolvedValue({ link: makeLink({ status: 'paused' }), professionalName: 'Ana Dietista' });
+    await expect(CareController.activeProfessional(CLIENT.id)).resolves.toBeNull();
+    expect(find).not.toHaveBeenCalled();
+  });
+
+  it('is null once the grant is gone, even with the link still active — a former professional is not told', async () => {
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    find.mockResolvedValue(null);
+
+    await expect(CareController.activeProfessional(CLIENT.id)).resolves.toBeNull();
+    expect(findUserById).not.toHaveBeenCalled();
+  });
+
+  it('answers whatever the switch says — the link itself decides, as `myLink` does', async () => {
+    isEnabled.mockResolvedValue(false);
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    find.mockResolvedValue(makeProfessional({ userId: PRO.id }));
+    findUserById.mockResolvedValue(makeUser({ id: PRO.id, email: 'dietista@example.com' }));
+
+    await expect(CareController.activeProfessional(CLIENT.id)).resolves.toEqual({ id: PRO.id, email: 'dietista@example.com' });
     expect(isEnabled).not.toHaveBeenCalled();
   });
 });

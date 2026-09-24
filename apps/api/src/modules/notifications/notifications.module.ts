@@ -1,14 +1,14 @@
 import { Module } from '@nestjs/common';
 
-import { CheckInReminderService, NotificationsService, PushService } from './services/index.js';
+import { CheckInReminderService, CheckInSubmittedService, NotificationsService, PushService } from './services/index.js';
 import { EmailModule } from '../email/email.module.js';
 import { envProvider } from '../../config/index.js';
 import { NotificationsController } from './controllers/index.js';
 
 @Module({
   controllers: [NotificationsController],
-  exports: [CheckInReminderService, PushService],
+  exports: [CheckInReminderService, CheckInSubmittedService, PushService],
   imports: [EmailModule],
-  providers: [CheckInReminderService, envProvider, NotificationsService, PushService]
+  providers: [CheckInReminderService, CheckInSubmittedService, envProvider, NotificationsService, PushService]
 })
 export class NotificationsModule {}

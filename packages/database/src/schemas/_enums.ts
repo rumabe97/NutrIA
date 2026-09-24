@@ -55,7 +55,21 @@ export const sentiment = pgEnum('sentiment', ['liked', 'disliked']);
 
 export const recipeSource = pgEnum('recipe_source', ['seed', 'ai', 'user']);
 
-export const notificationType = pgEnum('notification_type', ['plan_ready', 'checkin_due', 'shopping_ready', 'meal_reminder', 'plan_failed']);
+/**
+ * `checkin_submitted` tells a professional their linked client answered a
+ * check-in (`0059`, Phase 6) — the recipient is the professional, not the
+ * client the row is about. Appended last, like `plan_status`'s
+ * `pending_review`: the order is not meaningful and adding a value here is
+ * non-destructive, while reordering would rewrite every row.
+ */
+export const notificationType = pgEnum('notification_type', [
+  'plan_ready',
+  'checkin_due',
+  'shopping_ready',
+  'meal_reminder',
+  'plan_failed',
+  'checkin_submitted'
+]);
 
 export const notificationChannel = pgEnum('notification_channel', ['email', 'push', 'in_app']);
 

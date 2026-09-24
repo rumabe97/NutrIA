@@ -2,12 +2,13 @@ import { createHash, randomBytes } from 'node:crypto';
 
 import { CareRepository } from '#repositories/Care';
 import { HealthController } from 'core/controllers/Health';
-import { isCheckInDue } from 'core/controllers/CheckIn';
+import { isCheckInDue, nudgedKcal } from 'core/controllers/CheckIn';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfessionalRepository } from '#repositories/Professional';
 import { ProfileController } from 'core/controllers/Profile';
 import { ProgressController } from 'core/controllers/Progress';
 import { SettingsRepository } from '#repositories/Settings';
+import { UserRepository } from '#repositories/User';
 import { FLAGS } from 'core/domain/Flag';
 import {
   CARE_CONSENT_VERSION,
@@ -33,7 +34,7 @@ import type {
   SetClientReview
 } from 'core/entities/Care';
 import type { JobView, MealDetailView, PlanSummaryView, PlanView } from 'core/controllers/Plan';
-import type { ProgressSummaryView } from 'core/controllers/Progress';
+import type { FortnightView, ProgressSummaryView } from 'core/controllers/Progress';
 import type { ResolvedTargets } from 'core/domain/Nutrition';
 import type { SharedHealthView } from 'core/controllers/Health';
 import type { UpdateTargetOverride } from 'core/entities/Nutrition';
@@ -163,6 +164,23 @@ export interface CareClientsView {
 }
 
 /**
+ * A fortnight's check-in as the professional reads it, plus `suggestedKcal`
+ * (PRD 004, criterion 10, owner's decision 2026-09-24): the kcal `submit`'s
+ * nudge would move to, computed from the *current* targets — not stored, not
+ * what a skipped nudge would have set back when it was skipped, because
+ * nothing preserves that. Null on "right", and whenever the clamp leaves the
+ * number where it is.
+ */
+export interface CareCheckInView extends NonNullable<FortnightView['checkIn']> {
+  suggestedKcal: number | null;
+}
+
+/** A fortnight as the professional reads it: the client's own shape, its check-in carrying `suggestedKcal`. */
+export interface CareFortnightView extends Omit<FortnightView, 'checkIn'> {
+  checkIn: CareCheckInView | null;
+}
+
+/**
  * One client's page (PRD 004, criterion 9), read through `withClient`: the
  * plan under way and the plan history, progress (adherence per fortnight, the
  * weight line, every check-in) and the targets in effect.
@@ -176,7 +194,7 @@ export interface CareClientOverviewView {
   health?: SharedHealthView;
   plan: PlanView | null;
   plans: readonly PlanSummaryView[];
-  progress: ProgressSummaryView;
+  progress: Omit<ProgressSummaryView, 'fortnights'> & { fortnights: readonly CareFortnightView[] };
   targets: ResolvedTargets | null;
 }
 
@@ -237,6 +255,25 @@ function presentClient(row: RosterLink, today: string): CareClientView {
 
 function presentInvitation(row: { readonly email: string; readonly expiresAt: Date }): CareInvitationView {
   return { email: row.email, expiresAt: row.expiresAt.toISOString() };
+}
+
+/**
+ * The client's own progress, with `suggestedKcal` added to each check-in —
+ * computed against `targets` as they stand today, never stored (PRD 004,
+ * criterion 10). Only `overview` builds this: the client's own
+ * `GET /progress/summary` never carries a professional's suggestion.
+ */
+function presentProgress(progress: ProgressSummaryView, targets: ResolvedTargets | null): CareClientOverviewView['progress'] {
+  return {
+    ...progress,
+    fortnights: progress.fortnights.map((fortnight): CareFortnightView => ({
+      ...fortnight,
+      checkIn: fortnight.checkIn && {
+        ...fortnight.checkIn,
+        suggestedKcal: targets && fortnight.checkIn.hunger ? nudgedKcal(fortnight.checkIn.hunger, targets) : null
+      }
+    }))
+  };
 }
 
 function presentInvitationDetail(row: OpenInvitation): CareInvitationDetailView {
@@ -379,6 +416,29 @@ export const CareController = {
     const entries = rows.slice(0, ACCESS_LOG_LIMIT).map(presentAccess);
 
     return { entries, next: rows.length > ACCESS_LOG_LIMIT ? (entries.at(-1)?.id ?? null) : null };
+  },
+
+  /**
+   * The client's own professional, by id and address, if their link is
+   * `active` (PRD 004, criterion 10) — for a caller that must tell them
+   * something happened, never a client-facing screen: `myLink` is that, and
+   * deliberately withholds both. Also asks the grant still stands
+   * (`ProfessionalRepository.find`), not only the link's status: a link stays
+   * `active` after a revoked grant closes reads through `withClient` (Phase 3),
+   * and a former professional is not told about a client they can no longer
+   * reach. Not behind the switch, like `myLink`: the link itself is what
+   * decides whether telling the professional still makes sense.
+   */
+  async activeProfessional(clientId: string): Promise<{ readonly id: string; readonly email: string } | null> {
+    const link = await CareRepository.clientLink(clientId);
+
+    if (!link || link.link.status !== 'active' || !(await ProfessionalRepository.find(link.link.professionalId))) {
+      return null;
+    }
+
+    const professional = await UserRepository.findById(link.link.professionalId);
+
+    return professional ? { id: professional.id, email: professional.email } : null;
   },
 
   /**
@@ -557,6 +617,11 @@ export const CareController = {
    *
    * `locale` is the reader's, so the dishes are named in the professional's
    * language.
+   *
+   * Each check-in in `progress.fortnights` carries `suggestedKcal` (PRD 004,
+   * criterion 10): the kcal the portion nudge would set from today's targets,
+   * whether or not it was ever applied — behind this audited read alone, never
+   * in the mail or push that told the professional the check-in happened.
    */
   async overview(professional: Pick<CareSession, 'id'>, linkId: string, locale: string | null = null): Promise<CareClientOverviewView> {
     return CareController.withClient(professional.id, linkId, 'overview', 'read', async (clientId, access) => {
@@ -566,7 +631,13 @@ export const CareController = {
         ProgressController.summary(clientId),
         ProfileController.targets(clientId)
       ]);
-      const page: CareClientOverviewView = { client: presentClientLink(access.link, access.clientName), plan, plans, progress, targets };
+      const page: CareClientOverviewView = {
+        client: presentClientLink(access.link, access.clientName),
+        plan,
+        plans,
+        progress: presentProgress(progress, targets),
+        targets
+      };
 
       if (!access.link.sharesHealth) {
         return page;

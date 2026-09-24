@@ -45,7 +45,7 @@ const isEnabled = vi.fn<(key: string, fallback: boolean) => Promise<boolean>>();
 const getActivePlan = vi.fn<(userId: string, locale: string | null) => Promise<null>>();
 const listPlans = vi.fn<(userId: string) => Promise<readonly []>>();
 const summary = vi.fn<(userId: string) => Promise<ProgressSummaryView>>();
-const targets = vi.fn<(userId: string) => Promise<null>>();
+const targets = vi.fn<(userId: string) => Promise<ResolvedTargets | null>>();
 const updateTargets = vi.fn<(userId: string, patch: UpdateTargetOverride, setter?: ProfessionalSetter | null) => Promise<ResolvedTargets>>();
 const shared = vi.fn<(userId: string) => Promise<SharedHealthView>>();
 const setReview = vi.fn<(professionalId: string, linkId: string, value: boolean, record: RecordAccess) => Promise<CareLink | null>>();
@@ -313,6 +313,85 @@ describe('CareController.overview', () => {
     expect(logAccess).not.toHaveBeenCalled();
     expect(getActivePlan).not.toHaveBeenCalled();
     expect(summary).not.toHaveBeenCalled();
+  });
+
+  it('carries the kcal the nudge would set beside each check-in that answered other than "right" (PRD 004, criterion 10)', async () => {
+    activeLink.mockResolvedValue(access());
+    const resolved = {
+      bounds: { ceilingKcal: 2600, floorKcal: 1400, maintenanceKcal: 2200, proteinCeilingG: 200, proteinFloorG: 50 },
+      effective: { carbsG: 200, fatG: 60, fiberG: 28, kcal: 2000, proteinG: 120 }
+    } as ResolvedTargets;
+
+    targets.mockResolvedValue(resolved);
+    summary.mockResolvedValue({
+      ...PROGRESS,
+      fortnights: [
+        {
+          adherence: 90,
+          checkIn: { difficulty: 'ok', hunger: 'hungry', satisfaction: 4, weightKg: 70 },
+          endDate: '2026-09-24',
+          meals: { eaten: 12, skipped: 2, soFar: 14 },
+          planId: 'plan-1',
+          replaced: false,
+          startDate: '2026-09-10',
+          status: 'active',
+          version: 1
+        },
+        {
+          adherence: 100,
+          checkIn: { difficulty: 'ok', hunger: 'right', satisfaction: 4, weightKg: 70 },
+          endDate: '2026-09-10',
+          meals: { eaten: 14, skipped: 0, soFar: 14 },
+          planId: 'plan-0',
+          replaced: true,
+          startDate: '2026-08-27',
+          status: 'completed',
+          version: 0
+        },
+        {
+          adherence: null,
+          checkIn: null,
+          endDate: '2026-08-27',
+          meals: { eaten: 0, skipped: 0, soFar: 0 },
+          planId: 'plan-x',
+          replaced: false,
+          startDate: '2026-08-13',
+          status: 'completed',
+          version: -1
+        }
+      ]
+    });
+
+    const page = await CareController.overview(PRO, LINK_ID);
+
+    expect(page.progress.fortnights[0]?.checkIn?.suggestedKcal).toBe(2100);
+    expect(page.progress.fortnights[1]?.checkIn?.suggestedKcal).toBeNull();
+    expect(page.progress.fortnights[2]?.checkIn).toBeNull();
+  });
+
+  it('carries no suggestion when the profile cannot resolve targets', async () => {
+    activeLink.mockResolvedValue(access());
+    targets.mockResolvedValue(null);
+    summary.mockResolvedValue({
+      ...PROGRESS,
+      fortnights: [
+        {
+          adherence: 90,
+          checkIn: { difficulty: 'ok', hunger: 'hungry', satisfaction: 4, weightKg: 70 },
+          endDate: '2026-09-24',
+          meals: { eaten: 12, skipped: 2, soFar: 14 },
+          planId: 'plan-1',
+          replaced: false,
+          startDate: '2026-09-10',
+          status: 'active',
+          version: 1
+        }
+      ]
+    });
+
+    const page = await CareController.overview(PRO, LINK_ID);
+
+    expect(page.progress.fortnights[0]?.checkIn?.suggestedKcal).toBeNull();
   });
 });
 

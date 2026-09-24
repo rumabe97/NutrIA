@@ -267,6 +267,13 @@
       "when": 1790273182450,
       "tag": "0037_a_reviewed_plan_waits_in_its_own_state",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1790278298184,
+      "tag": "0038_a_check_in_tells_the_professional",
+      "breakpoints": true
     }
   ]
 }
