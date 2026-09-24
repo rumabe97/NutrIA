@@ -4,7 +4,7 @@ import request from 'supertest';
 import { addDays } from 'core/domain/Vacation';
 import { loadedTargets } from 'core/domain/Event';
 
-import { completeOnboarding, createApp, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import { completeOnboarding, createApp, deleteAccounts, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
 
 import type { Account } from './harness.js';
 import type { AddedEventDto } from '../src/modules/events/dto/out/index.js';
@@ -33,6 +33,8 @@ describe('events', () => {
   let account: Account;
   let stranger: Account;
   let today: string;
+  /** Every account this suite registered, so `afterAll` can delete each one. */
+  const made: string[] = [];
 
   /** The shape the person chooses. Its size is the code's, which is what the plan test checks. */
   const shape = { carbs: 'up', daysBefore: 2, fat: 'down', protein: 'same' } as const;
@@ -58,12 +60,15 @@ describe('events', () => {
     const stamp = Date.now();
 
     account = await register(app, `event-${stamp}@e2e.invalid`);
+    made.push(account.cookie);
     stranger = await register(app, `event-stranger-${stamp}@e2e.invalid`);
+    made.push(stranger.cookie);
     await completeOnboarding(app, account);
     today = new Date().toISOString().slice(0, 10);
   });
 
   afterAll(async () => {
+    await deleteAccounts(app, made);
     await app?.close();
   });
 

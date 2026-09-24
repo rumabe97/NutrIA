@@ -96,6 +96,30 @@ to the dev branch's direct endpoint, then point both URLs above at it by replaci
 seed run against it like any other database (the seed takes about ten minutes from here);
 dropping it afterwards is `drop database nutria_e2e;`.
 
+### Every suite deletes what it makes
+
+The database outlives the run on this machine, so a suite that leaves an account behind
+collides with the next run against the same one. Every suite tracks the cookie of each
+account it registers — in a `made: string[]` the harness's `deleteAccounts(app, made)`
+walks in `afterAll`, through the product's own `DELETE /users/me` — so an account is still
+deleted when a test earlier in the file throws: `made` is pushed to at registration, not
+gathered at the end. `care.e2e-spec.ts` and `billing.e2e-spec.ts` do the same thing with
+their own `made` arrays, one per deployment for billing, because they were written first;
+a new suite should reach for `harness.ts` → `deleteAccounts` instead of copying either.
+
+An account whose cookie a suite never kept — signed up but never signed in, such as an
+owner-activation flow — is deleted through `harness.ts` → `deleteAccountByEmail`, which
+signs in with the password every suite registers with and then deletes through the same
+route. A flag or setting a suite throws (`professional`, `premium`, `automaticActivation`)
+is still its own to restore in `afterAll`, deleting accounts does not undo that.
+
+`jest-e2e.json` → `globalTeardown` (`global-teardown.ts`) is the backstop once the whole
+run has finished: every suite registers under a `.invalid` address (`e2e.invalid`,
+`example.invalid`), a domain reserved by RFC 2606 so it can never be a real mailbox, and
+the teardown fails the run with the count and the addresses if any such account is still
+in `user` — whether a suite's own cleanup has a gap or a test crashed before reaching
+`afterAll` at all. The seed never writes to `user`, so nothing it loads is ever named.
+
 ### Accounts have two locks
 
 An account is usable when its address is confirmed **and** the owner has opened it

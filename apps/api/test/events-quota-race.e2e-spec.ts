@@ -3,7 +3,7 @@ import request from 'supertest';
 
 import { addDays } from 'core/domain/Vacation';
 
-import { completeOnboarding, createApp, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import { completeOnboarding, createApp, deleteAccounts, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
 
 import type { Account } from './harness.js';
 import type { AllowancesView } from 'core/controllers/Plan';
@@ -46,6 +46,10 @@ describe('events — the fortnight cap under concurrency', () => {
   });
 
   afterAll(async () => {
+    if (account) {
+      await deleteAccounts(app, [account.cookie]);
+    }
+
     await app?.close();
   });
 

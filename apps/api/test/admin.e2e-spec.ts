@@ -6,7 +6,7 @@ import { UserController } from 'core/controllers/User';
 
 import { activationToken } from '../src/modules/auth/services/ActivationLink.js';
 
-import { createApp, httpServer, PREFIX, register, ScriptedAiClient } from './harness.js';
+import { createApp, deleteAccountByEmail, deleteAccounts, httpServer, PREFIX, register, ScriptedAiClient } from './harness.js';
 
 import type { Account } from './harness.js';
 import type { AccountView, Paged } from 'core/controllers/User';
@@ -33,6 +33,9 @@ describe('admin', () => {
   let owner: Account;
   let ordinary: Account;
   let waiting: string;
+  /** Every account this suite registered and kept a cookie for; `waiting` and the link test's account never signed in, so `afterAll` deletes those by email instead. */
+  const made: string[] = [];
+  const byEmail: string[] = [];
 
   beforeAll(async () => {
     app = await createApp(new ScriptedAiClient([]));
@@ -40,8 +43,11 @@ describe('admin', () => {
     const stamp = Date.now();
 
     owner = await register(app, `admin-owner-${stamp}@e2e.invalid`);
+    made.push(owner.cookie);
     ordinary = await register(app, `admin-user-${stamp}@e2e.invalid`);
+    made.push(ordinary.cookie);
     waiting = `admin-waiting-${stamp}@e2e.invalid`;
+    byEmail.push(waiting);
 
     await request(httpServer(app))
       .post(`/${PREFIX}/auth/sign-up/email`)
@@ -51,6 +57,12 @@ describe('admin', () => {
   });
 
   afterAll(async () => {
+    await deleteAccounts(app, made);
+
+    for (const email of byEmail) {
+      await deleteAccountByEmail(app, email);
+    }
+
     await app?.close();
   });
 
@@ -267,6 +279,7 @@ describe('admin', () => {
     const server = httpServer(app);
     const email = `admin-link-${Date.now()}@e2e.invalid`;
 
+    byEmail.push(email);
     await request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: 'Link', password: 'correct-horse-battery-staple-9' }).expect(200);
 
     const listed: Response = await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', owner.cookie).expect(200);

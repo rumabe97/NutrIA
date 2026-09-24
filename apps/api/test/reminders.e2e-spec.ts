@@ -3,7 +3,7 @@ import request from 'supertest';
 
 import { NotificationController } from 'core/controllers/Notification';
 
-import { completeOnboarding, createApp, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import { completeOnboarding, createApp, deleteAccounts, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
 
 import type { Account } from './harness.js';
 import type { INestApplication } from '@nestjs/common';
@@ -61,6 +61,10 @@ describe('the check-in reminder', () => {
   }, 120_000);
 
   afterAll(async () => {
+    if (account) {
+      await deleteAccounts(app, [account.cookie]);
+    }
+
     await app.close();
   });
 
