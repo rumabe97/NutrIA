@@ -6,7 +6,7 @@ import { Test } from '@nestjs/testing';
 
 import { CARE_CONSENT_VERSION, CARE_HEALTH_SHARED, CARE_SHARED } from 'core/entities/Care';
 import { CareController } from 'core/controllers/Care';
-import { CareLinkExistsError, InputParseError, NotFoundError } from 'core/entities/Error';
+import { CareLinkExistsError, InputParseError, NotFoundError, PracticeFullError } from 'core/entities/Error';
 import { ProfessionalController } from 'core/controllers/Professional';
 import { ProfileController } from 'core/controllers/Profile';
 
@@ -15,7 +15,9 @@ import { BackgroundTaskService } from '../../../shared/services/index.js';
 import { CareAnswersController } from './CareAnswers.controller.js';
 import { CareClientsController } from './CareClients.controller.js';
 import { CareInvitationsController } from './CareInvitations.controller.js';
+import { BillingService } from '../../billing/services/index.js';
 import { CareLinksController } from './CareLinks.controller.js';
+import { CarePracticeController } from './CarePractice.controller.js';
 import { CareService } from '../services/index.js';
 import { EmailService } from '../../email/services/index.js';
 import { MealSwapService, PlanJobRunner } from '../../meal-plans/index.js';
@@ -24,6 +26,7 @@ import { RateLimitGuard } from '../../../shared/guards/RateLimit.guard.js';
 
 import type { CareAccessPageView, CareClientLinkView, CareClientOverviewView, CareClientsView, CareLinkView, ForClient } from 'core/controllers/Care';
 import type { JobView, MealDetailView, PlanView } from 'core/controllers/Plan';
+import type { PracticeOfferView } from 'core/controllers/Billing';
 import type { INestApplication } from '@nestjs/common';
 import type { ResolvedTargets } from 'core/domain/Nutrition';
 import type { OutgoingEmail } from '../../email/services/index.js';
@@ -106,13 +109,15 @@ describe('care routes', () => {
   const send = jest.fn<(message: OutgoingEmail) => Promise<boolean>>();
   const start = jest.fn<PlanJobRunner['start']>();
   const swap = jest.fn<MealSwapService['swap']>();
+  const practiceOffer = jest.fn<(user: unknown) => Promise<PracticeOfferView>>();
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
-      controllers: [CareAnswersController, CareClientsController, CareInvitationsController, CareLinksController],
+      controllers: [CareAnswersController, CareClientsController, CareInvitationsController, CareLinksController, CarePracticeController],
       providers: [
         BackgroundTaskService,
         CareService,
+        { provide: BillingService, useValue: { practiceOffer } },
         { provide: EmailService, useValue: { send } },
         { provide: PlanJobRunner, useValue: { start } },
         { provide: MealSwapService, useValue: { swap } },
@@ -146,6 +151,10 @@ describe('care routes', () => {
     send.mockReset();
     send.mockResolvedValue(true);
     jest.spyOn(ProfileController, 'localeOf').mockResolvedValue('en-GB');
+    // Every client route needs a practice paid for (`0061`); its own suite below says what happens without one.
+    jest
+      .spyOn(ProfessionalController, 'find')
+      .mockResolvedValue({ collegiateNumber: '28/1', grantedAt: '2026-09-01T00:00:00.000Z', includedClients: 30, practiceOpen: true });
   });
 
   afterEach(() => {
@@ -638,6 +647,80 @@ describe('care routes', () => {
 
       end.mockRejectedValue(new NotFoundError('Link not found'));
       await request(server()).delete(`/${PREFIX}/care/links/${LINK_ID}`).expect(404);
+    });
+  });
+
+  /* `0061`: the practice is paid for through the signed webhook, and the workspace shows the way to pay. */
+  describe('a practice', () => {
+    const OFFER: PracticeOfferView = { available: true, plans: [], subscription: null, testMode: false, trialDays: 14 };
+
+    function lapsed(): void {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      jest
+        .spyOn(ProfessionalController, 'find')
+        .mockResolvedValue({ collegiateNumber: '28/1', grantedAt: '2026-09-01T00:00:00.000Z', includedClients: 30, practiceOpen: false });
+    }
+
+    it('opens the workspace’s own page to a professional whose practice is not paid for, with the way to pay', async () => {
+      lapsed();
+      practiceOffer.mockResolvedValue(OFFER);
+      const practice = jest
+        .spyOn(CareController, 'practice')
+        .mockResolvedValue({ activeClients: 0, includedClients: 30, open: false, pendingInvitations: 0 });
+
+      const response = await request(server()).get(`/${PREFIX}/care/practice`).expect(200);
+
+      expect(practice).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }));
+      expect(response.body).toEqual({ activeClients: 0, billing: OFFER, includedClients: 30, open: false, pendingInvitations: 0 });
+    });
+
+    it('keeps that page shut to an account that is not a professional', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+
+      await request(server()).get(`/${PREFIX}/care/practice`).expect(404);
+    });
+
+    it.each([
+      ['get', '/care/clients'],
+      ['get', `/care/clients/${LINK_ID}`],
+      ['post', '/care/invitations']
+    ] as const)('closes %s %s while the practice is not paid for, with the same 404', async (method, path) => {
+      lapsed();
+      const clients = jest.spyOn(CareController, 'clients');
+      const invite = jest.spyOn(CareController, 'invite');
+
+      await request(server())[method](`/${PREFIX}${path}`).send({ email: 'cliente@example.invalid' }).expect(404);
+      expect(clients).not.toHaveBeenCalled();
+      expect(invite).not.toHaveBeenCalled();
+    });
+
+    it('answers a full practice with 409 PRACTICE_FULL, the number, and the ways up — and sends no mail', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      jest.spyOn(CareController, 'invite').mockRejectedValue(new PracticeFullError(30));
+
+      const response = await request(server()).post(`/${PREFIX}/care/invitations`).send({ email: 'n31@example.invalid' }).expect(409);
+      await settle();
+
+      expect(response.body).toEqual({
+        code: 'PRACTICE_FULL',
+        message: 'Tu consulta ya tiene todos los pacientes que incluye tu plan.',
+        practice: { includedClients: 30, waysUp: ['larger_plan', 'end_link'] },
+        statusCode: 409
+      });
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('takes no number from a body: an invitation body carrying one is read for its address alone', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      const invite = jest
+        .spyOn(CareController, 'invite')
+        .mockResolvedValue({ invitation: { email: 'cliente@example.invalid', expiresAt: '2026-10-07T10:00:00.000Z' }, token: TOKEN });
+
+      await request(server())
+        .post(`/${PREFIX}/care/invitations`)
+        .send({ email: 'cliente@example.invalid', includedClients: 999, practiceOpen: true })
+        .expect(201);
+      expect(invite).toHaveBeenCalledWith(expect.anything(), { email: 'cliente@example.invalid' });
     });
   });
 });

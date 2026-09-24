@@ -6,7 +6,8 @@ import type {
   CareClientsView,
   CareInvitationDetailView,
   CareInvitationView,
-  CareLinkView
+  CareLinkView,
+  CarePracticeView
 } from 'core/controllers/Care';
 import type { ResolvedTargets } from 'core/domain/Nutrition';
 
@@ -48,3 +49,6 @@ export type CareClientJobDto = JobView;
 
 /** A meal of the plan under review after the professional swapped it. */
 export type CareClientMealDto = MealDetailView;
+
+/** The workspace's own page (`0061`): whether the practice is paid for, its seats, and the way to pay. */
+export type CarePracticeDto = CarePracticeView;

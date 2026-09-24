@@ -38,7 +38,8 @@ import type { Response } from 'supertest';
 const SECRET = 'whsec_e2e_billing_suite';
 const MONTHLY = 'price_e2e_monthly';
 const YEARLY = 'price_e2e_yearly';
-const STRIPE_KEYS = ['STRIPE_PRICE_ID', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_YEARLY_PRICE_ID'] as const;
+// STRIPE_PRACTICE_PRICES is emptied for every deployment here: this suite is about premium, `care-practice.e2e-spec.ts` about practices.
+const STRIPE_KEYS = ['STRIPE_PRACTICE_PRICES', 'STRIPE_PRICE_ID', 'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_YEARLY_PRICE_ID'] as const;
 const TEST_KEYS = { STRIPE_PRICE_ID: MONTHLY, STRIPE_SECRET_KEY: 'sk_test_e2e_billing', STRIPE_WEBHOOK_SECRET: SECRET };
 const LIVE_KEYS = {
   STRIPE_PRICE_ID: MONTHLY,
@@ -232,6 +233,7 @@ class FakeStripe {
       id,
       cancel_at_period_end: extra.cancelAtPeriodEnd ?? false,
       customer,
+      // No price on the item, as before practices existed (`0061`): a subscription with none to read is premium's, and this suite proves premium unchanged.
       items: { data: [{ current_period_end: PERIOD_END }] },
       metadata: { ...(extra.deployment ? { deployment: extra.deployment } : {}), ...(extra.userId ? { userId: extra.userId } : {}) },
       status

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, exists, gt, inArray, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, exists, gt, inArray, lte, ne, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { ZodError } from 'zod';
 
@@ -6,7 +6,7 @@ import { database } from 'database';
 import { careAccessLog, careInvitations, careLinks } from 'database/schema/care';
 import { checkIns } from 'database/schema/progress';
 import { mealPlans } from 'database/schema/plan';
-import { onboardingState } from 'database/schema/profile';
+import { onboardingState, targetOverrides } from 'database/schema/profile';
 import { professionals } from 'database/schema/professional';
 import { user } from 'database/schema/auth';
 
@@ -70,6 +70,19 @@ export type AcceptOutcome =
   ({ readonly kind: 'created' } & LinkWithProfessional) | ({ readonly kind: 'exists' } & LinkWithProfessional) | { readonly kind: 'gone' };
 
 /**
+ * What inviting came to (`0061`): the invitation, or the practice's reason
+ * there is none — `closed` (no practice paid for, or no longer a
+ * professional), `full` (the plan's number is reached, and which number).
+ */
+export type InviteOutcome =
+  | { readonly includedClients: number; readonly kind: 'full' }
+  | { readonly invitation: CareInvitation; readonly kind: 'invited' }
+  | { readonly kind: 'closed' };
+
+/** How much of a practice is in use: active links, and invitations still live. */
+export type PracticeUse = { readonly activeClients: number; readonly pendingInvitations: number };
+
+/**
  * An invitation this account may still answer: the token's hash, addressed to
  * the session's own address, not expired, and not sent by this same account.
  * Accepted, declined and replaced need no condition: those rows are deleted.
@@ -102,10 +115,33 @@ export const CareRepository = {
    *
    * The inviter must still be a professional: an inner join on `professionals`,
    * so an invitation from an account whose grant was taken back is `gone`.
+   *
+   * The practice's row is held `FOR SHARE` before the invitation, in the order
+   * `invite` takes them (`0061`): an acceptance cannot commit between the two
+   * counts `invite` makes, so the number is never overshot, and taking the
+   * rows in one order means the two never deadlock. A practice not paid for
+   * gets the link `paused`, as a lapse leaves the others, and paying again
+   * reactivates it with them.
    */
   async accept(clientId: string, email: string, tokenHash: string, answer: AcceptInvitation, now: Date): Promise<AcceptOutcome> {
     try {
       return await database().transaction(async (tx): Promise<AcceptOutcome> => {
+        const [addressed] = await tx
+          .select({ professionalId: careInvitations.professionalId })
+          .from(careInvitations)
+          .where(answerable(tokenHash, email, clientId, now))
+          .limit(1);
+
+        if (!addressed) {
+          return { kind: 'gone' };
+        }
+
+        const [practice] = await tx
+          .select({ open: professionals.practiceOpen })
+          .from(professionals)
+          .where(eq(professionals.userId, addressed.professionalId))
+          .for('share');
+
         const [invitation] = await tx
           .select({ id: careInvitations.id, professionalId: careInvitations.professionalId, professionalName: user.name })
           .from(careInvitations)
@@ -115,7 +151,7 @@ export const CareRepository = {
           .limit(1)
           .for('update', { of: careInvitations });
 
-        if (!invitation) {
+        if (!invitation || !practice) {
           return { kind: 'gone' };
         }
 
@@ -126,7 +162,8 @@ export const CareRepository = {
             consentedAt: now,
             consentVersion: answer.consentVersion,
             professionalId: invitation.professionalId,
-            sharesHealth: answer.sharesHealth
+            sharesHealth: answer.sharesHealth,
+            status: practice.open ? 'active' : 'paused'
           })
           .onConflictDoNothing()
           .returning();
@@ -183,10 +220,11 @@ export const CareRepository = {
 
   /**
    * The one question `CareController.withClient` asks (`0059`): is this link
-   * the professional's, active, and are they still a professional? All of it
-   * is the `WHERE` and the joins — the link id, `professionalId` (the
-   * session's), `status = 'active'`, and an inner join on `professionals` so a
-   * grant taken back closes the door on the next request. Every reason for
+   * the professional's, active, and are they still a professional with a
+   * practice paid for? All of it is the `WHERE` and the joins — the link id,
+   * `professionalId` (the session's), `status = 'active'`, and an inner join
+   * on `professionals` with `practiceOpen` (`0061`), so a grant taken back or
+   * a practice lapsed closes the door on the next request. Every reason for
    * "no" is the same empty result.
    *
    * **The only query that turns a professional's session into another
@@ -198,7 +236,7 @@ export const CareRepository = {
       const [row] = await database()
         .select({ clientName: client.name, link: careLinks, professionalName: user.name })
         .from(careLinks)
-        .innerJoin(professionals, eq(professionals.userId, careLinks.professionalId))
+        .innerJoin(professionals, and(eq(professionals.userId, careLinks.professionalId), eq(professionals.practiceOpen, true)))
         .innerJoin(user, eq(user.id, careLinks.professionalId))
         .innerJoin(client, eq(client.id, careLinks.clientId))
         .where(and(eq(careLinks.id, linkId), eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active')))
@@ -224,6 +262,28 @@ export const CareRepository = {
         .limit(1);
 
       return row ? { link: careLinkSchema.parse(row.link), professionalName: row.professionalName } : null;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Whether this client has the paid allowances through their professional
+   * (`0061`): an `active` link to a professional whose practice is paid for.
+   * `clientId` is the session's — the client's own question about themselves
+   * — and the only filter. A paused or ended link, a practice lapsed, a grant
+   * taken back: no.
+   */
+  async coveredByOpenPractice(clientId: string): Promise<boolean> {
+    try {
+      const [row] = await database()
+        .select({ id: careLinks.id })
+        .from(careLinks)
+        .innerJoin(professionals, and(eq(professionals.userId, careLinks.professionalId), eq(professionals.practiceOpen, true)))
+        .where(and(eq(careLinks.clientId, clientId), eq(careLinks.status, 'active')))
+        .limit(1);
+
+      return row !== undefined;
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -259,17 +319,38 @@ export const CareRepository = {
    * only ever end a link they are on, and only a link that is still open.
    * Returns false when there is no such link, which the caller answers as 404.
    * One guarded `UPDATE`: ownership and status are its `WHERE`.
+   *
+   * **The targets stay, and become the client's own** (owner's decision,
+   * 2026-09-24). In the same transaction, the client's target override loses
+   * its mark — `setByProfessionalId` — but only where the mark names this
+   * link's professional, both ids taken from the row just ended, never from
+   * the caller. The numbers are not written. So a second professional never
+   * reads an earlier one's name, and the client's screens show the targets as
+   * theirs. A pause is not an end and keeps the mark: it is written elsewhere
+   * (`BillingRepository`), and never here.
    */
   async end(userId: string, side: Extract<CareLinkEndedBy, 'client' | 'professional'>, linkId: string, now: Date): Promise<boolean> {
     try {
       const owner = side === 'client' ? careLinks.clientId : careLinks.professionalId;
-      const rows = await database()
-        .update(careLinks)
-        .set({ endedAt: now, endedBy: side, status: 'ended', updatedAt: now })
-        .where(and(eq(careLinks.id, linkId), eq(owner, userId), inArray(careLinks.status, [...OPEN_STATUSES])))
-        .returning({ id: careLinks.id });
 
-      return rows.length > 0;
+      return await database().transaction(async tx => {
+        const [ended] = await tx
+          .update(careLinks)
+          .set({ endedAt: now, endedBy: side, status: 'ended', updatedAt: now })
+          .where(and(eq(careLinks.id, linkId), eq(owner, userId), inArray(careLinks.status, [...OPEN_STATUSES])))
+          .returning({ clientId: careLinks.clientId, professionalId: careLinks.professionalId });
+
+        if (!ended) {
+          return false;
+        }
+
+        await tx
+          .update(targetOverrides)
+          .set({ setByProfessionalId: null, updatedAt: now })
+          .where(and(eq(targetOverrides.userId, ended.clientId), eq(targetOverrides.setByProfessionalId, ended.professionalId)));
+
+        return true;
+      });
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -308,10 +389,44 @@ export const CareRepository = {
    * Nothing here reads `user`: whether the address has an account is not a
    * question this method can ask, which is what makes the route's answer the
    * same either way.
+   *
+   * **The practice's number is spent here** (`0061`): active links plus live
+   * invitations may not reach `includedClients`. The professional's row is
+   * held `FOR UPDATE` first — the row the allowance belongs to — so two
+   * invitations sent at once count one after the other, and the count and the
+   * insert are one decision. The invitation this one replaces (the same
+   * address) is not counted: it is about to be the same seat. A practice not
+   * paid for, or an account no longer a professional, is `closed`. Nothing is
+   * written unless the invitation is.
    */
-  async invite(professionalId: string, email: string, tokenHash: string, expiresAt: Date, now: Date): Promise<CareInvitation> {
+  async invite(professionalId: string, email: string, tokenHash: string, expiresAt: Date, now: Date): Promise<InviteOutcome> {
     try {
-      return await database().transaction(async tx => {
+      return await database().transaction(async (tx): Promise<InviteOutcome> => {
+        const [practice] = await tx
+          .select({ includedClients: professionals.includedClients, open: professionals.practiceOpen })
+          .from(professionals)
+          .where(eq(professionals.userId, professionalId))
+          .for('update');
+
+        if (!practice?.open) {
+          return { kind: 'closed' };
+        }
+
+        const [links, invitations] = await Promise.all([
+          tx
+            .select({ total: count() })
+            .from(careLinks)
+            .where(and(eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active'))),
+          tx
+            .select({ total: count() })
+            .from(careInvitations)
+            .where(and(eq(careInvitations.professionalId, professionalId), gt(careInvitations.expiresAt, now), ne(careInvitations.email, email)))
+        ]);
+
+        if ((links[0]?.total ?? 0) + (invitations[0]?.total ?? 0) >= practice.includedClients) {
+          return { includedClients: practice.includedClients, kind: 'full' };
+        }
+
         await tx
           .delete(careInvitations)
           .where(or(and(eq(careInvitations.professionalId, professionalId), eq(careInvitations.email, email)), lte(careInvitations.expiresAt, now)));
@@ -325,7 +440,7 @@ export const CareRepository = {
           })
           .returning();
 
-        return careInvitationSchema.parse(row);
+        return { invitation: careInvitationSchema.parse(row), kind: 'invited' };
       });
     } catch (error: unknown) {
       throw wrap(error);
@@ -370,6 +485,31 @@ export const CareRepository = {
         .limit(1);
 
       return row ?? null;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * How much of the professional's practice is in use (`0061`): counts only,
+   * by `professionalId` (the session's) — no client, no address, and so no
+   * row in anybody's trail.
+   */
+  async practiceUse(professionalId: string, now: Date): Promise<PracticeUse> {
+    try {
+      const db = database();
+      const [links, invitations] = await Promise.all([
+        db
+          .select({ total: count() })
+          .from(careLinks)
+          .where(and(eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active'))),
+        db
+          .select({ total: count() })
+          .from(careInvitations)
+          .where(and(eq(careInvitations.professionalId, professionalId), gt(careInvitations.expiresAt, now)))
+      ]);
+
+      return { activeClients: links[0]?.total ?? 0, pendingInvitations: invitations[0]?.total ?? 0 };
     } catch (error: unknown) {
       throw wrap(error);
     }

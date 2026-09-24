@@ -9,7 +9,7 @@ import { ENV } from '../../../config/index.js';
 
 import type { BillingPlan } from 'core/entities/Billing';
 import type { Env } from '../../../config/index.js';
-import type { PriceView, SubscriptionRecord } from 'core/controllers/Billing';
+import type { PracticePlanView, PricedSubscription, PriceView, SubscriptionGrant } from 'core/controllers/Billing';
 
 /** How long a price is trusted before it is asked for again. It changes when the owner changes it, which is rarely. */
 const PRICE_TTL_MS = 60 * 60 * 1000;
@@ -43,7 +43,7 @@ const CHECKOUT_TTL_SECONDS = 31 * 60;
  * A subscription as Stripe describes it now, with what checkout wrote into it:
  * the account it was opened for, and the deployment that opened it.
  */
-export type SubscriptionSnapshot = SubscriptionRecord & {
+export type SubscriptionSnapshot = PricedSubscription & {
   readonly customerId: string;
   readonly deploymentHint: string | null;
   readonly subscriptionId: string;
@@ -57,6 +57,8 @@ export type CheckoutRequest = {
   readonly customerId: string;
   readonly locale: string;
   readonly plan: BillingPlan;
+  /** The practice price chosen, for `practice` only; checked against the configured list again here. */
+  readonly price?: string;
   readonly successUrl: string;
   /** Free days before the first charge, or `null` for none. */
   readonly trialDays: number | null;
@@ -112,6 +114,30 @@ export class StripeGateway {
       .slice(0, 16);
   }
 
+  /** Whether practice plans are on offer (`0061`): payments set up, and at least one practice price. */
+  get practices(): boolean {
+    return this.configured && (this.env.STRIPE_PRACTICE_PRICES?.length ?? 0) > 0;
+  }
+
+  /**
+   * What a price grants (`0061`), from configuration alone: a practice of the
+   * configured number for a listed practice price, and premium for any other —
+   * an older premium price, or none to read, included — exactly as every
+   * subscription was premium before practices existed. A subscriber left on a
+   * price the owner has since replaced keeps premium until the owner decides
+   * otherwise; only a listed practice price opens a practice.
+   */
+  grantOf(priceId: string | null): SubscriptionGrant {
+    const practice = priceId === null ? undefined : this.env.STRIPE_PRACTICE_PRICES?.find(candidate => candidate.priceId === priceId);
+
+    return practice ? { includedClients: practice.includedClients, kind: 'practice' } : { kind: 'premium' };
+  }
+
+  /** Whether this is one of the configured practice prices. */
+  isPracticePrice(priceId: string): boolean {
+    return this.env.STRIPE_PRACTICE_PRICES?.some(candidate => candidate.priceId === priceId) ?? false;
+  }
+
   /** Whether a yearly price is on offer as well as the monthly one. */
   get yearly(): boolean {
     return Boolean(this.env.STRIPE_YEARLY_PRICE_ID);
@@ -140,7 +166,7 @@ export class StripeGateway {
   }
 
   async checkoutUrl(request: CheckoutRequest): Promise<string> {
-    const price = request.plan === 'yearly' ? this.env.STRIPE_YEARLY_PRICE_ID : this.env.STRIPE_PRICE_ID;
+    const price = this.priceFor(request);
 
     if (!price) {
       throw new Error(`No ${request.plan} price is set`);
@@ -224,6 +250,18 @@ export class StripeGateway {
     }
   }
 
+  /** The price a checkout opens with: premium's by its plan, a practice's only if it is a configured one. */
+  private priceFor(request: CheckoutRequest): string | undefined {
+    switch (request.plan) {
+      case 'practice':
+        return request.price && this.isPracticePrice(request.price) ? request.price : undefined;
+      case 'yearly':
+        return this.env.STRIPE_YEARLY_PRICE_ID;
+      default:
+        return this.env.STRIPE_PRICE_ID;
+    }
+  }
+
   async portalUrl(customerId: string, returnUrl: string): Promise<string> {
     return (await this.stripe().billingPortal.sessions.create({ customer: customerId, return_url: returnUrl })).url;
   }
@@ -232,6 +270,13 @@ export class StripeGateway {
     const [monthly, yearly] = await Promise.all([this.priceOf(this.env.STRIPE_PRICE_ID), this.priceOf(this.env.STRIPE_YEARLY_PRICE_ID)]);
 
     return { monthly, yearly };
+  }
+
+  /** The practice plans, smallest first, each with what Stripe says it costs. */
+  async practicePlans(): Promise<PracticePlanView[]> {
+    const plans = [...(this.env.STRIPE_PRACTICE_PRICES ?? [])].sort((a, b) => a.includedClients - b.includedClients);
+
+    return Promise.all(plans.map(async ({ includedClients, priceId }) => ({ includedClients, price: await this.priceOf(priceId), priceId })));
   }
 
   private async priceOf(id: string | undefined): Promise<PriceView | null> {
@@ -268,16 +313,21 @@ export class StripeGateway {
 
 /**
  * The fields this product reads. The period end lives on the subscription's
- * item in this API version; during a trial it is the day the trial ends.
+ * item in this API version; during a trial it is the day the trial ends. The
+ * price is the item's too, and it is what decides what the subscription
+ * grants (`0061`): checkout opens every subscription with one item.
  */
 function snapshotOf(subscription: Stripe.Subscription): SubscriptionSnapshot {
-  const end = subscription.items.data[0]?.current_period_end;
+  const item = subscription.items.data[0];
+  const end = item?.current_period_end;
 
   return {
     cancelAtPeriodEnd: subscription.cancel_at_period_end,
     currentPeriodEnd: end === undefined ? null : new Date(end * 1000),
     customerId: typeof subscription.customer === 'string' ? subscription.customer : subscription.customer.id,
     deploymentHint: subscription.metadata.deployment ?? null,
+    // Optional-chained: a subscription without a price to read is premium's, as before practices existed, and must not throw.
+    priceId: item?.price?.id ?? null,
     status: subscription.status,
     subscriptionId: subscription.id,
     userIdHint: subscription.metadata.userId ?? null

@@ -166,7 +166,7 @@ beforeEach(() => {
   }
 
   isEnabled.mockResolvedValue(true);
-  findProfessional.mockResolvedValue({ userId: PRO.id });
+  findProfessional.mockResolvedValue({ practiceOpen: true, userId: PRO.id });
   logAccess.mockResolvedValue(undefined);
   getActivePlan.mockResolvedValue(null);
   listPlans.mockResolvedValue([]);
@@ -514,7 +514,8 @@ describe('CareController.clients', () => {
 
   it.each([
     ['the switch is off', () => isEnabled.mockResolvedValue(false)],
-    ['the grant is gone', () => findProfessional.mockResolvedValue(null)]
+    ['the grant is gone', () => findProfessional.mockResolvedValue(null)],
+    ['the practice is not paid for', () => findProfessional.mockResolvedValue({ practiceOpen: false, userId: PRO.id })]
   ])('is a 404 that reads nothing when %s — the second line behind the guard', async (_case, arrange) => {
     arrange();
 

@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { BillingController } from 'core/controllers/Billing';
 import { ConflictError, NotFoundError } from 'core/entities/Error';
+import { ProfessionalController } from 'core/controllers/Professional';
 import { ProfileController } from 'core/controllers/Profile';
 import { SettingsController } from 'core/controllers/Settings';
 
@@ -11,19 +12,24 @@ import type { Env } from '../../../config/index.js';
 import type { ErrorReporter } from '../../../shared/observability/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 import type { CheckoutRequest, Prices, StripeGateway, SubscriptionSnapshot } from './StripeGateway.js';
-import type { SubscriptionView } from 'core/controllers/Billing';
+import type { PracticePlanView, SubscriptionView } from 'core/controllers/Billing';
 import type Stripe from 'stripe';
 
 const ENV = { APP_URL: 'https://nutria.example' } as Env;
 const OWNER = { id: 'usr-owner', activated: true, email: 'owner@example.invalid', emailVerified: true, name: 'Owner', role: 'admin' } as SessionUser;
 const PERSON = { ...OWNER, id: 'usr-ana', email: 'ana@example.invalid', name: 'Ana', role: 'user' } as SessionUser;
 const PRICES: Prices = { monthly: { amount: 499, currency: 'eur', interval: 'month' }, yearly: { amount: 3999, currency: 'eur', interval: 'year' } };
+const PLANS: PracticePlanView[] = [
+  { includedClients: 30, price: { amount: 4900, currency: 'eur', interval: 'month' }, priceId: 'price_practice_30' },
+  { includedClients: 60, price: { amount: 8900, currency: 'eur', interval: 'month' }, priceId: 'price_practice_60' }
+];
 const CANCELLED: SubscriptionView = { cancelAtPeriodEnd: false, currentPeriodEnd: null, status: 'canceled' };
 const SNAPSHOT: SubscriptionSnapshot = {
   cancelAtPeriodEnd: false,
   currentPeriodEnd: new Date('2026-10-13T00:00:00Z'),
   customerId: 'cus_1',
   deploymentHint: 'dep_here',
+  priceId: 'price_monthly',
   status: 'active',
   subscriptionId: 'sub_1',
   userIdHint: 'usr-ana'
@@ -38,7 +44,9 @@ function harness(
     configured?: boolean;
     customer?: string | null;
     event?: Stripe.Event | null;
+    practices?: boolean;
     premium?: boolean;
+    professional?: boolean;
     subscription?: SubscriptionView | null;
     testMode?: boolean;
     yearly?: boolean;
@@ -52,7 +60,10 @@ function harness(
     deployment: 'dep_here',
     event: jest.fn(() => (options.event === undefined ? event('invoice.paid', {}) : options.event)),
     expireOpenCheckouts: jest.fn<(customerId: string) => Promise<void>>().mockResolvedValue(undefined),
+    isPracticePrice: jest.fn((price: string) => PLANS.some(plan => plan.priceId === price)),
     portalUrl: jest.fn<(customerId: string, returnUrl: string) => Promise<string>>().mockResolvedValue('https://billing.stripe.com/p/session'),
+    practicePlans: jest.fn(async () => PLANS),
+    practices: options.practices ?? true,
     prices: jest.fn(async () => PRICES),
     subscription: jest.fn<(id: string, options?: { underLock?: boolean }) => Promise<SubscriptionSnapshot>>().mockResolvedValue(SNAPSHOT),
     subscriptionsOf: jest.fn<(customerId: string, options?: { underLock?: boolean }) => Promise<SubscriptionSnapshot[]>>().mockResolvedValue([]),
@@ -63,6 +74,7 @@ function harness(
   jest
     .spyOn(SettingsController, 'flags')
     .mockResolvedValue({ automaticActivation: true, checkInReminders: false, premium: options.premium ?? true, professional: false });
+  jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(options.professional ?? false);
   jest.spyOn(ProfileController, 'localeOf').mockResolvedValue('es-ES');
   jest.spyOn(BillingController, 'standing').mockResolvedValue({ subscription: options.subscription ?? null, tier: 'free' });
   jest.spyOn(BillingController, 'customerOf').mockResolvedValue(options.customer ?? null);
@@ -188,7 +200,7 @@ describe('BillingService', () => {
 
     await service.webhook(Buffer.from('{}'), 'signed');
 
-    expect(apply).toHaveBeenCalledWith('usr-ana', expect.any(Function), expect.any(Function));
+    expect(apply).toHaveBeenCalledWith('usr-ana', expect.any(Function), expect.any(Function), expect.any(Function));
     // Once to learn whose it is, once more under the lock, just before the write.
     expect(gateway.subscription.mock.calls).toEqual([['sub_1'], ['sub_1', { underLock: true }]]);
   });
@@ -271,7 +283,7 @@ describe('BillingService', () => {
     gateway.subscription.mockResolvedValue({ ...SNAPSHOT, deploymentHint: null });
     await service.webhook(Buffer.from('{}'), 'signed');
 
-    expect(apply).toHaveBeenCalledWith('usr-ana', expect.any(Function), expect.any(Function));
+    expect(apply).toHaveBeenCalledWith('usr-ana', expect.any(Function), expect.any(Function), expect.any(Function));
   });
 
   it('does not cancel again a subscription of a missing account that has already ended', async () => {
@@ -321,7 +333,7 @@ describe('BillingService', () => {
     owner.mockResolvedValue(null);
     await service.webhook(Buffer.from('{}'), 'signed');
 
-    expect(apply).toHaveBeenCalledWith('usr-ana', expect.any(Function), expect.any(Function));
+    expect(apply).toHaveBeenCalledWith('usr-ana', expect.any(Function), expect.any(Function), expect.any(Function));
   });
 
   it('acknowledges and ignores an event that changes nothing about the tier', async () => {
@@ -394,5 +406,95 @@ describe('BillingService', () => {
       expect(stranger.gateway.subscriptionsOf).not.toHaveBeenCalled();
       expect(stranger.reporter.report).not.toHaveBeenCalled();
     });
+  });
+});
+
+/*
+ * A practice (`0061`): a professional's to pay for, at a configured price, and
+ * never the `premium` switch's to open. What it includes is not this service's
+ * to say — the webhook writes it from configuration.
+ */
+describe('BillingService — a practice', () => {
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('opens checkout at the chosen practice price, with fourteen free days, back to the workspace', async () => {
+    const { gateway, service } = harness({ premium: false, professional: true });
+
+    await expect(service.checkout(PERSON, 'practice', 'price_practice_60')).resolves.toEqual({ url: 'https://checkout.stripe.com/c/session' });
+    expect(gateway.checkoutUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        cancelUrl: 'https://nutria.example/consulta',
+        plan: 'practice',
+        price: 'price_practice_60',
+        successUrl: 'https://nutria.example/consulta?practica=gracias',
+        trialDays: 14
+      })
+    );
+  });
+
+  it('has no trial for an account that has subscribed before, to anything', async () => {
+    const { gateway, service } = harness({ professional: true, subscription: CANCELLED });
+
+    await service.checkout(PERSON, 'practice', 'price_practice_30');
+    expect(gateway.checkoutUrl).toHaveBeenCalledWith(expect.objectContaining({ trialDays: null }));
+  });
+
+  it('is a 404 for a price that is not a practice price, for somebody who is not a professional, and without practice prices', async () => {
+    await expect(harness({ professional: true }).service.checkout(PERSON, 'practice', 'price_monthly')).rejects.toBeInstanceOf(NotFoundError);
+    jest.restoreAllMocks();
+    await expect(harness({ professional: false }).service.checkout(PERSON, 'practice', 'price_practice_30')).rejects.toBeInstanceOf(NotFoundError);
+    jest.restoreAllMocks();
+    await expect(harness({ practices: false, professional: true }).service.checkout(PERSON, 'practice', 'price_practice_30')).rejects.toBeInstanceOf(
+      NotFoundError
+    );
+  });
+
+  it('with test keys, is the owner’s alone', async () => {
+    const { service } = harness({ professional: true, testMode: true });
+
+    await expect(service.checkout(PERSON, 'practice', 'price_practice_30')).rejects.toBeInstanceOf(NotFoundError);
+    await expect(service.practiceOffer(PERSON)).resolves.toEqual({ available: false });
+    await expect(service.checkout(OWNER, 'practice', 'price_practice_30')).resolves.toEqual({ url: 'https://checkout.stripe.com/c/session' });
+  });
+
+  it('sends somebody already paying to the portal instead', async () => {
+    const { service } = harness({ professional: true, subscription: { ...CANCELLED, status: 'trialing' } });
+
+    await expect(service.checkout(PERSON, 'practice', 'price_practice_30')).rejects.toBeInstanceOf(ConflictError);
+  });
+
+  it('opens the portal to a professional while the premium switch is off', async () => {
+    const { service } = harness({ customer: 'cus_1', premium: false, professional: true });
+
+    await expect(service.portal(PERSON)).resolves.toEqual({ url: 'https://billing.stripe.com/p/session' });
+  });
+
+  it('offers the plans, the subscription and the trial', async () => {
+    const { service } = harness({ professional: true });
+
+    await expect(service.practiceOffer(PERSON)).resolves.toEqual({
+      available: true,
+      plans: PLANS,
+      subscription: null,
+      testMode: false,
+      trialDays: 14
+    });
+  });
+
+  it('decides what the webhook writes from the gateway’s reading of the price, never from the event', async () => {
+    const { apply, gateway, service } = harness({ event: event('customer.subscription.updated', { id: 'sub_1', includedClients: 999 }) });
+    const grantOf = jest.fn((_price: string | null) => ({ includedClients: 30, kind: 'practice' as const }));
+
+    Object.assign(gateway, { grantOf });
+    apply.mockImplementation(async (_userId, latest, _siblings, grants) => {
+      grants((await latest()).priceId);
+
+      return 'practice';
+    });
+    await service.webhook(Buffer.from('{}'), 'signed');
+
+    expect(grantOf).toHaveBeenCalledWith('price_monthly');
   });
 });

@@ -186,3 +186,19 @@ export class CareLinkExistsError extends Error {
     this.name = 'CareLinkExistsError';
   }
 }
+
+/**
+ * A professional inviting one client more than their practice includes
+ * (`0061`, PRD 004 criterion 17): active links plus live invitations have
+ * reached the plan's number.
+ *
+ * A state, not a denial — the practice is the caller's own, and the answer
+ * names the number and the ways up: the larger plan, through Stripe's portal,
+ * or ending a link. 409, like the other states a screen explains.
+ */
+export class PracticeFullError extends Error {
+  constructor(public readonly includedClients: number) {
+    super('Practice full');
+    this.name = 'PracticeFullError';
+  }
+}

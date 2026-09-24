@@ -1,5 +1,5 @@
 import { Controller, Post, UseGuards } from '@nestjs/common';
-import { ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiConflictResponse, ApiCreatedResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CareService } from '../services/index.js';
 import { CurrentUser, RateLimit, ZodBody } from '../../../shared/index.js';
@@ -34,6 +34,7 @@ export class CareInvitationsController {
     description:
       'The invitation is stored and its mail queued. The same status and the same body whether or not the address has an account — nothing behind it asks.'
   })
+  @ApiConflictResponse({ description: 'PRACTICE_FULL: active clients plus live invitations have reached the number the practice plan includes.' })
   @ApiOperation({ summary: 'Invite a client by email' })
   @Post('invitations')
   @RateLimit({ limit: 30, ttlSeconds: 3600 })

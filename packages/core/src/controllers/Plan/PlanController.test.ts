@@ -40,6 +40,12 @@ vi.mock('#repositories/Plan', () => ({
   }
 }));
 
+const coveredByOpenPractice = vi.fn<(userId: string) => Promise<boolean>>();
+const columnTier = vi.fn<(userId: string) => Promise<'free' | 'premium'>>();
+
+vi.mock('#repositories/Care', () => ({ CareRepository: { coveredByOpenPractice: (u: string) => coveredByOpenPractice(u) } }));
+vi.mock('#repositories/User', () => ({ UserRepository: { tierOf: (u: string) => columnTier(u) } }));
+
 // Nobody in this file is away. The pause is its own suite; here it must not be
 // the reason a mark is refused, or these tests would pass for the wrong reason.
 vi.mock('core/controllers/Settings', () => ({ SettingsController: { flags: () => flags() } }));
@@ -268,5 +274,49 @@ describe('PlanController.allowances — a pending plan is the fortnight under wa
     findChain.mockResolvedValue([active]);
 
     await expect(PlanController.allowances('usr-1')).resolves.toMatchObject({ planRedo: { allowed: true, kind: 'redo', used: 0 } });
+  });
+});
+
+/*
+ * `0061`: a client of a practice paid for has the paid allowances — behind
+ * the `professional` switch, before the `premium` switch or the column. The
+ * repository's question is the link (`active`) and the practice (`practiceOpen`).
+ */
+describe('PlanController.tierOf — a client of a practice', () => {
+  beforeEach(() => {
+    // The allowance suites above spy on `tierOf` itself.
+    vi.restoreAllMocks();
+    coveredByOpenPractice.mockReset();
+    columnTier.mockReset();
+    columnTier.mockResolvedValue('free');
+  });
+
+  it('is premium with an active link to an open practice, whatever the premium switch and the column say', async () => {
+    flags.mockResolvedValue({ premium: false, professional: true });
+    coveredByOpenPractice.mockResolvedValue(true);
+
+    await expect(PlanController.tierOf('usr-client')).resolves.toBe('premium');
+    expect(coveredByOpenPractice).toHaveBeenCalledWith('usr-client');
+    expect(columnTier).not.toHaveBeenCalled();
+  });
+
+  it('goes back to the ordinary rule when the link is paused or ended, or the practice closed', async () => {
+    flags.mockResolvedValue({ premium: false, professional: true });
+    coveredByOpenPractice.mockResolvedValue(false);
+
+    await expect(PlanController.tierOf('usr-client')).resolves.toBe('free');
+
+    flags.mockResolvedValue({ premium: true, professional: true });
+    columnTier.mockResolvedValue('premium');
+
+    await expect(PlanController.tierOf('usr-client')).resolves.toBe('premium');
+  });
+
+  it('asks nothing about a link while the professional switch is off', async () => {
+    flags.mockResolvedValue({ premium: false, professional: false });
+    coveredByOpenPractice.mockResolvedValue(true);
+
+    await expect(PlanController.tierOf('usr-client')).resolves.toBe('free');
+    expect(coveredByOpenPractice).not.toHaveBeenCalled();
   });
 });

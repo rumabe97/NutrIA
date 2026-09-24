@@ -5,6 +5,7 @@ import type { Response } from 'supertest';
 import { Test } from '@nestjs/testing';
 
 import { UserController } from 'core/controllers/User';
+import { database } from 'database';
 import { shapeFor } from 'core/domain/MealShape';
 
 import { AiClient } from '../src/modules/ai/clients/AiClient.js';
@@ -388,6 +389,28 @@ export async function deleteAccountByEmail(app: INestApplication, email: string,
   const cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
 
   await request(server).delete(`/${PREFIX}/users/me`).set('Cookie', cookie);
+}
+
+/**
+ * Opens a granted professional's practice with this many included clients, as
+ * a paid practice subscription does (`0061`) — without Stripe, for the suites
+ * that are about the workspace and not about paying for it. From Phase 7 of
+ * project 004 the client routes need an open practice and every invitation
+ * counts against the number, so a suite that grants a professional and then
+ * works with clients opens the practice straight after the grant.
+ *
+ * Written on the table, because no route may write it: only the signed webhook
+ * does, and `care-practice.e2e-spec.ts` proves that path.
+ */
+export async function openPractice(userId: string, includedClients = 30): Promise<void> {
+  const sql = (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
+    .$client;
+  const opened = await sql<{ userId: string }>`
+    update professionals set practice_open = true, included_clients = ${includedClients} where user_id = ${userId} returning user_id as "userId"`;
+
+  if (opened.length !== 1) {
+    throw new Error(`No professional to open a practice for: ${userId}`);
+  }
 }
 
 /** Sets the account's language. Everything server-side reads it from the profile. */

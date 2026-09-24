@@ -9,6 +9,7 @@ export {
   NotFoundError,
   OnboardingIncompleteError,
   PlanPausedError,
+  PracticeFullError,
   QuotaExceededError,
   SafetyViolationError,
   UnauthorizedError
