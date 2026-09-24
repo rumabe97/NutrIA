@@ -136,7 +136,7 @@ then the documents. Each phase ends green.
 
 ### Phase 5 — Review before publishing
 
-- [x] done — `test:e2e -- care-review care` 81/81 and the whole suite 290/290 on a throwaway Postgres; the pull request's CI runs it again
+- [x] done — `test:e2e -- care-review care` 81/81 and the whole suite 290/290 on a throwaway Postgres; the pull request's CI runs it again — commit `2d48c09` ("Project 004 phase 5: review before publishing (#93)")
 - **Dispatch**: opus @ high — `/execute-project 004 phase 5`
 - **Goal**: for a linked client with review on, a new plan is the professional's to look at, change and publish before the client sees it; for everybody else nothing moves.
 - **Scope**: `packages/database/src/schemas/{_enums.ts,plan.schema.ts}`, one generated migration, `packages/core/src/{repositories/Plan,controllers/Plan,controllers/CheckIn}`, `apps/api/src/modules/{meal-plans,care}`, `apps/api/test`.
@@ -222,7 +222,7 @@ then the documents. Each phase ends green.
 
 ### Phase 8 — The client's side of the link, on screen
 
-- [ ] pending
+- [x] done — `pnpm turbo lint ts:check test --filter=web --filter=ui` 14/14, `pnpm --filter web build` clean; `apple-web-design` and `accessibility` reviews passed (5 accessibility findings fixed)
 - **Dispatch**: sonnet @ medium — `/execute-project 004 phase 8`
 - **Goal**: the client accepts an invitation knowing what is shared, sees and ends their link and its trail, and sees who set their targets and that a plan is with their dietitian.
 - **Scope**: `apps/web/src/app/(app)/{invitacion,perfil,inicio,plan}`, `apps/web/src/components/{TargetsPanel,…}`, new components, `apps/web/src/i18n/dictionaries`, `apps/web/src/proxy.ts`.

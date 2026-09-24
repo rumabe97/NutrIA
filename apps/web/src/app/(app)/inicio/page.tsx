@@ -11,6 +11,7 @@ import { EmptyState } from 'components/EmptyState';
 import { MacroSummary } from 'components/MacroSummary';
 import { MealRow } from 'components/MealRow';
 import { NextMeal } from 'components/NextMeal';
+import { PlanPendingNotice } from 'components/PlanPendingNotice';
 import { PlanProgress } from 'components/PlanProgress';
 import { ShoppingSnapshot } from 'components/ShoppingSnapshot';
 import { TargetProgress } from 'components/TargetProgress';
@@ -103,6 +104,8 @@ export default async function DashboardPage() {
 
       <div className={styles.layout}>
         <div className={`${styles.main} motion-enter`}>
+          <PlanPendingNotice body={t.pendingReviewBody} currentPlanId={plan?.id ?? null} title={t.pendingReviewTitle} />
+
           {away ? (
             <EmptyState
               body={interpolate(dictionary.vacations.awayBody, {
