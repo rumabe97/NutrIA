@@ -11,7 +11,7 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatDate, interpolate } from 'lib/format';
-import { generationError, stepLabel } from 'lib/generation';
+import { stepLabel } from 'lib/generation';
 
 import type { JobView } from 'core/controllers/Plan';
 
@@ -29,6 +29,9 @@ interface CareGenerateButtonProps {
   linkId: string;
   variant?: 'primary' | 'secondary';
 }
+
+/** The failures the professional can do nothing about but wait for the client; everything else is worth another try. */
+const INCOMPLETE = new Set(['GENERATION_ONBOARDING_INCOMPLETE', 'GENERATION_PROFILE_INCOMPLETE']);
 
 type Phase = { kind: 'failed'; message: string } | { kind: 'idle' } | { kind: 'running'; step: string | null };
 
@@ -81,7 +84,8 @@ export function CareGenerateButton({ disabled = false, hint, label, linkId, vari
       }
 
       if (current.status === 'failed') {
-        setPhase({ kind: 'failed', message: generationError(current.error, dictionary).body });
+        // The client's own failure copy speaks to the client ("tus datos"); this reader is their professional.
+        setPhase({ kind: 'failed', message: INCOMPLETE.has(current.error ?? '') ? t.generateIncomplete : t.generateFailed });
 
         return;
       }
@@ -89,7 +93,7 @@ export function CareGenerateButton({ disabled = false, hint, label, linkId, vari
       setPhase({ kind: 'running', step: current.step });
     }
 
-    setPhase({ kind: 'failed', message: generationError('GENERATION_ABANDONED', dictionary).body });
+    setPhase({ kind: 'failed', message: t.generateFailed });
   }
 
   function refusal(caught: unknown): string {

@@ -53,7 +53,7 @@ export function CareInviteForm() {
       if (caught instanceof ApiError && caught.code === 'PRACTICE_FULL') {
         setOutcome({ included: caught.practice?.includedClients ?? 0, kind: 'full' });
       } else if (caught instanceof ApiError && caught.code === 'INVALID_INPUT') {
-        setFieldError(messageFor(caught, dictionary));
+        setFieldError(t.inviteInvalid);
       } else {
         setOutcome({ kind: 'failed', message: messageFor(caught, dictionary) });
       }

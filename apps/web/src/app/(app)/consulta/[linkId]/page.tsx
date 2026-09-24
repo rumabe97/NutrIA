@@ -115,7 +115,7 @@ export default async function ClientPage({ params }: Readonly<{ params: Promise<
         ) : null}
 
         <Card aria-labelledby="plan-title" as="section" className={styles.stack}>
-          <h2 className={styles.cardTitle} id="plan-title">
+          <h2 className={styles.cardTitle} id="plan-title" tabIndex={-1}>
             {t.currentPlanTitle}
           </h2>
 
