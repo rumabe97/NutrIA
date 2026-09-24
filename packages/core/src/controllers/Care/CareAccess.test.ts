@@ -1,14 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CARE_CONSENT_VERSION } from 'core/entities/Care';
-import { DatabaseOperationError, NotFoundError } from 'core/entities/Error';
+import { DatabaseOperationError, InputParseError, NotFoundError } from 'core/entities/Error';
 
 import { CareController } from './CareController';
 
 import type { ActiveLink, Roster, RosterLink } from '#repositories/Care';
 import type { CareAccessAction, CareAccessEntry, CareAccessKind, CareLink } from 'core/entities/Care';
 import type { ProgressSummaryView } from 'core/controllers/Progress';
+import type { ResolvedTargets } from 'core/domain/Nutrition';
 import type { SharedHealthView } from 'core/controllers/Health';
+import type { UpdateTargetOverride } from 'core/entities/Nutrition';
+import type { ProfessionalSetter } from '#repositories/Profile';
 
 /**
  * The delegated path (`0059`, project 004 Phase 3): `withClient`, the one
@@ -32,7 +35,7 @@ type LogEntry = {
 };
 
 const activeLink = vi.fn<(professionalId: string, linkId: string) => Promise<ActiveLink | null>>();
-const logAccess = vi.fn<(clientId: string, entry: LogEntry) => Promise<void>>();
+const logAccess = vi.fn<(clientId: string, entry: LogEntry, tx?: unknown) => Promise<void>>();
 const roster = vi.fn<(professionalId: string, now: Date) => Promise<Roster>>();
 const accessLog = vi.fn<(clientId: string, limit: number, beforeId: string | null) => Promise<readonly CareAccessEntry[]>>();
 const findProfessional = vi.fn<(userId: string) => Promise<object | null>>();
@@ -41,6 +44,7 @@ const getActivePlan = vi.fn<(userId: string, locale: string | null) => Promise<n
 const listPlans = vi.fn<(userId: string) => Promise<readonly []>>();
 const summary = vi.fn<(userId: string) => Promise<ProgressSummaryView>>();
 const targets = vi.fn<(userId: string) => Promise<null>>();
+const updateTargets = vi.fn<(userId: string, patch: UpdateTargetOverride, setter?: ProfessionalSetter | null) => Promise<ResolvedTargets>>();
 const shared = vi.fn<(userId: string) => Promise<SharedHealthView>>();
 
 vi.mock('#repositories/Care', () => ({
@@ -60,7 +64,12 @@ vi.mock('core/controllers/Plan', () => ({
   }
 }));
 vi.mock('core/controllers/Progress', () => ({ ProgressController: { summary: (userId: string) => summary(userId) } }));
-vi.mock('core/controllers/Profile', () => ({ ProfileController: { targets: (userId: string) => targets(userId) } }));
+vi.mock('core/controllers/Profile', () => ({
+  ProfileController: {
+    targets: (userId: string) => targets(userId),
+    updateTargets: (...args: Parameters<typeof updateTargets>) => updateTargets(...args)
+  }
+}));
 vi.mock('core/controllers/Health', () => ({ HealthController: { shared: (userId: string) => shared(userId) } }));
 
 const NOW = new Date('2026-09-24T10:00:00.000Z');
@@ -122,7 +131,20 @@ function rosterLink(overrides?: Partial<RosterLink>): RosterLink {
 }
 
 beforeEach(() => {
-  for (const mock of [activeLink, logAccess, roster, accessLog, findProfessional, isEnabled, getActivePlan, listPlans, summary, targets, shared]) {
+  for (const mock of [
+    activeLink,
+    logAccess,
+    roster,
+    accessLog,
+    findProfessional,
+    isEnabled,
+    getActivePlan,
+    listPlans,
+    summary,
+    targets,
+    updateTargets,
+    shared
+  ]) {
     mock.mockReset();
   }
 
@@ -273,6 +295,77 @@ describe('CareController.overview', () => {
     expect(logAccess).not.toHaveBeenCalled();
     expect(getActivePlan).not.toHaveBeenCalled();
     expect(summary).not.toHaveBeenCalled();
+  });
+});
+
+describe('CareController.setTargets', () => {
+  it('writes through the link — the client’s own update with the professional as the setter, and the row inside the write', async () => {
+    activeLink.mockResolvedValue(access());
+    const order: string[] = [];
+    const tx = { transaction: 'the write’s' };
+    const resolved = { setBy: { kind: 'professional', name: 'Dra. Pérez' } } as unknown as ResolvedTargets;
+
+    logAccess.mockImplementation(async () => {
+      order.push('log');
+    });
+    updateTargets.mockImplementation(async (_clientId, _patch, setter) => {
+      order.push('write');
+      await setter?.record(tx as never);
+
+      return resolved;
+    });
+
+    await expect(CareController.setTargets(PRO, LINK_ID, { kcal: 1750 })).resolves.toBe(resolved);
+    expect(activeLink).toHaveBeenCalledWith(PRO.id, LINK_ID);
+    expect(logAccess).toHaveBeenCalledExactlyOnceWith(
+      CLIENT_ID,
+      { action: 'write', kind: 'targets', professionalId: PRO.id, professionalName: 'Dra. Pérez' },
+      tx
+    );
+    expect(updateTargets).toHaveBeenCalledOnce();
+    expect(updateTargets.mock.calls[0]?.slice(0, 2)).toEqual([CLIENT_ID, { kcal: 1750 }]);
+    expect(updateTargets.mock.calls[0]?.[2]?.professionalId).toBe(PRO.id);
+    expect(order).toEqual(['write', 'log']);
+  });
+
+  it('writes no row for a refused target — the row goes in with the change or not at all', async () => {
+    activeLink.mockResolvedValue(access());
+    updateTargets.mockRejectedValue(new InputParseError('Targets out of bounds', { targets: ['El mínimo para tu perfil son 1300 kcal.'] }));
+
+    await expect(CareController.setTargets(PRO, LINK_ID, { kcal: 600 })).rejects.toBeInstanceOf(InputParseError);
+    expect(logAccess).not.toHaveBeenCalled();
+  });
+
+  it('fails a write that returns without having recorded its row', async () => {
+    activeLink.mockResolvedValue(access());
+
+    await expect(CareController.withClient(PRO.id, LINK_ID, 'targets', 'write', async () => 'written')).rejects.toBeInstanceOf(
+      DatabaseOperationError
+    );
+  });
+
+  it('passes the client’s refusal through unchanged — the same error, not a second rule', async () => {
+    activeLink.mockResolvedValue(access());
+    const refusal = new InputParseError('Targets out of bounds', { targets: ['El mínimo para tu perfil son 1300 kcal.'] });
+
+    updateTargets.mockRejectedValue(refusal);
+
+    await expect(CareController.setTargets(PRO, LINK_ID, { kcal: 600 })).rejects.toBe(refusal);
+  });
+
+  it('is a 404 with no row and nothing written for a link that is not this professional’s and active', async () => {
+    activeLink.mockResolvedValue(null);
+
+    await expect(CareController.setTargets({ id: 'usr-other-pro' }, LINK_ID, { kcal: 1750 })).rejects.toBeInstanceOf(NotFoundError);
+    expect(activeLink).toHaveBeenCalledWith('usr-other-pro', LINK_ID);
+    expect(logAccess).not.toHaveBeenCalled();
+    expect(updateTargets).not.toHaveBeenCalled();
+  });
+
+  it('is the same 404, without asking the database, for something that is not a link id', async () => {
+    await expect(CareController.setTargets(PRO, CLIENT_ID, { kcal: 1750 })).rejects.toBeInstanceOf(NotFoundError);
+    expect(activeLink).not.toHaveBeenCalled();
+    expect(updateTargets).not.toHaveBeenCalled();
   });
 });
 

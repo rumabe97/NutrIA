@@ -95,7 +95,7 @@ then the documents. Each phase ends green.
 
 ### Phase 3 — Delegated reading, and the trail the client sees
 
-- [x] done — `test:e2e -- care` 44/44 on a throwaway Postgres; the pull request's CI runs it again
+- [x] done — `test:e2e -- care` 44/44 on a throwaway Postgres; the pull request's CI runs it again — commit `02cff85` ("Project 004 phase 3: delegated reading, and the trail the client sees (#88)")
 - **Dispatch**: opus @ high — `/execute-project 004 phase 3`
 - **Goal**: the professional sees each client's state and progress through the one named path, every read leaves a row the client can read, and nothing crosses between professionals.
 - **Scope**: `packages/database/src/schemas/care.schema.ts` (the log), one generated migration, `packages/core/src/controllers/{Care,Progress,Health}`, `apps/api/src/modules/care`, `apps/api/src/modules/ai/health-boundary.spec.ts`, `apps/api/test`.
@@ -117,13 +117,13 @@ then the documents. Each phase ends green.
 
 ### Phase 4 — Supervised targets
 
-- [ ] pending
+- [x] done — `test:e2e -- care target-overrides` 60/60 and the whole suite 203/203 on a throwaway Postgres; the pull request's CI runs it again
 - **Dispatch**: opus @ medium — `/execute-project 004 phase 4`
 - **Goal**: a professional sets a client's targets within the calculator's bounds, and the client's screens know whose they are.
 - **Scope**: `packages/database/src/schemas/profile.schema.ts`, one generated migration, `packages/core/src/{controllers/Profile,domain/Nutrition}`, `apps/api/src/modules/care`, `apps/api/test`.
 - **Steps**:
   1. `target_overrides.setByProfessionalId` (nullable FK `user.id`, on delete set null).
-  2. `ProfileController.updateTargets` gains the setter: the client's own route passes nothing (and clears the column); `PATCH /care/clients/:linkId/targets` passes the professional through `withClient` (`targets`, `write`). The same `targetViolations`, the same `InputParseError` and sentence.
+  2. `ProfileController.updateTargets` gains the setter: the client's own route passes nothing (and clears the column); `PATCH /care/clients/:linkId/targets` passes the professional through `withClient` (`targets`, `write`). The same `targetViolations`, the same `InputParseError` and sentence. The `write` row goes in the same transaction as the change, through a `record` function `withClient` hands its callback, so a refused target leaves no row (amended in execution: the row written before the change stayed in the trail after a 422; this touches `controllers/Care` and `repositories/{Care,Profile}`, and `0059` gains a dated amendment).
   3. `resolveTargets`' view gains who set the override: `self`, or the professional's name. A client who changes the targets afterwards makes them their own again; the professional's overview shows that.
 - **Acceptance criteria**: PRD 7.
 - **Verification**:

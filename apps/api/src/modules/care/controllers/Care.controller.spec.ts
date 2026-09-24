@@ -23,6 +23,7 @@ import { RateLimitGuard } from '../../../shared/guards/RateLimit.guard.js';
 
 import type { CareAccessPageView, CareClientOverviewView, CareClientsView, CareLinkView } from 'core/controllers/Care';
 import type { INestApplication } from '@nestjs/common';
+import type { ResolvedTargets } from 'core/domain/Nutrition';
 import type { OutgoingEmail } from '../../email/services/index.js';
 import type { Server } from 'node:http';
 
@@ -241,12 +242,13 @@ describe('care routes', () => {
     });
 
     it('answers the professional’s reading routes 404, whatever the path, and reads nothing', async () => {
-      const calls = [jest.spyOn(CareController, 'clients'), jest.spyOn(CareController, 'overview')];
+      const calls = [jest.spyOn(CareController, 'clients'), jest.spyOn(CareController, 'overview'), jest.spyOn(CareController, 'setTargets')];
 
       const responses = [
         await request(server()).get(`/${PREFIX}/care/clients`).expect(404),
         await request(server()).get(`/${PREFIX}/care/clients/${LINK_ID}`).expect(404),
-        await request(server()).get(`/${PREFIX}/care/clients/not-a-link`).expect(404)
+        await request(server()).get(`/${PREFIX}/care/clients/not-a-link`).expect(404),
+        await request(server()).patch(`/${PREFIX}/care/clients/${LINK_ID}/targets`).send({ kcal: 1750 }).expect(404)
       ];
 
       for (const response of responses) {
@@ -320,6 +322,63 @@ describe('care routes', () => {
 
       jest.spyOn(CareController, 'overview').mockRejectedValue(new NotFoundError('Client not found'));
       const notTheirs = await request(server()).get(`/${PREFIX}/care/clients/${LINK_ID}`).expect(404);
+
+      expect(notALink.body).toEqual({ code: 'NOT_FOUND', message: 'Client not found', statusCode: 404 });
+      expect(notTheirs.body).toEqual(notALink.body);
+    });
+  });
+
+  describe('the professional setting a client’s targets', () => {
+    const TARGETS = { overrideStatus: 'applied', setBy: { kind: 'professional', name: 'Ana Dietista' } } as unknown as ResolvedTargets;
+
+    it('is a 404 for an account that is not a professional, before the body is read, and nothing is written', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+      const setTargets = jest.spyOn(CareController, 'setTargets');
+
+      // A body the pipe would refuse with 422 for a professional.
+      const refused = await request(server()).patch(`/${PREFIX}/care/clients/${LINK_ID}/targets`).send({ kcal: 'many' }).expect(404);
+
+      expect(refused.body).toMatchObject({ code: 'NOT_FOUND', statusCode: 404 });
+      expect(setTargets).not.toHaveBeenCalled();
+    });
+
+    it('sets them by the link id in the path, for the session, with the body as validated', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      const setTargets = jest.spyOn(CareController, 'setTargets').mockResolvedValue(TARGETS);
+
+      const response = await request(server()).patch(`/${PREFIX}/care/clients/${LINK_ID}/targets`).send({ kcal: 1750, proteinG: null }).expect(200);
+
+      expect(setTargets).toHaveBeenCalledTimes(1);
+      expect(setTargets).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), LINK_ID, { kcal: 1750, proteinG: null });
+      expect(response.body).toEqual(TARGETS);
+    });
+
+    it('refuses a body the client’s own route refuses, as 422, without reaching core', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      const setTargets = jest.spyOn(CareController, 'setTargets');
+
+      await request(server()).patch(`/${PREFIX}/care/clients/${LINK_ID}/targets`).send({ kcal: 100 }).expect(422);
+      expect(setTargets).not.toHaveBeenCalled();
+    });
+
+    it('answers an out-of-bounds target with core’s refusal — the same code and field errors as the client’s own', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      jest
+        .spyOn(CareController, 'setTargets')
+        .mockRejectedValue(new InputParseError('Targets out of bounds', { targets: ['El mínimo para tu perfil son 1300 kcal.'] }));
+
+      const refused = await request(server()).patch(`/${PREFIX}/care/clients/${LINK_ID}/targets`).send({ kcal: 600 }).expect(422);
+
+      expect(refused.body).toMatchObject({ code: 'INVALID_INPUT', fieldErrors: { targets: ['El mínimo para tu perfil son 1300 kcal.'] } });
+    });
+
+    it('answers a path that is not a link id, and a link that is not the caller’s, with the same 404', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+
+      const notALink = await request(server()).patch(`/${PREFIX}/care/clients/not-a-link/targets`).send({ kcal: 1750 }).expect(404);
+
+      jest.spyOn(CareController, 'setTargets').mockRejectedValue(new NotFoundError('Client not found'));
+      const notTheirs = await request(server()).patch(`/${PREFIX}/care/clients/${LINK_ID}/targets`).send({ kcal: 1750 }).expect(404);
 
       expect(notALink.body).toEqual({ code: 'NOT_FOUND', message: 'Client not found', statusCode: 404 });
       expect(notTheirs.body).toEqual(notALink.body);

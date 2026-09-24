@@ -41,6 +41,13 @@ other path to clients' data, and it keeps the same promise: in one snapshot it w
 `list` row in the trail of every client with an active link, then reads their stages, and
 returns no client id.
 
+*Amended 2026-09-24 (project 004 Phase 4):* a **write**'s row goes in the write's own
+transaction, not before it. A professional's target refused as out of bounds had left a
+`targets`/`write` row for a change that never happened. `withClient` now writes a read's
+row before the read, as before, and hands a write's callback a `record` function that the
+writing repository calls inside its transaction. The change and its row commit together or
+not at all, and a write that returns without having recorded is an error.
+
 **Every access leaves a row the client can read.** `care_access_log` is owned by the client
 (`userOwned`: it goes with the client's account), with the professional's id (set null if
 the professional's account is deleted, and their name kept, so the client's record

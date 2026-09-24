@@ -61,7 +61,12 @@ export function userOwned<T extends Column>(
  * It also states the cardinality the code already assumes. A second profile row for
  * one user would make `findByUserId` return an arbitrary one of them.
  */
-export function userOwnedSingleton<T extends Column>(tableName: string, columns: T) {
+export function userOwnedSingleton<T extends Column>(
+  tableName: string,
+  columns: T,
+  /** Indexes beyond the unique `userId` one — a second foreign key's, for the same reason as in `userOwned`. */
+  extraIndexes?: (table: Record<string, never>) => unknown[]
+) {
   return pgTable(
     tableName,
     {
@@ -72,6 +77,6 @@ export function userOwnedSingleton<T extends Column>(tableName: string, columns:
       ...columns,
       ...timestamps
     },
-    table => [unique(`${tableName}_user_id_key`).on(table.userId)]
+    table => [unique(`${tableName}_user_id_key`).on(table.userId), ...(extraIndexes?.(table as never) ?? [])] as never
   );
 }

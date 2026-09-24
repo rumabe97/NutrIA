@@ -17,9 +17,9 @@ import {
   CARE_TOKEN_PATTERN,
   careLinkIdSchema
 } from 'core/entities/Care';
-import { CareLinkExistsError, InputParseError, NotFoundError } from 'core/entities/Error';
+import { CareLinkExistsError, DatabaseOperationError, InputParseError, NotFoundError } from 'core/entities/Error';
 
-import type { LinkWithProfessional, OpenInvitation, RosterLink } from '#repositories/Care';
+import type { LinkWithProfessional, OpenInvitation, RecordAccess, RosterLink } from '#repositories/Care';
 import type {
   AcceptInvitation,
   CareAccessAction,
@@ -35,6 +35,7 @@ import type { PlanSummaryView, PlanView } from 'core/controllers/Plan';
 import type { ProgressSummaryView } from 'core/controllers/Progress';
 import type { ResolvedTargets } from 'core/domain/Nutrition';
 import type { SharedHealthView } from 'core/controllers/Health';
+import type { UpdateTargetOverride } from 'core/entities/Nutrition';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const TOKEN_BYTES = 32;
@@ -546,6 +547,25 @@ export const CareController = {
   },
 
   /**
+   * A professional sets a client's targets (PRD 004, criterion 7) — through
+   * `withClient` (`targets`, `write`), so a link that is not theirs and active
+   * is the same 404 with nothing written, and the client's trail gets its row
+   * in the same transaction as the change — a refused target leaves none.
+   *
+   * It is the client's own `ProfileController.updateTargets` with the
+   * professional as the setter: the same `targetViolations`, the same
+   * `InputParseError` with the same sentences, and the answer is the same
+   * `ResolvedTargets`, whose `setBy` now names the professional. The client's
+   * screens say whose target it is from that; a client who changes it
+   * afterwards makes it theirs again.
+   */
+  async setTargets(professional: Pick<CareSession, 'id'>, linkId: string, patch: UpdateTargetOverride): Promise<ResolvedTargets> {
+    return CareController.withClient(professional.id, linkId, 'targets', 'write', (clientId, _access, record) =>
+      ProfileController.updateTargets(clientId, patch, { professionalId: professional.id, record })
+    );
+  },
+
+  /**
    * **The only function in the codebase that turns a professional's session
    * into another account's id** (`0059`). Every read or write a professional
    * makes on a client's data goes through here, and nothing else may resolve a
@@ -561,8 +581,12 @@ export const CareController = {
    *    link that is someone else's, paused, ended, unknown or not an id is
    *    one `NotFoundError`, the 404 of every denial; nothing is written;
    * 3. the client's trail gets its row — who (the professional's id and name
-   *    as it is now), `kind`, `action` — **before** `fn` runs, so there is no
-   *    read without its row; a failure to write it fails the call;
+   *    as it is now), `kind`, `action`. A read's row goes in **before** `fn`
+   *    runs, so there is no read without its row; a failure to write it fails
+   *    the call. A write's row goes in with the change: `fn` gets `record`
+   *    and must hand it to the repository that writes, which calls it inside
+   *    the write's transaction — a refused or failed write leaves no row, and
+   *    a write that returns without having recorded is an error;
    * 4. `fn` gets the client's id, from the link row and never from the
    *    request, and the link without either account's id (`ClientAccess`), so
    *    a view built from it cannot carry one.
@@ -578,7 +602,7 @@ export const CareController = {
     // `list` is the list's own row, written by `CareRepository.roster` alone.
     kind: Exclude<CareAccessKind, 'list'>,
     action: CareAccessAction,
-    fn: (clientId: string, access: ClientAccess) => Promise<T>
+    fn: (clientId: string, access: ClientAccess, record: RecordAccess) => Promise<T>
   ): Promise<T> {
     if (!careLinkIdSchema.safeParse(linkId).success || !(await switchedOn())) {
       throw new NotFoundError('Client not found');
@@ -592,10 +616,28 @@ export const CareController = {
       throw new NotFoundError('Client not found');
     }
 
-    await CareRepository.logAccess(access.link.clientId, { action, kind, professionalId, professionalName: access.professionalName });
-
     const { clientId, professionalId: _professional, ...link } = access.link;
+    const entry = { action, kind, professionalId, professionalName: access.professionalName };
+    const view = { clientName: access.clientName, link, professionalName: access.professionalName };
 
-    return fn(clientId, { clientName: access.clientName, link, professionalName: access.professionalName });
+    if (action === 'read') {
+      await CareRepository.logAccess(clientId, entry);
+
+      return fn(clientId, view, async () => {
+        throw new DatabaseOperationError('care: a read has its row already');
+      });
+    }
+
+    let recorded = false;
+    const result = await fn(clientId, view, async tx => {
+      await CareRepository.logAccess(clientId, entry, tx);
+      recorded = true;
+    });
+
+    if (!recorded) {
+      throw new DatabaseOperationError('care: a write through withClient left no row in the trail');
+    }
+
+    return result;
   }
 };

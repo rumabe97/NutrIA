@@ -7,7 +7,7 @@ import {
   PROTEIN_CEILING_G_PER_KG,
   PROTEIN_FLOOR_G_PER_KG
 } from 'core/entities/Nutrition';
-import type { NutritionTargets, TargetOverride } from 'core/entities/Nutrition';
+import type { NutritionTargets, TargetOverride, TargetSetter } from 'core/entities/Nutrition';
 import type { ACTIVITY_LEVELS, GOAL_TYPES, SEXES } from 'core/entities/Profile';
 
 type Sex = (typeof SEXES)[number];
@@ -122,6 +122,13 @@ export type ResolvedTargets = {
    */
   readonly overrideStatus: 'applied' | 'none' | 'stale';
   readonly overrideViolations: readonly TargetViolation[];
+  /**
+   * Who set the stored override — the person, or their professional by name —
+   * so every screen can say whose target it is (PRD 004, criterion 7). Null
+   * when there is no override (`overrideStatus: 'none'`); a `stale` one still
+   * says whose it was, since it is stored and set aside, not gone.
+   */
+  readonly setBy: TargetSetter | null;
 };
 
 /**
@@ -323,7 +330,7 @@ export function resolveTargets(input: TargetInput, override: TargetOverride | nu
   const { derivation, ...computedTargets } = computed;
 
   if (!override || (override.kcal === null && override.proteinG === null && override.carbsG === null && override.fatG === null)) {
-    return { bounds, computed: computedTargets, derivation, effective: computedTargets, overrideStatus: 'none', overrideViolations: [] };
+    return { bounds, computed: computedTargets, derivation, effective: computedTargets, overrideStatus: 'none', overrideViolations: [], setBy: null };
   }
 
   const kcal = override.kcal ?? computedTargets.kcal;
@@ -342,7 +349,8 @@ export function resolveTargets(input: TargetInput, override: TargetOverride | nu
     derivation,
     effective: overrideViolations.length > 0 ? computedTargets : candidate,
     overrideStatus: overrideViolations.length > 0 ? 'stale' : 'applied',
-    overrideViolations
+    overrideViolations,
+    setBy: override.setBy
   };
 }
 

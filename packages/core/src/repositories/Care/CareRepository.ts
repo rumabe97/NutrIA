@@ -339,18 +339,21 @@ export const CareRepository = {
   /**
    * One row of the client's trail. `clientId` came from an active link that
    * `withClient` has just resolved against the professional's session — never
-   * from a request. An insert of its own, before the data is read: a read
+   * from a request.
+   *
+   * A read's row is an insert of its own, before the data is read: a read
    * without its row is the one outcome the trail exists to rule out, so a
-   * failure here fails the read.
+   * failure here fails the read. A write's row goes in the write's own
+   * transaction (`tx`), so a refused or failed write leaves no row, and a
+   * write that commits always has one.
    */
   async logAccess(
     clientId: string,
-    entry: { readonly action: CareAccessAction; readonly kind: CareAccessKind; readonly professionalId: string; readonly professionalName: string }
+    entry: { readonly action: CareAccessAction; readonly kind: CareAccessKind; readonly professionalId: string; readonly professionalName: string },
+    tx?: Transaction
   ): Promise<void> {
     try {
-      await database()
-        .insert(careAccessLog)
-        .values({ ...entry, userId: clientId });
+      await (tx ?? database()).insert(careAccessLog).values({ ...entry, userId: clientId });
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -509,6 +512,13 @@ function latestOf(
 }
 
 type Transaction = Parameters<Parameters<ReturnType<typeof database>['transaction']>[0]>[0];
+
+/**
+ * Writes a professional's `write` row into the transaction that makes the
+ * change — handed by `CareController.withClient` to its callback, and called by
+ * the repository that writes, inside its own transaction.
+ */
+export type RecordAccess = (tx: Transaction) => Promise<void>;
 
 function wrap(error: unknown): DatabaseOperationError {
   if (error instanceof ZodError) {

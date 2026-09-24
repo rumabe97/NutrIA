@@ -15,6 +15,7 @@ import type { Account } from './harness.js';
 import type { AcceptInvitation } from 'core/entities/Care';
 import type { CareInvitationDetailView, CareLinkView, CareSession } from 'core/controllers/Care';
 import type { ProfessionalAccountView } from 'core/controllers/Professional';
+import type { ResolvedTargets } from 'core/domain/Nutrition';
 import type { INestApplication } from '@nestjs/common';
 import type { OutgoingEmail } from '../src/modules/email/services/index.js';
 import type { Response } from 'supertest';
@@ -1422,6 +1423,325 @@ describe('care', () => {
         expect(await trail(leaving.id)).toEqual([]);
         // And only theirs: another client of the same professional keeps every row.
         expect((await trail(awaiting.id)).length).toBeGreaterThan(0);
+      });
+    });
+
+    /*
+     * Supervised targets (project 004 Phase 4; PRD criterion 7).
+     *
+     * The professional sets a client's targets through the link, with the
+     * client's own body, bounds and refusal. The answer — and every screen that
+     * shows the targets — says who set them by name (`setBy`), never by account
+     * id; the client changing them afterwards makes them theirs again; and a
+     * professional who deletes their account leaves the targets standing as the
+     * client's own. Every write is one `targets`/`write` row in the client's
+     * trail, and every refusal at the link writes nothing, on either table.
+     *
+     * Fresh accounts: the professionals and clients above carry state this
+     * block would otherwise have to reason around.
+     */
+    describe('a professional setting a client’s targets', () => {
+      type OverrideRow = {
+        readonly carbsG: number | null;
+        readonly fatG: number | null;
+        readonly kcal: number | null;
+        readonly proteinG: number | null;
+        readonly setByProfessionalId: string | null;
+      };
+
+      let setter: Account;
+      let otherSetter: Account;
+      let supervised: Account;
+      let otherClient: Account;
+      let endedClient: Account;
+      let pausedClient: Account;
+      /** The supervised client's targets before anybody corrected them. */
+      let computed: ResolvedTargets;
+      const targetLinks: Record<'ended' | 'other' | 'paused' | 'supervised', string> = { ended: '', other: '', paused: '', supervised: '' };
+
+      function setTargets(professional: Account, linkId: string, body: object) {
+        return request(server()).patch(`/${PREFIX}/care/clients/${linkId}/targets`).set('Cookie', professional.cookie).send(body);
+      }
+
+      function setOwnTargets(who: Account, body: object) {
+        return request(server()).patch(`/${PREFIX}/profile/targets`).set('Cookie', who.cookie).send(body);
+      }
+
+      async function ownTargets(who: Account): Promise<ResolvedTargets> {
+        const response: Response = await request(server()).get(`/${PREFIX}/profile`).set('Cookie', who.cookie).expect(200);
+
+        return (response.body as { targets: ResolvedTargets }).targets;
+      }
+
+      /** The stored override, straight from the table: the setter's id is only ever visible here. */
+      async function overrideRow(who: Account): Promise<OverrideRow | undefined> {
+        const [row] = await tables()<OverrideRow>`
+          select kcal, protein_g as "proteinG", carbs_g as "carbsG", fat_g as "fatG", set_by_professional_id as "setByProfessionalId"
+            from target_overrides
+           where user_id = ${who.id}`;
+
+        return row;
+      }
+
+      /** The targets rows in a client's trail. */
+      async function targetRows(who: Account): Promise<TrailRow[]> {
+        return (await trail(who.id)).filter(row => row.kind === 'targets');
+      }
+
+      beforeAll(async () => {
+        setter = await account('targets-pro');
+        otherSetter = await account('targets-pro-b');
+        await grant(setter);
+        await grant(otherSetter);
+
+        supervised = await account('targets-client');
+        otherClient = await account('targets-theirs');
+        endedClient = await account('targets-ended');
+        pausedClient = await account('targets-paused');
+
+        // A client with no profile has no targets to set; each of these has one, as anybody would.
+        for (const who of [supervised, otherClient, endedClient, pausedClient]) {
+          await completeOnboarding(app, who);
+        }
+
+        targetLinks.supervised = await link(setter, supervised);
+        targetLinks.ended = await link(setter, endedClient);
+        targetLinks.paused = await link(setter, pausedClient);
+        targetLinks.other = await link(otherSetter, otherClient);
+
+        await request(server()).delete(`/${PREFIX}/care/links/${targetLinks.ended}`).set('Cookie', endedClient.cookie).expect(204);
+        await tables()`update care_links set status = 'paused' where id = ${targetLinks.paused}`;
+
+        // Targets of their own on the clients the refusals are about, so "nothing written" is a row that did not move.
+        for (const who of [otherClient, endedClient, pausedClient]) {
+          await setOwnTargets(who, { proteinG: 120 }).expect(200);
+        }
+
+        computed = await ownTargets(supervised);
+        expect(computed.overrideStatus).toBe('none');
+        expect(computed.setBy).toBeNull();
+      });
+
+      it('sets them, answers with the professional’s name as the setter, and the client sees the same on their profile', async () => {
+        const target = Math.round(computed.computed.kcal) - 100;
+        const rowsBefore = (await trail(supervised.id)).length;
+
+        const response: Response = await setTargets(setter, targetLinks.supervised, { kcal: target }).expect(200);
+        const resolved = response.body as ResolvedTargets;
+
+        expect(resolved).toMatchObject({
+          effective: { kcal: target },
+          overrideStatus: 'applied',
+          setBy: { kind: 'professional', name: nameOf(setter) }
+        });
+        // Exhaustive: a name and a kind, nothing that leads to the account.
+        expect(Object.keys(resolved.setBy ?? {}).sort()).toEqual(['kind', 'name']);
+
+        // The same set the client's own route answers, key for key.
+        const mine = await ownTargets(supervised);
+
+        expect(Object.keys(resolved).sort()).toEqual(Object.keys(mine).sort());
+        expect(mine).toMatchObject({ effective: { kcal: target }, overrideStatus: 'applied', setBy: { kind: 'professional', name: nameOf(setter) } });
+        expect(await overrideRow(supervised)).toMatchObject({ kcal: target, setByProfessionalId: setter.id });
+
+        // One row, for the one write, and the client reads it in their trail.
+        const written = (await trail(supervised.id)).slice(rowsBefore);
+
+        expect(written).toEqual([
+          expect.objectContaining({ action: 'write', kind: 'targets', professionalId: setter.id, professionalName: nameOf(setter) })
+        ]);
+        expect((await accessLog(supervised)).entries[0]).toMatchObject({ action: 'write', kind: 'targets', professionalName: nameOf(setter) });
+
+        // The professional's page for the client says the same.
+        const page = (await overview(setter, targetLinks.supervised).expect(200)).body as Overview;
+
+        expect(page.targets).toMatchObject({ effective: { kcal: target }, setBy: { kind: 'professional', name: nameOf(setter) } });
+      });
+
+      it('writes exactly one `targets` row per write, and a field left out is left as it was', async () => {
+        const before = await targetRows(supervised);
+        const stored = await overrideRow(supervised);
+        const protein = Math.round(computed.computed.proteinG) + 10;
+
+        await setTargets(setter, targetLinks.supervised, { proteinG: protein }).expect(200);
+        expect(await targetRows(supervised)).toHaveLength(before.length + 1);
+
+        await setTargets(setter, targetLinks.supervised, { proteinG: protein }).expect(200);
+        expect(await targetRows(supervised)).toHaveLength(before.length + 2);
+
+        // Only `targets`/`write` rows, all the setter's.
+        for (const row of (await targetRows(supervised)).slice(before.length)) {
+          expect(row).toMatchObject({ action: 'write', kind: 'targets', professionalId: setter.id });
+        }
+
+        expect(await overrideRow(supervised)).toMatchObject({ kcal: stored?.kcal, proteinG: protein, setByProfessionalId: setter.id });
+      });
+
+      it('carries no account id or address in any answer that names the setter', async () => {
+        const answers = [
+          (await setTargets(setter, targetLinks.supervised, {}).expect(200)).body as unknown,
+          await ownTargets(supervised),
+          (await overview(setter, targetLinks.supervised).expect(200)).body as unknown,
+          (await accessLog(supervised)) as unknown
+        ];
+
+        for (const answer of answers) {
+          const body = JSON.stringify(answer);
+
+          expect(body).toContain(nameOf(setter));
+          expect(body).not.toContain(setter.id);
+          expect(body).not.toContain(setter.email);
+          expect(body).not.toContain(supervised.id);
+        }
+      });
+
+      it('refuses a figure out of bounds with the same code and field errors as the client’s own route, and stores nothing', async () => {
+        const floor = computed.bounds.floorKcal;
+        // Past the schema's 500, below the floor: refused by the bounds, not the pipe.
+        const low = Math.max(500, Math.floor(floor) - 100);
+
+        expect(low).toBeLessThan(floor);
+
+        const stored = await overrideRow(supervised);
+        const rows = (await trail(supervised.id)).length;
+        const professional: Response = await setTargets(setter, targetLinks.supervised, { kcal: low });
+        const self: Response = await setOwnTargets(supervised, { kcal: low });
+
+        expect(professional.status).toBe(422);
+        expect(self.status).toBe(422);
+        expect(professional.body).toMatchObject({ code: 'INVALID_INPUT', message: 'Targets out of bounds' });
+        // The whole answer, not only its code: the same sentences under the same key, naming the same bound.
+        expect(professional.body).toEqual(self.body);
+        expect((professional.body as { fieldErrors: { targets: string[] } }).fieldErrors.targets.join(' ')).toContain(String(Math.ceil(floor)));
+
+        // Neither refusal moved the stored targets, or whose they are.
+        expect(await overrideRow(supervised)).toEqual(stored);
+        // Nor the client's trail: a `write` row for a write that was refused would tell the client something changed.
+        expect(await trail(supervised.id)).toHaveLength(rows);
+        await expect(ownTargets(supervised)).resolves.toMatchObject({ setBy: { kind: 'professional', name: nameOf(setter) } });
+      });
+
+      it('refuses a body the client’s schema refuses, at the pipe, before the link is looked at', async () => {
+        const stored = await overrideRow(supervised);
+        const rows = (await trail(supervised.id)).length;
+
+        for (const body of [{ kcal: 100 }, { kcal: 1800.5 }, { proteinG: 'lots' }]) {
+          const professional: Response = await setTargets(setter, targetLinks.supervised, body);
+          const self: Response = await setOwnTargets(supervised, body);
+
+          expect(professional.status).toBe(422);
+          expect(self.status).toBe(422);
+          expect((professional.body as { code: string }).code).toBe((self.body as { code: string }).code);
+        }
+
+        expect(await overrideRow(supervised)).toEqual(stored);
+        expect(await trail(supervised.id)).toHaveLength(rows);
+      });
+
+      it('refuses another professional’s link, a paused or ended one, an unknown id and a non-id with one 404 that writes nothing', async () => {
+        const clients = [supervised, otherClient, endedClient, pausedClient];
+        const rowsBefore = await counts(clients);
+        const storedBefore = await Promise.all(clients.map(overrideRow));
+        const attempts: [Account, string][] = [
+          [otherSetter, targetLinks.supervised],
+          [setter, targetLinks.other],
+          [setter, targetLinks.ended],
+          [setter, targetLinks.paused],
+          [setter, NOBODYS_LINK],
+          [setter, 'not-a-link'],
+          [setter, supervised.id]
+        ];
+
+        for (const [professional, linkId] of attempts) {
+          // A valid body, so the only thing refused is the link.
+          const refused: Response = await setTargets(professional, linkId, { kcal: Math.round(computed.computed.kcal) - 50 });
+
+          expect(refused.status).toBe(404);
+          expect(refused.body).toEqual(NO_CLIENT);
+        }
+
+        expect(await counts(clients)).toEqual(rowsBefore);
+        expect(await Promise.all(clients.map(overrideRow))).toEqual(storedBefore);
+      });
+
+      it('does not exist for an account that is not a professional, for no session, or with the switch off', async () => {
+        const rows = (await trail(supervised.id)).length;
+        const stored = await overrideRow(supervised);
+        const body = { kcal: Math.round(computed.computed.kcal) - 50 };
+
+        // The client themselves, on their own link: not a professional, so no such route.
+        const asClient: Response = await setTargets(supervised, targetLinks.supervised, body);
+
+        expect(asClient.status).toBe(404);
+        expect(asClient.body).toEqual(NO_DOOR);
+        await request(server()).patch(`/${PREFIX}/care/clients/${targetLinks.supervised}/targets`).send(body).expect(404);
+
+        await setSwitch(false);
+
+        try {
+          const switchedOff: Response = await setTargets(setter, targetLinks.supervised, body);
+
+          expect(switchedOff.status).toBe(404);
+          expect(switchedOff.body).toEqual(NO_DOOR);
+          // Before any body is read: a body the schema refuses is the same 404, not a 422.
+          expect((await setTargets(setter, targetLinks.supervised, { kcal: 100 })).status).toBe(404);
+        } finally {
+          await setSwitch(true);
+        }
+
+        expect(await trail(supervised.id)).toHaveLength(rows);
+        expect(await overrideRow(supervised)).toEqual(stored);
+      });
+
+      it('becomes the client’s own when the client changes it, on both sides', async () => {
+        const own = Math.round(computed.computed.kcal) - 80;
+        const rows = (await trail(supervised.id)).length;
+
+        const response: Response = await setOwnTargets(supervised, { kcal: own }).expect(200);
+
+        expect(response.body).toMatchObject({ effective: { kcal: own }, overrideStatus: 'applied', setBy: { kind: 'self' } });
+        expect(Object.keys((response.body as ResolvedTargets).setBy ?? {})).toEqual(['kind']);
+        await expect(ownTargets(supervised)).resolves.toMatchObject({ setBy: { kind: 'self' } });
+        expect(await overrideRow(supervised)).toMatchObject({ kcal: own, setByProfessionalId: null });
+        // The client's own change is not a professional's access: no trail row for it.
+        expect(await trail(supervised.id)).toHaveLength(rows);
+
+        const page = (await overview(setter, targetLinks.supervised).expect(200)).body as Overview;
+
+        expect(page.targets).toMatchObject({ effective: { kcal: own }, setBy: { kind: 'self' } });
+      });
+
+      it('clears back to the computed figures when the professional sends every field as null', async () => {
+        const response: Response = await setTargets(setter, targetLinks.supervised, { carbsG: null, fatG: null, kcal: null, proteinG: null }).expect(
+          200
+        );
+
+        expect(response.body).toMatchObject({ effective: computed.effective, overrideStatus: 'none', setBy: null });
+        await expect(ownTargets(supervised)).resolves.toMatchObject({ overrideStatus: 'none', setBy: null });
+      });
+
+      it('reads as the client’s own once the professional who set it deletes their account, and the figures stay', async () => {
+        const leaving = await account('targets-pro-gone');
+        const kept = await account('targets-kept');
+
+        await grant(leaving);
+        await completeOnboarding(app, kept);
+
+        const linkId = await link(leaving, kept);
+        const target = Math.round((await ownTargets(kept)).computed.kcal) - 100;
+
+        await setTargets(leaving, linkId, { kcal: target }).expect(200);
+        await expect(ownTargets(kept)).resolves.toMatchObject({ setBy: { kind: 'professional', name: nameOf(leaving) } });
+
+        await request(server()).delete(`/${PREFIX}/users/me`).set('Cookie', leaving.cookie).expect(204);
+
+        // The column went null with the account; the client's targets did not go with it.
+        expect(await overrideRow(kept)).toMatchObject({ kcal: target, setByProfessionalId: null });
+        await expect(ownTargets(kept)).resolves.toMatchObject({ effective: { kcal: target }, overrideStatus: 'applied', setBy: { kind: 'self' } });
+        // And the trail still says who wrote it, by the name they had.
+        expect(await targetRows(kept)).toEqual([
+          expect.objectContaining({ action: 'write', professionalId: null, professionalName: nameOf(leaving) })
+        ]);
       });
     });
   });

@@ -1,4 +1,4 @@
-import { date, integer, jsonb, numeric, smallint, text, time, timestamp } from 'drizzle-orm/pg-core';
+import { date, index, integer, jsonb, numeric, smallint, text, time, timestamp } from 'drizzle-orm/pg-core';
 
 import { activityLevel, budgetTier, cookingFrequency, dietaryPattern, goalType, sentiment, sex, supplementKind } from './_enums';
 
@@ -11,6 +11,7 @@ import { activityLevel, budgetTier, cookingFrequency, dietaryPattern, goalType, 
 type MealSize = 'large' | 'light' | 'normal' | 'off';
 
 type MealShape = Record<'afternoon_snack' | 'breakfast' | 'dinner' | 'lunch' | 'morning_snack' | 'supper', MealSize>;
+import { user } from './auth.schema';
 import { userOwned, userOwnedSingleton } from './_utils';
 
 /**
@@ -100,14 +101,29 @@ export const onboardingState = userOwnedSingleton('onboarding_state', {
  * Only kcal and the three macros: fibre follows from the calorie figure and
  * nobody has an opinion about it worth a column.
  */
-export const targetOverrides = userOwnedSingleton('target_overrides', {
-  carbsG: smallint(),
-  fatG: smallint(),
-  kcal: integer(),
-  /** When the user last changed it, so the profile can say whose number this is. */
-  overriddenAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  proteinG: smallint()
-});
+export const targetOverrides = userOwnedSingleton(
+  'target_overrides',
+  {
+    carbsG: smallint(),
+    fatG: smallint(),
+    kcal: integer(),
+    /** When the user last changed it, so the profile can say whose number this is. */
+    overriddenAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    proteinG: smallint(),
+    /**
+     * The professional who set these targets for their client (PRD 004, criterion 7),
+     * or null when the client set them — every write from the client's own side
+     * clears it, so a client who changes the targets afterwards makes them theirs.
+     *
+     * Set null, not cascaded, when the professional's account is deleted: the
+     * client's targets are the client's data and stay; they then read as the
+     * client's own, because there is nobody left to name.
+     */
+    setByProfessionalId: text().references(() => user.id, { onDelete: 'set null', onUpdate: 'cascade' })
+  },
+  // What deleting an account sets null by.
+  table => [index('target_overrides_set_by_professional_id_idx').on(table.setByProfessionalId)]
+);
 
 /**
  * Health data, collected as health data.
