@@ -55,7 +55,17 @@ export const UNINDEXED_PATHS: readonly PagePath[] = ['/pendiente', '/recuperar',
  * spends no crawl budget discovering that. Prefix matching does the rest:
  * `/plan` covers `/plan/historial` and every meal under it.
  */
-export const PRIVATE_PATHS: readonly PagePath[] = ['/admin', '/check-in', '/compra', '/inicio', '/onboarding', '/perfil', '/plan', '/progreso'];
+export const PRIVATE_PATHS: readonly PagePath[] = [
+  '/admin',
+  '/check-in',
+  '/compra',
+  '/inicio',
+  '/invitacion',
+  '/onboarding',
+  '/perfil',
+  '/plan',
+  '/progreso'
+];
 
 /**
  * What `robots.txt` closes.

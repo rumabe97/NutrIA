@@ -1,8 +1,11 @@
+import { Fragment } from 'react';
+
 import { getDictionary } from 'i18n/server';
 
 import { CtaLink } from 'components/CtaLink';
 import { EmptyState } from 'components/EmptyState';
 import { PlanBrowser } from 'components/PlanBrowser';
+import { PlanPendingNotice } from 'components/PlanPendingNotice';
 
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
 import { serverApi } from 'lib/server-api';
@@ -31,20 +34,37 @@ export default async function PlanPage() {
     serverApi<readonly EventView[]>('/events')
   ]);
 
+  const notice = (
+    <PlanPendingNotice
+      body={dictionary.plan.pendingReviewBody}
+      currentPlanId={plan?.id ?? null}
+      heading={false}
+      title={dictionary.plan.pendingReviewTitle}
+    />
+  );
+
   if (plan) {
     // Adding an event to a plan under way is premium's alone (`0043` left the
     // rebuild out; the paid tier buys it). Free sees nothing — no upsell, no
     // disabled control — which is why the standing is null rather than zero.
     const midPlan = allowances?.tier === 'premium' ? (allowances.events?.midPlan ?? null) : null;
 
-    return <PlanBrowser events={events ?? []} midPlan={midPlan} plan={plan} redo={allowances?.planRedo ?? null} />;
+    return (
+      <Fragment>
+        {notice}
+        <PlanBrowser events={events ?? []} midPlan={midPlan} plan={plan} redo={allowances?.planRedo ?? null} />
+      </Fragment>
+    );
   }
 
   return (
-    <EmptyState body={dictionary.plan.emptyBody} title={dictionary.plan.emptyTitle}>
-      <CtaLink href="/plan/generando" size="lg">
-        {dictionary.plan.createCta}
-      </CtaLink>
-    </EmptyState>
+    <Fragment>
+      {notice}
+      <EmptyState body={dictionary.plan.emptyBody} title={dictionary.plan.emptyTitle}>
+        <CtaLink href="/plan/generando" size="lg">
+          {dictionary.plan.createCta}
+        </CtaLink>
+      </EmptyState>
+    </Fragment>
   );
 }

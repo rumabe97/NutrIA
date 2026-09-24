@@ -19,7 +19,7 @@ const SESSION_COOKIE = 'better-auth.session_token';
 // Written without a language segment and matched against the stripped path, so
 // each route is named once and `/en/inicio` is as protected as `/inicio`. `/en`
 // is a language, not a route, and must never match any of these.
-const PROTECTED = ['/admin', '/compra', '/inicio', '/onboarding', '/pendiente', '/perfil', '/plan', '/progreso'];
+const PROTECTED = ['/admin', '/compra', '/inicio', '/invitacion', '/onboarding', '/pendiente', '/perfil', '/plan', '/progreso'];
 const AUTH_ROUTES = ['/acceder', '/registro'];
 
 export function proxy(request: NextRequest): NextResponse {

@@ -15,6 +15,7 @@ import { EventPlanner } from 'components/EventPlanner';
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatDate, interpolate } from 'lib/format';
 import { generationError, stepLabel } from 'lib/generation';
+import { markPendingReview } from 'lib/pendingReview';
 
 import type { EventAllowance } from 'components/EventPlanner';
 import type { EventView } from 'core/controllers/Event';
@@ -74,6 +75,11 @@ export function GenerationProgress({ allowance, events }: GenerationProgressProp
     setFatal(undefined);
     setPhase({ kind: 'starting' });
 
+    // Read before the job exists, so that if it comes back pending review
+    // there is something to tell "still waiting" apart from "published" —
+    // neither `/care/links/me` nor `/meal-plans/active` says which on its own.
+    const before = await api<{ id: string } | null>('/meal-plans/active').catch(() => null);
+
     let job: JobView;
 
     try {
@@ -105,7 +111,17 @@ export function GenerationProgress({ allowance, events }: GenerationProgressProp
       }
 
       if (current.status === 'succeeded') {
-        router.push('/plan');
+        // Nothing new to see at `/plan` while it waits for review — `planId`
+        // is null for this reader on purpose (`presentJob`, `0060`) — so the
+        // screen that has something to show is `/inicio`, with the calm
+        // notice `markPendingReview` makes possible there and on `/plan`.
+        if (current.pendingReview) {
+          markPendingReview(before?.id ?? null);
+          router.push('/inicio');
+        } else {
+          router.push('/plan');
+        }
+
         router.refresh();
 
         return;
