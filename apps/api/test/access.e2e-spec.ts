@@ -3,7 +3,7 @@ import request from 'supertest';
 
 import { UserController } from 'core/controllers/User';
 
-import { createApp, httpServer, PREFIX, ScriptedAiClient } from './harness.js';
+import { createApp, deleteAccounts, httpServer, PREFIX, ScriptedAiClient } from './harness.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
@@ -24,6 +24,8 @@ const PASSWORD = 'correct-horse-battery-staple-9';
 describe('access: two locks, and the shape of a denial', () => {
   let app: INestApplication;
   let stamp: number;
+  /** Every account this suite signed up, so `afterAll` can delete each one — `locks-delete` deletes itself and is not added twice. */
+  const made: string[] = [];
 
   async function signUp(email: string): Promise<string> {
     const server = httpServer(app);
@@ -31,8 +33,11 @@ describe('access: two locks, and the shape of a denial', () => {
     await request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: 'Test', password: PASSWORD }).expect(200);
 
     const signIn: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: PASSWORD }).expect(200);
+    const cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
 
-    return (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
+    made.push(cookie);
+
+    return cookie;
   }
 
   const code = (response: Response) => (response.body as { code?: string }).code;
@@ -43,6 +48,7 @@ describe('access: two locks, and the shape of a denial', () => {
   });
 
   afterAll(async () => {
+    await deleteAccounts(app, made);
     await app?.close();
   });
 

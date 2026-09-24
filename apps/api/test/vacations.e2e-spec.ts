@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
-import { completeOnboarding, createApp, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import { completeOnboarding, createApp, deleteAccounts, generateAndWait, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
 
 import type { Account } from './harness.js';
 import type { INestApplication } from '@nestjs/common';
@@ -30,6 +30,8 @@ describe('vacations', () => {
   let account: Account;
   let stranger: Account;
   let before: PlanView;
+  /** Every account this suite registered, so `afterAll` can delete each one. */
+  const made: string[] = [];
 
   const activePlan = async (who: Account): Promise<PlanView> => {
     const response: Response = await request(httpServer(app)).get(`/${PREFIX}/meal-plans/active`).set('Cookie', who.cookie).expect(200);
@@ -43,7 +45,9 @@ describe('vacations', () => {
     const stamp = Date.now();
 
     account = await register(app, `vacation-${stamp}@e2e.invalid`);
+    made.push(account.cookie);
     stranger = await register(app, `vacation-other-${stamp}@e2e.invalid`);
+    made.push(stranger.cookie);
     await completeOnboarding(app, account);
 
     const job = await generateAndWait(app, account);
@@ -53,6 +57,7 @@ describe('vacations', () => {
   });
 
   afterAll(async () => {
+    await deleteAccounts(app, made);
     await app?.close();
   });
 
@@ -224,6 +229,9 @@ describe('vacations', () => {
   it('applies a trip declared before the plan existed, when the plan is made', async () => {
     const stamp = Date.now();
     const traveller = await register(app, `vacation-first-${stamp}@e2e.invalid`);
+
+    made.push(traveller.cookie);
+
     const today = new Date().toISOString().slice(0, 10);
     const startsOn = addDays(today, 2);
 

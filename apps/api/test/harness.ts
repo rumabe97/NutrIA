@@ -346,6 +346,50 @@ export async function generateAndWait(app: INestApplication, account: Account, t
   throw new Error('Generation did not finish within the timeout');
 }
 
+/**
+ * Deletes every account a suite made, through the product's own path
+ * (`DELETE /users/me`) — the same door `care.e2e-spec.ts` and
+ * `billing.e2e-spec.ts` use.
+ *
+ * One shared loop so a suite's `afterAll` is a single call rather than its own
+ * copy of this, and so a suite that fails mid-test still deletes whatever it
+ * had registered by then. Not `.expect(204)`: an account a test already
+ * deleted itself is a 404 here, and that is not this loop's failure to report.
+ */
+export async function deleteAccounts(app: INestApplication, cookies: readonly string[]): Promise<void> {
+  const server = httpServer(app);
+
+  for (const cookie of cookies) {
+    await request(server).delete(`/${PREFIX}/users/me`).set('Cookie', cookie);
+  }
+}
+
+/**
+ * Deletes an account a suite never kept a cookie for — signed up (so it exists
+ * to clean up) but never signed in, or signed in outside `register()`. Signs
+ * in with the password every suite in this directory registers with, then
+ * deletes through the same route `deleteAccounts` uses.
+ *
+ * A direct SQL delete would work too, but this is the product's own path, and
+ * `DELETE /users/me` is `@AllowUnverified()` — reachable by a session whatever
+ * state its two locks are in, which is why signing in first is always enough.
+ *
+ * Silently returns when the sign-in fails: the account is already gone, which
+ * a second cleanup run against the same database must tolerate.
+ */
+export async function deleteAccountByEmail(app: INestApplication, email: string, password = 'correct-horse-battery-staple-9'): Promise<void> {
+  const server = httpServer(app);
+  const signIn: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password });
+
+  if (signIn.status !== 200) {
+    return;
+  }
+
+  const cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
+
+  await request(server).delete(`/${PREFIX}/users/me`).set('Cookie', cookie);
+}
+
 /** Sets the account's language. Everything server-side reads it from the profile. */
 export async function setLocale(app: INestApplication, account: Account, locale: string): Promise<void> {
   await request(httpServer(app)).patch(`/${PREFIX}/profile`).set('Cookie', account.cookie).send({ locale }).expect(200);
