@@ -31,4 +31,24 @@ describe('StripeGateway', () => {
     expect(new StripeGateway({ ...ENV, STRIPE_WEBHOOK_SECRET: undefined } as Env).configured).toBe(false);
     expect(new StripeGateway({ ...ENV, STRIPE_SECRET_KEY: 'sk_live_key' } as Env).testMode).toBe(false);
   });
+
+  it('lists every subscription of a customer, page after page', async () => {
+    const gateway = new StripeGateway(ENV);
+    const asked: unknown[] = [];
+    const pages = [
+      { data: [{ id: 'sub_1', status: 'active' }], has_more: true },
+      { data: [{ id: 'sub_2', status: 'trialing' }], has_more: false }
+    ];
+
+    Object.assign(gateway, { client: { subscriptions: { list: (params: unknown) => (asked.push(params), Promise.resolve(pages[asked.length - 1])) } } });
+
+    await expect(gateway.subscriptionsOf('cus_1')).resolves.toEqual([
+      { id: 'sub_1', status: 'active' },
+      { id: 'sub_2', status: 'trialing' }
+    ]);
+    expect(asked).toEqual([
+      { customer: 'cus_1', limit: 100 },
+      { customer: 'cus_1', limit: 100, starting_after: 'sub_1' }
+    ]);
+  });
 });

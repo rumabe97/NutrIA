@@ -9,6 +9,14 @@ import type { PriceView, SubscriptionRecord } from 'core/controllers/Billing';
 
 /** How long a price is trusted before it is asked for again. It changes when the owner changes it, which is rarely. */
 const PRICE_TTL_MS = 60 * 60 * 1000;
+/**
+ * How long one call to Stripe may take. The webhook asks Stripe with an
+ * account's row locked, so a hung call is a lock held: this bounds it well
+ * below the SDK's default of 80 seconds.
+ */
+const STRIPE_TIMEOUT_MS = 15_000;
+/** Stripe's page size ceiling for a list. */
+const PAGE = 100;
 
 /** A subscription as Stripe describes it now, with the account it was opened for when Stripe was told. */
 export type SubscriptionSnapshot = SubscriptionRecord & { readonly customerId: string; readonly userIdHint: string | null };
@@ -57,9 +65,14 @@ export class StripeGateway {
   }
 
   private stripe(): Stripe {
-    this.client ??= new Stripe(this.env.STRIPE_SECRET_KEY ?? '');
+    this.client ??= new Stripe(this.env.STRIPE_SECRET_KEY ?? '', { timeout: STRIPE_TIMEOUT_MS });
 
     return this.client;
+  }
+
+  /** Ends a subscription now, not at the end of the period: nothing more is charged. */
+  async cancel(subscriptionId: string): Promise<void> {
+    await this.stripe().subscriptions.cancel(subscriptionId);
   }
 
   async checkoutUrl(request: CheckoutRequest): Promise<string> {
@@ -97,6 +110,28 @@ export class StripeGateway {
       return this.stripe().webhooks.constructEvent(payload, signature, this.env.STRIPE_WEBHOOK_SECRET ?? '');
     } catch {
       return null;
+    }
+  }
+
+  /**
+   * Every subscription this customer has at Stripe that Stripe still lists by
+   * default — all but the cancelled ones — with its status. All of them, not
+   * the one the account's row names: two checkouts finished in two tabs are
+   * two subscriptions, and both charge.
+   */
+  async subscriptionsOf(customerId: string): Promise<{ readonly id: string; readonly status: string }[]> {
+    const found: { readonly id: string; readonly status: string }[] = [];
+    let after: string | undefined;
+
+    for (;;) {
+      const page = await this.stripe().subscriptions.list({ customer: customerId, limit: PAGE, ...(after ? { starting_after: after } : {}) });
+
+      found.push(...page.data.map(subscription => ({ id: subscription.id, status: subscription.status })));
+      after = page.data.at(-1)?.id;
+
+      if (!page.has_more || !after) {
+        return found;
+      }
     }
   }
 

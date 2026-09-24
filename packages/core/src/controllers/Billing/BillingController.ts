@@ -1,6 +1,6 @@
 import { BillingRepository } from '#repositories/Billing';
 import { UserRepository } from '#repositories/User';
-import { paysForPremium } from 'core/domain/Billing';
+import { paysForPremium, replacesStored } from 'core/domain/Billing';
 
 import type { SubscriptionRecord } from '#repositories/Billing';
 
@@ -34,16 +34,32 @@ export const BillingController = {
   /**
    * Stripe's word on a subscription becomes the tier (`0056`).
    *
-   * The webhook is the only caller, with a subscription it has just fetched
-   * from Stripe rather than the one inside the event, so the order events
-   * arrive in cannot leave an old state standing. Resolves to the tier written.
+   * The webhook is the only caller. `latest` asks Stripe for the subscription
+   * and is called with the account locked, just before the write, so of two
+   * deliveries for one account the one that writes last also asked last: the
+   * order their answers come back in cannot leave an old state standing. What
+   * it answers is written only if it may replace what is stored
+   * (`replacesStored`).
+   *
+   * Resolves to the tier written, `kept` when Stripe's answer was older than
+   * what is stored, or `absent` when the account does not exist — deleted, or
+   * never this product's — and then nothing is written and Stripe is not asked.
    */
-  async applySubscription(userId: string, record: SubscriptionRecord): Promise<'free' | 'premium'> {
-    const tier = paysForPremium(record.status) ? 'premium' : 'free';
+  async applySubscription(userId: string, latest: () => Promise<SubscriptionRecord>): Promise<'absent' | 'free' | 'kept' | 'premium'> {
+    let tier: 'free' | 'premium' = 'free';
+    const outcome = await BillingRepository.recordSubscription(userId, async stored => {
+      const record = await latest();
 
-    await BillingRepository.recordSubscription(userId, record, tier);
+      if (!replacesStored(stored, record)) {
+        return null;
+      }
 
-    return tier;
+      tier = paysForPremium(record.status) ? 'premium' : 'free';
+
+      return { record, tier };
+    });
+
+    return outcome === 'written' ? tier : outcome;
   },
 
   async customerOf(userId: string): Promise<string | null> {
