@@ -10,8 +10,11 @@ import { vacationSchema } from 'core/entities/Vacation';
 
 import type { PlanVacation, Vacation } from 'core/entities/Vacation';
 
-/** Plans a pause may still move. A finished plan is history and history does not move (`0021`). */
-const MOVABLE = ['active', 'draft', 'generating'] as const;
+/**
+ * Plans a pause may still move. A finished plan is history and history does not move (`0021`).
+ * A plan waiting for review (`0060`) is a fortnight still to be lived, so a trip moves it too.
+ */
+const MOVABLE = ['active', 'draft', 'generating', 'pending_review'] as const;
 
 export const VacationRepository = {
   /**

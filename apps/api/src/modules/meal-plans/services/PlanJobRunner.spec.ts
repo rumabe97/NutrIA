@@ -10,7 +10,7 @@ import type { ErrorReporter } from '../../../shared/observability/index.js';
 import type { PlanGenerationService } from './PlanGeneration.service.js';
 import type { RecipeIllustrator } from '../../ai/services/RecipeIllustrator.service.js';
 
-const JOB = { id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null };
+const JOB = { id: 'job-1', error: null, errorDetail: null, pendingReview: false, planId: null, status: 'queued', step: null };
 
 /** The runner deliberately does not await its own work; let the microtask queue drain. */
 async function settle(): Promise<void> {

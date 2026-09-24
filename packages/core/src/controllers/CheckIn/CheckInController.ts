@@ -77,7 +77,9 @@ export const CheckInController = {
   /**
    * Whether a check-in is due: the latest plan has reached its last day and has
    * none yet. The latest plan rather than the active one, so a fortnight can
-   * still be closed after the next one was generated.
+   * still be closed after the next one was generated. A plan waiting for a
+   * professional's review is not in the chain (`findChain` leaves it out,
+   * `0060`): the client has not seen it, so it is not the fortnight they close.
    */
   async status(userId: string): Promise<CheckInStatusView> {
     const [latest] = await PlanRepository.findChain(userId);
@@ -112,6 +114,7 @@ export const CheckInController = {
    * check-in, and that refusal happens before any of it.
    */
   async submit(userId: string, input: SubmitCheckIn): Promise<CheckInResultView> {
+    // A plan under review is not found here either (`0060`).
     const plan = await PlanRepository.findById(userId, input.planId);
 
     if (!plan) {

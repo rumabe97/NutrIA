@@ -7,11 +7,16 @@ import { BackgroundTaskService } from '../../../shared/services/index.js';
 import { careInvitationEmail } from '../../email/templates/CareInvitation.js';
 import { EmailService, recipientLocale } from '../../email/services/index.js';
 import { ENV } from '../../../config/index.js';
+import { MealSwapService, PlanJobRunner } from '../../meal-plans/index.js';
 
-import type { AcceptInvitationDto, InviteClientDto, SetClientTargetsDto } from '../dto/in/index.js';
+import type { AcceptInvitationDto, InviteClientDto, SetClientReviewDto, SetClientTargetsDto, SwapClientMealDto } from '../dto/in/index.js';
 import type {
   CareAccessPageDto,
+  CareClientJobDto,
+  CareClientLinkDto,
+  CareClientMealDto,
   CareClientOverviewDto,
+  CareClientPlanDto,
   CareClientsDto,
   CareClientTargetsDto,
   CareInvitationDetailDto,
@@ -32,7 +37,9 @@ export class CareService {
   constructor(
     @Inject(ENV) private readonly env: Env,
     private readonly background: BackgroundTaskService,
-    private readonly email: EmailService
+    private readonly email: EmailService,
+    private readonly runner: PlanJobRunner,
+    private readonly swaps: MealSwapService
   ) {}
 
   async accept(user: SessionUser, token: string, body: AcceptInvitationDto): Promise<CareLinkDto> {
@@ -53,6 +60,14 @@ export class CareService {
 
   async end(user: SessionUser, linkId: string): Promise<void> {
     await CareController.end(user, linkId);
+  }
+
+  /**
+   * Through `CareController.generatePlan`: the client's id reaches the runner
+   * only inside `withClient`, with the write's `record` (`0060`).
+   */
+  async generatePlan(professional: SessionUser, linkId: string): Promise<CareClientJobDto> {
+    return CareController.generatePlan(professional, linkId, (clientId, record) => this.runner.start(clientId, record));
   }
 
   async invitation(user: SessionUser, token: string): Promise<CareInvitationDetailDto> {
@@ -79,6 +94,35 @@ export class CareService {
   /** Through `CareController.withClient`, inside the core call: the client's id never reaches this app. */
   async overview(professional: SessionUser, linkId: string, locale: string | null): Promise<CareClientOverviewDto> {
     return CareController.overview(professional, linkId, locale);
+  }
+
+  async pendingPlan(professional: SessionUser, linkId: string, locale: string | null): Promise<CareClientPlanDto | null> {
+    return CareController.pendingPlan(professional, linkId, locale);
+  }
+
+  async planJob(professional: SessionUser, linkId: string, jobId: string): Promise<CareClientJobDto> {
+    return CareController.planJob(professional, linkId, jobId);
+  }
+
+  async publishPlan(professional: SessionUser, linkId: string, locale: string | null): Promise<CareClientPlanDto> {
+    return CareController.publishPlan(professional, linkId, locale);
+  }
+
+  async setReview(professional: SessionUser, linkId: string, body: SetClientReviewDto): Promise<CareClientLinkDto> {
+    return CareController.setReview(professional, linkId, body);
+  }
+
+  /** Through `CareController.swapPendingMeal`: the client's own swap, on the plan under review only (`0060`). */
+  async swapMeal(
+    professional: SessionUser,
+    linkId: string,
+    mealId: string,
+    locale: string | null,
+    body: SwapClientMealDto
+  ): Promise<CareClientMealDto> {
+    return CareController.swapPendingMeal(professional, linkId, mealId, (clientId, record) =>
+      this.swaps.swap(clientId, mealId, locale, body.axis, { record })
+    );
   }
 
   /** Through `CareController.withClient` too: the professional as the setter, the client's own bounds. */

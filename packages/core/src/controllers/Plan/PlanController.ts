@@ -18,6 +18,7 @@ import type { AiCallRecord, Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft
 import type { CountedStanding, MealSwapStanding, PlanRedoStanding, Tier } from 'core/domain/Allowance';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PlanWindow } from 'core/domain/Event';
+import type { RecordAccess } from '#repositories/Care';
 
 // --- Presenters ---------------------------------------------------------------
 
@@ -157,9 +158,37 @@ export interface JobView {
   error: string | null;
   /** The provider's own redacted message, when there was one. Diagnostic, not copy. */
   errorDetail: string | null;
+  /** Whether the plan this job made is waiting for a professional's review. False for everybody else. */
+  pendingReview: boolean;
+  /**
+   * The plan the job made, or null — **null for its client while that plan is
+   * waiting for their professional's review** (`0060`): the screen says the
+   * plan is with their dietitian instead of sending them to it. The
+   * professional's own job route carries the id.
+   */
   planId: string | null;
   status: string;
   step: string | null;
+}
+
+type JobRow = NonNullable<Awaited<ReturnType<typeof PlanJobRepository.findById>>>;
+
+/** A job as its reader may see it: a client is never handed the id of a plan under review (`0060`). */
+function presentJob(
+  job: Omit<JobRow, 'planStatus'> & { readonly planStatus?: string | null },
+  reader: 'client' | 'professional' = 'client'
+): JobView {
+  const pendingReview = job.planStatus === 'pending_review';
+
+  return {
+    id: job.id,
+    error: job.error,
+    errorDetail: job.errorDetail,
+    pendingReview,
+    planId: pendingReview && reader === 'client' ? null : job.planId,
+    status: job.status,
+    step: job.step
+  };
 }
 
 type MealRow = Awaited<ReturnType<typeof PlanRepository.findDaysWithMeals>>[number]['meals'][number];
@@ -195,10 +224,14 @@ export const PlanController = {
   async allowances(userId: string): Promise<AllowancesView> {
     const [active, chain, tier] = await Promise.all([
       PlanRepository.findActive(userId),
-      PlanRepository.findChain(userId),
+      PlanRepository.findChain(userId, true),
       PlanController.tierOf(userId)
     ]);
-    const fromActive = active ? chain.filter(plan => plan.version <= active.version) : [];
+    // A plan waiting for review (`0060`) is the fortnight a redo would redo: it
+    // was generated, and what it spent is spent, whether or not it is published.
+    // Nobody unlinked ever has one, so for them this is the active plan, as before.
+    const current = chain.find(plan => plan.status === 'pending_review') ?? active;
+    const fromActive = current ? chain.filter(plan => plan.version <= current.version) : [];
     const today = isoToday();
     const [swaps, events] = await Promise.all([
       active ? PlanRepository.countSwaps(active.id) : 0,
@@ -215,14 +248,14 @@ export const PlanController = {
         remaining: events.remaining
       },
       mealSwaps: mealSwapStanding(swaps, tier),
-      planRedo: planRedoStanding(active ? { endDate: active.endDate } : undefined, redosInFortnight(fromActive), today, tier),
+      planRedo: planRedoStanding(current ? { endDate: current.endDate } : undefined, redosInFortnight(fromActive), today, tier),
       tier
     };
   },
 
-  /** Owner-scoped, like `getPlan`; the plan's meals as the swap sees them. */
-  async composition(userId: string, planId: string): Promise<readonly MealCompositionView[]> {
-    const plan = await PlanRepository.findById(userId, planId);
+  /** Owner-scoped, like `getPlan`; the plan's meals as the swap sees them. A plan under review only with `withPending` (`0060`). */
+  async composition(userId: string, planId: string, withPending = false): Promise<readonly MealCompositionView[]> {
+    const plan = await PlanRepository.findById(userId, planId, withPending);
 
     if (!plan) {
       throw new NotFoundError('Plan not found');
@@ -304,18 +337,38 @@ export const PlanController = {
     return day;
   },
 
-  async getJob(userId: string, jobId: string): Promise<JobView> {
+  /**
+   * One generation of theirs. `reader` is who asks: the client by default,
+   * who is not handed a plan under review; `professional` only from
+   * `CareController`, through `withClient`.
+   */
+  async getJob(userId: string, jobId: string, reader: 'client' | 'professional' = 'client'): Promise<JobView> {
     const job = await PlanJobRepository.findById(userId, jobId);
 
     if (!job) {
       throw new NotFoundError('Job not found');
     }
 
-    return { id: job.id, error: job.error, errorDetail: job.errorDetail, planId: job.planId, status: job.status, step: job.step };
+    return presentJob(job, reader);
   },
 
-  async getMeal(userId: string, mealId: string, locale: string | null = null): Promise<MealDetailView> {
-    return loadMealDetail(userId, mealId, locale);
+  /** A meal of theirs. A meal of a plan under review only with `withPending` (`0060`). */
+  async getMeal(userId: string, mealId: string, locale: string | null = null, withPending = false): Promise<MealDetailView> {
+    return loadMealDetail(userId, mealId, locale, withPending);
+  },
+
+  /**
+   * The plan waiting for review (`0060`), or null. Only a professional's read
+   * through `CareController.withClient` asks for it; `locale` is the reader's.
+   */
+  async getPendingPlan(userId: string, locale: string | null = null): Promise<PlanView | null> {
+    const plan = await PlanRepository.findPending(userId);
+
+    if (!plan) {
+      return null;
+    }
+
+    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
   },
 
   /** Owner-scoped. A plan belonging to someone else is simply not found. */
@@ -377,15 +430,42 @@ export const PlanController = {
     });
   },
 
-  /** The meal a swap is anchored on, owner-scoped; a meal that is not theirs is not found. */
-  async mealForSwap(userId: string, mealId: string) {
-    const found = await PlanRepository.findMealForSwap(userId, mealId);
+  /** The meal a swap is anchored on, owner-scoped; a meal that is not theirs — or is under review, without `withPending` — is not found. */
+  async mealForSwap(userId: string, mealId: string, withPending = false) {
+    const found = await PlanRepository.findMealForSwap(userId, mealId, withPending);
 
     if (!found) {
       throw new NotFoundError('Meal not found');
     }
 
     return found;
+  },
+
+  /**
+   * The swaps one plan still allows (`0015`), counted on that plan — what a
+   * professional's swap on the plan under review spends (`0060`), since
+   * `allowances` counts the active plan's.
+   */
+  async mealSwapStanding(userId: string, planId: string): Promise<MealSwapStanding> {
+    const [swaps, tier] = await Promise.all([PlanRepository.countSwaps(planId), PlanController.tierOf(userId)]);
+
+    return mealSwapStanding(swaps, tier);
+  },
+
+  /**
+   * Publishes the plan waiting for review (`0060`): the active plan completed,
+   * this one active, the professional's trail row with them — one
+   * transaction, `PlanRepository.publish`. Nothing pending is a
+   * `NotFoundError`. Answers the plan as the client will now see it.
+   */
+  async publish(userId: string, record: RecordAccess, locale: string | null = null): Promise<PlanView> {
+    const planId = await PlanRepository.publish(userId, record);
+
+    if (!planId) {
+      throw new NotFoundError('Plan not found');
+    }
+
+    return PlanController.getPlan(userId, planId, locale);
   },
 
   /**
@@ -463,14 +543,17 @@ export const PlanController = {
       readonly servings: number;
       readonly source: 'library' | 'model';
     },
-    shoppingItems: readonly ShoppingItemDraft[]
+    shoppingItems: readonly ShoppingItemDraft[],
+    // A professional's swap on the plan under review, with its trail row (`0060`).
+    review?: { readonly record: RecordAccess }
   ): Promise<void> {
     await assertNotPaused(userId);
     await PlanRepository.swapMeal(
       userId,
       mealId,
       { ...change, limit: allowancesFor(await PlanController.tierOf(userId)).mealSwapsPerPlan },
-      shoppingItems
+      shoppingItems,
+      review
     );
   },
 
@@ -563,9 +646,14 @@ export const PlanJobController = {
     await PlanJobRepository.markSucceeded(jobId, planId);
   },
 
-  /** The single write path for a generated plan. Atomic; see `PlanRepository`. */
+  /**
+   * The single write path for a generated plan. Atomic; see `PlanRepository`.
+   * With the `professional` switch on, a linked client's plan may wait for
+   * review (`0060`) — the link itself is read inside the plan's transaction.
+   */
   async persist(userId: string, draft: PlanDraft): Promise<string> {
-    const planId = await PlanRepository.createPlanAtomically(userId, draft);
+    const { professional } = await SettingsController.flags();
+    const planId = await PlanRepository.createPlanAtomically(userId, draft, professional);
 
     /*
      * Generation lays a fortnight out from today, one day after another, because
@@ -583,13 +671,38 @@ export const PlanJobController = {
     await PlanJobRepository.recordAiCalls(jobId, calls);
   },
 
-  /** Refuses a second concurrent generation, after clearing anything a restart abandoned. */
-  async start(userId: string): Promise<JobView> {
+  /**
+   * Refuses a second concurrent generation, after clearing anything a restart abandoned.
+   *
+   * `record` is a professional's generation for their client (`0060`), through
+   * `CareController.withClient`: the same allowance, checked inside the claim's
+   * transaction together with the trail row, so a refused generation leaves no
+   * job and no row. Without it, the path below is the client's own, unchanged.
+   */
+  async start(userId: string, record?: RecordAccess): Promise<JobView> {
     // Adopt before failing: a job whose plan committed did not fail, whatever its
     // row says, and marking it abandoned would discard a plan the user already
     // has — and charge them a second generation to get it back.
     await PlanJobRepository.adoptCompleted(userId);
     await PlanJobRepository.failStale(userId);
+
+    if (record) {
+      const claimed = await PlanJobRepository.claim(userId, async tx => {
+        const { planRedo } = await PlanController.allowances(userId);
+
+        if (!planRedo.allowed) {
+          throw new QuotaExceededError('plan_redo', planRedo.nextAt);
+        }
+
+        await record(tx);
+      });
+
+      if (!claimed) {
+        throw new ConflictError('A plan is already being generated');
+      }
+
+      return presentJob(claimed);
+    }
 
     // The claim is the refusal: "is one in flight?" and "start one" are a single
     // atomic step in `claim`, because asked as two they both answered *no* to
@@ -622,7 +735,7 @@ export const PlanJobController = {
       throw error;
     }
 
-    return { id: job.id, error: job.error, errorDetail: job.errorDetail, planId: job.planId, status: job.status, step: job.step };
+    return presentJob(job);
   }
 };
 
@@ -705,12 +818,15 @@ async function localeFor(userId: string, requested: string | null): Promise<stri
   return requested ?? (await ProfileRepository.findByUserId(userId))?.locale ?? FALLBACK_LOCALE;
 }
 
-async function loadMealDetail(userId: string, mealId: string, requested: string | null): Promise<MealDetailView> {
+async function loadMealDetail(userId: string, mealId: string, requested: string | null, withPending = false): Promise<MealDetailView> {
   const locale = await localeFor(userId, requested);
   // The safety profile is fetched alongside the meal rather than only when an
   // ingredient has alternatives: it is the gate every alternative passes through,
   // and a gate loaded lazily is a gate that can be skipped by mistake.
-  const [found, safety] = await Promise.all([PlanRepository.findMealDetail(userId, mealId, locale), SafetyController.getSafetyProfile(userId)]);
+  const [found, safety] = await Promise.all([
+    PlanRepository.findMealDetail(userId, mealId, locale, withPending),
+    SafetyController.getSafetyProfile(userId)
+  ]);
 
   if (!found) {
     throw new NotFoundError('Meal not found');

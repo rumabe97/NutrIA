@@ -29,9 +29,10 @@ import type {
   CareLink,
   CareLinkStatus,
   CareShared,
-  InviteClient
+  InviteClient,
+  SetClientReview
 } from 'core/entities/Care';
-import type { PlanSummaryView, PlanView } from 'core/controllers/Plan';
+import type { JobView, MealDetailView, PlanSummaryView, PlanView } from 'core/controllers/Plan';
 import type { ProgressSummaryView } from 'core/controllers/Progress';
 import type { ResolvedTargets } from 'core/domain/Nutrition';
 import type { SharedHealthView } from 'core/controllers/Health';
@@ -51,6 +52,15 @@ export interface ClientAccess {
   readonly link: Omit<CareLink, 'clientId' | 'professionalId'>;
   readonly professionalName: string;
 }
+
+/**
+ * What only `apps/api` can do for a client — start a generation, swap a meal —
+ * because it alone may reach the model (`modules/ai`). Handed in by the route's
+ * service and called **inside** `withClient`, with the client's id from the
+ * link and the write's `record`, which the writing repository calls in its own
+ * transaction (`PlanJobController.start`, `PlanRepository.swapMeal`).
+ */
+export type ForClient<T> = (clientId: string, record: RecordAccess) => Promise<T>;
 
 // --- Presenters ---------------------------------------------------------------
 
@@ -450,6 +460,20 @@ export const CareController = {
   },
 
   /**
+   * A professional generates a plan for their client (`0060`) — a first one,
+   * or a regeneration of the plan under review, which replaces it
+   * (`PlanRepository.createPlanAtomically`). Through `withClient` (`review`,
+   * `write`); `start` is the API's `PlanJobRunner`, which counts it against
+   * the client's allowance exactly as the client's own generation would and
+   * writes the trail row with the job, so a refused one leaves neither. With
+   * review on the plan waits for the professional; with it off it is active
+   * at once, as the client's own would be.
+   */
+  async generatePlan(professional: Pick<CareSession, 'id'>, linkId: string, start: ForClient<JobView>): Promise<JobView> {
+    return CareController.withClient(professional.id, linkId, 'review', 'write', (clientId, _access, record) => start(clientId, record));
+  },
+
+  /**
    * What an invited client reads before answering — only for the account the
    * invitation was sent to, while it is live (unanswered, not replaced) and
    * unexpired, and while its sender is still a professional. One 404 for every
@@ -547,6 +571,55 @@ export const CareController = {
   },
 
   /**
+   * The plan waiting for the professional's review (`0060`), or null —
+   * through `withClient` (`review`, `read`), in the reader's language.
+   */
+  async pendingPlan(professional: Pick<CareSession, 'id'>, linkId: string, locale: string | null = null): Promise<PlanView | null> {
+    return CareController.withClient(professional.id, linkId, 'review', 'read', clientId => PlanController.getPendingPlan(clientId, locale));
+  },
+
+  /**
+   * One of the client's generations, as their professional follows it
+   * (`review`, `read`): the plan id is carried even while the plan waits for
+   * review. A job of anybody else is not found.
+   */
+  async planJob(professional: Pick<CareSession, 'id'>, linkId: string, jobId: string): Promise<JobView> {
+    if (!careLinkIdSchema.safeParse(jobId).success) {
+      throw new NotFoundError('Job not found');
+    }
+
+    return CareController.withClient(professional.id, linkId, 'review', 'read', clientId => PlanController.getJob(clientId, jobId, 'professional'));
+  },
+
+  /**
+   * Publishes the plan under review (`0060`): the client's active plan is
+   * completed and this one becomes it, with the trail row, in one transaction
+   * (`review`, `write`). Nothing pending is the same 404, and writes nothing.
+   */
+  async publishPlan(professional: Pick<CareSession, 'id'>, linkId: string, locale: string | null = null): Promise<PlanView> {
+    return CareController.withClient(professional.id, linkId, 'review', 'write', (clientId, _access, record) =>
+      PlanController.publish(clientId, record, locale)
+    );
+  },
+
+  /**
+   * Turns review before publishing on or off (`review`, `write`). Turning it
+   * off publishes nothing: a plan already pending stays pending until the
+   * professional publishes it or a newer plan replaces it.
+   */
+  async setReview(professional: Pick<CareSession, 'id'>, linkId: string, input: SetClientReview): Promise<CareClientLinkView> {
+    return CareController.withClient(professional.id, linkId, 'review', 'write', async (_clientId, access, record) => {
+      const link = await CareRepository.setReview(professional.id, linkId, input.reviewBeforePublish, record);
+
+      if (!link) {
+        throw new NotFoundError('Client not found');
+      }
+
+      return presentClientLink(link, access.clientName);
+    });
+  },
+
+  /**
    * A professional sets a client's targets (PRD 004, criterion 7) — through
    * `withClient` (`targets`, `write`), so a link that is not theirs and active
    * is the same 404 with nothing written, and the client's trail gets its row
@@ -563,6 +636,26 @@ export const CareController = {
     return CareController.withClient(professional.id, linkId, 'targets', 'write', (clientId, _access, record) =>
       ProfileController.updateTargets(clientId, patch, { professionalId: professional.id, record })
     );
+  },
+
+  /**
+   * A professional swaps one meal of the plan under review (`0060`) —
+   * through `withClient` (`review`, `write`). `swap` is the API's
+   * `MealSwapService` on the client's id: the client's safety profile, the
+   * client's per-plan allowance, and only a meal of the pending plan — any
+   * other meal is the same 404.
+   */
+  async swapPendingMeal(
+    professional: Pick<CareSession, 'id'>,
+    linkId: string,
+    mealId: string,
+    swap: ForClient<MealDetailView>
+  ): Promise<MealDetailView> {
+    if (!careLinkIdSchema.safeParse(mealId).success) {
+      throw new NotFoundError('Meal not found');
+    }
+
+    return CareController.withClient(professional.id, linkId, 'review', 'write', (clientId, _access, record) => swap(clientId, record));
   },
 
   /**
