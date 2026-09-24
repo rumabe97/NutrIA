@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -36,6 +36,9 @@ interface CareGenerateButtonProps {
   variant?: 'primary' | 'secondary';
 }
 
+/** The plan under review's heading on the client's page, where a new pending plan is shown. */
+const PENDING_HEADING = 'pending-title';
+
 /** The failures the professional can do nothing about but wait for the client; everything else is worth another try. */
 const INCOMPLETE = new Set(['GENERATION_ONBOARDING_INCOMPLETE', 'GENERATION_PROFILE_INCOMPLETE']);
 
@@ -58,6 +61,15 @@ export function CareGenerateButton({ disabled = false, hint, label, linkId, vari
   const t = dictionary.practice;
   const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
   const base = `/care/clients/${encodeURIComponent(linkId)}/plan`;
+  const done = phase.kind === 'done';
+
+  // *Nueva quincena* is disabled by its own success once a plan waits for review, and a control that gains
+  // `disabled` loses focus to <body>. When the refreshed page arrives, focus goes to the plan it made.
+  useEffect(() => {
+    if (done && disabled) {
+      document.getElementById(PENDING_HEADING)?.focus();
+    }
+  }, [disabled, done]);
 
   async function start() {
     setPhase({ kind: 'running', step: null });

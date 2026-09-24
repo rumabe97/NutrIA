@@ -91,7 +91,7 @@ export default async function ClientPage({ params }: Readonly<{ params: Promise<
         {pending ? (
           <Card aria-labelledby="pending-title" as="section" className={styles.stack}>
             <div>
-              <h2 className={styles.cardTitle} id="pending-title">
+              <h2 className={styles.cardTitle} id="pending-title" tabIndex={-1}>
                 {t.pendingTitle}
               </h2>
               <Text size="sm" tone="secondary">
