@@ -122,6 +122,10 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "//#stripe:listen": {
+      "cache": false,
+      "persistent": true
     }
   }
 }

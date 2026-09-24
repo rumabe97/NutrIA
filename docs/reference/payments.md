@@ -65,8 +65,16 @@ migrating people who already subscribed:
 - **Monthly or yearly, or both.** Two prices on one product is fine and is the
   usual answer; a yearly price is a discount you cannot easily take back.
 
-Copy the price id (`price_…`). It goes in the environment, not in the code: the
-same build has to work against a test price and a live one.
+Copy the price id (`price_…`) — the **price's**, not the product's (`prod_…`), which
+the API refuses. It goes in the environment, not in the code: the same build has to
+work against a test price and a live one.
+
+**Give the product a tax code.** New Stripe accounts have *Managed Payments* on by
+default, and with it checkout refuses a product with no tax code: `Invalid
+line_items[0]: the product tax code is missing` — a 500 from `POST /billing/checkout`.
+Set the product's tax code to the one for a software subscription (SaaS / electronically
+supplied service) under *Product → Tax code*. Whether to keep Managed Payments on at
+all is a decision for § 5, not for this step.
 
 ## 3. The environment
 
@@ -128,6 +136,15 @@ CVC. You come back to the profile, and within seconds the webhook has made you p
 "Gestionar la suscripción" opens the portal, where cancelling shows the end date on the
 card.
 
+**Locally**, Stripe cannot reach `localhost`, so without a forwarder the payment
+succeeds and the account never turns premium. `pnpm dev` runs one beside the apps
+(`scripts/stripe-listen.sh`, the `stripe:listen` pane): `stripe listen` forwarding the
+four events the webhook acts on to `localhost:<PORT>/<API_PREFIX>/billing/webhook`. It
+needs the Stripe CLI installed and `stripe login` done once; without either, or without
+`STRIPE_SECRET_KEY` in `apps/api/.env`, it says so and steps aside. The `whsec_…` it
+prints is the **local** `STRIPE_WEBHOOK_SECRET` — the same on every run on one machine,
+and different from the dashboard endpoint's.
+
 ## 4. What gets built (agent) — built 2026-09-13 (`0056`)
 
 - A `subscriptions` table: the Stripe customer and subscription ids, the status,
@@ -171,6 +188,11 @@ a problem after it is.
   The terms do **not** use the waiver: they give the 14 days from the first charge,
   in full, because checkout records no such consent. Somebody who knows Spanish
   consumer law should still read them before the first real sale.
+- **Managed Payments, on or off.** Stripe turns it on by default for new accounts; it
+  changes who sells to the customer and so who deals with the VAT above, and it is why
+  a product needs a tax code (§ 2). It can be switched off per account in Stripe's
+  settings. Decide it with the VAT question, before the first real sale, not by
+  default.
 - **A domain.** Checkout works from a `*.vercel.app` origin, but a payment page on
   a hostname that is not yours is a payment page people abandon.
 
