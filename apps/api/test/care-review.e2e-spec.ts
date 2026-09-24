@@ -503,7 +503,7 @@ describe('care review', () => {
 
       await expect(
         rowsWrittenBy(lived.id, async () => {
-          const response: Response = await publishFor(proA, links.lived).expect(201);
+          const response: Response = await publishFor(proA, links.lived).expect(200);
 
           published = response.body as PlanView;
         })
@@ -602,7 +602,7 @@ describe('care review', () => {
       expect(rows.map(row => row.id)).not.toContain(firstDraft.id);
       expect(rows.filter(row => row.status === 'active')).toEqual([]);
 
-      await publishFor(proA, links.fresh).expect(201);
+      await publishFor(proA, links.fresh).expect(200);
       expect((await activeOf(fresh))?.id).toBe(replacement.id);
     });
   });
