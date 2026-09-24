@@ -16,6 +16,7 @@ const isPublishable = vi.fn<(userId: string) => Promise<boolean>>();
 const flags = vi.fn<() => Promise<{ premium: boolean; professional: boolean }>>();
 const findJob = vi.fn<(userId: string, jobId: string) => Promise<(Job & { planStatus: string | null }) | undefined>>();
 const findActive = vi.fn<(userId: string) => Promise<ChainRow | undefined>>();
+const findPending = vi.fn<(userId: string) => Promise<ChainRow | undefined>>();
 const findChain = vi.fn<(userId: string, withPending?: boolean) => Promise<readonly ChainRow[]>>();
 const findHistory = vi.fn<(userId: string, limit: number, offset: number) => Promise<readonly Row[]>>();
 const release = vi.fn<(jobId: string) => Promise<void>>();
@@ -35,6 +36,7 @@ vi.mock('#repositories/Plan', () => ({
     findActive: (u: string) => findActive(u),
     findChain: (...args: Parameters<typeof findChain>) => findChain(...args),
     findHistory: (u: string, l: number, o: number) => findHistory(u, l, o),
+    findPending: (u: string) => findPending(u),
     isPublishable: (u: string) => isPublishable(u),
     setMealStatus: (u: string, m: string, s: string) => setMealStatus(u, m, s)
   }
@@ -144,6 +146,25 @@ describe('PlanJobController.start — one generation at a time', () => {
       expect(release).toHaveBeenCalledWith('job-1');
     });
 
+    it('asks the professional’s rule again under the claim: a fortnight started meanwhile is a 404, no row, the claim given back', async () => {
+      const allowances = allowing(true);
+      const may = vi.spyOn(PlanController, 'professionalMayGenerate').mockResolvedValue(false);
+
+      await expect(PlanJobController.start('usr-client', record)).rejects.toBeInstanceOf(NotFoundError);
+      expect(may).toHaveBeenCalledWith('usr-client');
+      expect(allowances).not.toHaveBeenCalled();
+      expect(admit).not.toHaveBeenCalled();
+      expect(release).toHaveBeenCalledWith('job-1');
+    });
+
+    it('does not ask it for the client’s own generation', async () => {
+      allowing(true);
+      const may = vi.spyOn(PlanController, 'professionalMayGenerate');
+
+      await expect(PlanJobController.start('usr-client')).resolves.toMatchObject({ id: 'job-1' });
+      expect(may).not.toHaveBeenCalled();
+    });
+
     it('gives the claim back when the row cannot be written', async () => {
       allowing(true);
       admit.mockRejectedValue(new ConflictError('The generation is no longer waiting to start'));
@@ -193,6 +214,44 @@ describe('PlanJobController.start — one generation at a time', () => {
 
     await expect(PlanJobController.start('usr-1')).resolves.toMatchObject({ id: 'job-1', status: 'queued' });
     expect(release).not.toHaveBeenCalled();
+  });
+});
+
+describe('PlanController.professionalMayGenerate — never over a fortnight still running (0060, 2026-09-24)', () => {
+  const TODAY = '2026-09-24';
+
+  function active(endDate: string): ChainRow {
+    return { id: 'plan-1', endDate, redo: false, replacedRedos: 0, status: 'active', version: 1 };
+  }
+
+  beforeEach(() => {
+    findActive.mockReset();
+    findPending.mockReset();
+  });
+
+  it('allows a client with no plan', async () => {
+    await expect(PlanController.professionalMayGenerate('usr-client', TODAY)).resolves.toBe(true);
+  });
+
+  it('allows the next fortnight once the active one has ended — the day the client’s allowance offers a new one', async () => {
+    findActive.mockResolvedValue(active('2026-09-23'));
+
+    await expect(PlanController.professionalMayGenerate('usr-client', TODAY)).resolves.toBe(true);
+  });
+
+  it('refuses while the fortnight still runs, its last day included', async () => {
+    findActive.mockResolvedValue(active(TODAY));
+    await expect(PlanController.professionalMayGenerate('usr-client', TODAY)).resolves.toBe(false);
+
+    findActive.mockResolvedValue(active('2026-10-01'));
+    await expect(PlanController.professionalMayGenerate('usr-client', TODAY)).resolves.toBe(false);
+  });
+
+  it('allows regenerating a pending plan, whatever the active one says', async () => {
+    findActive.mockResolvedValue(active('2026-10-01'));
+    findPending.mockResolvedValue({ ...active('2026-10-08'), id: 'plan-2', status: 'pending_review', version: 2 });
+
+    await expect(PlanController.professionalMayGenerate('usr-client', TODAY)).resolves.toBe(true);
   });
 });
 

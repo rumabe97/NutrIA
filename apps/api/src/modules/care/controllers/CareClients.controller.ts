@@ -112,9 +112,9 @@ export class CareClientsController {
 
   @ApiCreatedResponse({
     description:
-      'A job to poll. Generates the client’s plan, or regenerates the one under review, which it replaces; counted against the client’s allowance as their own would be — 429 `QUOTA_EXCEEDED`, 409 when one is running. One `review` write row, only when the job starts.'
+      'A job to poll. Generates the client’s plan — a first one, or the next fortnight once the active one has ended — or regenerates the one under review, which it replaces; counted against the client’s allowance as their own would be — 429 `QUOTA_EXCEEDED`, 409 `CONFLICT` when a generation (the client’s or this one) is already running. A fortnight still running is 404, as for any link not the caller’s. One `review` write row, only when the job starts.'
   })
-  @ApiOperation({ summary: 'Generate a plan for the client, or regenerate the one under review' })
+  @ApiOperation({ summary: 'Generate the client’s plan or next fortnight, or regenerate the one under review' })
   @Post('clients/:linkId/plan/generate')
   // The client's own limit on the same work: it costs money and minutes.
   @RateLimit({ limit: 3, ttlSeconds: 3600 })

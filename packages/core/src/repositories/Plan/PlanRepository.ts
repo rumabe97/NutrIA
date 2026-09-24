@@ -1,4 +1,4 @@
-import { aliasedTable, and, desc, eq, exists, getTableColumns, inArray, lt, ne, sql } from 'drizzle-orm';
+import { aliasedTable, and, desc, eq, exists, getTableColumns, gte, inArray, lt, ne, sql } from 'drizzle-orm';
 
 import { database } from 'database';
 import { careLinks } from 'database/schema/care';
@@ -144,8 +144,9 @@ export const PlanRepository = {
         const replacedRedos = counted && redo ? replacedRedosOf(counted.generationMetadata) + (counted.generationMetadata?.redo === true ? 1 : 0) : 0;
 
         // Asked of the table directly, not read off the latest plan: whatever row is
-        // `active` is the one the completion below would complete.
-        if (refusesProfessionalSave({ byProfessional, hasActive: await hasActivePlan(tx, userId), review })) {
+        // `active` is the one the completion below would complete. One whose
+        // fortnight has ended is the next one's to replace, a professional's too.
+        if (refusesProfessionalSave({ byProfessional, review, running: await runsOn(tx, userId, draft.startDate) })) {
           throw new ConflictError('The review this plan was generated for has ended; the fortnight under way stays');
         }
 
@@ -1083,19 +1084,23 @@ async function publishingLink(
 /**
  * Whether a professional's generation must be refused when it is saved
  * (`0060`): it is theirs, it will not wait for review, and saving it active
- * would complete the client's fortnight under way — which a professional never
- * replaces.
+ * would complete the client's fortnight still `running` — which a professional
+ * never replaces. An active plan whose fortnight has ended is not running
+ * (owner's decision, 2026-09-24): the professional starts the next one.
  */
-export function refusesProfessionalSave(save: { readonly byProfessional: boolean; readonly hasActive: boolean; readonly review: boolean }): boolean {
-  return save.byProfessional && !save.review && save.hasActive;
+export function refusesProfessionalSave(save: { readonly byProfessional: boolean; readonly review: boolean; readonly running: boolean }): boolean {
+  return save.byProfessional && !save.review && save.running;
 }
 
-/** Whether the user has an `active` plan, read in the caller's transaction. */
-async function hasActivePlan(tx: Transaction, userId: string): Promise<boolean> {
+/**
+ * Whether the user's `active` plan still runs on `day` — the new plan's first
+ * day, the same comparison that stamps a redo — read in the caller's transaction.
+ */
+async function runsOn(tx: Transaction, userId: string, day: string): Promise<boolean> {
   const [row] = await tx
     .select({ id: mealPlans.id })
     .from(mealPlans)
-    .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active')))
+    .where(and(eq(mealPlans.userId, userId), eq(mealPlans.status, 'active'), gte(mealPlans.endDate, day)))
     .limit(1);
 
   return row !== undefined;

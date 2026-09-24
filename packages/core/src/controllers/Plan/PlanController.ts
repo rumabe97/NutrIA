@@ -467,11 +467,17 @@ export const PlanController = {
     return mealSwapStanding(swaps, tier);
   },
 
-  /** Whether there is an active plan and a plan waiting for review — what a professional may generate over (`0060`). */
-  async planStanding(userId: string): Promise<{ readonly active: boolean; readonly pending: boolean }> {
+  /**
+   * Whether a professional may generate for this client (`0060`): a plan waits
+   * for review, the client has no active plan, or the active plan's fortnight
+   * has ended (owner's decision, 2026-09-24). "Ended" is `planRedoStanding`'s
+   * `new_fortnight` on the same day the client's own allowance reads — the
+   * same rule, so it is never earlier. A fortnight still running never is.
+   */
+  async professionalMayGenerate(userId: string, today: string = isoToday()): Promise<boolean> {
     const [active, pending] = await Promise.all([PlanRepository.findActive(userId), PlanRepository.findPending(userId)]);
 
-    return { active: active !== undefined, pending: pending !== undefined };
+    return pending !== undefined || planRedoStanding(active, 0, today).kind === 'new_fortnight';
   },
 
   /**
@@ -712,7 +718,10 @@ export const PlanJobController = {
    * `record` is a professional's generation for their client (`0060`), through
    * `CareController.withClient`: the same claim and the same allowance, then
    * the trail row in one transaction with the job's row (`admit`); anything
-   * refused releases the claim, so it leaves no job and no row. Without it,
+   * refused releases the claim, so it leaves no job and no row. Under the claim
+   * it re-asks `professionalMayGenerate`: a fortnight the client started in the
+   * meantime is a 404, as the professional's first check would have answered.
+   * Started by both at once, one claims and the other is this conflict. Without it,
    * the path below is the client's own, unchanged.
    */
   async start(userId: string, record?: RecordAccess): Promise<JobView> {
@@ -732,6 +741,13 @@ export const PlanJobController = {
     }
 
     try {
+      // Asked again under the claim: a client's own generation that committed
+      // between the professional's first check and this claim may have started
+      // a new fortnight, and a professional never replaces one under way.
+      if (record && !(await PlanController.professionalMayGenerate(userId))) {
+        throw new NotFoundError('Client not found');
+      }
+
       // The next fortnight is always allowed; redoing the one in progress is an
       // allowance, and it is checked here — the one place a generation starts —
       // rather than in the route, so no second route can forget it.

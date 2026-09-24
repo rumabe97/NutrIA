@@ -52,7 +52,7 @@ const setReview = vi.fn<(professionalId: string, linkId: string, value: boolean,
 const getPendingPlan = vi.fn<(userId: string, locale: string | null) => Promise<PlanView | null>>();
 const getJob = vi.fn<(userId: string, jobId: string, reader: string) => Promise<JobView>>();
 const publish = vi.fn<(userId: string, record: RecordAccess, locale: string | null) => Promise<PlanView>>();
-const planStanding = vi.fn<(userId: string) => Promise<{ active: boolean; pending: boolean }>>();
+const professionalMayGenerate = vi.fn<(userId: string) => Promise<boolean>>();
 
 vi.mock('#repositories/Care', () => ({
   CareRepository: {
@@ -71,7 +71,7 @@ vi.mock('core/controllers/Plan', () => ({
     getJob: (...args: Parameters<typeof getJob>) => getJob(...args),
     getPendingPlan: (...args: Parameters<typeof getPendingPlan>) => getPendingPlan(...args),
     listPlans: (userId: string) => listPlans(userId),
-    planStanding: (userId: string) => planStanding(userId),
+    professionalMayGenerate: (userId: string) => professionalMayGenerate(userId),
     publish: (...args: Parameters<typeof publish>) => publish(...args)
   }
 }));
@@ -160,7 +160,7 @@ beforeEach(() => {
     getPendingPlan,
     getJob,
     publish,
-    planStanding
+    professionalMayGenerate
   ]) {
     mock.mockReset();
   }
@@ -173,7 +173,7 @@ beforeEach(() => {
   summary.mockResolvedValue(PROGRESS);
   targets.mockResolvedValue(null);
   shared.mockResolvedValue(HEALTH);
-  planStanding.mockResolvedValue({ active: false, pending: false });
+  professionalMayGenerate.mockResolvedValue(true);
 });
 
 describe('CareController.withClient', () => {
@@ -700,7 +700,7 @@ describe('review before publishing (0060)', () => {
 describe('CareController.generatePlan — only when there is a reason (0060)', () => {
   const JOB: JobView = { id: 'job-1', error: null, errorDetail: null, pendingReview: false, planId: null, status: 'queued', step: null };
 
-  it('generates for a client with no plan, or regenerates a pending plan — review on or off', async () => {
+  it('generates when the rule allows it — no plan, a pending plan, or an ended fortnight — review on or off', async () => {
     activeLink.mockResolvedValue(access());
     const start = vi.fn(async (_clientId: string, record: RecordAccess) => {
       await record({} as never);
@@ -710,19 +710,18 @@ describe('CareController.generatePlan — only when there is a reason (0060)', (
 
     await expect(CareController.generatePlan(PRO, LINK_ID, start)).resolves.toBe(JOB);
 
-    planStanding.mockResolvedValue({ active: true, pending: true });
-    await expect(CareController.generatePlan(PRO, LINK_ID, start)).resolves.toBe(JOB);
-
     activeLink.mockResolvedValue(access({ reviewBeforePublish: false }));
     await expect(CareController.generatePlan(PRO, LINK_ID, start)).resolves.toBe(JOB);
-    expect(start).toHaveBeenCalledTimes(3);
+    expect(start).toHaveBeenCalledTimes(2);
+    // The rule is asked of the client, never of the professional.
+    expect(professionalMayGenerate).toHaveBeenCalledWith(CLIENT_ID);
   });
 
-  it('never replaces a fortnight under way: an active plan and nothing pending is a 404 with no row', async () => {
+  it('never replaces a fortnight under way: a 404 with no row, and no generation started', async () => {
     const start = vi.fn();
 
     activeLink.mockResolvedValue(access());
-    planStanding.mockResolvedValue({ active: true, pending: false });
+    professionalMayGenerate.mockResolvedValue(false);
     await expect(CareController.generatePlan(PRO, LINK_ID, start)).rejects.toBeInstanceOf(NotFoundError);
 
     expect(start).not.toHaveBeenCalled();
