@@ -76,10 +76,18 @@ class FakeStripe {
   readonly madeCustomers: { readonly email?: string; readonly metadata?: Stripe.MetadataParam }[] = [];
   readonly portals: Portal[] = [];
   readonly refetched: string[] = [];
+  /** Every call that changes something at Stripe, in the order it was made: `expire:<session>`, `cancel:<subscription>`. */
+  readonly changes: string[] = [];
+  /** Every call at all, by method — so a test can say Stripe was asked nothing. */
+  readonly asked: string[] = [];
   /** What Stripe holds now, by subscription id. */
   readonly now = new Map<string, StripeSubscription>();
+  /** Checkout sessions, by id. */
+  readonly sessions = new Map<string, { readonly id: string; readonly customer: string; status: 'complete' | 'expired' | 'open' }>();
   /** Cancelling fails, as it does when Stripe cannot be reached. */
   failCancel = false;
+  /** How long making a customer takes, so two checkouts can be caught at once. */
+  customerDelayMs = 0;
   /** Answers a re-fetch instead of `now` — to fail, or to hold an answer back. */
   refetch: ((id: string) => Promise<StripeSubscription>) | null = null;
 
@@ -88,6 +96,7 @@ class FakeStripe {
   readonly billingPortal = {
     sessions: {
       create: (params: Portal) => {
+        this.asked.push('billingPortal.sessions.create');
         this.portals.push(params);
 
         return Promise.resolve({ url: `https://billing.stripe.test/${params.customer ?? ''}` });
@@ -98,18 +107,61 @@ class FakeStripe {
   readonly checkout = {
     sessions: {
       create: (params: Checkout) => {
+        this.asked.push('checkout.sessions.create');
         this.bought.push(params);
 
-        return Promise.resolve({ url: `https://checkout.stripe.test/${this.bought.length}` });
+        const id = `cs_e2e_${Date.now()}_${this.bought.length}`;
+
+        this.sessions.set(id, { id, customer: params.customer ?? '', status: 'open' });
+
+        return Promise.resolve({ id, url: `https://checkout.stripe.test/${this.bought.length}` });
+      },
+      expire: (id: string) => {
+        this.asked.push('checkout.sessions.expire');
+        this.changes.push(`expire:${id}`);
+
+        const session = this.sessions.get(id);
+
+        if (session?.status !== 'open') {
+          return Promise.reject(new Stripe.errors.StripeInvalidRequestError({ message: `Session ${id} is not open` }));
+        }
+
+        session.status = 'expired';
+
+        return Promise.resolve({ ...session });
+      },
+      list: (params: { customer?: string; limit?: number; starting_after?: string; status?: string }) => {
+        this.asked.push('checkout.sessions.list');
+
+        return Promise.resolve({
+          data: [...this.sessions.values()].filter(
+            session => session.customer === params.customer && (params.status === undefined || session.status === params.status)
+          ),
+          has_more: false
+        });
+      },
+      retrieve: (id: string) => {
+        this.asked.push('checkout.sessions.retrieve');
+
+        const session = this.sessions.get(id);
+
+        return session ? Promise.resolve({ ...session }) : Promise.reject(new Error(`No such checkout session: ${id}`));
       }
     }
   };
 
   readonly customers = {
-    create: (params: { email?: string; metadata?: Stripe.MetadataParam }) => {
+    create: async (params: { email?: string; metadata?: Stripe.MetadataParam }, _options?: Stripe.RequestOptions) => {
+      this.asked.push('customers.create');
       this.madeCustomers.push(params);
 
-      return Promise.resolve({ id: `cus_e2e_${Date.now()}_${this.madeCustomers.length}` });
+      const id = `cus_e2e_${Date.now()}_${this.madeCustomers.length}`;
+
+      if (this.customerDelayMs > 0) {
+        await new Promise(resolve => setTimeout(resolve, this.customerDelayMs));
+      }
+
+      return { id };
     }
   };
 
@@ -120,6 +172,8 @@ class FakeStripe {
 
   readonly subscriptions = {
     cancel: (id: string) => {
+      this.asked.push('subscriptions.cancel');
+
       if (this.failCancel) {
         return Promise.reject(new Stripe.errors.StripeConnectionError({ message: 'Stripe is unreachable' }));
       }
@@ -127,6 +181,7 @@ class FakeStripe {
       const held = this.now.get(id);
 
       this.cancelled.push(id);
+      this.changes.push(`cancel:${id}`);
 
       // As Stripe does: the subscription is cancelled from now on, so a retried deletion finds nothing to cancel.
       if (held) {
@@ -136,12 +191,16 @@ class FakeStripe {
       return Promise.resolve({ id, status: 'canceled' });
     },
     /** Stripe's default list leaves cancelled subscriptions out. */
-    list: (params: { customer: string; limit?: number; starting_after?: string }) =>
-      Promise.resolve({
+    list: (params: { customer: string; limit?: number; starting_after?: string }, _options?: Stripe.RequestOptions) => {
+      this.asked.push('subscriptions.list');
+
+      return Promise.resolve({
         data: [...this.now.values()].filter(held => held.customer === params.customer && held.status !== 'canceled'),
         has_more: false
-      }),
-    retrieve: (id: string) => {
+      });
+    },
+    retrieve: (id: string, _params?: Record<string, unknown>, _options?: Stripe.RequestOptions) => {
+      this.asked.push('subscriptions.retrieve');
       this.refetched.push(id);
 
       if (this.refetch) {
@@ -155,13 +214,18 @@ class FakeStripe {
   };
 
   /** Stripe now holds this subscription, in this state. */
-  hold(id: string, customer: string, status: string, extra: { cancelAtPeriodEnd?: boolean; userId?: string } = {}): StripeSubscription {
+  hold(
+    id: string,
+    customer: string,
+    status: string,
+    extra: { cancelAtPeriodEnd?: boolean; deployment?: string; userId?: string } = {}
+  ): StripeSubscription {
     const subscription: StripeSubscription = {
       id,
       cancel_at_period_end: extra.cancelAtPeriodEnd ?? false,
       customer,
       items: { data: [{ current_period_end: PERIOD_END }] },
-      metadata: extra.userId ? { userId: extra.userId } : ({} as Record<string, string>),
+      metadata: { ...(extra.deployment ? { deployment: extra.deployment } : {}), ...(extra.userId ? { userId: extra.userId } : {}) },
       status
     };
 
@@ -171,7 +235,8 @@ class FakeStripe {
   }
 }
 
-type Deployment = { readonly app: INestApplication; readonly stripe: FakeStripe };
+/** `deployment` is the mark this deployment's checkout writes into every subscription (`StripeGateway.deployment`). */
+type Deployment = { readonly app: INestApplication; readonly deployment: string; readonly stripe: FakeStripe };
 
 /**
  * One deployment with these Stripe values. The environment is read once, while
@@ -211,7 +276,7 @@ async function deploy(values: Partial<Record<(typeof STRIPE_KEYS)[number], strin
   // below would go to the real Stripe — so prove it held before relying on it.
   expect((gateway as unknown as { stripe(): unknown }).stripe()).toBe(stripe);
 
-  return { app, stripe };
+  return { app, deployment: gateway.deployment, stripe };
 }
 
 function eventBody(type: string, object: Record<string, unknown>, id = `evt_e2e_${Math.random().toString(36).slice(2)}`): string {
@@ -438,6 +503,7 @@ describe('billing', () => {
     // 4
     it('buys the monthly price by default, for the account asking, and creates its customer once', async () => {
       const buyer = await account(test, 'monthly', 'admin');
+      const asked = Math.floor(Date.now() / 1000);
       const answer: Response = await checkout(test, buyer).expect(200);
       const bought = test.stripe.bought.at(-1);
       const [row] = (await stateOf(buyer.id)).rows;
@@ -450,8 +516,11 @@ describe('billing', () => {
         customer: row?.stripeCustomerId,
         line_items: [{ price: MONTHLY, quantity: 1 }],
         mode: 'subscription',
-        subscription_data: { metadata: { userId: buyer.id }, trial_period_days: 7 }
+        subscription_data: { metadata: { deployment: test.deployment, userId: buyer.id }, trial_period_days: 7 }
       });
+      // Payable for 31 minutes, not Stripe's 24 hours: a page left open cannot become a subscription after its account is gone.
+      expect(bought?.expires_at).toBeGreaterThanOrEqual(asked + 31 * 60);
+      expect(bought?.expires_at).toBeLessThanOrEqual(Math.floor(Date.now() / 1000) + 31 * 60);
 
       const customers = test.stripe.madeCustomers.length;
 
@@ -504,7 +573,7 @@ describe('billing', () => {
         client_reference_id: buyer.id,
         customer: row?.stripeCustomerId,
         line_items: [{ price: MONTHLY, quantity: 1 }],
-        subscription_data: { metadata: { userId: buyer.id }, trial_period_days: 7 }
+        subscription_data: { metadata: { deployment: test.deployment, userId: buyer.id }, trial_period_days: 7 }
       });
       expect(row?.stripeCustomerId).not.toBe(ids('forged').customer);
       expect(await stateOf(buyer.id)).toMatchObject({ tier: 'free' });
@@ -533,7 +602,65 @@ describe('billing', () => {
 
       expect(seen.body).toMatchObject({ trialDays: null });
       await checkout(test, buyer).expect(200);
-      expect(test.stripe.bought.at(-1)?.subscription_data).toEqual({ metadata: { userId: buyer.id } });
+      expect(test.stripe.bought.at(-1)?.subscription_data).toEqual({ metadata: { deployment: test.deployment, userId: buyer.id } });
+    });
+
+    it('makes one customer between two checkouts started at once', async () => {
+      const buyer = await account(test, 'concurrent', 'admin');
+
+      test.stripe.customerDelayMs = 300;
+
+      try {
+        const answers = await Promise.all([checkout(test, buyer), checkout(test, buyer)]);
+
+        expect(answers.map(answer => answer.status)).toEqual([200, 200]);
+      } finally {
+        test.stripe.customerDelayMs = 0;
+      }
+
+      const { rows } = await stateOf(buyer.id);
+      const [first, second] = test.stripe.bought.filter(bought => bought.client_reference_id === buyer.id);
+
+      expect(test.stripe.madeCustomers.filter(made => made.metadata?.userId === buyer.id)).toHaveLength(1);
+      expect(rows).toHaveLength(1);
+      expect([first?.customer, second?.customer]).toEqual([rows[0]?.stripeCustomerId, rows[0]?.stripeCustomerId]);
+    });
+
+    it('is a 404, and makes no customer, for an account deleted while its checkout was on its way', async () => {
+      const buyer = await account(test, 'deleted-mid-checkout', 'admin');
+      const sql = pool() as Sql & { begin<T>(work: (tx: Sql) => Promise<T>): Promise<T> };
+      let pending: Promise<Response> | undefined;
+      let caught = false;
+
+      // The account's row is held, so the checkout passes its session and waits
+      // at the lock `customerFor` takes; the account is deleted before it is let
+      // go. Without a session the answer would be a 404 as well, so the test
+      // only counts once the checkout was seen waiting on that lock.
+      await sql.begin(async tx => {
+        await tx`select id from "user" where id = ${buyer.id} for update`;
+        pending = checkout(test, buyer).then(answer => answer);
+
+        for (let tries = 0; tries < 250 && !caught; tries += 1) {
+          const [blocked] = await sql<{ count: number }[]>`
+            select count(*)::int as count from pg_stat_activity where wait_event_type = 'Lock' and query ilike '%for no key update%'`;
+
+          caught = (blocked?.count ?? 0) > 0;
+
+          if (!caught) {
+            await new Promise(resolve => setTimeout(resolve, 20));
+          }
+        }
+
+        await tx`delete from "user" where id = ${buyer.id}`;
+      });
+
+      const answer = await pending;
+
+      expect(caught).toBe(true);
+      expect(answer?.status).toBe(404);
+      expect(test.stripe.madeCustomers.filter(made => made.metadata?.userId === buyer.id)).toEqual([]);
+      expect(test.stripe.bought.filter(bought => bought.client_reference_id === buyer.id)).toEqual([]);
+      expect(await stateOf(buyer.id)).toEqual({ rows: [], tier: null });
     });
 
     // 6
@@ -715,6 +842,48 @@ describe('billing', () => {
 
       expect(await rowsOfCustomer(customer)).toEqual([]);
       expect(answer.status).toBe(200);
+    });
+
+    // Nobody is left to use what it charges for; a checkout finished while its account was being deleted ends here.
+    it('cancels a live subscription this deployment opened for an account that does not exist', async () => {
+      const { customer, subscription } = ids('ghost-ours');
+
+      test.stripe.hold(subscription, customer, 'active', { deployment: test.deployment, userId: `ghost-ours-${stamp}` });
+      await deliver(test.app, aboutSubscription('customer.subscription.created', subscription, customer, 'active')).expect(200);
+
+      expect(test.stripe.cancelled).toContain(subscription);
+      expect(test.stripe.now.get(subscription)?.status).toBe('canceled');
+      expect(await rowsOfCustomer(customer)).toEqual([]);
+    });
+
+    // Local development and production share one Stripe test account: an account missing here says nothing about the other's.
+    it.each([
+      ['another deployment opened', 'another'],
+      ['nothing marks', null]
+    ])('leaves alone a live subscription %s, for an account that does not exist', async (_case, mark) => {
+      const label = `ghost-${mark ?? 'unmarked'}`;
+      const { customer, subscription } = ids(label);
+      const deployment = mark === null ? undefined : `${test.deployment}-${mark}`;
+
+      test.stripe.hold(subscription, customer, 'active', { deployment, userId: `${label}-${stamp}` });
+      await deliver(test.app, aboutSubscription('customer.subscription.created', subscription, customer, 'active')).expect(200);
+
+      expect(test.stripe.cancelled).not.toContain(subscription);
+      expect(test.stripe.now.get(subscription)?.status).toBe('active');
+      expect(await rowsOfCustomer(customer)).toEqual([]);
+    });
+
+    it('does not believe the account another deployment’s subscription names, for a customer nobody here knows', async () => {
+      const named = await account(test, 'foreign-named');
+      const { customer, subscription } = ids('foreign-named');
+
+      // With no mark, this hint is what the webhook would write to (15b's fallback).
+      test.stripe.hold(subscription, customer, 'active', { deployment: `${test.deployment}-another`, userId: named.id });
+      await deliver(test.app, aboutSubscription('customer.subscription.created', subscription, customer, 'active')).expect(200);
+
+      expect(await stateOf(named.id)).toEqual({ rows: [], tier: 'free' });
+      expect(await rowsOfCustomer(customer)).toEqual([]);
+      expect(test.stripe.cancelled).not.toContain(subscription);
     });
   });
 
@@ -922,6 +1091,36 @@ describe('billing', () => {
       expect(await stateOf(who.id)).toMatchObject({ rows: [{ status: 'active', stripeSubscriptionId: newer }], tier: 'premium' });
     });
 
+    // Two checkouts finished in two tabs are two subscriptions, and both charge.
+    it('keeps premium, on the other subscription, when the one the row names ends and another still pays', async () => {
+      const { customer, who } = await subscriber('sibling-pays');
+      const kept = `sub_${stamp}_sibling-pays-kept`;
+      const ended = `sub_${stamp}_sibling-pays-ended`;
+
+      test.stripe.hold(kept, customer, 'active');
+      await deliver(test.app, aboutSubscription('customer.subscription.created', kept, customer, 'active')).expect(200);
+      test.stripe.hold(ended, customer, 'active');
+      await deliver(test.app, aboutSubscription('customer.subscription.created', ended, customer, 'active')).expect(200);
+      expect(await stateOf(who.id)).toMatchObject({ rows: [{ stripeSubscriptionId: ended }], tier: 'premium' });
+
+      test.stripe.hold(ended, customer, 'canceled');
+      await deliver(test.app, aboutSubscription('customer.subscription.deleted', ended, customer, 'canceled')).expect(200);
+      expect(await stateOf(who.id)).toMatchObject({ rows: [{ status: 'active', stripeSubscriptionId: kept }], tier: 'premium' });
+    });
+
+    it('does not let a second subscription that does not pay yet take the row from one that does', async () => {
+      const { customer, who } = await subscriber('incomplete-second');
+      const paying = `sub_${stamp}_incomplete-second-paying`;
+      const pending = `sub_${stamp}_incomplete-second-pending`;
+
+      test.stripe.hold(paying, customer, 'active');
+      await deliver(test.app, aboutSubscription('customer.subscription.created', paying, customer, 'active')).expect(200);
+      test.stripe.hold(pending, customer, 'incomplete');
+      await deliver(test.app, aboutSubscription('customer.subscription.created', pending, customer, 'incomplete')).expect(200);
+
+      expect(await stateOf(who.id)).toMatchObject({ rows: [{ status: 'active', stripeSubscriptionId: paying }], tier: 'premium' });
+    });
+
     // 22
     it('answers a non-2xx when Stripe fails during the re-fetch, writes nothing, and applies the retry', async () => {
       const { customer, subscription, who } = await subscriber('stripe-down');
@@ -1044,7 +1243,41 @@ describe('billing', () => {
       await remove(unconfigured, payer).expect(204);
 
       expect(await stateOf(payer.id)).toEqual({ rows: [], tier: null });
-      expect(unconfigured.stripe.cancelled).toEqual([]);
+      expect(unconfigured.stripe.asked).toEqual([]);
+    });
+
+    it('expires the account’s open checkouts before it cancels anything', async () => {
+      const payer = await account(test, 'deleted-open-checkout', 'admin');
+
+      await checkout(test, payer).expect(200);
+
+      const customer = (await stateOf(payer.id)).rows[0]?.stripeCustomerId ?? '';
+      const subscription = `sub_${stamp}_deleted-open-checkout`;
+      const [open] = [...test.stripe.sessions.values()].filter(session => session.customer === customer);
+
+      test.stripe.hold(subscription, customer, 'active');
+      await deliver(test.app, aboutSubscription('customer.subscription.created', subscription, customer, 'active')).expect(200);
+
+      const from = test.stripe.changes.length;
+
+      await remove(test, payer).expect(204);
+
+      expect(open?.status).toBe('expired');
+      expect(test.stripe.changes.slice(from)).toEqual([`expire:${open?.id ?? ''}`, `cancel:${subscription}`]);
+      expect(await stateOf(payer.id)).toEqual({ rows: [], tier: null });
+    });
+
+    it('still removes the invitations addressed to an account that pays', async () => {
+      const { payer } = await paying(test, 'deleted-invited');
+      const sender = await account(test, 'deleted-inviter');
+      const sql = pool();
+
+      await sql`
+        insert into care_invitations (email, expires_at, professional_id, token_hash)
+        values (${payer.email.toLowerCase()}, now() + interval '1 day', ${sender.id}, ${`billing-${stamp}-invited`})`;
+      await remove(test, payer).expect(204);
+
+      expect(await sql<{ id: string }[]>`select id from care_invitations where email = ${payer.email.toLowerCase()}`).toEqual([]);
     });
 
     // A 5xx here would be retried by Stripe for days, for an account that is gone.

@@ -25,7 +25,7 @@ part of `pnpm test`. Run them deliberately.
 | `health-data.e2e-spec.ts` | A recorded medication or condition never appears in a prompt, and withdrawal deletes the data and the consent together. |
 | `target-overrides.e2e-spec.ts` | A corrected target is refused outside its bounds, and *is the figure the stored plan was built against* when accepted. The tour's mark is remembered across requests and can be undone. |
 | `social-sign-in.e2e-spec.ts` | Arriving through a provider (`0058`), with Google's token exchange answered by the test: the public list of providers, the address somebody is sent to, an account born confirmed opening itself or waiting for the owner, the same person the second time, a confirmed password account joined — and **an unconfirmed one never joined**, left exactly as it was. |
-| `billing.e2e-spec.ts` | Paying for premium (`0056`), on the product's own assembly (`CreateApp`: the webhook's raw body, its 256 kB limit) with Stripe's client replaced by a fake the test answers — throwing included — and bodies signed with Stripe's real test signer: with no keys nothing is for sale; test keys show billing to the owner alone and live keys to everybody once the `premium` switch is on; checkout buys the monthly price unless a yearly one is set, for the account asking whatever the body says, with the trial once per account and never a second checkout for somebody paying; the portal opens on the account's own customer only; no session is a 404. The webhook reads nothing unsigned, signed with another secret, tampered, replayed or oversized; grants premium to the customer's account whatever the metadata names; applies each event as Stripe's re-fetch says, not as its body does, over every status; ignores other events; converges on duplicates, late and simultaneous deliveries onto one row; answers 5xx and writes nothing when Stripe is down; the switch off keeps a paid column on free allowances; a cancelled subscription stays cancelled whatever a later answer claims, and an older subscription's end never replaces the one paid for now; a metadata hint naming no account, or a deleted one, is acknowledged and writes nothing; a slow re-fetch cannot overwrite a newer one; an oversized body is a 413. Deleting the account cancels its live Stripe subscriptions (not the ended ones) before taking its row, is refused and keeps everything while Stripe cannot cancel, and asks Stripe nothing where billing is not set up. |
+| `billing.e2e-spec.ts` | Paying for premium (`0056`), on the product's own assembly (`CreateApp`: the webhook's raw body, its 256 kB limit) with Stripe's client replaced by a fake the test answers — throwing included — and bodies signed with Stripe's real test signer: with no keys nothing is for sale; test keys show billing to the owner alone and live keys to everybody once the `premium` switch is on; checkout buys the monthly price unless a yearly one is set, for the account asking whatever the body says, marked with this deployment and payable for 31 minutes, with the trial once per account and never a second checkout for somebody paying; two checkouts at once make one customer, and one for an account deleted on its way is a 404 that makes none; the portal opens on the account's own customer only; no session is a 404. The webhook reads nothing unsigned, signed with another secret, tampered, replayed or oversized; grants premium to the customer's account whatever the metadata names; applies each event as Stripe's re-fetch says, not as its body does, over every status; ignores other events; converges on duplicates, late and simultaneous deliveries onto one row; answers 5xx and writes nothing when Stripe is down; the switch off keeps a paid column on free allowances; a cancelled subscription stays cancelled whatever a later answer claims, an older subscription's end never replaces the one paid for now, the one the row names ending hands the row to another that still pays, and one that does not pay yet never takes it; a metadata hint naming no account, or a deleted one, is acknowledged and writes nothing — and a live subscription this deployment opened for it is cancelled, one another deployment opened or nothing marks is not, and another deployment's hint is never believed for an unknown customer; a slow re-fetch cannot overwrite a newer one; an oversized body is a 413. Deleting the account expires its open checkouts, then cancels its live Stripe subscriptions (not the ended ones) before taking its row and the invitations to its address; it is refused and keeps everything while Stripe cannot cancel, and asks Stripe nothing where billing is not set up. |
 | `localisation.e2e-spec.ts` | An English account gets an English prompt, an English shopping list, and no Spanish recipe from the shared library. |
 
 ## Running them
@@ -51,6 +51,27 @@ like somebody pressed a button rather than like a run that passed.
 
 **Never point these at a database holding real user data.** Every suite registers accounts
 and deletes them again in `afterAll`.
+
+### On this machine, against a local Postgres
+
+The command the tests agent runs, with the environment emptied of everything that reaches
+out — mail, Sentry, web push, the OAuth providers — and the database a throwaway Postgres 17
+listening on `127.0.0.1:54329`, migrated and seeded as above. Jest reads no `.env`, so what
+the command does not set is not set. Never a URL from a `.env`:
+those are real Neon databases.
+
+```bash
+node .claude/skills/local-probe/scripts/guard.mjs          # refuses the production database
+cd apps/api
+DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/nutria_e2e \
+DIRECT_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/nutria_e2e \
+BETTER_AUTH_SECRET="$(openssl rand -base64 48)" APP_URL=http://localhost:3000 BETTER_AUTH_URL=http://localhost:3001 \
+NODE_ENV=test AI_PROVIDER=stub SENTRY_DSN= VAPID_PUBLIC_KEY= VAPID_PRIVATE_KEY= VAPID_SUBJECT= \
+SMTP_HOST= SMTP_PORT= SMTP_USER= SMTP_PASS= EMAIL_FROM= OWNER_EMAIL= \
+GOOGLE_OAUTH_CLIENT_ID= GOOGLE_OAUTH_CLIENT_SECRET= APPLE_OAUTH_CLIENT_ID= APPLE_OAUTH_TEAM_ID= \
+APPLE_OAUTH_KEY_ID= APPLE_OAUTH_PRIVATE_KEY= STRIPE_SECRET_KEY= STRIPE_PRICE_ID= STRIPE_YEARLY_PRICE_ID= STRIPE_WEBHOOK_SECRET= \
+  NODE_OPTIONS=--experimental-vm-modules pnpm exec jest --config ./test/jest-e2e.json --runInBand --forceExit [suite-name]
+```
 
 Set `AI_PROVIDER=stub` and leave `SMTP_HOST` empty for the run: the suites never call a
 provider (below) and must never send a mail, and the environment contract refuses a half
