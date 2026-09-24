@@ -28,10 +28,12 @@ export const mealSlot = pgEnum('meal_slot', ['breakfast', 'morning_snack', 'lunc
 export const mealStatus = pgEnum('meal_status', ['planned', 'completed', 'skipped']);
 
 /**
- * A plan never goes backwards through these. `active` is unique per user, and
- * so is `pending_review`: a plan a linked client's professional has not
- * published yet (`0060`), which the client never sees. Appended last, so the
- * migration is an added value and nothing is rewritten.
+ * A plan's statuses. `active` is unique per user, and so is `pending_review`:
+ * a plan a linked client's professional has not published yet (`0060`), which
+ * the client never sees. **The order is not the lifecycle**: `pending_review`
+ * comes before `active` in a plan's life but is appended last, because an
+ * added value cannot be placed without reordering — and adding one is what
+ * keeps the migration from rewriting anything.
  */
 export const planStatus = pgEnum('plan_status', ['draft', 'generating', 'active', 'completed', 'archived', 'failed', 'pending_review']);
 

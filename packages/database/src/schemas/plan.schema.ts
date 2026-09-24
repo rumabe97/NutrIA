@@ -68,8 +68,15 @@ export const mealPlans = pgTable(
     // the other statuses" because `pending_review` is added in the same migration
     // transaction, and Postgres refuses a new enum value used before the
     // transaction that added it commits (a cast to text is not immutable, so an
-    // index predicate cannot compare as text either). A status added after
-    // `pending_review` must be listed here, or it joins this index.
+    // index predicate cannot compare as text either).
+    //
+    // A value added to `planStatus` later JOINS this index unless it is listed, and
+    // it cannot be listed in the migration that adds it (the same error): add the
+    // value in one release and list it in the next — or, once 0037 is in
+    // production, rewrite this predicate as `= 'pending_review'`, which no future
+    // value can join. `schema.test.ts` fails while the list and the enum disagree.
+    // Not CONCURRENTLY: drizzle's migrator runs every pending migration in one
+    // transaction, which CONCURRENTLY cannot run inside.
     uniqueIndex('meal_plans_one_pending_review_per_user')
       .on(table.userId)
       .where(sql`${table.status} not in ('draft', 'generating', 'active', 'completed', 'archived', 'failed')`)

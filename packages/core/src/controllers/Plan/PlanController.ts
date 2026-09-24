@@ -228,9 +228,13 @@ export const PlanController = {
       PlanController.tierOf(userId)
     ]);
     // A plan waiting for review (`0060`) is the fortnight a redo would redo: it
-    // was generated, and what it spent is spent, whether or not it is published.
-    // Nobody unlinked ever has one, so for them this is the active plan, as before.
-    const current = chain.find(plan => plan.status === 'pending_review') ?? active;
+    // was generated, and what it spent is spent, whether or not it is published —
+    // while it can still be published. A plan stranded by a link that ended,
+    // paused or lost its grant costs the client nothing. Nobody unlinked ever
+    // has one, so for them this is the active plan, as before.
+    const pending = chain.find(plan => plan.status === 'pending_review');
+    const counted = pending && (await pendingCounts(userId)) ? pending : undefined;
+    const current = counted ?? active;
     const fromActive = current ? chain.filter(plan => plan.version <= current.version) : [];
     const today = isoToday();
     const [swaps, events] = await Promise.all([
@@ -452,6 +456,13 @@ export const PlanController = {
     return mealSwapStanding(swaps, tier);
   },
 
+  /** Whether there is an active plan and a plan waiting for review — what a professional may generate over (`0060`). */
+  async planStanding(userId: string): Promise<{ readonly active: boolean; readonly pending: boolean }> {
+    const [active, pending] = await Promise.all([PlanRepository.findActive(userId), PlanRepository.findPending(userId)]);
+
+    return { active: active !== undefined, pending: pending !== undefined };
+  },
+
   /**
    * Publishes the plan waiting for review (`0060`): the active plan completed,
    * this one active, the professional's trail row with them — one
@@ -650,10 +661,12 @@ export const PlanJobController = {
    * The single write path for a generated plan. Atomic; see `PlanRepository`.
    * With the `professional` switch on, a linked client's plan may wait for
    * review (`0060`) — the link itself is read inside the plan's transaction.
+   * `byProfessional` marks a professional's generation, which is refused rather
+   * than replace a fortnight under way if review has ended in the meantime.
    */
-  async persist(userId: string, draft: PlanDraft): Promise<string> {
+  async persist(userId: string, draft: PlanDraft, byProfessional = false): Promise<string> {
     const { professional } = await SettingsController.flags();
-    const planId = await PlanRepository.createPlanAtomically(userId, draft, professional);
+    const planId = await PlanRepository.createPlanAtomically(userId, draft, professional, byProfessional);
 
     /*
      * Generation lays a fortnight out from today, one day after another, because
@@ -675,9 +688,10 @@ export const PlanJobController = {
    * Refuses a second concurrent generation, after clearing anything a restart abandoned.
    *
    * `record` is a professional's generation for their client (`0060`), through
-   * `CareController.withClient`: the same allowance, checked inside the claim's
-   * transaction together with the trail row, so a refused generation leaves no
-   * job and no row. Without it, the path below is the client's own, unchanged.
+   * `CareController.withClient`: the same claim and the same allowance, then
+   * the trail row in one transaction with the job's row (`admit`); anything
+   * refused releases the claim, so it leaves no job and no row. Without it,
+   * the path below is the client's own, unchanged.
    */
   async start(userId: string, record?: RecordAccess): Promise<JobView> {
     // Adopt before failing: a job whose plan committed did not fail, whatever its
@@ -685,24 +699,6 @@ export const PlanJobController = {
     // has — and charge them a second generation to get it back.
     await PlanJobRepository.adoptCompleted(userId);
     await PlanJobRepository.failStale(userId);
-
-    if (record) {
-      const claimed = await PlanJobRepository.claim(userId, async tx => {
-        const { planRedo } = await PlanController.allowances(userId);
-
-        if (!planRedo.allowed) {
-          throw new QuotaExceededError('plan_redo', planRedo.nextAt);
-        }
-
-        await record(tx);
-      });
-
-      if (!claimed) {
-        throw new ConflictError('A plan is already being generated');
-      }
-
-      return presentJob(claimed);
-    }
 
     // The claim is the refusal: "is one in flight?" and "start one" are a single
     // atomic step in `claim`, because asked as two they both answered *no* to
@@ -726,6 +722,10 @@ export const PlanJobController = {
 
       if (!planRedo.allowed) {
         throw new QuotaExceededError('plan_redo', planRedo.nextAt);
+      }
+
+      if (record) {
+        await PlanJobRepository.admit(job.id, record);
       }
     } catch (error: unknown) {
       // Nothing was started, so nothing may stay claimed — a slot held by a
@@ -792,6 +792,13 @@ export interface MealDetailView {
  * profile to have written to. The stored preference is the fallback, and the only
  * answer available to a background job, which has no request at all.
  */
+/** Whether a pending plan may count toward the allowance: it can still be published (`0060`). */
+async function pendingCounts(userId: string): Promise<boolean> {
+  const { professional } = await SettingsController.flags();
+
+  return professional && (await PlanRepository.isPublishable(userId));
+}
+
 function isoToday(): string {
   return new Date().toISOString().slice(0, 10);
 }
