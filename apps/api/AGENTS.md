@@ -327,7 +327,15 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   row, both read per request, anything else 404 — and it is **not global**: every workspace
   controller carries `@UseGuards(ProfessionalGuard)` on its class, and never
   `@RequiresOnboarding()` (its 409 would answer a non-professional before the guard's 404).
-  Only an account with a confirmed address can be granted.
+  Only an account with a confirmed address can be granted. A first grant mails the professional
+  (`professional-granted`, `docs/legal/textos/06` § B); a re-grant does not.
+- **The professional's agreement** (`docs/legal/textos/01`, `04`): `PROFESSIONAL_AGREEMENT_VERSION`
+  in `core/entities/Professional`, stored as `professionals.agreementVersion` / `agreementAcceptedAt`,
+  null on a new grant. `POST /care/practice/agreement { version }` (`z.literal`) accepts it.
+  `ProfessionalGuard` refuses every route without the current version, like a practice not paid for,
+  except those marked `@BeforePractice()` (the workspace's page and accepting); `CareRepository`'s
+  `practising` join and `CareController.practises` are the second line. Practice checkout is a 404
+  until it is accepted (`BillingService.agreed`). `GET /care/practice` says `agreementRequired`.
 - **The link** (`0059`): `modules/care`. `POST /care/invitations` is the professional's
   (`CareInvitationsController`, `ProfessionalGuard` on the class); reading, accepting and
   declining an invitation are the client's (`CareAnswersController`, `ProfessionalSwitchGuard`
@@ -352,6 +360,11 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   `list` row per active client, in the same snapshot it reads their stages from.
   `GET /care/access-log` is the client's own trail, on `CareLinksController`: no switch, like
   their link, 100 rows a page (`?before=` the previous page's `next`).
+  Every row carries the `linkId` it went through. `PATCH /care/links/me { sharesHealth }` is the
+  client's own switch for the health line, no switch and no end of the link (`docs/legal/analisis.md`
+  P0-1): each change writes a `health` row, `granted` or `withdrawn`, in the same transaction, and
+  `withClient` reads the link afresh, so off closes the health read on the next request. The trail
+  reader skips an action or kind it does not know, so a value added later survives a rollback.
 - **Review before publishing** (`0060`): with the `professional` switch on, a client whose
   `active` link has `reviewBeforePublish` (the column's default) and whose professional's grant
   stands gets each new plan as `pending_review`; the active plan keeps running until the

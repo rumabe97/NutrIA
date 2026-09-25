@@ -19,6 +19,7 @@ import {
   careLinkIdSchema
 } from 'core/entities/Care';
 import { CareLinkExistsError, DatabaseOperationError, InputParseError, NotFoundError, PracticeFullError } from 'core/entities/Error';
+import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 
 import type { LinkWithProfessional, OpenInvitation, RecordAccess, RosterLink } from '#repositories/Care';
 import type {
@@ -29,9 +30,11 @@ import type {
   CareHealthShared,
   CareLink,
   CareLinkStatus,
+  CareProfessionalAction,
   CareShared,
   InviteClient,
-  SetClientReview
+  SetClientReview,
+  SetLinkHealth
 } from 'core/entities/Care';
 import type { JobView, MealDetailView, PlanSummaryView, PlanView } from 'core/controllers/Plan';
 import type { PracticeOfferView } from 'core/controllers/Billing';
@@ -109,6 +112,12 @@ export interface CareInvitationDetailView {
  */
 export interface CareLinkView {
   id: string;
+  /**
+   * Whether the link was accepted at today's `CARE_CONSENT_VERSION`. False on a
+   * link accepted under an older list: it stays a link, and the screen may say
+   * the list has changed.
+   */
+  consentIsCurrent: boolean;
   consentVersion: string;
   professionalName: string;
   shares: readonly (CareHealthShared | CareShared)[];
@@ -207,6 +216,13 @@ export interface CareClientOverviewView {
  */
 export interface CarePracticeStandingView {
   activeClients: number;
+  /**
+   * True until the professional has accepted the current
+   * `PROFESSIONAL_AGREEMENT_VERSION` (`docs/legal/textos/01`, `04`): the page
+   * shows the agreement instead of the practice, and no client route or
+   * practice checkout opens.
+   */
+  agreementRequired: boolean;
   includedClients: number;
   open: boolean;
   pendingInvitations: number;
@@ -221,12 +237,19 @@ export interface CarePracticeView extends CarePracticeStandingView {
   billing: PracticeOfferView;
 }
 
-/** One row of a client's own trail: who, what kind of data, read or changed, and when. */
+/**
+ * One row of a client's own trail: who, what kind of data, read or changed, and
+ * when. `granted` and `withdrawn` (only with `kind: 'health'`) are the client's
+ * own act of starting or stopping sharing the health line. `linkId` is the link
+ * it happened under — the client's own link ids, never an account's id — and
+ * null on an older row no single link fits, or once the link went with an account.
+ */
 export interface CareAccessEntryView {
   id: string;
   action: CareAccessAction;
   at: string;
   kind: CareAccessKind;
+  linkId: string | null;
   professionalName: string;
 }
 
@@ -237,7 +260,14 @@ export interface CareAccessPageView {
 }
 
 function presentAccess(row: CareAccessEntry): CareAccessEntryView {
-  return { id: row.id, action: row.action, at: row.createdAt.toISOString(), kind: row.kind, professionalName: row.professionalName };
+  return {
+    id: row.id,
+    action: row.action,
+    at: row.createdAt.toISOString(),
+    kind: row.kind,
+    linkId: row.linkId,
+    professionalName: row.professionalName
+  };
 }
 
 function presentClientLink(
@@ -312,6 +342,7 @@ function presentInvitationDetail(row: OpenInvitation): CareInvitationDetailView 
 function presentLink({ link, professionalName }: LinkWithProfessional): CareLinkView {
   return {
     id: link.id,
+    consentIsCurrent: link.consentVersion === CARE_CONSENT_VERSION,
     consentVersion: link.consentVersion,
     professionalName,
     shares: link.sharesHealth ? [...CARE_SHARED, ...CARE_HEALTH_SHARED] : CARE_SHARED,
@@ -378,12 +409,15 @@ async function isProfessional(userId: string): Promise<boolean> {
 
 /**
  * Whether this account may work with clients today: a professional, as
- * `isProfessional`, whose practice is paid for (`0061`) — the question
+ * `isProfessional`, whose practice is paid for (`0061`) and who has accepted
+ * the current agreement (`docs/legal/textos/01`) — the question
  * `ProfessionalGuard` asks for every client route, asked again here as the
  * second line.
  */
 async function practises(userId: string): Promise<boolean> {
-  return (await switchedOn()) && (await ProfessionalRepository.find(userId))?.practiceOpen === true;
+  const row = (await switchedOn()) ? await ProfessionalRepository.find(userId) : null;
+
+  return row?.practiceOpen === true && row.agreementVersion === PROFESSIONAL_AGREEMENT_VERSION;
 }
 
 // --- Controller ---------------------------------------------------------------
@@ -743,7 +777,12 @@ export const CareController = {
 
     const use = await CareRepository.practiceUse(professional.id, now);
 
-    return { ...use, includedClients: row.includedClients, open: row.practiceOpen };
+    return {
+      ...use,
+      agreementRequired: row.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION,
+      includedClients: row.includedClients,
+      open: row.practiceOpen
+    };
   },
 
   /**
@@ -772,6 +811,28 @@ export const CareController = {
 
       return presentClientLink(link, access.clientName);
     });
+  },
+
+  /**
+   * The client starts or stops sharing the health line on their own link —
+   * `active` or `paused` — without ending it (`docs/legal/analisis.md` P0-1;
+   * RGPD art. 7.3). The session's link and nobody else's: no link is a 404.
+   *
+   * Not behind the switch, like `myLink` and `end`: consent stays the client's
+   * to change whatever it says. Each change leaves a `health` row in the
+   * client's trail — `granted` or `withdrawn` — in the same transaction;
+   * asking for what already holds changes nothing and leaves none. Off closes
+   * the professional's health read on the very next request, because
+   * `withClient` reads the link afresh every time.
+   */
+  async setSharesHealth(session: Pick<CareSession, 'id'>, input: SetLinkHealth, now: Date = new Date()): Promise<CareLinkView> {
+    const row = await CareRepository.setSharesHealth(session.id, input.sharesHealth, now);
+
+    if (!row) {
+      throw new NotFoundError('Link not found');
+    }
+
+    return presentLink(row);
   },
 
   /**
@@ -825,12 +886,12 @@ export const CareController = {
    *    the guard asked too, this is the second line for any caller that is not
    *    a route;
    * 2. the link is resolved by `(id, professionalId, status = 'active')` with
-   *    the grant still standing and the practice paid for (`0061`) — one
-   *    query, `CareRepository.activeLink`. A
+   *    the grant still standing, the practice paid for (`0061`) and the
+   *    current agreement accepted — one query, `CareRepository.activeLink`. A
    *    link that is someone else's, paused, ended, unknown or not an id is
    *    one `NotFoundError`, the 404 of every denial; nothing is written;
    * 3. the client's trail gets its row — who (the professional's id and name
-   *    as it is now), `kind`, `action`. A read's row goes in **before** `fn`
+   *    as it is now), `kind`, `action`, and the link it went through. A read's row goes in **before** `fn`
    *    runs, so there is no read without its row; a failure to write it fails
    *    the call. A write's row goes in with the change: `fn` gets `record`
    *    and must hand it to the repository that writes, which calls it inside
@@ -850,7 +911,7 @@ export const CareController = {
     linkId: string,
     // `list` is the list's own row, written by `CareRepository.roster` alone.
     kind: Exclude<CareAccessKind, 'list'>,
-    action: CareAccessAction,
+    action: CareProfessionalAction,
     fn: (clientId: string, access: ClientAccess, record: RecordAccess) => Promise<T>
   ): Promise<T> {
     if (!careLinkIdSchema.safeParse(linkId).success || !(await switchedOn())) {
@@ -866,7 +927,7 @@ export const CareController = {
     }
 
     const { clientId, professionalId: _professional, ...link } = access.link;
-    const entry = { action, kind, professionalId, professionalName: access.professionalName };
+    const entry = { action, kind, linkId, professionalId, professionalName: access.professionalName };
     const view = { clientName: access.clientName, link, professionalName: access.professionalName };
 
     if (action === 'read') {

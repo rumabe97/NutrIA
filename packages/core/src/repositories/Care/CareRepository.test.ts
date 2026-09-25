@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PgDialect } from 'drizzle-orm/pg-core';
 
-import { careLinks } from 'database/schema/care';
+import { careAccessLog, careLinks } from 'database/schema/care';
 import { targetOverrides } from 'database/schema/profile';
 
 import { CareRepository } from './CareRepository';
@@ -31,7 +31,38 @@ function update(table: unknown) {
   };
 }
 
-vi.mock('database', () => ({ database: () => ({ transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({ update }) }) }));
+/** What the open-link `SELECT` answers inside the transaction, and every row an `INSERT` was given. */
+let openLink: { link: Record<string, unknown>; professionalName: string } | undefined;
+const inserted: { readonly table: unknown; readonly values: Record<string, unknown> }[] = [];
+
+function select() {
+  const chain = { from: () => chain, innerJoin: () => chain, limit: () => Promise.resolve(openLink ? [openLink] : []), where: () => chain };
+
+  return chain;
+}
+
+function insert(table: unknown) {
+  return {
+    values: (values: Record<string, unknown>) => {
+      inserted.push({ table, values });
+
+      return Promise.resolve();
+    }
+  };
+}
+
+/** What a plain read of the trail answers, as stored. */
+let trail: Record<string, unknown>[] = [];
+
+function selectTrail() {
+  const chain = { from: () => chain, limit: () => Promise.resolve(trail), orderBy: () => chain, where: () => chain };
+
+  return chain;
+}
+
+vi.mock('database', () => ({
+  database: () => ({ select: selectTrail, transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({ insert, select, update }) })
+}));
 
 const NOW = new Date('2026-09-24T10:00:00.000Z');
 const LINK = '0b8e7f4a-3c2d-4e1f-9a8b-7c6d5e4f3a2b';
@@ -77,5 +108,104 @@ describe('CareRepository.end — the targets become the client’s own', () => {
 
     await expect(CareRepository.end('usr-stranger', 'professional', LINK, NOW)).resolves.toBe(false);
     expect(statements.map(statement => statement.table)).toEqual([careLinks]);
+  });
+});
+
+/*
+ * P0-1 (`docs/legal/analisis.md`): the client stops or starts sharing the health
+ * line without ending the link, and each change leaves its row in the same
+ * transaction. That Postgres keeps the two together is the end-to-end suite's.
+ */
+describe('CareRepository.setSharesHealth', () => {
+  const PRO_ID = 'usr-pro';
+  const stored = (sharesHealth: boolean) => ({
+    link: {
+      id: LINK,
+      clientId: 'usr-client',
+      consentedAt: NOW,
+      consentVersion: '2.0.0',
+      createdAt: NOW,
+      endedAt: null,
+      endedBy: null,
+      professionalId: PRO_ID,
+      reviewBeforePublish: true,
+      sharesHealth,
+      status: 'active',
+      updatedAt: NOW
+    },
+    professionalName: 'Dra. Pérez'
+  });
+
+  beforeEach(() => {
+    statements.length = 0;
+    inserted.length = 0;
+  });
+
+  it.each([
+    [false, 'withdrawn'],
+    [true, 'granted']
+  ] as const)('sets it to %s on the session’s open link and writes a %s health row under that link', async (sharesHealth, action) => {
+    ended = { clientId: 'usr-client', professionalId: PRO_ID };
+    openLink = stored(sharesHealth);
+
+    await expect(CareRepository.setSharesHealth('usr-client', sharesHealth, NOW)).resolves.toMatchObject({
+      link: { id: LINK, sharesHealth },
+      professionalName: 'Dra. Pérez'
+    });
+
+    const [change] = statements;
+
+    expect(change?.table).toBe(careLinks);
+    expect(change?.set).toEqual({ sharesHealth, updatedAt: NOW });
+    // The session's id is the owner, only an open link, and only when it would change.
+    expect(change?.sql).toBe('(("care_links"."client_id" = $1 and "care_links"."status" in ($2, $3)) and "care_links"."shares_health" <> $4)');
+    expect(change?.params).toEqual(['usr-client', 'active', 'paused', sharesHealth]);
+    expect(inserted).toEqual([
+      {
+        table: careAccessLog,
+        values: { action, kind: 'health', linkId: LINK, professionalId: PRO_ID, professionalName: 'Dra. Pérez', userId: 'usr-client' }
+      }
+    ]);
+  });
+
+  it('writes no row when nothing changed', async () => {
+    ended = undefined;
+    openLink = stored(false);
+
+    await expect(CareRepository.setSharesHealth('usr-client', false, NOW)).resolves.toMatchObject({ link: { sharesHealth: false } });
+    expect(inserted).toEqual([]);
+  });
+
+  it('answers null, and writes no row, for a client with no open link', async () => {
+    ended = undefined;
+    openLink = undefined;
+
+    await expect(CareRepository.setSharesHealth('usr-stranger', true, NOW)).resolves.toBeNull();
+    expect(inserted).toEqual([]);
+  });
+});
+
+describe('CareRepository.accessLog — a value a later release added', () => {
+  const row = (action: string, kind: string) => ({
+    id: LINK,
+    action,
+    createdAt: NOW,
+    kind,
+    linkId: null,
+    professionalId: null,
+    professionalName: 'Dra. Pérez',
+    updatedAt: NOW,
+    userId: 'usr-client'
+  });
+
+  it('leaves out a row it cannot name, rather than failing the client’s whole trail', async () => {
+    trail = [row('read', 'overview'), row('reviewed', 'overview'), row('read', 'allergies'), row('withdrawn', 'health')];
+
+    const rows = await CareRepository.accessLog('usr-client', 101);
+
+    expect(rows.map(entry => [entry.action, entry.kind])).toEqual([
+      ['read', 'overview'],
+      ['withdrawn', 'health']
+    ]);
   });
 });

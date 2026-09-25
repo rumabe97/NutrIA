@@ -8,8 +8,14 @@ import { z } from 'zod';
  * 004, Phase 8), as `HEALTH_CONSENT_VERSION` is: a stored version that no
  * longer matches this one is consent to a notice the client never read, and
  * accepting with an older one is refused at the door.
+ *
+ * `2.0.0` (`docs/legal/textos/05` § B): the list names what the professional
+ * may *do* — set targets, generate and change plans, review them first — and
+ * the health line can be switched on and off later without ending the link. A
+ * link accepted at `1.0.0` stays a link, shown with `consentIsCurrent: false`;
+ * none may be a real one when the `professional` switch goes on.
  */
-export const CARE_CONSENT_VERSION = '1.0.0';
+export const CARE_CONSENT_VERSION = '2.0.0';
 
 /**
  * What a link lets the professional see and do, in the order the client reads
@@ -72,6 +78,15 @@ export const setClientReviewSchema = z.object({ reviewBeforePublish: z.boolean()
 export type SetClientReview = z.infer<typeof setClientReviewSchema>;
 
 /**
+ * The client starts or stops sharing the health line on their own link, without
+ * ending it (`docs/legal/analisis.md` P0-1; RGPD art. 7.3): as easy to take
+ * back as it was to give.
+ */
+export const setLinkHealthSchema = z.object({ sharesHealth: z.boolean() });
+
+export type SetLinkHealth = z.infer<typeof setLinkHealthSchema>;
+
+/**
  * A link's id as a path carries it. Anything else names no link and is
  * answered as every unknown link is — a 404, never a 400 that would tell a
  * caller the route is there.
@@ -121,20 +136,31 @@ export const CARE_ACCESS_KINDS = ['list', 'overview', 'plan', 'progress', 'targe
 
 export type CareAccessKind = (typeof CARE_ACCESS_KINDS)[number];
 
-export const CARE_ACCESS_ACTIONS = ['read', 'write'] as const;
+/**
+ * `read` and `write` are a professional's; `granted` and `withdrawn`, only on a
+ * `health` row, are the client's own — they started or stopped sharing the
+ * health line under that link.
+ */
+export const CARE_ACCESS_ACTIONS = ['read', 'write', 'granted', 'withdrawn'] as const;
 
 export type CareAccessAction = (typeof CARE_ACCESS_ACTIONS)[number];
+
+/** What a professional's access through `withClient` can be. */
+export type CareProfessionalAction = Extract<CareAccessAction, 'read' | 'write'>;
 
 /**
  * One row of the client's trail as `care_access_log` holds it. `userId` is the
  * client's; `professionalId` is null once that professional's account is gone,
- * and `professionalName` is the name they had when they looked.
+ * and `professionalName` is the name they had when they looked. `linkId` is the
+ * link it happened under — null on an older row no single link fits, or once
+ * the link went with an account.
  */
 export const careAccessEntrySchema = z.object({
   id: z.uuid(),
   action: z.enum(CARE_ACCESS_ACTIONS),
   createdAt: z.date(),
   kind: z.enum(CARE_ACCESS_KINDS),
+  linkId: z.uuid().nullable(),
   professionalId: z.string().min(1).nullable(),
   professionalName: z.string(),
   updatedAt: z.date(),

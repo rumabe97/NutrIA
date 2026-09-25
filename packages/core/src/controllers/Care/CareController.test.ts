@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeProfessional, makeUser } from '#test/fixtures';
 import { CARE_CONSENT_VERSION, CARE_HEALTH_SHARED, CARE_SHARED, CARE_TOKEN_PATTERN } from 'core/entities/Care';
 import { CareLinkExistsError, InputParseError, NotFoundError, PracticeFullError } from 'core/entities/Error';
+import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 
 import { CareController } from './CareController';
 
@@ -19,6 +20,7 @@ const decline = vi.fn<(clientId: string, email: string, tokenHash: string, now: 
 const end = vi.fn<(userId: string, side: 'client' | 'professional', linkId: string, now: Date) => Promise<boolean>>();
 const forgetAddress = vi.fn<(email: string) => Promise<void>>();
 const invite = vi.fn<(professionalId: string, email: string, tokenHash: string, expiresAt: Date, now: Date) => Promise<InviteOutcome>>();
+const setSharesHealth = vi.fn<(clientId: string, sharesHealth: boolean, now: Date) => Promise<LinkWithProfessional | null>>();
 const practiceUse = vi.fn<(professionalId: string, now: Date) => Promise<PracticeUse>>();
 const openInvitation = vi.fn<(clientId: string, email: string, tokenHash: string, now: Date) => Promise<OpenInvitation | null>>();
 const find = vi.fn<(userId: string) => Promise<Professional | null>>();
@@ -35,7 +37,8 @@ vi.mock('#repositories/Care', () => ({
     forgetAddress: (email: string) => forgetAddress(email),
     invite: (...args: Parameters<typeof invite>) => invite(...args),
     openInvitation: (...args: Parameters<typeof openInvitation>) => openInvitation(...args),
-    practiceUse: (...args: Parameters<typeof practiceUse>) => practiceUse(...args)
+    practiceUse: (...args: Parameters<typeof practiceUse>) => practiceUse(...args),
+    setSharesHealth: (...args: Parameters<typeof setSharesHealth>) => setSharesHealth(...args)
   }
 }));
 vi.mock('#repositories/Professional', () => ({ ProfessionalRepository: { find: (userId: string) => find(userId) } }));
@@ -66,7 +69,20 @@ function makeLink(overrides?: Partial<CareLink>): CareLink {
 }
 
 beforeEach(() => {
-  for (const mock of [accept, clientLink, decline, end, forgetAddress, invite, openInvitation, practiceUse, find, isEnabled, findUserById]) {
+  for (const mock of [
+    accept,
+    clientLink,
+    decline,
+    end,
+    forgetAddress,
+    invite,
+    openInvitation,
+    practiceUse,
+    setSharesHealth,
+    find,
+    isEnabled,
+    findUserById
+  ]) {
     mock.mockReset();
   }
 
@@ -131,9 +147,26 @@ describe('CareController.practice', () => {
     find.mockResolvedValue(makeProfessional({ includedClients: 30, practiceOpen: false }));
     practiceUse.mockResolvedValue({ activeClients: 0, pendingInvitations: 2 });
 
-    await expect(CareController.practice(PRO, NOW)).resolves.toEqual({ activeClients: 0, includedClients: 30, open: false, pendingInvitations: 2 });
+    await expect(CareController.practice(PRO, NOW)).resolves.toEqual({
+      activeClients: 0,
+      agreementRequired: true,
+      includedClients: 30,
+      open: false,
+      pendingInvitations: 2
+    });
     expect(find).toHaveBeenCalledWith(PRO.id);
     expect(practiceUse).toHaveBeenCalledWith(PRO.id, NOW);
+  });
+
+  it.each([
+    [null, true],
+    ['0.9.0', true],
+    [PROFESSIONAL_AGREEMENT_VERSION, false]
+  ])('asks for the agreement while the version accepted is %s', async (agreementVersion, agreementRequired) => {
+    find.mockResolvedValue(makeProfessional({ agreementVersion, practiceOpen: true }));
+    practiceUse.mockResolvedValue({ activeClients: 0, pendingInvitations: 0 });
+
+    await expect(CareController.practice(PRO, NOW)).resolves.toMatchObject({ agreementRequired });
   });
 
   it.each([
@@ -206,6 +239,7 @@ describe('CareController.accept', () => {
     expect(accept).toHaveBeenCalledWith(CLIENT.id, 'cliente@example.com', TOKEN_HASH, answer, NOW);
     expect(view).toEqual({
       id: '0b8e7f4a-3c2d-4e1f-9a8b-7c6d5e4f3a2b',
+      consentIsCurrent: true,
       consentVersion: CARE_CONSENT_VERSION,
       professionalName: 'Ana Dietista',
       shares: CARE_SHARED,
@@ -403,5 +437,48 @@ describe('CareController.activeProfessional', () => {
 
     await expect(CareController.activeProfessional(CLIENT.id)).resolves.toEqual({ id: PRO.id, email: 'dietista@example.com' });
     expect(isEnabled).not.toHaveBeenCalled();
+  });
+});
+
+describe('CareController.setSharesHealth', () => {
+  it('changes the session’s own link and answers it, the health items listed only while shared', async () => {
+    setSharesHealth.mockResolvedValue({ link: makeLink({ sharesHealth: true }), professionalName: 'Ana Dietista' });
+
+    const view = await CareController.setSharesHealth({ id: CLIENT.id }, { sharesHealth: true }, NOW);
+
+    expect(setSharesHealth).toHaveBeenCalledExactlyOnceWith(CLIENT.id, true, NOW);
+    expect(view).toMatchObject({ shares: [...CARE_SHARED, ...CARE_HEALTH_SHARED], sharesHealth: true, status: 'active' });
+
+    setSharesHealth.mockResolvedValue({ link: makeLink({ sharesHealth: false, status: 'paused' }), professionalName: 'Ana Dietista' });
+
+    await expect(CareController.setSharesHealth({ id: CLIENT.id }, { sharesHealth: false }, NOW)).resolves.toMatchObject({
+      shares: CARE_SHARED,
+      sharesHealth: false,
+      status: 'paused'
+    });
+  });
+
+  it('is a 404 for a client with no open link', async () => {
+    setSharesHealth.mockResolvedValue(null);
+
+    await expect(CareController.setSharesHealth({ id: CLIENT.id }, { sharesHealth: false }, NOW)).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it('works with the switch off: consent stays the client’s to change, and the switch is not asked', async () => {
+    isEnabled.mockResolvedValue(false);
+    setSharesHealth.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+
+    await expect(CareController.setSharesHealth({ id: CLIENT.id }, { sharesHealth: false }, NOW)).resolves.toMatchObject({ sharesHealth: false });
+    expect(isEnabled).not.toHaveBeenCalled();
+  });
+});
+
+describe('CareController.myLink — the consent version', () => {
+  it('says whether the link was accepted at today’s consent version', async () => {
+    clientLink.mockResolvedValueOnce({ link: makeLink(), professionalName: 'Ana Dietista' });
+    clientLink.mockResolvedValueOnce({ link: makeLink({ consentVersion: '1.0.0' }), professionalName: 'Ana Dietista' });
+
+    await expect(CareController.myLink({ id: CLIENT.id })).resolves.toMatchObject({ consentIsCurrent: true });
+    await expect(CareController.myLink({ id: CLIENT.id })).resolves.toMatchObject({ consentIsCurrent: false, consentVersion: '1.0.0' });
   });
 });

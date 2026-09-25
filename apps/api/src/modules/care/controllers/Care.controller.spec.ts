@@ -5,6 +5,7 @@ import request from 'supertest';
 import { Test } from '@nestjs/testing';
 
 import { CARE_CONSENT_VERSION, CARE_HEALTH_SHARED, CARE_SHARED } from 'core/entities/Care';
+import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { CareController } from 'core/controllers/Care';
 import { CareLinkExistsError, InputParseError, NotFoundError, PracticeFullError } from 'core/entities/Error';
 import { ProfessionalController } from 'core/controllers/Professional';
@@ -39,6 +40,7 @@ const SESSION = { id: 'usr-session', activated: true, email: 'ana@example.invali
 
 const LINK: CareLinkView = {
   id: LINK_ID,
+  consentIsCurrent: true,
   consentVersion: CARE_CONSENT_VERSION,
   professionalName: 'Ana Dietista',
   shares: CARE_SHARED,
@@ -85,7 +87,14 @@ const OVERVIEW: CareClientOverviewView = {
 
 const TRAIL: CareAccessPageView = {
   entries: [
-    { id: '9a8b7c6d-5e4f-4a2b-8b8e-7f4a3c2d4e1f', action: 'read', at: '2026-09-24T10:00:00.000Z', kind: 'overview', professionalName: 'Ana Dietista' }
+    {
+      id: '9a8b7c6d-5e4f-4a2b-8b8e-7f4a3c2d4e1f',
+      action: 'read',
+      at: '2026-09-24T10:00:00.000Z',
+      kind: 'overview',
+      linkId: LINK_ID,
+      professionalName: 'Ana Dietista'
+    }
   ],
   next: null
 };
@@ -151,10 +160,16 @@ describe('care routes', () => {
     send.mockReset();
     send.mockResolvedValue(true);
     jest.spyOn(ProfileController, 'localeOf').mockResolvedValue('en-GB');
-    // Every client route needs a practice paid for (`0061`); its own suite below says what happens without one.
+    // Every client route needs a practice paid for (`0061`) and the agreement accepted; their own suites below say what happens without.
     jest
       .spyOn(ProfessionalController, 'find')
-      .mockResolvedValue({ collegiateNumber: '28/1', grantedAt: '2026-09-01T00:00:00.000Z', includedClients: 30, practiceOpen: true });
+      .mockResolvedValue({
+        agreementRequired: false,
+        collegiateNumber: '28/1',
+        grantedAt: '2026-09-01T00:00:00.000Z',
+        includedClients: 30,
+        practiceOpen: true
+      });
   });
 
   afterEach(() => {
@@ -201,6 +216,9 @@ describe('care routes', () => {
       expect(mail?.to).toBe('cliente@example.invalid');
       expect(mail?.text).toContain(`https://nutria.example/en/invitacion/${TOKEN}`);
       expect(mail?.subject).toBe('Ana Dietista has invited you to NutrIA');
+      // RGPD art. 14 (`docs/legal/textos/06` § A): who gave the address, and where the rights are, in the inviter's language.
+      expect(mail?.text).toContain('We are writing because Ana Dietista gave us your address');
+      expect(mail?.text).toContain('https://nutria.example/en/privacidad');
     });
 
     it('refuses a body that is not an address as 422', async () => {
@@ -286,6 +304,13 @@ describe('care routes', () => {
       jest.spyOn(CareController, 'myLink').mockResolvedValue(LINK);
 
       expect((await request(server()).get(`/${PREFIX}/care/links/me`).expect(200)).body).toEqual(LINK);
+    });
+
+    it('still lets the client stop sharing the health line — consent stays theirs to take back', async () => {
+      const setSharesHealth = jest.spyOn(CareController, 'setSharesHealth').mockResolvedValue(LINK);
+
+      expect((await request(server()).patch(`/${PREFIX}/care/links/me`).send({ sharesHealth: false }).expect(200)).body).toEqual(LINK);
+      expect(setSharesHealth).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), { sharesHealth: false });
     });
 
     it('still lets the client end their link, and answers a path that is not a link id with 404, not 400', async () => {
@@ -658,7 +683,13 @@ describe('care routes', () => {
       jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
       jest
         .spyOn(ProfessionalController, 'find')
-        .mockResolvedValue({ collegiateNumber: '28/1', grantedAt: '2026-09-01T00:00:00.000Z', includedClients: 30, practiceOpen: false });
+        .mockResolvedValue({
+          agreementRequired: false,
+          collegiateNumber: '28/1',
+          grantedAt: '2026-09-01T00:00:00.000Z',
+          includedClients: 30,
+          practiceOpen: false
+        });
     }
 
     it('opens the workspace’s own page to a professional whose practice is not paid for, with the way to pay', async () => {
@@ -666,12 +697,19 @@ describe('care routes', () => {
       practiceOffer.mockResolvedValue(OFFER);
       const practice = jest
         .spyOn(CareController, 'practice')
-        .mockResolvedValue({ activeClients: 0, includedClients: 30, open: false, pendingInvitations: 0 });
+        .mockResolvedValue({ activeClients: 0, agreementRequired: false, includedClients: 30, open: false, pendingInvitations: 0 });
 
       const response = await request(server()).get(`/${PREFIX}/care/practice`).expect(200);
 
       expect(practice).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }));
-      expect(response.body).toEqual({ activeClients: 0, billing: OFFER, includedClients: 30, open: false, pendingInvitations: 0 });
+      expect(response.body).toEqual({
+        activeClients: 0,
+        agreementRequired: false,
+        billing: OFFER,
+        includedClients: 30,
+        open: false,
+        pendingInvitations: 0
+      });
     });
 
     it('keeps that page shut to an account that is not a professional', async () => {
@@ -721,6 +759,128 @@ describe('care routes', () => {
         .send({ email: 'cliente@example.invalid', includedClients: 999, practiceOpen: true })
         .expect(201);
       expect(invite).toHaveBeenCalledWith(expect.anything(), { email: 'cliente@example.invalid' });
+    });
+  });
+
+  /* P0-1 (`docs/legal/analisis.md`): the health line, switched by the client on their own link. */
+  describe('PATCH /care/links/me', () => {
+    it('takes the yes or no alone, for the session’s own link — never a link id or another account from the body', async () => {
+      const shared = { ...LINK, shares: [...CARE_SHARED, ...CARE_HEALTH_SHARED], sharesHealth: true };
+      const setSharesHealth = jest.spyOn(CareController, 'setSharesHealth').mockResolvedValue(shared);
+
+      const response = await request(server())
+        .patch(`/${PREFIX}/care/links/me`)
+        .send({ clientId: 'usr-other', linkId: LINK_ID, sharesHealth: true })
+        .expect(200);
+
+      expect(setSharesHealth).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }), { sharesHealth: true });
+      expect(response.body).toEqual(shared);
+    });
+
+    it('refuses a body without a boolean as 422, and changes nothing', async () => {
+      const setSharesHealth = jest.spyOn(CareController, 'setSharesHealth');
+
+      await request(server()).patch(`/${PREFIX}/care/links/me`).send({}).expect(422);
+      await request(server()).patch(`/${PREFIX}/care/links/me`).send({ sharesHealth: 'no' }).expect(422);
+
+      expect(setSharesHealth).not.toHaveBeenCalled();
+    });
+
+    it('is a 404 for a client with no open link', async () => {
+      jest.spyOn(CareController, 'setSharesHealth').mockRejectedValue(new NotFoundError('Link not found'));
+
+      await request(server()).patch(`/${PREFIX}/care/links/me`).send({ sharesHealth: false }).expect(404);
+    });
+
+    it('asks neither the switch nor whether the account is a professional', async () => {
+      const hasAccess = jest.spyOn(ProfessionalController, 'hasAccess');
+      const isOpen = jest.spyOn(ProfessionalController, 'isOpen');
+
+      jest.spyOn(CareController, 'setSharesHealth').mockResolvedValue(LINK);
+      await request(server()).patch(`/${PREFIX}/care/links/me`).send({ sharesHealth: false }).expect(200);
+
+      expect(hasAccess).not.toHaveBeenCalled();
+      expect(isOpen).not.toHaveBeenCalled();
+    });
+  });
+
+  /* P1-1 (`docs/legal/textos/01`): no client route before the agreement, and the page that shows it. */
+  describe('the professional’s agreement', () => {
+    function unaccepted(): void {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(true);
+      jest
+        .spyOn(ProfessionalController, 'find')
+        .mockResolvedValue({
+          agreementRequired: true,
+          collegiateNumber: '28/1',
+          grantedAt: '2026-09-01T00:00:00.000Z',
+          includedClients: 30,
+          practiceOpen: true
+        });
+    }
+
+    it.each([
+      ['get', '/care/clients'],
+      ['get', `/care/clients/${LINK_ID}`],
+      ['post', '/care/invitations'],
+      ['patch', `/care/clients/${LINK_ID}/targets`]
+    ] as const)('closes %s %s until it is accepted, with the same 404, even with the practice paid for', async (method, path) => {
+      unaccepted();
+      const calls = [jest.spyOn(CareController, 'clients'), jest.spyOn(CareController, 'overview'), jest.spyOn(CareController, 'invite')];
+
+      await request(server())[method](`/${PREFIX}${path}`).send({ email: 'cliente@example.invalid', kcal: 1750 }).expect(404);
+
+      for (const call of calls) {
+        expect(call).not.toHaveBeenCalled();
+      }
+    });
+
+    it('opens the workspace’s own page, which says it is required', async () => {
+      unaccepted();
+      practiceOffer.mockResolvedValue({ available: true, plans: [], subscription: null, testMode: false, trialDays: 14 });
+      jest
+        .spyOn(CareController, 'practice')
+        .mockResolvedValue({ activeClients: 0, agreementRequired: true, includedClients: 30, open: true, pendingInvitations: 0 });
+
+      expect((await request(server()).get(`/${PREFIX}/care/practice`).expect(200)).body).toMatchObject({ agreementRequired: true });
+    });
+
+    it('accepts the current version for the session’s account, with no content', async () => {
+      unaccepted();
+      const accept = jest
+        .spyOn(ProfessionalController, 'acceptAgreement')
+        .mockResolvedValue({
+          agreementRequired: false,
+          collegiateNumber: '28/1',
+          grantedAt: '2026-09-01T00:00:00.000Z',
+          includedClients: 30,
+          practiceOpen: true
+        });
+
+      await request(server())
+        .post(`/${PREFIX}/care/practice/agreement`)
+        .send({ userId: 'usr-other', version: PROFESSIONAL_AGREEMENT_VERSION })
+        .expect(204);
+      expect(accept).toHaveBeenCalledWith(SESSION.id, { version: PROFESSIONAL_AGREEMENT_VERSION });
+    });
+
+    it('refuses any other version as 422, and writes nothing', async () => {
+      unaccepted();
+      const accept = jest.spyOn(ProfessionalController, 'acceptAgreement');
+
+      await request(server()).post(`/${PREFIX}/care/practice/agreement`).send({ version: '0.9.0' }).expect(422);
+      await request(server()).post(`/${PREFIX}/care/practice/agreement`).send({}).expect(422);
+
+      expect(accept).not.toHaveBeenCalled();
+    });
+
+    it('is a 404 for an account that is not a professional, before the body is read', async () => {
+      jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(false);
+      const accept = jest.spyOn(ProfessionalController, 'acceptAgreement');
+
+      await request(server()).post(`/${PREFIX}/care/practice/agreement`).send({}).expect(404);
+
+      expect(accept).not.toHaveBeenCalled();
     });
   });
 });

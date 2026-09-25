@@ -102,6 +102,8 @@ export function makePreferences(overrides?: Partial<Preferences>): Preferences {
 export function makeProfessional(overrides?: Partial<Professional>): Professional {
   return {
     id: 'e5f6a7b8-9c0d-4e1f-a2b3-c4d5e6f70a1b',
+    agreementAcceptedAt: null,
+    agreementVersion: null,
     collegiateNumber: 'MAD00123',
     createdAt: new Date('2026-09-23T10:00:00.000Z'),
     grantedAt: new Date('2026-09-23T10:00:00.000Z'),

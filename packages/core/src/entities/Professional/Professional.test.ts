@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { grantProfessionalSchema } from './Professional';
+import { acceptAgreementSchema, grantProfessionalSchema, PROFESSIONAL_AGREEMENT_VERSION } from './Professional';
 
 /*
  * Not a restatement of the schema: this body is the one thing that can make an
@@ -35,5 +35,25 @@ describe('grantProfessionalSchema', () => {
     const parsed = grantProfessionalSchema.parse({ collegiateNumber: 'MAD00123', includedClients: 99, practiceOpen: true, role: 'admin' });
 
     expect(parsed).toEqual({ collegiateNumber: 'MAD00123' });
+  });
+});
+
+/* The agreement is accepted at the version the professional read (`docs/legal/textos/01`), never another. */
+describe('acceptAgreementSchema', () => {
+  it('is at 1.0.0: a new version is a deliberate change, and asks every professional again', () => {
+    expect(PROFESSIONAL_AGREEMENT_VERSION).toBe('1.0.0');
+  });
+
+  it('accepts the current version', () => {
+    expect(acceptAgreementSchema.parse({ version: PROFESSIONAL_AGREEMENT_VERSION })).toEqual({ version: PROFESSIONAL_AGREEMENT_VERSION });
+  });
+
+  it.each([
+    ['an older version', '0.9.0'],
+    ['a later one', '2.0.0'],
+    ['nothing', undefined],
+    ['a boolean', true]
+  ])('refuses %s', (_label, version) => {
+    expect(acceptAgreementSchema.safeParse({ version }).success).toBe(false);
   });
 });

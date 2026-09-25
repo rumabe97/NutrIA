@@ -17,6 +17,8 @@ import {
   AdminService,
   AdminSettingsService
 } from './services/index.js';
+import { BackgroundTaskService } from '../../shared/services/index.js';
+import { EmailModule } from '../email/email.module.js';
 import { envProvider } from '../../config/index.js';
 import { NotificationsModule } from '../notifications/index.js';
 
@@ -35,8 +37,8 @@ import { NotificationsModule } from '../notifications/index.js';
     AdminPushTestController,
     AdminSettingsController
   ],
-  // For `PushService`: the owner's test goes out through the one door every push does.
-  imports: [NotificationsModule],
+  // `PushService`: the owner's test goes out through the one door every push does; `EmailService`: the grant's mail.
+  imports: [EmailModule, NotificationsModule],
   providers: [
     AdminAccountsService,
     AdminFeedbackService,
@@ -44,6 +46,7 @@ import { NotificationsModule } from '../notifications/index.js';
     AdminPushTestService,
     AdminService,
     AdminSettingsService,
+    BackgroundTaskService,
     envProvider
   ]
 })
