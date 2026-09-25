@@ -1,4 +1,4 @@
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, ne, or, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -38,21 +38,27 @@ export const ProfessionalRepository = {
   /**
    * The professional accepts their agreement at `version` (`docs/legal/textos/01`).
    *
-   * One guarded `UPDATE` by the session's id: no row, no grant, and `null`. The
-   * date is kept when this version was already accepted, so a second click does
-   * not move the moment the acceptance can be shown to have happened.
+   * A guarded `UPDATE` by the session's id that writes only when the stored
+   * version is another one (or none), so a second click does not move the
+   * moment the acceptance can be shown to have happened; when it writes
+   * nothing, the row is read as it stands. No row at all, no grant, and `null`.
+   * Plain column comparisons, no raw SQL: every parameter is typed by the
+   * column it meets.
    */
   async acceptAgreement(userId: string, version: string, now: Date): Promise<Professional | null> {
     try {
-      const [row] = await database()
+      const db = database();
+      const [updated] = await db
         .update(professionals)
-        .set({
-          agreementAcceptedAt: sql`case when ${professionals.agreementVersion} = ${version} then ${professionals.agreementAcceptedAt} else ${now} end`,
-          agreementVersion: version,
-          updatedAt: now
-        })
-        .where(eq(professionals.userId, userId))
+        .set({ agreementAcceptedAt: now, agreementVersion: version, updatedAt: now })
+        .where(and(eq(professionals.userId, userId), or(isNull(professionals.agreementVersion), ne(professionals.agreementVersion, version))))
         .returning();
+
+      if (updated) {
+        return professionalSchema.parse(updated);
+      }
+
+      const [row] = await db.select().from(professionals).where(eq(professionals.userId, userId)).limit(1);
 
       return row ? professionalSchema.parse(row) : null;
     } catch (error: unknown) {

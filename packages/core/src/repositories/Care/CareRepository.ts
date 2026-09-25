@@ -446,7 +446,7 @@ export const CareRepository = {
       return await database().transaction(async (tx): Promise<InviteOutcome> => {
         const [practice] = await tx
           .select({
-            agreed: sql<boolean>`${professionals.agreementVersion} is not distinct from ${PROFESSIONAL_AGREEMENT_VERSION}`,
+            agreementVersion: professionals.agreementVersion,
             includedClients: professionals.includedClients,
             open: professionals.practiceOpen
           })
@@ -454,7 +454,7 @@ export const CareRepository = {
           .where(eq(professionals.userId, professionalId))
           .for('update');
 
-        if (!practice?.open || !practice.agreed) {
+        if (!practice?.open || practice.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION) {
           return { kind: 'closed' };
         }
 
