@@ -237,7 +237,7 @@ así, lo proporcionado es no preguntar la religión: ofrecer «sin cerdo», «si
 
 **Menores.** El art. 7 LOPDGDD fija en **14 años** la edad para consentir; el art. 8 RGPD
 (16, rebajable por ley) se refiere al consentimiento en servicios de la sociedad de la
-información. Las condiciones exigen 16 (`es-ES.ts:1415`) pero **nada lo comprueba**: la
+información. Las condiciones exigían 16 (`es-ES.ts:1415`; el propietario lo subió a **18** el 2026-09-25) pero **nada lo comprueba**: la
 fecha de nacimiento se acepta sin mínimo (`packages/core/src/entities/Profile/Profile.ts:112`;
 `apps/web/src/components/OnboardingFlow/OnboardingFlow.tsx:350-357`). Un menor de 14 años
 que se registra da un consentimiento de salud inválido y recibe un plan de adelgazamiento
@@ -461,6 +461,8 @@ generar, como ya se niega el plato con ingredientes sin resolver; comentario del
 → usar solo las respuestas cerradas) y traducir la forma de comer a exclusiones de
 ingredientes. Luego, la política (§ «Con quién compartimos»).
 
+**Estado de P0-3 a 2026-09-25 — cerrado en lo sustancial** con `agent/legal-a/backend` a `e28f0e5` (sin fusionar): el modelo ya no recibe texto escrito por la persona, alergias, intolerancias ni formas de comer salvo «vegetariano» y «vegano»; halal, kósher, sin gluten y sin lactosa se aplican quitando alimentos en código. Lo que sigue llegando a modelos gratuitos que pueden entrenar: objetivos diarios y tipo de meta (p. ej. perder peso), horarios, gustos por nombre de catálogo, nombres de platos y respuestas cerradas del check-in, sin identificadores. **Residual P2 [abogado]**: si esos datos, sin identificadores, son personales para el proveedor (C-413/23 P) y si la meta «perder peso» es dato de salud; y si el veganismo puede ser una convicción filosófica (art. 9.1). La salida (a) —proveedores con contrato y sin entrenamiento— sigue siendo la que cierra todo.
+
 ### P1
 
 | # | Hallazgo | Dónde | Qué exige la ley | Arreglo mínimo |
@@ -468,7 +470,7 @@ ingredientes. Luego, la política (§ «Con quién compartimos»).
 | P1-1 | Ningún profesional acepta nada antes de abrir `/consulta` (LEGAL-REVIEW § B3) | `apps/api/src/shared/guards/Professional.guard.ts:43-60`; `apps/web/src/app/(app)/consulta/page.tsx:48-60` | Arts. 24, 26 y 32 RGPD; secreto (Ley 44/2003 art. 5.1.c; Código Deontológico art. 22, 29) | Pantalla de aceptación con versión y almacenamiento (§ 11) |
 | P1-2 | La invitación por correo no da la información del art. 14 a quien no es usuario | `apps/api/src/modules/email/templates/CareInvitation.ts:37-47` | Art. 14.1-2 y 14.3.b RGPD (al primer contacto) | Un párrafo de información básica ([`textos/06`](./textos/06-correos.md) § A) |
 | P1-3 | La página de invitación no dice que el profesional **escribirá**: objetivos, generar y **retener** planes para revisarlos; «tu perfil» no dice qué es | `care.shares.*`, `care.invitationShareIntro` (`es-ES.ts:225-265`); `CareInvitation.tsx` | Art. 4.11 y 7 (informado, específico); art. 13.1.c-e | Texto nuevo, enlace a la política; **sube `CARE_CONSENT_VERSION` a `2.0.0`** |
-| P1-4 | No hay puerta de edad | `Profile.ts:112`; `OnboardingFlow.tsx:350-357` | Art. 7 LOPDGDD; art. 8 RGPD; coherencia con las condiciones (16) | Rechazar en `profileSchema` (servidor) menos de 16 años, con un texto que no culpe |
+| P1-4 | No hay puerta de edad | `Profile.ts:112`; `OnboardingFlow.tsx:350-357` | Art. 7 LOPDGDD; art. 8 RGPD; coherencia con las condiciones | Rechazar en `profileSchema` (servidor) menos de **18** años (decisión del propietario, 2026-09-25; antes se proponía 16), con un texto que no culpe |
 | P1-5 | La política no cubre transferencias, plazos por categoría, portabilidad, limitación, la consulta del 004 ni la IA con precisión; dice «uso técnico anónimo» y está ligado a `userId`; promete que la copia «se elimina automáticamente» y la exportación manual no | `es-ES.ts:1096-1181` | Arts. 13.1.e-f, 13.2.a-b, 5.1.a | Política nueva ([`textos/02`](./textos/02-politica-privacidad.md)) |
 | P1-6 | Exportación completa de la base de datos, **sin cifrar**, en el equipo del propietario, sin plazo | `docs/reference/deployment.md` § 8 | Art. 32.1.a (cifrado) y 5.1.e | Cifrarla (p. ej. `age`), guardarla en disco cifrado, borrar a los 30 días; anotarlo en el RAT |
 | P1-7 | Aviso legal incompleto: sin domicilio, NIF ni teléfono; sin cauce de reclamaciones postal y telefónico | `es-ES.ts:1394`; no hay página de aviso legal | LSSI art. 10.1.a y e; TRLGDCU art. 97.1.c y 21.2-3 (vía postal, telefónica y electrónica, justificante, respuesta en 15 días) | [`textos/07`](./textos/07-aviso-legal.md) antes de claves *live* |

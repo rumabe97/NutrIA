@@ -76,10 +76,10 @@ Solo de los pacientes que acepten tu invitación, y mientras el enlace siga acti
 ### 6. A quién invitas
 
 - Solo a personas que ya son tus pacientes y que saben, antes de recibir el correo, que las vas a invitar. Su dirección nos la das tú, y con ella solo enviamos la invitación.
-- Nunca a menores de 16 años. Tampoco a pacientes que necesiten nutrición clínica que NutrIA no cubre: una enfermedad metabólica diagnosticada que requiera una pauta específica, el embarazo, la recuperación de un trastorno de la conducta alimentaria o la alimentación infantil. Para ellos, NutrIA no es la herramienta.
+- Nunca a menores de 18 años. Tampoco a pacientes que necesiten nutrición clínica que NutrIA no cubre: una enfermedad metabólica diagnosticada que requiera una pauta específica, el embarazo, la recuperación de un trastorno de la conducta alimentaria o la alimentación infantil. Para ellos, NutrIA no es la herramienta.
 - Tu paciente decide: puede decir que no, aceptar sin compartir su salud, retirar esa parte o terminar el enlace cuando quiera. No le condiciones tu atención a que acepte.
 
-<!-- Fuente: RGPD art. 5.1.b y 6 (el profesional necesita base para comunicar el correo: la relación asistencial y el conocimiento previo del paciente); LSSI art. 21 (evitar que la invitación sea una comunicación no solicitada); LOPDGDD art. 7 y condiciones de uso (16 años); PRODUCT.md § Users, «Not a user (v1)»; RGPD art. 7.4 (consentimiento libre). -->
+<!-- Fuente: RGPD art. 5.1.b y 6 (el profesional necesita base para comunicar el correo: la relación asistencial y el conocimiento previo del paciente); LSSI art. 21 (evitar que la invitación sea una comunicación no solicitada); LOPDGDD art. 7 y condiciones de uso (18 años desde 2026-09-25); PRODUCT.md § Users, «Not a user (v1)»; RGPD art. 7.4 (consentimiento libre). -->
 
 ### 7. Qué pasa con los datos cuando algo termina
 
@@ -173,7 +173,7 @@ Only for clients who accept your invitation, and only while the link is active:
 ### 6. Who you invite
 
 - Only people who are already your clients and who know, before the email arrives, that you are inviting them. You give us their address, and we only use it to send the invitation.
-- Never anyone under 16. Nor clients who need clinical nutrition NutrIA does not cover: a diagnosed metabolic disease requiring a specific regimen, pregnancy, recovery from an eating disorder, or infant feeding. For them, NutrIA is not the tool.
+- Never anyone under 18. Nor clients who need clinical nutrition NutrIA does not cover: a diagnosed metabolic disease requiring a specific regimen, pregnancy, recovery from an eating disorder, or infant feeding. For them, NutrIA is not the tool.
 - Your client decides: they can say no, accept without sharing their health, withdraw that part or end the link at any time. Do not make your care conditional on their accepting.
 
 ### 7. What happens to the data when something ends
