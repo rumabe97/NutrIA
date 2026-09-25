@@ -43,5 +43,11 @@
   "plan-evaluator": {
     "owns": [],
     "except": []
+  },
+  "legal": {
+    "owns": [
+      "docs/legal/"
+    ],
+    "except": []
   }
 }

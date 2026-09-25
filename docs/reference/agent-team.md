@@ -56,6 +56,7 @@ another server's editing tool goes round it, which is why the merge check is the
 | `invariant-reviewer` | nothing — reads the diff and reports | |
 | `migration-reviewer` | nothing — reads every migration before it can reach production, and reports | |
 | `plan-evaluator` | nothing — measures plans on the real library, before and after, and reports numbers | |
+| `legal` | `docs/legal/` — the analysis, the legal texts as drafts, the DPIA, the go-live checklist; everything else it reports to its owner | the dictionaries, the code: `frontend` and `backend` put its texts in place |
 | the lead | everything else: `docs/`, root configuration, `.claude/`, the lockfile | an agent's directory while that agent is working |
 
 A dependency is added by the lead **before** the agents start: two agents adding one each
