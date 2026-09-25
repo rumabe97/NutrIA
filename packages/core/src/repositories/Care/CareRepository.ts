@@ -399,7 +399,7 @@ export const CareRepository = {
   /**
    * Every invitation past its date, whoever sent it: the address in it was kept
    * for the invitation and nothing else, and the invitation mail promises it goes
-   * within 14 days (RGPD art. 14, `docs/legal/textos/06` § A). One `DELETE`,
+   * by the day after it expires (RGPD art. 14, `docs/legal/textos/06` § A). One `DELETE`,
    * idempotent; answers how many went.
    */
   async forgetExpired(now: Date): Promise<number> {

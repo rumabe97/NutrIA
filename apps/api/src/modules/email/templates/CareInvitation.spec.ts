@@ -76,8 +76,8 @@ describe('careInvitationEmail', () => {
 
   /* RGPD art. 14 (`docs/legal/textos/06` § A): the address came from somebody else, so the mail says who, for how long, and where the rights are. */
   it.each([
-    ['es-ES', 'Te escribimos porque Ana nos ha dado tu dirección para invitarte', '14 días como máximo'],
-    ['en-GB', 'We are writing because Ana gave us your address to invite you', '14 days at most']
+    ['es-ES', 'Te escribimos porque Ana nos ha dado tu dirección para invitarte', 'como muy tarde al día siguiente'],
+    ['en-GB', 'We are writing because Ana gave us your address to invite you', 'by the following day at the latest']
   ] as const)('says where the address came from, how long it is kept and where the rights are (%s)', (locale, source, term) => {
     const mail = careInvitationEmail({ inviterName: 'Ana', locale, privacyUrl: PRIVACY, url: URL });
 

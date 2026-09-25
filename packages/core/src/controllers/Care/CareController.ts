@@ -608,7 +608,7 @@ export const CareController = {
 
   /**
    * The daily sweep's part (`/cron/reminders`): every expired invitation is
-   * deleted, so no address outlives the 14 days the invitation mail promises,
+   * deleted, so no address outlives its invitation by more than a day, as the invitation mail promises,
    * even when nobody invites anybody for a while. Answers how many went.
    */
   async forgetExpiredInvitations(now: Date = new Date()): Promise<number> {

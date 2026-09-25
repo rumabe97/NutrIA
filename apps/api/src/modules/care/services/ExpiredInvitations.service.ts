@@ -4,7 +4,7 @@ import { CareController } from 'core/controllers/Care';
 
 /**
  * The daily sweep's care part: every invitation past its date is deleted, so no
- * address somebody typed outlives the 14 days the invitation mail promises (RGPD
+ * address somebody typed outlives its invitation by more than a day, as the invitation mail promises (RGPD
  * art. 14, `docs/legal/textos/06` § A), even when nobody invites anybody for a
  * while. Called by `/cron/reminders`, the sweep that runs every day.
  */

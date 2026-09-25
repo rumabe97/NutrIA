@@ -48,7 +48,7 @@ const COPY: Record<
     linkFallback: 'If the button does not work, copy this address into your browser:',
     meaning: 'If you accept, they will see your plan and how it is going, and can adjust it with you. Before accepting you will see the exact list.',
     privacy:
-      'We are writing because {name} gave us your address to invite you. NutrIA keeps it only while the invitation is open, 14 days at most, and uses it for nothing else. If you do not accept, it is deleted. Who is responsible and your rights: {privacyUrl}',
+      'We are writing because {name} gave us your address to invite you, and we use it for nothing else. If you accept or decline, we delete the invitation there and then; if you do not answer, it expires after 14 days and we delete it, with your address, by the following day at the latest. Who is responsible and your rights: {privacyUrl}',
     subject: '{name} has invited you to NutrIA'
   },
   'es-ES': {
@@ -61,7 +61,7 @@ const COPY: Record<
     linkFallback: 'Si el botón no funciona, copia esta dirección en tu navegador:',
     meaning: 'Si aceptas, verá tu plan y cómo lo llevas, y podrá ajustarlo contigo. Antes de aceptar verás la lista exacta.',
     privacy:
-      'Te escribimos porque {name} nos ha dado tu dirección para invitarte. NutrIA la guarda solo mientras la invitación está abierta, 14 días como máximo, y no la usa para nada más. Si no aceptas, se borra. Quién es el responsable y tus derechos: {privacyUrl}',
+      'Te escribimos porque {name} nos ha dado tu dirección para invitarte, y no la usamos para nada más. Si aceptas o rechazas, borramos la invitación en ese momento; si no respondes, caduca a los 14 días y la borramos, con tu dirección, como muy tarde al día siguiente. Quién es el responsable y tus derechos: {privacyUrl}',
     subject: '{name} te ha invitado a NutrIA'
   }
 };

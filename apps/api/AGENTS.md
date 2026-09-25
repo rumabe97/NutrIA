@@ -348,7 +348,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   address has an account, and nothing reads `user` by that address. It is read and answered
   only by a confirmed account whose address is the invited one — the session's address is the
   ownership boundary there — and every other case is one 404. `shared/logging` rewrites the
-  token out of the logged URL and `referer`. Every expired invitation is deleted on the daily `/cron/reminders` run (`ExpiredInvitationsService`), so an address nobody answered is gone within the 14 days the mail promises. One open link per client is a partial unique
+  token out of the logged URL and `referer`. Every expired invitation is deleted on the daily `/cron/reminders` run (`ExpiredInvitationsService`), so an address nobody answered is gone by the day after its 14 days, as the mail promises — which holds only while that cron runs daily. One open link per client is a partial unique
   index; accepting into it is 409 `CARE_LINK_EXISTS`, naming the link in the way.
 - **Delegated reading** (`0059`): `GET /care/clients` and `GET /care/clients/:linkId` are
   `CareClientsController` (`ProfessionalGuard` on the class). A professional route takes a
