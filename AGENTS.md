@@ -576,7 +576,9 @@ the least that still guarantees the result, and never a strong model on somethin
 on a wait. Amended 2026-09-23: the orchestrator is Opus 5.5 and chooses each agent's effort
 too, not only its model; older models are allowed when they are the better fit. Amended again
 the same day: **no agent or phase runs on `fable`** — it spends usage credits that run out
-mid-phase — so `opus` is the ceiling and the table below has no `fable` in it. The exception
+mid-phase — so `opus` is the ceiling and the table below has no `fable` in it. Amended
+2026-09-25: `fable` returns only as the **advisor** an agent consults when stuck, capped at two
+consultations a task (`docs/reference/agent-team.md` § Models). The exception
 below is a floor under both profiles.
 
 Chosen because this workspace is large and much of what remains is well-specified
