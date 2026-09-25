@@ -19,9 +19,11 @@ import type { FoodClass } from 'database/schema/food';
  * enforced in code; what it cannot — whether meat was slaughtered and certified
  * — is not claimed, and buying certified meat stays the person's.
  *
- * Absent on purpose: `flexitarian`, which is a direction rather than a rule; and
- * `gluten_free` / `lactose_free`, which name allergens the safety layer already
- * enforces when declared as an intolerance.
+ * `gluten_free` and `lactose_free` are enforced in code too, by the allergen
+ * tags the safety layer reads (`PATTERN_ALLERGENS`), and never named to the
+ * model: each reveals a coeliac disease or an intolerance.
+ *
+ * Absent on purpose: `flexitarian`, which is a direction rather than a rule.
  */
 export const PATTERN_EXCLUSIONS: Readonly<Record<string, readonly FoodClass[]>> = {
   halal: ['pork'],
@@ -57,7 +59,18 @@ const ALCOHOL_RUNS: readonly string[] = [
 const GELATINE_RUNS: readonly string[] = ['gelatina'];
 
 /** Fish without fins and scales, which kashrut excludes; the class `fish` cannot tell them apart. */
-const SCALELESS_FISH_RUNS: readonly string[] = ['anguila', 'angulas', 'cazon', 'esturion', 'caviar', 'panga', 'pez-espada', 'rape', 'siluro', 'tiburon'];
+const SCALELESS_FISH_RUNS: readonly string[] = [
+  'anguila',
+  'angulas',
+  'cazon',
+  'esturion',
+  'caviar',
+  'panga',
+  'pez-espada',
+  'rape',
+  'siluro',
+  'tiburon'
+];
 
 /**
  * What a religious way of eating excludes that no food class names, as runs of
@@ -69,6 +82,35 @@ export const PATTERN_SLUG_RUNS: Readonly<Record<string, readonly string[]>> = {
   halal: [...ALCOHOL_RUNS, ...GELATINE_RUNS],
   kosher: [...ALCOHOL_RUNS, ...GELATINE_RUNS, ...SCALELESS_FISH_RUNS]
 };
+
+/**
+ * What a health-revealing way of eating excludes, as allergen keys and which
+ * presences count. Gluten-free takes traces out too: somebody who eats that way
+ * is often coeliac, and the declaration does not say they are not. Lactose-free
+ * reads `milk` as well as `lactose`, because the catalogue tags lactose on only
+ * part of its dairy; a row whose slug says `sin-lactosa` is what it says.
+ */
+export const PATTERN_ALLERGENS: Readonly<
+  Record<string, { readonly keys: readonly string[]; readonly presences: readonly ('contains' | 'may_contain')[] }>
+> = {
+  gluten_free: { keys: ['gluten'], presences: ['contains', 'may_contain'] },
+  lactose_free: { keys: ['lactose', 'milk'], presences: ['contains'] }
+};
+
+/** Whether a row carries an allergen a health-revealing way of eating rules out. */
+function hasPatternAllergen(ingredient: CatalogueIngredient, patterns: readonly string[], allergenIdsByKey: ReadonlyMap<string, string>): boolean {
+  return patterns.some(pattern => {
+    const rule = PATTERN_ALLERGENS[pattern];
+
+    if (!rule || (pattern === 'lactose_free' && hasRun(ingredient.slug, ['sin-lactosa']))) {
+      return false;
+    }
+
+    const ids = new Set(rule.keys.map(key => allergenIdsByKey.get(key)).filter((id): id is string => id !== undefined));
+
+    return ingredient.allergens.some(link => ids.has(link.allergenId) && rule.presences.includes(link.presence));
+  });
+}
 
 /** Ways of eating that never put meat and dairy in one dish. Judged per dish, by `breaksDishRule`. */
 const SEPARATES_MEAT_AND_DAIRY: ReadonlySet<string> = new Set(['kosher']);
@@ -233,6 +275,12 @@ function inClasses(ingredient: CatalogueIngredient, classes: ReadonlySet<FoodCla
  * reported for one, and a dish rejected here is rejected quietly.
  */
 export function resolvePreferences(input: {
+  /**
+   * The allergen catalogue by key, so `gluten_free` and `lactose_free` can be
+   * enforced by the same tags the allergy gate reads. Without it they exclude
+   * nothing — which is why every caller that builds a plan passes it.
+   */
+  readonly allergenIdsByKey?: ReadonlyMap<string, string>;
   readonly dietaryPatterns: readonly string[];
   readonly dislikedLabels: readonly string[];
   readonly ingredients: readonly CatalogueIngredient[];
@@ -244,9 +292,16 @@ export function resolvePreferences(input: {
   const excluded = new Set<string>();
   const unenforceable: string[] = [];
 
-  if (classes.size > 0 || runs.length > 0) {
+  const byAllergen = input.dietaryPatterns.filter(pattern => PATTERN_ALLERGENS[pattern] !== undefined);
+  const allergenIdsByKey = input.allergenIdsByKey ?? new Map<string, string>();
+
+  if (classes.size > 0 || runs.length > 0 || byAllergen.length > 0) {
     for (const ingredient of input.ingredients) {
-      if (inClasses(ingredient, classes) || (hasRun(ingredient.slug, runs) && !isExceptedFromRuns(ingredient.slug))) {
+      if (
+        inClasses(ingredient, classes) ||
+        (hasRun(ingredient.slug, runs) && !isExceptedFromRuns(ingredient.slug)) ||
+        hasPatternAllergen(ingredient, byAllergen, allergenIdsByKey)
+      ) {
         excluded.add(ingredient.id);
       }
     }

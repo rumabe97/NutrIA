@@ -3,7 +3,14 @@ import { Injectable } from '@nestjs/common';
 import { ProfileConsentController, ProfileController } from 'core/controllers/Profile';
 
 import type { FullProfileDto, GoalDto, PreferencesDto, ProfileConsentDto, ProfileDto, TargetsDto, TourSeenDto } from '../dto/out/index.js';
-import type { GiveProfileConsentDto, SetTourSeenDto, UpdateGoalDto, UpdatePreferencesDto, UpdateProfileDto, UpdateTargetOverrideDto } from '../dto/in/index.js';
+import type {
+  GiveProfileConsentDto,
+  SetTourSeenDto,
+  UpdateGoalDto,
+  UpdatePreferencesDto,
+  UpdateProfileDto,
+  UpdateTargetOverrideDto
+} from '../dto/in/index.js';
 
 @Injectable()
 export class ProfilesService {

@@ -3,7 +3,14 @@ import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUser, Locale, ZodBody } from '../../../shared/index.js';
 import { ProfilesService } from '../services/index.js';
-import { GiveProfileConsentDto, SetTourSeenDto, UpdateGoalDto, UpdatePreferencesDto, UpdateProfileDto, UpdateTargetOverrideDto } from '../dto/in/index.js';
+import {
+  GiveProfileConsentDto,
+  SetTourSeenDto,
+  UpdateGoalDto,
+  UpdatePreferencesDto,
+  UpdateProfileDto,
+  UpdateTargetOverrideDto
+} from '../dto/in/index.js';
 
 import type { FullProfileDto, GoalDto, PreferencesDto, ProfileConsentDto, ProfileDto, TargetsDto, TourSeenDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
@@ -48,7 +55,7 @@ export class ProfilesController {
    * the onboarding steps that collect them.
    */
   @ApiOkResponse({ description: 'The consent as it now stands: withdrawn.' })
-  @ApiOperation({ summary: "Withdraw the profile consent and delete the data it covered" })
+  @ApiOperation({ summary: 'Withdraw the profile consent and delete the data it covered' })
   @Delete('consent')
   async withdrawConsent(@CurrentUser() user: SessionUser): Promise<ProfileConsentDto> {
     return this.profiles.withdrawConsent(user.id);

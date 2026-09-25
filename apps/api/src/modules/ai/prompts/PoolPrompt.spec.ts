@@ -62,7 +62,6 @@ function checkIn(comments: string | null): CheckInForGeneration {
   return { comments, difficulty: 'ok', hunger: 'right', satisfaction: 4 };
 }
 
-
 describe('buildPoolPrompt', () => {
   /**
    * The bug 3.0.0 exists to fix (`0047`). The pool builder sends one slot per
@@ -280,13 +279,16 @@ describe('buildPoolPrompt', () => {
     expect(long.split('\n').find(line => line.startsWith('LIKES: '))?.length).toBe('LIKES: '.length + 400);
   });
 
-  it('names a way of eating only from the allow-list: never halal or kosher, which are enforced in code', () => {
-    const prompt = buildPoolPrompt(context({ dietaryPatterns: ['vegetarian', 'halal', 'kosher', 'gluten_free'] }), []);
+  it('names a way of eating only from the allow-list: never one that reveals a belief or a health condition', () => {
+    const prompt = buildPoolPrompt(context({ dietaryPatterns: ['vegetarian', 'halal', 'kosher', 'gluten_free', 'lactose_free', 'vegan'] }), []);
 
-    expect(prompt).toContain('WAY OF EATING: vegetarian, gluten_free');
-    expect(prompt.toLowerCase()).not.toContain('halal');
-    expect(prompt.toLowerCase()).not.toContain('kosher');
-    expect(buildPoolPrompt(context({ dietaryPatterns: ['halal'] }), [])).not.toContain('WAY OF EATING');
+    expect(prompt).toContain('WAY OF EATING: vegetarian, vegan');
+
+    for (const withheld of ['halal', 'kosher', 'gluten_free', 'lactose_free', 'gluten', 'lactose']) {
+      expect(prompt.toLowerCase()).not.toContain(withheld);
+    }
+
+    expect(buildPoolPrompt(context({ dietaryPatterns: ['halal', 'gluten_free'] }), [])).not.toContain('WAY OF EATING');
   });
 
   it('never has a line for dislikes, allergies or notes in the person’s own words', () => {

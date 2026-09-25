@@ -153,15 +153,7 @@ export class MealSwapService {
       const built = await this.pool.build({
         context,
         needPerSlot: SWAP_CANDIDATES,
-        preferences: promptPreferences(
-          profile,
-          verdicts,
-          [...inPlan],
-          targets,
-          null,
-          wishFor(axis, anchor.recipe),
-          likedFoodNames(context)
-        ),
+        preferences: promptPreferences(profile, verdicts, [...inPlan], targets, null, wishFor(axis, anchor.recipe), likedFoodNames(context)),
         reusable: [],
         // Filed together in a gateway's log, like a generation's calls under its job.
         session: `swap:${mealId}`,

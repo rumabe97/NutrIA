@@ -195,12 +195,7 @@ export class PoolBuilder {
         wanted.map(slot =>
           this.ai.generate({
             prompt: buildPoolPrompt(
-              {
-                ...preferences,
-                excludeSlugs,
-                language: languageName(context.locale),
-                needBySlot: new Map([[slot, needBySlot.get(slot) ?? 0]])
-              },
+              { ...preferences, excludeSlugs, language: languageName(context.locale), needBySlot: new Map([[slot, needBySlot.get(slot) ?? 0]]) },
               safeIngredients
             ),
             schema: wirePoolSchema,

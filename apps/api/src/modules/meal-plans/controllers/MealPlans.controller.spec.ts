@@ -34,7 +34,17 @@ function build() {
 }
 
 function onboardingState(patch: Partial<OnboardingView>): OnboardingView {
-  return { completedAt: null, completedSteps: [], currentStep: 1, isComplete: false, missingSteps: [], profileConsentRequired: false, resumeStep: 1, totalSteps: 10, ...patch };
+  return {
+    completedAt: null,
+    completedSteps: [],
+    currentStep: 1,
+    isComplete: false,
+    missingSteps: [],
+    profileConsentRequired: false,
+    resumeStep: 1,
+    totalSteps: 10,
+    ...patch
+  };
 }
 
 describe('MealPlansController', () => {

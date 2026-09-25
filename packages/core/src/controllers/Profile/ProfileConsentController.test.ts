@@ -48,7 +48,11 @@ describe('ProfileConsentController', () => {
   it('presents no consent as not current, with no moment', async () => {
     find.mockResolvedValue(undefined);
 
-    await expect(ProfileConsentController.get('usr-1')).resolves.toEqual({ currentVersion: PROFILE_CONSENT_VERSION, grantedAt: null, isCurrent: false });
+    await expect(ProfileConsentController.get('usr-1')).resolves.toEqual({
+      currentVersion: PROFILE_CONSENT_VERSION,
+      grantedAt: null,
+      isCurrent: false
+    });
   });
 
   it('stores the version given, for the session’s own account', async () => {

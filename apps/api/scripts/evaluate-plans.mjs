@@ -43,6 +43,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts/guard.mjs';
 
 import { RecipeController } from 'core/controllers/Recipe';
+import { SafetyController } from 'core/controllers/Safety';
 import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { loadedTargets } from 'core/domain/Event';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
@@ -116,6 +117,20 @@ const PROFILES = [
     target: { activityLevel: 'light', ageYears: 38, goal: 'healthy_eating', heightCm: 165, sex: 'female', weightKg: 60 },
     shape: DEFAULT_MEAL_SHAPE,
     dietaryPattern: 'kosher'
+  },
+  {
+    slug: 'patron-sin-gluten',
+    description: 'A declared dietary pattern (gluten-free), ordinary shape — enforced by the gluten tag, traces included',
+    target: { activityLevel: 'moderate', ageYears: 29, goal: 'weight_loss', heightCm: 163, sex: 'female', weightKg: 64 },
+    shape: DEFAULT_MEAL_SHAPE,
+    dietaryPattern: 'gluten_free'
+  },
+  {
+    slug: 'patron-sin-lactosa',
+    description: 'A declared dietary pattern (lactose-free), ordinary shape — enforced by the milk and lactose tags',
+    target: { activityLevel: 'moderate', ageYears: 52, goal: 'maintenance', heightCm: 180, sex: 'male', weightKg: 85 },
+    shape: DEFAULT_MEAL_SHAPE,
+    dietaryPattern: 'lactose_free'
   }
 ];
 
@@ -166,7 +181,12 @@ async function baseContext(locale) {
   // — not the catalogue's own name-resolution — that decides which locale's
   // *recipes* `reusablePool` reads (`recipes.locale`; ingredient names are a
   // separate, always-safe-to-fall-back concern and are not re-resolved here).
-  return { ...context, locale };
+  // The allergen catalogue by key, so a gluten-free or lactose-free profile is
+  // enforced by the same tags `generationContext` hands `resolvePreferences`.
+  // Reference data, read-only, no user filter.
+  const allergenIdsByKey = new Map((await SafetyController.listAllergens()).map(allergen => [allergen.key, allergen.id]));
+
+  return { ...context, allergenIdsByKey, locale };
 }
 
 /**
@@ -238,7 +258,13 @@ function contextFor(profile, shared) {
   }
 
   if (profile.dietaryPattern) {
-    const preferences = resolvePreferences({ dietaryPatterns: [profile.dietaryPattern], dislikedLabels: [], ingredients, maxMinutesPerDish: null });
+    const preferences = resolvePreferences({
+      allergenIdsByKey: shared.allergenIdsByKey,
+      dietaryPatterns: [profile.dietaryPattern],
+      dislikedLabels: [],
+      ingredients,
+      maxMinutesPerDish: null
+    });
 
     return {
       context: { ...shared, preferences },

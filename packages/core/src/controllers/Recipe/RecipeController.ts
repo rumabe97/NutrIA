@@ -123,18 +123,22 @@ export const RecipeController = {
     // than about the request that happens to trigger the job (`0034`).
     const country = profile?.country ?? null;
 
-    const [catalogue, safety, dietaryPatterns, foodPreferences, preferred, takesProteinSupplement] = await Promise.all([
+    const [catalogue, safety, dietaryPatterns, foodPreferences, preferred, takesProteinSupplement, allergens] = await Promise.all([
       RecipeRepository.loadCatalogue(locale, country),
       SafetyController.getSafetyProfile(userId),
       ProfileRepository.findDietaryPatterns(userId),
       ProfileRepository.findFoodPreferences(userId),
       ProfileRepository.findPreferences(userId),
-      HealthRepository.takesProteinSupplement(userId)
+      HealthRepository.takesProteinSupplement(userId),
+      // By key, so a gluten-free or lactose-free way of eating is enforced by
+      // the same tags the allergy gate reads, and never named to the model.
+      SafetyController.listAllergens()
     ]);
 
     // Resolved here, once, for the same reason the safety profile is: a rule
     // rebuilt at each call site is a rule that disagrees with itself.
     const resolved = resolvePreferences({
+      allergenIdsByKey: new Map(allergens.map(allergen => [allergen.key, allergen.id])),
       dietaryPatterns,
       dislikedLabels: foodPreferences.filter(item => item.sentiment === 'disliked').map(item => item.label),
       ingredients: catalogue,
@@ -151,7 +155,8 @@ export const RecipeController = {
     // a safety violation, because it is not a guarantee (`bestEffortExclusions`).
     const unresolvedAllergies = bestEffortExclusions(safety.unenforceableLabels, catalogue);
     const extra = [...supplements, ...unresolvedAllergies];
-    const preferences = extra.length === 0 ? resolved : { ...resolved, excludedIngredientIds: new Set([...resolved.excludedIngredientIds, ...extra]) };
+    const preferences =
+      extra.length === 0 ? resolved : { ...resolved, excludedIngredientIds: new Set([...resolved.excludedIngredientIds, ...extra]) };
 
     return { catalogue: toCatalogue(catalogue), locale, preferences, safety };
   },

@@ -120,9 +120,21 @@ describe('the free-text and belief boundary around the AI module', () => {
     schedule: 'SENTINEL-SCHEDULE turnos en la mezquita'
   } as const;
 
-  const catalogue: CatalogueIngredient[] = ['arroz', 'pollo', 'salmon', 'leche', 'vino-blanco', 'chuleta-de-cerdo'].map(slug => ({
+  const ALLERGEN_IDS = new Map([
+    ['gluten', 'allergen-gluten'],
+    ['lactose', 'allergen-lactose'],
+    ['milk', 'allergen-milk']
+  ]);
+  const TAGS: Record<string, CatalogueIngredient['allergens']> = {
+    leche: [
+      { allergenId: 'allergen-milk', presence: 'contains' },
+      { allergenId: 'allergen-lactose', presence: 'contains' }
+    ],
+    'pan-de-trigo': [{ allergenId: 'allergen-gluten', presence: 'contains' }]
+  };
+  const catalogue: CatalogueIngredient[] = ['arroz', 'pollo', 'salmon', 'leche', 'pan-de-trigo', 'vino-blanco', 'chuleta-de-cerdo'].map(slug => ({
     id: `ing-${slug}`,
-    allergens: [],
+    allergens: TAGS[slug] ?? [],
     carbsPer100g: 10,
     category: 'pantry',
     classes: slug === 'chuleta-de-cerdo' ? ['meat', 'pork', 'animal'] : slug === 'leche' ? ['dairy', 'animal'] : [],
@@ -165,6 +177,7 @@ describe('the free-text and belief boundary around the AI module', () => {
 
   async function everyRequest(dietaryPatterns: readonly string[]): Promise<string> {
     const resolved = resolvePreferences({
+      allergenIdsByKey: ALLERGEN_IDS,
       dietaryPatterns,
       dislikedLabels: [SENTINELS.dislike],
       ingredients: catalogue,
@@ -218,6 +231,18 @@ describe('the free-text and belief boundary around the AI module', () => {
     expect(sent).not.toContain('vino-blanco');
   });
 
+  it.each([
+    ['gluten_free', 'pan-de-trigo'],
+    ['lactose_free', 'leche']
+  ])('never names %s — it reveals a condition — while taking what it rules out from the catalogue it is shown', async (pattern, excluded) => {
+    const sent = await everyRequest([pattern]);
+
+    expect(sent.toLowerCase()).not.toContain(pattern);
+    expect(sent.toLowerCase()).not.toContain(pattern.split('_')[0] ?? pattern);
+    expect(sent).not.toContain(excluded);
+    expect(sent).toContain('arroz');
+  });
+
   it('still carries the structured answers a plan is designed from', async () => {
     const sent = await everyRequest(['vegetarian']);
 
@@ -250,10 +275,15 @@ describe('the free-text and belief boundary around the AI module', () => {
       'swapWish',
       'targets'
     ];
-    const preferences = promptPreferences(profileFullOfWords([]), { disliked: [], liked: [] }, [], { carbsG: 1, fatG: 1, fiberG: 1, kcal: 1, proteinG: 1 });
+    const preferences = promptPreferences(profileFullOfWords([]), { disliked: [], liked: [] }, [], {
+      carbsG: 1,
+      fatG: 1,
+      fiberG: 1,
+      kcal: 1,
+      proteinG: 1
+    });
 
     // A key added to what the prompt is told has to be added here, on purpose.
     expect(Object.keys(preferences).filter(key => !allowed.includes(key))).toEqual([]);
   });
 });
-

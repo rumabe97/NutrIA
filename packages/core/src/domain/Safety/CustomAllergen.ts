@@ -187,9 +187,7 @@ const BEST_EFFORT_MIN_WORD = 4;
  * `unenforceableLabels`, and the screen keeps saying it cannot be guaranteed.
  */
 export function bestEffortExclusions(labels: readonly string[], ingredients: readonly MatchableIngredient[]): ReadonlySet<string> {
-  const words = new Set(
-    labels.flatMap(label => normaliseForMatching(label).split(' ')).filter(word => word.length >= BEST_EFFORT_MIN_WORD)
-  );
+  const words = new Set(labels.flatMap(label => normaliseForMatching(label).split(' ')).filter(word => word.length >= BEST_EFFORT_MIN_WORD));
 
   if (words.size === 0) {
     return new Set();

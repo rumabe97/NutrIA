@@ -279,3 +279,45 @@ describe('breaksDishRule — meat with dairy', () => {
     expect(breaksDishRule(dish('pechuga-de-pollo', 'yogur-griego-natural'), catalogue, { keepsMeatFromDairy: false })).toBe(false);
   });
 });
+
+describe('resolvePreferences — gluten-free and lactose-free, by the allergy gate’s tags', () => {
+  const byKey = new Map([
+    ['gluten', 'a-gluten'],
+    ['lactose', 'a-lactose'],
+    ['milk', 'a-milk']
+  ]);
+  const tagged = (slug: string, allergens: CatalogueIngredient['allergens']) =>
+    makeCatalogueIngredient({ id: `i-${slug}`, allergens, name: slug, slug });
+  const ROWS = [
+    tagged('pan-de-trigo', [{ allergenId: 'a-gluten', presence: 'contains' }]),
+    tagged('copos-de-avena', [{ allergenId: 'a-gluten', presence: 'may_contain' }]),
+    tagged('leche-entera', [
+      { allergenId: 'a-milk', presence: 'contains' },
+      { allergenId: 'a-lactose', presence: 'contains' }
+    ]),
+    tagged('mantequilla', [{ allergenId: 'a-milk', presence: 'contains' }]),
+    tagged('leche-sin-lactosa', [{ allergenId: 'a-milk', presence: 'contains' }]),
+    tagged('chocolate-negro', [{ allergenId: 'a-milk', presence: 'may_contain' }]),
+    tagged('arroz', [])
+  ];
+
+  it('takes out gluten, traces included, for gluten-free', () => {
+    expect(ids(resolvePreferences({ allergenIdsByKey: byKey, dietaryPatterns: ['gluten_free'], dislikedLabels: [], ingredients: ROWS }))).toEqual([
+      'i-copos-de-avena',
+      'i-pan-de-trigo'
+    ]);
+  });
+
+  it('takes out what contains milk or lactose for lactose-free — not traces, and not what says it is lactose-free', () => {
+    expect(ids(resolvePreferences({ allergenIdsByKey: byKey, dietaryPatterns: ['lactose_free'], dislikedLabels: [], ingredients: ROWS }))).toEqual([
+      'i-leche-entera',
+      'i-mantequilla'
+    ]);
+  });
+
+  it('excludes nothing by tag without the allergen catalogue to read it by', () => {
+    expect(
+      resolvePreferences({ dietaryPatterns: ['gluten_free', 'lactose_free'], dislikedLabels: [], ingredients: ROWS }).excludedIngredientIds.size
+    ).toBe(0);
+  });
+});

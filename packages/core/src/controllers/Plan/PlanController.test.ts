@@ -202,7 +202,12 @@ describe('PlanJobController.start — one generation at a time', () => {
   it('asks the client’s consent, not the professional’s, when a professional starts it', async () => {
     requireProfileConsent.mockRejectedValueOnce(new ProfileConsentRequiredError());
 
-    await expect(PlanJobController.start('usr-client', vi.fn(async () => undefined))).rejects.toBeInstanceOf(ProfileConsentRequiredError);
+    await expect(
+      PlanJobController.start(
+        'usr-client',
+        vi.fn(async () => undefined)
+      )
+    ).rejects.toBeInstanceOf(ProfileConsentRequiredError);
     expect(requireProfileConsent).toHaveBeenCalledWith('usr-client');
     expect(claim).not.toHaveBeenCalled();
   });

@@ -56,7 +56,9 @@ describe('body validation is scoped to the body', () => {
    * reported, and what this asserts cannot happen silently.
    */
   it('gives the profile consent with the current version, for the session’s account', async () => {
-    const give = jest.spyOn(ProfileConsentController, 'give').mockResolvedValue({ currentVersion: PROFILE_CONSENT_VERSION, grantedAt: 'x', isCurrent: true });
+    const give = jest
+      .spyOn(ProfileConsentController, 'give')
+      .mockResolvedValue({ currentVersion: PROFILE_CONSENT_VERSION, grantedAt: 'x', isCurrent: true });
 
     const response: Response = await request(app.getHttpServer() as Server)
       .put('/profile/consent')

@@ -99,7 +99,8 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * allergies the catalogue could not resolve (now taken out of the catalogue in
  * code, `bestEffortExclusions`), the check-in comment, the breakfast, plate and
  * working-week notes, dislikes the catalogue could not resolve, and a halal or
- * kosher way of eating (now enforced in code, `PATTERN_SLUG_RUNS`). What stays is
+ * kosher, gluten-free or lactose-free way of eating (now enforced in code,
+ * `PATTERN_SLUG_RUNS`, `PATTERN_ALLERGENS`). What stays is
  * structured: the numbers, the meal shape, the times, the goal, the cooking
  * limits, a way of eating from `NAMEABLE_PATTERNS`, cuisines from
  * `NAMEABLE_CUISINES`, and liked foods by their catalogue names.
@@ -229,11 +230,14 @@ const DIFFICULTY_LINE: Record<CheckInForGeneration['difficulty'], string> = {
 
 /**
  * Ways of eating that may be named to the model: an allow-list, so a pattern
- * added to the schema is withheld until somebody decides it may be said. Halal
- * and kosher are not on it — a belief is not sent anywhere — and are enforced in
- * code (`PATTERN_EXCLUSIONS`, `PATTERN_SLUG_RUNS`, `breaksDishRule`).
+ * added to the schema is withheld until somebody decides it may be said (the
+ * lead, 2026-09-25: vegetarian and vegan, nothing else). Halal and kosher reveal
+ * a belief, gluten-free and lactose-free a coeliac disease or an intolerance;
+ * none is sent anywhere, and each is enforced in code (`PATTERN_EXCLUSIONS`,
+ * `PATTERN_SLUG_RUNS`, `PATTERN_ALLERGENS`, `breaksDishRule`). The rest are
+ * enforced by their exclusions alone and need no words.
  */
-export const NAMEABLE_PATTERNS: ReadonlySet<string> = new Set(['omnivore', 'vegetarian', 'vegan', 'pescatarian', 'flexitarian', 'gluten_free', 'lactose_free']);
+export const NAMEABLE_PATTERNS: ReadonlySet<string> = new Set(['vegetarian', 'vegan']);
 
 /**
  * The cuisines onboarding offers, normalised. The route accepts any string, so
