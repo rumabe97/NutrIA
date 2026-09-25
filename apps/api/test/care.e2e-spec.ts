@@ -9,7 +9,18 @@ import { nudgedKcal } from 'core/controllers/CheckIn';
 import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
-import { completeOnboarding, createApp, generateAndWait, httpServer, openPractice, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import {
+  acceptAgreement,
+  completeOnboarding,
+  createApp,
+  generateAndWait,
+  httpServer,
+  openPractice,
+  POOL,
+  PREFIX,
+  register,
+  ScriptedAiClient
+} from './harness.js';
 import { EmailService } from '../src/modules/email/services/index.js';
 
 import type { Account } from './harness.js';
@@ -157,6 +168,8 @@ describe('care', () => {
       .set('Cookie', owner.cookie)
       .send({ collegiateNumber: `28/${String(stamp).slice(-6)}` })
       .expect(201);
+    // Every route below but `GET /care/practice` stays shut until this (P1-1); this suite is about the workspace, not the agreement gate itself — `professionals.e2e-spec.ts` is.
+    await acceptAgreement(app, who);
     // The client routes need a paid practice from Phase 7 on (`0061`); this suite is about the workspace, not paying for it.
     await openPractice(who.id);
   }
@@ -182,6 +195,28 @@ describe('care', () => {
     }
 
     throw new Error('No invitation mail arrived');
+  }
+
+  /** The newest mail of `kind` to `to`, waiting for the background task that sends it (`AdminProfessionalsService.grant`). */
+  async function mailOfKind(to: string, kind: OutgoingEmail['kind'], after: number): Promise<OutgoingEmail> {
+    const deadline = Date.now() + 10_000;
+
+    while (Date.now() < deadline) {
+      const mail = sent
+        .slice(after)
+        .filter(message => message.to === to.toLowerCase() && message.kind === kind)
+        .at(-1);
+
+      if (mail) {
+        return mail;
+      }
+
+      await new Promise(resolve => {
+        setTimeout(resolve, 50);
+      });
+    }
+
+    throw new Error(`No ${kind} mail arrived for ${to}`);
   }
 
   /** Invites through the route, as the professional's screen does, and reads the token from the mail. */
@@ -268,6 +303,36 @@ describe('care', () => {
     }
   });
 
+  /**
+   * The owner's grant mails the account (`docs/legal/textos/06-correos.md`
+   * § B, P1-2): today it says nothing, which is the gap that section closes.
+   * Sent in the background (`AdminProfessionalsService.grant`), so `pro`'s
+   * from `beforeAll`'s `grant(pro)` is waited for the way an invitation's
+   * token is; a re-grant of the same account sends nothing more.
+   */
+  describe('the professional’s grant', () => {
+    it('mails the account, naming the collegiate number and that an agreement comes before any client’s data — once, not again on a second grant', async () => {
+      const number = `28/${String(stamp).slice(-6)}`;
+      const mail = await mailOfKind(pro.email, 'professional-granted', 0);
+
+      expect(mail.text).toContain(number);
+      expect(mail.text.toLowerCase()).toContain('acuerdo');
+
+      // A correction to the number is still the same account, already granted: nothing more is queued.
+      const before = sent.length;
+
+      await request(server())
+        .post(`/${PREFIX}/admin/accounts/${pro.id}/professional`)
+        .set('Cookie', owner.cookie)
+        .send({ collegiateNumber: number })
+        .expect(201);
+      await new Promise(resolve => {
+        setTimeout(resolve, 300);
+      });
+      expect(sent.slice(before).filter(message => message.kind === 'professional-granted')).toEqual([]);
+    });
+  });
+
   describe('inviting', () => {
     it('answers a registered and an unregistered address with the same status and the same body', async () => {
       const unregisteredAddress = address('nobody');
@@ -289,6 +354,16 @@ describe('care', () => {
       // A mail went to both (`invite` waited for each), and the token is never in the answer.
       expect(JSON.stringify(registered.response.body)).not.toContain(registered.token);
       expect(JSON.stringify(unregistered.response.body)).not.toContain(unregistered.token);
+    });
+
+    it('carries the art. 14 paragraph — why it has the address, for how long, and who is responsible (P1-2)', async () => {
+      const before = sent.length;
+
+      await invite(pro, stranger.email);
+      const mail = sent.slice(before).find(message => message.to === stranger.email.toLowerCase());
+
+      expect(mail?.text).toContain('/privacidad');
+      expect(mail?.text.toLowerCase()).toContain('responsable');
     });
 
     it('lowercases the address it stores and mails', async () => {
@@ -332,6 +407,7 @@ describe('care', () => {
       const detail = read.body as CareInvitationDetailView;
 
       expect(detail).toMatchObject({
+        collegiateNumber: `28/${String(stamp).slice(-6)}`,
         consentVersion: CARE_CONSENT_VERSION,
         healthShares: [...CARE_HEALTH_SHARED],
         professionalName: nameOf(pro),
@@ -438,10 +514,12 @@ describe('care', () => {
       expect(await fromPro()).toEqual([]);
     });
 
-    it('refuses an old consent version and a missing health answer, and makes nothing', async () => {
+    it('refuses an old consent version — the previous real one included — and a missing health answer, and makes nothing', async () => {
       const { token } = await invite(pro, client.email);
 
       expect((await accept(client, token, { consentVersion: '0.0.1', sharesHealth: false })).status).toBe(422);
+      // The version this door took before `CARE_CONSENT_VERSION` became `2.0.0` (P1-3) is stale too, not merely a made-up one.
+      expect((await accept(client, token, { consentVersion: '1.0.0', sharesHealth: false })).status).toBe(422);
       expect((await accept(client, token, { consentVersion: CARE_CONSENT_VERSION })).status).toBe(422);
       expect(await linkRows(client.id)).toEqual([]);
       // Refused at the door, not spent.
@@ -472,6 +550,7 @@ describe('care', () => {
       const link = accepted.body as CareLinkView;
 
       expect(link).toMatchObject({
+        consentIsCurrent: true,
         consentVersion: CARE_CONSENT_VERSION,
         professionalName: nameOf(pro),
         shares: [...CARE_SHARED, ...CARE_HEALTH_SHARED],
@@ -500,6 +579,17 @@ describe('care', () => {
       expect((await accept(client, token)).status).toBe(404);
       await request(server()).get(`/${PREFIX}/care/invitations/${token}`).set('Cookie', client.cookie).expect(404);
       await request(server()).post(`/${PREFIX}/care/invitations/${token}/decline`).set('Cookie', client.cookie).expect(404);
+    });
+
+    it('marks a link stored under a previous consent version as not current (P1-3)', async () => {
+      const dated = await account('consent-stale');
+      const { token } = await invite(pro, dated.email);
+      const accepted = await accept(dated, token, { consentVersion: CARE_CONSENT_VERSION, sharesHealth: false });
+      const linkId = (accepted.body as CareLinkView).id;
+
+      await tables()`update care_links set consent_version = '1.0.0' where id = ${linkId}`;
+
+      await expect(myLink(dated)).resolves.toMatchObject({ id: linkId, consentIsCurrent: false });
     });
 
     it('names the link already there, to the addressee alone, instead of making a second one', async () => {
@@ -677,6 +767,24 @@ describe('care', () => {
       expect(await invitationsTo(address('stale'))).toEqual([]);
       expect(await invitationsTo(address('fresh'))).toEqual([expect.objectContaining({ professionalId: otherPro.id })]);
     });
+
+    /** cf87d75: the daily sweep (`/cron/reminders`, `ExpiredInvitationsService`) — the case nobody invites anybody to trigger the door's own cleanup. */
+    it('are also deleted by the daily sweep, whoever sent them, even when nobody writes another one', async () => {
+      const sweeper = await account('pro-sweep-daily');
+      const earlier = new Date(Date.now() - 15 * DAY_MS);
+
+      await grant(sweeper);
+      await CareController.invite(sessionOf(sweeper), { email: address('stale-daily') }, earlier);
+      expect(await invitationsTo(address('stale-daily'))).toHaveLength(1);
+
+      // Not yet expired: still there after the sweep runs at today's clock.
+      await invite(sweeper, address('live-daily'));
+
+      await expect(CareController.forgetExpiredInvitations(new Date())).resolves.toBeGreaterThanOrEqual(1);
+
+      expect(await invitationsTo(address('stale-daily'))).toEqual([]);
+      expect(await invitationsTo(address('live-daily'))).toEqual([expect.objectContaining({ professionalId: sweeper.id })]);
+    });
   });
 
   describe('the switch', () => {
@@ -811,10 +919,19 @@ describe('care', () => {
       /** UTC, to the microsecond (`YYYY-MM-DDTHH:MM:SS.ffffffZ`): fixed width, so two compare as strings. */
       readonly createdAt: string;
       readonly kind: string;
+      /** The link this row is about (P1-1/legal-b) — nulled, like `professionalId`, once that link is gone. */
+      readonly linkId: string | null;
       readonly professionalId: string | null;
       readonly professionalName: string;
     };
-    type Entry = { readonly id: string; readonly action: string; readonly at: string; readonly kind: string; readonly professionalName: string };
+    type Entry = {
+      readonly id: string;
+      readonly action: string;
+      readonly at: string;
+      readonly kind: string;
+      readonly linkId: string | null;
+      readonly professionalName: string;
+    };
     /** `next` is the id of the last entry when there are more, and the next page's `?before=`. */
     type Trail = { readonly entries: readonly Entry[]; readonly next: string | null };
     type ClientRow = {
@@ -864,7 +981,7 @@ describe('care', () => {
     /** The client's trail as stored, oldest first. */
     async function trail(clientId: string): Promise<TrailRow[]> {
       return tables()<TrailRow>`
-        select id, action::text as action, kind::text as kind, professional_id as "professionalId",
+        select id, action::text as action, kind::text as kind, link_id as "linkId", professional_id as "professionalId",
                professional_name as "professionalName",
                to_char(created_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') as "createdAt"
           from care_access_log
@@ -1015,6 +1132,12 @@ describe('care', () => {
 
       it('leaves one `list` row in the trail of each client whose place it shows, and none for a paused or ended link', async () => {
         const shown = [onboarding, awaiting, underWay, due];
+        const linkOf: Record<string, string> = {
+          [awaiting.id]: links.awaiting ?? '',
+          [due.id]: links.due ?? '',
+          [onboarding.id]: links.onboarding ?? '',
+          [underWay.id]: links.underWay ?? ''
+        };
         const before = await counts([...shown, paused, ended, theirs]);
 
         await roster(readerA);
@@ -1026,6 +1149,7 @@ describe('care', () => {
           expect((await trail(who.id)).at(-1)).toMatchObject({
             action: 'read',
             kind: 'list',
+            linkId: linkOf[who.id],
             professionalId: readerA.id,
             professionalName: nameOf(readerA)
           });
@@ -1063,7 +1187,13 @@ describe('care', () => {
         expect(after).toHaveLength(before.length + 2);
 
         for (const row of after.slice(before.length)) {
-          expect(row).toMatchObject({ action: 'read', kind: 'overview', professionalId: readerA.id, professionalName: nameOf(readerA) });
+          expect(row).toMatchObject({
+            action: 'read',
+            kind: 'overview',
+            linkId: links.awaiting,
+            professionalId: readerA.id,
+            professionalName: nameOf(readerA)
+          });
         }
 
         // The same rows through the client's own door, newest first, and nothing that names the professional's account.
@@ -1074,10 +1204,10 @@ describe('care', () => {
         expect(read.entries.map(entry => entry.id)).toEqual([...after].reverse().map(row => row.id));
 
         for (const entry of read.entries) {
-          expect(Object.keys(entry).sort()).toEqual(['action', 'at', 'id', 'kind', 'professionalName']);
+          expect(Object.keys(entry).sort()).toEqual(['action', 'at', 'id', 'kind', 'linkId', 'professionalName']);
         }
 
-        expect(read.entries[0]).toMatchObject({ action: 'read', kind: 'overview', professionalName: nameOf(readerA) });
+        expect(read.entries[0]).toMatchObject({ action: 'read', kind: 'overview', linkId: links.awaiting, professionalName: nameOf(readerA) });
         // The stored instant, to the millisecond an ISO string carries.
         expect(read.entries[0]?.at).toBe(`${after.at(-1)?.createdAt.slice(0, 23)}Z`);
         expect(JSON.stringify(read)).not.toContain(readerA.id);
@@ -1140,6 +1270,7 @@ describe('care', () => {
 
         const written = (await trail(underWay.id)).slice(before);
 
+        expect(written.every(row => row.linkId === links.underWay)).toBe(true);
         expect(written.map(row => [row.kind, row.action])).toEqual([
           ['overview', 'read'],
           ['health', 'read']
@@ -1337,6 +1468,119 @@ describe('care', () => {
         // The link itself is still the client's.
         await expect(myLink(client)).resolves.toMatchObject({ id: linkId, status: 'active' });
       });
+
+      /**
+       * P0-1 (`docs/legal/checklist-activacion.md` § 1): the client's own
+       * switch, not the professional's and not the end of the link — closes
+       * only the health line, on the professional's very next request, and
+       * comes back the same way.
+       */
+      it('closes health alone, mid-session, when the client switches sharing off — the link stays active, and switching it back on restores it, and no other link moves', async () => {
+        const toggler = await account('reader-toggle');
+        // A second, unrelated active link with the health line on — the `PATCH` has no link id, so this is the only witness that the repository scoped its write to the caller's own link.
+        const bystander = await account('reader-toggle-bystander');
+
+        await request(server())
+          .put(`/${PREFIX}/health-data`)
+          .set('Cookie', toggler.cookie)
+          .send({ conditions: [], consentVersion: HEALTH_CONSENT_VERSION, medications: [{ name: MEDICATION }], supplements: [] })
+          .expect(200);
+
+        const linkId = await link(readerA, toggler, true);
+        const bystanderLinkId = await link(readerB, bystander, true);
+
+        expect((await overview(readerA, linkId).expect(200)).body as Overview).toHaveProperty('health');
+
+        const before = (await trail(toggler.id)).length;
+
+        const off: Response = await request(server())
+          .patch(`/${PREFIX}/care/links/me`)
+          .set('Cookie', toggler.cookie)
+          .send({ sharesHealth: false })
+          .expect(200);
+
+        expect(off.body).toMatchObject({ id: linkId, sharesHealth: false, status: 'active' });
+
+        const written = (await trail(toggler.id)).slice(before);
+
+        expect(written).toHaveLength(1);
+        expect(written[0]).toMatchObject({ action: 'withdrawn', kind: 'health', linkId, professionalName: nameOf(readerA) });
+
+        // The same value again writes nothing more — it was already off.
+        await request(server()).patch(`/${PREFIX}/care/links/me`).set('Cookie', toggler.cookie).send({ sharesHealth: false }).expect(200);
+        expect(await trail(toggler.id)).toHaveLength(before + 1);
+
+        // The professional's very next health read is refused; the link itself, and everything else, is untouched.
+        const reached = jest.fn(async () => Promise.resolve('read'));
+
+        await expect(CareController.withClient(readerA.id, linkId, 'health', 'read', reached)).rejects.toThrow(NotFoundError);
+        expect(reached).not.toHaveBeenCalled();
+        expect((await overview(readerA, linkId).expect(200)).body as Overview).not.toHaveProperty('health');
+        await expect(myLink(toggler)).resolves.toMatchObject({ id: linkId, status: 'active' });
+
+        const on: Response = await request(server())
+          .patch(`/${PREFIX}/care/links/me`)
+          .set('Cookie', toggler.cookie)
+          .send({ sharesHealth: true })
+          .expect(200);
+
+        expect(on.body).toMatchObject({ id: linkId, sharesHealth: true });
+        expect((await trail(toggler.id)).at(-1)).toMatchObject({ action: 'granted', kind: 'health', linkId, professionalName: nameOf(readerA) });
+        expect((await overview(readerA, linkId).expect(200)).body as Overview).toHaveProperty('health');
+
+        // The bystander's link, on B's side, was never in the WHERE of either write.
+        await expect(myLink(bystander)).resolves.toMatchObject({ id: bystanderLinkId, sharesHealth: true, status: 'active' });
+        expect((await overview(readerB, bystanderLinkId).expect(200)).body as Overview).toHaveProperty('health');
+      });
+    });
+
+    /**
+     * The agreement's second line (invariant-reviewer, legal-b): `CareRepository`'s
+     * own `practising` join — `practiceOpen` **and** the current
+     * `agreementVersion` — guards every client read and the invite write on its
+     * own, not only `ProfessionalGuard`. A bug in the guard alone would not be
+     * enough to reach a client's data if this held; proved by calling the core
+     * functions directly, bypassing the guard entirely, the way `withClient` is
+     * asked directly elsewhere in this file. The state — accepted, then no
+     * longer the current version — has no route of its own (the agreement is a
+     * one-way accept), so it is written on the table, the way `consentIsCurrent`
+     * is proved above.
+     */
+    describe('the agreement, held by the repository itself', () => {
+      it('closes a read through CareController.withClient once the accepted version is no longer current, with the practice open and the link active', async () => {
+        const stalePro = await account('reader-stale-read');
+        const staleClient = await account('reader-stale-read-client');
+
+        await grant(stalePro);
+        const linkId = await link(stalePro, staleClient);
+
+        await overview(stalePro, linkId).expect(200);
+
+        await tables()`update professionals set agreement_version = '0.9.0' where user_id = ${stalePro.id}`;
+
+        const refused = await overview(stalePro, linkId);
+
+        expect(refused.status).toBe(404);
+
+        const reached = jest.fn(async () => Promise.resolve('read'));
+
+        await expect(CareController.withClient(stalePro.id, linkId, 'overview', 'read', reached)).rejects.toThrow(NotFoundError);
+        expect(reached).not.toHaveBeenCalled();
+        // The link itself, and the client's account, are untouched — only the professional's own access closed.
+        await expect(myLink(staleClient)).resolves.toMatchObject({ id: linkId, status: 'active' });
+      });
+
+      it('refuses CareController.invite the same way, and inserts nothing', async () => {
+        const stalePro = await account('reader-stale-invite');
+
+        await grant(stalePro);
+        await tables()`update professionals set agreement_version = '0.9.0' where user_id = ${stalePro.id}`;
+
+        const target = address('reader-stale-invite-target');
+
+        await expect(CareController.invite(sessionOf(stalePro), { email: target })).rejects.toThrow(NotFoundError);
+        expect(await invitationsTo(target)).toEqual([]);
+      });
     });
 
     /*
@@ -1383,6 +1627,35 @@ describe('care', () => {
         // At the door, as `access that closes` proves for the HTTP route — the link row is untouched.
         await expect(CareController.activeProfessional(revokedClient.id)).resolves.toBeNull();
         await expect(myLink(revokedClient)).resolves.toMatchObject({ id: linkId, status: 'active' });
+      });
+
+      /** cf87d75 (invariant-reviewer, legal-b): `withClient`'s own two conditions, asked here too. */
+      it('is null once the accepted agreement is no longer current, even though the link row stays active', async () => {
+        const stalePro = await account('checkin-pro-stale-agreement');
+        const staleClient = await account('checkin-pro-stale-agreement-client');
+
+        await grant(stalePro);
+        const linkId = await link(stalePro, staleClient);
+
+        await expect(CareController.activeProfessional(staleClient.id)).resolves.toEqual({ id: stalePro.id, email: stalePro.email });
+
+        await tables()`update professionals set agreement_version = '0.9.0' where user_id = ${stalePro.id}`;
+
+        await expect(CareController.activeProfessional(staleClient.id)).resolves.toBeNull();
+        await expect(myLink(staleClient)).resolves.toMatchObject({ id: linkId, status: 'active' });
+      });
+
+      it('is null once the practice is no longer open, even though the link row stays active', async () => {
+        const lapsedPro = await account('checkin-pro-lapsed');
+        const lapsedClient = await account('checkin-pro-lapsed-client');
+
+        await grant(lapsedPro);
+        const linkId = await link(lapsedPro, lapsedClient);
+
+        await tables()`update professionals set practice_open = false where user_id = ${lapsedPro.id}`;
+
+        await expect(CareController.activeProfessional(lapsedClient.id)).resolves.toBeNull();
+        await expect(myLink(lapsedClient)).resolves.toMatchObject({ id: linkId, status: 'active' });
       });
     });
 
@@ -1600,7 +1873,13 @@ describe('care', () => {
         const written = (await trail(supervised.id)).slice(rowsBefore);
 
         expect(written).toEqual([
-          expect.objectContaining({ action: 'write', kind: 'targets', professionalId: setter.id, professionalName: nameOf(setter) })
+          expect.objectContaining({
+            action: 'write',
+            kind: 'targets',
+            linkId: targetLinks.supervised,
+            professionalId: setter.id,
+            professionalName: nameOf(setter)
+          })
         ]);
         expect((await accessLog(supervised)).entries[0]).toMatchObject({ action: 'write', kind: 'targets', professionalName: nameOf(setter) });
 
@@ -1623,7 +1902,7 @@ describe('care', () => {
 
         // Only `targets`/`write` rows, all the setter's.
         for (const row of (await targetRows(supervised)).slice(before.length)) {
-          expect(row).toMatchObject({ action: 'write', kind: 'targets', professionalId: setter.id });
+          expect(row).toMatchObject({ action: 'write', kind: 'targets', linkId: targetLinks.supervised, professionalId: setter.id });
         }
 
         expect(await overrideRow(supervised)).toMatchObject({ kcal: stored?.kcal, proteinG: protein, setByProfessionalId: setter.id });

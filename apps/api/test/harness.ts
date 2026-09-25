@@ -6,6 +6,7 @@ import { Test } from '@nestjs/testing';
 
 import { UserController } from 'core/controllers/User';
 import { database } from 'database';
+import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
 import { shapeFor } from 'core/domain/MealShape';
 
@@ -433,6 +434,19 @@ export async function openPractice(userId: string, includedClients = 30): Promis
   if (opened.length !== 1) {
     throw new Error(`No professional to open a practice for: ${userId}`);
   }
+}
+
+/**
+ * Accepts the professional's own agreement (P1-1,
+ * `docs/legal/checklist-activacion.md` § 1) at the current version, through
+ * the route a professional's own screen calls — the door every workspace
+ * route but `GET /care/practice` and the practice checkout keep shut until
+ * it is open, the way `giveProfileConsent` opens the profile consent gate.
+ * Suites that grant a professional and then use the workspace call this
+ * right after granting, next to `openPractice`.
+ */
+export async function acceptAgreement(app: INestApplication, professional: Account, version: string = PROFESSIONAL_AGREEMENT_VERSION): Promise<void> {
+  await request(httpServer(app)).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', professional.cookie).send({ version }).expect(204);
 }
 
 /** Sets the account's language. Everything server-side reads it from the profile. */

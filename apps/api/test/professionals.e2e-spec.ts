@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
 import { ProfessionalController } from 'core/controllers/Professional';
+import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { UserController } from 'core/controllers/User';
 
 import { activate, completeOnboarding, createApp, deleteAccounts, httpServer, PREFIX, register, ScriptedAiClient } from './harness.js';
@@ -386,6 +387,88 @@ describe('professionals', () => {
 
       // And the field itself, once more, the same way any other caller would read it.
       expect(await meBody(tamperer)).toMatchObject({ professional: false, role: 'user' });
+    });
+  });
+
+  /**
+   * The professional's own agreement (P1-1, `docs/legal/checklist-activacion.md`
+   * § 1): a grant alone does not open the workspace, whatever the switch says —
+   * the one route it must still leave open is the page that shows the
+   * agreement to accept, `GET /care/practice`, and accepting it is itself the
+   * door: any version but the current `PROFESSIONAL_AGREEMENT_VERSION` is
+   * refused and opens nothing, the current one does.
+   */
+  describe('the professional’s agreement', () => {
+    let unaccepted: Account;
+
+    beforeAll(async () => {
+      unaccepted = await register(app, `pro-unaccepted-${Date.now()}@e2e.invalid`);
+      made.push(unaccepted.cookie);
+      await request(httpServer(app))
+        .post(`/${PREFIX}/admin/accounts/${unaccepted.id}/professional`)
+        .set('Cookie', owner.cookie)
+        .send({ collegiateNumber: `28/${String(Date.now()).slice(-6)}` })
+        .expect(201);
+    });
+
+    it('is a 404 on every professional route but the practice page, until the current agreement is accepted — any other version refused first', async () => {
+      const server = httpServer(app);
+      const linkId = 'not-a-link';
+      const gatedRoutes: readonly [Method, string][] = [
+        ['get', '/care/clients'],
+        ['get', `/care/clients/${linkId}`],
+        ['patch', `/care/clients/${linkId}`],
+        ['patch', `/care/clients/${linkId}/targets`],
+        ['get', `/care/clients/${linkId}/plan/pending`],
+        ['post', `/care/clients/${linkId}/plan/generate`],
+        ['get', `/care/clients/${linkId}/plan/jobs/not-a-job`],
+        ['post', `/care/clients/${linkId}/plan/meals/not-a-meal/swap`],
+        ['post', `/care/clients/${linkId}/plan/publish`],
+        ['post', '/care/invitations']
+      ];
+
+      for (const [method, path] of gatedRoutes) {
+        await request(server)[method](`/${PREFIX}${path}`).set('Cookie', unaccepted.cookie).send({}).expect(404);
+      }
+
+      // The one door that must stay open: the page that shows the agreement to accept — and it says so.
+      const closed: Response = await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', unaccepted.cookie).expect(200);
+
+      expect(closed.body).toMatchObject({ agreementAcceptedAt: null, agreementRequired: true, agreementVersion: PROFESSIONAL_AGREEMENT_VERSION });
+
+      // Nobody who was never granted opens it either, whatever the switch says — 404 before the body is even read.
+      await request(server).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', ordinary.cookie).send({}).expect(404);
+
+      // Any version but the current one does not open it — and writes neither column.
+      await request(server).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', unaccepted.cookie).send({ version: '0.9.0' }).expect(422);
+      await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', unaccepted.cookie).expect(404);
+      expect((await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', unaccepted.cookie).expect(200)).body).toMatchObject({
+        agreementAcceptedAt: null
+      });
+
+      // The current version does, on the very next request.
+      await request(server)
+        .post(`/${PREFIX}/care/practice/agreement`)
+        .set('Cookie', unaccepted.cookie)
+        .send({ version: PROFESSIONAL_AGREEMENT_VERSION })
+        .expect(204);
+      await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', unaccepted.cookie).expect(200);
+
+      const opened: Response = await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', unaccepted.cookie).expect(200);
+      const acceptedAt = (opened.body as { agreementAcceptedAt: string }).agreementAcceptedAt;
+
+      expect(opened.body).toMatchObject({ agreementRequired: false, agreementVersion: PROFESSIONAL_AGREEMENT_VERSION });
+      expect(Number.isNaN(Date.parse(acceptedAt))).toBe(false);
+
+      // Accepting the same version again is not an error — it keeps the first date, which only `professionals` itself holds.
+      await request(server)
+        .post(`/${PREFIX}/care/practice/agreement`)
+        .set('Cookie', unaccepted.cookie)
+        .send({ version: PROFESSIONAL_AGREEMENT_VERSION })
+        .expect(204);
+      expect((await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', unaccepted.cookie).expect(200)).body).toMatchObject({
+        agreementAcceptedAt: acceptedAt
+      });
     });
   });
 

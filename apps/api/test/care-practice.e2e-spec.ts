@@ -6,10 +6,11 @@ import { BillingController } from 'core/controllers/Billing';
 import { CARE_CONSENT_VERSION } from 'core/entities/Care';
 import { CareController } from 'core/controllers/Care';
 import { database } from 'database';
+import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { SettingsController } from 'core/controllers/Settings';
 import { UserController } from 'core/controllers/User';
 
-import { completeOnboarding, deleteAccounts, httpServer, PREFIX, register } from './harness.js';
+import { acceptAgreement, completeOnboarding, deleteAccounts, httpServer, PREFIX, register } from './harness.js';
 import { createApp as assemble } from '../src/config/CreateApp.js';
 import { validateEnv } from '../src/config/Env.validation.js';
 import { EmailService } from '../src/modules/email/services/index.js';
@@ -248,8 +249,13 @@ describe('care-practice', () => {
     await request(server()).patch(`/${PREFIX}/admin/settings`).set('Cookie', owner.cookie).send({ enabled, flag: 'professional' }).expect(200);
   }
 
-  /** A granted professional with no practice yet: the grant alone opens nothing. */
-  async function professional(label: string): Promise<Account> {
+  /**
+   * A granted professional with no practice yet: the grant alone opens
+   * nothing. `agree` defaults true — almost everything below needs the
+   * agreement accepted (P1-1) to reach the routes it is about; the one test
+   * of the gate itself passes `agree: false`.
+   */
+  async function professional(label: string, agree = true): Promise<Account> {
     const who = await account(label);
 
     await request(server())
@@ -257,6 +263,10 @@ describe('care-practice', () => {
       .set('Cookie', owner.cookie)
       .send({ collegiateNumber: `28/${String(stamp).slice(-6)}` })
       .expect(201);
+
+    if (agree) {
+      await acceptAgreement(on.app, who);
+    }
 
     return who;
   }
@@ -589,6 +599,29 @@ describe('care-practice', () => {
       await checkout(pro, { plan: 'practice', price: THIRTY }).expect(200);
 
       expect(on.stripe.bought.at(-1)?.subscription_data?.trial_period_days).toBeUndefined();
+    });
+
+    /** P1-1 (`docs/legal/checklist-activacion.md` § 1): the grant alone is not enough to pay for the practice either. */
+    it('refuses the practice checkout until the agreement is accepted — any other version refused too — and sells it once it is', async () => {
+      const pro = await professional('agreement', false);
+      await UserController.grantAdmin(pro.email);
+      const before = on.stripe.bought.length;
+
+      const refused = await checkout(pro, { plan: 'practice', price: THIRTY });
+
+      expect(refused.status).toBe(404);
+
+      await request(server()).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', pro.cookie).send({ version: '0.9.0' }).expect(422);
+      expect((await checkout(pro, { plan: 'practice', price: THIRTY })).status).toBe(404);
+      expect(on.stripe.bought).toHaveLength(before);
+
+      await request(server())
+        .post(`/${PREFIX}/care/practice/agreement`)
+        .set('Cookie', pro.cookie)
+        .send({ version: PROFESSIONAL_AGREEMENT_VERSION })
+        .expect(204);
+      await checkout(pro, { plan: 'practice', price: THIRTY }).expect(200);
+      expect(on.stripe.bought).toHaveLength(before + 1);
     });
   });
 
