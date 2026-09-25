@@ -53,7 +53,7 @@ export const generatedDishSchema = z
       // plate for its salt and cumin: on one day's calls, 41 of the 77 dishes the
       // schema refused had 13 to 15 ingredients, and none had more.
       .max(15),
-    name: z.string().min(1).max(120).describe('Nombre del plato en español.'),
+    name: z.string().min(1).max(120).describe('Nombre del plato, en el idioma que pide el enunciado.'),
     prepMinutes: z.number().int().min(0).max(120),
     // Up to eight, as `candidateDishSchema` stores: a batch of six is a real
     // recipe, and per-serving figures are computed from the grams whatever the
@@ -136,7 +136,7 @@ export const wirePoolSchema = jsonSchema<GeneratedPool>({
             },
             type: 'array'
           },
-          name: { description: 'Nombre del plato en español.', type: 'string' },
+          name: { description: 'Nombre del plato, en el idioma que pide el enunciado.', type: 'string' },
           prepMinutes: { description: 'Minutos de preparación.', type: 'integer' },
           servings: { description: 'Raciones que rinden las cantidades indicadas.', type: 'number' },
           slots: { description: 'Momentos del día en los que encaja.', items: { enum: [...MEAL_SLOTS], type: 'string' }, type: 'array' },
@@ -150,7 +150,7 @@ export const wirePoolSchema = jsonSchema<GeneratedPool>({
                     'La señal de que el paso está hecho: "hasta que los bordes doren", "hasta que deje de humear". Cadena vacía si no aplica.',
                   type: 'string'
                 },
-                minutes: { description: 'Minutos que ocupa este paso. 0 si es instantáneo.', type: 'integer' },
+                minutes: { description: 'Minutos que ocupa este paso. Se omite si el paso es instantáneo.', type: 'integer' },
                 text: { description: 'La acción, en una a tres frases: qué, cómo, a qué fuego.', type: 'string' }
               },
               required: ['text'],
