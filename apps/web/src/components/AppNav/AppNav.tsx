@@ -28,7 +28,25 @@ const DESTINATIONS = [
   { href: '/perfil', icon: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM4.5 20a7.5 7.5 0 0 1 15 0', label: 'profile' }
 ] as const;
 
-export function AppNav() {
+/**
+ * A professional's own workspace — appended after the client destinations,
+ * never in `DESTINATIONS` itself, because it is the one entry the API's
+ * `professional` flag decides on (`0059`, `0061`). Display only: `/consulta`
+ * 404s server-side for anyone else, so a stale or spoofed flag draws a link
+ * that leads nowhere rather than a hole.
+ */
+const PRACTICE_DESTINATION = {
+  href: '/consulta',
+  icon: 'M4 8h16a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1ZM9 8V6a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 13h18',
+  label: 'consulta'
+} as const;
+
+interface AppNavProps {
+  /** `UserView.professional` (`GET /users/me`), display only — see `PRACTICE_DESTINATION`. */
+  professional?: boolean;
+}
+
+export function AppNav({ professional = false }: AppNavProps) {
   const dictionary = useDictionary();
   const pathname = usePathname();
   const router = useRouter();
@@ -36,7 +54,8 @@ export function AppNav() {
   const { available, offline } = useOffline();
   // Offline, only what opens: the screens with a copy on this device, and nothing
   // that needs the server — switching language and signing out both do (`0053`).
-  const destinations = DESTINATIONS.filter(destination => available(destination.href));
+  const allDestinations = professional ? [...DESTINATIONS, PRACTICE_DESTINATION] : DESTINATIONS;
+  const destinations = allDestinations.filter(destination => available(destination.href));
 
   async function handleSignOut() {
     // This browser stops being told about this account, while the session can still say so (`0054`).

@@ -152,6 +152,7 @@ export const esES = {
 
   appNav: {
     brandHome: 'NutrIA — inicio',
+    consulta: 'Consulta',
     home: 'Inicio',
     mainLabel: 'Navegación principal',
     plan: 'Plan',
@@ -232,13 +233,14 @@ export const esES = {
       targets: 'tus objetivos'
     },
     accessLogEmpty: 'Todavía no hay nada que mostrar aquí.',
-    accessLogListCollapsed: '{professional} ha visto tu perfil {count} veces',
     accessLogLoaded: '{count} accesos más cargados.',
     accessLogLoadMore: 'Ver más',
     accessLogNoMore: 'No hay más accesos que mostrar.',
     accessLogRead: '{professional} vio {kind}',
+    accessLogReadGroup: '{professional} vio {kind} {count} veces · {range}',
     accessLogTitle: 'Quién ha accedido',
     accessLogWrite: '{professional} cambió {kind}',
+    accessLogWriteGroup: '{professional} cambió {kind} {count} veces · {range}',
     declineCta: 'No, gracias',
     end: 'Terminar el enlace',
     endConfirmBody: 'Tu dietista dejará de ver tu perfil, tu plan y tu progreso. Puedes volver a aceptar una invitación suya más adelante.',
