@@ -22,6 +22,7 @@
 | [`analisis.md`](./analisis.md) | El análisis: roles por flujo, bases jurídicas, art. 9, conservación, transferencias, EIPD y DPD, el propietario como persona física, la Ley de IA, accesibilidad, la lista de riesgos ordenada y la lista para el abogado. **Empieza aquí.** |
 | [`eipd.md`](./eipd.md) | La evaluación de impacto (art. 35 RGPD), con la estructura del modelo de la AEPD. Es obligatoria. |
 | [`registro-actividades.md`](./registro-actividades.md) | El registro de actividades de tratamiento (art. 30 RGPD). Obligatorio: la excepción del art. 30.5 no se aplica a quien trata datos de salud. |
+| [`procedimiento-brechas.md`](./procedimiento-brechas.md) | Qué hacer ante una brecha de datos personales: contener, guardar pruebas, decidir en 72 horas, notificar a la AEPD, avisar a los afectados y registrar (arts. 33 y 34 RGPD). |
 | [`checklist-activacion.md`](./checklist-activacion.md) | Lo que tiene que ser verdad antes de encender el flag `professional`, y antes de poner las claves *live* de Stripe. |
 | [`textos/01-acuerdo-profesional.md`](./textos/01-acuerdo-profesional.md) | Lo que el dietista-nutricionista acepta antes de que `/consulta` se abra: secreto, roles, seguridad, qué pasa con los datos, usos prohibidos. Con su almacenamiento y su versión. |
 | [`textos/02-politica-privacidad.md`](./textos/02-politica-privacidad.md) | La política de privacidad completa, sustituyendo a la actual, con el proyecto 004 dentro. |
