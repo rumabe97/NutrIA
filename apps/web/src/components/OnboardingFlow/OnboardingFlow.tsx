@@ -14,6 +14,7 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { ChipGroup } from 'components/ChipGroup';
 import { MealShapePicker } from 'components/MealShapePicker';
 import { OptionCards } from 'components/OptionCards';
+import { ProfileConsentFields } from 'components/ProfileConsentFields';
 import { SummaryRow } from 'components/SummaryRow';
 
 import { PACE_KG_PER_WEEK } from 'core/entities/Profile';
@@ -58,6 +59,12 @@ const DEFAULT_SHAPE = {
   supper: 'off'
 } as const;
 const SEX_VALUES = ['female', 'male', 'other', 'prefer_not_to_say'] as const;
+/**
+ * NutrIA is for adults (`docs/legal/textos/03-condiciones-uso.md` § C). The
+ * API holds the boundary — this is the same courtesy `PACE_KG_PER_WEEK`'s
+ * client-side check already is, so the reader sees why before a round trip.
+ */
+const MIN_AGE_YEARS = 18;
 const COOKING_FREQUENCY_VALUES = ['rarely', 'sometimes', 'often', 'daily'] as const;
 const BUDGET_VALUES = ['low', 'medium', 'high'] as const;
 const DIETARY_PATTERN_VALUES = [
@@ -159,6 +166,20 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
       return { paceKgPerWeek: [f.paceRange] };
     }
 
+    const birthDate = payload.birthDate;
+
+    if (current?.key === 'about-you' && typeof birthDate === 'string' && birthDate !== '' && ageInYears(birthDate) < MIN_AGE_YEARS) {
+      return { birthDate: [dictionary.errors.underage] };
+    }
+
+    // An unchecked box is not a field the API rejects politely: without it
+    // nothing on this step — or any step after it — can be saved at all
+    // (P0-2). Caught here so the reader sees why before a round trip, not a
+    // 409 that names a checkbox they cannot see any more.
+    if (current?.key === 'allergies' && payload.profileConsentGiven !== true) {
+      return { profileConsentGiven: [dictionary.profileConsent.note] };
+    }
+
     return {};
   }
 
@@ -218,7 +239,8 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
             })),
           customAllergens: splitList(text('customAllergens')),
           dietaryPatterns: form.getAll('dietaryPatterns').map(String),
-          intolerances: form.getAll('intolerance').map(id => ({ allergenId: String(id) }))
+          intolerances: form.getAll('intolerance').map(id => ({ allergenId: String(id) })),
+          profileConsentGiven: form.get('profileConsentGiven') === 'on'
         };
 
       case 'lifestyle':
@@ -248,7 +270,11 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
 
     if (Object.keys(problems).length > 0) {
       setFieldErrors(problems);
-      setError(dictionary.errors.invalidInput);
+      // The checkbox has nowhere of its own to show a message (`Checkbox`
+      // carries no `error` prop, unlike `Input`), so its specific line goes in
+      // the one alert region this form already has, in place of the generic
+      // "revisa los datos marcados" that would not say what to do.
+      setError(problems.profileConsentGiven?.[0] ?? dictionary.errors.invalidInput);
 
       return;
     }
@@ -508,6 +534,15 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
               <legend className={styles.legend}>{f.dietaryPatterns}</legend>
               <ChipGroup name="dietaryPatterns" options={options.dietaryPatterns} selected={profile?.dietaryPatterns ?? []} />
             </fieldset>
+
+            {/* The explicit health-data consent (P0-2): its own box, on the
+                first step that asks for something health-shaped, blocking
+                onward whether or not it is the first time (`localErrors`
+                below re-checks it every submit, not only the first). */}
+            <fieldset className={styles.fieldset}>
+              <legend className={styles.legend}>{dictionary.profileConsent.title}</legend>
+              <ProfileConsentFields />
+            </fieldset>
           </Fragment>
         ) : null}
 
@@ -650,6 +685,20 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
       </form>
     </div>
   );
+}
+
+/** Whole years since `birthDate` (`YYYY-MM-DD`), as of today. */
+function ageInYears(birthDate: string): number {
+  const born = new Date(`${birthDate}T00:00:00`);
+  const today = new Date();
+  let age = today.getFullYear() - born.getFullYear();
+  const hadBirthdayThisYear = today.getMonth() > born.getMonth() || (today.getMonth() === born.getMonth() && today.getDate() >= born.getDate());
+
+  if (!hadBirthdayThisYear) {
+    age -= 1;
+  }
+
+  return age;
 }
 
 function splitList(value: string | null): string[] {

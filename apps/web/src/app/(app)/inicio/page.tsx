@@ -63,6 +63,11 @@ function greetingKey(hour: number): 'goodAfternoon' | 'goodEvening' | 'goodMorni
 
 export default async function DashboardPage() {
   await redirectIfOnboardingIncomplete();
+  // TODO(backend contract): once `OnboardingView` (or `/users/me`) carries the
+  // health-data consent flag (P0-2), add a `redirectIfProfileConsentMissing()`
+  // here, the same shape as the call above, sending an existing account whose
+  // consent is still missing to `/consentimiento` — the one-time interstitial
+  // already built at `apps/web/src/app/(app)/consentimiento/page.tsx`.
 
   const [dictionary, locale, user, profile, plan, shopping, weight, checkIn, trips] = await Promise.all([
     getDictionary(),
