@@ -128,6 +128,16 @@ path parameter, query string or request body is an id the caller chose.
 caller that the resource exists. `SessionGuard`, `AdminGuard` and `AllExceptionsFilter` all
 agree, so no handler can drift into being the one that confirms.
 
+**There is exactly one delegated path into another account's data.** A professional
+reaches a client only through a consented, audited link (`0059`): `CareController.withClient`
+resolves a link id — never a client id — against the session's professional and the link's
+`active` status, writes the audit row the client can read, and only then hands the
+client's id to the controller that already exists. `CareRepository.roster` is the one
+other reader, for the professional's client list, and keeps the same promise: it writes a
+trail row for every client before it reads their stage, in one transaction. A professional
+route that reaches a repository any other way is not a variant of the ownership rule
+above — it is a hole in it, and `invariant-reviewer` treats it as a P0.
+
 **Authentication is deny-by-default.** `SessionGuard` is global; a route is open only with
 an explicit `@Public()`. Opting *in* to protection makes a forgotten decorator an open
 endpoint.
@@ -312,6 +322,18 @@ call sites that only happened to agree — and an override would have reached on
 **Plans are append-only.** A finished plan is never rewritten; the next one is a new row
 linked by `previousPlanId`. A partial unique index enforces at most one `active` plan per
 user, so a double submit cannot produce two.
+
+**A plan awaiting a professional's review waits in its own state.** For a client linked
+with review on, a new plan lands `pending_review` (`0060`) instead of replacing the
+`active` one, so the fortnight the client is living stays exactly as visible and usable as
+it was. `PlanRepository.findActive` and everything built on it — the dashboard, the
+offline copy — need no change: the state simply sits outside what they read. The reads
+that reach a plan without going through `findActive` are named once, here, so a new one
+does not silently leak a pending plan: the check-in status, the plan history, a plan
+fetched by id, the shopping list and a meal's own status all exclude `pending_review` for
+the client by default, inside `PlanRepository`, not per route. Publishing is one
+transaction — complete the old `active` plan, set this one `active` — so the client never
+sees both or neither.
 
 **Every route body has a Zod schema**, applied through `ZodValidationPipe`. An unvalidated
 body reaches the service as whatever was sent, and unknown keys are stripped rather than

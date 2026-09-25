@@ -280,7 +280,7 @@ then the documents. Each phase ends green.
 
 ### Phase 10 — What is now true, and switching it on
 
-- [ ] pending
+- [x] done-locally — `pnpm turbo lint ts:check test`, `pnpm format`, `pnpm -w run deadcode` and `node scripts/check-migrations.mjs --drift` all green; `sh scripts/check-leaks.sh` clean; `test:e2e` not provable on this machine (no Docker, ICU mismatch) — the pull request's CI runs the whole suite, `care`/`care-review`/`care-practice`/`professionals` included. Turning the `professional` flag on and approving the legal text (`LEGAL-REVIEW.md`) stay with the owner.
 - **Dispatch**: sonnet @ medium — `/execute-project 004 phase 10` — owner-approves: the consent text and the professional's agreement after a lawyer's hour (PRD Decisions 2) — owner-gated: the live practice prices and turning on the `professional` flag in production
 - **Goal**: the documents say what the product now is, the whole suite is green, and the owner has what they need to switch it on.
 - **Scope**: `docs/{PRODUCT.md,ARCHITECTURE.md,ROADMAP.md}`, `docs/reference/payments.md`, `docs/reference/deployment.md` if it names flags, `apps/api/test/README.md`, the project's `LOG.md`.

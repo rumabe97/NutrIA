@@ -249,6 +249,59 @@ Step 4 last, on purpose: the flag is what makes the tier exist for anybody, so
 until it is thrown, a broken payment path is invisible to every user rather than
 visible to all of them.
 
+## 6b. A professional's practice — a second product, its own switch order
+
+Project 004 (`0061`) adds a second thing to sell on the same Stripe account: a
+professional's practice, priced by how many active clients it includes. Nothing above
+changes — one Stripe account, one webhook, the same test-then-live progression — this is
+what is different about it.
+
+**One product, two prices.** *Product catalogue → Add product*, same as § 2: one product
+("Consulta" / "Practice"), two recurring monthly prices, each naming how many active
+clients it includes (for instance 30 and 60). **This product needs its own tax code**
+too, for the same reason as § 2's: Managed Payments refuses a checkout for a product with
+none.
+
+**`STRIPE_PRACTICE_PRICES`**, on the `nutria-api` Vercel project, same as the other
+`STRIPE_*` variables:
+
+| Variable | Value | Notes |
+| --- | --- | --- |
+| `STRIPE_PRACTICE_PRICES` | `price_…=30,price_…=60` | The practice's prices and how many active clients each includes, comma-separated `price_…=N` pairs. **Optional** — the API boots without it, exactly as it boots without payments at all — but if it is set, `STRIPE_SECRET_KEY` and the rest of the core three must be too. It **must not name a premium price** (`STRIPE_PRICE_ID` or `STRIPE_YEARLY_PRICE_ID`): one price grants one thing, and a price that were both would grant whichever the code happened to read first. |
+
+`Env.validation.ts` refuses to boot on either mistake, naming which. A price *not* in
+this list is read as premium (`0061`, amended) — so **never remove a practice price
+while it still has subscribers**: their next event turns them premium and closes their
+practice, pausing every link.
+
+**The portal's plan switching.** *Settings → Billing → Customer portal*, the same save
+that § 3c already asks for once: turn on "Customers can switch plans" and list the
+practice's two prices as the ones they may switch between. Nothing else in the portal
+changes — cancelling still goes through the same page.
+
+**The trial.** Checkout opens a practice subscription with a **14-day** free trial for a
+professional who has never had one (`PRACTICE_TRIAL_DAYS`) — longer than premium's seven,
+and tracked separately, because a practice is a bigger decision to try. Nothing needs
+setting for it.
+
+**The switch order, going live.** Distinct from § 6 because it ends in a flag rather than
+a tier, and needs a granted professional to prove it against:
+
+1. Create the product and its two prices in Stripe — test mode first, then live, as
+   § 6 does for premium.
+2. Allow switching between the two prices in the customer portal (above), in both modes.
+3. Set `STRIPE_PRACTICE_PRICES` on the `nutria-api` Vercel project, **Production**, with
+   the live price ids.
+4. Grant a professional from `/admin`, with their collegiate number, and have them buy a
+   practice for real once — the same "buy something, refund it" step § 6 asks for premium.
+5. Only then, turn the `professional` flag on in `/admin`. Last, on purpose: until it is
+   thrown, nobody but the owner's own granted accounts can reach `/consulta` at all
+   (`docs/decisions/0059`), so a broken practice checkout is invisible to every professional
+   rather than visible to all of them.
+
+Also see [`deployment.md`](./deployment.md) § 2 for `STRIPE_PRACTICE_PRICES`'s row in the
+API's full environment table.
+
 ## 7. What to do if it goes wrong after launch
 
 Turn the `premium` flag off. Everybody returns to the free allowances
