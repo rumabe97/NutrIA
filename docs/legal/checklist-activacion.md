@@ -28,7 +28,7 @@
 - [ ] **P1-3** — Página de invitación con los textos nuevos; `CARE_CONSENT_VERSION = '2.0.0'`; ningún enlace real aceptado con `1.0.0`.
 - [ ] **P1-2** — Correo de invitación con el párrafo del art. 14.
 - [ ] Correo de alta al profesional ([`textos/06`](./textos/06-correos.md) § B).
-- [ ] **P1-10** — Gemini fuera de la combinación usada para planes generados desde `/consulta`, o confirmación de Google por escrito.
+- [ ] **P1-10 — abierto.** Gemini sigue en la combinación usada para los clientes de los profesionales: el propietario decidió el 2026-09-25 aplazarlo. Resolver antes del primer paciente real: sacar Gemini de la combinación para los planes generados desde `/consulta`, u obtener la confirmación de Google por escrito (sus términos prohíben el uso «en la práctica clínica»).
 - [ ] `HEALTH_CONSENT_VERSION = '1.1.0'` con la nota precisada (`05` § C).
 
 **Textos**
@@ -38,7 +38,7 @@
 
 **Organización**
 - [ ] El propietario comprueba cada número de colegiado en el registro público del colegio correspondiente antes de conceder, y anota la fecha de la comprobación.
-- [ ] Procedimiento de brecha escrito: quién mira, cómo se decide en 72 horas si se notifica a la AEPD (art. 33) y a los afectados (art. 34).
+- [ ] **Procedimiento de brechas** — escrito en [`procedimiento-brechas.md`](./procedimiento-brechas.md). Se marca cuando el propietario haya rellenado fuera del repositorio cada ⟦…⟧ (§ 9: acceso a la sede de la AEPD, cuentas de los proveedores, dispositivos, pasarela, dónde vive el registro) y lo haya **firmado y fechado**.
 - [ ] Hora con el abogado: puntos 1, 3 y 9 del [`analisis.md` § 10](./analisis.md#10-confirmar-con-un-abogado).
 
 **Orden de encendido** (decisión del lead, 2026-09-25: primero el interruptor, después las concesiones — el correo de alta enlaza a `/consulta`, que solo funciona con el interruptor encendido, y un interruptor sin concesiones no enseña nada a nadie)
