@@ -394,8 +394,9 @@ describe('profile consent and the minimum age, end to end', () => {
       // false again and `@RequiresOnboarding()`'s guard answers before the
       // controller ever asks for consent — the same guard `access.e2e-spec.ts`
       // proves for any unfinished account. The account still holds no consent
-      // underneath (`profileConsentRequired: true`, asserted above), and no job
-      // is created either way.
+      // underneath (`profileConsentRequired: true`, asserted above), and no new
+      // job is created either way — the setup's own generation is the one there.
+      const jobsBefore = await jobCount(account.id);
       const refused: Response = await request(httpServer(app))
         .post(`/${PREFIX}/meal-plans/generate`)
         .set('Cookie', account.cookie)
@@ -403,7 +404,7 @@ describe('profile consent and the minimum age, end to end', () => {
         .expect(409);
 
       expect((refused.body as { code: string }).code).toBe('ONBOARDING_INCOMPLETE');
-      expect(await jobCount(account.id)).toBe(0);
+      expect(await jobCount(account.id)).toBe(jobsBefore);
     });
   });
 
