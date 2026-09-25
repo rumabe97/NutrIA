@@ -189,3 +189,18 @@ export const healthDataConsents = userOwnedSingleton('health_data_consents', {
   grantedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   version: text().notNull()
 });
+
+/**
+ * Explicit consent to use the health data the profile itself holds — allergies,
+ * intolerances, weight, height, goal and way of eating — to build plans (RGPD
+ * art. 9.2.a).
+ *
+ * Separate from `health_data_consents` because it covers different data for a
+ * different reason: without this one there is no plan at all, while the health
+ * section is optional. Versioned the same way, so a changed notice is asked
+ * again. Withdrawal deletes this row and that data together, in one transaction.
+ */
+export const profileDataConsents = userOwnedSingleton('profile_data_consents', {
+  grantedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  version: text().notNull()
+});

@@ -12,9 +12,11 @@ import {
   OnboardingIncompleteError,
   PlanPausedError,
   PracticeFullError,
+  ProfileConsentRequiredError,
   QuotaExceededError,
   SafetyViolationError,
-  UnauthorizedError
+  UnauthorizedError,
+  UnderMinimumAgeError
 } from 'core/entities/Error';
 
 import { ErrorReporter } from '../observability/ErrorReporter.js';
@@ -161,6 +163,21 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // an authorisation denial this one is meant to be understood. The client
       // switches on `code` and sends the person back to their resume step.
       return { code: 'ONBOARDING_INCOMPLETE', message: 'Termina tu perfil antes de continuar.', statusCode: HttpStatus.CONFLICT };
+    }
+
+    if (exception instanceof ProfileConsentRequiredError) {
+      // 409 like an unfinished profile: the caller owns the account, and the
+      // answer is where to consent (RGPD art. 9.2.a), not a denial.
+      return {
+        code: 'PROFILE_CONSENT_REQUIRED',
+        message: 'Necesitamos tu consentimiento para usar estos datos.',
+        statusCode: HttpStatus.CONFLICT
+      };
+    }
+
+    if (exception instanceof UnderMinimumAgeError) {
+      // 422: the request is well formed, the birth date is refused.
+      return { code: 'UNDER_MINIMUM_AGE', message: 'NutrIA es para mayores de 18 años.', statusCode: HttpStatus.UNPROCESSABLE_ENTITY };
     }
 
     if (exception instanceof QuotaExceededError) {

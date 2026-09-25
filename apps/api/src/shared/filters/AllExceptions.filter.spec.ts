@@ -8,9 +8,11 @@ import {
   DatabaseOperationError,
   InputParseError,
   NotFoundError,
+  ProfileConsentRequiredError,
   QuotaExceededError,
   SafetyViolationError,
-  UnauthorizedError
+  UnauthorizedError,
+  UnderMinimumAgeError
 } from 'core/entities/Error';
 
 import { AllExceptionsFilter } from './AllExceptions.filter.js';
@@ -52,6 +54,14 @@ describe('AllExceptionsFilter', () => {
 
   it('maps an unactivated account to 409 with the code the screen routes on', () => {
     expect(capture(new AccountNotActivatedError()).body).toMatchObject({ code: 'ACCOUNT_NOT_ACTIVATED', statusCode: HttpStatus.CONFLICT });
+  });
+
+  it('maps a missing profile consent to 409 with its own code, like an unfinished profile', () => {
+    expect(capture(new ProfileConsentRequiredError()).body).toMatchObject({ code: 'PROFILE_CONSENT_REQUIRED', statusCode: HttpStatus.CONFLICT });
+  });
+
+  it('maps a birth date under the minimum age to 422 with a stable code', () => {
+    expect(capture(new UnderMinimumAgeError()).body).toMatchObject({ code: 'UNDER_MINIMUM_AGE', statusCode: HttpStatus.UNPROCESSABLE_ENTITY });
   });
 
   it('maps a spent allowance to 429, naming which one and when it renews', () => {

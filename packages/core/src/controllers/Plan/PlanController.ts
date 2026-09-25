@@ -9,6 +9,7 @@ import { EventRepository } from '#repositories/Event';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { PlanJobRepository, PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
+import { requireProfileConsent } from 'core/controllers/Profile';
 import { UserRepository } from '#repositories/User';
 import { VacationRepository } from '#repositories/Vacation';
 import { isAway } from 'core/domain/Vacation';
@@ -725,6 +726,11 @@ export const PlanJobController = {
    * the path below is the client's own, unchanged.
    */
   async start(userId: string, record?: RecordAccess): Promise<JobView> {
+    // No plan is built from a profile whose owner has not consented to its use
+    // (RGPD art. 9.2.a) — theirs, whoever starts it. Asked before the claim, so
+    // a refusal leaves no job row.
+    await requireProfileConsent(userId);
+
     // Adopt before failing: a job whose plan committed did not fail, whatever its
     // row says, and marking it abandoned would discard a plan the user already
     // has — and charge them a second generation to get it back.

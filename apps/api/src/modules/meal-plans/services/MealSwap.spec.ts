@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
-import { QuotaExceededError } from 'core/entities/Error';
+import { ProfileConsentRequiredError, QuotaExceededError } from 'core/entities/Error';
 import { PlanController } from 'core/controllers/Plan';
-import { ProfileController } from 'core/controllers/Profile';
+import { ProfileConsentController, ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
 import { toCatalogue } from 'core/entities/Plan';
 
@@ -134,6 +134,7 @@ function harness(
   jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(options.library ?? []);
   const swapMeal = jest.spyOn(PlanController, 'swapMeal').mockResolvedValue(undefined);
   jest.spyOn(PlanController, 'getMeal').mockResolvedValue({ id: MEAL } as never);
+  jest.spyOn(ProfileConsentController, 'requireCurrent').mockResolvedValue(undefined);
 
   const build = jest.fn<(input: unknown) => Promise<PoolResult>>(async () =>
     Promise.resolve({
@@ -161,6 +162,17 @@ function harness(
 describe('MealSwapService', () => {
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  it('refuses without the profile consent, before reading the plan or asking anything', async () => {
+    const { build, service, swapMeal } = harness();
+
+    jest.spyOn(ProfileConsentController, 'requireCurrent').mockRejectedValue(new ProfileConsentRequiredError());
+
+    await expect(service.swap('user-1', MEAL, 'es-ES')).rejects.toBeInstanceOf(ProfileConsentRequiredError);
+    expect(PlanController.mealForSwap).not.toHaveBeenCalled();
+    expect(build).not.toHaveBeenCalled();
+    expect(swapMeal).not.toHaveBeenCalled();
   });
 
   it('serves the swap from the library when a dish fits, without calling the model', async () => {

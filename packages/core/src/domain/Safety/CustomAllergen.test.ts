@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { matchCustomAllergen, normaliseForMatching, resolveCustomAllergens, toMatchIndex } from 'core/domain/Safety';
+import { bestEffortExclusions, matchCustomAllergen, normaliseForMatching, resolveCustomAllergens, toMatchIndex } from 'core/domain/Safety';
 
 import type { MatchableIngredient } from 'core/domain/Safety';
 
@@ -118,5 +118,32 @@ describe('resolveCustomAllergens', () => {
 
   it('does nothing at all with an empty list', () => {
     expect(resolveCustomAllergens([], CATALOGUE)).toEqual([]);
+  });
+});
+
+describe('bestEffortExclusions — what an unresolved allergy takes out, never claimed as enforced', () => {
+  const rows: readonly MatchableIngredient[] = [
+    { id: 'nueces', name: 'Nueces', slug: 'nueces' },
+    { id: 'nueces-pecanas', name: 'Nueces pecanas', slug: 'nueces-pecanas' },
+    { id: 'macadamia', name: 'Macadamia', slug: 'macadamia' },
+    { id: 'arroz', name: 'Arroz', slug: 'arroz' },
+    { id: 'pan-de-centeno', name: 'Pan de centeno', slug: 'pan-de-centeno' }
+  ];
+
+  it('removes every row sharing a whole word with the label, whatever its case or accents', () => {
+    expect([...bestEffortExclusions(['Nueces de MACADAMIA'], rows)].sort()).toEqual(['macadamia', 'nueces', 'nueces-pecanas']);
+  });
+
+  it('ignores the short words that say nothing about a food', () => {
+    expect([...bestEffortExclusions(['pan de sal'], rows)]).toEqual([]);
+  });
+
+  it('removes nothing for nothing', () => {
+    expect(bestEffortExclusions([], rows).size).toBe(0);
+    expect(bestEffortExclusions(['   '], rows).size).toBe(0);
+  });
+
+  it('matches whole words, not runs of letters: "arroces" is not "arroz"', () => {
+    expect([...bestEffortExclusions(['arroces'], rows)]).toEqual([]);
   });
 });

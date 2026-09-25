@@ -114,20 +114,16 @@ describe('shortfall', () => {
 describe('PoolBuilder', () => {
   const preferences = {
     avoidNames: [],
-    breakfastStyle: null,
     budget: null,
     cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
     dayShape: null,
     dietaryPatterns: [],
-    dislikedLabels: [],
     dislikedNames: [],
     goal: null,
-    likedLabels: [],
+    likedFoods: [],
     lovedNames: [],
-    portionPreference: null,
-    scheduleNotes: null,
     slotShares: new Map(),
     targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
   };
@@ -249,6 +245,7 @@ describe('PoolBuilder', () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
     const wanted = {
       excludedIngredientIds: new Set(['ing-pollo']),
+      keepsMeatFromDairy: false,
       maxMinutesPerDish: null,
       preferredIngredientSlugs: new Set<string>(),
       unenforceableLabels: []
@@ -262,10 +259,34 @@ describe('PoolBuilder', () => {
     expect(prompt).not.toContain('pollo');
   });
 
+  it('drops a dish that puts meat and dairy together for someone who keeps them apart, and keeps one that does not', async () => {
+    const meat = { ...ingredient('ternera'), classes: ['meat', 'animal'] as CatalogueIngredient['classes'] };
+    const dairy = { ...ingredient('queso'), classes: ['dairy', 'animal'] as CatalogueIngredient['classes'] };
+    const { client } = stubClient([
+      { dishes: [dish('Ternera con queso', ['breakfast'], ['ternera', 'queso']), dish('Ternera con arroz', ['breakfast'], ['ternera', 'arroz'])] }
+    ]);
+
+    const result = await new PoolBuilder(client).build({
+      context: {
+        ...context(),
+        catalogue: toCatalogue([...CATALOGUE, meat, dairy]),
+        preferences: { ...NO_PREFERENCE_EXCLUSIONS, keepsMeatFromDairy: true }
+      },
+      needPerSlot: 2,
+      preferences,
+      reusable: [],
+      slots: ['breakfast']
+    });
+
+    expect(result.generated.map(generated => generated.name)).toEqual(['Ternera con arroz']);
+    expect(result.metadata.aiCalls[0]?.rejected).toMatchObject({ unwanted: 1 });
+  });
+
   it('drops a dish that uses a ruled-out ingredient even when the model writes one anyway', async () => {
     const { client } = stubClient([{ dishes: [dish('Pollo al horno', ['breakfast'], ['pollo'])] }]);
     const wanted = {
       excludedIngredientIds: new Set(['ing-pollo']),
+      keepsMeatFromDairy: false,
       maxMinutesPerDish: null,
       preferredIngredientSlugs: new Set<string>(),
       unenforceableLabels: []
@@ -335,12 +356,15 @@ describe('PoolBuilder', () => {
     expect(prompt).not.toContain('tomate');
   });
 
-  it('names an allergy it could not resolve, because there is no ingredient to withhold', async () => {
+  it('never names an allergy it could not resolve: no free text reaches the model (prompt 4.0.0)', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
     await new PoolBuilder(client).build({ context: context({ unenforceableLabels: ['marisco'] }), preferences, reusable: [], slots: ['breakfast'] });
 
-    expect((generate.mock.calls[0]?.[0] as { prompt: string }).prompt).toContain('marisco');
+    const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
+
+    expect(prompt).not.toContain('marisco');
+    expect(prompt).not.toContain('FORBIDDEN BY ALLERGY');
   });
 
   it('says nothing about allergies when every one of them resolved', async () => {
@@ -417,12 +441,12 @@ describe('PoolBuilder', () => {
       expect(prompt).toContain('Pollo al limón; Lentejas con chorizo');
     });
 
-    it('passes on the last check-in as guidance, with their words bounded', async () => {
+    it('passes on the last check-in as guidance: its closed answers, never a comment', async () => {
       const { client, generate } = stubClient([{ dishes: [] }]);
 
       await new PoolBuilder(client).build({
         context: context(),
-        preferences: { ...preferences, checkIn: { comments: 'Las cenas eran enormes', difficulty: 'hard', hunger: 'too_much', satisfaction: 2 } },
+        preferences: { ...preferences, checkIn: { difficulty: 'hard', hunger: 'too_much', satisfaction: 2 } },
         reusable: [],
         slots: ['lunch']
       });
@@ -432,7 +456,7 @@ describe('PoolBuilder', () => {
       expect(prompt).toContain("LAST FORTNIGHT'S CHECK-IN");
       expect(prompt).toContain('more than they could eat');
       expect(prompt).toContain('hard to follow');
-      expect(prompt).toContain('Las cenas eran enormes');
+      expect(prompt).not.toContain('In their words');
     });
 
     it('says nothing about last fortnight when there was none', async () => {
@@ -443,18 +467,12 @@ describe('PoolBuilder', () => {
       expect((generate.mock.calls[0]?.[0] as { prompt: string }).prompt).not.toContain('LAST FORTNIGHT');
     });
 
-    it('passes on how they eat, in their own words, one line each', async () => {
+    it('passes on how they eat from their structured answers only', async () => {
       const { client, generate } = stubClient([{ dishes: [] }]);
 
       await new PoolBuilder(client).build({
         context: context(),
-        preferences: {
-          ...preferences,
-          breakfastStyle: 'No desayuno,\n  almuerzo   a las 11',
-          cookingFrequency: 'often',
-          portionPreference: 'Ligeros',
-          scheduleNotes: 'Turnos de noche'
-        },
+        preferences: { ...preferences, cookingFrequency: 'often', dayShape: 'wakes at 07:00' },
         reusable: [],
         slots: ['lunch']
       });
@@ -462,27 +480,10 @@ describe('PoolBuilder', () => {
       const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
 
       expect(prompt).toContain('THIS PERSON');
-      expect(prompt).toContain('- Breakfast, in their words: No desayuno, almuerzo a las 11');
-      expect(prompt).toContain('- Plates they like: Ligeros');
       expect(prompt).toContain('- Cooks: often');
-      expect(prompt).toContain('- Their week: Turnos de noche');
-    });
-
-    it('bounds free text, so a pasted paragraph cannot restructure the prompt', async () => {
-      const { client, generate } = stubClient([{ dishes: [] }]);
-      const essay = 'x'.repeat(500);
-
-      await new PoolBuilder(client).build({
-        context: context(),
-        preferences: { ...preferences, scheduleNotes: essay },
-        reusable: [],
-        slots: ['lunch']
-      });
-
-      const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
-      const line = prompt.split('\n').find(candidate => candidate.startsWith('- Their week:')) ?? '';
-
-      expect(line.length).toBeLessThan(200);
+      expect(prompt).toContain('- Their day: wakes at 07:00');
+      expect(prompt).not.toContain('in their words');
+      expect(prompt).not.toContain('Their week');
     });
 
     it('states the spread as counts the model can check', async () => {
@@ -580,20 +581,16 @@ function dish2(slug: string): CandidateDish {
 describe('PoolBuilder — telling a broken provider from an absent one', () => {
   const preferences = {
     avoidNames: [],
-    breakfastStyle: null,
     budget: null,
     cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
     dayShape: null,
     dietaryPatterns: [],
-    dislikedLabels: [],
     dislikedNames: [],
     goal: null,
-    likedLabels: [],
+    likedFoods: [],
     lovedNames: [],
-    portionPreference: null,
-    scheduleNotes: null,
     slotShares: new Map(),
     targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
   };
@@ -651,20 +648,16 @@ describe('PoolBuilder — telling a broken provider from an absent one', () => {
 describe('PoolBuilder — the call log', () => {
   const preferences = {
     avoidNames: [],
-    breakfastStyle: null,
     budget: null,
     cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
     dayShape: null,
     dietaryPatterns: [],
-    dislikedLabels: [],
     dislikedNames: [],
     goal: null,
-    likedLabels: [],
+    likedFoods: [],
     lovedNames: [],
-    portionPreference: null,
-    scheduleNotes: null,
     slotShares: new Map(),
     targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
   };
@@ -793,20 +786,16 @@ describe('PoolBuilder — the call log', () => {
 describe('PoolBuilder — the time budget', () => {
   const preferences = {
     avoidNames: [],
-    breakfastStyle: null,
     budget: null,
     cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
     dayShape: null,
     dietaryPatterns: [],
-    dislikedLabels: [],
     dislikedNames: [],
     goal: null,
-    likedLabels: [],
+    likedFoods: [],
     lovedNames: [],
-    portionPreference: null,
-    scheduleNotes: null,
     slotShares: new Map(),
     targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
   };

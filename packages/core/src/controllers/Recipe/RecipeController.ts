@@ -1,11 +1,11 @@
 import { hasUsableMethod } from 'core/domain/Method';
 import { rotatePool } from 'core/domain/Variety';
-import { dishSafety } from 'core/domain/Safety';
+import { bestEffortExclusions, dishSafety } from 'core/domain/Safety';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
 import { HealthRepository } from '#repositories/Health';
 import { proteinSupplementExclusions } from 'core/domain/Health';
-import { resolvePreferences, withinTime } from 'core/domain/Preference';
+import { breaksDishRule, resolvePreferences, withinTime } from 'core/domain/Preference';
 import { SafetyController } from 'core/controllers/Safety';
 import { NotFoundError, PlanPausedError } from 'core/entities/Error';
 import { VacationRepository } from '#repositories/Vacation';
@@ -63,11 +63,14 @@ export type GenerationContext = {
  * than that it is safe for them, so reuse is filtered exactly as generation is.
  */
 function usesExcluded(ingredients: readonly { readonly slug: string }[], context: GenerationContext): boolean {
-  return ingredients.some(item => {
-    const ingredient = context.catalogue.get(item.slug);
+  return (
+    breaksDishRule(ingredients, context.catalogue, context.preferences) ||
+    ingredients.some(item => {
+      const ingredient = context.catalogue.get(item.slug);
 
-    return ingredient !== undefined && context.preferences.excludedIngredientIds.has(ingredient.id);
-  });
+      return ingredient !== undefined && context.preferences.excludedIngredientIds.has(ingredient.id);
+    })
+  );
 }
 
 // --- Presenters ---------------------------------------------------------------
@@ -142,8 +145,13 @@ export const RecipeController = {
     // dislike is, so the prompt, the library and the gate all agree — and what
     // reaches the model is a catalogue without it, never the supplement.
     const supplements = proteinSupplementExclusions(takesProteinSupplement, catalogue);
-    const preferences =
-      supplements.size === 0 ? resolved : { ...resolved, excludedIngredientIds: new Set([...resolved.excludedIngredientIds, ...supplements]) };
+    // An allergy the catalogue could not resolve is never named to the model
+    // (no free text leaves the building); what shares a word with it is taken
+    // out of the catalogue instead, quietly, beside the preferences — never as
+    // a safety violation, because it is not a guarantee (`bestEffortExclusions`).
+    const unresolvedAllergies = bestEffortExclusions(safety.unenforceableLabels, catalogue);
+    const extra = [...supplements, ...unresolvedAllergies];
+    const preferences = extra.length === 0 ? resolved : { ...resolved, excludedIngredientIds: new Set([...resolved.excludedIngredientIds, ...extra]) };
 
     return { catalogue: toCatalogue(catalogue), locale, preferences, safety };
   },

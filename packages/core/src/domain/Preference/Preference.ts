@@ -12,18 +12,82 @@ import type { FoodClass } from 'database/schema/food';
  * ignored. These are the same kind of rule as the allergy gate and run in the
  * same place: before a dish can be proposed, not after it is on the plate.
  *
- * Absent on purpose: `halal` and `kosher`, which are not a class of food but a
- * way of raising and preparing it, and the catalogue holds nothing that could
- * enforce them; `flexitarian`, which is a direction rather than a rule; and
+ * `halal` and `kosher` are here too, and in `PATTERN_SLUG_RUNS` and
+ * `SEPARATES_MEAT_AND_DAIRY` below, because a religious way of eating is never
+ * named to the model (owner's decision, 2026-09-25: a label that reveals a
+ * belief does not leave the building). What the catalogue can express is
+ * enforced in code; what it cannot — whether meat was slaughtered and certified
+ * — is not claimed, and buying certified meat stays the person's.
+ *
+ * Absent on purpose: `flexitarian`, which is a direction rather than a rule; and
  * `gluten_free` / `lactose_free`, which name allergens the safety layer already
- * enforces when declared as an intolerance. What cannot be enforced is said to
- * the model and reported as best-effort, never as applied.
+ * enforces when declared as an intolerance.
  */
 export const PATTERN_EXCLUSIONS: Readonly<Record<string, readonly FoodClass[]>> = {
+  halal: ['pork'],
+  kosher: ['pork', 'shellfish'],
   pescatarian: ['meat', 'pork'],
   vegan: ['animal', 'dairy', 'egg', 'fish', 'meat', 'pork', 'shellfish'],
   vegetarian: ['fish', 'meat', 'pork', 'shellfish']
 };
+
+/** Alcoholic drinks and what is cooked with them, as slug words. A vinegar and an alcohol-free drink are not. */
+const ALCOHOL_RUNS: readonly string[] = [
+  'brandy',
+  'cava',
+  'cerveza',
+  'conac',
+  'ginebra',
+  'jerez',
+  'licor',
+  'marsala',
+  'mirin',
+  'oporto',
+  'ron',
+  'sake',
+  'sidra',
+  'tequila',
+  'vermut',
+  'vino',
+  'vodka',
+  'whisky'
+];
+
+/** Gelatine: an animal product of unstated origin, most often pork. */
+const GELATINE_RUNS: readonly string[] = ['gelatina'];
+
+/** Fish without fins and scales, which kashrut excludes; the class `fish` cannot tell them apart. */
+const SCALELESS_FISH_RUNS: readonly string[] = ['anguila', 'angulas', 'cazon', 'esturion', 'caviar', 'panga', 'pez-espada', 'rape', 'siluro', 'tiburon'];
+
+/**
+ * What a religious way of eating excludes that no food class names, as runs of
+ * whole slug words — the same whole-token rule the allergy layer uses, so
+ * `vino` reaches `vino-tinto` and not `vinagre-de-vino-tinto`, which is
+ * excepted by name in `isExceptedFromRuns`.
+ */
+export const PATTERN_SLUG_RUNS: Readonly<Record<string, readonly string[]>> = {
+  halal: [...ALCOHOL_RUNS, ...GELATINE_RUNS],
+  kosher: [...ALCOHOL_RUNS, ...GELATINE_RUNS, ...SCALELESS_FISH_RUNS]
+};
+
+/** Ways of eating that never put meat and dairy in one dish. Judged per dish, by `breaksDishRule`. */
+const SEPARATES_MEAT_AND_DAIRY: ReadonlySet<string> = new Set(['kosher']);
+
+/** Whether a slug contains any of these runs of whole words. */
+function hasRun(slug: string, runs: readonly string[]): boolean {
+  const tokens = slug.split('-');
+
+  return runs.some(run => {
+    const words = run.split('-');
+
+    return tokens.some((_token, start) => words.every((word, offset) => tokens[start + offset] === word));
+  });
+}
+
+/** A vinegar is not a drink, and an alcohol-free drink is the point of its name. */
+function isExceptedFromRuns(slug: string): boolean {
+  return slug.startsWith('vinagre') || hasRun(slug, ['sin-alcohol']);
+}
 
 /**
  * The words people use for a whole family of food, and the classes each names.
@@ -79,6 +143,11 @@ export type PreferenceExclusions = {
   /** Every catalogue row a way of eating or a dislike rules out. */
   readonly excludedIngredientIds: ReadonlySet<string>;
   /**
+   * Whether a dish may not hold meat and dairy together (kosher). A rule on the
+   * dish, not on an ingredient: each is fine alone. See `breaksDishRule`.
+   */
+  readonly keepsMeatFromDairy: boolean;
+  /**
    * The longest a dish may take, prep plus cooking, or null when they set none.
    *
    * Enforced rather than asked for the reason the whole of `0023` exists: a
@@ -95,7 +164,7 @@ export type PreferenceExclusions = {
    * filter.
    */
   readonly preferredIngredientSlugs: ReadonlySet<string>;
-  /** Dislikes that named nothing the catalogue knows. Asked of the model, never claimed as applied. */
+  /** Dislikes that named nothing the catalogue knows. Never sent to the model (prompt 4.0.0), never claimed as applied. */
   readonly unenforceableLabels: readonly string[];
 };
 
@@ -171,12 +240,13 @@ export function resolvePreferences(input: {
   readonly maxMinutesPerDish?: number | null;
 }): PreferenceExclusions {
   const classes = new Set<FoodClass>(input.dietaryPatterns.flatMap(pattern => PATTERN_EXCLUSIONS[pattern] ?? []));
+  const runs = [...new Set(input.dietaryPatterns.flatMap(pattern => PATTERN_SLUG_RUNS[pattern] ?? []))];
   const excluded = new Set<string>();
   const unenforceable: string[] = [];
 
-  if (classes.size > 0) {
+  if (classes.size > 0 || runs.length > 0) {
     for (const ingredient of input.ingredients) {
-      if (inClasses(ingredient, classes)) {
+      if (inClasses(ingredient, classes) || (hasRun(ingredient.slug, runs) && !isExceptedFromRuns(ingredient.slug))) {
         excluded.add(ingredient.id);
       }
     }
@@ -215,6 +285,7 @@ export function resolvePreferences(input: {
 
   return {
     excludedIngredientIds: excluded,
+    keepsMeatFromDairy: input.dietaryPatterns.some(pattern => SEPARATES_MEAT_AND_DAIRY.has(pattern)),
     maxMinutesPerDish: input.maxMinutesPerDish ?? null,
     preferredIngredientSlugs: preferred,
     unenforceableLabels: unenforceable
@@ -224,6 +295,7 @@ export function resolvePreferences(input: {
 /** Nothing excluded — for a caller with no profile to read, and for tests. */
 export const NO_PREFERENCE_EXCLUSIONS: PreferenceExclusions = {
   excludedIngredientIds: new Set(),
+  keepsMeatFromDairy: false,
   maxMinutesPerDish: null,
   preferredIngredientSlugs: new Set(),
   unenforceableLabels: []
@@ -248,4 +320,24 @@ export function timeAllowance(limit: number): number {
 /** Whether a dish can be cooked in the time they said they have, give or take the margin `timeAllowance` allows. */
 export function withinTime(dish: { readonly cookMinutes: number; readonly prepMinutes: number }, limit: number | null): boolean {
   return limit === null || dish.prepMinutes + dish.cookMinutes <= timeAllowance(limit);
+}
+
+/**
+ * Whether a whole dish breaks a rule of their way of eating that no single
+ * ingredient does — today, meat with dairy for someone who keeps them apart.
+ * Meat is `meat` or `pork` (pork implies meat in the seed, and both are named
+ * so a row tagged with one alone is still caught); a stock made of meat counts.
+ */
+export function breaksDishRule(
+  ingredients: readonly { readonly slug: string }[],
+  catalogue: ReadonlyMap<string, { readonly classes: readonly FoodClass[] }>,
+  preferences: Pick<PreferenceExclusions, 'keepsMeatFromDairy'>
+): boolean {
+  if (!preferences.keepsMeatFromDairy) {
+    return false;
+  }
+
+  const classes = new Set(ingredients.flatMap(item => catalogue.get(item.slug)?.classes ?? []));
+
+  return (classes.has('meat') || classes.has('pork')) && classes.has('dairy');
 }

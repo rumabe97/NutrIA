@@ -1,11 +1,11 @@
-import { Controller, Get, Patch } from '@nestjs/common';
+import { Controller, Delete, Get, Patch, Put } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { CurrentUser, Locale, ZodBody } from '../../../shared/index.js';
 import { ProfilesService } from '../services/index.js';
-import { SetTourSeenDto, UpdateGoalDto, UpdatePreferencesDto, UpdateProfileDto, UpdateTargetOverrideDto } from '../dto/in/index.js';
+import { GiveProfileConsentDto, SetTourSeenDto, UpdateGoalDto, UpdatePreferencesDto, UpdateProfileDto, UpdateTargetOverrideDto } from '../dto/in/index.js';
 
-import type { FullProfileDto, GoalDto, PreferencesDto, ProfileDto, TargetsDto, TourSeenDto } from '../dto/out/index.js';
+import type { FullProfileDto, GoalDto, PreferencesDto, ProfileConsentDto, ProfileDto, TargetsDto, TourSeenDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
 /**
@@ -22,6 +22,36 @@ export class ProfilesController {
   @Get()
   async get(@CurrentUser() user: SessionUser, @Locale() locale: string | null): Promise<FullProfileDto> {
     return this.profiles.read(user.id, locale);
+  }
+
+  @ApiOkResponse({ description: 'Whether the current notice is consented to, and when it was.' })
+  @ApiOperation({ summary: "The explicit consent to use the profile's health data" })
+  @Get('consent')
+  async consent(@CurrentUser() user: SessionUser): Promise<ProfileConsentDto> {
+    return this.profiles.consent(user.id);
+  }
+
+  /**
+   * Giving it: the body names the version read, and only the current one is
+   * accepted. Giving it again records the moment again.
+   */
+  @ApiOkResponse({ description: 'The consent as it now stands.' })
+  @ApiOperation({ summary: "Consent to the use of the profile's health data (RGPD art. 9.2.a)" })
+  @Put('consent')
+  async giveConsent(@CurrentUser() user: SessionUser, @ZodBody(GiveProfileConsentDto) body: GiveProfileConsentDto): Promise<ProfileConsentDto> {
+    return this.profiles.giveConsent(user.id, body);
+  }
+
+  /**
+   * Withdrawing it deletes what it covered — allergies, intolerances, way of
+   * eating, goal, height and every weight — in one transaction, and reopens
+   * the onboarding steps that collect them.
+   */
+  @ApiOkResponse({ description: 'The consent as it now stands: withdrawn.' })
+  @ApiOperation({ summary: "Withdraw the profile consent and delete the data it covered" })
+  @Delete('consent')
+  async withdrawConsent(@CurrentUser() user: SessionUser): Promise<ProfileConsentDto> {
+    return this.profiles.withdrawConsent(user.id);
   }
 
   @ApiOkResponse({ description: 'The profile as it now stands.' })

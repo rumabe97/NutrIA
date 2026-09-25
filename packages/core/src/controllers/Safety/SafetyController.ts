@@ -2,6 +2,7 @@ import { allergenKeysForConditions, CONDITION_EXCLUSIONS } from 'core/domain/Hea
 import { HealthRepository } from '#repositories/Health';
 import { resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
 import { SafetyRepository } from '#repositories/Safety';
+import { requireProfileConsent } from 'core/controllers/Profile';
 import type { Allergen, Allergy, CustomAllergen, Intolerance, SafetyProfile, SetAllergies } from 'core/entities/Safety';
 import type { ResolvedCustomAllergen } from 'core/domain/Safety';
 
@@ -89,6 +90,7 @@ export const SafetyController = {
   },
 
   async setRestrictions(userId: string, input: SetAllergies): Promise<void> {
+    await requireProfileConsent(userId);
     await SafetyRepository.replaceAll(userId, input, await resolveFreeTextAllergens(input.customAllergens));
   }
 };

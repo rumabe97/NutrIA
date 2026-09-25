@@ -169,3 +169,37 @@ export function resolveCustomAllergens(labels: readonly string[], ingredients: r
 
   return resolved;
 }
+
+/** Shorter words — "de", "con", "sal" — say too little about a food to remove one by. */
+const BEST_EFFORT_MIN_WORD = 4;
+
+/**
+ * Catalogue rows that share a whole word with an allergy the catalogue could
+ * not resolve, to be **removed as well — never reported as enforced**.
+ *
+ * Until 2026-09-25 such an entry was named to the model as forbidden, the only
+ * thing standing between it and a model-written dish. No free text reaches the
+ * model now (owner's decision), so the mitigation moves here, into code, and it
+ * leans the one way that is safe: "nueces de macadamia" takes out every row with
+ * `nueces` or `macadamia` in its name or slug. Removing too much costs a dish;
+ * the rule at the top of this file is about the other direction — a match shown
+ * as a guarantee — and this is never shown as one: the entry stays in
+ * `unenforceableLabels`, and the screen keeps saying it cannot be guaranteed.
+ */
+export function bestEffortExclusions(labels: readonly string[], ingredients: readonly MatchableIngredient[]): ReadonlySet<string> {
+  const words = new Set(
+    labels.flatMap(label => normaliseForMatching(label).split(' ')).filter(word => word.length >= BEST_EFFORT_MIN_WORD)
+  );
+
+  if (words.size === 0) {
+    return new Set();
+  }
+
+  return new Set(
+    ingredients
+      .filter(ingredient =>
+        [normaliseForMatching(ingredient.name), normaliseForMatching(ingredient.slug)].some(key => key.split(' ').some(word => words.has(word)))
+      )
+      .map(ingredient => ingredient.id)
+  );
+}

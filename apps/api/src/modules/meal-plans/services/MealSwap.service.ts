@@ -6,11 +6,11 @@ import { axisFilter, pickReplacement } from 'core/domain/Scheduler';
 import { minimumDailyKcal } from 'core/domain/Nutrition';
 import { ConflictError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
 import { PlanController } from 'core/controllers/Plan';
-import { ProfileController } from 'core/controllers/Profile';
+import { ProfileConsentController, ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
 
 import { PoolBuilder } from '../../ai/services/PoolBuilder.service.js';
-import { promptPreferences, toRecipeDraft } from './GenerationShared.js';
+import { likedFoodNames, promptPreferences, toRecipeDraft } from './GenerationShared.js';
 
 import type { MealCompositionView, MealDetailView } from 'core/controllers/Plan';
 import type { Placement } from 'core/domain/Variety';
@@ -70,6 +70,10 @@ export class MealSwapService {
   constructor(private readonly pool: PoolBuilder) {}
 
   async swap(userId: string, mealId: string, locale: string | null, axis?: SwapAxis, review?: Review): Promise<MealDetailView> {
+    // A swap reads the profile's health data as a generation does, so it asks
+    // for the same consent — the client's, also when their professional swaps.
+    await ProfileConsentController.requireCurrent(userId);
+
     const anchor = await PlanController.mealForSwap(userId, mealId, review !== undefined);
 
     if (review && anchor.plan.status !== 'pending_review') {
@@ -156,7 +160,7 @@ export class MealSwapService {
           targets,
           null,
           wishFor(axis, anchor.recipe),
-          context.preferences.unenforceableLabels
+          likedFoodNames(context)
         ),
         reusable: [],
         // Filed together in a gateway's log, like a generation's calls under its job.

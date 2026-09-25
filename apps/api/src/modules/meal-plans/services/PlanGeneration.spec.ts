@@ -600,6 +600,15 @@ describe('PlanGenerationService', () => {
     expect(persist).not.toHaveBeenCalled();
   });
 
+  it('refuses a profile whose consent was withdrawn while the job waited, and writes nothing', async () => {
+    const { persist, service } = build({ onboarding: { isComplete: true, profileConsentRequired: true } });
+
+    await expect(service.generate('usr-1', 'job-1', async () => Promise.resolve())).rejects.toMatchObject({
+      code: 'GENERATION_PROFILE_CONSENT_REQUIRED'
+    });
+    expect(persist).not.toHaveBeenCalled();
+  });
+
   it('refuses an incomplete profile rather than guessing a calorie target', async () => {
     // Targets resolve to null when the profile is missing what the equations need.
     const { persist, service } = build({ profile: { profile: { birthDate: null, heightCm: null, sex: null }, targets: null } });

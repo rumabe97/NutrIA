@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  breaksDishRule,
   isEnforceableDislike,
   NO_PREFERENCE_EXCLUSIONS,
   PATTERN_EXCLUSIONS,
@@ -145,10 +146,10 @@ describe('resolvePreferences — a way of eating', () => {
     expect(ids(result)).not.toContain('i-arroz-blanco-cocido');
   });
 
-  it('excludes nothing for a pattern the catalogue cannot enforce', () => {
-    // Halal and kosher are about how food was raised and prepared, which no
-    // column here records; claiming to enforce them would be the lie.
-    for (const pattern of ['halal', 'kosher', 'omnivore', 'flexitarian']) {
+  it('excludes nothing for a pattern that is a direction rather than a rule', () => {
+    // Halal and kosher are enforced now, as far as the catalogue can say
+    // (see below); how meat was slaughtered it cannot, and does not claim to.
+    for (const pattern of ['omnivore', 'flexitarian']) {
       expect(PATTERN_EXCLUSIONS[pattern]).toBeUndefined();
       expect(resolvePreferences({ dietaryPatterns: [pattern], dislikedLabels: [], ingredients: CATALOGUE }).excludedIngredientIds.size).toBe(0);
     }
@@ -198,5 +199,83 @@ describe('withinTime — the minutes they said they have', () => {
 
   it('lets everything through when no limit was set', () => {
     expect(withinTime(dish(60, 120), null)).toBe(true);
+  });
+});
+
+/**
+ * A religious way of eating is never named to the model (owner, 2026-09-25):
+ * what the catalogue can express is enforced here instead.
+ */
+describe('resolvePreferences — halal and kosher, in code', () => {
+  const RELIGIOUS = [
+    ...CATALOGUE,
+    food('vino-blanco', 'Vino blanco'),
+    food('vino-tinto', 'Vino tinto'),
+    food('vino-sin-alcohol', 'Vino sin alcohol'),
+    food('cerveza-sin-alcohol', 'Cerveza sin alcohol'),
+    food('vinagre-de-vino-tinto', 'Vinagre de vino tinto'),
+    food('vinagre-de-jerez', 'Vinagre de Jerez'),
+    food('gelatina-neutra', 'Gelatina neutra', ['animal']),
+    food('manteca-de-cerdo', 'Manteca de cerdo', ['animal', 'meat', 'pork']),
+    food('rape', 'Rape', ['animal', 'fish']),
+    food('pez-espada', 'Pez espada', ['animal', 'fish']),
+    food('filete-de-panga-congelado', 'Filete de panga congelado', ['animal', 'fish']),
+    food('turron-de-jijona', 'Turrón de Jijona')
+  ];
+
+  it('takes pork, alcohol and gelatine out for halal, and leaves vinegar, alcohol-free drinks, fish and other meat', () => {
+    const excluded = ids(resolvePreferences({ dietaryPatterns: ['halal'], dislikedLabels: [], ingredients: RELIGIOUS }));
+
+    expect(excluded).toEqual(['i-gelatina-neutra', 'i-lomo-de-cerdo', 'i-manteca-de-cerdo', 'i-vino-blanco', 'i-vino-tinto']);
+  });
+
+  it('takes pork, shellfish, scaleless fish, alcohol and gelatine out for kosher', () => {
+    const excluded = ids(resolvePreferences({ dietaryPatterns: ['kosher'], dislikedLabels: [], ingredients: RELIGIOUS }));
+
+    expect(excluded).toEqual([
+      'i-filete-de-panga-congelado',
+      'i-gambas',
+      'i-gelatina-neutra',
+      'i-lomo-de-cerdo',
+      'i-manteca-de-cerdo',
+      'i-pez-espada',
+      'i-rape',
+      'i-vino-blanco',
+      'i-vino-tinto'
+    ]);
+  });
+
+  it('matches whole slug words only: turrón is not rum, and salmonete stays for kosher', () => {
+    const excluded = ids(resolvePreferences({ dietaryPatterns: ['kosher'], dislikedLabels: [], ingredients: RELIGIOUS }));
+
+    expect(excluded).not.toContain('i-turron-de-jijona');
+    expect(excluded).not.toContain('i-salmonete');
+  });
+
+  it('keeps meat from dairy only for kosher', () => {
+    expect(resolvePreferences({ dietaryPatterns: ['kosher'], dislikedLabels: [], ingredients: RELIGIOUS }).keepsMeatFromDairy).toBe(true);
+    expect(resolvePreferences({ dietaryPatterns: ['halal'], dislikedLabels: [], ingredients: RELIGIOUS }).keepsMeatFromDairy).toBe(false);
+    expect(NO_PREFERENCE_EXCLUSIONS.keepsMeatFromDairy).toBe(false);
+  });
+});
+
+describe('breaksDishRule — meat with dairy', () => {
+  const catalogue = new Map(CATALOGUE.map(ingredient => [ingredient.slug, ingredient]));
+  const kosher = { keepsMeatFromDairy: true };
+  const dish = (...slugs: string[]) => slugs.map(slug => ({ slug }));
+
+  it('refuses a dish with meat and dairy together for someone who keeps them apart', () => {
+    expect(breaksDishRule(dish('pechuga-de-pollo', 'yogur-griego-natural'), catalogue, kosher)).toBe(true);
+    expect(breaksDishRule(dish('lomo-de-cerdo', 'yogur-griego-natural'), catalogue, kosher)).toBe(true);
+  });
+
+  it('allows either alone, and fish with dairy', () => {
+    expect(breaksDishRule(dish('pechuga-de-pollo', 'arroz-blanco-cocido'), catalogue, kosher)).toBe(false);
+    expect(breaksDishRule(dish('yogur-griego-natural', 'miel'), catalogue, kosher)).toBe(false);
+    expect(breaksDishRule(dish('salmon', 'yogur-griego-natural'), catalogue, kosher)).toBe(false);
+  });
+
+  it('says nothing for anybody else', () => {
+    expect(breaksDishRule(dish('pechuga-de-pollo', 'yogur-griego-natural'), catalogue, { keepsMeatFromDairy: false })).toBe(false);
   });
 });

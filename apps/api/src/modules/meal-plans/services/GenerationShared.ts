@@ -34,12 +34,8 @@ export function toRecipeDraft(dish: CandidateDish, context: GenerationContext): 
   };
 }
 
-export type PromptPreferences = Omit<PromptContext, 'excludeSlugs' | 'forbiddenLabels' | 'language' | 'needBySlot'>;
+export type PromptPreferences = Omit<PromptContext, 'excludeSlugs' | 'language' | 'needBySlot'>;
 
-/**
- * Everything the prompt is told about the person, from one place — a whole plan
- * and a single meal's swap describe them the same way.
- */
 /**
  * The day in one line: when they wake, when they sleep, how often and when they
  * train.
@@ -73,6 +69,27 @@ export function dayShapeOf(preferences: FullProfileView['preferences']): string 
   return parts.length > 0 ? parts.join('; ') : null;
 }
 
+/**
+ * The foods they said they like, by the catalogue's names in their language —
+ * the rows their likes resolved to (`preferredIngredientSlugs`), never the words
+ * they typed. A like that named nothing the catalogue knows is not said at all.
+ */
+export function likedFoodNames(context: GenerationContext): readonly string[] {
+  return [...context.preferences.preferredIngredientSlugs]
+    .map(slug => context.catalogue.get(slug)?.name)
+    .filter((name): name is string => name !== undefined)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+/**
+ * Everything the prompt is told about the person, from one place — a whole plan
+ * and a single meal's swap describe them the same way.
+ *
+ * Structured answers only (prompt 4.0.0): nothing they typed — no breakfast,
+ * plate or working-week notes, no check-in comment, no dislike or allergy the
+ * catalogue could not resolve — reaches the model. `health-boundary.spec.ts`
+ * holds the line.
+ */
 export function promptPreferences(
   profile: FullProfileView,
   verdicts: { readonly disliked: readonly { readonly name: string }[]; readonly liked: readonly { readonly name: string }[] },
@@ -80,34 +97,22 @@ export function promptPreferences(
   targets: NutritionTargets,
   checkIn: CheckInForGeneration | null = null,
   swapWish: string | null = null,
-  /** Dislikes the catalogue could not resolve; the enforced ones are already out of the catalogue. */
-  unenforceableLabels: readonly string[] = []
+  likedFoods: readonly string[] = []
 ): PromptPreferences {
-  const enforced = new Set(unenforceableLabels.map(label => label.toLowerCase()));
-  const unenforceable = profile.foodPreferences
-    .filter(item => item.sentiment === 'disliked' && enforced.has(item.label.trim().toLowerCase()))
-    .map(item => item.label);
-
   return {
     avoidNames,
-    breakfastStyle: profile.preferences?.breakfastStyle ?? null,
     budget: profile.preferences?.budget ?? null,
-    checkIn,
+    // The closed answers, never the comment: it is their words.
+    checkIn: checkIn ? { difficulty: checkIn.difficulty, hunger: checkIn.hunger, satisfaction: checkIn.satisfaction } : null,
     cookingFrequency: profile.preferences?.cookingFrequency ?? null,
     cookingTimeMinutes: profile.preferences?.cookingTimeMinutes ?? null,
     cuisines: profile.cuisines,
     dayShape: dayShapeOf(profile.preferences),
     dietaryPatterns: profile.dietaryPatterns,
-    // Only the ones the catalogue could not resolve: the rest are already gone
-    // from the catalogue the model is shown, and repeating them as a request
-    // would suggest the request is what enforces them (0023).
-    dislikedLabels: unenforceable,
     dislikedNames: verdicts.disliked.map(dish => dish.name),
     goal: profile.goal?.type ?? null,
-    likedLabels: profile.foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label),
+    likedFoods,
     lovedNames: verdicts.liked.map(dish => dish.name),
-    portionPreference: profile.preferences?.portionPreference ?? null,
-    scheduleNotes: profile.preferences?.workScheduleNotes ?? null,
     // The person's own day, the same weights the scheduler budgets with (`0036`),
     // so the brief the model builds to and the budget the dish is chosen against
     // are one number rather than two that happen to agree.

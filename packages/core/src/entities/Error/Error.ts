@@ -163,6 +163,31 @@ export class PlanPausedError extends Error {
   }
 }
 
+/**
+ * The profile's health data used, or about to be written, without the explicit
+ * consent to use it (RGPD art. 9.2.a) — absent, withdrawn, or given to an older
+ * notice. A state of the caller's own account, like an unfinished profile: the
+ * answer is where to give it, not a denial.
+ */
+export class ProfileConsentRequiredError extends Error {
+  constructor(message = 'Profile consent required') {
+    super(message);
+    this.name = 'ProfileConsentRequiredError';
+  }
+}
+
+/**
+ * A birth date that makes the person younger than the product's minimum age.
+ * Refused on the server whatever the form did, with its own code, so the screen
+ * can say so without blaming anyone.
+ */
+export class UnderMinimumAgeError extends Error {
+  constructor(message = 'Under the minimum age') {
+    super(message);
+    this.name = 'UnderMinimumAgeError';
+  }
+}
+
 export class OnboardingIncompleteError extends Error {
   constructor(public readonly missingSteps: readonly string[] = []) {
     super('Onboarding incomplete');
