@@ -434,7 +434,11 @@ describe('professionals', () => {
       // The one door that must stay open: the page that shows the agreement to accept — and it says so.
       const closed: Response = await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', unaccepted.cookie).expect(200);
 
-      expect(closed.body).toMatchObject({ agreementRequired: true });
+      expect(closed.body).toMatchObject({
+        agreementAcceptedAt: null,
+        agreementRequired: true,
+        agreementVersion: PROFESSIONAL_AGREEMENT_VERSION
+      });
 
       // Nobody who was never granted opens it either, whatever the switch says — 404 before the body is even read.
       await request(server).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', ordinary.cookie).send({}).expect(404);
@@ -442,6 +446,9 @@ describe('professionals', () => {
       // Any version but the current one does not open it — and writes neither column.
       await request(server).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', unaccepted.cookie).send({ version: '0.9.0' }).expect(422);
       await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', unaccepted.cookie).expect(404);
+      expect((await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', unaccepted.cookie).expect(200)).body).toMatchObject({
+        agreementAcceptedAt: null
+      });
 
       // The current version does, on the very next request.
       await request(server)
@@ -452,8 +459,10 @@ describe('professionals', () => {
       await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', unaccepted.cookie).expect(200);
 
       const opened: Response = await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', unaccepted.cookie).expect(200);
+      const acceptedAt = (opened.body as { agreementAcceptedAt: string }).agreementAcceptedAt;
 
-      expect(opened.body).toMatchObject({ agreementRequired: false });
+      expect(opened.body).toMatchObject({ agreementRequired: false, agreementVersion: PROFESSIONAL_AGREEMENT_VERSION });
+      expect(Number.isNaN(Date.parse(acceptedAt))).toBe(false);
 
       // Accepting the same version again is not an error — it keeps the first date, which only `professionals` itself holds.
       await request(server)
@@ -461,6 +470,9 @@ describe('professionals', () => {
         .set('Cookie', unaccepted.cookie)
         .send({ version: PROFESSIONAL_AGREEMENT_VERSION })
         .expect(204);
+      expect((await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', unaccepted.cookie).expect(200)).body).toMatchObject({
+        agreementAcceptedAt: acceptedAt
+      });
     });
   });
 

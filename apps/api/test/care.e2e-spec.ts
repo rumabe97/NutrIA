@@ -407,6 +407,7 @@ describe('care', () => {
       const detail = read.body as CareInvitationDetailView;
 
       expect(detail).toMatchObject({
+        collegiateNumber: `28/${String(stamp).slice(-6)}`,
         consentVersion: CARE_CONSENT_VERSION,
         healthShares: [...CARE_HEALTH_SHARED],
         professionalName: nameOf(pro),
