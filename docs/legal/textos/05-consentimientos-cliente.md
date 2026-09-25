@@ -24,8 +24,7 @@
 
 ## A. Consentimiento explícito del perfil (nuevo — P0-2)
 
-**Dónde**: onboarding, en el paso de alergias (el primero que recoge un dato de salud), y
-una sola vez a las cuentas ya existentes en su próximo acceso (pantalla intermedia antes de
+**Dónde**: onboarding, **antes del paso del objetivo** (peso objetivo), que es el primero que recoge un dato de salud: el orden es sobre ti → objetivo → cuerpo y actividad (peso, altura) → … → alergias. El servidor lo exige antes de guardar el objetivo (backend, `099f31d`). Además, una sola vez a las cuentas ya existentes en su próximo acceso (pantalla intermedia antes de
 `/inicio`). Namespace nuevo `profileConsent`.
 
 **Comportamiento**: casilla sin marcar; sin ella no se guardan alergias, intolerancias,
@@ -45,7 +44,7 @@ vuelve al paso del onboarding.
 | `profile.profileConsentWithdraw` | `Retirar el consentimiento y borrar estos datos` | `Withdraw consent and delete this data` |
 
 <!-- Fuente: RGPD art. 9.2.a (explícito, «con uno o más de los fines especificados»), 7.1 (demostrar), 7.2 (separado de otros asuntos), 7.3 (retirar; informar antes de consentir), 7.4 y CEPD 05/2020 apdos. 26-36 (condicionar solo lo necesario); 13.1.c y e.
-profileConsent.ai describe PROMPT_VERSION 4.0.0 (rama agent/legal-a/backend, decisión del propietario de 2026-09-25): el prompt ya no lleva alergias sin resolver, comentario del check-in, notas de desayuno, raciones ni semana laboral, aversiones sin resolver ni halal/kósher; lleva objetivos y meta, forma y horarios del día, presupuesto y límites de cocina, forma de comer de NAMEABLE_PATTERNS (incluye gluten_free y lactose_free: por eso se nombra «sin gluten»), cocinas de NAMEABLE_CUISINES, alimentos que gustan por su nombre de catálogo, nombres de platos servidos/queridos/rechazados (escritos por el modelo, no por la persona), las respuestas cerradas del check-in y un eje de cambio cerrado. Solo es verdad una vez fusionada esa rama. La versión que frontend publicó («Recibe tus objetivos y los alimentos que evitas…») no miente, pero no nombra la forma de comer ni los horarios, y la forma de comer es precisamente el dato de salud que este consentimiento cubre: sustituir por la de arriba. -->
+profileConsent.ai describe PROMPT_VERSION 4.0.0 (rama agent/legal-a/backend, decisión del propietario de 2026-09-25): el prompt ya no lleva alergias sin resolver, comentario del check-in, notas de desayuno, raciones ni semana laboral, aversiones sin resolver ni halal/kósher; lleva objetivos y meta, forma y horarios del día, presupuesto y límites de cocina, forma de comer de NAMEABLE_PATTERNS (incluye gluten_free y lactose_free: por eso se nombra «sin gluten»), cocinas de NAMEABLE_CUISINES, alimentos que gustan por su nombre de catálogo, nombres de platos servidos/queridos/rechazados (escritos por el modelo, no por la persona), las respuestas cerradas del check-in y un eje de cambio cerrado. Solo es verdad una vez fusionada esa rama. Halal y kósher se aplican en código excluyendo cerdo, alcohol y gelatina (y, en kósher, marisco, pescado sin escamas y carne con lácteos en un mismo plato); **el sacrificio ritual certificado no se modela**, así que ningún texto puede decir que la carne es halal o kosher: la opción debe explicarse como «sin cerdo, alcohol ni gelatina» (y lo propio de kósher), no como una certificación. La versión que frontend publicó («Recibe tus objetivos y los alimentos que evitas…») no miente, pero no nombra la forma de comer ni los horarios, y la forma de comer es precisamente el dato de salud que este consentimiento cubre: sustituir por la de arriba. -->
 
 ---
 
