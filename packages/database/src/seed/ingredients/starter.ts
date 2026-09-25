@@ -866,7 +866,7 @@ export const STARTER: readonly IngredientSeed[] = [
   },
   {
     carbs: 20,
-    category: 'pantry',
+    category: 'protein',
     fat: 0.4,
     fiber: 8,
     kcal: 120,
@@ -878,7 +878,7 @@ export const STARTER: readonly IngredientSeed[] = [
   {
     allergens: [{ key: 'soy' }],
     carbs: 8,
-    category: 'pantry',
+    category: 'protein',
     fat: 1,
     fiber: 6,
     kcal: 113,

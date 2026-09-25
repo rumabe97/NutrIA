@@ -33,6 +33,10 @@ Recorded in [`0062`](../../decisions/0062-each-meal-sees-its-own-foods-and-the-s
   narrow to nothing is dropped.
 - **The prompt goes to 3.5.0**: one meal's catalogue, in-season produce first and marked
   for the fortnight's starting month, and a line saying what lunch and dinner are.
+- **Lunch and dinner are cut a second time** ([`0063`](../../decisions/0063-lunch-and-dinner-see-what-the-library-cooks-plus-a-rotating-sample.md),
+  amended after phase 2 measured −13% and −16% from the lists alone): what the library
+  cooks at that meal, the in-season produce, and a sample drawn afresh per generation. A
+  row may belong to no meal (`['none']`), and the seed owns the aisle.
 - **Last, the free models**: a committed benchmark measures them on the new prompt with
   free calls only; then the pool builder is changed so a fortnight fits their limits.
 
@@ -45,7 +49,7 @@ at a time.
 
 ### Phase 1 — The two columns, empty
 
-- [x] done
+- [x] done — commit `f1946f9` ("Project 005 phase 1: an ingredient can name its meals and its season, still empty")
 - **Dispatch**: opus @ medium — `/execute-project 005 phase 1`
 - **Goal**: the catalogue can say which meals and months an ingredient belongs to, and
   every reader gets the lists, with nothing filled in yet.
@@ -80,13 +84,17 @@ at a time.
 
 ### Phase 2 — The lists, drafted and reviewed
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 005 phase 2` — owner-approves: the meal
   list and the season list, before the phase is committed
 - **Goal**: the two overlays hold the real exceptions, and a committed script shows what
   each meal's catalogue becomes.
 - **Scope**: `packages/database/src/seed/ingredients/meals.ts`, `seasons.ts`, their
-  tests, and a new read-only script `apps/api/scripts/catalogue-by-meal.mjs`.
+  tests, and a new read-only script `apps/api/scripts/catalogue-by-meal.mjs` (and its row
+  in `apps/api/AGENTS.md`). Amended at the owner's review (`0063`): `types.ts`
+  (`MealEntry`, for `none`), `starter.ts` (two rows to the protein aisle), `seed/index.ts`
+  (the seed overwrites `category`), and `CatalogueIngredient.mealSlots` in core, which now
+  admits `none`.
 - **Steps**:
   1. **Meals.** Name, per slug, the meals it belongs to, only where that is not all of
      them. Use `MEAL_SLOTS` values. Rules the draft follows, each stated in the file's
@@ -141,7 +149,8 @@ at a time.
      - `belongsTo(ingredient, slot, dietaryPatterns)`: true when `mealSlots` is empty or
        contains `slot`, or when the person's patterns include `vegan` or `vegetarian`
        and the ingredient is in the `protein` category with no animal class (`0062`,
-       plant-based exception).
+       plant-based exception). `['none']` belongs nowhere, the exception included
+       (`0063`).
      - `fitSlots(dish, catalogue, dietaryPatterns)`: the dish's own `slots` filtered to
        those every ingredient `belongsTo`. An ingredient missing from the catalogue does
        not narrow anything here — the existing unknown-ingredient gate handles it.
@@ -177,7 +186,9 @@ at a time.
 - **Scope**: `apps/api/src/modules/ai/prompts/PoolPrompt.ts` and its spec,
   `apps/api/src/modules/ai/services/PoolBuilder.service.ts` and its spec,
   `apps/api/src/modules/meal-plans/services/GenerationShared.ts` (the prompt context),
-  and the callers that build it (generation, swap, event rebuild).
+  the callers that build it (generation, swap, event rebuild), and — for `0063` — a
+  library-usage read in `packages/core/src/repositories/Recipe/RecipeRepository.ts` with
+  its controller and tests, and `apps/api/scripts/catalogue-by-meal.mjs`.
 - **Steps**:
   1. Add `month: number` (1–12) to `PromptContext`, set by `GenerationShared` from the
      fortnight's first day (a swap or an event rebuild: the day being replaced).
@@ -192,13 +203,21 @@ at a time.
      meat, vegetable creams, salads, a toast or a sandwich — not a stew. For a vegan or
      vegetarian person, dinner adds: pulses in light forms, never stewed. Supper takes
      `SNACK_CHARACTER`.
+  4b. **Lunch and dinner, second cut (`0063`).** A core read returns, per meal and
+     locale, the ids of the ingredients the library's recipes use there. For a lunch or
+     dinner request, `PoolBuilder` keeps from that meal's catalogue (after step 2) only:
+     the used ids, the produce in season this month, and a sample of the rest drawn with
+     a seed that changes per generation (the job id). The sample size is one constant,
+     starting at 60; tune it so step 7's size check passes, and record the value and the
+     resulting rows in LOG.md. Breakfast and snacks are untouched. `catalogue-by-meal.mjs`
+     reports the second cut too.
   5. Remove the spread rule's mention of legumes as a main protein where the slot's
      catalogue has none (dinner for an omnivore), so the prompt never asks for what it
      does not offer.
   6. `PROMPT_VERSION` → `3.5.0`, with its history entry; `STEPS_VERSION` unchanged.
   7. Spec: for the standard lunch context of `PoolPrompt.spec.ts` over a catalogue with
-     the phase 2 lists, the prompt's length is at most 55% of the same prompt built
-     with every list empty (PRD 2); dinner for an omnivore contains no lunch-only slug;
+     the phase 2 lists and the `0063` cut, the prompt's length is at most 55% of the
+     same prompt built with every list empty and no cut (PRD 2); dinner for an omnivore contains no lunch-only slug;
      for a vegan it contains the pulses; in-season rows precede out-of-season ones.
 - **Acceptance criteria**: PRD 2, 3 (prompt side), 4, 5, 7.
 - **Verification**:

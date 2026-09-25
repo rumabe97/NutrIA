@@ -56,3 +56,88 @@
   - Phase 3 will make `PoolPrompt.spec.ts:208`'s partial fixture need both fields.
   - Owner-gated before phase 2 can be measured: `pnpm --filter database migrate`, then
     `pnpm --filter database seed`, against the dev database.
+
+## Phase 2 — The lists, drafted and reviewed (2026-09-25)
+
+- **Executor**: `backend` agent on opus (definition effort `medium`), in its own worktree;
+  brought into the main checkout and the worktree removed. The lead wrote this entry: the
+  agent's ownership hook does not let it write under `docs/`.
+- **Result**: done — both lists approved by the owner on 2026-09-25, with four changes, and
+  lunch and dinner cut a second time (`0063`).
+- **Evidence**:
+  - `pnpm --filter database test`: 4 files, 42 tests (13 new in `meals.test.ts` and
+    `seasons.test.ts`: every slug exists, each named once, only `meal_slot` values, months
+    1–12 ascending, no list empty or complete, supper ⇔ afternoon snack, season rows are
+    `produce` only).
+  - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api`: 11 of 11.
+    `pnpm deadcode` clean.
+  - `catalogue-by-meal.mjs` against dev (migrated, not yet re-seeded with the lists): every
+    list empty, "after" = "before". With the overlays applied in memory (nothing written)
+    it gives the table below; the run after re-seeding must reproduce it.
+- **Per slot** (rows; tokens at 6 per row; library dishes servable, before → after;
+  `DISHES_NEEDED_PER_SLOT` = 19):
+
+  | Slot | Omnivore rows | Omnivore tokens | Omnivore dishes | Vegan rows | Vegan tokens | Vegan dishes |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | breakfast | 930 → 474 | 5,580 → 2,844 (−49.0%) | 228 → 155 | 606 → 382 | 3,636 → 2,292 (−37.0%) | 38 → 25 |
+  | morning_snack | 930 → 546 | 5,580 → 3,276 (−41.3%) | 143 → 119 | 606 → 412 | 3,636 → 2,472 (−32.0%) | 52 → 43 |
+  | lunch | 930 → 806 | 5,580 → 4,836 (−13.3%) | 342 → 339 | 606 → 532 | 3,636 → 3,192 (−12.2%) | 59 → 59 |
+  | afternoon_snack | 930 → 546 | 5,580 → 3,276 (−41.3%) | 208 → 178 | 606 → 412 | 3,636 → 2,472 (−32.0%) | 61 → 53 |
+  | dinner | 930 → 784 | 5,580 → 4,704 (−15.7%) | 348 → 240 | 606 → 531 | 3,636 → 3,186 (−12.4%) | 51 → 48 |
+  | supper | 930 → 546 | 5,580 → 3,276 (−41.3%) | 58 → 42 | 606 → 412 | 3,636 → 2,472 (−32.0%) | 9 → 8 |
+
+  Omnivore library 942 dishes, 154 left with no meal; vegan 186, 23 left with none. Largest
+  dinner losses: `garbanzos-cocidos` 41, `alubias-blancas-cocidas` 16, `arroz-bomba-crudo`
+  15, `lentejas-cocidas` 15, `alubias-negras-cocidas` 11. The vegan supper was short of 19
+  before and after (9 → 8).
+- **Lunch does not reach −45%.** Its catalogue shrinks 13.3% for an omnivore, 12.2% for a
+  vegan; the whole lunch prompt about 9%. PRD 2 (≤ 55% of 3.4.0) would need the lunch
+  catalogue near ~300 rows; nearly everything belongs at lunch, and the lists were not
+  tagged to chase the number. Owner decision needed before phase 4.
+- **Lists for review**: `packages/database/src/seed/ingredients/meals.ts` (551 rows, one
+  commented group per rule) and `seasons.ts` (87 produce rows; MAPA "Frutas de temporada"
+  and "Hortalizas de temporada", higher trade level only, the five greenhouse vegetables on
+  open-field months, 31 rows from general market calendars). Pulses out of dinner, supper
+  and breakfast (lunch only): dry and cooked lentils, chickpeas, beans, `habas-secas`,
+  `judiones`, `soja-cocida`, `soja-en-grano`, `lentejas-rojas-cocidas` and the tinned pulse
+  stews; light forms (hummus, roasted chickpeas, edamame, lupins, refried beans, chickpea
+  flour) out of breakfast only; pulse pasta lunch and dinner. Raw meat and fish, stocks,
+  meat and fish sauces and ready meals: lunch and dinner; tinned fish and cured sausages:
+  every meal but breakfast; eggs, ham, cold cuts, smoked fish and tofu everywhere.
+- **Unsure — for the owner**: (1) `bebida-energetica` has no plausible meal; left with no
+  entry. (2) Supper = afternoon snack puts coffee and tea at supper. (3) `arroz-bomba-crudo`
+  lunch only costs 15 library dinners. (4) Tender broad beans and peas are cooking
+  vegetables (lunch, dinner), not lunch-only pulses. (5) Pulse pasta follows the pasta rule.
+  (6) The vegan exception covers only the protein aisle: `lentejas-rojas-cocidas` (pantry)
+  stays lunch-only for vegans, `soja-texturizada` lunch and dinner. (7) Library breakfasts
+  lost to `atun-al-natural` (7), `pavo`/`pechuga-de-pavo` (5 each). (8) Left everywhere
+  though arguable: `sobrasada`, packaged tortilla, cheeses, crackers, table sauces, fresh
+  peppers, sweetcorn, `patata`. (9) `bacon` keeps breakfast. (10) Packaged ensaladilla and
+  gazpacho lunch and dinner; `nachos` snacks only. (11) Protein powders breakfast and
+  snacks. (12) `lichi` and `pitaya` are imported or barely grown in Spain.
+- **Deviations from plan**: the lists do not meet PRD 2 for lunch (not forced). The script's
+  row in `apps/api/AGENTS.md` lands now, not in phase 5. The script carries `0062`'s fit
+  rule itself until phase 3's `MealFit` exists; phase 3 switches it over.
+- **Owner's review (2026-09-25)**: both lists approved as drafted, with four changes —
+  (1) `bebida-energetica` in no meal (`['none']`, `0063` § 3); (2) no coffee or tea at
+  supper (`cafe-*`, `te-*`: breakfast and the day's snacks); (3) `arroz-bomba-crudo` lunch
+  and dinner, `paella-congelada` stays lunch; (4) `lentejas-rojas-cocidas` and
+  `soja-texturizada` moved to the protein aisle so the plant-based exception covers them,
+  and the seed now overwrites `category` on an existing row. On PRD 2, the owner chose a
+  second cut for lunch and dinner: what the library cooks there, the in-season produce and
+  a rotating sample (`0063`), implemented in phase 4 (plan amended).
+- **After the review** — dev re-seeded with the approved lists (`pnpm --filter database
+  seed`: 930 ingredients), then `catalogue-by-meal.mjs` from `apps/api`, omnivore:
+  breakfast 930 → 473 (−49.1%, dishes 228 → 155), morning snack 930 → 545 (−41.4%,
+  143 → 119), lunch 930 → 805 (−13.4%, 342 → 339), afternoon snack 930 → 545 (−41.4%,
+  208 → 178), dinner 930 → 784 (−15.7%, 348 → 251), supper 930 → 540 (−41.9%, 58 → 42);
+  153 of 942 dishes left with no meal. Vegan: breakfast 606 → 383, morning snack 413,
+  lunch 531, afternoon snack 413, dinner 532 (dishes 51 → 51), supper 408 (9 → 8, short of
+  19 before and after); 20 of 186 with no meal. Every omnivore slot keeps ≥ 19 dishes.
+- **Verification after the changes**: `pnpm --filter database test` 43 tests;
+  `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api` 11/11;
+  `gate.sh --full` green.
+- **Decisions**: [`0063`](../../decisions/0063-lunch-and-dinner-see-what-the-library-cooks-plus-a-rotating-sample.md).
+- **Notes for the next phase**: after approval, `pnpm --filter database seed` on dev and
+  `node --env-file-if-exists=.env scripts/catalogue-by-meal.mjs` from `apps/api`, which must
+  match the table.
