@@ -36,7 +36,7 @@ import type { Response } from 'supertest';
  */
 const PASSWORD = 'correct-horse-battery-staple-9';
 const NUMBER = '28/12345';
-const SMUGGLED = { collegiateNumber: NUMBER, isProfessional: true, professional: true, role: 'admin' };
+const SMUGGLED = { collegiateNumber: NUMBER, isProfessional: true, professional: true, role: 'admin', tier: 'premium' };
 /** The four verbs the sweep against `/care/*` needs; `delete` is a client route, never a professional one. */
 type Method = 'get' | 'patch' | 'post';
 
@@ -73,14 +73,14 @@ describe('professionals', () => {
 
   /**
    * The account is exactly what it was: not on the owner's list, no row behind
-   * the guard even with the switch on, still an ordinary role, still saying so
-   * on its own `GET /users/me`, and still a stranger to `/admin`.
+   * the guard even with the switch on, still an ordinary role and tier, still
+   * saying so on its own `GET /users/me`, and still a stranger to `/admin`.
    */
   async function expectOrdinary(account: Account): Promise<void> {
     expect((await professionals()).some(row => row.userId === account.id)).toBe(false);
     await expect(ProfessionalController.find(account.id)).resolves.toBeNull();
     await expect(ProfessionalController.hasAccess(account.id)).resolves.toBe(false);
-    expect(await accountRow(account.id)).toMatchObject({ role: 'user' });
+    expect(await accountRow(account.id)).toMatchObject({ role: 'user', tier: 'free' });
     expect(await meBody(account)).toMatchObject({ professional: false, role: 'user' });
     await request(httpServer(app)).get(`/${PREFIX}/admin/professionals`).set('Cookie', account.cookie).expect(404);
   }
@@ -250,10 +250,16 @@ describe('professionals', () => {
     expect(await meBody(granted)).toMatchObject({ professional: true });
   });
 
-  it('is nobody while the switch is off, whatever the table says — on its own `GET /users/me` too', async () => {
+  it('is nobody while the switch is off, whatever the table says — on its own `GET /users/me` too, and whatever a body claims', async () => {
+    const server = httpServer(app);
+
     await setSwitch(false);
     await expect(ProfessionalController.hasAccess(granted.id)).resolves.toBe(false);
     expect(await meBody(granted)).toMatchObject({ professional: false });
+    // The guard asks ProfessionalController.hasAccess, never a client's own claim about itself —
+    // a real grant, switch off, with the request itself insisting it is a professional.
+    await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', granted.cookie).send({ professional: true }).expect(404);
+    await request(server).post(`/${PREFIX}/care/invitations`).set('Cookie', granted.cookie).send({ professional: true }).expect(404);
 
     await setSwitch(true);
     await expect(ProfessionalController.hasAccess(granted.id)).resolves.toBe(true);
@@ -292,28 +298,40 @@ describe('professionals', () => {
       await completeOnboarding(app, tamperer);
     });
 
+    /*
+     * Better Auth's `parseInputData` reads only its declared fields: `professional`
+     * and `collegiateNumber` are unknown and dropped, leaving nothing to update
+     * (400 "No fields to update"); `role` is declared `input: false` and is refused
+     * by name (400 `FIELD_NOT_ALLOWED`). Confirmed against the running code
+     * (Better Auth 1.7.5) rather than assumed, so the exact code is asserted here.
+     */
     it('is unmoved by the account update, one smuggled field at a time', async () => {
       const server = httpServer(app);
 
       for (const body of [{ professional: true }, { role: 'admin' }, { collegiateNumber: 'MAD00123' }]) {
-        const updated: Response = await request(server).post(`/${PREFIX}/auth/update-user`).set('Cookie', tamperer.cookie).send(body);
-
-        expect([200, 400]).toContain(updated.status);
+        await request(server).post(`/${PREFIX}/auth/update-user`).set('Cookie', tamperer.cookie).send(body).expect(400);
       }
 
       await expectOrdinary(tamperer);
     });
 
-    it('is unmoved by any profile PATCH route carrying it', async () => {
+    it('is unmoved by every field at once, on the account update and every profile route', async () => {
       const server = httpServer(app);
-      // A body each route would otherwise accept, so a refusal proves the
-      // smuggled field was the reason — not a body missing something else.
+      const smuggled = { professional: true, role: 'admin', tier: 'premium' };
+
+      const updated: Response = await request(server)
+        .post(`/${PREFIX}/auth/update-user`)
+        .set('Cookie', tamperer.cookie)
+        .send({ name: 'Still ordinary', ...smuggled });
+
+      expect([200, 400]).toContain(updated.status);
+
       const attempts: readonly [string, Record<string, unknown>][] = [
-        [`/${PREFIX}/profile`, { displayName: 'Still ordinary', professional: true }],
-        [`/${PREFIX}/profile/goal`, { professional: true, type: 'maintenance' }],
-        [`/${PREFIX}/profile/targets`, { professional: true }],
-        [`/${PREFIX}/profile/tour`, { professional: true, seen: true }],
-        [`/${PREFIX}/profile/preferences`, { professional: true }]
+        [`/${PREFIX}/profile`, { displayName: 'Still ordinary', ...smuggled }],
+        [`/${PREFIX}/profile/goal`, { type: 'maintenance', ...smuggled }],
+        [`/${PREFIX}/profile/targets`, { ...smuggled }],
+        [`/${PREFIX}/profile/tour`, { seen: true, ...smuggled }],
+        [`/${PREFIX}/profile/preferences`, { ...smuggled }]
       ];
 
       for (const [path, body] of attempts) {
@@ -374,6 +392,8 @@ describe('professionals', () => {
     await request(server).delete(`/${PREFIX}/admin/accounts/${granted.id}/professional`).set('Cookie', owner.cookie).expect(204);
 
     await expectOrdinary(granted);
+    // /care is shut on the very next request too, not eventually.
+    await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', granted.cookie).expect(404);
 
     // Taking back what is not there is the same 404 as every other denial.
     await request(server).delete(`/${PREFIX}/admin/accounts/${granted.id}/professional`).set('Cookie', owner.cookie).expect(404);
