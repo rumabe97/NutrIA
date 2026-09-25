@@ -289,3 +289,51 @@
     minute; several at once do not.
   - `bench-models.mjs` can reuse `catalogue-by-meal.mjs`'s prompt builder from the built
     api and `MealFit.mealCatalogue` for the cut.
+
+## Phase 6 — The free models, measured (2026-09-25)
+
+- **Executor**: `backend` agent on opus (definition effort `medium`), in its own worktree;
+  brought into the main checkout and the worktree removed. The lead wrote the docs (the
+  agent's ownership hook does not reach `docs/`).
+- **Result**: done — the phase 7 choice waits on the owner (owner-approves).
+- **Evidence**:
+  - `apps/api/scripts/bench-models.mjs`: the real 4.1.0 prompt over the dev catalogue cut
+    by `mealCatalogue` as `PoolBuilder` cuts it (read-only, refuses production), sent as
+    `json_schema` non-strict; scores with `generatedDishSchema`, unknown and not-shown
+    slugs, `fitSlots`, `methodMentions` and per-serving macros against the brief; records
+    status, seconds, finish reason, tokens (in, out, cached, reasoning) and the
+    `x-omniroute-*` headers. Refuses any id not ending `:free` or starting `groq/`, and any
+    Gemini id; prints the call count and needs `--yes`; takes the key's variable name
+    (`--key-env`), never a value, and scrubs it from anything written. `--summarise <dir>`
+    rebuilds the table without calling anything.
+  - The run: one free `GET /models`, then 42 calls (7 models × 6 briefs: 12 Groq, 30
+    OpenRouter), key `OMI_ORACLE`, `--month 9 --seed phase6`. The dated table is in
+    `docs/reference/ai-gateway.md` § 7. In short: `gpt-oss-120b` 0/6 (400
+    `json_validate_failed`); Groq `qwen3.8-27b` 5/6 in ~5 s but 2 of 14 dishes valid,
+    names and steps that do not match their ingredients; OpenRouter `qwen3.8-27b:free` 0/6
+    (429); `dots-3-note:free` 1/6 in 195 s, good dishes, no cues; `nex-n2.5-pro:free` 0/6;
+    `nemotron-3-super:free` 0/6 (502/504/timeouts); `nemotron-3-ultra:free` 2/6 in ~143 s,
+    9 of 12 dishes valid, the best Spanish and steps. No answered call reused cached tokens.
+  - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api` green;
+    `pnpm deadcode` clean. The script, like the other `.mjs` scripts, is outside ESLint's
+    project config; `node --check` passes.
+- **Deviations from plan**: the standard day is the 2,400 kcal one the prompt spec and
+  `catalogue-by-meal.mjs` use; six dishes asked per brief; the prompt is 4.1.0, not 3.5.0.
+  Five timeouts fired late (276 s) because a unit-test run starved the machine; marked
+  stalled.
+- **Recommendation for phase 7** (the owner decides):
+  - No free model carries generation alone. The only usable one is
+    `openrouter/nvidia/nemotron-3-ultra-550b-a55b:free`, answering 2 of 6 at ~143 s. The
+    opencode models (`muse-spark`, `mimo`) are no longer reachable through the gateway (the
+    owner, 2026-09-24), so they were not measured.
+  - Lever 1, fewer dishes per request: supported — output is what costs time (4–8k output
+    tokens for 6 dishes); a cap of 3 should roughly halve it (hypothesis).
+  - Lever 2, pacing to `AI_TOKENS_PER_MINUTE`: not supported for this combo — OpenRouter's
+    free limit is requests (20 a minute, 50 a day), not tokens; the only token limit
+    measured is Groq's (8,000 a minute, and 1,000 output a minute on `qwen3.8-27b`), and no
+    Groq model makes the combo.
+  - Lever 3, size and rate refusals fall through: supported — 429 was the commonest error
+    (10 of 42), then 502/504.
+- **For the owner's gateway (hypotheses)**: Groq output appears capped at 2,048 tokens by
+  the gateway; one OpenRouter model's rate limit appears to shut out the others.
+- **Decisions**: none yet — phase 7 waits on the owner.

@@ -152,3 +152,38 @@ a combo of the free models alone cannot (*hypothesis*: `muse-spark` then `mimo`,
 generation's first two steps — not yet created on the gateway). Each call is filed under
 `rewrite:<recipe id>` in the gateway's log, and the API logs one line per rewrite: the
 model that answered, the time and the tokens.
+
+## 7. The free models
+
+Measured on **2026-09-25** with `apps/api/scripts/bench-models.mjs` (**confirmed**): prompt
+4.1.0 through the Oracle gateway (OmniRoute 3.8.50), one pass of 6 briefs per model
+(omnivore breakfast, lunch, dinner, afternoon snack; vegan lunch, dinner), 6 dishes asked
+per brief, a 2,400 kcal day, month 9, seed `phase6`. 42 calls, all free; none to Gemini.
+
+| Model | Answered | Errors | Median s | Median tokens in / out (reasoning) | Cached > 0 | Dishes | Valid | Unknown slug | Foreign food | Median abs deviation kcal / P / C / F |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `groq/openai/gpt-oss-120b` | 0/6 | 400 ×6 (`json_validate_failed`, empty generation, ~7 s) | — | — | — | 0 | 0 | 0 | 0 | — |
+| `groq/qwen/qwen3.8-27b` | 5/6 | 429 ×1 (output tokens a minute: limit 1,000, requested 2,048) | 5 | 3,977 / 2,048 | no | 14 | 2 | 3 | 7 | 26% / 30% / 48% / 47% |
+| `openrouter/qwen/qwen3.8-27b:free` | 0/6 | 429 ×5, timeout ×1 | — | — | — | 0 | 0 | 0 | 0 | — |
+| `openrouter/dots-studio/dots-3-note-preview:free` | 1/6 | timeout ×5 | 195 | 3,898 / 20,337 (12,008) | no | 6 | 5 | 0 | 1 | 8% / 20% / 15% / 17% |
+| `openrouter/nex-agi/nex-n2.5-pro:free` | 0/6 | 401 ×1, 404 ×1, 429 ×4 | — | — | — | 0 | 0 | 0 | 0 | — |
+| `openrouter/nvidia/nemotron-3-super-120b-a12b:free` | 0/6 | 502 ×2, 504 ×1, timeout ×3 | — | — | — | 0 | 0 | 0 | 0 | — |
+| `openrouter/nvidia/nemotron-3-ultra-550b-a55b:free` | 2/6 | timeout ×4 | 143 | 4,498 / 6,149 (2,734) | no | 12 | 9 | 3 | 0 | 19% / 27% / 23% / 33% |
+
+- **None of them carries generation alone.** Only `nemotron-3-ultra` returned usable dishes
+  (correct Spanish, steps with heat and time), in 2 of 6 calls and ~143 s each; `dots` wrote
+  good classic dishes but one answer took 195 s and 20k output tokens; Groq's `qwen3.8-27b`
+  is fast but writes dishes whose names, ingredients and steps do not match.
+- **Output is what costs time.** 4–8k output tokens for 6 dishes on `nemotron-3-ultra`;
+  the time follows it.
+- **No prompt caching** on any answered call (OpenRouter `cached_tokens: 0`, Groq no field,
+  the gateway's `x-omniroute-cache` `MISS`) — the prompt audit's H6 is closed for these
+  models.
+- **Five timeouts fired late** (276 s instead of 200) because a unit-test run starved the
+  machine's event loop; the script now marks such a timeout as stalled. The answers that
+  did arrive took 143–195 s, so a clean run would likely read the same.
+- **Hypotheses for the owner's gateway**: the gateway appears to cap Groq output at 2,048
+  tokens (nothing was sent; Groq's 429 says "Requested 2048" and 3 of 5 answers stopped at
+  exactly 2,048); and one OpenRouter model's rate limit appears to shut out the others (four
+  429s for `nex` named `qwen3.8-27b:free`).
+

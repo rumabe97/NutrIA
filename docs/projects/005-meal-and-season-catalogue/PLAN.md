@@ -238,7 +238,7 @@ at a time.
 
 ### Phase 5 — Offline quality, and production
 
-- [x] done
+- [x] done — commit `5be3245` ("Project 005 phase 5: the new catalogue measured offline, and written down")
 - **Dispatch**: opus @ high — `/execute-project 005 phase 5` — owner-gated: migrate and
   re-seed production after the merge
 - **Goal**: show, without a model call, that nothing got worse; put it in production.
@@ -264,7 +264,7 @@ at a time.
 
 ### Phase 6 — The free models, measured
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 005 phase 6` — owner-approves: which of
   phase 7's changes to build, from the numbers
 - **Goal**: know how each free model behaves on the new prompt, with a script anyone can
@@ -300,42 +300,38 @@ at a time.
 - [ ] pending
 - **Dispatch**: opus @ high — `/execute-project 005 phase 7` — human-verify: the owner
   generates a fortnight in production on the free combo
-- **Goal**: generation fits the free models' limits and finishes inside its budget.
+- **Goal**: generation leans on the free model that answers, with Gemini behind it, and
+  a refusal never costs the job.
+- **Amended 2026-09-25** from phase 6's numbers and the owner's choice (LOG; decisions
+  LOG): the combo is `openrouter/nvidia/nemotron-3-ultra-550b-a55b:free` → Gemini; pacing
+  to a per-minute token limit is dropped (OpenRouter's free limit is requests, not tokens,
+  and no Groq model makes the combo).
 - **Scope**: `apps/api/src/modules/ai/services/PoolBuilder.service.ts` and its spec,
-  `apps/api/src/modules/ai/ai.config.ts`, `apps/api/src/config/Env.validation.ts` and its
-  spec, `turbo.json` `globalEnv`, `apps/api/.env.example`, `docs/reference/deployment.md`,
   `docs/reference/ai-gateway.md`.
-- **Steps** — the default set; phase 6's owner-approved recommendation may amend it,
-  and the plan is amended in the same change if so:
-  1. **Ask the model for fewer dishes per request.** Cap the dishes one request asks for
-     (a constant, e.g. six), since the library and the backfill cover the rest and the
-     output is the other half of every per-minute limit. Keep the existing rounds for
-     what is still short.
-  2. **Pace requests to a per-minute token limit when one is configured.** New optional
-     `AI_TOKENS_PER_MINUTE`: when set, `PoolBuilder` starts a slot's request only while
-     the estimated tokens of the requests started in the last sixty seconds (prompt
-     length × the measured ratio, plus the capped output) stay under it; the others
-     wait, inside the same budget. Unset, requests start together as today. Add it to
-     `Env.validation.ts`, `turbo.json` `globalEnv`, `apps/api/.env.example` and
-     `docs/reference/deployment.md` — the spec fails otherwise.
-  3. **Size and rate refusals fall through, not fail the job.** A 413 or 429 from the
+- **Steps**:
+  1. **Ask the model for at most three dishes per request.** A constant beside
+     `MAX_ATTEMPTS`; the library and the backfill cover the rest, and the later rounds ask
+     for what is still short. Output is what costs time on the free models (phase 6: 4–8k
+     output tokens and ~143 s for six dishes).
+  2. **Size and rate refusals fall through, not fail the job.** A 413 or 429 from the
      gateway is recorded like any provider failure on the job's log (it already is) and
-     the round's slot is retried in the next round only if time remains.
-  4. Specs with a fake clock: three slots under a limit that fits one request a minute
-     start one, then the next when the window allows; a budget that ends first leaves
-     the library to cover the rest; no limit starts them together.
-  5. `docs/reference/ai-gateway.md`: the recommended combo order for the free models
-     with the numbers from phase 6, and the value of `AI_TOKENS_PER_MINUTE` for it. The
-     combo itself is the owner's to configure.
+     the slot is asked again in the next round only if time remains; confirm with a spec
+     that such a refusal on one slot does not fail the others or the job.
+  3. Specs: a request never asks for more than three dishes; a slot short of six is asked
+     again in the next round while time remains; a 429 on one slot leaves the others'
+     dishes and the job intact.
+  4. `docs/reference/ai-gateway.md`: the recommended combo (`nemotron-3-ultra:free` →
+     Gemini) with phase 6's numbers, and that the combo is the owner's to configure.
 - **Acceptance criteria**: PRD 5, 9.
 - **Verification**:
   - `pnpm turbo lint ts:check test`
   - `sh .claude/skills/ship/scripts/gate.sh --full <scratchpad>`
-  - One fortnight generated on dev through the gateway's free combo, the call count stated
-    first; the job's `ai_calls` show no 413 and no 429, and the job finishes inside the
-    budget.
-  - human-verify: the owner generates a fortnight in production after setting the combo
-    and `AI_TOKENS_PER_MINUTE`; "confirmed by human on <date>" in LOG.md.
+  - One fortnight generated on dev through the gateway, the model calls stated first and
+    free only (the combo's Gemini step is the owner's production fallback, not called from
+    dev); the job's `ai_calls` show no 413 and no 429 failing the job, and it finishes
+    inside the budget.
+  - human-verify: the owner generates a fortnight in production after setting the combo;
+    "confirmed by human on <date>" in LOG.md.
 
 ## Hand-off
 
