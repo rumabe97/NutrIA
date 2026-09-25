@@ -10,6 +10,11 @@
   margin: 0 0 var(--space-01);
 }
 
+.healthShare {
+  border-top: 1px solid var(--border-01);
+  padding-top: var(--space-04);
+}
+
 .error {
   border-left: 2px solid var(--color-error);
   color: var(--color-error-text);

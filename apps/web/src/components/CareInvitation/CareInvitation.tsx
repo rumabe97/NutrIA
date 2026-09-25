@@ -7,8 +7,10 @@ import styles from './CareInvitation.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Checkbox } from 'ui/components/Checkbox';
+import { Link } from 'ui/components/Link';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
+import { withLocale } from 'i18n/routes';
 
 import { Card } from 'components/Card';
 import { CtaLink } from 'components/CtaLink';
@@ -22,6 +24,12 @@ interface CareInvitationProps {
   invitation: CareInvitationDetailView;
   token: string;
 }
+
+/** What every professional can do under a link, whatever it shares (textos/05 § B1) — fixed, not part of the invitation's own answer. */
+const CAN_DO = ['targets', 'plans', 'review'] as const;
+
+/** The one placeholder `care.invitationPrivacy` carries besides `{professional}`, and the page it opens. */
+const PRIVACY_PLACEHOLDER = '{privacy}';
 
 /**
  * What the invitation reads before answering (PRD 004, criterion 3): who
@@ -110,7 +118,9 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
   return (
     <Card as="section" className={styles.card} padding="lg">
       <h1 className={styles.title}>{interpolate(t.invitationTitle, { professional: invitation.professionalName })}</h1>
-      <Text tone="secondary">{interpolate(t.invitationIntro, { professional: invitation.professionalName })}</Text>
+      <Text tone="secondary">
+        {interpolate(t.invitationIntro, { collegiateNumber: invitation.collegiateNumber, professional: invitation.professionalName })}
+      </Text>
 
       <div className={styles.block}>
         <Text weight="medium">{interpolate(t.invitationShareIntro, { professional: invitation.professionalName })}</Text>
@@ -119,6 +129,18 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
             <li key={share}>{t.shares[share]}</li>
           ))}
         </ul>
+        <Text weight="medium">{t.invitationCanDoIntro}</Text>
+        <ul className={styles.list}>
+          {CAN_DO.map(item => (
+            <li key={item}>{t.canDo[item]}</li>
+          ))}
+        </ul>
+        <Text size="sm" tone="secondary">
+          {t.invitationNotShared}
+        </Text>
+        <Text size="sm" tone="secondary">
+          {t.invitationTrail}
+        </Text>
       </div>
 
       <div className={styles.block}>
@@ -145,6 +167,20 @@ export function CareInvitation({ invitation, token }: CareInvitationProps) {
           </div>
         ) : null}
       </div>
+
+      <Text size="xs" tone="tertiary">
+        {interpolate(t.invitationPrivacy, { professional: invitation.professionalName })
+          .split(/(\{privacy\})/)
+          .map(part =>
+            part === PRIVACY_PLACEHOLDER ? (
+              <Link href={withLocale('/privacidad#tu-dietista', locale)} inline={true} key={part}>
+                {dictionary.auth.legalPrivacy}
+              </Link>
+            ) : (
+              part
+            )
+          )}
+      </Text>
 
       {error ? (
         <p className={styles.error} role="alert">

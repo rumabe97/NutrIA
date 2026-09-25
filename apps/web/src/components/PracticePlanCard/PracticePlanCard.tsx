@@ -142,6 +142,13 @@ export function PracticePlanCard({ justPaid, practice, trialDaysLeft }: Practice
         </div>
       ) : null}
 
+      {/* TRLGDCU art. 3: contracting for the practice is professional, not consumer, activity — said plainly next to the button. */}
+      {choose ? (
+        <Text size="xs" tone="tertiary">
+          {t.planTerms}
+        </Text>
+      ) : null}
+
       {subscription ? (
         <div className={styles.actions}>
           <Button loading={pending} onClick={() => void go('/billing/portal')} type="button" variant="secondary">

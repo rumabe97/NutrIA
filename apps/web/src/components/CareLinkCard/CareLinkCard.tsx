@@ -10,6 +10,7 @@ import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
+import { CareHealthSwitch } from 'components/CareHealthSwitch';
 
 import { api, messageFor } from 'lib/api';
 import { formatInstant, interpolate } from 'lib/format';
@@ -85,6 +86,10 @@ export function CareLinkCard({ link }: CareLinkCardProps) {
       <Text size="sm" tone="secondary">
         {interpolate(t.whatIsShared, { list: shared.join(', ') })}
       </Text>
+
+      <div className={styles.healthShare}>
+        <CareHealthSwitch sharesHealth={link.sharesHealth} />
+      </div>
 
       {error ? (
         <p className={styles.error} role="alert">
