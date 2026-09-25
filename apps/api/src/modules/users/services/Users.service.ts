@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { fromNodeHeaders } from 'better-auth/node';
 
 import { ProfessionalController } from 'core/controllers/Professional';
@@ -12,6 +12,8 @@ import type { UserDto } from '../dto/out/index.js';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(@Inject(AUTH) private readonly auth: Auth) {}
 
   /**
@@ -19,9 +21,20 @@ export class UsersService {
    * on every request, never cached, so a revoked grant or the switch thrown
    * shows on the next one. It only decides what the menu shows — nothing reads
    * it back, and every `/care` route asks the guard itself.
+   *
+   * A failed read answers false rather than failing the route: every screen of
+   * the app is gated on this one, and the workspace's tables must not take it
+   * down for everybody. False is the closed answer, and the guard still asks.
    */
   async me(userId: string): Promise<UserDto> {
-    const [user, professional] = await Promise.all([UserController.getUser({ id: userId }), ProfessionalController.hasAccess(userId)]);
+    const [user, professional] = await Promise.all([
+      UserController.getUser({ id: userId }),
+      ProfessionalController.hasAccess(userId).catch((error: unknown) => {
+        this.logger.warn(`Could not tell whether ${userId} is a professional: ${String(error)}`);
+
+        return false;
+      })
+    ]);
 
     return { ...user, professional };
   }

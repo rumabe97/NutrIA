@@ -37,7 +37,8 @@ describe('UsersService.me — professional', () => {
     return new UsersService({} as Auth);
   }
 
-  it('is false for a granted account while the switch is off', async () => {
+  // That the switch wins over a standing grant is `hasAccess`'s own test in core, where the grant can be mocked.
+  it('is false while the switch is off, without asking about a grant', async () => {
     const service = harness();
     jest.spyOn(ProfessionalController, 'isOpen').mockResolvedValue(false);
 
@@ -68,5 +69,12 @@ describe('UsersService.me — professional', () => {
     const me = await service.me('usr-1');
 
     expect(me).toHaveProperty('professional', false);
+  });
+
+  it('is false, and the account still answers, when the question cannot be asked', async () => {
+    const service = harness();
+    jest.spyOn(ProfessionalController, 'hasAccess').mockRejectedValue(new Error('settings unreachable'));
+
+    await expect(service.me('usr-1')).resolves.toEqual({ ...ACCOUNT, professional: false });
   });
 });
