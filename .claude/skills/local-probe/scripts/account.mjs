@@ -63,7 +63,7 @@ for (const key of ['DATABASE_URL', 'DIRECT_DATABASE_URL']) {
     throw new Error(`${key} in this shell differs from apps/api/.env, which is the one the guard checked — unset it`);
   }
 
-  process.env[key] = checked;
+  if (checked !== undefined) process.env[key] = checked;
 }
 
 const fromApi = createRequire(`${ROOT}apps/api/package.json`);
