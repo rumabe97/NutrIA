@@ -143,9 +143,11 @@ describe('the free-text and belief boundary around the AI module', () => {
     fiberPer100g: 1,
     gramsPerUnit: null,
     kcalPer100g: 150,
+    mealSlots: [],
     name: slug,
     nameLocale: 'es-ES',
     proteinPer100g: 10,
+    seasonMonths: [],
     slug
   }));
 

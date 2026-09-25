@@ -37,6 +37,11 @@ export type CatalogueIngredient = {
   readonly fiberPer100g: number;
   readonly gramsPerUnit: number | null;
   readonly kcalPer100g: number;
+  /**
+   * The meals this food belongs to. **Empty means every meal** — an exception
+   * list, like `countries`, filled from the seed's `meals.ts` overlay (`0062`).
+   */
+  readonly mealSlots: readonly MealSlot[];
   readonly name: string;
   /**
    * The locale `name` actually came from.
@@ -48,6 +53,11 @@ export type CatalogueIngredient = {
    */
   readonly nameLocale: string;
   readonly proteinPer100g: number;
+  /**
+   * The months (1–12) this food is in season in Spain. **Empty means every
+   * month**. A season orders and marks produce; it never excludes it (`0062`).
+   */
+  readonly seasonMonths: readonly number[];
   readonly slug: string;
 };
 

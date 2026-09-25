@@ -96,9 +96,11 @@ describe('a free-text allergy that resolved goes through the same gate', () => {
         fiberPer100g: 3,
         gramsPerUnit: null,
         kcalPer100g: 61,
+        mealSlots: [],
         name: 'Kiwi',
         nameLocale: 'es-ES',
         proteinPer100g: 1.1,
+        seasonMonths: [],
         slug: 'kiwi'
       }
     ]);
@@ -183,9 +185,11 @@ describe('dishSafety — the one gate both generation and reuse pass through', (
       fiberPer100g: 2,
       gramsPerUnit: null,
       kcalPer100g: 200,
+      mealSlots: [],
       name: 'Arroz',
       nameLocale: 'es-ES',
       proteinPer100g: 12,
+      seasonMonths: [],
       slug: 'arroz'
     },
     {
@@ -199,9 +203,11 @@ describe('dishSafety — the one gate both generation and reuse pass through', (
       fiberPer100g: 7,
       gramsPerUnit: 40,
       kcalPer100g: 247,
+      mealSlots: [],
       name: 'Pan integral',
       nameLocale: 'es-ES',
       proteinPer100g: 8.8,
+      seasonMonths: [],
       slug: 'pan'
     },
     {
@@ -215,9 +221,11 @@ describe('dishSafety — the one gate both generation and reuse pass through', (
       fiberPer100g: 10,
       gramsPerUnit: null,
       kcalPer100g: 389,
+      mealSlots: [],
       name: 'Avena',
       nameLocale: 'es-ES',
       proteinPer100g: 16.9,
+      seasonMonths: [],
       slug: 'avena'
     }
   ]);

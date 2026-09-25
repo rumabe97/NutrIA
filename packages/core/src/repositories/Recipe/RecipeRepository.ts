@@ -344,8 +344,10 @@ export const RecipeRepository = {
             fiberPer100g: ingredients.fiberPer100g,
             gramsPerUnit: ingredients.gramsPerUnit,
             kcalPer100g: ingredients.kcalPer100g,
+            mealSlots: ingredients.mealSlots,
             proteinPer100g: ingredients.proteinPer100g,
             requestedName: requested.name,
+            seasonMonths: ingredients.seasonMonths,
             slug: ingredients.slug
           })
           .from(ingredients)
@@ -381,12 +383,16 @@ export const RecipeRepository = {
         fiberPer100g: Number(row.fiberPer100g),
         gramsPerUnit: row.gramsPerUnit === null ? null : Number(row.gramsPerUnit),
         kcalPer100g: Number(row.kcalPer100g),
+        // Text in the column, the enum's values by construction: the seed writes
+        // them from `MealSlot`, and nothing else writes the column.
+        mealSlots: row.mealSlots as readonly MealSlot[],
         // The slug is the last resort. An ingredient with no name in any locale
         // is a broken seed, and showing "pan-integral" says so; showing nothing
         // hides it.
         name: row.requestedName ?? row.fallbackName ?? row.slug,
         nameLocale: row.requestedName === null ? FALLBACK_LOCALE : locale,
         proteinPer100g: Number(row.proteinPer100g),
+        seasonMonths: row.seasonMonths,
         slug: row.slug
       }));
     } catch (error: unknown) {

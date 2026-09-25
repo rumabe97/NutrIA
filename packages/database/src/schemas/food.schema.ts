@@ -1,4 +1,4 @@
-import { index, numeric, pgTable, primaryKey, text, unique, uuid } from 'drizzle-orm/pg-core';
+import { index, numeric, pgTable, primaryKey, smallint, text, unique, uuid } from 'drizzle-orm/pg-core';
 
 import { allergenPresence, ingredientCategory, measurementUnit, sentiment } from './_enums';
 import { allergens } from './safety.schema';
@@ -53,7 +53,25 @@ export const ingredients = pgTable(
     fiberPer100g: numeric({ precision: 6, scale: 2 }).notNull().default('0'),
     gramsPerUnit: numeric({ precision: 7, scale: 2 }),
     kcalPer100g: numeric({ precision: 6, scale: 2 }).notNull(),
+    /**
+     * The meals this food belongs to, as `meal_slot` values.
+     *
+     * **Empty means every meal**, and most rows are empty: rice, eggs and
+     * tomatoes sit at any table. A non-empty list is the exception — a pulse
+     * that is a lunch and not a dinner, a pastry that is a breakfast — and reads
+     * as "only at these". A meal's catalogue is the rows that are empty or name
+     * it, and a dish is served only where all its ingredients meet (`0062`).
+     */
+    mealSlots: text().array().notNull().default([]),
     proteinPer100g: numeric({ precision: 6, scale: 2 }).notNull(),
+    /**
+     * The months this food is in season in Spain, 1 to 12.
+     *
+     * **Empty means every month** — rice and chicken have no season. A list
+     * orders and marks produce in the prompt for the month a fortnight starts;
+     * it forbids nothing, because a tomato is on every shelf in January (`0062`).
+     */
+    seasonMonths: smallint().array().notNull().default([]),
     slug: text().notNull().unique(),
     /** Provenance of the nutrition figures, e.g. `bedca`, `usda`, `manual`. */
     source: text().notNull().default('manual')
