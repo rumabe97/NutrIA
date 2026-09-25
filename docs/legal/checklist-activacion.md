@@ -13,7 +13,7 @@
 
 - [ ] **P0-3** — La combinación de modelos solo con proveedores sin entrenamiento y con contrato (o sin texto libre ni etiquetas religiosas en el prompt). El propietario anota qué modelos sirven hoy.
 - [ ] **P0-2** — Consentimiento explícito del perfil construido, pedido también a las cuentas existentes ([`textos/05`](./textos/05-consentimientos-cliente.md) § A).
-- [ ] **P1-4** — Puerta de edad (16) en el servidor. Comprobar en la base de datos si hay alguna cuenta con menos de 14 años (si la hay: P0, borrar sus datos de salud y avisar).
+- [ ] **P1-4** — Puerta de edad (**18**, decisión del propietario de 2026-09-25) en el servidor. Comprobar en la base de datos si hay cuentas con menos de 18 años: con menos de 14, P0 (su consentimiento de salud no vale: borrar sus datos de salud y avisar); de 14 a 17, avisar de que el servicio pasa a ser para mayores de edad y cerrar la cuenta con tiempo para que se lleven sus datos.
 - [ ] **P1-6** — Exportaciones manuales cifradas, en disco cifrado, borradas a los 30 días; las antiguas sin cifrar, borradas.
 - [ ] **EIPD** revisada y firmada por el propietario ([`eipd.md`](./eipd.md) § 7).
 - [ ] Política de privacidad nueva publicada solo con las frases cuyo ⟦requisito⟧ se cumple ([`textos/02`](./textos/02-politica-privacidad.md)); correo de aviso de cambio enviado antes ([`textos/06`](./textos/06-correos.md) § F).

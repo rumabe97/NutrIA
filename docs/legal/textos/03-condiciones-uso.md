@@ -45,11 +45,11 @@
 
 | es-ES | en-GB |
 | --- | --- |
-| `Necesitas tener al menos 16 años. Si la fecha de nacimiento que indicas es de alguien menor, no podremos crear tu perfil.` | `You must be at least 16. If the date of birth you give belongs to someone younger, we will not be able to create your profile.` |
+| `Necesitas tener al menos 18 años. Si la fecha de nacimiento que indicas es de alguien menor, no podremos crear tu perfil.` | `You must be at least 18. If the date of birth you give belongs to someone younger, we will not be able to create your profile.` |
 
 Publicar la segunda frase solo con la puerta de edad construida (P1-4).
 
-<!-- Fuente: LOPDGDD art. 7; RGPD art. 8. -->
+<!-- Fuente: LOPDGDD art. 7 (14 para consentir: 18 es más estricto y lícito); RGPD art. 8. 18 años por decisión del propietario, 2026-09-25 (antes 16): un plan de adelgazamiento para un menor es el daño que se quiere evitar, y los términos de Gemini exigen 18 a quien usa la API. -->
 
 ## D. Sección «El plan gratuito y Premium» — sustituye la `list` y los `paragraphs`
 
@@ -115,7 +115,7 @@ Publicar la segunda frase solo con la puerta de edad construida (P1-4).
 
 - **A** `auth.legalNotice`: `By creating your account you accept the {terms}. How we handle your data is explained in the {privacy}.`
 - **B** "Who provides the service": `NutrIA is provided by {name}. Their address, tax ID, phone and email are in the {legalNotice}. For anything about these terms, write to {email}.`
-- **C** "Your account", first line: `You must be at least 16. If the date of birth you give belongs to someone younger, we will not be able to create your profile.`
+- **C** "Your account", first line: `You must be at least 18. If the date of birth you give belongs to someone younger, we will not be able to create your profile.`
 - **D** "The free plan and Premium":
   - paragraphs: `NutrIA can be used for free, with limits on how many plans you can redo, dishes you can change and events per plan. Food safety — allergies, intolerances and nutrients — is the same with or without Premium.` / `Premium raises those limits with a monthly or yearly subscription. Before paying you see the total price including tax and what is charged each period. Payment is handled by Stripe.`
   - list: `The first time you take Premium you get a free trial of {trialDays} days. We ask for your card at the start and charge nothing until it ends. If you cancel before then, you pay nothing.` / `When the trial ends, and then at the end of each period, the subscription renews and is charged automatically until you cancel.` / `If your plan is yearly, we will email you at least 15 days before it renews.` / `You can cancel whenever you like from your profile, under "Manage subscription", as easily as you signed up. You keep Premium until the end of the paid period and are not charged again. There is no minimum term and no penalty.` / `Right of withdrawal: you have 14 calendar days from signing up to withdraw without giving a reason. We give you more: if you have already been charged, you can withdraw within 14 days of the first charge. Use the "Withdraw from contract here" button on your profile, the form below, or write to {email}. We refund everything you paid within 14 days at most, by the same payment method, and the subscription ends.` / `If we change the price, we will tell you at least 30 days in advance and you can cancel before it applies.`
