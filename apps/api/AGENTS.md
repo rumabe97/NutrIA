@@ -75,7 +75,7 @@ service that grew a rule is a bug.
 
 Nest controllers never import `database` or `drizzle-orm`. Data access lives in `packages/core/repositories`.
 
-**Naming collision to keep straight:** a _controller_ in `packages/core` is an application service; a _controller_ here is an HTTP endpoint class. The root `AGENTS.md` vocabulary records this.
+**Naming collision to keep straight:** a *controller* in `packages/core` is an application service; a *controller* here is an HTTP endpoint class. The root `AGENTS.md` vocabulary records this.
 
 ## Module system — ESM, deliberately
 
@@ -90,11 +90,11 @@ NestJS 12 ships ESM only, so this app is `"type": "module"` with `module: nodene
 Not style preferences. Changing one is a security regression.
 
 - **Denials are 404, never 401 or 403.** A distinct status confirms to precisely the blocked caller that the route or resource exists. `SessionGuard`, `AdminGuard` and the exception filter all agree on this, so no handler can drift into being the one that confirms.
-- **`SessionGuard` is global and deny-by-default.** A route is protected unless it carries `@Public()`. Opting _in_ to protection means a forgotten decorator is an open endpoint.
+- **`SessionGuard` is global and deny-by-default.** A route is protected unless it carries `@Public()`. Opting *in* to protection means a forgotten decorator is an open endpoint.
 - **The session is re-read on every request.** Never cache authorisation. A logout or a deleted account must take effect immediately, not at token expiry.
-- **Completeness of a profile is the API's judgement, not the client's.** `RequiresOnboardingGuard` is global and opted into per route with `@RequiresOnboarding()`; the meal-plan controller carries it on the class. Opt-in, not deny-by-default, because most routes are how someone _finishes_ onboarding. It is the one refusal that is **not** a 404 — a 409 with code `ONBOARDING_INCOMPLETE` — because the caller owns the account and the only useful answer is which step they left. A check the web app performs and the API does not is a suggestion.
+- **Completeness of a profile is the API's judgement, not the client's.** `RequiresOnboardingGuard` is global and opted into per route with `@RequiresOnboarding()`; the meal-plan controller carries it on the class. Opt-in, not deny-by-default, because most routes are how someone *finishes* onboarding. It is the one refusal that is **not** a 404 — a 409 with code `ONBOARDING_INCOMPLETE` — because the caller owns the account and the only useful answer is which step they left. A check the web app performs and the API does not is a suggestion.
 - **`@CurrentUser()` is the only sanctioned source of a user id.** An id from a path param, query string or body is an id the caller chose. Never scope a query with one.
-- **Every route body is declared by a DTO and bound with `@ZodBody`.** `@Body() body: SomeType` with no pipe gets _no_ validation and arrives as whatever was sent. A DTO in the module's `dto/in` names a Zod schema from `packages/core/entities` — the same one the web form uses, never a second copy of the rule — and `@ZodBody(SomeDto)` binds the validation pipe, the parameter's type and the published OpenAPI request schema together, all three from that one schema. **Never `@UsePipes(...)` at the handler**: that binds the pipe to _every_ parameter, so the body schema also validates `@CurrentUser()` and rejects every valid request. That shipped once; routing the binding through one decorator is what stops it shipping again. See the traps below.
+- **Every route body is declared by a DTO and bound with `@ZodBody`.** `@Body() body: SomeType` with no pipe gets *no* validation and arrives as whatever was sent. A DTO in the module's `dto/in` names a Zod schema from `packages/core/entities` — the same one the web form uses, never a second copy of the rule — and `@ZodBody(SomeDto)` binds the validation pipe, the parameter's type and the published OpenAPI request schema together, all three from that one schema. **Never `@UsePipes(...)` at the handler**: that binds the pipe to *every* parameter, so the body schema also validates `@CurrentUser()` and rejects every valid request. That shipped once; routing the binding through one decorator is what stops it shipping again. See the traps below.
 - **Nothing internal reaches a response.** `AllExceptionsFilter` is the single translation point. Driver messages carry connection strings, Zod issues describe the schema, stacks carry paths. An unrecognised error is a bare 500.
 - **A provider's message is scrubbed of the configured credentials by value, not only by shape.** `redactSecrets` (`modules/ai/clients/redact.ts`) is the one scrub between what a provider or gateway answers and the job row's `errorDetail`, which the job's owner reads back. Its patterns catch a key this process never held; `AI_SECRETS` — `providerCredentials(env)`, the set `*_API_KEY` values — catches ours in a phrasing no pattern knows ("Incorrect API key provided: <key>") and a gateway key with no prefix at all. Every caller passes it; a new caller that scrubs by pattern alone leaks the live key to whoever triggered the failing job.
 - **`code` is stable, `message` is not.** The frontend switches on `code`; messages are free to be reworded.
@@ -153,7 +153,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   the builder compiles any `.ts` it is handed with its own symlink-blind TypeScript
   pass (a wall of errors under pnpm's strict store, cosmetic but noisy, and a
   deployed artifact nothing had type-checked), and the `builds[].src` glob is matched
-  against the tree _before_ `vercel-build` runs, so a path under `dist/` matches
+  against the tree *before* `vercel-build` runs, so a path under `dist/` matches
   nothing and silently emits no function. The shim is JavaScript, so nothing is
   compiled; it is committed, so the glob matches; `dist/` exists by the time the
   entry is traced because the builder runs `vercel-build` first. The function ships
@@ -164,7 +164,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   deploy still applies pending migrations: review them as production changes.
 - `ignoreCommand` deploys only `main`. Preview URLs would be in neither
   `ALLOWED_ORIGINS` nor `COOKIE_DOMAIN`, so authentication cannot work on them.
-- `maxDuration` is 300s because generation runs _after_ the response: `PlanJobRunner`
+- `maxDuration` is 300s because generation runs *after* the response: `PlanJobRunner`
   hands its work to `BackgroundTaskService`, which calls `waitUntil` to keep the
   invocation alive. A bare `void promise` is frozen the moment the response is sent
   and leaves a job row `running` with no log line. Generation takes 30–45s, so a
@@ -232,7 +232,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
 - **Both sweeps are off by default** (`AI_ILLUSTRATIONS`, `AI_REWRITE_STEPS`), because a free-tier project's daily request cap is generation's. Turn them on with billing, or deliberately, for a while. Through the gateway the rewrite sweep runs on free models — `AI_REWRITE_MODEL` can keep it off a combo's Gemini step — and the daily cron in `vercel.json` calls it.
 - **A sweep is bounded in time, not only in number** (`RewriteLimits`). One cron call is one invocation of the 300-second function, and through the gateway a rewrite takes 22–74 seconds: ten in a row outlived the function. Three lanes, no call started with under 90 seconds left, every call ended by 240 seconds with `untilAborted` — a transport that ignores its signal cannot keep the sweep past its deadline.
 - **Both sweeps stop at the first exhausted quota** (`isQuotaExhausted`). The provider's
-  free tier caps _requests_, not only spend, and generation draws on the same allowance:
+  free tier caps *requests*, not only spend, and generation draws on the same allowance:
   a sweep that keeps going after a refusal attempted eighteen recipes three times each
   and emptied the day's budget, blocking plan generation. Treat "the sweep is free
   because the text tier is free" as false — it is bounded, and the bound is shared.
@@ -256,7 +256,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   the session cookie itself — in `proxy.ts` and when forwarding it server-side — so a
   cookie scoped to the API's own host is invisible to it and every protected page
   redirects to sign-in. Sibling subdomains of one registrable domain are the same
-  _site_, so `sameSite: 'lax'` is unchanged. Two `*.vercel.app` subdomains are **not**:
+  *site*, so `sameSite: 'lax'` is unchanged. Two `*.vercel.app` subdomains are **not**:
   that domain is on the Public Suffix List. Without a custom domain, leave it empty and
   proxy the API through the web app's origin instead (`apps/web/next.config.js`,
   `API_UPSTREAM_URL`); then `BETTER_AUTH_URL` and `ALLOWED_ORIGINS` are the **web**
@@ -289,7 +289,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   signed at boot; never add a variable for a pasted one.
 - **The switches** (`0031` amended, `0042`): `app_settings` holds them, one row each, and
   **`core/domain/Flag` is the only place that says which exist**. Never invent a key at a call
-  site and never rename one — the row _is_ the state, so a renamed key reads as a switch nobody
+  site and never rename one — the row *is* the state, so a renamed key reads as a switch nobody
   ever threw and silently restores the fallback somebody moved away from. Every flag declares
   which way it fails when no row exists (a product question, different per flag) and who may
   read it. `GET /settings` (`@AllowUnverified()`) carries only the `signed-in` ones; `/admin`
@@ -298,14 +298,14 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   remembered from sign-up; automatic is its fallback, because a missing row must never start
   queueing people.
 - **Events** (`0043`): `modules/events`, mirroring `vacations`. A day named by the person
-  and the one to three days before it that eat for it — per macro _up / down / same_, never an
+  and the one to three days before it that eat for it — per macro *up / down / same*, never an
   amount; `LOAD_STEP` in `core/domain/Event` is the size. Read at generation only:
   `PlanGeneration.loadsFor` turns event dates into a `dayTargets` map for the scheduler, holds
   every loaded day to the profile's bounds via `targetViolations`, and records a refused load
   as an advisory. The plan day stores `targets` and `loadedFor` — history, not a lookup. No
   refusal keyed on a condition, per `0008`.
 - **Tiers** (`0042`): `user.tier` is `free` or `premium`, moved by the owner from `/admin`.
-  What an account may _actually_ spend is `PlanController.tierOf` — **the `premium` flag first,
+  What an account may *actually* spend is `PlanController.tierOf` — **the `premium` flag first,
   then the column** — so turning the tier off is one click rather than a migration over
   everybody ever granted it. Never read a tier from the caller; it decides whether a model call
   may be spent. `allowancesFor` falls back to free for anything it does not recognise, because
@@ -322,7 +322,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
 - **Professionals** (`0059`): an account is a professional because a `professionals` row
   says so, and only `POST /admin/accounts/:id/professional` (the collegiate number, nothing
   else) writes one; `DELETE` of the same takes it back and `GET /admin/professionals` lists
-  them with link _counts_, never a client. `user.role` is untouched. `ProfessionalGuard`
+  them with link *counts*, never a client. `user.role` is untouched. `ProfessionalGuard`
   (`shared/guards`) is the door to the workspace — the `professional` switch on **and** the
   row, both read per request, anything else 404 — and it is **not global**: every workspace
   controller carries `@UseGuards(ProfessionalGuard)` on its class, and never
@@ -406,7 +406,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   three routes only run when called by hand with the bearer.
 - **Error reporting** (`0024`): `ErrorReporter` in `shared/observability` — off without
   `SENTRY_DSN`. The exception filter reports what it turns into a 5xx and `PlanJobRunner`
-  reports a failed generation. It sends the error, its stack and the route _pattern_ only:
+  reports a failed generation. It sends the error, its stack and the route *pattern* only:
   `beforeSend` deletes request, user and response context, and messages go through
   `redactSecrets` with the configured credentials scrubbed by value. Never add a body, a
   header or an id to a report.
@@ -482,15 +482,15 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
 
 ## Commands
 
-| Command                                                     | What it does                                                                                                                                                                                                                                                                                                                                                          |
-| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm --filter api dev`                                     | Watch mode on :3001                                                                                                                                                                                                                                                                                                                                                   |
-| `pnpm --filter api build`                                   | `nest build` → `dist/`, then `preflight`                                                                                                                                                                                                                                                                                                                              |
-| `pnpm --filter api preflight`                               | Load the deployed entry under the function runtime's module rule and validate the environment as boot would (no database needed)                                                                                                                                                                                                                                      |
-| `pnpm --filter api test`                                    | Unit specs (no database needed)                                                                                                                                                                                                                                                                                                                                       |
-| `pnpm --filter api test:e2e`                                | e2e specs — **needs a real database**, see `test/README.md`                                                                                                                                                                                                                                                                                                           |
-| `pnpm --filter api ts:check`                                | Type-check, specs included                                                                                                                                                                                                                                                                                                                                            |
-| `pnpm --filter api smoke:function`                          | Serve the deployed entry locally — **needs a real database**                                                                                                                                                                                                                                                                                                          |
+| Command | What it does |
+| --- | --- |
+| `pnpm --filter api dev` | Watch mode on :3001 |
+| `pnpm --filter api build` | `nest build` → `dist/`, then `preflight` |
+| `pnpm --filter api preflight` | Load the deployed entry under the function runtime's module rule and validate the environment as boot would (no database needed) |
+| `pnpm --filter api test` | Unit specs (no database needed) |
+| `pnpm --filter api test:e2e` | e2e specs — **needs a real database**, see `test/README.md` |
+| `pnpm --filter api ts:check` | Type-check, specs included |
+| `pnpm --filter api smoke:function` | Serve the deployed entry locally — **needs a real database** |
 | `node --env-file-if-exists=.env scripts/evaluate-plans.mjs` | From `apps/api`, after a build: schedule and validate a fortnight for five fixed profiles over the **real dish library** — days inside 5 % on all four macros, every violation, any allergen on a plate (exit 2). `--json <file>` to keep a run, `--compare <file>` to set one against it. Refuses production, reads inside one read-only transaction, calls no model |
 
 ## Traps
@@ -511,7 +511,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   own, on a prototype whose methods already exist. `ZodBody.decorator.spec.ts` pins both
   halves against one route; if that spec ever fails on a Nest or swagger upgrade, this
   is why.
-- **Better Auth must receive an unread request body.** `CreateApp.ts` mounts `express.json()` _after_ the auth path. Moving the parser earlier makes sign-in receive an empty body, and the failure looks like bad credentials.
+- **Better Auth must receive an unread request body.** `CreateApp.ts` mounts `express.json()` *after* the auth path. Moving the parser earlier makes sign-in receive an empty body, and the failure looks like bad credentials.
 - **A CommonJS package that `require()`s `@nestjs/*` works locally and dies on the platform.** See § Deployment. `preflight` catches it; run it after adding any dependency that touches Nest.
 - **`emitDecoratorMetadata` is what makes DI work.** Without it every injection needs an explicit `@Inject`. It is on in `tsconfig.json`; `verbatimModuleSyntax` must stay off, or type-only imports stop producing metadata.
 - **`HealthIndicatorService`, not `HealthCheckError`.** Terminus 12 removed the old error class; return `indicator.down()`.
