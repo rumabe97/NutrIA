@@ -181,6 +181,21 @@ in CI. The lead picks the level by `subagent_type` and always spawns under the p
   for a behaviour the current one lacks, through a definition's full-id `model:`.
 - **No agent runs on `fable`** (owner, 2026-09-23): it spends usage credits that run out —
   one did in the middle of project 004's first phase. `opus` is the ceiling.
+- **The advisor is the one exception to "no fable"** (owner, 2026-09-25). The project sets
+  `advisorModel: fable` in `.claude/settings.json`, and every agent inherits it; a single
+  consultation costs a fraction of a run on `fable`. Claude Code has no switch that caps it,
+  so the rule is written here and every agent follows it:
+  - **Ask the advisor only on evidence you are stuck**: the same test or gate red twice after
+    a fix you believed in; the same P0 or P1 back from a reviewer twice; or two approaches
+    tried and both failed for a reason you cannot explain. Never "before starting", never to
+    double-check routine work.
+  - **At most two consultations per task.** Say in your hand-back that you asked and what it
+    changed; the lead records it in the phase's `LOG.md`.
+  - **If the advisor is declined or fails** (no credit left, unavailable), carry on without
+    it and tell the lead: the lead climbs the model instead — the existing rule below. Nothing
+    waits on the advisor.
+  - The owner consents once to `fable` usage credits (`/model fable`); without that consent
+    the advisor does not run, and the work goes on without it.
 - **Two floors never move**: `invariant-reviewer` and `migration-reviewer` are `opus` at
   `high`, and so is whoever implements authentication, allergy validation or the validation
   of model output (`quality-max` in `AGENTS.md`). A one-line change there is not a small

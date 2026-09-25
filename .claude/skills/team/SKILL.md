@@ -66,7 +66,10 @@ on what.
 
 **No agent runs on `fable`** (owner, 2026-09-23): it spends usage credits that run out
 mid-phase — one did during project 004's first phase. `opus` is the ceiling for every spawn;
-where a task once called for `fable`, it runs on `opus` at `high`.
+where a task once called for `fable`, it runs on `opus` at `high`. **One exception, since
+2026-09-25: the advisor.** `advisorModel: fable` is set for the project, and an agent may
+consult it only on evidence it is stuck, at most twice per task — the rule is in
+`docs/reference/agent-team.md` § Models; record each consultation in the phase's LOG.
 
 Prices per million tokens, input/output: `haiku` (Haiku 4.5) $1/$5 · `sonnet` (Sonnet 5)
 $2/$10 · `opus` (Opus 5.5) $4/$20. Effort multiplies what a

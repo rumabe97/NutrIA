@@ -1,4 +1,5 @@
 {
+  "advisorModel": "fable",
   "permissions": {
     "deny": [
       "Read(./apps/api/.env)",
