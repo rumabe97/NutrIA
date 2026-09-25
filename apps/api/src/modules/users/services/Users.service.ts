@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { fromNodeHeaders } from 'better-auth/node';
 
+import { ProfessionalController } from 'core/controllers/Professional';
 import { UserController } from 'core/controllers/User';
 
 import { AUTH } from '../../auth/auth.config.js';
@@ -13,8 +14,16 @@ import type { UserDto } from '../dto/out/index.js';
 export class UsersService {
   constructor(@Inject(AUTH) private readonly auth: Auth) {}
 
+  /**
+   * `professional` is the question `ProfessionalGuard` asks, asked the same way:
+   * on every request, never cached, so a revoked grant or the switch thrown
+   * shows on the next one. It only decides what the menu shows — nothing reads
+   * it back, and every `/care` route asks the guard itself.
+   */
   async me(userId: string): Promise<UserDto> {
-    return UserController.getUser({ id: userId });
+    const [user, professional] = await Promise.all([UserController.getUser({ id: userId }), ProfessionalController.hasAccess(userId)]);
+
+    return { ...user, professional };
   }
 
   /**

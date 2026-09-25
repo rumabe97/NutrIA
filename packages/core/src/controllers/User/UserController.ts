@@ -32,6 +32,14 @@ export interface UserView {
   emailVerified: boolean;
   image: string | null;
   name: string;
+  /**
+   * Whether this account is a professional *today*: the `professional` switch
+   * on and the owner's grant standing — `ProfessionalController.hasAccess`,
+   * read on every request. Display only, so the web app can show the way in;
+   * every professional route asks the guard again and never reads this. Always
+   * present, false for everyone else.
+   */
+  professional: boolean;
   role: 'admin' | 'user';
   /**
    * What the account may spend, as its row has it — *not* what it may spend
@@ -42,7 +50,14 @@ export interface UserView {
   tier: 'free' | 'premium';
 }
 
-function presentUser(user: User): UserView {
+/**
+ * The account as its row has it. `professional` is another domain's answer, so
+ * the API adds it (`ProfessionalController.hasAccess`) rather than this
+ * controller calling that one.
+ */
+export type StoredUserView = Omit<UserView, 'professional'>;
+
+function presentUser(user: User): StoredUserView {
   return {
     id: user.id,
     activated: user.activatedAt !== null,
@@ -118,7 +133,7 @@ export const UserController = {
    * "get any user" method: a caller that could pass an arbitrary id would be one
    * missing authorisation check away from reading another account.
    */
-  async getUser(input: { id: string }): Promise<UserView> {
+  async getUser(input: { id: string }): Promise<StoredUserView> {
     const user = await UserRepository.findById(input.id);
 
     if (!user) {
