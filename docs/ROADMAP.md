@@ -211,6 +211,10 @@ Measured along the way and worth doing after, none of it blocking:
   usage of the key — the last needs no management key.
 - **The gateway's own calls.** It called a model again after answering, and probes
   models nobody asked for. Its configuration, but it spends the same free quota.
+- **Each meal its own foods, in season, on the free models** — project
+  [`005-meal-and-season-catalogue`](./projects/005-meal-and-season-catalogue/) (`0062`):
+  the prompt listed all 930 ingredients for every meal (~70% of its ~8,000 tokens), which
+  Groq's free tier refuses outright; pulses were a quarter of the library's dinners.
 - **If the budget cuts often**, generation belongs on a host without a function limit —
   the owner's own server, beside the gateway — rather than behind a queue service.
 
