@@ -15,9 +15,30 @@ import { formatInstant, formatInstantRange, interpolate } from 'lib/format';
 import { groupCareAccessEntries } from 'lib/careAccessGroups';
 
 import type { CareAccessPageView } from 'core/controllers/Care';
+import type { Dictionary } from 'i18n/dictionaries/es-ES';
 
 interface CareAccessLogProps {
   initial: CareAccessPageView;
+}
+
+type CareAccessAction = CareAccessPageView['entries'][number]['action'];
+
+/**
+ * The sentence for one action, singular or grouped. `granted`/`withdrawn`
+ * read backwards from `read`/`write`: the client is the one who acted, the
+ * professional is who they shared with, not who did something to their data.
+ */
+function templateFor(t: Dictionary['care'], action: CareAccessAction, grouped: boolean): string {
+  switch (action) {
+    case 'write':
+      return grouped ? t.accessLogWriteGroup : t.accessLogWrite;
+    case 'granted':
+      return grouped ? t.accessLogGrantedGroup : t.accessLogGranted;
+    case 'withdrawn':
+      return grouped ? t.accessLogWithdrawnGroup : t.accessLogWithdrawn;
+    default:
+      return grouped ? t.accessLogReadGroup : t.accessLogRead;
+  }
 }
 
 /** The client's own access trail (PRD 004, criterion 6): who read or changed what, and when. */
@@ -85,7 +106,7 @@ export function CareAccessLog({ initial }: CareAccessLogProps) {
               return (
                 <li className={styles.row} key={row.entry.id}>
                   <Text size="sm" tone="secondary">
-                    {interpolate(row.entry.action === 'write' ? t.accessLogWrite : t.accessLogRead, {
+                    {interpolate(templateFor(t, row.entry.action, false), {
                       kind: t.accessKinds[row.entry.kind],
                       professional: row.entry.professionalName
                     })}
@@ -102,7 +123,7 @@ export function CareAccessLog({ initial }: CareAccessLogProps) {
             // range shown reads chronologically while the array itself does not.
             const newest = row.entries[0];
             const oldest = row.entries[row.entries.length - 1];
-            const template = newest.action === 'write' ? t.accessLogWriteGroup : t.accessLogReadGroup;
+            const template = templateFor(t, newest.action, true);
             // A run only bounds the gap between neighbours, not its total span
             // (many nine-minute steps add up), so it can cross midnight; the
             // day is included and `formatRange` collapses it when both ends
@@ -133,7 +154,7 @@ export function CareAccessLog({ initial }: CareAccessLogProps) {
                       {row.entries.map(entry => (
                         <li className={styles.groupRow} key={entry.id}>
                           <Text size="sm" tone="secondary">
-                            {interpolate(entry.action === 'write' ? t.accessLogWrite : t.accessLogRead, {
+                            {interpolate(templateFor(t, entry.action, false), {
                               kind: t.accessKinds[entry.kind],
                               professional: entry.professionalName
                             })}

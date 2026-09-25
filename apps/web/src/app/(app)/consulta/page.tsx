@@ -10,6 +10,7 @@ import { Text } from 'ui/components/Text';
 
 import { Card } from 'components/Card';
 import { CareInviteForm } from 'components/CareInviteForm';
+import { PracticeAgreement } from 'components/PracticeAgreement';
 import { PracticePlanCard } from 'components/PracticePlanCard';
 
 import { formatInstant, interpolate } from 'lib/format';
@@ -42,6 +43,12 @@ function daysUntil(iso: string): number {
  * plan card: the client routes are closed until it is paid for, so there is
  * no list to read and nobody to invite.
  *
+ * Before either of those, `practice.agreementRequired` shows `PracticeAgreement`
+ * in place of the whole workspace — the professional's agreement and the
+ * practice plan's conditions, one checkbox for both
+ * (`docs/legal/textos/01-acuerdo-profesional.md`). Nothing past that gate is
+ * reachable until it posts back.
+ *
  * Every link here carries a link id and never a client's account id; the list
  * is read once per visit because each read leaves a row in every active
  * client's trail.
@@ -56,6 +63,13 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
 
   if (!practice) {
     notFound();
+  }
+
+  // The agreement gates the whole workspace (`docs/legal/textos/01-acuerdo-profesional.md`):
+  // nothing below this — the roster, the invite form, subscribing — is reachable until it is
+  // accepted. The API enforces the same rule on every client route; this is the screen for it.
+  if (practice.agreementRequired) {
+    return <PracticeAgreement version={practice.agreementVersion} />;
   }
 
   const t = dictionary.practice;
@@ -146,6 +160,15 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
           </section>
         ) : null}
       </div>
+
+      {practice.agreementAcceptedAt ? (
+        <Text className={styles.agreement} size="xs" tone="tertiary">
+          {interpolate(dictionary.practiceAgreement.acceptedOn, {
+            date: shortDate(practice.agreementAcceptedAt),
+            version: practice.agreementVersion
+          })}
+        </Text>
+      ) : null}
     </Fragment>
   );
 }

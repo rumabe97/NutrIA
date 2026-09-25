@@ -4,13 +4,18 @@ const GROUP_GAP_MS = 10 * 60 * 1000;
 
 export type CareAccessRow = { entry: CareAccessEntryView; kind: 'entry' } | { id: string; entries: readonly CareAccessEntryView[]; kind: 'group' };
 
+/**
+ * What ties two entries to the same run: the link they were read or changed
+ * under, falling back to the professional's name once that link's own id is
+ * gone (the professional's account was deleted — `professionalId` is null the
+ * same way, and the name is all that is left to group by).
+ */
+function groupKey(entry: CareAccessEntryView): string {
+  return entry.linkId ?? entry.professionalName;
+}
+
 function sameRun(a: CareAccessEntryView, b: CareAccessEntryView): boolean {
-  return (
-    a.professionalName === b.professionalName &&
-    a.kind === b.kind &&
-    a.action === b.action &&
-    Math.abs(Date.parse(a.at) - Date.parse(b.at)) <= GROUP_GAP_MS
-  );
+  return groupKey(a) === groupKey(b) && a.kind === b.kind && a.action === b.action && Math.abs(Date.parse(a.at) - Date.parse(b.at)) <= GROUP_GAP_MS;
 }
 
 /**
@@ -22,7 +27,9 @@ function sameRun(a: CareAccessEntryView, b: CareAccessEntryView): boolean {
  * row, and this function never drops one, only presents a run of two or more
  * as a single expandable row.
  *
- * A run needs the same professional, the same kind of access and the same
+ * A run needs the same link (not just the same professional's name — a
+ * client who ended a link and later accepted a new one from the same
+ * dietitian has two runs, not one), the same kind of access and the same
  * action — a write is never folded into a read, or the reverse — with no more
  * than ten minutes between one entry and the next. `entries` is read
  * newest-first, as `CareController.accessLog` returns it, and a run of

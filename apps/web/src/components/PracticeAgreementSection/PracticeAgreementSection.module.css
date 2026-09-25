@@ -1,0 +1,18 @@
+.section {
+  border-top: 1px solid var(--border-01);
+  display: grid;
+  gap: var(--space-03);
+  padding-top: var(--space-04);
+}
+
+.paragraph {
+  margin: 0;
+}
+
+/* Full body contrast, unlike a supporting-detail list elsewhere (`CareInvitation`'s) — every word here is what the professional is agreeing to. Spacing above the list comes from `.section`'s own `gap`, not a margin here, since `.section` is a grid. */
+.list {
+  display: grid;
+  gap: var(--space-03);
+  margin: 0;
+  padding-inline-start: var(--space-05);
+}

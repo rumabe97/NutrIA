@@ -234,33 +234,58 @@ export const esES = {
       targets: 'tus objetivos'
     },
     accessLogEmpty: 'Todavía no hay nada que mostrar aquí.',
+    accessLogGranted: 'Empezaste a compartir {kind} con {professional}',
+    accessLogGrantedGroup: 'Empezaste a compartir {kind} con {professional}, {count} veces · {range}',
     accessLogLoaded: '{count} accesos más cargados.',
     accessLogLoadMore: 'Ver más',
     accessLogNoMore: 'No hay más accesos que mostrar.',
     accessLogRead: '{professional} vio {kind}',
     accessLogReadGroup: '{professional} vio {kind} {count} veces · {range}',
     accessLogTitle: 'Quién ha accedido',
+    accessLogWithdrawn: 'Dejaste de compartir {kind} con {professional}',
+    accessLogWithdrawnGroup: 'Dejaste de compartir {kind} con {professional}, {count} veces · {range}',
     accessLogWrite: '{professional} cambió {kind}',
     accessLogWriteGroup: '{professional} cambió {kind} {count} veces · {range}',
+    canDo: {
+      plans: 'generar y cambiar tus planes',
+      review: 'revisar cada plan nuevo antes de que lo veas; mientras lo revisa, sigues con el que tenías',
+      targets: 'fijar tus objetivos diarios, dentro de los mismos límites de seguridad'
+    },
     declineCta: 'No, gracias',
     end: 'Terminar el enlace',
-    endConfirmBody: 'Tu dietista dejará de ver tu perfil, tu plan y tu progreso. Puedes volver a aceptar una invitación suya más adelante.',
+    endConfirmBody:
+      'Tu dietista dejará de ver tus datos desde ahora. Tus objetivos, tu historial y tu último plan publicado se quedan contigo, y el registro de sus accesos sigue en tu perfil. Lo que tu dietista ya anotara en su propia historia clínica lo conserva según su normativa. Puedes aceptar otra invitación suya más adelante.',
     endConfirmCta: 'Sí, terminar',
     endConfirmTitle: '¿Terminar el enlace con {professional}?',
-    healthQuestion: 'Compartir también tu historial de salud',
+    healthQuestion: 'Compartir también mis condiciones de salud, mi medicación y mis suplementos',
     healthShareIntro: 'Aparte de lo anterior, puedes compartir también:',
-    healthShareNote: 'Solo si lo marcas. Puedes dejarlo sin marcar y decidirlo más adelante desde tu perfil.',
+    healthShareNote: 'Es opcional y aparte. Puedes activarlo o dejar de compartirlo cuando quieras desde tu perfil, sin terminar el enlace.',
+    healthShareOffHint: 'Tu dietista deja de verlas en cuanto lo desactivas. El enlace sigue activo.',
+    healthShareOnHint: 'Tu dietista puede verlas.',
     healthShares: { conditions: 'tus condiciones de salud', medications: 'tus medicamentos', supplements: 'tus suplementos' },
+    healthShareToggle: 'Compartir mis condiciones de salud, mi medicación y mis suplementos',
     invitationAccept: 'Aceptar la invitación',
-    invitationIntro: '{professional} te invita a compartir tu seguimiento con NutrIA para acompañarte.',
+    invitationCanDoIntro: 'Y podrá:',
+    invitationIntro:
+      '{professional}, dietista-nutricionista con número de colegiado {collegiateNumber}, te invita a llevar tu plan con su ayuda en NutrIA.',
     invitationLinkExistsBody: 'Ya tienes un dietista vinculado: {professional}, desde el {since}.',
     invitationLinkExistsCta: 'Ver mi perfil',
     invitationLinkExistsTitle: 'Ya tienes un enlace activo',
-    invitationShareIntro: 'Si aceptas, {professional} podrá ver:',
+    invitationNotShared: 'No verá tus alergias, tus intolerancias ni tu correo.',
+    invitationPrivacy:
+      'NutrIA te comunica estos datos a {professional} porque tú lo pides. Tu dietista los usa para atenderte, bajo su secreto profesional, y responde de lo que haga con ellos en su consulta. Puedes terminar el enlace cuando quieras. Más en la {privacy}.',
+    invitationShareIntro: 'Si aceptas, {professional} verá:',
     invitationTitle: 'Invitación de {professional}',
+    invitationTrail: 'Cada vez que mire o cambie algo, lo verás en tu perfil.',
     linkSince: 'Desde el {date}',
     linkTitle: 'Tu dietista',
-    shares: { checkIns: 'tus check-ins', mealPlans: 'tus planes de comida', profile: 'tu perfil', progress: 'tu progreso', targets: 'tus objetivos' },
+    shares: {
+      checkIns: 'tus respuestas a los check-ins (no tus comentarios escritos)',
+      mealPlans: 'tu plan de comidas y los anteriores',
+      profile: 'tu nombre',
+      progress: 'cuánto sigues cada quincena y tu peso a lo largo del tiempo',
+      targets: 'tus objetivos diarios y cómo se calcularon'
+    },
     whatIsShared: 'Comparte: {list}'
   },
 
@@ -550,7 +575,7 @@ export const esES = {
     conditionsOtherHint: 'Separa con comas. No interpretamos lo que escribas aquí.',
     consentLabel: 'Guardad estos datos de salud para personalizar mis planes',
     consentNote:
-      'Se guardan en tu cuenta, no se envían a ningún modelo de IA, no aparecen en los registros del servidor y se borran con tu cuenta. Puedes borrarlos por separado con el botón de abajo.',
+      'Se guardan en tu cuenta, no aparecen en los registros del servidor y se borran con tu cuenta. Nunca se envían a ningún modelo de IA: solo llega su efecto, como los ingredientes que quitamos por una celiaquía. Si trabajas con un dietista, solo los ve si se lo permites aparte. Puedes borrarlos por separado con el botón de abajo.',
     consentStale: 'Hemos actualizado cómo explicamos el uso de estos datos. Revisa y vuelve a guardar para seguir manteniéndolos.',
     intro: 'Opcional. Nada de esto es obligatorio para usar NutrIA, y puedes borrarlo entero cuando quieras.',
     medications: 'Medicación',
@@ -1064,9 +1089,11 @@ export const esES = {
     planRenews: 'Se renueva el {date}.',
     planSeats: '{active} de {included} pacientes',
     planSeatsPending: 'Y {count} invitaciones sin responder, que también ocupan plaza.',
+    planTerms: 'Contratas como profesional, no como consumidor. {terms}',
+    planTermsLink: 'Condiciones del plan de consulta',
     planTestMode: 'Modo de prueba: nada de lo que pagues es dinero real.',
     planTitle: 'Tu plan',
-    planTrial: 'Los primeros {days} días son gratis.',
+    planTrial: 'Los primeros {days} días son gratis. Al terminar, el plan se cobra cada mes hasta que lo canceles.',
     planTrialLeft: 'Periodo de prueba: te quedan {days} días.',
     planUnavailable: 'Los planes de consulta todavía no están disponibles.',
     publish: 'Publicar el plan',
@@ -1098,6 +1125,175 @@ export const esES = {
     title: 'Consulta',
     weightNone: 'Aún no ha anotado ningún peso.',
     weightTitle: 'Peso'
+  },
+
+  practiceAgreement: {
+    accept: 'Aceptar y abrir mi consulta',
+    acceptedOn: 'Aceptado el {date}, versión {version}.',
+    checkbox: 'He leído y acepto el acuerdo del profesional y las condiciones del plan de consulta.',
+    intro: [
+      'Vas a ver datos de salud de tus pacientes. Esto es lo que aceptas para poder hacerlo. Léelo: son pocas cosas y todas importan.',
+      'NutrIA lo presta {name}, a quien puedes escribir en {email}.'
+    ],
+    sections: [
+      {
+        heading: 'Quién eres aquí',
+        list: [
+          'Usas NutrIA como dietista-nutricionista titulado y, cuando tu comunidad lo exige, colegiado. El número de colegiado que nos diste es tuyo y está en vigor; si deja de estarlo, nos lo dices y dejas de usar la consulta.',
+          'La cuenta es personal. Nadie más entra con ella, tampoco alguien de tu equipo.'
+        ],
+        paragraphs: []
+      },
+      {
+        heading: 'Qué verás y qué podrás hacer',
+        list: [
+          'Verás su nombre, sus objetivos diarios y cómo se calcularon, su plan y los anteriores, cuánto de cada quincena ha seguido, su peso a lo largo del tiempo y las respuestas de cada check-in. Sus condiciones de salud, su medicación y sus suplementos, solo si tu paciente lo marca aparte, y dejas de verlos en cuanto lo desmarca.',
+          'No verás sus alergias ni intolerancias, su correo, sus comentarios escritos ni nada de otras personas.',
+          'Podrás fijar sus objetivos diarios dentro de los mismos límites de seguridad que usa la calculadora, generar y cambiar su plan, revisarlo antes de que lo vea y publicarlo.',
+          'Cada vez que miras o cambias algo, tu paciente lo ve en su perfil: quién, qué y cuándo.'
+        ],
+        paragraphs: ['Solo de los pacientes que acepten tu invitación, y mientras el enlace siga activo:']
+      },
+      {
+        heading: 'Secreto profesional',
+        list: [
+          'Lo que veas aquí está bajo tu secreto profesional, igual que lo que te cuentan en consulta. No lo compartes con nadie ajeno a la asistencia de ese paciente, salvo en los casos en que la ley te obliga o te permite hacerlo.',
+          'Si trabajas con otras personas, ninguna usa tu cuenta ni ve la consulta.'
+        ],
+        paragraphs: []
+      },
+      {
+        heading: 'Quién responde de los datos',
+        list: [
+          'NutrIA es responsable de los datos de la cuenta de tu paciente: los guarda, los protege, decide cuánto duran y atiende sus derechos sobre ellos (acceso, rectificación, borrado, portabilidad, oposición). Cuando tu paciente acepta tu invitación, NutrIA te comunica esos datos porque tu paciente lo pide y lo consiente.',
+          'Tú eres responsable, por tu cuenta, de lo que hagas con lo que ves: de tu valoración, de lo que anotes fuera de NutrIA y de tu historia clínica. Lo haces para tu asistencia dietética, con tu propia base legal como profesional sanitario.',
+          'NutrIA no trata datos por cuenta tuya: no es tu encargado del tratamiento. Si algún día NutrIA guardara algo que escribes para tu práctica —notas, una ficha, documentos— o te dejara exportar la ficha de un paciente, antes firmaríamos un contrato de encargo y te pediríamos aceptarlo.',
+          'Si un paciente te pide ejercer un derecho sobre los datos que viven en NutrIA, le indicas que lo haga desde su perfil o escribiendo a {email}; si nos lo pide a nosotros sobre lo que tú guardas fuera, se lo diremos. Cada uno informa a los pacientes de lo suyo; NutrIA ya les informa, en la invitación y en su política de privacidad, de que te comunica sus datos y de qué datos son.',
+          'Si una autoridad o un tribunal considerara que decidimos juntos el tratamiento, este apartado es nuestro acuerdo de reparto de responsabilidades: NutrIA informa a los pacientes y atiende sus derechos sobre lo que vive en NutrIA, y es el punto de contacto; tú, sobre lo que guardas fuera. Sus aspectos esenciales están en la política de privacidad.'
+        ],
+        paragraphs: []
+      },
+      {
+        heading: 'NutrIA es una herramienta, no una segunda opinión',
+        list: [
+          'NutrIA planifica comidas. No diagnostica, no trata y no deriva ninguna regla de una enfermedad, salvo una: la celiaquía excluye el gluten. La medicación no produce nada.',
+          'Los platos y las recetas los propone un modelo de inteligencia artificial y los comprueba nuestro código: alergias e intolerancias declaradas, límites de calorías y de proteína. Pueden tener errores de cantidades o de pasos. La decisión clínica y la revisión del plan son tuyas.',
+          'Los datos de salud de tu paciente nunca llegan al modelo, compartan o no contigo.',
+          'NutrIA no es tu historia clínica. Lo que tu profesión te obliga a registrar y conservar, lo registras y conservas tú, fuera de NutrIA. Cuando el enlace termina, dejas de ver todo lo que había aquí.'
+        ],
+        paragraphs: []
+      },
+      {
+        heading: 'A quién invitas',
+        list: [
+          'Solo a personas que ya son tus pacientes y que saben, antes de recibir el correo, que las vas a invitar. Su dirección nos la das tú, y con ella solo enviamos la invitación.',
+          'Nunca a menores de 18 años. Tampoco a pacientes que necesiten nutrición clínica que NutrIA no cubre: una enfermedad metabólica diagnosticada que requiera una pauta específica, el embarazo, la recuperación de un trastorno de la conducta alimentaria o la alimentación infantil. Para ellos, NutrIA no es la herramienta.',
+          'Tu paciente decide: puede decir que no, aceptar sin compartir su salud, retirar esa parte o terminar el enlace cuando quiera. No le condiciones tu atención a que acepte.'
+        ],
+        paragraphs: []
+      },
+      {
+        heading: 'Qué pasa con los datos cuando algo termina',
+        list: [
+          'Termina un enlace (lo terminas tú, tu paciente, o se pausa porque tu plan no está al día): dejas de ver sus datos en la siguiente petición. Los objetivos que fijaste se quedan en su cuenta y pasan a ser suyos. Un plan que tenías pendiente de revisar no se le muestra y no le cuesta nada. Tu nombre sigue en su registro de accesos, porque es su derecho saber quién miró.',
+          'Borras tu cuenta: terminan todos tus enlaces y se borran tus invitaciones, tu concesión y tu suscripción. Tu nombre se queda en el registro de accesos de cada paciente que tuviste, sin tu cuenta.',
+          'Tu paciente borra su cuenta: dejas de verlo; su registro se borra con ella.',
+          'Retiramos tu concesión (por ejemplo, si tu número de colegiado deja de estar en vigor o incumples este acuerdo): pierdes el acceso a la consulta y tus invitaciones se anulan.',
+          'Lo que hayas copiado fuera de NutrIA para tu historia clínica es tuyo y lo conservas según tu normativa.'
+        ],
+        paragraphs: []
+      },
+      {
+        heading: 'Seguridad',
+        list: [
+          'Protege tu acceso: una contraseña que no uses en otro sitio, o entra con Google. No dejes la sesión abierta en un ordenador compartido.',
+          'No hagas capturas ni copias de la ficha salvo para tu historia clínica, y guárdalas con la misma protección que el resto de tu documentación clínica.',
+          'Si crees que alguien ha entrado en tu cuenta o ha visto datos de un paciente que no debía, escríbenos a {email} en cuanto lo sepas, y en todo caso en 24 horas. Nosotros valoraremos si hay que avisar a la Agencia Española de Protección de Datos y a los pacientes; si la brecha es tuya, fuera de NutrIA, esa obligación es tuya.'
+        ],
+        paragraphs: []
+      },
+      {
+        heading: 'Usos prohibidos',
+        list: [
+          'intentar ver datos de alguien que no ha aceptado tu invitación, o saber si una dirección tiene cuenta en NutrIA;',
+          'invitar direcciones que no sean de tus pacientes, ni usar la invitación para anunciar tus servicios;',
+          'usar los datos de tus pacientes para algo que no sea su asistencia: ni publicidad, ni estudios, ni venderlos ni cederlos;',
+          'compartir o prestar tu cuenta;',
+          'extraer datos de forma automatizada o intentar saltarte los límites de tu plan o las medidas de seguridad.'
+        ],
+        outro: ['Si haces alguna de estas cosas, podemos retirar tu concesión de inmediato.'],
+        paragraphs: ['No puedes:']
+      },
+      {
+        heading: 'Cambios y duración',
+        list: [
+          'Este acuerdo dura mientras tengas la concesión. Si lo cambiamos en algo importante, te lo diremos por correo y te pediremos aceptarlo de nuevo antes de volver a abrir la consulta; mientras tanto tus pacientes siguen con sus cuentas.',
+          'Se rige por la ley española. Para las condiciones económicas del plan de consulta, ver abajo.'
+        ],
+        paragraphs: []
+      }
+    ],
+    terms: {
+      sections: [
+        {
+          heading: 'Qué contratas',
+          paragraphs: [
+            'El acceso a la consulta de NutrIA para un número de pacientes activos que depende del plan (por ejemplo, 30 o 60). Cuentan como plaza los enlaces activos y las invitaciones que aún no han caducado. Al llegar al límite, puedes pasar a un plan mayor o terminar un enlace.'
+          ]
+        },
+        {
+          heading: 'Precio y pago',
+          paragraphs: [
+            'El precio mensual de cada plan, con impuestos, se muestra antes de pagar. Se cobra por adelantado cada mes a través de Stripe, con la tarjeta que indiques. Si necesitas una factura a nombre de tu actividad, indica tus datos fiscales en el pago.'
+          ]
+        },
+        {
+          heading: 'Prueba',
+          paragraphs: [
+            'La primera vez tienes {days} días gratis. Te pedimos la tarjeta al empezar y no cobramos hasta que la prueba acaba; si cancelas antes, no pagas nada. La prueba es una por cuenta.'
+          ]
+        },
+        {
+          heading: 'Renovación y cancelación',
+          paragraphs: [
+            'El plan se renueva cada mes hasta que lo canceles desde «Gestionar el plan», en tu consulta. Conservas el acceso hasta el final del mes pagado. No hay permanencia. Puedes cambiar de plan desde el mismo sitio; el cambio y su prorrateo los calcula Stripe al momento.'
+          ]
+        },
+        {
+          heading: 'Si el plan no está al día',
+          paragraphs: [
+            'Si un cobro falla, Stripe lo reintenta durante unos días y mantienes el acceso. Si el plan termina o deja de pagarse, tus pacientes quedan en pausa: dejas de ver sus datos, ellos conservan sus cuentas y vuelven a los límites gratuitos, y no se borra nada. Si vuelves a pagar, los enlaces se reanudan.'
+          ]
+        },
+        {
+          heading: 'Sin derecho de desistimiento de consumidor',
+          paragraphs: [
+            'Como contratas para tu actividad profesional, no se aplica el derecho de desistimiento de 14 días de los consumidores. Aun así, si cancelas durante la prueba no pagas nada.'
+          ]
+        },
+        {
+          heading: 'Disponibilidad y cambios',
+          paragraphs: [
+            'Hacemos lo posible porque la consulta funcione siempre, pero puede haber interrupciones. Si cambiamos el precio te avisamos con al menos 30 días y puedes cancelar antes. Si algún día cerramos el servicio, avisaremos con tiempo y devolveremos la parte no disfrutada del mes.'
+          ]
+        },
+        {
+          heading: 'Responsabilidad',
+          paragraphs: [
+            'Respondemos de lo que cause NutrIA por dolo o negligencia grave y de lo que la ley no permite excluir. No respondemos de tus decisiones clínicas ni de lo que hagas con los datos fuera de NutrIA, que son tuyos como profesional. Nuestra responsabilidad por lo demás se limita a lo que hayas pagado en los últimos doce meses.'
+          ]
+        },
+        {
+          heading: 'Ley y tribunales',
+          paragraphs: [
+            'Se rigen por la ley española. Para cualquier conflicto, los juzgados y tribunales del domicilio del titular de NutrIA, salvo que la ley disponga otra cosa.'
+          ]
+        }
+      ],
+      title: 'Condiciones del plan de consulta'
+    },
+    title: 'Antes de abrir tu consulta',
+    version: 'Versión {version}'
   },
 
   privacy: {
@@ -1141,6 +1337,18 @@ export const esES = {
           'Con tu consentimiento explícito: tus alergias e intolerancias, tu cuerpo y tu objetivo y tu forma de comer, que nos das con una casilla propia al crear tu perfil. Sin ellos no podemos hacer un plan seguro para ti, por eso sin ese consentimiento no generamos planes; puedes retirarlo cuando quieras borrando esos datos desde tu perfil. Tus enfermedades, tu medicación y tus suplementos, con un consentimiento aparte, opcional. Cada consentimiento se guarda con su fecha y la versión del texto que aceptaste.',
           'Por nuestro interés legítimo: registrar el uso del producto y los errores técnicos para que funcione, sin datos de salud. Puedes oponerte escribiéndonos.',
           'Por obligación legal: conservar lo que la ley fiscal exige de los pagos (lo hace Stripe).'
+        ]
+      },
+      {
+        id: 'tu-dietista',
+        heading: 'Tu dietista en NutrIA',
+        paragraphs: [
+          'Un dietista-nutricionista puede invitarte por correo a llevar tu plan en NutrIA con su ayuda. Solo un profesional al que hemos dado acceso tras comprobar su número de colegiado puede hacerlo. Su invitación dura 14 días; tu dirección la usamos solo para enviártela y la borramos con la invitación: en cuanto respondes o, si no respondes, como muy tarde el día después de que caduque.',
+          'Nada se comparte si no aceptas. Si aceptas, tu dietista verá tu nombre, tus objetivos diarios y cómo se calcularon, tus planes, cuánto sigues cada quincena, tu peso a lo largo del tiempo y tus respuestas a los check-ins. Podrá fijar tus objetivos, generar y cambiar tus planes, y revisar cada plan nuevo antes de que lo veas. Tus enfermedades, tu medicación y tus suplementos solo si marcas esa casilla aparte. No verá tus alergias ni intolerancias, tu correo ni tus comentarios escritos.',
+          'Cada vez que tu dietista mira o cambia algo, queda anotado y lo ves en tu perfil, en «Quién ha accedido».',
+          'Puedes terminar el enlace cuando quieras desde tu perfil, y desde la siguiente petición tu dietista deja de ver tus datos. También puedes dejar de compartir solo tu salud sin terminar el enlace. Tus objetivos, tu historial y tu último plan publicado se quedan contigo.',
+          'Quién responde de qué: NutrIA es responsable de tus datos en NutrIA y te los comunica a tu dietista porque tú lo pides. Tu dietista es responsable, por su cuenta y bajo su secreto profesional, de lo que haga con lo que ve en su consulta, por ejemplo lo que anote en tu historia clínica; para eso, dirígete a tu dietista. Para todo lo que está en NutrIA, escríbenos a {email}: somos tu punto de contacto.',
+          'Si tu dietista borra su cuenta, el enlace termina y su nombre sigue en tu registro de accesos.'
         ]
       },
       {
@@ -1519,9 +1727,19 @@ export const esES = {
         ]
       },
       {
+        id: 'dietista',
+        heading: 'Si trabajas con un dietista',
+        paragraphs: [
+          'Un dietista-nutricionista puede invitarte a llevar tu plan en NutrIA con su ayuda. Si aceptas, podrá ver y ajustar tu plan como explica la invitación y la política de privacidad, y mientras el enlace dure tendrás los límites de Premium sin pagar nada.',
+          'Tu dietista es un profesional independiente: su consejo y su relación contigo son cosa suya y tuya. NutrIA es la herramienta y no responde de sus decisiones clínicas, del mismo modo que tu dietista no responde de cómo funciona NutrIA.',
+          'Puedes terminar el enlace cuando quieras. Al terminar, conservas tu cuenta, tu historial y tu último plan publicado, con los límites gratuitos.'
+        ]
+      },
+      {
         heading: 'Responsabilidad',
         paragraphs: [
-          'Respondemos de los daños que causemos por dolo o negligencia grave, y de todo aquello que la ley no permite excluir. No respondemos de las decisiones de salud que tomes a partir de un plan sin consultar a un profesional, ni de los productos que compres. Nada de esto limita los derechos que tienes como consumidor.'
+          'Respondemos de los daños que causemos por dolo o negligencia grave, y de todo aquello que la ley no permite excluir. No respondemos de las decisiones de salud que tomes a partir de un plan sin consultar a un profesional, ni de los productos que compres. Nada de esto limita los derechos que tienes como consumidor.',
+          'Si usas NutrIA con un dietista, lo que te aconseje es responsabilidad suya como profesional; lo que haga NutrIA —cómo calcula, qué comprueba y qué te muestra— es responsabilidad nuestra.'
         ]
       },
       {
