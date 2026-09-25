@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { makeProfessional, makeUser } from '#test/fixtures';
 import { NotFoundError } from 'core/entities/Error';
+import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 
 import { ProfessionalController } from './ProfessionalController';
 
@@ -9,6 +10,7 @@ import type { ProfessionalListRow } from '#repositories/Professional';
 import type { Professional } from 'core/entities/Professional';
 import type { User } from 'core/entities/User';
 
+const acceptAgreement = vi.fn<(userId: string, version: string, now: Date) => Promise<Professional | null>>();
 const find = vi.fn<(userId: string) => Promise<Professional | null>>();
 const grant = vi.fn<(userId: string, collegiateNumber: string, grantedBy: string) => Promise<Professional>>();
 const list = vi.fn<() => Promise<readonly ProfessionalListRow[]>>();
@@ -19,6 +21,7 @@ const isEnabled = vi.fn<(key: string, fallback: boolean) => Promise<boolean>>();
 
 vi.mock('#repositories/Professional', () => ({
   ProfessionalRepository: {
+    acceptAgreement: (userId: string, version: string, now: Date) => acceptAgreement(userId, version, now),
     find: (userId: string) => find(userId),
     grant: (userId: string, collegiateNumber: string, grantedBy: string) => grant(userId, collegiateNumber, grantedBy),
     linkCounts: (professionalId: string) => linkCounts(professionalId),
@@ -30,6 +33,7 @@ vi.mock('#repositories/User', () => ({ UserRepository: { findById: (id: string) 
 vi.mock('#repositories/Settings', () => ({ SettingsRepository: { isEnabled: (key: string, fallback: boolean) => isEnabled(key, fallback) } }));
 
 beforeEach(() => {
+  acceptAgreement.mockReset();
   find.mockReset();
   grant.mockReset();
   list.mockReset();
@@ -94,7 +98,21 @@ describe('ProfessionalController.find', () => {
 
     const view = await ProfessionalController.find('usr-dietitian');
 
-    expect(view).toEqual({ collegiateNumber: 'MAD00123', grantedAt: '2026-09-23T10:00:00.000Z', includedClients: 30, practiceOpen: true });
+    expect(view).toEqual({
+      agreementRequired: true,
+      collegiateNumber: 'MAD00123',
+      grantedAt: '2026-09-23T10:00:00.000Z',
+      includedClients: 30,
+      practiceOpen: true
+    });
+  });
+
+  it('asks for the agreement until the current version is the one accepted', async () => {
+    find.mockResolvedValueOnce(makeProfessional({ agreementAcceptedAt: new Date(), agreementVersion: '0.9.0' }));
+    find.mockResolvedValueOnce(makeProfessional({ agreementAcceptedAt: new Date(), agreementVersion: PROFESSIONAL_AGREEMENT_VERSION }));
+
+    await expect(ProfessionalController.find('usr-dietitian')).resolves.toMatchObject({ agreementRequired: true });
+    await expect(ProfessionalController.find('usr-dietitian')).resolves.toMatchObject({ agreementRequired: false });
   });
 
   it('answers null for an ordinary account', async () => {
@@ -214,5 +232,37 @@ describe('ProfessionalController.list', () => {
     const [row] = await ProfessionalController.list();
 
     expect(row?.links).toEqual({ active: 1, ended: 0, paused: 0 });
+  });
+});
+
+describe('ProfessionalController.acceptAgreement', () => {
+  const NOW = new Date('2026-09-25T09:00:00.000Z');
+
+  it('writes the version for the session’s account and answers the grant, no longer asking', async () => {
+    isEnabled.mockResolvedValue(true);
+    acceptAgreement.mockResolvedValue(makeProfessional({ agreementAcceptedAt: NOW, agreementVersion: PROFESSIONAL_AGREEMENT_VERSION }));
+
+    const view = await ProfessionalController.acceptAgreement('usr-dietitian', { version: PROFESSIONAL_AGREEMENT_VERSION }, NOW);
+
+    expect(acceptAgreement).toHaveBeenCalledWith('usr-dietitian', PROFESSIONAL_AGREEMENT_VERSION, NOW);
+    expect(view.agreementRequired).toBe(false);
+  });
+
+  it('is a 404 for an account that is not a professional', async () => {
+    isEnabled.mockResolvedValue(true);
+    acceptAgreement.mockResolvedValue(null);
+
+    await expect(ProfessionalController.acceptAgreement('usr-plain', { version: PROFESSIONAL_AGREEMENT_VERSION }, NOW)).rejects.toThrow(
+      NotFoundError
+    );
+  });
+
+  it('is a 404 while the switch is off, and writes nothing', async () => {
+    isEnabled.mockResolvedValue(false);
+
+    await expect(ProfessionalController.acceptAgreement('usr-dietitian', { version: PROFESSIONAL_AGREEMENT_VERSION }, NOW)).rejects.toThrow(
+      NotFoundError
+    );
+    expect(acceptAgreement).not.toHaveBeenCalled();
   });
 });

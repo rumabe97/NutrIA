@@ -1,15 +1,16 @@
-import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Query } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Query } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { CareService } from '../services/index.js';
-import { CurrentUser } from '../../../shared/index.js';
+import { CurrentUser, ZodBody } from '../../../shared/index.js';
+import { SetLinkHealthDto } from '../dto/in/index.js';
 
 import type { CareAccessPageDto, CareLinkDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
 /**
- * A link that exists (`0059`): the client seeing it and its trail, and either
- * side ending it.
+ * A link that exists (`0059`): the client seeing it and its trail, switching
+ * its health line on and off, and either side ending it.
  *
  * **No switch here, deliberately.** Consent is revocable (PRD 004, criterion
  * 4): a client sees what they agreed to and can take it back whatever the
@@ -17,7 +18,9 @@ import type { SessionUser } from '../../../shared/index.js';
  * part that needs the switch and the grant, and `CareController.end` asks
  * for both before it tries it. A client with no link gets the same answer
  * with the switch on or off — `null`, or a 404 for a link that is not theirs —
- * so leaving the switch off these routes tells nobody anything. The trail
+ * so leaving the switch off these routes tells nobody anything. The health
+ * line is the same: the client's own consent, theirs to take back or give
+ * whatever the switch says (`docs/legal/analisis.md` P0-1). The trail
  * (`GET /care/access-log`) is the same: what a professional read about
  * somebody stays theirs to read, and an account nobody read gets an empty page.
  *
@@ -34,6 +37,13 @@ export class CareLinksController {
   @Get('links/me')
   async myLink(@CurrentUser() user: SessionUser): Promise<CareLinkDto | null> {
     return this.care.myLink(user);
+  }
+
+  @ApiOkResponse({ description: 'The link, with the health line as it now stands. 404 when the account has no active or paused link.' })
+  @ApiOperation({ summary: 'Start or stop sharing the health line on the signed-in client’s link, without ending it' })
+  @Patch('links/me')
+  async setSharesHealth(@CurrentUser() user: SessionUser, @ZodBody(SetLinkHealthDto) body: SetLinkHealthDto): Promise<CareLinkDto> {
+    return this.care.setSharesHealth(user, body);
   }
 
   @ApiOkResponse({

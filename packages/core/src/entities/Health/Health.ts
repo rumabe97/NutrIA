@@ -39,8 +39,12 @@ export const CONDITION_KEYS = HEALTH_CONDITIONS.map(condition => condition.key) 
  * A stored version that no longer matches this one is not consent to the
  * current notice, so the product asks again instead of assuming agreement to
  * wording the user never read.
+ *
+ * `1.1.0` (`docs/legal/textos/05` § C): the note says only the effect of this
+ * data reaches a model, and that a dietitian sees it only if allowed apart.
+ * Data stored under `1.0.0` stays, answered with `consentIsCurrent: false`.
  */
-export const HEALTH_CONSENT_VERSION = '1.0.0';
+export const HEALTH_CONSENT_VERSION = '1.1.0';
 
 export const healthConditionSchema = z.object({
   id: z.uuid(),

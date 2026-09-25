@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { CronController, RecipesController } from './controllers/index.js';
 import { envProvider } from '../../config/index.js';
+import { ExpiredInvitationsService } from '../care/services/ExpiredInvitations.service.js';
 import { NotificationsModule } from '../notifications/index.js';
 import { RecipesService } from './services/index.js';
 
@@ -12,5 +13,9 @@ import { RecipesService } from './services/index.js';
  * booting the real application catches its absence: that is what the end-to-end
  * suites are for, and they did.
  */
-@Module({ controllers: [CronController, RecipesController], imports: [NotificationsModule], providers: [envProvider, RecipesService] })
+@Module({
+  controllers: [CronController, RecipesController],
+  imports: [NotificationsModule],
+  providers: [envProvider, ExpiredInvitationsService, RecipesService]
+})
 export class RecipesModule {}

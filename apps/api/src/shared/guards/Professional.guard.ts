@@ -33,6 +33,12 @@ import type { ExecutionContext } from '@nestjs/common';
  * page is, because that is where the way to pay is shown. Deny by default:
  * a route that forgets the mark is closed while the practice is, not open.
  *
+ * **And the agreement accepted** (`docs/legal/textos/01`): no client route
+ * opens until the professional has accepted the current
+ * `PROFESSIONAL_AGREEMENT_VERSION`, the same 404 otherwise. The routes marked
+ * `@BeforePractice()` — the workspace's page and accepting the agreement — are
+ * the way to both, so they need neither.
+ *
  * Everything is read on every request and never cached, for the reason
  * `SessionGuard` re-reads the session: revoking the grant, throwing the
  * switch off, or a practice lapsing closes access on the very next request.
@@ -54,7 +60,13 @@ export class ProfessionalGuard implements CanActivate {
 
     const beforePractice = this.reflector.getAllAndOverride<boolean | undefined>(BEFORE_PRACTICE_KEY, [context.getHandler(), context.getClass()]);
 
-    if (!beforePractice && !(await ProfessionalController.find(user.id))?.practiceOpen) {
+    if (beforePractice) {
+      return true;
+    }
+
+    const practice = await ProfessionalController.find(user.id);
+
+    if (!practice?.practiceOpen || practice.agreementRequired) {
       throw new NotFoundException();
     }
 

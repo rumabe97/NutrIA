@@ -18,6 +18,13 @@ import { userOwnedSingleton } from './_utils';
  * billing exists they hold their defaults, which grant nothing.
  */
 export const professionals = userOwnedSingleton('professionals', {
+  /**
+   * When the professional accepted their agreement (`docs/legal/textos/01`), and
+   * which version: both null until they do, so a grant starts unaccepted. A
+   * version that is not `PROFESSIONAL_AGREEMENT_VERSION` asks again.
+   */
+  agreementAcceptedAt: timestamp({ withTimezone: true }),
+  agreementVersion: text(),
   /** Required, never a declaration: the owner types it from the register. */
   collegiateNumber: text().notNull(),
   grantedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

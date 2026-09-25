@@ -36,6 +36,31 @@ function linksIn(status: 'active' | 'ended' | 'paused') {
 
 export const ProfessionalRepository = {
   /**
+   * The professional accepts their agreement at `version` (`docs/legal/textos/01`).
+   *
+   * One guarded `UPDATE` by the session's id: no row, no grant, and `null`. The
+   * date is kept when this version was already accepted, so a second click does
+   * not move the moment the acceptance can be shown to have happened.
+   */
+  async acceptAgreement(userId: string, version: string, now: Date): Promise<Professional | null> {
+    try {
+      const [row] = await database()
+        .update(professionals)
+        .set({
+          agreementAcceptedAt: sql`case when ${professionals.agreementVersion} = ${version} then ${professionals.agreementAcceptedAt} else ${now} end`,
+          agreementVersion: version,
+          updatedAt: now
+        })
+        .where(eq(professionals.userId, userId))
+        .returning();
+
+      return row ? professionalSchema.parse(row) : null;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
    * The professional's own row, by the session's id.
    *
    * `userId` is the ownership boundary as everywhere else — here it is also

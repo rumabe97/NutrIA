@@ -107,5 +107,9 @@ export const careLinkEndedBy = pgEnum('care_link_ended_by', ['professional', 'cl
  */
 export const careAccessKind = pgEnum('care_access_kind', ['list', 'overview', 'plan', 'progress', 'targets', 'health', 'review']);
 
-/** Whether that access only read, or changed something. */
-export const careAccessAction = pgEnum('care_access_action', ['read', 'write']);
+/**
+ * Whether that access only read, or changed something — or, on a `health` row,
+ * that the client themselves started (`granted`) or stopped (`withdrawn`)
+ * sharing the health line with that professional, without ending the link.
+ */
+export const careAccessAction = pgEnum('care_access_action', ['read', 'write', 'granted', 'withdrawn']);

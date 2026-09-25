@@ -41,6 +41,7 @@ function event(type: string, object: Record<string, unknown>): Stripe.Event {
 
 function harness(
   options: {
+    agreed?: boolean;
     configured?: boolean;
     customer?: string | null;
     event?: Stripe.Event | null;
@@ -75,6 +76,19 @@ function harness(
     .spyOn(SettingsController, 'flags')
     .mockResolvedValue({ automaticActivation: true, checkInReminders: false, premium: options.premium ?? true, professional: false });
   jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(options.professional ?? false);
+  jest
+    .spyOn(ProfessionalController, 'find')
+    .mockResolvedValue(
+      options.professional
+        ? {
+            agreementRequired: !(options.agreed ?? true),
+            collegiateNumber: '28/1',
+            grantedAt: '2026-09-01T00:00:00.000Z',
+            includedClients: 0,
+            practiceOpen: false
+          }
+        : null
+    );
   jest.spyOn(ProfileController, 'localeOf').mockResolvedValue('es-ES');
   jest.spyOn(BillingController, 'standing').mockResolvedValue({ subscription: options.subscription ?? null, tier: 'free' });
   jest.spyOn(BillingController, 'customerOf').mockResolvedValue(options.customer ?? null);
@@ -449,6 +463,22 @@ describe('BillingService — a practice', () => {
     await expect(harness({ practices: false, professional: true }).service.checkout(PERSON, 'practice', 'price_practice_30')).rejects.toBeInstanceOf(
       NotFoundError
     );
+  });
+
+  /* `docs/legal/textos/04`: the practice plan's terms are accepted with the agreement, on the same screen, before paying. */
+  it('is a 404 until the professional has accepted the agreement — and the offer and portal stay open', async () => {
+    const { gateway, service } = harness({ agreed: false, customer: 'cus_1', professional: true });
+
+    await expect(service.checkout(PERSON, 'practice', 'price_practice_30')).rejects.toBeInstanceOf(NotFoundError);
+    expect(gateway.checkoutUrl).not.toHaveBeenCalled();
+    await expect(service.practiceOffer(PERSON)).resolves.toMatchObject({ available: true });
+    await expect(service.portal(PERSON)).resolves.toEqual({ url: 'https://billing.stripe.com/p/session' });
+  });
+
+  it('asks nothing about the agreement for personal premium', async () => {
+    const { service } = harness({ agreed: false, professional: true });
+
+    await expect(service.checkout(PERSON, 'monthly')).resolves.toEqual({ url: 'https://checkout.stripe.com/c/session' });
   });
 
   it('with test keys, is the owner’s alone', async () => {
