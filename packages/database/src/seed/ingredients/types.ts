@@ -1,5 +1,6 @@
 import type { AllergenKey } from '../allergens';
 import type { FoodClass } from '../../schemas/food.schema';
+import type { mealSlot } from '../../schemas/_enums';
 
 export type Category = 'bakery' | 'beverages' | 'dairy' | 'frozen' | 'other' | 'pantry' | 'produce' | 'protein';
 export type Unit = 'cup' | 'g' | 'ml' | 'pinch' | 'slice' | 'tbsp' | 'tsp' | 'unit';
@@ -14,6 +15,14 @@ export type Unit = 'cup' | 'g' | 'ml' | 'pinch' | 'slice' | 'tbsp' | 'tsp' | 'un
  * joining; the seed says the least it can.
  */
 export type { FoodClass };
+
+/**
+ * A meal, as the `meal_slot` enum spells it. The domain has its own `MealSlot`
+ * in `packages/core`, but `core` depends on this package and not the other way
+ * round, so the seed takes the values from the enum the plans table already
+ * uses — one list, two readers.
+ */
+export type MealSlot = (typeof mealSlot.enumValues)[number];
 
 export type IngredientSeed = {
   readonly allergens?: readonly { readonly key: AllergenKey; readonly presence?: 'contains' | 'may_contain' }[];

@@ -154,9 +154,11 @@ export function makeCatalogueIngredient(overrides?: Partial<CatalogueIngredient>
     fiberPer100g: 2,
     gramsPerUnit: null,
     kcalPer100g: 200,
+    mealSlots: [],
     name: 'Base',
     nameLocale: 'es-ES',
     proteinPer100g: 12,
+    seasonMonths: [],
     slug: 'base',
     ...overrides
   };

@@ -45,17 +45,17 @@ at a time.
 
 ### Phase 1 — The two columns, empty
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 005 phase 1`
 - **Goal**: the catalogue can say which meals and months an ingredient belongs to, and
   every reader gets the lists, with nothing filled in yet.
 - **Scope**: `packages/database/src/schemas/food.schema.ts`, a new migration under
   `packages/database/src/migrations/`, `packages/database/src/seed/` (types, `index.ts`,
   two new overlay files), `packages/core/src/entities/Plan/Plan.ts`
-  (`CatalogueIngredient`), the repositories that build a `CatalogueIngredient`
-  (`packages/core/src/repositories/Recipe/RecipeRepository.ts`,
-  `packages/core/src/repositories/Plan/PlanRepository.ts`), their tests, and every test
-  fixture that builds a `CatalogueIngredient` by hand.
+  (`CatalogueIngredient`), the repository that builds a `CatalogueIngredient`
+  (`packages/core/src/repositories/Recipe/RecipeRepository.ts` — `loadCatalogue` is the
+  only one; amended in phase 1, see LOG), their tests, and every test fixture that builds a
+  `CatalogueIngredient` by hand, in `packages/core` and `apps/api/src`.
 - **Steps**:
   1. Add to `ingredients`: `mealSlots: text().array().notNull().default([])` and
      `seasonMonths: smallint().array().notNull().default([])`, each with a doc comment

@@ -27,9 +27,11 @@ function ingredient(slug: string, kcalPer100g: number, proteinPer100g: number): 
     fiberPer100g: 1,
     gramsPerUnit: null,
     kcalPer100g,
+    mealSlots: [],
     name: slug,
     nameLocale: 'es-ES',
     proteinPer100g,
+    seasonMonths: [],
     slug
   };
 }

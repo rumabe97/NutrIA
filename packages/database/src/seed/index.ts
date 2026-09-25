@@ -11,6 +11,8 @@ import { INGREDIENT_NAMES_EN_GB } from './ingredient-names';
 import { INGREDIENT_SEED } from './ingredients';
 import { countriesFor } from './ingredients/countries';
 import { foodClasses } from './ingredients/classes';
+import { mealSlotsFor } from './ingredients/meals';
+import { seasonMonthsFor } from './ingredients/seasons';
 import { substitutionPairs } from './substitutions';
 
 config({ path: '.env' });
@@ -75,7 +77,9 @@ async function main(): Promise<void> {
         fiberPer100g: String(seed.fiber ?? 0),
         gramsPerUnit: seed.gramsPerUnit === undefined ? null : String(seed.gramsPerUnit),
         kcalPer100g: String(seed.kcal),
+        mealSlots: [...mealSlotsFor(seed)],
         proteinPer100g: String(seed.protein),
+        seasonMonths: [...seasonMonthsFor(seed)],
         slug: seed.slug,
         source: seed.source ?? 'manual'
       })
@@ -87,7 +91,9 @@ async function main(): Promise<void> {
           fatPer100g: sql`excluded.fat_per100g`,
           fiberPer100g: sql`excluded.fiber_per100g`,
           kcalPer100g: sql`excluded.kcal_per100g`,
-          proteinPer100g: sql`excluded.protein_per100g`
+          mealSlots: sql`excluded.meal_slots`,
+          proteinPer100g: sql`excluded.protein_per100g`,
+          seasonMonths: sql`excluded.season_months`
         },
         target: ingredients.slug
       })

@@ -27,9 +27,11 @@ function ingredient(slug: string, allergens: CatalogueIngredient['allergens'] = 
     fiberPer100g: 2,
     gramsPerUnit: null,
     kcalPer100g: 200,
+    mealSlots: [],
     name: slug,
     nameLocale: 'es-ES',
     proteinPer100g: 12,
+    seasonMonths: [],
     slug
   };
 }
