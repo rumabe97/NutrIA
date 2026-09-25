@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  breaksDishRule,
   isEnforceableDislike,
   NO_PREFERENCE_EXCLUSIONS,
   PATTERN_EXCLUSIONS,
@@ -62,7 +63,7 @@ describe('isEnforceableDislike — the same question, asked without building a p
 describe('resolvePreferences — a dislike names a food, not one row', () => {
   it('excludes the named row and everything made of it, and nothing that merely starts alike', () => {
     // The reported bug in miniature: "salmón" left smoked and frozen salmon on the list.
-    const result = resolvePreferences({ dietaryPatterns: [], dislikedLabels: ['Salmón'], ingredients: CATALOGUE });
+    const result = resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: [], dislikedLabels: ['Salmón'], ingredients: CATALOGUE });
 
     expect(ids(result)).toEqual(['i-salmon', 'i-salmon-ahumado', 'i-salmon-congelado']);
     expect(result.unenforceableLabels).toEqual([]);
@@ -70,28 +71,37 @@ describe('resolvePreferences — a dislike names a food, not one row', () => {
 
   it('expands a group word to its whole class', () => {
     // The reported bug as reported: "pescado" must reach every fish, salmon included.
-    const result = resolvePreferences({ dietaryPatterns: [], dislikedLabels: ['pescado'], ingredients: CATALOGUE });
+    const result = resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: [], dislikedLabels: ['pescado'], ingredients: CATALOGUE });
 
     expect(ids(result)).toEqual(['i-merluza', 'i-salmon', 'i-salmon-ahumado', 'i-salmon-congelado', 'i-salmonete']);
   });
 
   it('reads a group word however it was typed, and takes plurals and accents', () => {
     for (const label of ['Pescado', 'PESCADOS', ' pescado ']) {
-      expect(ids(resolvePreferences({ dietaryPatterns: [], dislikedLabels: [label], ingredients: CATALOGUE })).length).toBe(5);
+      expect(
+        ids(resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: [], dislikedLabels: [label], ingredients: CATALOGUE })).length
+      ).toBe(5);
     }
 
-    expect(ids(resolvePreferences({ dietaryPatterns: [], dislikedLabels: ['lácteos'], ingredients: CATALOGUE }))).toEqual(['i-yogur-griego-natural']);
+    expect(
+      ids(resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: [], dislikedLabels: ['lácteos'], ingredients: CATALOGUE }))
+    ).toEqual(['i-yogur-griego-natural']);
   });
 
   it('reports what it could not resolve rather than pretending to enforce it', () => {
-    const result = resolvePreferences({ dietaryPatterns: [], dislikedLabels: ['comida picante', 'salmón'], ingredients: CATALOGUE });
+    const result = resolvePreferences({
+      allergenIdsByKey: new Map(),
+      dietaryPatterns: [],
+      dislikedLabels: ['comida picante', 'salmón'],
+      ingredients: CATALOGUE
+    });
 
     expect(result.unenforceableLabels).toEqual(['comida picante']);
     expect(ids(result)).toEqual(['i-salmon', 'i-salmon-ahumado', 'i-salmon-congelado']);
   });
 
   it('reports a blank label as unenforceable rather than matching everything', () => {
-    const result = resolvePreferences({ dietaryPatterns: [], dislikedLabels: ['   '], ingredients: CATALOGUE });
+    const result = resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: [], dislikedLabels: ['   '], ingredients: CATALOGUE });
 
     expect(result.unenforceableLabels).toEqual(['']);
     expect(ids(result)).toEqual([]);
@@ -100,23 +110,42 @@ describe('resolvePreferences — a dislike names a food, not one row', () => {
 
 describe('resolvePreferences — likes are a weight, not a rule', () => {
   it('resolves a liked label to the catalogue slugs it names, group words included', () => {
-    const result = resolvePreferences({ dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE, likedLabels: ['pescado'] });
+    const result = resolvePreferences({
+      allergenIdsByKey: new Map(),
+      dietaryPatterns: [],
+      dislikedLabels: [],
+      ingredients: CATALOGUE,
+      likedLabels: ['pescado']
+    });
 
     expect([...result.preferredIngredientSlugs].sort()).toEqual(['merluza', 'salmon', 'salmon-ahumado', 'salmon-congelado', 'salmonete']);
   });
 
   it('leaves preferences empty when nothing liked was said, or nothing liked resolves', () => {
-    expect(resolvePreferences({ dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE }).preferredIngredientSlugs.size).toBe(0);
     expect(
-      resolvePreferences({ dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE, likedLabels: ['comida picante'] })
-        .preferredIngredientSlugs.size
+      resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE }).preferredIngredientSlugs
+        .size
+    ).toBe(0);
+    expect(
+      resolvePreferences({
+        allergenIdsByKey: new Map(),
+        dietaryPatterns: [],
+        dislikedLabels: [],
+        ingredients: CATALOGUE,
+        likedLabels: ['comida picante']
+      }).preferredIngredientSlugs.size
     ).toBe(0);
   });
 });
 
 describe('resolvePreferences — a way of eating', () => {
   it('keeps fish and shellfish off a vegetarian plate, and meat off a pescatarian one', () => {
-    const vegetarian = resolvePreferences({ dietaryPatterns: ['vegetarian'], dislikedLabels: [], ingredients: CATALOGUE });
+    const vegetarian = resolvePreferences({
+      allergenIdsByKey: new Map(),
+      dietaryPatterns: ['vegetarian'],
+      dislikedLabels: [],
+      ingredients: CATALOGUE
+    });
 
     expect(ids(vegetarian)).toEqual([
       'i-gambas',
@@ -132,42 +161,62 @@ describe('resolvePreferences — a way of eating', () => {
     expect(vegetarian.excludedIngredientIds.has('i-huevo')).toBe(false);
     expect(vegetarian.excludedIngredientIds.has('i-yogur-griego-natural')).toBe(false);
 
-    const pescatarian = resolvePreferences({ dietaryPatterns: ['pescatarian'], dislikedLabels: [], ingredients: CATALOGUE });
+    const pescatarian = resolvePreferences({
+      allergenIdsByKey: new Map(),
+      dietaryPatterns: ['pescatarian'],
+      dislikedLabels: [],
+      ingredients: CATALOGUE
+    });
 
     expect(ids(pescatarian)).toEqual(['i-lomo-de-cerdo', 'i-pechuga-de-pollo']);
   });
 
   it('leaves a vegan nothing of animal origin, honey included', () => {
-    const result = resolvePreferences({ dietaryPatterns: ['vegan'], dislikedLabels: [], ingredients: CATALOGUE });
+    const result = resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: ['vegan'], dislikedLabels: [], ingredients: CATALOGUE });
 
     expect(result.excludedIngredientIds.has('i-miel')).toBe(true);
     expect(ids(result)).not.toContain('i-lentejas-cocidas');
     expect(ids(result)).not.toContain('i-arroz-blanco-cocido');
   });
 
-  it('excludes nothing for a pattern the catalogue cannot enforce', () => {
-    // Halal and kosher are about how food was raised and prepared, which no
-    // column here records; claiming to enforce them would be the lie.
-    for (const pattern of ['halal', 'kosher', 'omnivore', 'flexitarian']) {
+  it('excludes nothing for a pattern that is a direction rather than a rule', () => {
+    // Halal and kosher are enforced now, as far as the catalogue can say
+    // (see below); how meat was slaughtered it cannot, and does not claim to.
+    for (const pattern of ['omnivore', 'flexitarian']) {
       expect(PATTERN_EXCLUSIONS[pattern]).toBeUndefined();
-      expect(resolvePreferences({ dietaryPatterns: [pattern], dislikedLabels: [], ingredients: CATALOGUE }).excludedIngredientIds.size).toBe(0);
+      expect(
+        resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: [pattern], dislikedLabels: [], ingredients: CATALOGUE })
+          .excludedIngredientIds.size
+      ).toBe(0);
     }
   });
 
   it('adds a way of eating and a dislike together', () => {
-    const result = resolvePreferences({ dietaryPatterns: ['vegetarian'], dislikedLabels: ['huevo'], ingredients: CATALOGUE });
+    const result = resolvePreferences({
+      allergenIdsByKey: new Map(),
+      dietaryPatterns: ['vegetarian'],
+      dislikedLabels: ['huevo'],
+      ingredients: CATALOGUE
+    });
 
     expect(result.excludedIngredientIds.has('i-huevo')).toBe(true);
     expect(result.excludedIngredientIds.has('i-pechuga-de-pollo')).toBe(true);
   });
 
   it('carries the cooking-time limit, and nothing when none was set', () => {
-    expect(resolvePreferences({ dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE, maxMinutesPerDish: 25 }).maxMinutesPerDish).toBe(25);
-    expect(resolvePreferences({ dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE }).maxMinutesPerDish).toBeNull();
+    expect(
+      resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE, maxMinutesPerDish: 25 })
+        .maxMinutesPerDish
+    ).toBe(25);
+    expect(
+      resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE }).maxMinutesPerDish
+    ).toBeNull();
   });
 
   it('is empty when nothing was said', () => {
-    expect(resolvePreferences({ dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE }).excludedIngredientIds.size).toBe(0);
+    expect(
+      resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: [], dislikedLabels: [], ingredients: CATALOGUE }).excludedIngredientIds.size
+    ).toBe(0);
     expect(NO_PREFERENCE_EXCLUSIONS.excludedIngredientIds.size).toBe(0);
   });
 });
@@ -198,5 +247,134 @@ describe('withinTime — the minutes they said they have', () => {
 
   it('lets everything through when no limit was set', () => {
     expect(withinTime(dish(60, 120), null)).toBe(true);
+  });
+});
+
+/**
+ * A religious way of eating is never named to the model (owner, 2026-09-25):
+ * what the catalogue can express is enforced here instead.
+ */
+describe('resolvePreferences — halal and kosher, in code', () => {
+  const RELIGIOUS = [
+    ...CATALOGUE,
+    food('vino-blanco', 'Vino blanco'),
+    food('vino-tinto', 'Vino tinto'),
+    food('vino-sin-alcohol', 'Vino sin alcohol'),
+    food('cerveza-sin-alcohol', 'Cerveza sin alcohol'),
+    food('vinagre-de-vino-tinto', 'Vinagre de vino tinto'),
+    food('vinagre-de-jerez', 'Vinagre de Jerez'),
+    food('gelatina-neutra', 'Gelatina neutra', ['animal']),
+    food('manteca-de-cerdo', 'Manteca de cerdo', ['animal', 'meat', 'pork']),
+    food('rape', 'Rape', ['animal', 'fish']),
+    food('pez-espada', 'Pez espada', ['animal', 'fish']),
+    food('filete-de-panga-congelado', 'Filete de panga congelado', ['animal', 'fish']),
+    food('turron-de-jijona', 'Turrón de Jijona')
+  ];
+
+  it('takes pork, alcohol and gelatine out for halal, and leaves vinegar, alcohol-free drinks, fish and other meat', () => {
+    const excluded = ids(resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: ['halal'], dislikedLabels: [], ingredients: RELIGIOUS }));
+
+    expect(excluded).toEqual(['i-gelatina-neutra', 'i-lomo-de-cerdo', 'i-manteca-de-cerdo', 'i-vino-blanco', 'i-vino-tinto']);
+  });
+
+  it('takes pork, shellfish, scaleless fish, alcohol and gelatine out for kosher', () => {
+    const excluded = ids(
+      resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: ['kosher'], dislikedLabels: [], ingredients: RELIGIOUS })
+    );
+
+    expect(excluded).toEqual([
+      'i-filete-de-panga-congelado',
+      'i-gambas',
+      'i-gelatina-neutra',
+      'i-lomo-de-cerdo',
+      'i-manteca-de-cerdo',
+      'i-pez-espada',
+      'i-rape',
+      'i-vino-blanco',
+      'i-vino-tinto'
+    ]);
+  });
+
+  it('matches whole slug words only: turrón is not rum, and salmonete stays for kosher', () => {
+    const excluded = ids(
+      resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: ['kosher'], dislikedLabels: [], ingredients: RELIGIOUS })
+    );
+
+    expect(excluded).not.toContain('i-turron-de-jijona');
+    expect(excluded).not.toContain('i-salmonete');
+  });
+
+  it('keeps meat from dairy only for kosher', () => {
+    expect(
+      resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: ['kosher'], dislikedLabels: [], ingredients: RELIGIOUS }).keepsMeatFromDairy
+    ).toBe(true);
+    expect(
+      resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: ['halal'], dislikedLabels: [], ingredients: RELIGIOUS }).keepsMeatFromDairy
+    ).toBe(false);
+    expect(NO_PREFERENCE_EXCLUSIONS.keepsMeatFromDairy).toBe(false);
+  });
+});
+
+describe('breaksDishRule — meat with dairy', () => {
+  const catalogue = new Map(CATALOGUE.map(ingredient => [ingredient.slug, ingredient]));
+  const kosher = { keepsMeatFromDairy: true };
+  const dish = (...slugs: string[]) => slugs.map(slug => ({ slug }));
+
+  it('refuses a dish with meat and dairy together for someone who keeps them apart', () => {
+    expect(breaksDishRule(dish('pechuga-de-pollo', 'yogur-griego-natural'), catalogue, kosher)).toBe(true);
+    expect(breaksDishRule(dish('lomo-de-cerdo', 'yogur-griego-natural'), catalogue, kosher)).toBe(true);
+  });
+
+  it('allows either alone, and fish with dairy', () => {
+    expect(breaksDishRule(dish('pechuga-de-pollo', 'arroz-blanco-cocido'), catalogue, kosher)).toBe(false);
+    expect(breaksDishRule(dish('yogur-griego-natural', 'miel'), catalogue, kosher)).toBe(false);
+    expect(breaksDishRule(dish('salmon', 'yogur-griego-natural'), catalogue, kosher)).toBe(false);
+  });
+
+  it('says nothing for anybody else', () => {
+    expect(breaksDishRule(dish('pechuga-de-pollo', 'yogur-griego-natural'), catalogue, { keepsMeatFromDairy: false })).toBe(false);
+  });
+});
+
+describe('resolvePreferences — gluten-free and lactose-free, by the allergy gate’s tags', () => {
+  const byKey = new Map([
+    ['gluten', 'a-gluten'],
+    ['lactose', 'a-lactose'],
+    ['milk', 'a-milk']
+  ]);
+  const tagged = (slug: string, allergens: CatalogueIngredient['allergens']) =>
+    makeCatalogueIngredient({ id: `i-${slug}`, allergens, name: slug, slug });
+  const ROWS = [
+    tagged('pan-de-trigo', [{ allergenId: 'a-gluten', presence: 'contains' }]),
+    tagged('copos-de-avena', [{ allergenId: 'a-gluten', presence: 'may_contain' }]),
+    tagged('leche-entera', [
+      { allergenId: 'a-milk', presence: 'contains' },
+      { allergenId: 'a-lactose', presence: 'contains' }
+    ]),
+    tagged('mantequilla', [{ allergenId: 'a-milk', presence: 'contains' }]),
+    tagged('leche-sin-lactosa', [{ allergenId: 'a-milk', presence: 'contains' }]),
+    tagged('chocolate-negro', [{ allergenId: 'a-milk', presence: 'may_contain' }]),
+    tagged('arroz', [])
+  ];
+
+  it('takes out gluten, traces included, for gluten-free', () => {
+    expect(ids(resolvePreferences({ allergenIdsByKey: byKey, dietaryPatterns: ['gluten_free'], dislikedLabels: [], ingredients: ROWS }))).toEqual([
+      'i-copos-de-avena',
+      'i-pan-de-trigo'
+    ]);
+  });
+
+  it('takes out what contains milk or lactose for lactose-free — not traces, and not what says it is lactose-free', () => {
+    expect(ids(resolvePreferences({ allergenIdsByKey: byKey, dietaryPatterns: ['lactose_free'], dislikedLabels: [], ingredients: ROWS }))).toEqual([
+      'i-leche-entera',
+      'i-mantequilla'
+    ]);
+  });
+
+  it('excludes nothing by tag from an allergen catalogue that lacks those keys', () => {
+    expect(
+      resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: ['gluten_free', 'lactose_free'], dislikedLabels: [], ingredients: ROWS })
+        .excludedIngredientIds.size
+    ).toBe(0);
   });
 });

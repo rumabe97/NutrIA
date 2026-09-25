@@ -70,7 +70,26 @@ export const DIETARY_PATTERNS = [
  */
 const HEIGHT_CM = { max: 250, min: 100 } as const;
 const WEIGHT_KG = { max: 400, min: 30 } as const;
-const AGE_YEARS = { max: 100, min: 16 } as const;
+/**
+ * The minimum is the product's, not the law's floor: 18, by the owner's
+ * decision (2026-09-25). A plan built from a body's weight and height is health
+ * data, and a minor's consent to that is a question this product does not ask.
+ * Enforced on the server by `assertOldEnough` (`controllers/Profile`), whatever
+ * a form did.
+ */
+const AGE_YEARS = { max: 100, min: 18 } as const;
+
+/**
+ * Bumped whenever the wording of the profile consent changes
+ * (`docs/legal/textos/05-consentimientos-cliente.md` § A). A stored version that
+ * differs is consent to a different notice, so it is asked again.
+ */
+export const PROFILE_CONSENT_VERSION = '1.0.0';
+
+/** Giving the profile consent: the version the person read, and only the current one. */
+export const giveProfileConsentSchema = z.object({ version: z.literal(PROFILE_CONSENT_VERSION) });
+
+export type GiveProfileConsent = z.infer<typeof giveProfileConsentSchema>;
 
 /**
  * How fast a person may ask to lose or gain, in kg per week.

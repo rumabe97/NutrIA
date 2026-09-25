@@ -37,19 +37,19 @@
  *      overrides a 1
  */
 import { createRequire } from 'node:module';
-import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts/guard.mjs';
 
 import { RecipeController } from 'core/controllers/Recipe';
+import { SafetyController } from 'core/controllers/Safety';
 import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { loadedTargets } from 'core/domain/Event';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
 import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
 import { resolvePreferences } from 'core/domain/Preference';
 import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
-import { dishSafety, toSafetyProfile } from 'core/domain/Safety';
+import { bestEffortExclusions, dishSafety, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
 
 // ---------------------------------------------------------------------------
 // The profiles. Fixed here, printed in the report, so the next run measures the
@@ -95,6 +95,48 @@ const PROFILES = [
     // Two days "before the race", the way `PlanGeneration.service.ts` loads them —
     // a day is judged against its own loaded target, not the plan's (`0043`).
     event: { carbs: 'up', daysBefore: 2, fat: 'same', loadedDayIndexes: [9, 10], protein: 'same' }
+  },
+  {
+    slug: 'alergia-personalizada',
+    description: 'A free-text (custom) allergen resolved against the catalogue, ordinary shape',
+    target: { activityLevel: 'moderate', ageYears: 45, goal: 'maintenance', heightCm: 172, sex: 'male', weightKg: 78 },
+    shape: DEFAULT_MEAL_SHAPE,
+    customAllergenLabel: 'tomate'
+  },
+  {
+    slug: 'alergia-personalizada-no-resuelta',
+    description: 'A free-text custom allergen the catalogue cannot resolve, best-effort excluded by shared word',
+    target: { activityLevel: 'moderate', ageYears: 45, goal: 'maintenance', heightCm: 172, sex: 'male', weightKg: 78 },
+    shape: DEFAULT_MEAL_SHAPE,
+    customAllergenLabel: 'frutos secos variados'
+  },
+  {
+    slug: 'patron-halal',
+    description: 'A declared dietary pattern (halal), ordinary shape — enforced in code since prompt 4.0.0',
+    target: { activityLevel: 'light', ageYears: 33, goal: 'healthy_eating', heightCm: 178, sex: 'male', weightKg: 82 },
+    shape: DEFAULT_MEAL_SHAPE,
+    dietaryPattern: 'halal'
+  },
+  {
+    slug: 'patron-kosher',
+    description: 'A declared dietary pattern (kosher), ordinary shape — enforced in code, meat never with dairy',
+    target: { activityLevel: 'light', ageYears: 38, goal: 'healthy_eating', heightCm: 165, sex: 'female', weightKg: 60 },
+    shape: DEFAULT_MEAL_SHAPE,
+    dietaryPattern: 'kosher'
+  },
+  {
+    slug: 'patron-sin-gluten',
+    description: 'A declared dietary pattern (gluten-free), ordinary shape — enforced by the gluten tag, traces included',
+    target: { activityLevel: 'moderate', ageYears: 29, goal: 'weight_loss', heightCm: 163, sex: 'female', weightKg: 64 },
+    shape: DEFAULT_MEAL_SHAPE,
+    dietaryPattern: 'gluten_free'
+  },
+  {
+    slug: 'patron-sin-lactosa',
+    description: 'A declared dietary pattern (lactose-free), ordinary shape — enforced by the milk and lactose tags',
+    target: { activityLevel: 'moderate', ageYears: 52, goal: 'maintenance', heightCm: 180, sex: 'male', weightKg: 85 },
+    shape: DEFAULT_MEAL_SHAPE,
+    dietaryPattern: 'lactose_free'
   }
 ];
 
@@ -127,7 +169,8 @@ function parseArgs(argv) {
 // ---------------------------------------------------------------------------
 // Building a profile's context without a real account.
 //
-// `RecipeController.generationContext` takes a `userId` and, behind it, seven
+// `RecipeController.nobodysContext` is `generationContext` without the consent
+// check (there is nobody to have consented) over a random id. It takes, behind it, seven
 // repository reads — every one of them a `WHERE user_id = $1` (or, for
 // `SafetyRepository.listAllergens`, no user filter at all: it is reference
 // data). None of them checks that the id exists first; a `SELECT ... WHERE
@@ -138,14 +181,19 @@ function parseArgs(argv) {
 // synthetic profile starts from. Nothing is ever written with this id.
 // ---------------------------------------------------------------------------
 async function baseContext(locale) {
-  const context = await RecipeController.generationContext(randomUUID());
+  const context = await RecipeController.nobodysContext();
 
   // `generationContext` resolves locale from the (nonexistent) profile row, so
   // it is always the fallback. Overridden here because it is `context.locale`
   // — not the catalogue's own name-resolution — that decides which locale's
   // *recipes* `reusablePool` reads (`recipes.locale`; ingredient names are a
   // separate, always-safe-to-fall-back concern and are not re-resolved here).
-  return { ...context, locale };
+  // The allergen catalogue by key, so a gluten-free or lactose-free profile is
+  // enforced by the same tags `generationContext` hands `resolvePreferences`.
+  // Reference data, read-only, no user filter.
+  const allergenIdsByKey = new Map((await SafetyController.listAllergens()).map(allergen => [allergen.key, allergen.id]));
+
+  return { ...context, allergenIdsByKey, locale };
 }
 
 /**
@@ -202,8 +250,36 @@ function contextFor(profile, shared) {
     };
   }
 
+  if (profile.customAllergenLabel) {
+    const resolved = resolveCustomAllergens([profile.customAllergenLabel], ingredients);
+    const safety = toSafetyProfile([], [], resolved, ingredients);
+
+    if (!resolved[0]?.ingredientId) {
+      // What `RecipeController.generationContext` does with an entry it cannot
+      // resolve: every row sharing a word with it leaves, beside the preferences.
+      const bestEffort = bestEffortExclusions(safety.unenforceableLabels, ingredients);
+      const preferences = { ...shared.preferences, excludedIngredientIds: new Set([...shared.preferences.excludedIngredientIds, ...bestEffort]) };
+
+      return {
+        context: { ...shared, preferences, safety },
+        note: `custom allergen "${profile.customAllergenLabel}" did not resolve; best-effort removed ${bestEffort.size} catalogue rows sharing a word with it`
+      };
+    }
+
+    return {
+      context: { ...shared, safety },
+      note: `custom allergen "${profile.customAllergenLabel}" resolved to ${safety.excludedIngredientIds.size} catalogue rows`
+    };
+  }
+
   if (profile.dietaryPattern) {
-    const preferences = resolvePreferences({ dietaryPatterns: [profile.dietaryPattern], dislikedLabels: [], ingredients, maxMinutesPerDish: null });
+    const preferences = resolvePreferences({
+      allergenIdsByKey: shared.allergenIdsByKey,
+      dietaryPatterns: [profile.dietaryPattern],
+      dislikedLabels: [],
+      ingredients,
+      maxMinutesPerDish: null
+    });
 
     return {
       context: { ...shared, preferences },

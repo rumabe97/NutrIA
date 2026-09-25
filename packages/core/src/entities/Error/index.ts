@@ -10,7 +10,9 @@ export {
   OnboardingIncompleteError,
   PlanPausedError,
   PracticeFullError,
+  ProfileConsentRequiredError,
   QuotaExceededError,
   SafetyViolationError,
-  UnauthorizedError
+  UnauthorizedError,
+  UnderMinimumAgeError
 } from './Error';

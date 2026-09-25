@@ -1,8 +1,8 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
-import { dishSafety, findSafetyViolations } from 'core/domain/Safety';
+import { dishSafety, findSafetyViolations, mentionsUnresolvedAllergy } from 'core/domain/Safety';
 import { methodMentions } from 'core/domain/Method';
-import { withinTime } from 'core/domain/Preference';
+import { breaksDishRule, withinTime } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
 import { AI_MODEL_BUDGET } from '../ai.config.js';
@@ -62,7 +62,7 @@ export type BuildPoolInput = {
   readonly context: GenerationContext;
   /** Dishes wanted per slot. A whole plan wants `DISHES_NEEDED_PER_SLOT`; a single meal's swap wants a handful. */
   readonly needPerSlot?: number;
-  readonly preferences: Omit<PromptContext, 'excludeSlugs' | 'forbiddenLabels' | 'language' | 'needBySlot'>;
+  readonly preferences: Omit<PromptContext, 'excludeSlugs' | 'language' | 'needBySlot'>;
   readonly reusable: readonly CandidateDish[];
   /** Files every call of this build under one session in a gateway's log — a generation's job id. */
   readonly session?: string;
@@ -195,13 +195,7 @@ export class PoolBuilder {
         wanted.map(slot =>
           this.ai.generate({
             prompt: buildPoolPrompt(
-              {
-                ...preferences,
-                excludeSlugs,
-                forbiddenLabels: context.safety.unenforceableLabels,
-                language: languageName(context.locale),
-                needBySlot: new Map([[slot, needBySlot.get(slot) ?? 0]])
-              },
+              { ...preferences, excludeSlugs, language: languageName(context.locale), needBySlot: new Map([[slot, needBySlot.get(slot) ?? 0]]) },
               safeIngredients
             ),
             schema: wirePoolSchema,
@@ -411,6 +405,23 @@ export class PoolBuilder {
       this.logger.warn(`Dish "${dish.name}" rejected: ${unwanted.join(', ')} is ruled out by their way of eating or dislikes`);
 
       return { reason: 'unwanted' };
+    }
+
+    // A rule on the whole dish, not on one ingredient: meat with dairy for
+    // someone who keeps them apart. Never asked of the model, only enforced.
+    if (breaksDishRule(dish.ingredients, context.catalogue, context.preferences)) {
+      this.logger.warn(`Dish "${dish.name}" rejected by a dish rule of their preferences`);
+
+      return { reason: 'unwanted' };
+    }
+
+    // Its name or method naming an allergy the catalogue could not resolve —
+    // what the prompt used to ask ("not in names, steps or garnishes"), now
+    // checked here. The label is not logged: it is their words.
+    if (mentionsUnresolvedAllergy(dish, context.safety.unenforceableLabels)) {
+      this.logger.warn(`Dish "${dish.name}" rejected: its name or method names an allergy we could not resolve`);
+
+      return { reason: 'allergen' };
     }
 
     // The prompt states the limit; this is what makes it true.

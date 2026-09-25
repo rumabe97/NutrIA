@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { matchCustomAllergen, normaliseForMatching, resolveCustomAllergens, toMatchIndex } from 'core/domain/Safety';
+import {
+  bestEffortExclusions,
+  matchCustomAllergen,
+  mentionsUnresolvedAllergy,
+  normaliseForMatching,
+  resolveCustomAllergens,
+  toMatchIndex
+} from 'core/domain/Safety';
 
 import type { MatchableIngredient } from 'core/domain/Safety';
 
@@ -118,5 +125,65 @@ describe('resolveCustomAllergens', () => {
 
   it('does nothing at all with an empty list', () => {
     expect(resolveCustomAllergens([], CATALOGUE)).toEqual([]);
+  });
+});
+
+describe('bestEffortExclusions — what an unresolved allergy takes out, never claimed as enforced', () => {
+  const rows: readonly MatchableIngredient[] = [
+    { id: 'nueces', name: 'Nueces', slug: 'nueces' },
+    { id: 'nueces-pecanas', name: 'Nueces pecanas', slug: 'nueces-pecanas' },
+    { id: 'macadamia', name: 'Macadamia', slug: 'macadamia' },
+    { id: 'arroz', name: 'Arroz', slug: 'arroz' },
+    { id: 'pan-de-centeno', name: 'Pan de centeno', slug: 'pan-de-centeno' }
+  ];
+
+  it('removes every row sharing a whole word with the label, whatever its case or accents', () => {
+    expect([...bestEffortExclusions(['Nueces de MACADAMIA'], rows)].sort()).toEqual(['macadamia', 'nueces', 'nueces-pecanas']);
+  });
+
+  it('ignores the words that name no food, and keeps the three-letter foods', () => {
+    expect([...bestEffortExclusions(['con de'], rows)]).toEqual([]);
+    expect([...bestEffortExclusions(['pan de centeno'], rows)]).toEqual(['pan-de-centeno']);
+    expect([...bestEffortExclusions(['ajo'], [...rows, { id: 'ajo', name: 'Ajo', slug: 'ajo' }])]).toEqual(['ajo']);
+  });
+
+  it('folds singular and plural both ways: nuez meets nueces, gambas meets gamba', () => {
+    const more = [
+      ...rows,
+      { id: 'gamba-roja', name: 'Gamba roja', slug: 'gamba-roja' },
+      { id: 'tomates-cherry', name: 'Tomates cherry', slug: 'tomates-cherry' }
+    ];
+
+    expect([...bestEffortExclusions(['nuez'], more)].sort()).toEqual(['nueces', 'nueces-pecanas']);
+    expect([...bestEffortExclusions(['gambas'], more)]).toEqual(['gamba-roja']);
+    expect([...bestEffortExclusions(['tomate'], more)]).toEqual(['tomates-cherry']);
+  });
+
+  it('keeps a one-word label whatever its length', () => {
+    expect([...bestEffortExclusions(['té'], [{ id: 'te-verde', name: 'Té verde', slug: 'te-verde' }])]).toEqual(['te-verde']);
+  });
+
+  it('removes nothing for nothing', () => {
+    expect(bestEffortExclusions([], rows).size).toBe(0);
+    expect(bestEffortExclusions(['   '], rows).size).toBe(0);
+  });
+
+  it('matches whole words, not runs of letters: "arrocería" is not "arroz"', () => {
+    expect([...bestEffortExclusions(['arroceria'], rows)]).toEqual([]);
+  });
+});
+
+describe('mentionsUnresolvedAllergy — the name and the method, checked in code', () => {
+  const dish = (name: string, ...steps: string[]) => ({ name, steps: steps.map(text => ({ text })) });
+
+  it('refuses a dish whose name, steps or cue name the allergy, in any number and accent', () => {
+    expect(mentionsUnresolvedAllergy(dish('Ensalada con nueces'), ['nuez'])).toBe(true);
+    expect(mentionsUnresolvedAllergy(dish('Ensalada', 'Añadir las NUECES al final'), ['nuez'])).toBe(true);
+    expect(mentionsUnresolvedAllergy({ name: 'Ensalada', steps: [{ cue: 'hasta que la nuez se dore', text: 'Tostar' }] }, ['nueces'])).toBe(true);
+  });
+
+  it('lets a dish through that names none of it, and does nothing without a label', () => {
+    expect(mentionsUnresolvedAllergy(dish('Ensalada verde', 'Aliñar y servir'), ['nuez'])).toBe(false);
+    expect(mentionsUnresolvedAllergy(dish('Ensalada con nueces'), [])).toBe(false);
   });
 });

@@ -83,8 +83,10 @@ export type SafetyProfile = {
    * Free-text allergies that resolved to **nothing**.
    *
    * Named so it cannot be misread: the gate does not look at these and cannot.
-   * They exist to be told to the model as forbidden and to be shown to the user
-   * as best-effort. Anything that treats them as a guarantee is a bug.
+   * They are shown to the user as best-effort, and every catalogue row sharing
+   * a word with one is taken out quietly (`bestEffortExclusions`). They are
+   * never sent to a model (prompt 4.0.0). Anything that treats them as a
+   * guarantee is a bug.
    */
   readonly unenforceableLabels: readonly string[];
 };

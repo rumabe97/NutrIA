@@ -169,3 +169,124 @@ export function resolveCustomAllergens(labels: readonly string[], ingredients: r
 
   return resolved;
 }
+
+/**
+ * Words that name no food, in the two languages the catalogue speaks. A length
+ * cut would also have dropped "ajo", "col" and "té", which are the foods.
+ */
+const NOT_A_FOOD: ReadonlySet<string> = new Set([
+  'a',
+  'al',
+  'and',
+  'con',
+  'de',
+  'del',
+  'el',
+  'en',
+  'la',
+  'las',
+  'lo',
+  'los',
+  'muy',
+  'no',
+  'of',
+  'o',
+  'or',
+  'para',
+  'por',
+  'sin',
+  'the',
+  'todo',
+  'todos',
+  'un',
+  'una',
+  'uno',
+  'with',
+  'y'
+]);
+
+/**
+ * The forms a word may take, so a singular and its plural meet: "nuez" and
+ * "nueces", "gamba" and "gambas", "tomate" and "tomates". Accents are already
+ * gone (`normaliseForMatching`). Two words match when their forms share one;
+ * the fold is generous on purpose, because it can only remove more.
+ */
+function forms(word: string): readonly string[] {
+  const out = new Set([word]);
+
+  for (const stem of [word.endsWith('es') ? word.slice(0, -2) : null, word.endsWith('s') ? word.slice(0, -1) : null]) {
+    if (stem && stem.length >= 2) {
+      out.add(stem);
+      out.add(stem.endsWith('c') ? `${stem.slice(0, -1)}z` : stem);
+    }
+  }
+
+  return [...out];
+}
+
+/** The folded forms of every word in these labels that could name a food. */
+function unresolvedForms(labels: readonly string[]): ReadonlySet<string> {
+  return new Set(
+    labels.flatMap(label => {
+      const words = normaliseForMatching(label)
+        .split(' ')
+        .filter(word => word !== '');
+      // A one-word label is kept whatever its length: "té" is the whole of what they said.
+      const kept = words.length === 1 ? words : words.filter(word => !NOT_A_FOOD.has(word) && word.length >= 3);
+
+      return kept.flatMap(forms);
+    })
+  );
+}
+
+/** Whether text holds a word, in any of its folded forms, from `wanted`. */
+function mentions(text: string, wanted: ReadonlySet<string>): boolean {
+  return normaliseForMatching(text)
+    .split(' ')
+    .some(word => word !== '' && forms(word).some(form => wanted.has(form)));
+}
+
+/**
+ * Catalogue rows that share a word with an allergy the catalogue could not
+ * resolve, to be **removed as well — never reported as enforced**.
+ *
+ * Until 2026-09-25 such an entry was named to the model as forbidden, the only
+ * thing standing between it and a model-written dish. No free text reaches the
+ * model now (owner's decision), so the mitigation moves here, into code, and it
+ * leans the one way that is safe: "nuez de macadamia" takes out every row with
+ * `nuez`, `nueces` or `macadamia` in its name or slug. Removing too much costs a
+ * dish; the rule at the top of this file is about the other direction — a match
+ * shown as a guarantee — and this is never shown as one: the entry stays in
+ * `unenforceableLabels`, and the screen keeps saying it cannot be guaranteed.
+ */
+export function bestEffortExclusions(labels: readonly string[], ingredients: readonly MatchableIngredient[]): ReadonlySet<string> {
+  const wanted = unresolvedForms(labels);
+
+  if (wanted.size === 0) {
+    return new Set();
+  }
+
+  return new Set(
+    ingredients.filter(ingredient => mentions(ingredient.name, wanted) || mentions(ingredient.slug, wanted)).map(ingredient => ingredient.id)
+  );
+}
+
+/**
+ * Whether a dish's name or method names an allergy the catalogue could not
+ * resolve — the other half of what the prompt used to ask ("not in names, steps
+ * or garnishes"), now checked in code. Refused quietly, like a dislike: a dish
+ * that says "con nueces" is not served to someone who wrote "nuez", whatever
+ * its ingredients resolved to.
+ */
+export function mentionsUnresolvedAllergy(
+  dish: { readonly name: string; readonly steps: readonly { readonly cue?: string; readonly text: string }[] },
+  labels: readonly string[]
+): boolean {
+  const wanted = unresolvedForms(labels);
+
+  if (wanted.size === 0) {
+    return false;
+  }
+
+  return [dish.name, ...dish.steps.flatMap(step => [step.text, step.cue ?? ''])].some(text => mentions(text, wanted));
+}

@@ -4,6 +4,7 @@ import { LIVED_PLAN_STATUSES } from 'core/entities/Plan';
 import { PlanRepository } from '#repositories/Plan';
 import { ProfileRepository } from '#repositories/Profile';
 import { ProgressRepository } from '#repositories/Progress';
+import { requireProfileConsent } from 'core/controllers/Profile';
 
 import type { DifficultyAnswer, HungerAnswer } from 'core/entities/CheckIn';
 import type { Goal } from 'core/entities/Profile';
@@ -131,6 +132,8 @@ export const ProgressController = {
    * where the change is visible and reversible.
    */
   async logWeight(userId: string, input: LogWeight): Promise<WeightView> {
+    await requireProfileConsent(userId);
+
     const loggedOn = input.loggedOn ?? new Date().toISOString().slice(0, 10);
 
     await ProgressRepository.upsertWeight(userId, loggedOn, input.weightKg);

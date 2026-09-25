@@ -23,7 +23,17 @@ function makeGuard(required?: boolean) {
 }
 
 function state(patch: Partial<OnboardingView>): OnboardingView {
-  return { completedAt: null, completedSteps: [], currentStep: 1, isComplete: false, missingSteps: [], resumeStep: 1, totalSteps: 10, ...patch };
+  return {
+    completedAt: null,
+    completedSteps: [],
+    currentStep: 1,
+    isComplete: false,
+    missingSteps: [],
+    profileConsentRequired: false,
+    resumeStep: 1,
+    totalSteps: 10,
+    ...patch
+  };
 }
 
 describe('RequiresOnboardingGuard', () => {
@@ -55,7 +65,7 @@ describe('RequiresOnboardingGuard', () => {
   it('refuses when every answer is in but the flow was never closed', async () => {
     // `missingSteps` empty and `isComplete` false is the review screen, reached
     // and abandoned. One definition of done, and this is not it.
-    jest.spyOn(OnboardingController, 'getState').mockResolvedValue(state({ missingSteps: [], resumeStep: 9 }));
+    jest.spyOn(OnboardingController, 'getState').mockResolvedValue(state({ missingSteps: [], profileConsentRequired: false, resumeStep: 9 }));
 
     await expect(makeGuard(true).canActivate(makeContext({ id: 'usr-1' }))).rejects.toThrow(OnboardingIncompleteError);
   });

@@ -3,6 +3,7 @@ import { OnboardingRepository } from '#repositories/Onboarding';
 import { resolveFreeTextAllergens } from 'core/controllers/Safety';
 import { ProfileRepository } from '#repositories/Profile';
 import { SafetyRepository } from '#repositories/Safety';
+import { assertOldEnough, hasProfileConsent, PROFILE_CONSENT_STEPS, requireProfileConsent } from 'core/controllers/Profile';
 import type { OnboardingState, OnboardingStep, OnboardingStepInput } from 'core/entities/Onboarding';
 
 // --- Presenters ---------------------------------------------------------------
@@ -14,6 +15,13 @@ export interface OnboardingView {
   isComplete: boolean;
   /** The steps still standing between the user and a plan. */
   missingSteps: readonly OnboardingStep[];
+  /**
+   * True while the account holds no consent to the current profile notice
+   * (`PROFILE_CONSENT_VERSION`): never given, withdrawn, or given to an older
+   * one. The web shows the consent before anything else — before /inicio for an
+   * account that finished onboarding before the consent existed.
+   */
+  profileConsentRequired: boolean;
   /**
    * Where someone returning mid-flow belongs: the position of the first
    * incomplete step in `ONBOARDING_STEPS`, one-based, or the review step once
@@ -29,7 +37,7 @@ export interface OnboardingView {
   totalSteps: number;
 }
 
-function presentOnboarding(state: OnboardingState | undefined): OnboardingView {
+function presentOnboarding(state: OnboardingState | undefined, consented: boolean): OnboardingView {
   const completedSteps = state?.completedSteps ?? [];
   const missingSteps = REQUIRED_ONBOARDING_STEPS.filter(step => !completedSteps.includes(step));
   const firstMissing = missingSteps[0];
@@ -40,6 +48,7 @@ function presentOnboarding(state: OnboardingState | undefined): OnboardingView {
     currentStep: state?.currentStep ?? 1,
     isComplete: Boolean(state?.completedAt),
     missingSteps,
+    profileConsentRequired: !consented,
     resumeStep: firstMissing ? ONBOARDING_STEPS.indexOf(firstMissing) + 1 : REQUIRED_ONBOARDING_STEPS.length + 1,
     totalSteps: ONBOARDING_STEPS.length
   };
@@ -55,8 +64,8 @@ export const OnboardingController = {
    * cheapest place to enforce that.
    */
   async complete(userId: string): Promise<OnboardingView> {
-    const state = await OnboardingRepository.find(userId);
-    const view = presentOnboarding(state);
+    const [state, consented] = await Promise.all([OnboardingRepository.find(userId), hasProfileConsent(userId)]);
+    const view = presentOnboarding(state, consented);
 
     if (view.missingSteps.length > 0) {
       return view;
@@ -66,11 +75,13 @@ export const OnboardingController = {
       return view;
     }
 
-    return presentOnboarding(await OnboardingRepository.markComplete(userId, new Date().toISOString().slice(0, 10)));
+    return presentOnboarding(await OnboardingRepository.markComplete(userId, new Date().toISOString().slice(0, 10)), consented);
   },
 
   async getState(userId: string): Promise<OnboardingView> {
-    return presentOnboarding(await OnboardingRepository.find(userId));
+    const [state, consented] = await Promise.all([OnboardingRepository.find(userId), hasProfileConsent(userId)]);
+
+    return presentOnboarding(state, consented);
   },
 
   /**
@@ -82,8 +93,15 @@ export const OnboardingController = {
    * profile it is supposed to be filling in.
    */
   async saveStep(userId: string, input: OnboardingStepInput): Promise<OnboardingView> {
+    // The steps that collect the profile's health data refuse without the
+    // explicit consent to use it (RGPD art. 9.2.a) — asked before, never after.
+    if (PROFILE_CONSENT_STEPS.includes(input.step)) {
+      await requireProfileConsent(userId);
+    }
+
     switch (input.step) {
       case 'about-you':
+        assertOldEnough(input.data.birthDate);
         await ProfileRepository.upsert(userId, input.data);
         break;
 
@@ -142,6 +160,11 @@ export const OnboardingController = {
 
     const index = ONBOARDING_STEPS.indexOf(input.step);
 
-    return presentOnboarding(await OnboardingRepository.markStepComplete(userId, input.step, Math.min(index + 2, ONBOARDING_STEPS.length)));
+    const [state, consented] = await Promise.all([
+      OnboardingRepository.markStepComplete(userId, input.step, Math.min(index + 2, ONBOARDING_STEPS.length)),
+      hasProfileConsent(userId)
+    ]);
+
+    return presentOnboarding(state, consented);
   }
 };
