@@ -787,7 +787,8 @@ export const esES = {
       customAllergensHint: 'Separa con comas. Al guardar buscamos cada una en nuestro catálogo y te decimos qué podemos aplicar.',
       customGoal: 'Si has elegido «Otro», descríbelo',
       dietaryPatterns: 'Tipo de alimentación',
-      dietaryPatternsHint: 'Quitamos lo que tu religión no permite (como el cerdo o el alcohol). La carne certificada depende de dónde la compres.',
+      dietaryPatternsHint:
+        'Quitamos el cerdo, el alcohol y la gelatina (y, en kosher, el marisco y la carne con lácteos). La carne certificada depende de dónde la compres.',
       disliked: 'Alimentos que no quieres ver',
       dislikedHint: 'No volverán a aparecer en tus planes.',
       displayName: '¿Cómo quieres que te llamemos?',

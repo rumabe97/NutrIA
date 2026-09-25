@@ -782,7 +782,8 @@ export const enGB: Dictionary = {
       customAllergensHint: 'Separate with commas. When you save we look each one up in our catalogue and tell you what we can apply.',
       customGoal: 'If you chose “Other”, describe it',
       dietaryPatterns: 'Way of eating',
-      dietaryPatternsHint: "We take out what your religion doesn't allow (such as pork or alcohol). Certified meat depends on where you buy it.",
+      dietaryPatternsHint:
+        'We take out pork, alcohol and gelatine (and, for kosher, shellfish and meat with dairy). Certified meat depends on where you buy it.',
       disliked: 'Foods you don’t want to see',
       dislikedHint: 'They will not appear in your plans again.',
       displayName: 'What should we call you?',
