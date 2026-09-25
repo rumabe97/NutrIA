@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
+import { HEALTH_CONSENT_VERSION } from 'core/entities/Health';
+
 import type { Response } from 'supertest';
 
 import { completeOnboarding, createApp, dish, generateAndWait, httpServer, PREFIX, register, ScriptedAiClient, SEEDED } from './harness.js';
@@ -30,8 +32,6 @@ const MEDICATION = 'Levotiroxina';
    sharing its name with something the model may legitimately be offered would make
    this assertion unpassable rather than meaningful. */
 const SUPPLEMENT = 'Colágeno hidrolizado';
-const CONSENT_VERSION = '1.0.0';
-
 const POOL = [
   dish('Yogur natural', ['breakfast'], [{ grams: 250, slug: SEEDED.yogur }]),
   dish('Huevos revueltos', ['breakfast'], [{ grams: 160, slug: SEEDED.huevo }]),
@@ -143,7 +143,7 @@ describe('recorded health data, end to end', () => {
       .set('Cookie', account.cookie)
       .send({
         conditions: [{ conditionKey: 'hypothyroidism', label: 'Hipotiroidismo' }],
-        consentVersion: CONSENT_VERSION,
+        consentVersion: HEALTH_CONSENT_VERSION,
         medications: [{ name: MEDICATION }],
         // Not a catalogue ingredient: whey protein is one, and a supplement that shares
         // its name with something the model may legitimately be offered proves nothing.
