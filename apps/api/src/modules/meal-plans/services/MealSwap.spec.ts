@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
-import { ProfileConsentRequiredError, QuotaExceededError } from 'core/entities/Error';
+import { OnboardingIncompleteError, ProfileConsentRequiredError, QuotaExceededError } from 'core/entities/Error';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileConsentController, ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
@@ -171,6 +171,29 @@ describe('MealSwapService', () => {
 
     await expect(service.swap('user-1', MEAL, 'es-ES')).rejects.toBeInstanceOf(ProfileConsentRequiredError);
     expect(PlanController.mealForSwap).not.toHaveBeenCalled();
+    expect(build).not.toHaveBeenCalled();
+    expect(swapMeal).not.toHaveBeenCalled();
+  });
+
+  it('refuses a professional’s swap for a client whose allergy step was reopened, and changes no meal', async () => {
+    const { build, service, swapMeal } = harness();
+
+    jest
+      .spyOn(PlanController, 'mealForSwap')
+      .mockResolvedValue({
+        day: { id: 'day-3', dayIndex: 3 },
+        meal: { id: MEAL } as never,
+        plan: { id: 'plan-1', endDate: '2026-09-22', startDate: '2026-09-09', status: 'pending_review', strategy: null },
+        recipe: { id: 'r-1', cookMinutes: 10, name: 'Lentil stew', prepMinutes: 5, servings: 1, slug: 'lentil-stew' }
+      } as never);
+    jest.spyOn(PlanController, 'mealSwapStanding').mockResolvedValue({ allowed: true } as never);
+    // Consent given again, onboarding reopened by the withdrawal: the door refuses.
+    jest.spyOn(RecipeController, 'generationContext').mockRejectedValue(new OnboardingIncompleteError());
+
+    await expect(service.swap('usr-client', MEAL, 'es-ES', undefined, { record: async () => undefined } as never)).rejects.toBeInstanceOf(
+      OnboardingIncompleteError
+    );
+    expect(RecipeController.reusablePool).not.toHaveBeenCalled();
     expect(build).not.toHaveBeenCalled();
     expect(swapMeal).not.toHaveBeenCalled();
   });

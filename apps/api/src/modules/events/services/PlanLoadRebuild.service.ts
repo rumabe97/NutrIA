@@ -7,7 +7,7 @@ import { loadedTargets } from 'core/domain/Event';
 import { schedulePlan } from 'core/domain/Scheduler';
 import { isBlocking, validatePlan } from 'core/domain/PlanValidation';
 import { minimumDailyKcal, targetViolations } from 'core/domain/Nutrition';
-import { PlanPausedError, ProfileConsentRequiredError, QuotaExceededError } from 'core/entities/Error';
+import { OnboardingIncompleteError, PlanPausedError, ProfileConsentRequiredError, QuotaExceededError } from 'core/entities/Error';
 import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
@@ -73,9 +73,9 @@ export class PlanLoadRebuildService {
       RecipeController.verdicts(userId),
       PlanController.composition(userId, plan.id)
     ]).catch((error: unknown) => {
-      // No consent to the profile, no rebuild: the event stands and is read at
+      // No consent to the profile, or a profile not finished, no rebuild: the event stands and is read at
       // the next generation, which asks for it — the same "no" as every other.
-      if (error instanceof ProfileConsentRequiredError) {
+      if (error instanceof ProfileConsentRequiredError || error instanceof OnboardingIncompleteError) {
         return null;
       }
 

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import { OnboardingIncompleteError, ProfileConsentRequiredError } from 'core/entities/Error';
 import { normaliseForMatching } from 'core/domain/Safety';
 import { buildShoppingList, unresolvedSlugs } from 'core/domain/ShoppingList';
 import { dishSafety } from 'core/domain/Safety';
@@ -101,7 +102,19 @@ export class PlanGenerationService {
       PlanController.generationHistory(userId),
       RecipeController.verdicts(userId),
       CheckInController.latestForGeneration(userId)
-    ]);
+    ]).catch((error: unknown) => {
+      // `generationContext` is the door's own check (consent, a finished
+      // profile); a refusal there is the same stable code as the ones below.
+      if (error instanceof ProfileConsentRequiredError) {
+        throw new GenerationError('GENERATION_PROFILE_CONSENT_REQUIRED');
+      }
+
+      if (error instanceof OnboardingIncompleteError) {
+        throw new GenerationError('GENERATION_ONBOARDING_INCOMPLETE');
+      }
+
+      throw error;
+    });
     // Read after the profile, never beside it: a withdrawal reopens these steps
     // and deletes the consent with the data, so a profile read after it
     // committed is always followed by a state that says so. Beside it, the two

@@ -277,10 +277,10 @@ function inClasses(ingredient: CatalogueIngredient, classes: ReadonlySet<FoodCla
 export function resolvePreferences(input: {
   /**
    * The allergen catalogue by key, so `gluten_free` and `lactose_free` can be
-   * enforced by the same tags the allergy gate reads. Without it they exclude
-   * nothing — which is why every caller that builds a plan passes it.
+   * enforced by the same tags the allergy gate reads. Required, so a caller
+   * that forgets it fails to compile rather than serving gluten.
    */
-  readonly allergenIdsByKey?: ReadonlyMap<string, string>;
+  readonly allergenIdsByKey: ReadonlyMap<string, string>;
   readonly dietaryPatterns: readonly string[];
   readonly dislikedLabels: readonly string[];
   readonly ingredients: readonly CatalogueIngredient[];
@@ -293,7 +293,7 @@ export function resolvePreferences(input: {
   const unenforceable: string[] = [];
 
   const byAllergen = input.dietaryPatterns.filter(pattern => PATTERN_ALLERGENS[pattern] !== undefined);
-  const allergenIdsByKey = input.allergenIdsByKey ?? new Map<string, string>();
+  const { allergenIdsByKey } = input;
 
   if (classes.size > 0 || runs.length > 0 || byAllergen.length > 0) {
     for (const ingredient of input.ingredients) {

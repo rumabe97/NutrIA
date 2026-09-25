@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ProfileConsentRequiredError } from 'core/entities/Error';
+import { OnboardingIncompleteError, ProfileConsentRequiredError } from 'core/entities/Error';
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
 import { toCatalogue } from 'core/entities/Plan';
 import { makeCatalogueIngredient } from '#test/fixtures';
@@ -13,6 +13,7 @@ import type { ReusableRecipe } from '#repositories/Recipe';
 const order: string[] = [];
 const requireProfileConsent = vi.fn<(userId: string) => Promise<void>>();
 const findReusable = vi.fn<() => Promise<readonly ReusableRecipe[]>>();
+const findOnboarding = vi.fn<() => Promise<{ completedAt: string | null } | undefined>>();
 
 vi.mock('#repositories/Recipe', () => ({
   FALLBACK_LOCALE: 'es-ES',
@@ -27,6 +28,7 @@ vi.mock('#repositories/Profile', () => ({
   }
 }));
 vi.mock('#repositories/Health', () => ({ HealthRepository: { takesProteinSupplement: async () => Promise.resolve(false) } }));
+vi.mock('#repositories/Onboarding', () => ({ OnboardingRepository: { find: async () => (order.push('onboarding'), findOnboarding()) } }));
 vi.mock('#repositories/Vacation', () => ({ VacationRepository: {} }));
 vi.mock('core/controllers/Safety', () => ({
   SafetyController: {
@@ -49,6 +51,7 @@ beforeEach(() => {
   order.length = 0;
   requireProfileConsent.mockReset();
   requireProfileConsent.mockResolvedValue(undefined);
+  findOnboarding.mockResolvedValue({ completedAt: '2026-09-01' });
 });
 
 describe('RecipeController.generationContext — the one door every generation passes', () => {
@@ -66,6 +69,13 @@ describe('RecipeController.generationContext — the one door every generation p
     requireProfileConsent.mockRejectedValue(new ProfileConsentRequiredError());
 
     await expect(RecipeController.generationContext('usr-1')).rejects.toBeInstanceOf(ProfileConsentRequiredError);
+  });
+
+  it('refuses an account whose onboarding was reopened — consent given again, allergies not yet answered — after the reads', async () => {
+    findOnboarding.mockResolvedValue({ completedAt: null });
+
+    await expect(RecipeController.generationContext('usr-1')).rejects.toBeInstanceOf(OnboardingIncompleteError);
+    expect(order.indexOf('onboarding')).toBeGreaterThan(order.indexOf('safety'));
   });
 
   it('builds nobody’s context without asking anyone’s consent', async () => {

@@ -10,7 +10,8 @@ import { proteinSupplementExclusions } from 'core/domain/Health';
 import { breaksDishRule, resolvePreferences, withinTime } from 'core/domain/Preference';
 import { SafetyController } from 'core/controllers/Safety';
 import { requireProfileConsent } from 'core/controllers/Profile';
-import { NotFoundError, PlanPausedError } from 'core/entities/Error';
+import { NotFoundError, OnboardingIncompleteError, PlanPausedError } from 'core/entities/Error';
+import { OnboardingRepository } from '#repositories/Onboarding';
 import { VacationRepository } from '#repositories/Vacation';
 import { isAway } from 'core/domain/Vacation';
 import { toCatalogue } from 'core/entities/Plan';
@@ -177,6 +178,15 @@ export const RecipeController = {
     // generation an empty safety profile. The one door generation, swaps and
     // the event rebuild all pass through.
     await requireProfileConsent(userId);
+
+    // And a finished profile, read after the same reads for the same reason:
+    // a withdrawal reopens the allergy step, and a consent given again before
+    // it is answered would otherwise hand any path without its own onboarding
+    // check — a professional's swap on a plan under review — an empty safety
+    // profile.
+    if (!(await OnboardingRepository.find(userId))?.completedAt) {
+      throw new OnboardingIncompleteError();
+    }
 
     return context;
   },
