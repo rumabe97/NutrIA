@@ -256,10 +256,15 @@ describe('profile consent and the minimum age, end to end', () => {
 
     beforeAll(async () => {
       const allergensResponse: Response = await request(httpServer(app)).get(`/${PREFIX}/safety/allergens`).expect(200);
-      const glutenId = (allergensResponse.body as readonly { id: string; key: string }[]).find(allergen => allergen.key === 'gluten')?.id;
+      // `crustaceans`, not `gluten`: the shared `POOL` fixture's breakfast
+      // dishes are built on oats and bread, so a gluten allergy would exclude
+      // them all and starve the slot. Nothing in `POOL` is a crustacean, so the
+      // gate has something to enforce without touching what this account can
+      // still be served.
+      const allergenId = (allergensResponse.body as readonly { id: string; key: string }[]).find(allergen => allergen.key === 'crustaceans')?.id;
 
-      if (!glutenId) {
-        throw new Error('No gluten allergen in the seeded catalogue — see ./README.md');
+      if (!allergenId) {
+        throw new Error('No crustaceans allergen in the seeded catalogue — see ./README.md');
       }
 
       [account, other] = await Promise.all([
@@ -268,7 +273,9 @@ describe('profile consent and the minimum age, end to end', () => {
       ]);
       made.push(account.cookie, other.cookie);
 
-      await Promise.all([completeOnboarding(app, account, [glutenId], ['Avellanas'], false, ['vegetarian']), completeOnboarding(app, other)]);
+      // `omnivore`, not `vegetarian`: it still proves `user_dietary_patterns` is
+      // written and deleted, without excluding the meat and fish `POOL` needs.
+      await Promise.all([completeOnboarding(app, account, [allergenId], ['Avellanas'], false, ['omnivore']), completeOnboarding(app, other)]);
 
       await request(httpServer(app)).post(`/${PREFIX}/progress/weight`).set('Cookie', account.cookie).send({ weightKg: 71.4 }).expect(200);
 
@@ -291,7 +298,7 @@ describe('profile consent and the minimum age, end to end', () => {
 
       expect(before.allergies).toHaveLength(1);
       expect(before.customAllergens).toHaveLength(1);
-      expect(before.dietaryPatterns).toEqual(['vegetarian']);
+      expect(before.dietaryPatterns).toEqual(['omnivore']);
       expect(before.goal).not.toBeNull();
       expect(before.profile?.heightCm).toBe(168);
       expect(await progressWeights(account.id)).toEqual([70.9]);
