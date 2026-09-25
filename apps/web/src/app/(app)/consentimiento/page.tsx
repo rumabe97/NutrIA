@@ -1,10 +1,14 @@
+import { redirect } from 'next/navigation';
+
 import { ProfileConsentInterstitial } from 'components/ProfileConsentInterstitial';
 
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
+import { serverApi } from 'lib/server-api';
 
 import { appMetadata } from '../../_shared/metadata';
 
 import type { Metadata } from 'next';
+import type { OnboardingView } from 'core/controllers/Onboarding';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,19 +17,25 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * The one-time screen an existing account meets before `/inicio` when its
- * health-data consent (P0-2) is still missing — an onboarding finished before
- * that consent existed, so nothing ever asked. Someone still mid-onboarding
- * belongs in the flow that is about to ask them, at the allergies step, not
- * here.
- *
- * TODO(backend): once `OnboardingView` (or `/users/me`) carries the consent
- * flag, redirect straight to `/inicio` here when it is already `true` — the
- * same self-guard `redirectIfOnboardingIncomplete` gives every other signed-in
- * page — so a direct visit after consenting is not shown the form again.
+ * The one-time screen an existing account meets before `/inicio` when
+ * `OnboardingView.profileConsentRequired` is still true — an onboarding
+ * finished before this health-data consent existed (P0-2), so nothing ever
+ * asked. Someone still mid-onboarding belongs in the flow that already asks
+ * them, on the about-you step, not here — `redirectIfOnboardingIncomplete`
+ * sends them there first.
  */
 export default async function ProfileConsentPage() {
   await redirectIfOnboardingIncomplete();
+
+  const state = await serverApi<OnboardingView>('/onboarding');
+
+  // Read positively, like every other guard here: `null` means the API could
+  // not be asked, and showing the form once more on a hiccup is the safe
+  // failure — sending someone who *has* consented straight past `/inicio`
+  // on a hiccup would not be.
+  if (state && !state.profileConsentRequired) {
+    redirect('/inicio');
+  }
 
   return <ProfileConsentInterstitial />;
 }

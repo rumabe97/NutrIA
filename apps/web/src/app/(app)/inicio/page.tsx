@@ -19,7 +19,7 @@ import { Tour } from 'components/Tour';
 import { WeightTracker } from 'components/WeightTracker';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
-import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
+import { redirectIfOnboardingIncomplete, redirectIfProfileConsentMissing } from 'lib/onboarding';
 import { resumesOn } from 'lib/vacation';
 import { serverApi } from 'lib/server-api';
 
@@ -63,11 +63,7 @@ function greetingKey(hour: number): 'goodAfternoon' | 'goodEvening' | 'goodMorni
 
 export default async function DashboardPage() {
   await redirectIfOnboardingIncomplete();
-  // TODO(backend contract): once `OnboardingView` (or `/users/me`) carries the
-  // health-data consent flag (P0-2), add a `redirectIfProfileConsentMissing()`
-  // here, the same shape as the call above, sending an existing account whose
-  // consent is still missing to `/consentimiento` — the one-time interstitial
-  // already built at `apps/web/src/app/(app)/consentimiento/page.tsx`.
+  await redirectIfProfileConsentMissing();
 
   const [dictionary, locale, user, profile, plan, shopping, weight, checkIn, trips] = await Promise.all([
     getDictionary(),

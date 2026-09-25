@@ -23,7 +23,7 @@ export type ApiErrorCode =
   | 'PROFILE_CONSENT_REQUIRED'
   | 'QUOTA_EXCEEDED'
   | 'REQUEST_ERROR'
-  | 'UNDERAGE'
+  | 'UNDER_MINIMUM_AGE'
   | 'UNSAFE_CONTENT';
 
 export class ApiError extends Error {
@@ -64,7 +64,7 @@ const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   PROFILE_CONSENT_REQUIRED: 'profileConsentRequired',
   QUOTA_EXCEEDED: 'quotaExceeded',
   REQUEST_ERROR: 'request',
-  UNDERAGE: 'underage',
+  UNDER_MINIMUM_AGE: 'underMinimumAge',
   UNSAFE_CONTENT: 'unsafeContent'
 };
 

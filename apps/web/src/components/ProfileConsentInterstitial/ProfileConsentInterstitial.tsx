@@ -10,17 +10,21 @@ import { useDictionary } from 'i18n/LocaleProvider';
 
 import { ProfileConsentFields } from 'components/ProfileConsentFields';
 
+import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
+
 import { api, messageFor } from 'lib/api';
 
 import type { FormEvent } from 'react';
+import type { ProfileConsentView } from 'core/controllers/Profile';
 
 /**
- * The one-time screen an existing account meets before `/inicio` once the
- * server says its health-data consent (`docs/legal/textos/05-consentimientos-cliente.md`
- * § A) is still missing — an account that finished onboarding before this
- * consent existed, so the allergies step never asked. New accounts never see
- * this: they give the same consent on that step itself, and `redirect` below
- * only fires for someone whose onboarding the server already calls complete.
+ * The one-time screen an existing account meets before `/inicio` when
+ * `OnboardingView.profileConsentRequired` is still true — an onboarding that
+ * finished before this health-data consent existed
+ * (`docs/legal/textos/05-consentimientos-cliente.md` § A), so nothing ever
+ * asked. New accounts never see this: they give the same consent on the
+ * about-you step itself, before `OnboardingController` will even accept a
+ * goal.
  */
 export function ProfileConsentInterstitial() {
   const router = useRouter();
@@ -42,7 +46,7 @@ export function ProfileConsentInterstitial() {
     setPending(true);
 
     try {
-      await api('/profile/consent', { method: 'PATCH' });
+      await api<ProfileConsentView>('/profile/consent', { body: { version: PROFILE_CONSENT_VERSION }, method: 'PUT' });
       router.push('/inicio');
       router.refresh();
     } catch (caught) {

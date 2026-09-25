@@ -13,13 +13,17 @@ import { Card } from 'components/Card';
 
 import { api, messageFor } from 'lib/api';
 
+import type { ProfileConsentView } from 'core/controllers/Profile';
+
 /**
  * Withdrawing the health-data consent (`docs/legal/textos/05-consentimientos-cliente.md`
- * § A) deletes what it covers — allergies, intolerances, weight, height, goal
- * and eating style — and sends the account back to the onboarding step that
- * asks for it again, the same shape `HealthPanel`'s withdraw already has for
- * conditions, medication and supplements, but with the confirmation step that
- * one lacks: this one also erases what a plan is calculated from.
+ * § A) deletes what it covers — allergies, intolerances, custom allergens, way
+ * of eating, every goal, height and every weight — and reopens the onboarding
+ * steps that collect it (`goal`, `body-activity`, `allergies`; `/onboarding`
+ * resolves to the first of those). The same shape `HealthPanel`'s withdraw
+ * already has for conditions, medication and supplements, but with the
+ * confirmation step that one lacks: this one also erases what a plan is
+ * calculated from.
  */
 export function ProfileConsentCard() {
   const router = useRouter();
@@ -54,7 +58,7 @@ export function ProfileConsentCard() {
     setPending(true);
 
     try {
-      await api('/profile/consent', { method: 'DELETE' });
+      await api<ProfileConsentView>('/profile/consent', { method: 'DELETE' });
       router.push('/onboarding');
       router.refresh();
     } catch (caught) {

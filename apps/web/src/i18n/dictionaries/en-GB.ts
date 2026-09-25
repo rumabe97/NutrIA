@@ -278,7 +278,8 @@ export const enGB: Dictionary = {
     alreadyTitle: 'This fortnight is already closed',
     backHome: 'Back to home',
     comments: 'What would you change?',
-    commentsHint: 'Optional. In your words: dishes, timing, anything. It reaches the model as written.',
+    commentsHint:
+      'Optional. In your words: dishes, timing, anything. It is kept with your check-in, but no longer reaches the model or changes the plan.',
     difficulty: 'How was following the plan?',
     difficultyEasy: 'Easy',
     difficultyHard: 'Hard',
@@ -288,13 +289,12 @@ export const enGB: Dictionary = {
     doneTargets: 'Calorie target: from {from} to {to} kcal a day.',
     doneTitle: 'Fortnight closed',
     doneWeight: 'Weight logged: the targets are computed from it now.',
-    doneWords: 'Your words reach the model when you generate the next plan.',
     hunger: 'How were the portions?',
     hungerHungry: 'I was left hungry',
     hungerRight: 'Right',
     hungerTooMuch: 'Too much',
     intro:
-      'Five questions. What you say here changes the next plan: your weight adjusts the targets, the portions move them 5 % up or down, and your words reach the model as written.',
+      'Five questions. Your weight adjusts the targets and your answers move the portions 5 % up or down. What you write is kept with the check-in, but no longer reaches the model or changes the plan.',
     nextPlan: 'Create my next plan',
     notYetBody: "The check-in opens on the plan's last day.",
     notYetTitle: 'Not yet',
@@ -415,7 +415,7 @@ export const enGB: Dictionary = {
     profileConsentRequired: 'We need your consent to handle your health data.',
     quotaExceeded: 'You have used up what your plan allows this fortnight.',
     request: 'We could not complete that action.',
-    underage: 'NutrIA is for adults, 18 and over.',
+    underMinimumAge: 'NutrIA is for adults, 18 and over.',
     unsafeContent: 'That content does not meet your dietary restrictions.'
   },
 
@@ -497,6 +497,8 @@ export const enGB: Dictionary = {
     poolTooSmallBody:
       'We do not yet have enough recipes that fit your restrictions, and no AI provider is configured, so we cannot create the missing ones. Set AI_PROVIDER on the server, or wait for the recipe library to grow.',
     poolTooSmallTitle: 'We are short of recipes',
+    profileConsentRequiredBody: 'We need your consent to handle your health data before we can work out your plan.',
+    profileConsentRequiredTitle: 'Your consent is missing',
     profileIncompleteBody: 'We need your date of birth, height, sex, weight and activity level to work out your targets.',
     profileIncompleteTitle: 'Your profile is missing information',
     quotaExceeded: 'You have already redone your plan this fortnight. The next one opens on {date}.',
@@ -761,7 +763,7 @@ export const enGB: Dictionary = {
   onboarding: {
     customAllergen: {
       bestEffort:
-        '— it is not in our catalogue, so we cannot guarantee it. We tell the generator to avoid it and we discard any dish with ingredients we cannot identify, but check the dishes before you cook them.',
+        '— it is not in our catalogue, so we cannot guarantee it. We remove foods that resemble it from your dishes and discard any dish with ingredients we cannot identify, but check the dishes before you cook them.',
       enforced: '— applied: “{ingredient}” will not appear in any dish.'
     },
     fields: {
@@ -1130,7 +1132,7 @@ export const enGB: Dictionary = {
         heading: 'Artificial intelligence',
         paragraphs: [
           'An artificial-intelligence model proposes dishes and recipes. Our own code checks each one before it reaches you: a declared allergen does not reach your plan even if the model gets it wrong. The AI makes no decision about you: the calorie and protein bounds are applied by fixed rules, not by the model.',
-          "What the model receives: your daily targets, the foods you avoid — drawn from our own lists, never written by you — and last fortnight's dishes, without your name, email or anything that directly identifies you. It never receives your conditions, medications, supplements or anything you write by hand; only their effect where there is one (for example, if you have coeliac disease, the catalogue it sees has no gluten).",
+          "What the model receives: your daily targets and goal, your meal times, how you eat (for example, vegetarian or gluten-free), what you like and your budget, always chosen from our lists, and the names of last fortnight's dishes, without your name, email or anything that directly identifies you. It never receives anything you typed yourself, your allergies, any belief, or your conditions, medications or supplements: what you cannot eat we take out of the catalogue it sees first (for example, if you have coeliac disease, the catalogue has no gluten).",
           'Some of the models we use today are free versions hosted in the United States whose providers may use what they receive to improve their models. That is why we send them only what is needed to design dishes, and never free text. We are moving to providers that do not reuse data.',
           'Recipe illustrations are drawn by a model from the recipe name and ingredients, with no data of yours.'
         ]
@@ -1150,7 +1152,7 @@ export const enGB: Dictionary = {
       {
         heading: 'Transfers outside the European Union',
         paragraphs: [
-          'Some of these providers are US companies or process data there (Vercel, Neon, Stripe, the email provider, Sentry and the AI providers). We only work with those that offer a safeguard recognised by the European Union: certification under the EU-US Data Privacy Framework or the European Commission standard contractual clauses. You can ask us for a copy of those safeguards at {email}.'
+          'Some of these providers are US companies or process data there: Vercel, Neon, Stripe, the email provider, Sentry and the AI providers. Vercel is certified under the EU-US Data Privacy Framework, which the European Commission recognises as an adequate safeguard; with the others we rely on that same framework or on the Commission standard contractual clauses, whichever each offers. The free AI models we use today offer neither safeguard; that is why we send them only what is described above, with nothing that identifies you or that you wrote. You can ask us for the details of each safeguard at {email}.'
         ]
       },
       {
@@ -1263,7 +1265,7 @@ export const enGB: Dictionary = {
     profileConsentTitle: 'Health data consent',
     profileConsentWithdraw: 'Withdraw consent and delete this data',
     profileConsentWithdrawBody:
-      'Your allergies, intolerances, weight, height, goal and way of eating are deleted, and no more plans will be generated until you give it again. You will return to the allergies step of the questionnaire.',
+      'Your allergies, intolerances, the ones you typed by hand, your way of eating, height, weight and goal are deleted, and no more plans will be generated until you give it again. You will return to the goal, body and allergies steps of the questionnaire.',
     profileConsentWithdrawConfirm: 'Yes, withdraw and delete',
     profileConsentWithdrawTitle: 'Withdraw your consent?',
     pushBlocked: 'This browser is blocking notifications from NutrIA. You can allow them in its settings.',
@@ -1297,7 +1299,7 @@ export const enGB: Dictionary = {
   },
 
   profileConsent: {
-    ai: 'An artificial-intelligence model designs the dishes. It receives your targets and the foods you avoid, drawn from our own lists, never your name or email. It never receives your conditions, your medication, anything you write by hand, or any belief. Our code checks every dish against your allergies before it reaches you.',
+    ai: 'An artificial-intelligence model designs the dishes. It receives your targets, your meal times, how you eat (for example, vegetarian or gluten-free) and what you like, always chosen from our lists, never your name or email. It never receives your conditions, your medication, your allergies, anything you type yourself or any belief: what you cannot eat we remove first, in our code, and the same code checks every dish before it reaches you.',
     body: 'To build you a safe plan we need data that says something about your health: your allergies and intolerances, your weight, height and goal, and how you eat, which sometimes reveals an intolerance or a belief. We use them only to work out your targets and choose your dishes.',
     continue: 'Continue',
     label: 'I consent to NutrIA using this health data to make my plans',
