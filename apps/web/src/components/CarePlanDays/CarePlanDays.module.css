@@ -1,0 +1,74 @@
+.days {
+  display: grid;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.day {
+  border-top: 1px solid var(--border-01);
+}
+
+.summary {
+  align-items: baseline;
+  cursor: pointer;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-01) var(--space-04);
+  justify-content: space-between;
+  padding: var(--space-03) 0;
+}
+
+.summary:hover .dayTitle {
+  color: var(--foreground-01);
+}
+
+.dayTitle {
+  color: var(--foreground-02);
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-semibold);
+}
+
+.day[open] .dayTitle {
+  color: var(--foreground-01);
+}
+
+.totals {
+  color: var(--foreground-03);
+  font-size: var(--font-size-02);
+  font-variant-numeric: tabular-nums;
+}
+
+.meals {
+  display: grid;
+  gap: var(--space-03);
+  list-style: none;
+  margin: 0 0 var(--space-04);
+  padding: 0;
+}
+
+/* The meal and its swap on one row; the swap's panel drops under the whole row. */
+.meal {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+}
+
+.what {
+  display: grid;
+  flex: 1 1 12rem;
+  gap: var(--space-01);
+  min-inline-size: 0;
+}
+
+.figures {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (pointer: coarse) {
+  .summary {
+    align-items: center;
+    min-block-size: var(--target-min);
+  }
+}

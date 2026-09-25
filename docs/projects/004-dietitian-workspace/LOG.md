@@ -518,3 +518,39 @@
   - `CareLinkCard`'s inline-confirm-before-destructive pattern and `CareAccessLog`'s cursor-paginated trail are both original to this phase (not copied from `DeleteAccount`, which has the same un-managed-focus gap this phase's review caught — pre-existing there, out of scope to fix in passing). Phase 9's professional-side list/trail screens may want the same shape.
   - The linked-state screens need a real seed to be eyeballed — see "Not visually confirmed" above. Worth deciding before Phase 9, since Phase 9 will have the same problem in reverse (it needs a client in a "invited"/"linked" state to look at its own screens too).
   - `apps/web/src/lib/api.ts`'s `ApiError` now carries an optional `link` field (`CARE_LINK_EXISTS`'s body) — `null` for every other code.
+
+## Phase 9 — The practice, on screen (2026-09-25)
+
+- **Executor**: run as `/team` (the phase touches API and web). Lead: Opus 5.5 (session effort below `/team`'s `high`, said here as the skill asks).
+  - `backend` (opus @ medium, the plan's routing): step 0, and the portal return below.
+  - `frontend` (opus @ medium, the plan's routing): steps 1–4.
+  - `tests` (sonnet @ medium): step 0's cases in `care-review.e2e-spec.ts`.
+  - `accessibility` (sonnet @ medium): requirements up front, then two live probes.
+  - `invariant-reviewer` (opus @ high, its floor): every commit of the three.
+  - `tests`, `frontend` and `accessibility` hit the account's session limit at the end; the lead brought the tests agent's uncommitted suite into this checkout by copying its two files (verified identical) and ran the gate itself.
+- **Result**: done locally, pending the pull request's CI (the end-to-end proof) and the human-verify gate.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test`: 21 of 21 tasks, api 677 tests, on the merged branch with the new suite in.
+  - `pnpm --filter web build`: clean; `/consulta`, `/consulta/[linkId]` and `/admin` dynamic.
+  - `node scripts/check-migrations.mjs --drift`: 0 new, 39 in all, in order — no migration, as planned.
+  - Unit specs for step 0: `PlanController.test.ts` (`professionalMayGenerate` ended/running/last-day/pending/none; the re-check under the claim), `CareAccess.test.ts`, `PlanRepository.test.ts`; `Billing.spec.ts` for the portal return (practice, premium, ended practice).
+  - `invariant-reviewer`: backend `ae958d2` and `4c5981f` pass with no findings; frontend passes at `5973935` after two P3s were fixed (an unencoded admin path; a 404 while polling a generation now stops and says the link is gone); the suite's P2 (the review-off case asserts exactly one `write` row, and the allowance unchanged) and P3 (the race's rarely-taken professional-wins branch, a comment pointing at the unit spec) fixed.
+  - `accessibility` (live, 320/390/1280 × light/dark, closed and open practice, a linked client, `/admin`, the 404 for a non-professional): 3 P1 fixed and re-probed live (targets form keyed by the API's field; the grant form's focus; *Nueva quincena* announces its outcome). One P2 (focus lost when *Nueva quincena* disables itself) fixed in `d406799`; `accessibility` read the diff and confirmed it (focus moves to `#pending-title` when the button's own success disables it), not re-probed live.
+  - `apple-web-design` self-review by `frontend`: pass, no P0/P1. Left as they are: every region on `/consulta/[linkId]` is its own titled card, as on `/perfil` (P2); the targets form's *Guardar* sits beside *Nueva quincena* while editing, as in `TargetsPanel` (P3).
+  - **End-to-end: not proven on this machine.** It has no Docker and no local Postgres, so the suite ran on the README's third path, the Neon dev branch's throwaway `nutria_e2e`. The tests agent's run: 15 of 31 failed, 11 of them Phase 5 cases step 0 does not touch, all professional routes answering 404 from one point on (not diagnosed). The lead's single re-run: 31 of 31 failed on a 120 s timeout in the suite's `beforeAll` (account creation over the remote database). Neither run says anything about the code; the full suite was deliberately not run there (dev and production share Neon's 5 GB transfer). The pull request's CI, on a real `postgres:17`, is the proof — the owner reads it before merging.
+- **Deviations from plan** (scope amended in PLAN.md):
+  - **Step 0 needed two changes the plan did not name**, both found by `invariant-reviewer` before any code: `PlanJobController.start` asks `professionalMayGenerate` again under the job's claim (a client's fortnight landing between the professional's check and the claim would otherwise be redone over, and charged as a redo), and `PlanRepository.refusesProfessionalSave` refuses only an active plan still running on the new plan's start (it refused any active plan, so an ended fortnight with review off could never go live). Both are inside step 0's listed files. The losing side of a simultaneous start gets today's 409 `CONFLICT`, or a 404 in that narrow window.
+  - **`apps/api/src/modules/billing`, for one change** (`4c5981f`): the customer portal returns a practice's subscriber to `/consulta` instead of `/perfil`. It lists the customer's subscriptions at Stripe (a read, keyed on the session's own customer) because neither `subscriptions` nor `professionals.includedClients` reliably says whether the current price is a practice's. One extra Stripe read per portal open.
+  - **`MealSwap` gained an optional `path` prop** so the pending plan's swaps go through `/care/clients/:linkId/plan/meals/:mealId/swap`.
+  - **Polling a generation is sparser on the professional's side** (2 s, 4 s, then every 10 s, at most 60): each poll is a `review`/`read` row in the client's trail, so one generation leaves roughly 8–12 rows.
+- **Decisions**: none new.
+- **Open, for the owner**:
+  - **Nothing links to `/consulta`.** `AppNav` cannot show it: `UserView` (`GET /users/me`) does not say the account is a professional. The smallest fix is a `professional: boolean` there (true only with the flag on and a grant) and a conditional entry — an API contract change, deferred. Until then a professional types the address, as the owner does `/admin`. Worth deciding before the flag goes on (Phase 10).
+  - **The client's trail fills with the professional's polls** (above). Audit as designed (`0059`); if it reads as noise on the client's screen, the choice is between collapsing reads in the trail's view or not auditing a job poll — the second is a change to `0059`.
+  - **The accessibility probe seeded a linked client in-process** (`CareController.invite` against the local dev database, `neondb`, never production), and deleted its four accounts afterwards. Phase 8's frontend agent was stopped by the permission guard doing the same; this time it went through. Whether the guard should allow it is the owner's call.
+  - **`worktree.sh` run from inside another worktree** (this checkout, `NutrIA-fase7`) does not make an agent worktree: it treats that worktree as the agent's own and reports `WORKTREE=NutrIA-fase7`. `backend`, `frontend` and `tests` re-ran it from the main checkout; `accessibility` (read-only) stayed. A fix for `.claude/skills/team/scripts/worktree.sh`, or a line in `agent-team.md`.
+  - `main` moved while this ran (`85f4ef5`); merge it in before the pull request.
+- **Notes for the next phase**:
+  - Not seen in a browser: the practice's plan-choice buttons (`STRIPE_PRACTICE_PRICES` unset locally) and a pending plan with real dishes (the stub only). The human-verify gate covers both.
+  - Phase 10's test README row for `care-review` already carries step 0.
+  - Phase 8's client-notice gap (a plan the professional generates alone is not announced to the client) is unchanged by this phase.

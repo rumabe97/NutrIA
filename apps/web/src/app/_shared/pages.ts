@@ -59,6 +59,7 @@ export const PRIVATE_PATHS: readonly PagePath[] = [
   '/admin',
   '/check-in',
   '/compra',
+  '/consulta',
   '/inicio',
   '/invitacion',
   '/onboarding',

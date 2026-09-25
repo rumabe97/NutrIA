@@ -567,17 +567,17 @@ export const CareController = {
    * review on the plan waits for the professional; with it off, a client with
    * no plan gets it active at once, as their own would be.
    *
-   * **Only when there is a reason** (owner's decision, `0060`): a plan is
-   * pending — a regeneration, which lands pending again whatever the review
-   * toggle says (`PlanRepository.createPlanAtomically`) — or the client has no
-   * active plan. A professional never replaces a fortnight under way; any other
-   * request is the same 404, and writes nothing.
+   * **Only when there is a reason** (owner's decisions, `0060` and
+   * 2026-09-24): a plan is pending — a regeneration, which lands pending again
+   * whatever the review toggle says (`PlanRepository.createPlanAtomically`) —
+   * the client has no active plan, or its fortnight has ended, which starts the
+   * next one exactly as the client's own would (`PlanController.professionalMayGenerate`).
+   * A professional never replaces a fortnight under way; any other request is
+   * the same 404, and writes nothing. `start` asks again under its claim.
    */
   async generatePlan(professional: Pick<CareSession, 'id'>, linkId: string, start: ForClient<JobView>): Promise<JobView> {
     return CareController.withClient(professional.id, linkId, 'review', 'write', async (clientId, _access, record) => {
-      const standing = await PlanController.planStanding(clientId);
-
-      if (standing.active && !standing.pending) {
+      if (!(await PlanController.professionalMayGenerate(clientId))) {
         throw new NotFoundError('Client not found');
       }
 

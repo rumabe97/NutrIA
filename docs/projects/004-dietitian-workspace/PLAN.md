@@ -157,7 +157,7 @@ then the documents. Each phase ends green.
 
 ### Phase 6 — A check-in reaches the professional
 
-- [x] done — `pnpm turbo lint ts:check test build` 12/12, 641/641 tests; local `test:e2e -- care fortnight` not run on this machine (ICU mismatch, see LOG); the pull request's CI runs the whole suite against a real `postgres:17`
+- [x] done — `pnpm turbo lint ts:check test build` 12/12, 641/641 tests; local `test:e2e -- care fortnight` not run on this machine (ICU mismatch, see LOG); the pull request's CI runs the whole suite against a real `postgres:17` — commit `d67eee5` ("Project 004 phase 6: a check-in reaches the professional (#96)")
 - **Dispatch**: sonnet @ medium — `/execute-project 004 phase 6`
 - **Goal**: when a linked client checks in, their professional is told once, and the message carries nothing about their health.
 - **Scope**: `packages/database/src/schemas/_enums.ts`, one generated migration, `packages/core/src/controllers/{CheckIn,Notification,Care}`, `apps/api/src/modules/{check-ins,notifications,email,care}`, `apps/api/test` (step 4 adds `Care` and `care`).
@@ -187,7 +187,7 @@ then the documents. Each phase ends green.
 
 ### Phase 7 — The practice is paid for
 
-- [x] done — `test:e2e -- billing care` 178/178 and the whole suite 325/325 on a throwaway Postgres; the pull request's CI runs it again
+- [x] done — `test:e2e -- billing care` 178/178 and the whole suite 325/325 on a throwaway Postgres; the pull request's CI runs it again — commit `a84d18e` ("Project 004 phase 7: the practice is paid for (#97)")
 - **Dispatch**: opus @ high — `/execute-project 004 phase 7`
 - **Goal**: a professional's plan opens the workspace and sets how many clients it includes; a lapse pauses without deleting; a linked client has the paid allowances.
 - **Scope**: `apps/api/src/{config/Env.validation.ts,modules/billing,modules/care}`, `packages/core/src/{controllers/Billing,controllers/Plan,controllers/Care,repositories/Billing,domain/Allowance}`, `apps/api/test`.
@@ -222,7 +222,7 @@ then the documents. Each phase ends green.
 
 ### Phase 8 — The client's side of the link, on screen
 
-- [x] done — `pnpm turbo lint ts:check test --filter=web --filter=ui` 14/14, `pnpm --filter web build` clean; `apple-web-design` and `accessibility` reviews passed (5 accessibility findings fixed)
+- [x] done — `pnpm turbo lint ts:check test --filter=web --filter=ui` 14/14, `pnpm --filter web build` clean; `apple-web-design` and `accessibility` reviews passed (5 accessibility findings fixed) — commit `89fc61e` ("Project 004 phase 8: the client's side of the link, on screen (#95)")
 - **Dispatch**: sonnet @ medium — `/execute-project 004 phase 8`
 - **Goal**: the client accepts an invitation knowing what is shared, sees and ends their link and its trail, and sees who set their targets and that a plan is with their dietitian.
 - **Scope**: `apps/web/src/app/(app)/{invitacion,perfil,inicio,plan}`, `apps/web/src/components/{TargetsPanel,…}`, new components, `apps/web/src/i18n/dictionaries`, `apps/web/src/proxy.ts`.
@@ -243,10 +243,10 @@ then the documents. Each phase ends green.
 
 ### Phase 9 — The practice, on screen
 
-- [ ] pending
+- [ ] in progress — built and gated locally (`pnpm turbo lint ts:check test` 21/21, web build clean); awaiting the pull request's CI for `test:e2e` (not provable on this machine, see LOG) and the human-verify gate
 - **Dispatch**: opus @ medium — `/execute-project 004 phase 9`
 - **Goal**: the professional's workspace at `/consulta`, and the owner's view of professionals on `/admin`.
-- **Scope**: `apps/web/src/app/(app)/{consulta,admin}`, new components, `apps/web/src/i18n/dictionaries`, `apps/web/src/proxy.ts`, `packages/ui` only if a component is genuinely shared. Step 0 adds `packages/core/src/{controllers/Plan,controllers/Care,repositories/Plan}`, `apps/api/src/modules/{care,meal-plans}` and `apps/api/test`, and no migration.
+- **Scope**: `apps/web/src/app/(app)/{consulta,admin}`, new components, `apps/web/src/i18n/dictionaries`, `apps/web/src/proxy.ts`, `packages/ui` only if a component is genuinely shared. Step 0 adds `packages/core/src/{controllers/Plan,controllers/Care,repositories/Plan}`, `apps/api/src/modules/{care,meal-plans}` and `apps/api/test`, and no migration. Amended in execution: `apps/api/src/modules/billing` for one change, the customer portal returning a practice's subscriber to `/consulta` instead of `/perfil` (see LOG).
 - **Steps**:
   0. **Owner's decision, 2026-09-24 (Phase 5's LOG, notes): a professional can start the client's next fortnight.**
      - What happens today: a fortnight that has ended but not been replaced is still `active`, so Phase 5's guard

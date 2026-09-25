@@ -12,6 +12,7 @@ import { Card } from 'components/Card';
 import { FeedbackInbox } from 'components/FeedbackInbox';
 import { FlagSwitch } from 'components/FlagSwitch';
 import { Pager } from 'components/Pager';
+import { ProfessionalList } from 'components/ProfessionalList';
 import { PushTestButton } from 'components/PushTestButton';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
@@ -23,6 +24,7 @@ import type { AccountView, Paged } from 'core/controllers/User';
 import type { AdminAnalyticsView, AdminGenerationView, AdminOverviewView, AiUsageView } from 'core/controllers/Admin';
 import type { FeedbackView } from 'core/controllers/Feedback';
 import type { Metadata } from 'next';
+import type { ProfessionalAccountView } from 'core/controllers/Professional';
 import type { SettingsView } from 'core/controllers/Settings';
 
 export const dynamic = 'force-dynamic';
@@ -51,7 +53,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const query = await searchParams;
   const accountsOffset = Number.parseInt(query.cuentas ?? '', 10) || 0;
   const feedbackOffset = Number.parseInt(query.buzon ?? '', 10) || 0;
-  const [dictionary, locale, overview, accounts, settings, analytics, ai, inbox, generations, opened] = await Promise.all([
+  const [dictionary, locale, overview, accounts, settings, analytics, ai, inbox, generations, professionals, opened] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<AdminOverviewView>('/admin/overview'),
@@ -61,6 +63,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     serverApi<AiUsageView>('/admin/ai'),
     serverApi<Paged<FeedbackView> & { waiting: number }>(`/admin/feedback?offset=${feedbackOffset}`),
     serverApi<readonly AdminGenerationView[]>('/admin/generations'),
+    serverApi<readonly ProfessionalAccountView[]>('/admin/professionals'),
     Promise.resolve(query)
   ]);
 
@@ -151,7 +154,11 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
       {/* Accounts next: the only thing on this page somebody is waiting on. */}
       <section className={styles.section} id="cuentas">
         <h2 className={styles.subtitle}>{t.accountsTitle}</h2>
-        <AccountList accounts={accounts?.rows ?? []} premium={settings?.flags?.premium ?? false} />
+        <AccountList
+          accounts={accounts?.rows ?? []}
+          premium={settings?.flags?.premium ?? false}
+          professionalIds={(professionals ?? []).map(professional => professional.userId)}
+        />
         {accounts ? (
           <Pager
             labels={{ next: t.pagerNext, of: t.pagerOf, previous: t.pagerPrevious }}
@@ -161,6 +168,23 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
             total={accounts.total}
           />
         ) : null}
+      </section>
+
+      {/* Dietitians (`0059`): whether the practice exists at all, and who has been granted it —
+          their links counted, never a client named. The grant itself is on the account rows above. */}
+      <section className={styles.section} id="profesionales">
+        <h2 className={styles.subtitle}>{t.professionalsTitle}</h2>
+        <FlagSwitch
+          enabled={settings?.flags?.professional ?? false}
+          flag="professional"
+          label={t.professionalLabel}
+          offHint={t.professionalOffHint}
+          onHint={t.professionalHint}
+        />
+        <Text className={styles.hint} size="sm" tone="tertiary">
+          {t.professionalsHint}
+        </Text>
+        <ProfessionalList professionals={professionals ?? []} />
       </section>
 
       {inbox ? (

@@ -1,0 +1,38 @@
+.card {
+  align-items: flex-start;
+  display: grid;
+  gap: var(--space-03);
+}
+
+.title {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
+.seats {
+  display: grid;
+  gap: var(--space-01);
+}
+
+/* "12 de 30": the figure a professional compares against their plan. */
+.count {
+  font-size: var(--font-size-06);
+  font-variant-numeric: tabular-nums;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  padding-top: var(--space-02);
+}
+
+.error {
+  border-left: 2px solid var(--color-error);
+  color: var(--color-error-text);
+  font-size: var(--font-size-02);
+  margin: 0;
+  padding: var(--space-02) var(--space-04);
+}

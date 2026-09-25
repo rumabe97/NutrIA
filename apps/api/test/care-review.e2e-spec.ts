@@ -952,4 +952,205 @@ describe('care review', () => {
       expect((await allowancesOf(stranded.client)).planRedo).toMatchObject({ used: 1 });
     });
   });
+
+  /*
+   * Phase 9, step 0 (`docs/projects/004-dietitian-workspace/PLAN.md`;
+   * `PlanController.professionalMayGenerate`): the professional's door now
+   * also opens once the client's active plan's fortnight has ended — the same
+   * day `planRedoStanding` calls `new_fortnight` for the client's own
+   * allowance, never earlier. A fortnight still running is the same 404,
+   * writing nothing and spending no allowance. Started by the client and the
+   * professional at once, `PlanJobController.start`'s claim is still the one
+   * place this is decided: one plan, one charge, the loser the existing 409
+   * `CONFLICT` either side gets today.
+   */
+  describe('a professional over an ended fortnight (Phase 9, step 0)', () => {
+    /** A linked client whose active plan's fortnight ended yesterday, unanswered — nothing pending. */
+    async function endedFortnightClient(professional: Account, name: string): Promise<{ activeId: string; client: Account; linkId: string }> {
+      const client = await account(name);
+
+      await completeOnboarding(app, client);
+      expect((await generateAndWait(app, client)).status).toBe('succeeded');
+
+      const activeId = (await activeOf(client))?.id ?? '';
+      const linkId = await link(professional, client);
+      const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+      await tables()`update meal_plans set end_date = ${yesterday} where id = ${activeId}`;
+
+      return { activeId, client, linkId };
+    }
+
+    /** Polls the professional's job route for a job already started, as `generateForAndWait` does after posting it. */
+    async function waitForProJob(professional: Account, linkId: string, jobId: string): Promise<JobView> {
+      const deadline = Date.now() + 60_000;
+
+      while (Date.now() < deadline) {
+        const polled: Response = await jobOf(professional, linkId, jobId).expect(200);
+        const job = polled.body as JobView;
+
+        if (job.status === 'succeeded' || job.status === 'failed') {
+          return job;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 250));
+      }
+
+      throw new Error('Generation did not finish within the timeout');
+    }
+
+    /** Polls the client's own job route for a job already started. */
+    async function waitForClientJob(who: Account, jobId: string): Promise<JobView & { pendingReview: boolean }> {
+      const deadline = Date.now() + 60_000;
+
+      while (Date.now() < deadline) {
+        const job = await clientJob(who, jobId);
+
+        if (job.status === 'succeeded' || job.status === 'failed') {
+          return job;
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 250));
+      }
+
+      throw new Error('Generation did not finish within the timeout');
+    }
+
+    it('with review on, generates into review: the new plan waits, the ended one stays active', async () => {
+      const proOn = await account('pro-ended-on');
+
+      await grant(proOn);
+
+      const { activeId, client, linkId } = await endedFortnightClient(proOn, 'ended-on');
+
+      // The door's own reason: a fresh fortnight, not a redo, so it is never refused for the allowance either.
+      const standing = (await allowancesOf(client)).planRedo;
+
+      expect(standing).toMatchObject({ allowed: true, kind: 'new_fortnight', used: 0 });
+
+      const before = (await reviewRows(client.id)).length;
+      const job = await generateForAndWait(proOn, linkId);
+      const written = (await reviewRows(client.id)).slice(before).map(row => row.action);
+
+      expect(job.status).toBe('succeeded');
+      // The generate is the one write; every poll of the job route is one read.
+      expect(written[0]).toBe('write');
+      expect(written.slice(1).every(action => action === 'read')).toBe(true);
+
+      const rows = await planRows(client.id);
+
+      expect(rows.find(row => row.id === activeId)?.status).toBe('active');
+      expect(rows.filter(row => row.status === 'pending_review')).toHaveLength(1);
+      expect(await pending(proOn, linkId)).toMatchObject({ status: 'pending_review' });
+      // The client still lives the ended plan until the professional publishes.
+      expect((await activeOf(client))?.id).toBe(activeId);
+      // A new fortnight, not a redo of one: it was never charged against the limited allowance.
+      expect((await allowancesOf(client)).planRedo).toEqual(standing);
+    });
+
+    it('with review off, the plan is active at once and the ended one is completed', async () => {
+      const proOff = await account('pro-ended-off');
+
+      await grant(proOff);
+
+      const { activeId, client, linkId } = await endedFortnightClient(proOff, 'ended-off');
+
+      await setReview(proOff, linkId, false).expect(200);
+
+      // Before: a fresh fortnight, unspent — the same reason the door opened at all.
+      expect((await allowancesOf(client)).planRedo).toMatchObject({ used: 0 });
+
+      const before = (await reviewRows(client.id)).length;
+      const job = await generateForAndWait(proOff, linkId);
+      const written = (await reviewRows(client.id)).slice(before).map(row => row.action);
+
+      expect(job.status).toBe('succeeded');
+      // Exactly one write, not merely one among several: the generate is the one write, every poll a read.
+      expect(written[0]).toBe('write');
+      expect(written.slice(1).every(action => action === 'read')).toBe(true);
+
+      const rows = await planRows(client.id);
+      const nowActive = rows.filter(row => row.status === 'active');
+
+      expect(rows.find(row => row.id === activeId)?.status).toBe('completed');
+      expect(nowActive).toHaveLength(1);
+      expect(nowActive[0]?.id).not.toBe(activeId);
+      expect(await pending(proOff, linkId)).toBeNull();
+      expect((await activeOf(client))?.id).toBe(nowActive[0]?.id);
+      // Still unspent: the new plan was not stamped a redo of the one it replaced, which had already ended.
+      expect((await allowancesOf(client)).planRedo).toMatchObject({ used: 0 });
+    });
+
+    it('a fortnight still running is still the 404: writes nothing, spends no allowance', async () => {
+      const proRunning = await account('pro-still-running');
+
+      await grant(proRunning);
+
+      const client = await account('still-running');
+
+      await completeOnboarding(app, client);
+      expect((await generateAndWait(app, client)).status).toBe('succeeded');
+
+      const linkId = await link(proRunning, client);
+      const before = { allowance: (await allowancesOf(client)).planRedo, plans: await planRows(client.id) };
+
+      expect(before.allowance).toMatchObject({ kind: 'redo' });
+      await expect(rowsWrittenBy(client.id, () => generateFor(proRunning, linkId).expect(404))).resolves.toEqual([]);
+
+      expect(await planRows(client.id)).toEqual(before.plans);
+      expect((await allowancesOf(client)).planRedo).toEqual(before.allowance);
+    });
+
+    /*
+     * The professional's own route reads the door (`withClient`, `professionalMayGenerate`)
+     * before it ever reaches the claim, while the client's route goes straight to it — so
+     * the client almost always wins this claim and the `proRes.status === 201` branch below
+     * rarely runs. Both branches are asserted anyway: whichever side actually wins on a given
+     * run, the shape the loser and the trail take is the same either way, and that is the point.
+     */
+    it('a race between the client and the professional makes one plan, one charge — the loser the same 409 "already generating"', async () => {
+      const proRace = await account('pro-race');
+
+      await grant(proRace);
+
+      const { activeId, client, linkId } = await endedFortnightClient(proRace, 'raced');
+      const before = (await reviewRows(client.id)).length;
+
+      const [clientRes, proRes] = await Promise.all([
+        request(server()).post(`/${PREFIX}/meal-plans/generate`).set('Cookie', client.cookie),
+        generateFor(proRace, linkId)
+      ]);
+      const statuses = [clientRes.status, proRes.status].sort((a, b) => a - b);
+
+      expect(statuses).toEqual([201, 409]);
+
+      const loser = clientRes.status === 409 ? clientRes : proRes;
+
+      expect(loser.body).toMatchObject({ code: 'CONFLICT' });
+
+      const job =
+        proRes.status === 201
+          ? await waitForProJob(proRace, linkId, (proRes.body as JobView).id)
+          : await waitForClientJob(client, (clientRes.body as { id: string }).id);
+
+      expect(job.status).toBe('succeeded');
+
+      // One plan, whoever started it: the ended one untouched, exactly one waiting for the professional.
+      const rows = await planRows(client.id);
+
+      expect(rows).toHaveLength(2);
+      expect(rows.find(row => row.id === activeId)?.status).toBe('active');
+      expect(rows.filter(row => row.status === 'pending_review')).toHaveLength(1);
+
+      // One charge: the professional's trail carries the write only when they were the one who won the claim.
+      const written = (await reviewRows(client.id)).slice(before).map(row => row.action);
+
+      if (proRes.status === 201) {
+        expect(written[0]).toBe('write');
+        expect(written.slice(1).every(action => action === 'read')).toBe(true);
+      } else {
+        expect(written).toEqual([]);
+      }
+    });
+  });
 });
