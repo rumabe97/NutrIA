@@ -1,4 +1,4 @@
-import { desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, ne, or, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -35,6 +35,37 @@ function linksIn(status: 'active' | 'ended' | 'paused') {
 }
 
 export const ProfessionalRepository = {
+  /**
+   * The professional accepts their agreement at `version` (`docs/legal/textos/01`).
+   *
+   * A guarded `UPDATE` by the session's id that writes only when the stored
+   * version is another one (or none), so a second click does not move the
+   * moment the acceptance can be shown to have happened; when it writes
+   * nothing, the row is read as it stands. No row at all, no grant, and `null`.
+   * Plain column comparisons, no raw SQL: every parameter is typed by the
+   * column it meets.
+   */
+  async acceptAgreement(userId: string, version: string, now: Date): Promise<Professional | null> {
+    try {
+      const db = database();
+      const [updated] = await db
+        .update(professionals)
+        .set({ agreementAcceptedAt: now, agreementVersion: version, updatedAt: now })
+        .where(and(eq(professionals.userId, userId), or(isNull(professionals.agreementVersion), ne(professionals.agreementVersion, version))))
+        .returning();
+
+      if (updated) {
+        return professionalSchema.parse(updated);
+      }
+
+      const [row] = await db.select().from(professionals).where(eq(professionals.userId, userId)).limit(1);
+
+      return row ? professionalSchema.parse(row) : null;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   /**
    * The professional's own row, by the session's id.
    *

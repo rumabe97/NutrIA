@@ -18,11 +18,27 @@ export const grantProfessionalSchema = z.object({ collegiateNumber: z.string().t
 export type GrantProfessional = z.infer<typeof grantProfessionalSchema>;
 
 /**
+ * The professional's agreement and the practice plan's terms, accepted together
+ * on one screen before any client's data is shown or the practice is paid for
+ * (`docs/legal/textos/01` and `04`). The version is code and the words are the
+ * web app's dictionary, as `CARE_CONSENT_VERSION` is: a stored version that is
+ * not this one asks again, and accepting an older one is refused at the door.
+ */
+export const PROFESSIONAL_AGREEMENT_VERSION = '1.0.0';
+
+/** The professional's acceptance: the current version, and nothing else. */
+export const acceptAgreementSchema = z.object({ version: z.literal(PROFESSIONAL_AGREEMENT_VERSION) });
+
+export type AcceptAgreement = z.infer<typeof acceptAgreementSchema>;
+
+/**
  * The row as `professionals` holds it. `grantedBy` is another account's id —
  * the owner's — and is the one field no presenter may carry.
  */
 export const professionalSchema = z.object({
   id: z.uuid(),
+  agreementAcceptedAt: z.date().nullable(),
+  agreementVersion: z.string().min(1).nullable(),
   collegiateNumber: z.string().min(1),
   createdAt: z.date(),
   grantedAt: z.date(),

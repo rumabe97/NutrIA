@@ -156,6 +156,11 @@ writeFileSync(cookieFile, cookie);
 const patch = (step, data) => call('PATCH', '/onboarding', { data, step }, cookie);
 
 await patch('about-you', { birthDate: '1994-03-11', country: 'ES', displayName: 'Probe', sex: 'female' });
+// The explicit profile consent comes before any step that holds health data (Legal A, #104),
+// exactly as the e2e harness's `giveProfileConsent` gives it.
+const { PROFILE_CONSENT_VERSION } = await load('core/entities/Profile');
+
+await call('PUT', '/profile/consent', { version: PROFILE_CONSENT_VERSION }, cookie);
 await patch('goal', { paceKgPerWeek: null, startingWeightKg: 72, targetWeightKg: 70, type: 'maintenance' });
 await patch('body-activity', { activityLevel: 'moderate', currentWeightKg: 72, heightCm: 168 });
 await patch('how-you-eat', { mealShape: shapeFor(3, false) });

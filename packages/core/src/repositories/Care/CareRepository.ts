@@ -11,7 +11,8 @@ import { professionals } from 'database/schema/professional';
 import { user } from 'database/schema/auth';
 
 import { DatabaseOperationError } from 'core/entities/Error';
-import { careAccessEntrySchema, careInvitationSchema, careLinkSchema } from 'core/entities/Care';
+import { CARE_ACCESS_ACTIONS, CARE_ACCESS_KINDS, careAccessEntrySchema, careInvitationSchema, careLinkSchema } from 'core/entities/Care';
+import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 
 import type {
   AcceptInvitation,
@@ -20,12 +21,29 @@ import type {
   CareAccessKind,
   CareInvitation,
   CareLink,
-  CareLinkEndedBy
+  CareLinkEndedBy,
+  CareProfessionalAction
 } from 'core/entities/Care';
 import type { SQL } from 'drizzle-orm';
 
 /** The statuses a link is still a link in. `ended` is history. */
 const OPEN_STATUSES = ['active', 'paused'] as const;
+
+/**
+ * A professional who may work with clients today (`0061`, `docs/legal/textos/01`):
+ * the practice paid for and the current agreement accepted. The condition of the
+ * join on `professionals` wherever a client is reached.
+ */
+const practising = and(eq(professionals.practiceOpen, true), eq(professionals.agreementVersion, PROFESSIONAL_AGREEMENT_VERSION));
+
+/**
+ * Only trail rows whose action and kind this code knows. A value a later release
+ * added is left out of the client's page rather than failing it, so rolling back
+ * past such a release keeps every trail readable (`_enums.ts`). In the `WHERE`,
+ * so the page's limit counts only rows it can show and the cursor still reaches
+ * every older one.
+ */
+const known = and(inArray(careAccessLog.action, [...CARE_ACCESS_ACTIONS]), inArray(careAccessLog.kind, [...CARE_ACCESS_KINDS]));
 
 /** The client's side of a link, joined under its own name: `user` is also the professional's. */
 const client = alias(user, 'client');
@@ -54,7 +72,12 @@ export type RosterLink = {
 export type Roster = { readonly invitations: readonly { readonly email: string; readonly expiresAt: Date }[]; readonly links: readonly RosterLink[] };
 
 /** An invitation the session's account may read, with who sent it. */
-export type OpenInvitation = { readonly expiresAt: Date; readonly professionalId: string; readonly professionalName: string };
+export type OpenInvitation = {
+  readonly collegiateNumber: string;
+  readonly expiresAt: Date;
+  readonly professionalId: string;
+  readonly professionalName: string;
+};
 
 /** A link, and the name of the professional on the other side of it. */
 export type LinkWithProfessional = { readonly link: CareLink; readonly professionalName: string };
@@ -208,7 +231,7 @@ export const CareRepository = {
       const rows = await database()
         .select()
         .from(careAccessLog)
-        .where(and(eq(careAccessLog.userId, clientId), older))
+        .where(and(eq(careAccessLog.userId, clientId), known, older))
         .orderBy(desc(careAccessLog.createdAt), desc(careAccessLog.id))
         .limit(limit);
 
@@ -221,10 +244,12 @@ export const CareRepository = {
   /**
    * The one question `CareController.withClient` asks (`0059`): is this link
    * the professional's, active, and are they still a professional with a
-   * practice paid for? All of it is the `WHERE` and the joins — the link id,
-   * `professionalId` (the session's), `status = 'active'`, and an inner join
-   * on `professionals` with `practiceOpen` (`0061`), so a grant taken back or
-   * a practice lapsed closes the door on the next request. Every reason for
+   * practice paid for and the current agreement accepted? All of it is the
+   * `WHERE` and the joins — the link id, `professionalId` (the session's),
+   * `status = 'active'`, and an inner join on `professionals` that is
+   * `practising` (`0061`, `docs/legal/textos/01`), so a grant taken back, a
+   * practice lapsed or a new agreement not yet accepted closes the door on the
+   * next request. Every reason for
    * "no" is the same empty result.
    *
    * **The only query that turns a professional's session into another
@@ -236,7 +261,7 @@ export const CareRepository = {
       const [row] = await database()
         .select({ clientName: client.name, link: careLinks, professionalName: user.name })
         .from(careLinks)
-        .innerJoin(professionals, and(eq(professionals.userId, careLinks.professionalId), eq(professionals.practiceOpen, true)))
+        .innerJoin(professionals, and(eq(professionals.userId, careLinks.professionalId), practising))
         .innerJoin(user, eq(user.id, careLinks.professionalId))
         .innerJoin(client, eq(client.id, careLinks.clientId))
         .where(and(eq(careLinks.id, linkId), eq(careLinks.professionalId, professionalId), eq(careLinks.status, 'active')))
@@ -372,6 +397,22 @@ export const CareRepository = {
   },
 
   /**
+   * Every invitation past its date, whoever sent it: the address in it was kept
+   * for the invitation and nothing else, and the invitation mail promises it goes
+   * by the day after it expires (RGPD art. 14, `docs/legal/textos/06` § A). One `DELETE`,
+   * idempotent; answers how many went.
+   */
+  async forgetExpired(now: Date): Promise<number> {
+    try {
+      const rows = await database().delete(careInvitations).where(lte(careInvitations.expiresAt, now)).returning({ id: careInvitations.id });
+
+      return rows.length;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
    * A professional invites an address (`0059`). Only the token's hash is
    * written.
    *
@@ -396,19 +437,24 @@ export const CareRepository = {
    * invitations sent at once count one after the other, and the count and the
    * insert are one decision. The invitation this one replaces (the same
    * address) is not counted: it is about to be the same seat. A practice not
-   * paid for, or an account no longer a professional, is `closed`. Nothing is
-   * written unless the invitation is.
+   * paid for, an agreement not accepted at its current version, or an account
+   * no longer a professional, is `closed`. Nothing is written unless the
+   * invitation is.
    */
   async invite(professionalId: string, email: string, tokenHash: string, expiresAt: Date, now: Date): Promise<InviteOutcome> {
     try {
       return await database().transaction(async (tx): Promise<InviteOutcome> => {
         const [practice] = await tx
-          .select({ includedClients: professionals.includedClients, open: professionals.practiceOpen })
+          .select({
+            agreementVersion: professionals.agreementVersion,
+            includedClients: professionals.includedClients,
+            open: professionals.practiceOpen
+          })
           .from(professionals)
           .where(eq(professionals.userId, professionalId))
           .for('update');
 
-        if (!practice?.open) {
+        if (!practice?.open || practice.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION) {
           return { kind: 'closed' };
         }
 
@@ -460,7 +506,13 @@ export const CareRepository = {
    */
   async logAccess(
     clientId: string,
-    entry: { readonly action: CareAccessAction; readonly kind: CareAccessKind; readonly professionalId: string; readonly professionalName: string },
+    entry: {
+      readonly action: CareProfessionalAction;
+      readonly kind: CareAccessKind;
+      readonly linkId: string;
+      readonly professionalId: string;
+      readonly professionalName: string;
+    },
     tx?: Transaction
   ): Promise<void> {
     try {
@@ -477,7 +529,12 @@ export const CareRepository = {
   async openInvitation(clientId: string, email: string, tokenHash: string, now: Date): Promise<OpenInvitation | null> {
     try {
       const [row] = await database()
-        .select({ expiresAt: careInvitations.expiresAt, professionalId: careInvitations.professionalId, professionalName: user.name })
+        .select({
+          collegiateNumber: professionals.collegiateNumber,
+          expiresAt: careInvitations.expiresAt,
+          professionalId: careInvitations.professionalId,
+          professionalName: user.name
+        })
         .from(careInvitations)
         .innerJoin(professionals, eq(professionals.userId, careInvitations.professionalId))
         .innerJoin(user, eq(user.id, careInvitations.professionalId))
@@ -546,6 +603,7 @@ export const CareRepository = {
                 userId: careLinks.clientId,
                 action: sql<CareAccessAction>`'read'::care_access_action`.as('action'),
                 kind: sql<CareAccessKind>`'list'::care_access_kind`.as('kind'),
+                linkId: careLinks.id,
                 professionalId: careLinks.professionalId,
                 professionalName: user.name,
                 createdAt: sql<Date>`now()`.as('created_at'),
@@ -590,6 +648,60 @@ export const CareRepository = {
         await record(tx);
 
         return careLinkSchema.parse(row);
+      });
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * The client starts or stops sharing the health line on their own open link
+   * (`docs/legal/analisis.md` P0-1), without ending it. `clientId` is the
+   * session's and the ownership boundary; the link is whichever is `active` or
+   * `paused` — there is at most one.
+   *
+   * A change and its row in the client's trail — `health`, `granted` or
+   * `withdrawn`, under that link, naming the professional — are one
+   * transaction, or neither. Asking for what already holds changes nothing and
+   * writes no row. Null when the client has no open link. Every professional
+   * read resolves the link afresh (`activeLink`), so turning it off closes the
+   * health line on the very next request.
+   */
+  async setSharesHealth(clientId: string, sharesHealth: boolean, now: Date): Promise<LinkWithProfessional | null> {
+    try {
+      return await database().transaction(async tx => {
+        const open = and(eq(careLinks.clientId, clientId), inArray(careLinks.status, [...OPEN_STATUSES]));
+        const [changed] = await tx
+          .update(careLinks)
+          .set({ sharesHealth, updatedAt: now })
+          .where(and(open, ne(careLinks.sharesHealth, sharesHealth)))
+          .returning({ id: careLinks.id });
+
+        const [row] = await tx
+          .select({ link: careLinks, professionalName: user.name })
+          .from(careLinks)
+          .innerJoin(user, eq(user.id, careLinks.professionalId))
+          .where(open)
+          .limit(1);
+
+        if (!row) {
+          return null;
+        }
+
+        if (changed) {
+          await tx
+            .insert(careAccessLog)
+            .values({
+              action: sharesHealth ? 'granted' : 'withdrawn',
+              kind: 'health',
+              linkId: row.link.id,
+              professionalId: row.link.professionalId,
+              professionalName: row.professionalName,
+              userId: clientId
+            });
+        }
+
+        return { link: careLinkSchema.parse(row.link), professionalName: row.professionalName };
       });
     } catch (error: unknown) {
       throw wrap(error);

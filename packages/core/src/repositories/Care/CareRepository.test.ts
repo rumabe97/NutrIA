@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PgDialect } from 'drizzle-orm/pg-core';
 
-import { careLinks } from 'database/schema/care';
+import { careAccessLog, careInvitations, careLinks } from 'database/schema/care';
 import { targetOverrides } from 'database/schema/profile';
 
 import { CareRepository } from './CareRepository';
@@ -31,7 +31,79 @@ function update(table: unknown) {
   };
 }
 
-vi.mock('database', () => ({ database: () => ({ transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({ update }) }) }));
+/** What the open-link `SELECT` answers inside the transaction, and every row an `INSERT` was given. */
+let openLink: { link: Record<string, unknown>; professionalName: string } | undefined;
+const inserted: { readonly table: unknown; readonly values: Record<string, unknown> }[] = [];
+
+/** The `WHERE` the last `SELECT` inside the transaction was given. */
+let selectWhere: SQL | undefined;
+
+function select() {
+  const chain = {
+    from: () => chain,
+    innerJoin: () => chain,
+    limit: () => Promise.resolve(openLink ? [openLink] : []),
+    where: (where: SQL) => {
+      selectWhere = where;
+
+      return chain;
+    }
+  };
+
+  return chain;
+}
+
+function insert(table: unknown) {
+  return {
+    values: (values: Record<string, unknown>) => {
+      inserted.push({ table, values });
+
+      return Promise.resolve();
+    }
+  };
+}
+
+/** What a plain read of the trail answers, as stored. */
+let trail: Record<string, unknown>[] = [];
+
+/** The `WHERE` the last plain read of the trail was given. */
+let trailWhere: SQL | undefined;
+
+function selectTrail() {
+  const chain = {
+    from: () => chain,
+    limit: () => Promise.resolve(trail),
+    orderBy: () => chain,
+    where: (where: SQL) => {
+      trailWhere = where;
+
+      return chain;
+    }
+  };
+
+  return chain;
+}
+
+/** The last plain `DELETE`: which table, and its `WHERE`. */
+let deleted: { readonly table: unknown; readonly where: SQL } | undefined;
+
+function deleteRows(table: unknown) {
+  return {
+    where: (where: SQL) => {
+      deleted = { table, where };
+
+      return { returning: () => Promise.resolve([{ id: 'a' }, { id: 'b' }]) };
+    }
+  };
+}
+
+vi.mock('database', () => ({
+  database: () => ({
+    delete: deleteRows,
+    select: selectTrail,
+    transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({ insert, select, update })
+  })
+}));
 
 const NOW = new Date('2026-09-24T10:00:00.000Z');
 const LINK = '0b8e7f4a-3c2d-4e1f-9a8b-7c6d5e4f3a2b';
@@ -77,5 +149,111 @@ describe('CareRepository.end — the targets become the client’s own', () => {
 
     await expect(CareRepository.end('usr-stranger', 'professional', LINK, NOW)).resolves.toBe(false);
     expect(statements.map(statement => statement.table)).toEqual([careLinks]);
+  });
+});
+
+/*
+ * P0-1 (`docs/legal/analisis.md`): the client stops or starts sharing the health
+ * line without ending the link, and each change leaves its row in the same
+ * transaction. That Postgres keeps the two together is the end-to-end suite's.
+ */
+describe('CareRepository.setSharesHealth', () => {
+  const PRO_ID = 'usr-pro';
+  const stored = (sharesHealth: boolean) => ({
+    link: {
+      id: LINK,
+      clientId: 'usr-client',
+      consentedAt: NOW,
+      consentVersion: '2.0.0',
+      createdAt: NOW,
+      endedAt: null,
+      endedBy: null,
+      professionalId: PRO_ID,
+      reviewBeforePublish: true,
+      sharesHealth,
+      status: 'active',
+      updatedAt: NOW
+    },
+    professionalName: 'Dra. Pérez'
+  });
+
+  beforeEach(() => {
+    statements.length = 0;
+    inserted.length = 0;
+  });
+
+  it.each([
+    [false, 'withdrawn'],
+    [true, 'granted']
+  ] as const)('sets it to %s on the session’s open link and writes a %s health row under that link', async (sharesHealth, action) => {
+    ended = { clientId: 'usr-client', professionalId: PRO_ID };
+    openLink = stored(sharesHealth);
+
+    await expect(CareRepository.setSharesHealth('usr-client', sharesHealth, NOW)).resolves.toMatchObject({
+      link: { id: LINK, sharesHealth },
+      professionalName: 'Dra. Pérez'
+    });
+
+    const [change] = statements;
+
+    expect(change?.table).toBe(careLinks);
+    expect(change?.set).toEqual({ sharesHealth, updatedAt: NOW });
+    // The session's id is the owner, only an open link, and only when it would change.
+    expect(change?.sql).toBe('(("care_links"."client_id" = $1 and "care_links"."status" in ($2, $3)) and "care_links"."shares_health" <> $4)');
+    expect(change?.params).toEqual(['usr-client', 'active', 'paused', sharesHealth]);
+    // The link it answers and logs is read the same way: the session's client, open, and never by a link id.
+    const read = dialect.sqlToQuery(selectWhere as SQL);
+
+    expect(read.sql).toBe('("care_links"."client_id" = $1 and "care_links"."status" in ($2, $3))');
+    expect(read.params).toEqual(['usr-client', 'active', 'paused']);
+    expect(`${change?.sql} ${read.sql}`).not.toContain('"care_links"."id"');
+    expect(inserted).toEqual([
+      {
+        table: careAccessLog,
+        values: { action, kind: 'health', linkId: LINK, professionalId: PRO_ID, professionalName: 'Dra. Pérez', userId: 'usr-client' }
+      }
+    ]);
+  });
+
+  it('writes no row when nothing changed', async () => {
+    ended = undefined;
+    openLink = stored(false);
+
+    await expect(CareRepository.setSharesHealth('usr-client', false, NOW)).resolves.toMatchObject({ link: { sharesHealth: false } });
+    expect(inserted).toEqual([]);
+  });
+
+  it('answers null, and writes no row, for a client with no open link', async () => {
+    ended = undefined;
+    openLink = undefined;
+
+    await expect(CareRepository.setSharesHealth('usr-stranger', true, NOW)).resolves.toBeNull();
+    expect(inserted).toEqual([]);
+  });
+});
+
+describe('CareRepository.accessLog — a value a later release added', () => {
+  it('asks only for rows it can name, in the WHERE, so the limit counts only those and paging reaches every older row', async () => {
+    trail = [];
+
+    await CareRepository.accessLog('usr-client', 101);
+
+    const { params, sql } = dialect.sqlToQuery(trailWhere as SQL);
+
+    expect(sql).toContain('"care_access_log"."action" in ($2, $3, $4, $5)');
+    expect(sql).toContain('"care_access_log"."kind" in ($6, $7, $8, $9, $10, $11, $12)');
+    expect(params.slice(0, 5)).toEqual(['usr-client', 'read', 'write', 'granted', 'withdrawn']);
+  });
+});
+
+describe('CareRepository.forgetExpired', () => {
+  it('deletes every invitation at or past its date, whoever sent it, and counts them', async () => {
+    await expect(CareRepository.forgetExpired(NOW)).resolves.toBe(2);
+
+    const { params, sql } = dialect.sqlToQuery(deleted?.where as SQL);
+
+    expect(deleted?.table).toBe(careInvitations);
+    expect(sql).toBe('"care_invitations"."expires_at" <= $1');
+    expect(params).toEqual([NOW.toISOString()]);
   });
 });

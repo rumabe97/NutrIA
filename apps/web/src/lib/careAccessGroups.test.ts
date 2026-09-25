@@ -9,7 +9,15 @@ let seq = 0;
 function entry(overrides: Partial<CareAccessEntryView> = {}): CareAccessEntryView {
   seq += 1;
 
-  return { id: `entry-${seq}`, action: 'read', at: '2026-09-25T10:00:00.000Z', kind: 'plan', professionalName: 'Ana Dietista', ...overrides };
+  return {
+    id: `entry-${seq}`,
+    action: 'read',
+    at: '2026-09-25T10:00:00.000Z',
+    kind: 'plan',
+    linkId: 'link-1',
+    professionalName: 'Ana Dietista',
+    ...overrides
+  };
 }
 
 describe('groupCareAccessEntries', () => {
@@ -56,15 +64,40 @@ describe('groupCareAccessEntries', () => {
   });
 
   it('breaks the run on a different professional, seconds apart', () => {
+    // A different professional is always a different link — one link is one professional and one client.
     const entries = [
-      entry({ at: '2026-09-25T10:00:05.000Z', professionalName: 'Ana Dietista' }),
-      entry({ at: '2026-09-25T10:00:00.000Z', professionalName: 'Luis Nutricionista' })
+      entry({ at: '2026-09-25T10:00:05.000Z', linkId: 'link-1', professionalName: 'Ana Dietista' }),
+      entry({ at: '2026-09-25T10:00:00.000Z', linkId: 'link-2', professionalName: 'Luis Nutricionista' })
     ];
 
     const rows = groupCareAccessEntries(entries);
 
     expect(rows).toHaveLength(2);
     expect(rows.every(row => row.kind === 'entry')).toBe(true);
+  });
+
+  it('breaks the run on a different link even from the same professional’s name — an ended link followed by a new one', () => {
+    const entries = [
+      entry({ at: '2026-09-25T10:00:05.000Z', linkId: 'link-2', professionalName: 'Ana Dietista' }),
+      entry({ at: '2026-09-25T10:00:00.000Z', linkId: 'link-1', professionalName: 'Ana Dietista' })
+    ];
+
+    const rows = groupCareAccessEntries(entries);
+
+    expect(rows).toHaveLength(2);
+    expect(rows.every(row => row.kind === 'entry')).toBe(true);
+  });
+
+  it('falls back to the professional’s name once a row’s own link id is gone', () => {
+    const entries = [
+      entry({ at: '2026-09-25T10:00:05.000Z', linkId: null, professionalName: 'Ana Dietista' }),
+      entry({ at: '2026-09-25T10:00:00.000Z', linkId: null, professionalName: 'Ana Dietista' })
+    ];
+
+    const rows = groupCareAccessEntries(entries);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ entries, kind: 'group' });
   });
 
   it('never folds a write into a run of reads, even same professional, kind and minute', () => {

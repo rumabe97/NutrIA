@@ -5,7 +5,9 @@ import { FLAGS } from 'core/domain/Flag';
 import { NotFoundError } from 'core/entities/Error';
 
 import type { ProfessionalListRow } from '#repositories/Professional';
-import type { GrantProfessional, Professional } from 'core/entities/Professional';
+import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
+
+import type { AcceptAgreement, GrantProfessional, Professional } from 'core/entities/Professional';
 
 // --- Presenters ---------------------------------------------------------------
 
@@ -15,6 +17,8 @@ import type { GrantProfessional, Professional } from 'core/entities/Professional
  * the owner's id and stays in the row.
  */
 export interface ProfessionalView {
+  /** True until the current `PROFESSIONAL_AGREEMENT_VERSION` is accepted: no client route opens before it. */
+  agreementRequired: boolean;
   collegiateNumber: string;
   grantedAt: string;
   includedClients: number;
@@ -40,8 +44,14 @@ export interface ProfessionalAccountView {
   userId: string;
 }
 
+/** Whether this row has accepted the agreement as it reads today. */
+function agreementRequired(row: Pick<Professional, 'agreementVersion'>): boolean {
+  return row.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION;
+}
+
 function present(row: Professional): ProfessionalView {
   return {
+    agreementRequired: agreementRequired(row),
     collegiateNumber: row.collegiateNumber,
     grantedAt: row.grantedAt.toISOString(),
     includedClients: row.includedClients,
@@ -72,6 +82,23 @@ function presentAccount(row: ProfessionalListRow): ProfessionalAccountView {
  * account the owner named, the guard passes the session's own.
  */
 export const ProfessionalController = {
+  /**
+   * The professional accepts their agreement and the practice plan's terms
+   * (`docs/legal/textos/01`, `04`), at the version the body names — the schema
+   * lets only the current one through. A 404 unless the switch is on and the
+   * grant stands, as every other door to the workspace: the guard asks first,
+   * this is the second line.
+   */
+  async acceptAgreement(userId: string, input: AcceptAgreement, now: Date = new Date()): Promise<ProfessionalView> {
+    const row = (await ProfessionalController.isOpen()) ? await ProfessionalRepository.acceptAgreement(userId, input.version, now) : null;
+
+    if (!row) {
+      throw new NotFoundError('Not found');
+    }
+
+    return present(row);
+  },
+
   /**
    * The professional's own grant, or null when the account is not one.
    *

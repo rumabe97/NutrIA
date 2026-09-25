@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import { CareController } from 'core/controllers/Care';
+import { ProfessionalController } from 'core/controllers/Professional';
 import { webUrl } from 'core/domain/WebUrl';
 
 import { BackgroundTaskService } from '../../../shared/services/index.js';
@@ -10,7 +11,15 @@ import { ENV } from '../../../config/index.js';
 import { BillingService } from '../../billing/services/index.js';
 import { MealSwapService, PlanJobRunner } from '../../meal-plans/index.js';
 
-import type { AcceptInvitationDto, InviteClientDto, SetClientReviewDto, SetClientTargetsDto, SwapClientMealDto } from '../dto/in/index.js';
+import type {
+  AcceptAgreementDto,
+  AcceptInvitationDto,
+  InviteClientDto,
+  SetClientReviewDto,
+  SetClientTargetsDto,
+  SetLinkHealthDto,
+  SwapClientMealDto
+} from '../dto/in/index.js';
 import type {
   CareAccessPageDto,
   CareClientJobDto,
@@ -44,6 +53,10 @@ export class CareService {
     private readonly runner: PlanJobRunner,
     private readonly swaps: MealSwapService
   ) {}
+
+  async acceptAgreement(professional: SessionUser, body: AcceptAgreementDto): Promise<void> {
+    await ProfessionalController.acceptAgreement(professional.id, body);
+  }
 
   async accept(user: SessionUser, token: string, body: AcceptInvitationDto): Promise<CareLinkDto> {
     return CareController.accept(user, token, body);
@@ -118,6 +131,10 @@ export class CareService {
     return CareController.publishPlan(professional, linkId, locale);
   }
 
+  async setSharesHealth(user: SessionUser, body: SetLinkHealthDto): Promise<CareLinkDto> {
+    return CareController.setSharesHealth(user, body);
+  }
+
   async setReview(professional: SessionUser, linkId: string, body: SetClientReviewDto): Promise<CareClientLinkDto> {
     return CareController.setReview(professional, linkId, body);
   }
@@ -148,7 +165,8 @@ export class CareService {
   private async mail(professional: SessionUser, to: string, token: string): Promise<void> {
     const locale = await recipientLocale(professional.id);
     const url = webUrl(this.env.APP_URL, `/invitacion/${token}`, locale);
-    const sent = await this.email.send({ ...careInvitationEmail({ inviterName: professional.name, locale, url }), to });
+    const privacyUrl = webUrl(this.env.APP_URL, '/privacidad', locale);
+    const sent = await this.email.send({ ...careInvitationEmail({ inviterName: professional.name, locale, privacyUrl, url }), to });
 
     if (!sent) {
       this.logger.warn('care invitation mail not sent');

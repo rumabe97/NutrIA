@@ -4,8 +4,10 @@ import { useState } from 'react';
 import styles from './PracticePlanCard.module.css';
 
 import { Button } from 'ui/components/Button';
+import { Link } from 'ui/components/Link';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
+import { withLocale } from 'i18n/routes';
 
 import { Card } from 'components/Card';
 
@@ -18,6 +20,9 @@ import type { PriceView } from 'core/controllers/Billing';
 
 /** The statuses checkout refuses as "already subscribed": the account's one subscription is still being paid. */
 const PAYING = new Set(['active', 'past_due', 'trialing']);
+
+/** The one placeholder `practice.planTerms` carries, and the page it opens — the practice's own section of the terms, always rereadable. */
+const TERMS_PLACEHOLDER = '{terms}';
 
 interface PracticePlanCardProps {
   /** Back from Stripe's checkout (`?practica=gracias`), possibly before its webhook has opened the practice. */
@@ -140,6 +145,22 @@ export function PracticePlanCard({ justPaid, practice, trialDaysLeft }: Practice
             </Button>
           ))}
         </div>
+      ) : null}
+
+      {/* TRLGDCU art. 3: contracting for the practice is professional, not consumer, activity — said plainly next to the button,
+          and always here, not only while choosing, so a paying professional can reread what they accepted. */}
+      {billing.available ? (
+        <Text size="xs" tone="tertiary">
+          {t.planTerms.split(/(\{terms\})/).map(part =>
+            part === TERMS_PLACEHOLDER ? (
+              <Link href={withLocale('/condiciones#dietista', locale)} inline={true} key={part}>
+                {t.planTermsLink}
+              </Link>
+            ) : (
+              part
+            )
+          )}
+        </Text>
       ) : null}
 
       {subscription ? (

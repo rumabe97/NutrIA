@@ -99,6 +99,16 @@ export class BillingService {
   }
 
   /**
+   * Whether the professional has accepted the current agreement, which carries
+   * the practice plan's terms (`docs/legal/textos/01`, `04`): they are accepted
+   * on the same screen before paying, so checkout for a practice is a 404 until
+   * they are. The portal and the offer stay open — the page shows both.
+   */
+  private async agreed(user: SessionUser): Promise<boolean> {
+    return (await ProfessionalController.find(user.id))?.agreementRequired === false;
+  }
+
+  /**
    * `plan` and, for a practice, `price` — one of the configured practice
    * prices, or a 404 as for any price that is not on offer. The price chooses
    * the plan; what it includes is written by the webhook from configuration.
@@ -106,7 +116,7 @@ export class BillingService {
   async checkout(user: SessionUser, plan: BillingPlan, price?: string): Promise<BillingUrlDto> {
     const offered =
       plan === 'practice'
-        ? price !== undefined && this.stripe.isPracticePrice(price) && (await this.practiceOpen(user))
+        ? price !== undefined && this.stripe.isPracticePrice(price) && (await this.practiceOpen(user)) && (await this.agreed(user))
         : (await this.open(user)) && (plan === 'monthly' || this.stripe.yearly);
 
     if (!offered) {

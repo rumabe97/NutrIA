@@ -110,6 +110,10 @@ export const careLinks = pgTable(
  * their name kept as it was then, so the client's record of who looked
  * survives the professional leaving.
  *
+ * Two rows are the client's own act, not a professional's: a `health` row
+ * whose action is `granted` or `withdrawn` says the client started or stopped
+ * sharing the health line under that link (`PATCH /care/links/me`).
+ *
  * `createdAt` is when. There is no payload column, on purpose: the trail says
  * who, what kind of data and whether it was read or changed — never the data
  * itself, which would make the log a second copy of it.
@@ -119,12 +123,22 @@ export const careAccessLog = userOwned(
   {
     action: careAccessAction().notNull(),
     kind: careAccessKind().notNull(),
+    /**
+     * The link it happened under, so a client can tell two links to one
+     * professional apart. Set on every row written from `0040`; older rows
+     * were filled in where one link fits them, and are null otherwise, as
+     * are rows the previous API wrote while this one deployed. Set null when
+     * the link row goes with either account.
+     */
+    linkId: uuid().references(() => careLinks.id, { onDelete: 'set null' }),
     professionalId: text().references(() => user.id, { onDelete: 'set null', onUpdate: 'cascade' }),
     professionalName: text().notNull()
   },
   table => [
     // What deleting a professional's account sets null by.
     index('care_access_log_professional_id_idx').on(table.professionalId),
+    // What deleting a link (either account going) sets null by.
+    index('care_access_log_link_id_idx').on(table.linkId),
     // The client's trail, newest first, without a sort (a backward scan). Created with the table: added
     // later, the migration's plain CREATE INDEX would block every professional read
     // (each writes a row here first) for the length of the build.

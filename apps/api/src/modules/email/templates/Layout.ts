@@ -18,7 +18,8 @@ export type EmailLocale = 'en-GB' | 'es-ES';
  * person's name (an invitation's does) and is never logged; this is a fixed
  * label per template, and says nothing about anybody.
  */
-export type EmailKind = 'account-waiting' | 'care-invitation' | 'check-in-reminder' | 'checkin-submitted' | 'password-reset' | 'verify-email';
+export type EmailKind =
+  'account-waiting' | 'care-invitation' | 'check-in-reminder' | 'checkin-submitted' | 'password-reset' | 'professional-granted' | 'verify-email';
 
 export interface RenderedEmail {
   html: string;

@@ -41,6 +41,14 @@
 - [ ] Procedimiento de brecha escrito: quién mira, cómo se decide en 72 horas si se notifica a la AEPD (art. 33) y a los afectados (art. 34).
 - [ ] Hora con el abogado: puntos 1, 3 y 9 del [`analisis.md` § 10](./analisis.md#10-confirmar-con-un-abogado).
 
+**Orden de encendido** (decisión del lead, 2026-09-25: primero el interruptor, después las concesiones — el correo de alta enlaza a `/consulta`, que solo funciona con el interruptor encendido, y un interruptor sin concesiones no enseña nada a nadie)
+
+1. [ ] **Recuento de enlaces con el consentimiento antiguo**: el lead ejecuta en producción, **solo lectura**, el número de `care_links` con `consentVersion = '1.0.0'` (por estado: `active`, `paused`, `ended`). No se lee nada más de esas filas.
+2. [ ] **El propietario decide sobre ellos** antes de encender: un enlace `1.0.0` se aceptó con una invitación que prometía un control que no existía (P0-1) y no decía que el profesional podía escribir y retener planes (P1-3). Lo recomendable es terminar los `active`/`paused` (`endedBy = professional` si son pruebas del propio propietario) y volver a invitar con la versión `2.0.0`; conservar un `1.0.0` activo es tratar datos de salud con un consentimiento no informado. Los `ended` se quedan: son la prueba de lo que se consintió. Anotar la decisión y la fecha.
+3. [ ] Todo lo anterior de este § 1 marcado, en particular P1-1: la aceptación del acuerdo tiene que estar en producción **antes** de que exista la primera concesión, para que nadie vea un dato sin haber aceptado.
+4. [ ] **Encender el interruptor `professional`** en `/admin`. Sin concesiones, nadie ve nada nuevo.
+5. [ ] **Conceder** a cada profesional, uno a uno, tras comprobar su número de colegiado (casilla de «Organización»). La concesión envía el correo de alta, y su enlace a `/consulta` lleva al acuerdo antes que a nada.
+
 ## 2. Antes de claves *live* de Stripe (Premium y consulta)
 
 **Identidad y alta**

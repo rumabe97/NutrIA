@@ -56,7 +56,7 @@ export function LegalScreen({ document, locale }: Readonly<{ document: LegalDocu
           ))}
 
           {t.sections.map(section => (
-            <section className={styles.section} key={section.heading}>
+            <section className={styles.section} id={'id' in section ? section.id : undefined} key={section.heading}>
               <Heading level="2" size="md">
                 {section.heading}
               </Heading>

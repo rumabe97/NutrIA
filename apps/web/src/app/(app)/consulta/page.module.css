@@ -17,6 +17,10 @@
   margin-top: var(--gap-region);
 }
 
+.agreement {
+  margin-top: var(--gap-region);
+}
+
 .region {
   display: grid;
   gap: var(--gap-block);

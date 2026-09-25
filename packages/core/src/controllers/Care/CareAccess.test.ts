@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CARE_CONSENT_VERSION } from 'core/entities/Care';
+import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { DatabaseOperationError, InputParseError, NotFoundError } from 'core/entities/Error';
 
 import { CareController } from './CareController';
@@ -32,6 +33,7 @@ import type { ProfessionalSetter } from '#repositories/Profile';
 type LogEntry = {
   readonly action: CareAccessAction;
   readonly kind: CareAccessKind;
+  readonly linkId: string;
   readonly professionalId: string;
   readonly professionalName: string;
 };
@@ -166,7 +168,7 @@ beforeEach(() => {
   }
 
   isEnabled.mockResolvedValue(true);
-  findProfessional.mockResolvedValue({ practiceOpen: true, userId: PRO.id });
+  findProfessional.mockResolvedValue({ agreementVersion: PROFESSIONAL_AGREEMENT_VERSION, practiceOpen: true, userId: PRO.id });
   logAccess.mockResolvedValue(undefined);
   getActivePlan.mockResolvedValue(null);
   listPlans.mockResolvedValue([]);
@@ -195,6 +197,7 @@ describe('CareController.withClient', () => {
     expect(logAccess).toHaveBeenCalledExactlyOnceWith(CLIENT_ID, {
       action: 'read',
       kind: 'targets',
+      linkId: LINK_ID,
       professionalId: PRO.id,
       professionalName: 'Dra. Pérez'
     });
@@ -416,7 +419,7 @@ describe('CareController.setTargets', () => {
     expect(activeLink).toHaveBeenCalledWith(PRO.id, LINK_ID);
     expect(logAccess).toHaveBeenCalledExactlyOnceWith(
       CLIENT_ID,
-      { action: 'write', kind: 'targets', professionalId: PRO.id, professionalName: 'Dra. Pérez' },
+      { action: 'write', kind: 'targets', linkId: LINK_ID, professionalId: PRO.id, professionalName: 'Dra. Pérez' },
       tx
     );
     expect(updateTargets).toHaveBeenCalledOnce();
@@ -515,7 +518,15 @@ describe('CareController.clients', () => {
   it.each([
     ['the switch is off', () => isEnabled.mockResolvedValue(false)],
     ['the grant is gone', () => findProfessional.mockResolvedValue(null)],
-    ['the practice is not paid for', () => findProfessional.mockResolvedValue({ practiceOpen: false, userId: PRO.id })]
+    [
+      'the practice is not paid for',
+      () => findProfessional.mockResolvedValue({ agreementVersion: PROFESSIONAL_AGREEMENT_VERSION, practiceOpen: false, userId: PRO.id })
+    ],
+    ['the agreement was never accepted', () => findProfessional.mockResolvedValue({ agreementVersion: null, practiceOpen: true, userId: PRO.id })],
+    [
+      'the agreement accepted is not the current one',
+      () => findProfessional.mockResolvedValue({ agreementVersion: '0.9.0', practiceOpen: true, userId: PRO.id })
+    ]
   ])('is a 404 that reads nothing when %s — the second line behind the guard', async (_case, arrange) => {
     arrange();
 
@@ -532,6 +543,7 @@ describe('CareController.accessLog', () => {
         action: 'read',
         createdAt: NOW,
         kind: 'health',
+        linkId: LINK_ID,
         professionalId: null,
         professionalName: 'Dra. Pérez',
         updatedAt: NOW,
@@ -544,7 +556,14 @@ describe('CareController.accessLog', () => {
     expect(accessLog).toHaveBeenCalledWith(CLIENT_ID, 101, null);
     expect(trail).toEqual({
       entries: [
-        { id: '9a8b7c6d-5e4f-4a2b-8b8e-7f4a3c2d4e1f', action: 'read', at: NOW.toISOString(), kind: 'health', professionalName: 'Dra. Pérez' }
+        {
+          id: '9a8b7c6d-5e4f-4a2b-8b8e-7f4a3c2d4e1f',
+          action: 'read',
+          at: NOW.toISOString(),
+          kind: 'health',
+          linkId: LINK_ID,
+          professionalName: 'Dra. Pérez'
+        }
       ],
       next: null
     });
@@ -556,6 +575,7 @@ describe('CareController.accessLog', () => {
       action: 'read',
       createdAt: NOW,
       kind: 'list',
+      linkId: null,
       professionalId: PRO.id,
       professionalName: 'Dra. Pérez',
       updatedAt: NOW,
@@ -595,7 +615,13 @@ describe('review before publishing (0060)', () => {
   const JOB: JobView = { id: 'job-1', error: null, errorDetail: null, pendingReview: true, planId: 'plan-2', status: 'succeeded', step: 'done' };
   const JOB_ID = '2d3e4f5a-6b7c-4d8e-9f0a-1b2c3d4e5f6a';
   const MEAL_ID = '1c2d3e4f-5a6b-4c7d-8e9f-0a1b2c3d4e5f';
-  const reviewRow = (action: CareAccessAction) => ({ action, kind: 'review', professionalId: PRO.id, professionalName: 'Dra. Pérez' });
+  const reviewRow = (action: CareAccessAction) => ({
+    action,
+    kind: 'review',
+    linkId: LINK_ID,
+    professionalId: PRO.id,
+    professionalName: 'Dra. Pérez'
+  });
 
   it('reads the pending plan through the link — one review read row, the client’s id from the link', async () => {
     activeLink.mockResolvedValue(access());

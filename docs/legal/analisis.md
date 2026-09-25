@@ -256,7 +256,7 @@ cuenta así: el propietario debe comprobarlo).
 | Consentimientos (versión y fecha, `health_data_consents`, `care_links`) | mientras exista la cuenta; sirven para demostrar el consentimiento (art. 7.1) | ✔ |
 | Enlaces terminados (`care_links` en `ended`) | mientras existan ambas cuentas | ✔ (prueba del consentimiento); decirlo en la política |
 | Rastro de accesos | mientras exista la cuenta del cliente; conserva el nombre del profesional aunque este se borre | ✔; decirlo al profesional (acuerdo, cl. 7) |
-| Invitaciones | hasta 14 días; las caducadas persisten hasta que se escribe otra | P3: purgarlas a diario |
+| Invitaciones | hasta responder; si no, 14 días + barrido diario (≤ 15) | ✔ (backend `cf87d75`) |
 | `analytics_events` | indefinido | P2: fijar 24 meses y purgar |
 | `plan_generation_jobs` (errores, llamadas a la IA sin contenido) | indefinido | P2: fijar 12 meses |
 | Sesiones (IP, agente) | 30 días | ✔ |
@@ -508,7 +508,7 @@ ingredientes. Luego, la política (§ «Con quién compartimos»).
 - `health.consentNote` dice que los datos de salud «no se envían a ningún modelo»: es
   cierto del dato, no de su efecto (celiaquía → el catálogo va sin gluten). Añadir «solo
   llega su efecto: los ingredientes que quitamos».
-- Invitaciones caducadas: purgarlas a diario, no solo al escribir otra.
+- ~~Invitaciones caducadas: purgarlas a diario~~ — hecho (barrido diario a las 08:00, backend `cf87d75`); los textos dicen «como muy tarde al día siguiente» de caducar.
 
 ---
 

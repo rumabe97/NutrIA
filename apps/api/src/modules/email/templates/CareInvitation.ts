@@ -18,10 +18,25 @@ const NAME_LIMIT = 80;
  *
  * The recipient's language is unknown — the address may have no account — so
  * it is written in the inviter's.
+ *
+ * `privacy` is what RGPD art. 14 asks be said to somebody whose address came
+ * from someone else (`docs/legal/textos/06` § A): who gave it, how long it is
+ * kept, and where the controller and their rights are named — a link to the
+ * privacy policy, the first layer and the second.
  */
 const COPY: Record<
   EmailLocale,
-  { button: string; choose: string; expires: string; ignore: string; intro: string; linkFallback: string; meaning: string; subject: string }
+  {
+    button: string;
+    choose: string;
+    expires: string;
+    ignore: string;
+    intro: string;
+    linkFallback: string;
+    meaning: string;
+    privacy: string;
+    subject: string;
+  }
 > = {
   'en-GB': {
     button: 'See the invitation',
@@ -31,7 +46,9 @@ const COPY: Record<
     ignore: 'If you do not know who this is, ignore this message: nothing is shared unless you accept.',
     intro: '{name} has invited you to follow your meal plan together on NutrIA, as your dietitian.',
     linkFallback: 'If the button does not work, copy this address into your browser:',
-    meaning: 'If you accept, they will see your plan and how it is going, and can adjust it with you.',
+    meaning: 'If you accept, they will see your plan and how it is going, and can adjust it with you. Before accepting you will see the exact list.',
+    privacy:
+      'We are writing because {name} gave us your address to invite you, and we use it for nothing else. If you accept or decline, we delete the invitation there and then; if you do not answer, it expires after 14 days and we delete it, with your address, by the following day at the latest. Who is responsible and your rights: {privacyUrl}',
     subject: '{name} has invited you to NutrIA'
   },
   'es-ES': {
@@ -42,7 +59,9 @@ const COPY: Record<
     ignore: 'Si no sabes quién es, ignora este mensaje: no se comparte nada si no aceptas.',
     intro: '{name} te ha invitado a llevar tu plan de comidas juntos en NutrIA, como tu dietista.',
     linkFallback: 'Si el botón no funciona, copia esta dirección en tu navegador:',
-    meaning: 'Si aceptas, verá tu plan y cómo lo llevas, y podrá ajustarlo contigo.',
+    meaning: 'Si aceptas, verá tu plan y cómo lo llevas, y podrá ajustarlo contigo. Antes de aceptar verás la lista exacta.',
+    privacy:
+      'Te escribimos porque {name} nos ha dado tu dirección para invitarte, y no la usamos para nada más. Si aceptas o rechazas, borramos la invitación en ese momento; si no respondes, caduca a los 14 días y la borramos, con tu dirección, como muy tarde al día siguiente. Quién es el responsable y tus derechos: {privacyUrl}',
     subject: '{name} te ha invitado a NutrIA'
   }
 };
@@ -55,11 +74,22 @@ function oneLine(name: string): string {
   return name.replace(/\s+/g, ' ').trim().slice(0, NAME_LIMIT);
 }
 
-export function careInvitationEmail({ inviterName, locale, url }: { inviterName: string; locale: EmailLocale; url: string }): RenderedEmail {
+export function careInvitationEmail({
+  inviterName,
+  locale,
+  privacyUrl,
+  url
+}: {
+  inviterName: string;
+  locale: EmailLocale;
+  privacyUrl: string;
+  url: string;
+}): RenderedEmail {
   const copy = COPY[locale];
   const name = oneLine(inviterName);
   const intro = copy.intro.replace('{name}', name);
   const subject = copy.subject.replace('{name}', name);
+  const privacy = copy.privacy.replace('{name}', name).replace('{privacyUrl}', privacyUrl);
 
   const html = layout({
     body: [
@@ -69,6 +99,7 @@ export function careInvitationEmail({ inviterName, locale, url }: { inviterName:
       paragraph(copy.choose, 'muted'),
       paragraph(copy.expires, 'muted'),
       paragraph(copy.ignore, 'muted'),
+      paragraph(privacy, 'muted'),
       paragraph(copy.linkFallback, 'muted'),
       `<p style="margin:0;font-size:0.8125rem;word-break:break-all;"><a href="${escapeHtml(url)}" style="color:#5b7f3a;">${escapeHtml(url)}</a></p>`
     ].join('\n'),
@@ -76,7 +107,7 @@ export function careInvitationEmail({ inviterName, locale, url }: { inviterName:
     title: subject
   });
 
-  const text = [intro, copy.meaning, '', url, '', copy.choose, copy.expires, copy.ignore].join('\n');
+  const text = [intro, copy.meaning, '', url, '', copy.choose, copy.expires, copy.ignore, '', privacy].join('\n');
 
   return { html, kind: 'care-invitation', subject, text };
 }

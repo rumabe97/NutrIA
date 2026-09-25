@@ -15,6 +15,15 @@
      and what is only asked for read as one sentence otherwise. */
   white-space: pre-line;
   font-variant-numeric: tabular-nums;
+  /* An email address, or any other value with no space to wrap at, has a
+     min-content width of its whole length. A grid track's default minimum is
+     `auto` — the size of its widest child's content — so one long value here
+     silently forced this row's, and every sibling row's, column wider than
+     the viewport. `min-width: 0` lets the track shrink to what is actually
+     available; `overflow-wrap` then lets the browser break the word itself
+     instead of running it off the edge. */
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .row:last-child {

@@ -281,6 +281,13 @@
       "when": 1790323820637,
       "tag": "0039_a_profile_is_used_only_with_consent",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1790339243253,
+      "tag": "0040_a_client_may_stop_sharing_health",
+      "breakpoints": true
     }
   ]
 }
