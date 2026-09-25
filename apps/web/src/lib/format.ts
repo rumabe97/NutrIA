@@ -26,6 +26,15 @@ export function formatInstant(epochMs: number, locale: Locale, options: Intl.Dat
   return new Intl.DateTimeFormat(locale, options).format(new Date(epochMs));
 }
 
+/**
+ * A span between two instants, e.g. "10:02–10:05" — through `Intl`'s own
+ * range formatter rather than two calls joined by a hardcoded dash, so the
+ * separator (and any shared-date collapsing) is the locale's, not ours.
+ */
+export function formatInstantRange(fromMs: number, toMs: number, locale: Locale, options: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat(locale, options).formatRange(new Date(fromMs), new Date(toMs));
+}
+
 const KILO = 1000;
 
 /**

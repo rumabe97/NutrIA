@@ -148,6 +148,7 @@ export const enGB: Dictionary = {
 
   appNav: {
     brandHome: 'NutrIA — home',
+    consulta: 'Practice',
     home: 'Home',
     mainLabel: 'Main navigation',
     plan: 'Plan',
@@ -228,13 +229,14 @@ export const enGB: Dictionary = {
       targets: 'your targets'
     },
     accessLogEmpty: 'There is nothing to show here yet.',
-    accessLogListCollapsed: '{professional} has viewed your profile {count} times',
     accessLogLoaded: '{count} more entries loaded.',
     accessLogLoadMore: 'Show more',
     accessLogNoMore: 'No more entries to show.',
     accessLogRead: '{professional} viewed {kind}',
+    accessLogReadGroup: '{professional} viewed {kind} {count} times · {range}',
     accessLogTitle: 'Who has accessed',
     accessLogWrite: '{professional} changed {kind}',
+    accessLogWriteGroup: '{professional} changed {kind} {count} times · {range}',
     declineCta: 'No, thanks',
     end: 'End the link',
     endConfirmBody: 'Your dietitian will stop seeing your profile, your plan and your progress. You can accept another invitation from them later.',
