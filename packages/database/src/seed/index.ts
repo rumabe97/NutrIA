@@ -86,6 +86,9 @@ async function main(): Promise<void> {
       .onConflictDoUpdate({
         set: {
           carbsPer100g: sql`excluded.carbs_per100g`,
+          // The seed owns the aisle too: a row moved between aisles (0063) moves on
+          // a database that already has it.
+          category: sql`excluded.category`,
           classes: sql`excluded.classes`,
           countries: sql`excluded.countries`,
           fatPer100g: sql`excluded.fat_per100g`,

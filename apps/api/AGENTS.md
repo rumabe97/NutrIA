@@ -505,6 +505,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
 | `pnpm --filter api ts:check` | Type-check, specs included |
 | `pnpm --filter api smoke:function` | Serve the deployed entry locally — **needs a real database** |
 | `node --env-file-if-exists=.env scripts/evaluate-plans.mjs` | From `apps/api`, after a build: schedule and validate a fortnight for five fixed profiles over the **real dish library** — days inside 5 % on all four macros, every violation, any allergen on a plate (exit 2). `--json <file>` to keep a run, `--compare <file>` to set one against it. Refuses production, reads inside one read-only transaction, calls no model |
+| `node --env-file-if-exists=.env scripts/catalogue-by-meal.mjs` | From `apps/api`, after a build: per meal, for an omnivore and a vegan, the catalogue rows the pool prompt would show before and after the meal lists (`0062`), their estimated prompt tokens (6 per row), the library dishes still servable there against `DISHES_NEEDED_PER_SLOT`, and the ingredients that take the most dishes away. `--json <file>` to keep a run. Before the seed loads the lists, "after" equals "before". Refuses production, reads inside one read-only transaction, calls no model |
 
 ## Traps
 

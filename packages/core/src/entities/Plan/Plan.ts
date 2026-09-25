@@ -40,8 +40,10 @@ export type CatalogueIngredient = {
   /**
    * The meals this food belongs to. **Empty means every meal** — an exception
    * list, like `countries`, filled from the seed's `meals.ts` overlay (`0062`).
+   * `['none']` is a food in no meal at all: still in the catalogue, so what
+   * already names it resolves, but offered and served nowhere (`0063`).
    */
-  readonly mealSlots: readonly MealSlot[];
+  readonly mealSlots: readonly ('none' | MealSlot)[];
   readonly name: string;
   /**
    * The locale `name` actually came from.

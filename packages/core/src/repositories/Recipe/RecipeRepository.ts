@@ -383,9 +383,9 @@ export const RecipeRepository = {
         fiberPer100g: Number(row.fiberPer100g),
         gramsPerUnit: row.gramsPerUnit === null ? null : Number(row.gramsPerUnit),
         kcalPer100g: Number(row.kcalPer100g),
-        // Text in the column, the enum's values by construction: the seed writes
-        // them from `MealSlot`, and nothing else writes the column.
-        mealSlots: row.mealSlots as readonly MealSlot[],
+        // Text in the column, the enum's values or `none` by construction: the
+        // seed writes them from `MealEntry`, and nothing else writes the column.
+        mealSlots: row.mealSlots as readonly ('none' | MealSlot)[],
         // The slug is the last resort. An ingredient with no name in any locale
         // is a broken seed, and showing "pan-integral" says so; showing nothing
         // hides it.

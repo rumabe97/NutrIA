@@ -24,6 +24,13 @@ export type { FoodClass };
  */
 export type MealSlot = (typeof mealSlot.enumValues)[number];
 
+/**
+ * What `ingredients.meal_slots` may hold: meals, or the single word `none` for
+ * a row that belongs to no meal — an empty list already means every meal
+ * (`0063`).
+ */
+export type MealEntry = 'none' | MealSlot;
+
 export type IngredientSeed = {
   readonly allergens?: readonly { readonly key: AllergenKey; readonly presence?: 'contains' | 'may_contain' }[];
   readonly carbs: number;
