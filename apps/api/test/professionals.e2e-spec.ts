@@ -4,7 +4,7 @@ import request from 'supertest';
 import { ProfessionalController } from 'core/controllers/Professional';
 import { UserController } from 'core/controllers/User';
 
-import { activate, createApp, deleteAccounts, httpServer, PREFIX, register, ScriptedAiClient } from './harness.js';
+import { activate, completeOnboarding, createApp, deleteAccounts, httpServer, PREFIX, register, ScriptedAiClient } from './harness.js';
 
 import type { Account } from './harness.js';
 import type { AccountView, Paged } from 'core/controllers/User';
@@ -23,6 +23,12 @@ import type { Response } from 'supertest';
  * every word that could plausibly open it, and "changed nothing" is proved by
  * looking afterwards, not by the status code.
  *
+ * `GET /users/me`'s own `professional` field (`UsersService.me`) is the same
+ * question asked once more, for the menu: on for an ordinary account never,
+ * on for a grant only while the switch is too, off again on the very next
+ * request once either is taken away. Forging it is tried the same way as the
+ * rest — and checked the same way: nothing behind it moves.
+ *
  * No route carries `ProfessionalGuard` until Phase 2, so the guard's question
  * — `ProfessionalController.hasAccess` — is asked directly, with the switch on.
  *
@@ -31,6 +37,8 @@ import type { Response } from 'supertest';
 const PASSWORD = 'correct-horse-battery-staple-9';
 const NUMBER = '28/12345';
 const SMUGGLED = { collegiateNumber: NUMBER, isProfessional: true, professional: true, role: 'admin' };
+/** The four verbs the sweep against `/care/*` needs; `delete` is a client route, never a professional one. */
+type Method = 'get' | 'patch' | 'post';
 
 describe('professionals', () => {
   let app: INestApplication;
@@ -56,16 +64,24 @@ describe('professionals', () => {
     await request(httpServer(app)).patch(`/${PREFIX}/admin/settings`).set('Cookie', owner.cookie).send({ enabled, flag: 'professional' }).expect(200);
   }
 
+  /** `GET /users/me`, read fresh — the field is asked on every request, never cached. */
+  async function meBody(account: Account): Promise<{ professional: boolean; role: string }> {
+    const me: Response = await request(httpServer(app)).get(`/${PREFIX}/users/me`).set('Cookie', account.cookie).expect(200);
+
+    return me.body as { professional: boolean; role: string };
+  }
+
   /**
    * The account is exactly what it was: not on the owner's list, no row behind
-   * the guard even with the switch on, still an ordinary role, and still a
-   * stranger to `/admin`.
+   * the guard even with the switch on, still an ordinary role, still saying so
+   * on its own `GET /users/me`, and still a stranger to `/admin`.
    */
   async function expectOrdinary(account: Account): Promise<void> {
     expect((await professionals()).some(row => row.userId === account.id)).toBe(false);
     await expect(ProfessionalController.find(account.id)).resolves.toBeNull();
     await expect(ProfessionalController.hasAccess(account.id)).resolves.toBe(false);
     expect(await accountRow(account.id)).toMatchObject({ role: 'user' });
+    expect(await meBody(account)).toMatchObject({ professional: false, role: 'user' });
     await request(httpServer(app)).get(`/${PREFIX}/admin/professionals`).set('Cookie', account.cookie).expect(404);
   }
 
@@ -230,19 +246,126 @@ describe('professionals', () => {
     await expect(ProfessionalController.hasAccess(granted.id)).resolves.toBe(true);
     // A professional is not an admin.
     expect(await accountRow(granted.id)).toMatchObject({ role: 'user' });
+    // The switch is on for the whole suite: granted, and the switch on, is `true`.
+    expect(await meBody(granted)).toMatchObject({ professional: true });
   });
 
-  it('is nobody while the switch is off, whatever the table says', async () => {
+  it('is nobody while the switch is off, whatever the table says — on its own `GET /users/me` too', async () => {
     await setSwitch(false);
     await expect(ProfessionalController.hasAccess(granted.id)).resolves.toBe(false);
+    expect(await meBody(granted)).toMatchObject({ professional: false });
+
     await setSwitch(true);
     await expect(ProfessionalController.hasAccess(granted.id)).resolves.toBe(true);
+    expect(await meBody(granted)).toMatchObject({ professional: true });
   });
 
   it('keeps the switch between the owner and the product', async () => {
     const read: Response = await request(httpServer(app)).get(`/${PREFIX}/settings`).set('Cookie', ordinary.cookie).expect(200);
 
     expect(Object.keys((read.body as { flags: Record<string, boolean> }).flags)).not.toContain('professional');
+  });
+
+  /**
+   * The owner's explicit requirement: forging it gains nothing. Not `ordinary`
+   * — the closest thing to a real account, confirmed and carried through
+   * onboarding — tries every door once more with the switch on, then is
+   * checked everywhere a professional would show up: its own `professional`
+   * field, every route the professional side of care owns, `/admin`, and the
+   * `professionals` table itself.
+   *
+   * The `/care/*` sweep is only the routes `ProfessionalGuard` covers
+   * (`CareClientsController`, `CareInvitationsController`,
+   * `CarePracticeController`) — the guard runs before any pipe, so a made-up
+   * link, job or meal id is the same 404 as a real one that is not the
+   * caller's, whatever the body. `CareAnswersController` (an invitation
+   * addressed to somebody) and `CareLinksController` (a client's own link) are
+   * deliberately not behind it — a client is not a professional, and
+   * `care.e2e-spec.ts` is where that door is proved.
+   */
+  describe('an ordinary account gains nothing by forging it', () => {
+    let tamperer: Account;
+
+    beforeAll(async () => {
+      tamperer = await register(app, `pro-tamper-${Date.now()}@e2e.invalid`);
+      made.push(tamperer.cookie);
+      await completeOnboarding(app, tamperer);
+    });
+
+    it('is unmoved by the account update, one smuggled field at a time', async () => {
+      const server = httpServer(app);
+
+      for (const body of [{ professional: true }, { role: 'admin' }, { collegiateNumber: 'MAD00123' }]) {
+        const updated: Response = await request(server).post(`/${PREFIX}/auth/update-user`).set('Cookie', tamperer.cookie).send(body);
+
+        expect([200, 400]).toContain(updated.status);
+      }
+
+      await expectOrdinary(tamperer);
+    });
+
+    it('is unmoved by any profile PATCH route carrying it', async () => {
+      const server = httpServer(app);
+      // A body each route would otherwise accept, so a refusal proves the
+      // smuggled field was the reason — not a body missing something else.
+      const attempts: readonly [string, Record<string, unknown>][] = [
+        [`/${PREFIX}/profile`, { displayName: 'Still ordinary', professional: true }],
+        [`/${PREFIX}/profile/goal`, { professional: true, type: 'maintenance' }],
+        [`/${PREFIX}/profile/targets`, { professional: true }],
+        [`/${PREFIX}/profile/tour`, { professional: true, seen: true }],
+        [`/${PREFIX}/profile/preferences`, { professional: true }]
+      ];
+
+      for (const [path, body] of attempts) {
+        const response: Response = await request(server).patch(path).set('Cookie', tamperer.cookie).send(body);
+
+        expect([200, 400, 422]).toContain(response.status);
+      }
+
+      await expectOrdinary(tamperer);
+    });
+
+    it('cannot grant itself through the owner’s own route', async () => {
+      await request(httpServer(app))
+        .post(`/${PREFIX}/admin/accounts/${tamperer.id}/professional`)
+        .set('Cookie', tamperer.cookie)
+        .send({ collegiateNumber: NUMBER })
+        .expect(404);
+
+      await expectOrdinary(tamperer);
+    });
+
+    it('opens no route the professional side of care owns, no admin route, and no row in professionals', async () => {
+      const server = httpServer(app);
+      const linkId = 'not-a-link';
+      const careRoutes: readonly [Method, string][] = [
+        ['get', '/care/clients'],
+        ['get', `/care/clients/${linkId}`],
+        ['patch', `/care/clients/${linkId}/targets`],
+        ['patch', `/care/clients/${linkId}`],
+        ['get', `/care/clients/${linkId}/plan/pending`],
+        ['post', `/care/clients/${linkId}/plan/generate`],
+        ['get', `/care/clients/${linkId}/plan/jobs/not-a-job`],
+        ['post', `/care/clients/${linkId}/plan/meals/not-a-meal/swap`],
+        ['post', `/care/clients/${linkId}/plan/publish`],
+        ['post', '/care/invitations'],
+        ['get', '/care/practice']
+      ];
+
+      for (const [method, path] of careRoutes) {
+        await request(server)[method](`/${PREFIX}${path}`).set('Cookie', tamperer.cookie).send({}).expect(404);
+      }
+
+      // /admin, from the outside: the account list and the professional list alike.
+      await request(server).get(`/${PREFIX}/admin/accounts`).set('Cookie', tamperer.cookie).expect(404);
+      await request(server).get(`/${PREFIX}/admin/professionals`).set('Cookie', tamperer.cookie).expect(404);
+
+      // No row for this account — the direct read `care.e2e-spec.ts` and `billing.e2e-spec.ts` make.
+      await expect(ProfessionalController.find(tamperer.id)).resolves.toBeNull();
+
+      // And the field itself, once more, the same way any other caller would read it.
+      expect(await meBody(tamperer)).toMatchObject({ professional: false, role: 'user' });
+    });
   });
 
   it('is taken back by the owner, and access goes with it', async () => {
