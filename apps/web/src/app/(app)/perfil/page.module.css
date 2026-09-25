@@ -22,14 +22,16 @@
  * its cards beneath, the way a phone's Settings app groups its rows. Thirteen
  * cards in one undivided column was a page nobody could find anything on.
  */
-/* `min-width: 0` on both: a CSS grid item's implicit minimum is `auto` — the
-   size of its widest descendant's content — so one card with an unbreakable
-   value (an email address, say) would otherwise force this column, and every
-   sibling section sharing it, wider than the viewport. Without it every card
-   on the page stretches to match the one that overflowed, not just that one. */
+/* One column that may shrink below its content: `minmax(0, 1fr)`, not the
+   implicit `auto` track. An `auto` track's minimum is the widest min-content of
+   anything in it — one nowrap button in one card was enough to make every card
+   on the page 413 px wide on a 390 px phone. `min-width: 0` on the items alone
+   does not bound the track; the base stylesheet's `overflow-x: clip` then cut
+   the cards off at the edge with no scrollbar to show it. */
 .sections {
   display: grid;
   gap: var(--gap-region);
+  grid-template-columns: minmax(0, 1fr);
   margin-top: var(--gap-region);
   min-width: 0;
 }
@@ -37,6 +39,7 @@
 .section {
   display: grid;
   gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
   min-width: 0;
 }
 

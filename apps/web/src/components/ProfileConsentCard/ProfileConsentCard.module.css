@@ -1,6 +1,7 @@
 .card {
   display: grid;
   gap: var(--space-02);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .title {
@@ -30,4 +31,12 @@
   flex-wrap: wrap;
   gap: var(--space-03);
   padding-top: var(--space-02);
+}
+
+/* "Retirar el consentimiento y borrar estos datos" is wider than a phone:
+   a button here wraps its label instead of pushing the card past the edge. */
+.actions > * {
+  max-width: 100%;
+  text-align: center;
+  white-space: normal;
 }
