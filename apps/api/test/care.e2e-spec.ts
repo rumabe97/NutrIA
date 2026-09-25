@@ -517,6 +517,7 @@ describe('care', () => {
       const link = accepted.body as CareLinkView;
 
       expect(link).toMatchObject({
+        consentIsCurrent: true,
         consentVersion: CARE_CONSENT_VERSION,
         professionalName: nameOf(pro),
         shares: [...CARE_SHARED, ...CARE_HEALTH_SHARED],
@@ -545,6 +546,17 @@ describe('care', () => {
       expect((await accept(client, token)).status).toBe(404);
       await request(server()).get(`/${PREFIX}/care/invitations/${token}`).set('Cookie', client.cookie).expect(404);
       await request(server()).post(`/${PREFIX}/care/invitations/${token}/decline`).set('Cookie', client.cookie).expect(404);
+    });
+
+    it('marks a link stored under a previous consent version as not current (P1-3)', async () => {
+      const dated = await account('consent-stale');
+      const { token } = await invite(pro, dated.email);
+      const accepted = await accept(dated, token, { consentVersion: CARE_CONSENT_VERSION, sharesHealth: false });
+      const linkId = (accepted.body as CareLinkView).id;
+
+      await tables()`update care_links set consent_version = '1.0.0' where id = ${linkId}`;
+
+      await expect(myLink(dated)).resolves.toMatchObject({ id: linkId, consentIsCurrent: false });
     });
 
     it('names the link already there, to the addressee alone, instead of making a second one', async () => {
@@ -861,7 +873,14 @@ describe('care', () => {
       readonly professionalId: string | null;
       readonly professionalName: string;
     };
-    type Entry = { readonly id: string; readonly action: string; readonly at: string; readonly kind: string; readonly professionalName: string };
+    type Entry = {
+      readonly id: string;
+      readonly action: string;
+      readonly at: string;
+      readonly kind: string;
+      readonly linkId: string | null;
+      readonly professionalName: string;
+    };
     /** `next` is the id of the last entry when there are more, and the next page's `?before=`. */
     type Trail = { readonly entries: readonly Entry[]; readonly next: string | null };
     type ClientRow = {
@@ -1134,10 +1153,10 @@ describe('care', () => {
         expect(read.entries.map(entry => entry.id)).toEqual([...after].reverse().map(row => row.id));
 
         for (const entry of read.entries) {
-          expect(Object.keys(entry).sort()).toEqual(['action', 'at', 'id', 'kind', 'professionalName']);
+          expect(Object.keys(entry).sort()).toEqual(['action', 'at', 'id', 'kind', 'linkId', 'professionalName']);
         }
 
-        expect(read.entries[0]).toMatchObject({ action: 'read', kind: 'overview', professionalName: nameOf(readerA) });
+        expect(read.entries[0]).toMatchObject({ action: 'read', kind: 'overview', linkId: links.awaiting, professionalName: nameOf(readerA) });
         // The stored instant, to the millisecond an ISO string carries.
         expect(read.entries[0]?.at).toBe(`${after.at(-1)?.createdAt.slice(0, 23)}Z`);
         expect(JSON.stringify(read)).not.toContain(readerA.id);
@@ -1431,7 +1450,11 @@ describe('care', () => {
         const written = (await trail(toggler.id)).slice(before);
 
         expect(written).toHaveLength(1);
-        expect(written[0]).toMatchObject({ action: 'write', linkId });
+        expect(written[0]).toMatchObject({ action: 'withdrawn', kind: 'health', linkId, professionalName: nameOf(readerA) });
+
+        // The same value again writes nothing more — it was already off.
+        await request(server()).patch(`/${PREFIX}/care/links/me`).set('Cookie', toggler.cookie).send({ sharesHealth: false }).expect(200);
+        expect(await trail(toggler.id)).toHaveLength(before + 1);
 
         // The professional's very next health read is refused; the link itself, and everything else, is untouched.
         const reached = jest.fn(async () => Promise.resolve('read'));
@@ -1448,6 +1471,7 @@ describe('care', () => {
           .expect(200);
 
         expect(on.body).toMatchObject({ id: linkId, sharesHealth: true });
+        expect((await trail(toggler.id)).at(-1)).toMatchObject({ action: 'granted', kind: 'health', linkId, professionalName: nameOf(readerA) });
         expect((await overview(readerA, linkId).expect(200)).body as Overview).toHaveProperty('health');
       });
     });

@@ -619,7 +619,7 @@ describe('care-practice', () => {
         .post(`/${PREFIX}/care/practice/agreement`)
         .set('Cookie', pro.cookie)
         .send({ version: PROFESSIONAL_AGREEMENT_VERSION })
-        .expect(200);
+        .expect(204);
       await checkout(pro, { plan: 'practice', price: THIRTY }).expect(200);
       expect(on.stripe.bought).toHaveLength(before + 1);
     });

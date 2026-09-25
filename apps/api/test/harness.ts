@@ -446,7 +446,7 @@ export async function openPractice(userId: string, includedClients = 30): Promis
  * right after granting, next to `openPractice`.
  */
 export async function acceptAgreement(app: INestApplication, professional: Account, version: string = PROFESSIONAL_AGREEMENT_VERSION): Promise<void> {
-  await request(httpServer(app)).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', professional.cookie).send({ version }).expect(200);
+  await request(httpServer(app)).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', professional.cookie).send({ version }).expect(204);
 }
 
 /** Sets the account's language. Everything server-side reads it from the profile. */
