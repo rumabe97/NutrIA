@@ -13,6 +13,7 @@ import {
   createApp,
   dish,
   generateAndWait,
+  giveProfileConsent,
   httpServer,
   openPractice,
   POOL,
@@ -418,6 +419,12 @@ describe('care review', () => {
     await completeOnboarding(app, paused);
     await completeOnboarding(app, ended);
     await completeOnboarding(app, theirs);
+    // Still onboarding on purpose (see "fails the professional's job for a
+    // client still onboarding" below) — but `PlanController.start` asks for
+    // profile consent before the claim, ahead of the pipeline's own
+    // onboarding check, so this client needs consent without the rest of
+    // onboarding to reach that check at all.
+    await giveProfileConsent(app, unready);
 
     // Before any link: today's generation, the plan this client is living when the next one is asked for.
     await expect(generateAndWait(app, lived)).resolves.toMatchObject({ status: 'succeeded' });
@@ -1241,7 +1248,12 @@ describe('care review', () => {
       try {
         const today = new Date().toISOString().slice(0, 10);
         const on = addDays(today, 5);
-        const before = await activeOf(client);
+        // Not `activeOf(client)`: `MealPlansController` carries
+        // `@RequiresOnboarding()` on the class, and this client's onboarding
+        // is exactly as unmet as its consent (see the describe block's own
+        // comment) — its own read of the active plan is itself a 409. `planRows`
+        // reads the table directly, which is what "unchanged" means here.
+        const before = await planRows(client.id);
         const response: Response = await request(server())
           .post(`/${PREFIX}/events`)
           .set('Cookie', client.cookie)
@@ -1249,7 +1261,7 @@ describe('care review', () => {
           .expect(201);
 
         expect((response.body as AddedEventDto).rebuiltDates).toEqual([]);
-        expect(await activeOf(client)).toEqual(before);
+        expect(await planRows(client.id)).toEqual(before);
       } finally {
         await SettingsController.setFlag('premium', false);
       }

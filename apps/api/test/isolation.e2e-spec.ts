@@ -4,7 +4,7 @@ import { Test } from '@nestjs/testing';
 import express from 'express';
 
 import { AppModule } from '../src/app.module.js';
-import { activate, deleteAccounts, httpServer } from './harness.js';
+import { activate, deleteAccounts, giveProfileConsent, httpServer } from './harness.js';
 
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { INestApplication } from '@nestjs/common';
@@ -59,6 +59,12 @@ describe('user data isolation', () => {
     made.push(alice.cookie);
     bob = await register(`bob-${stamp}@e2e.invalid`);
     made.push(bob.cookie);
+
+    // `heightCm` is a profile-consent step (`ProfileConsentController.PROFILE_CONSENT_STEPS`
+    // covers `PATCH /profile` with body data): without it these refuse 409
+    // `PROFILE_CONSENT_REQUIRED`.
+    await giveProfileConsent(app, alice);
+    await giveProfileConsent(app, bob);
 
     await request(httpServer(app)).patch(`/${PREFIX}/profile`).set('Cookie', alice.cookie).send({ displayName: 'Alice', heightCm: 170 }).expect(200);
     await request(httpServer(app)).patch(`/${PREFIX}/profile`).set('Cookie', bob.cookie).send({ displayName: 'Bob', heightCm: 180 }).expect(200);

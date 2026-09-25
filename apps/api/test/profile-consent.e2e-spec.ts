@@ -244,8 +244,8 @@ describe('profile consent and the minimum age, end to end', () => {
         .put(`/${PREFIX}/safety/restrictions`)
         .set('Cookie', account.cookie)
         .send({ allergies: [], customAllergens: [], intolerances: [] })
-        .expect(200);
-      await request(server).post(`/${PREFIX}/progress/weight`).set('Cookie', account.cookie).send({ weightKg: 70 }).expect(200);
+        .expect(204);
+      await request(server).post(`/${PREFIX}/progress/weight`).set('Cookie', account.cookie).send({ weightKg: 70 }).expect(201);
 
       const job = await generateAndWait(app, account, 180_000);
 
@@ -316,7 +316,7 @@ describe('profile consent and the minimum age, end to end', () => {
       // written and deleted, without excluding the meat and fish `POOL` needs.
       await Promise.all([completeOnboarding(app, account, [allergenId], ['Avellanas'], false, ['omnivore']), completeOnboarding(app, other)]);
 
-      await request(httpServer(app)).post(`/${PREFIX}/progress/weight`).set('Cookie', account.cookie).send({ weightKg: 71.4 }).expect(200);
+      await request(httpServer(app)).post(`/${PREFIX}/progress/weight`).set('Cookie', account.cookie).send({ weightKg: 71.4 }).expect(201);
 
       const job = await generateAndWait(app, account, 180_000);
 
