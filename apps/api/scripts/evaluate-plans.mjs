@@ -37,7 +37,6 @@
  *      overrides a 1
  */
 import { createRequire } from 'node:module';
-import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts/guard.mjs';
@@ -50,7 +49,7 @@ import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'cor
 import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
 import { resolvePreferences } from 'core/domain/Preference';
 import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
-import { dishSafety, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
+import { bestEffortExclusions, dishSafety, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
 
 // ---------------------------------------------------------------------------
 // The profiles. Fixed here, printed in the report, so the next run measures the
@@ -103,6 +102,13 @@ const PROFILES = [
     target: { activityLevel: 'moderate', ageYears: 45, goal: 'maintenance', heightCm: 172, sex: 'male', weightKg: 78 },
     shape: DEFAULT_MEAL_SHAPE,
     customAllergenLabel: 'tomate'
+  },
+  {
+    slug: 'alergia-personalizada-no-resuelta',
+    description: 'A free-text custom allergen the catalogue cannot resolve, best-effort excluded by shared word',
+    target: { activityLevel: 'moderate', ageYears: 45, goal: 'maintenance', heightCm: 172, sex: 'male', weightKg: 78 },
+    shape: DEFAULT_MEAL_SHAPE,
+    customAllergenLabel: 'frutos secos variados'
   },
   {
     slug: 'patron-halal',
@@ -163,7 +169,8 @@ function parseArgs(argv) {
 // ---------------------------------------------------------------------------
 // Building a profile's context without a real account.
 //
-// `RecipeController.generationContext` takes a `userId` and, behind it, seven
+// `RecipeController.nobodysContext` is `generationContext` without the consent
+// check (there is nobody to have consented) over a random id. It takes, behind it, seven
 // repository reads — every one of them a `WHERE user_id = $1` (or, for
 // `SafetyRepository.listAllergens`, no user filter at all: it is reference
 // data). None of them checks that the id exists first; a `SELECT ... WHERE
@@ -174,7 +181,7 @@ function parseArgs(argv) {
 // synthetic profile starts from. Nothing is ever written with this id.
 // ---------------------------------------------------------------------------
 async function baseContext(locale) {
-  const context = await RecipeController.generationContext(randomUUID());
+  const context = await RecipeController.nobodysContext();
 
   // `generationContext` resolves locale from the (nonexistent) profile row, so
   // it is always the fallback. Overridden here because it is `context.locale`
@@ -248,7 +255,15 @@ function contextFor(profile, shared) {
     const safety = toSafetyProfile([], [], resolved, ingredients);
 
     if (!resolved[0]?.ingredientId) {
-      return { context: null, note: `custom allergen "${profile.customAllergenLabel}" did not resolve against the real catalogue` };
+      // What `RecipeController.generationContext` does with an entry it cannot
+      // resolve: every row sharing a word with it leaves, beside the preferences.
+      const bestEffort = bestEffortExclusions(safety.unenforceableLabels, ingredients);
+      const preferences = { ...shared.preferences, excludedIngredientIds: new Set([...shared.preferences.excludedIngredientIds, ...bestEffort]) };
+
+      return {
+        context: { ...shared, preferences, safety },
+        note: `custom allergen "${profile.customAllergenLabel}" did not resolve; best-effort removed ${bestEffort.size} catalogue rows sharing a word with it`
+      };
     }
 
     return {

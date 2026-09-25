@@ -7,7 +7,8 @@ import { loadedTargets } from 'core/domain/Event';
 import { schedulePlan } from 'core/domain/Scheduler';
 import { isBlocking, validatePlan } from 'core/domain/PlanValidation';
 import { minimumDailyKcal, targetViolations } from 'core/domain/Nutrition';
-import { PlanPausedError, QuotaExceededError } from 'core/entities/Error';
+import { PlanPausedError, ProfileConsentRequiredError, QuotaExceededError } from 'core/entities/Error';
+import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
@@ -66,12 +67,32 @@ export class PlanLoadRebuildService {
       return [];
     }
 
-    const [profile, context, verdicts, composition] = await Promise.all([
+    const loaded = await Promise.all([
       ProfileController.getFullProfile(userId),
       RecipeController.generationContext(userId),
       RecipeController.verdicts(userId),
       PlanController.composition(userId, plan.id)
-    ]);
+    ]).catch((error: unknown) => {
+      // No consent to the profile, no rebuild: the event stands and is read at
+      // the next generation, which asks for it — the same "no" as every other.
+      if (error instanceof ProfileConsentRequiredError) {
+        return null;
+      }
+
+      throw error;
+    });
+
+    // Events are not behind `@RequiresOnboarding()`, so the rebuild asks
+    // itself, after the reads: a withdrawal reopens the allergy step, and a
+    // day rebuilt before it is answered again would be drawn from a profile
+    // with no allergies in it.
+    const onboarding = await OnboardingController.getState(userId);
+
+    if (!loaded || !onboarding.isComplete || onboarding.profileConsentRequired) {
+      return [];
+    }
+
+    const [profile, context, verdicts, composition] = loaded;
     // The load moves what *this plan* eats, which is its strategy — the profile's
     // targets may have moved since it was made, and a loaded Saturday built to
     // different base numbers from its Friday would not be a load, it would be a

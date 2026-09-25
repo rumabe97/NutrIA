@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
-import { dishSafety, findSafetyViolations } from 'core/domain/Safety';
+import { dishSafety, findSafetyViolations, mentionsUnresolvedAllergy } from 'core/domain/Safety';
 import { methodMentions } from 'core/domain/Method';
 import { breaksDishRule, withinTime } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
@@ -410,9 +410,18 @@ export class PoolBuilder {
     // A rule on the whole dish, not on one ingredient: meat with dairy for
     // someone who keeps them apart. Never asked of the model, only enforced.
     if (breaksDishRule(dish.ingredients, context.catalogue, context.preferences)) {
-      this.logger.warn(`Dish "${dish.name}" rejected: it puts meat and dairy together, which their way of eating keeps apart`);
+      this.logger.warn(`Dish "${dish.name}" rejected by a dish rule of their preferences`);
 
       return { reason: 'unwanted' };
+    }
+
+    // Its name or method naming an allergy the catalogue could not resolve —
+    // what the prompt used to ask ("not in names, steps or garnishes"), now
+    // checked here. The label is not logged: it is their words.
+    if (mentionsUnresolvedAllergy(dish, context.safety.unenforceableLabels)) {
+      this.logger.warn(`Dish "${dish.name}" rejected: its name or method names an allergy we could not resolve`);
+
+      return { reason: 'allergen' };
     }
 
     // The prompt states the limit; this is what makes it true.

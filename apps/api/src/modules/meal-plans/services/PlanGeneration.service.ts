@@ -95,14 +95,18 @@ export class PlanGenerationService {
   ): Promise<string> {
     await markStep(STEPS.loading);
 
-    const [onboarding, profile, context, history, verdicts, checkIn] = await Promise.all([
-      OnboardingController.getState(userId),
+    const [profile, context, history, verdicts, checkIn] = await Promise.all([
       ProfileController.getFullProfile(userId),
       RecipeController.generationContext(userId),
       PlanController.generationHistory(userId),
       RecipeController.verdicts(userId),
       CheckInController.latestForGeneration(userId)
     ]);
+    // Read after the profile, never beside it: a withdrawal reopens these steps
+    // and deletes the consent with the data, so a profile read after it
+    // committed is always followed by a state that says so. Beside it, the two
+    // could straddle the withdrawal and build a plan on an emptied profile.
+    const onboarding = await OnboardingController.getState(userId);
 
     if (!onboarding.isComplete) {
       throw new GenerationError('GENERATION_ONBOARDING_INCOMPLETE');

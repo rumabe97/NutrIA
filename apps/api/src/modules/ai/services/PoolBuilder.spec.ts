@@ -259,6 +259,21 @@ describe('PoolBuilder', () => {
     expect(prompt).not.toContain('pollo');
   });
 
+  it('drops a dish whose name or method names an allergy the catalogue could not resolve, as an allergen', async () => {
+    const { client } = stubClient([{ dishes: [dish('Arroz con nueces', ['breakfast']), dish('Arroz blanco', ['breakfast'])] }]);
+
+    const result = await new PoolBuilder(client).build({
+      context: context({ unenforceableLabels: ['nuez'] }),
+      needPerSlot: 2,
+      preferences,
+      reusable: [],
+      slots: ['breakfast']
+    });
+
+    expect(result.generated.map(generated => generated.name)).toEqual(['Arroz blanco']);
+    expect(result.metadata.aiCalls[0]?.rejected).toMatchObject({ allergen: 1 });
+  });
+
   it('drops a dish that puts meat and dairy together for someone who keeps them apart, and keeps one that does not', async () => {
     const meat = { ...ingredient('ternera'), classes: ['meat', 'animal'] as CatalogueIngredient['classes'] };
     const dairy = { ...ingredient('queso'), classes: ['dairy', 'animal'] as CatalogueIngredient['classes'] };
