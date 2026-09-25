@@ -9,6 +9,7 @@ import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
 import {
+  acceptAgreement,
   completeOnboarding,
   createApp,
   dish,
@@ -153,6 +154,8 @@ describe('care review', () => {
       .set('Cookie', owner.cookie)
       .send({ collegiateNumber: `28/${String(stamp).slice(-6)}` })
       .expect(201);
+    // Every route below but `GET /care/practice` stays shut until this (P1-1); `professionals.e2e-spec.ts` is where the gate itself is proved.
+    await acceptAgreement(app, who);
     // The client routes need a paid practice from Phase 7 on (`0061`); this suite is about the workspace, not paying for it.
     await openPractice(who.id);
   }

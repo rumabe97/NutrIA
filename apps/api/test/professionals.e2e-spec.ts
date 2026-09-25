@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
 import { ProfessionalController } from 'core/controllers/Professional';
+import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { UserController } from 'core/controllers/User';
 
 import { activate, completeOnboarding, createApp, deleteAccounts, httpServer, PREFIX, register, ScriptedAiClient } from './harness.js';
@@ -386,6 +387,60 @@ describe('professionals', () => {
 
       // And the field itself, once more, the same way any other caller would read it.
       expect(await meBody(tamperer)).toMatchObject({ professional: false, role: 'user' });
+    });
+  });
+
+  /**
+   * The professional's own agreement (P1-1, `docs/legal/checklist-activacion.md`
+   * § 1): a grant alone does not open the workspace, whatever the switch says —
+   * the one route it must still leave open is the page that shows the
+   * agreement to accept, `GET /care/practice`, and accepting it is itself the
+   * door: a stale version (the checklist's own example, a first `1.0.0`) does
+   * not open it, the current one does.
+   */
+  describe('the professional’s agreement', () => {
+    let unaccepted: Account;
+
+    beforeAll(async () => {
+      unaccepted = await register(app, `pro-unaccepted-${Date.now()}@e2e.invalid`);
+      made.push(unaccepted.cookie);
+      await request(httpServer(app))
+        .post(`/${PREFIX}/admin/accounts/${unaccepted.id}/professional`)
+        .set('Cookie', owner.cookie)
+        .send({ collegiateNumber: `28/${String(Date.now()).slice(-6)}` })
+        .expect(201);
+    });
+
+    it('is a 404 on every professional route but the practice page, until the current agreement is accepted — a stale version refused first', async () => {
+      const server = httpServer(app);
+      const linkId = 'not-a-link';
+      const gatedRoutes: readonly [Method, string][] = [
+        ['get', '/care/clients'],
+        ['get', `/care/clients/${linkId}`],
+        ['patch', `/care/clients/${linkId}/targets`],
+        ['get', `/care/clients/${linkId}/plan/pending`],
+        ['post', `/care/clients/${linkId}/plan/generate`],
+        ['post', '/care/invitations']
+      ];
+
+      for (const [method, path] of gatedRoutes) {
+        await request(server)[method](`/${PREFIX}${path}`).set('Cookie', unaccepted.cookie).send({}).expect(404);
+      }
+
+      // The one door that must stay open: the page that shows the agreement to accept.
+      await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', unaccepted.cookie).expect(200);
+
+      // A version this route never offered, or offered before, does not open it.
+      await request(server).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', unaccepted.cookie).send({ version: '1.0.0' }).expect(422);
+      await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', unaccepted.cookie).expect(404);
+
+      // The current version does, on the very next request.
+      await request(server)
+        .post(`/${PREFIX}/care/practice/agreement`)
+        .set('Cookie', unaccepted.cookie)
+        .send({ version: PROFESSIONAL_AGREEMENT_VERSION })
+        .expect(200);
+      await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', unaccepted.cookie).expect(200);
     });
   });
 
