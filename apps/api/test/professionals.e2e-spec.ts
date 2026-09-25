@@ -29,8 +29,10 @@ import type { Response } from 'supertest';
  * request once either is taken away. Forging it is tried the same way as the
  * rest — and checked the same way: nothing behind it moves.
  *
- * No route carries `ProfessionalGuard` until Phase 2, so the guard's question
- * — `ProfessionalController.hasAccess` — is asked directly, with the switch on.
+ * `ProfessionalController.hasAccess` — the guard's own question — is asked
+ * directly throughout, as the fastest way to check the account's state; later
+ * in the file it is also asked the long way, through `ProfessionalGuard` on a
+ * real `/care` route, to prove the guard asks it too and nothing else.
  *
  * Requires a real database — see ./README.md.
  */
