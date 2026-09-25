@@ -1457,8 +1457,10 @@ describe('care', () => {
        * only the health line, on the professional's very next request, and
        * comes back the same way.
        */
-      it('closes health alone, mid-session, when the client switches sharing off — the link stays active, and switching it back on restores it', async () => {
+      it('closes health alone, mid-session, when the client switches sharing off — the link stays active, and switching it back on restores it, and no other link moves', async () => {
         const toggler = await account('reader-toggle');
+        // A second, unrelated active link with the health line on — the `PATCH` has no link id, so this is the only witness that the repository scoped its write to the caller's own link.
+        const bystander = await account('reader-toggle-bystander');
 
         await request(server())
           .put(`/${PREFIX}/health-data`)
@@ -1467,6 +1469,7 @@ describe('care', () => {
           .expect(200);
 
         const linkId = await link(readerA, toggler, true);
+        const bystanderLinkId = await link(readerB, bystander, true);
 
         expect((await overview(readerA, linkId).expect(200)).body as Overview).toHaveProperty('health');
 
@@ -1506,6 +1509,59 @@ describe('care', () => {
         expect(on.body).toMatchObject({ id: linkId, sharesHealth: true });
         expect((await trail(toggler.id)).at(-1)).toMatchObject({ action: 'granted', kind: 'health', linkId, professionalName: nameOf(readerA) });
         expect((await overview(readerA, linkId).expect(200)).body as Overview).toHaveProperty('health');
+
+        // The bystander's link, on B's side, was never in the WHERE of either write.
+        await expect(myLink(bystander)).resolves.toMatchObject({ id: bystanderLinkId, sharesHealth: true, status: 'active' });
+        expect((await overview(readerB, bystanderLinkId).expect(200)).body as Overview).toHaveProperty('health');
+      });
+    });
+
+    /**
+     * The agreement's second line (invariant-reviewer, legal-b): `CareRepository`'s
+     * own `practising` join — `practiceOpen` **and** the current
+     * `agreementVersion` — guards every client read and the invite write on its
+     * own, not only `ProfessionalGuard`. A bug in the guard alone would not be
+     * enough to reach a client's data if this held; proved by calling the core
+     * functions directly, bypassing the guard entirely, the way `withClient` is
+     * asked directly elsewhere in this file. The state — accepted, then no
+     * longer the current version — has no route of its own (the agreement is a
+     * one-way accept), so it is written on the table, the way `consentIsCurrent`
+     * is proved above.
+     */
+    describe('the agreement, held by the repository itself', () => {
+      it('closes a read through CareController.withClient once the accepted version is no longer current, with the practice open and the link active', async () => {
+        const stalePro = await account('reader-stale-read');
+        const staleClient = await account('reader-stale-read-client');
+
+        await grant(stalePro);
+        const linkId = await link(stalePro, staleClient);
+
+        await overview(stalePro, linkId).expect(200);
+
+        await tables()`update professionals set agreement_version = '0.9.0' where user_id = ${stalePro.id}`;
+
+        const refused = await overview(stalePro, linkId);
+
+        expect(refused.status).toBe(404);
+
+        const reached = jest.fn(async () => Promise.resolve('read'));
+
+        await expect(CareController.withClient(stalePro.id, linkId, 'overview', 'read', reached)).rejects.toThrow(NotFoundError);
+        expect(reached).not.toHaveBeenCalled();
+        // The link itself, and the client's account, are untouched — only the professional's own access closed.
+        await expect(myLink(staleClient)).resolves.toMatchObject({ id: linkId, status: 'active' });
+      });
+
+      it('refuses CareController.invite the same way, and inserts nothing', async () => {
+        const stalePro = await account('reader-stale-invite');
+
+        await grant(stalePro);
+        await tables()`update professionals set agreement_version = '0.9.0' where user_id = ${stalePro.id}`;
+
+        const target = address('reader-stale-invite-target');
+
+        await expect(CareController.invite(sessionOf(stalePro), { email: target })).rejects.toThrow(NotFoundError);
+        expect(await invitationsTo(target)).toEqual([]);
       });
     });
 
