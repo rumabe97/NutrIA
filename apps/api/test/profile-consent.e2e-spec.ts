@@ -306,15 +306,17 @@ describe('profile consent and the minimum age, end to end', () => {
         throw new Error('No crustaceans allergen in the seeded catalogue — see ./README.md');
       }
 
-      [account, other] = await Promise.all([
-        register(app, `consent-withdraw-${Date.now()}@example.invalid`),
-        register(app, `consent-withdraw-other-${Date.now()}@example.invalid`)
-      ]);
+      // One request at a time: the app is never listening between requests, so
+      // supertest starts and closes the server for each one, and two in flight
+      // at once close it under each other (`connect ECONNRESET`).
+      account = await register(app, `consent-withdraw-${Date.now()}@example.invalid`);
+      other = await register(app, `consent-withdraw-other-${Date.now()}@example.invalid`);
       made.push(account.cookie, other.cookie);
 
       // `omnivore`, not `vegetarian`: it still proves `user_dietary_patterns` is
       // written and deleted, without excluding the meat and fish `POOL` needs.
-      await Promise.all([completeOnboarding(app, account, [allergenId], ['Avellanas'], false, ['omnivore']), completeOnboarding(app, other)]);
+      await completeOnboarding(app, account, [allergenId], ['Avellanas'], false, ['omnivore']);
+      await completeOnboarding(app, other);
 
       await request(httpServer(app)).post(`/${PREFIX}/progress/weight`).set('Cookie', account.cookie).send({ weightKg: 71.4 }).expect(201);
 
@@ -343,13 +345,6 @@ describe('profile consent and the minimum age, end to end', () => {
       expect(await progressWeights(account.id)).toEqual([70.9]);
       expect(await checkInWeights(account.id)).toEqual([70.9]);
 
-      // `.retry(1)`: this call, right after two direct `tables()` reads with no
-      // HTTP traffic in between, was seen resetting the connection on CI
-      // (`connect ECONNRESET`, no stack trace into this file — a transient
-      // socket-reuse hiccup, not a status-code mismatch) — deterministic on a
-      // rerun, but the same request never fails at the assertion, only at the
-      // network layer, so a single retry is the request that would have
-      // succeeded on a fresh connection, not a second chance for a wrong answer.
       const withdrawn: Response = await request(httpServer(app))
         .delete(`/${PREFIX}/profile/consent`)
         .set('Cookie', account.cookie)
