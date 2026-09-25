@@ -35,8 +35,20 @@ function update(table: unknown) {
 let openLink: { link: Record<string, unknown>; professionalName: string } | undefined;
 const inserted: { readonly table: unknown; readonly values: Record<string, unknown> }[] = [];
 
+/** The `WHERE` the last `SELECT` inside the transaction was given. */
+let selectWhere: SQL | undefined;
+
 function select() {
-  const chain = { from: () => chain, innerJoin: () => chain, limit: () => Promise.resolve(openLink ? [openLink] : []), where: () => chain };
+  const chain = {
+    from: () => chain,
+    innerJoin: () => chain,
+    limit: () => Promise.resolve(openLink ? [openLink] : []),
+    where: (where: SQL) => {
+      selectWhere = where;
+
+      return chain;
+    }
+  };
 
   return chain;
 }
@@ -189,6 +201,12 @@ describe('CareRepository.setSharesHealth', () => {
     // The session's id is the owner, only an open link, and only when it would change.
     expect(change?.sql).toBe('(("care_links"."client_id" = $1 and "care_links"."status" in ($2, $3)) and "care_links"."shares_health" <> $4)');
     expect(change?.params).toEqual(['usr-client', 'active', 'paused', sharesHealth]);
+    // The link it answers and logs is read the same way: the session's client, open, and never by a link id.
+    const read = dialect.sqlToQuery(selectWhere as SQL);
+
+    expect(read.sql).toBe('("care_links"."client_id" = $1 and "care_links"."status" in ($2, $3))');
+    expect(read.params).toEqual(['usr-client', 'active', 'paused']);
+    expect(`${change?.sql} ${read.sql}`).not.toContain('"care_links"."id"');
     expect(inserted).toEqual([
       {
         table: careAccessLog,
