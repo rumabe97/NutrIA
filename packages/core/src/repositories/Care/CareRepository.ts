@@ -72,7 +72,12 @@ export type RosterLink = {
 export type Roster = { readonly invitations: readonly { readonly email: string; readonly expiresAt: Date }[]; readonly links: readonly RosterLink[] };
 
 /** An invitation the session's account may read, with who sent it. */
-export type OpenInvitation = { readonly expiresAt: Date; readonly professionalId: string; readonly professionalName: string };
+export type OpenInvitation = {
+  readonly collegiateNumber: string;
+  readonly expiresAt: Date;
+  readonly professionalId: string;
+  readonly professionalName: string;
+};
 
 /** A link, and the name of the professional on the other side of it. */
 export type LinkWithProfessional = { readonly link: CareLink; readonly professionalName: string };
@@ -508,7 +513,12 @@ export const CareRepository = {
   async openInvitation(clientId: string, email: string, tokenHash: string, now: Date): Promise<OpenInvitation | null> {
     try {
       const [row] = await database()
-        .select({ expiresAt: careInvitations.expiresAt, professionalId: careInvitations.professionalId, professionalName: user.name })
+        .select({
+          collegiateNumber: professionals.collegiateNumber,
+          expiresAt: careInvitations.expiresAt,
+          professionalId: careInvitations.professionalId,
+          professionalName: user.name
+        })
         .from(careInvitations)
         .innerJoin(professionals, eq(professionals.userId, careInvitations.professionalId))
         .innerJoin(user, eq(user.id, careInvitations.professionalId))

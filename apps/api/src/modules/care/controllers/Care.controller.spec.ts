@@ -581,6 +581,7 @@ describe('care routes', () => {
       const invitation = jest
         .spyOn(CareController, 'invitation')
         .mockResolvedValue({
+          collegiateNumber: '28/12345',
           consentVersion: CARE_CONSENT_VERSION,
           expiresAt: '2026-10-07T10:00:00.000Z',
           healthShares: CARE_HEALTH_SHARED,
@@ -697,14 +698,24 @@ describe('care routes', () => {
       practiceOffer.mockResolvedValue(OFFER);
       const practice = jest
         .spyOn(CareController, 'practice')
-        .mockResolvedValue({ activeClients: 0, agreementRequired: false, includedClients: 30, open: false, pendingInvitations: 0 });
+        .mockResolvedValue({
+          activeClients: 0,
+          agreementAcceptedAt: '2026-09-02T00:00:00.000Z',
+          agreementRequired: false,
+          agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
+          includedClients: 30,
+          open: false,
+          pendingInvitations: 0
+        });
 
       const response = await request(server()).get(`/${PREFIX}/care/practice`).expect(200);
 
       expect(practice).toHaveBeenCalledWith(expect.objectContaining({ id: SESSION.id }));
       expect(response.body).toEqual({
         activeClients: 0,
+        agreementAcceptedAt: '2026-09-02T00:00:00.000Z',
         agreementRequired: false,
+        agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
         billing: OFFER,
         includedClients: 30,
         open: false,
@@ -840,7 +851,15 @@ describe('care routes', () => {
       practiceOffer.mockResolvedValue({ available: true, plans: [], subscription: null, testMode: false, trialDays: 14 });
       jest
         .spyOn(CareController, 'practice')
-        .mockResolvedValue({ activeClients: 0, agreementRequired: true, includedClients: 30, open: true, pendingInvitations: 0 });
+        .mockResolvedValue({
+          activeClients: 0,
+          agreementAcceptedAt: null,
+          agreementRequired: true,
+          agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
+          includedClients: 30,
+          open: true,
+          pendingInvitations: 0
+        });
 
       expect((await request(server()).get(`/${PREFIX}/care/practice`).expect(200)).body).toMatchObject({ agreementRequired: true });
     });

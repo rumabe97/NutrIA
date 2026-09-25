@@ -97,6 +97,8 @@ export interface CareInvitationView {
  * health line they may add. Keys, not sentences — the screen owns the words.
  */
 export interface CareInvitationDetailView {
+  /** The inviter's collegiate number, as the owner granted it: who invites, checkable in the register (`docs/legal/textos/05` § B1). */
+  collegiateNumber: string;
   consentVersion: string;
   expiresAt: string;
   /** Offered as its own yes or no; shared only if the client says yes to it. */
@@ -216,6 +218,8 @@ export interface CareClientOverviewView {
  */
 export interface CarePracticeStandingView {
   activeClients: number;
+  /** When the version on record was accepted, or null if never. */
+  agreementAcceptedAt: string | null;
   /**
    * True until the professional has accepted the current
    * `PROFESSIONAL_AGREEMENT_VERSION` (`docs/legal/textos/01`, `04`): the page
@@ -223,6 +227,8 @@ export interface CarePracticeStandingView {
    * practice checkout opens.
    */
   agreementRequired: boolean;
+  /** The version to accept: today's `PROFESSIONAL_AGREEMENT_VERSION`. */
+  agreementVersion: string;
   includedClients: number;
   open: boolean;
   pendingInvitations: number;
@@ -331,6 +337,7 @@ function presentProgress(progress: ProgressSummaryView, targets: ResolvedTargets
 
 function presentInvitationDetail(row: OpenInvitation): CareInvitationDetailView {
   return {
+    collegiateNumber: row.collegiateNumber,
     consentVersion: CARE_CONSENT_VERSION,
     expiresAt: row.expiresAt.toISOString(),
     healthShares: CARE_HEALTH_SHARED,
@@ -779,7 +786,9 @@ export const CareController = {
 
     return {
       ...use,
+      agreementAcceptedAt: row.agreementAcceptedAt?.toISOString() ?? null,
       agreementRequired: row.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION,
+      agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
       includedClients: row.includedClients,
       open: row.practiceOpen
     };

@@ -149,7 +149,9 @@ describe('CareController.practice', () => {
 
     await expect(CareController.practice(PRO, NOW)).resolves.toEqual({
       activeClients: 0,
+      agreementAcceptedAt: null,
       agreementRequired: true,
+      agreementVersion: PROFESSIONAL_AGREEMENT_VERSION,
       includedClients: 30,
       open: false,
       pendingInvitations: 2
@@ -163,10 +165,14 @@ describe('CareController.practice', () => {
     ['0.9.0', true],
     [PROFESSIONAL_AGREEMENT_VERSION, false]
   ])('asks for the agreement while the version accepted is %s', async (agreementVersion, agreementRequired) => {
-    find.mockResolvedValue(makeProfessional({ agreementVersion, practiceOpen: true }));
+    find.mockResolvedValue(makeProfessional({ agreementAcceptedAt: agreementVersion ? NOW : null, agreementVersion, practiceOpen: true }));
     practiceUse.mockResolvedValue({ activeClients: 0, pendingInvitations: 0 });
 
-    await expect(CareController.practice(PRO, NOW)).resolves.toMatchObject({ agreementRequired });
+    await expect(CareController.practice(PRO, NOW)).resolves.toMatchObject({
+      agreementAcceptedAt: agreementVersion ? NOW.toISOString() : null,
+      agreementRequired,
+      agreementVersion: PROFESSIONAL_AGREEMENT_VERSION
+    });
   });
 
   it.each([
@@ -183,13 +189,19 @@ describe('CareController.practice', () => {
 
 describe('CareController.invitation', () => {
   it('answers who invites, the version and both lists, for the address it was sent to', async () => {
-    openInvitation.mockResolvedValue({ expiresAt: new Date('2026-10-07T10:00:00.000Z'), professionalId: PRO.id, professionalName: 'Ana Dietista' });
+    openInvitation.mockResolvedValue({
+      collegiateNumber: '28/12345',
+      expiresAt: new Date('2026-10-07T10:00:00.000Z'),
+      professionalId: PRO.id,
+      professionalName: 'Ana Dietista'
+    });
 
     const view = await CareController.invitation(CLIENT, TOKEN, NOW);
 
     // The session's address, lowercased, and the token's hash — never the token.
     expect(openInvitation).toHaveBeenCalledWith(CLIENT.id, 'cliente@example.com', TOKEN_HASH, NOW);
     expect(view).toEqual({
+      collegiateNumber: '28/12345',
       consentVersion: CARE_CONSENT_VERSION,
       expiresAt: '2026-10-07T10:00:00.000Z',
       healthShares: CARE_HEALTH_SHARED,
