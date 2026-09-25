@@ -5,7 +5,18 @@ import type { Response } from 'supertest';
 
 import { database } from 'database';
 
-import { completeOnboarding, createApp, deleteAccounts, generateAndWait, giveProfileConsent, httpServer, POOL, PREFIX, register, ScriptedAiClient } from './harness.js';
+import {
+  completeOnboarding,
+  createApp,
+  deleteAccounts,
+  generateAndWait,
+  giveProfileConsent,
+  httpServer,
+  POOL,
+  PREFIX,
+  register,
+  ScriptedAiClient
+} from './harness.js';
 
 import type { Account } from './harness.js';
 import type { FullProfileView } from 'core/controllers/Profile';
@@ -153,7 +164,10 @@ describe('profile consent and the minimum age, end to end', () => {
       );
       await expectConsentRequired(() => request(server).patch(`/${PREFIX}/profile`).set('Cookie', account.cookie).send({ heightCm: 168 }));
       await expectConsentRequired(() =>
-        request(server).put(`/${PREFIX}/safety/restrictions`).set('Cookie', account.cookie).send({ allergies: [], customAllergens: [], intolerances: [] })
+        request(server)
+          .put(`/${PREFIX}/safety/restrictions`)
+          .set('Cookie', account.cookie)
+          .send({ allergies: [], customAllergens: [], intolerances: [] })
       );
       await expectConsentRequired(() => request(server).post(`/${PREFIX}/progress/weight`).set('Cookie', account.cookie).send({ weightKg: 71 }));
       await expectConsentRequired(() => request(server).post(`/${PREFIX}/meal-plans/generate`).set('Cookie', account.cookie));
@@ -340,7 +354,11 @@ describe('profile consent and the minimum age, end to end', () => {
 
       expect((onboardingRefusal.body as { code: string }).code).toBe('UNDER_MINIMUM_AGE');
 
-      const profileRefusal: Response = await request(server).patch(`/${PREFIX}/profile`).set('Cookie', account.cookie).send({ birthDate: under18 }).expect(422);
+      const profileRefusal: Response = await request(server)
+        .patch(`/${PREFIX}/profile`)
+        .set('Cookie', account.cookie)
+        .send({ birthDate: under18 })
+        .expect(422);
 
       expect((profileRefusal.body as { code: string }).code).toBe('UNDER_MINIMUM_AGE');
 
