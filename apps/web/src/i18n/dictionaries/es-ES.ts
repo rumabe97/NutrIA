@@ -1089,7 +1089,8 @@ export const esES = {
     planRenews: 'Se renueva el {date}.',
     planSeats: '{active} de {included} pacientes',
     planSeatsPending: 'Y {count} invitaciones sin responder, que también ocupan plaza.',
-    planTerms: 'Contratas como profesional, no como consumidor. Condiciones del plan de consulta.',
+    planTerms: 'Contratas como profesional, no como consumidor. {terms}',
+    planTermsLink: 'Condiciones del plan de consulta',
     planTestMode: 'Modo de prueba: nada de lo que pagues es dinero real.',
     planTitle: 'Tu plan',
     planTrial: 'Los primeros {days} días son gratis. Al terminar, el plan se cobra cada mes hasta que lo canceles.',
@@ -1342,11 +1343,11 @@ export const esES = {
         id: 'tu-dietista',
         heading: 'Tu dietista en NutrIA',
         paragraphs: [
-          'Un dietista-nutricionista puede invitarte por correo a llevar tu plan en NutrIA con su ayuda. Solo un profesional al que hemos dado acceso tras comprobar su número de colegiado puede hacerlo. Su invitación dura 14 días; tu dirección la guardamos solo ese tiempo, para enviarte la invitación.',
+          'Un dietista-nutricionista puede invitarte por correo a llevar tu plan en NutrIA con su ayuda. Solo un profesional al que hemos dado acceso tras comprobar su número de colegiado puede hacerlo. Su invitación dura 14 días; tu dirección la usamos solo para enviártela y la borramos con la invitación: en cuanto respondes o, si no respondes, como muy tarde el día después de que caduque.',
           'Nada se comparte si no aceptas. Si aceptas, tu dietista verá tu nombre, tus objetivos diarios y cómo se calcularon, tus planes, cuánto sigues cada quincena, tu peso a lo largo del tiempo y tus respuestas a los check-ins. Podrá fijar tus objetivos, generar y cambiar tus planes, y revisar cada plan nuevo antes de que lo veas. Tus enfermedades, tu medicación y tus suplementos solo si marcas esa casilla aparte. No verá tus alergias ni intolerancias, tu correo ni tus comentarios escritos.',
           'Cada vez que tu dietista mira o cambia algo, queda anotado y lo ves en tu perfil, en «Quién ha accedido».',
           'Puedes terminar el enlace cuando quieras desde tu perfil, y desde la siguiente petición tu dietista deja de ver tus datos. También puedes dejar de compartir solo tu salud sin terminar el enlace. Tus objetivos, tu historial y tu último plan publicado se quedan contigo.',
-          'Quién responde de qué: NutrIA es responsable de tus datos en NutrIA y te los comunica a tu dietista porque tú lo pides. Tu dietista es responsable, por su cuenta y bajo su secreto profesional, de lo que haga con lo que ve en su consulta, por ejemplo lo que anote en tu historia clínica; para eso, escríbele a él. Para todo lo que está en NutrIA, escríbenos a {email}: somos tu punto de contacto.',
+          'Quién responde de qué: NutrIA es responsable de tus datos en NutrIA y te los comunica a tu dietista porque tú lo pides. Tu dietista es responsable, por su cuenta y bajo su secreto profesional, de lo que haga con lo que ve en su consulta, por ejemplo lo que anote en tu historia clínica; para eso, dirígete a tu dietista. Para todo lo que está en NutrIA, escríbenos a {email}: somos tu punto de contacto.',
           'Si tu dietista borra su cuenta, el enlace termina y su nombre sigue en tu registro de accesos.'
         ]
       },
@@ -1726,6 +1727,7 @@ export const esES = {
         ]
       },
       {
+        id: 'dietista',
         heading: 'Si trabajas con un dietista',
         paragraphs: [
           'Un dietista-nutricionista puede invitarte a llevar tu plan en NutrIA con su ayuda. Si aceptas, podrá ver y ajustar tu plan como explica la invitación y la política de privacidad, y mientras el enlace dure tendrás los límites de Premium sin pagar nada.',

@@ -1076,7 +1076,8 @@ export const enGB: Dictionary = {
     planRenews: 'Renews on {date}.',
     planSeats: '{active} of {included} clients',
     planSeatsPending: 'And {count} unanswered invitations, which take a place too.',
-    planTerms: 'You are buying as a professional, not a consumer. Practice plan terms.',
+    planTerms: 'You are buying as a professional, not a consumer. {terms}',
+    planTermsLink: 'Practice plan terms',
     planTestMode: 'Test mode: nothing you pay is real money.',
     planTitle: 'Your plan',
     planTrial: 'The first {days} days are free. After that, the plan is charged monthly until you cancel.',
@@ -1329,7 +1330,7 @@ export const enGB: Dictionary = {
         id: 'tu-dietista',
         heading: 'Your dietitian on NutrIA',
         paragraphs: [
-          'A dietitian-nutritionist can invite you by email to follow your plan with them on NutrIA. Only a professional we have given access to, after checking their registration number, can do so. The invitation lasts 14 days; we keep your address only for that time, to send it.',
+          'A dietitian-nutritionist can invite you by email to follow your plan with them on NutrIA. Only a professional we have given access to, after checking their registration number, can do so. The invitation lasts 14 days; we use your address only to send it and delete it with the invitation: as soon as you answer or, if you do not, by the day after it expires at the latest.',
           'Nothing is shared unless you accept. If you do, your dietitian will see your name, your daily targets and how they were worked out, your plans, how much of each fortnight you follow, your weight over time and your check-in answers. They can set your targets, generate and change your plans, and review each new plan before you see it. Your conditions, medications and supplements only if you tick that separate box. They will not see your allergies or intolerances, your email address or your written comments.',
           'Every time your dietitian looks at or changes something, it is recorded and you can see it on your profile under "Who has accessed".',
           'You can end the link from your profile at any time, and from the next request your dietitian stops seeing your data. You can also stop sharing just your health without ending the link. Your targets, your history and your last published plan stay with you.',
@@ -1720,6 +1721,7 @@ export const enGB: Dictionary = {
         ]
       },
       {
+        id: 'dietista',
         heading: 'If you work with a dietitian',
         paragraphs: [
           'A dietitian-nutritionist can invite you to follow your plan with them on NutrIA. If you accept, they can see and adjust your plan as the invitation and the privacy policy explain, and while the link lasts you get Premium’s limits at no cost.',
