@@ -582,8 +582,12 @@ describe('care', () => {
     });
 
     it('marks a link stored under a previous consent version as not current (P1-3)', async () => {
+      // A dedicated professional: `pro`'s own link counts are asserted exactly, below and in `ending`, and this link is never ended.
+      const dedicated = await account('consent-stale-pro');
       const dated = await account('consent-stale');
-      const { token } = await invite(pro, dated.email);
+
+      await grant(dedicated);
+      const { token } = await invite(dedicated, dated.email);
       const accepted = await accept(dated, token, { consentVersion: CARE_CONSENT_VERSION, sharesHealth: false });
       const linkId = (accepted.body as CareLinkView).id;
 
@@ -774,11 +778,12 @@ describe('care', () => {
       const earlier = new Date(Date.now() - 15 * DAY_MS);
 
       await grant(sweeper);
+      // Live first: `CareRepository.invite` sweeps expired rows itself on every call (the case above),
+      // so writing the stale one after it — with nothing invited afterwards — is what isolates the daily
+      // sweep's own deletion from that opportunistic one.
+      await invite(sweeper, address('live-daily'));
       await CareController.invite(sessionOf(sweeper), { email: address('stale-daily') }, earlier);
       expect(await invitationsTo(address('stale-daily'))).toHaveLength(1);
-
-      // Not yet expired: still there after the sweep runs at today's clock.
-      await invite(sweeper, address('live-daily'));
 
       await expect(CareController.forgetExpiredInvitations(new Date())).resolves.toBeGreaterThanOrEqual(1);
 

@@ -5,7 +5,7 @@ import { ProfessionalController } from 'core/controllers/Professional';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { UserController } from 'core/controllers/User';
 
-import { activate, completeOnboarding, createApp, deleteAccounts, httpServer, PREFIX, register, ScriptedAiClient } from './harness.js';
+import { activate, completeOnboarding, createApp, deleteAccounts, httpServer, openPractice, PREFIX, register, ScriptedAiClient } from './harness.js';
 
 import type { Account } from './harness.js';
 import type { AccountView, Paged } from 'core/controllers/User';
@@ -409,6 +409,8 @@ describe('professionals', () => {
         .set('Cookie', owner.cookie)
         .send({ collegiateNumber: `28/${String(Date.now()).slice(-6)}` })
         .expect(201);
+      // Open from the start, so every 404 below is about the agreement alone — ProfessionalGuard needs both, and this test is about the one `care-practice.e2e-spec.ts` is not.
+      await openPractice(unaccepted.id);
     });
 
     it('is a 404 on every professional route but the practice page, until the current agreement is accepted — any other version refused first', async () => {
