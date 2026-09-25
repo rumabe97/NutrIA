@@ -41,6 +41,26 @@ What they need, in order:
 new job hours, an injury, a holiday — and who needs the plan to move with them rather than
 be abandoned.
 
+**A second kind of user, since project 004: a professional.** A dietitian-nutritionist
+holds their own account, granted by the owner from `/admin` after seeing a collegiate
+number — never a sign-up checkbox, because the title is regulated. A professional invites
+a client by email; the client reads exactly what will be shared before accepting, and
+either side can end the link at any moment. Linked, a professional **may**: set that
+client's daily targets inside the same bounds the calculator obeys; generate and review a
+meal plan before the client sees it, then publish it; and see adherence, the weight line
+and every check-in, from stored state. A professional **may not**: reach a client who has
+not accepted an invitation, or infer that one exists; see conditions, medications or
+supplements unless the client ticks that separate line, never routed to a model either
+way; treat, diagnose or prescribe — the product still derives no dietary rule from a
+condition beyond `0008`; or hold more than one client through a shared or borrowed
+account. The professional pays a subscription that includes a number of clients; a linked
+client pays nothing and keeps the paid allowances for as long as the link lasts. This is
+the one named exception to the product's ownership rule — a professional never reaches a
+client's data except through a consented, audited link
+([`0059`](./decisions/0059-a-professional-reaches-a-client-only-through-a-link.md)) —
+everybody else's data
+stays exactly as private as it was.
+
 **Not a user (v1):** anyone requiring clinical nutrition — diagnosed metabolic disease,
 pregnancy, eating-disorder recovery, paediatric feeding. The product must recognise these
 and point to a professional rather than serve them badly.

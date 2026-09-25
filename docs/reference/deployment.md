@@ -87,6 +87,7 @@ from local development:
 | `APPLE_OAUTH_CLIENT_ID`, `APPLE_OAUTH_TEAM_ID`, `APPLE_OAUTH_KEY_ID`, `APPLE_OAUTH_PRIVATE_KEY` | sign in with Apple (`0058`). All four or none; needs the Apple developer programme. The client id is the *Services ID*, the key is the `.p8` (as it is, or with `\n` for its line breaks). Return URL `https://nutr-ia-web-phi.vercel.app/api/v1/auth/callback/apple`. The client secret is signed from these at boot, so nothing is rotated by hand |
 | `AI_PROVIDER` | `google` calls Gemini directly with `GOOGLE_API_KEY`; `omniroute` goes through a gateway and needs `AI_BASE_URL`, `OMNIROUTE_API_KEY` and `OMNIROUTE_MODEL` — the whole setup is in [`ai-gateway.md`](./ai-gateway.md) |
 | `AI_BUDGET_SECONDS` | leave empty: 170 seconds for the model half of a generation, which fits the 300-second function (§4) |
+| `STRIPE_PRACTICE_PRICES` | a professional's practice, `price_…=N` pairs comma-separated (project 004, `0061`) — **optional**, and the API boots without it; needs the other `STRIPE_*` values set, and must not name a premium price. The rest of billing's setup, including the other `STRIPE_*` variables, is [`payments.md`](./payments.md), not here |
 
 `Env.validation.ts` refuses to boot on a bad environment and reports every problem at
 once. In production it is stricter than in development on purpose — and it checks

@@ -259,34 +259,45 @@ To settle before step 2, and none of it is code:
 - **What it costs.** Apple's developer programme is 99 USD a year, Google's a one-off
   25 USD, and signing for iOS needs a Mac or a cloud build (Expo's has a free tier).
 
-### 9. A professional can run their practice on it — proposed, PRD in draft
+### 9. A professional can run their practice on it — done, waiting on the owner's legal review and the switch
 
-Added on 2026-09-21, when everything above it was either done or waiting on something
-that is not code. The product already tells anybody with a recorded condition to *show
-this plan to a professional*; the professional has nowhere to stand in it. A
-dietitian-nutritionist writes a fortnight of meals by hand, hands it over as a document,
-and hears how it went at the next visit. Targets, portions, the shopping list, keeping an
-allergen out of fourteen days, adherence and the check-in are all built — for one person
+Added on 2026-09-21. The product already told anybody with a recorded condition to *show
+this plan to a professional*; the professional had nowhere to stand in it. A
+dietitian-nutritionist wrote a fortnight of meals by hand, handed it over as a document,
+and heard how it went at the next visit. Targets, portions, the shopping list, keeping an
+allergen out of fourteen days, adherence and the check-in were all built — for one person
 looking at their own plan.
 
-What it adds is a second kind of account: a professional, granted by the owner, who
-invites clients, sets their targets within the calculator's bounds, reviews a meal plan
+[`004-dietitian-workspace`](./projects/004-dietitian-workspace/) added the second kind of
+account this needed: a professional, granted by the owner from `/admin`, who invites
+clients by email, sets their targets within the calculator's bounds, reviews a meal plan
 before the client sees it, and watches adherence and check-ins between visits. The
-professional pays; the client does not.
+professional pays a subscription that includes a number of clients; a linked client pays
+nothing and keeps the paid allowances while the link lasts.
 
-Two things make it a project rather than a feature, and both are settled in the PRD
-before any code:
+Two things made it a project rather than a feature, and both were settled before any code:
 
-- **Ownership has had exactly one rule** — `userId` from the session, denials are 404. A
-  professional reading a client's data is the first second way in, and it has to be a
-  named, consented, revocable, audited path rather than an exception to the rule.
+- **Ownership had exactly one rule** — `userId` from the session, denials are 404. A
+  professional reading a client's data is the first second way in, built as a named,
+  consented, revocable, audited path rather than an exception to the rule
+  ([`0059`](./decisions/0059-a-professional-reaches-a-client-only-through-a-link.md)).
 - **`PRODUCT.md` draws the line at clinical nutrition.** A professional in the loop does
-  not move that line by itself; the PRD proposes that it stays where it is for v1, and
-  asks the owner.
+  not move that line by itself; it stays exactly where it was for v1
+  (`docs/PRODUCT.md` § Users).
 
-The proposal is [`004-dietitian-workspace`](./projects/004-dietitian-workspace/), at
-`Status: draft`. Its open questions are the owner's; the plan is written once they are
-answered.
+All ten phases are logged, the whole gate is green, and `PRODUCT.md`, `ARCHITECTURE.md`
+and the payments runbook say what is now true. The feature sits behind a `professional`
+flag that fails off, so nothing above is visible in production yet. What is left is not
+code:
+
+- a lawyer's hour on the professional's agreement and the consent text, assembled for
+  that reading at
+  [`docs/projects/004-dietitian-workspace/LEGAL-REVIEW.md`](./projects/004-dietitian-workspace/LEGAL-REVIEW.md)
+  (PRD Decisions 2);
+- the practice's two Stripe prices, in test mode and then live, and `STRIPE_PRACTICE_PRICES`
+  set on the API project ([`payments.md`](./reference/payments.md) § 6b);
+- granting the first professional from `/admin`, and only then turning the `professional`
+  flag on.
 
 ## Later / someday
 
