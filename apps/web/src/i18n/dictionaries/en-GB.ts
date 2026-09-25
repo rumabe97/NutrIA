@@ -230,12 +230,16 @@ export const enGB: Dictionary = {
       targets: 'your targets'
     },
     accessLogEmpty: 'There is nothing to show here yet.',
+    accessLogGranted: 'You started sharing {kind} with {professional}',
+    accessLogGrantedGroup: 'You started sharing {kind} with {professional}, {count} times · {range}',
     accessLogLoaded: '{count} more entries loaded.',
     accessLogLoadMore: 'Show more',
     accessLogNoMore: 'No more entries to show.',
     accessLogRead: '{professional} viewed {kind}',
     accessLogReadGroup: '{professional} viewed {kind} {count} times · {range}',
     accessLogTitle: 'Who has accessed',
+    accessLogWithdrawn: 'You stopped sharing {kind} with {professional}',
+    accessLogWithdrawnGroup: 'You stopped sharing {kind} with {professional}, {count} times · {range}',
     accessLogWrite: '{professional} changed {kind}',
     accessLogWriteGroup: '{professional} changed {kind} {count} times · {range}',
     canDo: {
@@ -258,7 +262,8 @@ export const enGB: Dictionary = {
     healthShareToggle: 'Share my health conditions, medications and supplements',
     invitationAccept: 'Accept the invitation',
     invitationCanDoIntro: 'And they will be able to:',
-    invitationIntro: '{professional}, a registered dietitian-nutritionist (registration number {collegiateNumber}), invites you to follow your plan with their help on NutrIA.',
+    invitationIntro:
+      '{professional}, a registered dietitian-nutritionist (registration number {collegiateNumber}), invites you to follow your plan with their help on NutrIA.',
     invitationLinkExistsBody: 'You already have a dietitian linked: {professional}, since {since}.',
     invitationLinkExistsCta: 'See my profile',
     invitationLinkExistsTitle: 'You already have an active link',

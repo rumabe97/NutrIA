@@ -234,12 +234,16 @@ export const esES = {
       targets: 'tus objetivos'
     },
     accessLogEmpty: 'Todavía no hay nada que mostrar aquí.',
+    accessLogGranted: 'Empezaste a compartir {kind} con {professional}',
+    accessLogGrantedGroup: 'Empezaste a compartir {kind} con {professional}, {count} veces · {range}',
     accessLogLoaded: '{count} accesos más cargados.',
     accessLogLoadMore: 'Ver más',
     accessLogNoMore: 'No hay más accesos que mostrar.',
     accessLogRead: '{professional} vio {kind}',
     accessLogReadGroup: '{professional} vio {kind} {count} veces · {range}',
     accessLogTitle: 'Quién ha accedido',
+    accessLogWithdrawn: 'Dejaste de compartir {kind} con {professional}',
+    accessLogWithdrawnGroup: 'Dejaste de compartir {kind} con {professional}, {count} veces · {range}',
     accessLogWrite: '{professional} cambió {kind}',
     accessLogWriteGroup: '{professional} cambió {kind} {count} veces · {range}',
     canDo: {
@@ -262,7 +266,8 @@ export const esES = {
     healthShareToggle: 'Compartir mis condiciones de salud, mi medicación y mis suplementos',
     invitationAccept: 'Aceptar la invitación',
     invitationCanDoIntro: 'Y podrá:',
-    invitationIntro: '{professional}, dietista-nutricionista con número de colegiado {collegiateNumber}, te invita a llevar tu plan con su ayuda en NutrIA.',
+    invitationIntro:
+      '{professional}, dietista-nutricionista con número de colegiado {collegiateNumber}, te invita a llevar tu plan con su ayuda en NutrIA.',
     invitationLinkExistsBody: 'Ya tienes un dietista vinculado: {professional}, desde el {since}.',
     invitationLinkExistsCta: 'Ver mi perfil',
     invitationLinkExistsTitle: 'Ya tienes un enlace activo',

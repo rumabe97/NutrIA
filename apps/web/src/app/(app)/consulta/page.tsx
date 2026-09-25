@@ -160,6 +160,15 @@ export default async function PracticePage({ searchParams }: Readonly<{ searchPa
           </section>
         ) : null}
       </div>
+
+      {practice.agreementAcceptedAt ? (
+        <Text className={styles.agreement} size="xs" tone="tertiary">
+          {interpolate(dictionary.practiceAgreement.acceptedOn, {
+            date: shortDate(practice.agreementAcceptedAt),
+            version: practice.agreementVersion
+          })}
+        </Text>
+      ) : null}
     </Fragment>
   );
 }
