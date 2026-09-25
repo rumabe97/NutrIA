@@ -213,7 +213,8 @@ export const ProfileRepository = {
       const [row] = await database()
         .insert(profiles)
         .values({ ...input, userId })
-        .onConflictDoUpdate({ set: input, target: profiles.userId })
+        // `updatedAt` too, so a body with nothing the schema knows is a no-op write, never an empty SET the database refuses.
+        .onConflictDoUpdate({ set: { ...input, updatedAt: new Date() }, target: profiles.userId })
         .returning();
 
       return profileSchema.parse(row);
@@ -257,7 +258,7 @@ export const ProfileRepository = {
       const [row] = await database()
         .insert(userPreferences)
         .values({ ...input, userId })
-        .onConflictDoUpdate({ set: input, target: userPreferences.userId })
+        .onConflictDoUpdate({ set: { ...input, updatedAt: new Date() }, target: userPreferences.userId })
         .returning();
 
       return preferencesSchema.parse(row);
