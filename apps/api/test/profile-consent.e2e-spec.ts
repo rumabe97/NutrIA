@@ -138,6 +138,15 @@ describe('profile consent and the minimum age, end to end', () => {
     it('refuses every step and route the consent covers, and stores nothing', async () => {
       const server = httpServer(app);
 
+      // `POST /progress/weight` and `POST /meal-plans/generate` are not in this
+      // sweep: both carry `@RequiresOnboarding()`, and this account has not
+      // finished onboarding either (that is exactly what these steps refusing
+      // to save prevents) — so the guard answers 409 `ONBOARDING_INCOMPLETE`
+      // before the controller ever asks for consent, the same way it already
+      // does for any unfinished account (`access.e2e-spec.ts`). Consent's own
+      // refusal on those two routes needs onboarding complete first, which is
+      // exactly what "an account from before this change" and "withdrawing
+      // consent" below set up.
       await expectConsentRequired(() =>
         request(server)
           .patch(`/${PREFIX}/onboarding`)
@@ -169,8 +178,6 @@ describe('profile consent and the minimum age, end to end', () => {
           .set('Cookie', account.cookie)
           .send({ allergies: [], customAllergens: [], intolerances: [] })
       );
-      await expectConsentRequired(() => request(server).post(`/${PREFIX}/progress/weight`).set('Cookie', account.cookie).send({ weightKg: 71 }));
-      await expectConsentRequired(() => request(server).post(`/${PREFIX}/meal-plans/generate`).set('Cookie', account.cookie));
 
       // `about-you` carries no health data and is not one of the gated steps.
       const onboarding = await onboardingView(account);
@@ -335,9 +342,17 @@ describe('profile consent and the minimum age, end to end', () => {
     }, 30_000);
 
     it('refuses to generate afterwards', async () => {
+      // `ONBOARDING_INCOMPLETE`, not `PROFILE_CONSENT_REQUIRED`: withdrawal
+      // reopened `goal`, `body-activity` and `allergies`, so `isComplete` is
+      // false again and `@RequiresOnboarding()`'s guard answers before the
+      // controller ever asks for consent — the same guard `access.e2e-spec.ts`
+      // proves for any unfinished account. The account still holds no consent
+      // underneath (`profileConsentRequired: true`, asserted above), and no job
+      // is created either way.
       const refused: Response = await request(httpServer(app)).post(`/${PREFIX}/meal-plans/generate`).set('Cookie', account.cookie).expect(409);
 
-      expect((refused.body as { code: string }).code).toBe('PROFILE_CONSENT_REQUIRED');
+      expect((refused.body as { code: string }).code).toBe('ONBOARDING_INCOMPLETE');
+      expect(await jobCount(account.id)).toBe(0);
     });
   });
 
