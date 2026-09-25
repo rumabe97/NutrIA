@@ -339,7 +339,8 @@ describe('professionals', () => {
       for (const [path, body] of attempts) {
         const response: Response = await request(server).patch(path).set('Cookie', tamperer.cookie).send(body);
 
-        expect([200, 400, 422]).toContain(response.status);
+        // A refusal of any kind is fine (clearing targets the account never set is a 404): what matters is that nothing moved.
+        expect([200, 400, 404, 422]).toContain(response.status);
       }
 
       await expectOrdinary(tamperer);
