@@ -395,8 +395,8 @@ describe('professionals', () => {
    * § 1): a grant alone does not open the workspace, whatever the switch says —
    * the one route it must still leave open is the page that shows the
    * agreement to accept, `GET /care/practice`, and accepting it is itself the
-   * door: a stale version (the checklist's own example, a first `1.0.0`) does
-   * not open it, the current one does.
+   * door: any version but the current `PROFESSIONAL_AGREEMENT_VERSION` is
+   * refused and opens nothing, the current one does.
    */
   describe('the professional’s agreement', () => {
     let unaccepted: Account;
@@ -411,7 +411,7 @@ describe('professionals', () => {
         .expect(201);
     });
 
-    it('is a 404 on every professional route but the practice page, until the current agreement is accepted — a stale version refused first', async () => {
+    it('is a 404 on every professional route but the practice page, until the current agreement is accepted — any other version refused first', async () => {
       const server = httpServer(app);
       const linkId = 'not-a-link';
       const gatedRoutes: readonly [Method, string][] = [
@@ -439,8 +439,8 @@ describe('professionals', () => {
       // Nobody who was never granted opens it either, whatever the switch says — 404 before the body is even read.
       await request(server).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', ordinary.cookie).send({}).expect(404);
 
-      // A version this route never offered, or offered before, does not open it — and writes neither column.
-      await request(server).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', unaccepted.cookie).send({ version: '1.0.0' }).expect(422);
+      // Any version but the current one does not open it — and writes neither column.
+      await request(server).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', unaccepted.cookie).send({ version: '0.9.0' }).expect(422);
       await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', unaccepted.cookie).expect(404);
 
       // The current version does, on the very next request.

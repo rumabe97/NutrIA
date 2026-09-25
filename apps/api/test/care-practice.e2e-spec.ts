@@ -602,7 +602,7 @@ describe('care-practice', () => {
     });
 
     /** P1-1 (`docs/legal/checklist-activacion.md` § 1): the grant alone is not enough to pay for the practice either. */
-    it('refuses the practice checkout until the agreement is accepted — a stale version refused too — and sells it once it is', async () => {
+    it('refuses the practice checkout until the agreement is accepted — any other version refused too — and sells it once it is', async () => {
       const pro = await professional('agreement', false);
       await UserController.grantAdmin(pro.email);
       const before = on.stripe.bought.length;
@@ -611,7 +611,7 @@ describe('care-practice', () => {
 
       expect(refused.status).toBe(404);
 
-      await request(server()).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', pro.cookie).send({ version: '1.0.0' }).expect(422);
+      await request(server()).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', pro.cookie).send({ version: '0.9.0' }).expect(422);
       expect((await checkout(pro, { plan: 'practice', price: THIRTY })).status).toBe(404);
       expect(on.stripe.bought).toHaveLength(before);
 

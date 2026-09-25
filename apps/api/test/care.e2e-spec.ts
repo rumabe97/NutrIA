@@ -197,6 +197,28 @@ describe('care', () => {
     throw new Error('No invitation mail arrived');
   }
 
+  /** The newest mail of `kind` to `to`, waiting for the background task that sends it (`AdminProfessionalsService.grant`). */
+  async function mailOfKind(to: string, kind: OutgoingEmail['kind'], after: number): Promise<OutgoingEmail> {
+    const deadline = Date.now() + 10_000;
+
+    while (Date.now() < deadline) {
+      const mail = sent
+        .slice(after)
+        .filter(message => message.to === to.toLowerCase() && message.kind === kind)
+        .at(-1);
+
+      if (mail) {
+        return mail;
+      }
+
+      await new Promise(resolve => {
+        setTimeout(resolve, 50);
+      });
+    }
+
+    throw new Error(`No ${kind} mail arrived for ${to}`);
+  }
+
   /** Invites through the route, as the professional's screen does, and reads the token from the mail. */
   async function invite(from: Account, to: string): Promise<{ readonly response: Response; readonly token: string }> {
     const before = sent.length;
@@ -284,20 +306,30 @@ describe('care', () => {
   /**
    * The owner's grant mails the account (`docs/legal/textos/06-correos.md`
    * § B, P1-2): today it says nothing, which is the gap that section closes.
-   * `sent` was emptied right before `grant(pro)` and `grant(otherPro)` in
-   * `beforeAll`, so both are the only mail caught before any test runs.
+   * Sent in the background (`AdminProfessionalsService.grant`), so `pro`'s
+   * from `beforeAll`'s `grant(pro)` is waited for the way an invitation's
+   * token is; a re-grant of the same account sends nothing more.
    */
   describe('the professional’s grant', () => {
-    it('mails the account, naming the collegiate number and that an agreement comes before any client’s data', () => {
+    it('mails the account, naming the collegiate number and that an agreement comes before any client’s data — once, not again on a second grant', async () => {
       const number = `28/${String(stamp).slice(-6)}`;
-      const granted = sent.filter(message => message.kind === 'professional-granted');
+      const mail = await mailOfKind(pro.email, 'professional-granted', 0);
 
-      expect(granted.map(message => message.to)).toEqual(expect.arrayContaining([pro.email.toLowerCase(), otherPro.email.toLowerCase()]));
+      expect(mail.text).toContain(number);
+      expect(mail.text.toLowerCase()).toContain('acuerdo');
 
-      const mail = granted.find(message => message.to === pro.email.toLowerCase());
+      // A correction to the number is still the same account, already granted: nothing more is queued.
+      const before = sent.length;
 
-      expect(mail?.text).toContain(number);
-      expect(mail?.text.toLowerCase()).toContain('acuerdo');
+      await request(server())
+        .post(`/${PREFIX}/admin/accounts/${pro.id}/professional`)
+        .set('Cookie', owner.cookie)
+        .send({ collegiateNumber: number })
+        .expect(201);
+      await new Promise(resolve => {
+        setTimeout(resolve, 300);
+      });
+      expect(sent.slice(before).filter(message => message.kind === 'professional-granted')).toEqual([]);
     });
   });
 
