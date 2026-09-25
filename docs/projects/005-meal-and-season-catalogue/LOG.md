@@ -206,3 +206,50 @@
   - Tell `tests` when the e2e suites run: dev holds phase 2's lists, so a suite expecting a
     pulse dish at dinner, or a count per slot, may see fewer; dinner swaps may answer the
     409 "no dish fits" more often on a thin library. No route, view or error code changed.
+
+## Phase 4 — Prompt 4.1.0 (2026-09-25)
+
+- **Executor**: `backend-high` agent on opus (definition effort `high`), in its own
+  worktree; brought into the main checkout and the worktree removed. No model or gateway
+  call; dev read in read-only transactions only.
+- **Result**: done.
+- **Evidence**:
+  - Each slot's request lists only its own catalogue (`belongsTo`, after the allergy and
+    preference filters, which are unchanged); lunch and dinner are cut a second time by
+    `MealFit.mealCatalogue` (`0063`): the ingredients the library uses at that meal
+    (re-narrowed per person with `fitSlots`), the produce in season, and a sample of 30
+    seeded by the job id (`swap:<mealId>` on a swap), combined with the slot. A meal with
+    fewer than 19 fitting library dishes is not cut. In-season produce first under "In
+    season now (prefer these):"; lunch and dinner character lines; supper takes the
+    snack's; a vegan or vegetarian dinner asks for pulses in light forms; the spread rule
+    names legumes only where the meal offers them. `PROMPT_VERSION` 4.1.0,
+    `STEPS_VERSION` unchanged.
+  - Usage read: one query over `recipe_ingredients` (≈6,000 rows, ≈0.6 s to Neon), run in
+    parallel with the two existing library reads; a swap reads it only when it goes to
+    the model.
+  - `catalogue-by-meal.mjs --month 9 --seed job-check` on dev (lead's run), omnivore,
+    prompt characters 3.4.0 → 4.1.0: breakfast 63.0%, snacks 68.8%, **lunch 23,185 →
+    12,406 (53.5%)** with 930 → 805 → 346 rows, **dinner 51.9%** (784 → 320), supper
+    68.5%. Vegan: lunch 64.4%, dinner 63.9% (their 3.4.0 baseline is already 606 rows;
+    61.6% even with no sample). Agent's tuning, omnivore lunch worst case over 12 months ×
+    8 seeds: sample 0 → 52.0%, 30 → 54.8%, 40 → 55.7%, 60 → 57.4%.
+  - `PoolPrompt.spec.ts` (step 7) on a synthetic 930-row catalogue shaped like dev's:
+    23,120 → 12,573 characters, 54.4% ≤ 55%; an omnivore's dinner has no lunch-only slug
+    and does not name legumes; a vegan's dinner has the pulses; in-season rows precede
+    the rest.
+  - Seasonings survive the cut: all 16 checked at omnivore and vegan lunch and vegan
+    dinner; omnivore dinner missed only `vinagre-de-manzana`, other vinegars present.
+  - Tests: core 757 (+18), api 763 (+15), database 43. `gate.sh --full` green.
+- **Deviations from plan**: version 4.1.0, not 3.5.0 (Legal A shipped 4.0.0); sample 30,
+  not 60 (tuned to PRD 2); the usage read spans every language (`decisions/LOG.md`
+  2026-09-25); the cut lives in core's `MealFit`, called by `PoolBuilder` and the script;
+  "legumes" leaves the spread rule by a rule (every plant protein that belongs at lunch
+  also belongs here), since the catalogue has no pulse class. Scope amended.
+- **Decisions**: `decisions/LOG.md` 2026-09-25 (`0063` § 1 across languages; sample 30).
+- **Notes for the next phase**:
+  - `catalogue-by-meal.mjs --month N --seed S` already prints 3.4.0 vs 4.1.0 prompt
+    characters per meal — phase 5 step 3 is a run of it (build core, database, api first).
+  - The margin is thin (54.8% worst case). The library's usage grows as dishes are
+    generated, pushing lunch up; re-measure before raising the sample.
+  - `evaluate-plans.mjs` should not move: no scheduling or reuse changed here.
+  - Vegan supper still short of 19 (9 → 8), as before.

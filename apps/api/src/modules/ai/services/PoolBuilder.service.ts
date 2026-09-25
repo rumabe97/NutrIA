@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
 import { dishSafety, findSafetyViolations, mentionsUnresolvedAllergy } from 'core/domain/Safety';
-import { fitSlots } from 'core/domain/MealFit';
+import { fitSlots, mealCatalogue, offersPulses } from 'core/domain/MealFit';
 import { methodMentions } from 'core/domain/Method';
 import { breaksDishRule, withinTime } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
@@ -15,6 +15,7 @@ import type { AiCall, AiFailure, AiUsage } from '../clients/AiClient.js';
 import type { AiCallFailure, AiCallRecord, CandidateDish, CatalogueIngredient, DishRejection, MealSlot } from 'core/entities/Plan';
 import type { GeneratedDish } from '../prompts/pool.schema.js';
 import type { GenerationContext } from 'core/controllers/Recipe';
+import type { LibraryUsage } from 'core/domain/MealFit';
 import type { PromptContext } from '../prompts/PoolPrompt.js';
 
 const MAX_ATTEMPTS = 3;
@@ -61,11 +62,23 @@ export type BuildPoolInput = {
    */
   readonly backfill?: readonly CandidateDish[];
   readonly context: GenerationContext;
+  /**
+   * What the library cooks lunch and dinner from, for this person
+   * (`RecipeController.libraryUsage`). A lunch's or a dinner's request is
+   * shown only that, the produce in season, and a sample of the rest
+   * (`0063`); a meal absent from it — or no usage at all, as in a spec — keeps
+   * `0062`'s cut alone.
+   */
+  readonly libraryUsage?: LibraryUsage;
   /** Dishes wanted per slot. A whole plan wants `DISHES_NEEDED_PER_SLOT`; a single meal's swap wants a handful. */
   readonly needPerSlot?: number;
   readonly preferences: Omit<PromptContext, 'excludeSlugs' | 'language' | 'needBySlot'>;
   readonly reusable: readonly CandidateDish[];
-  /** Files every call of this build under one session in a gateway's log — a generation's job id. */
+  /**
+   * Files every call of this build under one session in a gateway's log — a
+   * generation's job id — and seeds the sample a lunch or a dinner is shown,
+   * so a job's prompts can be rebuilt from its id and differ from the next's.
+   */
   readonly session?: string;
   readonly slots: readonly MealSlot[];
 };
@@ -100,6 +113,7 @@ export class PoolBuilder {
   async build({
     backfill = [],
     context,
+    libraryUsage = new Map(),
     needPerSlot = DISHES_NEEDED_PER_SLOT,
     preferences,
     reusable,
@@ -131,6 +145,26 @@ export class PoolBuilder {
     // reliable than asking for it to be avoided and checking afterwards.
     const safeIngredients = [...context.catalogue.values()].filter(
       ingredient => isSafeIngredient(ingredient, context) && isWantedIngredient(ingredient, context)
+    );
+    // Then each request sees one meal's foods (4.1.0): what belongs at it for
+    // this person (`0062`), and for lunch and dinner only what the library
+    // cooks there, the produce in season and a sample of the rest (`0063`).
+    // Cut from what is already safe and wanted, so it only ever removes rows
+    // the filters above let through. Built once per slot, so every round of
+    // one build shows a meal the same catalogue.
+    const shown = new Map(
+      slots.map(slot => {
+        const used = libraryUsage.get(slot);
+        const cut = used ? { month: preferences.month, seed: session ?? '', used } : null;
+
+        return [
+          slot,
+          {
+            catalogue: mealCatalogue(safeIngredients, slot, context.dietaryPatterns, cut),
+            offer: { pulses: offersPulses(safeIngredients, slot, context.dietaryPatterns) }
+          }
+        ] as const;
+      })
     );
     const deadline = Date.now() + this.budgetMs;
 
@@ -197,7 +231,8 @@ export class PoolBuilder {
           this.ai.generate({
             prompt: buildPoolPrompt(
               { ...preferences, excludeSlugs, language: languageName(context.locale), needBySlot: new Map([[slot, needBySlot.get(slot) ?? 0]]) },
-              safeIngredients
+              shown.get(slot)?.catalogue ?? [],
+              shown.get(slot)?.offer
             ),
             schema: wirePoolSchema,
             session,

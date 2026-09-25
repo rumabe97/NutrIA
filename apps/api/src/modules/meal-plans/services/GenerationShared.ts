@@ -82,8 +82,21 @@ export function likedFoodNames(context: GenerationContext): readonly string[] {
 }
 
 /**
+ * The month of a day, 1–12, from its ISO date — the calendar the plan's own
+ * days are written in (`plan_days.date`), so the month the prompt is told is
+ * the month on the page.
+ */
+export function monthOf(isoDate: string): number {
+  return Number(isoDate.slice(5, 7));
+}
+
+/**
  * Everything the prompt is told about the person, from one place — a whole plan
  * and a single meal's swap describe them the same way.
+ *
+ * `startsOn` is the fortnight's first day, or the day a swap replaces: its
+ * month decides which produce is in season (`0062` § 6) and which a lunch or
+ * a dinner keeps (`0063`).
  *
  * Structured answers only (prompt 4.0.0): nothing they typed — no breakfast,
  * plate or working-week notes, no check-in comment, no dislike or allergy the
@@ -95,6 +108,7 @@ export function promptPreferences(
   verdicts: { readonly disliked: readonly { readonly name: string }[]; readonly liked: readonly { readonly name: string }[] },
   avoidNames: readonly string[],
   targets: NutritionTargets,
+  startsOn: string,
   checkIn: CheckInForGeneration | null = null,
   swapWish: string | null = null,
   likedFoods: readonly string[] = []
@@ -113,6 +127,7 @@ export function promptPreferences(
     goal: profile.goal?.type ?? null,
     likedFoods,
     lovedNames: verdicts.liked.map(dish => dish.name),
+    month: monthOf(startsOn),
     // The person's own day, the same weights the scheduler budgets with (`0036`),
     // so the brief the model builds to and the budget the dish is chosen against
     // are one number rather than two that happen to agree.

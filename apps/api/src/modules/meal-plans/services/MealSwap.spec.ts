@@ -15,6 +15,9 @@ import type { PoolBuilder, PoolResult } from '../../ai/services/PoolBuilder.serv
 
 const MEAL = '11111111-1111-4111-8111-111111111111';
 
+/** What the library cooks lunch from, as `RecipeController.libraryUsage` would answer. */
+const USAGE = new Map<MealSlot, ReadonlySet<string>>([['lunch', new Set(['ing-rice'])]]);
+
 function ingredient(slug: string, kcalPer100g: number, proteinPer100g: number): CatalogueIngredient {
   return {
     id: `i-${slug}`,
@@ -95,20 +98,19 @@ function harness(
     readonly sex?: 'female' | 'male';
   } = {}
 ) {
-  jest
-    .spyOn(PlanController, 'mealForSwap')
-    .mockResolvedValue({
-      day: { id: 'day-3', dayIndex: 3 },
-      meal: { id: MEAL } as never,
-      plan: {
-        id: 'plan-1',
-        endDate: '2026-09-22',
-        startDate: '2026-09-09',
-        status: 'active',
-        strategy: { carbsG: 250, fatG: 70, fiberG: 30, kcal: 2200, proteinG: 160 }
-      },
-      recipe: { id: 'r-1', cookMinutes: 10, name: 'Lentil stew', prepMinutes: 5, servings: 1, slug: 'lentil-stew' }
-    } as never);
+  jest.spyOn(PlanController, 'mealForSwap').mockResolvedValue({
+    // The plan starts in September; this day is in October, so the month is the day's.
+    day: { id: 'day-3', date: '2026-10-01', dayIndex: 3 },
+    meal: { id: MEAL } as never,
+    plan: {
+      id: 'plan-1',
+      endDate: '2026-09-22',
+      startDate: '2026-09-09',
+      status: 'active',
+      strategy: { carbsG: 250, fatG: 70, fiberG: 30, kcal: 2200, proteinG: 160 }
+    },
+    recipe: { id: 'r-1', cookMinutes: 10, name: 'Lentil stew', prepMinutes: 5, servings: 1, slug: 'lentil-stew' }
+  } as never);
   jest
     .spyOn(PlanController, 'allowances')
     .mockResolvedValue({
@@ -140,6 +142,7 @@ function harness(
     .spyOn(PlanController, 'composition')
     .mockResolvedValue([...(options.composition ?? [meal(MEAL, 3, 'lunch', CURRENT), meal('m-2', 4, 'dinner', FITS)])]);
   jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(options.library ?? []);
+  jest.spyOn(RecipeController, 'libraryUsage').mockResolvedValue(USAGE);
   const swapMeal = jest.spyOn(PlanController, 'swapMeal').mockResolvedValue(undefined);
   jest.spyOn(PlanController, 'getMeal').mockResolvedValue({ id: MEAL } as never);
   jest.spyOn(ProfileConsentController, 'requireCurrent').mockResolvedValue(undefined);
@@ -216,6 +219,8 @@ describe('MealSwapService', () => {
     await service.swap('user-1', MEAL, 'es-ES');
 
     expect(build).not.toHaveBeenCalled();
+    // What the library cooks is read on the way to the model only.
+    expect(RecipeController.libraryUsage).not.toHaveBeenCalled();
     const change = swapMeal.mock.calls[0]?.[2];
 
     expect(change?.recipeSlug).toBe('turkey-rice');
@@ -249,10 +254,17 @@ describe('MealSwapService', () => {
 
     await service.swap('user-1', MEAL, 'es-ES');
 
-    const input = build.mock.calls[0]?.[0] as { needPerSlot: number; slots: readonly MealSlot[] } | undefined;
+    const input = build.mock.calls[0]?.[0] as
+      { libraryUsage: unknown; needPerSlot: number; preferences: { month: number }; session: string; slots: readonly MealSlot[] } | undefined;
 
     expect(input?.needPerSlot).toBe(3);
     expect(input?.slots).toEqual(['lunch']);
+    // The month of the day being replaced, not of the plan's start (`0062` § 6);
+    // the library's usage for that one meal, and the meal's id to seed its sample (`0063`).
+    expect(input?.preferences.month).toBe(10);
+    expect(RecipeController.libraryUsage).toHaveBeenCalledWith(['lunch'], expect.anything());
+    expect(input?.libraryUsage).toBe(USAGE);
+    expect(input?.session).toBe(`swap:${MEAL}`);
     const change = swapMeal.mock.calls[0]?.[2];
 
     expect(change?.source).toBe('model');

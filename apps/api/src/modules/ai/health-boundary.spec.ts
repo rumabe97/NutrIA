@@ -82,6 +82,7 @@ describe('the health-data boundary around the AI module', () => {
       language: 'Spanish (Spain)',
       likedFoods: ['Salmón'],
       lovedNames: ['Salmón al horno con eneldo'],
+      month: 1,
       needBySlot: new Map<MealSlot, number>([['breakfast', 2]]),
       slotShares: new Map(),
       targets: { carbsG: 200, fatG: 60, fiberG: 28, kcal: 2000, proteinG: 150 }
@@ -207,6 +208,7 @@ describe('the free-text and belief boundary around the AI module', () => {
       { disliked: [], liked: [] },
       [],
       { carbsG: 200, fatG: 60, fiberG: 28, kcal: 2000, proteinG: 150 },
+      '2026-01-12',
       { comments: SENTINELS.checkIn, difficulty: 'hard', hunger: 'hungry', satisfaction: 2 },
       null,
       likedFoodNames(context)
@@ -273,18 +275,19 @@ describe('the free-text and belief boundary around the AI module', () => {
       'likedFoods',
       'loadedTargets',
       'lovedNames',
+      'month',
       'needBySlot',
       'slotShares',
       'swapWish',
       'targets'
     ];
-    const preferences = promptPreferences(profileFullOfWords([]), { disliked: [], liked: [] }, [], {
-      carbsG: 1,
-      fatG: 1,
-      fiberG: 1,
-      kcal: 1,
-      proteinG: 1
-    });
+    const preferences = promptPreferences(
+      profileFullOfWords([]),
+      { disliked: [], liked: [] },
+      [],
+      { carbsG: 1, fatG: 1, fiberG: 1, kcal: 1, proteinG: 1 },
+      '2026-01-12'
+    );
 
     // A key added to what the prompt is told has to be added here, on purpose.
     expect(Object.keys(preferences).filter(key => !allowed.includes(key))).toEqual([]);

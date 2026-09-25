@@ -3,9 +3,12 @@ import { describe, expect, it } from 'vitest';
 import { toCatalogue } from 'core/entities/Plan';
 import { makeCatalogueIngredient } from '#test/fixtures';
 
-import { belongsTo, fitSlots, inSeason } from './MealFit';
+import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
-import type { MealSlot } from 'core/entities/Plan';
+import { belongsTo, CATALOGUE_SAMPLE_SIZE, fitSlots, inSeason, libraryUsage, mealCatalogue, offersPulses } from './MealFit';
+
+import type { CatalogueIngredient, MealSlot } from 'core/entities/Plan';
+import type { LibraryRecipe } from './MealFit';
 
 // Fixtures shaped like the phase 2 lists (`seed/ingredients/meals.ts`): a
 // stewed pulse is lunch only, a raw meat cut lunch and dinner, the staples
@@ -164,5 +167,162 @@ describe('inSeason — a month, never a prohibition', () => {
     expect(inSeason(tomato, 9)).toBe(true);
     expect(inSeason(tomato, 1)).toBe(false);
     expect(inSeason(tomato, 12)).toBe(false);
+  });
+});
+
+describe('offersPulses — whether a meal has the plant proteins lunch has', () => {
+  const ingredients = [...catalogue.values()];
+
+  it('says lunch always does', () => {
+    expect(offersPulses(ingredients, 'lunch', OMNIVORE)).toBe(true);
+  });
+
+  it('says an omnivore’s dinner and breakfast do not, once the lists keep the pulses at lunch', () => {
+    expect(offersPulses(ingredients, 'dinner', OMNIVORE)).toBe(false);
+    expect(offersPulses(ingredients, 'breakfast', OMNIVORE)).toBe(false);
+  });
+
+  it('says a vegan’s or a vegetarian’s dinner does (0062 § 4)', () => {
+    expect(offersPulses(ingredients, 'dinner', VEGAN)).toBe(true);
+    expect(offersPulses(ingredients, 'dinner', VEGETARIAN)).toBe(true);
+  });
+
+  it('says every meal does when every list is empty', () => {
+    const empty = ingredients.map(ingredient => ({ ...ingredient, mealSlots: [] }));
+
+    for (const slot of EVERY_SLOT) {
+      expect(offersPulses(empty, slot, OMNIVORE)).toBe(true);
+    }
+  });
+
+  it('ignores a plant protein that is not a lunch food in the first place', () => {
+    const powder = makeCatalogueIngredient({
+      category: 'protein',
+      classes: [],
+      mealSlots: ['breakfast', 'afternoon_snack'],
+      slug: 'proteina-vegetal'
+    });
+
+    expect(offersPulses([oil, powder], 'dinner', OMNIVORE)).toBe(true);
+  });
+});
+
+describe('libraryUsage — what the library cooks each meal from, for one person', () => {
+  function recipe(slots: MealSlot[], ...foods: CatalogueIngredient[]): LibraryRecipe {
+    return { ingredients: foods.map(food => ({ id: food.id, slug: food.slug })), slots };
+  }
+
+  function times(count: number, make: () => LibraryRecipe): LibraryRecipe[] {
+    return Array.from({ length: count }, make);
+  }
+
+  const MIN = DISHES_NEEDED_PER_SLOT;
+  const ids = (set: ReadonlySet<string> | undefined) => [...(set ?? [])].sort();
+
+  it('reads each recipe at the meals it fits for this person, never at its stored ones', () => {
+    // Stored as a dinner too — narrowed for a vegan who generated it — and a lunch only for an omnivore.
+    const library = [...times(MIN, () => recipe(['lunch', 'dinner'], lentils, onion)), ...times(MIN, () => recipe(['dinner'], chicken, oil))];
+    const omnivore = libraryUsage(library, ['lunch', 'dinner'], catalogue, OMNIVORE);
+    const vegan = libraryUsage(library, ['lunch', 'dinner'], catalogue, VEGAN);
+
+    expect(ids(omnivore.get('lunch'))).toEqual(['i-cebolla', 'i-lentejas']);
+    expect(ids(omnivore.get('dinner'))).toEqual(['i-aceite', 'i-pollo']);
+    expect(ids(vegan.get('dinner'))).toEqual(['i-aceite', 'i-cebolla', 'i-lentejas', 'i-pollo']);
+  });
+
+  it('leaves out a meal the library says too little about, so it is not cut at all', () => {
+    const library = [...times(MIN - 1, () => recipe(['lunch'], chicken)), ...times(MIN, () => recipe(['dinner'], chicken))];
+    const usage = libraryUsage(library, ['lunch', 'dinner'], catalogue, OMNIVORE);
+
+    expect(usage.has('lunch')).toBe(false);
+    expect(usage.has('dinner')).toBe(true);
+    expect(libraryUsage([], ['lunch', 'dinner'], catalogue, OMNIVORE).size).toBe(0);
+  });
+
+  it('counts only the dishes that fit the meal for this person towards it', () => {
+    // Enough stews stored as dinners, none of them a dinner for an omnivore.
+    const library = times(MIN, () => recipe(['lunch', 'dinner'], lentils));
+
+    expect(libraryUsage(library, ['dinner'], catalogue, OMNIVORE).has('dinner')).toBe(false);
+    expect(libraryUsage(library, ['dinner'], catalogue, VEGAN).has('dinner')).toBe(true);
+  });
+
+  it('answers only for the meals it is asked about', () => {
+    const library = times(MIN, () => recipe(['lunch', 'dinner'], chicken));
+
+    expect([...libraryUsage(library, ['dinner'], catalogue, OMNIVORE).keys()]).toEqual(['dinner']);
+  });
+});
+
+describe('mealCatalogue — the rows one meal’s request is shown', () => {
+  // Ten foods no recipe uses and in no season list, so only the sample can bring them in.
+  const spare = Array.from({ length: 10 }, (_, index) =>
+    makeCatalogueIngredient({ id: `i-spare-${index}`, category: 'pantry', slug: `spare-${String(index).padStart(2, '0')}` })
+  );
+  const pepper = makeCatalogueIngredient({ id: 'i-pimiento', category: 'produce', seasonMonths: [7, 8, 9], slug: 'pimiento' });
+  const orange = makeCatalogueIngredient({ id: 'i-naranja', category: 'produce', seasonMonths: [1, 2, 3], slug: 'naranja' });
+  const rows = [lentils, chicken, oil, onion, salt, tomato, pepper, orange, energyDrink, ...spare];
+  const used = new Set(['i-pollo', 'i-aceite', 'i-sal']);
+  const cut = (seed: string, month = 1) => ({ month, seed, used });
+  const slugs = (list: readonly CatalogueIngredient[]) => list.map(ingredient => ingredient.slug);
+  const many = [
+    oil,
+    ...Array.from({ length: CATALOGUE_SAMPLE_SIZE * 3 }, (_, index) =>
+      makeCatalogueIngredient({ id: `i-x-${index}`, category: 'pantry', slug: `x-${String(index).padStart(3, '0')}` })
+    )
+  ];
+  const oilOnly = (seed: string) => ({ month: 1, seed, used: new Set(['i-aceite']) });
+
+  it('without a cut, is the first cut alone: what belongs at the meal, in the order given', () => {
+    expect(slugs(mealCatalogue(rows, 'dinner', OMNIVORE))).toEqual(slugs(rows.filter(row => belongsTo(row, 'dinner', OMNIVORE))));
+  });
+
+  it('keeps breakfast and the snacks to the first cut even when given one', () => {
+    for (const slot of ['breakfast', 'morning_snack', 'afternoon_snack', 'supper'] as const) {
+      expect(mealCatalogue(rows, slot, OMNIVORE, cut('job-1'))).toEqual(mealCatalogue(rows, slot, OMNIVORE));
+    }
+  });
+
+  it('keeps at lunch and dinner what the library cooks there, and the produce in season this month', () => {
+    const january = slugs(mealCatalogue(many.concat(rows), 'dinner', OMNIVORE, cut('job-1', 1)));
+    const july = slugs(mealCatalogue(many.concat(rows), 'dinner', OMNIVORE, cut('job-1', 7)));
+
+    for (const slug of ['pollo', 'aceite-de-oliva', 'sal', 'cebolla']) {
+      expect(january).toContain(slug);
+      expect(july).toContain(slug);
+    }
+
+    expect(january).toContain('naranja');
+    expect(july).toContain('pimiento');
+    expect(july).toContain('tomate');
+  });
+
+  it('adds a sample of the rest: all of it when it is smaller than the constant, the constant’s size when it is not', () => {
+    expect(mealCatalogue(rows, 'lunch', OMNIVORE, cut('job-1')).filter(row => row.id.startsWith('i-spare'))).toHaveLength(spare.length);
+    expect(mealCatalogue(many, 'lunch', OMNIVORE, oilOnly('job-1'))).toHaveLength(CATALOGUE_SAMPLE_SIZE + 1);
+  });
+
+  it('draws the same sample from the same seed whatever order the rows come in, and another from another', () => {
+    const first = slugs(mealCatalogue(many, 'lunch', OMNIVORE, oilOnly('job-1')));
+
+    expect(slugs(mealCatalogue([...many].reverse(), 'lunch', OMNIVORE, oilOnly('job-1'))).sort()).toEqual([...first].sort());
+    expect(slugs(mealCatalogue(many, 'lunch', OMNIVORE, oilOnly('job-2')))).not.toEqual(first);
+    // The lunch and the dinner of one generation draw apart.
+    expect(slugs(mealCatalogue(many, 'dinner', OMNIVORE, oilOnly('job-1')))).not.toEqual(first);
+  });
+
+  it('never brings back a row the first cut removed, however much it is used', () => {
+    const withLentils = { month: 1, seed: 'job-1', used: new Set(['i-lentejas', 'i-energetica']) };
+
+    expect(slugs(mealCatalogue(rows, 'dinner', OMNIVORE, withLentils))).not.toContain('lentejas-cocidas');
+    expect(slugs(mealCatalogue(rows, 'lunch', OMNIVORE, withLentils))).not.toContain('bebida-energetica');
+    expect(slugs(mealCatalogue(rows, 'dinner', VEGAN, withLentils))).toContain('lentejas-cocidas');
+  });
+
+  it('only ever removes rows, and keeps the order it was given them', () => {
+    const shown = mealCatalogue(many, 'lunch', OMNIVORE, oilOnly('job-3'));
+
+    expect(shown.every(row => many.includes(row))).toBe(true);
+    expect(shown).toEqual(many.filter(row => shown.includes(row)));
   });
 });

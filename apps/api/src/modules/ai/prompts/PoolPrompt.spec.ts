@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import { DEFAULT_MEAL_SHAPE, weightsFor } from 'core/domain/MealShape';
+import { mealCatalogue, offersPulses } from 'core/domain/MealFit';
 
 import { buildPoolPrompt, STEPS_VERSION } from './PoolPrompt.js';
 
@@ -34,6 +35,7 @@ function context(overrides: Partial<PromptContext> = {}): PromptContext {
     language: 'Spanish (Spain)',
     likedFoods: [],
     lovedNames: [],
+    month: 1,
     needBySlot: new Map<MealSlot, number>([['lunch', 6]]),
     slotShares: weightsFor(DEFAULT_MEAL_SHAPE),
     targets: TARGETS,
@@ -60,6 +62,123 @@ function briefIn(prompt: string, slot: MealSlot): Brief {
 
 function checkIn(comments: string | null): CheckInForGeneration {
   return { comments, difficulty: 'ok', hunger: 'right', satisfaction: 4 };
+}
+
+/** A catalogue row: its slug is its name, so it is listed as the bare slug, unless `name` says otherwise. */
+function row(slug: string, category: IngredientCategory = 'produce', overrides: Partial<CatalogueIngredient> = {}): CatalogueIngredient {
+  return {
+    id: `ing-${slug}`,
+    allergens: [],
+    carbsPer100g: 10,
+    category,
+    classes: [],
+    defaultUnit: 'g',
+    fatPer100g: 1,
+    fiberPer100g: 2,
+    gramsPerUnit: null,
+    kcalPer100g: 50,
+    mealSlots: [],
+    name: slug,
+    nameLocale: 'es-ES',
+    proteinPer100g: 2,
+    seasonMonths: [],
+    slug,
+    ...overrides
+  };
+}
+
+/**
+ * A catalogue the shape of the dev one on 2026-09-25, as `catalogue-by-meal.mjs`
+ * read it for an omnivore (project 005, phase 4): 930 rows in the same aisles;
+ * in each, as many the phase 2 lists keep away from lunch (they go to breakfast
+ * and the snacks), as many kept to lunch alone — the stewed pulses among the
+ * proteins — and as many the library cooks lunch and dinner from; and the
+ * produce's months: 51 rows all year, 38 in season in January, 47 in summer,
+ * with the library cooking 48 of the first and 19 of the last. The slugs are
+ * invented, each as long as the real rows of its kind are on average: a
+ * prompt's size depends on the counts and the lengths, and those are the dev
+ * catalogue's.
+ */
+const DEV_AISLES: readonly {
+  readonly category: IngredientCategory;
+  readonly lunchOnly: number;
+  readonly n: number;
+  readonly notLunch: number;
+  readonly usedDinner: number;
+  readonly usedLunch: number;
+}[] = [
+  { category: 'produce', lunchOnly: 0, n: 136, notLunch: 0, usedDinner: 56, usedLunch: 67 },
+  { category: 'protein', lunchOnly: 18, n: 174, notLunch: 2, usedDinner: 62, usedLunch: 74 },
+  { category: 'dairy', lunchOnly: 0, n: 71, notLunch: 5, usedDinner: 17, usedLunch: 18 },
+  { category: 'pantry', lunchOnly: 0, n: 311, notLunch: 44, usedDinner: 82, usedLunch: 88 },
+  { category: 'bakery', lunchOnly: 0, n: 50, notLunch: 21, usedDinner: 8, usedLunch: 8 },
+  { category: 'frozen', lunchOnly: 1, n: 60, notLunch: 6, usedDinner: 4, usedLunch: 5 },
+  { category: 'beverages', lunchOnly: 0, n: 43, notLunch: 27, usedDinner: 0, usedLunch: 0 },
+  { category: 'other', lunchOnly: 5, n: 85, notLunch: 20, usedDinner: 20, usedLunch: 21 }
+];
+
+const NOT_AT_LUNCH: CatalogueIngredient['mealSlots'] = ['breakfast', 'morning_snack', 'afternoon_snack', 'supper'];
+
+function devCatalogue(): { readonly rows: readonly CatalogueIngredient[]; readonly used: ReadonlyMap<MealSlot, ReadonlySet<string>> } {
+  const rows: CatalogueIngredient[] = [];
+  const lunch = new Set<string>();
+  const dinner = new Set<string>();
+
+  for (const aisle of DEV_AISLES) {
+    for (let index = 0; index < aisle.n; index += 1) {
+      const lunchOnly = index >= aisle.notLunch && index < aisle.notLunch + aisle.lunchOnly;
+      const seasonMonths = aisle.category !== 'produce' || index < 51 ? [] : index < 89 ? [12, 1, 2, 3] : [6, 7, 8, 9];
+      // The produce the library cooks: 48 of the year-round rows, and 19 (lunch) or 8 (dinner) of the summer ones.
+      const cooked = (count: number, first: number) =>
+        aisle.category === 'produce' ? index < 48 || (index >= 89 && index < 89 + count - 48) : index >= first && index < first + count;
+      const atLunch = cooked(aisle.usedLunch, aisle.notLunch);
+      // As long as the real rows of the same kind: the library's foods are
+      // shorter words than the rest (17.1 characters a row against 18.3), the
+      // unused in-season produce shorter still (13.6), what is not a lunch food
+      // longer (19.1).
+      const length =
+        index < aisle.notLunch
+          ? 17
+          : atLunch
+            ? 15
+            : aisle.category === 'produce' && (seasonMonths.length === 0 || seasonMonths.includes(1))
+              ? 12
+              : index % 4 === 0
+                ? 17
+                : 16;
+      const ingredient = row(`${aisle.category}${String(index).padStart(3, '0')}xxxxxxxx`.slice(0, length), aisle.category, {
+        mealSlots: index < aisle.notLunch ? NOT_AT_LUNCH : lunchOnly ? ['lunch'] : [],
+        seasonMonths
+      });
+
+      rows.push(ingredient);
+
+      if (atLunch) {
+        lunch.add(ingredient.id);
+      }
+
+      if (cooked(aisle.usedDinner, aisle.notLunch + aisle.lunchOnly)) {
+        dinner.add(ingredient.id);
+      }
+    }
+  }
+
+  return {
+    rows,
+    used: new Map([
+      ['lunch', lunch],
+      ['dinner', dinner]
+    ])
+  };
+}
+
+/** What the pool builder does for one request: `mealCatalogue` and `offersPulses` over what the person may eat, then the prompt. */
+function builtAsTheBuilderDoes(slot: MealSlot, patterns: readonly string[], rows: readonly CatalogueIngredient[], used: ReadonlySet<string>): string {
+  const shown = mealCatalogue(rows, slot, patterns, { month: 1, seed: 'job-1', used });
+
+  return buildPoolPrompt(context({ dietaryPatterns: patterns, month: 1, needBySlot: new Map([[slot, 6]]) }), shown, {
+    pulses: offersPulses(rows, slot, patterns)
+  });
 }
 
 describe('buildPoolPrompt', () => {
@@ -205,7 +324,7 @@ describe('buildPoolPrompt', () => {
    * again with the accents put back. Every ingredient is still offered.
    */
   it('offers every ingredient, and names one only where its slug does not already say it', () => {
-    const ingredient = (slug: string, name: string, category: IngredientCategory = 'produce') => ({ category, name, slug }) as CatalogueIngredient;
+    const ingredient = (slug: string, name: string, category: IngredientCategory = 'produce') => row(slug, category, { name });
     const prompt = buildPoolPrompt(context(), [
       ingredient('calabacin', 'Calabacín'),
       ingredient('arandano', 'Arándanos'),
@@ -299,11 +418,66 @@ describe('buildPoolPrompt', () => {
     }
   });
 
-  it('says nothing of the kind of food a lunch is', () => {
-    const prompt = buildPoolPrompt(context(), []);
+  /**
+   * 4.1.0. 98 of 372 library dinners carried a pulse, most of them stewed, and
+   * nothing told the model a dinner is lighter than a lunch.
+   */
+  it('tells lunch and dinner what kind of food they are, and supper that it is a snack', () => {
+    const lunch = buildPoolPrompt(context(), []);
+    const dinner = buildPoolPrompt(context({ needBySlot: new Map([['dinner', 6]]) }), []);
+    const supper = buildPoolPrompt(context({ needBySlot: new Map([['supper', 4]]) }), []);
 
-    expect(prompt).not.toContain('Breakfast: morning food');
-    expect(prompt).not.toContain('Not a plated main');
+    expect(lunch).toContain('Lunch: the main cooked meal of the day');
+    expect(lunch).not.toContain('Breakfast: morning food');
+    expect(lunch).not.toContain('Not a plated main');
+    expect(dinner).toContain(
+      'Dinner: lighter home cooking than lunch — eggs, fish, grilled meat, vegetable creams, salads, a toast or a sandwich. Not a stew.'
+    );
+    expect(dinner).not.toContain('Pulses in light forms');
+    expect(supper).toContain('Not a plated main');
+  });
+
+  it('asks a vegan’s or a vegetarian’s dinner for pulses in light forms, never stewed', () => {
+    for (const pattern of ['vegan', 'vegetarian']) {
+      const dinner = buildPoolPrompt(context({ dietaryPatterns: [pattern], needBySlot: new Map([['dinner', 6]]) }), []);
+
+      expect(dinner).toContain('Not a stew. Pulses in light forms — hummus, purées and creams, warm salads — never stewed.');
+    }
+
+    expect(buildPoolPrompt(context({ dietaryPatterns: ['vegan'] }), [])).not.toContain('Pulses in light forms');
+  });
+
+  it('names legumes as a main protein only where the meal offers them', () => {
+    const offered = buildPoolPrompt(context(), [], { pulses: true });
+    const withheld = buildPoolPrompt(context(), [], { pulses: false });
+
+    expect(offered).toContain('- No main protein — chicken, beef, pork, fish, eggs, legumes, dairy — in more than');
+    expect(withheld).toContain('- No main protein — chicken, beef, pork, fish, eggs, dairy — in more than');
+    expect(buildPoolPrompt(context(), [])).toBe(offered);
+  });
+
+  /**
+   * 4.1.0 (`0062` § 6). Season orders and marks; it forbids nothing, so an
+   * out-of-season row is still listed — after.
+   */
+  it('lists the produce in season this month first, marked, and the rest after', () => {
+    const produce = [
+      row('tomate', 'produce', { seasonMonths: [6, 7, 8, 9] }),
+      row('naranja', 'produce', { seasonMonths: [12, 1, 2, 3] }),
+      row('cebolla')
+    ];
+    const january = buildPoolPrompt(context({ month: 1 }), produce);
+    const july = buildPoolPrompt(context({ month: 7 }), produce);
+
+    expect(january).toContain('Fresh produce and herbs:\nIn season now (prefer these): cebolla, naranja\nAlso available: tomate\n');
+    expect(july).toContain('Fresh produce and herbs:\nIn season now (prefer these): cebolla, tomate\nAlso available: naranja\n');
+  });
+
+  it('lists the produce as it always did when nothing is out of season', () => {
+    const produce = [row('tomate', 'produce', { seasonMonths: [6, 7, 8, 9] }), row('cebolla')];
+
+    expect(buildPoolPrompt(context({ month: 7 }), produce)).toContain('Fresh produce and herbs:\ncebolla, tomate\n');
+    expect(buildPoolPrompt(context({ month: 7 }), produce)).not.toContain('In season now');
   });
 
   it('passes on the check-in’s closed answers', () => {
@@ -327,5 +501,71 @@ describe('buildPoolPrompt', () => {
       expect(prompt).not.toContain('mareé');
       expect(prompt).not.toContain('attacker.example');
     }
+  });
+});
+
+/**
+ * 4.1.0: each request shows one meal's foods (project 005, `0062`, `0063`),
+ * over a catalogue the size and shape of the real one.
+ */
+describe('buildPoolPrompt — one meal’s catalogue', () => {
+  const { rows, used } = devCatalogue();
+  const lunchOnly = rows.filter(ingredient => ingredient.mealSlots.length === 1 && ingredient.mealSlots[0] === 'lunch');
+  const pulses = lunchOnly.filter(ingredient => ingredient.category === 'protein');
+
+  /**
+   * PRD 2: the standard lunch request at most 55% of 3.4.0's — the same
+   * request built over the same catalogue with every list empty and no cut.
+   * January, the month with the most produce in season, so the most kept.
+   */
+  it('makes the standard lunch prompt at most 55% of 3.4.0’s', () => {
+    const before = buildPoolPrompt(
+      context({ month: 1 }),
+      rows.map(ingredient => ({ ...ingredient, mealSlots: [], seasonMonths: [] }))
+    );
+    const after = builtAsTheBuilderDoes('lunch', [], rows, used.get('lunch') ?? new Set());
+
+    expect(after.length / before.length).toBeLessThanOrEqual(0.55);
+  });
+
+  it('shows an omnivore’s dinner no food kept to lunch, and does not ask it for legumes', () => {
+    const dinner = builtAsTheBuilderDoes('dinner', [], rows, used.get('dinner') ?? new Set());
+
+    expect(pulses.length).toBeGreaterThan(0);
+
+    for (const ingredient of lunchOnly) {
+      expect(dinner).not.toMatch(new RegExp(`\\b${ingredient.slug}\\b`));
+    }
+
+    expect(dinner).toContain('- No main protein — chicken, beef, pork, fish, eggs, dairy — in more than');
+  });
+
+  it('shows a vegan’s dinner the pulses, in light forms', () => {
+    // A vegan's library cooks dinner from the pulses too: their stews fit dinner for them (`0062` § 4).
+    const cooked = new Set([...(used.get('dinner') ?? []), ...pulses.map(ingredient => ingredient.id)]);
+    const dinner = builtAsTheBuilderDoes('dinner', ['vegan'], rows, cooked);
+
+    for (const ingredient of pulses) {
+      expect(dinner).toContain(ingredient.slug);
+    }
+
+    expect(dinner).toContain('- No main protein — chicken, beef, pork, fish, eggs, legumes, dairy — in more than');
+    expect(dinner).toContain('Pulses in light forms');
+  });
+
+  it('lists the produce in season before the produce out of it, in the cut catalogue too', () => {
+    const lunch = builtAsTheBuilderDoes('lunch', [], rows, used.get('lunch') ?? new Set());
+    const produce = lunch.slice(lunch.indexOf('Fresh produce and herbs:'));
+    const now = produce.indexOf('In season now (prefer these):');
+    const later = produce.indexOf('Also available:');
+    // January: a winter row is in season, a summer row the library cooks is not.
+    const winter = rows.find(ingredient => ingredient.seasonMonths.includes(1));
+    const summer = rows.find(ingredient => ingredient.seasonMonths.includes(7) && (used.get('lunch')?.has(ingredient.id) ?? false));
+
+    expect(now).toBeGreaterThanOrEqual(0);
+    expect(later).toBeGreaterThan(now);
+    expect(produce.indexOf(winter?.slug ?? '?')).toBeGreaterThan(now);
+    expect(produce.indexOf(winter?.slug ?? '?')).toBeLessThan(later);
+    expect(produce.indexOf(summer?.slug ?? '?')).toBeGreaterThan(later);
   });
 });

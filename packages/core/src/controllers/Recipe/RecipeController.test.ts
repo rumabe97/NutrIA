@@ -2,23 +2,29 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OnboardingIncompleteError, ProfileConsentRequiredError } from 'core/entities/Error';
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
-import { REUSED_DISHES_PER_SLOT } from 'core/domain/Variety';
+import { DISHES_NEEDED_PER_SLOT, REUSED_DISHES_PER_SLOT } from 'core/domain/Variety';
 import { toCatalogue } from 'core/entities/Plan';
 import { makeCatalogueIngredient } from '#test/fixtures';
 
 import { RecipeController } from './RecipeController';
 
 import type { GenerationContext } from './RecipeController';
+import type { LibraryRecipe } from 'core/domain/MealFit';
 import type { ReusableRecipe } from '#repositories/Recipe';
 
 const order: string[] = [];
 const requireProfileConsent = vi.fn<(userId: string) => Promise<void>>();
 const findReusable = vi.fn<() => Promise<readonly ReusableRecipe[]>>();
 const findOnboarding = vi.fn<() => Promise<{ completedAt: string | null } | undefined>>();
+const findLibraryUsage = vi.fn<(slots: readonly string[]) => Promise<readonly LibraryRecipe[]>>();
 
 vi.mock('#repositories/Recipe', () => ({
   FALLBACK_LOCALE: 'es-ES',
-  RecipeRepository: { findReusable: () => findReusable(), loadCatalogue: async () => (order.push('catalogue'), Promise.resolve([])) }
+  RecipeRepository: {
+    findLibraryUsage: (slots: readonly string[]) => findLibraryUsage(slots),
+    findReusable: () => findReusable(),
+    loadCatalogue: async () => (order.push('catalogue'), Promise.resolve([]))
+  }
 }));
 vi.mock('#repositories/Profile', () => ({
   ProfileRepository: {
@@ -222,5 +228,53 @@ describe('RecipeController.reusablePool — a dish is served only at the meals i
     });
 
     expect(pool.filter(dish => dish.slots.includes('dinner')).map(dish => dish.slug)).toEqual(['cebolla-asada']);
+  });
+});
+
+describe('RecipeController.libraryUsage — what the library cooks lunch and dinner from (0063)', () => {
+  const lentils = makeCatalogueIngredient({ id: 'i-lentejas', category: 'protein', classes: [], mealSlots: ['lunch'], slug: 'lentejas-cocidas' });
+  const onion = makeCatalogueIngredient({ id: 'i-cebolla', category: 'produce', slug: 'cebolla' });
+  const context = (dietaryPatterns: readonly string[]): GenerationContext => ({
+    catalogue: toCatalogue([lentils, onion]),
+    dietaryPatterns,
+    locale: 'es-ES',
+    preferences: NO_PREFERENCE_EXCLUSIONS,
+    safety: {
+      allergenIds: new Set(),
+      crossContaminationAllergenIds: new Set(),
+      excludedIngredientIds: new Set(),
+      intoleranceAllergenIds: new Set(),
+      unenforceableLabels: []
+    }
+  });
+  // Stored as lunch and dinner — as a vegan's generation would have stored them.
+  const stews: LibraryRecipe[] = Array.from({ length: DISHES_NEEDED_PER_SLOT }, () => ({
+    ingredients: [
+      { id: 'i-lentejas', slug: 'lentejas-cocidas' },
+      { id: 'i-cebolla', slug: 'cebolla' }
+    ],
+    slots: ['lunch', 'dinner']
+  }));
+
+  beforeEach(() => {
+    findLibraryUsage.mockReset();
+    findLibraryUsage.mockResolvedValue(stews);
+  });
+
+  it('reads only lunch and dinner, and nothing at all for a request for neither', async () => {
+    await expect(RecipeController.libraryUsage(['breakfast', 'afternoon_snack'], context([]))).resolves.toEqual(new Map());
+    expect(findLibraryUsage).not.toHaveBeenCalled();
+
+    await RecipeController.libraryUsage(['breakfast', 'lunch', 'dinner'], context([]));
+    expect(findLibraryUsage).toHaveBeenCalledWith(['lunch', 'dinner']);
+  });
+
+  it('narrows every recipe for the person rather than trusting its stored meals', async () => {
+    const omnivore = await RecipeController.libraryUsage(['lunch', 'dinner'], context([]));
+    const vegan = await RecipeController.libraryUsage(['lunch', 'dinner'], context(['vegan']));
+
+    expect(omnivore.get('lunch')).toEqual(new Set(['i-lentejas', 'i-cebolla']));
+    expect(omnivore.has('dinner')).toBe(false);
+    expect(vegan.get('dinner')).toEqual(new Set(['i-lentejas', 'i-cebolla']));
   });
 });
