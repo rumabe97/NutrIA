@@ -46,6 +46,17 @@
   gap: var(--space-03);
 }
 
+/* A native `type="date"` control's own rendered minimum width is the browser's
+   to set, not this stylesheet's — and it disagrees sharply between engines
+   (notably wider in Safari than in the Chromium this was built against). A
+   flex item's implicit minimum is `auto`, the size of its content, so without
+   this the date field could force this row, and every sibling card sharing
+   its section's grid track, wider than the viewport on exactly the engine
+   this was never checked against. */
+.form > * {
+  min-width: 0;
+}
+
 .error {
   color: var(--color-error-text);
 }
