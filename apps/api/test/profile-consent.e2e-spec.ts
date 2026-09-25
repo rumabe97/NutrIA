@@ -4,6 +4,7 @@ import request from 'supertest';
 import type { Response } from 'supertest';
 
 import { database } from 'database';
+import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
 
 import {
   completeOnboarding,
@@ -19,7 +20,7 @@ import {
 } from './harness.js';
 
 import type { Account } from './harness.js';
-import type { FullProfileView } from 'core/controllers/Profile';
+import type { FullProfileView, ProfileConsentView } from 'core/controllers/Profile';
 import type { OnboardingView } from 'core/controllers/Onboarding';
 import type { INestApplication } from '@nestjs/common';
 
@@ -104,6 +105,12 @@ describe('profile consent and the minimum age, end to end', () => {
     const response: Response = await request(httpServer(app)).get(`/${PREFIX}/profile`).set('Cookie', account.cookie).expect(200);
 
     return response.body as FullProfileView;
+  }
+
+  async function consentView(account: Account): Promise<ProfileConsentView> {
+    const response: Response = await request(httpServer(app)).get(`/${PREFIX}/profile/consent`).set('Cookie', account.cookie).expect(200);
+
+    return response.body as ProfileConsentView;
   }
 
   async function expectConsentRequired(run: () => Promise<Response>): Promise<void> {
@@ -196,6 +203,31 @@ describe('profile consent and the minimum age, end to end', () => {
       expect(await goalCount(account.id)).toBe(0);
       expect(await jobCount(account.id)).toBe(0);
     }, 60_000);
+
+    it('GET /profile/consent names the current version and answers false; PUT refuses any other version', async () => {
+      const before = await consentView(account);
+
+      expect(before).toMatchObject({ currentVersion: PROFILE_CONSENT_VERSION, grantedAt: null, isCurrent: false });
+
+      const stale: Response = await request(httpServer(app))
+        .put(`/${PREFIX}/profile/consent`)
+        .set('Cookie', account.cookie)
+        .send({ version: '0.0.1' })
+        .expect(422);
+
+      expect((stale.body as { code: string }).code).toBe('INVALID_INPUT');
+      expect(await consentView(account)).toMatchObject({ isCurrent: false });
+
+      const given: Response = await request(httpServer(app))
+        .put(`/${PREFIX}/profile/consent`)
+        .set('Cookie', account.cookie)
+        .send({ version: PROFILE_CONSENT_VERSION })
+        .expect(200);
+
+      expect(given.body).toMatchObject({ currentVersion: PROFILE_CONSENT_VERSION, isCurrent: true });
+      expect((given.body as ProfileConsentView).grantedAt).not.toBeNull();
+      expect(await consentView(account)).toMatchObject({ isCurrent: true });
+    });
 
     it('accepts every one of them once consent is given, and a plan generates', async () => {
       await completeOnboarding(app, account);
@@ -314,6 +346,11 @@ describe('profile consent and the minimum age, end to end', () => {
       const withdrawn: Response = await request(httpServer(app)).delete(`/${PREFIX}/profile/consent`).set('Cookie', account.cookie).expect(200);
 
       expect(withdrawn.body).toMatchObject({ isCurrent: false });
+
+      // Idempotent: a second withdrawal deletes nothing more and answers the same.
+      const withdrawnAgain: Response = await request(httpServer(app)).delete(`/${PREFIX}/profile/consent`).set('Cookie', account.cookie).expect(200);
+
+      expect(withdrawnAgain.body).toMatchObject({ isCurrent: false });
 
       const after = await profileView(account);
 
