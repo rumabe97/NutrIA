@@ -282,7 +282,10 @@ function contextFor(profile, shared) {
     });
 
     return {
-      context: { ...shared, preferences },
+      // The pattern itself too, as `generationContext` carries it: the library
+      // is narrowed to the meals its ingredients belong to for this person, and
+      // a vegetarian sees every plant protein at every meal (`0062` § 4).
+      context: { ...shared, dietaryPatterns: [profile.dietaryPattern], preferences },
       note: `${preferences.excludedIngredientIds.size} ingredients excluded by "${profile.dietaryPattern}"`
     };
   }

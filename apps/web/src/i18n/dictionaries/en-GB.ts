@@ -131,7 +131,8 @@ export const enGB: Dictionary = {
       over_time: 'too long',
       schema: 'schema',
       unknown_ingredient: 'invented ingredient',
-      unwanted: 'diet or dislikes'
+      unwanted: 'diet or dislikes',
+      wrong_meal: 'wrong meal'
     },
     remindersHint:
       'On: every morning, whoever has finished their fortnight without checking in is told, by email and on the phones that asked. Once a fortnight, and each person can turn it off on their profile.',

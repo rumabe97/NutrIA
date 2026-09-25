@@ -48,6 +48,7 @@ const CATALOGUE = [
 function context(overrides?: Partial<GenerationContext['safety']>): GenerationContext {
   return {
     catalogue: toCatalogue(CATALOGUE),
+    dietaryPatterns: [],
     locale: 'es-ES',
     preferences: NO_PREFERENCE_EXCLUSIONS,
     safety: {
@@ -588,6 +589,107 @@ describe('PoolBuilder', () => {
     const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
 
     expect(result.dishes).toHaveLength(1);
+  });
+});
+
+/**
+ * The meals a dish may be served at (`0062`): after every other gate, the
+ * model's dish keeps only the meals all of its ingredients belong to, for this
+ * person — and is dropped as `wrong_meal` when none is left.
+ */
+describe('PoolBuilder — the meals a model\u2019s dish may be served at', () => {
+  const preferences = {
+    avoidNames: [],
+    budget: null,
+    cookingFrequency: null,
+    cookingTimeMinutes: 30,
+    cuisines: [],
+    dayShape: null,
+    dietaryPatterns: [],
+    dislikedNames: [],
+    goal: null,
+    likedFoods: [],
+    lovedNames: [],
+    slotShares: new Map(),
+    targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
+  };
+  // Stewed lentils, lunch only, as `seed/ingredients/meals.ts` lists them; a plant protein.
+  const lentils: CatalogueIngredient = { ...ingredient('lentejas-cocidas'), category: 'protein', mealSlots: ['lunch'] };
+  const withLentils = (dietaryPatterns: readonly string[] = [], lists: CatalogueIngredient = lentils): GenerationContext => ({
+    ...context(),
+    catalogue: toCatalogue([...CATALOGUE, lists]),
+    dietaryPatterns
+  });
+  const stew = (slots: readonly MealSlot[]) => ({
+    ...dish('Lentejas estofadas', slots, ['lentejas-cocidas', 'tomate']),
+    steps: [{ text: 'Sofreír el tomate en una cazuela a fuego medio' }, { text: 'Añadir las lentejas, cubrir y cocer 10 minutos' }]
+  });
+
+  it('drops a dish that claims only dinner and uses a lunch-only food, as wrong_meal', async () => {
+    const { client } = stubClient([{ dishes: [stew(['dinner'])] }]);
+    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+
+    expect(result.generated).toEqual([]);
+    expect(result.dishes).toEqual([]);
+    expect(result.metadata.rejected).toBeGreaterThan(0);
+    expect(result.metadata.aiCalls[0]).toMatchObject({ dishes: 1, kept: 0, rejected: { wrong_meal: 1 } });
+  });
+
+  it('keeps a stew that also claimed dinner, as a lunch only — it counts at lunch, not at the dinner it was asked for', async () => {
+    const { client } = stubClient([{ dishes: [stew(['lunch', 'dinner'])] }]);
+    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+
+    expect(result.generated.map(kept => kept.slots)).toEqual([['lunch']]);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({});
+    expect(shortfall(['dinner'], result.dishes).get('dinner')).toBe(DISHES_NEEDED_PER_SLOT);
+  });
+
+  it('serves the same stew at dinner for a vegan: every plant protein belongs to every meal (0062 § 4)', async () => {
+    const { client } = stubClient([{ dishes: [stew(['lunch', 'dinner'])] }]);
+    const result = await new PoolBuilder(client).build({ context: withLentils(['vegan']), preferences, reusable: [], slots: ['dinner'] });
+
+    expect(result.generated.map(kept => kept.slots)).toEqual([['lunch', 'dinner']]);
+  });
+
+  it('never drops a food in no meal back in, for a vegan either (0063 § 3)', async () => {
+    const nowhere: CatalogueIngredient = { ...lentils, mealSlots: ['none'] };
+    const { client } = stubClient([{ dishes: [stew(['lunch', 'dinner'])] }]);
+    const result = await new PoolBuilder(client).build({ context: withLentils(['vegan'], nowhere), preferences, reusable: [], slots: ['lunch'] });
+
+    expect(result.generated).toEqual([]);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({ wrong_meal: 1 });
+  });
+
+  it('leaves a dish of staples exactly as the model sent it', async () => {
+    const { client } = stubClient([{ dishes: [dish('Arroz con tomate', ['breakfast', 'lunch', 'dinner'], ['arroz', 'tomate'])] }]);
+    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['lunch'] });
+
+    expect(result.generated.map(kept => kept.slots)).toEqual([['breakfast', 'lunch', 'dinner']]);
+  });
+
+  it('changes nothing when the lists are empty', async () => {
+    const { client } = stubClient([{ dishes: [stew(['dinner'])] }]);
+    const result = await new PoolBuilder(client).build({
+      context: withLentils([], { ...lentils, mealSlots: [] }),
+      preferences,
+      reusable: [],
+      slots: ['dinner']
+    });
+
+    expect(result.generated.map(kept => kept.slots)).toEqual([['dinner']]);
+  });
+
+  it('asks only after the allergy gate: an unsafe dish is counted as an allergen, whatever its meal', async () => {
+    const unsafe = { ...stew(['dinner']), ingredients: [...stew(['dinner']).ingredients, { grams: 50, slug: 'pan' }] };
+    const { client } = stubClient([{ dishes: [unsafe] }]);
+    const result = await new PoolBuilder(client).build({
+      context: { ...withLentils(), safety: context({ allergenIds: new Set([GLUTEN]) }).safety },
+      preferences,
+      reusable: [],
+      slots: ['dinner']
+    });
+
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({ allergen: 1 });
   });
 });
 

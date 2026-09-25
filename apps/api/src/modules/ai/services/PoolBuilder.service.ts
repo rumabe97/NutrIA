@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
 import { dishSafety, findSafetyViolations, mentionsUnresolvedAllergy } from 'core/domain/Safety';
+import { fitSlots } from 'core/domain/MealFit';
 import { methodMentions } from 'core/domain/Method';
 import { breaksDishRule, withinTime } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
@@ -353,7 +354,9 @@ export class PoolBuilder {
   }
 
   /**
-   * Schema → catalogue → **allergy gate**, in that order.
+   * Schema → catalogue → **allergy gate**, in that order; then the
+   * preferences, the time limit and the method; last, the meals it may be
+   * served at, which only ever takes meals away from a dish already accepted.
    *
    * The gate runs on generated dishes even though the prompt was given only safe
    * ingredients, because a prompt is a request and this is a guarantee. A rejection
@@ -451,6 +454,20 @@ export class PoolBuilder {
       return { reason: 'foreign_food' };
     }
 
+    // Last, and only ever taking meals away: the meals it claimed, kept where
+    // every ingredient belongs for this person (`0062` § 5) — the same rule
+    // the library is served by (`RecipeController.reusablePool`). A stew the
+    // model also called a dinner stays a lunch; one that claimed only meals
+    // its ingredients do not belong to is served nowhere, and is counted as
+    // such. Not an error: every rule that protects the person already held.
+    const slots = fitSlots(dish, context.catalogue, context.dietaryPatterns);
+
+    if (slots.length === 0) {
+      this.logger.warn(`Dish "${dish.name}" rejected: none of ${dish.slots.join(', ')} is a meal all of its ingredients belong to`);
+
+      return { reason: 'wrong_meal' };
+    }
+
     return {
       dish: {
         cookMinutes: dish.cookMinutes,
@@ -460,7 +477,7 @@ export class PoolBuilder {
         name: dish.name,
         prepMinutes: dish.prepMinutes,
         servings: dish.servings,
-        slots: dish.slots,
+        slots,
         slug,
         // The wire has no nullable, so "none" arrives as an empty string or a zero.
         // Both leave as no key at all, which is what the pages test for.

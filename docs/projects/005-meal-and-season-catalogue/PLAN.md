@@ -84,7 +84,7 @@ at a time.
 
 ### Phase 2 — The lists, drafted and reviewed
 
-- [x] done
+- [x] done — commit `40899e1` ("Project 005 phase 2: each ingredient names its meals and its season")
 - **Dispatch**: opus @ medium — `/execute-project 005 phase 2` — owner-approves: the meal
   list and the season list, before the phase is committed
 - **Goal**: the two overlays hold the real exceptions, and a committed script shows what
@@ -135,7 +135,7 @@ at a time.
 
 ### Phase 3 — Which meals a dish may be served at
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 005 phase 3` — `quality-max`: narrows AI
   output (see Routing profile)
 - **Goal**: a dish is only ever placed at meals every one of its ingredients belongs to,
@@ -143,7 +143,12 @@ at a time.
 - **Scope**: new `packages/core/src/domain/MealFit/` (index, implementation, tests),
   `packages/core/src/controllers/Recipe/RecipeController.ts` (`reusablePool`),
   `apps/api/src/modules/ai/services/PoolBuilder.service.ts` (the gate on returned
-  dishes) and their specs.
+  dishes) and their specs. Amended in phase 3 (see LOG): `DishRejection` in
+  `packages/core/src/entities/Plan/AiCall.ts`, `GenerationContext.dietaryPatterns` (filled
+  from the read `buildContext` already made), the `wrong_meal` label in both web
+  dictionaries, one line each in four API specs, and the two scripts
+  (`catalogue-by-meal.mjs` now uses `MealFit`; `evaluate-plans.mjs` passes the vegetarian
+  profile's patterns).
 - **Steps**:
   1. `MealFit`:
      - `belongsTo(ingredient, slot, dietaryPatterns)`: true when `mealSlots` is empty or

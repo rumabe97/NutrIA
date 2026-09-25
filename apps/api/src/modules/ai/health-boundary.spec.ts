@@ -187,6 +187,7 @@ describe('the free-text and belief boundary around the AI module', () => {
     });
     const context: GenerationContext = {
       catalogue: toCatalogue(catalogue),
+      dietaryPatterns,
       locale: 'es-ES',
       preferences: resolved,
       safety: {

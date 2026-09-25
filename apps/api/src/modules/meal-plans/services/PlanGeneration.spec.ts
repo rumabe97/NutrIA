@@ -184,6 +184,7 @@ function build(overrides: Partial<Mocks> = {}) {
     .spyOn(RecipeController, 'generationContext')
     .mockResolvedValue({
       catalogue: CATALOGUE,
+      dietaryPatterns: [],
       locale: 'es-ES',
       preferences: NO_PREFERENCE_EXCLUSIONS,
       safety: {
@@ -364,6 +365,7 @@ describe('PlanGenerationService', () => {
         .spyOn(RecipeController, 'generationContext')
         .mockResolvedValue({
           catalogue: skewed,
+          dietaryPatterns: [],
           locale: 'es-ES',
           preferences: NO_PREFERENCE_EXCLUSIONS,
           safety: {

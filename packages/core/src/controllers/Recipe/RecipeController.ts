@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { fitSlots } from 'core/domain/MealFit';
 import { hasUsableMethod } from 'core/domain/Method';
 import { rotatePool } from 'core/domain/Variety';
 import { bestEffortExclusions, dishSafety, mentionsUnresolvedAllergy } from 'core/domain/Safety';
@@ -48,6 +49,15 @@ const REWRITE_CLAIM_MINUTES = 5;
 
 export type GenerationContext = {
   readonly catalogue: Catalogue;
+  /**
+   * Their ways of eating, as stored — the same list `preferences` was resolved
+   * from, carried so the meal a dish may be served at is decided for this
+   * person (`MealFit`: a vegan or vegetarian sees every plant protein at every
+   * meal, `0062` § 4). Read once, here, for the library and the model's dishes
+   * alike. Never a prompt line by itself: the prompt names a way of eating only
+   * through `NAMEABLE_PATTERNS`.
+   */
+  readonly dietaryPatterns: readonly string[];
   /** The user's language. Names are resolved into it, reuse is scoped to it, and the model is told to write in it. */
   readonly locale: string;
   /**
@@ -130,7 +140,7 @@ async function buildContext(userId: string): Promise<GenerationContext> {
   const extra = [...supplements, ...unresolvedAllergies];
   const preferences = extra.length === 0 ? resolved : { ...resolved, excludedIngredientIds: new Set([...resolved.excludedIngredientIds, ...extra]) };
 
-  return { catalogue: toCatalogue(catalogue), locale, preferences, safety };
+  return { catalogue: toCatalogue(catalogue), dietaryPatterns, locale, preferences, safety };
 }
 
 // --- Presenters ---------------------------------------------------------------
@@ -256,7 +266,15 @@ export const RecipeController = {
           !mentionsUnresolvedAllergy(recipe, context.safety.unenforceableLabels) &&
           withinTime(recipe, context.preferences.maxMinutesPerDish)
       )
-      .map(toCandidateDish);
+      // Served only at the meals every ingredient belongs to, for this person
+      // (`0062` § 5): a lentil stew stays a lunch and stops being a dinner, and
+      // one that belongs nowhere leaves the pool. Before the rotation, so the
+      // dozen it picks per slot is counted from what can actually be served
+      // there — a dish counted at dinner and then never placed there is one
+      // fewer dinner nobody noticed was missing.
+      .map(toCandidateDish)
+      .map(dish => ({ ...dish, slots: fitSlots(dish, context.catalogue, context.dietaryPatterns) }))
+      .filter(dish => dish.slots.length > 0);
 
     // Without a rotation every user is handed the whole safe library in the same
     // order, and the deterministic scheduler then hands them the same plan. With

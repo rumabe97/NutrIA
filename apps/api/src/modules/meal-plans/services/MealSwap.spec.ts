@@ -119,7 +119,13 @@ function harness(
     });
   jest
     .spyOn(RecipeController, 'generationContext')
-    .mockResolvedValue({ catalogue: toCatalogue(CATALOGUE), locale: 'es-ES', preferences: NO_PREFERENCE_EXCLUSIONS, safety: SAFETY });
+    .mockResolvedValue({
+      catalogue: toCatalogue(CATALOGUE),
+      dietaryPatterns: [],
+      locale: 'es-ES',
+      preferences: NO_PREFERENCE_EXCLUSIONS,
+      safety: SAFETY
+    });
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [{ name: 'Bad', slug: 'chicken-rice-bad' }], liked: [] });
   jest
     .spyOn(ProfileController, 'getFullProfile')

@@ -17,11 +17,13 @@
  * - the ingredients that take the most dishes away from that slot, so a list
  *   that starves a meal is visible by name.
  *
- * The meal rule is written here, not imported: `packages/core/src/domain/MealFit`
- * arrives in phase 3 of project 005 and this script is phase 2's. It is the
- * rule `0062` states — empty means every meal; a vegan or vegetarian is shown
- * every plant protein (the `protein` aisle, no animal class) at every meal —
- * and phase 3 should switch this script to `MealFit` so the two cannot drift.
+ * The meal rule is `core/domain/MealFit`'s, imported from the build — the same
+ * `belongsTo` and `fitSlots` the pool builder and the library's reuse apply, so
+ * what this reports and what a generation does cannot drift. Since phase 3 of
+ * project 005 `RecipeController.reusablePool` narrows the library itself, so
+ * "before" is read from it over the same catalogue with every meal list
+ * emptied — the library as it was served on prompt 3.4.0 — and "after" is
+ * `fitSlots` over the real one.
  *
  * Before the dev database is re-seeded with the overlays, every list is empty
  * and "after" equals "before": that is the check that the seed has not run.
@@ -43,6 +45,7 @@ import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts
 import { RecipeController } from 'core/controllers/Recipe';
 import { SafetyController } from 'core/controllers/Safety';
 import { MEAL_SLOTS } from 'core/entities/Plan';
+import { belongsTo, fitSlots } from 'core/domain/MealFit';
 import { resolvePreferences } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
@@ -76,30 +79,9 @@ function parseArgs(argv) {
   return options;
 }
 
-// ---------------------------------------------------------------------------
-// The rule of `0062`, until phase 3's `MealFit` exists.
-// ---------------------------------------------------------------------------
-function isPlantBased(dietaryPatterns) {
-  return dietaryPatterns.includes('vegan') || dietaryPatterns.includes('vegetarian');
-}
-
-function belongsTo(ingredient, slot, dietaryPatterns) {
-  if (ingredient.mealSlots.length === 0 || ingredient.mealSlots.includes(slot)) {
-    return true;
-  }
-
-  return isPlantBased(dietaryPatterns) && ingredient.category === 'protein' && !ingredient.classes.includes('animal');
-}
-
-/** The dish's own slots, kept only where every ingredient belongs. An unknown slug narrows nothing. */
-function fitSlots(dish, catalogue, dietaryPatterns) {
-  return dish.slots.filter(slot =>
-    dish.ingredients.every(item => {
-      const ingredient = catalogue.get(item.slug);
-
-      return ingredient === undefined || belongsTo(ingredient, slot, dietaryPatterns);
-    })
-  );
+/** The same catalogue with every meal list emptied: every food at every meal, as on 3.4.0. */
+function withoutMealLists(catalogue) {
+  return new Map([...catalogue].map(([slug, ingredient]) => [slug, { ...ingredient, mealSlots: [] }]));
 }
 
 // ---------------------------------------------------------------------------
@@ -114,12 +96,15 @@ async function measurePerson(person, base) {
     ingredients,
     maxMinutesPerDish: null
   });
-  const context = { ...base, preferences };
+  const context = { ...base, dietaryPatterns: person.dietaryPatterns, preferences };
   // What the pool prompt shows today: every row this person may eat. Nobody has
   // declared an allergy, so the safety filter keeps everything; the way of
   // eating is what removes rows.
   const eatable = ingredients.filter(ingredient => !preferences.excludedIngredientIds.has(ingredient.id));
-  const pool = await RecipeController.reusablePool(MEAL_SLOTS, context);
+  // The library before the meal lists: `reusablePool` over a catalogue whose
+  // lists are empty narrows nothing, and every other filter reads ids and
+  // allergens, which are untouched.
+  const pool = await RecipeController.reusablePool(MEAL_SLOTS, { ...context, catalogue: withoutMealLists(base.catalogue) });
   const fitted = pool.map(dish => ({ dish, fit: fitSlots(dish, base.catalogue, person.dietaryPatterns) }));
 
   const slots = MEAL_SLOTS.map(slot => {

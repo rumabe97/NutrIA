@@ -141,3 +141,68 @@
 - **Notes for the next phase**: after approval, `pnpm --filter database seed` on dev and
   `node --env-file-if-exists=.env scripts/catalogue-by-meal.mjs` from `apps/api`, which must
   match the table.
+
+## Phase 2 — production seed (2026-09-25)
+
+- The owner re-ran `pnpm --filter database seed` against production after `40899e1` deployed
+  (reported as running when phase 3 started); both lists take effect there once it ends.
+
+## Phase 3 — Which meals a dish may be served at (2026-09-25)
+
+- **Executor**: `backend-high` agent on opus (definition effort `high`, the phase's
+  `quality-max`), in its own worktree; brought into the main checkout and the worktree
+  removed. The two dictionary lines by the lead (frontend's files). Reviewed by
+  `invariant-reviewer` (opus @ high).
+- **Result**: done.
+- **Evidence**:
+  - `MealFit` (`packages/core/src/domain/MealFit/`): `belongsTo(ingredient, slot,
+    dietaryPatterns)` — `['none']` first and false everywhere, then empty or naming the
+    slot, then the plant-based exception (protein aisle, no `animal` class, for `vegan` or
+    `vegetarian`); `fitSlots(dish, catalogue, dietaryPatterns)` — the dish's own slots, in
+    order, where every ingredient belongs, a missing slug narrowing nothing;
+    `inSeason(ingredient, month)`, unused until phase 4.
+  - `reusablePool` narrows every library dish after the existing filters and before
+    `rotatePool`, dropping a dish left with none. `PoolBuilder.validate` narrows a model
+    dish last, after every existing gate, and rejects one left with none as `wrong_meal`.
+  - Tests: core 739 (22 new: 18 in `MealFit.test.ts`, 4 in `RecipeController.test.ts`
+    including one that fails if narrowing ran after rotation); api 748 (7 new in
+    `PoolBuilder.spec.ts`, including "the allergy gate still counts first"); database 43.
+  - `gate.sh --full`: green.
+  - `plan-evaluator` (`evaluate-plans.mjs --compare` against `main`, dev seeded with phase
+    2's lists): 11 profiles, none worse — `objetivo-bajo-3-comidas` better (worst deviation
+    5.1% → 5.0%, days inside 13 → 13), the other ten the same (14/14 where they were);
+    no plate carried a declared allergen. Pools shrink as expected (gluten-free 520 → 449,
+    lactose-free 560 → 469 dishes).
+  - `invariant-reviewer`: no P0/P1/P2. Allergy and preference gates unchanged in inputs and
+    order (an unsafe dish is still `allergen` first); `MealFit` only removes slots; nothing
+    new crosses the health boundary (the patterns reach no new prompt, log or analytics
+    line); nothing about who may read what changed. Every path that places a dish —
+    generation (rotated pool, backfill, whole-library rescue, both retries), swap (the
+    professional's included), event rebuild — goes through one of the two changed places.
+  - `catalogue-by-meal.mjs`, now on `MealFit`, reproduces phase 2's table.
+- **Deviations from plan**:
+  - `GenerationContext` gains `dietaryPatterns`: `reusablePool` had no way to read them;
+    they come from the `ProfileRepository.findDietaryPatterns` read `buildContext` already
+    made, and `PoolBuilder` uses the same source so library and model are narrowed alike.
+  - `DishRejection` lives in `AiCall.ts`, outside the listed scope; the `/admin` label
+    (`admin.rejection.wrong_meal`: "comida equivocada" / "wrong meal") in both dictionaries.
+  - `catalogue-by-meal.mjs` switched to `MealFit` now rather than in phase 4;
+    `evaluate-plans.mjs` passes the vegetarian profile's patterns so it is measured with the
+    exception. Scope amended.
+  - A generated dish is stored with its narrowed slots (`toRecipeDraft`): a stew the model
+    claimed for lunch and dinner is stored lunch-only after an omnivore's generation. Safe —
+    every read narrows again — but the stored `meal_slots` reflect the person who generated
+    it. Recorded, not changed (reviewer P3).
+- **Decisions**: none new.
+- **Notes for the next phase**:
+  - Per-slot `safeIngredients`: `belongsTo(ingredient, slot, context.dietaryPatterns)`.
+  - `inSeason` orders produce, never filters it.
+  - `0063`'s library-usage read must narrow each recipe with `fitSlots` for the person
+    rather than trust the stored `recipes.meal_slots` (reviewer P3 above).
+  - `PoolPrompt.spec.ts:208`'s partial fixture will need `mealSlots` and `seasonMonths`.
+  - `catalogue-by-meal.mjs` already uses `MealFit`; phase 4 adds only the `0063` cut.
+  - `wrong_meal` counts on `/admin` should fall near zero once 3.5.0 shows each slot only
+    its own catalogue.
+  - Tell `tests` when the e2e suites run: dev holds phase 2's lists, so a suite expecting a
+    pulse dish at dinner, or a count per slot, may see fewer; dinner swaps may answer the
+    409 "no dish fits" more often on a thin library. No route, view or error code changed.
