@@ -767,6 +767,24 @@ describe('care', () => {
       expect(await invitationsTo(address('stale'))).toEqual([]);
       expect(await invitationsTo(address('fresh'))).toEqual([expect.objectContaining({ professionalId: otherPro.id })]);
     });
+
+    /** cf87d75: the daily sweep (`/cron/reminders`, `ExpiredInvitationsService`) — the case nobody invites anybody to trigger the door's own cleanup. */
+    it('are also deleted by the daily sweep, whoever sent them, even when nobody writes another one', async () => {
+      const sweeper = await account('pro-sweep-daily');
+      const earlier = new Date(Date.now() - 15 * DAY_MS);
+
+      await grant(sweeper);
+      await CareController.invite(sessionOf(sweeper), { email: address('stale-daily') }, earlier);
+      expect(await invitationsTo(address('stale-daily'))).toHaveLength(1);
+
+      // Not yet expired: still there after the sweep runs at today's clock.
+      await invite(sweeper, address('live-daily'));
+
+      await expect(CareController.forgetExpiredInvitations(new Date())).resolves.toBeGreaterThanOrEqual(1);
+
+      expect(await invitationsTo(address('stale-daily'))).toEqual([]);
+      expect(await invitationsTo(address('live-daily'))).toEqual([expect.objectContaining({ professionalId: sweeper.id })]);
+    });
   });
 
   describe('the switch', () => {
@@ -1609,6 +1627,35 @@ describe('care', () => {
         // At the door, as `access that closes` proves for the HTTP route — the link row is untouched.
         await expect(CareController.activeProfessional(revokedClient.id)).resolves.toBeNull();
         await expect(myLink(revokedClient)).resolves.toMatchObject({ id: linkId, status: 'active' });
+      });
+
+      /** cf87d75 (invariant-reviewer, legal-b): `withClient`'s own two conditions, asked here too. */
+      it('is null once the accepted agreement is no longer current, even though the link row stays active', async () => {
+        const stalePro = await account('checkin-pro-stale-agreement');
+        const staleClient = await account('checkin-pro-stale-agreement-client');
+
+        await grant(stalePro);
+        const linkId = await link(stalePro, staleClient);
+
+        await expect(CareController.activeProfessional(staleClient.id)).resolves.toEqual({ id: stalePro.id, email: stalePro.email });
+
+        await tables()`update professionals set agreement_version = '0.9.0' where user_id = ${stalePro.id}`;
+
+        await expect(CareController.activeProfessional(staleClient.id)).resolves.toBeNull();
+        await expect(myLink(staleClient)).resolves.toMatchObject({ id: linkId, status: 'active' });
+      });
+
+      it('is null once the practice is no longer open, even though the link row stays active', async () => {
+        const lapsedPro = await account('checkin-pro-lapsed');
+        const lapsedClient = await account('checkin-pro-lapsed-client');
+
+        await grant(lapsedPro);
+        const linkId = await link(lapsedPro, lapsedClient);
+
+        await tables()`update professionals set practice_open = false where user_id = ${lapsedPro.id}`;
+
+        await expect(CareController.activeProfessional(lapsedClient.id)).resolves.toBeNull();
+        await expect(myLink(lapsedClient)).resolves.toMatchObject({ id: linkId, status: 'active' });
       });
     });
 
