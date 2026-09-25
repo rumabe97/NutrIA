@@ -142,9 +142,11 @@ jobs:
           # could smuggle something through), and `ls` has no flag that
           # writes a file or runs a subprocess. Still read-only: no Write,
           # no Edit, no Bash outside these prefixes.
+          # 40 turns, not 20 (2026-09-25): a PR of ~100 files (Legal A, #104) ran out of turns twice
+          # before it could answer — a failure that says nothing about the code. A small PR stops early.
           claude_args: |
             --model claude-sonnet-5
-            --max-turns 20
+            --max-turns 40
             --allowedTools "Read,Grep,Glob,Bash(ls:*)"
             --json-schema "{\"type\":\"object\",\"properties\":{\"findings\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"properties\":{\"file\":{\"type\":\"string\"},\"line\":{\"type\":\"number\"},\"severity\":{\"type\":\"string\",\"enum\":[\"high\",\"medium\",\"low\"]},\"summary\":{\"type\":\"string\"},\"why\":{\"type\":\"string\"}},\"required\":[\"file\",\"severity\",\"summary\",\"why\"]}}},\"required\":[\"findings\"]}"
 
