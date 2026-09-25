@@ -152,10 +152,25 @@ export class MealSwapService {
       const targets = anchor.plan.strategy ?? { carbsG: 0, fatG: 0, fiberG: 0, kcal: current.macros.kcal * 4, proteinG: current.macros.proteinG * 4 };
       const built = await this.pool.build({
         context,
+        // Read only now, on the way to the model: a swap the library answers never needs it.
+        libraryUsage: await RecipeController.libraryUsage([current.slot], context),
         needPerSlot: SWAP_CANDIDATES,
-        preferences: promptPreferences(profile, verdicts, [...inPlan], targets, null, wishFor(axis, anchor.recipe), likedFoodNames(context)),
+        // The day being replaced sets the month, not today: a swap on the
+        // fortnight's last day may fall in the next month.
+        preferences: promptPreferences(
+          profile,
+          verdicts,
+          [...inPlan],
+          targets,
+          anchor.day.date,
+          null,
+          wishFor(axis, anchor.recipe),
+          likedFoodNames(context)
+        ),
         reusable: [],
-        // Filed together in a gateway's log, like a generation's calls under its job.
+        // Filed together in a gateway's log, like a generation's calls under
+        // its job, and the seed of the sample a lunch or a dinner is shown
+        // (`0063`): the meal's id, the one id this request has.
         session: `swap:${mealId}`,
         slots: [current.slot]
       });

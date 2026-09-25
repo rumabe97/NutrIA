@@ -8,6 +8,7 @@ import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe
 
 import { DatabaseOperationError } from 'core/entities/Error';
 import type { FoodClass } from 'database/schema/food';
+import type { LibraryRecipe } from 'core/domain/MealFit';
 import type { CatalogueIngredient, MealSlot, RecipeVerdict } from 'core/entities/Plan';
 import type { RecipeStep } from 'database/schema/recipe';
 
@@ -144,6 +145,58 @@ export const RecipeRepository = {
       return row;
     } catch (error: unknown) {
       throw wrap(error, 'recipe_images');
+    }
+  },
+
+  /**
+   * Every library recipe that may be served at one of these meals, in every
+   * language, with the ingredients it is made of — what `0063`'s second cut
+   * reads to learn which foods the library cooks at lunch and at dinner.
+   *
+   * One query, not one per recipe: a join of `recipe_ingredients` to its
+   * recipe and its ingredient, filtered by the stored meals, which a narrowing
+   * can only take away from. On the dev library (2026-09-25, 1,002 recipes)
+   * that is under 6,000 rows of four short columns, about 0.6 s from this
+   * machine to Neon; once per generation, beside the two library reads it
+   * already makes, and once per swap that reaches the model.
+   * A plain read with no lock: the library only grows, and a recipe added
+   * while this runs changes the next generation's sample, not this one's.
+   *
+   * The stored meals are not the answer, only the filter: they were narrowed
+   * for whoever generated the dish, so the controller narrows each recipe
+   * again for the person (`MealFit.libraryUsage`). Optional ingredients are
+   * left out, as `findReusable` leaves them out of what is served.
+   */
+  async findLibraryUsage(slots: readonly MealSlot[]): Promise<readonly LibraryRecipe[]> {
+    if (slots.length === 0) {
+      return [];
+    }
+
+    try {
+      const rows = await database()
+        .select({ ingredientId: ingredients.id, mealSlots: recipes.mealSlots, recipeId: recipes.id, slug: ingredients.slug })
+        .from(recipeIngredients)
+        .innerJoin(recipes, eq(recipes.id, recipeIngredients.recipeId))
+        .innerJoin(ingredients, eq(ingredients.id, recipeIngredients.ingredientId))
+        .where(
+          and(
+            eq(recipeIngredients.isOptional, false),
+            sql`${recipes.mealSlots} && ${sql.raw(`ARRAY[${slots.map(slot => `'${slot}'`).join(',')}]::text[]`)}`
+          )
+        );
+
+      const byRecipe = new Map<string, { ingredients: { id: string; slug: string }[]; slots: readonly MealSlot[] }>();
+
+      for (const row of rows) {
+        const recipe = byRecipe.get(row.recipeId) ?? { ingredients: [], slots: row.mealSlots as readonly MealSlot[] };
+
+        recipe.ingredients.push({ id: row.ingredientId, slug: row.slug });
+        byRecipe.set(row.recipeId, recipe);
+      }
+
+      return [...byRecipe.values()];
+    } catch (error: unknown) {
+      throw wrap(error, 'recipes');
     }
   },
 

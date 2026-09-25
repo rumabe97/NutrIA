@@ -28,14 +28,31 @@
  * Before the dev database is re-seeded with the overlays, every list is empty
  * and "after" equals "before": that is the check that the seed has not run.
  *
+ * Since prompt 4.1.0 (project 005, phase 4) it also reports `0063`'s second
+ * cut, and the prompt itself:
+ *
+ * - "cut": the rows a request for that meal is actually shown — for lunch and
+ *   dinner, what the library cooks there (`RecipeController.libraryUsage`),
+ *   the produce in season in `--month`, and a sample of the rest drawn with
+ *   `--seed` — through `core/domain/MealFit`'s `mealCatalogue`, the function
+ *   the pool builder calls. Breakfast and the snacks are not cut a second
+ *   time, so "cut" equals "lists" there.
+ * - the prompt's length in characters for each meal's standard request (the
+ *   context `PoolPrompt.spec.ts` calls standard: 2,400 kcal, six dishes),
+ *   built by the API's own `buildPoolPrompt` from its build, on 3.4.0's terms
+ *   (every meal and season list emptied, no cut) and on today's, and the
+ *   ratio — PRD 2 asks the lunch's to be at most 55%.
+ *
  * Read-only and model-free, exactly as `evaluate-plans.mjs`: refuses production,
  * makes every read inside one `BEGIN ... READ ONLY` transaction (see that
  * script's "why one transaction" note for the mechanism), never reads
  * `AI_PROVIDER`, and builds its two people from a random id that names no
  * account.
  *
- * Usage (from apps/api, after a build):
- *   node --env-file-if-exists=.env scripts/catalogue-by-meal.mjs [--locale es-ES] [--json out.json]
+ * Usage (from apps/api, after a build of core, database and api):
+ *   node --env-file-if-exists=.env scripts/catalogue-by-meal.mjs [--locale es-ES] [--month 1-12] [--seed text] [--json out.json]
+ *
+ * `--month` defaults to this month; `--seed` to a fixed word, so two runs agree.
  */
 import { createRequire } from 'node:module';
 import { writeFileSync } from 'node:fs';
@@ -45,9 +62,12 @@ import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts
 import { RecipeController } from 'core/controllers/Recipe';
 import { SafetyController } from 'core/controllers/Safety';
 import { MEAL_SLOTS } from 'core/entities/Plan';
-import { belongsTo, fitSlots } from 'core/domain/MealFit';
+import { belongsTo, CATALOGUE_SAMPLE_SIZE, fitSlots, mealCatalogue, offersPulses } from 'core/domain/MealFit';
+import { DEFAULT_MEAL_SHAPE, weightsFor } from 'core/domain/MealShape';
 import { resolvePreferences } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
+
+import { buildPoolPrompt, languageName, PROMPT_VERSION } from '../dist/modules/ai/prompts/PoolPrompt.js';
 
 /** Prompt tokens per catalogue row, measured on 3.4.0 (PRD § Problem). */
 const TOKENS_PER_ROW = 6;
@@ -60,14 +80,22 @@ const PEOPLE = [
   { dietaryPatterns: ['vegan'], slug: 'vegano' }
 ];
 
+/** Dishes one request asks for, and the day it is sized to: the standard context of `PoolPrompt.spec.ts`. */
+const STANDARD_DISHES = 6;
+const STANDARD_TARGETS = { carbsG: 250, fatG: 70, fiberG: 30, kcal: 2400, proteinG: 150 };
+
 function parseArgs(argv) {
-  const options = { json: null, locale: 'es-ES' };
+  const options = { json: null, locale: 'es-ES', month: new Date().getMonth() + 1, seed: 'catalogue-by-meal' };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
 
     if (arg === '--locale') {
       options.locale = argv[(index += 1)];
+    } else if (arg === '--month') {
+      options.month = Number(argv[(index += 1)]);
+    } else if (arg === '--seed') {
+      options.seed = argv[(index += 1)];
     } else if (arg === '--json') {
       options.json = argv[(index += 1)];
     } else {
@@ -76,7 +104,43 @@ function parseArgs(argv) {
     }
   }
 
+  if (!Number.isInteger(options.month) || options.month < 1 || options.month > 12) {
+    console.error('--month takes 1 to 12');
+    process.exit(2);
+  }
+
   return options;
+}
+
+/**
+ * One meal's standard request, as the pool builder sends it: the same context
+ * for every catalogue, so the only thing that differs between two prompts is
+ * the catalogue they list and what the builder knows about it.
+ */
+function standardPrompt(slot, person, month, rows, offer) {
+  return buildPoolPrompt(
+    {
+      avoidNames: [],
+      budget: null,
+      cookingFrequency: null,
+      cookingTimeMinutes: 30,
+      cuisines: [],
+      dayShape: null,
+      dietaryPatterns: person.dietaryPatterns,
+      dislikedNames: [],
+      excludeSlugs: [],
+      goal: null,
+      language: languageName('es-ES'),
+      likedFoods: [],
+      lovedNames: [],
+      month,
+      needBySlot: new Map([[slot, STANDARD_DISHES]]),
+      slotShares: weightsFor(DEFAULT_MEAL_SHAPE),
+      targets: STANDARD_TARGETS
+    },
+    rows,
+    offer
+  );
 }
 
 /** The same catalogue with every meal list emptied: every food at every meal, as on 3.4.0. */
@@ -87,7 +151,7 @@ function withoutMealLists(catalogue) {
 // ---------------------------------------------------------------------------
 // Measuring one person
 // ---------------------------------------------------------------------------
-async function measurePerson(person, base) {
+async function measurePerson(person, base, options) {
   const ingredients = [...base.catalogue.values()];
   const preferences = resolvePreferences({
     allergenIdsByKey: base.allergenIdsByKey,
@@ -106,9 +170,19 @@ async function measurePerson(person, base) {
   // allergens, which are untouched.
   const pool = await RecipeController.reusablePool(MEAL_SLOTS, { ...context, catalogue: withoutMealLists(base.catalogue) });
   const fitted = pool.map(dish => ({ dish, fit: fitSlots(dish, base.catalogue, person.dietaryPatterns) }));
+  // What the library cooks lunch and dinner from for this person — the read a
+  // generation makes — and 3.4.0's catalogue: the same rows, every list emptied.
+  const usage = await RecipeController.libraryUsage(MEAL_SLOTS, context);
+  const unlisted = eatable.map(ingredient => ({ ...ingredient, mealSlots: [], seasonMonths: [] }));
 
   const slots = MEAL_SLOTS.map(slot => {
     const rows = eatable.filter(ingredient => belongsTo(ingredient, slot, person.dietaryPatterns));
+    const used = usage.get(slot);
+    // Exactly what `PoolBuilder` shows this request: `mealCatalogue` over the
+    // rows this person may eat, cut where the library speaks for the meal.
+    const shown = mealCatalogue(eatable, slot, person.dietaryPatterns, used ? { month: options.month, seed: options.seed, used } : null);
+    const promptBefore = standardPrompt(slot, person, options.month, unlisted, { pulses: true }).length;
+    const promptAfter = standardPrompt(slot, person, options.month, shown, { pulses: offersPulses(eatable, slot, person.dietaryPatterns) }).length;
     const before = fitted.filter(({ dish }) => dish.slots.includes(slot));
     const after = before.filter(({ fit }) => fit.includes(slot));
     const culprits = new Map();
@@ -130,12 +204,17 @@ async function measurePerson(person, base) {
     return {
       dishesAfter: after.length,
       dishesBefore: before.length,
+      libraryUses: used ? used.size : null,
+      promptAfter,
+      promptBefore,
       rowsAfter: rows.length,
       rowsBefore: eatable.length,
-      shownSlugs: rows.map(ingredient => ingredient.slug).sort(),
+      rowsCut: shown.length,
+      shownSlugs: shown.map(ingredient => ingredient.slug).sort(),
       slot,
       tokensAfter: rows.length * TOKENS_PER_ROW,
       tokensBefore: eatable.length * TOKENS_PER_ROW,
+      tokensCut: shown.length * TOKENS_PER_ROW,
       topCulprits: [...culprits]
         .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
         .slice(0, TOP_CULPRITS)
@@ -155,13 +234,16 @@ function change(before, after) {
 
 function printPerson(result) {
   console.log(`\n${result.slug} — library ${result.librarySize} dishes, ${result.dishesDropped} left with no meal at all`);
-  console.log('  slot              rows before→after   tokens before→after (change)   dishes before→after');
+  console.log(
+    '  slot              rows before→lists→cut   tokens before→cut (change)    library uses   prompt chars before→after (ratio)   dishes before→after'
+  );
 
   for (const entry of result.slots) {
     const short = entry.dishesAfter < DISHES_NEEDED_PER_SLOT ? `  SHORT of ${DISHES_NEEDED_PER_SLOT}` : '';
+    const ratio = `${((entry.promptAfter / entry.promptBefore) * 100).toFixed(1)}%`;
 
     console.log(
-      `  ${entry.slot.padEnd(17)} ${`${entry.rowsBefore}→${entry.rowsAfter}`.padEnd(19)} ${`${entry.tokensBefore}→${entry.tokensAfter} (${change(entry.tokensBefore, entry.tokensAfter)})`.padEnd(30)} ${entry.dishesBefore}→${entry.dishesAfter}${short}`
+      `  ${entry.slot.padEnd(17)} ${`${entry.rowsBefore}→${entry.rowsAfter}→${entry.rowsCut}`.padEnd(23)} ${`${entry.tokensBefore}→${entry.tokensCut} (${change(entry.tokensBefore, entry.tokensCut)})`.padEnd(29)} ${String(entry.libraryUses ?? 'not cut').padEnd(14)} ${`${entry.promptBefore}→${entry.promptAfter} (${ratio})`.padEnd(35)} ${entry.dishesBefore}→${entry.dishesAfter}${short}`
     );
   }
 
@@ -203,7 +285,7 @@ async function main() {
 
           for (const person of PEOPLE) {
             // eslint-disable-next-line no-await-in-loop -- one person at a time inside one transaction.
-            results.push(await measurePerson(person, base));
+            results.push(await measurePerson(person, base, options));
           }
         } finally {
           databaseModule.database = originalDatabase;
@@ -221,6 +303,9 @@ async function main() {
   console.log(
     `Locale: ${options.locale}. Tokens estimated at ${TOKENS_PER_ROW} per catalogue row. Dishes needed per slot: ${DISHES_NEEDED_PER_SLOT}.`
   );
+  console.log(
+    `Prompt ${PROMPT_VERSION}. Month ${options.month}, seed "${options.seed}", sample ${CATALOGUE_SAMPLE_SIZE} rows. "before" is 3.4.0's catalogue: every list emptied, no cut.`
+  );
 
   if (!tagged) {
     console.log(`Every meal list is empty in this database (${catalogue} rows): re-run the seed to load the overlays.`);
@@ -233,7 +318,20 @@ async function main() {
   if (options.json) {
     writeFileSync(
       options.json,
-      JSON.stringify({ dishesNeededPerSlot: DISHES_NEEDED_PER_SLOT, locale: options.locale, results, tokensPerRow: TOKENS_PER_ROW }, null, 2)
+      JSON.stringify(
+        {
+          dishesNeededPerSlot: DISHES_NEEDED_PER_SLOT,
+          locale: options.locale,
+          month: options.month,
+          promptVersion: PROMPT_VERSION,
+          results,
+          sampleSize: CATALOGUE_SAMPLE_SIZE,
+          seed: options.seed,
+          tokensPerRow: TOKENS_PER_ROW
+        },
+        null,
+        2
+      )
     );
     console.log(`\nWritten to ${options.json}`);
   }

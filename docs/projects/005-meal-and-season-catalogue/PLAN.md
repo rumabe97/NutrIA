@@ -135,7 +135,7 @@ at a time.
 
 ### Phase 3 — Which meals a dish may be served at
 
-- [x] done
+- [x] done — commit `d5d857a` ("Project 005 phase 3: a dish is served only at the meals its ingredients belong to")
 - **Dispatch**: opus @ high — `/execute-project 005 phase 3` — `quality-max`: narrows AI
   output (see Routing profile)
 - **Goal**: a dish is only ever placed at meals every one of its ingredients belongs to,
@@ -182,9 +182,9 @@ at a time.
   - `plan-evaluator`: `evaluate-plans.mjs --compare` against `main`, on dev re-seeded with
     phase 2's lists — no profile loses days inside 5%.
 
-### Phase 4 — Prompt 3.5.0
+### Phase 4 — Prompt 3.5.0 (shipped as 4.1.0)
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 005 phase 4` (see Routing profile)
 - **Goal**: each request shows one meal's foods, with the season first, and tells lunch
   and dinner what they are.
@@ -193,7 +193,13 @@ at a time.
   `apps/api/src/modules/meal-plans/services/GenerationShared.ts` (the prompt context),
   the callers that build it (generation, swap, event rebuild), and — for `0063` — a
   library-usage read in `packages/core/src/repositories/Recipe/RecipeRepository.ts` with
-  its controller and tests, and `apps/api/scripts/catalogue-by-meal.mjs`.
+  its controller and tests, and `apps/api/scripts/catalogue-by-meal.mjs`. Amended in
+  phase 4 (see LOG): the cut itself lives in `packages/core/src/domain/MealFit/`
+  (`mealCatalogue`, `libraryUsage`, `CATALOGUE_SAMPLE_SIZE`, `offersPulses`), so the pool
+  builder and the script call one function; `MealSwap.service.ts` and its spec (the swap's
+  month and usage); `health-boundary.spec.ts`; the script's row in `apps/api/AGENTS.md`;
+  `buildPoolPrompt` takes an `offer` parameter; the version is `4.1.0` because Legal A
+  (#104) had already shipped `4.0.0`.
 - **Steps**:
   1. Add `month: number` (1–12) to `PromptContext`, set by `GenerationShared` from the
      fortnight's first day (a swap or an event rebuild: the day being replaced).

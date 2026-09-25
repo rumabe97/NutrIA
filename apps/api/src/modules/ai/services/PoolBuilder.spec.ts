@@ -1,5 +1,6 @@
 import { describe, expect, it, jest } from '@jest/globals';
 
+import { CATALOGUE_SAMPLE_SIZE } from 'core/domain/MealFit';
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 import { toCatalogue } from 'core/entities/Plan';
@@ -127,6 +128,7 @@ describe('PoolBuilder', () => {
     goal: null,
     likedFoods: [],
     lovedNames: [],
+    month: 1,
     slotShares: new Map(),
     targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
   };
@@ -610,6 +612,7 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
     goal: null,
     likedFoods: [],
     lovedNames: [],
+    month: 1,
     slotShares: new Map(),
     targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
   };
@@ -693,6 +696,147 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
   });
 });
 
+/**
+ * What each request is shown (4.1.0): one meal's foods (`0062`), and for lunch
+ * and dinner only what the library cooks there, the produce in season and a
+ * sample of the rest drawn from the job's id (`0063`) — all of it cut from
+ * what the allergy gate and the preferences already let through.
+ */
+describe('PoolBuilder — the catalogue each request is shown', () => {
+  const preferences = {
+    avoidNames: [],
+    budget: null,
+    cookingFrequency: null,
+    cookingTimeMinutes: 30,
+    cuisines: [],
+    dayShape: null,
+    dietaryPatterns: [],
+    dislikedNames: [],
+    goal: null,
+    likedFoods: [],
+    lovedNames: [],
+    month: 1,
+    slotShares: new Map(),
+    targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
+  };
+  const lentils: CatalogueIngredient = { ...ingredient('lentejas-cocidas'), category: 'protein', mealSlots: ['lunch'] };
+  const orange: CatalogueIngredient = { ...ingredient('naranja'), category: 'produce', seasonMonths: [12, 1, 2, 3] };
+  const summer: CatalogueIngredient = { ...ingredient('tomate-de-huerta'), category: 'produce', seasonMonths: [6, 7, 8, 9] };
+  // Foods no recipe uses and in no season: only the sample brings them to a lunch or a dinner.
+  const extras = Array.from({ length: CATALOGUE_SAMPLE_SIZE * 2 }, (_, index) => ingredient(`extra-${String(index).padStart(3, '0')}`));
+  const rows = [...CATALOGUE, lentils, orange, summer, ...extras];
+  const withRows = (overrides?: Partial<GenerationContext['safety']>): GenerationContext => ({ ...context(overrides), catalogue: toCatalogue(rows) });
+  const cooked = new Map<MealSlot, ReadonlySet<string>>([
+    ['lunch', new Set(['ing-arroz', 'ing-lentejas-cocidas', 'ing-pan'])],
+    ['dinner', new Set(['ing-pollo'])]
+  ]);
+
+  /** Each request's prompt, by the meal it asks for. */
+  function promptsOf(generate: jest.Mock): Map<string, string> {
+    return new Map(
+      generate.mock.calls.map(([request]) => {
+        const prompt = (request as AiRequest<unknown>).prompt;
+
+        return [/DISHES NEEDED:\n- ([a-z -]+):/.exec(prompt)?.[1] ?? '?', prompt];
+      })
+    );
+  }
+
+  const shows = (prompt: string | undefined, slug: string) => new RegExp(`(^|[\\s,:])${slug}(,|\\n|$)`, 'm').test(prompt ?? '');
+  const extrasIn = (prompt: string | undefined) => extras.filter(extra => shows(prompt, extra.slug)).length;
+
+  it('shows each meal only the foods that belong at it', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({ context: withRows(), preferences, reusable: [], slots: ['breakfast', 'lunch', 'dinner'] });
+
+    const prompts = promptsOf(generate);
+
+    expect(shows(prompts.get('breakfast'), 'lentejas-cocidas')).toBe(false);
+    expect(shows(prompts.get('lunch'), 'lentejas-cocidas')).toBe(true);
+    expect(shows(prompts.get('dinner'), 'lentejas-cocidas')).toBe(false);
+    // Without the library's usage nothing is cut a second time.
+    expect(extrasIn(prompts.get('lunch'))).toBe(extras.length);
+  });
+
+  it('asks a dinner without pulses for no legumes, and a lunch with them as before', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({ context: withRows(), preferences, reusable: [], slots: ['lunch', 'dinner'] });
+
+    const prompts = promptsOf(generate);
+
+    expect(prompts.get('lunch')).toContain('chicken, beef, pork, fish, eggs, legumes, dairy');
+    expect(prompts.get('dinner')).toContain('chicken, beef, pork, fish, eggs, dairy');
+  });
+
+  it('shows lunch and dinner what the library cooks there, the produce in season, and a sample of the rest', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({
+      context: withRows(),
+      libraryUsage: cooked,
+      preferences,
+      reusable: [],
+      session: 'job-1',
+      slots: ['breakfast', 'lunch', 'dinner']
+    });
+
+    const prompts = promptsOf(generate);
+    const lunch = prompts.get('lunch');
+
+    expect(shows(lunch, 'arroz')).toBe(true);
+    expect(shows(lunch, 'lentejas-cocidas')).toBe(true);
+    expect(shows(lunch, 'naranja')).toBe(true);
+    expect(shows(prompts.get('dinner'), 'pollo')).toBe(true);
+    // Everything else at lunch is the sample: the constant's size, drawn from the extras and the unused rows.
+    const rest = rows.filter(row => !['arroz', 'lentejas-cocidas', 'naranja', 'pan'].includes(row.slug));
+
+    expect(rest.filter(row => shows(lunch, row.slug))).toHaveLength(CATALOGUE_SAMPLE_SIZE);
+    // Breakfast is not cut a second time.
+    expect(extrasIn(prompts.get('breakfast'))).toBe(extras.length);
+  });
+
+  it('draws the same sample for the same job and another for another job', async () => {
+    const lunchFor = async (session: string) => {
+      const { client, generate } = stubClient([{ dishes: [] }]);
+
+      await new PoolBuilder(client).build({ context: withRows(), libraryUsage: cooked, preferences, reusable: [], session, slots: ['lunch'] });
+
+      return promptsOf(generate).get('lunch');
+    };
+
+    expect(await lunchFor('job-1')).toBe(await lunchFor('job-1'));
+    expect(await lunchFor('job-2')).not.toBe(await lunchFor('job-1'));
+  });
+
+  it('cuts only from what is safe: a food the library cooks is still never shown to somebody allergic to it', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({
+      context: withRows({ allergenIds: new Set([GLUTEN]) }),
+      libraryUsage: cooked,
+      preferences,
+      reusable: [],
+      session: 'job-1',
+      slots: ['lunch']
+    });
+
+    expect(shows(promptsOf(generate).get('lunch'), 'pan')).toBe(false);
+    expect(shows(promptsOf(generate).get('lunch'), 'arroz')).toBe(true);
+  });
+
+  it('marks the produce in season in the month it is told, and lists the rest after it', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({ context: withRows(), preferences: { ...preferences, month: 7 }, reusable: [], slots: ['breakfast'] });
+
+    expect(promptsOf(generate).get('breakfast')).toContain(
+      'Fresh produce and herbs:\nIn season now (prefer these): tomate-de-huerta\nAlso available: naranja\n'
+    );
+  });
+});
+
 function dish2(slug: string): CandidateDish {
   return { ...dish(slug, SLOTS), slug };
 }
@@ -710,6 +854,7 @@ describe('PoolBuilder — telling a broken provider from an absent one', () => {
     goal: null,
     likedFoods: [],
     lovedNames: [],
+    month: 1,
     slotShares: new Map(),
     targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
   };
@@ -777,6 +922,7 @@ describe('PoolBuilder — the call log', () => {
     goal: null,
     likedFoods: [],
     lovedNames: [],
+    month: 1,
     slotShares: new Map(),
     targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
   };
@@ -915,6 +1061,7 @@ describe('PoolBuilder — the time budget', () => {
     goal: null,
     likedFoods: [],
     lovedNames: [],
+    month: 1,
     slotShares: new Map(),
     targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
   };

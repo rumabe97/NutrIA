@@ -39,6 +39,9 @@ const { PlanGenerationService, STEPS } = await import('./PlanGeneration.service.
 const GLUTEN = 'allergen-gluten';
 const SLOTS: readonly MealSlot[] = ['breakfast', 'lunch', 'dinner'];
 
+/** What the library cooks lunch and dinner from, as `RecipeController.libraryUsage` would answer. */
+const USAGE = new Map<MealSlot, ReadonlySet<string>>([['lunch', new Set(['ing-arroz'])]]);
+
 /**
  * The targets the pipeline will actually plan against for PROFILE. Derived rather
  * than hardcoded, so the fixture cannot drift away from the maths and make
@@ -199,6 +202,7 @@ function build(overrides: Partial<Mocks> = {}) {
     .spyOn(PlanController, 'generationHistory')
     .mockResolvedValue({ nextVersion: 3, recentDishes: [{ name: 'Pollo al limón', slug: 'pollo-al-limon' }] });
   jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(reusable);
+  jest.spyOn(RecipeController, 'libraryUsage').mockResolvedValue(USAGE);
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [], liked: [] });
   jest.spyOn(CheckInController, 'latestForGeneration').mockResolvedValue(null);
   jest.spyOn(EventController, 'list').mockResolvedValue(overrides.events ?? []);
@@ -253,6 +257,24 @@ describe('PlanGenerationService', () => {
     const input = buildPool.mock.calls[0]?.[0] as { preferences: { avoidNames: readonly string[] } } | undefined;
 
     expect(input?.preferences.avoidNames).toEqual(['Pollo al limón']);
+  });
+
+  /*
+   * The fortnight's month decides which produce the prompt marks as in season
+   * (`0062` § 6); the library's usage and the job's id decide what a lunch and
+   * a dinner are shown (`0063`) — the id so the sample can be rebuilt from it.
+   */
+  it('tells the pool builder the month the fortnight starts, what the library cooks, and the job to seed its sample with', async () => {
+    const { buildPool, service } = build();
+
+    await service.generate('user-1', 'job-1', async () => Promise.resolve());
+
+    const input = buildPool.mock.calls[0]?.[0] as { libraryUsage: unknown; preferences: { month: number }; session: string } | undefined;
+
+    expect(input?.preferences.month).toBe(new Date().getUTCMonth() + 1);
+    expect(RecipeController.libraryUsage).toHaveBeenCalledWith(SLOTS, expect.anything());
+    expect(input?.libraryUsage).toBe(USAGE);
+    expect(input?.session).toBe('job-1');
   });
 
   /*

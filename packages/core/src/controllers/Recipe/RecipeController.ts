@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import { fitSlots } from 'core/domain/MealFit';
+import { fitSlots, libraryUsage, SECOND_CUT_SLOTS } from 'core/domain/MealFit';
 import { hasUsableMethod } from 'core/domain/Method';
 import { rotatePool } from 'core/domain/Variety';
 import { bestEffortExclusions, dishSafety, mentionsUnresolvedAllergy } from 'core/domain/Safety';
@@ -17,6 +17,7 @@ import { VacationRepository } from '#repositories/Vacation';
 import { isAway } from 'core/domain/Vacation';
 import { toCatalogue } from 'core/entities/Plan';
 import type { CandidateDish, Catalogue, MealSlot, RecipeVerdict } from 'core/entities/Plan';
+import type { LibraryUsage } from 'core/domain/MealFit';
 import type { Rotation } from 'core/domain/Variety';
 import type { RecipeStep } from 'database/schema/recipe';
 import type { DishRef, ReusableRecipe, UndocumentedRecipe } from '#repositories/Recipe';
@@ -204,6 +205,27 @@ export const RecipeController = {
   /** The stored illustration for a public route to serve; nothing else about the recipe. */
   async illustration(recipeId: string): Promise<{ readonly bytes: Buffer; readonly contentType: string } | undefined> {
     return RecipeRepository.findImage(recipeId);
+  },
+
+  /**
+   * Which ingredients the library cooks each of these meals from, for this
+   * person — the first of the three things `0063`'s second cut keeps. Only
+   * lunch and dinner are cut, so only they are read; a request for neither
+   * reads nothing.
+   *
+   * Every recipe is narrowed with `fitSlots` for this person before it counts
+   * (`MealFit.libraryUsage`), never taken at its stored meals.
+   */
+  async libraryUsage(slots: readonly MealSlot[], context: GenerationContext): Promise<LibraryUsage> {
+    const cut = slots.filter(slot => SECOND_CUT_SLOTS.has(slot));
+
+    if (cut.length === 0) {
+      return new Map();
+    }
+
+    const recipes = await RecipeRepository.findLibraryUsage(cut);
+
+    return libraryUsage(recipes, cut, context.catalogue, context.dietaryPatterns);
   },
 
   /**

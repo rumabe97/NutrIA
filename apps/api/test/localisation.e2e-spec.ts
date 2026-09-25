@@ -180,10 +180,27 @@ describe('an English account, end to end', () => {
     // part that varies.
     expect(prompt).toContain('Design dishes for a 14-day meal plan.');
     expect(prompt).toContain('BRITISH ENGLISH');
+
     // The catalogue listing is in the user's language too, so dish names come
-    // back using words they know.
-    expect(prompt).toContain(`${SEEDED.arroz} (${ENGLISH_NAMES[SEEDED.arroz] as string})`);
-    expect(prompt).not.toContain('Arroz blanco cocido');
+    // back using words they know — but `prompts[0]` is breakfast (`slotsIn`'s
+    // order), and rice (`arroz-blanco-cocido`) is a lunch/dinner-only cooking
+    // base (`0062` § 3), so breakfast's prompt never lists it. Read the prompt
+    // that actually asked for lunch or dinner instead: one request per slot
+    // (`0016`), so its `DISHES NEEDED:` line names the slot on its own.
+    // Guaranteed there either way `0063`'s second cut lands: below the
+    // nineteen fitting dishes it needs (`DISHES_NEEDED_PER_SLOT`) lunch and
+    // dinner keep `0062`'s cut alone, which lists rice; at or above it, rice
+    // is what the library already cooks there — this suite's own `POOL`, and
+    // every other suite's, scripts rice (`SEEDED.arroz`) into several lunch
+    // and dinner dishes, so it is always in the "used" set once one exists.
+    const lunchOrDinnerPrompt = ai.prompts.find(text => text.includes('- lunch:') || text.includes('- dinner:')) as string;
+
+    expect(lunchOrDinnerPrompt).toContain(`${SEEDED.arroz} (${ENGLISH_NAMES[SEEDED.arroz] as string})`);
+
+    // The Spanish name never leaks into any prompt, whichever meal it is for.
+    for (const text of ai.prompts) {
+      expect(text).not.toContain('Arroz blanco cocido');
+    }
   }, 200_000);
 
   it('reads the shopping list back in whatever language they are in now', async () => {
@@ -204,17 +221,23 @@ describe('an English account, end to end', () => {
   }, 60_000);
 
   it('never offers them a food that is only sold in Spain', async () => {
-    const prompt = ai.prompts[0] as string;
-
     // The catalogue the model is given is already filtered: a dish it cannot
     // propose is a dish nothing downstream has to reject. Sobrasada is the
-    // clearest case — a Mallorcan sausage with no British shelf.
-    expect(prompt).not.toContain('sobrasada');
-    expect(prompt).not.toContain('jamon-serrano');
-    expect(prompt).not.toContain('pimenton-dulce');
+    // clearest case — a Mallorcan sausage with no British shelf. Every prompt,
+    // whichever meal it asked for — the Spain-only cut runs before `0062`'s.
+    for (const prompt of ai.prompts) {
+      expect(prompt).not.toContain('sobrasada');
+      expect(prompt).not.toContain('jamon-serrano');
+      expect(prompt).not.toContain('pimenton-dulce');
+    }
+
     // And the rest of the catalogue is still there, which is why filtering
-    // cannot starve a plan: thirty rows out of nine hundred.
-    expect(prompt).toContain(SEEDED.arroz);
+    // cannot starve a plan: thirty rows out of nine hundred. Rice is a
+    // lunch/dinner-only cooking base (`0062` § 3); see the comment above for
+    // why it is guaranteed in whichever of those prompts exists.
+    const lunchOrDinnerPrompt = ai.prompts.find(text => text.includes('- lunch:') || text.includes('- dinner:')) as string;
+
+    expect(lunchOrDinnerPrompt).toContain(SEEDED.arroz);
   }, 200_000);
 
   it('gives them a shopping list with no Spanish in it', async () => {

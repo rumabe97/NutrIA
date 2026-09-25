@@ -1,4 +1,5 @@
 import { DEFAULT_MEAL_SHAPE, weightsFor } from 'core/domain/MealShape';
+import { inSeason } from 'core/domain/MealFit';
 import { INGREDIENT_CATEGORIES, SNACK_SLOTS } from 'core/entities/Plan';
 import { normaliseForMatching } from 'core/domain/Safety';
 
@@ -104,8 +105,22 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * structured: the numbers, the meal shape, the times, the goal, the cooking
  * limits, a way of eating from `NAMEABLE_PATTERNS`, cuisines from
  * `NAMEABLE_CUISINES`, and liked foods by their catalogue names.
+ * 4.1.0: each request shows one meal's foods (project 005; planned as 3.5.0,
+ * written after 4.0.0 shipped). Every request was shown the whole catalogue —
+ * 930 rows, chorizo and frozen squid beside a breakfast's oats — and at ~8,000
+ * tokens a lunch was refused outright by the free tier the owner is moving to.
+ * Now a request lists what belongs at its meal for this person (`0062`), and a
+ * lunch or a dinner only what the library cooks there, the produce in season
+ * and a sample of thirty drawn per generation (`0063`). Produce in season in
+ * the fortnight's month comes first, marked as preferred; nothing is withheld
+ * for its season alone. Lunch and dinner are told what kind of food they are,
+ * as breakfast and snacks were in 3.3.0 — dinner is lighter, and not a stew —
+ * and the spread rule names legumes as a main protein only where the meal
+ * offers them. Measured on the dev catalogue and library (2026-09-25), the
+ * standard lunch request is 54.8% of 3.4.0's length in its worst month
+ * (23,185 characters with every list empty and no cut); dinner 53.0%.
  */
-export const PROMPT_VERSION = '4.0.0';
+export const PROMPT_VERSION = '4.1.0';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -174,6 +189,12 @@ export type PromptContext = {
   readonly loadedTargets?: readonly NutritionTargets[];
   /** Dishes the person marked as liked: the taste to design towards, and dishes that may return. */
   readonly lovedNames: readonly string[];
+  /**
+   * 1–12: the month the fortnight starts in — for a swap, the month of the day
+   * being replaced. Produce in season then is listed first and marked
+   * (`0062` § 6), and a lunch's or a dinner's catalogue keeps it (`0063`).
+   */
+  readonly month: number;
   readonly needBySlot: ReadonlyMap<MealSlot, number>;
   /**
    * Each eaten slot's share of the person's whole day, from their meal shape
@@ -278,14 +299,36 @@ function listed(ingredient: CatalogueIngredient): string {
   return redundant ? ingredient.slug : `${ingredient.slug} (${ingredient.name})`;
 }
 
-function catalogueByAisle(safeIngredients: readonly CatalogueIngredient[]): string {
-  return INGREDIENT_CATEGORIES.map(category => {
-    const rows = safeIngredients
-      .filter(ingredient => ingredient.category === category)
-      .sort((a, b) => a.slug.localeCompare(b.slug))
-      .map(listed);
+const IN_SEASON_HEADING = 'In season now (prefer these):';
+const LATER_HEADING = 'Also available:';
 
-    return rows.length > 0 ? `${CATEGORY_LABEL[category]}:\n${rows.join(', ')}` : '';
+/**
+ * One aisle's rows, by slug. Produce in season this month comes first under
+ * its own heading, the rest after (4.1.0, `0062` § 6): the model is told what
+ * to prefer and still offered everything, since a tomato is on every shelf in
+ * January. An aisle with nothing out of season — every produce list empty, or
+ * a month when all of it is in — is listed as it always was.
+ */
+function aisleRows(rows: readonly CatalogueIngredient[], category: IngredientCategory, month: number): string {
+  const sorted = [...rows].sort((a, b) => a.slug.localeCompare(b.slug));
+  const later = category === 'produce' ? sorted.filter(ingredient => !inSeason(ingredient, month)) : [];
+
+  if (later.length === 0) {
+    return sorted.map(listed).join(', ');
+  }
+
+  const now = sorted.filter(ingredient => inSeason(ingredient, month));
+
+  return [now.length > 0 ? `${IN_SEASON_HEADING} ${now.map(listed).join(', ')}` : null, `${LATER_HEADING} ${later.map(listed).join(', ')}`]
+    .filter((line): line is string => line !== null)
+    .join('\n');
+}
+
+function catalogueByAisle(safeIngredients: readonly CatalogueIngredient[], month: number): string {
+  return INGREDIENT_CATEGORIES.map(category => {
+    const rows = safeIngredients.filter(ingredient => ingredient.category === category);
+
+    return rows.length > 0 ? `${CATEGORY_LABEL[category]}:\n${aisleRows(rows, category, month)}` : '';
   })
     .filter(Boolean)
     .join('\n\n');
@@ -361,8 +404,12 @@ function oneLineList(items: readonly string[], perItem = 80, max = 400): string 
 /**
  * How spread the returned set must be, stated as counts the model can check.
  * "Varied" alone produced eight chicken dishes; a ceiling per protein does not.
+ *
+ * Legumes are named among the main proteins only where the meal's catalogue
+ * offers the pulses lunch does (4.1.0, `offersPulses`): an omnivore's dinner
+ * has none since `0062`, and a rule naming them asks for what is not there.
  */
-function spreadRules(total: number): string[] {
+function spreadRules(total: number, pulses: boolean): string[] {
   if (total < 4) {
     return [];
   }
@@ -370,10 +417,11 @@ function spreadRules(total: number): string[] {
   const perProtein = Math.max(2, Math.ceil(total / 4));
   const perMethod = Math.max(2, Math.ceil(total / 3));
   const cuisines = Math.min(4, Math.floor(total / 3));
+  const proteins = pulses ? 'chicken, beef, pork, fish, eggs, legumes, dairy' : 'chicken, beef, pork, fish, eggs, dairy';
 
   return [
     'SPREAD ACROSS THE SET YOU RETURN (counted over all dishes together):',
-    `- No main protein — chicken, beef, pork, fish, eggs, legumes, dairy — in more than ${perProtein} dishes.`,
+    `- No main protein — ${proteins} — in more than ${perProtein} dishes.`,
     `- No cooking method — roast, sear, stew, salad, sandwich, bowl — in more than ${perMethod} dishes.`,
     `- At least ${cuisines} distinct cuisines, drawing on the preferred ones first.`,
     '- Every dish a different base: do not send the same dish twice with the protein swapped.',
@@ -432,18 +480,38 @@ const COMPOSITION_RULES = [
  * (3.3.0). Forty grams of protein at breakfast came back as pasta with turkey;
  * a snack's figure, as a bowl of turkey with strawberries. Both on the brief,
  * neither what anybody eats at that hour.
+ *
+ * Lunch and dinner joined them in 4.1.0 (PRD 005 § 5): 98 of 372 library
+ * dinners carried a pulse, most of them stewed, and nothing told the model a
+ * dinner is lighter than a lunch. Supper is a snack after dinner, and is told
+ * so.
  */
 const BREAKFAST_CHARACTER =
   'Breakfast: morning food, built on bread, oats, dairy, eggs or fruit — toast, porridge, a yoghurt or skyr bowl, eggs, a sandwich. Not lunch food: no pasta, rice, stews, pulses or plated salads.';
 const SNACK_CHARACTER =
   'Snack: 2-4 ingredients, little or no cooking, but still 1-3 steps. Eaten between meals, in the hand or with a spoon — fruit, yoghurt, a small sandwich or toast, a spread with bread or vegetables. Not a plated main: no rice, pasta, potato or pulses as its base, no skewers, no meat or fish served as a plate; in bread it is a snack.';
+const LUNCH_CHARACTER =
+  'Lunch: the main cooked meal of the day — a full plate or a one-pot dish: stews and pulses, rice, pasta, roasts, a protein with a starch and vegetables.';
+const DINNER_CHARACTER =
+  'Dinner: lighter home cooking than lunch — eggs, fish, grilled meat, vegetable creams, salads, a toast or a sandwich. Not a stew.';
+/** Added to dinner for a vegan or a vegetarian, who keep the pulses at dinner (`0062` § 4) in the forms a dinner takes. */
+const PLANT_BASED_DINNER = 'Pulses in light forms — hummus, purées and creams, warm salads — never stewed.';
 
-function characterOf(slot: MealSlot): string | null {
-  if (slot === 'breakfast') {
-    return BREAKFAST_CHARACTER;
+function characterOf(slot: MealSlot, patterns: readonly string[]): string | null {
+  switch (slot) {
+    case 'breakfast':
+      return BREAKFAST_CHARACTER;
+    case 'lunch':
+      return LUNCH_CHARACTER;
+    case 'dinner':
+      return patterns.some(pattern => pattern === 'vegan' || pattern === 'vegetarian')
+        ? `${DINNER_CHARACTER} ${PLANT_BASED_DINNER}`
+        : DINNER_CHARACTER;
+    case 'supper':
+      return SNACK_CHARACTER;
+    default:
+      return SNACK_SLOTS.includes(slot) ? SNACK_CHARACTER : null;
   }
-
-  return SNACK_SLOTS.includes(slot) ? SNACK_CHARACTER : null;
 }
 
 type SlotBrief = { readonly carbsG: number; readonly fatG: number; readonly fiberG: number; readonly kcal: number; readonly proteinG: number };
@@ -518,9 +586,25 @@ function loadedLines(context: PromptContext, share: number, count: number): read
   ];
 }
 
-export function buildPoolPrompt(context: PromptContext, safeIngredients: readonly CatalogueIngredient[]): string {
+/** What the builder knows about the catalogue a request is shown that the rows alone do not say. */
+export type CatalogueOffer = {
+  /** Whether the meal offers the pulses lunch does (`offersPulses`); legumes are named as a main protein only then. */
+  readonly pulses: boolean;
+};
+
+/**
+ * One request's prompt. `safeIngredients` is the catalogue this request is
+ * shown — since 4.1.0, one meal's (`mealCatalogue`), which the pool builder
+ * cuts; this lists what it is given and cuts nothing itself.
+ */
+export function buildPoolPrompt(
+  context: PromptContext,
+  safeIngredients: readonly CatalogueIngredient[],
+  offer: CatalogueOffer = { pulses: true }
+): string {
   const shares = sharesOf(context);
   const wanted = [...context.needBySlot.entries()].filter(([, count]) => count > 0);
+  const patterns = context.dietaryPatterns.filter(pattern => NAMEABLE_PATTERNS.has(pattern));
 
   // Per serving, per slot, on all four macros and fibre. A model told only a
   // daily figure — or only energy and protein — writes dishes that hit those
@@ -529,7 +613,7 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
   const needs = wanted
     .map(([slot, count]) => {
       const brief = briefFor(context.targets, shares.get(slot) ?? 0);
-      const character = characterOf(slot);
+      const character = characterOf(slot, patterns);
       const shape = character ? `\n  ${character}` : '';
 
       // As numbers, because prose was not enough: asked to straddle, 3.1.0's
@@ -542,10 +626,9 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
 
   const firstSlot = wanted[0];
   const loaded = firstSlot ? loadedLines(context, shares.get(firstSlot[0]) ?? 0, firstSlot[1]) : [];
-  const catalogue = catalogueByAisle(safeIngredients);
+  const catalogue = catalogueByAisle(safeIngredients, context.month);
   const cuisines = oneLineList(context.cuisines.filter(cuisine => NAMEABLE_CUISINES.has(normaliseForMatching(cuisine))));
   const likes = oneLineList(context.likedFoods);
-  const patterns = context.dietaryPatterns.filter(pattern => NAMEABLE_PATTERNS.has(pattern));
 
   return (
     [
@@ -590,7 +673,10 @@ export function buildPoolPrompt(context: PromptContext, safeIngredients: readonl
       needs,
       '',
       ...loaded,
-      ...spreadRules([...context.needBySlot.values()].reduce((sum, count) => sum + count, 0)),
+      ...spreadRules(
+        [...context.needBySlot.values()].reduce((sum, count) => sum + count, 0),
+        offer.pulses
+      ),
       'THIS PERSON (design for them, not for a profile):',
       context.cookingFrequency ? `- Cooks: ${context.cookingFrequency}` : null,
       context.dayShape ? `- Their day: ${context.dayShape}` : null,

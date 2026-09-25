@@ -191,12 +191,21 @@ describe('recorded health data, end to end', () => {
       expect(prompt).not.toContain('hipotiroidismo');
       expect(prompt).not.toContain('hypothyroid');
       expect(prompt).not.toContain(SUPPLEMENT.toLowerCase());
-      // What a protein supplement changes is the catalogue, not the prompt's
-      // words about them: protein powder is offered, the supplement never named
-      // (`0052`). The other half — no powder for somebody who takes none — is in
-      // `generation.e2e-spec.ts`.
-      expect(prompt).toContain('proteina-de-suero');
     }
+
+    // What a protein supplement changes is the catalogue, not the prompt's
+    // words about them: protein powder is offered, the supplement never named
+    // (`0052`). The other half — no powder for somebody who takes none — is in
+    // `generation.e2e-spec.ts`. But whey protein belongs to breakfast and the
+    // snacks only (`0062` § 3), and this account's shape — `shapeFor(3, false)`
+    // in `completeOnboarding` — has no snack slot, so breakfast is the only
+    // prompt it could ever be offered in; every other prompt (lunch, dinner)
+    // is honestly checked above by the loop's negative assertions alone.
+    // Breakfast never gets `0063`'s further cut — only lunch and dinner do —
+    // so it is guaranteed there regardless of what the e2e library has cooked.
+    const breakfastPrompt = ai.prompts.find(text => text.includes('- breakfast:')) as string;
+
+    expect(breakfastPrompt.toLowerCase()).toContain('proteina-de-suero');
   }, 200_000);
 
   it('deletes all of it, and the consent with it, on withdrawal', async () => {

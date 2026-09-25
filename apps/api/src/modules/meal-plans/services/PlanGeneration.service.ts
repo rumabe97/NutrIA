@@ -163,9 +163,12 @@ export class PlanGenerationService {
       preferSlugs: new Set(verdicts.liked.map(dish => dish.slug)),
       seed: `${userId}:${history.nextVersion}`
     };
-    const [reusable, everything] = await Promise.all([
+    const [reusable, everything, libraryUsage] = await Promise.all([
       RecipeController.reusablePool(slots, context, rotation),
-      RecipeController.reusablePool(slots, context)
+      RecipeController.reusablePool(slots, context),
+      // What the library cooks lunch and dinner from, for this person: what
+      // their requests keep of those meals' catalogues (`0063`).
+      RecipeController.libraryUsage(slots, context)
     ]);
     // What rotation held back for freshness, minus last fortnight's and the
     // dislikes: the builder covers a short first round from here rather than
@@ -175,12 +178,14 @@ export class PlanGenerationService {
     const built = await this.pool.build({
       backfill,
       context,
+      libraryUsage,
       preferences: {
         ...promptPreferences(
           profile,
           verdicts,
           history.recentDishes.map(dish => dish.name),
           targets,
+          isoDate(start),
           checkIn,
           null,
           likedFoodNames(context)
@@ -191,7 +196,10 @@ export class PlanGenerationService {
         loadedTargets: [...new Map([...loads.dayTargets.values()].map(load => [JSON.stringify(load), load])).values()]
       },
       reusable,
-      // The job id, so a gateway's own log files this generation's calls together.
+      // The job id, so a gateway's own log files this generation's calls
+      // together — and the seed of the sample a lunch and a dinner are shown
+      // (`0063`), so this job's prompts can be rebuilt from it and the next
+      // job's show other foods.
       session: jobId,
       slots
     });
