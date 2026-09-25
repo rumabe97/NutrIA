@@ -253,3 +253,39 @@
     generated, pushing lunch up; re-measure before raising the sample.
   - `evaluate-plans.mjs` should not move: no scheduling or reuse changed here.
   - Vegan supper still short of 19 (9 → 8), as before.
+
+## Phase 5 — Offline quality, and production (2026-09-25)
+
+- **Executor**: the lead (Opus 5.5) directly — measurement and documentation, no code.
+- **Result**: done.
+- **Evidence**:
+  - `evaluate-plans.mjs --compare` on `main` at `2cdf4d8` (phases 3 and 4) against the run
+    on `40899e1` (before any narrowing), dev seeded with the lists: 11 profiles, none worse,
+    `objetivo-bajo-3-comidas` better (worst deviation 5.1% → 5.0%, 13/14 days as before),
+    the other ten the same, 14/14 where they were; no plate carried a declared allergen
+    (exit 0). PRD 6.
+  - Library dishes servable per slot (`catalogue-by-meal.mjs`), omnivore: breakfast
+    228 → 155, morning snack 143 → 119, lunch 342 → 339, afternoon snack 208 → 178, dinner
+    348 → 251, supper 58 → 42 — every slot ≥ 19. Vegan: every slot ≥ 19 except supper,
+    9 → 8, short before the project too; generation asks the model for the gap.
+  - Prompt size, 3.4.0 → 4.1.0 characters, omnivore (`--seed phase5`): January — lunch
+    23,185 → 12,528 (54.0%), dinner 52.1%, breakfast 63.0%, snacks 68.8%, supper 68.5%;
+    July — lunch 54.0%, dinner 52.1%. September (phase 4 run) lunch 53.5%. Vegan lunch
+    ~64.6%, dinner ~64.5%. PRD 2 met for the standard lunch.
+  - No allergy check changed: `dishSafety`, `isSafeIngredient` and the preference
+    exclusions are untouched since phase 3's review.
+  - owner-gated, done: the owner re-ran `pnpm --filter database seed` against production
+    after phase 2 deployed (confirmed by the owner, 2026-09-25).
+  - Docs: `ARCHITECTURE.md` (the exception-list columns; each meal sees its own foods),
+    `reference/ai-gateway.md` § 5 (what a request weighs; no prompt caching measured),
+    `ROADMAP.md` § 7 (phases 1–5 in production). The script's row in `apps/api/AGENTS.md`
+    landed in phase 2.
+- **Deviations from plan**: the comparison baseline is the run before phase 3 on dev with
+  the lists seeded, which covers phases 3 and 4 together.
+- **Decisions**: none new.
+- **Notes for the next phase**:
+  - The lunch request is ~4,100 tokens of input; four dishes of output were ~2,500–3,500
+    tokens on the models measured in the audit. One request fits Groq's 8,000 tokens a
+    minute; several at once do not.
+  - `bench-models.mjs` can reuse `catalogue-by-meal.mjs`'s prompt builder from the built
+    api and `MealFit.mealCatalogue` for the cut.

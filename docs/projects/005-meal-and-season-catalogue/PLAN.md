@@ -184,7 +184,7 @@ at a time.
 
 ### Phase 4 — Prompt 3.5.0 (shipped as 4.1.0)
 
-- [x] done
+- [x] done — commit `2cdf4d8` ("Project 005 phase 4: prompt 4.1.0 shows each meal only its own foods, in season")
 - **Dispatch**: opus @ high — `/execute-project 005 phase 4` (see Routing profile)
 - **Goal**: each request shows one meal's foods, with the season first, and tells lunch
   and dinner what they are.
@@ -238,7 +238,7 @@ at a time.
 
 ### Phase 5 — Offline quality, and production
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 005 phase 5` — owner-gated: migrate and
   re-seed production after the merge
 - **Goal**: show, without a model call, that nothing got worse; put it in production.
