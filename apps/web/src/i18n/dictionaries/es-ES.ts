@@ -135,7 +135,8 @@ export const esES = {
       over_time: 'demasiado tiempo',
       schema: 'esquema',
       unknown_ingredient: 'ingrediente inventado',
-      unwanted: 'dieta o gustos'
+      unwanted: 'dieta o gustos',
+      wrong_meal: 'comida equivocada'
     },
     remindersHint:
       'Encendido: cada mañana se avisa, por correo y en los móviles que lo pidieron, a quien ha terminado su quincena sin hacer el check-in. Una vez por quincena, y cada persona puede desactivarlo en su perfil.',

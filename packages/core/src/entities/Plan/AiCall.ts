@@ -1,7 +1,13 @@
 import type { MealSlot } from './Plan';
 
-/** Why a dish the model returned was not kept. */
-export type DishRejection = 'allergen' | 'duplicate' | 'foreign_food' | 'over_time' | 'schema' | 'unknown_ingredient' | 'unwanted';
+/**
+ * Why a dish the model returned was not kept.
+ *
+ * `wrong_meal`: every gate passed, but none of the meals it claimed is one all
+ * of its ingredients belong to for this person (`0062`) — a stew sent back as
+ * a dinner only.
+ */
+export type DishRejection = 'allergen' | 'duplicate' | 'foreign_food' | 'over_time' | 'schema' | 'unknown_ingredient' | 'unwanted' | 'wrong_meal';
 
 /** What a failed call said about itself. */
 export type AiCallFailure = {

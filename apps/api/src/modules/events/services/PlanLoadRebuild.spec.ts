@@ -170,6 +170,7 @@ function build(
     .spyOn(RecipeController, 'generationContext')
     .mockResolvedValue({
       catalogue: CATALOGUE,
+      dietaryPatterns: [],
       locale: 'es-ES',
       preferences: NO_PREFERENCE_EXCLUSIONS,
       safety: {

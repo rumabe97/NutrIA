@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OnboardingIncompleteError, ProfileConsentRequiredError } from 'core/entities/Error';
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
+import { REUSED_DISHES_PER_SLOT } from 'core/domain/Variety';
 import { toCatalogue } from 'core/entities/Plan';
 import { makeCatalogueIngredient } from '#test/fixtures';
 
@@ -88,6 +89,7 @@ describe('RecipeController.reusablePool — an allergy the catalogue could not r
   const rice = makeCatalogueIngredient({ id: 'i-arroz', name: 'Arroz', slug: 'arroz' });
   const context: GenerationContext = {
     catalogue: toCatalogue([rice]),
+    dietaryPatterns: [],
     locale: 'es-ES',
     preferences: NO_PREFERENCE_EXCLUSIONS,
     safety: {
@@ -125,5 +127,100 @@ describe('RecipeController.reusablePool — an allergy the catalogue could not r
     const pool = await RecipeController.reusablePool(['lunch'], context);
 
     expect(pool.map(dish => dish.slug)).toEqual(['arroz-sencillo']);
+  });
+});
+
+describe('RecipeController.reusablePool — a dish is served only at the meals its ingredients belong to (0062)', () => {
+  const lentils = makeCatalogueIngredient({ id: 'i-lentejas', category: 'protein', classes: [], mealSlots: ['lunch'], slug: 'lentejas-cocidas' });
+  const onion = makeCatalogueIngredient({ id: 'i-cebolla', category: 'produce', slug: 'cebolla' });
+  const oil = makeCatalogueIngredient({ id: 'i-aceite', category: 'pantry', slug: 'aceite-de-oliva' });
+  const energyDrink = makeCatalogueIngredient({ id: 'i-energetica', category: 'beverages', mealSlots: ['none'], slug: 'bebida-energetica' });
+  const contextFor = (dietaryPatterns: readonly string[], ingredients = [lentils, onion, oil, energyDrink]): GenerationContext => ({
+    catalogue: toCatalogue(ingredients),
+    dietaryPatterns,
+    locale: 'es-ES',
+    preferences: NO_PREFERENCE_EXCLUSIONS,
+    safety: {
+      allergenIds: new Set(),
+      crossContaminationAllergenIds: new Set(),
+      excludedIngredientIds: new Set(),
+      intoleranceAllergenIds: new Set(),
+      unenforceableLabels: []
+    }
+  });
+  const recipe = (slug: string, mealSlots: ReusableRecipe['mealSlots'], ...slugs: string[]): ReusableRecipe => ({
+    id: slug,
+    // No cooking time, so two steps are a usable method (`hasUsableMethod`): the meal is what is under test.
+    cookMinutes: 0,
+    cuisine: null,
+    difficulty: 'easy',
+    ingredients: slugs.map(ingredient => ({ grams: 80, slug: ingredient })),
+    mealSlots,
+    name: slug,
+    prepMinutes: 10,
+    servings: 1,
+    slug,
+    steps: [
+      { minutes: 10, text: 'Pochar la cebolla en el aceite a fuego medio' },
+      { minutes: 20, text: 'Añadir el resto, cubrir de agua y cocer hasta que esté tierno' }
+    ]
+  });
+  const library = [
+    recipe('lentejas-estofadas', ['lunch', 'dinner'], 'lentejas-cocidas', 'cebolla', 'aceite-de-oliva'),
+    recipe('cebolla-asada', ['breakfast', 'lunch', 'dinner'], 'cebolla', 'aceite-de-oliva'),
+    recipe('cena-energetica', ['dinner'], 'bebida-energetica', 'cebolla'),
+    recipe('lentejas-de-cena', ['dinner'], 'lentejas-cocidas', 'cebolla')
+  ];
+  const slotsOf = (pool: readonly { readonly slots: readonly string[]; readonly slug: string }[]) =>
+    Object.fromEntries(pool.map(dish => [dish.slug, dish.slots]));
+
+  it('serves a lentil stew tagged lunch-only at lunch and not at dinner, and drops a dish left with no meal', async () => {
+    findReusable.mockResolvedValue(library);
+
+    const pool = await RecipeController.reusablePool(['breakfast', 'lunch', 'dinner'], contextFor([]));
+
+    expect(slotsOf(pool)).toEqual({ 'cebolla-asada': ['breakfast', 'lunch', 'dinner'], 'lentejas-estofadas': ['lunch'] });
+  });
+
+  it('serves the same stew at both for a vegan, and still never the food in no meal', async () => {
+    findReusable.mockResolvedValue(library);
+
+    const pool = await RecipeController.reusablePool(['breakfast', 'lunch', 'dinner'], contextFor(['vegan']));
+
+    expect(slotsOf(pool)).toEqual({
+      'cebolla-asada': ['breakfast', 'lunch', 'dinner'],
+      'lentejas-de-cena': ['dinner'],
+      'lentejas-estofadas': ['lunch', 'dinner']
+    });
+  });
+
+  it('changes nothing when every list is empty', async () => {
+    findReusable.mockResolvedValue(library);
+
+    const empty = [lentils, onion, oil, energyDrink].map(ingredient => ({ ...ingredient, mealSlots: [] }));
+    const pool = await RecipeController.reusablePool(['breakfast', 'lunch', 'dinner'], contextFor([], empty));
+
+    expect(slotsOf(pool)).toEqual(Object.fromEntries(library.map(item => [item.slug, item.mealSlots])));
+  });
+
+  it('narrows before the rotation, so the dinners it picks are dinners that can be served', async () => {
+    // A full rotation's worth of stews the person likes — offered first — that
+    // call themselves dinners, and one plain dinner behind them. Counted before
+    // narrowing, the stews would fill every dinner place and the plain dish
+    // would never be picked; the stews would then lose dinner and the slot
+    // would be empty.
+    const stews = Array.from({ length: REUSED_DISHES_PER_SLOT }, (_, index) =>
+      recipe(`lentejas-${String(index)}`, ['lunch', 'dinner'], 'lentejas-cocidas', 'cebolla')
+    );
+
+    findReusable.mockResolvedValue([...stews, recipe('cebolla-asada', ['dinner'], 'cebolla', 'aceite-de-oliva')]);
+
+    const pool = await RecipeController.reusablePool(['dinner'], contextFor([]), {
+      avoidSlugs: new Set(),
+      preferSlugs: new Set(stews.map(stew => stew.slug)),
+      seed: 'usr-1:1'
+    });
+
+    expect(pool.filter(dish => dish.slots.includes('dinner')).map(dish => dish.slug)).toEqual(['cebolla-asada']);
   });
 });
