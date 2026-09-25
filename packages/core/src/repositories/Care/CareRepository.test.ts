@@ -54,8 +54,20 @@ function insert(table: unknown) {
 /** What a plain read of the trail answers, as stored. */
 let trail: Record<string, unknown>[] = [];
 
+/** The `WHERE` the last plain read of the trail was given. */
+let trailWhere: SQL | undefined;
+
 function selectTrail() {
-  const chain = { from: () => chain, limit: () => Promise.resolve(trail), orderBy: () => chain, where: () => chain };
+  const chain = {
+    from: () => chain,
+    limit: () => Promise.resolve(trail),
+    orderBy: () => chain,
+    where: (where: SQL) => {
+      trailWhere = where;
+
+      return chain;
+    }
+  };
 
   return chain;
 }
@@ -186,26 +198,15 @@ describe('CareRepository.setSharesHealth', () => {
 });
 
 describe('CareRepository.accessLog — a value a later release added', () => {
-  const row = (action: string, kind: string) => ({
-    id: LINK,
-    action,
-    createdAt: NOW,
-    kind,
-    linkId: null,
-    professionalId: null,
-    professionalName: 'Dra. Pérez',
-    updatedAt: NOW,
-    userId: 'usr-client'
-  });
+  it('asks only for rows it can name, in the WHERE, so the limit counts only those and paging reaches every older row', async () => {
+    trail = [];
 
-  it('leaves out a row it cannot name, rather than failing the client’s whole trail', async () => {
-    trail = [row('read', 'overview'), row('reviewed', 'overview'), row('read', 'allergies'), row('withdrawn', 'health')];
+    await CareRepository.accessLog('usr-client', 101);
 
-    const rows = await CareRepository.accessLog('usr-client', 101);
+    const { params, sql } = dialect.sqlToQuery(trailWhere as SQL);
 
-    expect(rows.map(entry => [entry.action, entry.kind])).toEqual([
-      ['read', 'overview'],
-      ['withdrawn', 'health']
-    ]);
+    expect(sql).toContain('"care_access_log"."action" in ($2, $3, $4, $5)');
+    expect(sql).toContain('"care_access_log"."kind" in ($6, $7, $8, $9, $10, $11, $12)');
+    expect(params.slice(0, 5)).toEqual(['usr-client', 'read', 'write', 'granted', 'withdrawn']);
   });
 });

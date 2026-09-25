@@ -126,8 +126,9 @@ export const careAccessLog = userOwned(
     /**
      * The link it happened under, so a client can tell two links to one
      * professional apart. Set on every row written from `0040`; older rows
-     * were filled in where one link fits them, and are null otherwise. Set
-     * null when the link row goes with either account.
+     * were filled in where one link fits them, and are null otherwise, as
+     * are rows the previous API wrote while this one deployed. Set null when
+     * the link row goes with either account.
      */
     linkId: uuid().references(() => careLinks.id, { onDelete: 'set null' }),
     professionalId: text().references(() => user.id, { onDelete: 'set null', onUpdate: 'cascade' }),

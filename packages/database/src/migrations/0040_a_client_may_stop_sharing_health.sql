@@ -4,6 +4,7 @@ ALTER TABLE "care_access_log" ADD COLUMN "link_id" uuid;--> statement-breakpoint
 ALTER TABLE "professionals" ADD COLUMN "agreement_accepted_at" timestamp with time zone;--> statement-breakpoint
 ALTER TABLE "professionals" ADD COLUMN "agreement_version" text;--> statement-breakpoint
 ALTER TABLE "care_access_log" ADD CONSTRAINT "care_access_log_link_id_care_links_id_fk" FOREIGN KEY ("link_id") REFERENCES "public"."care_links"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+-- Not CONCURRENTLY: the migrator runs in one transaction, and the table is near empty while the professional switch is off. At hundreds of thousands of rows, build indexes here outside the migrator.
 CREATE INDEX "care_access_log_link_id_idx" ON "care_access_log" USING btree ("link_id");--> statement-breakpoint
 --
 -- Hand-added: fills `link_id` on the trail rows written before the column

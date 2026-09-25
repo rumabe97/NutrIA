@@ -37,13 +37,13 @@ const OPEN_STATUSES = ['active', 'paused'] as const;
 const practising = and(eq(professionals.practiceOpen, true), eq(professionals.agreementVersion, PROFESSIONAL_AGREEMENT_VERSION));
 
 /**
- * Whether a stored trail row names an action and a kind this code knows. A value
- * a later release added is left out of the client's page rather than failing it,
- * so rolling back past such a release keeps every trail readable (`_enums.ts`).
+ * Only trail rows whose action and kind this code knows. A value a later release
+ * added is left out of the client's page rather than failing it, so rolling back
+ * past such a release keeps every trail readable (`_enums.ts`). In the `WHERE`,
+ * so the page's limit counts only rows it can show and the cursor still reaches
+ * every older one.
  */
-function known(row: { readonly action: string; readonly kind: string }): boolean {
-  return (CARE_ACCESS_ACTIONS as readonly string[]).includes(row.action) && (CARE_ACCESS_KINDS as readonly string[]).includes(row.kind);
-}
+const known = and(inArray(careAccessLog.action, [...CARE_ACCESS_ACTIONS]), inArray(careAccessLog.kind, [...CARE_ACCESS_KINDS]));
 
 /** The client's side of a link, joined under its own name: `user` is also the professional's. */
 const client = alias(user, 'client');
@@ -231,11 +231,11 @@ export const CareRepository = {
       const rows = await database()
         .select()
         .from(careAccessLog)
-        .where(and(eq(careAccessLog.userId, clientId), older))
+        .where(and(eq(careAccessLog.userId, clientId), known, older))
         .orderBy(desc(careAccessLog.createdAt), desc(careAccessLog.id))
         .limit(limit);
 
-      return rows.filter(known).map(row => careAccessEntrySchema.parse(row));
+      return rows.map(row => careAccessEntrySchema.parse(row));
     } catch (error: unknown) {
       throw wrap(error);
     }
