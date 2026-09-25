@@ -6,12 +6,23 @@
 //
 // Usage: node account.mjs create <cookie-file>     prints the address it made
 //        node account.mjs delete <cookie-file>     deletes it through the API
+//        node account.mjs link <professional-cookie-file> <client-cookie-file>
+//            makes the first account a professional with an open practice, and links the
+//            second to it through a real invitation, accepted with consent
 //
 // Every account made here is deleted before the probe ends. The cookie file is how:
 // keep it in the scratchpad, never in the repository.
+//
+// `link` exists so a probe never writes a link, a grant or an invitation by hand: those go
+// through the same core functions the API's routes call (grant, invite, accept), with their
+// rules. The one write core has no function for is opening the practice, because only the
+// signed Stripe webhook may do it. That is the same single statement the e2e harness uses
+// (`openPractice` in apps/api/test/harness.ts). If the `professional` switch was off, `link`
+// turns it on and leaves a marker beside the cookie file; `delete` of that professional
+// turns it back off.
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 
 import { assertNotProduction, readEnv, ROOT } from './guard.mjs';
 
@@ -19,10 +30,10 @@ const API = 'http://localhost:3001/api/v1';
 const WEB = 'http://localhost:3000';
 const PASSWORD = 'correct-horse-battery-staple-9';
 
-const [action, cookieFile] = process.argv.slice(2);
+const [action, cookieFile, clientCookieFile] = process.argv.slice(2);
 
-if (!['create', 'delete'].includes(action) || !cookieFile) {
-  console.error('usage: node account.mjs create|delete <cookie-file>');
+if (!['create', 'delete', 'link'].includes(action) || !cookieFile || (action === 'link' && !clientCookieFile)) {
+  console.error('usage: node account.mjs create|delete <cookie-file> | link <professional-cookie-file> <client-cookie-file>');
   process.exit(2);
 }
 
@@ -40,12 +51,6 @@ async function call(method, path, body, cookie) {
   return response;
 }
 
-if (action === 'delete') {
-  await call('DELETE', '/users/me', undefined, readFileSync(cookieFile, 'utf8'));
-  console.log('[probe] account deleted');
-  process.exit(0);
-}
-
 assertNotProduction();
 
 // `core` reads the database from the environment, the same one the local API was given.
@@ -55,6 +60,67 @@ for (const key of ['DATABASE_URL', 'DIRECT_DATABASE_URL']) {
 
 const fromApi = createRequire(`${ROOT}apps/api/package.json`);
 const load = specifier => import(pathToFileURL(fromApi.resolve(specifier)).href);
+const switchMarker = `${cookieFile}.switch-was-off`;
+
+if (action === 'delete') {
+  await call('DELETE', '/users/me', undefined, readFileSync(cookieFile, 'utf8'));
+  console.log('[probe] account deleted');
+
+  if (existsSync(switchMarker)) {
+    const { SettingsController } = await load('core/controllers/Settings');
+
+    await SettingsController.setFlag('professional', false);
+    rmSync(switchMarker);
+    console.log('[probe] the professional switch is off again, as it was');
+  }
+
+  process.exit(0);
+}
+
+if (action === 'link') {
+  const { SettingsController } = await load('core/controllers/Settings');
+  const { ProfessionalController } = await load('core/controllers/Professional');
+  const { CareController } = await load('core/controllers/Care');
+  const { CARE_CONSENT_VERSION } = await load('core/entities/Care');
+  const { database } = await load('database');
+  const me = async file => (await call('GET', '/users/me', undefined, readFileSync(file, 'utf8'))).json();
+  const pro = await me(cookieFile);
+  const client = await me(clientCookieFile);
+
+  for (const who of [pro, client]) {
+    if (!who.email?.endsWith('@probe.invalid')) {
+      throw new Error('link only joins two accounts this script made (@probe.invalid)');
+    }
+  }
+
+  if (!(await SettingsController.flags()).professional) {
+    await SettingsController.setFlag('professional', true);
+    writeFileSync(switchMarker, '');
+    console.log('[probe] the professional switch was off: on until this professional is deleted');
+  }
+
+  // The owner's grant, as POST /admin/accounts/:id/professional makes it. The probe has no
+  // owner session, so the professional is named as its own granter.
+  await ProfessionalController.grant(pro.id, { collegiateNumber: 'PROBE-001' }, pro.id);
+
+  const opened = await database().$client`
+    update professionals set practice_open = true, included_clients = 30 where user_id = ${pro.id} returning user_id`;
+
+  if (opened.length !== 1) {
+    throw new Error('the practice did not open');
+  }
+
+  const { token } = await CareController.invite({ email: pro.email, id: pro.id }, { email: client.email });
+
+  await CareController.accept(
+    { email: client.email, emailVerified: true, id: client.id },
+    token,
+    { consentVersion: CARE_CONSENT_VERSION, sharesHealth: true }
+  );
+  console.log(`[probe] linked: ${client.email} is ${pro.email}'s client (practice open, 30 included, health shared)`);
+  process.exit(0);
+}
+
 const { UserController } = await load('core/controllers/User');
 const { shapeFor } = await load('core/domain/MealShape');
 

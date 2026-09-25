@@ -79,10 +79,28 @@ sits over everything. The account has **no meal plan**; with `AI_PROVIDER=stub` 
 one yields nothing worth looking at, so a plan screen needs the owner's dev account, and
 the owner's word.
 
+### A professional and a linked client (project 004's screens)
+
+```bash
+node $S/account.mjs create "$PROBE_DIR/pro.txt"
+node $S/account.mjs create "$PROBE_DIR/client.txt"
+node $S/account.mjs link "$PROBE_DIR/pro.txt" "$PROBE_DIR/client.txt"
+node $S/probe.mjs --paths /consulta --cookie-file "$PROBE_DIR/pro.txt" --dismiss
+```
+
+`link` grants the first account, opens its practice (30 clients) and links the second
+through a real invitation accepted with consent. It uses the same core functions the
+routes call, and it refuses any account that is not a probe's own (`@probe.invalid`). If
+the `professional` switch was off, it comes back off when the professional is deleted.
+
+**Never write a link, a grant, an invitation or a trail row by hand** — no SQL, no
+`psql`, no repository call around the rules. If `link` cannot build the state you need,
+stop and tell the lead, and the lead extends this script (owner, 2026-09-25).
+
 ## 5. Always finish
 
 ```bash
-node $S/account.mjs delete "$PROBE_DIR/cookie.txt" && rm -f "$PROBE_DIR/cookie.txt"
+for f in cookie pro client; do [ -f "$PROBE_DIR/$f.txt" ] && node $S/account.mjs delete "$PROBE_DIR/$f.txt"; rm -f "$PROBE_DIR/$f.txt"; done
 sh $S/servers.sh stop
 ```
 

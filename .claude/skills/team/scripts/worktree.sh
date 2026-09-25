@@ -28,11 +28,23 @@ top=$(git rev-parse --show-toplevel)
 
 git cat-file -e "$base^{commit}" 2>/dev/null || { echo "[team] $base is not a commit in this repository — ask the lead for the right one"; exit 1; }
 
-if [ "$top" = "$main" ]; then
-  dir="$main/.claude/worktrees/$agent-$feature"
+# Only a worktree Claude Code made for an agent (under some checkout's .claude/worktrees/) is the
+# agent's own and may be moved onto its branch. Any other checkout — the main one, or a second one
+# a session runs in (`git worktree add ../NutrIA-faseN`) — is the lead's: the agent gets a new
+# worktree beside it and the lead's checkout is never switched.
+case "$top" in
+  */.claude/worktrees/*) own=yes ;;
+  *) own=no ;;
+esac
+
+if [ "$own" = no ]; then
+  dir="$top/.claude/worktrees/$agent-$feature"
 
   if [ -d "$dir" ]; then
     echo "[team] reusing $dir — read 'git status' and 'git log' there before redoing anything"
+  elif git show-ref --verify --quiet "refs/heads/$branch"; then
+    git worktree add "$dir" "$branch" >/dev/null
+    echo "[team] made a worktree at $dir on the existing $branch"
   else
     git worktree add "$dir" -b "$branch" "$base" >/dev/null
     echo "[team] made a worktree at $dir on $branch"

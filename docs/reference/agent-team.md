@@ -116,9 +116,13 @@ anybody else: if another agent needs it, send it.
 sh .claude/skills/team/scripts/worktree.sh <your-name> <feature-slug> <base-sha>
 ```
 
-The lead gives you the last two. You start in the **main checkout** — a named agent is
-given no worktree of its own, whatever its definition says — and this makes one, on the
-feature's commit, on the branch `agent/<feature>/<you>` that the edit guard knows you by.
+The lead gives you the last two. You start in the **lead's checkout**: the main one, or
+a second one a session runs in (`git worktree add ../NutrIA-faseN`). A named agent is
+given no worktree of its own, whatever its definition says, so this makes one under that
+checkout's `.claude/worktrees/`, on the feature's commit, on the branch
+`agent/<feature>/<you>` that the edit guard knows you by. The lead's checkout is never
+switched. Only a worktree that is already under `.claude/worktrees/` is taken as yours
+and moved onto your branch.
 It copies the `.env` files, installs, and builds `core` **and** `database`. It ends with
 `WORKTREE=<path>`: every command after it starts with `cd "<path>" &&`, and every file you
 edit is under that path. **A file you touch in the main checkout is a file in the lead's
