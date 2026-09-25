@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import styles from './OnboardingFlow.module.css';
 
+import { ageInYears } from 'core/domain/Nutrition';
 import { Button } from 'ui/components/Button';
 import { Checkbox } from 'ui/components/Checkbox';
 import { Input } from 'ui/components/Input';
@@ -14,9 +15,10 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { ChipGroup } from 'components/ChipGroup';
 import { MealShapePicker } from 'components/MealShapePicker';
 import { OptionCards } from 'components/OptionCards';
+import { ProfileConsentFields } from 'components/ProfileConsentFields';
 import { SummaryRow } from 'components/SummaryRow';
 
-import { PACE_KG_PER_WEEK } from 'core/entities/Profile';
+import { AGE_YEARS, PACE_KG_PER_WEEK, PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatNumber, interpolate } from 'lib/format';
@@ -25,10 +27,12 @@ import { FLOW, TOTAL_STEPS } from './steps';
 
 import type { Allergen } from 'core/entities/Safety';
 import type { FormEvent } from 'react';
-import type { FullProfileView } from 'core/controllers/Profile';
+import type { FullProfileView, ProfileConsentView } from 'core/controllers/Profile';
 
 interface OnboardingFlowProps {
   allergens: readonly Allergen[];
+  /** Only fetched for the about-you step — every other step has nothing to do with it. */
+  consent: ProfileConsentView | null;
   profile: FullProfileView | null;
   /**
    * Where to go after saving this one step, when the person came to edit it
@@ -89,7 +93,7 @@ const CUISINES = ['Mediterránea', 'Española', 'Italiana', 'Mexicana', 'Japones
  * refresh, a different device, or closing the tab halfway through — there is no
  * separate draft that could drift from the profile it is filling in.
  */
-export function OnboardingFlow({ allergens, profile, returnTo = null, step }: OnboardingFlowProps) {
+export function OnboardingFlow({ allergens, consent, profile, returnTo = null, step }: OnboardingFlowProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -151,12 +155,31 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
    * so `max` on the input is advice rather than a gate — on iOS not even that —
    * and the API's copy of the rule answers in its own language. Same bound the
    * schema holds the request to, in the reader's words, before it is sent.
+   *
+   * `form` is the raw submission, separate from `payload`: the consent
+   * checkbox is not part of what `PATCH /onboarding` accepts (it is its own
+   * resource, `PUT /profile/consent` — see `onSubmit`), so it never reaches
+   * `buildPayload`, but it still has to block this step like any other.
    */
-  function localErrors(payload: Record<string, unknown>): Record<string, readonly string[]> {
+  function localErrors(form: FormData, payload: Record<string, unknown>): Record<string, readonly string[]> {
     const pace = payload.paceKgPerWeek;
 
     if (current?.key === 'goal' && typeof pace === 'number' && !(pace >= PACE_KG_PER_WEEK.min && pace <= PACE_KG_PER_WEEK.max)) {
       return { paceKgPerWeek: [f.paceRange] };
+    }
+
+    const birthDate = payload.birthDate;
+
+    if (current?.key === 'about-you' && typeof birthDate === 'string' && birthDate !== '' && ageInYears(birthDate) < AGE_YEARS.min) {
+      return { birthDate: [dictionary.errors.underMinimumAge] };
+    }
+
+    // An unchecked box is not a field the API rejects politely: without it
+    // this step's own save still goes through (`about-you` is not one of the
+    // consent-gated steps), but every step from `goal` on is a 409 the reader
+    // would meet several screens later, for a box that scrolled out of view.
+    if (current?.key === 'about-you' && form.get('profileConsentGiven') !== 'on') {
+      return { profileConsentGiven: [dictionary.profileConsent.note] };
     }
 
     return {};
@@ -243,12 +266,17 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
     setError(undefined);
     setFieldErrors({});
 
-    const payload = buildPayload(new FormData(event.currentTarget));
-    const problems = localErrors(payload);
+    const form = new FormData(event.currentTarget);
+    const payload = buildPayload(form);
+    const problems = localErrors(form, payload);
 
     if (Object.keys(problems).length > 0) {
       setFieldErrors(problems);
-      setError(dictionary.errors.invalidInput);
+      // The checkbox has nowhere of its own to show a message (`Checkbox`
+      // carries no `error` prop, unlike `Input`), so its specific line goes in
+      // the one alert region this form already has, in place of the generic
+      // "revisa los datos marcados" that would not say what to do.
+      setError(problems.profileConsentGiven?.[0] ?? dictionary.errors.invalidInput);
 
       return;
     }
@@ -268,6 +296,15 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
       }
 
       await api('/onboarding', { body: { data: payload, step: current?.key }, method: 'PATCH' });
+
+      // The consent this step also collects (P0-2) is its own resource, given
+      // here rather than folded into the onboarding schema above. Re-given
+      // harmlessly if this step is revisited with the box already checked —
+      // `PUT` on the same version changes nothing that mattered.
+      if (current?.key === 'about-you' && form.get('profileConsentGiven') === 'on') {
+        await api<ProfileConsentView>('/profile/consent', { body: { version: PROFILE_CONSENT_VERSION }, method: 'PUT' });
+      }
+
       startNavigation(() => {
         router.push(returnTo ?? `/onboarding/${step + 1}`);
         // The step just saved is now stale in the client router cache. Without
@@ -361,6 +398,16 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
               <Text className={styles.hint} size="xs" tone="tertiary">
                 {f.sexHint}
               </Text>
+            </fieldset>
+
+            {/* The explicit health-data consent (P0-2), before anything it
+                covers is even asked: the goal step right after this one
+                already refuses without it (`localErrors` blocks this step
+                first, so the reader never meets that 409 several screens
+                later, for a box that scrolled out of view). */}
+            <fieldset className={styles.fieldset}>
+              <legend className={styles.legend}>{dictionary.profileConsent.title}</legend>
+              <ProfileConsentFields defaultChecked={consent?.isCurrent ?? false} />
             </fieldset>
           </Fragment>
         ) : null}
@@ -507,6 +554,12 @@ export function OnboardingFlow({ allergens, profile, returnTo = null, step }: On
             <fieldset className={styles.fieldset}>
               <legend className={styles.legend}>{f.dietaryPatterns}</legend>
               <ChipGroup name="dietaryPatterns" options={options.dietaryPatterns} selected={profile?.dietaryPatterns ?? []} />
+              {/* Halal and kosher are enforced in code by excluding what the
+                  religion forbids — never a claim of certified slaughter,
+                  which nothing here checks. */}
+              <Text className={styles.hint} size="xs" tone="tertiary">
+                {f.dietaryPatternsHint}
+              </Text>
             </fieldset>
           </Fragment>
         ) : null}

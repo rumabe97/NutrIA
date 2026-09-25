@@ -20,8 +20,10 @@ export type ApiErrorCode =
   | 'ONBOARDING_INCOMPLETE'
   | 'PLAN_PAUSED'
   | 'PRACTICE_FULL'
+  | 'PROFILE_CONSENT_REQUIRED'
   | 'QUOTA_EXCEEDED'
   | 'REQUEST_ERROR'
+  | 'UNDER_MINIMUM_AGE'
   | 'UNSAFE_CONTENT';
 
 export class ApiError extends Error {
@@ -59,8 +61,10 @@ const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   ONBOARDING_INCOMPLETE: 'onboardingIncomplete',
   PLAN_PAUSED: 'planPaused',
   PRACTICE_FULL: 'practiceFull',
+  PROFILE_CONSENT_REQUIRED: 'profileConsentRequired',
   QUOTA_EXCEEDED: 'quotaExceeded',
   REQUEST_ERROR: 'request',
+  UNDER_MINIMUM_AGE: 'underMinimumAge',
   UNSAFE_CONTENT: 'unsafeContent'
 };
 

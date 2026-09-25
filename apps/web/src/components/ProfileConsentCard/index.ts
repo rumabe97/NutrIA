@@ -1,0 +1,1 @@
+export { ProfileConsentCard } from './ProfileConsentCard';

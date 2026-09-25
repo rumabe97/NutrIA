@@ -95,7 +95,6 @@ export function CheckInForm({ latestKg, planEnded, planId }: CheckInFormProps) {
               ? interpolate(t.doneTargets, { from: formatNumber(result.targets.fromKcal, locale), to: formatNumber(result.targets.toKcal, locale) })
               : t.doneNoTargets}
           </li>
-          <li>{t.doneWords}</li>
         </ul>
         <div className={styles.actions}>
           {planEnded ? (

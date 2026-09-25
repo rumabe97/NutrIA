@@ -99,6 +99,12 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
         </Button>
 
         <LegalNotice />
+        {/* Stated where the terms are accepted, not only inside them: the one
+            fact somebody must read before this button does anything. Same
+            tone as the notice above it — both are read as one clause. */}
+        <Text align="center" size="xs" tone="secondary">
+          {dictionary.auth.legalAge}
+        </Text>
 
         <div className={styles.footer}>
           <Text size="sm" tone="secondary">
