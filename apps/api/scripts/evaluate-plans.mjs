@@ -49,7 +49,7 @@ import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'cor
 import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
 import { resolvePreferences } from 'core/domain/Preference';
 import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
-import { dishSafety, toSafetyProfile } from 'core/domain/Safety';
+import { dishSafety, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
 
 // ---------------------------------------------------------------------------
 // The profiles. Fixed here, printed in the report, so the next run measures the
@@ -95,6 +95,27 @@ const PROFILES = [
     // Two days "before the race", the way `PlanGeneration.service.ts` loads them —
     // a day is judged against its own loaded target, not the plan's (`0043`).
     event: { carbs: 'up', daysBefore: 2, fat: 'same', loadedDayIndexes: [9, 10], protein: 'same' }
+  },
+  {
+    slug: 'alergia-personalizada',
+    description: 'A free-text (custom) allergen resolved against the catalogue, ordinary shape',
+    target: { activityLevel: 'moderate', ageYears: 45, goal: 'maintenance', heightCm: 172, sex: 'male', weightKg: 78 },
+    shape: DEFAULT_MEAL_SHAPE,
+    customAllergenLabel: 'tomate'
+  },
+  {
+    slug: 'patron-halal',
+    description: 'A declared dietary pattern (halal), ordinary shape — enforced in code since prompt 4.0.0',
+    target: { activityLevel: 'light', ageYears: 33, goal: 'healthy_eating', heightCm: 178, sex: 'male', weightKg: 82 },
+    shape: DEFAULT_MEAL_SHAPE,
+    dietaryPattern: 'halal'
+  },
+  {
+    slug: 'patron-kosher',
+    description: 'A declared dietary pattern (kosher), ordinary shape — enforced in code, meat never with dairy',
+    target: { activityLevel: 'light', ageYears: 38, goal: 'healthy_eating', heightCm: 165, sex: 'female', weightKg: 60 },
+    shape: DEFAULT_MEAL_SHAPE,
+    dietaryPattern: 'kosher'
   }
 ];
 
@@ -199,6 +220,20 @@ function contextFor(profile, shared) {
     return {
       context: { ...shared, safety },
       note: `allergen covers ${dominant.classSize} of ${dominant.classSize} "${profile.allergenClass}" ingredients by id, ${(dominant.coverage * 100).toFixed(0)}% linked to one allergen`
+    };
+  }
+
+  if (profile.customAllergenLabel) {
+    const resolved = resolveCustomAllergens([profile.customAllergenLabel], ingredients);
+    const safety = toSafetyProfile([], [], resolved, ingredients);
+
+    if (!resolved[0]?.ingredientId) {
+      return { context: null, note: `custom allergen "${profile.customAllergenLabel}" did not resolve against the real catalogue` };
+    }
+
+    return {
+      context: { ...shared, safety },
+      note: `custom allergen "${profile.customAllergenLabel}" resolved to ${safety.excludedIngredientIds.size} catalogue rows`
     };
   }
 
