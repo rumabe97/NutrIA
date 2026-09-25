@@ -49,5 +49,11 @@
       "docs/legal/"
     ],
     "except": []
+  },
+  "architect": {
+    "owns": [
+      "docs/reference/architecture/"
+    ],
+    "except": []
   }
 }
