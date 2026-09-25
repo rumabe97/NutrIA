@@ -123,7 +123,9 @@ function parseArgs(argv) {
     seed: 'bench-models',
     summarise: null,
     timeout: 200,
-    yes: false
+    yes: false,
+    allowPaid: new Set(),
+    reasoningEffort: null
   };
   const next = index => {
     const value = argv[index + 1];
@@ -139,6 +141,19 @@ function parseArgs(argv) {
     const arg = argv[index];
 
     switch (arg) {
+      case '--allow-paid':
+        options.allowPaid = new Set(
+          next(index)
+            .split(',')
+            .map(model => model.trim())
+            .filter(Boolean)
+        );
+        index += 1;
+        break;
+      case '--reasoning-effort':
+        options.reasoningEffort = next(index);
+        index += 1;
+        break;
       case '--briefs':
         options.briefs = next(index).split(',').filter(Boolean);
         index += 1;
@@ -205,6 +220,10 @@ function parseArgs(argv) {
     }
   }
 
+  if (options.reasoningEffort !== null && !['none', 'minimal', 'low', 'medium', 'high'].includes(options.reasoningEffort)) {
+    fail('--reasoning-effort takes none, minimal, low, medium or high');
+  }
+
   if (!Number.isInteger(options.month) || options.month < 1 || options.month > 12) {
     fail('--month takes 1 to 12');
   }
@@ -261,13 +280,15 @@ function fail(message) {
  * Whether a model id is one this script may call: a free tier only, never Gemini.
  * `null` when it may; the reason otherwise.
  */
-function refusal(model) {
+function refusal(model, options) {
   if (/gemini/i.test(model)) {
     return 'names Gemini — the owner declined spending its requests (2026-09-25)';
   }
 
-  if (!model.endsWith(':free') && !model.startsWith('groq/')) {
-    return 'is not a free model (only ids ending in ":free" or starting with "groq/")';
+  // A paid model only when the owner named it for this run (`--allow-paid`),
+  // and then every request carries the no-training, no-retention constraint.
+  if (!model.endsWith(':free') && !model.startsWith('groq/') && !options.allowPaid.has(model)) {
+    return 'is not a free model and was not named in --allow-paid';
   }
 
   return null;
@@ -324,6 +345,16 @@ async function call(gateway, model, request, options) {
         ],
         model,
         ...(options.maxTokens ? { max_tokens: options.maxTokens } : {}),
+        // Paid models: only endpoints that neither retain nor train on what is
+        // sent (the owner's rule, 2026-09-25), and the answer carries its cost.
+        ...(options.allowPaid.has(model)
+          ? { provider: { data_collection: 'deny', require_parameters: true, zdr: true }, usage: { include: true } }
+          : {}),
+        ...(options.reasoningEffort === 'none'
+          ? { reasoning: { enabled: false } }
+          : options.reasoningEffort
+            ? { reasoning: { effort: options.reasoningEffort } }
+            : {}),
         response_format: { json_schema: { name: 'response', schema: wirePoolSchema.jsonSchema, strict: false }, type: 'json_schema' }
       }),
       headers: { authorization: `Bearer ${gateway.key}`, 'content-type': 'application/json', 'x-omniroute-session': `bench:${request.id}` },
@@ -358,6 +389,8 @@ async function call(gateway, model, request, options) {
     const usage = body.usage ?? {};
 
     record.answeredModel = body.model ?? null;
+    record.provider = body.provider ?? null;
+    record.costUsd = typeof usage.cost === 'number' ? usage.cost : null;
     record.finishReason = body.choices?.[0]?.finish_reason ?? null;
     record.tokens = {
       cached: usage.prompt_tokens_details?.cached_tokens ?? usage.cache_read_input_tokens ?? null,
@@ -756,13 +789,13 @@ async function main() {
     console.log(`${listed.length} models listed by the gateway; "free" marks the ones this script may call:`);
 
     for (const id of listed) {
-      console.log(`  ${refusal(id) ? '    ' : 'free'}  ${id}`);
+      console.log(`  ${refusal(id, options) ? '    ' : 'free'}  ${id}`);
     }
 
     return;
   }
 
-  const refused = options.models.map(model => [model, refusal(model)]).filter(([, reason]) => reason);
+  const refused = options.models.map(model => [model, refusal(model, options)]).filter(([, reason]) => reason);
 
   if (refused.length > 0) {
     for (const [model, reason] of refused) {

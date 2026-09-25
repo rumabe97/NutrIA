@@ -295,43 +295,65 @@ at a time.
 - **Verification**: `node --env-file-if-exists=.env scripts/bench-models.mjs --yes …`
   output in LOG.md; `pnpm turbo lint` for the script.
 
-### Phase 7 — A fortnight on the free models
+### Phase 7 — A fortnight on paid, no-training models
 
 - [ ] pending
-- **Dispatch**: opus @ high — `/execute-project 005 phase 7` — human-verify: the owner
-  generates a fortnight in production on the free combo
-- **Goal**: generation leans on the free model that answers, with Gemini behind it, and
-  a refusal never costs the job.
-- **Amended 2026-09-25** from phase 6's numbers and the owner's choice (LOG; decisions
-  LOG): the combo is `openrouter/nvidia/nemotron-3-ultra-550b-a55b:free` → Gemini; pacing
-  to a per-minute token limit is dropped (OpenRouter's free limit is requests, not tokens,
-  and no Groq model makes the combo).
-- **Scope**: `apps/api/src/modules/ai/services/PoolBuilder.service.ts` and its spec,
-  `docs/reference/ai-gateway.md`.
+- **Dispatch**: opus @ high — `/execute-project 005 phase 7` — `quality-max`: it changes how
+  model output is requested and validated — human-verify: the owner generates a fortnight in
+  production once `legal` has cleared the provider
+- **Goal**: generation writes the fresh dishes as before — precise and varied — on a paid
+  model that never trains on NutrIA's data, and a refusal never costs the job.
+- **Amended 2026-09-26** (`0064`, supersedes the 2026-09-25 amendment): the owner's
+  no-training rule rules out every free route; the models were measured with paid calls.
+  Primary `deepseek/deepseek-v4.1-flash` at low reasoning, fallback `minimax/minimax-m3`,
+  called on OpenRouter directly.
+- **Scope**: `apps/api/src/modules/ai/ai.config.ts` and its spec,
+  `apps/api/src/modules/ai/clients/StructuredAiClient.ts`, `gateway.ts` and their specs,
+  `apps/api/src/modules/ai/services/PoolBuilder.service.ts` and its spec,
+  `apps/api/src/config/Env.validation.ts` and its spec, `turbo.json` `globalEnv`,
+  `apps/api/.env.example`, `docs/reference/deployment.md`, `docs/reference/ai-gateway.md`,
+  `apps/api/scripts/bench-models.mjs` (already gained `--allow-paid`, `--reasoning-effort`,
+  the fixed `provider` block and cost/provider recording while measuring).
 - **Steps**:
-  1. **Ask the model for at most three dishes per request.** A constant beside
-     `MAX_ATTEMPTS`; the library and the backfill cover the rest, and the later rounds ask
-     for what is still short. Output is what costs time on the free models (phase 6: 4–8k
-     output tokens and ~143 s for six dishes).
-  2. **Size and rate refusals fall through, not fail the job.** A 413 or 429 from the
-     gateway is recorded like any provider failure on the job's log (it already is) and
-     the slot is asked again in the next round only if time remains; confirm with a spec
-     that such a refusal on one slot does not fail the others or the job.
-  3. Specs: a request never asks for more than three dishes; a slot short of six is asked
-     again in the next round while time remains; a 429 on one slot leaves the others'
-     dishes and the job intact.
-  4. `docs/reference/ai-gateway.md`: the recommended combo (`nemotron-3-ultra:free` →
-     Gemini) with phase 6's numbers, and that the combo is the owner's to configure.
-- **Acceptance criteria**: PRD 5, 9.
+  1. **An `openrouter` provider** in `resolveModel`: OpenAI-compatible at
+     `https://openrouter.ai/api/v1` (overridable by `AI_BASE_URL`), key `OPENROUTER_API_KEY`,
+     `supportsStructuredOutputs: true`, the non-strict schema transform, and a request
+     transform that always adds `provider: { zdr: true, data_collection: 'deny' }`,
+     `usage: { include: true }`, `models: [AI_MODEL, ...AI_FALLBACK_MODELS]` (OpenRouter's own
+     model fallback) and `reasoning: { effort: AI_REASONING_EFFORT }` when set (`none` →
+     `{ enabled: false }`). A request can never drop the `provider` block. SDK retries 0 (the
+     fallback list and the next round do that job); no session header.
+  2. **Environment**: `AI_PROVIDER` gains `openrouter`; `OPENROUTER_API_KEY` required with it;
+     `AI_FALLBACK_MODELS` (comma-separated, optional) and `AI_REASONING_EFFORT`
+     (`none|minimal|low|medium|high`, optional). All in `Env.validation.ts` and its spec,
+     `turbo.json` `globalEnv`, `apps/api/.env.example` and `docs/reference/deployment.md`.
+  3. **Telemetry**: the call record reads OpenRouter's answer — the model that answered
+     (`body.model`), the provider (`body.provider`) and the cost (`usage.cost`) — into the
+     same `AiCall` fields `/admin` shows; `readGateway` keeps working for the gateway.
+  4. **Seven fresh dishes per meal, three per request**: round one asks for each slot's
+     shortfall as parallel requests of at most three dishes (7 → 3 + 3 + 1), all inside the
+     same time budget; later rounds ask again for what is still short. No change to `0013`.
+  5. **Size and rate refusals fall through**: a 413/429 on one request is recorded like any
+     provider failure and never fails the other requests or the job.
+  6. Specs: the `provider` block is always sent and cannot be overridden; reasoning mapping;
+     `models` fallback list; a shortfall of seven becomes requests of 3, 3 and 1; a 429 on one
+     request leaves the others' dishes and the job intact; the env validation cases.
+  7. `docs/reference/ai-gateway.md`: production calls OpenRouter directly (`0064`); the
+     gateway stays for experiments; the no-training account and key settings as a checklist.
+- **Acceptance criteria**: PRD 5, 9 (read under the no-training rule: fortnights generated on
+  paid no-training models inside the time budget, and no refusal fails a job).
 - **Verification**:
-  - `pnpm turbo lint ts:check test`
-  - `sh .claude/skills/ship/scripts/gate.sh --full <scratchpad>`
-  - One fortnight generated on dev through the gateway, the model calls stated first and
-    free only (the combo's Gemini step is the owner's production fallback, not called from
-    dev); the job's `ai_calls` show no 413 and no 429 failing the job, and it finishes
-    inside the budget.
-  - human-verify: the owner generates a fortnight in production after setting the combo;
-    "confirmed by human on <date>" in LOG.md.
+  - `pnpm turbo lint ts:check test`; `sh .claude/skills/ship/scripts/gate.sh --full <scratchpad>`
+  - `invariant-reviewer` (the provider block, no personal data in requests, the health
+    boundary) and `architect`.
+  - **Full fortnights on dev**, the API run locally with `AI_PROVIDER=openrouter` and the
+    owner's key: at least an omnivore, a vegan, a declared allergy and a fortnight with an
+    event; the jobs' `ai_calls` (model, provider, seconds, cost), the time to finish, the
+    fresh dishes kept, and `evaluate-plans.mjs` on the result — no allergen on a plate, days
+    inside 5%. Paid calls within the owner's stated budget.
+  - human-verify: after `legal` clears the provider, the owner sets `AI_PROVIDER=openrouter`,
+    the key, `AI_MODEL`, `AI_FALLBACK_MODELS` and `AI_REASONING_EFFORT` in Vercel and generates
+    a fortnight; "confirmed by human on <date>" in LOG.md.
 
 ## Hand-off
 
