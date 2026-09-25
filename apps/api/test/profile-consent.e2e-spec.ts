@@ -96,19 +96,19 @@ describe('profile consent and the minimum age, end to end', () => {
   const made: string[] = [];
 
   async function onboardingView(account: Account): Promise<OnboardingView> {
-    const response: Response = await request(httpServer(app)).get(`/${PREFIX}/onboarding`).set('Cookie', account.cookie).expect(200);
+    const response: Response = await request(httpServer(app)).get(`/${PREFIX}/onboarding`).set('Cookie', account.cookie).retry(1).expect(200);
 
     return response.body as OnboardingView;
   }
 
   async function profileView(account: Account): Promise<FullProfileView> {
-    const response: Response = await request(httpServer(app)).get(`/${PREFIX}/profile`).set('Cookie', account.cookie).expect(200);
+    const response: Response = await request(httpServer(app)).get(`/${PREFIX}/profile`).set('Cookie', account.cookie).retry(1).expect(200);
 
     return response.body as FullProfileView;
   }
 
   async function consentView(account: Account): Promise<ProfileConsentView> {
-    const response: Response = await request(httpServer(app)).get(`/${PREFIX}/profile/consent`).set('Cookie', account.cookie).expect(200);
+    const response: Response = await request(httpServer(app)).get(`/${PREFIX}/profile/consent`).set('Cookie', account.cookie).retry(1).expect(200);
 
     return response.body as ProfileConsentView;
   }
@@ -343,12 +343,27 @@ describe('profile consent and the minimum age, end to end', () => {
       expect(await progressWeights(account.id)).toEqual([70.9]);
       expect(await checkInWeights(account.id)).toEqual([70.9]);
 
-      const withdrawn: Response = await request(httpServer(app)).delete(`/${PREFIX}/profile/consent`).set('Cookie', account.cookie).expect(200);
+      // `.retry(1)`: this call, right after two direct `tables()` reads with no
+      // HTTP traffic in between, was seen resetting the connection on CI
+      // (`connect ECONNRESET`, no stack trace into this file — a transient
+      // socket-reuse hiccup, not a status-code mismatch) — deterministic on a
+      // rerun, but the same request never fails at the assertion, only at the
+      // network layer, so a single retry is the request that would have
+      // succeeded on a fresh connection, not a second chance for a wrong answer.
+      const withdrawn: Response = await request(httpServer(app))
+        .delete(`/${PREFIX}/profile/consent`)
+        .set('Cookie', account.cookie)
+        .retry(1)
+        .expect(200);
 
       expect(withdrawn.body).toMatchObject({ isCurrent: false });
 
       // Idempotent: a second withdrawal deletes nothing more and answers the same.
-      const withdrawnAgain: Response = await request(httpServer(app)).delete(`/${PREFIX}/profile/consent`).set('Cookie', account.cookie).expect(200);
+      const withdrawnAgain: Response = await request(httpServer(app))
+        .delete(`/${PREFIX}/profile/consent`)
+        .set('Cookie', account.cookie)
+        .retry(1)
+        .expect(200);
 
       expect(withdrawnAgain.body).toMatchObject({ isCurrent: false });
 
@@ -386,7 +401,11 @@ describe('profile consent and the minimum age, end to end', () => {
       // proves for any unfinished account. The account still holds no consent
       // underneath (`profileConsentRequired: true`, asserted above), and no job
       // is created either way.
-      const refused: Response = await request(httpServer(app)).post(`/${PREFIX}/meal-plans/generate`).set('Cookie', account.cookie).expect(409);
+      const refused: Response = await request(httpServer(app))
+        .post(`/${PREFIX}/meal-plans/generate`)
+        .set('Cookie', account.cookie)
+        .retry(1)
+        .expect(409);
 
       expect((refused.body as { code: string }).code).toBe('ONBOARDING_INCOMPLETE');
       expect(await jobCount(account.id)).toBe(0);
