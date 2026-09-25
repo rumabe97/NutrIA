@@ -763,7 +763,7 @@ export const enGB: Dictionary = {
   onboarding: {
     customAllergen: {
       bestEffort:
-        '— it is not in our catalogue, so we cannot guarantee it. We remove foods that resemble it from your dishes and discard any dish with ingredients we cannot identify, but check the dishes before you cook them.',
+        "— it isn't in our catalogue: we take out foods whose name matches it, but by name only, so we can't guarantee it. Check each dish before you cook it.",
       enforced: '— applied: “{ingredient}” will not appear in any dish.'
     },
     fields: {
@@ -782,6 +782,7 @@ export const enGB: Dictionary = {
       customAllergensHint: 'Separate with commas. When you save we look each one up in our catalogue and tell you what we can apply.',
       customGoal: 'If you chose “Other”, describe it',
       dietaryPatterns: 'Way of eating',
+      dietaryPatternsHint: "We take out what your religion doesn't allow (such as pork or alcohol). Certified meat depends on where you buy it.",
       disliked: 'Foods you don’t want to see',
       dislikedHint: 'They will not appear in your plans again.',
       displayName: 'What should we call you?',
@@ -1132,7 +1133,7 @@ export const enGB: Dictionary = {
         heading: 'Artificial intelligence',
         paragraphs: [
           'An artificial-intelligence model proposes dishes and recipes. Our own code checks each one before it reaches you: a declared allergen does not reach your plan even if the model gets it wrong. The AI makes no decision about you: the calorie and protein bounds are applied by fixed rules, not by the model.',
-          "What the model receives: your daily targets and goal, your meal times, how you eat (for example, vegetarian or gluten-free), what you like and your budget, always chosen from our lists, and the names of last fortnight's dishes, without your name, email or anything that directly identifies you. It never receives anything you typed yourself, your allergies, any belief, or your conditions, medications or supplements: what you cannot eat we take out of the catalogue it sees first (for example, if you have coeliac disease, the catalogue has no gluten).",
+          'What the model receives: your daily targets and your goal (for example, losing weight), which meals you eat and when you wake, sleep and train, how much you cook and your budget, whether you are vegetarian or vegan, the cuisines and foods you like, the names of dishes you liked, disliked or ate last fortnight, and your closed check-in answers (hunger, difficulty, rating). Always by the names on our lists. It never receives your name, email, age, sex, weight or height, anything you typed yourself, your allergies or intolerances, any other way of eating (gluten-free, lactose-free, halal, kosher…), or your conditions, medications or supplements. What you cannot or will not eat we remove first, in our code, from the catalogue of foods it sees: it gets the effect, never the datum.',
           'Some of the models we use today are free versions hosted in the United States whose providers may use what they receive to improve their models. That is why we send them only what is needed to design dishes, and never free text. We are moving to providers that do not reuse data.',
           'Recipe illustrations are drawn by a model from the recipe name and ingredients, with no data of yours.'
         ]
@@ -1152,7 +1153,7 @@ export const enGB: Dictionary = {
       {
         heading: 'Transfers outside the European Union',
         paragraphs: [
-          'Some of these providers are US companies or process data there: Vercel, Neon, Stripe, the email provider, Sentry and the AI providers. Vercel is certified under the EU-US Data Privacy Framework, which the European Commission recognises as an adequate safeguard; with the others we rely on that same framework or on the Commission standard contractual clauses, whichever each offers. The free AI models we use today offer neither safeguard; that is why we send them only what is described above, with nothing that identifies you or that you wrote. You can ask us for the details of each safeguard at {email}.'
+          'Some of these providers are US companies or process data there: Vercel, Neon, Stripe, the email provider, Sentry and the AI providers. Vercel is certified under the EU-US Data Privacy Framework, which the European Commission recognises as an adequate safeguard; with the others we rely on that same framework or on the Commission standard contractual clauses, whichever each offers. The free AI models we use today offer neither safeguard; that is why we send them only what is described above, with nothing that identifies you, that you wrote, or that is health data or a belief. You can ask us for the details of each safeguard at {email}.'
         ]
       },
       {
@@ -1299,7 +1300,7 @@ export const enGB: Dictionary = {
   },
 
   profileConsent: {
-    ai: 'An artificial-intelligence model designs the dishes. It receives your targets, your meal times, how you eat (for example, vegetarian or gluten-free) and what you like, always chosen from our lists, never your name or email. It never receives your conditions, your medication, your allergies, anything you type yourself or any belief: what you cannot eat we remove first, in our code, and the same code checks every dish before it reaches you.',
+    ai: 'An artificial-intelligence model designs the dishes. It receives your daily targets, your meal times, your budget, whether you are vegetarian or vegan, and the foods and dishes you like or dislike, always by the names on our lists. It never receives your name, email, age, weight or height, anything you type yourself, your allergies or intolerances, any other way of eating, or your conditions or medication: what you cannot or will not eat we remove first, in our code, and the same code checks every dish before it reaches you.',
     body: 'To build you a safe plan we need data that says something about your health: your allergies and intolerances, your weight, height and goal, and how you eat, which sometimes reveals an intolerance or a belief. We use them only to work out your targets and choose your dishes.',
     continue: 'Continue',
     label: 'I consent to NutrIA using this health data to make my plans',

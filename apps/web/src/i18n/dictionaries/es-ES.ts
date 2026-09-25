@@ -768,7 +768,7 @@ export const esES = {
   onboarding: {
     customAllergen: {
       bestEffort:
-        '— no lo tenemos en el catálogo, así que no podemos garantizarlo. Quitamos de tus platos los alimentos que se le parecen y descartamos cualquier plato con ingredientes que no reconozcamos, pero revisa los platos antes de cocinarlos.',
+        '— no lo tenemos en el catálogo: quitamos de tus platos los alimentos cuyo nombre coincide, pero solo por el nombre, así que no podemos garantizarlo. Revisa los platos antes de cocinarlos.',
       enforced: '— lo aplicamos: «{ingredient}» no aparecerá en ningún plato.'
     },
     fields: {
@@ -787,6 +787,7 @@ export const esES = {
       customAllergensHint: 'Separa con comas. Al guardar buscamos cada una en nuestro catálogo y te decimos qué podemos aplicar.',
       customGoal: 'Si has elegido «Otro», descríbelo',
       dietaryPatterns: 'Tipo de alimentación',
+      dietaryPatternsHint: 'Quitamos lo que tu religión no permite (como el cerdo o el alcohol). La carne certificada depende de dónde la compres.',
       disliked: 'Alimentos que no quieres ver',
       dislikedHint: 'No volverán a aparecer en tus planes.',
       displayName: '¿Cómo quieres que te llamemos?',
@@ -1145,7 +1146,7 @@ export const esES = {
         heading: 'La inteligencia artificial',
         paragraphs: [
           'Un modelo de inteligencia artificial propone los platos y las recetas. Nuestro propio código comprueba cada uno antes de que te llegue: un alérgeno declarado no llega a tu plan aunque el modelo se equivoque. La IA no toma ninguna decisión sobre ti: los límites de calorías y de proteína los aplican reglas fijas, no el modelo.',
-          'Lo que recibe el modelo: tus objetivos diarios y tu objetivo, tus horarios de comida, tu forma de comer (por ejemplo, vegetariana o sin gluten), lo que te gusta y tu presupuesto, siempre elegidos de nuestras listas, y los nombres de los platos de la quincena anterior, sin tu nombre, tu correo ni ningún dato que te identifique directamente. Nunca recibe nada que hayas escrito a mano, tus alergias, ninguna creencia, ni tus enfermedades, tu medicación o tus suplementos: lo que no puedes comer lo quitamos antes del catálogo que ve (por ejemplo, si eres celíaco, el catálogo va sin gluten).',
+          'Lo que recibe el modelo: tus objetivos diarios y tu objetivo (por ejemplo, perder peso), qué comidas haces y a qué horas te levantas, te acuestas y entrenas, cuánto cocinas y tu presupuesto, si eres vegetariano o vegano, las cocinas y los alimentos que te gustan, los nombres de los platos que te gustaron, que no te gustaron o que comiste la quincena anterior, y tus respuestas cerradas al check-in (hambre, dificultad, nota). Siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu sexo, tu peso ni tu altura, nada que hayas escrito a mano, tus alergias ni intolerancias, ninguna otra forma de comer (sin gluten, sin lactosa, halal, kósher…), ni tus enfermedades, tu medicación o tus suplementos. Lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, del catálogo de alimentos que ve: le llega el efecto, nunca el dato.',
           'Hoy algunos de los modelos que usamos son versiones gratuitas alojadas en Estados Unidos cuyos proveedores pueden usar lo que reciben para mejorar sus modelos. Por eso les enviamos solo lo necesario para diseñar platos, nunca texto libre. Estamos cambiando a proveedores que no reutilicen los datos.',
           'Las ilustraciones de las recetas las dibuja un modelo a partir del nombre y los ingredientes de la receta, sin ningún dato tuyo.'
         ]
@@ -1165,7 +1166,7 @@ export const esES = {
       {
         heading: 'Transferencias fuera de la Unión Europea',
         paragraphs: [
-          'Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí: Vercel, Neon, Stripe, el proveedor de correo, Sentry y los de inteligencia artificial. Vercel está certificado en el Marco de Privacidad de Datos UE-EE. UU., que la Comisión Europea reconoce como garantía suficiente; con el resto nos apoyamos en ese mismo marco o en las cláusulas contractuales tipo de la Comisión, según ofrezca cada uno. Los modelos gratuitos de inteligencia artificial que usamos hoy no ofrecen ninguna de esas garantías; por eso solo les enviamos lo que se describe arriba, sin nada que te identifique ni que escribas tú. Puedes pedirnos el detalle de cada garantía en {email}.'
+          'Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí: Vercel, Neon, Stripe, el proveedor de correo, Sentry y los de inteligencia artificial. Vercel está certificado en el Marco de Privacidad de Datos UE-EE. UU., que la Comisión Europea reconoce como garantía suficiente; con el resto nos apoyamos en ese mismo marco o en las cláusulas contractuales tipo de la Comisión, según ofrezca cada uno. Los modelos gratuitos de inteligencia artificial que usamos hoy no ofrecen ninguna de esas garantías; por eso solo les enviamos lo que se describe arriba, sin nada que te identifique, que escribas tú ni que sea un dato de salud o una creencia. Puedes pedirnos el detalle de cada garantía en {email}.'
         ]
       },
       {
@@ -1312,7 +1313,7 @@ export const esES = {
   },
 
   profileConsent: {
-    ai: 'Un modelo de inteligencia artificial diseña los platos. Recibe tus objetivos, tus horarios de comida, tu forma de comer (por ejemplo, vegetariana o sin gluten) y lo que te gusta, siempre elegido de nuestras listas, nunca tu nombre ni tu correo. Nunca recibe tus enfermedades, tu medicación, tus alergias, nada que escribas a mano ni ninguna creencia: lo que no puedes comer lo quitamos antes, en nuestro código, y el mismo código comprueba cada plato antes de que te llegue.',
+    ai: 'Un modelo de inteligencia artificial diseña los platos. Recibe tus objetivos diarios, tus horarios de comida, tu presupuesto, si eres vegetariano o vegano, y los alimentos y platos que te gustan o no, siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu peso ni tu altura, nada que escribas a mano, tus alergias ni intolerancias, ninguna otra forma de comer, ni tus enfermedades o tu medicación: lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, y el mismo código comprueba cada plato antes de que te llegue.',
     body: 'Para hacerte un plan seguro necesitamos datos que dicen algo de tu salud: tus alergias e intolerancias, tu peso, tu altura y tu objetivo, y tu forma de comer, que a veces revela una intolerancia o una creencia. Los usamos solo para calcular tus objetivos y elegir tus platos.',
     continue: 'Continuar',
     label: 'Consiento que NutrIA use estos datos de salud para hacer mis planes',
