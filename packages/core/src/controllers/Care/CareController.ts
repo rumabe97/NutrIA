@@ -500,13 +500,21 @@ export const CareController = {
    * (`ProfessionalRepository.find`), not only the link's status: a link stays
    * `active` after a revoked grant closes reads through `withClient` (Phase 3),
    * and a former professional is not told about a client they can no longer
-   * reach. Not behind the switch, like `myLink`: the link itself is what
+   * reach — nor is one whose practice has lapsed or who has not accepted the
+   * current agreement, whom `withClient` refuses too. Not behind the switch, like `myLink`: the link itself is what
    * decides whether telling the professional still makes sense.
    */
   async activeProfessional(clientId: string): Promise<{ readonly id: string; readonly email: string } | null> {
     const link = await CareRepository.clientLink(clientId);
 
-    if (!link || link.link.status !== 'active' || !(await ProfessionalRepository.find(link.link.professionalId))) {
+    if (!link || link.link.status !== 'active') {
+      return null;
+    }
+
+    // Practising, as `withClient` asks it: a lapsed practice or an agreement not accepted is not told either.
+    const grant = await ProfessionalRepository.find(link.link.professionalId);
+
+    if (!grant?.practiceOpen || grant.agreementVersion !== PROFESSIONAL_AGREEMENT_VERSION) {
       return null;
     }
 
@@ -596,6 +604,15 @@ export const CareController = {
    */
   async forgetAddress(email: string): Promise<void> {
     await CareRepository.forgetAddress(normalised(email));
+  },
+
+  /**
+   * The daily sweep's part (`/cron/reminders`): every expired invitation is
+   * deleted, so no address outlives the 14 days the invitation mail promises,
+   * even when nobody invites anybody for a while. Answers how many went.
+   */
+  async forgetExpiredInvitations(now: Date = new Date()): Promise<number> {
+    return CareRepository.forgetExpired(now);
   },
 
   /**

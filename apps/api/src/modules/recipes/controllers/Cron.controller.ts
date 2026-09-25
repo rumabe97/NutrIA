@@ -3,6 +3,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 
 import { CheckInReminderService } from '../../notifications/index.js';
 import { CronSecretGuard } from '../../../shared/guards/index.js';
+import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
 import { Public, SkipRateLimit } from '../../../shared/index.js';
 import { RecipeIllustrator, RecipeRewriter } from '../../ai/index.js';
 
@@ -37,6 +38,7 @@ const REWRITES_PER_SWEEP = 12;
 export class CronController {
   constructor(
     private readonly illustrator: RecipeIllustrator,
+    private readonly invitations: ExpiredInvitationsService,
     private readonly reminders: CheckInReminderService,
     private readonly rewriter: RecipeRewriter
   ) {}
@@ -46,9 +48,14 @@ export class CronController {
     return this.illustrator.illustrateMissing(IMAGES_PER_SWEEP);
   }
 
-  /** Once a day: everyone whose fortnight closed and who has not been told. */
+  /**
+   * Once a day: everyone whose fortnight closed and who has not been told — and,
+   * first, every expired invitation deleted, the one daily sweep that is scheduled.
+   */
   @Get('reminders')
   async checkInReminders(): Promise<ReminderRunDto> {
+    await this.invitations.forget();
+
     return this.reminders.sweep();
   }
 

@@ -21,6 +21,7 @@ const end = vi.fn<(userId: string, side: 'client' | 'professional', linkId: stri
 const forgetAddress = vi.fn<(email: string) => Promise<void>>();
 const invite = vi.fn<(professionalId: string, email: string, tokenHash: string, expiresAt: Date, now: Date) => Promise<InviteOutcome>>();
 const setSharesHealth = vi.fn<(clientId: string, sharesHealth: boolean, now: Date) => Promise<LinkWithProfessional | null>>();
+const forgetExpired = vi.fn<(now: Date) => Promise<number>>();
 const practiceUse = vi.fn<(professionalId: string, now: Date) => Promise<PracticeUse>>();
 const openInvitation = vi.fn<(clientId: string, email: string, tokenHash: string, now: Date) => Promise<OpenInvitation | null>>();
 const find = vi.fn<(userId: string) => Promise<Professional | null>>();
@@ -35,6 +36,7 @@ vi.mock('#repositories/Care', () => ({
     decline: (...args: Parameters<typeof decline>) => decline(...args),
     end: (...args: Parameters<typeof end>) => end(...args),
     forgetAddress: (email: string) => forgetAddress(email),
+    forgetExpired: (now: Date) => forgetExpired(now),
     invite: (...args: Parameters<typeof invite>) => invite(...args),
     openInvitation: (...args: Parameters<typeof openInvitation>) => openInvitation(...args),
     practiceUse: (...args: Parameters<typeof practiceUse>) => practiceUse(...args),
@@ -413,9 +415,11 @@ describe('CareController.myLink', () => {
 });
 
 describe('CareController.activeProfessional', () => {
+  const PRACTISING = makeProfessional({ agreementVersion: PROFESSIONAL_AGREEMENT_VERSION, practiceOpen: true, userId: PRO.id });
+
   it('answers the client’s active professional, by id and address (PRD 004, criterion 10)', async () => {
     clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
-    find.mockResolvedValue(makeProfessional({ userId: PRO.id }));
+    find.mockResolvedValue(PRACTISING);
     findUserById.mockResolvedValue(makeUser({ id: PRO.id, email: 'dietista@example.com' }));
 
     await expect(CareController.activeProfessional(CLIENT.id)).resolves.toEqual({ id: PRO.id, email: 'dietista@example.com' });
@@ -441,10 +445,22 @@ describe('CareController.activeProfessional', () => {
     expect(findUserById).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['whose practice has lapsed', { practiceOpen: false }],
+    ['who never accepted the agreement', { agreementVersion: null }],
+    ['who has not accepted the current agreement', { agreementVersion: '0.9.0' }]
+  ])('is null for a professional %s — `withClient` would refuse them too', async (_case, overrides) => {
+    clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
+    find.mockResolvedValue({ ...PRACTISING, ...overrides });
+
+    await expect(CareController.activeProfessional(CLIENT.id)).resolves.toBeNull();
+    expect(findUserById).not.toHaveBeenCalled();
+  });
+
   it('answers whatever the switch says — the link itself decides, as `myLink` does', async () => {
     isEnabled.mockResolvedValue(false);
     clientLink.mockResolvedValue({ link: makeLink(), professionalName: 'Ana Dietista' });
-    find.mockResolvedValue(makeProfessional({ userId: PRO.id }));
+    find.mockResolvedValue(PRACTISING);
     findUserById.mockResolvedValue(makeUser({ id: PRO.id, email: 'dietista@example.com' }));
 
     await expect(CareController.activeProfessional(CLIENT.id)).resolves.toEqual({ id: PRO.id, email: 'dietista@example.com' });
@@ -492,5 +508,14 @@ describe('CareController.myLink — the consent version', () => {
 
     await expect(CareController.myLink({ id: CLIENT.id })).resolves.toMatchObject({ consentIsCurrent: true });
     await expect(CareController.myLink({ id: CLIENT.id })).resolves.toMatchObject({ consentIsCurrent: false, consentVersion: '1.0.0' });
+  });
+});
+
+describe('CareController.forgetExpiredInvitations', () => {
+  it('deletes every invitation past its date and says how many', async () => {
+    forgetExpired.mockResolvedValue(3);
+
+    await expect(CareController.forgetExpiredInvitations(NOW)).resolves.toBe(3);
+    expect(forgetExpired).toHaveBeenCalledExactlyOnceWith(NOW);
   });
 });

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PgDialect } from 'drizzle-orm/pg-core';
 
-import { careAccessLog, careLinks } from 'database/schema/care';
+import { careAccessLog, careInvitations, careLinks } from 'database/schema/care';
 import { targetOverrides } from 'database/schema/profile';
 
 import { CareRepository } from './CareRepository';
@@ -72,8 +72,25 @@ function selectTrail() {
   return chain;
 }
 
+/** The last plain `DELETE`: which table, and its `WHERE`. */
+let deleted: { readonly table: unknown; readonly where: SQL } | undefined;
+
+function deleteRows(table: unknown) {
+  return {
+    where: (where: SQL) => {
+      deleted = { table, where };
+
+      return { returning: () => Promise.resolve([{ id: 'a' }, { id: 'b' }]) };
+    }
+  };
+}
+
 vi.mock('database', () => ({
-  database: () => ({ select: selectTrail, transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({ insert, select, update }) })
+  database: () => ({
+    delete: deleteRows,
+    select: selectTrail,
+    transaction: (fn: (tx: unknown) => Promise<unknown>) => fn({ insert, select, update })
+  })
 }));
 
 const NOW = new Date('2026-09-24T10:00:00.000Z');
@@ -208,5 +225,17 @@ describe('CareRepository.accessLog — a value a later release added', () => {
     expect(sql).toContain('"care_access_log"."action" in ($2, $3, $4, $5)');
     expect(sql).toContain('"care_access_log"."kind" in ($6, $7, $8, $9, $10, $11, $12)');
     expect(params.slice(0, 5)).toEqual(['usr-client', 'read', 'write', 'granted', 'withdrawn']);
+  });
+});
+
+describe('CareRepository.forgetExpired', () => {
+  it('deletes every invitation at or past its date, whoever sent it, and counts them', async () => {
+    await expect(CareRepository.forgetExpired(NOW)).resolves.toBe(2);
+
+    const { params, sql } = dialect.sqlToQuery(deleted?.where as SQL);
+
+    expect(deleted?.table).toBe(careInvitations);
+    expect(sql).toBe('"care_invitations"."expires_at" <= $1');
+    expect(params).toEqual([NOW.toISOString()]);
   });
 });
