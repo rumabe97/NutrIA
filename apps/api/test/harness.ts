@@ -6,6 +6,7 @@ import { Test } from '@nestjs/testing';
 
 import { UserController } from 'core/controllers/User';
 import { database } from 'database';
+import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
 import { shapeFor } from 'core/domain/MealShape';
 
 import { AiClient } from '../src/modules/ai/clients/AiClient.js';
@@ -282,6 +283,22 @@ export async function register(app: INestApplication, email: string): Promise<Ac
   return { id: (me.body as { id: string }).id, cookie, email };
 }
 
+/**
+ * Gives the explicit profile consent
+ * (`docs/legal/textos/05-consentimientos-cliente.md` § A) the current notice
+ * asks for. `completeOnboarding` calls this before the `goal` step, which —
+ * with `body-activity` and `allergies` — refuses without it (409
+ * `PROFILE_CONSENT_REQUIRED`); a suite testing the gate itself skips
+ * `completeOnboarding` and calls the steps directly.
+ */
+export async function giveProfileConsent(app: INestApplication, account: Account): Promise<void> {
+  await request(httpServer(app))
+    .put(`/${PREFIX}/profile/consent`)
+    .set('Cookie', account.cookie)
+    .send({ version: PROFILE_CONSENT_VERSION })
+    .expect(200);
+}
+
 /** Walks the eight required onboarding steps so a plan may be generated. */
 /**
  * The scripted name behind a served dish name — the suite token and per-call
@@ -301,13 +318,18 @@ export async function completeOnboarding(
   account: Account,
   allergenIds: readonly string[] = [],
   customAllergens: readonly string[] = [],
-  crossContaminationSensitive = false
+  crossContaminationSensitive = false,
+  dietaryPatterns: readonly string[] = []
 ): Promise<void> {
   const server = httpServer(app);
   const patch = async (step: string, data: unknown) =>
     request(server).patch(`/${PREFIX}/onboarding`).set('Cookie', account.cookie).send({ data, step }).expect(200);
 
   await patch('about-you', { birthDate: '1994-03-11', country: 'ES', displayName: 'Test', sex: 'female' });
+  // `goal`, `body-activity` and `allergies` are the profile-consent steps
+  // (`ProfileConsentController.PROFILE_CONSENT_STEPS`): they refuse with 409
+  // `PROFILE_CONSENT_REQUIRED` without this.
+  await giveProfileConsent(app, account);
   await patch('goal', { paceKgPerWeek: null, startingWeightKg: 72, targetWeightKg: 70, type: 'maintenance' });
   await patch('body-activity', { activityLevel: 'moderate', currentWeightKg: 72, heightCm: 168 });
   await patch('how-you-eat', { mealShape: shapeFor(3, false) });
@@ -315,7 +337,7 @@ export async function completeOnboarding(
   await patch('allergies', {
     allergies: allergenIds.map(allergenId => ({ allergenId, crossContaminationSensitive, severity: 'moderate' as const })),
     customAllergens,
-    dietaryPatterns: [],
+    dietaryPatterns,
     intolerances: []
   });
   await patch('lifestyle', { trainingDaysPerWeek: 3 });

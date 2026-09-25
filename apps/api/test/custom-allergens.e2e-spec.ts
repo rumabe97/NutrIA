@@ -21,7 +21,9 @@ import type { INestApplication } from '@nestjs/common';
 import type { PlanView } from 'core/controllers/Plan';
 
 /**
- * The two halves of the free-text allergy promise, both asserted end to end.
+ * The two halves of the free-text allergy promise, both asserted end to end —
+ * and, since P0-3 (owner's decision, 2026-09-25), that none of it, nor a
+ * religious way of eating, nor a check-in comment, ever reaches the model.
  *
  * A user types "Tomate" — an ingredient the catalogue has, and one carrying no
  * EU-14 allergen at all, so nothing in the allergen tables would ever stop it.
@@ -30,10 +32,22 @@ import type { PlanView } from 'core/controllers/Plan';
  *
  * They also type "marisco", which is a *group* the matcher deliberately refuses
  * to resolve — mapping it to one member would exclude that member and leave the
- * rest on the plate under an interface saying the allergy was enforced.
+ * rest on the plate under an interface saying the allergy was enforced. Until
+ * P0-3 that unresolved label was named to the model as the one mitigation left;
+ * now nothing typed reaches it at all, mitigated in code instead
+ * (`bestEffortExclusions`) and never claimed as a guarantee.
+ *
+ * They also declare `halal`: a religious pattern, enforced in code
+ * (`PATTERN_EXCLUSIONS`, `PATTERN_SLUG_RUNS`) and never named to the model,
+ * because a label that reveals a belief does not leave the building — and a
+ * check-in comment between the first plan and a redo, to prove that free text
+ * does not reach the model either.
  *
  * Requires DATABASE_URL and a seeded catalogue. See ./README.md.
  */
+
+/** Their own words. Never sent anywhere the model could read them. */
+const SECRET_COMMENT = 'las lentejas me encantaron pero necesito menos huevo por favor xyz123';
 
 const SAFE = [
   dish('Yogur natural', ['breakfast'], [{ grams: 250, slug: SEEDED.yogur }]),
@@ -174,7 +188,7 @@ describe('free-text allergies, end to end', () => {
     ai = new ScriptedAiClient([...WITH_TOMATO, ...SAFE]);
     app = await createApp(ai);
     account = await register(app, `custom-allergen-${Date.now()}@example.invalid`);
-    await completeOnboarding(app, account, [], ['Tomate', 'marisco']);
+    await completeOnboarding(app, account, [], ['Tomate', 'marisco'], false, ['halal']);
   }, 120_000);
 
   afterAll(async () => {
@@ -222,16 +236,42 @@ describe('free-text allergies, end to end', () => {
     expect(list.items.filter(item => item.name.toLowerCase().includes('tomate'))).toEqual([]);
   });
 
-  it('never offers the excluded ingredient to the model in the first place', () => {
-    expect(ai.prompts.length).toBeGreaterThan(0);
+  it('takes a check-in comment and redoes the plan, so a second prompt carries it in context', async () => {
+    const active: Response = await request(httpServer(app)).get(`/${PREFIX}/meal-plans/active`).set('Cookie', account.cookie).expect(200);
+    const planId = (active.body as PlanView).id;
+
+    await request(httpServer(app))
+      .post(`/${PREFIX}/check-ins`)
+      .set('Cookie', account.cookie)
+      // `hunger: 'right'` so the nudge this would otherwise trigger does not
+      // touch a target this suite is not testing.
+      .send({ comments: SECRET_COMMENT, difficulty: 'ok', hunger: 'right', planId, satisfaction: 4 })
+      .expect(201);
+
+    const redone = await generateAndWait(app, account, 180_000);
+
+    expect(redone.status).toBe('succeeded');
+  }, 200_000);
+
+  it('never lets free text — the unresolved allergy, the religious pattern or the check-in comment — reach the model', () => {
+    // Both generations: the first prompt and the redo the check-in fed.
+    expect(ai.prompts.length).toBeGreaterThan(1);
 
     for (const prompt of ai.prompts) {
-      // The catalogue listing is the enforcement; the gate is the guarantee.
-      // Both, because a prompt is a request and this is a promise.
-      expect(prompt).not.toContain('tomate (');
-      // The unmatched one is the single case where an allergy *is* named to the
-      // model, because there is no row to withhold.
-      expect(prompt).toContain('marisco');
+      const lower = prompt.toLowerCase();
+
+      // The catalogue listing is the matched allergy's enforcement.
+      expect(lower).not.toContain('tomate (');
+      // Until P0-3 (2026-09-25) the unresolved label was the one thing named to
+      // the model, because there was no catalogue row to withhold instead. Now
+      // nothing typed reaches it: the mitigation moved into code
+      // (`bestEffortExclusions`), and it is never claimed as a guarantee there
+      // either.
+      expect(lower).not.toContain('marisco');
+      // A religious way of eating is enforced in code and never named — a label
+      // that reveals a belief does not leave the building.
+      expect(lower).not.toContain('halal');
+      expect(prompt).not.toContain(SECRET_COMMENT);
     }
   });
 });
