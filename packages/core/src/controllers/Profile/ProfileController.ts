@@ -1,4 +1,6 @@
-import { InputParseError, NotFoundError } from 'core/entities/Error';
+import { InputParseError, NotFoundError, UnderMinimumAgeError } from 'core/entities/Error';
+import { AGE_YEARS } from 'core/entities/Profile';
+import { requireProfileConsent } from './ProfileConsentController';
 import { ageInYears, resolveTargets } from 'core/domain/Nutrition';
 import { FALLBACK_LOCALE } from '#repositories/Recipe';
 import { isEnforceableDislike } from 'core/domain/Preference';
@@ -310,6 +312,8 @@ export const ProfileController = {
   },
 
   async updateGoal(userId: string, input: UpdateGoal): Promise<GoalView> {
+    await requireProfileConsent(userId);
+
     return presentGoal(await ProfileRepository.upsertGoal(userId, input));
   },
 
@@ -318,6 +322,12 @@ export const ProfileController = {
   },
 
   async updateProfile(userId: string, input: UpdateProfile): Promise<ProfileView> {
+    assertOldEnough(input.birthDate);
+
+    if (input.heightCm !== undefined && input.heightCm !== null) {
+      await requireProfileConsent(userId);
+    }
+
     return presentProfile(await ProfileRepository.upsert(userId, input));
   },
 
@@ -375,3 +385,14 @@ export const ProfileController = {
     return resolveTargets(input, saved);
   }
 };
+
+/**
+ * The minimum age, on the server. A birth date that is absent is not refused
+ * here — completeness is judged elsewhere — but one that is present and too
+ * recent never reaches the profile.
+ */
+export function assertOldEnough(birthDate: string | null | undefined): void {
+  if (birthDate && ageInYears(birthDate) < AGE_YEARS.min) {
+    throw new UnderMinimumAgeError();
+  }
+}

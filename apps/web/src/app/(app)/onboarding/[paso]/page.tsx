@@ -7,7 +7,7 @@ import { serverApi } from 'lib/server-api';
 import { appMetadata } from '../../../_shared/metadata';
 
 import type { Allergen } from 'core/entities/Safety';
-import type { FullProfileView } from 'core/controllers/Profile';
+import type { FullProfileView, ProfileConsentView } from 'core/controllers/Profile';
 import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
@@ -37,12 +37,14 @@ export default async function OnboardingStepPage({
     notFound();
   }
 
-  // Only the allergies step renders the catalogue. Fetching it for the other
-  // eight is a whole extra API invocation per step for nothing.
-  const [profile, allergens] = await Promise.all([
+  // Only the allergies step renders the catalogue, and only the about-you step
+  // shows the consent checkbox — fetching either for the other eight steps is
+  // a whole extra API invocation per step for nothing.
+  const [profile, allergens, consent] = await Promise.all([
     serverApi<FullProfileView>('/profile'),
-    FLOW[step - 1]?.key === 'allergies' ? serverApi<readonly Allergen[]>('/safety/allergens') : null
+    FLOW[step - 1]?.key === 'allergies' ? serverApi<readonly Allergen[]>('/safety/allergens') : null,
+    FLOW[step - 1]?.key === 'about-you' ? serverApi<ProfileConsentView>('/profile/consent') : null
   ]);
 
-  return <OnboardingFlow allergens={allergens ?? []} profile={profile} returnTo={returnTo} step={step} />;
+  return <OnboardingFlow allergens={allergens ?? []} consent={consent} profile={profile} returnTo={returnTo} step={step} />;
 }

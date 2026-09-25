@@ -4,7 +4,9 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
+import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController } from 'core/controllers/Plan';
+import { ProfileConsentRequiredError } from 'core/entities/Error';
 import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
 import { ageInYears, resolveTargets } from 'core/domain/Nutrition';
@@ -143,7 +145,9 @@ function race(on = '2026-09-12', daysBefore = 2): EventView {
 
 type Written = Parameters<typeof PlanController.rebuildLoadedDays>;
 
-function build(overrides: { allowed?: boolean; profile?: Partial<typeof PROFILE>; safety?: Set<string> } = {}) {
+function build(
+  overrides: { allowed?: boolean; consented?: boolean; onboardingComplete?: boolean; profile?: Partial<typeof PROFILE>; safety?: Set<string> } = {}
+) {
   const rebuild = jest.spyOn(PlanController, 'rebuildLoadedDays').mockResolvedValue(undefined);
   const reusable = jest.spyOn(RecipeController, 'reusablePool').mockResolvedValue(LIBRARY);
 
@@ -175,6 +179,22 @@ function build(overrides: { allowed?: boolean; profile?: Partial<typeof PROFILE>
       }
     });
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [], liked: [] });
+  jest
+    .spyOn(OnboardingController, 'getState')
+    .mockResolvedValue({
+      completedAt: '2026-09-01',
+      completedSteps: [],
+      currentStep: 9,
+      isComplete: overrides.onboardingComplete !== false,
+      missingSteps: [],
+      profileConsentRequired: overrides.consented === false,
+      resumeStep: 9,
+      totalSteps: 10
+    });
+
+  if (overrides.consented === false) {
+    jest.spyOn(RecipeController, 'generationContext').mockRejectedValue(new ProfileConsentRequiredError());
+  }
 
   return { rebuild, reusable, service: new PlanLoadRebuildService() };
 }
@@ -182,6 +202,22 @@ function build(overrides: { allowed?: boolean; profile?: Partial<typeof PROFILE>
 describe('PlanLoadRebuildService — a fortnight rebuilt for an event (0044)', () => {
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  it('rebuilds nothing for an account without the profile consent — withdrawn, or never given — and the event stands', async () => {
+    const { rebuild, reusable, service } = build({ consented: false });
+
+    await expect(service.forEvent('usr-1', race(), TODAY)).resolves.toEqual([]);
+    expect(reusable).not.toHaveBeenCalled();
+    expect(rebuild).not.toHaveBeenCalled();
+  });
+
+  it('rebuilds nothing after a withdrawal reopened the allergy step, even once consent is given again', async () => {
+    const { rebuild, reusable, service } = build({ onboardingComplete: false });
+
+    await expect(service.forEvent('usr-1', race(), TODAY)).resolves.toEqual([]);
+    expect(reusable).not.toHaveBeenCalled();
+    expect(rebuild).not.toHaveBeenCalled();
   });
 
   it('rebuilds only the loaded days strictly after today, and says which', async () => {

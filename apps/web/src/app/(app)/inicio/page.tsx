@@ -19,7 +19,7 @@ import { Tour } from 'components/Tour';
 import { WeightTracker } from 'components/WeightTracker';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
-import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
+import { redirectIfOnboardingIncomplete, redirectIfProfileConsentMissing } from 'lib/onboarding';
 import { resumesOn } from 'lib/vacation';
 import { serverApi } from 'lib/server-api';
 
@@ -63,6 +63,7 @@ function greetingKey(hour: number): 'goodAfternoon' | 'goodEvening' | 'goodMorni
 
 export default async function DashboardPage() {
   await redirectIfOnboardingIncomplete();
+  await redirectIfProfileConsentMissing();
 
   const [dictionary, locale, user, profile, plan, shopping, weight, checkIn, trips] = await Promise.all([
     getDictionary(),

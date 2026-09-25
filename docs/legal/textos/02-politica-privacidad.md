@@ -93,12 +93,12 @@ La ley protege especialmente los datos de salud y los que revelan creencias reli
 ### La inteligencia artificial
 
 - Un modelo de inteligencia artificial propone los platos y las recetas. Nuestro propio código comprueba cada uno antes de que te llegue: un alérgeno declarado no llega a tu plan aunque el modelo se equivoque. La IA no toma ninguna decisión sobre ti: los límites de calorías y de proteína los aplican reglas fijas, no el modelo.
-- **Lo que recibe el modelo**: tus objetivos diarios y tu objetivo, tu forma de comer, tus gustos y aversiones, tus horarios y los platos de la quincena anterior, sin tu nombre, tu correo ni ningún dato que te identifique directamente. ⟦variante A, si ia-encargado⟧ Las alergias que escribes a mano y que no reconocemos en nuestro catálogo se le nombran para que no las use. **Nunca** recibe tus enfermedades, tu medicación ni tus suplementos; solo su efecto cuando lo hay (por ejemplo, si eres celíaco, el catálogo que ve va sin gluten).
+- **Lo que recibe el modelo**: tus objetivos diarios y tu objetivo (por ejemplo, perder peso), qué comidas haces y a qué horas te levantas, te acuestas y entrenas, cuánto cocinas y tu presupuesto, si eres vegetariano o vegano, las cocinas y los alimentos que te gustan, los nombres de los platos que te gustaron, que no te gustaron o que comiste la quincena anterior, y tus respuestas cerradas al check-in (hambre, dificultad, nota). Siempre con los nombres de nuestras listas. **Nunca** recibe tu nombre, tu correo, tu edad, tu sexo, tu peso ni tu altura, nada que hayas escrito a mano, tus alergias ni intolerancias, ninguna otra forma de comer (sin gluten, sin lactosa, halal, kósher…), ni tus enfermedades, tu medicación o tus suplementos. Lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, del catálogo de alimentos que ve: le llega el efecto, nunca el dato.
 - **Variante A ⟦si ia-encargado⟧**: los modelos los prestan proveedores que tratan esos datos por encargo nuestro, con contrato, sin usarlos para entrenar ni para nada propio, y en su caso fuera de la UE con las garantías que se indican abajo.
 - **Variante B (hasta entonces)**: hoy algunos de los modelos que usamos son versiones gratuitas alojadas en Estados Unidos cuyos proveedores pueden usar lo que reciben para mejorar sus modelos. Por eso les enviamos solo lo necesario para diseñar platos. Estamos cambiando a proveedores que no reutilicen los datos.
 - Las ilustraciones de las recetas las dibuja un modelo a partir del nombre y los ingredientes de la receta, sin ningún dato tuyo.
 
-<!-- Fuente: PoolPrompt.ts:530-644 (qué entra); ai.config.ts:121-136 (sin ids de persona); health-boundary.spec.ts; RecipeIllustrator.service.ts:21-25; RGPD art. 13.1.e-f, 22 (sin decisiones automatizadas con efectos jurídicos), 28; Reglamento (UE) 2024/1689 art. 50. La variante B es la verdad a 2026-09-12 según docs/reference/ai-gateway.md § 1; publicar la B es mejor que callar, pero NO subsana P0-3: la subsana cambiar de proveedor o dejar de enviar texto libre. Si se deja de enviar texto libre, suprimir la frase de las alergias escritas a mano. -->
+<!-- Fuente: PoolPrompt.ts, PROMPT_VERSION 4.0.0 a e28f0e5 (qué entra: ver la nota de profileConsent.ai en textos/05 § A; publicar esta frase solo con esa versión fusionada); ai.config.ts:121-136 (sin ids de persona); health-boundary.spec.ts; RecipeIllustrator.service.ts:21-25; RGPD art. 13.1.e-f, 22 (sin decisiones automatizadas con efectos jurídicos), 28; Reglamento (UE) 2024/1689 art. 50. La variante B es la verdad a 2026-09-12 según docs/reference/ai-gateway.md § 1; con e28f0e5 el modelo ya no recibe salud, creencias ni texto libre, así que la variante B es verdadera y suficiente; la A sigue siendo el objetivo. -->
 
 ### Con quién compartimos tus datos
 
@@ -115,9 +115,9 @@ La ley protege especialmente los datos de salud y los que revelan creencias reli
 
 ### Transferencias fuera de la Unión Europea
 
-Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí (Vercel, Neon, Stripe, el proveedor de correo, Sentry y los de inteligencia artificial). Solo trabajamos con los que ofrecen una garantía reconocida por la Unión Europea: su adhesión al Marco de Privacidad de Datos UE-EE. UU. o las cláusulas contractuales tipo de la Comisión Europea. Puedes pedirnos una copia de esas garantías en {email}.
+Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí: Vercel, Neon, Stripe, el proveedor de correo, Sentry y los de inteligencia artificial. Vercel está certificado en el Marco de Privacidad de Datos UE-EE. UU., que la Comisión Europea reconoce como garantía suficiente; con el resto nos apoyamos en ese mismo marco o en las cláusulas contractuales tipo de la Comisión, según ofrezca cada uno. ⟦variante B⟧ Los modelos gratuitos de inteligencia artificial que usamos hoy no ofrecen ninguna de esas garantías; por eso solo les enviamos lo que se describe arriba, sin nada que te identifique, que escribas tú ni que sea un dato de salud o una creencia. Puedes pedirnos el detalle de cada garantía en {email}.
 
-<!-- Fuente: RGPD arts. 13.1.f, 45 (decisión de adecuación: Decisión de Ejecución (UE) 2023/1795, Marco de Privacidad UE-EE. UU.), 46.2.c (cláusulas tipo). [abogado]: verificar la garantía de cada proveedor concreto antes de publicar esta frase — analisis.md § 4.2. -->
+<!-- Fuente: RGPD arts. 13.1.f, 45 (decisión de adecuación: Decisión de Ejecución (UE) 2023/1795, Marco de Privacidad UE-EE. UU.), 46.2.c (cláusulas tipo). Verificado 2026-09-25: Vercel figura como certificado en el DPF (dataprivacyframework.gov y changelog de Vercel). Neon, Stripe, Sentry y el proveedor de correo: el propietario comprueba su DPA/DPF en la lista oficial antes de nombrarlos uno a uno [abogado]. La frase de la variante B es obligatoria mientras se usen modelos opencode/*-free o Gemini gratuito: sin ella la sección afirma una garantía que esos proveedores no dan. — analisis.md § 4.2. -->
 
 ### Cuánto tiempo guardamos tus datos
 
@@ -128,7 +128,7 @@ Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí
 - **Si fuiste dietista en NutrIA**, tu nombre se queda en el registro de accesos de tus antiguos pacientes, porque es su derecho saber quién vio sus datos.
 - Stripe conserva los datos de facturación el tiempo que le exige la ley, aunque borres tu cuenta.
 
-<!-- Fuente: RGPD art. 13.2.a y 5.1.e; auth.config.ts:212-231 (borrado); care.schema.ts:14-24 (invitaciones); care.schema.ts:122 (nombre del profesional); deployment.md § 8 (la ventana {n} está sin anotar: el propietario la toma de la consola de Neon). La frase actual «se elimina automáticamente pasado ese plazo» es falsa para la exportación manual (P1-6). -->
+<!-- Fuente: RGPD art. 13.2.a y 5.1.e; auth.config.ts:212-231 (borrado); care.schema.ts:14-24 (invitaciones); care.schema.ts:122 (nombre del profesional); deployment.md § 8 (la ventana {n} está sin anotar: el propietario la toma de la consola de Neon; mientras falte, «puedes pedirnos el plazo exacto en {email}» —lo que publicó frontend— es una sustitución aceptable, porque el art. 13.2.a admite «los criterios utilizados para determinar este plazo» y no inventa un número). La frase actual «se elimina automáticamente pasado ese plazo» es falsa para la exportación manual (P1-6). -->
 
 ### Tus derechos
 
@@ -160,9 +160,9 @@ Tu contraseña nunca se guarda en texto plano y la conexión va siempre cifrada.
 
 ### Menores de edad
 
-NutrIA no es para menores de 16 años. ⟦si edad⟧ Si la fecha de nacimiento que indicas es de alguien menor, no podemos crear el perfil. Si sabemos que una cuenta es de un menor de 16 años, la borramos.
+NutrIA no es para menores de 18 años. ⟦si edad⟧ Si la fecha de nacimiento que indicas es de alguien menor, no podemos crear el perfil. Si sabemos que una cuenta es de un menor de 18 años, la borramos.
 
-<!-- Fuente: LOPDGDD art. 7 (14 años para consentir); RGPD art. 8; condiciones de uso (16). Sin ⟦edad⟧, omitir la segunda frase: hoy no se comprueba (P1-4). -->
+<!-- Fuente: LOPDGDD art. 7 (14 años para consentir); RGPD art. 8; condiciones de uso (18, decisión del propietario de 2026-09-25). Sin ⟦edad⟧, omitir la segunda frase: hoy no se comprueba (P1-4). -->
 
 ### Cambios en esta política
 
@@ -224,7 +224,7 @@ The law gives special protection to health data and to data revealing religious 
 ### Artificial intelligence
 
 - An artificial-intelligence model proposes dishes and recipes. Our own code checks each one before it reaches you: a declared allergen does not reach your plan even if the model gets it wrong. The AI makes no decision about you: the calorie and protein bounds are applied by fixed rules, not by the model.
-- **What the model receives**: your daily targets and goal, your way of eating, your likes and dislikes, your schedule and last fortnight's dishes, without your name, email or anything that directly identifies you. ⟦variant A, if ai-processor⟧ Allergies you type yourself that our catalogue does not recognise are named to it so it avoids them. It **never** receives your conditions, medications or supplements; only their effect where there is one (for example, if you have coeliac disease, the catalogue it sees has no gluten).
+- **What the model receives**: your daily targets and your goal (for example, losing weight), which meals you eat and when you wake, sleep and train, how much you cook and your budget, whether you are vegetarian or vegan, the cuisines and foods you like, the names of dishes you liked, disliked or ate last fortnight, and your closed check-in answers (hunger, difficulty, rating). Always by the names on our lists. It **never** receives your name, email, age, sex, weight or height, anything you typed yourself, your allergies or intolerances, any other way of eating (gluten-free, lactose-free, halal, kosher…), or your conditions, medications or supplements. What you cannot or will not eat we remove first, in our code, from the catalogue of foods it sees: it gets the effect, never the datum.
 - **Variant A ⟦if ai-processor⟧**: the models are provided by companies that process this data on our behalf, under contract, without using it for training or for anything of their own, and where outside the EU with the safeguards set out below.
 - **Variant B (until then)**: some of the models we use today are free versions hosted in the United States whose providers may use what they receive to improve their models. That is why we send them only what is needed to design dishes. We are moving to providers that do not reuse data.
 - Recipe illustrations are drawn by a model from the recipe's name and ingredients, with no data of yours.
@@ -242,7 +242,7 @@ The law gives special protection to health data and to data revealing religious 
 
 ### Transfers outside the European Union
 
-Some of these providers are US companies or process data there (Vercel, Neon, Stripe, the email provider, Sentry and the AI providers). We only work with those that offer a safeguard recognised by the European Union: certification under the EU-US Data Privacy Framework or the European Commission's standard contractual clauses. You can ask us for a copy of those safeguards at {email}.
+Some of these providers are US companies or process data there: Vercel, Neon, Stripe, the email provider, Sentry and the AI providers. Vercel is certified under the EU-US Data Privacy Framework, which the European Commission recognises as an adequate safeguard; with the others we rely on that same framework or on the Commission's standard contractual clauses, whichever each offers. ⟦variant B⟧ The free AI models we use today offer neither safeguard; that is why we send them only what is described above, with nothing that identifies you, that you wrote, or that is health data or a belief. You can ask us for the details of each safeguard at {email}.
 
 ### How long we keep your data
 
@@ -277,7 +277,7 @@ Your password is never stored in plain text and the connection is always encrypt
 
 ### Children
 
-NutrIA is not for anyone under 16. ⟦if age⟧ If the date of birth you give belongs to someone younger, we cannot create the profile. If we learn that an account belongs to someone under 16, we delete it.
+NutrIA is not for anyone under 18. ⟦if age⟧ If the date of birth you give belongs to someone younger, we cannot create the profile. If we learn that an account belongs to someone under 18, we delete it.
 
 ### Changes to this policy
 

@@ -129,7 +129,7 @@ de las pendientes marcadas.
 | M7 | Rastro visible para el cliente de cada lectura y escritura | ✔ |
 | M8 | Acuerdo del profesional aceptado y versionado antes de abrir la consulta; retirada de la concesión por incumplimiento | **pendiente (P1-1)** |
 | M9 | Línea de salud separada, desmarcada por defecto, **retirable sin terminar el enlace**, texto verdadero | separada ✔; retirable y texto **pendiente (P0-1)** |
-| M10 | Puerta de edad (16) en el servidor | **pendiente (P1-4)** |
+| M10 | Puerta de edad (18, decisión del propietario de 2026-09-25) en el servidor | **pendiente (P1-4)** |
 | M11 | Solo `apps/api` abre conexión; propiedad por `WHERE userId`; sesión re-leída en cada petición | ✔ |
 | M12 | Exportación manual cifrada, en disco cifrado, borrada a los 30 días | **pendiente (P1-6)** |
 | M13 | Better Auth: contraseñas con hash, límite de intentos en base de datos, vinculación estricta de cuentas, revocar sesiones al resetear, cookies `httpOnly`/`secure`/`lax` | ✔ |

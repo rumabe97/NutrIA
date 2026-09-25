@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConflictError, NotFoundError } from 'core/entities/Error';
+import { ConflictError, NotFoundError, ProfileConsentRequiredError } from 'core/entities/Error';
 
 import { CheckInController, nudgedKcal } from './CheckInController';
 
@@ -19,6 +19,7 @@ const upsertWeight = vi.fn<(userId: string, date: string, weightKg: number) => P
 const clientLink = vi.fn<(clientId: string) => Promise<LinkWithProfessional | null>>();
 const findTargetSetterId = vi.fn<(userId: string) => Promise<string | null>>();
 const getFullProfile = vi.fn<(userId: string) => Promise<{ targets: ResolvedTargets | null }>>();
+const requireProfileConsent = vi.fn<(userId: string) => Promise<void>>(async () => undefined);
 const updateTargets = vi.fn<(userId: string, patch: unknown) => Promise<ResolvedTargets>>();
 
 vi.mock('#repositories/Plan', () => ({ PlanRepository: { findById: (...args: Parameters<typeof findById>) => findById(...args) } }));
@@ -39,7 +40,8 @@ vi.mock('core/controllers/Profile', () => ({
   ProfileController: {
     getFullProfile: (...args: Parameters<typeof getFullProfile>) => getFullProfile(...args),
     updateTargets: (...args: Parameters<typeof updateTargets>) => updateTargets(...args)
-  }
+  },
+  requireProfileConsent: (userId: string) => requireProfileConsent(userId)
 }));
 
 const USER = 'usr-client';
@@ -146,6 +148,24 @@ describe('CheckInController.submit', () => {
     );
     expect(upsertWeight).not.toHaveBeenCalled();
     expect(updateTargets).not.toHaveBeenCalled();
+  });
+
+  it('refuses a weight without the profile consent, recording nothing', async () => {
+    requireProfileConsent.mockRejectedValueOnce(new ProfileConsentRequiredError());
+
+    await expect(
+      CheckInController.submit(USER, { difficulty: 'ok', hunger: 'right', planId: PLAN.id, satisfaction: 3, weightKg: 70 })
+    ).rejects.toBeInstanceOf(ProfileConsentRequiredError);
+    expect(create).not.toHaveBeenCalled();
+    expect(upsertWeight).not.toHaveBeenCalled();
+  });
+
+  it('does not ask the profile consent of a check-in that carries no weight', async () => {
+    requireProfileConsent.mockClear();
+
+    await CheckInController.submit(USER, { difficulty: 'ok', hunger: 'right', planId: PLAN.id, satisfaction: 3 });
+
+    expect(requireProfileConsent).not.toHaveBeenCalled();
   });
 
   it('nudges kcal for an unlinked account, as today', async () => {

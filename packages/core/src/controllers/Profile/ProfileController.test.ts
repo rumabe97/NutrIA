@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { InputParseError, NotFoundError } from 'core/entities/Error';
+import { InputParseError, NotFoundError, ProfileConsentRequiredError, UnderMinimumAgeError } from 'core/entities/Error';
+import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
 import { makeGoal, makePreferences, makeProfile } from '#test/fixtures';
 
 import { ProfileController } from './ProfileController';
@@ -20,14 +21,20 @@ const findActiveGoal = vi.fn<(userId: string) => Promise<Goal | undefined>>();
 const findPreferences = vi.fn<(userId: string) => Promise<Preferences | undefined>>();
 const findTargetOverride = vi.fn<(userId: string) => Promise<TargetOverride | undefined>>();
 const upsertTargetOverride = vi.fn<(userId: string, input: UpdateTargetOverride, setter: ProfessionalSetter | null) => Promise<TargetOverride>>();
+const findConsent = vi.fn<(userId: string) => Promise<{ grantedAt: Date; version: string } | undefined>>();
+const upsert = vi.fn<(userId: string, input: unknown) => Promise<Profile>>();
+const upsertGoal = vi.fn<(userId: string, input: unknown) => Promise<Goal>>();
 const findLatestWeight = vi.fn<(userId: string) => Promise<number | null>>();
 
 vi.mock('#repositories/Profile', () => ({
+  ProfileConsentRepository: { find: (userId: string) => findConsent(userId) },
   ProfileRepository: {
     findActiveGoal: (userId: string) => findActiveGoal(userId),
     findByUserId: (userId: string) => findByUserId(userId),
     findPreferences: (userId: string) => findPreferences(userId),
     findTargetOverride: (userId: string) => findTargetOverride(userId),
+    upsert: (userId: string, input: unknown) => upsert(userId, input),
+    upsertGoal: (userId: string, input: unknown) => upsertGoal(userId, input),
     upsertTargetOverride: (...args: Parameters<typeof upsertTargetOverride>) => upsertTargetOverride(...args)
   }
 }));
@@ -107,5 +114,53 @@ describe('ProfileController.targets', () => {
 
   it('says nobody set anything when there is no override', async () => {
     expect((await ProfileController.targets(CLIENT_ID))?.setBy).toBeNull();
+  });
+});
+
+describe('ProfileController — what the profile consent and the minimum age guard', () => {
+  beforeEach(() => {
+    for (const mock of [findConsent, upsert, upsertGoal]) {
+      mock.mockReset();
+    }
+
+    upsert.mockResolvedValue(makeProfile());
+    upsertGoal.mockResolvedValue(makeGoal());
+  });
+
+  it('refuses a height without the profile consent', async () => {
+    findConsent.mockResolvedValue(undefined);
+
+    await expect(ProfileController.updateProfile(CLIENT_ID, { heightCm: 170 })).rejects.toBeInstanceOf(ProfileConsentRequiredError);
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it('does not ask it of a change that carries no health data', async () => {
+    findConsent.mockResolvedValue(undefined);
+
+    await ProfileController.updateProfile(CLIENT_ID, { displayName: 'Ana' });
+
+    expect(upsert).toHaveBeenCalledOnce();
+  });
+
+  it('refuses a goal without the profile consent', async () => {
+    findConsent.mockResolvedValue(undefined);
+
+    await expect(ProfileController.updateGoal(CLIENT_ID, { type: 'weight_loss' })).rejects.toBeInstanceOf(ProfileConsentRequiredError);
+    expect(upsertGoal).not.toHaveBeenCalled();
+  });
+
+  it('saves a goal once it is given', async () => {
+    findConsent.mockResolvedValue({ grantedAt: NOW, version: PROFILE_CONSENT_VERSION });
+
+    await ProfileController.updateGoal(CLIENT_ID, { type: 'weight_loss' });
+
+    expect(upsertGoal).toHaveBeenCalledOnce();
+  });
+
+  it('refuses a birth date under 18 from the profile screen too', async () => {
+    const birthDate = `${new Date().getUTCFullYear() - 10}-01-01`;
+
+    await expect(ProfileController.updateProfile(CLIENT_ID, { birthDate })).rejects.toBeInstanceOf(UnderMinimumAgeError);
+    expect(upsert).not.toHaveBeenCalled();
   });
 });

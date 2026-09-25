@@ -180,7 +180,8 @@ export const esES = {
     haveAccount: '¿Ya tienes cuenta?',
     invalidCredentials: 'Correo o contraseña incorrectos.',
     invalidLink: 'Este enlace no es válido o ha caducado.',
-    legalNotice: 'Al continuar aceptas las {terms} y la {privacy}.',
+    legalAge: 'Necesitas tener al menos 18 años para crear una cuenta.',
+    legalNotice: 'Al crear tu cuenta aceptas las {terms}. Cómo tratamos tus datos te lo explica la {privacy}.',
     legalPrivacy: 'política de privacidad',
     legalTerms: 'condiciones de uso',
     name: 'Nombre',
@@ -281,7 +282,7 @@ export const esES = {
     alreadyTitle: 'Ya has cerrado esta quincena',
     backHome: 'Volver al inicio',
     comments: '¿Qué cambiarías?',
-    commentsHint: 'Opcional. En tus palabras: platos, horarios, lo que sea. Llega al modelo tal cual.',
+    commentsHint: 'Opcional. En tus palabras: platos, horarios, lo que sea. Se guarda con tu check-in, pero ya no llega al modelo ni cambia el plan.',
     difficulty: '¿Cómo ha sido seguir el plan?',
     difficultyEasy: 'Fácil',
     difficultyHard: 'Difícil',
@@ -291,13 +292,12 @@ export const esES = {
     doneTargets: 'Objetivo de calorías: de {from} a {to} kcal al día.',
     doneTitle: 'Quincena cerrada',
     doneWeight: 'Peso registrado: los objetivos ya se calculan con él.',
-    doneWords: 'Tus palabras llegarán al modelo cuando generes el siguiente plan.',
     hunger: '¿Cómo has ido de cantidades?',
     hungerHungry: 'Me quedaba con hambre',
     hungerRight: 'Bien',
     hungerTooMuch: 'Era demasiado',
     intro:
-      'Cinco preguntas. Lo que digas aquí cambia el siguiente plan: tu peso ajusta los objetivos, las cantidades los suben o bajan un 5 %, y tus palabras llegan al modelo tal cual.',
+      'Cinco preguntas. Tu peso ajusta los objetivos y tus respuestas mueven las cantidades un 5 % arriba o abajo. Lo que escribas se guarda con el check-in, pero ya no llega al modelo ni cambia el plan.',
     nextPlan: 'Crear mi próximo plan',
     notYetBody: 'El check-in se abre el último día del plan.',
     notYetTitle: 'Todavía no toca',
@@ -416,8 +416,10 @@ export const esES = {
     onboardingIncomplete: 'Nos falta parte de tu perfil. Termínalo y vuelve a intentarlo.',
     planPaused: 'Tu plan está en pausa mientras estás de vacaciones.',
     practiceFull: 'Tu consulta ya tiene todos los pacientes que incluye tu plan.',
+    profileConsentRequired: 'Nos falta tu consentimiento para tratar tus datos de salud.',
     quotaExceeded: 'Has agotado lo que permite tu plan esta quincena.',
     request: 'No hemos podido completar la acción.',
+    underMinimumAge: 'NutrIA es para mayores de 18 años.',
     unsafeContent: 'Ese contenido no cumple tus restricciones alimentarias.'
   },
 
@@ -501,6 +503,8 @@ export const esES = {
     poolTooSmallBody:
       'Todavía no tenemos suficientes recetas que encajen con tus restricciones y no hay ningún proveedor de IA configurado, así que no podemos crear las que faltan. Configura AI_PROVIDER en el servidor, o espera a que la biblioteca de recetas crezca.',
     poolTooSmallTitle: 'Nos faltan recetas',
+    profileConsentRequiredBody: 'Necesitamos tu consentimiento para tratar tus datos de salud antes de poder calcular tu plan.',
+    profileConsentRequiredTitle: 'Falta tu consentimiento',
     profileIncompleteBody: 'Necesitamos tu fecha de nacimiento, altura, sexo, peso y nivel de actividad para calcular tus objetivos.',
     profileIncompleteTitle: 'Falta información en tu perfil',
     quotaExceeded: 'Ya has rehecho tu plan esta quincena. Podrás crear el siguiente el {date}.',
@@ -764,7 +768,7 @@ export const esES = {
   onboarding: {
     customAllergen: {
       bestEffort:
-        '— no lo tenemos en el catálogo, así que no podemos garantizarlo. Se lo pedimos al generador y descartamos cualquier plato con ingredientes que no reconozcamos, pero revisa los platos antes de cocinarlos.',
+        '— no lo tenemos en el catálogo: quitamos de tus platos los alimentos cuyo nombre coincide, pero solo por el nombre, así que no podemos garantizarlo. Revisa los platos antes de cocinarlos.',
       enforced: '— lo aplicamos: «{ingredient}» no aparecerá en ningún plato.'
     },
     fields: {
@@ -783,6 +787,8 @@ export const esES = {
       customAllergensHint: 'Separa con comas. Al guardar buscamos cada una en nuestro catálogo y te decimos qué podemos aplicar.',
       customGoal: 'Si has elegido «Otro», descríbelo',
       dietaryPatterns: 'Tipo de alimentación',
+      dietaryPatternsHint:
+        'Quitamos el cerdo, el alcohol y la gelatina (y, en kosher, el marisco y la carne con lácteos). La carne certificada depende de dónde la compres.',
       disliked: 'Alimentos que no quieres ver',
       dislikedHint: 'No volverán a aparecer en tus planes.',
       displayName: '¿Cómo quieres que te llamemos?',
@@ -923,6 +929,7 @@ export const esES = {
       description: 'Las condiciones para usar NutrIA: qué es y qué no es, tu cuenta, las alergias, Premium y cómo cancelarlo.',
       title: 'Condiciones de uso'
     },
+    '/consentimiento': { title: 'Tus datos de salud' },
     '/consulta': { title: 'Consulta' },
     '/consulta/[linkId]': { title: 'Un paciente' },
     '/inicio': { title: 'Hoy' },
@@ -1095,90 +1102,124 @@ export const esES = {
 
   privacy: {
     intro: [
-      'Esta política explica qué datos guarda NutrIA sobre ti, para qué los usa, con quién los comparte y qué puedes hacer para verlos, corregirlos o borrarlos.',
+      'Esta política explica qué datos guarda NutrIA sobre ti, para qué, con quién los comparte, cuánto tiempo y qué puedes hacer con ellos.',
       'NutrIA es una herramienta de planificación de comidas. No es un servicio médico y no sustituye el consejo de un médico ni de un dietista-nutricionista colegiado.'
     ],
     sections: [
       {
         heading: 'Quién trata tus datos',
         paragraphs: [
-          'El responsable del tratamiento es {name}, una persona física — no una empresa ni un autónomo registrado. Puedes escribir a {email} para cualquier cuestión sobre tus datos, incluida una solicitud de acceso, rectificación o borrado.'
+          'El responsable del tratamiento es {name}, titular de NutrIA. Puedes escribir a {email} para cualquier cuestión sobre tus datos, incluida una solicitud de acceso, rectificación o borrado.',
+          'No tenemos delegado de protección de datos porque la ley no nos lo exige; {email} cumple esa función de contacto.'
         ]
       },
       {
         heading: 'Qué datos recogemos y para qué',
         list: [
-          'Cuenta: tu nombre y tu correo electrónico y, si accedes con Google o Apple, el nombre y el correo que ese servicio nos confirma. Para crear tu cuenta y que puedas entrar en ella.',
-          'Perfil y objetivos: tu edad, sexo, altura, peso, nivel de actividad y tus objetivos nutricionales. Para calcular cuánto necesitas comer.',
-          'Alergias e intolerancias: los alimentos que no puedes comer. Para que ningún plan te proponga uno de ellos.',
+          'Cuenta: tu nombre y tu correo y, si entras con Google o Apple, el nombre y el correo que ese servicio nos confirma. Mientras tienes la sesión abierta guardamos la dirección IP y el navegador desde el que entraste, para poder cerrarla. Para que tengas una cuenta y solo tú entres en ella.',
+          'Tu cuerpo y tu objetivo: fecha de nacimiento, sexo, altura, peso, nivel de actividad, horarios y tu objetivo (por ejemplo, perder peso). Para calcular cuánto necesitas comer.',
+          'Alergias e intolerancias: las que eliges de la lista, las que escribes a mano y su gravedad. Para que ningún plan te proponga algo que te puede hacer daño.',
+          'Tu forma de comer: por ejemplo vegetariana, sin gluten o sin lactosa, y la cocina que te gusta o no. Para ajustar los platos.',
           'Enfermedades, medicación y suplementos: solo si decides contárnoslo, bajo un consentimiento aparte que puedes retirar en cualquier momento sin borrar el resto de tu cuenta.',
-          'Preferencias: la cocina que prefieres, los alimentos que no te gustan, tus horarios de comida. Para ajustar tus planes a ti.',
-          'Uso del plan: qué comidas marcas como hechas o saltadas, tu peso a lo largo del tiempo, tus check-ins quincenales. Para que tu siguiente plan tenga esto en cuenta.',
-          'Pagos: si contratas Premium, Stripe procesa el cobro y nosotros guardamos solo un identificador de tu suscripción y su estado. Nunca vemos ni guardamos el número de tu tarjeta.',
-          'Uso técnico: qué acciones haces en la app (por ejemplo, que abriste sesión o que pediste un cambio de receta), sin más detalle que ese, para saber qué funciona y qué no.'
+          'Cómo llevas el plan: qué comidas marcas como hechas o saltadas, tus valoraciones y comentarios de los platos, tu peso a lo largo del tiempo y tus check-ins quincenales. Para que el siguiente plan lo tenga en cuenta.',
+          'Pagos: si contratas Premium, Stripe cobra y nosotros guardamos solo el identificador de tu suscripción y su estado. Nunca vemos el número de tu tarjeta.',
+          'Uso del producto: registramos, ligado a tu cuenta, cuándo abres sesión y cuándo pides cambiar un plato, sin más detalle. Para saber si el producto funciona.',
+          'Lo que nos escribes: los mensajes del buzón de sugerencias, para leerlos y responderte.'
         ],
         paragraphs: []
       },
       {
+        heading: 'Cuáles de estos datos son especialmente protegidos',
+        paragraphs: [
+          'La ley protege especialmente los datos de salud y los que revelan creencias religiosas. En NutrIA lo son: tus alergias e intolerancias; tu peso, tu altura y tu objetivo, porque dicen algo de tu salud; una forma de comer como «sin gluten» o «sin lactosa», o una ligada a una religión; tus enfermedades, tu medicación y tus suplementos; y lo que escribas sobre cómo te sienta el plan.'
+        ]
+      },
+      {
         heading: 'Por qué podemos tratar estos datos',
         paragraphs: [
-          'Los datos de cuenta, perfil, objetivos, alergias y uso del plan se tratan porque son necesarios para darte el servicio que nos pides: sin ellos, NutrIA no puede calcular ni proponerte nada. Tus enfermedades, tu medicación y tus suplementos se tratan solo con tu consentimiento explícito, que registramos con su fecha y puedes retirar cuando quieras desde tu perfil. El uso técnico anónimo se trata por nuestro interés legítimo en saber si el producto funciona.'
+          'Para darte el servicio que pides (contrato): tu cuenta, tu perfil, tus planes, tus pagos y los correos del servicio.',
+          'Con tu consentimiento explícito: tus alergias e intolerancias, tu cuerpo y tu objetivo y tu forma de comer, que nos das con una casilla propia al crear tu perfil. Sin ellos no podemos hacer un plan seguro para ti, por eso sin ese consentimiento no generamos planes; puedes retirarlo cuando quieras borrando esos datos desde tu perfil. Tus enfermedades, tu medicación y tus suplementos, con un consentimiento aparte, opcional. Cada consentimiento se guarda con su fecha y la versión del texto que aceptaste.',
+          'Por nuestro interés legítimo: registrar el uso del producto y los errores técnicos para que funcione, sin datos de salud. Puedes oponerte escribiéndonos.',
+          'Por obligación legal: conservar lo que la ley fiscal exige de los pagos (lo hace Stripe).'
+        ]
+      },
+      {
+        heading: 'La inteligencia artificial',
+        paragraphs: [
+          'Un modelo de inteligencia artificial propone los platos y las recetas. Nuestro propio código comprueba cada uno antes de que te llegue: un alérgeno declarado no llega a tu plan aunque el modelo se equivoque. La IA no toma ninguna decisión sobre ti: los límites de calorías y de proteína los aplican reglas fijas, no el modelo.',
+          'Lo que recibe el modelo: tus objetivos diarios y tu objetivo (por ejemplo, perder peso), qué comidas haces y a qué horas te levantas, te acuestas y entrenas, cuánto cocinas y tu presupuesto, si eres vegetariano o vegano, las cocinas y los alimentos que te gustan, los nombres de los platos que te gustaron, que no te gustaron o que comiste la quincena anterior, y tus respuestas cerradas al check-in (hambre, dificultad, nota). Siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu sexo, tu peso ni tu altura, nada que hayas escrito a mano, tus alergias ni intolerancias, ninguna otra forma de comer (sin gluten, sin lactosa, halal, kósher…), ni tus enfermedades, tu medicación o tus suplementos. Lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, del catálogo de alimentos que ve: le llega el efecto, nunca el dato.',
+          'Hoy algunos de los modelos que usamos son versiones gratuitas alojadas en Estados Unidos cuyos proveedores pueden usar lo que reciben para mejorar sus modelos. Por eso les enviamos solo lo necesario para diseñar platos, nunca texto libre. Estamos cambiando a proveedores que no reutilicen los datos.',
+          'Las ilustraciones de las recetas las dibuja un modelo a partir del nombre y los ingredientes de la receta, sin ningún dato tuyo.'
         ]
       },
       {
         heading: 'Con quién compartimos tus datos',
         list: [
-          'Un proveedor de generación por inteligencia artificial, para proponer tus recetas y planes. Solo recibe tus objetivos nutricionales, tus preferencias y tus alergias e intolerancias — nunca tus enfermedades, tu medicación ni tus suplementos. Lo que la IA propone se comprueba siempre con nuestro propio código antes de llegarte: un alérgeno declarado no llega a tu plan aunque el modelo se equivocara.',
+          'Proveedores de inteligencia artificial, como se explica arriba.',
+          'Vercel (alojamiento de la web y la API, en la Unión Europea) y Neon (base de datos, en la Unión Europea). Son empresas de Estados Unidos.',
           'Stripe, si contratas Premium, para cobrar la suscripción. Stripe procesa y conserva los datos de pago según sus propias políticas.',
-          'Nuestro proveedor de correo, para enviarte los correos de confirmación, recuperación de contraseña y recordatorio del check-in que tú actives.',
-          'El servicio de notificaciones push de tu propio navegador, si activas los avisos en el teléfono.',
-          'Sentry, un servicio de monitorización de errores, solo si está activado. Recibe el error y en qué parte del código ocurrió, nunca tus datos personales ni lo que escribiste.',
-          'Vercel y Neon, que alojan la aplicación y la base de datos. Nadie más tiene acceso a ellas.'
+          'Nuestro proveedor de correo, para los correos de confirmación, recuperación de contraseña y recordatorio del check-in que tú actives.',
+          'El servicio de notificaciones de tu propio navegador (Google, Apple o Mozilla), si activas los avisos; el contenido va cifrado y ellos no pueden leerlo.',
+          'Sentry, un servicio de errores, solo si está activado: recibe el error y dónde ocurrió, nunca tus datos ni lo que escribiste.'
         ],
-        paragraphs: ['No vendemos tus datos a nadie. No hay anuncios en NutrIA ni cookies publicitarias.']
+        paragraphs: ['No vendemos tus datos. No hay anuncios ni cookies publicitarias.']
+      },
+      {
+        heading: 'Transferencias fuera de la Unión Europea',
+        paragraphs: [
+          'Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí: Vercel, Neon, Stripe, el proveedor de correo, Sentry y los de inteligencia artificial. Vercel está certificado en el Marco de Privacidad de Datos UE-EE. UU., que la Comisión Europea reconoce como garantía suficiente; con el resto nos apoyamos en ese mismo marco o en las cláusulas contractuales tipo de la Comisión, según ofrezca cada uno. Los modelos gratuitos de inteligencia artificial que usamos hoy no ofrecen ninguna de esas garantías; por eso solo les enviamos lo que se describe arriba, sin nada que te identifique, que escribas tú ni que sea un dato de salud o una creencia. Puedes pedirnos el detalle de cada garantía en {email}.'
+        ]
       },
       {
         heading: 'Cuánto tiempo guardamos tus datos',
         paragraphs: [
-          'Guardamos tus datos mientras tu cuenta exista. Al borrar tu cuenta se borra todo lo que hay en ella de forma inmediata y en cascada: perfil, alergias, planes, listas de la compra, progreso y consentimientos. Una copia de seguridad técnica puede conservar esa información unos días más, solo para poder recuperarnos de un fallo, y se elimina automáticamente pasado ese plazo.',
-          'Si contrataste Premium, Stripe conserva los datos de facturación durante el plazo que le exige la ley, al margen de que borres tu cuenta.'
+          'Mientras tu cuenta exista. Al borrarla, todo lo que hay en ella se borra al momento: perfil, alergias, salud, planes, listas de la compra, progreso y consentimientos.',
+          'Nuestro proveedor de base de datos guarda, por su cuenta, un historial breve para poder recuperarnos de un fallo; puedes pedirnos el plazo exacto en {email}.',
+          'Si contrataste Premium, Stripe conserva los datos de facturación el tiempo que le exige la ley, aunque borres tu cuenta.'
         ]
       },
       {
         heading: 'Tus derechos',
         list: [
-          'Acceder a los datos que tenemos sobre ti, desde tu perfil o pidiéndolos por correo.',
-          'Corregirlos, desde tu propio perfil en la mayoría de los casos.',
-          'Borrarlos, borrando tu cuenta desde tu perfil o pidiéndolo por correo.',
-          'Retirar tu consentimiento a guardar enfermedades, medicación o suplementos, sin que afecte al resto de tu cuenta.',
-          'Oponerte al uso técnico anónimo, escribiéndonos.',
-          'Reclamar ante la Agencia Española de Protección de Datos (aepd.es) si crees que no hemos respetado tus derechos.'
+          'Acceso: ver qué datos tenemos, desde tu perfil o pidiéndolos por correo.',
+          'Rectificación: corregirlos, desde tu perfil en casi todo.',
+          'Supresión: borrar tu cuenta desde tu perfil, o pedirlo por correo.',
+          'Portabilidad: recibir tus datos en un archivo estructurado para llevarlos a otro servicio; pídenoslo por correo.',
+          'Limitación: pedirnos que dejemos de usar un dato mientras resolvemos una reclamación tuya sobre él.',
+          'Oposición: al registro de uso del producto, escribiéndonos.',
+          'Retirar un consentimiento cuando quieras, sin que afecte a lo que ya hicimos con él: el de tu perfil o el de tu salud, borrando esos datos desde tu perfil.',
+          'Reclamar ante la Agencia Española de Protección de Datos (aepd.es).'
         ],
-        paragraphs: []
+        paragraphs: ['Respondemos en un mes como máximo. No te cobramos nada por ello.']
       },
       {
         heading: 'Cómo protegemos tus datos',
         paragraphs: [
-          'Tu contraseña nunca se guarda en texto plano. La conexión entre tu dispositivo y NutrIA va siempre cifrada. Tus enfermedades, tu medicación y tus suplementos viven en una parte del código que nunca habla con la inteligencia artificial. El acceso a la base de datos está restringido y nadie lo consulta salvo para arreglar un fallo.'
+          'Tu contraseña nunca se guarda en texto plano y la conexión va siempre cifrada. Tus enfermedades, tu medicación y tus suplementos viven en una parte del código que no puede hablar con la inteligencia artificial, y un test lo comprueba en cada cambio. Los registros del servidor y de errores no guardan lo que escribes. El acceso a la base de datos está restringido y nadie la consulta salvo para arreglar un fallo.'
         ]
       },
       {
         heading: 'Cookies y almacenamiento en tu dispositivo',
         paragraphs: [
-          'Usamos dos cookies, ninguna con fines publicitarios: una guarda tu sesión iniciada, la otra el idioma que has elegido. Ninguna rastrea tu actividad en otras webs, y no hay ninguna cookie de terceros.',
-          'Si instalas NutrIA en tu teléfono, el navegador guarda una copia de tu plan de hoy y de la lista de la compra para que funcionen sin conexión. Esa copia se queda en tu propio dispositivo: nunca nos llega ni la vemos.'
+          'Solo usamos lo imprescindible para que el servicio funcione, y por eso no te pedimos permiso: la cookie de tu sesión, la del idioma que has elegido y, al entrar con Google o Apple, las que ese paso necesita durante unos minutos. Ninguna es de terceros ni rastrea tu actividad en otras webs.',
+          'En el almacenamiento de tu navegador guardamos lo que marcas sin conexión hasta que se envía, un aviso de plan pendiente de revisión y, si instalas NutrIA en tu teléfono, una copia de tu plan de hoy y de la lista de la compra para usarlas sin conexión. Todo se queda en tu dispositivo.'
         ]
       },
-      { heading: 'Menores de edad', paragraphs: ['NutrIA no está dirigida a menores de 16 años, y no solicitamos deliberadamente datos suyos.'] },
+      {
+        heading: 'Menores de edad',
+        paragraphs: [
+          'NutrIA no es para menores de 18 años. Si la fecha de nacimiento que indicas es de alguien menor, no podemos crear el perfil. Si sabemos que una cuenta es de un menor de 18 años, la borramos.'
+        ]
+      },
       {
         heading: 'Cambios en esta política',
         paragraphs: [
-          'Si cambiamos algo importante, lo diremos aquí con la fecha de la actualización. Si el cambio afecta a cómo tratamos tus enfermedades, tu medicación o tus suplementos, te pediremos tu consentimiento de nuevo antes de aplicarlo.'
+          'Si cambiamos algo importante, lo diremos aquí con la fecha y te avisaremos por correo antes de que se aplique. Si el cambio afecta a cómo tratamos tus datos de salud, te pediremos tu consentimiento de nuevo.'
         ]
       }
     ],
     title: 'Política de privacidad',
-    updated: 'Última actualización: 21 de septiembre de 2026'
+    updated: 'Última actualización: 25 de septiembre de 2026'
   },
   profile: {
     account: 'Cuenta',
@@ -1235,6 +1276,12 @@ export const esES = {
     premiumTrialing: 'Estás en tu prueba gratuita hasta el {date}. Si no la cancelas, después se renueva sola.',
     premiumYearly: 'Anual · {price} al año (ahorras un {saving} %)',
     premiumYearlyPlain: 'Anual · {price} al año',
+    profileConsentTitle: 'Consentimiento de datos de salud',
+    profileConsentWithdraw: 'Retirar el consentimiento y borrar estos datos',
+    profileConsentWithdrawBody:
+      'Se borran tus alergias, tus intolerancias, las que escribiste a mano, tu forma de comer, tu altura, tu peso y tu objetivo, y no se generarán más planes hasta que vuelvas a darlo. Volverás a los pasos de tu objetivo, tu cuerpo y tus alergias.',
+    profileConsentWithdrawConfirm: 'Sí, retirar y borrar',
+    profileConsentWithdrawTitle: '¿Retirar tu consentimiento?',
     pushBlocked: 'Este navegador tiene bloqueados los avisos de NutrIA. Puedes permitirlos en sus ajustes.',
     pushHint: 'Una notificación el día que toca el check-in. Se activa en cada dispositivo por separado.',
     pushInstallFirst:
@@ -1264,6 +1311,15 @@ export const esES = {
     youAvoidBestEffort: '{labels} · se lo pedimos a la IA, pero no podemos garantizarlo',
     youAvoidEnforced: '{labels} · fuera de tus recetas',
     youLike: 'Te gusta'
+  },
+
+  profileConsent: {
+    ai: 'Un modelo de inteligencia artificial diseña los platos. Recibe tus objetivos diarios, tus horarios de comida, tu presupuesto, si eres vegetariano o vegano, y los alimentos y platos que te gustan o no, siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu peso ni tu altura, nada que escribas a mano, tus alergias ni intolerancias, ninguna otra forma de comer, ni tus enfermedades o tu medicación: lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, y el mismo código comprueba cada plato antes de que te llegue.',
+    body: 'Para hacerte un plan seguro necesitamos datos que dicen algo de tu salud: tus alergias e intolerancias, tu peso, tu altura y tu objetivo, y tu forma de comer, que a veces revela una intolerancia o una creencia. Los usamos solo para calcular tus objetivos y elegir tus platos.',
+    continue: 'Continuar',
+    label: 'Consiento que NutrIA use estos datos de salud para hacer mis planes',
+    note: 'Sin este consentimiento no podemos hacerte un plan. Puedes retirarlo cuando quieras desde tu perfil: se borran esos datos. Más en la {privacy}.',
+    title: 'Antes de seguir: tus datos de salud'
   },
 
   progress: {
@@ -1412,7 +1468,7 @@ export const esES = {
       {
         heading: 'Tu cuenta',
         list: [
-          'Necesitas tener al menos 16 años.',
+          'Necesitas tener al menos 18 años. Si la fecha de nacimiento que indicas es de alguien menor, no podremos crear tu perfil.',
           'Los datos que nos des deben ser tuyos y ciertos: los planes se calculan a partir de ellos.',
           'La cuenta es personal. Guarda tu contraseña y avísanos si crees que alguien ha entrado en tu cuenta.',
           'Mientras abrimos NutrIA poco a poco, puede que tu cuenta tenga que esperar a que la activemos.',
@@ -1482,7 +1538,7 @@ export const esES = {
       }
     ],
     title: 'Condiciones de uso',
-    updated: 'Última actualización: 21 de septiembre de 2026'
+    updated: 'Última actualización: 25 de septiembre de 2026'
   },
 
   tour: {

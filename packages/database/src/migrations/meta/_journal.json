@@ -274,6 +274,13 @@
       "when": 1790278298184,
       "tag": "0038_a_check_in_tells_the_professional",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1790323820637,
+      "tag": "0039_a_profile_is_used_only_with_consent",
+      "breakpoints": true
     }
   ]
 }

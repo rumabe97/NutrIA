@@ -3,7 +3,9 @@ import express from 'express';
 import request from 'supertest';
 import { Test } from '@nestjs/testing';
 
-import { ProfileController } from 'core/controllers/Profile';
+import { ProfileConsentController, ProfileController } from 'core/controllers/Profile';
+import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
+import { ProfileConsentRequiredError, UnderMinimumAgeError } from 'core/entities/Error';
 import { SafetyController } from 'core/controllers/Safety';
 
 import { AllExceptionsFilter } from '../../../shared/filters/index.js';
@@ -53,6 +55,64 @@ describe('body validation is scoped to the body', () => {
    * an English interface full of Spanish ingredient names — which is what was
    * reported, and what this asserts cannot happen silently.
    */
+  it('gives the profile consent with the current version, for the session’s account', async () => {
+    const give = jest
+      .spyOn(ProfileConsentController, 'give')
+      .mockResolvedValue({ currentVersion: PROFILE_CONSENT_VERSION, grantedAt: 'x', isCurrent: true });
+
+    const response: Response = await request(app.getHttpServer() as Server)
+      .put('/profile/consent')
+      .send({ userId: 'usr-2', version: PROFILE_CONSENT_VERSION });
+
+    expect(response.status).toBe(200);
+    expect(give).toHaveBeenCalledWith('usr-1', PROFILE_CONSENT_VERSION);
+  });
+
+  it('refuses a consent to any other version: it is consent to a different notice', async () => {
+    const give = jest.spyOn(ProfileConsentController, 'give');
+
+    const response: Response = await request(app.getHttpServer() as Server)
+      .put('/profile/consent')
+      .send({ version: '0.9.0' });
+
+    expect(response.status).toBe(422);
+    expect(give).not.toHaveBeenCalled();
+  });
+
+  it('withdraws the consent of the session’s account', async () => {
+    const withdraw = jest
+      .spyOn(ProfileConsentController, 'withdraw')
+      .mockResolvedValue({ currentVersion: PROFILE_CONSENT_VERSION, grantedAt: null, isCurrent: false });
+
+    const response: Response = await request(app.getHttpServer() as Server).delete('/profile/consent');
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ isCurrent: false });
+    expect(withdraw).toHaveBeenCalledWith('usr-1');
+  });
+
+  it('answers a goal without consent with 409 and its own code', async () => {
+    jest.spyOn(ProfileController, 'updateGoal').mockRejectedValue(new ProfileConsentRequiredError());
+
+    const response: Response = await request(app.getHttpServer() as Server)
+      .patch('/profile/goal')
+      .send({ type: 'maintenance' });
+
+    expect(response.status).toBe(409);
+    expect(response.body).toMatchObject({ code: 'PROFILE_CONSENT_REQUIRED' });
+  });
+
+  it('answers a birth date under 18 with 422 and its own code', async () => {
+    jest.spyOn(ProfileController, 'updateProfile').mockRejectedValue(new UnderMinimumAgeError());
+
+    const response: Response = await request(app.getHttpServer() as Server)
+      .patch('/profile')
+      .send({ birthDate: '2015-01-01' });
+
+    expect(response.status).toBe(422);
+    expect(response.body).toMatchObject({ code: 'UNDER_MINIMUM_AGE' });
+  });
+
   it('carries a lone locale through to the controller', async () => {
     const update = jest.spyOn(ProfileController, 'updateProfile').mockResolvedValue({} as never);
 

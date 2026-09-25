@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 
+import { OnboardingIncompleteError, ProfileConsentRequiredError } from 'core/entities/Error';
 import { normaliseForMatching } from 'core/domain/Safety';
 import { buildShoppingList, unresolvedSlugs } from 'core/domain/ShoppingList';
 import { dishSafety } from 'core/domain/Safety';
@@ -16,7 +17,7 @@ import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
 
 import { PoolBuilder } from '../../ai/services/PoolBuilder.service.js';
-import { promptPreferences, toRecipeDraft } from './GenerationShared.js';
+import { likedFoodNames, promptPreferences, toRecipeDraft } from './GenerationShared.js';
 
 import type { AiCallRecord, CandidateDish, PlanAssignment } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
@@ -52,6 +53,7 @@ export type GenerationFailure =
   | 'GENERATION_INVALID_PLAN'
   | 'GENERATION_ONBOARDING_INCOMPLETE'
   | 'GENERATION_POOL_TOO_SMALL'
+  | 'GENERATION_PROFILE_CONSENT_REQUIRED'
   | 'GENERATION_PROFILE_INCOMPLETE'
   | 'GENERATION_TIMED_OUT'
   | 'GENERATION_UNSAFE_CONTENT';
@@ -94,17 +96,39 @@ export class PlanGenerationService {
   ): Promise<string> {
     await markStep(STEPS.loading);
 
-    const [onboarding, profile, context, history, verdicts, checkIn] = await Promise.all([
-      OnboardingController.getState(userId),
+    const [profile, context, history, verdicts, checkIn] = await Promise.all([
       ProfileController.getFullProfile(userId),
       RecipeController.generationContext(userId),
       PlanController.generationHistory(userId),
       RecipeController.verdicts(userId),
       CheckInController.latestForGeneration(userId)
-    ]);
+    ]).catch((error: unknown) => {
+      // `generationContext` is the door's own check (consent, a finished
+      // profile); a refusal there is the same stable code as the ones below.
+      if (error instanceof ProfileConsentRequiredError) {
+        throw new GenerationError('GENERATION_PROFILE_CONSENT_REQUIRED');
+      }
+
+      if (error instanceof OnboardingIncompleteError) {
+        throw new GenerationError('GENERATION_ONBOARDING_INCOMPLETE');
+      }
+
+      throw error;
+    });
+    // Read after the profile, never beside it: a withdrawal reopens these steps
+    // and deletes the consent with the data, so a profile read after it
+    // committed is always followed by a state that says so. Beside it, the two
+    // could straddle the withdrawal and build a plan on an emptied profile.
+    const onboarding = await OnboardingController.getState(userId);
 
     if (!onboarding.isComplete) {
       throw new GenerationError('GENERATION_ONBOARDING_INCOMPLETE');
+    }
+
+    // The second line behind `PlanJobController.start`: consent withdrawn
+    // while the job waited is consent this plan no longer has.
+    if (onboarding.profileConsentRequired) {
+      throw new GenerationError('GENERATION_PROFILE_CONSENT_REQUIRED');
     }
 
     this.reportUntranslatedIngredients(context);
@@ -159,7 +183,7 @@ export class PlanGenerationService {
           targets,
           checkIn,
           null,
-          context.preferences.unenforceableLabels
+          likedFoodNames(context)
         ),
         // The days that eat for an event draw from this same pool; the model is
         // asked for some dishes at their split, or they have nothing built for

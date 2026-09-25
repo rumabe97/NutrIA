@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { ConflictError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
+import { ConflictError, NotFoundError, ProfileConsentRequiredError, QuotaExceededError } from 'core/entities/Error';
 
 import { PlanController, PlanJobController } from './PlanController';
 
@@ -20,6 +20,7 @@ const findPending = vi.fn<(userId: string) => Promise<ChainRow | undefined>>();
 const findChain = vi.fn<(userId: string, withPending?: boolean) => Promise<readonly ChainRow[]>>();
 const findHistory = vi.fn<(userId: string, limit: number, offset: number) => Promise<readonly Row[]>>();
 const release = vi.fn<(jobId: string) => Promise<void>>();
+const requireProfileConsent = vi.fn<(userId: string) => Promise<void>>(async () => undefined);
 const setMealStatus = vi.fn<(userId: string, mealId: string, status: string) => Promise<'closed' | 'done' | 'missing'>>();
 
 vi.mock('#repositories/Plan', () => ({
@@ -50,6 +51,7 @@ vi.mock('#repositories/User', () => ({ UserRepository: { tierOf: (u: string) => 
 
 // Nobody in this file is away. The pause is its own suite; here it must not be
 // the reason a mark is refused, or these tests would pass for the wrong reason.
+vi.mock('core/controllers/Profile', () => ({ requireProfileConsent: (u: string) => requireProfileConsent(u) }));
 vi.mock('core/controllers/Settings', () => ({ SettingsController: { flags: () => flags() } }));
 vi.mock('#repositories/Vacation', () => ({ VacationRepository: { findUpcoming: () => Promise.resolve([]) } }));
 
@@ -184,6 +186,30 @@ describe('PlanJobController.start — one generation at a time', () => {
     claim.mockReset();
     release.mockReset();
     vi.restoreAllMocks();
+  });
+
+  it('refuses without the profile consent before claiming anything: no job, no allowance read (RGPD art. 9.2.a)', async () => {
+    const allowances = allowing(true);
+
+    requireProfileConsent.mockRejectedValueOnce(new ProfileConsentRequiredError());
+
+    await expect(PlanJobController.start('usr-1')).rejects.toBeInstanceOf(ProfileConsentRequiredError);
+    expect(requireProfileConsent).toHaveBeenCalledWith('usr-1');
+    expect(claim).not.toHaveBeenCalled();
+    expect(allowances).not.toHaveBeenCalled();
+  });
+
+  it('asks the client’s consent, not the professional’s, when a professional starts it', async () => {
+    requireProfileConsent.mockRejectedValueOnce(new ProfileConsentRequiredError());
+
+    await expect(
+      PlanJobController.start(
+        'usr-client',
+        vi.fn(async () => undefined)
+      )
+    ).rejects.toBeInstanceOf(ProfileConsentRequiredError);
+    expect(requireProfileConsent).toHaveBeenCalledWith('usr-client');
+    expect(claim).not.toHaveBeenCalled();
   });
 
   it('answers a conflict when the slot is already claimed, and starts nothing', async () => {

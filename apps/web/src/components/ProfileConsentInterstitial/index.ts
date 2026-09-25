@@ -1,0 +1,1 @@
+export { ProfileConsentInterstitial } from './ProfileConsentInterstitial';

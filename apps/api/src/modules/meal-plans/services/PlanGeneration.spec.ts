@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
+import { OnboardingIncompleteError, ProfileConsentRequiredError } from 'core/entities/Error';
 import { CheckInController } from 'core/controllers/CheckIn';
 import { EventController } from 'core/controllers/Event';
 import { OnboardingController } from 'core/controllers/Onboarding';
@@ -596,6 +597,27 @@ describe('PlanGenerationService', () => {
 
     await expect(service.generate('usr-1', 'job-1', async () => Promise.resolve())).rejects.toMatchObject({
       code: 'GENERATION_ONBOARDING_INCOMPLETE'
+    });
+    expect(persist).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [new ProfileConsentRequiredError(), 'GENERATION_PROFILE_CONSENT_REQUIRED'],
+    [new OnboardingIncompleteError(), 'GENERATION_ONBOARDING_INCOMPLETE']
+  ])('turns a refusal at the context door into its stable code, and writes nothing', async (error, code) => {
+    const { persist, service } = build();
+
+    jest.spyOn(RecipeController, 'generationContext').mockRejectedValue(error);
+
+    await expect(service.generate('usr-1', 'job-1', async () => Promise.resolve())).rejects.toMatchObject({ code });
+    expect(persist).not.toHaveBeenCalled();
+  });
+
+  it('refuses a profile whose consent was withdrawn while the job waited, and writes nothing', async () => {
+    const { persist, service } = build({ onboarding: { isComplete: true, profileConsentRequired: true } });
+
+    await expect(service.generate('usr-1', 'job-1', async () => Promise.resolve())).rejects.toMatchObject({
+      code: 'GENERATION_PROFILE_CONSENT_REQUIRED'
     });
     expect(persist).not.toHaveBeenCalled();
   });

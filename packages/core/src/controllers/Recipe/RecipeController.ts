@@ -1,13 +1,17 @@
+import { randomUUID } from 'node:crypto';
+
 import { hasUsableMethod } from 'core/domain/Method';
 import { rotatePool } from 'core/domain/Variety';
-import { dishSafety } from 'core/domain/Safety';
+import { bestEffortExclusions, dishSafety, mentionsUnresolvedAllergy } from 'core/domain/Safety';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
 import { HealthRepository } from '#repositories/Health';
 import { proteinSupplementExclusions } from 'core/domain/Health';
-import { resolvePreferences, withinTime } from 'core/domain/Preference';
+import { breaksDishRule, resolvePreferences, withinTime } from 'core/domain/Preference';
 import { SafetyController } from 'core/controllers/Safety';
-import { NotFoundError, PlanPausedError } from 'core/entities/Error';
+import { requireProfileConsent } from 'core/controllers/Profile';
+import { NotFoundError, OnboardingIncompleteError, PlanPausedError } from 'core/entities/Error';
+import { OnboardingRepository } from '#repositories/Onboarding';
 import { VacationRepository } from '#repositories/Vacation';
 import { isAway } from 'core/domain/Vacation';
 import { toCatalogue } from 'core/entities/Plan';
@@ -63,11 +67,70 @@ export type GenerationContext = {
  * than that it is safe for them, so reuse is filtered exactly as generation is.
  */
 function usesExcluded(ingredients: readonly { readonly slug: string }[], context: GenerationContext): boolean {
-  return ingredients.some(item => {
-    const ingredient = context.catalogue.get(item.slug);
+  return (
+    breaksDishRule(ingredients, context.catalogue, context.preferences) ||
+    ingredients.some(item => {
+      const ingredient = context.catalogue.get(item.slug);
 
-    return ingredient !== undefined && context.preferences.excludedIngredientIds.has(ingredient.id);
+      return ingredient !== undefined && context.preferences.excludedIngredientIds.has(ingredient.id);
+    })
+  );
+}
+
+/**
+ * Everything a generation needs to reason about food, read for one id. Behind
+ * `generationContext`, which adds the consent check, and `nobodysContext`.
+ */
+async function buildContext(userId: string): Promise<GenerationContext> {
+  // Through `SafetyController`, not rebuilt from repositories here. This used
+  // to assemble its own profile, which meant "what is this user allowed to
+  // eat" had two implementations that happened to agree — until free-text
+  // allergies arrived and only one of them knew.
+  // The locale comes from the profile, not from a request header: generation
+  // runs as a background job, where there is no request to read one from, and
+  // a second source would drift from the first.
+  const profile = await ProfileRepository.findByUserId(userId);
+  const locale = profile?.locale ?? FALLBACK_LOCALE;
+  // Same reasoning as the locale, and the same source: a plan is built from
+  // what this person can buy, and where they are is a fact about them rather
+  // than about the request that happens to trigger the job (`0034`).
+  const country = profile?.country ?? null;
+
+  const [catalogue, safety, dietaryPatterns, foodPreferences, preferred, takesProteinSupplement, allergens] = await Promise.all([
+    RecipeRepository.loadCatalogue(locale, country),
+    SafetyController.getSafetyProfile(userId),
+    ProfileRepository.findDietaryPatterns(userId),
+    ProfileRepository.findFoodPreferences(userId),
+    ProfileRepository.findPreferences(userId),
+    HealthRepository.takesProteinSupplement(userId),
+    // By key, so a gluten-free or lactose-free way of eating is enforced by
+    // the same tags the allergy gate reads, and never named to the model.
+    SafetyController.listAllergens()
+  ]);
+
+  // Resolved here, once, for the same reason the safety profile is: a rule
+  // rebuilt at each call site is a rule that disagrees with itself.
+  const resolved = resolvePreferences({
+    allergenIdsByKey: new Map(allergens.map(allergen => [allergen.key, allergen.id])),
+    dietaryPatterns,
+    dislikedLabels: foodPreferences.filter(item => item.sentiment === 'disliked').map(item => item.label),
+    ingredients: catalogue,
+    likedLabels: foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label),
+    maxMinutesPerDish: preferred?.cookingTimeMinutes ?? null
   });
+  // Protein powder is for the people who take it (`0052`). Excluded the way a
+  // dislike is, so the prompt, the library and the gate all agree — and what
+  // reaches the model is a catalogue without it, never the supplement.
+  const supplements = proteinSupplementExclusions(takesProteinSupplement, catalogue);
+  // An allergy the catalogue could not resolve is never named to the model
+  // (no free text leaves the building); what shares a word with it is taken
+  // out of the catalogue instead, quietly, beside the preferences — never as
+  // a safety violation, because it is not a guarantee (`bestEffortExclusions`).
+  const unresolvedAllergies = bestEffortExclusions(safety.unenforceableLabels, catalogue);
+  const extra = [...supplements, ...unresolvedAllergies];
+  const preferences = extra.length === 0 ? resolved : { ...resolved, excludedIngredientIds: new Set([...resolved.excludedIngredientIds, ...extra]) };
+
+  return { catalogue: toCatalogue(catalogue), locale, preferences, safety };
 }
 
 // --- Presenters ---------------------------------------------------------------
@@ -106,46 +169,26 @@ export const RecipeController = {
    * something someone later decides to skip "for performance".
    */
   async generationContext(userId: string): Promise<GenerationContext> {
-    // Through `SafetyController`, not rebuilt from repositories here. This used
-    // to assemble its own profile, which meant "what is this user allowed to
-    // eat" had two implementations that happened to agree — until free-text
-    // allergies arrived and only one of them knew.
-    // The locale comes from the profile, not from a request header: generation
-    // runs as a background job, where there is no request to read one from, and
-    // a second source would drift from the first.
-    const profile = await ProfileRepository.findByUserId(userId);
-    const locale = profile?.locale ?? FALLBACK_LOCALE;
-    // Same reasoning as the locale, and the same source: a plan is built from
-    // what this person can buy, and where they are is a fact about them rather
-    // than about the request that happens to trigger the job (`0034`).
-    const country = profile?.country ?? null;
+    const context = await buildContext(userId);
 
-    const [catalogue, safety, dietaryPatterns, foodPreferences, preferred, takesProteinSupplement] = await Promise.all([
-      RecipeRepository.loadCatalogue(locale, country),
-      SafetyController.getSafetyProfile(userId),
-      ProfileRepository.findDietaryPatterns(userId),
-      ProfileRepository.findFoodPreferences(userId),
-      ProfileRepository.findPreferences(userId),
-      HealthRepository.takesProteinSupplement(userId)
-    ]);
+    // Asked *after* the reads, and that order is the point: a withdrawal
+    // deletes the allergies and the consent in one transaction, so a context
+    // read after it committed is always followed by a check that sees no
+    // consent. Asked before, a withdrawal landing between the two would hand a
+    // generation an empty safety profile. The one door generation, swaps and
+    // the event rebuild all pass through.
+    await requireProfileConsent(userId);
 
-    // Resolved here, once, for the same reason the safety profile is: a rule
-    // rebuilt at each call site is a rule that disagrees with itself.
-    const resolved = resolvePreferences({
-      dietaryPatterns,
-      dislikedLabels: foodPreferences.filter(item => item.sentiment === 'disliked').map(item => item.label),
-      ingredients: catalogue,
-      likedLabels: foodPreferences.filter(item => item.sentiment === 'liked').map(item => item.label),
-      maxMinutesPerDish: preferred?.cookingTimeMinutes ?? null
-    });
-    // Protein powder is for the people who take it (`0052`). Excluded the way a
-    // dislike is, so the prompt, the library and the gate all agree — and what
-    // reaches the model is a catalogue without it, never the supplement.
-    const supplements = proteinSupplementExclusions(takesProteinSupplement, catalogue);
-    const preferences =
-      supplements.size === 0 ? resolved : { ...resolved, excludedIngredientIds: new Set([...resolved.excludedIngredientIds, ...supplements]) };
+    // And a finished profile, read after the same reads for the same reason:
+    // a withdrawal reopens the allergy step, and a consent given again before
+    // it is answered would otherwise hand any path without its own onboarding
+    // check — a professional's swap on a plan under review — an empty safety
+    // profile.
+    if (!(await OnboardingRepository.find(userId))?.completedAt) {
+      throw new OnboardingIncompleteError();
+    }
 
-    return { catalogue: toCatalogue(catalogue), locale, preferences, safety };
+    return context;
   },
 
   /** The stored illustration for a public route to serve; nothing else about the recipe. */
@@ -161,6 +204,16 @@ export const RecipeController = {
     const catalogue = await RecipeRepository.loadCatalogue(locale);
 
     return catalogue.map(ingredient => ingredient.name);
+  },
+
+  /**
+   * The context of nobody: a random id that names no account, so no profile,
+   * no allergy and no consent — reference data only. For
+   * `apps/api/scripts/evaluate-plans.mjs`, which lays synthetic profiles over
+   * it and never writes. Never call it with a person in mind.
+   */
+  async nobodysContext(): Promise<GenerationContext> {
+    return buildContext(randomUUID());
   },
 
   /** What the illustrator still has to draw. Bounded, oldest first. */
@@ -200,6 +253,7 @@ export const RecipeController = {
           hasUsableMethod(recipe) &&
           dishSafety(recipe.ingredients, context.catalogue, context.safety).kind === 'safe' &&
           !usesExcluded(recipe.ingredients, context) &&
+          !mentionsUnresolvedAllergy(recipe, context.safety.unenforceableLabels) &&
           withinTime(recipe, context.preferences.maxMinutesPerDish)
       )
       .map(toCandidateDish);

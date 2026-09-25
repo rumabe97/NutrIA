@@ -13,6 +13,7 @@ import { FeedbackForm } from 'components/FeedbackForm';
 import { HealthPanel } from 'components/HealthPanel';
 import { LocaleSwitcher } from 'components/LocaleSwitcher';
 import { PremiumCard } from 'components/PremiumCard';
+import { ProfileConsentCard } from 'components/ProfileConsentCard';
 import { ProfileSection } from 'components/ProfileSection';
 import { PushToggle } from 'components/PushToggle';
 import { ReminderToggle } from 'components/ReminderToggle';
@@ -275,6 +276,11 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
             ]}
             title={t.preferences}
           />
+
+          {/* Controls what the sections above run on: your body, your goal and
+              your restrictions (`docs/legal/textos/05-consentimientos-cliente.md`
+              § A), not the account itself. */}
+          <ProfileConsentCard />
         </section>
 
         {/* How the product speaks to this person: which reminders, and in which language. */}

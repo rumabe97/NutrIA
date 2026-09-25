@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ProfileConsentRequiredError } from 'core/entities/Error';
+
 import { ProgressController } from './ProgressController';
 
 import type { CheckInRow } from '#repositories/CheckIn';
@@ -13,16 +15,19 @@ const findRecent = vi.fn<(userId: string, limit: number) => Promise<readonly Pro
 const mealMarksByDay = vi.fn<(userId: string, upTo: string) => Promise<readonly MealMark[]>>();
 const findActiveGoal = vi.fn<(userId: string) => Promise<Goal | undefined>>();
 const findChain = vi.fn<(userId: string) => Promise<readonly Plan[]>>();
+const requireProfileConsent = vi.fn<(userId: string) => Promise<void>>(async () => undefined);
+const upsertWeight = vi.fn<(userId: string, loggedOn: string, weightKg: number) => Promise<void>>(async () => undefined);
 const findAll = vi.fn<(userId: string) => Promise<readonly CheckInRow[]>>();
 
 vi.mock('#repositories/Progress', () => ({
   ProgressRepository: {
     findRecent: (u: string, l: number) => findRecent(u, l),
     mealMarksByDay: (u: string, d: string) => mealMarksByDay(u, d),
-    upsertWeight: vi.fn()
+    upsertWeight: (u: string, d: string, w: number) => upsertWeight(u, d, w)
   }
 }));
 vi.mock('#repositories/Profile', () => ({ ProfileRepository: { findActiveGoal: (u: string) => findActiveGoal(u) } }));
+vi.mock('core/controllers/Profile', () => ({ requireProfileConsent: (u: string) => requireProfileConsent(u) }));
 vi.mock('#repositories/Plan', () => ({ PlanRepository: { findChain: (u: string) => findChain(u) } }));
 vi.mock('#repositories/CheckIn', () => ({ CheckInRepository: { findAll: (u: string) => findAll(u) } }));
 
@@ -235,5 +240,16 @@ describe('ProgressController.summary — fortnights', () => {
       fortnights: [],
       overall: { adherence: null, eaten: 0, marked: 0 }
     });
+  });
+});
+
+describe('ProgressController.logWeight — the profile consent', () => {
+  it('refuses a weight without it, and stores nothing', async () => {
+    requireProfileConsent.mockRejectedValueOnce(new ProfileConsentRequiredError());
+    upsertWeight.mockClear();
+
+    await expect(ProgressController.logWeight(USER, { weightKg: 70 })).rejects.toBeInstanceOf(ProfileConsentRequiredError);
+    expect(requireProfileConsent).toHaveBeenCalledWith(USER);
+    expect(upsertWeight).not.toHaveBeenCalled();
   });
 });

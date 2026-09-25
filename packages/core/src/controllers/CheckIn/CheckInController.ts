@@ -2,7 +2,7 @@ import { CareRepository } from '#repositories/Care';
 import { CheckInRepository } from '#repositories/CheckIn';
 import { ConflictError, NotFoundError } from 'core/entities/Error';
 import { PlanRepository } from '#repositories/Plan';
-import { ProfileController } from 'core/controllers/Profile';
+import { ProfileController, requireProfileConsent } from 'core/controllers/Profile';
 import { ProfileRepository } from '#repositories/Profile';
 import { ProgressRepository } from '#repositories/Progress';
 
@@ -167,6 +167,12 @@ export const CheckInController = {
 
     if (!plan) {
       throw new NotFoundError('Plan not found');
+    }
+
+    // A weight is the one answer the profile consent covers; the rest of a
+    // check-in is about the plan, not the body.
+    if (input.weightKg) {
+      await requireProfileConsent(userId);
     }
 
     const today = isoToday();

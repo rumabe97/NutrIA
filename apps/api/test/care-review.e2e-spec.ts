@@ -1,7 +1,10 @@
 import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import request from 'supertest';
 
+import { addDays } from 'core/domain/Vacation';
 import { CARE_CONSENT_VERSION } from 'core/entities/Care';
+import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
+import { SettingsController } from 'core/controllers/Settings';
 import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
@@ -10,6 +13,7 @@ import {
   createApp,
   dish,
   generateAndWait,
+  giveProfileConsent,
   httpServer,
   openPractice,
   POOL,
@@ -22,6 +26,7 @@ import {
 import { EmailService } from '../src/modules/email/services/index.js';
 
 import type { Account } from './harness.js';
+import type { AddedEventDto } from '../src/modules/events/dto/out/index.js';
 import type { CareLinkView } from 'core/controllers/Care';
 import type { CheckInStatusView } from 'core/controllers/CheckIn';
 import type { JobView, MealDetailView, PlanSummaryView, PlanView, ShoppingListView } from 'core/controllers/Plan';
@@ -414,6 +419,12 @@ describe('care review', () => {
     await completeOnboarding(app, paused);
     await completeOnboarding(app, ended);
     await completeOnboarding(app, theirs);
+    // Still onboarding on purpose (see "fails the professional's job for a
+    // client still onboarding" below) — but `PlanController.start` asks for
+    // profile consent before the claim, ahead of the pipeline's own
+    // onboarding check, so this client needs consent without the rest of
+    // onboarding to reach that check at all.
+    await giveProfileConsent(app, unready);
 
     // Before any link: today's generation, the plan this client is living when the next one is asked for.
     await expect(generateAndWait(app, lived)).resolves.toMatchObject({ status: 'succeeded' });
@@ -1150,6 +1161,109 @@ describe('care review', () => {
         expect(written.slice(1).every(action => action === 'read')).toBe(true);
       } else {
         expect(written).toEqual([]);
+      }
+    });
+  });
+
+  /**
+   * The profile consent (`docs/legal/textos/05-consentimientos-cliente.md` §
+   * A, P0-2) and this suite meet at one state: a client withdraws it, gives it
+   * again, but the steps it reopened — `goal`, `body-activity`, `allergies` —
+   * are not answered a second time. Consent is current; onboarding is not.
+   *
+   * `RecipeController.generationContext` is the one door swaps, a
+   * professional's generation and the event rebuild all pass through
+   * (`packages/core/src/controllers/Recipe/RecipeController.ts`), and it
+   * checks both — consent first, onboarding after, in that order, because a
+   * consent read only is what a bare `PROFILE_CONSENT_REQUIRED` would promise
+   * for a state this is not. A professional's `@RequiresOnboarding()` guards
+   * their *own* onboarding, never their client's, so this account is the one
+   * state where the client's route answers 409 without ever reaching a
+   * consent check that would have said yes.
+   */
+  describe('a client who re-consented without answering the reopened allergy step', () => {
+    let professional: Account;
+    let client: Account;
+    let linkId: string;
+    let mealId: string;
+    let waitingPlanId: string;
+
+    beforeAll(async () => {
+      professional = await account('pro-reconsent');
+      await grant(professional);
+
+      client = await account('reconsent-client');
+      await completeOnboarding(app, client);
+      expect((await generateAndWait(app, client)).status).toBe('succeeded');
+
+      linkId = await link(professional, client);
+
+      // Review is on by default: the client's own next generation waits for the professional.
+      expect(await generateAndWait(app, client)).toMatchObject({ planId: null, status: 'succeeded' });
+
+      const waiting = await pending(professional, linkId);
+
+      if (!waiting) {
+        throw new Error('expected a plan waiting for review');
+      }
+
+      waitingPlanId = waiting.id;
+      mealId = waiting.days[0]?.meals[0]?.id ?? '';
+
+      if (!mealId) {
+        throw new Error('expected a meal on the waiting plan');
+      }
+
+      // Withdrawal reopens `goal`, `body-activity` and `allergies`; re-consenting
+      // does not answer them again, so onboarding stays incomplete underneath a
+      // consent that is, on its own, current.
+      await request(server()).delete(`/${PREFIX}/profile/consent`).set('Cookie', client.cookie).expect(200);
+      await request(server()).put(`/${PREFIX}/profile/consent`).set('Cookie', client.cookie).send({ version: PROFILE_CONSENT_VERSION }).expect(200);
+    });
+
+    it('refuses the professional a swap on the waiting plan — 409 ONBOARDING_INCOMPLETE — and changes nothing', async () => {
+      const before = await pending(professional, linkId);
+
+      await expect(
+        rowsWrittenBy(client.id, async () => {
+          const response: Response = await swapFor(professional, linkId, mealId).expect(409);
+
+          expect((response.body as { code: string }).code).toBe('ONBOARDING_INCOMPLETE');
+        })
+      ).resolves.toEqual([]);
+
+      expect(await pending(professional, linkId)).toEqual(before);
+    });
+
+    it("ends the professional's generation for this client with GENERATION_ONBOARDING_INCOMPLETE, and leaves the waiting plan as it was", async () => {
+      const job = await generateForAndWait(professional, linkId);
+
+      expect(job).toMatchObject({ error: 'GENERATION_ONBOARDING_INCOMPLETE', status: 'failed' });
+      expect(await pending(professional, linkId)).toMatchObject({ id: waitingPlanId });
+    });
+
+    it('rebuilds no day for this client, premium only through the practice, consent and onboarding both unmet', async () => {
+      await SettingsController.setFlag('premium', true);
+
+      try {
+        const today = new Date().toISOString().slice(0, 10);
+        const on = addDays(today, 5);
+        // Not `activeOf(client)`: `MealPlansController` carries
+        // `@RequiresOnboarding()` on the class, and this client's onboarding
+        // is exactly as unmet as its consent (see the describe block's own
+        // comment) — its own read of the active plan is itself a 409. `planRows`
+        // reads the table directly, which is what "unchanged" means here.
+        const before = await planRows(client.id);
+        const response: Response = await request(server())
+          .post(`/${PREFIX}/events`)
+          .set('Cookie', client.cookie)
+          .send({ carbs: 'up', daysBefore: 2, fat: 'down', name: 'Carrera', on, protein: 'same' })
+          .expect(201);
+
+        expect((response.body as AddedEventDto).rebuiltDates).toEqual([]);
+        expect(await planRows(client.id)).toEqual(before);
+      } finally {
+        await SettingsController.setFlag('premium', false);
       }
     });
   });

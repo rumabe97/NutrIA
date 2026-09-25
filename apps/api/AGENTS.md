@@ -110,7 +110,8 @@ Allergies are a hard constraint enforced in **code**, never by prompting a model
 - Load the profile with `SafetyController.getSafetyProfile(userId)`. It is a named method so the call site is greppable: **a code path that never calls it is a code path with no allergy check.**
 - Anything that produces or shows food — generation, replacement, shopping lists — validates before it stores and before it returns.
 - `contains` blocks anyone with that allergy or intolerance. `may_contain` blocks only users who set `crossContaminationSensitive`.
-- **Free text is resolved once, deterministically, in `core/domain/Safety`.** A matched entry becomes an excluded ingredient id and goes through `findSafetyViolations` like everything else. An unmatched one becomes `SafetyProfile.unenforceableLabels` — the only allergy data that ever reaches a prompt, and only because there is no id to withhold. Never treat a label as a guarantee, and never add a second checker for one.
+- **Free text is resolved once, deterministically, in `core/domain/Safety`.** A matched entry becomes an excluded ingredient id and goes through `findSafetyViolations` like everything else. An unmatched one becomes `SafetyProfile.unenforceableLabels`: shown as best-effort, and every catalogue row sharing a whole word with it is removed quietly beside the preferences (`bestEffortExclusions`, singular and plural folded), and a dish whose name or method names it is refused (`mentionsUnresolvedAllergy`). Never treat a label as a guarantee, and never add a second checker for one.
+- **Nothing a person typed, and nothing that reveals a belief, reaches a model** (owner, 2026-09-25; prompt `4.0.0`). Not an unresolved allergy or dislike, not a check-in comment, not the breakfast, plate or working-week notes, not a way of eating that reveals a belief or a condition (halal, kosher, gluten-free, lactose-free). The prompt names a way of eating only from `NAMEABLE_PATTERNS` (vegetarian, vegan), a cuisine only from `NAMEABLE_CUISINES`, and a liked food only by its catalogue name. Those four are enforced in code instead (`PATTERN_EXCLUSIONS`, `PATTERN_SLUG_RUNS`, `PATTERN_ALLERGENS` over the allergy gate's tags, `breaksDishRule`). `modules/ai/health-boundary.spec.ts` drives a profile full of typed words through `promptPreferences` and `PoolBuilder` and fails if one comes out.
 
 ## Adding a module
 
@@ -420,7 +421,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
 - **Preferences are enforced** (`0023`): `GenerationContext.preferences` carries the ingredient ids
   a way of eating or a dislike rules out, resolved once in `RecipeController.generationContext`.
   `PoolBuilder` filters the catalogue it shows the model and drops a dish that uses one anyway;
-  reuse filters the library. Only unresolved dislikes reach the prompt. Beside the safety profile,
+  reuse filters the library. An unresolved dislike is dropped, never sent to the model. Beside the safety profile,
   never inside it: a preference must never be reported as an allergy violation.
 - **Swap axes** (`0022`): the swap body may name `axis` — `quicker`, `no_cooking`, `more_protein` —
   and `axisFilter` (core) is applied to the library pick and to the model's dishes alike; the
@@ -464,7 +465,20 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   it. Reads only; nothing is collected for it. `GET`/`POST /progress/weight` are the dashboard's.
 - **Check-in** (`0018`): `GET /check-ins/status`, `POST /check-ins` — once per plan, from its last
   day. Weight → progress log (targets follow the latest weight); portions → a 5 % calorie nudge
-  through the target override; words → the next plan's prompt. Never a restriction.
+  through the target override; the closed answers → the next plan's prompt. The comment is stored
+  and shown, never sent to a model. Never a restriction.
+- **Profile consent** (RGPD art. 9.2.a, `docs/legal/textos/05-consentimientos-cliente.md` § A):
+  `PROFILE_CONSENT_VERSION` in `core/entities/Profile`, one row in `profile_data_consents`.
+  `GET` / `PUT` / `DELETE /profile/consent`; `PUT` takes `{ version }` (`z.literal`). Without the
+  current version, `requireProfileConsent` refuses with 409 `PROFILE_CONSENT_REQUIRED` every write
+  of allergies, intolerances, way of eating, goal, height or weight (the onboarding steps `goal`,
+  `body-activity`, `allergies`, the profile routes, a logged or check-in weight) and every
+  generation, swap and event rebuild — the client's consent, also when their professional starts it. `RecipeController.generationContext` asks it *after* its reads, so a withdrawal cannot slip between the check and an emptied safety profile; the event rebuild also refuses while onboarding is incomplete.
+  `OnboardingView.profileConsentRequired` is how the web knows to ask, before `/inicio` for an
+  account that finished onboarding before the consent existed. Withdrawing deletes that data in
+  one transaction and reopens those steps.
+- **Minimum age** (owner, 2026-09-25): 18, `AGE_YEARS.min`. A birth date under it is 422
+  `UNDER_MINIMUM_AGE`, from the onboarding step and the profile route alike (`assertOldEnough`).
 
 ## Commands
 

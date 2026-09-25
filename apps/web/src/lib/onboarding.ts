@@ -26,3 +26,21 @@ export async function redirectIfOnboardingIncomplete(): Promise<void> {
     redirect(`/onboarding/${state.resumeStep}`);
   }
 }
+
+/**
+ * Sends an account whose onboarding finished before the explicit health-data
+ * consent existed (`docs/legal/textos/05-consentimientos-cliente.md` § A) to
+ * the one-time screen that asks for it, before it reaches `/inicio`.
+ *
+ * A new account never trips this: `profileConsentRequired` is false for it
+ * from the moment the about-you step gives the same consent, well before its
+ * onboarding could ever be complete. Same reasoning as the function above for
+ * reading `serverApi`'s result rather than treating `null` as "required".
+ */
+export async function redirectIfProfileConsentMissing(): Promise<void> {
+  const state = await serverApi<OnboardingView>('/onboarding');
+
+  if (state?.profileConsentRequired) {
+    redirect('/consentimiento');
+  }
+}
