@@ -114,6 +114,11 @@ Shapes worth knowing:
   `recipes.createdBy`.
 - **`may_contain` is a separate tier from `contains`.** Treating a trace warning as an
   ingredient would empty the catalogue for everyone with a gluten allergy.
+- **An ingredient's meals and season are exception lists.** `ingredients.meal_slots` and
+  `ingredients.season_months` are empty for every meal and every month, like `countries`;
+  the seed fills them from `seed/ingredients/meals.ts` and `seasons.ts`, which name only
+  the exceptions. `['none']` is a food in no meal at all. `core/domain/MealFit` is the one
+  reader: a dish is served only at the meals all its ingredients belong to (`0062`, `0063`).
 
 ## Invariants
 
@@ -194,6 +199,14 @@ per language is a set of bugs per language. The output language is a parameter
 (`language: 'British English'` rather than a BCP 47 tag, which models follow far more
 reliably), and the ingredient names in the catalogue listing are already in the user's
 language, so dish names come back using words they know.
+
+**Each meal sees its own foods.** A pool request is one meal (`0016`), and its catalogue
+is only what belongs to that meal for this person (`0062`) — stewed pulses are a lunch,
+oats and jam are not a dinner. Lunch and dinner, where nearly everything belongs, are cut
+again to what the library cooks there, the produce in season and a 30-row sample drawn per
+generation (`0063`). In-season produce is listed first and marked as preferred, never
+required. The standard lunch prompt is about half of what it was on 3.4.0 (~4,100 tokens
+instead of ~8,000); `apps/api/scripts/catalogue-by-meal.mjs` measures it.
 
 **A missing translation is a build error, not a blank space.** `en-GB.ts` is typed as the
 Spanish dictionary's shape, so a key added to one and forgotten in the other fails

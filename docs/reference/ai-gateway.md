@@ -114,6 +114,14 @@ log are the same for every provider.
   a call at its budget whatever the transport does, and the job runner fails a
   generation still running at 280 s — so a stuck call costs the model's dishes, never
   the plan or a frozen screen.
+- **What a request weighs** (**confirmed** on dev, prompt 4.1.0, 2026-09-25). One pool
+  request per meal; the catalogue is that meal's alone (`0062`, `0063`). The standard
+  lunch prompt is ~12,500 characters (~4,100 tokens) against ~23,200 (~8,000) on 3.4.0;
+  dinner ~52%, breakfast ~63%, the snacks ~69%. A gateway or model with a per-minute
+  token limit still sees several such requests at once — every meal of a fortnight is
+  asked for together.
+- **No prompt caching was measured** on the free models that answered through the gateway
+  (`cachedInputTokens` 0 on every successful call, 2026-09-24).
 - **A combo hop costs real time.** The first model failing after 48 seconds and the
   second answering in 17 made a 65-second call (**confirmed**). The budget in §2 is what
   keeps a string of those inside the function.
