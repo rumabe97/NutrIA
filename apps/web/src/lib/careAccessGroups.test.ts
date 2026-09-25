@@ -99,4 +99,21 @@ describe('groupCareAccessEntries', () => {
       { entry: entries[1], kind: 'entry' }
     ]);
   });
+
+  it('drops no row and reorders none: flattening every row back gives the input, id for id, in order', () => {
+    // The invariant grouping exists to preserve: it only ever folds a run's
+    // display, `care_access_log` (and this function) never loses a row. A mix
+    // of a run, a lone write and a lone read, so both row kinds are exercised.
+    const entries = [
+      entry({ at: '2026-09-25T10:05:00.000Z' }),
+      entry({ at: '2026-09-25T10:03:00.000Z' }),
+      entry({ action: 'write', at: '2026-09-25T09:00:00.000Z', kind: 'targets' }),
+      entry({ at: '2026-09-25T08:00:00.000Z', kind: 'health' })
+    ];
+
+    const rows = groupCareAccessEntries(entries);
+    const flattened = rows.flatMap(row => (row.kind === 'entry' ? [row.entry] : row.entries));
+
+    expect(flattened.map(item => item.id)).toEqual(entries.map(item => item.id));
+  });
 });

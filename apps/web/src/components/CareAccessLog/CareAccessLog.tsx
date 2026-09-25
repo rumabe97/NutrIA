@@ -103,7 +103,16 @@ export function CareAccessLog({ initial }: CareAccessLogProps) {
             const newest = row.entries[0];
             const oldest = row.entries[row.entries.length - 1];
             const template = newest.action === 'write' ? t.accessLogWriteGroup : t.accessLogReadGroup;
-            const range = formatInstantRange(Date.parse(oldest.at), Date.parse(newest.at), locale, { hour: '2-digit', minute: '2-digit' });
+            // A run only bounds the gap between neighbours, not its total span
+            // (many nine-minute steps add up), so it can cross midnight; the
+            // day is included and `formatRange` collapses it when both ends
+            // share one, exactly as the per-entry timestamps already read it.
+            const range = formatInstantRange(Date.parse(oldest.at), Date.parse(newest.at), locale, {
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              month: 'short'
+            });
 
             return (
               <li className={styles.row} key={row.id}>
