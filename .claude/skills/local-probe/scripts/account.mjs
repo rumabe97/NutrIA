@@ -51,11 +51,19 @@ async function call(method, path, body, cookie) {
   return response;
 }
 
-assertNotProduction();
+assertNotProduction({ strict: action === 'link' });
 
-// `core` reads the database from the environment, the same one the local API was given.
+// `core` reads the database from the environment, the same one the local API was given —
+// and only that one: the guard above checked apps/api/.env, so a DATABASE_URL already
+// exported in this shell, pointing anywhere else, is refused rather than used unchecked.
 for (const key of ['DATABASE_URL', 'DIRECT_DATABASE_URL']) {
-  process.env[key] ??= readEnv(`${ROOT}apps/api/.env`, key);
+  const checked = readEnv(`${ROOT}apps/api/.env`, key);
+
+  if (process.env[key] !== undefined && process.env[key] !== checked) {
+    throw new Error(`${key} in this shell differs from apps/api/.env, which is the one the guard checked — unset it`);
+  }
+
+  process.env[key] = checked;
 }
 
 const fromApi = createRequire(`${ROOT}apps/api/package.json`);
@@ -63,15 +71,19 @@ const load = specifier => import(pathToFileURL(fromApi.resolve(specifier)).href)
 const switchMarker = `${cookieFile}.switch-was-off`;
 
 if (action === 'delete') {
-  await call('DELETE', '/users/me', undefined, readFileSync(cookieFile, 'utf8'));
-  console.log('[probe] account deleted');
+  try {
+    await call('DELETE', '/users/me', undefined, readFileSync(cookieFile, 'utf8'));
+    console.log('[probe] account deleted');
+  } finally {
+    // Restored even when the delete failed. Two probes at once share one switch: the first
+    // to finish turns it off under the second — run one professional probe at a time.
+    if (existsSync(switchMarker)) {
+      const { SettingsController } = await load('core/controllers/Settings');
 
-  if (existsSync(switchMarker)) {
-    const { SettingsController } = await load('core/controllers/Settings');
-
-    await SettingsController.setFlag('professional', false);
-    rmSync(switchMarker);
-    console.log('[probe] the professional switch is off again, as it was');
+      await SettingsController.setFlag('professional', false);
+      rmSync(switchMarker);
+      console.log('[probe] the professional switch is off again, as it was');
+    }
   }
 
   process.exit(0);
