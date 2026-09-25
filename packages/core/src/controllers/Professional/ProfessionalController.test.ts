@@ -128,6 +128,15 @@ describe('ProfessionalController.hasAccess', () => {
     await expect(ProfessionalController.hasAccess('usr-dietitian')).resolves.toBe(true);
     expect(find).toHaveBeenCalledWith('usr-dietitian');
   });
+
+  it('is false on the very next question once the grant is revoked — nothing is remembered', async () => {
+    isEnabled.mockResolvedValue(true);
+    find.mockResolvedValueOnce(makeProfessional()).mockResolvedValueOnce(null);
+
+    await expect(ProfessionalController.hasAccess('usr-dietitian')).resolves.toBe(true);
+    await expect(ProfessionalController.hasAccess('usr-dietitian')).resolves.toBe(false);
+    expect(find).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('ProfessionalController.isOpen', () => {

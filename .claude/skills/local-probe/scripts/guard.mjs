@@ -27,7 +27,7 @@ function hostOf(url) {
   }
 }
 
-export function assertNotProduction() {
+export function assertNotProduction({ strict = false } = {}) {
   const local = hostOf(readEnv(`${ROOT}apps/api/.env`, 'DATABASE_URL'));
   const production = hostOf(readEnv(`${ROOT}packages/database/.env`, 'DATABASE_URL_PRO'));
 
@@ -44,6 +44,11 @@ export function assertNotProduction() {
 
   if (production && same(local, production)) {
     throw new Error('apps/api/.env points at the PRODUCTION database — refusing');
+  }
+
+  // A command that writes grants, links or switches may not run on a guess.
+  if (strict && !production) {
+    throw new Error('no DATABASE_URL_PRO in packages/database/.env to compare with — refusing to write without proving this is not production');
   }
 
   return production ? 'database: not production (hosts compared, neither printed)' : 'database: no DATABASE_URL_PRO to compare with — make sure this is not production';

@@ -19,7 +19,7 @@ export class UsersController {
   constructor(private readonly users: UsersService) {}
 
   @AllowUnverified()
-  @ApiOkResponse({ description: 'The account, with the state of both locks.' })
+  @ApiOkResponse({ description: 'The account, with the state of both locks and whether it is a professional today.' })
   @ApiOperation({ summary: "The signed-in user's account" })
   @Get('me')
   async me(@CurrentUser() user: SessionUser): Promise<UserDto> {

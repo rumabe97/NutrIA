@@ -4,42 +4,20 @@ import { useRef, useState } from 'react';
 import styles from './CareAccessLog.module.css';
 
 import { Button } from 'ui/components/Button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from 'ui/components/Collapsible';
 import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
 
 import { api, messageFor } from 'lib/api';
-import { formatInstant, interpolate } from 'lib/format';
+import { formatInstant, formatInstantRange, interpolate } from 'lib/format';
+import { groupCareAccessEntries } from 'lib/careAccessGroups';
 
-import type { CareAccessEntryView, CareAccessPageView } from 'core/controllers/Care';
+import type { CareAccessPageView } from 'core/controllers/Care';
 
 interface CareAccessLogProps {
   initial: CareAccessPageView;
-}
-
-type Row = { entry: CareAccessEntryView; kind: 'entry' } | { id: string; count: number; kind: 'group'; professionalName: string };
-
-/**
- * Consecutive `list` rows from the same professional collapse into one line
- * — a professional checking their roster a few times a day would otherwise
- * crowd out the reads that matter (LOG, Phase 3).
- */
-function groupEntries(entries: readonly CareAccessEntryView[]): readonly Row[] {
-  const rows: Row[] = [];
-
-  for (const entry of entries) {
-    const last = rows.at(-1);
-
-    if (entry.kind === 'list' && last?.kind === 'group' && last.professionalName === entry.professionalName) {
-      rows[rows.length - 1] = { ...last, count: last.count + 1 };
-      continue;
-    }
-
-    rows.push(entry.kind === 'list' ? { id: entry.id, count: 1, kind: 'group', professionalName: entry.professionalName } : { entry, kind: 'entry' });
-  }
-
-  return rows;
 }
 
 /** The client's own access trail (PRD 004, criterion 6): who read or changed what, and when. */
@@ -85,7 +63,7 @@ export function CareAccessLog({ initial }: CareAccessLogProps) {
     }
   }
 
-  const rows = groupEntries(entries);
+  const rows = groupCareAccessEntries(entries);
 
   return (
     <Card as="section" className={styles.card}>
@@ -102,27 +80,75 @@ export function CareAccessLog({ initial }: CareAccessLogProps) {
         </Text>
       ) : (
         <ul className={styles.list}>
-          {rows.map(row =>
-            row.kind === 'group' ? (
+          {rows.map(row => {
+            if (row.kind === 'entry') {
+              return (
+                <li className={styles.row} key={row.entry.id}>
+                  <Text size="sm" tone="secondary">
+                    {interpolate(row.entry.action === 'write' ? t.accessLogWrite : t.accessLogRead, {
+                      kind: t.accessKinds[row.entry.kind],
+                      professional: row.entry.professionalName
+                    })}
+                  </Text>
+                  <Text className={styles.time} size="xs" tone="tertiary">
+                    {formatInstant(Date.parse(row.entry.at), locale, { day: 'numeric', hour: '2-digit', minute: '2-digit', month: 'short' })}
+                  </Text>
+                </li>
+              );
+            }
+
+            // Newest first, as the trail reads it (`0059`): the first entry
+            // in the run is the most recent, the last is the oldest, so the
+            // range shown reads chronologically while the array itself does not.
+            const newest = row.entries[0];
+            const oldest = row.entries[row.entries.length - 1];
+            const template = newest.action === 'write' ? t.accessLogWriteGroup : t.accessLogReadGroup;
+            // A run only bounds the gap between neighbours, not its total span
+            // (many nine-minute steps add up), so it can cross midnight; the
+            // day is included and `formatRange` collapses it when both ends
+            // share one, exactly as the per-entry timestamps already read it.
+            const range = formatInstantRange(Date.parse(oldest.at), Date.parse(newest.at), locale, {
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              month: 'short'
+            });
+
+            return (
               <li className={styles.row} key={row.id}>
-                <Text size="sm" tone="secondary">
-                  {interpolate(t.accessLogListCollapsed, { count: row.count, professional: row.professionalName })}
-                </Text>
+                <Collapsible>
+                  <CollapsibleTrigger className={styles.groupTrigger}>
+                    <Text as="span" size="sm" tone="secondary">
+                      {interpolate(template, {
+                        count: row.entries.length,
+                        kind: t.accessKinds[newest.kind],
+                        professional: newest.professionalName,
+                        range
+                      })}
+                    </Text>
+                    <span aria-hidden="true" className={styles.groupChevron} />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <ul className={styles.groupList}>
+                      {row.entries.map(entry => (
+                        <li className={styles.groupRow} key={entry.id}>
+                          <Text size="sm" tone="secondary">
+                            {interpolate(entry.action === 'write' ? t.accessLogWrite : t.accessLogRead, {
+                              kind: t.accessKinds[entry.kind],
+                              professional: entry.professionalName
+                            })}
+                          </Text>
+                          <Text className={styles.time} size="xs" tone="tertiary">
+                            {formatInstant(Date.parse(entry.at), locale, { day: 'numeric', hour: '2-digit', minute: '2-digit', month: 'short' })}
+                          </Text>
+                        </li>
+                      ))}
+                    </ul>
+                  </CollapsibleContent>
+                </Collapsible>
               </li>
-            ) : (
-              <li className={styles.row} key={row.entry.id}>
-                <Text size="sm" tone="secondary">
-                  {interpolate(row.entry.action === 'write' ? t.accessLogWrite : t.accessLogRead, {
-                    kind: t.accessKinds[row.entry.kind],
-                    professional: row.entry.professionalName
-                  })}
-                </Text>
-                <Text className={styles.time} size="xs" tone="tertiary">
-                  {formatInstant(Date.parse(row.entry.at), locale, { day: 'numeric', hour: '2-digit', minute: '2-digit', month: 'short' })}
-                </Text>
-              </li>
-            )
-          )}
+            );
+          })}
         </ul>
       )}
 
