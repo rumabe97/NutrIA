@@ -434,11 +434,7 @@ describe('professionals', () => {
       // The one door that must stay open: the page that shows the agreement to accept — and it says so.
       const closed: Response = await request(server).get(`/${PREFIX}/care/practice`).set('Cookie', unaccepted.cookie).expect(200);
 
-      expect(closed.body).toMatchObject({
-        agreementAcceptedAt: null,
-        agreementRequired: true,
-        agreementVersion: PROFESSIONAL_AGREEMENT_VERSION
-      });
+      expect(closed.body).toMatchObject({ agreementAcceptedAt: null, agreementRequired: true, agreementVersion: PROFESSIONAL_AGREEMENT_VERSION });
 
       // Nobody who was never granted opens it either, whatever the switch says — 404 before the body is even read.
       await request(server).post(`/${PREFIX}/care/practice/agreement`).set('Cookie', ordinary.cookie).send({}).expect(404);
