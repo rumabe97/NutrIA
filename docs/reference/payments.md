@@ -292,12 +292,18 @@ a tier, and needs a granted professional to prove it against:
 2. Allow switching between the two prices in the customer portal (above), in both modes.
 3. Set `STRIPE_PRACTICE_PRICES` on the `nutria-api` Vercel project, **Production**, with
    the live price ids.
-4. Grant a professional from `/admin`, with their collegiate number, and have them buy a
-   practice for real once — the same "buy something, refund it" step § 6 asks for premium.
-5. Only then, turn the `professional` flag on in `/admin`. Last, on purpose: until it is
-   thrown, nobody but the owner's own granted accounts can reach `/consulta` at all
-   (`docs/decisions/0059`), so a broken practice checkout is invisible to every professional
-   rather than visible to all of them.
+4. Before the switch, as `docs/legal/checklist-activacion.md` § 1 lists: the
+   professional's agreement screen live, a read-only count of care links accepted under
+   `CARE_CONSENT_VERSION` 1.0.0 (the owner ends and re-invites any live one), Gemini out of
+   the models that generate for a professional's clients.
+5. Turn the `professional` flag on in `/admin`. With no professional granted, it shows
+   nothing to anybody.
+6. **Then** grant professionals from `/admin`, one at a time, each collegiate number
+   checked in its college's public register. The grant e-mail links to `/consulta`, which
+   only opens with the flag on — that is why the flag comes first (amended 2026-09-25; it
+   used to come last). Each professional accepts the agreement and the practice
+   conditions before anything else opens; have the first buy a practice for real once —
+   the same "buy something, refund it" step § 6 asks for premium.
 
 Also see [`deployment.md`](./deployment.md) § 2 for `STRIPE_PRACTICE_PRICES`'s row in the
 API's full environment table.
