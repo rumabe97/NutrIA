@@ -81,7 +81,7 @@ La ley protege especialmente los datos de salud y los que revelan creencias reli
 
 ### Tu dietista en NutrIA
 
-- Un dietista-nutricionista puede invitarte por correo a llevar tu plan en NutrIA con su ayuda. Solo un profesional al que hemos dado acceso tras comprobar su número de colegiado puede hacerlo. Su invitación dura 14 días; tu dirección la guardamos solo ese tiempo, para enviarte la invitación.
+- Un dietista-nutricionista puede invitarte por correo a llevar tu plan en NutrIA con su ayuda. Solo un profesional al que hemos dado acceso tras comprobar su número de colegiado puede hacerlo. Su invitación dura 14 días; tu dirección la usamos solo para enviártela y la borramos con la invitación: en cuanto respondes o, si no respondes, como muy tarde el día después de que caduque.
 - **Nada se comparte si no aceptas.** Si aceptas, tu dietista **verá** tu nombre, tus objetivos diarios y cómo se calcularon, tus planes, cuánto sigues cada quincena, tu peso a lo largo del tiempo y tus respuestas a los check-ins. **Podrá** fijar tus objetivos, generar y cambiar tus planes, y revisar cada plan nuevo antes de que lo veas. Tus enfermedades, tu medicación y tus suplementos solo si marcas esa casilla aparte. **No verá** tus alergias ni intolerancias, tu correo ni tus comentarios escritos.
 - Cada vez que tu dietista mira o cambia algo, queda anotado y lo ves en tu perfil, en «Quién ha accedido».
 - Puedes terminar el enlace cuando quieras desde tu perfil, y desde la siguiente petición tu dietista deja de ver tus datos. ⟦si salud-enlace⟧ También puedes dejar de compartir solo tu salud sin terminar el enlace. Tus objetivos, tu historial y tu último plan publicado se quedan contigo.
@@ -122,7 +122,7 @@ Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí
 ### Cuánto tiempo guardamos tus datos
 
 - Mientras tu cuenta exista. Al borrarla, todo lo que hay en ella se borra al momento: perfil, alergias, salud, planes, listas, progreso, consentimientos, enlaces con tu dietista y el registro de accesos. Antes cancelamos cualquier suscripción que tengas.
-- Las invitaciones que no se aceptan desaparecen al caducar, a los 14 días.
+- Una invitación se borra en cuanto la aceptas o la rechazas; si no respondes, caduca a los 14 días y se borra, con tu dirección, como muy tarde al día siguiente.
 - El registro de uso del producto se borra a los 24 meses y los registros técnicos de la generación de planes a los 12. ⟦publicar cuando exista la purga (P2-4)⟧
 - **Copias de seguridad**: nuestro proveedor de base de datos guarda un historial para recuperarnos de un fallo, que se borra solo pasados {n} días. ⟦si copias⟧ Además, hacemos copias manuales cifradas que se borran a los 30 días. Un dato que borras puede seguir en esas copias hasta que caduquen; no lo usamos para nada más.
 - **Si fuiste dietista en NutrIA**, tu nombre se queda en el registro de accesos de tus antiguos pacientes, porque es su derecho saber quién vio sus datos.
@@ -214,7 +214,7 @@ The law gives special protection to health data and to data revealing religious 
 
 ### Your dietitian on NutrIA
 
-- A dietitian-nutritionist can invite you by email to follow your plan with them on NutrIA. Only a professional we have given access to, after checking their registration number, can do so. The invitation lasts 14 days; we keep your address only for that time, to send it.
+- A dietitian-nutritionist can invite you by email to follow your plan with them on NutrIA. Only a professional we have given access to, after checking their registration number, can do so. The invitation lasts 14 days; we use your address only to send it and delete it with the invitation: as soon as you answer or, if you do not, by the day after it expires at the latest.
 - **Nothing is shared unless you accept.** If you do, your dietitian **will see** your name, your daily targets and how they were worked out, your plans, how much of each fortnight you follow, your weight over time and your check-in answers. They **can** set your targets, generate and change your plans, and review each new plan before you see it. Your conditions, medications and supplements only if you tick that separate box. They **will not see** your allergies or intolerances, your email address or your written comments.
 - Every time your dietitian looks at or changes something, it is recorded and you can see it on your profile under "Who has accessed".
 - You can end the link from your profile at any time, and from the next request your dietitian stops seeing your data. ⟦if health-link⟧ You can also stop sharing just your health without ending the link. Your targets, your history and your last published plan stay with you.
@@ -247,7 +247,7 @@ Some of these providers are US companies or process data there: Vercel, Neon, St
 ### How long we keep your data
 
 - While your account exists. When you delete it, everything in it is deleted at once: profile, allergies, health, plans, lists, progress, consents, links with your dietitian and the access record. Before that, we cancel any subscription you have.
-- Invitations that are not accepted disappear when they expire, after 14 days.
+- An invitation is deleted as soon as you accept or decline it; if you do not answer, it expires after 14 days and is deleted, with your address, by the following day at the latest.
 - The product-use record is deleted after 24 months and the technical records of plan generation after 12. ⟦publish once the purge exists (P2-4)⟧
 - **Backups**: our database provider keeps a history to recover from a failure, which is deleted automatically after {n} days. ⟦if backups⟧ We also make encrypted manual copies that are deleted after 30 days. Data you delete may remain in those copies until they expire; we do not use it for anything else.
 - **If you were a dietitian on NutrIA**, your name stays in your former clients' access record, because knowing who saw their data is their right.
