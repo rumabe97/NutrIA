@@ -112,6 +112,89 @@ function hasPatternAllergen(ingredient: CatalogueIngredient, patterns: readonly 
   });
 }
 
+/**
+ * The runs that mark a catalogue row as a substitute built for one
+ * restriction — gluten-free bread, lactose-free milk — never a food anyone
+ * without it reaches for, the same whole-token rule `PATTERN_ALLERGENS`'
+ * `lactose_free` guard already reads a `sin-lactosa` slug by. Two seed
+ * dishes reached an account with no gluten restriction at all, built around
+ * gluten-free bread, because nothing asked whether this person's restriction
+ * was the one the ingredient exists for (owner, 2026-09-26). Everyone else
+ * already has the ordinary version the catalogue lists them beside it.
+ */
+const FREE_FROM_RUNS: Readonly<Record<'gluten' | 'lactose', readonly string[]>> = { gluten: ['sin-gluten'], lactose: ['sin-lactosa'] };
+
+/** The allergen keys, and the dietary pattern, that mean this person needs a `FREE_FROM_RUNS` restriction. */
+const FREE_FROM_NEEDS: Readonly<Record<keyof typeof FREE_FROM_RUNS, { readonly allergenKeys: readonly string[]; readonly pattern: string }>> = {
+  gluten: { allergenKeys: ['gluten'], pattern: 'gluten_free' },
+  // `lactose` covers an intolerance declared against either key — the seed
+  // links lactose-free milk to `milk` alone (it still carries the protein),
+  // so a milk *allergy* is a different, stricter restriction the allergy gate
+  // already refuses this ingredient for on its own.
+  lactose: { allergenKeys: ['lactose', 'milk'], pattern: 'lactose_free' }
+};
+
+/**
+ * Whether this person has the restriction a free-from substitute exists for
+ * — an allergy or intolerance naming its allergen, or the matching way of
+ * eating.
+ */
+function hasFreeFromRestriction(
+  restriction: keyof typeof FREE_FROM_RUNS,
+  input: {
+    readonly allergenIdsByKey: ReadonlyMap<string, string>;
+    readonly dietaryPatterns: readonly string[];
+    readonly restrictedAllergenIds: ReadonlySet<string>;
+  }
+): boolean {
+  const need = FREE_FROM_NEEDS[restriction];
+
+  return (
+    input.dietaryPatterns.includes(need.pattern) ||
+    need.allergenKeys.some(key => {
+      const id = input.allergenIdsByKey.get(key);
+
+      return id !== undefined && input.restrictedAllergenIds.has(id);
+    })
+  );
+}
+
+/**
+ * Every free-from substitute this person has no restriction for — gluten-free
+ * bread offered to somebody with no gluten allergy, intolerance or way of
+ * eating, say.
+ *
+ * A preference, not a safety rule: eating it harms nobody, so `dishSafety` is
+ * unmoved by this set and a person who *does* need it keeps every one of
+ * these on their catalogue exactly as before — `hasFreeFromRestriction`
+ * answers true and nothing here touches it. Merged into
+ * `GenerationContext.preferences.excludedIngredientIds` the way
+ * `proteinSupplementExclusions` is, so the one set that already keeps a dish
+ * off the library's reuse pool (`RecipeController.usesExcluded`) and off the
+ * model's catalogue (`PoolBuilder.isWantedIngredient`) keeps this off both
+ * too, with no second gate to keep in step.
+ */
+export function freeFromExclusions(
+  ingredients: readonly { readonly id: string; readonly slug: string }[],
+  input: {
+    readonly allergenIdsByKey: ReadonlyMap<string, string>;
+    readonly dietaryPatterns: readonly string[];
+    readonly restrictedAllergenIds: ReadonlySet<string>;
+  }
+): ReadonlySet<string> {
+  const restrictions = (Object.keys(FREE_FROM_RUNS) as (keyof typeof FREE_FROM_RUNS)[]).filter(
+    restriction => !hasFreeFromRestriction(restriction, input)
+  );
+
+  if (restrictions.length === 0) {
+    return new Set();
+  }
+
+  const runs = restrictions.flatMap(restriction => FREE_FROM_RUNS[restriction]);
+
+  return new Set(ingredients.filter(ingredient => hasRun(ingredient.slug, runs)).map(ingredient => ingredient.id));
+}
+
 /** Ways of eating that never put meat and dairy in one dish. Judged per dish, by `breaksDishRule`. */
 const SEPARATES_MEAT_AND_DAIRY: ReadonlySet<string> = new Set(['kosher']);
 

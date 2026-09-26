@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   breaksDishRule,
+  freeFromExclusions,
   isEnforceableDislike,
   NO_PREFERENCE_EXCLUSIONS,
   PATTERN_EXCLUSIONS,
@@ -376,5 +377,74 @@ describe('resolvePreferences — gluten-free and lactose-free, by the allergy ga
       resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: ['gluten_free', 'lactose_free'], dislikedLabels: [], ingredients: ROWS })
         .excludedIngredientIds.size
     ).toBe(0);
+  });
+});
+
+describe('freeFromExclusions — a substitute built for one restriction, offered only to whoever has it', () => {
+  const byKey = new Map([
+    ['gluten', 'a-gluten'],
+    ['lactose', 'a-lactose'],
+    ['milk', 'a-milk']
+  ]);
+  const ROWS = [
+    food('pan-sin-gluten', 'Pan sin gluten'),
+    food('pasta-sin-gluten', 'Pasta sin gluten'),
+    food('leche-sin-lactosa', 'Leche sin lactosa'),
+    food('arroz-blanco-cocido', 'Arroz blanco cocido')
+  ];
+  const needs = (over: Partial<{ dietaryPatterns: readonly string[]; restrictedAllergenIds: ReadonlySet<string> }> = {}) => ({
+    allergenIdsByKey: byKey,
+    dietaryPatterns: [],
+    restrictedAllergenIds: new Set<string>(),
+    ...over
+  });
+
+  it('offers neither substitute to somebody with no restriction at all', () => {
+    expect(ids({ excludedIngredientIds: freeFromExclusions(ROWS, needs()) })).toEqual([
+      'i-leche-sin-lactosa',
+      'i-pan-sin-gluten',
+      'i-pasta-sin-gluten'
+    ]);
+  });
+
+  it('keeps the gluten-free rows for a declared gluten allergy or intolerance, and still excludes the lactose one', () => {
+    expect(ids({ excludedIngredientIds: freeFromExclusions(ROWS, needs({ restrictedAllergenIds: new Set(['a-gluten']) })) })).toEqual([
+      'i-leche-sin-lactosa'
+    ]);
+  });
+
+  it('keeps the gluten-free rows for a gluten-free way of eating', () => {
+    expect(ids({ excludedIngredientIds: freeFromExclusions(ROWS, needs({ dietaryPatterns: ['gluten_free'] })) })).toEqual(['i-leche-sin-lactosa']);
+  });
+
+  it('keeps lactose-free milk for a lactose intolerance, by either allergen key', () => {
+    expect(ids({ excludedIngredientIds: freeFromExclusions(ROWS, needs({ restrictedAllergenIds: new Set(['a-lactose']) })) })).toEqual([
+      'i-pan-sin-gluten',
+      'i-pasta-sin-gluten'
+    ]);
+    expect(ids({ excludedIngredientIds: freeFromExclusions(ROWS, needs({ restrictedAllergenIds: new Set(['a-milk']) })) })).toEqual([
+      'i-pan-sin-gluten',
+      'i-pasta-sin-gluten'
+    ]);
+  });
+
+  it('keeps lactose-free milk for a lactose-free way of eating', () => {
+    expect(ids({ excludedIngredientIds: freeFromExclusions(ROWS, needs({ dietaryPatterns: ['lactose_free'] })) })).toEqual([
+      'i-pan-sin-gluten',
+      'i-pasta-sin-gluten'
+    ]);
+  });
+
+  it('an unrelated restriction does not exempt the other substitute', () => {
+    // Lactose-free does not unlock gluten-free bread, and a gluten allergy does
+    // not unlock lactose-free milk.
+    expect(ids({ excludedIngredientIds: freeFromExclusions(ROWS, needs({ dietaryPatterns: ['lactose_free'] })) })).toContain('i-pan-sin-gluten');
+    expect(ids({ excludedIngredientIds: freeFromExclusions(ROWS, needs({ restrictedAllergenIds: new Set(['a-gluten']) })) })).toContain(
+      'i-leche-sin-lactosa'
+    );
+  });
+
+  it('excludes nothing where the row is not a free-from substitute', () => {
+    expect(freeFromExclusions([food('arroz-blanco-cocido', 'Arroz')], needs()).size).toBe(0);
   });
 });

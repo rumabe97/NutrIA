@@ -613,6 +613,17 @@ function fitCost(macros: Macros, budget: SlotBudget): number {
   // were indistinguishable here however differently they spent that energy,
   // which is what let a whole pool's fat-heavy lean pass through every check
   // unnoticed.
+  //
+  // `0048` later tightened every band to 5%, which by this same rule means all
+  // four weights are 1 — a stale mismatch this file never came back to fix,
+  // and a candidate explanation for a real plan that measured 14/14 inside
+  // every band with fat still sitting +3% to +4.9% on ten of them (owner,
+  // 2026-09-26). Re-weighting was tried and measured against the real library
+  // (`docs/decisions/LOG.md`): every variant that raised fat's weight without
+  // raising carbs' by the same amount regressed a real profile's variety or
+  // worst-case deviation; equal weights avoided that but cost kcal precision
+  // on every profile for a wash on the combined figure, not the clear win the
+  // owner's bar requires. Left as measured, not changed.
   return energy * 1.5 + protein + carbs * 0.75 + fat * 0.75;
 }
 
