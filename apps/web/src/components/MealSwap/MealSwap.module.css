@@ -18,6 +18,8 @@
   font-weight: var(--font-weight-regular);
   margin-inline-start: var(--space-02);
   padding: 0 var(--space-02);
+  /* One figure: when a large-text button wraps its label, the count stays whole. */
+  white-space: nowrap;
 }
 
 .panel {
