@@ -8,7 +8,6 @@ import styles from './MealRow.module.css';
 
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
-import { DishPicture } from 'components/DishPicture';
 import { useOffline } from 'components/OfflineProvider';
 
 import { api } from 'lib/api';
@@ -17,8 +16,6 @@ import { slotLabel } from 'lib/generation';
 
 interface MealRowProps {
   id: string;
-  /** API path of the recipe's illustration, when one has been drawn. */
-  illustrationPath?: string | null;
   /** Already scaled to this meal's portion by the API. */
   ingredients?: readonly { grams: number; name: string }[];
   kcal: number;
@@ -47,17 +44,7 @@ interface MealRowProps {
  * Optimistic; a failure puts it back. "Skipped" stays on the meal's own page,
  * where it is a considered choice rather than a tap in passing.
  */
-export function MealRow({
-  id,
-  illustrationPath = null,
-  ingredients = [],
-  kcal,
-  name,
-  proteinG,
-  readOnly = false,
-  slot,
-  status: initial = 'planned'
-}: MealRowProps) {
+export function MealRow({ id, ingredients = [], kcal, name, proteinG, readOnly = false, slot, status: initial = 'planned' }: MealRowProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -70,21 +57,15 @@ export function MealRow({
   const opens = useOffline().available(recipe);
   const head = (
     <Fragment>
-      {/* Decorative here — the name beside it is the content — so the alt is empty and
-        the label lives on the detail page, where the picture is large enough to matter.
-        Drawn with or without a picture, so every row's text starts on the same line. */}
-      <DishPicture path={illustrationPath} variant="thumb" />
-      <span className={styles.text}>
-        <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
-        <span className={styles.name}>
-          {name}
-          {status === 'completed' ? <span className={styles.badge}>{dictionary.meal.badgeDone}</span> : null}
-          {status === 'skipped' ? <span className={styles.badge}>{dictionary.meal.badgeSkipped}</span> : null}
-        </span>
-        <span className={styles.meta}>
-          {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(proteinG), locale)}{' '}
-          {dictionary.units.proteinShort}
-        </span>
+      <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
+      <span className={styles.name}>
+        {name}
+        {status === 'completed' ? <span className={styles.badge}>{dictionary.meal.badgeDone}</span> : null}
+        {status === 'skipped' ? <span className={styles.badge}>{dictionary.meal.badgeSkipped}</span> : null}
+      </span>
+      <span className={styles.meta}>
+        {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(proteinG), locale)}{' '}
+        {dictionary.units.proteinShort}
       </span>
     </Fragment>
   );
