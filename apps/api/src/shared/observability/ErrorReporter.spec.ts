@@ -33,6 +33,7 @@ const ENV_STUB = {
   GOOGLE_OAUTH_CLIENT_SECRET: undefined,
   NODE_ENV: 'test',
   OMNIROUTE_API_KEY: undefined,
+  OPENROUTER_API_KEY: undefined,
   SENTRY_DSN: 'https://key@sentry.example/1',
   STRIPE_SECRET_KEY: undefined,
   STRIPE_WEBHOOK_SECRET: undefined,

@@ -108,6 +108,10 @@ describe('providerCredentials', () => {
     expect(providerCredentials(env)).toEqual([FAKE.anthropic, FAKE.gateway]);
   });
 
+  it('collects the OpenRouter key too (0064)', () => {
+    expect(providerCredentials({ OPENROUTER_API_KEY: FAKE.openai } as unknown as Env)).toEqual([FAKE.openai]);
+  });
+
   it('skips a value too short to be a credential, which would blank out ordinary words instead', () => {
     expect(providerCredentials({ GOOGLE_API_KEY: 'k' } as unknown as Env)).toEqual([]);
   });

@@ -130,6 +130,15 @@ describe('empty values from a copied .env.example', () => {
   it('treats an empty gateway key as missing when omniroute is selected', () => {
     expect(() => validateEnv({ ...copied, AI_PROVIDER: 'omniroute' })).toThrow(/OMNIROUTE_API_KEY/);
   });
+
+  it('treats an empty OpenRouter key as missing when openrouter is selected, and its optional settings as unset', () => {
+    expect(() => validateEnv({ ...copied, AI_PROVIDER: 'openrouter', OPENROUTER_API_KEY: '' })).toThrow(/OPENROUTER_API_KEY/);
+
+    const env = validateEnv({ ...copied, AI_FALLBACK_MODELS: '', AI_PROVIDER: 'openrouter', AI_REASONING_EFFORT: '', OPENROUTER_API_KEY: 'k' });
+
+    expect(env.AI_FALLBACK_MODELS).toBeUndefined();
+    expect(env.AI_REASONING_EFFORT).toBeUndefined();
+  });
 });
 
 describe('AI provider and model pairing', () => {
@@ -181,6 +190,58 @@ describe('AI provider and model pairing', () => {
     expect(validateEnv({ ...valid, AI_MODEL: 'auto/best-coding', AI_PROVIDER: 'omniroute', OMNIROUTE_API_KEY: 'k' }).AI_MODEL).toBe(
       'auto/best-coding'
     );
+  });
+});
+
+/*
+ * `0064`: generation on paid OpenRouter models that never train on what they
+ * are sent. The key is required; the model ids are OpenRouter's, and a free
+ * one — whose providers may train — is refused at boot.
+ */
+describe('AI_PROVIDER=openrouter', () => {
+  const openrouter = { ...valid, AI_PROVIDER: 'openrouter', OPENROUTER_API_KEY: 'k' };
+
+  it('requires its key', () => {
+    expect(() => validateEnv({ ...valid, AI_PROVIDER: 'openrouter' })).toThrow(/OPENROUTER_API_KEY.*"openrouter"/);
+  });
+
+  it('defaults to the model 0064 chose, with no fallback and the model’s own reasoning', () => {
+    const env = validateEnv(openrouter);
+
+    expect(env.AI_MODEL).toBe('deepseek/deepseek-v4.1-flash');
+    expect(env.AI_FALLBACK_MODELS).toBeUndefined();
+    expect(env.AI_REASONING_EFFORT).toBeUndefined();
+  });
+
+  it('reads the fallback models into a list, trimmed, and the reasoning effort as given', () => {
+    const env = validateEnv({ ...openrouter, AI_FALLBACK_MODELS: ' minimax/minimax-m3 , z-ai/glm-5.3-flash', AI_REASONING_EFFORT: 'low' });
+
+    expect(env.AI_FALLBACK_MODELS).toEqual(['minimax/minimax-m3', 'z-ai/glm-5.3-flash']);
+    expect(env.AI_REASONING_EFFORT).toBe('low');
+    expect(validateEnv({ ...openrouter, AI_REASONING_EFFORT: 'none' }).AI_REASONING_EFFORT).toBe('none');
+  });
+
+  it('refuses a reasoning effort OpenRouter does not know', () => {
+    expect(() => validateEnv({ ...openrouter, AI_REASONING_EFFORT: 'extreme' })).toThrow(/AI_REASONING_EFFORT/);
+  });
+
+  it('refuses a fallback list with an empty entry or a model twice', () => {
+    expect(() => validateEnv({ ...openrouter, AI_FALLBACK_MODELS: 'minimax/minimax-m3,,z-ai/glm-5.3-flash' })).toThrow(/AI_FALLBACK_MODELS/);
+    expect(() => validateEnv({ ...openrouter, AI_FALLBACK_MODELS: 'minimax/minimax-m3,minimax/minimax-m3' })).toThrow(/AI_FALLBACK_MODELS.*twice/);
+  });
+
+  it('refuses a free model anywhere a request may reach — the one asked, the sweep’s or a fallback', () => {
+    expect(() => validateEnv({ ...openrouter, AI_MODEL: 'nvidia/nemotron-3-ultra-550b-a55b:free' })).toThrow(/AI_MODEL.*:free/);
+    expect(() => validateEnv({ ...openrouter, AI_REWRITE_MODEL: 'qwen/qwen3.8-27b:free' })).toThrow(/AI_REWRITE_MODEL.*:free/);
+    expect(() => validateEnv({ ...openrouter, AI_FALLBACK_MODELS: 'minimax/minimax-m3,qwen/qwen3.8-27b:free' })).toThrow(/AI_FALLBACK_MODELS.*:free/);
+  });
+
+  it('refuses a model id that is not vendor/model, such as a gateway alias left over', () => {
+    expect(() => validateEnv({ ...openrouter, AI_MODEL: 'NutrIA-Fallback' })).toThrow(/AI_MODEL.*vendor\/model/);
+  });
+
+  it('leaves the fallback list alone for every other provider, which ignores it', () => {
+    expect(() => validateEnv({ ...valid, AI_FALLBACK_MODELS: 'qwen/qwen3.8-27b:free', AI_PROVIDER: 'google', GOOGLE_API_KEY: 'k' })).not.toThrow();
   });
 });
 

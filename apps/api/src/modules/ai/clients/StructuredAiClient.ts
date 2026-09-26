@@ -5,7 +5,7 @@ import { AnalyticsController } from 'core/controllers/Analytics';
 
 import { AiCallError, AiClient } from './AiClient.js';
 import { isQuotaExhausted } from './quota.js';
-import { readGateway, readQuota } from './gateway.js';
+import { readGateway, readOpenRouter, readQuota } from './gateway.js';
 import { redactSecrets } from './redact.js';
 import { untilAborted } from './untilAborted.js';
 import { AI_CALL_SETTINGS, AI_MODEL, AI_SECRETS } from '../ai.config.js';
@@ -22,7 +22,8 @@ import type { LanguageModel } from 'ai';
  * (`docs/ARCHITECTURE.md` § Invariants).
  *
  * Every call also says how it went — who answered, how long it took, what a
- * gateway in front of the provider reported (`gateway.ts`) — as data on the
+ * gateway in front of the provider reported in its headers, or OpenRouter in
+ * its body (`gateway.ts`, `0064`) — as data on the
  * response, or on the `AiCallError` a failure throws, so a generation can keep
  * a log of its own calls whatever became of them.
  */
@@ -69,7 +70,8 @@ export class StructuredAiClient extends AiClient {
       const call: AiCall = {
         answeredModel: result.response.modelId || null,
         cachedInputTokens: result.usage.inputTokenDetails.cacheReadTokens ?? null,
-        gateway: readGateway(result.response.headers),
+        // OmniRoute says it in headers, OpenRouter in the body: whichever answered.
+        gateway: readGateway(result.response.headers) ?? readOpenRouter(result.response.body),
         ms: Date.now() - started,
         reasoningTokens: result.usage.outputTokenDetails.reasoningTokens ?? null
       };
@@ -115,7 +117,8 @@ export class StructuredAiClient extends AiClient {
         ? `AI_TIMEOUT: no answer within the generation's time budget (${Math.round((Date.now() - started) / 1000)} s)`
         : redactSecrets([error instanceof Error ? error.message : 'Unknown AI failure', body].filter(Boolean).join(' — '), this.secrets);
       const failure: AiFailure = {
-        gateway: readGateway(api?.responseHeaders ?? invalid?.response?.headers),
+        // An answer that failed the schema still names who served it and what it cost.
+        gateway: readGateway(api?.responseHeaders ?? invalid?.response?.headers) ?? readOpenRouter(api?.responseBody ?? invalid?.response?.body),
         kind: invalid ? 'invalid_output' : timedOut ? 'timeout' : 'provider',
         model,
         ms: Date.now() - started,
@@ -126,6 +129,8 @@ export class StructuredAiClient extends AiClient {
       // A refused call is the one that matters most on a free tier: it spent the
       // allowance and returned nothing.
       await AnalyticsController.record('ai_call', null, {
+        // An invalid answer was still paid for (`0064`).
+        costUsd: failure.gateway?.costUsd ?? null,
         model,
         ms: failure.ms,
         ok: false,

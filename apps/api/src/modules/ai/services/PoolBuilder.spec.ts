@@ -6,7 +6,7 @@ import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 import { toCatalogue } from 'core/entities/Plan';
 
 import { AiCallError } from '../clients/AiClient.js';
-import { PoolBuilder, shortfall } from './PoolBuilder.service.js';
+import { DISHES_PER_REQUEST, PoolBuilder, requestSizes, shortfall } from './PoolBuilder.service.js';
 
 import type { AiClient, AiRequest, AiResponse } from '../clients/AiClient.js';
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
@@ -86,6 +86,33 @@ function fullReusablePool(): CandidateDish[] {
   );
 }
 
+/** How many requests the first round sends for one slot with nothing reusable (`0064` § 4). */
+const FIRST_ROUND_PER_SLOT = requestSizes(DISHES_NEEDED_PER_SLOT).length;
+
+/** The meal and the number of dishes a request's prompt asks for. */
+function askedIn(prompt: string): { readonly count: number; readonly slot: string } {
+  const match = /DISHES NEEDED:\n- ([a-z -]+): (\d+) distinct dishes/.exec(prompt);
+
+  return { count: Number(match?.[2] ?? 0), slot: match?.[1] ?? '?' };
+}
+
+/** A model that answers every request with as many new dishes as it asks, for the meal it names. */
+function answeringClient(): { client: AiClient; generate: jest.Mock } {
+  let written = 0;
+  const generate = jest.fn(async <T>({ prompt }: AiRequest<T>): Promise<AiResponse<T>> => {
+    const { count, slot } = askedIn(prompt);
+    const dishes = Array.from({ length: count }, () => {
+      written += 1;
+
+      return dish(`${slot} nuevo ${written}`, [slot as MealSlot]);
+    });
+
+    return { object: { dishes } as T, usage: { calls: 1, inputTokens: 100, model: 'stub-model', outputTokens: 500 } };
+  });
+
+  return { client: { generate, isAvailable: true } as unknown as AiClient, generate: generate as unknown as jest.Mock };
+}
+
 function stubClient(responses: readonly GeneratedPool[], available = true): { client: AiClient; generate: jest.Mock } {
   let call = 0;
   const generate = jest.fn(async <T>(_request: AiRequest<T>): Promise<AiResponse<T>> => {
@@ -145,23 +172,22 @@ describe('PoolBuilder', () => {
   });
 
   it('generates only the shortfall and reports usage', async () => {
-    // One response per slot, in the order the slots are asked.
-    const perSlot = SLOTS.map(slot => ({ dishes: Array.from({ length: DISHES_NEEDED_PER_SLOT }, (_u, i) => dish(`${slot} nuevo ${i}`, [slot])) }));
-    const { client, generate } = stubClient(perSlot);
+    const { client, generate } = answeringClient();
     const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: SLOTS });
+    const requests = SLOTS.length * FIRST_ROUND_PER_SLOT;
 
-    // One request per slot, all in the first round; usage adds up across them.
-    expect(generate).toHaveBeenCalledTimes(SLOTS.length);
+    // Every request in the first round; usage adds up across them.
+    expect(generate).toHaveBeenCalledTimes(requests);
     expect(result.metadata).toMatchObject({
       attempts: 1,
-      calls: SLOTS.length,
-      inputTokens: 100 * SLOTS.length,
+      calls: requests,
+      inputTokens: 100 * requests,
       model: 'stub-model',
-      outputTokens: 500 * SLOTS.length,
+      outputTokens: 500 * requests,
       rejected: 0,
       reused: 0
     });
-    expect(result.dishes.length).toBeGreaterThanOrEqual(SLOTS.length * DISHES_NEEDED_PER_SLOT);
+    expect(result.dishes).toHaveLength(SLOTS.length * DISHES_NEEDED_PER_SLOT);
   });
 
   it('asks each slot in its own request, naming only that slot', async () => {
@@ -169,22 +195,24 @@ describe('PoolBuilder', () => {
 
     await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: SLOTS });
 
-    // The first round: one prompt per slot, each naming its slot and no other.
-    const firstRound = generate.mock.calls.slice(0, SLOTS.length).map(call => (call[0] as { prompt: string }).prompt);
+    // The first round: each prompt names one slot and no other, and each slot is asked in requests of at most three.
+    const firstRound = generate.mock.calls.slice(0, SLOTS.length * FIRST_ROUND_PER_SLOT).map(call => (call[0] as { prompt: string }).prompt);
 
-    expect(firstRound.filter(prompt => prompt.includes('- lunch:'))).toHaveLength(1);
-    expect(firstRound.filter(prompt => prompt.includes('- breakfast:'))).toHaveLength(1);
+    expect(firstRound.filter(prompt => prompt.includes('- lunch:'))).toHaveLength(FIRST_ROUND_PER_SLOT);
+    expect(firstRound.filter(prompt => prompt.includes('- breakfast:'))).toHaveLength(FIRST_ROUND_PER_SLOT);
     expect(firstRound.every(prompt => prompt.split('distinct dishes').length === 2)).toBe(true);
+    expect(firstRound.every(prompt => askedIn(prompt).count <= DISHES_PER_REQUEST)).toBe(true);
   });
 
   it('covers a short first round from the backfill instead of asking the model again', async () => {
-    // The model returns two lunches where twelve were wanted; the library has plenty held back.
+    // Every request returns the same two lunches where nineteen were wanted; the library has plenty held back.
     const two = { dishes: [dish('Nuevo uno', ['lunch']), dish('Nuevo dos', ['lunch'])] };
     const backfill = Array.from({ length: 20 }, (_u, i) => ({ ...dish(`Guardado ${i}`, ['lunch']), slug: `guardado-${i}` }));
     const { client, generate } = stubClient([two]);
     const result = await new PoolBuilder(client).build({ backfill, context: context(), preferences, reusable: [], slots: ['lunch'] });
 
-    expect(generate).toHaveBeenCalledTimes(1);
+    // The first round only: no second.
+    expect(generate).toHaveBeenCalledTimes(FIRST_ROUND_PER_SLOT);
     expect(result.generated).toHaveLength(2);
     expect(result.metadata.backfilled).toBe(DISHES_NEEDED_PER_SLOT - 2);
     expect(result.dishes).toHaveLength(DISHES_NEEDED_PER_SLOT);
@@ -197,7 +225,8 @@ describe('PoolBuilder', () => {
 
     expect(result.dishes).toEqual([]);
     expect(result.metadata.rejected).toBeGreaterThan(0);
-    expect(generate).toHaveBeenCalledTimes(3);
+    // The first round's requests, then one request a round for what is still short.
+    expect(generate).toHaveBeenCalledTimes(FIRST_ROUND_PER_SLOT + 2);
   });
 
   it('rejects a generated dish containing a declared allergen, and never returns it', async () => {
@@ -506,17 +535,20 @@ describe('PoolBuilder', () => {
       expect(prompt).not.toContain('Their week');
     });
 
-    it('states the spread as counts the model can check', async () => {
+    it('states the spread as counts the model can check, where a request asks for enough dishes to count', async () => {
       const { client, generate } = stubClient([{ dishes: [] }]);
 
       await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['breakfast', 'lunch', 'dinner'] });
 
-      const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
+      const prompts = generate.mock.calls.map(call => (call[0] as { prompt: string }).prompt);
+      // Nothing came back, so the second round asks each slot's whole shortfall in one request.
+      const whole = prompts.find(prompt => askedIn(prompt).count === DISHES_NEEDED_PER_SLOT);
 
-      // Three slots × DISHES_NEEDED_PER_SLOT dishes requested; a quarter of that per protein.
-      expect(prompt).toContain('SPREAD ACROSS THE SET YOU RETURN');
-      expect(prompt).toMatch(/No main protein .* in more than \d+ dishes/);
-      expect(prompt).toMatch(/At least \d+ distinct cuisines/);
+      expect(whole).toContain('SPREAD ACROSS THE SET YOU RETURN');
+      expect(whole).toMatch(/No main protein .* in more than \d+ dishes/);
+      expect(whole).toMatch(/At least \d+ distinct cuisines/);
+      // Three dishes are too few for a ceiling per protein: the first round's requests carry none (`0064` § 4).
+      expect(prompts.filter(prompt => askedIn(prompt).count <= DISHES_PER_REQUEST).some(prompt => prompt.includes('SPREAD ACROSS'))).toBe(false);
     });
   });
 
@@ -563,7 +595,7 @@ describe('PoolBuilder', () => {
 
     await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
 
-    expect(generate).toHaveBeenCalledTimes(3);
+    expect(generate).toHaveBeenCalledTimes(FIRST_ROUND_PER_SLOT + 2);
   });
 
   it('serves reuse alone when no provider is configured, without calling anything', async () => {
@@ -1002,18 +1034,21 @@ describe('PoolBuilder — the call log', () => {
     const failing = { generate: jest.fn(async () => Promise.reject(refusal)), isAvailable: true } as unknown as AiClient;
     const result = await new PoolBuilder(failing).build({ context: context(), preferences, reusable: [], slots: ['dinner'] });
 
-    expect(result.metadata.aiCalls).toEqual([
-      expect.objectContaining({
-        answeredModel: null,
-        dishes: 0,
-        error: { kind: 'provider', message: '[429]: You exceeded your current quota', quota, status: 429 },
-        kept: 0,
-        model: 'gemini-3.6-flash',
-        ms: 400,
-        round: 1,
-        slot: 'dinner'
-      })
-    ]);
+    // Every request of the first round refused; with none answered, no second round.
+    expect(result.metadata.aiCalls).toEqual(
+      Array.from({ length: FIRST_ROUND_PER_SLOT }, () =>
+        expect.objectContaining({
+          answeredModel: null,
+          dishes: 0,
+          error: { kind: 'provider', message: '[429]: You exceeded your current quota', quota, status: 429 },
+          kept: 0,
+          model: 'gemini-3.6-flash',
+          ms: 400,
+          round: 1,
+          slot: 'dinner'
+        })
+      )
+    );
   });
 
   it('keeps nothing when the library covered everything and no call was made', async () => {
@@ -1082,15 +1117,19 @@ describe('PoolBuilder — the time budget', () => {
 
     expect(Date.now() - started).toBeLessThan(2000);
     expect(result.metadata.outOfTime).toBe(true);
-    expect(result.metadata.aiCalls).toEqual([expect.objectContaining({ error: expect.objectContaining({ kind: 'timeout' }), slot: 'lunch' })]);
+    expect(result.metadata.aiCalls).toEqual(
+      Array.from({ length: FIRST_ROUND_PER_SLOT }, () =>
+        expect.objectContaining({ error: expect.objectContaining({ kind: 'timeout' }), slot: 'lunch' })
+      )
+    );
   });
 
   it('does not start a later round without the time to bring something back', async () => {
-    // One dish where five are wanted, so a second round is due; ten seconds leave no room for it.
+    // One dish where nineteen are wanted, so a second round is due; ten seconds leave no room for it.
     const { client, generate } = stubClient([{ dishes: [dish('Arroz con pollo', ['lunch'], ['arroz', 'pollo'])] }]);
     const result = await new PoolBuilder(client, 10_000).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
 
-    expect(generate).toHaveBeenCalledTimes(1);
+    expect(generate).toHaveBeenCalledTimes(FIRST_ROUND_PER_SLOT);
     expect(result.metadata.outOfTime).toBe(true);
   });
 
@@ -1099,5 +1138,137 @@ describe('PoolBuilder — the time budget', () => {
     const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
 
     expect(result.metadata.outOfTime).toBeUndefined();
+  });
+});
+
+describe('requestSizes', () => {
+  it('splits a shortfall into requests of at most three, largest first', () => {
+    expect(requestSizes(7)).toEqual([3, 3, 1]);
+    expect(requestSizes(6)).toEqual([3, 3]);
+    expect(requestSizes(2)).toEqual([2]);
+    expect(requestSizes(0)).toEqual([]);
+  });
+});
+
+/**
+ * Seven fresh dishes a meal, asked three at a time (`0064` § 4): each request
+ * waits for three dishes, not seven, and one request refused — a 413, a 429 —
+ * costs only its own dishes.
+ */
+describe('PoolBuilder — the first round, three dishes a request', () => {
+  const preferences = {
+    avoidNames: [],
+    budget: null,
+    cookingFrequency: null,
+    cookingTimeMinutes: 30,
+    cuisines: [],
+    dayShape: null,
+    dietaryPatterns: [],
+    dislikedNames: [],
+    goal: null,
+    likedFoods: [],
+    lovedNames: [],
+    month: 1,
+    slotShares: new Map(),
+    targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
+  };
+  const prompts = (generate: jest.Mock) => generate.mock.calls.map(([request]) => (request as AiRequest<unknown>).prompt);
+  const backfill = Array.from({ length: 10 }, (_u, i) => ({ ...dish(`Guardado ${i}`, ['lunch']), slug: `guardado-${i}` }));
+
+  it('asks a shortfall of seven as requests of 3, 3 and 1, all in the first round, each shown the same catalogue and exclusions', async () => {
+    const { client, generate } = answeringClient();
+    const kept = { ...dish('Guiso guardado', ['lunch']), slug: 'guiso-guardado' };
+    const result = await new PoolBuilder(client).build({ context: context(), needPerSlot: 8, preferences, reusable: [kept], slots: ['lunch'] });
+    const asked = prompts(generate);
+
+    expect(asked.map(prompt => askedIn(prompt))).toEqual([
+      { count: 3, slot: 'lunch' },
+      { count: 3, slot: 'lunch' },
+      { count: 1, slot: 'lunch' }
+    ]);
+    // Written at the same time, the two requests of three are the same request: neither is told of the other's dishes.
+    expect(asked[0]).toBe(asked[1]);
+    expect(asked.every(prompt => prompt.includes('DO NOT REPEAT THESE ALREADY-PROPOSED DISHES: guiso-guardado'))).toBe(true);
+    expect(result.metadata).toMatchObject({ attempts: 1, calls: 3 });
+    expect(result.generated).toHaveLength(7);
+    expect(result.metadata.aiCalls.map(call => [call.round, call.slot, call.kept])).toEqual([
+      [1, 'lunch', 3],
+      [1, 'lunch', 3],
+      [1, 'lunch', 1]
+    ]);
+  });
+
+  it('asks each slot on its own, split the same way', async () => {
+    const { client, generate } = answeringClient();
+
+    await new PoolBuilder(client).build({ context: context(), needPerSlot: 7, preferences, reusable: [], slots: ['breakfast', 'dinner'] });
+
+    expect(prompts(generate).map(prompt => askedIn(prompt))).toEqual([
+      { count: 3, slot: 'breakfast' },
+      { count: 3, slot: 'breakfast' },
+      { count: 1, slot: 'breakfast' },
+      { count: 3, slot: 'dinner' },
+      { count: 3, slot: 'dinner' },
+      { count: 1, slot: 'dinner' }
+    ]);
+  });
+
+  it('asks a later round for what is still short in one request per slot, as before', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client).build({ context: context(), needPerSlot: 7, preferences, reusable: [], slots: ['lunch'] });
+
+    expect(prompts(generate).map(prompt => askedIn(prompt).count)).toEqual([3, 3, 1, 7, 7]);
+  });
+
+  it('keeps a name two parallel requests both sent once, and counts the others as duplicates', async () => {
+    const same = { dishes: [dish('Arroz con pollo', ['lunch'], ['arroz', 'pollo'])] };
+    const { client, generate } = stubClient([same]);
+    const result = await new PoolBuilder(client).build({ backfill, context: context(), needPerSlot: 7, preferences, reusable: [], slots: ['lunch'] });
+
+    expect(result.generated.map(generated => generated.name)).toEqual(['Arroz con pollo']);
+    expect(result.metadata.aiCalls.map(call => call.rejected)).toEqual([{}, { duplicate: 1 }, { duplicate: 1 }]);
+    // The backfill covers the dishes the duplicates cost; the model is not asked again.
+    expect(generate).toHaveBeenCalledTimes(3);
+    expect(result.dishes).toHaveLength(7);
+    expect(result.metadata.backfilled).toBe(6);
+  });
+
+  it.each([413, 429])('keeps the other requests’ dishes and finishes the build when one request is refused with a %i', async status => {
+    let call = 0;
+    const generate = jest.fn(async <T>({ prompt }: AiRequest<T>): Promise<AiResponse<T>> => {
+      call += 1;
+
+      if (call === 2) {
+        throw new AiCallError(`[${status}]: refused`, {
+          gateway: null,
+          kind: 'provider',
+          model: 'deepseek/deepseek-v4.1-flash',
+          ms: 300,
+          quota: null,
+          status
+        });
+      }
+
+      const { count } = askedIn(prompt);
+
+      return {
+        object: { dishes: Array.from({ length: count }, (_u, i) => dish(`Plato ${call}-${i}`, ['lunch'])) } as T,
+        usage: { calls: 1, inputTokens: 100, model: 'deepseek/deepseek-v4.1-flash', outputTokens: 500 }
+      };
+    });
+    const client = { generate, isAvailable: true } as unknown as AiClient;
+    const result = await new PoolBuilder(client).build({ backfill, context: context(), needPerSlot: 7, preferences, reusable: [], slots: ['lunch'] });
+
+    // The first and third requests' four dishes are kept; the refused one's three come from the library.
+    expect(result.generated).toHaveLength(4);
+    expect(result.metadata.backfilled).toBe(3);
+    expect(result.dishes).toHaveLength(7);
+    expect(generate).toHaveBeenCalledTimes(3);
+    expect(result.metadata.aiCalls).toEqual([
+      expect.objectContaining({ error: null, kept: 3, round: 1 }),
+      expect.objectContaining({ error: expect.objectContaining({ kind: 'provider', status }), kept: 0, round: 1 }),
+      expect.objectContaining({ error: null, kept: 1, round: 1 })
+    ]);
   });
 });

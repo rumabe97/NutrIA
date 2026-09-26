@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { readGateway, readQuota } from './gateway.js';
+import { readGateway, readOpenRouter, readQuota } from './gateway.js';
 
 /** Captured from a real call to OmniRoute 3.8 through the `NutrIA-Fallback` combo. */
 const OMNIROUTE_HEADERS = {
@@ -52,6 +52,52 @@ describe('readGateway', () => {
 
   it('matches header names whatever their case', () => {
     expect(readGateway({ 'X-OmniRoute-Model': 'gemini-3.6-flash' })?.model).toBe('gemini-3.6-flash');
+  });
+});
+
+/** OpenRouter's answer, in the shape `bench-models.mjs` recorded on 2026-09-26 (`0064`). */
+const OPENROUTER_ANSWER = {
+  id: 'gen-1790000000-abc',
+  choices: [{ finish_reason: 'stop', index: 0, message: { content: '{"dishes":[]}', role: 'assistant' } }],
+  created: 1_790_000_000,
+  model: 'deepseek/deepseek-v4.1-flash',
+  object: 'chat.completion',
+  provider: 'DeepInfra',
+  usage: { completion_tokens: 2200, cost: 0.0118, prompt_tokens: 4100, total_tokens: 6300 }
+};
+
+describe('readOpenRouter', () => {
+  it('reads who answered, whose endpoint served it, what it cost and its id, from the body', () => {
+    expect(readOpenRouter(OPENROUTER_ANSWER)).toEqual({
+      cache: null,
+      comboTrace: null,
+      correlationId: null,
+      costUsd: 0.0118,
+      latencyMs: null,
+      model: 'deepseek/deepseek-v4.1-flash',
+      provider: 'DeepInfra',
+      requestId: 'gen-1790000000-abc',
+      session: null,
+      strategy: null,
+      version: null
+    });
+  });
+
+  it('reads the provider that refused a call, and only that, from the refusal body as the SDK keeps it — a string', () => {
+    const refusal = JSON.stringify({
+      error: { code: 429, message: 'Provider returned error', metadata: { provider_name: 'DeepInfra', raw: 'the request, echoed' } }
+    });
+
+    expect(readOpenRouter(refusal)).toMatchObject({ costUsd: null, model: null, provider: 'DeepInfra' });
+    expect(JSON.stringify(readOpenRouter(refusal))).not.toContain('echoed');
+  });
+
+  it('is null for every other provider’s body, a refusal with no provider named, and anything that is not JSON', () => {
+    expect(readOpenRouter({ id: 'chatcmpl-1', choices: [], model: 'gpt', usage: { prompt_tokens: 1 } })).toBeNull();
+    expect(readOpenRouter({ candidates: [], usageMetadata: { promptTokenCount: 1 } })).toBeNull();
+    expect(readOpenRouter('{"error":{"code":401,"message":"No auth credentials found"}}')).toBeNull();
+    expect(readOpenRouter('Bad gateway')).toBeNull();
+    expect(readOpenRouter(undefined)).toBeNull();
   });
 });
 

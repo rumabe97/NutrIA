@@ -8,7 +8,7 @@ export type AiCall = {
   /** The model that answered, by the provider's own name. Through a combo, not necessarily the one asked for. */
   readonly answeredModel: string | null;
   readonly cachedInputTokens: number | null;
-  /** Null when the call did not go through a gateway. */
+  /** What a gateway's headers or OpenRouter's body said (`gateway.ts`); null from any other provider. */
   readonly gateway: GatewayCall | null;
   /** Our clock, from request to answer — the SDK's retries included, where there are any. */
   readonly ms: number;

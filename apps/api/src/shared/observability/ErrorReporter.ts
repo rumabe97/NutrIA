@@ -7,7 +7,7 @@ import { redactSecrets } from '../../modules/ai/clients/redact.js';
 import type { Env } from '../../config/index.js';
 
 /**
- * Every secret this process holds, not only the three AI provider keys
+ * Every secret this process holds, not only the AI provider keys
  * `redact.ts` scrubs for its own narrower purpose (a provider's own echoed
  * error text). This is the wider net a crash report needs: a driver error
  * can embed `DATABASE_URL` whole, a misconfigured webhook handler can echo
@@ -24,6 +24,7 @@ function allSecrets(env: Env): readonly string[] {
     env.ANTHROPIC_API_KEY,
     env.GOOGLE_API_KEY,
     env.OMNIROUTE_API_KEY,
+    env.OPENROUTER_API_KEY,
     env.BETTER_AUTH_SECRET,
     env.CRON_SECRET,
     env.DATABASE_URL,
