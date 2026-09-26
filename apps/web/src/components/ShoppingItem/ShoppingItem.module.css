@@ -72,8 +72,10 @@
  * the item rather than splitting its name mid-word.
  */
 @media (width < 17rem) {
+  /* No row gap: a wrapped quantity belongs to its name, not halfway to the next item. */
   .item {
     flex-wrap: wrap;
+    row-gap: 0;
   }
 
   .label {
