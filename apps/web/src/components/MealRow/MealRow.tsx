@@ -8,10 +8,10 @@ import styles from './MealRow.module.css';
 
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
+import { DishPicture } from 'components/DishPicture';
 import { useOffline } from 'components/OfflineProvider';
 
 import { api } from 'lib/api';
-import { API_URL } from 'lib/env';
 import { formatNumber, formatQuantity } from 'lib/format';
 import { slotLabel } from 'lib/generation';
 
@@ -71,18 +71,20 @@ export function MealRow({
   const head = (
     <Fragment>
       {/* Decorative here — the name beside it is the content — so the alt is empty and
-        the label lives on the detail page, where the picture is large enough to matter. */}
-      {/* eslint-disable-next-line @next/next/no-img-element -- the API serves a phone-sized, immutable WebP already; next/image would add an optimiser hop and per-image billing for nothing */}
-      {illustrationPath ? <img alt="" className={styles.thumb} loading="lazy" src={`${API_URL}${illustrationPath}`} /> : null}
-      <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
-      <span className={styles.name}>
-        {name}
-        {status === 'completed' ? <span className={styles.badge}>{dictionary.meal.badgeDone}</span> : null}
-        {status === 'skipped' ? <span className={styles.badge}>{dictionary.meal.badgeSkipped}</span> : null}
-      </span>
-      <span className={styles.meta}>
-        {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(proteinG), locale)}{' '}
-        {dictionary.units.proteinShort}
+        the label lives on the detail page, where the picture is large enough to matter.
+        Drawn with or without a picture, so every row's text starts on the same line. */}
+      <DishPicture path={illustrationPath} variant="thumb" />
+      <span className={styles.text}>
+        <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
+        <span className={styles.name}>
+          {name}
+          {status === 'completed' ? <span className={styles.badge}>{dictionary.meal.badgeDone}</span> : null}
+          {status === 'skipped' ? <span className={styles.badge}>{dictionary.meal.badgeSkipped}</span> : null}
+        </span>
+        <span className={styles.meta}>
+          {formatNumber(Math.round(kcal), locale)} {dictionary.units.kcal} · {formatNumber(Math.round(proteinG), locale)}{' '}
+          {dictionary.units.proteinShort}
+        </span>
       </span>
     </Fragment>
   );
@@ -150,13 +152,11 @@ export function MealRow({
       )}
       <div className={styles.body}>
         {opens ? (
-          <Link className={styles.head} data-illustrated={illustrationPath ? 'true' : undefined} href={recipe}>
+          <Link className={styles.head} href={recipe}>
             {head}
           </Link>
         ) : (
-          <div className={styles.head} data-illustrated={illustrationPath ? 'true' : undefined}>
-            {head}
-          </div>
+          <div className={styles.head}>{head}</div>
         )}
 
         {ingredients.length > 0 ? (

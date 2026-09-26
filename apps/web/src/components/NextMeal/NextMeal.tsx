@@ -7,8 +7,8 @@ import { Text } from 'ui/components/Text';
 import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
+import { DishPicture } from 'components/DishPicture';
 
-import { API_URL } from 'lib/env';
 import { formatNumber } from 'lib/format';
 import { slotLabel } from 'lib/generation';
 
@@ -54,8 +54,12 @@ export function NextMeal({ hour, meals }: NextMealProps) {
 
   return (
     <Card as={Link} className={styles.card} href={`/plan/comida/${upcoming.id}`}>
-      {/* eslint-disable-next-line @next/next/no-img-element -- the API serves a phone-sized, immutable WebP already; next/image would add an optimiser hop and per-image billing for nothing */}
-      {upcoming.illustrationPath ? <img alt="" className={styles.picture} src={`${API_URL}${upcoming.illustrationPath}`} /> : null}
+      {/* The first thing on the dashboard, so requested at once rather than lazily. */}
+      {upcoming.illustrationPath ? (
+        <span className={styles.picture}>
+          <DishPicture path={upcoming.illustrationPath} priority={true} variant="card" />
+        </span>
+      ) : null}
       <span className={styles.eyebrow}>
         {dictionary.dashboard.nextMeal} · {slotLabel(upcoming.slot, dictionary)}
       </span>

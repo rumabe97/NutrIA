@@ -1,0 +1,41 @@
+import { Picture } from 'ui/components/Picture';
+import { PropsTable } from 'components/PropsTable';
+
+# Picture
+
+A plain `<img>` inside a frame that holds its shape whatever the image does. The frame's `aspect-ratio` reserves the space before a byte arrives, so nothing beside it moves while it loads; the image is cropped to the frame (`object-fit: cover`), centred. Missing or failing, the image is removed — never a broken-image icon — and `fallback` is drawn in the same box.
+
+Use it for images something else has already sized (an API that serves one WebP per record). For images Next should optimise, use [`Image`](/ui/components/image).
+
+## Examples
+
+### A named picture
+
+<Preview code={`<Picture alt="Example image" height={720} ratio="4/3" src="https://picsum.photos/960/720" style={{ width: '16rem' }} width={960} />`}>
+  <Picture alt="Example image" height={720} ratio="4/3" src="https://picsum.photos/960/720" style={{ width: '16rem' }} width={960} />
+</Preview>
+
+### No picture, or one that failed
+
+The frame stays, with its neutral ground and whatever `fallback` you pass:
+
+<Preview code={`<Picture fallback={<span>—</span>} ratio="1/1" src={null} style={{ width: '4rem' }} />`}>
+  <Picture fallback={<span>—</span>} ratio="1/1" src={null} style={{ width: '4rem' }} />
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: 'src', type: 'string | null', default: '—', description: 'Image URL. Missing or failing, the frame stays and shows `fallback`.' },
+  { prop: 'ratio', type: "'1/1' | '4/3' | '16/9'", default: "'4/3'", description: 'The frame’s shape. The image is cropped to it.' },
+  { prop: 'fallback', type: 'ReactNode', default: '—', description: 'Drawn centred when there is no picture. Decorative: hidden from assistive tech.' },
+  { prop: 'alt', type: 'string', default: "''", description: 'Empty for a decorative picture. When named and the image fails, the frame carries the name as `role="img"`.' },
+  { prop: 'loading', type: "'lazy' | 'eager'", default: "'lazy'", description: 'Pass `eager` (and `fetchPriority="high"`) for the one picture above the fold.' },
+  { prop: 'decoding', type: "'async' | 'sync' | 'auto'", default: "'async'", description: 'Decoded off the main thread by default.' }
+]} />
+
+`className` and `style` go on the frame — give it a width and a radius there. Every other `<img>` attribute, `ref` included, goes on the image; pass `width` and `height` as the intrinsic-size hint.
+
+## Accessibility
+
+A decorative picture (`alt=""`) stays out of the accessibility tree, and so does its placeholder. A named one keeps its name when the image fails: the frame becomes `role="img"` with the same label, so the page reads the same with or without the bytes.
