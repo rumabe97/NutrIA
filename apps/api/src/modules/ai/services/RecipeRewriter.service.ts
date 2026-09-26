@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
 import { RecipeController } from 'core/controllers/Recipe';
-import { cleanSteps, isAboutTheBrief, lowerIngredientNames, methodMentions } from 'core/domain/Method';
+import { cleanSteps, isAboutTheBrief, isMethodComplete, lowerIngredientNames, methodMentions } from 'core/domain/Method';
 import { normaliseForMatching } from 'core/domain/Safety';
 
 import { ENV } from '../../../config/index.js';
@@ -41,6 +41,18 @@ export const REWRITE_LIMITS: RewriteLimits = { lanes: 3, minCallMs: 90_000, swee
 
 /** Where a test hands in limits of milliseconds; nothing in the application binds it. */
 export const REWRITE_SWEEP_LIMITS = Symbol('REWRITE_SWEEP_LIMITS');
+
+/**
+ * The model's answer failed a content check — the schema, the ingredient
+ * read-back, the brief-talk or English-method guard, or now the
+ * documentation gap this recipe was claimed to close. Distinguished from an
+ * `AiCallError` or an abandoned call (`untilAborted`) because only a content
+ * refusal is this recipe's own fault: it is what `RecipeController
+ * .recordRewriteRefusal` counts toward `RewriteStamp.REWRITE_ATTEMPT_BOUND`,
+ * so a provider outage or a call the sweep's own clock cut short never
+ * spends one of a recipe's bounded attempts.
+ */
+export class RewriteRefusedError extends Error {}
 
 export type RewriteRun = {
   readonly pending: number;
@@ -126,6 +138,11 @@ export class RecipeRewriter {
         if (isQuotaExhausted(error)) {
           this.logger.warn('Provider quota is exhausted; stopping this sweep. The rest will be picked up next time.');
           stopped = true;
+        } else if (error instanceof RewriteRefusedError) {
+          // Only the recipe's own fault counts: a provider outage or a call
+          // this sweep's clock cut short is retried in full next time, not
+          // charged against the bound.
+          await this.recordRefusal(recipe.id);
         }
       }
 
@@ -165,7 +182,7 @@ export class RecipeRewriter {
     const parsed = rewrittenStepsSchema.safeParse({ ...response.object, cookMinutes: recipe.cookMinutes });
 
     if (!parsed.success) {
-      throw new Error(parsed.error.issues.map(issue => `${issue.path.join('.')} ${issue.message}`).join('; '));
+      throw new RewriteRefusedError(parsed.error.issues.map(issue => `${issue.path.join('.')} ${issue.message}`).join('; '));
     }
 
     // Read back before it is stored: the ingredient list was checked against
@@ -178,15 +195,15 @@ export class RecipeRewriter {
     });
 
     if (mentions.foreign.length > 0) {
-      throw new Error(`names ${mentions.foreign.join(', ')}, which the dish does not contain`);
+      throw new RewriteRefusedError(`names ${mentions.foreign.join(', ')}, which the dish does not contain`);
     }
 
     if (mentions.missing.length > 0) {
-      throw new Error(`never says where ${mentions.missing.join(', ')} goes`);
+      throw new RewriteRefusedError(`never says where ${mentions.missing.join(', ')} goes`);
     }
 
     if (parsed.data.steps.some(step => isAboutTheBrief(`${step.text} ${step.cue ?? ''}`))) {
-      throw new Error('writes about its instructions instead of the method');
+      throw new RewriteRefusedError('writes about its instructions instead of the method');
     }
 
     // An empty cue and a zero duration are the wire saying "none"; store neither.
@@ -210,11 +227,29 @@ export class RecipeRewriter {
     const cleaned = cleanSteps(steps, { ingredientNames: slugs, locale: recipe.locale });
 
     if (cleaned === null) {
-      throw new Error(`its method reads as English in a ${recipe.locale} recipe`);
+      throw new RewriteRefusedError(`its method reads as English in a ${recipe.locale} recipe`);
+    }
+
+    // The acceptance gate this recipe was claimed for: `cleaned`, not
+    // `parsed.data.steps` — `cleanSteps` can drop an English cue in a Spanish
+    // recipe, and a check on the raw parse would accept a rewrite that ends
+    // up cue-less once cleaned, get it stored, and have it re-claimed and
+    // refused for ever without ever fixing what it was claimed to fix.
+    if (!isMethodComplete({ cookMinutes: recipe.cookMinutes, steps: cleaned })) {
+      throw new RewriteRefusedError('does not give the method a cue where it cooks, or a duration on any step');
     }
 
     await RecipeController.rewriteSteps(recipe.id, cleaned, STEPS_VERSION);
     this.logger.log(describeCall(recipe.id, response, cleaned.length));
+  }
+
+  /** Best-effort: a failed write here must not crash the sweep over a recipe whose refusal was already logged. */
+  private async recordRefusal(recipeId: string): Promise<void> {
+    try {
+      await RecipeController.recordRewriteRefusal(recipeId, STEPS_VERSION);
+    } catch (error: unknown) {
+      this.logger.warn(`Could not record a rewrite refusal for ${recipeId}: ${describeFailure(error)}`);
+    }
   }
 }
 

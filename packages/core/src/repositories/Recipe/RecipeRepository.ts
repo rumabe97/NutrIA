@@ -1,4 +1,4 @@
-import { aliasedTable, and, eq, inArray, isNull, lt, ne, or, sql } from 'drizzle-orm';
+import { aliasedTable, and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -6,6 +6,7 @@ import { ingredientAllergens, ingredientNames, ingredients } from 'database/sche
 import { dislikedRecipes, favoriteRecipes } from 'database/schema/plan';
 import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 
+import { METHOD_RULES, nextRewriteStamp, REWRITE_ATTEMPT_BOUND } from 'core/domain/Method';
 import { DatabaseOperationError } from 'core/entities/Error';
 import type { FoodClass } from 'database/schema/food';
 import type { LibraryRecipe } from 'core/domain/MealFit';
@@ -66,8 +67,11 @@ export const RecipeRepository = {
    * the rewriter is given a dish, not a diner.
    */
   /**
-   * Recipes still written by an older prompt, **claimed** for `holdMinutes` in
-   * the same statement that picks them.
+   * Recipes the sweep still needs to look at — an older prompt wrote them, or
+   * nothing did, or the current one did but the method it wrote still has a
+   * documentation gap (`needsRewriteCondition`, `core/domain/Method`'s
+   * `RewriteStamp.needsRewrite` mirrored in SQL) — **claimed** for
+   * `holdMinutes` in the same statement that picks them.
    *
    * Picking and claiming are one `UPDATE … RETURNING`, over a subquery locked
    * `FOR UPDATE SKIP LOCKED`: two sweeps started together — the owner pressing
@@ -82,12 +86,7 @@ export const RecipeRepository = {
       const free = db
         .select({ id: recipes.id })
         .from(recipes)
-        .where(
-          and(
-            or(isNull(recipes.stepsVersion), ne(recipes.stepsVersion, stepsVersion)),
-            or(isNull(recipes.stepsClaimedUntil), lt(recipes.stepsClaimedUntil, sql`now()`))
-          )
-        )
+        .where(and(needsRewriteCondition(stepsVersion), or(isNull(recipes.stepsClaimedUntil), lt(recipes.stepsClaimedUntil, sql`now()`))))
         .orderBy(recipes.id)
         .limit(limit)
         .for('update', { skipLocked: true });
@@ -515,6 +514,26 @@ export const RecipeRepository = {
     }
   },
 
+  /**
+   * One more refusal recorded against `stepsVersion`, the way
+   * `RewriteStamp.nextRewriteStamp` stamps it — a documented failure counted
+   * toward `REWRITE_ATTEMPT_BOUND` instead of a silent claim lapse the sweep
+   * would try again unbounded, every day, for ever.
+   */
+  async recordRewriteRefusal(recipeId: string, stepsVersion: string): Promise<void> {
+    try {
+      const db = database();
+      const [row] = await db.select({ stepsVersion: recipes.stepsVersion }).from(recipes).where(eq(recipes.id, recipeId)).limit(1);
+
+      await db
+        .update(recipes)
+        .set({ stepsVersion: nextRewriteStamp(row?.stepsVersion ?? null, stepsVersion) })
+        .where(eq(recipes.id, recipeId));
+    } catch (error: unknown) {
+      throw wrap(error, 'recipes');
+    }
+  },
+
   /** Replaces any existing illustration; a re-drawn recipe keeps one row. */
   async saveImage(
     recipeId: string,
@@ -600,6 +619,53 @@ export const RecipeRepository = {
     }
   }
 };
+
+/**
+ * The rewrite sweep's own claim condition, in SQL.
+ *
+ * Mirrors `core/domain/Method`'s `RewriteStamp.needsRewrite` and
+ * `isMethodComplete` by hand — a `WHERE` cannot call a TypeScript function,
+ * and the claim has to stay one atomic `FOR UPDATE SKIP LOCKED` statement
+ * (see `claimUndocumented`'s own comment) rather than a read-then-write pair.
+ * The two must agree, the same way `hasUsableMethod`'s own history is the
+ * standing warning against a second copy of one question: change one, change
+ * the other, and the numbers this file's callers measure against
+ * (`RewriteStamp.needsRewrite`, exercised directly by its own tests) are what
+ * both are checked against.
+ *
+ * A recipe needs the sweep when fewer than `REWRITE_ATTEMPT_BOUND` refusals
+ * stand against it under `stepsVersion` (the current standard), **and**
+ * either an older prompt wrote its method (or nothing did), or the current
+ * one did and the method still has a gap: no step's `cue` is non-empty
+ * anywhere it cooks, or no step carries a `minutes` above zero.
+ */
+function needsRewriteCondition(stepsVersion: string) {
+  return sql`
+    not (
+      split_part(${recipes.stepsVersion}, '+', 1) is not distinct from ${stepsVersion}
+      and coalesce(nullif(split_part(${recipes.stepsVersion}, '+', 2), '')::int, 0) >= ${REWRITE_ATTEMPT_BOUND}::int
+    )
+    and (
+      split_part(${recipes.stepsVersion}, '+', 1) is distinct from ${stepsVersion}
+      or not (
+        jsonb_array_length(${recipes.instructions}) >= (
+          case
+            when ${recipes.cookMinutes} >= ${METHOD_RULES.longCookMinutes}::int then ${METHOD_RULES.minStepsCookedLong}::int
+            when ${recipes.cookMinutes} > 0 then ${METHOD_RULES.minStepsCooked}::int
+            else ${METHOD_RULES.minStepsUncooked}::int
+          end
+        )
+        and (
+          ${recipes.cookMinutes} = 0
+          or (
+            exists (select 1 from jsonb_array_elements(${recipes.instructions}) as step where nullif(trim(step ->> 'cue'), '') is not null)
+            and exists (select 1 from jsonb_array_elements(${recipes.instructions}) as step where (step ->> 'minutes')::numeric > 0)
+          )
+        )
+      )
+    )
+  `;
+}
 
 function wrap(error: unknown, table: string): DatabaseOperationError {
   if (error instanceof ZodError) {

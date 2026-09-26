@@ -293,6 +293,14 @@ export const RecipeController = {
   },
 
   /**
+   * One more refusal recorded against `stepsVersion`, so the sweep
+   * eventually stops asking. See `RecipeRepository.recordRewriteRefusal`.
+   */
+  async recordRewriteRefusal(recipeId: string, stepsVersion: string): Promise<void> {
+    await RecipeRepository.recordRewriteRefusal(recipeId, stepsVersion);
+  },
+
+  /**
    * Dishes from the library this user may safely eat.
    *
    * Every candidate goes through `findSafetyViolations` — the same gate applied to

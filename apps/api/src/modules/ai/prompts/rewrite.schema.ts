@@ -40,11 +40,18 @@ export const wireRewriteSchema = jsonSchema<RewrittenSteps>({
       description: 'Los pasos reescritos, uno por acción.',
       items: {
         properties: {
-          cue: { description: 'La señal de que el paso está hecho. Cadena vacía si no aplica.', type: 'string' },
-          minutes: { description: 'Minutos que ocupa este paso. Se omite si el paso es instantáneo.', type: 'integer' },
+          cue: {
+            description:
+              'La señal de que el paso está hecho: "hasta que se dore", "hasta que el líquido reduzca a la mitad". Cadena vacía solo si no hay nada que mirar.',
+            type: 'string'
+          },
+          minutes: { description: 'Minutos que ocupa este paso. 0 si es instantáneo.', type: 'integer' },
           text: { description: 'La acción: qué, cómo, a qué fuego.', type: 'string' }
         },
-        required: ['text'],
+        // Asked for on every step (2026-09-26): optional, Gemma 4 31B left `cue` out of
+        // every cooked rewrite in a real dev sweep. An empty cue and `0` minutes still mean
+        // "none" — `RecipeRewriter` stores neither.
+        required: ['cue', 'minutes', 'text'],
         type: 'object'
       },
       type: 'array'
