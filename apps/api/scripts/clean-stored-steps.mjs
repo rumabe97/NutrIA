@@ -44,12 +44,13 @@
  * prove" branch — only a write does.
  *
  * Usage (from apps/api, after `pnpm --filter core build` and `pnpm --filter database build`):
- *   node --env-file-if-exists=.env scripts/clean-stored-steps.mjs [--yes] [--batch 200] [--json out.json] [--i-know-this-is-production]
+ *   node --env-file-if-exists=.env scripts/clean-stored-steps.mjs [--yes] [--batch 200] [--json out.json]   (dev)
+ *   node scripts/clean-stored-steps.mjs --production [--yes --i-know-this-is-production]                  (production, the owner)
  */
 import { createRequire } from 'node:module';
 import { writeFileSync } from 'node:fs';
 
-import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts/guard.mjs';
+import { readEnv, ROOT } from '../../../.claude/skills/local-probe/scripts/guard.mjs';
 
 import { RecipeController } from 'core/controllers/Recipe';
 import { cleanSteps, stepChangeKinds } from 'core/domain/Method';
@@ -69,13 +70,15 @@ const KIND_LABELS = {
 };
 
 function parseArgs(argv) {
-  const options = { batch: DEFAULT_BATCH, iKnowThisIsProduction: false, json: null, yes: false };
+  const options = { batch: DEFAULT_BATCH, iKnowThisIsProduction: false, json: null, production: false, yes: false };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
 
     if (arg === '--yes') {
       options.yes = true;
+    } else if (arg === '--production') {
+      options.production = true;
     } else if (arg === '--i-know-this-is-production') {
       options.iKnowThisIsProduction = true;
     } else if (arg === '--batch') {
@@ -96,18 +99,60 @@ function parseArgs(argv) {
   return options;
 }
 
+/** A connection string's host, the pooled and direct endpoints of one branch read as one. */
+function hostOf(url) {
+  try {
+    return new URL(url).hostname.replace('-pooler', '');
+  } catch {
+    return undefined;
+  }
+}
+
 /**
- * The production guard, applied the way its own module intends: a dry run is
- * checked loosely (refuses only when this is provably production), a write
- * is checked strictly (refuses also when it cannot tell) unless the owner
- * says so explicitly.
+ * Which database this run will actually open, checked against production
+ * before anything is read.
+ *
+ * It looks at the URL the client will use — `process.env.DATABASE_URL` —
+ * not at what `apps/api/.env` says: a first version compared the file, so
+ * `DATABASE_URL=<production> … --yes` was told "not production" and would
+ * have written. Production is reached only by asking for it (`--production`,
+ * which reads `DATABASE_URL_PRO` from `packages/database/.env`), and written
+ * only with `--yes --i-know-this-is-production`. A dev write still needs
+ * `DATABASE_URL_PRO` to compare with, or the same explicit flag.
  */
 function guard(options) {
-  if (options.yes && !options.iKnowThisIsProduction) {
-    console.log(`[clean-stored-steps] ${assertNotProduction({ strict: true })}`);
-  } else {
-    console.log(`[clean-stored-steps] ${assertNotProduction()}`);
+  const productionUrl = readEnv(`${ROOT}packages/database/.env`, 'DATABASE_URL_PRO');
+
+  if (options.production) {
+    if (!productionUrl) {
+      throw new Error('--production reads DATABASE_URL_PRO from packages/database/.env, and it is not there');
+    }
+
+    process.env.DATABASE_URL = productionUrl;
   }
+
+  const target = hostOf(process.env.DATABASE_URL ?? '');
+
+  if (!target) {
+    throw new Error('no DATABASE_URL: run it as `node --env-file-if-exists=.env scripts/clean-stored-steps.mjs` (dev), or add --production');
+  }
+
+  const production = hostOf(productionUrl ?? '');
+  const isProduction = production !== undefined && production === target;
+
+  if (isProduction && !options.production) {
+    throw new Error('DATABASE_URL points at PRODUCTION — refusing; pass --production to mean it');
+  }
+
+  if (isProduction && options.yes && !options.iKnowThisIsProduction) {
+    throw new Error('writing to PRODUCTION needs --yes --i-know-this-is-production');
+  }
+
+  if (!isProduction && options.yes && !production && !options.iKnowThisIsProduction) {
+    throw new Error('no DATABASE_URL_PRO in packages/database/.env to compare with — refusing to write without proving this is not production');
+  }
+
+  console.log(`[clean-stored-steps] database: ${isProduction ? 'PRODUCTION' : 'not production'} (hosts compared, neither printed)`);
 }
 
 /** One recipe's plan: its cleaned steps when something would change, or why it is left alone. */
