@@ -9,6 +9,8 @@ import { makeCatalogueIngredient } from '#test/fixtures';
 import { RecipeController } from './RecipeController';
 
 import type { GenerationContext } from './RecipeController';
+import type { Allergen, SafetyProfile } from 'core/entities/Safety';
+import type { CatalogueIngredient } from 'core/entities/Plan';
 import type { LibraryRecipe } from 'core/domain/MealFit';
 import type { ReusableRecipe } from '#repositories/Recipe';
 
@@ -17,19 +19,31 @@ const requireProfileConsent = vi.fn<(userId: string) => Promise<void>>();
 const findReusable = vi.fn<() => Promise<readonly ReusableRecipe[]>>();
 const findOnboarding = vi.fn<() => Promise<{ completedAt: string | null } | undefined>>();
 const findLibraryUsage = vi.fn<(slots: readonly string[]) => Promise<readonly LibraryRecipe[]>>();
+const loadCatalogue = vi.fn<() => Promise<readonly CatalogueIngredient[]>>();
+const findDietaryPatterns = vi.fn<() => Promise<readonly string[]>>();
+const getSafetyProfile = vi.fn<() => Promise<SafetyProfile>>();
+const listAllergens = vi.fn<() => Promise<readonly Allergen[]>>();
+
+const NO_RESTRICTIONS: SafetyProfile = {
+  allergenIds: new Set(),
+  crossContaminationAllergenIds: new Set(),
+  excludedIngredientIds: new Set(),
+  intoleranceAllergenIds: new Set(),
+  unenforceableLabels: []
+};
 
 vi.mock('#repositories/Recipe', () => ({
   FALLBACK_LOCALE: 'es-ES',
   RecipeRepository: {
     findLibraryUsage: (slots: readonly string[]) => findLibraryUsage(slots),
     findReusable: () => findReusable(),
-    loadCatalogue: async () => (order.push('catalogue'), Promise.resolve([]))
+    loadCatalogue: () => (order.push('catalogue'), loadCatalogue())
   }
 }));
 vi.mock('#repositories/Profile', () => ({
   ProfileRepository: {
     findByUserId: async () => Promise.resolve(undefined),
-    findDietaryPatterns: async () => Promise.resolve([]),
+    findDietaryPatterns: () => findDietaryPatterns(),
     findFoodPreferences: async () => Promise.resolve([]),
     findPreferences: async () => Promise.resolve(undefined)
   }
@@ -38,19 +52,7 @@ vi.mock('#repositories/Health', () => ({ HealthRepository: { takesProteinSupplem
 vi.mock('#repositories/Onboarding', () => ({ OnboardingRepository: { find: async () => (order.push('onboarding'), findOnboarding()) } }));
 vi.mock('#repositories/Vacation', () => ({ VacationRepository: {} }));
 vi.mock('core/controllers/Safety', () => ({
-  SafetyController: {
-    getSafetyProfile: async () => (
-      order.push('safety'),
-      Promise.resolve({
-        allergenIds: new Set(),
-        crossContaminationAllergenIds: new Set(),
-        excludedIngredientIds: new Set(),
-        intoleranceAllergenIds: new Set(),
-        unenforceableLabels: []
-      })
-    ),
-    listAllergens: async () => Promise.resolve([])
-  }
+  SafetyController: { getSafetyProfile: () => (order.push('safety'), getSafetyProfile()), listAllergens: () => listAllergens() }
 }));
 vi.mock('core/controllers/Profile', () => ({ requireProfileConsent: (userId: string) => (order.push('consent'), requireProfileConsent(userId)) }));
 
@@ -58,7 +60,16 @@ beforeEach(() => {
   order.length = 0;
   requireProfileConsent.mockReset();
   requireProfileConsent.mockResolvedValue(undefined);
+  findOnboarding.mockReset();
   findOnboarding.mockResolvedValue({ completedAt: '2026-09-01' });
+  loadCatalogue.mockReset();
+  loadCatalogue.mockResolvedValue([]);
+  findDietaryPatterns.mockReset();
+  findDietaryPatterns.mockResolvedValue([]);
+  getSafetyProfile.mockReset();
+  getSafetyProfile.mockResolvedValue(NO_RESTRICTIONS);
+  listAllergens.mockReset();
+  listAllergens.mockResolvedValue([]);
 });
 
 describe('RecipeController.generationContext — the one door every generation passes', () => {
@@ -88,6 +99,97 @@ describe('RecipeController.generationContext — the one door every generation p
   it('builds nobody’s context without asking anyone’s consent', async () => {
     await expect(RecipeController.nobodysContext()).resolves.toMatchObject({ locale: 'es-ES' });
     expect(requireProfileConsent).not.toHaveBeenCalled();
+  });
+});
+
+describe('RecipeController.generationContext — a free-from substitute is offered only to a person who needs it', () => {
+  const glutenFreeBread = makeCatalogueIngredient({ id: 'i-pan-sin-gluten', name: 'Pan sin gluten', slug: 'pan-sin-gluten' });
+  const rice = makeCatalogueIngredient({ id: 'i-arroz', name: 'Arroz', slug: 'arroz' });
+  const glutenAllergen = { id: 'a-gluten', isEuMandatory: true, key: 'gluten', labelEs: 'Gluten' };
+
+  beforeEach(() => {
+    loadCatalogue.mockResolvedValue([glutenFreeBread, rice]);
+    listAllergens.mockResolvedValue([glutenAllergen]);
+  });
+
+  it('excludes it for somebody with no gluten allergy, intolerance or way of eating', async () => {
+    const context = await RecipeController.nobodysContext();
+
+    expect(context.preferences.excludedIngredientIds.has('i-pan-sin-gluten')).toBe(true);
+    expect(context.preferences.excludedIngredientIds.has('i-arroz')).toBe(false);
+  });
+
+  it('offers it to somebody with a declared gluten allergy', async () => {
+    getSafetyProfile.mockResolvedValue({ ...NO_RESTRICTIONS, allergenIds: new Set(['a-gluten']) });
+
+    const context = await RecipeController.nobodysContext();
+
+    expect(context.preferences.excludedIngredientIds.has('i-pan-sin-gluten')).toBe(false);
+  });
+
+  it('offers it to somebody with a declared gluten intolerance', async () => {
+    getSafetyProfile.mockResolvedValue({ ...NO_RESTRICTIONS, intoleranceAllergenIds: new Set(['a-gluten']) });
+
+    const context = await RecipeController.nobodysContext();
+
+    expect(context.preferences.excludedIngredientIds.has('i-pan-sin-gluten')).toBe(false);
+  });
+
+  it('offers it to somebody whose way of eating is gluten-free', async () => {
+    findDietaryPatterns.mockResolvedValue(['gluten_free']);
+
+    const context = await RecipeController.nobodysContext();
+
+    expect(context.preferences.excludedIngredientIds.has('i-pan-sin-gluten')).toBe(false);
+  });
+
+  it('drops a library dish built around it from an unrestricted person’s pool, and keeps one that has nothing to do with it', async () => {
+    findReusable.mockResolvedValue([
+      {
+        id: 'r-tuna-pan-sin-gluten',
+        cookMinutes: 0,
+        cuisine: null,
+        difficulty: 'easy',
+        ingredients: [{ grams: 60, slug: 'pan-sin-gluten' }],
+        mealSlots: ['afternoon_snack'],
+        name: 'Tosta de pan sin gluten con atún',
+        prepMinutes: 5,
+        servings: 1,
+        slug: 'tuna-pan-sin-gluten',
+        steps: [
+          { minutes: 5, text: 'Tostar el pan y escurrir el atún' },
+          { minutes: 2, text: 'Montar la tosta y servir' }
+        ]
+      },
+      {
+        id: 'r-arroz-blanco',
+        cookMinutes: 0,
+        cuisine: null,
+        difficulty: 'easy',
+        ingredients: [{ grams: 80, slug: 'arroz' }],
+        mealSlots: ['afternoon_snack'],
+        name: 'Arroz blanco',
+        prepMinutes: 5,
+        servings: 1,
+        slug: 'arroz-blanco',
+        steps: [
+          { minutes: 10, text: 'Lavar el arroz y ponerlo a hervir en agua con sal' },
+          { minutes: 5, text: 'Escurrir, reposar dos minutos y servir caliente' }
+        ]
+      }
+    ]);
+
+    const unrestricted = await RecipeController.nobodysContext();
+    const unrestrictedPool = await RecipeController.reusablePool(['afternoon_snack'], unrestricted);
+
+    expect(unrestrictedPool.map(dish => dish.slug)).toEqual(['arroz-blanco']);
+
+    getSafetyProfile.mockResolvedValue({ ...NO_RESTRICTIONS, allergenIds: new Set(['a-gluten']) });
+
+    const restricted = await RecipeController.nobodysContext();
+    const restrictedPool = await RecipeController.reusablePool(['afternoon_snack'], restricted);
+
+    expect(restrictedPool.map(dish => dish.slug).sort()).toEqual(['arroz-blanco', 'tuna-pan-sin-gluten']);
   });
 });
 

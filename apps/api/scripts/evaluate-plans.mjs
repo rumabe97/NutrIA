@@ -47,7 +47,7 @@ import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/M
 import { loadedTargets } from 'core/domain/Event';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
 import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
-import { resolvePreferences } from 'core/domain/Preference';
+import { freeFromExclusions, resolvePreferences } from 'core/domain/Preference';
 import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
 import { bestEffortExclusions, dishSafety, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
 import { MAIN_SLOTS } from 'core/domain/Variety';
@@ -274,19 +274,33 @@ function contextFor(profile, shared) {
   }
 
   if (profile.dietaryPattern) {
-    const preferences = resolvePreferences({
+    const dietaryPatterns = [profile.dietaryPattern];
+    const resolved = resolvePreferences({
       allergenIdsByKey: shared.allergenIdsByKey,
-      dietaryPatterns: [profile.dietaryPattern],
+      dietaryPatterns,
       dislikedLabels: [],
       ingredients,
       maxMinutesPerDish: null
     });
+    // `resolvePreferences` starts fresh from this one pattern, so it drops
+    // `shared.preferences`' own exclusions — `nobodysContext`'s empty safety
+    // profile means `shared` already excludes every free-from substitute, and
+    // recomputing it here (rather than losing it) is what keeps a vegetarian
+    // or halal profile from measuring pan-sin-gluten as offered when
+    // `RecipeController.generationContext` would never offer it to them either.
+    const freeFrom = freeFromExclusions(ingredients, {
+      allergenIdsByKey: shared.allergenIdsByKey,
+      dietaryPatterns,
+      restrictedAllergenIds: new Set([...shared.safety.allergenIds, ...shared.safety.intoleranceAllergenIds])
+    });
+    const preferences =
+      freeFrom.size === 0 ? resolved : { ...resolved, excludedIngredientIds: new Set([...resolved.excludedIngredientIds, ...freeFrom]) };
 
     return {
       // The pattern itself too, as `generationContext` carries it: the library
       // is narrowed to the meals its ingredients belong to for this person, and
       // a vegetarian sees every plant protein at every meal (`0062` § 4).
-      context: { ...shared, dietaryPatterns: [profile.dietaryPattern], preferences },
+      context: { ...shared, dietaryPatterns, preferences },
       note: `${preferences.excludedIngredientIds.size} ingredients excluded by "${profile.dietaryPattern}"`
     };
   }
@@ -373,6 +387,14 @@ async function measureProfile(profile, shared) {
     }
   }
 
+  // Every day's own signed deviation from its own target, whether inside the
+  // band or not — `bandViolations` only exists for a day *outside* one, so a
+  // library that already lands 14/14 inside band (this one, on every fixed
+  // profile) would otherwise report nothing at all about how far from the
+  // centre those days actually sit. A day loaded for an event is judged
+  // against its own raised target, exactly as `validatePlan` judges it.
+  const deviations = macroDeviations(scheduled.assignment.days, dayTargets, targets);
+
   const blockingViolations = violations.filter(isBlocking);
   const bandViolations = violations.filter(violation => BAND_KINDS.has(violation.kind));
   const varietyViolations = violations.filter(violation => violation.kind === 'variety');
@@ -435,6 +457,7 @@ async function measureProfile(profile, shared) {
     blocking: tally(blockingViolations),
     blockingDetail,
     daysInsideAll4,
+    deviations,
     fallback: null,
     measured: true,
     note,
@@ -454,6 +477,56 @@ async function measureProfile(profile, shared) {
     })),
     worst
   };
+}
+
+/**
+ * How far a fortnight's four macros actually sit from their targets, day by
+ * day, whether the day landed inside `PLAN_TOLERANCE` or not.
+ *
+ * `bandViolations` only exists for a day a macro left its band — which is
+ * exactly nothing on a library that already lands every profile 14/14 inside
+ * 5%, and "inside the band" is precisely the case the owner asked about: a
+ * plan can be perfect by that measure and still sit near one edge of every
+ * band on most days, never near the middle. The mean *signed* deviation is
+ * what shows a bias a symmetric band cannot — a fat figure that is +4% on ten
+ * days and −4% on four averages near zero on `Math.abs` alone but never on
+ * the signed mean, which is the number this script did not compute before.
+ *
+ * Read straight off `assignment.days[].totals` against each day's own target
+ * (`dayTargets` for a loaded day, the plan's `targets` otherwise) — the same
+ * inputs `validatePlan` judges the band against, so a deviation reported here
+ * is never a different question from the one the band already asks.
+ */
+function macroDeviations(days, dayTargets, targets) {
+  const macros = [
+    { key: 'kcal', target: 'kcal' },
+    { key: 'proteinG', target: 'proteinG' },
+    { key: 'carbsG', target: 'carbsG' },
+    { key: 'fatG', target: 'fatG' }
+  ];
+  const signed = Object.fromEntries(macros.map(macro => [macro.key, []]));
+
+  for (const day of days) {
+    const dayTarget = dayTargets.get(day.dayIndex) ?? targets;
+
+    for (const macro of macros) {
+      const target = dayTarget[macro.target];
+
+      if (target > 0) {
+        signed[macro.key].push((day.totals[macro.key] - target) / target);
+      }
+    }
+  }
+
+  const mean = list => list.reduce((sum, value) => sum + value, 0) / list.length;
+
+  return Object.fromEntries(
+    macros.map(macro => {
+      const values = signed[macro.key];
+
+      return [macro.key, { meanAbs: mean(values.map(Math.abs)), meanSigned: mean(values), n: values.length }];
+    })
+  );
 }
 
 /**
@@ -554,6 +627,21 @@ function pct(fraction) {
   return `${(fraction * 100).toFixed(1)}%`;
 }
 
+const DEVIATION_LABELS = { carbsG: 'carbs', fatG: 'fat', kcal: 'kcal', proteinG: 'protein' };
+
+function formatDeviations(deviations) {
+  return Object.entries(deviations)
+    .map(([key, { meanAbs, meanSigned }]) => `${DEVIATION_LABELS[key]} ${meanSigned >= 0 ? '+' : ''}${pct(meanSigned)} / ${pct(meanAbs)}`)
+    .join(', ');
+}
+
+/** The mean of every macro's `meanAbs`, in one number — what "overall" means in `verdict`. */
+function overallMeanAbs(deviations) {
+  const values = Object.values(deviations).map(entry => entry.meanAbs);
+
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
 function printProfile(profile, result) {
   console.log(`\n${profile.slug} — ${profile.description}`);
 
@@ -579,6 +667,8 @@ function printProfile(profile, result) {
   } else {
     console.log('  worst day: none — every day inside band');
   }
+
+  console.log(`  deviation from target, signed mean / mean |dev|: ${formatDeviations(result.deviations)}`);
 
   const advisoryEntries = Object.entries(result.advisories);
 
@@ -669,6 +759,29 @@ function verdict(before, after) {
   return `mixed — days inside 5% ${before.daysInsideAll4} → ${after.daysInsideAll4}, worst deviation ${pct(beforeWorst)} → ${pct(afterWorst)} (${after.worst ? after.worst.macro : 'n/a'})`;
 }
 
+/**
+ * The same idea as `verdict`, for how close to the centre of the band a day
+ * lands rather than whether it is inside one at all — the question `verdict`
+ * cannot answer once every day already is (owner, 2026-09-26).
+ */
+function deviationVerdict(before, after) {
+  if (!before.measured || !after.measured || !before.deviations || !after.deviations) {
+    return null;
+  }
+
+  const line = key => {
+    const b = before.deviations[key];
+    const a = after.deviations[key];
+
+    return `${DEVIATION_LABELS[key]} mean |dev| ${pct(b.meanAbs)} → ${pct(a.meanAbs)} (signed ${b.meanSigned >= 0 ? '+' : ''}${pct(b.meanSigned)} → ${a.meanSigned >= 0 ? '+' : ''}${pct(a.meanSigned)})`;
+  };
+
+  const overallBefore = overallMeanAbs(before.deviations);
+  const overallAfter = overallMeanAbs(after.deviations);
+
+  return `deviation: overall mean |dev| ${pct(overallBefore)} → ${pct(overallAfter)}; ` + ['kcal', 'proteinG', 'carbsG', 'fatG'].map(line).join('; ');
+}
+
 /** The same idea as `verdict`, for how varied the plan is rather than how well it hits its macros. */
 function varietyVerdict(before, after) {
   if (!before.measured || !after.measured || !before.variety || !after.variety) {
@@ -701,6 +814,12 @@ function printComparison(before, results) {
     }
 
     console.log(`${after.slug}: ${verdict(previous, after)}`);
+
+    const deviation = deviationVerdict(previous, after);
+
+    if (deviation) {
+      console.log(`  ${deviation}`);
+    }
 
     const variety = varietyVerdict(previous, after);
 

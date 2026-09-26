@@ -8,7 +8,7 @@ import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
 import { HealthRepository } from '#repositories/Health';
 import { proteinSupplementExclusions } from 'core/domain/Health';
-import { breaksDishRule, resolvePreferences, withinTime } from 'core/domain/Preference';
+import { breaksDishRule, freeFromExclusions, resolvePreferences, withinTime } from 'core/domain/Preference';
 import { SafetyController } from 'core/controllers/Safety';
 import { requireProfileConsent } from 'core/controllers/Profile';
 import { NotFoundError, OnboardingIncompleteError, PlanPausedError } from 'core/entities/Error';
@@ -119,10 +119,12 @@ async function buildContext(userId: string): Promise<GenerationContext> {
     SafetyController.listAllergens()
   ]);
 
+  const allergenIdsByKey = new Map(allergens.map(allergen => [allergen.key, allergen.id]));
+
   // Resolved here, once, for the same reason the safety profile is: a rule
   // rebuilt at each call site is a rule that disagrees with itself.
   const resolved = resolvePreferences({
-    allergenIdsByKey: new Map(allergens.map(allergen => [allergen.key, allergen.id])),
+    allergenIdsByKey,
     dietaryPatterns,
     dislikedLabels: foodPreferences.filter(item => item.sentiment === 'disliked').map(item => item.label),
     ingredients: catalogue,
@@ -138,7 +140,17 @@ async function buildContext(userId: string): Promise<GenerationContext> {
   // out of the catalogue instead, quietly, beside the preferences — never as
   // a safety violation, because it is not a guarantee (`bestEffortExclusions`).
   const unresolvedAllergies = bestEffortExclusions(safety.unenforceableLabels, catalogue);
-  const extra = [...supplements, ...unresolvedAllergies];
+  // A gluten-free or lactose-free substitute is for the person who needs one
+  // (owner, 2026-09-26): excluded the way a dislike is for anybody whose
+  // allergies, intolerances and way of eating name no matching restriction, so
+  // reuse and the model's catalogue never offer "pan sin gluten" to someone
+  // with no reason to want it.
+  const freeFrom = freeFromExclusions(catalogue, {
+    allergenIdsByKey,
+    dietaryPatterns,
+    restrictedAllergenIds: new Set([...safety.allergenIds, ...safety.intoleranceAllergenIds])
+  });
+  const extra = [...supplements, ...unresolvedAllergies, ...freeFrom];
   const preferences = extra.length === 0 ? resolved : { ...resolved, excludedIngredientIds: new Set([...resolved.excludedIngredientIds, ...extra]) };
 
   return { catalogue: toCatalogue(catalogue), dietaryPatterns, locale, preferences, safety };
