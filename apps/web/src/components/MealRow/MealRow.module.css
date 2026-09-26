@@ -1,4 +1,8 @@
 .row {
+  /* The thumbnail's side, stated once: the picture, the tick's centre and the
+     ingredients' indent are all measured from it. */
+  --dish-thumb: 3.5rem;
+
   align-items: start;
   border-bottom: 1px solid var(--border-01);
   column-gap: var(--space-03);
@@ -22,7 +26,8 @@
   display: inline-flex;
   height: 1.5rem;
   justify-content: center;
-  margin-top: 0.1rem;
+  /* Centred on the thumbnail, which every row has, so the ticks of a day form one line. */
+  margin-top: calc((var(--dish-thumb) - 1.5rem) / 2);
   padding: 0;
   position: relative;
   transition:
@@ -70,11 +75,11 @@
 }
 
 .head {
-  align-items: baseline;
+  align-items: start;
   color: inherit;
+  column-gap: var(--space-03);
   display: grid;
-  gap: var(--space-01) var(--space-04);
-  grid-template-columns: 6.5rem 1fr auto;
+  grid-template-columns: var(--dish-thumb) minmax(0, 1fr);
   text-decoration: none;
 }
 
@@ -82,40 +87,47 @@
   text-decoration: underline;
 }
 
-/* With a picture the row gains a column on the left; the text keeps its own grid. */
-.head[data-illustrated='true'] {
-  grid-template-columns: 3.5rem 6.5rem 1fr auto;
-}
-
-.thumb {
-  aspect-ratio: 4 / 3;
-  border-radius: var(--radius-control);
-  grid-row: 1 / -1;
-  object-fit: cover;
-  width: 3.5rem;
+/*
+ * Slot, name and figures stacked beside the picture. At least as tall as the
+ * picture and centred in it, so a short name sits level with it; a long one
+ * starts at its top edge and runs on below.
+ */
+.text {
+  align-content: center;
+  display: grid;
+  gap: var(--space-01) var(--space-04);
+  grid-template-areas:
+    'slot meta'
+    'name meta';
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-block-size: var(--dish-thumb);
 }
 
 .slot {
   color: var(--foreground-02);
   font-size: var(--font-size-01);
+  grid-area: slot;
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
 
 .name {
   font-size: var(--font-size-03);
+  grid-area: name;
 }
 
 .meta {
+  align-self: center;
   color: var(--foreground-02);
   font-size: var(--font-size-02);
   font-variant-numeric: tabular-nums;
+  grid-area: meta;
   white-space: nowrap;
 }
 
-/* Offset to line up under the name column rather than under the slot label. */
+/* Under the name, not under the picture: the text column's own edge. */
 .details {
-  margin-inline-start: calc(6.5rem + var(--space-04));
+  margin-inline-start: calc(var(--dish-thumb) + var(--space-03));
   margin-top: var(--space-02);
 }
 
@@ -171,23 +183,29 @@
 }
 
 /*
- * On a phone the row is a single column: slot, name, then the figures beneath.
- * With the figures beside the name they took a third of the width — a nowrap
- * block of "583 kcal · 42 g P" — and every dish name wrapped to four lines.
+ * On a phone the figures go under the name. Beside it they took a third of the
+ * width — a nowrap block of "583 kcal · 42 g P" — and every dish name wrapped to
+ * four lines. The picture steps down a size for the same reason. The ingredients
+ * take the row's whole width from the picture's edge: indented under the name they
+ * would have a column too narrow for their own names.
  */
 @media (width < 34rem) {
-  .head {
-    gap: var(--space-01);
+  /* Eight pixels back for the name, which on a 320 px screen has barely 130 — and capped
+     by the screen, not the text, so enlarged text does not squeeze the name to nothing. */
+  .row {
+    --dish-thumb: min(3rem, 15vw);
+  }
+
+  .text {
+    grid-template-areas:
+      'slot'
+      'name'
+      'meta';
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .head[data-illustrated='true'] {
-    column-gap: var(--space-03);
-    grid-template-columns: 3.5rem minmax(0, 1fr);
-  }
-
-  .head[data-illustrated='true'] .thumb {
-    grid-row: 1 / span 3;
+  .meta {
+    align-self: auto;
   }
 
   .details {

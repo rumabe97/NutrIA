@@ -69,6 +69,7 @@ const UI_NAV: NavTree = {
         { href: '/ui/components/label', name: 'Label' },
         { href: '/ui/components/link', name: 'Link' },
         { href: '/ui/components/marble-effect', name: 'Marble Effect' },
+        { href: '/ui/components/picture', name: 'Picture' },
         { href: '/ui/components/radio-group', name: 'Radio Group' },
         { href: '/ui/components/roving-focus-group', name: 'Roving Focus Group' },
         { href: '/ui/components/select', name: 'Select' },

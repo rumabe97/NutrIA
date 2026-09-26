@@ -9,12 +9,12 @@ import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { Card } from 'components/Card';
+import { DishPicture } from 'components/DishPicture';
 import { MacroSummary } from 'components/MacroSummary';
 import { MealStatus } from 'components/MealStatus';
 import { MealSwap } from 'components/MealSwap';
 import { RecipeVerdict } from 'components/RecipeVerdict';
 
-import { API_URL } from 'lib/env';
 import { difficultyLabel, slotLabel } from 'lib/generation';
 import { formatDate, formatNumber, formatQuantity, interpolate } from 'lib/format';
 import { redirectIfOnboardingIncomplete } from 'lib/onboarding';
@@ -127,8 +127,12 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
           it: the specification below is the content, the picture is the bonus. */}
       {meal.illustrationPath ? (
         <figure className={styles.figure}>
-          {/* eslint-disable-next-line @next/next/no-img-element -- the API serves a phone-sized, immutable WebP already; next/image would add an optimiser hop and per-image billing for nothing */}
-          <img alt={meal.name} className={styles.illustration} src={`${API_URL}${meal.illustrationPath}`} />
+          <DishPicture
+            alt={interpolate(dictionary.meal.illustrationOf, { name: meal.name })}
+            path={meal.illustrationPath}
+            priority={true}
+            variant="hero"
+          />
           <figcaption className={styles.illustrationLabel}>{dictionary.meal.illustration}</figcaption>
         </figure>
       ) : null}
