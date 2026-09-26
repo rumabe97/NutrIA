@@ -404,3 +404,23 @@
   3 rounds × 8 briefs: valid dishes 39/72 vs 60/72; DeepSeek cut 9 of 32 answers at the output cap.
   One DeepSeek fortnight failed once with `DatabaseOperationError` while storing; the rerun on the same
   code passed 14/14 — dev database, cause hidden by the error wrapper.
+
+## Phase 7 — human-verify (2026-09-26)
+
+- **Confirmed by human on 2026-09-26**: the owner switched production to `AI_PROVIDER=openrouter`
+  (a friends-only beta, no charging; the OpenRouter DPA is deferred to the real launch, by the
+  owner) and generated fortnights on his own account, checked on `/admin` and read back
+  read-only by the agent with his permission.
+- **Evidence**: plans 10–12, every call `google/gemma-4-31b-it` via DeepInfra or CoreWeave only, no
+  fallback needed, 14/14 days inside 5% on each (worst 4.9%, 2.0%, 4.9%), 0 identical days, no
+  leaked field names, slugs or English in the steps. Plan 9 had come back from the library alone:
+  `AI_BASE_URL=https://openrouter.ai` sent every call to the website (fixed in #120).
+- **Shipped around the switch**: Gemma primary with DeepSeek behind it, prompt 4.3.0 and
+  `cleanSteps` (#118); plans never repeat a day (`0065`), the stored-steps cleanup, the rewrite
+  sweep's cleanup and `/privacidad` state 2 (#119); the API path fix (#120); free-from
+  substitutes only for people who need them (#121); the rewrite sweep fixing recipes with no cue
+  or minutes (#122).
+- **Left open, not blocking**: the OpenRouter DPA before the real launch, then the two DPA
+  sentences back into `/privacidad`; fat sat +1.5% on average on plan 12 (dish mix, `decisions/LOG.md`)
+  — to be measured on the production library only if it recurs near +5%.
+- **Project 005 is complete.**

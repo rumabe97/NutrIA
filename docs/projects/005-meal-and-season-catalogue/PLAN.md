@@ -263,7 +263,7 @@ at a time.
 
 ### Phase 6 — The free models, measured
 
-- [x] done
+- [x] done — commit `14aa9ea` ("Project 005 phase 6: the free models measured on prompt 4.1.0")
 - **Dispatch**: opus @ medium — `/execute-project 005 phase 6` — owner-approves: which of
   phase 7's changes to build, from the numbers
 - **Goal**: know how each free model behaves on the new prompt, with a script anyone can
@@ -296,7 +296,7 @@ at a time.
 
 ### Phase 7 — A fortnight on paid, no-training models
 
-- [ ] in progress — code done; human-verify waits on the owner's legal checklist (LOG)
+- [x] done — commit `b727c58` ("Project 005 phase 7: generation on paid, no-training models through OpenRouter"); confirmed by human on 2026-09-26 in production (LOG)
 - **Dispatch**: opus @ high — `/execute-project 005 phase 7` — `quality-max`: it changes how
   model output is requested and validated — human-verify: the owner generates a fortnight in
   production once `legal` has cleared the provider
