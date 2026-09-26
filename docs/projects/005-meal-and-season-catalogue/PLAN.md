@@ -296,7 +296,7 @@ at a time.
 
 ### Phase 7 — A fortnight on paid, no-training models
 
-- [ ] in progress
+- [ ] in progress — code done; human-verify waits on the owner's legal checklist (LOG)
 - **Dispatch**: opus @ high — `/execute-project 005 phase 7` — `quality-max`: it changes how
   model output is requested and validated — human-verify: the owner generates a fortnight in
   production once `legal` has cleared the provider

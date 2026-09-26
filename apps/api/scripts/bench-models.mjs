@@ -58,6 +58,9 @@
  * `--timeout` is marked `stalled`: this process was starved (a heavy build or
  * test run beside it), and the model may have answered in time — rerun it.
  *
+ * `--only a,b` restricts paid calls to those OpenRouter providers
+ * (`provider.only`, as `AI_PROVIDER_ONLY` does in the API); free calls ignore it.
+ *
  * `--max-tokens` sends a completion cap; without it none is sent, as
  * `PoolBuilder` sends none, and the gateway's or provider's default applies.
  *
@@ -66,7 +69,7 @@
  *   node --env-file-if-exists=.env scripts/bench-models.mjs --models id,id,… --out <dir> [--yes]
  *     [--briefs omnivoro:lunch,vegano:dinner,…] [--dishes 6] [--month 1-12] [--seed text]
  *     [--locale es-ES] [--key-env NAME] [--timeout 200] [--gap 20] [--groq-gap 65]
- *     [--max-tokens N]
+ *     [--max-tokens N] [--only deepinfra,coreweave]
  *   node scripts/bench-models.mjs --summarise <dir> [--timeout 200]   (the table again; calls nothing)
  *
  * `--briefs` defaults to all eight (omnivoro and vegano × breakfast, lunch,
@@ -132,7 +135,8 @@ function parseArgs(argv) {
     timeout: 200,
     yes: false,
     allowPaid: new Set(),
-    reasoningEffort: null
+    reasoningEffort: null,
+    only: []
   };
   const next = index => {
     const value = argv[index + 1];
@@ -155,6 +159,13 @@ function parseArgs(argv) {
             .map(model => model.trim())
             .filter(Boolean)
         );
+        index += 1;
+        break;
+      case '--only':
+        options.only = next(index)
+          .split(',')
+          .map(provider => provider.trim())
+          .filter(Boolean);
         index += 1;
         break;
       case '--reasoning-effort':
@@ -407,7 +418,15 @@ async function call(gateway, model, request, options) {
         // Paid models: only endpoints that neither retain nor train on what is
         // sent (the owner's rule, 2026-09-25), and the answer carries its cost.
         ...(options.allowPaid.has(model)
-          ? { provider: { data_collection: 'deny', require_parameters: true, zdr: true }, usage: { include: true } }
+          ? {
+              provider: {
+                ...(options.only.length > 0 ? { only: options.only } : {}),
+                data_collection: 'deny',
+                require_parameters: true,
+                zdr: true
+              },
+              usage: { include: true }
+            }
           : {}),
         ...(options.reasoningEffort === 'none'
           ? { reasoning: { enabled: false } }

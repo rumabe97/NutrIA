@@ -113,6 +113,7 @@ describe('StructuredAiClient on OpenRouter', () => {
   const env = validateEnv({
     AI_FALLBACK_MODELS: 'minimax/minimax-m3',
     AI_PROVIDER: 'openrouter',
+    AI_PROVIDER_ONLY: 'deepinfra',
     APP_URL: 'http://localhost:3000',
     BETTER_AUTH_SECRET: 'a'.repeat(32),
     BETTER_AUTH_URL: 'http://localhost:3001',

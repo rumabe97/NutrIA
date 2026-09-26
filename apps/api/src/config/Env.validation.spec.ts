@@ -134,7 +134,14 @@ describe('empty values from a copied .env.example', () => {
   it('treats an empty OpenRouter key as missing when openrouter is selected, and its optional settings as unset', () => {
     expect(() => validateEnv({ ...copied, AI_PROVIDER: 'openrouter', OPENROUTER_API_KEY: '' })).toThrow(/OPENROUTER_API_KEY/);
 
-    const env = validateEnv({ ...copied, AI_FALLBACK_MODELS: '', AI_PROVIDER: 'openrouter', AI_REASONING_EFFORT: '', OPENROUTER_API_KEY: 'k' });
+    const env = validateEnv({
+      ...copied,
+      AI_FALLBACK_MODELS: '',
+      AI_PROVIDER: 'openrouter',
+      AI_PROVIDER_ONLY: 'deepinfra',
+      AI_REASONING_EFFORT: '',
+      OPENROUTER_API_KEY: 'k'
+    });
 
     expect(env.AI_FALLBACK_MODELS).toBeUndefined();
     expect(env.AI_REASONING_EFFORT).toBeUndefined();
@@ -199,10 +206,23 @@ describe('AI provider and model pairing', () => {
  * one — whose providers may train — is refused at boot.
  */
 describe('AI_PROVIDER=openrouter', () => {
-  const openrouter = { ...valid, AI_PROVIDER: 'openrouter', OPENROUTER_API_KEY: 'k' };
+  const openrouter = { ...valid, AI_PROVIDER: 'openrouter', AI_PROVIDER_ONLY: 'deepinfra,coreweave', OPENROUTER_API_KEY: 'k' };
 
   it('requires its key', () => {
-    expect(() => validateEnv({ ...valid, AI_PROVIDER: 'openrouter' })).toThrow(/OPENROUTER_API_KEY.*"openrouter"/);
+    expect(() => validateEnv({ ...valid, AI_PROVIDER: 'openrouter', AI_PROVIDER_ONLY: 'deepinfra' })).toThrow(/OPENROUTER_API_KEY.*"openrouter"/);
+  });
+
+  it('requires the companies it may route to, reads them into a list, and refuses a bad one without echoing it', () => {
+    expect(() => validateEnv({ ...openrouter, AI_PROVIDER_ONLY: undefined })).toThrow(/AI_PROVIDER_ONLY.*"openrouter"/);
+    expect(() => validateEnv({ ...openrouter, AI_PROVIDER_ONLY: '' })).toThrow(/AI_PROVIDER_ONLY.*"openrouter"/);
+    expect(validateEnv({ ...openrouter, AI_PROVIDER_ONLY: ' deepinfra , coreweave' }).AI_PROVIDER_ONLY).toEqual(['deepinfra', 'coreweave']);
+
+    for (const list of ['deepinfra,', 'deepinfra,deepinfra', 'Secret Value']) {
+      expect(() => validateEnv({ ...openrouter, AI_PROVIDER_ONLY: list })).toThrow(/AI_PROVIDER_ONLY/);
+    }
+
+    expect(() => validateEnv({ ...openrouter, AI_PROVIDER_ONLY: 'Secret Value' })).not.toThrow(/Secret Value/);
+    expect(validateEnv(valid).AI_PROVIDER_ONLY).toBeUndefined();
   });
 
   it('defaults to the model 0064 chose, with no fallback and the model’s own reasoning', () => {

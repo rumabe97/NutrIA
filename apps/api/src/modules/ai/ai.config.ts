@@ -146,6 +146,7 @@ export function resolveModel(env: Env): LanguageModel | null {
         transformRequestBody: openRouterRequest({
           fallbackModels: env.AI_FALLBACK_MODELS ?? [],
           providerIgnore: env.AI_PROVIDER_IGNORE ?? [],
+          providerOnly: requiredList(env.AI_PROVIDER_ONLY, 'AI_PROVIDER_ONLY'),
           providerSort: env.AI_PROVIDER_SORT,
           reasoningEffort: env.AI_REASONING_EFFORT,
           reasoningMaxTokens: env.AI_REASONING_MAX_TOKENS
@@ -214,8 +215,10 @@ export const NO_TRAINING_PROVIDER = Object.freeze({ data_collection: 'deny', req
  *   is set — OpenRouter's load-balancing otherwise spread parallel requests
  *   onto slow ZDR endpoints (~120 s against ~37 s on the fastest) — and
  *   `ignore` when `AI_PROVIDER_IGNORE` names any, for one ZDR provider
- *   (Sail Research) that kept running into the time budget. The
- *   no-training fields are spread last, so neither can ever loosen them.
+ *   (Sail Research) that kept running into the time budget — and always
+ *   `only`, `AI_PROVIDER_ONLY`: the companies the privacy policy names, and
+ *   no one else (`zdr` alone let one model reach 22). The no-training fields
+ *   are spread last, so none of these can ever loosen them.
  *   The block is written over the body. This transform
  *   is the last thing the SDK runs before it posts: it has already merged a
  *   call's `providerOptions` into the body, so a caller's `provider` — or a
@@ -227,6 +230,7 @@ export const NO_TRAINING_PROVIDER = Object.freeze({ data_collection: 'deny', req
 export function openRouterRequest(options: {
   readonly fallbackModels: readonly string[];
   readonly providerIgnore?: readonly string[];
+  readonly providerOnly: readonly string[];
   readonly providerSort?: Env['AI_PROVIDER_SORT'];
   readonly reasoningEffort?: Env['AI_REASONING_EFFORT'];
   readonly reasoningMaxTokens?: Env['AI_REASONING_MAX_TOKENS'];
@@ -240,14 +244,12 @@ export function openRouterRequest(options: {
           ? undefined
           : { effort: options.reasoningEffort };
   const ignore = options.providerIgnore ?? [];
-  const provider =
-    ignore.length === 0 && options.providerSort === undefined
-      ? NO_TRAINING_PROVIDER
-      : Object.freeze({
-          ...(ignore.length > 0 ? { ignore: Object.freeze([...ignore]) } : {}),
-          ...(options.providerSort === undefined ? {} : { sort: options.providerSort }),
-          ...NO_TRAINING_PROVIDER
-        });
+  const provider = Object.freeze({
+    ...(ignore.length > 0 ? { ignore: Object.freeze([...ignore]) } : {}),
+    only: Object.freeze([...options.providerOnly]),
+    ...(options.providerSort === undefined ? {} : { sort: options.providerSort }),
+    ...NO_TRAINING_PROVIDER
+  });
 
   return body => {
     const asked = typeof body['model'] === 'string' ? body['model'] : null;
@@ -316,6 +318,15 @@ export function resolveCallSettings(env: Env): AiCallSettings {
     default:
       return { maxRetries: 2, sessionHeader: null };
   }
+}
+
+/** `required`, for a list: an empty one names nothing, so it is missing too. */
+function requiredList(value: readonly string[] | undefined, name: string): readonly string[] {
+  if (!value || value.length === 0) {
+    throw new Error(`${name} is required when AI_PROVIDER selects it`);
+  }
+
+  return value;
 }
 
 function required(value: string | undefined, name: string): string {

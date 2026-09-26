@@ -20,6 +20,9 @@ With `AI_PROVIDER=openrouter` the pool builder calls `https://openrouter.ai/api/
 - [ ] Training on inputs **off**, for paid and free models.
 - [ ] Zero data retention (ZDR) **on** for all models, and for the first-party Anthropic, OpenAI, Google and SpaceXAI endpoints.
 - [ ] The workspace data discount (OpenRouter using inputs/outputs) **off**.
+- [ ] **Allowed providers**: only `DeepInfra` and `CoreWeave` (US, ZDR, both serve both models) — the companies the privacy policy names (`docs/legal/analisis.md` P1-12). The code sends the same list as `provider.only` (`AI_PROVIDER_ONLY`, required).
+
+**Any change** to `AI_MODEL`, `AI_FALLBACK_MODELS`, `AI_PROVIDER_ONLY` or the account's allowed list goes through `/privacidad` first: the policy names the model and the companies that run it (`docs/legal/textos/02-politica-privacidad.md`, state 2), and `legal` reviews the change.
 
 **Checklist — the key** (settings → keys), owner-only:
 - [ ] A key for NutrIA alone, with a guardrail: allowed models only `deepseek/deepseek-v4.1-flash` and `minimax/minimax-m3`; ZDR required; a monthly credit limit (`0064` estimates 0.10–0.15 $ a fortnight).
@@ -39,7 +42,8 @@ With `AI_PROVIDER=openrouter` the pool builder calls `https://openrouter.ai/api/
 | `AI_REASONING_EFFORT` | `none` — measured on full dev fortnights 2026-09-26: `low` left most requests at the 170 s budget and few fresh dishes; `none` kept 2–17× more fresh dishes with every day inside 5% |
 | `AI_BASE_URL` | **empty** (or a path on `https://openrouter.ai`). Any other host is refused at boot — it would receive the OpenRouter key |
 | `AI_PROVIDER_SORT` | `throughput` — measured 2026-09-26: default load-balancing sent parallel requests to ~120 s endpoints |
-| `AI_PROVIDER_IGNORE` | `sail-research` — the ZDR endpoint that timed out most in the dev fortnights |
+| `AI_PROVIDER_ONLY` | `deepinfra,coreweave` — **required**; the only companies that may run the model |
+| `AI_PROVIDER_IGNORE` | empty — `AI_PROVIDER_ONLY` already decides; `sail-research` was the slow one while the list was open |
 | `AI_MAX_OUTPUT_TOKENS_PER_DISH` | empty (1200) — caps a request that would return far more dishes than asked |
 | `AI_BUDGET_SECONDS` | empty — 170 |
 | `AI_REWRITE_STEPS` | `false` until decided: on OpenRouter every rewrite is a paid call |

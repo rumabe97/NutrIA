@@ -337,3 +337,50 @@
 - **For the owner's gateway (hypotheses)**: Groq output appears capped at 2,048 tokens by
   the gateway; one OpenRouter model's rate limit appears to shut out the others.
 - **Decisions**: none yet — phase 7 waits on the owner.
+
+## Phase 7 — A fortnight on paid, no-training models (2026-09-26)
+
+- **Executor**: `backend-high` (opus @ high) for the provider, the split and the review fixes;
+  `backend-low` for provider sort/reasoning cap and the allowed list; `backend-high` for the
+  output cap, slug repair, provider ignore and prompt 4.2.0; `frontend-low` for the privacy
+  page (shipped separately, #116); `legal` for every legal text; `architect` for reports
+  `0002`; `invariant-reviewer` twice. Paid measurements by the lead, with a temporary key the
+  owner gave (2 € cap), `bench-models.mjs --allow-paid` and full fortnights through the local
+  API on dev.
+- **Result**: done in code; production stays on `AI_PROVIDER=stub` until the owner closes the
+  legal checklist (human-verify pending).
+- **Evidence**:
+  - Model choice (`0064`), 8 briefs × 3 dishes, every request ZDR + `data_collection: deny`:
+    `deepseek/deepseek-v4.1-flash` at low reasoning 1.5 points of split error (muse-spark ≈ 11),
+    37 s median alone; MiniMax M3 8.7 points, 14 s. Mistral and paid Nemotron 429 on their ZDR
+    endpoints; Qwen 3.8 Flash 404 (no ZDR endpoint).
+  - Full fortnights (4 profiles: omnivore 3 meals, omnivore 5 meals, vegan 4, allergic to milk
+    and tree nuts): **14/14 days inside 5% on all four macros in every run**. With reasoning
+    `low` (and `minimal`, the same), parallel requests ran 109–128 s median and the 5-meal
+    fortnight kept 1–2 fresh dishes (10–11 of 13 requests at the 170 s budget). With
+    reasoning off + `sort: throughput` + output cap + slug repair: the 5-meal fortnight in
+    67 s, 8 s median per request, 0 timeouts, 21 fresh dishes kept, 0.038 $. Restricted to the
+    legal allowed list (`only: deepinfra, coreweave`): 89 s, 8 s median, 0 timeouts, 11 of 21
+    kept, 3 invalid answers, 0.032 $.
+  - Paid spend of the temporary key: ~1.47 $ of 2 $.
+  - `invariant-reviewer`: no P0; a P1 (`AI_BASE_URL` could send the key elsewhere — boot now
+    refuses any host but `https://openrouter.ai`), P2s (refusal bodies echoing the request —
+    dropped; bench trusting the endpoint — refused; slug repair raw/cooked twins and
+    uniqueness among shown slugs only — fixed), P3s fixed; missing tests added.
+  - Gate: api 827 tests, core 769, database 43; `gate.sh --full` green (see the PR).
+- **Deviations from plan**: reasoning off, not low (measured); additions beyond the plan —
+  `AI_PROVIDER_SORT`, `AI_PROVIDER_IGNORE`, `AI_PROVIDER_ONLY` (required, legal P1-12),
+  `AI_REASONING_MAX_TOKENS`, `AI_MAX_OUTPUT_TOKENS_PER_DISH`, a near-miss slug repair
+  (`MealFit/SlugRepair.ts`, `repaired` on the call record), prompt 4.2.0 (produce in three
+  season groups). Production switched to `stub` on 2026-09-26 (owner's word) because every
+  step of the old combo trained on the data.
+- **Decisions**: [`0064`](../../decisions/0064-generation-runs-on-paid-no-training-models-through-openrouter.md);
+  `decisions/LOG.md` 2026-09-26.
+- **Before the switch (owner)** — `docs/legal/checklist-activacion.md` § 0 bis: OpenRouter's
+  DPA in hand and confirmed for a paid account (P1-11); allowed providers DeepInfra and
+  CoreWeave in the account (P1-12); MiniMax either attributed ("Built with MiniMax M3" + notice)
+  or removed as fallback (P1-13); the topic-tagging sample accepted or not (P2-12); publish
+  `/privacidad` state 2 and send the e-mail in `textos/06` § G; then, the next day, in Vercel:
+  `AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY` (sensitive), `AI_MODEL=deepseek/deepseek-v4.1-flash`,
+  `AI_FALLBACK_MODELS` (or empty), `AI_REASONING_EFFORT=none`, `AI_PROVIDER_SORT=throughput`,
+  `AI_PROVIDER_ONLY=deepinfra,coreweave`, `AI_BASE_URL` empty, `AI_REWRITE_STEPS=false`.

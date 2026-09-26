@@ -44,6 +44,28 @@ describe('repairSlug — a near miss of a slug the prompt showed', () => {
     expect(repairSlug('', shown)).toBeNull();
   });
 
+  it('never reads a cooked or dried slug as a raw one, nor the other way round', () => {
+    expect(repairSlug('quinoa-cocida', ['quinoa-cruda'])).toBeNull();
+    expect(repairSlug('quinoas-cocidas', ['quinoa-cocida', 'quinoa-cruda'])).toBe('quinoa-cocida');
+    expect(repairSlug('albahaca-seca', ['albahaca-fresca'])).toBeNull();
+    expect(repairSlug('albahaca-fresca', ['albahaca-seca'])).toBeNull();
+    expect(repairSlug('arroz-integral-cocido', ['arroz-integral'])).toBeNull();
+  });
+
+  it('repairs nothing when a bare reading could be either twin', () => {
+    expect(repairSlug('quinoa', ['quinoa-cruda', 'quinoa-cocida'])).toBeNull();
+    expect(repairSlug('romero', ['romero-fresco', 'romero-seco'])).toBeNull();
+    expect(repairSlug('habas', ['habas-frescas', 'habas-secas'])).toBeNull();
+  });
+
+  it('repairs nothing when a slug of the catalogue the prompt did not show reads the same', () => {
+    // `pasta-fresca` carries egg and was cut from this prompt.
+    expect(repairSlug('pastas-frescas', ['pasta', 'tomate'], ['pasta', 'pasta-fresca', 'tomate'])).toBeNull();
+    // A twin not shown still makes the bare reading a guess.
+    expect(repairSlug('quinoa', ['quinoa-cruda'], ['quinoa-cruda', 'quinoa-cocida'])).toBeNull();
+    expect(repairSlug('tomates', ['tomate'], ['tomate', 'pasta', 'pasta-fresca'])).toBe('tomate');
+  });
+
   /*
    * The repair returns a slug and nothing else: the allergy gate then reads
    * it as it reads any slug, so a repaired allergen is still refused.

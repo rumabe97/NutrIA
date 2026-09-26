@@ -488,13 +488,15 @@ export class PoolBuilder {
     // below runs on the repaired slug exactly as on any other.
     let repaired = 0;
     const read = parsed.data.ingredients.map(item => {
-      const meant = context.catalogue.has(item.slug) ? null : repairSlug(item.slug, shownSlugs);
+      // The whole catalogue competes for the reading, shown or not; only a shown slug may win it.
+      const meant = context.catalogue.has(item.slug) ? null : repairSlug(item.slug, shownSlugs, context.catalogue.keys());
 
       if (meant === null) {
         return item;
       }
 
       repaired += 1;
+      // Slugs and the dish name, which the rejection lines already log — nothing of the person.
       this.logger.log(`Dish "${parsed.data.name}": ingredient slug ${item.slug} read as ${meant}`);
 
       return { ...item, slug: meant };

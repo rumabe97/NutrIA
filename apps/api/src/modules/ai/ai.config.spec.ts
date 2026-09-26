@@ -60,6 +60,7 @@ describe('resolveCallSettings', () => {
  * caller asked for, and says which models may answer and how hard they think.
  */
 describe('openRouterRequest', () => {
+  const ONLY = ['deepinfra', 'coreweave'];
   const body = {
     messages: [{ content: 'Diseña platos', role: 'user' }],
     model: 'deepseek/deepseek-v4.1-flash',
@@ -67,66 +68,71 @@ describe('openRouterRequest', () => {
   };
 
   it('sends a request only to endpoints that neither retain nor collect it, asks for its cost, and keeps the schema non-strict', () => {
-    const sent = openRouterRequest({ fallbackModels: [] })(body);
+    const sent = openRouterRequest({ fallbackModels: [], providerOnly: ONLY })(body);
 
-    expect(sent['provider']).toEqual({ data_collection: 'deny', require_parameters: true, zdr: true });
+    expect(sent['provider']).toEqual({ data_collection: 'deny', only: ONLY, require_parameters: true, zdr: true });
     expect(sent['usage']).toEqual({ include: true });
     expect(sent['response_format']).toEqual({ json_schema: { name: 'response', schema: { type: 'object' }, strict: false }, type: 'json_schema' });
     expect(sent['messages']).toBe(body.messages);
   });
 
-  it('writes the provider block over any a caller set, never merging with it', () => {
-    const asked = { ...body, provider: { data_collection: 'allow', only: ['somewhere'], zdr: false } };
+  it('writes the provider block over any a caller set, never merging with it — a looser only included', () => {
+    const asked = { ...body, provider: { data_collection: 'allow', only: ['somewhere', 'deepinfra'], order: ['somewhere'], zdr: false } };
 
-    expect(openRouterRequest({ fallbackModels: [] })(asked)['provider']).toBe(NO_TRAINING_PROVIDER);
+    expect(openRouterRequest({ fallbackModels: [], providerOnly: ONLY })(asked)['provider']).toEqual({ ...NO_TRAINING_PROVIDER, only: ONLY });
+  });
+
+  it('sends only to the configured companies even when a caller sets no provider at all or tries to drop only', () => {
+    const noProvider = openRouterRequest({ fallbackModels: [], providerOnly: ['deepinfra'] })(body);
+    const dropped = openRouterRequest({ fallbackModels: [], providerOnly: ['deepinfra'] })({ ...body, provider: { only: undefined } });
+
+    expect((noProvider['provider'] as { only: unknown }).only).toEqual(['deepinfra']);
+    expect((dropped['provider'] as { only: unknown }).only).toEqual(['deepinfra']);
   });
 
   it('lists the asked model first and the fallbacks after it, each once', () => {
-    const send = openRouterRequest({ fallbackModels: ['minimax/minimax-m3', 'deepseek/deepseek-v4.1-flash'] });
+    const send = openRouterRequest({ fallbackModels: ['minimax/minimax-m3', 'deepseek/deepseek-v4.1-flash'], providerOnly: ONLY });
 
     expect(send(body)['models']).toEqual(['deepseek/deepseek-v4.1-flash', 'minimax/minimax-m3']);
-    expect(openRouterRequest({ fallbackModels: [] })(body)['models']).toEqual(['deepseek/deepseek-v4.1-flash']);
+    expect(openRouterRequest({ fallbackModels: [], providerOnly: ONLY })(body)['models']).toEqual(['deepseek/deepseek-v4.1-flash']);
   });
 
   it('spells the reasoning effort as OpenRouter does, switches it off for none, and leaves the model’s default when unset', () => {
-    expect(openRouterRequest({ fallbackModels: [], reasoningEffort: 'low' })(body)['reasoning']).toEqual({ effort: 'low' });
-    expect(openRouterRequest({ fallbackModels: [], reasoningEffort: 'none' })(body)['reasoning']).toEqual({ enabled: false });
-    expect(openRouterRequest({ fallbackModels: [] })(body)).not.toHaveProperty('reasoning');
+    expect(openRouterRequest({ fallbackModels: [], providerOnly: ONLY, reasoningEffort: 'low' })(body)['reasoning']).toEqual({ effort: 'low' });
+    expect(openRouterRequest({ fallbackModels: [], providerOnly: ONLY, reasoningEffort: 'none' })(body)['reasoning']).toEqual({ enabled: false });
+    expect(openRouterRequest({ fallbackModels: [], providerOnly: ONLY })(body)).not.toHaveProperty('reasoning');
   });
 
   it('caps the thinking in tokens when asked, over any effort, but none still switches it off', () => {
-    expect(openRouterRequest({ fallbackModels: [], reasoningMaxTokens: 2048 })(body)['reasoning']).toEqual({ max_tokens: 2048 });
-    expect(openRouterRequest({ fallbackModels: [], reasoningEffort: 'high', reasoningMaxTokens: 2048 })(body)['reasoning']).toEqual({
-      max_tokens: 2048
-    });
-    expect(openRouterRequest({ fallbackModels: [], reasoningEffort: 'none', reasoningMaxTokens: 2048 })(body)['reasoning']).toEqual({
-      enabled: false
-    });
+    expect(openRouterRequest({ fallbackModels: [], providerOnly: ONLY, reasoningMaxTokens: 2048 })(body)['reasoning']).toEqual({ max_tokens: 2048 });
+    expect(
+      openRouterRequest({ fallbackModels: [], providerOnly: ONLY, reasoningEffort: 'high', reasoningMaxTokens: 2048 })(body)['reasoning']
+    ).toEqual({ max_tokens: 2048 });
+    expect(
+      openRouterRequest({ fallbackModels: [], providerOnly: ONLY, reasoningEffort: 'none', reasoningMaxTokens: 2048 })(body)['reasoning']
+    ).toEqual({ enabled: false });
   });
 
   it('adds the endpoint order when set, and keeps every no-training field beside it', () => {
     const asked = { ...body, provider: { data_collection: 'allow', require_parameters: false, zdr: false } };
 
-    expect(openRouterRequest({ fallbackModels: [], providerSort: 'throughput' })(asked)['provider']).toEqual({
+    expect(openRouterRequest({ fallbackModels: [], providerOnly: ONLY, providerSort: 'throughput' })(asked)['provider']).toEqual({
       data_collection: 'deny',
+      only: ONLY,
       require_parameters: true,
       sort: 'throughput',
       zdr: true
     });
-    expect(openRouterRequest({ fallbackModels: [] })(body)['provider']).not.toHaveProperty('sort');
+    expect(openRouterRequest({ fallbackModels: [], providerOnly: ONLY })(body)['provider']).not.toHaveProperty('sort');
   });
 
   it('adds the providers to ignore when set, beside the order, and never lets them loosen the no-training fields', () => {
     const asked = { ...body, provider: { data_collection: 'allow', ignore: ['nobody'], require_parameters: false, zdr: false } };
 
-    expect(openRouterRequest({ fallbackModels: [], providerIgnore: ['sail-research'], providerSort: 'latency' })(asked)['provider']).toEqual({
-      data_collection: 'deny',
-      ignore: ['sail-research'],
-      require_parameters: true,
-      sort: 'latency',
-      zdr: true
-    });
-    expect(openRouterRequest({ fallbackModels: [], providerIgnore: [] })(body)['provider']).toBe(NO_TRAINING_PROVIDER);
+    expect(
+      openRouterRequest({ fallbackModels: [], providerIgnore: ['sail-research'], providerOnly: ONLY, providerSort: 'latency' })(asked)['provider']
+    ).toEqual({ data_collection: 'deny', ignore: ['sail-research'], only: ONLY, require_parameters: true, sort: 'latency', zdr: true });
+    expect(openRouterRequest({ fallbackModels: [], providerIgnore: [], providerOnly: ONLY })(body)['provider']).not.toHaveProperty('ignore');
   });
 });
 
@@ -156,6 +162,7 @@ describe('resolveOutputCap', () => {
 describe('the openrouter provider', () => {
   const base = {
     AI_PROVIDER: 'openrouter',
+    AI_PROVIDER_ONLY: 'deepinfra,coreweave',
     APP_URL: 'http://localhost:3000',
     BETTER_AUTH_SECRET: 'a'.repeat(32),
     BETTER_AUTH_URL: 'http://localhost:3001',
@@ -189,7 +196,9 @@ describe('the openrouter provider', () => {
       model: resolveModel(env) as LanguageModel,
       prompt: 'Diseña platos',
       // What a caller — or a later change — might try: an endpoint that keeps data, and models of its own.
-      providerOptions: { openrouter: { models: ['somebody/free-model:free'], provider: { data_collection: 'allow', zdr: false } } },
+      providerOptions: {
+        openrouter: { models: ['somebody/free-model:free'], provider: { data_collection: 'allow', only: ['somewhere-else'], zdr: false } }
+      },
       schema: jsonSchema<{ dishes: unknown[] }>({ properties: { dishes: { type: 'array' } }, type: 'object' })
     });
 
@@ -200,7 +209,7 @@ describe('the openrouter provider', () => {
     expect(sent).toMatchObject({
       model: 'deepseek/deepseek-v4.1-flash',
       models: ['deepseek/deepseek-v4.1-flash', 'minimax/minimax-m3'],
-      provider: { data_collection: 'deny', require_parameters: true, zdr: true },
+      provider: { data_collection: 'deny', only: ['deepinfra', 'coreweave'], require_parameters: true, zdr: true },
       reasoning: { effort: 'low' },
       response_format: { json_schema: { strict: false }, type: 'json_schema' },
       usage: { include: true }
@@ -235,7 +244,7 @@ describe('the openrouter provider', () => {
 
     expect(sent).toMatchObject({
       max_tokens: 4400,
-      provider: { data_collection: 'deny', ignore: ['sail-research'], require_parameters: true, zdr: true },
+      provider: { data_collection: 'deny', ignore: ['sail-research'], only: ['deepinfra', 'coreweave'], require_parameters: true, zdr: true },
       reasoning: { enabled: false }
     });
   });
@@ -249,5 +258,12 @@ describe('the openrouter provider', () => {
 
     expect(() => resolveModel({ ...env, AI_BASE_URL: 'http://localhost:20128/v1' })).toThrow(/AI_BASE_URL/);
     expect(() => resolveModel({ ...env, AI_BASE_URL: 'https://openrouter.ai/api/v1' })).not.toThrow();
+  });
+
+  it('refuses to build the model without the companies it may route to, even with an Env that skipped validation', () => {
+    const env = validateEnv(base);
+
+    expect(() => resolveModel({ ...env, AI_PROVIDER_ONLY: undefined })).toThrow(/AI_PROVIDER_ONLY/);
+    expect(() => resolveModel({ ...env, AI_PROVIDER_ONLY: [] })).toThrow(/AI_PROVIDER_ONLY/);
   });
 });

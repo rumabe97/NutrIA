@@ -245,6 +245,14 @@ const envObject = z.object({
    */
   AI_PROVIDER_IGNORE: optional(z.string().transform(providerList)),
   /*
+   * OpenRouter only, and required with it: the companies that may run the
+   * model, by OpenRouter's slugs, comma-separated (`deepinfra,coreweave`).
+   * `zdr: true` alone let one model go to 22 companies, one outside the EEA's
+   * adequacy decisions; the privacy policy names this list, so a request may
+   * reach no one else (`docs/legal/analisis.md` § 4.4).
+   */
+  AI_PROVIDER_ONLY: optional(z.string().transform(providerList)),
+  /*
    * OpenRouter only: how it picks among the no-training endpoints of a model —
    * `throughput`, `latency` or `price`. Empty keeps its load-balancing, which
    * sent parallel requests to endpoints three times slower than the fastest.
@@ -492,6 +500,11 @@ const envSchema = envObject
     if (env.AI_PROVIDER === 'openrouter') {
       if (!env.OPENROUTER_API_KEY) {
         ctx.addIssue({ code: 'custom', message: 'is required when AI_PROVIDER is "openrouter"', path: ['OPENROUTER_API_KEY'] });
+      }
+
+      // The companies the model may run at: without the list, any ZDR endpoint anywhere.
+      if (!env.AI_PROVIDER_ONLY) {
+        ctx.addIssue({ code: 'custom', message: 'is required when AI_PROVIDER is "openrouter"', path: ['AI_PROVIDER_ONLY'] });
       }
 
       // Empty means OpenRouter's own API; anything else must be on its origin.

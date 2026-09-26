@@ -1334,6 +1334,16 @@ describe('PoolBuilder — the output cap', () => {
   });
 });
 
+/** `validate`, reached past `private` — the one check a whole build cannot aim at. */
+interface Validating {
+  validate: (
+    raw: ReturnType<typeof dish>,
+    context: GenerationContext,
+    accepted: ReadonlyMap<string, CandidateDish>,
+    shown: readonly string[]
+  ) => { readonly reason?: string; readonly repaired: number };
+}
+
 describe('PoolBuilder — a near-miss slug', () => {
   const preferences = {
     avoidNames: [],
@@ -1403,19 +1413,61 @@ describe('PoolBuilder — a near-miss slug', () => {
    */
   it('still refuses a repaired slug that is an allergen for the person, as an allergen', () => {
     const { client } = stubClient([{ dishes: [] }]);
-    const builder = new PoolBuilder(client) as unknown as {
-      validate: (
-        raw: ReturnType<typeof dish>,
-        context: GenerationContext,
-        accepted: ReadonlyMap<string, CandidateDish>,
-        shown: readonly string[]
-      ) => { readonly reason?: string; readonly repaired: number };
-    };
+    const builder = new PoolBuilder(client) as unknown as Validating;
     const verdict = builder.validate(dish('Tostada', ['lunch'], ['pan-fresco', 'tomate']), context({ allergenIds: new Set([GLUTEN]) }), new Map(), [
       'pan',
       'tomate'
     ]);
 
     expect(verdict).toEqual({ reason: 'allergen', repaired: 1 });
+  });
+
+  it('repairs nothing a catalogue slug already names: an allergen written as itself is refused as one', () => {
+    const { client } = stubClient([{ dishes: [] }]);
+    const builder = new PoolBuilder(client) as unknown as Validating;
+    const rows = [
+      ...CATALOGUE.filter(row => row.slug !== 'pan'),
+      ingredient('pan'),
+      ingredient('pan-fresco', [{ allergenId: GLUTEN, presence: 'contains' }])
+    ];
+    const verdict = builder.validate(
+      dish('Tostada', ['lunch'], ['pan-fresco', 'tomate']),
+      { ...context({ allergenIds: new Set([GLUTEN]) }), catalogue: toCatalogue(rows) },
+      new Map(),
+      ['pan', 'tomate']
+    );
+
+    expect(verdict).toEqual({ reason: 'allergen', repaired: 0 });
+  });
+
+  it('repairs nothing towards a shown slug when an unshown one of the catalogue reads the same', async () => {
+    // `pasta-fresca` carries an allergen of this person's, so their prompt never shows it.
+    const rows = [...CATALOGUE, ingredient('pasta'), ingredient('pasta-fresca', [{ allergenId: MILK, presence: 'contains' }])];
+    const { client } = stubClient([{ dishes: [dish('Pasta con tomate', ['lunch'], ['pastas-frescas', 'tomate'])] }, { dishes: [] }]);
+    const result = await new PoolBuilder(client).build({
+      context: { ...context({ allergenIds: new Set([MILK]) }), catalogue: toCatalogue(rows) },
+      needPerSlot: 1,
+      preferences,
+      reusable: [],
+      slots: ['lunch']
+    });
+
+    expect(result.generated).toEqual([]);
+    expect(result.metadata.aiCalls[0]).toMatchObject({ rejected: { unknown_ingredient: 1 }, repaired: 0 });
+  });
+
+  it('refuses a merge of repaired grams past the schema bounds, and keeps nothing of the dish', () => {
+    const { client } = stubClient([{ dishes: [] }]);
+    const builder = new PoolBuilder(client) as unknown as Validating;
+    const raw = dish('Tomate', ['lunch'], ['tomate', 'tomate-fresco']);
+    const heavy = {
+      ...raw,
+      ingredients: [
+        { grams: 1500, slug: 'tomate' },
+        { grams: 1000, slug: 'tomate-fresco' }
+      ]
+    };
+
+    expect(builder.validate(heavy, context(), new Map(), ['tomate', 'arroz'])).toEqual({ reason: 'schema', repaired: 1 });
   });
 });
