@@ -173,6 +173,13 @@ body:has(
   stroke-width: 2.2;
 }
 
+/* Tabbing back never leaves focus under the sticky header: scrolling a control into
+   view stops the header's height (its 3.5rem row and hairline) and a gap short of
+   the top. Reset under the large-text query, where the header is not sticky. */
+html:has(.header) {
+  scroll-padding-block-start: calc(3.5rem + 1px + var(--space-03));
+}
+
 /*
  * Text this large for the screen (a rem query reads the reader's text size: at
  * 320px it starts at about 118%, at 390px at about 143%): the sign-out moves to a
@@ -185,6 +192,10 @@ body:has(
 @media (width < 17rem) {
   .header {
     position: static;
+  }
+
+  html:has(.header) {
+    scroll-padding-block-start: 0;
   }
 
   .inner {
