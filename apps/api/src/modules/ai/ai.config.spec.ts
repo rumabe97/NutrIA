@@ -260,6 +260,37 @@ describe('the openrouter provider', () => {
     expect(() => resolveModel({ ...env, AI_BASE_URL: 'https://openrouter.ai/api/v1' })).not.toThrow();
   });
 
+  /* Production, 2026-09-26: `AI_BASE_URL=https://openrouter.ai` sent every call to the website, which answered HTML. */
+  it('posts to OpenRouter’s API path whatever path AI_BASE_URL names on its origin', async () => {
+    // A fresh Response per call: a body can be read once.
+    const fetch = jest
+      .spyOn(globalThis, 'fetch')
+      .mockImplementation(() =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify({
+              id: 'gen-1',
+              choices: [{ finish_reason: 'stop', index: 0, message: { content: '{"dishes":[]}', role: 'assistant' } }],
+              created: 1_790_000_000,
+              model: 'google/gemma-4-31b-it',
+              usage: { completion_tokens: 10, prompt_tokens: 20, total_tokens: 30 }
+            }),
+            { headers: { 'content-type': 'application/json' }, status: 200 }
+          )
+        )
+      );
+
+    for (const configured of ['https://openrouter.ai', 'https://openrouter.ai/', 'https://openrouter.ai/somewhere']) {
+      await generateObject({
+        model: resolveModel(validateEnv({ ...base, AI_BASE_URL: configured })) as LanguageModel,
+        prompt: 'Diseña platos',
+        schema: jsonSchema<{ dishes: unknown[] }>({ properties: { dishes: { type: 'array' } }, type: 'object' })
+      });
+    }
+
+    expect(fetch.mock.calls.map(([url]) => String(url))).toEqual(Array(3).fill('https://openrouter.ai/api/v1/chat/completions'));
+  });
+
   it('refuses to build the model without the companies it may route to, even with an Env that skipped validation', () => {
     const env = validateEnv(base);
 

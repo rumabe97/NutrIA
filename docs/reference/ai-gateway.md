@@ -40,7 +40,7 @@ With `AI_PROVIDER=openrouter` the pool builder calls `https://openrouter.ai/api/
 | `AI_MODEL` | `google/gemma-4-31b-it` (the default when empty) — primary since 2026-09-26: on five matched dev fortnights (events included) and 72 bench dishes per model at prompt 4.3.0 it tied DeepSeek on macros (70/70 days) and variety, failed 0 of 53 calls against 11 of 69, kept 83% of dishes against 54%, at a third of the cost; it is slower (80–171 s a fortnight against 35–84 s) |
 | `AI_FALLBACK_MODELS` | `deepseek/deepseek-v4.1-flash` — the first primary, now the fallback. MiniMax M3 was dropped (its licence asks for visible attribution); Qwen3 235B has no ZDR endpoint on DeepInfra or CoreWeave (404) |
 | `AI_REASONING_EFFORT` | `none` — measured on full dev fortnights 2026-09-26: `low` left most requests at the 170 s budget and few fresh dishes; `none` kept 2–17× more fresh dishes with every day inside 5% |
-| `AI_BASE_URL` | **empty** (or a path on `https://openrouter.ai`). Any other host is refused at boot — it would receive the OpenRouter key |
+| `AI_BASE_URL` | **empty**. Any other host is refused at boot — it would receive the OpenRouter key; a URL on `https://openrouter.ai` is accepted but its path is ignored: requests always go to `/api/v1` (on 2026-09-26 `https://openrouter.ai` alone sent every call to the website, which answered HTML) |
 | `AI_PROVIDER_SORT` | `throughput` — measured 2026-09-26: default load-balancing sent parallel requests to ~120 s endpoints |
 | `AI_PROVIDER_ONLY` | `deepinfra,coreweave` — **required**; the only companies that may run the model |
 | `AI_PROVIDER_IGNORE` | empty — `AI_PROVIDER_ONLY` already decides; `sail-research` was the slow one while the list was open |

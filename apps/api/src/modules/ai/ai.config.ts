@@ -161,11 +161,16 @@ export function resolveModel(env: Env): LanguageModel | null {
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
 
 /**
- * Where the OpenRouter key and every request go: OpenRouter's API, or another
- * path on its origin when `AI_BASE_URL` names one. Boot already refuses any
- * other host (`Env.validation.ts`); this refuses it again where the key is
- * handed over, so an `Env` that did not come through `validateEnv` cannot
- * send it to a leftover gateway either.
+ * Where the OpenRouter key and every request go: OpenRouter's API, always.
+ * Boot already refuses any other host (`Env.validation.ts`); this refuses it
+ * again where the key is handed over, so an `Env` that did not come through
+ * `validateEnv` cannot send it to a leftover gateway either.
+ *
+ * The path is not taken from `AI_BASE_URL`: OpenRouter serves its API at one
+ * path, and anything else on its origin is its website. Production was set
+ * to `https://openrouter.ai` on 2026-09-26 and every call came back as the
+ * site's HTML in 0.4 s ("Invalid JSON response"), the plan built from the
+ * library alone.
  */
 function openRouterBaseUrl(configured: string | undefined): string {
   if (!configured) {
@@ -176,7 +181,7 @@ function openRouterBaseUrl(configured: string | undefined): string {
     throw new Error('AI_BASE_URL must be empty or on https://openrouter.ai when AI_PROVIDER is "openrouter"');
   }
 
-  return configured;
+  return OPENROUTER_BASE_URL;
 }
 
 /**
