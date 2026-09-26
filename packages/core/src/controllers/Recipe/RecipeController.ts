@@ -166,6 +166,31 @@ function toCandidateDish(recipe: ReusableRecipe): CandidateDish {
 // --- Controller ---------------------------------------------------------------
 
 export const RecipeController = {
+  /** Every recipe's own method, for `apps/api/scripts/clean-stored-steps.mjs`. See `RecipeRepository.listForStepCleanup`. */
+  async allStepsForCleanup(): Promise<
+    readonly {
+      readonly id: string;
+      readonly ingredientSlugs: readonly string[];
+      readonly instructions: readonly RecipeStep[];
+      readonly locale: string;
+      readonly name: string;
+    }[]
+  > {
+    return RecipeRepository.listForStepCleanup();
+  },
+
+  /**
+   * The catalogue's own slug → display name, lower case, for one locale — the
+   * same map `PoolBuilder` builds `cleanSteps`' `ingredientNames` option from.
+   * A slug absent here (a food removed from the catalogue since) is left as
+   * `cleanStep` leaves any unknown token: untouched.
+   */
+  async catalogueNames(locale: string): Promise<ReadonlyMap<string, string>> {
+    const catalogue = await RecipeRepository.loadCatalogue(locale);
+
+    return new Map(catalogue.map(ingredient => [ingredient.slug, ingredient.name.toLowerCase()]));
+  },
+
   /** Recipes still written by an older prompt, held for this sweep so no other takes them. Bounded. */
   async claimStepUpgrades(stepsVersion: string, limit: number): Promise<readonly UndocumentedRecipe[]> {
     return RecipeRepository.claimUndocumented(stepsVersion, limit, REWRITE_CLAIM_MINUTES);
@@ -306,6 +331,11 @@ export const RecipeController = {
 
   async rewriteSteps(recipeId: string, steps: readonly RecipeStep[], stepsVersion: string): Promise<void> {
     await RecipeRepository.updateSteps(recipeId, steps, stepsVersion);
+  },
+
+  /** `instructions` alone, nothing else about the recipe. See `RecipeRepository.setInstructionsOnly`. */
+  async setCleanedSteps(recipeId: string, steps: readonly RecipeStep[]): Promise<void> {
+    await RecipeRepository.setInstructionsOnly(recipeId, steps);
   },
 
   /** Replaces a recipe's method and records which prompt wrote it. Ingredients are never touched. */

@@ -365,6 +365,68 @@ export const RecipeRepository = {
   },
 
   /**
+   * Every recipe's own method, whatever wrote it — the seed, an old prompt, the
+   * current one — for `apps/api/scripts/clean-stored-steps.mjs`, which applies
+   * today's `cleanSteps` rules to what is already stored. Unlike
+   * `claimUndocumented` this takes no claim and reads every source and every
+   * `stepsVersion`: the bug this cleans up (a leaked field name, a bare slug)
+   * was never scoped to "written before the current prompt", so neither is
+   * this read.
+   *
+   * `ingredientSlugs` is the dish's **own** ingredients, by slug — never the
+   * whole catalogue. `cleanSteps`' slug→name pass only ever reads a step back
+   * against slugs a generation could plausibly have shown or used for *that*
+   * dish (`PoolBuilder`'s `shownSlugs ∪ data.ingredients`); a slug map built
+   * from the whole catalogue instead turns an ordinary word that happens to
+   * equal some *other* ingredient's slug into that ingredient's name — seen on
+   * a real recipe, "tomate triturado" corrupted into "tomate fresco
+   * triturado" because "tomate" is itself the fresh-tomato slug. Since a
+   * stored recipe's original request is gone, its own ingredients are the
+   * closest safe stand-in for that union.
+   */
+  async listForStepCleanup(): Promise<
+    readonly {
+      readonly id: string;
+      readonly ingredientSlugs: readonly string[];
+      readonly instructions: readonly RecipeStep[];
+      readonly locale: string;
+      readonly name: string;
+    }[]
+  > {
+    try {
+      const db = database();
+      const rows = await db
+        .select({ id: recipes.id, instructions: recipes.instructions, locale: recipes.locale, name: recipes.name })
+        .from(recipes)
+        .orderBy(recipes.id);
+
+      if (rows.length === 0) {
+        return [];
+      }
+
+      const items = await db
+        .select({ recipeId: recipeIngredients.recipeId, slug: ingredients.slug })
+        .from(recipeIngredients)
+        .innerJoin(ingredients, eq(ingredients.id, recipeIngredients.ingredientId))
+        .where(
+          inArray(
+            recipeIngredients.recipeId,
+            rows.map(row => row.id)
+          )
+        );
+      const slugsByRecipe = new Map<string, string[]>();
+
+      for (const item of items) {
+        slugsByRecipe.set(item.recipeId, [...(slugsByRecipe.get(item.recipeId) ?? []), item.slug]);
+      }
+
+      return rows.map(row => ({ ...row, ingredientSlugs: slugsByRecipe.get(row.id) ?? [] }));
+    } catch (error: unknown) {
+      throw wrap(error, 'recipes');
+    }
+  },
+
+  /**
    * The catalogue this person can actually shop from.
    *
    * `country` drops the rows that are only sold somewhere else (`0034`). Null
@@ -472,6 +534,21 @@ export const RecipeRepository = {
         .onConflictDoUpdate({ set: { ...image, updatedAt: new Date() }, target: recipeImages.recipeId });
     } catch (error: unknown) {
       throw wrap(error, 'recipe_images');
+    }
+  },
+
+  /**
+   * `instructions` alone — for `clean-stored-steps.mjs`, which rewrites a
+   * step already stored and must change nothing else about the recipe: not
+   * `stepsVersion` (that column answers "which prompt wrote this method",
+   * and a deterministic clean-up is not a rewrite by a prompt), not its
+   * ingredients, not its name.
+   */
+  async setInstructionsOnly(recipeId: string, steps: readonly RecipeStep[]): Promise<void> {
+    try {
+      await database().update(recipes).set({ instructions: steps }).where(eq(recipes.id, recipeId));
+    } catch (error: unknown) {
+      throw wrap(error, 'recipes');
     }
   },
 

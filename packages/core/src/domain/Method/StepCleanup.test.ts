@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { cleanStep, cleanSteps } from 'core/domain/Method';
+import { cleanStep, cleanSteps, stepChangeKinds } from 'core/domain/Method';
 
 import type { GeneratedStep, StepCleanupOptions } from 'core/domain/Method';
 
@@ -143,5 +143,88 @@ describe('cleanStep — a cue written into the text (google/gemma-4-31b-it rewri
     const step = { cue: 'hasta que dore', minutes: 3, text: 'Dora el pan integral a fuego medio-alto.' };
 
     expect(cleanStep(step, ES)).toEqual(step);
+  });
+});
+
+describe('stepChangeKinds — what a report counts, agreeing with cleanStep on every input', () => {
+  it('names the backtick and the placeholder word on the same leaked field name', () => {
+    const step: GeneratedStep = { text: 'Cocer 12 `minutes` hasta que esté tierno' };
+
+    expect(stepChangeKinds(step, ES)).toEqual(expect.arrayContaining(['backtick', 'placeholderWord']));
+  });
+
+  it('names the placeholder word, and minutesFilled since the field was unset and the fixed text states one duration', () => {
+    const step: GeneratedStep = { text: 'Cocer 12 minutes hasta que esté tierno' };
+
+    expect(stepChangeKinds(step, ES)).toEqual(expect.arrayContaining(['placeholderWord', 'minutesFilled']));
+    expect(stepChangeKinds(step, ES)).not.toContain('backtick');
+  });
+
+  it('names slugToName for a catalogue slug left in the prose', () => {
+    const step: GeneratedStep = { text: 'Tueste la rebanada de pan-integral en la tostadora' };
+
+    expect(stepChangeKinds(step, ES)).toEqual(['slugToName']);
+  });
+
+  it('names minutesFilled when the field is unset and the text states exactly one duration', () => {
+    const step: GeneratedStep = { text: 'Deja reposar la masa 1 hora antes de hornear' };
+
+    expect(stepChangeKinds(step, ES)).toEqual(['minutesFilled']);
+  });
+
+  it('names englishCueDropped for a cue that reads as English in a Spanish request', () => {
+    const step: GeneratedStep = { cue: 'until the rice is tender', text: 'Cuece el arroz a fuego medio, removiendo de vez en cuando' };
+
+    expect(stepChangeKinds(step, ES)).toEqual(['englishCueDropped']);
+  });
+
+  it('names nothing for a step already clean', () => {
+    const step: GeneratedStep = {
+      cue: 'hasta que el arroz esté en su punto',
+      minutes: 12,
+      text: 'Cuece el arroz en agua con sal durante 12 minutos, removiendo de vez en cuando'
+    };
+
+    expect(stepChangeKinds(step, ES)).toEqual([]);
+  });
+
+  it('names nothing past the text for a step whose own text reads as English — cleanStep rejects the whole step there', () => {
+    const step: GeneratedStep = { cue: 'until the edges brown', text: 'Sear the pork for four minutes until it is golden on both sides' };
+
+    expect(stepChangeKinds(step, ES)).toEqual([]);
+    expect(cleanStep(step, ES)).toBeNull();
+  });
+
+  it('never applies the language gate in an English request, so an English cue is never dropped there', () => {
+    const step: GeneratedStep = { cue: 'until the edges brown', text: 'Sear the pork for four minutes until it is golden on both sides' };
+
+    expect(stepChangeKinds(step, EN)).toEqual([]);
+  });
+});
+
+describe('cleanStep — a one-word slug is a plain word, and is left alone', () => {
+  const WIDE: StepCleanupOptions = {
+    ingredientNames: new Map([
+      ['cilantro', 'cilantro fresco'],
+      ['tomate', 'tomate fresco'],
+      ['tomate-triturado', 'tomate triturado']
+    ]),
+    locale: 'es-ES'
+  };
+
+  it('does not turn "el tomate triturado" into "el tomate fresco triturado"', () => {
+    expect(cleanStep({ text: 'Añade el tomate triturado y cuece a fuego medio.' }, WIDE)?.text).toBe(
+      'Añade el tomate triturado y cuece a fuego medio.'
+    );
+  });
+
+  it('does not write "fresco" twice', () => {
+    expect(cleanStep({ text: 'Pica el cilantro fresco y repártelo por encima.' }, WIDE)?.text).toBe(
+      'Pica el cilantro fresco y repártelo por encima.'
+    );
+  });
+
+  it('still reads a hyphenated slug back as its name', () => {
+    expect(cleanStep({ text: 'Vierte el tomate-triturado en la sartén.' }, WIDE)?.text).toBe('Vierte el tomate triturado en la sartén.');
   });
 });
