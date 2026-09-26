@@ -1355,16 +1355,17 @@ export const esES = {
       {
         heading: 'La inteligencia artificial',
         paragraphs: [
-          'Un modelo de inteligencia artificial propone los platos y las recetas. Nuestro propio código comprueba cada uno antes de que te llegue: un alérgeno declarado no llega a tu plan aunque el modelo se equivoque. La IA no toma ninguna decisión sobre ti: los límites de calorías y de proteína los aplican reglas fijas, no el modelo.',
-          'Lo que recibe el modelo: tus objetivos diarios y tu objetivo (por ejemplo, perder peso), qué comidas haces y a qué horas te levantas, te acuestas y entrenas, cuánto cocinas y tu presupuesto, si eres vegetariano o vegano, las cocinas y los alimentos que te gustan, los nombres de los platos que te gustaron, que no te gustaron o que comiste la quincena anterior, y tus respuestas cerradas al check-in (hambre, dificultad, nota). Siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu sexo, tu peso ni tu altura, nada que hayas escrito a mano, tus alergias ni intolerancias, ninguna otra forma de comer (sin gluten, sin lactosa, halal, kósher…), ni tus enfermedades, tu medicación o tus suplementos. Lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, del catálogo de alimentos que ve: le llega el efecto, nunca el dato.',
-          'Hoy algunos de los modelos que usamos son versiones gratuitas alojadas en Estados Unidos cuyos proveedores pueden usar lo que reciben para mejorar sus modelos. Por eso les enviamos solo lo necesario para diseñar platos, nunca texto libre. Estamos cambiando a proveedores que no reutilicen los datos.',
-          'Las ilustraciones de las recetas las dibuja un modelo a partir del nombre y los ingredientes de la receta, sin ningún dato tuyo.'
+          'Los platos y las recetas de NutrIA los diseña un modelo de inteligencia artificial o salen de nuestra biblioteca de platos ya diseñados y comprobados. Nuestro propio código comprueba cada plato antes de que te llegue: un alérgeno declarado no llega a tu plan aunque el modelo se equivoque. La IA no toma ninguna decisión sobre ti: los límites de calorías y de proteína los aplican reglas fijas, no el modelo.',
+          'Lo que recibe el modelo cuando diseña platos nuevos para tu plan: tus objetivos diarios y tu objetivo (por ejemplo, perder peso), qué comidas haces y a qué horas te levantas, te acuestas y entrenas, cuánto cocinas y tu presupuesto, si eres vegetariano o vegano, las cocinas y los alimentos que te gustan, los nombres de los platos que te gustaron, que no te gustaron o que comiste la quincena anterior, y tus respuestas cerradas al check-in (hambre, dificultad, nota). Siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu sexo, tu peso ni tu altura, nada que hayas escrito a mano, tus alergias ni intolerancias, ninguna otra forma de comer (sin gluten, sin lactosa, halal, kósher…), ni tus enfermedades, tu medicación o tus suplementos. Lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, del catálogo de alimentos que ve: le llega el efecto, nunca el dato.',
+          'Ahora mismo no enviamos nada a ningún modelo: los platos de tu plan salen de nuestra biblioteca. Cuando volvamos a usar uno, será solo con proveedores que no guarden lo que reciben ni lo usen para entrenar, y antes lo explicaremos aquí: quiénes son y dónde están.',
+          'Si una receta tiene ilustración, la dibujó un modelo a partir solo del nombre y los ingredientes de la receta, sin ningún dato tuyo.',
+          'Hasta el 26 de septiembre de 2026 algunos de los modelos que usábamos eran versiones gratuitas alojadas en Estados Unidos cuyos proveedores podían usar lo que recibían para mejorar sus modelos. Ya no usamos ninguno de ellos.'
         ]
       },
       {
         heading: 'Con quién compartimos tus datos',
         list: [
-          'Proveedores de inteligencia artificial, como se explica arriba.',
+          'Proveedores de inteligencia artificial: ahora mismo ninguno (ver «La inteligencia artificial»).',
           'Vercel (alojamiento de la web y la API, en la Unión Europea) y Neon (base de datos, en la Unión Europea). Son empresas de Estados Unidos.',
           'Stripe, si contratas Premium, para cobrar la suscripción. Stripe procesa y conserva los datos de pago según sus propias políticas.',
           'Nuestro proveedor de correo, para los correos de confirmación, recuperación de contraseña y recordatorio del check-in que tú actives.',
@@ -1376,7 +1377,7 @@ export const esES = {
       {
         heading: 'Transferencias fuera de la Unión Europea',
         paragraphs: [
-          'Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí: Vercel, Neon, Stripe, el proveedor de correo, Sentry y los de inteligencia artificial. Vercel está certificado en el Marco de Privacidad de Datos UE-EE. UU., que la Comisión Europea reconoce como garantía suficiente; con el resto nos apoyamos en ese mismo marco o en las cláusulas contractuales tipo de la Comisión, según ofrezca cada uno. Los modelos gratuitos de inteligencia artificial que usamos hoy no ofrecen ninguna de esas garantías; por eso solo les enviamos lo que se describe arriba, sin nada que te identifique, que escribas tú ni que sea un dato de salud o una creencia. Puedes pedirnos el detalle de cada garantía en {email}.'
+          'Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí: Vercel, Neon, Stripe, el proveedor de correo y Sentry. Vercel, Neon, Stripe y Sentry están certificados en el Marco de Privacidad de Datos UE-EE. UU., que la Comisión Europea reconoce como garantía suficiente; con el proveedor de correo nos apoyamos en ese mismo marco o en las cláusulas contractuales tipo de la Comisión. Puedes pedirnos el detalle de cada garantía en {email}.'
         ]
       },
       {
@@ -1428,7 +1429,7 @@ export const esES = {
       }
     ],
     title: 'Política de privacidad',
-    updated: 'Última actualización: 25 de septiembre de 2026'
+    updated: 'Última actualización: 26 de septiembre de 2026'
   },
   profile: {
     account: 'Cuenta',
