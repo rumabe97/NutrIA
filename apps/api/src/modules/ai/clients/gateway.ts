@@ -117,6 +117,32 @@ export function readOpenRouter(body: unknown): GatewayCall | null {
   return { ...empty, costUsd, model: nonEmpty(parsed['model']), provider, requestId: nonEmpty(parsed['id']) };
 }
 
+/**
+ * A refusal's body as it may be logged and stored, without what it echoes.
+ *
+ * OpenRouter wraps a provider's refusal as `{ error: { message, metadata:
+ * { provider_name, raw } } }`, and `raw` is whatever the provider said back —
+ * which can quote the request, prompt included. The log and the job row's
+ * `errorDetail` get OpenRouter's message and the provider's name, never `raw`
+ * nor anything else under `metadata`. Every other body — no `error.metadata`,
+ * not JSON — comes back unchanged: Google writes its quota there, and
+ * `readQuota` reads it.
+ */
+export function withoutEcho(body: string): string {
+  const parsed = parseJson(body);
+  const error = isRecord(parsed) ? parsed['error'] : null;
+
+  if (!isRecord(error) || !isRecord(error['metadata'])) {
+    return body;
+  }
+
+  const provider = nonEmpty(error['metadata']['provider_name']);
+
+  return [nonEmpty(error['message']) ?? 'OpenRouter refused the request', provider === null ? null : `provider: ${provider}`]
+    .filter(Boolean)
+    .join(' — ');
+}
+
 function parseJson(value: string): unknown {
   try {
     return JSON.parse(value) as unknown;

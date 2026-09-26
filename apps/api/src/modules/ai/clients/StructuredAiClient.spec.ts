@@ -127,5 +127,9 @@ describe('StructuredAiClient on OpenRouter', () => {
 
     expect(failure).toBeInstanceOf(AiCallError);
     expect((failure as AiCallError).failure).toMatchObject({ gateway: { costUsd: null, provider: 'DeepInfra' }, kind: 'provider', status: 429 });
+    // The message is logged and stored on the job row: OpenRouter's words and the provider's name, never `raw`.
+    expect((failure as AiCallError).message).toContain('Provider returned error');
+    expect((failure as AiCallError).message).toContain('DeepInfra');
+    expect((failure as AiCallError).message).not.toContain('Diseña platos');
   });
 });

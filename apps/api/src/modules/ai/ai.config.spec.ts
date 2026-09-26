@@ -93,10 +93,41 @@ describe('openRouterRequest', () => {
     expect(openRouterRequest({ fallbackModels: [], reasoningEffort: 'none' })(body)['reasoning']).toEqual({ enabled: false });
     expect(openRouterRequest({ fallbackModels: [] })(body)).not.toHaveProperty('reasoning');
   });
+
+  it('caps the thinking in tokens when asked, over any effort, but none still switches it off', () => {
+    expect(openRouterRequest({ fallbackModels: [], reasoningMaxTokens: 2048 })(body)['reasoning']).toEqual({ max_tokens: 2048 });
+    expect(openRouterRequest({ fallbackModels: [], reasoningEffort: 'high', reasoningMaxTokens: 2048 })(body)['reasoning']).toEqual({
+      max_tokens: 2048
+    });
+    expect(openRouterRequest({ fallbackModels: [], reasoningEffort: 'none', reasoningMaxTokens: 2048 })(body)['reasoning']).toEqual({
+      enabled: false
+    });
+  });
+
+  it('adds the endpoint order when set, and keeps every no-training field beside it', () => {
+    const asked = { ...body, provider: { data_collection: 'allow', require_parameters: false, zdr: false } };
+
+    expect(openRouterRequest({ fallbackModels: [], providerSort: 'throughput' })(asked)['provider']).toEqual({
+      data_collection: 'deny',
+      require_parameters: true,
+      sort: 'throughput',
+      zdr: true
+    });
+    expect(openRouterRequest({ fallbackModels: [] })(body)['provider']).not.toHaveProperty('sort');
+  });
 });
 
 /** The same, on the wire: what the SDK actually posts, with a call that tries to loosen it. */
 describe('the openrouter provider', () => {
+  const base = {
+    AI_PROVIDER: 'openrouter',
+    APP_URL: 'http://localhost:3000',
+    BETTER_AUTH_SECRET: 'a'.repeat(32),
+    BETTER_AUTH_URL: 'http://localhost:3001',
+    DATABASE_URL: 'postgresql://user:pass@host/db',
+    OPENROUTER_API_KEY: 'test-openrouter-key'
+  };
+
   afterEach(() => {
     jest.restoreAllMocks();
   });
@@ -117,16 +148,7 @@ describe('the openrouter provider', () => {
           { headers: { 'content-type': 'application/json' }, status: 200 }
         )
       );
-    const env = validateEnv({
-      AI_FALLBACK_MODELS: 'minimax/minimax-m3',
-      AI_PROVIDER: 'openrouter',
-      AI_REASONING_EFFORT: 'low',
-      APP_URL: 'http://localhost:3000',
-      BETTER_AUTH_SECRET: 'a'.repeat(32),
-      BETTER_AUTH_URL: 'http://localhost:3001',
-      DATABASE_URL: 'postgresql://user:pass@host/db',
-      OPENROUTER_API_KEY: 'test-openrouter-key'
-    });
+    const env = validateEnv({ ...base, AI_FALLBACK_MODELS: 'minimax/minimax-m3', AI_REASONING_EFFORT: 'low' });
 
     await generateObject({
       model: resolveModel(env) as LanguageModel,
@@ -148,5 +170,16 @@ describe('the openrouter provider', () => {
       response_format: { json_schema: { strict: false }, type: 'json_schema' },
       usage: { include: true }
     });
+  });
+
+  /*
+   * Boot refuses a leftover gateway URL; an `Env` that skipped boot — built by
+   * hand, as a spec or a script would — is refused where the key is handed over.
+   */
+  it('never hands the key to a host that is not OpenRouter, even with an Env that skipped validation', () => {
+    const env = validateEnv(base);
+
+    expect(() => resolveModel({ ...env, AI_BASE_URL: 'http://localhost:20128/v1' })).toThrow(/AI_BASE_URL/);
+    expect(() => resolveModel({ ...env, AI_BASE_URL: 'https://openrouter.ai/api/v1' })).not.toThrow();
   });
 });

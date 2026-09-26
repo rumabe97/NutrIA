@@ -316,7 +316,7 @@ at a time.
   the fixed `provider` block and cost/provider recording while measuring).
 - **Steps**:
   1. **An `openrouter` provider** in `resolveModel`: OpenAI-compatible at
-     `https://openrouter.ai/api/v1` (overridable by `AI_BASE_URL`), key `OPENROUTER_API_KEY`,
+     `https://openrouter.ai/api/v1` (`AI_BASE_URL` may move it only to another path on `https://openrouter.ai`; boot refuses any other host, which would receive the OpenRouter key), key `OPENROUTER_API_KEY`,
      `supportsStructuredOutputs: true`, the non-strict schema transform, and a request
      transform that always adds `provider: { zdr: true, data_collection: 'deny' }`,
      `usage: { include: true }`, `models: [AI_MODEL, ...AI_FALLBACK_MODELS]` (OpenRouter's own

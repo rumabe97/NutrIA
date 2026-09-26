@@ -69,7 +69,31 @@ function openRouterModelIssue(id: string): string | null {
     return 'must be an OpenRouter model id, vendor/model';
   }
 
+  // `openrouter/auto`, `openrouter/free` and the like are OpenRouter's own
+  // routers: they choose the model themselves, so which one answers — and
+  // whether it is one `0064` measured — is decided somewhere nobody checked.
+  if (id.toLowerCase().startsWith('openrouter/')) {
+    return 'must name a model, not one of OpenRouter’s own routers (openrouter/…), which pick the model themselves';
+  }
+
   return id.endsWith(':free') ? 'must not be a :free model — they may train on what they are sent (0064)' : null;
+}
+
+/** The one origin `AI_PROVIDER=openrouter` may send its key and its requests to. */
+const OPENROUTER_ORIGIN = 'https://openrouter.ai';
+
+/**
+ * Whether a URL is on OpenRouter's own origin — `https` only, its exact host,
+ * the default port. A leftover `AI_BASE_URL` (the gateway's, a local one) would
+ * otherwise receive the OpenRouter key on every request, and every prompt with
+ * it, and nothing that answers there is bound by the `provider` block.
+ */
+export function isOpenRouterUrl(url: string): boolean {
+  try {
+    return new URL(url).origin === OPENROUTER_ORIGIN;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -180,12 +204,25 @@ const envObject = z.object({
   AI_MODEL: optional(z.string()),
   AI_PROVIDER: z.enum(['anthropic', 'google', 'ollama', 'omniroute', 'openrouter', 'stub']).default('stub'),
   /*
+   * OpenRouter only: how it picks among the no-training endpoints of a model —
+   * `throughput`, `latency` or `price`. Empty keeps its load-balancing, which
+   * sent parallel requests to endpoints three times slower than the fastest.
+   * It only orders; the no-training block still decides which may answer.
+   */
+  AI_PROVIDER_SORT: optional(z.enum(['throughput', 'latency', 'price'])),
+  /*
    * OpenRouter only (`0064`): how much the model thinks before it answers.
    * `low` is what was measured and chosen — `none` answered in seven seconds
    * with nine points of split error, against 1.5 at `low`. Empty leaves the
    * model's own default. Ignored by every other provider.
    */
   AI_REASONING_EFFORT: optional(z.enum(['none', 'minimal', 'low', 'medium', 'high'])),
+  /*
+   * OpenRouter only: a cap on the thinking, in tokens. When set it replaces
+   * `AI_REASONING_EFFORT` (OpenRouter takes one or the other), except that an
+   * effort of `none` still switches thinking off. Empty means no cap.
+   */
+  AI_REASONING_MAX_TOKENS: optional(z.coerce.number().int().positive()),
   /*
    * The provider's own allowances, as the console reports them, so `/admin` can
    * say how close today is to the wall.
@@ -414,6 +451,15 @@ const envSchema = envObject
     if (env.AI_PROVIDER === 'openrouter') {
       if (!env.OPENROUTER_API_KEY) {
         ctx.addIssue({ code: 'custom', message: 'is required when AI_PROVIDER is "openrouter"', path: ['OPENROUTER_API_KEY'] });
+      }
+
+      // Empty means OpenRouter's own API; anything else must be on its origin.
+      if (env.AI_BASE_URL !== undefined && !isOpenRouterUrl(env.AI_BASE_URL)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `must be empty or on ${OPENROUTER_ORIGIN} when AI_PROVIDER is "openrouter" — the key and every request go there`,
+          path: ['AI_BASE_URL']
+        });
       }
 
       // Every model a request may reach: the one asked, the sweep's, and the fallbacks.

@@ -3,6 +3,8 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createOllama } from 'ollama-ai-provider-v2';
 
+import { isOpenRouterUrl } from '../../config/Env.validation.js';
+
 import type { Env } from '../../config/index.js';
 import type { ImageModel, LanguageModel } from 'ai';
 
@@ -95,10 +97,15 @@ export function resolveModel(env: Env): LanguageModel | null {
       // finished body so nothing a caller sets can take it off.
       return createOpenAICompatible({
         apiKey: required(env.OPENROUTER_API_KEY, 'OPENROUTER_API_KEY'),
-        baseURL: env.AI_BASE_URL ?? OPENROUTER_BASE_URL,
+        baseURL: openRouterBaseUrl(env.AI_BASE_URL),
         name: 'openrouter',
         supportsStructuredOutputs: true,
-        transformRequestBody: openRouterRequest({ fallbackModels: env.AI_FALLBACK_MODELS ?? [], reasoningEffort: env.AI_REASONING_EFFORT })
+        transformRequestBody: openRouterRequest({
+          fallbackModels: env.AI_FALLBACK_MODELS ?? [],
+          providerSort: env.AI_PROVIDER_SORT,
+          reasoningEffort: env.AI_REASONING_EFFORT,
+          reasoningMaxTokens: env.AI_REASONING_MAX_TOKENS
+        })
       })(env.AI_MODEL);
 
     case 'stub':
@@ -107,6 +114,25 @@ export function resolveModel(env: Env): LanguageModel | null {
 }
 
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+
+/**
+ * Where the OpenRouter key and every request go: OpenRouter's API, or another
+ * path on its origin when `AI_BASE_URL` names one. Boot already refuses any
+ * other host (`Env.validation.ts`); this refuses it again where the key is
+ * handed over, so an `Env` that did not come through `validateEnv` cannot
+ * send it to a leftover gateway either.
+ */
+function openRouterBaseUrl(configured: string | undefined): string {
+  if (!configured) {
+    return OPENROUTER_BASE_URL;
+  }
+
+  if (!isOpenRouterUrl(configured)) {
+    throw new Error('AI_BASE_URL must be empty or on https://openrouter.ai when AI_PROVIDER is "openrouter"');
+  }
+
+  return configured;
+}
 
 /**
  * Where OpenRouter may send a request: only to an endpoint that retains
@@ -134,10 +160,17 @@ export const NO_TRAINING_PROVIDER = Object.freeze({ data_collection: 'deny', req
  * - `reasoning`: `AI_REASONING_EFFORT` as OpenRouter spells it — `none`
  *   switches thinking off, which measured seven seconds a request and nine
  *   points of split error against 1.5 at `low` (`0064`); unset leaves the
- *   model's default.
+ *   model's default. `AI_REASONING_MAX_TOKENS` caps the thinking in tokens
+ *   instead (`{ max_tokens }`): when both are set the cap wins and the effort
+ *   is ignored, since OpenRouter takes one or the other. `none` still wins
+ *   over both — off is off.
  * - `usage.include`: the answer carries its cost, which the call log keeps
  *   (`readOpenRouter`).
- * - `provider`: `NO_TRAINING_PROVIDER`, written over the body. This transform
+ * - `provider`: `NO_TRAINING_PROVIDER`, plus `sort` when `AI_PROVIDER_SORT`
+ *   is set — OpenRouter's load-balancing otherwise spread parallel requests
+ *   onto slow ZDR endpoints (~120 s against ~37 s on the fastest). The
+ *   no-training fields are spread last, so `sort` can never loosen them.
+ *   The block is written over the body. This transform
  *   is the last thing the SDK runs before it posts: it has already merged a
  *   call's `providerOptions` into the body, so a caller's `provider` — or a
  *   later change that adds one — is replaced here, not kept. `models`,
@@ -147,16 +180,25 @@ export const NO_TRAINING_PROVIDER = Object.freeze({ data_collection: 'deny', req
  */
 export function openRouterRequest(options: {
   readonly fallbackModels: readonly string[];
+  readonly providerSort?: Env['AI_PROVIDER_SORT'];
   readonly reasoningEffort?: Env['AI_REASONING_EFFORT'];
+  readonly reasoningMaxTokens?: Env['AI_REASONING_MAX_TOKENS'];
 }): (body: Record<string, unknown>) => Record<string, unknown> {
   const reasoning =
-    options.reasoningEffort === undefined ? undefined : options.reasoningEffort === 'none' ? { enabled: false } : { effort: options.reasoningEffort };
+    options.reasoningEffort === 'none'
+      ? { enabled: false }
+      : options.reasoningMaxTokens !== undefined
+        ? { max_tokens: options.reasoningMaxTokens }
+        : options.reasoningEffort === undefined
+          ? undefined
+          : { effort: options.reasoningEffort };
+  const provider = options.providerSort === undefined ? NO_TRAINING_PROVIDER : Object.freeze({ sort: options.providerSort, ...NO_TRAINING_PROVIDER });
 
   return body => {
     const asked = typeof body['model'] === 'string' ? body['model'] : null;
     const models = asked === null ? [...options.fallbackModels] : [asked, ...options.fallbackModels.filter(model => model !== asked)];
 
-    return { ...nonStrictSchema(body), models, ...(reasoning ? { reasoning } : {}), provider: NO_TRAINING_PROVIDER, usage: { include: true } };
+    return { ...nonStrictSchema(body), models, ...(reasoning ? { reasoning } : {}), provider, usage: { include: true } };
   };
 }
 

@@ -20,7 +20,12 @@ const { ErrorReporter } = await import('./ErrorReporter.js');
 
 // Assembled at runtime rather than written as literals, so `pnpm check:leaks`
 // sees no key-shaped string in a tracked file.
-const SECRET = { cron: ['cr0n', 'SecretVaLue', '0123456789'].join(''), db: `postgres://user:${['sUp3r', 'S3cr3t', 'Pa55'].join('')}@host/db` };
+// The OpenRouter key has no prefix a pattern knows, so only the value can catch it.
+const SECRET = {
+  cron: ['cr0n', 'SecretVaLue', '0123456789'].join(''),
+  db: `postgres://user:${['sUp3r', 'S3cr3t', 'Pa55'].join('')}@host/db`,
+  openRouter: ['0rK', 'h7qXmW2p', 'Lz9vT4n'].join('')
+};
 
 const ENV_STUB = {
   ANTHROPIC_API_KEY: undefined,
@@ -33,7 +38,7 @@ const ENV_STUB = {
   GOOGLE_OAUTH_CLIENT_SECRET: undefined,
   NODE_ENV: 'test',
   OMNIROUTE_API_KEY: undefined,
-  OPENROUTER_API_KEY: undefined,
+  OPENROUTER_API_KEY: SECRET.openRouter,
   SENTRY_DSN: 'https://key@sentry.example/1',
   STRIPE_SECRET_KEY: undefined,
   STRIPE_WEBHOOK_SECRET: undefined,
@@ -78,6 +83,21 @@ describe('ErrorReporter', () => {
     expect(scrubbed?.message).not.toContain(SECRET.cron);
     expect(scrubbed?.message).toContain('[redacted]');
     expect(scrubbed?.exception?.values?.[0]?.value).not.toContain(SECRET.db);
+  });
+
+  it('redacts the OpenRouter key, by its value, from the message and the exception', () => {
+    new ErrorReporter(ENV_STUB);
+
+    const event: Event = {
+      exception: { values: [{ value: `401 from https://openrouter.ai/api/v1: key ${SECRET.openRouter} is not valid` }] },
+      message: `Incorrect API key provided: ${SECRET.openRouter}`
+    };
+
+    const scrubbed = capturedBeforeSend?.(event, {});
+
+    expect(scrubbed?.message).not.toContain(SECRET.openRouter);
+    expect(scrubbed?.message).toContain('[redacted]');
+    expect(scrubbed?.exception?.values?.[0]?.value).not.toContain(SECRET.openRouter);
   });
 
   it('redacts a secret out of a tag value too, while keeping the tag itself', () => {

@@ -37,7 +37,7 @@ With `AI_PROVIDER=openrouter` the pool builder calls `https://openrouter.ai/api/
 | `AI_MODEL` | `deepseek/deepseek-v4.1-flash` (the default when empty) |
 | `AI_FALLBACK_MODELS` | `minimax/minimax-m3` |
 | `AI_REASONING_EFFORT` | `low` — `none` answers in ~7 s with ~9 points of split error (`0064`) |
-| `AI_BASE_URL` | **empty**. Left pointing at the gateway, it would send the OpenRouter key there |
+| `AI_BASE_URL` | **empty** (or a path on `https://openrouter.ai`). Any other host is refused at boot — it would receive the OpenRouter key |
 | `AI_BUDGET_SECONDS` | empty — 170 |
 | `AI_REWRITE_STEPS` | `false` until decided: on OpenRouter every rewrite is a paid call |
 

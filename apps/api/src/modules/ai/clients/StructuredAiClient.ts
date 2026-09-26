@@ -5,7 +5,7 @@ import { AnalyticsController } from 'core/controllers/Analytics';
 
 import { AiCallError, AiClient } from './AiClient.js';
 import { isQuotaExhausted } from './quota.js';
-import { readGateway, readOpenRouter, readQuota } from './gateway.js';
+import { readGateway, readOpenRouter, readQuota, withoutEcho } from './gateway.js';
 import { redactSecrets } from './redact.js';
 import { untilAborted } from './untilAborted.js';
 import { AI_CALL_SETTINGS, AI_MODEL, AI_SECRETS } from '../ai.config.js';
@@ -109,13 +109,14 @@ export class StructuredAiClient extends AiClient {
       // A provider's own message ("API key not valid", "quota exceeded", "model not
       // found") is the single most useful thing an operator can be told, and this
       // product is self-hosted — the operator *is* the user. Redacted, then carried
-      // rather than replaced with a constant that says nothing.
+      // rather than replaced with a constant that says nothing — all but what an
+      // OpenRouter refusal echoes of the request (`withoutEcho`).
       // Ended by the generation's time budget rather than by the provider: said
       // as such, so the log reads "the model was slow", not "the key or the quota".
       const timedOut = !invalid && signal?.aborted === true;
       const detail = timedOut
         ? `AI_TIMEOUT: no answer within the generation's time budget (${Math.round((Date.now() - started) / 1000)} s)`
-        : redactSecrets([error instanceof Error ? error.message : 'Unknown AI failure', body].filter(Boolean).join(' — '), this.secrets);
+        : redactSecrets([error instanceof Error ? error.message : 'Unknown AI failure', withoutEcho(body)].filter(Boolean).join(' — '), this.secrets);
       const failure: AiFailure = {
         // An answer that failed the schema still names who served it and what it cost.
         gateway: readGateway(api?.responseHeaders ?? invalid?.response?.headers) ?? readOpenRouter(api?.responseBody ?? invalid?.response?.body),

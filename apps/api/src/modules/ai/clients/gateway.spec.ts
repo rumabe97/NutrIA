@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { readGateway, readOpenRouter, readQuota } from './gateway.js';
+import { readGateway, readOpenRouter, readQuota, withoutEcho } from './gateway.js';
 
 /** Captured from a real call to OmniRoute 3.8 through the `NutrIA-Fallback` combo. */
 const OMNIROUTE_HEADERS = {
@@ -114,5 +114,34 @@ describe('readQuota', () => {
   it('is null for a failure that is not about quota', () => {
     expect(readQuota('API key not valid. Please pass a valid API key.')).toBeNull();
     expect(readQuota('[504]: Request exceeded the local rate-limit execution expiration')).toBeNull();
+  });
+});
+
+/** What a refusal leaves in the log and on the job row: never the request a provider echoed (`0064`). */
+describe('withoutEcho', () => {
+  it('keeps OpenRouter’s message and the provider’s name, and drops everything else under metadata', () => {
+    const refusal = JSON.stringify({
+      error: {
+        code: 429,
+        message: 'Provider returned error',
+        metadata: { headers: { 'x-echo': 'the prompt' }, provider_name: 'DeepInfra', raw: 'the request, echoed' }
+      }
+    });
+
+    expect(withoutEcho(refusal)).toBe('Provider returned error — provider: DeepInfra');
+  });
+
+  it('says OpenRouter refused when the refusal carries no message, and leaves out a provider it does not name', () => {
+    expect(withoutEcho(JSON.stringify({ error: { code: 502, metadata: { raw: 'the request, echoed' } } }))).toBe('OpenRouter refused the request');
+  });
+
+  it('leaves every other body as it came — a refusal with no metadata, another provider’s, and anything that is not JSON', () => {
+    const quota = JSON.stringify({
+      error: { code: 429, message: 'Quota exceeded for metric: free_tier_requests, limit: 20', status: 'RESOURCE_EXHAUSTED' }
+    });
+
+    expect(withoutEcho(quota)).toBe(quota);
+    expect(withoutEcho('Bad gateway')).toBe('Bad gateway');
+    expect(withoutEcho('')).toBe('');
   });
 });

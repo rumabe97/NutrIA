@@ -30,12 +30,18 @@
  * - **Call a model that is not free.** Only ids ending in `:free` or starting
  *   with `groq/`, and never an id naming Gemini — the owner declined spending
  *   Gemini's requests on measurement (2026-09-25). A combo is refused too: its
- *   last step may be Gemini.
+ *   last step may be Gemini — and so is any id that is not `vendor/model`, and
+ *   OpenRouter's own routers (`openrouter/…`), which pick the model themselves.
+ * - **Call a paid model anywhere but OpenRouter.** `--allow-paid` names paid
+ *   models, each `vendor/model`, and is refused unless `AI_BASE_URL` is on
+ *   `https://openrouter.ai`: the no-training `provider` block those requests
+ *   carry binds OpenRouter, and a gateway in between may ignore it.
  * - **Call anything without `--yes`.** Without it, it lists the calls it would
  *   make and stops. Listing the gateway's models (`GET /models`) is free and is
  *   always made, so a model the gateway does not expose is dropped, and said.
  * - **Print a key.** The key is read from the variable `--key-env` names
- *   (default `OMNIROUTE_API_KEY`), goes into one header, and is scrubbed from
+ *   (by default `OPENROUTER_API_KEY` when `AI_BASE_URL` is on openrouter.ai,
+ *   `OMNIROUTE_API_KEY` otherwise), goes into one header, and is scrubbed from
  *   anything the gateway echoes back before it is printed or written.
  * - **Write to a database**, or read production: `assertNotProduction`, then
  *   one `BEGIN ... READ ONLY` transaction, as `evaluate-plans.mjs` does. Its two
@@ -113,7 +119,8 @@ function parseArgs(argv) {
     dishes: 6,
     gap: 20,
     groqGap: 65,
-    keyEnv: 'OMNIROUTE_API_KEY',
+    // Chosen by host below, unless `--key-env` names one.
+    keyEnv: null,
     list: false,
     locale: 'es-ES',
     maxTokens: null,
@@ -242,8 +249,27 @@ function parseArgs(argv) {
     }
   }
 
+  const onOpenRouter = isOpenRouter(process.env.AI_BASE_URL);
+
+  // The key that host takes: OpenRouter's for OpenRouter, the gateway's for anything else.
+  options.keyEnv ??= onOpenRouter ? 'OPENROUTER_API_KEY' : 'OMNIROUTE_API_KEY';
+
   if (!/^[A-Z][A-Z0-9_]*$/.test(options.keyEnv)) {
     fail('--key-env takes the NAME of an environment variable, never its value');
+  }
+
+  for (const model of options.allowPaid) {
+    const issue = paidIssue(model);
+
+    if (issue) {
+      fail(`--allow-paid ${model} ${issue}`);
+    }
+  }
+
+  // The `provider` block a paid request carries is OpenRouter's promise; a
+  // gateway, or anything else behind `AI_BASE_URL`, is bound by none of it.
+  if (options.allowPaid.size > 0 && !onOpenRouter) {
+    fail('--allow-paid is refused unless AI_BASE_URL is on https://openrouter.ai — only OpenRouter honours the no-training provider block');
   }
 
   const every = PEOPLE.flatMap(person => BRIEF_SLOTS.map(slot => `${person.slug}:${slot}`));
@@ -276,6 +302,34 @@ function fail(message) {
   process.exit(2);
 }
 
+const ROUTER = 'is one of OpenRouter’s routers, which pick the model themselves — Gemini included';
+
+/** Whether a URL is on OpenRouter's own origin: `https`, its exact host, the default port. */
+function isOpenRouter(url) {
+  try {
+    return new URL(url ?? '').origin === 'https://openrouter.ai';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Why an id may not be named in `--allow-paid`, or null. A paid call must be
+ * one model the owner chose by name: `vendor/model`, never an alias or a
+ * combo, and never one of OpenRouter's routers, which choose for themselves.
+ */
+function paidIssue(model) {
+  if (!/^[\w.-]+\/[\w.:-]+$/.test(model)) {
+    return 'is not vendor/model — an alias or a combo may reach any model, Gemini included';
+  }
+
+  if (/^openrouter\//i.test(model)) {
+    return ROUTER;
+  }
+
+  return null;
+}
+
 /**
  * Whether a model id is one this script may call: a free tier only, never Gemini.
  * `null` when it may; the reason otherwise.
@@ -283,6 +337,11 @@ function fail(message) {
 function refusal(model, options) {
   if (/gemini/i.test(model)) {
     return 'names Gemini — the owner declined spending its requests (2026-09-25)';
+  }
+
+  // "Never Gemini" is read from the id, so the id must name the model that answers.
+  if (/^openrouter\//i.test(model)) {
+    return ROUTER;
   }
 
   // A paid model only when the owner named it for this run (`--allow-paid`),

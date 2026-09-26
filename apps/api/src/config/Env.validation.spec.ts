@@ -221,6 +221,26 @@ describe('AI_PROVIDER=openrouter', () => {
     expect(validateEnv({ ...openrouter, AI_REASONING_EFFORT: 'none' }).AI_REASONING_EFFORT).toBe('none');
   });
 
+  it('reads the reasoning token cap and the endpoint order, and leaves both unset when empty', () => {
+    const env = validateEnv({ ...openrouter, AI_PROVIDER_SORT: 'latency', AI_REASONING_MAX_TOKENS: '2048' });
+
+    expect(env.AI_REASONING_MAX_TOKENS).toBe(2048);
+    expect(env.AI_PROVIDER_SORT).toBe('latency');
+
+    const empty = validateEnv({ ...openrouter, AI_PROVIDER_SORT: '', AI_REASONING_MAX_TOKENS: '' });
+
+    expect(empty.AI_REASONING_MAX_TOKENS).toBeUndefined();
+    expect(empty.AI_PROVIDER_SORT).toBeUndefined();
+  });
+
+  it('refuses a reasoning cap that is not a positive integer, and an endpoint order OpenRouter does not know', () => {
+    for (const cap of ['0', '-5', '1.5', 'lots']) {
+      expect(() => validateEnv({ ...openrouter, AI_REASONING_MAX_TOKENS: cap })).toThrow(/AI_REASONING_MAX_TOKENS/);
+    }
+
+    expect(() => validateEnv({ ...openrouter, AI_PROVIDER_SORT: 'fastest' })).toThrow(/AI_PROVIDER_SORT/);
+  });
+
   it('refuses a reasoning effort OpenRouter does not know', () => {
     expect(() => validateEnv({ ...openrouter, AI_REASONING_EFFORT: 'extreme' })).toThrow(/AI_REASONING_EFFORT/);
   });
@@ -240,8 +260,33 @@ describe('AI_PROVIDER=openrouter', () => {
     expect(() => validateEnv({ ...openrouter, AI_MODEL: 'NutrIA-Fallback' })).toThrow(/AI_MODEL.*vendor\/model/);
   });
 
+  it('refuses OpenRouter’s own routers anywhere a request may reach — they pick the model themselves', () => {
+    expect(() => validateEnv({ ...openrouter, AI_MODEL: 'openrouter/auto' })).toThrow(/AI_MODEL.*openrouter\//);
+    expect(() => validateEnv({ ...openrouter, AI_REWRITE_MODEL: 'OpenRouter/auto' })).toThrow(/AI_REWRITE_MODEL.*openrouter\//);
+    expect(() => validateEnv({ ...openrouter, AI_FALLBACK_MODELS: 'minimax/minimax-m3,openrouter/free' })).toThrow(
+      /AI_FALLBACK_MODELS.*openrouter\//
+    );
+  });
+
+  /*
+   * A leftover gateway URL would be sent the OpenRouter key and every prompt,
+   * and nothing there is bound by the no-training `provider` block.
+   */
+  it('refuses a base URL on any origin but https://openrouter.ai, and takes an empty one as OpenRouter’s own', () => {
+    expect(() => validateEnv({ ...openrouter, AI_BASE_URL: 'http://localhost:20128/v1' })).toThrow(/AI_BASE_URL/);
+    expect(() => validateEnv({ ...openrouter, AI_BASE_URL: 'http://openrouter.ai/api/v1' })).toThrow(/AI_BASE_URL/);
+    expect(() => validateEnv({ ...openrouter, AI_BASE_URL: 'https://openrouter.ai.example.com/api/v1' })).toThrow(/AI_BASE_URL/);
+    expect(() => validateEnv({ ...openrouter, AI_BASE_URL: 'https://openrouter.ai:8443/api/v1' })).toThrow(/AI_BASE_URL/);
+    expect(validateEnv({ ...openrouter, AI_BASE_URL: 'https://openrouter.ai/api/v1' }).AI_BASE_URL).toBe('https://openrouter.ai/api/v1');
+    expect(validateEnv({ ...openrouter, AI_BASE_URL: '' }).AI_BASE_URL).toBeUndefined();
+  });
+
   it('leaves the fallback list alone for every other provider, which ignores it', () => {
     expect(() => validateEnv({ ...valid, AI_FALLBACK_MODELS: 'qwen/qwen3.8-27b:free', AI_PROVIDER: 'google', GOOGLE_API_KEY: 'k' })).not.toThrow();
+  });
+
+  it('leaves the base URL alone for the gateway, which lives wherever it was installed', () => {
+    expect(() => validateEnv({ ...valid, AI_BASE_URL: 'http://localhost:20128/v1', AI_PROVIDER: 'omniroute', OMNIROUTE_API_KEY: 'k' })).not.toThrow();
   });
 });
 
