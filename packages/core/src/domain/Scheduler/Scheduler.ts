@@ -1,5 +1,5 @@
 import { composePerServing, scaleIngredients, scaleMacros, sumMacros } from 'core/domain/Composition';
-import { canPlace, isPreferredDish, mainProtein, PROTEIN_RULES, proteinCap } from 'core/domain/Variety';
+import { canPlace, isPreferredDish, MAIN_SLOTS, mainProtein, nearestGap, PREFERRED_MAIN_GAP, PROTEIN_RULES, proteinCap } from 'core/domain/Variety';
 import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
 import type { Leaning, Placement } from 'core/domain/Variety';
 import type { CandidateDish, Catalogue, Macros, MealSlot, PlanAssignment, PlanDayAssignment, ScheduledMeal, SwapAxis } from 'core/entities/Plan';
@@ -200,6 +200,56 @@ const PROTEIN_REPEAT_WEIGHT = 0.05;
  */
 const SPREAD_REPEAT_WEIGHT = 0.5;
 
+/**
+ * What choosing a dish already served elsewhere in the plan costs, in fit —
+ * the same weight and the same reasoning as `PROTEIN_REPEAT_WEIGHT`: enough
+ * that a new dish wins whenever it fits nearly as well, never enough to hold
+ * a day off its macros (owner, 2026-09-26 — "a dish repeats only when the
+ * pool has no fitting alternative that keeps the day inside 5%").
+ *
+ * Priced, not refused, because `pickBest`'s usage-first ordering already
+ * keeps a first choice from repeating whenever the pool has an unused dish
+ * to offer; this is what the *repair* passes (`improveDay`) were missing —
+ * a swap toward a better-fitting dish already used twice elsewhere cost the
+ * same as a swap toward one that had never been served, so on a fortnight
+ * whose daily targets barely move, the search converged on the same handful
+ * of best-fitting dishes for every day it touched (`0065`).
+ */
+const DISH_REPEAT_WEIGHT = 0.05;
+
+/**
+ * On top of `DISH_REPEAT_WEIGHT`, for every day short of `PREFERRED_MAIN_GAP`
+ * a repeated main (`MAIN_SLOTS`) lands from its nearest other serving — small
+ * on purpose: this only breaks a tie between two repeats of the *same* dish
+ * at different distances, never between a repeat and a new dish, which
+ * `DISH_REPEAT_WEIGHT` alone already decides.
+ */
+const MAIN_GAP_SHORTFALL_WEIGHT = 0.01;
+
+/**
+ * What placing this dish again costs: nothing for its first serving anywhere
+ * in the plan, `DISH_REPEAT_WEIGHT` for a repeat, and more still the closer a
+ * repeated main lands to its other serving (`MAIN_GAP_SHORTFALL_WEIGHT`).
+ * `placed` is the rest of the plan, this dish's own day (if already chosen)
+ * excluded by the caller the way every other repeat cost here is.
+ */
+function reuseCost(dishSlug: string, slot: MealSlot, dayIndex: number, placed: readonly Placement[]): number {
+  const gap = nearestGap(dishSlug, dayIndex, placed);
+
+  if (gap === null) {
+    return 0;
+  }
+
+  const mainShortfall = MAIN_SLOTS.has(slot) ? Math.max(0, PREFERRED_MAIN_GAP - gap) * MAIN_GAP_SHORTFALL_WEIGHT : 0;
+
+  return DISH_REPEAT_WEIGHT + mainShortfall;
+}
+
+/** `reuseCost`, summed over a whole day's picks against the rest of the plan. */
+function dayReuseCost(picks: readonly Pick[], dayIndex: number, placed: readonly Placement[]): number {
+  return picks.reduce((sum, pick) => sum + reuseCost(pick.dish.slug, pick.slot, dayIndex, placed), 0);
+}
+
 export type SchedulerInput = {
   readonly catalogue: Catalogue;
   /**
@@ -296,7 +346,7 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
         .filter(dish => perServing.has(dish.slug))
         .filter(dish => canPlace(dish.slug, slot, dayIndex, placed));
 
-      const chosen = pickBest(eligible, budget, perServing, placed, slug => crowded(slug, { dayIndex, slot }, placed, proteins, cap));
+      const chosen = pickBest(eligible, budget, perServing, placed, dayIndex, slot, slug => crowded(slug, { dayIndex, slot }, placed, proteins, cap));
 
       if (!chosen) {
         return {
@@ -326,7 +376,10 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
     built.push({ budgets, dayIndex, picks: balanceDay(improved, targets, budgets, input.minimumKcal), targets });
   }
 
-  const assignedDays: PlanDayAssignment[] = spreadAcrossDays(built, input.placed ?? [], proteins, input.minimumKcal).map(day => {
+  const spread = spreadAcrossDays(built, input.placed ?? [], proteins, input.minimumKcal);
+  const distinct = enforceDistinctDays(spread, input, input.placed ?? [], proteins, cap);
+
+  const assignedDays: PlanDayAssignment[] = distinct.map(day => {
     const meals: ScheduledMeal[] = day.picks.map(pick => ({
       dish: pick.dish,
       ingredients: scaleIngredients(pick.dish.ingredients, pick.servings / pick.dish.servings),
@@ -690,12 +743,20 @@ function pickBest(
   budget: SlotBudget,
   perServing: ReadonlyMap<string, Macros>,
   placed: readonly Placement[],
+  dayIndex: number,
+  slot: MealSlot,
   crowds: (slug: string) => boolean
 ): CandidateDish | undefined {
   // A dish that would repeat a main protein is priced as fitting that much
   // worse (`PROTEIN_REPEAT_WEIGHT`): another dish wins if it fits nearly as
-  // well, and the repeat is served when nothing does.
-  const repeatCost = new Map(eligible.map(dish => [dish.slug, crowds(dish.slug) ? PROTEIN_REPEAT_WEIGHT : 0]));
+  // well, and the repeat is served when nothing does. A dish already served
+  // elsewhere in the plan carries the same kind of cost (`DISH_REPEAT_WEIGHT`)
+  // — usage already sorts a first-served dish ahead of a repeat, so this only
+  // ever breaks a tie between two dishes at the same usage count, one of
+  // which sits closer to `PREFERRED_MAIN_GAP` than the other.
+  const repeatCost = new Map(
+    eligible.map(dish => [dish.slug, (crowds(dish.slug) ? PROTEIN_REPEAT_WEIGHT : 0) + reuseCost(dish.slug, slot, dayIndex, placed)])
+  );
   const usage = new Map<string, number>();
   // Where each dish sat in the pool handed to the scheduler, which is the order
   // rotation shuffled for this user.
@@ -983,14 +1044,19 @@ function improveDay(
   let current = [...picks];
 
   for (let round = 0; round < MAX_SWAP_ROUNDS; round += 1) {
-    // A repeated main protein is priced, not refused (`PROTEIN_REPEAT_WEIGHT`).
+    // A repeated main protein is priced, not refused (`PROTEIN_REPEAT_WEIGHT`);
+    // so is a dish already served elsewhere in the plan (`DISH_REPEAT_WEIGHT`) —
+    // without it, a swap toward a better-fitting dish already used twice cost
+    // the same as one toward a dish never served, and on a fortnight whose
+    // daily targets barely move, this search kept spending the same handful of
+    // best-fitting dishes on every day it touched (`0065`).
     const today = current.map(entry => ({ protein: proteinOf(entry.dish.slug), slot: entry.slot }));
     const repeatsOf = (day: readonly ProteinMeal[]): number => proteinExcess(day, elsewhere, protein.cap) * PROTEIN_REPEAT_WEIGHT;
     // Priced the same way the candidates will be, or a swap could "win" against
     // a day that was never sized.
-    let bestCost = balancedDay(current, targets, budgets, input.minimumKcal).cost + repeatsOf(today);
+    let bestCost = balancedDay(current, targets, budgets, input.minimumKcal).cost + repeatsOf(today) + dayReuseCost(current, dayIndex, others);
     let bestDay: readonly Pick[] | undefined;
-    const shortlist: { readonly cost: number; readonly repeats: number; readonly swapped: readonly Pick[] }[] = [];
+    const shortlist: { readonly cost: number; readonly extra: number; readonly swapped: readonly Pick[] }[] = [];
 
     for (const [index, pick] of current.entries()) {
       // Everything already on the plate today except the one being replaced.
@@ -1017,8 +1083,9 @@ function improveDay(
         const swapped = current.map((entry, position) =>
           position === index ? { base, dish: candidate, servings, slot: entry.slot, sortOrder: entry.sortOrder } : entry
         );
+        const extra = repeats + dayReuseCost(swapped, dayIndex, others);
 
-        shortlist.push({ cost: dayFitCost(swapped, targets) + repeats, repeats, swapped });
+        shortlist.push({ cost: dayFitCost(swapped, targets) + extra, extra, swapped });
       }
     }
 
@@ -1027,7 +1094,7 @@ function improveDay(
     const priced = shortlist
       .sort((a, b) => a.cost - b.cost)
       .slice(0, SWAP_SHORTLIST)
-      .map(entry => ({ cost: balancedDay(entry.swapped, targets, budgets, input.minimumKcal).cost + entry.repeats, swapped: entry.swapped }));
+      .map(entry => ({ cost: balancedDay(entry.swapped, targets, budgets, input.minimumKcal).cost + entry.extra, swapped: entry.swapped }));
 
     for (const entry of priced) {
       if (entry.cost < bestCost) {
@@ -1263,6 +1330,149 @@ function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]
 
     if (!exchanged) {
       break;
+    }
+  }
+
+  return current;
+}
+
+/**
+ * A day's set of dishes, as a single key — the same notion `varietyViolations`
+ * audits: which slot each sits in does not matter, only the set (owner,
+ * 2026-09-26) — paella at lunch and lentils at dinner is the same day as
+ * lentils at lunch and paella at dinner.
+ */
+function daySignature(picks: readonly Pick[]): string {
+  return [...picks]
+    .map(pick => pick.dish.slug)
+    .sort()
+    .join('|');
+}
+
+/** The same signature, one per day, for a flat placement list — what a rebuild's untouched days are given as. */
+function daySignaturesOf(placed: readonly Placement[]): readonly string[] {
+  const byDay = new Map<number, string[]>();
+
+  for (const placement of placed) {
+    byDay.set(placement.dayIndex, [...(byDay.get(placement.dayIndex) ?? []), placement.dishSlug]);
+  }
+
+  return [...byDay.values()].map(slugs => [...slugs].sort().join('|'));
+}
+
+/**
+ * No two days may serve exactly the same dishes (owner, 2026-09-26) — a hard
+ * rule, checked once every other pass has run: two days built to nearly the
+ * same targets from the same pool can still converge on the same handful of
+ * dishes with every cost above in place, and `spreadAcrossDays` trades whole
+ * meals between days for reasons that have nothing to do with which dishes
+ * end up sharing a day, so either pass can produce — or remove — the
+ * collision.
+ *
+ * The repair is the smallest one that clears it: for the later of two
+ * identical days, the one slot cheapest to change is swapped to the
+ * best-fitting eligible dish that is not already on this day and does not
+ * recreate *another* collision. Guarded exactly the way `spreadAcrossDays`
+ * guards its own exchanges — a repair may never leave the day's macros
+ * further outside their bands, its meals further out of the order the person
+ * set, or its energy further under the floor than it already was: this pass
+ * runs *after* the spread pass has spent its own budget bringing a day
+ * inside 5%, and repricing without the same bands (`balancedDay`'s plain,
+ * unbanded cost) undid that work wholesale in testing — a day at 1% on
+ * protein came back at 11%. Never refused: a thin pool serving the same
+ * three dishes on two days is still a plan, and `varietyViolations` is what
+ * tells the difference between "prevented" and "the pool left no choice".
+ */
+function enforceDistinctDays(
+  days: readonly BuiltDay[],
+  input: SchedulerInput,
+  fixed: readonly Placement[],
+  proteins: ProteinIndex,
+  cap: number
+): readonly BuiltDay[] {
+  const perServing = perServingIndex(input.pool, input.catalogue);
+  const current = [...days];
+  // A mid-plan rebuild (`0044`) hands `fixed` the days it is *not* laying out
+  // again — untouched, already on the plate. Their signatures go in before
+  // the loop below runs, or a rebuild could recreate a day identical to one
+  // of them and this pass would never see it, because it only ever compares
+  // the days it is itself building.
+  const seen = new Set<string>(daySignaturesOf(fixed));
+
+  const missOf = (picks: readonly Pick[], day: BuiltDay): number =>
+    bandMiss(totalsOf(picks), day.targets) + floorMiss(deliveredKcal(picks), input.minimumKcal);
+  const keepsFloor = (picks: readonly Pick[], day: BuiltDay): boolean =>
+    floorMiss(deliveredKcal(picks), input.minimumKcal) <= floorMiss(deliveredKcal(day.picks), input.minimumKcal) + SPREAD_EPSILON;
+  const keepsOrder = (picks: readonly Pick[], day: BuiltDay): boolean =>
+    inversionsOf(picks, day.budgets) <= inversionsOf(day.picks, day.budgets) + SPREAD_EPSILON;
+
+  for (const [index, day] of current.entries()) {
+    const signature = daySignature(day.picks);
+
+    if (!seen.has(signature)) {
+      seen.add(signature);
+      continue;
+    }
+
+    // Every other day already in `current`, repaired ones included — this is a
+    // single forward pass, so a day fixed earlier is what a later day sees.
+    const elsewhere = current.flatMap((other, otherIndex) =>
+      otherIndex === index ? [] : other.picks.map(pick => ({ dayIndex: other.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot }))
+    );
+    const before = missOf(day.picks, day);
+
+    let repaired: readonly Pick[] | undefined;
+    let bestCost = Number.POSITIVE_INFINITY;
+
+    for (const [position, pick] of day.picks.entries()) {
+      const budget = day.budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
+      const siblings = day.picks
+        .filter((_entry, at) => at !== position)
+        .map(entry => ({ dayIndex: day.dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }));
+      const placedElsewhere = [...fixed, ...elsewhere, ...siblings];
+
+      for (const candidate of input.pool) {
+        if (!candidate.slots.includes(pick.slot) || candidate.slug === pick.dish.slug) {
+          continue;
+        }
+
+        const base = perServing.get(candidate.slug);
+
+        if (!base || crowded(candidate.slug, { dayIndex: day.dayIndex, slot: pick.slot }, placedElsewhere, proteins, cap)) {
+          continue;
+        }
+
+        if (!canPlace(candidate.slug, pick.slot, day.dayIndex, placedElsewhere)) {
+          continue;
+        }
+
+        const servings = servingsFor(base, budget);
+        const swapped = day.picks.map((entry, at) => (at === position ? { ...entry, base, dish: candidate, servings } : entry));
+
+        // A repair that only trades this collision for another helps nobody.
+        if (seen.has(daySignature(swapped))) {
+          continue;
+        }
+
+        const priced = balancedDay(swapped, day.targets, day.budgets, input.minimumKcal, true);
+
+        if (missOf(priced.picks, day) > before + SPREAD_EPSILON || !keepsOrder(priced.picks, day) || !keepsFloor(priced.picks, day)) {
+          continue;
+        }
+
+        if (priced.cost < bestCost) {
+          bestCost = priced.cost;
+          repaired = priced.picks;
+        }
+      }
+    }
+
+    if (repaired) {
+      current[index] = { ...day, picks: repaired };
+      seen.add(daySignature(repaired));
+    } else {
+      // The pool left no choice — recorded by `varietyViolations`, not thrown away.
+      seen.add(signature);
     }
   }
 

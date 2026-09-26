@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { canPlace, VARIETY_RULES, varietyViolations } from 'core/domain/Variety';
-import type { Placement } from 'core/domain/Variety';
+import type { Placement, VarietyViolation } from 'core/domain/Variety';
 import type { PlanDayAssignment } from 'core/entities/Plan';
 
 import { makeDish } from '#test/fixtures';
@@ -86,8 +86,14 @@ describe('varietyViolations', () => {
     expect(varietyViolations([day(1, ['a']), day(2, ['b']), day(3, ['c'])])).toEqual([]);
   });
 
+  // These days each hold one meal, so a repeated dish also makes the two days
+  // identical — `identical_day` is filtered out below so each test still
+  // proves only the per-dish rule it names; `identical_day` gets its own
+  // `describe` further down.
+  const perDish = (found: readonly VarietyViolation[]) => found.filter(violation => violation.kind !== 'identical_day');
+
   it('flags the same dish in the same slot on consecutive days', () => {
-    const found = varietyViolations([day(1, ['a']), day(2, ['a'])]);
+    const found = perDish(varietyViolations([day(1, ['a']), day(2, ['a'])]));
 
     expect(found).toHaveLength(1);
     expect(found[0]?.kind).toBe('repeated_in_slot_too_soon');
@@ -95,14 +101,14 @@ describe('varietyViolations', () => {
 
   it('flags the appearance that exceeds the per-plan cap', () => {
     // Spaced well clear of the gap rule, so the only thing left to trip is the cap.
-    const found = varietyViolations([day(1, ['a']), day(6, ['a']), day(11, ['a'])]);
+    const found = perDish(varietyViolations([day(1, ['a']), day(6, ['a']), day(11, ['a'])]));
 
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ dayIndex: 11, kind: 'too_many_occurrences' });
   });
 
   it('flags a repeat inside the gap even when the cap is not reached', () => {
-    const found = varietyViolations([day(1, ['a']), day(3, ['a'])]);
+    const found = perDish(varietyViolations([day(1, ['a']), day(3, ['a'])]));
 
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ dayIndex: 3, kind: 'repeated_in_slot_too_soon' });
@@ -110,9 +116,81 @@ describe('varietyViolations', () => {
 
   it('flags the same dish back to back in different slots as its own kind', () => {
     const dinner = { ...day(1, ['a']), meals: day(1, ['a']).meals.map(meal => ({ ...meal, slot: 'dinner' as const })) };
-    const found = varietyViolations([dinner, day(2, ['a'])]);
+    const found = perDish(varietyViolations([dinner, day(2, ['a'])]));
 
     expect(found).toHaveLength(1);
     expect(found[0]).toMatchObject({ dayIndex: 2, kind: 'repeated_too_soon', slot: 'lunch' });
+  });
+});
+
+describe('varietyViolations — no two days the same (owner, 2026-09-26)', () => {
+  function day(dayIndex: number, dishes: readonly (readonly [string, PlanDayAssignment['meals'][number]['slot']])[]): PlanDayAssignment {
+    return {
+      dayIndex,
+      meals: dishes.map(([slug, slot], index) => ({
+        dish: makeDish({ slug }),
+        ingredients: [],
+        macros: { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 },
+        servings: 1,
+        slot,
+        sortOrder: index
+      })),
+      totals: { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 }
+    };
+  }
+
+  it('finds nothing when every day has a different set of dishes', () => {
+    const days = [
+      day(1, [
+        ['a', 'lunch'],
+        ['b', 'dinner']
+      ]),
+      day(2, [
+        ['a', 'lunch'],
+        ['c', 'dinner']
+      ])
+    ];
+
+    expect(varietyViolations(days).filter(violation => violation.kind === 'identical_day')).toEqual([]);
+  });
+
+  it('flags a day whose exact set of dishes repeats an earlier one', () => {
+    const days = [
+      day(1, [
+        ['a', 'lunch'],
+        ['b', 'dinner']
+      ]),
+      day(8, [
+        ['a', 'lunch'],
+        ['b', 'dinner']
+      ])
+    ];
+    const found = varietyViolations(days).filter(violation => violation.kind === 'identical_day');
+
+    expect(found).toEqual([{ dayIndex: 8, kind: 'identical_day', matchesDayIndex: 1 }]);
+  });
+
+  it('does not care which slot each dish sits in, only the set', () => {
+    // Swapped which is lunch and which is dinner — still the same two plates.
+    const days = [
+      day(1, [
+        ['a', 'lunch'],
+        ['b', 'dinner']
+      ]),
+      day(9, [
+        ['a', 'dinner'],
+        ['b', 'lunch']
+      ])
+    ];
+    const found = varietyViolations(days).filter(violation => violation.kind === 'identical_day');
+
+    expect(found).toEqual([{ dayIndex: 9, kind: 'identical_day', matchesDayIndex: 1 }]);
+  });
+
+  it('reports every later day that repeats the first one seen with that set', () => {
+    const days = [day(1, [['a', 'lunch']]), day(6, [['a', 'lunch']]), day(11, [['b', 'lunch']])];
+    const found = varietyViolations(days).filter(violation => violation.kind === 'identical_day');
+
+    expect(found).toEqual([{ dayIndex: 6, kind: 'identical_day', matchesDayIndex: 1 }]);
   });
 });

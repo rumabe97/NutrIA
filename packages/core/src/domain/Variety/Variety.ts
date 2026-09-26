@@ -25,12 +25,38 @@ import type { MealSlot, PlanDayAssignment } from 'core/entities/Plan';
  */
 export const VARIETY_RULES = { maxOccurrencesPerPlan: 2, minDaysBetween: 2, minDaysBetweenSameSlot: 4 } as const;
 
-export type VarietyViolation = {
-  readonly dayIndex: number;
-  readonly dishSlug: string;
-  readonly kind: 'repeated_in_slot_too_soon' | 'repeated_too_soon' | 'too_many_occurrences';
-  readonly slot: MealSlot;
-};
+/**
+ * The meals a repeat reads strongest in — a person notices "chicken again" at
+ * lunch or dinner far more than at a snack (`0051`'s own reasoning for why a
+ * main protein's cap is priced, not a snack's). Named exactly as the owner
+ * did, 2026-09-26: "a repeat of a main (lunch/dinner)".
+ */
+export const MAIN_SLOTS: ReadonlySet<MealSlot> = new Set(['lunch', 'dinner']);
+
+/**
+ * How far apart a repeated main should land, when the pool has the dishes to
+ * put there — not a wall like `minDaysBetweenSameSlot`: the owner's own
+ * words were "as far apart as possible (at least seven days where the pool
+ * allows)", which is a preference the scheduler pays to fall short of
+ * (`MAIN_GAP_SHORTFALL_WEIGHT` in `core/domain/Scheduler`), the same way
+ * every variety rule since `0009` is a cost, never a refusal that leaves a
+ * thin pool with no plan at all.
+ */
+export const PREFERRED_MAIN_GAP = 7;
+
+export type VarietyViolation =
+  | {
+      readonly dayIndex: number;
+      readonly dishSlug: string;
+      readonly kind: 'repeated_in_slot_too_soon' | 'repeated_too_soon' | 'too_many_occurrences';
+      readonly slot: MealSlot;
+    }
+  | {
+      readonly dayIndex: number;
+      readonly kind: 'identical_day';
+      /** The earlier day whose exact set of dishes this one repeats. */
+      readonly matchesDayIndex: number;
+    };
 
 /** The days that must separate two servings of one dish: the slot's own gap, or the plan-wide one. */
 function gapBetween(slot: MealSlot, other: MealSlot): number {
@@ -39,6 +65,30 @@ function gapBetween(slot: MealSlot, other: MealSlot): number {
 
 /** Placements made so far, in the order the scheduler made them. */
 export type Placement = { readonly dayIndex: number; readonly dishSlug: string; readonly slot: MealSlot };
+
+/**
+ * How many days separate this day from this dish's nearest placement so far —
+ * `null` when it has none yet, which is the case a repeat cost must leave at
+ * zero: the first use of a dish is never a repeat.
+ */
+export function nearestGap(dishSlug: string, dayIndex: number, placed: readonly Placement[]): number | null {
+  const gaps = placed.filter(placement => placement.dishSlug === dishSlug).map(placement => Math.abs(placement.dayIndex - dayIndex));
+
+  return gaps.length === 0 ? null : Math.min(...gaps);
+}
+
+/**
+ * A day's set of dishes, as a single key — what "the same day" means (owner,
+ * 2026-09-26): the dish set, not which slot each sits in. Paella at lunch and
+ * lentils at dinner is the same day as lentils at lunch and paella at dinner —
+ * a person served the same two plates either way.
+ */
+function daySignature(day: PlanDayAssignment): string {
+  return [...day.meals]
+    .map(meal => meal.dish.slug)
+    .sort()
+    .join('|');
+}
 
 /**
  * Whether a dish may go in this slot on this day, given what is already placed.
@@ -79,6 +129,24 @@ export function varietyViolations(days: readonly PlanDayAssignment[]): readonly 
       }
 
       placed.push(placement);
+    }
+  }
+
+  // No two days may serve the exact same dishes (owner, 2026-09-26) — a hard
+  // rule, like the two above. `enforceDistinctDays` in `core/domain/Scheduler`
+  // is what prevents it; this is the same "prove it, don't drive it" audit as
+  // every other violation here, and the one case it does not fully prevent: a
+  // pool so thin that no alternative existed for the day that repeated.
+  const signatures = new Map<string, number>();
+
+  for (const day of days) {
+    const signature = daySignature(day);
+    const firstDayIndex = signatures.get(signature);
+
+    if (firstDayIndex === undefined) {
+      signatures.set(signature, day.dayIndex);
+    } else {
+      violations.push({ dayIndex: day.dayIndex, kind: 'identical_day', matchesDayIndex: firstDayIndex });
     }
   }
 

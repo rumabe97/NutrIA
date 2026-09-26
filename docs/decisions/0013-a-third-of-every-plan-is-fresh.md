@@ -81,3 +81,7 @@ away.
 What it costs: the model now writes seven dishes per slot instead of four. The
 same one call per plan — which is what the free tier counts hardest — with more
 asked of it.
+
+## Amended by [`0065`](./0065-a-fortnight-is-varied-because-it-is-built-to-be.md) — 2026-09-26
+
+The library may now fill a whole slot (`REUSED_DISHES_PER_SLOT = DISHES_NEEDED_PER_SLOT`); the seven fresh dishes a slot are kept as a floor in `PoolBuilder`.

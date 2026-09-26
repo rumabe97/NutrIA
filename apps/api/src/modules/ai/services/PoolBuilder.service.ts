@@ -76,6 +76,17 @@ export type BuildPoolInput = {
   readonly backfill?: readonly CandidateDish[];
   readonly context: GenerationContext;
   /**
+   * The least the model is asked for per slot, even where the library alone
+   * already covers `needPerSlot` — 0013's fresh floor. Left at zero, a rich
+   * library can properly ask for nothing, which is what a meal swap wants
+   * (`SWAP_CANDIDATES` candidates to look between, no freshness guarantee). A
+   * whole-plan build passes `FRESH_DISHES_PER_SLOT` so that raising the
+   * library's own rotation cap (`REUSED_DISHES_PER_SLOT`, `0065`) can only
+   * ever let the library contribute *more* — never fewer than seven fresh
+   * dishes asked of the model, however rich the library is (`0013`).
+   */
+  readonly freshFloorPerSlot?: number;
+  /**
    * What the library cooks lunch and dinner from, for this person
    * (`RecipeController.libraryUsage`). A lunch's or a dinner's request is
    * shown only that, the produce in season, and a sample of the rest
@@ -136,6 +147,7 @@ export class PoolBuilder {
   async build({
     backfill = [],
     context,
+    freshFloorPerSlot = 0,
     libraryUsage = new Map(),
     needPerSlot = DISHES_NEEDED_PER_SLOT,
     preferences,
@@ -145,6 +157,26 @@ export class PoolBuilder {
   }: BuildPoolInput): Promise<PoolResult> {
     const accepted = new Map<string, CandidateDish>(reusable.map(dish => [dish.slug, dish]));
     const generated: CandidateDish[] = [];
+    /*
+     * The per-slot total this build converges to, over every round: what the
+     * rotation handed over before any round ran, plus what covers it up to
+     * `freshFloorPerSlot` at least — computed once, from the library dishes
+     * this call started with, never recomputed against the floor again.
+     *
+     * That "once" matters: floored on every round, a library that answered
+     * the whole shortfall in round one would still show a shortfall of
+     * `freshFloorPerSlot` in round two, and the model would be asked for its
+     * fresh floor again, and again, for as many rounds as this build runs.
+     * Pinning the target here is what lets a later round ask only for what
+     * is still short of *this* number, exactly as it always has.
+     */
+    const targetPerSlot = new Map(
+      slots.map(slot => {
+        const have = reusable.filter(dish => dish.slots.includes(slot)).length;
+
+        return [slot, have + Math.max(freshFloorPerSlot, needPerSlot - have)];
+      })
+    );
     const metadata = {
       aiCalls: [] as AiCallRecord[],
       attempts: 0,
@@ -196,7 +228,7 @@ export class PoolBuilder {
     const deadline = Date.now() + this.budgetMs;
 
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
-      let needBySlot = shortfall(slots, [...accepted.values()], needPerSlot);
+      let needBySlot = shortfall(slots, [...accepted.values()], targetPerSlot);
 
       // After the first round, what the library still has covers the gap before
       // the model is asked again: a second round costs as much as the first and
@@ -213,7 +245,7 @@ export class PoolBuilder {
 
           accepted.set(dish.slug, dish);
           metadata.backfilled += 1;
-          needBySlot = shortfall(slots, [...accepted.values()], needPerSlot);
+          needBySlot = shortfall(slots, [...accepted.values()], targetPerSlot);
         }
       }
 
@@ -717,13 +749,24 @@ export function requestSizes(count: number, size: number = DISHES_PER_REQUEST): 
   return Array.from({ length: Math.ceil(Math.max(count, 0) / size) }, (_unused, index) => Math.min(size, count - index * size));
 }
 
-/** How many more distinct dishes each slot needs. Drives both the retry and the prompt. */
+/**
+ * How many more distinct dishes each slot needs. Drives both the retry and
+ * the prompt. `needed` is either one number for every slot, or — what `build`
+ * passes — a fixed per-slot target, so a slot that started richer than
+ * another is not asked to catch up to it.
+ */
 export function shortfall(
   slots: readonly MealSlot[],
   have: readonly CandidateDish[],
-  needed: number = DISHES_NEEDED_PER_SLOT
+  needed: number | ReadonlyMap<MealSlot, number> = DISHES_NEEDED_PER_SLOT
 ): ReadonlyMap<MealSlot, number> {
-  return new Map(slots.map(slot => [slot, Math.max(needed - have.filter(dish => dish.slots.includes(slot)).length, 0)]));
+  return new Map(
+    slots.map(slot => {
+      const target = typeof needed === 'number' ? needed : (needed.get(slot) ?? 0);
+
+      return [slot, Math.max(target - have.filter(dish => dish.slots.includes(slot)).length, 0)];
+    })
+  );
 }
 
 function isSafeIngredient(ingredient: CatalogueIngredient, context: GenerationContext): boolean {
