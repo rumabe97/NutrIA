@@ -42,10 +42,31 @@
 
 .name {
   font-size: var(--font-size-03);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
 }
 
 .quantity {
   font-size: var(--font-size-03);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+/*
+ * Text this large for the screen (a rem query reads the reader's text size: at
+ * 320px it starts at about 118%, at 390px at about 143%): the quantity goes under
+ * the item rather than splitting its name mid-word.
+ */
+@media (width < 17rem) {
+  .item {
+    flex-wrap: wrap;
+  }
+
+  .label {
+    flex-basis: auto;
+  }
+
+  .quantity {
+    margin-inline-start: auto;
+  }
 }

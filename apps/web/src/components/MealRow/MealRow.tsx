@@ -146,7 +146,7 @@ export function MealRow({ id, ingredients = [], kcal, name, proteinG, readOnly =
             <ul className={styles.ingredients}>
               {ingredients.map(ingredient => (
                 <li className={styles.ingredient} key={ingredient.name}>
-                  <span>{ingredient.name}</span>
+                  <span className={styles.ingredientName}>{ingredient.name}</span>
                   <span className={styles.grams}>{formatQuantity(ingredient.grams, 'g', locale, dictionary)}</span>
                 </li>
               ))}

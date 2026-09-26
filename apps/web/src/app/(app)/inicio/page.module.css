@@ -103,3 +103,18 @@
     gap: var(--gap-region);
   }
 }
+
+/*
+ * Text this large for the screen (a rem query reads the reader's text size: at
+ * 320px it starts at about 118%, at 390px at about 143%): a heading and its link
+ * share a line only while both fit.
+ */
+@media (width < 17rem) {
+  .todayHeading {
+    flex-wrap: wrap;
+  }
+
+  .targetsLabel {
+    flex-wrap: wrap;
+  }
+}

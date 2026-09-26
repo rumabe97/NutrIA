@@ -102,7 +102,7 @@ export function AppNav({ professional = false }: AppNavProps) {
             <svg aria-hidden="true" className={styles.bottomIcon} fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
               <path d={destination.icon} strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            {dictionary.appNav[destination.label]}
+            <span className={styles.bottomLabel}>{dictionary.appNav[destination.label]}</span>
           </Link>
         ))}
       </nav>

@@ -121,3 +121,14 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/*
+ * Text this large for the screen (a rem query reads the reader's text size: at
+ * 320px it starts at about 118%, at 390px at about 143%): the status goes under
+ * the title rather than off the edge.
+ */
+@media (width < 17rem) {
+  .head {
+    flex-wrap: wrap;
+  }
+}
