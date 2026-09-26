@@ -34,10 +34,10 @@ const DEFAULT_MODEL = {
   // not a vendor name, so there is nothing to sanity-check it against (see
   // `MODEL_PREFIX` below). `OMNIROUTE_MODEL` picks another.
   omniroute: 'NutrIA-Fallback',
-  // `0064`: the primary its measurements chose, at low reasoning
-  // (`AI_REASONING_EFFORT`), with `minimax/minimax-m3` as the fallback
-  // (`AI_FALLBACK_MODELS`) — both set in the deployment, not defaulted here.
-  openrouter: 'deepseek/deepseek-v4.1-flash',
+  // `0064` as amended 2026-09-26 (`decisions/LOG.md`): Gemma 4 31B, with
+  // reasoning off (`AI_REASONING_EFFORT`) and `deepseek/deepseek-v4.1-flash`
+  // as the fallback (`AI_FALLBACK_MODELS`) — both set in the deployment.
+  openrouter: 'google/gemma-4-31b-it',
   stub: 'none'
 } as const;
 

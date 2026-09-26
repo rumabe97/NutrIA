@@ -6,8 +6,12 @@ import type { MealSlot } from './Plan';
  * `wrong_meal`: every gate passed, but none of the meals it claimed is one all
  * of its ingredients belong to for this person (`0062`) — a stew sent back as
  * a dinner only.
+ * `wrong_language`: a step's own text — not its optional cue, which is simply
+ * dropped — reads as English in a request for another language
+ * (`domain/Method`'s `cleanSteps`, 2026-09-26).
  */
-export type DishRejection = 'allergen' | 'duplicate' | 'foreign_food' | 'over_time' | 'schema' | 'unknown_ingredient' | 'unwanted' | 'wrong_meal';
+export type DishRejection =
+  'allergen' | 'duplicate' | 'foreign_food' | 'over_time' | 'schema' | 'unknown_ingredient' | 'unwanted' | 'wrong_language' | 'wrong_meal';
 
 /** What a failed call said about itself. */
 export type AiCallFailure = {

@@ -9,7 +9,9 @@
 >
 > **Revisión 2026-09-26 — el proveedor de IA** ([`0064`](../decisions/0064-generation-runs-on-paid-no-training-models-through-openrouter.md)),
 > commit leído `31c3f99`: §§ 0 (punto 6), 1.3, 3, 4.2, 4.3, 7, 9 (P0-3, P1-10, P1-11 a
-> P1-13, P2-11, P2-12, P3) y 10. Lo demás no se ha vuelto a leer contra el código: los
+> P1-13, P2-11, P2-12, P3) y 10. Actualizada el mismo día con las decisiones del
+> propietario: Gemma 4 31B sustituye a MiniMax M3 de reserva, lista cerrada DeepInfra y
+> CoreWeave hecha, categorización aceptada con aviso. Lo demás no se ha vuelto a leer contra el código: los
 > estados de P0-1, P0-2, P1-1 a P1-4 que dan este documento y la EIPD son los del
 > 2026-09-25 y el `decisions/LOG.md` de ese día dice que se construyeron.
 
@@ -39,9 +41,10 @@
    (`AI_PROVIDER=stub`). El cambio a OpenRouter con modelos de pago, retención cero y sin
    entrenamiento (`0064`) cumple la regla del propietario **si** antes: se tiene el texto
    del acuerdo de tratamiento de OpenRouter y la confirmación de que aplica a su cuenta
-   (P1-11); se cierra en la cuenta la lista de empresas que pueden ejecutar el modelo
-   (P1-12: hoy puede ir a 22, una en Indonesia); y se cumple la licencia de MiniMax M3 o se
-   quita de reserva (P1-13). La política cambia en dos pasos (§ 4.3, [`textos/02`](./textos/02-politica-privacidad.md)).
+   (P1-11, **pendiente**). La lista cerrada de empresas que pueden ejecutar el modelo
+   (P1-12) está hecha: DeepInfra y CoreWeave, en la cuenta (propietario, 2026-09-26) y en
+   el código (`AI_PROVIDER_ONLY`). MiniMax M3 sale; Gemma 4 31B es el principal y DeepSeek
+   V4.1 Flash la reserva; Gemma tiene licencia Apache 2.0 y sin deberes que bloqueen (P1-13, cerrado). La política cambia en dos pasos (§ 4.3, [`textos/02`](./textos/02-politica-privacidad.md)).
    P1-10 (Gemini en `/consulta`) se cierra con el cambio.
 
 ---
@@ -139,25 +142,34 @@ solo existen con `AI_PROVIDER=google` y `AI_ILLUSTRATIONS=true` (`resolveImageMo
 
 - La API llama directamente a `https://openrouter.ai/api/v1`; cualquier otro host se
   rechaza al arrancar y otra vez al entregar la clave (`openRouterBaseUrl`).
-- Pide `deepseek/deepseek-v4.1-flash` y, de reserva dentro de la misma petición,
-  `minimax/minimax-m3` (`openRouterRequest`, campo `models`).
+- Pide `google/gemma-4-31b-it` (`AI_MODEL`) y, de reserva dentro de la misma petición,
+  `deepseek/deepseek-v4.1-flash` (`AI_FALLBACK_MODELS`; `openRouterRequest`, campo
+  `models`). Decisión del propietario del 2026-09-26: `0064` tenía DeepSeek de principal y
+  MiniMax M3 de reserva; MiniMax salió, Gemma entró de reserva y luego pasó a principal.
+  Gemma 4 es el modelo de pesos abiertos de Google que aquí ejecutan DeepInfra o
+  CoreWeave: no es la API de Gemini ni pasa por Google.
 - Cada petición lleva, escrito encima de cualquier otro valor,
   `provider: { zdr: true, data_collection: 'deny', require_parameters: true }`
   (`NO_TRAINING_PROVIDER`), y ninguna cabecera de sesión ni id nuestro
   (`resolveCallSettings`: `sessionHeader: null`).
 - En la cuenta (owner): entrenamiento apagado para modelos de pago y gratuitos, ZDR para
   toda la cuenta, el uso de entradas y salidas por OpenRouter apagado; la clave, solo con
-  esos dos modelos, ZDR y un tope mensual. **Lo que ni el código ni el runbook fijan: qué
-  empresas pueden ejecutar el modelo** (P1-12).
+  esos dos modelos, ZDR y un tope mensual. **Qué empresas pueden ejecutar el modelo**
+  (P1-12): DeepInfra y CoreWeave, fijado el 2026-09-26 en la cuenta (*Allowed providers*,
+  propietario) y en cada petición (`provider.only` desde `AI_PROVIDER_ONLY`, obligatorio al
+  arrancar con `AI_PROVIDER=openrouter`: `apps/api/src/config/Env.validation.ts:506-507`,
+  `ai.config.ts`, `providerOnly`).
 
 **Quién puede recibir la petición**, según la API pública de OpenRouter consultada el
 2026-09-26 (`/api/v1/endpoints/zdr`, `/api/v1/providers`): para DeepSeek V4.1 Flash,
 **23 endpoints ZDR de 22 empresas**, entre ellas DeepInfra, CoreWeave y Together (sede en
 EE. UU.), NextBit (España), **DekaLLM (sede y centro de datos en Indonesia)**, SiliconFlow
 (sede en Singapur, centro en EE. UU.) y Makora (sin sede ni condiciones publicadas); para
-MiniMax M3, 9 endpoints ZDR (CoreWeave, DeepInfra, Together, Parasail, Novita, SambaNova,
-ModelRun, Mara, Venice). Ni DeepSeek (China) ni MiniMax (Singapur) sirven hoy su modelo
-en un endpoint ZDR. En la medición de `0064` respondieron DeepInfra, Together, CoreWeave,
+Gemma 4 31B, 13 endpoints ZDR (DeepInfra —tres—, CoreWeave, Crusoe, Reka, Io Net,
+ModelRun, SambaNova, SiliconFlow, Venice, Parasail, Novita); para MiniMax M3, ya fuera,
+eran 9. Ni DeepSeek (China) sirve hoy su modelo en un endpoint ZDR, ni Google sirve Gemma
+en OpenRouter. Con la lista cerrada solo quedan DeepInfra y CoreWeave para los dos
+modelos. En la medición de `0064` respondieron DeepInfra, Together, CoreWeave,
 DekaLLM y Sail Research — con dos personas sintéticas construidas de un id aleatorio
 (`apps/api/scripts/bench-models.mjs:46-47`), así que no salió ningún dato de nadie.
 
@@ -417,7 +429,7 @@ elegirlo.**
   - **CoreWeave** (política de privacidad, 24/02/2026): «Customers are controllers of
     Customer Data»; su DPA, incorporado a sus condiciones, con cláusulas tipo
     responsable-encargado y encargado-encargado. Centros en EE. UU. Sirve los dos modelos
-    en ZDR (MiniMax M3 en fp4).
+    en ZDR (Gemma 4 31B en fp4).
   - **Together** (política, 17/12/2025): ZDR en ajustes y cláusulas tipo; **pero** sus
     condiciones § 4 prohíben «transmit or provide to the Company any financial or medical
     information of any nature or any sensitive personal data (e.g., … birth dates…)».
@@ -439,7 +451,8 @@ elegirlo.**
   proveedores en la cuenta (ajustes de privacidad, *Allowed providers*, que es el techo de
   toda petición según la documentación de *provider routing*). Propuesta: `deepinfra` y
   `coreweave` — los dos sirven los dos modelos en ZDR con salida estructurada, tienen sede
-  y centros en EE. UU. y los compromisos citados.
+  y centros en EE. UU. y los compromisos citados. **Hecho el 2026-09-26**: el propietario
+  la fijó en la cuenta y el código la exige en cada petición (`AI_PROVIDER_ONLY`).
 
 **c) El uso propio de OpenRouter: una muestra, sin cuenta, para sus estadísticas.**
 
@@ -457,23 +470,48 @@ elegirlo.**
   anonimizarlo es tratarlo (GT29, Dictamen 05/2014 sobre anonimización); para eso
   OpenRouter decide el fin y es **responsable** (art. 28.10) **[abogado]**. → P2-12: la
   política lo dice; el propietario decide si cabe en su regla («no quiero entrenar ningún
-  modelo»: no entrena).
+  modelo»: no entrena). **Decidido el 2026-09-26**: el propietario la acepta con aviso en
+  la política (estado 2) y pedirá por escrito a OpenRouter que excluya su cuenta. Si
+  OpenRouter la excluye, el texto sigue siendo verdad («puede») y se puede quitar.
 
 **d) Las licencias de los modelos** (condiciones de OpenRouter § 5.1: se aceptan).
 
 - **DeepSeek V4.1 Flash**: licencia MIT (`huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash`,
   modificado 10/09/2026). Sin restricciones de uso.
-- **MiniMax M3**: *MiniMax Community License*. El uso comercial —incluido «the commercial
-  use of APIs provided by or for the Software… to support or enable commercial products»—
-  exige «prominently display "Built with MiniMax M3" on a related website, user
-  interface, blogpost, about page or product documentation» y, por debajo de 20 M$ de
-  ingresos, «send a one-time notice to api@minimax.io with the subject "M3 licensing —
-  notice"». Su lista de usos prohibidos no incluye el sanitario. **→ P1-13.**
-- **Uso clínico**: ninguna de las dos licencias lo prohíbe; OpenRouter solo se exime de
-  garantizar la idoneidad para usos médicos (§ 16), no los prohíbe; DeepInfra prohíbe el
-  «High-Risk Use» (soporte vital u otros dispositivos médicos cuyo fallo cause la
-  muerte), que NutrIA no es (§ 7). **P1-10 se cierra con el cambio**, siempre que Gemini no
-  vuelva (la clave solo admite los dos modelos).
+- **Gemma 4 31B** (principal desde el 2026-09-26): **Apache 2.0**. La ficha del modelo
+  (`huggingface.co/google/gemma-4-31B-it`, `license: apache-2.0`, modificada 20/07/2026)
+  enlaza a `ai.google.dev/gemma/docs/gemma_4_license`, que es la Licencia Apache 2.0. Las
+  *Gemma Terms of Use* (última modificación 01/04/2026) **excluyen expresamente Gemma 4**:
+  «The terms below apply to Gemma models listed in the Appendix… For Gemma 4 terms, see
+  the Gemma 4 license». Consecuencias:
+  - **Uso comercial**: permitido, sin aviso ni autorización.
+  - **Atribución / NOTICE**: Apache 2.0 (§ 4) solo obliga a quien **redistribuye** la obra
+    o derivados (copia de la licencia, avisos de copyright, marca de los ficheros
+    cambiados). NutrIA no distribuye los pesos: llama a una API que los ejecuta un
+    tercero. No hay deber de atribución. Nombrar el modelo en la política es
+    transparencia, no obligación.
+  - **Trasladar restricciones a los usuarios**: la obligación de incluir las restricciones
+    de uso en los acuerdos con terceros es de las *Gemma Terms of Use* (§ 3.1), que no se
+    aplican a Gemma 4. No hay que trasladar nada.
+  - **Uso sanitario**: la *Gemma Prohibited Use Policy* (última modificación 21/02/2024)
+    solo se incorpora por las *Gemma Terms of Use* (§ 3.2), así que, en mi lectura, no
+    obliga con Gemma 4 **[abogado]**. Aun si obligara, NutrIA no cae en ella: prohíbe «the
+    unauthorized or unlicensed practice of any profession including… medical/health»,
+    «misleading claims of expertise… in sensitive areas (e.g. health…)» y «making
+    automated decisions in domains that affect material or individual rights or
+    well-being (e.g.… healthcare…)». NutrIA no ejerce una profesión sanitaria, dice que no
+    es un servicio médico (política y condiciones), y la IA no decide nada sobre la persona:
+    los límites de calorías y proteína son reglas fijas (§ 7). En `/consulta` decide el
+    dietista colegiado.
+  - **Conclusión: la licencia de Gemma no bloquea nada.** P1-13 queda **cerrado** (MiniMax
+    fuera).
+- **Uso clínico**: ni la licencia MIT ni la Apache 2.0 lo prohíben; OpenRouter solo se
+  exime de garantizar la idoneidad para usos médicos (§ 16), no los prohíbe; DeepInfra
+  prohíbe el «High-Risk Use» (soporte vital u otros dispositivos médicos cuyo fallo cause
+  la muerte), que NutrIA no es (§ 7). La cláusula clínica de P1-10 es de las condiciones de
+  la **API de Gemini**, no de Gemma: Gemma 4 ejecutada por DeepInfra o CoreWeave no pasa
+  por Google. **P1-10 se cierra con el cambio**, siempre que no vuelva la API de Gemini
+  (`AI_PROVIDER=google` o un modelo `google/gemini-*` en la clave).
 
 **e) Nada se usa para entrenar ni se guarda — hasta dónde llega la garantía.** Tres capas:
 la cuenta (entrenamiento apagado, ZDR, uso de entradas/salidas apagado), la clave
@@ -565,8 +603,8 @@ sanitarios individuales (apdo. 4) protege al **dietista**, no a NutrIA. La EIPD 
   medidas para apoyar la promoción de la alfabetización»): el propietario y quien opere
   el sistema en su nombre. Para el profesional, el acuerdo le explica qué hace la IA y
   qué no (cl. 5).
-- **Modelos integrados** (tras el cambio de `0064`): DeepSeek V4.1 Flash y MiniMax M3, de
-  pesos abiertos, por la API de OpenRouter. Las obligaciones de los modelos de uso general
+- **Modelos integrados** (tras el cambio de `0064`): Gemma 4 31B y, de reserva,
+  DeepSeek V4.1 Flash, de pesos abiertos, por la API de OpenRouter. Las obligaciones de los modelos de uso general
   (capítulo V) son de sus proveedores; a NutrIA le toca informar (art. 50) y la
   alfabetización (art. 4). Cambiar de modelo no cambia esto, pero sí la política (§ 4.4).
 - **Art. 50.1** (interacción directa con personas): no hay asistente conversacional en el
@@ -671,10 +709,10 @@ ingredientes. Luego, la política (§ «Con quién compartimos»).
 | P1-7 | Aviso legal incompleto: sin domicilio, NIF ni teléfono; sin cauce de reclamaciones postal y telefónico | `es-ES.ts:1394`; no hay página de aviso legal | LSSI art. 10.1.a y e; TRLGDCU art. 97.1.c y 21.2-3 (vía postal, telefónica y electrónica, justificante, respuesta en 15 días) | [`textos/07`](./textos/07-aviso-legal.md) antes de claves *live* |
 | P1-8 | Desistimiento: sin formulario modelo, sin función de desistimiento en línea | condiciones `es-ES.ts:1435`; `PremiumCard.tsx` | TRLGDCU art. 97.1.j (formulario); Directiva 2023/2673 art. 11 bis (aplicable desde 19/6/2026; España no lo ha transpuesto en el TRLGDCU consolidado a 28/02/2026) | Formulario en las condiciones y un botón «Desistir del contrato aquí» en el perfil durante los 14 días ([`textos/03`](./textos/03-condiciones-uso.md), [`textos/06`](./textos/06-correos.md) § C) |
 | P1-9 | El plan de consulta no tiene condiciones; la prueba no dice que se cobra al terminar | `practice.planTrial` (`es-ES.ts`, namespace `practice`); `PracticePlanCard.tsx` | LSSI art. 27; Ley 7/1998 arts. 5 y 7 (incorporación de condiciones generales) | [`textos/04`](./textos/04-condiciones-consulta.md), aceptadas en la misma pantalla que el acuerdo |
-| P1-10 | Gemini prohíbe su uso «en la práctica clínica»; la consulta genera planes para pacientes de un profesional con Gemini como reserva | `docs/reference/ai-gateway.md` § 1; Gemini API Additional Terms (23/03/2026) | Contrato con el proveedor (no ley, pero es la licencia de uso) | **Cerrado en producción** desde el 2026-09-26 (`stub`) y **cerrado con el cambio** (`0064`: sin Gemini; la clave solo admite DeepSeek V4.1 Flash y MiniMax M3, sin cláusula clínica, § 4.4 d). Se reabre si vuelve `AI_PROVIDER=google` o un modelo de Google a la clave |
+| P1-10 | Gemini prohíbe su uso «en la práctica clínica»; la consulta genera planes para pacientes de un profesional con Gemini como reserva | `docs/reference/ai-gateway.md` § 1; Gemini API Additional Terms (23/03/2026) | Contrato con el proveedor (no ley, pero es la licencia de uso) | **Cerrado en producción** desde el 2026-09-26 (`stub`) y **cerrado con el cambio** (`0064`: sin Gemini; la clave solo admite Gemma 4 31B y DeepSeek V4.1 Flash, sin cláusula clínica, § 4.4 d; Gemma 4 es de pesos abiertos, Apache 2.0, ejecutado por DeepInfra o CoreWeave, no la API de Gemini). Se reabre si vuelve `AI_PROVIDER=google` o un modelo `google/gemini-*` a la clave |
 | P1-11 | El acuerdo de tratamiento (DPA) de OpenRouter: sus condiciones § 10.2 lo incorporan para uso comercial, pero su texto no es público y su centro de ayuda dice que solo se firma con Enterprise | `ai.config.ts` (`case 'openrouter'`); condiciones de OpenRouter (31/08/2026) | Art. 28.3 (contrato por escrito con el contenido mínimo), 5.2 y 24 (demostrarlo); art. 46.2.c (cláusulas tipo, que viven en ese DPA) | **Bloquea el cambio.** El propietario pide acceso en `trust.openrouter.ai`, descarga el DPA, pide a soporte confirmación escrita de que se aplica a su cuenta de pago y guarda ambos fuera del repositorio. Si OpenRouter dice que no: no hay encargado con contrato; la política no puede decir «con contrato» y el cambio no se hace **[abogado]** |
-| P1-12 | La cuenta de OpenRouter no limita qué empresas ejecutan el modelo: la petición puede ir a 22 (una en Indonesia, otra sin condiciones publicadas) | `NO_TRAINING_PROVIDER` en `ai.config.ts` (sin `only`); runbook `ai-gateway.md` § 0 (sin lista de proveedores) | Art. 13.1.e-f (nombrar destinatarios y transferencias); arts. 44-46 (Indonesia sin adecuación ni garantía) | **Bloquea el cambio.** En la cuenta, *Allowed providers* = `deepinfra`, `coreweave` (§ 4.4 b). Además, en código, `provider.only` con la misma lista (backend) y un test. La política nombra exactamente esa lista |
-| P1-13 | La licencia de MiniMax M3 exige, en uso comercial, mostrar «Built with MiniMax M3» y un aviso único a MiniMax | licencia en Hugging Face; condiciones de OpenRouter § 5.1 | Contrato (licencia aceptada vía OpenRouter § 5.1) | Antes de usar MiniMax de reserva: la frase visible (la política la lleva en el estado 2; mejor también en el pie o una página «acerca de») y el aviso, que envía el propietario. Si no: `AI_FALLBACK_MODELS` vacío (la biblioteca cubre los fallos) |
+| P1-12 | La cuenta de OpenRouter no limita qué empresas ejecutan el modelo: la petición puede ir a 22 (una en Indonesia, otra sin condiciones publicadas) | `NO_TRAINING_PROVIDER` en `ai.config.ts` (sin `only`); runbook `ai-gateway.md` § 0 (sin lista de proveedores) | Art. 13.1.e-f (nombrar destinatarios y transferencias); arts. 44-46 (Indonesia sin adecuación ni garantía) | **Hecho el 2026-09-26.** En la cuenta, *Allowed providers* = DeepInfra y CoreWeave (propietario). En código, `provider.only` desde `AI_PROVIDER_ONLY`, obligatorio al arrancar con `openrouter` (`Env.validation.ts:506-507`). La política nombra exactamente esa lista; cambiarla pasa antes por la política |
+| P1-13 | ~~La licencia de MiniMax M3 exige, en uso comercial, mostrar «Built with MiniMax M3» y un aviso único a MiniMax~~ | licencia en Hugging Face; condiciones de OpenRouter § 5.1 | Contrato (licencia aceptada vía OpenRouter § 5.1) | **Cerrado el 2026-09-26**: el propietario quitó MiniMax de reserva. La nueva reserva, Gemma 4 31B, es Apache 2.0: sin aviso, atribución ni restricciones que trasladar a los usuarios para quien usa el modelo por API (§ 4.4 d). Otro cambio de modelo reabre esta fila |
 
 ### P2
 
@@ -691,7 +729,7 @@ ingredientes. Luego, la política (§ «Con quién compartimos»).
 | P2-9 | Sin exportación de datos para la portabilidad | — | `GET /users/me/export` en JSON; mientras, atender por correo en un mes (art. 12.3) |
 | P2-10 | Correo del proveedor SMTP: una cuenta Gmail de consumo no ofrece DPA | memoria del propietario; `SMTP_*` | Proveedor transaccional con DPA **[abogado]** |
 | P2-11 | Las empresas que ejecutan el modelo no son subencargados según OpenRouter (DPA Enterprise § 11.10) y no tienen contrato con NutrIA; ninguna está en el DPF | § 4.4 b | Nombrarlas en la política; lista cerrada (P1-12); apoyarse en que la petición no identifica a nadie (C-413/23 P) **[abogado]**. Si el abogado no lo compra: un proveedor con contrato directo (p. ej. Mistral en la UE, plan B del informe `0002`) |
-| P2-12 | OpenRouter clasifica una muestra anónima de peticiones para sus estadísticas públicas; no se puede apagar | condiciones § 6.5; documentación *Data collection* | Decirlo en la política (estado 2 lo dice); el propietario decide si cabe en su regla |
+| P2-12 | OpenRouter clasifica una muestra anónima de peticiones para sus estadísticas públicas; no se puede apagar | condiciones § 6.5; documentación *Data collection* | **Aceptado con aviso** (propietario, 2026-09-26): la política (estado 2) lo dice, y el propietario pedirá por escrito a OpenRouter que excluya su cuenta. Si lo excluye, se puede quitar la frase |
 
 ### P3
 

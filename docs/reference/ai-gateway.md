@@ -25,7 +25,7 @@ With `AI_PROVIDER=openrouter` the pool builder calls `https://openrouter.ai/api/
 **Any change** to `AI_MODEL`, `AI_FALLBACK_MODELS`, `AI_PROVIDER_ONLY` or the account's allowed list goes through `/privacidad` first: the policy names the model and the companies that run it (`docs/legal/textos/02-politica-privacidad.md`, state 2), and `legal` reviews the change.
 
 **Checklist — the key** (settings → keys), owner-only:
-- [ ] A key for NutrIA alone, with a guardrail: allowed models only `deepseek/deepseek-v4.1-flash` and `minimax/minimax-m3`; ZDR required; a monthly credit limit (`0064` estimates 0.10–0.15 $ a fortnight).
+- [ ] A key for NutrIA alone, with a guardrail: allowed models only `deepseek/deepseek-v4.1-flash` and `google/gemma-4-31b-it`; ZDR required; a monthly credit limit (`0064` estimates 0.10–0.15 $ a fortnight).
 - [ ] Stored only as `OPENROUTER_API_KEY` on the API project — never on the web project, never `NEXT_PUBLIC_`.
 - [ ] No preset is needed: the code sends the models, the provider block and the reasoning effort. If one is kept for manual tests, it has no tools and response caching **off** (two people with the same profile would otherwise get the same dishes).
 
@@ -37,8 +37,8 @@ With `AI_PROVIDER=openrouter` the pool builder calls `https://openrouter.ai/api/
 | --- | --- |
 | `AI_PROVIDER` | `openrouter` |
 | `OPENROUTER_API_KEY` | the key above — boot is refused without it |
-| `AI_MODEL` | `deepseek/deepseek-v4.1-flash` (the default when empty) |
-| `AI_FALLBACK_MODELS` | `minimax/minimax-m3` |
+| `AI_MODEL` | `google/gemma-4-31b-it` (the default when empty) — primary since 2026-09-26: on five matched dev fortnights (events included) and 72 bench dishes per model at prompt 4.3.0 it tied DeepSeek on macros (70/70 days) and variety, failed 0 of 53 calls against 11 of 69, kept 83% of dishes against 54%, at a third of the cost; it is slower (80–171 s a fortnight against 35–84 s) |
+| `AI_FALLBACK_MODELS` | `deepseek/deepseek-v4.1-flash` — the first primary, now the fallback. MiniMax M3 was dropped (its licence asks for visible attribution); Qwen3 235B has no ZDR endpoint on DeepInfra or CoreWeave (404) |
 | `AI_REASONING_EFFORT` | `none` — measured on full dev fortnights 2026-09-26: `low` left most requests at the 170 s budget and few fresh dishes; `none` kept 2–17× more fresh dishes with every day inside 5% |
 | `AI_BASE_URL` | **empty** (or a path on `https://openrouter.ai`). Any other host is refused at boot — it would receive the OpenRouter key |
 | `AI_PROVIDER_SORT` | `throughput` — measured 2026-09-26: default load-balancing sent parallel requests to ~120 s endpoints |

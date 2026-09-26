@@ -305,7 +305,8 @@ at a time.
 - **Amended 2026-09-26** (`0064`, supersedes the 2026-09-25 amendment): the owner's
   no-training rule rules out every free route; the models were measured with paid calls.
   Primary `deepseek/deepseek-v4.1-flash` at low reasoning, fallback `minimax/minimax-m3`,
-  called on OpenRouter directly.
+  called on OpenRouter directly. Amended again the same day (`decisions/LOG.md`): reasoning
+  `none`, fallback `google/gemma-4-31b-it`.
 - **Scope**: `apps/api/src/modules/ai/ai.config.ts` and its spec,
   `apps/api/src/modules/ai/clients/StructuredAiClient.ts`, `gateway.ts` and their specs,
   `apps/api/src/modules/ai/services/PoolBuilder.service.ts` and its spec,

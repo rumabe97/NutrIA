@@ -190,7 +190,7 @@ describe('the openrouter provider', () => {
           { headers: { 'content-type': 'application/json' }, status: 200 }
         )
       );
-    const env = validateEnv({ ...base, AI_FALLBACK_MODELS: 'minimax/minimax-m3', AI_REASONING_EFFORT: 'low' });
+    const env = validateEnv({ ...base, AI_FALLBACK_MODELS: 'deepseek/deepseek-v4.1-flash', AI_REASONING_EFFORT: 'low' });
 
     await generateObject({
       model: resolveModel(env) as LanguageModel,
@@ -207,8 +207,8 @@ describe('the openrouter provider', () => {
 
     expect(String(url)).toBe('https://openrouter.ai/api/v1/chat/completions');
     expect(sent).toMatchObject({
-      model: 'deepseek/deepseek-v4.1-flash',
-      models: ['deepseek/deepseek-v4.1-flash', 'minimax/minimax-m3'],
+      model: 'google/gemma-4-31b-it',
+      models: ['google/gemma-4-31b-it', 'deepseek/deepseek-v4.1-flash'],
       provider: { data_collection: 'deny', only: ['deepinfra', 'coreweave'], require_parameters: true, zdr: true },
       reasoning: { effort: 'low' },
       response_format: { json_schema: { strict: false }, type: 'json_schema' },

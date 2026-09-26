@@ -1471,3 +1471,91 @@ describe('PoolBuilder — a near-miss slug', () => {
     expect(builder.validate(heavy, context(), new Map(), ['tomate', 'arroz'])).toEqual({ reason: 'schema', repaired: 1 });
   });
 });
+
+/**
+ * `domain/Method`'s `cleanSteps`, reached through `PoolBuilder`: the
+ * deterministic guarantee behind prompt 4.3.0, measured on 72 dishes each
+ * from `google/gemma-4-31b-it` and `deepseek/deepseek-v4.1-flash`.
+ */
+describe("PoolBuilder — cleaning the model's steps", () => {
+  const preferences = {
+    avoidNames: [],
+    budget: null,
+    cookingFrequency: null,
+    cookingTimeMinutes: 30,
+    cuisines: [],
+    dayShape: null,
+    dietaryPatterns: [],
+    dislikedNames: [],
+    goal: null,
+    likedFoods: [],
+    lovedNames: [],
+    month: 1,
+    slotShares: new Map(),
+    targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
+  };
+  const ROWS = [...CATALOGUE, { ...ingredient('pan-integral'), name: 'Pan integral' }];
+
+  /** The builder with one lunch request answering `dishes`. */
+  async function built(dishes: GeneratedPool['dishes']) {
+    const { client } = stubClient([{ dishes: [...dishes] }, { dishes: [] }]);
+
+    return new PoolBuilder(client).build({
+      context: { ...context(), catalogue: toCatalogue(ROWS) },
+      needPerSlot: 1,
+      preferences,
+      reusable: [],
+      slots: ['lunch']
+    });
+  }
+
+  it('turns a leaked field name after a number into Spanish, and fills the missing minutes field from it', async () => {
+    const result = await built([
+      {
+        ...dish('Arroz con tomate', ['lunch'], ['arroz', 'tomate']),
+        cookMinutes: 0,
+        steps: [{ text: 'Cocer el arroz con sal durante 12 `minutes` hasta que esté tierno' }]
+      }
+    ]);
+
+    expect(result.generated[0]?.steps).toEqual([{ minutes: 12, text: 'Cocer el arroz con sal durante 12 minutos hasta que esté tierno' }]);
+  });
+
+  it("reads a catalogue slug left in a step's text back as the ingredient's own name", async () => {
+    const result = await built([
+      {
+        ...dish('Tostada', ['lunch'], ['pan-integral', 'tomate']),
+        cookMinutes: 0,
+        steps: [{ text: 'Tueste la rebanada de pan-integral y añada el tomate troceado por encima de todo' }]
+      }
+    ]);
+
+    expect(result.generated[0]?.steps[0]?.text).toBe('Tueste la rebanada de pan integral y añada el tomate troceado por encima de todo');
+  });
+
+  it('drops a cue that reads as English, keeping the dish and its own text', async () => {
+    const result = await built([
+      {
+        ...dish('Arroz con tomate', ['lunch'], ['arroz', 'tomate']),
+        cookMinutes: 0,
+        steps: [{ cue: 'until the rice is tender', text: 'Cuece el arroz con el tomate a fuego medio, removiendo de vez en cuando' }]
+      }
+    ]);
+
+    expect(result.metadata.aiCalls[0]).toMatchObject({ kept: 1, rejected: {} });
+    expect(result.generated[0]?.steps[0]?.cue).toBeUndefined();
+  });
+
+  it("rejects the dish, as wrong_language, when a step's own text reads as English", async () => {
+    const result = await built([
+      {
+        ...dish('Arroz con tomate', ['lunch'], ['arroz', 'tomate']),
+        cookMinutes: 0,
+        steps: [{ text: 'Sear the pork for four minutes until it is golden on both sides' }]
+      }
+    ]);
+
+    expect(result.generated).toEqual([]);
+    expect(result.metadata.aiCalls[0]).toMatchObject({ kept: 0, rejected: { wrong_language: 1 } });
+  });
+});

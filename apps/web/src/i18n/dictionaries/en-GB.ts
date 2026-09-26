@@ -132,6 +132,7 @@ export const enGB: Dictionary = {
       schema: 'schema',
       unknown_ingredient: 'invented ingredient',
       unwanted: 'diet or dislikes',
+      wrong_language: 'wrong language',
       wrong_meal: 'wrong meal'
     },
     remindersHint:

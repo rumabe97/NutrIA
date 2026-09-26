@@ -228,7 +228,7 @@ describe('AI_PROVIDER=openrouter', () => {
   it('defaults to the model 0064 chose, with no fallback and the model’s own reasoning', () => {
     const env = validateEnv(openrouter);
 
-    expect(env.AI_MODEL).toBe('deepseek/deepseek-v4.1-flash');
+    expect(env.AI_MODEL).toBe('google/gemma-4-31b-it');
     expect(env.AI_FALLBACK_MODELS).toBeUndefined();
     expect(env.AI_REASONING_EFFORT).toBeUndefined();
   });

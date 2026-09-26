@@ -31,11 +31,12 @@
 
 **Contrato y cuenta — bloquean el cambio**
 - [ ] **P1-11** — DPA de OpenRouter: pedir acceso en `trust.openrouter.ai`, descargar el DPA y la lista de subencargados; pedir a soporte, por escrito, que confirme que el DPA que su § 10.2 incorpora «for commercial, for-profit purposes» se aplica a esta cuenta de pago y que incluye las cláusulas tipo. Guardar ambos, con fecha, fuera del repositorio. Si la respuesta es que no: parar y volver a `legal`.
-- [ ] **P1-12** — En la cuenta (ajustes de privacidad), *Allowed providers* = `deepinfra`, `coreweave` (propuesta). Comprobar después en `/api/v1/models/deepseek/deepseek-v4.1-flash/endpoints` y en `/admin` que las primeras llamadas las responden solo esas. Si se permite otra empresa, se nombra en la política antes.
+- [x] **P1-12** — Hecho el 2026-09-26 (propietario): en la cuenta (ajustes de privacidad), *Allowed providers* = DeepInfra y CoreWeave. Pendiente solo la comprobación de después: Comprobar después en `/api/v1/models/deepseek/deepseek-v4.1-flash/endpoints` y en `/admin` que las primeras llamadas las responden solo esas. Si se permite otra empresa, se nombra en la política antes.
 - [ ] Ajustes del runbook [`ai-gateway.md` § 0](../reference/ai-gateway.md): entrenamiento **apagado** para modelos de pago y gratuitos; ZDR **encendido** para toda la cuenta; «OpenRouter use of inputs/outputs» **apagado**; registro de prompts (*logging*) **apagado**; la clave con solo los dos modelos, ZDR y tope mensual. Una captura de cada ajuste, fechada, fuera del repositorio (art. 5.2: poder demostrarlo).
-- [ ] **P1-13** — MiniMax M3 de reserva: o bien (a) «Built with MiniMax M3» visible (la política del estado 2 lo lleva; mejor también en el pie o una página «acerca de») y el aviso único que pide su licencia, enviado por el propietario; o bien (b) `AI_FALLBACK_MODELS` vacío y la frase fuera de la política.
-- [ ] (backend, recomendado) `provider.only` con la misma lista en cada petición y un test que lo compruebe: la tercera capa de `0064` también para los proveedores.
-- [ ] **P2-12** — El propietario decide si la categorización anónima de una muestra por OpenRouter cabe en su regla («no quiero entrenar ningún modelo»: no entrena, pero es un uso propio). Si no cabe, no hay cambio a OpenRouter.
+- [x] **P1-13** — Cerrado el 2026-09-26: el propietario quitó MiniMax M3; Gemma 4 31B (`google/gemma-4-31b-it`) es el principal y DeepSeek V4.1 Flash la reserva (decisión del 2026-09-26); Gemma es Apache 2.0, sin aviso, atribución ni restricciones que trasladar (`analisis.md` § 4.4 d). La clave debe admitir ese modelo y no `:free`.
+- [x] (backend) `provider.only` en cada petición desde `AI_PROVIDER_ONLY`, obligatorio al arrancar con `openrouter` (`apps/api/src/config/Env.validation.ts:506-507`). Valor: `deepinfra,coreweave`.
+- [x] **P2-12** — Decidido el 2026-09-26: el propietario acepta la categorización anónima con aviso en la política (estado 2).
+- [ ] El propietario pide por escrito a OpenRouter que excluya su cuenta de la categorización y guarda la respuesta fuera del repositorio. No bloquea: si la excluye, la frase de la política puede quitarse.
 
 **Textos — en este orden**
 1. [ ] `/privacidad` con el **estado 2** (frontend), con `updated` nuevo, cuando las casillas anteriores estén marcadas.
@@ -54,7 +55,7 @@
 - [ ] **P1-3** — Página de invitación con los textos nuevos; `CARE_CONSENT_VERSION = '2.0.0'`; ningún enlace real aceptado con `1.0.0`.
 - [ ] **P1-2** — Correo de invitación con el párrafo del art. 14.
 - [ ] Correo de alta al profesional ([`textos/06`](./textos/06-correos.md) § B).
-- [x] **P1-10 — cerrado** (2026-09-26): producción no usa ningún modelo (`stub`) y el cambio de `0064` no tiene Gemini (la clave solo admite DeepSeek V4.1 Flash y MiniMax M3, sin cláusula de uso clínico). Se reabre si vuelve `AI_PROVIDER=google` o un modelo de Google a la clave.
+- [x] **P1-10 — cerrado** (2026-09-26): producción no usa ningún modelo (`stub`) y el cambio de `0064` no tiene Gemini (la clave solo admite Gemma 4 31B y DeepSeek V4.1 Flash, sin cláusula de uso clínico; Gemma 4 no es la API de Gemini). Se reabre si vuelve `AI_PROVIDER=google` o un modelo de Google a la clave.
 - [ ] `HEALTH_CONSENT_VERSION = '1.1.0'` con la nota precisada (`05` § C).
 
 **Textos**
