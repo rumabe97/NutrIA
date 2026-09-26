@@ -52,3 +52,34 @@ export function minimumSteps(cookMinutes: number): number {
 export function hasUsableMethod(dish: { readonly cookMinutes: number; readonly steps: readonly unknown[] }): boolean {
   return dish.steps.length >= minimumSteps(dish.cookMinutes);
 }
+
+/**
+ * Whether a dish's method actually documents itself, not merely carries
+ * enough steps (`hasUsableMethod`). Nothing further is asked of an assembled
+ * dish — no heat, no cue and no minutes to give (`RewritePrompt`'s own
+ * `assembledGuidance`) — but anything that meets heat needs a cue somewhere
+ * ("the sign it is done") and a duration recorded somewhere, or a home cook
+ * reading it has no way to tell either.
+ *
+ * A floor, like `hasUsableMethod`, not a target: it does not ask that every
+ * step carry a cue or a duration, only that the method carries at least one
+ * of each once there is any cooking to speak of. Eleven library recipes wore
+ * the current prompt's own stamp with zero cues between them, and a
+ * stamp-only check (`RewriteStamp`) never saw it — this is the second half of
+ * what a rewrite is now judged against, alongside the existing content checks
+ * (`RecipeRewriter.rewrite`).
+ */
+export function isMethodComplete(dish: {
+  readonly cookMinutes: number;
+  readonly steps: readonly { readonly cue?: string; readonly minutes?: number }[];
+}): boolean {
+  if (!hasUsableMethod(dish)) {
+    return false;
+  }
+
+  if (dish.cookMinutes <= 0) {
+    return true;
+  }
+
+  return dish.steps.some(step => (step.cue ?? '').trim().length > 0) && dish.steps.some(step => typeof step.minutes === 'number' && step.minutes > 0);
+}

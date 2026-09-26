@@ -75,6 +75,7 @@ class UnavailableAi extends AiClient {
 describe('RecipeRewriter', () => {
   beforeEach(() => {
     jest.spyOn(RecipeController, 'methodVocabulary').mockResolvedValue(VOCABULARY);
+    jest.spyOn(RecipeController, 'recordRewriteRefusal').mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -231,6 +232,59 @@ describe('RecipeRewriter', () => {
     expect(steps[2]?.cue).toBeUndefined();
   });
 
+  it('refuses a rewrite that gives no step a cue, and counts the refusal against the recipe', async () => {
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
+    const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
+    const refusal = jest.spyOn(RecipeController, 'recordRewriteRefusal').mockResolvedValue(undefined);
+    const noCues = { steps: GOOD.steps.map(step => ({ ...step, cue: undefined })) };
+
+    const run = await new RecipeRewriter(new ScriptedAi([noCues]), ON).rewriteOutdated(10);
+
+    expect(run).toEqual({ pending: 1, rewritten: 0, skipped: 1, unreached: 0 });
+    expect(rewrite).not.toHaveBeenCalled();
+    expect(refusal).toHaveBeenCalledWith(RECIPE.id, STEPS_VERSION);
+  });
+
+  it('refuses a rewrite that gives no step a duration, once the dish cooks a while', async () => {
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
+    const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
+    const noMinutes = { steps: GOOD.steps.map(step => ({ ...step, minutes: undefined })) };
+
+    const run = await new RecipeRewriter(new ScriptedAi([noMinutes]), ON).rewriteOutdated(10);
+
+    expect(run).toEqual({ pending: 1, rewritten: 0, skipped: 1, unreached: 0 });
+    expect(rewrite).not.toHaveBeenCalled();
+  });
+
+  it('accepts a rewrite with a cue and a duration, for a dish that cooks', async () => {
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
+    const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
+
+    const run = await new RecipeRewriter(new ScriptedAi([GOOD]), ON).rewriteOutdated(10);
+
+    expect(run).toEqual({ pending: 1, rewritten: 1, skipped: 0, unreached: 0 });
+    expect(rewrite).toHaveBeenCalled();
+  });
+
+  it('does not count a provider failure or an abandoned call against a recipe’s retry bound', async () => {
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
+    const refusal = jest.spyOn(RecipeController, 'recordRewriteRefusal').mockResolvedValue(undefined);
+    const failing = new (class extends AiClient {
+      get isAvailable(): boolean {
+        return true;
+      }
+
+      generate<T>(): Promise<AiResponse<T>> {
+        return Promise.reject(new Error('network blip'));
+      }
+    })();
+
+    const run = await new RecipeRewriter(failing, ON).rewriteOutdated(10);
+
+    expect(run.skipped).toBe(1);
+    expect(refusal).not.toHaveBeenCalled();
+  });
+
   it('refuses a rewrite that is still too compressed, and leaves the recipe for next time', async () => {
     jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
     const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
@@ -303,6 +357,7 @@ describe('RecipeRewriter', () => {
 describe('RecipeRewriter — inside the function’s time', () => {
   beforeEach(() => {
     jest.spyOn(RecipeController, 'methodVocabulary').mockResolvedValue(VOCABULARY);
+    jest.spyOn(RecipeController, 'recordRewriteRefusal').mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -345,6 +400,7 @@ describe('RecipeRewriter — inside the function’s time', () => {
   it('abandons a call that outlives the sweep, even one that ignores its signal, and writes nothing late', async () => {
     jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue(many(3));
     const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
+    const refusal = jest.spyOn(RecipeController, 'recordRewriteRefusal').mockResolvedValue(undefined);
     const hung = new (class extends AiClient {
       get isAvailable(): boolean {
         return true;
@@ -362,6 +418,8 @@ describe('RecipeRewriter — inside the function’s time', () => {
     // The hung call is dropped at the deadline; nothing else had time to start.
     expect(run).toEqual({ pending: 3, rewritten: 0, skipped: 1, unreached: 2 });
     expect(rewrite).not.toHaveBeenCalled();
+    // An abandoned call is the sweep's own clock, never the recipe's fault.
+    expect(refusal).not.toHaveBeenCalled();
   });
 
   it('keeps no more calls in flight than it has lanes, and finishes the batch when there is time', async () => {
