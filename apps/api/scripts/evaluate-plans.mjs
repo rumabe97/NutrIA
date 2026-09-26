@@ -50,6 +50,7 @@ import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValida
 import { resolvePreferences } from 'core/domain/Preference';
 import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
 import { bestEffortExclusions, dishSafety, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
+import { MAIN_SLOTS } from 'core/domain/Variety';
 
 // ---------------------------------------------------------------------------
 // The profiles. Fixed here, printed in the report, so the next run measures the
@@ -440,13 +441,109 @@ async function measureProfile(profile, shared) {
     poolSize: pool.length,
     slug: profile.slug,
     unsafe,
-    variety: varietyViolations.map(violation => ({
+    // How varied the plan actually is, not just whether it broke a rule —
+    // distinct dishes maximised, no two days the same, a repeat as far apart
+    // as the pool allows (owner, 2026-09-26; `0065`).
+    variety: varietyMetrics(scheduled.assignment.days, slots),
+    varietyViolations: varietyViolations.map(violation => ({
       dayIndex: violation.violation.dayIndex,
-      dishSlug: violation.violation.dishSlug,
+      dishSlug: 'dishSlug' in violation.violation ? violation.violation.dishSlug : null,
       kind: violation.violation.kind,
-      slot: violation.violation.slot
+      matchesDayIndex: 'matchesDayIndex' in violation.violation ? violation.violation.matchesDayIndex : null,
+      slot: 'slot' in violation.violation ? violation.violation.slot : null
     })),
     worst
+  };
+}
+
+/**
+ * How varied a scheduled fortnight actually is, read straight off the
+ * assignment — never an estimate, the same way every other number in this
+ * script is read off what `schedulePlan` actually returned.
+ *
+ * - `distinctPerSlot` / `totalDistinct`: how many different dishes each slot,
+ *   and the plan as a whole, actually used.
+ * - `identicalDayPairs`: every later day whose exact set of dishes repeats an
+ *   earlier one — the hard rule the owner named; a plan with any is a bug,
+ *   not a preference.
+ * - `maxRepeats`: the most times any one dish was served, and which one.
+ *   Never above `VARIETY_RULES.maxOccurrencesPerPlan` (two) — `canPlace`
+ *   prevents it by construction, so a higher number here is a bug worth
+ *   reporting, not a policy.
+ * - `minGapDays` / `minGapMainDays`: the closest two servings of the same
+ *   dish ever landed, in days — the second only over `lunch` and `dinner`,
+ *   which is what "a repeat of a main is as far apart as possible" measures.
+ *   `null` when nothing repeated at all.
+ */
+function varietyMetrics(days, slots) {
+  const bySlot = new Map(slots.map(slot => [slot, new Map()]));
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      const bucket = bySlot.get(meal.slot);
+
+      if (!bucket) {
+        continue;
+      }
+
+      const dayIndexes = bucket.get(meal.dish.slug) ?? [];
+
+      dayIndexes.push(day.dayIndex);
+      bucket.set(meal.dish.slug, dayIndexes);
+    }
+  }
+
+  const distinctPerSlot = Object.fromEntries([...bySlot].map(([slot, bucket]) => [slot, bucket.size]));
+
+  let maxRepeats = { count: 0, slug: null };
+  let minGapDays = null;
+  let minGapMainDays = null;
+
+  for (const [slot, bucket] of bySlot) {
+    for (const [slug, dayIndexes] of bucket) {
+      if (dayIndexes.length > maxRepeats.count) {
+        maxRepeats = { count: dayIndexes.length, slug };
+      }
+
+      const sorted = [...dayIndexes].sort((a, b) => a - b);
+
+      for (let index = 1; index < sorted.length; index += 1) {
+        const gap = sorted[index] - sorted[index - 1];
+
+        minGapDays = minGapDays === null ? gap : Math.min(minGapDays, gap);
+
+        if (MAIN_SLOTS.has(slot)) {
+          minGapMainDays = minGapMainDays === null ? gap : Math.min(minGapMainDays, gap);
+        }
+      }
+    }
+  }
+
+  const signatures = new Map();
+  const identicalDayPairs = [];
+
+  for (const day of days) {
+    const signature = [...day.meals]
+      .map(meal => meal.dish.slug)
+      .sort()
+      .join('|');
+    const firstDayIndex = signatures.get(signature);
+
+    if (firstDayIndex === undefined) {
+      signatures.set(signature, day.dayIndex);
+    } else {
+      identicalDayPairs.push([firstDayIndex, day.dayIndex]);
+    }
+  }
+
+  return {
+    distinctPerSlot,
+    identicalDayPairs,
+    maxRepeats,
+    minGapDays,
+    minGapMainDays,
+    slotsFilled: days.length * slots.length,
+    totalDistinct: new Set(days.flatMap(day => day.meals.map(meal => meal.dish.slug))).size
   };
 }
 
@@ -507,10 +604,29 @@ function printProfile(profile, result) {
     }
   }
 
-  console.log(result.variety.length > 0 ? `  variety violations: ${result.variety.length}` : '  variety violations: none');
+  const variety = result.variety;
+  const perSlot = Object.entries(variety.distinctPerSlot)
+    .map(([slot, count]) => `${slot} ${count}`)
+    .join(', ');
 
-  for (const violation of result.variety.slice(0, 10)) {
-    console.log(`    day ${violation.dayIndex} ${violation.slot}: ${violation.dishSlug} (${violation.kind})`);
+  console.log(`  distinct dishes: ${variety.totalDistinct} / ${variety.slotsFilled} slots (${perSlot})`);
+  console.log(`  max repeats of one dish: ${variety.maxRepeats.count}${variety.maxRepeats.slug ? ` (${variety.maxRepeats.slug})` : ''}`);
+  console.log(
+    `  min gap between repeats: ${variety.minGapDays === null ? 'n/a — nothing repeated' : `${variety.minGapDays} day(s)`}` +
+      ` (mains only: ${variety.minGapMainDays === null ? 'n/a' : `${variety.minGapMainDays} day(s)`})`
+  );
+  console.log(
+    variety.identicalDayPairs.length > 0
+      ? `  identical day pairs: ${variety.identicalDayPairs.length} (e.g. day ${variety.identicalDayPairs[0][0]} == day ${variety.identicalDayPairs[0][1]})`
+      : '  identical day pairs: none'
+  );
+
+  console.log(result.varietyViolations.length > 0 ? `  variety violations: ${result.varietyViolations.length}` : '  variety violations: none');
+
+  for (const violation of result.varietyViolations.slice(0, 10)) {
+    console.log(
+      `    day ${violation.dayIndex}${violation.slot ? ` ${violation.slot}` : ''}: ${violation.dishSlug ?? `matches day ${violation.matchesDayIndex}`} (${violation.kind})`
+    );
   }
 
   if (result.unsafe.length > 0) {
@@ -553,6 +669,26 @@ function verdict(before, after) {
   return `mixed — days inside 5% ${before.daysInsideAll4} → ${after.daysInsideAll4}, worst deviation ${pct(beforeWorst)} → ${pct(afterWorst)} (${after.worst ? after.worst.macro : 'n/a'})`;
 }
 
+/** The same idea as `verdict`, for how varied the plan is rather than how well it hits its macros. */
+function varietyVerdict(before, after) {
+  if (!before.measured || !after.measured || !before.variety || !after.variety) {
+    return null;
+  }
+
+  const distinctDelta = after.variety.totalDistinct - before.variety.totalDistinct;
+  const identicalDelta = after.variety.identicalDayPairs.length - before.variety.identicalDayPairs.length;
+
+  if (distinctDelta === 0 && identicalDelta === 0) {
+    return `variety unchanged — ${after.variety.totalDistinct} / ${after.variety.slotsFilled} distinct dishes, ${after.variety.identicalDayPairs.length} identical day pair(s)`;
+  }
+
+  return (
+    `variety: distinct dishes ${before.variety.totalDistinct} → ${after.variety.totalDistinct} / ${after.variety.slotsFilled} slots, ` +
+    `identical day pairs ${before.variety.identicalDayPairs.length} → ${after.variety.identicalDayPairs.length}, ` +
+    `max repeats ${before.variety.maxRepeats.count} → ${after.variety.maxRepeats.count}`
+  );
+}
+
 function printComparison(before, results) {
   console.log('\n--- comparison ---');
 
@@ -565,6 +701,12 @@ function printComparison(before, results) {
     }
 
     console.log(`${after.slug}: ${verdict(previous, after)}`);
+
+    const variety = varietyVerdict(previous, after);
+
+    if (variety) {
+      console.log(`  ${variety}`);
+    }
   }
 }
 

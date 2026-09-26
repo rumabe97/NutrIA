@@ -24,7 +24,7 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { TargetBounds } from 'core/domain/Nutrition';
 import type { PlanViolation } from 'core/domain/PlanValidation';
 import type { GenerationContext } from 'core/controllers/Recipe';
-import { rotatePool } from 'core/domain/Variety';
+import { FRESH_DISHES_PER_SLOT, rotatePool } from 'core/domain/Variety';
 import type { Rotation } from 'core/domain/Variety';
 import type { PlanDraft } from 'core/entities/Plan';
 
@@ -178,6 +178,11 @@ export class PlanGenerationService {
     const built = await this.pool.build({
       backfill,
       context,
+      // 0013's fresh floor, applied regardless of how rich the rotation's own
+      // cap (`REUSED_DISHES_PER_SLOT`, raised in `0065`) lets the library get:
+      // a whole-plan build must never ask the model for fewer than seven
+      // fresh dishes a slot, however well the library already covers it.
+      freshFloorPerSlot: FRESH_DISHES_PER_SLOT,
       libraryUsage,
       preferences: {
         ...promptPreferences(
@@ -320,9 +325,9 @@ export class PlanGenerationService {
     }
 
     /*
-     * A plan inside every bound can still miss its macros, and it did: the
-     * rotation hands the scheduler about a dozen library dishes per slot — held
-     * short on purpose, so the model writes the fresh third (`0013`) — and the
+     * A plan inside every bound can still miss its macros, and it did (`0046`):
+     * the rotation caps what the scheduler sees per slot — `REUSED_DISHES_PER_SLOT`
+     * library dishes plus the model's fixed fresh floor (`0013`, `0065`) — and the
      * scheduler builds the days in order. The dishes that carry the carbohydrate
      * reach their two uses a plan in the first week, and days ten to fourteen
      * are built from what is left: 20–50% off on fat, measured on a real plan.

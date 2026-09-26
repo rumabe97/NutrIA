@@ -1010,7 +1010,7 @@ describe('schedulePlan — the fortnight is repaired as a whole (0048)', () => {
     }
   });
 
-  it('never breaks variety to do it, and does it the same way every time', () => {
+  it('never breaks a per-dish variety rule to do it, and repeats deterministically where the pool leaves no choice', () => {
     const first = run();
     const second = run();
 
@@ -1020,7 +1020,14 @@ describe('schedulePlan — the fortnight is repaired as a whole (0048)', () => {
       return;
     }
 
-    expect(varietyViolations(first.assignment.days)).toEqual([]);
+    // This fixture's whole point is a pool too thin for fourteen different
+    // dinners (eight distinct against fourteen days), so an identical day can
+    // be the pool's own limit rather than a bug — `enforceDistinctDays`
+    // records what it could not avoid instead of pretending it did not
+    // happen. The rules `canPlace` enforces by construction still hold
+    // absolutely, and the plan the thin pool forces is still the same one
+    // every time.
+    expect(varietyViolations(first.assignment.days).filter(violation => violation.kind !== 'identical_day')).toEqual([]);
     expect(second.assignment).toEqual(first.assignment);
   });
 });
@@ -1208,6 +1215,93 @@ describe('axisFilter', () => {
     expect(passes?.(dish(0, 0), { ...macros, kcal: 500, proteinG: 30 })).toBe(true);
     expect(passes?.(dish(0, 0), { ...macros, kcal: 600, proteinG: 33 })).toBe(false);
     expect(passes?.(dish(0, 0), { ...macros, kcal: 0, proteinG: 0 })).toBe(false);
+  });
+});
+
+describe('schedulePlan — distinct dishes are maximised, not just varied (owner, 2026-09-26)', () => {
+  /*
+   * The owner's report: a 3-meal, 14-day plan came back with every one of
+   * twenty-eight distinct dishes used exactly twice, and two whole days
+   * identical, though the pool handed to the scheduler held nineteen per
+   * slot — enough, on its own, for fourteen different lunches. The cause was
+   * the repair passes (`improveDay`, before this change) judging a swap on
+   * fit alone: with every day's targets nearly the same, the day-by-day
+   * search kept finding that the same handful of dishes fit best and spent
+   * them again rather than reaching for the eighteen others sitting in the
+   * pool unused. `DISH_REPEAT_WEIGHT` is what changed that.
+   */
+  const slots = slotsForTest(3, false);
+
+  it('uses a different dish every day when the pool has one to give it', () => {
+    // Nineteen per slot — `REUSED_DISHES_PER_SLOT` after `0065` — against
+    // fourteen days: enough for zero repeats if the scheduler reaches for them.
+    const result = schedulePlan({
+      catalogue,
+      minimumKcal: MINIMUM_KCAL,
+      pool: makePool(slots, 19),
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    for (const slot of slots) {
+      const usage = new Map<string, number>();
+
+      for (const day of result.assignment.days) {
+        const dish = day.meals.find(meal => meal.slot === slot);
+
+        if (dish) {
+          usage.set(dish.dish.slug, (usage.get(dish.dish.slug) ?? 0) + 1);
+        }
+      }
+
+      expect(usage.size).toBe(PLAN_DAYS);
+      expect([...usage.values()].every(count => count === 1)).toBe(true);
+    }
+
+    expect(varietyViolations(result.assignment.days)).toEqual([]);
+  });
+
+  it('still repeats, up to the cap, when the pool is too thin for one dish a day — but never breaks a per-dish rule doing it', () => {
+    // Eight per slot: the exact shape of `0048`'s own thin-pool fixture, a
+    // deliberate adversarial case, not the production floor.
+    const result = schedulePlan({
+      catalogue,
+      minimumKcal: MINIMUM_KCAL,
+      pool: makePool(slots, 8),
+      targets: TARGETS,
+      weights: weightsFor(shapeFor(3, false))
+    });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    for (const slot of slots) {
+      const usage = new Map<string, number>();
+
+      for (const day of result.assignment.days) {
+        const dish = day.meals.find(meal => meal.slot === slot);
+
+        if (dish) {
+          usage.set(dish.dish.slug, (usage.get(dish.dish.slug) ?? 0) + 1);
+        }
+      }
+
+      // The rule the pool cannot make impossible: never more than twice.
+      expect([...usage.values()].every(count => count <= VARIETY_RULES.maxOccurrencesPerPlan)).toBe(true);
+      // And the pool being thin is exactly why a repeat happened at all.
+      expect(usage.size).toBeLessThan(PLAN_DAYS);
+    }
+
+    expect(varietyViolations(result.assignment.days).filter(violation => violation.kind !== 'identical_day')).toEqual([]);
   });
 });
 

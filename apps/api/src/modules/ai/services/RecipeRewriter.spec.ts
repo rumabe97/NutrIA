@@ -162,6 +162,42 @@ describe('RecipeRewriter', () => {
     expect(steps[0]?.text).toBe('Cortar el lomo de cerdo en tiras finas y dorarlo en una sartén amplia a fuego vivo');
   });
 
+  it('cleans a rewrite as a generated dish is cleaned: a slug read back as its name, the minutes put into the field', async () => {
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
+    const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
+    const leaky = {
+      steps: [
+        { cue: 'hasta que doren por fuera', text: 'Cortar el lomo-de-cerdo en tiras finas y dorarlo en una sartén amplia a fuego vivo 3 minutos' },
+        ...GOOD.steps.slice(1)
+      ]
+    };
+
+    await new RecipeRewriter(new ScriptedAi([leaky]), ON).rewriteOutdated(10);
+
+    const [, steps] = rewrite.mock.calls[0] as [string, readonly { minutes?: number; text: string }[], string];
+
+    expect(steps[0]).toMatchObject({
+      minutes: 3,
+      text: 'Cortar el lomo de cerdo en tiras finas y dorarlo en una sartén amplia a fuego vivo 3 minutos'
+    });
+  });
+
+  it('refuses a rewrite written in English for a Spanish recipe, and stores nothing', async () => {
+    jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
+    const rewrite = jest.spyOn(RecipeController, 'rewriteSteps').mockResolvedValue(undefined);
+    const english = {
+      steps: [
+        { cue: 'until browned', minutes: 3, text: 'Slice the lomo de cerdo thinly and sear it in a wide pan over high heat until it is browned' },
+        ...GOOD.steps.slice(1)
+      ]
+    };
+
+    const run = await new RecipeRewriter(new ScriptedAi([english]), ON).rewriteOutdated(10);
+
+    expect(rewrite).not.toHaveBeenCalled();
+    expect(run).toMatchObject({ rewritten: 0, skipped: 1 });
+  });
+
   it('does nothing while the owner has not switched it on, however able the provider is', async () => {
     const pending = jest.spyOn(RecipeController, 'claimStepUpgrades');
 

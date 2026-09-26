@@ -1,13 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  DISHES_NEEDED_PER_SLOT,
-  FRESH_DISHES_PER_SLOT,
-  isPreferredDish,
-  REUSED_DISHES_PER_SLOT,
-  rotatePool,
-  seededShuffle
-} from 'core/domain/Variety';
+import { DISHES_NEEDED_PER_SLOT, FRESH_DISHES_PER_SLOT, isPreferredDish, rotatePool, seededShuffle } from 'core/domain/Variety';
 import type { CandidateDish, MealSlot } from 'core/entities/Plan';
 
 import { makeDish } from '#test/fixtures';
@@ -51,17 +44,23 @@ describe('rotatePool', () => {
     const first = rotatePool(dishes, ['lunch'], { avoidSlugs: nothingAvoided, seed: 'user-a:1' }).map(dish => dish.slug);
     const second = rotatePool(dishes, ['lunch'], { avoidSlugs: nothingAvoided, seed: 'user-b:1' }).map(dish => dish.slug);
 
-    expect(first).toHaveLength(REUSED_DISHES_PER_SLOT);
-    expect(second).toHaveLength(REUSED_DISHES_PER_SLOT);
+    expect(first).toHaveLength(DISHES_NEEDED_PER_SLOT);
+    expect(second).toHaveLength(DISHES_NEEDED_PER_SLOT);
     expect(first).not.toEqual(second);
   });
 
-  it('leaves a third of every slot for dishes that do not exist yet, however large the library', () => {
+  it('hands over the library rotation cap, which a rich library always reaches', () => {
     const dishes = library(200, ['lunch']);
     const picked = rotatePool(dishes, ['lunch'], { avoidSlugs: nothingAvoided, seed: 'user-a:1' });
 
-    expect(picked.length + FRESH_DISHES_PER_SLOT).toBe(DISHES_NEEDED_PER_SLOT);
-    expect(FRESH_DISHES_PER_SLOT).toBeGreaterThanOrEqual(Math.ceil(DISHES_NEEDED_PER_SLOT / 3));
+    // Raised to `DISHES_NEEDED_PER_SLOT` itself (`0065`) — the library may now
+    // cover a whole fortnight's worth of one slot on its own. The model's
+    // fresh floor no longer comes from what this leaves uncovered: `PoolBuilder`
+    // floors its own ask at `FRESH_DISHES_PER_SLOT` regardless of how much the
+    // library hands over, which is what keeps `0013`'s guarantee intact now
+    // that this cap can meet or beat the old total on its own.
+    expect(picked).toHaveLength(DISHES_NEEDED_PER_SLOT);
+    expect(FRESH_DISHES_PER_SLOT).toBe(7);
   });
 
   it('offers a slot enough dishes to fill a fortnight without repeating one', () => {
@@ -90,7 +89,7 @@ describe('rotatePool', () => {
     }).map(dish => dish.slug);
 
     expect(picked.slice(0, 2).sort()).toEqual(['dish-250', 'dish-299']);
-    expect(picked).toHaveLength(REUSED_DISHES_PER_SLOT);
+    expect(picked).toHaveLength(DISHES_NEEDED_PER_SLOT);
   });
 
   it('does not let a favourite override last fortnight', () => {

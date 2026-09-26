@@ -20,9 +20,9 @@ const PLAN_DAYS = 14;
  * the targets instead of being forced into one: without it, one protein-dense
  * outlier lands on several days and takes them out of band.
  *
- * Lives here, not in the pool builder, because two things need the same number:
- * how many dishes to ask a model for, and how many library dishes to hand one
- * user. Two copies of it would drift.
+ * Read by the pool builder as the total the model's shortfall is measured
+ * against (`needPerSlot`) — not, any more, as the library rotation's own cap;
+ * see `REUSED_DISHES_PER_SLOT`.
  */
 export const DISHES_NEEDED_PER_SLOT = PLAN_DAYS + 5;
 
@@ -47,18 +47,37 @@ export const DISHES_NEEDED_PER_SLOT = PLAN_DAYS + 5;
  */
 export const FRESH_SHARE = 1 / 3;
 
-/** Dishes per slot the model is always asked for — the pool's fresh floor. */
+/**
+ * Dishes per slot the model is always asked for — the pool's fresh floor.
+ *
+ * `PoolBuilder` applies this as a floor on the shortfall it computes
+ * (`max(FRESH_DISHES_PER_SLOT, needPerSlot - libraryDishesOnHand)`), not only
+ * as the library rotation's complement any more — see `REUSED_DISHES_PER_SLOT`'s
+ * own note. Its value is unchanged by that: `ceil(19 * 1/3)` is still seven.
+ */
 export const FRESH_DISHES_PER_SLOT = Math.ceil(DISHES_NEEDED_PER_SLOT * FRESH_SHARE);
 
 /**
- * Dishes per slot the library may contribute: the rest.
+ * Dishes per slot the library's rotation may hand over — raised from
+ * `DISHES_NEEDED_PER_SLOT - FRESH_DISHES_PER_SLOT` (twelve) to
+ * `DISHES_NEEDED_PER_SLOT` itself (nineteen).
  *
- * Held back deliberately. The pool builder asks the model only for the
- * shortfall, so this number *is* the mechanism behind "a third of every plan is
- * fresh" (`0013`) — hand the library the whole target and the shortfall is zero,
- * the model is never called, and the shelf everybody draws from stops growing.
+ * Twelve gave a scheduler whose objective already favours the best-fitting
+ * dish no room to spread: a real fortnight (owner, 2026-09-26, three meals)
+ * landed every one of twenty-eight distinct dishes exactly twice, and two
+ * whole days identical, on a library rich enough to have handed each slot
+ * nineteen distinct dishes and only ever handing over twelve. See
+ * [`0065`](../../../../docs/decisions/0065-a-fortnight-is-varied-because-it-is-built-to-be.md).
+ *
+ * Raising this cap can only let the library contribute *more* — it no longer
+ * decides the model's shortfall by subtraction (`PoolBuilder` floors that at
+ * `FRESH_DISHES_PER_SLOT` directly), so a rich library asking for zero fresh
+ * dishes, which is what "hand the library the whole target" broke before
+ * (`0013`'s amendment), cannot happen again by construction: the model is
+ * always asked for at least its fixed floor, however much the library hands
+ * over first.
  */
-export const REUSED_DISHES_PER_SLOT = DISHES_NEEDED_PER_SLOT - FRESH_DISHES_PER_SLOT;
+const REUSED_DISHES_PER_SLOT = DISHES_NEEDED_PER_SLOT;
 
 export type Rotation = {
   /** Slugs this user was served last fortnight, and dishes they disliked. Never offered. */

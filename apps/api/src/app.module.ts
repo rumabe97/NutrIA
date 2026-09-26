@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 
-import { envProvider, validateEnv } from './config/index.js';
+import { envProvider, validateAndExposeEnv } from './config/index.js';
 import { DatabaseModule } from './database/database.module.js';
 import { AdminModule } from './modules/admin/index.js';
 import { AiModule } from './modules/ai/index.js';
@@ -33,7 +33,7 @@ import { LoggingModule } from './shared/logging/index.js';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ cache: true, isGlobal: true, validate: validateEnv }),
+    ConfigModule.forRoot({ cache: true, isGlobal: true, validate: validateAndExposeEnv }),
     LoggingModule,
     ObservabilityModule,
     DatabaseModule,

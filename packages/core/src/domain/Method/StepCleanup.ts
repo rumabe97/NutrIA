@@ -77,9 +77,19 @@ function fixMinutePlaceholder(text: string, locale: string): string {
 /** A run of letters, digits and internal hyphens — the shape of a slug, and of nothing else this should touch. */
 const TOKEN = /[\p{L}\p{N}]+(?:-[\p{L}\p{N}]+)*/gu;
 
-/** Every token that is exactly a known slug, read back as the ingredient's own name; anything else is untouched. */
+/**
+ * Every hyphenated token that is exactly a known slug, read back as the
+ * ingredient's own name; anything else is untouched.
+ *
+ * Only hyphenated ones: a one-word slug is also a plain word, and reading it
+ * back rewrote prose that was already right — "el tomate triturado" became
+ * "el tomate fresco triturado" (slug `tomate`, name "Tomate fresco") and "el
+ * cilantro fresco" became "el cilantro fresco fresco" (found by the stored-
+ * steps dry run, 2026-09-26). A leaked slug worth fixing is the hyphenated
+ * kind — "pan-integral", "queso-cottage" — which no sentence writes.
+ */
 function replaceSlugTokens(text: string, names: ReadonlyMap<string, string>): string {
-  return text.replace(TOKEN, token => names.get(token.toLowerCase()) ?? token);
+  return text.replace(TOKEN, token => (token.includes('-') ? (names.get(token.toLowerCase()) ?? token) : token));
 }
 
 /** One request's worth of general clean-up, common to a step's text and its cue. */
@@ -148,6 +158,25 @@ function looksEnglish(text: string): boolean {
 }
 
 /**
+ * A cue the model wrote into the text instead of its field — "Cocina 15
+ * minutos hasta que esté tierna. cue: que el cuchillo entre sin resistencia."
+ * (Gemma 4 31B rewriting a stored recipe, 2026-09-26). The field's name is
+ * never prose, so "cue:" to the end of the text is taken out and offered as
+ * the cue; the step's own cue, when it has one, still wins.
+ */
+function splitSpilledCue(text: string): { readonly cue?: string; readonly text: string } {
+  const match = /\s*\bcue\s*:\s*(.+)$/is.exec(text);
+
+  if (!match || match.index === 0) {
+    return { text };
+  }
+
+  const cue = match[1]?.trim().replace(/[.\s]+$/, '');
+
+  return { ...(cue ? { cue } : {}), text: text.slice(0, match.index).trim() };
+}
+
+/**
  * One step, cleaned — or `null` when its *text* reads as English in a
  * non-English request, which is not a step this rewrites but a dish this
  * rejects (`PoolBuilder` turns `null` into `wrong_language`).
@@ -157,17 +186,83 @@ function looksEnglish(text: string): boolean {
  */
 export function cleanStep(step: GeneratedStep, options: StepCleanupOptions): GeneratedStep | null {
   const english = isEnglishLocale(options.locale);
-  const text = cleanProse(step.text, options);
+  const { cue: spilledCue, text: ownText } = splitSpilledCue(step.text);
+  const text = cleanProse(ownText, options);
 
   if (!english && looksEnglish(text)) {
     return null;
   }
 
-  const cleanedCue = step.cue ? cleanProse(step.cue, options) : undefined;
+  const rawCue = step.cue || spilledCue;
+  const cleanedCue = rawCue ? cleanProse(rawCue, options) : undefined;
   const cue = cleanedCue && !(!english && looksEnglish(cleanedCue)) ? cleanedCue : undefined;
   const minutes = step.minutes ?? singleDuration(text);
 
   return { ...(cue === undefined ? {} : { cue }), ...(minutes === undefined ? {} : { minutes }), text };
+}
+
+/** Which of `cleanStep`'s passes actually touched a step — for a report that counts changes by kind, not only pass or fail. */
+export type StepChangeKind = 'backtick' | 'englishCueDropped' | 'minutesFilled' | 'placeholderWord' | 'slugToName';
+
+/**
+ * Which of `cleanStep`'s passes would change this step, without writing
+ * anything — for `apps/api/scripts/clean-stored-steps.mjs`, which reports
+ * counts by kind before it touches a row already in the database.
+ *
+ * Re-runs the exact same private passes `cleanStep` does, in the same order,
+ * on the same input, so this can never disagree with what a real clean would
+ * do — there is no second implementation of the rules to drift from the
+ * first. It never returns `'wrong_language'` as a kind: a step whose *text*
+ * reads as English is not a kind of change, it is `cleanStep` returning
+ * `null` for the whole step, and the caller already has that answer from
+ * `cleanStep` itself.
+ */
+export function stepChangeKinds(step: GeneratedStep, options: StepCleanupOptions): readonly StepChangeKind[] {
+  const kinds = new Set<StepChangeKind>();
+
+  const checkProse = (text: string): string => {
+    const stripped = stripBackticks(text);
+
+    if (stripped !== text) {
+      kinds.add('backtick');
+    }
+
+    const fixed = fixMinutePlaceholder(stripped, options.locale);
+
+    if (fixed !== stripped) {
+      kinds.add('placeholderWord');
+    }
+
+    const replaced = replaceSlugTokens(fixed, options.ingredientNames);
+
+    if (replaced !== fixed) {
+      kinds.add('slugToName');
+    }
+
+    return replaced;
+  };
+
+  const english = isEnglishLocale(options.locale);
+  const text = checkProse(step.text);
+
+  if (!english && looksEnglish(text)) {
+    // `cleanStep` rejects the whole step here; nothing past this is its own kind of change.
+    return [...kinds];
+  }
+
+  if (step.cue) {
+    const cleanedCue = checkProse(step.cue);
+
+    if (!english && looksEnglish(cleanedCue)) {
+      kinds.add('englishCueDropped');
+    }
+  }
+
+  if (step.minutes === undefined && singleDuration(text) !== undefined) {
+    kinds.add('minutesFilled');
+  }
+
+  return [...kinds];
 }
 
 /**

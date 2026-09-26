@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OnboardingIncompleteError, ProfileConsentRequiredError } from 'core/entities/Error';
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
-import { DISHES_NEEDED_PER_SLOT, REUSED_DISHES_PER_SLOT } from 'core/domain/Variety';
+import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 import { toCatalogue } from 'core/entities/Plan';
 import { makeCatalogueIngredient } from '#test/fixtures';
 
@@ -215,7 +215,7 @@ describe('RecipeController.reusablePool — a dish is served only at the meals i
     // narrowing, the stews would fill every dinner place and the plain dish
     // would never be picked; the stews would then lose dinner and the slot
     // would be empty.
-    const stews = Array.from({ length: REUSED_DISHES_PER_SLOT }, (_, index) =>
+    const stews = Array.from({ length: DISHES_NEEDED_PER_SLOT }, (_, index) =>
       recipe(`lentejas-${String(index)}`, ['lunch', 'dinner'], 'lentejas-cocidas', 'cebolla')
     );
 

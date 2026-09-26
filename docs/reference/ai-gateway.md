@@ -46,7 +46,7 @@ With `AI_PROVIDER=openrouter` the pool builder calls `https://openrouter.ai/api/
 | `AI_PROVIDER_IGNORE` | empty — `AI_PROVIDER_ONLY` already decides; `sail-research` was the slow one while the list was open |
 | `AI_MAX_OUTPUT_TOKENS_PER_DISH` | empty (1200) — caps a request that would return far more dishes than asked |
 | `AI_BUDGET_SECONDS` | empty — 170 |
-| `AI_REWRITE_STEPS` | `false` until decided: on OpenRouter every rewrite is a paid call |
+| `AI_REWRITE_STEPS` | `true` once generation runs on OpenRouter: the daily cron (`/api/v1/cron/rewrite-steps`, 03:30) rewrites 12 older-prompt recipes a day at about 0.001 $ each. Measured on dev 2026-09-26, one sweep per model: Gemma rewrote 11 of 12 in 2.5–10 s, compact, some times in `minutes`; DeepSeek 8 of 12 in 1.4–4 s, four refused for a step over 600 characters, several actions per step and no `minutes` — so `AI_REWRITE_MODEL` stays **empty** (the generation's model) |
 
 **Seven fresh dishes a meal, three per request** (`0064` § 4): the first round asks each meal's shortfall as parallel requests of at most three dishes (7 → 3 + 3 + 1), inside the same budget; a later round asks one request per meal for what is still short. A 413 or 429 on one request is recorded in the call log and costs only its own dishes; the library covers them.
 

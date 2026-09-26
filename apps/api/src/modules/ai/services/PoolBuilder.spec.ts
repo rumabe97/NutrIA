@@ -2,7 +2,7 @@ import { describe, expect, it, jest } from '@jest/globals';
 
 import { CATALOGUE_SAMPLE_SIZE } from 'core/domain/MealFit';
 import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
-import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
+import { DISHES_NEEDED_PER_SLOT, FRESH_DISHES_PER_SLOT } from 'core/domain/Variety';
 import { toCatalogue } from 'core/entities/Plan';
 
 import { AiCallError } from '../clients/AiClient.js';
@@ -139,6 +139,73 @@ describe('shortfall', () => {
 
     expect(shortfall(SLOTS, versatile).get('lunch')).toBe(0);
     expect(shortfall(SLOTS, versatile).get('breakfast')).toBe(DISHES_NEEDED_PER_SLOT);
+  });
+
+  it('takes a fixed per-slot target over one number for every slot', () => {
+    const have = [{ ...dish('rich', ['lunch']), slug: 'rich' }];
+    const target = new Map<MealSlot, number>([
+      ['lunch', 3],
+      ['dinner', 9]
+    ]);
+
+    expect([...shortfall(['lunch', 'dinner'], have, target).entries()]).toEqual([
+      ['lunch', 2],
+      ['dinner', 9]
+    ]);
+  });
+});
+
+describe('PoolBuilder — the fresh floor holds however rich the library the rotation cap now allows (0065)', () => {
+  const preferences = {
+    avoidNames: [],
+    budget: null,
+    cookingFrequency: null,
+    cookingTimeMinutes: 30,
+    cuisines: [],
+    dayShape: null,
+    dietaryPatterns: [],
+    dislikedNames: [],
+    goal: null,
+    likedFoods: [],
+    lovedNames: [],
+    month: 1,
+    slotShares: new Map(),
+    targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
+  };
+
+  /**
+   * `REUSED_DISHES_PER_SLOT` rose from twelve to `DISHES_NEEDED_PER_SLOT`
+   * itself (`0065`), so the rotation can now hand a library-rich user far
+   * more than nineteen dishes were ever meant to leave short. What must not
+   * move is what the model is asked for: `max(FRESH_DISHES_PER_SLOT, needed -
+   * have)`, floored at seven regardless of how large `have` grows — never the
+   * bare `needed - have`, which would ask for nothing once the library alone
+   * reached the old whole target and break 0013's guarantee exactly the way
+   * its own amendment already once did.
+   */
+  it.each([
+    [5, 14],
+    [11, 8],
+    [12, 7],
+    [19, 7]
+  ])('with %d library dishes already on hand for the slot, the model is asked for %d', async (have, asked) => {
+    const { client, generate } = answeringClient();
+    const reusable = Array.from({ length: have }, (_u, index) => ({ ...dish(`have ${index}`, ['lunch']), slug: `have-${index}` }));
+
+    await new PoolBuilder(client).build({ context: context(), freshFloorPerSlot: FRESH_DISHES_PER_SLOT, preferences, reusable, slots: ['lunch'] });
+
+    const totalAsked = generate.mock.calls.reduce((sum, call) => sum + askedIn((call[0] as { prompt: string }).prompt).count, 0);
+
+    expect(totalAsked).toBe(asked);
+  });
+
+  it('asks for nothing extra when no fresh floor is passed — a meal swap keeps costing exactly what it always has', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+    const reusable = Array.from({ length: 19 }, (_u, index) => ({ ...dish(`have ${index}`, ['lunch']), slug: `have-${index}` }));
+
+    await new PoolBuilder(client).build({ context: context(), needPerSlot: 4, preferences, reusable, slots: ['lunch'] });
+
+    expect(generate).not.toHaveBeenCalled();
   });
 });
 
