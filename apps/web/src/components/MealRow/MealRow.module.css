@@ -95,19 +95,18 @@
 .text {
   align-content: center;
   display: grid;
-  gap: var(--space-01);
+  gap: var(--space-01) var(--space-04);
   grid-template-areas:
     'slot meta'
     'name meta';
   grid-template-columns: minmax(0, 1fr) auto;
   min-block-size: var(--dish-thumb);
-  column-gap: var(--space-04);
 }
 
 .slot {
-  grid-area: slot;
   color: var(--foreground-02);
   font-size: var(--font-size-01);
+  grid-area: slot;
   letter-spacing: var(--tracking-caps);
   text-transform: uppercase;
 }
@@ -119,10 +118,10 @@
 
 .meta {
   align-self: center;
-  grid-area: meta;
   color: var(--foreground-02);
   font-size: var(--font-size-02);
   font-variant-numeric: tabular-nums;
+  grid-area: meta;
   white-space: nowrap;
 }
 
@@ -186,8 +185,9 @@
 /*
  * On a phone the figures go under the name. Beside it they took a third of the
  * width — a nowrap block of "583 kcal · 42 g P" — and every dish name wrapped to
- * four lines. The picture steps down a size for the same reason. The ingredients take the row's whole width from the picture's edge:
- * indented under the name they would have a column too narrow for their own names.
+ * four lines. The picture steps down a size for the same reason. The ingredients
+ * take the row's whole width from the picture's edge: indented under the name they
+ * would have a column too narrow for their own names.
  */
 @media (width < 34rem) {
   /* Eight pixels back for the name, which on a 320 px screen has barely 130. */
