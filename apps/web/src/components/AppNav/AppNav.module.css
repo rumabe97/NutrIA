@@ -219,6 +219,14 @@ body:has(
   }
 }
 
+/* Tabbing forward never leaves focus under the fixed bar: scrolling a control into
+   view stops the bar's height (56px links) and a gap short of the bottom. */
+@media (width < 48rem) {
+  html:has(.bottomBar) {
+    scroll-padding-block-end: calc(56px + env(safe-area-inset-bottom) + var(--space-03));
+  }
+}
+
 @media (width >= 48rem) {
   .desktopNav {
     display: flex;

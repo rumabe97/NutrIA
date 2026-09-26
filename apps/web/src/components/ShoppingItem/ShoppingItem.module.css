@@ -56,8 +56,9 @@
 }
 
 @media (pointer: coarse) {
+  /* The label grows by what the padding gives up, so the row is as tall as before. */
   .item {
-    padding-block: var(--space-01);
+    padding-block: calc(var(--space-03) - (var(--target-min) - 1.5rem) / 2);
   }
 
   .label {
