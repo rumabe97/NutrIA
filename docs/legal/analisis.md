@@ -6,6 +6,12 @@
 > artículo en que se apoya y a lo que el código hace de verdad (con `ruta:línea`). Lo
 > que depende de una interpretación está marcado **[abogado]** y reunido en el § 10.
 > Fecha de corte: 2026-09-25. Commit leído: `ce12c0d`.
+>
+> **Revisión 2026-09-26 — el proveedor de IA** ([`0064`](../decisions/0064-generation-runs-on-paid-no-training-models-through-openrouter.md)),
+> commit leído `31c3f99`: §§ 0 (punto 6), 1.3, 3, 4.2, 4.3, 7, 9 (P0-3, P1-10, P1-11 a
+> P1-13, P2-11, P2-12, P3) y 10. Lo demás no se ha vuelto a leer contra el código: los
+> estados de P0-1, P0-2, P1-1 a P1-4 que dan este documento y la EIPD son los del
+> 2026-09-25 y el `decisions/LOG.md` de ese día dice que se construyeron.
 
 ## 0. Resumen en diez líneas
 
@@ -29,6 +35,14 @@
 5. **El propietario como persona física**: vender Premium o planes de consulta es
    actividad económica: alta censal en Hacienda y, muy probablemente, en el RETA; el aviso
    legal debe llevar domicilio y NIF (§ 6).
+6. **IA (2026-09-26).** Producción no llama a ningún modelo desde el 2026-09-26
+   (`AI_PROVIDER=stub`). El cambio a OpenRouter con modelos de pago, retención cero y sin
+   entrenamiento (`0064`) cumple la regla del propietario **si** antes: se tiene el texto
+   del acuerdo de tratamiento de OpenRouter y la confirmación de que aplica a su cuenta
+   (P1-11); se cierra en la cuenta la lista de empresas que pueden ejecutar el modelo
+   (P1-12: hoy puede ir a 22, una en Indonesia); y se cumple la licencia de MiniMax M3 o se
+   quita de reserva (P1-13). La política cambia en dos pasos (§ 4.3, [`textos/02`](./textos/02-politica-privacidad.md)).
+   P1-10 (Gemini en `/consulta`) se cierra con el cambio.
 
 ---
 
@@ -77,32 +91,75 @@ de un pedido de medicamentos sin receta se consideraron de salud). Con ese crite
 Consecuencia: el producto trata categorías especiales **fuera** de las tres tablas de
 salud, sin ninguna excepción del art. 9.2. Ver P0-2 en el § 9.
 
-### 1.3 Lo que llega a la IA
+### 1.3 Lo que llega a la IA (revisado 2026-09-26)
 
-El prompt de generación (`apps/api/src/modules/ai/prompts/PoolPrompt.ts:530-644`) contiene:
-objetivos diarios y su reparto, el objetivo (`weight_loss`…), la «forma de comer» tal
-cual (`:622`, incluidos `halal`/`kosher`), las alergias en texto libre que no se
-resolvieron (`:628`), el comentario del último check-in entre comillas (`:268`), horarios,
-notas sobre la semana laboral, gustos y aversiones, y el catálogo de ingredientes **ya
-filtrado** por alergias, intolerancias y la exclusión por celiaquía. No lleva nombre,
-correo ni `userId`; con OmniRoute se envía un identificador de trabajo, no de persona
-(`apps/api/src/modules/ai/ai.config.ts:121-136`). Condiciones, medicación y suplementos no
-entran: `apps/api/src/modules/ai` no importa nada de salud y un test lo asegura
-(`health-boundary.spec.ts`). **Matiz**: el efecto sí entra — la celiaquía quita el gluten
-del catálogo y un suplemento proteico añade la proteína en polvo (`0052`); el dato no.
+**El prompt** (`apps/api/src/modules/ai/prompts/PoolPrompt.ts`, `PROMPT_VERSION = '4.1.0'`
+en `:123` a `31c3f99`; lo que quitó la 4.0.0, en `:98-107`. La 4.2.0, sin fusionar el
+2026-09-26, solo agrupa la fruta y la verdura por temporada: no añade ningún dato de la
+persona): objetivos diarios y su reparto por comida,
+el tipo de objetivo (p. ej. `weight_loss`), la forma del día y sus horas, frecuencia,
+tiempo y presupuesto de cocina, «vegetariano» o «vegano» y ninguna otra forma de comer
+(`NAMEABLE_PATTERNS`), cocinas de una lista cerrada, alimentos que gustan por su nombre de
+catálogo, nombres de platos queridos, rechazados y servidos, las respuestas cerradas del
+check-in, y los alimentos de esa comida **ya filtrados** por alergias, intolerancias y
+formas de comer. **No** lleva nombre, correo, `userId`, edad, sexo, peso, altura, nada
+escrito por la persona, alergias ni salud declarada: `apps/api/src/modules/ai` no importa
+nada de salud y un test lo asegura (`health-boundary.spec.ts`). **Matiz**: el efecto sí
+entra —la celiaquía quita el gluten del catálogo y un suplemento proteico añade la
+proteína en polvo (`0052`)—; el dato no.
 
-**A quién llega**, según el runbook (`docs/reference/ai-gateway.md` § 1, «confirmado
-2026-09-12»): la pasarela OmniRoute del propietario, que envía a
-`opencode/muse-spark-1.2-contributor-free`, luego `opencode/mimo-v2.5-free`, y por último
-Gemini. Según OpenCode Zen (consultado hoy), sus modelos «están alojados en EE. UU.»;
-los de MiMo gratuitos: «durante su periodo gratuito, los datos recogidos pueden usarse
-para mejorar el modelo»; Muse Spark *Contributor*: usa «tus prompts y respuestas para
-entrenar futuros modelos de Meta». Las condiciones de la API de Gemini (en vigor
-23/03/2026) prohíben enviar datos personales a los servicios gratuitos salvo que el
-usuario de la API esté en el EEE, en cuyo caso se aplican los términos de pago; y
-prohíben usarla «en la práctica clínica». La memoria del propietario dice que la
-combinación iba a pasar a OpenRouter + Groq con Gemini de reserva: **el propietario debe
-confirmar qué modelos sirven hoy** y aplicar el § 4.3 a los que sean.
+**Hasta el 2026-09-26** el prompt iba a la pasarela OmniRoute del propietario, que lo
+enviaba a modelos gratuitos cuyos proveedores entrenan o registran (`opencode/*-free`;
+Muse Spark *Contributor*: «tus prompts y respuestas para entrenar futuros modelos de
+Meta»; NVIDIA Nemotron gratuito: «logged… to improve NVIDIA products and services»,
+informe `docs/reference/architecture/0002` P10) y, de reserva, a la cuota gratuita de
+Gemini. Antes de la 4.0.0 (2026-09-25) llevaba además alergias en texto libre, la forma
+de comer (halal, kósher) y el comentario del check-in (P0-3).
+
+**Corrección sobre Gemini** (premisa P12 del informe `0002`). Este análisis agrupaba la
+cuota gratuita de Gemini con los modelos que entrenan. No es exacto para un propietario
+en el EEE. Las *Gemini API Additional Terms* (última actualización 23/03/2026,
+`ai.google.dev/gemini-api/terms`, leídas el 2026-09-26) dicen: «If you're in the
+European Economic Area, Switzerland, or the United Kingdom, the terms under "How Google
+uses Your Data" in "Paid Services" apply to all Services, including Google AI Studio and
+unpaid quota in the Gemini API, even though they are offered free of charge» — es decir,
+**no entrena**. El problema era otro, y más claro: «You may use only Paid Services when
+making API Clients available to users in the European Economic Area, Switzerland, or the
+United Kingdom». Servir a los usuarios de NutrIA con la cuota gratuita **incumplía las
+condiciones de Google**, fuera o no el paso de reserva. Y «You may not use the Services
+in clinical practice, to provide medical advice…» vale también de pago (P1-10).
+
+**Desde el 2026-09-26** producción corre con `AI_PROVIDER=stub` (`0064`;
+`apps/api/src/modules/ai/ai.config.ts`, `case 'stub': return null`): **no se llama a
+ningún modelo** y los platos salen de la biblioteca. Tampoco se dibujan ilustraciones:
+solo existen con `AI_PROVIDER=google` y `AI_ILLUSTRATIONS=true` (`resolveImageModel`).
+
+**Después del cambio** (`0064`; runbook `docs/reference/ai-gateway.md` § 0), con
+`AI_PROVIDER=openrouter`:
+
+- La API llama directamente a `https://openrouter.ai/api/v1`; cualquier otro host se
+  rechaza al arrancar y otra vez al entregar la clave (`openRouterBaseUrl`).
+- Pide `deepseek/deepseek-v4.1-flash` y, de reserva dentro de la misma petición,
+  `minimax/minimax-m3` (`openRouterRequest`, campo `models`).
+- Cada petición lleva, escrito encima de cualquier otro valor,
+  `provider: { zdr: true, data_collection: 'deny', require_parameters: true }`
+  (`NO_TRAINING_PROVIDER`), y ninguna cabecera de sesión ni id nuestro
+  (`resolveCallSettings`: `sessionHeader: null`).
+- En la cuenta (owner): entrenamiento apagado para modelos de pago y gratuitos, ZDR para
+  toda la cuenta, el uso de entradas y salidas por OpenRouter apagado; la clave, solo con
+  esos dos modelos, ZDR y un tope mensual. **Lo que ni el código ni el runbook fijan: qué
+  empresas pueden ejecutar el modelo** (P1-12).
+
+**Quién puede recibir la petición**, según la API pública de OpenRouter consultada el
+2026-09-26 (`/api/v1/endpoints/zdr`, `/api/v1/providers`): para DeepSeek V4.1 Flash,
+**23 endpoints ZDR de 22 empresas**, entre ellas DeepInfra, CoreWeave y Together (sede en
+EE. UU.), NextBit (España), **DekaLLM (sede y centro de datos en Indonesia)**, SiliconFlow
+(sede en Singapur, centro en EE. UU.) y Makora (sin sede ni condiciones publicadas); para
+MiniMax M3, 9 endpoints ZDR (CoreWeave, DeepInfra, Together, Parasail, Novita, SambaNova,
+ModelRun, Mara, Venice). Ni DeepSeek (China) ni MiniMax (Singapur) sirven hoy su modelo
+en un endpoint ZDR. En la medición de `0064` respondieron DeepInfra, Together, CoreWeave,
+DekaLLM y Sail Research — con dos personas sintéticas construidas de un id aleatorio
+(`apps/api/scripts/bench-models.mjs:46-47`), así que no salió ningún dato de nadie.
 
 ### 1.4 Proyecto 004: qué ve y qué hace el profesional
 
@@ -210,7 +267,7 @@ apreciara la corresponsabilidad, y no estorba si no.
 | Calcular objetivos y generar planes | perfil corporal, objetivo, preferencias, alergias, intolerancias, forma de comer | 6.1.b | **9.2.a consentimiento explícito** — hoy **no existe** para estos datos (P0-2) |
 | Condiciones, medicación, suplementos | los tres | 6.1.a | 9.2.a ✔ (existe) |
 | Seguimiento: peso, adherencia, check-ins | serie de peso, marcas, respuestas | 6.1.b | 9.2.a (cubierto por el nuevo consentimiento) |
-| Enviar a la IA para generar | lo del § 1.3 | 6.1.b | 9.2.a — y solo a proveedores que actúen como **encargados** (art. 28) sin entrenar (§ 4.3) |
+| Enviar a la IA para generar | lo del § 1.3 (prompt 4.1.0: sin identificadores, salud, texto libre ni creencias) | 6.1.b | Con el prompt 4.1.0 no se envía ningún dato del art. 9, salvo que «perder peso» lo sea en la lectura amplia **[abogado]**; si lo es, 9.2.a, cubierto por el consentimiento del perfil, cuyo texto (`profileConsent.ai`) informa del envío. Y solo a un **encargado** con contrato, sin entrenamiento ni retención (§ 4.3) |
 | Compartir con el dietista | lo del § 1.4 | 6.1.a | 9.2.a ✔ (existe, con defectos de información: P1) |
 | Salud compartida con el dietista | condiciones, medicación, suplementos | 6.1.a | 9.2.a, línea aparte ✔ |
 | Uso del dietista para su asistencia | lo que ve | (suya) 6.1.b/6.1.c | (suya) 9.2.h |
@@ -269,12 +326,14 @@ cuenta así: el propietario debe comprobarlo).
 | Destinatario | Rol | Dónde | Garantía que hay que comprobar |
 | --- | --- | --- | --- |
 | Vercel (alojamiento; funciones en `fra1`) | encargado | UE para el cómputo; empresa de EE. UU. | DPA de Vercel + EU-US Data Privacy Framework (DPF) o cláusulas tipo |
-| Neon (base de datos, `eu-central-1`, `docs/reference/deployment.md:100-106`) | encargado | UE; empresa de EE. UU. | DPA + DPF/cláusulas tipo |
-| Proveedor(es) de IA vía OmniRoute | **deben ser encargados** | EE. UU. (OpenCode: «alojados en EE. UU.») | DPA sin entrenamiento + DPF/cláusulas tipo. **Hoy no se cumple** (P0-3) |
-| Pasarela OmniRoute (servidor del propietario) | medio propio | donde esté alojada | anotar dónde; *No-Log Payload Privacy* activado (`ai-gateway.md` § 1.3) |
+| Neon (base de datos, `eu-central-1`, `docs/reference/deployment.md:100-106`) | encargado | UE; empresa de EE. UU. | DPA + DPF: Neon, LLC es entidad cubierta de la certificación de Databricks, Inc. (lista del DPF, UE-EE. UU. activa, consulta 2026-09-26) |
+| **OpenRouter, Inc.** (Nueva York), tras el cambio de `0064` | **encargado** (enruta y cobra; no guarda el contenido con el registro apagado); responsable solo de su categorización anónima (§ 4.3) | EE. UU. (Google Cloud, regiones de EE. UU., según el anexo 2 de su DPA Enterprise) | **No** está en el DPF (consulta 2026-09-26: 0 resultados). Cláusulas tipo del art. 46 (su política de privacidad, 31/08/2026; DPA Enterprise § 13.2, módulo 2), en el DPA que sus condiciones § 10.2 incorporan para uso comercial — **texto por obtener** (P1-11) |
+| Empresa que ejecuta el modelo (propuesta: DeepInfra, CoreWeave) | según OpenRouter **no son subencargados** (DPA Enterprise § 11.10); funcionalmente tratan por cuenta de NutrIA (§ 4.3) | EE. UU. (sede y centros); hoy la cuenta admite también Indonesia y empresas sin sede publicada (P1-12) | Ninguna en el DPF (consulta 2026-09-26). Sus compromisos (retención cero, sin entrenamiento; CoreWeave con cláusulas tipo) van con OpenRouter, no con NutrIA. La petición no lleva nada que identifique (C-413/23 P) — P2-11 |
+| Pasarela OmniRoute (servidor del propietario) | medio propio | donde esté alojada | **Fuera de producción** desde `0064`; solo experimentos |
+| Proveedores de la pasarela hasta el 2026-09-26 (`opencode/*-free`, OpenRouter `:free`, Gemini gratuito) | terceros que entrenaban o cuyas condiciones prohibían este uso | EE. UU. | Ninguna. **Ya no reciben nada** (`stub` desde el 2026-09-26) |
 | Google (correo SMTP) | encargado | UE/EE. UU. | Términos de Google Workspace/Gmail. **[abogado]**: una cuenta Gmail de consumo no ofrece DPA; mejor un proveedor transaccional con DPA |
-| Stripe / Link | encargado para cobrar; **vendedor** con *Managed Payments* | UE (Stripe Technology Europe) y EE. UU. | DPA de Stripe; con *Managed Payments*, Link es responsable de su venta |
-| Sentry (si `SENTRY_DSN`) | encargado | EE. UU. o UE según la región elegida | DPA; elegir región UE; no recibe datos personales por diseño |
+| Stripe / Link | encargado para cobrar; **vendedor** con *Managed Payments* | UE (Stripe Technology Europe) y EE. UU. | DPA de Stripe; Stripe, LLC en el DPF (activa, 2026-09-26); con *Managed Payments*, Link es responsable de su venta |
+| Sentry (si `SENTRY_DSN`) | encargado | EE. UU. o UE según la región elegida | DPA; Sentry.io en el DPF (activa, 2026-09-26); elegir región UE; no recibe datos personales por diseño |
 | Servicios push del navegador (Google, Apple, Mozilla) | transmisión cifrada extremo a extremo (VAPID) | EE. UU. | el contenido va cifrado; basta con informar |
 
 La política actual no dice nada de transferencias (art. 13.1.f) — P1.
@@ -299,6 +358,136 @@ producto a esa lectura **[abogado]**.
 La salida más barata y la más limpia son la misma: **no enviar texto libre del
 interesado a ningún modelo que entrene** y enviar la forma de comer como restricción de
 ingredientes, no como etiqueta religiosa. Ver P0-3.
+
+### 4.4 OpenRouter y quien ejecuta el modelo (2026-09-26, para el cambio de `0064`)
+
+Las tres condiciones del § 4.3, una por una, contra lo que dicen hoy los propios
+proveedores (páginas leídas el 2026-09-26; fechas de cada una entre paréntesis).
+
+**a) OpenRouter es encargado, con un contrato que falta tener en la mano.**
+
+- **Qué hace**: recibe la petición del servidor de NutrIA, elige la empresa que ejecuta el
+  modelo y cobra. «OpenRouter does not store your prompts or responses, *unless* you opt
+  in» (documentación, *Data collection*); guarda metadatos: tokens, latencia, coste. Con
+  el registro de prompts apagado no guarda el contenido. Para eso actúa por cuenta de
+  NutrIA: **encargado** (art. 4.8).
+- **El contrato**: sus condiciones (última actualización 31/08/2026), § 10.2: «If you are
+  part of and represent an organization in entering into these Terms or use the Service
+  for commercial, for-profit purposes, please read the OpenRouter Data Processing
+  Agreement ("DPA")… The DPA is incorporated by reference into, and made a part of, these
+  Terms». NutrIA es actividad económica (§ 6): le aplica. **Pero** el texto de ese DPA no
+  es público (se pide en `trust.openrouter.ai`) y el centro de ayuda de OpenRouter dice
+  que el DPA firmado es para clientes Enterprise y que el resto solo puede leerlo (no pude
+  abrir el artículo, que está tras una protección anti-bots; lo cito por el resumen del
+  buscador y por el informe `0002`, P14). El DPA de Enterprise sí es público (anexo A del
+  *Enterprise Access Agreement*, 22/06/2026): cláusulas tipo, módulo 2 (§ 13.2); aviso de
+  brechas «without undue delay, and in any case, within seventy-two (72) hours» (§ 7);
+  30 días de preaviso y derecho de oposición a subencargados nuevos (§ 5.2-5.3); borrado
+  en 30 días hábiles a petición (anexo 2).
+- **Mi lectura**: las condiciones son el contrato y dicen que el DPA forma parte de él; un
+  artículo de ayuda no lo deroga. Pero el art. 28.3 exige un contrato «por escrito» con un
+  contenido mínimo, y el responsable tiene que poder demostrarlo (arts. 5.2 y 24): un DPA
+  cuyo texto no tiene no le sirve. **→ P1-11, bloquea el cambio** hasta tener el texto y
+  la confirmación de OpenRouter de que aplica a su cuenta **[abogado]**.
+- **Transferencia**: OpenRouter, Inc. (169 Madison Avenue, Nueva York) **no está en el
+  DPF** (lista oficial, 2026-09-26). Su política de privacidad (31/08/2026) se apoya en
+  «standard contractual clauses approved by the European Commission under Article 46 of
+  the GDPR» y dice que los datos van «to our servers in the US». El enrutamiento dentro de
+  la UE solo existe para Enterprise.
+
+**b) Quien ejecuta el modelo: no es subencargado según OpenRouter; hay que nombrarlo y
+elegirlo.**
+
+- DPA Enterprise § 11.10: «AI Model Providers, acting in their capacity as third party
+  model providers, are not subcontractors of OpenRouter»; y § 2.2.3 deja al cliente
+  apartarse de los que entrenan «or select "Zero Data Retention"». Las condiciones, § 5.1:
+  el cliente acepta las condiciones de cada modelo y «You are solely responsible for
+  reviewing the Model Terms».
+- **Funcionalmente** esas empresas tratan la petición por cuenta de NutrIA y para su fin,
+  sin fines propios (ZDR, sin entrenamiento): son lo que el CEPD llamaría subencargados
+  (Directrices 07/2020, v2.0: la calificación es funcional, no la que ponga el contrato).
+  El art. 28.4 pide que el subencargado quede obligado por contrato a lo mismo; OpenRouter
+  no asume esa cadena. Sus compromisos van con OpenRouter, no con NutrIA:
+  - **DeepInfra** (condiciones, 17/08/2026): «Provider will not use Customer Data to
+    train, fine-tune, or otherwise improve any model… Provider will not retain, store, or
+    log any Customer Data submitted to or generated by the Services beyond the period
+    strictly necessary to process and return the applicable request»; política de
+    privacidad (15/08/2026): «processed outside of your jurisdiction, specifically in the
+    United States». Sirve los dos modelos en ZDR.
+  - **CoreWeave** (política de privacidad, 24/02/2026): «Customers are controllers of
+    Customer Data»; su DPA, incorporado a sus condiciones, con cláusulas tipo
+    responsable-encargado y encargado-encargado. Centros en EE. UU. Sirve los dos modelos
+    en ZDR (MiniMax M3 en fp4).
+  - **Together** (política, 17/12/2025): ZDR en ajustes y cláusulas tipo; **pero** sus
+    condiciones § 4 prohíben «transmit or provide to the Company any financial or medical
+    information of any nature or any sensitive personal data (e.g., … birth dates…)».
+    NutrIA no envía nada de eso, pero un servicio con planes para pacientes de un
+    dietista es mala compañía para esa cláusula (P3).
+  - Ninguno está en el DPF (2026-09-26).
+- **Por qué, aun así, el riesgo es bajo** **[abogado]**: la petición no lleva nada que
+  identifique a una persona —ni id, ni su IP (la conexión es de OpenRouter), ni nombre,
+  edad, peso o texto libre—. El TJUE (C-413/23 P, *CEPD c. JUR*, 4/9/2025) admite que un
+  dato seudonimizado no sea personal para el receptor que no tiene medios razonables de
+  reidentificar, aunque lo siga siendo para quien lo envía; y dice que la obligación de
+  informar del destinatario se aprecia **desde el responsable y al recoger el dato**. Por
+  eso la política tiene que **nombrar** a esas empresas y su país (art. 13.1.e-f) — P2-11
+  para lo demás.
+- **Lo que no se puede justificar es no saber quiénes son.** Con la cuenta como está, la
+  petición puede ir a 22 empresas (§ 1.3), una con sede y centro en Indonesia —sin
+  decisión de adecuación— y otra sin condiciones publicadas. La política no puede
+  nombrarlas ni dar su garantía. **→ P1-12, bloquea el cambio**: lista cerrada de
+  proveedores en la cuenta (ajustes de privacidad, *Allowed providers*, que es el techo de
+  toda petición según la documentación de *provider routing*). Propuesta: `deepinfra` y
+  `coreweave` — los dos sirven los dos modelos en ZDR con salida estructurada, tienen sede
+  y centros en EE. UU. y los compromisos citados.
+
+**c) El uso propio de OpenRouter: una muestra, sin cuenta, para sus estadísticas.**
+
+- Condiciones § 6.5: «OpenRouter uses a hosted model for categorizing Inputs, which does
+  not store or log any Inputs provided to it… you grant… license… to use… your Inputs in
+  anonymized form, solely for tracking and sharing user metrics on the Site».
+  Documentación: «samples a small number of prompts for categorization… If you are not
+  opted in to OpenRouter use of inputs/outputs, any categorization of your prompts is
+  stored completely anonymously and never associated with your account or user ID». El
+  modelo que clasifica corre en Google Cloud (lista de subencargados, «NLP
+  Categorization»). La documentación pública no ofrece apagarlo.
+- No es entrenamiento ni retención del texto, pero sí un **uso propio** de una muestra: la
+  frase del borrador «sin usarlos para entrenar ni para nada propio» (variante A de
+  [`textos/02`](./textos/02-politica-privacidad.md)) **sería falsa**. Tratar un dato para
+  anonimizarlo es tratarlo (GT29, Dictamen 05/2014 sobre anonimización); para eso
+  OpenRouter decide el fin y es **responsable** (art. 28.10) **[abogado]**. → P2-12: la
+  política lo dice; el propietario decide si cabe en su regla («no quiero entrenar ningún
+  modelo»: no entrena).
+
+**d) Las licencias de los modelos** (condiciones de OpenRouter § 5.1: se aceptan).
+
+- **DeepSeek V4.1 Flash**: licencia MIT (`huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash`,
+  modificado 10/09/2026). Sin restricciones de uso.
+- **MiniMax M3**: *MiniMax Community License*. El uso comercial —incluido «the commercial
+  use of APIs provided by or for the Software… to support or enable commercial products»—
+  exige «prominently display "Built with MiniMax M3" on a related website, user
+  interface, blogpost, about page or product documentation» y, por debajo de 20 M$ de
+  ingresos, «send a one-time notice to api@minimax.io with the subject "M3 licensing —
+  notice"». Su lista de usos prohibidos no incluye el sanitario. **→ P1-13.**
+- **Uso clínico**: ninguna de las dos licencias lo prohíbe; OpenRouter solo se exime de
+  garantizar la idoneidad para usos médicos (§ 16), no los prohíbe; DeepInfra prohíbe el
+  «High-Risk Use» (soporte vital u otros dispositivos médicos cuyo fallo cause la
+  muerte), que NutrIA no es (§ 7). **P1-10 se cierra con el cambio**, siempre que Gemini no
+  vuelva (la clave solo admite los dos modelos).
+
+**e) Nada se usa para entrenar ni se guarda — hasta dónde llega la garantía.** Tres capas:
+la cuenta (entrenamiento apagado, ZDR, uso de entradas/salidas apagado), la clave
+(modelos permitidos, ZDR) y la petición (`zdr`, `data_collection: 'deny'`). ZDR y los
+proveedores permitidos de la cuenta son el techo: una petición puede exigir más, nunca
+menos. Dos matices que la documentación de ZDR admite: «in-memory caching of prompts is
+*not* considered "retaining" data», y la clasificación ZDR de cada proveedor es de
+OpenRouter, por lo que publica cada uno («If OpenRouter is not able to establish… a clear
+policy… we take a conservative stance and assume that the endpoint both retains and
+trains on data»). Con DeepInfra hay además cláusula contractual (con OpenRouter).
+
+**Qué dice la política en cada estado** — ver [`textos/02`](./textos/02-politica-privacidad.md),
+«La inteligencia artificial»: estado 1 (ahora, `stub`: ningún modelo) y estado 2
+(OpenRouter, publicable cuando P1-11 y P1-12 estén hechos, y antes del cambio).
 
 ---
 
@@ -376,6 +565,10 @@ sanitarios individuales (apdo. 4) protege al **dietista**, no a NutrIA. La EIPD 
   medidas para apoyar la promoción de la alfabetización»): el propietario y quien opere
   el sistema en su nombre. Para el profesional, el acuerdo le explica qué hace la IA y
   qué no (cl. 5).
+- **Modelos integrados** (tras el cambio de `0064`): DeepSeek V4.1 Flash y MiniMax M3, de
+  pesos abiertos, por la API de OpenRouter. Las obligaciones de los modelos de uso general
+  (capítulo V) son de sus proveedores; a NutrIA le toca informar (art. 50) y la
+  alfabetización (art. 4). Cambiar de modelo no cambia esto, pero sí la política (§ 4.4).
 - **Art. 50.1** (interacción directa con personas): no hay asistente conversacional en el
   código (las tablas `ai_conversations`/`ai_messages` existen, nada las usa). Si se
   construye, deberá decir que es una IA.
@@ -461,6 +654,8 @@ generar, como ya se niega el plato con ingredientes sin resolver; comentario del
 → usar solo las respuestas cerradas) y traducir la forma de comer a exclusiones de
 ingredientes. Luego, la política (§ «Con quién compartimos»).
 
+**Estado de P0-3 a 2026-09-26 — cerrado del todo en producción; condicionado para el cambio.** Desde el 2026-09-26 producción no llama a ningún modelo (`AI_PROVIDER=stub`), así que no sale nada. La salida (a) es `0064`: OpenRouter con modelos de pago, ZDR y sin entrenamiento. Queda cerrada cuando se cumplan P1-11 y P1-12 (§ 4.4); hasta entonces el cambio no debe hacerse. Corrección: Gemini gratuito, para un propietario en el EEE, no entrenaba; el problema era que sus condiciones prohíben servir con él a usuarios del EEE (§ 1.3).
+
 **Estado de P0-3 a 2026-09-25 — cerrado en lo sustancial** con `agent/legal-a/backend` a `e28f0e5` (sin fusionar): el modelo ya no recibe texto escrito por la persona, alergias, intolerancias ni formas de comer salvo «vegetariano» y «vegano»; halal, kósher, sin gluten y sin lactosa se aplican quitando alimentos en código. Lo que sigue llegando a modelos gratuitos que pueden entrenar: objetivos diarios y tipo de meta (p. ej. perder peso), horarios, gustos por nombre de catálogo, nombres de platos y respuestas cerradas del check-in, sin identificadores. **Residual P2 [abogado]**: si esos datos, sin identificadores, son personales para el proveedor (C-413/23 P) y si la meta «perder peso» es dato de salud; y si el veganismo puede ser una convicción filosófica (art. 9.1). La salida (a) —proveedores con contrato y sin entrenamiento— sigue siendo la que cierra todo.
 
 ### P1
@@ -476,7 +671,10 @@ ingredientes. Luego, la política (§ «Con quién compartimos»).
 | P1-7 | Aviso legal incompleto: sin domicilio, NIF ni teléfono; sin cauce de reclamaciones postal y telefónico | `es-ES.ts:1394`; no hay página de aviso legal | LSSI art. 10.1.a y e; TRLGDCU art. 97.1.c y 21.2-3 (vía postal, telefónica y electrónica, justificante, respuesta en 15 días) | [`textos/07`](./textos/07-aviso-legal.md) antes de claves *live* |
 | P1-8 | Desistimiento: sin formulario modelo, sin función de desistimiento en línea | condiciones `es-ES.ts:1435`; `PremiumCard.tsx` | TRLGDCU art. 97.1.j (formulario); Directiva 2023/2673 art. 11 bis (aplicable desde 19/6/2026; España no lo ha transpuesto en el TRLGDCU consolidado a 28/02/2026) | Formulario en las condiciones y un botón «Desistir del contrato aquí» en el perfil durante los 14 días ([`textos/03`](./textos/03-condiciones-uso.md), [`textos/06`](./textos/06-correos.md) § C) |
 | P1-9 | El plan de consulta no tiene condiciones; la prueba no dice que se cobra al terminar | `practice.planTrial` (`es-ES.ts`, namespace `practice`); `PracticePlanCard.tsx` | LSSI art. 27; Ley 7/1998 arts. 5 y 7 (incorporación de condiciones generales) | [`textos/04`](./textos/04-condiciones-consulta.md), aceptadas en la misma pantalla que el acuerdo |
-| P1-10 | Gemini prohíbe su uso «en la práctica clínica»; la consulta genera planes para pacientes de un profesional con Gemini como reserva | `docs/reference/ai-gateway.md` § 1; Gemini API Additional Terms (23/03/2026) | Contrato con el proveedor (no ley, pero es la licencia de uso) | Sacar Gemini de la combinación para planes generados desde `/consulta`, o confirmarlo con Google **[abogado]** |
+| P1-10 | Gemini prohíbe su uso «en la práctica clínica»; la consulta genera planes para pacientes de un profesional con Gemini como reserva | `docs/reference/ai-gateway.md` § 1; Gemini API Additional Terms (23/03/2026) | Contrato con el proveedor (no ley, pero es la licencia de uso) | **Cerrado en producción** desde el 2026-09-26 (`stub`) y **cerrado con el cambio** (`0064`: sin Gemini; la clave solo admite DeepSeek V4.1 Flash y MiniMax M3, sin cláusula clínica, § 4.4 d). Se reabre si vuelve `AI_PROVIDER=google` o un modelo de Google a la clave |
+| P1-11 | El acuerdo de tratamiento (DPA) de OpenRouter: sus condiciones § 10.2 lo incorporan para uso comercial, pero su texto no es público y su centro de ayuda dice que solo se firma con Enterprise | `ai.config.ts` (`case 'openrouter'`); condiciones de OpenRouter (31/08/2026) | Art. 28.3 (contrato por escrito con el contenido mínimo), 5.2 y 24 (demostrarlo); art. 46.2.c (cláusulas tipo, que viven en ese DPA) | **Bloquea el cambio.** El propietario pide acceso en `trust.openrouter.ai`, descarga el DPA, pide a soporte confirmación escrita de que se aplica a su cuenta de pago y guarda ambos fuera del repositorio. Si OpenRouter dice que no: no hay encargado con contrato; la política no puede decir «con contrato» y el cambio no se hace **[abogado]** |
+| P1-12 | La cuenta de OpenRouter no limita qué empresas ejecutan el modelo: la petición puede ir a 22 (una en Indonesia, otra sin condiciones publicadas) | `NO_TRAINING_PROVIDER` en `ai.config.ts` (sin `only`); runbook `ai-gateway.md` § 0 (sin lista de proveedores) | Art. 13.1.e-f (nombrar destinatarios y transferencias); arts. 44-46 (Indonesia sin adecuación ni garantía) | **Bloquea el cambio.** En la cuenta, *Allowed providers* = `deepinfra`, `coreweave` (§ 4.4 b). Además, en código, `provider.only` con la misma lista (backend) y un test. La política nombra exactamente esa lista |
+| P1-13 | La licencia de MiniMax M3 exige, en uso comercial, mostrar «Built with MiniMax M3» y un aviso único a MiniMax | licencia en Hugging Face; condiciones de OpenRouter § 5.1 | Contrato (licencia aceptada vía OpenRouter § 5.1) | Antes de usar MiniMax de reserva: la frase visible (la política la lleva en el estado 2; mejor también en el pie o una página «acerca de») y el aviso, que envía el propietario. Si no: `AI_FALLBACK_MODELS` vacío (la biblioteca cubre los fallos) |
 
 ### P2
 
@@ -492,6 +690,8 @@ ingredientes. Luego, la política (§ «Con quién compartimos»).
 | P2-8 | Art. 50.2 Ley de IA: marcar el contenido generado en formato legible por máquina | respuestas de recetas | Antes del 2/12/2026 (§ 7) |
 | P2-9 | Sin exportación de datos para la portabilidad | — | `GET /users/me/export` en JSON; mientras, atender por correo en un mes (art. 12.3) |
 | P2-10 | Correo del proveedor SMTP: una cuenta Gmail de consumo no ofrece DPA | memoria del propietario; `SMTP_*` | Proveedor transaccional con DPA **[abogado]** |
+| P2-11 | Las empresas que ejecutan el modelo no son subencargados según OpenRouter (DPA Enterprise § 11.10) y no tienen contrato con NutrIA; ninguna está en el DPF | § 4.4 b | Nombrarlas en la política; lista cerrada (P1-12); apoyarse en que la petición no identifica a nadie (C-413/23 P) **[abogado]**. Si el abogado no lo compra: un proveedor con contrato directo (p. ej. Mistral en la UE, plan B del informe `0002`) |
+| P2-12 | OpenRouter clasifica una muestra anónima de peticiones para sus estadísticas públicas; no se puede apagar | condiciones § 6.5; documentación *Data collection* | Decirlo en la política (estado 2 lo dice); el propietario decide si cabe en su regla |
 
 ### P3
 
@@ -508,6 +708,12 @@ ingredientes. Luego, la política (§ «Con quién compartimos»).
 - `health.consentNote` dice que los datos de salud «no se envían a ningún modelo»: es
   cierto del dato, no de su efecto (celiaquía → el catálogo va sin gluten). Añadir «solo
   llega su efecto: los ingredientes que quitamos».
+- Las condiciones de Together prohíben enviarle «medical information of any nature or any
+  sensitive personal data»: NutrIA no lo hace, pero no conviene tenerlo en la lista de
+  proveedores permitidos (P1-12) de un producto con planes para pacientes.
+- Cada vez que cambien `AI_MODEL`, `AI_FALLBACK_MODELS` o la lista de proveedores
+  permitidos, cambia la política (estado 2 nombra modelos y empresas): el runbook
+  `ai-gateway.md` § 0 debería decirlo (a `main`).
 - ~~Invitaciones caducadas: purgarlas a diario~~ — hecho (barrido diario a las 08:00, backend `cf87d75`); los textos dicen «como muy tarde al día siguiente» de caducar.
 
 ---
@@ -520,9 +726,14 @@ Una hora, en este orden:
    (§ 2). ¿Lo compra, o prefiere corresponsabilidad formal o un contrato de encargo?
 2. **Peso, altura y objetivo como datos de salud** (§ 1.2): la lectura amplia del TJUE
    (C-21/23) me lleva a pedir consentimiento explícito; ¿lo confirma?
-3. **IA**: ¿basta el contrato de un proveedor de pago (sin entrenamiento, retención cero)
-   + DPF para enviar alergias en texto libre, o hay que dejar de enviarlas? ¿Y el uso de
-   Gemini para planes de pacientes de un dietista?
+3. **IA** (reescrito 2026-09-26; las alergias en texto libre y Gemini ya no se envían):
+   (a) ¿vale el DPA que las condiciones de OpenRouter § 10.2 incorporan «para uso
+   comercial» en una cuenta de autoservicio, aunque su centro de ayuda diga que solo se
+   firma con Enterprise? (b) Las empresas que ejecutan el modelo no son subencargados según
+   OpenRouter y no están en el DPF: ¿basta con que la petición no identifique a nadie
+   (C-413/23 P), una lista cerrada y nombrarlas en la política? (c) ¿Es «perder peso», sin
+   nada más, un dato de salud? (d) La categorización anónima de OpenRouter: ¿base de
+   NutrIA para esa comunicación (art. 6.4)?
 4. **Stripe *Managed Payments***: con Link como vendedor, ¿quién debe el desistimiento,
    el formulario y la función de desistimiento, y qué deben decir las condiciones? ¿Y
    para la consulta (B2B)?

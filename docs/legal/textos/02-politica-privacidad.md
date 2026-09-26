@@ -17,8 +17,20 @@
 > hace. Las frases marcadas **⟦si X⟧** solo se publican cuando X esté hecho; hasta
 > entonces se usa la variante que se indica:
 > - **⟦consentimiento-perfil⟧**: el consentimiento explícito del onboarding (P0-2).
-> - **⟦ia-encargado⟧**: la combinación de modelos solo con proveedores sin entrenamiento y
->   con contrato (P0-3). Mientras no, la variante B de «La inteligencia artificial».
+> - **⟦ia-estado⟧** (revisado 2026-09-26, `0064`): «La inteligencia artificial», «Con quién
+>   compartimos» y «Transferencias» tienen **dos estados**, y se publica el que sea verdad:
+>   - **Estado 1 — sin modelo**: producción con `AI_PROVIDER=stub` (desde el 2026-09-26).
+>     **Publicar ya**: el texto en vivo dice que «hoy» se usan modelos gratuitos que pueden
+>     entrenar, y ya no es verdad.
+>   - **Estado 2 — OpenRouter**: se publica cuando P1-11 (DPA de OpenRouter en la mano) y
+>     P1-12 (lista cerrada de proveedores en la cuenta, igual a la que nombra el texto)
+>     estén hechos, y **antes** de poner `AI_PROVIDER=openrouter`, con el correo de
+>     [`06`](./06-correos.md) § G. Está redactado para ser verdad también mientras siga
+>     `stub` («cuando un modelo diseña platos nuevos…»), así que puede subir antes del
+>     cambio. La frase «Built with MiniMax M3» solo si MiniMax sigue de reserva (P1-13).
+>   - Las antiguas variantes A y B desaparecen: la B describía la pasarela con modelos
+>     gratuitos; la A prometía «nada propio», que OpenRouter no cumple del todo (su
+>     categorización anónima, [`analisis.md` § 4.4 c](../analisis.md#44-openrouter-y-quien-ejecuta-el-modelo-2026-09-26-para-el-cambio-de-0064)).
 > - **⟦salud-enlace⟧**: el control para retirar solo la línea de salud del enlace (P0-1).
 > - **⟦edad⟧**: la puerta de edad (P1-4).
 > - **⟦copias⟧**: la exportación manual cifrada y con plazo (P1-6).
@@ -92,18 +104,33 @@ La ley protege especialmente los datos de salud y los que revelan creencias reli
 
 ### La inteligencia artificial
 
-- Un modelo de inteligencia artificial propone los platos y las recetas. Nuestro propio código comprueba cada uno antes de que te llegue: un alérgeno declarado no llega a tu plan aunque el modelo se equivoque. La IA no toma ninguna decisión sobre ti: los límites de calorías y de proteína los aplican reglas fijas, no el modelo.
-- **Lo que recibe el modelo**: tus objetivos diarios y tu objetivo (por ejemplo, perder peso), qué comidas haces y a qué horas te levantas, te acuestas y entrenas, cuánto cocinas y tu presupuesto, si eres vegetariano o vegano, las cocinas y los alimentos que te gustan, los nombres de los platos que te gustaron, que no te gustaron o que comiste la quincena anterior, y tus respuestas cerradas al check-in (hambre, dificultad, nota). Siempre con los nombres de nuestras listas. **Nunca** recibe tu nombre, tu correo, tu edad, tu sexo, tu peso ni tu altura, nada que hayas escrito a mano, tus alergias ni intolerancias, ninguna otra forma de comer (sin gluten, sin lactosa, halal, kósher…), ni tus enfermedades, tu medicación o tus suplementos. Lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, del catálogo de alimentos que ve: le llega el efecto, nunca el dato.
-- **Variante A ⟦si ia-encargado⟧**: los modelos los prestan proveedores que tratan esos datos por encargo nuestro, con contrato, sin usarlos para entrenar ni para nada propio, y en su caso fuera de la UE con las garantías que se indican abajo.
-- **Variante B (hasta entonces)**: hoy algunos de los modelos que usamos son versiones gratuitas alojadas en Estados Unidos cuyos proveedores pueden usar lo que reciben para mejorar sus modelos. Por eso les enviamos solo lo necesario para diseñar platos. Estamos cambiando a proveedores que no reutilicen los datos.
-- Las ilustraciones de las recetas las dibuja un modelo a partir del nombre y los ingredientes de la receta, sin ningún dato tuyo.
+Comunes a los dos estados:
 
-<!-- Fuente: PoolPrompt.ts, PROMPT_VERSION 4.0.0 a e28f0e5 (qué entra: ver la nota de profileConsent.ai en textos/05 § A; publicar esta frase solo con esa versión fusionada); ai.config.ts:121-136 (sin ids de persona); health-boundary.spec.ts; RecipeIllustrator.service.ts:21-25; RGPD art. 13.1.e-f, 22 (sin decisiones automatizadas con efectos jurídicos), 28; Reglamento (UE) 2024/1689 art. 50. La variante B es la verdad a 2026-09-12 según docs/reference/ai-gateway.md § 1; con e28f0e5 el modelo ya no recibe salud, creencias ni texto libre, así que la variante B es verdadera y suficiente; la A sigue siendo el objetivo. -->
+- Los platos y las recetas de NutrIA los diseña un modelo de inteligencia artificial o salen de nuestra biblioteca de platos ya diseñados y comprobados. Nuestro propio código comprueba cada plato antes de que te llegue: un alérgeno declarado no llega a tu plan aunque el modelo se equivoque. La IA no toma ninguna decisión sobre ti: los límites de calorías y de proteína los aplican reglas fijas, no el modelo.
+- **Lo que recibe el modelo** cuando diseña platos nuevos para tu plan: tus objetivos diarios y tu objetivo (por ejemplo, perder peso), qué comidas haces y a qué horas te levantas, te acuestas y entrenas, cuánto cocinas y tu presupuesto, si eres vegetariano o vegano, las cocinas y los alimentos que te gustan, los nombres de los platos que te gustaron, que no te gustaron o que comiste la quincena anterior, y tus respuestas cerradas al check-in (hambre, dificultad, nota). Siempre con los nombres de nuestras listas. **Nunca** recibe tu nombre, tu correo, tu edad, tu sexo, tu peso ni tu altura, nada que hayas escrito a mano, tus alergias ni intolerancias, ninguna otra forma de comer (sin gluten, sin lactosa, halal, kósher…), ni tus enfermedades, tu medicación o tus suplementos. Lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, del catálogo de alimentos que ve: le llega el efecto, nunca el dato.
+
+**Estado 1 — sin modelo (publicar ya)**:
+
+- Ahora mismo no enviamos nada a ningún modelo: los platos de tu plan salen de nuestra biblioteca. Cuando volvamos a usar uno, será solo con proveedores que no guarden lo que reciben ni lo usen para entrenar, y antes lo explicaremos aquí: quiénes son y dónde están.
+
+**Estado 2 — OpenRouter (publicar cuando se cumplan P1-11 y P1-12, antes del cambio)**:
+
+- **A quién va**: la petición va a **OpenRouter** (OpenRouter, Inc., Estados Unidos), que la trata por encargo nuestro, con un contrato de tratamiento de datos, y la pasa a la empresa que ejecuta el modelo: **DeepInfra** o **CoreWeave**, también en Estados Unidos. El modelo es DeepSeek V4.1 Flash y, si no responde, MiniMax M3 ⟦si MiniMax de reserva⟧ (Built with MiniMax M3); son modelos abiertos que ejecutan esas empresas, nunca los servicios de DeepSeek ni de MiniMax.
+- **Nadie entrena con ello ni lo guarda**: solo usamos proveedores que borran la petición en cuanto responden y no la usan para entrenar ni mejorar ningún modelo. Lo exigimos en nuestra cuenta de OpenRouter y otra vez en cada petición. OpenRouter guarda solo datos técnicos de cada petición (tamaño, tiempo, coste), no su contenido.
+- **Una excepción que debes conocer**: OpenRouter puede pasar una pequeña muestra de peticiones, sin nada que las ligue a nuestra cuenta ni a ti, por un modelo que les pone una etiqueta de tema para sus estadísticas públicas de uso. No guarda el texto, solo la etiqueta.
+
+Comunes a los dos estados, al final:
+
+- Si una receta tiene ilustración, la dibujó un modelo a partir solo del nombre y los ingredientes de la receta, sin ningún dato tuyo.
+- Hasta el 26 de septiembre de 2026 algunos de los modelos que usábamos eran versiones gratuitas alojadas en Estados Unidos cuyos proveedores podían usar lo que recibían para mejorar sus modelos. Ya no usamos ninguno de ellos.
+
+<!-- Fuente: PoolPrompt.ts, PROMPT_VERSION 4.1.0 (:123; lo que quitó la 4.0.0, :98-107); ai.config.ts: resolveModel (case 'stub' → null: ninguna llamada; case 'openrouter'), openRouterBaseUrl (solo openrouter.ai), NO_TRAINING_PROVIDER (zdr, data_collection: 'deny', require_parameters), openRouterRequest (models = AI_MODEL + AI_FALLBACK_MODELS), resolveCallSettings (sin cabecera de sesión), resolveImageModel (ilustraciones solo con AI_PROVIDER=google: con stub u openrouter no se dibuja ninguna; «si una receta tiene ilustración» es verdad haya o no); health-boundary.spec.ts; 0064 (stub desde 2026-09-26). OpenRouter: condiciones (31/08/2026) § 10.2 (DPA incorporado para uso comercial — P1-11: sin su texto en la mano, la frase «con un contrato de tratamiento de datos» NO se publica), § 6.5 (categorización anónima); documentación «Data collection» («does not store your prompts or responses, unless you opt in»; metadatos; muestra para categorizar, anónima si no se ha activado el uso de entradas/salidas); documentación ZDR. DeepInfra: condiciones (17/08/2026, «will not retain, store, or log any Customer Data… beyond the period strictly necessary»; «will not use Customer Data to train»), privacidad (15/08/2026, EE. UU.). CoreWeave: privacidad (24/02/2026), DPA con cláusulas tipo, centros en EE. UU. («DeepInfra o CoreWeave» = la lista cerrada de P1-12: si el propietario permite otras empresas, se nombran aquí; nunca publicar una lista distinta de la de la cuenta). Modelos: DeepSeek V4.1 Flash, MIT; MiniMax M3, MiniMax Community License (uso comercial: «prominently display "Built with MiniMax M3"» — P1-13; sin MiniMax de reserva, quitar su nombre y la frase). Ni DeepSeek ni MiniMax sirven hoy su modelo en endpoints ZDR (API de OpenRouter, /endpoints/zdr, 2026-09-26). La frase del pasado: la pasarela usó opencode/*-free y OpenRouter :free, que entrenan o registran (analisis.md § 1.3); Gemini gratuito no entrenaba para un propietario del EEE, por eso dice «algunos». RGPD arts. 5.1.a, 13.1.e-f, 22, 28; TJUE C-413/23 P (destinatario informado desde el responsable al recoger); Reglamento (UE) 2024/1689 art. 50. analisis.md § 1.3 y § 4.4. -->
 
 ### Con quién compartimos tus datos
 
 - **Tu dietista**, solo si aceptas su invitación (ver arriba).
-- **Proveedores de inteligencia artificial**, como se explica arriba.
+- Estado 1: **Proveedores de inteligencia artificial**: ahora mismo ninguno (ver «La inteligencia artificial»).
+- Estado 2: **OpenRouter**, y **DeepInfra** o **CoreWeave**, que ejecutan el modelo de inteligencia artificial, como se explica arriba. Están en Estados Unidos.
 - **Vercel** (alojamiento de la web y la API, en la UE) y **Neon** (base de datos, en la UE). Son empresas de Estados Unidos.
 - **Stripe** y su servicio **Link**, si pagas algo. ⟦si Managed Payments sigue activo⟧ Link actúa como vendedor en la compra: te cobra, te envía el recibo y gestiona el IVA, y trata tus datos de pago según su propia política.
 - **Nuestro proveedor de correo**, para los correos de confirmación, recuperación de contraseña, invitaciones y avisos que actives.
@@ -115,9 +142,15 @@ La ley protege especialmente los datos de salud y los que revelan creencias reli
 
 ### Transferencias fuera de la Unión Europea
 
-Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí: Vercel, Neon, Stripe, el proveedor de correo, Sentry y los de inteligencia artificial. Vercel está certificado en el Marco de Privacidad de Datos UE-EE. UU., que la Comisión Europea reconoce como garantía suficiente; con el resto nos apoyamos en ese mismo marco o en las cláusulas contractuales tipo de la Comisión, según ofrezca cada uno. ⟦variante B⟧ Los modelos gratuitos de inteligencia artificial que usamos hoy no ofrecen ninguna de esas garantías; por eso solo les enviamos lo que se describe arriba, sin nada que te identifique, que escribas tú ni que sea un dato de salud o una creencia. Puedes pedirnos el detalle de cada garantía en {email}.
+Estado 1:
 
-<!-- Fuente: RGPD arts. 13.1.f, 45 (decisión de adecuación: Decisión de Ejecución (UE) 2023/1795, Marco de Privacidad UE-EE. UU.), 46.2.c (cláusulas tipo). Verificado 2026-09-25: Vercel figura como certificado en el DPF (dataprivacyframework.gov y changelog de Vercel). Neon, Stripe, Sentry y el proveedor de correo: el propietario comprueba su DPA/DPF en la lista oficial antes de nombrarlos uno a uno [abogado]. La frase de la variante B es obligatoria mientras se usen modelos opencode/*-free o Gemini gratuito: sin ella la sección afirma una garantía que esos proveedores no dan. — analisis.md § 4.2. -->
+Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí: Vercel, Neon, Stripe, el proveedor de correo y Sentry. Vercel, Neon, Stripe y Sentry están certificados en el Marco de Privacidad de Datos UE-EE. UU., que la Comisión Europea reconoce como garantía suficiente; con el proveedor de correo nos apoyamos en ese mismo marco o en las cláusulas contractuales tipo de la Comisión. Puedes pedirnos el detalle de cada garantía en {email}.
+
+Estado 2:
+
+Algunos de estos proveedores son empresas de Estados Unidos o tratan datos allí: Vercel, Neon, Stripe, el proveedor de correo, Sentry, OpenRouter, DeepInfra y CoreWeave. Vercel, Neon, Stripe y Sentry están certificados en el Marco de Privacidad de Datos UE-EE. UU., que la Comisión Europea reconoce como garantía suficiente; con el proveedor de correo nos apoyamos en ese mismo marco o en las cláusulas contractuales tipo de la Comisión. OpenRouter no está en ese marco: con él nos apoyamos en las cláusulas contractuales tipo, que forman parte de su acuerdo de tratamiento de datos. DeepInfra y CoreWeave reciben la petición de OpenRouter y se comprometen con él a no guardarla ni usarla para entrenar; la petición no lleva nada que te identifique. Puedes pedirnos el detalle de cada garantía en {email}.
+
+<!-- Fuente: RGPD arts. 13.1.f, 45 (Decisión de Ejecución (UE) 2023/1795, Marco de Privacidad UE-EE. UU.), 46.2.c (cláusulas tipo). Lista oficial del DPF consultada el 2026-09-26 (API de dataprivacyframework.gov, estado activo, parte UE-EE. UU.): Vercel Inc., Stripe, LLC, Sentry.io, y Databricks, Inc. con Neon, LLC como entidad cubierta — activos; OpenRouter, DeepInfra, Together y CoreWeave — ningún resultado. El proveedor de correo (Gmail) queda genérico: P2-10. OpenRouter: política de privacidad (31/08/2026, cláusulas tipo del art. 46; servidores en EE. UU.); la frase «forman parte de su acuerdo de tratamiento de datos» solo con P1-11 hecho. DeepInfra/CoreWeave: según OpenRouter no son sus subencargados (DPA Enterprise § 11.10); sus compromisos van con OpenRouter (analisis.md § 4.4 b); lo que no identifica: C-413/23 P. La frase antigua de la «variante B» (modelos gratuitos sin garantía) sale en los dos estados: ya no se usan. -->
 
 ### Cuánto tiempo guardamos tus datos
 
@@ -223,16 +256,31 @@ The law gives special protection to health data and to data revealing religious 
 
 ### Artificial intelligence
 
-- An artificial-intelligence model proposes dishes and recipes. Our own code checks each one before it reaches you: a declared allergen does not reach your plan even if the model gets it wrong. The AI makes no decision about you: the calorie and protein bounds are applied by fixed rules, not by the model.
-- **What the model receives**: your daily targets and your goal (for example, losing weight), which meals you eat and when you wake, sleep and train, how much you cook and your budget, whether you are vegetarian or vegan, the cuisines and foods you like, the names of dishes you liked, disliked or ate last fortnight, and your closed check-in answers (hunger, difficulty, rating). Always by the names on our lists. It **never** receives your name, email, age, sex, weight or height, anything you typed yourself, your allergies or intolerances, any other way of eating (gluten-free, lactose-free, halal, kosher…), or your conditions, medications or supplements. What you cannot or will not eat we remove first, in our code, from the catalogue of foods it sees: it gets the effect, never the datum.
-- **Variant A ⟦if ai-processor⟧**: the models are provided by companies that process this data on our behalf, under contract, without using it for training or for anything of their own, and where outside the EU with the safeguards set out below.
-- **Variant B (until then)**: some of the models we use today are free versions hosted in the United States whose providers may use what they receive to improve their models. That is why we send them only what is needed to design dishes. We are moving to providers that do not reuse data.
-- Recipe illustrations are drawn by a model from the recipe's name and ingredients, with no data of yours.
+Common to both states:
+
+- NutrIA's dishes and recipes are designed by an artificial-intelligence model or come from our library of dishes already designed and checked. Our own code checks every dish before it reaches you: a declared allergen does not reach your plan even if the model gets it wrong. The AI makes no decision about you: the calorie and protein bounds are applied by fixed rules, not by the model.
+- **What the model receives** when it designs new dishes for your plan: your daily targets and your goal (for example, losing weight), which meals you eat and when you wake, sleep and train, how much you cook and your budget, whether you are vegetarian or vegan, the cuisines and foods you like, the names of dishes you liked, disliked or ate last fortnight, and your closed check-in answers (hunger, difficulty, rating). Always by the names on our lists. It **never** receives your name, email, age, sex, weight or height, anything you typed yourself, your allergies or intolerances, any other way of eating (gluten-free, lactose-free, halal, kosher…), or your conditions, medications or supplements. What you cannot or will not eat we remove first, in our code, from the catalogue of foods it sees: it gets the effect, never the datum.
+
+**State 1 — no model (publish now)**:
+
+- Right now we send nothing to any model: the dishes in your plan come from our library. When we use one again, it will only be with providers that neither keep what they receive nor train on it, and we will explain it here first: who they are and where.
+
+**State 2 — OpenRouter (publish once P1-11 and P1-12 are done, before the switch)**:
+
+- **Where it goes**: the request goes to **OpenRouter** (OpenRouter, Inc., United States), which processes it on our behalf under a data processing agreement and passes it to the company that runs the model: **DeepInfra** or **CoreWeave**, also in the United States. The model is DeepSeek V4.1 Flash and, if it does not answer, MiniMax M3 ⟦if MiniMax stays as fallback⟧ (Built with MiniMax M3); they are open models run by those companies, never by DeepSeek's or MiniMax's own services.
+- **Nobody trains on it or keeps it**: we only use providers that delete the request as soon as they answer and do not use it to train or improve any model. We require this in our OpenRouter account and again in every request. OpenRouter keeps only technical data about each request (size, time, cost), not its content.
+- **One exception you should know about**: OpenRouter may pass a small sample of requests, with nothing linking them to our account or to you, through a model that tags them with a topic for its public usage statistics. It does not keep the text, only the tag.
+
+Common to both states, at the end:
+
+- If a recipe has an illustration, a model drew it from the recipe's name and ingredients alone, with no data of yours.
+- Until 26 September 2026 some of the models we used were free versions hosted in the United States whose providers could use what they received to improve their models. We no longer use any of them.
 
 ### Who we share your data with
 
 - **Your dietitian**, only if you accept their invitation (see above).
-- **Artificial-intelligence providers**, as explained above.
+- State 1: **Artificial-intelligence providers**: none right now (see "Artificial intelligence").
+- State 2: **OpenRouter**, and **DeepInfra** or **CoreWeave**, which run the artificial-intelligence model, as explained above. They are in the United States.
 - **Vercel** (hosting for the website and API, in the EU) and **Neon** (database, in the EU). Both are US companies.
 - **Stripe** and its **Link** service, if you pay for anything. ⟦if Managed Payments stays on⟧ Link acts as the seller of the purchase: it charges you, sends the receipt and handles VAT, and processes your payment data under its own policy.
 - **Our email provider**, for confirmation, password-reset, invitation and reminder emails you turn on.
@@ -242,7 +290,13 @@ The law gives special protection to health data and to data revealing religious 
 
 ### Transfers outside the European Union
 
-Some of these providers are US companies or process data there: Vercel, Neon, Stripe, the email provider, Sentry and the AI providers. Vercel is certified under the EU-US Data Privacy Framework, which the European Commission recognises as an adequate safeguard; with the others we rely on that same framework or on the Commission's standard contractual clauses, whichever each offers. ⟦variant B⟧ The free AI models we use today offer neither safeguard; that is why we send them only what is described above, with nothing that identifies you, that you wrote, or that is health data or a belief. You can ask us for the details of each safeguard at {email}.
+State 1:
+
+Some of these providers are US companies or process data there: Vercel, Neon, Stripe, the email provider and Sentry. Vercel, Neon, Stripe and Sentry are certified under the EU-US Data Privacy Framework, which the European Commission recognises as an adequate safeguard; with the email provider we rely on that same framework or on the Commission's standard contractual clauses. You can ask us for the details of each safeguard at {email}.
+
+State 2:
+
+Some of these providers are US companies or process data there: Vercel, Neon, Stripe, the email provider, Sentry, OpenRouter, DeepInfra and CoreWeave. Vercel, Neon, Stripe and Sentry are certified under the EU-US Data Privacy Framework, which the European Commission recognises as an adequate safeguard; with the email provider we rely on that same framework or on the Commission's standard contractual clauses. OpenRouter is not in that framework: with it we rely on the standard contractual clauses, which are part of its data processing agreement. DeepInfra and CoreWeave receive the request from OpenRouter and commit to it not to keep it or train on it; the request carries nothing that identifies you. You can ask us for the details of each safeguard at {email}.
 
 ### How long we keep your data
 

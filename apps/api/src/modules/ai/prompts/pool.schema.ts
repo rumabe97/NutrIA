@@ -12,7 +12,9 @@ import { MEAL_SLOTS } from 'core/entities/Plan';
  * list invites — can only mean `brocoli` and `calabacin`. Folded before the
  * lookup, the dish resolves, and the allergy gate runs on the ingredient it
  * resolved to, as for any other dish. A slug wrong in any other way
- * ("salmón-fresco") still resolves to nothing, and the dish is still rejected.
+ * ("salmón-fresco") resolves to nothing here; `PoolBuilder` then reads it as
+ * the one slug its prompt showed that it is a near miss of (`repairSlug`), or,
+ * with none or two, still rejects the dish.
  */
 function canonicalSlug(slug: string): string {
   return slug

@@ -6,6 +6,8 @@
 > (art. 30.4). **Committed**: sí. **Mantenido por**: el agente `legal`; se actualiza en el
 > mismo cambio que añada un dato, un destinatario o un fin.
 >
+> Revisado el 2026-09-26: fila 2 (IA, `0064`).
+>
 > **No soy abogado.** Los plazos y destinatarios marcados «pendiente» dependen de
 > decisiones del [`analisis.md` § 9](./analisis.md#9-riesgos-ordenados-por-lo-que-le-puede-pasar-a-una-persona-real).
 
@@ -14,7 +16,7 @@
 | # | Actividad | Fines | Interesados | Categorías de datos | Destinatarios | Transferencias | Plazo de supresión | Medidas (art. 32) |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 1 | Cuentas y acceso | alta, inicio de sesión, recuperación | usuarios, profesionales | nombre, correo, contraseña (hash), IP y navegador de sesión, proveedor social | Vercel, Neon, proveedor SMTP, Google/Apple (inicio de sesión) | EE. UU. (empresas) — DPF/cláusulas tipo | cuenta; sesiones 30 días | Better Auth, límites en BD, cookies seguras |
-| 2 | Planificación de comidas | objetivos, planes, lista de la compra, cambios | usuarios | corporales, objetivo, alergias, intolerancias, forma de comer (**salud, religión**), preferencias, horarios | Vercel, Neon, proveedores de IA (sin identificadores) | EE. UU. (IA) — **pendiente** de garantía (P0-3) | cuenta | puerta de alergias por código; frontera de salud; *No-Log* en pasarela |
+| 2 | Planificación de comidas | objetivos, planes, lista de la compra, cambios | usuarios | corporales, objetivo, alergias, intolerancias, forma de comer (**salud, religión**), preferencias, horarios. **A la IA solo va** (prompt 4.1.0): objetivos diarios y tipo de objetivo, forma y horas del día, cocina y presupuesto, vegetariano/vegano, gustos por nombre de catálogo, nombres de platos, respuestas cerradas del check-in — sin identificadores | Vercel, Neon. IA: **ninguna desde el 2026-09-26** (`stub`); tras `0064`, **OpenRouter, Inc.** (encargado) y la empresa que ejecuta el modelo, de una lista cerrada en la cuenta (propuesta: DeepInfra, CoreWeave) | UE (Vercel, Neon; DPF). IA: EE. UU. — OpenRouter: cláusulas tipo de su DPA (**por obtener**, P1-11); quien ejecuta el modelo: sin garantía frente a NutrIA, petición sin identificadores (P2-11) | cuenta. En la IA: nada (retención cero); OpenRouter guarda metadatos (tokens, tiempo, coste) | puerta de alergias por código; frontera de salud; en cada petición `zdr` y `data_collection: 'deny'`; cuenta con entrenamiento apagado y ZDR; clave limitada a dos modelos y con tope; lista cerrada de proveedores (**pendiente**, P1-12) |
 | 3 | Salud declarada | mostrar, exclusión por celiaquía, aviso de supervisión | usuarios | condiciones, medicación, suplementos (**salud**) | Vercel, Neon; dietista vinculado si el usuario lo marca | UE | cuenta o retirada del consentimiento | tablas propias, fuera del prompt, redacción en logs |
 | 4 | Seguimiento | adherencia, peso, check-in, recordatorios | usuarios | marcas, valoraciones, comentarios, peso, respuestas | Vercel, Neon, SMTP, push del navegador (cifrado) | EE. UU. (empresas) | cuenta | — |
 | 5 | Consulta de dietistas (004) | comunicación consentida al profesional, rastro | usuarios vinculados, invitados, profesionales | los de 2-4 según el enlace; correo del invitado; rastro; colegiado | el profesional vinculado (responsable independiente) | — | enlace: cuenta; invitación: hasta que se responde, o 14 días más el barrido diario (≤ 15); rastro: cuenta del cliente | `withClient`, rastro, 404, acuerdo del profesional (**pendiente**) |

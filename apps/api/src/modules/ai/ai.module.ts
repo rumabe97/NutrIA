@@ -6,11 +6,13 @@ import {
   AI_IMAGE_MODEL,
   AI_MODEL,
   AI_MODEL_BUDGET,
+  AI_OUTPUT_CAP,
   AI_REWRITE_CLIENT,
   AI_SECRETS,
   resolveCallSettings,
   resolveImageModel,
   resolveModel,
+  resolveOutputCap,
   resolveRewriteModel
 } from './ai.config.js';
 import { AiClient } from './clients/AiClient.js';
@@ -37,6 +39,7 @@ import type { Env } from '../../config/index.js';
     { inject: [ENV], provide: AI_MODEL, useFactory: (env: Env) => resolveModel(env) },
     { inject: [ENV], provide: AI_CALL_SETTINGS, useFactory: (env: Env) => resolveCallSettings(env) },
     { inject: [ENV], provide: AI_MODEL_BUDGET, useFactory: (env: Env) => env.AI_BUDGET_SECONDS * 1000 },
+    { inject: [ENV], provide: AI_OUTPUT_CAP, useFactory: (env: Env) => resolveOutputCap(env) },
     { inject: [ENV], provide: AI_SECRETS, useFactory: (env: Env) => providerCredentials(env) },
     { provide: AiClient, useClass: StructuredAiClient },
     // The rewrite sweep's own client, on `AI_REWRITE_MODEL` where it is set.

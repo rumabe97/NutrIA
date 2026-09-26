@@ -59,7 +59,8 @@ medicación; ver `analisis.md` § 1.2). Eso sube el riesgo de cualquier brecha.
 | **Portátil perdido o robado** con `docs/local`, exportaciones de la base de datos o sesiones abiertas | **Sí** si tenía datos personales (una exportación los tiene todos) y el disco **no** estaba cifrado; si estaba cifrado con clave segura, el riesgo es improbable: **registrar** | Según lo que hubiera | Fila E |
 | **Dispositivo robado con una sesión abierta** del propietario (acceso a `/admin`) | Posible: `/admin` no lee datos de nadie (`0028`), pero concede profesionales y enciende flags | Según lo que se hiciera con ella | Fila E |
 | **Dispositivo robado de un usuario** con su sesión | Es un problema de esa persona, no una brecha de NutrIA, salvo que NutrIA haya fallado. Ayúdale: revoca sus sesiones. **Registrar** si te lo cuenta | Sus propios datos y la copia sin conexión de su plan | Fila E |
-| **Una clave de la IA filtrada** (`OMNIROUTE_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`) | Normalmente **no** es brecha de datos personales: el prompt no lleva identificadores ni salud (`PoolPrompt.ts`, versión 4.0.0). Es un riesgo de coste. **Registrar** | — | Fila F |
+| **Una clave de la IA filtrada** (`OPENROUTER_API_KEY`, y las antiguas `OMNIROUTE_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`) | Normalmente **no** es brecha de datos personales: el prompt no lleva identificadores ni salud (`PoolPrompt.ts`, versión 4.1.0) y, con el registro de prompts apagado, OpenRouter no guarda contenido que la clave deje leer (solo metadatos en su página de actividad). Es un riesgo de coste, limitado por el tope de la clave. **Registrar** | — | Fila F |
+| **Una petición a la IA la responde una empresa fuera de la lista permitida** (se ve en `/admin`) | No es brecha si la petición no identifica a nadie, pero la política diría algo falso: volver a `AI_PROVIDER=stub`, corregir la lista en la cuenta de OpenRouter y **registrar** | La petición (sin identificadores) | Fila F |
 | **Borrado o corrupción** de datos por un fallo o una migración | **Sí** (disponibilidad o integridad), aunque se restaure; si se restaura pronto y nadie más lo vio, el riesgo suele ser improbable | Lo afectado | Fila G |
 | **Un profesional difunde fuera de NutrIA lo que vio** (capturas, mensajes) | **Brecha del profesional**, que es responsable independiente (§ 10); NutrIA actúa para cortar el acceso y registra | Lo que difundiera | § 10 |
 
@@ -72,7 +73,7 @@ medicación; ver `analisis.md` § 1.2). Eso sube el riesgo de cualquier brecha.
 Todo esto se hace una vez y se rellena **fuera del repositorio** (§ 9):
 
 - ⟦Cómo entras en la sede electrónica de la AEPD: DNIe, certificado FNMT de persona física o Cl@ve permanente, y en qué dispositivo⟧. Pruébalo antes de necesitarlo.
-- ⟦Correo de las cuentas de Vercel, Neon, Stripe, Sentry y Google⟧: es por donde los proveedores avisan de sus brechas. Tiene que llegarte al móvil.
+- ⟦Correo de las cuentas de Vercel, Neon, Stripe, Sentry, Google y OpenRouter⟧: es por donde los proveedores avisan de sus brechas. Tiene que llegarte al móvil.
 - ⟦Dónde guardas el registro de incidentes y cómo lo respaldas⟧ (§ 8).
 - ⟦Dispositivos con acceso de administrador⟧: portátil, teléfono; ¿disco cifrado?, ¿bloqueo con código?
 - ⟦Dónde está alojada la pasarela OmniRoute y cómo entrar⟧.
@@ -97,7 +98,7 @@ sesiones o rotar secretos, porque borrar sesiones borra también quién estaba c
    - `STRIPE_SECRET_KEY`: en Stripe, Developers → API keys → *Roll key*. `STRIPE_WEBHOOK_SECRET`: en el endpoint del webhook, *Roll secret*.
    - `GOOGLE_OAUTH_CLIENT_SECRET`, `APPLE_OAUTH_PRIVATE_KEY`: rótalos en la consola de Google Cloud y en Apple Developer.
    - `CRON_SECRET`, `VAPID_PRIVATE_KEY`: rota el primero; el segundo solo si se filtró, porque rotarlo deja sin avisos a todos los teléfonos suscritos.
-   - Claves de la IA (`OMNIROUTE_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`), y la clave de gestión de la pasarela si existe: rótalas en su panel.
+   - Claves de la IA: `OPENROUTER_API_KEY` en openrouter.ai → *Keys* (bórrala y crea otra con la misma *guardrail*: dos modelos, ZDR, tope); las antiguas (`OMNIROUTE_API_KEY`, `GOOGLE_API_KEY`, `ANTHROPIC_API_KEY`) y la clave de gestión de la pasarela, si existen, en su panel.
 2. Si el secreto estaba en un **commit** del repositorio público, rotarlo es lo único que
    sirve: reescribir la historia no lo borra de las copias que ya existan.
 3. Si fue **Vercel** el comprometido: rota **todos** los secretos de la lista, revisa en
@@ -329,8 +330,9 @@ del riesgo y la notificación a la AEPD son tuyas.
 | **Stripe** | Cobros | DPA, `stripe.com/legal/dpa` ⟦comprobar⟧; con *Managed Payments*, Link es además responsable de su venta | Al correo de la cuenta ⟦cuenta de Stripe⟧ | panel de Stripe |
 | **Proveedor de correo (Google, SMTP)** | Todos los correos | Una cuenta Gmail de consumo **no** tiene DPA (P2-10); Google Workspace sí, `workspace.google.com/terms/dpa_terms.html` | ⟦cuenta de Google⟧ | — |
 | **Sentry** (si está activo) | Errores sin datos personales | DPA, `sentry.io/legal/dpa/` ⟦comprobar⟧ | ⟦cuenta de Sentry⟧ | `status.sentry.io` |
-| **Pasarela OmniRoute** | Prompts sin identificadores | La alojas tú: tú eres quien debe enterarse ⟦dónde está alojada y cómo ves sus registros⟧ | — | — |
-| **Proveedores de modelos** detrás de la pasarela | Prompts sin identificadores | Los modelos gratuitos no tienen contrato de encargo (`analisis.md` § 4.3) | — | — |
+| **OpenRouter** (tras `0064`) | Prompts sin identificadores; metadatos de cada llamada | El DPA que sus condiciones § 10.2 incorporan ⟦comprobar plazo y canal en el texto obtenido (P1-11)⟧; el DPA Enterprise (§ 7) dice «without undue delay, and in any case, within seventy-two (72) hours» | ⟦cuenta de OpenRouter⟧ | `status.openrouter.ai` |
+| **Quien ejecuta el modelo** (DeepInfra, CoreWeave) | La petición, sin identificadores, solo mientras responde (retención cero) | Sin contrato con NutrIA: su compromiso es con OpenRouter (`analisis.md` § 4.4 b); te enterarías por OpenRouter o por la prensa | — | — |
+| **Pasarela OmniRoute** | Solo experimentos desde `0064` | La alojas tú ⟦dónde está alojada⟧ | — | — |
 
 <!-- Fuente: RGPD arts. 33.2 y 28.3.f; AEPD guía, § «Plazos para notificar» («no debería ser superior a las 72 horas»); Vercel DPA § 8.c, consultado el 2026-09-25 («upon becoming aware of a confirmed Security Incident, Vercel will notify Customer without undue delay»; y «Customer is solely responsible for complying with Security Incident notification laws applicable to Customer»). Las demás cláusulas no se pudieron leer sin JavaScript: ⟦comprobar⟧. -->
 
@@ -387,7 +389,7 @@ Cada ⟦…⟧ de este documento, en una nota privada junto al registro:
 1. el acceso a la sede de la AEPD y en qué dispositivo;
 2. las cuentas de cada proveedor por las que llegan sus avisos;
 3. los dispositivos con acceso de administrador y si están cifrados;
-4. dónde está la pasarela;
+4. dónde está la pasarela (solo experimentos) y el correo de la cuenta de OpenRouter;
 5. dónde vive el registro y su copia.
 
 Cuando esté hecho, el propietario lo **firma y fecha** en esa nota, y en

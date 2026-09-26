@@ -1,5 +1,4 @@
 import { DEFAULT_MEAL_SHAPE, weightsFor } from 'core/domain/MealShape';
-import { inSeason } from 'core/domain/MealFit';
 import { INGREDIENT_CATEGORIES, SNACK_SLOTS } from 'core/entities/Plan';
 import { normaliseForMatching } from 'core/domain/Safety';
 
@@ -119,8 +118,12 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * offers them. Measured on the dev catalogue and library (2026-09-25), the
  * standard lunch request is 54.8% of 3.4.0's length in its worst month
  * (23,185 characters with every list empty and no cut); dinner 53.0%.
+ * 4.2.0: produce in three groups — in season this month, all year, out of
+ * season. A row with no season counted as in season in every month, so
+ * onion, garlic, lemon and the herbs sat under "prefer these" and diluted it
+ * (September: 34 seasonal rows among ~40 year-round ones).
  */
-export const PROMPT_VERSION = '4.1.0';
+export const PROMPT_VERSION = '4.2.0';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -191,8 +194,9 @@ export type PromptContext = {
   readonly lovedNames: readonly string[];
   /**
    * 1–12: the month the fortnight starts in — for a swap, the month of the day
-   * being replaced. Produce in season then is listed first and marked
-   * (`0062` § 6), and a lunch's or a dinner's catalogue keeps it (`0063`).
+   * being replaced. Produce in season then is listed first and marked, the
+   * year-round rows after it and the out-of-season last (`0062` § 6, 4.2.0),
+   * and a lunch's or a dinner's catalogue keeps it (`0063`).
    */
   readonly month: number;
   readonly needBySlot: ReadonlyMap<MealSlot, number>;
@@ -299,28 +303,37 @@ function listed(ingredient: CatalogueIngredient): string {
   return redundant ? ingredient.slug : `${ingredient.slug} (${ingredient.name})`;
 }
 
-const IN_SEASON_HEADING = 'In season now (prefer these):';
-const LATER_HEADING = 'Also available:';
+const IN_SEASON_HEADING = 'In season this month (prefer these):';
+const ALL_YEAR_HEADING = 'All year:';
+const OUT_OF_SEASON_HEADING = 'Out of season (use sparingly):';
 
 /**
- * One aisle's rows, by slug. Produce in season this month comes first under
- * its own heading, the rest after (4.1.0, `0062` § 6): the model is told what
- * to prefer and still offered everything, since a tomato is on every shelf in
- * January. An aisle with nothing out of season — every produce list empty, or
- * a month when all of it is in — is listed as it always was.
+ * One aisle's rows, by slug. Produce comes in three groups, each by slug and
+ * each left out when empty (4.2.0, `0062` § 6): what has a season and is in
+ * it this month, marked as preferred; what has none and is on the shelf all
+ * year; and what has a season and is out of it — still offered, since a
+ * tomato is on every shelf in January, but last. A row with no season is not
+ * "in season" here, unlike `inSeason`, which keeps it in the `0063` cut:
+ * under "prefer these" the year-round rows outnumbered the seasonal ones and
+ * the preference said nothing. Every other aisle is one list.
  */
 function aisleRows(rows: readonly CatalogueIngredient[], category: IngredientCategory, month: number): string {
   const sorted = [...rows].sort((a, b) => a.slug.localeCompare(b.slug));
-  const later = category === 'produce' ? sorted.filter(ingredient => !inSeason(ingredient, month)) : [];
 
-  if (later.length === 0) {
+  if (category !== 'produce') {
     return sorted.map(listed).join(', ');
   }
 
-  const now = sorted.filter(ingredient => inSeason(ingredient, month));
+  const seasonal = (ingredient: CatalogueIngredient) => ingredient.seasonMonths.length > 0;
+  const groups = [
+    [IN_SEASON_HEADING, sorted.filter(ingredient => seasonal(ingredient) && ingredient.seasonMonths.includes(month))],
+    [ALL_YEAR_HEADING, sorted.filter(ingredient => !seasonal(ingredient))],
+    [OUT_OF_SEASON_HEADING, sorted.filter(ingredient => seasonal(ingredient) && !ingredient.seasonMonths.includes(month))]
+  ] as const;
 
-  return [now.length > 0 ? `${IN_SEASON_HEADING} ${now.map(listed).join(', ')}` : null, `${LATER_HEADING} ${later.map(listed).join(', ')}`]
-    .filter((line): line is string => line !== null)
+  return groups
+    .filter(([, group]) => group.length > 0)
+    .map(([heading, group]) => `${heading} ${group.map(listed).join(', ')}`)
     .join('\n');
 }
 

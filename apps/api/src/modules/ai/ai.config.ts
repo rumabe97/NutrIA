@@ -18,6 +18,49 @@ export const AI_SECRETS = Symbol('AI_SECRETS');
 /** How long the model half of a pool build may take in all, in milliseconds — `AI_BUDGET_SECONDS`. */
 export const AI_MODEL_BUDGET = Symbol('AI_MODEL_BUDGET');
 
+/** How many tokens a pool request may write, or null for no cap — `resolveOutputCap`. */
+export const AI_OUTPUT_CAP = Symbol('AI_OUTPUT_CAP');
+
+/** A pool request's output cap: `perDish` times the dishes it asks for, plus `margin`. */
+export type AiOutputCap = { readonly margin: number; readonly perDish: number };
+
+/** `AI_MAX_OUTPUT_TOKENS_PER_DISH` when it is empty. */
+const DEFAULT_OUTPUT_TOKENS_PER_DISH = 1200;
+
+/** The `{ "dishes": [ … ] }` around the dishes, and room for a long one. */
+const OUTPUT_TOKEN_MARGIN = 800;
+
+/**
+ * The cap on what one pool request may write, for OpenRouter alone.
+ *
+ * A model asked for three dishes once sent back fifteen — 45 for ~24 asked
+ * over a fortnight — and a request writes at a fixed rate, so it ran into the
+ * 170-second budget and took its slot's dishes with it. Capped, such an answer
+ * is cut off, fails the schema and is recorded as `invalid_output`, which
+ * costs only that request's dishes (`PoolBuilder`).
+ *
+ * Null for every other provider: a gateway's combo and Gemini's free tier
+ * route to models this was never measured on, some of which think inside the
+ * same allowance. Null too when OpenRouter's model may think with no cap on
+ * the thinking (`AI_REASONING_EFFORT` other than `none`, and no
+ * `AI_REASONING_MAX_TOKENS`): the thinking counts against the same tokens, and
+ * an unknown amount of it would cut valid answers short. With a thinking cap,
+ * the cap is added to the margin.
+ */
+export function resolveOutputCap(env: Env): AiOutputCap | null {
+  if (env.AI_PROVIDER !== 'openrouter') {
+    return null;
+  }
+
+  const thinking = env.AI_REASONING_EFFORT === 'none' ? 0 : env.AI_REASONING_MAX_TOKENS;
+
+  if (thinking === undefined) {
+    return null;
+  }
+
+  return { margin: OUTPUT_TOKEN_MARGIN + thinking, perDish: env.AI_MAX_OUTPUT_TOKENS_PER_DISH ?? DEFAULT_OUTPUT_TOKENS_PER_DISH };
+}
+
 /** The client the rewrite sweep asks — see `resolveRewriteModel`. */
 export const AI_REWRITE_CLIENT = Symbol('AI_REWRITE_CLIENT');
 
@@ -102,6 +145,7 @@ export function resolveModel(env: Env): LanguageModel | null {
         supportsStructuredOutputs: true,
         transformRequestBody: openRouterRequest({
           fallbackModels: env.AI_FALLBACK_MODELS ?? [],
+          providerIgnore: env.AI_PROVIDER_IGNORE ?? [],
           providerSort: env.AI_PROVIDER_SORT,
           reasoningEffort: env.AI_REASONING_EFFORT,
           reasoningMaxTokens: env.AI_REASONING_MAX_TOKENS
@@ -168,8 +212,10 @@ export const NO_TRAINING_PROVIDER = Object.freeze({ data_collection: 'deny', req
  *   (`readOpenRouter`).
  * - `provider`: `NO_TRAINING_PROVIDER`, plus `sort` when `AI_PROVIDER_SORT`
  *   is set — OpenRouter's load-balancing otherwise spread parallel requests
- *   onto slow ZDR endpoints (~120 s against ~37 s on the fastest). The
- *   no-training fields are spread last, so `sort` can never loosen them.
+ *   onto slow ZDR endpoints (~120 s against ~37 s on the fastest) — and
+ *   `ignore` when `AI_PROVIDER_IGNORE` names any, for one ZDR provider
+ *   (Sail Research) that kept running into the time budget. The
+ *   no-training fields are spread last, so neither can ever loosen them.
  *   The block is written over the body. This transform
  *   is the last thing the SDK runs before it posts: it has already merged a
  *   call's `providerOptions` into the body, so a caller's `provider` — or a
@@ -180,6 +226,7 @@ export const NO_TRAINING_PROVIDER = Object.freeze({ data_collection: 'deny', req
  */
 export function openRouterRequest(options: {
   readonly fallbackModels: readonly string[];
+  readonly providerIgnore?: readonly string[];
   readonly providerSort?: Env['AI_PROVIDER_SORT'];
   readonly reasoningEffort?: Env['AI_REASONING_EFFORT'];
   readonly reasoningMaxTokens?: Env['AI_REASONING_MAX_TOKENS'];
@@ -192,7 +239,15 @@ export function openRouterRequest(options: {
         : options.reasoningEffort === undefined
           ? undefined
           : { effort: options.reasoningEffort };
-  const provider = options.providerSort === undefined ? NO_TRAINING_PROVIDER : Object.freeze({ sort: options.providerSort, ...NO_TRAINING_PROVIDER });
+  const ignore = options.providerIgnore ?? [];
+  const provider =
+    ignore.length === 0 && options.providerSort === undefined
+      ? NO_TRAINING_PROVIDER
+      : Object.freeze({
+          ...(ignore.length > 0 ? { ignore: Object.freeze([...ignore]) } : {}),
+          ...(options.providerSort === undefined ? {} : { sort: options.providerSort }),
+          ...NO_TRAINING_PROVIDER
+        });
 
   return body => {
     const asked = typeof body['model'] === 'string' ? body['model'] : null;

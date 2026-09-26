@@ -64,6 +64,13 @@ export type AiCallRecord = {
   readonly reasoningTokens: number | null;
   /** The dishes that were dropped, by reason. */
   readonly rejected: Readonly<Partial<Record<DishRejection, number>>>;
+  /**
+   * Ingredient slugs written as a near miss of one the prompt showed
+   * (`perejil-fresco` for `perejil`) and read as that one (`repairSlug`),
+   * whatever became of their dishes after. Absent from calls logged before
+   * the repair existed.
+   */
+  readonly repaired?: number;
   /** The id a gateway's dashboard lists the call under. */
   readonly requestId: string | null;
   /** 1 for the first round; a later round asks for what the first left short. */

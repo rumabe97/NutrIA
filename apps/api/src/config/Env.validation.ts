@@ -97,6 +97,32 @@ export function isOpenRouterUrl(url: string): boolean {
 }
 
 /**
+ * `sail-research, other` into a list of OpenRouter provider slugs, or an issue
+ * naming what is wrong — never the value. Lower case as OpenRouter writes
+ * them, each once; an empty entry is a typo, not "ignore nobody".
+ */
+function providerList(raw: string, ctx: z.RefinementCtx): readonly string[] {
+  const providers = raw.split(',').map(provider => provider.trim());
+
+  if (providers.some(provider => !/^[a-z0-9][a-z0-9._/-]*$/.test(provider))) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'must be OpenRouter provider slugs in lower case (sail-research), comma-separated, with no empty entry'
+    });
+
+    return z.NEVER;
+  }
+
+  if (new Set(providers).size !== providers.length) {
+    ctx.addIssue({ code: 'custom', message: 'names one provider twice' });
+
+    return z.NEVER;
+  }
+
+  return providers;
+}
+
+/**
  * `a/b, c/d` into a list, or an issue naming what is wrong — never the value.
  * Each model once; an empty entry is a typo, not "no fallback".
  */
@@ -201,8 +227,23 @@ const envObject = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform(value => value === 'true'),
+  /*
+   * OpenRouter only: the most a request may write, per dish it asks for, in
+   * tokens — the request's cap is that times its dishes plus a fixed margin
+   * (`resolveOutputCap`). A model once sent back 45 dishes for ~24 asked and
+   * ran a request into the time budget; a capped answer is cut short and
+   * recorded as invalid instead. Empty means 1200.
+   */
+  AI_MAX_OUTPUT_TOKENS_PER_DISH: optional(z.coerce.number().int().positive()),
   AI_MODEL: optional(z.string()),
   AI_PROVIDER: z.enum(['anthropic', 'google', 'ollama', 'omniroute', 'openrouter', 'stub']).default('stub'),
+  /*
+   * OpenRouter only: providers it may never route a request to, by its own
+   * slugs, comma-separated — one that answered within the no-training rules
+   * but kept running into the time budget (`sail-research`). It only removes;
+   * the no-training block still decides which of the rest may answer.
+   */
+  AI_PROVIDER_IGNORE: optional(z.string().transform(providerList)),
   /*
    * OpenRouter only: how it picks among the no-training endpoints of a model —
    * `throughput`, `latency` or `price`. Empty keeps its load-balancing, which

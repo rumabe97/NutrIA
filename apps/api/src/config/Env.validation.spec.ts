@@ -241,6 +241,32 @@ describe('AI_PROVIDER=openrouter', () => {
     expect(() => validateEnv({ ...openrouter, AI_PROVIDER_SORT: 'fastest' })).toThrow(/AI_PROVIDER_SORT/);
   });
 
+  it('reads the output cap per dish and the providers to ignore, and leaves both unset when empty', () => {
+    const env = validateEnv({ ...openrouter, AI_MAX_OUTPUT_TOKENS_PER_DISH: '1500', AI_PROVIDER_IGNORE: 'sail-research, deepinfra/turbo' });
+
+    expect(env.AI_MAX_OUTPUT_TOKENS_PER_DISH).toBe(1500);
+    expect(env.AI_PROVIDER_IGNORE).toEqual(['sail-research', 'deepinfra/turbo']);
+
+    const empty = validateEnv({ ...openrouter, AI_MAX_OUTPUT_TOKENS_PER_DISH: '', AI_PROVIDER_IGNORE: '' });
+
+    expect(empty.AI_MAX_OUTPUT_TOKENS_PER_DISH).toBeUndefined();
+    expect(empty.AI_PROVIDER_IGNORE).toBeUndefined();
+  });
+
+  it('refuses an output cap that is not a positive integer', () => {
+    for (const cap of ['0', '-5', '1.5', 'lots']) {
+      expect(() => validateEnv({ ...openrouter, AI_MAX_OUTPUT_TOKENS_PER_DISH: cap })).toThrow(/AI_MAX_OUTPUT_TOKENS_PER_DISH/);
+    }
+  });
+
+  it('refuses a provider list with an empty entry, a repeat or a slug OpenRouter would not write, without echoing it', () => {
+    for (const list of ['sail-research,', 'sail-research,,other', 'sail-research,sail-research', 'Sail Research', 'sail_research!']) {
+      expect(() => validateEnv({ ...openrouter, AI_PROVIDER_IGNORE: list })).toThrow(/AI_PROVIDER_IGNORE/);
+    }
+
+    expect(() => validateEnv({ ...openrouter, AI_PROVIDER_IGNORE: 'Secret Value' })).not.toThrow(/Secret Value/);
+  });
+
   it('refuses a reasoning effort OpenRouter does not know', () => {
     expect(() => validateEnv({ ...openrouter, AI_REASONING_EFFORT: 'extreme' })).toThrow(/AI_REASONING_EFFORT/);
   });

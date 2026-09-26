@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { generateObject, jsonSchema } from 'ai';
 
-import { NO_TRAINING_PROVIDER, nonStrictSchema, openRouterRequest, resolveCallSettings, resolveModel } from './ai.config.js';
+import { NO_TRAINING_PROVIDER, nonStrictSchema, openRouterRequest, resolveCallSettings, resolveModel, resolveOutputCap } from './ai.config.js';
 import { validateEnv } from '../../config/Env.validation.js';
 
 import type { Env } from '../../config/index.js';
@@ -115,6 +115,41 @@ describe('openRouterRequest', () => {
     });
     expect(openRouterRequest({ fallbackModels: [] })(body)['provider']).not.toHaveProperty('sort');
   });
+
+  it('adds the providers to ignore when set, beside the order, and never lets them loosen the no-training fields', () => {
+    const asked = { ...body, provider: { data_collection: 'allow', ignore: ['nobody'], require_parameters: false, zdr: false } };
+
+    expect(openRouterRequest({ fallbackModels: [], providerIgnore: ['sail-research'], providerSort: 'latency' })(asked)['provider']).toEqual({
+      data_collection: 'deny',
+      ignore: ['sail-research'],
+      require_parameters: true,
+      sort: 'latency',
+      zdr: true
+    });
+    expect(openRouterRequest({ fallbackModels: [], providerIgnore: [] })(body)['provider']).toBe(NO_TRAINING_PROVIDER);
+  });
+});
+
+describe('resolveOutputCap', () => {
+  const openrouter = { AI_PROVIDER: 'openrouter', AI_REASONING_EFFORT: 'none' } as Env;
+
+  it('caps OpenRouter at 1200 tokens a dish and an 800-token margin when nothing else is set', () => {
+    expect(resolveOutputCap(openrouter)).toEqual({ margin: 800, perDish: 1200 });
+    expect(resolveOutputCap({ ...openrouter, AI_MAX_OUTPUT_TOKENS_PER_DISH: 900 })).toEqual({ margin: 800, perDish: 900 });
+  });
+
+  it('adds a thinking cap to the margin, and caps nothing while the thinking has none', () => {
+    expect(resolveOutputCap({ ...openrouter, AI_REASONING_EFFORT: 'low', AI_REASONING_MAX_TOKENS: 2048 })).toEqual({ margin: 2848, perDish: 1200 });
+    expect(resolveOutputCap({ ...openrouter, AI_REASONING_MAX_TOKENS: 2048 })).toEqual({ margin: 800, perDish: 1200 });
+    expect(resolveOutputCap({ ...openrouter, AI_REASONING_EFFORT: 'low' })).toBeNull();
+    expect(resolveOutputCap({ ...openrouter, AI_REASONING_EFFORT: undefined })).toBeNull();
+  });
+
+  it('caps no other provider', () => {
+    for (const provider of ['anthropic', 'google', 'ollama', 'omniroute', 'stub'] as const) {
+      expect(resolveOutputCap({ ...openrouter, AI_PROVIDER: provider })).toBeNull();
+    }
+  });
 });
 
 /** The same, on the wire: what the SDK actually posts, with a call that tries to loosen it. */
@@ -169,6 +204,39 @@ describe('the openrouter provider', () => {
       reasoning: { effort: 'low' },
       response_format: { json_schema: { strict: false }, type: 'json_schema' },
       usage: { include: true }
+    });
+  });
+
+  it('posts the output cap as max_tokens and the providers to ignore inside the provider block', async () => {
+    const fetch = jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            id: 'gen-2',
+            choices: [{ finish_reason: 'stop', index: 0, message: { content: '{"dishes":[]}', role: 'assistant' } }],
+            created: 1_790_000_000,
+            model: 'deepseek/deepseek-v4.1-flash',
+            usage: { completion_tokens: 10, prompt_tokens: 20, total_tokens: 30 }
+          }),
+          { headers: { 'content-type': 'application/json' }, status: 200 }
+        )
+      );
+    const env = validateEnv({ ...base, AI_PROVIDER_IGNORE: 'sail-research', AI_REASONING_EFFORT: 'none' });
+
+    await generateObject({
+      maxOutputTokens: 4400,
+      model: resolveModel(env) as LanguageModel,
+      prompt: 'Diseña platos',
+      schema: jsonSchema<{ dishes: unknown[] }>({ properties: { dishes: { type: 'array' } }, type: 'object' })
+    });
+
+    const sent = JSON.parse(String(fetch.mock.calls[0]?.[1]?.body)) as Record<string, unknown>;
+
+    expect(sent).toMatchObject({
+      max_tokens: 4400,
+      provider: { data_collection: 'deny', ignore: ['sail-research'], require_parameters: true, zdr: true },
+      reasoning: { enabled: false }
     });
   });
 

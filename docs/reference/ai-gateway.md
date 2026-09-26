@@ -36,8 +36,11 @@ With `AI_PROVIDER=openrouter` the pool builder calls `https://openrouter.ai/api/
 | `OPENROUTER_API_KEY` | the key above — boot is refused without it |
 | `AI_MODEL` | `deepseek/deepseek-v4.1-flash` (the default when empty) |
 | `AI_FALLBACK_MODELS` | `minimax/minimax-m3` |
-| `AI_REASONING_EFFORT` | `low` — `none` answers in ~7 s with ~9 points of split error (`0064`) |
+| `AI_REASONING_EFFORT` | `none` — measured on full dev fortnights 2026-09-26: `low` left most requests at the 170 s budget and few fresh dishes; `none` kept 2–17× more fresh dishes with every day inside 5% |
 | `AI_BASE_URL` | **empty** (or a path on `https://openrouter.ai`). Any other host is refused at boot — it would receive the OpenRouter key |
+| `AI_PROVIDER_SORT` | `throughput` — measured 2026-09-26: default load-balancing sent parallel requests to ~120 s endpoints |
+| `AI_PROVIDER_IGNORE` | `sail-research` — the ZDR endpoint that timed out most in the dev fortnights |
+| `AI_MAX_OUTPUT_TOKENS_PER_DISH` | empty (1200) — caps a request that would return far more dishes than asked |
 | `AI_BUDGET_SECONDS` | empty — 170 |
 | `AI_REWRITE_STEPS` | `false` until decided: on OpenRouter every rewrite is a paid call |
 

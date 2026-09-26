@@ -46,7 +46,7 @@ export class StructuredAiClient extends AiClient {
     return this.model !== null;
   }
 
-  async generate<T>({ prompt, schema, session, signal, system }: AiRequest<T>): Promise<AiResponse<T>> {
+  async generate<T>({ maxOutputTokens, prompt, schema, session, signal, system }: AiRequest<T>): Promise<AiResponse<T>> {
     if (!this.model) {
       throw new Error('No AI model configured; check AI_PROVIDER');
     }
@@ -63,7 +63,16 @@ export class StructuredAiClient extends AiClient {
       // and the generation waited with it; whatever the transport does with the
       // signal, a call that outlives its budget is abandoned here, not awaited.
       const result = await untilAborted(
-        generateObject({ abortSignal: signal, headers, maxRetries: this.settings.maxRetries, model: this.model, prompt, schema, system }),
+        generateObject({
+          abortSignal: signal,
+          headers,
+          maxOutputTokens,
+          maxRetries: this.settings.maxRetries,
+          model: this.model,
+          prompt,
+          schema,
+          system
+        }),
         signal
       );
       const usage = { calls: 1, inputTokens: result.usage.inputTokens ?? 0, model, outputTokens: result.usage.outputTokens ?? 0 };
@@ -146,10 +155,21 @@ export class StructuredAiClient extends AiClient {
       // The model's raw text can contain anything, including a partial dish. It is
       // never surfaced and never stored — the caller sees a failure and retries.
       if (invalid) {
-        this.logger.warn('Model returned no valid object for the requested schema');
+        // Cut off at the output cap (`resolveOutputCap`) rather than written
+        // wrong: said as such, so the log tells a model that ran on from one
+        // that ignored the schema.
+        const cut = invalid.finishReason === 'length';
+
+        this.logger.warn(
+          `Model returned no valid object for the requested schema${cut ? `, cut off at ${String(maxOutputTokens ?? '?')} output tokens` : ''}`
+        );
 
         // The model's raw text never travels further than this.
-        throw new AiCallError('AI_INVALID_OUTPUT: el modelo no devolvió un objeto válido para el esquema', failure, { cause: error });
+        throw new AiCallError(
+          `AI_INVALID_OUTPUT: el modelo no devolvió un objeto válido para el esquema${cut ? ' (cortado en el límite de tokens de salida)' : ''}`,
+          failure,
+          { cause: error }
+        );
       }
 
       if (timedOut) {

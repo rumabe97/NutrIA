@@ -69,6 +69,39 @@ describe('StructuredAiClient', () => {
     expect((failure as AiCallError).message).not.toContain(key);
     expect((failure as AiCallError).message).toContain('[redacted]');
   });
+
+  /**
+   * The output cap (`resolveOutputCap`): handed to the model, and an answer
+   * it cut off fails as invalid output — thrown as a call error the pool
+   * builder records, and said to be a cut, not a model ignoring the schema.
+   */
+  it('hands the model its output cap, and reports an answer cut off at it as invalid output', async () => {
+    const asked: (number | undefined)[] = [];
+    const model = new MockLanguageModelV4({
+      doGenerate: async ({ maxOutputTokens }) => {
+        asked.push(maxOutputTokens);
+
+        return {
+          content: [{ text: '{"dishes":[{"name":"Arroz con', type: 'text' }],
+          finishReason: { raw: 'length', unified: 'length' },
+          usage: {
+            inputTokens: { cacheRead: undefined, cacheWrite: undefined, noCache: 20, total: 20 },
+            outputTokens: { reasoning: undefined, text: 4400, total: 4400 }
+          },
+          warnings: []
+        };
+      }
+    });
+    const client = new StructuredAiClient(model, { maxRetries: 0, sessionHeader: null }, []);
+    const failure = await client
+      .generate({ maxOutputTokens: 4400, prompt: 'Diseña platos', schema: jsonSchema({ type: 'object' }), system: 'Chef' })
+      .catch((error: unknown) => error);
+
+    expect(asked).toEqual([4400]);
+    expect(failure).toBeInstanceOf(AiCallError);
+    expect((failure as AiCallError).failure).toMatchObject({ kind: 'invalid_output' });
+    expect((failure as AiCallError).message).toContain('cortado en el límite de tokens de salida');
+  });
 });
 
 /**

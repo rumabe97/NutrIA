@@ -864,7 +864,7 @@ describe('PoolBuilder — the catalogue each request is shown', () => {
     await new PoolBuilder(client).build({ context: withRows(), preferences: { ...preferences, month: 7 }, reusable: [], slots: ['breakfast'] });
 
     expect(promptsOf(generate).get('breakfast')).toContain(
-      'Fresh produce and herbs:\nIn season now (prefer these): tomate-de-huerta\nAlso available: naranja\n'
+      'Fresh produce and herbs:\nIn season this month (prefer these): tomate-de-huerta\nOut of season (use sparingly): naranja\n'
     );
   });
 });
@@ -1270,5 +1270,152 @@ describe('PoolBuilder — the first round, three dishes a request', () => {
       expect.objectContaining({ error: expect.objectContaining({ kind: 'provider', status }), kept: 0, round: 1 }),
       expect.objectContaining({ error: null, kept: 1, round: 1 })
     ]);
+  });
+});
+
+describe('PoolBuilder — the output cap', () => {
+  const preferences = {
+    avoidNames: [],
+    budget: null,
+    cookingFrequency: null,
+    cookingTimeMinutes: 30,
+    cuisines: [],
+    dayShape: null,
+    dietaryPatterns: [],
+    dislikedNames: [],
+    goal: null,
+    likedFoods: [],
+    lovedNames: [],
+    month: 1,
+    slotShares: new Map(),
+    targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
+  };
+
+  it('caps each request at its dishes times the tokens per dish, plus the margin', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client, undefined, { margin: 800, perDish: 1200 }).build({
+      context: context(),
+      needPerSlot: 7,
+      preferences,
+      reusable: [],
+      slots: ['lunch']
+    });
+
+    // 7 → 3 + 3 + 1, each capped for its own size.
+    const caps = generate.mock.calls.slice(0, 3).map(call => (call[0] as AiRequest<unknown>).maxOutputTokens);
+
+    expect(caps).toEqual([3 * 1200 + 800, 3 * 1200 + 800, 1 * 1200 + 800]);
+  });
+
+  it('sends no cap when the provider has none', async () => {
+    const { client, generate } = stubClient([{ dishes: [] }]);
+
+    await new PoolBuilder(client, undefined, null).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+
+    expect((generate.mock.calls[0]?.[0] as AiRequest<unknown>).maxOutputTokens).toBeUndefined();
+  });
+
+  it('records an answer cut off at the cap as invalid output, and builds on without it', async () => {
+    const cut = new AiCallError(
+      'AI_INVALID_OUTPUT: el modelo no devolvió un objeto válido para el esquema (cortado en el límite de tokens de salida)',
+      { gateway: null, kind: 'invalid_output', model: 'deepseek/deepseek-v4.1-flash', ms: 20_000, quota: null, status: null }
+    );
+    const failing = { generate: jest.fn(async () => Promise.reject(cut)), isAvailable: true } as unknown as AiClient;
+    const result = await new PoolBuilder(failing, undefined, { margin: 800, perDish: 1200 }).build({
+      context: context(),
+      preferences,
+      reusable: [],
+      slots: ['lunch']
+    });
+
+    expect(result.metadata.aiCalls[0]).toMatchObject({ error: expect.objectContaining({ kind: 'invalid_output' }), kept: 0, slot: 'lunch' });
+    expect(result.generated).toEqual([]);
+  });
+});
+
+describe('PoolBuilder — a near-miss slug', () => {
+  const preferences = {
+    avoidNames: [],
+    budget: null,
+    cookingFrequency: null,
+    cookingTimeMinutes: 30,
+    cuisines: [],
+    dayShape: null,
+    dietaryPatterns: [],
+    dislikedNames: [],
+    goal: null,
+    likedFoods: [],
+    lovedNames: [],
+    month: 1,
+    slotShares: new Map(),
+    targets: { carbsG: 200, fatG: 60, fiberG: 25, kcal: 2000, proteinG: 120 }
+  };
+
+  /** The builder with one lunch request answering `dishes`. */
+  async function built(dishes: readonly ReturnType<typeof dish>[], safety?: Partial<GenerationContext['safety']>, rows = CATALOGUE) {
+    const { client } = stubClient([{ dishes: [...dishes] }, { dishes: [] }]);
+
+    return new PoolBuilder(client).build({
+      context: { ...context(safety), catalogue: toCatalogue(rows) },
+      needPerSlot: 1,
+      preferences,
+      reusable: [],
+      slots: ['lunch']
+    });
+  }
+
+  it('reads a slug the prompt showed a near miss of as that slug, and records the repair', async () => {
+    const result = await built([dish('Arroz con tomate', ['lunch'], ['arroz', 'tomates-frescos'])]);
+
+    expect(result.generated[0]?.ingredients.map(item => item.slug)).toEqual(['arroz', 'tomate']);
+    expect(result.metadata.aiCalls[0]).toMatchObject({ kept: 1, rejected: {}, repaired: 1 });
+  });
+
+  it('lists a repaired ingredient once when the dish already had it, with both its grams', async () => {
+    const result = await built([dish('Arroz con tomate', ['lunch'], ['tomate', 'arroz', 'tomate-fresco'])]);
+
+    expect(result.generated[0]?.ingredients).toEqual([
+      { grams: 200, slug: 'tomate' },
+      { grams: 100, slug: 'arroz' }
+    ]);
+  });
+
+  it('repairs nothing when two shown slugs read the same, and the dish stays unknown', async () => {
+    const result = await built([dish('Arroz con tomate', ['lunch'], ['arroz', 'tomate-fresco'])], undefined, [...CATALOGUE, ingredient('tomates')]);
+
+    expect(result.generated).toEqual([]);
+    expect(result.metadata.aiCalls[0]).toMatchObject({ kept: 0, rejected: { unknown_ingredient: 1 }, repaired: 0 });
+  });
+
+  it('never repairs towards a slug the prompt did not show — an allergen is not shown, so it stays unknown', async () => {
+    // Allergic to gluten: `pan` is in the catalogue but never in their prompt.
+    const result = await built([dish('Tostada', ['lunch'], ['pan-fresco', 'tomate'])], { allergenIds: new Set([GLUTEN]) });
+
+    expect(result.generated).toEqual([]);
+    expect(result.metadata.aiCalls[0]).toMatchObject({ rejected: { unknown_ingredient: 1 }, repaired: 0 });
+  });
+
+  /*
+   * The repair runs before the gates and never instead of them. No prompt
+   * shows a person an allergen, so this reaches the dish check directly with
+   * a list that does: were the two ever to disagree, the gate still refuses.
+   */
+  it('still refuses a repaired slug that is an allergen for the person, as an allergen', () => {
+    const { client } = stubClient([{ dishes: [] }]);
+    const builder = new PoolBuilder(client) as unknown as {
+      validate: (
+        raw: ReturnType<typeof dish>,
+        context: GenerationContext,
+        accepted: ReadonlyMap<string, CandidateDish>,
+        shown: readonly string[]
+      ) => { readonly reason?: string; readonly repaired: number };
+    };
+    const verdict = builder.validate(dish('Tostada', ['lunch'], ['pan-fresco', 'tomate']), context({ allergenIds: new Set([GLUTEN]) }), new Map(), [
+      'pan',
+      'tomate'
+    ]);
+
+    expect(verdict).toEqual({ reason: 'allergen', repaired: 1 });
   });
 });

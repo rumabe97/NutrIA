@@ -207,8 +207,7 @@ at a time.
      plus `belongsTo(ingredient, slot, dietaryPatterns)`. One prompt per slot already
      exists (`0016`); only its catalogue changes.
   3. In `catalogueByAisle`, within `produce`, list in-season rows first under a
-     sub-heading such as `In season now (prefer these):`, then the rest under
-     `Also available:`; slug order within each, so the prompt stays stable.
+     sub-heading such as `In season this month (prefer these):`, then `All year:` and `Out of season (use sparingly):` (prompt 4.2.0); slug order within each, so the prompt stays stable.
   4. Add `LUNCH_CHARACTER` and `DINNER_CHARACTER` beside `BREAKFAST_CHARACTER`: lunch is
      the day's main cooked meal; dinner is lighter home cooking — eggs, fish, grilled
      meat, vegetable creams, salads, a toast or a sandwich — not a stew. For a vegan or

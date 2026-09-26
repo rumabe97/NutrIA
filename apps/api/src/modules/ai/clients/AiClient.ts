@@ -16,6 +16,11 @@ export type AiCall = {
 };
 
 export type AiRequest<T> = {
+  /**
+   * The most the answer may write, in tokens (`resolveOutputCap`); absent, the
+   * provider's own limit. An answer cut off by it fails as `invalid_output`.
+   */
+  readonly maxOutputTokens?: number;
   readonly prompt: string;
   /** A hand-written JSON Schema or a Zod one; see `wirePoolSchema` for why it matters. */
   readonly schema: FlexibleSchema<T>;
