@@ -190,9 +190,10 @@
  * would have a column too narrow for their own names.
  */
 @media (width < 34rem) {
-  /* Eight pixels back for the name, which on a 320 px screen has barely 130. */
+  /* Eight pixels back for the name, which on a 320 px screen has barely 130 — and capped
+     by the screen, not the text, so enlarged text does not squeeze the name to nothing. */
   .row {
-    --dish-thumb: 3rem;
+    --dish-thumb: min(3rem, 15vw);
   }
 
   .text {

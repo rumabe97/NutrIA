@@ -739,6 +739,7 @@ export const esES = {
     done: 'Hecha',
     doneHint: 'Marcada como hecha.',
     illustration: 'Ilustración generada por IA',
+    illustrationOf: 'Ilustración de {name}',
     ingredients: 'Ingredientes',
     like: 'Me gusta',
     likedHint: 'Anotado: podrá volver, y buscaremos platos en esta línea.',
