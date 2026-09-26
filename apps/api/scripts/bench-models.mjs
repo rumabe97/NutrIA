@@ -30,12 +30,18 @@
  * - **Call a model that is not free.** Only ids ending in `:free` or starting
  *   with `groq/`, and never an id naming Gemini — the owner declined spending
  *   Gemini's requests on measurement (2026-09-25). A combo is refused too: its
- *   last step may be Gemini.
+ *   last step may be Gemini — and so is any id that is not `vendor/model`, and
+ *   OpenRouter's own routers (`openrouter/…`), which pick the model themselves.
+ * - **Call a paid model anywhere but OpenRouter.** `--allow-paid` names paid
+ *   models, each `vendor/model`, and is refused unless `AI_BASE_URL` is on
+ *   `https://openrouter.ai`: the no-training `provider` block those requests
+ *   carry binds OpenRouter, and a gateway in between may ignore it.
  * - **Call anything without `--yes`.** Without it, it lists the calls it would
  *   make and stops. Listing the gateway's models (`GET /models`) is free and is
  *   always made, so a model the gateway does not expose is dropped, and said.
  * - **Print a key.** The key is read from the variable `--key-env` names
- *   (default `OMNIROUTE_API_KEY`), goes into one header, and is scrubbed from
+ *   (by default `OPENROUTER_API_KEY` when `AI_BASE_URL` is on openrouter.ai,
+ *   `OMNIROUTE_API_KEY` otherwise), goes into one header, and is scrubbed from
  *   anything the gateway echoes back before it is printed or written.
  * - **Write to a database**, or read production: `assertNotProduction`, then
  *   one `BEGIN ... READ ONLY` transaction, as `evaluate-plans.mjs` does. Its two
@@ -52,6 +58,9 @@
  * `--timeout` is marked `stalled`: this process was starved (a heavy build or
  * test run beside it), and the model may have answered in time — rerun it.
  *
+ * `--only a,b` restricts paid calls to those OpenRouter providers
+ * (`provider.only`, as `AI_PROVIDER_ONLY` does in the API); free calls ignore it.
+ *
  * `--max-tokens` sends a completion cap; without it none is sent, as
  * `PoolBuilder` sends none, and the gateway's or provider's default applies.
  *
@@ -60,7 +69,7 @@
  *   node --env-file-if-exists=.env scripts/bench-models.mjs --models id,id,… --out <dir> [--yes]
  *     [--briefs omnivoro:lunch,vegano:dinner,…] [--dishes 6] [--month 1-12] [--seed text]
  *     [--locale es-ES] [--key-env NAME] [--timeout 200] [--gap 20] [--groq-gap 65]
- *     [--max-tokens N]
+ *     [--max-tokens N] [--only deepinfra,coreweave]
  *   node scripts/bench-models.mjs --summarise <dir> [--timeout 200]   (the table again; calls nothing)
  *
  * `--briefs` defaults to all eight (omnivoro and vegano × breakfast, lunch,
@@ -113,7 +122,8 @@ function parseArgs(argv) {
     dishes: 6,
     gap: 20,
     groqGap: 65,
-    keyEnv: 'OMNIROUTE_API_KEY',
+    // Chosen by host below, unless `--key-env` names one.
+    keyEnv: null,
     list: false,
     locale: 'es-ES',
     maxTokens: null,
@@ -123,7 +133,10 @@ function parseArgs(argv) {
     seed: 'bench-models',
     summarise: null,
     timeout: 200,
-    yes: false
+    yes: false,
+    allowPaid: new Set(),
+    reasoningEffort: null,
+    only: []
   };
   const next = index => {
     const value = argv[index + 1];
@@ -139,6 +152,26 @@ function parseArgs(argv) {
     const arg = argv[index];
 
     switch (arg) {
+      case '--allow-paid':
+        options.allowPaid = new Set(
+          next(index)
+            .split(',')
+            .map(model => model.trim())
+            .filter(Boolean)
+        );
+        index += 1;
+        break;
+      case '--only':
+        options.only = next(index)
+          .split(',')
+          .map(provider => provider.trim())
+          .filter(Boolean);
+        index += 1;
+        break;
+      case '--reasoning-effort':
+        options.reasoningEffort = next(index);
+        index += 1;
+        break;
       case '--briefs':
         options.briefs = next(index).split(',').filter(Boolean);
         index += 1;
@@ -205,6 +238,10 @@ function parseArgs(argv) {
     }
   }
 
+  if (options.reasoningEffort !== null && !['none', 'minimal', 'low', 'medium', 'high'].includes(options.reasoningEffort)) {
+    fail('--reasoning-effort takes none, minimal, low, medium or high');
+  }
+
   if (!Number.isInteger(options.month) || options.month < 1 || options.month > 12) {
     fail('--month takes 1 to 12');
   }
@@ -223,8 +260,27 @@ function parseArgs(argv) {
     }
   }
 
+  const onOpenRouter = isOpenRouter(process.env.AI_BASE_URL);
+
+  // The key that host takes: OpenRouter's for OpenRouter, the gateway's for anything else.
+  options.keyEnv ??= onOpenRouter ? 'OPENROUTER_API_KEY' : 'OMNIROUTE_API_KEY';
+
   if (!/^[A-Z][A-Z0-9_]*$/.test(options.keyEnv)) {
     fail('--key-env takes the NAME of an environment variable, never its value');
+  }
+
+  for (const model of options.allowPaid) {
+    const issue = paidIssue(model);
+
+    if (issue) {
+      fail(`--allow-paid ${model} ${issue}`);
+    }
+  }
+
+  // The `provider` block a paid request carries is OpenRouter's promise; a
+  // gateway, or anything else behind `AI_BASE_URL`, is bound by none of it.
+  if (options.allowPaid.size > 0 && !onOpenRouter) {
+    fail('--allow-paid is refused unless AI_BASE_URL is on https://openrouter.ai — only OpenRouter honours the no-training provider block');
   }
 
   const every = PEOPLE.flatMap(person => BRIEF_SLOTS.map(slot => `${person.slug}:${slot}`));
@@ -257,17 +313,52 @@ function fail(message) {
   process.exit(2);
 }
 
+const ROUTER = 'is one of OpenRouter’s routers, which pick the model themselves — Gemini included';
+
+/** Whether a URL is on OpenRouter's own origin: `https`, its exact host, the default port. */
+function isOpenRouter(url) {
+  try {
+    return new URL(url ?? '').origin === 'https://openrouter.ai';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Why an id may not be named in `--allow-paid`, or null. A paid call must be
+ * one model the owner chose by name: `vendor/model`, never an alias or a
+ * combo, and never one of OpenRouter's routers, which choose for themselves.
+ */
+function paidIssue(model) {
+  if (!/^[\w.-]+\/[\w.:-]+$/.test(model)) {
+    return 'is not vendor/model — an alias or a combo may reach any model, Gemini included';
+  }
+
+  if (/^openrouter\//i.test(model)) {
+    return ROUTER;
+  }
+
+  return null;
+}
+
 /**
  * Whether a model id is one this script may call: a free tier only, never Gemini.
  * `null` when it may; the reason otherwise.
  */
-function refusal(model) {
+function refusal(model, options) {
   if (/gemini/i.test(model)) {
     return 'names Gemini — the owner declined spending its requests (2026-09-25)';
   }
 
-  if (!model.endsWith(':free') && !model.startsWith('groq/')) {
-    return 'is not a free model (only ids ending in ":free" or starting with "groq/")';
+  // "Never Gemini" is read from the id, so the id must name the model that answers.
+  if (/^openrouter\//i.test(model)) {
+    return ROUTER;
+  }
+
+  // A paid model only when the owner named it for this run (`--allow-paid`),
+  // and then every request carries the no-training, no-retention constraint.
+  if (!model.endsWith(':free') && !model.startsWith('groq/') && !options.allowPaid.has(model)) {
+    return 'is not a free model and was not named in --allow-paid';
   }
 
   return null;
@@ -324,6 +415,24 @@ async function call(gateway, model, request, options) {
         ],
         model,
         ...(options.maxTokens ? { max_tokens: options.maxTokens } : {}),
+        // Paid models: only endpoints that neither retain nor train on what is
+        // sent (the owner's rule, 2026-09-25), and the answer carries its cost.
+        ...(options.allowPaid.has(model)
+          ? {
+              provider: {
+                ...(options.only.length > 0 ? { only: options.only } : {}),
+                data_collection: 'deny',
+                require_parameters: true,
+                zdr: true
+              },
+              usage: { include: true }
+            }
+          : {}),
+        ...(options.reasoningEffort === 'none'
+          ? { reasoning: { enabled: false } }
+          : options.reasoningEffort
+            ? { reasoning: { effort: options.reasoningEffort } }
+            : {}),
         response_format: { json_schema: { name: 'response', schema: wirePoolSchema.jsonSchema, strict: false }, type: 'json_schema' }
       }),
       headers: { authorization: `Bearer ${gateway.key}`, 'content-type': 'application/json', 'x-omniroute-session': `bench:${request.id}` },
@@ -358,6 +467,8 @@ async function call(gateway, model, request, options) {
     const usage = body.usage ?? {};
 
     record.answeredModel = body.model ?? null;
+    record.provider = body.provider ?? null;
+    record.costUsd = typeof usage.cost === 'number' ? usage.cost : null;
     record.finishReason = body.choices?.[0]?.finish_reason ?? null;
     record.tokens = {
       cached: usage.prompt_tokens_details?.cached_tokens ?? usage.cache_read_input_tokens ?? null,
@@ -756,13 +867,13 @@ async function main() {
     console.log(`${listed.length} models listed by the gateway; "free" marks the ones this script may call:`);
 
     for (const id of listed) {
-      console.log(`  ${refusal(id) ? '    ' : 'free'}  ${id}`);
+      console.log(`  ${refusal(id, options) ? '    ' : 'free'}  ${id}`);
     }
 
     return;
   }
 
-  const refused = options.models.map(model => [model, refusal(model)]).filter(([, reason]) => reason);
+  const refused = options.models.map(model => [model, refusal(model, options)]).filter(([, reason]) => reason);
 
   if (refused.length > 0) {
     for (const [model, reason] of refused) {

@@ -34,6 +34,10 @@ const DEFAULT_MODEL = {
   // not a vendor name, so there is nothing to sanity-check it against (see
   // `MODEL_PREFIX` below). `OMNIROUTE_MODEL` picks another.
   omniroute: 'NutrIA-Fallback',
+  // `0064`: the primary its measurements chose, at low reasoning
+  // (`AI_REASONING_EFFORT`), with `minimax/minimax-m3` as the fallback
+  // (`AI_FALLBACK_MODELS`) — both set in the deployment, not defaulted here.
+  openrouter: 'deepseek/deepseek-v4.1-flash',
   stub: 'none'
 } as const;
 
@@ -50,6 +54,94 @@ const MODEL_PREFIX: Partial<Record<keyof typeof DEFAULT_MODEL, readonly string[]
  */
 function optional<T extends z.ZodType>(schema: T) {
   return z.preprocess(value => (value === '' ? undefined : value), schema.optional());
+}
+
+/**
+ * An OpenRouter model id, `vendor/model`, that is not a free endpoint.
+ *
+ * OpenRouter's `:free` variants are served by providers that may train on
+ * what they are sent, which is exactly what `0064` rules out; the `provider`
+ * block on every request would already keep them from being routed to, so a
+ * `:free` id here is a request that can only fail — said at boot instead.
+ */
+function openRouterModelIssue(id: string): string | null {
+  if (!/^[\w.-]+\/[\w.:-]+$/.test(id)) {
+    return 'must be an OpenRouter model id, vendor/model';
+  }
+
+  // `openrouter/auto`, `openrouter/free` and the like are OpenRouter's own
+  // routers: they choose the model themselves, so which one answers — and
+  // whether it is one `0064` measured — is decided somewhere nobody checked.
+  if (id.toLowerCase().startsWith('openrouter/')) {
+    return 'must name a model, not one of OpenRouter’s own routers (openrouter/…), which pick the model themselves';
+  }
+
+  return id.endsWith(':free') ? 'must not be a :free model — they may train on what they are sent (0064)' : null;
+}
+
+/** The one origin `AI_PROVIDER=openrouter` may send its key and its requests to. */
+const OPENROUTER_ORIGIN = 'https://openrouter.ai';
+
+/**
+ * Whether a URL is on OpenRouter's own origin — `https` only, its exact host,
+ * the default port. A leftover `AI_BASE_URL` (the gateway's, a local one) would
+ * otherwise receive the OpenRouter key on every request, and every prompt with
+ * it, and nothing that answers there is bound by the `provider` block.
+ */
+export function isOpenRouterUrl(url: string): boolean {
+  try {
+    return new URL(url).origin === OPENROUTER_ORIGIN;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * `sail-research, other` into a list of OpenRouter provider slugs, or an issue
+ * naming what is wrong — never the value. Lower case as OpenRouter writes
+ * them, each once; an empty entry is a typo, not "ignore nobody".
+ */
+function providerList(raw: string, ctx: z.RefinementCtx): readonly string[] {
+  const providers = raw.split(',').map(provider => provider.trim());
+
+  if (providers.some(provider => !/^[a-z0-9][a-z0-9._/-]*$/.test(provider))) {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'must be OpenRouter provider slugs in lower case (sail-research), comma-separated, with no empty entry'
+    });
+
+    return z.NEVER;
+  }
+
+  if (new Set(providers).size !== providers.length) {
+    ctx.addIssue({ code: 'custom', message: 'names one provider twice' });
+
+    return z.NEVER;
+  }
+
+  return providers;
+}
+
+/**
+ * `a/b, c/d` into a list, or an issue naming what is wrong — never the value.
+ * Each model once; an empty entry is a typo, not "no fallback".
+ */
+function modelList(raw: string, ctx: z.RefinementCtx): readonly string[] {
+  const models = raw.split(',').map(model => model.trim());
+
+  if (models.some(model => model === '')) {
+    ctx.addIssue({ code: 'custom', message: 'must be model ids, comma-separated, with no empty entry' });
+
+    return z.NEVER;
+  }
+
+  if (new Set(models).size !== models.length) {
+    ctx.addIssue({ code: 'custom', message: 'names one model twice' });
+
+    return z.NEVER;
+  }
+
+  return models;
 }
 
 /** A practice plan (`0061`): the Stripe price, and how many active clients it includes. */
@@ -120,6 +212,13 @@ const envObject = z.object({
    */
   AI_BUDGET_SECONDS: z.preprocess(value => (value === '' ? undefined : value), z.coerce.number().int().min(30).max(3600).default(170)),
   /*
+   * OpenRouter only (`0064`): the models it moves a request to, in order, when
+   * `AI_MODEL` is down, rate-limited or refuses — its own fallback, inside one
+   * request. Comma-separated; empty means the one model. Ignored by every other
+   * provider.
+   */
+  AI_FALLBACK_MODELS: optional(z.string().transform(modelList)),
+  /*
    * Off by default: the configured provider's free tier allows zero image
    * generations, so this is the switch the owner throws once billing is on.
    * When off, no image model is resolved and the sweeps do nothing (0010).
@@ -128,8 +227,51 @@ const envObject = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform(value => value === 'true'),
+  /*
+   * OpenRouter only: the most a request may write, per dish it asks for, in
+   * tokens — the request's cap is that times its dishes plus a fixed margin
+   * (`resolveOutputCap`). A model once sent back 45 dishes for ~24 asked and
+   * ran a request into the time budget; a capped answer is cut short and
+   * recorded as invalid instead. Empty means 1200.
+   */
+  AI_MAX_OUTPUT_TOKENS_PER_DISH: optional(z.coerce.number().int().positive()),
   AI_MODEL: optional(z.string()),
-  AI_PROVIDER: z.enum(['anthropic', 'google', 'ollama', 'omniroute', 'stub']).default('stub'),
+  AI_PROVIDER: z.enum(['anthropic', 'google', 'ollama', 'omniroute', 'openrouter', 'stub']).default('stub'),
+  /*
+   * OpenRouter only: providers it may never route a request to, by its own
+   * slugs, comma-separated — one that answered within the no-training rules
+   * but kept running into the time budget (`sail-research`). It only removes;
+   * the no-training block still decides which of the rest may answer.
+   */
+  AI_PROVIDER_IGNORE: optional(z.string().transform(providerList)),
+  /*
+   * OpenRouter only, and required with it: the companies that may run the
+   * model, by OpenRouter's slugs, comma-separated (`deepinfra,coreweave`).
+   * `zdr: true` alone let one model go to 22 companies, one outside the EEA's
+   * adequacy decisions; the privacy policy names this list, so a request may
+   * reach no one else (`docs/legal/analisis.md` § 4.4).
+   */
+  AI_PROVIDER_ONLY: optional(z.string().transform(providerList)),
+  /*
+   * OpenRouter only: how it picks among the no-training endpoints of a model —
+   * `throughput`, `latency` or `price`. Empty keeps its load-balancing, which
+   * sent parallel requests to endpoints three times slower than the fastest.
+   * It only orders; the no-training block still decides which may answer.
+   */
+  AI_PROVIDER_SORT: optional(z.enum(['throughput', 'latency', 'price'])),
+  /*
+   * OpenRouter only (`0064`): how much the model thinks before it answers.
+   * `low` is what was measured and chosen — `none` answered in seven seconds
+   * with nine points of split error, against 1.5 at `low`. Empty leaves the
+   * model's own default. Ignored by every other provider.
+   */
+  AI_REASONING_EFFORT: optional(z.enum(['none', 'minimal', 'low', 'medium', 'high'])),
+  /*
+   * OpenRouter only: a cap on the thinking, in tokens. When set it replaces
+   * `AI_REASONING_EFFORT` (OpenRouter takes one or the other), except that an
+   * effort of `none` still switches thinking off. Empty means no cap.
+   */
+  AI_REASONING_MAX_TOKENS: optional(z.coerce.number().int().positive()),
   /*
    * The provider's own allowances, as the console reports them, so `/admin` can
    * say how close today is to the wall.
@@ -232,6 +374,8 @@ const envObject = z.object({
    * ignored by every other.
    */
   OMNIROUTE_MODEL: optional(z.string()),
+  /** OpenRouter's key, required only when `AI_PROVIDER` is `openrouter` (`0064`). */
+  OPENROUTER_API_KEY: optional(z.string()),
   /**
    * Where the "an account is waiting" notice goes (`0029`). Unset means it is
    * not sent; nobody else is ever told about a sign-up.
@@ -351,6 +495,41 @@ const envSchema = envObject
 
     if (env.AI_PROVIDER === 'omniroute' && !env.OMNIROUTE_API_KEY) {
       ctx.addIssue({ code: 'custom', message: 'is required when AI_PROVIDER is "omniroute"', path: ['OMNIROUTE_API_KEY'] });
+    }
+
+    if (env.AI_PROVIDER === 'openrouter') {
+      if (!env.OPENROUTER_API_KEY) {
+        ctx.addIssue({ code: 'custom', message: 'is required when AI_PROVIDER is "openrouter"', path: ['OPENROUTER_API_KEY'] });
+      }
+
+      // The companies the model may run at: without the list, any ZDR endpoint anywhere.
+      if (!env.AI_PROVIDER_ONLY) {
+        ctx.addIssue({ code: 'custom', message: 'is required when AI_PROVIDER is "openrouter"', path: ['AI_PROVIDER_ONLY'] });
+      }
+
+      // Empty means OpenRouter's own API; anything else must be on its origin.
+      if (env.AI_BASE_URL !== undefined && !isOpenRouterUrl(env.AI_BASE_URL)) {
+        ctx.addIssue({
+          code: 'custom',
+          message: `must be empty or on ${OPENROUTER_ORIGIN} when AI_PROVIDER is "openrouter" — the key and every request go there`,
+          path: ['AI_BASE_URL']
+        });
+      }
+
+      // Every model a request may reach: the one asked, the sweep's, and the fallbacks.
+      const models = [
+        ['AI_MODEL', env.AI_MODEL],
+        ['AI_REWRITE_MODEL', env.AI_REWRITE_MODEL],
+        ...(env.AI_FALLBACK_MODELS ?? []).map(model => ['AI_FALLBACK_MODELS', model] as const)
+      ] as const;
+
+      for (const [key, model] of models) {
+        const issue = model === undefined ? null : openRouterModelIssue(model);
+
+        if (issue) {
+          ctx.addIssue({ code: 'custom', message: issue, path: [key] });
+        }
+      }
     }
   })
   .superRefine((env, ctx) => {

@@ -45,7 +45,7 @@ export function providerCredentials(env: Env): readonly string[] {
   // would search for a string the error text never contains — the key would
   // still be here to steal, unredacted, in the one case (a pasted production
   // credential) this function exists for.
-  const configured = [env.ANTHROPIC_API_KEY, env.GOOGLE_API_KEY, env.OMNIROUTE_API_KEY].map(value => value?.trim());
+  const configured = [env.ANTHROPIC_API_KEY, env.GOOGLE_API_KEY, env.OMNIROUTE_API_KEY, env.OPENROUTER_API_KEY].map(value => value?.trim());
 
   return [...new Set(configured.filter((value): value is string => (value?.length ?? 0) >= MIN_CREDENTIAL_LENGTH))];
 }

@@ -29,7 +29,7 @@
 | [`textos/03-condiciones-uso.md`](./textos/03-condiciones-uso.md) | Cambios en las condiciones de uso (Premium, desistimiento, formulario, edad). |
 | [`textos/04-condiciones-consulta.md`](./textos/04-condiciones-consulta.md) | Las condiciones del plan de consulta (B2B): precio, prueba, renovación, cancelación, pausa. |
 | [`textos/05-consentimientos-cliente.md`](./textos/05-consentimientos-cliente.md) | El consentimiento de salud del registro (nuevo), la invitación y su página, y el fin del enlace. Sube `CARE_CONSENT_VERSION` y `HEALTH_CONSENT_VERSION`. |
-| [`textos/06-correos.md`](./textos/06-correos.md) | Correos con efecto jurídico: la invitación, el alta del profesional, el acuse de desistimiento, el aviso de renovación anual. |
+| [`textos/06-correos.md`](./textos/06-correos.md) | Correos con efecto jurídico: la invitación, el alta del profesional, el acuse de desistimiento, el aviso de renovación anual, el aviso de cambio de condiciones y el del cambio de proveedor de IA. |
 | [`textos/07-aviso-legal.md`](./textos/07-aviso-legal.md) | El aviso legal que exige el art. 10 LSSI y los datos que el art. 97 TRLGDCU pide antes de vender. |
 
 ## Cómo se leen los textos
@@ -61,3 +61,6 @@ estar aquí.
 - TJUE — C-184/20 *OT* (1/8/2022) y C-21/23 *Lindenapotheke* (4/10/2024), sobre el alcance de «datos de salud».
 - Código Deontológico de la profesión de Dietista-Nutricionista, CGCODN, aprobado el 22/12/2021.
 - Condiciones de proveedores: Gemini API Additional Terms (en vigor 23/03/2026), OpenCode Zen (privacidad de modelos gratuitos), Stripe Managed Payments (documentación consultada el 25/09/2026).
+- Proveedores de IA para el cambio de `0064`, leídos el 26/09/2026: OpenRouter — condiciones (31/08/2026), política de privacidad (31/08/2026), *Enterprise Access Agreement* con su DPA (22/06/2026), documentación de ZDR, *Data collection* y *provider routing*, lista de subencargados (`trust.openrouter.ai`; espejo `sub-processors.com`, 20/03/2026) y su API pública (`/api/v1/endpoints/zdr`, `/api/v1/providers`, `/api/v1/models/…/endpoints`); DeepInfra — condiciones (17/08/2026), privacidad (15/08/2026), documentación de privacidad; CoreWeave — privacidad (24/02/2026), DPA, política de uso aceptable; Together — condiciones y privacidad (17/12/2025); licencias en Hugging Face de DeepSeek V4.1 Flash (MIT) y MiniMax M3 (*MiniMax Community License*); Gemini API Additional Terms (23/03/2026), otra vez, para corregir el § 1.3.
+- Lista oficial del Marco de Privacidad de Datos UE-EE. UU. (`dataprivacyframework.gov`, consultada por su API el 26/09/2026).
+- TJUE — C-413/23 P *CEPD c. JUR* (4/9/2025), sobre datos seudonimizados y el deber de informar del destinatario.

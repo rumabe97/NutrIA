@@ -3,6 +3,8 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createOllama } from 'ollama-ai-provider-v2';
 
+import { isOpenRouterUrl } from '../../config/Env.validation.js';
+
 import type { Env } from '../../config/index.js';
 import type { ImageModel, LanguageModel } from 'ai';
 
@@ -15,6 +17,49 @@ export const AI_SECRETS = Symbol('AI_SECRETS');
 
 /** How long the model half of a pool build may take in all, in milliseconds — `AI_BUDGET_SECONDS`. */
 export const AI_MODEL_BUDGET = Symbol('AI_MODEL_BUDGET');
+
+/** How many tokens a pool request may write, or null for no cap — `resolveOutputCap`. */
+export const AI_OUTPUT_CAP = Symbol('AI_OUTPUT_CAP');
+
+/** A pool request's output cap: `perDish` times the dishes it asks for, plus `margin`. */
+export type AiOutputCap = { readonly margin: number; readonly perDish: number };
+
+/** `AI_MAX_OUTPUT_TOKENS_PER_DISH` when it is empty. */
+const DEFAULT_OUTPUT_TOKENS_PER_DISH = 1200;
+
+/** The `{ "dishes": [ … ] }` around the dishes, and room for a long one. */
+const OUTPUT_TOKEN_MARGIN = 800;
+
+/**
+ * The cap on what one pool request may write, for OpenRouter alone.
+ *
+ * A model asked for three dishes once sent back fifteen — 45 for ~24 asked
+ * over a fortnight — and a request writes at a fixed rate, so it ran into the
+ * 170-second budget and took its slot's dishes with it. Capped, such an answer
+ * is cut off, fails the schema and is recorded as `invalid_output`, which
+ * costs only that request's dishes (`PoolBuilder`).
+ *
+ * Null for every other provider: a gateway's combo and Gemini's free tier
+ * route to models this was never measured on, some of which think inside the
+ * same allowance. Null too when OpenRouter's model may think with no cap on
+ * the thinking (`AI_REASONING_EFFORT` other than `none`, and no
+ * `AI_REASONING_MAX_TOKENS`): the thinking counts against the same tokens, and
+ * an unknown amount of it would cut valid answers short. With a thinking cap,
+ * the cap is added to the margin.
+ */
+export function resolveOutputCap(env: Env): AiOutputCap | null {
+  if (env.AI_PROVIDER !== 'openrouter') {
+    return null;
+  }
+
+  const thinking = env.AI_REASONING_EFFORT === 'none' ? 0 : env.AI_REASONING_MAX_TOKENS;
+
+  if (thinking === undefined) {
+    return null;
+  }
+
+  return { margin: OUTPUT_TOKEN_MARGIN + thinking, perDish: env.AI_MAX_OUTPUT_TOKENS_PER_DISH ?? DEFAULT_OUTPUT_TOKENS_PER_DISH };
+}
 
 /** The client the rewrite sweep asks — see `resolveRewriteModel`. */
 export const AI_REWRITE_CLIENT = Symbol('AI_REWRITE_CLIENT');
@@ -86,9 +131,132 @@ export function resolveModel(env: Env): LanguageModel | null {
         transformRequestBody: nonStrictSchema
       })(env.AI_MODEL);
 
+    case 'openrouter':
+      // OpenRouter, called directly (`0064`): paid models that never train on
+      // what is sent, with OpenRouter's own model fallback in place of a
+      // gateway's combo. The same OpenAI-compatible wire as the gateway — the
+      // non-strict `json_schema` included — and every request carries the
+      // no-training `provider` block, which `openRouterRequest` writes over the
+      // finished body so nothing a caller sets can take it off.
+      return createOpenAICompatible({
+        apiKey: required(env.OPENROUTER_API_KEY, 'OPENROUTER_API_KEY'),
+        baseURL: openRouterBaseUrl(env.AI_BASE_URL),
+        name: 'openrouter',
+        supportsStructuredOutputs: true,
+        transformRequestBody: openRouterRequest({
+          fallbackModels: env.AI_FALLBACK_MODELS ?? [],
+          providerIgnore: env.AI_PROVIDER_IGNORE ?? [],
+          providerOnly: requiredList(env.AI_PROVIDER_ONLY, 'AI_PROVIDER_ONLY'),
+          providerSort: env.AI_PROVIDER_SORT,
+          reasoningEffort: env.AI_REASONING_EFFORT,
+          reasoningMaxTokens: env.AI_REASONING_MAX_TOKENS
+        })
+      })(env.AI_MODEL);
+
     case 'stub':
       return null;
   }
+}
+
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1';
+
+/**
+ * Where the OpenRouter key and every request go: OpenRouter's API, or another
+ * path on its origin when `AI_BASE_URL` names one. Boot already refuses any
+ * other host (`Env.validation.ts`); this refuses it again where the key is
+ * handed over, so an `Env` that did not come through `validateEnv` cannot
+ * send it to a leftover gateway either.
+ */
+function openRouterBaseUrl(configured: string | undefined): string {
+  if (!configured) {
+    return OPENROUTER_BASE_URL;
+  }
+
+  if (!isOpenRouterUrl(configured)) {
+    throw new Error('AI_BASE_URL must be empty or on https://openrouter.ai when AI_PROVIDER is "openrouter"');
+  }
+
+  return configured;
+}
+
+/**
+ * Where OpenRouter may send a request: only to an endpoint that retains
+ * nothing (`zdr`) and does not collect what it is sent (`data_collection:
+ * 'deny'`) — the owner's rule that no provider trains on or reuses NutrIA's
+ * data (`0064` § 3, the third of its three layers). `require_parameters`
+ * keeps a request off an endpoint that would silently drop its
+ * `response_format` or its `reasoning`; it is how every model in `0064`'s
+ * table was measured (`scripts/bench-models.mjs`).
+ *
+ * Frozen and written over whatever a body carries, never merged with it.
+ *
+ * @knipignore Exported for its spec, which checks every request carries it.
+ */
+export const NO_TRAINING_PROVIDER = Object.freeze({ data_collection: 'deny', require_parameters: true, zdr: true } as const);
+
+/**
+ * The body OpenRouter is sent, from the body the SDK built: the schema
+ * non-strict, then OpenRouter's own fields.
+ *
+ * - `models`: the asked model, then `AI_FALLBACK_MODELS` — OpenRouter tries
+ *   the next when one is down, rate-limited or refuses, inside the same
+ *   request. It is what the gateway's combo did, and why the SDK retries
+ *   nothing here (`resolveCallSettings`).
+ * - `reasoning`: `AI_REASONING_EFFORT` as OpenRouter spells it — `none`
+ *   switches thinking off, which measured seven seconds a request and nine
+ *   points of split error against 1.5 at `low` (`0064`); unset leaves the
+ *   model's default. `AI_REASONING_MAX_TOKENS` caps the thinking in tokens
+ *   instead (`{ max_tokens }`): when both are set the cap wins and the effort
+ *   is ignored, since OpenRouter takes one or the other. `none` still wins
+ *   over both — off is off.
+ * - `usage.include`: the answer carries its cost, which the call log keeps
+ *   (`readOpenRouter`).
+ * - `provider`: `NO_TRAINING_PROVIDER`, plus `sort` when `AI_PROVIDER_SORT`
+ *   is set — OpenRouter's load-balancing otherwise spread parallel requests
+ *   onto slow ZDR endpoints (~120 s against ~37 s on the fastest) — and
+ *   `ignore` when `AI_PROVIDER_IGNORE` names any, for one ZDR provider
+ *   (Sail Research) that kept running into the time budget — and always
+ *   `only`, `AI_PROVIDER_ONLY`: the companies the privacy policy names, and
+ *   no one else (`zdr` alone let one model reach 22). The no-training fields
+ *   are spread last, so none of these can ever loosen them.
+ *   The block is written over the body. This transform
+ *   is the last thing the SDK runs before it posts: it has already merged a
+ *   call's `providerOptions` into the body, so a caller's `provider` — or a
+ *   later change that adds one — is replaced here, not kept. `models`,
+ *   `reasoning` and `usage` are written over it the same way.
+ *
+ * @knipignore Exported for its spec; the provider above is its only caller.
+ */
+export function openRouterRequest(options: {
+  readonly fallbackModels: readonly string[];
+  readonly providerIgnore?: readonly string[];
+  readonly providerOnly: readonly string[];
+  readonly providerSort?: Env['AI_PROVIDER_SORT'];
+  readonly reasoningEffort?: Env['AI_REASONING_EFFORT'];
+  readonly reasoningMaxTokens?: Env['AI_REASONING_MAX_TOKENS'];
+}): (body: Record<string, unknown>) => Record<string, unknown> {
+  const reasoning =
+    options.reasoningEffort === 'none'
+      ? { enabled: false }
+      : options.reasoningMaxTokens !== undefined
+        ? { max_tokens: options.reasoningMaxTokens }
+        : options.reasoningEffort === undefined
+          ? undefined
+          : { effort: options.reasoningEffort };
+  const ignore = options.providerIgnore ?? [];
+  const provider = Object.freeze({
+    ...(ignore.length > 0 ? { ignore: Object.freeze([...ignore]) } : {}),
+    only: Object.freeze([...options.providerOnly]),
+    ...(options.providerSort === undefined ? {} : { sort: options.providerSort }),
+    ...NO_TRAINING_PROVIDER
+  });
+
+  return body => {
+    const asked = typeof body['model'] === 'string' ? body['model'] : null;
+    const models = asked === null ? [...options.fallbackModels] : [asked, ...options.fallbackModels.filter(model => model !== asked)];
+
+    return { ...nonStrictSchema(body), models, ...(reasoning ? { reasoning } : {}), provider, usage: { include: true } };
+  };
 }
 
 /**
@@ -105,7 +273,7 @@ export function resolveModel(env: Env): LanguageModel | null {
  * `generatedDishSchema` and `PoolBuilder`'s gates downstream. Measured on the
  * same prompt: strict, 400; non-strict, two valid dishes.
  *
- * @knipignore Exported for its spec; the provider below is its only caller.
+ * @knipignore Exported for its spec; the providers above are its only callers.
  */
 export function nonStrictSchema(body: Record<string, unknown>): Record<string, unknown> {
   const format = body['response_format'] as { json_schema?: Record<string, unknown>; type?: string } | undefined;
@@ -128,12 +296,37 @@ export function nonStrictSchema(body: Record<string, unknown>): Record<string, u
  * `PoolBuilder` could reach for the library. Every other provider keeps the
  * SDK's own default of two: nothing else retries for them.
  *
+ * **None on OpenRouter either** (`0064`), for the same reason: its `models`
+ * list moves a refused or failed request to the fallback model itself, and a
+ * failed request's slot is asked again by the pool builder's next round, or
+ * covered from the library. A retry here would pay twice for the same wait.
+ *
  * **A session header behind a gateway**, so its own log files a generation's
  * calls together under the job id; OmniRoute answers with the session it used,
- * "ext:<job>". A direct provider is not sent our ids.
+ * "ext:<job>". A direct provider is not sent our ids — OpenRouter included:
+ * its own id for each call (`gen-…`) comes back in the answer and is what the
+ * call log keeps.
  */
 export function resolveCallSettings(env: Env): AiCallSettings {
-  return env.AI_PROVIDER === 'omniroute' ? { maxRetries: 0, sessionHeader: 'x-omniroute-session' } : { maxRetries: 2, sessionHeader: null };
+  switch (env.AI_PROVIDER) {
+    case 'omniroute':
+      return { maxRetries: 0, sessionHeader: 'x-omniroute-session' };
+
+    case 'openrouter':
+      return { maxRetries: 0, sessionHeader: null };
+
+    default:
+      return { maxRetries: 2, sessionHeader: null };
+  }
+}
+
+/** `required`, for a list: an empty one names nothing, so it is missing too. */
+function requiredList(value: readonly string[] | undefined, name: string): readonly string[] {
+  if (!value || value.length === 0) {
+    throw new Error(`${name} is required when AI_PROVIDER selects it`);
+  }
+
+  return value;
 }
 
 function required(value: string | undefined, name: string): string {

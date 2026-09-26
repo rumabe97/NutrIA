@@ -14,7 +14,7 @@
 | --- | --- |
 | Responsable | {name} (ver `legalIdentity.ts`) |
 | Tratamientos | (1) planificación de comidas con datos de salud y de creencias, con IA generativa; (2) comunicación de datos a dietistas-nutricionistas (proyecto 004) |
-| Versión / fecha | 0.1 borrador, 2026-09-25 |
+| Versión / fecha | 0.2 borrador, 2026-09-26 (0.1: 2026-09-25). La 0.2 revisa solo el tratamiento con IA (`0064`: OpenRouter): § 1.3, 1.4, 2, R2, R14, M3, M4, § 5 y § 6 |
 | Aprobación | pendiente — firma y fecha del responsable |
 | DPD | no designado (no obligatorio: [`analisis.md` § 5.2](./analisis.md#52-dpd--no-obligatorio-hoy)) |
 | Por qué es obligatoria | Lista de la AEPD (art. 35.4), criterios 1, 4, 8 y 10; art. 28.2.c LOPDGDD — [`analisis.md` § 5.1](./analisis.md#51-eipd--obligatoria) |
@@ -59,20 +59,24 @@
 2. **Almacenamiento**: PostgreSQL en Neon (`eu-central-1`); copia de restauración de Neon;
    exportación manual en el equipo del propietario.
 3. **Uso**: cálculo determinista de objetivos (`packages/core/domain/Nutrition`),
-   generación con IA (prompt sin identificadores, § 1.3 del análisis), comprobación
+   generación con IA (prompt 4.1.0 sin identificadores, salud ni texto libre, § 1.3 del
+   análisis; desde el 2026-09-26 ninguna llamada, `stub`; tras `0064`, OpenRouter),
+   comprobación
    determinista de alergias (`findSafetyViolations`), acceso del profesional por
    `CareController.withClient` con fila de rastro.
-4. **Cesión/comunicación**: al profesional vinculado; a los proveedores de IA; a Stripe; al
-   proveedor de correo; a Sentry (sin datos personales).
+4. **Cesión/comunicación**: al profesional vinculado; a OpenRouter y a la empresa que
+   ejecuta el modelo (tras `0064`); a Stripe; al proveedor de correo; a Sentry (sin datos
+   personales).
 5. **Borrado**: en cascada al borrar la cuenta; invitaciones a los 14 días; salud al
    retirar el consentimiento; sin purga para métricas y trabajos de generación.
 
 ### 1.4 Activos y encargados
 
-Vercel (cómputo, `fra1`), Neon (base de datos, UE), pasarela OmniRoute (servidor del
-propietario, ubicación **por anotar**), proveedores de modelos (EE. UU.), Google (correo
-SMTP), Stripe/Link, Sentry (opcional), servicios push de navegador. Equipo del propietario
-(credenciales, exportaciones).
+Vercel (cómputo, `fra1`), Neon (base de datos, UE), OpenRouter (EE. UU., encargado, tras
+`0064`) y la empresa que ejecuta el modelo (EE. UU.; propuesta: DeepInfra o CoreWeave,
+lista cerrada en la cuenta — P1-12), Google (correo SMTP), Stripe/Link, Sentry
+(opcional), servicios push de navegador. Equipo del propietario (credenciales,
+exportaciones). La pasarela OmniRoute ya no está en producción (solo experimentos).
 
 ---
 
@@ -82,13 +86,13 @@ SMTP), Stripe/Link, Sentry (opcional), servicios push de navegador. Equipo del p
 | --- | --- |
 | ¿Base legítima? | Sí, con los cambios del [`analisis.md` § 3](./analisis.md#3-bases-jurídicas-y-excepción-del-art-9): consentimiento explícito (9.2.a) para todos los datos de salud y creencias; hoy falta para alergias y datos corporales (**P0-2**). |
 | ¿Fines determinados y limitados? | Sí. No hay publicidad, venta ni perfiles para terceros. |
-| ¿Minimización? | Buena en el diseño: la medicación no tiene dosis porque nada la usaría; la IA no recibe identificadores ni salud declarada; el profesional no ve alergias, correo ni comentarios; el rastro no guarda la carga. **Excesos**: texto libre de alergias y comentarios del check-in hacia la IA (P0-3); «Halal»/«Kosher» como etiqueta en vez de restricción (P2-1). |
+| ¿Minimización? | Buena en el diseño: la medicación no tiene dosis porque nada la usaría; la IA no recibe identificadores ni salud declarada; el profesional no ve alergias, correo ni comentarios; el rastro no guarda la carga. **Excesos**: ~~texto libre de alergias y comentarios del check-in hacia la IA~~ (quitados en el prompt 4.0.0, P0-3); «Halal»/«Kosher» como etiqueta en vez de restricción (P2-1). |
 | ¿Exactitud? | El usuario corrige desde su perfil; los objetivos anulados se revalidan en cada lectura. |
 | ¿Limitación del plazo? | Parcial: cascada completa al borrar; faltan plazos para métricas y trabajos (P2-4) y para la exportación manual (P1-6). |
 | ¿Información? | Insuficiente hoy (P1-2, P1-3, P1-5); textos nuevos en `textos/`. |
 | ¿Derechos? | Acceso, rectificación, supresión en el producto; portabilidad por correo (P2-9); retirada de la salud compartida con el profesional sin terminar el enlace: **no existe** (P0-1). |
-| ¿Transferencias? | A EE. UU.; requieren DPF o cláusulas tipo verificadas por proveedor ([`analisis.md` § 4.2](./analisis.md#42-transferencias-internacionales-arts-44-49)). |
-| ¿Hay una alternativa menos intrusiva? | Para la IA: modelos con contrato de encargo y sin entrenamiento, o no enviar texto libre. Para el 004: ya se comparte lo mínimo; la salud va en línea aparte. |
+| ¿Transferencias? | A EE. UU.; DPF (Vercel, Neon vía Databricks, Stripe, Sentry: verificado 2026-09-26) o cláusulas tipo (OpenRouter, en su DPA — P1-11). Las empresas que ejecutan el modelo no tienen garantía propia frente a NutrIA: la petición no identifica a nadie ([`analisis.md` § 4.2 y § 4.4](./analisis.md#42-transferencias-internacionales-arts-44-49)). |
+| ¿Hay una alternativa menos intrusiva? | Para la IA: hecho las dos — el prompt ya no lleva texto libre, salud ni creencias (4.0.0) y el cambio de `0064` lleva a modelos de pago sin entrenamiento ni retención. La menos intrusiva de todas es la actual (`stub`, ningún modelo), a costa de platos nuevos; un proveedor con contrato directo en la UE (Mistral) cerraría P2-11. Para el 004: ya se comparte lo mínimo; la salud va en línea aparte. |
 
 ---
 
@@ -101,7 +105,8 @@ de las pendientes marcadas.
 | # | Amenaza | Daño a la persona | P | I | Inherente | Medidas (§ 4) | Residual |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | R1 | Un plato con un alérgeno declarado llega al plan | Reacción alérgica, anafilaxia | 3 | 4 | **12** | M1, M2 | 4 (el texto libre no resuelto sigue siendo «mejor esfuerzo» y el usuario lo sabe) |
-| R2 | Datos de salud o de religión reutilizados por un proveedor de IA para entrenar | Pérdida de control; exposición de alergias, creencias o comentarios | 4 hoy | 3 | **12** | M3 (**pendiente**), M4 | 2 con M3 |
+| R2 | Datos enviados a la IA reutilizados por un proveedor para entrenar o guardados | Pérdida de control; exposición de preferencias y objetivos (ya no de alergias, creencias ni comentarios: prompt 4.0.0) | 4 hasta el 2026-09-25; 1 desde el 2026-09-26 (`stub`) | 3 → 2 (prompt 4.x) | **12** → 2 | M3, M4 | 2 con M3 (categorización anónima de OpenRouter, P2-12) |
+| R14 | La petición a la IA acaba en una empresa o un país que la política no nombra (p. ej. un endpoint en Indonesia) | Transferencia sin garantía; información falsa | 3 con la cuenta sin lista cerrada | 2 | 6 | M3 (lista cerrada, **pendiente P1-12**) | 1 |
 | R3 | Un profesional ve datos de alguien que no aceptó, o después de terminar | Revelación de salud a un tercero | 2 | 4 | 8 | M5, M6, M7 | 2 |
 | R4 | Un profesional usa lo que ve fuera de la asistencia (difusión, publicidad) | Revelación; discriminación | 2 | 4 | 8 | M8 (**acuerdo pendiente**), M7 | 4 |
 | R5 | Una persona comparte su salud con el profesional sin saberlo o no puede dejar de hacerlo | Consentimiento viciado; pérdida de control | 3 hoy | 3 | 9 | M9 (**pendiente**) | 2 |
@@ -122,8 +127,8 @@ de las pendientes marcadas.
 | --- | --- | --- |
 | M1 | Alergias aplicadas por código comparando ids (`findSafetyViolations`), antes de guardar y antes de devolver; `SafetyController.getSafetyProfile` único ensamblador | ✔ |
 | M2 | Texto libre no resuelto declarado «mejor esfuerzo» al usuario; plato con ingredientes sin resolver rechazado | ✔ |
-| M3 | Solo proveedores de IA con contrato de encargo, sin entrenamiento, retención cero, garantía de transferencia; o no enviar texto libre ni etiquetas religiosas | **pendiente (P0-3)** |
-| M4 | La IA no recibe identificadores ni salud declarada; test de frontera `health-boundary.spec.ts`; *No-Log* en la pasarela | ✔ |
+| M3 | Solo proveedores de IA con contrato de encargo, sin entrenamiento, retención cero, garantía de transferencia; y no enviar texto libre ni etiquetas religiosas | Texto libre y etiquetas: ✔ (4.0.0). Producción sin modelo desde el 2026-09-26 ✔. Para el cambio (`0064`): código ✔ (`NO_TRAINING_PROVIDER`: `zdr`, `data_collection: 'deny'` en cada petición); cuenta y clave (entrenamiento off, ZDR, dos modelos, tope) — propietario; **pendientes**: DPA de OpenRouter en la mano (P1-11) y lista cerrada de proveedores (P1-12) |
+| M4 | La IA no recibe identificadores ni salud declarada; test de frontera `health-boundary.spec.ts`; sin cabecera de sesión hacia OpenRouter (`resolveCallSettings`); registro de prompts de OpenRouter apagado | ✔ (el registro de prompts: propietario, al configurar la cuenta) |
 | M5 | Acceso solo por `withClient` (id de enlace, sesión, estado `active`), denegación 404, sin caché | ✔ |
 | M6 | Invitación de un solo uso, hash, 14 días, correo de la sesión debe coincidir | ✔ |
 | M7 | Rastro visible para el cliente de cada lectura y escritura | ✔ |
@@ -147,15 +152,15 @@ de las pendientes marcadas.
   (≥ 9): la EIPD concluye que el tratamiento **puede** realizarse sin consulta previa a la
   AEPD.
 - **Sin M3, M8 y M9**, R2 (12), R4 y R5 (9 hoy) quedan altos. **Con esos riesgos residuales
-  altos no se debe encender el flag `professional`**, y R2 afecta ya a producción: si el
-  responsable decidiera no implantar M3, el art. 36.1 le obligaría a consultar a la AEPD
-  antes de seguir.
+  altos no se debe encender el flag `professional`**. R2 ya no afecta a producción desde
+  el 2026-09-26 (`stub`); **no se debe poner `AI_PROVIDER=openrouter` sin M3 completa**
+  (P1-11 y P1-12): R14 subiría y la política diría algo falso.
 
 ## 6. Plan de acción
 
 | Orden | Medida | Quién | Antes de |
 | --- | --- | --- | --- |
-| 1 | M3 — proveedores de IA / sin texto libre | propietario (pasarela) + backend | ya (producción) |
+| 1 | M3 — DPA de OpenRouter (P1-11) y lista cerrada de proveedores (P1-12); licencia de MiniMax (P1-13) | propietario (cuenta de OpenRouter) + backend (`provider.only`) | el cambio a `openrouter` |
 | 2 | Consentimiento explícito del perfil (P0-2) | backend + frontend | ya (producción) |
 | 3 | M9 — retirar salud del enlace + textos | backend + frontend | flag `professional` |
 | 4 | M8 — acuerdo del profesional | backend + frontend | flag `professional` |

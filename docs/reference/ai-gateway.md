@@ -1,4 +1,4 @@
-# AI gateway runbook (OmniRoute)
+# AI providers runbook (OpenRouter, and the OmniRoute gateway)
 
 > **Purpose**: how to make plan generation go through an OpenAI-compatible gateway
 > ([`0050`](../decisions/0050-generation-can-go-through-a-gateway.md)) — what to set on
@@ -9,6 +9,48 @@
 >
 > Facts are labelled **confirmed** (measured, and how) or **hypothesis** (believed, with
 > the open question), as reference docs must be.
+>
+> Production calls **OpenRouter directly** ([`0064`](../decisions/0064-generation-runs-on-paid-no-training-models-through-openrouter.md)), §0; the gateway (§1–§7) stays for experiments and benchmarks.
+
+## 0. Production: OpenRouter directly (`0064`)
+
+With `AI_PROVIDER=openrouter` the pool builder calls `https://openrouter.ai/api/v1` itself, on paid models that never train on or retain what is sent. The rule is enforced in three layers; the first two are the owner's to set, the third is code.
+
+**Checklist — the account** (openrouter.ai, settings → privacy), owner-only:
+- [ ] Training on inputs **off**, for paid and free models.
+- [ ] Zero data retention (ZDR) **on** for all models, and for the first-party Anthropic, OpenAI, Google and SpaceXAI endpoints.
+- [ ] The workspace data discount (OpenRouter using inputs/outputs) **off**.
+- [ ] **Allowed providers**: only `DeepInfra` and `CoreWeave` (US, ZDR, both serve both models) — the companies the privacy policy names (`docs/legal/analisis.md` P1-12). The code sends the same list as `provider.only` (`AI_PROVIDER_ONLY`, required).
+
+**Any change** to `AI_MODEL`, `AI_FALLBACK_MODELS`, `AI_PROVIDER_ONLY` or the account's allowed list goes through `/privacidad` first: the policy names the model and the companies that run it (`docs/legal/textos/02-politica-privacidad.md`, state 2), and `legal` reviews the change.
+
+**Checklist — the key** (settings → keys), owner-only:
+- [ ] A key for NutrIA alone, with a guardrail: allowed models only `deepseek/deepseek-v4.1-flash` and `minimax/minimax-m3`; ZDR required; a monthly credit limit (`0064` estimates 0.10–0.15 $ a fortnight).
+- [ ] Stored only as `OPENROUTER_API_KEY` on the API project — never on the web project, never `NEXT_PUBLIC_`.
+- [ ] No preset is needed: the code sends the models, the provider block and the reasoning effort. If one is kept for manual tests, it has no tools and response caching **off** (two people with the same profile would otherwise get the same dishes).
+
+**What every request carries** (code, `ai.config.ts` `openRouterRequest`, written over whatever the request had — **confirmed** by its spec on the posted body): `provider: { zdr: true, data_collection: 'deny', require_parameters: true }`, `models: [AI_MODEL, ...AI_FALLBACK_MODELS]` (OpenRouter's own fallback, inside one request), `reasoning` from `AI_REASONING_EFFORT` (`none` → `{ enabled: false }`), `usage: { include: true }`. The SDK retries nothing and no session header is sent. A model id ending `:free` is refused at boot.
+
+**The API's environment:**
+
+| Variable | Value |
+| --- | --- |
+| `AI_PROVIDER` | `openrouter` |
+| `OPENROUTER_API_KEY` | the key above — boot is refused without it |
+| `AI_MODEL` | `deepseek/deepseek-v4.1-flash` (the default when empty) |
+| `AI_FALLBACK_MODELS` | `minimax/minimax-m3` |
+| `AI_REASONING_EFFORT` | `none` — measured on full dev fortnights 2026-09-26: `low` left most requests at the 170 s budget and few fresh dishes; `none` kept 2–17× more fresh dishes with every day inside 5% |
+| `AI_BASE_URL` | **empty** (or a path on `https://openrouter.ai`). Any other host is refused at boot — it would receive the OpenRouter key |
+| `AI_PROVIDER_SORT` | `throughput` — measured 2026-09-26: default load-balancing sent parallel requests to ~120 s endpoints |
+| `AI_PROVIDER_ONLY` | `deepinfra,coreweave` — **required**; the only companies that may run the model |
+| `AI_PROVIDER_IGNORE` | empty — `AI_PROVIDER_ONLY` already decides; `sail-research` was the slow one while the list was open |
+| `AI_MAX_OUTPUT_TOKENS_PER_DISH` | empty (1200) — caps a request that would return far more dishes than asked |
+| `AI_BUDGET_SECONDS` | empty — 170 |
+| `AI_REWRITE_STEPS` | `false` until decided: on OpenRouter every rewrite is a paid call |
+
+**Seven fresh dishes a meal, three per request** (`0064` § 4): the first round asks each meal's shortfall as parallel requests of at most three dishes (7 → 3 + 3 + 1), inside the same budget; a later round asks one request per meal for what is still short. A 413 or 429 on one request is recorded in the call log and costs only its own dishes; the library covers them.
+
+**Telling that it works:** `/admin`'s generation log shows per call the model that answered (a fallback shows as a different model than asked), the provider OpenRouter routed to, and the cost from `usage.cost`; `requestId` is the `gen-…` id on OpenRouter's activity page. **Rolling back:** `AI_PROVIDER=stub` (library only), what production ran while `0064` was settled — not `google`: Gemini's free tier is ruled out by `0064`.
 
 ## What changes and what does not
 

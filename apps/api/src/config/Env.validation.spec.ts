@@ -130,6 +130,22 @@ describe('empty values from a copied .env.example', () => {
   it('treats an empty gateway key as missing when omniroute is selected', () => {
     expect(() => validateEnv({ ...copied, AI_PROVIDER: 'omniroute' })).toThrow(/OMNIROUTE_API_KEY/);
   });
+
+  it('treats an empty OpenRouter key as missing when openrouter is selected, and its optional settings as unset', () => {
+    expect(() => validateEnv({ ...copied, AI_PROVIDER: 'openrouter', OPENROUTER_API_KEY: '' })).toThrow(/OPENROUTER_API_KEY/);
+
+    const env = validateEnv({
+      ...copied,
+      AI_FALLBACK_MODELS: '',
+      AI_PROVIDER: 'openrouter',
+      AI_PROVIDER_ONLY: 'deepinfra',
+      AI_REASONING_EFFORT: '',
+      OPENROUTER_API_KEY: 'k'
+    });
+
+    expect(env.AI_FALLBACK_MODELS).toBeUndefined();
+    expect(env.AI_REASONING_EFFORT).toBeUndefined();
+  });
 });
 
 describe('AI provider and model pairing', () => {
@@ -181,6 +197,142 @@ describe('AI provider and model pairing', () => {
     expect(validateEnv({ ...valid, AI_MODEL: 'auto/best-coding', AI_PROVIDER: 'omniroute', OMNIROUTE_API_KEY: 'k' }).AI_MODEL).toBe(
       'auto/best-coding'
     );
+  });
+});
+
+/*
+ * `0064`: generation on paid OpenRouter models that never train on what they
+ * are sent. The key is required; the model ids are OpenRouter's, and a free
+ * one — whose providers may train — is refused at boot.
+ */
+describe('AI_PROVIDER=openrouter', () => {
+  const openrouter = { ...valid, AI_PROVIDER: 'openrouter', AI_PROVIDER_ONLY: 'deepinfra,coreweave', OPENROUTER_API_KEY: 'k' };
+
+  it('requires its key', () => {
+    expect(() => validateEnv({ ...valid, AI_PROVIDER: 'openrouter', AI_PROVIDER_ONLY: 'deepinfra' })).toThrow(/OPENROUTER_API_KEY.*"openrouter"/);
+  });
+
+  it('requires the companies it may route to, reads them into a list, and refuses a bad one without echoing it', () => {
+    expect(() => validateEnv({ ...openrouter, AI_PROVIDER_ONLY: undefined })).toThrow(/AI_PROVIDER_ONLY.*"openrouter"/);
+    expect(() => validateEnv({ ...openrouter, AI_PROVIDER_ONLY: '' })).toThrow(/AI_PROVIDER_ONLY.*"openrouter"/);
+    expect(validateEnv({ ...openrouter, AI_PROVIDER_ONLY: ' deepinfra , coreweave' }).AI_PROVIDER_ONLY).toEqual(['deepinfra', 'coreweave']);
+
+    for (const list of ['deepinfra,', 'deepinfra,deepinfra', 'Secret Value']) {
+      expect(() => validateEnv({ ...openrouter, AI_PROVIDER_ONLY: list })).toThrow(/AI_PROVIDER_ONLY/);
+    }
+
+    expect(() => validateEnv({ ...openrouter, AI_PROVIDER_ONLY: 'Secret Value' })).not.toThrow(/Secret Value/);
+    expect(validateEnv(valid).AI_PROVIDER_ONLY).toBeUndefined();
+  });
+
+  it('defaults to the model 0064 chose, with no fallback and the model’s own reasoning', () => {
+    const env = validateEnv(openrouter);
+
+    expect(env.AI_MODEL).toBe('deepseek/deepseek-v4.1-flash');
+    expect(env.AI_FALLBACK_MODELS).toBeUndefined();
+    expect(env.AI_REASONING_EFFORT).toBeUndefined();
+  });
+
+  it('reads the fallback models into a list, trimmed, and the reasoning effort as given', () => {
+    const env = validateEnv({ ...openrouter, AI_FALLBACK_MODELS: ' minimax/minimax-m3 , z-ai/glm-5.3-flash', AI_REASONING_EFFORT: 'low' });
+
+    expect(env.AI_FALLBACK_MODELS).toEqual(['minimax/minimax-m3', 'z-ai/glm-5.3-flash']);
+    expect(env.AI_REASONING_EFFORT).toBe('low');
+    expect(validateEnv({ ...openrouter, AI_REASONING_EFFORT: 'none' }).AI_REASONING_EFFORT).toBe('none');
+  });
+
+  it('reads the reasoning token cap and the endpoint order, and leaves both unset when empty', () => {
+    const env = validateEnv({ ...openrouter, AI_PROVIDER_SORT: 'latency', AI_REASONING_MAX_TOKENS: '2048' });
+
+    expect(env.AI_REASONING_MAX_TOKENS).toBe(2048);
+    expect(env.AI_PROVIDER_SORT).toBe('latency');
+
+    const empty = validateEnv({ ...openrouter, AI_PROVIDER_SORT: '', AI_REASONING_MAX_TOKENS: '' });
+
+    expect(empty.AI_REASONING_MAX_TOKENS).toBeUndefined();
+    expect(empty.AI_PROVIDER_SORT).toBeUndefined();
+  });
+
+  it('refuses a reasoning cap that is not a positive integer, and an endpoint order OpenRouter does not know', () => {
+    for (const cap of ['0', '-5', '1.5', 'lots']) {
+      expect(() => validateEnv({ ...openrouter, AI_REASONING_MAX_TOKENS: cap })).toThrow(/AI_REASONING_MAX_TOKENS/);
+    }
+
+    expect(() => validateEnv({ ...openrouter, AI_PROVIDER_SORT: 'fastest' })).toThrow(/AI_PROVIDER_SORT/);
+  });
+
+  it('reads the output cap per dish and the providers to ignore, and leaves both unset when empty', () => {
+    const env = validateEnv({ ...openrouter, AI_MAX_OUTPUT_TOKENS_PER_DISH: '1500', AI_PROVIDER_IGNORE: 'sail-research, deepinfra/turbo' });
+
+    expect(env.AI_MAX_OUTPUT_TOKENS_PER_DISH).toBe(1500);
+    expect(env.AI_PROVIDER_IGNORE).toEqual(['sail-research', 'deepinfra/turbo']);
+
+    const empty = validateEnv({ ...openrouter, AI_MAX_OUTPUT_TOKENS_PER_DISH: '', AI_PROVIDER_IGNORE: '' });
+
+    expect(empty.AI_MAX_OUTPUT_TOKENS_PER_DISH).toBeUndefined();
+    expect(empty.AI_PROVIDER_IGNORE).toBeUndefined();
+  });
+
+  it('refuses an output cap that is not a positive integer', () => {
+    for (const cap of ['0', '-5', '1.5', 'lots']) {
+      expect(() => validateEnv({ ...openrouter, AI_MAX_OUTPUT_TOKENS_PER_DISH: cap })).toThrow(/AI_MAX_OUTPUT_TOKENS_PER_DISH/);
+    }
+  });
+
+  it('refuses a provider list with an empty entry, a repeat or a slug OpenRouter would not write, without echoing it', () => {
+    for (const list of ['sail-research,', 'sail-research,,other', 'sail-research,sail-research', 'Sail Research', 'sail_research!']) {
+      expect(() => validateEnv({ ...openrouter, AI_PROVIDER_IGNORE: list })).toThrow(/AI_PROVIDER_IGNORE/);
+    }
+
+    expect(() => validateEnv({ ...openrouter, AI_PROVIDER_IGNORE: 'Secret Value' })).not.toThrow(/Secret Value/);
+  });
+
+  it('refuses a reasoning effort OpenRouter does not know', () => {
+    expect(() => validateEnv({ ...openrouter, AI_REASONING_EFFORT: 'extreme' })).toThrow(/AI_REASONING_EFFORT/);
+  });
+
+  it('refuses a fallback list with an empty entry or a model twice', () => {
+    expect(() => validateEnv({ ...openrouter, AI_FALLBACK_MODELS: 'minimax/minimax-m3,,z-ai/glm-5.3-flash' })).toThrow(/AI_FALLBACK_MODELS/);
+    expect(() => validateEnv({ ...openrouter, AI_FALLBACK_MODELS: 'minimax/minimax-m3,minimax/minimax-m3' })).toThrow(/AI_FALLBACK_MODELS.*twice/);
+  });
+
+  it('refuses a free model anywhere a request may reach — the one asked, the sweep’s or a fallback', () => {
+    expect(() => validateEnv({ ...openrouter, AI_MODEL: 'nvidia/nemotron-3-ultra-550b-a55b:free' })).toThrow(/AI_MODEL.*:free/);
+    expect(() => validateEnv({ ...openrouter, AI_REWRITE_MODEL: 'qwen/qwen3.8-27b:free' })).toThrow(/AI_REWRITE_MODEL.*:free/);
+    expect(() => validateEnv({ ...openrouter, AI_FALLBACK_MODELS: 'minimax/minimax-m3,qwen/qwen3.8-27b:free' })).toThrow(/AI_FALLBACK_MODELS.*:free/);
+  });
+
+  it('refuses a model id that is not vendor/model, such as a gateway alias left over', () => {
+    expect(() => validateEnv({ ...openrouter, AI_MODEL: 'NutrIA-Fallback' })).toThrow(/AI_MODEL.*vendor\/model/);
+  });
+
+  it('refuses OpenRouter’s own routers anywhere a request may reach — they pick the model themselves', () => {
+    expect(() => validateEnv({ ...openrouter, AI_MODEL: 'openrouter/auto' })).toThrow(/AI_MODEL.*openrouter\//);
+    expect(() => validateEnv({ ...openrouter, AI_REWRITE_MODEL: 'OpenRouter/auto' })).toThrow(/AI_REWRITE_MODEL.*openrouter\//);
+    expect(() => validateEnv({ ...openrouter, AI_FALLBACK_MODELS: 'minimax/minimax-m3,openrouter/free' })).toThrow(
+      /AI_FALLBACK_MODELS.*openrouter\//
+    );
+  });
+
+  /*
+   * A leftover gateway URL would be sent the OpenRouter key and every prompt,
+   * and nothing there is bound by the no-training `provider` block.
+   */
+  it('refuses a base URL on any origin but https://openrouter.ai, and takes an empty one as OpenRouter’s own', () => {
+    expect(() => validateEnv({ ...openrouter, AI_BASE_URL: 'http://localhost:20128/v1' })).toThrow(/AI_BASE_URL/);
+    expect(() => validateEnv({ ...openrouter, AI_BASE_URL: 'http://openrouter.ai/api/v1' })).toThrow(/AI_BASE_URL/);
+    expect(() => validateEnv({ ...openrouter, AI_BASE_URL: 'https://openrouter.ai.example.com/api/v1' })).toThrow(/AI_BASE_URL/);
+    expect(() => validateEnv({ ...openrouter, AI_BASE_URL: 'https://openrouter.ai:8443/api/v1' })).toThrow(/AI_BASE_URL/);
+    expect(validateEnv({ ...openrouter, AI_BASE_URL: 'https://openrouter.ai/api/v1' }).AI_BASE_URL).toBe('https://openrouter.ai/api/v1');
+    expect(validateEnv({ ...openrouter, AI_BASE_URL: '' }).AI_BASE_URL).toBeUndefined();
+  });
+
+  it('leaves the fallback list alone for every other provider, which ignores it', () => {
+    expect(() => validateEnv({ ...valid, AI_FALLBACK_MODELS: 'qwen/qwen3.8-27b:free', AI_PROVIDER: 'google', GOOGLE_API_KEY: 'k' })).not.toThrow();
+  });
+
+  it('leaves the base URL alone for the gateway, which lives wherever it was installed', () => {
+    expect(() => validateEnv({ ...valid, AI_BASE_URL: 'http://localhost:20128/v1', AI_PROVIDER: 'omniroute', OMNIROUTE_API_KEY: 'k' })).not.toThrow();
   });
 });
 

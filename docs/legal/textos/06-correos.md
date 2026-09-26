@@ -114,3 +114,25 @@ Envío único a cada cuenta:
 | `choose` | `Puedes leerlas en {termsUrl} y {privacyUrl}. Si no estás de acuerdo, puedes borrar tu cuenta desde tu perfil.` | `You can read them at {termsUrl} and {privacyUrl}. If you do not agree, you can delete your account from your profile.` |
 
 <!-- Fuente: condiciones actuales, § «Cambios en estas condiciones» (es-ES.ts); RGPD art. 12.1 y 13.3; TRLGDCU art. 85.3 (no modificar unilateralmente sin causa y aviso). Es un correo de servicio, no comercial: LSSI art. 21 no aplica. -->
+
+---
+
+## G. Aviso del cambio de proveedor de IA (una vez, el día que se publique el estado 2 de la política)
+
+**Cuándo**: el mismo día que `/privacidad` pasa al estado 2 de
+[`02`](./02-politica-privacidad.md) («La inteligencia artificial»), y **antes** de poner
+`AI_PROVIDER=openrouter` (como pronto, al día siguiente). Envío único a cada cuenta. Si
+§ F aún no se ha enviado, se pueden unir en uno solo añadiendo `what` de este a aquel.
+
+**Por qué**: la política vigente promete «Si cambiamos algo importante… te avisaremos por
+correo antes de que se aplique». Un destinatario nuevo (OpenRouter y quien ejecuta el
+modelo) lo es, aunque sustituya a otros que protegían menos.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `Cambiamos el proveedor de inteligencia artificial de NutrIA` | `We are changing NutrIA's artificial-intelligence provider` |
+| `intro` | `A partir del {date}, cuando un modelo de inteligencia artificial diseñe platos nuevos para tu plan, lo hará a través de OpenRouter, en Estados Unidos, con proveedores que no guardan lo que reciben ni lo usan para entrenar ningún modelo.` | `From {date}, when an artificial-intelligence model designs new dishes for your plan, it will do so through OpenRouter, in the United States, with providers that neither keep what they receive nor use it to train any model.` |
+| `what` | `El modelo sigue recibiendo solo lo mismo que hasta ahora: nunca tu nombre, tu correo, tu edad, tu peso, tus alergias, tu salud ni nada que hayas escrito tú. Ya no usamos modelos gratuitos que puedan aprender de lo que reciben.` | `The model still receives only what it did before: never your name, email, age, weight, allergies, health or anything you wrote yourself. We no longer use free models that may learn from what they receive.` |
+| `choose` | `Los detalles están en {privacyUrl}, en «La inteligencia artificial». Si tienes cualquier duda, escríbenos a {email}. Si no estás de acuerdo, puedes borrar tu cuenta desde tu perfil.` | `The details are at {privacyUrl}, under "Artificial intelligence". If you have any question, write to us at {email}. If you do not agree, you can delete your account from your profile.` |
+
+<!-- Fuente: política vigente, § «Cambios en esta política» (es-ES.ts, namespace privacy); RGPD arts. 12.1 y 13.3 (información antes de un tratamiento nuevo), 13.1.e-f (destinatarios y transferencias); analisis.md § 4.4. «No guardan… ni lo usan para entrenar»: NO_TRAINING_PROVIDER (ai.config.ts), ajustes de cuenta del runbook ai-gateway.md § 0 y lista cerrada (P1-12). No menciona la categorización anónima de OpenRouter para no alargar un aviso: la enlaza la política, que sí la dice. Correo de servicio, no comercial: LSSI art. 21 no aplica. {date} = la fecha real del cambio; si se retrasa, no se reenvía, pero no se adelanta. Sin plantilla hoy: si se envía a mano, en copia oculta. -->

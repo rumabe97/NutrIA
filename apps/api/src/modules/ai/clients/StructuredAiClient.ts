@@ -5,7 +5,7 @@ import { AnalyticsController } from 'core/controllers/Analytics';
 
 import { AiCallError, AiClient } from './AiClient.js';
 import { isQuotaExhausted } from './quota.js';
-import { readGateway, readQuota } from './gateway.js';
+import { readGateway, readOpenRouter, readQuota, withoutEcho } from './gateway.js';
 import { redactSecrets } from './redact.js';
 import { untilAborted } from './untilAborted.js';
 import { AI_CALL_SETTINGS, AI_MODEL, AI_SECRETS } from '../ai.config.js';
@@ -22,7 +22,8 @@ import type { LanguageModel } from 'ai';
  * (`docs/ARCHITECTURE.md` § Invariants).
  *
  * Every call also says how it went — who answered, how long it took, what a
- * gateway in front of the provider reported (`gateway.ts`) — as data on the
+ * gateway in front of the provider reported in its headers, or OpenRouter in
+ * its body (`gateway.ts`, `0064`) — as data on the
  * response, or on the `AiCallError` a failure throws, so a generation can keep
  * a log of its own calls whatever became of them.
  */
@@ -45,7 +46,7 @@ export class StructuredAiClient extends AiClient {
     return this.model !== null;
   }
 
-  async generate<T>({ prompt, schema, session, signal, system }: AiRequest<T>): Promise<AiResponse<T>> {
+  async generate<T>({ maxOutputTokens, prompt, schema, session, signal, system }: AiRequest<T>): Promise<AiResponse<T>> {
     if (!this.model) {
       throw new Error('No AI model configured; check AI_PROVIDER');
     }
@@ -62,14 +63,24 @@ export class StructuredAiClient extends AiClient {
       // and the generation waited with it; whatever the transport does with the
       // signal, a call that outlives its budget is abandoned here, not awaited.
       const result = await untilAborted(
-        generateObject({ abortSignal: signal, headers, maxRetries: this.settings.maxRetries, model: this.model, prompt, schema, system }),
+        generateObject({
+          abortSignal: signal,
+          headers,
+          maxOutputTokens,
+          maxRetries: this.settings.maxRetries,
+          model: this.model,
+          prompt,
+          schema,
+          system
+        }),
         signal
       );
       const usage = { calls: 1, inputTokens: result.usage.inputTokens ?? 0, model, outputTokens: result.usage.outputTokens ?? 0 };
       const call: AiCall = {
         answeredModel: result.response.modelId || null,
         cachedInputTokens: result.usage.inputTokenDetails.cacheReadTokens ?? null,
-        gateway: readGateway(result.response.headers),
+        // OmniRoute says it in headers, OpenRouter in the body: whichever answered.
+        gateway: readGateway(result.response.headers) ?? readOpenRouter(result.response.body),
         ms: Date.now() - started,
         reasoningTokens: result.usage.outputTokenDetails.reasoningTokens ?? null
       };
@@ -107,15 +118,17 @@ export class StructuredAiClient extends AiClient {
       // A provider's own message ("API key not valid", "quota exceeded", "model not
       // found") is the single most useful thing an operator can be told, and this
       // product is self-hosted — the operator *is* the user. Redacted, then carried
-      // rather than replaced with a constant that says nothing.
+      // rather than replaced with a constant that says nothing — all but what an
+      // OpenRouter refusal echoes of the request (`withoutEcho`).
       // Ended by the generation's time budget rather than by the provider: said
       // as such, so the log reads "the model was slow", not "the key or the quota".
       const timedOut = !invalid && signal?.aborted === true;
       const detail = timedOut
         ? `AI_TIMEOUT: no answer within the generation's time budget (${Math.round((Date.now() - started) / 1000)} s)`
-        : redactSecrets([error instanceof Error ? error.message : 'Unknown AI failure', body].filter(Boolean).join(' — '), this.secrets);
+        : redactSecrets([error instanceof Error ? error.message : 'Unknown AI failure', withoutEcho(body)].filter(Boolean).join(' — '), this.secrets);
       const failure: AiFailure = {
-        gateway: readGateway(api?.responseHeaders ?? invalid?.response?.headers),
+        // An answer that failed the schema still names who served it and what it cost.
+        gateway: readGateway(api?.responseHeaders ?? invalid?.response?.headers) ?? readOpenRouter(api?.responseBody ?? invalid?.response?.body),
         kind: invalid ? 'invalid_output' : timedOut ? 'timeout' : 'provider',
         model,
         ms: Date.now() - started,
@@ -126,6 +139,8 @@ export class StructuredAiClient extends AiClient {
       // A refused call is the one that matters most on a free tier: it spent the
       // allowance and returned nothing.
       await AnalyticsController.record('ai_call', null, {
+        // An invalid answer was still paid for (`0064`).
+        costUsd: failure.gateway?.costUsd ?? null,
         model,
         ms: failure.ms,
         ok: false,
@@ -140,10 +155,21 @@ export class StructuredAiClient extends AiClient {
       // The model's raw text can contain anything, including a partial dish. It is
       // never surfaced and never stored — the caller sees a failure and retries.
       if (invalid) {
-        this.logger.warn('Model returned no valid object for the requested schema');
+        // Cut off at the output cap (`resolveOutputCap`) rather than written
+        // wrong: said as such, so the log tells a model that ran on from one
+        // that ignored the schema.
+        const cut = invalid.finishReason === 'length';
+
+        this.logger.warn(
+          `Model returned no valid object for the requested schema${cut ? `, cut off at ${String(maxOutputTokens ?? '?')} output tokens` : ''}`
+        );
 
         // The model's raw text never travels further than this.
-        throw new AiCallError('AI_INVALID_OUTPUT: el modelo no devolvió un objeto válido para el esquema', failure, { cause: error });
+        throw new AiCallError(
+          `AI_INVALID_OUTPUT: el modelo no devolvió un objeto válido para el esquema${cut ? ' (cortado en el límite de tokens de salida)' : ''}`,
+          failure,
+          { cause: error }
+        );
       }
 
       if (timedOut) {

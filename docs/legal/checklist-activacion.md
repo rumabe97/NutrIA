@@ -20,6 +20,32 @@
 - [ ] **EIPD** revisada y firmada por el propietario ([`eipd.md`](./eipd.md) § 7).
 - [ ] Política de privacidad nueva publicada solo con las frases cuyo ⟦requisito⟧ se cumple ([`textos/02`](./textos/02-politica-privacidad.md)); correo de aviso de cambio enviado antes ([`textos/06`](./textos/06-correos.md) § F).
 
+## 0 bis. Antes de poner `AI_PROVIDER=openrouter` en producción (`0064`)
+
+> Producción corre con `AI_PROVIDER=stub` desde el 2026-09-26: no sale nada a ningún
+> modelo. Estas casillas son del propietario salvo donde se dice. Detalle y fuentes en
+> [`analisis.md` § 4.4](./analisis.md#44-openrouter-y-quien-ejecuta-el-modelo-2026-09-26-para-el-cambio-de-0064).
+
+**Ya, aunque no se cambie nada**
+- [ ] `/privacidad` con el **estado 1** de «La inteligencia artificial», «Con quién compartimos» y «Transferencias» ([`textos/02`](./textos/02-politica-privacidad.md)): el texto en vivo dice que «hoy» se usan modelos gratuitos que pueden entrenar, y desde el 2026-09-26 no se usa ninguno (frontend).
+
+**Contrato y cuenta — bloquean el cambio**
+- [ ] **P1-11** — DPA de OpenRouter: pedir acceso en `trust.openrouter.ai`, descargar el DPA y la lista de subencargados; pedir a soporte, por escrito, que confirme que el DPA que su § 10.2 incorpora «for commercial, for-profit purposes» se aplica a esta cuenta de pago y que incluye las cláusulas tipo. Guardar ambos, con fecha, fuera del repositorio. Si la respuesta es que no: parar y volver a `legal`.
+- [ ] **P1-12** — En la cuenta (ajustes de privacidad), *Allowed providers* = `deepinfra`, `coreweave` (propuesta). Comprobar después en `/api/v1/models/deepseek/deepseek-v4.1-flash/endpoints` y en `/admin` que las primeras llamadas las responden solo esas. Si se permite otra empresa, se nombra en la política antes.
+- [ ] Ajustes del runbook [`ai-gateway.md` § 0](../reference/ai-gateway.md): entrenamiento **apagado** para modelos de pago y gratuitos; ZDR **encendido** para toda la cuenta; «OpenRouter use of inputs/outputs» **apagado**; registro de prompts (*logging*) **apagado**; la clave con solo los dos modelos, ZDR y tope mensual. Una captura de cada ajuste, fechada, fuera del repositorio (art. 5.2: poder demostrarlo).
+- [ ] **P1-13** — MiniMax M3 de reserva: o bien (a) «Built with MiniMax M3» visible (la política del estado 2 lo lleva; mejor también en el pie o una página «acerca de») y el aviso único que pide su licencia, enviado por el propietario; o bien (b) `AI_FALLBACK_MODELS` vacío y la frase fuera de la política.
+- [ ] (backend, recomendado) `provider.only` con la misma lista en cada petición y un test que lo compruebe: la tercera capa de `0064` también para los proveedores.
+- [ ] **P2-12** — El propietario decide si la categorización anónima de una muestra por OpenRouter cabe en su regla («no quiero entrenar ningún modelo»: no entrena, pero es un uso propio). Si no cabe, no hay cambio a OpenRouter.
+
+**Textos — en este orden**
+1. [ ] `/privacidad` con el **estado 2** (frontend), con `updated` nuevo, cuando las casillas anteriores estén marcadas.
+2. [ ] El mismo día, el correo [`textos/06`](./textos/06-correos.md) § G a cada cuenta (la política vigente promete avisar por correo antes de un cambio importante).
+3. [ ] `AI_PROVIDER=openrouter` **no antes del día siguiente** al correo.
+
+**Después**
+- [ ] En la primera quincena, mirar en `/admin` qué proveedor respondió cada llamada; uno que no esté en la lista es un incidente (el texto sería falso): volver a `stub` y registrarlo ([`procedimiento-brechas.md`](./procedimiento-brechas.md) § 8).
+- [ ] Cada cambio de `AI_MODEL`, `AI_FALLBACK_MODELS` o de la lista de proveedores permitidos pasa antes por la política.
+
 ## 1. Antes de encender `professional`
 
 **Código**
@@ -28,7 +54,7 @@
 - [ ] **P1-3** — Página de invitación con los textos nuevos; `CARE_CONSENT_VERSION = '2.0.0'`; ningún enlace real aceptado con `1.0.0`.
 - [ ] **P1-2** — Correo de invitación con el párrafo del art. 14.
 - [ ] Correo de alta al profesional ([`textos/06`](./textos/06-correos.md) § B).
-- [ ] **P1-10 — abierto.** Gemini sigue en la combinación usada para los clientes de los profesionales: el propietario decidió el 2026-09-25 aplazarlo. Resolver antes del primer paciente real: sacar Gemini de la combinación para los planes generados desde `/consulta`, u obtener la confirmación de Google por escrito (sus términos prohíben el uso «en la práctica clínica»).
+- [x] **P1-10 — cerrado** (2026-09-26): producción no usa ningún modelo (`stub`) y el cambio de `0064` no tiene Gemini (la clave solo admite DeepSeek V4.1 Flash y MiniMax M3, sin cláusula de uso clínico). Se reabre si vuelve `AI_PROVIDER=google` o un modelo de Google a la clave.
 - [ ] `HEALTH_CONSENT_VERSION = '1.1.0'` con la nota precisada (`05` § C).
 
 **Textos**

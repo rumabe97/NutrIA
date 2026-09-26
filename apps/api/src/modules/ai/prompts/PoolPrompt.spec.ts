@@ -332,7 +332,7 @@ describe('buildPoolPrompt', () => {
       ingredient('nora', 'Ñora', 'pantry')
     ]);
 
-    expect(prompt).toContain('Fresh produce and herbs:\narandano (Arándanos), calabacin\n');
+    expect(prompt).toContain('Fresh produce and herbs:\nAll year: arandano (Arándanos), calabacin\n');
     expect(prompt).toContain('Pantry: grains, pasta, tins, oils, sauces, spices:\naceite-de-oliva-virgen-extra, nora (Ñora)\n');
   });
 
@@ -457,27 +457,45 @@ describe('buildPoolPrompt', () => {
   });
 
   /**
-   * 4.1.0 (`0062` § 6). Season orders and marks; it forbids nothing, so an
-   * out-of-season row is still listed — after.
+   * 4.2.0 (`0062` § 6). Season orders and marks; it forbids nothing, so an
+   * out-of-season row is still listed — last. A year-round row is its own
+   * group, never "prefer these": it diluted the preference in 4.1.0.
    */
-  it('lists the produce in season this month first, marked, and the rest after', () => {
+  it('lists the produce in season this month first, marked, then the year-round rows, then the rest', () => {
     const produce = [
       row('tomate', 'produce', { seasonMonths: [6, 7, 8, 9] }),
       row('naranja', 'produce', { seasonMonths: [12, 1, 2, 3] }),
-      row('cebolla')
+      row('cebolla'),
+      row('ajo')
     ];
     const january = buildPoolPrompt(context({ month: 1 }), produce);
     const july = buildPoolPrompt(context({ month: 7 }), produce);
 
-    expect(january).toContain('Fresh produce and herbs:\nIn season now (prefer these): cebolla, naranja\nAlso available: tomate\n');
-    expect(july).toContain('Fresh produce and herbs:\nIn season now (prefer these): cebolla, tomate\nAlso available: naranja\n');
+    expect(january).toContain(
+      'Fresh produce and herbs:\nIn season this month (prefer these): naranja\nAll year: ajo, cebolla\nOut of season (use sparingly): tomate\n'
+    );
+    expect(july).toContain(
+      'Fresh produce and herbs:\nIn season this month (prefer these): tomate\nAll year: ajo, cebolla\nOut of season (use sparingly): naranja\n'
+    );
   });
 
-  it('lists the produce as it always did when nothing is out of season', () => {
+  it('leaves out a produce group that would be empty', () => {
     const produce = [row('tomate', 'produce', { seasonMonths: [6, 7, 8, 9] }), row('cebolla')];
+    const july = buildPoolPrompt(context({ month: 7 }), produce);
+    const yearRound = buildPoolPrompt(context({ month: 7 }), [row('cebolla'), row('ajo')]);
 
-    expect(buildPoolPrompt(context({ month: 7 }), produce)).toContain('Fresh produce and herbs:\ncebolla, tomate\n');
-    expect(buildPoolPrompt(context({ month: 7 }), produce)).not.toContain('In season now');
+    expect(july).toContain('Fresh produce and herbs:\nIn season this month (prefer these): tomate\nAll year: cebolla\n');
+    expect(july).not.toContain('Out of season');
+    expect(yearRound).toContain('Fresh produce and herbs:\nAll year: ajo, cebolla\n');
+    expect(yearRound).not.toContain('prefer these');
+    expect(yearRound).not.toContain('Out of season');
+  });
+
+  it('lists every other aisle as one list, whatever its rows’ months', () => {
+    const prompt = buildPoolPrompt(context({ month: 1 }), [row('pollo', 'protein', { seasonMonths: [6, 7] }), row('pavo', 'protein')]);
+
+    expect(prompt).toContain('pavo, pollo\n');
+    expect(prompt).not.toContain('All year');
   });
 
   it('passes on the check-in’s closed answers', () => {
@@ -553,19 +571,24 @@ describe('buildPoolPrompt — one meal’s catalogue', () => {
     expect(dinner).toContain('Pulses in light forms');
   });
 
-  it('lists the produce in season before the produce out of it, in the cut catalogue too', () => {
+  it('lists the produce in season, then all year, then out of season, in the cut catalogue too', () => {
     const lunch = builtAsTheBuilderDoes('lunch', [], rows, used.get('lunch') ?? new Set());
     const produce = lunch.slice(lunch.indexOf('Fresh produce and herbs:'));
-    const now = produce.indexOf('In season now (prefer these):');
-    const later = produce.indexOf('Also available:');
+    const now = produce.indexOf('In season this month (prefer these):');
+    const always = produce.indexOf('All year:');
+    const later = produce.indexOf('Out of season (use sparingly):');
     // January: a winter row is in season, a summer row the library cooks is not.
     const winter = rows.find(ingredient => ingredient.seasonMonths.includes(1));
+    const yearRound = rows.find(ingredient => ingredient.category === 'produce' && ingredient.seasonMonths.length === 0);
     const summer = rows.find(ingredient => ingredient.seasonMonths.includes(7) && (used.get('lunch')?.has(ingredient.id) ?? false));
 
     expect(now).toBeGreaterThanOrEqual(0);
-    expect(later).toBeGreaterThan(now);
+    expect(always).toBeGreaterThan(now);
+    expect(later).toBeGreaterThan(always);
     expect(produce.indexOf(winter?.slug ?? '?')).toBeGreaterThan(now);
-    expect(produce.indexOf(winter?.slug ?? '?')).toBeLessThan(later);
+    expect(produce.indexOf(winter?.slug ?? '?')).toBeLessThan(always);
+    expect(produce.indexOf(yearRound?.slug ?? '?')).toBeGreaterThan(always);
+    expect(produce.indexOf(yearRound?.slug ?? '?')).toBeLessThan(later);
     expect(produce.indexOf(summer?.slug ?? '?')).toBeGreaterThan(later);
   });
 });

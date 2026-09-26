@@ -1,9 +1,11 @@
-import { describe, expect, it } from '@jest/globals';
+import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { jsonSchema } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 
 import { AiCallError } from './AiClient.js';
+import { resolveModel } from '../ai.config.js';
 import { StructuredAiClient } from './StructuredAiClient.js';
+import { validateEnv } from '../../../config/Env.validation.js';
 
 /**
  * A call the generation's time budget ended is not a provider failing: the
@@ -66,5 +68,102 @@ describe('StructuredAiClient', () => {
     expect(failure).toBeInstanceOf(AiCallError);
     expect((failure as AiCallError).message).not.toContain(key);
     expect((failure as AiCallError).message).toContain('[redacted]');
+  });
+
+  /**
+   * The output cap (`resolveOutputCap`): handed to the model, and an answer
+   * it cut off fails as invalid output — thrown as a call error the pool
+   * builder records, and said to be a cut, not a model ignoring the schema.
+   */
+  it('hands the model its output cap, and reports an answer cut off at it as invalid output', async () => {
+    const asked: (number | undefined)[] = [];
+    const model = new MockLanguageModelV4({
+      doGenerate: async ({ maxOutputTokens }) => {
+        asked.push(maxOutputTokens);
+
+        return {
+          content: [{ text: '{"dishes":[{"name":"Arroz con', type: 'text' }],
+          finishReason: { raw: 'length', unified: 'length' },
+          usage: {
+            inputTokens: { cacheRead: undefined, cacheWrite: undefined, noCache: 20, total: 20 },
+            outputTokens: { reasoning: undefined, text: 4400, total: 4400 }
+          },
+          warnings: []
+        };
+      }
+    });
+    const client = new StructuredAiClient(model, { maxRetries: 0, sessionHeader: null }, []);
+    const failure = await client
+      .generate({ maxOutputTokens: 4400, prompt: 'Diseña platos', schema: jsonSchema({ type: 'object' }), system: 'Chef' })
+      .catch((error: unknown) => error);
+
+    expect(asked).toEqual([4400]);
+    expect(failure).toBeInstanceOf(AiCallError);
+    expect((failure as AiCallError).failure).toMatchObject({ kind: 'invalid_output' });
+    expect((failure as AiCallError).message).toContain('cortado en el límite de tokens de salida');
+  });
+});
+
+/**
+ * OpenRouter says who answered and what it cost in the answer's body, not in
+ * headers (`0064`): the call log and `/admin` read it from there — through
+ * the real provider, so what is tested is what the SDK hands back.
+ */
+describe('StructuredAiClient on OpenRouter', () => {
+  const env = validateEnv({
+    AI_FALLBACK_MODELS: 'minimax/minimax-m3',
+    AI_PROVIDER: 'openrouter',
+    AI_PROVIDER_ONLY: 'deepinfra',
+    APP_URL: 'http://localhost:3000',
+    BETTER_AUTH_SECRET: 'a'.repeat(32),
+    BETTER_AUTH_URL: 'http://localhost:3001',
+    DATABASE_URL: 'postgresql://user:pass@host/db',
+    OPENROUTER_API_KEY: 'test-openrouter-key'
+  });
+  const client = () => new StructuredAiClient(resolveModel(env), { maxRetries: 0, sessionHeader: null }, []);
+  const request = { prompt: 'Diseña platos', schema: jsonSchema<{ dishes: unknown[] }>({ type: 'object' }), session: 'job-1', system: 'Chef' };
+  const answer = (status: number, body: unknown) =>
+    jest
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' }, status }));
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('records the model that answered — the fallback, here — its provider and its cost', async () => {
+    const fetch = answer(200, {
+      id: 'gen-1790000000-abc',
+      choices: [{ finish_reason: 'stop', index: 0, message: { content: '{"dishes":[]}', role: 'assistant' } }],
+      created: 1_790_000_000,
+      model: 'minimax/minimax-m3',
+      provider: 'Novita',
+      usage: { completion_tokens: 900, completion_tokens_details: { reasoning_tokens: 300 }, cost: 0.0021, prompt_tokens: 4100, total_tokens: 5000 }
+    });
+    const response = await client().generate(request);
+
+    expect(response.call).toMatchObject({
+      answeredModel: 'minimax/minimax-m3',
+      gateway: { costUsd: 0.0021, model: 'minimax/minimax-m3', provider: 'Novita', requestId: 'gen-1790000000-abc' },
+      reasoningTokens: 300
+    });
+    // No session header: OpenRouter is not sent our job id.
+    expect(new Headers(fetch.mock.calls[0]?.[1]?.headers).has('x-omniroute-session')).toBe(false);
+  });
+
+  it('records a refusal with its status and the provider that refused it', async () => {
+    answer(429, {
+      error: { code: 429, message: 'Provider returned error', metadata: { provider_name: 'DeepInfra', raw: 'rate limited: Diseña platos' } }
+    });
+    const failure = await client()
+      .generate(request)
+      .catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(AiCallError);
+    expect((failure as AiCallError).failure).toMatchObject({ gateway: { costUsd: null, provider: 'DeepInfra' }, kind: 'provider', status: 429 });
+    // The message is logged and stored on the job row: OpenRouter's words and the provider's name, never `raw`.
+    expect((failure as AiCallError).message).toContain('Provider returned error');
+    expect((failure as AiCallError).message).toContain('DeepInfra');
+    expect((failure as AiCallError).message).not.toContain('Diseña platos');
   });
 });

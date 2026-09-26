@@ -8,7 +8,7 @@ export type AiCall = {
   /** The model that answered, by the provider's own name. Through a combo, not necessarily the one asked for. */
   readonly answeredModel: string | null;
   readonly cachedInputTokens: number | null;
-  /** Null when the call did not go through a gateway. */
+  /** What a gateway's headers or OpenRouter's body said (`gateway.ts`); null from any other provider. */
   readonly gateway: GatewayCall | null;
   /** Our clock, from request to answer — the SDK's retries included, where there are any. */
   readonly ms: number;
@@ -16,6 +16,11 @@ export type AiCall = {
 };
 
 export type AiRequest<T> = {
+  /**
+   * The most the answer may write, in tokens (`resolveOutputCap`); absent, the
+   * provider's own limit. An answer cut off by it fails as `invalid_output`.
+   */
+  readonly maxOutputTokens?: number;
   readonly prompt: string;
   /** A hand-written JSON Schema or a Zod one; see `wirePoolSchema` for why it matters. */
   readonly schema: FlexibleSchema<T>;

@@ -1,12 +1,13 @@
 /**
- * What an OpenAI-compatible gateway says about a call, beyond the call itself.
+ * What an OpenAI-compatible gateway — or OpenRouter (`readOpenRouter`) — says
+ * about a call, beyond the call itself.
  *
  * OmniRoute answers every request with `x-omniroute-*` headers: which model and
  * provider actually answered — a combo may have fallen to its second or third —
  * its own latency, what the call cost, whether it came from its cache, and the
  * ids its dashboard files the call under. None of that is in the body. A
  * direct provider sends none of these headers, so a null here is also how a
- * call that did not go through a gateway is told apart (`0050`).
+ * call that did not go through a gateway or OpenRouter is told apart (`0050`).
  */
 export type GatewayCall = {
   /** HIT or MISS, as the gateway's own response cache saw it. */
@@ -59,6 +60,103 @@ export function readGateway(headers: Readonly<Record<string, string>> | undefine
     strategy: /strategy=([^;]+)/.exec(text(`${PREFIX}decision`) ?? '')?.[1]?.trim() ?? null,
     version: text(`${PREFIX}version`)
   };
+}
+
+/**
+ * What OpenRouter says about a call (`0064`), as the gateway's headers would.
+ *
+ * OpenRouter sends none of OmniRoute's headers: it writes the same facts into
+ * the answer's body — `model`, the one that answered (the fallback, when the
+ * asked one failed); `provider`, whose endpoint served it; `usage.cost`, in
+ * dollars, because every request asks for it (`usage.include`); and `id`, the
+ * `gen-…` its activity page lists the call under. A refusal's body is
+ * `{ error: { metadata: { provider_name } } }` when a provider refused it, and
+ * only that name is read — its `raw` can echo the request.
+ *
+ * Read from the body the AI SDK hands back (`response.body` on an answer,
+ * `responseBody` on an `APICallError`); null for any body without these
+ * fields, which is every other provider's.
+ */
+export function readOpenRouter(body: unknown): GatewayCall | null {
+  const parsed = typeof body === 'string' ? parseJson(body) : body;
+
+  if (!isRecord(parsed)) {
+    return null;
+  }
+
+  const empty = {
+    cache: null,
+    comboTrace: null,
+    correlationId: null,
+    costUsd: null,
+    latencyMs: null,
+    model: null,
+    provider: null,
+    requestId: null,
+    session: null,
+    strategy: null,
+    version: null
+  };
+
+  if (isRecord(parsed['error'])) {
+    const metadata = parsed['error']['metadata'];
+    const provider = isRecord(metadata) ? nonEmpty(metadata['provider_name']) : null;
+
+    return provider === null ? null : { ...empty, provider };
+  }
+
+  const usage = isRecord(parsed['usage']) ? parsed['usage'] : {};
+  const cost = usage['cost'];
+  const costUsd = typeof cost === 'number' && Number.isFinite(cost) ? cost : null;
+  const provider = nonEmpty(parsed['provider']);
+
+  if (provider === null && costUsd === null) {
+    return null;
+  }
+
+  return { ...empty, costUsd, model: nonEmpty(parsed['model']), provider, requestId: nonEmpty(parsed['id']) };
+}
+
+/**
+ * A refusal's body as it may be logged and stored, without what it echoes.
+ *
+ * OpenRouter wraps a provider's refusal as `{ error: { message, metadata:
+ * { provider_name, raw } } }`, and `raw` is whatever the provider said back —
+ * which can quote the request, prompt included. The log and the job row's
+ * `errorDetail` get OpenRouter's message and the provider's name, never `raw`
+ * nor anything else under `metadata`. Every other body — no `error.metadata`,
+ * not JSON — comes back unchanged: Google writes its quota there, and
+ * `readQuota` reads it.
+ */
+export function withoutEcho(body: string): string {
+  const parsed = parseJson(body);
+  const error = isRecord(parsed) ? parsed['error'] : null;
+
+  if (!isRecord(error) || !isRecord(error['metadata'])) {
+    return body;
+  }
+
+  const provider = nonEmpty(error['metadata']['provider_name']);
+
+  return [nonEmpty(error['message']) ?? 'OpenRouter refused the request', provider === null ? null : `provider: ${provider}`]
+    .filter(Boolean)
+    .join(' — ');
+}
+
+function parseJson(value: string): unknown {
+  try {
+    return JSON.parse(value) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function nonEmpty(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null;
 }
 
 /** A refusal for quota, as far as the provider's own message says. */

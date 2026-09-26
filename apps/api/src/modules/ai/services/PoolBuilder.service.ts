@@ -1,17 +1,18 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
 import { dishSafety, findSafetyViolations, mentionsUnresolvedAllergy } from 'core/domain/Safety';
-import { fitSlots, mealCatalogue, offersPulses } from 'core/domain/MealFit';
+import { fitSlots, mealCatalogue, offersPulses, repairSlug } from 'core/domain/MealFit';
 import { methodMentions } from 'core/domain/Method';
 import { breaksDishRule, withinTime } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
-import { AI_MODEL_BUDGET } from '../ai.config.js';
+import { AI_MODEL_BUDGET, AI_OUTPUT_CAP } from '../ai.config.js';
 import { AiCallError, AiClient } from '../clients/AiClient.js';
 import { buildPoolPrompt, languageName, POOL_SYSTEM_PROMPT, PROMPT_VERSION } from '../prompts/PoolPrompt.js';
 import { generatedDishSchema, wirePoolSchema } from '../prompts/pool.schema.js';
 
 import type { AiCall, AiFailure, AiUsage } from '../clients/AiClient.js';
+import type { AiOutputCap } from '../ai.config.js';
 import type { AiCallFailure, AiCallRecord, CandidateDish, CatalogueIngredient, DishRejection, MealSlot } from 'core/entities/Plan';
 import type { GeneratedDish } from '../prompts/pool.schema.js';
 import type { GenerationContext } from 'core/controllers/Recipe';
@@ -28,6 +29,18 @@ const DEFAULT_MODEL_BUDGET_MS = 170_000;
 
 /** A later round with less than this left cannot bring a dish back in time; the library covers the rest. */
 const MIN_ROUND_MS = 15_000;
+
+/**
+ * The most dishes one request of the first round asks for (`0064` § 4).
+ *
+ * A model writes its answer at a fixed rate, so a request's wait grows with
+ * the dishes in it: at low reasoning, three took a median of 37 seconds on
+ * the chosen model (`0064`'s table), and seven in one request would leave a
+ * slow hop no room inside the budget. A slot's seven fresh dishes (`0013`)
+ * are asked as 3 + 3 + 1, all at once, so the round waits for three dishes,
+ * not seven.
+ */
+export const DISHES_PER_REQUEST = 3;
 
 export type PoolResult = {
   readonly dishes: readonly CandidateDish[];
@@ -83,7 +96,8 @@ export type BuildPoolInput = {
   readonly slots: readonly MealSlot[];
 };
 
-type Verdict = { readonly dish: CandidateDish } | { readonly reason: DishRejection };
+/** The dish kept, or why it was dropped; and how many of its slugs were read as a near miss (`repairSlug`). */
+type Verdict = ({ readonly dish: CandidateDish } | { readonly reason: DishRejection }) & { readonly repaired: number };
 
 /**
  * Assembles the pool the scheduler consumes: reuse first, generate the shortfall.
@@ -96,18 +110,27 @@ type Verdict = { readonly dish: CandidateDish } | { readonly reason: DishRejecti
  * Every call it makes is recorded — who answered, how long, the tokens, what a
  * gateway reported, and what became of each dish — in `metadata.aiCalls` and as
  * one log line, so a generation can be read back call by call (`0050`).
+ *
+ * The first round asks every slot's shortfall at once, in requests of at most
+ * `DISHES_PER_REQUEST` dishes (`0016`, `0064`); a request that fails — a 413,
+ * a 429, a timeout — is recorded and costs only its own dishes, never the
+ * others' or the build.
  */
 @Injectable()
 export class PoolBuilder {
   private readonly budgetMs: number;
   private readonly logger = new Logger(PoolBuilder.name);
+  private readonly outputCap: AiOutputCap | null;
 
   constructor(
     private readonly ai: AiClient,
     // The model half's whole time, from `AI_BUDGET_SECONDS` (`0050`).
-    @Optional() @Inject(AI_MODEL_BUDGET) budgetMs?: number
+    @Optional() @Inject(AI_MODEL_BUDGET) budgetMs?: number,
+    // What a request may write per dish it asks for, from `resolveOutputCap`; null or absent, no cap.
+    @Optional() @Inject(AI_OUTPUT_CAP) outputCap?: AiOutputCap | null
   ) {
     this.budgetMs = budgetMs ?? DEFAULT_MODEL_BUDGET_MS;
+    this.outputCap = outputCap ?? null;
   }
 
   async build({
@@ -157,11 +180,15 @@ export class PoolBuilder {
         const used = libraryUsage.get(slot);
         const cut = used ? { month: preferences.month, seed: session ?? '', used } : null;
 
+        const catalogue = mealCatalogue(safeIngredients, slot, context.dietaryPatterns, cut);
+
         return [
           slot,
           {
-            catalogue: mealCatalogue(safeIngredients, slot, context.dietaryPatterns, cut),
-            offer: { pulses: offersPulses(safeIngredients, slot, context.dietaryPatterns) }
+            catalogue,
+            offer: { pulses: offersPulses(safeIngredients, slot, context.dietaryPatterns) },
+            // What a near-miss slug in this slot's answers may be read as, and nothing else (`repairSlug`).
+            slugs: catalogue.map(ingredient => ingredient.slug)
           }
         ] as const;
       })
@@ -216,21 +243,45 @@ export class PoolBuilder {
 
       const signal = AbortSignal.timeout(Math.max(remaining, 1));
 
-      // Which slots a round asks for and how much time it has: the line that
-      // says, in a platform's log, where a generation was when it stopped.
+      // The first round splits each slot's shortfall into requests of at most
+      // `DISHES_PER_REQUEST` dishes (7 → 3 + 3 + 1), every one at once: its
+      // latency is the longest single answer, which is now three dishes long
+      // (`0064` § 4). A later round asks one request per slot for what is
+      // still short, as before — it runs only when the backfill could not
+      // cover the gap, usually after refusals, and multiplying requests into
+      // a provider that has just refused is how a rate limit becomes an
+      // outage.
+      const requests = wanted.flatMap(slot => {
+        const count = needBySlot.get(slot) ?? 0;
+
+        return (attempt === 1 ? requestSizes(count) : [count]).map(size => ({ size, slot }));
+      });
+
+      // Which slots a round asks for, in what requests, and how much time it
+      // has: the line that says, in a platform's log, where a generation was
+      // when it stopped.
+      const asked = wanted.map(slot => `${slot} ${requests.flatMap(request => (request.slot === slot ? [request.size] : [])).join('+')}`);
+
       this.logger.log(
-        `AI round ${attempt}: ${wanted.join(', ')}, with ${Math.round(remaining / 1000)} s of the budget left${session ? ` [${session}]` : ''}`
+        `AI round ${attempt}: ${asked.join(', ')}, with ${Math.round(remaining / 1000)} s of the budget left${session ? ` [${session}]` : ''}`
       );
 
-      // One request per slot, all at once. Latency is set by the longest single
-      // response, and a response for one slot is a quarter the size of one for
-      // four; the token cost is the same either way.
+      // Every request of a round is shown what the library held before the
+      // round began: the same exclusions and, for one slot, the same
+      // catalogue. Two requests of one slot are not told about each other's
+      // dishes — they are written at the same time — so a name both send back
+      // is kept once and counted as a `duplicate` against the later one; the
+      // backfill covers the dish it cost.
       const excludeSlugs = [...accepted.keys()];
       const rounds = await Promise.allSettled(
-        wanted.map(slot =>
+        requests.map(({ size, slot }) =>
           this.ai.generate({
+            // A model that writes far more dishes than it was asked for is cut
+            // off here instead of running into the budget; its answer then
+            // fails as `invalid_output` and costs only its own dishes.
+            maxOutputTokens: this.outputCap ? size * this.outputCap.perDish + this.outputCap.margin : undefined,
             prompt: buildPoolPrompt(
-              { ...preferences, excludeSlugs, language: languageName(context.locale), needBySlot: new Map([[slot, needBySlot.get(slot) ?? 0]]) },
+              { ...preferences, excludeSlugs, language: languageName(context.locale), needBySlot: new Map([[slot, size]]) },
               shown.get(slot)?.catalogue ?? [],
               shown.get(slot)?.offer
             ),
@@ -244,7 +295,7 @@ export class PoolBuilder {
 
       let succeeded = 0;
 
-      for (const [index, slot] of wanted.entries()) {
+      for (const [index, { slot }] of requests.entries()) {
         const round = rounds[index];
 
         if (!round) {
@@ -308,9 +359,12 @@ export class PoolBuilder {
 
         const rejected: Partial<Record<DishRejection, number>> = {};
         let kept = 0;
+        let repaired = 0;
 
         for (const dish of dishes) {
-          const verdict = this.validate(dish, context, accepted);
+          const verdict = this.validate(dish, context, accepted, shown.get(slot)?.slugs ?? []);
+
+          repaired += verdict.repaired;
 
           if ('reason' in verdict) {
             metadata.rejected += 1;
@@ -329,6 +383,7 @@ export class PoolBuilder {
           kept,
           model: metadata.model,
           rejected,
+          repaired,
           round: attempt,
           slot,
           usage: round.value.usage
@@ -354,6 +409,7 @@ export class PoolBuilder {
       readonly kept?: number;
       readonly model: string;
       readonly rejected?: Partial<Record<DishRejection, number>>;
+      readonly repaired?: number;
       readonly round: number;
       readonly slot: MealSlot;
       readonly usage?: AiUsage;
@@ -383,15 +439,18 @@ export class PoolBuilder {
       .map(([reason, count]) => `${reason} ${count}`)
       .join(', ');
 
+    const repaired = entry.repaired ? `, ${entry.repaired} slug${entry.repaired === 1 ? '' : 's'} repaired` : '';
+
     this.logger.log(
-      `AI call ${entry.slot}, round ${entry.round}: ${who}${time}, ${entry.inputTokens ?? 0}/${entry.outputTokens ?? 0} tokens${reasoning}, kept ${entry.kept} of ${entry.dishes}${dropped ? ` (dropped: ${dropped})` : ''}${session}`
+      `AI call ${entry.slot}, round ${entry.round}: ${who}${time}, ${entry.inputTokens ?? 0}/${entry.outputTokens ?? 0} tokens${reasoning}, kept ${entry.kept} of ${entry.dishes}${dropped ? ` (dropped: ${dropped})` : ''}${repaired}${session}`
     );
   }
 
   /**
-   * Schema → catalogue → **allergy gate**, in that order; then the
-   * preferences, the time limit and the method; last, the meals it may be
-   * served at, which only ever takes meals away from a dish already accepted.
+   * Schema → catalogue (near-miss slugs repaired first) → **allergy gate**,
+   * in that order; then the preferences, the time limit and the method; last,
+   * the meals it may be served at, which only ever takes meals away from a
+   * dish already accepted.
    *
    * The gate runs on generated dishes even though the prompt was given only safe
    * ingredients, because a prompt is a request and this is a guarantee. A rejection
@@ -400,7 +459,12 @@ export class PoolBuilder {
    *
    * Returns the dish, or why it was dropped — counted per call in its record.
    */
-  private validate(raw: GeneratedDish, context: GenerationContext, accepted: ReadonlyMap<string, CandidateDish>): Verdict {
+  private validate(
+    raw: GeneratedDish,
+    context: GenerationContext,
+    accepted: ReadonlyMap<string, CandidateDish>,
+    shownSlugs: readonly string[]
+  ): Verdict {
     // The wire schema is deliberately loose so the provider can express it; the
     // bounds are enforced here, against the strict schema. Anything failing this
     // is discarded exactly like an unsafe dish.
@@ -409,16 +473,59 @@ export class PoolBuilder {
     if (!parsed.success) {
       this.logger.warn(`Dish "${raw.name}" rejected: ${parsed.error.issues.map(issue => `${issue.path.join('.')} ${issue.message}`).join('; ')}`);
 
-      return { reason: 'schema' };
+      return { reason: 'schema', repaired: 0 };
     }
 
-    const dish = parsed.data;
-    const slug = slugify(dish.name);
+    const slug = slugify(parsed.data.name);
 
     if (accepted.has(slug)) {
-      return { reason: 'duplicate' };
+      return { reason: 'duplicate', repaired: 0 };
     }
 
+    // A slug the catalogue does not know, read as the one slug this request's
+    // prompt showed that it is a near miss of — `perejil-fresco` as `perejil`
+    // (`repairSlug`). Before the gates, never instead of them: every check
+    // below runs on the repaired slug exactly as on any other.
+    let repaired = 0;
+    const read = parsed.data.ingredients.map(item => {
+      // The whole catalogue competes for the reading, shown or not; only a shown slug may win it.
+      const meant = context.catalogue.has(item.slug) ? null : repairSlug(item.slug, shownSlugs, context.catalogue.keys());
+
+      if (meant === null) {
+        return item;
+      }
+
+      repaired += 1;
+      // Slugs and the dish name, which the rejection lines already log — nothing of the person.
+      this.logger.log(`Dish "${parsed.data.name}": ingredient slug ${item.slug} read as ${meant}`);
+
+      return { ...item, slug: meant };
+    });
+
+    if (repaired === 0) {
+      return { ...this.judge(parsed.data, slug, context), repaired };
+    }
+
+    // `perejil` and `perejil-fresco` in one dish are one ingredient once
+    // repaired: listed once, in the first one's place, with both their grams —
+    // and checked against the schema's bounds again, which a sum may pass.
+    const merged = generatedDishSchema.safeParse({ ...parsed.data, ingredients: mergeBySlug(read) });
+
+    if (!merged.success) {
+      this.logger.warn(`Dish "${parsed.data.name}" rejected: its repaired ingredients add up past the schema's bounds`);
+
+      return { reason: 'schema', repaired };
+    }
+
+    return { ...this.judge(merged.data, slug, context), repaired };
+  }
+
+  /** Every gate after the catalogue's, on a dish whose slugs are final. */
+  private judge(
+    dish: GeneratedDish,
+    slug: string,
+    context: GenerationContext
+  ): { readonly dish: CandidateDish } | { readonly reason: DishRejection } {
     const safety = dishSafety(dish.ingredients, context.catalogue, context.safety);
 
     if (safety.kind === 'unknown_ingredients') {
@@ -535,6 +642,7 @@ function callRecord(parts: {
   readonly kept?: number;
   readonly model: string;
   readonly rejected?: Partial<Record<DishRejection, number>>;
+  readonly repaired?: number;
   readonly round: number;
   readonly slot: MealSlot;
   readonly usage?: AiUsage;
@@ -559,12 +667,31 @@ function callRecord(parts: {
     provider: gateway?.provider ?? null,
     reasoningTokens: parts.call?.reasoningTokens ?? null,
     rejected: parts.rejected ?? {},
+    repaired: parts.repaired ?? 0,
     requestId: gateway?.requestId ?? null,
     round: parts.round,
     session: gateway?.session ?? null,
     slot: parts.slot,
     strategy: gateway?.strategy ?? null
   };
+}
+
+/** A dish's ingredients with each slug once, in its first place, its grams summed. */
+function mergeBySlug<T extends { readonly grams: number; readonly slug: string }>(items: readonly T[]): T[] {
+  const merged = new Map<string, T>();
+
+  for (const item of items) {
+    const first = merged.get(item.slug);
+
+    merged.set(item.slug, first ? { ...first, grams: first.grams + item.grams } : item);
+  }
+
+  return [...merged.values()];
+}
+
+/** A slot's shortfall as the requests that ask for it, largest first: 7 → 3, 3, 1; nothing short → none. */
+export function requestSizes(count: number, size: number = DISHES_PER_REQUEST): readonly number[] {
+  return Array.from({ length: Math.ceil(Math.max(count, 0) / size) }, (_unused, index) => Math.min(size, count - index * size));
 }
 
 /** How many more distinct dishes each slot needs. Drives both the retry and the prompt. */
