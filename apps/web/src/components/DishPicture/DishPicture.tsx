@@ -26,11 +26,16 @@ const RATIO: Record<DishPictureVariant, PictureRatio> = { card: '16/9', hero: '4
 interface DishPictureProps {
   /** The dish's name when the picture is the content (the meal's page); empty where the name sits beside it. */
   alt?: string;
-  /** API path of the recipe's illustration, when one has been drawn. */
+  /** The recipe's illustration, when one has been drawn: a path on the API, or an absolute URL. */
   path?: string | null;
   /** Above the fold: requested at once instead of when scrolled near. */
   priority?: boolean;
   variant: DishPictureVariant;
+}
+
+/** Relative to the API today; an absolute address (a file host) is taken as it is. */
+function source(path: string): string {
+  return /^https?:\/\//.test(path) ? path : `${API_URL}${path}`;
 }
 
 /**
@@ -57,7 +62,7 @@ export function DishPicture({ alt = '', path = null, priority = false, variant }
       height={720}
       loading={priority ? 'eager' : 'lazy'}
       ratio={RATIO[variant]}
-      src={path ? `${API_URL}${path}` : null}
+      src={path ? source(path) : null}
       width={960}
     />
   );
