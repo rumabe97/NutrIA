@@ -1,7 +1,8 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
 import { RecipeController } from 'core/controllers/Recipe';
-import { isAboutTheBrief, lowerIngredientNames, methodMentions } from 'core/domain/Method';
+import { cleanSteps, isAboutTheBrief, lowerIngredientNames, methodMentions } from 'core/domain/Method';
+import { normaliseForMatching } from 'core/domain/Safety';
 
 import { ENV } from '../../../config/index.js';
 
@@ -201,8 +202,19 @@ export class RecipeRewriter {
       text: prose(step.text)
     }));
 
-    await RecipeController.rewriteSteps(recipe.id, steps, STEPS_VERSION);
-    this.logger.log(describeCall(recipe.id, response, steps.length));
+    // The same guarantee as a generated dish (`PoolBuilder`, `domain/Method`):
+    // a slug read back as its name, a leaked `minutes` put into words, one
+    // stated duration into the field, an English cue dropped — and a method
+    // in English, in a recipe that is not, refused rather than stored.
+    const slugs = new Map(names.map(name => [normaliseForMatching(name).replaceAll(' ', '-'), name.toLowerCase()]));
+    const cleaned = cleanSteps(steps, { ingredientNames: slugs, locale: recipe.locale });
+
+    if (cleaned === null) {
+      throw new Error(`its method reads as English in a ${recipe.locale} recipe`);
+    }
+
+    await RecipeController.rewriteSteps(recipe.id, cleaned, STEPS_VERSION);
+    this.logger.log(describeCall(recipe.id, response, cleaned.length));
   }
 }
 

@@ -148,6 +148,25 @@ function looksEnglish(text: string): boolean {
 }
 
 /**
+ * A cue the model wrote into the text instead of its field — "Cocina 15
+ * minutos hasta que esté tierna. cue: que el cuchillo entre sin resistencia."
+ * (Gemma 4 31B rewriting a stored recipe, 2026-09-26). The field's name is
+ * never prose, so "cue:" to the end of the text is taken out and offered as
+ * the cue; the step's own cue, when it has one, still wins.
+ */
+function splitSpilledCue(text: string): { readonly cue?: string; readonly text: string } {
+  const match = /\s*\bcue\s*:\s*(.+)$/is.exec(text);
+
+  if (!match || match.index === 0) {
+    return { text };
+  }
+
+  const cue = match[1]?.trim().replace(/[.\s]+$/, '');
+
+  return { ...(cue ? { cue } : {}), text: text.slice(0, match.index).trim() };
+}
+
+/**
  * One step, cleaned — or `null` when its *text* reads as English in a
  * non-English request, which is not a step this rewrites but a dish this
  * rejects (`PoolBuilder` turns `null` into `wrong_language`).
@@ -157,13 +176,15 @@ function looksEnglish(text: string): boolean {
  */
 export function cleanStep(step: GeneratedStep, options: StepCleanupOptions): GeneratedStep | null {
   const english = isEnglishLocale(options.locale);
-  const text = cleanProse(step.text, options);
+  const { cue: spilledCue, text: ownText } = splitSpilledCue(step.text);
+  const text = cleanProse(ownText, options);
 
   if (!english && looksEnglish(text)) {
     return null;
   }
 
-  const cleanedCue = step.cue ? cleanProse(step.cue, options) : undefined;
+  const rawCue = step.cue || spilledCue;
+  const cleanedCue = rawCue ? cleanProse(rawCue, options) : undefined;
   const cue = cleanedCue && !(!english && looksEnglish(cleanedCue)) ? cleanedCue : undefined;
   const minutes = step.minutes ?? singleDuration(text);
 

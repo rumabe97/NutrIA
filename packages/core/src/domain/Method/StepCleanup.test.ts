@@ -117,3 +117,31 @@ describe('cleanStep — deriving a missing minutes field', () => {
     expect(cleanStep(step, ES)?.minutes).toBeUndefined();
   });
 });
+
+describe('cleanStep — a cue written into the text (google/gemma-4-31b-it rewriting stored recipes)', () => {
+  it('takes "cue:" to the end of the text out and makes it the cue, with the one duration left in the field', () => {
+    const step = {
+      text: 'Lava la patata y ponla en una olla con agua y la sal. Cocina a fuego medio-alto durante 15 minutos hasta que esté tierna al pincharla con un cuchillo. cue: que el cuchillo entre y salga sin resistencia.'
+    };
+
+    expect(cleanStep(step, ES)).toEqual({
+      cue: 'que el cuchillo entre y salga sin resistencia',
+      minutes: 15,
+      text: 'Lava la patata y ponla en una olla con agua y la sal. Cocina a fuego medio-alto durante 15 minutos hasta que esté tierna al pincharla con un cuchillo.'
+    });
+  });
+
+  it('keeps the cue the step already had', () => {
+    expect(cleanStep({ cue: 'hasta que dore', text: 'Dora el pan integral 3 minutos. cue: que cruja' }, ES)).toEqual({
+      cue: 'hasta que dore',
+      minutes: 3,
+      text: 'Dora el pan integral 3 minutos.'
+    });
+  });
+
+  it('leaves a text with no such label exactly as it was', () => {
+    const step = { cue: 'hasta que dore', minutes: 3, text: 'Dora el pan integral a fuego medio-alto.' };
+
+    expect(cleanStep(step, ES)).toEqual(step);
+  });
+});
