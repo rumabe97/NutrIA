@@ -734,7 +734,6 @@ export const enGB: Dictionary = {
     done: 'Eaten',
     doneHint: 'Marked as eaten.',
     illustration: 'AI-generated illustration',
-    illustrationOf: 'Illustration of {name}',
     ingredients: 'Ingredients',
     like: 'I like it',
     likedHint: 'Noted: it may come back, and we will look for dishes along these lines.',
