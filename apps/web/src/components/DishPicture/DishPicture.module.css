@@ -1,10 +1,3 @@
-/* The thumbnail's size is the row's: `MealRow` sets `--dish-thumb` and lines its text up against it. */
-.thumb {
-  border-radius: var(--radius-control);
-  flex: none;
-  inline-size: var(--dish-thumb, 3.5rem);
-}
-
 .card {
   border-radius: var(--radius-control);
   inline-size: 100%;

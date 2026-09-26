@@ -12,16 +12,13 @@ import type { PictureRatio } from 'ui/components/Picture';
  * The API stores one 960 × 720 WebP per recipe — an overhead shot of a plate,
  * centred — so every crop below keeps the plate:
  *
- * - `thumb`, in a list row: square, the shape a thumbnail beside text reads as.
- *   Always drawn, picture or not, so every row of a day starts its text on the
- *   same line.
  * - `card`, the dashboard's next meal: 16:9, wide enough to be a picture, short
  *   enough that the name is still in the first screen of a phone.
  * - `hero`, the meal's own page: 4:3, the whole image, uncropped.
  */
-export type DishPictureVariant = 'card' | 'hero' | 'thumb';
+export type DishPictureVariant = 'card' | 'hero';
 
-const RATIO: Record<DishPictureVariant, PictureRatio> = { card: '16/9', hero: '4/3', thumb: '1/1' };
+const RATIO: Record<DishPictureVariant, PictureRatio> = { card: '16/9', hero: '4/3' };
 
 interface DishPictureProps {
   /** The dish's name when the picture is the content (the meal's page); empty where the name sits beside it. */

@@ -145,7 +145,6 @@ export function PlanBrowser({ events = [], history = null, midPlan = null, plan,
               {day.meals.map(meal => (
                 <MealRow
                   id={meal.id}
-                  illustrationPath={meal.illustrationPath}
                   ingredients={meal.ingredients}
                   kcal={meal.kcal}
                   key={meal.id}
