@@ -127,7 +127,12 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
           it: the specification below is the content, the picture is the bonus. */}
       {meal.illustrationPath ? (
         <figure className={styles.figure}>
-          <DishPicture alt={meal.name} path={meal.illustrationPath} priority={true} variant="hero" />
+          <DishPicture
+            alt={interpolate(dictionary.meal.illustrationOf, { name: meal.name })}
+            path={meal.illustrationPath}
+            priority={true}
+            variant="hero"
+          />
           <figcaption className={styles.illustrationLabel}>{dictionary.meal.illustration}</figcaption>
         </figure>
       ) : null}
