@@ -173,16 +173,47 @@ body:has(
   stroke-width: 2.2;
 }
 
+/* Tabbing back never leaves focus under the sticky header: scrolling a control into
+   view stops the header's height (its 3.5rem row and hairline) and a gap short of
+   the top. Reset under the large-text query, where the header is not sticky. */
+html:has(.header) {
+  scroll-padding-block-start: calc(3.5rem + 1px + var(--space-03));
+}
+
 /*
  * Text this large for the screen (a rem query reads the reader's text size: at
  * 320px it starts at about 118%, at 390px at about 143%): the sign-out moves to a
- * line of its own rather than off the edge, and each of the five tabs is
- * narrower than its own word, so the bar goes to icons, the way a tab bar does
- * at the largest text sizes. The words stay as the links' names.
+ * line of its own rather than off the edge, and the header, now two lines tall,
+ * scrolls away instead of sitting over whatever has focus. Each of the five tabs
+ * is narrower than its own word, so the bar goes to icons, the way a tab bar does
+ * at the largest text sizes: larger ones, the current one on a ringed disc, since
+ * the heavier word is gone. The words stay as the links' names.
  */
 @media (width < 17rem) {
+  .header {
+    position: static;
+  }
+
+  html:has(.header) {
+    scroll-padding-block-start: 0;
+  }
+
   .inner {
     flex-wrap: wrap;
+  }
+
+  .bottomIcon {
+    block-size: 28px;
+    inline-size: 28px;
+  }
+
+  .bottomLink[aria-current='page'] .bottomIcon {
+    background-color: var(--color-brand-03);
+    border-radius: var(--radius-full);
+    /* The chosen week pill's recipe, tint and edge, so it reads in dark too. */
+    box-shadow:
+      0 0 0 6px var(--color-brand-03),
+      0 0 0 7px var(--color-brand-fill);
   }
 
   .bottomBar {
@@ -196,6 +227,14 @@ body:has(
     overflow: hidden;
     position: absolute;
     white-space: nowrap;
+  }
+}
+
+/* Tabbing forward never leaves focus under the fixed bar: scrolling a control into
+   view stops the bar's height (56px links) and a gap short of the bottom. */
+@media (width < 48rem) {
+  html:has(.bottomBar) {
+    scroll-padding-block-end: calc(56px + env(safe-area-inset-bottom) + var(--space-03));
   }
 }
 

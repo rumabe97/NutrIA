@@ -23,13 +23,16 @@
 }
 
 .label {
+  /* Stated once: a finger gets the full 44px, and the row's padding gives it back. */
+  --label-floor: 1.5rem;
+
   align-items: center;
   cursor: pointer;
   display: flex;
   /* The whole row is the target, not the box: this is used one-handed, walking. */
   flex: 1;
   gap: var(--space-03);
-  min-block-size: 1.5rem;
+  min-block-size: var(--label-floor);
 }
 
 .checkbox {
@@ -52,21 +55,35 @@
   white-space: nowrap;
 }
 
+@media (pointer: coarse) {
+  /* The label grows by what the padding gives up, so the row is as tall as before. */
+  .item {
+    padding-block: calc(var(--space-03) - (var(--target-min) - 1.5rem) / 2);
+  }
+
+  .label {
+    --label-floor: var(--target-min);
+  }
+}
+
 /*
  * Text this large for the screen (a rem query reads the reader's text size: at
  * 320px it starts at about 118%, at 390px at about 143%): the quantity goes under
  * the item rather than splitting its name mid-word.
  */
 @media (width < 17rem) {
+  /* No row gap: a wrapped quantity belongs to its name, not halfway to the next item. */
   .item {
     flex-wrap: wrap;
+    row-gap: 0;
   }
 
   .label {
     flex-basis: auto;
   }
 
+  /* Under the name, not at the far edge where it reads as the next row's. */
   .quantity {
-    margin-inline-start: auto;
+    margin-inline-start: calc(1.15rem + var(--space-03));
   }
 }

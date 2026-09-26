@@ -223,7 +223,7 @@
 /*
  * Text this large for the screen (a rem query reads the reader's text size: at
  * 320px it starts at about 118%, at 390px at about 143%): the grams go under the
- * ingredient rather than splitting its name mid-word, and a badge may start a line.
+ * ingredient, at its start, rather than splitting its name mid-word, and a badge may start a line.
  */
 @media (width < 17rem) {
   /* An atomic box, so the line may break before it: the name runs into it with no space. */
@@ -233,9 +233,5 @@
 
   .ingredient {
     flex-wrap: wrap;
-  }
-
-  .grams {
-    margin-inline-start: auto;
   }
 }
