@@ -29,7 +29,7 @@ The frame stays, with its neutral ground and whatever `fallback` you pass:
   { prop: 'src', type: 'string | null', default: '—', description: 'Image URL. Missing or failing, the frame stays and shows `fallback`.' },
   { prop: 'ratio', type: "'1/1' | '4/3' | '16/9'", default: "'4/3'", description: 'The frame’s shape. The image is cropped to it.' },
   { prop: 'fallback', type: 'ReactNode', default: '—', description: 'Drawn centred when there is no picture. Decorative: hidden from assistive tech.' },
-  { prop: 'alt', type: 'string', default: "''", description: 'Empty for a decorative picture. When named and the image fails, the frame carries the name as `role="img"`.' },
+  { prop: 'alt', type: 'string', default: "''", description: 'Empty for a decorative picture. Applies to the image only: a failed or missing picture is not announced.' },
   { prop: 'loading', type: "'lazy' | 'eager'", default: "'lazy'", description: 'Pass `eager` (and `fetchPriority="high"`) for the one picture above the fold.' },
   { prop: 'decoding', type: "'async' | 'sync' | 'auto'", default: "'async'", description: 'Decoded off the main thread by default.' }
 ]} />
@@ -38,4 +38,4 @@ The frame stays, with its neutral ground and whatever `fallback` you pass:
 
 ## Accessibility
 
-A decorative picture (`alt=""`) stays out of the accessibility tree, and so does its placeholder. A named one keeps its name when the image fails: the frame becomes `role="img"` with the same label, so the page reads the same with or without the bytes.
+A decorative picture (`alt=""`) stays out of the accessibility tree. The placeholder — no `src`, or an image that failed — always does: a grey box is not a picture, so nothing announces one. Name what the picture shows in the text around it, not only in `alt`.

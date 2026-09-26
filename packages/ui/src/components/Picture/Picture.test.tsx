@@ -62,16 +62,18 @@ describe('Picture', () => {
     expect(frame).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it('on error, swaps the image for the fallback — no broken icon — and keeps the name on the frame', () => {
+  it('on error, swaps the image for the fallback — no broken icon — and hides the placeholder', () => {
     const onError = vi.fn();
+    const { container } = render(<Picture alt="Lentejas" fallback={<svg data-testid="glyph" />} onError={onError} src="/missing.webp" />);
 
-    render(<Picture alt="Lentejas" fallback={<svg data-testid="glyph" />} onError={onError} src="/missing.webp" />);
     fireEvent.error(screen.getByRole('img', { name: 'Lentejas' }));
 
-    const frame = screen.getByRole('img', { name: 'Lentejas' });
+    const frame = container.firstElementChild;
 
-    expect(frame.tagName).toBe('SPAN');
+    expect(screen.queryByRole('img')).toBeNull();
+    expect(container.querySelector('img')).toBeNull();
     expect(frame).toHaveAttribute('data-failed', 'true');
+    expect(frame).toHaveAttribute('aria-hidden', 'true');
     expect(screen.getByTestId('glyph')).toBeInTheDocument();
     expect(onError).toHaveBeenCalledOnce();
   });
@@ -89,9 +91,10 @@ describe('Picture', () => {
     const complete = vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true);
     const naturalWidth = vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(0);
 
-    render(<Picture alt="Lentejas" src="/missing.webp" />);
+    const { container } = render(<Picture alt="Lentejas" src="/missing.webp" />);
 
-    expect(screen.getByRole('img', { name: 'Lentejas' }).tagName).toBe('SPAN');
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.firstElementChild).toHaveAttribute('data-failed', 'true');
 
     complete.mockRestore();
     naturalWidth.mockRestore();

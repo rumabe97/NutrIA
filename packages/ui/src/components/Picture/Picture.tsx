@@ -27,9 +27,9 @@ export interface PictureProps extends Omit<ComponentPropsWithRef<'img'>, 'childr
  * `height` still go on the `<img>` as the intrinsic-size hint the browser wants.
  *
  * Loading, the frame shows its own neutral ground. Failing, the `<img>` is
- * removed — never a broken-image icon — and `fallback` is drawn instead; if the
- * picture had a name (`alt`), the frame carries it, so the page says the same
- * thing with or without the bytes.
+ * removed — never a broken-image icon — and `fallback` is drawn instead, hidden
+ * from assistive tech: a placeholder is not a picture, so nothing announces one.
+ * Whatever the picture showed is named in the text around it.
  *
  * Not `next/image`, on purpose: this is for images already sized by whoever
  * serves them. `className` and `style` go on the frame; everything else,
@@ -65,19 +65,10 @@ export function Picture({
     }
   }, [src]);
 
-  const named = alt !== '';
   const classes = className ? `${styles.frame} ${className}` : styles.frame;
 
   return (
-    <span
-      aria-hidden={!shown && !named ? true : undefined}
-      aria-label={!shown && named ? alt : undefined}
-      className={classes}
-      data-failed={failed || undefined}
-      data-ratio={ratio}
-      role={!shown && named ? 'img' : undefined}
-      style={style}
-    >
+    <span aria-hidden={shown ? undefined : true} className={classes} data-failed={failed || undefined} data-ratio={ratio} style={style}>
       {shown ? (
         <img
           alt={alt}
