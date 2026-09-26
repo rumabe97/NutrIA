@@ -65,7 +65,7 @@
 .spec {
   display: grid;
   gap: var(--space-04);
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 0 0 var(--gap-block);
 }
 
@@ -90,7 +90,7 @@
 
 @media (width >= 40rem) {
   .spec {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -108,6 +108,7 @@
 .ingredients {
   display: grid;
   gap: 0;
+  grid-template-columns: minmax(0, 1fr);
   list-style: none;
   margin: 0;
   padding: 0;
@@ -124,6 +125,11 @@
   display: flex;
   gap: var(--space-04);
   justify-content: space-between;
+}
+
+.ingredientName {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
 }
 
 .alternatives {
@@ -221,4 +227,24 @@
 
 .readOnly {
   margin: var(--space-03) 0 var(--gap-block);
+}
+
+/*
+ * Text this large for the screen (a rem query reads the reader's text size: at
+ * 320px it starts at about 118%, at 390px at about 143%): the quantity goes under
+ * the ingredient rather than splitting its name mid-word.
+ */
+@media (width < 17rem) {
+  /* Two capitalised labels no longer fit side by side. */
+  .spec {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ingredientLine {
+    flex-wrap: wrap;
+  }
+
+  .quantity {
+    margin-inline-start: auto;
+  }
 }

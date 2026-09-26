@@ -16,7 +16,7 @@
   min-block-size: 3.5rem;
   margin-inline: auto;
   max-width: var(--content-max);
-  padding-inline: var(--space-05);
+  padding-inline: var(--gutter-page);
 }
 
 .brand {
@@ -171,6 +171,32 @@ body:has(
 
 .bottomLink[aria-current='page'] .bottomIcon {
   stroke-width: 2.2;
+}
+
+/*
+ * Text this large for the screen (a rem query reads the reader's text size: at
+ * 320px it starts at about 118%, at 390px at about 143%): the sign-out moves to a
+ * line of its own rather than off the edge, and each of the five tabs is
+ * narrower than its own word, so the bar goes to icons, the way a tab bar does
+ * at the largest text sizes. The words stay as the links' names.
+ */
+@media (width < 17rem) {
+  .inner {
+    flex-wrap: wrap;
+  }
+
+  .bottomBar {
+    grid-auto-columns: minmax(0, 1fr);
+  }
+
+  .bottomLabel {
+    block-size: 1px;
+    clip-path: inset(50%);
+    inline-size: 1px;
+    overflow: hidden;
+    position: absolute;
+    white-space: nowrap;
+  }
 }
 
 @media (width >= 48rem) {

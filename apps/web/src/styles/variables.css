@@ -77,9 +77,16 @@
      that is the whole point of the screen it sits on, and a tighter one for a
      tile that holds a single figure. `components/Card` is the only place
      these are read. */
-  --card-padding: var(--space-05) var(--space-06);
-  --card-padding-lg: var(--space-07);
-  --card-padding-sm: var(--space-04) var(--space-05);
+  --card-padding: var(--space-05) var(--gutter-card);
+  --card-padding-lg: var(--space-07) min(var(--space-07), 10vw);
+  --card-padding-sm: var(--space-04) var(--gutter-page);
+
+  /* Side gutters that grow with the text only while the screen has room.
+     Each `vw` is its space at 320px, so at normal text nothing moves; with the
+     text at 200% on a phone the gutters stay the size they were instead of
+     taking half the width. Only the inline side: vertical space can grow. */
+  --gutter-page: min(var(--space-05), 6.25vw);
+  --gutter-card: min(var(--space-06), 7.5vw);
 
   --content-max: 68rem;
   --prose-max: 34rem;

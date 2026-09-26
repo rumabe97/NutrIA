@@ -8,7 +8,7 @@
   flex: 1;
   margin-inline: auto;
   max-width: var(--content-max);
-  padding: var(--space-07) var(--space-05);
+  padding: var(--space-07) var(--gutter-page);
   /* Clears the fixed bottom bar on mobile; the bar is hidden above 48rem. */
   padding-bottom: calc(var(--space-10) + env(safe-area-inset-bottom));
   width: 100%;

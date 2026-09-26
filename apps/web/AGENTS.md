@@ -291,6 +291,26 @@ number up with there, and tabular digits read as slightly wrong in running text.
 - **Nothing by colour alone**: a current tab, a chosen chip, a pressed toggle each carry a
   second cue (weight, stroke, border).
 
+### Large text
+
+A phone set to large text (the browser's font size, which is what `rem` follows) must
+still fit, with nothing running off the edge. Two tools, and nothing else:
+
+- **Side gutters are capped by the screen**: `--gutter-page` and `--gutter-card` are
+  `min(<space>, <vw>)`, each `vw` being that space at 320px, so normal text is untouched
+  and 200% text does not spend half the width on padding. A new horizontal gutter or
+  fixed column on a signed-in screen does the same.
+- **`@media (width < 17rem)`** means "the text is large for this screen" (a rem media
+  query reads the reader's text size: at 320px from about 118%, at 390px from about
+  143%). Under it, rows that pair a title with an action wrap, quantities go under
+  their names, buttons wrap their label, the day chips take two rows and the bottom
+  bar goes to icons. A rule that should change only for large text goes there, so
+  normal text keeps its layout exactly.
+
+Check with `/local-probe` at 320 and 390 with the browser's font at 200% (CDP
+`Page.setFontSizes`; an injected `html { font-size }` does not move media queries and
+full-page screenshots drop it).
+
 ### Design review — every change to what somebody sees
 
 The rules above are what an audit with the owner's **`apple-web-design`** skill left behind
