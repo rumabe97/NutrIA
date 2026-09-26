@@ -1342,16 +1342,17 @@ export const enGB: Dictionary = {
       {
         heading: 'Artificial intelligence',
         paragraphs: [
-          'An artificial-intelligence model proposes dishes and recipes. Our own code checks each one before it reaches you: a declared allergen does not reach your plan even if the model gets it wrong. The AI makes no decision about you: the calorie and protein bounds are applied by fixed rules, not by the model.',
-          'What the model receives: your daily targets and your goal (for example, losing weight), which meals you eat and when you wake, sleep and train, how much you cook and your budget, whether you are vegetarian or vegan, the cuisines and foods you like, the names of dishes you liked, disliked or ate last fortnight, and your closed check-in answers (hunger, difficulty, rating). Always by the names on our lists. It never receives your name, email, age, sex, weight or height, anything you typed yourself, your allergies or intolerances, any other way of eating (gluten-free, lactose-free, halal, kosher…), or your conditions, medications or supplements. What you cannot or will not eat we remove first, in our code, from the catalogue of foods it sees: it gets the effect, never the datum.',
-          'Some of the models we use today are free versions hosted in the United States whose providers may use what they receive to improve their models. That is why we send them only what is needed to design dishes, and never free text. We are moving to providers that do not reuse data.',
-          'Recipe illustrations are drawn by a model from the recipe name and ingredients, with no data of yours.'
+          "NutrIA's dishes and recipes are designed by an artificial-intelligence model or come from our library of dishes already designed and checked. Our own code checks every dish before it reaches you: a declared allergen does not reach your plan even if the model gets it wrong. The AI makes no decision about you: the calorie and protein bounds are applied by fixed rules, not by the model.",
+          'What the model receives when it designs new dishes for your plan: your daily targets and your goal (for example, losing weight), which meals you eat and when you wake, sleep and train, how much you cook and your budget, whether you are vegetarian or vegan, the cuisines and foods you like, the names of dishes you liked, disliked or ate last fortnight, and your closed check-in answers (hunger, difficulty, rating). Always by the names on our lists. It never receives your name, email, age, sex, weight or height, anything you typed yourself, your allergies or intolerances, any other way of eating (gluten-free, lactose-free, halal, kosher…), or your conditions, medications or supplements. What you cannot or will not eat we remove first, in our code, from the catalogue of foods it sees: it gets the effect, never the datum.',
+          'Right now we send nothing to any model: the dishes in your plan come from our library. When we use one again, it will only be with providers that neither keep what they receive nor train on it, and we will explain it here first: who they are and where.',
+          "If a recipe has an illustration, a model drew it from the recipe's name and ingredients alone, with no data of yours.",
+          'Until 26 September 2026 some of the models we used were free versions hosted in the United States whose providers could use what they received to improve their models. We no longer use any of them.'
         ]
       },
       {
         heading: 'Who we share your data with',
         list: [
-          'Artificial-intelligence providers, as explained above.',
+          'Artificial-intelligence providers: none right now (see "Artificial intelligence").',
           'Vercel (hosting for the website and API, in the European Union) and Neon (database, in the European Union). Both are US companies.',
           'Stripe, if you subscribe to Premium, to charge the subscription. Stripe processes and keeps payment data under its own policies.',
           'Our email provider, for confirmation, password-reset and check-in reminder emails you turn on.',
@@ -1363,7 +1364,7 @@ export const enGB: Dictionary = {
       {
         heading: 'Transfers outside the European Union',
         paragraphs: [
-          'Some of these providers are US companies or process data there: Vercel, Neon, Stripe, the email provider, Sentry and the AI providers. Vercel is certified under the EU-US Data Privacy Framework, which the European Commission recognises as an adequate safeguard; with the others we rely on that same framework or on the Commission standard contractual clauses, whichever each offers. The free AI models we use today offer neither safeguard; that is why we send them only what is described above, with nothing that identifies you, that you wrote, or that is health data or a belief. You can ask us for the details of each safeguard at {email}.'
+          "Some of these providers are US companies or process data there: Vercel, Neon, Stripe, the email provider and Sentry. Vercel, Neon, Stripe and Sentry are certified under the EU-US Data Privacy Framework, which the European Commission recognises as an adequate safeguard; with the email provider we rely on that same framework or on the Commission's standard contractual clauses. You can ask us for the details of each safeguard at {email}."
         ]
       },
       {
@@ -1415,7 +1416,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Privacy policy',
-    updated: 'Last updated: 25 September 2026'
+    updated: 'Last updated: 26 September 2026'
   },
 
   profile: {
