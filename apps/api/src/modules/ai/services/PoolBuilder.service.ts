@@ -2,7 +2,7 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
 import { dishSafety, findSafetyViolations, mentionsUnresolvedAllergy } from 'core/domain/Safety';
 import { fitSlots, mealCatalogue, offersPulses, repairSlug } from 'core/domain/MealFit';
-import { methodMentions } from 'core/domain/Method';
+import { cleanSteps, methodMentions } from 'core/domain/Method';
 import { breaksDishRule, withinTime } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
@@ -502,22 +502,45 @@ export class PoolBuilder {
       return { ...item, slug: meant };
     });
 
-    if (repaired === 0) {
-      return { ...this.judge(parsed.data, slug, context), repaired };
+    let data = parsed.data;
+
+    if (repaired > 0) {
+      // `perejil` and `perejil-fresco` in one dish are one ingredient once
+      // repaired: listed once, in the first one's place, with both their
+      // grams — and checked against the schema's bounds again, which a sum
+      // may pass.
+      const merged = generatedDishSchema.safeParse({ ...parsed.data, ingredients: mergeBySlug(read) });
+
+      if (!merged.success) {
+        this.logger.warn(`Dish "${parsed.data.name}" rejected: its repaired ingredients add up past the schema's bounds`);
+
+        return { reason: 'schema', repaired };
+      }
+
+      data = merged.data;
     }
 
-    // `perejil` and `perejil-fresco` in one dish are one ingredient once
-    // repaired: listed once, in the first one's place, with both their grams —
-    // and checked against the schema's bounds again, which a sum may pass.
-    const merged = generatedDishSchema.safeParse({ ...parsed.data, ingredients: mergeBySlug(read) });
+    // The prompt asks for this dish's steps in one language, its ingredients
+    // by their catalogue name and its minutes as a number — and a model does
+    // not always do any of the three. `cleanSteps` is the guarantee: it
+    // strips a leaked field name and a bare slug deterministically, and
+    // refuses the one thing it cannot repair — a step whose own text reads
+    // as English in a request for another language (`domain/Method`).
+    const names = new Map(
+      [...new Set([...shownSlugs, ...data.ingredients.map(item => item.slug)])].map(itemSlug => [
+        itemSlug,
+        (context.catalogue.get(itemSlug)?.name ?? itemSlug).toLowerCase()
+      ])
+    );
+    const steps = cleanSteps(data.steps, { ingredientNames: names, locale: context.locale });
 
-    if (!merged.success) {
-      this.logger.warn(`Dish "${parsed.data.name}" rejected: its repaired ingredients add up past the schema's bounds`);
+    if (steps === null) {
+      this.logger.warn(`Dish "${data.name}" rejected: its method reads as English in a ${context.locale} request`);
 
-      return { reason: 'schema', repaired };
+      return { reason: 'wrong_language', repaired };
     }
 
-    return { ...this.judge(merged.data, slug, context), repaired };
+    return { ...this.judge({ ...data, steps: [...steps] }, slug, context), repaired };
   }
 
   /** Every gate after the catalogue's, on a dish whose slugs are final. */

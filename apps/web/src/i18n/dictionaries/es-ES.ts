@@ -136,6 +136,7 @@ export const esES = {
       schema: 'esquema',
       unknown_ingredient: 'ingrediente inventado',
       unwanted: 'dieta o gustos',
+      wrong_language: 'idioma equivocado',
       wrong_meal: 'comida equivocada'
     },
     remindersHint:

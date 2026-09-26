@@ -14,7 +14,7 @@
 | --- | --- |
 | Responsable | {name} (ver `legalIdentity.ts`) |
 | Tratamientos | (1) planificación de comidas con datos de salud y de creencias, con IA generativa; (2) comunicación de datos a dietistas-nutricionistas (proyecto 004) |
-| Versión / fecha | 0.2 borrador, 2026-09-26 (0.1: 2026-09-25). La 0.2 revisa solo el tratamiento con IA (`0064`: OpenRouter): § 1.3, 1.4, 2, R2, R14, M3, M4, § 5 y § 6 |
+| Versión / fecha | 0.2 borrador, 2026-09-26 (0.1: 2026-09-25; en la 0.2, MiniMax M3 sale, Gemma 4 31B pasa a principal y DeepSeek V4.1 Flash a reserva y la lista cerrada de proveedores queda hecha). La 0.2 revisa solo el tratamiento con IA (`0064`: OpenRouter): § 1.3, 1.4, 2, R2, R14, M3, M4, § 5 y § 6 |
 | Aprobación | pendiente — firma y fecha del responsable |
 | DPD | no designado (no obligatorio: [`analisis.md` § 5.2](./analisis.md#52-dpd--no-obligatorio-hoy)) |
 | Por qué es obligatoria | Lista de la AEPD (art. 35.4), criterios 1, 4, 8 y 10; art. 28.2.c LOPDGDD — [`analisis.md` § 5.1](./analisis.md#51-eipd--obligatoria) |
@@ -74,7 +74,7 @@
 
 Vercel (cómputo, `fra1`), Neon (base de datos, UE), OpenRouter (EE. UU., encargado, tras
 `0064`) y la empresa que ejecuta el modelo (EE. UU.; propuesta: DeepInfra o CoreWeave,
-lista cerrada en la cuenta — P1-12), Google (correo SMTP), Stripe/Link, Sentry
+lista cerrada en la cuenta y en el código desde el 2026-09-26 — P1-12), Google (correo SMTP), Stripe/Link, Sentry
 (opcional), servicios push de navegador. Equipo del propietario (credenciales,
 exportaciones). La pasarela OmniRoute ya no está en producción (solo experimentos).
 
@@ -106,7 +106,7 @@ de las pendientes marcadas.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | R1 | Un plato con un alérgeno declarado llega al plan | Reacción alérgica, anafilaxia | 3 | 4 | **12** | M1, M2 | 4 (el texto libre no resuelto sigue siendo «mejor esfuerzo» y el usuario lo sabe) |
 | R2 | Datos enviados a la IA reutilizados por un proveedor para entrenar o guardados | Pérdida de control; exposición de preferencias y objetivos (ya no de alergias, creencias ni comentarios: prompt 4.0.0) | 4 hasta el 2026-09-25; 1 desde el 2026-09-26 (`stub`) | 3 → 2 (prompt 4.x) | **12** → 2 | M3, M4 | 2 con M3 (categorización anónima de OpenRouter, P2-12) |
-| R14 | La petición a la IA acaba en una empresa o un país que la política no nombra (p. ej. un endpoint en Indonesia) | Transferencia sin garantía; información falsa | 3 con la cuenta sin lista cerrada | 2 | 6 | M3 (lista cerrada, **pendiente P1-12**) | 1 |
+| R14 | La petición a la IA acaba en una empresa o un país que la política no nombra (p. ej. un endpoint en Indonesia) | Transferencia sin garantía; información falsa | 3 con la cuenta sin lista cerrada; 1 desde el 2026-09-26 | 2 | 6 | M3 (lista cerrada ✔: cuenta y `AI_PROVIDER_ONLY`) | 1 |
 | R3 | Un profesional ve datos de alguien que no aceptó, o después de terminar | Revelación de salud a un tercero | 2 | 4 | 8 | M5, M6, M7 | 2 |
 | R4 | Un profesional usa lo que ve fuera de la asistencia (difusión, publicidad) | Revelación; discriminación | 2 | 4 | 8 | M8 (**acuerdo pendiente**), M7 | 4 |
 | R5 | Una persona comparte su salud con el profesional sin saberlo o no puede dejar de hacerlo | Consentimiento viciado; pérdida de control | 3 hoy | 3 | 9 | M9 (**pendiente**) | 2 |
@@ -127,7 +127,7 @@ de las pendientes marcadas.
 | --- | --- | --- |
 | M1 | Alergias aplicadas por código comparando ids (`findSafetyViolations`), antes de guardar y antes de devolver; `SafetyController.getSafetyProfile` único ensamblador | ✔ |
 | M2 | Texto libre no resuelto declarado «mejor esfuerzo» al usuario; plato con ingredientes sin resolver rechazado | ✔ |
-| M3 | Solo proveedores de IA con contrato de encargo, sin entrenamiento, retención cero, garantía de transferencia; y no enviar texto libre ni etiquetas religiosas | Texto libre y etiquetas: ✔ (4.0.0). Producción sin modelo desde el 2026-09-26 ✔. Para el cambio (`0064`): código ✔ (`NO_TRAINING_PROVIDER`: `zdr`, `data_collection: 'deny'` en cada petición); cuenta y clave (entrenamiento off, ZDR, dos modelos, tope) — propietario; **pendientes**: DPA de OpenRouter en la mano (P1-11) y lista cerrada de proveedores (P1-12) |
+| M3 | Solo proveedores de IA con contrato de encargo, sin entrenamiento, retención cero, garantía de transferencia; y no enviar texto libre ni etiquetas religiosas | Texto libre y etiquetas: ✔ (4.0.0). Producción sin modelo desde el 2026-09-26 ✔. Para el cambio (`0064`): código ✔ (`NO_TRAINING_PROVIDER`: `zdr`, `data_collection: 'deny'` en cada petición); cuenta y clave (entrenamiento off, ZDR, dos modelos, tope) — propietario; lista cerrada de proveedores ✔ (2026-09-26: DeepInfra y CoreWeave, en la cuenta por el propietario y en cada petición por `AI_PROVIDER_ONLY`); **pendiente**: DPA de OpenRouter en la mano (P1-11) |
 | M4 | La IA no recibe identificadores ni salud declarada; test de frontera `health-boundary.spec.ts`; sin cabecera de sesión hacia OpenRouter (`resolveCallSettings`); registro de prompts de OpenRouter apagado | ✔ (el registro de prompts: propietario, al configurar la cuenta) |
 | M5 | Acceso solo por `withClient` (id de enlace, sesión, estado `active`), denegación 404, sin caché | ✔ |
 | M6 | Invitación de un solo uso, hash, 14 días, correo de la sesión debe coincidir | ✔ |
@@ -154,13 +154,14 @@ de las pendientes marcadas.
 - **Sin M3, M8 y M9**, R2 (12), R4 y R5 (9 hoy) quedan altos. **Con esos riesgos residuales
   altos no se debe encender el flag `professional`**. R2 ya no afecta a producción desde
   el 2026-09-26 (`stub`); **no se debe poner `AI_PROVIDER=openrouter` sin M3 completa**
-  (P1-11 y P1-12): R14 subiría y la política diría algo falso.
+  (hoy falta P1-11): sin contrato, la política no puede decir «con contrato» y no hay
+  encargado del art. 28.
 
 ## 6. Plan de acción
 
 | Orden | Medida | Quién | Antes de |
 | --- | --- | --- | --- |
-| 1 | M3 — DPA de OpenRouter (P1-11) y lista cerrada de proveedores (P1-12); licencia de MiniMax (P1-13) | propietario (cuenta de OpenRouter) + backend (`provider.only`) | el cambio a `openrouter` |
+| 1 | M3 — DPA de OpenRouter (P1-11). Hechos: lista cerrada (P1-12), licencia del modelo nuevo (P1-13: Gemma 4, Apache 2.0) | propietario | el cambio a `openrouter` |
 | 2 | Consentimiento explícito del perfil (P0-2) | backend + frontend | ya (producción) |
 | 3 | M9 — retirar salud del enlace + textos | backend + frontend | flag `professional` |
 | 4 | M8 — acuerdo del profesional | backend + frontend | flag `professional` |

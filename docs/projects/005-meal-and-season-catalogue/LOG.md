@@ -378,9 +378,29 @@
   `decisions/LOG.md` 2026-09-26.
 - **Before the switch (owner)** — `docs/legal/checklist-activacion.md` § 0 bis: OpenRouter's
   DPA in hand and confirmed for a paid account (P1-11); allowed providers DeepInfra and
-  CoreWeave in the account (P1-12); MiniMax either attributed ("Built with MiniMax M3" + notice)
-  or removed as fallback (P1-13); the topic-tagging sample accepted or not (P2-12); publish
+  CoreWeave in the account (P1-12, **done by the owner 2026-09-26**); MiniMax removed as
+  fallback, replaced by Gemma 4 31B (P1-13, 2026-09-26); the topic-tagging sample accepted with
+  disclosure (P2-12, owner 2026-09-26); publish
   `/privacidad` state 2 and send the e-mail in `textos/06` § G; then, the next day, in Vercel:
-  `AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY` (sensitive), `AI_MODEL=deepseek/deepseek-v4.1-flash`,
-  `AI_FALLBACK_MODELS` (or empty), `AI_REASONING_EFFORT=none`, `AI_PROVIDER_SORT=throughput`,
+  `AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY` (sensitive), `AI_MODEL=google/gemma-4-31b-it`,
+  `AI_FALLBACK_MODELS=deepseek/deepseek-v4.1-flash`, `AI_REASONING_EFFORT=none`, `AI_PROVIDER_SORT=throughput`,
   `AI_PROVIDER_ONLY=deepinfra,coreweave`, `AI_BASE_URL` empty, `AI_REWRITE_STEPS=false`.
+- **Fallback measured (2026-09-26, after the merge)**: MiniMax M3 dropped. `qwen/qwen3-235b-a22b-2507`
+  answered 404 on all 8 bench calls (no ZDR endpoint on DeepInfra or CoreWeave).
+  `google/gemma-4-31b-it`, reasoning none: bench 8/8 answered, 17/24 dishes valid (7 on the wrong
+  meal, dropped by `belongsTo`), 60 s median. A 3-meal omnivore fortnight with Gemma as the only
+  model: succeeded in 83 s, 9 calls, 21/21 fresh dishes kept, 0.0087 $, 14/14 days inside 5%
+  (worst 5.0%), 0 repairs, every call on CoreWeave.
+- **Gemma becomes the primary (2026-09-26, owner)**. Matched comparison, both models alone, reasoning none,
+  `only: deepinfra,coreweave`. Prompt 4.2.0 showed Gemma's steps broken (15% with `minutes`, 69% with the
+  literal `` `minutes` ``, 48% with slugs, English cues), so prompt 4.3.0 states the step language, the
+  `minutes` field and no slugs, and `core/domain/Method` `cleanSteps` cleans what a model still leaks
+  (`wrong_language` rejects an English method). A first 4.3.0 wording made both models drop `minutes`
+  (0 of 125 dishes); reworded, one bench round: Gemma 99% `minutes`, 0 backticks, 0 slugs, 0 English cues
+  of 103; DeepSeek 95%. Five fortnights each (omnivoro-3, omnivoro-5, vegano-4, alergico-3, and eventos-4
+  with three events at the ±20% limits — 8 loaded days): both 70/70 days inside 5% (event days 8/8,
+  worst 3.6% DeepSeek, 4.8% Gemma), distinct dishes 199 vs 198 of 266; failed calls DeepSeek 11/69,
+  Gemma 0/53; cost 0.14 $ vs 0.05 $; time 35–84 s vs 80–171 s (Gemma's slowest call 121 s). Bench,
+  3 rounds × 8 briefs: valid dishes 39/72 vs 60/72; DeepSeek cut 9 of 32 answers at the output cap.
+  One DeepSeek fortnight failed once with `DatabaseOperationError` while storing; the rerun on the same
+  code passed 14/14 — dev database, cause hidden by the error wrapper.

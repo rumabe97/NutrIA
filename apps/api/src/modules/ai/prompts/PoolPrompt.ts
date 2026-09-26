@@ -122,8 +122,27 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * season. A row with no season counted as in season in every month, so
  * onion, garlic, lemon and the herbs sat under "prefer these" and diluted it
  * (September: 34 seasonal rows among ~40 year-round ones).
+ * 4.3.0: the step rules say, in as many words, that a step's text and cue are
+ * written in the brief's own language and that an ingredient is named the way
+ * a cook says it, never by its slug (owner's decision, 2026-09-26). Measured
+ * on 72 dishes each from `google/gemma-4-31b-it` and
+ * `deepseek/deepseek-v4.1-flash` (prompt 4.2.0): Gemma left the literal word
+ * `` `minutes` `` inside 69% of its step texts ("durante 12 `minutes`"), named
+ * ingredients by their catalogue slug in 48% ("Extienda el queso-cottage…"),
+ * and its cues came back in English inside a Spanish recipe — this section's
+ * own cue examples, which were English words to copy rather than a meaning to
+ * translate. The examples are now introduced as meaning, not text, and the
+ * ingredient rule is stated rather than assumed from "in that language" two
+ * paragraphs up. `domain/Method`'s `cleanStep` still cleans up what a model
+ * writes anyway — the backtick, the bare word, a slug left in the prose — and
+ * a step that reads as English in a non-English request now rejects the dish
+ * (`wrong_language`), because a prompt is a request and the schema is the
+ * guarantee. A first wording ("never the English word `minutes`; the number
+ * alone goes in its own field") read as "leave `minutes` out": on 125 dishes
+ * neither model filled the field, where DeepSeek had filled every one. The
+ * rule now asks for the field by name, then for the words in the text.
  */
-export const PROMPT_VERSION = '4.2.0';
+export const PROMPT_VERSION = '4.3.0';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -675,9 +694,10 @@ export function buildPoolPrompt(
       '  snack. Never zero: a dish with no method is rejected before it is stored. "Sear the',
       '  pork 3 minutes, add the mushrooms, cook 4 more, stir in the rice" is four steps, not one.',
       '- EVERY STEP DOCUMENTED, in one to three sentences: what to do, how (the cut, the vessel,',
-      '  the heat), and how long — put the time in `minutes` as well as the text. Then the sign',
-      '  it is done, in `cue`: "until the edges brown", "until the liquid has halved", "until it',
-      '  no longer sticks". A cook who has never made this dish follows it without guessing.',
+      '  the heat), and how long: the number in the `minutes` field of every timed step, and the',
+      '  time in words, in that language, in the text ("durante 12 minutos"). Then the sign it is',
+      '  done, in `cue`, in that language too — meaning "until the edges brown", never those',
+      '  English words. Name every ingredient as a cook would say it, never by its slug.',
       '- Include the quiet steps a recipe book includes: bring to temperature, rest the meat,',
       '  taste for seasoning, plate. They are where a dish goes right or wrong.',
       '- Variety of method across the set you return: do not send eight roasted dishes.',
