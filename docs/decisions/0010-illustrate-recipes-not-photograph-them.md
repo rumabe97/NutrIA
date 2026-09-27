@@ -1,6 +1,6 @@
 # 0010 — Illustrate recipes, label them as illustrations, keep them in the database
 
-- **Status**: accepted
+- **Status**: superseded by [`0066`](./0066-photograph-like-dish-pictures-drawn-on-first-view.md)
 - **Date**: 2026-09-08
 - **Project**: none (task, at the owner's report)
 

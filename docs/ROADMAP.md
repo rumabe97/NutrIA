@@ -25,6 +25,13 @@ The milestone is met, and has been in production since 2026-09-07.
   enforced server-side, a deeper profile (free-text allergens, conditions, medications,
   supplements), English throughout, and a design pass.
 
+*In progress:*
+
+- [`006-realistic-dish-pictures`](./projects/006-realistic-dish-pictures/) — a realistic
+  picture of each dish, drawn the first time its meal page is opened, true to the recipe,
+  marked as AI and kept in Vercel Blob (`0066`). The owner asked for it on 2026-09-26;
+  two pilots on 2026-09-27 chose the model and the prompt.
+
 The end-to-end suites stand at 14 suites and 88 tests, run against a throwaway database
 with a scripted model (`apps/api/test/README.md`), and on every pull request against a
 Postgres container that dies with the job.
