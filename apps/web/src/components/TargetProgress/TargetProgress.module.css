@@ -41,3 +41,18 @@
   border-radius: inherit;
   transition: inline-size var(--duration-slow) var(--ease-spring);
 }
+
+/*
+ * Text this large for the screen (a rem query reads the reader's text size: at
+ * 320px it starts at about 118%, at 390px at about 143%): the figure goes under
+ * its label, so "288 de 289 g" stays on one line.
+ */
+@media (width < 17rem) {
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .value {
+    text-align: start;
+  }
+}

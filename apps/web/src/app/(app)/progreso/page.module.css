@@ -54,6 +54,7 @@
 .card {
   display: grid;
   gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
   margin: 0 0 var(--gap-region);
 }
 
@@ -100,5 +101,24 @@
 @media (width >= 48rem) {
   .tiles {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/*
+ * Text this large for the screen (a rem query reads the reader's text size: at
+ * 320px it starts at about 118%, at 390px at about 143%): one figure per row, and a
+ * link longer than the line wraps instead of running off the edge.
+ */
+@media (width < 17rem) {
+  .tiles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .head {
+    flex-wrap: wrap;
+  }
+
+  .link {
+    white-space: normal;
   }
 }

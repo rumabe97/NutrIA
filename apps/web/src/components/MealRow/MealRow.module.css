@@ -1,9 +1,13 @@
 .row {
+  /* The tick and the gap beside it keep their phone size when the text grows,
+     so the name keeps the width (see `--gutter-page`). */
+  --tick: min(1.5rem, 7.5vw);
+
   align-items: start;
   border-bottom: 1px solid var(--border-01);
-  column-gap: var(--space-03);
+  column-gap: min(var(--space-03), 3.75vw);
   display: grid;
-  grid-template-columns: 1.5rem minmax(0, 1fr);
+  grid-template-columns: var(--tick) minmax(0, 1fr);
   padding-block: var(--space-03);
 }
 
@@ -20,7 +24,7 @@
   color: transparent;
   cursor: pointer;
   display: inline-flex;
-  height: 1.5rem;
+  height: var(--tick);
   justify-content: center;
   margin-top: 0.1rem;
   padding: 0;
@@ -29,7 +33,7 @@
     background-color var(--duration-fast) var(--ease-default),
     border-color var(--duration-fast) var(--ease-default),
     color var(--duration-fast) var(--ease-default);
-  width: 1.5rem;
+  width: var(--tick);
 }
 
 /*
@@ -40,7 +44,8 @@
  */
 .tick::after {
   content: '';
-  inset: -0.625rem;
+  /* 44px whatever the text size, so it never reaches across the gap into the name. */
+  inset: calc((var(--tick) - var(--target-min)) / 2);
   position: absolute;
 }
 
@@ -152,6 +157,11 @@
   max-inline-size: 26rem;
 }
 
+.ingredientName {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
 .grams {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -208,4 +218,20 @@
 .tick[data-static='true'][data-done='true']:hover {
   border-color: var(--color-brand-fill);
   color: var(--color-on-brand-fill);
+}
+
+/*
+ * Text this large for the screen (a rem query reads the reader's text size: at
+ * 320px it starts at about 118%, at 390px at about 143%): the grams go under the
+ * ingredient, at its start, rather than splitting its name mid-word, and a badge may start a line.
+ */
+@media (width < 17rem) {
+  /* An atomic box, so the line may break before it: the name runs into it with no space. */
+  .badge {
+    display: inline-block;
+  }
+
+  .ingredient {
+    flex-wrap: wrap;
+  }
 }

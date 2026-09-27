@@ -124,3 +124,17 @@
 .button.destructive:hover:not(:disabled) {
   opacity: 0.85;
 }
+
+/*
+ * Text this large for the screen (a rem query reads the reader's text size: at
+ * 320px it starts at about 118%, at 390px at about 143%): a label wider than the
+ * screen wraps inside a button that grows, rather than running off the edge.
+ */
+@media (width < 17rem) {
+  .button {
+    block-size: auto;
+    padding-block: var(--space-02);
+    text-align: center;
+    white-space: normal;
+  }
+}

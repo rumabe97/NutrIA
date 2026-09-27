@@ -92,6 +92,21 @@
   border-color: var(--color-brand-fill);
 }
 
+/*
+ * Text this large for the screen (a rem query reads the reader's text size: at
+ * 320px it starts at about 118%, at 390px at about 143%): seven chips no longer
+ * fit a row, so the week takes two — still the whole week, never a scroller.
+ */
+@media (width < 17rem) {
+  .weeks {
+    flex-wrap: wrap;
+  }
+
+  .days {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 /* With room to spare, the chips get their gaps and side padding back. */
 @media (width >= 34rem) {
   .days {

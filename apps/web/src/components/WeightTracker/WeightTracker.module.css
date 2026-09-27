@@ -53,7 +53,7 @@
   align-items: end;
   display: grid;
   gap: var(--space-03);
-  grid-template-columns: 1fr auto;
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
 .error {
@@ -78,4 +78,23 @@
 
 .more:hover {
   text-decoration: underline;
+}
+
+/*
+ * Text this large for the screen (a rem query reads the reader's text size: at
+ * 320px it starts at about 118%, at 390px at about 143%): the field and its
+ * button stack, or the field is left too narrow to show a number.
+ */
+@media (width < 17rem) {
+  .head {
+    flex-wrap: wrap;
+  }
+
+  .foot {
+    flex-wrap: wrap;
+  }
+
+  .form {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

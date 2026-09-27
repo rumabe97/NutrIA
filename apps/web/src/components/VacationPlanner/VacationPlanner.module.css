@@ -2,6 +2,7 @@
 .root {
   display: grid;
   gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .title {
