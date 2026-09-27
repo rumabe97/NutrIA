@@ -55,6 +55,56 @@ export type UndocumentedRecipe = {
 
 export const RecipeRepository = {
   /**
+   * Claims the drawing of a dish's picture for this caller (0066). True when this
+   * caller won and must draw; false when the dish is ready, already being drawn,
+   * or failed less than `coolOffDays` ago.
+   *
+   * A drawing claimed more than `staleAfterMinutes` ago is taken over: the
+   * function that ran it was stopped before it could end it (its `maxDuration`
+   * is 5 minutes), and without this the dish would wait for a picture forever.
+   * `now` is the claim's mark — `completePicture` and `failPicture` must be given
+   * it back, so a drawer whose claim was taken over cannot end the new one.
+   *
+   * `attempts` counts drawings that never ended: a takeover adds one to it, so a
+   * dish whose drawing is killed every time reaches the failure bound instead
+   * of being paid for on every view. A claim after a finished failure's
+   * cool-off starts again from zero.
+   *
+   * Mode: one `INSERT … ON CONFLICT DO UPDATE … WHERE … RETURNING`. "Is anyone
+   * drawing it?" and "I am" cannot be two statements: two first views fired
+   * together would both read no row and both draw, paying twice. With one
+   * statement the second caller waits on the first's row, then evaluates the
+   * `WHERE` against it — `drawing`, so it updates nothing and returns no row.
+   */
+  async claimPicture(recipeId: string, now: Date, coolOffDays: number, staleAfterMinutes = 15): Promise<boolean> {
+    try {
+      const cooledOff = new Date(now.getTime() - coolOffDays * 86_400_000);
+      const stale = new Date(now.getTime() - staleAfterMinutes * 60_000);
+      const rows = await database()
+        .insert(recipeImages)
+        .values({ attempts: 0, lastAttemptAt: now, recipeId, status: 'drawing' })
+        .onConflictDoUpdate({
+          set: {
+            attempts: sql`case when ${recipeImages.status} = 'drawing' then ${recipeImages.attempts} + 1 else 0 end`,
+            lastAttemptAt: now,
+            status: 'drawing',
+            updatedAt: now
+          },
+          setWhere: or(
+            and(eq(recipeImages.status, 'failed'), lt(recipeImages.lastAttemptAt, cooledOff)),
+            and(eq(recipeImages.status, 'drawing'), lt(recipeImages.lastAttemptAt, stale))
+          ),
+          target: recipeImages.recipeId
+        })
+        .returning({ recipeId: recipeImages.recipeId });
+
+      return rows.length === 1;
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_images');
+    }
+  },
+
+  /**
    * The whole ingredient catalogue, with allergen links attached.
    *
    * Loaded once per generation and passed down: every macro sum and every allergy
@@ -83,46 +133,6 @@ export const RecipeRepository = {
    * run failed or ran out of time, lapses on its own and the recipe is taken
    * again.
    */
-  /**
-   * Claims the drawing of a dish's picture for this caller (0066). True when this
-   * caller won and must draw; false when the dish is ready, already being drawn,
-   * or failed less than `coolOffDays` ago.
-   *
-   * A drawing claimed more than `staleAfterMinutes` ago is taken over: the
-   * function that ran it was stopped before it could end it (its `maxDuration`
-   * is 5 minutes), and without this the dish would wait for a picture forever.
-   * `now` is the claim's mark — `completePicture` and `failPicture` must be given
-   * it back, so a drawer whose claim was taken over cannot end the new one.
-   *
-   * Mode: one `INSERT … ON CONFLICT DO UPDATE … WHERE … RETURNING`. "Is anyone
-   * drawing it?" and "I am" cannot be two statements: two first views fired
-   * together would both read no row and both draw, paying twice. With one
-   * statement the second caller waits on the first's row, then evaluates the
-   * `WHERE` against it — `drawing`, so it updates nothing and returns no row.
-   */
-  async claimPicture(recipeId: string, now: Date, coolOffDays: number, staleAfterMinutes = 15): Promise<boolean> {
-    try {
-      const cooledOff = new Date(now.getTime() - coolOffDays * 86_400_000);
-      const stale = new Date(now.getTime() - staleAfterMinutes * 60_000);
-      const rows = await database()
-        .insert(recipeImages)
-        .values({ attempts: 0, lastAttemptAt: now, recipeId, status: 'drawing' })
-        .onConflictDoUpdate({
-          set: { attempts: 0, lastAttemptAt: now, status: 'drawing', updatedAt: now },
-          setWhere: or(
-            and(eq(recipeImages.status, 'failed'), lt(recipeImages.lastAttemptAt, cooledOff)),
-            and(eq(recipeImages.status, 'drawing'), lt(recipeImages.lastAttemptAt, stale))
-          ),
-          target: recipeImages.recipeId
-        })
-        .returning({ recipeId: recipeImages.recipeId });
-
-      return rows.length === 1;
-    } catch (error: unknown) {
-      throw wrap(error, 'recipe_images');
-    }
-  },
-
   async claimUndocumented(stepsVersion: string, limit: number, holdMinutes: number): Promise<readonly UndocumentedRecipe[]> {
     try {
       const db = database();
@@ -649,12 +659,6 @@ export const RecipeRepository = {
     }
   },
 
-  /**
-   * One more refusal recorded against `stepsVersion`, the way
-   * `RewriteStamp.nextRewriteStamp` stamps it — a documented failure counted
-   * toward `REWRITE_ATTEMPT_BOUND` instead of a silent claim lapse the sweep
-   * would try again unbounded, every day, for ever.
-   */
   /** One paid picture call and its cost. Mode: a plain insert; each call is its own row. */
   async recordPictureCall(call: PictureCall): Promise<void> {
     try {
@@ -666,6 +670,12 @@ export const RecipeRepository = {
     }
   },
 
+  /**
+   * One more refusal recorded against `stepsVersion`, the way
+   * `RewriteStamp.nextRewriteStamp` stamps it — a documented failure counted
+   * toward `REWRITE_ATTEMPT_BOUND` instead of a silent claim lapse the sweep
+   * would try again unbounded, every day, for ever.
+   */
   async recordRewriteRefusal(recipeId: string, stepsVersion: string): Promise<void> {
     try {
       const db = database();
@@ -813,7 +823,14 @@ function needsRewriteCondition(stepsVersion: string) {
   `;
 }
 
-/** The row is still the drawing this caller claimed at `claimedAt`: not ended, not taken over. */
+/**
+ * The row is still the drawing this caller claimed at `claimedAt`: not ended,
+ * not taken over. The claim's token is its timestamp, which is exact only while
+ * `claimedAt` is the very Date the claim was made with — a millisecond Date
+ * round-trips through `timestamptz` unchanged, but one passed through JSON, a
+ * queue or a seconds clock would never match. A claim-id column is the robust
+ * form if the drawing ever leaves this process.
+ */
 function stillClaimed(recipeId: string, claimedAt: Date): SQL | undefined {
   return and(eq(recipeImages.recipeId, recipeId), eq(recipeImages.status, 'drawing'), eq(recipeImages.lastAttemptAt, claimedAt));
 }

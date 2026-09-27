@@ -103,7 +103,11 @@ describe('RecipeRepository.claimPicture', () => {
     expect(claim.table).toBe(recipeImages);
     expect(claim.values).toEqual({ attempts: 0, lastAttemptAt: NOW, recipeId: RECIPE, status: 'drawing' });
     expect(claim.upsert?.target).toBe(recipeImages.recipeId);
-    expect(claim.upsert?.set).toMatchObject({ attempts: 0, lastAttemptAt: NOW, status: 'drawing' });
+    expect(claim.upsert?.set).toMatchObject({ lastAttemptAt: NOW, status: 'drawing' });
+    // A takeover of a stale drawing counts it; a claim after a failure's cool-off starts again.
+    expect(dialect.sqlToQuery(claim.upsert?.set.attempts as SQL).sql).toBe(
+      'case when "recipe_images"."status" = \'drawing\' then "recipe_images"."attempts" + 1 else 0 end'
+    );
     expect(claim.upsert?.setWhere.sql).toBe(
       '(("recipe_images"."status" = $1 and "recipe_images"."last_attempt_at" < $2) or ("recipe_images"."status" = $3 and "recipe_images"."last_attempt_at" < $4))'
     );
