@@ -345,6 +345,33 @@ describe('dish pictures', () => {
     expect((refused.body as { code?: string }).code).toBe('ONBOARDING_INCOMPLETE');
   });
 
+  it('picture-status answers a dish on the caller’s active plan, and a 404 once that plan is waiting for review', async () => {
+    // A person whose only plan holds the dish, so "only on a pending plan" is exactly that.
+    const erin = await withPlan('erin', Date.now());
+    const [recipeId = ''] = [...(await planned(erin))];
+
+    expect(recipeId).not.toBe('');
+    const [plan] = await sql()<{ id: string }>`select id from meal_plans where user_id = ${erin.id} and status = 'active'`;
+
+    expect(plan).toBeDefined();
+
+    // On her active plan: hers to ask about (`status` expects the 200).
+    await status(erin, recipeId);
+
+    // The same plan as a professional's draft waiting for review (`0060`), which she may not see.
+    // Written on the table: reaching this state through the care routes is `care-review.e2e-spec.ts`'s job.
+    await sql()`update meal_plans set status = 'pending_review' where id = ${plan?.id}`;
+
+    try {
+      await request(server()).get(`/${PREFIX}/recipes/${recipeId}/picture-status`).set('Cookie', erin.cookie).expect(404);
+    } finally {
+      await sql()`update meal_plans set status = 'active' where id = ${plan?.id}`;
+    }
+
+    // And back to active, back to 200: the plan's status was what refused it.
+    await status(erin, recipeId);
+  });
+
   it('draws an accepted picture once, keeps the file untouched at its path, and serves its address', async () => {
     const dish = take();
     const kept = main.store.stored.length;
