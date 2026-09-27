@@ -85,6 +85,19 @@ describe('PlanController.openMeal', () => {
     expect(opened).toMatchObject({ claim: null, meal: { illustrationPath: 'https://blob/x.jpg', pictureStatus: 'ready' } });
   });
 
+  it('still answers the meal when asking for its picture fails, and hands the failure back to be logged', async () => {
+    const failure = new Error('database down');
+
+    findMealDetail.mockResolvedValue(detail({ pictureStatus: null, pictureUrl: null }));
+    requestPicture.mockRejectedValue(failure);
+
+    await expect(PlanController.openMeal('usr-a', 'meal-1', null, 10)).resolves.toMatchObject({
+      claim: null,
+      failure,
+      meal: { pictureStatus: 'none' }
+    });
+  });
+
   it('shows a failed drawing as no picture at all', async () => {
     findMealDetail.mockResolvedValue(detail({ pictureStatus: 'failed', pictureUrl: null }));
     requestPicture.mockResolvedValue(null);

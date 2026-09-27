@@ -486,14 +486,22 @@ export const PlanController = {
     mealId: string,
     locale: string | null,
     capUsd: number
-  ): Promise<{ readonly claim: PictureClaim | null; readonly meal: MealDetailView }> {
+  ): Promise<{ readonly claim: PictureClaim | null; readonly failure?: unknown; readonly meal: MealDetailView }> {
     const meal = await loadMealDetail(userId, mealId, locale);
 
     if (meal.pictureStatus === 'ready') {
       return { claim: null, meal };
     }
 
-    const claim = await RecipeController.requestPicture(meal.recipeId, capUsd);
+    let claim: PictureClaim | null;
+
+    try {
+      claim = await RecipeController.requestPicture(meal.recipeId, capUsd);
+    } catch (failure: unknown) {
+      // A picture never costs somebody their meal: the page answers as it stands,
+      // and the caller logs what went wrong.
+      return { claim: null, failure, meal };
+    }
 
     return { claim, meal: claim ? { ...meal, pictureStatus: 'drawing' } : meal };
   },
