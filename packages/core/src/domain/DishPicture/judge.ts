@@ -429,10 +429,6 @@ export function judgePicture(input: {
   const byKey = (names: readonly string[]) => new Map(names.map(name => [normaliseForMatching(name), name]));
   const listed = byKey([...match.extras, ...unaccounted(seen, match)]);
   const matched = byKey(match.ingredients.flatMap(ingredient => ingredient.matched));
-  const matchedTo = (key: string) =>
-    match.ingredients
-      .filter(ingredient => ingredient.matched.some(name => normaliseForMatching(name) === key))
-      .flatMap(ingredient => catalogue.bySlug.get(ingredient.slug) ?? []);
 
   const toExtra = (name: string): PictureExtra => {
     // An extra the judge named in (b) but not in (a) is taken at its word: specific, and more than a trace.
@@ -464,16 +460,32 @@ export function judgePicture(input: {
    * does the ingredient's own name cut short: "noodles" matched to cooked
    * rice noodles are those noodles, not wheat ones.
    */
-  const shortened = (key: string, name: string) => {
-    const own = words(name).filter(word => !GENERIC.has(word));
+  const foodWords = (name: string) => words(name).filter(word => !GENERIC.has(word));
 
-    return (
-      own.length > 0 &&
-      matchedTo(key).some(entry =>
-        (catalogue.wordsOf.get(entry.slug) ?? []).some(list => own.every(word => list.some(other => sameWord(word, other))))
-      )
-    );
+  /** How many of a catalogue name's words a seen name has, or 0 unless it has only words from it. */
+  const coverage = (name: string, list: readonly string[]) => {
+    const own = foodWords(name);
+
+    return own.length > 0 && own.every(word => list.some(other => sameWord(word, other)))
+      ? list.filter(other => own.some(word => sameWord(word, other))).length
+      : 0;
   };
+
+  /*
+   * The ingredient's name cut short — unless the same ingredient was also
+   * matched to a fuller name for it. Then the short one is a second food:
+   * "butter" beside "peanut butter" is a pat of butter, not the peanut butter.
+   */
+  const shortened = (key: string, name: string) =>
+    match.ingredients
+      .filter(ingredient => ingredient.matched.some(other => normaliseForMatching(other) === key))
+      .some(ingredient =>
+        (catalogue.wordsOf.get(ingredient.slug) ?? []).some(list => {
+          const mine = coverage(name, list);
+
+          return mine > 0 && !ingredient.matched.some(other => normaliseForMatching(other) !== key && coverage(other, list) > mine);
+        })
+      );
 
   const mismatched = [...matched]
     .filter(([key, name]) => !listed.has(key) && !shortened(key, name))

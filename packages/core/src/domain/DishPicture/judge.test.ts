@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { judgePicture } from 'core/domain/DishPicture';
 
-import type { PictureCatalogueEntry, PictureMatch, PictureRecipe, SeenFood, SeenPicture } from 'core/domain/DishPicture';
+import type { PictureCatalogueEntry, PictureMatch, PictureRecipe, PictureVerdict, SeenFood, SeenPicture } from 'core/domain/DishPicture';
 
 /** A slice of the catalogue as the seed writes it: Spanish and English names, and what each contains. */
 const CATALOGUE: readonly PictureCatalogueEntry[] = [
@@ -41,7 +41,9 @@ const CATALOGUE: readonly PictureCatalogueEntry[] = [
   { allergens: ['gluten', 'milk', 'eggs'], names: ['Galletas de mantequilla', 'Butter biscuits'], slug: 'galletas-de-mantequilla' },
   { allergens: [], mayContain: ['gluten'], names: ['Copos de avena', 'Rolled oats'], slug: 'copos-de-avena' },
   { allergens: ['eggs'], names: ['Huevo', 'Egg'], slug: 'huevo' },
-  { allergens: [], names: ['Arroz blanco cocido', 'Cooked white rice'], slug: 'arroz-blanco-cocido' }
+  { allergens: [], names: ['Arroz blanco cocido', 'Cooked white rice'], slug: 'arroz-blanco-cocido' },
+  { allergens: [], names: ['Queso vegano', 'Vegan cheese'], slug: 'queso-vegano' },
+  { allergens: ['milk', 'lactose'], names: ['Leche entera', 'Whole milk'], slug: 'leche-entera' }
 ];
 
 const TOFU_BOWL: PictureRecipe = {
@@ -413,6 +415,25 @@ describe('judgePicture — a bare name read the safe way', () => {
     expect(judge(withExtra({ amount: 'side', name: 'noodles', specific: true }), NOODLE_BOWL).accepted).toBe(false);
   });
 
+  it.each([
+    ['matched to the dish’s own rice cakes, is those rice cakes', true, ['cake']],
+    ['left as an extra on the same dish, is sponge cake', false, []]
+  ])('takes "cake", %s', (_case, accepted, matchedNames) => {
+    const recipe: PictureRecipe = { ingredients: [{ grams: 60, name: 'Rice cakes', slug: 'tortitas-de-arroz' }], name: 'Tortitas de arroz' };
+    const verdict = judge(
+      {
+        match: {
+          extras: matchedNames.length > 0 ? [] : ['cake'],
+          ingredients: [{ matched: matchedNames, slug: 'tortitas-de-arroz', status: 'seen' }]
+        },
+        seen: { foods: [{ amount: 'main', name: 'cake', specific: true }] }
+      },
+      recipe
+    );
+
+    expect(verdict.accepted).toBe(accepted);
+  });
+
   it('still rejects "noodles" matched to an ingredient whose name they are not', () => {
     const verdict = judge(
       {
@@ -424,5 +445,50 @@ describe('judgePicture — a bare name read the safe way', () => {
 
     expect(verdict.accepted).toBe(false);
     expect(verdict.notes).toContain('matched_foreign:noodles');
+  });
+});
+
+/*
+ * The invariant review of the shortened-name exemption: a bare name beside a
+ * fuller one matched to the same ingredient is a second food, not the first
+ * one named shorter.
+ */
+describe('judgePicture — a short name beside the full one is a second food', () => {
+  function pairedWith(slug: string, name: string, seenNames: readonly string[]): PictureVerdict {
+    const recipe: PictureRecipe = {
+      ingredients: [
+        { grams: 150, name: 'Chicken', slug: 'pollo' },
+        { grams: 20, name, slug }
+      ],
+      name: 'Pollo'
+    };
+
+    return judge(
+      {
+        match: { extras: [], ingredients: [{ matched: [...seenNames], slug, status: 'seen' }] },
+        seen: { foods: seenNames.map(seen => ({ amount: 'side', name: seen, specific: true })) }
+      },
+      recipe
+    );
+  }
+
+  it.each([
+    ['mantequilla-de-cacahuete', 'Peanut butter', ['peanut butter', 'butter'], 'butter'],
+    ['bebida-de-soja', 'Soy milk', ['soy milk', 'milk'], 'milk'],
+    ['queso-vegano', 'Vegan cheese', ['vegan cheese', 'cheese'], 'cheese']
+  ])('rejects %s with "%s" seen twice, whole and bare', (slug, name, seenNames, bare) => {
+    const verdict = pairedWith(slug, name, seenNames);
+
+    expect(verdict.accepted).toBe(false);
+    expect(verdict.notes).toContain(`matched_foreign:${bare}`);
+    expect(verdict.extras.find(extra => extra.name === bare)?.foreignAllergens).toEqual(expect.arrayContaining(['milk']));
+  });
+
+  it('still takes a bare name alone as the ingredient named shorter: "milk" for soy milk', () => {
+    expect(pairedWith('bebida-de-soja', 'Soy milk', ['milk']).accepted).toBe(true);
+  });
+
+  it('takes the fuller name alone as the ingredient itself', () => {
+    expect(pairedWith('mantequilla-de-cacahuete', 'Peanut butter', ['peanut butter']).accepted).toBe(true);
   });
 });
