@@ -212,6 +212,64 @@
 }
 
 /*
+ * On a wide screen the picture takes the left and the dish's actions and figures
+ * stand beside it, together, instead of a toolbar stretched across the page and a
+ * picture with an empty half beside it. The source order stays actions, picture,
+ * figures — the order a phone shows them — so reading and tabbing do not change;
+ * only the placement does. With no picture there is no left column to fill, and
+ * the one-column layout stays.
+ */
+@media (width >= 60rem) {
+  /* Eaten, skipped and "change this dish" together, not a page's width apart.
+     Through `.overview`, so it beats the base rule whatever order the build emits them in. */
+  .overview .toolbar {
+    --swap-push: 0;
+
+    justify-content: flex-start;
+  }
+
+  .overview[data-pictured] {
+    align-items: start;
+    column-gap: var(--gap-region);
+    display: grid;
+    grid-template-areas:
+      'picture actions'
+      'picture spec'
+      'picture macros'
+      'picture .';
+    grid-template-columns: minmax(0, 3fr) minmax(17rem, 2fr);
+    grid-template-rows: auto auto auto 1fr;
+    margin-bottom: var(--gap-block);
+    row-gap: var(--gap-block);
+  }
+
+  .overview[data-pictured] .picture {
+    grid-area: picture;
+  }
+
+  .overview[data-pictured] .picture figure {
+    margin: 0;
+  }
+
+  .overview[data-pictured] .toolbar,
+  .overview[data-pictured] .readOnly {
+    grid-area: actions;
+    margin: 0;
+  }
+
+  /* Two figures a row: the column is a phone's width, whatever the window. */
+  .overview[data-pictured] .spec {
+    grid-area: spec;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+  }
+
+  .overview[data-pictured] .macros {
+    grid-area: macros;
+  }
+}
+
+/*
  * Text this large for the screen (a rem query reads the reader's text size: at
  * 320px it starts at about 118%, at 390px at about 143%): the quantity goes under
  * the ingredient, at its start, rather than splitting its name mid-word.

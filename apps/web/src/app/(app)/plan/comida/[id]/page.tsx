@@ -59,6 +59,8 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
   // Only a meal of the plan being lived can be marked or swapped (0021); one of
   // an earlier plan is shown as it was, and the way back leads to that plan.
   const editable = meal.planStatus === 'active';
+  // A picture, or its box while one is drawn; with none, the figures take the whole width.
+  const pictured = meal.pictureStatus !== 'none';
 
   return (
     <Fragment>
@@ -79,75 +81,86 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
         {meal.cuisine ? <span>{meal.cuisine}</span> : null}
       </div>
 
-      {/* What can be done with this meal, in one row: eaten or skipped on the left,
-          another dish on the right — and only for a meal still to come, since a
-          plate already eaten is not something to change. The state is the message;
-          the buttons carry it, and nothing is explained under them. */}
-      {editable ? (
-        <div className={styles.toolbar}>
-          {/* Paused means paused (`0032`): marking a meal you are not eating
-              records something that did not happen, and a swap spends an
-              allowance on a fortnight nobody is living. The API refuses all
-              three; this is so nobody is invited to try. */}
-          {away ? (
-            <Text size="sm" tone="tertiary">
-              {interpolate(dictionary.vacations.pausedUntil, { date: formatDate(resumesOn(away.endsOn), locale, { day: 'numeric', month: 'long' }) })}
-            </Text>
-          ) : (
-            <Fragment>
-              {/* Marking waits for the day; swapping does not — changing tomorrow's
-                  dinner today is the whole point of a plan you can steer. */}
-              {notYet ? (
-                <Text size="sm" tone="tertiary">
-                  {interpolate(dictionary.meal.notYet, { date: formatDate(meal.date, locale, { day: 'numeric', month: 'long' }) })}
-                </Text>
-              ) : (
-                <MealStatus mealId={meal.id} status={meal.status as Status} />
-              )}
-              {allowances && meal.status === 'planned' ? (
-                <MealSwap
-                  limit={allowances.mealSwaps.limit}
-                  mealId={meal.id}
-                  remaining={allowances.mealSwaps.remaining}
-                  totalMinutes={totalMinutes}
-                />
-              ) : null}
-            </Fragment>
-          )}
-        </div>
-      ) : (
-        <Text className={styles.readOnly} size="sm" tone="tertiary">
-          {dictionary.meal.readOnly}
-        </Text>
-      )}
-
-      {/* The dish's picture once one is drawn, or its box while it is being drawn
-          (`0066`). It is an AI image, and it says so: the mark on it, its name and
-          the caption. With none, the page is complete without it: the
-          specification below is the content, the picture is the bonus. */}
-      {meal.pictureStatus === 'none' ? null : (
-        <MealPicture name={meal.name} path={meal.illustrationPath} recipeId={meal.recipeId} status={meal.pictureStatus} />
-      )}
-      {/* The four numbers a cook checks before starting. */}
-      <Card as="dl" className={styles.spec}>
-        {[
-          { label: dictionary.meal.prep, value: interpolate(dictionary.meal.minutes, { value: formatNumber(meal.prepMinutes, locale) }) },
-          {
-            label: dictionary.meal.cook,
-            value:
-              meal.cookMinutes > 0 ? interpolate(dictionary.meal.minutes, { value: formatNumber(meal.cookMinutes, locale) }) : dictionary.meal.none
-          },
-          { label: dictionary.meal.servingsLabel, value: formatNumber(Math.round(meal.servings * 100) / 100, locale) },
-          { label: dictionary.meal.difficultyLabel, value: difficultyLabel(meal.difficulty, dictionary) }
-        ].map(item => (
-          <div className={styles.specItem} key={item.label}>
-            <dt className={styles.specLabel}>{item.label}</dt>
-            <dd className={styles.specValue}>{item.value}</dd>
+      {/* What a cook reads before starting — the actions, the picture and the
+          figures. One column on a phone; beside the picture on a wide screen, so
+          the actions and the numbers sit together rather than a screen apart. */}
+      <div className={styles.overview} data-pictured={pictured || undefined}>
+        {/* What can be done with this meal, in one row: eaten or skipped on the left,
+            another dish on the right — and only for a meal still to come, since a
+            plate already eaten is not something to change. The state is the message;
+            the buttons carry it, and nothing is explained under them. */}
+        {editable ? (
+          <div className={styles.toolbar}>
+            {/* Paused means paused (`0032`): marking a meal you are not eating
+                records something that did not happen, and a swap spends an
+                allowance on a fortnight nobody is living. The API refuses all
+                three; this is so nobody is invited to try. */}
+            {away ? (
+              <Text size="sm" tone="tertiary">
+                {interpolate(dictionary.vacations.pausedUntil, {
+                  date: formatDate(resumesOn(away.endsOn), locale, { day: 'numeric', month: 'long' })
+                })}
+              </Text>
+            ) : (
+              <Fragment>
+                {/* Marking waits for the day; swapping does not — changing tomorrow's
+                    dinner today is the whole point of a plan you can steer. */}
+                {notYet ? (
+                  <Text size="sm" tone="tertiary">
+                    {interpolate(dictionary.meal.notYet, { date: formatDate(meal.date, locale, { day: 'numeric', month: 'long' }) })}
+                  </Text>
+                ) : (
+                  <MealStatus mealId={meal.id} status={meal.status as Status} />
+                )}
+                {allowances && meal.status === 'planned' ? (
+                  <MealSwap
+                    limit={allowances.mealSwaps.limit}
+                    mealId={meal.id}
+                    remaining={allowances.mealSwaps.remaining}
+                    totalMinutes={totalMinutes}
+                  />
+                ) : null}
+              </Fragment>
+            )}
           </div>
-        ))}
-      </Card>
+        ) : (
+          <Text className={styles.readOnly} size="sm" tone="tertiary">
+            {dictionary.meal.readOnly}
+          </Text>
+        )}
 
-      <MacroSummary carbsG={meal.carbsG} fatG={meal.fatG} kcal={meal.kcal} note={dictionary.macros.note} proteinG={meal.proteinG} />
+        {/* The dish's picture once one is drawn, or its box while it is being drawn
+            (`0066`). It is an AI image, and it says so: the mark on it, its name and
+            the caption. With none, the page is complete without it: the
+            specification below is the content, the picture is the bonus. */}
+        {meal.pictureStatus === 'none' ? null : (
+          <div className={styles.picture}>
+            <MealPicture name={meal.name} path={meal.illustrationPath} recipeId={meal.recipeId} status={meal.pictureStatus} />
+          </div>
+        )}
+        {/* The four numbers a cook checks before starting. */}
+        <Card as="dl" className={styles.spec}>
+          {[
+            { label: dictionary.meal.prep, value: interpolate(dictionary.meal.minutes, { value: formatNumber(meal.prepMinutes, locale) }) },
+            {
+              label: dictionary.meal.cook,
+              value:
+                meal.cookMinutes > 0 ? interpolate(dictionary.meal.minutes, { value: formatNumber(meal.cookMinutes, locale) }) : dictionary.meal.none
+            },
+            { label: dictionary.meal.servingsLabel, value: formatNumber(Math.round(meal.servings * 100) / 100, locale) },
+            { label: dictionary.meal.difficultyLabel, value: difficultyLabel(meal.difficulty, dictionary) }
+          ].map(item => (
+            <div className={styles.specItem} key={item.label}>
+              <dt className={styles.specLabel}>{item.label}</dt>
+              <dd className={styles.specValue}>{item.value}</dd>
+            </div>
+          ))}
+        </Card>
+
+        <div className={styles.macros}>
+          <MacroSummary carbsG={meal.carbsG} fatG={meal.fatG} kcal={meal.kcal} note={dictionary.macros.note} proteinG={meal.proteinG} />
+        </div>
+      </div>
 
       <section className={styles.section}>
         <h2 className={styles.sectionTitle}>{dictionary.meal.ingredients}</h2>
