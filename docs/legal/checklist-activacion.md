@@ -54,10 +54,11 @@
 > gracia (§ 1.1 de ese documento).
 
 **Marca legible por máquina (art. 50.2)**
-- [ ] (backend) Medido con la primera respuesta real de Gemini por OpenRouter, antes de `sharp`: ¿lleva la caja C2PA? Resultado anotado en la decisión que sustituye a `0010`.
-- [ ] (backend) Si la lleva: el fichero que se guarda y se sirve es el JPEG de Gemini **sin tocar**. Si no la lleva: los ficheros llevan el XMP IPTC `DigitalSourceType = trainedAlgorithmicMedia` y el propietario decide sobre el punto 11.c del abogado.
+- [x] (backend) Medido el 2026-09-27 con 8 respuestas reales de Gemini por OpenRouter, antes de cualquier proceso: las 8 llevan el C2PA firmado por Google (con la acción SynthID) y el XMP IPTC `trainedAlgorithmicMedia`.
+- [x] (backend) El fichero que se guarda y se sirve es el JPEG de Gemini **sin tocar**.
+- [ ] Validar una vez la firma C2PA (`c2patool` o el verificador de Content Credentials) sobre un fichero **tal como lo sirve Blob** en producción; si no valida, a `legal`. No bloquea (P3).
 - [ ] (backend) Cualquier variante recodificada lleva el XMP IPTC; ningún fichero lleva un id de usuario, ni en los metadatos ni en la ruta de Blob.
-- [ ] (propietario) **MAI-Image-2.6 fuera** hasta que Microsoft lo incluya en su tabla de procedencia o la medición muestre C2PA y marca de agua; o, si lo quiere dentro, NutrIA pone las dos capas a sus imágenes.
+- [x] (propietario) **MAI-Image-2.6 fuera** (decidido el 2026-09-27): solo Gemini en Vertex. Otro modelo, si vuelve, repite antes [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 2 y entra antes en la política.
 
 **Aviso visible (art. 50.4 y 50.5)**
 - [ ] (frontend) Pie `meal.pictureCaption` y `alt` `meal.pictureOf` en la página de la comida, en los dos idiomas.
@@ -66,9 +67,9 @@
 
 **Privacidad y textos**
 - [ ] (propietario) Almacén de Vercel Blob creado en **`fra1`** (no se puede cambiar después).
-- [ ] (frontend) `/privacidad`: cambios a, b y c del § 4.2, con `privacy.updated` nuevo, publicados antes del flag o el mismo día. Si MAI queda fuera, sin la mención a Microsoft.
+- [ ] (frontend) `/privacidad`: cambios a, b y c del § 4.2, con `privacy.updated` nuevo, publicados antes del flag o el mismo día. Sin Microsoft (MAI fuera).
 - [ ] (frontend) `/condiciones`: la frase del § 3.3, con `terms.updated` nuevo.
-- [ ] (propietario) Leídas las condiciones de Google Cloud para IA generativa (Vertex) y, si MAI entra, las de Microsoft para sus modelos. Cualquier cláusula que choque, a `legal` (IMG-9).
+- [ ] (propietario) Leídas las condiciones de Google Cloud para IA generativa (Vertex). Cualquier cláusula que choque, a `legal` (IMG-9).
 - [ ] `legal` revisa el código construido contra este documento, porque hoy describe un plan, no código.
 
 ## 1. Antes de encender `professional`

@@ -78,7 +78,7 @@ lista cerrada en la cuenta y en el código desde el 2026-09-26 — P1-12), Googl
 (opcional), servicios push de navegador. Equipo del propietario (credenciales,
 exportaciones). La pasarela OmniRoute ya no está en producción (solo experimentos).
 **Imágenes de los platos** (proyecto 006, 2026-09-27, con su flag): Vercel Blob (`fra1`)
-guarda y sirve las imágenes. El dibujo (Google en Vertex; Microsoft en Azure, si entra) y
+guarda y sirve las imágenes. El dibujo (Google en Vertex; MAI de Microsoft, fuera desde el 2026-09-27) y
 el juez (DeepInfra) solo reciben la receta, nada de nadie: no son encargados. Detalle en
 [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 4.
 

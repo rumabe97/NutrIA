@@ -19,6 +19,12 @@
 > `apps/web/src/components/DishPicture/DishPicture.tsx`), y el script del piloto del
 > 2026-09-27, que está fuera del repositorio (`docs/local/`, en `.gitignore`).
 >
+> **Revisión 2026-09-27 (tarde)**, con dos hechos del lead: (1) **medido**: las 8 imágenes
+> de Gemini recibidas por OpenRouter traen el manifiesto C2PA firmado por Google y el XMP
+> IPTC `trainedAlgorithmicMedia`, y se guardan y sirven sin tocar; (2) **decidido por el
+> propietario**: MAI-Image-2.6 queda fuera, solo Gemini en Vertex. Cambian los §§ 0, 1.2,
+> 1.5, 2, 4, 5 y 7; lo escrito sobre MAI se queda como el porqué de la decisión.
+>
 > **Describe una función que aún no existe.** Lo que aquí se dice del producto sale del
 > PRD, del informe y del piloto. Antes de encender el flag hay que comprobarlo contra el
 > código que se construya (§ 6).
@@ -30,7 +36,7 @@
    introducidos **antes** de esa fecha. Las imágenes se ponen en servicio cuando se
    encienda el flag, así que les toca todo el art. 50 desde el primer día (§ 1.1).
 2. **NutrIA es proveedor y responsable del despliegue** del sistema que dibuja los
-   platos. Google y Microsoft son los proveedores de los modelos. El marcado legible por
+   platos. Google es el proveedor del modelo. El marcado legible por
    máquina (art. 50.2) es obligación de NutrIA, aunque puede apoyarse en el que ya ponen
    los modelos (§ 1.2).
 3. **Una foto realista de un plato es, con toda probabilidad, una «ultrasuplantación»**
@@ -38,15 +44,15 @@
    imagen debe llevar un aviso visible en **cada** sitio donde alguien la vea, también en
    la tarjeta del panel (§ 1.3). Los textos están en el § 3.
 4. **Gemini trae las dos capas de marca**: el manifiesto C2PA firmado por Google y la
-   marca de agua SynthID. **MAI-Image-2.6 no trae ninguna documentada**: Microsoft no lo
-   incluye en su lista de modelos con procedencia. Recomiendo no activar MAI hasta que
-   eso cambie (§ 2).
-5. **Recodificar a WebP con `sharp` borra el C2PA.** Lo más barato es servir el JPEG de
-   Gemini tal como llega (mediana de 182 KB en el piloto). Hay que medir antes si
-   OpenRouter conserva ese manifiesto (§ 2.3).
-6. **Privacidad**: el modelo que dibuja no recibe ningún dato personal. Google y Microsoft
-   no son, por tanto, destinatarios en el sentido del art. 13 RGPD. Aun así hay que
-   nombrarlos, porque la política promete que ningún proveedor entrena con lo que le
+   marca de agua SynthID. **Medido el 2026-09-27**: llegan a través de OpenRouter (8 de 8).
+   MAI-Image-2.6 no traía ninguna documentada y **el propietario lo ha quitado**: solo
+   Gemini (§ 2).
+5. **Recodificar a WebP con `sharp` borraría el C2PA.** Por eso los ficheros se guardan y
+   se sirven tal como llegan (§ 2.3). Falta solo validar la firma una vez con una
+   herramienta C2PA (P3).
+6. **Privacidad**: el modelo que dibuja no recibe ningún dato personal. Google no es,
+   por tanto, destinatario en el sentido del art. 13 RGPD. Aun así hay que
+   nombrarlo, porque la política promete que ningún proveedor entrena con lo que le
    enviamos. Además hay que acotar una frase en vigor que hoy dice «nunca los servicios de
    Google», y ampliar la línea de Vercel, que ahora también sirve las imágenes (§ 4).
 7. **Consumo**: la imagen no es el plato que la persona va a cocinar. El rótulo lo dice
@@ -87,7 +93,7 @@ v1 tampoco se introdujo antes del 2/8/2026).
 | --- | --- | --- |
 | NutrIA (su propietario) | **Proveedor** del sistema de IA que genera las imágenes | Art. 3.3: «desarrolle un sistema de IA […] y lo introduzca en el mercado o ponga en servicio el sistema de IA con su propio nombre o marca». NutrIA construye el sistema (prompt, cliente, juez, reintentos, almacén) y lo pone en servicio bajo su marca. Directrices, apdo. 11: el ejemplo de la empresa que ofrece «a generative […] AI application (e.g. […] image generator […]) on the Union market under its own name» |
 | NutrIA | **Responsable del despliegue** | Art. 3.4: «utilice un sistema de IA bajo su propia autoridad». Decide publicar las imágenes y cómo mostrarlas. Directrices, apdo. 12 |
-| Google (Gemini 3.1 Flash Lite Image, en Vertex) y Microsoft (MAI-Image-2.6, en Azure) | Proveedores de los **modelos** de uso general (capítulo V) | El art. 50 no se les aplica por los modelos (Directrices, apdo. 27), pero su marca «a nivel de modelo» facilita el cumplimiento del proveedor posterior (cdo. 133; Directrices, apdo. 74) |
+| Google (Gemini 3.1 Flash Lite Image, en Vertex). Microsoft (MAI-Image-2.6) salió el 2026-09-27 | Proveedor del **modelo** de uso general (capítulo V) | El art. 50 no se les aplica por los modelos (Directrices, apdo. 27), pero su marca «a nivel de modelo» facilita el cumplimiento del proveedor posterior (cdo. 133; Directrices, apdo. 74) |
 | OpenRouter | Intermediario técnico que enruta la petición | No desarrolla el sistema ni lo pone en servicio con su marca. Sin obligaciones del art. 50 frente a esta salida |
 | La persona que ve el plato | Persona expuesta | Destinataria del aviso (art. 50.5; Directrices, apdo. 141) |
 
@@ -159,8 +165,8 @@ análisis:
 
 | Medida del Código | Qué pide | Qué hace NutrIA (con lo recomendado aquí) |
 | --- | --- | --- |
-| S1, 1.1 | Al menos dos capas: metadatos **firmados** (1.1.1) y marca de agua imperceptible (1.1.2) | Gemini: C2PA firmado por Google + SynthID, **si** se sirve el fichero original (§ 2.3). MAI: ninguna → fuera hasta que la tenga |
-| S1, 1.2 | No quitar marcas existentes | Servir el original sin recodificar. Si se deriva otro tamaño, añadir los metadatos IPTC (§ 2.4) |
+| S1, 1.1 | Al menos dos capas: metadatos **firmados** (1.1.1) y marca de agua imperceptible (1.1.2) | Gemini: C2PA firmado por Google + SynthID, en el fichero original que se sirve sin tocar (medido, § 2.3). MAI: fuera |
+| S1, 1.2 | No quitar marcas existentes | El original se sirve sin recodificar ✔. Si algún día se deriva otro tamaño, añadir los metadatos IPTC (§ 2.4) |
 | S1, 2.1 | Detección disponible y gratuita | La de Google (SynthID y Content Credentials; cualquier visor C2PA). NutrIA no necesita una propia mientras solo use las marcas de Google |
 | S1, 3.4 | Metadatos con un estándar abierto | C2PA (el de Google) e IPTC `DigitalSourceType` |
 | S2, 1.1 | Icono o rótulo cuyo elemento principal sea el acrónimo «AI», o el de la lengua nacional si la ley lo exige | «IA» en español y «AI» en inglés. **Divergencia consciente**: el Código pide «AI» en inglés salvo incompatibilidad con la ley nacional de lenguas. Elijo «IA» para el público español porque el apdo. 142 exige que se entienda y en España el acrónimo común es «IA» **[abogado]** |
@@ -181,8 +187,17 @@ análisis:
 
 **Lo que el piloto dice de los ficheros**: Gemini devolvió JPEG (20 de 20, 1200 × 896,
 mediana de 182 KB y máximo de 227 KB). MAI devolvió PNG (18, 1024 × 768, mediana de
-1,3 MB). El piloto solo guardó WebP recodificados, así que **no se puede saber** si el
-C2PA de Google llegó a través de OpenRouter.
+1,3 MB). El piloto solo guardó WebP recodificados, así que no se podía saber si el C2PA
+de Google llegaba a través de OpenRouter.
+
+**Medido el 2026-09-27** (lead y backend, 8 JPEG de Gemini en bruto, recibidos por
+OpenRouter antes de cualquier proceso): los 8 llevan un manifiesto C2PA firmado por Google
+(`claim_generator` «Google C2PA Core Generator Library»; acciones `c2pa.created`, «Created
+by Google Generative AI», y «Applied imperceptible SynthID watermark»; `c2pa.hash.data`) y
+un XMP IPTC `DigitalSourceType = trainedAlgorithmicMedia`. **La firma no se ha validado
+criptográficamente** (no se usó `c2patool`). El propio manifiesto declara la marca SynthID,
+así que el «por confirmar» de la tabla queda respondido por Google, no por una detección
+nuestra.
 
 ### 2.2 Qué rompe la recodificación
 
@@ -200,17 +215,17 @@ C2PA de Google llegó a través de OpenRouter.
 
 ### 2.3 Lo que recomiendo
 
-1. **Medir antes de construir** (backend, una llamada, ~0,034 $): mirar si la primera
-   respuesta real de Gemini por OpenRouter, antes de pasar por `sharp`, lleva la caja C2PA
-   (JUMBF, etiqueta `c2pa`). Por ejemplo con `c2patool` o buscando `jumb`/`c2pa` en los
-   bytes. **No afirmo ni una cosa ni la otra**: el resultado decide el paso 2.
-2. **Si el C2PA llega**: guardar en Blob y **servir el JPEG de Gemini tal como llega**,
+1. ~~**Medir antes de construir**~~ — **hecho el 2026-09-27**: el C2PA llega (§ 2.1).
+   Queda validar la firma una vez con una herramienta C2PA (`c2patool` o el verificador
+   de Content Credentials, gratis) sobre un fichero **tal como lo sirve Blob**: comprueba a
+   la vez que Google firmó y que ni OpenRouter, ni el backend, ni Blob tocaron un byte (P3).
+2. **El C2PA llega, así que** (lo que se ha construido): guardar en Blob y **servir el JPEG de Gemini tal como llega**,
    sin recodificar ni añadir metadatos (tocar un byte invalida el manifiesto). Usar el
    mismo fichero en la imagen grande (4:3) y en la tarjeta (16:9, recortada con CSS). Las
    dos capas de Google llegan intactas a quien vea la imagen, y cualquier visor C2PA o la
    verificación de Google la detectan. Cuesta ~70 KB más por imagen que el WebP del piloto
    (mediana de 108 KB). Es la vía más barata que cumple el Código.
-3. **Si el C2PA no llega**: queda SynthID, más el campo IPTC de metadatos (§ 2.4) en el
+3. *(Ya no aplica; se queda por si un día el C2PA dejara de llegar.)* **Si el C2PA no llega**: queda SynthID, más el campo IPTC de metadatos (§ 2.4) en el
    fichero que se sirva. Es una capa sólida y otra que no está firmada: por debajo del
    Código, pero defendible como «technically feasible» y proporcionado al coste
    (art. 50.2; Directrices, apdos. 81 y 85) **[abogado]**. La alternativa completa es que
@@ -220,13 +235,15 @@ C2PA de Google llegó a través de OpenRouter.
    abogado lo pide.
 4. **Si hace falta un tamaño menor** para la tarjeta, derivarlo con `sharp` y escribir en
    él el campo IPTC (§ 2.4). La imagen grande sigue siendo el original.
-5. **MAI-Image-2.6, fuera de producción** hasta que (a) Microsoft lo incluya en su tabla
+5. **Decidido el 2026-09-27: el propietario quitó MAI-Image-2.6.** El razonamiento que llevó a recomendarlo: fuera de producción hasta que (a) Microsoft lo incluya en su tabla
    de procedencia, o (b) la medición del paso 1 muestre C2PA y marca de agua en sus
    respuestas. Mientras tanto, una imagen de MAI no llevaría ninguna marca firmada ni
    marca de agua, y NutrIA tendría que poner las dos, incluida una marca de agua propia:
    un trabajo desproporcionado para un modelo de respaldo. El PRD ya admite que un plato se
    quede sin imagen, y en el piloto Gemini no falló ninguna de 20. **Es una decisión de
    producto del propietario**: si quiere MAI, el coste es la marca de agua propia.
+   Si algún día vuelve MAI u otro modelo, se repite este § 2 para él antes de activarlo, y
+   la política lo nombra antes (§ 4.2 b).
 
 ### 2.4 El campo IPTC, para cualquier fichero que NutrIA escriba o recodifique
 
@@ -312,17 +329,17 @@ Requisitos de la marca, que `frontend` y `accessibility` resuelven como quieran:
 | Flujo | Datos personales | Quién |
 | --- | --- | --- |
 | Pedir la imagen (la página de la comida llama a la API) | La sesión de quien abre la página, como en cualquier otra petición | Vercel (ya encargado) |
-| Dibujar la imagen | **Ninguno.** El prompt se hace solo con la receta: nombre, ingredientes ordenados por peso con su proporción en palabras («most of the plate»…), y el estilo fijo (piloto, `buildPrompt`; PRD, criterio 4). Nada del usuario, del perfil, de alergias ni de salud. Tampoco quién la pidió ni cuándo | OpenRouter → Google (Vertex, `google-vertex/global`) o Microsoft (Azure), con ZDR y sin respaldo |
+| Dibujar la imagen | **Ninguno.** El prompt se hace solo con la receta: nombre, ingredientes ordenados por peso con su proporción en palabras («most of the plate»…), y el estilo fijo (piloto, `buildPrompt`; PRD, criterio 4). Nada del usuario, del perfil, de alergias ni de salud. Tampoco quién la pidió ni cuándo | OpenRouter → Google (Vertex, `google-vertex/global`), con ZDR y sin respaldo |
 | Juez de visión | **Ninguno**: la imagen y la lista de la receta | OpenRouter → DeepInfra (ya nombrada) |
 | Guardar | Ninguno: la imagen y sus metadatos técnicos (modelo, versión del prompt, tamaño) | Vercel Blob; `recipe_images` en Neon |
 | Ver la imagen | La IP y el navegador de quien la carga, que llegan a la red de Vercel | Vercel (ya encargado) |
 
 **Consecuencias**:
 
-- Google y Microsoft no reciben datos personales. No son encargados de NutrIA (art. 28
-  RGPD) ni «destinatarios» en el sentido del art. 13.1.e, y el envío no es una
-  transferencia del capítulo V. **No se añaden** a «Transferencias», porque darían a
-  entender que salen datos personales. **Sí se nombran** en «La inteligencia artificial»,
+- Google no recibe datos personales. No es encargado de NutrIA (art. 28
+  RGPD) ni «destinatario» en el sentido del art. 13.1.e, y el envío no es una
+  transferencia del capítulo V. **No se añade** a «Transferencias», porque daría a
+  entender que salen datos personales. **Sí se nombra** en «La inteligencia artificial»,
   porque la política promete «solo usamos proveedores que borran la petición en cuanto
   responden y no la usan para entrenar» y el propietario ha decidido que la regla valga
   para todo lo que NutrIA envía (memoria *no training providers*; `0003` § 5.3).
@@ -357,18 +374,13 @@ encuentre a Google dibujando imágenes.
 
 | es-ES | en-GB |
 | --- | --- |
-| `Las imágenes de los platos las genera otro modelo, a partir solo de la receta: su nombre, sus ingredientes y en qué proporción. Nunca recibe nada tuyo, ni siquiera quién ha abierto el plato. La petición va a OpenRouter, que la pasa a Google (Vertex AI) o, si no responde, a Microsoft (Azure), y un modelo que ejecuta DeepInfra comprueba que la imagen no muestra alimentos que la receta no lleva. Ninguno guarda la petición ni la usa para entrenar. Las imágenes se guardan en Vercel, se muestran a todas las personas que ven ese plato y llevan la marca «IA»; los ficheros llevan además una marca invisible y legible por máquina que dice que están generados por IA.` | `The pictures of the dishes are generated by another model, from the recipe alone: its name, its ingredients and in what proportion. It never receives anything of yours, not even who opened the dish. The request goes to OpenRouter, which passes it to Google (Vertex AI) or, if it does not answer, to Microsoft (Azure), and a model run by DeepInfra checks that the picture shows no food the recipe does not contain. None of them keeps the request or trains on it. The pictures are stored on Vercel, shown to everyone who sees that dish, and carry the "AI" mark; the files also carry an invisible, machine-readable mark saying they were generated by AI.` |
+| `Las imágenes de los platos las genera otro modelo, a partir solo de la receta: su nombre, sus ingredientes y en qué proporción. Nunca recibe nada tuyo, ni siquiera quién ha abierto el plato. La petición va a OpenRouter, que la pasa a Google (Vertex AI), y un modelo que ejecuta DeepInfra comprueba que la imagen no muestra alimentos que la receta no lleva. Ninguno guarda la petición ni la usa para entrenar. Las imágenes se guardan en Vercel, se muestran a todas las personas que ven ese plato y llevan la marca «IA»; los ficheros llevan además una marca invisible y legible por máquina que dice que están generados por IA.` | `The pictures of the dishes are generated by another model, from the recipe alone: its name, its ingredients and in what proportion. It never receives anything of yours, not even who opened the dish. The request goes to OpenRouter, which passes it to Google (Vertex AI), and a model run by DeepInfra checks that the picture shows no food the recipe does not contain. None of them keeps the request or trains on it. The pictures are stored on Vercel, shown to everyone who sees that dish, and carry the "AI" mark; the files also carry an invisible, machine-readable mark saying they were generated by AI.` |
 
-Variantes que dependen de lo que se construya (publicar la que sea verdad):
+Sin variantes desde el 2026-09-27: MAI está fuera y el C2PA llega en todos los ficheros,
+que se sirven sin tocar, así que la última frase es verdad. Si vuelve otro modelo, se
+nombra aquí antes de activarlo.
 
-- **Sin MAI** (recomendado, § 2.3.5): quitar «o, si no responde, a Microsoft (Azure)» /
-  «or, if it does not answer, to Microsoft (Azure)».
-- **Si la marca invisible no es verdad para todos los ficheros** (el C2PA no llega y la
-  tarjeta usa un derivado sin SynthID; no debería pasar, porque SynthID sobrevive al
-  reescalado): cambiar la última frase por «…y llevan la marca «IA».» / «…and carry the
-  "AI" mark.»
-
-<!-- Fuente: RGPD arts. 5.1.a y 13.1.e (sin datos personales no hay destinatario que informar; se nombra por lealtad y por la promesa en vigor); PRD 006, criterios 3-4; prompt del piloto (`buildPrompt`: nombre y proporciones, sin datos del usuario); `0003` §§ 5.3, 6.2, 7.1; OpenRouter `provider.only` = `google-vertex/global` / `azure` / `deepinfra`, `allow_fallbacks: false`, ZDR (metadatos del piloto). Marca invisible: Vertex AI, Content Credentials (act. 2026-09-25) y Gemini API, «All generated images include a SynthID watermark» (act. 2026-09-23). Ley de IA art. 50.2 y 50.5 (quien quiera comprobarlo sabe que puede). «Se muestran a todas las personas que ven ese plato»: la imagen es de la receta, compartida (PRD, Outcome); así nadie cree que su imagen dice algo de él. -->
+<!-- Fuente: RGPD arts. 5.1.a y 13.1.e (sin datos personales no hay destinatario que informar; se nombra por lealtad y por la promesa en vigor); PRD 006, criterios 3-4; prompt del piloto (`buildPrompt`: nombre y proporciones, sin datos del usuario); `0003` §§ 5.3, 6.2, 7.1; OpenRouter `provider.only` = `google-vertex/global` / `deepinfra` (MAI y `azure` fuera desde el 2026-09-27), `allow_fallbacks: false`, ZDR (metadatos del piloto). Marca invisible: Vertex AI, Content Credentials (act. 2026-09-25) y Gemini API, «All generated images include a SynthID watermark» (act. 2026-09-23); medido el 2026-09-27 en 8 de 8 ficheros recibidos (C2PA de Google con la acción «Applied imperceptible SynthID watermark» y XMP IPTC), servidos sin tocar. Ley de IA art. 50.2 y 50.5 (quien quiera comprobarlo sabe que puede). «Se muestran a todas las personas que ven ese plato»: la imagen es de la receta, compartida (PRD, Outcome); así nadie cree que su imagen dice algo de él. -->
 
 **c) «Con quién compartimos tus datos», línea de Vercel** (`es-ES.ts:1373`; `en-GB.ts`,
 equivalente):
@@ -389,13 +401,13 @@ equivalente):
 | --- | --- | --- | --- |
 | IMG-1 | Una persona alérgica ve una foto sin el alimento que le hace daño, aunque el plato lo lleve (una salsa, un aceite de sésamo «cocinado dentro»), y se fía de la foto | **P1** (daño a la salud, aunque la lista esté bien) | La puerta de alérgenos es código contra la lista, no contra la imagen (`0004`). El pie dice «manda la lista de ingredientes». Las condiciones lo dicen (§ 3.3). El juez solo rechaza lo que **sobra**, no lo que falta: el pie es la medida |
 | IMG-2 | La foto muestra un alimento con alérgeno que el plato no lleva (nueces en un plato sin nueces) | P2 (confusión, desconfianza, no exposición) | El juez de visión (PRD, criterio 6) |
-| IMG-3 | Una imagen de MAI llega a alguien sin marca legible por máquina | **P1** (art. 50.2 incumplido) | MAI fuera (§ 2.3.5) |
+| IMG-3 | ~~Una imagen de MAI llega a alguien sin marca legible por máquina~~ | cerrado | MAI fuera por decisión del propietario (2026-09-27) |
 | IMG-4 | La tarjeta del panel muestra la imagen sin aviso | **P1** (art. 50.4-50.5) | `picture.aiMark` (§ 3.2), en la tarjeta y en la imagen grande |
 | IMG-5 | La política dice que no se usa Google y Google dibuja | **P1** (texto que se leería falso) | § 4.2 a |
 | IMG-6 | El almacén se crea fuera de la UE y la política dice «en la Unión Europea» | P1 (texto falso sobre IP de visitantes) | `fra1` (§ 6) |
 | IMG-7 | Una ruta pública de Blob lleva un id de usuario | P1 (dato personal expuesto a cualquiera con el enlace) | Solo el id de la receta y un hash (§ 4.1) |
-| IMG-8 | Recodificar borra el C2PA de Google | P2 (queda SynthID) | Servir el original (§ 2.3.2) |
-| IMG-9 | No haber leído las condiciones de Google Cloud (IA generativa) ni de Microsoft para estos modelos | P2 (licencia de uso) | Leerlas antes de encender (§ 6). **No las he leído**; la cláusula de «práctica clínica» de P1-10 era de la API de Gemini, y aquí no hay uso clínico: son fotos de recetas |
+| IMG-8 | Recodificar borra el C2PA de Google | P3 (medido: llega y se sirve sin tocar) | Servir el original ✔; validar la firma una vez sobre un fichero servido por Blob (§ 2.3.1) |
+| IMG-9 | No haber leído las condiciones de Google Cloud (IA generativa) para este modelo (las de Microsoft ya no hacen falta) | P2 (licencia de uso) | Leerlas antes de encender (§ 6). **No las he leído**; la cláusula de «práctica clínica» de P1-10 era de la API de Gemini, y aquí no hay uso clínico: son fotos de recetas |
 
 ---
 
@@ -412,8 +424,8 @@ Añadidos al [`analisis.md` § 10](./analisis.md#10-confirmar-con-un-abogado), p
   sí.
 - (b) «IA» en lugar de «AI» en la marca: el Código pide el acrónimo inglés salvo que la ley
   nacional de lenguas lo impida. NutrIA no es firmante, pero ¿algún riesgo?
-- (c) Si el C2PA no llega por OpenRouter: ¿basta SynthID más un IPTC sin firmar, o hace
-  falta que NutrIA firme su propio manifiesto?
+- ~~(c) Si el C2PA no llega por OpenRouter: ¿basta SynthID más un IPTC sin firmar?~~ Ya
+  no hace falta: medido el 2026-09-27, llega.
 
 ## Fuentes (versión consultada el 2026-09-27)
 
