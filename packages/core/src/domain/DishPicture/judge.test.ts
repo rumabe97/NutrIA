@@ -413,6 +413,25 @@ describe('judgePicture — a bare name read the safe way', () => {
     expect(judge(withExtra({ amount: 'side', name: 'noodles', specific: true }), NOODLE_BOWL).accepted).toBe(false);
   });
 
+  it.each([
+    ['matched to the dish’s own rice cakes, is those rice cakes', true, ['cake']],
+    ['left as an extra on the same dish, is sponge cake', false, []]
+  ])('takes "cake", %s', (_case, accepted, matchedNames) => {
+    const recipe: PictureRecipe = { ingredients: [{ grams: 60, name: 'Rice cakes', slug: 'tortitas-de-arroz' }], name: 'Tortitas de arroz' };
+    const verdict = judge(
+      {
+        match: {
+          extras: matchedNames.length > 0 ? [] : ['cake'],
+          ingredients: [{ matched: matchedNames, slug: 'tortitas-de-arroz', status: 'seen' }]
+        },
+        seen: { foods: [{ amount: 'main', name: 'cake', specific: true }] }
+      },
+      recipe
+    );
+
+    expect(verdict.accepted).toBe(accepted);
+  });
+
   it('still rejects "noodles" matched to an ingredient whose name they are not', () => {
     const verdict = judge(
       {
