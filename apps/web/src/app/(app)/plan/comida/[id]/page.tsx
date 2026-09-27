@@ -9,8 +9,8 @@ import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
 import { Card } from 'components/Card';
-import { DishPicture } from 'components/DishPicture';
 import { MacroSummary } from 'components/MacroSummary';
+import { MealPicture } from 'components/MealPicture';
 import { MealStatus } from 'components/MealStatus';
 import { MealSwap } from 'components/MealSwap';
 import { RecipeVerdict } from 'components/RecipeVerdict';
@@ -121,21 +121,13 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
         </Text>
       )}
 
-      {/* An illustration when one has been drawn, and it says so. Nobody cooked this
-          dish, so there is no photograph of it and calling a picture one would be the
-          most convincing lie on the page (0010). Absent, the page is complete without
-          it: the specification below is the content, the picture is the bonus. */}
-      {meal.illustrationPath ? (
-        <figure className={styles.figure}>
-          <DishPicture
-            alt={interpolate(dictionary.meal.illustrationOf, { name: meal.name })}
-            path={meal.illustrationPath}
-            priority={true}
-            variant="hero"
-          />
-          <figcaption className={styles.illustrationLabel}>{dictionary.meal.illustration}</figcaption>
-        </figure>
-      ) : null}
+      {/* The dish's picture once one is drawn, or its box while it is being drawn
+          (`0066`). It is an AI image, and it says so: the mark on it, its name and
+          the caption. With none, the page is complete without it: the
+          specification below is the content, the picture is the bonus. */}
+      {meal.pictureStatus === 'none' ? null : (
+        <MealPicture name={meal.name} path={meal.illustrationPath} recipeId={meal.recipeId} status={meal.pictureStatus} />
+      )}
       {/* The four numbers a cook checks before starting. */}
       <Card as="dl" className={styles.spec}>
         {[

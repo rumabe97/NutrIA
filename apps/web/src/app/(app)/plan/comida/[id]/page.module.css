@@ -196,24 +196,6 @@
   white-space: nowrap;
 }
 
-.figure {
-  margin: 0 0 var(--gap-block);
-}
-
-/* The label is part of the picture, not a caption someone can drop. */
-.illustrationLabel {
-  color: var(--foreground-03);
-  font-size: var(--font-size-01);
-  letter-spacing: var(--tracking-caps);
-  margin-top: var(--space-02);
-  text-transform: uppercase;
-}
-
-/* No picture came, so there is nothing to label; the line keeps its place so nothing moves. */
-.figure:has([data-failed]) .illustrationLabel {
-  visibility: hidden;
-}
-
 /* Eaten / skipped on one side, "change this dish" on the other; on a phone the
    two stack, and the swap keeps its full width as the heavier action. */
 .toolbar {
