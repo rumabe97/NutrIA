@@ -318,7 +318,7 @@ which supersedes `0010`.
 
 ### Phase 4 — The meal page waits for its picture; every picture says it is AI
 
-- [ ] in progress
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 006 phase 4`. Reviews: `accessibility`, and
   `legal` for the strings.
 - **Goal**: the meal page shows the placeholder, then the picture without a reload. Every

@@ -159,3 +159,41 @@
   - `/admin` needs a `dishPictures` toggle (the existing flag route) and the
     `GET /admin/pictures` line.
   - `docs/legal/analisis.md` still names the removed route, for `legal`.
+
+## Phase 4 — The meal page waits for its picture; every picture says it is AI (2026-09-28)
+
+- **Executor**: `frontend` (opus @ medium). Reviews: `accessibility`, two passes, no P0, P1
+  or P2; `legal` confirmed the strings verbatim and their placement.
+- **Result**: done.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=web --filter=ui`: 14 of 14 tasks.
+  - `gate.sh --full`: green.
+  - 10 new unit tests in `apps/web/src/lib/picture.test.ts`:
+    - the URL passes through untouched, and `DishPicture` uses no `next/image`;
+    - polling every 4 s, giving up at 60 s, pausing, stopping when the page is left.
+  - Local probe at 320, 390, 1024 and 1280 px, light and dark, plus 200% text, through a
+    probe-only harness (a temporary patch of the server fetch and Playwright interception
+    of the poll), reverted, with the marker count at 0:
+    - no sideways overflow;
+    - no layout shift from drawing to ready;
+    - no announcement.
+  - The "IA" mark measured 17.5:1 (light) and 15.5:1 (dark) on its own ground.
+- **Deviations from plan**:
+  - **Owner's request, 2026-09-28.** At 60rem and wider, the meal page has two columns when
+    a picture exists or is being drawn: the picture on the left; the actions, the specs and
+    the macros on the right. The actions are grouped (`--swap-push`) at every wide width.
+    With no picture, the page stays one column, with no empty track.
+  - **Accessibility P3s applied.**
+    - The bare `<figure>` is `aria-hidden` while there is no picture.
+    - The mark is hidden from assistive technology on the meal page, where the alt already
+      carries the notice; the card keeps its label.
+    - The hero's width is also capped by the viewport height.
+  - The "rendered as served" test lives in `apps/web`. `packages/ui` is untouched.
+  - es-ES `admin.withoutImage` changed from "sin ilustrar" to "sin imagen".
+- **Known P3, left**: the card link's accessible name begins with the AI label.
+- **Notes for the next phase**:
+  - Phase 5 merges `agent/dish-pictures-legal/legal`, which is updated with the C2PA
+    measurement and MAI removed, and applies its § 3.3 and § 4 sentences to the
+    `/privacidad` and `/condiciones` dictionaries.
+  - Only one agent probes at a time, with its own cookie file: one agent's cleanup once
+    deleted another's probe account.
