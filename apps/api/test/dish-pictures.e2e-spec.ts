@@ -321,10 +321,7 @@ describe('dish pictures', () => {
     const notBobs = [dish, ...fresh].find(candidate => !bobs.has(candidate.recipeId));
 
     expect(notBobs).toBeDefined();
-    await request(server())
-      .get(`/${PREFIX}/recipes/${notBobs?.recipeId}/picture-status`)
-      .set('Cookie', bob.cookie)
-      .expect(404);
+    await request(server()).get(`/${PREFIX}/recipes/${notBobs?.recipeId}/picture-status`).set('Cookie', bob.cookie).expect(404);
     // A recipe that does not exist answers the same.
     await request(server()).get(`/${PREFIX}/recipes/${randomUUID()}/picture-status`).set('Cookie', alice.cookie).expect(404);
     await request(server()).get(`/${PREFIX}/recipes/not-a-uuid/picture-status`).set('Cookie', alice.cookie).expect(400);
@@ -434,7 +431,17 @@ describe('dish pictures', () => {
       expect(note).toMatch(/^\d:rejected:.*extra_allergen:shrimp=[a-z+]*crustaceans/);
     }
 
-    expect((await calls(dish.recipeId)).map(call => call.kind)).toEqual(['image', 'judge', 'judge', 'image', 'judge', 'judge', 'image', 'judge', 'judge']);
+    expect((await calls(dish.recipeId)).map(call => call.kind)).toEqual([
+      'image',
+      'judge',
+      'judge',
+      'image',
+      'judge',
+      'judge',
+      'image',
+      'judge',
+      'judge'
+    ]);
     expect(await openMeal(app, alice, dish.mealId)).toMatchObject({ illustrationPath: null, pictureStatus: 'none' });
   });
 
