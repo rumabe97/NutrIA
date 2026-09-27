@@ -229,7 +229,7 @@ which supersedes `0010`.
 
 ### Phase 3 — Drawing on first view, storing in Blob, the monthly cap
 
-- [x] done
+- [x] done — PR #129
 - **Dispatch**: opus @ high — `/execute-project 006 phase 3`. It wires the phase 2 gate into
   what gets stored and shown. Reviews: `invariant-reviewer`, and `tests` for the
   end-to-end suite.
@@ -318,7 +318,7 @@ which supersedes `0010`.
 
 ### Phase 4 — The meal page waits for its picture; every picture says it is AI
 
-- [ ] pending
+- [ ] in progress
 - **Dispatch**: opus @ medium — `/execute-project 006 phase 4`. Reviews: `accessibility`, and
   `legal` for the strings.
 - **Goal**: the meal page shows the placeholder, then the picture without a reload. Every
@@ -415,7 +415,9 @@ which supersedes `0010`.
      - "nuts" beside a tiger-nut milk (horchata) dish;
      - a "free-from" pair such as "gluten-free pasta" plus "pasta".
      Check the first week's rejections and notes for them.
-  6. Open three or four dishes on the iPhone. Record "confirmed by human on <date>" in
+  6. Open three or four dishes on the iPhone. Validate the C2PA signature once on one file
+     exactly as Vercel Blob serves it in production, with `c2patool` or the Content
+     Credentials verifier (legal, P3). Record "confirmed by human on <date>" in
      LOG.md.
   7. After a week, read the spend line on `/admin`.
 - **Acceptance criteria**: PRD 10.
