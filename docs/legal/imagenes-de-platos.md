@@ -165,7 +165,7 @@ análisis:
 | S1, 3.4 | Metadatos con un estándar abierto | C2PA (el de Google) e IPTC `DigitalSourceType` |
 | S2, 1.1 | Icono o rótulo cuyo elemento principal sea el acrónimo «AI», o el de la lengua nacional si la ley lo exige | «IA» en español y «AI» en inglés. **Divergencia consciente**: el Código pide «AI» en inglés salvo incompatibilidad con la ley nacional de lenguas. Elijo «IA» para el público español porque el apdo. 142 exige que se entienda y en España el acrónimo común es «IA» **[abogado]** |
 | S2, 1.1 (accesibilidad) | Contraste alto, compatible con lectores de pantalla, detectable por tecnologías de apoyo | Nombre accesible propio (§ 3.2); contraste sobre cualquier foto |
-| S2, 1.2.1 | Visible sin interacción; encima o sobre el contenido; distinguible sobre cualquier fondo; en la primera exposición | Marca superpuesta en la esquina superior derecha de la tarjeta; pie de foto bajo la imagen grande |
+| S2, 1.2.1 | Visible sin interacción; encima o sobre el contenido; distinguible sobre cualquier fondo; en la primera exposición | Marca superpuesta en la esquina superior derecha de la tarjeta **y** de la imagen grande; en la grande, además, el pie con «orientativa» |
 | S2, 1.2.2 a | «in the top right corner of an image» | Esquina superior derecha |
 
 ---
@@ -261,16 +261,19 @@ puede renombrarlas, pero el texto es este.
 
 <!-- Fuente: art. 50.4 y 50.5 Ley de IA (aviso claro, distinguible, en la primera exposición, accesible); Directrices C(2026) 5054, apdos. 142-144. «Imagen», no «Ilustración»: una ilustración sugiere un dibujo y estas son fotorrealistas (0003 § 1); no «foto», que sugiere una cámara. «Es orientativa: manda la lista de ingredientes»: Ley 3/1991 de Competencia Desleal (consolidada a 27/12/2025), arts. 5.1.b (engaño sobre «las características principales del bien o servicio, tales como […] su composición») y 7.1 (información «poco clara […] ambigua»), y TRLGDCU art. 60.1 (información «veraz y suficiente sobre las características principales»). Riesgo bajo: el art. 5.1 exige que la información pueda «alterar su comportamiento económico», y NutrIA no vende la comida; el rótulo cuesta una frase; el mismo giro que ya usa el producto en `nutrition.note` («la etiqueta manda»). El alt repite «generada por IA» a propósito: quien navega por imágenes con un lector de pantalla oye el alt y no el pie. -->
 
-Sin marca de esquina en la imagen grande: el pie está justo debajo y es visible en la
-misma pantalla. Si `frontend` quiere la misma marca que en la tarjeta por coherencia, puede
-ponerla, pero el pie se queda.
+**La imagen grande lleva además la misma marca de esquina que la tarjeta** (§ 3.2: `IA`,
+con su nombre accesible). El Código pide que el rótulo esté «directly embedded into the
+content» o en una capa que «appears to be on the content» (sección 2, medida 1.2.1 c), en
+la esquina superior derecha (1.2.2 a). Un pie *debajo* de la imagen no es ninguna de las
+dos cosas. `DishPicture` pinta las dos variantes, así que la marca vive en un solo
+componente. El pie se queda para el mensaje de consumo («orientativa»).
 
-### 3.2 La tarjeta del panel («Lo siguiente», 16:9)
+### 3.2 La marca de esquina (tarjeta del panel, 16:9, e imagen grande, 4:3)
 
 | Clave | Dónde | es-ES | en-GB |
 | --- | --- | --- | --- |
-| `dashboard.pictureMark` | Texto visible de la marca, superpuesta en la esquina superior derecha de la imagen (`NextMeal.tsx:58-62`) | `IA` | `AI` |
-| `dashboard.pictureMarkLabel` | Nombre accesible de la marca | `Imagen generada por IA` | `AI-generated image` |
+| `picture.aiMark` | Texto visible de la marca, superpuesta en la esquina superior derecha de la imagen, en la tarjeta (`NextMeal.tsx:58-62`) y en la imagen grande (`page.tsx:128-136`) | `IA` | `AI` |
+| `picture.aiMarkLabel` | Nombre accesible de la marca | `Imagen generada por IA` | `AI-generated image` |
 
 <!-- Fuente: art. 50.4 y 50.5; Directrices, apdo. 143 (cada salida, cada persona expuesta: la tarjeta es a menudo la primera exposición) y apdo. 142; Código de buenas prácticas, sección 2, medidas 1.1 (acrónimo como elemento principal; contraste; detectable por tecnologías de apoyo) y 1.2.1-1.2.2 (visible sin interacción, superpuesta, esquina superior derecha, distinguible sobre cualquier fondo). «IA» y no «AI» en español: ver § 1.5. -->
 
@@ -354,7 +357,7 @@ encuentre a Google dibujando imágenes.
 
 | es-ES | en-GB |
 | --- | --- |
-| `Las imágenes de los platos las genera otro modelo, a partir solo de la receta: su nombre, sus ingredientes y en qué proporción. Nunca recibe nada tuyo, ni siquiera quién ha abierto el plato. La petición va a OpenRouter, que la pasa a Google (Vertex AI) o, si no responde, a Microsoft (Azure), y un modelo de DeepInfra comprueba que la imagen no muestra alimentos que la receta no lleva. Ninguno guarda la petición ni la usa para entrenar. Las imágenes se guardan en Vercel, se muestran a todas las personas que ven ese plato y llevan la marca «IA»; los ficheros llevan además una marca invisible y legible por máquina que dice que están generados por IA.` | `The pictures of the dishes are generated by another model, from the recipe alone: its name, its ingredients and in what proportion. It never receives anything of yours, not even who opened the dish. The request goes to OpenRouter, which passes it to Google (Vertex AI) or, if it does not answer, to Microsoft (Azure), and a model run by DeepInfra checks that the picture shows no food the recipe does not contain. None of them keeps the request or trains on it. The pictures are stored on Vercel, shown to everyone who sees that dish, and carry the "AI" mark; the files also carry an invisible, machine-readable mark saying they were generated by AI.` |
+| `Las imágenes de los platos las genera otro modelo, a partir solo de la receta: su nombre, sus ingredientes y en qué proporción. Nunca recibe nada tuyo, ni siquiera quién ha abierto el plato. La petición va a OpenRouter, que la pasa a Google (Vertex AI) o, si no responde, a Microsoft (Azure), y un modelo que ejecuta DeepInfra comprueba que la imagen no muestra alimentos que la receta no lleva. Ninguno guarda la petición ni la usa para entrenar. Las imágenes se guardan en Vercel, se muestran a todas las personas que ven ese plato y llevan la marca «IA»; los ficheros llevan además una marca invisible y legible por máquina que dice que están generados por IA.` | `The pictures of the dishes are generated by another model, from the recipe alone: its name, its ingredients and in what proportion. It never receives anything of yours, not even who opened the dish. The request goes to OpenRouter, which passes it to Google (Vertex AI) or, if it does not answer, to Microsoft (Azure), and a model run by DeepInfra checks that the picture shows no food the recipe does not contain. None of them keeps the request or trains on it. The pictures are stored on Vercel, shown to everyone who sees that dish, and carry the "AI" mark; the files also carry an invisible, machine-readable mark saying they were generated by AI.` |
 
 Variantes que dependen de lo que se construya (publicar la que sea verdad):
 
@@ -387,7 +390,7 @@ equivalente):
 | IMG-1 | Una persona alérgica ve una foto sin el alimento que le hace daño, aunque el plato lo lleve (una salsa, un aceite de sésamo «cocinado dentro»), y se fía de la foto | **P1** (daño a la salud, aunque la lista esté bien) | La puerta de alérgenos es código contra la lista, no contra la imagen (`0004`). El pie dice «manda la lista de ingredientes». Las condiciones lo dicen (§ 3.3). El juez solo rechaza lo que **sobra**, no lo que falta: el pie es la medida |
 | IMG-2 | La foto muestra un alimento con alérgeno que el plato no lleva (nueces en un plato sin nueces) | P2 (confusión, desconfianza, no exposición) | El juez de visión (PRD, criterio 6) |
 | IMG-3 | Una imagen de MAI llega a alguien sin marca legible por máquina | **P1** (art. 50.2 incumplido) | MAI fuera (§ 2.3.5) |
-| IMG-4 | La tarjeta del panel muestra la imagen sin aviso | **P1** (art. 50.4-50.5) | `dashboard.pictureMark` (§ 3.2) |
+| IMG-4 | La tarjeta del panel muestra la imagen sin aviso | **P1** (art. 50.4-50.5) | `picture.aiMark` (§ 3.2), en la tarjeta y en la imagen grande |
 | IMG-5 | La política dice que no se usa Google y Google dibuja | **P1** (texto que se leería falso) | § 4.2 a |
 | IMG-6 | El almacén se crea fuera de la UE y la política dice «en la Unión Europea» | P1 (texto falso sobre IP de visitantes) | `fra1` (§ 6) |
 | IMG-7 | Una ruta pública de Blob lleva un id de usuario | P1 (dato personal expuesto a cualquiera con el enlace) | Solo el id de la receta y un hash (§ 4.1) |

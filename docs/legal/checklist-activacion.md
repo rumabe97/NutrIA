@@ -61,7 +61,7 @@
 
 **Aviso visible (art. 50.4 y 50.5)**
 - [ ] (frontend) Pie `meal.pictureCaption` y `alt` `meal.pictureOf` en la página de la comida, en los dos idiomas.
-- [ ] (frontend + accessibility) Marca `dashboard.pictureMark` («IA»/«AI») en la esquina superior derecha de la tarjeta, visible sin interacción, 4,5:1 sobre cualquier foto, con nombre accesible `dashboard.pictureMarkLabel`; sin marca en el plato de reserva.
+- [ ] (frontend + accessibility) Marca `picture.aiMark` («IA»/«AI») en la esquina superior derecha de la imagen, en la tarjeta y en la imagen grande, visible sin interacción, 4,5:1 sobre cualquier foto, con nombre accesible `picture.aiMarkLabel`; sin marca en el plato de reserva.
 - [ ] Ningún otro sitio muestra la imagen sin su aviso (filas del plan, consulta, correos, notificaciones, vista previa al compartir). Si se añade uno, lleva la marca.
 
 **Privacidad y textos**
