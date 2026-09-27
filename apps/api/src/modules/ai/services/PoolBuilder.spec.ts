@@ -158,11 +158,8 @@ describe('shortfall', () => {
 describe('PoolBuilder — the fresh floor holds however rich the library the rotation cap now allows (0065)', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -212,11 +209,8 @@ describe('PoolBuilder — the fresh floor holds however rich the library the rot
 describe('PoolBuilder', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -583,25 +577,6 @@ describe('PoolBuilder', () => {
       expect((generate.mock.calls[0]?.[0] as { prompt: string }).prompt).not.toContain('LAST FORTNIGHT');
     });
 
-    it('passes on how they eat from their structured answers only', async () => {
-      const { client, generate } = stubClient([{ dishes: [] }]);
-
-      await new PoolBuilder(client).build({
-        context: context(),
-        preferences: { ...preferences, cookingFrequency: 'often', dayShape: 'wakes at 07:00' },
-        reusable: [],
-        slots: ['lunch']
-      });
-
-      const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
-
-      expect(prompt).toContain('THIS PERSON');
-      expect(prompt).toContain('- Cooks: often');
-      expect(prompt).toContain('- Their day: wakes at 07:00');
-      expect(prompt).not.toContain('in their words');
-      expect(prompt).not.toContain('Their week');
-    });
-
     it('states the spread as counts the model can check, where a request asks for enough dishes to count', async () => {
       const { client, generate } = stubClient([{ dishes: [] }]);
 
@@ -701,11 +676,8 @@ describe('PoolBuilder', () => {
 describe('PoolBuilder — the meals a model\u2019s dish may be served at', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -804,11 +776,8 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
 describe('PoolBuilder — the catalogue each request is shown', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -943,11 +912,8 @@ function dish2(slug: string): CandidateDish {
 describe('PoolBuilder — telling a broken provider from an absent one', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -1011,11 +977,8 @@ describe('PoolBuilder — telling a broken provider from an absent one', () => {
 describe('PoolBuilder — the call log', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -1153,11 +1116,8 @@ describe('PoolBuilder — the call log', () => {
 describe('PoolBuilder — the time budget', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -1225,11 +1185,8 @@ describe('requestSizes', () => {
 describe('PoolBuilder — the first round, three dishes a request', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -1343,11 +1300,8 @@ describe('PoolBuilder — the first round, three dishes a request', () => {
 describe('PoolBuilder — the output cap', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -1414,11 +1368,8 @@ interface Validating {
 describe('PoolBuilder — a near-miss slug', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -1547,11 +1498,8 @@ describe('PoolBuilder — a near-miss slug', () => {
 describe("PoolBuilder — cleaning the model's steps", () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,

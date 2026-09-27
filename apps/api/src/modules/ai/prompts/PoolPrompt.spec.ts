@@ -23,11 +23,8 @@ const LABEL: Partial<Record<MealSlot, string>> = {
 function context(overrides: Partial<PromptContext> = {}): PromptContext {
   return {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     excludeSlugs: [],

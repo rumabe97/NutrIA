@@ -48,8 +48,6 @@ export const COUNTRIES = ['ES', 'GB'] as const;
 export type Country = (typeof COUNTRIES)[number];
 export const GOAL_TYPES = ['weight_loss', 'maintenance', 'muscle_gain', 'performance', 'healthy_eating', 'custom'] as const;
 export const ACTIVITY_LEVELS = ['sedentary', 'light', 'moderate', 'high', 'athlete'] as const;
-export const COOKING_FREQUENCIES = ['rarely', 'sometimes', 'often', 'daily'] as const;
-export const BUDGET_TIERS = ['low', 'medium', 'high'] as const;
 export const DIETARY_PATTERNS = [
   'omnivore',
   'vegetarian',
@@ -142,7 +140,6 @@ export type UpdateProfile = z.infer<typeof updateProfileSchema>;
 export const goalSchema = z.object({
   id: z.uuid(),
   createdAt: z.date(),
-  customGoal: z.string().nullable(),
   paceKgPerWeek: z.number().nullable(),
   startingWeightKg: z.number().nullable(),
   targetWeightKg: z.number().nullable(),
@@ -153,61 +150,38 @@ export const goalSchema = z.object({
 
 export type Goal = z.infer<typeof goalSchema>;
 
-export const updateGoalSchema = z
-  .object({
-    customGoal: z.string().max(280).nullish(),
-    /**
-     * A magnitude in kg per week; the goal supplies the direction. Signed values
-     * are still accepted from older clients and normalised, because a positive
-     * pace on a weight-loss goal once produced a surplus.
-     */
-    // `.transform` before `.nullish`, so the field stays optional rather than
-    // becoming a required key that happens to accept undefined.
-    paceKgPerWeek: z.number().min(-PACE_KG_PER_WEEK.max, PACE_MESSAGE).max(PACE_KG_PER_WEEK.max, PACE_MESSAGE).transform(Math.abs).nullish(),
-    startingWeightKg: z.number().min(WEIGHT_KG.min).max(WEIGHT_KG.max).nullish(),
-    targetWeightKg: z.number().min(WEIGHT_KG.min).max(WEIGHT_KG.max).nullish(),
-    type: z.enum(GOAL_TYPES)
-  })
-  .refine(value => value.type !== 'custom' || Boolean(value.customGoal), { message: 'Describe tu objetivo personalizado', path: ['customGoal'] });
+export const updateGoalSchema = z.object({
+  /**
+   * A magnitude in kg per week; the goal supplies the direction. Signed values
+   * are still accepted from older clients and normalised, because a positive
+   * pace on a weight-loss goal once produced a surplus.
+   */
+  // `.transform` before `.nullish`, so the field stays optional rather than
+  // becoming a required key that happens to accept undefined.
+  paceKgPerWeek: z.number().min(-PACE_KG_PER_WEEK.max, PACE_MESSAGE).max(PACE_KG_PER_WEEK.max, PACE_MESSAGE).transform(Math.abs).nullish(),
+  startingWeightKg: z.number().min(WEIGHT_KG.min).max(WEIGHT_KG.max).nullish(),
+  targetWeightKg: z.number().min(WEIGHT_KG.min).max(WEIGHT_KG.max).nullish(),
+  type: z.enum(GOAL_TYPES)
+});
 
 export type UpdateGoal = z.infer<typeof updateGoalSchema>;
 
 export const preferencesSchema = z.object({
   id: z.uuid(),
   activityLevel: z.enum(ACTIVITY_LEVELS).nullable(),
-  breakfastStyle: z.string().nullable(),
-  budget: z.enum(BUDGET_TIERS).nullable(),
-  cookingFrequency: z.enum(COOKING_FREQUENCIES).nullable(),
   cookingTimeMinutes: z.number().int().nullable(),
   createdAt: z.date(),
   mealShape: mealShapeSchema,
-  portionPreference: z.string().nullable(),
-  sleepEnd: z.string().nullable(),
-  sleepStart: z.string().nullable(),
-  trainingDaysPerWeek: z.number().int().nullable(),
-  trainingTime: z.string().nullable(),
   updatedAt: z.date(),
-  userId: z.string().min(1),
-  workScheduleNotes: z.string().nullable()
+  userId: z.string().min(1)
 });
 
 export type Preferences = z.infer<typeof preferencesSchema>;
 
-const TIME_OF_DAY = /^([01]\d|2[0-3]):[0-5]\d$/;
-
 export const updatePreferencesSchema = z.object({
   activityLevel: z.enum(ACTIVITY_LEVELS).nullish(),
-  breakfastStyle: z.string().max(120).nullish(),
-  budget: z.enum(BUDGET_TIERS).nullish(),
-  cookingFrequency: z.enum(COOKING_FREQUENCIES).nullish(),
   cookingTimeMinutes: z.number().int().min(5).max(240).nullish(),
-  mealShape: mealShapeSchema.optional(),
-  portionPreference: z.string().max(120).nullish(),
-  sleepEnd: z.string().regex(TIME_OF_DAY).nullish(),
-  sleepStart: z.string().regex(TIME_OF_DAY).nullish(),
-  trainingDaysPerWeek: z.number().int().min(0).max(7).nullish(),
-  trainingTime: z.string().regex(TIME_OF_DAY).nullish(),
-  workScheduleNotes: z.string().max(500).nullish()
+  mealShape: mealShapeSchema.optional()
 });
 
 export type UpdatePreferences = z.infer<typeof updatePreferencesSchema>;
