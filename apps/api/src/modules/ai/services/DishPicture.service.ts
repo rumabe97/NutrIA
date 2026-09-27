@@ -125,14 +125,18 @@ export class DishPictureService {
       const inputs = await RecipeController.pictureInputs(claim.recipeId);
 
       if (!inputs) {
-        return await this.release(claim, 'the recipe is gone');
+        return await this.release(claim, 'the recipe is gone', attempts);
       }
 
       const prompt = buildPicturePrompt(inputs.recipe);
 
       while (attempts < PICTURE_ATTEMPTS && deadline - Date.now() >= ATTEMPT_MIN_MS) {
+        // Known, and bounded (phase 3 review, P3): this gates the image call, not the two
+        // judge calls after it, and drawings running at once each pass it — so the month
+        // can end up to about one attempt (~0.036 $) past the cap per concurrent drawing.
+        // The pictures' OpenRouter key carries its own monthly limit as the wall.
         if ((await RecipeController.pictureSpendUsd()) >= this.capUsd) {
-          return await this.release(claim, 'the month’s cap is reached');
+          return await this.release(claim, 'the month’s cap is reached', attempts);
         }
 
         attempts += 1;
@@ -146,7 +150,8 @@ export class DishPictureService {
         notes.push(`${attempts}:${attempt.kind}:${attempt.note}`);
 
         if (attempt.kind === 'refused') {
-          return await this.release(claim, attempt.note);
+          // The refused attempt is not the dish's: it does not count.
+          return await this.release(claim, attempt.note, attempts - 1);
         }
 
         if (attempt.kind === 'unkeepable') {
@@ -253,6 +258,9 @@ export class DishPictureService {
     });
 
     if (!ended) {
+      // Known (phase 3 review, P3): the file stays in Blob with no row pointing to it.
+      // Harmless — a public picture of a dish, already paid for — and rare: the claim
+      // is taken over only after 15 minutes, well past the 240 s this drawing may run.
       this.logger.warn(`Picture of recipe ${claim.recipeId} was kept at ${path}, but its claim had been taken over`);
 
       return 'lost';
@@ -261,9 +269,10 @@ export class DishPictureService {
     return 'accepted';
   }
 
-  private async release(claim: PictureClaim, why: string): Promise<DrawOutcome> {
+  /** Gives the claim back, keeping the attempts the dish itself used. */
+  private async release(claim: PictureClaim, why: string, attempts: number): Promise<DrawOutcome> {
     this.logger.warn(`Picture of recipe ${claim.recipeId} given back: ${why}`);
 
-    return (await RecipeController.releasePicture(claim)) ? 'released' : 'lost';
+    return (await RecipeController.releasePicture(claim, { attempts, why })) ? 'released' : 'lost';
   }
 }
