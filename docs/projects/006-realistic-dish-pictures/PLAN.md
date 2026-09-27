@@ -72,7 +72,7 @@ which supersedes `0010`.
 
 ### Phase 1 — Picture state and spend in the database
 
-- [x] done
+- [x] done — PR #127
 - **Dispatch**: opus @ medium — `/execute-project 006 phase 1`. Review: `migration-reviewer`
   (opus @ high, its floor).
 - **Goal**: the database can hold a dish's picture as a URL plus its generation state, and
@@ -131,7 +131,7 @@ which supersedes `0010`.
 
 ### Phase 2 — The image client, the prompt and the allergen judge
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 006 phase 2`. `quality-max`: AI output
   validation and allergy safety. Review: `invariant-reviewer`.
 - **Goal**: code that turns a recipe into an accepted or rejected picture, with every call
@@ -207,10 +207,24 @@ which supersedes `0010`.
        - a sauce made from listed ingredients → accepted.
      - The provenance check passes on a small committed JPEG fixture carrying a C2PA box
        and fails on a re-encoded copy.
+- **As built** (amended after the phase; see LOG):
+  - The name → catalogue mapping has three steps:
+    1. the exact `CustomAllergen` matcher;
+    2. a table of English synonyms;
+    3. word-level matching once descriptors are dropped.
+    The exact matcher alone caught none of the pilot's wrong-recipe controls.
+  - Every matched name is re-checked against the catalogue as well, except a name that is
+    the matched ingredient's own name cut short.
+  - A name that maps to the catalogue counts as specific, whatever the judge's flag says.
+  - `may_contain` is its own tier.
+  - Ambiguous foods found as extras map conservatively: noodles → wheat, cake and biscuit
+    → gluten, egg and milk, oats → gluten.
+  - `judgePicture` refuses a catalogue no bigger than the recipe. Its input must be the
+    whole catalogue, including `mayContain`.
 - **Acceptance criteria**: PRD 3, 4 and 6 (logic).
 - **Verification**:
   - `pnpm turbo lint ts:check test --filter=core --filter=api`.
-  - `pnpm --filter api exec jest src/modules/ai/health-boundary.spec.ts`.
+  - `NODE_OPTIONS=--experimental-vm-modules pnpm --filter api exec jest src/modules/ai/health-boundary.spec.ts`.
   - `sh .claude/skills/ship/scripts/gate.sh`.
 
 ### Phase 3 — Drawing on first view, storing in Blob, the monthly cap
@@ -249,6 +263,15 @@ which supersedes `0010`.
      - `MealDetailView` returns `illustrationPath` (the Blob URL) when the picture is
        ready, and `pictureStatus: 'none' | 'drawing' | 'ready'`.
      - `MealView` (the dashboard card) only reads, never requests a drawing.
+     - `judgePicture` gets the whole ingredient catalogue from the repository, with
+       `mayContain` filled from `ingredient_allergens` where presence is `may_contain`.
+       A `PictureCallError`, including a judge failure, is never caught into
+       "store the picture".
+     - A missing `OPENROUTER_IMAGE_API_KEY` with the flag on means no drawing.
+     - A key refusal (HTTP 402 or 429, "Key limit exceeded") stops the attempts like a
+       quota error.
+     - An unknown cost is recorded at 0.0337 $, never at 0.
+     - Add the phase 2 environment rows to `docs/reference/deployment.md`.
      - `hasImage` (both uses in `PlanRepository`) and the `/admin` count switch from
        `bytes is not null` to `status = 'ready' and url is not null`.
   3. `DishPictureService.draw` makes up to 3 attempts, and on every attempt:
@@ -279,7 +302,9 @@ which supersedes `0010`.
   6. Add an `/admin` read: the month's spend, and pictures ready, failed and drawing,
      through `AdminRepository`.
   7. `tests` agent end-to-end suite, with `AI_PROVIDER=stub` and stub image and judge
-     clients plus a stub Blob:
+     clients plus a stub Blob. It runs `judgePicture` on the real catalogue the repository
+     loads, and covers:
+     - one allergen-bearing extra → the picture is rejected and not stored;
      - two concurrent detail reads start one drawing;
      - a ready picture is returned to a second user;
      - a rejected picture is never stored;
