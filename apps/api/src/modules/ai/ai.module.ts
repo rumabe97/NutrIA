@@ -7,22 +7,28 @@ import {
   AI_MODEL,
   AI_MODEL_BUDGET,
   AI_OUTPUT_CAP,
+  AI_PICTURES,
   AI_REWRITE_CLIENT,
   AI_SECRETS,
   resolveCallSettings,
   resolveImageModel,
   resolveModel,
   resolveOutputCap,
+  resolvePictureSettings,
   resolveRewriteModel
 } from './ai.config.js';
 import { AiClient } from './clients/AiClient.js';
 import { ImageClient } from './clients/ImageClient.js';
+import { OpenRouterImageClient } from './clients/OpenRouterImageClient.js';
+import { OpenRouterVisionJudgeClient } from './clients/OpenRouterVisionJudgeClient.js';
+import { PictureImageClient } from './clients/PictureImageClient.js';
+import { PictureJudgeClient } from './clients/PictureJudgeClient.js';
 import { providerCredentials } from './clients/redact.js';
 import { ProviderImageClient } from './clients/ProviderImageClient.js';
 import { PoolBuilder, RecipeIllustrator, RecipeRewriter } from './services/index.js';
 import { StructuredAiClient } from './clients/StructuredAiClient.js';
 
-import type { AiCallSettings } from './ai.config.js';
+import type { AiCallSettings, PictureSettings } from './ai.config.js';
 import type { Env } from '../../config/index.js';
 
 /**
@@ -33,7 +39,7 @@ import type { Env } from '../../config/index.js';
  */
 @Global()
 @Module({
-  exports: [AiClient, ImageClient, PoolBuilder, RecipeIllustrator, RecipeRewriter],
+  exports: [AI_PICTURES, AiClient, ImageClient, PictureImageClient, PictureJudgeClient, PoolBuilder, RecipeIllustrator, RecipeRewriter],
   providers: [
     envProvider,
     { inject: [ENV], provide: AI_MODEL, useFactory: (env: Env) => resolveModel(env) },
@@ -51,6 +57,18 @@ import type { Env } from '../../config/index.js';
     },
     { inject: [ENV], provide: AI_IMAGE_MODEL, useFactory: (env: Env) => resolveImageModel(env) },
     { provide: ImageClient, useClass: ProviderImageClient },
+    // The dish pictures (`0066`): null settings — the stub provider, or no key — draw and judge nothing.
+    { inject: [ENV], provide: AI_PICTURES, useFactory: (env: Env) => resolvePictureSettings(env) },
+    {
+      inject: [AI_PICTURES, AI_SECRETS],
+      provide: PictureImageClient,
+      useFactory: (settings: PictureSettings | null, secrets: readonly string[]) => new OpenRouterImageClient(settings, secrets)
+    },
+    {
+      inject: [AI_PICTURES, AI_SECRETS],
+      provide: PictureJudgeClient,
+      useFactory: (settings: PictureSettings | null, secrets: readonly string[]) => new OpenRouterVisionJudgeClient(settings, secrets)
+    },
     PoolBuilder,
     RecipeIllustrator,
     RecipeRewriter
