@@ -70,7 +70,7 @@
 - **Result**: done.
 - **Evidence**:
   - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api`: 11 of 11
-    tasks. api 889 tests; the DishPicture domain 81 tests, `judge.ts` 95.7% branches.
+    tasks. api 889 tests; the DishPicture domain 88 tests, `judge.ts` 96.9% branches.
   - The health-boundary spec, with `NODE_OPTIONS=--experimental-vm-modules`: 28 of 28.
   - `gate.sh`: green.
   - Offline calibration, with no calls: the pilot's 57 recorded judge answers replayed
@@ -88,6 +88,9 @@
   - **Ambiguous foods.** They map conservatively as extras. A name that is the matched
     ingredient's own name cut short is not re-checked, so the pilot's rice-noodle dish
     still passes. `may_contain` is its own tier (oats).
+  - **A bare name matched beside its fuller form is judged as its own food.** "Peanut
+    butter" plus "butter", "soy milk" plus "milk", "vegan cheese" plus "cheese" are
+    rejected on a milk-free dish (reviewer's P2 on the exemption).
   - **Two false rejects found by the replay and fixed.** "Spread" is now a generic word and
     "flake(s)" a descriptor.
   - **The image key** cannot be required at boot, because the switch is a database flag.

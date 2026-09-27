@@ -408,9 +408,14 @@ which supersedes `0010`.
   3. Read Google Cloud's generative-AI terms (legal item IMG-9).
   4. Once phases 1–5 are deployed and the migration has run, switch `dishPictures` on at
      `/admin`.
-  5. Open three or four dishes on the iPhone. Record "confirmed by human on <date>" in
+  5. Calibration watch-list from the phase 2 review, left open on purpose:
+     - bare "noodles" matched on a rice-noodle dish;
+     - "nuts" beside a tiger-nut milk (horchata) dish;
+     - a "free-from" pair such as "gluten-free pasta" plus "pasta".
+     Check the first week's rejections and notes for them.
+  6. Open three or four dishes on the iPhone. Record "confirmed by human on <date>" in
      LOG.md.
-  6. After a week, read the spend line on `/admin`.
+  7. After a week, read the spend line on `/admin`.
 - **Acceptance criteria**: PRD 10.
 - **Verification**: `wait-for-deploy.sh`, the owner's checks above, and the LOG entry.
 
