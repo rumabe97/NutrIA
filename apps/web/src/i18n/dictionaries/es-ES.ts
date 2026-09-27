@@ -99,6 +99,17 @@ export const esES = {
     pagerNext: 'Siguiente',
     pagerOf: '{from}–{to} de {total}',
     pagerPrevious: 'Anterior',
+    picturesDrawing: 'Dibujándose ahora',
+    picturesFailed: 'Fallidas (se reintentan pasados 7 días)',
+    picturesHint:
+      'Encendido: la primera vez que alguien abre un plato sin imagen se dibuja una, y la ven todos los que lo abran después. Al llegar al tope del mes no se dibuja ninguna más hasta el mes siguiente.',
+    picturesLabel: 'Dibujar las imágenes de los platos',
+    picturesOffHint: 'Apagado: no se dibuja ninguna imagen nueva. Las que ya existen se siguen viendo.',
+    picturesReady: 'Listas',
+    picturesReleased: 'Devueltas por el tope o la clave (se reintentan en la siguiente visita)',
+    picturesSpend: 'Gastado este mes',
+    picturesSpendValue: '{spent} de {cap}',
+    picturesTitle: 'Imágenes de los platos',
     plansTitle: 'Planes por estado',
     premiumHint: 'Premium está activo: las cuentas a las que se lo hayas dado tienen tres replanificaciones por quincena y veinte cambios por plan.',
     premiumLabel: 'Nivel de pago',
@@ -149,7 +160,7 @@ export const esES = {
     title: 'Servicio',
     unconfirmed: 'sin confirmar',
     waiting: '{count} sin activar',
-    withoutImage: '{count} sin ilustrar'
+    withoutImage: '{count} sin imagen'
   },
 
   appNav: {
@@ -738,8 +749,6 @@ export const esES = {
     dislikedHint: 'Anotado: no volverá, ni nada muy parecido.',
     done: 'Hecha',
     doneHint: 'Marcada como hecha.',
-    illustration: 'Ilustración generada por IA',
-    illustrationOf: 'Ilustración de {name}',
     ingredients: 'Ingredientes',
     like: 'Me gusta',
     likedHint: 'Anotado: podrá volver, y buscaremos platos en esta línea.',
@@ -748,6 +757,8 @@ export const esES = {
     noCooking: 'Sin cocinar',
     none: '—',
     notYet: 'Podrás marcarla el {date}.',
+    pictureCaption: 'Imagen generada por IA. Es orientativa: manda la lista de ingredientes.',
+    pictureOf: 'Imagen de {name} generada por IA',
     prep: 'Preparación',
     readOnly: 'Este plato es de un plan anterior y se muestra tal como fue.',
     servingNote: 'Cantidades para {servings} {unit}.',
@@ -983,6 +994,8 @@ export const esES = {
     '/restablecer': { title: 'Elegir una contraseña nueva' },
     '/verificar-email': { title: 'Confirmar tu correo' }
   },
+
+  picture: { aiMark: 'IA', aiMarkLabel: 'Imagen generada por IA' },
 
   plan: {
     createCta: 'Crear mi plan',
