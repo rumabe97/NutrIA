@@ -213,9 +213,10 @@ Measured along the way and worth doing after, none of it blocking:
   models nobody asked for. Its configuration, but it spends the same free quota.
 - **Each meal its own foods, in season, on the free models** — project
   [`005-meal-and-season-catalogue`](./projects/005-meal-and-season-catalogue/) (`0062`,
-  `0063`). Phases 1–5 in production on 2026-09-25: each meal's catalogue is its own, pulses
-  are a lunch for an omnivore, the season comes first, and the lunch prompt is about half
-  its old ~8,000 tokens. Phases 6–7, generation on the free models, remain.
+  `0063`, `0064`). Done on 2026-09-26: each meal's catalogue is its own, pulses are a lunch
+  for an omnivore, the season comes first, the lunch prompt is about half its old ~8,000
+  tokens, and production generates on Gemma 4 31B (DeepSeek behind it) through OpenRouter,
+  no training and no retention — the owner's friends beta; the DPA before the real launch.
 - **If the budget cuts often**, generation belongs on a host without a function limit —
   the owner's own server, beside the gateway — rather than behind a queue service.
 
