@@ -139,6 +139,15 @@ describe('MealPlansController', () => {
     expect(service.schedule).toHaveBeenCalledWith(claim);
   });
 
+  it('answers the meal and schedules nothing when asking for its picture failed', async () => {
+    const service = pictures(true);
+
+    jest.spyOn(PlanController, 'openMeal').mockResolvedValue({ claim: null, failure: new Error('database down'), meal: { id: 'meal-1' } as never });
+
+    await expect(build(service).controller.meal(ALICE, BOB_PLAN, null)).resolves.toEqual({ id: 'meal-1' });
+    expect(service.schedule).not.toHaveBeenCalled();
+  });
+
   it('schedules nothing when no claim was won', async () => {
     const service = pictures(true);
 

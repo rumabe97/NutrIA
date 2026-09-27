@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { AnalyticsController } from 'core/controllers/Analytics';
 import { PlanController } from 'core/controllers/Plan';
@@ -19,6 +19,8 @@ export const HISTORY_PAGE = { default: 20, max: 50 } as const;
 
 @Injectable()
 export class MealPlansService {
+  private readonly logger = new Logger(MealPlansService.name);
+
   constructor(
     private readonly pictures: DishPictureService,
     private readonly runner: PlanJobRunner,
@@ -60,7 +62,11 @@ export class MealPlansService {
       return PlanController.getMeal(userId, mealId, locale);
     }
 
-    const { claim, meal } = await PlanController.openMeal(userId, mealId, locale, this.pictures.capUsd);
+    const { claim, failure, meal } = await PlanController.openMeal(userId, mealId, locale, this.pictures.capUsd);
+
+    if (failure !== undefined) {
+      this.logger.warn(`Meal ${mealId}: its dish's picture could not be requested: ${failure instanceof Error ? failure.message : 'unknown'}`);
+    }
 
     if (claim) {
       this.pictures.schedule(claim);

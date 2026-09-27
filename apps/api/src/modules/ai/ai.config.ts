@@ -366,6 +366,19 @@ export type PictureSettings = {
 };
 
 /**
+ * Whether the dish pictures are drawn, judged and kept by stubs (`0066`): with
+ * `AI_PROVIDER=stub` — every test and every local run, nothing leaves the
+ * machine — and **never in production**. `stub` is also what an unset
+ * `AI_PROVIDER` means, so a production deploy that lost the variable would
+ * otherwise store the stub's 8×8 test picture as every dish's picture, for
+ * everyone and for good. There it falls through to the real clients, which
+ * without their key and token draw nothing.
+ */
+export function picturesStubbed(env: Env): boolean {
+  return env.AI_PROVIDER === 'stub' && env.NODE_ENV !== 'production';
+}
+
+/**
  * The dish pictures' settings, or null when no picture may be drawn: with
  * `AI_PROVIDER=stub` — which means no model call of any kind, whatever key is
  * lying in the file — or with no `OPENROUTER_IMAGE_API_KEY`. The endpoint is

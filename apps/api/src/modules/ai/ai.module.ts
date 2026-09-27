@@ -10,6 +10,7 @@ import {
   AI_PICTURES,
   AI_REWRITE_CLIENT,
   AI_SECRETS,
+  picturesStubbed,
   resolveCallSettings,
   resolveModel,
   resolveOutputCap,
@@ -31,11 +32,6 @@ import { VercelBlobPictureStore } from './clients/VercelBlobPictureStore.js';
 
 import type { AiCallSettings, PictureSettings } from './ai.config.js';
 import type { Env } from '../../config/index.js';
-
-/** With `AI_PROVIDER=stub` the pictures are drawn, judged and kept by stubs: nothing leaves the machine (`0066`). */
-function stubbed(env: Env): boolean {
-  return env.AI_PROVIDER === 'stub';
-}
 
 /**
  * Global so plan generation can inject `PoolBuilder` without re-importing the
@@ -69,19 +65,19 @@ function stubbed(env: Env): boolean {
       inject: [ENV, AI_PICTURES, AI_SECRETS],
       provide: PictureImageClient,
       useFactory: (env: Env, settings: PictureSettings | null, secrets: readonly string[]) =>
-        stubbed(env) ? new StubPictureImageClient() : new OpenRouterImageClient(settings, secrets)
+        picturesStubbed(env) ? new StubPictureImageClient() : new OpenRouterImageClient(settings, secrets)
     },
     {
       inject: [ENV, AI_PICTURES, AI_SECRETS],
       provide: PictureJudgeClient,
       useFactory: (env: Env, settings: PictureSettings | null, secrets: readonly string[]) =>
-        stubbed(env) ? new StubPictureJudgeClient() : new OpenRouterVisionJudgeClient(settings, secrets)
+        picturesStubbed(env) ? new StubPictureJudgeClient() : new OpenRouterVisionJudgeClient(settings, secrets)
     },
     {
       inject: [ENV, AI_SECRETS],
       provide: PictureStore,
       useFactory: (env: Env, secrets: readonly string[]) =>
-        stubbed(env) ? new StubPictureStore() : new VercelBlobPictureStore(env.BLOB_READ_WRITE_TOKEN?.trim() || null, secrets)
+        picturesStubbed(env) ? new StubPictureStore() : new VercelBlobPictureStore(env.BLOB_READ_WRITE_TOKEN?.trim() || null, secrets)
     },
     BackgroundTaskService,
     DishPictureService,
