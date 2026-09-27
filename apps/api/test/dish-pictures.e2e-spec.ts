@@ -487,7 +487,7 @@ describe('dish pictures', () => {
   it.each([
     [402, 'Key limit exceeded'],
     [429, 'Rate limit exceeded']
-  ])('gives the claim back when the key refuses to pay (%i): the dish is none, not failed', async (code, message) => {
+  ])('gives the claim back when the key refuses to pay (%i): kept as released, read as none, claimed again at once', async (code, message) => {
     const dish = take();
 
     main.images.behaviour = () => Promise.reject(new PictureCallError(message, code));
@@ -499,13 +499,28 @@ describe('dish pictures', () => {
       main.images.behaviour = null;
     }
 
-    expect(await row(dish.recipeId)).toBeUndefined();
+    // Kept as released, saying why: the refused attempt is not counted against the dish.
+    expect(await row(dish.recipeId)).toMatchObject({
+      attempts: 0,
+      bytes: null,
+      provenance: { released: expect.any(String) },
+      status: 'failed',
+      url: null
+    });
     // One attempt and no more: a refusal stops the loop. OpenRouter turned it away, so it cost nothing.
     expect((await calls(dish.recipeId)).map(call => [call.kind, call.outcome, Number(call.costUsd)])).toEqual([['image', 'error', 0]]);
 
-    // Given back, not failed: the next view claims it at once.
+    // The owner sees it as released, not as failed.
+    const counted: Response = await request(server()).get(`/${PREFIX}/admin/pictures`).set('Cookie', owner.cookie).expect(200);
+
+    expect((counted.body as { released: number }).released).toBeGreaterThanOrEqual(1);
+
+    // Given back, not failed: the next view claims it at once, with no cool-off.
+    const before = main.images.calls;
+
     expect((await openMeal(app, alice, dish.mealId)).pictureStatus).toBe('drawing');
     expect((await settled(alice, dish.recipeId)).status).toBe('ready');
+    expect(main.images.calls).toBe(before + 1);
   });
 
   it('starts one drawing for views that arrive together, and serves its picture to the second person', async () => {
@@ -585,7 +600,8 @@ describe('dish pictures', () => {
     const response: Response = await request(server()).get(`/${PREFIX}/admin/pictures`).set('Cookie', owner.cookie).expect(200);
     const body = response.body as Record<string, unknown>;
 
-    expect(Object.keys(body).sort()).toEqual(['capUsd', 'drawing', 'enabled', 'failed', 'ready', 'since', 'spentUsd']);
+    expect(Object.keys(body).sort()).toEqual(['capUsd', 'drawing', 'enabled', 'failed', 'ready', 'released', 'since', 'spentUsd']);
+    expect(body['released']).toEqual(expect.any(Number));
     expect(body['enabled']).toBe(true);
     expect(body['ready']).toEqual(expect.any(Number));
     expect(body['ready'] as number).toBeGreaterThanOrEqual(1);
