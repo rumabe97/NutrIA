@@ -318,7 +318,7 @@ which supersedes `0010`.
 
 ### Phase 4 — The meal page waits for its picture; every picture says it is AI
 
-- [x] done
+- [x] done — PR #130
 - **Dispatch**: opus @ medium — `/execute-project 006 phase 4`. Reviews: `accessibility`, and
   `legal` for the strings.
 - **Goal**: the meal page shows the placeholder, then the picture without a reload. Every
@@ -364,7 +364,7 @@ which supersedes `0010`.
 
 ### Phase 5 — Published texts
 
-- [ ] pending
+- [ ] in progress
 - **Dispatch**: sonnet @ medium — `/execute-project 006 phase 5` — owner-approves: the
   privacy-policy and terms wording before it is published.
 - **Goal**: the live `/privacidad` and `/condiciones` say what the pictures do before the
