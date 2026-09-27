@@ -16,6 +16,7 @@ import { AppModule } from '../src/app.module.js';
 import type { AiRequest, AiResponse } from '../src/modules/ai/clients/AiClient.js';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
+import type { TestingModuleBuilder } from '@nestjs/testing';
 
 export const PREFIX = 'api/v1';
 
@@ -233,11 +234,13 @@ export const POOL = [
   dish('Merluza sola', ['dinner'], [{ grams: 300, slug: SEEDED.merluza }])
 ];
 
-export async function createApp(ai: AiClient): Promise<INestApplication> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
-    .overrideProvider(AiClient)
-    .useValue(ai)
-    .compile();
+/**
+ * The application under test, with the model replaced by `ai`. `configure`
+ * replaces anything else a suite must answer itself — the picture clients,
+ * their store, the monthly cap (`dish-pictures.e2e-spec.ts`).
+ */
+export async function createApp(ai: AiClient, configure: (builder: TestingModuleBuilder) => TestingModuleBuilder = builder => builder): Promise<INestApplication> {
+  const moduleRef = await configure(Test.createTestingModule({ imports: [AppModule] }).overrideProvider(AiClient).useValue(ai)).compile();
 
   const app = moduleRef.createNestApplication();
 
