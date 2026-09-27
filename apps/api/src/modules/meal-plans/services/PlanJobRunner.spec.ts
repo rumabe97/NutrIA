@@ -8,7 +8,6 @@ import { PlanJobRunner } from './PlanJobRunner.service.js';
 
 import type { ErrorReporter } from '../../../shared/observability/index.js';
 import type { PlanGenerationService } from './PlanGeneration.service.js';
-import type { RecipeIllustrator } from '../../ai/services/RecipeIllustrator.service.js';
 
 const JOB = { id: 'job-1', error: null, errorDetail: null, pendingReview: false, planId: null, status: 'queued', step: null };
 
@@ -29,14 +28,13 @@ function build(generate: (...args: Parameters<PlanGenerationService['generate']>
   // The real service, not a stub: off-platform its `waitUntil` throws and is
   // caught, which is exactly the path a local run takes. A stub here would test
   // the double.
-  // Illustrations off: the runner asks the illustrator nothing, which is the state
-  // every environment starts in and the one these tests are about.
-  const illustrator = { illustrateMissing: jest.fn(), isAvailable: false } as unknown as RecipeIllustrator;
   // Reporting is off in a test the way it is off without a DSN in production.
   const report = jest.fn();
-  const runner = new PlanJobRunner(new BackgroundTaskService(), { generate: jest.fn(generate) } as unknown as PlanGenerationService, illustrator, {
-    report
-  } as unknown as ErrorReporter);
+  const runner = new PlanJobRunner(
+    new BackgroundTaskService(),
+    { generate: jest.fn(generate) } as unknown as PlanGenerationService,
+    { report } as unknown as ErrorReporter
+  );
 
   return { markFailed, markStarted, markStep, markSucceeded, runner, start };
 }

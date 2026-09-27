@@ -16,13 +16,15 @@ import type { Server } from 'node:http';
 
 const ID = '11111111-1111-4111-8111-111111111111';
 
+const ALICE = { id: 'alice', activated: true, email: 'alice@example.com', emailVerified: true, name: 'Alice', role: 'user' as const };
+
 /**
- * The one route that serves stored bytes, and the only public one that does.
- * What matters: nothing but the bytes leaves, a missing image is a 404 in the
- * envelope's absence (Nest's default here, since the global filter is not
- * mounted in this harness), and the caching is explicit and immutable.
+ * What the meal page polls while its dish is being drawn (`0066`). What
+ * matters: the user comes from the session, a dish they were never served is a
+ * 404 like every denial, a bad id never reaches the database — and the old
+ * public image route is gone.
  */
-describe('GET /recipes/:id/image', () => {
+describe('GET /recipes/:id/picture-status', () => {
   let app: INestApplication;
 
   afterEach(async () => {
@@ -34,35 +36,47 @@ describe('GET /recipes/:id/image', () => {
     const moduleRef = await Test.createTestingModule({ controllers: [RecipesController], providers: [RecipesService] }).compile();
 
     app = moduleRef.createNestApplication();
+    app.useGlobalFilters(new AllExceptionsFilter());
+    // Stands in for SessionGuard, which is global in AppModule.
+    app.use((req: express.Request & { user?: unknown }, _res: express.Response, next: express.NextFunction) => {
+      req.user = ALICE;
+      next();
+    });
     await app.init();
 
     return app.getHttpServer() as Server;
   }
 
-  it('serves the stored bytes with an immutable, public cache header', async () => {
-    jest.spyOn(RecipeController, 'illustration').mockResolvedValue({ bytes: Buffer.from('RIFFxxxxWEBP'), contentType: 'image/webp' });
+  it('answers for the session’s user', async () => {
+    const pictureStatus = jest.spyOn(RecipeController, 'pictureStatus').mockResolvedValue({ status: 'ready', url: 'https://blob.example/x.jpg' });
     const server = await boot();
 
-    const response = await request(server).get(`/recipes/${ID}/image`).expect(200);
+    const response = await request(server).get(`/recipes/${ID}/picture-status`).expect(200);
 
-    expect(response.headers['content-type']).toBe('image/webp');
-    expect(response.headers['cache-control']).toBe('public, max-age=31536000, s-maxage=31536000, immutable');
-    expect((response.body as Buffer).toString()).toBe('RIFFxxxxWEBP');
+    expect(response.body).toEqual({ status: 'ready', url: 'https://blob.example/x.jpg' });
+    expect(pictureStatus).toHaveBeenCalledWith('alice', ID);
   });
 
-  it('is 404 when nothing has been drawn', async () => {
-    jest.spyOn(RecipeController, 'illustration').mockResolvedValue(undefined);
+  it('is 404 for a dish the caller was never served', async () => {
+    jest.spyOn(RecipeController, 'pictureStatus').mockRejectedValue(new NotFoundError('Recipe not found'));
     const server = await boot();
 
-    await request(server).get(`/recipes/${ID}/image`).expect(404);
+    await request(server).get(`/recipes/${ID}/picture-status`).expect(404);
   });
 
   it('refuses a non-UUID id before touching the database', async () => {
-    const lookup = jest.spyOn(RecipeController, 'illustration');
+    const pictureStatus = jest.spyOn(RecipeController, 'pictureStatus');
     const server = await boot();
 
-    await request(server).get('/recipes/not-a-uuid/image').expect(400);
-    expect(lookup).not.toHaveBeenCalled();
+    await request(server).get('/recipes/not-a-uuid/picture-status').expect(400);
+    expect(pictureStatus).not.toHaveBeenCalled();
+  });
+
+  /* 0066: pictures live in Blob; Postgres serves no bytes. */
+  it('no longer serves an image', async () => {
+    const server = await boot();
+
+    await request(server).get(`/recipes/${ID}/image`).expect(404);
   });
 });
 
@@ -75,7 +89,6 @@ describe('GET /recipes/:id/image', () => {
  */
 describe('PUT /recipes/:id/verdict', () => {
   let app: INestApplication;
-  const ALICE = { id: 'alice', activated: true, email: 'alice@example.com', emailVerified: true, name: 'Alice', role: 'user' as const };
 
   afterEach(async () => {
     jest.restoreAllMocks();

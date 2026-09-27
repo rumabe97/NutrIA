@@ -2,7 +2,7 @@ import { and, count, countDistinct, desc, eq, gte, isNotNull, isNull, sql } from
 
 import { database } from 'database';
 import { ingredients } from 'database/schema/food';
-import { recipeImages, recipes } from 'database/schema/recipe';
+import { recipeImageCalls, recipeImages, recipes } from 'database/schema/recipe';
 import { mealPlans, planGenerationJobs } from 'database/schema/plan';
 import { user } from 'database/schema/auth';
 import { checkIns } from 'database/schema/progress';
@@ -72,6 +72,15 @@ export type Counts = {
  * `recentGenerations` — an address per job, for the generation log — and only
  * a controller of its own calls it (`0028`, `0050`).
  */
+/** The dish pictures at a glance (`0066`): the month's spend and how many are in each state. */
+export type PictureCounts = {
+  readonly drawing: number;
+  readonly failed: number;
+  readonly ready: number;
+  /** Dollars billed since the month's start, by the calls themselves. */
+  readonly spentUsd: number;
+};
+
 export const AdminRepository = {
   async counts(since: Date): Promise<Counts> {
     try {
@@ -91,7 +100,7 @@ export const AdminRepository = {
           .select({ n: count() })
           .from(recipes)
           .where(
-            sql`not exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id} and ${recipeImages.status} = 'ready' and ${recipeImages.bytes} is not null)`
+            sql`not exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id} and ${recipeImages.status} = 'ready' and ${recipeImages.url} is not null)`
           )
       ]);
 
@@ -136,6 +145,29 @@ export const AdminRepository = {
         returned: plansPerUser.filter(row => row.n > 1).length,
         signedUp: signedUp[0]?.n ?? 0
       };
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * What the pictures have spent since `monthStart`, and how many dishes have a
+   * picture, are being drawn, or failed. Counts only: no dish is named. Mode: two
+   * aggregates.
+   */
+  async pictures(monthStart: Date): Promise<PictureCounts> {
+    try {
+      const db = database();
+      const [states, spend] = await Promise.all([
+        db.select({ n: count(), status: recipeImages.status }).from(recipeImages).groupBy(recipeImages.status),
+        db
+          .select({ total: sql<string>`coalesce(sum(${recipeImageCalls.costUsd}), 0)` })
+          .from(recipeImageCalls)
+          .where(gte(recipeImageCalls.createdAt, monthStart))
+      ]);
+      const n = (status: string) => states.find(row => row.status === status)?.n ?? 0;
+
+      return { drawing: n('drawing'), failed: n('failed'), ready: n('ready'), spentUsd: Number(spend[0]?.total ?? 0) };
     } catch (error: unknown) {
       throw wrap(error);
     }

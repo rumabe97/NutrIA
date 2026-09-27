@@ -79,7 +79,6 @@ from local development:
 | `DATABASE_URL` | Neon's **pooled** endpoint (host contains `-pooler`) |
 | `DIRECT_DATABASE_URL` | Neon's **direct** endpoint — the build runs migrations through it |
 | `AI_REWRITE_STEPS` | `false` on a free-tier project: the rewrite sweep would spend the daily request cap generation needs in ~2 hours; `true` with billing |
-| `AI_ILLUSTRATIONS` | `false` until billing is enabled on the Google AI project (its free tier allows **zero** image generations); then `true` |
 | `CRON_SECRET` | any 16+ characters (`openssl rand -base64 32`); the platform sends it as a bearer on a cron call. Two crons are scheduled: the rewrite sweep and the check-in reminder (§3b). Unset, the routes 404 and say so in the log |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | the password-reset sender (`0019`), see §5c. All five together or none: a host without credentials or a sender is refused at boot. With none, reset links go to the log and nobody receives them |
 | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | the check-in reminder on phones (`0054`). Generate the pair once with `npx web-push generate-vapid-keys`; the subject is a `mailto:` or an `https:` URL. All three or none. With none, reminders go by mail only and the profile offers no switch for phones |
@@ -88,6 +87,11 @@ from local development:
 | `AI_PROVIDER` | `openrouter` in production once `legal` has cleared the provider (`0064`): OpenRouter directly, paid models that never train on what they are sent. Needs `OPENROUTER_API_KEY`, and `AI_BASE_URL` **empty** (or on `https://openrouter.ai`) — the API refuses to boot with any other host, which would receive the OpenRouter key. `stub` generates from the library alone (what production runs until then). `google` calls Gemini directly with `GOOGLE_API_KEY`; `omniroute` goes through a gateway and needs `AI_BASE_URL`, `OMNIROUTE_API_KEY` and `OMNIROUTE_MODEL` — both routes are in [`ai-gateway.md`](./ai-gateway.md) |
 | `OPENROUTER_API_KEY`, `AI_MODEL`, `AI_FALLBACK_MODELS`, `AI_REASONING_EFFORT`, `AI_REASONING_MAX_TOKENS`, `AI_PROVIDER_SORT`, `AI_PROVIDER_IGNORE`, `AI_PROVIDER_ONLY`, `AI_MAX_OUTPUT_TOKENS_PER_DISH` | `openrouter` only (`0064`): the key from [`ai-gateway.md`](./ai-gateway.md) §0; `google/gemma-4-31b-it` (also the default when empty); `deepseek/deepseek-v4.1-flash` (comma-separated `vendor/model` ids, never `:free` — refused at boot); `none` (`none`, `minimal`, `low`, `medium` or `high`; empty leaves the model's default); empty (a positive integer caps the thinking in tokens and replaces the effort, except `none`, which still switches it off); empty (`throughput`, `latency` or `price` orders the no-training endpoints; empty keeps OpenRouter's load-balancing).; empty (comma-separated OpenRouter provider slugs it never routes to, e.g. `sail-research`; it only removes, the no-training block still decides); **required**, `deepinfra,coreweave` (comma-separated OpenRouter provider slugs, the only companies that may run the model — the ones the privacy policy names; boot refuses without it); empty (tokens a generation request may write per dish asked, capped at that × dishes + 800; empty means 1200; applied only with `AI_REASONING_EFFORT=none` or `AI_REASONING_MAX_TOKENS` set, which is then added to the margin). All ignored by every other provider |
 | `AI_BUDGET_SECONDS` | leave empty: 170 seconds for the model half of a generation, which fits the 300-second function (§4) |
+| `OPENROUTER_IMAGE_API_KEY` | the dish pictures' **own** OpenRouter key (`0066`), for the image model and its judge — never `OPENROUTER_API_KEY`, which boot refuses. Give it a monthly limit equal to `AI_IMAGE_MONTHLY_CAP_USD`, so a bug here still meets a wall. Unset, no picture is drawn, whatever the `dishPictures` flag says. Ignored with `AI_PROVIDER=stub`, which draws with stubs and calls nobody |
+| `AI_IMAGE_MODEL`, `AI_IMAGE_PROVIDER_ONLY` | leave empty: `google/gemini-3.1-flash-lite-image` on `google-vertex/global` — the one endpoint that keeps nothing and signs its output with C2PA. Every image request carries that list with fallbacks off. Never a `:free` id or one of OpenRouter's routers (refused at boot) |
+| `AI_JUDGE_MODEL`, `AI_JUDGE_PROVIDER_ONLY` | leave empty: `qwen/qwen3-vl-235b-a22b-instruct` on `deepinfra`, the vision judge that names the foods in a picture. It decides nothing; the allergens come from the catalogue |
+| `AI_IMAGE_MONTHLY_CAP_USD` | `10`, the default: dollars a calendar month (UTC) the pictures may spend, summed from `recipe_image_calls`. At the cap no image call is made until the next month, and `/admin` shows the spend against it |
+| `BLOB_READ_WRITE_TOKEN` | added by the platform when the Blob store (**fra1**, created once — the region cannot change) is connected to the API project. Unset, no picture is drawn, since none could be kept |
 | `STRIPE_PRACTICE_PRICES` | a professional's practice, `price_…=N` pairs comma-separated (project 004, `0061`) — **optional**, and the API boots without it; needs the other `STRIPE_*` values set, and must not name a premium price. The rest of billing's setup, including the other `STRIPE_*` variables, is [`payments.md`](./payments.md), not here |
 
 `Env.validation.ts` refuses to boot on a bad environment and reports every problem at
@@ -157,38 +161,32 @@ one, and a preview that half-works is worse than none.
 
 ## 3b. The crons
 
-`apps/api/vercel.json` schedules **two** of the three:
+`apps/api/vercel.json` schedules both:
 - the rewrite sweep, daily at 03:30 UTC, when nobody is building a plan;
 - the check-in reminder, daily at 08:00 UTC ([`0054`](../decisions/0054-the-check-in-reminder-comes-back-behind-a-switch.md)).
 
-The illustration sweep stays off. It was removed on 2026-09-09, at the owner's request, while
-the project runs on free tiers, and can only be reached by hand with the bearer. Every cron
-call needs `CRON_SECRET` on the API project: the platform sends it as the bearer, and without
-it the route answers 404.
+There is no illustration sweep any more: a dish's picture is drawn the first time somebody
+opens its meal page (`0066`, §4). Every cron call needs `CRON_SECRET` on the API project: the
+platform sends it as the bearer, and without it the route answers 404.
 
 | Route | What it spends | Also gated by |
 | --- | --- | --- |
-| `/api/v1/cron/illustrate` | one image generation per recipe — the expensive one | `AI_ILLUSTRATIONS`, off by default |
 | `/api/v1/cron/rewrite-steps` | one text generation per recipe, at most twelve a run, ending by 240 s. Through the gateway, its free models; on Google directly, the daily cap generation needs | `AI_REWRITE_STEPS`, off by default; `AI_REWRITE_MODEL` picks its model ([`ai-gateway.md`](./ai-gateway.md) §6) |
 | `/api/v1/cron/reminders` | **nothing from the AI provider**: a mail and/or a push per account, at most once a fortnight | the **Check-in reminder** switch on `/admin`, off until thrown; `SMTP_HOST` for the mail and `VAPID_*` for the push. Sends nothing without either |
 
 A daily run is what the Hobby plan allows. On a plan that runs crons hourly, `0 * * * *`
 clears the 160 stale recipes of 2026-09-12 in about fourteen hours instead of two weeks.
 
-Turning another one back on is adding its entry:
-
-```jsonc
-"crons": [{ "path": "/api/v1/cron/illustrate", "schedule": "0 4 * * *" }]
-```
-
-Vercel reads the block at deploy time, so a redeploy is what starts it. Note that a
-scheduled call costs a function invocation whether or not the route does any work: with the
-block removed, even that stops.
+Vercel reads the block at deploy time, so a deploy is what starts or stops a cron. Note that
+a scheduled call costs a function invocation whether or not the route does any work.
 
 ## 4. Long work outlives the response
 
 Plan generation returns a job id in milliseconds and then works for thirty to
-forty-five seconds. On a serverless host the invocation can be frozen the moment the
+forty-five seconds. A dish's picture is the same shape (`0066`): the meal page answers at
+once with `pictureStatus: 'drawing'`, and the drawing — up to three attempts of an image and
+two judge calls, about 25 seconds each — runs after the response and ends its claim within
+240 seconds. On a serverless host the invocation can be frozen the moment the
 response is sent, so `PlanJobRunner` hands the work to `BackgroundTaskService`, which
 calls `waitUntil` to keep the invocation alive until it settles.
 

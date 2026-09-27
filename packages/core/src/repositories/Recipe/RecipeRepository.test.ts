@@ -12,6 +12,7 @@ const dialect = new PgDialect({ casing: 'snake_case' });
 
 type Upsert = { readonly set: Record<string, unknown>; readonly setWhere: { params: unknown[]; sql: string }; readonly target: unknown };
 type Statement =
+  | { readonly kind: 'delete'; readonly table: unknown; readonly where: { params: unknown[]; sql: string } }
   | { readonly kind: 'insert'; readonly table: unknown; readonly upsert?: Upsert; readonly values: Record<string, unknown> }
   | { readonly kind: 'select'; readonly table: unknown; readonly where: { params: unknown[]; sql: string } }
   | { readonly kind: 'update'; readonly set: Record<string, unknown>; readonly table: unknown; readonly where: { params: unknown[]; sql: string } };
@@ -54,6 +55,16 @@ function update(table: unknown) {
   };
 }
 
+function remove(table: unknown) {
+  return {
+    where: (where: SQL) => {
+      statements.push({ kind: 'delete', table, where: dialect.sqlToQuery(where) });
+
+      return { returning: next };
+    }
+  };
+}
+
 function select() {
   return {
     from: (table: unknown) => ({
@@ -67,7 +78,7 @@ function select() {
   };
 }
 
-vi.mock('database', () => ({ database: () => ({ insert, select, update }) }));
+vi.mock('database', () => ({ database: () => ({ delete: remove, insert, select, update }) }));
 
 const RECIPE = '6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f';
 const NOW = new Date('2026-09-27T12:00:00Z');
@@ -265,30 +276,24 @@ describe('RecipeRepository — reading a picture and its spend', () => {
   });
 });
 
-/* PRD 006, criterion 2 in part: after the migration no code path writes picture bytes. */
-describe('RecipeRepository — no bytes', () => {
-  it('saveImage sends nothing to the database', async () => {
-    await RecipeRepository.saveImage(RECIPE, {
-      bytes: Buffer.from([1]),
-      contentType: 'image/webp',
-      height: 1,
-      model: 'm',
-      promptVersion: 'v',
-      width: 1
-    });
+describe('RecipeRepository.releasePicture', () => {
+  it('deletes the row only while it is still the drawing this caller claimed, and says whether it did', async () => {
+    answers = [[{ recipeId: RECIPE }]];
 
-    expect(statements).toEqual([]);
-  });
+    await expect(RecipeRepository.releasePicture(RECIPE, CLAIMED)).resolves.toBe(true);
 
-  it('findImage reads only a row that still has bytes', async () => {
-    await expect(RecipeRepository.findImage(RECIPE)).resolves.toBeUndefined();
+    const [release] = statements;
 
-    const [read] = statements;
-
-    if (read?.kind !== 'select') {
-      throw new Error('expected a read');
+    if (release?.kind !== 'delete') {
+      throw new Error('expected a delete');
     }
 
-    expect(read.where.sql).toBe('("recipe_images"."recipe_id" = $1 and "recipe_images"."bytes" is not null)');
+    expect(release.table).toBe(recipeImages);
+    expect(release.where.sql).toBe('("recipe_images"."recipe_id" = $1 and "recipe_images"."status" = $2 and "recipe_images"."last_attempt_at" = $3)');
+    expect(release.where.params).toEqual([RECIPE, 'drawing', CLAIMED.toISOString()]);
+  });
+
+  it('answers false when the claim was taken over or ended', async () => {
+    await expect(RecipeRepository.releasePicture(RECIPE, CLAIMED)).resolves.toBe(false);
   });
 });

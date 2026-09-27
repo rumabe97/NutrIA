@@ -12,7 +12,7 @@
  * service is first deployed and every day a migration runs before a seed.
  */
 
-export type FlagName = 'automaticActivation' | 'checkInReminders' | 'premium' | 'professional';
+export type FlagName = 'automaticActivation' | 'checkInReminders' | 'dishPictures' | 'premium' | 'professional';
 
 export type FlagAudience =
   /** The owner, on `/admin`, and nobody else. */
@@ -67,6 +67,20 @@ export const FLAGS: Readonly<Record<FlagName, Flag>> = {
    * the service's.
    */
   checkInReminders: { audience: 'owner', fallback: false, key: 'check_in_reminders' },
+
+  /**
+   * Whether a dish is drawn the first time somebody opens its meal page
+   * (`0066`).
+   *
+   * Falls back to off. Every picture is a paid call, the privacy policy and the
+   * terms have to say so before the first one, and the owner reads Google
+   * Cloud's terms first — so a missing row must never be what starts spending
+   * or sending recipes to an image model. Off, the product is exactly what it
+   * was before project 006: no drawing, no picture, the placeholder.
+   * `signed-in`, because the meal page is where it shows; what a screen reads
+   * is the meal's `pictureStatus`, never the flag.
+   */
+  dishPictures: { audience: 'signed-in', fallback: false, key: 'dish_pictures' },
 
   /**
    * Whether the paid tier exists at all.

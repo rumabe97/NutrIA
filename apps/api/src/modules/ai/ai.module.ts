@@ -3,33 +3,39 @@ import { Global, Module } from '@nestjs/common';
 import { ENV, envProvider } from '../../config/index.js';
 import {
   AI_CALL_SETTINGS,
-  AI_IMAGE_MODEL,
   AI_MODEL,
   AI_MODEL_BUDGET,
   AI_OUTPUT_CAP,
+  AI_PICTURE_CAP,
   AI_PICTURES,
   AI_REWRITE_CLIENT,
   AI_SECRETS,
   resolveCallSettings,
-  resolveImageModel,
   resolveModel,
   resolveOutputCap,
   resolvePictureSettings,
   resolveRewriteModel
 } from './ai.config.js';
 import { AiClient } from './clients/AiClient.js';
-import { ImageClient } from './clients/ImageClient.js';
+import { BackgroundTaskService } from '../../shared/services/index.js';
+import { DishPictureService, PoolBuilder, RecipeRewriter } from './services/index.js';
 import { OpenRouterImageClient } from './clients/OpenRouterImageClient.js';
 import { OpenRouterVisionJudgeClient } from './clients/OpenRouterVisionJudgeClient.js';
 import { PictureImageClient } from './clients/PictureImageClient.js';
 import { PictureJudgeClient } from './clients/PictureJudgeClient.js';
+import { PictureStore } from './clients/PictureStore.js';
 import { providerCredentials } from './clients/redact.js';
-import { ProviderImageClient } from './clients/ProviderImageClient.js';
-import { PoolBuilder, RecipeIllustrator, RecipeRewriter } from './services/index.js';
 import { StructuredAiClient } from './clients/StructuredAiClient.js';
+import { StubPictureImageClient, StubPictureJudgeClient, StubPictureStore } from './clients/StubPictureClients.js';
+import { VercelBlobPictureStore } from './clients/VercelBlobPictureStore.js';
 
 import type { AiCallSettings, PictureSettings } from './ai.config.js';
 import type { Env } from '../../config/index.js';
+
+/** With `AI_PROVIDER=stub` the pictures are drawn, judged and kept by stubs: nothing leaves the machine (`0066`). */
+function stubbed(env: Env): boolean {
+  return env.AI_PROVIDER === 'stub';
+}
 
 /**
  * Global so plan generation can inject `PoolBuilder` without re-importing the
@@ -39,7 +45,7 @@ import type { Env } from '../../config/index.js';
  */
 @Global()
 @Module({
-  exports: [AI_PICTURES, AiClient, ImageClient, PictureImageClient, PictureJudgeClient, PoolBuilder, RecipeIllustrator, RecipeRewriter],
+  exports: [AiClient, DishPictureService, PictureImageClient, PictureJudgeClient, PictureStore, PoolBuilder, RecipeRewriter],
   providers: [
     envProvider,
     { inject: [ENV], provide: AI_MODEL, useFactory: (env: Env) => resolveModel(env) },
@@ -55,22 +61,31 @@ import type { Env } from '../../config/index.js';
       useFactory: (env: Env, settings: AiCallSettings, secrets: readonly string[]) =>
         new StructuredAiClient(resolveRewriteModel(env), settings, secrets)
     },
-    { inject: [ENV], provide: AI_IMAGE_MODEL, useFactory: (env: Env) => resolveImageModel(env) },
-    { provide: ImageClient, useClass: ProviderImageClient },
-    // The dish pictures (`0066`): null settings — the stub provider, or no key — draw and judge nothing.
+    // The dish pictures (`0066`). Null settings — no key — draw and judge nothing;
+    // the stub provider draws, judges and keeps with stubs a test can replace.
     { inject: [ENV], provide: AI_PICTURES, useFactory: (env: Env) => resolvePictureSettings(env) },
+    { inject: [ENV], provide: AI_PICTURE_CAP, useFactory: (env: Env) => env.AI_IMAGE_MONTHLY_CAP_USD },
     {
-      inject: [AI_PICTURES, AI_SECRETS],
+      inject: [ENV, AI_PICTURES, AI_SECRETS],
       provide: PictureImageClient,
-      useFactory: (settings: PictureSettings | null, secrets: readonly string[]) => new OpenRouterImageClient(settings, secrets)
+      useFactory: (env: Env, settings: PictureSettings | null, secrets: readonly string[]) =>
+        stubbed(env) ? new StubPictureImageClient() : new OpenRouterImageClient(settings, secrets)
     },
     {
-      inject: [AI_PICTURES, AI_SECRETS],
+      inject: [ENV, AI_PICTURES, AI_SECRETS],
       provide: PictureJudgeClient,
-      useFactory: (settings: PictureSettings | null, secrets: readonly string[]) => new OpenRouterVisionJudgeClient(settings, secrets)
+      useFactory: (env: Env, settings: PictureSettings | null, secrets: readonly string[]) =>
+        stubbed(env) ? new StubPictureJudgeClient() : new OpenRouterVisionJudgeClient(settings, secrets)
     },
+    {
+      inject: [ENV, AI_SECRETS],
+      provide: PictureStore,
+      useFactory: (env: Env, secrets: readonly string[]) =>
+        stubbed(env) ? new StubPictureStore() : new VercelBlobPictureStore(env.BLOB_READ_WRITE_TOKEN?.trim() || null, secrets)
+    },
+    BackgroundTaskService,
+    DishPictureService,
     PoolBuilder,
-    RecipeIllustrator,
     RecipeRewriter
   ]
 })
