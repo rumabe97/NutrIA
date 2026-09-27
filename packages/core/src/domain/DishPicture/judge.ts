@@ -51,13 +51,24 @@ export type PictureMatch = {
 
 /**
  * A catalogue ingredient as the rule reads it: every name it has, in any
- * locale, and the allergens it contains (`presence = 'contains'`), by key.
+ * locale, the allergens it contains (`presence = 'contains'`) and those it
+ * may contain (`may_contain`), by key.
  */
-export type PictureCatalogueEntry = { readonly allergens: readonly string[]; readonly names: readonly string[]; readonly slug: string };
+export type PictureCatalogueEntry = {
+  readonly allergens: readonly string[];
+  readonly mayContain?: readonly string[];
+  readonly names: readonly string[];
+  readonly slug: string;
+};
 
 export type PictureExtra = {
   readonly amount: SeenAmount;
-  /** Allergens of the food that none of the dish's ingredients carries. */
+  /**
+   * Allergens of the food that the dish does not carry: one it contains that
+   * no ingredient of the dish contains, or one it may contain that no
+   * ingredient of the dish contains or may contain — oats beside a dish of
+   * oats are not gluten the dish lacks; oats on a rice dish are.
+   */
   readonly foreignAllergens: readonly string[];
   /** A preparation, not a food ("sauce", "white drizzle"): mapped to nothing. */
   readonly generic: boolean;
@@ -197,13 +208,15 @@ const LINKING: ReadonlySet<string> = new Set(['a', 'and', 'in', 'of', 'on', 'or'
 const SEEN_SYNONYMS: ReadonlyMap<string, readonly string[]> = new Map([
   ['batter', ['harina-de-trigo']],
   ['bechamel', ['leche-entera', 'harina-de-trigo']],
-  ['biscuit', ['galletas-maria']],
-  ['biscuits', ['galletas-maria']],
+  ['biscuit', ['galletas-de-mantequilla']],
+  ['biscuits', ['galletas-de-mantequilla']],
   ['bread', ['pan-blanco']],
   ['breaded', ['pan-rallado']],
+  ['cake', ['bizcocho']],
+  ['cakes', ['bizcocho']],
   ['calamari', ['calamar']],
-  ['cookie', ['galletas-maria']],
-  ['cookies', ['galletas-maria']],
+  ['cookie', ['galletas-de-mantequilla']],
+  ['cookies', ['galletas-de-mantequilla']],
   ['cream', ['nata-para-cocinar']],
   ['croutons', ['pan-blanco']],
   ['custard', ['natillas']],
@@ -216,16 +229,23 @@ const SEEN_SYNONYMS: ReadonlyMap<string, readonly string[]> = new Map([
   ['macaroni', ['pasta-cocida']],
   ['mayo', ['mayonesa']],
   ['mussel', ['mejillon']],
+  ['noodle', ['noodles-de-trigo']],
+  ['noodles', ['noodles-de-trigo']],
   ['nut', ['nueces']],
   ['nuts', ['nueces']],
+  ['oat', ['copos-de-avena']],
   ['oatmeal', ['copos-de-avena']],
+  ['oats', ['copos-de-avena']],
   ['pastry', ['masa-de-hojaldre']],
   ['penne', ['pasta-cocida']],
   ['pie', ['masa-quebrada']],
+  ['porridge', ['copos-de-avena']],
   ['prawn', ['gambas']],
+  ['ramen', ['noodles-de-trigo']],
   ['shrimp', ['gambas']],
   ['spaghetti', ['pasta-cocida']],
   ['toast', ['pan-de-molde']],
+  ['udon', ['noodles-udon']],
   ['yogurt', ['yogur-natural-desnatado']]
 ]);
 
@@ -276,47 +296,59 @@ function readCatalogue(entries: readonly PictureCatalogueEntry[]): Catalogue {
   };
 }
 
+/** What a name was mapped to: the entries' slugs, and the allergens they contain or may contain. */
+type Mapped = { readonly contains: ReadonlySet<string>; readonly mayContain: ReadonlySet<string>; readonly slugs: readonly string[] };
+
+/** Every allergen an entry contains or may contain. */
+function everything(entry: PictureCatalogueEntry): readonly string[] {
+  return [...entry.allergens, ...(entry.mayContain ?? [])];
+}
+
 /**
  * The catalogue slugs a seen food's name stands for.
  *
  * 1. The whole name, exactly, as `CustomAllergen` matches it, or through
  *    `SEEN_SYNONYMS`: "peanut butter" is peanut butter and not butter.
  * 2. Otherwise every entry one of whose names is made only of the food's own
- *    words, or that a word names through `SEEN_SYNONYMS`: "feta cheese" is
- *    feta, "chicken with cheese" is chicken and cheese. Each is really in the
- *    food, so all of their allergens count.
- * 3. And for each word no such entry covers, every entry that has the word:
- *    "soy beans" is beans (2) and something soy (3). Only what all of a
- *    word's entries share counts — "oil" is sunflower oil or sesame oil, so it
- *    is neither's sesame.
- *    That is a known gap as well as a guard: bare "noodles" are rice or wheat
- *    noodles, so they carry no gluten here; "egg noodles" or "wheat noodles"
- *    do.
+ *    words: "feta cheese" is feta, "chicken with cheese" is chicken and
+ *    cheese, "rice noodles" are rice noodles. Each is really in the food, so
+ *    all of their allergens count.
+ * 3. A word no such name covers, through `SEEN_SYNONYMS`: "breaded" is
+ *    breadcrumbs, bare "noodles" are wheat noodles — the safe reading, since a
+ *    wrong rejection costs a redraw and a miss shows an allergen.
+ * 4. And for each word still uncovered, every entry that has the word: "soy
+ *    beans" is beans (2) and something soy (4). Only what all of a word's
+ *    entries share counts — "oil" is sunflower oil or sesame oil, so it is
+ *    neither's sesame.
  */
-function mapName(
-  name: string,
-  food: readonly string[],
-  catalogue: Catalogue
-): { readonly allergens: ReadonlySet<string>; readonly slugs: readonly string[] } {
+function mapName(name: string, food: readonly string[], catalogue: Catalogue): Mapped {
   const entriesOf = (slugs: readonly string[]) => slugs.flatMap(slug => catalogue.bySlug.get(slug) ?? []);
   const direct = matchCustomAllergen(name, catalogue.index);
   const exact = entriesOf(direct === null ? (SEEN_SYNONYMS.get(normaliseForMatching(name)) ?? []) : [direct]);
+  const union = (entries: readonly PictureCatalogueEntry[]): Mapped => ({
+    contains: new Set(entries.flatMap(entry => entry.allergens)),
+    mayContain: new Set(entries.flatMap(entry => entry.mayContain ?? [])),
+    slugs: entries.map(entry => entry.slug)
+  });
 
   if (exact.length > 0) {
-    return { allergens: new Set(exact.flatMap(entry => entry.allergens)), slugs: exact.map(entry => entry.slug) };
+    return union(exact);
   }
 
   const namesOf = (entry: PictureCatalogueEntry) => catalogue.wordsOf.get(entry.slug) ?? [];
-  const synonyms = food.flatMap(word => entriesOf(SEEN_SYNONYMS.get(word) ?? []).map(entry => ({ covers: [word], entry })));
   const whole = catalogue.entries.flatMap(entry => {
     const list = namesOf(entry).find(words => words.every(word => food.some(own => sameWord(own, word))));
 
     return list ? [{ covers: food.filter(own => list.some(word => sameWord(own, word))), entry }] : [];
   });
-  const tight = [...synonyms, ...whole];
+  const byWhole = new Set(whole.flatMap(match => match.covers));
+  const synonyms = food
+    .filter(word => !byWhole.has(word))
+    .flatMap(word => entriesOf(SEEN_SYNONYMS.get(word) ?? []).map(entry => ({ covers: [word], entry })));
+  const tight = [...whole, ...synonyms];
   const covered = new Set(tight.flatMap(match => match.covers));
-  const allergens = new Set(tight.flatMap(match => match.entry.allergens));
-  const slugs = new Set(tight.map(match => match.entry.slug));
+  const { contains, mayContain, slugs } = union(tight.map(match => match.entry));
+  const [allContains, allMay, allSlugs] = [new Set(contains), new Set(mayContain), new Set(slugs)];
 
   for (const word of food.filter(own => !covered.has(own))) {
     const having = catalogue.entries.filter(entry => namesOf(entry).some(words => words.some(other => sameWord(word, other))));
@@ -326,11 +358,14 @@ function mapName(
       continue;
     }
 
-    having.forEach(entry => slugs.add(entry.slug));
-    first.allergens.filter(allergen => others.every(entry => entry.allergens.includes(allergen))).forEach(allergen => allergens.add(allergen));
+    having.forEach(entry => allSlugs.add(entry.slug));
+    first.allergens.filter(allergen => others.every(entry => entry.allergens.includes(allergen))).forEach(allergen => allContains.add(allergen));
+    everything(first)
+      .filter(allergen => others.every(entry => everything(entry).includes(allergen)))
+      .forEach(allergen => allMay.add(allergen));
   }
 
-  return { allergens, slugs: [...slugs] };
+  return { contains: allContains, mayContain: allMay, slugs: [...allSlugs] };
 }
 
 /**
@@ -388,10 +423,16 @@ export function judgePicture(input: {
 
   const catalogue = readCatalogue(input.catalogue);
   const unknown = recipe.ingredients.filter(ingredient => !catalogue.bySlug.has(ingredient.slug)).map(ingredient => ingredient.slug);
-  const dishAllergens = new Set(recipe.ingredients.flatMap(ingredient => catalogue.bySlug.get(ingredient.slug)?.allergens ?? []));
+  const dishEntries = recipe.ingredients.flatMap(ingredient => catalogue.bySlug.get(ingredient.slug) ?? []);
+  const dishContains = new Set(dishEntries.flatMap(entry => entry.allergens));
+  const dishCarries = new Set(dishEntries.flatMap(everything));
   const byKey = (names: readonly string[]) => new Map(names.map(name => [normaliseForMatching(name), name]));
   const listed = byKey([...match.extras, ...unaccounted(seen, match)]);
   const matched = byKey(match.ingredients.flatMap(ingredient => ingredient.matched));
+  const matchedTo = (key: string) =>
+    match.ingredients
+      .filter(ingredient => ingredient.matched.some(name => normaliseForMatching(name) === key))
+      .flatMap(ingredient => catalogue.bySlug.get(ingredient.slug) ?? []);
 
   const toExtra = (name: string): PictureExtra => {
     // An extra the judge named in (b) but not in (a) is taken at its word: specific, and more than a trace.
@@ -399,8 +440,15 @@ export function judgePicture(input: {
     const amount = food?.amount ?? 'main';
     const own = words(name).filter(word => !GENERIC.has(word));
     const generic = own.length === 0;
-    const { allergens, slugs } = generic ? { allergens: new Set<string>(), slugs: [] } : mapName(name, own, catalogue);
-    const foreignAllergens = [...allergens].filter(allergen => !dishAllergens.has(allergen)).sort();
+    const { contains, mayContain, slugs } = generic
+      ? { contains: new Set<string>(), mayContain: new Set<string>(), slugs: [] }
+      : mapName(name, own, catalogue);
+    const foreignAllergens = [
+      ...new Set([
+        ...[...contains].filter(allergen => !dishContains.has(allergen)),
+        ...[...mayContain].filter(allergen => !dishCarries.has(allergen))
+      ])
+    ].sort();
     // A name the catalogue knows has been named, whatever the judge's flag says: "peanut sauce" is peanuts.
     const specific = (food?.specific ?? true) || slugs.length > 0;
 
@@ -412,10 +460,23 @@ export function judgePicture(input: {
    * nothing either. A seen food it paired with an ingredient but whose own
    * name carries an allergen the dish lacks is an extra — prawns matched to
    * broccoli are still prawns. A fair variant (tuna for bonito, goat cheese
-   * for white cheese) shares its ingredient's allergens and passes.
+   * for white cheese) shares its ingredient's allergens and passes, and so
+   * does the ingredient's own name cut short: "noodles" matched to cooked
+   * rice noodles are those noodles, not wheat ones.
    */
+  const shortened = (key: string, name: string) => {
+    const own = words(name).filter(word => !GENERIC.has(word));
+
+    return (
+      own.length > 0 &&
+      matchedTo(key).some(entry =>
+        (catalogue.wordsOf.get(entry.slug) ?? []).some(list => own.every(word => list.some(other => sameWord(word, other))))
+      )
+    );
+  };
+
   const mismatched = [...matched]
-    .filter(([key]) => !listed.has(key))
+    .filter(([key, name]) => !listed.has(key) && !shortened(key, name))
     .map(([, name]) => toExtra(name))
     .filter(extra => extra.foreignAllergens.length > 0);
   const extras = [...[...listed.values()].map(toExtra), ...mismatched];

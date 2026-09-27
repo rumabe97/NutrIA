@@ -32,7 +32,16 @@ const CATALOGUE: readonly PictureCatalogueEntry[] = [
   { allergens: ['gluten'], names: ['Pan blanco', 'White bread'], slug: 'pan-blanco' },
   { allergens: ['fish'], names: ['Merluza', 'Fresh hake'], slug: 'merluza' },
   { allergens: [], names: ['Pollo', 'Chicken'], slug: 'pollo' },
-  { allergens: ['milk', 'lactose'], names: ['Queso fresco de cabra', "Fresh goat's cheese"], slug: 'queso-fresco-de-cabra' }
+  { allergens: ['milk', 'lactose'], names: ['Queso fresco de cabra', "Fresh goat's cheese"], slug: 'queso-fresco-de-cabra' },
+  { allergens: ['gluten'], names: ['Noodles de trigo', 'Wheat noodles'], slug: 'noodles-de-trigo' },
+  { allergens: ['gluten'], names: ['Noodles udon', 'Udon noodles'], slug: 'noodles-udon' },
+  { allergens: [], names: ['Fideos de arroz cocidos', 'Cooked rice noodles'], slug: 'fideos-de-arroz-cocidos' },
+  { allergens: ['gluten', 'eggs', 'milk'], names: ['Bizcocho', 'Sponge cake'], slug: 'bizcocho' },
+  { allergens: [], names: ['Tortitas de arroz', 'Rice cakes'], slug: 'tortitas-de-arroz' },
+  { allergens: ['gluten', 'milk', 'eggs'], names: ['Galletas de mantequilla', 'Butter biscuits'], slug: 'galletas-de-mantequilla' },
+  { allergens: [], mayContain: ['gluten'], names: ['Copos de avena', 'Rolled oats'], slug: 'copos-de-avena' },
+  { allergens: ['eggs'], names: ['Huevo', 'Egg'], slug: 'huevo' },
+  { allergens: [], names: ['Arroz blanco cocido', 'Cooked white rice'], slug: 'arroz-blanco-cocido' }
 ];
 
 const TOFU_BOWL: PictureRecipe = {
@@ -333,5 +342,87 @@ describe('judgePicture — nothing the judge says decides alone', () => {
     const verdict = judgePicture({ catalogue, recipe: TOFU_BOWL, ...withExtra({ amount: 'main', name: 'béchamel', specific: true }) });
 
     expect(verdict.extras[0]).toMatchObject({ foreignAllergens: ['gluten', 'lactose', 'milk'], mappedTo: ['leche-entera', 'harina-de-trigo'] });
+  });
+});
+
+/*
+ * The safe reading of a bare name: what it most often is, allergens and all.
+ * A wrong rejection costs a redraw; a miss shows a person an allergen.
+ */
+describe('judgePicture — a bare name read the safe way', () => {
+  const RICE: PictureRecipe = { ingredients: [{ grams: 200, name: 'Cooked white rice', slug: 'arroz-blanco-cocido' }], name: 'Arroz blanco' };
+  const NOODLE_BOWL: PictureRecipe = {
+    ingredients: [{ grams: 200, name: 'Cooked rice noodles', slug: 'fideos-de-arroz-cocidos' }],
+    name: 'Fideos de arroz'
+  };
+  const PORRIDGE: PictureRecipe = { ingredients: [{ grams: 80, name: 'Rolled oats', slug: 'copos-de-avena' }], name: 'Gachas de avena' };
+  const foreign = (name: string, recipe: PictureRecipe) =>
+    judge(withExtra({ amount: 'main', name, specific: true }), recipe).extras.at(-1)?.foreignAllergens;
+
+  it.each([
+    ['noodles', ['gluten']],
+    ['ramen', ['gluten']],
+    ['udon', ['gluten']],
+    ['egg noodles', ['eggs', 'gluten']],
+    ['rice noodles', []],
+    ['cake', ['eggs', 'gluten', 'milk']],
+    ['sponge cake', ['eggs', 'gluten', 'milk']],
+    ['rice cake', []],
+    ['biscuit', ['eggs', 'gluten', 'milk']],
+    ['cookies', ['eggs', 'gluten', 'milk']],
+    ['oats', ['gluten']],
+    ['oatmeal', ['gluten']],
+    ['porridge', ['gluten']]
+  ])('reads "%s" on a plain rice dish as %j', (name, expected) => {
+    expect(foreign(name, RICE)).toEqual(expected);
+  });
+
+  it('counts what oats may contain as gluten the rice dish lacks, and rejects', () => {
+    expect(judge(withExtra({ amount: 'side', name: 'oats', specific: true }), RICE).accepted).toBe(false);
+  });
+
+  it('does not count what oats may contain against a dish of oats', () => {
+    const verdict = judge(
+      {
+        match: { extras: [], ingredients: [{ matched: ['oatmeal'], slug: 'copos-de-avena', status: 'seen' }] },
+        seen: { foods: [{ amount: 'main', name: 'oatmeal', specific: true }] }
+      },
+      PORRIDGE
+    );
+
+    expect(verdict).toEqual({ accepted: true, extras: [], notes: [] });
+  });
+
+  it('still rejects bread on a dish of oats: what the oats may contain does not excuse what the bread contains', () => {
+    expect(judge(withExtra({ amount: 'side', name: 'bread', specific: true }), PORRIDGE).accepted).toBe(false);
+  });
+
+  it('takes "noodles" matched to the dish’s own rice noodles as those noodles', () => {
+    const verdict = judge(
+      {
+        match: { extras: [], ingredients: [{ matched: ['noodles'], slug: 'fideos-de-arroz-cocidos', status: 'seen' }] },
+        seen: { foods: [{ amount: 'main', name: 'noodles', specific: true }] }
+      },
+      NOODLE_BOWL
+    );
+
+    expect(verdict.accepted).toBe(true);
+  });
+
+  it('rejects "noodles" the match call left as an extra, even on a rice-noodle dish', () => {
+    expect(judge(withExtra({ amount: 'side', name: 'noodles', specific: true }), NOODLE_BOWL).accepted).toBe(false);
+  });
+
+  it('still rejects "noodles" matched to an ingredient whose name they are not', () => {
+    const verdict = judge(
+      {
+        match: { extras: [], ingredients: [{ matched: ['noodles'], slug: 'arroz-blanco-cocido', status: 'seen' }] },
+        seen: { foods: [{ amount: 'main', name: 'noodles', specific: true }] }
+      },
+      RICE
+    );
+
+    expect(verdict.accepted).toBe(false);
+    expect(verdict.notes).toContain('matched_foreign:noodles');
   });
 });
