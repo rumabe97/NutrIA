@@ -77,6 +77,10 @@ Vercel (cómputo, `fra1`), Neon (base de datos, UE), OpenRouter (EE. UU., encarg
 lista cerrada en la cuenta y en el código desde el 2026-09-26 — P1-12), Google (correo SMTP), Stripe/Link, Sentry
 (opcional), servicios push de navegador. Equipo del propietario (credenciales,
 exportaciones). La pasarela OmniRoute ya no está en producción (solo experimentos).
+**Imágenes de los platos** (proyecto 006, 2026-09-27, con su flag): Vercel Blob (`fra1`)
+guarda y sirve las imágenes. El dibujo (Google en Vertex; Microsoft en Azure, si entra) y
+el juez (DeepInfra) solo reciben la receta, nada de nadie: no son encargados. Detalle en
+[`imagenes-de-platos.md`](./imagenes-de-platos.md) § 4.
 
 ---
 
@@ -118,6 +122,7 @@ de las pendientes marcadas.
 | R11 | Un plan que no es seguro por calorías o proteína (IA o profesional) | Daño a la salud | 2 | 3 | 6 | M16 | 2 |
 | R12 | El usuario cree que NutrIA sustituye a un profesional | Decisiones de salud mal informadas | 2 | 3 | 6 | M17 | 3 |
 | R13 | Imposibilidad de ejercer derechos (portabilidad, limitación) | Pérdida de control | 2 | 2 | 4 | M18 (**exportación pendiente**) | 2 |
+| R15 | Una persona alérgica se fía de la imagen de un plato (006), que no muestra un ingrediente que el plato lleva | Reacción alérgica | 2 | 4 | 8 | M1 (la puerta de alérgenos va contra la lista, no contra la imagen); pie «Es orientativa: manda la lista de ingredientes» y frase en las condiciones ([`imagenes-de-platos.md`](./imagenes-de-platos.md) § 3); juez de visión para lo que sobra | 2 |
 
 ---
 
