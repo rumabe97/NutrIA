@@ -247,6 +247,34 @@ const envObject = z.object({
   /* The companies that may run the judge, as `AI_IMAGE_PROVIDER_ONLY` is for the picture. */
   AI_JUDGE_PROVIDER_ONLY: z.preprocess(value => (value === '' ? undefined : value), z.string().default('deepinfra').transform(providerList)),
   /*
+   * The dish pictures' image model (`0066`), an OpenRouter id. Gemini 3.1
+   * Flash Lite Image was chosen blind by the owner: fast enough to draw while
+   * someone waits, and signed with C2PA on Vertex.
+   */
+  AI_IMAGE_MODEL: z.preprocess(value => (value === '' ? undefined : value), z.string().default('google/gemini-3.1-flash-lite-image')),
+  /*
+   * Where the pictures may spend, in dollars a calendar month; drawing stops
+   * there until the next one. The pictures' OpenRouter key should carry the
+   * same limit, so a bug here still meets a wall.
+   */
+  AI_IMAGE_MONTHLY_CAP_USD: z.preprocess(value => (value === '' ? undefined : value), z.coerce.number().min(0).max(1000).default(10)),
+  /*
+   * The companies that may draw a picture, by OpenRouter's slugs — Google's
+   * Vertex endpoint, which keeps nothing and signs its output; its AI Studio
+   * endpoint does neither. Every picture request carries it with fallbacks off.
+   */
+  AI_IMAGE_PROVIDER_ONLY: z.preprocess(
+    value => (value === '' ? undefined : value),
+    z.string().default('google-vertex/global').transform(providerList)
+  ),
+  /*
+   * The vision judge that names the foods in a picture (`0066`), an
+   * OpenRouter id. It decides nothing: the allergens come from the catalogue.
+   */
+  AI_JUDGE_MODEL: z.preprocess(value => (value === '' ? undefined : value), z.string().default('qwen/qwen3-vl-235b-a22b-instruct')),
+  /* The companies that may run the judge, as `AI_IMAGE_PROVIDER_ONLY` is for the picture. */
+  AI_JUDGE_PROVIDER_ONLY: z.preprocess(value => (value === '' ? undefined : value), z.string().default('deepinfra').transform(providerList)),
+  /*
    * OpenRouter only: the most a request may write, per dish it asks for, in
    * tokens — the request's cap is that times its dishes plus a fixed margin
    * (`resolveOutputCap`). A model once sent back 45 dishes for ~24 asked and
