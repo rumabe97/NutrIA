@@ -131,7 +131,7 @@ which supersedes `0010`.
 
 ### Phase 2 — The image client, the prompt and the allergen judge
 
-- [x] done
+- [x] done — PR #128
 - **Dispatch**: opus @ high — `/execute-project 006 phase 2`. `quality-max`: AI output
   validation and allergy safety. Review: `invariant-reviewer`.
 - **Goal**: code that turns a recipe into an accepted or rejected picture, with every call
@@ -229,7 +229,7 @@ which supersedes `0010`.
 
 ### Phase 3 — Drawing on first view, storing in Blob, the monthly cap
 
-- [ ] pending
+- [ ] in progress
 - **Dispatch**: opus @ high — `/execute-project 006 phase 3`. It wires the phase 2 gate into
   what gets stored and shown. Reviews: `invariant-reviewer`, and `tests` for the
   end-to-end suite.
@@ -402,7 +402,9 @@ which supersedes `0010`.
 - **Steps**, for the owner, handed over as exact instructions:
   1. In Vercel, create a Blob store in **fra1**. The region cannot be changed later.
      Connect it to the API project, which adds `BLOB_READ_WRITE_TOKEN`.
-  2. In OpenRouter, create a key for pictures with a 10 $ monthly limit. Set it as
+  2. In OpenRouter, create a key for pictures, and give it a 10 $ monthly limit. The limit
+     is required, not optional: the code's cap gates each image call, but not the judge
+     calls after it or drawings running at the same time. Set it as
      `OPENROUTER_IMAGE_API_KEY` on the API project. Confirm the account's allowed
      providers include Google Vertex and DeepInfra. Revoke the pilot key.
   3. Read Google Cloud's generative-AI terms (legal item IMG-9).
