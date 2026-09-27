@@ -72,7 +72,7 @@ which supersedes `0010`.
 
 ### Phase 1 — Picture state and spend in the database
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 006 phase 1`. Review: `migration-reviewer`
   (opus @ high, its floor).
 - **Goal**: the database can hold a dish's picture as a URL plus its generation state, and
@@ -84,7 +84,8 @@ which supersedes `0010`.
   - a new `packages/core/src/entities/DishPicture/` (types);
   - their tests.
 - **Steps**:
-  1. Change `recipe_images`: make `bytes`, `contentType`, `width` and `height` nullable.
+  1. Change `recipe_images`: make `bytes`, `contentType`, `width`, `height`, `model` and
+     `promptVersion` nullable (a claimed row exists before anything is drawn).
      Add `url text`, `status text not null default 'ready'` (the check constraint allows
      `drawing | ready | failed`), `attempts smallint not null default 0`,
      `last_attempt_at timestamptz` and `provenance jsonb`. `recipeId` stays the primary
@@ -92,18 +93,28 @@ which supersedes `0010`.
   2. Add a data step in the migration, marked `-- reviewed-destructive:`: delete the
      `recipe_images` rows that have `bytes`. They are `0010` illustrations, never shown in
      production with the flag off, and in development they are 3 rows of unknown origin.
-  3. Create table `recipe_image_calls`: `id uuid pk`, `recipe_id uuid` (FK to `recipes`,
-     cascade), `kind text` (check `image | judge`), `model text`, `cost_usd numeric(10,6)
+  3. Create table `recipe_image_calls`: `id uuid pk`, `recipe_id uuid` (nullable, FK to
+     `recipes`, `on delete set null`, indexed, so deleting a recipe never removes billed
+     spend from the cap), `kind text` (check `image | judge`), `model text`, `cost_usd numeric(10,6)
      not null`, `outcome text`, `created_at timestamptz default now()`, and an index on
      `created_at`.
   4. Add repository methods:
      - `pictureState(recipeId)`;
-     - `claimPicture(recipeId, now, coolOffDays)`: a single statement that returns whether
-       this caller won the claim;
+     - `claimPicture(recipeId, now, coolOffDays, staleAfterMinutes = 15)`: a single
+       statement that returns whether this caller won the claim. It wins:
+       - a missing row;
+       - a `failed` row past the cool-off;
+       - a `drawing` row older than `staleAfterMinutes` (a drawing killed at
+         `maxDuration`);
      - `recordPictureCall(...)`;
      - `monthSpendUsd(monthStart)`;
-     - `completePicture(recipeId, {url, provenance})`;
-     - `failPicture(recipeId, provenance)`.
+     - `completePicture(recipeId, claimedAt, {url, model, promptVersion, provenance,
+       attempts})`;
+     - `failPicture(recipeId, claimedAt, {attempts, provenance}, now)`.
+
+     Both match `status = 'drawing'` and the claim's `last_attempt_at`, so a drawer whose
+     claim was taken over cannot overwrite the row. `saveImage` becomes a no-op until
+     phase 3 deletes it.
      Remove `saveImage`, `findImage` and `findWithoutImage` once phase 3 no longer calls
      them. In this phase they only stop being written to.
   5. `PlanRepository`'s `hasImage` and `AdminRepository`'s count read `status = 'ready'`.
@@ -113,8 +124,8 @@ which supersedes `0010`.
   - `claimPicture` lets exactly one of two concurrent callers win (test).
   - PRD 2, in part: no code path writes `bytes`.
 - **Verification**:
-  - `pnpm --filter database db:generate` produces the committed migration with no diff.
-  - `node packages/database/scripts/check-migrations.mjs`.
+  - `pnpm --filter database generate` reports no schema changes.
+  - `node scripts/check-migrations.mjs`.
   - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api`.
   - `sh .claude/skills/ship/scripts/gate.sh`.
 
@@ -238,6 +249,8 @@ which supersedes `0010`.
      - `MealDetailView` returns `illustrationPath` (the Blob URL) when the picture is
        ready, and `pictureStatus: 'none' | 'drawing' | 'ready'`.
      - `MealView` (the dashboard card) only reads, never requests a drawing.
+     - `hasImage` (both uses in `PlanRepository`) and the `/admin` count switch from
+       `bytes is not null` to `status = 'ready' and url is not null`.
   3. `DishPictureService.draw` makes up to 3 attempts, and on every attempt:
      1. check the budget first (stop if the cap is reached);
      2. make the image call and record it in `recipe_image_calls`;
@@ -388,6 +401,15 @@ which supersedes `0010`.
   run. No paid call runs outside phase 6 without the owner's yes.
 - Work in worktrees (`.claude/skills/team/scripts/worktree.sh`). Only the `tests` agent
   runs the end-to-end suite.
+- **Rollback floor.** Once phase 3 has written its first row without bytes, the API from
+  before project 006 must not be redeployed. Its `hasImage` matches any row and its image
+  route throws on a null `Content-Type`. The oldest safe target is phase 1's code.
+- **The claim.** `claimPicture` runs as a single autocommit statement at READ COMMITTED,
+  never inside a REPEATABLE READ or SERIALIZABLE transaction: there the loser gets a
+  serialization error instead of `false`. The drawer keeps the exact `Date` it claimed
+  with, and passes it to `completePicture` or `failPicture`.
+- **Attempts.** The drawing starts its count from the row's `attempts`, which a stale
+  takeover has already incremented, and fails the dish at 3.
 
 ## Out of scope
 
