@@ -90,7 +90,7 @@ export const AdminRepository = {
         db
           .select({ n: count() })
           .from(recipes)
-          .where(sql`not exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id})`)
+          .where(sql`not exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id} and ${recipeImages.status} = 'ready')`)
       ]);
 
       return {

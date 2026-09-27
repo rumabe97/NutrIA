@@ -1,15 +1,17 @@
-import { aliasedTable, and, eq, inArray, isNull, lt, or, sql } from 'drizzle-orm';
+import { aliasedTable, and, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
 import { ingredientAllergens, ingredientNames, ingredients } from 'database/schema/food';
 import { dislikedRecipes, favoriteRecipes } from 'database/schema/plan';
-import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
+import { recipeImageCalls, recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 
 import { METHOD_RULES, nextRewriteStamp, REWRITE_ATTEMPT_BOUND } from 'core/domain/Method';
+import { pictureStateSchema } from 'core/entities/DishPicture';
 import { DatabaseOperationError } from 'core/entities/Error';
 import type { FoodClass } from 'database/schema/food';
 import type { LibraryRecipe } from 'core/domain/MealFit';
+import type { PictureCall, PictureProvenance, PictureState } from 'core/entities/DishPicture';
 import type { CatalogueIngredient, MealSlot, RecipeVerdict } from 'core/entities/Plan';
 import type { RecipeStep } from 'database/schema/recipe';
 
@@ -80,6 +82,36 @@ export const RecipeRepository = {
    * run failed or ran out of time, lapses on its own and the recipe is taken
    * again.
    */
+  /**
+   * Claims the drawing of a dish's picture for this caller (0066). True when this
+   * caller won and must draw; false when the dish is ready, already being drawn,
+   * or failed less than `coolOffDays` ago.
+   *
+   * Mode: one `INSERT … ON CONFLICT DO UPDATE … WHERE … RETURNING`. "Is anyone
+   * drawing it?" and "I am" cannot be two statements: two first views fired
+   * together would both read no row and both draw, paying twice. With one
+   * statement the second caller waits on the first's row, then evaluates the
+   * `WHERE` against it — `drawing`, so it updates nothing and returns no row.
+   */
+  async claimPicture(recipeId: string, now: Date, coolOffDays: number): Promise<boolean> {
+    try {
+      const cooledOff = new Date(now.getTime() - coolOffDays * 86_400_000);
+      const rows = await database()
+        .insert(recipeImages)
+        .values({ attempts: 0, lastAttemptAt: now, recipeId, status: 'drawing' })
+        .onConflictDoUpdate({
+          set: { attempts: 0, lastAttemptAt: now, status: 'drawing', updatedAt: now },
+          setWhere: and(eq(recipeImages.status, 'failed'), lt(recipeImages.lastAttemptAt, cooledOff)),
+          target: recipeImages.recipeId
+        })
+        .returning({ recipeId: recipeImages.recipeId });
+
+      return rows.length === 1;
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_images');
+    }
+  },
+
   async claimUndocumented(stepsVersion: string, limit: number, holdMinutes: number): Promise<readonly UndocumentedRecipe[]> {
     try {
       const db = database();
@@ -132,16 +164,67 @@ export const RecipeRepository = {
     }
   },
 
-  /** The stored illustration, or nothing. Bytes only — the route adds the headers. */
+  /**
+   * A drawing that ended with an accepted picture: its address and what drew it.
+   * Mode: a single guarded `UPDATE … WHERE status = 'drawing'`, so a drawing
+   * that lost its claim cannot overwrite the row. False when nothing was updated.
+   */
+  async completePicture(
+    recipeId: string,
+    picture: {
+      readonly attempts: number;
+      readonly model: string;
+      readonly promptVersion: string;
+      readonly provenance: PictureProvenance;
+      readonly url: string;
+    }
+  ): Promise<boolean> {
+    try {
+      const rows = await database()
+        .update(recipeImages)
+        .set({ ...picture, status: 'ready', updatedAt: new Date() })
+        .where(and(eq(recipeImages.recipeId, recipeId), eq(recipeImages.status, 'drawing')))
+        .returning({ recipeId: recipeImages.recipeId });
+
+      return rows.length === 1;
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_images');
+    }
+  },
+
+  /**
+   * A drawing that ended with no picture it could keep. `lastAttemptAt` is when
+   * it ended, which is what the cool-off counts from. Mode: the same guarded
+   * `UPDATE` as `completePicture`, for the same reason.
+   */
+  async failPicture(recipeId: string, outcome: { readonly attempts: number; readonly provenance: PictureProvenance }, now: Date): Promise<boolean> {
+    try {
+      const rows = await database()
+        .update(recipeImages)
+        .set({ ...outcome, lastAttemptAt: now, status: 'failed', updatedAt: now })
+        .where(and(eq(recipeImages.recipeId, recipeId), eq(recipeImages.status, 'drawing')))
+        .returning({ recipeId: recipeImages.recipeId });
+
+      return rows.length === 1;
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_images');
+    }
+  },
+
+  /**
+   * The stored `0010` illustration, or nothing. Bytes only — the route adds the
+   * headers. A row with no bytes is a `0066` picture, which is not served from
+   * here; the migration that brought them deleted every row that had bytes.
+   */
   async findImage(recipeId: string): Promise<{ readonly bytes: Buffer; readonly contentType: string } | undefined> {
     try {
       const [row] = await database()
         .select({ bytes: recipeImages.bytes, contentType: recipeImages.contentType })
         .from(recipeImages)
-        .where(eq(recipeImages.recipeId, recipeId))
+        .where(and(eq(recipeImages.recipeId, recipeId), isNotNull(recipeImages.bytes)))
         .limit(1);
 
-      return row;
+      return row?.bytes ? { bytes: row.bytes, contentType: row.contentType ?? 'application/octet-stream' } : undefined;
     } catch (error: unknown) {
       throw wrap(error, 'recipe_images');
     }
@@ -275,11 +358,6 @@ export const RecipeRepository = {
     }
   },
 
-  /**
-   * Recipes still waiting for an illustration, oldest first, with what the
-   * illustrator needs to describe them: the name and the ingredient names in the
-   * recipe's own language. Nothing about any person is here, and nothing can be.
-   */
   /** What this person said about one recipe, if anything. */
   async findVerdict(userId: string, recipeId: string): Promise<'disliked' | 'liked' | null> {
     try {
@@ -326,6 +404,11 @@ export const RecipeRepository = {
     }
   },
 
+  /**
+   * Recipes still waiting for an illustration, oldest first, with what the
+   * illustrator needs to describe them: the name and the ingredient names in the
+   * recipe's own language. Nothing about any person is here, and nothing can be.
+   */
   async findWithoutImage(
     limit: number
   ): Promise<readonly { readonly id: string; readonly ingredientNames: readonly string[]; readonly locale: string; readonly name: string }[]> {
@@ -515,11 +598,55 @@ export const RecipeRepository = {
   },
 
   /**
+   * What picture calls have cost since `monthStart`, in dollars: the sum of what
+   * was billed, so the cap is read from the calls themselves. Mode: one
+   * aggregate over the `created_at` index.
+   */
+  async monthSpendUsd(monthStart: Date): Promise<number> {
+    try {
+      const [row] = await database()
+        .select({ total: sql<string>`coalesce(sum(${recipeImageCalls.costUsd}), 0)` })
+        .from(recipeImageCalls)
+        .where(gte(recipeImageCalls.createdAt, monthStart));
+
+      return Number(row?.total ?? 0);
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_image_calls');
+    }
+  },
+
+  /** Where a dish's picture stands; `none` when no drawing was ever claimed. Mode: one read by primary key. */
+  async pictureState(recipeId: string): Promise<PictureState> {
+    try {
+      const [row] = await database()
+        .select({ attempts: recipeImages.attempts, lastAttemptAt: recipeImages.lastAttemptAt, status: recipeImages.status, url: recipeImages.url })
+        .from(recipeImages)
+        .where(eq(recipeImages.recipeId, recipeId))
+        .limit(1);
+
+      return pictureStateSchema.parse(row ?? { attempts: 0, lastAttemptAt: null, status: 'none', url: null });
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_images');
+    }
+  },
+
+  /**
    * One more refusal recorded against `stepsVersion`, the way
    * `RewriteStamp.nextRewriteStamp` stamps it — a documented failure counted
    * toward `REWRITE_ATTEMPT_BOUND` instead of a silent claim lapse the sweep
    * would try again unbounded, every day, for ever.
    */
+  /** One paid picture call and its cost. Mode: a plain insert; each call is its own row. */
+  async recordPictureCall(call: PictureCall): Promise<void> {
+    try {
+      await database()
+        .insert(recipeImageCalls)
+        .values({ ...call, costUsd: String(call.costUsd) });
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_image_calls');
+    }
+  },
+
   async recordRewriteRefusal(recipeId: string, stepsVersion: string): Promise<void> {
     try {
       const db = database();
@@ -534,10 +661,17 @@ export const RecipeRepository = {
     }
   },
 
-  /** Replaces any existing illustration; a re-drawn recipe keeps one row. */
+  /**
+   * Stores nothing: picture bytes no longer go to Postgres (0066). Kept only so
+   * `0010`'s illustrator still compiles until project 006's phase 3 removes it
+   * with this method. That illustrator runs only with `AI_ILLUSTRATIONS` on the
+   * Google provider, which no environment uses. A bytes-less row is not written
+   * either: its `status` would default to `ready` and show a picture that has
+   * no file.
+   */
   async saveImage(
-    recipeId: string,
-    image: {
+    _recipeId: string,
+    _image: {
       readonly bytes: Buffer;
       readonly contentType: string;
       readonly height: number;
@@ -546,14 +680,7 @@ export const RecipeRepository = {
       readonly width: number;
     }
   ): Promise<void> {
-    try {
-      await database()
-        .insert(recipeImages)
-        .values({ recipeId, ...image })
-        .onConflictDoUpdate({ set: { ...image, updatedAt: new Date() }, target: recipeImages.recipeId });
-    } catch (error: unknown) {
-      throw wrap(error, 'recipe_images');
-    }
+    // Intentionally empty; see above.
   },
 
   /**

@@ -330,7 +330,7 @@ export const PlanRepository = {
           meal: meals,
           recipe: {
             ...getTableColumns(recipes),
-            hasImage: sql<boolean>`exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id})`
+            hasImage: sql<boolean>`exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id} and ${recipeImages.status} = 'ready')`
           }
         })
         .from(meals)
@@ -457,7 +457,7 @@ export const PlanRepository = {
           plan: { id: mealPlans.id, status: mealPlans.status },
           recipe: {
             ...getTableColumns(recipes),
-            hasImage: sql<boolean>`exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id})`
+            hasImage: sql<boolean>`exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id} and ${recipeImages.status} = 'ready')`
           }
         })
         .from(meals)
