@@ -12,6 +12,7 @@ const dialect = new PgDialect({ casing: 'snake_case' });
 
 type Upsert = { readonly set: Record<string, unknown>; readonly setWhere: { params: unknown[]; sql: string }; readonly target: unknown };
 type Statement =
+  | { readonly kind: 'delete'; readonly table: unknown; readonly where: { params: unknown[]; sql: string } }
   | { readonly kind: 'insert'; readonly table: unknown; readonly upsert?: Upsert; readonly values: Record<string, unknown> }
   | { readonly kind: 'select'; readonly table: unknown; readonly where: { params: unknown[]; sql: string } }
   | { readonly kind: 'update'; readonly set: Record<string, unknown>; readonly table: unknown; readonly where: { params: unknown[]; sql: string } };
@@ -54,6 +55,16 @@ function update(table: unknown) {
   };
 }
 
+function remove(table: unknown) {
+  return {
+    where: (where: SQL) => {
+      statements.push({ kind: 'delete', table, where: dialect.sqlToQuery(where) });
+
+      return { returning: next };
+    }
+  };
+}
+
 function select() {
   return {
     from: (table: unknown) => ({
@@ -67,7 +78,7 @@ function select() {
   };
 }
 
-vi.mock('database', () => ({ database: () => ({ insert, select, update }) }));
+vi.mock('database', () => ({ database: () => ({ delete: remove, insert, select, update }) }));
 
 const RECIPE = '6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f';
 const NOW = new Date('2026-09-27T12:00:00Z');
@@ -86,7 +97,7 @@ beforeEach(() => {
  * is the end-to-end suite's to prove (project 006, phase 3).
  */
 describe('RecipeRepository.claimPicture', () => {
-  it('is one statement: an insert that claims, an update only of a failed row past its cool-off or a stale drawing, and RETURNING', async () => {
+  it('is one statement: an insert that claims, an update only of a failed row past its cool-off, a released one or a stale drawing, and RETURNING', async () => {
     answers = [[{ recipeId: RECIPE }]];
 
     await expect(RecipeRepository.claimPicture(RECIPE, NOW, 7)).resolves.toBe(true);
@@ -104,17 +115,18 @@ describe('RecipeRepository.claimPicture', () => {
     expect(claim.values).toEqual({ attempts: 0, lastAttemptAt: NOW, recipeId: RECIPE, status: 'drawing' });
     expect(claim.upsert?.target).toBe(recipeImages.recipeId);
     expect(claim.upsert?.set).toMatchObject({ lastAttemptAt: NOW, status: 'drawing' });
-    // A takeover of a stale drawing counts it; a claim after a failure's cool-off starts again.
+    // A takeover of a stale drawing counts it; a released row keeps its count; a claim after a failure's cool-off starts again.
     expect(dialect.sqlToQuery(claim.upsert?.set.attempts as SQL).sql).toBe(
-      'case when "recipe_images"."status" = \'drawing\' then "recipe_images"."attempts" + 1 else 0 end'
+      'case when "recipe_images"."status" = \'drawing\' then "recipe_images"."attempts" + 1 when ("recipe_images"."provenance" ->> \'released\') is not null then "recipe_images"."attempts" else 0 end'
     );
     expect(claim.upsert?.setWhere.sql).toBe(
-      '(("recipe_images"."status" = $1 and "recipe_images"."last_attempt_at" < $2) or ("recipe_images"."status" = $3 and "recipe_images"."last_attempt_at" < $4))'
+      '(("recipe_images"."status" = $1 and "recipe_images"."last_attempt_at" < $2) or ("recipe_images"."status" = $3 and ("recipe_images"."provenance" ->> \'released\') is not null) or ("recipe_images"."status" = $4 and "recipe_images"."last_attempt_at" < $5))'
     );
     // 7 days of cool-off after a failure; a drawing is stale 15 minutes after its claim by default.
     expect(claim.upsert?.setWhere.params).toEqual([
       'failed',
       new Date('2026-09-20T12:00:00Z').toISOString(),
+      'failed',
       'drawing',
       new Date('2026-09-27T11:45:00Z').toISOString()
     ]);
@@ -129,7 +141,7 @@ describe('RecipeRepository.claimPicture', () => {
       throw new Error('expected the claim');
     }
 
-    expect(claim.upsert?.setWhere.params[3]).toBe(new Date('2026-09-27T11:30:00Z').toISOString());
+    expect(claim.upsert?.setWhere.params[4]).toBe(new Date('2026-09-27T11:30:00Z').toISOString());
   });
 
   it('of two callers, the one whose statement returns no row has lost — a ready, drawing or recently failed row', async () => {
@@ -204,7 +216,13 @@ describe('RecipeRepository — ending a drawing', () => {
 
 describe('RecipeRepository — reading a picture and its spend', () => {
   it('pictureState answers `none` for a dish with no row', async () => {
-    await expect(RecipeRepository.pictureState(RECIPE)).resolves.toEqual({ attempts: 0, lastAttemptAt: null, status: 'none', url: null });
+    await expect(RecipeRepository.pictureState(RECIPE)).resolves.toEqual({
+      attempts: 0,
+      lastAttemptAt: null,
+      released: false,
+      status: 'none',
+      url: null
+    });
   });
 
   it('pictureState returns the stored row', async () => {
@@ -265,30 +283,25 @@ describe('RecipeRepository — reading a picture and its spend', () => {
   });
 });
 
-/* PRD 006, criterion 2 in part: after the migration no code path writes picture bytes. */
-describe('RecipeRepository — no bytes', () => {
-  it('saveImage sends nothing to the database', async () => {
-    await RecipeRepository.saveImage(RECIPE, {
-      bytes: Buffer.from([1]),
-      contentType: 'image/webp',
-      height: 1,
-      model: 'm',
-      promptVersion: 'v',
-      width: 1
-    });
+describe('RecipeRepository.releasePicture', () => {
+  it('ends the claim as a released failure that keeps its attempts, only over the drawing this caller claimed', async () => {
+    answers = [[{ recipeId: RECIPE }]];
 
-    expect(statements).toEqual([]);
-  });
+    await expect(RecipeRepository.releasePicture(RECIPE, CLAIMED, { attempts: 2, why: 'cap' }, NOW)).resolves.toBe(true);
 
-  it('findImage reads only a row that still has bytes', async () => {
-    await expect(RecipeRepository.findImage(RECIPE)).resolves.toBeUndefined();
+    const [release] = statements;
 
-    const [read] = statements;
-
-    if (read?.kind !== 'select') {
-      throw new Error('expected a read');
+    if (release?.kind !== 'update') {
+      throw new Error('expected an update');
     }
 
-    expect(read.where.sql).toBe('("recipe_images"."recipe_id" = $1 and "recipe_images"."bytes" is not null)');
+    expect(release.table).toBe(recipeImages);
+    expect(release.set).toMatchObject({ attempts: 2, lastAttemptAt: NOW, provenance: { released: 'cap' }, status: 'failed' });
+    expect(release.where.sql).toBe('("recipe_images"."recipe_id" = $1 and "recipe_images"."status" = $2 and "recipe_images"."last_attempt_at" = $3)');
+    expect(release.where.params).toEqual([RECIPE, 'drawing', CLAIMED.toISOString()]);
+  });
+
+  it('answers false when the claim was taken over or ended', async () => {
+    await expect(RecipeRepository.releasePicture(RECIPE, CLAIMED, { attempts: 0, why: 'cap' }, NOW)).resolves.toBe(false);
   });
 });

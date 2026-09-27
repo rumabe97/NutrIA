@@ -1,8 +1,9 @@
-import { aliasedTable, and, eq, gte, inArray, isNotNull, isNull, lt, or, sql } from 'drizzle-orm';
+import { aliasedTable, and, eq, gte, inArray, isNull, lt, or, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
 import { ingredientAllergens, ingredientNames, ingredients } from 'database/schema/food';
+import { allergens } from 'database/schema/safety';
 import { dislikedRecipes, favoriteRecipes } from 'database/schema/plan';
 import { recipeImageCalls, recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 
@@ -53,6 +54,20 @@ export type UndocumentedRecipe = {
   readonly steps: readonly RecipeStep[];
 };
 
+/** A catalogue ingredient as the picture rule reads it — `core/domain/DishPicture`'s shape, declared here so this layer imports no domain. */
+export type PictureFood = {
+  readonly allergens: readonly string[];
+  readonly mayContain: readonly string[];
+  readonly names: readonly string[];
+  readonly slug: string;
+};
+
+/** A dish as its picture is drawn from: recipe data only. */
+export type PictureDish = {
+  readonly ingredients: readonly { readonly grams: number; readonly name: string; readonly slug: string }[];
+  readonly name: string;
+};
+
 export const RecipeRepository = {
   /**
    * Claims the drawing of a dish's picture for this caller (0066). True when this
@@ -70,6 +85,10 @@ export const RecipeRepository = {
    * of being paid for on every view. A claim after a finished failure's
    * cool-off starts again from zero.
    *
+   * A **released** row (`releasePicture`: the cap, a refused key) is claimed at
+   * once, with no cool-off, and keeps its `attempts`: what stopped it was not
+   * the dish, and what the dish already failed still counts.
+   *
    * Mode: one `INSERT … ON CONFLICT DO UPDATE … WHERE … RETURNING`. "Is anyone
    * drawing it?" and "I am" cannot be two statements: two first views fired
    * together would both read no row and both draw, paying twice. With one
@@ -85,13 +104,14 @@ export const RecipeRepository = {
         .values({ attempts: 0, lastAttemptAt: now, recipeId, status: 'drawing' })
         .onConflictDoUpdate({
           set: {
-            attempts: sql`case when ${recipeImages.status} = 'drawing' then ${recipeImages.attempts} + 1 else 0 end`,
+            attempts: sql`case when ${recipeImages.status} = 'drawing' then ${recipeImages.attempts} + 1 when ${released} then ${recipeImages.attempts} else 0 end`,
             lastAttemptAt: now,
             status: 'drawing',
             updatedAt: now
           },
           setWhere: or(
             and(eq(recipeImages.status, 'failed'), lt(recipeImages.lastAttemptAt, cooledOff)),
+            and(eq(recipeImages.status, 'failed'), released),
             and(eq(recipeImages.status, 'drawing'), lt(recipeImages.lastAttemptAt, stale))
           ),
           target: recipeImages.recipeId
@@ -235,25 +255,6 @@ export const RecipeRepository = {
         .returning({ recipeId: recipeImages.recipeId });
 
       return rows.length === 1;
-    } catch (error: unknown) {
-      throw wrap(error, 'recipe_images');
-    }
-  },
-
-  /**
-   * The stored `0010` illustration, or nothing. Bytes only — the route adds the
-   * headers. A row with no bytes is a `0066` picture, which is not served from
-   * here; the migration that brought them deleted every row that had bytes.
-   */
-  async findImage(recipeId: string): Promise<{ readonly bytes: Buffer; readonly contentType: string } | undefined> {
-    try {
-      const [row] = await database()
-        .select({ bytes: recipeImages.bytes, contentType: recipeImages.contentType })
-        .from(recipeImages)
-        .where(and(eq(recipeImages.recipeId, recipeId), isNotNull(recipeImages.bytes)))
-        .limit(1);
-
-      return row?.bytes ? { bytes: row.bytes, contentType: row.contentType ?? 'application/octet-stream' } : undefined;
     } catch (error: unknown) {
       throw wrap(error, 'recipe_images');
     }
@@ -434,48 +435,6 @@ export const RecipeRepository = {
   },
 
   /**
-   * Recipes still waiting for an illustration, oldest first, with what the
-   * illustrator needs to describe them: the name and the ingredient names in the
-   * recipe's own language. Nothing about any person is here, and nothing can be.
-   */
-  async findWithoutImage(
-    limit: number
-  ): Promise<readonly { readonly id: string; readonly ingredientNames: readonly string[]; readonly locale: string; readonly name: string }[]> {
-    try {
-      const db = database();
-      const rows = await db
-        .select({ id: recipes.id, locale: recipes.locale, name: recipes.name })
-        .from(recipes)
-        .leftJoin(recipeImages, eq(recipeImages.recipeId, recipes.id))
-        .where(isNull(recipeImages.recipeId))
-        .orderBy(recipes.id)
-        .limit(limit);
-
-      if (rows.length === 0) {
-        return [];
-      }
-
-      const names = await db
-        .select({ locale: ingredientNames.locale, name: ingredientNames.name, recipeId: recipeIngredients.recipeId })
-        .from(recipeIngredients)
-        .innerJoin(ingredientNames, eq(ingredientNames.ingredientId, recipeIngredients.ingredientId))
-        .where(
-          inArray(
-            recipeIngredients.recipeId,
-            rows.map(row => row.id)
-          )
-        );
-
-      return rows.map(row => ({
-        ...row,
-        ingredientNames: names.filter(name => name.recipeId === row.id && name.locale === row.locale).map(name => name.name)
-      }));
-    } catch (error: unknown) {
-      throw wrap(error, 'recipe_images');
-    }
-  },
-
-  /**
    * Every recipe's own method, whatever wrote it — the seed, an old prompt, the
    * current one — for `apps/api/scripts/clean-stored-steps.mjs`, which applies
    * today's `cleanSteps` rules to what is already stored. Unlike
@@ -644,16 +603,100 @@ export const RecipeRepository = {
     }
   },
 
+  /**
+   * The whole ingredient catalogue as the picture rule reads it (`0066`): every
+   * ingredient's slug, its name in every locale, and the allergens it contains
+   * and may contain, by key. Whole on purpose — the rule maps what the judge
+   * names only to what it is given, and a catalogue of the dish alone would map
+   * every extra food to nothing. Mode: three plain reads, no lock; the
+   * catalogue only grows.
+   */
+  async pictureCatalogue(): Promise<readonly PictureFood[]> {
+    try {
+      const db = database();
+      const [rows, names, links] = await Promise.all([
+        db.select({ id: ingredients.id, slug: ingredients.slug }).from(ingredients),
+        db.select({ ingredientId: ingredientNames.ingredientId, name: ingredientNames.name }).from(ingredientNames),
+        db
+          .select({ ingredientId: ingredientAllergens.ingredientId, key: allergens.key, presence: ingredientAllergens.presence })
+          .from(ingredientAllergens)
+          .innerJoin(allergens, eq(allergens.id, ingredientAllergens.allergenId))
+      ]);
+      const namesOf = new Map<string, string[]>();
+      const containsOf = new Map<string, string[]>();
+      const mayOf = new Map<string, string[]>();
+
+      for (const { ingredientId, name } of names) {
+        namesOf.set(ingredientId, [...(namesOf.get(ingredientId) ?? []), name]);
+      }
+
+      for (const { ingredientId, key, presence } of links) {
+        const into = presence === 'contains' ? containsOf : mayOf;
+
+        into.set(ingredientId, [...(into.get(ingredientId) ?? []), key]);
+      }
+
+      return rows.map(row => ({
+        allergens: containsOf.get(row.id) ?? [],
+        mayContain: mayOf.get(row.id) ?? [],
+        names: namesOf.get(row.id) ?? [],
+        slug: row.slug
+      }));
+    } catch (error: unknown) {
+      throw wrap(error, 'ingredients');
+    }
+  },
+
+  /**
+   * A dish as its picture is drawn from (`0066`): its name, and each of its
+   * ingredients' slug, English name — `es-ES` when there is none, the slug as
+   * a last resort — and grams. Recipe data only: nothing about any person can
+   * be here. Null for a recipe that does not exist. Mode: two plain reads.
+   */
+  async pictureRecipe(recipeId: string): Promise<PictureDish | null> {
+    try {
+      const db = database();
+      const english = aliasedTable(ingredientNames, 'english_name');
+      const spanish = aliasedTable(ingredientNames, 'spanish_name');
+      const [recipe] = await db.select({ name: recipes.name }).from(recipes).where(eq(recipes.id, recipeId)).limit(1);
+
+      if (!recipe) {
+        return null;
+      }
+
+      const rows = await db
+        .select({ english: english.name, grams: recipeIngredients.grams, slug: ingredients.slug, spanish: spanish.name })
+        .from(recipeIngredients)
+        .innerJoin(ingredients, eq(ingredients.id, recipeIngredients.ingredientId))
+        .leftJoin(english, and(eq(english.ingredientId, ingredients.id), eq(english.locale, 'en-GB')))
+        .leftJoin(spanish, and(eq(spanish.ingredientId, ingredients.id), eq(spanish.locale, FALLBACK_LOCALE)))
+        .where(eq(recipeIngredients.recipeId, recipeId));
+
+      return {
+        ingredients: rows.map(row => ({ grams: Number(row.grams), name: row.english ?? row.spanish ?? row.slug, slug: row.slug })),
+        name: recipe.name
+      };
+    } catch (error: unknown) {
+      throw wrap(error, 'recipes');
+    }
+  },
+
   /** Where a dish's picture stands; `none` when no drawing was ever claimed. Mode: one read by primary key. */
   async pictureState(recipeId: string): Promise<PictureState> {
     try {
       const [row] = await database()
-        .select({ attempts: recipeImages.attempts, lastAttemptAt: recipeImages.lastAttemptAt, status: recipeImages.status, url: recipeImages.url })
+        .select({
+          attempts: recipeImages.attempts,
+          lastAttemptAt: recipeImages.lastAttemptAt,
+          released: sql<boolean>`${released}`,
+          status: recipeImages.status,
+          url: recipeImages.url
+        })
         .from(recipeImages)
         .where(eq(recipeImages.recipeId, recipeId))
         .limit(1);
 
-      return pictureStateSchema.parse(row ?? { attempts: 0, lastAttemptAt: null, status: 'none', url: null });
+      return pictureStateSchema.parse(row ?? { attempts: 0, lastAttemptAt: null, released: false, status: 'none', url: null });
     } catch (error: unknown) {
       throw wrap(error, 'recipe_images');
     }
@@ -691,25 +734,26 @@ export const RecipeRepository = {
   },
 
   /**
-   * Stores nothing: picture bytes no longer go to Postgres (0066). Kept only so
-   * `0010`'s illustrator still compiles until project 006's phase 3 removes it
-   * with this method. That illustrator runs only with `AI_ILLUSTRATIONS` on the
-   * Google provider, which no environment uses. A bytes-less row is not written
-   * either: its `status` would default to `ready` and show a picture that has
-   * no file.
+   * Gives a claimed drawing back, for a reason that is not the dish's — the
+   * month's cap reached, the key refused. The row is `failed` with
+   * `provenance.released` saying why, so it reads as no picture and is not
+   * drawing; the next claim takes it at once, with no cool-off, and keeps
+   * `attempts` — the attempts the dish already used (`claimPicture`). Mode: the
+   * same guarded `UPDATE` as `completePicture`. False when the claim was no
+   * longer this caller's.
    */
-  async saveImage(
-    _recipeId: string,
-    _image: {
-      readonly bytes: Buffer;
-      readonly contentType: string;
-      readonly height: number;
-      readonly model: string;
-      readonly promptVersion: string;
-      readonly width: number;
+  async releasePicture(recipeId: string, claimedAt: Date, outcome: { readonly attempts: number; readonly why: string }, now: Date): Promise<boolean> {
+    try {
+      const rows = await database()
+        .update(recipeImages)
+        .set({ attempts: outcome.attempts, lastAttemptAt: now, provenance: { released: outcome.why }, status: 'failed', updatedAt: now })
+        .where(stillClaimed(recipeId, claimedAt))
+        .returning({ recipeId: recipeImages.recipeId });
+
+      return rows.length === 1;
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_images');
     }
-  ): Promise<void> {
-    // Intentionally empty; see above.
   },
 
   /**
@@ -831,6 +875,9 @@ function needsRewriteCondition(stepsVersion: string) {
  * queue or a seconds clock would never match. A claim-id column is the robust
  * form if the drawing ever leaves this process.
  */
+/** A row a drawing gave back for a reason that is not the dish's (`releasePicture`). */
+const released = sql`(${recipeImages.provenance} ->> 'released') is not null`;
+
 function stillClaimed(recipeId: string, claimedAt: Date): SQL | undefined {
   return and(eq(recipeImages.recipeId, recipeId), eq(recipeImages.status, 'drawing'), eq(recipeImages.lastAttemptAt, claimedAt));
 }

@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 
 import { AnalyticsController } from 'core/controllers/Analytics';
 import { PlanController } from 'core/controllers/Plan';
 
+import { DishPictureService } from '../../ai/index.js';
 import { MealSwapService } from './MealSwap.service.js';
 import { PlanJobRunner } from './PlanJobRunner.service.js';
 
@@ -18,7 +19,10 @@ export const HISTORY_PAGE = { default: 20, max: 50 } as const;
 
 @Injectable()
 export class MealPlansService {
+  private readonly logger = new Logger(MealPlansService.name);
+
   constructor(
+    private readonly pictures: DishPictureService,
     private readonly runner: PlanJobRunner,
     private readonly swaps: MealSwapService
   ) {}
@@ -47,8 +51,28 @@ export class MealPlansService {
     return PlanController.getJob(userId, jobId);
   }
 
+  /**
+   * The meal's own page: the one read that may start its dish's picture
+   * (`0066`). Without a way to draw and keep one — no key, no store — it only
+   * reads, and nothing is claimed. A claim won here is drawn after the
+   * response, and the answer already says `drawing`.
+   */
   async meal(userId: string, mealId: string, locale: string | null): Promise<MealDetailDto> {
-    return PlanController.getMeal(userId, mealId, locale);
+    if (!this.pictures.isAvailable) {
+      return PlanController.getMeal(userId, mealId, locale);
+    }
+
+    const { claim, failure, meal } = await PlanController.openMeal(userId, mealId, locale, this.pictures.capUsd);
+
+    if (failure !== undefined) {
+      this.logger.warn(`Meal ${mealId}: its dish's picture could not be requested: ${failure instanceof Error ? failure.message : 'unknown'}`);
+    }
+
+    if (claim) {
+      this.pictures.schedule(claim);
+    }
+
+    return meal;
   }
 
   async plan(userId: string, planId: string, locale: string | null): Promise<PlanDto> {

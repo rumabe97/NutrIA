@@ -9,6 +9,7 @@ import { PlanController } from 'core/controllers/Plan';
 
 import { AllExceptionsFilter } from '../../../shared/filters/index.js';
 import { MealPlansController } from './MealPlans.controller.js';
+import { DishPictureService } from '../../ai/index.js';
 import { MealPlansService, MealSwapService, PlanJobRunner } from '../services/index.js';
 import { RequiresOnboardingGuard } from '../../../shared/guards/index.js';
 
@@ -22,13 +23,20 @@ import type { SessionUser } from '../../../shared/index.js';
 const ALICE: SessionUser = { id: 'usr-alice', activated: true, email: 'alice@example.invalid', emailVerified: true, name: 'Alice', role: 'user' };
 const BOB_PLAN = '11111111-2222-4333-8444-555555555555';
 
-function build() {
+/** Pictures that cannot be drawn — no key, no store — unless a test says otherwise. */
+function pictures(available = false) {
+  const schedule = jest.fn();
+
+  return { capUsd: 10, isAvailable: available, schedule } as unknown as DishPictureService & { schedule: typeof schedule };
+}
+
+function build(picturesService = pictures()) {
   const start = jest.fn(async (_userId: string) =>
     Promise.resolve({ id: 'job-1', error: null, errorDetail: null, planId: null, status: 'queued', step: null })
   );
   const swap = jest.fn(async (_userId: string, _mealId: string, _locale: string | null, _axis?: SwapAxis) => Promise.resolve({ id: 'meal-1' }));
 
-  const plans = new MealPlansService({ start } as unknown as PlanJobRunner, { swap } as unknown as MealSwapService);
+  const plans = new MealPlansService(picturesService, { start } as unknown as PlanJobRunner, { swap } as unknown as MealSwapService);
 
   return { controller: new MealPlansController(plans), start, swap };
 }
@@ -119,6 +127,46 @@ describe('MealPlansController', () => {
     expect(getMeal).toHaveBeenCalledWith('usr-alice', BOB_PLAN, null);
   });
 
+  /* 0066: only the meal's own page may start its dish's picture, and it never waits for one. */
+  it('opens the meal with the cap when a picture could be drawn, and draws a won claim after answering', async () => {
+    const service = pictures(true);
+    const claim = { attempts: 0, claimedAt: new Date(), recipeId: 'rcp-1' };
+    const openMeal = jest.spyOn(PlanController, 'openMeal').mockResolvedValue({ claim, meal: { pictureStatus: 'drawing' } as never });
+    const { controller } = build(service);
+
+    await expect(controller.meal(ALICE, BOB_PLAN, null)).resolves.toEqual({ pictureStatus: 'drawing' });
+    expect(openMeal).toHaveBeenCalledWith('usr-alice', BOB_PLAN, null, 10);
+    expect(service.schedule).toHaveBeenCalledWith(claim);
+  });
+
+  it('answers the meal and schedules nothing when asking for its picture failed', async () => {
+    const service = pictures(true);
+
+    jest.spyOn(PlanController, 'openMeal').mockResolvedValue({ claim: null, failure: new Error('database down'), meal: { id: 'meal-1' } as never });
+
+    await expect(build(service).controller.meal(ALICE, BOB_PLAN, null)).resolves.toEqual({ id: 'meal-1' });
+    expect(service.schedule).not.toHaveBeenCalled();
+  });
+
+  it('schedules nothing when no claim was won', async () => {
+    const service = pictures(true);
+
+    jest.spyOn(PlanController, 'openMeal').mockResolvedValue({ claim: null, meal: {} as never });
+    await build(service).controller.meal(ALICE, BOB_PLAN, null);
+
+    expect(service.schedule).not.toHaveBeenCalled();
+  });
+
+  it('only reads the meal when no picture could be drawn or kept, and claims nothing', async () => {
+    const openMeal = jest.spyOn(PlanController, 'openMeal');
+    const getMeal = jest.spyOn(PlanController, 'getMeal').mockResolvedValue({} as never);
+
+    await build(pictures(false)).controller.meal(ALICE, BOB_PLAN, null);
+
+    expect(getMeal).toHaveBeenCalledWith('usr-alice', BOB_PLAN, null);
+    expect(openMeal).not.toHaveBeenCalled();
+  });
+
   it('scopes a job to the caller', async () => {
     const getJob = jest.spyOn(PlanController, 'getJob').mockResolvedValue({} as never);
 
@@ -162,6 +210,7 @@ describe('meal-plan routes behind onboarding (through the real pipeline)', () =>
       controllers: [MealPlansController],
       providers: [
         MealPlansService,
+        { provide: DishPictureService, useValue: pictures() },
         { provide: PlanJobRunner, useValue: { start } },
         { provide: MealSwapService, useValue: { swap: jest.fn() } },
         { provide: APP_GUARD, useClass: RequiresOnboardingGuard }

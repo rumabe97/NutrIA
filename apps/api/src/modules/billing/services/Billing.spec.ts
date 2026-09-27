@@ -74,7 +74,13 @@ function harness(
 
   jest
     .spyOn(SettingsController, 'flags')
-    .mockResolvedValue({ automaticActivation: true, checkInReminders: false, premium: options.premium ?? true, professional: false });
+    .mockResolvedValue({
+      automaticActivation: true,
+      checkInReminders: false,
+      dishPictures: false,
+      premium: options.premium ?? true,
+      professional: false
+    });
   jest.spyOn(ProfessionalController, 'hasAccess').mockResolvedValue(options.professional ?? false);
   jest
     .spyOn(ProfessionalController, 'find')

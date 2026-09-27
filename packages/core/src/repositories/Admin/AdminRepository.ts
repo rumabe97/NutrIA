@@ -2,7 +2,7 @@ import { and, count, countDistinct, desc, eq, gte, isNotNull, isNull, sql } from
 
 import { database } from 'database';
 import { ingredients } from 'database/schema/food';
-import { recipeImages, recipes } from 'database/schema/recipe';
+import { recipeImageCalls, recipeImages, recipes } from 'database/schema/recipe';
 import { mealPlans, planGenerationJobs } from 'database/schema/plan';
 import { user } from 'database/schema/auth';
 import { checkIns } from 'database/schema/progress';
@@ -72,6 +72,21 @@ export type Counts = {
  * `recentGenerations` — an address per job, for the generation log — and only
  * a controller of its own calls it (`0028`, `0050`).
  */
+/** The dish pictures at a glance (`0066`): the month's spend and how many are in each state. */
+export type PictureCounts = {
+  readonly drawing: number;
+  /** Failed for the dish's own reasons: rejected, unmarked, broken — waiting out the cool-off. */
+  readonly failed: number;
+  readonly ready: number;
+  /** Given back for a reason that is not the dish's — the cap, a refused key — and drawn again on the next view. */
+  readonly released: number;
+  /** Dollars billed since the month's start, by the calls themselves. */
+  readonly spentUsd: number;
+};
+
+/** A picture row a drawing gave back (`RecipeRepository.releasePicture`). */
+const released = sql`(${recipeImages.provenance} ->> 'released') is not null`;
+
 export const AdminRepository = {
   async counts(since: Date): Promise<Counts> {
     try {
@@ -91,7 +106,7 @@ export const AdminRepository = {
           .select({ n: count() })
           .from(recipes)
           .where(
-            sql`not exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id} and ${recipeImages.status} = 'ready' and ${recipeImages.bytes} is not null)`
+            sql`not exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id} and ${recipeImages.status} = 'ready' and ${recipeImages.url} is not null)`
           )
       ]);
 
@@ -136,6 +151,33 @@ export const AdminRepository = {
         returned: plansPerUser.filter(row => row.n > 1).length,
         signedUp: signedUp[0]?.n ?? 0
       };
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * What the pictures have spent since `monthStart`, and how many dishes have a
+   * picture, are being drawn, or failed. Counts only: no dish is named. Mode: two
+   * aggregates.
+   */
+  async pictures(monthStart: Date): Promise<PictureCounts> {
+    try {
+      const db = database();
+      const [states, spend] = await Promise.all([
+        db
+          .select({ n: count(), released: sql<boolean>`${released}`, status: recipeImages.status })
+          .from(recipeImages)
+          .groupBy(recipeImages.status, sql`${released}`),
+        db
+          .select({ total: sql<string>`coalesce(sum(${recipeImageCalls.costUsd}), 0)` })
+          .from(recipeImageCalls)
+          .where(gte(recipeImageCalls.createdAt, monthStart))
+      ]);
+      const n = (status: string, wasReleased = false) =>
+        states.filter(row => row.status === status && row.released === wasReleased).reduce((total, row) => total + row.n, 0);
+
+      return { drawing: n('drawing'), failed: n('failed'), ready: n('ready'), released: n('failed', true), spentUsd: Number(spend[0]?.total ?? 0) };
     } catch (error: unknown) {
       throw wrap(error);
     }

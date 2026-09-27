@@ -12,6 +12,8 @@ export type PictureStatus = z.infer<typeof pictureStatusSchema>;
 export const pictureStateSchema = z.object({
   attempts: z.number().int().min(0),
   lastAttemptAt: z.date().nullable(),
+  /** A `failed` row whose drawing was given back — the cap, a refused key — and may be claimed again at once. */
+  released: z.boolean().optional(),
   status: pictureStatusSchema,
   url: z.string().nullable()
 });

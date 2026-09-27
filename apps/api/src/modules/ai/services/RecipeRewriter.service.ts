@@ -77,7 +77,7 @@ export type RewriteRun = {
  * (`methodMentions`): a rewrite that names a food the dish does not contain, or
  * never says where one of its own goes, is refused before it is stored.
  *
- * Best-effort and bounded, like the illustrator: a refusal is counted and
+ * Best-effort and bounded: a refusal is counted and
  * skipped, and the recipe is simply swept again next time. Bounded in time as
  * well as in number (`RewriteLimits`): every call ends at the sweep's deadline
  * whatever the transport does with its signal, because on the platform a

@@ -325,13 +325,15 @@ export const PlanRepository = {
       }
 
       const rows = await db
-        // `hasImage` rides on the recipe so every consumer of a recipe row can offer the picture.
+        // `pictureUrl` rides on the recipe so every consumer of a recipe row can offer the picture.
         .select({
           meal: meals,
           recipe: {
             ...getTableColumns(recipes),
-            // What `/recipes/:id/image` can serve: a ready row with bytes. Phase 3 of project 006 moves this to the Blob url.
-            hasImage: sql<boolean>`exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id} and ${recipeImages.status} = 'ready' and ${recipeImages.bytes} is not null)`
+            // The picture's address once it is ready (`0066`): a row that is `ready` and has its Blob url.
+            pictureUrl: sql<
+              string | null
+            >`(select ${recipeImages.url} from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id} and ${recipeImages.status} = 'ready' and ${recipeImages.url} is not null)`
           }
         })
         .from(meals)
@@ -458,8 +460,12 @@ export const PlanRepository = {
           plan: { id: mealPlans.id, status: mealPlans.status },
           recipe: {
             ...getTableColumns(recipes),
-            // What `/recipes/:id/image` can serve: a ready row with bytes. Phase 3 of project 006 moves this to the Blob url.
-            hasImage: sql<boolean>`exists (select 1 from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id} and ${recipeImages.status} = 'ready' and ${recipeImages.bytes} is not null)`
+            // Where the drawing stands, so the meal page can say `drawing`; null when nothing was ever claimed.
+            pictureStatus: sql<string | null>`(select ${recipeImages.status} from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id})`,
+            // The picture's address once it is ready (`0066`): a row that is `ready` and has its Blob url.
+            pictureUrl: sql<
+              string | null
+            >`(select ${recipeImages.url} from ${recipeImages} where ${recipeImages.recipeId} = ${recipes.id} and ${recipeImages.status} = 'ready' and ${recipeImages.url} is not null)`
           }
         })
         .from(meals)
@@ -805,6 +811,27 @@ export const PlanRepository = {
         throw error;
       }
 
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Whether this dish is on one of this person's own plans — one they can see,
+   * not one waiting for review. What lets somebody ask after a dish's picture:
+   * only a dish they have been served. Mode: one `EXISTS` read.
+   */
+  async servesRecipe(userId: string, recipeId: string): Promise<boolean> {
+    try {
+      const [row] = await database()
+        .select({ found: sql<boolean>`true` })
+        .from(meals)
+        .innerJoin(planDays, eq(planDays.id, meals.planDayId))
+        .innerJoin(mealPlans, eq(mealPlans.id, planDays.planId))
+        .where(and(eq(meals.recipeId, recipeId), eq(mealPlans.userId, userId), visible()))
+        .limit(1);
+
+      return row !== undefined;
+    } catch (error: unknown) {
       throw wrap(error);
     }
   },

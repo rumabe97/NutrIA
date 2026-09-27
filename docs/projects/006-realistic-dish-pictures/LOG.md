@@ -105,3 +105,57 @@
   - a judge failure is never kept;
   - the key refusal and the cost floor;
   - the deployment rows.
+
+## Phase 3 — Drawing on first view, storing in Blob, the monthly cap (2026-09-27)
+
+- **Executors**: `backend-high` (opus @ high) for steps 1–6 and the unit specs; `tests` (opus)
+  for the end-to-end suite. Review: `invariant-reviewer`, no P0 or P1, both P2s closed.
+- **Result**: done. The end-to-end suite runs first on CI: the local e2e database
+  (Nutria-E2E) had not had migration 0042 applied, which is the owner's step.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test`: green.
+  - `gate.sh --full`: green after formatting the suite.
+  - The API build's preflight passes with `@vercel/blob`.
+  - The `dish-pictures` e2e suite (`apps/api/test/dish-pictures.e2e-spec.ts`) covers:
+    - with the flag off, nothing is claimed;
+    - an accepted picture is stored untouched at its path and served;
+    - a prawn the judge sees is rejected through the real catalogue (crustaceans) and not
+      stored, with 3 image calls and 6 judge calls in the ledger;
+    - a failing dish is left alone for 7 days;
+    - 402 and 429 release the claim;
+    - at the cap, nothing is claimed;
+    - four simultaneous views make exactly one image call, and a second person sees the
+      same URL;
+    - `picture-status` is read-only; it answers 400, 404 and 409 where it should, 404 to
+      another person and to a pending-review plan, and 200 on the caller's active plan;
+    - the old routes answer 404;
+    - `/admin/pictures` is for the owner only.
+- **Deviations from plan**:
+  - The core cannot schedule Nest work. `PlanController.openMeal` returns
+    `{claim, meal}` and `MealPlansService` schedules the drawing.
+  - `releasePicture` is new: the cap or a key refusal gives the claim back rather than
+    failing the dish.
+    - The row stays `failed` with `provenance.released` and keeps `attempts`; a refused
+      attempt is not counted.
+    - The next open claims it at once, with no cool-off.
+    - `/admin/pictures` counts `released` apart from `failed`.
+  - A file with no C2PA manifest fails at once. A Blob failure fails the dish.
+  - Unknown-cost floors: 0.0337 $ for an image, 0.001 $ for a judge call. A 4xx is
+    recorded at 0.
+  - `picture-status` requires onboarding and a dish on the caller's own visible plans.
+  - The flag's audience is `signed-in`, since "everyone" is not an audience.
+  - `sharp` is removed from `apps/api`.
+  - The stub picture clients are never used in production (`picturesStubbed`).
+  - A failing picture request never turns the meal page into a 500.
+- **Known and accepted (P3)**:
+  - Judge calls and drawings running at the same time can go past the cap by about one
+    attempt each. That is why the OpenRouter key's own limit is required at go-live
+    (phase 6).
+  - A drawing whose claim was taken over leaves an orphan blob.
+- **Notes for the next phase**:
+  - `MealDetailView.pictureStatus` (`none | drawing | ready`) is new and required.
+  - `illustrationPath` is now the absolute Blob URL.
+  - Polling goes through `GET /recipes/:id/picture-status` → `{status, url}`.
+  - `/admin` needs a `dishPictures` toggle (the existing flag route) and the
+    `GET /admin/pictures` line.
+  - `docs/legal/analisis.md` still names the removed route, for `legal`.
