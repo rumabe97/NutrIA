@@ -105,7 +105,16 @@ describe('AdminController', () => {
     role = 'admin';
     const pictures = jest
       .spyOn(CoreAdmin, 'pictures')
-      .mockResolvedValue({ capUsd: 10, drawing: 1, enabled: true, failed: 2, ready: 30, since: '2026-09-01T00:00:00.000Z', spentUsd: 1.25 });
+      .mockResolvedValue({
+        capUsd: 10,
+        drawing: 1,
+        enabled: true,
+        failed: 2,
+        ready: 30,
+        released: 0,
+        since: '2026-09-01T00:00:00.000Z',
+        spentUsd: 1.25
+      });
 
     const response = await request(app.getHttpServer() as Server)
       .get(`/${PREFIX}/admin/pictures`)

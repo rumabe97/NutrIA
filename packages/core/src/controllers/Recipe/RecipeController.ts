@@ -88,7 +88,7 @@ function unclaimable(state: PictureState, now: Date): boolean {
   return (
     state.status === 'ready' ||
     (state.status === 'drawing' && since < PICTURE_STALE_MINUTES * 60_000) ||
-    (state.status === 'failed' && since < PICTURE_COOL_OFF_DAYS * 86_400_000)
+    (state.status === 'failed' && state.released !== true && since < PICTURE_COOL_OFF_DAYS * 86_400_000)
   );
 }
 
@@ -389,9 +389,12 @@ export const RecipeController = {
     await RecipeRepository.recordRewriteRefusal(recipeId, stepsVersion);
   },
 
-  /** The drawing stopped for a reason that is not the dish's (the cap, the key): the dish is `none` again. */
-  async releasePicture(claim: PictureClaim): Promise<boolean> {
-    return RecipeRepository.releasePicture(claim.recipeId, claim.claimedAt);
+  /**
+   * The drawing stopped for a reason that is not the dish's (the cap, the key):
+   * no picture, claimable again at once, keeping the `attempts` already used.
+   */
+  async releasePicture(claim: PictureClaim, outcome: { readonly attempts: number; readonly why: string }, now: Date = new Date()): Promise<boolean> {
+    return RecipeRepository.releasePicture(claim.recipeId, claim.claimedAt, outcome, now);
   },
 
   /**

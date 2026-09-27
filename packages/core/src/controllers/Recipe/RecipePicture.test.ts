@@ -90,6 +90,14 @@ describe('RecipeController.requestPicture', () => {
     expect(claimPicture).toHaveBeenCalledTimes(2);
   });
 
+  it('asks again at once for a drawing given back — the cap, a refused key — with no cool-off', async () => {
+    pictureState.mockResolvedValueOnce({ attempts: 2, lastAttemptAt: minutesAgo(1), released: true, status: 'failed', url: null });
+
+    await RecipeController.requestPicture(RECIPE, 10, NOW);
+
+    expect(claimPicture).toHaveBeenCalledTimes(1);
+  });
+
   it('claims nothing once the month’s spend has reached the cap', async () => {
     monthSpendUsd.mockResolvedValue(10);
 
