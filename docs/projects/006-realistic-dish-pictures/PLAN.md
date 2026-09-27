@@ -229,7 +229,7 @@ which supersedes `0010`.
 
 ### Phase 3 — Drawing on first view, storing in Blob, the monthly cap
 
-- [ ] in progress
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 006 phase 3`. It wires the phase 2 gate into
   what gets stored and shown. Reviews: `invariant-reviewer`, and `tests` for the
   end-to-end suite.

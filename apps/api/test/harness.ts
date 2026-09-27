@@ -239,8 +239,15 @@ export const POOL = [
  * replaces anything else a suite must answer itself — the picture clients,
  * their store, the monthly cap (`dish-pictures.e2e-spec.ts`).
  */
-export async function createApp(ai: AiClient, configure: (builder: TestingModuleBuilder) => TestingModuleBuilder = builder => builder): Promise<INestApplication> {
-  const moduleRef = await configure(Test.createTestingModule({ imports: [AppModule] }).overrideProvider(AiClient).useValue(ai)).compile();
+export async function createApp(
+  ai: AiClient,
+  configure: (builder: TestingModuleBuilder) => TestingModuleBuilder = builder => builder
+): Promise<INestApplication> {
+  const moduleRef = await configure(
+    Test.createTestingModule({ imports: [AppModule] })
+      .overrideProvider(AiClient)
+      .useValue(ai)
+  ).compile();
 
   const app = moduleRef.createNestApplication();
 
