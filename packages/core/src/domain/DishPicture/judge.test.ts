@@ -123,8 +123,11 @@ describe('judgePicture — what is only a note', () => {
     expect(verdict.extras[0]?.foreignAllergens).toEqual(['peanuts']);
   });
 
-  it('accepts a food the judge could not name', () => {
-    expect(judge(withExtra({ amount: 'main', name: 'peanuts', specific: false })).accepted).toBe(true);
+  it('accepts a food neither the judge nor the catalogue can name, without calling it unmapped', () => {
+    const verdict = judge(withExtra({ amount: 'main', name: 'brown lumps', specific: false }));
+
+    expect(verdict.accepted).toBe(true);
+    expect(verdict.notes).toEqual(['extra_food:brown lumps']);
   });
 
   it('accepts an extra whose allergen the dish already carries', () => {
@@ -269,5 +272,66 @@ describe('judgePicture — mapping a name to the catalogue', () => {
 
     expect(verdict.accepted).toBe(true);
     expect(verdict.notes).toContain('unmapped:shrimp');
+  });
+});
+
+/*
+ * The invariant review of phase 2: neither the judge's `specific` flag nor its
+ * match call may be what lets an allergen through.
+ */
+describe('judgePicture — nothing the judge says decides alone', () => {
+  it('rejects a food the judge would not call specific when its name maps to a foreign allergen', () => {
+    const verdict = judge(withExtra({ amount: 'main', name: 'peanut sauce', specific: false }));
+
+    expect(verdict.accepted).toBe(false);
+    expect(verdict.extras[0]).toMatchObject({ foreignAllergens: ['peanuts'], mappedTo: ['cacahuetes'], specific: true });
+  });
+
+  it('checks what the match call paired with an ingredient: prawns matched to broccoli are still prawns', () => {
+    const verdict = judge({
+      match: {
+        extras: [],
+        ingredients: ALL_SEEN.map(ingredient => (ingredient.slug === 'brocoli' ? { ...ingredient, matched: ['broccoli', 'prawns'] } : ingredient))
+      },
+      seen: { foods: [...ownFoods, { amount: 'main', name: 'prawns', specific: true }] }
+    });
+
+    expect(verdict.accepted).toBe(false);
+    expect(verdict.notes).toContain('matched_foreign:prawns');
+  });
+
+  it('lets a fair variant the match call paired through, since it carries its ingredient’s allergens', () => {
+    const recipe: PictureRecipe = {
+      ingredients: [{ grams: 100, name: "Fresh goat's cheese", slug: 'queso-fresco-de-cabra' }],
+      name: 'Queso de cabra'
+    };
+    const verdict = judge(
+      {
+        match: { extras: [], ingredients: [{ matched: ['feta cheese'], slug: 'queso-fresco-de-cabra', status: 'seen' }] },
+        seen: { foods: [{ amount: 'main', name: 'feta cheese', specific: true }] }
+      },
+      recipe
+    );
+
+    expect(verdict).toEqual({ accepted: true, extras: [], notes: [] });
+  });
+
+  it('refuses a catalogue of the dish’s own ingredients, which would map every extra to nothing', () => {
+    const own = CATALOGUE.filter(entry => TOFU_BOWL.ingredients.some(ingredient => ingredient.slug === entry.slug));
+
+    expect(() => judgePicture({ catalogue: own, recipe: TOFU_BOWL, ...withExtra({ amount: 'main', name: 'shrimp', specific: true }) })).toThrow(
+      /whole ingredient catalogue/
+    );
+  });
+
+  it('maps a synonym to every slug it stands for', () => {
+    const catalogue = [
+      ...CATALOGUE,
+      { allergens: ['milk', 'lactose'], names: ['Leche entera', 'Whole milk'], slug: 'leche-entera' },
+      { allergens: ['gluten'], names: ['Harina de trigo', 'Plain flour'], slug: 'harina-de-trigo' }
+    ];
+    const verdict = judgePicture({ catalogue, recipe: TOFU_BOWL, ...withExtra({ amount: 'main', name: 'béchamel', specific: true }) });
+
+    expect(verdict.extras[0]).toMatchObject({ foreignAllergens: ['gluten', 'lactose', 'milk'], mappedTo: ['leche-entera', 'harina-de-trigo'] });
   });
 });
