@@ -364,7 +364,7 @@ which supersedes `0010`.
 
 ### Phase 5 — Published texts
 
-- [ ] in progress
+- [x] done
 - **Dispatch**: sonnet @ medium — `/execute-project 006 phase 5` — owner-approves: the
   privacy-policy and terms wording before it is published.
 - **Goal**: the live `/privacidad` and `/condiciones` say what the pictures do before the
