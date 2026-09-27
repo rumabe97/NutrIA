@@ -112,6 +112,12 @@ describe('providerCredentials', () => {
     expect(providerCredentials({ OPENROUTER_API_KEY: FAKE.openai } as unknown as Env)).toEqual([FAKE.openai]);
   });
 
+  it('collects the pictures’ key and the Blob token too (0066)', () => {
+    const env = { BLOB_READ_WRITE_TOKEN: FAKE.gateway, OPENROUTER_IMAGE_API_KEY: FAKE.openai } as unknown as Env;
+
+    expect(providerCredentials(env)).toEqual([FAKE.openai, FAKE.gateway]);
+  });
+
   it('skips a value too short to be a credential, which would blank out ordinary words instead', () => {
     expect(providerCredentials({ GOOGLE_API_KEY: 'k' } as unknown as Env)).toEqual([]);
   });

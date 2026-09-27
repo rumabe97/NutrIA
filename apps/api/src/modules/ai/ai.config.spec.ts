@@ -1,7 +1,15 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { generateObject, jsonSchema } from 'ai';
 
-import { NO_TRAINING_PROVIDER, nonStrictSchema, openRouterRequest, resolveCallSettings, resolveModel, resolveOutputCap } from './ai.config.js';
+import {
+  NO_TRAINING_PROVIDER,
+  nonStrictSchema,
+  openRouterRequest,
+  resolveCallSettings,
+  resolveModel,
+  resolveOutputCap,
+  resolvePictureSettings
+} from './ai.config.js';
 import { validateEnv } from '../../config/Env.validation.js';
 
 import type { Env } from '../../config/index.js';
@@ -296,5 +304,42 @@ describe('the openrouter provider', () => {
 
     expect(() => resolveModel({ ...env, AI_PROVIDER_ONLY: undefined })).toThrow(/AI_PROVIDER_ONLY/);
     expect(() => resolveModel({ ...env, AI_PROVIDER_ONLY: [] })).toThrow(/AI_PROVIDER_ONLY/);
+  });
+});
+
+/*
+ * `0066`. `AI_PROVIDER=stub` means no model call of any kind: a pictures key
+ * left in a local file draws nothing while the stub is selected.
+ */
+describe('resolvePictureSettings', () => {
+  const base = {
+    APP_URL: 'http://localhost:3000',
+    BETTER_AUTH_SECRET: 'a'.repeat(32),
+    BETTER_AUTH_URL: 'http://localhost:3001',
+    DATABASE_URL: 'postgresql://user:pass@host/db',
+    OPENROUTER_IMAGE_API_KEY: ' sk-or-v1-pictures-only '
+  };
+
+  it('gives the pictures their own key, models, companies and cap', () => {
+    const env = validateEnv({ ...base, AI_IMAGE_MONTHLY_CAP_USD: '4', AI_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'k' });
+
+    expect(resolvePictureSettings(env)).toEqual({
+      apiKey: 'sk-or-v1-pictures-only',
+      imageModel: 'google/gemini-3.1-flash-lite-image',
+      imageProviders: ['google-vertex/global'],
+      judgeModel: 'qwen/qwen3-vl-235b-a22b-instruct',
+      judgeProviders: ['deepinfra'],
+      monthlyCapUsd: 4
+    });
+  });
+
+  it('draws nothing with the stub provider, even with a key', () => {
+    expect(resolvePictureSettings(validateEnv({ ...base, AI_PROVIDER: 'stub' }))).toBeNull();
+  });
+
+  it('draws nothing without a key', () => {
+    expect(
+      resolvePictureSettings(validateEnv({ ...base, AI_PROVIDER: 'anthropic', ANTHROPIC_API_KEY: 'k', OPENROUTER_IMAGE_API_KEY: '' }))
+    ).toBeNull();
   });
 });

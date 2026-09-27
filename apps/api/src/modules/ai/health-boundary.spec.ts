@@ -3,17 +3,22 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it, jest } from '@jest/globals';
 import { dirname, join } from 'node:path';
 
+import { buildPicturePrompt } from 'core/domain/DishPicture';
 import { resolvePreferences } from 'core/domain/Preference';
 import { toCatalogue } from 'core/entities/Plan';
 
 import { buildPoolPrompt } from './prompts/PoolPrompt.js';
 import { likedFoodNames, promptPreferences } from '../meal-plans/services/GenerationShared.js';
+import { OpenRouterImageClient } from './clients/OpenRouterImageClient.js';
+import { OpenRouterVisionJudgeClient } from './clients/OpenRouterVisionJudgeClient.js';
 import { PoolBuilder } from './services/PoolBuilder.service.js';
 
 import type { AiClient, AiRequest, AiResponse } from './clients/AiClient.js';
 import type { CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 import type { FullProfileView } from 'core/controllers/Profile';
 import type { GenerationContext } from 'core/controllers/Recipe';
+import type { PictureRecipe } from 'core/domain/DishPicture';
+import type { PictureSettings } from './ai.config.js';
 import type { PromptContext } from './prompts/PoolPrompt.js';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -291,5 +296,61 @@ describe('the free-text and belief boundary around the AI module', () => {
 
     // A key added to what the prompt is told has to be added here, on purpose.
     expect(Object.keys(preferences).filter(key => !allowed.includes(key))).toEqual([]);
+  });
+});
+
+/**
+ * The dish pictures (`0066`, PRD 4). A picture is drawn once and shown to
+ * everyone who eats the dish, so nothing about the person who opened it may
+ * reach the image model or the judge: not their allergies, their profile or
+ * their health. Driven through the prompt builder and both clients with a
+ * recipe that carries a person's words in fields it should not have, to every
+ * byte the three calls send.
+ */
+describe('the person boundary around the dish pictures', () => {
+  const SENTINEL = 'SENTINEL-PERSON';
+  const recipe: PictureRecipe = {
+    ingredients: [
+      { grams: 150, name: 'Cooked white rice', slug: 'arroz' },
+      { grams: 120, name: 'Chicken breast', slug: 'pollo' }
+    ],
+    name: 'Arroz con pollo'
+  };
+  const smuggled = {
+    ...recipe,
+    allergies: [`${SENTINEL} altramuz`],
+    ingredients: recipe.ingredients.map(ingredient => ({ ...ingredient, excludedFor: `${SENTINEL} celiaquía` })),
+    userId: `${SENTINEL}-id`
+  };
+  const settings: PictureSettings = {
+    apiKey: 'sk-or-v1-boundary-spec-key',
+    imageModel: 'google/gemini-3.1-flash-lite-image',
+    imageProviders: ['google-vertex/global'],
+    judgeModel: 'qwen/qwen3-vl-235b-a22b-instruct',
+    judgeProviders: ['deepinfra'],
+    monthlyCapUsd: 10
+  };
+
+  it('sends the image model and the judge recipe data and nothing else', async () => {
+    const bodies: string[] = [];
+    const fake = (async (input: Request | string | URL, init?: RequestInit) => {
+      bodies.push(String(init?.body));
+
+      return new Response(
+        String(input).endsWith('/images')
+          ? JSON.stringify({ data: [{ b64_json: Buffer.from([0xff, 0xd8, 0xff]).toString('base64') }], usage: { cost: 0.03 } })
+          : JSON.stringify({ choices: [{ message: { content: '{"foods": [], "extras": [], "ingredients": []}' } }] })
+      );
+    }) as unknown as typeof fetch;
+    const image = new OpenRouterImageClient(settings, [], fake, []);
+    const judge = new OpenRouterVisionJudgeClient(settings, [], fake);
+
+    const picture = await image.draw(buildPicturePrompt(smuggled));
+    const seen = await judge.see(picture);
+    await judge.match(seen.result.foods, smuggled.ingredients);
+
+    expect(bodies).toHaveLength(3);
+    expect(bodies.filter(body => body.includes('SENTINEL'))).toEqual([]);
+    expect(bodies[0]).toContain('Arroz con pollo');
   });
 });
