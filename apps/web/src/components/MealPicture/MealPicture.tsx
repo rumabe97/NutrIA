@@ -62,7 +62,9 @@ export function MealPicture({ name, path, recipeId, status }: MealPictureProps) 
   }, [recipeId, status]);
 
   return (
-    <figure className={styles.figure} data-bare={picture.path ? undefined : true}>
+    <figure aria-hidden={picture.path ? undefined : true} className={styles.figure} data-bare={picture.path ? undefined : true}>
+      {/* Hidden from assistive tech until there is a picture: an empty figure is a
+          stop with nothing in it. */}
       {/* A new element when the picture arrives, so it rises in rather than
           flashing over the plate; reduced motion is handled once, in base.css. */}
       <div className={picture.arrived ? 'motion-enter' : undefined} key={picture.arrived ? 'arrived' : 'first'}>

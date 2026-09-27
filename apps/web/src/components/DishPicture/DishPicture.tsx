@@ -44,9 +44,9 @@ interface DishPictureProps {
  *
  * The "IA" mark sits over the top-right corner of every picture shown (AI Act
  * art. 50; `docs/legal/imagenes-de-platos.md` § 3.2): on its own opaque ground so
- * it reads on any photograph, and named in full for a screen reader even where
- * the picture itself is decorative, as on the card. The plate has no mark —
- * nothing synthetic is on screen.
+ * it reads on any photograph, and named in full for a screen reader where the
+ * picture itself is decorative, as on the card; a named picture's alt already
+ * says it (§ 3.1). The plate has no mark — nothing synthetic is on screen.
  */
 export function DishPicture({ alt = '', path = null, priority = false, variant }: DishPictureProps) {
   const dictionary = useDictionary();
@@ -69,10 +69,13 @@ export function DishPicture({ alt = '', path = null, priority = false, variant }
         src={path ? pictureSource(path) : null}
         width={960}
       />
+      {/* Named for a screen reader only where the picture is decorative (the card).
+          Where it is named (the meal page) its alt already says "generada por IA",
+          and a second notice right after it would be noise. */}
       {path ? (
-        <span className={styles.mark}>
+        <span aria-hidden={alt ? true : undefined} className={styles.mark}>
           <span aria-hidden="true">{dictionary.picture.aiMark}</span>
-          <span className="visually-hidden">{dictionary.picture.aiMarkLabel}</span>
+          {alt ? null : <span className="visually-hidden">{dictionary.picture.aiMarkLabel}</span>}
         </span>
       ) : null}
     </span>
