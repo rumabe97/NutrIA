@@ -344,6 +344,44 @@ function required(value: string | undefined, name: string): string {
   return value;
 }
 
+/** The dish pictures' settings — `resolvePictureSettings`. */
+export const AI_PICTURES = Symbol('AI_PICTURES');
+
+/** What the picture clients are built from (`0066`). */
+export type PictureSettings = {
+  /** `OPENROUTER_IMAGE_API_KEY`: the pictures' own key, whose monthly limit OpenRouter enforces too. */
+  readonly apiKey: string;
+  readonly imageModel: string;
+  readonly imageProviders: readonly string[];
+  readonly judgeModel: string;
+  readonly judgeProviders: readonly string[];
+  /** `AI_IMAGE_MONTHLY_CAP_USD`: the spend at which drawing stops until the next month. */
+  readonly monthlyCapUsd: number;
+};
+
+/**
+ * The dish pictures' settings, or null when no picture may be drawn: with
+ * `AI_PROVIDER=stub` — which means no model call of any kind, whatever key is
+ * lying in the file — or with no `OPENROUTER_IMAGE_API_KEY`. The endpoint is
+ * not a setting: every picture call goes to OpenRouter (`pictureTransport`).
+ */
+export function resolvePictureSettings(env: Env): PictureSettings | null {
+  const apiKey = env.OPENROUTER_IMAGE_API_KEY?.trim();
+
+  if (env.AI_PROVIDER === 'stub' || !apiKey) {
+    return null;
+  }
+
+  return {
+    apiKey,
+    imageModel: env.AI_IMAGE_MODEL,
+    imageProviders: env.AI_IMAGE_PROVIDER_ONLY,
+    judgeModel: env.AI_JUDGE_MODEL,
+    judgeProviders: env.AI_JUDGE_PROVIDER_ONLY,
+    monthlyCapUsd: env.AI_IMAGE_MONTHLY_CAP_USD
+  };
+}
+
 /**
  * Which model draws illustrations, given who is generating dishes.
  *

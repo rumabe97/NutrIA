@@ -62,3 +62,46 @@
     `select count(*), count(bytes) from recipe_images;` there (read-only). The delete is
     right either way. If the count is above 0, those were `0010` illustrations that were
     served, and each dish is drawn again on first view.
+
+## Phase 2 — The image client, the prompt and the allergen judge (2026-09-27)
+
+- **Executor**: `backend-high` agent (opus @ high, `quality-max`) in its own worktree.
+  Review by `invariant-reviewer` (opus): no P0 or P1 after two rounds of fixes.
+- **Result**: done.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api`: 11 of 11
+    tasks. api 889 tests; the DishPicture domain 88 tests, `judge.ts` 96.9% branches.
+  - The health-boundary spec, with `NODE_OPTIONS=--experimental-vm-modules`: 28 of 28.
+  - `gate.sh`: green.
+  - Offline calibration, with no calls: the pilot's 57 recorded judge answers replayed
+    against the real 930-entry seed catalogue.
+    - 57 of 57 accepted.
+    - The 3 wrong-recipe controls are rejected: prawns (crustaceans), octopus with feta
+      (molluscs, milk), a bun (gluten).
+  - The provenance check finds C2PA and IPTC on the 8 real Gemini files and on none of
+    their re-encodes.
+- **Deviations from plan** (amended in the plan's "As built" and in phase 3's steps):
+  - **Name mapping.** The existing matcher alone is exact-only and caught 0 of 3
+    controls. Mapping adds a synonym table and word-level steps.
+  - **Reviewer's P1s.** The judge's `specific` flag no longer exempts a name the catalogue
+    knows. Matched names are re-checked, so prawns matched to broccoli are rejected.
+  - **Ambiguous foods.** They map conservatively as extras. A name that is the matched
+    ingredient's own name cut short is not re-checked, so the pilot's rice-noodle dish
+    still passes. `may_contain` is its own tier (oats).
+  - **A bare name matched beside its fuller form is judged as its own food.** "Peanut
+    butter" plus "butter", "soy milk" plus "milk", "vegan cheese" plus "cheese" are
+    rejected on a milk-free dish (reviewer's P2 on the exemption).
+  - **Two false rejects found by the replay and fixed.** "Spread" is now a generic word and
+    "flake(s)" a descriptor.
+  - **The image key** cannot be required at boot, because the switch is a database flag.
+    Without the key, no client is available.
+  - **Out-of-scope files.** `ai.module.ts` (the providers are registered but no route uses
+    them), `redact.ts`, `turbo.json` (`globalEnv`) and the test fixtures.
+  - **The health-boundary command** needs `NODE_OPTIONS=--experimental-vm-modules`.
+- **Decisions**: none new (`0066`).
+- **Notes for the next phase**: phase 3's steps now carry the reviewer's P3s:
+  - the whole catalogue with `mayContain`;
+  - a wiring test on the real catalogue;
+  - a judge failure is never kept;
+  - the key refusal and the cost floor;
+  - the deployment rows.

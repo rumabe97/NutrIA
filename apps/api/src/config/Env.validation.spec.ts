@@ -505,3 +505,73 @@ describe('STRIPE_PRACTICE_PRICES (0061)', () => {
     expect(() => validateEnv({ ...stripe, STRIPE_PRACTICE_PRICES: 'price_secretlooking=abc' })).toThrow(/^(?![\s\S]*secretlooking)/);
   });
 });
+
+/*
+ * `0066`. The dish pictures run on their own OpenRouter key and models, pinned
+ * to the companies named here, whatever the text provider is.
+ */
+describe('dish pictures', () => {
+  it('defaults to the model, judge and companies 0066 chose, a 10 $ month, and no key', () => {
+    const env = validateEnv({
+      ...valid,
+      AI_IMAGE_MODEL: '',
+      AI_IMAGE_MONTHLY_CAP_USD: '',
+      AI_IMAGE_PROVIDER_ONLY: '',
+      AI_JUDGE_MODEL: '',
+      AI_JUDGE_PROVIDER_ONLY: ''
+    });
+
+    expect(env.AI_IMAGE_MODEL).toBe('google/gemini-3.1-flash-lite-image');
+    expect(env.AI_IMAGE_PROVIDER_ONLY).toEqual(['google-vertex/global']);
+    expect(env.AI_JUDGE_MODEL).toBe('qwen/qwen3-vl-235b-a22b-instruct');
+    expect(env.AI_JUDGE_PROVIDER_ONLY).toEqual(['deepinfra']);
+    expect(env.AI_IMAGE_MONTHLY_CAP_USD).toBe(10);
+    expect(env.OPENROUTER_IMAGE_API_KEY).toBeUndefined();
+    expect(env.BLOB_READ_WRITE_TOKEN).toBeUndefined();
+  });
+
+  it('reads the companies into lists and the cap as a number', () => {
+    const env = validateEnv({ ...valid, AI_IMAGE_MONTHLY_CAP_USD: '2.5', AI_JUDGE_PROVIDER_ONLY: ' deepinfra , parasail' });
+
+    expect(env.AI_JUDGE_PROVIDER_ONLY).toEqual(['deepinfra', 'parasail']);
+    expect(env.AI_IMAGE_MONTHLY_CAP_USD).toBe(2.5);
+  });
+
+  it('refuses a company list OpenRouter would not write, without echoing it', () => {
+    for (const [key, list] of [
+      ['AI_IMAGE_PROVIDER_ONLY', 'google-vertex/global,'],
+      ['AI_JUDGE_PROVIDER_ONLY', 'deepinfra,deepinfra'],
+      ['AI_JUDGE_PROVIDER_ONLY', 'Secret Value']
+    ] as const) {
+      expect(() => validateEnv({ ...valid, [key]: list })).toThrow(new RegExp(key));
+    }
+
+    expect(() => validateEnv({ ...valid, AI_JUDGE_PROVIDER_ONLY: 'Secret Value' })).not.toThrow(/Secret Value/);
+  });
+
+  it('refuses a free model or one of OpenRouter’s own routers for the picture or the judge, whatever the text provider', () => {
+    expect(() => validateEnv({ ...valid, AI_IMAGE_MODEL: 'google/gemini-3.1-flash-lite-image:free' })).toThrow(/AI_IMAGE_MODEL.*:free/);
+    expect(() => validateEnv({ ...valid, AI_JUDGE_MODEL: 'openrouter/auto' })).toThrow(/AI_JUDGE_MODEL.*routers/);
+    expect(() => validateEnv({ ...valid, AI_JUDGE_MODEL: 'qwen3-vl' })).toThrow(/AI_JUDGE_MODEL.*vendor\/model/);
+  });
+
+  it('refuses a cap below nothing or past any sane month', () => {
+    for (const cap of ['-1', '5000', 'ten']) {
+      expect(() => validateEnv({ ...valid, AI_IMAGE_MONTHLY_CAP_USD: cap })).toThrow(/AI_IMAGE_MONTHLY_CAP_USD/);
+    }
+
+    expect(validateEnv({ ...valid, AI_IMAGE_MONTHLY_CAP_USD: '0' }).AI_IMAGE_MONTHLY_CAP_USD).toBe(0);
+  });
+
+  it('refuses the text key as the pictures’ key, since the pictures’ limit is set on their own key — without echoing it', () => {
+    const key = 'sk-or-v1-shared-key-value';
+
+    expect(() => validateEnv({ ...valid, OPENROUTER_API_KEY: key, OPENROUTER_IMAGE_API_KEY: ` ${key}` })).toThrow(
+      /OPENROUTER_IMAGE_API_KEY.*its own key/
+    );
+    expect(() => validateEnv({ ...valid, OPENROUTER_API_KEY: key, OPENROUTER_IMAGE_API_KEY: key })).not.toThrow(/shared-key-value/);
+    expect(validateEnv({ ...valid, OPENROUTER_API_KEY: key, OPENROUTER_IMAGE_API_KEY: 'sk-or-v1-another' }).OPENROUTER_IMAGE_API_KEY).toBe(
+      'sk-or-v1-another'
+    );
+  });
+});

@@ -228,6 +228,34 @@ const envObject = z.object({
     .default('false')
     .transform(value => value === 'true'),
   /*
+   * The dish pictures' image model (`0066`), an OpenRouter id. Gemini 3.1
+   * Flash Lite Image was chosen blind by the owner: fast enough to draw while
+   * someone waits, and signed with C2PA on Vertex.
+   */
+  AI_IMAGE_MODEL: z.preprocess(value => (value === '' ? undefined : value), z.string().default('google/gemini-3.1-flash-lite-image')),
+  /*
+   * Where the pictures may spend, in dollars a calendar month; drawing stops
+   * there until the next one. The pictures' OpenRouter key should carry the
+   * same limit, so a bug here still meets a wall.
+   */
+  AI_IMAGE_MONTHLY_CAP_USD: z.preprocess(value => (value === '' ? undefined : value), z.coerce.number().min(0).max(1000).default(10)),
+  /*
+   * The companies that may draw a picture, by OpenRouter's slugs — Google's
+   * Vertex endpoint, which keeps nothing and signs its output; its AI Studio
+   * endpoint does neither. Every picture request carries it with fallbacks off.
+   */
+  AI_IMAGE_PROVIDER_ONLY: z.preprocess(
+    value => (value === '' ? undefined : value),
+    z.string().default('google-vertex/global').transform(providerList)
+  ),
+  /*
+   * The vision judge that names the foods in a picture (`0066`), an
+   * OpenRouter id. It decides nothing: the allergens come from the catalogue.
+   */
+  AI_JUDGE_MODEL: z.preprocess(value => (value === '' ? undefined : value), z.string().default('qwen/qwen3-vl-235b-a22b-instruct')),
+  /* The companies that may run the judge, as `AI_IMAGE_PROVIDER_ONLY` is for the picture. */
+  AI_JUDGE_PROVIDER_ONLY: z.preprocess(value => (value === '' ? undefined : value), z.string().default('deepinfra').transform(providerList)),
+  /*
    * OpenRouter only: the most a request may write, per dish it asks for, in
    * tokens — the request's cap is that times its dishes plus a fixed margin
    * (`resolveOutputCap`). A model once sent back 45 dishes for ~24 asked and
@@ -335,6 +363,11 @@ const envObject = z.object({
   BETTER_AUTH_SECRET: z.string().min(SECRET_MIN_LENGTH, `must be at least ${SECRET_MIN_LENGTH} characters`),
   BETTER_AUTH_URL: z.url(),
   /*
+   * Vercel Blob's read-write token, where accepted dish pictures are kept
+   * (`0066`). The platform adds it when the store is connected to the project.
+   */
+  BLOB_READ_WRITE_TOKEN: optional(z.string()),
+  /*
    * The parent domain the session cookie is written for, with the leading dot
    * (`.nutria.app`). Unset for local development, where API and web share an
    * origin's site by both being localhost.
@@ -376,6 +409,12 @@ const envObject = z.object({
   OMNIROUTE_MODEL: optional(z.string()),
   /** OpenRouter's key, required only when `AI_PROVIDER` is `openrouter` (`0064`). */
   OPENROUTER_API_KEY: optional(z.string()),
+  /**
+   * The dish pictures' own OpenRouter key (`0066`), for the image model and
+   * its judge — never the text key, so the pictures' monthly limit is set on
+   * it alone. Unset means no picture is drawn.
+   */
+  OPENROUTER_IMAGE_API_KEY: optional(z.string()),
   /**
    * Where the "an account is waiting" notice goes (`0029`). Unset means it is
    * not sent; nobody else is ever told about a sign-up.
@@ -530,6 +569,25 @@ const envSchema = envObject
           ctx.addIssue({ code: 'custom', message: issue, path: [key] });
         }
       }
+    }
+  })
+  .superRefine((env, ctx) => {
+    // The pictures' models are OpenRouter ids whatever the text provider is: their key only ever goes there.
+    for (const key of ['AI_IMAGE_MODEL', 'AI_JUDGE_MODEL'] as const) {
+      const issue = openRouterModelIssue(env[key]);
+
+      if (issue) {
+        ctx.addIssue({ code: 'custom', message: issue, path: [key] });
+      }
+    }
+
+    // Its own key, or the text's spend and the pictures' would share one limit (`0066`).
+    if (env.OPENROUTER_IMAGE_API_KEY && env.OPENROUTER_IMAGE_API_KEY.trim() === env.OPENROUTER_API_KEY?.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'must be its own key, not OPENROUTER_API_KEY — the pictures’ monthly limit is set on it',
+        path: ['OPENROUTER_IMAGE_API_KEY']
+      });
     }
   })
   .superRefine((env, ctx) => {
