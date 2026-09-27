@@ -7,10 +7,12 @@
 
 /*
  * The whole picture, but never so wide that it is blown up past its source, and
- * never so tall on a desktop that the recipe starts below the fold.
+ * never so tall on a desktop that the recipe starts below the fold — nor with
+ * large text, where 40rem is the whole window: a 4:3 box at most 70% of the
+ * screen's height.
  */
 .hero {
-  max-inline-size: 40rem;
+  max-inline-size: min(40rem, calc(70dvh * 4 / 3));
 }
 
 .frame {
