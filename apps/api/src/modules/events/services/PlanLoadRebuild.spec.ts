@@ -131,7 +131,7 @@ const PROFILE = {
   cuisines: [],
   dietaryPatterns: [],
   foodPreferences: [],
-  goal: { id: 'g1', customGoal: null, paceKgPerWeek: null, startingWeightKg: 72, targetWeightKg: 70, type: 'maintenance' as const },
+  goal: { id: 'g1', paceKgPerWeek: null, startingWeightKg: 72, targetWeightKg: 70, type: 'maintenance' as const },
   intolerances: [],
   preferences: { activityLevel: 'moderate' as const, mealShape: shapeFor(3, false) },
   profile: { birthDate: '1994-03-11', heightCm: 168, sex: 'female' as const },

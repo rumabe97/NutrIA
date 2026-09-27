@@ -227,7 +227,6 @@ export const ProfileRepository = {
     try {
       const db = database();
       const values = {
-        customGoal: input.customGoal ?? null,
         paceKgPerWeek: toNumeric(input.paceKgPerWeek),
         startingWeightKg: toNumeric(input.startingWeightKg),
         targetWeightKg: toNumeric(input.targetWeightKg),

@@ -37,39 +37,6 @@ export function toRecipeDraft(dish: CandidateDish, context: GenerationContext): 
 export type PromptPreferences = Omit<PromptContext, 'excludeSlugs' | 'language' | 'needBySlot'>;
 
 /**
- * The day in one line: when they wake, when they sleep, how often and when they
- * train.
- *
- * These four answers shaped nothing at all — the lifestyle step was stored and
- * read by no one. They belong here rather than in a rule: what time someone
- * rises decides whether a breakfast can be cooked or has to travel, and when
- * they train decides where the heavier plate goes. That is a design judgement,
- * which is the model's half of the split (0004), so it is asked for and not
- * enforced. Null when they said nothing, so the prompt gains no empty line.
- */
-export function dayShapeOf(preferences: FullProfileView['preferences']): string | null {
-  const parts: string[] = [];
-
-  if (preferences?.sleepEnd) {
-    parts.push(`wakes at ${preferences.sleepEnd}`);
-  }
-
-  if (preferences?.sleepStart) {
-    parts.push(`sleeps at ${preferences.sleepStart}`);
-  }
-
-  if (preferences?.trainingDaysPerWeek) {
-    parts.push(
-      preferences.trainingTime
-        ? `trains ${preferences.trainingDaysPerWeek} days a week at ${preferences.trainingTime}`
-        : `trains ${preferences.trainingDaysPerWeek} days a week`
-    );
-  }
-
-  return parts.length > 0 ? parts.join('; ') : null;
-}
-
-/**
  * The foods they said they like, by the catalogue's names in their language —
  * the rows their likes resolved to (`preferredIngredientSlugs`), never the words
  * they typed. A like that named nothing the catalogue knows is not said at all.
@@ -98,10 +65,9 @@ export function monthOf(isoDate: string): number {
  * month decides which produce is in season (`0062` § 6) and which a lunch or
  * a dinner keeps (`0063`).
  *
- * Structured answers only (prompt 4.0.0): nothing they typed — no breakfast,
- * plate or working-week notes, no check-in comment, no dislike or allergy the
- * catalogue could not resolve — reaches the model. `health-boundary.spec.ts`
- * holds the line.
+ * Structured answers only (prompt 4.0.0): nothing they typed — no check-in
+ * comment, no dislike or allergy the catalogue could not resolve — reaches the
+ * model. `health-boundary.spec.ts` holds the line.
  */
 export function promptPreferences(
   profile: FullProfileView,
@@ -115,13 +81,10 @@ export function promptPreferences(
 ): PromptPreferences {
   return {
     avoidNames,
-    budget: profile.preferences?.budget ?? null,
     // The closed answers, never the comment: it is their words.
     checkIn: checkIn ? { difficulty: checkIn.difficulty, hunger: checkIn.hunger, satisfaction: checkIn.satisfaction } : null,
-    cookingFrequency: profile.preferences?.cookingFrequency ?? null,
     cookingTimeMinutes: profile.preferences?.cookingTimeMinutes ?? null,
     cuisines: profile.cuisines,
-    dayShape: dayShapeOf(profile.preferences),
     dietaryPatterns: profile.dietaryPatterns,
     dislikedNames: verdicts.disliked.map(dish => dish.name),
     goal: profile.goal?.type ?? null,

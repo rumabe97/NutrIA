@@ -4,9 +4,13 @@ import { setAllergiesSchema } from 'core/entities/Safety';
 import { updateGoalSchema, updatePreferencesSchema, updateProfileSchema } from 'core/entities/Profile';
 
 /**
- * The ten onboarding steps, in order. The array is the source of truth for both
- * the client's progress bar and the server's completeness check — one list, so
- * they cannot disagree about what "done" means.
+ * The onboarding steps, in order. The array is the source of truth for both the
+ * client's progress bar and the server's completeness check — one list, so they
+ * cannot disagree about what "done" means.
+ *
+ * `lifestyle` (sleep and training times) is gone (owner's decision, 2026-09-28;
+ * `0067`): a question the plan never read from is a question that changes
+ * nothing (`0025`), and nobody read it.
  */
 export const ONBOARDING_STEPS = [
   'about-you',
@@ -15,7 +19,6 @@ export const ONBOARDING_STEPS = [
   'how-you-eat',
   'food-preferences',
   'allergies',
-  'lifestyle',
   'cooking',
   'review',
   'create-plan'
@@ -23,8 +26,8 @@ export const ONBOARDING_STEPS = [
 
 export type OnboardingStep = (typeof ONBOARDING_STEPS)[number];
 
-/** Steps that must be completed before a plan may be generated. */
-export const REQUIRED_ONBOARDING_STEPS: readonly OnboardingStep[] = ONBOARDING_STEPS.slice(0, 8);
+/** Steps that must be completed before a plan may be generated — every step before `review`. */
+export const REQUIRED_ONBOARDING_STEPS: readonly OnboardingStep[] = ONBOARDING_STEPS.slice(0, ONBOARDING_STEPS.indexOf('review'));
 
 export const onboardingStateSchema = z.object({
   id: z.uuid(),
@@ -58,20 +61,13 @@ export const onboardingStepSchema = z.discriminatedUnion('step', [
     }),
     step: z.literal('body-activity')
   }),
-  z.object({
-    data: updatePreferencesSchema.pick({ breakfastStyle: true, mealShape: true, portionPreference: true }),
-    step: z.literal('how-you-eat')
-  }),
+  z.object({ data: updatePreferencesSchema.pick({ mealShape: true }), step: z.literal('how-you-eat') }),
   z.object({
     data: z.object({ cuisines: z.array(z.string().max(60)).max(10), preferences: z.array(foodPreferenceInput).max(60) }),
     step: z.literal('food-preferences')
   }),
   z.object({ data: setAllergiesSchema.extend({ dietaryPatterns: z.array(z.string()).max(9) }), step: z.literal('allergies') }),
-  z.object({
-    data: updatePreferencesSchema.pick({ sleepEnd: true, sleepStart: true, trainingDaysPerWeek: true, trainingTime: true, workScheduleNotes: true }),
-    step: z.literal('lifestyle')
-  }),
-  z.object({ data: updatePreferencesSchema.pick({ budget: true, cookingFrequency: true, cookingTimeMinutes: true }), step: z.literal('cooking') })
+  z.object({ data: updatePreferencesSchema.pick({ cookingTimeMinutes: true }), step: z.literal('cooking') })
 ]);
 
 export type OnboardingStepInput = z.infer<typeof onboardingStepSchema>;
