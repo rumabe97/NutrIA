@@ -85,6 +85,10 @@ export const RecipeRepository = {
    * of being paid for on every view. A claim after a finished failure's
    * cool-off starts again from zero.
    *
+   * A **released** row (`releasePicture`: the cap, a refused key) is claimed at
+   * once, with no cool-off, and keeps its `attempts`: what stopped it was not
+   * the dish, and what the dish already failed still counts.
+   *
    * Mode: one `INSERT … ON CONFLICT DO UPDATE … WHERE … RETURNING`. "Is anyone
    * drawing it?" and "I am" cannot be two statements: two first views fired
    * together would both read no row and both draw, paying twice. With one
@@ -100,13 +104,14 @@ export const RecipeRepository = {
         .values({ attempts: 0, lastAttemptAt: now, recipeId, status: 'drawing' })
         .onConflictDoUpdate({
           set: {
-            attempts: sql`case when ${recipeImages.status} = 'drawing' then ${recipeImages.attempts} + 1 else 0 end`,
+            attempts: sql`case when ${recipeImages.status} = 'drawing' then ${recipeImages.attempts} + 1 when ${released} then ${recipeImages.attempts} else 0 end`,
             lastAttemptAt: now,
             status: 'drawing',
             updatedAt: now
           },
           setWhere: or(
             and(eq(recipeImages.status, 'failed'), lt(recipeImages.lastAttemptAt, cooledOff)),
+            and(eq(recipeImages.status, 'failed'), released),
             and(eq(recipeImages.status, 'drawing'), lt(recipeImages.lastAttemptAt, stale))
           ),
           target: recipeImages.recipeId
@@ -680,12 +685,18 @@ export const RecipeRepository = {
   async pictureState(recipeId: string): Promise<PictureState> {
     try {
       const [row] = await database()
-        .select({ attempts: recipeImages.attempts, lastAttemptAt: recipeImages.lastAttemptAt, status: recipeImages.status, url: recipeImages.url })
+        .select({
+          attempts: recipeImages.attempts,
+          lastAttemptAt: recipeImages.lastAttemptAt,
+          released: sql<boolean>`${released}`,
+          status: recipeImages.status,
+          url: recipeImages.url
+        })
         .from(recipeImages)
         .where(eq(recipeImages.recipeId, recipeId))
         .limit(1);
 
-      return pictureStateSchema.parse(row ?? { attempts: 0, lastAttemptAt: null, status: 'none', url: null });
+      return pictureStateSchema.parse(row ?? { attempts: 0, lastAttemptAt: null, released: false, status: 'none', url: null });
     } catch (error: unknown) {
       throw wrap(error, 'recipe_images');
     }
@@ -723,16 +734,21 @@ export const RecipeRepository = {
   },
 
   /**
-   * Gives a claimed drawing back, as if it had never been claimed: the row
-   * goes, and the dish is `none` again. For a drawing that stopped for a reason
-   * that is not the dish's — the month's cap reached, the key refused — so it
-   * neither shows as drawing nor waits out a failure's cool-off. Mode: one
-   * guarded `DELETE`, matched on the claim like `completePicture`. False when
-   * the claim was no longer this caller's.
+   * Gives a claimed drawing back, for a reason that is not the dish's — the
+   * month's cap reached, the key refused. The row is `failed` with
+   * `provenance.released` saying why, so it reads as no picture and is not
+   * drawing; the next claim takes it at once, with no cool-off, and keeps
+   * `attempts` — the attempts the dish already used (`claimPicture`). Mode: the
+   * same guarded `UPDATE` as `completePicture`. False when the claim was no
+   * longer this caller's.
    */
-  async releasePicture(recipeId: string, claimedAt: Date): Promise<boolean> {
+  async releasePicture(recipeId: string, claimedAt: Date, outcome: { readonly attempts: number; readonly why: string }, now: Date): Promise<boolean> {
     try {
-      const rows = await database().delete(recipeImages).where(stillClaimed(recipeId, claimedAt)).returning({ recipeId: recipeImages.recipeId });
+      const rows = await database()
+        .update(recipeImages)
+        .set({ attempts: outcome.attempts, lastAttemptAt: now, provenance: { released: outcome.why }, status: 'failed', updatedAt: now })
+        .where(stillClaimed(recipeId, claimedAt))
+        .returning({ recipeId: recipeImages.recipeId });
 
       return rows.length === 1;
     } catch (error: unknown) {
@@ -859,6 +875,9 @@ function needsRewriteCondition(stepsVersion: string) {
  * queue or a seconds clock would never match. A claim-id column is the robust
  * form if the drawing ever leaves this process.
  */
+/** A row a drawing gave back for a reason that is not the dish's (`releasePicture`). */
+const released = sql`(${recipeImages.provenance} ->> 'released') is not null`;
+
 function stillClaimed(recipeId: string, claimedAt: Date): SQL | undefined {
   return and(eq(recipeImages.recipeId, recipeId), eq(recipeImages.status, 'drawing'), eq(recipeImages.lastAttemptAt, claimedAt));
 }

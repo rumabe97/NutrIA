@@ -243,7 +243,7 @@ describe('DishPictureService.draw — stopping without blaming the dish', () => 
     await expect(service({ images }).pictures.draw(CLAIM)).resolves.toBe('released');
 
     expect(images.draw).not.toHaveBeenCalled();
-    expect(release).toHaveBeenCalledWith(CLAIM);
+    expect(release).toHaveBeenCalledWith(CLAIM, { attempts: 0, why: 'the month’s cap is reached' });
     expect(fail).not.toHaveBeenCalled();
   });
 
@@ -257,9 +257,26 @@ describe('DishPictureService.draw — stopping without blaming the dish', () => 
     await expect(service({ images }).pictures.draw(CLAIM)).resolves.toBe('released');
 
     expect(images.draw).toHaveBeenCalledTimes(1);
-    expect(release).toHaveBeenCalledWith(CLAIM);
+    // The refused attempt is not counted against the dish.
+    expect(release).toHaveBeenCalledWith(CLAIM, expect.objectContaining({ attempts: 0 }));
     expect(fail).not.toHaveBeenCalled();
     expect(calls[0]?.costUsd).toBe(refusal instanceof PictureCallError ? 0 : IMAGE_COST_FLOOR_USD);
+  });
+
+  it('keeps the attempts the dish already used when the claim is given back', async () => {
+    let calls = 0;
+    const judge = Object.assign(new PrawnsJudge(), {
+      match: async () => {
+        calls += 1;
+
+        return calls < 3
+          ? Promise.resolve({ costUsd: 0.0002, model: 'judge', provider: null, result: { extras: ['shrimp'], ingredients: [] } })
+          : Promise.reject(new PictureCallError('OpenRouter /chat/completions answered 402: Key limit exceeded', 402));
+      }
+    });
+
+    await expect(service({ judge }).pictures.draw(CLAIM)).resolves.toBe('released');
+    expect(release).toHaveBeenCalledWith(CLAIM, expect.objectContaining({ attempts: 2 }));
   });
 
   it('gives the claim back when the judge’s key is refused too', async () => {
