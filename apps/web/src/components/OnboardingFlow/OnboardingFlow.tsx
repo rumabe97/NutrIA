@@ -62,8 +62,6 @@ const DEFAULT_SHAPE = {
   supper: 'off'
 } as const;
 const SEX_VALUES = ['female', 'male', 'other', 'prefer_not_to_say'] as const;
-const COOKING_FREQUENCY_VALUES = ['rarely', 'sometimes', 'often', 'daily'] as const;
-const BUDGET_VALUES = ['low', 'medium', 'high'] as const;
 const DIETARY_PATTERN_VALUES = [
   'omnivore',
   'vegetarian',
@@ -102,8 +100,6 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
 
   const options = {
     activity: ACTIVITY_VALUES.map(value => ({ ...t.options.activity[value], value })),
-    budget: BUDGET_VALUES.map(value => ({ ...t.options.budget[value], value })),
-    cookingFrequency: COOKING_FREQUENCY_VALUES.map(value => ({ label: t.options.cookingFrequency[value], value })),
     countries: COUNTRY_VALUES.map(value => ({ label: t.options.countries[value], value })),
     dietaryPatterns: DIETARY_PATTERN_VALUES.map(value => ({ label: t.options.dietaryPatterns[value], value })),
     goals: GOAL_VALUES.map(value => ({ ...t.options.goals[value], value })),
@@ -200,26 +196,17 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
 
     switch (current?.key) {
       case 'about-you':
-        return { birthDate: text('birthDate'), displayName: text('displayName'), sex: text('sex') };
+        return { birthDate: text('birthDate'), country: text('country'), displayName: text('displayName'), sex: text('sex') };
 
       case 'goal':
-        return {
-          customGoal: text('customGoal'),
-          paceKgPerWeek: number('paceKgPerWeek'),
-          targetWeightKg: number('targetWeightKg'),
-          type: text('type')
-        };
+        return { paceKgPerWeek: number('paceKgPerWeek'), targetWeightKg: number('targetWeightKg'), type: text('type') };
 
       case 'body-activity':
         return { activityLevel: text('activityLevel'), currentWeightKg: number('currentWeightKg'), heightCm: number('heightCm') };
 
       case 'how-you-eat':
-        return {
-          breakfastStyle: text('breakfastStyle'),
-          // One radio group per slot, so the whole shape arrives in this submit.
-          mealShape: Object.fromEntries(MEAL_SLOT_VALUES.map(slot => [slot, form.get(`shape.${slot}`) ?? 'off'])),
-          portionPreference: text('portionPreference')
-        };
+        // One radio group per slot, so the whole shape arrives in this submit.
+        return { mealShape: Object.fromEntries(MEAL_SLOT_VALUES.map(slot => [slot, form.get(`shape.${slot}`) ?? 'off'])) };
 
       case 'food-preferences':
         return {
@@ -244,17 +231,8 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
           intolerances: form.getAll('intolerance').map(id => ({ allergenId: String(id) }))
         };
 
-      case 'lifestyle':
-        return {
-          sleepEnd: text('sleepEnd'),
-          sleepStart: text('sleepStart'),
-          trainingDaysPerWeek: number('trainingDaysPerWeek'),
-          trainingTime: text('trainingTime'),
-          workScheduleNotes: text('workScheduleNotes')
-        };
-
       case 'cooking':
-        return { budget: text('budget'), cookingFrequency: text('cookingFrequency'), cookingTimeMinutes: number('cookingTimeMinutes') };
+        return { cookingTimeMinutes: number('cookingTimeMinutes') };
 
       default:
         return {};
@@ -439,7 +417,6 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
                 type="number"
               />
             </div>
-            <Input defaultValue={goal?.customGoal ?? ''} label={f.customGoal} name="customGoal" />
           </Fragment>
         ) : null}
 
@@ -464,19 +441,15 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
         ) : null}
 
         {current?.key === 'how-you-eat' ? (
-          <Fragment>
-            {/* Which meals, and how big — one question instead of a count and a
-                checkbox that between them could not say "I skip breakfast" (`0036`). */}
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>{f.mealShape}</legend>
-              <MealShapePicker labels={{ sizes: t.options.mealSizes, slots: t.options.mealSlots }} value={preferences?.mealShape ?? DEFAULT_SHAPE} />
-              <Text className={styles.hint} size="xs" tone="tertiary">
-                {f.mealShapeHint}
-              </Text>
-            </fieldset>
-            <Input defaultValue={preferences?.breakfastStyle ?? ''} label={f.breakfastStyle} name="breakfastStyle" />
-            <Input defaultValue={preferences?.portionPreference ?? ''} label={f.portionPreference} name="portionPreference" />
-          </Fragment>
+          // Which meals, and how big — one question instead of a count and a
+          // checkbox that between them could not say "I skip breakfast" (`0036`).
+          <fieldset className={styles.fieldset}>
+            <legend className={styles.legend}>{f.mealShape}</legend>
+            <MealShapePicker labels={{ sizes: t.options.mealSizes, slots: t.options.mealSlots }} value={preferences?.mealShape ?? DEFAULT_SHAPE} />
+            <Text className={styles.hint} size="xs" tone="tertiary">
+              {f.mealShapeHint}
+            </Text>
+          </fieldset>
         ) : null}
 
         {current?.key === 'food-preferences' ? (
@@ -564,47 +537,16 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
           </Fragment>
         ) : null}
 
-        {current?.key === 'lifestyle' ? (
-          <Fragment>
-            <div className={styles.row}>
-              <Input defaultValue={preferences?.sleepStart ?? ''} label={f.sleepStart} name="sleepStart" type="time" />
-              <Input defaultValue={preferences?.sleepEnd ?? ''} label={f.sleepEnd} name="sleepEnd" type="time" />
-            </div>
-            <div className={styles.row}>
-              <Input
-                defaultValue={preferences?.trainingDaysPerWeek ?? 0}
-                label={f.trainingDays}
-                max="7"
-                min="0"
-                name="trainingDaysPerWeek"
-                type="number"
-              />
-              <Input defaultValue={preferences?.trainingTime ?? ''} label={f.trainingTime} name="trainingTime" type="time" />
-            </div>
-            <Input defaultValue={preferences?.workScheduleNotes ?? ''} label={f.workScheduleNotes} name="workScheduleNotes" />
-          </Fragment>
-        ) : null}
-
         {current?.key === 'cooking' ? (
-          <Fragment>
-            <Input
-              defaultValue={preferences?.cookingTimeMinutes ?? 30}
-              hint={f.cookingTimeHint}
-              label={f.cookingTime}
-              max="240"
-              min="5"
-              name="cookingTimeMinutes"
-              type="number"
-            />
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>{f.cookingFrequency}</legend>
-              <OptionCards name="cookingFrequency" options={options.cookingFrequency} value={preferences?.cookingFrequency} />
-            </fieldset>
-            <fieldset className={styles.fieldset}>
-              <legend className={styles.legend}>{f.budget}</legend>
-              <OptionCards name="budget" options={options.budget} value={preferences?.budget} />
-            </fieldset>
-          </Fragment>
+          <Input
+            defaultValue={preferences?.cookingTimeMinutes ?? 30}
+            hint={f.cookingTimeHint}
+            label={f.cookingTime}
+            max="240"
+            min="5"
+            name="cookingTimeMinutes"
+            type="number"
+          />
         ) : null}
 
         {isReview ? (

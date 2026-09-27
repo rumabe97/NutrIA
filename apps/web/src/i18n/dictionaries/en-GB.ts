@@ -661,7 +661,7 @@ export const enGB: Dictionary = {
     heroNote: 'No card needed. Your plan is ready as soon as you finish the questions.',
     lede: 'Personalised meal plans built around your goals, your preferences and your life. Adjusted every fortnight according to what actually works for you.',
     personalisationLede:
-      'Goal, age, activity, schedule, budget, the cooking you like, the foods you never want to see again. It all goes into the calculation, and it can all be changed later.',
+      'Goal, age, activity, the cooking you like, the foods you never want to see again. It all goes into the calculation, and it can all be changed later.',
     personalisationTitle: 'Your plan knows you get home late on Tuesdays.',
     preview: {
       adherence: 'Adherence',
@@ -696,10 +696,7 @@ export const enGB: Dictionary = {
     safetyLede: 'The AI proposes meals. Anything that could harm you is checked by the system.',
     safetyTitle: 'A model does not decide what matters.',
     steps: [
-      {
-        body: 'Your goal, your schedule, your allergies, your budget, and what you have no intention of cooking on a Tuesday.',
-        title: 'You tell us how you live'
-      },
+      { body: 'Your goal, your allergies, and what you have no intention of cooking on a Tuesday.', title: 'You tell us how you live' },
       { body: 'We work out what you need and build fourteen complete days, meal by meal.', title: 'We build your plan' },
       { body: 'Tick off what you eat, swap what you don’t fancy, shop with a list already written.', title: 'You follow it at your pace' },
       { body: 'Every fortnight we look at what worked, and the next plan arrives better tuned.', title: 'It adapts' }
@@ -798,9 +795,6 @@ export const enGB: Dictionary = {
       activityLevel: 'Activity level',
       allergies: 'Allergies',
       birthDate: 'Date of birth',
-      breakfastStyle: 'What do you usually have for breakfast?',
-      budget: 'Budget',
-      cookingFrequency: 'How often do you cook?',
       cookingTime: 'Minutes you can spend cooking',
       cookingTimeHint: 'Per meal, between 5 and 240.',
       country: 'Where do you do your shopping?',
@@ -808,7 +802,6 @@ export const enGB: Dictionary = {
       cuisines: 'Cuisines you fancy',
       customAllergens: 'Something not on the list',
       customAllergensHint: 'Separate with commas. When you save we look each one up in our catalogue and tell you what we can apply.',
-      customGoal: 'If you chose “Other”, describe it',
       dietaryPatterns: 'Way of eating',
       dietaryPatternsHint:
         'We take out pork, alcohol and gelatine (and, for kosher, shellfish and meat with dairy). Certified meat depends on where you buy it.',
@@ -828,19 +821,13 @@ export const enGB: Dictionary = {
       paceHint:
         'Between 0 and 1 kg per week; your goal sets the direction. If you ask for more than is safe for you, we adjust it and say so in the summary.',
       paceRange: 'The pace has to be between 0 and 1 kg per week.',
-      portionPreference: 'Do you prefer large plates or light ones?',
       sex: 'Sex',
       sexHint: 'Used only for the metabolic equation. If you would rather not say, we use the middle value.',
-      sleepEnd: 'What time do you get up?',
-      sleepStart: 'What time do you go to bed?',
       targetWeightKg: 'Target weight (kg)',
       traceHint: 'Tick “traces” if products that may contain the allergen affect you too.',
       traceLabel: 'traces',
       traceLabelFor: 'Traces of {allergen}',
-      trainingDays: 'Training days per week',
-      trainingTime: 'What time do you train?',
-      weightKg: 'Current weight (kg)',
-      workScheduleNotes: 'Anything about your schedule we should know'
+      weightKg: 'Current weight (kg)'
     },
     options: {
       activity: {
@@ -850,12 +837,6 @@ export const enGB: Dictionary = {
         moderate: { hint: 'I train 3–4 times a week.', label: 'Moderate' },
         sedentary: { hint: 'Desk job, little exercise.', label: 'Sedentary' }
       },
-      budget: {
-        high: { hint: 'Fresh and seasonal.', label: 'Generous' },
-        low: { hint: 'Basics and own brands.', label: 'Tight' },
-        medium: { hint: 'Without thinking about it too hard.', label: 'Normal' }
-      },
-      cookingFrequency: { daily: 'Daily', often: 'Often', rarely: 'Almost never', sometimes: 'Sometimes' },
       countries: { ES: 'Spain', GB: 'United Kingdom' },
       dietaryPatterns: {
         flexitarian: 'Flexitarian',
@@ -869,7 +850,7 @@ export const enGB: Dictionary = {
         vegetarian: 'Vegetarian'
       },
       goals: {
-        custom: { hint: 'Tell us in your own words.', label: 'Other' },
+        custom: { hint: "Doesn't fit the ones above: we use the target weight and pace you give, with no other script.", label: 'Other' },
         healthy_eating: { hint: 'No weight target, just eating well.', label: 'Eat well' },
         maintenance: { hint: 'Stay where you are, eating better.', label: 'Maintain' },
         muscle_gain: { hint: 'Build muscle on a controlled surplus.', label: 'Build muscle' },
@@ -924,7 +905,6 @@ export const enGB: Dictionary = {
       foodPreferences: { subtitle: 'What you like turns up more. What you don’t, disappears.', title: 'Preferences' },
       goal: { subtitle: 'You can change it whenever you like.', title: 'Your goal' },
       howYouEat: { subtitle: 'How you spread your food across the day.', title: 'How you eat' },
-      lifestyle: { subtitle: 'So meals land when you can actually eat them.', title: 'Your days' },
       review: { subtitle: 'Check everything is right before you finish.', title: 'Review' }
     }
   },
@@ -1345,7 +1325,7 @@ export const enGB: Dictionary = {
         heading: 'Artificial intelligence',
         paragraphs: [
           "NutrIA's dishes and recipes are designed by an artificial-intelligence model or come from our library of dishes already designed and checked. Our own code checks every dish before it reaches you: a declared allergen does not reach your plan even if the model gets it wrong. The AI makes no decision about you: the calorie and protein bounds are applied by fixed rules, not by the model.",
-          'What the model receives when it designs new dishes for your plan: your daily targets and your goal (for example, losing weight), which meals you eat and when you wake, sleep and train, how much you cook and your budget, whether you are vegetarian or vegan, the cuisines and foods you like, the names of dishes you liked, disliked or ate last fortnight, and your closed check-in answers (hunger, difficulty, rating). Always by the names on our lists. It never receives your name, email, age, sex, weight or height, anything you typed yourself, your allergies or intolerances, any other way of eating (gluten-free, lactose-free, halal, kosher…), or your conditions, medications or supplements. What you cannot or will not eat we remove first, in our code, from the catalogue of foods it sees: it gets the effect, never the datum.',
+          'What the model receives when it designs new dishes for your plan: your daily targets and your goal (for example, losing weight), which meals you eat and how much time you have to cook, whether you are vegetarian or vegan, the cuisines and foods you like, the names of dishes you liked, disliked or ate last fortnight, and your closed check-in answers (hunger, difficulty, rating). Always by the names on our lists. It never receives your name, email, age, sex, weight or height, anything you typed yourself, your allergies or intolerances, any other way of eating (gluten-free, lactose-free, halal, kosher…), or your conditions, medications or supplements. What you cannot or will not eat we remove first, in our code, from the catalogue of foods it sees: it gets the effect, never the datum.',
           "Where it goes: the request goes to OpenRouter (OpenRouter, Inc., United States), which processes it on our behalf and passes it to the company that runs the model: DeepInfra or CoreWeave, also in the United States. The model is Gemma 4 31B and, if it does not answer, DeepSeek V4.1 Flash; they are open models run by those companies, never by Google's or DeepSeek's own services.",
           'Nobody trains on it or keeps it: we only use providers that delete the request as soon as they answer and do not use it to train or improve any model. We require this in our OpenRouter account and again in every request. OpenRouter keeps only technical data about each request (size, time, cost), not its content.',
           'One exception you should know about: OpenRouter may pass a small sample of requests, with nothing linking them to our account or to you, through a model that tags them with a topic for its public usage statistics. It does not keep the text, only the tag.',
@@ -1420,7 +1400,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Privacy policy',
-    updated: 'Last updated: 26 September 2026'
+    updated: 'Last updated: 28 September 2026'
   },
 
   profile: {
@@ -1515,7 +1495,7 @@ export const enGB: Dictionary = {
   },
 
   profileConsent: {
-    ai: 'An artificial-intelligence model designs the dishes. It receives your daily targets, your meal times, your budget, whether you are vegetarian or vegan, and the foods and dishes you like or dislike, always by the names on our lists. It never receives your name, email, age, weight or height, anything you type yourself, your allergies or intolerances, any other way of eating, or your conditions or medication: what you cannot or will not eat we remove first, in our code, and the same code checks every dish before it reaches you.',
+    ai: 'An artificial-intelligence model designs the dishes. It receives your daily targets, your meal times, whether you are vegetarian or vegan, and the foods and dishes you like or dislike, always by the names on our lists. It never receives your name, email, age, weight or height, anything you type yourself, your allergies or intolerances, any other way of eating, or your conditions or medication: what you cannot or will not eat we remove first, in our code, and the same code checks every dish before it reaches you.',
     body: 'To build you a safe plan we need data that says something about your health: your allergies and intolerances, your weight, height and goal, and how you eat, which sometimes reveals an intolerance or a belief. We use them only to work out your targets and choose your dishes.',
     continue: 'Continue',
     label: 'I consent to NutrIA using this health data to make my plans',
