@@ -14,6 +14,7 @@ import type { LibraryRecipe } from 'core/domain/MealFit';
 import type { PictureCall, PictureProvenance, PictureState } from 'core/entities/DishPicture';
 import type { CatalogueIngredient, MealSlot, RecipeVerdict } from 'core/entities/Plan';
 import type { RecipeStep } from 'database/schema/recipe';
+import type { SQL } from 'drizzle-orm';
 
 export type ReusableRecipe = {
   readonly id: string;
@@ -87,21 +88,31 @@ export const RecipeRepository = {
    * caller won and must draw; false when the dish is ready, already being drawn,
    * or failed less than `coolOffDays` ago.
    *
+   * A drawing claimed more than `staleAfterMinutes` ago is taken over: the
+   * function that ran it was stopped before it could end it (its `maxDuration`
+   * is 5 minutes), and without this the dish would wait for a picture forever.
+   * `now` is the claim's mark — `completePicture` and `failPicture` must be given
+   * it back, so a drawer whose claim was taken over cannot end the new one.
+   *
    * Mode: one `INSERT … ON CONFLICT DO UPDATE … WHERE … RETURNING`. "Is anyone
    * drawing it?" and "I am" cannot be two statements: two first views fired
    * together would both read no row and both draw, paying twice. With one
    * statement the second caller waits on the first's row, then evaluates the
    * `WHERE` against it — `drawing`, so it updates nothing and returns no row.
    */
-  async claimPicture(recipeId: string, now: Date, coolOffDays: number): Promise<boolean> {
+  async claimPicture(recipeId: string, now: Date, coolOffDays: number, staleAfterMinutes = 15): Promise<boolean> {
     try {
       const cooledOff = new Date(now.getTime() - coolOffDays * 86_400_000);
+      const stale = new Date(now.getTime() - staleAfterMinutes * 60_000);
       const rows = await database()
         .insert(recipeImages)
         .values({ attempts: 0, lastAttemptAt: now, recipeId, status: 'drawing' })
         .onConflictDoUpdate({
           set: { attempts: 0, lastAttemptAt: now, status: 'drawing', updatedAt: now },
-          setWhere: and(eq(recipeImages.status, 'failed'), lt(recipeImages.lastAttemptAt, cooledOff)),
+          setWhere: or(
+            and(eq(recipeImages.status, 'failed'), lt(recipeImages.lastAttemptAt, cooledOff)),
+            and(eq(recipeImages.status, 'drawing'), lt(recipeImages.lastAttemptAt, stale))
+          ),
           target: recipeImages.recipeId
         })
         .returning({ recipeId: recipeImages.recipeId });
@@ -166,11 +177,14 @@ export const RecipeRepository = {
 
   /**
    * A drawing that ended with an accepted picture: its address and what drew it.
-   * Mode: a single guarded `UPDATE … WHERE status = 'drawing'`, so a drawing
-   * that lost its claim cannot overwrite the row. False when nothing was updated.
+   * `claimedAt` is the `now` its claim was made with. Mode: a single guarded
+   * `UPDATE … WHERE status = 'drawing' AND last_attempt_at = claimedAt`, so a
+   * drawing whose claim was taken over as stale cannot end the newer one. False
+   * when nothing was updated.
    */
   async completePicture(
     recipeId: string,
+    claimedAt: Date,
     picture: {
       readonly attempts: number;
       readonly model: string;
@@ -183,7 +197,7 @@ export const RecipeRepository = {
       const rows = await database()
         .update(recipeImages)
         .set({ ...picture, status: 'ready', updatedAt: new Date() })
-        .where(and(eq(recipeImages.recipeId, recipeId), eq(recipeImages.status, 'drawing')))
+        .where(stillClaimed(recipeId, claimedAt))
         .returning({ recipeId: recipeImages.recipeId });
 
       return rows.length === 1;
@@ -197,12 +211,17 @@ export const RecipeRepository = {
    * it ended, which is what the cool-off counts from. Mode: the same guarded
    * `UPDATE` as `completePicture`, for the same reason.
    */
-  async failPicture(recipeId: string, outcome: { readonly attempts: number; readonly provenance: PictureProvenance }, now: Date): Promise<boolean> {
+  async failPicture(
+    recipeId: string,
+    claimedAt: Date,
+    outcome: { readonly attempts: number; readonly provenance: PictureProvenance },
+    now: Date
+  ): Promise<boolean> {
     try {
       const rows = await database()
         .update(recipeImages)
         .set({ ...outcome, lastAttemptAt: now, status: 'failed', updatedAt: now })
-        .where(and(eq(recipeImages.recipeId, recipeId), eq(recipeImages.status, 'drawing')))
+        .where(stillClaimed(recipeId, claimedAt))
         .returning({ recipeId: recipeImages.recipeId });
 
       return rows.length === 1;
@@ -792,6 +811,11 @@ function needsRewriteCondition(stepsVersion: string) {
       )
     )
   `;
+}
+
+/** The row is still the drawing this caller claimed at `claimedAt`: not ended, not taken over. */
+function stillClaimed(recipeId: string, claimedAt: Date): SQL | undefined {
+  return and(eq(recipeImages.recipeId, recipeId), eq(recipeImages.status, 'drawing'), eq(recipeImages.lastAttemptAt, claimedAt));
 }
 
 function wrap(error: unknown, table: string): DatabaseOperationError {

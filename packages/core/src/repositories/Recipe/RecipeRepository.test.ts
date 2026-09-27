@@ -71,6 +71,8 @@ vi.mock('database', () => ({ database: () => ({ insert, select, update }) }));
 
 const RECIPE = '6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f';
 const NOW = new Date('2026-09-27T12:00:00Z');
+/** When the drawing being ended was claimed. */
+const CLAIMED = new Date('2026-09-27T11:58:00Z');
 
 beforeEach(() => {
   statements.length = 0;
@@ -84,7 +86,7 @@ beforeEach(() => {
  * is the end-to-end suite's to prove (project 006, phase 3).
  */
 describe('RecipeRepository.claimPicture', () => {
-  it('is one statement: an insert that claims, an update only of a failed row past its cool-off, and RETURNING', async () => {
+  it('is one statement: an insert that claims, an update only of a failed row past its cool-off or a stale drawing, and RETURNING', async () => {
     answers = [[{ recipeId: RECIPE }]];
 
     await expect(RecipeRepository.claimPicture(RECIPE, NOW, 7)).resolves.toBe(true);
@@ -102,8 +104,28 @@ describe('RecipeRepository.claimPicture', () => {
     expect(claim.values).toEqual({ attempts: 0, lastAttemptAt: NOW, recipeId: RECIPE, status: 'drawing' });
     expect(claim.upsert?.target).toBe(recipeImages.recipeId);
     expect(claim.upsert?.set).toMatchObject({ attempts: 0, lastAttemptAt: NOW, status: 'drawing' });
-    expect(claim.upsert?.setWhere.sql).toBe('("recipe_images"."status" = $1 and "recipe_images"."last_attempt_at" < $2)');
-    expect(claim.upsert?.setWhere.params).toEqual(['failed', new Date('2026-09-20T12:00:00Z').toISOString()]);
+    expect(claim.upsert?.setWhere.sql).toBe(
+      '(("recipe_images"."status" = $1 and "recipe_images"."last_attempt_at" < $2) or ("recipe_images"."status" = $3 and "recipe_images"."last_attempt_at" < $4))'
+    );
+    // 7 days of cool-off after a failure; a drawing is stale 15 minutes after its claim by default.
+    expect(claim.upsert?.setWhere.params).toEqual([
+      'failed',
+      new Date('2026-09-20T12:00:00Z').toISOString(),
+      'drawing',
+      new Date('2026-09-27T11:45:00Z').toISOString()
+    ]);
+  });
+
+  it('takes the stale-after value it is given', async () => {
+    await RecipeRepository.claimPicture(RECIPE, NOW, 7, 30);
+
+    const [claim] = statements;
+
+    if (claim?.kind !== 'insert') {
+      throw new Error('expected the claim');
+    }
+
+    expect(claim.upsert?.setWhere.params[3]).toBe(new Date('2026-09-27T11:30:00Z').toISOString());
   });
 
   it('of two callers, the one whose statement returns no row has lost — a ready, drawing or recently failed row', async () => {
@@ -115,7 +137,7 @@ describe('RecipeRepository.claimPicture', () => {
     expect(statements.map(statement => statement.kind)).toEqual(['insert', 'insert']);
   });
 
-  it('never matches a ready or drawing row: only `failed` is in the condition', async () => {
+  it('never matches a ready row: `ready` is nowhere in the condition', async () => {
     await RecipeRepository.claimPicture(RECIPE, NOW, 7);
 
     const [claim] = statements;
@@ -125,12 +147,11 @@ describe('RecipeRepository.claimPicture', () => {
     }
 
     expect(claim.upsert?.setWhere.params).not.toContain('ready');
-    expect(claim.upsert?.setWhere.params).not.toContain('drawing');
   });
 });
 
 describe('RecipeRepository — ending a drawing', () => {
-  it('completePicture writes the address and what drew it, only over a row still being drawn', async () => {
+  it('completePicture writes the address and what drew it, only over the drawing this caller claimed', async () => {
     answers = [[{ recipeId: RECIPE }]];
     const picture = {
       attempts: 2,
@@ -140,7 +161,7 @@ describe('RecipeRepository — ending a drawing', () => {
       url: 'https://blob/x.jpg'
     };
 
-    await expect(RecipeRepository.completePicture(RECIPE, picture)).resolves.toBe(true);
+    await expect(RecipeRepository.completePicture(RECIPE, CLAIMED, picture)).resolves.toBe(true);
 
     const [done] = statements;
 
@@ -151,20 +172,20 @@ describe('RecipeRepository — ending a drawing', () => {
     expect(done.table).toBe(recipeImages);
     expect(done.set).toMatchObject({ ...picture, status: 'ready' });
     expect(done.set).not.toHaveProperty('bytes');
-    expect(done.where.sql).toBe('("recipe_images"."recipe_id" = $1 and "recipe_images"."status" = $2)');
-    expect(done.where.params).toEqual([RECIPE, 'drawing']);
+    expect(done.where.sql).toBe('("recipe_images"."recipe_id" = $1 and "recipe_images"."status" = $2 and "recipe_images"."last_attempt_at" = $3)');
+    expect(done.where.params).toEqual([RECIPE, 'drawing', CLAIMED.toISOString()]);
   });
 
-  it('completePicture answers false when the row was no longer being drawn', async () => {
-    await expect(RecipeRepository.completePicture(RECIPE, { attempts: 1, model: 'm', promptVersion: 'v', provenance: {}, url: 'u' })).resolves.toBe(
-      false
-    );
+  it('completePicture answers false when the row is no longer this caller’s drawing — ended, or taken over as stale', async () => {
+    await expect(
+      RecipeRepository.completePicture(RECIPE, CLAIMED, { attempts: 1, model: 'm', promptVersion: 'v', provenance: {}, url: 'u' })
+    ).resolves.toBe(false);
   });
 
-  it('failPicture starts the cool-off from when the drawing ended, only over a row still being drawn', async () => {
+  it('failPicture starts the cool-off from when the drawing ended, only over the drawing this caller claimed', async () => {
     answers = [[{ recipeId: RECIPE }]];
 
-    await expect(RecipeRepository.failPicture(RECIPE, { attempts: 3, provenance: { rejected: 3 } }, NOW)).resolves.toBe(true);
+    await expect(RecipeRepository.failPicture(RECIPE, CLAIMED, { attempts: 3, provenance: { rejected: 3 } }, NOW)).resolves.toBe(true);
 
     const [failed] = statements;
 
@@ -173,7 +194,7 @@ describe('RecipeRepository — ending a drawing', () => {
     }
 
     expect(failed.set).toMatchObject({ attempts: 3, lastAttemptAt: NOW, provenance: { rejected: 3 }, status: 'failed' });
-    expect(failed.where.params).toEqual([RECIPE, 'drawing']);
+    expect(failed.where.params).toEqual([RECIPE, 'drawing', CLAIMED.toISOString()]);
   });
 });
 
