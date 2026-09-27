@@ -224,3 +224,35 @@
 - **Notes for the next phase**: the privacy text says Vercel hosts the pictures "in the
   European Union". That holds only if the Blob store is created in fra1, which is step 1
   of phase 6.
+
+## Phase 6 — Go-live (2026-09-28, in progress)
+
+- **Executor**: the lead (Opus 5.5), with the owner doing the owner-gated steps.
+- **Result**: live. Two acceptance items are still open (below).
+- **Evidence**:
+  - **Blob store.** `nutria-dish-pictures` (`store_wHUgF3DroEDhuM8f`) was created by the
+    lead on the owner's word: region **fra1**, public, connected to the API project only.
+    `BLOB_READ_WRITE_TOKEN` was added to production, preview and development.
+  - **Key.** The owner created an OpenRouter key for pictures with a 10 $ limit and set it
+    as `OPENROUTER_IMAGE_API_KEY` (production). Only its name was checked; the value was
+    never read.
+  - **Redeploy.** The API was redeployed (`dpl_EoNxb7eUtYgVPwZeD5pZx7MhZ7yq`): READY, and
+    `/api/v1/health` answers 200.
+  - **Published texts.** The `/privacidad` served in production names Google Vertex
+    (phase 5, PR #131).
+  - **Flag.** The owner switched `dishPictures` on at `/admin`.
+  - **human-verify.** Confirmed by the owner on 2026-09-28: 4–5 dishes opened on the
+    iPhone, and "se ven bastante bien".
+  - **`/admin` the same day.** 6 pictures ready, 0 failed, 0 drawing, 0.24 $ spent of the
+    10 $ cap. That is about 0.04 $ per accepted picture: the image at 0.0337 $ plus the
+    two judge calls.
+- **Still open**:
+  - `owner-approves`: the first week's spend, and the rejections and notes in `/admin`,
+    against the calibration watch-list: noodles, horchata with nuts, free-from pairs.
+  - The C2PA signature, checked once on a file exactly as Vercel Blob serves it (legal,
+    P3). The owner could not share a picture URL on the day.
+- **Deviations from plan**: none.
+- **Notes**:
+  - The OpenRouter pilot key is to be revoked by the owner.
+  - `AI_ILLUSTRATIONS` and `GOOGLE_API_KEY` still exist as Vercel variables on the API
+    project. No code reads them since phase 3, so the owner may delete them.

@@ -364,7 +364,7 @@ which supersedes `0010`.
 
 ### Phase 5 — Published texts
 
-- [x] done
+- [x] done — PR #131
 - **Dispatch**: sonnet @ medium — `/execute-project 006 phase 5` — owner-approves: the
   privacy-policy and terms wording before it is published.
 - **Goal**: the live `/privacidad` and `/condiciones` say what the pictures do before the
@@ -392,7 +392,7 @@ which supersedes `0010`.
 
 ### Phase 6 — Go-live
 
-- [ ] pending
+- [ ] in progress — live since 2026-09-28; waiting on the first week's spend review and the C2PA check on a served file
 - **Dispatch**: opus @ medium — `/execute-project 006 phase 6`.
   - `owner-gated`: create the Blob store, set the environment variables, read Google
     Cloud's generative-AI terms, switch the flag on.
