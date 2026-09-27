@@ -1,5 +1,5 @@
 {
-  "id": "7bf1fc16-277d-410b-a0fb-22ba8d1fabe3",
+  "id": "a05c5172-df5a-4673-aade-5ad49b0c9c2f",
   "prevId": "42901905-1d9a-49bc-9e9a-f1581083e1df",
   "version": "7",
   "dialect": "postgresql",
@@ -5278,7 +5278,7 @@
           "name": "recipe_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         }
       },
       "indexes": {
@@ -5287,6 +5287,21 @@
           "columns": [
             {
               "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "recipe_image_calls_recipe_id_idx": {
+          "name": "recipe_image_calls_recipe_id_idx",
+          "columns": [
+            {
+              "expression": "recipe_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -5309,7 +5324,7 @@
           "columnsTo": [
             "id"
           ],
-          "onDelete": "cascade",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

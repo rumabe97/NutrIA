@@ -160,13 +160,13 @@ export const recipeImageCalls = pgTable(
     kind: text().notNull(),
     model: text().notNull(),
     outcome: text(),
-    recipeId: uuid()
-      .notNull()
-      .references(() => recipes.id, { onDelete: 'cascade' })
+    // Kept when the recipe goes: what was billed stays in the month's spend.
+    recipeId: uuid().references(() => recipes.id, { onDelete: 'set null' })
   },
   table => [
     // What the month's spend is summed by.
     index('recipe_image_calls_created_at_idx').on(table.createdAt),
+    index('recipe_image_calls_recipe_id_idx').on(table.recipeId),
     check('recipe_image_calls_kind', sql`${table.kind} in ('image', 'judge')`)
   ]
 );

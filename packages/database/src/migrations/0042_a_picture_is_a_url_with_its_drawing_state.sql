@@ -5,7 +5,7 @@ CREATE TABLE "recipe_image_calls" (
 	"kind" text NOT NULL,
 	"model" text NOT NULL,
 	"outcome" text,
-	"recipe_id" uuid NOT NULL,
+	"recipe_id" uuid,
 	CONSTRAINT "recipe_image_calls_kind" CHECK ("recipe_image_calls"."kind" in ('image', 'judge'))
 );
 --> statement-breakpoint
@@ -20,8 +20,9 @@ ALTER TABLE "recipe_images" ADD COLUMN "last_attempt_at" timestamp with time zon
 ALTER TABLE "recipe_images" ADD COLUMN "provenance" jsonb;--> statement-breakpoint
 ALTER TABLE "recipe_images" ADD COLUMN "status" text DEFAULT 'ready' NOT NULL;--> statement-breakpoint
 ALTER TABLE "recipe_images" ADD COLUMN "url" text;--> statement-breakpoint
-ALTER TABLE "recipe_image_calls" ADD CONSTRAINT "recipe_image_calls_recipe_id_recipes_id_fk" FOREIGN KEY ("recipe_id") REFERENCES "public"."recipes"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "recipe_image_calls" ADD CONSTRAINT "recipe_image_calls_recipe_id_recipes_id_fk" FOREIGN KEY ("recipe_id") REFERENCES "public"."recipes"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "recipe_image_calls_created_at_idx" ON "recipe_image_calls" USING btree ("created_at");--> statement-breakpoint
+CREATE INDEX "recipe_image_calls_recipe_id_idx" ON "recipe_image_calls" USING btree ("recipe_id");--> statement-breakpoint
 ALTER TABLE "recipe_images" ADD CONSTRAINT "recipe_images_status" CHECK ("recipe_images"."status" in ('drawing', 'ready', 'failed'));--> statement-breakpoint
 --
 -- Hand-added (0066): pictures stop living in Postgres. Every row stored so far
