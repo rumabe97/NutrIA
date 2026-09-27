@@ -69,12 +69,27 @@
   border-bottom: 1px solid var(--border-01);
   display: flex;
   font-size: var(--font-size-03);
+  gap: var(--space-04);
   justify-content: space-between;
   padding-bottom: var(--space-02);
 }
 
+/* A long label wraps beside its figure rather than running into it. */
 .count {
   font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+/* A figure that reads as one: "1,25 US$ de 10,00 US$" never splits between its amounts. */
+.whole {
+  white-space: nowrap;
+}
+
+/* Text this large for the screen: the figure may wrap rather than run off the edge. */
+@media (width < 17rem) {
+  .whole {
+    white-space: normal;
+  }
 }
 
 /* One line per generation, its state first: a column of "failed" is the thing

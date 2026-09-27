@@ -1,16 +1,30 @@
-.card {
-  border-radius: var(--radius-control);
+/* The box the frame fills and the mark is placed against. */
+.picture {
+  display: block;
   inline-size: 100%;
+  position: relative;
 }
 
 /*
- * The whole picture, but never wider than its 960 px source is sharp at, and never
- * so tall on a desktop that the recipe starts below the fold.
+ * The whole picture, but never so wide that it is blown up past its source, and
+ * never so tall on a desktop that the recipe starts below the fold — nor with
+ * large text, where 40rem is the whole window: a 4:3 box at most 70% of the
+ * screen's height.
  */
 .hero {
-  border-radius: var(--radius-card);
+  max-inline-size: min(40rem, calc(70dvh * 4 / 3));
+}
+
+.frame {
   inline-size: 100%;
-  max-inline-size: 40rem;
+}
+
+.card .frame {
+  border-radius: var(--radius-control);
+}
+
+.hero .frame {
+  border-radius: var(--radius-card);
 }
 
 .glyph {
@@ -18,4 +32,35 @@
   inline-size: 40%;
   max-block-size: 3rem;
   max-inline-size: 3rem;
+}
+
+/*
+ * "IA", over the top-right corner. Top and right rather than the logical sides:
+ * the corner is what the EU code of practice names, whatever the script's
+ * direction. An opaque ground of its own — the page's, with the page's text on
+ * it — so the contrast is the text's on that ground, never on the photograph:
+ * well over 4.5:1 in both schemes, on a white plate or a dark pan. The hairline
+ * and the shadow give it an edge against a pale picture. Inset from the corner so
+ * the frame's radius never clips it.
+ */
+.mark {
+  background-color: var(--background-01);
+  border-radius: var(--radius-full);
+  box-shadow:
+    0 0 0 1px var(--border-01),
+    var(--shadow-s);
+  color: var(--foreground-01);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-bold);
+  letter-spacing: var(--tracking-caps);
+  line-height: var(--line-height-01);
+  padding: var(--space-01) var(--space-02);
+  position: absolute;
+  right: var(--space-02);
+  top: var(--space-02);
+}
+
+/* A picture that failed to load is a plate again, and a plate is not marked. */
+.picture:has([data-failed]) .mark {
+  display: none;
 }

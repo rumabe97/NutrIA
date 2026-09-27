@@ -21,7 +21,7 @@ import { serverApi } from 'lib/server-api';
 import { appMetadata } from '../../_shared/metadata';
 
 import type { AccountView, Paged } from 'core/controllers/User';
-import type { AdminAnalyticsView, AdminGenerationView, AdminOverviewView, AiUsageView } from 'core/controllers/Admin';
+import type { AdminAnalyticsView, AdminGenerationView, AdminOverviewView, AdminPicturesView, AiUsageView } from 'core/controllers/Admin';
 import type { FeedbackView } from 'core/controllers/Feedback';
 import type { Metadata } from 'next';
 import type { ProfessionalAccountView } from 'core/controllers/Professional';
@@ -53,7 +53,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const query = await searchParams;
   const accountsOffset = Number.parseInt(query.cuentas ?? '', 10) || 0;
   const feedbackOffset = Number.parseInt(query.buzon ?? '', 10) || 0;
-  const [dictionary, locale, overview, accounts, settings, analytics, ai, inbox, generations, professionals, opened] = await Promise.all([
+  const [dictionary, locale, overview, accounts, settings, analytics, ai, inbox, generations, professionals, pictures, opened] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<AdminOverviewView>('/admin/overview'),
@@ -64,6 +64,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
     serverApi<Paged<FeedbackView> & { waiting: number }>(`/admin/feedback?offset=${feedbackOffset}`),
     serverApi<readonly AdminGenerationView[]>('/admin/generations'),
     serverApi<readonly ProfessionalAccountView[]>('/admin/professionals'),
+    serverApi<AdminPicturesView>('/admin/pictures'),
     Promise.resolve(query)
   ]);
 
@@ -74,6 +75,7 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const t = dictionary.admin;
   const { counts, jobs, windowDays } = overview;
   const number = (value: number) => formatNumber(value, locale);
+  const dollars = (value: number) => formatNumber(value, locale, { currency: 'USD', style: 'currency' });
   // Milliseconds as seconds with one decimal, which is the grain a model call is felt at.
   const seconds = (ms: number | null) => (ms === null ? '—' : number(Math.round(ms / 100) / 10));
   const failures = jobs.filter(job => job.status === 'failed');
@@ -149,6 +151,47 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           onHint={t.remindersHint}
         />
         <PushTestButton />
+      </section>
+
+      {/* Dish pictures (`0066`): whether a dish is drawn when first opened, and this
+          month's spend against the cap. Counts only — no dish, no person. */}
+      <section className={styles.section} id="imagenes">
+        <h2 className={styles.subtitle}>{t.picturesTitle}</h2>
+        <FlagSwitch
+          enabled={settings?.flags?.dishPictures ?? false}
+          flag="dishPictures"
+          label={t.picturesLabel}
+          offHint={t.picturesOffHint}
+          onHint={t.picturesHint}
+        />
+        {pictures ? (
+          <ul className={styles.rows}>
+            <li className={styles.row}>
+              <span>{t.picturesSpend}</span>
+              <span className={`${styles.count} ${styles.whole}`}>
+                {interpolate(t.picturesSpendValue, { cap: dollars(pictures.capUsd), spent: dollars(pictures.spentUsd) })}
+              </span>
+            </li>
+            <li className={styles.row}>
+              <span>{t.picturesReady}</span>
+              <span className={styles.count}>{number(pictures.ready)}</span>
+            </li>
+            <li className={styles.row}>
+              <span>{t.picturesFailed}</span>
+              <span className={styles.count}>{number(pictures.failed)}</span>
+            </li>
+            <li className={styles.row}>
+              <span>{t.picturesDrawing}</span>
+              <span className={styles.count}>{number(pictures.drawing)}</span>
+            </li>
+            {pictures.released > 0 ? (
+              <li className={styles.row}>
+                <span>{t.picturesReleased}</span>
+                <span className={styles.count}>{number(pictures.released)}</span>
+              </li>
+            ) : null}
+          </ul>
+        ) : null}
       </section>
 
       {/* Accounts next: the only thing on this page somebody is waiting on. */}

@@ -6,8 +6,9 @@
   display: contents;
 }
 
+/* Pushed to the row's end, unless the row asks it to stay with the buttons before it (`--swap-push: 0`). */
 .trigger {
-  margin-inline-start: auto;
+  margin-inline-start: var(--swap-push, auto);
 }
 
 .count {

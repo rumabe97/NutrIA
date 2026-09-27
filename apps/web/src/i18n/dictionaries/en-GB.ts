@@ -95,6 +95,17 @@ export const enGB: Dictionary = {
     pagerNext: 'Next',
     pagerOf: '{from}–{to} of {total}',
     pagerPrevious: 'Previous',
+    picturesDrawing: 'Being drawn now',
+    picturesFailed: 'Failed (tried again after 7 days)',
+    picturesHint:
+      'On: the first time somebody opens a dish with no picture, one is drawn, and everyone who opens it afterwards sees it. Once the month’s cap is reached, no more are drawn until next month.',
+    picturesLabel: 'Draw the dish pictures',
+    picturesOffHint: 'Off: no new picture is drawn. The ones that already exist are still shown.',
+    picturesReady: 'Ready',
+    picturesReleased: 'Given back by the cap or the key (tried again on the next view)',
+    picturesSpend: 'Spent this month',
+    picturesSpendValue: '{spent} of {cap}',
+    picturesTitle: 'Dish pictures',
     plansTitle: 'Plans by state',
     premiumHint: 'Premium is on: accounts you have granted it get three redos a fortnight and twenty swaps a plan.',
     premiumLabel: 'Paid tier',
@@ -733,8 +744,6 @@ export const enGB: Dictionary = {
     dislikedHint: 'Noted: it will not come back, nor anything close to it.',
     done: 'Eaten',
     doneHint: 'Marked as eaten.',
-    illustration: 'AI-generated illustration',
-    illustrationOf: 'Illustration of {name}',
     ingredients: 'Ingredients',
     like: 'I like it',
     likedHint: 'Noted: it may come back, and we will look for dishes along these lines.',
@@ -743,6 +752,8 @@ export const enGB: Dictionary = {
     noCooking: 'No cooking',
     none: '—',
     notYet: 'You can mark it on {date}.',
+    pictureCaption: 'AI-generated image. For illustration only: the ingredient list is what counts.',
+    pictureOf: 'AI-generated image of {name}',
     prep: 'Prep',
     readOnly: 'This meal belongs to an earlier plan and is shown as it was.',
     servingNote: 'Quantities for {servings} {unit}.',
@@ -970,6 +981,8 @@ export const enGB: Dictionary = {
     '/restablecer': { title: 'Choose a new password' },
     '/verificar-email': { title: 'Confirm your email' }
   },
+
+  picture: { aiMark: 'AI', aiMarkLabel: 'AI-generated image' },
 
   plan: {
     createCta: 'Create my plan',
