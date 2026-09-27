@@ -11,14 +11,11 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { useOffline } from 'components/OfflineProvider';
 
 import { api } from 'lib/api';
-import { API_URL } from 'lib/env';
 import { formatNumber, formatQuantity } from 'lib/format';
 import { slotLabel } from 'lib/generation';
 
 interface MealRowProps {
   id: string;
-  /** API path of the recipe's illustration, when one has been drawn. */
-  illustrationPath?: string | null;
   /** Already scaled to this meal's portion by the API. */
   ingredients?: readonly { grams: number; name: string }[];
   kcal: number;
@@ -47,17 +44,7 @@ interface MealRowProps {
  * Optimistic; a failure puts it back. "Skipped" stays on the meal's own page,
  * where it is a considered choice rather than a tap in passing.
  */
-export function MealRow({
-  id,
-  illustrationPath = null,
-  ingredients = [],
-  kcal,
-  name,
-  proteinG,
-  readOnly = false,
-  slot,
-  status: initial = 'planned'
-}: MealRowProps) {
+export function MealRow({ id, ingredients = [], kcal, name, proteinG, readOnly = false, slot, status: initial = 'planned' }: MealRowProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -70,10 +57,6 @@ export function MealRow({
   const opens = useOffline().available(recipe);
   const head = (
     <Fragment>
-      {/* Decorative here — the name beside it is the content — so the alt is empty and
-        the label lives on the detail page, where the picture is large enough to matter. */}
-      {/* eslint-disable-next-line @next/next/no-img-element -- the API serves a phone-sized, immutable WebP already; next/image would add an optimiser hop and per-image billing for nothing */}
-      {illustrationPath ? <img alt="" className={styles.thumb} loading="lazy" src={`${API_URL}${illustrationPath}`} /> : null}
       <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
       <span className={styles.name}>
         {name}
@@ -150,13 +133,11 @@ export function MealRow({
       )}
       <div className={styles.body}>
         {opens ? (
-          <Link className={styles.head} data-illustrated={illustrationPath ? 'true' : undefined} href={recipe}>
+          <Link className={styles.head} href={recipe}>
             {head}
           </Link>
         ) : (
-          <div className={styles.head} data-illustrated={illustrationPath ? 'true' : undefined}>
-            {head}
-          </div>
+          <div className={styles.head}>{head}</div>
         )}
 
         {ingredients.length > 0 ? (

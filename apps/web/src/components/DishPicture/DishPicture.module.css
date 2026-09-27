@@ -1,0 +1,21 @@
+.card {
+  border-radius: var(--radius-control);
+  inline-size: 100%;
+}
+
+/*
+ * The whole picture, but never wider than its 960 px source is sharp at, and never
+ * so tall on a desktop that the recipe starts below the fold.
+ */
+.hero {
+  border-radius: var(--radius-card);
+  inline-size: 100%;
+  max-inline-size: 40rem;
+}
+
+.glyph {
+  block-size: 40%;
+  inline-size: 40%;
+  max-block-size: 3rem;
+  max-inline-size: 3rem;
+}
