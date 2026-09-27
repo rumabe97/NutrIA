@@ -134,7 +134,11 @@
   - The core cannot schedule Nest work. `PlanController.openMeal` returns
     `{claim, meal}` and `MealPlansService` schedules the drawing.
   - `releasePicture` is new: the cap or a key refusal gives the claim back rather than
-    failing the dish. Release deletes the row, so `attempts` restarts; the cap bounds it.
+    failing the dish.
+    - The row stays `failed` with `provenance.released` and keeps `attempts`; a refused
+      attempt is not counted.
+    - The next open claims it at once, with no cool-off.
+    - `/admin/pictures` counts `released` apart from `failed`.
   - A file with no C2PA manifest fails at once. A Blob failure fails the dish.
   - Unknown-cost floors: 0.0337 $ for an image, 0.001 $ for a judge call. A 4xx is
     recorded at 0.
