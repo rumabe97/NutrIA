@@ -197,3 +197,30 @@
     `/privacidad` and `/condiciones` dictionaries.
   - Only one agent probes at a time, with its own cookie file: one agent's cleanup once
     deleted another's probe account.
+
+## Phase 5 — Published texts (2026-09-28)
+
+- **Executor**: `frontend` (opus @ medium, deviating from the plan's sonnet: it already held
+  the phase 4 context), after the lead merged the `legal` branch (docs/legal only).
+- **Result**: done. `owner-approves`: the owner approved the es-ES wording of the four
+  changed paragraphs on 2026-09-28 ("Aprobados, publícalos").
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=web`: 14 of 14 tasks, including
+    `i18n/legal.test`.
+  - `gate.sh --full`: green.
+  - The private leak patterns match nothing in the added lines.
+- **What changed** in es-ES and en-GB, verbatim from `docs/legal/imagenes-de-platos.md`
+  § 3.3 and § 4.2 a–c:
+  - `/privacidad`:
+    - the Google sentence is scoped to designing the dishes;
+    - a pictures paragraph (OpenRouter → Google Vertex AI, DeepInfra's check, no
+      training, the "IA" mark and the machine-readable mark) replaces the illustration
+      line;
+    - the Vercel line covers the pictures.
+  - `/condiciones`: pictures are illustrative, and the ingredient list governs.
+  - Both pages are dated 28 September 2026.
+  - No version constant is bumped and no prior email is needed, per legal.
+- **Deviations from plan**: the executor (above).
+- **Notes for the next phase**: the privacy text says Vercel hosts the pictures "in the
+  European Union". That holds only if the Blob store is created in fra1, which is step 1
+  of phase 6.
