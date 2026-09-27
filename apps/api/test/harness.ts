@@ -300,7 +300,7 @@ export async function giveProfileConsent(app: INestApplication, account: Account
     .expect(200);
 }
 
-/** Walks the eight required onboarding steps so a plan may be generated. */
+/** Walks the seven required onboarding steps so a plan may be generated. */
 /**
  * The scripted name behind a served dish name — the suite token and per-call
  * variant suffix removed.
@@ -341,8 +341,9 @@ export async function completeOnboarding(
     dietaryPatterns,
     intolerances: []
   });
-  await patch('lifestyle', { trainingDaysPerWeek: 3 });
-  await patch('cooking', { budget: 'medium', cookingFrequency: 'often', cookingTimeMinutes: 30 });
+  // 'lifestyle' is gone (the onboarding cleanup): the questions it asked
+  // changed no plan. Required steps are now the seven above plus 'cooking'.
+  await patch('cooking', { cookingTimeMinutes: 30 });
 
   await request(server).post(`/${PREFIX}/onboarding/complete`).set('Cookie', account.cookie).expect(201);
 }
@@ -433,6 +434,32 @@ export async function openPractice(userId: string, includedClients = 30): Promis
 
   if (opened.length !== 1) {
     throw new Error(`No professional to open a practice for: ${userId}`);
+  }
+}
+
+/**
+ * Writes an `onboarding_state` row the way the ten-step flow could have left
+ * it: `'lifestyle'` among the completed steps, `currentStep` at its old
+ * ceiling — a shape no route can produce any more, since the step is gone
+ * from `ONBOARDING_STEPS`. `onboarding.e2e-spec.ts` uses this to prove an
+ * account that finished onboarding before the cleanup still reads as
+ * complete, rather than tripping `onboardingStateSchema`'s enum on a step
+ * name it no longer knows.
+ *
+ * Written on the table, like `openPractice`, because no route writes this
+ * shape any more — only a database from before the cleanup ever held it.
+ */
+export async function markLegacyOnboarding(userId: string, currentStep = 10): Promise<void> {
+  const sql = (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
+    .$client;
+  const marked = await sql<{ userId: string }>`
+    update onboarding_state
+    set completed_steps = array_append(completed_steps, 'lifestyle'), current_step = ${currentStep}
+    where user_id = ${userId}
+    returning user_id as "userId"`;
+
+  if (marked.length !== 1) {
+    throw new Error(`No onboarding_state row to mark legacy for: ${userId}`);
   }
 }
 
