@@ -24,10 +24,14 @@ function widthOf(rect: Element | undefined) {
 }
 
 describe('BarChart', () => {
-  it('names the figure and the plot with the title', () => {
+  it('names the figure with the title, and leaves each name and figure readable as text', () => {
     render(<BarChart {...BASE} series={[{ name: 'Personas', values: [100, 64, 40] }]} />);
-    expect(screen.getByRole('figure', { name: 'Embudo' })).toBeInTheDocument();
-    expect(screen.getByRole('img', { name: 'Embudo' })).toBeInTheDocument();
+    const figure = screen.getByRole('figure', { name: 'Embudo' });
+    expect(figure).toBeInTheDocument();
+    // Not an image: a screen reader would skip the text inside one.
+    expect(within(figure).queryByRole('img')).not.toBeInTheDocument();
+    // Each row's name and figure, as text above its bar (the table below repeats them).
+    expect(Array.from(figure.querySelectorAll('p')).map(row => row.textContent)).toEqual(['Registro100', 'Onboarding64', 'Primer plan40']);
   });
 
   it('starts at zero: each bar is its figure against the longest', () => {

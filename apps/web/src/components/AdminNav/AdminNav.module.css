@@ -61,6 +61,14 @@
   }
 }
 
+/* A phone at large text: the name and the menu no longer share a row, and the bar is two
+   rows tall (about 5.4rem at 200 %). rem in a media query follows the reader's text size. */
+@media (width < 20rem) {
+  html:has(.bar) {
+    scroll-padding-block-start: calc(6rem + 1px + var(--space-03));
+  }
+}
+
 /* ── Wide: a sidebar that stays ─────────────────────────────────────────── */
 @media (width >= 60rem) {
   .root {

@@ -1,0 +1,23 @@
+.section {
+  display: grid;
+  gap: var(--gap-heading);
+  min-inline-size: 0;
+}
+
+.heading {
+  display: grid;
+  gap: var(--space-01);
+}
+
+.title {
+  font-size: var(--font-size-05);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  line-height: var(--line-height-02);
+  margin: 0;
+}
+
+.note {
+  margin: 0;
+  max-inline-size: var(--prose-max);
+}

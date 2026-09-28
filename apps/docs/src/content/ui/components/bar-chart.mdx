@@ -67,5 +67,5 @@ export default function Example() {
 ## Accessibility
 
 - Names and figures are printed as text, so nothing depends on reading a length.
-- The plot is one `role="img"` named by the caption: HTML text for the names and figures (SVG text cannot wrap), SVG for the bars. Each bar's `<title>` holds its figure and share.
+- The names and figures are HTML text, read as they are (SVG text cannot wrap, and text inside a `role="img"` is skipped by screen readers); the bars are an `aria-hidden` SVG. The figure is named by the caption. Each bar's `<title>` holds its figure and share for a pointer.
 - The figures and shares are in the "show data" table.

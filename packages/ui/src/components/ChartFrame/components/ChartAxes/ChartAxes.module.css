@@ -30,3 +30,11 @@
     display: none;
   }
 }
+
+/* Narrower still — a phone at large text, since rem follows the reader's text size — the
+   middle date would touch the ends: only the first and the last stay. */
+@container (width < 17rem) {
+  .centre {
+    display: none;
+  }
+}

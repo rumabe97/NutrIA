@@ -16,13 +16,10 @@ export const esES = {
   activity: { athlete: 'Deportista', high: 'Alto', light: 'Ligero', moderate: 'Moderado', sedentary: 'Sedentario' },
 
   admin: {
-    accounts: 'Cuentas',
     accountsTitle: 'Cuentas y accesos',
     activate: 'Abrir cuenta',
     activateFor: 'Abrir la cuenta de {email}',
     activationTitle: 'Altas',
-    activityPeople: '{count} personas han entrado en este tiempo.',
-    activityTitle: 'Actividad ({days} días)',
     aiByModel: 'Hoy, por el modelo que contestó',
     aiCalls: 'Peticiones hoy',
     aiHint:
@@ -41,7 +38,6 @@ export const esES = {
     confirmed: 'correo confirmado',
     events: { session_started: 'Entradas', swap_requested: 'Cambios de comida pedidos' },
     failureNote: '{count} generaciones han fallado. El código dice si fue la cuota, la clave o el catálogo.',
-    failures: 'Fallos',
     feedbackHandled: 'Marcar como visto',
     feedbackHandledFor: 'Marcar como visto el mensaje de {email}',
     feedbackHandledState: 'Visto',
@@ -58,10 +54,6 @@ export const esES = {
       returned: 'Han vuelto a por un segundo plan',
       signedUp: 'Se han registrado'
     },
-    funnelHint:
-      'Contado sobre los datos, no sobre eventos: cubre también las cuentas anteriores a esta pantalla. El porcentaje es sobre el paso de arriba.',
-    funnelTitle: 'Embudo',
-    inDays: 'en {days} días',
     ingredients: 'Ingredientes',
     intro: 'Cómo va el servicio. No hay ningún plan ni ningún perfil aquí: solo si la generación funciona y cuánto hay en el catálogo.',
     jobsTitle: 'Generaciones ({days} días)',
@@ -91,7 +83,6 @@ export const esES = {
     makeProfessionalFor: 'Hacer profesional la cuenta de {email}',
     manualHint: 'Al confirmar su correo la cuenta queda esperando y te avisamos a ti. La abres tú desde esta lista.',
     noAccounts: 'No hay ninguna cuenta todavía.',
-    noActivity: 'Ninguna actividad registrada todavía.',
     noFeedback: 'Nadie ha escrito todavía.',
     noJobs: 'Ninguna generación todavía.',
     notOpened: 'sin abrir',
@@ -110,7 +101,6 @@ export const esES = {
     picturesSpend: 'Gastado este mes',
     picturesSpendValue: '{spent} de {cap}',
     picturesTitle: 'Imágenes de los platos',
-    plansTitle: 'Planes por estado',
     premiumHint: 'Premium está activo: las cuentas a las que se lo hayas dado tienen tres replanificaciones por quincena y veinte cambios por plan.',
     premiumLabel: 'Nivel de pago',
     premiumOffHint: 'Premium está apagado: todo el mundo usa los límites gratuitos, incluido quien ya lo tenga concedido. Encenderlo se lo devuelve.',
@@ -159,8 +149,18 @@ export const esES = {
     tierPremium: 'Premium',
     title: 'Servicio',
     unconfirmed: 'sin confirmar',
-    waiting: '{count} sin activar',
     withoutImage: '{count} sin imagen'
+  },
+
+  /* Words every console page with a period shares: the selector, the charts' table, the tiles' change. */
+  adminConsole: {
+    /** A tile's change against the previous period, for a screen reader; `{change}` is the signed percentage. */
+    changeLabel: '{change} frente al periodo anterior',
+    dataLabel: 'Ver datos',
+    day: 'Día',
+    howCounted: 'Cómo se cuenta',
+    period: 'Periodo',
+    periodOption: '{days} días'
   },
 
   /* The console's own navigation (`0068`): six groups, and only the pages that exist yet. */
@@ -169,8 +169,61 @@ export const esES = {
     groups: { catalogue: 'Catálogo', generation: 'Generación', people: 'Personas', product: 'Producto', settings: 'Ajustes', summary: 'Resumen' },
     label: 'Secciones de la consola',
     menu: 'Menú',
-    pages: { legacy: 'Anterior', settings: 'Ajustes' },
+    pages: { legacy: 'Anterior', plans: 'Planes', product: 'Embudo y actividad', settings: 'Ajustes', summary: 'Resumen' },
     title: 'Consola'
+  },
+
+  /* `/admin/producto/planes`: every plan by the state it is in now, and plans made per day. */
+  adminPlans: {
+    byStateChart: 'Planes por estado',
+    byStateEmpty: 'Todavía no hay ningún plan.',
+    byStateNote: 'Todos los planes, de cualquier fecha: no cambia con el periodo.',
+    byStateTitle: 'Estado actual',
+    createdChart: 'Planes creados por día',
+    createdEmpty: 'No se ha creado ningún plan en este periodo.',
+    createdTitle: 'En el periodo',
+    howCounted: [
+      'Un plan se guarda solo cuando su generación termina bien. Las que fallan no dejan plan: se cuentan en Resumen.',
+      'Cada plan cuenta en el estado en el que está hoy, no en el que tenía cuando se creó.'
+    ],
+    intro: 'En qué estado están los planes y cuántos se crean cada día.',
+    series: 'Planes',
+    share: 'Parte',
+    state: 'Estado',
+    states: {
+      active: 'Activo',
+      archived: 'Archivado',
+      completed: 'Terminado',
+      draft: 'Borrador',
+      failed: 'Fallido',
+      generating: 'Generándose',
+      pending_review: 'Pendiente de revisión'
+    },
+    title: 'Planes'
+  },
+
+  /* `/admin/producto`: how far people get, and what they do each day. */
+  adminProduct: {
+    activeChart: 'Personas activas por día',
+    activeEmpty: 'Nadie ha entrado en este periodo.',
+    activeSeries: 'Personas',
+    activityTitle: 'Actividad',
+    eventsChart: 'Eventos por día',
+    eventsEmpty: 'Ningún evento en este periodo.',
+    funnelChart: 'Personas en cada paso',
+    funnelEmpty: 'Nadie se ha registrado todavía.',
+    funnelNote: 'Desde la primera cuenta: no cambia con el periodo.',
+    funnelSeries: 'Personas',
+    funnelShare: 'Del paso anterior',
+    funnelStep: 'Paso',
+    funnelTitle: 'Embudo',
+    howCounted: [
+      'El embudo se cuenta sobre los datos, no sobre eventos, así que incluye también las cuentas anteriores a esta pantalla. El porcentaje de cada paso es sobre el paso de arriba.',
+      'Personas activas por día cuenta a cada persona una vez al día. Quien entra tres días distintos cuenta en los tres, así que la suma de los días puede pasar del total del periodo que da Resumen.',
+      'Los eventos son lo que alguien hizo. Las llamadas al modelo no están aquí: tienen su propia página.'
+    ],
+    intro: 'Hasta dónde llega la gente y qué hace cada día.',
+    title: 'Embudo y actividad'
   },
 
   /* `/admin/ajustes`: the five switches and the push test, grouped by what they govern. */
@@ -180,6 +233,47 @@ export const esES = {
     notifications: 'Notificaciones',
     product: 'Producto',
     title: 'Ajustes'
+  },
+
+  /* `/admin`: the period's headline figures, two trends, and what needs the owner now. */
+  adminSummary: {
+    activePeople: 'Personas activas',
+    failedInPeriod: '{count} fallidas en el periodo',
+    generationsChart: 'Generaciones por día',
+    generationsEmpty: 'Ninguna generación en este periodo.',
+    howCounted: [
+      'Cada cifra con flecha se compara con el periodo anterior de la misma duración.',
+      'Personas activas cuenta a cada persona una vez en todo el periodo, tanto si entró un día como si entró muchos.',
+      'Las generaciones con éxito son las terminadas entre las terminadas y las fallidas que empezaron en el periodo. Las que siguen en cola o en curso no cuentan.',
+      'Cada generación del gráfico cuenta en el estado en el que está ahora.',
+      'Sin activar incluye las cuentas que aún no han confirmado el correo.',
+      'El tope de las imágenes cuenta el mes natural en UTC, no el periodo.'
+    ],
+    intro: 'Cómo va el servicio en el periodo elegido, frente al periodo anterior de la misma duración.',
+    needsYou: {
+      failed: 'Generaciones fallidas en las últimas 24 h',
+      title: 'Necesita tu atención',
+      unread: 'Mensajes sin ver',
+      waiting: 'Cuentas esperando activación'
+    },
+    newAccounts: 'Cuentas nuevas',
+    noneFinished: 'Ninguna terminó en el periodo',
+    outcomes: { failed: 'Fallidas', pending: 'En cola o en curso', succeeded: 'Terminadas' },
+    pictureMonth: 'Este mes: {spent} de {cap}',
+    pictureSpend: 'Gasto en imágenes',
+    plansGenerated: 'Planes generados',
+    previousRate: 'Periodo anterior: {rate}',
+    signUpsChart: 'Altas por día',
+    signUpsEmpty: 'Nadie se ha registrado en este periodo.',
+    signUpsSeries: 'Altas',
+    successRate: 'Generaciones con éxito',
+    tilesLabel: 'Cifras del periodo',
+    title: 'Resumen',
+    total: 'Total',
+    totalAccounts: 'Cuentas',
+    trendsTitle: 'Tendencias',
+    unreadMessages: 'Mensajes sin ver',
+    waitingAccounts: 'Sin activar'
   },
 
   appNav: {
@@ -961,8 +1055,11 @@ export const esES = {
       title: 'NutrIA — Planes de alimentación personalizados'
     },
     '/acceder': { description: 'Entra en NutrIA para ver tu plan de hoy, tu lista de la compra y tu progreso.', title: 'Acceder' },
-    '/admin': { title: 'Panel' },
+    '/admin': { title: 'Resumen' },
     '/admin/ajustes': { title: 'Ajustes' },
+    '/admin/anterior': { title: 'Panel' },
+    '/admin/producto': { title: 'Embudo y actividad' },
+    '/admin/producto/planes': { title: 'Planes' },
     '/check-in': { title: 'Check-in de la quincena' },
     '/compra': { title: 'La compra' },
     '/condiciones': {

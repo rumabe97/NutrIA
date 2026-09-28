@@ -1,0 +1,30 @@
+/* The words first; the controls beside them when there is room, under them when
+   there is not. */
+.header {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--gap-block);
+  justify-content: space-between;
+}
+
+.words {
+  display: grid;
+  flex: 1 1 20rem;
+  gap: var(--gap-heading);
+  min-inline-size: 0;
+}
+
+.title {
+  font-size: var(--font-size-09);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0;
+}
+
+.intro {
+  margin: 0;
+  max-inline-size: var(--prose-max);
+  text-wrap: pretty;
+}

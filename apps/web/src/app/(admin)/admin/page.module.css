@@ -1,0 +1,119 @@
+/* The page measures itself, so the tiles and charts count their columns from the
+   room they have beside the sidebar, and from the reader's text size (rem). */
+.page {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--gap-region);
+  /* One column that may shrink below its widest child: at 200 % text on a phone, content
+     wraps instead of pushing past the screen's edge. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.opened {
+  background-color: var(--color-brand-03);
+  border-radius: var(--radius-control);
+  color: var(--color-brand-12);
+  font-size: var(--font-size-02);
+  margin: 0;
+  overflow-wrap: anywhere;
+  padding: var(--space-03) var(--space-04);
+}
+
+/* One tile a row on a narrow phone, two from 22rem of room, four from 40rem. */
+.tiles {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+@container (inline-size >= 22rem) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (inline-size >= 40rem) {
+  .tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* `ul.needs` so the list reset wins over the card whatever order the sheets land in. */
+ul.needs {
+  display: grid;
+  list-style: none;
+  margin: 0;
+  padding-block: var(--space-02);
+}
+
+.needs li + li {
+  border-block-start: 1px solid var(--border-01);
+}
+
+/* A row that opens the list behind it: what, how many, and a chevron that says
+   it goes somewhere. The floor is stated once and moved by the pointer. */
+.need {
+  --need-floor: var(--height-l);
+
+  align-items: center;
+  color: var(--foreground-01);
+  display: flex;
+  font-size: var(--font-size-03);
+  gap: var(--space-03);
+  min-block-size: var(--need-floor);
+  padding-block: var(--space-02);
+  text-decoration: none;
+}
+
+@media (pointer: coarse) {
+  .need {
+    --need-floor: var(--target-min);
+  }
+}
+
+.need:hover .needLabel {
+  text-decoration: underline;
+}
+
+.needLabel {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.needCount {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Nothing waiting: the figure steps back, the row stays so "0" can be read. */
+.needCount[data-zero='true'] {
+  color: var(--foreground-03);
+  font-weight: var(--font-weight-regular);
+}
+
+.needChevron {
+  block-size: 1em;
+  color: var(--foreground-03);
+  flex: none;
+  inline-size: 1em;
+}
+
+/* The charts sit on cards: the gaps between marks are the card's colour. */
+.chart {
+  --chart-surface: var(--surface-card);
+}
+
+.charts {
+  display: grid;
+  gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (inline-size >= 56rem) {
+  .charts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

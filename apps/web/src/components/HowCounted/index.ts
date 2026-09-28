@@ -1,0 +1,1 @@
+export { HowCounted } from './HowCounted';

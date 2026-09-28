@@ -38,7 +38,8 @@ function positive(value: number | undefined) {
  * Each row prints its name and its figure — and a share when one is given — as HTML
  * text above a bar whose length is the figure against the longest one. HTML, not SVG
  * text, because SVG text cannot wrap: a long dish or step name on a phone would run into
- * its figure. The plot is one `role="img"` named by the title; the bars inside it are SVG.
+ * its figure. That text is read as it is, not wrapped in a `role="img"` (whose children a
+ * screen reader skips): the names and figures are the chart. The bars are `aria-hidden`.
  * One series wears one colour: a bar's length already says how much.
  */
 export function BarChart({ className, dataLabel, emptyLabel, formatValue, labels, labelsHeader, locale, series, shares, title }: BarChartProps) {
@@ -68,7 +69,7 @@ export function BarChart({ className, dataLabel, emptyLabel, formatValue, labels
       title={title}
       titleId={titleId}
     >
-      <div aria-labelledby={titleId} className={styles.chart} role="img">
+      <div className={styles.chart}>
         {labels.map((text, index) => {
           const share = withShares ? shares.values[index] : undefined;
           const figure = single ? format(series[0]?.values[index] ?? 0) : undefined;

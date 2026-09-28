@@ -99,15 +99,15 @@
    chart has no other layer to map them through — so components reference
    them directly. They are the dataviz reference palette's first six
    categorical slots in their validated order, and a status trio stepped
-   apart in lightness — light: neutral lightest, failure darkest; dark:
-   success darkest, failure lightest — so the three stay apart without
-   colour vision. Every set was run through the dataviz skill's validator
+   apart in lightness — light: success lightest, failure darkest, neutral
+   between; dark: success darkest, failure lightest — so the three stay
+   apart without colour vision, and each clears 3:1 against a card. Every set was run through the dataviz skill's validator
    (`validate_palette.js`) against `--background-01`; the verbatim output is
    in docs/projects/007-admin-console/LOG.md, phase 2.
 
    - Categorical, in this order and never cycled: a seventh series folds into
      "other". Colour follows the entity, not its rank.
-   - Light slots 3–5, and the light neutral, sit under 3:1 against the page:
+   - Light slots 3–5 sit under 3:1 against the page:
      the relief is that every chart carries a legend and a "show data" table.
    - Success / failure / neutral are for series that *mean* an outcome.
      Stack them in that order: the dark pair is in the CVD floor band, so the
@@ -125,7 +125,7 @@
 
   --color-chart-success: light-dark(#0ca30c, #008300);
   --color-chart-failure: light-dark(#ae111e, #ff958d);
-  --color-chart-neutral: light-dark(#c7c7c7, #8a8a8a);
+  --color-chart-neutral: light-dark(#6f6f6f, #8a8a8a);
 }
 
 @media (prefers-contrast: more) {

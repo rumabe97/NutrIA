@@ -21,15 +21,17 @@ export interface AdminNavSection {
  * Only pages that exist are listed. A group with no page yet is still named
  * here, so each phase adds its page to the group it belongs to and nothing
  * else moves; the navigation draws no heading over an empty list.
- *
- * Resumen is not listed while `/admin` only redirects to the transition page:
- * a link called "Resumen" that lands on "Anterior" would say where somebody is
- * wrongly, and `aria-current` could mark neither. Phase 4 adds it.
  */
 export const ADMIN_SECTIONS: readonly AdminNavSection[] = [
-  { group: 'summary', pages: [] },
+  { group: 'summary', pages: [{ href: '/admin', label: 'summary' }] },
   { group: 'people', pages: [] },
-  { group: 'product', pages: [] },
+  {
+    group: 'product',
+    pages: [
+      { href: '/admin/producto', label: 'product' },
+      { href: '/admin/producto/planes', label: 'plans' }
+    ]
+  },
   { group: 'generation', pages: [] },
   { group: 'catalogue', pages: [] },
   { group: 'settings', pages: [{ href: '/admin/ajustes', label: 'settings' }] },
