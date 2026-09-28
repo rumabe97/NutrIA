@@ -555,7 +555,6 @@ export const enGB: Dictionary = {
   },
 
   goals: {
-    custom: 'Custom',
     healthy_eating: 'Eating well',
     maintenance: 'Maintenance',
     muscle_gain: 'Build muscle',
@@ -662,7 +661,7 @@ export const enGB: Dictionary = {
     lede: 'Personalised meal plans built around your goals, your preferences and your life. Adjusted every fortnight according to what actually works for you.',
     personalisationLede:
       'Goal, age, activity, the cooking you like, the foods you never want to see again. It all goes into the calculation, and it can all be changed later.',
-    personalisationTitle: 'Your plan knows you get home late on Tuesdays.',
+    personalisationTitle: 'Your plan knows you skip breakfast.',
     preview: {
       adherence: 'Adherence',
       adherenceValue: '72%',
@@ -696,7 +695,7 @@ export const enGB: Dictionary = {
     safetyLede: 'The AI proposes meals. Anything that could harm you is checked by the system.',
     safetyTitle: 'A model does not decide what matters.',
     steps: [
-      { body: 'Your goal, your allergies, and what you have no intention of cooking on a Tuesday.', title: 'You tell us how you live' },
+      { body: 'Your goal, your allergies, and how much time you have to cook each dish.', title: 'You tell us how you live' },
       { body: 'We work out what you need and build fourteen complete days, meal by meal.', title: 'We build your plan' },
       { body: 'Tick off what you eat, swap what you don’t fancy, shop with a list already written.', title: 'You follow it at your pace' },
       { body: 'Every fortnight we look at what worked, and the next plan arrives better tuned.', title: 'It adapts' }
@@ -850,7 +849,6 @@ export const enGB: Dictionary = {
         vegetarian: 'Vegetarian'
       },
       goals: {
-        custom: { hint: "Doesn't fit the ones above: we use the target weight and pace you give, with no other script.", label: 'Other' },
         healthy_eating: { hint: 'No weight target, just eating well.', label: 'Eat well' },
         maintenance: { hint: 'Stay where you are, eating better.', label: 'Maintain' },
         muscle_gain: { hint: 'Build muscle on a controlled surplus.', label: 'Build muscle' },
@@ -911,8 +909,7 @@ export const enGB: Dictionary = {
 
   pages: {
     '/': {
-      description:
-        'Fourteen-day plans with recipes, quantities and the shopping list already done, built around your goals, your timetable and your allergies.',
+      description: 'Fourteen-day plans with recipes, quantities and the shopping list already done, built around your goals and your allergies.',
       title: 'NutrIA — Personalised meal plans'
     },
     '/acceder': { description: "Sign in to NutrIA to see today's plan, your shopping list and your progress.", title: 'Sign in' },
@@ -1283,7 +1280,7 @@ export const enGB: Dictionary = {
         heading: 'What we collect and why',
         list: [
           'Account: your name and email and, if you sign in with Google or Apple, the name and email that service confirms to us. While you are signed in we keep the IP address and browser you signed in from, so we can end the session. So that you have an account and only you get into it.',
-          'Your body and your goal: date of birth, sex, height, weight, activity level, schedule and your goal (for example, losing weight). To work out how much you need to eat.',
+          'Your body and your goal: date of birth, sex, height, weight, activity level and your goal (for example, losing weight). To work out how much you need to eat.',
           'Country: where you shop from. So the catalogue only shows you foods you can actually find there.',
           'Allergies and intolerances: the ones you pick from the list, the ones you type yourself, and how severe they are. So that no plan offers you something that could harm you.',
           'How you eat: for example vegetarian, gluten-free or lactose-free, and the cuisines you like or not. To fit the dishes to you.',

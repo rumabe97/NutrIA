@@ -47,7 +47,7 @@ interface OnboardingFlowProps {
  * Option **values**, in the order they are offered. Labels and hints come from
  * the dictionary; these arrays carry only what the API accepts.
  */
-const GOAL_VALUES = ['weight_loss', 'maintenance', 'muscle_gain', 'performance', 'healthy_eating', 'custom'] as const;
+const GOAL_VALUES = ['weight_loss', 'maintenance', 'muscle_gain', 'performance', 'healthy_eating'] as const;
 const ACTIVITY_VALUES = ['sedentary', 'light', 'moderate', 'high', 'athlete'] as const;
 const COUNTRY_VALUES = ['ES', 'GB'] as const;
 const MEAL_SLOT_VALUES = ['breakfast', 'morning_snack', 'lunch', 'afternoon_snack', 'dinner', 'supper'] as const;

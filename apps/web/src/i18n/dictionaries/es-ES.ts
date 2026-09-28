@@ -561,7 +561,6 @@ export const esES = {
   },
 
   goals: {
-    custom: 'Personalizado',
     healthy_eating: 'Comer sano',
     maintenance: 'Mantenimiento',
     muscle_gain: 'Ganar músculo',
@@ -669,7 +668,7 @@ export const esES = {
     lede: 'Planes de alimentación personalizados, construidos alrededor de tus objetivos, tus preferencias y tu vida. Y ajustados cada dos semanas según lo que de verdad te funciona.',
     personalisationLede:
       'Objetivo, edad, actividad, cocina que te gusta, alimentos que no piensas volver a ver. Todo entra en el cálculo, y todo se puede cambiar después.',
-    personalisationTitle: 'Tu plan sabe que los martes llegas tarde.',
+    personalisationTitle: 'Tu plan sabe que te saltas el desayuno.',
     preview: {
       adherence: 'Adherencia',
       adherenceValue: '72 %',
@@ -703,7 +702,7 @@ export const esES = {
     safetyLede: 'La IA propone comidas. Lo que puede hacerte daño lo comprueba el sistema.',
     safetyTitle: 'Lo importante no lo decide un modelo.',
     steps: [
-      { body: 'Objetivo, alergias y lo que no piensas cocinar un martes.', title: 'Nos cuentas cómo vives' },
+      { body: 'Objetivo, alergias y cuánto tiempo tienes para cocinar cada plato.', title: 'Nos cuentas cómo vives' },
       { body: 'Calculamos tus necesidades y construimos catorce días completos, comida a comida.', title: 'Creamos tu plan' },
       { body: 'Marca lo que comes, cambia lo que no te apetece, compra con una lista ya hecha.', title: 'Lo sigues a tu ritmo' },
       { body: 'Cada dos semanas revisamos qué funcionó y el siguiente plan llega mejor ajustado.', title: 'Se adapta' }
@@ -858,7 +857,6 @@ export const esES = {
         vegetarian: 'Vegetariana'
       },
       goals: {
-        custom: { hint: 'No encaja en las anteriores: usamos el peso objetivo y el ritmo que nos indiques, sin más pauta.', label: 'Otro' },
         healthy_eating: { hint: 'Sin objetivo de peso, solo comer bien.', label: 'Comer sano' },
         maintenance: { hint: 'Quedarte donde estás, comiendo mejor.', label: 'Mantenerme' },
         muscle_gain: { hint: 'Ganar músculo con un superávit controlado.', label: 'Ganar músculo' },
@@ -929,7 +927,7 @@ export const esES = {
   pages: {
     '/': {
       description:
-        'Planes de catorce días con recetas, cantidades y la lista de la compra hecha, construidos alrededor de tus objetivos, tus horarios y tus alergias.',
+        'Planes de catorce días con recetas, cantidades y la lista de la compra hecha, construidos alrededor de tus objetivos y tus alergias.',
       title: 'NutrIA — Planes de alimentación personalizados'
     },
     '/acceder': { description: 'Entra en NutrIA para ver tu plan de hoy, tu lista de la compra y tu progreso.', title: 'Acceder' },
@@ -1299,7 +1297,7 @@ export const esES = {
         heading: 'Qué datos recogemos y para qué',
         list: [
           'Cuenta: tu nombre y tu correo y, si entras con Google o Apple, el nombre y el correo que ese servicio nos confirma. Mientras tienes la sesión abierta guardamos la dirección IP y el navegador desde el que entraste, para poder cerrarla. Para que tengas una cuenta y solo tú entres en ella.',
-          'Tu cuerpo y tu objetivo: fecha de nacimiento, sexo, altura, peso, nivel de actividad, horarios y tu objetivo (por ejemplo, perder peso). Para calcular cuánto necesitas comer.',
+          'Tu cuerpo y tu objetivo: fecha de nacimiento, sexo, altura, peso, nivel de actividad y tu objetivo (por ejemplo, perder peso). Para calcular cuánto necesitas comer.',
           'País: desde dónde compras. Para que el catálogo solo te muestre alimentos que puedas encontrar allí.',
           'Alergias e intolerancias: las que eliges de la lista, las que escribes a mano y su gravedad. Para que ningún plan te proponga algo que te puede hacer daño.',
           'Tu forma de comer: por ejemplo vegetariana, sin gluten o sin lactosa, y la cocina que te gusta o no. Para ajustar los platos.',
