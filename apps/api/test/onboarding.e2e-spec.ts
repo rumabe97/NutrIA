@@ -7,6 +7,7 @@ import {
   deleteAccounts,
   generateAndWait,
   httpServer,
+  markCustomGoal,
   markLegacyOnboarding,
   POOL,
   PREFIX,
@@ -130,6 +131,43 @@ describe('onboarding', () => {
     await completeOnboarding(app, account);
 
     expect((await profileView(account)).profile?.country).toBe('ES');
+  });
+
+  it("refuses goal type 'custom' — GOAL_TYPES no longer offers it — on both routes that set a goal", async () => {
+    const account = await register(app, `goal-type-custom-${Date.now()}@e2e.invalid`);
+
+    made.push(account.cookie);
+    await completeOnboarding(app, account);
+
+    const server = httpServer(app);
+    const onStep: Response = await request(server)
+      .patch(`/${PREFIX}/onboarding`)
+      .set('Cookie', account.cookie)
+      .send({ data: { paceKgPerWeek: null, targetWeightKg: 65, type: 'custom' }, step: 'goal' })
+      .expect(422);
+
+    expect(code(onStep)).toBe('INVALID_INPUT');
+
+    const onProfile: Response = await request(server)
+      .patch(`/${PREFIX}/profile/goal`)
+      .set('Cookie', account.cookie)
+      .send({ paceKgPerWeek: null, targetWeightKg: 65, type: 'custom' })
+      .expect(422);
+
+    expect(code(onProfile)).toBe('INVALID_INPUT');
+  });
+
+  it("reads a goal stored as type 'custom' back as 'maintenance', a deploy-window row the enum still permits", async () => {
+    const account = await register(app, `goal-type-legacy-${Date.now()}@e2e.invalid`);
+
+    made.push(account.cookie);
+    await completeOnboarding(app, account);
+    // What the old API could still write during migration 0043's deploy
+    // window: a value the Postgres enum still permits, but GOAL_TYPES no
+    // longer does.
+    await markCustomGoal(account.id);
+
+    expect((await profileView(account)).goal?.type).toBe('maintenance');
   });
 
   it('accepts every field the cleanup removed, and stores none of them', async () => {
