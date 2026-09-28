@@ -1,0 +1,77 @@
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-01) var(--space-04);
+  list-style: none;
+  padding: 0;
+}
+
+.column {
+  flex-direction: column;
+}
+
+.item {
+  align-items: center;
+  color: var(--foreground-02);
+  display: inline-flex;
+  font-size: var(--font-size-02);
+  gap: var(--space-02);
+  line-height: var(--line-height-03);
+}
+
+.swatch {
+  border-radius: var(--radius-01);
+  flex: none;
+  height: 0.625rem;
+  width: 0.625rem;
+}
+
+.detail {
+  color: var(--foreground-01);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-medium);
+}
+
+.tone1 {
+  background-color: var(--color-chart-1);
+}
+
+.tone2 {
+  background-color: var(--color-chart-2);
+}
+
+.tone3 {
+  background-color: var(--color-chart-3);
+}
+
+.tone4 {
+  background-color: var(--color-chart-4);
+}
+
+.tone5 {
+  background-color: var(--color-chart-5);
+}
+
+.tone6 {
+  background-color: var(--color-chart-6);
+}
+
+.toneSuccess {
+  background-color: var(--color-chart-success);
+}
+
+.toneFailure {
+  background-color: var(--color-chart-failure);
+}
+
+.toneNeutral {
+  background-color: var(--color-chart-neutral);
+}
+
+/* A legend swatch is a background, and forced colours erase backgrounds; the
+   name beside it still says which series is which, and the table has the figures. */
+@media (forced-colors: active) {
+  .swatch {
+    border: 1px solid CanvasText;
+  }
+}

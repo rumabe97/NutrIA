@@ -1,0 +1,37 @@
+import { Sparkline } from 'ui/components/Sparkline';
+import { PropsTable } from 'components/PropsTable';
+
+# Sparkline
+
+A trend with no axes, drawn beside the figure it belongs to — usually through `StatTile`'s `sparkline` prop (decision `0069`). It is decorative and `aria-hidden`: the figure beside it carries the number, so **never show one without a figure**. It runs from zero, like every chart here. Fewer than two points, or nothing above zero, draws nothing rather than a flat line that would read as data.
+
+## Example
+
+<Preview code={`import { Sparkline } from 'ui/components/Sparkline';
+
+export default function Example() {
+  return (
+    <p>
+      <strong>1,204</strong> sign-ups
+      <Sparkline values={[12, 18, 9, 22, 15, 7, 19, 24, 21, 30]} />
+    </p>
+  );
+}`}>
+  <FullWidth>
+    <Sparkline values={[12, 18, 9, 22, 15, 7, 19, 24, 21, 30]} />
+    <Sparkline tone="failure" values={[3, 1, 4, 1, 5, 9, 2, 6]} />
+  </FullWidth>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "values", type: "readonly number[]", default: "—", description: "**Required.** Oldest first, evenly spaced" },
+  { prop: "tone", type: "ChartTone", default: "1", description: "The line's colour" },
+  { prop: "className", type: "string", default: "—", description: "Class on the `<svg>`; it is 6rem wide at most and 1.5rem tall" },
+]} />
+
+## Accessibility
+
+- `aria-hidden="true"` and `focusable="false"`: it adds nothing a screen reader should hear.
+- The figure it sits next to, and the change in words, are what carry the meaning.

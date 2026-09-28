@@ -77,7 +77,7 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 1 — The console shell, its navigation and Ajustes
 
-- [x] done
+- [x] done — commit `f4f9015` ("The admin has its own shell and menu, and the switches live on Ajustes")
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 1`. Reviews: `accessibility`
   (navigation, drawer, focus), `invariant-reviewer` (the 404 gate).
 - **Goal**: `/admin` has its own shell and menu, with no `AppNav`. The switches and the
@@ -124,14 +124,20 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 2 — Charts, stat tile and data table in packages/ui
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 2`. Reviews: `accessibility`.
   Load the `dataviz` and `apple-web-design` skills before any code.
 - **Goal**: the generic building blocks exist, tested and documented, before any page
   uses them.
 - **Scope**: `packages/ui/src/components/{LineChart,ColumnChart,BarChart,DonutChart,Sparkline,Gauge,StatTile,DataTable}/**`,
   shared chart helpers under `packages/ui/src/utils/`, `packages/ui/src/styles/colors.css`
-  (chart tokens only), `apps/docs/src/content/components/*.mdx`.
+  (chart tokens only), `apps/docs/src/content/ui/components/*.mdx` (path corrected in
+  phase 2) and the docs app's navigation list for them. Added from phase 1's review:
+  `packages/ui/src/components/Sidebar/**` and `apps/web/src/components/AdminNav/**`
+  (step 7 only).
+  Also touched in phase 2 (see LOG): `packages/ui/src/components/ChartFrame/**`,
+  `packages/ui/src/types/Chart.types.ts`, `apps/docs/src/components/{FullWidth,examples}/**`,
+  `apps/docs/mdx-components.tsx`, and `packages/ui/AGENTS.md` / `apps/docs/AGENTS.md`.
 - **Steps**:
   1. Add chart colour tokens to `colors.css`: a categorical set of 6 and a success /
      failure / neutral trio, for light, dark and high contrast. Validate them with the
@@ -166,6 +172,11 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
   6. For each component: a colocated `*.test.tsx` (render and its accessible names; the
      empty state; the scale starts at zero for columns and bars; the stacked totals) and
      an `apps/docs` page with examples in both themes.
+  7. (Added from phase 1's accessibility review.) `Sidebar` gains an optional
+     `onCloseAutoFocus` pass-through, and `AdminNav` prevents the drawer's focus return
+     when it closed because a link was followed, so the route announcer's move to the new
+     page's `h1` wins. The Close button, Escape and the overlay still return focus to
+     "Menú". Test it in `Sidebar.test.tsx`.
 - **Acceptance criteria**: PRD 6 (for the components), 11 (for the components), 12.
 - **Verification**:
   - `pnpm turbo lint ts:check test --filter=ui --filter=docs`.

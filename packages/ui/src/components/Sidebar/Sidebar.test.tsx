@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 
 import { describe, expect, it, vi } from 'vitest';
 
@@ -74,5 +74,49 @@ describe('Sidebar', () => {
     renderSidebar({ onOpenChange });
     await userEvent.click(screen.getByTestId('trigger'));
     expect(onOpenChange).toHaveBeenCalledWith(true);
+  });
+
+  describe('focus on close', () => {
+    function renderFocusable(onCloseAutoFocus?: (event: Event) => void) {
+      return render(
+        <Sidebar onCloseAutoFocus={onCloseAutoFocus} title="Nav" trigger={<button>Menú</button>}>
+          <button>Inside</button>
+        </Sidebar>
+      );
+    }
+
+    // vaul leaves focus on the trigger when it opens, so each test moves it inside first:
+    // that is where it is when somebody follows a link in the drawer.
+    async function openAndFocusInside() {
+      await userEvent.click(screen.getByRole('button', { name: 'Menú' }));
+      const inside = await screen.findByRole('button', { name: 'Inside' });
+      inside.focus();
+      expect(inside).toHaveFocus();
+    }
+
+    it('returns focus to the trigger by default', async () => {
+      renderFocusable();
+      await openAndFocusInside();
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Menú' })).toHaveFocus(), { timeout: 2000 });
+    });
+
+    it('calls onCloseAutoFocus with the event, and keeps the default when it is not prevented', async () => {
+      const onCloseAutoFocus = vi.fn();
+      renderFocusable(onCloseAutoFocus);
+      await openAndFocusInside();
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() => expect(onCloseAutoFocus).toHaveBeenCalledWith(expect.any(Event)), { timeout: 2000 });
+      await waitFor(() => expect(screen.getByRole('button', { name: 'Menú' })).toHaveFocus(), { timeout: 2000 });
+    });
+
+    it('leaves focus alone when onCloseAutoFocus prevents the default', async () => {
+      const onCloseAutoFocus = vi.fn((event: Event) => event.preventDefault());
+      renderFocusable(onCloseAutoFocus);
+      await openAndFocusInside();
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() => expect(onCloseAutoFocus).toHaveBeenCalled(), { timeout: 2000 });
+      expect(screen.getByRole('button', { name: 'Menú' })).not.toHaveFocus();
+    });
   });
 });

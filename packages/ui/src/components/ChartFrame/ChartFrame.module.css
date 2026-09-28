@@ -1,0 +1,93 @@
+/* `--chart-surface` is the colour under the chart, `--background-01` unless a
+   consumer sets it (a card): the gaps between marks and the halo behind axis
+   labels are drawn in it. It is read with a fallback, never declared here, so a
+   consumer's class on this same element cannot lose to this one on order. */
+.root {
+  --table-surface: var(--chart-surface, var(--background-01));
+
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-03);
+  min-inline-size: 0;
+}
+
+.title {
+  color: var(--foreground-01);
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-03);
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-03);
+}
+
+.beside {
+  align-items: center;
+  column-gap: var(--space-06);
+  flex-flow: row wrap;
+}
+
+.beside .data {
+  flex-basis: 100%;
+}
+
+.empty {
+  align-items: center;
+  border: 1px dashed var(--border-01);
+  border-radius: var(--radius-card);
+  color: var(--foreground-02);
+  display: flex;
+  font-size: var(--font-size-03);
+  justify-content: center;
+  min-block-size: 8rem;
+  padding: var(--space-06) var(--space-04);
+  text-align: center;
+}
+
+.summary {
+  align-items: center;
+  color: var(--foreground-02);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
+  gap: var(--space-01);
+  inline-size: fit-content;
+}
+
+.summary:hover {
+  color: var(--foreground-01);
+}
+
+@media (pointer: coarse) {
+  .summary {
+    min-height: var(--target-min);
+  }
+}
+
+.summary {
+  list-style: none;
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.chevron {
+  flex: none;
+  height: 1em;
+  transition: rotate var(--duration-fast) var(--ease-default);
+  width: 1em;
+}
+
+.data[open] .chevron {
+  rotate: 90deg;
+}
+
+.table {
+  margin-block-start: var(--space-02);
+}

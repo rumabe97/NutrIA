@@ -61,12 +61,34 @@ const [open, setOpen] = useState(false);
   { prop: "direction", type: "'left' | 'right'", default: "'left'", description: "Side the panel slides in from" },
   { prop: "open", type: "boolean", default: "—", description: "Controlled open state" },
   { prop: "onOpenChange", type: "(open: boolean) => void", default: "—", description: "Called when the open state changes" },
+  { prop: "onCloseAutoFocus", type: "(event: Event) => void", default: "—", description: "Called before focus returns to the trigger on close; `event.preventDefault()` keeps focus where it is" },
+  { prop: "description", type: "string", default: "—", description: "Explanatory text announced after the title" },
 ]} />
 
 ## Accessibility
 
 - The sidebar title is announced by screen readers when the panel opens.
-- Focus moves into the sidebar on open and returns to the trigger on close.
+- Focus is trapped in the sidebar while it is open and returns to the trigger on close.
+- When the sidebar closes because a link inside it was followed, the new page should get focus, not the trigger. Prevent the return in `onCloseAutoFocus` for that close only:
+
+```tsx
+const followedLink = useRef(false);
+
+<Sidebar
+  onCloseAutoFocus={event => {
+    if (followedLink.current) {
+      followedLink.current = false;
+      event.preventDefault();
+    }
+  }}
+  onOpenChange={setOpen}
+  open={open}
+  title="Menu"
+  trigger={<Button>Menu</Button>}
+>
+  <a href="/elsewhere" onClick={() => { followedLink.current = true; setOpen(false); }}>Elsewhere</a>
+</Sidebar>;
+```
 - Drag-to-dismiss and `Escape` key both close the panel.
 
 > **Note:** This is a `'use client'` component. It cannot be used in React Server Components directly — wrap it in a client boundary if needed.

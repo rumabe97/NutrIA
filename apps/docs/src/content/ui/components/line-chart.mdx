@@ -1,0 +1,106 @@
+import { LineChart } from 'ui/components/LineChart';
+import { PropsTable } from 'components/PropsTable';
+
+# LineChart
+
+One or more series over time, drawn as server-rendered SVG from plain arrays (decision `0069`). Days in `YYYY-MM-DD` are placed at their real distance apart, so a missing day is a longer step, not a squeezed one. The scale starts at zero and ends on a round tick. It is not a client component and needs no JavaScript to draw.
+
+Every point carries an SVG `<title>` with its figure. The chart's accessible name is `title`, a legend appears for two series or more, and "show data" holds the same figures as a table. When every value is zero, or there are no labels, it says `emptyLabel` instead of drawing a flat line.
+
+## Examples
+
+### One series
+
+<Preview code={`import { LineChart } from 'ui/components/LineChart';
+
+export default function Example() {
+  return (
+    <LineChart
+      dataLabel="Show data"
+      emptyLabel="No sign-ups in this period."
+      labels={['2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27', '2026-09-28']}
+      labelsHeader="Day"
+      locale="en-GB"
+      series={[{ name: 'Sign-ups', values: [4, 7, 5, 9, 6, 11, 8] }]}
+      title="Sign-ups per day"
+    />
+  );
+}`}>
+  <FullWidth>
+    <LineChart
+      dataLabel="Show data"
+      emptyLabel="No sign-ups in this period."
+      labels={['2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27', '2026-09-28']}
+      labelsHeader="Day"
+      locale="en-GB"
+      series={[{ name: 'Sign-ups', values: [4, 7, 5, 9, 6, 11, 8] }]}
+      title="Sign-ups per day"
+    />
+  </FullWidth>
+</Preview>
+
+### Several series, real time spacing
+
+The gap between the 23rd and the 27th is four days wide. `formatValue` formats the titles, the ticks and the table.
+
+<Preview code={`<LineChart
+  dataLabel="Show data"
+  emptyLabel="No generations in this period."
+  formatValue={value => \`\${value} s\`}
+  labels={['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-27', '2026-09-28']}
+  labelsHeader="Day"
+  locale="en-GB"
+  series={[
+    { name: 'p50', values: [14, 16, 15, 13, 14] },
+    { name: 'p95', values: [38, 44, 41, 35, 52] }
+  ]}
+  title="Generation time"
+/>`}>
+  <FullWidth>
+    <LineChart
+      dataLabel="Show data"
+      emptyLabel="No generations in this period."
+      formatValue={value => `${value} s`}
+      labels={['2026-09-21', '2026-09-22', '2026-09-23', '2026-09-27', '2026-09-28']}
+      labelsHeader="Day"
+      locale="en-GB"
+      series={[
+        { name: 'p50', values: [14, 16, 15, 13, 14] },
+        { name: 'p95', values: [38, 44, 41, 35, 52] }
+      ]}
+      title="Generation time"
+    />
+  </FullWidth>
+</Preview>
+
+### Empty
+
+<Preview code={`<LineChart dataLabel="Show data" emptyLabel="No sign-ups in this period." labels={['2026-09-27', '2026-09-28']} labelsHeader="Day" locale="en-GB" series={[{ name: 'Sign-ups', values: [0, 0] }]} title="Sign-ups per day" />`}>
+  <FullWidth>
+    <LineChart dataLabel="Show data" emptyLabel="No sign-ups in this period." labels={['2026-09-27', '2026-09-28']} labelsHeader="Day" locale="en-GB" series={[{ name: 'Sign-ups', values: [0, 0] }]} title="Sign-ups per day" />
+  </FullWidth>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "title", type: "string", default: "—", description: "**Required.** Visible caption and the chart's accessible name" },
+  { prop: "labels", type: "readonly string[]", default: "—", description: "**Required.** One per point, oldest first. `YYYY-MM-DD` days sit at their real distance; anything else is spaced evenly" },
+  { prop: "series", type: "readonly ChartSeries[]", default: "—", description: "**Required.** `{ name, values, tone? }` — one line each" },
+  { prop: "labelsHeader", type: "string", default: "—", description: "**Required.** Header of the table's first column" },
+  { prop: "dataLabel", type: "string", default: "—", description: "**Required.** Text of the \"show data\" disclosure" },
+  { prop: "emptyLabel", type: "string", default: "—", description: "**Required.** What the chart says when there is nothing to draw" },
+  { prop: "locale", type: "string", default: "—", description: "**Required.** Locale for the default number and date formats" },
+  { prop: "formatValue", type: "(value: number) => string", default: "locale number", description: "Formats titles, ticks and table cells" },
+  { prop: "formatLabel", type: "(label: string) => string", default: "short date", description: "Formats labels on the axis, in titles and in the table" },
+  { prop: "className", type: "string", default: "—", description: "Class on the `<figure>`; set `--chart-surface` here on a card" },
+]} />
+
+`tone` on a series pins its colour: `1`–`6` for the categorical slots, or `'success' | 'failure' | 'neutral'` for a series that means an outcome. Without it a series takes the slot of its position.
+
+## Accessibility
+
+- The `<svg>` has `role="img"` and is named by the visible caption.
+- Every point is a mark with a `<title>` holding its exact figure; past 31 points it is an invisible target instead of a dot.
+- "Show data" is a native `<details>` with the figures in a `<table>`, so no number lives only in a shape.
+- The axes are `aria-hidden`: the table says what they say.

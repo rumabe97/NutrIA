@@ -1,0 +1,90 @@
+/* `--table-surface` is the colour under the table. The sticky first column
+   paints it so the cells scrolling beneath do not show through; a table on a
+   card sets it, on itself or on any ancestor, to the card's colour. */
+.region {
+  max-inline-size: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--font-size-03);
+  font-variant-numeric: tabular-nums;
+  inline-size: 100%;
+  line-height: var(--line-height-03);
+}
+
+.caption {
+  color: var(--foreground-01);
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  padding-block-end: var(--space-03);
+  text-align: start;
+}
+
+.table th,
+.table td {
+  border-block-end: 1px solid var(--border-01);
+  padding: var(--space-02) var(--space-03);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table thead th {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-semibold);
+  vertical-align: bottom;
+  white-space: nowrap;
+}
+
+/* Row headers read as the row's name, not as a second header row. */
+.table tbody th {
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-medium);
+}
+
+.table tbody td {
+  color: var(--foreground-01);
+}
+
+/* The first column stays while the rest scrolls, so every row keeps its name. */
+.table th:first-child,
+.table td:first-child {
+  background-color: var(--table-surface, var(--background-01));
+  inset-inline-start: 0;
+  position: sticky;
+  z-index: var(--z-base);
+}
+
+.table .end {
+  text-align: end;
+}
+
+.end .sort {
+  flex-direction: row-reverse;
+}
+
+.sort {
+  align-items: center;
+  display: inline-flex;
+  gap: var(--space-01);
+}
+
+.sort:hover {
+  color: var(--foreground-01);
+}
+
+@media (pointer: coarse) {
+  .sort {
+    min-height: var(--target-min);
+  }
+}
+
+.table td.empty {
+  color: var(--foreground-02);
+  padding-block: var(--space-06);
+  text-align: center;
+}

@@ -1,0 +1,79 @@
+import { DataTable } from 'ui/components/DataTable';
+import { PropsTable } from 'components/PropsTable';
+
+# DataTable
+
+A plain `<table>`: no state, no fetching, no sorting of its own. Sorting is the page's — a sortable header is a link to the same page sorted by that column, so it works without JavaScript and the address says what is shown. The table sits in a focusable region named by its caption that scrolls sideways on a narrow screen, with the first column held in place so each row keeps its name.
+
+The charts' "show data" tables are this component.
+
+## Examples
+
+### Sortable
+
+<Preview code={`import { DataTable } from 'ui/components/DataTable';
+
+export default function Example() {
+  return (
+    <DataTable
+      caption="Accounts"
+      columns={[
+        { header: 'Email', key: 'email', sortHref: '?sort=email', sorted: 'asc' },
+        { header: 'Created', key: 'created', sortHref: '?sort=created' },
+        { align: 'end', header: 'Plans', key: 'plans', sortHref: '?sort=plans' },
+        { header: 'Tier', key: 'tier' }
+      ]}
+      empty="Nobody matches the filter."
+      rows={[
+        { id: '1', cells: { created: '2 Sept 2026', email: 'ana@example.com', plans: 4, tier: 'Premium' } },
+        { id: '2', cells: { created: '14 Sept 2026', email: 'luis@example.com', plans: 1, tier: 'Free' } },
+        { id: '3', cells: { created: '27 Sept 2026', email: 'marta@example.com', plans: 0, tier: 'Free' } }
+      ]}
+    />
+  );
+}`}>
+  <FullWidth>
+    <DataTable
+      caption="Accounts"
+      columns={[
+        { header: 'Email', key: 'email', sortHref: '?sort=email', sorted: 'asc' },
+        { header: 'Created', key: 'created', sortHref: '?sort=created' },
+        { align: 'end', header: 'Plans', key: 'plans', sortHref: '?sort=plans' },
+        { header: 'Tier', key: 'tier' }
+      ]}
+      empty="Nobody matches the filter."
+      rows={[
+        { id: '1', cells: { created: '2 Sept 2026', email: 'ana@example.com', plans: 4, tier: 'Premium' } },
+        { id: '2', cells: { created: '14 Sept 2026', email: 'luis@example.com', plans: 1, tier: 'Free' } },
+        { id: '3', cells: { created: '27 Sept 2026', email: 'marta@example.com', plans: 0, tier: 'Free' } }
+      ]}
+    />
+  </FullWidth>
+</Preview>
+
+### Empty
+
+<Preview code={`<DataTable caption="Accounts" columns={[{ header: 'Email', key: 'email' }, { header: 'Tier', key: 'tier' }]} empty="Nobody matches the filter." rows={[]} />`}>
+  <FullWidth>
+    <DataTable caption="Accounts" columns={[{ header: 'Email', key: 'email' }, { header: 'Tier', key: 'tier' }]} empty="Nobody matches the filter." rows={[]} />
+  </FullWidth>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "caption", type: "string", default: "—", description: "**Required.** The `<caption>`, and the name of the scroll region" },
+  { prop: "columns", type: "readonly DataTableColumn[]", default: "—", description: "**Required.** `{ key, header, align?, sortHref?, sorted?, sortHint? }`, in order; the first is the row header. `sortHint` is read, never shown, after the header in its sort link: the current order and what the link does" },
+  { prop: "rows", type: "readonly DataTableRow[]", default: "—", description: "**Required.** `{ id, cells }`, already sorted and paged; `cells` is keyed by column `key`" },
+  { prop: "empty", type: "ReactNode", default: "—", description: "**Required.** What the body says when there are no rows" },
+  { prop: "hideCaption", type: "boolean", default: "false", description: "Hides the caption visually; it still names the table and the region" },
+  { prop: "className", type: "string", default: "—", description: "Class on the region; set `--table-surface` here (or on an ancestor) on a card" },
+]} />
+
+`sorted: 'asc' | 'desc'` marks the column the rows are sorted by — at most one.
+
+## Accessibility
+
+- A real `<table>` with a `<caption>`; the first cell of each row is a row header (`<th scope="row">`).
+- The scroll container is `role="region"`, `tabIndex={0}` and named by the caption, so a keyboard can scroll a wide table.
+- A sortable header is a link inside a `<th>` carrying `aria-sort` (`ascending` / `descending`) on the sorted column; the arrow is decorative. Sort links are `--target-min` tall under a coarse pointer.

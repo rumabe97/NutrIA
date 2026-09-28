@@ -1,0 +1,98 @@
+/* The plot: one row per label, name and figure above the bar. */
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-04);
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-01);
+  min-inline-size: 0;
+}
+
+/* Name first, figure at the end; a name too long for the line wraps, and the figure
+   drops below it rather than running into it. */
+.head {
+  align-items: baseline;
+  column-gap: var(--space-03);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-02);
+  justify-content: space-between;
+  line-height: var(--line-height-03);
+  margin: 0;
+}
+
+.name {
+  color: var(--foreground-01);
+  min-inline-size: 0;
+  overflow-wrap: break-word;
+}
+
+.figure {
+  color: var(--foreground-01);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.share {
+  color: var(--foreground-02);
+  font-weight: var(--font-weight-regular);
+}
+
+.bars {
+  display: block;
+  overflow: visible;
+}
+
+/* The whole length a bar could have: recessive, so a short bar still reads as short. */
+.track {
+  fill: var(--background-highlight);
+}
+
+.bar {
+  fill: var(--tone);
+}
+
+.bar:hover {
+  opacity: 0.8;
+}
+
+.tone1 {
+  --tone: var(--color-chart-1);
+}
+
+.tone2 {
+  --tone: var(--color-chart-2);
+}
+
+.tone3 {
+  --tone: var(--color-chart-3);
+}
+
+.tone4 {
+  --tone: var(--color-chart-4);
+}
+
+.tone5 {
+  --tone: var(--color-chart-5);
+}
+
+.tone6 {
+  --tone: var(--color-chart-6);
+}
+
+.toneSuccess {
+  --tone: var(--color-chart-success);
+}
+
+.toneFailure {
+  --tone: var(--color-chart-failure);
+}
+
+.toneNeutral {
+  --tone: var(--color-chart-neutral);
+}

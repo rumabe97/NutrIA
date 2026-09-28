@@ -93,3 +93,52 @@
   --color-amber-11: light-dark(#ad5700, #f1a10d);
   --color-amber-12: light-dark(#4e2009, #fef3dd);
 }
+
+/* ── Chart colours (0069) ────────────────────────────────────────────
+   The one exception to "primitives only": these are semantic already — a
+   chart has no other layer to map them through — so components reference
+   them directly. They are the dataviz reference palette's first six
+   categorical slots in their validated order, and a status trio stepped
+   apart in lightness — light: neutral lightest, failure darkest; dark:
+   success darkest, failure lightest — so the three stay apart without
+   colour vision. Every set was run through the dataviz skill's validator
+   (`validate_palette.js`) against `--background-01`; the verbatim output is
+   in docs/projects/007-admin-console/LOG.md, phase 2.
+
+   - Categorical, in this order and never cycled: a seventh series folds into
+     "other". Colour follows the entity, not its rank.
+   - Light slots 3–5, and the light neutral, sit under 3:1 against the page:
+     the relief is that every chart carries a legend and a "show data" table.
+   - Success / failure / neutral are for series that *mean* an outcome.
+     Stack them in that order: the dark pair is in the CVD floor band, so the
+     2px surface gap between stacked segments is required, not decoration.
+   - `prefers-contrast: more` keeps each hue and moves its lightness until
+     every mark clears 4.5:1 in both schemes. */
+
+:root {
+  --color-chart-1: light-dark(#2a78d6, #3987e5);
+  --color-chart-2: light-dark(#eb6834, #d95926);
+  --color-chart-3: light-dark(#1baf7a, #199e70);
+  --color-chart-4: light-dark(#eda100, #c98500);
+  --color-chart-5: light-dark(#e87ba4, #d55181);
+  --color-chart-6: light-dark(#008300, #008300);
+
+  --color-chart-success: light-dark(#0ca30c, #008300);
+  --color-chart-failure: light-dark(#ae111e, #ff958d);
+  --color-chart-neutral: light-dark(#c7c7c7, #8a8a8a);
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --color-chart-1: light-dark(#2573d1, #3e8cea);
+    --color-chart-2: light-dark(#ca4908, #e46331);
+    --color-chart-3: light-dark(#01855a, #199e70);
+    --color-chart-4: light-dark(#835803, #c98500);
+    --color-chart-5: light-dark(#b8507a, #e05b8a);
+    --color-chart-6: light-dark(#008300, #309e2c);
+
+    --color-chart-success: light-dark(#018702, #21931e);
+    --color-chart-failure: light-dark(#940014, #ff958d);
+    --color-chart-neutral: light-dark(#6f6f6f, #8a8a8a);
+  }
+}

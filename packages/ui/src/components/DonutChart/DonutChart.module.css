@@ -1,0 +1,52 @@
+.chart {
+  block-size: 9rem;
+  display: block;
+  flex: none;
+  inline-size: 9rem;
+}
+
+.slice {
+  fill: none;
+  stroke: var(--tone);
+  stroke-width: 16;
+}
+
+.slice:hover {
+  opacity: 0.8;
+}
+
+.tone1 {
+  --tone: var(--color-chart-1);
+}
+
+.tone2 {
+  --tone: var(--color-chart-2);
+}
+
+.tone3 {
+  --tone: var(--color-chart-3);
+}
+
+.tone4 {
+  --tone: var(--color-chart-4);
+}
+
+.tone5 {
+  --tone: var(--color-chart-5);
+}
+
+.tone6 {
+  --tone: var(--color-chart-6);
+}
+
+.toneSuccess {
+  --tone: var(--color-chart-success);
+}
+
+.toneFailure {
+  --tone: var(--color-chart-failure);
+}
+
+.toneNeutral {
+  --tone: var(--color-chart-neutral);
+}

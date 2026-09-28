@@ -1,0 +1,64 @@
+import { Gauge } from 'ui/components/Gauge';
+import { PropsTable } from 'components/PropsTable';
+
+# Gauge
+
+One figure against its cap — the month's spend against the budget (decision `0069`). A bar rather than an arc: a length is read faster and more exactly than an angle, and it fits a phone. Both figures are printed above it. Past the cap the bar is full, in the failure colour, and the over-cap state is said in words with `overLabel`. A cap of zero or less draws `emptyLabel`.
+
+## Examples
+
+### Under the cap
+
+<Preview code={`import { Gauge } from 'ui/components/Gauge';
+
+export default function Example() {
+  return (
+    <Gauge
+      cap={10}
+      capLabel="Cap"
+      dataLabel="Show data"
+      emptyLabel="No cap set."
+      formatValue={value => \`\${value.toFixed(2)} $\`}
+      labelsHeader="Month"
+      locale="en-GB"
+      overLabel="Over the cap"
+      title="Picture spend, September"
+      value={6.4}
+      valueLabel="Spent"
+    />
+  );
+}`}>
+  <FullWidth>
+    <Gauge cap={10} capLabel="Cap" dataLabel="Show data" emptyLabel="No cap set." formatValue={value => `${value.toFixed(2)} $`} labelsHeader="Month" locale="en-GB" overLabel="Over the cap" title="Picture spend, September" value={6.4} valueLabel="Spent" />
+  </FullWidth>
+</Preview>
+
+### Over the cap
+
+<Preview code={`<Gauge cap={10} capLabel="Cap" dataLabel="Show data" emptyLabel="No cap set." formatValue={value => \`\${value.toFixed(2)} $\`} labelsHeader="Month" locale="en-GB" overLabel="Over the cap" title="Picture spend, September" value={11.25} valueLabel="Spent" />`}>
+  <FullWidth>
+    <Gauge cap={10} capLabel="Cap" dataLabel="Show data" emptyLabel="No cap set." formatValue={value => `${value.toFixed(2)} $`} labelsHeader="Month" locale="en-GB" overLabel="Over the cap" title="Picture spend, September" value={11.25} valueLabel="Spent" />
+  </FullWidth>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "title", type: "string", default: "—", description: "**Required.** Visible caption and the gauge's accessible name" },
+  { prop: "value", type: "number", default: "—", description: "**Required.** The figure measured" },
+  { prop: "cap", type: "number", default: "—", description: "**Required.** The limit; zero or less draws the empty state" },
+  { prop: "valueLabel", type: "string", default: "—", description: "**Required.** Names the value beside its figure and in the table" },
+  { prop: "capLabel", type: "string", default: "—", description: "**Required.** Names the cap beside its figure and in the table" },
+  { prop: "overLabel", type: "string", default: "—", description: "**Required.** Said in words once the value passes the cap" },
+  { prop: "labelsHeader", type: "string", default: "—", description: "**Required.** Header of the table's first column" },
+  { prop: "dataLabel", type: "string", default: "—", description: "**Required.** Text of the \"show data\" disclosure" },
+  { prop: "emptyLabel", type: "string", default: "—", description: "**Required.** What the gauge says without a cap" },
+  { prop: "locale", type: "string", default: "—", description: "**Required.** Locale for the default number format" },
+  { prop: "formatValue", type: "(value: number) => string", default: "locale number", description: "Formats both figures" },
+  { prop: "className", type: "string", default: "—", description: "Class on the `<figure>`" },
+]} />
+
+## Accessibility
+
+- Both figures are printed; the over-cap state is a sentence with an icon, never colour alone.
+- The `<svg>` has `role="img"`, is named by the caption, and each bar's `<title>` holds its figure.

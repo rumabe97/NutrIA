@@ -1,0 +1,71 @@
+import { BarChart } from 'ui/components/BarChart';
+import { PropsTable } from 'components/PropsTable';
+
+# BarChart
+
+Horizontal bars from a zero baseline: the funnel, and any top-N list (decision `0069`). Each row prints its name and its figure as HTML text above a bar whose length is the figure against the longest one, so a long name wraps and the figure drops below it rather than running into it. With `shares`, each figure is followed by a share — the funnel's "of the step before".
+
+One series wears one colour: a bar's length already says how much. Two series or more draw a thinner bar per series in each row, with a legend. All zeros draws `emptyLabel`.
+
+## Examples
+
+### Funnel with shares
+
+<Preview code={`import { BarChart } from 'ui/components/BarChart';
+
+export default function Example() {
+  return (
+    <BarChart
+      dataLabel="Show data"
+      emptyLabel="Nobody reached any step."
+      labels={['Signed up', 'Confirmed email', 'Finished onboarding', 'First plan']}
+      labelsHeader="Step"
+      locale="en-GB"
+      series={[{ name: 'People', values: [240, 198, 131, 117] }]}
+      shares={{ header: 'Of the step before', values: [undefined, '83%', '66%', '89%'] }}
+      title="Funnel"
+    />
+  );
+}`}>
+  <FullWidth>
+    <BarChart
+      dataLabel="Show data"
+      emptyLabel="Nobody reached any step."
+      labels={['Signed up', 'Confirmed email', 'Finished onboarding', 'First plan']}
+      labelsHeader="Step"
+      locale="en-GB"
+      series={[{ name: 'People', values: [240, 198, 131, 117] }]}
+      shares={{ header: 'Of the step before', values: [undefined, '83%', '66%', '89%'] }}
+      title="Funnel"
+    />
+  </FullWidth>
+</Preview>
+
+### Top N
+
+<Preview code={`<BarChart dataLabel="Show data" emptyLabel="No failures." labels={['TIMEOUT', 'MACROS_OUT_OF_RANGE', 'ALLERGEN_FOUND', 'PROVIDER_ERROR']} labelsHeader="Code" locale="en-GB" series={[{ name: 'Failures', tone: 'failure', values: [14, 9, 3, 1] }]} title="Failures by code" />`}>
+  <FullWidth>
+    <BarChart dataLabel="Show data" emptyLabel="No failures." labels={['TIMEOUT', 'MACROS_OUT_OF_RANGE', 'ALLERGEN_FOUND', 'PROVIDER_ERROR']} labelsHeader="Code" locale="en-GB" series={[{ name: 'Failures', tone: 'failure', values: [14, 9, 3, 1] }]} title="Failures by code" />
+  </FullWidth>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "title", type: "string", default: "—", description: "**Required.** Visible caption and the chart's accessible name" },
+  { prop: "labels", type: "readonly string[]", default: "—", description: "**Required.** One per bar, top to bottom; printed as they are" },
+  { prop: "series", type: "readonly ChartSeries[]", default: "—", description: "**Required.** Usually one; more draw a bar per series in each row" },
+  { prop: "shares", type: "{ header: string; values: readonly (string | undefined)[] }", default: "—", description: "Formatted shares printed after each figure, and a table column. One series only" },
+  { prop: "labelsHeader", type: "string", default: "—", description: "**Required.** Header of the table's first column" },
+  { prop: "dataLabel", type: "string", default: "—", description: "**Required.** Text of the \"show data\" disclosure" },
+  { prop: "emptyLabel", type: "string", default: "—", description: "**Required.** What the chart says when there is nothing to draw" },
+  { prop: "locale", type: "string", default: "—", description: "**Required.** Locale for the default number format" },
+  { prop: "formatValue", type: "(value: number) => string", default: "locale number", description: "Formats the printed figures, titles and table cells" },
+  { prop: "className", type: "string", default: "—", description: "Class on the `<figure>`" },
+]} />
+
+## Accessibility
+
+- Names and figures are printed as text, so nothing depends on reading a length.
+- The plot is one `role="img"` named by the caption: HTML text for the names and figures (SVG text cannot wrap), SVG for the bars. Each bar's `<title>` holds its figure and share.
+- The figures and shares are in the "show data" table.

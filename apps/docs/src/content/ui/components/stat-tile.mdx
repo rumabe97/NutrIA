@@ -1,0 +1,71 @@
+import { StatTile } from 'ui/components/StatTile';
+import { PropsTable } from 'components/PropsTable';
+
+# StatTile
+
+One headline figure: what it is, the figure, and optionally how it moved against the previous period, a note and a sparkline (decision `0069`). The change is drawn as ▲ / ▼ and a signed percentage, and said as a sentence through `changeLabel`, so its meaning never rests on an arrow or a colour. When the previous period was zero no percentage means anything, and none is drawn.
+
+`value` is a string: the page formats the figure. Put tiles in a list or a grid of your own; the tile is one `<div>`.
+
+## Examples
+
+### With change, note and sparkline
+
+<Preview code={`import { StatTile } from 'ui/components/StatTile';
+
+export default function Example() {
+  return (
+    <StatTile
+      change={{ current: 1204, previous: 1075 }}
+      changeLabel="{change} against the previous period"
+      goodDirection="up"
+      label="Sign-ups"
+      locale="en-GB"
+      note="Confirmed accounts only"
+      sparkline={[12, 18, 9, 22, 15, 7, 19, 24, 21, 30]}
+      value="1,204"
+    />
+  );
+}`}>
+  <FullWidth>
+    <StatTile change={{ current: 1204, previous: 1075 }} changeLabel="{change} against the previous period" goodDirection="up" label="Sign-ups" locale="en-GB" note="Confirmed accounts only" sparkline={[12, 18, 9, 22, 15, 7, 19, 24, 21, 30]} value="1,204" />
+  </FullWidth>
+</Preview>
+
+### Up is bad
+
+<Preview code={`<StatTile change={{ current: 14, previous: 9 }} changeLabel="{change} against the previous period" goodDirection="down" label="Failed generations" locale="en-GB" sparkline={[1, 2, 1, 3, 2, 4, 3]} sparklineTone="failure" value="14" />`}>
+  <FullWidth>
+    <StatTile change={{ current: 14, previous: 9 }} changeLabel="{change} against the previous period" goodDirection="down" label="Failed generations" locale="en-GB" sparkline={[1, 2, 1, 3, 2, 4, 3]} sparklineTone="failure" value="14" />
+  </FullWidth>
+</Preview>
+
+### No previous period
+
+<Preview code={`<StatTile change={{ current: 3, previous: 0 }} changeLabel="{change} against the previous period" label="Professionals" locale="en-GB" value="3" />`}>
+  <FullWidth>
+    <StatTile change={{ current: 3, previous: 0 }} changeLabel="{change} against the previous period" label="Professionals" locale="en-GB" value="3" />
+  </FullWidth>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "label", type: "string", default: "—", description: "**Required.** What the figure is" },
+  { prop: "value", type: "string", default: "—", description: "**Required.** The figure, already formatted" },
+  { prop: "locale", type: "string", default: "—", description: "**Required.** Locale for the percentage" },
+  { prop: "change", type: "{ current: number; previous: number }", default: "—", description: "Draws ▲ / ▼ and the signed percentage; nothing when `previous` is 0" },
+  { prop: "changeLabel", type: "string", default: "—", description: "The change in words for a screen reader; `{change}` becomes the percentage. A string so a tile can cross into a client component" },
+  { prop: "goodDirection", type: "'up' | 'down'", default: "—", description: "Colours the change green or red; grey without it" },
+  { prop: "note", type: "ReactNode", default: "—", description: "A line under the figure" },
+  { prop: "sparkline", type: "readonly number[]", default: "—", description: "A decorative trend beside the figure" },
+  { prop: "sparklineTone", type: "ChartTone", default: "1", description: "The sparkline's colour" },
+]} />
+
+Every `<div>` attribute is also accepted.
+
+## Accessibility
+
+- With `changeLabel`, a screen reader hears the sentence ("+12% against the previous period") instead of the drawn percentage; the arrow is `aria-hidden`.
+- The colour of the change only repeats what the sign and the arrow already say.
+- The sparkline is decorative.

@@ -1,0 +1,60 @@
+.chart {
+  display: block;
+  overflow: visible;
+}
+
+.line {
+  fill: none;
+  stroke: var(--tone);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2px;
+}
+
+/* A dot wears a ring of the surface, so where two lines cross each point stays whole. */
+.dot {
+  fill: var(--tone);
+  stroke: var(--chart-surface, var(--background-01));
+  stroke-width: 2px;
+}
+
+/* Past a month of points, an invisible target that still shows the figure on hover. */
+.target {
+  fill: transparent;
+}
+
+.tone1 {
+  --tone: var(--color-chart-1);
+}
+
+.tone2 {
+  --tone: var(--color-chart-2);
+}
+
+.tone3 {
+  --tone: var(--color-chart-3);
+}
+
+.tone4 {
+  --tone: var(--color-chart-4);
+}
+
+.tone5 {
+  --tone: var(--color-chart-5);
+}
+
+.tone6 {
+  --tone: var(--color-chart-6);
+}
+
+.toneSuccess {
+  --tone: var(--color-chart-success);
+}
+
+.toneFailure {
+  --tone: var(--color-chart-failure);
+}
+
+.toneNeutral {
+  --tone: var(--color-chart-neutral);
+}

@@ -1,0 +1,32 @@
+.grid {
+  stroke: var(--border-01);
+  stroke-width: 1px;
+}
+
+.baseline {
+  stroke: var(--border-interactive);
+  stroke-width: 1px;
+}
+
+.tick,
+.label {
+  fill: var(--foreground-02);
+  font-size: var(--font-size-01);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+/* A halo in the surface colour, so a tick label stays legible over a mark. */
+.tick {
+  paint-order: stroke;
+  stroke: var(--chart-surface, var(--background-01));
+  stroke-linejoin: round;
+  stroke-width: 3px;
+}
+
+/* A phone keeps the first, the middle and the last date; the rest would collide. */
+@container (width < 32rem) {
+  .minor {
+    display: none;
+  }
+}

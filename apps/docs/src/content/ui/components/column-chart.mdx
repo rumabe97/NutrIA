@@ -1,0 +1,111 @@
+import { ColumnChart } from 'ui/components/ColumnChart';
+import { PropsTable } from 'components/PropsTable';
+
+# ColumnChart
+
+Columns from a zero baseline, one or more series per label — side by side, or stacked with `stacked` (decision `0069`). The scale always starts at zero and ends on a round tick at or above the tallest column, or the tallest stack. Server-rendered SVG, no JavaScript.
+
+Every column carries a `<title>` with its figure, a legend appears for two series or more, and "show data" holds the figures as a table — with a total column when `stacked` and `totalLabel` are set. All zeros, or no labels, draws `emptyLabel`.
+
+## Examples
+
+### One series
+
+<Preview code={`import { ColumnChart } from 'ui/components/ColumnChart';
+
+export default function Example() {
+  return (
+    <ColumnChart
+      dataLabel="Show data"
+      emptyLabel="No plans in this period."
+      labels={['2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27', '2026-09-28']}
+      labelsHeader="Day"
+      locale="en-GB"
+      series={[{ name: 'Plans', values: [12, 18, 9, 22, 15, 7, 19] }]}
+      title="Plans created per day"
+    />
+  );
+}`}>
+  <FullWidth>
+    <ColumnChart
+      dataLabel="Show data"
+      emptyLabel="No plans in this period."
+      labels={['2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27', '2026-09-28']}
+      labelsHeader="Day"
+      locale="en-GB"
+      series={[{ name: 'Plans', values: [12, 18, 9, 22, 15, 7, 19] }]}
+      title="Plans created per day"
+    />
+  </FullWidth>
+</Preview>
+
+### Stacked outcomes
+
+Series that mean an outcome wear `tone` `'success'`, `'failure'` and `'neutral'`, stacked in that order. A 2px gap in the surface colour separates the segments — the dark pair sits close for colour-blind readers, so the gap is part of the encoding.
+
+<Preview code={`<ColumnChart
+  dataLabel="Show data"
+  emptyLabel="No generations in this period."
+  labels={['2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27', '2026-09-28']}
+  labelsHeader="Day"
+  locale="en-GB"
+  series={[
+    { name: 'Done', tone: 'success', values: [31, 28, 40, 22, 35] },
+    { name: 'Failed', tone: 'failure', values: [2, 5, 1, 0, 3] },
+    { name: 'Abandoned', tone: 'neutral', values: [1, 0, 2, 1, 0] }
+  ]}
+  stacked
+  title="Generations per day"
+  totalLabel="Total"
+/>`}>
+  <FullWidth>
+    <ColumnChart
+      dataLabel="Show data"
+      emptyLabel="No generations in this period."
+      labels={['2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27', '2026-09-28']}
+      labelsHeader="Day"
+      locale="en-GB"
+      series={[
+        { name: 'Done', tone: 'success', values: [31, 28, 40, 22, 35] },
+        { name: 'Failed', tone: 'failure', values: [2, 5, 1, 0, 3] },
+        { name: 'Abandoned', tone: 'neutral', values: [1, 0, 2, 1, 0] }
+      ]}
+      stacked
+      title="Generations per day"
+      totalLabel="Total"
+    />
+  </FullWidth>
+</Preview>
+
+### Labels that are not days
+
+Labels that are not `YYYY-MM-DD` are printed as they are; `formatLabel` changes that.
+
+<Preview code={`<ColumnChart dataLabel="Show data" emptyLabel="No messages." labels={['Week 36', 'Week 37', 'Week 38', 'Week 39']} labelsHeader="Week" locale="en-GB" series={[{ name: 'Messages', values: [3, 8, 5, 11] }]} title="Messages per week" />`}>
+  <FullWidth>
+    <ColumnChart dataLabel="Show data" emptyLabel="No messages." labels={['Week 36', 'Week 37', 'Week 38', 'Week 39']} labelsHeader="Week" locale="en-GB" series={[{ name: 'Messages', values: [3, 8, 5, 11] }]} title="Messages per week" />
+  </FullWidth>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "title", type: "string", default: "—", description: "**Required.** Visible caption and the chart's accessible name" },
+  { prop: "labels", type: "readonly string[]", default: "—", description: "**Required.** One per column, left to right" },
+  { prop: "series", type: "readonly ChartSeries[]", default: "—", description: "**Required.** `{ name, values, tone? }`; negative values are drawn as zero" },
+  { prop: "stacked", type: "boolean", default: "false", description: "Stack the series, first at the bottom; the scale runs to the tallest total" },
+  { prop: "totalLabel", type: "string", default: "—", description: "With `stacked`, adds a total column with this header to the table" },
+  { prop: "labelsHeader", type: "string", default: "—", description: "**Required.** Header of the table's first column" },
+  { prop: "dataLabel", type: "string", default: "—", description: "**Required.** Text of the \"show data\" disclosure" },
+  { prop: "emptyLabel", type: "string", default: "—", description: "**Required.** What the chart says when there is nothing to draw" },
+  { prop: "locale", type: "string", default: "—", description: "**Required.** Locale for the default number and date formats" },
+  { prop: "formatValue", type: "(value: number) => string", default: "locale number", description: "Formats titles, ticks and table cells" },
+  { prop: "formatLabel", type: "(label: string) => string", default: "short date", description: "Formats labels on the axis, in titles and in the table" },
+  { prop: "className", type: "string", default: "—", description: "Class on the `<figure>`; set `--chart-surface` here on a card" },
+]} />
+
+## Accessibility
+
+- The `<svg>` has `role="img"` and is named by the visible caption; each column's `<title>` holds its figure.
+- A narrow chart keeps the first, middle and last date labels and drops the rest (a container query), so labels never collide.
+- The figures are always in the "show data" table.
