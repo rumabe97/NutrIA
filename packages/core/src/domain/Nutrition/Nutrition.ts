@@ -18,14 +18,7 @@ type GoalType = (typeof GOAL_TYPES)[number];
 const ACTIVITY_FACTOR: Record<ActivityLevel, number> = { athlete: 1.9, high: 1.725, light: 1.375, moderate: 1.55, sedentary: 1.2 };
 
 /** Grams of protein per kg of body weight, by goal. */
-const PROTEIN_G_PER_KG: Record<GoalType, number> = {
-  custom: 1.6,
-  healthy_eating: 1.4,
-  maintenance: 1.6,
-  muscle_gain: 1.9,
-  performance: 1.8,
-  weight_loss: 1.8
-};
+const PROTEIN_G_PER_KG: Record<GoalType, number> = { healthy_eating: 1.4, maintenance: 1.6, muscle_gain: 1.9, performance: 1.8, weight_loss: 1.8 };
 
 const FAT_FRACTION_OF_KCAL = 0.28;
 const FIBER_G_PER_1000_KCAL = 14;
