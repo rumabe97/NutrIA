@@ -101,4 +101,18 @@ describe('AdminGenerationsRepository charts', () => {
     expect(failures?.sql).toContain('group by "plan_generation_jobs"."error" order by count(*) desc, "plan_generation_jobs"."error" asc');
     expect(failures?.params.at(-1)).toBe('failed');
   });
+
+  it('sums every call’s rejections by reason over the period, reading only the counts', async () => {
+    await AdminGenerationsRepository.rejectionsByReason(new Date('2026-09-01T22:00:00Z'), new Date('2026-09-28T10:00:00Z'));
+
+    const [rejections] = sent;
+
+    expect(rejections?.sql).toContain('jsonb_array_elements');
+    expect(rejections?.sql).toContain("jsonb_each(case when jsonb_typeof(call -> 'rejected') = 'object'");
+    expect(rejections?.sql).toContain('group by reason.key');
+    // Grouped by reason alone: nothing about a job, an account or an address leaves the query.
+    expect(rejections?.sql).not.toMatch(/"user"|email|user_id/);
+    // The window's two ends are the only values bound.
+    expect(rejections?.params).toHaveLength(2);
+  });
 });

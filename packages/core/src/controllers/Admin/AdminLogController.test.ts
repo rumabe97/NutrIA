@@ -9,7 +9,8 @@ import type { GenerationRow, AdminGenerationsRepository as Generations, AdminSer
 const generations = vi.hoisted(() => ({
   durationsPerDay: vi.fn<(typeof Generations)['durationsPerDay']>(),
   failuresByCode: vi.fn<(typeof Generations)['failuresByCode']>(),
-  page: vi.fn<(typeof Generations)['page']>()
+  page: vi.fn<(typeof Generations)['page']>(),
+  rejectionsByReason: vi.fn<(typeof Generations)['rejectionsByReason']>()
 }));
 const series = vi.hoisted(() => ({ generationsPerDay: vi.fn<(typeof Series)['generationsPerDay']>() }));
 
@@ -51,6 +52,10 @@ beforeEach(() => {
   generations.failuresByCode.mockResolvedValue([
     { code: 'GENERATION_AI_UNAVAILABLE', n: 4 },
     { code: null, n: 1 }
+  ]);
+  generations.rejectionsByReason.mockResolvedValue([
+    { n: 9, reason: 'allergen' },
+    { n: 2, reason: 'duplicate' }
   ]);
   series.generationsPerDay.mockResolvedValue([{ day: '2026-09-24', key: 'failed', n: 2 }]);
 });
@@ -132,6 +137,38 @@ describe('the addressed log never describes the person (0028, 0068)', () => {
   });
 });
 
+describe('an invalid plan on the addressed log keeps its kind and days, never the person’s figures (0028)', () => {
+  it('drops every example that quotes their day against their target, floor or ceiling', async () => {
+    generations.page.mockResolvedValue({
+      rows: [
+        {
+          ...ROW,
+          error: 'GENERATION_INVALID_PLAN',
+          errorDetail:
+            'below_minimum_kcal (2 días, p. ej. 1180 bajo un mínimo de 1500); protein_off (3 días, p. ej. 92 frente a 140); kcal_over (1 días, p. ej. 3200 sobre un techo de 3000)',
+          status: 'failed'
+        }
+      ],
+      total: 1
+    });
+
+    const [row] = (await AdminLogController.page(query(), NOW)).rows;
+
+    expect(row?.detail).toBe('below_minimum_kcal (2 días); protein_off (3 días); kcal_over (1 días)');
+  });
+
+  it('leaves any other failure’s detail as it was', async () => {
+    generations.page.mockResolvedValue({
+      rows: [{ ...ROW, error: 'GENERATION_AI_UNAVAILABLE', errorDetail: 'Provider returned error — provider: DeepInfra', status: 'failed' }],
+      total: 1
+    });
+
+    const [row] = (await AdminLogController.page(query(), NOW)).rows;
+
+    expect(row?.detail).toBe('Provider returned error — provider: DeepInfra');
+  });
+});
+
 describe('AdminLogController.stats', () => {
   it('lays the outcomes and durations on every day of the period, a day with no finished job being null, not zero', async () => {
     const stats = await AdminLogController.stats(7, NOW);
@@ -146,6 +183,12 @@ describe('AdminLogController.stats', () => {
       { code: 'GENERATION_AI_UNAVAILABLE', n: 4 },
       { code: null, n: 1 }
     ]);
+    // Totals over everybody, so the person's own reasons may be counted here (0028).
+    expect(stats.rejectionsByReason).toEqual([
+      { n: 9, reason: 'allergen' },
+      { n: 2, reason: 'duplicate' }
+    ]);
+    expect(JSON.stringify(stats)).not.toMatch(/@|email|account/);
     expect(stats.period).toBe(7);
     expect(stats.window).toEqual({ from: '2026-09-21T22:00:00.000Z', previousFrom: '2026-09-14T22:00:00.000Z', to: NOW.toISOString() });
   });
@@ -158,6 +201,7 @@ describe('AdminLogController.stats', () => {
     expect(series.generationsPerDay).toHaveBeenCalledWith(from, NOW);
     expect(generations.durationsPerDay).toHaveBeenCalledWith(from, NOW);
     expect(generations.failuresByCode).toHaveBeenCalledWith(from, NOW);
+    expect(generations.rejectionsByReason).toHaveBeenCalledWith(from, NOW);
   });
 
   it('names nobody: no address reaches the charts', async () => {

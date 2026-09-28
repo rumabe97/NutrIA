@@ -362,7 +362,7 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 7 — API: generations, AI, catalogue and pictures
 
-- [x] done
+- [x] done — commit `e7a3636` ("The console's generation log, AI and pictures have period series, the catalogue is browsable, and the ambient light runs past Safari's bar")
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 7`. Reviews: `invariant-reviewer`.
   The `tests` agent writes the end-to-end cases.
 - **Goal**: the generation log is complete and queryable, AI and pictures have period
