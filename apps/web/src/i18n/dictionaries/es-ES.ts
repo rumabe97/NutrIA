@@ -1300,6 +1300,7 @@ export const esES = {
         list: [
           'Cuenta: tu nombre y tu correo y, si entras con Google o Apple, el nombre y el correo que ese servicio nos confirma. Mientras tienes la sesión abierta guardamos la dirección IP y el navegador desde el que entraste, para poder cerrarla. Para que tengas una cuenta y solo tú entres en ella.',
           'Tu cuerpo y tu objetivo: fecha de nacimiento, sexo, altura, peso, nivel de actividad, horarios y tu objetivo (por ejemplo, perder peso). Para calcular cuánto necesitas comer.',
+          'País: desde dónde compras. Para que el catálogo solo te muestre alimentos que puedas encontrar allí.',
           'Alergias e intolerancias: las que eliges de la lista, las que escribes a mano y su gravedad. Para que ningún plan te proponga algo que te puede hacer daño.',
           'Tu forma de comer: por ejemplo vegetariana, sin gluten o sin lactosa, y la cocina que te gusta o no. Para ajustar los platos.',
           'Enfermedades, medicación y suplementos: solo si decides contárnoslo, bajo un consentimiento aparte que puedes retirar en cualquier momento sin borrar el resto de tu cuenta.',

@@ -1284,6 +1284,7 @@ export const enGB: Dictionary = {
         list: [
           'Account: your name and email and, if you sign in with Google or Apple, the name and email that service confirms to us. While you are signed in we keep the IP address and browser you signed in from, so we can end the session. So that you have an account and only you get into it.',
           'Your body and your goal: date of birth, sex, height, weight, activity level, schedule and your goal (for example, losing weight). To work out how much you need to eat.',
+          'Country: where you shop from. So the catalogue only shows you foods you can actually find there.',
           'Allergies and intolerances: the ones you pick from the list, the ones you type yourself, and how severe they are. So that no plan offers you something that could harm you.',
           'How you eat: for example vegetarian, gluten-free or lactose-free, and the cuisines you like or not. To fit the dishes to you.',
           'Conditions, medication and supplements: only if you choose to tell us, under a separate consent you can withdraw at any time without deleting the rest of your account.',
