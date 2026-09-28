@@ -17,20 +17,19 @@ vi.mock('database', () => ({
 }));
 
 /**
- * The enum value `'custom'` stays in Postgres past the column-drop release
- * (`0067`), and the old API deployed alongside the migration that clears it
- * may still write one during the switch. Every read has to keep meaning what
- * a `'custom'` goal always computed as, not fail to parse for a value
- * `GOAL_TYPES` no longer offers.
+ * `readableGoalType`'s `'custom'` → `'maintenance'` mapping is gone (`0067`,
+ * migration `0044`): the Postgres enum no longer offers `'custom'`, so a row
+ * this repository reads can never carry it again. What is left to cover is
+ * the happy path — a goal type comes back exactly as the row stored it.
  */
-describe('ProfileRepository — a stored `custom` goal type (`0067`)', () => {
+describe('ProfileRepository — findActiveGoal / upsertGoal happy path', () => {
   const ROW = {
     id: 'c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f',
     createdAt: new Date('2026-01-15T10:00:00.000Z'),
     paceKgPerWeek: null,
-    startingWeightKg: 72,
+    startingWeightKg: '72',
     targetWeightKg: null,
-    type: 'custom',
+    type: 'maintenance',
     updatedAt: new Date('2026-01-15T10:00:00.000Z'),
     userId: 'usr-1'
   };
@@ -40,24 +39,30 @@ describe('ProfileRepository — a stored `custom` goal type (`0067`)', () => {
     updateResult = [];
   });
 
-  it('findActiveGoal reads it as maintenance — what it always computed as', async () => {
+  it('findActiveGoal returns the stored type unchanged', async () => {
     selectResult = [ROW];
 
     await expect(ProfileRepository.findActiveGoal('usr-1')).resolves.toMatchObject({ type: 'maintenance' });
   });
 
-  it('upsertGoal reads the row it wrote as maintenance too, whatever the old API left there', async () => {
+  it('findActiveGoal converts the numeric columns Drizzle returns as strings', async () => {
+    selectResult = [ROW];
+
+    await expect(ProfileRepository.findActiveGoal('usr-1')).resolves.toMatchObject({ startingWeightKg: 72 });
+  });
+
+  it('findActiveGoal returns undefined when there is no active goal', async () => {
+    selectResult = [];
+
+    await expect(ProfileRepository.findActiveGoal('usr-1')).resolves.toBeUndefined();
+  });
+
+  it('upsertGoal returns the row it wrote, type unchanged', async () => {
     // The existing-goal check (`upsertGoal`'s own `select`) finds a row, so the
     // write goes through `update`, not `insert` — the branch this mock covers.
     selectResult = [{ id: ROW.id }];
-    updateResult = [ROW];
+    updateResult = [{ ...ROW, type: 'weight_loss' }];
 
-    await expect(ProfileRepository.upsertGoal('usr-1', { type: 'maintenance' })).resolves.toMatchObject({ type: 'maintenance' });
-  });
-
-  it('leaves every other goal type exactly as stored', async () => {
-    selectResult = [{ ...ROW, type: 'weight_loss' }];
-
-    await expect(ProfileRepository.findActiveGoal('usr-1')).resolves.toMatchObject({ type: 'weight_loss' });
+    await expect(ProfileRepository.upsertGoal('usr-1', { type: 'weight_loss' })).resolves.toMatchObject({ type: 'weight_loss' });
   });
 });
