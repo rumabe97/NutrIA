@@ -168,12 +168,23 @@ follow-up):
   allows, with a comment naming the release split and why (Drizzle's SELECT/RETURNING, the
   previous release still declaring it). The column stays physically in place; nothing reads
   or writes it from this release on, so nothing is lost by the wait.
-- **Release N+1**, merged only once release N's deployment is what production is serving
-  everywhere, does the actual `DROP COLUMN` — by then nothing left running could still name
-  it. Generate it for real if the diff is clean, or hand-write it (`--custom`) when it is
-  not — `0045` also drops two enum types generate could only see once their columns were
-  already gone from the snapshot, so it folds a hand-added step in front of what `generate`
-  produced for those.
+- **Release N+1** does the actual `DROP COLUMN` — but `generate` can never emit it:
+  release N's own snapshot already lacks the column, so there is no diff left showing it.
+  Hand-add the `DROP COLUMN` in front of whatever `generate` does emit — nothing, if the
+  schema is otherwise unchanged, or something real if it also removes an enum only usable
+  once its columns are gone (`0045`: the `DROP COLUMN`s are hand-added, in front of the two
+  `DROP TYPE`s `generate` produced once `budgetTier`/`cookingFrequency` left `_enums.ts`).
+  `--custom` is for the first case only — it copies the previous snapshot verbatim, which
+  is only correct when nothing in the schema actually changed.
+- **Release N+1 is merged only once release N's production deployment is `Ready`**, not
+  once its PR merges. Merging while N is still building risks the platform cancelling N's
+  deployment (a newer one supersedes it) and running both migrations back to back under
+  whatever API was live before N — the exact case this two-release split exists to avoid.
+- **Release N+1's journal entry gets its `when` re-stamped at merge time**, not left at
+  whatever `generate` wrote while the branch sat unmerged. The migrator skips a file whose
+  `when` is at or before the last one it already applied — silently, with no error CI or a
+  fresh database would ever surface — so a migration merged behind a newer one with an
+  older timestamp never runs.
 
 A Postgres enum value is a different shape of the same problem and does **not** wait a
 release: `ALTER TYPE … DROP VALUE` does not exist, so removing one always means rebuilding
