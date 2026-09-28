@@ -97,10 +97,24 @@ the `professional` switch was off, it comes back off when the professional is de
 `psql`, no repository call around the rules. If `link` cannot build the state you need,
 stop and tell the lead, and the lead extends this script (owner, 2026-09-25).
 
+### An admin (the console under `/admin`)
+
+```bash
+node $S/account.mjs create "$PROBE_DIR/admin.txt" --admin
+node $S/account.mjs create "$PROBE_DIR/cookie.txt"
+node $S/probe.mjs --paths /admin,/admin/ajustes --cookie-file "$PROBE_DIR/admin.txt"
+node $S/probe.mjs --paths /admin/ajustes --cookie-file "$PROBE_DIR/cookie.txt"   # the console's 404
+```
+
+`--admin` makes the new account an admin through `UserController.grantAdmin`, the
+runbook's own statement, and only for the `@probe.invalid` address it just made. Like
+`link`, it refuses to run unless `packages/database/.env` proves the local database is
+not production. The role goes when the account is deleted.
+
 ## 5. Always finish
 
 ```bash
-for f in cookie pro client; do [ -f "$PROBE_DIR/$f.txt" ] && node $S/account.mjs delete "$PROBE_DIR/$f.txt"; rm -f "$PROBE_DIR/$f.txt"; done
+for f in cookie pro client admin; do [ -f "$PROBE_DIR/$f.txt" ] && node $S/account.mjs delete "$PROBE_DIR/$f.txt"; rm -f "$PROBE_DIR/$f.txt"; done
 sh $S/servers.sh stop
 ```
 

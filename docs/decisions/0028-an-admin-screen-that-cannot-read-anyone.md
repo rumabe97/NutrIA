@@ -1,6 +1,6 @@
 # 0028 — An admin screen that cannot read anyone
 
-- **Status**: accepted
+- **Status**: accepted — amended by [`0068`](./0068-the-admin-is-a-console-of-pages-that-still-reads-nobody.md) (one screen becomes a console of pages; the no-content rule stands)
 - **Date**: 2026-09-09
 - **Project**: none (task, at the owner's decision)
 

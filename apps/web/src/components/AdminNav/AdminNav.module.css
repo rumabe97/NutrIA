@@ -1,0 +1,90 @@
+/*
+ * On the phone the wrapper steps out of the layout (`display: contents`), so
+ * the bar is a row of the page's own grid and stays stuck to the top of the
+ * whole page, not of a box as tall as itself. From 60rem it is the sidebar
+ * column, and the wrapper is what sticks.
+ */
+.root {
+  display: contents;
+}
+
+/* ── Phone: a bar with the console's name and the menu ─────────────────── */
+.bar {
+  align-items: center;
+  backdrop-filter: saturate(180%) blur(16px);
+  background-color: var(--color-glass);
+  border-block-end: 1px solid var(--border-01);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-04);
+  justify-content: space-between;
+  /* A minimum, not a height: at 200% text the row grows instead of clipping. */
+  min-block-size: 3.5rem;
+  padding: var(--space-02) var(--gutter-page);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-dropdown);
+}
+
+.title {
+  color: var(--foreground-01);
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  margin: 0;
+}
+
+.menu {
+  gap: var(--space-02);
+}
+
+.menuIcon {
+  block-size: 18px;
+  flex: none;
+  inline-size: 18px;
+}
+
+/* In the drawer, after the list: the one way out that needs no gesture. */
+.close {
+  align-self: flex-start;
+  margin-block-start: auto;
+}
+
+.sidebar {
+  display: none;
+}
+
+/* Tabbing back never leaves focus under the sticky bar. */
+@media (width < 60rem) {
+  html:has(.bar) {
+    scroll-padding-block-start: calc(3.5rem + 1px + var(--space-03));
+  }
+}
+
+/* ── Wide: a sidebar that stays ─────────────────────────────────────────── */
+@media (width >= 60rem) {
+  .root {
+    align-self: start;
+    block-size: 100dvh;
+    border-inline-end: 1px solid var(--border-01);
+    display: block;
+    inset-block-start: 0;
+    overflow-y: auto;
+    position: sticky;
+  }
+
+  .bar {
+    display: none;
+  }
+
+  .sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap-block);
+    padding: var(--space-07) var(--space-05);
+  }
+
+  .sidebar .title {
+    padding-inline: var(--space-03);
+  }
+}

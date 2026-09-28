@@ -1,0 +1,65 @@
+.page {
+  display: grid;
+  gap: var(--gap-region);
+}
+
+.header {
+  display: grid;
+  gap: var(--gap-heading);
+}
+
+.title {
+  font-size: var(--font-size-09);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-headline);
+  line-height: var(--line-height-02);
+  margin: 0;
+}
+
+.intro {
+  margin: 0;
+  max-inline-size: var(--prose-max);
+  text-wrap: pretty;
+}
+
+/* A group the way a settings screen draws one: its name, then its switches on
+   one card, a hairline between them. */
+.group {
+  display: grid;
+  gap: var(--gap-heading);
+}
+
+.subtitle {
+  font-size: var(--font-size-05);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-02);
+  margin: 0;
+}
+
+/* `ul.rows` so the list reset wins over the card whatever order the sheets land in. */
+ul.rows {
+  display: grid;
+  list-style: none;
+  margin: 0;
+}
+
+.row {
+  padding-block: var(--space-04);
+}
+
+/* The hairline spans the card; the words keep a reading measure. */
+.row > * {
+  max-inline-size: var(--prose-max);
+}
+
+.row:first-child {
+  padding-block-start: 0;
+}
+
+.row:last-child {
+  padding-block-end: 0;
+}
+
+.row + .row {
+  border-block-start: 1px solid var(--border-01);
+}

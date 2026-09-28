@@ -1,0 +1,85 @@
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-block);
+}
+
+.group {
+  display: grid;
+  gap: var(--space-02);
+}
+
+/* A group's name: small caps-like label over its list, the way a settings
+   sidebar names its sections. Quiet on purpose — the links are the content. */
+.heading {
+  color: var(--foreground-03);
+  font-size: var(--font-size-01);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  margin: 0;
+  padding-inline: var(--space-03);
+  text-transform: uppercase;
+}
+
+.list {
+  display: grid;
+  gap: var(--space-01);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* The row's minimum is stated once and moved by the pointer: a control's
+   height with a mouse, a finger's on a phone. */
+.link {
+  --link-floor: var(--height-m);
+
+  align-items: center;
+  border-radius: var(--radius-control);
+  color: var(--foreground-02);
+  display: flex;
+  font-size: var(--font-size-03);
+  gap: var(--space-02);
+  min-block-size: var(--link-floor);
+  padding: var(--space-01) var(--space-03);
+  text-decoration: none;
+  transition:
+    background-color var(--duration-fast) var(--ease-default),
+    color var(--duration-fast) var(--ease-default);
+}
+
+@media (pointer: coarse) {
+  .link {
+    --link-floor: var(--target-min);
+  }
+}
+
+.link:hover {
+  background-color: var(--color-hover);
+  color: var(--foreground-01);
+}
+
+/* Where you are, said twice: the fill, and a heavier word. */
+.link[aria-current='page'] {
+  background-color: var(--color-selected);
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* The way out, apart from the pages: a hairline above it, so it does not read
+   as one more section of the console. */
+.back {
+  border-block-start: 1px solid var(--border-01);
+  border-radius: 0;
+  padding-block-start: var(--space-04);
+}
+
+.back:hover {
+  background-color: transparent;
+}
+
+.backIcon {
+  block-size: 16px;
+  flex: none;
+  inline-size: 16px;
+}

@@ -1,0 +1,23 @@
+/* One column on the phone — the bar, then the page — and from 60rem two: the
+   sidebar, then the page. */
+.shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  min-block-size: 100dvh;
+}
+
+.content {
+  margin-inline: auto;
+  max-inline-size: var(--content-max);
+  min-inline-size: 0;
+  padding: var(--space-07) var(--gutter-page) calc(var(--space-09) + env(safe-area-inset-bottom));
+  inline-size: 100%;
+}
+
+@media (width >= 60rem) {
+  .shell {
+    grid-template-columns: 16rem minmax(0, 1fr);
+    grid-template-rows: none;
+  }
+}
