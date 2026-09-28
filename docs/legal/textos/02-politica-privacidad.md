@@ -65,7 +65,7 @@
 ### Qué datos recogemos y para qué
 
 - **Cuenta**: tu nombre y tu correo y, si entras con Google o Apple, el nombre y el correo que ese servicio nos confirma. Mientras tienes la sesión abierta guardamos la dirección IP y el navegador desde el que entraste, para poder cerrarla. Para que tengas una cuenta y solo tú entres en ella.
-- **Tu cuerpo y tu objetivo**: fecha de nacimiento, sexo, altura, peso, nivel de actividad, horarios *(quitar esta palabra cuando la migración de P2-13 vacíe las columnas — no antes)* y tu objetivo (por ejemplo, perder peso). Para calcular cuánto necesitas comer.
+- **Tu cuerpo y tu objetivo**: fecha de nacimiento, sexo, altura, peso, nivel de actividad y tu objetivo (por ejemplo, perder peso). Para calcular cuánto necesitas comer.
 - **País**: desde dónde compras. Para que el catálogo solo te muestre alimentos que puedas encontrar allí.
 - **Alergias e intolerancias**: las que eliges de la lista, las que escribes a mano y su gravedad. Para que ningún plan te proponga algo que te puede hacer daño.
 - **Tu forma de comer**: por ejemplo vegetariana, sin gluten o sin lactosa, y la cocina que te gusta o no. Para ajustar los platos.
@@ -77,7 +77,7 @@
 - **Si trabajas con un dietista en NutrIA**: lo que se explica en «Tu dietista en NutrIA».
 - **Si eres dietista-nutricionista en NutrIA**: tu número de colegiado y cuándo te dimos acceso, y la versión del acuerdo que aceptaste.
 
-<!-- Fuente: RGPD art. 13.1.c; tablas de packages/database/src/schemas (profile, safety, plan, progress, platform, professional, auth); session.ipAddress/userAgent (auth.schema.ts:45-56); analytics_events con userId (platform.schema.ts:91-100; auth.config.ts:103; MealPlans.service.ts:69) — ya no se llama «anónimo» (P1-5); feedback (platform.schema.ts:16). «Horarios» **se queda** en el bloque «Tu cuerpo y tu objetivo» hasta que P2-13 vacíe las columnas (revisado 2026-09-28): el art. 13.1.c y el 15 cubren lo que se **guarda**, no solo lo que se pregunta, y las cuentas antiguas siguen guardando esos horarios; quitarlo antes haría la lista incompleta. Con `0067` el onboarding deja de preguntar la hora de despertar y de dormir, los días y hora de entrenar y las notas del horario laboral (`user_preferences.sleepStart/sleepEnd/trainingDaysPerWeek/trainingTime/workScheduleNotes`); las columnas quedan en la base de datos, sin lector, para quien ya las tenía (analisis.md § 4.1, § 9 P2-13).
+<!-- Fuente: RGPD art. 13.1.c; tablas de packages/database/src/schemas (profile, safety, plan, progress, platform, professional, auth); session.ipAddress/userAgent (auth.schema.ts:45-56); analytics_events con userId (platform.schema.ts:91-100; auth.config.ts:103; MealPlans.service.ts:69) — ya no se llama «anónimo» (P1-5); feedback (platform.schema.ts:16). «Horarios» **sale** del bloque «Tu cuerpo y tu objetivo» (revisado 2026-09-28, segunda pasada): con `0067` el onboarding ya dejaba de preguntar la hora de despertar y de dormir, los días y hora de entrenar y las notas del horario laboral (`user_preferences.sleepStart/sleepEnd/trainingDaysPerWeek/trainingTime/workScheduleNotes`), pero el art. 13.1.c y el 15 cubren lo que se **guarda**, no solo lo que se pregunta, y hasta hoy las cuentas antiguas seguían guardando esos horarios — quitar la palabra antes habría dejado la lista incompleta. La migración `0043`, en el mismo cambio, pone esas columnas a `NULL` para **todas** las cuentas, no solo las nuevas: ya no hay ninguna fila con un horario guardado, así que la palabra puede salir ahora, no cuando llegue la migración que además elimine las columnas (analisis.md § 4.1, § 9 P2-13, cerrado).
 Nueva («País», revisado 2026-09-28, `0067`): la pregunta existía (`profiles.country`) pero
 nada la leía, y por eso nunca se había descrito aquí — un dato guardado y no usado no es
 un dato que la política tenga que nombrar con un fin, porque no tenía ninguno. `0067`
@@ -252,7 +252,7 @@ Si cambiamos algo importante, lo diremos aquí con la fecha y te avisaremos por 
 ### What we collect and why
 
 - **Account**: your name and email and, if you sign in with Google or Apple, the name and email that service confirms. While you are signed in we keep the IP address and browser you signed in from, so we can end the session. So that you have an account and only you get into it.
-- **Your body and your goal**: date of birth, sex, height, weight, activity level, schedule *(remove this word once the P2-13 migration clears the columns — not before)* and your goal (for example, losing weight). To work out how much you need to eat.
+- **Your body and your goal**: date of birth, sex, height, weight, activity level and your goal (for example, losing weight). To work out how much you need to eat.
 - **Country**: where you shop from. So the catalogue only shows you foods you can actually find there.
 - **Allergies and intolerances**: the ones you pick from the list, the ones you type yourself, and how severe they are. So that no plan offers you something that could harm you.
 - **How you eat**: for example vegetarian, gluten-free or lactose-free, and the cuisines you like or not. To fit the dishes to you.
