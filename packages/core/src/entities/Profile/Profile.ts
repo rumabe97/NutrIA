@@ -46,7 +46,7 @@ export type MealShape = z.infer<typeof mealShapeSchema>;
 export const COUNTRIES = ['ES', 'GB'] as const;
 
 export type Country = (typeof COUNTRIES)[number];
-export const GOAL_TYPES = ['weight_loss', 'maintenance', 'muscle_gain', 'performance', 'healthy_eating', 'custom'] as const;
+export const GOAL_TYPES = ['weight_loss', 'maintenance', 'muscle_gain', 'performance', 'healthy_eating'] as const;
 export const ACTIVITY_LEVELS = ['sedentary', 'light', 'moderate', 'high', 'athlete'] as const;
 export const DIETARY_PATTERNS = [
   'omnivore',
