@@ -100,6 +100,8 @@ to the dev branch's direct endpoint, then point both URLs above at it by replaci
 seed run against it like any other database (the seed takes about ten minutes from here);
 dropping it afterwards is `drop database nutria_e2e;`.
 
+A local run against this remote database has two clocks in play, the machine's and Neon's, so keep the machine's synced (`timedatectl set-ntp true`) or a suite judging the database's timestamps by the API's own clock can read one as the other.
+
 ### Every suite deletes what it makes
 
 The database outlives the run on this machine, so a suite that leaves an account behind

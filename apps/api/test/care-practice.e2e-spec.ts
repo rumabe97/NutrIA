@@ -863,7 +863,9 @@ describe('care-practice', () => {
       expect(await openInvitations(pro)).toBe(1);
 
       // An expired invitation no longer counts — and of two sent at once into the last seat, one is refused.
-      await tables()`update care_invitations set expires_at = now() - interval '1 minute' where professional_id = ${pro.id}`;
+      // A day, not a minute: this backdates with the DATABASE's `now()`, but liveness is judged by the API's
+      // own JS clock (`CareRepository.invite`), and an unsynced machine clock has already closed that gap once.
+      await tables()`update care_invitations set expires_at = now() - interval '1 day' where professional_id = ${pro.id}`;
 
       const raced = await Promise.all([inviting(pro, address('two-race-a')), inviting(pro, address('two-race-b'))]);
 
