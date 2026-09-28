@@ -310,7 +310,7 @@ export async function giveProfileConsent(app: INestApplication, account: Account
     .expect(200);
 }
 
-/** Walks the eight required onboarding steps so a plan may be generated. */
+/** Walks the seven required onboarding steps so a plan may be generated. */
 /**
  * The scripted name behind a served dish name — the suite token and per-call
  * variant suffix removed.
@@ -351,8 +351,9 @@ export async function completeOnboarding(
     dietaryPatterns,
     intolerances: []
   });
-  await patch('lifestyle', { trainingDaysPerWeek: 3 });
-  await patch('cooking', { budget: 'medium', cookingFrequency: 'often', cookingTimeMinutes: 30 });
+  // 'lifestyle' is gone (the onboarding cleanup): the questions it asked
+  // changed no plan. Required steps are now the seven above plus 'cooking'.
+  await patch('cooking', { cookingTimeMinutes: 30 });
 
   await request(server).post(`/${PREFIX}/onboarding/complete`).set('Cookie', account.cookie).expect(201);
 }
@@ -443,6 +444,52 @@ export async function openPractice(userId: string, includedClients = 30): Promis
 
   if (opened.length !== 1) {
     throw new Error(`No professional to open a practice for: ${userId}`);
+  }
+}
+
+/**
+ * Writes an `onboarding_state` row the way the ten-step flow could have left
+ * it: `'lifestyle'` among the completed steps, `currentStep` at its old
+ * ceiling — a shape no route can produce any more, since the step is gone
+ * from `ONBOARDING_STEPS`. `onboarding.e2e-spec.ts` uses this to prove an
+ * account that finished onboarding before the cleanup still reads as
+ * complete, rather than tripping `onboardingStateSchema`'s enum on a step
+ * name it no longer knows.
+ *
+ * Written on the table, like `openPractice`, because no route writes this
+ * shape any more — only a database from before the cleanup ever held it.
+ */
+export async function markLegacyOnboarding(userId: string, currentStep = 10): Promise<void> {
+  const sql = (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
+    .$client;
+  const marked = await sql<{ userId: string }>`
+    update onboarding_state
+    set completed_steps = array_append(completed_steps, 'lifestyle'), current_step = ${currentStep}
+    where user_id = ${userId}
+    returning user_id as "userId"`;
+
+  if (marked.length !== 1) {
+    throw new Error(`No onboarding_state row to mark legacy for: ${userId}`);
+  }
+}
+
+/**
+ * Writes the active goal's `type` as `'custom'` directly on the table — a
+ * value no route can write any more since `GOAL_TYPES` dropped it (`0067`),
+ * but one the Postgres enum still permits during migration `0043`'s deploy
+ * window, in case the old API still writes it for the seconds its own build
+ * takes. `onboarding.e2e-spec.ts` uses this to prove `ProfileRepository`
+ * still reads such a row, as `'maintenance'`, rather than failing
+ * `goalSchema.parse` on a value the domain no longer offers.
+ */
+export async function markCustomGoal(userId: string): Promise<void> {
+  const sql = (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
+    .$client;
+  const marked = await sql<{ userId: string }>`
+    update goals set type = 'custom' where user_id = ${userId} and archived_at is null returning user_id as "userId"`;
+
+  if (marked.length !== 1) {
+    throw new Error(`No active goal to mark custom for: ${userId}`);
   }
 }
 
