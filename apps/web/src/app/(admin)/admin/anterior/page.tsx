@@ -7,28 +7,20 @@ import styles from './page.module.css';
 import { activeLocale, getDictionary } from 'i18n/server';
 import { Text } from 'ui/components/Text';
 
-import { AccountList } from 'components/AccountList';
 import { Card } from 'components/Card';
-import { FeedbackInbox } from 'components/FeedbackInbox';
-import { Pager } from 'components/Pager';
-import { ProfessionalList } from 'components/ProfessionalList';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
-import { appMetadata } from '../../../_shared/metadata';
+import { consoleMetadata } from '../consoleMetadata';
 
-import type { AccountView, Paged } from 'core/controllers/User';
 import type { AdminGenerationView, AdminOverviewView, AdminPicturesView, AiUsageView } from 'core/controllers/Admin';
-import type { FeedbackView } from 'core/controllers/Feedback';
 import type { Metadata } from 'next';
-import type { ProfessionalAccountView } from 'core/controllers/Professional';
-import type { SettingsView } from 'core/controllers/Settings';
 
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return appMetadata('/admin/anterior');
+  return consoleMetadata('/admin/anterior');
 }
 
 /**
@@ -41,30 +33,23 @@ export async function generateMetadata(): Promise<Metadata> {
  *
  * It shows no plan and no profile on purpose. "Is generation working" and "how
  * big is the catalogue" are answerable without reading anybody's food. The
- * reads that name somebody — the accounts, the inbox, and the address on each
- * generation in the log — come from endpoints of their own (`0028`, `0050`).
+ * read that names somebody — the address on each generation in the log — comes
+ * from an endpoint of its own (`0028`, `0050`).
  *
  * What the console's own pages already show has left: the accounts and failure
- * tiles, the `?abierta=` banner, the funnel, the activity and the plans live on
- * Resumen, Embudo y actividad and Planes. The catalogue counts stay until
- * Catálogo exists (phase 8).
+ * tiles, the funnel, the activity and the plans live on Resumen, Embudo y
+ * actividad and Planes; the accounts, the professionals and the inbox, with the
+ * `?abierta=` banner, on Cuentas, Profesionales and Buzón. The catalogue counts,
+ * the pictures, the AI figures, the recent jobs and the log stay until their pages
+ * exist (phase 8).
  */
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ buzon?: string; cuentas?: string }> }) {
-  const query = await searchParams;
-  // Clamped: the API refuses an offset outside 0–1,000,000 with a 422, and a hand-edited
-  // address must not break the page.
-  const accountsOffset = Math.min(Math.max(Number.parseInt(query.cuentas ?? '', 10) || 0, 0), 1_000_000);
-  const feedbackOffset = Math.min(Math.max(Number.parseInt(query.buzon ?? '', 10) || 0, 0), 1_000_000);
-  const [dictionary, locale, overview, accounts, settings, ai, inbox, generations, professionals, pictures] = await Promise.all([
+export default async function AdminPage() {
+  const [dictionary, locale, overview, ai, generations, pictures] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<AdminOverviewView>('/admin/overview'),
-    serverApi<Paged<AccountView>>(`/admin/accounts?offset=${accountsOffset}`),
-    serverApi<SettingsView>('/admin/settings'),
     serverApi<AiUsageView>('/admin/ai'),
-    serverApi<Paged<FeedbackView> & { waiting: number }>(`/admin/feedback?offset=${feedbackOffset}`),
     serverApi<readonly AdminGenerationView[]>('/admin/generations'),
-    serverApi<readonly ProfessionalAccountView[]>('/admin/professionals'),
     serverApi<AdminPicturesView>('/admin/pictures')
   ]);
 
@@ -142,49 +127,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           </ul>
         ) : null}
       </section>
-
-      {/* Accounts next: the only thing on this page somebody is waiting on. */}
-      <section className={styles.section} id="cuentas">
-        <h2 className={styles.subtitle}>{t.accountsTitle}</h2>
-        <AccountList
-          accounts={accounts?.rows ?? []}
-          premium={settings?.flags?.premium ?? false}
-          professionalIds={(professionals ?? []).map(professional => professional.userId)}
-        />
-        {accounts ? (
-          <Pager
-            labels={{ next: t.pagerNext, of: t.pagerOf, previous: t.pagerPrevious }}
-            offset={accounts.offset}
-            param="cuentas"
-            size={accounts.size}
-            total={accounts.total}
-          />
-        ) : null}
-      </section>
-
-      {/* Dietitians (`0059`): whether the practice exists at all, and who has been granted it —
-          their links counted, never a client named. The grant itself is on the account rows above. */}
-      <section className={styles.section} id="profesionales">
-        <h2 className={styles.subtitle}>{t.professionalsTitle}</h2>
-        <Text className={styles.hint} size="sm" tone="tertiary">
-          {t.professionalsHint}
-        </Text>
-        <ProfessionalList professionals={professionals ?? []} />
-      </section>
-
-      {inbox ? (
-        <section className={styles.section} id="buzon">
-          <h2 className={styles.subtitle}>{interpolate(t.feedbackTitle, { count: number(inbox.waiting) })}</h2>
-          <FeedbackInbox messages={inbox.rows} />
-          <Pager
-            labels={{ next: t.pagerNext, of: t.pagerOf, previous: t.pagerPrevious }}
-            offset={inbox.offset}
-            param="buzon"
-            size={inbox.size}
-            total={inbox.total}
-          />
-        </section>
-      ) : null}
 
       {ai ? (
         <section className={styles.section} id="ia">

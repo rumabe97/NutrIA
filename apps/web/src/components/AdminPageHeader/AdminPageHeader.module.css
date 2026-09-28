@@ -11,6 +11,7 @@
 .words {
   display: grid;
   flex: 1 1 20rem;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--gap-heading);
   min-inline-size: 0;
 }
@@ -21,6 +22,10 @@
   letter-spacing: var(--tracking-headline);
   line-height: var(--line-height-02);
   margin: 0;
+  /* "Profesionales" at display size is wider than a phone at 200 % text: it breaks
+     (hyphenated where the language allows) rather than being cut off. */
+  hyphens: auto;
+  overflow-wrap: anywhere;
 }
 
 .intro {

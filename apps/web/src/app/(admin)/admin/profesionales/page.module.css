@@ -1,0 +1,15 @@
+.page {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--gap-region);
+  /* One column that may shrink below its widest child: the table scrolls inside its own
+     region, and the page never scrolls sideways. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The row's name: an address, whole and on one line — never broken into pieces, never
+   cut. On a narrow table the column is not pinned (`AdminTable`), so a long one scrolls
+   with the rest instead of covering it. */
+.email {
+  white-space: nowrap;
+}

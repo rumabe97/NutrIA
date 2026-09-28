@@ -1,0 +1,75 @@
+/* Toolbar, the line that says what is shown, the table, the pager: one block each. */
+.root {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--gap-block);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The search takes a row of its own; filters share the next ones, as many as fit,
+   and the button closes the last. */
+.toolbar {
+  align-items: end;
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+}
+
+.search {
+  grid-column: 1 / -1;
+}
+
+/* Beside the search when the page is wide enough for both. */
+@container (inline-size >= 48rem) {
+  .search {
+    grid-column: span 2;
+  }
+}
+
+.apply {
+  justify-self: start;
+}
+
+/* The pinned first column must hide what scrolls under it, so it paints a solid colour.
+   On the page that colour could never match the ambient light behind the other cells;
+   on a card it is the card's own. */
+.card {
+  --table-surface: var(--surface-card);
+}
+
+/* A date, a number or a word per cell, each on one line ("28 sept 2026", never three
+   lines of it): the table scrolls sideways instead. A cell that holds prose (Buzón's
+   message) sets its own wrapping. */
+.card :is(th, td) {
+  white-space: nowrap;
+}
+
+/* The row's name is a whole address on one line. Pinned on a narrow table it would
+   cover the columns scrolling under it — the actions included — so there it scrolls
+   with them. `table` in the selector outweighs `DataTable`'s own sticky rule. */
+@container (inline-size < 36rem) {
+  .card table :is(th, td):first-child {
+    position: static;
+  }
+}
+
+.status {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+}
+
+.clear {
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+}
+
+@media (pointer: coarse) {
+  .clear {
+    align-items: center;
+    display: inline-flex;
+    min-block-size: var(--target-min);
+  }
+}

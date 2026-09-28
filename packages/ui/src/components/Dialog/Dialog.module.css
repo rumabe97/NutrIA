@@ -9,6 +9,8 @@
   left: 50%;
   max-height: 85vh;
   max-width: 400px;
+  /* Large text on a small phone can outgrow the sheet: it scrolls rather than running off the screen. */
+  overflow-y: auto;
   padding: var(--space-04);
   position: fixed;
   top: 50%;
@@ -27,6 +29,8 @@
 
 .title {
   margin: 0;
+  /* A title may carry an address, which has no space to break at. */
+  overflow-wrap: anywhere;
 }
 
 .description {

@@ -1,0 +1,52 @@
+/* A whole row of the toolbar, whatever its columns. */
+.details {
+  grid-column: 1 / -1;
+}
+
+/* The floor is stated once and moved by the pointer. */
+.summary {
+  --summary-floor: var(--height-m);
+
+  align-items: center;
+  color: var(--foreground-01);
+  cursor: pointer;
+  display: flex;
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+  gap: var(--space-02);
+  inline-size: fit-content;
+  list-style: none;
+  min-block-size: var(--summary-floor);
+}
+
+@media (pointer: coarse) {
+  .summary {
+    --summary-floor: var(--target-min);
+  }
+}
+
+/* Flex takes the browser's own triangle away; this chevron stands in for it. */
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.chevron {
+  block-size: 1em;
+  color: var(--foreground-02);
+  flex: none;
+  inline-size: 1em;
+  transition: transform var(--duration-fast) var(--ease-default);
+}
+
+.details[open] .chevron {
+  transform: rotate(90deg);
+}
+
+/* The filters share rows, as many to a row as fit — the toolbar's own measure. */
+.fields {
+  align-items: end;
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 10rem), 1fr));
+  padding-block-start: var(--space-02);
+}

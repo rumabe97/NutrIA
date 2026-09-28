@@ -9,16 +9,6 @@
   grid-template-columns: minmax(0, 1fr);
 }
 
-.opened {
-  background-color: var(--color-brand-03);
-  border-radius: var(--radius-control);
-  color: var(--color-brand-12);
-  font-size: var(--font-size-02);
-  margin: 0;
-  overflow-wrap: anywhere;
-  padding: var(--space-03) var(--space-04);
-}
-
 /* One tile a row on a narrow phone, two from 22rem of room, four from 40rem. */
 .tiles {
   display: grid;

@@ -1,0 +1,61 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-01);
+  min-inline-size: 0;
+}
+
+/* The same label as `Input`'s, so a filter and the search read as one row of fields. */
+.label {
+  color: var(--foreground-01);
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+}
+
+.field {
+  display: grid;
+}
+
+/* The select and its chevron share one cell; the chevron never takes a click. */
+.field > * {
+  grid-area: 1 / 1;
+}
+
+.select {
+  /* Stated once, moved by the pointer below: the same floor as `Input`. */
+  --select-floor: var(--height-l);
+
+  appearance: none;
+  background-color: var(--background-01);
+  border: 1px solid var(--border-interactive);
+  border-radius: var(--radius-control);
+  color: var(--foreground-01);
+  font-family: inherit;
+  font-size: var(--font-size-03);
+  inline-size: 100%;
+  min-block-size: var(--select-floor);
+  padding-inline: var(--space-03) calc(var(--space-03) + 1.25em);
+}
+
+@media (pointer: coarse) {
+  .select {
+    --select-floor: var(--target-min);
+  }
+}
+
+/* iOS zooms into a field under 16px; the same rule `Input` follows. */
+@media (hover: none) {
+  .select {
+    font-size: var(--font-size-04);
+  }
+}
+
+.chevron {
+  align-self: center;
+  block-size: 1em;
+  color: var(--foreground-02);
+  inline-size: 1em;
+  justify-self: end;
+  margin-inline-end: var(--space-03);
+  pointer-events: none;
+}

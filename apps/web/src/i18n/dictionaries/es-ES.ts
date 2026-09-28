@@ -16,9 +16,6 @@ export const esES = {
   activity: { athlete: 'Deportista', high: 'Alto', light: 'Ligero', moderate: 'Moderado', sedentary: 'Sedentario' },
 
   admin: {
-    accountsTitle: 'Cuentas y accesos',
-    activate: 'Abrir cuenta',
-    activateFor: 'Abrir la cuenta de {email}',
     activationTitle: 'Altas',
     aiByModel: 'Hoy, por el modelo que contestó',
     aiCalls: 'Peticiones hoy',
@@ -35,15 +32,8 @@ export const esES = {
     attempts: '{count} intentos',
     automaticActivation: 'Activación automática',
     automaticHint: 'Quien confirma su correo entra directamente. Tú no tienes que hacer nada.',
-    confirmed: 'correo confirmado',
     events: { session_started: 'Entradas', swap_requested: 'Cambios de comida pedidos' },
     failureNote: '{count} generaciones han fallado. El código dice si fue la cuota, la clave o el catálogo.',
-    feedbackHandled: 'Marcar como visto',
-    feedbackHandledFor: 'Marcar como visto el mensaje de {email}',
-    feedbackHandledState: 'Visto',
-    feedbackReopen: 'Volver a abrir',
-    feedbackReopenFor: 'Volver a abrir el mensaje de {email}',
-    feedbackTitle: 'Buzón ({count} sin ver)',
     funnel: {
       activated: 'Cuenta abierta',
       checkedIn: 'Han hecho el check-in',
@@ -57,7 +47,6 @@ export const esES = {
     ingredients: 'Ingredientes',
     intro: 'Cómo va el servicio. No hay ningún plan ni ningún perfil aquí: solo si la generación funciona y cuánto hay en el catálogo.',
     jobsTitle: 'Generaciones ({days} días)',
-    justOpened: 'Cuenta abierta: {email}',
     logCall: '{slot}, ronda {round}: {model}',
     logCallAsked: 'pedido: {model}',
     logCallDropped: 'descartados: {reasons}',
@@ -75,21 +64,8 @@ export const esES = {
     logNoCalls: 'Ninguna llamada al modelo: salió de la biblioteca, o no llegó a pedirla.',
     logPlan: 'plan {version} · {model} · prompt {prompt} · {reused} platos de la biblioteca',
     logTitle: 'Registro de generaciones',
-    makeFree: 'Pasar a gratis',
-    makeFreeFor: 'Pasar la cuenta de {email} a gratis',
-    makePremium: 'Dar premium',
-    makePremiumFor: 'Dar premium a la cuenta de {email}',
-    makeProfessional: 'Hacer profesional',
-    makeProfessionalFor: 'Hacer profesional la cuenta de {email}',
     manualHint: 'Al confirmar su correo la cuenta queda esperando y te avisamos a ti. La abres tú desde esta lista.',
-    noAccounts: 'No hay ninguna cuenta todavía.',
-    noFeedback: 'Nadie ha escrito todavía.',
     noJobs: 'Ninguna generación todavía.',
-    notOpened: 'sin abrir',
-    opened: 'cuenta abierta',
-    pagerNext: 'Siguiente',
-    pagerOf: '{from}–{to} de {total}',
-    pagerPrevious: 'Anterior',
     picturesDrawing: 'Dibujándose ahora',
     picturesFailed: 'Fallidas (se reintentan pasados 7 días)',
     picturesHint:
@@ -105,23 +81,9 @@ export const esES = {
     premiumLabel: 'Nivel de pago',
     premiumOffHint: 'Premium está apagado: todo el mundo usa los límites gratuitos, incluido quien ya lo tenga concedido. Encenderlo se lo devuelve.',
     premiumTitle: 'Nivel de pago',
-    professionalChip: 'Profesional',
-    professionalCollegiate: 'Número de colegiado',
-    professionalCollegiateHint: 'Letras, números, / o -, como aparece en su colegio. Compruébalo antes de conceder.',
-    professionalGrant: 'Conceder',
-    professionalGranted: 'Nº {number} · desde el {date}',
     professionalHint: 'Encendido: los profesionales que concedas pueden abrir su consulta y vincular pacientes.',
     professionalLabel: 'Consulta para dietistas',
-    professionalLinks: '{active} activos · {paused} en pausa · {ended} terminados',
     professionalOffHint: 'Apagado: nadie ve la consulta, tampoco quien ya tenga la concesión. Sus pacientes siguen como cuentas normales.',
-    professionalRevoke: 'Retirar',
-    professionalRevokeBody: 'Pierde el acceso a su consulta y sus invitaciones sin responder se anulan.',
-    professionalRevokeConfirm: 'Sí, retirar',
-    professionalRevokeFor: 'Retirar la concesión de {email}',
-    professionalRevokeTitle: '¿Retirar a {email} como profesional?',
-    professionalsEmpty: 'Todavía no hay ningún profesional.',
-    professionalsHint: 'Cada profesional con sus vínculos contados. Aquí no aparece ningún paciente. Se concede desde la lista de cuentas.',
-    professionalsTitle: 'Profesionales',
     pushTest: 'Enviarme un aviso de prueba',
     pushTestNoDevice: 'No tienes avisos activados en ningún dispositivo. Actívalos en tu perfil, desde el móvil, y vuelve a probar.',
     pushTestRefused:
@@ -145,11 +107,60 @@ export const esES = {
     remindersLabel: 'Enviar el recordatorio',
     remindersOffHint: 'Apagado: no sale ningún recordatorio. El check-in solo aparece en la pantalla de Hoy.',
     remindersTitle: 'Recordatorio del check-in',
-    roleAdmin: 'admin',
-    tierPremium: 'Premium',
     title: 'Servicio',
-    unconfirmed: 'sin confirmar',
     withoutImage: '{count} sin imagen'
+  },
+
+  /* `/admin/cuentas`: sign-ups per week, then every account with its locks and milestones (never content, `0028`). */
+  adminAccounts: {
+    activate: 'Abrir cuenta',
+    /** Every row action's name starts with its visible words (WCAG 2.5.3), then says whose row. */
+    activateFor: 'Abrir cuenta: {email}',
+    caption: 'Cuentas',
+    columns: {
+      actions: 'Acciones',
+      activated: 'Abierta',
+      confirmed: 'Correo confirmado',
+      created: 'Alta',
+      email: 'Correo',
+      lastActive: 'Última actividad',
+      onboarded: 'Perfil terminado',
+      plans: 'Planes',
+      professional: 'Profesional',
+      role: 'Rol',
+      tier: 'Nivel'
+    },
+    empty: 'No hay ninguna cuenta todavía.',
+    howCounted: [
+      'Las semanas empiezan en lunes, hora de Madrid. La primera y la última del periodo suelen estar incompletas: cuentan solo los días del periodo.',
+      'Abierta quiere decir que la cuenta puede entrar. Las que no han confirmado el correo también aparecen como no abiertas.',
+      'Última actividad es el último evento del producto de esa cuenta, como entrar o pedir un cambio de comida. No dice qué hizo.',
+      'Planes cuenta los planes de la cuenta en cualquier estado. Ningún plan se lee.'
+    ],
+    intro: 'Quién se ha registrado, qué le falta para entrar y hasta dónde ha llegado.',
+    justOpened: 'Cuenta abierta: {email}',
+    makeFree: 'Pasar a gratis',
+    makeFreeFor: 'Pasar a gratis: {email}',
+    makePremium: 'Dar premium',
+    makePremiumFor: 'Dar premium: {email}',
+    makeProfessional: 'Hacer profesional',
+    makeProfessionalFor: 'Hacer profesional: {email}',
+    noMatch: 'Ninguna cuenta coincide con la búsqueda o los filtros.',
+    professionalCollegiate: 'Número de colegiado',
+    professionalCollegiateHint: 'Letras, números, / o -, como aparece en su colegio. Compruébalo antes de conceder.',
+    professionalCollegiateInvalid: 'Ese número no vale: tiene que tener de 3 a 20 letras, números, / o -, sin espacios.',
+    professionalGrant: 'Conceder',
+    roles: { admin: 'Admin', user: 'Usuario' },
+    search: 'Buscar por correo',
+    signUpsChart: 'Altas por semana',
+    signUpsEmpty: 'Nadie se ha registrado en este periodo.',
+    signUpsSeries: 'Altas',
+    signUpsTitle: 'Altas',
+    /** How the line over the table names each order: "por fecha de alta". */
+    sortBy: { createdAt: 'fecha de alta', email: 'correo', lastActiveAt: 'última actividad', plans: 'número de planes' },
+    tableTitle: 'Todas las cuentas',
+    tiers: { free: 'Gratis', premium: 'Premium' },
+    title: 'Cuentas'
   },
 
   /* Words every console page with a period shares: the selector, the charts' table, the tiles' change. */
@@ -159,8 +170,66 @@ export const esES = {
     dataLabel: 'Ver datos',
     day: 'Día',
     howCounted: 'Cómo se cuenta',
+    no: 'No',
     period: 'Periodo',
-    periodOption: '{days} días'
+    periodOption: '{days} días',
+    /* The console's tables (`AdminTable`): the toolbar, the sort links, the result line and the pager. */
+    table: {
+      any: 'Cualquiera',
+      apply: 'Aplicar',
+      ascending: 'ascendente',
+      clear: 'Quitar la búsqueda y los filtros',
+      descending: 'descendente',
+      /** The fold that holds a table's filters, and how many of them are on. */
+      filters: 'Filtros',
+      filtersActive: 'Filtros ({count} activos)',
+      filtersActiveOne: 'Filtros (1 activo)',
+      next: 'Siguiente',
+      pager: 'Páginas de la tabla',
+      pageSize: 'Por página',
+      previous: 'Anterior',
+      range: '{from}–{to} de {total}',
+      /** Read after a sortable header, never shown: what following its link does. */
+      sortAsc: 'ordenar de forma ascendente',
+      sortDesc: 'ordenar de forma descendente',
+      sortedAsc: 'orden ascendente; ordenar de forma descendente',
+      sortedDesc: 'orden descendente; ordenar de forma ascendente',
+      /** The line over a table, announced when a search, a filter or a sort changes it. */
+      status: '{count} en total · por {column}, {direction}',
+      toolbar: 'Buscar y filtrar'
+    },
+    week: 'Semana (desde el lunes)',
+    yes: 'Sí'
+  },
+
+  /* `/admin/buzon`: messages per week, then every message as it was written (`0037`). */
+  adminInbox: {
+    caption: 'Mensajes',
+    columns: { actions: 'Acción', date: 'Fecha', kind: 'Tipo', message: 'Mensaje', sender: 'Quién', state: 'Estado' },
+    empty: 'Nadie ha escrito todavía.',
+    handled: 'Marcar como visto',
+    handledFor: 'Marcar como visto: mensaje de {email}',
+    howCounted: [
+      'Las semanas empiezan en lunes, hora de Madrid. La primera y la última del periodo suelen estar incompletas: cuentan solo los días del periodo.',
+      'Sin ver cuenta todos los mensajes que no has marcado, de cualquier fecha.'
+    ],
+    intro: 'Lo que la gente te escribe, tal como lo escribió.',
+    messagesChart: 'Mensajes por semana',
+    messagesEmpty: 'Nadie ha escrito en este periodo.',
+    messagesSeries: 'Mensajes',
+    messagesTitle: 'Mensajes',
+    noMatch: 'Ningún mensaje coincide con la búsqueda o el filtro.',
+    reopen: 'Volver a abrir',
+    reopenFor: 'Volver a abrir: mensaje de {email}',
+    search: 'Buscar en el mensaje o el correo',
+    seenState: 'Visto',
+    sortBy: { createdAt: 'fecha' },
+    state: 'Estado',
+    states: { all: 'Todos', seen: 'Vistos', waiting: 'Sin ver' },
+    tableTitle: 'Todos los mensajes',
+    title: 'Buzón',
+    waiting: '{count} sin ver',
+    waitingState: 'Sin ver'
   },
 
   /* The console's own navigation (`0068`): six groups, and only the pages that exist yet. */
@@ -169,7 +238,16 @@ export const esES = {
     groups: { catalogue: 'Catálogo', generation: 'Generación', people: 'Personas', product: 'Producto', settings: 'Ajustes', summary: 'Resumen' },
     label: 'Secciones de la consola',
     menu: 'Menú',
-    pages: { legacy: 'Anterior', plans: 'Planes', product: 'Embudo y actividad', settings: 'Ajustes', summary: 'Resumen' },
+    pages: {
+      accounts: 'Cuentas',
+      inbox: 'Buzón',
+      legacy: 'Anterior',
+      plans: 'Planes',
+      product: 'Embudo y actividad',
+      professionals: 'Profesionales',
+      settings: 'Ajustes',
+      summary: 'Resumen'
+    },
     title: 'Consola'
   },
 
@@ -224,6 +302,24 @@ export const esES = {
     ],
     intro: 'Hasta dónde llega la gente y qué hace cada día.',
     title: 'Embudo y actividad'
+  },
+
+  /* `/admin/profesionales`: who has the practice (`0059`), with their links counted — never a client named. */
+  adminProfessionals: {
+    caption: 'Profesionales',
+    columns: { actions: 'Acción', collegiate: 'Nº de colegiado', email: 'Correo', granted: 'Desde', links: 'Vínculos' },
+    empty: 'Todavía no hay ningún profesional.',
+    intro: 'Cada profesional con sus vínculos contados. Aquí no aparece ningún paciente. Se concede desde Cuentas.',
+    links: '{active} activos · {paused} en pausa · {ended} terminados',
+    noMatch: 'Ningún profesional coincide con la búsqueda.',
+    revoke: 'Retirar',
+    revokeBody: 'Pierde el acceso a su consulta y sus invitaciones sin responder se anulan.',
+    revokeConfirm: 'Sí, retirar',
+    revokeFor: 'Retirar: concesión de {email}',
+    revokeTitle: '¿Retirar a {email} como profesional?',
+    search: 'Buscar por correo',
+    sortBy: { email: 'correo', grantedAt: 'fecha de concesión', links: 'número de vínculos' },
+    title: 'Profesionales'
   },
 
   /* `/admin/ajustes`: the five switches and the push test, grouped by what they govern. */
@@ -564,6 +660,8 @@ export const esES = {
     mealInFuture: 'Todavía no puedes marcar esta comida: aún no ha llegado el día.',
     network: 'No hemos podido conectar. Comprueba tu conexión.',
     notFound: 'No hemos encontrado lo que buscabas.',
+    /** The tab's title on a 404 — the same for a wrong address and for a console page shown to somebody else (`0028`). */
+    notFoundTitle: 'Página no encontrada',
     onboardingIncomplete: 'Nos falta parte de tu perfil. Termínalo y vuelve a intentarlo.',
     planPaused: 'Tu plan está en pausa mientras estás de vacaciones.',
     practiceFull: 'Tu consulta ya tiene todos los pacientes que incluye tu plan.',
@@ -1058,8 +1156,11 @@ export const esES = {
     '/admin': { title: 'Resumen' },
     '/admin/ajustes': { title: 'Ajustes' },
     '/admin/anterior': { title: 'Panel' },
+    '/admin/buzon': { title: 'Buzón' },
+    '/admin/cuentas': { title: 'Cuentas' },
     '/admin/producto': { title: 'Embudo y actividad' },
     '/admin/producto/planes': { title: 'Planes' },
+    '/admin/profesionales': { title: 'Profesionales' },
     '/check-in': { title: 'Check-in de la quincena' },
     '/compra': { title: 'La compra' },
     '/condiciones': {
