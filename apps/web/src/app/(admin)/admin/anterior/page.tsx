@@ -10,15 +10,13 @@ import { Text } from 'ui/components/Text';
 import { AccountList } from 'components/AccountList';
 import { Card } from 'components/Card';
 import { FeedbackInbox } from 'components/FeedbackInbox';
-import { FlagSwitch } from 'components/FlagSwitch';
 import { Pager } from 'components/Pager';
 import { ProfessionalList } from 'components/ProfessionalList';
-import { PushTestButton } from 'components/PushTestButton';
 
 import { formatDate, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
-import { appMetadata } from '../../_shared/metadata';
+import { appMetadata } from '../../../_shared/metadata';
 
 import type { AccountView, Paged } from 'core/controllers/User';
 import type { AdminAnalyticsView, AdminGenerationView, AdminOverviewView, AdminPicturesView, AiUsageView } from 'core/controllers/Admin';
@@ -41,8 +39,8 @@ const FUNNEL_STAGES = ['signedUp', 'confirmed', 'activated', 'onboarded', 'plann
  *
  * Reachable only by an account whose stored role is `admin`; the API answers
  * everyone else 404, and so does this page, so the route does not confirm
- * itself to anyone who guesses it. There is no link to it anywhere: the person
- * who needs it knows the address.
+ * itself to anyone who guesses it. Only the console's own menu links to it:
+ * nothing in the app does.
  *
  * It shows no plan and no profile on purpose. "Is generation working" and "how
  * big is the catalogue" are answerable without reading anybody's food. The
@@ -117,53 +115,10 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
 
       {opened.abierta ? <p className={styles.opened}>{interpolate(t.justOpened, { email: opened.abierta })}</p> : null}
 
-      <section className={styles.section}>
-        <h2 className={styles.subtitle}>{t.activationTitle}</h2>
-        <FlagSwitch
-          enabled={settings?.flags?.automaticActivation ?? true}
-          flag="automaticActivation"
-          label={t.automaticActivation}
-          offHint={t.manualHint}
-          onHint={t.automaticHint}
-        />
-      </section>
-
-      {/* The paid tier: whether it exists at all. Granting it per account is on the rows below. */}
-      <section className={styles.section}>
-        <h2 className={styles.subtitle}>{t.premiumTitle}</h2>
-        <FlagSwitch
-          enabled={settings?.flags?.premium ?? false}
-          flag="premium"
-          label={t.premiumLabel}
-          offHint={t.premiumOffHint}
-          onHint={t.premiumHint}
-        />
-      </section>
-
-      {/* Whether the check-in reminder goes out at all (`0054`). Each person's own switch is on their profile. */}
-      <section className={styles.section}>
-        <h2 className={styles.subtitle}>{t.remindersTitle}</h2>
-        <FlagSwitch
-          enabled={settings?.flags?.checkInReminders ?? false}
-          flag="checkInReminders"
-          label={t.remindersLabel}
-          offHint={t.remindersOffHint}
-          onHint={t.remindersHint}
-        />
-        <PushTestButton />
-      </section>
-
       {/* Dish pictures (`0066`): whether a dish is drawn when first opened, and this
           month's spend against the cap. Counts only — no dish, no person. */}
       <section className={styles.section} id="imagenes">
         <h2 className={styles.subtitle}>{t.picturesTitle}</h2>
-        <FlagSwitch
-          enabled={settings?.flags?.dishPictures ?? false}
-          flag="dishPictures"
-          label={t.picturesLabel}
-          offHint={t.picturesOffHint}
-          onHint={t.picturesHint}
-        />
         {pictures ? (
           <ul className={styles.rows}>
             <li className={styles.row}>
@@ -217,13 +172,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           their links counted, never a client named. The grant itself is on the account rows above. */}
       <section className={styles.section} id="profesionales">
         <h2 className={styles.subtitle}>{t.professionalsTitle}</h2>
-        <FlagSwitch
-          enabled={settings?.flags?.professional ?? false}
-          flag="professional"
-          label={t.professionalLabel}
-          offHint={t.professionalOffHint}
-          onHint={t.professionalHint}
-        />
         <Text className={styles.hint} size="sm" tone="tertiary">
           {t.professionalsHint}
         </Text>

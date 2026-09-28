@@ -4,7 +4,8 @@
 // exactly the way apps/api/test/harness.ts does it — that file is the source of truth for
 // the payloads, so when a step changes there, it changes here.
 //
-// Usage: node account.mjs create <cookie-file>     prints the address it made
+// Usage: node account.mjs create <cookie-file> [--admin]
+//            prints the address it made; --admin also makes it an admin, for the console
 //        node account.mjs delete <cookie-file>     deletes it through the API
 //        node account.mjs link <professional-cookie-file> <client-cookie-file>
 //            makes the first account a professional with an open practice, and links the
@@ -20,6 +21,10 @@
 // (`openPractice` in apps/api/test/harness.ts). If the `professional` switch was off, `link`
 // turns it on and leaves a marker beside the cookie file; `delete` of that professional
 // turns it back off.
+//
+// `--admin` goes through the runbook's own statement (`UserController.grantAdmin`), never
+// through SQL, and only for the address this run just made (@probe.invalid). Deleting the
+// account deletes the role with it.
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -30,10 +35,17 @@ const API = 'http://localhost:3001/api/v1';
 const WEB = 'http://localhost:3000';
 const PASSWORD = 'correct-horse-battery-staple-9';
 
-const [action, cookieFile, clientCookieFile] = process.argv.slice(2);
+const args = process.argv.slice(2);
+const admin = args.includes('--admin');
+const [action, cookieFile, clientCookieFile] = args.filter(arg => arg !== '--admin');
 
-if (!['create', 'delete', 'link'].includes(action) || !cookieFile || (action === 'link' && !clientCookieFile)) {
-  console.error('usage: node account.mjs create|delete <cookie-file> | link <professional-cookie-file> <client-cookie-file>');
+if (
+  !['create', 'delete', 'link'].includes(action) ||
+  !cookieFile ||
+  (action === 'link' && !clientCookieFile) ||
+  (admin && action !== 'create')
+) {
+  console.error('usage: node account.mjs create <cookie-file> [--admin] | delete <cookie-file> | link <professional-cookie-file> <client-cookie-file>');
   process.exit(2);
 }
 
@@ -51,7 +63,7 @@ async function call(method, path, body, cookie) {
   return response;
 }
 
-assertNotProduction({ strict: action === 'link' });
+assertNotProduction({ strict: action === 'link' || admin });
 
 // `core` reads the database from the environment, the same one the local API was given —
 // and only that one: the guard above checked apps/api/.env, so a DATABASE_URL already
@@ -168,6 +180,14 @@ await patch('food-preferences', { cuisines: ['Mediterránea'], preferences: [] }
 await patch('allergies', { allergies: [], customAllergens: [], dietaryPatterns: [], intolerances: [] });
 await patch('cooking', { cookingTimeMinutes: 30 });
 await call('POST', '/onboarding/complete', {}, cookie);
+
+if (admin) {
+  if (!email.endsWith('@probe.invalid') || !(await UserController.grantAdmin(email))) {
+    throw new Error('could not make the new account an admin');
+  }
+
+  console.log(`[probe] ${email} is an admin until it is deleted`);
+}
 
 console.log(`[probe] account ready: ${email}`);
 process.exit(0);

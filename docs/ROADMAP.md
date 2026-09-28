@@ -31,6 +31,11 @@ The milestone is met, and has been in production since 2026-09-07.
   picture of each dish, drawn the first time its meal page is opened, true to the recipe,
   marked as AI and kept in Vercel Blob (`0066`). The owner asked for it on 2026-09-26;
   two pilots on 2026-09-27 chose the model and the prompt.
+- [`007-admin-console`](./projects/007-admin-console/) — `/admin` becomes a console of
+  twelve pages in six groups, with its own navigation, charts and searchable tables. It
+  still reads nobody (`0068`, `0069`). The owner asked for it on 2026-09-28; the PRD and
+  the nine-phase plan are approved. Phase 1 (the console's shell, its navigation and
+  Ajustes) is done.
 
 The end-to-end suites stand at 14 suites and 88 tests, run against a throwaway database
 with a scripted model (`apps/api/test/README.md`), and on every pull request against a

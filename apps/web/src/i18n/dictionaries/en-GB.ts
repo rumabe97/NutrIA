@@ -159,6 +159,25 @@ export const enGB: Dictionary = {
     withoutImage: '{count} without a picture'
   },
 
+  /* The console's own navigation (`0068`): six groups, and only the pages that exist yet. */
+  adminNav: {
+    back: 'Back to NutrIA',
+    groups: { catalogue: 'Catalogue', generation: 'Generation', people: 'People', product: 'Product', settings: 'Settings', summary: 'Overview' },
+    label: 'Console sections',
+    menu: 'Menu',
+    pages: { legacy: 'Old page', settings: 'Settings' },
+    title: 'Console'
+  },
+
+  /* `/admin/ajustes`: the five switches and the push test, grouped by what they govern. */
+  adminSettings: {
+    access: 'Access',
+    intro: 'The switches that run the service. Under each one, what is true right now.',
+    notifications: 'Notifications',
+    product: 'Product',
+    title: 'Settings'
+  },
+
   appNav: {
     brandHome: 'NutrIA — home',
     consulta: 'Practice',
@@ -925,6 +944,7 @@ export const enGB: Dictionary = {
     },
     '/acceder': { description: "Sign in to NutrIA to see today's plan, your shopping list and your progress.", title: 'Sign in' },
     '/admin': { title: 'Admin' },
+    '/admin/ajustes': { title: 'Settings' },
     '/check-in': { title: "The fortnight's check-in" },
     '/compra': { title: 'The shopping' },
     '/condiciones': {

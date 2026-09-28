@@ -22,7 +22,8 @@ import type { ReactNode } from 'react';
 /**
  * The document every root layout renders, given the language it serves.
  *
- * There are three root layouts — Spanish, English, and the signed-in app —
+ * There are four root layouts — Spanish, English, the signed-in app and the
+ * admin console —
  * because `<html lang>` can only be set by a root layout, and a page cannot
  * declare its language without one. Everything they share lives here, including
  * the stylesheet order, which is a cascade: a second copy of that import list

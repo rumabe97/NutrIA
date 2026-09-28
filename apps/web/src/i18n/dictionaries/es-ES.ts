@@ -163,6 +163,25 @@ export const esES = {
     withoutImage: '{count} sin imagen'
   },
 
+  /* The console's own navigation (`0068`): six groups, and only the pages that exist yet. */
+  adminNav: {
+    back: 'Volver a NutrIA',
+    groups: { catalogue: 'Catálogo', generation: 'Generación', people: 'Personas', product: 'Producto', settings: 'Ajustes', summary: 'Resumen' },
+    label: 'Secciones de la consola',
+    menu: 'Menú',
+    pages: { legacy: 'Anterior', settings: 'Ajustes' },
+    title: 'Consola'
+  },
+
+  /* `/admin/ajustes`: the five switches and the push test, grouped by what they govern. */
+  adminSettings: {
+    access: 'Acceso',
+    intro: 'Los interruptores del servicio. Debajo de cada uno, lo que pasa ahora mismo.',
+    notifications: 'Notificaciones',
+    product: 'Producto',
+    title: 'Ajustes'
+  },
+
   appNav: {
     brandHome: 'NutrIA — inicio',
     consulta: 'Consulta',
@@ -943,6 +962,7 @@ export const esES = {
     },
     '/acceder': { description: 'Entra en NutrIA para ver tu plan de hoy, tu lista de la compra y tu progreso.', title: 'Acceder' },
     '/admin': { title: 'Panel' },
+    '/admin/ajustes': { title: 'Ajustes' },
     '/check-in': { title: 'Check-in de la quincena' },
     '/compra': { title: 'La compra' },
     '/condiciones': {
