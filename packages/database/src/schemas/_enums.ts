@@ -2,12 +2,26 @@ import { pgEnum } from 'drizzle-orm/pg-core';
 
 export const sex = pgEnum('sex', ['female', 'male', 'other', 'prefer_not_to_say']);
 
-export const goalType = pgEnum('goal_type', ['weight_loss', 'maintenance', 'muscle_gain', 'performance', 'healthy_eating', 'custom']);
+export const goalType = pgEnum('goal_type', ['weight_loss', 'maintenance', 'muscle_gain', 'performance', 'healthy_eating']);
 
 export const activityLevel = pgEnum('activity_level', ['sedentary', 'light', 'moderate', 'high', 'athlete']);
 
+/**
+ * Not declared on any table since `0067` (next release, migration `0044`
+ * onward) — `user_preferences.cooking_frequency` is gone from the schema,
+ * though the Postgres type stays until migration `0045` drops the physical
+ * column with it. Kept exported so `generate` does not read its absence as
+ * "drop the type" while a column still uses it.
+ */
 export const cookingFrequency = pgEnum('cooking_frequency', ['rarely', 'sometimes', 'often', 'daily']);
 
+/**
+ * Not declared on any table since `0067` (next release, migration `0044`
+ * onward) — `user_preferences.budget` is gone from the schema, though the
+ * Postgres type stays until migration `0045` drops the physical column with
+ * it. Kept exported so `generate` does not read its absence as "drop the
+ * type" while a column still uses it.
+ */
 export const budgetTier = pgEnum('budget_tier', ['low', 'medium', 'high']);
 
 export const dietaryPattern = pgEnum('dietary_pattern', [

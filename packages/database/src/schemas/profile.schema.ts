@@ -1,6 +1,6 @@
-import { date, index, integer, jsonb, numeric, smallint, text, time, timestamp } from 'drizzle-orm/pg-core';
+import { date, index, integer, jsonb, numeric, smallint, text, timestamp } from 'drizzle-orm/pg-core';
 
-import { activityLevel, budgetTier, cookingFrequency, dietaryPattern, goalType, sentiment, sex, supplementKind } from './_enums';
+import { activityLevel, dietaryPattern, goalType, sentiment, sex, supplementKind } from './_enums';
 
 /**
  * The four sizes a meal can be. Written out here rather than imported: this
@@ -42,21 +42,20 @@ export const profiles = userOwnedSingleton('profiles', {
 export const goals = userOwned('goals', {
   archivedAt: date(),
   /**
-   * Unread since `0067` — `packages/core`'s `Goal`/`UpdateGoal` no longer
-   * carry it, and migration `0043` set every existing row's value here to
-   * null. The column stays until the next release's migration drops it.
+   * `custom_goal` is not declared here (`0067`, next release) — nothing in
+   * `packages/core` has named it since migration `0043` nulled every row.
+   * The physical column stays until migration `0045` drops it; this app
+   * never selects or writes it again from this release on.
    */
-  customGoal: text(),
   /** kg per week, as a magnitude. The goal supplies the direction — see `domain/Nutrition`. */
   paceKgPerWeek: numeric({ precision: 3, scale: 2 }),
   startingWeightKg: numeric({ precision: 5, scale: 2 }),
   targetWeightKg: numeric({ precision: 5, scale: 2 }),
   /**
-   * `'custom'` is unread since `0067` — `packages/core`'s `GOAL_TYPES` no
-   * longer offers it, and `0043` moved every stored `'custom'` row to
-   * `'maintenance'`, which is what it always computed as
-   * (`core/domain/Nutrition`). The enum value itself stays in Postgres until
-   * the next release's migration drops it.
+   * `'custom'` is gone from the Postgres enum as of migration `0044` — every
+   * stored `'custom'` row was moved to `'maintenance'` first (`0043`, and
+   * again in `0044` for anything the old API wrote during that deploy), which
+   * is what it always computed as (`core/domain/Nutrition`).
    */
   type: goalType().notNull()
 });
@@ -64,17 +63,15 @@ export const goals = userOwned('goals', {
 export const userPreferences = userOwnedSingleton('user_preferences', {
   activityLevel: activityLevel(),
   /**
-   * Unread since `0067` — the onboarding step that fed `breakfastStyle`,
-   * `budget`, `cookingFrequency`, `portionPreference`, `sleepEnd`,
-   * `sleepStart`, `trainingDaysPerWeek`, `trainingTime` and
-   * `workScheduleNotes` is gone, and none of the nine survives in
-   * `packages/core`'s `Preferences`. Migration `0043` set every existing
-   * row's value in these nine columns to null; they stay until the next
-   * release's migration drops them.
+   * `breakfastStyle`, `budget`, `cookingFrequency`, `portionPreference`,
+   * `sleepEnd`, `sleepStart`, `trainingDaysPerWeek`, `trainingTime` and
+   * `workScheduleNotes` are not declared here (`0067`, next release) —
+   * none of the nine survives in `packages/core`'s `Preferences`, and
+   * migration `0043` nulled every row before this release stopped selecting
+   * them. The nine physical columns, and the `budget_tier` and
+   * `cooking_frequency` Postgres types two of them used, stay until
+   * migration `0045` drops them.
    */
-  breakfastStyle: text(),
-  budget: budgetTier(),
-  cookingFrequency: cookingFrequency(),
   /** Minutes the user is willing to spend on one meal. */
   cookingTimeMinutes: smallint(),
   /**
@@ -88,13 +85,7 @@ export const userPreferences = userOwnedSingleton('user_preferences', {
   mealShape: jsonb()
     .$type<MealShape>()
     .notNull()
-    .default({ afternoon_snack: 'normal', breakfast: 'normal', dinner: 'normal', lunch: 'normal', morning_snack: 'off', supper: 'off' }),
-  portionPreference: text(),
-  sleepEnd: time(),
-  sleepStart: time(),
-  trainingDaysPerWeek: smallint(),
-  trainingTime: time(),
-  workScheduleNotes: text()
+    .default({ afternoon_snack: 'normal', breakfast: 'normal', dinner: 'normal', lunch: 'normal', morning_snack: 'off', supper: 'off' })
 });
 
 export const userDietaryPatterns = userOwned('user_dietary_patterns', { pattern: dietaryPattern().notNull() });
