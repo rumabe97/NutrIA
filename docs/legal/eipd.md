@@ -88,7 +88,7 @@ exportaciones). La pasarela OmniRoute ya no está en producción (solo experimen
 | --- | --- |
 | ¿Base legítima? | Sí, con los cambios del [`analisis.md` § 3](./analisis.md#3-bases-jurídicas-y-excepción-del-art-9): consentimiento explícito (9.2.a) para todos los datos de salud y creencias; hoy falta para alergias y datos corporales (**P0-2**). |
 | ¿Fines determinados y limitados? | Sí. No hay publicidad, venta ni perfiles para terceros. |
-| ¿Minimización? | Buena en el diseño: la medicación no tiene dosis porque nada la usaría; la IA no recibe identificadores ni salud declarada; el profesional no ve alergias, correo ni comentarios; el rastro no guarda la carga. **Mejora (`0067`, una vez fusionada)**: el onboarding deja de preguntar diez campos que no servían a ningún fin declarado — hora de despertar y de dormir, días y hora de entrenar, notas del horario laboral, presupuesto, frecuencia de cocina, estilo de desayuno, preferencia de ración y el objetivo personalizado en texto libre — no solo se dejan de enviar a la IA, se dejan de recoger (art. 5.1.c). **Excesos**: ~~texto libre de alergias y comentarios del check-in hacia la IA~~ (quitados en el prompt 4.0.0, P0-3); «Halal»/«Kosher» como etiqueta en vez de restricción (P2-1); las diez columnas ya recogidas quedan sin lector hasta que una migración las retire (P2-13). |
+| ¿Minimización? | Buena en el diseño: la medicación no tiene dosis porque nada la usaría; la IA no recibe identificadores ni salud declarada; el profesional no ve alergias, correo ni comentarios; el rastro no guarda la carga. **Mejora (`0067`, una vez fusionada)**: el onboarding deja de preguntar diez campos que no servían a ningún fin declarado — hora de despertar y de dormir, días y hora de entrenar, notas del horario laboral, presupuesto, frecuencia de cocina, estilo de desayuno, preferencia de ración y el objetivo personalizado en texto libre — no solo se dejan de enviar a la IA, se dejan de recoger (art. 5.1.c), y la migración `0043`, en el mismo cambio, pone esos diez campos a `NULL` para todas las cuentas, no solo las nuevas (P2-13, cerrado). **Excesos**: ~~texto libre de alergias y comentarios del check-in hacia la IA~~ (quitados en el prompt 4.0.0, P0-3); «Halal»/«Kosher» como etiqueta en vez de restricción (P2-1). |
 | ¿Exactitud? | El usuario corrige desde su perfil; los objetivos anulados se revalidan en cada lectura. |
 | ¿Limitación del plazo? | Parcial: cascada completa al borrar; faltan plazos para métricas y trabajos (P2-4) y para la exportación manual (P1-6). |
 | ¿Información? | Insuficiente hoy (P1-2, P1-3, P1-5); textos nuevos en `textos/`. |
@@ -171,7 +171,7 @@ de las pendientes marcadas.
 | 6 | M12 — exportación cifrada | propietario | la próxima exportación |
 | 7 | Textos de `textos/` | frontend | flag `professional` / claves *live* |
 | 8 | M18, purgas | backend | revisión anual |
-| 9 | P2-13 — migración que retire (o ponga a `NULL`) las diez columnas de onboarding que `0067` deja sin lector | backend | fecha por fijar; revisión anual como tope |
+| 9 | ~~P2-13 — migración que retire (o ponga a `NULL`) las diez columnas de onboarding que `0067` deja sin lector~~ | backend | **hecho el 2026-09-28**: migración `0043`, en el mismo cambio que `0067` |
 
 ## 7. Aprobación
 

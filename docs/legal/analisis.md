@@ -57,6 +57,18 @@
 > de las comidas, los objetivos, el tipo de objetivo, vegetariano/vegano, cocinas y
 > gustos por nombre de catálogo. **Lo que sigue aquí es verdad una vez fusionada esa
 > rama**; hasta entonces, lo cierto es lo que describe la revisión del 2026-09-26.
+>
+> **Revisión 2026-09-28 (segunda pasada, mismo día y misma rama, commit leído
+> `28449c1`) — cierra P2-13**: la migración `0043` (backend, hoy sin fusionar en
+> `agent/onboarding-cleanup/backend`; `packages/database/src/migrations/0043_onboarding_answers_nothing_reads_are_cleared.sql`)
+> pone a `NULL` las nueve columnas de `user_preferences` y `goals.customGoal` para
+> **todas las cuentas**, no solo las nuevas, y mueve todo `goals.type = 'custom'` a
+> `'maintenance'`. §§ 1.3, 4.1 y 9 (P2-13, cerrado) se actualizan. Las columnas y el
+> valor `'custom'` del enum siguen existiendo en Postgres — la baja de esquema es de
+> la siguiente entrega, igual que decidió `0067` — pero ya no hay ninguna fila con un
+> valor que la política no describa: la política puede dejar de nombrar «horarios»
+> hoy, no cuando llegue esa segunda migración. **Verdad una vez fusionada** esta
+> rama, como el resto de esta revisión.
 
 ---
 
@@ -139,9 +151,17 @@ columnas de `packages/database/src/schemas/profile.schema.ts` (`user_preferences
 `sleepStart`, `trainingDaysPerWeek`, `trainingTime`, `workScheduleNotes`; `goals`:
 `customGoal`) que el onboarding sigue guardando en la base de datos pero **ya no
 rellena**: minimización de la recogida, no solo del envío a un tercero (art. 5.1.c RGPD).
-Las columnas no se eliminan en este cambio — quedan nulas para las cuentas nuevas y con su
-valor antiguo, sin ningún lector, para las que ya las tenían — hasta una migración
-posterior que las retire; ver § 4.1 y § 9 P2-13.
+Las columnas no se eliminan en este cambio, pero tampoco quedan con su valor antiguo: la
+migración `0043`, en el mismo cambio, pone esas nueve columnas y `customGoal` a `NULL` para
+**todas** las cuentas, no solo las que se creen después. También mueve todo
+`goals.type = 'custom'` a `'maintenance'` — un «objetivo personalizado» siempre calculó
+exactamente igual que «mantenimiento» (`PROTEIN_G_PER_KG` en `core/domain/Nutrition/Nutrition.ts:21-28`
+guarda el mismo 1,6 g/kg para los dos; `nutritionTargets` en `Nutrition.ts:279-283` no marca
+ninguno de los dos como `losing` ni `gaining`, así que el objetivo calculado es el de
+mantenimiento en ambos casos), de modo que a nadie le cambian los objetivos del plan por
+este cambio de etiqueta. La baja de las columnas y del valor `'custom'` del enum en
+Postgres es de la siguiente entrega, igual que ya decía `0067`; ver § 4.1 y § 9 P2-13
+(cerrado).
 
 **Hasta el 2026-09-26** el prompt iba a la pasarela OmniRoute del propietario, que lo
 enviaba a modelos gratuitos cuyos proveedores entrenan o registran (`opencode/*-free`;
@@ -364,7 +384,7 @@ cuenta así: el propietario debe comprobarlo).
 | Pagos (Stripe) | lo que exija la ley a Stripe; con *Managed Payments*, a Link como vendedor | ✔ política |
 | Copias: restauración de Neon | ventana del plan (sin anotar en `deployment.md` § 8) | P2: anotarla y citarla |
 | Copias: exportación manual | **indefinido, sin cifrar**, en el equipo del propietario | **P1**: cifrar, plazo (30 días) y borrado |
-| Diez columnas que el onboarding dejó de rellenar (`0067`; `user_preferences.breakfastStyle/budget/cookingFrequency/portionPreference/sleepEnd/sleepStart/trainingDaysPerWeek/trainingTime/workScheduleNotes`, `goals.customGoal`) | mientras exista la cuenta, como el resto — es exacto seguir diciendo «se borra con tu cuenta» — pero **sin lector** desde `0067` para quien ya las tenía | **P2-13**: fijar cuándo llega la migración que las retira (§ 9) |
+| Diez columnas que el onboarding dejó de rellenar (`0067`; `user_preferences.breakfastStyle/budget/cookingFrequency/portionPreference/sleepEnd/sleepStart/trainingDaysPerWeek/trainingTime/workScheduleNotes`, `goals.customGoal`) | puestas a `NULL` por la migración `0043` para todas las cuentas, en este mismo cambio; las columnas y el valor `'custom'` del enum se eliminan en la entrega siguiente | **P2-13**: cerrado (§ 9) |
 
 ### 4.2 Transferencias internacionales (arts. 44-49)
 
@@ -763,7 +783,7 @@ ingredientes. Luego, la política (§ «Con quién compartimos»).
 | P2-10 | Correo del proveedor SMTP: una cuenta Gmail de consumo no ofrece DPA | memoria del propietario; `SMTP_*` | Proveedor transaccional con DPA **[abogado]** |
 | P2-11 | Las empresas que ejecutan el modelo no son subencargados según OpenRouter (DPA Enterprise § 11.10) y no tienen contrato con NutrIA; ninguna está en el DPF | § 4.4 b | Nombrarlas en la política; lista cerrada (P1-12); apoyarse en que la petición no identifica a nadie (C-413/23 P) **[abogado]**. Si el abogado no lo compra: un proveedor con contrato directo (p. ej. Mistral en la UE, plan B del informe `0002`) |
 | P2-12 | OpenRouter clasifica una muestra anónima de peticiones para sus estadísticas públicas; no se puede apagar | condiciones § 6.5; documentación *Data collection* | **Aceptado con aviso** (propietario, 2026-09-26): la política (estado 2) lo dice, y el propietario pedirá por escrito a OpenRouter que excluya su cuenta. Si lo excluye, se puede quitar la frase |
-| P2-13 | Diez columnas quedan en la base de datos sin ningún lector desde `0067`: `sleepStart`, `sleepEnd`, `trainingDaysPerWeek`, `trainingTime`, `workScheduleNotes`, `breakfastStyle`, `portionPreference`, `budget`, `cookingFrequency` (`user_preferences`) y `customGoal` (`goals`, texto libre — puede llevar salud, «recuperarme de un trastorno alimentario»). El onboarding ya no las rellena, pero las cuentas que las tenían las conservan | `packages/database/src/schemas/profile.schema.ts` | Art. 5.1.c (minimización) y 5.1.e (conservación limitada al fin): guardar un dato que ningún código lee ya no tiene fin. Arreglo mínimo: una migración de seguimiento que ponga esas columnas a `NULL` (o las elimine) para todas las cuentas, con fecha fijada en el plan de acción de la EIPD (§ 6); mientras no llegue, la política sigue pudiendo decir «se borra con tu cuenta» sin mentir, porque sigue siendo cierto |
+| P2-13 | ~~Diez columnas quedan en la base de datos sin ningún lector desde `0067`: `sleepStart`, `sleepEnd`, `trainingDaysPerWeek`, `trainingTime`, `workScheduleNotes`, `breakfastStyle`, `portionPreference`, `budget`, `cookingFrequency` (`user_preferences`) y `customGoal` (`goals`, texto libre — puede llevar salud, «recuperarme de un trastorno alimentario»). El onboarding ya no las rellena, pero las cuentas que las tenían las conservan~~ | `packages/database/src/migrations/0043_onboarding_answers_nothing_reads_are_cleared.sql`; `packages/database/src/schemas/profile.schema.ts` | **Cerrado el 2026-09-28**: la migración `0043` pone esas diez columnas a `NULL` para todas las cuentas, en el mismo cambio que dejó de rellenarlas — no solo las nuevas, también las que ya las tenían (art. 5.1.c y 5.1.e). De paso mueve todo `goals.type = 'custom'` a `'maintenance'`, sin cambiar ningún objetivo calculado (ver § 1.3). Las columnas y el valor `'custom'` del enum siguen en Postgres hasta la migración de la siguiente entrega que los elimine — eso es higiene de esquema, no un dato retenido sin fin, así que no abre un hallazgo nuevo |
 
 ### P3
 

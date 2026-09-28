@@ -61,7 +61,17 @@ de verdad ocurre (RGPD art. 5.1.b, finalidad compatible; el art. 7.2 exige disti
 cuando se *añade* un fin o un dato, no cuando se *quita* uno). Volver a pedir el
 consentimiento por una reducción sería fricción sin base en el art. 7.4. **[abogado]**:
 confirmar que un recorte de lo tratado nunca obliga a repetir el consentimiento, aunque el
-texto que lo describe cambie. -->
+texto que lo describe cambie.
+Revisado el 2026-09-28 (segunda pasada, misma rama): la migración `0043` pone a `NULL`,
+para todas las cuentas, los nueve campos de `user_preferences` y `goals.customGoal` que
+`0067` dejó sin lector, y mueve todo `goals.type = 'custom'` a `'maintenance'`. Ninguno de
+los dos cambia `profileConsent.ai`: los nueve campos nunca llegaban al modelo (ninguno era
+`mealShape`) y el texto no nombra el tipo de objetivo por su valor. Tampoco cambia
+`HEALTH_CONSENT_VERSION` ni `CARE_CONSENT_VERSION` — la migración no toca las tablas de
+salud ni lo que ve el profesional, solo borra un dato sin uso y corrige una etiqueta cuyo
+cálculo ya era idéntico (`core/domain/Nutrition/Nutrition.ts:21-28,279-283`: un objetivo
+`'custom'` siempre calculó como `'maintenance'`). **`PROFILE_CONSENT_VERSION` sigue sin
+subir**, por la misma razón que arriba: un recorte de lo tratado, no una ampliación. -->
 
 ---
 
