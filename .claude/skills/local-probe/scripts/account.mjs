@@ -166,8 +166,7 @@ await patch('body-activity', { activityLevel: 'moderate', currentWeightKg: 72, h
 await patch('how-you-eat', { mealShape: shapeFor(3, false) });
 await patch('food-preferences', { cuisines: ['Mediterránea'], preferences: [] });
 await patch('allergies', { allergies: [], customAllergens: [], dietaryPatterns: [], intolerances: [] });
-await patch('lifestyle', { trainingDaysPerWeek: 3 });
-await patch('cooking', { budget: 'medium', cookingFrequency: 'often', cookingTimeMinutes: 30 });
+await patch('cooking', { cookingTimeMinutes: 30 });
 await call('POST', '/onboarding/complete', {}, cookie);
 
 console.log(`[probe] account ready: ${email}`);
