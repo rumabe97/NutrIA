@@ -103,3 +103,15 @@ describe('updateGoalSchema pace', () => {
     expect(updateGoalSchema.safeParse({ paceKgPerWeek: -1.5, type: 'weight_loss' }).success).toBe(false);
   });
 });
+
+/**
+ * `'custom'` is gone from `GOAL_TYPES` along with the free text it existed to
+ * describe (`0067`) — it always computed as `maintenance` anyway. A request
+ * naming it is refused, the same as any value the enum has never offered,
+ * which is what turns into 422 `INVALID_INPUT` at the route (`@ZodBody`).
+ */
+describe('updateGoalSchema — the `custom` goal type is gone (`0067`)', () => {
+  it('refuses `custom`', () => {
+    expect(updateGoalSchema.safeParse({ type: 'custom' }).success).toBe(false);
+  });
+});

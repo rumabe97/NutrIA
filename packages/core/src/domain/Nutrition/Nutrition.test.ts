@@ -314,7 +314,7 @@ describe('every goal, pace and body produces a reachable target', () => {
   // an impossible target is discovered; if one exists, `nutritionTargets` throws
   // here and this fails, three stages earlier than a user would have seen it.
   it('never throws TargetsUnreachableError across the input space', () => {
-    const goals = ['weight_loss', 'maintenance', 'muscle_gain', 'performance', 'healthy_eating', 'custom'] as const;
+    const goals = ['weight_loss', 'maintenance', 'muscle_gain', 'performance', 'healthy_eating'] as const;
     const activities = ['sedentary', 'light', 'moderate', 'high', 'athlete'] as const;
     const sexes = ['female', 'male', 'other', 'prefer_not_to_say'] as const;
 

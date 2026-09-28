@@ -146,7 +146,14 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * `0067`): neither changed a dish, a target or a rule anywhere downstream —
  * the test `0025` sets for a field worth asking. `THIS PERSON` carried only
  * those two lines, so the header goes with them; priority 3 drops "the
- * budget" the same way, its onboarding question gone too.
+ * budget" the same way, its onboarding question gone too. The bench then
+ * caught a second-order break the version number does not: with no line
+ * naming a person's day left in the prompt, a model asked for dinner started
+ * calling every dinner "supper", and the pool dropped every one on that label
+ * alone — fixed in `PoolBuilder`, not here, by asking the ingredients rather
+ * than the label. `GOAL_GUIDANCE` loses `custom` the same day: the goal type
+ * is gone from `GOAL_TYPES` along with the free text it existed to describe
+ * (`0067`), and it always computed as `maintenance` anyway.
  */
 export const PROMPT_VERSION = '4.4.0';
 
@@ -472,7 +479,6 @@ function spreadRules(total: number, pulses: boolean): string[] {
  * is a rule the plan is validated against; the numbers are.
  */
 const GOAL_GUIDANCE: Record<Goal['type'], string> = {
-  custom: 'Their targets were set by hand. Follow the numbers exactly; do not second-guess the split.',
   healthy_eating:
     'Eating well is the goal: whole foods, vegetables at every meal, legumes, fish, olive oil in measured amounts, whole grains over refined, little processed food.',
   maintenance: 'Keeping their weight: balanced home cooking they could eat for years — nothing extreme, every meal complete.',

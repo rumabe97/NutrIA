@@ -273,7 +273,6 @@ describe('buildPoolPrompt', () => {
   });
 
   it.each<[Goal['type'], string]>([
-    ['custom', 'set by hand'],
     ['healthy_eating', 'Eating well is the goal'],
     ['maintenance', 'Keeping their weight'],
     ['muscle_gain', 'Building muscle'],

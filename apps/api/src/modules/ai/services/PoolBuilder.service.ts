@@ -394,7 +394,7 @@ export class PoolBuilder {
         let repaired = 0;
 
         for (const dish of dishes) {
-          const verdict = this.validate(dish, context, accepted, shown.get(slot)?.slugs ?? []);
+          const verdict = this.validate(dish, context, accepted, shown.get(slot)?.slugs ?? [], slot);
 
           repaired += verdict.repaired;
 
@@ -495,7 +495,8 @@ export class PoolBuilder {
     raw: GeneratedDish,
     context: GenerationContext,
     accepted: ReadonlyMap<string, CandidateDish>,
-    shownSlugs: readonly string[]
+    shownSlugs: readonly string[],
+    requestedSlot: MealSlot
   ): Verdict {
     // The wire schema is deliberately loose so the provider can express it; the
     // bounds are enforced here, against the strict schema. Anything failing this
@@ -572,14 +573,15 @@ export class PoolBuilder {
       return { reason: 'wrong_language', repaired };
     }
 
-    return { ...this.judge({ ...data, steps: [...steps] }, slug, context), repaired };
+    return { ...this.judge({ ...data, steps: [...steps] }, slug, context, requestedSlot), repaired };
   }
 
   /** Every gate after the catalogue's, on a dish whose slugs are final. */
   private judge(
     dish: GeneratedDish,
     slug: string,
-    context: GenerationContext
+    context: GenerationContext,
+    requestedSlot: MealSlot
   ): { readonly dish: CandidateDish } | { readonly reason: DishRejection } {
     const safety = dishSafety(dish.ingredients, context.catalogue, context.safety);
 
@@ -651,13 +653,26 @@ export class PoolBuilder {
       return { reason: 'foreign_food' };
     }
 
-    // Last, and only ever taking meals away: the meals it claimed, kept where
-    // every ingredient belongs for this person (`0062` § 5) — the same rule
-    // the library is served by (`RecipeController.reusablePool`). A stew the
-    // model also called a dinner stays a lunch; one that claimed only meals
-    // its ingredients do not belong to is served nowhere, and is counted as
-    // such. Not an error: every rule that protects the person already held.
-    const slots = fitSlots(dish, context.catalogue, context.dietaryPatterns);
+    // Last: the meal this request was asked for, plus whatever else the model
+    // claimed, kept only where every ingredient belongs for this person
+    // (`0062` § 5) — the same rule the library is served by
+    // (`RecipeController.reusablePool`). The requested meal is added to the
+    // model's own claim, never in front of it, because the model's own
+    // `slots` is a label and a mislabelled dish is not a wrong dish (`0067`'s
+    // bench: with no line naming a person's day left in the prompt, a model
+    // asked for dinner started calling every dinner "supper", and every one
+    // was then dropped for dinner on its own say-so). Appended rather than
+    // unioned in front keeps `fitSlots`'s own promise — a subset in the
+    // dish's order — intact for the ordinary case, where the model already
+    // named the meal it was asked for. Ingredients still gate it exactly as
+    // before — a stew asked for dinner and made of lunch-only ingredients
+    // stays out of dinner whatever it calls itself; a stew the model also
+    // called a dinner still stays a lunch. One that claimed only meals its
+    // ingredients do not belong to, requested meal included, is served
+    // nowhere, and is counted as such. Not an error: every rule that protects
+    // the person already held.
+    const claimed = dish.slots.includes(requestedSlot) ? dish.slots : [...dish.slots, requestedSlot];
+    const slots = fitSlots({ ingredients: dish.ingredients, slots: claimed }, context.catalogue, context.dietaryPatterns);
 
     if (slots.length === 0) {
       this.logger.warn(`Dish "${dish.name}" rejected: none of ${dish.slots.join(', ')} is a meal all of its ingredients belong to`);

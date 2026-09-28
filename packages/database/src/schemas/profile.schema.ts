@@ -41,16 +41,37 @@ export const profiles = userOwnedSingleton('profiles', {
 
 export const goals = userOwned('goals', {
   archivedAt: date(),
+  /**
+   * Unread since `0067` — `packages/core`'s `Goal`/`UpdateGoal` no longer
+   * carry it, and migration `0043` set every existing row's value here to
+   * null. The column stays until the next release's migration drops it.
+   */
   customGoal: text(),
   /** kg per week, as a magnitude. The goal supplies the direction — see `domain/Nutrition`. */
   paceKgPerWeek: numeric({ precision: 3, scale: 2 }),
   startingWeightKg: numeric({ precision: 5, scale: 2 }),
   targetWeightKg: numeric({ precision: 5, scale: 2 }),
+  /**
+   * `'custom'` is unread since `0067` — `packages/core`'s `GOAL_TYPES` no
+   * longer offers it, and `0043` moved every stored `'custom'` row to
+   * `'maintenance'`, which is what it always computed as
+   * (`core/domain/Nutrition`). The enum value itself stays in Postgres until
+   * the next release's migration drops it.
+   */
   type: goalType().notNull()
 });
 
 export const userPreferences = userOwnedSingleton('user_preferences', {
   activityLevel: activityLevel(),
+  /**
+   * Unread since `0067` — the onboarding step that fed `breakfastStyle`,
+   * `budget`, `cookingFrequency`, `portionPreference`, `sleepEnd`,
+   * `sleepStart`, `trainingDaysPerWeek`, `trainingTime` and
+   * `workScheduleNotes` is gone, and none of the nine survives in
+   * `packages/core`'s `Preferences`. Migration `0043` set every existing
+   * row's value in these nine columns to null; they stay until the next
+   * release's migration drops them.
+   */
   breakfastStyle: text(),
   budget: budgetTier(),
   cookingFrequency: cookingFrequency(),
