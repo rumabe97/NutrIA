@@ -10,6 +10,8 @@ import { HealthRepository } from '#repositories/Health';
 import { proteinSupplementExclusions } from 'core/domain/Health';
 import { breaksDishRule, freeFromExclusions, resolvePreferences, withinTime } from 'core/domain/Preference';
 import { SafetyController } from 'core/controllers/Safety';
+import { SettingsController } from 'core/controllers/Settings';
+import { PlanRepository } from '#repositories/Plan';
 import { requireProfileConsent } from 'core/controllers/Profile';
 import { NotFoundError, OnboardingIncompleteError, PlanPausedError } from 'core/entities/Error';
 import { OnboardingRepository } from '#repositories/Onboarding';
@@ -26,6 +28,8 @@ import type { DishRef, ReusableRecipe, UndocumentedRecipe } from '#repositories/
 export type { UndocumentedRecipe } from '#repositories/Recipe';
 import type { PreferenceExclusions } from 'core/domain/Preference';
 import type { SafetyProfile } from 'core/entities/Safety';
+import type { PictureCall, PictureProvenance, PictureState } from 'core/entities/DishPicture';
+import type { PictureCatalogueEntry, PictureRecipe } from 'core/domain/DishPicture';
 
 /**
  * How many library recipes to consider per generation — a ceiling on the read,
@@ -47,6 +51,46 @@ const REUSE_FETCH_LIMIT = 5000;
  * short enough that one it could not finish is free again within minutes.
  */
 const REWRITE_CLAIM_MINUTES = 5;
+
+/** How long a dish whose drawing failed waits before a view may try again (`0066`, PRD 5). */
+export const PICTURE_COOL_OFF_DAYS = 7;
+
+/** How many drawings a dish gets before it fails; the count carries across a stale takeover. */
+export const PICTURE_ATTEMPTS = 3;
+
+/** How long a drawing may hold its claim before another view takes it over: longer than the function lives. */
+const PICTURE_STALE_MINUTES = 15;
+
+/** A drawing this caller won and must now make, or give back. `claimedAt` is the claim's token. */
+export type PictureClaim = { readonly attempts: number; readonly claimedAt: Date; readonly recipeId: string };
+
+/** A dish's picture as a screen reads it. A failed drawing reads `none`: the placeholder, and nothing announced. */
+export type PictureStatusView = { readonly status: 'drawing' | 'none' | 'ready'; readonly url: string | null };
+
+/** What a screen is told about a stored picture state. */
+export function toPictureStatus(state: { readonly status: string | null; readonly url: string | null }): PictureStatusView {
+  if (state.status === 'ready' && state.url) {
+    return { status: 'ready', url: state.url };
+  }
+
+  return { status: state.status === 'drawing' ? 'drawing' : 'none', url: null };
+}
+
+/** The first instant of the calendar month `now` falls in, in UTC — where the cap's count starts. */
+export function monthStart(now: Date): Date {
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+}
+
+/** Whether a stored state is one a claim could not take — spared the month's spend read on every view. */
+function unclaimable(state: PictureState, now: Date): boolean {
+  const since = state.lastAttemptAt === null ? Infinity : now.getTime() - state.lastAttemptAt.getTime();
+
+  return (
+    state.status === 'ready' ||
+    (state.status === 'drawing' && since < PICTURE_STALE_MINUTES * 60_000) ||
+    (state.status === 'failed' && state.released !== true && since < PICTURE_COOL_OFF_DAYS * 86_400_000)
+  );
+}
 
 export type GenerationContext = {
   readonly catalogue: Catalogue;
@@ -208,6 +252,29 @@ export const RecipeController = {
     return RecipeRepository.claimUndocumented(stepsVersion, limit, REWRITE_CLAIM_MINUTES);
   },
 
+  /** The drawing ended with a picture stored at `url`. False when the claim was no longer this drawing's. */
+  async completePicture(
+    claim: PictureClaim,
+    picture: {
+      readonly attempts: number;
+      readonly model: string;
+      readonly promptVersion: string;
+      readonly provenance: PictureProvenance;
+      readonly url: string;
+    }
+  ): Promise<boolean> {
+    return RecipeRepository.completePicture(claim.recipeId, claim.claimedAt, picture);
+  },
+
+  /** The drawing ended with nothing kept; the cool-off starts `now`. */
+  async failPicture(
+    claim: PictureClaim,
+    outcome: { readonly attempts: number; readonly provenance: PictureProvenance },
+    now: Date = new Date()
+  ): Promise<boolean> {
+    return RecipeRepository.failPicture(claim.recipeId, claim.claimedAt, outcome, now);
+  },
+
   /**
    * Everything a generation needs to reason about food: the catalogue, and the
    * user's safety profile as sets.
@@ -237,11 +304,6 @@ export const RecipeController = {
     }
 
     return context;
-  },
-
-  /** The stored illustration for a public route to serve; nothing else about the recipe. */
-  async illustration(recipeId: string): Promise<{ readonly bytes: Buffer; readonly contentType: string } | undefined> {
-    return RecipeRepository.findImage(recipeId);
   },
 
   /**
@@ -285,11 +347,38 @@ export const RecipeController = {
     return buildContext(randomUUID());
   },
 
-  /** What the illustrator still has to draw. Bounded, oldest first. */
-  async pendingIllustrations(
-    limit: number
-  ): Promise<readonly { readonly id: string; readonly ingredientNames: readonly string[]; readonly locale: string; readonly name: string }[]> {
-    return RecipeRepository.findWithoutImage(limit);
+  /**
+   * What a dish's picture is drawn and judged from (`0066`): the recipe's own
+   * data for the prompt, and the **whole** catalogue for the allergen rule,
+   * with what each ingredient may contain. Null for a recipe that does not
+   * exist. Nothing about any person is read.
+   */
+  async pictureInputs(recipeId: string): Promise<{ readonly catalogue: readonly PictureCatalogueEntry[]; readonly recipe: PictureRecipe } | null> {
+    const [recipe, catalogue] = await Promise.all([RecipeRepository.pictureRecipe(recipeId), RecipeRepository.pictureCatalogue()]);
+
+    return recipe ? { catalogue, recipe } : null;
+  },
+
+  /** What the pictures have cost this calendar month, in dollars. */
+  async pictureSpendUsd(now: Date = new Date()): Promise<number> {
+    return RecipeRepository.monthSpendUsd(monthStart(now));
+  },
+
+  /**
+   * A dish's picture for somebody polling it: only a dish on one of their own
+   * plans, anything else a 404 like every denial. Reads; never starts a drawing.
+   */
+  async pictureStatus(userId: string, recipeId: string): Promise<PictureStatusView> {
+    if (!(await PlanRepository.servesRecipe(userId, recipeId))) {
+      throw new NotFoundError('Recipe not found');
+    }
+
+    return toPictureStatus(await RecipeRepository.pictureState(recipeId));
+  },
+
+  /** One paid call, with what it cost. */
+  async recordPictureCall(call: PictureCall): Promise<void> {
+    await RecipeRepository.recordPictureCall(call);
   },
 
   /**
@@ -298,6 +387,47 @@ export const RecipeController = {
    */
   async recordRewriteRefusal(recipeId: string, stepsVersion: string): Promise<void> {
     await RecipeRepository.recordRewriteRefusal(recipeId, stepsVersion);
+  },
+
+  /**
+   * The drawing stopped for a reason that is not the dish's (the cap, the key):
+   * no picture, claimable again at once, keeping the `attempts` already used.
+   */
+  async releasePicture(claim: PictureClaim, outcome: { readonly attempts: number; readonly why: string }, now: Date = new Date()): Promise<boolean> {
+    return RecipeRepository.releasePicture(claim.recipeId, claim.claimedAt, outcome, now);
+  },
+
+  /**
+   * Claims the drawing of a dish's picture, when one should start now
+   * (`0066`, PRD 1, 5, 7, 9): the `dishPictures` flag is on, the dish has no
+   * picture, nobody is drawing it, it did not fail within the cool-off, and
+   * the month's spend is under `capUsd`. Null otherwise, and null for every
+   * caller but one when several ask at once — the claim is one statement.
+   *
+   * The caller that gets a claim must draw, and end it with `completePicture`,
+   * `failPicture` or `releasePicture`.
+   */
+  async requestPicture(recipeId: string, capUsd: number, now: Date = new Date()): Promise<PictureClaim | null> {
+    if (!(await SettingsController.dishPictures())) {
+      return null;
+    }
+
+    if (unclaimable(await RecipeRepository.pictureState(recipeId), now)) {
+      return null;
+    }
+
+    if ((await RecipeRepository.monthSpendUsd(monthStart(now))) >= capUsd) {
+      return null;
+    }
+
+    if (!(await RecipeRepository.claimPicture(recipeId, now, PICTURE_COOL_OFF_DAYS, PICTURE_STALE_MINUTES))) {
+      return null;
+    }
+
+    // A stale takeover has already counted the drawing that never ended.
+    const { attempts } = await RecipeRepository.pictureState(recipeId);
+
+    return { attempts, claimedAt: now, recipeId };
   },
 
   /**
@@ -376,20 +506,6 @@ export const RecipeController = {
     if (!(await RecipeRepository.setVerdict(userId, recipeId, verdict))) {
       throw new NotFoundError('Recipe not found');
     }
-  },
-
-  async storeIllustration(
-    recipeId: string,
-    image: {
-      readonly bytes: Buffer;
-      readonly contentType: string;
-      readonly height: number;
-      readonly model: string;
-      readonly promptVersion: string;
-      readonly width: number;
-    }
-  ): Promise<void> {
-    await RecipeRepository.saveImage(recipeId, image);
   },
 
   async verdictFor(userId: string, recipeId: string): Promise<'disliked' | 'liked' | null> {

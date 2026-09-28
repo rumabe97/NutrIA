@@ -131,7 +131,7 @@ which supersedes `0010`.
 
 ### Phase 2 — The image client, the prompt and the allergen judge
 
-- [x] done
+- [x] done — PR #128
 - **Dispatch**: opus @ high — `/execute-project 006 phase 2`. `quality-max`: AI output
   validation and allergy safety. Review: `invariant-reviewer`.
 - **Goal**: code that turns a recipe into an accepted or rejected picture, with every call
@@ -229,7 +229,7 @@ which supersedes `0010`.
 
 ### Phase 3 — Drawing on first view, storing in Blob, the monthly cap
 
-- [ ] pending
+- [x] done — PR #129
 - **Dispatch**: opus @ high — `/execute-project 006 phase 3`. It wires the phase 2 gate into
   what gets stored and shown. Reviews: `invariant-reviewer`, and `tests` for the
   end-to-end suite.
@@ -318,7 +318,7 @@ which supersedes `0010`.
 
 ### Phase 4 — The meal page waits for its picture; every picture says it is AI
 
-- [ ] pending
+- [x] done — PR #130
 - **Dispatch**: opus @ medium — `/execute-project 006 phase 4`. Reviews: `accessibility`, and
   `legal` for the strings.
 - **Goal**: the meal page shows the placeholder, then the picture without a reload. Every
@@ -364,7 +364,7 @@ which supersedes `0010`.
 
 ### Phase 5 — Published texts
 
-- [ ] pending
+- [x] done — PR #131
 - **Dispatch**: sonnet @ medium — `/execute-project 006 phase 5` — owner-approves: the
   privacy-policy and terms wording before it is published.
 - **Goal**: the live `/privacidad` and `/condiciones` say what the pictures do before the
@@ -392,7 +392,7 @@ which supersedes `0010`.
 
 ### Phase 6 — Go-live
 
-- [ ] pending
+- [ ] in progress — live since 2026-09-28; waiting on the first week's spend review and the C2PA check on a served file
 - **Dispatch**: opus @ medium — `/execute-project 006 phase 6`.
   - `owner-gated`: create the Blob store, set the environment variables, read Google
     Cloud's generative-AI terms, switch the flag on.
@@ -402,7 +402,9 @@ which supersedes `0010`.
 - **Steps**, for the owner, handed over as exact instructions:
   1. In Vercel, create a Blob store in **fra1**. The region cannot be changed later.
      Connect it to the API project, which adds `BLOB_READ_WRITE_TOKEN`.
-  2. In OpenRouter, create a key for pictures with a 10 $ monthly limit. Set it as
+  2. In OpenRouter, create a key for pictures, and give it a 10 $ monthly limit. The limit
+     is required, not optional: the code's cap gates each image call, but not the judge
+     calls after it or drawings running at the same time. Set it as
      `OPENROUTER_IMAGE_API_KEY` on the API project. Confirm the account's allowed
      providers include Google Vertex and DeepInfra. Revoke the pilot key.
   3. Read Google Cloud's generative-AI terms (legal item IMG-9).
@@ -413,7 +415,9 @@ which supersedes `0010`.
      - "nuts" beside a tiger-nut milk (horchata) dish;
      - a "free-from" pair such as "gluten-free pasta" plus "pasta".
      Check the first week's rejections and notes for them.
-  6. Open three or four dishes on the iPhone. Record "confirmed by human on <date>" in
+  6. Open three or four dishes on the iPhone. Validate the C2PA signature once on one file
+     exactly as Vercel Blob serves it in production, with `c2patool` or the Content
+     Credentials verifier (legal, P3). Record "confirmed by human on <date>" in
      LOG.md.
   7. After a week, read the spend line on `/admin`.
 - **Acceptance criteria**: PRD 10.

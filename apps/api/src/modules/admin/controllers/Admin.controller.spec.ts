@@ -43,7 +43,7 @@ describe('AdminController', () => {
       controllers: [AdminController],
       providers: [
         AdminService,
-        { provide: ENV, useValue: { APP_URL: 'https://nutria.example', BETTER_AUTH_SECRET: 'a'.repeat(48) } },
+        { provide: ENV, useValue: { AI_IMAGE_MONTHLY_CAP_USD: 10, APP_URL: 'https://nutria.example', BETTER_AUTH_SECRET: 'a'.repeat(48) } },
         // Registration order is execution order: the session stand-in has to put
         // the user on the request before the role is checked, exactly as
         // `SessionGuard` runs before `AdminGuard` in the real application.
@@ -83,6 +83,9 @@ describe('AdminController', () => {
     await request(app.getHttpServer() as Server)
       .get(`/${PREFIX}/admin/failures`)
       .expect(404);
+    await request(app.getHttpServer() as Server)
+      .get(`/${PREFIX}/admin/pictures`)
+      .expect(404);
     expect(overview).not.toHaveBeenCalled();
   });
 
@@ -95,5 +98,29 @@ describe('AdminController', () => {
       .expect(200);
 
     expect((response.body as AdminOverviewView).counts.accounts.total).toBe(6);
+  });
+
+  /* 0066: this month's picture spend, read against the cap drawing stops at. */
+  it('gives the owner the month’s picture spend against the configured cap', async () => {
+    role = 'admin';
+    const pictures = jest
+      .spyOn(CoreAdmin, 'pictures')
+      .mockResolvedValue({
+        capUsd: 10,
+        drawing: 1,
+        enabled: true,
+        failed: 2,
+        ready: 30,
+        released: 0,
+        since: '2026-09-01T00:00:00.000Z',
+        spentUsd: 1.25
+      });
+
+    const response = await request(app.getHttpServer() as Server)
+      .get(`/${PREFIX}/admin/pictures`)
+      .expect(200);
+
+    expect(response.body).toMatchObject({ capUsd: 10, ready: 30, spentUsd: 1.25 });
+    expect(pictures).toHaveBeenCalledWith(10);
   });
 });

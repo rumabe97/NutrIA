@@ -49,10 +49,16 @@ The landing's promise that the plan knows your working week ("los martes llegas 
 rewritten: nothing asks it any more.
 
 Found by the real-model comparison before merging: without the line about their day, the
-model labelled every dinner it was asked for as `supper`, and the pool dropped them. Each
-pool request asks for one meal, so the builder now adds that meal to the dish's own claim
-before the ingredient check (`fitSlots`) — the code, not the model, says what a dish was
-written for (`0004`); a stew asked for at dinner still stays out of dinner.
+model labelled every dinner it was asked for as `supper`, and the pool dropped them; on
+Gemma 4 31B, 38 of 144 dishes claimed a meal other than the one asked for (4.3.0: 1 of 138),
+some with no meal at all. Each pool request asks for one meal, so the builder keeps the
+model's claim only when it names that meal (a claim of lunch and dinner for a dinner stays
+both, as before), and otherwise replaces it with that meal alone — never adds to it, so a
+mislabelled dish cannot enter the library as a meal nobody asked for. Then the ingredient
+check (`fitSlots`) as always: the code, not the model, says what a dish was written for
+(`0004`); a stew asked for at dinner still stays out of dinner. Three runs each, 8 requests
+a run: valid dishes 90.6 % (4.3.0 with every answer filled) against 89.6 % (4.4.0), none
+lost to the meal label; three real fortnights each side, 14 of 14 days within 5 %.
 
 ## Alternatives considered
 
