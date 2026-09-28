@@ -50,7 +50,18 @@ body::before {
     radial-gradient(52rem 44rem at 96% 18%, var(--glow-brand), transparent 62%),
     radial-gradient(64rem 40rem at 45% 104%, var(--glow-cool), transparent 60%);
   content: '';
-  inset: 0;
+  /*
+   * Sized to the LARGE viewport, not `inset: 0`. On iOS Safari a fixed box with
+   * `inset: 0` covers only the small viewport — the part above the browser's
+   * bottom bar — while the page goes on drawing behind that translucent bar. The
+   * strip under it then showed the flat root colour, a band cut across the light.
+   * The app's own bottom navigation hid it; the admin console, which has none,
+   * did not. `100lvh` reaches behind the bar, whatever the bar is doing.
+   */
+  block-size: 100lvh;
+  inline-size: 100%;
+  inset-block-start: 0;
+  inset-inline-start: 0;
   pointer-events: none;
   position: fixed;
   z-index: -2;
@@ -67,7 +78,11 @@ body::before {
 body::after {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   content: '';
-  inset: 0;
+  /* The same large-viewport box as the light above (see there). */
+  block-size: 100lvh;
+  inline-size: 100%;
+  inset-block-start: 0;
+  inset-inline-start: 0;
   opacity: var(--grain-opacity);
   pointer-events: none;
   position: fixed;
