@@ -1,0 +1,38 @@
+/* The page measures itself, so the toolbar counts its columns from the room it has
+   beside the sidebar. */
+.page {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--gap-region);
+  /* One column that may shrink below its widest child: the table scrolls inside its own
+     region, and the page never scrolls sideways. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.opened {
+  background-color: var(--color-brand-03);
+  border-radius: var(--radius-control);
+  color: var(--color-brand-12);
+  font-size: var(--font-size-02);
+  margin: 0;
+  overflow-wrap: anywhere;
+  padding: var(--space-03) var(--space-04);
+}
+
+/* The chart sits on a card: the gaps between marks are the card's colour. */
+.chart {
+  --chart-surface: var(--surface-card);
+}
+
+/* The row's name: an address, whole and on one line — never broken into pieces, never
+   cut. On a narrow table the column is not pinned (`AdminTable`), so a long one scrolls
+   with the rest instead of covering it. */
+.email {
+  white-space: nowrap;
+}
+
+/* A lock still closed: the word says it, the weight and colour make it easy to find. */
+.page [data-state='off'] {
+  color: var(--color-warning-text);
+  font-weight: var(--font-weight-medium);
+}

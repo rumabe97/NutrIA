@@ -2,6 +2,8 @@
    paints it so the cells scrolling beneath do not show through; a table on a
    card sets it, on itself or on any ancestor, to the card's colour. */
 .region {
+  /* Measured, so the empty state can size itself to what is visible (`100cqi`). */
+  container-type: inline-size;
   max-inline-size: 100%;
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -86,5 +88,14 @@
 .table td.empty {
   color: var(--foreground-02);
   padding-block: var(--space-06);
-  text-align: center;
+  text-align: start;
+}
+
+/* The empty cell spans every column, so it can be far wider than the region on a
+   phone: its content stays pinned at the region's left edge and no wider than what is
+   visible, instead of centring off screen. */
+.emptyContent {
+  inset-inline-start: 0;
+  max-inline-size: 100cqi;
+  position: sticky;
 }

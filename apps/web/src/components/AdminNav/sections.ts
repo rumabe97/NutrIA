@@ -8,7 +8,7 @@ export interface AdminNavPage {
   readonly label: keyof AdminNavWords['pages'];
 }
 
-/** One of the console's six groups, headed by its name — or, with no name, the transition page. */
+/** One of the console's six groups, named over its list from two pages up — or, with no name, the transition page. */
 export interface AdminNavSection {
   readonly group: keyof AdminNavWords['groups'] | null;
   readonly pages: readonly AdminNavPage[];
@@ -20,11 +20,20 @@ export interface AdminNavSection {
  *
  * Only pages that exist are listed. A group with no page yet is still named
  * here, so each phase adds its page to the group it belongs to and nothing
- * else moves; the navigation draws no heading over an empty list.
+ * else moves. The navigation draws nothing for an empty group, a group of one
+ * page as that page's link alone (no "RESUMEN" over "Resumen"), and a named
+ * list from two pages up.
  */
 export const ADMIN_SECTIONS: readonly AdminNavSection[] = [
   { group: 'summary', pages: [{ href: '/admin', label: 'summary' }] },
-  { group: 'people', pages: [] },
+  {
+    group: 'people',
+    pages: [
+      { href: '/admin/cuentas', label: 'accounts' },
+      { href: '/admin/profesionales', label: 'professionals' },
+      { href: '/admin/buzon', label: 'inbox' }
+    ]
+  },
   {
     group: 'product',
     pages: [

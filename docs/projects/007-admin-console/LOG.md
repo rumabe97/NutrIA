@@ -490,3 +490,115 @@
     here; CI is unaffected.
   - Minor, not fixed: in `AdminSeriesController.test.ts`, the `NOW` comment calls
     2026-09-28 a Sunday; it is a Monday.
+
+## Phase 6 — Web: Cuentas, Profesionales, Buzón (2026-09-28)
+
+- **Executor**: the `frontend` agent (medium effort) on opus, twice. First it built the phase.
+  Second, from the build's commit, it fixed the accessibility findings and the owner's
+  three requests. Both worktrees were brought into the main checkout and removed. The
+  lead (opus, this session) made the last fixes. Reviews: `accessibility` on opus with
+  `/local-probe`, twice.
+- **Result**: done.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=web --filter=ui`: 14/14 tasks, 0 warnings; web
+    121 tests, ui 486. `pnpm -w run deadcode`: green. `pnpm --filter web build`: green,
+    every console page dynamic. `pnpm --filter docs build`: green.
+  - **First review** (`/local-probe`, 9 paths × 320/390/1280 × light/dark, JS on and off):
+    - The GET form, sorting, paging, the 404s and contrast all passed.
+    - It found one P1: at 320 px the pinned first column covered the grant form and the
+      revoke confirmation.
+    - It found five P2s: focus fell to `<body>`, row actions failed label-in-name, row
+      names broke into pieces, an invalid collegiate number was not announced, and the
+      toolbar was 1045 px tall at 200 % text.
+    - It found the 0028 issue below.
+  - **Second review, every earlier finding re-measured and fixed:**
+    - The grant form and the revoke confirmation are dialogs: 288 px wide at 320, focus
+      trapped and returned.
+    - After each action focus lands on the button or on the table's status line, never on
+      `<body>`.
+    - Every row action's name starts with its visible text.
+    - An invalid collegiate number is announced through an always-mounted alert.
+    - The toolbar is 369 px at 200 % text, with its filters folded into "Filtros (n
+      activos)".
+    - A non-admin gets "Página no encontrada · NutrIA" on all 8 pages and on `/admin/zzz`.
+    - Across 8 paths × 3 widths × 2 themes: 0 px sideways scroll, and no dark strip while
+      scrolling a real viewport.
+  - **Lead's check after the last fixes** (viewport shots, real scroll, with an admin probe
+    account, deleted after):
+    - `/admin/cuentas` at 1280 and 390, dark: dates on one line and 0 px sideways scroll.
+    - The empty state at 320 px sits inside the screen (x 57–287).
+    - `/admin/profesionales` at 320 px, 200 % text: the title hyphenates ("Profe-sionales")
+      and nothing is cut.
+- **The owner's requests (2026-09-28), all done**:
+  1. **"The background gets cut and a black part shows."** It was the DataTable's pinned
+     first column, whose flat fill could never match the page's ambient gradient.
+     Scrolling a real viewport showed the gradient itself is continuous. Every console
+     table now sits on a `Card`, like the charts, and the pinned column takes the card's
+     colour (`--table-surface: var(--surface-card)`).
+  2. **Menu: no heading followed by a page of the same name.** A group with exactly one
+     page draws as just that link: Resumen, PERSONAS…, PRODUCTO…, Ajustes, Anterior,
+     "Volver a NutrIA". Groups of two or more keep their heading. `ADMIN_SECTIONS` is
+     unchanged, so Generación and Catálogo get their headings as their pages land.
+  3. **Emails on one line.** Addresses never wrap. Below a 36rem table width, the first
+     column stops being sticky, so a long address never covers the other columns. The
+     lead extended this to every console table cell (dates, numbers, words); only Buzón's
+     message wraps, on purpose.
+- **Deviations from plan**:
+  1. The row actions live in their own islands (`AccountActions`, `ProfessionalRevoke`,
+     `FeedbackToggle`). `components/Pager` was deleted, since nothing else used it.
+     `AdminFilters`, `AdminTableStatus` and `useKeepFocus` are new. The Scope line is
+     amended.
+  2. **Resumen's `?abierta=` redirect is `forwardOpened.ts`,** which the page awaits
+     first. It is tested there, because vitest here cannot transform a page with JSX. It
+     repeats the role check before `redirect()`, so a non-admin and no session get 404,
+     never a redirect.
+  3. **Profesionales has an extra column, the collegiate number,** because the old list
+     showed it and nothing may be lost.
+  4. **The page size sits in the toolbar form,** because the pager cannot hold a nested
+     form.
+  5. **Cuentas and Buzón have a `PeriodSelector`,** because `/admin/people` takes a period.
+     Weeks are labelled by their Madrid Monday.
+  6. **Every console page carries `consoleMetadata(path)`,** and `admin/[...rest]` makes
+     every console 404 identical: a fix for `0028` that reached back to phases 1 and 4.
+     `readConsoleUser` is wrapped in React `cache`, so the gate and the metadata share
+     one read of `/users/me`.
+  7. **`packages/ui`:**
+     - `Dialog`: optional `closeButton`, an `onCloseAutoFocus` pass-through, a scrolling
+       sheet, and a title that breaks long addresses (3 tests, docs updated);
+     - `DataTable`: the region is measured (`container-type`), and the empty state is
+       pinned at the region's left edge and no wider than what is visible.
+  8. **The lead's last fixes:**
+     - the empty state, which was off screen at 320 px;
+     - `AdminPageHeader`, whose title is allowed to break at 200 % text;
+     - the revoke dialog, which now opens on Cancelar, so two presses of Enter never
+       revoke;
+     - one-line cells in every console table.
+- **What left the transition page, and what stayed**:
+  - Left: the accounts list and its `?cuentas=` pager, the professionals list and its
+    hint, and the inbox with its waiting count and `?buzon=` pager. With them went their
+    four reads and 41 `admin` dictionary keys; the ones still needed moved to
+    `adminAccounts`, `adminProfessionals` and `adminInbox`.
+  - Stayed: the recipe and ingredient tiles, pictures, AI, the recent jobs and the
+    generation log.
+- **Decisions**: none new.
+- **Notes for the next phase** (8 builds on `AdminTable`):
+  - **`AdminTable`:** pass a schema from `core/entities` to `readTableQuery`. Filters are
+    `AdminTableFilter[]`, a column sorts with `sort: { value, first }`, and more than one
+    filter folds into `AdminFilters`.
+  - **Free text:** any free-text parameter must be `q` (the API log redacts only `q`).
+    Cells are one line by default; a prose cell sets its own wrapping.
+  - **Repoint:** `NEEDS_YOU_HREF.failed` in `app/(admin)/admin/page.tsx` goes to Registro.
+    Remove `activationTitle`, `premiumTitle` and `remindersLabel` with the transition
+    page; they were already unused.
+  - **Open, not fixed:**
+    - With JS off, a non-admin's 404 HTML is blank. There is no `h1`, but nothing leaks
+      either. The cause is Next 16 metadata streaming; the only fix is blocking metadata
+      site-wide (`htmlLimitedBots`), which is the owner's call. P3.
+    - Any failed read of `/users/me`, a 429 included, shows an admin the 404. That is by
+      design, but an admin on a flaky connection is told the page doesn't exist.
+    - P3s:
+      - the invalid-number sentence can be spoken up to three times;
+      - with filters on at 320 / 200 %, the filters open to 1105 px;
+      - at 390 px nothing hints that more columns scroll sideways.
+  - **iPhone only:** how VoiceOver reads the dialogs and the focused status line, and the
+    drawer against the safe areas.

@@ -1,0 +1,33 @@
+.page {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--gap-region);
+  /* One column that may shrink below its widest child: the table scrolls inside its own
+     region, and the page never scrolls sideways. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The chart sits on a card: the gaps between marks are the card's colour. */
+.chart {
+  --chart-surface: var(--surface-card);
+}
+
+/* The whole message, wrapped: wide enough to read as prose, never cut or ellipsised. */
+.message {
+  color: var(--foreground-01);
+  margin: 0;
+  max-inline-size: 36rem;
+  min-inline-size: min(16rem, 60vw);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* Who wrote: the whole address on one line, never broken or cut. */
+.sender {
+  white-space: nowrap;
+}
+
+/* Still waiting: the word says it, the weight makes it easy to find down the column. */
+.waiting {
+  font-weight: var(--font-weight-semibold);
+}

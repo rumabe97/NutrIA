@@ -1,0 +1,23 @@
+.root {
+  display: grid;
+  gap: var(--space-02);
+  justify-items: start;
+}
+
+/* Side by side on a wide table cell, wrapping before the cell does. */
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+}
+
+/* The collegiate number, in its dialog: the field, what went wrong, then the two buttons. */
+.grant {
+  display: grid;
+  gap: var(--gap-block);
+}
+
+.error {
+  color: var(--color-error-text);
+  max-inline-size: 18rem;
+}

@@ -75,5 +75,53 @@ describe('Dialog', () => {
       await userEvent.click(screen.getByTestId('trigger'));
       expect(onOpenChange).toHaveBeenCalledWith(true);
     });
+
+    it('returns focus to the trigger on close by default', async () => {
+      const user = userEvent.setup();
+      renderDialog();
+      await user.click(screen.getByTestId('trigger'));
+      await user.keyboard('{Escape}');
+      expect(screen.getByTestId('trigger')).toHaveFocus();
+    });
+
+    it('lets onCloseAutoFocus send focus elsewhere', async () => {
+      const user = userEvent.setup();
+      render(
+        <div>
+          <button data-testid="elsewhere" type="button">
+            Elsewhere
+          </button>
+          <Dialog
+            onCloseAutoFocus={event => {
+              event.preventDefault();
+              screen.getByTestId('elsewhere').focus();
+            }}
+            title="My dialog"
+            trigger={<button data-testid="trigger">Open</button>}
+          >
+            <p>body content</p>
+          </Dialog>
+        </div>
+      );
+      await user.click(screen.getByTestId('trigger'));
+      await user.keyboard('{Escape}');
+      expect(screen.getByTestId('elsewhere')).toHaveFocus();
+    });
+  });
+
+  describe('without a close button', () => {
+    it('renders no close control and still closes on Escape', async () => {
+      const user = userEvent.setup();
+      render(
+        <Dialog title="My dialog" trigger={<button data-testid="trigger">Open</button>}>
+          <p>body content</p>
+        </Dialog>
+      );
+      await user.click(screen.getByTestId('trigger'));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
   });
 });

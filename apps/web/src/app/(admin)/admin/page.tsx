@@ -20,7 +20,8 @@ import { DEFAULT_PERIOD } from 'core/entities/Period';
 import { formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
-import { appMetadata } from '../../_shared/metadata';
+import { consoleMetadata } from './consoleMetadata';
+import { forwardOpened } from './forwardOpened';
 
 import type { AdminSummaryView } from 'core/controllers/Admin';
 import type { Metadata } from 'next';
@@ -29,16 +30,16 @@ import type { PageQuery } from 'components/PeriodSelector';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return appMetadata('/admin');
+  return consoleMetadata('/admin');
 }
 
 /**
- * Where each "needs you" row leads. Until Cuentas, Buzón and Registro exist they are
- * the transition page's sections; phase 6 repoints the first two
- * (`/admin/cuentas?activated=no`, `/admin/buzon?state=waiting`) and phase 8 the third
- * (`/admin/generacion?status=failed&since=24h`).
+ * Where each "needs you" row leads: the table it counts, already filtered. "Waiting"
+ * is `activated=no`, which includes addresses not yet confirmed — the same count.
+ * Registro does not exist yet, so failures are the transition page's section until
+ * phase 8 repoints it (`/admin/generacion?status=failed&since=24h`).
  */
-const NEEDS_YOU_HREF = { failed: '/admin/anterior#registro', unread: '/admin/anterior#buzon', waiting: '/admin/anterior#cuentas' } as const;
+const NEEDS_YOU_HREF = { failed: '/admin/anterior#registro', unread: '/admin/buzon?state=waiting', waiting: '/admin/cuentas?activated=no' } as const;
 
 /**
  * Resumen (`0068`): the period's headline figures against the period before, sign-ups
@@ -47,13 +48,17 @@ const NEEDS_YOU_HREF = { failed: '/admin/anterior#registro', unread: '/admin/ant
  *
  * The API answers `/admin/summary` with a 404 to anybody but an admin, so a missing
  * answer is the same 404 here, whatever the gate above has done yet. Nothing on this
- * page redirects, so it has no answer that could tell a stranger the address exists.
+ * page redirects but `forwardOpened`, which asks the gate's question first.
  *
- * The mailed activation link lands here as `/admin?abierta=…` and the banner says which
- * account was opened; phase 6 sends it on to Cuentas.
+ * The mailed activation link lands here as `/admin?abierta=…` (the API's redirect, which
+ * does not change) and is sent on to Cuentas, whose banner says which account was
+ * opened.
  */
 export default async function AdminSummaryPage({ searchParams }: { searchParams: Promise<PageQuery> }) {
   const query = await searchParams;
+
+  await forwardOpened(query);
+
   const period = parsePeriod(query.period) ?? DEFAULT_PERIOD;
   const [dictionary, locale, summary] = await Promise.all([
     getDictionary(),
@@ -75,7 +80,6 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
   const outcome = (key: string) => charts.generations.series.find(series => series.key === key)?.values ?? [];
   const pending = charts.generations.days.map((_, index) => (outcome('queued')[index] ?? 0) + (outcome('running')[index] ?? 0));
   const failedInPeriod = outcome('failed').reduce((total, value) => total + value, 0);
-  const opened = typeof query.abierta === 'string' ? [query.abierta] : (query.abierta ?? []);
   const rate = tiles.successRate;
   const rateNote = [
     rate.current === null ? t.noneFinished : interpolate(t.failedInPeriod, { count: number(failedInPeriod) }),
@@ -94,12 +98,6 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
       <AdminPageHeader intro={t.intro} title={t.title}>
         <PeriodSelector current={period} label={common.period} optionLabel={common.periodOption} pathname="/admin" query={query} />
       </AdminPageHeader>
-
-      {opened.length > 0 ? (
-        <p className={styles.opened} role="status">
-          {interpolate(dictionary.admin.justOpened, { email: opened.join(', ') })}
-        </p>
-      ) : null}
 
       <ul aria-label={t.tilesLabel} className={styles.tiles}>
         <Card as="li" padding="sm">

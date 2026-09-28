@@ -38,7 +38,8 @@ export default function Example() {
 <PropsTable data={[
   { prop: "trigger", type: "ReactNode", default: "—", description: "**Required.** Element that opens the dialog" },
   { prop: "title", type: "string", default: "—", description: "**Required.** Heading rendered inside the dialog" },
-  { prop: "closeButton", type: "ReactNode", default: "—", description: "**Required.** Element rendered as the close button" },
+  { prop: "closeButton", type: "ReactNode", default: "—", description: "Element rendered as the close button. Omit it only when the body has its own way out (a \"Cancel\" that sets `open` to false); `Escape` closes either way." },
+  { prop: "onCloseAutoFocus", type: "(event: Event) => void", default: "—", description: "Runs as the dialog closes, before focus returns to the trigger. Call `event.preventDefault()` and focus something else when the dialog's own action took the trigger away." },
   { prop: "children", type: "ReactNode", default: "—", description: "Body content of the dialog" },
   { prop: "description", type: "string", default: "—", description: "Optional explanatory copy announced to screen readers via `aria-describedby`. Pass it when there's meaningful context beyond the title — e.g. \"This will permanently delete the project.\"" },
   { prop: "open", type: "boolean", default: "—", description: "Controlled open state. Omit for uncontrolled behaviour (the trigger handles open/close)." },
@@ -50,7 +51,8 @@ All other [Radix Dialog Root props](https://www.radix-ui.com/primitives/docs/com
 
 ## Accessibility
 
-- Focus is trapped inside the dialog when open; returns to the trigger on close.
+- Focus is trapped inside the dialog when open; returns to the trigger on close, unless `onCloseAutoFocus` sends it elsewhere.
+- The sheet scrolls when its content is taller than the screen (large text on a phone).
 - `Escape` closes the dialog.
 - Background content receives `aria-hidden` while the dialog is open.
 - The dialog element has `role="dialog"` and `aria-labelledby` pointing to the title.

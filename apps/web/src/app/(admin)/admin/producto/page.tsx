@@ -18,7 +18,7 @@ import { DEFAULT_PERIOD } from 'core/entities/Period';
 import { formatNumber } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
-import { appMetadata } from '../../../_shared/metadata';
+import { consoleMetadata } from '../consoleMetadata';
 
 import type { AdminProductView } from 'core/controllers/Admin';
 import type { ChartTone } from 'ui/types/Chart.types';
@@ -28,7 +28,7 @@ import type { PageQuery } from 'components/PeriodSelector';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return appMetadata('/admin/producto');
+  return consoleMetadata('/admin/producto');
 }
 
 /** The order people actually move through, so each step can say what share of the one above it got here. */

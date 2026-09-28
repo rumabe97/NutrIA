@@ -17,7 +17,7 @@ import { DEFAULT_PERIOD } from 'core/entities/Period';
 
 import { serverApi } from 'lib/server-api';
 
-import { appMetadata } from '../../../../_shared/metadata';
+import { consoleMetadata } from '../../consoleMetadata';
 
 import type { AdminPlansView } from 'core/controllers/Admin';
 import type { ChartTone } from 'ui/types/Chart.types';
@@ -27,7 +27,7 @@ import type { PageQuery } from 'components/PeriodSelector';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return appMetadata('/admin/producto/planes');
+  return consoleMetadata('/admin/producto/planes');
 }
 
 /**

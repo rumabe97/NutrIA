@@ -280,7 +280,7 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 5 — API: accounts, professionals and inbox as queryable tables
 
-- [x] done
+- [x] done — commit `e0ae089` ("The console's people tables search, filter, sort and page in SQL")
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 5`. Reviews: `invariant-reviewer`
   (the milestone columns must stay milestones). The `tests` agent writes the end-to-end
   cases.
@@ -323,14 +323,17 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 6 — Web: Cuentas, Profesionales, Buzón
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 6`. Reviews: `accessibility`
   (table, toolbar, row actions), plus `/local-probe`.
 - **Goal**: the people pages are tables that search, filter and sort, with today's row
   actions, and the cards are gone.
 - **Scope**: `apps/web/src/app/(admin)/admin/{cuentas,profesionales,buzon}/**`,
   `apps/web/src/components/{AdminTable,AccountList,ProfessionalList,FeedbackInbox,AdminNav}/**`,
-  the transition page, Resumen's links, the dictionaries.
+  the transition page, Resumen's links, the dictionaries. Added in phase 6 (see LOG): the
+  row-action islands (`AccountActions`, `ProfessionalRevoke`, `FeedbackToggle`),
+  `AdminFilters`, `useKeepFocus`, `consoleMetadata` and the `admin/[...rest]` catch-all
+  on every console page, `AdminPageHeader`, and in `packages/ui` `Dialog` and `DataTable`.
 - **Steps**:
   1. `components/AdminTable` is the table from the Design summary. It works as a plain
      GET form without JavaScript, and the client enhancement is progressive.

@@ -4,12 +4,10 @@ import styles from './layout.module.css';
 
 import { AdminNav } from 'components/AdminNav';
 
-import { serverApi } from 'lib/server-api';
-
 import { MAIN_ID } from '../../_shared/mainId';
+import { readConsoleUser } from './consoleMetadata';
 
 import type { ReactNode } from 'react';
-import type { UserView } from 'core/controllers/User';
 
 // Every console page is read per request, for the session: nothing here may be
 // prerendered as whoever built it.
@@ -29,7 +27,7 @@ export const dynamic = 'force-dynamic';
  * a boundary beside it only wraps its pages, not the layout that throws.
  */
 export default async function AdminLayout({ children }: Readonly<{ children: ReactNode }>) {
-  const user = await serverApi<UserView>('/users/me');
+  const user = await readConsoleUser();
 
   if (user?.role !== 'admin') {
     notFound();

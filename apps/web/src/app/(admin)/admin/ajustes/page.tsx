@@ -11,7 +11,7 @@ import { PushTestButton } from 'components/PushTestButton';
 
 import { serverApi } from 'lib/server-api';
 
-import { appMetadata } from '../../../_shared/metadata';
+import { consoleMetadata } from '../consoleMetadata';
 
 import type { Metadata } from 'next';
 import type { SettingsView } from 'core/controllers/Settings';
@@ -19,7 +19,7 @@ import type { SettingsView } from 'core/controllers/Settings';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return appMetadata('/admin/ajustes');
+  return consoleMetadata('/admin/ajustes');
 }
 
 /**

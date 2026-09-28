@@ -94,7 +94,7 @@ export function DataTable({ caption, className, columns, empty, hideCaption, row
           {rows.length === 0 ? (
             <tr>
               <td className={styles.empty} colSpan={Math.max(columns.length, 1)}>
-                {empty}
+                <div className={styles.emptyContent}>{empty}</div>
               </td>
             </tr>
           ) : (
