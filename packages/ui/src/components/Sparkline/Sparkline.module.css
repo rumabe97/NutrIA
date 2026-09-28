@@ -1,0 +1,51 @@
+.sparkline {
+  block-size: 1.5rem;
+  display: block;
+  inline-size: 100%;
+  max-inline-size: 6rem;
+  overflow: visible;
+}
+
+.line {
+  fill: none;
+  stroke: var(--tone);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5px;
+}
+
+.tone1 {
+  --tone: var(--color-chart-1);
+}
+
+.tone2 {
+  --tone: var(--color-chart-2);
+}
+
+.tone3 {
+  --tone: var(--color-chart-3);
+}
+
+.tone4 {
+  --tone: var(--color-chart-4);
+}
+
+.tone5 {
+  --tone: var(--color-chart-5);
+}
+
+.tone6 {
+  --tone: var(--color-chart-6);
+}
+
+.toneSuccess {
+  --tone: var(--color-chart-success);
+}
+
+.toneFailure {
+  --tone: var(--color-chart-failure);
+}
+
+.toneNeutral {
+  --tone: var(--color-chart-neutral);
+}

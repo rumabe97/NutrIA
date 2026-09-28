@@ -1,0 +1,9 @@
+.icon {
+  flex: none;
+  height: 1em;
+  width: 1em;
+}
+
+.idle {
+  color: var(--foreground-03);
+}

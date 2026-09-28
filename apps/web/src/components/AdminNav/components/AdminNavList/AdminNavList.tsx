@@ -8,11 +8,25 @@ import { useDictionary } from 'i18n/LocaleProvider';
 
 import { ADMIN_SECTIONS } from '../../sections';
 
+import type { MouseEvent } from 'react';
+
 interface AdminNavListProps {
-  /** Called when a link is followed — the drawer closes on it; the sidebar passes nothing. */
-  onNavigate?: () => void;
+  /** Called with the link's address when one is followed — the drawer closes on it; the sidebar passes nothing. */
+  onNavigate?: (href: string) => void;
   /** The address being read, so its entry can say so. */
   pathname: string;
+}
+
+/**
+ * A plain click follows the link here; a modified one (a new tab, a download) leaves
+ * this page where it is, so the drawer must not act as if it navigated.
+ */
+function navigated(event: MouseEvent<HTMLAnchorElement>, href: string, onNavigate: (href: string) => void) {
+  if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+    return;
+  }
+
+  onNavigate(href);
 }
 
 /**
@@ -45,7 +59,12 @@ export function AdminNavList({ onNavigate, pathname }: AdminNavListProps) {
               {section.pages.map(page => (
                 <li key={page.href}>
                   {/* Exact, not a prefix: every page has its own entry, and Resumen is `/admin` itself. */}
-                  <Link aria-current={pathname === page.href ? 'page' : undefined} className={styles.link} href={page.href} onClick={onNavigate}>
+                  <Link
+                    aria-current={pathname === page.href ? 'page' : undefined}
+                    className={styles.link}
+                    href={page.href}
+                    onClick={onNavigate ? event => navigated(event, page.href, onNavigate) : undefined}
+                  >
                     {t.pages[page.label]}
                   </Link>
                 </li>
@@ -55,7 +74,11 @@ export function AdminNavList({ onNavigate, pathname }: AdminNavListProps) {
         );
       })}
 
-      <Link className={`${styles.link} ${styles.back}`} href="/inicio" onClick={onNavigate}>
+      <Link
+        className={`${styles.link} ${styles.back}`}
+        href="/inicio"
+        onClick={onNavigate ? event => navigated(event, '/inicio', onNavigate) : undefined}
+      >
         <svg aria-hidden="true" className={styles.backIcon} fill="none" stroke="currentColor" strokeWidth="1.6" viewBox="0 0 24 24">
           <path d="M15 5l-7 7 7 7" strokeLinecap="round" strokeLinejoin="round" />
         </svg>

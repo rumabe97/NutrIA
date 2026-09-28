@@ -22,6 +22,12 @@ export interface SidebarProps {
   description?: string;
   /** Edge the sidebar slides in from. Defaults to `'left'`. */
   direction?: 'left' | 'right';
+  /**
+   * Called when the closed sidebar is about to return focus to its trigger. Call
+   * `event.preventDefault()` to keep focus where it is — when the sidebar closed because
+   * a link inside it was followed, and the new page moves focus itself.
+   */
+  onCloseAutoFocus?: (event: Event) => void;
   /** Controlled open handler. Omit for uncontrolled. */
   onOpenChange?: (open: boolean) => void;
   /** Controlled open state. Pair with `onOpenChange`; omit both for uncontrolled mode. */
@@ -32,13 +38,13 @@ export interface SidebarProps {
   trigger: ReactElement;
 }
 
-export function Sidebar({ children, description, direction = 'left', onOpenChange, open, title, trigger }: SidebarProps) {
+export function Sidebar({ children, description, direction = 'left', onCloseAutoFocus, onOpenChange, open, title, trigger }: SidebarProps) {
   return (
     <Drawer.Root direction={direction} handleOnly={true} onOpenChange={onOpenChange} open={open}>
       <Drawer.Trigger asChild={true}>{trigger}</Drawer.Trigger>
       <Drawer.Portal>
         <Drawer.Overlay className={styles.overlay} />
-        <Drawer.Content asChild={true}>
+        <Drawer.Content asChild={true} onCloseAutoFocus={onCloseAutoFocus}>
           <aside
             className={`${styles.sidebar} ${styles[direction]}`}
             style={sidebarStyle}

@@ -2,6 +2,7 @@ import { Preview } from './src/components/Preview';
 import { PropsTable } from './src/components/PropsTable';
 import { Table } from './src/components/Table';
 import { CodeBlock } from './src/components/CodeBlock';
+import { FullWidth } from './src/components/FullWidth';
 
 import type { MDXComponents } from 'mdx/types';
 
@@ -14,5 +15,5 @@ import type { MDXComponents } from 'mdx/types';
 // single line, or be wrapped in a JSX expression like `<Text>{<>multi-line</>}</Text>`. See
 // apps/docs/AGENTS.md and packages/ui/AGENTS.md for the full rule.
 export function useMDXComponents(components: MDXComponents): MDXComponents {
-  return { Preview, PropsTable, table: Table, pre: CodeBlock, ...components };
+  return { Preview, FullWidth, PropsTable, table: Table, pre: CodeBlock, ...components };
 }

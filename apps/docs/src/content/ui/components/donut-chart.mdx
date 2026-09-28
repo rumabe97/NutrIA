@@ -1,0 +1,88 @@
+import { DonutChart } from 'ui/components/DonutChart';
+import { PropsTable } from 'components/PropsTable';
+
+# DonutChart
+
+Parts of a whole (decision `0069`). The legend is always there and always carries each slice's count and share, because an angle is the hardest thing on a chart to read: the ring shows proportion at a glance, the legend says how many. The legend sits beside the ring and wraps under it on a narrow screen.
+
+It takes one series; its values are the slices, in label order. A zero slice is not drawn but stays in the legend and the table. All zeros draws `emptyLabel`.
+
+## Examples
+
+### Default colours
+
+<Preview code={`import { DonutChart } from 'ui/components/DonutChart';
+
+export default function Example() {
+  return (
+    <DonutChart
+      dataLabel="Show data"
+      emptyLabel="No plans yet."
+      labels={['Active', 'Archived', 'Generating']}
+      labelsHeader="State"
+      locale="en-GB"
+      series={[{ name: 'Plans', values: [182, 64, 3] }]}
+      title="Plans by state"
+    />
+  );
+}`}>
+  <FullWidth>
+    <DonutChart
+      dataLabel="Show data"
+      emptyLabel="No plans yet."
+      labels={['Active', 'Archived', 'Generating']}
+      labelsHeader="State"
+      locale="en-GB"
+      series={[{ name: 'Plans', values: [182, 64, 3] }]}
+      title="Plans by state"
+    />
+  </FullWidth>
+</Preview>
+
+### Outcome tones
+
+<Preview code={`<DonutChart
+  dataLabel="Show data"
+  emptyLabel="No pictures yet."
+  labels={['Drawn', 'Failed', 'Released']}
+  labelsHeader="State"
+  locale="en-GB"
+  series={[{ name: 'Pictures', values: [412, 9, 37] }]}
+  title="Dish pictures"
+  tones={['success', 'failure', 'neutral']}
+/>`}>
+  <FullWidth>
+    <DonutChart
+      dataLabel="Show data"
+      emptyLabel="No pictures yet."
+      labels={['Drawn', 'Failed', 'Released']}
+      labelsHeader="State"
+      locale="en-GB"
+      series={[{ name: 'Pictures', values: [412, 9, 37] }]}
+      title="Dish pictures"
+      tones={['success', 'failure', 'neutral']}
+    />
+  </FullWidth>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "title", type: "string", default: "—", description: "**Required.** Visible caption and the chart's accessible name" },
+  { prop: "labels", type: "readonly string[]", default: "—", description: "**Required.** One per slice" },
+  { prop: "series", type: "readonly ChartSeries[]", default: "—", description: "**Required.** One series: its values are the slices, its name heads the table's figures" },
+  { prop: "shareHeader", type: "string", default: "—", description: "Header of a share column in the \"show data\" table; given, the table carries each share as the legend does" },
+  { prop: "tones", type: "readonly (ChartTone | undefined)[]", default: "—", description: "A colour per slice, in label order; the categorical slots otherwise" },
+  { prop: "labelsHeader", type: "string", default: "—", description: "**Required.** Header of the table's first column" },
+  { prop: "dataLabel", type: "string", default: "—", description: "**Required.** Text of the \"show data\" disclosure" },
+  { prop: "emptyLabel", type: "string", default: "—", description: "**Required.** What the chart says when there is nothing to draw" },
+  { prop: "locale", type: "string", default: "—", description: "**Required.** Locale for the counts and the shares" },
+  { prop: "formatValue", type: "(value: number) => string", default: "locale number", description: "Formats the counts" },
+  { prop: "className", type: "string", default: "—", description: "Class on the `<figure>`" },
+]} />
+
+## Accessibility
+
+- Every count and share is printed in the legend; the ring is never the only place a number lives.
+- Each slice's `<title>` holds its count and share.
+- The counts are also in the "show data" table.

@@ -1,0 +1,65 @@
+import { ChartFrameExample } from 'components/examples/ChartFrameExample';
+import { PropsTable } from 'components/PropsTable';
+
+# ChartFrame
+
+What every chart is drawn in (decision `0069`): a `<figure>` whose caption names the plot, a legend when it is given, and a "show data" disclosure with the same figures as a `DataTable`. An empty chart says so in words instead of drawing. `LineChart`, `ColumnChart`, `BarChart`, `DonutChart` and `Gauge` are built on it — reach for those first; use the frame directly only for a new kind of chart.
+
+`ChartAxes` is its companion for a chart with a y scale: gridlines, tick labels and x labels inside the `<svg>`, in per cent across and px down, so the chart fills any width without measuring itself.
+
+The frame is a size container (a narrow chart drops minor x labels), and `--chart-surface` — `--background-01` unless set — is the colour of the gaps between marks and the halo behind tick labels. Set it on `className` when the chart sits on a card.
+
+## Example
+
+<Preview code={`import { useId } from 'react';
+import { ChartFrame, ChartAxes } from 'ui/components/ChartFrame';
+
+export function MyChart() {
+  const titleId = useId();
+
+  return (
+    <ChartFrame
+      dataLabel="Show data"
+      empty={false}
+      emptyLabel="Nothing to show."
+      table={{ columns: ['Calls'], labelsHeader: 'Day', rows: [{ cells: ['40'], label: '27 Sept' }, { cells: ['80'], label: '28 Sept' }] }}
+      title="Calls"
+      titleId={titleId}
+    >
+      <svg aria-labelledby={titleId} height={120} role="img" width="100%">
+        <ChartAxes
+          labelY={112}
+          labels={[{ anchor: 'start', minor: false, text: '27 Sept', x: 0 }, { anchor: 'end', minor: false, text: '28 Sept', x: 100 }]}
+          ticks={[{ text: '0', y: 96 }, { text: '50', y: 56 }, { text: '100', y: 16 }]}
+        />
+      </svg>
+    </ChartFrame>
+  );
+}`}>
+  <FullWidth>
+    <ChartFrameExample />
+  </FullWidth>
+</Preview>
+
+## Props
+
+<PropsTable data={[
+  { prop: "title", type: "string", default: "—", description: "**Required.** The visible caption" },
+  { prop: "titleId", type: "string", default: "—", description: "**Required.** Id for the caption, from `useId`, so the plot can name itself with `aria-labelledby`" },
+  { prop: "children", type: "ReactNode", default: "—", description: "**Required.** The plot; not drawn when `empty`" },
+  { prop: "table", type: "ChartFrameTable", default: "—", description: "**Required.** `{ labelsHeader, columns, rows: { label, cells }[] }`, figures already formatted" },
+  { prop: "dataLabel", type: "string", default: "—", description: "**Required.** Text of the \"show data\" disclosure" },
+  { prop: "empty", type: "boolean", default: "—", description: "**Required.** Draw `emptyLabel` instead of the plot and the table" },
+  { prop: "emptyLabel", type: "string", default: "—", description: "**Required.** What an empty chart says" },
+  { prop: "legend", type: "readonly ChartLegendItem[]", default: "—", description: "`{ name, tone?, detail? }` entries; pass them for two series or more" },
+  { prop: "layout", type: "'stacked' | 'beside'", default: "'stacked'", description: "`beside` puts the legend next to the plot (the donut)" },
+]} />
+
+`ChartAxes` takes `ticks` (`{ text, y }`, zero first — it draws the baseline), `labels` (`{ text, x, anchor, minor }`, `x` in per cent), `labelY`, and the marks as `children`: it draws them over the gridlines and under the labels.
+
+## Accessibility
+
+- The `<figure>` is named by its caption; the plot should be `role="img"` with `aria-labelledby={titleId}`.
+- The disclosure is a native `<details>`; its summary is `--target-min` tall under a coarse pointer.
+- `ChartAxes` is `aria-hidden`: the table carries every figure.
+- An element rendered twice from the **same** React element object in a Server Component repeats its `useId` ids — the server sends it once and references it. Render each chart from its own element.

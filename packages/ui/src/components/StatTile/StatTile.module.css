@@ -1,0 +1,71 @@
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-01);
+  min-inline-size: 0;
+}
+
+.label {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-03);
+}
+
+.row {
+  align-items: flex-end;
+  display: flex;
+  gap: var(--space-03);
+  justify-content: space-between;
+}
+
+.value {
+  color: var(--foreground-01);
+  font-size: var(--font-size-08);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-02);
+  /* The figure keeps its width and breaks only between words, never inside a number;
+     the sparkline beside it is what gives way. */
+  flex: 0 1 auto;
+  min-inline-size: min-content;
+  overflow-wrap: break-word;
+}
+
+.sparkline {
+  flex: 0 1 6rem;
+  margin-block-end: var(--space-01);
+  min-inline-size: 0;
+}
+
+.change {
+  align-items: center;
+  display: inline-flex;
+  font-size: var(--font-size-02);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-medium);
+  gap: var(--space-01);
+}
+
+.arrow {
+  flex: none;
+  height: 0.625rem;
+  width: 0.625rem;
+}
+
+.flat {
+  color: var(--foreground-02);
+}
+
+.good {
+  color: var(--color-success-text);
+}
+
+.bad {
+  color: var(--color-error-text);
+}
+
+.note {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  line-height: var(--line-height-03);
+}

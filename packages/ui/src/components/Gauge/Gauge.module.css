@@ -1,0 +1,69 @@
+.gauge {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-02);
+}
+
+.figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02) var(--space-04);
+  justify-content: space-between;
+}
+
+.figure {
+  display: flex;
+  flex-direction: column;
+}
+
+.cap {
+  text-align: end;
+}
+
+.label {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+}
+
+.value {
+  color: var(--foreground-01);
+  font-size: var(--font-size-06);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-02);
+}
+
+.cap .value {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-medium);
+}
+
+.chart {
+  display: block;
+}
+
+.track {
+  fill: var(--background-highlight);
+}
+
+.fill {
+  fill: var(--color-chart-1);
+}
+
+.over {
+  fill: var(--color-chart-failure);
+}
+
+.warning {
+  align-items: center;
+  color: var(--color-error-text);
+  display: flex;
+  font-size: var(--font-size-02);
+  font-weight: var(--font-weight-medium);
+  gap: var(--space-01);
+}
+
+.icon {
+  flex: none;
+  height: 1em;
+  width: 1em;
+}
