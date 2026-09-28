@@ -91,15 +91,31 @@ container and the suites about twenty minutes on a shared runner. That is also t
 to "what if I break the harness": the failure arrives on the pull request that caused it,
 before it can reach `main`.
 
-### A throwaway database without Docker
+### Without Docker: the Nutria-E2E project
 
-This machine has neither Docker nor a local Postgres, and Neon's free tier allows one
-branch per project besides the default. A second **database on the dev branch** is the
-throwaway: `create database nutria_e2e;` once, from the SQL editor or any client connected
-to the dev branch's direct endpoint, then point both URLs above at it by replacing
-`/neondb` with `/nutria_e2e` in the dev branch's connection strings. Migrations and the
-seed run against it like any other database (the seed takes about ten minutes from here);
-dropping it afterwards is `drop database nutria_e2e;`.
+This machine has neither Docker nor a local Postgres. Since 2026-09-24 local development
+and these suites have their own Neon project, **Nutria-E2E** (endpoint
+`ep-billowing-water-…`, database `neondb`), separate from production's project so they no
+longer spend its free allowance. `apps/api/.env`'s `DATABASE_URL` and
+`DIRECT_DATABASE_URL` point at it, and that is the one exception to "never a URL from a
+`.env`" above: run the command with those two values in place of the `127.0.0.1:54329`
+ones, after `guard.mjs` has confirmed they are not production's.
+
+It is also the development database, library and all, so a run there must leave it as it
+found it. Every suite deletes the accounts it makes (below), and the global teardown
+fails the run if any `.invalid` account is left. That includes a `@probe.invalid` one the
+local probe forgot, so clean those first. Do not reseed it for a run. The old
+`nutria_e2e` database on the dev branch of production's project went with the split and no
+longer exists; if a throwaway is ever wanted again, `create database nutria_e2e;` inside
+Nutria-E2E and replace `/neondb` with `/nutria_e2e` in both URLs. Migrations and the seed
+run against it like any other database (the seed takes about ten minutes from here).
+
+A local run against this remote database has two clocks in play, the machine's and
+Neon's, so keep the machine's synced (`timedatectl set-ntp true`). Otherwise a suite that
+judges the database's timestamps by the API's own clock can read one as the other. Expect
+it to be slow too: the full run takes about an hour from here, and a `beforeAll` that
+creates several accounts can pass its 120 s hook timeout on a slow day. CI's container is
+the verdict.
 
 ### Every suite deletes what it makes
 
