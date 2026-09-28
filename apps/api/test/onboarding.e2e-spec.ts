@@ -1,7 +1,18 @@
 import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
-import { completeOnboarding, createApp, deleteAccounts, httpServer, markLegacyOnboarding, PREFIX, register, ScriptedAiClient } from './harness.js';
+import {
+  completeOnboarding,
+  createApp,
+  deleteAccounts,
+  generateAndWait,
+  httpServer,
+  markLegacyOnboarding,
+  POOL,
+  PREFIX,
+  register,
+  ScriptedAiClient
+} from './harness.js';
 
 import { shapeFor } from 'core/domain/MealShape';
 
@@ -43,8 +54,8 @@ describe('onboarding', () => {
   };
 
   beforeAll(async () => {
-    // No generation in this suite, so nothing scripted needs to be a real dish.
-    app = await createApp(new ScriptedAiClient([]));
+    // The shared pool: one legacy account below generates a plan.
+    app = await createApp(new ScriptedAiClient(POOL));
   });
 
   afterAll(async () => {
@@ -66,6 +77,15 @@ describe('onboarding', () => {
 
     expect(code(refused)).toBe('INVALID_INPUT');
     expect((await onboardingView(account)).completedSteps).toEqual(before.completedSteps);
+
+    // The same answer as any step name the schema never knew: 'lifestyle' is not special-cased.
+    const unknown: Response = await request(httpServer(app))
+      .patch(`/${PREFIX}/onboarding`)
+      .set('Cookie', account.cookie)
+      .send({ data: {}, step: 'no-such-step' })
+      .expect(422);
+
+    expect(code(unknown)).toBe('INVALID_INPUT');
   });
 
   it('reads an account that finished the old ten-step flow as complete, not as broken', async () => {
@@ -86,6 +106,21 @@ describe('onboarding', () => {
     // A guarded route that needs no plan: this is about the guard reading the
     // legacy row without tripping, not about generation.
     await request(httpServer(app)).get(`/${PREFIX}/check-ins/status`).set('Cookie', account.cookie).expect(200);
+  });
+
+  it('lets an account that finished the old ten-step flow generate a plan', async () => {
+    const account = await register(app, `legacy-generation-${Date.now()}@e2e.invalid`);
+
+    made.push(account.cookie);
+    await completeOnboarding(app, account);
+    await markLegacyOnboarding(account.id);
+
+    // Generation reads the onboarding row twice — the guard, then the job's own
+    // completeness check — and neither may trip on 'lifestyle' or step 10.
+    const job = await generateAndWait(app, account);
+
+    expect(job).toMatchObject({ error: null, status: 'succeeded' });
+    await request(httpServer(app)).get(`/${PREFIX}/meal-plans/active`).set('Cookie', account.cookie).expect(200);
   });
 
   it('persists a country given in about-you', async () => {
@@ -146,6 +181,16 @@ describe('onboarding', () => {
     const preferences = profile.preferences as unknown as Record<string, unknown>;
 
     expect(goal).not.toHaveProperty('customGoal');
+
+    // `PATCH /profile/goal` strips it too, and does not answer with it.
+    const updated: Response = await request(server)
+      .patch(`/${PREFIX}/profile/goal`)
+      .set('Cookie', account.cookie)
+      .send({ customGoal: 'Subir el Everest', paceKgPerWeek: null, targetWeightKg: 66, type: 'maintenance' })
+      .expect(200);
+
+    expect(updated.body as Record<string, unknown>).not.toHaveProperty('customGoal');
+    expect((await profileView(account)).goal as unknown as Record<string, unknown>).not.toHaveProperty('customGoal');
 
     for (const key of [
       'breakfastStyle',
