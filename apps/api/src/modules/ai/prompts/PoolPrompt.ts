@@ -141,8 +141,14 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * alone goes in its own field") read as "leave `minutes` out": on 125 dishes
  * neither model filled the field, where DeepSeek had filled every one. The
  * rule now asks for the field by name, then for the words in the text.
+ * 4.4.0: cooking frequency and the shape of the day are gone from the prompt,
+ * with the onboarding questions that fed them (owner's decision, 2026-09-28;
+ * `0067`): neither changed a dish, a target or a rule anywhere downstream —
+ * the test `0025` sets for a field worth asking. `THIS PERSON` carried only
+ * those two lines, so the header goes with them; priority 3 drops "the
+ * budget" the same way, its onboarding question gone too.
  */
-export const PROMPT_VERSION = '4.3.0';
+export const PROMPT_VERSION = '4.4.0';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -175,18 +181,14 @@ export function languageName(locale: string): string {
 export type PromptContext = {
   /** Names of dishes served last fortnight. Excluded from reuse already; the model is told so it does not recreate them. */
   readonly avoidNames: readonly string[];
-  readonly budget: string | null;
   /**
    * The last fortnight's check-in, when there is one: how the portions felt and
    * how hard it was — its closed answers only. The comment is never read here.
    */
   readonly checkIn?: Pick<CheckInForGeneration, 'difficulty' | 'hunger' | 'satisfaction'> | null;
-  readonly cookingFrequency: string | null;
   readonly cookingTimeMinutes: number | null;
   /** Named only when on `NAMEABLE_CUISINES`: the list onboarding offers, never what a request typed. */
   readonly cuisines: readonly string[];
-  /** When they wake, when they sleep, and when they train — the shape of the day a plan has to fit. */
-  readonly dayShape: string | null;
   /** Named only when on `NAMEABLE_PATTERNS`; a religious one never is, and is enforced in code instead. */
   readonly dietaryPatterns: readonly string[];
   /** Dishes the person marked as disliked. Already out of reuse; named so the model does not recreate them. */
@@ -671,7 +673,7 @@ export function buildPoolPrompt(
       'PRIORITIES, in this order when they conflict:',
       '1. Only ingredients from the list below: nothing forbidden by allergy, nothing their way of eating rules out.',
       '2. Each dish lands on its numbers per serving — the split matters as much as the energy.',
-      '3. The time limit, the budget and how they like to eat.',
+      '3. The time limit and how they like to eat.',
       '4. Taste, technique and variety.',
       '',
       "THE PERSON'S DAILY TARGETS (to build the dishes to; never write them in the answer):",
@@ -710,10 +712,6 @@ export function buildPoolPrompt(
         [...context.needBySlot.values()].reduce((sum, count) => sum + count, 0),
         offer.pulses
       ),
-      'THIS PERSON (design for them, not for a profile):',
-      context.cookingFrequency ? `- Cooks: ${context.cookingFrequency}` : null,
-      context.dayShape ? `- Their day: ${context.dayShape}` : null,
-      '',
       context.avoidNames.length > 0
         ? `SERVED TO THEM LAST FORTNIGHT — propose different dishes, not these or close variations of them: ${context.avoidNames.slice(0, 60).join('; ')}`
         : null,
@@ -727,7 +725,6 @@ export function buildPoolPrompt(
         : null,
       patterns.length > 0 ? `WAY OF EATING: ${patterns.join(', ')}` : null,
       context.cookingTimeMinutes ? `MAXIMUM TIME PER DISH: ${context.cookingTimeMinutes} minutes (prep + cooking)` : null,
-      context.budget ? `BUDGET: ${context.budget}` : null,
       cuisines ? `PREFERRED CUISINES: ${cuisines}` : null,
       likes ? `LIKES: ${likes}` : null,
       context.excludeSlugs.length > 0 ? `DO NOT REPEAT THESE ALREADY-PROPOSED DISHES: ${context.excludeSlugs.join(', ')}` : null,

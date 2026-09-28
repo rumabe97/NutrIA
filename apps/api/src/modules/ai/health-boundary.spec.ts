@@ -75,11 +75,8 @@ describe('the health-data boundary around the AI module', () => {
   it('builds a prompt from a context that has nowhere to put a condition or a medication', () => {
     const context: PromptContext = {
       avoidNames: [],
-      budget: 'medium',
-      cookingFrequency: null,
       cookingTimeMinutes: 30,
       cuisines: ['Mediterránea'],
-      dayShape: null,
       dietaryPatterns: ['omnivore'],
       dislikedNames: ['Lentejas con chorizo'],
       excludeSlugs: [],
@@ -116,14 +113,11 @@ describe('the health-data boundary around the AI module', () => {
 describe('the free-text and belief boundary around the AI module', () => {
   /** Each is a string that exists only in what the person typed, or a belief's name. */
   const SENTINELS = {
-    breakfast: 'SENTINEL-BREAKFAST desayuno tras la insulina',
     checkIn: 'SENTINEL-CHECKIN me mareé',
     cuisine: 'SENTINEL-CUISINE la de mi madre',
     customAllergen: 'SENTINEL-ALLERGY altramuz silvestre',
     dislike: 'SENTINEL-DISLIKE cosas con sulfitos',
-    like: 'SENTINEL-LIKE comida de hospital',
-    portion: 'SENTINEL-PORTION poco por la gastritis',
-    schedule: 'SENTINEL-SCHEDULE turnos en la mezquita'
+    like: 'SENTINEL-LIKE comida de hospital'
   } as const;
 
   const ALLERGEN_IDS = new Map([
@@ -167,19 +161,7 @@ describe('the free-text and belief boundary around the AI module', () => {
         { ingredientId: 'ing-salmon', label: 'salmon', sentiment: 'liked' }
       ],
       goal: { type: 'weight_loss' },
-      preferences: {
-        breakfastStyle: SENTINELS.breakfast,
-        budget: 'medium',
-        cookingFrequency: 'often',
-        cookingTimeMinutes: 30,
-        mealShape: undefined,
-        portionPreference: SENTINELS.portion,
-        sleepEnd: '07:00',
-        sleepStart: '23:00',
-        trainingDaysPerWeek: 3,
-        trainingTime: '18:00',
-        workScheduleNotes: SENTINELS.schedule
-      }
+      preferences: { cookingTimeMinutes: 30, mealShape: undefined }
     } as unknown as FullProfileView;
   }
 
@@ -259,19 +241,15 @@ describe('the free-text and belief boundary around the AI module', () => {
     expect(sent).toContain('WAY OF EATING: vegetarian');
     expect(sent).toContain('PREFERRED CUISINES: Mediterránea');
     expect(sent).toContain('LIKES: salmon');
-    expect(sent).toContain('Cooks: often');
-    expect(sent).toContain('wakes at 07:00');
+    expect(sent).toContain('MAXIMUM TIME PER DISH: 30 minutes');
   });
 
   it('gives the prompt no field a typed text could live in', () => {
     const allowed = [
       'avoidNames',
-      'budget',
       'checkIn',
-      'cookingFrequency',
       'cookingTimeMinutes',
       'cuisines',
-      'dayShape',
       'dietaryPatterns',
       'dislikedNames',
       'excludeSlugs',
