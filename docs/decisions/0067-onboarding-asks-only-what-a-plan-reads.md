@@ -52,11 +52,14 @@ Found by the real-model comparison before merging: without the line about their 
 model labelled every dinner it was asked for as `supper`, and the pool dropped them; on
 Gemma 4 31B, 38 of 144 dishes claimed a meal other than the one asked for (4.3.0: 1 of 138),
 some with no meal at all. Each pool request asks for one meal, so the builder keeps the
-model's claim only when it names that meal (a claim of lunch and dinner for a dinner stays
-both, as before), and otherwise replaces it with that meal alone — never adds to it, so a
-mislabelled dish cannot enter the library as a meal nobody asked for. Then the ingredient
-check (`fitSlots`) as always: the code, not the model, says what a dish was written for
-(`0004`); a stew asked for at dinner still stays out of dinner. Three runs each, 8 requests
+model's claim when it names that meal (a claim of lunch and dinner for a dinner stays both,
+as before). When it does not, the dish is tried as the meal asked for alone; only if its
+ingredients do not belong there does the model's own claim stand, exactly as before this
+decision — so a dinner labelled `supper` is kept as a dinner, a real lunch dish returned to
+a breakfast request is still kept as a lunch (CI's `localisation` suite caught an earlier
+version that dropped it), and nothing is ever added to what the model claimed. The
+ingredient check (`fitSlots`) decides every step: the code, not the model, says what a
+dish was written for (`0004`); a stew asked for at dinner still stays out of dinner. Three runs each, 8 requests
 a run: valid dishes 90.6 % (4.3.0 with every answer filled) against 89.6 % (4.4.0), none
 lost to the meal label; three real fortnights each side, 14 of 14 days within 5 %.
 
