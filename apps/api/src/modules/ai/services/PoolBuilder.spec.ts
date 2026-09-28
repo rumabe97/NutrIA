@@ -733,6 +733,28 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
     expect(result.metadata.aiCalls[0]?.rejected).toEqual({ wrong_meal: 1 });
   });
 
+  /**
+   * `slots: []` parses now (`pool.schema.ts`, `0067`'s bench: the model
+   * sometimes answers with no meal named at all, not only the wrong one) — so
+   * the requested meal has to carry the same weight an empty claim as a
+   * mislabelled one.
+   */
+  it('keeps a dish that named no meal at all, for the dinner it was asked for, when its ingredients belong there', async () => {
+    const { client } = stubClient([{ dishes: [dish('Arroz con pollo', [], ['arroz', 'pollo'])] }]);
+    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+
+    expect(result.generated.map(kept => kept.slots)).toEqual([['dinner']]);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({});
+  });
+
+  it('still drops a dish that named no meal at all, when a lunch-only food rules out the dinner it was asked for', async () => {
+    const { client } = stubClient([{ dishes: [stew([])] }]);
+    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+
+    expect(result.generated).toEqual([]);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({ wrong_meal: 1 });
+  });
+
   it('keeps a stew that also claimed dinner, as a lunch only — it counts at lunch, not at the dinner it was asked for', async () => {
     const { client } = stubClient([{ dishes: [stew(['lunch', 'dinner'])] }]);
     const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });

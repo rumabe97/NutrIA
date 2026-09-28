@@ -7,6 +7,10 @@
 -- schemas dropped them in the same change), so nulling what a person once
 -- typed into them is the RGPD-minimisation half of removing the fields, not
 -- a second decision.
+-- reviewed-destructive: no copy is kept, on purpose (RGPD minimisation,
+-- 0067). The only undo is a Neon point-in-time branch from before this
+-- build, within the project's history-retention window, then copying the
+-- nine user_preferences columns, goals.custom_goal and goals.type back by id.
 UPDATE "user_preferences" SET
   "breakfast_style" = NULL,
   "budget" = NULL,
