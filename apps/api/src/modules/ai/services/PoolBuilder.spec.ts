@@ -709,6 +709,30 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
     expect(result.metadata.aiCalls[0]).toMatchObject({ dishes: 1, kept: 0, rejected: { wrong_meal: 1 } });
   });
 
+  /**
+   * The meal a request asked for is unioned into what the model labelled its
+   * dish (`0067`'s bench): asked for dinner on prompt 4.4.0, Gemma called
+   * every dinner "supper" and every one was then dropped for dinner on that
+   * label alone. The union means a mislabelled dinner is judged on its
+   * ingredients, exactly as a correctly labelled one always was — never on
+   * whether the model happened to name the meal it was asked for.
+   */
+  it('keeps a dish the model mislabelled supper, for the dinner it was asked for, when its ingredients belong there', async () => {
+    const { client } = stubClient([{ dishes: [dish('Arroz con pollo', ['supper'], ['arroz', 'pollo'])] }]);
+    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+
+    expect(result.generated.map(kept => kept.slots)).toEqual([['supper', 'dinner']]);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({});
+  });
+
+  it('still drops a dish mislabelled supper for the dinner it was asked for, when a lunch-only food rules out both', async () => {
+    const { client } = stubClient([{ dishes: [stew(['supper'])] }]);
+    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+
+    expect(result.generated).toEqual([]);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({ wrong_meal: 1 });
+  });
+
   it('keeps a stew that also claimed dinner, as a lunch only — it counts at lunch, not at the dinner it was asked for', async () => {
     const { client } = stubClient([{ dishes: [stew(['lunch', 'dinner'])] }]);
     const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
