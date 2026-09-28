@@ -35,8 +35,24 @@ steps, and a new key would lock out everyone who finished. Rows that still hold
 `lifestyle` (every finished account) are read with unknown steps dropped and the current
 step clamped.
 
-The database columns stay for this release, so the old API running during the deploy
-still finds them; a follow-up migration drops them through `migration-reviewer`.
+What was already stored goes too (owner, same day: "limpiar esas columnas"): migration
+`0043` empties the nine preference columns and `goals.custom_goal` for every account. The
+columns themselves stay for this release, so the old API running during the deploy still
+finds them; the next release drops them through `migration-reviewer`.
+
+The "Other" goal goes as well (owner: "quitar objetivo otro"). It computed exactly as
+maintenance and, without its free text, asked nothing of its own. `0043` turns every stored
+one into maintenance, so no one's targets move; a `custom` written by the old API during the
+deploy is read as maintenance. The enum value stays in Postgres until the column drop.
+
+The landing's promise that the plan knows your working week ("los martes llegas tarde") is
+rewritten: nothing asks it any more.
+
+Found by the real-model comparison before merging: without the line about their day, the
+model labelled every dinner it was asked for as `supper`, and the pool dropped them. Each
+pool request asks for one meal, so the builder now adds that meal to the dish's own claim
+before the ingredient check (`fitSlots`) — the code, not the model, says what a dish was
+written for (`0004`); a stew asked for at dinner still stays out of dinner.
 
 ## Alternatives considered
 
@@ -54,4 +70,5 @@ still finds them; a follow-up migration drops them through `migration-reviewer`.
   model (RGPD art. 5.1.c); the legal texts in `docs/legal/` are updated with it.
 - Anyone who later wants a plan to follow training or waking hours has to build a rule that
   reads them, and ask the question again in that same change.
-- Follow-up owed: the migration dropping the nine preference columns and `custom_goal`.
+- Follow-up owed: the next release's migration dropping the nine preference columns,
+  `custom_goal` and the `custom` goal-type value.
