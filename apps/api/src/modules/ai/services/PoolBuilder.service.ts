@@ -660,21 +660,32 @@ export class PoolBuilder {
     // that also called itself a dinner still stays a lunch if that is the
     // only meal its ingredients allow, and one that named several meals it
     // does belong to is served at all of them. A claim that misses the meal
-    // asked for — the wrong one, or none at all — is replaced by that meal
-    // alone, never added to what the model wrote (`0067`'s bench, second
-    // round: with no line naming a person's day left in the prompt, a model
-    // asked for dinner started calling it "afternoon_snack", and *appending*
-    // dinner to that claim let a mislabelled dinner enter the library as a
-    // snack too, whenever its ingredients happened to allow one — a
-    // composition drift the label never earned; the model's `slots` is a
-    // label, not evidence). Ingredients still gate every candidate slot: a
-    // stew asked for dinner and made of lunch-only ingredients stays out of
-    // dinner whatever it calls itself, or names nothing at all. One that
-    // claimed only meals its ingredients do not belong to, or claimed none,
-    // is served nowhere, and is counted as such. Not an error: every rule
-    // that protects the person already held.
-    const claimed = dish.slots.includes(requestedSlot) ? dish.slots : [requestedSlot];
-    const slots = fitSlots({ ingredients: dish.ingredients, slots: claimed }, context.catalogue, context.dietaryPatterns);
+    // asked for — the wrong one, or none at all — is tried at that meal
+    // alone first, never added to what the model wrote (`0067`'s bench,
+    // second round: with no line naming a person's day left in the prompt, a
+    // model asked for dinner started calling it "afternoon_snack", and
+    // *appending* dinner to that claim let a mislabelled dinner enter the
+    // library as a snack too, whenever its ingredients happened to allow
+    // one — a composition drift the label never earned; the model's `slots`
+    // is a label, not evidence). Only when the requested meal alone fits
+    // nothing does the claim get a second try, exactly as it wrote it — the
+    // rule from before `0067`'s second round (`0067`'s third round: a model
+    // asked for breakfast can legitimately answer with a lunch dish, and
+    // forcing that onto `[breakfast]` alone threw it out of the pool
+    // entirely instead of keeping it for the meal it actually fits).
+    // Ingredients still gate every candidate slot: a stew asked for dinner
+    // and made of lunch-only ingredients stays out of dinner whatever it
+    // calls itself, and a dish whose claim fits nowhere either is served
+    // nowhere, and is counted as such. Nothing here is ever unioned across
+    // the two tries. Not an error: every rule that protects the person
+    // already held.
+    const claimsRequested = dish.slots.includes(requestedSlot);
+    const claimed = claimsRequested ? dish.slots : [requestedSlot];
+    let slots = fitSlots({ ingredients: dish.ingredients, slots: claimed }, context.catalogue, context.dietaryPatterns);
+
+    if (!claimsRequested && slots.length === 0) {
+      slots = fitSlots({ ingredients: dish.ingredients, slots: dish.slots }, context.catalogue, context.dietaryPatterns);
+    }
 
     if (slots.length === 0) {
       this.logger.warn(`Dish "${dish.name}" rejected: none of ${dish.slots.join(', ')} is a meal all of its ingredients belong to`);

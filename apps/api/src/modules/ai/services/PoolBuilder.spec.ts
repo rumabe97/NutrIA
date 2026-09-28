@@ -737,6 +737,31 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
   });
 
   /**
+   * The requested meal alone is only the *first* try, not the only one
+   * (`0067`'s third round): a model asked for breakfast can legitimately
+   * answer with a real lunch-and-dinner dish, and forcing that onto
+   * `[breakfast]` alone — as the second round's fix did — threw it away
+   * outright instead of keeping it for the meals it actually fits. Only when
+   * the requested meal alone fits nothing does the claim get its second try,
+   * exactly as the model wrote it; the two tries are never unioned, so this
+   * dish is stored as lunch and dinner, never as breakfast too.
+   */
+  it('keeps a dish returned to the wrong meal at the meal its ingredients actually fit, instead of dropping it', async () => {
+    // Rice, cooked, lunch and dinner only — legitimate exactly where it claims, illegitimate at breakfast.
+    const rice: CatalogueIngredient = { ...ingredient('arroz-blanco-cocido'), mealSlots: ['lunch', 'dinner'] };
+    const { client } = stubClient([{ dishes: [dish('Arroz blanco', ['lunch', 'dinner'], ['arroz-blanco-cocido'])] }]);
+    const result = await new PoolBuilder(client).build({
+      context: { ...context(), catalogue: toCatalogue([...CATALOGUE, rice]) },
+      preferences,
+      reusable: [],
+      slots: ['breakfast']
+    });
+
+    expect(result.generated.map(kept => kept.slots)).toEqual([['lunch', 'dinner']]);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({});
+  });
+
+  /**
    * A claim that *includes* the meal asked for is trusted exactly as before
    * this whole fix existed: nothing is replaced, and every other meal it
    * named is kept too, ingredient-permitting.
