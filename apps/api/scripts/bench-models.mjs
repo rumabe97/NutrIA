@@ -578,13 +578,12 @@ function score(record, request, catalogue) {
       continue;
     }
 
-    // The requested meal is added to the model's own claim, exactly as
-    // `PoolBuilder.judge` reads it (`0067`'s bench): the model's own `slots`
-    // is a label, so a dish it called the wrong meal is scored on whether its
-    // ingredients fit the meal it was asked for, not on whether it named that
-    // meal. Appended, never in front, so `fitted`'s order still reads as the
-    // model's own claim in the ordinary case.
-    const claimed = dish.slots.includes(request.slot) ? dish.slots : [...dish.slots, request.slot];
+    // Exactly `PoolBuilder.judge` (`0067`'s bench, second round): a claim that
+    // includes the requested meal is scored as the model wrote it; a claim
+    // that misses it — wrong or empty — is replaced by that meal alone, never
+    // added to what the model wrote, so a mislabelled dish cannot score as
+    // fitting a meal beyond the one this request asked for.
+    const claimed = dish.slots.includes(request.slot) ? dish.slots : [request.slot];
     const fitted = fitSlots({ ingredients: dish.ingredients, slots: claimed }, catalogue, request.dietaryPatterns);
     const wrongMeal = !fitted.includes(request.slot);
     const foreign = methodMentions({
