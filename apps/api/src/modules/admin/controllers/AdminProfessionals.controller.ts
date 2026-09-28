@@ -1,9 +1,12 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
-import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiCreatedResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+
+import { PROFESSIONAL_SORTS, SORT_DIRECTIONS } from 'core/entities/AdminQuery';
 
 import { AdminProfessionalsService } from '../services/index.js';
 import { CurrentUser, Roles, ZodBody } from '../../../shared/index.js';
-import { GrantProfessionalDto } from '../dto/in/index.js';
+import { GrantProfessionalDto, ProfessionalsQueryDto } from '../dto/in/index.js';
+import { ZodQuery } from './ZodQuery.js';
 
 import type { ProfessionalAccountDto, ProfessionalsDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
@@ -23,11 +26,17 @@ import type { SessionUser } from '../../../shared/index.js';
 export class AdminProfessionalsController {
   constructor(private readonly professionals: AdminProfessionalsService) {}
 
-  @ApiOkResponse({ description: 'Every professional, most recently granted first, with their links counted per status.' })
-  @ApiOperation({ summary: 'Every professional the owner has granted' })
+  @ApiOkResponse({
+    description:
+      'Every professional matching the search, most recently granted first unless sorted, with their links counted per status. Unpaged. 422 INVALID_INPUT for an unknown sort.'
+  })
+  @ApiOperation({ summary: 'Every professional the owner has granted, searched and sorted (0068)' })
+  @ApiQuery({ description: 'Address contains, case-insensitive.', name: 'q', required: false, type: String })
+  @ApiQuery({ description: '`links` is active links, then every link.', enum: PROFESSIONAL_SORTS, name: 'sort', required: false })
+  @ApiQuery({ enum: SORT_DIRECTIONS, name: 'dir', required: false })
   @Get('professionals')
-  async list(): Promise<ProfessionalsDto> {
-    return this.professionals.list();
+  async list(@ZodQuery(ProfessionalsQueryDto) query: ProfessionalsQueryDto): Promise<ProfessionalsDto> {
+    return this.professionals.list(query);
   }
 
   @ApiCreatedResponse({ description: 'The account, now a professional.' })

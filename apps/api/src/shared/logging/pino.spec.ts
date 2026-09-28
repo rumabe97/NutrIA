@@ -127,4 +127,25 @@ describe('the allow-lists themselves', () => {
       expect(name).not.toMatch(/cookie|authorization|token|signature|forwarded|-ip-|real-ip/);
     }
   });
+  it('keeps the text of a search box (`q`) out of the log, in the URL and in the referer', () => {
+    const address = 'ana.garcia%40example.invalid';
+    const line = serializeRequest({
+      headers: { referer: `https://nutria.example/admin/cuentas?q=${address}&sort=email` },
+      method: 'GET',
+      url: `/api/v1/admin/accounts?sort=email&q=${address}&size=25`
+    });
+
+    expect(JSON.stringify(line)).not.toContain('ana.garcia');
+    expect(line.url).toBe('/api/v1/admin/accounts?sort=email&q=[redacted]&size=25');
+    expect((line.headers as { referer: string }).referer).toBe('https://nutria.example/admin/cuentas?q=[redacted]&sort=email');
+
+    // Inside a percent-encoded return address, and only the parameter named `q`.
+    const nested = serializeRequest({
+      headers: {},
+      method: 'GET',
+      url: `/login?next=%2Fadmin%2Fbuzon%3Fq%3Ddolor%2520de%2520cabeza%26state%3Dwaiting&quiet=1`
+    }).url;
+
+    expect(nested).toBe('/login?next=%2Fadmin%2Fbuzon%3Fq%3D[redacted]%26state%3Dwaiting&quiet=1');
+  });
 });

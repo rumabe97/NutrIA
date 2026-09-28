@@ -9,6 +9,7 @@ import type {
   AdminGenerationDto,
   AdminJobDto,
   AdminOverviewDto,
+  AdminPeopleDto,
   AdminPicturesDto,
   AdminPlansDto,
   AdminProductDto,
@@ -46,6 +47,10 @@ export class AdminService {
 
   async overview(): Promise<AdminOverviewDto> {
     return AdminController.overview();
+  }
+
+  async people(query: PeriodQueryDto): Promise<AdminPeopleDto> {
+    return AdminSeriesController.people(query.period);
   }
 
   /** The cap is configuration — `AI_IMAGE_MONTHLY_CAP_USD` — so the screen shows the same number drawing stops at. */

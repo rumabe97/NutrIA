@@ -5,7 +5,7 @@ import { UserController } from 'core/controllers/User';
 import { ENV } from '../../../config/index.js';
 import { verifyActivationToken } from '../../auth/services/ActivationLink.js';
 
-import type { SetTierDto } from '../dto/in/index.js';
+import type { AccountsQueryDto, SetTierDto } from '../dto/in/index.js';
 import type { AccountsDto, ActivatedAccountDto, TierChangedDto } from '../dto/out/index.js';
 import type { Env } from '../../../config/index.js';
 
@@ -55,12 +55,8 @@ export class AdminAccountsService {
     return { email: moved.email, tier: body.tier };
   }
 
-  /**
-   * Parsed leniently on purpose: a pager that 422s on a hand-typed URL is a
-   * pager that costs the owner a page load to learn nothing. The bounds are
-   * `packages/core`'s.
-   */
-  async list(offset?: string, size?: string): Promise<AccountsDto> {
-    return UserController.accounts({ offset: Number.parseInt(offset ?? '', 10) || 0, size: Number.parseInt(size ?? '', 10) || undefined });
+  /** The query arrives validated (`AccountsQueryDto`); the rules of the table are `packages/core`'s. */
+  async list(query: AccountsQueryDto): Promise<AccountsDto> {
+    return UserController.accounts(query);
   }
 }

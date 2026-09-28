@@ -138,3 +138,36 @@ export function fillDays(keys: readonly string[], rows: readonly DayCount[]): re
 
   return keys.map(key => byDay.get(key) ?? 0);
 }
+
+/**
+ * The ISO week a calendar day belongs to, named by its Monday as `YYYY-MM-DD`.
+ * Date arithmetic on the day's own key, so no zone and no DST enters: a Madrid
+ * day is already a Madrid day.
+ */
+export function weekKey(day: string): string {
+  // Sunday is 0 and Saturday 6, so Monday is 0 days back and Sunday 6.
+  const back = (new Date(`${day}T00:00:00Z`).getUTCDay() + 6) % 7;
+
+  return shiftDay(day, -back);
+}
+
+/**
+ * Every ISO week with a Madrid day in `[from, to)`, by its Monday, oldest
+ * first. The first week can start before `from` and the last runs past `to`:
+ * a week is named whole and counted only over the period's days.
+ */
+export function madridWeekKeys(from: Date, to: Date): readonly string[] {
+  return [...new Set(madridDayKeys(from, to).map(weekKey))];
+}
+
+/**
+ * A per-day grouped query folded into weeks: one value per week key, in the
+ * keys' order, zero where nothing happened. A day outside the weeks is dropped,
+ * as `fillDays` drops one outside the days.
+ */
+export function fillWeeks(weeks: readonly string[], rows: readonly DayCount[]): readonly number[] {
+  return fillDays(
+    weeks,
+    rows.map(row => ({ day: weekKey(row.day), n: row.n }))
+  );
+}

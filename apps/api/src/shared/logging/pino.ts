@@ -126,9 +126,18 @@ const SECRET_SEGMENTS = new RegExp(
   'gi'
 );
 
-/** The same path with every secret segment replaced — the route stays readable, the secret does not. */
+/**
+ * A search box's text (`q`, the admin console's tables — `0068`): the owner types an
+ * address or words copied from somebody's message there, and the table's state lives in
+ * the URL, so it reaches this log as the request's query and as a later request's
+ * `referer`. The value stops at the next `&`, `#` or, inside a query string that is
+ * itself percent-encoded (`?next=%2Fadmin%3Fq%3D…`), at the next `%26`.
+ */
+const SEARCH_PARAMETER = /((?:[?&]|%3f|%26)q(?:=|%3d))(?:(?!%26)[^&#\s])*/gi;
+
+/** The same path with every secret segment and search text replaced — the route stays readable, the secret does not. */
 function withoutSecrets(value: string): string {
-  return value.replace(SECRET_SEGMENTS, '$1[redacted]');
+  return value.replace(SECRET_SEGMENTS, '$1[redacted]').replace(SEARCH_PARAMETER, '$1[redacted]');
 }
 
 export function serializeRequest(request: SerializedRequest): Record<string, unknown> {

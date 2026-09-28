@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, asc, count, eq, isNull, ne, or, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -6,10 +6,13 @@ import { careInvitations, careLinks } from 'database/schema/care';
 import { professionals } from 'database/schema/professional';
 import { user } from 'database/schema/auth';
 
+import { contains, ordered } from '#repositories/Search';
 import { DatabaseOperationError } from 'core/entities/Error';
 import { professionalSchema } from 'core/entities/Professional';
 
 import type { Professional } from 'core/entities/Professional';
+import type { ProfessionalQuery } from 'core/entities/AdminQuery';
+import type { SQL } from 'drizzle-orm';
 
 /**
  * One professional on the owner's list: the account and its grant, and nothing
@@ -32,6 +35,29 @@ export type LinkCountRow = { readonly active: number; readonly ended: number; re
 /** Links of one status, counted over the joined rows; a professional with none counts zero. */
 function linksIn(status: 'active' | 'ended' | 'paused') {
   return sql<number>`count(${careLinks.id}) filter (where ${careLinks.status} = ${status})`.mapWith(Number);
+}
+
+/** The list's `WHERE`: the professional's address contains the search, bound and escaped. Exported for its spec. */
+export function professionalFilters(query: Pick<ProfessionalQuery, 'q'>): SQL | undefined {
+  return query.q === undefined ? undefined : contains(user.email, query.q);
+}
+
+/**
+ * The list's order: the chosen column in the chosen direction, then the id so
+ * ties always fall the same way. `links` is the active links, then every link.
+ * Exported for its spec.
+ */
+export function professionalOrder(query: Pick<ProfessionalQuery, 'dir' | 'sort'>): readonly SQL[] {
+  const tail = asc(professionals.id);
+
+  switch (query.sort) {
+    case 'email':
+      return [ordered(user.email, query.dir), tail];
+    case 'links':
+      return [ordered(linksIn('active'), query.dir), ordered(count(careLinks.id), query.dir), tail];
+    case 'grantedAt':
+      return [ordered(professionals.grantedAt, query.dir), tail];
+  }
 }
 
 export const ProfessionalRepository = {
@@ -126,14 +152,15 @@ export const ProfessionalRepository = {
   },
 
   /**
-   * Every professional, most recently granted first, with their links counted
-   * per status.
+   * Every professional the query matches, sorted as it asks — most recently
+   * granted first when it asks nothing — with their links counted per status.
    *
    * Reads for the owner's own screen and nothing about a client (`0028`): the
    * links are joined only to be counted, and no column of theirs but the status
-   * is read — not a client's id, not a name, not an address.
+   * is read — not a client's id, not a name, not an address. Unpaged: there are
+   * few. Mode: one grouped query.
    */
-  async list(): Promise<readonly ProfessionalListRow[]> {
+  async list(query: ProfessionalQuery): Promise<readonly ProfessionalListRow[]> {
     try {
       const rows = await database()
         .select({
@@ -150,8 +177,9 @@ export const ProfessionalRepository = {
         .from(professionals)
         .innerJoin(user, eq(user.id, professionals.userId))
         .leftJoin(careLinks, eq(careLinks.professionalId, professionals.userId))
+        .where(professionalFilters(query))
         .groupBy(professionals.id, user.id)
-        .orderBy(desc(professionals.grantedAt));
+        .orderBy(...professionalOrder(query));
 
       return rows.map(({ active, ended, paused, ...row }) => ({ ...row, links: { active, ended, paused } }));
     } catch (error: unknown) {

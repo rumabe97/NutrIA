@@ -251,5 +251,39 @@ describe('AdminProfessionalsController', () => {
 
       expect(response.body).toEqual([GRANTED]);
     });
+
+    it('asks for the most recently granted first when nothing is asked, as the list always did', async () => {
+      const list = jest.spyOn(ProfessionalController, 'list').mockResolvedValue([]);
+
+      await request(app.getHttpServer() as Server)
+        .get(`/${PREFIX}/admin/professionals`)
+        .expect(200);
+
+      expect(list).toHaveBeenCalledWith({ dir: 'desc', q: undefined, sort: 'grantedAt' });
+    });
+
+    it('passes the search and an allowed sort through', async () => {
+      const list = jest.spyOn(ProfessionalController, 'list').mockResolvedValue([]);
+
+      await request(app.getHttpServer() as Server)
+        .get(`/${PREFIX}/admin/professionals?q=%20Mad%20&sort=links&dir=asc`)
+        .expect(200);
+
+      expect(list).toHaveBeenCalledWith({ dir: 'asc', q: 'Mad', sort: 'links' });
+    });
+
+    it('refuses a sort outside the allow-list with INVALID_INPUT, and reads nothing', async () => {
+      const list = jest.spyOn(ProfessionalController, 'list');
+
+      for (const path of ['sort=collegiateNumber', 'sort=email;drop', 'dir=up', 'sort=email&sort=links']) {
+        const response = await request(app.getHttpServer() as Server)
+          .get(`/${PREFIX}/admin/professionals?${path}`)
+          .expect(422);
+
+        expect((response.body as { code: string }).code).toBe('INVALID_INPUT');
+      }
+
+      expect(list).not.toHaveBeenCalled();
+    });
   });
 });

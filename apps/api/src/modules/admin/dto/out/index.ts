@@ -3,6 +3,7 @@ export * from './AdminAnalytics.dto.js';
 export * from './AdminGeneration.dto.js';
 export * from './AdminJob.dto.js';
 export * from './AdminOverview.dto.js';
+export * from './AdminPeople.dto.js';
 export * from './AdminPictures.dto.js';
 export * from './AdminPlans.dto.js';
 export * from './AdminProduct.dto.js';

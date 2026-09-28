@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { DEFAULT_PERIOD, periodQuerySchema, PERIODS } from 'core/entities/Period';
 
-import { fillDays, madridDayKey, madridDayKeys, madridMidnight, parsePeriod, windowFor } from './Period';
+import { fillDays, fillWeeks, madridDayKey, madridDayKeys, madridMidnight, madridWeekKeys, parsePeriod, weekKey, windowFor } from './Period';
 
 describe('parsePeriod', () => {
   it('is 30 when nothing is asked for', () => {
@@ -170,5 +170,54 @@ describe('fillDays', () => {
         { day: '2026-09-28', n: 5 }
       ])
     ).toEqual([3, 0, 5]);
+  });
+});
+
+describe('weekKey', () => {
+  it('names a week by its Monday', () => {
+    expect(weekKey('2026-09-28')).toBe('2026-09-28');
+    expect(weekKey('2026-09-27')).toBe('2026-09-21');
+    expect(weekKey('2026-09-23')).toBe('2026-09-21');
+  });
+
+  it('crosses a year and a changeover as dates, not hours', () => {
+    expect(weekKey('2027-01-03')).toBe('2026-12-28');
+    expect(weekKey('2026-10-25')).toBe('2026-10-19');
+    expect(weekKey('2026-03-29')).toBe('2026-03-23');
+  });
+});
+
+describe('madridWeekKeys', () => {
+  const now = new Date('2026-09-28T10:00:00Z');
+
+  it('names every week with a day in the period, the partial ones at each end included', () => {
+    const week = windowFor(7, now);
+    const month = windowFor(30, now);
+
+    expect(madridWeekKeys(week.from, week.to)).toEqual(['2026-09-21', '2026-09-28']);
+    expect(madridWeekKeys(month.from, month.to)).toEqual(['2026-08-24', '2026-08-31', '2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28']);
+  });
+
+  it('is empty for an empty window', () => {
+    expect(madridWeekKeys(now, now)).toEqual([]);
+  });
+});
+
+describe('fillWeeks', () => {
+  const weeks = ['2026-09-14', '2026-09-21', '2026-09-28'];
+
+  it('adds each day into its week, zero where nothing happened', () => {
+    expect(
+      fillWeeks(weeks, [
+        { day: '2026-09-21', n: 1 },
+        { day: '2026-09-27', n: 2 },
+        { day: '2026-09-28', n: 4 }
+      ])
+    ).toEqual([0, 3, 4]);
+    expect(fillWeeks(weeks, [])).toEqual([0, 0, 0]);
+  });
+
+  it('drops a day whose week is not in the keys', () => {
+    expect(fillWeeks(weeks, [{ day: '2026-09-13', n: 9 }])).toEqual([0, 0, 0]);
   });
 });

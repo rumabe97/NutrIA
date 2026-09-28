@@ -241,7 +241,7 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 4 — Web: Resumen, Embudo y actividad, Planes
 
-- [x] done
+- [x] done — commit `9f2ed7b` ("The console has Resumen, Embudo y actividad and Planes, with a period selector")
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 4`. Reviews: `accessibility`,
   plus `/local-probe`.
 - **Goal**: the first three pages exist with tiles, charts and the period selector, and
@@ -280,7 +280,7 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 5 — API: accounts, professionals and inbox as queryable tables
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 5`. Reviews: `invariant-reviewer`
   (the milestone columns must stay milestones). The `tests` agent writes the end-to-end
   cases.
@@ -288,7 +288,10 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
   rows carry their milestones.
 - **Scope**: `packages/core/src/{controllers,repositories}/{User,Feedback,Professional,Admin}/**`,
   `apps/api/src/modules/admin/**`, `apps/api/test/admin.e2e-spec.ts`,
-  `apps/api/test/professionals.e2e-spec.ts`.
+  `apps/api/test/professionals.e2e-spec.ts`. Added in phase 5: `core/entities/AdminQuery`,
+  `core/repositories/Search`, week helpers in `core/domain/Period`, `apps/api/test/access.e2e-spec.ts`,
+  `apps/api/src/shared/logging/pino.ts` (the search text kept out of the log) and the
+  transition page's pager clamp.
 - **Steps**:
   1. `GET /admin/accounts` accepts the following, and today's call with only `offset`
      keeps working:
@@ -296,7 +299,8 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
      - `confirmed`, `activated`, `professional` and `onboarded`, each `yes | no`;
      - `tier` (`free | premium`) and `role` (`user | admin`);
      - `sort` (`createdAt | email | lastActiveAt | plans`) and `dir`;
-     - `offset` and `size` (25 / 50 / 100).
+     - `offset` and `size` (1–100; the web offers 25 / 50 / 100 — amended in phase 5, an
+       existing test pages with 2).
   2. Each row gains `onboardedAt` (from `onboarding_state.completed_at`), `plans` (count
      of `meal_plans`), `lastActiveAt` (latest `analytics_events.created_at` for the
      user, or null) and `professional` (boolean). These come from correlated

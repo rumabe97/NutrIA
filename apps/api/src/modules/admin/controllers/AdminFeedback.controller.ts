@@ -1,8 +1,11 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch, Query } from '@nestjs/common';
+import { Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Patch } from '@nestjs/common';
 import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { AdminFeedbackService } from '../services/index.js';
-import { HandleFeedbackDto } from '../dto/in/index.js';
+import { DEFAULT_PAGE_SIZE, FEEDBACK_SORTS, FEEDBACK_STATES, MAX_PAGE_SIZE, SORT_DIRECTIONS } from 'core/entities/AdminQuery';
+
+import { FeedbackQueryDto, HandleFeedbackDto } from '../dto/in/index.js';
+import { ZodQuery } from './ZodQuery.js';
 import { Roles, ZodBody } from '../../../shared/index.js';
 
 import type { FeedbackInboxDto } from '../dto/out/index.js';
@@ -18,13 +21,20 @@ import type { FeedbackInboxDto } from '../dto/out/index.js';
 export class AdminFeedbackController {
   constructor(private readonly feedback: AdminFeedbackService) {}
 
-  @ApiOkResponse({ description: 'One page of messages, newest first, with the unhandled count.' })
-  @ApiOperation({ summary: 'What people wrote, newest first' })
+  @ApiOkResponse({
+    description:
+      'One page of messages, newest first unless asked otherwise; `total` counts the matches and `waiting` every unhandled message. 422 INVALID_INPUT for an unknown sort or state.'
+  })
+  @ApiOperation({ summary: 'Search, filter and page what people wrote (0068)' })
+  @ApiQuery({ description: 'Message or sender address contains, case-insensitive.', name: 'q', required: false, type: String })
+  @ApiQuery({ enum: FEEDBACK_STATES, name: 'state', required: false })
+  @ApiQuery({ enum: FEEDBACK_SORTS, name: 'sort', required: false })
+  @ApiQuery({ enum: SORT_DIRECTIONS, name: 'dir', required: false })
   @ApiQuery({ name: 'offset', required: false, type: Number })
-  @ApiQuery({ name: 'size', required: false, type: Number })
+  @ApiQuery({ description: `1–${MAX_PAGE_SIZE}. ${DEFAULT_PAGE_SIZE} when absent.`, name: 'size', required: false, type: Number })
   @Get('feedback')
-  async list(@Query('offset') offset?: string, @Query('size') size?: string): Promise<FeedbackInboxDto> {
-    return this.feedback.list(offset, size);
+  async list(@ZodQuery(FeedbackQueryDto) query: FeedbackQueryDto): Promise<FeedbackInboxDto> {
+    return this.feedback.list(query);
   }
 
   @ApiNoContentResponse({ description: 'Marked, or put back. The mark is reversible on purpose.' })

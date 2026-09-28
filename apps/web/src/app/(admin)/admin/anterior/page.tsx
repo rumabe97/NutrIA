@@ -51,8 +51,10 @@ export async function generateMetadata(): Promise<Metadata> {
  */
 export default async function AdminPage({ searchParams }: { searchParams: Promise<{ buzon?: string; cuentas?: string }> }) {
   const query = await searchParams;
-  const accountsOffset = Number.parseInt(query.cuentas ?? '', 10) || 0;
-  const feedbackOffset = Number.parseInt(query.buzon ?? '', 10) || 0;
+  // Clamped: the API refuses an offset outside 0–1,000,000 with a 422, and a hand-edited
+  // address must not break the page.
+  const accountsOffset = Math.min(Math.max(Number.parseInt(query.cuentas ?? '', 10) || 0, 0), 1_000_000);
+  const feedbackOffset = Math.min(Math.max(Number.parseInt(query.buzon ?? '', 10) || 0, 0), 1_000_000);
   const [dictionary, locale, overview, accounts, settings, ai, inbox, generations, professionals, pictures] = await Promise.all([
     getDictionary(),
     activeLocale(),

@@ -395,3 +395,98 @@
     - The transition page still has three names.
   - **iPhone only:** how VoiceOver reads the tiles, figures and funnel; whether the banner
     is announced; the safe areas under the sticky bar.
+
+## Phase 5 — API: accounts, professionals and inbox as queryable tables (2026-09-28)
+
+- **Executor**: the `backend` agent (medium effort) on opus for steps 1–6's API and unit
+  specs; the `tests` agent (medium effort) on opus for the end-to-end half. Both worked in
+  their own worktrees, which were brought into the main checkout and removed. The review
+  fixes were done by the lead on opus (this session). Review: `invariant-reviewer` on opus.
+- **Result**: done. The NUL-search cases are proven by CI's end-to-end run (see Evidence).
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=api --filter=web`: 17/17 tasks;
+    core 1053 tests, api 954, web 103. API format is clean. `deadcode` is green.
+  - The builder ran the list methods and `people` against the dev branch, SELECT only
+    inside a READ ONLY transaction, for every filter and sort and the escaped search.
+    - This caught a real bug: drizzle drops the table name on single-table columns, so a
+      bare `"id"` inside a sub-select bound to the inner table.
+    - The fix names the outer row as `"user"."id"`, and a unit test renders the real
+      select list. The builder confirmed the test fails when the bug comes back.
+    - `EXPLAIN`: a seq scan on `user`, with the sub-selects on `meal_plans_user_id_idx` and
+      `analytics_events_user_idx`, so no index is needed.
+  - End-to-end (`tests` agent), local against Nutria-E2E with the `VAPID_*` keys blanked:
+    - `admin` 36/37, `access` 8/8, `professionals` 21/22.
+    - The two failures were the NUL search (`q=%00`, a 500), which was not yet fixed in
+      the tests agent's base. The lead's fix is in the shared `search` schema, which all
+      three routes use.
+    - The PR's `end-to-end` check is the run that proves it.
+    - Leftover `.invalid` accounts were 2 before and 2 after: the two billing accounts
+      below.
+  - `invariant-reviewer`: no P0.
+    - Milestones stay milestones: `presentAccount` copies exactly 11 fields.
+    - `lastActiveAt` cannot reveal anything: `ai_call` is recorded without a user, and a
+      professional's swap records no event.
+    - `professional` is the grant row, true whatever the switch says.
+    - `q` is escaped and bound as a parameter, and sort columns come from maps.
+    - Its P1 and P3s are fixed (Deviations 6).
+- **Deviations from plan**:
+  1. **`size` accepts any integer from 1 to 100, not only 25/50/100,** because an existing
+     test pages with 2. The web offers 25/50/100 (`PAGE_SIZES`). Step 1 is amended.
+  2. **`offset` and `size` are strict:** a bad value is 422 where it used to be clamped.
+     The transition page's `?cuentas=` / `?buzon=` pager now clamps its own offsets.
+  3. **The inbox's default page size is 25** (was 20), to match the table's choices.
+  4. **`/admin/professionals` also takes `dir`,** so a sortable header can say which way.
+  5. **Files outside the listed scope** (the Scope line is amended):
+     - `core/entities/AdminQuery`: a DTO's schema lives in entities;
+     - `core/repositories/Search`: literal LIKE escaping and sort helpers;
+     - `weekKey`, `madridWeekKeys` and `fillWeeks` in `core/domain/Period`;
+     - `apps/api/src/modules/admin/controllers/ZodQuery.ts`, a whole-query DTO bound to
+       one parameter, now used by `PeriodQuery()` too;
+     - `access.e2e-spec.ts`.
+     The unused `Page` type is gone from `core/controllers/User`.
+  6. **Review fixes by the lead:**
+     - **P1, the request log recorded the owner's search text.** `?q=` can hold an address
+       or words copied from somebody's message. `pino.ts` now replaces any `q` value with
+       `[redacted]`, in the URL and in the `referer`, including inside a percent-encoded
+       `next=`. `pino.spec.ts` covers it.
+     - **P3, a NUL in `q` was a 500.** The shared `search` schema now refuses it with a
+       422, pinned by `AdminQuery.test.ts` and the end-to-end cases.
+     - **P3, the transition page's pager could send an out-of-range offset.** It now
+       clamps it.
+  7. **The end-to-end suite deletes `analytics_events` by hand.** Every account made
+     through the API signs in and so has a `lastActiveAt`. To test "nulls last", a helper
+     in `admin.e2e-spec.ts` deletes the events of two of the suite's own `@e2e.invalid`
+     accounts. It refuses any other address.
+- **Decisions**: none new. Vercel's own request log also records the path with its query;
+  0068 keeps table state in the URL, so a search there is visible to the Vercel project's
+  owner, who is the same person reading the console.
+- **Notes for the next phase** (6 builds the tables against these):
+  - **Types:**
+    - accounts: `Paged<AccountView>` (`core/controllers/User`);
+    - feedback: `Paged<FeedbackView> & { waiting }` (`core/controllers/Feedback`);
+    - professionals: `readonly ProfessionalAccountView[]` (`core/controllers/Professional`);
+    - people: `AdminPeopleView` (`core/controllers/Admin`), whose weeks are named by their
+      Monday `YYYY-MM-DD` in Madrid, and whose first and last weeks may be partial.
+    - `PAGE_SIZES` is exported.
+  - **Account row keys:** `id, activated, createdAt, email, emailVerified, role, tier,
+    lastActiveAt (ISO|null), onboardedAt (YYYY-MM-DD|null), plans, professional`.
+  - **Parameters:**
+    - accounts: `q`; `confirmed`, `activated`, `professional` and `onboarded` (`yes|no`);
+      `tier`; `role`; `sort` (`createdAt|email|lastActiveAt|plans`); `dir`; `offset`;
+      `size`;
+    - feedback: `q`, `state` (`all|waiting|seen`), `sort`, `dir`, `offset`, `size`;
+    - professionals: `q`, `sort` (`grantedAt|email|links`), `dir`.
+    - Nulls sort last in both directions.
+  - **Row actions from `/admin/cuentas?q=…` will send that URL as the `referer`,** and the
+    log redacts `q`. Name any new free-text parameter `q`, or extend `SEARCH_PARAMETER` in
+    `pino.ts`.
+  - **Two billing test accounts cannot be deleted locally** (`billing-…@e2e.invalid`).
+    They carry a fake Stripe customer `cus_e2e_…`, and deleting the account fails with a
+    500 when Stripe answers "No such customer". That is a small product gap: deleting an
+    account should tolerate a customer Stripe no longer has. It is for the payments round;
+    the owner decides.
+  - **Tests-agent instructions:** blank `VAPID_*` when running the suites locally. The
+    local `apps/api/.env` has them set, which makes the existing push-test case fail
+    here; CI is unaffected.
+  - Minor, not fixed: in `AdminSeriesController.test.ts`, the `NOW` comment calls
+    2026-09-28 a Sunday; it is a Monday.

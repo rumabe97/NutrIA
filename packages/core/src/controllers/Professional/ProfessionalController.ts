@@ -3,11 +3,13 @@ import { SettingsRepository } from '#repositories/Settings';
 import { UserRepository } from '#repositories/User';
 import { FLAGS } from 'core/domain/Flag';
 import { NotFoundError } from 'core/entities/Error';
+import { professionalQuerySchema } from 'core/entities/AdminQuery';
 
 import type { ProfessionalListRow } from '#repositories/Professional';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 
 import type { AcceptAgreement, GrantProfessional, Professional } from 'core/entities/Professional';
+import type { ProfessionalQuery } from 'core/entities/AdminQuery';
 
 // --- Presenters ---------------------------------------------------------------
 
@@ -160,9 +162,13 @@ export const ProfessionalController = {
     return SettingsRepository.isEnabled(FLAGS.professional.key, FLAGS.professional.fallback);
   },
 
-  /** Every professional for the owner's screen — accounts and counts, never a client. */
-  async list(): Promise<readonly ProfessionalAccountView[]> {
-    const rows = await ProfessionalRepository.list();
+  /**
+   * Every professional for the owner's screen — accounts and counts, never a
+   * client — searched and sorted as the query asks; most recently granted
+   * first when it asks nothing.
+   */
+  async list(query: ProfessionalQuery = professionalQuerySchema.parse({})): Promise<readonly ProfessionalAccountView[]> {
+    const rows = await ProfessionalRepository.list(query);
 
     return rows.map(presentAccount);
   },

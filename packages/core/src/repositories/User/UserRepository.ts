@@ -1,12 +1,135 @@
-import { count, desc, eq } from 'drizzle-orm';
+import { and, asc, count, desc, eq, getTableName, isNotNull, isNull, not, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
+import { analyticsEvents } from 'database/schema/platform';
+import { contains, ordered } from '#repositories/Search';
 import { database } from 'database';
+import { mealPlans } from 'database/schema/plan';
+import { onboardingState } from 'database/schema/profile';
+import { professionals } from 'database/schema/professional';
 import { user } from 'database/schema/auth';
 
 import { DatabaseOperationError } from 'core/entities/Error';
 import { userSchema } from 'core/entities/User';
+
+import type { AccountQuery } from 'core/entities/AdminQuery';
+import type { SQL } from 'drizzle-orm';
 import type { User, UserTier } from 'core/entities/User';
+
+/**
+ * One account on the owner's table: the row's own columns, and four
+ * milestones — dates and counts *about* the account, never what it holds
+ * (`0028`). No plan is read, only counted; no event is read, only its latest
+ * date; no onboarding answer is read, only the day it was finished.
+ */
+export type AccountRow = {
+  readonly id: string;
+  readonly activatedAt: Date | null;
+  readonly createdAt: Date;
+  readonly email: string;
+  readonly emailVerified: boolean;
+  /** The latest product event recorded for the account, or null when there is none. */
+  readonly lastActiveAt: Date | null;
+  /** The day onboarding was finished, `YYYY-MM-DD`, or null. */
+  readonly onboardedAt: string | null;
+  /** How many plans the account has, in any state. */
+  readonly plans: number;
+  /** Whether the owner has granted the account the practice (`0059`), whatever the switch says. */
+  readonly professional: boolean;
+  readonly role: 'admin' | 'user';
+  readonly tier: UserTier;
+};
+
+/**
+ * The outer row's id, always written `"user"."id"`. Drizzle drops the table
+ * from a column in a query over one table, and inside a sub-select a bare
+ * `"id"` binds to the *inner* table — `meal_plans.id`, not the account's —
+ * which silently correlates nothing. Written out, it can only mean the account.
+ */
+const ACCOUNT_ID = sql`${sql.identifier(getTableName(user))}.${sql.identifier('id')}`;
+
+/** The owner's grant stands (`0059`). The switch is not asked: the table is about the grant the row actions change. */
+const IS_PROFESSIONAL = sql`exists (select 1 from ${professionals} where ${professionals.userId} = ${ACCOUNT_ID})`;
+
+/**
+ * The milestones as correlated sub-selects against the outer `user` row. Each
+ * reads one indexed `user_id` and returns a date, a count or a yes/no — never
+ * a row of the other table.
+ */
+const MILESTONES = {
+  lastActiveAt:
+    sql<Date | null>`(select max(${analyticsEvents.createdAt}) from ${analyticsEvents} where ${analyticsEvents.userId} = ${ACCOUNT_ID})`.mapWith(
+      analyticsEvents.createdAt
+    ),
+  onboardedAt: sql<
+    string | null
+  >`(select ${onboardingState.completedAt} from ${onboardingState} where ${onboardingState.userId} = ${ACCOUNT_ID})`.mapWith(
+    onboardingState.completedAt
+  ),
+  plans: sql<number>`(select count(*) from ${mealPlans} where ${mealPlans.userId} = ${ACCOUNT_ID})`.mapWith(Number),
+  professional: sql<boolean>`${IS_PROFESSIONAL}`.mapWith(Boolean)
+};
+
+/** What the account table selects: the row's own columns and the four milestones. Exported for its spec. */
+export const ACCOUNT_COLUMNS = {
+  id: user.id,
+  activatedAt: user.activatedAt,
+  createdAt: user.createdAt,
+  email: user.email,
+  emailVerified: user.emailVerified,
+  lastActiveAt: MILESTONES.lastActiveAt,
+  onboardedAt: MILESTONES.onboardedAt,
+  plans: MILESTONES.plans,
+  professional: MILESTONES.professional,
+  role: user.role,
+  tier: user.tier
+};
+
+/** Onboarding finished: the funnel's own definition (`AdminRepository.funnel`). */
+const ONBOARDED = sql`exists (select 1 from ${onboardingState} where ${onboardingState.userId} = ${ACCOUNT_ID} and ${isNotNull(onboardingState.completedAt)})`;
+
+/** A yes/no filter as a condition: `yes` is the condition, `no` its negation, absent is nothing. */
+function either(answer: 'no' | 'yes' | undefined, condition: SQL): SQL | undefined {
+  if (answer === undefined) {
+    return undefined;
+  }
+
+  return answer === 'yes' ? condition : not(condition);
+}
+
+/**
+ * The account table's `WHERE`, from the query's filters. Every value is bound
+ * as a parameter; the only text is the search, escaped into a literal
+ * "contains". Exported for its spec.
+ */
+export function accountFilters(
+  query: Pick<AccountQuery, 'activated' | 'confirmed' | 'onboarded' | 'professional' | 'q' | 'role' | 'tier'>
+): SQL | undefined {
+  return and(
+    query.q === undefined ? undefined : contains(user.email, query.q),
+    query.confirmed === undefined ? undefined : eq(user.emailVerified, query.confirmed === 'yes'),
+    query.activated === undefined ? undefined : query.activated === 'yes' ? isNotNull(user.activatedAt) : isNull(user.activatedAt),
+    either(query.professional, IS_PROFESSIONAL),
+    either(query.onboarded, ONBOARDED),
+    query.tier === undefined ? undefined : eq(user.tier, query.tier),
+    query.role === undefined ? undefined : eq(user.role, query.role)
+  );
+}
+
+/** The column each allowed sort names. A map, so no name from the URL reaches the SQL. */
+const ACCOUNT_SORT_COLUMNS = {
+  createdAt: user.createdAt,
+  email: user.email,
+  lastActiveAt: MILESTONES.lastActiveAt,
+  plans: MILESTONES.plans
+} as const;
+
+/** The chosen column in the chosen direction, then newest first and the id, so a page boundary never splits a tie differently. Exported for its spec. */
+export function accountOrder(query: Pick<AccountQuery, 'dir' | 'sort'>): readonly SQL[] {
+  const chosen = ordered(ACCOUNT_SORT_COLUMNS[query.sort], query.dir);
+
+  return query.sort === 'createdAt' ? [chosen, asc(user.id)] : [chosen, desc(user.createdAt), asc(user.id)];
+}
 
 /**
  * Reads the account row. Writes are Better Auth's job — it owns `user`,
@@ -79,44 +202,30 @@ export const UserRepository = {
    * that past a few hundred accounts the screen showed the founders and lost
    * everybody who needed something.
    *
-   * Address, dates and role only. No profile, no plan, no answers: an admin
-   * surface that can read what people eat is how one becomes a way to read
-   * people's health data (`0028`), and none of it helps decide whether to open
-   * an account.
+   * Address, dates, role and the account's milestones only. No profile, no
+   * plan, no answers: an admin surface that can read what people eat is how one
+   * becomes a way to read people's health data (`0028`), and none of it helps
+   * decide whether to open an account.
+   *
+   * Searched, filtered, sorted and paged in SQL (`0068`): one query for the
+   * page, each milestone a correlated sub-select on an indexed `user_id`, and
+   * one count under the same `WHERE`. The sort column comes from the query's
+   * allow-list; the tail of the order (newest first, then id) makes paging
+   * stable when many rows tie.
    */
-  async findAll(
-    limit: number,
-    offset: number
-  ): Promise<{
-    readonly rows: readonly {
-      readonly id: string;
-      readonly activatedAt: Date | null;
-      readonly createdAt: Date;
-      readonly email: string;
-      readonly emailVerified: boolean;
-      readonly role: 'admin' | 'user';
-      readonly tier: UserTier;
-    }[];
-    readonly total: number;
-  }> {
+  async findAll(query: AccountQuery): Promise<{ readonly rows: readonly AccountRow[]; readonly total: number }> {
     try {
       const db = database();
+      const where = accountFilters(query);
       const [rows, counted] = await Promise.all([
         db
-          .select({
-            id: user.id,
-            activatedAt: user.activatedAt,
-            createdAt: user.createdAt,
-            email: user.email,
-            emailVerified: user.emailVerified,
-            role: user.role,
-            tier: user.tier
-          })
+          .select(ACCOUNT_COLUMNS)
           .from(user)
-          .orderBy(desc(user.createdAt))
-          .limit(limit)
-          .offset(offset),
-        db.select({ n: count() }).from(user)
+          .where(where)
+          .orderBy(...accountOrder(query))
+          .limit(query.size)
+          .offset(query.offset),
+        db.select({ n: count() }).from(user).where(where)
       ]);
 
       return { rows, total: counted[0]?.n ?? 0 };

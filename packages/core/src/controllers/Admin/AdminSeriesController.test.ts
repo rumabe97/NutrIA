@@ -11,6 +11,7 @@ const series = vi.hoisted(() => ({
   eventsPerDay: vi.fn<(typeof Series)['eventsPerDay']>(),
   generationsPerDay: vi.fn<(typeof Series)['generationsPerDay']>(),
   generationTotals: vi.fn<(typeof Series)['generationTotals']>(),
+  messagesPerDay: vi.fn<(typeof Series)['messagesPerDay']>(),
   pictureSpendTotals: vi.fn<(typeof Series)['pictureSpendTotals']>(),
   plansByState: vi.fn<(typeof Series)['plansByState']>(),
   plansCreatedPerDay: vi.fn<(typeof Series)['plansCreatedPerDay']>(),
@@ -50,6 +51,11 @@ beforeEach(() => {
     { day: '2026-09-23', key: 'failed', n: 1 }
   ]);
   series.activePeoplePerDay.mockResolvedValue([{ day: '2026-09-27', n: 9 }]);
+  series.messagesPerDay.mockResolvedValue([
+    { day: '2026-09-23', n: 2 },
+    { day: '2026-09-27', n: 1 },
+    { day: '2026-09-28', n: 4 }
+  ]);
   series.plansCreatedPerDay.mockResolvedValue([{ day: '2026-09-23', n: 3 }]);
   series.eventsPerDay.mockResolvedValue([{ day: '2026-09-25', key: 'swap_requested', n: 2 }]);
   series.plansByState.mockResolvedValue([
@@ -160,5 +166,30 @@ describe('AdminSeriesController.plans', () => {
     ]);
     expect(view.created).toEqual({ days: WEEK, values: [0, 3, 0, 0, 0, 0, 0] });
     expect(view.period).toBe(7);
+  });
+});
+
+describe('AdminSeriesController.people', () => {
+  it('folds sign-ups and messages into Madrid ISO weeks, named by their Monday', async () => {
+    const view = await AdminSeriesController.people(7, NOW);
+
+    expect(series.signUpsPerDay).toHaveBeenCalledWith(new Date('2026-09-21T22:00:00Z'), NOW);
+    expect(series.messagesPerDay).toHaveBeenCalledWith(new Date('2026-09-21T22:00:00Z'), NOW);
+    expect(view.signUps).toEqual({ values: [1, 2], weeks: ['2026-09-21', '2026-09-28'] });
+    expect(view.messages).toEqual({ values: [3, 4], weeks: ['2026-09-21', '2026-09-28'] });
+    expect(view.period).toBe(7);
+    expect(view.window.from).toBe('2026-09-21T22:00:00.000Z');
+  });
+
+  it('has a zero for every quiet week of the period', async () => {
+    series.signUpsPerDay.mockResolvedValue([]);
+
+    const view = await AdminSeriesController.people(30, NOW);
+
+    expect(view.signUps).toEqual({
+      values: [0, 0, 0, 0, 0, 0],
+      weeks: ['2026-08-24', '2026-08-31', '2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28']
+    });
+    expect(view.messages.values).toEqual([0, 0, 0, 0, 3, 4]);
   });
 });

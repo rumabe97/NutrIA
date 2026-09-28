@@ -486,4 +486,96 @@ describe('professionals', () => {
     // Taking back what is not there is the same 404 as every other denial.
     await request(server).delete(`/${PREFIX}/admin/accounts/${granted.id}/professional`).set('Cookie', owner.cookie).expect(404);
   });
+
+  /*
+   * The owner's list as a table (`0068`, project 007 phase 5): searched by
+   * address, sorted by grant date, address or links, unpaged. Two grants made
+   * here carry one token, so every assertion is scoped to them with `q`.
+   */
+  describe('the list as a table', () => {
+    const token = `ptbl${Date.now()}`;
+    let alpha: Account;
+    let beta: Account;
+
+    const list = async (query: string): Promise<readonly ProfessionalAccountView[]> =>
+      (await request(httpServer(app)).get(`/${PREFIX}/admin/professionals?${query}`).set('Cookie', owner.cookie).expect(200))
+        .body as readonly ProfessionalAccountView[];
+    const emails = (rows: readonly ProfessionalAccountView[]) => rows.map(row => row.email);
+
+    beforeAll(async () => {
+      alpha = await register(app, `pro-${token}-alpha@e2e.invalid`);
+      made.push(alpha.cookie);
+      beta = await register(app, `pro-${token}-beta@e2e.invalid`);
+      made.push(beta.cookie);
+
+      // Granted in this order, so `grantedAt` puts alpha first going up.
+      for (const who of [alpha, beta]) {
+        await request(httpServer(app))
+          .post(`/${PREFIX}/admin/accounts/${who.id}/professional`)
+          .set('Cookie', owner.cookie)
+          .send({ collegiateNumber: NUMBER })
+          .expect(201);
+      }
+    });
+
+    it('is still a 404 to anybody but the owner, even with a query it would refuse', async () => {
+      for (const path of ['', '?sort=x', '?sort=email', `?q=${token}`]) {
+        const asOrdinary: Response = await request(httpServer(app)).get(`/${PREFIX}/admin/professionals${path}`).set('Cookie', ordinary.cookie);
+        const asNobody: Response = await request(httpServer(app)).get(`/${PREFIX}/admin/professionals${path}`);
+
+        expect({ nobody: asNobody.status, ordinary: asOrdinary.status, path }).toEqual({ nobody: 404, ordinary: 404, path });
+      }
+    });
+
+    it('finds grants by address, case-insensitively and literally', async () => {
+      expect([...emails(await list(`q=${token}`))].sort()).toEqual([alpha.email, beta.email]);
+      expect([...emails(await list(`q=${token.toUpperCase()}`))].sort()).toEqual([alpha.email, beta.email]);
+      expect(emails(await list(`q=${encodeURIComponent(`${token}-alpha`)}`))).toEqual([alpha.email]);
+
+      // `_` would match the `-`, and `%` anything, if they were wildcards.
+      for (const q of [`${token}_alpha`, `${token}%beta`]) {
+        expect({ q, rows: emails(await list(`q=${encodeURIComponent(q)}`)) }).toEqual({ q, rows: [] });
+      }
+    });
+
+    it('sorts by grant date, newest first unless asked, and by address both ways', async () => {
+      expect(emails(await list(`q=${token}`))).toEqual([beta.email, alpha.email]);
+      expect(emails(await list(`q=${token}&sort=grantedAt&dir=asc`))).toEqual([alpha.email, beta.email]);
+      expect(emails(await list(`q=${token}&sort=email&dir=asc`))).toEqual([alpha.email, beta.email]);
+      expect(emails(await list(`q=${token}&sort=email&dir=desc`))).toEqual([beta.email, alpha.email]);
+    });
+
+    it('sorts by links: active first, then every link, over the whole list', async () => {
+      for (const dir of ['asc', 'desc'] as const) {
+        const keys = (await list(`sort=links&dir=${dir}`)).map(
+          row => [row.links.active, row.links.active + row.links.paused + row.links.ended] as const
+        );
+
+        for (let i = 1; i < keys.length; i++) {
+          const [a, b] = [keys[i - 1], keys[i]];
+          const inOrder = a[0] === b[0] ? (dir === 'asc' ? a[1] <= b[1] : a[1] >= b[1]) : dir === 'asc' ? a[0] < b[0] : a[0] > b[0];
+
+          expect({ at: i, dir, inOrder }).toEqual({ at: i, dir, inOrder: true });
+        }
+      }
+    });
+
+    it('carries the same five keys on every row', async () => {
+      for (const row of await list('')) {
+        expect(Object.keys(row).sort()).toEqual(['collegiateNumber', 'email', 'grantedAt', 'links', 'userId']);
+      }
+    });
+
+    it('refuses a sort, a direction or a repeated parameter outside its allow-list', async () => {
+      for (const query of ['sort=createdAt', 'sort=plans', 'dir=up', 'sort=email&sort=links', 'q=a&q=b', 'q=a%00b']) {
+        const refused: Response = await request(httpServer(app)).get(`/${PREFIX}/admin/professionals?${query}`).set('Cookie', owner.cookie);
+
+        expect({ code: (refused.body as { code?: string }).code, query, status: refused.status }).toEqual({
+          code: 'INVALID_INPUT',
+          query,
+          status: 422
+        });
+      }
+    });
+  });
 });
