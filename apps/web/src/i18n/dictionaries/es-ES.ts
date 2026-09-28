@@ -96,6 +96,7 @@ export const esES = {
       duplicate: 'repetido',
       foreign_food: 'nombra algo que no lleva',
       over_time: 'demasiado tiempo',
+      oversized: 'ración enorme',
       schema: 'esquema',
       unknown_ingredient: 'ingrediente inventado',
       unwanted: 'dieta o gustos',

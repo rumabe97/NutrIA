@@ -330,6 +330,13 @@
       "when": 1790609819060,
       "tag": "0046_the_console_reads_events_and_jobs_by_day",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1790634544029,
+      "tag": "0047_a_serving_has_a_ceiling",
+      "breakpoints": true
     }
   ]
 }

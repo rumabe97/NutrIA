@@ -1,6 +1,7 @@
 import { DEFAULT_MEAL_SHAPE, weightsFor } from 'core/domain/MealShape';
 import { INGREDIENT_CATEGORIES, SNACK_SLOTS } from 'core/entities/Plan';
 import { normaliseForMatching } from 'core/domain/Safety';
+import { SERVING_KCAL_CAP, servingFactor } from 'core/domain/Serving';
 
 import type { CatalogueIngredient, IngredientCategory, MealSlot } from 'core/entities/Plan';
 import type { CheckInForGeneration } from 'core/controllers/CheckIn';
@@ -154,8 +155,21 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * than the label. `GOAL_GUIDANCE` loses `custom` the same day: the goal type
  * is gone from `GOAL_TYPES` along with the free text it existed to describe
  * (`0067`), and it always computed as `maintenance` anyway.
+ * 4.5.0: one serving has a ceiling (`0070`, amending `0047`). The brief was the
+ * person's share of the day with nothing bounding it, so a 3,700 kcal day with
+ * a large lunch asked one serving of lunch for 2,700 kcal — and the model wrote
+ * it: 350 g of dry rice and 55 g of oil as one plate, `servings: 1`, stored in
+ * the library everyone is served from (49 dev dishes over 1,500 kcal, 17 over
+ * 2,000). The "250 g dry is three" and "a plate a person would recognise as
+ * one" lines lost to the number every time. Now each meal's brief is capped
+ * (`SERVING_KCAL_CAP`: 900 kcal lunch and dinner, 700 breakfast, 400 a snack)
+ * with protein, carbohydrate, fat and fibre scaled by the same factor, so the
+ * split is exactly 0047's; the protein straddle follows the capped figure; the
+ * event-day lines are capped the same way; and a capped meal is told that the
+ * person eats more there and is served more than one serving. The pool builder
+ * refuses a dish past one and a half times its cap (`oversized`).
  */
-export const PROMPT_VERSION = '4.4.0';
+export const PROMPT_VERSION = '4.5.0';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -512,6 +526,7 @@ const COMPOSITION_RULES = [
   '- Fibre: at least two plant components in a main dish — vegetables, legumes, whole grains, fruit.',
   '- Weigh each ingredient as it is named. A slug that says cooked (cocido, cocida) is weighed cooked; one that says raw or dry (crudo, seco) — or says neither, for rice, pasta, grains and pulses — is weighed dry, as bought. Dry rice or pasta roughly triples in weight when cooked: 80 g dry is a normal plate, 250 g dry is three.',
   '- Real portions. The grams are for the number of servings you declare, and one serving is a plate a person would recognise as one.',
+  '- One serving has a ceiling. No figure below asks one serving for more than one plate holds; a person who eats more is served more than one serving of the same dish, and the plan sizes that. Never build one serving past its numbers.',
   ''
 ];
 
@@ -556,14 +571,23 @@ function characterOf(slot: MealSlot, patterns: readonly string[]): string | null
 
 type SlotBrief = { readonly carbsG: number; readonly fatG: number; readonly fiberG: number; readonly kcal: number; readonly proteinG: number };
 
-/** A day's targets, scaled to one slot's share of it. */
-function briefFor(targets: NutritionTargets, share: number): SlotBrief {
+/**
+ * A day's targets, scaled to one slot's share of it — and to one serving's
+ * ceiling at that meal (`0070`, `servingFactor`). One factor for all five
+ * figures, so the split is the day's whatever the size; a person whose share
+ * is larger than one plate eats more than one serving of it.
+ */
+function briefFor(targets: NutritionTargets, share: number, slot: MealSlot): SlotBrief & { readonly capped: boolean } {
+  const factor = servingFactor(targets.kcal * share, slot);
+  const scale = share * factor;
+
   return {
-    carbsG: Math.round(targets.carbsG * share),
-    fatG: Math.round(targets.fatG * share),
-    fiberG: Math.round(targets.fiberG * share),
-    kcal: Math.round(targets.kcal * share),
-    proteinG: Math.round(targets.proteinG * share)
+    capped: factor < 1,
+    carbsG: Math.round(targets.carbsG * scale),
+    fatG: Math.round(targets.fatG * scale),
+    fiberG: Math.round(targets.fiberG * scale),
+    kcal: Math.round(targets.kcal * scale),
+    proteinG: Math.round(targets.proteinG * scale)
   };
 }
 
@@ -609,7 +633,7 @@ function sharesOf(context: PromptContext): ReadonlyMap<MealSlot, number> {
  * nothing at their split leaves them short however it sizes the plates. So a
  * share of the dishes is asked for at that split too.
  */
-function loadedLines(context: PromptContext, share: number, count: number): readonly string[] {
+function loadedLines(context: PromptContext, slot: MealSlot, share: number, count: number): readonly string[] {
   const loaded = context.loadedTargets ?? [];
 
   if (loaded.length === 0 || count < 2) {
@@ -620,7 +644,7 @@ function loadedLines(context: PromptContext, share: number, count: number): read
 
   return [
     'SOME DAYS THIS FORTNIGHT EAT FOR AN EVENT (a race, a match, a long session) at a different split:',
-    ...loaded.map(targets => `- ${numbersOf(briefFor(targets, share))} per serving (${splitOf(targets)})`),
+    ...loaded.map(targets => `- ${numbersOf(briefFor(targets, share, slot))} per serving (${splitOf(targets)})`),
     `Make ${wanted} of these dishes fit that split instead, so those days have plates built for them.`,
     ''
   ];
@@ -652,20 +676,25 @@ export function buildPoolPrompt(
   // fix a dish's composition afterwards (`0045`).
   const needs = wanted
     .map(([slot, count]) => {
-      const brief = briefFor(context.targets, shares.get(slot) ?? 0);
+      const brief = briefFor(context.targets, shares.get(slot) ?? 0, slot);
       const character = characterOf(slot, patterns);
       const shape = character ? `\n  ${character}` : '';
+      // Their share of the day at this meal is more than one plate (`0070`):
+      // said, so the model does not pack it back into one serving.
+      const more = brief.capped
+        ? `\n  One serving is capped at ~${SERVING_KCAL_CAP[slot]} kcal at this meal. They eat more than that here and are served more than one serving: build one plate, never the whole meal.`
+        : '';
 
       // As numbers, because prose was not enough: asked to straddle, 3.1.0's
       // main dishes still came back at 16–20% protein against a 17% day.
       const straddle = `\n  Protein: half the set between ${Math.round(brief.proteinG * 0.9)} and ${brief.proteinG} g, half between ${brief.proteinG} and ${Math.round(brief.proteinG * 1.1)} g — not all at the top.`;
 
-      return `- ${SLOT_LABEL[slot]}: ${count} distinct dishes, each ${numbersOf(brief)} per serving.${straddle}${shape}`;
+      return `- ${SLOT_LABEL[slot]}: ${count} distinct dishes, each ${numbersOf(brief)} per serving.${straddle}${more}${shape}`;
     })
     .join('\n');
 
   const firstSlot = wanted[0];
-  const loaded = firstSlot ? loadedLines(context, shares.get(firstSlot[0]) ?? 0, firstSlot[1]) : [];
+  const loaded = firstSlot ? loadedLines(context, firstSlot[0], shares.get(firstSlot[0]) ?? 0, firstSlot[1]) : [];
   const catalogue = catalogueByAisle(safeIngredients, context.month);
   const cuisines = oneLineList(context.cuisines.filter(cuisine => NAMEABLE_CUISINES.has(normaliseForMatching(cuisine))));
   const likes = oneLineList(context.likedFoods);

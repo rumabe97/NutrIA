@@ -1,6 +1,6 @@
 # 0047 — Dishes are designed to the whole split, per serving, at the person's own size
 
-**Status**: accepted · **Date**: 2026-09-11 · **Deciders**: owner, agent
+**Status**: accepted — amended by [0070](./0070-a-serving-has-a-ceiling.md) (the split stands; one serving is capped per meal, big eaters get more servings) · **Date**: 2026-09-11 · **Deciders**: owner, agent
 
 ## Context
 

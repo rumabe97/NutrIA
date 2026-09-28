@@ -92,6 +92,7 @@ export const enGB: Dictionary = {
       duplicate: 'repeated',
       foreign_food: 'names what it lacks',
       over_time: 'too long',
+      oversized: 'serving too large',
       schema: 'schema',
       unknown_ingredient: 'invented ingredient',
       unwanted: 'diet or dislikes',
