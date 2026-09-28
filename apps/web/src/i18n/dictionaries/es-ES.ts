@@ -572,7 +572,6 @@ export const esES = {
   },
 
   goals: {
-    custom: 'Personalizado',
     healthy_eating: 'Comer sano',
     maintenance: 'Mantenimiento',
     muscle_gain: 'Ganar músculo',
@@ -679,8 +678,8 @@ export const esES = {
     heroNote: 'Sin tarjeta. Tu plan estará listo en cuanto termines el cuestionario.',
     lede: 'Planes de alimentación personalizados, construidos alrededor de tus objetivos, tus preferencias y tu vida. Y ajustados cada dos semanas según lo que de verdad te funciona.',
     personalisationLede:
-      'Objetivo, edad, actividad, horarios, presupuesto, cocina que te gusta, alimentos que no piensas volver a ver. Todo entra en el cálculo, y todo se puede cambiar después.',
-    personalisationTitle: 'Tu plan sabe que los martes llegas tarde.',
+      'Objetivo, edad, actividad, cocina que te gusta, alimentos que no piensas volver a ver. Todo entra en el cálculo, y todo se puede cambiar después.',
+    personalisationTitle: 'Tu plan sabe que te saltas el desayuno.',
     preview: {
       adherence: 'Adherencia',
       adherenceValue: '72 %',
@@ -714,7 +713,7 @@ export const esES = {
     safetyLede: 'La IA propone comidas. Lo que puede hacerte daño lo comprueba el sistema.',
     safetyTitle: 'Lo importante no lo decide un modelo.',
     steps: [
-      { body: 'Objetivo, horarios, alergias, presupuesto y lo que no piensas cocinar un martes.', title: 'Nos cuentas cómo vives' },
+      { body: 'Objetivo, alergias y cuánto tiempo tienes para cocinar cada plato.', title: 'Nos cuentas cómo vives' },
       { body: 'Calculamos tus necesidades y construimos catorce días completos, comida a comida.', title: 'Creamos tu plan' },
       { body: 'Marca lo que comes, cambia lo que no te apetece, compra con una lista ya hecha.', title: 'Lo sigues a tu ritmo' },
       { body: 'Cada dos semanas revisamos qué funcionó y el siguiente plan llega mejor ajustado.', title: 'Se adapta' }
@@ -814,9 +813,6 @@ export const esES = {
       activityLevel: 'Nivel de actividad',
       allergies: 'Alergias',
       birthDate: 'Fecha de nacimiento',
-      breakfastStyle: '¿Cómo sueles desayunar?',
-      budget: 'Presupuesto',
-      cookingFrequency: '¿Con qué frecuencia cocinas?',
       cookingTime: 'Minutos que puedes dedicar a cocinar',
       cookingTimeHint: 'Por comida, entre 5 y 240.',
       country: '¿Dónde haces la compra?',
@@ -824,7 +820,6 @@ export const esES = {
       cuisines: 'Cocinas que te apetecen',
       customAllergens: 'Algo que no esté en la lista',
       customAllergensHint: 'Separa con comas. Al guardar buscamos cada una en nuestro catálogo y te decimos qué podemos aplicar.',
-      customGoal: 'Si has elegido «Otro», descríbelo',
       dietaryPatterns: 'Tipo de alimentación',
       dietaryPatternsHint:
         'Quitamos el cerdo, el alcohol y la gelatina (y, en kosher, el marisco y la carne con lácteos). La carne certificada depende de dónde la compres.',
@@ -844,19 +839,13 @@ export const esES = {
       paceHint:
         'Entre 0 y 1 kg por semana; el sentido lo marca tu objetivo. Si pides más de lo que es seguro para ti, lo ajustamos y te lo decimos en el resumen.',
       paceRange: 'El ritmo tiene que estar entre 0 y 1 kg por semana.',
-      portionPreference: '¿Prefieres platos grandes o ligeros?',
       sex: 'Sexo',
       sexHint: 'Lo usamos solo para la ecuación metabólica. Si prefieres no decirlo, usamos el valor intermedio.',
-      sleepEnd: '¿A qué hora te levantas?',
-      sleepStart: '¿A qué hora te acuestas?',
       targetWeightKg: 'Peso objetivo (kg)',
       traceHint: 'Marca «trazas» si también te afectan los productos que pueden contener el alérgeno.',
       traceLabel: 'trazas',
       traceLabelFor: 'Trazas de {allergen}',
-      trainingDays: 'Días de entrenamiento por semana',
-      trainingTime: '¿A qué hora entrenas?',
-      weightKg: 'Peso actual (kg)',
-      workScheduleNotes: 'Algo de tu horario que debamos saber'
+      weightKg: 'Peso actual (kg)'
     },
     options: {
       activity: {
@@ -866,12 +855,6 @@ export const esES = {
         moderate: { hint: 'Entreno 3–4 veces por semana.', label: 'Moderado' },
         sedentary: { hint: 'Trabajo sentado, poco ejercicio.', label: 'Sedentario' }
       },
-      budget: {
-        high: { hint: 'Producto fresco y de temporada.', label: 'Amplio' },
-        low: { hint: 'Básicos y marcas blancas.', label: 'Ajustado' },
-        medium: { hint: 'Sin pensarlo demasiado.', label: 'Normal' }
-      },
-      cookingFrequency: { daily: 'A diario', often: 'A menudo', rarely: 'Casi nunca', sometimes: 'A veces' },
       countries: { ES: 'España', GB: 'Reino Unido' },
       dietaryPatterns: {
         flexitarian: 'Flexitariana',
@@ -885,7 +868,6 @@ export const esES = {
         vegetarian: 'Vegetariana'
       },
       goals: {
-        custom: { hint: 'Cuéntanoslo con tus palabras.', label: 'Otro' },
         healthy_eating: { hint: 'Sin objetivo de peso, solo comer bien.', label: 'Comer sano' },
         maintenance: { hint: 'Quedarte donde estás, comiendo mejor.', label: 'Mantenerme' },
         muscle_gain: { hint: 'Ganar músculo con un superávit controlado.', label: 'Ganar músculo' },
@@ -940,7 +922,6 @@ export const esES = {
       foodPreferences: { subtitle: 'Lo que te gusta aparecerá más. Lo que no, desaparece.', title: 'Preferencias' },
       goal: { subtitle: 'Puedes cambiarlo en cualquier momento.', title: 'Tu objetivo' },
       howYouEat: { subtitle: 'Cómo repartes la comida a lo largo del día.', title: 'Cómo comes' },
-      lifestyle: { subtitle: 'Para que las comidas caigan cuando puedes comértelas.', title: 'Tu día a día' },
       review: { subtitle: 'Comprueba que todo está bien antes de terminar.', title: 'Revisión' }
     }
   },
@@ -957,7 +938,7 @@ export const esES = {
   pages: {
     '/': {
       description:
-        'Planes de catorce días con recetas, cantidades y la lista de la compra hecha, construidos alrededor de tus objetivos, tus horarios y tus alergias.',
+        'Planes de catorce días con recetas, cantidades y la lista de la compra hecha, construidos alrededor de tus objetivos y tus alergias.',
       title: 'NutrIA — Planes de alimentación personalizados'
     },
     '/acceder': { description: 'Entra en NutrIA para ver tu plan de hoy, tu lista de la compra y tu progreso.', title: 'Acceder' },
@@ -1329,7 +1310,8 @@ export const esES = {
         heading: 'Qué datos recogemos y para qué',
         list: [
           'Cuenta: tu nombre y tu correo y, si entras con Google o Apple, el nombre y el correo que ese servicio nos confirma. Mientras tienes la sesión abierta guardamos la dirección IP y el navegador desde el que entraste, para poder cerrarla. Para que tengas una cuenta y solo tú entres en ella.',
-          'Tu cuerpo y tu objetivo: fecha de nacimiento, sexo, altura, peso, nivel de actividad, horarios y tu objetivo (por ejemplo, perder peso). Para calcular cuánto necesitas comer.',
+          'Tu cuerpo y tu objetivo: fecha de nacimiento, sexo, altura, peso, nivel de actividad y tu objetivo (por ejemplo, perder peso). Para calcular cuánto necesitas comer.',
+          'País: desde dónde compras. Para que el catálogo solo te muestre alimentos que puedas encontrar allí.',
           'Alergias e intolerancias: las que eliges de la lista, las que escribes a mano y su gravedad. Para que ningún plan te proponga algo que te puede hacer daño.',
           'Tu forma de comer: por ejemplo vegetariana, sin gluten o sin lactosa, y la cocina que te gusta o no. Para ajustar los platos.',
           'Enfermedades, medicación y suplementos: solo si decides contárnoslo, bajo un consentimiento aparte que puedes retirar en cualquier momento sin borrar el resto de tu cuenta.',
@@ -1371,7 +1353,7 @@ export const esES = {
         heading: 'La inteligencia artificial',
         paragraphs: [
           'Los platos y las recetas de NutrIA los diseña un modelo de inteligencia artificial o salen de nuestra biblioteca de platos ya diseñados y comprobados. Nuestro propio código comprueba cada plato antes de que te llegue: un alérgeno declarado no llega a tu plan aunque el modelo se equivoque. La IA no toma ninguna decisión sobre ti: los límites de calorías y de proteína los aplican reglas fijas, no el modelo.',
-          'Lo que recibe el modelo cuando diseña platos nuevos para tu plan: tus objetivos diarios y tu objetivo (por ejemplo, perder peso), qué comidas haces y a qué horas te levantas, te acuestas y entrenas, cuánto cocinas y tu presupuesto, si eres vegetariano o vegano, las cocinas y los alimentos que te gustan, los nombres de los platos que te gustaron, que no te gustaron o que comiste la quincena anterior, y tus respuestas cerradas al check-in (hambre, dificultad, nota). Siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu sexo, tu peso ni tu altura, nada que hayas escrito a mano, tus alergias ni intolerancias, ninguna otra forma de comer (sin gluten, sin lactosa, halal, kósher…), ni tus enfermedades, tu medicación o tus suplementos. Lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, del catálogo de alimentos que ve: le llega el efecto, nunca el dato.',
+          'Lo que recibe el modelo cuando diseña platos nuevos para tu plan: tus objetivos diarios y tu objetivo (por ejemplo, perder peso), qué comidas haces y cuánto tiempo quieres dedicar a cocinar cada plato, si eres vegetariano o vegano, las cocinas y los alimentos que te gustan, los nombres de los platos que te gustaron, que no te gustaron o que comiste la quincena anterior, y tus respuestas cerradas al check-in (hambre, dificultad, nota). Siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu sexo, tu peso ni tu altura, nada que hayas escrito a mano, tus alergias ni intolerancias, ninguna otra forma de comer (sin gluten, sin lactosa, halal, kósher…), ni tus enfermedades, tu medicación o tus suplementos. Lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, del catálogo de alimentos que ve: le llega el efecto, nunca el dato.',
           'A quién va: la petición va a OpenRouter (OpenRouter, Inc., Estados Unidos), que la trata por encargo nuestro y la pasa a la empresa que ejecuta el modelo: DeepInfra o CoreWeave, también en Estados Unidos. El modelo es Gemma 4 31B y, si no responde, DeepSeek V4.1 Flash; son modelos abiertos que ejecutan esas empresas: lo que se envía para diseñar tus platos nunca pasa por los servicios de Google ni de DeepSeek.',
           'Nadie entrena con ello ni lo guarda: solo usamos proveedores que borran la petición en cuanto responden y no la usan para entrenar ni mejorar ningún modelo. Lo exigimos en nuestra cuenta de OpenRouter y otra vez en cada petición. OpenRouter guarda solo datos técnicos de cada petición (tamaño, tiempo, coste), no su contenido.',
           'Una excepción que debes conocer: OpenRouter puede pasar una pequeña muestra de peticiones, sin nada que las ligue a nuestra cuenta ni a ti, por un modelo que les pone una etiqueta de tema para sus estadísticas públicas de uso. No guarda el texto, solo la etiqueta.',
@@ -1541,7 +1523,7 @@ export const esES = {
   },
 
   profileConsent: {
-    ai: 'Un modelo de inteligencia artificial diseña los platos. Recibe tus objetivos diarios, tus horarios de comida, tu presupuesto, si eres vegetariano o vegano, y los alimentos y platos que te gustan o no, siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu peso ni tu altura, nada que escribas a mano, tus alergias ni intolerancias, ninguna otra forma de comer, ni tus enfermedades o tu medicación: lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, y el mismo código comprueba cada plato antes de que te llegue.',
+    ai: 'Un modelo de inteligencia artificial diseña los platos. Recibe tus objetivos diarios, tus horarios de comida, si eres vegetariano o vegano, y los alimentos y platos que te gustan o no, siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu peso ni tu altura, nada que escribas a mano, tus alergias ni intolerancias, ninguna otra forma de comer, ni tus enfermedades o tu medicación: lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, y el mismo código comprueba cada plato antes de que te llegue.',
     body: 'Para hacerte un plan seguro necesitamos datos que dicen algo de tu salud: tus alergias e intolerancias, tu peso, tu altura y tu objetivo, y tu forma de comer, que a veces revela una intolerancia o una creencia. Los usamos solo para calcular tus objetivos y elegir tus platos.',
     continue: 'Continuar',
     label: 'Consiento que NutrIA use estos datos de salud para hacer mis planes',

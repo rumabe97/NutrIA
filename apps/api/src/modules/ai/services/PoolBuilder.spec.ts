@@ -158,11 +158,8 @@ describe('shortfall', () => {
 describe('PoolBuilder — the fresh floor holds however rich the library the rotation cap now allows (0065)', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -212,11 +209,8 @@ describe('PoolBuilder — the fresh floor holds however rich the library the rot
 describe('PoolBuilder', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -583,25 +577,6 @@ describe('PoolBuilder', () => {
       expect((generate.mock.calls[0]?.[0] as { prompt: string }).prompt).not.toContain('LAST FORTNIGHT');
     });
 
-    it('passes on how they eat from their structured answers only', async () => {
-      const { client, generate } = stubClient([{ dishes: [] }]);
-
-      await new PoolBuilder(client).build({
-        context: context(),
-        preferences: { ...preferences, cookingFrequency: 'often', dayShape: 'wakes at 07:00' },
-        reusable: [],
-        slots: ['lunch']
-      });
-
-      const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
-
-      expect(prompt).toContain('THIS PERSON');
-      expect(prompt).toContain('- Cooks: often');
-      expect(prompt).toContain('- Their day: wakes at 07:00');
-      expect(prompt).not.toContain('in their words');
-      expect(prompt).not.toContain('Their week');
-    });
-
     it('states the spread as counts the model can check, where a request asks for enough dishes to count', async () => {
       const { client, generate } = stubClient([{ dishes: [] }]);
 
@@ -701,11 +676,8 @@ describe('PoolBuilder', () => {
 describe('PoolBuilder — the meals a model\u2019s dish may be served at', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -735,6 +707,93 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
     expect(result.dishes).toEqual([]);
     expect(result.metadata.rejected).toBeGreaterThan(0);
     expect(result.metadata.aiCalls[0]).toMatchObject({ dishes: 1, kept: 0, rejected: { wrong_meal: 1 } });
+  });
+
+  /**
+   * A claim that misses the meal asked for is replaced by that meal alone,
+   * never added to what the model wrote (`0067`'s bench, second round):
+   * asked for dinner on prompt 4.4.0, Gemma called every dinner "supper", and
+   * *appending* dinner to that claim (the first fix) let a mislabelled dinner
+   * enter the library as a snack too whenever its ingredients allowed one —
+   * composition drift the label never earned. The dish is still judged on
+   * its ingredients for the meal it was asked for, exactly as a correctly
+   * labelled one always was; it just does not also inherit whatever meal the
+   * model happened to guess.
+   */
+  it('keeps a dish the model mislabelled supper, for the dinner it was asked for, when its ingredients belong there — stored as dinner alone', async () => {
+    const { client } = stubClient([{ dishes: [dish('Arroz con pollo', ['supper'], ['arroz', 'pollo'])] }]);
+    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+
+    expect(result.generated.map(kept => kept.slots)).toEqual([['dinner']]);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({});
+  });
+
+  it('still drops a dish mislabelled supper for the dinner it was asked for, when a lunch-only food rules out both', async () => {
+    const { client } = stubClient([{ dishes: [stew(['supper'])] }]);
+    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+
+    expect(result.generated).toEqual([]);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({ wrong_meal: 1 });
+  });
+
+  /**
+   * The requested meal alone is only the *first* try, not the only one
+   * (`0067`'s third round): a model asked for breakfast can legitimately
+   * answer with a real lunch-and-dinner dish, and forcing that onto
+   * `[breakfast]` alone — as the second round's fix did — threw it away
+   * outright instead of keeping it for the meals it actually fits. Only when
+   * the requested meal alone fits nothing does the claim get its second try,
+   * exactly as the model wrote it; the two tries are never unioned, so this
+   * dish is stored as lunch and dinner, never as breakfast too.
+   */
+  it('keeps a dish returned to the wrong meal at the meal its ingredients actually fit, instead of dropping it', async () => {
+    // Rice, cooked, lunch and dinner only — legitimate exactly where it claims, illegitimate at breakfast.
+    const rice: CatalogueIngredient = { ...ingredient('arroz-blanco-cocido'), mealSlots: ['lunch', 'dinner'] };
+    const { client } = stubClient([{ dishes: [dish('Arroz blanco', ['lunch', 'dinner'], ['arroz-blanco-cocido'])] }]);
+    const result = await new PoolBuilder(client).build({
+      context: { ...context(), catalogue: toCatalogue([...CATALOGUE, rice]) },
+      preferences,
+      reusable: [],
+      slots: ['breakfast']
+    });
+
+    expect(result.generated.map(kept => kept.slots)).toEqual([['lunch', 'dinner']]);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({});
+  });
+
+  /**
+   * A claim that *includes* the meal asked for is trusted exactly as before
+   * this whole fix existed: nothing is replaced, and every other meal it
+   * named is kept too, ingredient-permitting.
+   */
+  it('keeps every meal a dish claims when one of them is the meal it was asked for', async () => {
+    const { client } = stubClient([{ dishes: [dish('Arroz con pollo', ['lunch', 'dinner'], ['arroz', 'pollo'])] }]);
+    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+
+    expect(result.generated.map(kept => kept.slots)).toEqual([['lunch', 'dinner']]);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({});
+  });
+
+  /**
+   * `slots: []` parses now (`pool.schema.ts`, `0067`'s bench: the model
+   * sometimes answers with no meal named at all, not only the wrong one) — so
+   * the requested meal has to carry the same weight an empty claim as a
+   * mislabelled one.
+   */
+  it('keeps a dish that named no meal at all, for the dinner it was asked for, when its ingredients belong there', async () => {
+    const { client } = stubClient([{ dishes: [dish('Arroz con pollo', [], ['arroz', 'pollo'])] }]);
+    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+
+    expect(result.generated.map(kept => kept.slots)).toEqual([['dinner']]);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({});
+  });
+
+  it('still drops a dish that named no meal at all, when a lunch-only food rules out the dinner it was asked for', async () => {
+    const { client } = stubClient([{ dishes: [stew([])] }]);
+    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+
+    expect(result.generated).toEqual([]);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({ wrong_meal: 1 });
   });
 
   it('keeps a stew that also claimed dinner, as a lunch only — it counts at lunch, not at the dinner it was asked for', async () => {
@@ -804,11 +863,8 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
 describe('PoolBuilder — the catalogue each request is shown', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -943,11 +999,8 @@ function dish2(slug: string): CandidateDish {
 describe('PoolBuilder — telling a broken provider from an absent one', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -1011,11 +1064,8 @@ describe('PoolBuilder — telling a broken provider from an absent one', () => {
 describe('PoolBuilder — the call log', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -1153,11 +1203,8 @@ describe('PoolBuilder — the call log', () => {
 describe('PoolBuilder — the time budget', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -1225,11 +1272,8 @@ describe('requestSizes', () => {
 describe('PoolBuilder — the first round, three dishes a request', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -1343,11 +1387,8 @@ describe('PoolBuilder — the first round, three dishes a request', () => {
 describe('PoolBuilder — the output cap', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -1414,11 +1455,8 @@ interface Validating {
 describe('PoolBuilder — a near-miss slug', () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,
@@ -1547,11 +1585,8 @@ describe('PoolBuilder — a near-miss slug', () => {
 describe("PoolBuilder — cleaning the model's steps", () => {
   const preferences = {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     goal: null,

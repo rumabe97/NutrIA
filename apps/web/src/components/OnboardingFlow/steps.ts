@@ -1,10 +1,10 @@
 import type { OnboardingStep } from 'core/entities/Onboarding';
 
 /**
- * The eight data steps plus a review screen, in order.
+ * The seven data steps plus a review screen, in order.
  *
- * `core/entities/Onboarding` declares ten (the tenth is plan generation, which
- * arrives with the meal-engine project). Here we render nine, and the review
+ * `core/entities/Onboarding` declares nine (the ninth is plan generation, which
+ * arrives with the meal-engine project). Here we render eight, and the review
  * step closes onboarding — so the flow never shows a step whose action does not
  * yet exist.
  *
@@ -21,7 +21,6 @@ export const FLOW = [
   { copy: 'howYouEat', key: 'how-you-eat' },
   { copy: 'foodPreferences', key: 'food-preferences' },
   { copy: 'allergies', key: 'allergies' },
-  { copy: 'lifestyle', key: 'lifestyle' },
   { copy: 'cooking', key: 'cooking' },
   { copy: 'review', key: 'review' }
 ] as const satisfies readonly { copy: string; key: 'review' | OnboardingStep }[];

@@ -65,7 +65,6 @@ export function makeGoal(overrides?: Partial<Goal>): Goal {
   return {
     id: 'c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f',
     createdAt: new Date('2026-01-15T10:00:00.000Z'),
-    customGoal: null,
     paceKgPerWeek: -0.5,
     startingWeightKg: 72,
     targetWeightKg: 66,
@@ -80,20 +79,11 @@ export function makePreferences(overrides?: Partial<Preferences>): Preferences {
   return {
     id: 'd4e5f6a7-8b9c-4d0e-9f1a-2b3c4d5e6f70',
     activityLevel: 'moderate',
-    breakfastStyle: null,
-    budget: 'medium',
-    cookingFrequency: 'often',
     cookingTimeMinutes: 30,
     createdAt: new Date('2026-01-15T10:00:00.000Z'),
     mealShape: DEFAULT_MEAL_SHAPE,
-    portionPreference: null,
-    sleepEnd: null,
-    sleepStart: null,
-    trainingDaysPerWeek: 3,
-    trainingTime: null,
     updatedAt: new Date('2026-01-15T10:00:00.000Z'),
     userId: USER_ID,
-    workScheduleNotes: null,
     ...overrides
   };
 }

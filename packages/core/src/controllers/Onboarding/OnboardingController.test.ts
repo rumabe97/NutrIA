@@ -77,7 +77,7 @@ describe('OnboardingController.getState — the resume target', () => {
   });
 
   it('sends someone with every answer in to the review step, not past it', async () => {
-    find.mockResolvedValue(stored(REQUIRED_ONBOARDING_STEPS, 9));
+    find.mockResolvedValue(stored(REQUIRED_ONBOARDING_STEPS, ONBOARDING_STEPS.length - 1));
 
     const view = await OnboardingController.getState('usr-1');
 
@@ -89,18 +89,21 @@ describe('OnboardingController.getState — the resume target', () => {
   });
 
   it('still points at review once onboarding is closed, so the link is never dead', async () => {
-    find.mockResolvedValue(stored(REQUIRED_ONBOARDING_STEPS, 10, '2026-09-07'));
+    find.mockResolvedValue(stored(REQUIRED_ONBOARDING_STEPS, ONBOARDING_STEPS.length, '2026-09-07'));
 
-    await expect(OnboardingController.getState('usr-1')).resolves.toMatchObject({ isComplete: true, resumeStep: 9 });
+    await expect(OnboardingController.getState('usr-1')).resolves.toMatchObject({
+      isComplete: true,
+      resumeStep: ONBOARDING_STEPS.indexOf('review') + 1
+    });
   });
 
   it('never resolves past the last screen the flow renders', async () => {
-    find.mockResolvedValue(stored(REQUIRED_ONBOARDING_STEPS, 10, '2026-09-07'));
+    find.mockResolvedValue(stored(REQUIRED_ONBOARDING_STEPS, ONBOARDING_STEPS.length, '2026-09-07'));
 
     const view = await OnboardingController.getState('usr-1');
 
     // The last two entries of ONBOARDING_STEPS are 'review' and 'create-plan';
-    // the web flow renders nine screens. A resume target of 10 would 404.
+    // the web flow renders eight screens. A resume target past `review` would 404.
     expect(view.resumeStep).toBeLessThanOrEqual(ONBOARDING_STEPS.length - 1);
   });
 });
@@ -111,7 +114,7 @@ describe('OnboardingController — the profile consent (RGPD art. 9.2.a)', () =>
       mock.mockClear();
     }
 
-    find.mockResolvedValue(stored(REQUIRED_ONBOARDING_STEPS, 10, '2026-09-07'));
+    find.mockResolvedValue(stored(REQUIRED_ONBOARDING_STEPS, ONBOARDING_STEPS.length, '2026-09-07'));
     markStepComplete.mockResolvedValue(stored(['about-you'], 2));
   });
 

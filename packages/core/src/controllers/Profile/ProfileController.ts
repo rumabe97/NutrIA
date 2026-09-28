@@ -30,7 +30,6 @@ export interface ProfileView {
 
 export interface GoalView {
   id: string;
-  customGoal: string | null;
   paceKgPerWeek: number | null;
   startingWeightKg: number | null;
   targetWeightKg: number | null;
@@ -89,7 +88,6 @@ function presentProfile(profile: Profile): ProfileView {
 function presentGoal(goal: Goal): GoalView {
   return {
     id: goal.id,
-    customGoal: goal.customGoal,
     paceKgPerWeek: goal.paceKgPerWeek,
     startingWeightKg: goal.startingWeightKg,
     targetWeightKg: goal.targetWeightKg,
@@ -97,23 +95,10 @@ function presentGoal(goal: Goal): GoalView {
   };
 }
 
-/**
- * Postgres hands back a `time` column as `HH:MM:SS`; `updatePreferencesSchema`
- * accepts `HH:MM` and nothing else.
- *
- * Left as stored, the lifestyle step of onboarding refills its fields with the
- * exact value the API gave it and the resave is refused as invalid — an answer
- * that saves the first time and fails the second, for someone who changed
- * nothing. The API reads a time of day in the same shape it writes one.
- */
-function timeOfDay(value: string | null): string | null {
-  return value === null ? null : value.slice(0, 5);
-}
-
 function presentPreferences(preferences: Preferences): PreferencesView {
   const { createdAt: _createdAt, updatedAt: _updatedAt, userId: _userId, ...view } = preferences;
 
-  return { ...view, sleepEnd: timeOfDay(view.sleepEnd), sleepStart: timeOfDay(view.sleepStart), trainingTime: timeOfDay(view.trainingTime) };
+  return view;
 }
 
 /**
