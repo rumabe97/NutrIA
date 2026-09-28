@@ -156,6 +156,45 @@ mark it clearly as hand-added and say why — `0007` is the worked example. Edit
 statements drizzle-kit generated is still off limits; adding a data step between them is
 the only way the tool supports.
 
+**A second, narrower exception: dropping a column across two releases.** Drizzle names
+every declared column in its SELECT/RETURNING, so the instant a migration physically drops
+one, every API build that still declares it — including the previous release, mid-deploy —
+500s on every query touching that table. There is no single build where "undeclare it" and
+"drop it" can both happen safely. The sanctioned pattern (`0044`/`0045`, `0067`'s
+follow-up):
+
+- **Release N** removes the column from the TS schema. `generate` emits its `DROP COLUMN`
+  like any other — cutting that one statement back out is the only hand-edit this exception
+  allows, with a comment naming the release split and why (Drizzle's SELECT/RETURNING, the
+  previous release still declaring it). The column stays physically in place; nothing reads
+  or writes it from this release on, so nothing is lost by the wait.
+- **Release N+1** does the actual `DROP COLUMN` — but `generate` can never emit it:
+  release N's own snapshot already lacks the column, so there is no diff left showing it.
+  Hand-add the `DROP COLUMN` in front of whatever `generate` does emit — nothing, if the
+  schema is otherwise unchanged, or something real if it also removes an enum only usable
+  once its columns are gone (`0045`: the `DROP COLUMN`s are hand-added, in front of the two
+  `DROP TYPE`s `generate` produced once `budgetTier`/`cookingFrequency` left `_enums.ts`).
+  `--custom` is for the first case only — it copies the previous snapshot verbatim, which
+  is only correct when nothing in the schema actually changed.
+- **Release N+1 is merged only once release N's production deployment is `Ready`**, not
+  once its PR merges. Merging while N is still building risks the platform cancelling N's
+  deployment (a newer one supersedes it) and running both migrations back to back under
+  whatever API was live before N — the exact case this two-release split exists to avoid.
+- **Release N+1's journal entry gets its `when` re-stamped at merge time**, not left at
+  whatever `generate` wrote while the branch sat unmerged. The migrator skips a file whose
+  `when` is at or before the last one it already applied — silently, with no error CI or a
+  fresh database would ever surface — so a migration merged behind a newer one with an
+  older timestamp never runs.
+
+A Postgres enum value is a different shape of the same problem and does **not** wait a
+release: `ALTER TYPE … DROP VALUE` does not exist, so removing one always means rebuilding
+the type (`CREATE TYPE`, cast the column through `text`, `DROP TYPE`, recreate). That
+rebuild is safe in release N itself, the moment the *previous* release already stopped
+being able to **write** the value — reading a value still in the rebuilt type is fine, only
+writing an unknown one is not, and `0044` is the worked example: `packages/core`'s enum
+already dropped the value one release earlier, so nothing racing the migration could still
+produce it.
+
 **A statement that can destroy data, or fail on the rows already there, needs a person's
 line.** `node scripts/check-migrations.mjs` runs in CI's required check and refuses a new
 migration that drops a table or a column, changes a type, renames, truncates, deletes

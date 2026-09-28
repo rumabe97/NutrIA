@@ -86,3 +86,9 @@ lost to the meal label; three real fortnights each side, 14 of 14 days within 5 
   wrote during this deploy or after a rollback. There is no undo for `0043` in the
   repository: only a Neon point-in-time branch from before the build, inside the
   history-retention window.
+- Paid in two releases (owner, 2026-09-28: "haz la migración que borra las columnas
+  viejas"): `0044` stops declaring the ten columns — Drizzle names every declared column,
+  so #139's API would fail every profile read if they vanished during the deploy — and
+  rebuilds `goal_type` without `custom`; `0045` drops the columns and the two enum types
+  only they used, merged once `0044`'s production deployment is Ready. The pattern is
+  written down in `packages/database/AGENTS.md` § Migrations.

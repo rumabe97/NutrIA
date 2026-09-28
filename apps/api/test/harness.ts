@@ -474,26 +474,6 @@ export async function markLegacyOnboarding(userId: string, currentStep = 10): Pr
 }
 
 /**
- * Writes the active goal's `type` as `'custom'` directly on the table — a
- * value no route can write any more since `GOAL_TYPES` dropped it (`0067`),
- * but one the Postgres enum still permits during migration `0043`'s deploy
- * window, in case the old API still writes it for the seconds its own build
- * takes. `onboarding.e2e-spec.ts` uses this to prove `ProfileRepository`
- * still reads such a row, as `'maintenance'`, rather than failing
- * `goalSchema.parse` on a value the domain no longer offers.
- */
-export async function markCustomGoal(userId: string): Promise<void> {
-  const sql = (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
-    .$client;
-  const marked = await sql<{ userId: string }>`
-    update goals set type = 'custom' where user_id = ${userId} and archived_at is null returning user_id as "userId"`;
-
-  if (marked.length !== 1) {
-    throw new Error(`No active goal to mark custom for: ${userId}`);
-  }
-}
-
-/**
  * Accepts the professional's own agreement (P1-1,
  * `docs/legal/checklist-activacion.md` § 1) at the current version, through
  * the route a professional's own screen calls — the door every workspace
