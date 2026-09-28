@@ -14,7 +14,7 @@
 | --- | --- |
 | Responsable | {name} (ver `legalIdentity.ts`) |
 | Tratamientos | (1) planificación de comidas con datos de salud y de creencias, con IA generativa; (2) comunicación de datos a dietistas-nutricionistas (proyecto 004) |
-| Versión / fecha | 0.2 borrador, 2026-09-26 (0.1: 2026-09-25; en la 0.2, MiniMax M3 sale, Gemma 4 31B pasa a principal y DeepSeek V4.1 Flash a reserva y la lista cerrada de proveedores queda hecha). La 0.2 revisa solo el tratamiento con IA (`0064`: OpenRouter): § 1.3, 1.4, 2, R2, R14, M3, M4, § 5 y § 6 |
+| Versión / fecha | 0.3 borrador, 2026-09-28 (0.2: 2026-09-26; 0.1: 2026-09-25). La 0.3 revisa el recorte del onboarding (`0067`, **sin fusionar**: rama `feat/onboarding-cleanup` — verdad una vez fusionada): § 1.2, 1.3, 2, R2, § 6. La 0.2 revisaba solo el tratamiento con IA (`0064`: OpenRouter): § 1.3, 1.4, 2, R2, R14, M3, M4, § 5 y § 6 |
 | Aprobación | pendiente — firma y fecha del responsable |
 | DPD | no designado (no obligatorio: [`analisis.md` § 5.2](./analisis.md#52-dpd--no-obligatorio-hoy)) |
 | Por qué es obligatoria | Lista de la AEPD (art. 35.4), criterios 1, 4, 8 y 10; art. 28.2.c LOPDGDD — [`analisis.md` § 5.1](./analisis.md#51-eipd--obligatoria) |
@@ -47,6 +47,7 @@
 | Alergias e intolerancias | lista, texto libre, gravedad | sí (salud) |
 | Forma de comer | sin gluten, sin lactosa, halal, kósher | sí (salud / religión) |
 | Salud declarada | condiciones, medicación, suplementos | sí (salud) |
+| Preferencias de cocina y comida | forma de las comidas, tiempo máximo de cocina, cocinas, gustos | no |
 | Uso del plan | comidas hechas o saltadas, valoraciones, comentarios, check-ins | puede contener salud |
 | Relación asistencial (004) | enlace, versión del consentimiento, rastro de accesos | revela que la persona es paciente de un dietista |
 | Profesional | número de colegiado, concesión, aceptación del acuerdo | no |
@@ -59,7 +60,8 @@
 2. **Almacenamiento**: PostgreSQL en Neon (`eu-central-1`); copia de restauración de Neon;
    exportación manual en el equipo del propietario.
 3. **Uso**: cálculo determinista de objetivos (`packages/core/domain/Nutrition`),
-   generación con IA (prompt 4.1.0 sin identificadores, salud ni texto libre, § 1.3 del
+   generación con IA (prompt 4.4.0 una vez fusionada `0067`: sin identificadores, salud,
+   texto libre ni la forma y horas del día, presupuesto o frecuencia de cocina; § 1.3 del
    análisis; desde el 2026-09-26 ninguna llamada, `stub`; tras `0064`, OpenRouter),
    comprobación
    determinista de alergias (`findSafetyViolations`), acceso del profesional por
@@ -86,7 +88,7 @@ exportaciones). La pasarela OmniRoute ya no está en producción (solo experimen
 | --- | --- |
 | ¿Base legítima? | Sí, con los cambios del [`analisis.md` § 3](./analisis.md#3-bases-jurídicas-y-excepción-del-art-9): consentimiento explícito (9.2.a) para todos los datos de salud y creencias; hoy falta para alergias y datos corporales (**P0-2**). |
 | ¿Fines determinados y limitados? | Sí. No hay publicidad, venta ni perfiles para terceros. |
-| ¿Minimización? | Buena en el diseño: la medicación no tiene dosis porque nada la usaría; la IA no recibe identificadores ni salud declarada; el profesional no ve alergias, correo ni comentarios; el rastro no guarda la carga. **Excesos**: ~~texto libre de alergias y comentarios del check-in hacia la IA~~ (quitados en el prompt 4.0.0, P0-3); «Halal»/«Kosher» como etiqueta en vez de restricción (P2-1). |
+| ¿Minimización? | Buena en el diseño: la medicación no tiene dosis porque nada la usaría; la IA no recibe identificadores ni salud declarada; el profesional no ve alergias, correo ni comentarios; el rastro no guarda la carga. **Mejora (`0067`, una vez fusionada)**: el onboarding deja de preguntar diez campos que no servían a ningún fin declarado — hora de despertar y de dormir, días y hora de entrenar, notas del horario laboral, presupuesto, frecuencia de cocina, estilo de desayuno, preferencia de ración y el objetivo personalizado en texto libre — no solo se dejan de enviar a la IA, se dejan de recoger (art. 5.1.c), y la migración `0043`, en el mismo cambio, pone esos diez campos a `NULL` para todas las cuentas, no solo las nuevas (P2-13, cerrado). **Excesos**: ~~texto libre de alergias y comentarios del check-in hacia la IA~~ (quitados en el prompt 4.0.0, P0-3); «Halal»/«Kosher» como etiqueta en vez de restricción (P2-1). |
 | ¿Exactitud? | El usuario corrige desde su perfil; los objetivos anulados se revalidan en cada lectura. |
 | ¿Limitación del plazo? | Parcial: cascada completa al borrar; faltan plazos para métricas y trabajos (P2-4) y para la exportación manual (P1-6). |
 | ¿Información? | Insuficiente hoy (P1-2, P1-3, P1-5); textos nuevos en `textos/`. |
@@ -105,7 +107,7 @@ de las pendientes marcadas.
 | # | Amenaza | Daño a la persona | P | I | Inherente | Medidas (§ 4) | Residual |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | R1 | Un plato con un alérgeno declarado llega al plan | Reacción alérgica, anafilaxia | 3 | 4 | **12** | M1, M2 | 4 (el texto libre no resuelto sigue siendo «mejor esfuerzo» y el usuario lo sabe) |
-| R2 | Datos enviados a la IA reutilizados por un proveedor para entrenar o guardados | Pérdida de control; exposición de preferencias y objetivos (ya no de alergias, creencias ni comentarios: prompt 4.0.0) | 4 hasta el 2026-09-25; 1 desde el 2026-09-26 (`stub`) | 3 → 2 (prompt 4.x) | **12** → 2 | M3, M4 | 2 con M3 (categorización anónima de OpenRouter, P2-12) |
+| R2 | Datos enviados a la IA reutilizados por un proveedor para entrenar o guardados | Pérdida de control; exposición de preferencias y objetivos (ya no de alergias, creencias ni comentarios: prompt 4.0.0; ya no de la forma y horas del día ni del presupuesto o la frecuencia de cocina: prompt 4.4.0, `0067`, una vez fusionada) | 4 hasta el 2026-09-25; 1 desde el 2026-09-26 (`stub`) | 3 → 2 (prompt 4.x) | **12** → 2 | M3, M4 | 2 con M3 (categorización anónima de OpenRouter, P2-12) |
 | R14 | La petición a la IA acaba en una empresa o un país que la política no nombra (p. ej. un endpoint en Indonesia) | Transferencia sin garantía; información falsa | 3 con la cuenta sin lista cerrada; 1 desde el 2026-09-26 | 2 | 6 | M3 (lista cerrada ✔: cuenta y `AI_PROVIDER_ONLY`) | 1 |
 | R3 | Un profesional ve datos de alguien que no aceptó, o después de terminar | Revelación de salud a un tercero | 2 | 4 | 8 | M5, M6, M7 | 2 |
 | R4 | Un profesional usa lo que ve fuera de la asistencia (difusión, publicidad) | Revelación; discriminación | 2 | 4 | 8 | M8 (**acuerdo pendiente**), M7 | 4 |
@@ -169,6 +171,7 @@ de las pendientes marcadas.
 | 6 | M12 — exportación cifrada | propietario | la próxima exportación |
 | 7 | Textos de `textos/` | frontend | flag `professional` / claves *live* |
 | 8 | M18, purgas | backend | revisión anual |
+| 9 | ~~P2-13 — migración que retire (o ponga a `NULL`) las diez columnas de onboarding que `0067` deja sin lector~~ | backend | **hecho el 2026-09-28**: migración `0043`, en el mismo cambio que `0067` |
 
 ## 7. Aprobación
 

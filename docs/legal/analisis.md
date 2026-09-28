@@ -47,6 +47,29 @@
    V4.1 Flash la reserva; Gemma tiene licencia Apache 2.0 y sin deberes que bloqueen (P1-13, cerrado). La política cambia en dos pasos (§ 4.3, [`textos/02`](./textos/02-politica-privacidad.md)).
    P1-10 (Gemini en `/consulta`) se cierra con el cambio.
 
+> **Revisión 2026-09-28 — recorte del onboarding** (decisión `0067`, **sin fusionar**:
+> rama `feat/onboarding-cleanup`, base `4b70ff7`): §§ 1.3, 3, 4.1, 9 (nuevo P2-13). El
+> onboarding deja de pedir diez campos — hora de despertar y de dormir, días y hora de
+> entrenar, notas del horario laboral, presupuesto, frecuencia de cocina, estilo de
+> desayuno, preferencia de ración y el objetivo personalizado en texto libre — y el
+> prompt (`4.3.0` → `4.4.0`) deja de recibir la forma y horas del día y el
+> presupuesto/frecuencia de cocina; sigue recibiendo el tiempo máximo de cocina, la forma
+> de las comidas, los objetivos, el tipo de objetivo, vegetariano/vegano, cocinas y
+> gustos por nombre de catálogo. **Lo que sigue aquí es verdad una vez fusionada esa
+> rama**; hasta entonces, lo cierto es lo que describe la revisión del 2026-09-26.
+>
+> **Revisión 2026-09-28 (segunda pasada, mismo día y misma rama, commit leído
+> `28449c1`) — cierra P2-13**: la migración `0043` (backend, hoy sin fusionar en
+> `agent/onboarding-cleanup/backend`; `packages/database/src/migrations/0043_onboarding_answers_nothing_reads_are_cleared.sql`)
+> pone a `NULL` las nueve columnas de `user_preferences` y `goals.customGoal` para
+> **todas las cuentas**, no solo las nuevas, y mueve todo `goals.type = 'custom'` a
+> `'maintenance'`. §§ 1.3, 4.1 y 9 (P2-13, cerrado) se actualizan. Las columnas y el
+> valor `'custom'` del enum siguen existiendo en Postgres — la baja de esquema es de
+> la siguiente entrega, igual que decidió `0067` — pero ya no hay ninguna fila con un
+> valor que la política no describa: la política puede dejar de nombrar «horarios»
+> hoy, no cuando llegue esa segunda migración. **Verdad una vez fusionada** esta
+> rama, como el resto de esta revisión.
+
 ---
 
 ## 1. Qué hace el producto (lo que he leído, no lo que dicen los documentos)
@@ -94,22 +117,51 @@ de un pedido de medicamentos sin receta se consideraron de salud). Con ese crite
 Consecuencia: el producto trata categorías especiales **fuera** de las tres tablas de
 salud, sin ninguna excepción del art. 9.2. Ver P0-2 en el § 9.
 
-### 1.3 Lo que llega a la IA (revisado 2026-09-26)
+### 1.3 Lo que llega a la IA (revisado 2026-09-28, `0067` — verdad una vez fusionada)
 
-**El prompt** (`apps/api/src/modules/ai/prompts/PoolPrompt.ts`, `PROMPT_VERSION = '4.1.0'`
-en `:123` a `31c3f99`; lo que quitó la 4.0.0, en `:98-107`. La 4.2.0, sin fusionar el
-2026-09-26, solo agrupa la fruta y la verdura por temporada: no añade ningún dato de la
-persona): objetivos diarios y su reparto por comida,
-el tipo de objetivo (p. ej. `weight_loss`), la forma del día y sus horas, frecuencia,
-tiempo y presupuesto de cocina, «vegetariano» o «vegano» y ninguna otra forma de comer
-(`NAMEABLE_PATTERNS`), cocinas de una lista cerrada, alimentos que gustan por su nombre de
-catálogo, nombres de platos queridos, rechazados y servidos, las respuestas cerradas del
-check-in, y los alimentos de esa comida **ya filtrados** por alergias, intolerancias y
-formas de comer. **No** lleva nombre, correo, `userId`, edad, sexo, peso, altura, nada
-escrito por la persona, alergias ni salud declarada: `apps/api/src/modules/ai` no importa
-nada de salud y un test lo asegura (`health-boundary.spec.ts`). **Matiz**: el efecto sí
-entra —la celiaquía quita el gluten del catálogo y un suplemento proteico añade la
-proteína en polvo (`0052`)—; el dato no.
+**El prompt** (`apps/api/src/modules/ai/prompts/PoolPrompt.ts`, `PROMPT_VERSION`: `4.3.0`
+hoy en `main`, `4.4.0` en `feat/onboarding-cleanup` — lo que quitó la 4.0.0, en `:98-107`,
+lo que agrupó la 4.2.0 en `:121-124`; ninguna de las dos añade un dato de la persona):
+objetivos diarios y su reparto por comida, el tipo de objetivo (p. ej. `weight_loss`), la
+forma de las comidas y el tiempo máximo de cocina, «vegetariano» o «vegano» y ninguna otra
+forma de comer (`NAMEABLE_PATTERNS`), cocinas de una lista cerrada, alimentos que gustan
+por su nombre de catálogo, nombres de platos queridos, rechazados y servidos, las
+respuestas cerradas del check-in, y los alimentos de esa comida **ya filtrados** por
+alergias, intolerancias y formas de comer. **No** lleva nombre, correo, `userId`, edad,
+sexo, peso, altura, nada escrito por la persona, alergias ni salud declarada:
+`apps/api/src/modules/ai` no importa nada de salud y un test lo asegura
+(`health-boundary.spec.ts`). **Matiz**: el efecto sí entra —la celiaquía quita el gluten
+del catálogo y un suplemento proteico añade la proteína en polvo (`0052`)—; el dato no.
+
+**Desde la 4.4.0** (`0067`) el prompt **también** deja de recibir la forma y las horas del
+día —a qué hora se despierta, se duerme y entrena, `dayShapeOf` en
+`apps/api/src/modules/meal-plans/services/GenerationShared.ts:50-70`— y el presupuesto y
+la frecuencia de cocina (`GenerationShared.ts:118,121`, `PoolPrompt.ts` líneas `178`,
+`184`, `189`, `714-715`, `730` en `4.3.0`). No es que se ocultaran del prompt como el texto libre
+de la 4.0.0 (§ 1.3 antigua, P0-3): estos seis (las cuatro que componen `dayShapeOf` más
+`budget` y `cookingFrequency`) eran datos **estructurados**, ya sin palabras de la
+persona, que sí llegaban al modelo. Lo nuevo es que **el onboarding deja de
+preguntarlos**: no hay dato que ocultar porque no se recoge. Se suman otros cuatro campos
+que el onboarding tampoco pide ya y que nunca llegaron al modelo — el estilo de desayuno y
+la preferencia de ración (excluidos desde la 4.0.0, `GenerationShared.ts:101-104`), las
+notas del horario laboral (igual) y el objetivo personalizado en texto libre
+(`goals.customGoal`, que ninguna ruta de `apps/api/src/modules/ai` lee). En total, diez
+columnas de `packages/database/src/schemas/profile.schema.ts` (`user_preferences`:
+`breakfastStyle`, `budget`, `cookingFrequency`, `portionPreference`, `sleepEnd`,
+`sleepStart`, `trainingDaysPerWeek`, `trainingTime`, `workScheduleNotes`; `goals`:
+`customGoal`) que el onboarding sigue guardando en la base de datos pero **ya no
+rellena**: minimización de la recogida, no solo del envío a un tercero (art. 5.1.c RGPD).
+Las columnas no se eliminan en este cambio, pero tampoco quedan con su valor antiguo: la
+migración `0043`, en el mismo cambio, pone esas nueve columnas y `customGoal` a `NULL` para
+**todas** las cuentas, no solo las que se creen después. También mueve todo
+`goals.type = 'custom'` a `'maintenance'` — un «objetivo personalizado» siempre calculó
+exactamente igual que «mantenimiento» (`PROTEIN_G_PER_KG` en `core/domain/Nutrition/Nutrition.ts:21-28`
+guarda el mismo 1,6 g/kg para los dos; `nutritionTargets` en `Nutrition.ts:279-283` no marca
+ninguno de los dos como `losing` ni `gaining`, así que el objetivo calculado es el de
+mantenimiento en ambos casos), de modo que a nadie le cambian los objetivos del plan por
+este cambio de etiqueta. La baja de las columnas y del valor `'custom'` del enum en
+Postgres es de la siguiente entrega, igual que ya decía `0067`; ver § 4.1 y § 9 P2-13
+(cerrado).
 
 **Hasta el 2026-09-26** el prompt iba a la pasarela OmniRoute del propietario, que lo
 enviaba a modelos gratuitos cuyos proveedores entrenan o registran (`opencode/*-free`;
@@ -279,7 +331,7 @@ apreciara la corresponsabilidad, y no estorba si no.
 | Calcular objetivos y generar planes | perfil corporal, objetivo, preferencias, alergias, intolerancias, forma de comer | 6.1.b | **9.2.a consentimiento explícito** — hoy **no existe** para estos datos (P0-2) |
 | Condiciones, medicación, suplementos | los tres | 6.1.a | 9.2.a ✔ (existe) |
 | Seguimiento: peso, adherencia, check-ins | serie de peso, marcas, respuestas | 6.1.b | 9.2.a (cubierto por el nuevo consentimiento) |
-| Enviar a la IA para generar | lo del § 1.3 (prompt 4.1.0: sin identificadores, salud, texto libre ni creencias) | 6.1.b | Con el prompt 4.1.0 no se envía ningún dato del art. 9, salvo que «perder peso» lo sea en la lectura amplia **[abogado]**; si lo es, 9.2.a, cubierto por el consentimiento del perfil, cuyo texto (`profileConsent.ai`) informa del envío. Y solo a un **encargado** con contrato, sin entrenamiento ni retención (§ 4.3) |
+| Enviar a la IA para generar | lo del § 1.3 (prompt 4.4.0 una vez fusionada `0067`: sin identificadores, salud, texto libre ni creencias, y desde esa versión sin la forma y horas del día ni el presupuesto/frecuencia de cocina) | 6.1.b | Con el prompt 4.4.0 no se envía ningún dato del art. 9, salvo que «perder peso» lo sea en la lectura amplia **[abogado]**; si lo es, 9.2.a, cubierto por el consentimiento del perfil, cuyo texto (`profileConsent.ai`) informa del envío. Y solo a un **encargado** con contrato, sin entrenamiento ni retención (§ 4.3) |
 | Compartir con el dietista | lo del § 1.4 | 6.1.a | 9.2.a ✔ (existe, con defectos de información: P1) |
 | Salud compartida con el dietista | condiciones, medicación, suplementos | 6.1.a | 9.2.a, línea aparte ✔ |
 | Uso del dietista para su asistencia | lo que ve | (suya) 6.1.b/6.1.c | (suya) 9.2.h |
@@ -332,6 +384,7 @@ cuenta así: el propietario debe comprobarlo).
 | Pagos (Stripe) | lo que exija la ley a Stripe; con *Managed Payments*, a Link como vendedor | ✔ política |
 | Copias: restauración de Neon | ventana del plan (sin anotar en `deployment.md` § 8) | P2: anotarla y citarla |
 | Copias: exportación manual | **indefinido, sin cifrar**, en el equipo del propietario | **P1**: cifrar, plazo (30 días) y borrado |
+| Diez columnas que el onboarding dejó de rellenar (`0067`; `user_preferences.breakfastStyle/budget/cookingFrequency/portionPreference/sleepEnd/sleepStart/trainingDaysPerWeek/trainingTime/workScheduleNotes`, `goals.customGoal`) | puestas a `NULL` por la migración `0043` para todas las cuentas, en este mismo cambio; las columnas y el valor `'custom'` del enum se eliminan en la entrega siguiente | **P2-13**: cerrado (§ 9) |
 
 ### 4.2 Transferencias internacionales (arts. 44-49)
 
@@ -730,6 +783,7 @@ ingredientes. Luego, la política (§ «Con quién compartimos»).
 | P2-10 | Correo del proveedor SMTP: una cuenta Gmail de consumo no ofrece DPA | memoria del propietario; `SMTP_*` | Proveedor transaccional con DPA **[abogado]** |
 | P2-11 | Las empresas que ejecutan el modelo no son subencargados según OpenRouter (DPA Enterprise § 11.10) y no tienen contrato con NutrIA; ninguna está en el DPF | § 4.4 b | Nombrarlas en la política; lista cerrada (P1-12); apoyarse en que la petición no identifica a nadie (C-413/23 P) **[abogado]**. Si el abogado no lo compra: un proveedor con contrato directo (p. ej. Mistral en la UE, plan B del informe `0002`) |
 | P2-12 | OpenRouter clasifica una muestra anónima de peticiones para sus estadísticas públicas; no se puede apagar | condiciones § 6.5; documentación *Data collection* | **Aceptado con aviso** (propietario, 2026-09-26): la política (estado 2) lo dice, y el propietario pedirá por escrito a OpenRouter que excluya su cuenta. Si lo excluye, se puede quitar la frase |
+| P2-13 | ~~Diez columnas quedan en la base de datos sin ningún lector desde `0067`: `sleepStart`, `sleepEnd`, `trainingDaysPerWeek`, `trainingTime`, `workScheduleNotes`, `breakfastStyle`, `portionPreference`, `budget`, `cookingFrequency` (`user_preferences`) y `customGoal` (`goals`, texto libre — puede llevar salud, «recuperarme de un trastorno alimentario»). El onboarding ya no las rellena, pero las cuentas que las tenían las conservan~~ | `packages/database/src/migrations/0043_onboarding_answers_nothing_reads_are_cleared.sql`; `packages/database/src/schemas/profile.schema.ts` | **Cerrado el 2026-09-28**: la migración `0043` pone esas diez columnas a `NULL` para todas las cuentas, en el mismo cambio que dejó de rellenarlas — no solo las nuevas, también las que ya las tenían (art. 5.1.c y 5.1.e). De paso mueve todo `goals.type = 'custom'` a `'maintenance'`, sin cambiar ningún objetivo calculado (ver § 1.3). Las columnas y el valor `'custom'` del enum siguen en Postgres hasta la migración de la siguiente entrega que los elimine — eso es higiene de esquema, no un dato retenido sin fin, así que no abre un hallazgo nuevo |
 
 ### P3
 

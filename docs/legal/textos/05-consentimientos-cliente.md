@@ -37,7 +37,7 @@ vuelve al paso del onboarding.
 | --- | --- | --- |
 | `profileConsent.title` | `Antes de seguir: tus datos de salud` | `Before you go on: your health data` |
 | `profileConsent.body` | `Para hacerte un plan seguro necesitamos datos que dicen algo de tu salud: tus alergias e intolerancias, tu peso, tu altura y tu objetivo, y tu forma de comer, que a veces revela una intolerancia o una creencia. Los usamos solo para calcular tus objetivos y elegir tus platos.` | `To build you a safe plan we need data that says something about your health: your allergies and intolerances, your weight, height and goal, and how you eat, which sometimes reveals an intolerance or a belief. We use them only to work out your targets and choose your dishes.` |
-| `profileConsent.ai` | `Un modelo de inteligencia artificial diseña los platos. Recibe tus objetivos diarios, tus horarios de comida, tu presupuesto, si eres vegetariano o vegano, y los alimentos y platos que te gustan o no, siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu peso ni tu altura, nada que escribas a mano, tus alergias ni intolerancias, ninguna otra forma de comer, ni tus enfermedades o tu medicación: lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, y el mismo código comprueba cada plato antes de que te llegue.` | `An artificial-intelligence model designs the dishes. It receives your daily targets, your meal times, your budget, whether you are vegetarian or vegan, and the foods and dishes you like or dislike, always by the names on our lists. It never receives your name, email, age, weight or height, anything you type yourself, your allergies or intolerances, any other way of eating, or your conditions or medication: what you cannot or will not eat we remove first, in our code, and the same code checks every dish before it reaches you.` |
+| `profileConsent.ai` | `Un modelo de inteligencia artificial diseña los platos. Recibe tus objetivos diarios, tus horarios de comida, si eres vegetariano o vegano, y los alimentos y platos que te gustan o no, siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu peso ni tu altura, nada que escribas a mano, tus alergias ni intolerancias, ninguna otra forma de comer, ni tus enfermedades o tu medicación: lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, y el mismo código comprueba cada plato antes de que te llegue.` | `An artificial-intelligence model designs the dishes. It receives your daily targets, your meal times, whether you are vegetarian or vegan, and the foods and dishes you like or dislike, always by the names on our lists. It never receives your name, email, age, weight or height, anything you type yourself, your allergies or intolerances, any other way of eating, or your conditions or medication: what you cannot or will not eat we remove first, in our code, and the same code checks every dish before it reaches you.` |
 | `profileConsent.label` (la casilla) | `Consiento que NutrIA use estos datos de salud para hacer mis planes` | `I consent to NutrIA using this health data to make my plans` |
 | `profileConsent.note` | `Sin este consentimiento no podemos hacerte un plan. Puedes retirarlo cuando quieras desde tu perfil: se borran esos datos. Más en la {privacy}.` | `Without this consent we cannot make you a plan. You can withdraw it at any time from your profile: that data is then deleted. More in the {privacy}.` |
 | `profileConsent.continue` | `Continuar` | `Continue` |
@@ -45,7 +45,33 @@ vuelve al paso del onboarding.
 
 <!-- Fuente: RGPD art. 9.2.a (explícito, «con uno o más de los fines especificados»), 7.1 (demostrar), 7.2 (separado de otros asuntos), 7.3 (retirar; informar antes de consentir), 7.4 y CEPD 05/2020 apdos. 26-36 (condicionar solo lo necesario); 13.1.c y e.
 profileConsent.ai describe PROMPT_VERSION 4.0.0 en `agent/legal-a/backend` a `e28f0e5` (verificado en PoolPrompt.ts: NAMEABLE_PATTERNS = vegetarian, vegan; NAMEABLE_CUISINES lista cerrada; likedFoods por nombre de catálogo; nombres de platos queridos, rechazados y servidos; respuestas cerradas del check-in; eje de cambio cerrado; objetivos, meta, forma y horarios del día, frecuencia, tiempo y presupuesto). Toda otra forma de comer —halal, kósher, sin gluten, sin lactosa, omnívora, pescetariana, flexitariana— y todas las alergias e intolerancias se aplican quitando alimentos del catálogo. Halal y kósher excluyen cerdo, alcohol y gelatina (kósher además marisco, pescado sin escamas y carne con lácteos en un plato); el sacrificio ritual certificado no se modela, así que ningún texto puede presentar la opción como certificación. Solo es verdad una vez fusionada esa rama.
-Revisado el 2026-09-26 (`0064`, OpenRouter): sigue siendo verdad con PROMPT_VERSION 4.1.0 y con cualquier proveedor, porque no nombra ninguno; quién recibe la petición lo dice la política (textos/02, estado 1 o 2). No cambia, así que PROFILE_CONSENT_VERSION no se sube. -->
+Revisado el 2026-09-26 (`0064`, OpenRouter): sigue siendo verdad con PROMPT_VERSION 4.1.0 y con cualquier proveedor, porque no nombra ninguno; quién recibe la petición lo dice la política (textos/02, estado 1 o 2). No cambia, así que PROFILE_CONSENT_VERSION no se sube.
+Revisado el 2026-09-28 (`0067`, **sin fusionar**: rama `feat/onboarding-cleanup` — verdad
+una vez fusionada). El prompt sube a 4.4.0 y deja de recibir «tu presupuesto»
+(`GenerationShared.ts:118`, `budget`) y, aunque este texto nunca lo nombraba, también deja
+de recibir la forma y horas del día y la frecuencia de cocina (`GenerationShared.ts:121,124`).
+Se quita «, tu presupuesto» de `profileConsent.ai`; «tus horarios de comida» sigue
+siendo cierto porque nombra la forma de las comidas (`mealShape`), que el modelo sigue
+recibiendo. **Versión: no sube.** `PROFILE_CONSENT_VERSION` (`packages/core/src/entities/Profile/Profile.ts:87`,
+hoy `1.0.0`, ya en producción — no `PROFILE_HEALTH_CONSENT_VERSION`, que es como la
+proponía la nota de arriba antes de construirse) cubre el consentimiento a usar los datos
+de salud del perfil «para hacer tus planes»; el cambio **reduce** lo que se pide y lo que
+se envía, no lo amplía, así que lo aceptado con la versión vigente sigue cubriendo lo que
+de verdad ocurre (RGPD art. 5.1.b, finalidad compatible; el art. 7.2 exige distinguirlo
+cuando se *añade* un fin o un dato, no cuando se *quita* uno). Volver a pedir el
+consentimiento por una reducción sería fricción sin base en el art. 7.4. **[abogado]**:
+confirmar que un recorte de lo tratado nunca obliga a repetir el consentimiento, aunque el
+texto que lo describe cambie.
+Revisado el 2026-09-28 (segunda pasada, misma rama): la migración `0043` pone a `NULL`,
+para todas las cuentas, los nueve campos de `user_preferences` y `goals.customGoal` que
+`0067` dejó sin lector, y mueve todo `goals.type = 'custom'` a `'maintenance'`. Ninguno de
+los dos cambia `profileConsent.ai`: los nueve campos nunca llegaban al modelo (ninguno era
+`mealShape`) y el texto no nombra el tipo de objetivo por su valor. Tampoco cambia
+`HEALTH_CONSENT_VERSION` ni `CARE_CONSENT_VERSION` — la migración no toca las tablas de
+salud ni lo que ve el profesional, solo borra un dato sin uso y corrige una etiqueta cuyo
+cálculo ya era idéntico (`core/domain/Nutrition/Nutrition.ts:21-28,279-283`: un objetivo
+`'custom'` siempre calculó como `'maintenance'`). **`PROFILE_CONSENT_VERSION` sigue sin
+subir**, por la misma razón que arriba: un recorte de lo tratado, no una ampliación. -->
 
 ---
 
