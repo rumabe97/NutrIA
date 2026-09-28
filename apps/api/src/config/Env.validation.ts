@@ -219,15 +219,6 @@ const envObject = z.object({
    */
   AI_FALLBACK_MODELS: optional(z.string().transform(modelList)),
   /*
-   * Off by default: the configured provider's free tier allows zero image
-   * generations, so this is the switch the owner throws once billing is on.
-   * When off, no image model is resolved and the sweeps do nothing (0010).
-   */
-  AI_ILLUSTRATIONS: z
-    .enum(['true', 'false'])
-    .default('false')
-    .transform(value => value === 'true'),
-  /*
    * The dish pictures' image model (`0066`), an OpenRouter id. Gemini 3.1
    * Flash Lite Image was chosen blind by the owner: fast enough to draw while
    * someone waits, and signed with C2PA on Vertex.
@@ -323,7 +314,7 @@ const envObject = z.object({
    */
   AI_REWRITE_MODEL: optional(z.string()),
   /*
-   * Off by default, like illustrations. On Google's free tier directly, the
+   * Off by default. On Google’s free tier directly, the
    * rewrite sweep would spend the daily cap generation draws on in about two
    * hours. Through the gateway (`AI_PROVIDER=omniroute`) its free models carry
    * it — unless its combo falls to a Gemini step, which `AI_REWRITE_MODEL` can

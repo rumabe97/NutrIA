@@ -1,45 +1,30 @@
-import { Controller, Get, NotFoundException, Param, ParseUUIDPipe, Put, Res } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Param, ParseUUIDPipe, Put } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { CurrentUser, Public, ZodBody } from '../../../shared/index.js';
+import { CurrentUser, RequiresOnboarding, ZodBody } from '../../../shared/index.js';
 import { RecipesService } from '../services/index.js';
 import { SetRecipeVerdictDto } from '../dto/in/index.js';
 
-import type { Response } from 'express';
 import type { SessionUser } from '../../../shared/index.js';
-import type { VerdictDto } from '../dto/out/index.js';
+import type { PictureStatusDto, VerdictDto } from '../dto/out/index.js';
 
-/** A year, because a redrawn recipe gets a new id and never the same path. */
-const IMMUTABLE_FOR_A_YEAR = 'public, max-age=31536000, s-maxage=31536000, immutable';
-
-/**
- * Public, and the only public route that serves stored bytes.
- *
- * A picture of grilled squid is not anyone's data, and being public is what lets
- * the edge and the phone cache it: the response is immutable — a redrawn recipe
- * gets the same path, which is the one thing this trades away, deliberately,
- * for a year of caching. Nothing but the bytes travels; no recipe field does.
- */
 @ApiTags('recipes')
 @Controller('recipes')
 export class RecipesController {
   constructor(private readonly recipes: RecipesService) {}
 
-  @ApiOkResponse({ description: 'The image bytes, immutable for a year.' })
-  @ApiOperation({ summary: "A recipe's illustration" })
-  @ApiProduces('image/webp')
-  @Get(':id/image')
-  @Public()
-  async image(@Param('id', new ParseUUIDPipe()) id: string, @Res() response: Response): Promise<void> {
-    const image = await this.recipes.illustration(id);
-
-    if (!image) {
-      throw new NotFoundException();
-    }
-
-    response.setHeader('Cache-Control', IMMUTABLE_FOR_A_YEAR);
-    response.setHeader('Content-Type', image.contentType);
-    response.end(image.bytes);
+  /**
+   * What the meal page polls while its dish says `drawing` (`0066`). The same
+   * door as the meal detail — a session — and only for a dish on one of the
+   * caller's own plans; any other is a 404. It reads and never starts a
+   * drawing: only opening the meal does. Not cached, like every answer here.
+   */
+  @ApiOkResponse({ description: '`{ status, url }`: `ready` with the public address, `drawing`, or `none`.' })
+  @ApiOperation({ summary: "Where a dish's picture stands — for the meal page to poll while it is being drawn" })
+  @Get(':id/picture-status')
+  @RequiresOnboarding()
+  async pictureStatus(@CurrentUser() user: SessionUser, @Param('id', new ParseUUIDPipe()) id: string): Promise<PictureStatusDto> {
+    return this.recipes.pictureStatus(user.id, id);
   }
 
   @ApiOkResponse({ description: 'The verdict as it now stands.' })

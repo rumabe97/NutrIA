@@ -4,7 +4,7 @@ import { AdminController } from 'core/controllers/Admin';
 
 import { ENV } from '../../../config/index.js';
 
-import type { AdminAnalyticsDto, AdminGenerationDto, AdminJobDto, AdminOverviewDto, AiUsageDto } from '../dto/out/index.js';
+import type { AdminAnalyticsDto, AdminGenerationDto, AdminJobDto, AdminOverviewDto, AdminPicturesDto, AiUsageDto } from '../dto/out/index.js';
 import type { Env } from '../../../config/index.js';
 
 @Injectable()
@@ -35,5 +35,10 @@ export class AdminService {
 
   async overview(): Promise<AdminOverviewDto> {
     return AdminController.overview();
+  }
+
+  /** The cap is configuration — `AI_IMAGE_MONTHLY_CAP_USD` — so the screen shows the same number drawing stops at. */
+  async pictures(): Promise<AdminPicturesDto> {
+    return AdminController.pictures(this.env.AI_IMAGE_MONTHLY_CAP_USD);
   }
 }

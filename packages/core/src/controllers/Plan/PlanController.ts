@@ -15,12 +15,14 @@ import { VacationRepository } from '#repositories/Vacation';
 import { isAway } from 'core/domain/Vacation';
 import { SafetyController } from 'core/controllers/Safety';
 import { SettingsController } from 'core/controllers/Settings';
+import { RecipeController, toPictureStatus } from 'core/controllers/Recipe';
 import { alternativesFor } from 'core/domain/Substitution';
 import type { AiCallRecord, Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
 import type { CountedStanding, MealSwapStanding, PlanRedoStanding, Tier } from 'core/domain/Allowance';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PlanWindow } from 'core/domain/Event';
 import type { RecordAccess } from '#repositories/Care';
+import type { PictureClaim } from 'core/controllers/Recipe';
 
 // --- Presenters ---------------------------------------------------------------
 
@@ -38,7 +40,10 @@ export interface MealView {
    * meal names with the quantities a click away is a plan you cannot shop or
    * cook from without fifty-six navigations.
    */
-  /** API path of the recipe's illustration, or null when none has been drawn yet. Relative: the client prefixes its API base. */
+  /**
+   * The dish's picture, an absolute Blob address, once it is ready (`0066`); null otherwise. Read only:
+   * the dashboard card never starts a drawing.
+   */
   illustrationPath: string | null;
   ingredients: readonly { grams: number; name: string }[];
   kcal: number;
@@ -207,7 +212,7 @@ function presentMeal({ items, meal, recipe }: MealRow): MealView {
     difficulty: recipe.difficulty,
     fatG: Number(meal.fatG),
     fiberG: Number(meal.fiberG),
-    illustrationPath: recipe.hasImage ? `/recipes/${recipe.id}/image` : null,
+    illustrationPath: recipe.pictureUrl,
     ingredients: items.map(item => ({ grams: Math.round(Number(item.grams) * factor * 10) / 10, name: item.name })),
     kcal: Number(meal.kcal),
     name: recipe.name,
@@ -466,6 +471,39 @@ export const PlanController = {
     const [swaps, tier] = await Promise.all([PlanRepository.countSwaps(planId), PlanController.tierOf(userId)]);
 
     return mealSwapStanding(swaps, tier);
+  },
+
+  /**
+   * A meal of theirs, opened on its own page — the one read that may start a
+   * dish's picture (`0066`, PRD 1). With no picture yet, it asks
+   * `RecipeController.requestPicture`, which checks the flag, the cool-off and
+   * `capUsd`; the claim it may win is handed back for the caller to draw in the
+   * background, and the meal already says `drawing`. The answer never waits
+   * for a picture. Every other read of a meal only reads.
+   */
+  async openMeal(
+    userId: string,
+    mealId: string,
+    locale: string | null,
+    capUsd: number
+  ): Promise<{ readonly claim: PictureClaim | null; readonly failure?: unknown; readonly meal: MealDetailView }> {
+    const meal = await loadMealDetail(userId, mealId, locale);
+
+    if (meal.pictureStatus === 'ready') {
+      return { claim: null, meal };
+    }
+
+    let claim: PictureClaim | null;
+
+    try {
+      claim = await RecipeController.requestPicture(meal.recipeId, capUsd);
+    } catch (failure: unknown) {
+      // A picture never costs somebody their meal: the page answers as it stands,
+      // and the caller logs what went wrong.
+      return { claim: null, failure, meal };
+    }
+
+    return { claim, meal: claim ? { ...meal, pictureStatus: 'drawing' } : meal };
   },
 
   /**
@@ -794,6 +832,7 @@ export interface MealDetailView {
   difficulty: string;
   fatG: number;
   fiberG: number;
+  /** The dish's picture, an absolute Blob address, once `pictureStatus` is `ready` (`0066`); null otherwise. */
   illustrationPath: string | null;
   /**
    * `alternatives` are what to buy instead when the shop has none, already
@@ -803,6 +842,12 @@ export interface MealDetailView {
   ingredients: readonly { alternatives: readonly { grams: number; name: string }[]; grams: number; name: string; unit: string }[];
   kcal: number;
   name: string;
+  /**
+   * Where the dish's picture stands (`0066`): `ready` with `illustrationPath`,
+   * `drawing` while one is being drawn — poll `GET /recipes/:recipeId/picture-status`
+   * — or `none`: no picture, the placeholder, nothing to announce.
+   */
+  pictureStatus: 'drawing' | 'none' | 'ready';
   /** The plan this meal belongs to, and whether it is still the one being lived: only then can the meal be changed. */
   planId: string;
   planStatus: string;
@@ -886,6 +931,7 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
   const { day, items, meal, plan, recipe } = found;
   const factor = Number(meal.servings) / (recipe.servings || 1);
   const verdict = await RecipeRepository.findVerdict(userId, recipe.id);
+  const picture = toPictureStatus({ status: recipe.pictureStatus, url: recipe.pictureUrl });
 
   return {
     id: meal.id,
@@ -897,7 +943,7 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
     difficulty: recipe.difficulty,
     fatG: Number(meal.fatG),
     fiberG: Number(meal.fiberG),
-    illustrationPath: recipe.hasImage ? `/recipes/${recipe.id}/image` : null,
+    illustrationPath: picture.url,
     ingredients: items.map(item => {
       const grams = Math.round(Number(item.grams) * factor * 10) / 10;
 
@@ -905,6 +951,7 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
     }),
     kcal: Number(meal.kcal),
     name: recipe.name,
+    pictureStatus: picture.status,
     planId: plan.id,
     planStatus: plan.status,
     prepMinutes: recipe.prepMinutes,

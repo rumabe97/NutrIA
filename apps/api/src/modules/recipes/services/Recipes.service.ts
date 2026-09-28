@@ -2,13 +2,14 @@ import { Injectable } from '@nestjs/common';
 
 import { RecipeController } from 'core/controllers/Recipe';
 
-import type { RecipeImageDto, VerdictDto } from '../dto/out/index.js';
+import type { PictureStatusDto, VerdictDto } from '../dto/out/index.js';
 import type { SetRecipeVerdictDto } from '../dto/in/index.js';
 
 @Injectable()
 export class RecipesService {
-  async illustration(recipeId: string): Promise<RecipeImageDto | undefined> {
-    return RecipeController.illustration(recipeId);
+  /** Scoped to the session's user: a dish they were never served is a 404. */
+  async pictureStatus(userId: string, recipeId: string): Promise<PictureStatusDto> {
+    return RecipeController.pictureStatus(userId, recipeId);
   }
 
   /**

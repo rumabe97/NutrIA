@@ -188,6 +188,8 @@ in clinical practice, to provide medical advice…» vale también de pago (P1-1
 `apps/api/src/modules/ai/ai.config.ts`, `case 'stub': return null`): **no se llama a
 ningún modelo** y los platos salen de la biblioteca. Tampoco se dibujan ilustraciones:
 solo existen con `AI_PROVIDER=google` y `AI_ILLUSTRATIONS=true` (`resolveImageModel`).
+El proyecto 006 (en plan, 2026-09-27) las sustituye por imágenes realistas con su propia
+clave y su propio flag: [`imagenes-de-platos.md`](./imagenes-de-platos.md).
 
 **Después del cambio** (`0064`; runbook `docs/reference/ai-gateway.md` § 0), con
 `AI_PROVIDER=openrouter`:
@@ -671,6 +673,15 @@ sanitarios individuales (apdo. 4) protege al **dietista**, no a NutrIA. La EIPD 
   existe en `recipes.source`; exponerlo como metadato legible por máquina) y confiar en
   la marca de agua del proveedor para las imágenes (SynthID en Google) **[abogado]** sobre
   si el metadato basta. P2 con fecha.
+  **Revisión 2026-09-27 — imágenes de los platos (proyecto 006)**: el plazo del
+  2/12/2026 (art. 111.3, añadido por el 2026/1744) **no** vale para las imágenes, que
+  se ponen en servicio al encender su flag, después del 2/8/2026: art. 50.2, 50.4 y 50.5
+  desde el primer día. Una foto realista de un plato es, con toda probabilidad, una
+  ultrasuplantación (art. 3.60; Directrices C(2026) 5054, apdos. 113-116) **[abogado]**:
+  aviso visible en cada sitio donde se vea, también en la tarjeta del panel. Gemini trae
+  C2PA firmado por Google y SynthID (medido: llegan por OpenRouter y se sirven sin tocar);
+  MAI-Image-2.6 no traía marca documentada y el propietario lo quitó. Todo en
+  [`imagenes-de-platos.md`](./imagenes-de-platos.md).
 - **Transparencia al usuario**: las condiciones ya lo dicen (§ «Contenido generado con
   inteligencia artificial»); la política debe decir qué datos ve el modelo y que no decide
   nada con efectos jurídicos (art. 22 RGPD: no hay decisiones automatizadas con efectos
@@ -762,10 +773,11 @@ ingredientes. Luego, la política (§ «Con quién compartimos»).
 | P1-7 | Aviso legal incompleto: sin domicilio, NIF ni teléfono; sin cauce de reclamaciones postal y telefónico | `es-ES.ts:1394`; no hay página de aviso legal | LSSI art. 10.1.a y e; TRLGDCU art. 97.1.c y 21.2-3 (vía postal, telefónica y electrónica, justificante, respuesta en 15 días) | [`textos/07`](./textos/07-aviso-legal.md) antes de claves *live* |
 | P1-8 | Desistimiento: sin formulario modelo, sin función de desistimiento en línea | condiciones `es-ES.ts:1435`; `PremiumCard.tsx` | TRLGDCU art. 97.1.j (formulario); Directiva 2023/2673 art. 11 bis (aplicable desde 19/6/2026; España no lo ha transpuesto en el TRLGDCU consolidado a 28/02/2026) | Formulario en las condiciones y un botón «Desistir del contrato aquí» en el perfil durante los 14 días ([`textos/03`](./textos/03-condiciones-uso.md), [`textos/06`](./textos/06-correos.md) § C) |
 | P1-9 | El plan de consulta no tiene condiciones; la prueba no dice que se cobra al terminar | `practice.planTrial` (`es-ES.ts`, namespace `practice`); `PracticePlanCard.tsx` | LSSI art. 27; Ley 7/1998 arts. 5 y 7 (incorporación de condiciones generales) | [`textos/04`](./textos/04-condiciones-consulta.md), aceptadas en la misma pantalla que el acuerdo |
-| P1-10 | Gemini prohíbe su uso «en la práctica clínica»; la consulta genera planes para pacientes de un profesional con Gemini como reserva | `docs/reference/ai-gateway.md` § 1; Gemini API Additional Terms (23/03/2026) | Contrato con el proveedor (no ley, pero es la licencia de uso) | **Cerrado en producción** desde el 2026-09-26 (`stub`) y **cerrado con el cambio** (`0064`: sin Gemini; la clave solo admite Gemma 4 31B y DeepSeek V4.1 Flash, sin cláusula clínica, § 4.4 d; Gemma 4 es de pesos abiertos, Apache 2.0, ejecutado por DeepInfra o CoreWeave, no la API de Gemini). Se reabre si vuelve `AI_PROVIDER=google` o un modelo `google/gemini-*` a la clave |
+| P1-10 | Gemini prohíbe su uso «en la práctica clínica»; la consulta genera planes para pacientes de un profesional con Gemini como reserva | `docs/reference/ai-gateway.md` § 1; Gemini API Additional Terms (23/03/2026) | Contrato con el proveedor (no ley, pero es la licencia de uso) | **Cerrado en producción** desde el 2026-09-26 (`stub`) y **cerrado con el cambio** (`0064`: sin Gemini; la clave solo admite Gemma 4 31B y DeepSeek V4.1 Flash, sin cláusula clínica, § 4.4 d; Gemma 4 es de pesos abiertos, Apache 2.0, ejecutado por DeepInfra o CoreWeave, no la API de Gemini). Se reabre si vuelve `AI_PROVIDER=google` o un modelo `google/gemini-*` a la clave de texto. **2026-09-27**: el proyecto 006 usa `google/gemini-3.1-flash-lite-image` por Vertex (no la API de Gemini) en una **clave aparte**, solo para dibujar recetas, sin datos de nadie ni uso clínico: no reabre este punto. Las condiciones de Google Cloud para IA generativa **no las he leído** (MAI, fuera desde el 2026-09-27): ver [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 5, IMG-9 |
 | P1-11 | El acuerdo de tratamiento (DPA) de OpenRouter: sus condiciones § 10.2 lo incorporan para uso comercial, pero su texto no es público y su centro de ayuda dice que solo se firma con Enterprise | `ai.config.ts` (`case 'openrouter'`); condiciones de OpenRouter (31/08/2026) | Art. 28.3 (contrato por escrito con el contenido mínimo), 5.2 y 24 (demostrarlo); art. 46.2.c (cláusulas tipo, que viven en ese DPA) | **Bloquea el cambio.** El propietario pide acceso en `trust.openrouter.ai`, descarga el DPA, pide a soporte confirmación escrita de que se aplica a su cuenta de pago y guarda ambos fuera del repositorio. Si OpenRouter dice que no: no hay encargado con contrato; la política no puede decir «con contrato» y el cambio no se hace **[abogado]** |
 | P1-12 | La cuenta de OpenRouter no limita qué empresas ejecutan el modelo: la petición puede ir a 22 (una en Indonesia, otra sin condiciones publicadas) | `NO_TRAINING_PROVIDER` en `ai.config.ts` (sin `only`); runbook `ai-gateway.md` § 0 (sin lista de proveedores) | Art. 13.1.e-f (nombrar destinatarios y transferencias); arts. 44-46 (Indonesia sin adecuación ni garantía) | **Hecho el 2026-09-26.** En la cuenta, *Allowed providers* = DeepInfra y CoreWeave (propietario). En código, `provider.only` desde `AI_PROVIDER_ONLY`, obligatorio al arrancar con `openrouter` (`Env.validation.ts:506-507`). La política nombra exactamente esa lista; cambiarla pasa antes por la política |
 | P1-13 | ~~La licencia de MiniMax M3 exige, en uso comercial, mostrar «Built with MiniMax M3» y un aviso único a MiniMax~~ | licencia en Hugging Face; condiciones de OpenRouter § 5.1 | Contrato (licencia aceptada vía OpenRouter § 5.1) | **Cerrado el 2026-09-26**: el propietario quitó MiniMax de reserva. La nueva reserva, Gemma 4 31B, es Apache 2.0: sin aviso, atribución ni restricciones que trasladar a los usuarios para quien usa el modelo por API (§ 4.4 d). Otro cambio de modelo reabre esta fila |
+| P1-14 | Imágenes de los platos (006, flag apagado): la tarjeta del panel las mostraría sin aviso; ~~MAI-Image-2.6 sin marca documentada~~ (fuera, 2026-09-27); ~~`sharp` borra el C2PA de Google~~ (se sirve el original, medido); la política dice «nunca los servicios de Google» | [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 5 (IMG-1 a IMG-9); `NextMeal.tsx:58-62` | Ley de IA arts. 50.2, 50.4, 50.5 (desde el 2/8/2026, sin el plazo del art. 111.3); RGPD art. 5.1.a | Antes del flag: [`checklist-activacion.md`](./checklist-activacion.md) § 0 ter |
 
 ### P2
 
@@ -838,6 +850,10 @@ Una hora, en este orden:
 9. **Producto sanitario**: confirmar que la finalidad declarada lo deja fuera del
    Reglamento 2017/745.
 10. **Correo transaccional**: ¿Gmail de consumo es aceptable como encargado?
+11. **Imágenes de los platos** (2026-09-27): (a) ¿una foto realista de un plato es una
+    ultrasuplantación (art. 3.60)? (b) ¿«IA» en lugar de «AI» en la marca? ~~(c) Si el
+    C2PA de Google no llega por OpenRouter…~~ (llega, medido el 2026-09-27).
+    Detalle en [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 7.
 
 ---
 

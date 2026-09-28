@@ -1,0 +1,22 @@
+.figure {
+  margin: 0 0 var(--gap-block);
+}
+
+/* The caption belongs to the picture: under it, quiet, and never dropped while the picture is shown. */
+.caption {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  margin-top: var(--space-02);
+  max-inline-size: 40rem;
+  text-wrap: pretty;
+}
+
+/*
+ * No picture on screen — still being drawn, never drawn, or it failed to load —
+ * so there is nothing to caption. The line keeps its place, so nothing below
+ * moves when the picture arrives.
+ */
+.figure[data-bare] .caption,
+.figure:has([data-failed]) .caption {
+  visibility: hidden;
+}

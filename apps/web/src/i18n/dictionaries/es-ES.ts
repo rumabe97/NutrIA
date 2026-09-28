@@ -99,6 +99,17 @@ export const esES = {
     pagerNext: 'Siguiente',
     pagerOf: '{from}–{to} de {total}',
     pagerPrevious: 'Anterior',
+    picturesDrawing: 'Dibujándose ahora',
+    picturesFailed: 'Fallidas (se reintentan pasados 7 días)',
+    picturesHint:
+      'Encendido: la primera vez que alguien abre un plato sin imagen se dibuja una, y la ven todos los que lo abran después. Al llegar al tope del mes no se dibuja ninguna más hasta el mes siguiente.',
+    picturesLabel: 'Dibujar las imágenes de los platos',
+    picturesOffHint: 'Apagado: no se dibuja ninguna imagen nueva. Las que ya existen se siguen viendo.',
+    picturesReady: 'Listas',
+    picturesReleased: 'Devueltas por el tope o la clave (se reintentan en la siguiente visita)',
+    picturesSpend: 'Gastado este mes',
+    picturesSpendValue: '{spent} de {cap}',
+    picturesTitle: 'Imágenes de los platos',
     plansTitle: 'Planes por estado',
     premiumHint: 'Premium está activo: las cuentas a las que se lo hayas dado tienen tres replanificaciones por quincena y veinte cambios por plan.',
     premiumLabel: 'Nivel de pago',
@@ -149,7 +160,7 @@ export const esES = {
     title: 'Servicio',
     unconfirmed: 'sin confirmar',
     waiting: '{count} sin activar',
-    withoutImage: '{count} sin ilustrar'
+    withoutImage: '{count} sin imagen'
   },
 
   appNav: {
@@ -737,8 +748,6 @@ export const esES = {
     dislikedHint: 'Anotado: no volverá, ni nada muy parecido.',
     done: 'Hecha',
     doneHint: 'Marcada como hecha.',
-    illustration: 'Ilustración generada por IA',
-    illustrationOf: 'Ilustración de {name}',
     ingredients: 'Ingredientes',
     like: 'Me gusta',
     likedHint: 'Anotado: podrá volver, y buscaremos platos en esta línea.',
@@ -747,6 +756,8 @@ export const esES = {
     noCooking: 'Sin cocinar',
     none: '—',
     notYet: 'Podrás marcarla el {date}.',
+    pictureCaption: 'Imagen generada por IA. Es orientativa: manda la lista de ingredientes.',
+    pictureOf: 'Imagen de {name} generada por IA',
     prep: 'Preparación',
     readOnly: 'Este plato es de un plan anterior y se muestra tal como fue.',
     servingNote: 'Cantidades para {servings} {unit}.',
@@ -964,6 +975,8 @@ export const esES = {
     '/restablecer': { title: 'Elegir una contraseña nueva' },
     '/verificar-email': { title: 'Confirmar tu correo' }
   },
+
+  picture: { aiMark: 'IA', aiMarkLabel: 'Imagen generada por IA' },
 
   plan: {
     createCta: 'Crear mi plan',
@@ -1341,10 +1354,10 @@ export const esES = {
         paragraphs: [
           'Los platos y las recetas de NutrIA los diseña un modelo de inteligencia artificial o salen de nuestra biblioteca de platos ya diseñados y comprobados. Nuestro propio código comprueba cada plato antes de que te llegue: un alérgeno declarado no llega a tu plan aunque el modelo se equivoque. La IA no toma ninguna decisión sobre ti: los límites de calorías y de proteína los aplican reglas fijas, no el modelo.',
           'Lo que recibe el modelo cuando diseña platos nuevos para tu plan: tus objetivos diarios y tu objetivo (por ejemplo, perder peso), qué comidas haces y cuánto tiempo quieres dedicar a cocinar cada plato, si eres vegetariano o vegano, las cocinas y los alimentos que te gustan, los nombres de los platos que te gustaron, que no te gustaron o que comiste la quincena anterior, y tus respuestas cerradas al check-in (hambre, dificultad, nota). Siempre con los nombres de nuestras listas. Nunca recibe tu nombre, tu correo, tu edad, tu sexo, tu peso ni tu altura, nada que hayas escrito a mano, tus alergias ni intolerancias, ninguna otra forma de comer (sin gluten, sin lactosa, halal, kósher…), ni tus enfermedades, tu medicación o tus suplementos. Lo que no puedes o no quieres comer lo quitamos antes, en nuestro código, del catálogo de alimentos que ve: le llega el efecto, nunca el dato.',
-          'A quién va: la petición va a OpenRouter (OpenRouter, Inc., Estados Unidos), que la trata por encargo nuestro y la pasa a la empresa que ejecuta el modelo: DeepInfra o CoreWeave, también en Estados Unidos. El modelo es Gemma 4 31B y, si no responde, DeepSeek V4.1 Flash; son modelos abiertos que ejecutan esas empresas, nunca los servicios de Google ni de DeepSeek.',
+          'A quién va: la petición va a OpenRouter (OpenRouter, Inc., Estados Unidos), que la trata por encargo nuestro y la pasa a la empresa que ejecuta el modelo: DeepInfra o CoreWeave, también en Estados Unidos. El modelo es Gemma 4 31B y, si no responde, DeepSeek V4.1 Flash; son modelos abiertos que ejecutan esas empresas: lo que se envía para diseñar tus platos nunca pasa por los servicios de Google ni de DeepSeek.',
           'Nadie entrena con ello ni lo guarda: solo usamos proveedores que borran la petición en cuanto responden y no la usan para entrenar ni mejorar ningún modelo. Lo exigimos en nuestra cuenta de OpenRouter y otra vez en cada petición. OpenRouter guarda solo datos técnicos de cada petición (tamaño, tiempo, coste), no su contenido.',
           'Una excepción que debes conocer: OpenRouter puede pasar una pequeña muestra de peticiones, sin nada que las ligue a nuestra cuenta ni a ti, por un modelo que les pone una etiqueta de tema para sus estadísticas públicas de uso. No guarda el texto, solo la etiqueta.',
-          'Si una receta tiene ilustración, la dibujó un modelo a partir solo del nombre y los ingredientes de la receta, sin ningún dato tuyo.',
+          'Las imágenes de los platos las genera otro modelo, a partir solo de la receta: su nombre, sus ingredientes y en qué proporción. Nunca recibe nada tuyo, ni siquiera quién ha abierto el plato. La petición va a OpenRouter, que la pasa a Google (Vertex AI), y un modelo que ejecuta DeepInfra comprueba que la imagen no muestra alimentos que la receta no lleva. Ninguno guarda la petición ni la usa para entrenar. Las imágenes se guardan en Vercel, se muestran a todas las personas que ven ese plato y llevan la marca «IA»; los ficheros llevan además una marca invisible y legible por máquina que dice que están generados por IA.',
           'Hasta el 26 de septiembre de 2026 algunos de los modelos que usábamos eran versiones gratuitas alojadas en Estados Unidos cuyos proveedores podían usar lo que recibían para mejorar sus modelos. Ya no usamos ninguno de ellos.'
         ]
       },
@@ -1352,7 +1365,7 @@ export const esES = {
         heading: 'Con quién compartimos tus datos',
         list: [
           'OpenRouter, y DeepInfra o CoreWeave, que ejecutan el modelo de inteligencia artificial, como se explica en «La inteligencia artificial». Están en Estados Unidos.',
-          'Vercel (alojamiento de la web y la API, en la Unión Europea) y Neon (base de datos, en la Unión Europea). Son empresas de Estados Unidos.',
+          'Vercel (alojamiento de la web, la API y las imágenes de los platos, en la Unión Europea) y Neon (base de datos, en la Unión Europea). Son empresas de Estados Unidos.',
           'Stripe, si contratas Premium, para cobrar la suscripción. Stripe procesa y conserva los datos de pago según sus propias políticas.',
           'Nuestro proveedor de correo, para los correos de confirmación, recuperación de contraseña y recordatorio del check-in que tú actives.',
           'El servicio de notificaciones de tu propio navegador (Google, Apple o Mozilla), si activas los avisos; el contenido va cifrado y ellos no pueden leerlo.',
@@ -1675,7 +1688,8 @@ export const esES = {
       {
         heading: 'Contenido generado con inteligencia artificial',
         paragraphs: [
-          'Las recetas y los planes se generan con ayuda de inteligencia artificial y se validan con nuestro propio código antes de mostrártelos. Aun así pueden contener errores: un tiempo de cocción, una cantidad, un paso poco claro. Usa tu criterio en la cocina, sobre todo con la seguridad alimentaria: cocina bien la carne, el pescado y los huevos, y respeta la cadena de frío.'
+          'Las recetas y los planes se generan con ayuda de inteligencia artificial y se validan con nuestro propio código antes de mostrártelos. Aun así pueden contener errores: un tiempo de cocción, una cantidad, un paso poco claro. Usa tu criterio en la cocina, sobre todo con la seguridad alimentaria: cocina bien la carne, el pescado y los huevos, y respeta la cadena de frío.',
+          'Las imágenes de los platos también las genera una inteligencia artificial, a partir de la receta, y las marcamos como tales. Son orientativas: no son una foto del plato que vas a cocinar y pueden no mostrar todos sus ingredientes ni su cantidad real. Lo que lleva cada plato lo dice su lista de ingredientes, y es la que tiene en cuenta tus alergias.'
         ]
       },
       {
@@ -1744,7 +1758,7 @@ export const esES = {
       }
     ],
     title: 'Condiciones de uso',
-    updated: 'Última actualización: 25 de septiembre de 2026'
+    updated: 'Última actualización: 28 de septiembre de 2026'
   },
 
   tour: {

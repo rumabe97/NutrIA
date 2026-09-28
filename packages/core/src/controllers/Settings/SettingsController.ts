@@ -33,6 +33,11 @@ export const SettingsController = {
     return SettingsRepository.isEnabled(FLAGS.checkInReminders.key, FLAGS.checkInReminders.fallback);
   },
 
+  /** Whether a dish is drawn the first time its meal page is opened (`0066`). Asked by each such read. */
+  async dishPictures(): Promise<boolean> {
+    return SettingsRepository.isEnabled(FLAGS.dishPictures.key, FLAGS.dishPictures.fallback);
+  },
+
   /** Every flag, in one read, with absent rows resolved to their declared fallback. */
   async flags(): Promise<FlagSet> {
     return flagsFrom(await SettingsRepository.all());

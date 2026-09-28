@@ -229,25 +229,41 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   provider again, and the plan records `fallback: full_library`. What still fails is
   a library that genuinely cannot fill a fortnight, which is `GENERATION_AI_UNAVAILABLE`
   when the provider failed and `POOL_TOO_SMALL` when there simply is none.
-- **Both sweeps are off by default** (`AI_ILLUSTRATIONS`, `AI_REWRITE_STEPS`), because a free-tier project's daily request cap is generation's. Turn them on with billing, or deliberately, for a while. Through the gateway the rewrite sweep runs on free models — `AI_REWRITE_MODEL` can keep it off a combo's Gemini step — and the daily cron in `vercel.json` calls it.
+- **The rewrite sweep is off by default** (`AI_REWRITE_STEPS`), because a free-tier project's daily request cap is generation's. Turn it on with billing, or deliberately, for a while. Through the gateway the rewrite sweep runs on free models — `AI_REWRITE_MODEL` can keep it off a combo's Gemini step — and the daily cron in `vercel.json` calls it.
 - **A sweep is bounded in time, not only in number** (`RewriteLimits`). One cron call is one invocation of the 300-second function, and through the gateway a rewrite takes 22–74 seconds: ten in a row outlived the function. Three lanes, no call started with under 90 seconds left, every call ended by 240 seconds with `untilAborted` — a transport that ignores its signal cannot keep the sweep past its deadline.
-- **Both sweeps stop at the first exhausted quota** (`isQuotaExhausted`). The provider's
+- **The sweep stops at the first exhausted quota** (`isQuotaExhausted`), and so does a picture's drawing. The provider's
   free tier caps *requests*, not only spend, and generation draws on the same allowance:
   a sweep that keeps going after a refusal attempted eighteen recipes three times each
   and emptied the day's budget, blocking plan generation. Treat "the sweep is free
   because the text tier is free" as false — it is bounded, and the bound is shared.
-- **Illustrations are drawn after the plan, never before it, and are off by default.**
-  `RecipeIllustrator` (in `modules/ai`, so the health-data boundary test covers it)
-  draws from the recipe's name and ingredients only, resizes to a phone-sized WebP and
-  stores it in `recipe_images`; `GET /recipes/:id/image` is the one public route that
-  serves bytes, immutable for a year. A bounded batch runs in the background after a
-  generation and `GET /cron/illustrate` (bearer `CRON_SECRET`, else 404) sweeps the
-  rest every ten minutes. An unconfigured `CRON_SECRET` is logged at warn on each call:
-  a cron quietly 404ing every ten minutes has to be tellable from someone knocking, and
-  the response deliberately cannot say which. `AI_ILLUSTRATIONS=false` resolves no image model and every
-  sweep is a no-op: the configured provider's free tier allows zero image calls, so the
-  switch is the owner's. Every screen that shows one carries the "AI-generated
-  illustration" label from the dictionary ([`0010`](../../docs/decisions/0010-illustrate-recipes-not-photograph-them.md)).
+- **A dish's picture is drawn the first time its meal page is opened** ([`0066`](../../docs/decisions/0066-photograph-like-dish-pictures-drawn-on-first-view.md)),
+  behind the `dishPictures` flag, off by default. `GET /meal-plans/meals/:id` is the only
+  read that may start one: `PlanController.openMeal` asks `RecipeController.requestPicture`
+  (the flag, no picture yet, nobody drawing, no failure in the last 7 days, the month's
+  spend under `AI_IMAGE_MONTHLY_CAP_USD`), whose claim is one statement, so one view of
+  many wins. `DishPictureService.draw` then runs after the response through
+  `BackgroundTaskService`, and the page already says `pictureStatus: 'drawing'`; the web
+  polls `GET /recipes/:id/picture-status` (session, only a dish on one of the caller's
+  plans, else 404). Every other read — the plan, the card, a swap — only reads.
+  - **Nothing about a person reaches the model or the path.** The prompt is built from
+    the recipe alone (`core/domain/DishPicture/prompt.ts`), and the Blob path is
+    `dish-pictures/<recipeId>/<promptVersion>-<random>.jpg`.
+  - **Every image and judge request goes through `pictureTransport`**, whose provider
+    block (`only`, no fallbacks, `zdr`, `data_collection: deny`) only `pinnedProvider`
+    can make and which is written over the body last.
+  - **The allergens come from the catalogue, never from the judge.** `judgePicture` gets
+    the **whole** catalogue with `mayContain`; a picture showing an extra food with an
+    allergen the dish lacks is never stored. A judge that fails is a picture not kept.
+  - **The file is stored as the model returned it** — no `sharp`, no resize: any
+    re-encode breaks Google's C2PA manifest, and a file without one is never kept.
+  - **Every paid call is a row in `recipe_image_calls`**, and the cap is their sum; a
+    cost OpenRouter never states is recorded at the floor, never at 0. A key refusal
+    (402, 429) or the cap gives the claim back (`releasePicture`) instead of failing
+    the dish. Three attempts, counted across a stale takeover, then `failed`.
+  - **`AI_PROVIDER=stub` draws, judges and keeps with stubs** (`StubPictureClients.ts`)
+    — nothing leaves the machine. Otherwise nothing is drawn without
+    `OPENROUTER_IMAGE_API_KEY` and `BLOB_READ_WRITE_TOKEN`. `/admin/pictures` shows the
+    month's spend against the cap. Every screen that shows one carries `legal`'s AI mark.
 - `pnpm --filter api smoke:function` runs the deployed entry behind a plain Node
   server and checks it boots, denies with 404, and returns the JSON envelope for an
   unmatched route. Needs a live database, so it is not in the gate. Run it after any

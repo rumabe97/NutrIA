@@ -47,6 +47,31 @@
 - [ ] En la primera quincena, mirar en `/admin` qué proveedor respondió cada llamada; uno que no esté en la lista es un incidente (el texto sería falso): volver a `stub` y registrarlo ([`procedimiento-brechas.md`](./procedimiento-brechas.md) § 8).
 - [ ] Cada cambio de `AI_MODEL`, `AI_FALLBACK_MODELS` o de la lista de proveedores permitidos pasa antes por la política.
 
+## 0 ter. Antes de encender el flag de las imágenes de los platos (proyecto 006)
+
+> Detalle, fuentes y el porqué de cada casilla en [`imagenes-de-platos.md`](./imagenes-de-platos.md).
+> El art. 50 de la Ley de IA se aplica **el mismo día** en que se encienda: sin periodo de
+> gracia (§ 1.1 de ese documento).
+
+**Marca legible por máquina (art. 50.2)**
+- [x] (backend) Medido el 2026-09-27 con 8 respuestas reales de Gemini por OpenRouter, antes de cualquier proceso: las 8 llevan el C2PA firmado por Google (con la acción SynthID) y el XMP IPTC `trainedAlgorithmicMedia`.
+- [x] (backend) El fichero que se guarda y se sirve es el JPEG de Gemini **sin tocar**.
+- [ ] Validar una vez la firma C2PA (`c2patool` o el verificador de Content Credentials) sobre un fichero **tal como lo sirve Blob** en producción; si no valida, a `legal`. No bloquea (P3).
+- [ ] (backend) Cualquier variante recodificada lleva el XMP IPTC; ningún fichero lleva un id de usuario, ni en los metadatos ni en la ruta de Blob.
+- [x] (propietario) **MAI-Image-2.6 fuera** (decidido el 2026-09-27): solo Gemini en Vertex. Otro modelo, si vuelve, repite antes [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 2 y entra antes en la política.
+
+**Aviso visible (art. 50.4 y 50.5)**
+- [ ] (frontend) Pie `meal.pictureCaption` y `alt` `meal.pictureOf` en la página de la comida, en los dos idiomas.
+- [ ] (frontend + accessibility) Marca `picture.aiMark` («IA»/«AI») en la esquina superior derecha de la imagen, en la tarjeta y en la imagen grande, visible sin interacción, 4,5:1 sobre cualquier foto, con nombre accesible `picture.aiMarkLabel`; sin marca en el plato de reserva.
+- [ ] Ningún otro sitio muestra la imagen sin su aviso (filas del plan, consulta, correos, notificaciones, vista previa al compartir). Si se añade uno, lleva la marca.
+
+**Privacidad y textos**
+- [ ] (propietario) Almacén de Vercel Blob creado en **`fra1`** (no se puede cambiar después).
+- [ ] (frontend) `/privacidad`: cambios a, b y c del § 4.2, con `privacy.updated` nuevo, publicados antes del flag o el mismo día. Sin Microsoft (MAI fuera).
+- [ ] (frontend) `/condiciones`: la frase del § 3.3, con `terms.updated` nuevo.
+- [ ] (propietario) Leídas las condiciones de Google Cloud para IA generativa (Vertex). Cualquier cláusula que choque, a `legal` (IMG-9).
+- [ ] `legal` revisa el código construido contra este documento, porque hoy describe un plan, no código.
+
 ## 1. Antes de encender `professional`
 
 **Código**

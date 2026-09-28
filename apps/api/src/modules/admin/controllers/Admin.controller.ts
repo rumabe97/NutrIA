@@ -4,7 +4,7 @@ import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AdminService } from '../services/index.js';
 import { Roles } from '../../../shared/index.js';
 
-import type { AdminAnalyticsDto, AdminJobDto, AdminOverviewDto, AiUsageDto } from '../dto/out/index.js';
+import type { AdminAnalyticsDto, AdminJobDto, AdminOverviewDto, AdminPicturesDto, AiUsageDto } from '../dto/out/index.js';
 
 /**
  * The owner's own window on the service. `@Roles('admin')` on the class, so a
@@ -40,6 +40,13 @@ export class AdminController {
   @Get('analytics')
   async analytics(): Promise<AdminAnalyticsDto> {
     return this.admin.analytics();
+  }
+
+  @ApiOkResponse({ description: 'Spend since the month began, the cap, the flag, and pictures ready, failed and being drawn.' })
+  @ApiOperation({ summary: "This month's dish pictures against the cap (0066)" })
+  @Get('pictures')
+  async pictures(): Promise<AdminPicturesDto> {
+    return this.admin.pictures();
   }
 
   @ApiOkResponse({ description: 'The generations that failed, with their codes.' })

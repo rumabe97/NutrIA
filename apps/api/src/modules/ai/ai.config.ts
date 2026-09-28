@@ -6,10 +6,9 @@ import { createOllama } from 'ollama-ai-provider-v2';
 import { isOpenRouterUrl } from '../../config/Env.validation.js';
 
 import type { Env } from '../../config/index.js';
-import type { ImageModel, LanguageModel } from 'ai';
+import type { LanguageModel } from 'ai';
 
 export const AI_MODEL = Symbol('AI_MODEL');
-export const AI_IMAGE_MODEL = Symbol('AI_IMAGE_MODEL');
 export const AI_CALL_SETTINGS = Symbol('AI_CALL_SETTINGS');
 
 /** The configured provider credentials, scrubbed from anything an upstream echoes back — `providerCredentials`. */
@@ -347,6 +346,13 @@ function required(value: string | undefined, name: string): string {
 /** The dish pictures' settings — `resolvePictureSettings`. */
 export const AI_PICTURES = Symbol('AI_PICTURES');
 
+/**
+ * `AI_IMAGE_MONTHLY_CAP_USD`: the month's picture spend at which drawing stops.
+ * Its own token, beside the settings, because it holds with the stub provider
+ * too — an end-to-end test sets it to 0 to reach the cap.
+ */
+export const AI_PICTURE_CAP = Symbol('AI_PICTURE_CAP');
+
 /** What the picture clients are built from (`0066`). */
 export type PictureSettings = {
   /** `OPENROUTER_IMAGE_API_KEY`: the pictures' own key, whose monthly limit OpenRouter enforces too. */
@@ -358,6 +364,19 @@ export type PictureSettings = {
   /** `AI_IMAGE_MONTHLY_CAP_USD`: the spend at which drawing stops until the next month. */
   readonly monthlyCapUsd: number;
 };
+
+/**
+ * Whether the dish pictures are drawn, judged and kept by stubs (`0066`): with
+ * `AI_PROVIDER=stub` — every test and every local run, nothing leaves the
+ * machine — and **never in production**. `stub` is also what an unset
+ * `AI_PROVIDER` means, so a production deploy that lost the variable would
+ * otherwise store the stub's 8×8 test picture as every dish's picture, for
+ * everyone and for good. There it falls through to the real clients, which
+ * without their key and token draw nothing.
+ */
+export function picturesStubbed(env: Env): boolean {
+  return env.AI_PROVIDER === 'stub' && env.NODE_ENV !== 'production';
+}
 
 /**
  * The dish pictures' settings, or null when no picture may be drawn: with
@@ -380,21 +399,4 @@ export function resolvePictureSettings(env: Env): PictureSettings | null {
     judgeProviders: env.AI_JUDGE_PROVIDER_ONLY,
     monthlyCapUsd: env.AI_IMAGE_MONTHLY_CAP_USD
   };
-}
-
-/**
- * Which model draws illustrations, given who is generating dishes.
- *
- * Null unless `AI_ILLUSTRATIONS=true` *and* the provider has an image model:
- * only Google does here, and only with billing — its free tier allows zero image
- * calls, which is why this is a switch the owner throws rather than a default.
- * Anthropic and Ollama generate no images; Google's `AI_MODEL` names its text
- * model, so the image model is fixed rather than read from it (0010).
- */
-export function resolveImageModel(env: Env): ImageModel | null {
-  if (!env.AI_ILLUSTRATIONS || env.AI_PROVIDER !== 'google') {
-    return null;
-  }
-
-  return createGoogleGenerativeAI({ apiKey: required(env.GOOGLE_API_KEY, 'GOOGLE_API_KEY') }).image('gemini-2.5-flash-image');
 }

@@ -105,3 +105,154 @@
   - a judge failure is never kept;
   - the key refusal and the cost floor;
   - the deployment rows.
+
+## Phase 3 — Drawing on first view, storing in Blob, the monthly cap (2026-09-27)
+
+- **Executors**: `backend-high` (opus @ high) for steps 1–6 and the unit specs; `tests` (opus)
+  for the end-to-end suite. Review: `invariant-reviewer`, no P0 or P1, both P2s closed.
+- **Result**: done. The end-to-end suite runs first on CI: the local e2e database
+  (Nutria-E2E) had not had migration 0042 applied, which is the owner's step.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test`: green.
+  - `gate.sh --full`: green after formatting the suite.
+  - The API build's preflight passes with `@vercel/blob`.
+  - The `dish-pictures` e2e suite (`apps/api/test/dish-pictures.e2e-spec.ts`) covers:
+    - with the flag off, nothing is claimed;
+    - an accepted picture is stored untouched at its path and served;
+    - a prawn the judge sees is rejected through the real catalogue (crustaceans) and not
+      stored, with 3 image calls and 6 judge calls in the ledger;
+    - a failing dish is left alone for 7 days;
+    - 402 and 429 release the claim;
+    - at the cap, nothing is claimed;
+    - four simultaneous views make exactly one image call, and a second person sees the
+      same URL;
+    - `picture-status` is read-only; it answers 400, 404 and 409 where it should, 404 to
+      another person and to a pending-review plan, and 200 on the caller's active plan;
+    - the old routes answer 404;
+    - `/admin/pictures` is for the owner only.
+- **Deviations from plan**:
+  - The core cannot schedule Nest work. `PlanController.openMeal` returns
+    `{claim, meal}` and `MealPlansService` schedules the drawing.
+  - `releasePicture` is new: the cap or a key refusal gives the claim back rather than
+    failing the dish.
+    - The row stays `failed` with `provenance.released` and keeps `attempts`; a refused
+      attempt is not counted.
+    - The next open claims it at once, with no cool-off.
+    - `/admin/pictures` counts `released` apart from `failed`.
+  - A file with no C2PA manifest fails at once. A Blob failure fails the dish.
+  - Unknown-cost floors: 0.0337 $ for an image, 0.001 $ for a judge call. A 4xx is
+    recorded at 0.
+  - `picture-status` requires onboarding and a dish on the caller's own visible plans.
+  - The flag's audience is `signed-in`, since "everyone" is not an audience.
+  - `sharp` is removed from `apps/api`.
+  - The stub picture clients are never used in production (`picturesStubbed`).
+  - A failing picture request never turns the meal page into a 500.
+- **Known and accepted (P3)**:
+  - Judge calls and drawings running at the same time can go past the cap by about one
+    attempt each. That is why the OpenRouter key's own limit is required at go-live
+    (phase 6).
+  - A drawing whose claim was taken over leaves an orphan blob.
+- **Notes for the next phase**:
+  - `MealDetailView.pictureStatus` (`none | drawing | ready`) is new and required.
+  - `illustrationPath` is now the absolute Blob URL.
+  - Polling goes through `GET /recipes/:id/picture-status` → `{status, url}`.
+  - `/admin` needs a `dishPictures` toggle (the existing flag route) and the
+    `GET /admin/pictures` line.
+  - `docs/legal/analisis.md` still names the removed route, for `legal`.
+
+## Phase 4 — The meal page waits for its picture; every picture says it is AI (2026-09-28)
+
+- **Executor**: `frontend` (opus @ medium). Reviews: `accessibility`, two passes, no P0, P1
+  or P2; `legal` confirmed the strings verbatim and their placement.
+- **Result**: done.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=web --filter=ui`: 14 of 14 tasks.
+  - `gate.sh --full`: green.
+  - 10 new unit tests in `apps/web/src/lib/picture.test.ts`:
+    - the URL passes through untouched, and `DishPicture` uses no `next/image`;
+    - polling every 4 s, giving up at 60 s, pausing, stopping when the page is left.
+  - Local probe at 320, 390, 1024 and 1280 px, light and dark, plus 200% text, through a
+    probe-only harness (a temporary patch of the server fetch and Playwright interception
+    of the poll), reverted, with the marker count at 0:
+    - no sideways overflow;
+    - no layout shift from drawing to ready;
+    - no announcement.
+  - The "IA" mark measured 17.5:1 (light) and 15.5:1 (dark) on its own ground.
+- **Deviations from plan**:
+  - **Owner's request, 2026-09-28.** At 60rem and wider, the meal page has two columns when
+    a picture exists or is being drawn: the picture on the left; the actions, the specs and
+    the macros on the right. The actions are grouped (`--swap-push`) at every wide width.
+    With no picture, the page stays one column, with no empty track.
+  - **Accessibility P3s applied.**
+    - The bare `<figure>` is `aria-hidden` while there is no picture.
+    - The mark is hidden from assistive technology on the meal page, where the alt already
+      carries the notice; the card keeps its label.
+    - The hero's width is also capped by the viewport height.
+  - The "rendered as served" test lives in `apps/web`. `packages/ui` is untouched.
+  - es-ES `admin.withoutImage` changed from "sin ilustrar" to "sin imagen".
+- **Known P3, left**: the card link's accessible name begins with the AI label.
+- **Notes for the next phase**:
+  - Phase 5 merges `agent/dish-pictures-legal/legal`, which is updated with the C2PA
+    measurement and MAI removed, and applies its § 3.3 and § 4 sentences to the
+    `/privacidad` and `/condiciones` dictionaries.
+  - Only one agent probes at a time, with its own cookie file: one agent's cleanup once
+    deleted another's probe account.
+
+## Phase 5 — Published texts (2026-09-28)
+
+- **Executor**: `frontend` (opus @ medium, deviating from the plan's sonnet: it already held
+  the phase 4 context), after the lead merged the `legal` branch (docs/legal only).
+- **Result**: done. `owner-approves`: the owner approved the es-ES wording of the four
+  changed paragraphs on 2026-09-28 ("Aprobados, publícalos").
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=web`: 14 of 14 tasks, including
+    `i18n/legal.test`.
+  - `gate.sh --full`: green.
+  - The private leak patterns match nothing in the added lines.
+- **What changed** in es-ES and en-GB, verbatim from `docs/legal/imagenes-de-platos.md`
+  § 3.3 and § 4.2 a–c:
+  - `/privacidad`:
+    - the Google sentence is scoped to designing the dishes;
+    - a pictures paragraph (OpenRouter → Google Vertex AI, DeepInfra's check, no
+      training, the "IA" mark and the machine-readable mark) replaces the illustration
+      line;
+    - the Vercel line covers the pictures.
+  - `/condiciones`: pictures are illustrative, and the ingredient list governs.
+  - Both pages are dated 28 September 2026.
+  - No version constant is bumped and no prior email is needed, per legal.
+- **Deviations from plan**: the executor (above).
+- **Notes for the next phase**: the privacy text says Vercel hosts the pictures "in the
+  European Union". That holds only if the Blob store is created in fra1, which is step 1
+  of phase 6.
+
+## Phase 6 — Go-live (2026-09-28, in progress)
+
+- **Executor**: the lead (Opus 5.5), with the owner doing the owner-gated steps.
+- **Result**: live. Two acceptance items are still open (below).
+- **Evidence**:
+  - **Blob store.** `nutria-dish-pictures` (`store_wHUgF3DroEDhuM8f`) was created by the
+    lead on the owner's word: region **fra1**, public, connected to the API project only.
+    `BLOB_READ_WRITE_TOKEN` was added to production, preview and development.
+  - **Key.** The owner created an OpenRouter key for pictures with a 10 $ limit and set it
+    as `OPENROUTER_IMAGE_API_KEY` (production). Only its name was checked; the value was
+    never read.
+  - **Redeploy.** The API was redeployed (`dpl_EoNxb7eUtYgVPwZeD5pZx7MhZ7yq`): READY, and
+    `/api/v1/health` answers 200.
+  - **Published texts.** The `/privacidad` served in production names Google Vertex
+    (phase 5, PR #131).
+  - **Flag.** The owner switched `dishPictures` on at `/admin`.
+  - **human-verify.** Confirmed by the owner on 2026-09-28: 4–5 dishes opened on the
+    iPhone, and "se ven bastante bien".
+  - **`/admin` the same day.** 6 pictures ready, 0 failed, 0 drawing, 0.24 $ spent of the
+    10 $ cap. That is about 0.04 $ per accepted picture: the image at 0.0337 $ plus the
+    two judge calls.
+- **Still open**:
+  - `owner-approves`: the first week's spend, and the rejections and notes in `/admin`,
+    against the calibration watch-list: noodles, horchata with nuts, free-from pairs.
+  - The C2PA signature, checked once on a file exactly as Vercel Blob serves it (legal,
+    P3). The owner could not share a picture URL on the day.
+- **Deviations from plan**: none.
+- **Notes**:
+  - The OpenRouter pilot key is to be revoked by the owner.
+  - `AI_ILLUSTRATIONS` and `GOOGLE_API_KEY` still exist as Vercel variables on the API
+    project. No code reads them since phase 3, so the owner may delete them.
