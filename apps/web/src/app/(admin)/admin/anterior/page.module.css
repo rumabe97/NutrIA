@@ -158,18 +158,3 @@
   color: var(--foreground-03);
   font-size: var(--font-size-01);
 }
-
-@media (width >= 48rem) {
-  .tiles {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-.opened {
-  background-color: var(--color-brand-03);
-  border-radius: var(--radius-control);
-  color: var(--color-brand-12);
-  font-size: var(--font-size-02);
-  margin: 0 0 var(--gap-block);
-  padding: var(--space-03) var(--space-04);
-}

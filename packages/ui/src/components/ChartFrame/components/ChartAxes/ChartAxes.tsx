@@ -57,7 +57,7 @@ export function ChartAxes({ children, labels, labelY, ticks }: ChartAxesProps) {
         ))}
         {labels.map((label, index) => (
           <text
-            className={label.minor ? `${styles.label} ${styles.minor}` : styles.label}
+            className={[styles.label, label.minor ? styles.minor : label.anchor === 'middle' ? styles.centre : undefined].filter(Boolean).join(' ')}
             key={`${label.text}-${index}`}
             textAnchor={label.anchor}
             x={`${label.x}%`}

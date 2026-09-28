@@ -1,0 +1,57 @@
+.details {
+  border-block-start: 1px solid var(--border-01);
+  padding-block-start: var(--space-03);
+}
+
+/* The floor is stated once and moved by the pointer. */
+.summary {
+  --summary-floor: var(--height-m);
+
+  align-items: center;
+  color: var(--foreground-02);
+  cursor: pointer;
+  display: flex;
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+  gap: var(--space-02);
+  inline-size: fit-content;
+  list-style: none;
+  min-block-size: var(--summary-floor);
+}
+
+@media (pointer: coarse) {
+  .summary {
+    --summary-floor: var(--target-min);
+  }
+}
+
+/* Flex takes the browser's own triangle away; this chevron stands in for it. */
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.chevron {
+  block-size: 1em;
+  flex: none;
+  inline-size: 1em;
+  transition: transform var(--duration-fast) var(--ease-default);
+}
+
+.details[open] .chevron {
+  transform: rotate(90deg);
+}
+
+.summary:hover {
+  color: var(--foreground-01);
+}
+
+.notes {
+  color: var(--foreground-02);
+  display: grid;
+  font-size: var(--font-size-03);
+  gap: var(--space-02);
+  line-height: var(--line-height-04);
+  margin: var(--space-02) 0 0;
+  max-inline-size: var(--prose-max);
+  padding-inline-start: var(--space-05);
+}

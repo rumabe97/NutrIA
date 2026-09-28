@@ -310,3 +310,88 @@
       fine at today's sizes.
     - Past about 10^6 `analytics_events` rows, an index build blocks inserts for seconds,
       and past 10^7 it needs its own path.
+
+## Phase 4 — Web: Resumen, Embudo y actividad, Planes (2026-09-28)
+
+- **Executor**: the `frontend` agent (medium effort) on opus, in its own worktree, brought
+  into the main checkout and the worktree removed; the review fixes by the lead on opus
+  (this session). Review: `accessibility` on opus, with `/local-probe`.
+- **Result**: done.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=web --filter=ui --filter=docs`: 16/16 tasks, 0
+    warnings; web 103 tests (the 4 redirect tests went with the redirect, and 3 new ones
+    were added for `periodHref`), ui 483.
+  - `pnpm --filter web build`: green, with `/admin`, `/admin/producto` and
+    `/admin/producto/planes` dynamic (`ƒ`). `pnpm --filter docs build`: 56/56.
+  - `/local-probe` (accessibility agent) with an `--admin` account:
+    - Pages: `/admin` with no period, 7, 90 and `?abierta=`; `/admin/producto` and
+      `/admin/producto/planes` at 7 and 90; `/admin/anterior`.
+    - At 320, 390 and 1280 px, light and dark: 54 of 54 `ok`, 0 px sideways scroll, one
+      `h1` each, no hints.
+    - An ordinary account gets a 404 at the same address on every page, never a redirect.
+    - The keyboard order is right, focus is always visible, and targets are ≥ 44 px on
+      touch.
+    - Both probe accounts were deleted and the servers stopped.
+    - The dev data is thin: previous periods are all 0, so no change arrow was drawn, and
+      no queued or running job existed. The change wording was checked in code only.
+  - `accessibility`: pass with fixes, no P0/P1. Its P2s were fixed by the lead after the
+    probe (see Deviations 5); these fixes were not re-measured in a browser.
+- **Deviations from plan**:
+  1. Three shared components, `AdminPageHeader`, `AdminSection` and `HowCounted`, were
+     added outside the listed scope; the Scope line is amended.
+  2. New `pages` titles in both dictionaries: `/admin` is "Resumen", plus
+     `/admin/anterior`, `/admin/producto` and `/admin/producto/planes`.
+  3. Generations: `queued` and `running` share one neutral series, "En cola o en curso",
+     because two neutral series would look identical. The stack is success, failure,
+     neutral, with a total column in the table.
+  4. The success-rate tile has no arrow, because a rate moves in points, not in per cent
+     of itself. Its note states the previous rate, and it shows "—" when no job finished.
+  5. Review fixes (the Scope line is amended for the `packages/ui` ones):
+     - The unselected period segment was 4.42:1 in light; its text is now
+       `--foreground-01`.
+     - At 200 % text on 320 px, Resumen did not reflow. Each page's grid is now
+       `minmax(0, 1fr)`.
+     - The x-axis dates collided at 200 % text. Under 17rem of chart width only the first
+       and last are kept (`ChartAxes`, a `centre` class).
+     - The light chart neutral was 1.69:1 against a card. It is now `#6f6f6f`: success
+       lightest, neutral between, failure darkest. Validator, all pairs: band, CVD (worst
+       ΔE 10.5 deutan) and contrast PASS; chroma FAIL, as grey must.
+     - BarChart's names and figures sat inside `role="img"`, so VoiceOver skipped the
+       funnel. The wrapper role is gone and the bars stay `aria-hidden`; the figure keeps
+       its caption as its name.
+     - LineChart's inner drawing SVG is `aria-hidden`.
+     - The console bar is two rows tall at 200 % text on a phone. Its scroll padding now
+       follows under `(width < 20rem)`.
+- **What left the transition page, and what stayed**:
+  - Left:
+    - the accounts tile (total and waiting) and the failures tile, now on Resumen;
+    - the `?abierta=` banner, now on Resumen;
+    - the funnel, activity and plans by state;
+    - the `/admin/analytics` fetch and ten dictionary keys only those sections used, in
+      both languages.
+  - Stayed (no new home yet): the recipe (with without-picture) and ingredient tiles
+    until phase 8; pictures, accounts, professionals, inbox, AI, the recent jobs list and
+    the generation log.
+- **Decisions**: none new.
+- **Notes for the next phase**:
+  - **Links to repoint.** The "needs you" links are `NEEDS_YOU_HREF` in
+    `app/(admin)/admin/page.tsx` and point at `/admin/anterior#cuentas`, `#buzon` and
+    `#registro`.
+    - Phase 6 repoints the first two to `/admin/cuentas?activated=no` and
+      `/admin/buzon?state=waiting`. It also moves `?abierta=` to Cuentas with a
+      `redirect()` from Resumen, which must repeat the role check before it and needs a
+      test like phase 1's `page.test.ts`.
+    - Phase 8 repoints `#registro` to `/admin/generacion?status=failed&since=24h` and
+      moves the catalogue counts.
+  - **`PeriodSelector`** takes `pathname` and the page's query. `PageQuery` is exported
+    from `components/PeriodSelector`.
+  - **Open P3s:**
+    - Every chart's disclosure is "Ver datos"; add the chart's title as hidden text.
+    - A chart's name is announced by both the figure and its SVG.
+    - The `?abierta` banner is not announced on load; move it right after the intro.
+    - A tile whose previous period is 0 shows no comparison, so it looks like "no
+      change".
+    - The one-page groups show "RESUMEN" over "Resumen".
+    - The transition page still has three names.
+  - **iPhone only:** how VoiceOver reads the tiles, figures and funnel; whether the banner
+    is announced; the safe areas under the sticky bar.

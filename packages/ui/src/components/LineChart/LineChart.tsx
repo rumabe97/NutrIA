@@ -116,7 +116,7 @@ export function LineChart({
     >
       <svg aria-labelledby={titleId} className={styles.chart} height={HEIGHT} role="img" width="100%">
         <ChartAxes labels={axisLabels} labelY={LABEL_Y} ticks={ticks.map(tick => ({ text: tickFormat(tick), y: y(tick) }))}>
-          <svg height={HEIGHT} preserveAspectRatio="none" viewBox={`0 0 ${SPAN} ${HEIGHT}`} width="100%" x="0" y="0">
+          <svg aria-hidden="true" height={HEIGHT} preserveAspectRatio="none" viewBox={`0 0 ${SPAN} ${HEIGHT}`} width="100%" x="0" y="0">
             {series.map((entry, seriesIndex) => (
               <polyline
                 className={`${styles.line} ${styles[chartToneKey(entry.tone, seriesIndex)]}`}

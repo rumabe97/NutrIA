@@ -12,13 +12,10 @@ export const enGB: Dictionary = {
   activity: { athlete: 'Athlete', high: 'High', light: 'Light', moderate: 'Moderate', sedentary: 'Sedentary' },
 
   admin: {
-    accounts: 'Accounts',
     accountsTitle: 'Accounts and access',
     activate: 'Open account',
     activateFor: 'Open the account of {email}',
     activationTitle: 'New accounts',
-    activityPeople: '{count} people signed in during this window.',
-    activityTitle: 'Activity ({days} days)',
     aiByModel: 'Today, by the model that answered',
     aiCalls: 'Requests today',
     aiHint:
@@ -37,7 +34,6 @@ export const enGB: Dictionary = {
     confirmed: 'email confirmed',
     events: { session_started: 'Sign-ins', swap_requested: 'Meal swaps asked for' },
     failureNote: '{count} generations failed. The code says whether it was the quota, the key or the catalogue.',
-    failures: 'Failures',
     feedbackHandled: 'Mark as seen',
     feedbackHandledFor: 'Mark the message from {email} as seen',
     feedbackHandledState: 'Seen',
@@ -54,10 +50,6 @@ export const enGB: Dictionary = {
       returned: 'Came back for a second plan',
       signedUp: 'Signed up'
     },
-    funnelHint:
-      'Counted from the data rather than from events, so it covers the accounts that predate this screen. The percentage is of the step above.',
-    funnelTitle: 'Funnel',
-    inDays: 'in {days} days',
     ingredients: 'Ingredients',
     intro: 'How the service is doing. No plan and no profile here: only whether generation works and how much the catalogue holds.',
     jobsTitle: 'Generations ({days} days)',
@@ -87,7 +79,6 @@ export const enGB: Dictionary = {
     makeProfessionalFor: 'Make the account {email} a professional',
     manualHint: 'Confirming their address leaves the account waiting and sends you a mail. You open it from this list.',
     noAccounts: 'No account yet.',
-    noActivity: 'No activity recorded yet.',
     noFeedback: 'Nobody has written yet.',
     noJobs: 'No generation yet.',
     notOpened: 'not opened',
@@ -106,7 +97,6 @@ export const enGB: Dictionary = {
     picturesSpend: 'Spent this month',
     picturesSpendValue: '{spent} of {cap}',
     picturesTitle: 'Dish pictures',
-    plansTitle: 'Plans by state',
     premiumHint: 'Premium is on: accounts you have granted it get three redos a fortnight and twenty swaps a plan.',
     premiumLabel: 'Paid tier',
     premiumOffHint: 'Premium is off: everybody is on the free limits, including anyone already granted it. Turning it on gives it back.',
@@ -155,8 +145,17 @@ export const enGB: Dictionary = {
     tierPremium: 'Premium',
     title: 'Service',
     unconfirmed: 'unconfirmed',
-    waiting: '{count} not activated',
     withoutImage: '{count} without a picture'
+  },
+
+  /* Words every console page with a period shares: the selector, the charts' table, the tiles' change. */
+  adminConsole: {
+    changeLabel: '{change} against the previous period',
+    dataLabel: 'Show data',
+    day: 'Day',
+    howCounted: 'How it’s counted',
+    period: 'Period',
+    periodOption: '{days} days'
   },
 
   /* The console's own navigation (`0068`): six groups, and only the pages that exist yet. */
@@ -165,8 +164,61 @@ export const enGB: Dictionary = {
     groups: { catalogue: 'Catalogue', generation: 'Generation', people: 'People', product: 'Product', settings: 'Settings', summary: 'Overview' },
     label: 'Console sections',
     menu: 'Menu',
-    pages: { legacy: 'Old page', settings: 'Settings' },
+    pages: { legacy: 'Old page', plans: 'Plans', product: 'Funnel and activity', settings: 'Settings', summary: 'Overview' },
     title: 'Console'
+  },
+
+  /* `/admin/producto/planes`: every plan by the state it is in now, and plans made per day. */
+  adminPlans: {
+    byStateChart: 'Plans by state',
+    byStateEmpty: 'No plan yet.',
+    byStateNote: 'Every plan, whenever it was made: the period does not change it.',
+    byStateTitle: 'State now',
+    createdChart: 'Plans created per day',
+    createdEmpty: 'No plan was created in this period.',
+    createdTitle: 'In the period',
+    howCounted: [
+      'A plan is only saved when its generation succeeds. Failed generations leave no plan: they are counted on the Overview.',
+      'Each plan counts in the state it is in today, not the one it had when it was made.'
+    ],
+    intro: 'Which state the plans are in, and how many are made each day.',
+    series: 'Plans',
+    share: 'Share',
+    state: 'State',
+    states: {
+      active: 'Active',
+      archived: 'Archived',
+      completed: 'Finished',
+      draft: 'Draft',
+      failed: 'Failed',
+      generating: 'Generating',
+      pending_review: 'Awaiting review'
+    },
+    title: 'Plans'
+  },
+
+  /* `/admin/producto`: how far people get, and what they do each day. */
+  adminProduct: {
+    activeChart: 'Active people per day',
+    activeEmpty: 'Nobody signed in during this period.',
+    activeSeries: 'People',
+    activityTitle: 'Activity',
+    eventsChart: 'Events per day',
+    eventsEmpty: 'No event in this period.',
+    funnelChart: 'People at each step',
+    funnelEmpty: 'Nobody has signed up yet.',
+    funnelNote: 'Since the first account: the period does not change it.',
+    funnelSeries: 'People',
+    funnelShare: 'Of the step above',
+    funnelStep: 'Step',
+    funnelTitle: 'Funnel',
+    howCounted: [
+      'The funnel is counted from the data rather than from events, so it covers the accounts that predate this screen too. Each step’s percentage is of the step above.',
+      'Active people per day counts each person once a day. Someone who signs in on three different days counts on all three, so the days can add up to more than the period’s total on the Overview.',
+      'Events are things somebody did. Calls to the model are not here: they have a page of their own.'
+    ],
+    intro: 'How far people get, and what they do each day.',
+    title: 'Funnel and activity'
   },
 
   /* `/admin/ajustes`: the five switches and the push test, grouped by what they govern. */
@@ -176,6 +228,47 @@ export const enGB: Dictionary = {
     notifications: 'Notifications',
     product: 'Product',
     title: 'Settings'
+  },
+
+  /* `/admin`: the period's headline figures, two trends, and what needs the owner now. */
+  adminSummary: {
+    activePeople: 'Active people',
+    failedInPeriod: '{count} failed in the period',
+    generationsChart: 'Generations per day',
+    generationsEmpty: 'No generation in this period.',
+    howCounted: [
+      'Every figure with an arrow is compared with the previous period of the same length.',
+      'Active people counts each person once over the whole period, whether they signed in on one day or on many.',
+      'Successful generations are the finished ones out of those finished or failed that started in the period. Those still queued or running do not count.',
+      'Each generation on the chart counts in the state it is in now.',
+      'Not activated includes the accounts that have not confirmed their address yet.',
+      'The picture cap counts the calendar month in UTC, not the period.'
+    ],
+    intro: 'How the service is doing in the chosen period, against the previous period of the same length.',
+    needsYou: {
+      failed: 'Failed generations in the last 24 h',
+      title: 'Needs you',
+      unread: 'Unseen messages',
+      waiting: 'Accounts waiting for activation'
+    },
+    newAccounts: 'New accounts',
+    noneFinished: 'None finished in the period',
+    outcomes: { failed: 'Failed', pending: 'Queued or running', succeeded: 'Finished' },
+    pictureMonth: 'This month: {spent} of {cap}',
+    pictureSpend: 'Picture spend',
+    plansGenerated: 'Plans generated',
+    previousRate: 'Previous period: {rate}',
+    signUpsChart: 'Sign-ups per day',
+    signUpsEmpty: 'Nobody signed up in this period.',
+    signUpsSeries: 'Sign-ups',
+    successRate: 'Successful generations',
+    tilesLabel: 'The period’s figures',
+    title: 'Overview',
+    total: 'Total',
+    totalAccounts: 'Accounts',
+    trendsTitle: 'Trends',
+    unreadMessages: 'Unseen messages',
+    waitingAccounts: 'Not activated'
   },
 
   appNav: {
@@ -943,8 +1036,11 @@ export const enGB: Dictionary = {
       title: 'NutrIA — Personalised meal plans'
     },
     '/acceder': { description: "Sign in to NutrIA to see today's plan, your shopping list and your progress.", title: 'Sign in' },
-    '/admin': { title: 'Admin' },
+    '/admin': { title: 'Overview' },
     '/admin/ajustes': { title: 'Settings' },
+    '/admin/anterior': { title: 'Admin' },
+    '/admin/producto': { title: 'Funnel and activity' },
+    '/admin/producto/planes': { title: 'Plans' },
     '/check-in': { title: "The fortnight's check-in" },
     '/compra': { title: 'The shopping' },
     '/condiciones': {

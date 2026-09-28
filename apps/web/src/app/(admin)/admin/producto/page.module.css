@@ -1,0 +1,27 @@
+/* The page measures itself, so the charts count their columns from the room they
+   have beside the sidebar. */
+.page {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--gap-region);
+  /* One column that may shrink below its widest child: at 200 % text on a phone, content
+     wraps instead of pushing past the screen's edge. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The charts sit on cards: the gaps between marks are the card's colour. */
+.chart {
+  --chart-surface: var(--surface-card);
+}
+
+.charts {
+  display: grid;
+  gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (inline-size >= 56rem) {
+  .charts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

@@ -19,7 +19,7 @@ import { serverApi } from 'lib/server-api';
 import { appMetadata } from '../../../_shared/metadata';
 
 import type { AccountView, Paged } from 'core/controllers/User';
-import type { AdminAnalyticsView, AdminGenerationView, AdminOverviewView, AdminPicturesView, AiUsageView } from 'core/controllers/Admin';
+import type { AdminGenerationView, AdminOverviewView, AdminPicturesView, AiUsageView } from 'core/controllers/Admin';
 import type { FeedbackView } from 'core/controllers/Feedback';
 import type { Metadata } from 'next';
 import type { ProfessionalAccountView } from 'core/controllers/Professional';
@@ -28,11 +28,8 @@ import type { SettingsView } from 'core/controllers/Settings';
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return appMetadata('/admin');
+  return appMetadata('/admin/anterior');
 }
-
-/** The order people actually move through, so each row can say what share of the one above it got here. */
-const FUNNEL_STAGES = ['signedUp', 'confirmed', 'activated', 'onboarded', 'planned', 'lived', 'checkedIn', 'returned'] as const;
 
 /**
  * The owner's window on their own service.
@@ -46,24 +43,27 @@ const FUNNEL_STAGES = ['signedUp', 'confirmed', 'activated', 'onboarded', 'plann
  * big is the catalogue" are answerable without reading anybody's food. The
  * reads that name somebody — the accounts, the inbox, and the address on each
  * generation in the log — come from endpoints of their own (`0028`, `0050`).
+ *
+ * What the console's own pages already show has left: the accounts and failure
+ * tiles, the `?abierta=` banner, the funnel, the activity and the plans live on
+ * Resumen, Embudo y actividad and Planes. The catalogue counts stay until
+ * Catálogo exists (phase 8).
  */
-export default async function AdminPage({ searchParams }: { searchParams: Promise<{ abierta?: string; buzon?: string; cuentas?: string }> }) {
+export default async function AdminPage({ searchParams }: { searchParams: Promise<{ buzon?: string; cuentas?: string }> }) {
   const query = await searchParams;
   const accountsOffset = Number.parseInt(query.cuentas ?? '', 10) || 0;
   const feedbackOffset = Number.parseInt(query.buzon ?? '', 10) || 0;
-  const [dictionary, locale, overview, accounts, settings, analytics, ai, inbox, generations, professionals, pictures, opened] = await Promise.all([
+  const [dictionary, locale, overview, accounts, settings, ai, inbox, generations, professionals, pictures] = await Promise.all([
     getDictionary(),
     activeLocale(),
     serverApi<AdminOverviewView>('/admin/overview'),
     serverApi<Paged<AccountView>>(`/admin/accounts?offset=${accountsOffset}`),
     serverApi<SettingsView>('/admin/settings'),
-    serverApi<AdminAnalyticsView>('/admin/analytics'),
     serverApi<AiUsageView>('/admin/ai'),
     serverApi<Paged<FeedbackView> & { waiting: number }>(`/admin/feedback?offset=${feedbackOffset}`),
     serverApi<readonly AdminGenerationView[]>('/admin/generations'),
     serverApi<readonly ProfessionalAccountView[]>('/admin/professionals'),
-    serverApi<AdminPicturesView>('/admin/pictures'),
-    Promise.resolve(query)
+    serverApi<AdminPicturesView>('/admin/pictures')
   ]);
 
   if (!overview) {
@@ -78,18 +78,12 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
   const seconds = (ms: number | null) => (ms === null ? '—' : number(Math.round(ms / 100) / 10));
   const failures = jobs.filter(job => job.status === 'failed');
   const tiles = [
-    { label: t.accounts, note: interpolate(t.waiting, { count: number(counts.accounts.waiting) }), value: number(counts.accounts.total) },
     {
       label: t.recipes,
       note: interpolate(t.withoutImage, { count: number(counts.catalogue.withoutImage) }),
       value: number(counts.catalogue.recipes)
     },
-    { label: t.ingredients, note: null, value: number(counts.catalogue.ingredients) },
-    {
-      label: t.failures,
-      note: interpolate(t.inDays, { days: number(windowDays) }),
-      value: number(counts.jobs.find(row => row.status === 'failed')?.n ?? 0)
-    }
+    { label: t.ingredients, note: null, value: number(counts.catalogue.ingredients) }
   ];
 
   return (
@@ -112,8 +106,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           </Card>
         ))}
       </dl>
-
-      {opened.abierta ? <p className={styles.opened}>{interpolate(t.justOpened, { email: opened.abierta })}</p> : null}
 
       {/* Dish pictures (`0066`): whether a dish is drawn when first opened, and this
           month's spend against the cap. Counts only — no dish, no person. */}
@@ -269,66 +261,6 @@ export default async function AdminPage({ searchParams }: { searchParams: Promis
           ) : null}
         </section>
       ) : null}
-
-      {analytics ? (
-        <section className={styles.section}>
-          <h2 className={styles.subtitle}>{t.funnelTitle}</h2>
-          <Text className={styles.hint} size="sm" tone="tertiary">
-            {t.funnelHint}
-          </Text>
-
-          {/* Each step with how many of the step before it got here. The last
-              one is the only figure about the product working rather than about
-              somebody signing up. */}
-          <ul className={styles.rows}>
-            {FUNNEL_STAGES.map((stage, index) => {
-              const reached = analytics.funnel[stage];
-              const previous = index === 0 ? reached : analytics.funnel[FUNNEL_STAGES[index - 1]];
-              const share = previous > 0 ? Math.round((reached / previous) * 100) : null;
-
-              return (
-                <li className={styles.row} key={stage}>
-                  <span>{t.funnel[stage]}</span>
-                  <span className={styles.count}>
-                    {number(reached)}
-                    {index > 0 && share !== null ? ` · ${number(share)}%` : ''}
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-
-          <h3 className={styles.subtitle}>{interpolate(t.activityTitle, { days: number(analytics.windowDays) })}</h3>
-          <Text className={styles.hint} size="sm" tone="tertiary">
-            {interpolate(t.activityPeople, { count: number(analytics.activity.people) })}
-          </Text>
-
-          {analytics.activity.events.length === 0 ? (
-            <Text tone="secondary">{t.noActivity}</Text>
-          ) : (
-            <ul className={styles.rows}>
-              {analytics.activity.events.map(row => (
-                <li className={styles.row} key={row.event}>
-                  <span>{t.events[row.event as keyof typeof t.events] ?? row.event}</span>
-                  <span className={styles.count}>{number(row.n)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      ) : null}
-
-      <section className={styles.section}>
-        <h2 className={styles.subtitle}>{t.plansTitle}</h2>
-        <ul className={styles.rows}>
-          {counts.plans.map(row => (
-            <li className={styles.row} key={row.status}>
-              <span>{row.status}</span>
-              <span className={styles.count}>{number(row.n)}</span>
-            </li>
-          ))}
-        </ul>
-      </section>
 
       <section className={styles.section}>
         <h2 className={styles.subtitle}>{interpolate(t.jobsTitle, { days: number(windowDays) })}</h2>

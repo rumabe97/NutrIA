@@ -1,0 +1,71 @@
+/* A segmented control, the way a system one looks: one track, three equal
+   segments, the chosen one raised on it. */
+.segments {
+  background-color: var(--color-hover);
+  border-radius: var(--radius-control);
+  display: inline-grid;
+  gap: var(--space-01);
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  list-style: none;
+  margin: 0;
+  padding: var(--space-01);
+}
+
+/* The floor is stated once and moved by the pointer: a control's height with a
+   mouse, a finger's on a phone. */
+.segment {
+  --segment-floor: var(--height-m);
+
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius-control) - var(--space-01));
+  /* Full-strength text on the track (4.5:1 in both schemes); the chosen segment is told
+     apart by its raised fill, border and weight, not by colour. */
+  color: var(--foreground-01);
+  display: flex;
+  font-size: var(--font-size-03);
+  font-variant-numeric: tabular-nums;
+  justify-content: center;
+  min-block-size: var(--segment-floor);
+  padding: var(--space-01) var(--space-04);
+  text-decoration: none;
+  transition:
+    background-color var(--duration-fast) var(--ease-default),
+    color var(--duration-fast) var(--ease-default);
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .segment {
+    --segment-floor: var(--target-min);
+  }
+}
+
+/* Text this large for the screen: the three segments keep one row and fill it,
+   and a label may break between its figure and its word rather than push the
+   page sideways. */
+@media (width < 17rem) {
+  .segments {
+    display: grid;
+  }
+
+  .segment {
+    padding-inline: var(--space-02);
+    text-align: center;
+    white-space: normal;
+  }
+}
+
+.segment:hover {
+  color: var(--foreground-01);
+}
+
+/* The chosen period: a raised segment with an edge, and heavier type — a second
+   cue besides the fill. */
+.segment[aria-current='true'] {
+  background-color: var(--surface-card);
+  border-color: var(--border-interactive);
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-semibold);
+}

@@ -189,7 +189,7 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 3 — API: periods, series, Resumen and Producto
 
-- [x] done
+- [x] done — commit `acfc126` ("The console reads periods: summary, product and plans with day series")
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 3`. Reviews: `migration-reviewer`
   (the index migration), `invariant-reviewer`. The `tests` agent writes the end-to-end
   cases. After merge — owner-gated: run `pnpm --filter database migrate` against the dev
@@ -241,14 +241,16 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 4 — Web: Resumen, Embudo y actividad, Planes
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 4`. Reviews: `accessibility`,
   plus `/local-probe`.
 - **Goal**: the first three pages exist with tiles, charts and the period selector, and
   their figures leave the transition page.
 - **Scope**: `apps/web/src/app/(admin)/admin/{page.tsx,producto/**}`,
   `apps/web/src/components/{PeriodSelector,AdminNav}/**`, the transition page, the
-  dictionaries.
+  dictionaries. Added in phase 4: `apps/web/src/components/{AdminPageHeader,AdminSection,HowCounted}/**`
+  (shared by the pages), and from its accessibility review `packages/ui` `BarChart`,
+  `LineChart`, `ChartAxes` and the chart neutral token in `colors.css`, with their tests and docs.
 - **Steps**:
   1. `components/PeriodSelector`: three links with `aria-current` on the active period.
      They keep every other query parameter.
