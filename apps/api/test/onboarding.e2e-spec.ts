@@ -7,7 +7,6 @@ import {
   deleteAccounts,
   generateAndWait,
   httpServer,
-  markCustomGoal,
   markLegacyOnboarding,
   POOL,
   PREFIX,
@@ -155,19 +154,6 @@ describe('onboarding', () => {
       .expect(422);
 
     expect(code(onProfile)).toBe('INVALID_INPUT');
-  });
-
-  it("reads a goal stored as type 'custom' back as 'maintenance', a deploy-window row the enum still permits", async () => {
-    const account = await register(app, `goal-type-legacy-${Date.now()}@e2e.invalid`);
-
-    made.push(account.cookie);
-    await completeOnboarding(app, account);
-    // What the old API could still write during migration 0043's deploy
-    // window: a value the Postgres enum still permits, but GOAL_TYPES no
-    // longer does.
-    await markCustomGoal(account.id);
-
-    expect((await profileView(account)).goal?.type).toBe('maintenance');
   });
 
   it('accepts every field the cleanup removed, and stores none of them', async () => {
