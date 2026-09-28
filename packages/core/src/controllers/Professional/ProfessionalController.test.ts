@@ -8,12 +8,13 @@ import { ProfessionalController } from './ProfessionalController';
 
 import type { ProfessionalListRow } from '#repositories/Professional';
 import type { Professional } from 'core/entities/Professional';
+import type { ProfessionalQuery } from 'core/entities/AdminQuery';
 import type { User } from 'core/entities/User';
 
 const acceptAgreement = vi.fn<(userId: string, version: string, now: Date) => Promise<Professional | null>>();
 const find = vi.fn<(userId: string) => Promise<Professional | null>>();
 const grant = vi.fn<(userId: string, collegiateNumber: string, grantedBy: string) => Promise<Professional>>();
-const list = vi.fn<() => Promise<readonly ProfessionalListRow[]>>();
+const list = vi.fn<(query: ProfessionalQuery) => Promise<readonly ProfessionalListRow[]>>();
 const linkCounts = vi.fn<(professionalId: string) => Promise<ProfessionalListRow['links']>>();
 const revoke = vi.fn<(userId: string) => Promise<boolean>>();
 const findById = vi.fn<(id: string) => Promise<User | undefined>>();
@@ -25,7 +26,7 @@ vi.mock('#repositories/Professional', () => ({
     find: (userId: string) => find(userId),
     grant: (userId: string, collegiateNumber: string, grantedBy: string) => grant(userId, collegiateNumber, grantedBy),
     linkCounts: (professionalId: string) => linkCounts(professionalId),
-    list: () => list(),
+    list: (query: ProfessionalQuery) => list(query),
     revoke: (userId: string) => revoke(userId)
   }
 }));
@@ -232,6 +233,22 @@ describe('ProfessionalController.list', () => {
     const [row] = await ProfessionalController.list();
 
     expect(row?.links).toEqual({ active: 1, ended: 0, paused: 0 });
+  });
+
+  it('asks for the most recently granted first when nothing is asked, as the list always did', async () => {
+    list.mockResolvedValue([]);
+
+    await ProfessionalController.list();
+
+    expect(list).toHaveBeenCalledWith({ dir: 'desc', q: undefined, sort: 'grantedAt' });
+  });
+
+  it('passes the search and the sort through to the query', async () => {
+    list.mockResolvedValue([]);
+
+    await ProfessionalController.list({ dir: 'asc', q: 'mad', sort: 'links' });
+
+    expect(list).toHaveBeenCalledWith({ dir: 'asc', q: 'mad', sort: 'links' });
   });
 });
 

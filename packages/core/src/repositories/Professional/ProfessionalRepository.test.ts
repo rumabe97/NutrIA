@@ -3,7 +3,8 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 
 import { makeProfessional } from '#test/fixtures';
 
-import { ProfessionalRepository } from './ProfessionalRepository';
+import { professionalFilters, professionalOrder, ProfessionalRepository } from './ProfessionalRepository';
+import { professionalQuerySchema } from 'core/entities/AdminQuery';
 
 import type { SQL } from 'drizzle-orm';
 
@@ -84,5 +85,35 @@ describe('ProfessionalRepository.acceptAgreement', () => {
 
   it('answers null for an account that is not a professional', async () => {
     await expect(ProfessionalRepository.acceptAgreement('usr-nobody', '1.0.0', NOW)).resolves.toBeNull();
+  });
+});
+
+/* The owner's list (`0068`): searched by address, sorted from an allow-list. */
+describe('professionalFilters and professionalOrder', () => {
+  const query = (raw: Record<string, string> = {}) => professionalQuerySchema.parse(raw);
+  const sqlOf = (order: readonly SQL[]) => order.map(term => dialect.sqlToQuery(term).sql);
+
+  it('searches the professional’s address literally, bound as a parameter, and nothing when blank', () => {
+    const { params, sql } = dialect.sqlToQuery(professionalFilters(query({ q: 'Ana%' })) as SQL);
+
+    expect(sql).toBe('"user"."email" ilike $1');
+    expect(params).toEqual(['%Ana\\%%']);
+    expect(professionalFilters(query({ q: '' }))).toBeUndefined();
+  });
+
+  it('is the most recently granted first when nothing is asked', () => {
+    expect(sqlOf(professionalOrder(query()))).toEqual(['"professionals"."granted_at" desc nulls last', '"professionals"."id" asc']);
+  });
+
+  it('sorts by address either way', () => {
+    expect(sqlOf(professionalOrder(query({ dir: 'asc', sort: 'email' })))).toEqual(['"user"."email" asc nulls last', '"professionals"."id" asc']);
+  });
+
+  it('sorts by active links, then every link — counts, never a client', () => {
+    expect(sqlOf(professionalOrder(query({ sort: 'links' })))).toEqual([
+      'count("care_links"."id") filter (where "care_links"."status" = $1) desc nulls last',
+      'count("care_links"."id") desc nulls last',
+      '"professionals"."id" asc'
+    ]);
   });
 });

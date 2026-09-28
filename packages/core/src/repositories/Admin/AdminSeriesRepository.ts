@@ -190,6 +190,21 @@ export const AdminSeriesRepository = {
     }
   },
 
+  /** Messages written to the owner per Madrid day (`0037`). A count; no message is read. Mode: one grouped query. */
+  async messagesPerDay(from: Date, to: Date): Promise<readonly DayCountRow[]> {
+    try {
+      const day = madridDay(feedback.createdAt);
+
+      return await database()
+        .select({ day, n: count() })
+        .from(feedback)
+        .where(within(feedback.createdAt, from, to))
+        .groupBy(day);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   /**
    * Picture spend in dollars over each period and since the month began
    * (`0066`): the month is what the cap is counted against. Mode: one scan

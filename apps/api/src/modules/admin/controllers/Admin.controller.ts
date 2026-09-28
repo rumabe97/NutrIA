@@ -1,15 +1,17 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { PERIODS } from 'core/entities/Period';
 
 import { AdminService } from '../services/index.js';
 import { PeriodQueryDto } from '../dto/in/index.js';
-import { Roles, ZodValidationPipe } from '../../../shared/index.js';
+import { Roles } from '../../../shared/index.js';
+import { ZodQuery } from './ZodQuery.js';
 
 import type {
   AdminAnalyticsDto,
   AdminJobDto,
   AdminOverviewDto,
+  AdminPeopleDto,
   AdminPicturesDto,
   AdminPlansDto,
   AdminProductDto,
@@ -23,7 +25,7 @@ import type {
  * (`AGENTS.md` § Traps). A refused value is a 422 `INVALID_INPUT`, like a body.
  */
 function PeriodQuery(): ParameterDecorator {
-  return Query(new ZodValidationPipe(PeriodQueryDto.schema));
+  return ZodQuery(PeriodQueryDto);
 }
 
 /** How `/api/docs` describes `?period=`. */
@@ -102,6 +104,17 @@ export class AdminController {
   @Get('plans')
   async plans(@PeriodQuery() query: PeriodQueryDto): Promise<AdminPlansDto> {
     return this.admin.plans(query);
+  }
+
+  @ApiOkResponse({
+    description:
+      'Accounts created and messages written per ISO week (Monday to Sunday, Europe/Madrid), each week named by its Monday. Counts only. 422 INVALID_INPUT for a period other than 7, 30 or 90.'
+  })
+  @ApiOperation({ summary: 'Sign-ups and messages per week over a period (0068)' })
+  @ApiQuery(PERIOD_PARAMETER)
+  @Get('people')
+  async people(@PeriodQuery() query: PeriodQueryDto): Promise<AdminPeopleDto> {
+    return this.admin.people(query);
   }
 
   @ApiOkResponse({ description: 'The generations that failed, with their codes.' })

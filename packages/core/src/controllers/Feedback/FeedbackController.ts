@@ -1,8 +1,10 @@
 import { FeedbackRepository } from '#repositories/Feedback';
+import { feedbackQuerySchema } from 'core/entities/AdminQuery';
 import { NotFoundError } from 'core/entities/Error';
 
+import type { FeedbackQuery } from 'core/entities/AdminQuery';
 import type { FeedbackRow } from '#repositories/Feedback';
-import type { Page, Paged } from 'core/controllers/User';
+import type { Paged } from 'core/controllers/User';
 import type { SubmitFeedback } from 'core/entities/Feedback';
 
 // --- Presenters ---------------------------------------------------------------
@@ -30,10 +32,6 @@ function present(row: FeedbackRow): FeedbackView {
 
 // --- Controller ---------------------------------------------------------------
 
-/** Enough messages to read in one sitting. */
-const PAGE_SIZE = 20;
-const MAX_PAGE_SIZE = 100;
-
 /**
  * What people write to the owner (`0037`).
  *
@@ -43,13 +41,14 @@ const MAX_PAGE_SIZE = 100;
  * reaches a model: the message is delivered as typed.
  */
 export const FeedbackController = {
-  /** One page of the inbox, newest first, and how many are still waiting. */
-  async list(page: Page = {}): Promise<Paged<FeedbackView> & { readonly waiting: number }> {
-    const size = Math.min(Math.max(page.size ?? PAGE_SIZE, 1), MAX_PAGE_SIZE);
-    const offset = Math.max(page.offset ?? 0, 0);
-    const { rows, total, waiting } = await FeedbackRepository.findAll(size, offset);
+  /**
+   * One page of the inbox as the query asks — newest first when it asks
+   * nothing — how many messages match, and how many are still waiting in all.
+   */
+  async list(query: FeedbackQuery = feedbackQuerySchema.parse({})): Promise<Paged<FeedbackView> & { readonly waiting: number }> {
+    const { rows, total, waiting } = await FeedbackRepository.findAll(query);
 
-    return { offset, rows: rows.map(present), size, total, waiting };
+    return { offset: query.offset, rows: rows.map(present), size: query.size, total, waiting };
   },
 
   /**

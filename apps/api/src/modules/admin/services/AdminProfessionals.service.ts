@@ -9,7 +9,7 @@ import { ENV } from '../../../config/index.js';
 import { professionalGrantedEmail } from '../../email/templates/ProfessionalGranted.js';
 
 import type { Env } from '../../../config/index.js';
-import type { GrantProfessionalDto } from '../dto/in/index.js';
+import type { GrantProfessionalDto, ProfessionalsQueryDto } from '../dto/in/index.js';
 import type { ProfessionalAccountDto, ProfessionalsDto } from '../dto/out/index.js';
 
 @Injectable()
@@ -41,8 +41,8 @@ export class AdminProfessionalsService {
     return account;
   }
 
-  async list(): Promise<ProfessionalsDto> {
-    return ProfessionalController.list();
+  async list(query: ProfessionalsQueryDto): Promise<ProfessionalsDto> {
+    return ProfessionalController.list(query);
   }
 
   async revoke(id: string): Promise<void> {

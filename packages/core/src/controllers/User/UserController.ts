@@ -1,5 +1,9 @@
+import { accountQuerySchema } from 'core/entities/AdminQuery';
 import { NotFoundError } from 'core/entities/Error';
 import { UserRepository } from '#repositories/User';
+
+import type { AccountQuery } from 'core/entities/AdminQuery';
+import type { AccountRow } from '#repositories/User';
 import type { User, UserTier } from 'core/entities/User';
 
 /**
@@ -74,8 +78,10 @@ function presentUser(user: User): StoredUserView {
 // --- Controller ---------------------------------------------------------------
 
 /**
- * One account on the admin list: the two locks, when it arrived and what it is.
- * No profile, no answers — only what a decision about access needs (`0028`).
+ * One account on the admin table (`GET /admin/accounts`): the two locks, when
+ * it arrived, what it is, and its milestones. No profile, no answers, no plan,
+ * no health value, no allergy — only dates and counts about the account
+ * (`0028`, `0068`). Its keys are exactly these eleven; a twelfth is a decision.
  */
 export type AccountView = {
   id: string;
@@ -83,31 +89,51 @@ export type AccountView = {
   createdAt: string;
   email: string;
   emailVerified: boolean;
+  /** The latest product event recorded for the account (ISO), or null when there is none. */
+  lastActiveAt: string | null;
+  /** The day onboarding was finished, `YYYY-MM-DD`, or null while it is not. */
+  onboardedAt: string | null;
+  /** How many plans the account has, in any state. A count; no plan is read. */
+  plans: number;
+  /** The owner's grant stands (`0059`) — whatever the `professional` switch says. */
+  professional: boolean;
   role: 'admin' | 'user';
   tier: 'free' | 'premium';
 };
 
-/** What a caller may ask for, and what it gets back with it. A screen needs the total to draw the pager. */
-export type Page = { readonly offset?: number; readonly size?: number };
+/**
+ * Copied field by field, so a column added to the repository's query cannot
+ * reach the owner's screen without somebody deciding it should.
+ */
+function presentAccount(row: AccountRow): AccountView {
+  return {
+    id: row.id,
+    activated: row.activatedAt !== null,
+    createdAt: row.createdAt.toISOString(),
+    email: row.email,
+    emailVerified: row.emailVerified,
+    lastActiveAt: row.lastActiveAt?.toISOString() ?? null,
+    onboardedAt: row.onboardedAt,
+    plans: row.plans,
+    professional: row.professional,
+    role: row.role,
+    tier: row.tier
+  };
+}
+
+/** One page of a table and what it was asked with. A screen needs the total to draw the pager. */
 export type Paged<T> = { readonly offset: number; readonly rows: readonly T[]; readonly size: number; readonly total: number };
 
-/** Enough rows to see a pattern, few enough to read on a phone. */
-const PAGE_SIZE = 25;
-const MAX_PAGE_SIZE = 100;
-
 export const UserController = {
-  /** One page of accounts, newest first, each saying which of its two locks are open. */
-  async accounts(page: Page = {}): Promise<Paged<AccountView>> {
-    const size = Math.min(Math.max(page.size ?? PAGE_SIZE, 1), MAX_PAGE_SIZE);
-    const offset = Math.max(page.offset ?? 0, 0);
-    const { rows, total } = await UserRepository.findAll(size, offset);
+  /**
+   * One page of accounts as the query asks — newest first when it asks
+   * nothing — each saying which of its two locks are open and its milestones.
+   * `total` counts every account the filters match, not only this page.
+   */
+  async accounts(query: AccountQuery = accountQuerySchema.parse({})): Promise<Paged<AccountView>> {
+    const { rows, total } = await UserRepository.findAll(query);
 
-    return {
-      offset,
-      rows: rows.map(({ activatedAt, createdAt, ...row }) => ({ ...row, activated: activatedAt !== null, createdAt: createdAt.toISOString() })),
-      size,
-      total
-    };
+    return { offset: query.offset, rows: rows.map(presentAccount), size: query.size, total };
   },
 
   /**

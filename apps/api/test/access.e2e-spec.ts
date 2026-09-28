@@ -122,6 +122,15 @@ describe('access: two locks, and the shape of a denial', () => {
       '/admin/plans',
       // A period the route would refuse is still a 404 without a session: the denial comes before the query is read.
       '/admin/plans?period=14',
+      // The people tables (project 007 phase 5): the same 404 with a query they would refuse with 422.
+      '/admin/accounts',
+      '/admin/accounts?sort=password&size=0',
+      '/admin/feedback',
+      '/admin/feedback?state=unread',
+      '/admin/professionals',
+      '/admin/professionals?sort=createdAt',
+      '/admin/people',
+      '/admin/people?period=14',
       '/health-data'
     ];
 

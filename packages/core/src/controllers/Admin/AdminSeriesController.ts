@@ -1,6 +1,6 @@
 import { AdminRepository, AdminSeriesRepository, JOB_STATUSES, PLAN_STATUSES } from '#repositories/Admin';
 import { ANALYTICS_EVENTS } from 'core/entities/Analytics';
-import { fillDays, madridDayKeys, windowFor } from 'core/domain/Period';
+import { fillDays, fillWeeks, madridDayKeys, madridWeekKeys, windowFor } from 'core/domain/Period';
 import { monthStart } from 'core/controllers/Recipe';
 
 import type { Funnel, KeyedDayCountRow, Outcomes } from '#repositories/Admin';
@@ -128,6 +128,32 @@ export type AdminPlansView = {
   readonly window: PeriodWindowView;
 };
 
+/**
+ * A figure per ISO week (Monday to Sunday) in `Europe/Madrid` (`0068`).
+ *
+ * `weeks` names each week by its Monday as `YYYY-MM-DD`, oldest first, one per
+ * week with a day in the period whether or not anything happened; `values` has
+ * one number per week in the same order, and a quiet week is `0`. The first
+ * and last weeks are usually partial: they count only the period's days, so
+ * the first week's Monday can fall before `window.from`. The shape of
+ * `DaySeries`, with weeks for days.
+ */
+export type WeekSeries = { readonly values: readonly number[]; readonly weeks: readonly string[] };
+
+/**
+ * Cuentas and Buzón's charts (`GET /admin/people?period=`): accounts created
+ * and messages written per week. Counts only — no address, no message
+ * (`0028`, `0037`).
+ */
+export type AdminPeopleView = {
+  /** Messages written to the owner per week. */
+  readonly messages: WeekSeries;
+  readonly period: Period;
+  /** Accounts created per week. */
+  readonly signUps: WeekSeries;
+  readonly window: PeriodWindowView;
+};
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /** Events the console charts per day. `ai_call` is a provider request, not something a person did. */
@@ -165,6 +191,23 @@ function rate({ failed, succeeded }: Outcomes): number | null {
  * which counts and never lists, so nothing here can name a person (`0028`).
  */
 export const AdminSeriesController = {
+  /** Sign-ups and messages per ISO week over the period, Madrid weeks, zeros included. */
+  async people(period: Period, now = new Date()): Promise<AdminPeopleView> {
+    const window = windowFor(period, now);
+    const weeks = madridWeekKeys(window.from, window.to);
+    const [signUps, messages] = await Promise.all([
+      AdminSeriesRepository.signUpsPerDay(window.from, window.to),
+      AdminSeriesRepository.messagesPerDay(window.from, window.to)
+    ]);
+
+    return {
+      messages: { values: fillWeeks(weeks, messages), weeks },
+      period,
+      signUps: { values: fillWeeks(weeks, signUps), weeks },
+      window: presentWindow(window)
+    };
+  },
+
   /** Plans by state, as today's page shows them, and plans made per day. */
   async plans(period: Period, now = new Date()): Promise<AdminPlansView> {
     const window = windowFor(period, now);
