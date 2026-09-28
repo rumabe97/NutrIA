@@ -156,6 +156,34 @@ mark it clearly as hand-added and say why — `0007` is the worked example. Edit
 statements drizzle-kit generated is still off limits; adding a data step between them is
 the only way the tool supports.
 
+**A second, narrower exception: dropping a column across two releases.** Drizzle names
+every declared column in its SELECT/RETURNING, so the instant a migration physically drops
+one, every API build that still declares it — including the previous release, mid-deploy —
+500s on every query touching that table. There is no single build where "undeclare it" and
+"drop it" can both happen safely. The sanctioned pattern (`0044`/`0045`, `0067`'s
+follow-up):
+
+- **Release N** removes the column from the TS schema. `generate` emits its `DROP COLUMN`
+  like any other — cutting that one statement back out is the only hand-edit this exception
+  allows, with a comment naming the release split and why (Drizzle's SELECT/RETURNING, the
+  previous release still declaring it). The column stays physically in place; nothing reads
+  or writes it from this release on, so nothing is lost by the wait.
+- **Release N+1**, merged only once release N's deployment is what production is serving
+  everywhere, does the actual `DROP COLUMN` — by then nothing left running could still name
+  it. Generate it for real if the diff is clean, or hand-write it (`--custom`) when it is
+  not — `0045` also drops two enum types generate could only see once their columns were
+  already gone from the snapshot, so it folds a hand-added step in front of what `generate`
+  produced for those.
+
+A Postgres enum value is a different shape of the same problem and does **not** wait a
+release: `ALTER TYPE … DROP VALUE` does not exist, so removing one always means rebuilding
+the type (`CREATE TYPE`, cast the column through `text`, `DROP TYPE`, recreate). That
+rebuild is safe in release N itself, the moment the *previous* release already stopped
+being able to **write** the value — reading a value still in the rebuilt type is fine, only
+writing an unknown one is not, and `0044` is the worked example: `packages/core`'s enum
+already dropped the value one release earlier, so nothing racing the migration could still
+produce it.
+
 **A statement that can destroy data, or fail on the rows already there, needs a person's
 line.** `node scripts/check-migrations.mjs` runs in CI's required check and refuses a new
 migration that drops a table or a column, changes a type, renames, truncates, deletes
