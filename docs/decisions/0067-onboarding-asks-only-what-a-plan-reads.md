@@ -79,16 +79,15 @@ lost to the meal label; three real fortnights each side, 14 of 14 days within 5 
   model (RGPD art. 5.1.c); the legal texts in `docs/legal/` are updated with it.
 - Anyone who later wants a plan to follow training or waking hours has to build a rule that
   reads them, and ask the question again in that same change.
-- Follow-up owed: the next release's migration dropping the nine preference columns,
-  `custom_goal` and the `custom` goal-type value. Postgres cannot drop an enum value, so
-  that migration recreates the type — and must first run
-  `UPDATE goals SET type = 'maintenance' WHERE type = 'custom'` again, for rows the old API
-  wrote during this deploy or after a rollback. There is no undo for `0043` in the
-  repository: only a Neon point-in-time branch from before the build, inside the
-  history-retention window.
-- Paid in two releases (owner, 2026-09-28: "haz la migración que borra las columnas
-  viejas"): `0044` stops declaring the ten columns — Drizzle names every declared column,
-  so #139's API would fail every profile read if they vanished during the deploy — and
-  rebuilds `goal_type` without `custom`; `0045` drops the columns and the two enum types
-  only they used, merged once `0044`'s production deployment is Ready. The pattern is
-  written down in `packages/database/AGENTS.md` § Migrations.
+- The column drop is done (2026-09-28, owner: "haz la migración que borra las columnas
+  viejas"), paid in two releases. `0044` (#141) stopped declaring the ten columns. Drizzle
+  names every declared column, so #139's API would have failed every profile read if they
+  had vanished during the deploy. It also rebuilt `goal_type` without `custom`, running
+  `UPDATE goals SET type = 'maintenance' WHERE type = 'custom'` again first, for rows the
+  old API might have written. `0045` (#142), merged once `0044`'s production deployment
+  was Ready, dropped the columns and the two enum types only they used (`budget_tier`,
+  `cooking_frequency`). Both are applied in production and on the development database.
+  The pattern is written down in `packages/database/AGENTS.md` § Migrations.
+- Nothing in the repository undoes `0043`–`0045`: only a Neon point-in-time branch from
+  before the builds, inside the history-retention window. Rolling back past #141's release
+  is no longer possible.
