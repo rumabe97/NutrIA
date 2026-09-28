@@ -148,4 +148,19 @@ describe('the allow-lists themselves', () => {
 
     expect(nested).toBe('/login?next=%2Fadmin%2Fbuzon%3Fq%3D[redacted]%26state%3Dwaiting&quiet=1');
   });
+  it('redacts the search text on every console table, including the bracketed forms', () => {
+    const urls = [
+      '/api/v1/admin/generations?q=ana%40example.invalid&status=failed',
+      '/api/v1/admin/catalogue/recipes?q=lentejas&sort=kcal',
+      '/api/v1/admin/accounts?q[]=ana%40example.invalid',
+      '/api/v1/admin/accounts?q%5B0%5D=ana%40example.invalid&size=25'
+    ];
+
+    for (const url of urls) {
+      const line = serializeRequest({ headers: { referer: `https://nutria.example${url.replace('/api/v1', '')}` }, method: 'GET', url });
+
+      expect(JSON.stringify(line)).not.toMatch(/ana|lentejas/);
+      expect(line.url).toContain('[redacted]');
+    }
+  });
 });

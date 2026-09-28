@@ -4,7 +4,7 @@ import express from 'express';
 import request from 'supertest';
 import { Test } from '@nestjs/testing';
 
-import { AdminSeriesController, AdminController as CoreAdmin } from 'core/controllers/Admin';
+import { AdminSeriesController, AdminUsageController, AdminController as CoreAdmin } from 'core/controllers/Admin';
 
 import { AdminController } from './Admin.controller.js';
 import { AdminGuard } from '../../../shared/guards/index.js';
@@ -12,7 +12,14 @@ import { AdminService } from '../services/index.js';
 import { AllExceptionsFilter } from '../../../shared/filters/index.js';
 import { ENV } from '../../../config/index.js';
 
-import type { AdminOverviewView, AdminPlansView, AdminProductView, AdminSummaryView } from 'core/controllers/Admin';
+import type {
+  AdminAiView,
+  AdminOverviewView,
+  AdminPicturesPeriodView,
+  AdminPlansView,
+  AdminProductView,
+  AdminSummaryView
+} from 'core/controllers/Admin';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
 
@@ -173,27 +180,66 @@ describe('AdminController', () => {
     expect((response.body as AdminOverviewView).counts.accounts.total).toBe(6);
   });
 
-  /* 0066: this month's picture spend, read against the cap drawing stops at. */
-  it('gives the owner the month’s picture spend against the configured cap', async () => {
+  /* 0066: this month's picture spend, read against the cap drawing stops at — and, since 0068, its days. */
+  it('gives the owner the month’s picture spend against the configured cap, over 30 days unless asked', async () => {
     role = 'admin';
+    const month = { capUsd: 10, drawing: 1, enabled: true, failed: 2, ready: 30, released: 0, since: '2026-09-01T00:00:00.000Z', spentUsd: 1.25 };
     const pictures = jest
-      .spyOn(CoreAdmin, 'pictures')
-      .mockResolvedValue({
-        capUsd: 10,
-        drawing: 1,
-        enabled: true,
-        failed: 2,
-        ready: 30,
-        released: 0,
-        since: '2026-09-01T00:00:00.000Z',
-        spentUsd: 1.25
-      });
+      .spyOn(AdminUsageController, 'pictures')
+      .mockResolvedValue({ ...month, period: 30, spendPerDay: { days: [], values: [] } } as unknown as AdminPicturesPeriodView);
 
     const response = await request(app.getHttpServer() as Server)
       .get(`/${PREFIX}/admin/pictures`)
       .expect(200);
 
-    expect(response.body).toMatchObject({ capUsd: 10, ready: 30, spentUsd: 1.25 });
-    expect(pictures).toHaveBeenCalledWith(10);
+    expect(response.body).toMatchObject({ capUsd: 10, ready: 30, spendPerDay: { days: [], values: [] }, spentUsd: 1.25 });
+    expect(pictures).toHaveBeenCalledWith(30, 10);
+
+    await request(app.getHttpServer() as Server)
+      .get(`/${PREFIX}/admin/pictures?period=90`)
+      .expect(200);
+    expect(pictures).toHaveBeenLastCalledWith(90, 10);
+  });
+
+  it('reads the AI usage over a period, today’s fields still there, and refuses any other period', async () => {
+    role = 'admin';
+    const ai = jest.spyOn(AdminUsageController, 'ai').mockResolvedValue({ calls: 3, period: 7 } as unknown as AdminAiView);
+
+    const response = await request(app.getHttpServer() as Server)
+      .get(`/${PREFIX}/admin/ai?period=7`)
+      .expect(200);
+
+    expect(response.body).toEqual({ calls: 3, period: 7 });
+    expect(ai).toHaveBeenCalledWith(7, { requestsPerDay: undefined, tokensPerMinute: undefined });
+
+    ai.mockClear();
+
+    for (const path of ['ai?period=14', 'pictures?period=1']) {
+      const refused = await request(app.getHttpServer() as Server)
+        .get(`/${PREFIX}/admin/${path}`)
+        .expect(422);
+
+      expect((refused.body as { code: string }).code).toBe('INVALID_INPUT');
+    }
+
+    expect(ai).not.toHaveBeenCalled();
+  });
+
+  it('is 404 for an ordinary account on the AI and picture periods, and reads nothing', async () => {
+    role = 'user';
+    const ai = jest.spyOn(AdminUsageController, 'ai');
+    const pictures = jest.spyOn(AdminUsageController, 'pictures');
+
+    ai.mockClear();
+    pictures.mockClear();
+
+    for (const path of ['ai', 'ai?period=7', 'pictures?period=90', 'ai?period=bad']) {
+      await request(app.getHttpServer() as Server)
+        .get(`/${PREFIX}/admin/${path}`)
+        .expect(404);
+    }
+
+    expect(ai).not.toHaveBeenCalled();
+    expect(pictures).not.toHaveBeenCalled();
   });
 });

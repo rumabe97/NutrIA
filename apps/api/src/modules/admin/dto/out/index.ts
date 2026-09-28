@@ -10,6 +10,7 @@ export * from './AdminProduct.dto.js';
 export * from './AdminSettings.dto.js';
 export * from './AdminSummary.dto.js';
 export * from './AiUsage.dto.js';
+export * from './Catalogue.dto.js';
 export * from './FeedbackInbox.dto.js';
 export * from './Professionals.dto.js';
 export * from './PushTest.dto.js';

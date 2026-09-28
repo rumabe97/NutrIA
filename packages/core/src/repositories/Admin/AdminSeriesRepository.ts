@@ -1,4 +1,4 @@
-import { and, count, countDistinct, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
+import { and, count, countDistinct, eq, gte, inArray, isNull, sql } from 'drizzle-orm';
 
 import { analyticsEvents, feedback } from 'database/schema/platform';
 import { database } from 'database';
@@ -6,8 +6,9 @@ import { mealPlans, planGenerationJobs } from 'database/schema/plan';
 import { recipeImageCalls } from 'database/schema/recipe';
 import { user } from 'database/schema/auth';
 
-import { CONSOLE_TIME_ZONE } from 'core/entities/Period';
 import { DatabaseOperationError } from 'core/entities/Error';
+
+import { madridDay, within } from './AdminSql';
 
 import type { PeriodWindow } from 'core/entities/Period';
 import type { SQL } from 'drizzle-orm';
@@ -30,23 +31,6 @@ export const JOB_STATUSES: readonly string[] = planGenerationJobs.status.enumVal
 
 /** Every plan state there is, in the enum's order. */
 export const PLAN_STATUSES: readonly string[] = mealPlans.status.enumValues;
-
-/**
- * The Madrid calendar day of a timestamp, as `YYYY-MM-DD` (`0068`).
- *
- * The zone is written into the SQL rather than bound as a parameter: the same
- * fragment is both selected and grouped by, and two bound copies would be two
- * different placeholders Postgres cannot tell are one expression. It is a
- * constant, never input.
- */
-function madridDay(column: PgColumn): SQL<string> {
-  return sql<string>`to_char(date_trunc('day', ${column} at time zone ${sql.raw(`'${CONSOLE_TIME_ZONE}'`)}), 'YYYY-MM-DD')`;
-}
-
-/** `[from, to)` on a timestamp column. The column encodes the values, so a `Date` is safe here. */
-function within(column: PgColumn, from: Date, to: Date): SQL | undefined {
-  return and(gte(column, from), lt(column, to));
-}
 
 /** How many rows fall in `[from, to)`, as one aggregate among several over the same scan. */
 function countWithin(column: PgColumn, from: Date, to: Date, also?: SQL): SQL<number> {
@@ -200,6 +184,27 @@ export const AdminSeriesRepository = {
         .from(feedback)
         .where(within(feedback.createdAt, from, to))
         .groupBy(day);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Dollars billed for dish pictures per Madrid day (`0066`), from the calls
+   * themselves. A sum; no dish is named. Mode: one grouped query over the
+   * `created_at` index.
+   */
+  async pictureSpendPerDay(from: Date, to: Date): Promise<readonly DayCountRow[]> {
+    try {
+      const day = madridDay(recipeImageCalls.createdAt);
+      const rows = await database()
+        .select({ day, total: sql<string>`coalesce(sum(${recipeImageCalls.costUsd}), 0)` })
+        .from(recipeImageCalls)
+        .where(within(recipeImageCalls.createdAt, from, to))
+        .groupBy(day);
+
+      // `numeric` arrives as text so no cent is lost on the way; a number from here on.
+      return rows.map(row => ({ day: row.day, n: Number(row.total) }));
     } catch (error: unknown) {
       throw wrap(error);
     }

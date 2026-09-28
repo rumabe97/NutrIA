@@ -600,7 +600,20 @@ describe('dish pictures', () => {
     const response: Response = await request(server()).get(`/${PREFIX}/admin/pictures`).set('Cookie', owner.cookie).expect(200);
     const body = response.body as Record<string, unknown>;
 
-    expect(Object.keys(body).sort()).toEqual(['capUsd', 'drawing', 'enabled', 'failed', 'ready', 'released', 'since', 'spentUsd']);
+    // This month's fields as before, and the period's beside them (project 007 phase 7).
+    expect(Object.keys(body).sort()).toEqual([
+      'capUsd',
+      'drawing',
+      'enabled',
+      'failed',
+      'period',
+      'ready',
+      'released',
+      'since',
+      'spendPerDay',
+      'spentUsd',
+      'window'
+    ]);
     expect(body['released']).toEqual(expect.any(Number));
     expect(body['enabled']).toBe(true);
     expect(body['ready']).toEqual(expect.any(Number));
@@ -613,5 +626,30 @@ describe('dish pictures', () => {
     const now = new Date();
 
     expect(body['since']).toBe(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString());
+  });
+
+  it('charts the spend per day over the period — one value a day, and today’s drawings on its last', async () => {
+    await request(server()).get(`/${PREFIX}/admin/pictures?period=7`).set('Cookie', alice.cookie).expect(404);
+    await request(server()).get(`/${PREFIX}/admin/pictures?period=14`).set('Cookie', owner.cookie).expect(422);
+
+    for (const [query, period] of [
+      ['', 30],
+      ['?period=7', 7],
+      ['?period=90', 90]
+    ] as const) {
+      const response: Response = await request(server()).get(`/${PREFIX}/admin/pictures${query}`).set('Cookie', owner.cookie).expect(200);
+      const body = response.body as { period: number; spendPerDay: { days: string[]; values: number[] } };
+      const { days, values } = body.spendPerDay;
+
+      expect(body.period).toBe(period);
+      expect(Object.keys(body.spendPerDay).sort()).toEqual(['days', 'values']);
+      expect(days).toHaveLength(period);
+      expect(values).toHaveLength(period);
+      expect(new Set(days).size).toBe(period);
+      expect(days).toEqual([...days].sort());
+      expect(values.every(value => typeof value === 'number' && value >= 0)).toBe(true);
+      // The failed drawings above were recorded at the floor minutes ago: the last day — or the one before it, across a Madrid midnight — carries them.
+      expect(values.slice(-2).reduce((total, value) => total + value, 0)).toBeGreaterThan(0);
+    }
   });
 });

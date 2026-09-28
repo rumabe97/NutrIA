@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+import { INGREDIENT_CATEGORIES, MEAL_SLOTS } from 'core/entities/Plan';
+import { pictureStatusSchema } from 'core/entities/DishPicture';
+import { PERIODS } from 'core/entities/Period';
+
 /**
  * The query strings of the console's three people tables (`0068`): accounts,
  * the inbox and the professionals. Each is a Zod schema because the API binds
@@ -107,3 +111,112 @@ export type ProfessionalSort = (typeof PROFESSIONAL_SORTS)[number];
 export const professionalQuerySchema = z.object({ dir: direction, q: search, sort: z.enum(PROFESSIONAL_SORTS).default('grantedAt') });
 
 export type ProfessionalQuery = z.infer<typeof professionalQuerySchema>;
+
+// ─── The generation log and the catalogue ────────────────────────────────────
+
+/** Every state a generation job can be in. Mirrors the `job_status` enum; a spec pins the two together. */
+export const GENERATION_STATUSES = ['queued', 'running', 'succeeded', 'failed'] as const;
+export type GenerationStatus = (typeof GENERATION_STATUSES)[number];
+
+/** How far back the log looks: the last 24 hours, or a console period in days. */
+export const GENERATION_SINCE = ['24h', ...PERIODS.map(String)] as [string, ...string[]];
+
+/**
+ * A failure code as the pipeline writes it — `GENERATION_AI_UNAVAILABLE` and
+ * its kin: capitals, digits and underscores. Matched exactly, never searched.
+ */
+const failureCode = z
+  .string()
+  .regex(/^[A-Z][A-Z0-9_]{0,79}$/)
+  .optional();
+
+/** A Madrid calendar day, `YYYY-MM-DD`. */
+const day = z.iso.date().optional();
+
+/**
+ * `GET /admin/generations`: filter by outcome and failure code, search the
+ * account's address (`q`, which the request log redacts), narrow to the last
+ * 24 hours or a period and to a range of Madrid days (`from` and `to`, both
+ * inclusive), and page. Every filter given applies. `legacy=1` answers today's
+ * unpaged array until phase 9 removes it. A range that ends before it starts
+ * is refused.
+ */
+export const generationQuerySchema = z
+  .object({
+    code: failureCode,
+    from: day,
+    legacy: z.enum(['1']).optional(),
+    offset,
+    q: search,
+    since: z.enum(GENERATION_SINCE).optional(),
+    size,
+    status: z.enum(GENERATION_STATUSES).optional(),
+    to: day
+  })
+  .refine(query => query.from === undefined || query.to === undefined || query.from <= query.to, {
+    message: '`from` must not be after `to`',
+    path: ['from']
+  });
+
+export type GenerationQuery = z.infer<typeof generationQuerySchema>;
+
+/** Where a recipe came from. Mirrors the `recipe_source` enum; a spec pins the two together. */
+export const RECIPE_SOURCES = ['seed', 'ai', 'user'] as const;
+export type RecipeSource = (typeof RECIPE_SOURCES)[number];
+
+/**
+ * The recipe table's sorts: by name, or by the macros per serving the app
+ * computes (`core/domain/Composition`). There is no `createdAt`: `recipes`
+ * records no creation time, and a stand-in would be a guess.
+ */
+export const RECIPE_SORTS = ['name', 'kcal', 'protein'] as const;
+export type RecipeSort = (typeof RECIPE_SORTS)[number];
+
+/** An allergen's stable key, as `allergens.key` holds it (`gluten`, `tree_nuts`). An unknown key matches nothing. */
+const allergenKey = z
+  .string()
+  .regex(/^[a-z][a-z_]{0,39}$/)
+  .optional();
+
+/** A catalogue reads from the start of the alphabet unless asked otherwise. */
+const ascending = z.enum(SORT_DIRECTIONS).default('asc');
+
+/**
+ * `GET /admin/catalogue/recipes`: search by name, filter by meal slot, an
+ * allergen the recipe contains, its picture's state, its source and its
+ * locale, sort, page. The catalogue names no person (`0028`).
+ */
+export const recipeCatalogueQuerySchema = z.object({
+  allergen: allergenKey,
+  dir: ascending,
+  locale: z
+    .string()
+    .regex(/^[a-z]{2,3}(-[A-Z]{2})?$/)
+    .optional(),
+  offset,
+  picture: pictureStatusSchema.optional(),
+  q: search,
+  size,
+  slot: z.enum(MEAL_SLOTS).optional(),
+  sort: z.enum(RECIPE_SORTS).default('name'),
+  source: z.enum(RECIPE_SOURCES).optional()
+});
+
+export type RecipeCatalogueQuery = z.infer<typeof recipeCatalogueQuerySchema>;
+
+/** The ingredient table's sorts: its name, its category, or a figure per 100 g. */
+export const INGREDIENT_SORTS = ['name', 'category', 'kcal', 'protein', 'carbs', 'fat'] as const;
+export type IngredientSort = (typeof INGREDIENT_SORTS)[number];
+
+/** `GET /admin/catalogue/ingredients`: search by name, filter by category and by an allergen it contains, sort, page. */
+export const ingredientCatalogueQuerySchema = z.object({
+  allergen: allergenKey,
+  category: z.enum(INGREDIENT_CATEGORIES).optional(),
+  dir: ascending,
+  offset,
+  q: search,
+  size,
+  sort: z.enum(INGREDIENT_SORTS).default('name')
+});
+
+export type IngredientCatalogueQuery = z.infer<typeof ingredientCatalogueQuerySchema>;

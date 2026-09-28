@@ -503,10 +503,19 @@ export const RecipeRepository = {
    * means no claim — an account that never said where it is gets the whole
    * catalogue, which is what it got before the column existed and is better
    * than guessing a country and quietly withholding food over it.
+   *
+   * `slugs`, when given, loads only those rows — the same rows, read the same
+   * way — for a caller that needs a few dishes' ingredients, not the shelf
+   * (the console's recipe table, `0068`).
    */
-  async loadCatalogue(locale: string, country: string | null = null): Promise<readonly CatalogueIngredient[]> {
+  async loadCatalogue(locale: string, country: string | null = null, slugs?: readonly string[]): Promise<readonly CatalogueIngredient[]> {
+    if (slugs?.length === 0) {
+      return [];
+    }
+
     try {
       const db = database();
+      const only = slugs === undefined ? undefined : inArray(ingredients.slug, [...slugs]);
       // Empty means everywhere, so an ingredient survives when it names no
       // country or names this one.
       const sold = country === null ? undefined : sql`(cardinality(${ingredients.countries}) = 0 or ${country} = any(${ingredients.countries}))`;
@@ -538,7 +547,7 @@ export const RecipeRepository = {
           .from(ingredients)
           .leftJoin(requested, and(eq(requested.ingredientId, ingredients.id), eq(requested.locale, locale)))
           .leftJoin(fallback, and(eq(fallback.ingredientId, ingredients.id), eq(fallback.locale, FALLBACK_LOCALE)))
-          .where(sold),
+          .where(and(sold, only)),
         db
           .select({
             allergenId: ingredientAllergens.allergenId,
@@ -546,6 +555,7 @@ export const RecipeRepository = {
             presence: ingredientAllergens.presence
           })
           .from(ingredientAllergens)
+          .where(only && inArray(ingredientAllergens.ingredientId, db.select({ id: ingredients.id }).from(ingredients).where(only)))
       ]);
 
       const byIngredient = new Map<string, { allergenId: string; presence: 'contains' | 'may_contain' }[]>();

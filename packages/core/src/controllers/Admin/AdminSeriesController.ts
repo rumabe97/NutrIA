@@ -159,12 +159,12 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** Events the console charts per day. `ai_call` is a provider request, not something a person did. */
 const CHARTED_EVENTS: readonly string[] = ANALYTICS_EVENTS.filter(event => event !== 'ai_call');
 
-function presentWindow(window: PeriodWindow): PeriodWindowView {
+export function presentWindow(window: PeriodWindow): PeriodWindowView {
   return { from: window.from.toISOString(), previousFrom: window.previousFrom.toISOString(), to: window.to.toISOString() };
 }
 
 /** Keyed rows as one series per key, every key present, in the order given. */
-function presentGroup(days: readonly string[], keys: readonly string[], rows: readonly KeyedDayCountRow[]): DaySeriesGroup {
+export function presentGroup(days: readonly string[], keys: readonly string[], rows: readonly KeyedDayCountRow[]): DaySeriesGroup {
   return {
     days,
     series: keys.map(key => ({

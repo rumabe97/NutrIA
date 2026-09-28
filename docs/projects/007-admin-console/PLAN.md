@@ -323,7 +323,7 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 6 — Web: Cuentas, Profesionales, Buzón
 
-- [x] done
+- [x] done — commit `965f209` ("The console's Cuentas, Profesionales and Buzón are tables that search, filter and sort")
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 6`. Reviews: `accessibility`
   (table, toolbar, row actions), plus `/local-probe`.
 - **Goal**: the people pages are tables that search, filter and sort, with today's row
@@ -362,14 +362,17 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 7 — API: generations, AI, catalogue and pictures
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 7`. Reviews: `invariant-reviewer`.
   The `tests` agent writes the end-to-end cases.
 - **Goal**: the generation log is complete and queryable, AI and pictures have period
   series, and the catalogue is browsable.
 - **Scope**: `packages/core/src/{controllers,repositories}/{Admin,Analytics,Recipe}/**`,
   `apps/api/src/modules/admin/**`, `apps/api/test/admin.e2e-spec.ts`,
-  `apps/api/test/dish-pictures.e2e-spec.ts`.
+  `apps/api/test/dish-pictures.e2e-spec.ts`. Added in phase 7: `core/entities/AdminQuery`,
+  `core/domain/Period` (`shiftDay`), `apps/api/test/access.e2e-spec.ts`,
+  `apps/api/src/shared/logging/pino.ts` (bracketed `q`), and the transition page's one line
+  (`?legacy=1`).
 - **Steps**:
   1. `GET /admin/generations` becomes paged.
      - It accepts `status`, `code`, `q` (email), `since` (`24h` or a period), `from`,
@@ -394,7 +397,8 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
        recipe. Never a second formula; find them in `RecipeRepository` and
        `core/domain`.
      - It accepts `q` (name), `slot`, `allergen`, `picture`, `source`, `locale`, `sort`
-       (`name | kcal | protein | createdAt`), `dir`, `offset` and `size`.
+       (`name | kcal | protein`; `createdAt` dropped in phase 7, since `recipes` has no
+       creation date), `dir`, `offset` and `size`.
      - It returns counts by slot and by source, and `withoutImage`.
   4. `GET /admin/catalogue/ingredients` returns name, category, kcal and the three macros
      per 100 g, allergens, countries and meal slots. It accepts `q`, `category`,

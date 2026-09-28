@@ -53,7 +53,7 @@ function madridOffset(instant: Date): number {
 }
 
 /** A calendar day moved by a number of days, as `YYYY-MM-DD`. Date arithmetic only, so no DST. */
-function shiftDay(day: string, days: number): string {
+export function shiftDay(day: string, days: number): string {
   return new Date(Date.parse(`${day}T00:00:00Z`) + days * MS_PER_DAY).toISOString().slice(0, 10);
 }
 
