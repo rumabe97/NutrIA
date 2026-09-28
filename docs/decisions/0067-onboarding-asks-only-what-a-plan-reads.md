@@ -71,4 +71,9 @@ written for (`0004`); a stew asked for at dinner still stays out of dinner.
 - Anyone who later wants a plan to follow training or waking hours has to build a rule that
   reads them, and ask the question again in that same change.
 - Follow-up owed: the next release's migration dropping the nine preference columns,
-  `custom_goal` and the `custom` goal-type value.
+  `custom_goal` and the `custom` goal-type value. Postgres cannot drop an enum value, so
+  that migration recreates the type — and must first run
+  `UPDATE goals SET type = 'maintenance' WHERE type = 'custom'` again, for rows the old API
+  wrote during this deploy or after a rollback. There is no undo for `0043` in the
+  repository: only a Neon point-in-time branch from before the build, inside the
+  history-retention window.
