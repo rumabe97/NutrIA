@@ -4,7 +4,7 @@ import express from 'express';
 import request from 'supertest';
 import { Test } from '@nestjs/testing';
 
-import { AdminController as CoreAdmin } from 'core/controllers/Admin';
+import { AdminSeriesController, AdminController as CoreAdmin } from 'core/controllers/Admin';
 
 import { AdminController } from './Admin.controller.js';
 import { AdminGuard } from '../../../shared/guards/index.js';
@@ -12,7 +12,7 @@ import { AdminService } from '../services/index.js';
 import { AllExceptionsFilter } from '../../../shared/filters/index.js';
 import { ENV } from '../../../config/index.js';
 
-import type { AdminOverviewView } from 'core/controllers/Admin';
+import type { AdminOverviewView, AdminPlansView, AdminProductView, AdminSummaryView } from 'core/controllers/Admin';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
 
@@ -87,6 +87,79 @@ describe('AdminController', () => {
       .get(`/${PREFIX}/admin/pictures`)
       .expect(404);
     expect(overview).not.toHaveBeenCalled();
+  });
+
+  /* 0068: the console's period reads are the owner's like every other admin route. */
+  it('is 404 for an ordinary account on the period reads, before the period is even read', async () => {
+    role = 'user';
+    const summary = jest.spyOn(AdminSeriesController, 'summary');
+    const product = jest.spyOn(AdminSeriesController, 'product');
+    const plans = jest.spyOn(AdminSeriesController, 'plans');
+
+    for (const path of ['summary', 'product', 'plans', 'summary?period=7', 'plans?period=14']) {
+      await request(app.getHttpServer() as Server)
+        .get(`/${PREFIX}/admin/${path}`)
+        .expect(404);
+    }
+
+    expect(summary).not.toHaveBeenCalled();
+    expect(product).not.toHaveBeenCalled();
+    expect(plans).not.toHaveBeenCalled();
+  });
+
+  it('reads the summary over 30 days when no period is asked for, against the configured picture cap', async () => {
+    role = 'admin';
+    const summary = jest.spyOn(AdminSeriesController, 'summary').mockResolvedValue({ period: 30 } as AdminSummaryView);
+
+    const response = await request(app.getHttpServer() as Server)
+      .get(`/${PREFIX}/admin/summary`)
+      .expect(200);
+
+    expect(response.body).toEqual({ period: 30 });
+    expect(summary).toHaveBeenCalledWith(30, 10);
+  });
+
+  it('passes 7, 30 and 90 through as numbers to each period read', async () => {
+    role = 'admin';
+    const summary = jest.spyOn(AdminSeriesController, 'summary').mockResolvedValue({ period: 7 } as AdminSummaryView);
+    const product = jest.spyOn(AdminSeriesController, 'product').mockResolvedValue({ period: 90 } as AdminProductView);
+    const plans = jest.spyOn(AdminSeriesController, 'plans').mockResolvedValue({ period: 30 } as AdminPlansView);
+
+    await request(app.getHttpServer() as Server)
+      .get(`/${PREFIX}/admin/summary?period=7`)
+      .expect(200);
+    await request(app.getHttpServer() as Server)
+      .get(`/${PREFIX}/admin/product?period=90`)
+      .expect(200);
+    await request(app.getHttpServer() as Server)
+      .get(`/${PREFIX}/admin/plans?period=30`)
+      .expect(200);
+
+    expect(summary).toHaveBeenCalledWith(7, 10);
+    expect(product).toHaveBeenCalledWith(90);
+    expect(plans).toHaveBeenCalledWith(30);
+  });
+
+  it('refuses any other period with INVALID_INPUT, and reads nothing', async () => {
+    role = 'admin';
+    const summary = jest.spyOn(AdminSeriesController, 'summary');
+    const product = jest.spyOn(AdminSeriesController, 'product');
+    const plans = jest.spyOn(AdminSeriesController, 'plans');
+    summary.mockClear();
+    product.mockClear();
+    plans.mockClear();
+
+    for (const path of ['summary?period=14', 'summary?period=', 'product?period=seven', 'plans?period=7&period=30', 'plans?period=-30']) {
+      const response = await request(app.getHttpServer() as Server)
+        .get(`/${PREFIX}/admin/${path}`)
+        .expect(422);
+
+      expect((response.body as { code: string }).code).toBe('INVALID_INPUT');
+    }
+
+    expect(summary).not.toHaveBeenCalled();
+    expect(product).not.toHaveBeenCalled();
+    expect(plans).not.toHaveBeenCalled();
   });
 
   it('answers the owner', async () => {

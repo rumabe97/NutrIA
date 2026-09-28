@@ -109,7 +109,21 @@ describe('access: two locks, and the shape of a denial', () => {
 
   it('answers 404, never 401 or 403, to a caller with no session', async () => {
     const server = httpServer(app);
-    const paths = ['/profile', '/users/me', '/settings', '/meal-plans/active', '/vacations', '/progress/weight', '/admin/overview', '/health-data'];
+    const paths = [
+      '/profile',
+      '/users/me',
+      '/settings',
+      '/meal-plans/active',
+      '/vacations',
+      '/progress/weight',
+      '/admin/overview',
+      '/admin/summary',
+      '/admin/product',
+      '/admin/plans',
+      // A period the route would refuse is still a 404 without a session: the denial comes before the query is read.
+      '/admin/plans?period=14',
+      '/health-data'
+    ];
 
     for (const path of paths) {
       await request(server).get(`/${PREFIX}${path}`).expect(404);

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
 import { SettingsController } from 'core/controllers/Settings';
+import { ANALYTICS_EVENTS } from 'core/entities/Analytics';
 import { UserController } from 'core/controllers/User';
 
 import { activationToken } from '../src/modules/auth/services/ActivationLink.js';
@@ -10,7 +11,7 @@ import { createApp, deleteAccountByEmail, deleteAccounts, httpServer, PREFIX, re
 
 import type { Account } from './harness.js';
 import type { AccountView, Paged } from 'core/controllers/User';
-import type { AdminAnalyticsView, AiUsageView } from 'core/controllers/Admin';
+import type { AdminAnalyticsView, AdminPlansView, AdminProductView, AdminSummaryView, AiUsageView, DaySeries } from 'core/controllers/Admin';
 import type { FeedbackView } from 'core/controllers/Feedback';
 import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
@@ -27,6 +28,144 @@ import type { Response } from 'supertest';
  * Requires a real database — see ./README.md.
  */
 const ROUTES = ['overview', 'failures', 'accounts', 'settings', 'analytics', 'ai', 'feedback'];
+
+/** The console's reads over a period (`0068`, project 007 phase 3). */
+const PERIOD_ROUTES = ['summary', 'product', 'plans'] as const;
+
+/**
+ * Every key the three period reads may carry, at any depth. Exhaustive, so a
+ * new field is a decision — and so nothing about a person, a plan's days, a
+ * meal or an allergy can ride along.
+ */
+const PERIOD_KEYS = new Set([
+  // every read
+  'period',
+  'window',
+  'from',
+  'previousFrom',
+  'to',
+  'days',
+  'values',
+  'series',
+  'key',
+  // summary
+  'tiles',
+  'totalAccounts',
+  'newAccounts',
+  'current',
+  'previous',
+  'sparkline',
+  'waitingAccounts',
+  'activePeople',
+  'plansGenerated',
+  'successRate',
+  'unreadMessages',
+  'pictures',
+  'spentUsd',
+  'monthSpentUsd',
+  'monthStart',
+  'capUsd',
+  'charts',
+  'signUps',
+  'generations',
+  'needsYou',
+  'failedGenerations',
+  // product
+  'funnel',
+  'signedUp',
+  'activated',
+  'onboarded',
+  'planned',
+  'confirmed',
+  'checkedIn',
+  'lived',
+  'returned',
+  'events',
+  // plans
+  'byState',
+  'status',
+  'n',
+  'created'
+]);
+
+/**
+ * The only words a period read may say besides days and instants: job states,
+ * plan states and the events the console charts. An address, an id, an
+ * allergen key, a meal slot or a dish name is none of these.
+ */
+const PERIOD_WORDS = new Set([
+  'queued',
+  'running',
+  'succeeded',
+  'failed',
+  'draft',
+  'generating',
+  'active',
+  'completed',
+  'archived',
+  'pending_review',
+  ...ANALYTICS_EVENTS.filter(event => event !== 'ai_call')
+]);
+
+const ALLERGEN_KEYS = [
+  'gluten',
+  'crustaceans',
+  'eggs',
+  'fish',
+  'peanuts',
+  'soy',
+  'milk',
+  'tree_nuts',
+  'celery',
+  'mustard',
+  'sesame',
+  'sulphites',
+  'lupin',
+  'molluscs',
+  'lactose',
+  'fructose',
+  'histamine'
+];
+const MEAL_SLOTS = ['breakfast', 'morning_snack', 'lunch', 'afternoon_snack', 'dinner', 'supper'];
+
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
+const INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/;
+
+/** The Madrid calendar day of an instant, as the console keys it. */
+function madridDay(instant: string): string {
+  return new Intl.DateTimeFormat('en-CA', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Madrid', year: 'numeric' }).format(new Date(instant));
+}
+
+/** Every key and every string in a body, at any depth. */
+function walk(value: unknown, keys: Set<string>, words: Set<string>): void {
+  if (typeof value === 'string') {
+    words.add(value);
+  } else if (Array.isArray(value)) {
+    for (const item of value) {
+      walk(item, keys, words);
+    }
+  } else if (value !== null && typeof value === 'object') {
+    for (const [key, child] of Object.entries(value)) {
+      keys.add(key);
+      walk(child, keys, words);
+    }
+  }
+}
+
+/** One day per day of the period, oldest first, consecutive, the Madrid day of the answer last — and, for a series, a count for each. */
+function expectDays(series: { readonly days: readonly string[]; readonly values?: readonly number[] }, period: number, to: string): void {
+  expect(series.days).toHaveLength(period);
+  expect(series.days.at(-1)).toBe(madridDay(to));
+
+  for (let i = 1; i < series.days.length; i++) {
+    expect(Date.parse(`${series.days[i]}T12:00:00Z`) - Date.parse(`${series.days[i - 1]}T12:00:00Z`)).toBe(24 * 60 * 60 * 1000);
+  }
+
+  if (series.values !== undefined) {
+    expect(series.values).toHaveLength(period);
+    expect(series.values.every(n => Number.isInteger(n) && n >= 0)).toBe(true);
+  }
+}
 
 describe('admin', () => {
   let app: INestApplication;
@@ -302,5 +441,158 @@ describe('admin', () => {
 
   it('refuses an account id that is not an account', async () => {
     await request(httpServer(app)).post(`/${PREFIX}/admin/accounts/not-an-account/activate`).set('Cookie', owner.cookie).expect(404);
+  });
+
+  /*
+   * The console's reads over a period (`0068`, project 007 phase 3, step 7):
+   * counts per Madrid day, compared with the period before — and, like every
+   * admin read, nothing about anybody.
+   */
+  describe('the period reads', () => {
+    const read = (route: string, cookie?: string, query?: string) => {
+      const call = request(httpServer(app)).get(`/${PREFIX}/admin/${route}${query === undefined ? '' : `?period=${query}`}`);
+
+      return cookie === undefined ? call : call.set('Cookie', cookie);
+    };
+
+    it('do not exist for an ordinary account, nor for a caller with no session', async () => {
+      for (const route of PERIOD_ROUTES) {
+        await read(route, ordinary.cookie).expect(404);
+        await read(route).expect(404);
+        // The denial comes before the query is read: a bad period is still a
+        // 404, never a 422 that tells a stranger the route is there.
+        await read(route, ordinary.cookie, '14').expect(404);
+        await read(route, undefined, '14').expect(404);
+      }
+    });
+
+    it('refuse a period other than 7, 30 or 90 as INVALID_INPUT', async () => {
+      for (const route of PERIOD_ROUTES) {
+        for (const query of ['14', 'seven', '', '-30', '30.5', '7&period=30']) {
+          const refused: Response = await read(route, owner.cookie, query);
+
+          // The route and the query in the comparison, so a failure names which one.
+          expect({ code: (refused.body as { code?: string }).code, query, route, status: refused.status }).toEqual({
+            code: 'INVALID_INPUT',
+            query,
+            route,
+            status: 422
+          });
+        }
+      }
+    });
+
+    it('cover 30 days by default, and 7 or 90 when asked', async () => {
+      for (const [query, period] of [
+        [undefined, 30],
+        ['7', 7],
+        ['30', 30],
+        ['90', 90]
+      ] as const) {
+        const summary = (await read('summary', owner.cookie, query).expect(200)).body as AdminSummaryView;
+        const product = (await read('product', owner.cookie, query).expect(200)).body as AdminProductView;
+        const plans = (await read('plans', owner.cookie, query).expect(200)).body as AdminPlansView;
+
+        for (const view of [summary, product, plans]) {
+          expect(view.period).toBe(period);
+          expect(Date.parse(view.window.previousFrom)).toBeLessThan(Date.parse(view.window.from));
+          expect(Date.parse(view.window.from)).toBeLessThan(Date.parse(view.window.to));
+        }
+
+        expectDays(summary.charts.signUps, period, summary.window.to);
+        expectDays(summary.charts.generations, period, summary.window.to);
+        expectDays(summary.tiles.newAccounts.sparkline, period, summary.window.to);
+        expectDays(summary.tiles.activePeople.sparkline, period, summary.window.to);
+        expectDays(summary.tiles.plansGenerated.sparkline, period, summary.window.to);
+        expectDays(product.activePeople, period, product.window.to);
+        expectDays(product.events, period, product.window.to);
+        expectDays(plans.created, period, plans.window.to);
+
+        // Every key present, zeros included, so a legend does not change with what happened.
+        expect(summary.charts.generations.series.map(row => row.key)).toEqual(['queued', 'running', 'succeeded', 'failed']);
+        expect(plans.byState.map(row => row.status)).toEqual(['draft', 'generating', 'active', 'completed', 'archived', 'failed', 'pending_review']);
+
+        for (const row of [...summary.charts.generations.series, ...product.events.series]) {
+          expect(row.values).toHaveLength(period);
+        }
+
+        // Sessions and swaps are charted; a provider request is not something a person did.
+        const events = product.events.series.map(row => row.key);
+
+        expect(events).toEqual(expect.arrayContaining(['session_started', 'swap_requested']));
+        expect(events).not.toContain('ai_call');
+      }
+    });
+
+    it('count an account made now in the total, in the period and on today', async () => {
+      const before = (await read('summary', owner.cookie).expect(200)).body as AdminSummaryView;
+      const email = `admin-period-${Date.now()}@e2e.invalid`;
+
+      byEmail.push(email);
+      await request(httpServer(app))
+        .post(`/${PREFIX}/auth/sign-up/email`)
+        .send({ email, name: 'Period', password: 'correct-horse-battery-staple-9' })
+        .expect(200);
+
+      const after = (await read('summary', owner.cookie).expect(200)).body as AdminSummaryView;
+      const sum = (series: DaySeries) => series.values.reduce((total, n) => total + n, 0);
+
+      expect(after.tiles.totalAccounts).toBeGreaterThanOrEqual(before.tiles.totalAccounts + 1);
+      expect(after.tiles.newAccounts.current).toBeGreaterThanOrEqual(before.tiles.newAccounts.current + 1);
+      // Nobody opened it, so it waits — on the tile and in what needs the owner.
+      expect(after.tiles.waitingAccounts).toBeGreaterThanOrEqual(before.tiles.waitingAccounts + 1);
+      expect(after.needsYou.waitingAccounts).toBe(after.tiles.waitingAccounts);
+
+      // The chart is the tile, day by day: the same window over the same rows.
+      expect(sum(after.charts.signUps)).toBe(after.tiles.newAccounts.current);
+      expect(after.tiles.newAccounts.sparkline).toEqual(after.charts.signUps);
+
+      // Today is the last day. If a Madrid midnight fell between the two reads,
+      // the last day is a new one and holds this account, alone or not.
+      const today = after.charts.signUps.values.at(-1) ?? 0;
+
+      if (before.charts.signUps.days.at(-1) === after.charts.signUps.days.at(-1)) {
+        expect(today).toBeGreaterThanOrEqual((before.charts.signUps.values.at(-1) ?? 0) + 1);
+      } else {
+        expect(today).toBeGreaterThanOrEqual(1);
+      }
+    });
+
+    it('carry counts, and nothing about anybody', async () => {
+      for (const route of PERIOD_ROUTES) {
+        const body: unknown = (await read(route, owner.cookie).expect(200)).body;
+        const keys = new Set<string>();
+        const words = new Set<string>();
+
+        walk(body, keys, words);
+
+        // No meal, no plan day, no profile field, no allergen: every key is one the console declared…
+        expect({ route, stray: [...keys].filter(key => !PERIOD_KEYS.has(key)) }).toEqual({ route, stray: [] });
+
+        // …and every string is a day, an instant, a state or a charted event — never an address, an id or an allergen.
+        expect({ route, stray: [...words].filter(word => !DAY.test(word) && !INSTANT.test(word) && !PERIOD_WORDS.has(word)) }).toEqual({
+          route,
+          stray: []
+        });
+
+        for (const word of [...ALLERGEN_KEYS, ...MEAL_SLOTS]) {
+          expect(words.has(word)).toBe(false);
+        }
+
+        const text = JSON.stringify(body);
+
+        // And the plain substring check, case-insensitive, over keys and values
+        // alike. No legitimate key or word contains any of these (`name` included:
+        // checked against the real bodies), so no key-level fallback is needed.
+        for (const term of ['userid', 'email', 'name', 'meal', 'recipe', 'allerg', 'profile']) {
+          expect({ found: text.toLowerCase().includes(term), route, term }).toEqual({ found: false, route, term });
+        }
+
+        for (const account of [owner, ordinary]) {
+          expect(text).not.toContain(account.email);
+          expect(text).not.toContain(account.id);
+        }
+      }
+    });
   });
 });
