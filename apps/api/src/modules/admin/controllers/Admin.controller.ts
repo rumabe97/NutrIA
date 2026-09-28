@@ -8,15 +8,15 @@ import { Roles } from '../../../shared/index.js';
 import { ZodQuery } from './ZodQuery.js';
 
 import type {
+  AdminAiDto,
   AdminAnalyticsDto,
   AdminJobDto,
   AdminOverviewDto,
   AdminPeopleDto,
-  AdminPicturesDto,
+  AdminPicturesPeriodDto,
   AdminPlansDto,
   AdminProductDto,
-  AdminSummaryDto,
-  AiUsageDto
+  AdminSummaryDto
 } from '../dto/out/index.js';
 
 /**
@@ -58,11 +58,15 @@ export class AdminController {
     return this.admin.overview();
   }
 
-  @ApiOkResponse({ description: "Our count of requests that left this service, against the operator's configured limit." })
-  @ApiOperation({ summary: "Today against the provider's allowance, counted here" })
+  @ApiOkResponse({
+    description:
+      "Today's count of requests that left this service against the operator's configured limit (until phase 9), and the period's: totals against the period before, calls and tokens per day, and calls by model and provider — all from `ai_call` events. 422 INVALID_INPUT for a period other than 7, 30 or 90."
+  })
+  @ApiOperation({ summary: 'Provider requests today and over a period (0068)' })
+  @ApiQuery(PERIOD_PARAMETER)
   @Get('ai')
-  async ai(): Promise<AiUsageDto> {
-    return this.admin.aiUsage();
+  async ai(@PeriodQuery() query: PeriodQueryDto): Promise<AdminAiDto> {
+    return this.admin.ai(query);
   }
 
   @ApiOkResponse({ description: 'The funnel, counted from state so it is right retroactively.' })
@@ -72,11 +76,15 @@ export class AdminController {
     return this.admin.analytics();
   }
 
-  @ApiOkResponse({ description: 'Spend since the month began, the cap, the flag, and pictures ready, failed and being drawn.' })
-  @ApiOperation({ summary: "This month's dish pictures against the cap (0066)" })
+  @ApiOkResponse({
+    description:
+      'Spend since the month began, the cap, the flag, pictures ready, failed, released and being drawn, and spend per day over the period. 422 INVALID_INPUT for a period other than 7, 30 or 90.'
+  })
+  @ApiOperation({ summary: "This month's dish pictures against the cap, and spend per day (0066, 0068)" })
+  @ApiQuery(PERIOD_PARAMETER)
   @Get('pictures')
-  async pictures(): Promise<AdminPicturesDto> {
-    return this.admin.pictures();
+  async pictures(@PeriodQuery() query: PeriodQueryDto): Promise<AdminPicturesPeriodDto> {
+    return this.admin.pictures(query);
   }
 
   @ApiOkResponse({

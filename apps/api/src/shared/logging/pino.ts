@@ -133,7 +133,9 @@ const SECRET_SEGMENTS = new RegExp(
  * `referer`. The value stops at the next `&`, `#` or, inside a query string that is
  * itself percent-encoded (`?next=%2Fadmin%3Fq%3D…`), at the next `%26`.
  */
-const SEARCH_PARAMETER = /((?:[?&]|%3f|%26)q(?:=|%3d))(?:(?!%26)[^&#\s])*/gi;
+// Also `q[]=` and `q[x]=` (plain or percent-encoded brackets): the validation refuses
+// them, but a request is logged before any pipe runs.
+const SEARCH_PARAMETER = /((?:[?&]|%3f|%26)q(?:\[[^\]&#=]*\]|%5b(?:(?!%5d)[^&#=])*%5d)*(?:=|%3d))(?:(?!%26)[^&#\s])*/gi;
 
 /** The same path with every secret segment and search text replaced — the route stays readable, the secret does not. */
 function withoutSecrets(value: string): string {

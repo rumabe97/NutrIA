@@ -18,18 +18,27 @@ import {
   POOL,
   PREFIX,
   register,
-  ScriptedAiClient
+  ScriptedAiClient,
+  SEEDED
 } from './harness.js';
 
 import type { Account } from './harness.js';
 import type { AccountView, Paged } from 'core/controllers/User';
 import type {
+  AdminAiView,
   AdminAnalyticsView,
+  AdminGenerationStatsView,
+  AdminGenerationsView,
+  AdminGenerationView,
+  AdminIngredientsView,
   AdminPeopleView,
+  AdminPicturesPeriodView,
   AdminPlansView,
   AdminProductView,
+  AdminRecipesView,
   AdminSummaryView,
   AiUsageView,
+  CatalogueRecipeView,
   DaySeries
 } from 'core/controllers/Admin';
 import type { FeedbackView } from 'core/controllers/Feedback';
@@ -249,6 +258,8 @@ function expectDays(series: { readonly days: readonly string[]; readonly values?
 
 describe('admin', () => {
   let app: INestApplication;
+  /** Kept so the catalogue case can prove the model was asked, and so that a dish with a `created_by` exists to leak. */
+  let ai: ScriptedAiClient;
   let owner: Account;
   let ordinary: Account;
   let waiting: string;
@@ -257,8 +268,9 @@ describe('admin', () => {
   const byEmail: string[] = [];
 
   beforeAll(async () => {
-    // The pool is for the people tables' one generated plan (the `plans` column); nothing else here asks the model.
-    app = await createApp(new ScriptedAiClient(POOL));
+    // The pool is for the two generated plans: the people tables' (the `plans` column) and the generation log's.
+    ai = new ScriptedAiClient(POOL);
+    app = await createApp(ai);
 
     const stamp = Date.now();
 
@@ -1143,6 +1155,923 @@ describe('admin', () => {
 
         expect({ grew: now >= was + 1, key }).toEqual({ grew: true, key });
       }
+    });
+  });
+
+  /*
+   * Registro, IA, Imágenes and the catalogue (`0068`, project 007 phase 7):
+   * the generation log filtered and paged in SQL with its charts, the AI and
+   * pictures pages over a period, and the shared catalogue, read only.
+   *
+   * The log's filter cases run over rows this block controls: one generation
+   * the pipeline really ran for `log` (succeeded, with its model calls), and
+   * four failed jobs written on the table — a failure the pipeline cannot be
+   * made to produce on demand against a seeded library, which backs a model
+   * that gives up with the whole catalogue. Those four carry a code of this
+   * run's own (`E2E_GEN…`) and times the block chose, so `code`, `since`,
+   * `from`/`to` and the order are asserted against known rows, and `q` scopes
+   * every other assertion to them. What that proves is the filters and the
+   * paging over the log's real query; that the pipeline writes a failure is
+   * `generation.e2e-spec.ts`'s and `care-review.e2e-spec.ts`'s.
+   */
+  describe('the generation log, AI, pictures and the catalogue', () => {
+    const gt = `gen${Date.now()}`;
+    const CODE = `E2E_${gt.toUpperCase()}`;
+    const address = (suffix: string) => `admin-${gt}-${suffix}@e2e.invalid`;
+    const HOUR = 60 * 60 * 1000;
+    /** Signed up only; each has one failed job, and their addresses differ by `_` against `x`. */
+    const underscoreEmail = address('a_b');
+    const lookalikeEmail = address('axb');
+    /** Registered, onboarded, one real generation. */
+    let log: Account;
+    /** When each written job was made, fixed before any is written. */
+    const at = { lookalike: new Date(), old: new Date(), recent: new Date(), underscore: new Date() };
+    /** The real job's id, from the log itself. */
+    let realJobId: string;
+    /** How many times the model was asked by this block's generation. */
+    let asked = 0;
+
+    /** Every key a log row carries: the job, its account, its calls and its plan (`0050`). Unchanged by phase 7. */
+    const GENERATION_KEYS = ['account', 'attempts', 'calls', 'code', 'detail', 'finishedAt', 'id', 'plan', 'seconds', 'startedAt', 'status', 'step'];
+    const RECIPE_KEYS = ['allergens', 'carbsG', 'fatG', 'kcal', 'locale', 'mayContain', 'mealSlots', 'name', 'picture', 'proteinG', 'slug', 'source'];
+    const INGREDIENT_KEYS = [
+      'allergens',
+      'carbsPer100g',
+      'category',
+      'countries',
+      'fatPer100g',
+      'kcalPer100g',
+      'mayContain',
+      'mealSlots',
+      'name',
+      'proteinPer100g',
+      'slug'
+    ];
+    /** Words no catalogue key may be: nothing that names or points at a person. */
+    const PERSON_KEYS = ['id', 'userId', 'user_id', 'createdBy', 'created_by', 'email', 'account', 'user'];
+
+    const get = (path: string, cookie?: string) => {
+      const call = request(httpServer(app)).get(`/${PREFIX}/admin/${path}`);
+
+      return cookie === undefined ? call : call.set('Cookie', cookie);
+    };
+
+    const generations = async (query: string) => (await get(`generations?${query}`, owner.cookie).expect(200)).body as AdminGenerationsView;
+    const recipes = async (query: string) => (await get(`catalogue/recipes?${query}`, owner.cookie).expect(200)).body as AdminRecipesView;
+    const ingredients = async (query: string) => (await get(`catalogue/ingredients?${query}`, owner.cookie).expect(200)).body as AdminIngredientsView;
+
+    /** A row as this block recognises it: whose, which outcome, and when it started. */
+    const who = (row: AdminGenerationView) => [row.account.email, row.status, row.startedAt];
+
+    type Sql = <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]>;
+    const sql = () => (database() as unknown as { readonly $client: Sql }).$client;
+
+    /**
+     * Writes one failed generation for an `@e2e.invalid` account, made at
+     * `createdAt`, started then and finished five seconds later. The account's
+     * deletion takes it (`plan_generation_jobs.user_id` cascades).
+     */
+    async function writeFailedJob(email: string, createdAt: Date, aiCalls: readonly Record<string, unknown>[] | null = null): Promise<void> {
+      if (!email.endsWith('@e2e.invalid')) {
+        throw new Error(`Refusing to write a job for a real account: ${email}`);
+      }
+
+      const finishedAt = new Date(createdAt.getTime() + 5000);
+      const written = await sql()<{ id: string }>`
+        insert into plan_generation_jobs (user_id, status, error, attempts, step, created_at, started_at, finished_at, ai_calls)
+        select id, 'failed', ${CODE}, 1, 'SCHEDULING_MEALS', ${createdAt.toISOString()}, ${createdAt.toISOString()}, ${finishedAt.toISOString()},
+          ${aiCalls === null ? null : JSON.stringify(aiCalls)}::jsonb
+        from "user" where email = ${email}
+        returning id`;
+
+      if (written.length !== 1) {
+        throw new Error(`No account to write a job for: ${email}`);
+      }
+    }
+
+    /** A model call as `AiCallRecord` stores it, that dropped dishes for the person's allergy and way of eating, and for two reasons of the model's own. */
+    const REJECTING_CALL = {
+      answeredModel: 'e2e/scripted',
+      cache: null,
+      cachedInputTokens: null,
+      comboTrace: null,
+      correlationId: null,
+      costUsd: null,
+      dishes: 10,
+      error: null,
+      gatewayMs: null,
+      inputTokens: 100,
+      kept: 0,
+      model: 'e2e/scripted',
+      ms: 1200,
+      outputTokens: 200,
+      provider: null,
+      reasoningTokens: null,
+      rejected: { allergen: 4, schema: 3, unwanted: 2, wrong_meal: 1 },
+      requestId: null,
+      round: 1,
+      session: null,
+      slot: 'lunch'
+    };
+
+    const WINDOW_KEYS = ['from', 'previousFrom', 'to', 'days', 'values', 'series', 'key'];
+    /**
+     * Every key each read may carry, at any depth. Exhaustive, like
+     * `PERIOD_KEYS`: a new field is a decision. None of the three period reads
+     * has a `name`, an `email`, an `id` or anything of a person.
+     */
+    const STATS_KEYS = new Set([...WINDOW_KEYS, 'durations', 'failuresByCode', 'outcomes', 'period', 'window', 'p50', 'p95', 'code', 'n']);
+    const AI_KEYS = new Set([
+      ...WINDOW_KEYS,
+      // today's, unchanged
+      'byModel',
+      'calls',
+      'inputTokens',
+      'lastRefusal',
+      'limits',
+      'model',
+      'outputTokens',
+      'refused',
+      'resetsAt',
+      'averageMs',
+      'costUsd',
+      'failed',
+      'provider',
+      'reasoningTokens',
+      'at',
+      'limit',
+      'retryAfterSeconds',
+      'requestsPerDay',
+      'tokensPerMinute',
+      // the period's
+      'callsPerDay',
+      'models',
+      'period',
+      'tokensPerDay',
+      'totals',
+      'window',
+      'current',
+      'previous'
+    ]);
+    const PICTURE_KEYS = new Set([
+      ...WINDOW_KEYS,
+      'capUsd',
+      'drawing',
+      'enabled',
+      'failed',
+      'period',
+      'ready',
+      'released',
+      'since',
+      'spendPerDay',
+      'spentUsd',
+      'window'
+    ]);
+    /** `name` is the dish's or the ingredient's here — the catalogue is reference data, and names nobody. */
+    const RECIPE_BODY_KEYS = new Set([
+      'counts',
+      'offset',
+      'rows',
+      'size',
+      'total',
+      'bySlot',
+      'bySource',
+      'withoutImage',
+      'n',
+      'slot',
+      'source',
+      ...RECIPE_KEYS
+    ]);
+    const INGREDIENT_BODY_KEYS = new Set(['offset', 'rows', 'size', 'total', ...INGREDIENT_KEYS]);
+
+    /**
+     * A body says nothing about anybody: every key is one the read declares,
+     * no string is an address, and neither an address nor an id of the
+     * suite's accounts appears anywhere — nor `gt`, which every address and
+     * every name this block made carries.
+     */
+    const expectNobody = (label: string, body: unknown, allowed: ReadonlySet<string>) => {
+      const keys = new Set<string>();
+      const words = new Set<string>();
+
+      walk(body, keys, words);
+
+      expect({ label, stray: [...keys].filter(key => !allowed.has(key)) }).toEqual({ label, stray: [] });
+      expect({ addresses: [...words].filter(word => word.includes('@')), label }).toEqual({ addresses: [], label });
+
+      const text = JSON.stringify(body);
+
+      for (const account of [owner, ordinary, log]) {
+        expect({ found: text.includes(account.email) || text.includes(account.id), label }).toEqual({ found: false, label });
+      }
+
+      expect({ found: text.includes(gt), label }).toEqual({ found: false, label });
+    };
+
+    beforeAll(async () => {
+      const now = Date.now();
+
+      at.recent = new Date(now - HOUR);
+      at.underscore = new Date(now - 2 * HOUR);
+      at.lookalike = new Date(now - 3 * HOUR);
+      at.old = new Date(now - 10 * 24 * HOUR);
+
+      log = await register(app, address('log'));
+      made.push(log.cookie);
+      byEmail.push(underscoreEmail, lookalikeEmail);
+
+      for (const email of [underscoreEmail, lookalikeEmail]) {
+        await request(httpServer(app))
+          .post(`/${PREFIX}/auth/sign-up/email`)
+          .send({ email, name: 'Log', password: 'correct-horse-battery-staple-9' })
+          .expect(200);
+      }
+
+      // Allergic to milk, and fish disliked: the scripted pool proposes yogurt and hake anyway, so this generation's calls reject dishes for `allergen` and `unwanted`.
+      const listed: Response = await request(httpServer(app)).get(`/${PREFIX}/safety/allergens`).expect(200);
+      const milk = (listed.body as readonly { id: string; key: string }[]).find(allergen => allergen.key === 'milk')?.id;
+
+      if (milk === undefined) {
+        throw new Error('The seed has no milk allergen');
+      }
+
+      await completeOnboarding(app, log, [milk]);
+      await request(httpServer(app))
+        .patch(`/${PREFIX}/onboarding`)
+        .set('Cookie', log.cookie)
+        .send({ data: { cuisines: ['Mediterránea'], preferences: [{ label: 'pescado', sentiment: 'disliked' }] }, step: 'food-preferences' })
+        .expect(200);
+
+      const before = ai.calls;
+
+      expect((await generateAndWait(app, log)).status).toBe('succeeded');
+      asked = ai.calls - before;
+
+      // One call in the log's own shape (`AiCallRecord`), whose dishes were dropped for four reasons — two of them this person's.
+      await writeFailedJob(log.email, at.recent, [REJECTING_CALL]);
+      await writeFailedJob(underscoreEmail, at.underscore);
+      await writeFailedJob(lookalikeEmail, at.lookalike);
+      await writeFailedJob(log.email, at.old);
+
+      const real = (await generations(`q=${gt}&status=succeeded`)).rows[0];
+
+      realJobId = real?.id ?? '';
+    }, 120_000);
+
+    it('do not exist for an ordinary account, nor for a caller with no session — even with a query they would refuse', async () => {
+      const paths = [
+        'generations',
+        'generations?legacy=1',
+        'generations?status=nope',
+        'generations?q=a%00b',
+        'generations?from=2026-09-20&to=2026-09-10',
+        'generations/stats',
+        'generations/stats?period=14',
+        'ai',
+        'ai?period=14',
+        'pictures',
+        'pictures?period=14',
+        'pictures?period=1',
+        'catalogue/recipes',
+        'catalogue/recipes?sort=createdAt',
+        'catalogue/ingredients',
+        'catalogue/ingredients?sort=x',
+        'catalogue/ingredients?category=x'
+      ];
+
+      for (const path of paths) {
+        const asOrdinary: Response = await get(path, ordinary.cookie);
+        const asNobody: Response = await get(path);
+
+        expect({ nobody: asNobody.status, ordinary: asOrdinary.status, path }).toEqual({ nobody: 404, ordinary: 404, path });
+      }
+    });
+
+    it('page the log, newest first, each row exactly as the log has always shown it — calls included', async () => {
+      const page = await generations(`q=${gt}`);
+
+      expect(Object.keys(page).sort()).toEqual(['offset', 'rows', 'size', 'total']);
+      expect({ offset: page.offset, size: page.size, total: page.total }).toEqual({ offset: 0, size: 25, total: 5 });
+
+      for (const row of page.rows) {
+        expect({ id: row.id, keys: Object.keys(row).sort() }).toEqual({ id: row.id, keys: GENERATION_KEYS });
+        expect(Object.keys(row.account).sort()).toEqual(['email', 'name']);
+        expect(Array.isArray(row.calls)).toBe(true);
+      }
+
+      // The real one first (made now), then the four written ones by when each was made.
+      expect(page.rows.map(row => row.id)[0]).toBe(realJobId);
+      expect(page.rows.slice(1).map(who)).toEqual([
+        [log.email, 'failed', at.recent.toISOString()],
+        [underscoreEmail, 'failed', at.underscore.toISOString()],
+        [lookalikeEmail, 'failed', at.lookalike.toISOString()],
+        [log.email, 'failed', at.old.toISOString()]
+      ]);
+
+      const real = page.rows[0];
+
+      // The pipeline's own row: finished, a plan behind it, and — when the model was asked — its calls.
+      expect(real).toMatchObject({ code: null, status: 'succeeded' });
+      expect(real?.plan).not.toBeNull();
+      expect(real?.seconds).toEqual(expect.any(Number));
+      expect((real?.calls.length ?? 0) > 0).toBe(asked > 0);
+      expect(page.rows[1]).toMatchObject({ attempts: 1, code: CODE, seconds: 5, status: 'failed', step: 'SCHEDULING_MEALS' });
+    });
+
+    it('narrow by outcome, by code, by the last 24 hours or a period, and by a range of Madrid days', async () => {
+      const oldDay = madridDay(at.old.toISOString());
+      const today = madridDay(new Date().toISOString());
+
+      const expectIds = async (query: string, expected: readonly string[]) => {
+        const page = await generations(query);
+
+        expect({ ids: page.rows.map(row => row.id), query, total: page.total }).toEqual({ ids: expected, query, total: expected.length });
+      };
+
+      const all = (await generations(`q=${gt}`)).rows.map(row => row.id);
+      const [real, recent, underscore, lookalike, old] = all as [string, string, string, string, string];
+
+      await expectIds(`q=${gt}&status=succeeded`, [real]);
+      await expectIds(`q=${gt}&status=failed`, [recent, underscore, lookalike, old]);
+      await expectIds(`q=${gt}&status=queued`, []);
+      // The code is this run's own, so it narrows the whole log to exactly these four — no `q` needed.
+      await expectIds(`code=${CODE}`, [recent, underscore, lookalike, old]);
+      await expectIds(`code=${CODE}&status=succeeded`, []);
+      await expectIds(`code=${CODE}_X`, []);
+      await expectIds(`q=${gt}&since=24h`, [real, recent, underscore, lookalike]);
+      await expectIds(`q=${gt}&since=7`, [real, recent, underscore, lookalike]);
+      await expectIds(`q=${gt}&since=30`, all);
+      await expectIds(`q=${gt}&since=90`, all);
+      // Both ends included: a range of one day is that day.
+      await expectIds(`q=${gt}&from=${oldDay}&to=${oldDay}`, [old]);
+      await expectIds(`q=${gt}&to=${oldDay}`, [old]);
+      await expectIds(`q=${gt}&from=${shiftDay(oldDay, 1)}`, [real, recent, underscore, lookalike]);
+      await expectIds(`q=${gt}&from=${shiftDay(oldDay, -1)}&to=${shiftDay(oldDay, 1)}`, [old]);
+      // Every filter given applies: the narrowest wins.
+      await expectIds(`q=${gt}&since=30&to=${oldDay}&status=failed`, [old]);
+      await expectIds(`q=${gt}&since=7&to=${oldDay}`, []);
+      await expectIds(`q=${gt}&from=${today}&status=succeeded`, [real]);
+    });
+
+    it('page the matches: every generation once, and the same total on every page', async () => {
+      const all = (await generations(`q=${gt}`)).rows.map(row => row.id);
+      const pages = await Promise.all([0, 2, 4].map(offset => generations(`q=${gt}&size=2&offset=${offset}`)));
+
+      expect(pages.map(page => [page.offset, page.size, page.rows.length, page.total])).toEqual([
+        [0, 2, 2, 5],
+        [2, 2, 2, 5],
+        [4, 2, 1, 5]
+      ]);
+      expect(pages.flatMap(page => page.rows.map(row => row.id))).toEqual(all);
+      expect(new Set(all).size).toBe(5);
+      expect((await generations(`q=${gt}&offset=5`)).rows).toEqual([]);
+    });
+
+    it('search the address literally: % and _ are characters, not wildcards', async () => {
+      const emailsOf = async (q: string) => (await generations(`q=${encodeURIComponent(q)}`)).rows.map(row => row.account.email);
+
+      expect(await emailsOf(`${gt}-a_b`)).toEqual([underscoreEmail]);
+      expect(await emailsOf(`${gt}-axb`)).toEqual([lookalikeEmail]);
+      // As wildcards, `_` would match the `-` and `%` anything.
+      expect(await emailsOf(`${gt}_axb`)).toEqual([]);
+      expect(await emailsOf(`${gt}%axb`)).toEqual([]);
+      expect(await emailsOf(`admin%${gt}`)).toEqual([]);
+      // And a backslash is a character too, not an escape.
+      expect(await emailsOf(`${gt}\\`)).toEqual([]);
+      expect(await emailsOf(`${gt}-a\\_b`)).toEqual([]);
+      // Case-insensitive, like every address search in the console.
+      expect(await emailsOf(`${gt.toUpperCase()}-AXB`)).toEqual([lookalikeEmail]);
+    });
+
+    it('answer the old array of the latest 20 with legacy=1, whatever else the query says', async () => {
+      const legacy = (await get('generations?legacy=1', owner.cookie).expect(200)).body as AdminGenerationView[];
+      const filtered = (await get(`generations?legacy=1&status=queued&q=${gt}&since=24h&size=1&offset=3`, owner.cookie).expect(200))
+        .body as AdminGenerationView[];
+
+      expect(Array.isArray(legacy)).toBe(true);
+      expect(legacy.length).toBeGreaterThan(0);
+      expect(legacy.length).toBeLessThanOrEqual(20);
+      // The filters change nothing: the same array, row for row.
+      expect(filtered).toEqual(legacy);
+      // This block's generation is the newest in the database, so it is in the latest 20.
+      expect(legacy.map(row => row.id)).toContain(realJobId);
+
+      for (const row of legacy) {
+        expect({ id: row.id, keys: Object.keys(row).sort() }).toEqual({ id: row.id, keys: GENERATION_KEYS });
+      }
+
+      // And the same row, the same shape, on the page.
+      const paged = (await generations(`q=${gt}&status=succeeded`)).rows[0];
+
+      expect(legacy.find(row => row.id === realJobId)).toEqual(paged);
+    });
+
+    /*
+     * A dish the model wrote and the product dropped because of this person's
+     * allergies or way of eating says something about their health and their
+     * food. The addressed row carries the calls' other rejection reasons —
+     * schema, wrong meal, unknown ingredient — but never `allergen` or
+     * `unwanted` (the invariant review of phase 7). Fixed after `7a31294`: on
+     * that commit this case fails, by design.
+     */
+    it('never say on an addressed row that a dish was dropped for an allergy or a way of eating — other reasons stay', async () => {
+      // The premise, on the table: the pipeline's own job — milk declared, fish disliked, yogurt and hake proposed — did reject for both.
+      const [job] = await sql()<{ calls: { rejected?: Record<string, number> }[] | null }>`
+        select ai_calls as calls from plan_generation_jobs where id = ${realJobId}`;
+      const reasons = new Set(
+        (job?.calls ?? []).flatMap(call => Object.entries(call.rejected ?? {}).flatMap(([reason, n]) => (n > 0 ? [reason] : [])))
+      );
+
+      expect({ allergen: reasons.has('allergen'), unwanted: reasons.has('unwanted') }).toEqual({ allergen: true, unwanted: true });
+
+      const paged = (await get(`generations?q=${gt}`, owner.cookie).expect(200)).body as AdminGenerationsView;
+      const legacy = (await get('generations?legacy=1', owner.cookie).expect(200)).body as AdminGenerationView[];
+
+      for (const [label, body] of [
+        ['paged', paged],
+        ['legacy', legacy]
+      ] as const) {
+        const keys = new Set<string>();
+
+        walk(body, keys, new Set());
+
+        expect({ allergen: keys.has('allergen'), label, unwanted: keys.has('unwanted') }).toEqual({ allergen: false, label, unwanted: false });
+      }
+
+      // The other reasons stay, on the written call, and the call is otherwise the call: only the two keys go.
+      const written = paged.rows[1];
+
+      expect(written?.startedAt).toBe(at.recent.toISOString());
+      expect(written?.calls).toEqual([{ ...REJECTING_CALL, rejected: { schema: 3, wrong_meal: 1 } }]);
+
+      // The pipeline's own calls keep a `rejected` on every call, emptied of the two at most.
+      const real = paged.rows.find(one => one.id === realJobId);
+
+      expect((real?.calls.length ?? 0) > 0).toBe(true);
+      expect(real?.calls.every(call => typeof call.rejected === 'object')).toBe(true);
+
+      // And legacy shows the same rows as the page does, where both have them.
+      for (const one of legacy) {
+        const same = paged.rows.find(row => row.id === one.id);
+
+        if (same !== undefined) {
+          expect(one).toEqual(same);
+        }
+      }
+    });
+
+    it('refuse an unknown filter value, a range that ends before it starts, a repeated parameter and a bad page, as INVALID_INPUT', async () => {
+      const paths = [
+        ...[
+          'status=done',
+          'status=FAILED',
+          'status=failed&status=queued',
+          'code=generation_ai_unavailable',
+          'code=E2E-DASH',
+          'code=_E2E',
+          `code=${'A'.repeat(81)}`,
+          'since=14',
+          'since=24',
+          'since=1d',
+          'from=yesterday',
+          'from=2026-13-01',
+          'to=20260101',
+          'from=2026-09-20&to=2026-09-10',
+          'size=0',
+          'size=101',
+          'size=abc',
+          'offset=-1',
+          'legacy=2',
+          'legacy=true',
+          // `legacy` is read after the query is: a bad page is refused even there.
+          'legacy=1&size=0',
+          'q=a%00b'
+        ].map(query => `generations?${query}`),
+        ...['period=14', 'period=seven', 'period=', 'period=7&period=30'].flatMap(query => [
+          `generations/stats?${query}`,
+          `ai?${query}`,
+          `pictures?${query}`
+        ])
+      ];
+      const answers: { code: string | undefined; path: string; status: number }[] = [];
+
+      for (const path of paths) {
+        const response: Response = await get(path, owner.cookie);
+
+        answers.push({ code: (response.body as { code?: string }).code, path, status: response.status });
+      }
+
+      expect(answers).toEqual(paths.map(path => ({ code: 'INVALID_INPUT', path, status: 422 })));
+    });
+
+    it('chart the log over a period: outcomes and durations per day, failures by code — counts only, no address', async () => {
+      for (const [query, period] of [
+        [undefined, 30],
+        ['7', 7],
+        ['30', 30],
+        ['90', 90]
+      ] as const) {
+        const response: Response = await get(`generations/stats${query === undefined ? '' : `?period=${query}`}`, owner.cookie).expect(200);
+        const stats = response.body as AdminGenerationStatsView;
+
+        expect(Object.keys(stats).sort()).toEqual(['durations', 'failuresByCode', 'outcomes', 'period', 'window']);
+        expect(stats.period).toBe(period);
+        expectDays(stats.outcomes, period, stats.window.to);
+        expect(stats.outcomes.series.map(row => row.key)).toEqual(['queued', 'running', 'succeeded', 'failed']);
+
+        for (const row of stats.outcomes.series) {
+          expect(row.values).toHaveLength(period);
+          expect(row.values.every(n => Number.isInteger(n) && n >= 0)).toBe(true);
+        }
+
+        expect(Object.keys(stats.durations).sort()).toEqual(['days', 'p50', 'p95']);
+        expect(stats.durations.days).toEqual(stats.outcomes.days);
+
+        for (const key of ['p50', 'p95'] as const) {
+          expect(stats.durations[key]).toHaveLength(period);
+          expect(stats.durations[key].every(value => value === null || (typeof value === 'number' && value >= 0))).toBe(true);
+        }
+
+        stats.durations.p50.forEach((p50, i) => {
+          const p95 = stats.durations.p95[i];
+
+          // A day has both or neither, and the 95th percentile is never under the median.
+          expect(p50 === null).toBe(p95 === null);
+
+          if (p50 !== null && p95 !== null) {
+            expect(p95).toBeGreaterThanOrEqual(p50);
+          }
+        });
+        // Today finished generations — this block's real one and its written ones — so today has a duration.
+        expect(stats.durations.p50.at(-1)).not.toBeNull();
+
+        // This run's code: three failures in the last seven days, the fourth ten days back.
+        expect(stats.failuresByCode.find(row => row.code === CODE)).toEqual({ code: CODE, n: period === 7 ? 3 : 4 });
+
+        for (const row of stats.failuresByCode) {
+          expect(Object.keys(row).sort()).toEqual(['code', 'n']);
+        }
+
+        const ns = stats.failuresByCode.map(row => row.n);
+
+        expect(ns).toEqual([...ns].sort((a, b) => b - a));
+        // The failures by code are the failed series, summed: the same jobs over the same window.
+        const failed = stats.outcomes.series.find(row => row.key === 'failed')?.values ?? [];
+
+        expect(ns.reduce((total, n) => total + n, 0)).toBe(failed.reduce((total, n) => total + n, 0));
+
+        // No address, no name, no id: counts, days and codes only.
+        expectNobody(`stats ${period}`, stats, STATS_KEYS);
+      }
+    });
+
+    it('count the provider over a period beside today, and carry no address', async () => {
+      const TODAY_KEYS = ['byModel', 'calls', 'inputTokens', 'lastRefusal', 'limits', 'model', 'outputTokens', 'refused', 'resetsAt'];
+
+      for (const [query, period] of [
+        [undefined, 30],
+        ['7', 7],
+        ['90', 90]
+      ] as const) {
+        const response: Response = await get(`ai${query === undefined ? '' : `?period=${query}`}`, owner.cookie).expect(200);
+        const view = response.body as AdminAiView;
+
+        expect(Object.keys(view).sort()).toEqual([...TODAY_KEYS, 'callsPerDay', 'models', 'period', 'tokensPerDay', 'totals', 'window'].sort());
+        expect(view.period).toBe(period);
+        // Today's fields as before: the scripted model is not a provider.
+        expect(view).toMatchObject({ calls: 0, refused: 0 });
+
+        expectDays(view.callsPerDay, period, view.window.to);
+        expectDays(view.tokensPerDay, period, view.window.to);
+        expect(view.tokensPerDay.series.map(row => row.key)).toEqual(['input', 'output']);
+
+        for (const row of view.tokensPerDay.series) {
+          expect(row.values).toHaveLength(period);
+        }
+
+        expect(Object.keys(view.totals).sort()).toEqual(['averageMs', 'calls', 'failed', 'inputTokens', 'outputTokens']);
+
+        for (const key of ['averageMs', 'calls', 'failed', 'inputTokens', 'outputTokens'] as const) {
+          expect(Object.keys(view.totals[key]).sort()).toEqual(['current', 'previous']);
+        }
+
+        // The chart is the total, day by day, and the models are the total, split.
+        const sum = (values: readonly number[]) => values.reduce((total, n) => total + n, 0);
+
+        expect(sum(view.callsPerDay.values)).toBe(view.totals.calls.current);
+        expect(sum(view.models.map(model => model.calls))).toBe(view.totals.calls.current);
+
+        expectNobody(`ai ${period}`, view, AI_KEYS);
+      }
+    });
+
+    it('carry the picture spend per day over the period beside this month', async () => {
+      for (const [query, period] of [
+        [undefined, 30],
+        ['7', 7],
+        ['90', 90]
+      ] as const) {
+        const response: Response = await get(`pictures${query === undefined ? '' : `?period=${query}`}`, owner.cookie).expect(200);
+        const view = response.body as AdminPicturesPeriodView;
+
+        expect(Object.keys(view).sort()).toEqual(
+          ['capUsd', 'drawing', 'enabled', 'failed', 'period', 'ready', 'released', 'since', 'spendPerDay', 'spentUsd', 'window'].sort()
+        );
+        expect(view.period).toBe(period);
+        // Dollars, not counts: `expectDays` checks the days, the values are checked here.
+        expectDays({ days: view.spendPerDay.days }, period, view.window.to);
+        expect(view.spendPerDay.values).toHaveLength(period);
+        expect(view.spendPerDay.values.every(value => typeof value === 'number' && value >= 0)).toBe(true);
+        expectNobody(`pictures ${period}`, view, PICTURE_KEYS);
+      }
+    });
+
+    it('list recipes with exactly their twelve keys and the whole catalogue’s counts', async () => {
+      const page = await recipes('');
+
+      expect(Object.keys(page).sort()).toEqual(['counts', 'offset', 'rows', 'size', 'total']);
+      expect({ offset: page.offset, size: page.size }).toEqual({ offset: 0, size: 25 });
+      // A full page when the catalogue has one: CI's seed has no recipes, only what the scripted model wrote this run.
+      expect(page.total).toBeGreaterThan(0);
+      expect(page.rows).toHaveLength(Math.min(25, page.total));
+
+      for (const row of page.rows) {
+        expect({ keys: Object.keys(row).sort(), slug: row.slug }).toEqual({ keys: RECIPE_KEYS, slug: row.slug });
+      }
+
+      // Sorted by name, ascending, when asked nothing — in the database's own collation, then by slug.
+      const first = await sql()<{ name: string }>`select name from recipes order by name asc nulls last, slug asc limit 25`;
+
+      expect(page.rows.map(row => row.name)).toEqual(first.map(row => row.name));
+
+      const { counts } = page;
+
+      expect(Object.keys(counts).sort()).toEqual(['bySlot', 'bySource', 'total', 'withoutImage']);
+      expect(counts.bySlot.map(row => row.slot)).toEqual(MEAL_SLOTS);
+      expect(counts.bySource.map(row => row.source)).toEqual(['seed', 'ai', 'user']);
+      expect(counts.total).toBe(page.total);
+      expect(counts.bySource.reduce((total, row) => total + row.n, 0)).toBe(counts.total);
+      expect(counts.withoutImage).toBeLessThanOrEqual(counts.total);
+
+      // The counts are the whole catalogue's, whatever the table is filtered to.
+      expect((await recipes('slot=supper&source=user&q=zzzz-nothing')).counts).toEqual(counts);
+
+      // Without a ready picture is everything but the ready ones.
+      expect((await recipes('picture=ready')).total + counts.withoutImage).toBe(counts.total);
+    });
+
+    it('narrow recipes by slot, allergen, source, picture, locale and name — every row satisfying the filter', async () => {
+      const { counts, total } = await recipes('');
+
+      const everyRow = async (query: string, holds: (row: CatalogueRecipeView) => boolean) => {
+        const page = await recipes(`${query}&size=100`);
+
+        expect({ query, stray: page.rows.filter(row => !holds(row)).map(row => row.slug) }).toEqual({ query, stray: [] });
+
+        return page;
+      };
+
+      const breakfast = await everyRow('slot=breakfast', row => row.mealSlots.includes('breakfast'));
+
+      expect(breakfast.total).toBeGreaterThan(0);
+      expect(breakfast.total).toBeLessThan(total);
+      expect(breakfast.total).toBe(counts.bySlot.find(row => row.slot === 'breakfast')?.n);
+
+      const seed = await everyRow('source=seed', row => row.source === 'seed');
+
+      // None in CI, whose seed carries no recipes; the seeded library on a developer's database. The count agrees either way.
+      expect(seed.total).toBe(counts.bySource.find(row => row.source === 'seed')?.n);
+
+      const gluten = await everyRow('allergen=gluten', row => row.allergens.includes('gluten'));
+
+      expect(gluten.total).toBeGreaterThan(0);
+      expect(gluten.total).toBeLessThan(total);
+
+      // Filters combine.
+      const both = await everyRow(
+        'allergen=gluten&slot=breakfast&source=seed',
+        row => row.allergens.includes('gluten') && row.mealSlots.includes('breakfast')
+      );
+
+      expect(both.total).toBeLessThanOrEqual(Math.min(gluten.total, breakfast.total, seed.total));
+
+      // An allergen key nobody has matches nothing, rather than being refused or ignored.
+      expect((await recipes('allergen=not_an_allergen')).total).toBe(0);
+
+      for (const picture of ['ready', 'drawing', 'failed', 'none'] as const) {
+        await everyRow(`picture=${picture}`, row => row.picture === picture);
+      }
+
+      const locale = breakfast.rows[0]?.locale ?? '';
+      const inLocale = await everyRow(`locale=${locale}`, row => row.locale === locale);
+
+      expect(inLocale.total).toBeGreaterThan(0);
+
+      // What this run's model wrote is `ai`, and there is some: this block's generation asked it.
+      const written = await everyRow('source=ai', row => row.source === 'ai');
+
+      expect(written.total).toBeGreaterThan(0);
+      expect(written.total).toBe(counts.bySource.find(row => row.source === 'ai')?.n);
+
+      // By name, and literally.
+      const word = (breakfast.rows[0]?.name ?? '').split(' ')[0] ?? '';
+
+      expect(word.length).toBeGreaterThan(0);
+
+      const named = await everyRow(`q=${encodeURIComponent(word)}`, row => row.name.toLowerCase().includes(word.toLowerCase()));
+
+      expect(named.rows.map(row => row.slug)).toContain(breakfast.rows[0]?.slug);
+      expect((await recipes(`q=${encodeURIComponent('%')}`)).total).toBe(0);
+      expect((await recipes(`q=${encodeURIComponent(`${word}%`)}`)).total).toBe(0);
+    });
+
+    it('sort recipes by name, kcal or protein either way, the uncosted last, and page without overlap', async () => {
+      const last = await sql()<{ name: string }>`select name from recipes order by name desc nulls last, slug asc limit 25`;
+
+      expect((await recipes('dir=desc')).rows.map(row => row.name)).toEqual(last.map(row => row.name));
+
+      for (const [sort, figure] of [
+        ['kcal', 'kcal'],
+        ['protein', 'proteinG']
+      ] as const) {
+        for (const dir of ['asc', 'desc'] as const) {
+          const rows = (await recipes(`sort=${sort}&dir=${dir}&size=100`)).rows;
+          const values = rows.map(row => row[figure]);
+          const firstNull = values.indexOf(null);
+          const costed = (firstNull === -1 ? values : values.slice(0, firstNull)) as number[];
+
+          expect({ dir, nullsInside: firstNull === -1 ? 0 : values.slice(firstNull).filter(value => value !== null).length, sort }).toEqual({
+            dir,
+            nullsInside: 0,
+            sort
+          });
+          expect(costed).toEqual([...costed].sort((a, b) => (dir === 'asc' ? a - b : b - a)));
+        }
+      }
+
+      for (const sort of ['name', 'kcal']) {
+        const pages = await Promise.all([0, 5, 10].map(offset => recipes(`slot=breakfast&sort=${sort}&size=5&offset=${offset}`)));
+        const keys = pages.flatMap(page => page.rows.map(row => `${row.slug}/${row.locale}`));
+        const total = pages[0]?.total ?? 0;
+
+        // Two generations' breakfasts at least (the people tables' and this block's), so the first page is full.
+        expect(total).toBeGreaterThanOrEqual(5);
+        expect(pages.map(page => page.total)).toEqual([total, total, total]);
+        expect(pages.map(page => page.rows.length)).toEqual([0, 5, 10].map(offset => Math.max(0, Math.min(5, total - offset))));
+        expect(new Set(keys).size).toBe(keys.length);
+        expect(keys).toEqual((await recipes(`slot=breakfast&sort=${sort}&size=15`)).rows.map(row => `${row.slug}/${row.locale}`));
+      }
+    });
+
+    it('never name who made a dish: no id, no created_by, not the maker’s id anywhere', async () => {
+      // The premise: this block's generation asked the model, so the catalogue holds a dish `log` made.
+      expect(asked).toBeGreaterThan(0);
+
+      const [dish] = await sql()<{ locale: string; name: string }>`
+        select r.name, r.locale from recipes r join "user" u on u.id = r.created_by where u.email = ${log.email} order by r.name limit 1`;
+
+      expect(dish).toBeDefined();
+
+      const found = await recipes(`q=${encodeURIComponent(dish?.name ?? '')}&locale=${dish?.locale ?? ''}`);
+
+      expect(found.rows.map(row => row.name)).toContain(dish?.name);
+      expect(found.rows.find(row => row.name === dish?.name)?.source).toBe('ai');
+
+      const bodies: [string, unknown, ReadonlySet<string>][] = [
+        ['the maker’s dish', found, RECIPE_BODY_KEYS],
+        ['source=ai', await recipes('source=ai&size=100'), RECIPE_BODY_KEYS],
+        ['every slot, by kcal', await recipes('sort=kcal&size=100'), RECIPE_BODY_KEYS],
+        ['ingredients', await ingredients('size=100'), INGREDIENT_BODY_KEYS]
+      ];
+
+      for (const [label, body, allowed] of bodies) {
+        const keys = new Set<string>();
+
+        walk(body, keys, new Set());
+
+        expect({ label, person: [...keys].filter(key => PERSON_KEYS.includes(key)) }).toEqual({ label, person: [] });
+        expectNobody(label, body, allowed);
+      }
+    });
+
+    it('list ingredients with exactly their eleven keys, narrowed by name, category and allergen, sorted and paged', async () => {
+      const page = await ingredients('');
+
+      expect(Object.keys(page).sort()).toEqual(['offset', 'rows', 'size', 'total']);
+      expect(page.rows).toHaveLength(25);
+
+      for (const row of page.rows) {
+        expect({ keys: Object.keys(row).sort(), slug: row.slug }).toEqual({ keys: INGREDIENT_KEYS, slug: row.slug });
+      }
+
+      // By name or slug in any language: the seeded hake is found, and the list shrinks to the matches.
+      const hake = await ingredients(`q=${SEEDED.merluza}`);
+
+      expect(hake.rows.map(row => row.slug)).toContain(SEEDED.merluza);
+      expect(hake.total).toBeLessThan(page.total);
+
+      const milk = await ingredients('allergen=milk&size=100');
+
+      expect(milk.total).toBeGreaterThan(0);
+      expect(milk.total).toBeLessThan(page.total);
+      expect(milk.rows.filter(row => !row.allergens.includes('milk')).map(row => row.slug)).toEqual([]);
+
+      const category = page.rows[0]?.category ?? '';
+      const ofCategory = await ingredients(`category=${category}&size=100`);
+
+      expect(ofCategory.total).toBeGreaterThan(0);
+      expect(ofCategory.rows.filter(row => row.category !== category).map(row => row.slug)).toEqual([]);
+
+      for (const [sort, figure] of [
+        ['kcal', 'kcalPer100g'],
+        ['protein', 'proteinPer100g'],
+        ['carbs', 'carbsPer100g'],
+        ['fat', 'fatPer100g']
+      ] as const) {
+        for (const dir of ['asc', 'desc'] as const) {
+          const values = (await ingredients(`sort=${sort}&dir=${dir}&size=50`)).rows.map(row => row[figure]);
+
+          expect({ dir, sort, sorted: values.join() === [...values].sort((a, b) => (dir === 'asc' ? a - b : b - a)).join() }).toEqual({
+            dir,
+            sort,
+            sorted: true
+          });
+        }
+      }
+
+      // By category: each category in one run, whatever order the enum gives them.
+      const byCategory = (await ingredients('sort=category&size=100')).rows.map(row => row.category);
+      const runs = byCategory.filter((category, i) => i === 0 || byCategory[i - 1] !== category);
+
+      expect(runs).toEqual([...new Set(byCategory)]);
+
+      const pages = await Promise.all([0, 10, 20].map(offset => ingredients(`size=10&offset=${offset}`)));
+      const slugs = pages.flatMap(one => one.rows.map(row => row.slug));
+
+      expect(new Set(pages.map(one => one.total)).size).toBe(1);
+      expect(new Set(slugs).size).toBe(30);
+      expect(slugs).toEqual((await ingredients('size=30')).rows.map(row => row.slug));
+    });
+
+    it('refuse a sort the catalogue does not have — createdAt included — and any value outside its lists, as INVALID_INPUT', async () => {
+      const paths = [
+        ...[
+          'sort=createdAt',
+          'sort=created_at',
+          'sort=fat',
+          'sort=name;drop',
+          'dir=up',
+          'slot=brunch',
+          'source=seed_ai',
+          'source=SEED',
+          'picture=released',
+          'picture=yes',
+          'allergen=GLUTEN',
+          'allergen=gluten;',
+          'locale=spanish',
+          'locale=es_ES',
+          'size=0',
+          'size=101',
+          'offset=-1',
+          'sort=name&sort=kcal',
+          'q=a%00b'
+        ].map(query => `catalogue/recipes?${query}`),
+        ...[
+          'sort=createdAt',
+          'sort=protein_desc',
+          'dir=up',
+          'category=meat_and_fish_and',
+          'allergen=Milk',
+          'size=0',
+          'size=101',
+          'offset=-1',
+          'q=a%00b'
+        ].map(query => `catalogue/ingredients?${query}`)
+      ];
+      const answers: { code: string | undefined; path: string; status: number }[] = [];
+
+      for (const path of paths) {
+        const response: Response = await get(path, owner.cookie);
+
+        answers.push({ code: (response.body as { code?: string }).code, path, status: response.status });
+      }
+
+      expect(answers).toEqual(paths.map(path => ({ code: 'INVALID_INPUT', path, status: 422 })));
+    });
+
+    afterAll(async () => {
+      // Deleted here as well as by the suite (a second delete is a no-op), so this block can check that none outlives it — nor any job it wrote.
+      await deleteAccounts(app, log === undefined ? [] : [log.cookie]);
+
+      for (const email of [underscoreEmail, lookalikeEmail]) {
+        await deleteAccountByEmail(app, email);
+      }
+
+      const [left] = await sql()<{ accounts: number; jobs: number }>`
+        select (select count(*)::int from "user" where email like ${`%${gt}%`}) as accounts,
+               (select count(*)::int from plan_generation_jobs where error = ${CODE}) as jobs`;
+
+      expect(left).toEqual({ accounts: 0, jobs: 0 });
     });
   });
 });

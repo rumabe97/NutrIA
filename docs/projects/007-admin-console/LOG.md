@@ -602,3 +602,119 @@
       - at 390 px nothing hints that more columns scroll sideways.
   - **iPhone only:** how VoiceOver reads the dialogs and the focused status line, and the
     drawer against the safe areas.
+
+## Phase 7 — API: generations, AI, catalogue and pictures (2026-09-29)
+
+- **Executor**: the `backend` agent (medium effort) on opus for the API and unit specs, and
+  the `tests` agent (medium effort) on opus for the end-to-end half. Both worked in their
+  own worktrees, which were brought into the main checkout and removed. The lead (opus,
+  this session) made the review fixes. Review: `invariant-reviewer` on opus.
+- **Result**: done. The P1 end-to-end case is proven by CI on the pull request (see
+  Evidence).
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=api --filter=web`: 17/17 tasks;
+    core 1116 tests, api 964, web 121. Format is clean and `deadcode` is green.
+  - Dev-branch probe by the builder, read-only (`default_transaction_read_only=on`):
+    - 38 generations; `status=failed` gives 13, `code=GENERATION_AI_UNAVAILABLE` 7. Over 30
+      days, p95 reaches 1215.3 s.
+    - AI: 840 `ai_call` events. The SQL-grouped `models` equals `summariseAiCalls` over the
+      same raw events for all 27 model·provider pairs.
+    - Recipes: 1,672 (517 breakfast; 500 seed, 1,172 ai); `allergen=gluten` gives 504.
+    - Ingredients: 930; `allergen=milk` gives 127.
+    - Timings: a kcal sort over Neon takes about 1.2 s, a name page 0.3–0.75 s.
+  - End-to-end, local, `VAPID_*` blank: `admin`, `access`, `dish-pictures` and
+    `allergy-safety` gave 76/77. `allergy-safety` passes with `loadCatalogue`'s new
+    parameter.
+    - The one failure was the P1 case below, written against a base without the lead's
+      fix. It expects exactly the shape the fix gives: the same `rejected` without the two
+      keys. The PR's `end-to-end` check is the run that proves it.
+    - Leftover `.invalid` accounts were 2 before and 2 after: the two billing accounts.
+  - `invariant-reviewer`: no P0. Injection, routes, `q` and the catalogue naming nobody are
+    all sound. Its P1 and P2s are fixed (Deviations 6).
+- **`ai_call` properties** (from `StructuredAiClient`):
+  - a success records `answeredModel, costUsd, inputTokens, model, ms, ok: true,
+    outputTokens, provider, reasoningTokens`;
+  - a failure records `costUsd, model, ms, ok: false, provider, quotaExhausted, quotaLimit,
+    retryAfterSeconds, status, timedOut`, with no tokens;
+  - the dev branch holds exactly these 14 keys;
+  - the events are recorded with a null user;
+  - a call counts against the model that answered, else the model asked for, else
+    `unknown`, in one function (`aiModelOf`).
+- **Catalogue macros and sorting** (approved by the lead, 2026-09-28):
+  - Macros per serving come only from `core/domain/Composition`
+    (`composeMacros` + `scaleMacros(1/servings)`, equal to `composePerServing`, pinned by a
+    spec) over the non-optional ingredients. There is no second formula.
+  - Filters run in SQL.
+    - `sort=name` is ordered and paged in SQL, and only the page is costed.
+    - `sort=kcal|protein` costs every match in the controller and sorts there, uncosted
+      recipes last.
+  - Worst case (no filter plus a kcal sort) is about 1,672 recipes, 9,900 served-ingredient
+    rows and 930 ingredients, roughly 0.7 MB per request. That is acceptable for an
+    owner-only console read now and then.
+- **Picture state**:
+  - `ready` is a `ready` status with a file;
+  - `drawing` is a `drawing` status;
+  - `failed` is a `failed` status that has not been released;
+  - `none` is no row, a released row, or `ready` without a file.
+  - `withoutImage` counts every recipe that is not `ready`.
+- **Deviations from plan**:
+  1. **`createdAt` is not a recipe sort,** because `recipes` has no creation date. It is a
+     422, and step 3 is amended.
+  2. **Names for the new `/admin/ai` fields.** The per-model list is `models`, because
+     `byModel` holds today's list until phase 9. The series are `callsPerDay` and
+     `tokensPerDay`. `totals` carry `{ current, previous }` so the tiles can show a change.
+  3. **`durations` is null on a day with no finished job,** not 0.
+  4. **Files outside the listed scope** (the Scope line is amended):
+     - `core/entities/AdminQuery`;
+     - `shiftDay` exported from `core/domain/Period`;
+     - `repositories/Admin/AdminSql.ts` (`madridDay`, `within`, `qualified`);
+     - the controllers `AdminLogController`, `AdminUsageController` and
+       `AdminCatalogueController`;
+     - `RecipeRepository.loadCatalogue`'s optional `slugs`;
+     - the transition page now calls `/admin/generations?legacy=1`.
+  5. **The end-to-end suite writes four failed jobs straight into `plan_generation_jobs`.**
+     A failure cannot be provoked on demand. The jobs are restricted to `.invalid` accounts
+     and deleted with them; the README says so.
+  6. **Review fixes by the lead:**
+     - **P1, `0028` / `0068`.** The addressed generation row, in the paged log and in
+       `?legacy=1`, no longer carries `rejected.allergen` or `rejected.unwanted` in any
+       call. Those reasons come from the person's allergies and way of eating, and next to
+       their address they said "this person has an allergy" or "keeps a religious rule".
+       The paged, searchable log would have made that reachable for any job. The other
+       reasons stay. This is pinned by `AdminLogController.test` and by the end-to-end
+       case. It predates this phase: it held for the latest 20 jobs since #27.
+     - `AdminAiRepository`'s `sql.raw` key is a closed union of the `ai_call` names.
+     - A spec pins that `loadCatalogue` without `slugs`, the allergy layer's path, sends
+       its SQL with no filter.
+     - The request log redacts `q[]=` and `q[x]=` too.
+     - A literal NUL in `AdminController.ts` had made git treat the file as binary; it is
+       now the `\u0000` escape.
+- **Decisions**: none new. The P1 fix trims what the PRD's Registro lists ("rejections by
+  reason") under `0028`'s floor. If the owner wants per-reason totals, they can go on the
+  stats, which name nobody, in phase 8.
+- **Notes for the next phase** (8 draws these):
+  - **Types** in `core/controllers/Admin`:
+    - `AdminGenerationsView` (paged) and `AdminGenerationStatsView`, with `durations`
+      `{ days, p50, p95 }` and `failuresByCode`;
+    - `AdminAiView` (`totals`, `callsPerDay`, `tokensPerDay`, `models`);
+    - `AdminPicturesPeriodView` (`spendPerDay`);
+    - `AdminRecipesView` (with `counts`) and `AdminIngredientsView`.
+  - **Parameters:**
+    - generations: `status`, `code`, `q`, `since` (`24h|7|30|90`), `from`/`to` (Madrid
+      days), `offset`, `size`;
+    - recipes: `q`, `slot`, `allergen`, `picture`, `source`, `locale`, `sort`
+      (`name|kcal|protein`), `dir`;
+    - ingredients: `q`, `category`, `allergen`, `sort`
+      (`name|category|kcal|protein|carbs|fat`), `dir`.
+  - **On screen:**
+    - A recipe's macros can be `null` when it cannot be costed; show "—".
+    - Recipe and ingredient `allergens` / `mayContain` are the dish's label, not anyone's
+      allergy; say so in "Cómo se cuenta".
+  - **Open, for the owner:**
+    - The paged log reaches `errorDetail` on every old job. `withoutEcho`, which strips
+      what a provider's refusal echoes of the request, only arrived on 2026-09-26 (#117),
+      so production rows from before may hold request text. Check them, or scrub them
+      once, before Registro shows the full table.
+    - Data, not code: some generated lunches cost about 2,600–2,700 kcal per serving
+      (e.g. "Arroz basmati de carga…"). That comes from the recipes' own grams and
+      servings.

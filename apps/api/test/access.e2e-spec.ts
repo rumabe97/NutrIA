@@ -131,6 +131,23 @@ describe('access: two locks, and the shape of a denial', () => {
       '/admin/professionals?sort=createdAt',
       '/admin/people',
       '/admin/people?period=14',
+      // The generation log, its charts, AI, pictures and the catalogue (project 007 phase 7): plain, and with a query they would refuse.
+      '/admin/generations',
+      '/admin/generations?legacy=1',
+      '/admin/generations?status=nope&size=0',
+      '/admin/generations?q=a%00b',
+      '/admin/generations/stats',
+      '/admin/generations/stats?period=14',
+      '/admin/ai',
+      '/admin/ai?period=14',
+      '/admin/pictures',
+      '/admin/pictures?period=14',
+      '/admin/pictures?period=1',
+      '/admin/catalogue/recipes',
+      '/admin/catalogue/recipes?sort=createdAt',
+      '/admin/catalogue/ingredients',
+      '/admin/catalogue/ingredients?sort=x',
+      '/admin/catalogue/ingredients?category=x',
       '/health-data'
     ];
 

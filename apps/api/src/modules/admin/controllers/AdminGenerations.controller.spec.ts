@@ -4,7 +4,7 @@ import express from 'express';
 import request from 'supertest';
 import { Test } from '@nestjs/testing';
 
-import { AdminController as CoreAdmin } from 'core/controllers/Admin';
+import { AdminLogController, AdminController as CoreAdmin } from 'core/controllers/Admin';
 
 import { AdminGenerationsController } from './AdminGenerations.controller.js';
 import { AdminGuard } from '../../../shared/guards/index.js';
@@ -12,7 +12,7 @@ import { AdminService } from '../services/index.js';
 import { AllExceptionsFilter } from '../../../shared/filters/index.js';
 import { ENV } from '../../../config/index.js';
 
-import type { AdminGenerationView } from 'core/controllers/Admin';
+import type { AdminGenerationStatsView, AdminGenerationView } from 'core/controllers/Admin';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
 
@@ -98,26 +98,108 @@ describe('AdminGenerationsController', () => {
     jest.restoreAllMocks();
   });
 
-  it('is 404 for an ordinary account, and reads nothing', async () => {
+  function get(path: string) {
+    return request(app.getHttpServer() as Server).get(`/${PREFIX}/admin/${path}`);
+  }
+
+  it('is 404 for an ordinary account on the log, its pages and its charts, and reads nothing', async () => {
     role = 'user';
     const generations = jest.spyOn(CoreAdmin, 'generations');
+    const page = jest.spyOn(AdminLogController, 'page');
+    const stats = jest.spyOn(AdminLogController, 'stats');
 
-    await request(app.getHttpServer() as Server)
-      .get(`/${PREFIX}/admin/generations`)
-      .expect(404);
+    for (const path of [
+      'generations',
+      'generations?legacy=1',
+      'generations?q=ana&status=failed',
+      'generations?size=0',
+      'generations/stats',
+      'generations/stats?period=7'
+    ]) {
+      await get(path).expect(404);
+    }
+
     expect(generations).not.toHaveBeenCalled();
+    expect(page).not.toHaveBeenCalled();
+    expect(stats).not.toHaveBeenCalled();
   });
 
-  it('answers the owner with each generation, its account and its calls', async () => {
+  it('answers the owner one page, every row as the log always showed it, with the total', async () => {
+    role = 'admin';
+    const page = jest.spyOn(AdminLogController, 'page').mockResolvedValue({ offset: 0, rows: [GENERATION], size: 25, total: 41 });
+
+    const response = await get('generations?status=failed&code=GENERATION_AI_UNAVAILABLE&q=%20a%40b&since=24h&from=2026-09-01&to=2026-09-28').expect(
+      200
+    );
+    const body = response.body as { rows: AdminGenerationView[]; total: number };
+
+    expect(body.total).toBe(41);
+    expect(body.rows[0]?.account.email).toBe('a@b.invalid');
+    expect(body.rows[0]?.calls[0]).toMatchObject({
+      answeredModel: 'muse-spark-1.2-contributor-free',
+      provider: 'opencode-zen',
+      session: 'ext:job-1'
+    });
+    expect(page).toHaveBeenCalledWith({
+      code: 'GENERATION_AI_UNAVAILABLE',
+      from: '2026-09-01',
+      offset: 0,
+      q: 'a@b',
+      since: '24h',
+      size: 25,
+      status: 'failed',
+      to: '2026-09-28'
+    });
+  });
+
+  it('keeps today’s array behind legacy=1, for the transition page until phase 9', async () => {
     role = 'admin';
     jest.spyOn(CoreAdmin, 'generations').mockResolvedValue([GENERATION]);
+    const page = jest.spyOn(AdminLogController, 'page');
 
-    const response = await request(app.getHttpServer() as Server)
-      .get(`/${PREFIX}/admin/generations`)
-      .expect(200);
+    page.mockClear();
+
+    const response = await get('generations?legacy=1').expect(200);
     const [first] = response.body as AdminGenerationView[];
 
+    expect(Array.isArray(response.body)).toBe(true);
     expect(first?.account.email).toBe('a@b.invalid');
-    expect(first?.calls[0]).toMatchObject({ answeredModel: 'muse-spark-1.2-contributor-free', provider: 'opencode-zen', session: 'ext:job-1' });
+    expect(page).not.toHaveBeenCalled();
+  });
+
+  it('refuses a filter outside its grammar with INVALID_INPUT, and reads nothing', async () => {
+    role = 'admin';
+    const page = jest.spyOn(AdminLogController, 'page');
+
+    page.mockClear();
+
+    for (const path of [
+      'generations?status=done',
+      'generations?code=lower_case',
+      'generations?since=1h',
+      'generations?from=2026-09-28&to=2026-09-01',
+      'generations?from=yesterday',
+      'generations?size=101',
+      'generations?offset=-1',
+      'generations?q=a%00b',
+      'generations?status=failed&status=succeeded',
+      'generations/stats?period=14'
+    ]) {
+      const response = await get(path).expect(422);
+
+      expect((response.body as { code: string }).code).toBe('INVALID_INPUT');
+    }
+
+    expect(page).not.toHaveBeenCalled();
+  });
+
+  it('reads the charts over 30 days unless asked, and the period as a number', async () => {
+    role = 'admin';
+    const stats = jest.spyOn(AdminLogController, 'stats').mockResolvedValue({ period: 30 } as AdminGenerationStatsView);
+
+    await get('generations/stats').expect(200);
+    expect(stats).toHaveBeenLastCalledWith(30);
+    await get('generations/stats?period=90').expect(200);
+    expect(stats).toHaveBeenLastCalledWith(90);
   });
 });

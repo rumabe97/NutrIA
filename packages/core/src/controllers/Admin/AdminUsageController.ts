@@ -1,0 +1,189 @@
+import { AdminAiRepository, AdminSeriesRepository } from '#repositories/Admin';
+import { fillDays, madridDayKey, madridDayKeys, windowFor } from 'core/domain/Period';
+
+import { AdminController, aiModelOf } from './AdminController';
+import { presentWindow } from './AdminSeriesController';
+
+import type { AdminPicturesView, AiModelUsage, AiUsageView } from './AdminController';
+import type { AiCallDayRow } from '#repositories/Admin';
+import type { DaySeries, DaySeriesGroup, PeriodComparison, PeriodWindowView } from './AdminSeriesController';
+import type { Period } from 'core/entities/Period';
+
+/** The period's provider requests against the period before it. */
+export type AiPeriodTotals = {
+  /** Mean of our own clock over the calls that recorded one; null for a period with none. */
+  readonly averageMs: { readonly current: number | null; readonly previous: number | null };
+  readonly calls: PeriodComparison;
+  /** Calls recorded `ok: false`: refused, timed out, or answered with something unusable. */
+  readonly failed: PeriodComparison;
+  readonly inputTokens: PeriodComparison;
+  readonly outputTokens: PeriodComparison;
+};
+
+/**
+ * IA y modelos (`GET /admin/ai?period=`): today's usage exactly as before —
+ * its fields go in phase 9 — and the period's, all from the `ai_call` events
+ * `StructuredAiClient` records. Counts, tokens, clocks and model names; no
+ * person, no prompt, no answer (`0028`).
+ */
+export type AdminAiView = AiUsageView & {
+  /** Provider requests per day, whatever their outcome. */
+  readonly callsPerDay: DaySeries;
+  /**
+   * The period's calls by the model that answered and who served it — the
+   * rule today's `byModel` uses (`aiModelOf`) — the most used first. Named
+   * `models` because `byModel` is today's list until phase 9.
+   */
+  readonly models: readonly AiModelUsage[];
+  readonly period: Period;
+  /** Tokens per day: keys `input` and `output`, both always present. */
+  readonly tokensPerDay: DaySeriesGroup;
+  readonly totals: AiPeriodTotals;
+  readonly window: PeriodWindowView;
+};
+
+/**
+ * Imágenes (`GET /admin/pictures?period=`): this month's spend against the cap
+ * and the pictures by state, as before, and the spend per day over the period.
+ */
+export type AdminPicturesPeriodView = AdminPicturesView & {
+  readonly period: Period;
+  /** Dollars billed for pictures per day, from `recipe_image_calls`. */
+  readonly spendPerDay: DaySeries;
+  readonly window: PeriodWindowView;
+};
+
+/** The two token series, in the order a stacked chart draws them. */
+export const TOKEN_KEYS = ['input', 'output'] as const;
+
+type Totals = { calls: number; failed: number; inputTokens: number; outputTokens: number; timed: number; totalMs: number };
+
+const ZERO: Totals = { calls: 0, failed: 0, inputTokens: 0, outputTokens: 0, timed: 0, totalMs: 0 };
+
+function add(total: Totals, row: AiCallDayRow): Totals {
+  return {
+    calls: total.calls + row.calls,
+    failed: total.failed + (row.failed ? row.calls : 0),
+    inputTokens: total.inputTokens + row.inputTokens,
+    outputTokens: total.outputTokens + row.outputTokens,
+    timed: total.timed + row.timed,
+    totalMs: total.totalMs + row.totalMs
+  };
+}
+
+function average({ timed, totalMs }: Pick<Totals, 'timed' | 'totalMs'>): number | null {
+  return timed > 0 ? Math.round(totalMs / timed) : null;
+}
+
+/**
+ * The period's grouped `ai_call` rows by model and provider, with the same
+ * key, the same sums and the same rounding as today's `summariseAiCalls`.
+ * Exported for its spec.
+ */
+export function modelsOf(rows: readonly AiCallDayRow[]): readonly AiModelUsage[] {
+  const models = new Map<string, AiModelUsage & { timed: number; totalMs: number }>();
+
+  for (const row of rows) {
+    const { model, provider } = aiModelOf(row);
+    const key = `${model} ${provider ?? ''}`;
+    const entry = models.get(key) ?? {
+      averageMs: null,
+      calls: 0,
+      costUsd: 0,
+      failed: 0,
+      inputTokens: 0,
+      model,
+      outputTokens: 0,
+      provider,
+      reasoningTokens: 0,
+      timed: 0,
+      totalMs: 0
+    };
+
+    entry.calls += row.calls;
+    entry.failed += row.failed ? row.calls : 0;
+    entry.costUsd += row.costUsd;
+    entry.inputTokens += row.inputTokens;
+    entry.outputTokens += row.outputTokens;
+    entry.reasoningTokens += row.reasoningTokens;
+    entry.timed += row.timed;
+    entry.totalMs += row.totalMs;
+    models.set(key, entry);
+  }
+
+  return [...models.values()]
+    .map(({ timed, totalMs, ...entry }) => ({ ...entry, averageMs: average({ timed, totalMs }) }))
+    .sort((a, b) => b.calls - a.calls);
+}
+
+/**
+ * The console's usage pages over a period (`0068`): provider requests and
+ * picture spend per day. Today's answers are `AdminController`'s, unchanged,
+ * and each view adds the period's beside them.
+ */
+export const AdminUsageController = {
+  /**
+   * Today's usage, and the period's: totals against the period before,
+   * calls and tokens per day, and the calls by model. One grouped read covers
+   * both periods: the day each row falls on says which one it is in.
+   */
+  async ai(
+    period: Period,
+    limits: { readonly requestsPerDay?: number; readonly tokensPerMinute?: number } = {},
+    now = new Date()
+  ): Promise<AdminAiView> {
+    const window = windowFor(period, now);
+    const days = madridDayKeys(window.from, window.to);
+    const firstDay = madridDayKey(window.from);
+    const [today, rows] = await Promise.all([AdminController.aiUsage(limits), AdminAiRepository.callsPerDay(window.previousFrom, window.to)]);
+    const current = rows.filter(row => row.day >= firstDay);
+    const previous = rows.filter(row => row.day < firstDay);
+    const inPeriod = current.reduce(add, ZERO);
+    const before = previous.reduce(add, ZERO);
+    const per = (value: (row: AiCallDayRow) => number) =>
+      fillDays(
+        days,
+        current.map(row => ({ day: row.day, n: value(row) }))
+      );
+
+    return {
+      ...today,
+      callsPerDay: { days, values: per(row => row.calls) },
+      models: modelsOf(current),
+      period,
+      tokensPerDay: {
+        days,
+        series: [
+          { key: TOKEN_KEYS[0], values: per(row => row.inputTokens) },
+          { key: TOKEN_KEYS[1], values: per(row => row.outputTokens) }
+        ]
+      },
+      totals: {
+        averageMs: { current: average(inPeriod), previous: average(before) },
+        calls: { current: inPeriod.calls, previous: before.calls },
+        failed: { current: inPeriod.failed, previous: before.failed },
+        inputTokens: { current: inPeriod.inputTokens, previous: before.inputTokens },
+        outputTokens: { current: inPeriod.outputTokens, previous: before.outputTokens }
+      },
+      window: presentWindow(window)
+    };
+  },
+
+  /** This month's pictures against the cap, as before, and the spend per day over the period. `capUsd` is `AI_IMAGE_MONTHLY_CAP_USD`. */
+  async pictures(period: Period, capUsd: number, now = new Date()): Promise<AdminPicturesPeriodView> {
+    const window = windowFor(period, now);
+    const days = madridDayKeys(window.from, window.to);
+    const [month, spend] = await Promise.all([
+      AdminController.pictures(capUsd, now),
+      AdminSeriesRepository.pictureSpendPerDay(window.from, window.to)
+    ]);
+
+    return {
+      ...month,
+      period,
+      // Cents added one day at a time drift in binary; a day's dollars to six places, as the column stores them.
+      spendPerDay: { days, values: fillDays(days, spend).map(value => Math.round(value * 1e6) / 1e6) },
+      window: presentWindow(window)
+    };
+  }
+};

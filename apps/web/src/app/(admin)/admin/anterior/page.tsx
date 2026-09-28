@@ -49,7 +49,7 @@ export default async function AdminPage() {
     activeLocale(),
     serverApi<AdminOverviewView>('/admin/overview'),
     serverApi<AiUsageView>('/admin/ai'),
-    serverApi<readonly AdminGenerationView[]>('/admin/generations'),
+    serverApi<readonly AdminGenerationView[]>('/admin/generations?legacy=1'),
     serverApi<AdminPicturesView>('/admin/pictures')
   ]);
 

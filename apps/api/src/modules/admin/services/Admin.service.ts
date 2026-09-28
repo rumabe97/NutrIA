@@ -1,23 +1,25 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { AdminController, AdminSeriesController } from 'core/controllers/Admin';
+import { AdminController, AdminLogController, AdminSeriesController, AdminUsageController } from 'core/controllers/Admin';
 
 import { ENV } from '../../../config/index.js';
 
 import type {
+  AdminAiDto,
   AdminAnalyticsDto,
   AdminGenerationDto,
+  AdminGenerationsDto,
+  AdminGenerationStatsDto,
   AdminJobDto,
   AdminOverviewDto,
   AdminPeopleDto,
-  AdminPicturesDto,
+  AdminPicturesPeriodDto,
   AdminPlansDto,
   AdminProductDto,
-  AdminSummaryDto,
-  AiUsageDto
+  AdminSummaryDto
 } from '../dto/out/index.js';
 import type { Env } from '../../../config/index.js';
-import type { PeriodQueryDto } from '../dto/in/index.js';
+import type { GenerationsQueryDto, PeriodQueryDto } from '../dto/in/index.js';
 
 @Injectable()
 export class AdminService {
@@ -29,8 +31,8 @@ export class AdminService {
    * hundred. Unset means a count with no bar: a limit nobody stated is not a
    * limit this product may invent (`0035`).
    */
-  async aiUsage(): Promise<AiUsageDto> {
-    return AdminController.aiUsage({ requestsPerDay: this.env.AI_REQUESTS_PER_DAY, tokensPerMinute: this.env.AI_TOKENS_PER_MINUTE });
+  async ai(query: PeriodQueryDto): Promise<AdminAiDto> {
+    return AdminUsageController.ai(query.period, { requestsPerDay: this.env.AI_REQUESTS_PER_DAY, tokensPerMinute: this.env.AI_TOKENS_PER_MINUTE });
   }
 
   async analytics(): Promise<AdminAnalyticsDto> {
@@ -45,6 +47,15 @@ export class AdminService {
     return AdminController.generations();
   }
 
+  /** The query arrives validated (`GenerationsQueryDto`); what each filter means is `packages/core`'s. */
+  async generationsPage(query: GenerationsQueryDto): Promise<AdminGenerationsDto> {
+    return AdminLogController.page(query);
+  }
+
+  async generationStats(query: PeriodQueryDto): Promise<AdminGenerationStatsDto> {
+    return AdminLogController.stats(query.period);
+  }
+
   async overview(): Promise<AdminOverviewDto> {
     return AdminController.overview();
   }
@@ -54,8 +65,8 @@ export class AdminService {
   }
 
   /** The cap is configuration — `AI_IMAGE_MONTHLY_CAP_USD` — so the screen shows the same number drawing stops at. */
-  async pictures(): Promise<AdminPicturesDto> {
-    return AdminController.pictures(this.env.AI_IMAGE_MONTHLY_CAP_USD);
+  async pictures(query: PeriodQueryDto): Promise<AdminPicturesPeriodDto> {
+    return AdminUsageController.pictures(query.period, this.env.AI_IMAGE_MONTHLY_CAP_USD);
   }
 
   async plans(query: PeriodQueryDto): Promise<AdminPlansDto> {
