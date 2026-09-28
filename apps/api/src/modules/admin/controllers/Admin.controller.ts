@@ -1,10 +1,38 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { PERIODS } from 'core/entities/Period';
 
 import { AdminService } from '../services/index.js';
-import { Roles } from '../../../shared/index.js';
+import { PeriodQueryDto } from '../dto/in/index.js';
+import { Roles, ZodValidationPipe } from '../../../shared/index.js';
 
-import type { AdminAnalyticsDto, AdminJobDto, AdminOverviewDto, AdminPicturesDto, AiUsageDto } from '../dto/out/index.js';
+import type {
+  AdminAnalyticsDto,
+  AdminJobDto,
+  AdminOverviewDto,
+  AdminPicturesDto,
+  AdminPlansDto,
+  AdminProductDto,
+  AdminSummaryDto,
+  AiUsageDto
+} from '../dto/out/index.js';
+
+/**
+ * `?period=` validated against the DTO's schema, bound to the query parameter
+ * alone — never through `@UsePipes`, which would run it over every parameter
+ * (`AGENTS.md` § Traps). A refused value is a 422 `INVALID_INPUT`, like a body.
+ */
+function PeriodQuery(): ParameterDecorator {
+  return Query(new ZodValidationPipe(PeriodQueryDto.schema));
+}
+
+/** How `/api/docs` describes `?period=`. */
+const PERIOD_PARAMETER = {
+  description: 'Days, in Europe/Madrid calendar days. 30 when absent.',
+  enum: PERIODS.map(String),
+  name: 'period',
+  required: false
+} as const;
 
 /**
  * The owner's own window on the service. `@Roles('admin')` on the class, so a
@@ -47,6 +75,33 @@ export class AdminController {
   @Get('pictures')
   async pictures(): Promise<AdminPicturesDto> {
     return this.admin.pictures();
+  }
+
+  @ApiOkResponse({
+    description:
+      'Resumen: tiles against the previous period, sign-ups and generations per day, and what needs the owner. 422 INVALID_INPUT for a period other than 7, 30 or 90.'
+  })
+  @ApiOperation({ summary: 'The console overview over a period (0068)' })
+  @ApiQuery(PERIOD_PARAMETER)
+  @Get('summary')
+  async summary(@PeriodQuery() query: PeriodQueryDto): Promise<AdminSummaryDto> {
+    return this.admin.summary(query);
+  }
+
+  @ApiOkResponse({ description: 'The funnel counted from state, and active people and events per day over the period.' })
+  @ApiOperation({ summary: 'Funnel and activity over a period (0068)' })
+  @ApiQuery(PERIOD_PARAMETER)
+  @Get('product')
+  async product(@PeriodQuery() query: PeriodQueryDto): Promise<AdminProductDto> {
+    return this.admin.product(query);
+  }
+
+  @ApiOkResponse({ description: 'Every plan by state, and plans made per day over the period. Counts only.' })
+  @ApiOperation({ summary: 'Plans by state and per day over a period (0068)' })
+  @ApiQuery(PERIOD_PARAMETER)
+  @Get('plans')
+  async plans(@PeriodQuery() query: PeriodQueryDto): Promise<AdminPlansDto> {
+    return this.admin.plans(query);
   }
 
   @ApiOkResponse({ description: 'The generations that failed, with their codes.' })

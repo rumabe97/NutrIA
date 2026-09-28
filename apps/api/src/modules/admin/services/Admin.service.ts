@@ -1,11 +1,22 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { AdminController } from 'core/controllers/Admin';
+import { AdminController, AdminSeriesController } from 'core/controllers/Admin';
 
 import { ENV } from '../../../config/index.js';
 
-import type { AdminAnalyticsDto, AdminGenerationDto, AdminJobDto, AdminOverviewDto, AdminPicturesDto, AiUsageDto } from '../dto/out/index.js';
+import type {
+  AdminAnalyticsDto,
+  AdminGenerationDto,
+  AdminJobDto,
+  AdminOverviewDto,
+  AdminPicturesDto,
+  AdminPlansDto,
+  AdminProductDto,
+  AdminSummaryDto,
+  AiUsageDto
+} from '../dto/out/index.js';
 import type { Env } from '../../../config/index.js';
+import type { PeriodQueryDto } from '../dto/in/index.js';
 
 @Injectable()
 export class AdminService {
@@ -40,5 +51,18 @@ export class AdminService {
   /** The cap is configuration — `AI_IMAGE_MONTHLY_CAP_USD` — so the screen shows the same number drawing stops at. */
   async pictures(): Promise<AdminPicturesDto> {
     return AdminController.pictures(this.env.AI_IMAGE_MONTHLY_CAP_USD);
+  }
+
+  async plans(query: PeriodQueryDto): Promise<AdminPlansDto> {
+    return AdminSeriesController.plans(query.period);
+  }
+
+  async product(query: PeriodQueryDto): Promise<AdminProductDto> {
+    return AdminSeriesController.product(query.period);
+  }
+
+  /** Resumen's picture tile reads against the same cap drawing stops at, as `pictures` does. */
+  async summary(query: PeriodQueryDto): Promise<AdminSummaryDto> {
+    return AdminSeriesController.summary(query.period, this.env.AI_IMAGE_MONTHLY_CAP_USD);
   }
 }

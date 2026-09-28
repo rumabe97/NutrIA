@@ -237,21 +237,27 @@ export const dislikedRecipes = userOwned('disliked_recipes', {
  * connection: the loading screen polls this, and the admin view reads the same
  * table for failures. `step` is the user-facing stage label.
  */
-export const planGenerationJobs = userOwned('plan_generation_jobs', {
-  /**
-   * Every model call the generation made — who answered, how long, the tokens,
-   * what a gateway reported, what came of the dishes — written as soon as the
-   * pool is built, so a job that fails afterwards keeps them (`0050`). Null
-   * for a job that never reached the model, or that predates this column.
-   */
-  aiCalls: jsonb().$type<readonly Record<string, unknown>[]>(),
-  attempts: smallint().notNull().default(0),
-  error: text(),
-  /** The provider's own (redacted) message. Stable codes go in `error`. */
-  errorDetail: text(),
-  finishedAt: timestamp({ withTimezone: true }),
-  planId: uuid().references(() => mealPlans.id, { onDelete: 'cascade' }),
-  startedAt: timestamp({ withTimezone: true }),
-  status: jobStatus().notNull().default('queued'),
-  step: text()
-});
+export const planGenerationJobs = userOwned(
+  'plan_generation_jobs',
+  {
+    /**
+     * Every model call the generation made — who answered, how long, the tokens,
+     * what a gateway reported, what came of the dishes — written as soon as the
+     * pool is built, so a job that fails afterwards keeps them (`0050`). Null
+     * for a job that never reached the model, or that predates this column.
+     */
+    aiCalls: jsonb().$type<readonly Record<string, unknown>[]>(),
+    attempts: smallint().notNull().default(0),
+    error: text(),
+    /** The provider's own (redacted) message. Stable codes go in `error`. */
+    errorDetail: text(),
+    finishedAt: timestamp({ withTimezone: true }),
+    planId: uuid().references(() => mealPlans.id, { onDelete: 'cascade' }),
+    startedAt: timestamp({ withTimezone: true }),
+    status: jobStatus().notNull().default('queued'),
+    step: text()
+  },
+  // The console's per-day series and period totals read jobs by when they were
+  // made (`0068`); without it every chart is a scan of the whole history.
+  table => [index('plan_generation_jobs_created_at_idx').on(table.createdAt)]
+);

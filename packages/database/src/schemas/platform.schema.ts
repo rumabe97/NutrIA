@@ -97,7 +97,12 @@ export const analyticsEvents = pgTable(
     userId: text().references(() => user.id, { onDelete: 'cascade' }),
     ...timestamps
   },
-  table => [index('analytics_events_event_idx').on(table.event), index('analytics_events_user_idx').on(table.userId)]
+  table => [
+    index('analytics_events_event_idx').on(table.event),
+    index('analytics_events_user_idx').on(table.userId),
+    // One event over a period, grouped by day: the console's series and totals (`0068`).
+    index('analytics_events_event_created_at_idx').on(table.event, table.createdAt)
+  ]
 );
 
 /**

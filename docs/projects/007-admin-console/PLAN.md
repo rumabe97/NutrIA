@@ -65,7 +65,8 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
     window and the previous window, `Europe/Madrid` day keys and zero-filled day arrays.
   - The SQL groups by `date_trunc('day', created_at at time zone 'Europe/Madrid')`.
     Every query parameter is validated by a Zod DTO. Sort columns come from an allow-list,
-    and anything else is `400 INVALID_INPUT`.
+    and anything else is `422 INVALID_INPUT`, the API's one status for invalid input
+    (amended in phase 3).
   - Existing response fields stay until phase 9, so the transition page keeps working.
     Phases 3, 5 and 7 only **add** fields and routes.
 - **Series shape** (in `core/controllers/Admin`, shared by every chart):
@@ -124,7 +125,7 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 2 — Charts, stat tile and data table in packages/ui
 
-- [x] done
+- [x] done — commit `680e812` ("The console's charts, stat tiles and data tables exist in packages/ui")
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 2`. Reviews: `accessibility`.
   Load the `dataviz` and `apple-web-design` skills before any code.
 - **Goal**: the generic building blocks exist, tested and documented, before any page
@@ -188,14 +189,16 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 3 — API: periods, series, Resumen and Producto
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 3`. Reviews: `migration-reviewer`
   (the index migration), `invariant-reviewer`. The `tests` agent writes the end-to-end
   cases. After merge — owner-gated: run `pnpm --filter database migrate` against the dev
   branch, as for every migration (the production API applies it on deploy).
 - **Goal**: every figure Resumen, Embudo and Planes need comes from the API, per period,
   with day series.
-- **Scope**: `packages/core/src/domain/Period/**` (new), `packages/core/src/controllers/Admin/**`,
+- **Scope**: `packages/core/src/domain/Period/**` (new), `packages/core/src/entities/Period/**`
+  (new, added in phase 3: a DTO's Zod schema must come from `core/entities`),
+  `packages/core/src/controllers/Admin/**`,
   `packages/core/src/repositories/Admin/**`, `packages/core/src/repositories/Analytics/**`,
   `packages/database/src/schemas/{platform,plan}.schema.ts` plus one new migration,
   `apps/api/src/modules/admin/**`, `apps/api/test/admin.e2e-spec.ts`.
@@ -227,7 +230,7 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
      Unit specs for the controller and service.
   7. End-to-end (`tests` agent): each new route answers 404 to an ordinary account and to
      a caller with no session (the API's existing rule, `access.e2e-spec.ts`); `summary` counts an account created in the test; a bad `period` is
-     `400 INVALID_INPUT`; no response body contains a meal, plan day, profile field or
+     `422 INVALID_INPUT` (amended from 400 in phase 3); no response body contains a meal, plan day, profile field or
      allergen key (the pattern the existing admin suite uses for "nothing about
      anybody").
 - **Acceptance criteria**: PRD 1 (for these routes), 7 (API side), 9, 12.
@@ -305,7 +308,7 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
      is unpaged as today.
   6. Unit specs for each new filter. End-to-end tests: each filter narrows (create two
      accounts that differ in one attribute), sort order holds, an unknown `sort` is
-     `400`, an ordinary account gets 404, and the row keys are exactly the allowed set
+     `422`, an ordinary account gets 404, and the row keys are exactly the allowed set
      (a snapshot of `Object.keys` so a future content column fails the suite).
 - **Acceptance criteria**: PRD 1, 5 (API side), 9, 12.
 - **Verification**:

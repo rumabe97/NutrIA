@@ -213,3 +213,100 @@
     - Phase 4's probe should look at 200 % text.
   - **AdminNav:** there is still no test of the "another page" rule itself, and whether
     VoiceOver reads the new `h1` while the drawer closes needs the owner's iPhone.
+
+## Phase 3 — API: periods, series, Resumen and Producto (2026-09-28)
+
+- **Executor**: the `backend` agent (medium effort) on opus for steps 1–6; the `tests`
+  agent (medium effort) on opus for step 7. Both worked in their own worktrees; their
+  commits were brought into the main checkout and the worktrees removed. The migration
+  comment fix was done by the lead. Reviews: `migration-reviewer` (opus @ high, its floor)
+  and `invariant-reviewer` on opus.
+- **Result**: done. The whole end-to-end suite is left to CI's throwaway Postgres (see
+  Evidence).
+- **Evidence**:
+  - `pnpm --filter database generate` produced exactly one migration,
+    `0046_the_console_reads_events_and_jobs_by_day`. A second run reports "No schema
+    changes". `node scripts/check-migrations.mjs`: "47 in all, journal and snapshot in
+    order".
+  - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api`: 11/11
+    tasks; core 1010 tests, api 926. `domain/Period` has 100 % coverage. Format is clean.
+  - The builder ran the three controller methods for periods 7, 30 and 90 against the dev
+    branch, with SELECT statements only. Every query ran and the day axes were right.
+  - End-to-end (`tests` agent), run locally against Nutria-E2E:
+    - `admin.e2e-spec` and `access.e2e-spec` together: 2 suites, 30/30 passed.
+    - The full run was stopped at about 40 min. `care-review`'s `beforeAll` went over its
+      120 s hook timeout against Neon, unrelated to these routes.
+    - CI's `end-to-end` check on the pull request, against a throwaway Postgres, is the
+      full-suite evidence.
+    - The suite's leftover-account check fails locally regardless, on 139 old `.invalid`
+      accounts from earlier runs. Deleting them is a bulk write to Nutria-E2E, so it needs
+      the owner's yes.
+  - **Migration 0046: plain `CREATE INDEX`, not `CONCURRENTLY`.**
+    - drizzle's migrator runs every pending migration inside one transaction
+      (`drizzle-orm/pg-core/dialect.js` `migrate` → `session.transaction`, as migration
+      0040 notes), and Postgres refuses `CONCURRENTLY` inside one.
+    - Dev row counts, read on 2026-09-28 inside a READ ONLY transaction: `analytics_events`
+      1,143, `plan_generation_jobs` 86, `user` 147, `meal_plans` 72. The build takes
+      milliseconds under a SHARE lock.
+  - `migration-reviewer`: **ship**. It found no data loss, the old API is unaffected, and
+    a rollback is safe. Its three findings were all about the wording of the hand-added
+    comment, and they are fixed:
+    - the comment no longer tells anyone to build the index by hand, which would make this
+      file fail with 42P07;
+    - "writes wait until both builds commit";
+    - "decision 0068".
+  - `invariant-reviewer`: **sound**, no P0/P1.
+    - Guards run before pipes, so a non-admin gets 404 before `period` is read.
+    - `period` is allow-listed and is the only input.
+    - There is no injection: the one `sql.raw` is the `'Europe/Madrid'` constant.
+    - Every read is a count or a sum.
+    - Its P2 (no end-to-end coverage) is closed by step 7.
+- **Deviations from plan**:
+  1. **A bad `period` is `422 INVALID_INPUT`, not 400.** 422 is the API's one status for
+     invalid input (`InputParseError`); a 400 would have meant changing `shared/filters`.
+     The Design summary, step 7 and phase 5's step 6 are amended.
+  2. **The Zod schema lives in a new `core/entities/Period`,** because a DTO's schema must
+     come from `core/entities` and entities cannot import domain.
+     `domain/Period.parsePeriod` delegates to that schema, so the grammar is written once.
+     The Scope line is amended.
+  3. **The event series is in `AdminSeriesRepository`, not `AnalyticsRepository`,** so
+     every per-day series and its day helper live in one file. `AnalyticsRepository` is
+     unchanged.
+  4. **The query is bound by a local `PeriodQuery()` helper** in `Admin.controller.ts`: a
+     `@Query(new ZodValidationPipe(schema))` on the one parameter, plus `@ApiQuery`. There
+     is no shared decorator yet; phases 5 and 7 may want one.
+  5. **Not provided:** a sparkline for the success rate (no natural daily series) and a
+     per-day picture spend series (phase 7's step 5).
+- **Decisions**: none new.
+- **Notes for the next phase** (4 builds against these):
+  - **Types** are in `core/controllers/Admin`:
+    - `AdminSummaryView`, `AdminProductView`, `AdminPlansView`;
+    - `DaySeries` (`days` as Madrid `YYYY-MM-DD`, oldest first, today last, a quiet day
+      is 0) and `DaySeriesGroup` (`{ days, series: { key, values }[] }`, every key present);
+    - `PeriodComparison`, `RateComparison` (`null` when no job finished; show "—", never
+      0 %), `TrendTile` (`{ current, previous, sparkline }`) and `PeriodWindowView`.
+  - **`summary.charts.generations` keys:** `queued`, `running`, `succeeded`, `failed`.
+    Map them to tones success, failure and neutral, stacking success, failure, then
+    neutral.
+  - **`product.events` keys:** `session_started`, `swap_requested`. Use the existing
+    `t.events` labels.
+  - **`plans.byState`** lists all seven states in schema order, zeros included, counted
+    over all plans rather than the period. Show localised state names.
+  - **The funnel** is the same all-time object `/admin/analytics` returns.
+  - **`activePeople.sparkline`** counts distinct people per day, so its sum can exceed the
+    period total. Say so in "Cómo se cuenta".
+  - **Picture spend:** `pictures.spentUsd` is the period's spend; `monthSpentUsd`,
+    `monthStart` and `capUsd` are the month against the cap (UTC month, as
+    `/admin/pictures`).
+  - **`waitingAccounts`** is `activated_at IS NULL`, which includes unconfirmed addresses:
+    the existing definition.
+  - **`PeriodSelector`** can use `parsePeriod` from `core/domain/Period`.
+  - **After merge, owner-gated:** run `pnpm --filter database migrate` against the dev
+    branch. The production API applies 0046 on deploy.
+  - **Follow-ups, not in scope:**
+    - `analytics_events_event_idx` is now redundant with the composite index; drop it in a
+      later migration.
+    - `meal_plans`, `user` and `recipe_image_calls` have no `created_at` index; that is
+      fine at today's sizes.
+    - Past about 10^6 `analytics_events` rows, an index build blocks inserts for seconds,
+      and past 10^7 it needs its own path.
