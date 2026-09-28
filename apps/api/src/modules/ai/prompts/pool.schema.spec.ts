@@ -87,6 +87,18 @@ describe('the strict schema still enforces what the wire schema cannot', () => {
     expect(generatedDishSchema.safeParse({ ...valid, slots: ['brunch'] }).success).toBe(false);
   });
 
+  /**
+   * A real-model bench on prompt 4.4.0 found the model sometimes answer
+   * `slots: []` on the meal it was asked for (`0067`) — rejecting that here
+   * would drop a dish this request asked for and the model otherwise wrote
+   * correctly. `PoolBuilder.judge` adds the requested meal to the claim
+   * before `fitSlots` runs, empty or not; the floor lives there, against
+   * ingredients, not in this schema, against a label.
+   */
+  it('accepts a dish that names no meal at all — PoolBuilder decides what it was written for', () => {
+    expect(generatedDishSchema.safeParse({ ...valid, slots: [] }).success).toBe(true);
+  });
+
   /*
    * Prompt 2.1.0 asked for three to eight steps and the library still filled up
    * with dishes that have none. The prompt is the request; this is the guarantee.
