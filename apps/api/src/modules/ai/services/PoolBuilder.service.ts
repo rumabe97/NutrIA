@@ -653,25 +653,27 @@ export class PoolBuilder {
       return { reason: 'foreign_food' };
     }
 
-    // Last: the meal this request was asked for, plus whatever else the model
-    // claimed, kept only where every ingredient belongs for this person
-    // (`0062` § 5) — the same rule the library is served by
-    // (`RecipeController.reusablePool`). The requested meal is added to the
-    // model's own claim, never in front of it, because the model's own
-    // `slots` is a label and a mislabelled dish is not a wrong dish (`0067`'s
-    // bench: with no line naming a person's day left in the prompt, a model
-    // asked for dinner started calling every dinner "supper", and every one
-    // was then dropped for dinner on its own say-so). Appended rather than
-    // unioned in front keeps `fitSlots`'s own promise — a subset in the
-    // dish's order — intact for the ordinary case, where the model already
-    // named the meal it was asked for. Ingredients still gate it exactly as
-    // before — a stew asked for dinner and made of lunch-only ingredients
-    // stays out of dinner whatever it calls itself; a stew the model also
-    // called a dinner still stays a lunch. One that claimed only meals its
-    // ingredients do not belong to, requested meal included, is served
-    // nowhere, and is counted as such. Not an error: every rule that protects
-    // the person already held.
-    const claimed = dish.slots.includes(requestedSlot) ? dish.slots : [...dish.slots, requestedSlot];
+    // Last: the meal this request was asked for, kept only where every
+    // ingredient belongs for this person (`0062` § 5) — the same rule the
+    // library is served by (`RecipeController.reusablePool`). A claim that
+    // *includes* the meal asked for is trusted exactly as before — a stew
+    // that also called itself a dinner still stays a lunch if that is the
+    // only meal its ingredients allow, and one that named several meals it
+    // does belong to is served at all of them. A claim that misses the meal
+    // asked for — the wrong one, or none at all — is replaced by that meal
+    // alone, never added to what the model wrote (`0067`'s bench, second
+    // round: with no line naming a person's day left in the prompt, a model
+    // asked for dinner started calling it "afternoon_snack", and *appending*
+    // dinner to that claim let a mislabelled dinner enter the library as a
+    // snack too, whenever its ingredients happened to allow one — a
+    // composition drift the label never earned; the model's `slots` is a
+    // label, not evidence). Ingredients still gate every candidate slot: a
+    // stew asked for dinner and made of lunch-only ingredients stays out of
+    // dinner whatever it calls itself, or names nothing at all. One that
+    // claimed only meals its ingredients do not belong to, or claimed none,
+    // is served nowhere, and is counted as such. Not an error: every rule
+    // that protects the person already held.
+    const claimed = dish.slots.includes(requestedSlot) ? dish.slots : [requestedSlot];
     const slots = fitSlots({ ingredients: dish.ingredients, slots: claimed }, context.catalogue, context.dietaryPatterns);
 
     if (slots.length === 0) {

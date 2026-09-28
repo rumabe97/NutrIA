@@ -710,18 +710,21 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
   });
 
   /**
-   * The meal a request asked for is unioned into what the model labelled its
-   * dish (`0067`'s bench): asked for dinner on prompt 4.4.0, Gemma called
-   * every dinner "supper" and every one was then dropped for dinner on that
-   * label alone. The union means a mislabelled dinner is judged on its
-   * ingredients, exactly as a correctly labelled one always was — never on
-   * whether the model happened to name the meal it was asked for.
+   * A claim that misses the meal asked for is replaced by that meal alone,
+   * never added to what the model wrote (`0067`'s bench, second round):
+   * asked for dinner on prompt 4.4.0, Gemma called every dinner "supper", and
+   * *appending* dinner to that claim (the first fix) let a mislabelled dinner
+   * enter the library as a snack too whenever its ingredients allowed one —
+   * composition drift the label never earned. The dish is still judged on
+   * its ingredients for the meal it was asked for, exactly as a correctly
+   * labelled one always was; it just does not also inherit whatever meal the
+   * model happened to guess.
    */
-  it('keeps a dish the model mislabelled supper, for the dinner it was asked for, when its ingredients belong there', async () => {
+  it('keeps a dish the model mislabelled supper, for the dinner it was asked for, when its ingredients belong there — stored as dinner alone', async () => {
     const { client } = stubClient([{ dishes: [dish('Arroz con pollo', ['supper'], ['arroz', 'pollo'])] }]);
     const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
 
-    expect(result.generated.map(kept => kept.slots)).toEqual([['supper', 'dinner']]);
+    expect(result.generated.map(kept => kept.slots)).toEqual([['dinner']]);
     expect(result.metadata.aiCalls[0]?.rejected).toEqual({});
   });
 
@@ -731,6 +734,19 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
 
     expect(result.generated).toEqual([]);
     expect(result.metadata.aiCalls[0]?.rejected).toEqual({ wrong_meal: 1 });
+  });
+
+  /**
+   * A claim that *includes* the meal asked for is trusted exactly as before
+   * this whole fix existed: nothing is replaced, and every other meal it
+   * named is kept too, ingredient-permitting.
+   */
+  it('keeps every meal a dish claims when one of them is the meal it was asked for', async () => {
+    const { client } = stubClient([{ dishes: [dish('Arroz con pollo', ['lunch', 'dinner'], ['arroz', 'pollo'])] }]);
+    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+
+    expect(result.generated.map(kept => kept.slots)).toEqual([['lunch', 'dinner']]);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({});
   });
 
   /**
