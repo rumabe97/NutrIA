@@ -23,11 +23,8 @@ const LABEL: Partial<Record<MealSlot, string>> = {
 function context(overrides: Partial<PromptContext> = {}): PromptContext {
   return {
     avoidNames: [],
-    budget: null,
-    cookingFrequency: null,
     cookingTimeMinutes: 30,
     cuisines: [],
-    dayShape: null,
     dietaryPatterns: [],
     dislikedNames: [],
     excludeSlugs: [],
@@ -276,7 +273,6 @@ describe('buildPoolPrompt', () => {
   });
 
   it.each<[Goal['type'], string]>([
-    ['custom', 'set by hand'],
     ['healthy_eating', 'Eating well is the goal'],
     ['maintenance', 'Keeping their weight'],
     ['muscle_gain', 'Building muscle'],

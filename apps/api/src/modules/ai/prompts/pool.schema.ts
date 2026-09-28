@@ -61,7 +61,15 @@ export const generatedDishSchema = z
     // recipe, and per-serving figures are computed from the grams whatever the
     // yield. Four refused eleven lunches in a day for that alone.
     servings: z.number().min(1).max(8).describe('Número de raciones que rinden las cantidades indicadas.'),
-    slots: z.array(z.enum(MEAL_SLOTS)).min(1).describe('Momentos del día en los que este plato encaja.'),
+    // `min(0)`, deliberately: a real-model bench on prompt 4.4.0 found Gemma
+    // sometimes answer `slots: []` on the meal it was asked for — 0 of 4 runs
+    // did on 4.3.0, with the "wakes at/sleeps at" line still in the prompt
+    // (`0067`). Rejecting that at the schema is rejecting a dish this request
+    // asked for and the model otherwise wrote correctly. `PoolBuilder.judge`
+    // adds the requested meal to whatever the model claimed, empty or not,
+    // before `fitSlots` runs — so the floor that matters is enforced there,
+    // against ingredients, not here, against a label.
+    slots: z.array(z.enum(MEAL_SLOTS)).min(0).describe('Momentos del día en los que este plato encaja.'),
     steps: z
       .array(
         z.object({

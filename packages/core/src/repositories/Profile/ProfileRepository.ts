@@ -27,7 +27,9 @@ export const ProfileRepository = {
         .where(and(eq(goals.userId, userId), isNull(goals.archivedAt)))
         .limit(1);
 
-      return row ? goalSchema.parse(toNumbers(row, ['paceKgPerWeek', 'startingWeightKg', 'targetWeightKg'])) : undefined;
+      return row
+        ? goalSchema.parse({ ...toNumbers(row, ['paceKgPerWeek', 'startingWeightKg', 'targetWeightKg']), type: readableGoalType(row.type) })
+        : undefined;
     } catch (error: unknown) {
       throw wrap(error, 'goals');
     }
@@ -227,7 +229,6 @@ export const ProfileRepository = {
     try {
       const db = database();
       const values = {
-        customGoal: input.customGoal ?? null,
         paceKgPerWeek: toNumeric(input.paceKgPerWeek),
         startingWeightKg: toNumeric(input.startingWeightKg),
         targetWeightKg: toNumeric(input.targetWeightKg),
@@ -247,7 +248,7 @@ export const ProfileRepository = {
             .values({ ...values, userId })
             .returning();
 
-      return goalSchema.parse(toNumbers(row, ['paceKgPerWeek', 'startingWeightKg', 'targetWeightKg']));
+      return goalSchema.parse({ ...toNumbers(row, ['paceKgPerWeek', 'startingWeightKg', 'targetWeightKg']), type: readableGoalType(row.type) });
     } catch (error: unknown) {
       throw wrap(error, 'goals');
     }
@@ -346,6 +347,18 @@ function toNumbers<T extends Record<string, unknown>>(row: T | undefined, keys: 
 
 function toNumeric(value: number | null | undefined): string | null {
   return value === null || value === undefined ? null : String(value);
+}
+
+/**
+ * A stored `'custom'` goal type, read as `'maintenance'` — what it has always
+ * computed as (`core/domain/Nutrition`) — before `goalSchema.parse` (`0067`).
+ * The enum value stays in Postgres past the column-drop release, and the old
+ * API deployed alongside the migration that clears it may still write one
+ * during the switch; a row this reads must never fail to parse for a value
+ * `GOAL_TYPES` no longer offers.
+ */
+function readableGoalType(type: string): string {
+  return type === 'custom' ? 'maintenance' : type;
 }
 
 function wrap(error: unknown, table: string): DatabaseOperationError {

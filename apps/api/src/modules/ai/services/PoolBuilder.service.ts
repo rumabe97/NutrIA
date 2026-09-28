@@ -394,7 +394,7 @@ export class PoolBuilder {
         let repaired = 0;
 
         for (const dish of dishes) {
-          const verdict = this.validate(dish, context, accepted, shown.get(slot)?.slugs ?? []);
+          const verdict = this.validate(dish, context, accepted, shown.get(slot)?.slugs ?? [], slot);
 
           repaired += verdict.repaired;
 
@@ -495,7 +495,8 @@ export class PoolBuilder {
     raw: GeneratedDish,
     context: GenerationContext,
     accepted: ReadonlyMap<string, CandidateDish>,
-    shownSlugs: readonly string[]
+    shownSlugs: readonly string[],
+    requestedSlot: MealSlot
   ): Verdict {
     // The wire schema is deliberately loose so the provider can express it; the
     // bounds are enforced here, against the strict schema. Anything failing this
@@ -572,14 +573,15 @@ export class PoolBuilder {
       return { reason: 'wrong_language', repaired };
     }
 
-    return { ...this.judge({ ...data, steps: [...steps] }, slug, context), repaired };
+    return { ...this.judge({ ...data, steps: [...steps] }, slug, context, requestedSlot), repaired };
   }
 
   /** Every gate after the catalogue's, on a dish whose slugs are final. */
   private judge(
     dish: GeneratedDish,
     slug: string,
-    context: GenerationContext
+    context: GenerationContext,
+    requestedSlot: MealSlot
   ): { readonly dish: CandidateDish } | { readonly reason: DishRejection } {
     const safety = dishSafety(dish.ingredients, context.catalogue, context.safety);
 
@@ -651,13 +653,39 @@ export class PoolBuilder {
       return { reason: 'foreign_food' };
     }
 
-    // Last, and only ever taking meals away: the meals it claimed, kept where
-    // every ingredient belongs for this person (`0062` § 5) — the same rule
-    // the library is served by (`RecipeController.reusablePool`). A stew the
-    // model also called a dinner stays a lunch; one that claimed only meals
-    // its ingredients do not belong to is served nowhere, and is counted as
-    // such. Not an error: every rule that protects the person already held.
-    const slots = fitSlots(dish, context.catalogue, context.dietaryPatterns);
+    // Last: the meal this request was asked for, kept only where every
+    // ingredient belongs for this person (`0062` § 5) — the same rule the
+    // library is served by (`RecipeController.reusablePool`). A claim that
+    // *includes* the meal asked for is trusted exactly as before — a stew
+    // that also called itself a dinner still stays a lunch if that is the
+    // only meal its ingredients allow, and one that named several meals it
+    // does belong to is served at all of them. A claim that misses the meal
+    // asked for — the wrong one, or none at all — is tried at that meal
+    // alone first, never added to what the model wrote (`0067`'s bench,
+    // second round: with no line naming a person's day left in the prompt, a
+    // model asked for dinner started calling it "afternoon_snack", and
+    // *appending* dinner to that claim let a mislabelled dinner enter the
+    // library as a snack too, whenever its ingredients happened to allow
+    // one — a composition drift the label never earned; the model's `slots`
+    // is a label, not evidence). Only when the requested meal alone fits
+    // nothing does the claim get a second try, exactly as it wrote it — the
+    // rule from before `0067`'s second round (`0067`'s third round: a model
+    // asked for breakfast can legitimately answer with a lunch dish, and
+    // forcing that onto `[breakfast]` alone threw it out of the pool
+    // entirely instead of keeping it for the meal it actually fits).
+    // Ingredients still gate every candidate slot: a stew asked for dinner
+    // and made of lunch-only ingredients stays out of dinner whatever it
+    // calls itself, and a dish whose claim fits nowhere either is served
+    // nowhere, and is counted as such. Nothing here is ever unioned across
+    // the two tries. Not an error: every rule that protects the person
+    // already held.
+    const claimsRequested = dish.slots.includes(requestedSlot);
+    const claimed = claimsRequested ? dish.slots : [requestedSlot];
+    let slots = fitSlots({ ingredients: dish.ingredients, slots: claimed }, context.catalogue, context.dietaryPatterns);
+
+    if (!claimsRequested && slots.length === 0) {
+      slots = fitSlots({ ingredients: dish.ingredients, slots: dish.slots }, context.catalogue, context.dietaryPatterns);
+    }
 
     if (slots.length === 0) {
       this.logger.warn(`Dish "${dish.name}" rejected: none of ${dish.slots.join(', ')} is a meal all of its ingredients belong to`);

@@ -578,7 +578,22 @@ function score(record, request, catalogue) {
       continue;
     }
 
-    const fitted = fitSlots(dish, catalogue, request.dietaryPatterns);
+    // Exactly `PoolBuilder.judge` (`0067`'s third round): a claim that
+    // includes the requested meal is scored as the model wrote it. A claim
+    // that misses it — wrong or empty — is tried at that meal alone first;
+    // only when that fits nothing does the claim get a second try, exactly as
+    // the model wrote it, so a legitimate lunch dish that answered a
+    // breakfast request scores as fitting lunch, not as fitting nothing.
+    // `wrongMeal` itself is unchanged: whether the meal this request asked
+    // for is among what the dish actually fits, whichever try produced it.
+    const claimsRequested = dish.slots.includes(request.slot);
+    const claimed = claimsRequested ? dish.slots : [request.slot];
+    let fitted = fitSlots({ ingredients: dish.ingredients, slots: claimed }, catalogue, request.dietaryPatterns);
+
+    if (!claimsRequested && fitted.length === 0) {
+      fitted = fitSlots({ ingredients: dish.ingredients, slots: dish.slots }, catalogue, request.dietaryPatterns);
+    }
+
     const wrongMeal = !fitted.includes(request.slot);
     const foreign = methodMentions({
       dish: dish.ingredients.map(item => catalogue.get(item.slug)?.name ?? item.slug),

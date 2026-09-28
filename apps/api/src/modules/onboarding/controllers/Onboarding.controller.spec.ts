@@ -21,7 +21,7 @@ const STATE = {
   missingSteps: [],
   profileConsentRequired: false,
   resumeStep: 2,
-  totalSteps: 10
+  totalSteps: 9
 };
 
 /**
@@ -66,10 +66,10 @@ describe('POST /onboarding (through the real pipeline)', () => {
     expect(saveStep).toHaveBeenCalledWith('usr-1', expect.objectContaining({ step: 'about-you' }));
   });
 
-  it('still rejects a body whose step is not a known one', async () => {
+  it.each(['not-a-step', 'lifestyle'])('still rejects a body whose step is not a known one (%s)', async step => {
     const response: Response = await request(app.getHttpServer() as Server)
       .patch('/onboarding')
-      .send({ data: {}, step: 'not-a-step' });
+      .send({ data: {}, step });
 
     expect(response.status).toBe(422);
     expect((response.body as { code: string }).code).toBe('INVALID_INPUT');

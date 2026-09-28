@@ -121,7 +121,6 @@ export const OnboardingController = {
 
         if (goal) {
           await ProfileRepository.upsertGoal(userId, {
-            customGoal: goal.customGoal,
             paceKgPerWeek: goal.paceKgPerWeek,
             startingWeightKg: currentWeightKg,
             targetWeightKg: goal.targetWeightKg,
@@ -133,7 +132,6 @@ export const OnboardingController = {
       }
 
       case 'how-you-eat':
-      case 'lifestyle':
       case 'cooking':
         await ProfileRepository.upsertPreferences(userId, input.data);
         break;
