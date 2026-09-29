@@ -37,7 +37,6 @@ import type {
   AdminProductView,
   AdminRecipesView,
   AdminSummaryView,
-  AiUsageView,
   CatalogueRecipeView,
   DaySeries
 } from 'core/controllers/Admin';
@@ -56,7 +55,10 @@ import type { Response } from 'supertest';
  *
  * Requires a real database — see ./README.md.
  */
-const ROUTES = ['overview', 'failures', 'accounts', 'settings', 'analytics', 'ai', 'feedback'];
+const ROUTES = ['accounts', 'settings', 'analytics', 'ai', 'feedback'];
+
+/** Gone in phase 9 step 1 (`0068` § Removed): no route answers them at all, admin session or not. */
+const REMOVED_ROUTES = ['overview', 'failures'];
 
 /** The console's reads over a period (`0068`, project 007 phases 3 and 5). */
 const PERIOD_ROUTES = ['summary', 'product', 'plans', 'people'] as const;
@@ -313,6 +315,20 @@ describe('admin', () => {
     }
   });
 
+  /**
+   * `overview` (the single-page tiles) and `failures` (the old failure list)
+   * are gone in phase 9 step 1: no route matches, so Nest's router answers
+   * 404 before any guard runs — the owner gets exactly the same 404 an
+   * ordinary account or no session does, not a 200 that used to be there.
+   */
+  it('no longer exist, for the owner just as for anybody else', async () => {
+    for (const route of REMOVED_ROUTES) {
+      await request(httpServer(app)).get(`/${PREFIX}/admin/${route}`).set('Cookie', owner.cookie).expect(404);
+      await request(httpServer(app)).get(`/${PREFIX}/admin/${route}`).set('Cookie', ordinary.cookie).expect(404);
+      await request(httpServer(app)).get(`/${PREFIX}/admin/${route}`).expect(404);
+    }
+  });
+
   it('sends a test notification to the owner alone, and says why when it cannot', async () => {
     await request(httpServer(app)).post(`/${PREFIX}/admin/push-test`).set('Cookie', ordinary.cookie).expect(404);
 
@@ -451,18 +467,6 @@ describe('admin', () => {
     expect(one.total).toBe(two.total);
     // A page is a different page, not the same rows with a different number on it.
     expect(one.rows.map(row => row.id)).not.toEqual(two.rows.map(row => row.id));
-  });
-
-  it('counts what the provider was asked for today, and says whose number the limit is', async () => {
-    const response: Response = await request(httpServer(app)).get(`/${PREFIX}/admin/ai`).set('Cookie', owner.cookie).expect(200);
-    const usage = response.body as AiUsageView;
-
-    // The suites script the model, so nothing reaches a provider and the count
-    // is zero — which is the assertion: it counts real requests, not scripted
-    // ones. `limits` is null unless an operator configured it (`0035`).
-    expect(usage).toMatchObject({ calls: 0, refused: 0 });
-    expect(usage.limits).toEqual({ requestsPerDay: null, tokensPerMinute: null });
-    expect(Date.parse(usage.resetsAt)).toBeGreaterThan(Date.now());
   });
 
   it('carries a message from the person who wrote it to the owner, and back again', async () => {
@@ -1295,29 +1299,27 @@ describe('admin', () => {
       'n',
       'reason'
     ]);
+    /**
+     * Every key `/admin/ai` may carry, at any depth — the period's fields
+     * only since phase 9 step 1 (`0068` § Removed): today's quota readout
+     * (`byModel`, `calls`, `inputTokens`, `lastRefusal`, `limits`, `model`,
+     * `outputTokens`, `refused`, `resetsAt` and their nested `at`, `limit`,
+     * `retryAfterSeconds`, `requestsPerDay`, `tokensPerMinute`) is gone.
+     * `calls`, `inputTokens`, `model`, `outputTokens`, `averageMs`, `costUsd`,
+     * `failed`, `provider` and `reasoningTokens` stay: they are `AiModelUsage`,
+     * the shape of each row in `models` and of each key under `totals`.
+     */
     const AI_KEYS = new Set([
       ...WINDOW_KEYS,
-      // today's, unchanged
-      'byModel',
-      'calls',
-      'inputTokens',
-      'lastRefusal',
-      'limits',
-      'model',
-      'outputTokens',
-      'refused',
-      'resetsAt',
       'averageMs',
+      'calls',
       'costUsd',
       'failed',
+      'inputTokens',
+      'model',
+      'outputTokens',
       'provider',
       'reasoningTokens',
-      'at',
-      'limit',
-      'retryAfterSeconds',
-      'requestsPerDay',
-      'tokensPerMinute',
-      // the period's
       'callsPerDay',
       'models',
       'period',
@@ -1436,7 +1438,6 @@ describe('admin', () => {
     it('do not exist for an ordinary account, nor for a caller with no session — even with a query they would refuse', async () => {
       const paths = [
         'generations',
-        'generations?legacy=1',
         'generations?status=nope',
         'generations?q=a%00b',
         'generations?from=2026-09-20&to=2026-09-10',
@@ -1558,27 +1559,14 @@ describe('admin', () => {
       expect(await emailsOf(`${gt.toUpperCase()}-AXB`)).toEqual([lookalikeEmail]);
     });
 
-    it('answer the old array of the latest 20 with legacy=1, whatever else the query says', async () => {
-      const legacy = (await get('generations?legacy=1', owner.cookie).expect(200)).body as AdminGenerationView[];
-      const filtered = (await get(`generations?legacy=1&status=queued&q=${gt}&since=24h&size=1&offset=3`, owner.cookie).expect(200))
-        .body as AdminGenerationView[];
+    it('drops legacy=1 as an unknown key, rather than answering the old array (0068 § Removed)', async () => {
+      const plain = await generations(`q=${gt}&status=succeeded`);
+      const withLegacy = (await get(`generations?legacy=1&q=${gt}&status=succeeded`, owner.cookie).expect(200)).body as AdminGenerationsView;
 
-      expect(Array.isArray(legacy)).toBe(true);
-      expect(legacy.length).toBeGreaterThan(0);
-      expect(legacy.length).toBeLessThanOrEqual(20);
-      // The filters change nothing: the same array, row for row.
-      expect(filtered).toEqual(legacy);
-      // This block's generation is the newest in the database, so it is in the latest 20.
-      expect(legacy.map(row => row.id)).toContain(realJobId);
-
-      for (const row of legacy) {
-        expect({ id: row.id, keys: Object.keys(row).sort() }).toEqual({ id: row.id, keys: GENERATION_KEYS });
-      }
-
-      // And the same row, the same shape, on the page.
-      const paged = (await generations(`q=${gt}&status=succeeded`)).rows[0];
-
-      expect(legacy.find(row => row.id === realJobId)).toEqual(paged);
+      // `legacy` is stripped like any other unknown key: the page is exactly
+      // the page it would be without it, never the old array of ≤ 20.
+      expect(withLegacy).toEqual(plain);
+      expect(Array.isArray(withLegacy)).toBe(false);
     });
 
     /*
@@ -1600,18 +1588,11 @@ describe('admin', () => {
       expect({ allergen: reasons.has('allergen'), unwanted: reasons.has('unwanted') }).toEqual({ allergen: true, unwanted: true });
 
       const paged = (await get(`generations?q=${gt}`, owner.cookie).expect(200)).body as AdminGenerationsView;
-      const legacy = (await get('generations?legacy=1', owner.cookie).expect(200)).body as AdminGenerationView[];
+      const keys = new Set<string>();
 
-      for (const [label, body] of [
-        ['paged', paged],
-        ['legacy', legacy]
-      ] as const) {
-        const keys = new Set<string>();
+      walk(paged, keys, new Set());
 
-        walk(body, keys, new Set());
-
-        expect({ allergen: keys.has('allergen'), label, unwanted: keys.has('unwanted') }).toEqual({ allergen: false, label, unwanted: false });
-      }
+      expect({ allergen: keys.has('allergen'), unwanted: keys.has('unwanted') }).toEqual({ allergen: false, unwanted: false });
 
       // The other reasons stay, on the written call, and the call is otherwise the call: only the two keys go.
       const written = paged.rows[1];
@@ -1624,15 +1605,6 @@ describe('admin', () => {
 
       expect((real?.calls.length ?? 0) > 0).toBe(true);
       expect(real?.calls.every(call => typeof call.rejected === 'object')).toBe(true);
-
-      // And legacy shows the same rows as the page does, where both have them.
-      for (const one of legacy) {
-        const same = paged.rows.find(row => row.id === one.id);
-
-        if (same !== undefined) {
-          expect(one).toEqual(same);
-        }
-      }
     });
 
     it('refuse an unknown filter value, a range that ends before it starts, a repeated parameter and a bad page, as INVALID_INPUT', async () => {
@@ -1656,10 +1628,6 @@ describe('admin', () => {
           'size=101',
           'size=abc',
           'offset=-1',
-          'legacy=2',
-          'legacy=true',
-          // `legacy` is read after the query is: a bad page is refused even there.
-          'legacy=1&size=0',
           'q=a%00b'
         ].map(query => `generations?${query}`),
         ...['period=14', 'period=seven', 'period=', 'period=7&period=30'].flatMap(query => [
@@ -1748,9 +1716,7 @@ describe('admin', () => {
       }
     });
 
-    it('count the provider over a period beside today, and carry no address', async () => {
-      const TODAY_KEYS = ['byModel', 'calls', 'inputTokens', 'lastRefusal', 'limits', 'model', 'outputTokens', 'refused', 'resetsAt'];
-
+    it('count the provider over a period, and carry no address', async () => {
       for (const [query, period] of [
         [undefined, 30],
         ['7', 7],
@@ -1759,12 +1725,9 @@ describe('admin', () => {
         const response: Response = await get(`ai${query === undefined ? '' : `?period=${query}`}`, owner.cookie).expect(200);
         const view = response.body as AdminAiView;
 
-        expect(Object.keys(view).sort()).toEqual(
-          [...TODAY_KEYS, 'callsPerDay', 'models', 'period', 'spendPerDay', 'tokensPerDay', 'totals', 'window'].sort()
-        );
+        // Exactly the period's seven keys (`0068` § Removed): today's quota readout is gone.
+        expect(Object.keys(view).sort()).toEqual(['callsPerDay', 'models', 'period', 'spendPerDay', 'tokensPerDay', 'totals', 'window']);
         expect(view.period).toBe(period);
-        // Today's fields as before: the scripted model is not a provider.
-        expect(view).toMatchObject({ calls: 0, refused: 0 });
 
         expectDays(view.callsPerDay, period, view.window.to);
         expectDays(view.tokensPerDay, period, view.window.to);

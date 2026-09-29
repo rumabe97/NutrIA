@@ -50,7 +50,7 @@ await Promise.all([
   ask('which sign-in providers are on', `${WEB}/api/v1/settings/sign-in-providers`, (response, body) => is(200)(response) || (Array.isArray(JSON.parse(body).providers) ? null : 'no providers array')),
 
   // The doors that must be shut: a denial here is a 404, never a 401, a 403 or a 200.
-  ...['/profile', '/users/me', '/health-data', '/meal-plans/active', '/admin/overview'].map(path => ask(`no session, ${path} is a 404`, `${API}${path}`, is(404))),
+  ...['/profile', '/users/me', '/health-data', '/meal-plans/active', '/admin/summary'].map(path => ask(`no session, ${path} is a 404`, `${API}${path}`, is(404))),
   ask('an unsigned payment webhook is a 404', `${API}/billing/webhook`, response => (response.status === 404 ? null : `expected 404, got ${response.status}`)),
 
   // A signed-in screen sends a stranger to sign-in rather than rendering.

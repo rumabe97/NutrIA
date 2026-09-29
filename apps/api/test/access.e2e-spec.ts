@@ -116,7 +116,6 @@ describe('access: two locks, and the shape of a denial', () => {
       '/meal-plans/active',
       '/vacations',
       '/progress/weight',
-      '/admin/overview',
       '/admin/summary',
       '/admin/product',
       '/admin/plans',
@@ -133,7 +132,6 @@ describe('access: two locks, and the shape of a denial', () => {
       '/admin/people?period=14',
       // The generation log, its charts, AI, pictures and the catalogue (project 007 phase 7): plain, and with a query they would refuse.
       '/admin/generations',
-      '/admin/generations?legacy=1',
       '/admin/generations?status=nope&size=0',
       '/admin/generations?q=a%00b',
       '/admin/generations/stats',

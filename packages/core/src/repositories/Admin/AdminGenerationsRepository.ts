@@ -39,7 +39,7 @@ export type RejectionReasonRow = { readonly n: number; readonly reason: string }
 /**
  * What the log selects: the job, the account's address and name — the one
  * thing of theirs it carries (`0028`, `0050`) — and what the plan recorded
- * about its own making. Exactly `recentGenerations`' row.
+ * about its own making. Exactly `GenerationRow`'s shape.
  */
 const GENERATION_COLUMNS = {
   id: planGenerationJobs.id,

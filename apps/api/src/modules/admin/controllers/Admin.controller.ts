@@ -10,8 +10,6 @@ import { ZodQuery } from './ZodQuery.js';
 import type {
   AdminAiDto,
   AdminAnalyticsDto,
-  AdminJobDto,
-  AdminOverviewDto,
   AdminPeopleDto,
   AdminPicturesPeriodDto,
   AdminPlansDto,
@@ -42,8 +40,9 @@ const PERIOD_PARAMETER = {
  * request from anyone else is a 404, like every other denial.
  *
  * Every read here carries counts and never a person: no dish, no profile
- * (`0028`). The two that carry somebody — the account list and the feedback
- * inbox — are on their own controllers, so the exception is visible.
+ * (`0028`). The reads that carry somebody — the account list, the feedback
+ * inbox, the professionals and the generation log — are on their own
+ * controllers, so the exception is visible.
  */
 @ApiTags('admin')
 @Controller('admin')
@@ -51,18 +50,11 @@ const PERIOD_PARAMETER = {
 export class AdminController {
   constructor(private readonly admin: AdminService) {}
 
-  @ApiOkResponse({ description: 'Counts, plans by state, and the most recent generations.' })
-  @ApiOperation({ summary: 'Counts and the most recent generations' })
-  @Get('overview')
-  async overview(): Promise<AdminOverviewDto> {
-    return this.admin.overview();
-  }
-
   @ApiOkResponse({
     description:
-      "Today's count of requests that left this service against the operator's configured limit (until phase 9), and the period's: totals against the period before, calls and tokens per day, and calls by model and provider — all from `ai_call` events. 422 INVALID_INPUT for a period other than 7, 30 or 90."
+      "The period's provider requests: totals against the period before, calls and tokens per day, and calls by model and provider — all from `ai_call` events. 422 INVALID_INPUT for a period other than 7, 30 or 90."
   })
-  @ApiOperation({ summary: 'Provider requests today and over a period (0068)' })
+  @ApiOperation({ summary: 'Provider requests over a period (0068)' })
   @ApiQuery(PERIOD_PARAMETER)
   @Get('ai')
   async ai(@PeriodQuery() query: PeriodQueryDto): Promise<AdminAiDto> {
@@ -123,12 +115,5 @@ export class AdminController {
   @Get('people')
   async people(@PeriodQuery() query: PeriodQueryDto): Promise<AdminPeopleDto> {
     return this.admin.people(query);
-  }
-
-  @ApiOkResponse({ description: 'The generations that failed, with their codes.' })
-  @ApiOperation({ summary: 'Only the generations that failed' })
-  @Get('failures')
-  async failures(): Promise<readonly AdminJobDto[]> {
-    return this.admin.failures();
   }
 }

@@ -9,7 +9,7 @@ import { GenerationsQueryDto, PeriodQueryDto } from '../dto/in/index.js';
 import { Roles } from '../../../shared/index.js';
 import { ZodQuery } from './ZodQuery.js';
 
-import type { AdminGenerationDto, AdminGenerationsDto, AdminGenerationStatsDto } from '../dto/out/index.js';
+import type { AdminGenerationsDto, AdminGenerationStatsDto } from '../dto/out/index.js';
 
 /**
  * The generation log: every generation, who asked for each, and every model
@@ -30,7 +30,7 @@ export class AdminGenerationsController {
 
   @ApiOkResponse({
     description:
-      'One page of generations, newest first, each with its account and its model calls, and `total`, every generation the filters match. With `legacy=1`, the latest 20 as an array, as before (until phase 9). 422 INVALID_INPUT for an unknown filter value or a range that ends before it starts.'
+      'One page of generations, newest first, each with its account and its model calls, and `total`, every generation the filters match. 422 INVALID_INPUT for an unknown filter value or a range that ends before it starts.'
   })
   @ApiOperation({ summary: 'The generation log, filtered and paged (0050, 0068)' })
   @ApiQuery({ enum: GENERATION_STATUSES, name: 'status', required: false })
@@ -41,10 +41,9 @@ export class AdminGenerationsController {
   @ApiQuery({ description: 'Last Madrid day, `YYYY-MM-DD`, included.', name: 'to', required: false, type: String })
   @ApiQuery({ name: 'offset', required: false, type: Number })
   @ApiQuery({ description: `1–${MAX_PAGE_SIZE}. ${DEFAULT_PAGE_SIZE} when absent.`, name: 'size', required: false, type: Number })
-  @ApiQuery({ description: "Today's unpaged array, until phase 9.", enum: ['1'], name: 'legacy', required: false })
   @Get('generations')
-  async list(@ZodQuery(GenerationsQueryDto) query: GenerationsQueryDto): Promise<AdminGenerationsDto | readonly AdminGenerationDto[]> {
-    return query.legacy === '1' ? this.admin.generations() : this.admin.generationsPage(query);
+  async list(@ZodQuery(GenerationsQueryDto) query: GenerationsQueryDto): Promise<AdminGenerationsDto> {
+    return this.admin.generationsPage(query);
   }
 
   @ApiOkResponse({

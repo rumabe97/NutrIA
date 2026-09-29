@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { AdminController, summariseAiCalls } from './AdminController';
+import { AdminController, aiModelOf } from './AdminController';
 import { AdminUsageController, modelsOf } from './AdminUsageController';
 
 import type { AdminAiRepository as Ai, AiCallDayRow, AdminSeriesRepository as Series } from '#repositories/Admin';
-import type { AiUsageView } from './AdminController';
 
 const ai = vi.hoisted(() => ({ callsPerDay: vi.fn<(typeof Ai)['callsPerDay']>() }));
 const series = vi.hoisted(() => ({ pictureSpendPerDay: vi.fn<(typeof Series)['pictureSpendPerDay']>() }));
@@ -20,18 +19,6 @@ vi.mock('#repositories/Admin', () => ({
 /** Monday 28 September 2026, noon in Madrid. */
 const NOW = new Date('2026-09-28T10:00:00Z');
 const WEEK = ['2026-09-22', '2026-09-23', '2026-09-24', '2026-09-25', '2026-09-26', '2026-09-27', '2026-09-28'];
-
-const TODAY: AiUsageView = {
-  byModel: [],
-  calls: 3,
-  inputTokens: 10,
-  lastRefusal: null,
-  limits: { requestsPerDay: null, tokensPerMinute: null },
-  model: 'm',
-  outputTokens: 20,
-  refused: 0,
-  resetsAt: '2026-09-29T07:00:00.000Z'
-};
 
 function row(overrides: Partial<AiCallDayRow>): AiCallDayRow {
   return {
@@ -53,7 +40,6 @@ function row(overrides: Partial<AiCallDayRow>): AiCallDayRow {
 
 beforeEach(() => {
   vi.restoreAllMocks();
-  vi.spyOn(AdminController, 'aiUsage').mockResolvedValue(TODAY);
   ai.callsPerDay.mockResolvedValue([
     // The period before: 14–21 September.
     row({ calls: 5, costUsd: 0.1, day: '2026-09-20', failed: true, timed: 5, totalMs: 5000 }),
@@ -85,18 +71,12 @@ beforeEach(() => {
 });
 
 describe('AdminUsageController.ai', () => {
-  it('keeps every field today’s page reads, and adds the period’s beside them', async () => {
-    const view = await AdminUsageController.ai(7, {}, NOW);
-
-    expect(view).toMatchObject(TODAY);
-    expect(view.period).toBe(7);
-    expect(view.window.from).toBe('2026-09-21T22:00:00.000Z');
-  });
-
   it('reads the period and the one before it in one go, and tells them apart by the day', async () => {
-    const view = await AdminUsageController.ai(7, {}, NOW);
+    const view = await AdminUsageController.ai(7, NOW);
 
     expect(ai.callsPerDay).toHaveBeenCalledWith(new Date('2026-09-14T22:00:00Z'), NOW);
+    expect(view.period).toBe(7);
+    expect(view.window.from).toBe('2026-09-21T22:00:00.000Z');
     expect(view.totals).toEqual({
       averageMs: { current: 833, previous: 1000 },
       calls: { current: 7, previous: 5 },
@@ -109,7 +89,7 @@ describe('AdminUsageController.ai', () => {
   });
 
   it('lays calls and tokens on every day of the period, zeros included', async () => {
-    const view = await AdminUsageController.ai(7, {}, NOW);
+    const view = await AdminUsageController.ai(7, NOW);
 
     expect(view.callsPerDay).toEqual({ days: WEEK, values: [0, 4, 0, 0, 0, 0, 3] });
     expect(view.spendPerDay).toEqual({ days: WEEK, values: [0, 0.2, 0, 0, 0, 0, 0.1] });
@@ -123,7 +103,7 @@ describe('AdminUsageController.ai', () => {
   });
 
   it('lists the period’s calls by the model that answered, a failed call under the one asked for', async () => {
-    const view = await AdminUsageController.ai(7, {}, NOW);
+    const view = await AdminUsageController.ai(7, NOW);
 
     expect(view.models.map(model => [model.model, model.provider, model.calls, model.failed, model.averageMs])).toEqual([
       ['gemma', 'DeepInfra', 6, 0, 833],
@@ -134,41 +114,12 @@ describe('AdminUsageController.ai', () => {
   it('says null, not zero, for the latency of a period whose calls recorded no clock', async () => {
     ai.callsPerDay.mockResolvedValue([row({ calls: 2 })]);
 
-    expect((await AdminUsageController.ai(7, {}, NOW)).totals.averageMs).toEqual({ current: null, previous: null });
+    expect((await AdminUsageController.ai(7, NOW)).totals.averageMs).toEqual({ current: null, previous: null });
   });
 });
 
 describe('modelsOf', () => {
-  it('groups exactly as today’s summariseAiCalls does, event for event', () => {
-    const at = new Date(NOW);
-    const events = [
-      {
-        answeredModel: 'gemma',
-        costUsd: 0.25,
-        inputTokens: 100,
-        model: 'NutrIA',
-        ms: 900,
-        ok: true,
-        outputTokens: 10,
-        provider: 'DeepInfra',
-        reasoningTokens: 5
-      },
-      {
-        answeredModel: 'gemma',
-        costUsd: 0.5,
-        inputTokens: 50,
-        model: 'NutrIA',
-        ms: 100,
-        ok: true,
-        outputTokens: 5,
-        provider: 'DeepInfra',
-        reasoningTokens: 0
-      },
-      { costUsd: null, model: 'NutrIA', ms: 2000, ok: false, provider: null },
-      { answeredModel: '', model: '', ok: false },
-      { answeredModel: 'gemma', inputTokens: 7, model: 'NutrIA', ok: true, outputTokens: 1, provider: 'Together' }
-    ];
-    // What the grouped SQL answers for those events: one row per (names, outcome), sums inside.
+  it('groups by the model that answered and who served it, with sums and a mean time', () => {
     const grouped: AiCallDayRow[] = [
       row({
         answeredModel: 'gemma',
@@ -187,7 +138,26 @@ describe('modelsOf', () => {
       row({ answeredModel: 'gemma', calls: 1, inputTokens: 7, model: 'NutrIA', outputTokens: 1, provider: 'Together' })
     ];
 
-    expect(modelsOf(grouped)).toEqual(summariseAiCalls(events.map(properties => ({ at, properties }))).byModel);
+    expect(modelsOf(grouped)).toEqual([
+      {
+        averageMs: 500,
+        calls: 2,
+        costUsd: 0.75,
+        failed: 0,
+        inputTokens: 150,
+        model: 'gemma',
+        outputTokens: 15,
+        provider: 'DeepInfra',
+        reasoningTokens: 5
+      },
+      { averageMs: 2000, calls: 1, costUsd: 0, failed: 1, inputTokens: 0, model: 'NutrIA', outputTokens: 0, provider: null, reasoningTokens: 0 },
+      { averageMs: null, calls: 1, costUsd: 0, failed: 1, inputTokens: 0, model: 'unknown', outputTokens: 0, provider: null, reasoningTokens: 0 },
+      { averageMs: null, calls: 1, costUsd: 0, failed: 0, inputTokens: 7, model: 'gemma', outputTokens: 1, provider: 'Together', reasoningTokens: 0 }
+    ]);
+  });
+
+  it('counts a call the SQL grouped with no answered model against the model that was asked for', () => {
+    expect(aiModelOf({ model: 'gemini-3.6-flash' })).toEqual({ model: 'gemini-3.6-flash', provider: null });
   });
 });
 

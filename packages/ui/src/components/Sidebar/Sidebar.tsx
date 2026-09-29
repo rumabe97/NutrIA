@@ -40,7 +40,10 @@ export interface SidebarProps {
 
 export function Sidebar({ children, description, direction = 'left', onCloseAutoFocus, onOpenChange, open, title, trigger }: SidebarProps) {
   return (
-    <Drawer.Root direction={direction} handleOnly={true} onOpenChange={onOpenChange} open={open}>
+    // `autoFocus`: vaul's default (false) cancels Radix's move into the dialog on open, so
+    // focus stayed on the trigger — hidden from a screen reader behind the overlay — and
+    // Tab walked the page underneath before reaching the drawer.
+    <Drawer.Root autoFocus={true} direction={direction} handleOnly={true} onOpenChange={onOpenChange} open={open}>
       <Drawer.Trigger asChild={true}>{trigger}</Drawer.Trigger>
       <Drawer.Portal>
         <Drawer.Overlay className={styles.overlay} />

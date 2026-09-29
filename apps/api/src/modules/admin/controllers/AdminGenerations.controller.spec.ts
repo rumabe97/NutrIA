@@ -4,7 +4,7 @@ import express from 'express';
 import request from 'supertest';
 import { Test } from '@nestjs/testing';
 
-import { AdminLogController, AdminController as CoreAdmin } from 'core/controllers/Admin';
+import { AdminLogController } from 'core/controllers/Admin';
 
 import { AdminGenerationsController } from './AdminGenerations.controller.js';
 import { AdminGuard } from '../../../shared/guards/index.js';
@@ -104,22 +104,13 @@ describe('AdminGenerationsController', () => {
 
   it('is 404 for an ordinary account on the log, its pages and its charts, and reads nothing', async () => {
     role = 'user';
-    const generations = jest.spyOn(CoreAdmin, 'generations');
     const page = jest.spyOn(AdminLogController, 'page');
     const stats = jest.spyOn(AdminLogController, 'stats');
 
-    for (const path of [
-      'generations',
-      'generations?legacy=1',
-      'generations?q=ana&status=failed',
-      'generations?size=0',
-      'generations/stats',
-      'generations/stats?period=7'
-    ]) {
+    for (const path of ['generations', 'generations?q=ana&status=failed', 'generations?size=0', 'generations/stats', 'generations/stats?period=7']) {
       await get(path).expect(404);
     }
 
-    expect(generations).not.toHaveBeenCalled();
     expect(page).not.toHaveBeenCalled();
     expect(stats).not.toHaveBeenCalled();
   });
@@ -150,21 +141,6 @@ describe('AdminGenerationsController', () => {
       status: 'failed',
       to: '2026-09-28'
     });
-  });
-
-  it('keeps today’s array behind legacy=1, for the transition page until phase 9', async () => {
-    role = 'admin';
-    jest.spyOn(CoreAdmin, 'generations').mockResolvedValue([GENERATION]);
-    const page = jest.spyOn(AdminLogController, 'page');
-
-    page.mockClear();
-
-    const response = await get('generations?legacy=1').expect(200);
-    const [first] = response.body as AdminGenerationView[];
-
-    expect(Array.isArray(response.body)).toBe(true);
-    expect(first?.account.email).toBe('a@b.invalid');
-    expect(page).not.toHaveBeenCalled();
   });
 
   it('refuses a filter outside its grammar with INVALID_INPUT, and reads nothing', async () => {

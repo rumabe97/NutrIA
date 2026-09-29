@@ -84,11 +84,6 @@ describe('generationQuerySchema', () => {
     expect(generationQuerySchema.safeParse({ from: '2026-09-28', to: '2026-09-28' }).success).toBe(true);
   });
 
-  it('keeps today’s array only behind `legacy=1`', () => {
-    expect(generationQuerySchema.parse({ legacy: '1' }).legacy).toBe('1');
-    expect(generationQuerySchema.safeParse({ legacy: 'true' }).success).toBe(false);
-  });
-
   it('holds the page to 1–100 and a whole offset', () => {
     expect(generationQuerySchema.safeParse({ size: '0' }).success).toBe(false);
     expect(generationQuerySchema.safeParse({ size: '101' }).success).toBe(false);

@@ -4,37 +4,8 @@ import { SettingsController } from 'core/controllers/Settings';
 
 import type { ActivityRow } from '#repositories/Analytics';
 import type { AiCallRecord, DishRejection } from 'core/entities/Plan';
-import type { Counts, Funnel, GenerationRow, JobRow, PictureCounts } from '#repositories/Admin';
+import type { Funnel, GenerationRow, JobRow, PictureCounts } from '#repositories/Admin';
 import { monthStart } from 'core/controllers/Recipe';
-
-/** A week is the window a failure is worth looking at in; older than that is history. */
-const WINDOW_DAYS = 7;
-
-/** Enough to see a pattern, few enough to read. */
-const JOB_LIMIT = 25;
-
-/** Each generation carries its whole call log, so fewer of them. */
-const GENERATION_LIMIT = 20;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-/**
- * When Google's daily count starts again.
- *
- * Their day is Pacific, not the operator's and not UTC — so a Spanish owner
- * looking at a spent allowance at nine in the morning is looking at a counter
- * that resets at nine in the morning, and nobody would guess that from a
- * calendar. Offset rather than a timezone library: this is one number, and the
- * hour it lands on moves by one twice a year, which is close enough for a
- * countdown and honest about being an estimate.
- */
-function nextPacificMidnight(now: Date = new Date()): Date {
-  const offsetHours = 8;
-  const pacific = new Date(now.getTime() - offsetHours * 60 * 60 * 1000);
-  const midnight = Date.UTC(pacific.getUTCFullYear(), pacific.getUTCMonth(), pacific.getUTCDate() + 1);
-
-  return new Date(midnight + offsetHours * 60 * 60 * 1000);
-}
 
 /** A fortnight, because that is the product's own unit: one plan, one check-in. */
 const ACTIVITY_DAYS = 14;
@@ -54,15 +25,7 @@ export type AdminJobView = {
   step: string | null;
 };
 
-/**
- * What today has spent of the provider's allowance (`0035`).
- *
- * `limit` is what the operator configured, and null when they configured
- * nothing — the screen then shows a count with no bar rather than inventing a
- * ceiling. `refused` is the number that predicts tomorrow: a call the provider
- * turned down for quota still spent the request.
- */
-/** Today's calls to one model, as served by one provider. */
+/** The period's calls to one model, as served by one provider. */
 export type AiModelUsage = {
   /** Mean of our own clock over the calls that reported one. */
   averageMs: number | null;
@@ -76,38 +39,6 @@ export type AiModelUsage = {
   /** Who served it, when a gateway said; null for a direct provider. */
   provider: string | null;
   reasoningTokens: number;
-};
-
-/** A refusal for quota, with what the provider wrote about the allowance. */
-export type AiRefusal = {
-  at: string;
-  /** The allowance, as the provider's own message stated it — Google writes it into the refusal. */
-  limit: number | null;
-  model: string;
-  retryAfterSeconds: number | null;
-};
-
-export type AiUsageView = {
-  /**
-   * Today's calls by the model that answered and who served it. Through a
-   * gateway, a combo's hops show as their own rows — the one place that says
-   * which model the allowance actually went to.
-   */
-  byModel: readonly AiModelUsage[];
-  /** Provider requests since midnight in the account's own day, whatever their outcome. */
-  calls: number;
-  inputTokens: number;
-  /** The last refusal for quota today, or null when there was none. */
-  lastRefusal: AiRefusal | null;
-  /** Configured allowances, or null when nothing was configured. */
-  limits: { readonly requestsPerDay: number | null; readonly tokensPerMinute: number | null };
-  /** The model the calls named, when they all named the same one. */
-  model: string | null;
-  outputTokens: number;
-  /** Calls the provider refused because the allowance was spent. */
-  refused: number;
-  /** When the daily count starts again, ISO. Pacific midnight, which is Google's day. */
-  resetsAt: string;
 };
 
 /** This month's dish pictures (`0066`): what they cost against the cap, and how many are where. */
@@ -124,13 +55,6 @@ export type AdminAnalyticsView = {
   /** How many of each recorded event in the window, and how many distinct people signed in. */
   activity: { readonly events: readonly ActivityRow[]; readonly people: number };
   funnel: Funnel;
-  windowDays: number;
-};
-
-export type AdminOverviewView = {
-  counts: Counts;
-  jobs: readonly AdminJobView[];
-  /** Days the job counts cover. */
   windowDays: number;
 };
 
@@ -158,78 +82,13 @@ export type AdminGenerationView = AdminJobView & {
 /**
  * Which model and provider one `ai_call` counts against: the model that
  * answered, or — for a call that failed and never learned who would have — the
- * model that was asked for, and `unknown` when neither was recorded. The one
- * rule both today's usage and the period's (`AdminUsageController`) group by.
+ * model that was asked for, and `unknown` when neither was recorded. The rule
+ * the period's usage (`AdminUsageController`) groups by.
  */
 export function aiModelOf(properties: Readonly<Record<string, unknown>>): { readonly model: string; readonly provider: string | null } {
   const text = (value: unknown) => (typeof value === 'string' && value !== '' ? value : null);
 
   return { model: text(properties.answeredModel) ?? text(properties.model) ?? 'unknown', provider: text(properties.provider) };
-}
-
-/**
- * Today's `ai_call` events by the model that answered, and the last refusal
- * for quota among them.
- *
- * A call that failed never learned who would have answered, so it counts
- * against the model that was asked for. Events from before the gateway fields
- * existed have neither, and land under their requested model with no provider.
- */
-export function summariseAiCalls(
-  calls: readonly { readonly at: Date; readonly properties: Record<string, unknown> }[]
-): Pick<AiUsageView, 'byModel' | 'lastRefusal'> {
-  const text = (value: unknown) => (typeof value === 'string' && value !== '' ? value : null);
-  const amount = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? value : 0);
-  const rows = new Map<string, AiModelUsage & { timed: number; totalMs: number }>();
-  let lastRefusal: AiRefusal | null = null;
-
-  for (const { at, properties } of calls) {
-    const { model, provider } = aiModelOf(properties);
-    const key = `${model}\u0000${provider ?? ''}`;
-    const row = rows.get(key) ?? {
-      averageMs: null,
-      calls: 0,
-      costUsd: 0,
-      failed: 0,
-      inputTokens: 0,
-      model,
-      outputTokens: 0,
-      provider,
-      reasoningTokens: 0,
-      timed: 0,
-      totalMs: 0
-    };
-
-    row.calls += 1;
-    row.failed += properties.ok === false ? 1 : 0;
-    row.costUsd += amount(properties.costUsd);
-    row.inputTokens += amount(properties.inputTokens);
-    row.outputTokens += amount(properties.outputTokens);
-    row.reasoningTokens += amount(properties.reasoningTokens);
-
-    if (typeof properties.ms === 'number') {
-      row.timed += 1;
-      row.totalMs += properties.ms;
-    }
-
-    rows.set(key, row);
-
-    if (properties.quotaExhausted === true) {
-      lastRefusal = {
-        at: at.toISOString(),
-        limit: typeof properties.quotaLimit === 'number' ? properties.quotaLimit : null,
-        model: text(properties.model) ?? model,
-        retryAfterSeconds: typeof properties.retryAfterSeconds === 'number' ? properties.retryAfterSeconds : null
-      };
-    }
-  }
-
-  return {
-    byModel: [...rows.values()]
-      .map(({ timed, totalMs, ...row }) => ({ ...row, averageMs: timed > 0 ? Math.round(totalMs / timed) : null }))
-      .sort((a, b) => b.calls - a.calls),
-    lastRefusal
-  };
 }
 
 /** The plan side of a generation, read defensively: its metadata is whatever the pipeline wrote at the time. */
@@ -330,32 +189,6 @@ export function presentGeneration(row: GenerationRow): AdminGenerationView {
  */
 export const AdminController = {
   /**
-   * The provider's day, counted here.
-   *
-   * Ours, not theirs: Google publishes no endpoint for what is left, so this is
-   * every request that went out through this service measured against the
-   * number the operator wrote down. A difference from the console is calls that
-   * did not come through here.
-   */
-  async aiUsage(limits: { readonly requestsPerDay?: number; readonly tokensPerMinute?: number } = {}): Promise<AiUsageView> {
-    const resets = nextPacificMidnight();
-    const calls = await AnalyticsRepository.aiCallsSince(new Date(resets.getTime() - DAY_MS));
-    const models = new Set(calls.map(call => String(call.properties.model ?? '')).filter(Boolean));
-    const number = (call: (typeof calls)[number], key: string) => (typeof call.properties[key] === 'number' ? (call.properties[key] as number) : 0);
-
-    return {
-      ...summariseAiCalls(calls),
-      calls: calls.length,
-      inputTokens: calls.reduce((total, call) => total + number(call, 'inputTokens'), 0),
-      limits: { requestsPerDay: limits.requestsPerDay ?? null, tokensPerMinute: limits.tokensPerMinute ?? null },
-      model: models.size === 1 ? [...models][0] : null,
-      outputTokens: calls.reduce((total, call) => total + number(call, 'outputTokens'), 0),
-      refused: calls.filter(call => call.properties.quotaExhausted === true).length,
-      resetsAt: resets.toISOString()
-    };
-  },
-
-  /**
    * Whether the product is working for the people using it.
    *
    * The funnel is counted from state and the activity from the event log, and
@@ -368,27 +201,6 @@ export const AdminController = {
     const [funnel, activity] = await Promise.all([AdminRepository.funnel(), AnalyticsRepository.activitySince(since)]);
 
     return { activity: { events: activity.rows, people: activity.people }, funnel, windowDays: ACTIVITY_DAYS };
-  },
-
-  /** Only what failed, for when something is wrong and the list is long. */
-  async failures(): Promise<readonly AdminJobView[]> {
-    return (await AdminRepository.recentJobs(JOB_LIMIT, true)).map(present);
-  },
-
-  /**
-   * The latest generations, each with who asked for it and every model call it
-   * made. The one read here that carries a person, which is why the API gives
-   * it a controller of its own (`0028`, `0050`).
-   */
-  async generations(): Promise<readonly AdminGenerationView[]> {
-    return (await AdminRepository.recentGenerations(GENERATION_LIMIT)).map(presentGeneration);
-  },
-
-  async overview(now = new Date()): Promise<AdminOverviewView> {
-    const since = new Date(now.getTime() - WINDOW_DAYS * 24 * 60 * 60 * 1000);
-    const [counts, jobs] = await Promise.all([AdminRepository.counts(since), AdminRepository.recentJobs(JOB_LIMIT, false)]);
-
-    return { counts, jobs: jobs.map(present), windowDays: WINDOW_DAYS };
   },
 
   /** This month's picture spend against the cap, and the pictures ready, failed and being drawn (`0066`). */

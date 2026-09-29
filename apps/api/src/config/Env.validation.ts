@@ -292,21 +292,6 @@ const envObject = z.object({
    */
   AI_REASONING_MAX_TOKENS: optional(z.coerce.number().int().positive()),
   /*
-   * The provider's own allowances, as the console reports them, so `/admin` can
-   * say how close today is to the wall.
-   *
-   * Configured rather than hard-coded because they belong to an account and a
-   * model, not to this codebase — Gemini's free tier gives one model twenty
-   * requests a day and another five hundred. Unset means the screen shows the
-   * count and no bar, which is honest: a limit nobody stated is not a limit
-   * this product may invent.
-   *
-   * They are also **our** count against **their** number. Google publishes no
-   * endpoint for what is left, so a difference between this and the console is
-   * calls that did not come through here.
-   */
-  AI_REQUESTS_PER_DAY: optional(z.coerce.number().int().positive()),
-  /*
    * The model the rewrite sweep asks, when it should not be the generation's.
    * Through the gateway, a combo of free models without the Gemini step, so
    * the sweep cannot spend the twenty daily requests a plan may need. Empty:
@@ -324,7 +309,6 @@ const envObject = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform(value => value === 'true'),
-  AI_TOKENS_PER_MINUTE: optional(z.coerce.number().int().positive()),
   ALLOWED_ORIGINS: optional(z.string()),
   ANTHROPIC_API_KEY: optional(z.string()),
   API_PREFIX: z.string().default('api/v1'),

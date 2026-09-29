@@ -76,6 +76,18 @@ describe('Sidebar', () => {
     expect(onOpenChange).toHaveBeenCalledWith(true);
   });
 
+  it('moves focus into the drawer when it opens, not left on the trigger behind the overlay', async () => {
+    render(
+      <Sidebar title="Nav" trigger={<button>Menú</button>}>
+        <a href="/admin">Resumen</a>
+      </Sidebar>
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Menú' }));
+
+    await waitFor(() => expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true));
+  });
+
   describe('focus on close', () => {
     function renderFocusable(onCloseAutoFocus?: (event: Event) => void) {
       return render(

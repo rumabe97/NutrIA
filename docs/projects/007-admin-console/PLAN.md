@@ -413,7 +413,7 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 8 — Web: Registro, IA y modelos, Catálogo, Imágenes; the transition page goes
 
-- [x] done
+- [x] done — commit `cd16af2` ("The console's Registro, IA y modelos, Catálogo and Imágenes exist, the transition page goes, and text-AI spend is counted")
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 8`. Reviews: `accessibility`,
   plus `/local-probe`.
 - **Goal**: the remaining pages exist and the transition page is deleted, so every row of
@@ -462,7 +462,7 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 9 — Removals, documentation and the owner's check
 
-- [ ] pending
+- [ ] in progress
 - **Dispatch**: sonnet @ medium — `/execute-project 007 phase 9` (mechanical deletion
   against a written list). Reviews: `invariant-reviewer` on the final diff, and an
   `accessibility` pass over the whole console. — human-verify: the owner walks the console
@@ -471,7 +471,10 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 - **Scope**: `apps/api/src/{config,modules/admin}/**`, `packages/core/src/{controllers,repositories}/{Admin,Analytics}/**`,
   `apps/api/test/admin.e2e-spec.ts`, `apps/web/src/i18n/dictionaries/*`, `apps/web/AGENTS.md`,
   `apps/api/AGENTS.md`, `docs/ROADMAP.md`, `docs/ARCHITECTURE.md` (only if it names the admin
-  screen), this project's PRD and PLAN status lines.
+  screen), this project's PRD and PLAN status lines. Added in phase 9 (see LOG): `turbo.json` and `apps/api/.env.example`
+  (the two variables), `packages/ui` `Sidebar` (the phone menu's touch scroll and focus on
+  open, from the owner and the final accessibility pass), `scripts/smoke.mjs`,
+  `docs/reference/ai-gateway.md` and decision `0035`'s status line.
 - **Steps**:
   1. Remove the following:
      - from `/admin/ai`: `limits`, `resetsAt`, `lastRefusal`, `refused` and the
