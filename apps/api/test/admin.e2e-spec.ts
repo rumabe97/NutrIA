@@ -1759,7 +1759,9 @@ describe('admin', () => {
         const response: Response = await get(`ai${query === undefined ? '' : `?period=${query}`}`, owner.cookie).expect(200);
         const view = response.body as AdminAiView;
 
-        expect(Object.keys(view).sort()).toEqual([...TODAY_KEYS, 'callsPerDay', 'models', 'period', 'tokensPerDay', 'totals', 'window'].sort());
+        expect(Object.keys(view).sort()).toEqual(
+          [...TODAY_KEYS, 'callsPerDay', 'models', 'period', 'spendPerDay', 'tokensPerDay', 'totals', 'window'].sort()
+        );
         expect(view.period).toBe(period);
         // Today's fields as before: the scripted model is not a provider.
         expect(view).toMatchObject({ calls: 0, refused: 0 });
