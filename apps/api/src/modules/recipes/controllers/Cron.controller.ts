@@ -61,7 +61,8 @@ export class CronController {
   async rewriteSteps(): Promise<RewriteRunDto> {
     const run = await this.rewriter.rewriteOutdated(REWRITES_PER_SWEEP);
 
-    await this.runs.record('rewrite', run);
+    // A sweep held back by the cap says so in its record, in the place of a count of skipped recipes.
+    await this.runs.record('rewrite', 'heldBy' in run ? { pending: 0, rewritten: 0, skipped: 'cap', unreached: 0 } : run);
 
     return run;
   }

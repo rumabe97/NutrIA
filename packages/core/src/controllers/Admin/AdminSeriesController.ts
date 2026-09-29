@@ -2,6 +2,7 @@ import { AdminAiRepository, AdminRepository, AdminSeriesRepository, JOB_STATUSES
 import { PRODUCT_EVENTS } from 'core/entities/Analytics';
 import { fillDays, fillWeeks, madridDayKey, madridDayKeys, madridWeekKeys, windowFor } from 'core/domain/Period';
 import { monthStart } from 'core/controllers/Recipe';
+import { AdminTextSpend } from './AdminTextSpend';
 
 import type { Funnel, KeyedDayCountRow, Outcomes } from '#repositories/Admin';
 import type { Period, PeriodWindow } from 'core/entities/Period';
@@ -98,7 +99,21 @@ export type AdminSummaryView = {
      * step rewrites, which the `ai_call` event does not tell apart — against the
      * period before; the sparkline is the period's spend per day. Pictures are apart.
      */
-    readonly textAi: { readonly sparkline: DaySeries; readonly spentUsd: PeriodComparison };
+    readonly textAi: {
+      /**
+       * The UTC month against `AI_TEXT_MONTHLY_CAP_USD`: present only when the cap is
+       * set (the key is absent otherwise). `sweepPaused` is true from 80 % of the cap.
+       */
+      readonly month?: {
+        readonly capUsd: number;
+        readonly monthSpentUsd: number;
+        readonly monthStart: string;
+        readonly share: number;
+        readonly sweepPaused: boolean;
+      };
+      readonly sparkline: DaySeries;
+      readonly spentUsd: PeriodComparison;
+    };
     /** Every account there is. */
     readonly totalAccounts: number;
     /** Messages not marked dealt with. */
@@ -256,23 +271,25 @@ export const AdminSeriesController = {
    * and generations per day, and what needs the owner now. `capUsd` is
    * `AI_IMAGE_MONTHLY_CAP_USD`, the number drawing stops at.
    */
-  async summary(period: Period, capUsd: number, now = new Date()): Promise<AdminSummaryView> {
+  async summary(period: Period, capUsd: number, now = new Date(), textCapUsd?: number): Promise<AdminSummaryView> {
     const window = windowFor(period, now);
     const days = madridDayKeys(window.from, window.to);
     const month = monthStart(now);
-    const [accounts, active, plans, generations, spend, unread, signUpDays, generationDays, activeDays, planDays, aiDays] = await Promise.all([
-      AdminSeriesRepository.accountTotals(window),
-      AdminSeriesRepository.activePeopleTotals(window),
-      AdminSeriesRepository.planTotals(window),
-      AdminSeriesRepository.generationTotals(window, new Date(now.getTime() - DAY_MS)),
-      AdminSeriesRepository.pictureSpendTotals(window, month),
-      AdminSeriesRepository.unreadMessages(),
-      AdminSeriesRepository.signUpsPerDay(window.from, window.to),
-      AdminSeriesRepository.generationsPerDay(window.from, window.to),
-      AdminSeriesRepository.activePeoplePerDay(window.from, window.to),
-      AdminSeriesRepository.plansCreatedPerDay(window.from, window.to),
-      AdminAiRepository.callsPerDay(window.previousFrom, window.to)
-    ]);
+    const [accounts, active, plans, generations, spend, unread, signUpDays, generationDays, activeDays, planDays, aiDays, textMonth] =
+      await Promise.all([
+        AdminSeriesRepository.accountTotals(window),
+        AdminSeriesRepository.activePeopleTotals(window),
+        AdminSeriesRepository.planTotals(window),
+        AdminSeriesRepository.generationTotals(window, new Date(now.getTime() - DAY_MS)),
+        AdminSeriesRepository.pictureSpendTotals(window, month),
+        AdminSeriesRepository.unreadMessages(),
+        AdminSeriesRepository.signUpsPerDay(window.from, window.to),
+        AdminSeriesRepository.generationsPerDay(window.from, window.to),
+        AdminSeriesRepository.activePeoplePerDay(window.from, window.to),
+        AdminSeriesRepository.plansCreatedPerDay(window.from, window.to),
+        AdminAiRepository.callsPerDay(window.previousFrom, window.to),
+        textCapUsd === undefined ? undefined : AdminTextSpend.month(now, textCapUsd)
+      ]);
     const signUps: DaySeries = { days, values: fillDays(days, signUpDays) };
     const firstDay = madridDayKey(window.from);
     const dollars = (value: number) => Math.round(value * 1e6) / 1e6;
@@ -294,6 +311,17 @@ export const AdminSeriesController = {
         plansGenerated: { ...plans, sparkline: { days, values: fillDays(days, planDays) } },
         successRate: { current: rate(generations.current), previous: rate(generations.previous) },
         textAi: {
+          ...(textMonth?.capUsd === undefined || textMonth.share === undefined || textMonth.sweepPaused === undefined
+            ? {}
+            : {
+                month: {
+                  capUsd: textMonth.capUsd,
+                  monthSpentUsd: textMonth.spentUsd,
+                  monthStart: textMonth.monthStart,
+                  share: textMonth.share,
+                  sweepPaused: textMonth.sweepPaused
+                }
+              }),
           sparkline: {
             days,
             values: fillDays(

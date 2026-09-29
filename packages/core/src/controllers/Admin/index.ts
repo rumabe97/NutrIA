@@ -6,4 +6,5 @@ export * from './AdminNotificationController';
 export * from './AdminQualityController';
 export * from './AdminSeriesController';
 export * from './AdminSystemController';
+export * from './AdminTextSpend';
 export * from './AdminUsageController';

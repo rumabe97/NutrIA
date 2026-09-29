@@ -21,7 +21,7 @@ const series = vi.hoisted(() => ({
   unreadMessages: vi.fn<(typeof Series)['unreadMessages']>()
 }));
 const funnel = vi.hoisted(() => vi.fn<() => Promise<Funnel>>());
-const ai = vi.hoisted(() => ({ callsPerDay: vi.fn() }));
+const ai = vi.hoisted(() => ({ callsPerDay: vi.fn(), monthByFeature: vi.fn() }));
 
 vi.mock('#repositories/Admin', () => ({
   AdminAiRepository: ai,
@@ -219,6 +219,23 @@ describe('AdminSeriesController.summary — the text models’ spend', () => {
     expect(summary.tiles.textAi).toEqual({
       sparkline: { days: WEEK, values: [0, 0.3, 0, 0, 0, 0, 0.05] },
       spentUsd: { current: 0.35, previous: 0.4 }
+    });
+  });
+
+  it('shows the month against the text cap only when a cap is set', async () => {
+    ai.monthByFeature.mockResolvedValue([{ calls: 2, costUsd: 4, feature: 'plan', uncosted: 0 }]);
+
+    const without = await AdminSeriesController.summary(7, 10, NOW);
+    const withCap = await AdminSeriesController.summary(7, 10, NOW, 5);
+
+    expect(Object.keys(without.tiles.textAi).sort()).toEqual(['sparkline', 'spentUsd']);
+    expect(ai.monthByFeature).toHaveBeenCalledTimes(1);
+    expect(withCap.tiles.textAi.month).toEqual({
+      capUsd: 5,
+      monthSpentUsd: 4,
+      monthStart: '2026-09-01T00:00:00.000Z',
+      share: 0.8,
+      sweepPaused: true
     });
   });
 });

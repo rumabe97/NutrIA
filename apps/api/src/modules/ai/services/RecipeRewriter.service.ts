@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 
+import { TEXT_SWEEP_STOP_SHARE, TextSpend } from 'core/controllers/Analytics';
 import { RecipeController } from 'core/controllers/Recipe';
 import { cleanSteps, isAboutTheBrief, isMethodComplete, lowerIngredientNames, methodMentions } from 'core/domain/Method';
 import { normaliseForMatching } from 'core/domain/Safety';
@@ -62,6 +63,9 @@ export type RewriteRun = {
   readonly unreached: number;
 };
 
+/** A sweep that did not start: the month's text spend is at 80 % of `AI_TEXT_MONTHLY_CAP_USD` or more (`0071`). */
+export type RewriteHeldBack = RewriteRun & { readonly heldBy: 'cap' };
+
 /**
  * Rewrites the method of recipes written by an older prompt.
  *
@@ -101,10 +105,21 @@ export class RecipeRewriter {
     return this.env.AI_REWRITE_STEPS && this.ai.isAvailable;
   }
 
-  async rewriteOutdated(limit: number): Promise<RewriteRun> {
+  async rewriteOutdated(limit: number): Promise<RewriteHeldBack | RewriteRun> {
     // The sweep's own availability, not the client's: the owner's switch lives here.
     if (!this.isAvailable) {
       return { pending: 0, rewritten: 0, skipped: 0, unreached: 0 };
+    }
+
+    // The one spend nobody is waiting on: with no cap set nothing is read, and
+    // with one it does not start from 80 % of it. A plan is never held back here.
+    const cap = this.env.AI_TEXT_MONTHLY_CAP_USD;
+
+    // A read that fails throws: the sweep does not start on a spend it could not see.
+    if (cap !== undefined && (await TextSpend.gauge(cap)).sweepPaused) {
+      this.logger.warn(`The month's text spend is at ${String(TEXT_SWEEP_STOP_SHARE * 100)} % of AI_TEXT_MONTHLY_CAP_USD; the sweep does not start.`);
+
+      return { heldBy: 'cap', pending: 0, rewritten: 0, skipped: 0, unreached: 0 };
     }
 
     const deadline = Date.now() + this.limits.sweepMs;

@@ -63,7 +63,7 @@ point. The owner approved all of them on 2026-09-29, with D1–D4.
   log, which is about what the owner did — and about the one thing the service does in his
   place, opening an account automatically when its address is confirmed.
 - **The text-AI cap shows and warns; it never stops a plan** (owner, D1).
-  - `AI_TEXT_MONTHLY_CAP_USD` defaults to 5 USD (owner, D2), counted over the UTC month
+  - `AI_TEXT_MONTHLY_CAP_USD` is set to 5 USD on production (owner, D2; unset shows no gauge), counted over the UTC month
     like the pictures' cap.
   - At 80 % the nightly step rewrite does not start.
   - The wall that stops spending is the OpenRouter key's own monthly cap (`0064`). The

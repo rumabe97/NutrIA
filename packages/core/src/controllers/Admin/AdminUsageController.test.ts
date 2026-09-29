@@ -5,7 +5,7 @@ import { AdminUsageController, modelsOf } from './AdminUsageController';
 
 import type { AdminAiRepository as Ai, AiCallDayRow, AdminSeriesRepository as Series } from '#repositories/Admin';
 
-const ai = vi.hoisted(() => ({ callsPerDay: vi.fn<(typeof Ai)['callsPerDay']>() }));
+const ai = vi.hoisted(() => ({ callsPerDay: vi.fn<(typeof Ai)['callsPerDay']>(), monthByFeature: vi.fn<(typeof Ai)['monthByFeature']>() }));
 const series = vi.hoisted(() => ({ pictureSpendPerDay: vi.fn<(typeof Series)['pictureSpendPerDay']>() }));
 
 vi.mock('#repositories/Admin', () => ({
@@ -40,6 +40,7 @@ function row(overrides: Partial<AiCallDayRow>): AiCallDayRow {
 
 beforeEach(() => {
   vi.restoreAllMocks();
+  ai.monthByFeature.mockResolvedValue([]);
   ai.callsPerDay.mockResolvedValue([
     // The period before: 14–21 September.
     row({ calls: 5, costUsd: 0.1, day: '2026-09-20', failed: true, timed: 5, totalMs: 5000 }),
@@ -178,5 +179,43 @@ describe('AdminUsageController.pictures', () => {
     expect(view).toMatchObject(month);
     expect(view.spendPerDay).toEqual({ days: WEEK, values: [0, 0, 0.3, 0, 0, 0, 1.25] });
     expect(view.period).toBe(7);
+  });
+});
+
+describe('the text models’ month (0071)', () => {
+  it('is always there, per feature with zeros, and has no cap fields without a cap', async () => {
+    ai.monthByFeature.mockResolvedValue([
+      { calls: 3, costUsd: 0.2, feature: 'plan', uncosted: 1 },
+      { calls: 2, costUsd: 0.1, feature: 'rewrite', uncosted: 0 },
+      // Before phase 1 nobody filed the call; and a name nobody knows is filed the same way.
+      { calls: 4, costUsd: 0.05, feature: null, uncosted: 4 },
+      { calls: 1, costUsd: 0.05, feature: 'other', uncosted: 0 }
+    ]);
+
+    const { month } = await AdminUsageController.ai(7, NOW);
+
+    expect(ai.monthByFeature).toHaveBeenCalledWith(new Date('2026-09-01T00:00:00Z'));
+    expect(month).toEqual({
+      byFeature: [
+        { calls: 3, costUsd: 0.2, feature: 'plan' },
+        { calls: 0, costUsd: 0, feature: 'swap' },
+        { calls: 2, costUsd: 0.1, feature: 'rewrite' },
+        { calls: 5, costUsd: 0.1, feature: 'unknown' }
+      ],
+      monthStart: '2026-09-01T00:00:00.000Z',
+      spentUsd: 0.4,
+      uncostedCalls: 5
+    });
+    expect(Object.keys(month)).not.toContain('capUsd');
+  });
+
+  it('adds the gauge with a cap, and holds the sweep from 80 %', async () => {
+    ai.monthByFeature.mockResolvedValue([{ calls: 1, costUsd: 4, feature: 'plan', uncosted: 0 }]);
+
+    expect((await AdminUsageController.ai(7, NOW, 5)).month).toMatchObject({ capUsd: 5, share: 0.8, spentUsd: 4, sweepPaused: true });
+
+    ai.monthByFeature.mockResolvedValue([{ calls: 1, costUsd: 3.99, feature: 'plan', uncosted: 0 }]);
+
+    expect((await AdminUsageController.ai(7, NOW, 5)).month).toMatchObject({ share: 0.798, sweepPaused: false });
   });
 });

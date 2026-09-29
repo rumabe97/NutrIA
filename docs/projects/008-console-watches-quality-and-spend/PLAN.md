@@ -186,7 +186,7 @@ numbers refer to it. Read it before any phase.
 
 ### Phase 3 — "Active" fixed, and the pages that read what already exists
 
-- [x] done
+- [x] done — commit `8118e50` ("The console says whether the catalogue, the consents, the crons and the reminders are sound, and \"active\" means use")
 - **Dispatch**: opus @ medium — `/execute-project 008 phase 3`. Reviews:
   `invariant-reviewer`, `accessibility` with `/local-probe`, and `legal` (D5). Can run as
   one `/team` with phase 1's API if convenient.
@@ -248,7 +248,7 @@ numbers refer to it. Read it before any phase.
 
 ### Phase 4 — Spend against a cap
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 008 phase 4`. Reviews:
   `invariant-reviewer`, `accessibility`. — owner-gated: set `AI_TEXT_MONTHLY_CAP_USD=5` on
   the Vercel API project, never above the OpenRouter key's own cap.

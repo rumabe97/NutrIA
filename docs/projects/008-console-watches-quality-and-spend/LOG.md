@@ -211,3 +211,68 @@
     `notFound()`); a probe can trip it. Accessibility P3, not fixed.
   - The nav has "Registro" (Generación) and "Registro de acciones" (Ajustes), which sound
     alike to a screen reader. Accessibility P3, not fixed.
+
+## Phase 4 — Spend against a cap (2026-09-29)
+
+- **Executor**: the `backend` agent (medium) wrote the API, and a second `backend`
+  agent made the review fixes. The `frontend` agent (medium) built the gauge and the
+  tile, and the `tests` agent (medium) wrote the end to end. All were based on phase 3's
+  commit before it merged, each in its own worktree, which was brought into the main
+  checkout and removed. The lead (opus, this session) fixed the accessibility P2.
+  Reviews: `invariant-reviewer` and `accessibility` with `/local-probe`.
+- **Result**: done. **Owner-gated:** set `AI_TEXT_MONTHLY_CAP_USD=5` on the Vercel API
+  project, never above the OpenRouter key's own monthly cap.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api --filter=web`:
+    17/17 tasks; api 1016 tests. `pnpm -w run deadcode` is clean. The env spec covers
+    unset, empty, 5, 2.5, 0, −1 and text.
+  - End-to-end, local, `SMTP_*` and `VAPID_*` blank. The new `text-cap` suite passes
+    5/5, run twice. It sizes the cap from the month's real dev spend and asserts deltas:
+    - the gauge's seven keys with the cap, and the summary tile's five;
+    - features in order, and their costs sum to the spend;
+    - an uncosted call counts, and a row before the UTC month does not;
+    - `/cron/rewrite-steps` answers `heldBy: 'cap'`, records `cron_run`
+      `skipped: 'cap'`, and makes no model call;
+    - it deletes everything it seeded, and its `afterAll` asserts that.
+  - `admin` without the cap: exact keys, no gauge fields, and `tiles.textAi` unchanged.
+    - Two tests failed in the combined local run: "count a sign-up and a message made
+      now in the current week", and "active moves on a use, and not on a swap alone".
+    - They fail the same way on phase 3's code with phase 4 reverted, and both passed in
+      phase 3's run and in #158's CI, so they are not from this change. The cause on the
+      shared dev database is unconfirmed. CI decides.
+  - `monthByFeature` runs on the dev Postgres, with and without the cap.
+  - `invariant-reviewer`: no P0 or P1.
+    - Neither a plan nor a swap can be held by the cap; the only reader is the nightly
+      sweep. When the spend cannot be read, the sweep does not start, and that is
+      confirmed as the right call.
+    - Its P2 is fixed: `modules/ai` imported the whole `core/controllers/Admin` barrel,
+      which reaches health repositories. The spend reader now lives in
+      `core/controllers/Analytics` (`TextSpend`), and `health-boundary.spec.ts` forbids
+      the Admin barrel.
+    - Its P3s are fixed:
+      - the sweep and the gauge share one predicate (`textCapOf`);
+      - `cron_run` counts take a number or `'cap'` only.
+    - A source-scan spec keeps the cap's reader out of everything but the sweep, and
+      a unit spec proves the sweep fails closed.
+  - `accessibility`: no cap, 27 %, 90 % and 217 %, at 320, 390 and 1280 px, light and
+    dark. There is no sideways scroll, and every warning is in words.
+    - Its P2 is fixed: the feature table's cost column sat off the card at 320 px; the
+      feature name now wraps below a 36rem container.
+    - Its P3 is fixed: the table has its own caption, apart from the chart's.
+    - Its period-selector P2 is the probe artefact of phase 3, a root font size that
+      does not trigger `rem` media queries.
+- **Deviations from plan**:
+  1. The cap has no default in code. Unset means no gauge and nothing changes (PRD 6);
+     the owner sets 5 on production. `0071` is reworded to match.
+  2. `cron_run` for a held sweep records `skipped: 'cap'`, a string in a field that is a
+     count otherwise.
+- **Decisions**: [`0071`](../../decisions/0071-the-service-records-what-leaves-no-row-and-the-console-watches-it.md)
+  (the cap's wording).
+- **Notes for the next phase**:
+  - After a month with the cap set, compare the gauge with OpenRouter's panel. A gap
+    of more than 10 % is investigated before relying on the warnings. Uncosted calls
+    make the app's figure a minimum.
+  - A suite that wants the rewrite sweep to run must override `AI_REWRITE_CLIENT` as well
+    as the AI client.
+  - Phase 5 waits 2–4 weeks after phase 1 (deployed 2026-09-29). Phase 6 (alerts) and
+    phase 7 (the terms) can go first.
