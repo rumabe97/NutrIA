@@ -205,8 +205,15 @@ write leaves no row, and a write that returns without having recorded fails. So:
   criterion 6) — there is no unaudited door. A new method that returns a client's id or data
   to a professional without writing that client's row is a second way in, and a P0.
 
-Four related rules:
+Five related rules:
 
+- **An action that must leave a trail takes an optional `record` callback and calls it
+  inside its own transaction, after checking the row it changed actually exists.**
+  `CareRepository.logAccess`'s shape (`0059`), and `core/repositories/Audit`'s
+  `RecordAudit` type reuses it for every admin mutation (`0071`): the repository never
+  imports `AuditRepository` itself — the controller builds the closure and hands it
+  down — so a repository stays ignorant of which domain is watching it, and an action
+  that is refused or fails leaves no row, exactly as it would with no watcher at all.
 - **Wrap delete-then-insert in a transaction.** `SafetyRepository.replaceAll` does, because
   the intermediate state — allergies deleted, not yet re-inserted — is a profile with *no*
   restrictions. Nothing may observe that gap.

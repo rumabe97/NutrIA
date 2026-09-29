@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import {
   AdminAccountsController,
+  AdminAuditController,
   AdminCatalogueController,
   AdminController,
   AdminFeedbackController,
@@ -12,6 +13,7 @@ import {
 } from './controllers/index.js';
 import {
   AdminAccountsService,
+  AdminAuditService,
   AdminCatalogueService,
   AdminFeedbackService,
   AdminProfessionalsService,
@@ -33,6 +35,7 @@ import { NotificationsModule } from '../notifications/index.js';
   controllers: [
     AdminController,
     AdminAccountsController,
+    AdminAuditController,
     AdminCatalogueController,
     AdminFeedbackController,
     AdminGenerationsController,
@@ -44,6 +47,7 @@ import { NotificationsModule } from '../notifications/index.js';
   imports: [EmailModule, NotificationsModule],
   providers: [
     AdminAccountsService,
+    AdminAuditService,
     AdminCatalogueService,
     AdminFeedbackService,
     AdminProfessionalsService,

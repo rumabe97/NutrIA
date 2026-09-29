@@ -6,9 +6,10 @@ import { DEFAULT_PAGE_SIZE, FEEDBACK_SORTS, FEEDBACK_STATES, MAX_PAGE_SIZE, SORT
 
 import { FeedbackQueryDto, HandleFeedbackDto } from '../dto/in/index.js';
 import { ZodQuery } from './ZodQuery.js';
-import { Roles, ZodBody } from '../../../shared/index.js';
+import { CurrentUser, Roles, ZodBody } from '../../../shared/index.js';
 
 import type { FeedbackInboxDto } from '../dto/out/index.js';
+import type { SessionUser } from '../../../shared/index.js';
 
 /**
  * The one admin read that carries a person (`0037`): the message *and* the
@@ -41,7 +42,11 @@ export class AdminFeedbackController {
   @ApiOperation({ summary: 'Mark a message dealt with, or put it back' })
   @HttpCode(HttpStatus.NO_CONTENT)
   @Patch('feedback/:id')
-  async setHandled(@Param('id', ParseUUIDPipe) id: string, @ZodBody(HandleFeedbackDto) body: HandleFeedbackDto): Promise<void> {
-    await this.feedback.setHandled(id, body);
+  async setHandled(
+    @Param('id', ParseUUIDPipe) id: string,
+    @ZodBody(HandleFeedbackDto) body: HandleFeedbackDto,
+    @CurrentUser() owner: SessionUser
+  ): Promise<void> {
+    await this.feedback.setHandled(id, body, owner.id);
   }
 }

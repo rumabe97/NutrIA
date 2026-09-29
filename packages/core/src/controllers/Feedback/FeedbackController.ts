@@ -1,3 +1,4 @@
+import { AuditRepository } from '#repositories/Audit';
 import { FeedbackRepository } from '#repositories/Feedback';
 import { feedbackQuerySchema } from 'core/entities/AdminQuery';
 import { NotFoundError } from 'core/entities/Error';
@@ -56,9 +57,20 @@ export const FeedbackController = {
    *
    * Reversible on purpose: "handled" is the owner's own note to themselves, and
    * a note you cannot take back is one people stop making.
+   *
+   * `actorId` is the session's user (`0071`); the message's own id is the
+   * trail's `entityId` — it names a message, not a person (`0071`, `entity_id`
+   * stays for what is not a person).
    */
-  async setHandled(id: string, handled: boolean): Promise<void> {
-    if (!(await FeedbackRepository.setHandled(id, handled))) {
+  async setHandled(id: string, handled: boolean, actorId: string): Promise<void> {
+    const ok = await FeedbackRepository.setHandled(id, handled, async tx => {
+      await AuditRepository.record(
+        { action: handled ? 'feedback.handled' : 'feedback.reopened', actorId, entity: 'feedback', entityId: id, metadata: {} },
+        tx
+      );
+    });
+
+    if (!ok) {
       throw new NotFoundError(`Feedback "${id}" not found`);
     }
   },

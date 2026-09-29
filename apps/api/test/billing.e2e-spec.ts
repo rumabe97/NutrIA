@@ -5,6 +5,7 @@ import Stripe from 'stripe';
 import { BillingController } from 'core/controllers/Billing';
 import { database } from 'database';
 import { SettingsController } from 'core/controllers/Settings';
+import { UNAUDITED } from 'core/entities/Audit';
 import { UserController } from 'core/controllers/User';
 
 import { completeOnboarding, httpServer, PREFIX, register } from './harness.js';
@@ -410,12 +411,12 @@ describe('billing', () => {
     test = await deploy(TEST_KEYS);
     live = await deploy(LIVE_KEYS);
     // Every other suite assumes the switch off; this one starts from there too.
-    await SettingsController.setFlag('premium', false);
+    await SettingsController.setFlag('premium', false, UNAUDITED);
   });
 
   afterAll(async () => {
     // The switch is global and every later suite assumes the free tier.
-    await SettingsController.setFlag('premium', false);
+    await SettingsController.setFlag('premium', false, UNAUDITED);
 
     // These accounts are this suite's own, and the database may outlive it.
     // Their subscriptions rows go with them (the foreign key cascades).
@@ -453,7 +454,7 @@ describe('billing', () => {
 
     // 2
     it.each([false, true])('with test keys, shows billing to the owner alone (premium switch %s)', async premium => {
-      await SettingsController.setFlag('premium', premium);
+      await SettingsController.setFlag('premium', premium, UNAUDITED);
 
       try {
         const owner = await account(test, `test-owner-${premium}`, 'admin');
@@ -480,7 +481,7 @@ describe('billing', () => {
         expect(test.stripe.bought).toHaveLength(before);
         expect(await stateOf(ordinary.id)).toEqual({ rows: [], tier: 'free' });
       } finally {
-        await SettingsController.setFlag('premium', false);
+        await SettingsController.setFlag('premium', false, UNAUDITED);
       }
     });
 
@@ -498,7 +499,7 @@ describe('billing', () => {
         }
 
         expect(live.stripe.bought).toHaveLength(0);
-        await SettingsController.setFlag('premium', true);
+        await SettingsController.setFlag('premium', true, UNAUDITED);
 
         for (const who of [owner, ordinary]) {
           const answer: Response = await status(live, who).expect(200);
@@ -511,7 +512,7 @@ describe('billing', () => {
           await checkout(live, who).expect(200);
         }
       } finally {
-        await SettingsController.setFlag('premium', false);
+        await SettingsController.setFlag('premium', false, UNAUDITED);
       }
     });
 
@@ -555,7 +556,7 @@ describe('billing', () => {
       await checkout(test, buyer, { plan: 42 }).expect(422);
       expect(test.stripe.bought).toHaveLength(before);
 
-      await SettingsController.setFlag('premium', true);
+      await SettingsController.setFlag('premium', true, UNAUDITED);
 
       try {
         const yearly = await account(live, 'yearly-live');
@@ -563,7 +564,7 @@ describe('billing', () => {
         await checkout(live, yearly, { plan: 'yearly' }).expect(200);
         expect(live.stripe.bought.at(-1)).toMatchObject({ client_reference_id: yearly.id, line_items: [{ price: YEARLY, quantity: 1 }] });
       } finally {
-        await SettingsController.setFlag('premium', false);
+        await SettingsController.setFlag('premium', false, UNAUDITED);
       }
     });
 
@@ -1238,12 +1239,12 @@ describe('billing', () => {
       };
 
       await expect(allowances()).resolves.toBe('free');
-      await SettingsController.setFlag('premium', true);
+      await SettingsController.setFlag('premium', true, UNAUDITED);
 
       try {
         await expect(allowances()).resolves.toBe('premium');
       } finally {
-        await SettingsController.setFlag('premium', false);
+        await SettingsController.setFlag('premium', false, UNAUDITED);
       }
 
       await expect(allowances()).resolves.toBe('free');

@@ -13,8 +13,10 @@ interface AdminTableFormProps {
   /** The fields, drawn on the server: search, filters, page size, the kept parameters and the submit button. */
   children: ReactNode;
   className?: string;
-  /** Names the form for a screen reader ("Buscar y filtrar"). */
+  /** Names the form for a screen reader ("Buscar y filtrar", or "Filtrar" with no search field). */
   label: string;
+  /** A search landmark only when the form holds a search field: a filter alone is not one. */
+  searchable: boolean;
   /** What each field shows for the address on screen, so the back button puts the fields back too. */
   values: Readonly<Record<string, string>>;
 }
@@ -44,7 +46,7 @@ function searchOf(form: HTMLFormElement): string {
  * person is typing or choosing. Either way the result is an address, and the offset is
  * never one of the fields — a new search or filter always starts at the first page.
  */
-export function AdminTableForm({ action, anchor, children, className, label, values }: AdminTableFormProps) {
+export function AdminTableForm({ action, anchor, children, className, label, searchable, values }: AdminTableFormProps) {
   const router = useRouter();
   const form = useRef<HTMLFormElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -103,7 +105,7 @@ export function AdminTableForm({ action, anchor, children, className, label, val
       onChange={onChange}
       onSubmit={onSubmit}
       ref={form}
-      role="search"
+      role={searchable ? 'search' : undefined}
     >
       {children}
     </form>

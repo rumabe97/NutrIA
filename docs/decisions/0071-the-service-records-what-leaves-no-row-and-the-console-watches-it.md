@@ -60,7 +60,8 @@ point. The owner approved all of them on 2026-09-29, with D1–D4.
   - notifications, and the spend of text models against a monthly cap.
   `0028` holds on every one of them: counts and totals; addresses only where `0068`
   already has them (accounts, inbox, professionals, the generation log) and in the audit
-  log, which is about what the owner did.
+  log, which is about what the owner did — and about the one thing the service does in his
+  place, opening an account automatically when its address is confirmed.
 - **The text-AI cap shows and warns; it never stops a plan** (owner, D1).
   - `AI_TEXT_MONTHLY_CAP_USD` defaults to 5 USD (owner, D2), counted over the UTC month
     like the pictures' cap.

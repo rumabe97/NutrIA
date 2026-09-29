@@ -6,6 +6,7 @@ import request from 'supertest';
 import { database } from 'database';
 import { PICTURE_PROMPT_VERSION } from 'core/domain/DishPicture';
 import { SettingsController } from 'core/controllers/Settings';
+import { UNAUDITED } from 'core/entities/Audit';
 import { UserController } from 'core/controllers/User';
 
 import { AI_PICTURE_CAP } from '../src/modules/ai/ai.config.js';
@@ -269,11 +270,11 @@ describe('dish pictures', () => {
     // Nine cases draw a dish of Alice's each.
     expect(fresh.length).toBeGreaterThanOrEqual(9);
 
-    await SettingsController.setFlag('dishPictures', true);
+    await SettingsController.setFlag('dishPictures', true, UNAUDITED);
   });
 
   afterAll(async () => {
-    await SettingsController.setFlag('dishPictures', false);
+    await SettingsController.setFlag('dishPictures', false, UNAUDITED);
     await deleteAccounts(app, made);
 
     for (const recipeId of touched) {
@@ -293,7 +294,7 @@ describe('dish pictures', () => {
   it('with the flag off, opening a meal claims nothing and draws nothing', async () => {
     const dish = take();
 
-    await SettingsController.setFlag('dishPictures', false);
+    await SettingsController.setFlag('dishPictures', false, UNAUDITED);
 
     try {
       const before = main.images.calls;
@@ -304,7 +305,7 @@ describe('dish pictures', () => {
       expect(await calls(dish.recipeId)).toEqual([]);
       expect(main.images.calls).toBe(before);
     } finally {
-      await SettingsController.setFlag('dishPictures', true);
+      await SettingsController.setFlag('dishPictures', true, UNAUDITED);
     }
   });
 

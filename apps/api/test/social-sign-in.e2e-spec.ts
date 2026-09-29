@@ -3,6 +3,7 @@ import request from 'supertest';
 
 import { SettingsController } from 'core/controllers/Settings';
 import { UserController } from 'core/controllers/User';
+import { UNAUDITED } from 'core/entities/Audit';
 
 import { createApp, httpServer, PREFIX, ScriptedAiClient } from './harness.js';
 
@@ -196,7 +197,7 @@ describe('social sign-in: arriving through a provider', () => {
 
     await request(server).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: 'Barbara', password: PASSWORD }).expect(200);
     await UserController.confirmAddress(email);
-    await UserController.activate({ email });
+    await UserController.activate({ email }, UNAUDITED);
 
     const signIn: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: PASSWORD }).expect(200);
     const byPassword = await me(cookiesOf(signIn));

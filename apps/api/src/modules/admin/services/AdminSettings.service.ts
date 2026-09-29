@@ -12,7 +12,7 @@ export class AdminSettingsService {
     return SettingsController.read('owner');
   }
 
-  async setFlag(body: SetFlagDto): Promise<AdminSettingsViewDto> {
-    return SettingsController.setFlag(body.flag, body.enabled);
+  async setFlag(body: SetFlagDto, actorId: string): Promise<AdminSettingsViewDto> {
+    return SettingsController.setFlag(body.flag, body.enabled, actorId);
   }
 }

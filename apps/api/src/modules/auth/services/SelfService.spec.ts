@@ -33,7 +33,7 @@ describe('onAddressConfirmed', () => {
     const dependencies = deps();
 
     await expect(onAddressConfirmed(ACCOUNT, dependencies)).resolves.toBe('opened');
-    expect(activate).toHaveBeenCalledWith({ id: ACCOUNT.id });
+    expect(activate).toHaveBeenCalledWith({ id: ACCOUNT.id }, { actorId: null, via: 'automatic' });
     expect(dependencies.mailer.send).not.toHaveBeenCalled();
   });
 
@@ -77,7 +77,7 @@ describe('onAccountCreated', () => {
     const activate = jest.spyOn(UserController, 'activate').mockResolvedValue({ email: ACCOUNT.email });
 
     await expect(onAccountCreated({ ...ACCOUNT, emailVerified: true }, deps())).resolves.toBe('opened');
-    expect(activate).toHaveBeenCalledWith({ id: ACCOUNT.id });
+    expect(activate).toHaveBeenCalledWith({ id: ACCOUNT.id }, { actorId: null, via: 'automatic' });
   });
 
   it('tells the owner an account a provider vouched for is waiting, when the door is shut', async () => {

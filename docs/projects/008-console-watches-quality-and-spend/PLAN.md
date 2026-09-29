@@ -51,7 +51,7 @@ numbers refer to it. Read it before any phase.
 
 ### Phase 1 — Start recording (API and core, no pages)
 
-- [x] done
+- [x] done — commit `ccdaf5b` ("The service starts recording what leaves no row: real use, cron runs, mails, which feature spent on AI, and each plan's quality")
 - **Dispatch**: opus @ high — `/execute-project 008 phase 1`. `quality-max`: it touches
   authentication and plan generation. Reviews: `invariant-reviewer`, and `plan-evaluator`
   on the floor definition. The `tests` agent writes the end-to-end cases.
@@ -132,7 +132,7 @@ numbers refer to it. Read it before any phase.
 
 ### Phase 2 — The admin audit log (the one migration)
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 008 phase 2`. Reviews:
   `migration-reviewer`, `invariant-reviewer`, `accessibility` (the page). The `tests`
   agent writes the end-to-end cases. After merge — owner-gated (or by the lead with the

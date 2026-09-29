@@ -1,4 +1,6 @@
+import { AuditRepository } from '#repositories/Audit';
 import { SettingsRepository } from '#repositories/Settings';
+import { UNAUDITED } from 'core/entities/Audit';
 
 import { FLAGS, flagsFor, flagsFrom } from 'core/domain/Flag';
 
@@ -53,9 +55,23 @@ export const SettingsController = {
    *
    * The name is a `FlagName`, not a string: the key written to the table comes
    * from the registry, so a caller cannot invent a row that nothing reads.
+   * `actorId` is the session's user (`0071`); the key is the trail's
+   * `entityId` — a switch is not a person. Required: a suite or a probe that
+   * throws a switch to set a scenario up rather than to exercise the console
+   * passes `UNAUDITED` instead of inventing an actor.
    */
-  async setFlag(name: FlagName, enabled: boolean): Promise<SettingsView> {
-    await SettingsRepository.set(FLAGS[name].key, enabled);
+  async setFlag(name: FlagName, enabled: boolean, actorId: string | typeof UNAUDITED): Promise<SettingsView> {
+    const key = FLAGS[name].key;
+
+    await SettingsRepository.set(
+      key,
+      enabled,
+      actorId === UNAUDITED
+        ? undefined
+        : async tx => {
+            await AuditRepository.record({ action: 'setting.changed', actorId, entity: 'setting', entityId: key, metadata: { enabled, key } }, tx);
+          }
+    );
 
     return SettingsController.read('owner');
   }

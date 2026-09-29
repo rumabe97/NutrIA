@@ -12,7 +12,7 @@ export class AdminFeedbackService {
     return FeedbackController.list(query);
   }
 
-  async setHandled(id: string, body: HandleFeedbackDto): Promise<void> {
-    await FeedbackController.setHandled(id, body.handled);
+  async setHandled(id: string, body: HandleFeedbackDto, actorId: string): Promise<void> {
+    await FeedbackController.setHandled(id, body.handled, actorId);
   }
 }

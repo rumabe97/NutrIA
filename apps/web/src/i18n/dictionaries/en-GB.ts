@@ -144,6 +144,37 @@ export const enGB: Dictionary = {
     trendsTitle: 'Per day'
   },
 
+  /* `/admin/ajustes/registro` (`0071`): who did each account or setting mutation, and when. */
+  adminAudit: {
+    actions: {
+      'account.activated': 'Account activated',
+      'account.tier_changed': 'Tier changed',
+      'feedback.handled': 'Message marked seen',
+      'feedback.reopened': 'Message reopened',
+      'professional.granted': 'Professional profile granted',
+      'professional.revoked': 'Professional profile revoked',
+      'push.test_sent': 'Test push sent',
+      'setting.changed': 'Setting changed'
+    },
+    caption: 'Actions',
+    columns: { account: 'Account', action: 'Action', actor: 'Who', date: 'Date', detail: 'Detail' },
+    empty: 'The log starts on the day this deploys: there is no row before it.',
+    howCounted: [
+      'The log starts on the day this deploys. There is no row from before it.',
+      'Times are Madrid’s.',
+      'The detail is only what the action itself keeps: never the request body, never an IP address.'
+    ],
+    intro: 'Who made each account or setting change, and when.',
+    noMatch: 'No action matches the filter.',
+    settingChange: '{key}: {state}',
+    state: { off: 'Off', on: 'On' },
+    tableNote: 'Most recent first.',
+    tableTitle: 'Every action',
+    tierChange: '{from} → {to}',
+    title: 'Audit log',
+    via: { automatic: 'Automatic', console: 'Console', mail_link: 'Email link' }
+  },
+
   /* Words every console page with a period shares: the selector, the charts' table, the tiles' change. */
   adminConsole: {
     changeLabel: '{change} against the previous period',
@@ -160,6 +191,7 @@ export const enGB: Dictionary = {
       apply: 'Apply',
       ascending: 'ascending',
       clear: 'Clear the search and filters',
+      clearFilters: 'Clear the filters',
       count: '{count} in all',
       descending: 'descending',
       filters: 'Filters',
@@ -175,7 +207,8 @@ export const enGB: Dictionary = {
       sortedAsc: 'sorted ascending; sort descending',
       sortedDesc: 'sorted descending; sort ascending',
       status: '{count} in all · by {column}, {direction}',
-      toolbar: 'Search and filter'
+      toolbar: 'Search and filter',
+      toolbarFilters: 'Filter'
     },
     week: 'Week (from Monday)',
     yes: 'Yes'
@@ -329,6 +362,7 @@ export const enGB: Dictionary = {
     pages: {
       accounts: 'Accounts',
       ai: 'AI and models',
+      auditLog: 'Audit log',
       inbox: 'Inbox',
       ingredients: 'Ingredients',
       log: 'Log',
@@ -337,7 +371,7 @@ export const enGB: Dictionary = {
       product: 'Funnel and activity',
       professionals: 'Professionals',
       recipes: 'Recipes',
-      settings: 'Settings',
+      settings: 'Switches',
       summary: 'Overview'
     },
     title: 'Console'
@@ -495,7 +529,7 @@ export const enGB: Dictionary = {
     intro: 'The switches that run the service. Under each one, what is true right now.',
     notifications: 'Notifications',
     product: 'Product',
-    title: 'Settings'
+    title: 'Switches'
   },
 
   /* `/admin`: the period's headline figures, two trends, and what needs the owner now. */
@@ -1308,7 +1342,8 @@ export const enGB: Dictionary = {
     },
     '/acceder': { description: "Sign in to NutrIA to see today's plan, your shopping list and your progress.", title: 'Sign in' },
     '/admin': { title: 'Overview' },
-    '/admin/ajustes': { title: 'Settings' },
+    '/admin/ajustes': { title: 'Switches' },
+    '/admin/ajustes/registro': { title: 'Audit log' },
     '/admin/buzon': { title: 'Inbox' },
     '/admin/catalogo': { title: 'Recipes' },
     '/admin/catalogo/imagenes': { title: 'Pictures' },

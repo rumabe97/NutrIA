@@ -73,3 +73,63 @@
     of sends, not of reminders.
   - Two `billing-…@e2e.invalid` accounts on the dev database make the e2e global teardown
     complain. The owner decides on deleting them.
+
+## Phase 2 — The admin audit log (2026-09-29)
+
+- **Executor**: the `backend` agent (medium) wrote the migration, the writes and
+  `GET /admin/audit`. A second `backend` agent (medium) made the review fixes. The
+  `frontend` agent (medium) built the page, and the `tests` agent (medium) wrote the end to
+  end. Each worked in its own worktree, which was brought into the main checkout and
+  removed. The lead (opus, this session) renamed and commented the migration, fixed
+  `account.mjs`, the accessibility P2 and 0071's wording, and applied 0048 on the dev
+  branch with the owner's yes. Reviews: `migration-reviewer` (opus, high),
+  `invariant-reviewer`, `accessibility`.
+- **Result**: done.
+- **Evidence**:
+  - `pnpm --filter database generate` finds nothing more ("No schema changes"), and
+    `node scripts/check-migrations.mjs` passes: 49 migrations, journal and snapshots in
+    order.
+  - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api --filter=web`:
+    17/17 tasks; api 993 tests.
+  - End-to-end, local, `VAPID_*` blank, dev branch with 0048 applied, one suite at a time,
+    346/346 over 12 suites. The new `audit` suite passes 15/15, `admin` 55/55 and
+    `access` 8/8. The rest are the suites whose direct core calls now pass `UNAUDITED`.
+    - `audit` covers every route and the automatic activation (one row each, with its
+      actor, subject and metadata). The automatic one goes through a real sign-up and
+      email confirmation.
+    - It also covers: a 404 writes nothing; deletion leaves `subject_user_id` null; no
+      row carries an `ip_hash`; and the read contract (404 before validation, 422, exact
+      keys, filter, newest first, paging).
+    - With push unconfigured, `push.test_sent` writes no row.
+  - `migration-reviewer`: no P0–P2. Both P3s are fixed: the file now has a descriptive
+    name, and a comment explains the locks.
+  - `invariant-reviewer`: no P0 or P1. Its P2 and P3s are fixed:
+    - the audit argument is now required: `UNAUDITED` is the only way to skip it, and a
+      spec proves `apps/api/src` never uses it;
+    - activation is a union type, so `console` needs an actor and the others must have
+      none;
+    - an activation by email takes its subject from `RETURNING`;
+    - activating an already-active account, or setting the same tier, writes no row;
+    - a failed audit write after a delivered push is logged, not answered as a failure.
+  - `accessibility`: 320/390/1280, light and dark, and 200 % text at 320 show no sideways
+    scroll, and the filter's label, the live count and focus are right. Its P2 is fixed:
+    the toolbar was a search landmark named "Buscar y filtrar" on a table with no search.
+    With no search field, `AdminTableForm` now drops `role="search"`, and the toolbar
+    reads "Filtrar" and "Quitar los filtros". An activation with no actor names how it
+    happened in the actor column only, not twice.
+- **Deviations from plan**:
+  1. `push.test_sent` is written after the push is sent, not in a transaction: sending
+     a push is a provider call, with no database write to share one with. It is skipped
+     when nothing was sent.
+  2. The page for the switches is now called "Interruptores" (its route is unchanged),
+     so the Ajustes group does not repeat its own name in the menu.
+  3. `AdminTable`'s `search` is optional: the audit log has no free text.
+- **Decisions**: [`0071`](../../decisions/0071-the-service-records-what-leaves-no-row-and-the-console-watches-it.md)
+  now says the audit log also records the automatic activation.
+- **Notes for the next phase**:
+  - Migration 0048 runs against production during the API's build. It is already
+    applied on the dev branch.
+  - Every new admin mutation passes its audit argument. `UNAUDITED` is for tests, fixtures
+    and `account.mjs` only (see `apps/api/AGENTS.md` § Admin).
+  - The e2e harness reads `audit_logs` through the raw client; `createdAt` comes back as
+    a string there.

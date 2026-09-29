@@ -1,9 +1,12 @@
 import { accountQuerySchema } from 'core/entities/AdminQuery';
+import { AuditRepository } from '#repositories/Audit';
 import { NotFoundError } from 'core/entities/Error';
+import { UNAUDITED } from 'core/entities/Audit';
 import { UserRepository } from '#repositories/User';
 
+import type { ActivationAudit } from 'core/entities/Audit';
 import type { AccountQuery } from 'core/entities/AdminQuery';
-import type { AccountRow } from '#repositories/User';
+import type { AccountRow, RecordActivationAudit, RecordTierAudit } from '#repositories/User';
 import type { User, UserTier } from 'core/entities/User';
 
 /**
@@ -140,9 +143,33 @@ export const UserController = {
    * Opens an account (`0017`, `0030`) — the owner's decision, by id from the
    * admin screen and by email from the runbook. Returns the address opened, or
    * null when there was no such account.
+   *
+   * `audit` names who did it and how (`0071`): the session's user for the
+   * console, `null` for the mail link and for the automatic activation on
+   * email confirmation — a discriminated union, so a caller cannot pair
+   * `console` with a null actor. Written in the same transaction as the
+   * activation itself, only when one actually happened, and named by the
+   * id the update's own `RETURNING` found — so an activation by email still
+   * names its subject. Required: a route always has a session or a signed
+   * link, so it always has a real audit to give; a suite or a probe that
+   * activates an account to set a scenario up rather than to exercise the
+   * product passes `UNAUDITED` instead of inventing one.
    */
-  async activate(match: { readonly id?: string; readonly email?: string }): Promise<{ readonly email: string } | null> {
-    return UserRepository.activate(match);
+  async activate(
+    match: { readonly id?: string; readonly email?: string },
+    audit: ActivationAudit | typeof UNAUDITED
+  ): Promise<{ readonly email: string } | null> {
+    const record: RecordActivationAudit | undefined =
+      audit === UNAUDITED
+        ? undefined
+        : async (tx, subjectUserId) => {
+            await AuditRepository.record(
+              { action: 'account.activated', actorId: audit.actorId, entity: 'user', metadata: { via: audit.via }, subjectUserId },
+              tx
+            );
+          };
+
+    return UserRepository.activate(match, record);
   },
 
   /**
@@ -182,8 +209,25 @@ export const UserController = {
    * the owner sets up whoever should have it before turning it on. Reading the
    * switch here would make the two settings depend on the order they are used
    * in, which is the kind of rule nobody remembers a week later.
+   *
+   * `actorId` is the session's user (`0071`): the console is the only route
+   * that moves a tier. Required: a suite or a probe that moves a tier
+   * directly to set a scenario up rather than to exercise the console passes
+   * `UNAUDITED` instead of inventing an actor. `from` is read inside the same
+   * transaction as the move, and the row is skipped when it equals `to` —
+   * moving an account to the tier it already holds changes nothing.
    */
-  async setTier(id: string, tier: UserTier): Promise<{ readonly email: string } | null> {
-    return UserRepository.setTier(id, tier);
+  async setTier(id: string, tier: UserTier, actorId: string | typeof UNAUDITED): Promise<{ readonly email: string } | null> {
+    const record: RecordTierAudit | undefined =
+      actorId === UNAUDITED
+        ? undefined
+        : async (tx, from) => {
+            await AuditRepository.record(
+              { action: 'account.tier_changed', actorId, entity: 'user', metadata: { from, to: tier }, subjectUserId: id },
+              tx
+            );
+          };
+
+    return UserRepository.setTier(id, tier, record);
   }
 };

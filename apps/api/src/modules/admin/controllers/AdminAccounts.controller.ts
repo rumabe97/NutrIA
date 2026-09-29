@@ -6,13 +6,14 @@ import { DEFAULT_WEB_LOCALE, webUrl } from 'core/domain/WebUrl';
 
 import { AdminAccountsService } from '../services/index.js';
 import { ENV } from '../../../config/index.js';
-import { Public, Roles, ZodBody } from '../../../shared/index.js';
+import { CurrentUser, Public, Roles, ZodBody } from '../../../shared/index.js';
 import { AccountsQueryDto, SetTierDto } from '../dto/in/index.js';
 import { ZodQuery } from './ZodQuery.js';
 
 import type { AccountsDto, ActivatedAccountDto, TierChangedDto } from '../dto/out/index.js';
 import type { Env } from '../../../config/index.js';
 import type { Response } from 'express';
+import type { SessionUser } from '../../../shared/index.js';
 
 /**
  * Who is waiting, and the key that opens them (`0030`, `0031`).
@@ -59,15 +60,15 @@ export class AdminAccountsController {
   @ApiCreatedResponse({ description: 'The address of the account that was opened.' })
   @ApiOperation({ summary: 'Open one account' })
   @Post('accounts/:id/activate')
-  async activate(@Param('id') id: string): Promise<ActivatedAccountDto> {
-    return this.accounts.activate(id);
+  async activate(@Param('id') id: string, @CurrentUser() owner: SessionUser): Promise<ActivatedAccountDto> {
+    return this.accounts.activate(id, owner.id);
   }
 
   @ApiOkResponse({ description: 'The address whose tier moved, and where it moved to.' })
   @ApiOperation({ summary: 'Move one account between tiers' })
   @Patch('accounts/:id/tier')
-  async setTier(@Param('id') id: string, @ZodBody(SetTierDto) body: SetTierDto): Promise<TierChangedDto> {
-    return this.accounts.setTier(id, body);
+  async setTier(@Param('id') id: string, @ZodBody(SetTierDto) body: SetTierDto, @CurrentUser() owner: SessionUser): Promise<TierChangedDto> {
+    return this.accounts.setTier(id, body, owner.id);
   }
 
   /**

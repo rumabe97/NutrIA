@@ -54,7 +54,7 @@ export class AdminProfessionalsController {
   @ApiOperation({ summary: 'Take the grant back' })
   @Delete('accounts/:id/professional')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async revoke(@Param('id') id: string): Promise<void> {
-    await this.professionals.revoke(id);
+  async revoke(@Param('id') id: string, @CurrentUser() owner: SessionUser): Promise<void> {
+    await this.professionals.revoke(id, owner.id);
   }
 }

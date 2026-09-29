@@ -337,6 +337,13 @@
       "when": 1790634544029,
       "tag": "0047_a_serving_has_a_ceiling",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1790677202695,
+      "tag": "0048_an_admin_action_names_the_account",
+      "breakpoints": true
     }
   ]
 }

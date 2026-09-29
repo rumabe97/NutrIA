@@ -8,6 +8,7 @@ import { CareController } from 'core/controllers/Care';
 import { database } from 'database';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { SettingsController } from 'core/controllers/Settings';
+import { UNAUDITED } from 'core/entities/Audit';
 import { UserController } from 'core/controllers/User';
 
 import { acceptAgreement, completeOnboarding, deleteAccounts, httpServer, PREFIX, register } from './harness.js';
@@ -457,7 +458,7 @@ describe('care-practice', () => {
     await UserController.grantAdmin(owner.email);
     await setSwitch(true);
     // Personal premium stays off: every premium below is the practice's.
-    await SettingsController.setFlag('premium', false);
+    await SettingsController.setFlag('premium', false, UNAUDITED);
   });
 
   afterAll(async () => {
@@ -466,7 +467,7 @@ describe('care-practice', () => {
         await setSwitch(false);
       }
 
-      await SettingsController.setFlag('premium', false);
+      await SettingsController.setFlag('premium', false, UNAUDITED);
 
       if (on) {
         await deleteAccounts(on.app, made);

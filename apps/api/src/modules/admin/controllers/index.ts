@@ -1,5 +1,6 @@
 export * from './Admin.controller.js';
 export * from './AdminAccounts.controller.js';
+export * from './AdminAudit.controller.js';
 export * from './AdminCatalogue.controller.js';
 export * from './AdminFeedback.controller.js';
 export * from './AdminGenerations.controller.js';

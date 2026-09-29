@@ -9,6 +9,7 @@ import { database } from 'database';
 import { activationToken } from '../src/modules/auth/services/ActivationLink.js';
 
 import {
+  auditCount,
   completeOnboarding,
   createApp,
   deleteAccountByEmail,
@@ -55,7 +56,7 @@ import type { Response } from 'supertest';
  *
  * Requires a real database — see ./README.md.
  */
-const ROUTES = ['accounts', 'settings', 'analytics', 'ai', 'feedback'];
+const ROUTES = ['accounts', 'settings', 'analytics', 'ai', 'feedback', 'audit'];
 
 /** Gone in phase 9 step 1 (`0068` § Removed): no route answers them at all, admin session or not. */
 const REMOVED_ROUTES = ['overview', 'failures'];
@@ -540,8 +541,12 @@ describe('admin', () => {
     await request(server).get(`/${PREFIX}/admin/activate`).expect(404);
   });
 
-  it('refuses an account id that is not an account', async () => {
+  it('refuses an account id that is not an account, and leaves the trail untouched', async () => {
+    const before = await auditCount('account.activated');
+
     await request(httpServer(app)).post(`/${PREFIX}/admin/accounts/not-an-account/activate`).set('Cookie', owner.cookie).expect(404);
+
+    await expect(auditCount('account.activated')).resolves.toBe(before);
   });
 
   /*
@@ -709,7 +714,7 @@ describe('admin', () => {
    * the rest each differ from `plain` in one thing.
    */
   describe('the people tables', () => {
-    const TABLE_ROUTES = ['accounts', 'feedback', 'professionals', 'people'] as const;
+    const TABLE_ROUTES = ['accounts', 'feedback', 'professionals', 'people', 'audit'] as const;
     const token = `tbl${Date.now()}`;
     const address = (suffix: string) => `admin-${token}-${suffix}@e2e.invalid`;
     /** Registered, both locks open, nothing else. */
@@ -792,7 +797,14 @@ describe('admin', () => {
 
     it('do not exist for an ordinary account, nor for a caller with no session — even with a query they would refuse', async () => {
       // The guard runs before the query is read: never a 422 that tells a stranger the route is there.
-      const refusable = ['accounts?sort=nonsense', 'accounts?q=a%00b', 'feedback?state=x', 'professionals?sort=x', 'people?period=14'];
+      const refusable = [
+        'accounts?sort=nonsense',
+        'accounts?q=a%00b',
+        'feedback?state=x',
+        'professionals?sort=x',
+        'people?period=14',
+        'audit?action=nope&size=0'
+      ];
 
       for (const path of [...TABLE_ROUTES, ...refusable, ...TABLE_ROUTES.map(route => `${route}?sort=nope&size=0&period=14`)]) {
         const asOrdinary: Response = await get(path, ordinary.cookie);

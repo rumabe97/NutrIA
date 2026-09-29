@@ -5,7 +5,18 @@ import { ProfessionalController } from 'core/controllers/Professional';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { UserController } from 'core/controllers/User';
 
-import { activate, completeOnboarding, createApp, deleteAccounts, httpServer, openPractice, PREFIX, register, ScriptedAiClient } from './harness.js';
+import {
+  activate,
+  auditCount,
+  completeOnboarding,
+  createApp,
+  deleteAccounts,
+  httpServer,
+  openPractice,
+  PREFIX,
+  register,
+  ScriptedAiClient
+} from './harness.js';
 
 import type { Account } from './harness.js';
 import type { AccountView, Paged } from 'core/controllers/User';
@@ -483,8 +494,12 @@ describe('professionals', () => {
     // /care is shut on the very next request too, not eventually.
     await request(server).get(`/${PREFIX}/care/clients`).set('Cookie', granted.cookie).expect(404);
 
-    // Taking back what is not there is the same 404 as every other denial.
+    // Taking back what is not there is the same 404 as every other denial, and writes no row (`0071`).
+    const beforeRevoked = await auditCount('professional.revoked');
+
     await request(server).delete(`/${PREFIX}/admin/accounts/${granted.id}/professional`).set('Cookie', owner.cookie).expect(404);
+
+    await expect(auditCount('professional.revoked')).resolves.toBe(beforeRevoked);
   });
 
   /*

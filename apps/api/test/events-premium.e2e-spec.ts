@@ -4,6 +4,7 @@ import request from 'supertest';
 import { addDays } from 'core/domain/Vacation';
 import { loadedTargets } from 'core/domain/Event';
 import { SettingsController } from 'core/controllers/Settings';
+import { UNAUDITED } from 'core/entities/Audit';
 import { UserController } from 'core/controllers/User';
 
 import {
@@ -148,19 +149,19 @@ describe('events on premium', () => {
 
     // Granted, and the switch thrown: the flag outranks the column (`0042`),
     // so both are needed for the tier to read premium.
-    await UserController.setTier(athlete.id, 'premium');
-    await UserController.setTier(celiac.id, 'premium');
-    await SettingsController.setFlag('premium', true);
+    await UserController.setTier(athlete.id, 'premium', UNAUDITED);
+    await UserController.setTier(celiac.id, 'premium', UNAUDITED);
+    await SettingsController.setFlag('premium', true, UNAUDITED);
   }, 240_000);
 
   afterAll(async () => {
     // The switch is global and every later suite assumes the free tier, so it
     // goes back off whatever happened above — and the grants with it.
-    await SettingsController.setFlag('premium', false);
+    await SettingsController.setFlag('premium', false, UNAUDITED);
 
     for (const account of [athlete, celiac]) {
       if (account) {
-        await UserController.setTier(account.id, 'free');
+        await UserController.setTier(account.id, 'free', UNAUDITED);
       }
     }
 

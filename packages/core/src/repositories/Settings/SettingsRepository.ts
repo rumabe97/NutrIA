@@ -5,6 +5,8 @@ import { database } from 'database';
 
 import { DatabaseOperationError } from 'core/entities/Error';
 
+import type { RecordAudit } from '#repositories/Audit';
+
 export const SettingsRepository = {
   /**
    * Every switch anybody has ever thrown.
@@ -40,12 +42,18 @@ export const SettingsRepository = {
     }
   },
 
-  async set(key: string, enabled: boolean): Promise<void> {
+  async set(key: string, enabled: boolean, record?: RecordAudit): Promise<void> {
     try {
-      await database()
-        .insert(appSettings)
-        .values({ enabled, key })
-        .onConflictDoUpdate({ set: { enabled, updatedAt: new Date() }, target: appSettings.key });
+      await database().transaction(async tx => {
+        await tx
+          .insert(appSettings)
+          .values({ enabled, key })
+          .onConflictDoUpdate({ set: { enabled, updatedAt: new Date() }, target: appSettings.key });
+
+        if (record) {
+          await record(tx);
+        }
+      });
     } catch (error: unknown) {
       throw wrap(error);
     }

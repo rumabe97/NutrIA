@@ -91,8 +91,9 @@ if (action === 'delete') {
     // to finish turns it off under the second — run one professional probe at a time.
     if (existsSync(switchMarker)) {
       const { SettingsController } = await load('core/controllers/Settings');
+      const { UNAUDITED } = await load('core/entities/Audit');
 
-      await SettingsController.setFlag('professional', false);
+      await SettingsController.setFlag('professional', false, UNAUDITED);
       rmSync(switchMarker);
       console.log('[probe] the professional switch is off again, as it was');
     }
@@ -103,6 +104,7 @@ if (action === 'delete') {
 
 if (action === 'link') {
   const { SettingsController } = await load('core/controllers/Settings');
+  const { UNAUDITED } = await load('core/entities/Audit');
   const { ProfessionalController } = await load('core/controllers/Professional');
   const { CareController } = await load('core/controllers/Care');
   const { CARE_CONSENT_VERSION } = await load('core/entities/Care');
@@ -118,14 +120,14 @@ if (action === 'link') {
   }
 
   if (!(await SettingsController.flags()).professional) {
-    await SettingsController.setFlag('professional', true);
+    await SettingsController.setFlag('professional', true, UNAUDITED);
     writeFileSync(switchMarker, '');
     console.log('[probe] the professional switch was off: on until this professional is deleted');
   }
 
   // The owner's grant, as POST /admin/accounts/:id/professional makes it. The probe has no
   // owner session, so the professional is named as its own granter.
-  await ProfessionalController.grant(pro.id, { collegiateNumber: 'PROBE-001' }, pro.id);
+  await ProfessionalController.grant(pro.id, { collegiateNumber: 'PROBE-001' }, pro.id, UNAUDITED);
 
   const opened = await database().$client`
     update professionals set practice_open = true, included_clients = 30 where user_id = ${pro.id} returning user_id`;
@@ -146,13 +148,14 @@ if (action === 'link') {
 }
 
 const { UserController } = await load('core/controllers/User');
+const { UNAUDITED: UNAUDITED_ACTIVATION } = await load('core/entities/Audit');
 const { shapeFor } = await load('core/domain/MealShape');
 
 const email = `probe-${Date.now()}@probe.invalid`;
 
 await call('POST', '/auth/sign-up/email', { email, name: 'Probe', password: PASSWORD });
 
-if (!(await UserController.confirmAddress(email)) || !(await UserController.activate({ email }))) {
+if (!(await UserController.confirmAddress(email)) || !(await UserController.activate({ email }, UNAUDITED_ACTIVATION))) {
   throw new Error('could not open the two locks for the new account');
 }
 

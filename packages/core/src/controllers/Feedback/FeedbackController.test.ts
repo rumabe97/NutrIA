@@ -2,14 +2,24 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { feedbackQuerySchema } from 'core/entities/AdminQuery';
 
+import { NotFoundError } from 'core/entities/Error';
+
 import { FeedbackController } from './FeedbackController';
 
 import type { FeedbackQuery } from 'core/entities/AdminQuery';
 import type { FeedbackRow } from '#repositories/Feedback';
 
 const findAll = vi.fn<(query: FeedbackQuery) => Promise<{ rows: readonly FeedbackRow[]; total: number; waiting: number }>>();
+const setHandled = vi.fn<(id: string, handled: boolean, record?: (tx: unknown) => Promise<void>) => Promise<boolean>>();
+const record = vi.fn<(entry: unknown, tx?: unknown) => Promise<void>>();
 
-vi.mock('#repositories/Feedback', () => ({ FeedbackRepository: { findAll: (query: FeedbackQuery) => findAll(query) } }));
+vi.mock('#repositories/Feedback', () => ({
+  FeedbackRepository: {
+    findAll: (query: FeedbackQuery) => findAll(query),
+    setHandled: (id: string, handled: boolean, r?: (tx: unknown) => Promise<void>) => setHandled(id, handled, r)
+  }
+}));
+vi.mock('#repositories/Audit', () => ({ AuditRepository: { record: (entry: unknown, tx?: unknown) => record(entry, tx) } }));
 
 const ROW: FeedbackRow = {
   id: 'fb-1',
@@ -55,5 +65,49 @@ describe('FeedbackController.list', () => {
         message: 'No carga el plan'
       }
     ]);
+  });
+});
+
+/* `setHandled` (`0071`): the trail names who marked it, with the message's own id — never a person. */
+describe('FeedbackController.setHandled', () => {
+  beforeEach(() => {
+    setHandled.mockReset();
+    record.mockReset();
+  });
+
+  it('records feedback.handled with the message’s id as entityId, and the session as actor', async () => {
+    setHandled.mockImplementation(async (_id, _handled, r) => {
+      await r?.(undefined);
+
+      return true;
+    });
+
+    await FeedbackController.setHandled('fb-1', true, 'usr-owner');
+
+    expect(record).toHaveBeenCalledWith(
+      { action: 'feedback.handled', actorId: 'usr-owner', entity: 'feedback', entityId: 'fb-1', metadata: {} },
+      undefined
+    );
+  });
+
+  it('records feedback.reopened when put back', async () => {
+    setHandled.mockImplementation(async (_id, _handled, r) => {
+      await r?.(undefined);
+
+      return true;
+    });
+
+    await FeedbackController.setHandled('fb-1', false, 'usr-owner');
+
+    expect(record).toHaveBeenCalledWith(
+      { action: 'feedback.reopened', actorId: 'usr-owner', entity: 'feedback', entityId: 'fb-1', metadata: {} },
+      undefined
+    );
+  });
+
+  it('is a 404 for a message that does not exist', async () => {
+    setHandled.mockResolvedValue(false);
+
+    await expect(FeedbackController.setHandled('fb-missing', true, 'usr-owner')).rejects.toThrow(NotFoundError);
   });
 });

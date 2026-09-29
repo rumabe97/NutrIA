@@ -13,8 +13,23 @@ import { DatabaseOperationError } from 'core/entities/Error';
 import { userSchema } from 'core/entities/User';
 
 import type { AccountQuery } from 'core/entities/AdminQuery';
+import type { Transaction } from '#repositories/Audit';
 import type { SQL } from 'drizzle-orm';
 import type { User, UserTier } from 'core/entities/User';
+
+/**
+ * `activate`'s watcher: the row it writes names the account that was opened,
+ * so it is handed the id the `UPDATE`'s own `RETURNING` found — never the id
+ * the caller matched by, which is absent when the match was by email.
+ */
+export type RecordActivationAudit = (tx: Transaction, subjectUserId: string) => Promise<void>;
+
+/**
+ * `setTier`'s watcher: the row it writes names the tier the account moved
+ * from, read inside the same transaction as the move — the one place that
+ * value is available without a second round trip outside it.
+ */
+export type RecordTierAudit = (tx: Transaction, from: UserTier) => Promise<void>;
 
 /**
  * One account on the owner's table: the row's own columns, and four
@@ -155,17 +170,37 @@ export const UserRepository = {
    *
    * Deliberately does **not** touch `emailVerified`: that says the address is
    * real and only the person holding it can prove that.
+   *
+   * `record`, when given, writes the admin trail's row (`0071`) in the same
+   * transaction — an activation that is not also that row did not happen.
+   * Skipped on a miss: a stranger's id must leave no trace of having been
+   * tried. Also skipped when the account was already open: activating an
+   * already-active account changes nothing, so nothing is worth a row — the
+   * answer is the same either way. `before` is read inside this transaction,
+   * the one place "was it already open" can be asked without a second round
+   * trip outside it.
    */
-  async activate(match: { readonly id?: string; readonly email?: string }): Promise<{ readonly email: string } | null> {
+  async activate(
+    match: { readonly id?: string; readonly email?: string },
+    record?: RecordActivationAudit
+  ): Promise<{ readonly email: string } | null> {
     try {
-      const where = match.id === undefined ? eq(user.email, match.email ?? '') : eq(user.id, match.id);
-      const rows = await database()
-        .update(user)
-        .set({ activatedAt: new Date(), updatedAt: new Date() })
-        .where(where)
-        .returning({ email: user.email });
+      return await database().transaction(async tx => {
+        const where = match.id === undefined ? eq(user.email, match.email ?? '') : eq(user.id, match.id);
+        const [before] = await tx.select({ activatedAt: user.activatedAt }).from(user).where(where).limit(1);
+        const rows = await tx
+          .update(user)
+          .set({ activatedAt: new Date(), updatedAt: new Date() })
+          .where(where)
+          .returning({ id: user.id, email: user.email });
+        const row = rows[0] ?? null;
 
-      return rows[0] ?? null;
+        if (row && record && before?.activatedAt === null) {
+          await record(tx, row.id);
+        }
+
+        return row ? { email: row.email } : null;
+      });
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -283,12 +318,24 @@ export const UserRepository = {
    * makes to a table Better Auth owns. Returns the address moved, or null when
    * there was no such account — the caller turns that into the same 404 every
    * other denial gives.
+   *
+   * `from` is read inside this transaction — the one place it is available
+   * without a second round trip outside it — and the row is skipped when it
+   * equals `tier`: moving an account to the tier it already holds changes
+   * nothing, so nothing is worth a row, though the answer stays the same.
    */
-  async setTier(id: string, tier: UserTier): Promise<{ readonly email: string } | null> {
+  async setTier(id: string, tier: UserTier, record?: RecordTierAudit): Promise<{ readonly email: string } | null> {
     try {
-      const [row] = await database().update(user).set({ tier, updatedAt: new Date() }).where(eq(user.id, id)).returning({ email: user.email });
+      return await database().transaction(async tx => {
+        const [before] = await tx.select({ tier: user.tier }).from(user).where(eq(user.id, id)).limit(1);
+        const [row] = await tx.update(user).set({ tier, updatedAt: new Date() }).where(eq(user.id, id)).returning({ email: user.email });
 
-      return row ?? null;
+        if (row && record && before && before.tier !== tier) {
+          await record(tx, before.tier);
+        }
+
+        return row ?? null;
+      });
     } catch (error: unknown) {
       throw wrap(error);
     }

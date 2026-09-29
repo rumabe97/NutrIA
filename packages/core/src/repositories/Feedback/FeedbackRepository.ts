@@ -9,6 +9,7 @@ import { contains, ordered } from '#repositories/Search';
 import { DatabaseOperationError } from 'core/entities/Error';
 
 import type { FeedbackQuery } from 'core/entities/AdminQuery';
+import type { RecordAudit } from '#repositories/Audit';
 import type { SQL } from 'drizzle-orm';
 import type { SubmitFeedback } from 'core/entities/Feedback';
 
@@ -91,15 +92,21 @@ export const FeedbackRepository = {
   },
 
   /** Marks one message dealt with, or puts it back. Returns false when there is no such message. */
-  async setHandled(id: string, handled: boolean): Promise<boolean> {
+  async setHandled(id: string, handled: boolean, record?: RecordAudit): Promise<boolean> {
     try {
-      const rows = await database()
-        .update(feedback)
-        .set({ handledAt: handled ? sql`now()` : null, updatedAt: new Date() })
-        .where(and(eq(feedback.id, id)))
-        .returning({ id: feedback.id });
+      return await database().transaction(async tx => {
+        const rows = await tx
+          .update(feedback)
+          .set({ handledAt: handled ? sql`now()` : null, updatedAt: new Date() })
+          .where(and(eq(feedback.id, id)))
+          .returning({ id: feedback.id });
 
-      return rows.length > 0;
+        if (rows.length > 0 && record) {
+          await record(tx);
+        }
+
+        return rows.length > 0;
+      });
     } catch (error: unknown) {
       throw wrap(error);
     }

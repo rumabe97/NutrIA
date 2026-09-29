@@ -27,7 +27,7 @@ async function activateIfAutomatic(userId: string): Promise<boolean> {
       return false;
     }
 
-    const opened = await UserController.activate({ id: userId });
+    const opened = await UserController.activate({ id: userId }, { actorId: null, via: 'automatic' });
 
     console.info(`[auth] activation is automatic; account ${opened ? 'opened' : 'NOT found'} on verification (user ${userId})`);
 
