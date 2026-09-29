@@ -54,10 +54,14 @@ describe('EmailService', () => {
     expect(service.configured).toBe(true);
     expect(createTransport).toHaveBeenCalledWith({
       auth: { pass: 'app-password', user: 'hola@nutria.example' },
+      // A hanging server fails the send in seconds, inside the function's 300 s.
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
       host: 'smtp.example.com',
       port: 465,
       requireTLS: false,
-      secure: true
+      secure: true,
+      socketTimeout: 15_000
     });
   });
 

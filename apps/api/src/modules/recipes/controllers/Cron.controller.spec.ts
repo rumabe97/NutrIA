@@ -7,6 +7,7 @@ import { CronController } from './Cron.controller.js';
 import { CronRunService } from '../services/index.js';
 import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
 import { ENV } from '../../../config/index.js';
+import { OwnerAlertsService } from '../../owner-alerts/index.js';
 import { RecipeRewriter } from '../../ai/index.js';
 
 import type { INestApplication } from '@nestjs/common';
@@ -25,6 +26,8 @@ describe('the cron routes', () => {
   const sweep = jest.fn(async () => Promise.resolve({ considered: 0, failed: 0, pushed: 0, sent: 0 }));
   const forget = jest.fn(async () => Promise.resolve());
   const record = jest.fn(async (_job: string, _counts: Readonly<Record<string, 'cap' | number>>) => Promise.resolve());
+  const digest = jest.fn(async () => Promise.resolve());
+  const checkSpend = jest.fn(async () => Promise.resolve());
   const bearer = (secret: string) => ['Bearer', secret].join(' ');
 
   afterEach(async () => {
@@ -40,7 +43,8 @@ describe('the cron routes', () => {
         { provide: RecipeRewriter, useValue: { rewriteOutdated } },
         { provide: CheckInReminderService, useValue: { sweep } },
         { provide: ExpiredInvitationsService, useValue: { forget } },
-        { provide: CronRunService, useValue: { record } }
+        { provide: CronRunService, useValue: { record } },
+        { provide: OwnerAlertsService, useValue: { checkSpend, digest } }
       ]
     }).compile();
 
@@ -60,6 +64,44 @@ describe('the cron routes', () => {
     expect(sweep).toHaveBeenCalledTimes(1);
   });
 
+  /* 0071: the digest is not the reminders: it goes first, whatever their switch says, and a switched-off sweep does not stop it. */
+  it('sends the owner digest before the reminders, and even when the sweep will do nothing', async () => {
+    const order: string[] = [];
+
+    digest.mockImplementationOnce(async () => {
+      order.push('digest');
+
+      return Promise.resolve();
+    });
+    sweep.mockImplementationOnce(async () => {
+      order.push('sweep');
+
+      return Promise.resolve({ considered: 0, failed: 0, pushed: 0, sent: 0 });
+    });
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/reminders').set('Authorization', bearer(SECRET)).expect(200);
+
+    expect(order).toEqual(['digest', 'sweep']);
+  });
+
+  it('checks the spend once the rewrite sweep ends, not before', async () => {
+    rewriteOutdated.mockResolvedValue({ pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
+
+    expect(checkSpend).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends no digest to the wrong bearer', async () => {
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/reminders').set('Authorization', bearer('wrong')).expect(404);
+
+    expect(digest).not.toHaveBeenCalled();
+  });
+
   /* 0071: a run leaves no row of its own, so each one that finishes says so — its job and its counts. */
   it('records the reminder run once it finished, with its counts', async () => {
     sweep.mockResolvedValueOnce({ considered: 3, failed: 1, pushed: 1, sent: 2 });
@@ -69,6 +111,27 @@ describe('the cron routes', () => {
 
     expect(record).toHaveBeenCalledTimes(1);
     expect(record).toHaveBeenCalledWith('reminders', { considered: 3, failed: 1, pushed: 1, sent: 2 });
+  });
+
+  it("still runs the reminders when the owner's digest fails", async () => {
+    digest.mockRejectedValueOnce(new Error('smtp is down'));
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/reminders').set('Authorization', bearer(SECRET)).expect(200);
+
+    expect(forget).toHaveBeenCalledTimes(1);
+    expect(sweep).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith('reminders', { considered: 0, failed: 0, pushed: 0, sent: 0 });
+  });
+
+  it('still answers the rewrite sweep when the spend check fails', async () => {
+    rewriteOutdated.mockResolvedValueOnce({ pending: 0, rewritten: 1, skipped: 0, unreached: 0 });
+    checkSpend.mockRejectedValueOnce(new Error('database gone'));
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
+
+    expect(record).toHaveBeenCalledWith('rewrite', { pending: 0, rewritten: 1, skipped: 0, unreached: 0 });
   });
 
   it('records no run that did not finish', async () => {

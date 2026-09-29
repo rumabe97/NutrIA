@@ -29,6 +29,66 @@ export const AnalyticsRepository = {
   },
 
   /**
+   * Takes the right to tell the owner about `kind`: writes an `owner_alerted`
+   * event unless one of that kind exists since `since`, and returns its id, or
+   * `null` when the owner was already told (or another request is telling them
+   * right now). The check and the write share a transaction behind a lock on
+   * the kind, because the moments this runs are the moments several background
+   * jobs fail together; a bare read-then-send would send two mails.
+   *
+   * The event carries the kind and nothing else, and no user (`0071`). Never
+   * throws: an alert that cannot be claimed is not sent, which is the safe side.
+   */
+  async claimOwnerAlert(kind: string, since: Date): Promise<string | null> {
+    try {
+      return await database().transaction(async tx => {
+        const [lock] = await tx.execute<{ locked: boolean }>(
+          sql`select pg_try_advisory_xact_lock(hashtext('owner_alerted'), hashtext(${kind})) as locked`
+        );
+
+        if (!lock?.locked) {
+          return null;
+        }
+
+        const [already] = await tx
+          .select({ n: count() })
+          .from(analyticsEvents)
+          .where(
+            and(
+              eq(analyticsEvents.event, 'owner_alerted'),
+              sql`${analyticsEvents.properties} ->> 'kind' = ${kind}`,
+              gte(analyticsEvents.createdAt, since)
+            )
+          );
+
+        if ((already?.n ?? 0) > 0) {
+          return null;
+        }
+
+        const [row] = await tx
+          .insert(analyticsEvents)
+          .values({ event: 'owner_alerted', properties: { kind }, userId: null })
+          .returning({ id: analyticsEvents.id });
+
+        return row?.id ?? null;
+      });
+    } catch (error: unknown) {
+      console.info(`[analytics] "owner_alerted" not claimed: ${error instanceof Error ? error.message : 'unknown error'}`);
+
+      return null;
+    }
+  },
+
+  /** When the owner was last told about `kind`, if ever. */
+  async lastOwnerAlert(kind: string): Promise<Date | null> {
+    const [row] = await database()
+      .select({ at: sql<Date | null>`max(${analyticsEvents.createdAt})`.mapWith(analyticsEvents.createdAt) })
+      .from(analyticsEvents)
+      .where(and(eq(analyticsEvents.event, 'owner_alerted'), sql`${analyticsEvents.properties} ->> 'kind' = ${kind}`));
+
+    return row?.at ?? null;
+  },
+  /**
    * Writes one event, and never throws.
    *
    * Analytics is the least important write in the system: a person's plan must
@@ -89,6 +149,17 @@ export const AnalyticsRepository = {
       });
     } catch (error: unknown) {
       console.info(`[analytics] "${event}" not recorded: ${error instanceof Error ? error.message : 'unknown error'}`);
+    }
+  },
+
+  /** Gives back a claim whose mail did not leave, so the next check may try again. Never throws. */
+  async releaseOwnerAlert(id: string): Promise<void> {
+    try {
+      await database()
+        .delete(analyticsEvents)
+        .where(and(eq(analyticsEvents.id, id), eq(analyticsEvents.event, 'owner_alerted')));
+    } catch (error: unknown) {
+      console.info(`[analytics] "owner_alerted" not released: ${error instanceof Error ? error.message : 'unknown error'}`);
     }
   }
 };

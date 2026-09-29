@@ -30,11 +30,13 @@ describe('where the text cap is read', () => {
     expect(using(/\bAdminTextSpend\b/)).toEqual([]);
   });
 
-  it('reads AI_TEXT_MONTHLY_CAP_USD only in the sweep, the console and the environment', () => {
+  it('reads AI_TEXT_MONTHLY_CAP_USD only in the sweep, the console, the owner’s warning and the environment', () => {
     expect(using(/AI_TEXT_MONTHLY_CAP_USD/)).toEqual([
       'config/Env.validation.ts',
       'modules/admin/services/Admin.service.ts',
-      'modules/ai/services/RecipeRewriter.service.ts'
+      'modules/ai/services/RecipeRewriter.service.ts',
+      // Only to *tell* the owner at 80 % and 100 %: it warns and refuses nothing (`owner-alerts`).
+      'modules/owner-alerts/services/OwnerAlerts.service.ts'
     ]);
   });
 });

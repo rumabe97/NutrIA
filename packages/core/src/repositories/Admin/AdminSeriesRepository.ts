@@ -190,6 +190,17 @@ export const AdminSeriesRepository = {
     }
   },
 
+  /** Messages written since `since`, handled or not (`0071`). A count; no message is read. Mode: one aggregate. */
+  async messagesSince(since: Date): Promise<number> {
+    try {
+      const [row] = await database().select({ n: count() }).from(feedback).where(gte(feedback.createdAt, since));
+
+      return row?.n ?? 0;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   /**
    * Dollars billed for dish pictures per Madrid day (`0066`), from the calls
    * themselves. A sum; no dish is named. Mode: one grouped query over the

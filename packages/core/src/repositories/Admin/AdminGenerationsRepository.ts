@@ -154,6 +154,26 @@ export const AdminGenerationsRepository = {
   },
 
   /**
+   * The outcome of the last `size` generations that finished, newest first
+   * (`succeeded` or `failed`, and the failure's code). Across every account:
+   * the owner's alert asks whether the service is failing, not who for.
+   * Mode: one small page, ordered by `finished_at`, which has no index of its own: the
+   * table holds a few thousand jobs, and this runs once a job ends.
+   */
+  async lastOutcomes(size: number): Promise<readonly { readonly code: string | null; readonly status: string }[]> {
+    try {
+      return await database()
+        .select({ code: planGenerationJobs.error, status: planGenerationJobs.status })
+        .from(planGenerationJobs)
+        .where(and(isNotNull(planGenerationJobs.finishedAt), inArray(planGenerationJobs.status, ['failed', 'succeeded'])))
+        .orderBy(desc(planGenerationJobs.finishedAt))
+        .limit(size);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
    * One page of the log, newest first, and how many generations match. The
    * tail of the order (the id) keeps a page boundary still when two jobs were
    * made in the same instant. Mode: one page and one count under the same

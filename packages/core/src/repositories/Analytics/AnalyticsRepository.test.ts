@@ -32,7 +32,11 @@ vi.mock('database', async () => {
         return Object.assign(failed, { values: () => failed });
       }
 
-      const rows = sql.startsWith('select count(*)') ? [[state.existing]] : [];
+      const rows = sql.startsWith('select count(*)')
+        ? [[state.existing]]
+        : sql.startsWith('insert') && sql.includes('returning')
+          ? [['claim-1']]
+          : [];
       const objects = sql.startsWith('select pg_try_advisory_xact_lock') ? [{ locked: state.locked }] : [];
 
       return Object.assign(Promise.resolve(objects), { values: () => Promise.resolve(rows) });
@@ -129,5 +133,54 @@ describe('AnalyticsRepository.activitySince', () => {
 
     expect(people?.sql).toContain('"analytics_events"."event" in (');
     expect(people?.params).toEqual([SINCE.toISOString(), ...ACTIVE_EVENTS]);
+  });
+});
+
+describe('AnalyticsRepository.claimOwnerAlert', () => {
+  it('locks on the kind, checks that kind since the instant given, then writes the event with the kind and no user, in one transaction', async () => {
+    await expect(AnalyticsRepository.claimOwnerAlert('generation-streak', SINCE)).resolves.toBe('claim-1');
+
+    const [lock, check, write] = state.sent;
+
+    expect(state.sent.every(statement => statement.tx)).toBe(true);
+    expect(lock?.sql).toBe("select pg_try_advisory_xact_lock(hashtext('owner_alerted'), hashtext($1)) as locked");
+    expect(lock?.params).toEqual(['generation-streak']);
+    expect(check?.sql).toContain(`"analytics_events"."properties" ->> 'kind' = $2`);
+    expect(check?.params).toEqual(['owner_alerted', 'generation-streak', SINCE.toISOString()]);
+    expect(write?.params).toContain('owner_alerted');
+    expect(write?.params).toContain(JSON.stringify({ kind: 'generation-streak' }));
+    expect(write?.params).toContain(null);
+  });
+
+  it('claims nothing when that kind was sent since then', async () => {
+    state.existing = 1;
+
+    await expect(AnalyticsRepository.claimOwnerAlert('digest', SINCE)).resolves.toBeNull();
+    expect(state.sent.some(statement => statement.sql.startsWith('insert'))).toBe(false);
+  });
+
+  it('claims nothing, and does not wait, when another request holds the lock', async () => {
+    state.locked = false;
+
+    await expect(AnalyticsRepository.claimOwnerAlert('digest', SINCE)).resolves.toBeNull();
+    expect(state.sent).toHaveLength(1);
+  });
+
+  it('never throws: an alert that could not be claimed is one not sent', async () => {
+    state.failOn = /^insert/;
+
+    await expect(AnalyticsRepository.claimOwnerAlert('digest', SINCE)).resolves.toBeNull();
+  });
+});
+
+describe('AnalyticsRepository.releaseOwnerAlert', () => {
+  it('deletes only that owner_alerted row, and never throws', async () => {
+    await AnalyticsRepository.releaseOwnerAlert('claim-1');
+
+    expect(state.sent[0]?.sql).toContain('delete from "analytics_events"');
+    expect(state.sent[0]?.params).toEqual(['claim-1', 'owner_alerted']);
+
+    state.failOn = /^delete/;
+    await expect(AnalyticsRepository.releaseOwnerAlert('claim-1')).resolves.toBeUndefined();
   });
 });

@@ -11,6 +11,12 @@
 > Ninguno lleva palabras de salud: un buzón se escanea y una pantalla de bloqueo es
 > pública (criterio ya aplicado en `CareInvitation.ts`, `0059`).
 >
+> **H, I y J son distintos**: no informan a nadie ni avisan de un contrato; son los
+> correos al propietario (`0071`), y están documentados **tal como están construidos**
+> (rama `agent/008-phase6/backend`, `a1fac59`), no como borrador. Solo en español
+> (`const LOCALE = 'es-ES'` en `OwnerDigest.ts:23` y `OwnerAlert.ts:16`, como `OWNER_LOCALE` en `AccountWaitingMail.ts:7`), así que su columna en-GB es `—`. Revisión y veredicto:
+> [`../2026-09-29-correos-al-propietario.md`](../2026-09-29-correos-al-propietario.md).
+>
 > **Marcadores**: `{name}` en estas plantillas es el del profesional o el del
 > destinatario, como hoy. El titular de NutrIA no se nombra en el correo: se enlaza a la
 > política (`{privacyUrl}` = `APP_URL/privacidad`), que lo identifica — información por
@@ -136,3 +142,70 @@ modelo) lo es, aunque sustituya a otros que protegían menos.
 | `choose` | `Los detalles están en {privacyUrl}, en «La inteligencia artificial». Si tienes cualquier duda, escríbenos a {email}. Si no estás de acuerdo, puedes borrar tu cuenta desde tu perfil.` | `The details are at {privacyUrl}, under "Artificial intelligence". If you have any question, write to us at {email}. If you do not agree, you can delete your account from your profile.` |
 
 <!-- Fuente: política vigente, § «Cambios en esta política» (es-ES.ts, namespace privacy); RGPD arts. 12.1 y 13.3 (información antes de un tratamiento nuevo), 13.1.e-f (destinatarios y transferencias); analisis.md § 4.4. «No guardan… ni lo usan para entrenar»: NO_TRAINING_PROVIDER (ai.config.ts), ajustes de cuenta del runbook ai-gateway.md § 0 y lista cerrada (P1-12). No menciona la categorización anónima de OpenRouter para no alargar un aviso: la enlaza la política, que sí la dice. Correo de servicio, no comercial: LSSI art. 21 no aplica. {date} = la fecha real del cambio; si se retrasa, no se reenvía, pero no se adelanta. Sin plantilla hoy: si se envía a mano, en copia oculta. -->
+
+---
+
+## H. Resumen diario al propietario (tal como está — `0071`)
+
+**Plantilla**: `OwnerDigest.ts`, `EmailKind` `owner-digest`. **Destinatario**: solo
+`OWNER_EMAIL`. **Cuándo**: dentro de `/cron/reminders`, como mucho uno por día de Madrid y
+solo si alguna línea no es cero o un gasto llega al 80 % de su tope. Cada línea aparece
+solo si su número no es cero, seguida de `Abrir en la consola` con su enlace.
+**Marcadores**: `{n}` es un número; `{codigo}` pasa por `safeCode` (`[A-Z][A-Z0-9_]`, si no
+`OTHER`); `{plantilla}` por `safeKind` (`[a-z][a-z0-9-]`, si no `unknown`); `{gastado}` y
+`{tope}` en USD con dos decimales; `{pct}` redondeado.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `NutrIA — resumen del día` | — |
+| `INTRO` | `Esto es lo que hoy pide una mirada. Solo hay números, códigos y enlaces.` (propuesta P3 aplicada) | — |
+| cuentas | `Cuentas esperando: {n}` → `/admin/cuentas?activated=no` | — |
+| buzón | `Mensajes nuevos en el buzón: {n}` → `/admin/buzon?state=waiting` | — |
+| generaciones | `Generaciones fallidas en 24 h: {n}` y una línea `{codigo}: {n}` por código → `/admin/generacion?status=failed&since=24h` | — |
+| gasto de texto | `Gasto de texto este mes: {gastado} de {tope} ({pct} %)`, solo desde el 80 % → `/admin/generacion/ia` | — |
+| gasto de imágenes | `Gasto de imágenes este mes: {gastado} de {tope} ({pct} %)`, solo desde el 80 % → `/admin/catalogo/imagenes` | — |
+| catálogo | `{etiqueta} (debería ser cero): {n}`, con cinco etiquetas fijas: `Comidas con raciones fuera de los límites`, `Recetas por encima del límite de una ración`, `Recetas que el barrido ya no reintenta`, `Recetas cuyos macros no se pueden calcular`, `Platos sin ingredientes que sirvan a sus comidas` → `/admin/catalogo?check=…` o `/admin/catalogo/calidad` | — |
+| correos | `Correos fallidos en 24 h: {n}` y una línea `{plantilla}: {n}` por plantilla → `/admin/ajustes/sistema` | — |
+| tareas | `Tareas programadas sin correr en más de 26 h` y una línea por tarea (`recordatorios`, `reescritura nocturna`) → `/admin/ajustes/sistema` | — |
+| `FOOT` | `Este correo no lleva el correo electrónico, el nombre ni el texto de ninguna persona usuaria.` (propuesta P3 aplicada) | — |
+
+<!-- Fuente: OwnerDigest.ts:25-38 y 66-106, AdminAlertController.ts:68-74 (safeCode, safeKind), OwnerAlerts.service.ts:54 y 61 (destinatario y enlaces), a1fac59. Sin efecto jurídico frente a nadie: no informa a un interesado ni avisa de un contrato. Su forma responde a RGPD arts. 5.1.c (minimización) y 5.1.f y 32 (confidencialidad): el correo sale por un proveedor y vive en un buzón menos protegido que la consola, así que lleva recuentos, códigos de lista cerrada, etiquetas fijas y enlaces sin id. Para el proveedor es información anónima (considerando 26; C-413/23 P) [abogado]. La propuesta de FOOT evita «dirección», que también es la web de los enlaces, y dice de quién no viaja nada; la de INTRO nombra los códigos, que también viajan. Ninguna contiene «@» (OwnerMail.spec.ts sigue igual). Veredicto: ../2026-09-29-correos-al-propietario.md. -->
+
+---
+
+## I. Aviso al propietario: tres generaciones seguidas fallidas (tal como está — `0071`)
+
+**Plantilla**: `OwnerAlert.ts`, `type: 'failures'`, `EmailKind` `owner-alert`.
+**Destinatario**: solo `OWNER_EMAIL`. **Cuándo**: al terminar una generación fallida, si
+las tres últimas terminadas (de todas las cuentas) fallaron; como mucho uno cada 6 horas.
+`{codigos}`: los tres, del más reciente al más antiguo, cada uno por `safeCode`.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `NutrIA — tres generaciones seguidas han fallado` | — |
+| `intro` | `Las tres últimas generaciones de planes terminaron en fallo, una tras otra.` | — |
+| `detail` | `Códigos, del más reciente al más antiguo: {codigos}.` | — |
+| `button` | `Abrir el registro` → `/admin/generacion?status=failed&since=24h` | — |
+| `again` | `Si sigue fallando, no volverás a recibir este aviso durante 6 horas.` | — |
+
+<!-- Fuente: OwnerAlert.ts:39-44, AdminAlertController.ts (failureStreak, safeCode), AdminGenerationsRepository.ts lastOutcomes (lee solo estado y código, sin cuenta), a1fac59. Los códigos posibles están en PlanGeneration.service.ts:51-59 más GENERATION_FAILED y OTHER: ninguno nombra una enfermedad, medicación ni alergia; GENERATION_PROFILE_CONSENT_REQUIRED es un estado de consentimiento, no un dato de salud (C-184/20, alcance de «datos de salud») [abogado]. Mismo fundamento de forma que H (arts. 5.1.c, 5.1.f, 32). -->
+
+---
+
+## J. Aviso al propietario: gasto al 80 % o al 100 % del tope (tal como está — `0071`)
+
+**Plantilla**: `OwnerAlert.ts`, `type: 'spend'`, `EmailKind` `owner-alert`.
+**Destinatario**: solo `OWNER_EMAIL`. **Cuándo**: al terminar una generación, al terminar
+el barrido nocturno y en el resumen diario; uno por umbral, fuente y mes UTC (si se salta
+del 79 % al 100 %, sale solo el de 100). `{fuente}`: `texto` o `imágenes`; `{umbral}`: 80 o
+100.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `NutrIA — el gasto de {fuente} ha llegado al {umbral} %` | — |
+| `intro` | `El gasto de {fuente} de este mes ha llegado al {umbral} % de su tope.` | — |
+| `detail` | `Van {gastado} de {tope}, el {pct} % del tope.` | — |
+| `button` | `Abrir el gasto` → `/admin/generacion/ia` (texto) o `/admin/catalogo/imagenes` (imágenes) | — |
+| `again` | `Un aviso por umbral y mes: no volverá a llegar hasta el mes que viene.` | — |
+
+<!-- Fuente: OwnerAlert.ts:29 y 47-52, OwnerAlerts.service.ts (spendAlert, checkSpend), a1fac59; topes AI_TEXT_MONTHLY_CAP_USD y AI_IMAGE_MONTHLY_CAP_USD (0071, 0064). Sin ningún dato de persona: cifras de gasto del servicio. Sin efecto jurídico; mismo fundamento de forma que H. -->

@@ -545,6 +545,23 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   Madrid day per person: `AnalyticsController.recordUse` checks and writes under an advisory lock,
   because a server render renews one session from several parallel requests. No HTTP route
   writes an event, an event never carries content, and recording never throws.
+- **The owner's alerts** (`0071`, `modules/owner-alerts`): `OwnerAlertsService` mails `OWNER_EMAIL`
+  unasked, silent without it or without SMTP, never throwing into its caller.
+  - The **digest** is the first statement of `/cron/reminders`, before the reminders switch:
+    one a day (`owner_alerted { kind: 'digest' }`, claimed per Madrid day) and only when an
+    item is non-zero or a spend is at 80 % of its cap. Its numbers come from the console's own
+    readers through `AdminAlertController` (quality helpers, `cronStates`, the spend gauges).
+  - **Three failed generations in a row** are checked in `PlanJobRunner.run` after the row says
+    how it ended; **spend at 80 % / 100 %** of the text or picture cap is checked there too, at
+    the end of the rewrite sweep and in the digest — per job, not per model call, which would put
+    a query on every call. A spend threshold is once per UTC month, the streak once per 6 h.
+  - The right to send is *claimed* first (`claimOwnerAlert`: advisory lock + check + insert), so
+    two jobs failing together send one mail; a claim is given back when the send reports failure (the transport times out in
+    seconds, well inside the function's 300 s).
+  - **The mails carry numbers, closed-set codes and console links, never an address or anybody's
+    text.** `OwnerDigest` has no free-text field, codes and template labels are reduced to
+    `[A-Z_]` / `[a-z-]` in core, and `OwnerMail.spec.ts` refuses an `@`, an id or a sentinel.
+    A new item is a number or a closed label, or it does not go in.
 - **Plan quality** (`0071`): each new plan's `generation_metadata.quality` is `planQuality`
   (`core/domain/PlanValidation`) over the delivered plan's violations — counts only, never a
   target, a figure or an event's name. The generation log (`AdminGenerationsRepository`)

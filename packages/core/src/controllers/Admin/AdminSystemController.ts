@@ -115,6 +115,18 @@ function commitOf(value: string | null): string | null {
   return value !== null && /^[0-9a-f]{7,40}$/i.test(value) ? value.toLowerCase() : null;
 }
 
+/** Each cron's last finished run and whether it is stale, in the order of `CRON_JOBS`: the one rule Sistema and the owner's digest both read. */
+export function cronStates(
+  runs: readonly { readonly at: Date; readonly job: string }[],
+  now: Date
+): readonly { readonly job: CronJob; readonly lastRunAt: string | null; readonly stale: boolean }[] {
+  return CRON_JOBS.map(job => {
+    const at = runs.find(run => run.job === job)?.at;
+
+    return { job, lastRunAt: at?.toISOString() ?? null, stale: at === undefined || now.getTime() - at.getTime() > CRON_STALE_HOURS * HOUR_MS };
+  });
+}
+
 export const AdminSystemController = {
   async system(period: Period, snapshot: SystemSnapshot, now = new Date()): Promise<AdminSystemView> {
     const window = windowFor(period, now);
@@ -133,11 +145,7 @@ export const AdminSystemController = {
         servingKcal: SERVING_KCAL_CAP
       },
       commit: commitOf(snapshot.commit),
-      crons: CRON_JOBS.map(job => {
-        const at = runs.find(run => run.job === job)?.at;
-
-        return { job, lastRunAt: at?.toISOString() ?? null, stale: at === undefined || now.getTime() - at.getTime() > CRON_STALE_HOURS * HOUR_MS };
-      }),
+      crons: cronStates(runs, now),
       integrations: snapshot.integrations,
       mail: {
         days,

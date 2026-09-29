@@ -5,6 +5,7 @@ import { PlanJobController } from 'core/controllers/Plan';
 import { BackgroundTaskService } from '../../../shared/services/index.js';
 import { ErrorReporter } from '../../../shared/observability/index.js';
 import { GenerationError, PlanGenerationService } from './PlanGeneration.service.js';
+import { OwnerAlertsService } from '../../owner-alerts/index.js';
 
 import type { ForClient } from 'core/controllers/Care';
 import type { JobView } from 'core/controllers/Plan';
@@ -51,6 +52,7 @@ export class PlanJobRunner {
   private readonly logger = new Logger(PlanJobRunner.name);
 
   constructor(
+    private readonly alerts: OwnerAlertsService,
     private readonly background: BackgroundTaskService,
     private readonly generation: PlanGenerationService,
     private readonly reporter: ErrorReporter
@@ -76,6 +78,7 @@ export class PlanJobRunner {
 
   private async run(userId: string, jobId: string, byProfessional: boolean): Promise<void> {
     const deadline = new AbortController();
+    let failed = false;
     const timer = setTimeout(() => {
       deadline.abort();
     }, GENERATION_DEADLINE_MS);
@@ -105,6 +108,7 @@ export class PlanJobRunner {
       await PlanJobController.markSucceeded(jobId, planId);
       this.logger.log(`Plan ${planId} generated for job ${jobId}`);
     } catch (error: unknown) {
+      failed = true;
       // A stable code reaches the user; the detail stays in the log. Nothing
       // partial survives — every write happens in one transaction at the end.
       const code = error instanceof GenerationError ? error.code : 'GENERATION_FAILED';
@@ -123,5 +127,10 @@ export class PlanJobRunner {
     } finally {
       clearTimeout(timer);
     }
+
+    // After the row says how it ended, so "the last three jobs" includes this one. Outside the
+    // try on purpose: whatever this does must never turn a finished job into a failed one, and
+    // it does not throw (`0071`).
+    await this.alerts.afterJob(failed).catch(() => undefined);
   }
 }
