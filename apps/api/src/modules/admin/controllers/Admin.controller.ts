@@ -58,7 +58,7 @@ export class AdminController {
 
   @ApiOkResponse({
     description:
-      'For each versioned consent (profile, health data, care link, the professional’s agreement): the version in force, accounts holding it, accounts on an older one, and the versions held. The profile consent against onboarded accounts. Numbers only.'
+      'For each versioned consent (profile, health data, care link, the professional’s agreement, the terms of use): the version in force, accounts holding it, accounts on an older one, and the versions held. The profile consent against onboarded accounts. Numbers only.'
   })
   @ApiOperation({ summary: 'Who holds which version of each consent (0071)' })
   @Get('consents')

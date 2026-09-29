@@ -38,6 +38,14 @@ export const user = pgTable('user', {
   image: text(),
   name: text().notNull(),
   role: userRole().notNull().default('user'),
+  /**
+   * When the server recorded that this account was created under `termsVersion`
+   * of `/condiciones` (`0071`, phase 7) — null before recording existed.
+   * Written only by `databaseHooks.user.create.before`; `input: false`.
+   */
+  termsAcceptedAt: timestamp({ withTimezone: true }),
+  /** The `TERMS_VERSION` in force at sign-up; null means the account predates the record, never "unknown version". */
+  termsVersion: text(),
   tier: userTier().notNull().default('free'),
   ...timestamps
 });

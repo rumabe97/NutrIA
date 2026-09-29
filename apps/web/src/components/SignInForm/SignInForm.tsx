@@ -95,6 +95,9 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
 
   return (
     <Fragment>
+      {/* Only when a provider button exists: that is what can create an account here. */}
+      {providers.length > 0 ? <LegalNotice variant="signIn" /> : null}
+
       <SocialSignIn next={params.get('siguiente') ?? undefined} providers={providers} />
 
       <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
@@ -114,8 +117,6 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
         <Button loading={pending} type="submit">
           {pending ? dictionary.auth.signingIn : dictionary.auth.signIn}
         </Button>
-
-        <LegalNotice />
 
         <div className={styles.footer}>
           <Text size="sm" tone="secondary">

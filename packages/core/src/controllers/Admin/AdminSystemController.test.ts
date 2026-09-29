@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { TERMS_VERSION } from 'core/entities/User';
+
 import { AdminSystemController, CRON_STALE_HOURS } from './AdminSystemController';
 
 import type { SystemSnapshot } from './AdminSystemController';
@@ -97,7 +99,7 @@ describe('AdminSystemController.system', () => {
     const view = await AdminSystemController.system(30, SNAPSHOT, NOW);
 
     expect(view.commit).toBe('a1b2c3d4e5f60718293a4b5c6d7e8f9012345678');
-    expect(view.versions).toMatchObject({ prompt: '4.5.0', steps: '2.8.0' });
+    expect(view.versions).toMatchObject({ prompt: '4.5.0', steps: '2.8.0', terms: TERMS_VERSION });
     expect(view.caps).toMatchObject({ oversizedFactor: 1.5, pictureMonthlyUsd: 10, rewriteAttemptBound: 3, servingBounds: { max: 4, min: 0.5 } });
     expect(view.caps.servingKcal.lunch).toBe(900);
   });

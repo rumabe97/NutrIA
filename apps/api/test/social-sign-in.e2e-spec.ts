@@ -4,6 +4,8 @@ import request from 'supertest';
 import { SettingsController } from 'core/controllers/Settings';
 import { UserController } from 'core/controllers/User';
 import { UNAUDITED } from 'core/entities/Audit';
+import { TERMS_VERSION } from 'core/entities/User';
+import { database } from 'database';
 
 import { createApp, httpServer, PREFIX, ScriptedAiClient } from './harness.js';
 
@@ -84,6 +86,19 @@ describe('social sign-in: arriving through a provider', () => {
     }
 
     return { cookie, location: String(back.headers.location) };
+  }
+
+  /** The terms' record of one account, read from the row (`0071`). */
+  async function termsOf(email: string): Promise<{ at: Date | null; version: string | null } | undefined> {
+    const sql = (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
+      .$client;
+
+    return (
+      await sql<{
+        at: Date | null;
+        version: string | null;
+      }>`select terms_version as version, terms_accepted_at as at from "user" where email = ${email}`
+    )[0];
   }
 
   async function me(cookie: string): Promise<{ id: string; activated: boolean; email: string; emailVerified: boolean }> {
@@ -170,6 +185,13 @@ describe('social sign-in: arriving through a provider', () => {
 
     expect(location).toBe(`${APP}/inicio`);
     await expect(me(cookie)).resolves.toMatchObject({ activated: true, email, emailVerified: true });
+
+    // Born through Google, it carries the terms it was created under, written with the row.
+    const terms = await termsOf(email);
+
+    expect(terms?.version).toBe(TERMS_VERSION);
+    expect(terms?.at).not.toBeNull();
+    expect(Math.abs(new Date(terms?.at as Date).getTime() - Date.now())).toBeLessThan(120_000);
   });
 
   it('leaves it confirmed and waiting for the owner when the door is shut', async () => {
@@ -201,9 +223,14 @@ describe('social sign-in: arriving through a provider', () => {
 
     const signIn: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: PASSWORD }).expect(200);
     const byPassword = await me(cookiesOf(signIn));
+    const recorded = await termsOf(email);
+
+    expect(recorded?.version).toBe(TERMS_VERSION);
     const byGoogle = await me((await arriveThroughGoogle({ email, emailVerified: true, name: 'Barbara', sub: `g-link-${stamp}` })).cookie);
 
     expect(byGoogle.id).toBe(byPassword.id);
+    // Joining is not creating: the record is what the password sign-up wrote, to the instant.
+    expect(await termsOf(email)).toEqual(recorded);
   });
 
   it('never joins an account nobody confirmed — whoever signed up with that address chose its password', async () => {

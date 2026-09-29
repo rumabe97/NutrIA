@@ -3,6 +3,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 
 import { AnalyticsController } from 'core/controllers/Analytics';
 import { CareController } from 'core/controllers/Care';
+import { TERMS_VERSION } from 'core/entities/User';
 
 import { database } from 'database';
 import { account, rateLimit, session, user, verification } from 'database/schema/auth';
@@ -132,7 +133,17 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
            */
           after: async (created: { id: string; email: string; emailVerified: boolean }) => {
             await onAccountCreated(created, selfService);
-          }
+          },
+          /*
+           * Which `/condiciones` the account was created under (`0071`, phase 7),
+           * written in the same `INSERT` that creates it — the row and the
+           * record cannot part. Every way to an account passes here: email
+           * sign-up, Google and Apple (the OAuth callback's `internalAdapter.createUser` runs the same hooks).
+           * The values are ours, set after whatever else the data carried. A
+           * sign-up body with `termsVersion` in it never gets this far:
+           * `input: false` below refuses it (400) and no account is made.
+           */
+          before: async (created: Record<string, unknown>) => ({ data: { ...created, termsAcceptedAt: new Date(), termsVersion: TERMS_VERSION } })
         }
       }
     },
@@ -225,7 +236,10 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
          * — a client cannot send it, which is the whole point of a door.
          */
         activatedAt: { input: false, required: false, type: 'date' },
-        role: { defaultValue: 'user', input: false, required: false, type: 'string' }
+        role: { defaultValue: 'user', input: false, required: false, type: 'string' },
+        // The terms' record (`0071`): written by `databaseHooks.user.create.before`, never by a client.
+        termsAcceptedAt: { input: false, required: false, type: 'date' },
+        termsVersion: { input: false, required: false, type: 'string' }
       },
       deleteUser: {
         /*

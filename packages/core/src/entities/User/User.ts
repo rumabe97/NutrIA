@@ -1,6 +1,25 @@
 import { z } from 'zod';
 
 /**
+ * The version of `/condiciones` an account accepted when it was created
+ * (`0071`, project 008 phase 7; `docs/legal/2026-09-29-aceptacion-de-los-textos-legales.md`
+ * § 5). The server writes it, in the same `INSERT` that creates the account —
+ * for email, Google and Apple alike — and no request can send it.
+ *
+ * `1.x` is the three texts of 21, 25 and 28 September, which were never
+ * recorded; `2.0.0` is the first that is.
+ *
+ * **The bump rule:** any change of meaning in the `terms` dictionary, in
+ * `es-ES.ts` or in `en-GB.ts`, bumps this constant **and** `terms.updated` in
+ * the same commit. A typo fix bumps neither. Stored `null` means the account
+ * was created before this was recorded — never a version to fill in.
+ *
+ * Only `/condiciones` is recorded: the privacy policy is informed, never
+ * accepted, and has no version here.
+ */
+export const TERMS_VERSION = '2.0.0';
+
+/**
  * The authenticated account. Better Auth owns this row, so the shape mirrors
  * its table (see `packages/database/src/schemas/auth.schema.ts`) plus the `role`
  * column we add.

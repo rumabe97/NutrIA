@@ -72,6 +72,9 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
         {dictionary.auth.createAccountSubtitle}
       </Text>
 
+      {/* Above every control that creates an account, the buttons included. */}
+      <LegalNotice />
+
       {/* A new account lands on onboarding whichever way it was made. */}
       <SocialSignIn next="/onboarding" providers={providers} />
 
@@ -97,14 +100,6 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
         <Button loading={pending} type="submit">
           {pending ? dictionary.auth.signUpPending : dictionary.auth.signUp}
         </Button>
-
-        <LegalNotice />
-        {/* Stated where the terms are accepted, not only inside them: the one
-            fact somebody must read before this button does anything. Same
-            tone as the notice above it — both are read as one clause. */}
-        <Text align="center" size="xs" tone="secondary">
-          {dictionary.auth.legalAge}
-        </Text>
 
         <div className={styles.footer}>
           <Text size="sm" tone="secondary">

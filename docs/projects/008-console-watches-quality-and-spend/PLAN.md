@@ -329,7 +329,7 @@ numbers refer to it. Read it before any phase.
 
 ### Phase 6 — The owner's alerts
 
-- [x] done
+- [x] done — commit `0ca076c` ("The owner hears by mail when something needs a look, once, and never who it was about")
 - **Dispatch**: opus @ medium — `/execute-project 008 phase 6`. Reviews:
   `invariant-reviewer`, and `legal` on the mail template. — owner-approves: the digest's
   wording.
@@ -369,7 +369,7 @@ numbers refer to it. Read it before any phase.
 
 ### Phase 7 — The terms' acceptance (`legal` said yes in phase 3, for the terms only)
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 008 phase 7`. `quality-max`: it changes
   sign-up. Reviews: `invariant-reviewer`, `migration-reviewer`, `accessibility` with
   `/local-probe`, and `legal` on the texts.

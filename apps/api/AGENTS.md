@@ -293,6 +293,16 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   Signing up is never refused. Opening an account is `UserController.activate({ email | id })`,
   by button from the owner's mail (a signed, expiring token, one account, nothing else) or from
   the list on `/admin`.
+- **The terms' record** (`0071`, project 008 phase 7): `user.terms_version` / `terms_accepted_at`,
+  written by `databaseHooks.user.create.before` in the `INSERT` that creates the account — email,
+  Google and Apple alike — from `TERMS_VERSION` in `core/entities/User`. Both are Better Auth
+  `additionalFields` with `input: false`: a body carrying either with a value is refused (400), on
+  sign-up and on `/auth/update-user`; an empty one is dropped, and the hook's values always win. The
+  version never travels from the browser. `null` means not recorded (the account predates the
+  record, or was made during a rollback), never a version to fill in (no backfill). Only `/condiciones` is recorded; the privacy
+  policy is informed, never accepted. **Bump rule:** any change of meaning in `terms`, in either
+  dictionary, bumps `TERMS_VERSION` and `terms.updated` in the same commit; a typo fix bumps neither.
+  `TermsRecord.spec.ts` pins the hook for both paths.
 - **Providers** (`0058`): Google and Apple, each present only when its `GOOGLE_OAUTH_*` /
   `APPLE_OAUTH_*` set is whole (`modules/auth/services/SocialProviders.ts`); none by default.
   An account born through one has its address confirmed already, so
@@ -401,11 +411,11 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   - **`GET /admin/catalogue/recipes?check=`** (`over_bound`, `uncosted`, `unserved`, `refusal_limit`,
     `over_cap`) narrows Recetas to exactly the recipes a quality count is made of, through the same
     `judged()` read, so a count and the table it links to cannot disagree.
-  - **`GET /admin/consents`** — for the four versioned consents, the version in force and how many
-    accounts hold it, an older one, or (professional's agreement) none yet. **`GET /admin/notifications?period=`**
+  - **`GET /admin/consents`** — for the five versioned consents (profile, health, care, professional, terms), the version in force and how many
+    accounts hold it, an older one, or (professional's agreement, terms of use) none yet. **`GET /admin/notifications?period=`**
     — push subscriptions and people, reminders per Madrid week and channel (one `notifications` row
     per channel a reminder left by, since phase 1), and distinct people who checked in within 3 days of
-    one. **`GET /admin/system?period=`** — commit (only if it is a hash), prompt/steps/consent versions,
+    one. **`GET /admin/system?period=`** — commit (only if it is a hash), prompt/steps/consent/terms versions,
     the caps, each integration as a boolean, each cron's last `cron_run` (`stale` past 26 h or never
     recorded) and mail sent/failed per template and Madrid day. `systemSnapshot(env, …)`
     (`admin/services/SystemSnapshot.ts`) is the only place the environment is read for it, and
