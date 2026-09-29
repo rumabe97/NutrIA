@@ -338,8 +338,11 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   the failure that costs money is the one that grants too much.
 - **Owner notice** (`0029`, amended): sent from `afterEmailVerification` when activation is
   manual — the only moment an account joins the queue. It never throws (a confirmation must not
-  fail because a mailbox did) and it is the only mail carrying a user's address, because
-  activation matches on it.
+  fail because a mailbox did). It says only that an account is waiting: **no address, no name, no
+  id, no activation link**, because the mail outlives everything (no deletion deadline in the
+  owner's inbox). It links to the console's `/admin/cuentas?activated=no`, where the owner sees who
+  it is and activates. `GET /admin/activate` stays for mails already sent, until their tokens
+  expire; no new mail issues one. Its log line carries no user id.
 - **Admin** (`0028`, `0068`): the console's routes, all `@Roles('admin')` on the controller
   class so a new route is guarded by default — a non-admin and no session get 404, before any
   query parameter is read (guards run before pipes). Nothing selected is a person's own — no
@@ -561,6 +564,13 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     one a day (`owner_alerted { kind: 'digest' }`, claimed per Madrid day) and only when an
     item is non-zero or a spend is at 80 % of its cap. Its numbers come from the console's own
     readers through `AdminAlertController` (quality helpers, `cronStates`, the spend gauges).
+  - **The two daily crons watch each other**, with no third cron and no external service: the
+    digest reports the rewrite cron when silent > 26 h, and `/cron/rewrite-steps` (03:30 UTC)
+    first calls `OwnerAlertsService.watchReminders`, which mails at once when the reminders
+    cron's last `cron_run` is older than 26 h or absent (`AdminAlertController.silentCrons`, the
+    console's own `cronStates` rule), claimed as `owner_alerted { kind: 'cron-silent-reminders' }`
+    for 20 h (one a day, even when the cron fires a little early). It runs before the sweep, so a sweep held by the cap, empty or throwing still checks;
+    it never throws and the route keeps its `.catch`. Numbers and a link to `/admin/ajustes/sistema` only.
   - **Three failed generations in a row** are checked in `PlanJobRunner.run` after the row says
     how it ended; **spend at 80 % / 100 %** of the text or picture cap is checked there too, at
     the end of the rewrite sweep and in the digest — per job, not per model call, which would put
@@ -586,9 +596,9 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   sweeps. `CheckInReminderService` sends one mail per fortnight to accounts whose plan reached
   its last day, and writes the `notifications` rows only after a channel accepted it — one row
   per channel that carried it (`0071`), and any row is what stops a second one. Never put plan or health content in a reminder; it is read on
-  a lock screen. `PATCH /notifications/settings` is the switch. **No cron is scheduled**: the
-  `crons` block is out of `apps/api/vercel.json` while the project runs on free tiers, so all
-  three routes only run when called by hand with the bearer.
+  a lock screen. `PATCH /notifications/settings` is the switch. Vercel runs it daily at 08:00 UTC
+  and `/cron/rewrite-steps` at 03:30 UTC (`apps/api/vercel.json` `crons`); each watches the
+  other and tells the owner when it has been silent for more than 26 h.
 - **Error reporting** (`0024`): `ErrorReporter` in `shared/observability` — off without
   `SENTRY_DSN`. The exception filter reports what it turns into a 5xx and `PlanJobRunner`
   reports a failed generation. It sends the error, its stack and the route *pattern* only:

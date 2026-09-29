@@ -43,7 +43,8 @@ const DIGEST: OwnerDigest = {
 const ALERTS: readonly OwnerAlert[] = [
   { codes: ['GENERATION_AI_UNAVAILABLE', 'GENERATION_TIMED_OUT', 'OTHER'], type: 'failures' },
   { capUsd: 25, share: 0.84, source: 'text', spentUsd: 21, threshold: 80, type: 'spend' },
-  { capUsd: 10, share: 1.02, source: 'pictures', spentUsd: 10.2, threshold: 100, type: 'spend' }
+  { capUsd: 10, share: 1.02, source: 'pictures', spentUsd: 10.2, threshold: 100, type: 'spend' },
+  { type: 'reminders-silent' }
 ];
 
 function everything(mail: { html: string; subject: string; text: string }): string {

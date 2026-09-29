@@ -28,6 +28,9 @@ function isPlaceholder(part: string): part is Placeholder {
  * page creates an account for somebody who has none (`0058`), and that person
  * never sees the sign-up page.
  *
+ * Both links open in a new tab, so somebody half-way through the form on
+ * `/registro` keeps what they typed; the hidden suffix says so to a screen reader.
+ *
  * One sentence in the dictionary with two placeholders, rather than three
  * fragments to glue together: word order is the translator's, and a sentence
  * assembled from halves is only ever right in the language it was written in.
@@ -43,8 +46,9 @@ export function LegalNotice({ variant = 'signUp' }: Readonly<{ variant?: 'signIn
       <Text align="center" size="xs" tone="secondary">
         {sentence.split(/(\{terms\}|\{privacy\})/).map(part =>
           isPlaceholder(part) ? (
-            <Link className={styles.link} href={withLocale(LINKS[part], locale)} key={part}>
+            <Link className={styles.link} href={withLocale(LINKS[part], locale)} key={part} rel="noopener noreferrer" target="_blank">
               {labels[part]}
+              <span className="visually-hidden">{dictionary.auth.legalOpensInTab}</span>
             </Link>
           ) : (
             part

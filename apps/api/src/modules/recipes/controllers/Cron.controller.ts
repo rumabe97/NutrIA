@@ -12,6 +12,13 @@ import { RecipeRewriter } from '../../ai/index.js';
 import type { ReminderRunDto, RewriteRunDto } from '../dto/out/index.js';
 
 /**
+ * The most the reminders watch may take before the sweep starts. The sweep's own clock
+ * starts after it and the function dies at 300 s: a mail server that hangs must not eat
+ * the minute the sweep keeps for its writes and its record.
+ */
+const WATCH_BUDGET_MS = 10_000;
+
+/**
  * What one sweep fetches: as many as three lanes can finish inside its time
  * (`RewriteLimits`) — nine cooked mains at about seventy seconds each, a few
  * more when the batch holds quicker dishes. What is not reached is left for
@@ -64,6 +71,13 @@ export class CronController {
 
   @Get('rewrite-steps')
   async rewriteSteps(): Promise<RewriteRunDto> {
+    // First, so a sweep held by the cap, empty or failing still checks the other cron: the two watch each other.
+    // It never throws, and the catch keeps it so.
+    await Promise.race([
+      this.alerts.watchReminders().catch(() => undefined),
+      new Promise<void>(resolve => setTimeout(resolve, WATCH_BUDGET_MS).unref())
+    ]);
+
     const run = await this.rewriter.rewriteOutdated(REWRITES_PER_SWEEP);
 
     // A sweep held back by the cap says so in its record, in the place of a count of skipped recipes.

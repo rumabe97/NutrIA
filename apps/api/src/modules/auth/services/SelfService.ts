@@ -51,7 +51,7 @@ async function activateIfAutomatic(userId: string): Promise<boolean> {
 export async function onAddressConfirmed(
   account: { readonly id: string; readonly email: string },
   deps: {
-    readonly link: { readonly apiUrl: string; readonly secret: string };
+    readonly link: (path: string) => string;
     readonly mailer: Pick<EmailService, 'configured' | 'send'>;
     readonly ownerEmail: string | undefined;
   }
@@ -60,7 +60,7 @@ export async function onAddressConfirmed(
     return 'opened';
   }
 
-  await notifyOwnerOfWaitingAccount(deps.mailer, deps.ownerEmail, account, deps.link);
+  await notifyOwnerOfWaitingAccount(deps.mailer, deps.ownerEmail, deps.link);
 
   return 'waiting';
 }
