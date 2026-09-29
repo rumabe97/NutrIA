@@ -784,7 +784,7 @@ ingredientes. Luego, la política (§ «Con quién compartimos»).
 | # | Hallazgo | Dónde | Arreglo |
 | --- | --- | --- | --- |
 | P2-1 | Opciones «Halal»/«Kosher» preguntan la religión | `es-ES.ts:834-835`; `_enums.ts:21-22` | Restricciones neutras («sin cerdo», «sin alcohol», «carne de sacrificio ritual»); mientras tanto, dentro del consentimiento explícito |
-| P2-2 | «Al continuar aceptas… la política de privacidad»: la política se informa, no se acepta; y no se guarda qué versión de las condiciones se aceptó | `es-ES.ts:183` | Texto nuevo ([`textos/03`](./textos/03-condiciones-uso.md) § A); guardar `termsVersion` y fecha al registrarse |
+| P2-2 | «Al continuar aceptas… la política de privacidad»: la política se informa, no se acepta; y no se guarda qué versión de las condiciones se aceptó | `es-ES.ts:183` | Texto nuevo ([`textos/03`](./textos/03-condiciones-uso.md) § A, ya publicado); guardar `termsVersion` y fecha al registrarse — **decidido el 2026-09-29 (D5)**: se construye en la fase 7 del proyecto 008, con el aviso visible junto al botón de Google ([nota](./2026-09-29-aceptacion-de-los-textos-legales.md)) |
 | P2-3 | Sin registro de actividades | — | [`registro-actividades.md`](./registro-actividades.md) (art. 30; la excepción del 30.5 no aplica) |
 | P2-4 | Sin plazos ni purga: `analytics_events`, `plan_generation_jobs` | `platform.schema.ts:91-100`; `plan.schema.ts:240-260` | Cron diario que borre a 24 y 12 meses |
 | P2-5 | La política dice que el responsable es «persona física — no una empresa ni un autónomo registrado» | `es-ES.ts:1105` | Quitarlo (texto nuevo) |
@@ -854,6 +854,10 @@ Una hora, en este orden:
     ultrasuplantación (art. 3.60)? (b) ¿«IA» en lugar de «AI» en la marca? ~~(c) Si el
     C2PA de Google no llega por OpenRouter…~~ (llega, medido el 2026-09-27).
     Detalle en [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 7.
+12. **Aceptación de las condiciones** (2026-09-29, D5): el art. 59.4 TRLGDCU y la cuenta
+    gratuita, la confirmación del art. 28 LSSI, «seguir usando = aceptar», la prueba tras
+    el borrado y la base de guardar la versión. Detalle en
+    [`2026-09-29-aceptacion-de-los-textos-legales.md`](./2026-09-29-aceptacion-de-los-textos-legales.md) § 7.
 
 ---
 

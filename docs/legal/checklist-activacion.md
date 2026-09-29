@@ -114,7 +114,7 @@
 - [ ] **P2-7** — Aviso de renovación anual 15 días antes (Stripe o plantilla propia).
 - [ ] **P2-6** — Checkout con aceptación de condiciones (`consent_collection.terms_of_service`) y URLs de condiciones y privacidad en los ajustes de Checkout de Stripe.
 - [ ] El precio mostrado antes de pagar incluye impuestos y el total por periodo (TRLGDCU art. 97.1.e); el botón final de Stripe deja claro que hay obligación de pago (art. 98.2) — revisar el rótulo con prueba gratuita **[abogado]**.
-- [ ] **P2-2** — Se guarda la versión de las condiciones aceptada al registrarse.
+- [ ] **P2-2** — Se guarda la versión de las condiciones aceptada al registrarse (proyecto 008, fase 7; [nota D5](./2026-09-29-aceptacion-de-los-textos-legales.md) § 5), y el aviso se ve junto al botón de Google en `/registro` y `/acceder`.
 
 **Profesional (consulta)**
 - [ ] **P1-9** — Condiciones de consulta aceptadas antes de pagar (misma pantalla que el acuerdo); `practice.planTrial` dice que se cobra al terminar la prueba.

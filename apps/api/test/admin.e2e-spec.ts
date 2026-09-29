@@ -28,16 +28,20 @@ import type { AccountView, Paged } from 'core/controllers/User';
 import type {
   AdminAiView,
   AdminAnalyticsView,
+  AdminCatalogueQualityView,
+  AdminConsentsView,
   AdminGenerationStatsView,
   AdminGenerationsView,
   AdminGenerationView,
   AdminIngredientsView,
+  AdminNotificationsView,
   AdminPeopleView,
   AdminPicturesPeriodView,
   AdminPlansView,
   AdminProductView,
   AdminRecipesView,
   AdminSummaryView,
+  AdminSystemView,
   CatalogueRecipeView,
   DaySeries
 } from 'core/controllers/Admin';
@@ -2094,6 +2098,249 @@ describe('admin', () => {
                (select count(*)::int from plan_generation_jobs where error = ${CODE}) as jobs`;
 
       expect(left).toEqual({ accounts: 0, jobs: 0 });
+    });
+  });
+
+  /**
+   * The console's watching pages (`0071`, project 008 phase 3): the catalogue's
+   * quality, the consents, the notifications and the system. Counts, versions
+   * and booleans over the service — never a person, an address or a setting's
+   * value. Exact key lists at every level, so a new field is a decision.
+   */
+  describe('the watching pages', () => {
+    const get = (path: string, cookie?: string) => {
+      const call = request(httpServer(app)).get(`/${PREFIX}/admin/${path}`);
+
+      return cookie === undefined ? call : call.set('Cookie', cookie);
+    };
+
+    const keys = (value: object) => Object.keys(value).sort();
+    const body = async <View>(path: string) => (await get(path, owner.cookie).expect(200)).body as View;
+    /** The system view as the console reads it: mail is per-day totals, and per-template period totals. */
+    type SystemBody = Omit<AdminSystemView, 'mail'> & {
+      readonly mail: {
+        readonly days: readonly string[];
+        readonly kinds: readonly { readonly failed: number; readonly kind: string; readonly sent: number }[];
+        readonly perDay: { readonly failed: readonly number[]; readonly sent: readonly number[] };
+        readonly totals: { readonly failed: number; readonly sent: number };
+      };
+    };
+    const SEMVER = /^\d+\.\d+\.\d+$/;
+
+    const refusedAsInput = async (path: string) => {
+      const refused: Response = await get(path, owner.cookie);
+
+      expect({ code: (refused.body as { code?: string }).code, path, status: refused.status }).toEqual({ code: 'INVALID_INPUT', path, status: 422 });
+    };
+
+    const PAGES = ['catalogue/quality', 'consents', 'notifications', 'system', 'catalogue/recipes?check=over_bound'];
+
+    it('do not exist for an ordinary account, nor for a caller with no session — even with a query they would refuse', async () => {
+      const refusable = [
+        'catalogue/quality?period=12',
+        'catalogue/quality?period=abc',
+        'notifications?period=12',
+        'system?period=12',
+        'consents?period=12',
+        'catalogue/recipes?check=nope',
+        'catalogue/recipes?check=over_bound&sort=createdAt'
+      ];
+
+      for (const path of [...PAGES, ...refusable]) {
+        const asOrdinary: Response = await get(path, ordinary.cookie);
+        const asNobody: Response = await get(path);
+
+        expect({ nobody: asNobody.status, ordinary: asOrdinary.status, path }).toEqual({ nobody: 404, ordinary: 404, path });
+      }
+    });
+
+    it('answer the owner', async () => {
+      for (const path of PAGES) {
+        await get(path, owner.cookie).expect(200);
+      }
+    });
+
+    it('carry the quality of the catalogue, with exact keys, and its sweep adds up', async () => {
+      const view = await body<AdminCatalogueQualityView>('catalogue/quality');
+
+      expect(keys(view)).toEqual(['period', 'recipes', 'shouldBeZero', 'sweep', 'toLookAt', 'window']);
+      expect(keys(view.shouldBeZero)).toEqual(['mealsOutsideServingBounds', 'overBound', 'refusalLimit', 'uncosted', 'unserved']);
+      expect(keys(view.sweep)).toEqual(['attemptBound', 'current', 'givenUp', 'pending', 'stepsVersion', 'withRefusals']);
+      expect(keys(view.toLookAt)).toEqual(['overCapBySource', 'oversizedRejections', 'picturesFailed']);
+      expect(keys(view.window)).toEqual(['from', 'previousFrom', 'to']);
+      expect(view.period).toBe(30);
+      expect(view.sweep.stepsVersion).toMatch(SEMVER);
+      expect(view.sweep.current + view.sweep.pending + view.sweep.givenUp).toBe(view.recipes);
+      expect(view.toLookAt.overCapBySource).toHaveLength(3);
+
+      for (const entry of view.toLookAt.overCapBySource) {
+        expect(keys(entry)).toEqual(['n', 'source']);
+      }
+
+      expect(view.toLookAt.oversizedRejections.days).toHaveLength(30);
+
+      for (const period of [7, 90]) {
+        const other = await body<AdminCatalogueQualityView>(`catalogue/quality?period=${period}`);
+
+        expect(other.toLookAt.oversizedRejections.days).toHaveLength(period);
+        expect(other.recipes).toBe(view.recipes);
+      }
+
+      await refusedAsInput('catalogue/quality?period=12');
+    });
+
+    it('carry the system: versions, caps, integrations as booleans and crons, with no value of a setting', async () => {
+      const view = await body<SystemBody>('system');
+
+      expect(keys(view)).toEqual(['caps', 'commit', 'crons', 'integrations', 'mail', 'period', 'versions', 'window']);
+      expect(keys(view.integrations)).toEqual(['cronSecret', 'mail', 'ownerAddress', 'pictures', 'push', 'rewriteSweep', 'sentry']);
+
+      for (const value of Object.values(view.integrations)) {
+        expect(typeof value).toBe('boolean');
+      }
+
+      // The suite runs with every SMTP_* and VAPID_* blank.
+      expect(view.integrations.mail).toBe(false);
+      expect(view.integrations.push).toBe(false);
+      expect(view.commit === null || /^[0-9a-f]{7,64}$/.test(view.commit)).toBe(true);
+      expect(keys(view.caps)).toEqual(['oversizedFactor', 'pictureMonthlyUsd', 'rewriteAttemptBound', 'servingBounds', 'servingKcal']);
+      expect(keys(view.caps.servingBounds)).toEqual(['max', 'min']);
+      expect(keys(view.versions)).toEqual(['careConsent', 'healthConsent', 'professionalAgreement', 'profileConsent', 'prompt', 'steps']);
+      expect(view.versions.steps).toMatch(SEMVER);
+      expect(keys(view.mail)).toEqual(['days', 'kinds', 'perDay', 'totals']);
+      expect(keys(view.mail.totals)).toEqual(['failed', 'sent']);
+      expect(keys(view.mail.perDay)).toEqual(['failed', 'sent']);
+      expect(view.mail.perDay.failed).toHaveLength(view.mail.days.length);
+      expect(view.mail.perDay.sent).toHaveLength(view.mail.days.length);
+      expect(view.mail.days).toHaveLength(30);
+      expect(view.crons.map(cron => cron.job).sort()).toEqual(['reminders', 'rewrite']);
+
+      for (const cron of view.crons) {
+        expect(keys(cron)).toEqual(['job', 'lastRunAt', 'stale']);
+      }
+
+      // A mail row cannot be produced here (SMTP is blank): the shape is all this can prove.
+      for (const kind of view.mail.kinds) {
+        expect(keys(kind)).toEqual(['failed', 'kind', 'sent']);
+        expect(Number.isInteger(kind.sent) && Number.isInteger(kind.failed)).toBe(true);
+      }
+
+      // No address, URL or host anywhere in the answer (the integrations are booleans, the key names aside).
+      expect(JSON.stringify(view)).not.toMatch(/@|https?:|smtp|mailto/i);
+      expect((await body<SystemBody>('system?period=7')).mail.days).toHaveLength(7);
+
+      await refusedAsInput('system?period=12');
+    });
+
+    it('count who holds which version of each consent, and nothing of anybody', async () => {
+      const view = await body<AdminConsentsView>('consents');
+
+      expect(keys(view)).toEqual(['consents', 'onboarded']);
+      expect(keys(view.onboarded)).toEqual(['holding', 'total']);
+      expect(view.consents.map((consent: { key: string }) => consent.key)).toEqual(['profile', 'health', 'care', 'professional']);
+
+      for (const consent of view.consents) {
+        expect(keys(consent)).toEqual(['current', 'currentVersion', 'key', 'older', 'versions']);
+        expect(consent.versions.reduce((sum, version) => sum + version.n, 0)).toBeGreaterThanOrEqual(consent.current + consent.older);
+      }
+
+      expect(view.onboarded.holding).toBeLessThanOrEqual(view.onboarded.total);
+    });
+
+    it('count the reminders per channel and week, and who can be reached by push', async () => {
+      const view = await body<AdminNotificationsView>('notifications');
+
+      expect(keys(view)).toEqual(['checkIns', 'period', 'push', 'remindersPerWeek', 'window']);
+      expect(keys(view.checkIns)).toEqual(['answered', 'reminded']);
+      expect(keys(view.push)).toEqual(['people', 'subscriptions']);
+      expect(keys(view.remindersPerWeek)).toEqual(['series', 'weeks']);
+      expect(view.checkIns.answered).toBeLessThanOrEqual(view.checkIns.reminded);
+      expect(view.remindersPerWeek.series.map((series: { channel: string }) => series.channel)).toEqual(['email', 'push']);
+      expect(view.remindersPerWeek.weeks).toEqual(expectedWeeks(30, madridDay(view.window.to)));
+
+      for (const series of view.remindersPerWeek.series) {
+        expect(keys(series)).toEqual(['channel', 'values']);
+        expect(series.values).toHaveLength(view.remindersPerWeek.weeks.length);
+      }
+
+      await refusedAsInput('notifications?period=12');
+    });
+
+    it('narrow Recetas to the recipes each quality count is made of, and refuse a check it does not know', async () => {
+      const quality = await body<AdminCatalogueQualityView>('catalogue/quality');
+      const expected: Record<string, number> = {
+        over_bound: quality.shouldBeZero.overBound,
+        over_cap: quality.toLookAt.overCapBySource.reduce((sum, entry) => sum + entry.n, 0),
+        refusal_limit: quality.shouldBeZero.refusalLimit,
+        uncosted: quality.shouldBeZero.uncosted,
+        unserved: quality.shouldBeZero.unserved
+      };
+
+      for (const [check, total] of Object.entries(expected)) {
+        const page = await body<AdminRecipesView>(`catalogue/recipes?check=${check}&size=100`);
+
+        expect({ check, rows: page.rows.length, total: page.total }).toEqual({ check, rows: Math.min(total, 100), total });
+      }
+
+      await refusedAsInput('catalogue/recipes?check=nope');
+    });
+
+    /*
+     * "Active" is a sign-in or a use (`0071`): `app_used` counts, on the
+     * table's `lastActiveAt` and on the console's active people; a swap does
+     * not. Scoped to this test's own account; the delta on the shared totals
+     * is exactly one person.
+     */
+    describe('"active"', () => {
+      let subject: Account;
+
+      beforeAll(async () => {
+        subject = await register(app, `admin-active-${Date.now()}@e2e.invalid`);
+        made.push(subject.cookie);
+        // Registering signs in, which is an active event: start from an account with none.
+        await forgetActivity(subject.email);
+      });
+
+      const write = async (event: string) => {
+        const sql = (
+          database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> }
+        ).$client;
+
+        await sql`insert into analytics_events (event, user_id) select ${event}, id from "user" where email = ${subject.email} and email like '%@e2e.invalid'`;
+      };
+
+      const lastActive = async () => {
+        const page = (await get(`accounts?q=${encodeURIComponent(subject.email)}`, owner.cookie).expect(200)).body as Paged<AccountView>;
+
+        return page.rows.find(row => row.email === subject.email)?.lastActiveAt;
+      };
+
+      const activePeople = async () => {
+        const summary = (await get('summary?period=7', owner.cookie).expect(200)).body as AdminSummaryView;
+        const product = (await get('product?period=7', owner.cookie).expect(200)).body as AdminProductView;
+
+        return { summary: summary.tiles.activePeople.current, today: product.activePeople.values.at(-1) ?? 0 };
+      };
+
+      it('moves on a use, and not on a swap alone', async () => {
+        const before = await activePeople();
+
+        expect(await lastActive()).toBeNull();
+
+        await write('swap_requested');
+
+        expect(await lastActive()).toBeNull();
+        expect(await activePeople()).toEqual(before);
+
+        await write('app_used');
+
+        expect(await lastActive()).toMatch(INSTANT);
+
+        const after = await activePeople();
+
+        expect(after.summary).toBe(before.summary + 1);
+        expect(after.today).toBe(before.today + 1);
+      });
     });
   });
 });

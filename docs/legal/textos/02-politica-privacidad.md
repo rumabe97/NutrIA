@@ -41,6 +41,11 @@
 >   la frase antigua de las ilustraciones, que sigue siendo verdad. Desde el 2026-09-27 no hay
 >   variantes (MAI fuera; el C2PA llega): su porqué, en [`imagenes-de-platos.md`](../imagenes-de-platos.md) § 4.2.
 >
+> **D5 (2026-09-29)**: cuando la fase 7 del proyecto 008 guarde la versión de las
+> condiciones, la línea «Cuenta» de «Qué datos recogemos» la nombra
+> ([`../2026-09-29-aceptacion-de-los-textos-legales.md`](../2026-09-29-aceptacion-de-los-textos-legales.md) § 6.B);
+> si esta política se publica después, lleva esa frase.
+>
 > Sin consentimiento de nadie que volver a pedir por la política en sí: lo que se acepta
 > son los consentimientos de [`05`](./05-consentimientos-cliente.md), que tienen su versión.
 > Cambiar la política sí obliga a actualizar `updated` y, por lo que promete la actual

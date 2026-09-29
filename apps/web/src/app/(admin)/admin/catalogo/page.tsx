@@ -14,7 +14,7 @@ import { Card } from 'components/Card';
 import { HowCounted } from 'components/HowCounted';
 
 import { MEAL_SLOTS } from 'core/entities/Plan';
-import { RECIPE_SOURCES, recipeCatalogueQuerySchema } from 'core/entities/AdminQuery';
+import { RECIPE_CHECKS, RECIPE_SOURCES, recipeCatalogueQuerySchema } from 'core/entities/AdminQuery';
 
 import { formatNumber } from 'lib/format';
 import { serverApi } from 'lib/server-api';
@@ -89,6 +89,13 @@ export default async function AdminRecipesPage({ searchParams }: { searchParams:
   ];
 
   const filters: AdminTableFilter[] = [
+    {
+      anyLabel: common.table.any,
+      label: t.check,
+      name: 'check',
+      options: RECIPE_CHECKS.map(check => ({ label: t.checks[check], value: check })),
+      value: table.check
+    },
     {
       anyLabel: common.table.any,
       label: t.slot,

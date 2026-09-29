@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { ACTIVE_EVENTS } from 'core/entities/Analytics';
+
 import { AnalyticsRepository } from './AnalyticsRepository';
 
 /**
@@ -116,5 +118,16 @@ describe('AnalyticsRepository.record', () => {
     state.failOn = /^insert/;
 
     await expect(AnalyticsRepository.record('mail_sent', null, { kind: 'verify-email', ok: true })).resolves.toBeUndefined();
+  });
+});
+
+describe('AnalyticsRepository.activitySince', () => {
+  it('counts the people who came back from the active events and no others', async () => {
+    await AnalyticsRepository.activitySince(SINCE);
+
+    const people = state.sent.find(statement => statement.sql.includes('count(distinct "user_id")'));
+
+    expect(people?.sql).toContain('"analytics_events"."event" in (');
+    expect(people?.params).toEqual([SINCE.toISOString(), ...ACTIVE_EVENTS]);
   });
 });

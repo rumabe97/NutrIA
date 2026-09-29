@@ -1,15 +1,16 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { PERIODS } from 'core/entities/Period';
 
 import { AdminService } from '../services/index.js';
 import { PeriodQueryDto } from '../dto/in/index.js';
 import { Roles } from '../../../shared/index.js';
-import { ZodQuery } from './ZodQuery.js';
+import { PERIOD_PARAMETER, ZodQuery } from './ZodQuery.js';
 
 import type {
   AdminAiDto,
   AdminAnalyticsDto,
+  AdminConsentsDto,
+  AdminNotificationsDto,
   AdminPeopleDto,
   AdminPicturesPeriodDto,
   AdminPlansDto,
@@ -25,14 +26,6 @@ import type {
 function PeriodQuery(): ParameterDecorator {
   return ZodQuery(PeriodQueryDto);
 }
-
-/** How `/api/docs` describes `?period=`. */
-const PERIOD_PARAMETER = {
-  description: 'Days, in Europe/Madrid calendar days. 30 when absent.',
-  enum: PERIODS.map(String),
-  name: 'period',
-  required: false
-} as const;
 
 /**
  * The owner's own window on the service. `@Roles('admin')` on the class, so a
@@ -61,11 +54,32 @@ export class AdminController {
     return this.admin.ai(query);
   }
 
+  @ApiOkResponse({
+    description:
+      'For each versioned consent (profile, health data, care link, the professional’s agreement): the version in force, accounts holding it, accounts on an older one, and the versions held. The profile consent against onboarded accounts. Numbers only.'
+  })
+  @ApiOperation({ summary: 'Who holds which version of each consent (0071)' })
+  @Get('consents')
+  async consents(): Promise<AdminConsentsDto> {
+    return this.admin.consents();
+  }
+
   @ApiOkResponse({ description: 'The funnel, counted from state so it is right retroactively.' })
   @ApiOperation({ summary: 'Whether the product is working for the people using it' })
   @Get('analytics')
   async analytics(): Promise<AdminAnalyticsDto> {
     return this.admin.analytics();
+  }
+
+  @ApiOkResponse({
+    description:
+      'Push subscriptions and people with one, check-in reminders sent per Madrid week and channel, and people who checked in within 3 days of a reminder. Counts only. 422 INVALID_INPUT for a period other than 7, 30 or 90.'
+  })
+  @ApiOperation({ summary: 'Push and reminders over a period (0071)' })
+  @ApiQuery(PERIOD_PARAMETER)
+  @Get('notifications')
+  async notifications(@PeriodQuery() query: PeriodQueryDto): Promise<AdminNotificationsDto> {
+    return this.admin.notifications(query);
   }
 
   @ApiOkResponse({

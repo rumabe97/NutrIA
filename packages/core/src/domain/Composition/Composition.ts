@@ -43,7 +43,7 @@ export function composeMacros(ingredients: readonly { grams: number; slug: strin
 }
 
 /** Per-serving macros for a dish whose quantities are stated for `dish.servings`. */
-export function composePerServing(dish: CandidateDish, catalogue: Catalogue): CompositionResult {
+export function composePerServing(dish: Pick<CandidateDish, 'ingredients' | 'servings'>, catalogue: Catalogue): CompositionResult {
   const composed = composeMacros(dish.ingredients, catalogue);
 
   if (!composed.ok) {

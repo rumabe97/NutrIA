@@ -1,0 +1,72 @@
+/* `ul.list` so the list reset wins over the card whatever order the sheets land in. */
+ul.list {
+  display: grid;
+  /* One column no wider than the card: a long label wraps instead of pushing the count out. */
+  grid-template-columns: minmax(0, 1fr);
+  list-style: none;
+  margin: 0;
+  padding-block: var(--space-02);
+}
+
+.list li + li {
+  border-block-start: 1px solid var(--border-01);
+}
+
+/* What, whether it is a problem, how many, and a chevron when it opens a list. The floor
+   is stated once and moved by the pointer. */
+.row {
+  --row-floor: var(--height-l);
+
+  align-items: center;
+  color: var(--foreground-01);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-03);
+  gap: var(--space-03);
+  min-block-size: var(--row-floor);
+  padding-block: var(--space-02);
+  text-decoration: none;
+}
+
+@media (pointer: coarse) {
+  .row {
+    --row-floor: var(--target-min);
+  }
+}
+
+.link:hover .label {
+  text-decoration: underline;
+}
+
+.label {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+}
+
+.status {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+}
+
+.status[data-warn='true'],
+.count[data-warn='true'] {
+  color: var(--color-error-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.count {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Nothing to see: the figure steps back, the row stays so "0" can be read. */
+.count:not([data-warn='true']) {
+  color: var(--foreground-02);
+}
+
+.chevron {
+  block-size: 1em;
+  color: var(--foreground-03);
+  flex: none;
+  inline-size: 1em;
+}

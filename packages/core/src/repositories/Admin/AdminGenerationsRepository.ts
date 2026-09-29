@@ -33,6 +33,9 @@ export type DurationDayRow = { readonly day: string; readonly p50: number; reado
 /** How many generations failed with one code. `null` is a failure that recorded none. */
 export type FailureCodeRow = { readonly code: string | null; readonly n: number };
 
+/** Dishes rejected for one reason on one Madrid day, summed over the calls of that day's generations. */
+export type RejectionDayRow = { readonly day: string; readonly n: number };
+
 /** Dishes rejected for one reason, summed over the calls of the period's generations. */
 export type RejectionReasonRow = { readonly n: number; readonly reason: string };
 
@@ -199,6 +202,30 @@ export const AdminGenerationsRepository = {
         order by n desc, reason.key asc`);
 
       return rows.map(row => ({ n: Number(row.n), reason: row.reason }));
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Dishes rejected for one `reason` per Madrid day of the generation that
+   * asked for them: `rejectionsByReason`'s own SQL narrowed to one reason and
+   * grouped by day. A total over everybody, naming nobody (`0028`). The reason
+   * is bound, never spliced. Mode: one grouped query.
+   */
+  async rejectionsPerDay(reason: string, from: Date, to: Date): Promise<readonly RejectionDayRow[]> {
+    try {
+      const day = madridDay(planGenerationJobs.createdAt);
+      const rows = await database().execute<{ day: string; n: number | string }>(sql`
+        select ${day} as day, sum((reason.value)::numeric)::int as n
+        from ${planGenerationJobs},
+             jsonb_array_elements(case when jsonb_typeof(${planGenerationJobs.aiCalls}) = 'array' then ${planGenerationJobs.aiCalls} else '[]'::jsonb end) as call,
+             jsonb_each(case when jsonb_typeof(call -> 'rejected') = 'object' then call -> 'rejected' else '{}'::jsonb end) as reason
+        where ${within(planGenerationJobs.createdAt, from, to)} and reason.key = ${reason} and jsonb_typeof(reason.value) = 'number'
+        group by 1
+        having sum((reason.value)::numeric) > 0`);
+
+      return rows.map(row => ({ day: row.day, n: Number(row.n) }));
     } catch (error: unknown) {
       throw wrap(error);
     }

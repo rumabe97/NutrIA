@@ -121,4 +121,19 @@ describe('AdminGenerationsRepository charts', () => {
     // The window's two ends are the only values bound.
     expect(rejections?.params).toHaveLength(2);
   });
+
+  it('sums one reason’s rejections per Madrid day, the reason bound and never spliced', async () => {
+    await AdminGenerationsRepository.rejectionsPerDay('oversized', new Date('2026-09-01T22:00:00Z'), new Date('2026-09-28T10:00:00Z'));
+
+    const [perDay] = sent;
+
+    expect(perDay?.sql).toContain(
+      `to_char(date_trunc('day', "plan_generation_jobs"."created_at" at time zone 'Europe/Madrid'), 'YYYY-MM-DD') as day`
+    );
+    expect(perDay?.sql).toContain('reason.key = $3');
+    expect(perDay?.sql).toContain('group by 1');
+    expect(perDay?.sql).not.toMatch(/"user"|email|user_id/);
+    expect(perDay?.params.at(-1)).toBe('oversized');
+    expect(perDay?.params).toHaveLength(3);
+  });
 });

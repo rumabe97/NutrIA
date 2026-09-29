@@ -133,3 +133,81 @@
     and `account.mjs` only (see `apps/api/AGENTS.md` § Admin).
   - The e2e harness reads `audit_logs` through the raw client; `createdAt` comes back as
     a string there.
+
+## Phase 3 — "Active" fixed, and the pages that read what already exists (2026-09-29)
+
+- **Executor**: the `backend` agent (medium) wrote the API, and a second `backend`
+  agent made the review fixes. The `frontend` agent (medium) built the pages, the `tests`
+  agent (medium) wrote the end to end, and `legal` answered D5. Each worked in its own
+  worktree, based on phase 2's commit before it merged, and was brought into the main
+  checkout and removed. The lead (opus, this session) made the accessibility fixes and
+  amended phase 7. Reviews: `invariant-reviewer` and `accessibility` with `/local-probe`.
+- **Result**: done.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api --filter=web`:
+    17/17 tasks; api 1001 tests. `pnpm -w run deadcode` is clean.
+  - End-to-end, local, `SMTP_*` and `VAPID_*` blank: `admin` 63/63, and `access` passed.
+    - The new "watching pages" cases: 404 for an ordinary account and with no session,
+      also with a bad query; exact keys at every level; 422 on a bad period; the sweep's
+      states add up to the recipes; each `check=` total equals its quality count;
+      `app_used` moves last activity and active people by exactly one, and a swap alone
+      moves nothing.
+    - `/admin/system` answers 200 on the dev Postgres. Two of its queries group by
+      position, and only a real database runs them.
+    - In a combined run, "never name who made a dish" (`admin.e2e-spec.ts:1959`) failed
+      once and passed on the rerun. It is the same intermittent test as in 007.
+  - Catálogo › Calidad reads about 0.45 MB a visit on dev, under the 2 MB stop signal, so
+    there is no nightly snapshot.
+    - On dev, 1,835 recipes: `overBound` 0, `uncosted` 0 and meals outside the serving
+      bounds 0.
+    - `unserved` is **107** (64 seed, 43 AI), a real catalogue defect: for example, a
+      seed breakfast holding quinoa, which is listed for lunch and dinner only. It is
+      explained here as PRD criterion 5 asks, and left for the owner to decide.
+    - `refusalLimit` 6, `withRefusals` 8, pending 194.
+  - `invariant-reviewer`: no P0 or P1. Its two P2s are fixed, both counts that could be
+    one person in a beta of about ten accounts:
+    - `care.sharingHealth` is gone from Consentimientos (the plan never asked for it);
+    - mail on Sistema is now per-template totals over the period, plus one daily series
+      summed across templates, so `checkin-submitted` per day cannot be one client's
+      check-in calendar.
+    - Its P3s are fixed: the JSON key is bound as a parameter, and the commit hash
+      accepts 7–40 characters.
+    - A leak spec runs the real system snapshot with placeholder env values and finds
+      none in the HTTP body.
+  - `accessibility`: 320/390/1280, light and dark, and 200 % root text at 320 show no
+    sideways scroll.
+    - Headings, `aria-current`, the charts' "Ver datos" tables and warnings in words as
+      well as colour are all right.
+    - Its two P1s are fixed:
+      - Calidad's counts were clipped at 200 % text. `AdminCountList` now holds one
+        column no wider than its card, and a re-run confirmed it.
+      - On Sistema and Consentimientos at 320 px, the value column sat off-screen. Below
+        a 36rem container the row header now wraps; the fix was confirmed by an injected
+        rule.
+    - The cron table (3 columns) and Consentimientos (5 columns) still scroll inside
+      their card at 320 px, as the console's other wide tables do.
+    - Its P2 (the period selector at 200 %) was withdrawn as a probe artefact: a root
+      font size does not trigger the `rem` media query that real text zoom does.
+- **Deviations from plan**:
+  1. Mail per template and day (A4) is per template over the period, plus one daily sum
+     (0028, see the review above).
+  2. Recetas takes an allow-listed `check` filter (`over_bound`, `uncosted`, `unserved`,
+     `refusal_limit`, `over_cap`), so every "should be zero" count links to its rows.
+  3. Active people count `session_started` and `app_used` only, so a swap alone no
+     longer moves last activity.
+- **D5 (step 7)**: `legal` answered
+  [`docs/legal/2026-09-29-aceptacion-de-los-textos-legales.md`](../../legal/2026-09-29-aceptacion-de-los-textos-legales.md).
+  - **Phase 7 runs, for the terms only.** The privacy policy is informed, not accepted.
+    The plan's phase 7 is amended from its § 5.
+  - It also found two P1s in production:
+    - saving health data on `/perfil` had failed since #106; fixed in #157;
+    - the terms notice sat below the Google and Apple buttons; phase 7 fixes it.
+- **Decisions**: [`0071`](../../decisions/0071-the-service-records-what-leaves-no-row-and-the-console-watches-it.md).
+- **Notes for the next phase**:
+  - Health-consent version counts are shown as the plan asked. With about ten accounts, a
+    1.0.0 against 1.1.0 split of one can date a person's save of their health section.
+    The owner was told.
+  - A 429 from the API on a console page reads as "not found" (`serverApi` →
+    `notFound()`); a probe can trip it. Accessibility P3, not fixed.
+  - The nav has "Registro" (Generación) and "Registro de acciones" (Ajustes), which sound
+    alike to a screen reader. Accessibility P3, not fixed.

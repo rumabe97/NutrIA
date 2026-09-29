@@ -52,7 +52,7 @@ export type AdminPicturesView = PictureCounts & {
 };
 
 export type AdminAnalyticsView = {
-  /** How many of each recorded event in the window, and how many distinct people signed in. */
+  /** How many of each recorded event in the window, and how many distinct people were active (signed in or used a session). */
   activity: { readonly events: readonly ActivityRow[]; readonly people: number };
   funnel: Funnel;
   windowDays: number;

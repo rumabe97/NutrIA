@@ -17,11 +17,12 @@ import { PeriodSelector } from 'components/PeriodSelector';
 
 import { DEFAULT_PERIOD } from 'core/entities/Period';
 
-import { formatNumber, formatUsd, interpolate } from 'lib/format';
+import { formatDate, formatNumber, formatUsd, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from './consoleMetadata';
 import { forwardOpened } from './forwardOpened';
+import { RECORDING_STARTS } from './recordingStart';
 
 import type { AdminSummaryView } from 'core/controllers/Admin';
 import type { Metadata } from 'next';
@@ -74,6 +75,7 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
   }
 
   const common = dictionary.adminConsole;
+  const since = formatDate(RECORDING_STARTS, locale, { day: 'numeric', month: 'long', year: 'numeric' });
   const t = dictionary.adminSummary;
   const { charts, needsYou, tiles } = summary;
   const number = (value: number) => formatNumber(value, locale);
@@ -227,7 +229,7 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
         </div>
       </AdminSection>
 
-      <HowCounted notes={t.howCounted} summary={common.howCounted} />
+      <HowCounted notes={t.howCounted.map(note => interpolate(note, { date: since }))} summary={common.howCounted} />
     </div>
   );
 }

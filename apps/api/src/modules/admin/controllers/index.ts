@@ -7,3 +7,4 @@ export * from './AdminGenerations.controller.js';
 export * from './AdminProfessionals.controller.js';
 export * from './AdminPushTest.controller.js';
 export * from './AdminSettings.controller.js';
+export * from './AdminSystem.controller.js';

@@ -1,5 +1,7 @@
 import { Query } from '@nestjs/common';
 
+import { PERIODS } from 'core/entities/Period';
+
 import { ZodValidationPipe } from '../../../shared/index.js';
 
 import type { ZodDto } from '../../../shared/index.js';
@@ -14,3 +16,11 @@ import type { ZodDto } from '../../../shared/index.js';
 export function ZodQuery<T>(dto: ZodDto<T>): ParameterDecorator {
   return Query(new ZodValidationPipe(dto.schema));
 }
+
+/** How `/api/docs` describes `?period=`, on every console read that takes one. */
+export const PERIOD_PARAMETER = {
+  description: 'Days, in Europe/Madrid calendar days. 30 when absent.',
+  enum: PERIODS.map(String),
+  name: 'period',
+  required: false
+} as const;

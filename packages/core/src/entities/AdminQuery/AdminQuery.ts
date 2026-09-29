@@ -170,6 +170,22 @@ export type RecipeSource = (typeof RECIPE_SOURCES)[number];
 export const RECIPE_SORTS = ['name', 'kcal', 'protein'] as const;
 export type RecipeSort = (typeof RECIPE_SORTS)[number];
 
+/**
+ * Recetas' quality filters (`0071`, Catálogo › Calidad): the recipes each
+ * "should be zero" count and each "to look at" count is made of, so the count
+ * can link to the table with the filter set. Each is a question the app's own
+ * helpers answer (`core/domain/CatalogueQuality`), never a formula of the
+ * console's.
+ *
+ * - `over_bound`: one serving past `OVERSIZED_FACTOR` times its meals' cap;
+ * - `uncosted`: macros the catalogue cannot compute;
+ * - `unserved`: no meal fits every ingredient of the dish, so it is never served;
+ * - `refusal_limit`: the rewrite sweep gave up on it under the current steps version;
+ * - `over_cap`: past its meals' cap but within the bound.
+ */
+export const RECIPE_CHECKS = ['over_bound', 'uncosted', 'unserved', 'refusal_limit', 'over_cap'] as const;
+export type RecipeCheck = (typeof RECIPE_CHECKS)[number];
+
 /** An allergen's stable key, as `allergens.key` holds it (`gluten`, `tree_nuts`). An unknown key matches nothing. */
 const allergenKey = z
   .string()
@@ -180,12 +196,13 @@ const allergenKey = z
 const ascending = z.enum(SORT_DIRECTIONS).default('asc');
 
 /**
- * `GET /admin/catalogue/recipes`: search by name, filter by meal slot, an
+ * `GET /admin/catalogue/recipes`: search by name, filter by meal slot, a quality check, an
  * allergen the recipe contains, its picture's state, its source and its
  * locale, sort, page. The catalogue names no person (`0028`).
  */
 export const recipeCatalogueQuerySchema = z.object({
   allergen: allergenKey,
+  check: z.enum(RECIPE_CHECKS).optional(),
   dir: ascending,
   locale: z
     .string()

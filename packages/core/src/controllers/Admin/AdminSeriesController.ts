@@ -73,7 +73,7 @@ export type AdminSummaryView = {
   };
   readonly period: Period;
   readonly tiles: {
-    /** Distinct people who started a session in the period — one person counts once, however many days. */
+    /** Distinct people who were active in the period (signed in or used a session, `0071`; before 2026-09-29 only sign-ins) — one person counts once, however many days. */
     readonly activePeople: TrendTile;
     /** Accounts created in the period; the sparkline is `charts.signUps`. */
     readonly newAccounts: TrendTile;
@@ -115,7 +115,7 @@ export type AdminSummaryView = {
  * (`0033`); only the two series follow the period.
  */
 export type AdminProductView = {
-  /** Distinct people who started a session, per day. */
+  /** Distinct people who were active (signed in or used a session, `0071`), per day. */
   readonly activePeople: DaySeries;
   /** Each tracked event per day, `ai_call` excepted: it has its own page. */
   readonly events: DaySeriesGroup;

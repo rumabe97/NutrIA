@@ -1,12 +1,15 @@
-import { aliasedTable, and, asc, count, eq, inArray, sql } from 'drizzle-orm';
+import { aliasedTable, and, asc, count, eq, gt, inArray, lt, or, sql } from 'drizzle-orm';
 
 import { allergens } from 'database/schema/safety';
 import { contains, ordered } from '#repositories/Search';
 import { database } from 'database';
+import { meals } from 'database/schema/plan';
+import { needsRewriteCondition } from '#repositories/Recipe';
 import { ingredientAllergens, ingredientNames, ingredients } from 'database/schema/food';
 import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 
 import { DatabaseOperationError } from 'core/entities/Error';
+import { SERVING_BOUNDS } from 'core/domain/Scheduler';
 
 import { qualified } from './AdminSql';
 
@@ -32,6 +35,21 @@ export type CatalogueRecipeRow = {
   readonly servings: number;
   readonly slug: string;
   readonly source: 'ai' | 'seed' | 'user';
+};
+
+/**
+ * One recipe as Catálogo › Calidad judges it: the dish and its served
+ * ingredients, by the catalogue's slug — nothing that names a person (`0028`).
+ */
+export type QualityRecipeRow = {
+  readonly id: string;
+  readonly items: readonly { readonly grams: number; readonly slug: string }[];
+  readonly mealSlots: readonly string[];
+  /** The sweep would still claim it (`needsRewriteCondition`), ignoring any claim in flight. */
+  readonly pending: boolean;
+  readonly servings: number;
+  readonly source: 'ai' | 'seed' | 'user';
+  readonly stepsVersion: string | null;
 };
 
 /** One served ingredient of a recipe: grams for the recipe's `servings`, by the catalogue's slug. */
@@ -100,8 +118,13 @@ function containsAllergen(key: string): SQL {
  * text is the name search, escaped into a literal "contains". Exported for its
  * spec.
  */
-export function recipeFilters(query: Pick<RecipeCatalogueQuery, 'allergen' | 'locale' | 'picture' | 'q' | 'slot' | 'source'>): SQL | undefined {
+export function recipeFilters(
+  query: Pick<RecipeCatalogueQuery, 'allergen' | 'locale' | 'picture' | 'q' | 'slot' | 'source'>,
+  ids?: readonly string[]
+): SQL | undefined {
   return and(
+    // The recipes a quality check found (`AdminCatalogueController`): only the app's own helpers can say which they are.
+    ids === undefined ? undefined : ids.length === 0 ? sql`false` : inArray(recipes.id, [...ids]),
     query.q === undefined ? undefined : contains(recipes.name, query.q),
     query.slot === undefined ? undefined : sql`${query.slot} = any(${qualified(recipes, 'meal_slots')})`,
     query.source === undefined ? undefined : eq(recipes.source, query.source),
@@ -285,9 +308,79 @@ export const AdminCatalogueRepository = {
    * catalogue is bounded — about 1,700 recipes — and each row is a handful of
    * short columns. Mode: one read.
    */
-  async matchingRecipes(query: RecipeCatalogueQuery): Promise<readonly CatalogueRecipeRow[]> {
+  async matchingRecipes(query: RecipeCatalogueQuery, ids?: readonly string[]): Promise<readonly CatalogueRecipeRow[]> {
     try {
-      return await recipeSelect(database(), recipeFilters(query));
+      return await recipeSelect(database(), recipeFilters(query, ids));
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Meals stored with servings outside `SERVING_BOUNDS` — a count and nothing
+   * else: no meal, plan or person is returned (`0028`). Mode: one aggregate.
+   */
+  async mealsOutsideServingBounds(): Promise<number> {
+    try {
+      const [row] = await database()
+        .select({ n: count() })
+        .from(meals)
+        .where(or(lt(meals.servings, String(SERVING_BOUNDS.min)), gt(meals.servings, String(SERVING_BOUNDS.max))));
+
+      return row?.n ?? 0;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /** Recipes whose picture failed for the dish's own reasons (`PICTURE_STATE`). Mode: one aggregate. */
+  async picturesFailed(): Promise<number> {
+    try {
+      const [row] = await database()
+        .select({ n: sql<number>`count(*) filter (where ${PICTURE_STATE} = 'failed')`.mapWith(Number) })
+        .from(recipes)
+        .leftJoin(recipeImages, eq(recipeImages.recipeId, recipes.id));
+
+      return row?.n ?? 0;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Every recipe with its served ingredients folded into two parallel arrays,
+   * one row a recipe: what Catálogo › Calidad judges, in about a third of the
+   * bytes of one row an ingredient (the recipe's id is sent once, not once per
+   * line). `pending` is the sweep's own claim condition for `stepsVersion`.
+   * Mode: one grouped read.
+   */
+  async qualityRecipes(stepsVersion: string): Promise<readonly QualityRecipeRow[]> {
+    try {
+      const rows = await database()
+        .select({
+          id: recipes.id,
+          grams: sql<number[]>`coalesce(array_agg(${recipeIngredients.grams}::float8) filter (where ${recipeIngredients.id} is not null), '{}')`,
+          mealSlots: recipes.mealSlots,
+          pending: sql<boolean>`${needsRewriteCondition(stepsVersion)}`.mapWith(Boolean),
+          servings: recipes.servings,
+          slugs: sql<string[]>`coalesce(array_agg(${ingredients.slug}) filter (where ${recipeIngredients.id} is not null), '{}')`,
+          source: recipes.source,
+          stepsVersion: recipes.stepsVersion
+        })
+        .from(recipes)
+        .leftJoin(recipeIngredients, and(eq(recipeIngredients.recipeId, recipes.id), eq(recipeIngredients.isOptional, false)))
+        .leftJoin(ingredients, eq(ingredients.id, recipeIngredients.ingredientId))
+        .groupBy(recipes.id);
+
+      return rows.map(row => ({
+        id: row.id,
+        items: row.slugs.map((slug, at) => ({ grams: Number(row.grams[at]), slug })),
+        mealSlots: row.mealSlots,
+        pending: row.pending,
+        servings: row.servings,
+        source: row.source,
+        stepsVersion: row.stepsVersion
+      }));
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -329,10 +422,13 @@ export const AdminCatalogueRepository = {
   },
 
   /** One page of recipes by name, and how many match. Mode: one page and one count under the same `WHERE`. */
-  async recipePage(query: RecipeCatalogueQuery): Promise<{ readonly rows: readonly CatalogueRecipeRow[]; readonly total: number }> {
+  async recipePage(
+    query: RecipeCatalogueQuery,
+    ids?: readonly string[]
+  ): Promise<{ readonly rows: readonly CatalogueRecipeRow[]; readonly total: number }> {
     try {
       const db = database();
-      const where = recipeFilters(query);
+      const where = recipeFilters(query, ids);
       const [rows, counted] = await Promise.all([
         recipeSelect(db, where)
           .orderBy(...recipeNameOrder(query.dir))

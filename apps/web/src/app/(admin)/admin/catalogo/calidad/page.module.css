@@ -1,0 +1,29 @@
+/* The page measures itself, so the tiles count their columns from the room beside the sidebar. */
+.page {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--gap-region);
+  /* One column that may shrink below its widest child (reflow at 200 % text). */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* As many tiles a row as fit at 11rem each. */
+.tiles {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* The chart sits on a card: the gaps between marks are the card's colour. */
+.chart {
+  --chart-surface: var(--surface-card);
+}

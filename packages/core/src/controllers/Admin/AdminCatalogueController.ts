@@ -5,6 +5,8 @@ import { MEAL_SLOTS, toCatalogue } from 'core/entities/Plan';
 import { RECIPE_SOURCES } from 'core/entities/AdminQuery';
 import { SafetyRepository } from '#repositories/Safety';
 
+import { AdminQualityController } from './AdminQualityController';
+
 import type { CatalogueRecipeRow, CompositionRow } from '#repositories/Admin';
 import type { Catalogue } from 'core/entities/Plan';
 import type { IngredientCatalogueQuery, RecipeCatalogueQuery, SortDirection } from 'core/entities/AdminQuery';
@@ -229,12 +231,18 @@ export const AdminCatalogueController = {
    * filters match is costed and sorted here, then the page is cut: the
    * catalogue is bounded (about 1,700 recipes, 10,000 ingredient rows at
    * worst), and a second formula in SQL is what `0004` forbids.
+   *
+   * With `check`, the table is narrowed to the recipes that quality check
+   * finds (`AdminQualityController.idsFailing`, the same helpers Catálogo ›
+   * Calidad counts with), so a count there and the table it links to agree.
+   * `stepsVersion` is the current one, which only the API knows.
    */
-  async recipes(query: RecipeCatalogueQuery): Promise<AdminRecipesView> {
+  async recipes(query: RecipeCatalogueQuery, stepsVersion: string): Promise<AdminRecipesView> {
+    const ids = query.check === undefined ? undefined : await AdminQualityController.idsFailing(query.check, stepsVersion);
     const [page, counts] = await Promise.all([
       query.sort === 'name'
-        ? AdminCatalogueRepository.recipePage(query).then(async ({ rows, total }) => ({ rows: await present(rows), total }))
-        : AdminCatalogueRepository.matchingRecipes(query).then(async rows => {
+        ? AdminCatalogueRepository.recipePage(query, ids).then(async ({ rows, total }) => ({ rows: await present(rows), total }))
+        : AdminCatalogueRepository.matchingRecipes(query, ids).then(async rows => {
             const costed = [...(await present(rows))].sort(byFigure(query.sort === 'kcal' ? 'kcal' : 'proteinG', query.dir));
 
             return { rows: costed.slice(query.offset, query.offset + query.size), total: costed.length };
