@@ -309,6 +309,15 @@ const envObject = z.object({
     .enum(['true', 'false'])
     .default('false')
     .transform(value => value === 'true'),
+  /*
+   * Where the text models' month is warned about, in dollars a calendar month
+   * (UTC), counted like the pictures' cap from the `ai_call` events (`0071`).
+   * Unset means no gauge and no warning. It shows and warns and never stops a
+   * plan; at 80 % the nightly step rewrite does not start. The wall that stops
+   * spending is the OpenRouter key's own monthly limit (`0064`): never set this
+   * above it.
+   */
+  AI_TEXT_MONTHLY_CAP_USD: optional(z.coerce.number().positive().max(1000)),
   ALLOWED_ORIGINS: optional(z.string()),
   ANTHROPIC_API_KEY: optional(z.string()),
   API_PREFIX: z.string().default('api/v1'),

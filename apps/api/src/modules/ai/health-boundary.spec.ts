@@ -49,6 +49,7 @@ describe('the health-data boundary around the AI module', () => {
    * never a prompt's (`0059`).
    */
   it.each([
+    'core/controllers/Admin',
     'core/controllers/Health',
     'core/entities/Health',
     '#repositories/Health',

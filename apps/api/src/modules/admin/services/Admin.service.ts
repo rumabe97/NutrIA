@@ -32,7 +32,7 @@ export class AdminService {
   constructor(@Inject(ENV) private readonly env: Env) {}
 
   async ai(query: PeriodQueryDto): Promise<AdminAiDto> {
-    return AdminUsageController.ai(query.period);
+    return AdminUsageController.ai(query.period, new Date(), this.env.AI_TEXT_MONTHLY_CAP_USD);
   }
 
   async analytics(): Promise<AdminAnalyticsDto> {
@@ -75,6 +75,6 @@ export class AdminService {
 
   /** Resumen's picture tile reads against the same cap drawing stops at, as `pictures` does. */
   async summary(query: PeriodQueryDto): Promise<AdminSummaryDto> {
-    return AdminSeriesController.summary(query.period, this.env.AI_IMAGE_MONTHLY_CAP_USD);
+    return AdminSeriesController.summary(query.period, this.env.AI_IMAGE_MONTHLY_CAP_USD, new Date(), this.env.AI_TEXT_MONTHLY_CAP_USD);
   }
 }

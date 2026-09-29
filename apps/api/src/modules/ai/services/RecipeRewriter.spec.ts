@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
+import { textCapOf, TextSpend } from 'core/controllers/Analytics';
 import { RecipeController } from 'core/controllers/Recipe';
 
 import { buildRewritePrompt, REWRITE_SYSTEM_PROMPT } from '../prompts/RewritePrompt.js';
@@ -80,6 +81,61 @@ describe('RecipeRewriter', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+  });
+
+  describe('the text cap (0071)', () => {
+    const CAP = 5;
+    const withCap = (cap: number | undefined) => ({ AI_REWRITE_STEPS: true, AI_TEXT_MONTHLY_CAP_USD: cap }) as Env;
+
+    it('does not start at 80 % of the cap, claims nothing and says it was held back by the cap', async () => {
+      jest.spyOn(TextSpend, 'gauge').mockImplementation(async cap => Promise.resolve(textCapOf(4, cap)));
+      const claim = jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
+      const ai = new ScriptedAi([GOOD]);
+
+      const run = await new RecipeRewriter(ai, withCap(CAP)).rewriteOutdated(10);
+
+      expect(run).toEqual({ heldBy: 'cap', pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
+      expect(claim).not.toHaveBeenCalled();
+      expect(ai.prompts).toHaveLength(0);
+    });
+
+    it('does not start above the cap either', async () => {
+      jest.spyOn(TextSpend, 'gauge').mockImplementation(async cap => Promise.resolve(textCapOf(9, cap)));
+      const claim = jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
+
+      expect(await new RecipeRewriter(new ScriptedAi([GOOD]), withCap(CAP)).rewriteOutdated(10)).toMatchObject({ heldBy: 'cap' });
+      expect(claim).not.toHaveBeenCalled();
+    });
+
+    it('starts just under 80 %', async () => {
+      jest.spyOn(TextSpend, 'gauge').mockImplementation(async cap => Promise.resolve(textCapOf(3.99, cap)));
+      const claim = jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([]);
+
+      const run = await new RecipeRewriter(new ScriptedAi([GOOD]), withCap(CAP)).rewriteOutdated(10);
+
+      expect(claim).toHaveBeenCalled();
+      expect(run).toEqual({ pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
+    });
+
+    it('fails closed: with a cap set and the spend unreadable, it rejects, claims nothing and sends no prompt', async () => {
+      jest.spyOn(TextSpend, 'gauge').mockRejectedValue(new Error('database down'));
+      const claim = jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([RECIPE]);
+      const ai = new ScriptedAi([GOOD]);
+
+      await expect(new RecipeRewriter(ai, withCap(CAP)).rewriteOutdated(10)).rejects.toThrow('database down');
+      expect(claim).not.toHaveBeenCalled();
+      expect(ai.prompts).toHaveLength(0);
+    });
+
+    it('with no cap set reads no spend and starts, however much has been spent', async () => {
+      const spent = jest.spyOn(TextSpend, 'gauge').mockImplementation(async cap => Promise.resolve(textCapOf(1000, cap)));
+      const claim = jest.spyOn(RecipeController, 'claimStepUpgrades').mockResolvedValue([]);
+
+      await new RecipeRewriter(new ScriptedAi([GOOD]), withCap(undefined)).rewriteOutdated(10);
+
+      expect(spent).not.toHaveBeenCalled();
+      expect(claim).toHaveBeenCalled();
+    });
   });
 
   /** The case the read-back exists for: the list was checked against somebody's allergies, the prose was not. */

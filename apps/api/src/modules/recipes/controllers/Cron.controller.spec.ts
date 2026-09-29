@@ -20,10 +20,11 @@ const SECRET = 'a-secret-of-sixteen-chars';
  */
 describe('the cron routes', () => {
   let app: INestApplication;
-  const rewriteOutdated = jest.fn<(limit: number) => Promise<{ pending: number; rewritten: number; skipped: number; unreached: number }>>();
+  const rewriteOutdated =
+    jest.fn<(limit: number) => Promise<{ heldBy?: 'cap'; pending: number; rewritten: number; skipped: number; unreached: number }>>();
   const sweep = jest.fn(async () => Promise.resolve({ considered: 0, failed: 0, pushed: 0, sent: 0 }));
   const forget = jest.fn(async () => Promise.resolve());
-  const record = jest.fn(async (_job: string, _counts: Readonly<Record<string, number>>) => Promise.resolve());
+  const record = jest.fn(async (_job: string, _counts: Readonly<Record<string, 'cap' | number>>) => Promise.resolve());
   const bearer = (secret: string) => ['Bearer', secret].join(' ');
 
   afterEach(async () => {
@@ -96,6 +97,24 @@ describe('the cron routes', () => {
     expect(response.body).toEqual({ pending: 12, rewritten: 9, skipped: 1, unreached: 2 });
     expect(rewriteOutdated).toHaveBeenCalledWith(12);
     expect(record).toHaveBeenCalledWith('rewrite', { pending: 12, rewritten: 9, skipped: 1, unreached: 2 });
+  });
+
+  it('records a sweep held back by the cap as skipped: cap', async () => {
+    rewriteOutdated.mockResolvedValue({ heldBy: 'cap', pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
+
+    expect(record).toHaveBeenCalledWith('rewrite', { pending: 0, rewritten: 0, skipped: 'cap', unreached: 0 });
+  });
+
+  it('records nothing when the sweep throws (a spend it could not read)', async () => {
+    rewriteOutdated.mockRejectedValue(new Error('database down'));
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(500);
+
+    expect(record).not.toHaveBeenCalled();
   });
 
   it('guards the rewrite route exactly as it guards the other', async () => {

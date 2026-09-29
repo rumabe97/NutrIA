@@ -506,6 +506,25 @@ describe('STRIPE_PRACTICE_PRICES (0061)', () => {
   });
 });
 
+/** `0071`: the text models' monthly cap warns, never stops; unset means no gauge. */
+describe('AI_TEXT_MONTHLY_CAP_USD', () => {
+  it('is unset when absent or empty', () => {
+    expect(validateEnv({ ...valid }).AI_TEXT_MONTHLY_CAP_USD).toBeUndefined();
+    expect(validateEnv({ ...valid, AI_TEXT_MONTHLY_CAP_USD: '' }).AI_TEXT_MONTHLY_CAP_USD).toBeUndefined();
+  });
+
+  it('reads a positive number', () => {
+    expect(validateEnv({ ...valid, AI_TEXT_MONTHLY_CAP_USD: '5' }).AI_TEXT_MONTHLY_CAP_USD).toBe(5);
+    expect(validateEnv({ ...valid, AI_TEXT_MONTHLY_CAP_USD: '2.5' }).AI_TEXT_MONTHLY_CAP_USD).toBe(2.5);
+  });
+
+  it('refuses zero, a negative and text', () => {
+    for (const value of ['0', '-1', 'five']) {
+      expect(() => validateEnv({ ...valid, AI_TEXT_MONTHLY_CAP_USD: value })).toThrow();
+    }
+  });
+});
+
 /*
  * `0066`. The dish pictures run on their own OpenRouter key and models, pinned
  * to the companies named here, whatever the text provider is.

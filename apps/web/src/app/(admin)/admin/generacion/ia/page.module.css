@@ -74,3 +74,39 @@
     position: static;
   }
 }
+
+/* Three short columns: on a narrow card the feature's name wraps so the calls and the
+   cost stay in view, instead of scrolling off the card's edge. */
+@container (inline-size < 36rem) {
+  .featureTable table tbody :is(th, td):first-child {
+    min-inline-size: 6rem;
+    white-space: normal;
+  }
+}
+
+/* What this month's spend says, in words: a left rule for the eye, and a lead word
+   ("Aviso:" / "Warning:") so the state never rests on the colour. */
+.month {
+  display: grid;
+  gap: var(--space-03);
+}
+
+.warning {
+  border-inline-start: 3px solid var(--color-warning);
+  color: var(--foreground-01);
+  font-size: var(--font-size-03);
+  margin: 0;
+  max-inline-size: var(--prose-max);
+  padding-inline-start: var(--space-03);
+}
+
+.warning[data-over='true'] {
+  border-inline-start-color: var(--color-error);
+}
+
+.line {
+  color: var(--foreground-02);
+  font-size: var(--font-size-03);
+  margin: 0;
+  max-inline-size: var(--prose-max);
+}

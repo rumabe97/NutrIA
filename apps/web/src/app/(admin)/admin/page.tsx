@@ -91,6 +91,15 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
   ]
     .filter(Boolean)
     .join(' · ');
+  const textMonth = tiles.textAi.month;
+  const textMonthNote = textMonth
+    ? [
+        interpolate(t.textMonth, { cap: dollars(textMonth.capUsd), share: percent(textMonth.share), spent: dollars(textMonth.monthSpentUsd) }),
+        textMonth.share >= 1 ? t.textMonthOver : textMonth.sweepPaused ? t.textMonthPaused : null
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : undefined;
   const needs = [
     { count: needsYou.waitingAccounts, href: NEEDS_YOU_HREF.waiting, label: t.needsYou.waiting },
     { count: needsYou.unreadMessages, href: NEEDS_YOU_HREF.unread, label: t.needsYou.unread },
@@ -170,6 +179,7 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
             changeLabel={common.changeLabel}
             label={t.textAiSpend}
             locale={locale}
+            note={textMonthNote}
             sparkline={tiles.textAi.sparkline.values}
             value={dollars(tiles.textAi.spentUsd.current)}
           />

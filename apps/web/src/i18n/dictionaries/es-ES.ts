@@ -112,6 +112,7 @@ export const esES = {
     callsChart: 'Llamadas por día',
     callsEmpty: 'Ninguna llamada al modelo en este periodo.',
     callsSeries: 'Llamadas',
+    cap: 'Tope del mes',
     caption: 'Uso por modelo',
     columns: {
       averageMs: 'Media',
@@ -124,9 +125,16 @@ export const esES = {
       reasoning: 'De razonamiento'
     },
     failed: 'Llamadas fallidas',
+    featureChart: 'Gasto del mes por función',
+    featureColumn: 'Función',
+    featureEmpty: 'Este mes no se ha facturado nada.',
+    featureNote: '«Sin etiquetar» son las llamadas anteriores al 29 de septiembre de 2026, cuando todavía no se anotaba qué función las hacía.',
+    features: { plan: 'Planes', rewrite: 'Reescritura nocturna', swap: 'Cambios de plato', unknown: 'Sin etiquetar' },
+    featureTable: 'Llamadas y gasto del mes por función',
+    featureTitle: 'Por función',
     howCounted: [
       'Cada cifra con flecha se compara con el periodo anterior de la misma duración. Los días son de la hora de Madrid.',
-      'El gasto es lo que facturaron los modelos de texto, llamada a llamada: los platos que se generan para los planes y la reescritura de los pasos de cada noche. Las llamadas no dicen cuál de las dos cosas eran.',
+      'El gasto es lo que facturaron los modelos de texto, llamada a llamada: los platos que se generan para los planes y la reescritura de los pasos de cada noche. Las cifras por día y por modelo no separan las dos cosas; «Este mes» sí, por función, desde el 29 de septiembre de 2026.',
       'Las imágenes de los platos se facturan aparte y tienen su propia página, en Catálogo.',
       'Una llamada cuenta para el modelo que contestó. Si falló antes de saberlo, cuenta para el que se pidió.',
       'Una llamada fallida es una que el proveedor rechazó, que se quedó sin tiempo o que contestó algo que no servía.'
@@ -136,20 +144,33 @@ export const esES = {
     modelsChart: 'Llamadas por modelo',
     modelsEmpty: 'Ninguna llamada al modelo en este periodo.',
     modelsTitle: 'Por modelo',
+    monthChart: 'Gasto del mes contra el tope',
+    monthEmpty: 'No hay ningún tope configurado.',
+    monthNoCap: 'No hay ningún tope configurado: el gasto se muestra, pero nada avisa cuando sube.',
+    monthNote: 'Desde el {date}, mes natural en UTC: no cambia con el periodo.',
+    monthOnlyOnWarns: 'El tope solo avisa: nunca detiene un plan. El muro real es el tope de la propia clave de OpenRouter.',
+    monthSpent: 'Gasto de este mes: {spent}.',
+    monthTitle: 'Este mes',
     noAverage: 'Ninguna llamada midió su tiempo',
     /** The bar that gathers every model past the ten most called. */
     others: 'Los demás ({count})',
     outputTokens: 'Tokens de salida',
+    over: 'Por encima del tope',
     spend: 'Gasto en IA de texto',
     spendChart: 'Gasto por día',
     spendEmpty: 'No se ha facturado nada en este periodo.',
     spendSeries: 'Gasto',
+    spent: 'Gastado',
     tilesLabel: 'Cifras del periodo',
     title: 'IA y modelos',
     tokens: { input: 'Entrada', output: 'Salida' },
     tokensChart: 'Tokens por día',
     tokensEmpty: 'Ningún token en este periodo.',
-    trendsTitle: 'Por día'
+    trendsTitle: 'Por día',
+    uncosted: { many: '{count} llamadas sin coste: la cifra es un mínimo.', one: '1 llamada sin coste: la cifra es un mínimo.' },
+    warnOver: 'Aviso: el gasto supera el tope. La reescritura nocturna sigue pausada; los planes se siguen generando.',
+    warnSweep:
+      'Aviso: el gasto ya es el {share} del tope. La reescritura nocturna se ha pausado hasta el mes que viene; los planes se siguen generando.'
   },
 
   /* `/admin/ajustes/registro` (`0071`): quién hizo cada mutación de cuenta o de ajuste, y cuándo. */
@@ -692,6 +713,9 @@ export const esES = {
     signUpsSeries: 'Altas',
     successRate: 'Generaciones con éxito',
     textAiSpend: 'Gasto en IA de texto',
+    textMonth: 'Este mes: {spent} de {cap} ({share})',
+    textMonthOver: 'Por encima del tope; reescritura pausada',
+    textMonthPaused: 'Reescritura nocturna pausada',
     tilesLabel: 'Cifras del periodo',
     title: 'Resumen',
     total: 'Total',

@@ -6,6 +6,7 @@ import { activeLocale, getDictionary } from 'i18n/server';
 import { BarChart } from 'ui/components/BarChart';
 import { ColumnChart } from 'ui/components/ColumnChart';
 import { DataTable } from 'ui/components/DataTable';
+import { Gauge } from 'ui/components/Gauge';
 import { LineChart } from 'ui/components/LineChart';
 import { parsePeriod } from 'core/domain/Period';
 import { StatTile } from 'ui/components/StatTile';
@@ -18,7 +19,7 @@ import { PeriodSelector } from 'components/PeriodSelector';
 
 import { DEFAULT_PERIOD } from 'core/entities/Period';
 
-import { formatNumber, formatUsd, interpolate } from 'lib/format';
+import { formatDate, formatNumber, formatUsd, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../../consoleMetadata';
@@ -58,7 +59,7 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
 
   const common = dictionary.adminConsole;
   const t = dictionary.adminAi;
-  const { models, totals } = ai;
+  const { models, month, totals } = ai;
   const number = (value: number) => formatNumber(value, locale);
   const dollars = (value: number) => formatUsd(value, locale);
   const seconds = (ms: number) =>
@@ -71,6 +72,14 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
   const rest = models.slice(CHART_MODELS);
   const chartLabels = [...charted.map(modelName), ...(rest.length > 0 ? [interpolate(t.others, { count: number(rest.length) })] : [])];
   const chartValues = [...charted.map(model => model.calls), ...(rest.length > 0 ? [rest.reduce((sum, model) => sum + model.calls, 0)] : [])];
+
+  const percent = (value: number) => formatNumber(value, locale, { maximumFractionDigits: 0, style: 'percent' });
+  const monthSince = formatDate(month.monthStart.slice(0, 10), locale, { day: 'numeric', month: 'long' });
+  const featureRows = month.byFeature.map(row => ({
+    id: row.feature,
+    cells: { calls: number(row.calls), cost: dollars(row.costUsd), feature: t.features[row.feature] }
+  }));
+  const uncosted = month.uncostedCalls === 1 ? t.uncosted.one : interpolate(t.uncosted.many, { count: number(month.uncostedCalls) });
 
   const rows = models.map(model => ({
     id: `${model.model}\u0000${model.provider ?? ''}`,
@@ -91,6 +100,73 @@ export default async function AdminAiPage({ searchParams }: { searchParams: Prom
       <AdminPageHeader intro={t.intro} title={t.title}>
         <PeriodSelector current={period} label={common.period} optionLabel={common.periodOption} pathname={PATHNAME} query={query} />
       </AdminPageHeader>
+
+      <AdminSection note={interpolate(t.monthNote, { date: monthSince })} title={t.monthTitle}>
+        <div className={styles.month}>
+          {month.capUsd === undefined ? (
+            <Card>
+              <p className={styles.line}>{interpolate(t.monthSpent, { spent: dollars(month.spentUsd) })}</p>
+              <p className={styles.line}>{t.monthNoCap}</p>
+            </Card>
+          ) : (
+            <Card>
+              <Gauge
+                cap={month.capUsd}
+                capLabel={t.cap}
+                className={styles.chart}
+                dataLabel={common.dataLabel}
+                emptyLabel={t.monthEmpty}
+                formatValue={dollars}
+                labelsHeader={t.monthTitle}
+                locale={locale}
+                overLabel={t.over}
+                title={t.monthChart}
+                value={month.spentUsd}
+                valueLabel={t.spent}
+              />
+            </Card>
+          )}
+          {month.share !== undefined && month.share >= 1 ? (
+            <p className={styles.warning} data-over="true">
+              {t.warnOver}
+            </p>
+          ) : month.sweepPaused && month.share !== undefined ? (
+            <p className={styles.warning}>{interpolate(t.warnSweep, { share: percent(month.share) })}</p>
+          ) : null}
+          {month.uncostedCalls > 0 ? <p className={styles.line}>{uncosted}</p> : null}
+          {month.capUsd === undefined ? null : <p className={styles.line}>{t.monthOnlyOnWarns}</p>}
+        </div>
+      </AdminSection>
+
+      <AdminSection note={t.featureNote} title={t.featureTitle}>
+        <div className={styles.stack}>
+          <Card>
+            <BarChart
+              className={styles.chart}
+              dataLabel={common.dataLabel}
+              emptyLabel={t.featureEmpty}
+              formatValue={dollars}
+              labels={month.byFeature.map(row => t.features[row.feature])}
+              labelsHeader={t.featureColumn}
+              locale={locale}
+              series={[{ name: t.columns.cost, values: month.byFeature.map(row => row.costUsd) }]}
+              title={t.featureChart}
+            />
+          </Card>
+          <Card className={`${styles.table} ${styles.featureTable}`}>
+            <DataTable
+              caption={t.featureTable}
+              columns={[
+                { header: t.featureColumn, key: 'feature' },
+                { align: 'end', header: t.columns.calls, key: 'calls' },
+                { align: 'end', header: t.columns.cost, key: 'cost' }
+              ]}
+              empty={t.featureEmpty}
+              rows={featureRows}
+            />
+          </Card>
+        </div>
+      </AdminSection>
 
       <ul aria-label={t.tilesLabel} className={styles.tiles}>
         <Card as="li" padding="sm">

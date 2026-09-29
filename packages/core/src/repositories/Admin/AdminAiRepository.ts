@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, gte, sql } from 'drizzle-orm';
 
 import { analyticsEvents } from 'database/schema/platform';
 import { database } from 'database';
@@ -36,11 +36,24 @@ export type AiCallDayRow = {
 };
 
 /**
+ * One feature's `ai_call` events since the start of a month: how many, what
+ * they were billed, and how many recorded no cost at all. `feature` is the
+ * recorded text, or null for an event written before the field existed.
+ */
+export type AiMonthRow = {
+  readonly calls: number;
+  readonly costUsd: number;
+  readonly feature: string | null;
+  /** Calls whose event has no numeric `costUsd`: the provider did not say, so the sum is a floor. */
+  readonly uncosted: number;
+};
+
+/**
  * The `ai_call` properties this repository reads (`StructuredAiClient`). A closed
  * union, because the key is written into the SQL with `sql.raw`: no value that did
  * not come from this list can ever reach it.
  */
-type AiCallKey = 'answeredModel' | 'costUsd' | 'inputTokens' | 'model' | 'ms' | 'outputTokens' | 'provider' | 'reasoningTokens';
+type AiCallKey = 'answeredModel' | 'costUsd' | 'feature' | 'inputTokens' | 'model' | 'ms' | 'outputTokens' | 'provider' | 'reasoningTokens';
 
 /** The property's text when the event recorded a string there, else null. */
 function text(key: AiCallKey): SQL<string | null> {
@@ -101,6 +114,32 @@ export const AdminAiRepository = {
         .from(analyticsEvents)
         .where(and(eq(analyticsEvents.event, 'ai_call'), within(analyticsEvents.createdAt, from, to)))
         .groupBy(day, answeredModel, model, provider, failed);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * The text models' month so far, per feature: every `ai_call` since
+   * `monthStart` (a UTC month, as the pictures' cap counts). A few rows however
+   * many calls were made. Mode: one grouped query on the `(event, created_at)` index.
+   */
+  async monthByFeature(monthStart: Date): Promise<readonly AiMonthRow[]> {
+    try {
+      const feature = text('feature');
+
+      return await database()
+        .select({
+          calls: sql<number>`count(*)`.mapWith(Number),
+          costUsd: summed('costUsd'),
+          feature,
+          uncosted: sql<number>`count(*) filter (where jsonb_typeof(${analyticsEvents.properties} -> 'costUsd') is distinct from 'number')`.mapWith(
+            Number
+          )
+        })
+        .from(analyticsEvents)
+        .where(and(eq(analyticsEvents.event, 'ai_call'), gte(analyticsEvents.createdAt, monthStart)))
+        .groupBy(feature);
     } catch (error: unknown) {
       throw wrap(error);
     }

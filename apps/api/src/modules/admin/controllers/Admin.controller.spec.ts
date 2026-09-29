@@ -99,7 +99,7 @@ describe('AdminController', () => {
       .expect(200);
 
     expect(response.body).toEqual({ period: 30 });
-    expect(summary).toHaveBeenCalledWith(30, 10);
+    expect(summary).toHaveBeenCalledWith(30, 10, expect.any(Date), undefined);
   });
 
   it('passes 7, 30 and 90 through as numbers to each period read', async () => {
@@ -118,7 +118,7 @@ describe('AdminController', () => {
       .get(`/${PREFIX}/admin/plans?period=30`)
       .expect(200);
 
-    expect(summary).toHaveBeenCalledWith(7, 10);
+    expect(summary).toHaveBeenCalledWith(7, 10, expect.any(Date), undefined);
     expect(product).toHaveBeenCalledWith(90);
     expect(plans).toHaveBeenCalledWith(30);
   });
@@ -175,7 +175,7 @@ describe('AdminController', () => {
       .expect(200);
 
     expect(response.body).toEqual({ period: 7 });
-    expect(ai).toHaveBeenCalledWith(7);
+    expect(ai).toHaveBeenCalledWith(7, expect.any(Date), undefined);
 
     ai.mockClear();
 

@@ -99,6 +99,9 @@ const PERIOD_KEYS = new Set([
   'pictures',
   'spentUsd',
   'textAi',
+  'month',
+  'share',
+  'sweepPaused',
   'monthSpentUsd',
   'monthStart',
   'capUsd',
@@ -614,6 +617,8 @@ describe('admin', () => {
         expectDays(summary.tiles.newAccounts.sparkline, period, summary.window.to);
         expectDays(summary.tiles.activePeople.sparkline, period, summary.window.to);
         expectDays(summary.tiles.plansGenerated.sparkline, period, summary.window.to);
+        // No text cap in this environment: the tile is the spend and its sparkline, with no month key.
+        expect(Object.keys(summary.tiles.textAi).sort()).toEqual(['sparkline', 'spentUsd']);
         expectDays(product.activePeople, period, product.window.to);
         expectDays(product.events, period, product.window.to);
         expectDays(plans.created, period, plans.window.to);
@@ -1339,6 +1344,15 @@ describe('admin', () => {
       'provider',
       'reasoningTokens',
       'callsPerDay',
+      // The text models' month (`0071`, phase 4); the cap's three keys only with a cap.
+      'byFeature',
+      'feature',
+      'month',
+      'monthStart',
+      'share',
+      'spentUsd',
+      'sweepPaused',
+      'uncostedCalls',
       'models',
       'period',
       'spendPerDay',
@@ -1760,8 +1774,13 @@ describe('admin', () => {
         const response: Response = await get(`ai${query === undefined ? '' : `?period=${query}`}`, owner.cookie).expect(200);
         const view = response.body as AdminAiView;
 
-        // Exactly the period's seven keys (`0068` § Removed): today's quota readout is gone.
-        expect(Object.keys(view).sort()).toEqual(['callsPerDay', 'models', 'period', 'spendPerDay', 'tokensPerDay', 'totals', 'window']);
+        // Exactly the period's keys (`0068` § Removed: today's quota readout is gone) and the month (`0071`).
+        expect(Object.keys(view).sort()).toEqual(['callsPerDay', 'models', 'month', 'period', 'spendPerDay', 'tokensPerDay', 'totals', 'window']);
+
+        // No cap in this environment: no gauge, the keys absent, not null (`text-cap.e2e-spec.ts` runs with one).
+        expect(Object.keys(view.month).sort()).toEqual(['byFeature', 'monthStart', 'spentUsd', 'uncostedCalls']);
+        expect(view.month.byFeature.map(entry => entry.feature)).toEqual(['plan', 'swap', 'rewrite', 'unknown']);
+        expect(view.month.byFeature.reduce((total, entry) => total + entry.costUsd, 0)).toBeCloseTo(view.month.spentUsd, 5);
         expect(view.period).toBe(period);
 
         expectDays(view.callsPerDay, period, view.window.to);

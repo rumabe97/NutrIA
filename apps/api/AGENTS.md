@@ -411,6 +411,19 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     (`admin/services/SystemSnapshot.ts`) is the only place the environment is read for it, and
     `SystemSnapshot.spec.ts` plus `AdminSystemController.test.ts` prove no configuration value reaches the
     answer. Mail and push "configured" come from `EmailService.configured` and `PushService.configured`.
+- **The text-AI cap** (`0071`, phase 4): `AI_TEXT_MONTHLY_CAP_USD`, optional and positive; unset means no
+  gauge, no warning and no held-back sweep. It shows and warns and never stops a plan; the wall that stops
+  spending is the OpenRouter key's own limit (`0064`), and the cap is never set above it.
+  - `AdminTextSpend` (`core/controllers/Admin`) is the one reader of the UTC month (`monthStart`, as the
+    pictures' cap): the sum of `costUsd`, the calls with no cost (`uncostedCalls`, so the sum is a floor)
+    and spend per feature (`plan`, `swap`, `rewrite`, and `unknown` for events before `feature` existed).
+  - `GET /admin/ai` always carries `month`; `capUsd`, `share` and `sweepPaused` are inside it **only with
+    the cap set** (absent keys, not null). `GET /admin/summary` puts `tiles.textAi.month` (cap, month
+    spend, `monthStart`, `share`, `sweepPaused`) there under the same rule, and reads nothing extra without it.
+  - `RecipeRewriter.rewriteOutdated` reads the month's spend only when the cap is set, and from
+    80 % of it (`TEXT_SWEEP_STOP_SHARE`) claims nothing and returns `heldBy: 'cap'`; `/cron/rewrite-steps`
+    records that `cron_run` with `skipped: 'cap'` (a string in the place of the recipes-skipped count).
+    A plan or a swap is never held back here.
 - **Professionals** (`0059`): an account is a professional because a `professionals` row
   says so, and only `POST /admin/accounts/:id/professional` (the collegiate number, nothing
   else) writes one; `DELETE` of the same takes it back and `GET /admin/professionals` lists

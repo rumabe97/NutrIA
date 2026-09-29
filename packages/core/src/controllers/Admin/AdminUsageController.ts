@@ -2,9 +2,11 @@ import { AdminAiRepository, AdminSeriesRepository } from '#repositories/Admin';
 import { fillDays, madridDayKey, madridDayKeys, windowFor } from 'core/domain/Period';
 
 import { AdminController, aiModelOf } from './AdminController';
+import { AdminTextSpend } from './AdminTextSpend';
 import { presentWindow } from './AdminSeriesController';
 
 import type { AdminPicturesView, AiModelUsage } from './AdminController';
+import type { TextMonthView } from './AdminTextSpend';
 import type { AiCallDayRow } from '#repositories/Admin';
 import type { DaySeries, DaySeriesGroup, PeriodComparison, PeriodWindowView } from './AdminSeriesController';
 import type { Period } from 'core/entities/Period';
@@ -41,6 +43,12 @@ export type AdminAiView = {
    * the most used first.
    */
   readonly models: readonly AiModelUsage[];
+  /**
+   * The UTC month so far (not the period): spend, calls with no cost recorded and
+   * spend per feature, always; `capUsd`, `share` and `sweepPaused` only when
+   * `AI_TEXT_MONTHLY_CAP_USD` is set.
+   */
+  readonly month: TextMonthView;
   readonly period: Period;
   /** Dollars the text models billed per day, to six places as the events carry them. */
   readonly spendPerDay: DaySeries;
@@ -139,11 +147,11 @@ export const AdminUsageController = {
    * The period's usage: totals against the period before, calls and tokens
    * per day, and the calls by model.
    */
-  async ai(period: Period, now = new Date()): Promise<AdminAiView> {
+  async ai(period: Period, now = new Date(), textCapUsd?: number): Promise<AdminAiView> {
     const window = windowFor(period, now);
     const days = madridDayKeys(window.from, window.to);
     const firstDay = madridDayKey(window.from);
-    const rows = await AdminAiRepository.callsPerDay(window.previousFrom, window.to);
+    const [rows, month] = await Promise.all([AdminAiRepository.callsPerDay(window.previousFrom, window.to), AdminTextSpend.month(now, textCapUsd)]);
     const current = rows.filter(row => row.day >= firstDay);
     const previous = rows.filter(row => row.day < firstDay);
     const inPeriod = current.reduce(add, ZERO);
@@ -157,6 +165,7 @@ export const AdminUsageController = {
     return {
       callsPerDay: { days, values: per(row => row.calls) },
       models: modelsOf(current),
+      month,
       period,
       spendPerDay: { days, values: per(row => row.costUsd).map(dollars) },
       tokensPerDay: {
