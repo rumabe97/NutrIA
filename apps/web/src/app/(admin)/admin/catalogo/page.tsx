@@ -68,7 +68,9 @@ export default async function AdminRecipesPage({ searchParams }: { searchParams:
   const grams = (value: number | null) => (value === null ? '—' : formatNumber(value, locale, { maximumFractionDigits: 1 }));
   const kcal = (value: number | null) => (value === null ? '—' : formatNumber(value, locale, { maximumFractionDigits: 0 }));
   const allergenName = new Map((allergens ?? []).map(allergen => [allergen.key, allergen.labelEs]));
-  const names = (keys: readonly string[]) => (keys.length === 0 ? '—' : keys.map(key => allergenName.get(key) ?? key).join(', '));
+  // The catalogue names allergens in Spanish only (`labelEs`): marked so, for a screen reader on the English page.
+  const names = (keys: readonly string[]) =>
+    keys.length === 0 ? '—' : <span lang="es">{keys.map(key => allergenName.get(key) ?? key).join(', ')}</span>;
   const slotName = (slot: string) => dictionary.slots[slot as MealSlot] ?? slot;
   const sourceCount = (source: string) => counts.bySource.find(row => row.source === source)?.n ?? 0;
 
@@ -98,7 +100,7 @@ export default async function AdminRecipesPage({ searchParams }: { searchParams:
       anyLabel: common.table.any,
       label: t.containsAllergen,
       name: 'allergen',
-      options: (allergens ?? []).map(allergen => ({ label: allergen.labelEs, value: allergen.key })),
+      options: (allergens ?? []).map(allergen => ({ label: allergen.labelEs, lang: 'es', value: allergen.key })),
       value: table.allergen
     },
     {

@@ -56,7 +56,9 @@ export default async function AdminIngredientsPage({ searchParams }: { searchPar
   const t = dictionary.adminIngredients;
   const figure = (value: number) => formatNumber(value, locale, { maximumFractionDigits: 1 });
   const allergenName = new Map((allergens ?? []).map(allergen => [allergen.key, allergen.labelEs]));
-  const names = (keys: readonly string[]) => (keys.length === 0 ? '—' : keys.map(key => allergenName.get(key) ?? key).join(', '));
+  // The catalogue names allergens in Spanish only (`labelEs`): marked so, for a screen reader on the English page.
+  const names = (keys: readonly string[]) =>
+    keys.length === 0 ? '—' : <span lang="es">{keys.map(key => allergenName.get(key) ?? key).join(', ')}</span>;
 
   const columns: AdminTableColumn[] = [
     { header: t.columns.name, key: 'name', sort: { first: 'asc', phrase: t.sortBy.name, value: 'name' } },
@@ -83,7 +85,7 @@ export default async function AdminIngredientsPage({ searchParams }: { searchPar
       anyLabel: common.table.any,
       label: t.containsAllergen,
       name: 'allergen',
-      options: (allergens ?? []).map(allergen => ({ label: allergen.labelEs, value: allergen.key })),
+      options: (allergens ?? []).map(allergen => ({ label: allergen.labelEs, lang: 'es', value: allergen.key })),
       value: table.allergen
     }
   ];

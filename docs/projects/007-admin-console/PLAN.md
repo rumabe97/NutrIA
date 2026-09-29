@@ -413,7 +413,7 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 8 — Web: Registro, IA y modelos, Catálogo, Imágenes; the transition page goes
 
-- [ ] in progress
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 8`. Reviews: `accessibility`,
   plus `/local-probe`.
 - **Goal**: the remaining pages exist and the transition page is deleted, so every row of

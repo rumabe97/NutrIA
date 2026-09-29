@@ -718,3 +718,100 @@
     - Data, not code: some generated lunches cost about 2,600–2,700 kcal per serving
       (e.g. "Arroz basmati de carga…"). That comes from the recipes' own grams and
       servings.
+
+## Phase 8 — Web: Registro, IA y modelos, Catálogo, Imágenes; the transition page goes (2026-09-29)
+
+- **Executor**: the lead on opus (this session) for the API additions and the review
+  fixes; the `frontend` agent (medium effort) on opus for the pages, in its own worktree,
+  fast-forwarded onto the local phase branch and removed. Review: `accessibility` on opus
+  with `/local-probe`.
+- **Result**: done.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=web --filter=ui --filter=core --filter=api`:
+    17/17 tasks; web 125 tests, ui 486, core 1129, api 974. `deadcode` is green,
+    `rg -n "admin/anterior" apps` finds nothing, and the web build lists every console
+    page as dynamic.
+  - `accessibility` with `/local-probe`: 11 pages × 320/390/1280 × light/dark, all 200
+    with 0 px sideways scroll. The first run's 404s were the API's rate limit at the
+    probe's speed and all passed on a slower re-run. `/admin/anterior` now 404s, and an
+    ordinary account gets the console's 404 on every new page. Verdict: pass with
+    conditions, no P0 or P1.
+  - The lead's own checks (Playwright, CDP `Page.setFontSizes`, an admin probe account,
+    deleted after):
+    - every console page at 200 % text on 320 px gives 0 px past the viewport, measured
+      without the `html` clip;
+    - a Registro calls disclosure opens at 320 px;
+    - the empty state sits inside the screen;
+    - Recetas, Ingredientes and Cuentas at 1280 gave 0 px (the sort hints no longer
+      escape).
+    - Note: a first run with `servers.sh start --no-build` served a stale API build that
+      lacked phase 7's routes, and the pages crashed. Always rebuild after an API change.
+- **The owner's asks folded into this phase (2026-09-29)**:
+  1. **"¿Por qué no se ve el dinero gastado en generar planes?"** Each `ai_call` already
+     carried `costUsd` and no view summed it.
+     - `/admin/ai` adds `totals.costUsd`, with the period before, and `spendPerDay`.
+     - `/admin/summary` adds `tiles.textAi`, the period spend with its sparkline.
+     - On screen: a Resumen tile, "Gasto en IA de texto", and on IA y modelos a spend tile,
+       a spend-per-day line and a cost column per model.
+     - The spend covers the dishes generated for plans and the nightly step rewrites,
+       which the events do not tell apart. "Cómo se cuenta" says so, and adds that
+       pictures are billed apart.
+  2. **Sortable table headers sat higher than plain ones on a phone.** The sort link is a
+     44 px touch target and the headers were bottom-aligned. `DataTable`'s header cells
+     now centre vertically, on every table.
+- **Deviations from plan**:
+  1. **Dictionaries.**
+     - New sections: `adminLog`, `adminAi`, `adminRecipes`, `adminIngredients`,
+       `adminPictures`.
+     - `t.rejection` and the `logCall*` keys moved into `adminLog`, and some strings
+       changed (the call's model and request id have their own columns).
+     - Every key only the transition page read is gone, including those phase 9 step 2
+       listed (`aiResets`, `aiLastRefusal*`, `aiRefused`, `jobsTitle`, `noJobs`,
+       `failureNote`, `activationTitle`, `premiumTitle`, `remindersLabel`).
+  2. **`AdminTable`:**
+     - a `kind: 'date'` filter (native date fields in Filtros);
+     - `sort` is optional;
+     - `readTableQuery` drops the parameters a cross-field rule refuses (`from` after
+       `to`) rather than crashing the page.
+  3. **Other page choices:**
+     - `formatUsd` (narrow symbol, up to four decimals under a dollar) for both spend tiles.
+     - The durations line skips days with no finished job rather than drawing 0.
+     - The code filter's options are the period's codes plus the one in the address.
+     - The IA bar chart shows the top 10 models plus "Los demás (n)".
+  4. **Registro's first column is the start time, not the status.** `DataTable` names each
+     row by its first column, and "Fallida" / "Terminada" named 25 rows two ways. This is
+     the review's P2, fixed by the lead.
+  5. **Review fixes by the lead:**
+     - The empty "no match" cell wraps: phase 6's one-line rule had clipped it at 320 px,
+       with the clear link off screen. `.card td[colspan]` is `white-space: normal`.
+     - The catalogue's allergen names are Spanish only (`labelEs`). They are marked
+       `lang="es"` in cells and filter options (`AdminFilterOption.lang`), for WCAG
+       3.1.2.
+     - `DataTable`'s region is `position: relative`, so the visually hidden sort hints
+       stay inside it.
+     - `StatTile`'s figure is `min(font-size-08, 14cqi)`, so it fits its tile at 200 %.
+     - `AdminSection`'s grid is `minmax(0, 1fr)` and a long title breaks.
+     - `DonutChart` is `min(9rem, 100%)`, square.
+     - The builder's own P1 fix, the nested calls table escaping `DataTable`'s sticky
+       column, was confirmed in the code.
+- **Decisions**: none new.
+- **Notes for the next phase** (9):
+  - **Already done here:** the phase 9 dictionary removals. `?legacy=1` and
+    `/admin/overview` have no web reader any more.
+  - **Still for phase 9:** the API removals (`limits`, `resetsAt`, `lastRefusal`,
+    `refused`, `AI_REQUESTS_PER_DAY`, `AI_TOKENS_PER_MINUTE`, `/admin/failures`,
+    `overview.jobs`, `?legacy=1`) and `apps/web/AGENTS.md`, which still describes a single
+    `/admin` route.
+  - **Open P3s:**
+    - Resumen has 9 tiles (4 + 4 + 1 at 1280).
+    - Registro rows grow tall with a disclosure open.
+    - The donut's "released" slice is on categorical slot 4 (2.11:1 in light, relieved by
+      the legend and the table).
+    - The calls disclosure's name ("n llamadas") does not name its row.
+    - VoiceOver may read "—" oddly.
+  - **The allergen names** need a real English label (a dictionary map by key) to drop
+    `lang="es"`.
+  - **The probe** could gain `--font-scale` and an option to open disclosures, so these
+    checks stop needing a custom script.
+  - **Stale error text:** already checked on 2026-09-29. No production or dev row holds a
+    provider's echo of the request, so Registro's detail column is safe.

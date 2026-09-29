@@ -44,6 +44,12 @@
   white-space: nowrap;
 }
 
+/* …except the empty state, a sentence across every column: it wraps inside what is
+   visible (DataTable's `100cqi`), so "Quitar la búsqueda y los filtros" stays on screen. */
+.card td[colspan] {
+  white-space: normal;
+}
+
 /* The row's name is a whole address on one line. Pinned on a narrow table it would
    cover the columns scrolling under it — the actions included — so there it scrolls
    with them. `table` in the selector outweighs `DataTable`'s own sticky rule. */

@@ -1,8 +1,11 @@
 .chart {
-  block-size: 9rem;
+  /* 9rem, but never wider than what holds it: at 200 % text 9rem is 288 px, more than a
+     card on a 320 px phone. Square at any size. */
+  aspect-ratio: 1;
+  block-size: auto;
   display: block;
   flex: none;
-  inline-size: 9rem;
+  inline-size: min(9rem, 100%);
 }
 
 .slice {

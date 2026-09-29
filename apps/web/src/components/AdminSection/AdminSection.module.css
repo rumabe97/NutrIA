@@ -1,12 +1,14 @@
 .section {
   display: grid;
   gap: var(--gap-heading);
+  grid-template-columns: minmax(0, 1fr);
   min-inline-size: 0;
 }
 
 .heading {
   display: grid;
   gap: var(--space-01);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .title {
@@ -15,6 +17,10 @@
   letter-spacing: var(--tracking-title);
   line-height: var(--line-height-02);
   margin: 0;
+  /* A long word at 200 % text on a phone breaks (hyphenated where the language allows)
+     rather than pushing past the screen, as the page title does. */
+  hyphens: auto;
+  overflow-wrap: anywhere;
 }
 
 .note {

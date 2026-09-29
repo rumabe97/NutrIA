@@ -78,9 +78,11 @@ export default async function AdminLogPage({ searchParams }: { searchParams: Pro
   const codes = [...new Set([...(stats?.failuresByCode ?? []).flatMap(row => (row.code ? [row.code] : [])), ...(table.code ? [table.code] : [])])];
 
   const columns: AdminTableColumn[] = [
+    // The start time first: DataTable makes the first column the row's name, and "26 sept,
+    // 15:03" tells rows apart where "Fallida" / "Terminada" named 25 rows two ways.
+    { header: t.columns.started, key: 'started' },
     { header: t.columns.status, key: 'status' },
     { header: t.columns.account, key: 'account' },
-    { header: t.columns.started, key: 'started' },
     { align: 'end', header: t.columns.seconds, key: 'seconds' },
     { align: 'end', header: t.columns.attempts, key: 'attempts' },
     { header: t.columns.plan, key: 'plan' },

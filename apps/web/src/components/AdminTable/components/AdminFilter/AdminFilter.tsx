@@ -4,6 +4,8 @@ import styles from './AdminFilter.module.css';
 
 export interface AdminFilterOption {
   readonly label: string;
+  /** The label's language when it is not the page's — the catalogue's allergen names are Spanish only. */
+  readonly lang?: string;
   readonly value: string;
 }
 
@@ -35,7 +37,7 @@ export function AdminFilter({ anyLabel, label, name, options, value }: AdminFilt
         <select className={styles.select} defaultValue={value} id={id} name={name}>
           {anyLabel === undefined ? null : <option value="">{anyLabel}</option>}
           {options.map(option => (
-            <option key={option.value} value={option.value}>
+            <option key={option.value} lang={option.lang} value={option.value}>
               {option.label}
             </option>
           ))}
