@@ -20,6 +20,14 @@
   z-index: var(--z-modal);
 }
 
+/* vaul puts `touch-action: none` on every drawer, for dragging it. This one never drags
+   (`handleOnly`), and a list taller than the phone must scroll under a finger. The
+   attribute in the selector outweighs vaul's `[data-vaul-drawer]`. */
+.sidebar[data-vaul-drawer] {
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
 .left {
   border-right: 1px solid var(--border-01);
   left: 0;
