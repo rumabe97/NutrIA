@@ -25,13 +25,14 @@
 | [`procedimiento-brechas.md`](./procedimiento-brechas.md) | Qué hacer ante una brecha de datos personales: contener, guardar pruebas, decidir en 72 horas, notificar a la AEPD, avisar a los afectados y registrar (arts. 33 y 34 RGPD). |
 | [`imagenes-de-platos.md`](./imagenes-de-platos.md) | Las imágenes de los platos (proyecto 006): Ley de IA art. 50 (fechas, roles, ultrasuplantación, marca legible por máquina), consumo, privacidad, los rótulos en los dos idiomas y lo que falta antes del flag. |
 | [`2026-09-29-aceptacion-de-los-textos-legales.md`](./2026-09-29-aceptacion-de-los-textos-legales.md) | Decisión D5 (proyecto 008): la política de privacidad se informa y no se registra; la aceptación de las condiciones se guarda (`TERMS_VERSION`, dos columnas en `user`), con el aviso visible junto a cada botón que crea una cuenta. Especificación de la fase 7. |
+| [`2026-09-29-correos-al-propietario.md`](./2026-09-29-correos-al-propietario.md) | Los correos al propietario (proyecto 008, `0071`): resumen diario y avisos de fallos y de gasto. Veredicto: sin datos de usuario; la política no cambia; dos cambios de redacción P3. |
 | [`checklist-activacion.md`](./checklist-activacion.md) | Lo que tiene que ser verdad antes de encender el flag `professional`, y antes de poner las claves *live* de Stripe. |
 | [`textos/01-acuerdo-profesional.md`](./textos/01-acuerdo-profesional.md) | Lo que el dietista-nutricionista acepta antes de que `/consulta` se abra: secreto, roles, seguridad, qué pasa con los datos, usos prohibidos. Con su almacenamiento y su versión. |
 | [`textos/02-politica-privacidad.md`](./textos/02-politica-privacidad.md) | La política de privacidad completa, sustituyendo a la actual, con el proyecto 004 dentro. |
 | [`textos/03-condiciones-uso.md`](./textos/03-condiciones-uso.md) | Cambios en las condiciones de uso (Premium, desistimiento, formulario, edad). |
 | [`textos/04-condiciones-consulta.md`](./textos/04-condiciones-consulta.md) | Las condiciones del plan de consulta (B2B): precio, prueba, renovación, cancelación, pausa. |
 | [`textos/05-consentimientos-cliente.md`](./textos/05-consentimientos-cliente.md) | El consentimiento de salud del registro (nuevo), la invitación y su página, y el fin del enlace. Sube `CARE_CONSENT_VERSION` y `HEALTH_CONSENT_VERSION`. |
-| [`textos/06-correos.md`](./textos/06-correos.md) | Correos con efecto jurídico: la invitación, el alta del profesional, el acuse de desistimiento, el aviso de renovación anual, el aviso de cambio de condiciones y el del cambio de proveedor de IA. |
+| [`textos/06-correos.md`](./textos/06-correos.md) | Correos con efecto jurídico: la invitación, el alta del profesional, el acuse de desistimiento, el aviso de renovación anual, el aviso de cambio de condiciones y el del cambio de proveedor de IA; y, tal como están, los tres correos al propietario (H–J). |
 | [`textos/07-aviso-legal.md`](./textos/07-aviso-legal.md) | El aviso legal que exige el art. 10 LSSI y los datos que el art. 97 TRLGDCU pide antes de vender. |
 
 ## Cómo se leen los textos

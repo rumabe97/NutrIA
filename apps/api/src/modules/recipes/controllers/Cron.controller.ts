@@ -5,6 +5,7 @@ import { CheckInReminderService } from '../../notifications/index.js';
 import { CronRunService } from '../services/index.js';
 import { CronSecretGuard } from '../../../shared/guards/index.js';
 import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
+import { OwnerAlertsService } from '../../owner-alerts/index.js';
 import { Public, SkipRateLimit } from '../../../shared/index.js';
 import { RecipeRewriter } from '../../ai/index.js';
 
@@ -35,6 +36,7 @@ const REWRITES_PER_SWEEP = 12;
 @UseGuards(CronSecretGuard)
 export class CronController {
   constructor(
+    private readonly alerts: OwnerAlertsService,
     private readonly invitations: ExpiredInvitationsService,
     private readonly reminders: CheckInReminderService,
     private readonly rewriter: RecipeRewriter,
@@ -47,6 +49,9 @@ export class CronController {
    */
   @Get('reminders')
   async checkInReminders(): Promise<ReminderRunDto> {
+    // The owner's digest first, before the reminders switch is looked at: they are different things (`0071`).
+    // It never throws, and the catch keeps it so: a broken digest must not cost the reminders their run.
+    await this.alerts.digest().catch(() => undefined);
     await this.invitations.forget();
 
     const run = await this.reminders.sweep();
@@ -63,6 +68,9 @@ export class CronController {
 
     // A sweep held back by the cap says so in its record, in the place of a count of skipped recipes.
     await this.runs.record('rewrite', 'heldBy' in run ? { pending: 0, rewritten: 0, skipped: 'cap', unreached: 0 } : run);
+    // The sweep is the one spender nobody waits for: the cap's warning is checked when it ends (`0071`).
+    // It never throws, and the catch keeps it so: the sweep's answer does not depend on the owner's mail.
+    await this.alerts.checkSpend().catch(() => undefined);
 
     return run;
   }

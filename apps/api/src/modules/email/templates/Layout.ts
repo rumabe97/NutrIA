@@ -19,7 +19,15 @@ export type EmailLocale = 'en-GB' | 'es-ES';
  * label per template, and says nothing about anybody.
  */
 export type EmailKind =
-  'account-waiting' | 'care-invitation' | 'check-in-reminder' | 'checkin-submitted' | 'password-reset' | 'professional-granted' | 'verify-email';
+  | 'account-waiting'
+  | 'care-invitation'
+  | 'check-in-reminder'
+  | 'checkin-submitted'
+  | 'owner-alert'
+  | 'owner-digest'
+  | 'password-reset'
+  | 'professional-granted'
+  | 'verify-email';
 
 export interface RenderedEmail {
   html: string;

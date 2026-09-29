@@ -868,6 +868,8 @@ export const esES = {
       'care-invitation': 'Invitación de vínculo',
       'check-in-reminder': 'Aviso de check-in',
       'checkin-submitted': 'Check-in enviado',
+      'owner-alert': 'Aviso al propietario',
+      'owner-digest': 'Resumen diario al propietario',
       'password-reset': 'Restablecer contraseña',
       'professional-granted': 'Perfil profesional concedido',
       'verify-email': 'Confirmar correo'

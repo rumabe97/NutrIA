@@ -79,6 +79,10 @@ export class EmailService {
 
     this.transporter = createTransport({
       auth: { pass: env.SMTP_PASS, user: env.SMTP_USER },
+      // Well inside a function's 300 s: a mail server that hangs fails the send in
+      // seconds, so an owner's alert that claimed its turn can give it back.
+      connectionTimeout: 10_000,
+      greetingTimeout: 10_000,
       host: env.SMTP_HOST,
       port,
       // 465 is implicit TLS; everything else upgrades with STARTTLS — required,
@@ -86,7 +90,8 @@ export class EmailService {
       // STARTTLS line would otherwise get the password and the reset link in
       // cleartext; this refuses to send instead.
       requireTLS: !secure,
-      secure
+      secure,
+      socketTimeout: 15_000
     });
     this.from = `"${SENDER_NAME}" <${env.EMAIL_FROM}>`;
   }

@@ -364,3 +364,57 @@
   - Plans generated before 2026-09-29 carry no `quality`, and plans between phase 1 and
     this deploy carry no floor counts. The page gives each its own "desde".
   - Phase 6 (alerts) and phase 7 (the terms) remain.
+
+## Phase 6 — The owner's alerts (2026-09-29)
+
+- **Executor**: the `backend` agent (medium), in its own worktree, which was brought
+  into the main checkout and removed. The lead (opus, this session) made the review fixes,
+  the digest-noise change and the `mailKinds` labels. Reviews: `invariant-reviewer`, and
+  `legal` on the templates. The `tests` agent's end-to-end cases were still running at
+  ship time and follow in their own change.
+- **Result**: done. **Owner-approves (the digest's wording): approved by the owner's
+  `/ship` of this change on 2026-09-29**, after he was shown the rendered digest and both
+  alerts.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=api`: 11/11 tasks; api 1048
+    tests. `OwnerMail.spec.ts` renders the digest and each alert, and fails on an `@`, a
+    uuid, a `usr-` id or a sentinel string from the database.
+  - **Dev capture**, by `backend` against the dev database with a local SMTP sink, never
+    production:
+    - three failed generations (throwaway accounts with every allergen declared) sent
+      exactly one "tres generaciones seguidas han fallado"; the fourth and fifth sent
+      nothing;
+    - `/cron/reminders` sent one digest, and a second run sent none;
+    - `owner_alerted` rows: `generation-streak`, `digest`.
+    - The spend alerts are covered by unit specs only.
+    - The throwaway accounts and the capture's own rows were deleted.
+  - `invariant-reviewer`: no P0 or P1. Its two P2s are fixed:
+    - both cron routes catch an alert failure, so the reminders and the rewrite record
+      still run (new specs);
+    - the SMTP transport times out in 10–15 s, well inside the function's 300 s, so a
+      claimed alert whose mail hangs is given back.
+    - It also asked for two specs, now added: the alert runs after the job row is final
+      (`invocationCallOrder`), and a failing alert never changes a failed job.
+    - Its P3 on the index comment is fixed. Its P3 on `safeKind` is left: the kind list
+      lives in `apps/api`, which core cannot import, and the only writer is typed.
+  - `legal` ([`docs/legal/2026-09-29-correos-al-propietario.md`](../../legal/2026-09-29-correos-al-propietario.md)):
+    the three mails can ship. They carry no user's address, name, id or text. The
+    privacy policy and the DPIA are unchanged, and the records of processing get a
+    revision line. `06-correos.md` gains H–J. Its two clearer sentences for the digest's
+    intro and footer are applied.
+- **Deviations from plan**:
+  1. "Should be zero" counts never trigger the digest on their own; they ride along when
+     something else does (the lead's recommendation to the owner). Dev's standing 107
+     `unserved` would otherwise mail every day.
+  2. The spend check runs at the end of each plan job, of the rewrite sweep, and in the
+     digest, not per model call. The picture alert can therefore lag until the next of
+     those; the picture cap itself is a hard stop in code.
+- **Decisions**: [`0071`](../../decisions/0071-the-service-records-what-leaves-no-row-and-the-console-watches-it.md).
+- **Notes for the next phase**:
+  - **A blind spot:** the digest runs inside `/cron/reminders`, so a dead reminders cron
+    cannot report itself. Sentry cron monitoring or an outside check would cover it
+    (owner's choice, later).
+  - `legal` P3: the existing account-waiting mail (`0029`) puts each new user's address
+    in the owner's Gmail with no deletion deadline. It is a candidate for `analisis.md`
+    § 9.
+  - The end-to-end cases for this phase land in their own change.

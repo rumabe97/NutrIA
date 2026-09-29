@@ -285,7 +285,7 @@ numbers refer to it. Read it before any phase.
 
 ### Phase 5 — What needs data to accumulate
 
-- [x] done — built on 2026-09-29, the day phase 1 deployed, by the owner's choice rather than after the 2–4 weeks the dispatch asks for: the pages are built and tested now, and are reviewed against real data once it has accumulated (see LOG).
+- [x] done — commit `43d492f`; built on 2026-09-29, the day phase 1 deployed, by the owner's choice rather than after the 2–4 weeks the dispatch asks for: the pages are built and tested now, and are reviewed against real data once it has accumulated (see LOG).
 - **Dispatch**: opus @ medium — `/execute-project 008 phase 5`. Not before 2–4 weeks after
   phase 1 is in production. Reviews: `invariant-reviewer`, `accessibility`,
   `plan-evaluator` (the band figure against `evaluate-plans.mjs`).
@@ -329,7 +329,7 @@ numbers refer to it. Read it before any phase.
 
 ### Phase 6 — The owner's alerts
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 008 phase 6`. Reviews:
   `invariant-reviewer`, and `legal` on the mail template. — owner-approves: the digest's
   wording.

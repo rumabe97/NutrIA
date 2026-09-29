@@ -12,6 +12,9 @@
 > «país», que empieza a leerse con este mismo cambio). Revisado otra vez el mismo
 > día: fila 2 (la migración `0043` pone a `NULL`, para todas las cuentas, las diez
 > columnas que `0067` deja de rellenar — verdad una vez fusionada la misma rama).
+> Revisado el 2026-09-29: fila 7 (correos al propietario, `0071` — verdad una vez fusionada
+> `agent/008-phase6/backend`): ningún dato, fin ni destinatario nuevo; el correo lleva solo
+> recuentos, códigos y enlaces ([nota](./2026-09-29-correos-al-propietario.md)).
 >
 > **No soy abogado.** Los plazos y destinatarios marcados «pendiente» dependen de
 > decisiones del [`analisis.md` § 9](./analisis.md#9-riesgos-ordenados-por-lo-que-le-puede-pasar-a-una-persona-real).
@@ -26,6 +29,6 @@
 | 4 | Seguimiento | adherencia, peso, check-in, recordatorios | usuarios | marcas, valoraciones, comentarios, peso, respuestas | Vercel, Neon, SMTP, push del navegador (cifrado) | EE. UU. (empresas) | cuenta | — |
 | 5 | Consulta de dietistas (004) | comunicación consentida al profesional, rastro | usuarios vinculados, invitados, profesionales | los de 2-4 según el enlace; correo del invitado; rastro; colegiado | el profesional vinculado (responsable independiente) | — | enlace: cuenta; invitación: hasta que se responde, o 14 días más el barrido diario (≤ 15); rastro: cuenta del cliente | `withClient`, rastro, 404, acuerdo del profesional (**pendiente**) |
 | 6 | Cobros | Premium y planes de consulta | usuarios de pago, profesionales | ids de Stripe, estado, periodo | Stripe / Link | EE. UU./UE — DPA de Stripe | cuenta; Stripe según ley fiscal | checkout y portal alojados por Stripe; webhook firmado |
-| 7 | Métricas y errores | saber si funciona | usuarios | evento + `userId`; error y pila sin datos | Neon; Sentry (si activo) | EE. UU./UE según región de Sentry | **pendiente**: 24 meses métricas, 12 meses trabajos | sin salud; redacción de secretos |
+| 7 | Métricas y errores | saber si funciona | usuarios | evento + `userId`; error y pila sin datos | Neon; Sentry (si activo) | EE. UU./UE según región de Sentry | **pendiente**: 24 meses métricas, 12 meses trabajos | sin salud; redacción de secretos; los correos al propietario (resumen y avisos, `0071`) solo llevan recuentos, códigos de lista cerrada y enlaces |
 | 8 | Buzón de sugerencias | leer y responder | usuarios | texto libre | Neon | — | **pendiente**: 24 meses tras «atendido» | solo el propietario lo lee |
 | 9 | Copias de seguridad | recuperación | todos | todo | Neon (restauración), equipo del propietario (exportación) | UE | Neon: ventana del plan (**anotar**); exportación: **30 días (pendiente)** | cifrado de la exportación **pendiente** |

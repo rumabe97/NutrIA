@@ -6,6 +6,7 @@ import { BackgroundTaskService } from '../../../shared/services/index.js';
 import { GenerationError } from './PlanGeneration.service.js';
 import { PlanJobRunner } from './PlanJobRunner.service.js';
 
+import type { OwnerAlertsService } from '../../owner-alerts/index.js';
 import type { ErrorReporter } from '../../../shared/observability/index.js';
 import type { PlanGenerationService } from './PlanGeneration.service.js';
 
@@ -30,13 +31,15 @@ function build(generate: (...args: Parameters<PlanGenerationService['generate']>
   // the double.
   // Reporting is off in a test the way it is off without a DSN in production.
   const report = jest.fn();
+  const afterJob = jest.fn<OwnerAlertsService['afterJob']>().mockResolvedValue(undefined);
   const runner = new PlanJobRunner(
+    { afterJob } as unknown as OwnerAlertsService,
     new BackgroundTaskService(),
     { generate: jest.fn(generate) } as unknown as PlanGenerationService,
     { report } as unknown as ErrorReporter
   );
 
-  return { markFailed, markStarted, markStep, markSucceeded, runner, start };
+  return { afterJob, markFailed, markStarted, markStep, markSucceeded, runner, start };
 }
 
 describe('PlanJobRunner', () => {
@@ -68,6 +71,50 @@ describe('PlanJobRunner', () => {
     await settle();
 
     expect(markSucceeded).toHaveBeenCalledWith('job-1', 'plan-42');
+  });
+
+  it("tells the owner's alerts how the job ended, after the row says so", async () => {
+    const failing = build(async () => Promise.reject(new GenerationError('GENERATION_POOL_TOO_SMALL', 'lunch')));
+
+    await failing.runner.start('usr-1');
+    await settle();
+    expect(failing.afterJob).toHaveBeenCalledWith(true);
+    // After the row is final: the alert reads the last outcomes, so it must see this one.
+    expect(failing.markFailed.mock.invocationCallOrder[0]).toBeLessThan(failing.afterJob.mock.invocationCallOrder[0] ?? 0);
+
+    jest.restoreAllMocks();
+
+    const succeeding = build(async () => Promise.resolve('plan-42'));
+
+    await succeeding.runner.start('usr-1');
+    await settle();
+    expect(succeeding.afterJob).toHaveBeenCalledWith(false);
+    expect(succeeding.markSucceeded.mock.invocationCallOrder[0]).toBeLessThan(succeeding.afterJob.mock.invocationCallOrder[0] ?? 0);
+  });
+
+  it('never lets a failing alert change the job it follows', async () => {
+    const { afterJob, markFailed, markSucceeded, runner } = build(async () => Promise.resolve('plan-42'));
+
+    afterJob.mockRejectedValue(new Error('smtp is down'));
+    await runner.start('usr-1');
+    await settle();
+
+    expect(markSucceeded).toHaveBeenCalledWith('job-1', 'plan-42');
+    expect(markFailed).not.toHaveBeenCalled();
+  });
+
+  it('never lets a failing alert change a failed job either', async () => {
+    const { afterJob, markFailed, markSucceeded, runner } = build(async () =>
+      Promise.reject(new GenerationError('GENERATION_POOL_TOO_SMALL', 'lunch'))
+    );
+
+    afterJob.mockRejectedValue(new Error('smtp is down'));
+    await runner.start('usr-1');
+    await settle();
+
+    expect(markFailed).toHaveBeenCalledTimes(1);
+    expect(markFailed).toHaveBeenCalledWith('job-1', 'GENERATION_POOL_TOO_SMALL', 'lunch');
+    expect(markSucceeded).not.toHaveBeenCalled();
   });
 
   it('records a generation failure as its stable code, not as a message', async () => {

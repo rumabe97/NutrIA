@@ -839,6 +839,8 @@ export const enGB: Dictionary = {
       'care-invitation': 'Link invitation',
       'check-in-reminder': 'Check-in reminder',
       'checkin-submitted': 'Check-in submitted',
+      'owner-alert': 'Alert to the owner',
+      'owner-digest': 'Daily digest to the owner',
       'password-reset': 'Password reset',
       'professional-granted': 'Professional profile granted',
       'verify-email': 'Confirm email'

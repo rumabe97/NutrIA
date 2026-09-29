@@ -1,3 +1,4 @@
+export * from './AdminAlertController';
 export * from './AdminCatalogueController';
 export * from './AdminConsentController';
 export * from './AdminController';
