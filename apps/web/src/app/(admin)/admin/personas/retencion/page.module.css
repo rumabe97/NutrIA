@@ -1,0 +1,6 @@
+.page {
+  display: grid;
+  gap: var(--gap-region);
+  /* One column that may shrink below its widest child (reflow at 200 % text). */
+  grid-template-columns: minmax(0, 1fr);
+}

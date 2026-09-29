@@ -30,6 +30,7 @@ export const ADMIN_SECTIONS: readonly AdminNavSection[] = [
       { href: '/admin/cuentas', label: 'accounts' },
       { href: '/admin/profesionales', label: 'professionals' },
       { href: '/admin/consentimientos', label: 'consents' },
+      { href: '/admin/personas/retencion', label: 'retention' },
       { href: '/admin/buzon', label: 'inbox' }
     ]
   },
@@ -38,6 +39,7 @@ export const ADMIN_SECTIONS: readonly AdminNavSection[] = [
     pages: [
       { href: '/admin/producto', label: 'product' },
       { href: '/admin/producto/planes', label: 'plans' },
+      { href: '/admin/producto/planes/calidad', label: 'planQuality' },
       { href: '/admin/notificaciones', label: 'notifications' }
     ]
   },

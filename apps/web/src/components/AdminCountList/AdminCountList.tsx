@@ -37,14 +37,14 @@ export function AdminCountList({ label, rows }: AdminCountListProps) {
         const body = (
           <Fragment>
             <span className={styles.label}>{row.label}</span>
+            <span className={styles.count} data-warn={row.warn ? 'true' : undefined}>
+              {row.count}
+            </span>
             {row.status === undefined ? null : (
               <span className={styles.status} data-warn={row.warn ? 'true' : undefined}>
                 {row.status}
               </span>
             )}
-            <span className={styles.count} data-warn={row.warn ? 'true' : undefined}>
-              {row.count}
-            </span>
             {row.href === undefined ? (
               <span aria-hidden="true" className={styles.chevron} />
             ) : (

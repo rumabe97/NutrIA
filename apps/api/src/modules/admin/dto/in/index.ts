@@ -8,5 +8,6 @@ export * from './IngredientCatalogueQuery.dto.js';
 export * from './PeriodQuery.dto.js';
 export * from './ProfessionalsQuery.dto.js';
 export * from './RecipeCatalogueQuery.dto.js';
+export * from './RetentionQuery.dto.js';
 export * from './SetFlag.dto.js';
 export * from './SetTier.dto.js';

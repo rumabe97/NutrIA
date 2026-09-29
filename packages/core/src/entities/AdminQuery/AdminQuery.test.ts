@@ -8,7 +8,8 @@ import {
   generationQuerySchema,
   ingredientCatalogueQuerySchema,
   RECIPE_SOURCES,
-  recipeCatalogueQuerySchema
+  recipeCatalogueQuerySchema,
+  retentionQuerySchema
 } from './AdminQuery';
 
 describe('the admin tables search', () => {
@@ -127,5 +128,13 @@ describe('ingredientCatalogueQuerySchema', () => {
   it('filters by a category the catalogue has', () => {
     expect(ingredientCatalogueQuerySchema.parse({ category: 'dairy' }).category).toBe('dairy');
     expect(ingredientCatalogueQuerySchema.safeParse({ category: 'meat' }).success).toBe(false);
+  });
+});
+
+describe('retentionQuerySchema', () => {
+  it('cuts by month unless asked for the week, and refuses anything else', () => {
+    expect(retentionQuerySchema.parse({})).toEqual({});
+    expect(() => retentionQuerySchema.parse({ grouping: 'week' })).toThrow();
+    expect(() => retentionQuerySchema.parse({ grouping: 'month' })).toThrow();
   });
 });

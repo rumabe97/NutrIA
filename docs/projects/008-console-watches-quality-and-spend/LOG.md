@@ -276,3 +276,91 @@
     as the AI client.
   - Phase 5 waits 2–4 weeks after phase 1 (deployed 2026-09-29). Phase 6 (alerts) and
     phase 7 (the terms) can go first.
+
+## Phase 5 — What needs data to accumulate (2026-09-29)
+
+- **Executor**: the `backend` agent (medium) wrote the API, and a second `backend` agent
+  made the privacy fixes. The `frontend` agent (medium) built the pages, and a second
+  `frontend` agent made the accessibility fixes. The `tests` agent (medium) wrote the
+  end to end, and `plan-evaluator` decided the floor counts. All worked from phase 4's
+  commit, each in its own worktree, which was brought into the main checkout and
+  removed. The lead (opus, this session) decided the few-data rule and switched the
+  page to core's type. Reviews: `invariant-reviewer` and `accessibility` with
+  `/local-probe`.
+- **Result**: done, **built early by the owner's choice**. It started on the day phase 1
+  deployed rather than after the 2–4 weeks the dispatch asks for. Every page is
+  written and tested for the empty and few-data states that dev has today. The full
+  states are read from the markup and the unit tests, not seen in a browser.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api --filter=web`:
+    17/17 tasks; api 1017 tests. `pnpm -w run deadcode` is clean.
+  - **The floor counts** (`plan-evaluator`, dev library, read-only). Two counts, and never
+    "days the floor bounded":
+    - `daysFloorNarrowed`: days whose band minimum (the day's kcal target × 0.95)
+      falls below the energy floor;
+    - `daysFloorNarrowedOutOfBand`: of those, the days outside 5 % on any macro, with
+      no cause attributed.
+    - Of the 11 fixed profiles only `objetivo-bajo-3-comidas` is narrowed, and its one
+      miss is carbs, not kcal.
+  - **The verification baseline**: over the 11 fixed profiles, 153 of 154 days are inside
+    5 % on all four macros (99.4 %). Phase 5's page, over real plans, is compared with
+    this once there are at least 10 scored plans.
+  - End-to-end, local, `SMTP_*` and `VAPID_*` blank: `system-events` and `access` 13/13,
+    and `admin` 71/72.
+    - The new cases cover:
+      - 404 for an ordinary account and with no session, before 422;
+      - 422 on bad and repeated params; retention takes no param at all;
+      - exact keys for both halves of the plans-quality union, for `sweepHistory` (one
+        value a day), and for a retention cohort and cell;
+      - a plan generated today does not enter today's figures;
+      - no email, `@` or id in any of the three bodies;
+      - the floor counts in stored `quality`.
+    - The one failure is "never name who made a dish". It fails on a second run of the
+      unchanged phase 4 suite too; it is the shared dev database's known flake.
+    - Which branch of the few-data test runs depends on the shared database's state.
+      The other branch rests on the unit tests.
+  - `invariant-reviewer`: no P0. Its two P1s are fixed, together with the lead's
+    few-data rule:
+    - **Few data**: under 10 scored plans, `plans/quality` returns only `dataStart,
+      fewData, minPlans, period, plans, window, withoutQuality`, never a quality count.
+    - **Subtraction** (P1):
+      - the window ends at today's Madrid midnight, so reading before and after a named
+        generation isolates nothing;
+      - the rule of 10 applies to each disjoint stretch that nested periods expose
+        ([−7,0), [−30,−7), [−90,−30)).
+    - **Retention** (P1): a cell's `active` is shown only at 20 or more eligible people.
+    - Week grouping is removed (P2: weeks subtracted from a month would give a hidden
+      cell back).
+    - `usedTheApp` shipping before five weeks is moot under the threshold.
+    - **Left open, knowingly**: comparing the 30-day and 7-day views gives the number of
+      plans in a thin stretch. The generation log already lists every plan, so it adds
+      nothing.
+  - `accessibility`: no P0 or P1. Its three P2s are fixed, and a re-probe at 320 px,
+    normal and 200 % text, in both schemes, confirmed them:
+    - a new `AdminReflowTable` swaps a table for a list per row below a 36rem card, on
+      both retention tables and the per-day sweep table; the latter has a visible
+      caption;
+    - "—" cells carry hidden text that tells "under 20 people" from "week not lived
+      yet", with the footnote above the tables.
+    - Its P3s are fixed: the stacked chart's tone has 3:1 contrast and a Total column;
+      the empty-chart copy; the count-list reading order; distinct list labels; no
+      `role="status"` on static text.
+    - Not seen: the populated charts and the full plan-quality state, since dev has no
+      such data yet.
+- **Deviations from plan**:
+  1. The phase started before its wait (owner's choice).
+  2. Retention is monthly only, with no week grouping (see the P2 above).
+  3. `plans/quality` counts until yesterday, not until now.
+  4. The floor is recorded as two counts, not one "days the floor bounded" (the
+     `plan-evaluator`'s decision); `planQuality` takes `minimumKcal` again.
+- **Decisions**: [`0071`](../../decisions/0071-the-service-records-what-leaves-no-row-and-the-console-watches-it.md).
+- **Notes for the next phase**:
+  - **Revisit this phase with real data** (from mid-October), once there are at least
+    10 scored plans in a period:
+    - compare the page's in-band share with the 99.4 % baseline (the plan's
+      verification);
+    - look at the populated charts and the full state in the browser;
+    - check that `usedTheApp` fills in from 2026-10-06.
+  - Plans generated before 2026-09-29 carry no `quality`, and plans between phase 1 and
+    this deploy carry no floor counts. The page gives each its own "desde".
+  - Phase 6 (alerts) and phase 7 (the terms) remain.

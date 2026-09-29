@@ -13,6 +13,22 @@ export type CronRunRow = { readonly at: Date; readonly job: string };
 /** Mail handed to the provider on one Madrid day: one template, one outcome, and how many. The controller never lets these per-day-per-template rows out. */
 export type MailDayRow = { readonly day: string; readonly failed: boolean; readonly kind: string; readonly n: number };
 
+/**
+ * One job's runs on one Madrid day, summed (`0071`): how many times it ran and
+ * its counts. `pending` is the last run's, since it is a state and not a flow;
+ * a run held back by the cap (`skipped: 'cap'`) is counted in `heldByCap` and
+ * adds nothing else, so its recorded zeros are not read as "nothing left".
+ */
+export type CronDayRow = {
+  readonly day: string;
+  readonly heldByCap: number;
+  readonly pending: number | null;
+  readonly rewritten: number;
+  readonly runs: number;
+  readonly skipped: number;
+  readonly unreached: number;
+};
+
 /** A JSON string property read as text, and only when it is a string. */
 function text(key: string) {
   return sql<
@@ -56,6 +72,37 @@ export const AdminSystemRepository = {
         .groupBy(sql`1`, sql`2`, sql`3`);
 
       return rows.map(row => ({ ...row, kind: row.kind ?? 'unknown' }));
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /** A job's `cron_run`s per Madrid day, in the rewrite sweep's counts. Mode: one grouped query over the event's index. */
+  async rewriteRunsPerDay(from: Date, to: Date): Promise<readonly CronDayRow[]> {
+    try {
+      const day = madridDay(analyticsEvents.createdAt);
+      const props = analyticsEvents.properties;
+      const held = sql`(jsonb_typeof(${props} -> 'skipped') = 'string' and ${props} ->> 'skipped' = 'cap')`;
+      // The number under a key, for the runs that are not held back by the cap.
+      const counted = (key: string) =>
+        sql`case when not ${held} and jsonb_typeof(${props} -> ${key}::text) = 'number' then (${props} ->> ${key}::text)::int else 0 end`;
+      const rows = await database()
+        .select({
+          day,
+          heldByCap: sql<number>`count(*) filter (where ${held})`.mapWith(Number),
+          pending: sql<
+            number | null
+          >`(array_agg((${props} ->> 'pending')::int order by ${analyticsEvents.createdAt} desc) filter (where not ${held} and jsonb_typeof(${props} -> 'pending') = 'number'))[1]`,
+          rewritten: sql<number>`coalesce(sum(${counted('rewritten')}), 0)`.mapWith(Number),
+          runs: count(),
+          skipped: sql<number>`coalesce(sum(${counted('skipped')}), 0)`.mapWith(Number),
+          unreached: sql<number>`coalesce(sum(${counted('unreached')}), 0)`.mapWith(Number)
+        })
+        .from(analyticsEvents)
+        .where(and(eq(analyticsEvents.event, 'cron_run'), sql`${props} ->> 'job' = 'rewrite'`, within(analyticsEvents.createdAt, from, to)))
+        .groupBy(day);
+
+      return rows.map(row => ({ ...row, pending: row.pending === null ? null : Number(row.pending) }));
     } catch (error: unknown) {
       throw wrap(error);
     }

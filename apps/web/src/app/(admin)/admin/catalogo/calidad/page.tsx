@@ -1,3 +1,5 @@
+import { Fragment } from 'react';
+
 import { notFound } from 'next/navigation';
 
 import styles from './page.module.css';
@@ -9,6 +11,7 @@ import { StatTile } from 'ui/components/StatTile';
 
 import { AdminCountList } from 'components/AdminCountList';
 import { AdminPageHeader } from 'components/AdminPageHeader';
+import { AdminReflowTable } from 'components/AdminReflowTable';
 import { AdminSection } from 'components/AdminSection';
 import { Card } from 'components/Card';
 import { HowCounted } from 'components/HowCounted';
@@ -16,13 +19,14 @@ import { PeriodSelector } from 'components/PeriodSelector';
 
 import { DEFAULT_PERIOD } from 'core/entities/Period';
 
-import { formatNumber, interpolate } from 'lib/format';
+import { formatDate, formatNumber, formatUsd, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../../consoleMetadata';
 
 import type { AdminCatalogueQualityView } from 'core/controllers/Admin';
 import type { AdminCountRow } from 'components/AdminCountList';
+import type { DataTableRow } from 'ui/components/DataTable';
 import type { Metadata } from 'next';
 import type { PageQuery } from 'components/PeriodSelector';
 import type { RecipeCheck } from 'core/entities/AdminQuery';
@@ -102,6 +106,41 @@ export default async function AdminQualityPage({ searchParams }: { searchParams:
     }
   ];
 
+  const { sweepHistory: history } = quality;
+  const dollars = (value: number) => formatUsd(value, locale);
+  const noData = (
+    <Fragment>
+      <span aria-hidden="true">—</span>
+      <span className="visually-hidden">{t.historyNoData}</span>
+    </Fragment>
+  );
+  const historyRows: DataTableRow[] = history.days.flatMap((day, index) => {
+    const runs = history.runs[index] ?? 0;
+    const calls = history.calls[index] ?? 0;
+    const pending = history.pending[index];
+
+    if (runs === 0 && calls === 0) {
+      return [];
+    }
+
+    return [
+      {
+        id: day,
+        cells: {
+          calls: number(calls),
+          cost: dollars(history.costUsd[index] ?? 0),
+          day: formatDate(day, locale, { day: 'numeric', month: 'short' }),
+          heldByCap: number(history.heldByCap[index] ?? 0),
+          pending: pending === null || pending === undefined ? noData : number(pending),
+          rewritten: number(history.rewritten[index] ?? 0),
+          runs: number(runs),
+          skipped: number(history.skipped[index] ?? 0),
+          unreached: number(history.unreached[index] ?? 0)
+        }
+      }
+    ];
+  });
+
   const sweepTiles = [
     ['current', sweep.current],
     ['pending', sweep.pending],
@@ -121,7 +160,7 @@ export default async function AdminQualityPage({ searchParams }: { searchParams:
 
       <AdminSection note={t.lookNote} title={t.lookTitle}>
         <div className={styles.stack}>
-          <AdminCountList label={t.lookTitle} rows={lookRows} />
+          <AdminCountList label={t.lookLabel} rows={lookRows} />
           <Card>
             <ColumnChart
               className={styles.chart}
@@ -150,6 +189,60 @@ export default async function AdminQualityPage({ searchParams }: { searchParams:
             </Card>
           ))}
         </ul>
+      </AdminSection>
+
+      <AdminSection note={t.historyNote} title={t.historyTitle}>
+        <div className={styles.stack}>
+          <Card>
+            <ColumnChart
+              className={styles.chart}
+              dataLabel={common.dataLabel}
+              emptyLabel={t.historyEmpty}
+              labels={history.days}
+              labelsHeader={common.day}
+              locale={locale}
+              series={[
+                { name: t.historySeries.rewritten, tone: 'success', values: history.rewritten },
+                { name: t.historySeries.skipped, tone: 'neutral', values: history.skipped },
+                { name: t.historySeries.unreached, tone: 2, values: history.unreached },
+                { name: t.historySeries.heldByCap, tone: 1, values: history.heldByCap }
+              ]}
+              stacked={true}
+              title={t.historyChart}
+              totalLabel={t.historyTotal}
+            />
+          </Card>
+          <Card>
+            <ColumnChart
+              className={styles.chart}
+              dataLabel={common.dataLabel}
+              emptyLabel={t.historyEmpty}
+              formatValue={dollars}
+              labels={history.days}
+              labelsHeader={common.day}
+              locale={locale}
+              series={[{ name: t.historyCostSeries, values: history.costUsd }]}
+              title={t.historyCostChart}
+            />
+          </Card>
+          <AdminReflowTable
+            caption={t.historyRunsCaption}
+            columns={[
+              { header: common.day, key: 'day' },
+              { align: 'end', header: t.historyRunsHeader, key: 'runs' },
+              { align: 'end', header: t.historySeries.rewritten, key: 'rewritten' },
+              { align: 'end', header: t.historySeries.skipped, key: 'skipped' },
+              { align: 'end', header: t.historySeries.unreached, key: 'unreached' },
+              { align: 'end', header: t.historySeries.heldByCap, key: 'heldByCap' },
+              { align: 'end', header: t.historyPending, key: 'pending' },
+              { align: 'end', header: t.historyCalls, key: 'calls' },
+              { align: 'end', header: t.historyCost, key: 'cost' }
+            ]}
+            empty={t.historyRunsEmpty}
+            rows={historyRows}
+            showCaption={true}
+          />
+        </div>
       </AdminSection>
 
       <HowCounted notes={t.howCounted} summary={common.howCounted} />

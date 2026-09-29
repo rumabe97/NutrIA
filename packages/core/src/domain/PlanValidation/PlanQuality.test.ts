@@ -12,7 +12,15 @@ function band(kind: BandKind, dayIndex: number): PlanViolation {
   return { actual: 1, dayIndex, kind, target: 2, tolerance: 0.05 };
 }
 
-const base: PlanQualityInput = { dayIndexes: FORTNIGHT, dayTargets: new Map(), fallback: null, loadsRefused: 0, targets: TARGETS, violations: [] };
+const base: PlanQualityInput = {
+  dayIndexes: FORTNIGHT,
+  dayTargets: new Map(),
+  fallback: null,
+  loadsRefused: 0,
+  minimumKcal: 1200,
+  targets: TARGETS,
+  violations: []
+};
 
 const NO_ADVISORIES = { carbs_out_of_band: 0, fat_out_of_band: 0, kcal_out_of_band: 0, protein_above_target: 0, protein_below_target: 0, variety: 0 };
 
@@ -21,6 +29,8 @@ describe('planQuality', () => {
     expect(planQuality(base)).toEqual({
       advisoriesByKind: NO_ADVISORIES,
       days: 14,
+      daysFloorNarrowed: 0,
+      daysFloorNarrowedOutOfBand: 0,
       daysInBand: 14,
       eventDays: 0,
       eventDaysInBand: 0,
@@ -100,6 +110,33 @@ describe('planQuality', () => {
     expect(quality.eventDays).toBe(2);
     expect(quality.eventDaysInBand).toBe(1);
     expect(quality.daysInBand).toBe(12);
+  });
+
+  it('counts the days the energy floor narrows the band, by each day’s own target, and of those the days out of band', () => {
+    const low = { ...TARGETS, kcal: 1500 };
+    // 1500 × 0.95 = 1425 < 1500 narrows; 1600 × 0.95 = 1520 does not; 1578 × 0.95 = 1499.1 narrows too, and that day is in band.
+    const dayTargets = new Map([
+      [2, low],
+      [3, { ...TARGETS, kcal: 1600 }],
+      [4, { ...TARGETS, kcal: 1578 }]
+    ]);
+    const quality = planQuality({
+      ...base,
+      dayTargets,
+      minimumKcal: 1500,
+      targets: { ...TARGETS, kcal: 1900 },
+      violations: [band('kcal_out_of_band', 2), band('fat_out_of_band', 9)]
+    });
+
+    expect(quality.daysFloorNarrowed).toBe(2);
+    expect(quality.daysFloorNarrowedOutOfBand).toBe(1);
+  });
+
+  it('counts a plan whose every day sits above the floor as narrowed nowhere', () => {
+    const quality = planQuality({ ...base, minimumKcal: 1500, violations: [band('kcal_out_of_band', 2)] });
+
+    expect(quality.daysFloorNarrowed).toBe(0);
+    expect(quality.daysFloorNarrowedOutOfBand).toBe(0);
   });
 
   it('carries the fallback and the refused loads as they came', () => {

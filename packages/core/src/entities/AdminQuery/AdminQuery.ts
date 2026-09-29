@@ -235,3 +235,8 @@ export const ingredientCatalogueQuerySchema = z.object({
 });
 
 export type IngredientCatalogueQuery = z.infer<typeof ingredientCatalogueQuerySchema>;
+
+/** `GET /admin/retention` takes no parameter (monthly cohorts only): any query key is refused. */
+export const retentionQuerySchema = z.object({}).strict();
+
+export type RetentionQuery = z.infer<typeof retentionQuerySchema>;

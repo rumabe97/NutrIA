@@ -367,6 +367,8 @@ describe('PlanGenerationService', () => {
     expect(Object.keys(quality).sort()).toEqual([
       'advisoriesByKind',
       'days',
+      'daysFloorNarrowed',
+      'daysFloorNarrowedOutOfBand',
       'daysInBand',
       'eventDays',
       'eventDaysInBand',

@@ -160,6 +160,11 @@ describe('access: two locks, and the shape of a denial', () => {
       '/admin/system?period=12',
       '/admin/catalogue/recipes?check=over_bound',
       '/admin/catalogue/recipes?check=nope',
+      // Plan quality and retention (project 008 phase 5): plain, and with a query they would refuse.
+      '/admin/plans/quality',
+      '/admin/plans/quality?period=12',
+      '/admin/retention',
+      '/admin/retention?grouping=year',
       '/health-data'
     ];
 

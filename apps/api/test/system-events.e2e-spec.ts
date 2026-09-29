@@ -100,11 +100,22 @@ describe('what the service records without a person behind it (0071, phase 1)', 
       }
 
       // Exact keys (`packages/core/src/domain/PlanValidation/PlanQuality.ts`):
-      // `daysUnderFloorBand` stays out of phase 1 — `plan-evaluator` could not
-      // confirm its definition against the stop signal, so it is deferred to
-      // phase 5 and must not appear here yet.
+      // Phase 5 adds the two energy-floor counts (`daysFloorNarrowed` and
+      // `daysFloorNarrowedOutOfBand`); the never-defined `daysUnderFloorBand`
+      // stays out.
       expect(Object.keys(quality).sort()).toEqual(
-        ['advisoriesByKind', 'days', 'daysInBand', 'eventDays', 'eventDaysInBand', 'fallback', 'loadsRefused', 'missesByMacro'].sort()
+        [
+          'advisoriesByKind',
+          'days',
+          'daysFloorNarrowed',
+          'daysFloorNarrowedOutOfBand',
+          'daysInBand',
+          'eventDays',
+          'eventDaysInBand',
+          'fallback',
+          'loadsRefused',
+          'missesByMacro'
+        ].sort()
       );
       expect(Object.keys(quality['missesByMacro'] as Record<string, unknown>).sort()).toEqual(['carbs', 'fat', 'kcal', 'protein']);
       expect(Object.keys(quality['advisoriesByKind'] as Record<string, unknown>).sort()).toEqual(
@@ -118,6 +129,14 @@ describe('what the service records without a person behind it (0071, phase 1)', 
       }
 
       expect(quality['days']).toBe(plan.days.length);
+
+      // The two floor counts are whole numbers of days, the second inside the first and inside the plan.
+      const narrowed = quality['daysFloorNarrowed'] as number;
+      const narrowedOut = quality['daysFloorNarrowedOutOfBand'] as number;
+
+      expect(Number.isInteger(narrowed) && Number.isInteger(narrowedOut)).toBe(true);
+      expect(narrowedOut).toBeLessThanOrEqual(narrowed);
+      expect(narrowed).toBeLessThanOrEqual(plan.days.length);
     });
   });
 

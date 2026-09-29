@@ -3,6 +3,8 @@ export * from './AdminCatalogueRepository';
 export * from './AdminConsentRepository';
 export * from './AdminGenerationsRepository';
 export * from './AdminNotificationRepository';
+export * from './AdminPlanQualityRepository';
 export * from './AdminRepository';
+export * from './AdminRetentionRepository';
 export * from './AdminSeriesRepository';
 export * from './AdminSystemRepository';

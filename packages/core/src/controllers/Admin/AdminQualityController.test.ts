@@ -8,12 +8,16 @@ import type { QualityRecipeRow } from '#repositories/Admin';
 
 const repository = vi.hoisted(() => ({ mealsOutsideServingBounds: vi.fn(), picturesFailed: vi.fn(), qualityRecipes: vi.fn() }));
 const generations = vi.hoisted(() => ({ rejectionsPerDay: vi.fn() }));
+const runs = vi.hoisted(() => ({ rewriteRunsPerDay: vi.fn() }));
+const spend = vi.hoisted(() => ({ featurePerDay: vi.fn() }));
 const loadCatalogue = vi.hoisted(() => vi.fn());
 
 vi.mock('#repositories/Admin', () => ({
+  AdminAiRepository: spend,
   AdminCatalogueRepository: repository,
   AdminGenerationsRepository: generations,
   AdminRepository: {},
+  AdminSystemRepository: runs,
   JOB_STATUSES: [],
   PLAN_STATUSES: []
 }));
@@ -41,6 +45,8 @@ beforeEach(() => {
   repository.mealsOutsideServingBounds.mockResolvedValue(0);
   repository.picturesFailed.mockResolvedValue(0);
   generations.rejectionsPerDay.mockResolvedValue([]);
+  runs.rewriteRunsPerDay.mockResolvedValue([]);
+  spend.featurePerDay.mockResolvedValue([]);
 });
 
 describe('AdminQualityController.quality', () => {
@@ -83,6 +89,28 @@ describe('AdminQualityController.quality', () => {
     expect(generations.rejectionsPerDay).toHaveBeenCalledWith('oversized', new Date('2026-09-22T22:00:00Z'), NOW);
     expect(view.toLookAt.oversizedRejections.days).toHaveLength(7);
     expect(view.toLookAt.oversizedRejections.values).toEqual([0, 0, 0, 0, 0, 5, 0]);
+  });
+
+  it('lays the sweep’s runs and spend on the period’s days: a quiet day is 0, a day with no run has no pending', async () => {
+    repository.qualityRecipes.mockResolvedValue([]);
+    runs.rewriteRunsPerDay.mockResolvedValue([
+      { day: '2026-09-27', heldByCap: 0, pending: 40, rewritten: 3, runs: 1, skipped: 1, unreached: 36 },
+      { day: '2026-09-28', heldByCap: 1, pending: null, rewritten: 0, runs: 1, skipped: 0, unreached: 0 }
+    ]);
+    spend.featurePerDay.mockResolvedValue([{ calls: 4, costUsd: 0.0123456789, day: '2026-09-27' }]);
+
+    const { sweepHistory } = await AdminQualityController.quality(7, STEPS, NOW);
+
+    expect(spend.featurePerDay).toHaveBeenCalledWith('rewrite', new Date('2026-09-22T22:00:00Z'), NOW);
+    expect(sweepHistory.days).toHaveLength(7);
+    expect(sweepHistory.runs).toEqual([0, 0, 0, 0, 1, 1, 0]);
+    expect(sweepHistory.rewritten).toEqual([0, 0, 0, 0, 3, 0, 0]);
+    expect(sweepHistory.skipped).toEqual([0, 0, 0, 0, 1, 0, 0]);
+    expect(sweepHistory.unreached).toEqual([0, 0, 0, 0, 36, 0, 0]);
+    expect(sweepHistory.heldByCap).toEqual([0, 0, 0, 0, 0, 1, 0]);
+    expect(sweepHistory.pending).toEqual([null, null, null, null, 40, null, null]);
+    expect(sweepHistory.calls).toEqual([0, 0, 0, 0, 4, 0, 0]);
+    expect(sweepHistory.costUsd).toEqual([0, 0, 0, 0, 0.012346, 0, 0]);
   });
 
   it('loads only the ingredients the catalogue’s recipes use', async () => {

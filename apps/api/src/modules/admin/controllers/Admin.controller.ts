@@ -2,7 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import { AdminService } from '../services/index.js';
-import { PeriodQueryDto } from '../dto/in/index.js';
+import { PeriodQueryDto, RetentionQueryDto } from '../dto/in/index.js';
 import { Roles } from '../../../shared/index.js';
 import { PERIOD_PARAMETER, ZodQuery } from './ZodQuery.js';
 
@@ -13,8 +13,10 @@ import type {
   AdminNotificationsDto,
   AdminPeopleDto,
   AdminPicturesPeriodDto,
+  AdminPlanQualityDto,
   AdminPlansDto,
   AdminProductDto,
+  AdminRetentionDto,
   AdminSummaryDto
 } from '../dto/out/index.js';
 
@@ -118,6 +120,27 @@ export class AdminController {
   @Get('plans')
   async plans(@PeriodQuery() query: PeriodQueryDto): Promise<AdminPlansDto> {
     return this.admin.plans(query);
+  }
+
+  @ApiOkResponse({
+    description:
+      'How the plans made in the period were delivered against the bar, summed over every plan and never per plan or per day: plans, days, days in band on all four macros, misses per macro, event days, advisories by kind, plans that fell back, loads refused, and the days the energy floor narrowed. `fewData` is true below `minPlans` scored plans (counts only, `shares` null). Plans before 2026-09-29 carry no quality and are counted apart. 422 INVALID_INPUT for a period other than 7, 30 or 90.'
+  })
+  @ApiOperation({ summary: 'Plan quality over a period (0071)' })
+  @ApiQuery(PERIOD_PARAMETER)
+  @Get('plans/quality')
+  async planQuality(@PeriodQuery() query: PeriodQueryDto): Promise<AdminPlanQualityDto> {
+    return this.admin.planQuality(query);
+  }
+
+  @ApiOkResponse({
+    description:
+      'Sign-up cohorts (the last six months) and how many distinct people were active 1, 2 and 4 weeks after their own sign-up day, in two readings: did something (a completion, swap, completed check-in or progress entry, from day one) and used the app (a sign-in or session use, from 2026-09-29). Counts of people only: `active` is null unless `eligible` is 20 or more (`enough`); no account id. 422 INVALID_INPUT for any query parameter.'
+  })
+  @ApiOperation({ summary: 'Retention by sign-up cohort (0071)' })
+  @Get('retention')
+  async retention(@ZodQuery(RetentionQueryDto) _query: RetentionQueryDto): Promise<AdminRetentionDto> {
+    return this.admin.retention();
   }
 
   @ApiOkResponse({
