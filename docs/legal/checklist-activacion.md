@@ -126,4 +126,5 @@
 ## 3. Con fecha
 
 - [ ] **2/12/2026** — Art. 50.2 Ley de IA: recetas marcadas como generadas por IA en formato legible por máquina (P2-8).
+- [ ] **30 días después de desplegar el aviso de cuenta esperando sin dirección** (enmienda de `0029`, 2026-09-29) — quitar `GET /admin/activate` y `ActivationLink.ts` (ya no queda ningún token válido), y el propietario borra del buzón y de la papelera los avisos antiguos que llevan la dirección de cada alta (arts. 5.1.e y 32; [adenda](./2026-09-29-correos-al-propietario.md#adenda-2026-09-29-tarde-el-aviso-de-cuenta-esperando-resuelto-y-un-cuarto-aviso) § 3).
 - [ ] Cada año, o al superar unos miles de cuentas con salud — revisar EIPD, RAT y la necesidad de DPD.

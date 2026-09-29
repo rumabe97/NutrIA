@@ -7,8 +7,8 @@ import type { SpendSource, SpendThreshold } from 'core/controllers/Admin';
 
 /**
  * To the owner, at once, when something cannot wait for the morning's digest
- * (`0071`): three generations in a row that failed, or a month's spend that
- * has reached 80 % or 100 % of its cap.
+ * (`0071`): three generations in a row that failed, a month's spend that
+ * has reached 80 % or 100 % of its cap, or the reminders cron gone quiet.
  *
  * Numbers, codes from a closed list and a link — the same rule as the digest,
  * for the same reason, and held by the same kind of spec.
@@ -24,7 +24,8 @@ export type OwnerAlert =
       readonly threshold: SpendThreshold;
       readonly type: 'spend';
     }
-  | { readonly codes: readonly string[]; readonly type: 'failures' };
+  | { readonly codes: readonly string[]; readonly type: 'failures' }
+  | { readonly type: 'reminders-silent' };
 
 const SOURCE = { pictures: 'imágenes', text: 'texto' } as const;
 
@@ -34,23 +35,33 @@ function usd(value: number): string {
 
 export function ownerAlertEmail({ alert, link }: { alert: OwnerAlert; link: (path: string) => string }): RenderedEmail {
   const copy =
-    alert.type === 'failures'
+    alert.type === 'reminders-silent'
       ? {
-          again: 'Si sigue fallando, no volverás a recibir este aviso durante 6 horas.',
-          button: 'Abrir el registro',
-          detail: `Códigos, del más reciente al más antiguo: ${alert.codes.map(safeCode).join(', ')}.`,
-          intro: 'Las tres últimas generaciones de planes terminaron en fallo, una tras otra.',
-          subject: 'NutrIA — tres generaciones seguidas han fallado',
-          url: link('/admin/generacion?status=failed&since=24h')
+          again: 'Si sigue sin correr, no volverás a recibir este aviso hasta mañana.',
+          button: 'Abrir Sistema',
+          detail:
+            'Los recordatorios, el resumen de la mañana y el borrado de las invitaciones caducadas salen de esa tarea: mientras no corra, no ocurren.',
+          intro: 'La tarea de recordatorios lleva más de 26 h sin correr.',
+          subject: 'NutrIA — la tarea de recordatorios lleva más de 26 h sin correr',
+          url: link('/admin/ajustes/sistema')
         }
-      : {
-          again: 'Un aviso por umbral y mes: no volverá a llegar hasta el mes que viene.',
-          button: 'Abrir el gasto',
-          detail: `Van ${usd(alert.spentUsd)} de ${usd(alert.capUsd)}, el ${String(Math.round(alert.share * 100))} % del tope.`,
-          intro: `El gasto de ${SOURCE[alert.source]} de este mes ha llegado al ${String(alert.threshold)} % de su tope.`,
-          subject: `NutrIA — el gasto de ${SOURCE[alert.source]} ha llegado al ${String(alert.threshold)} %`,
-          url: link(alert.source === 'text' ? '/admin/generacion/ia' : '/admin/catalogo/imagenes')
-        };
+      : alert.type === 'failures'
+        ? {
+            again: 'Si sigue fallando, no volverás a recibir este aviso durante 6 horas.',
+            button: 'Abrir el registro',
+            detail: `Códigos, del más reciente al más antiguo: ${alert.codes.map(safeCode).join(', ')}.`,
+            intro: 'Las tres últimas generaciones de planes terminaron en fallo, una tras otra.',
+            subject: 'NutrIA — tres generaciones seguidas han fallado',
+            url: link('/admin/generacion?status=failed&since=24h')
+          }
+        : {
+            again: 'Un aviso por umbral y mes: no volverá a llegar hasta el mes que viene.',
+            button: 'Abrir el gasto',
+            detail: `Van ${usd(alert.spentUsd)} de ${usd(alert.capUsd)}, el ${String(Math.round(alert.share * 100))} % del tope.`,
+            intro: `El gasto de ${SOURCE[alert.source]} de este mes ha llegado al ${String(alert.threshold)} % de su tope.`,
+            subject: `NutrIA — el gasto de ${SOURCE[alert.source]} ha llegado al ${String(alert.threshold)} %`,
+            url: link(alert.source === 'text' ? '/admin/generacion/ia' : '/admin/catalogo/imagenes')
+          };
 
   const html = layout({
     body: [paragraph(copy.intro), paragraph(copy.detail), button(copy.url, copy.button), paragraph(copy.again, 'muted')].join('\n'),

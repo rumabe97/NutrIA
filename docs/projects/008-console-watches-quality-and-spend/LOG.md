@@ -493,3 +493,42 @@
     - the digest's reminders-cron blind spot.
   - After the merge, migration 0049 runs against production during the API's build. It is
     already applied on the dev branch.
+
+## Follow-ups after phase 7 (2026-09-29)
+
+- **Executor**:
+  - `tests` (medium): phase 6's end-to-end cases;
+  - `backend` (medium, twice): the crons watching each other, and the account-waiting mail;
+  - `frontend-low`: the notice's links in a new tab;
+  - `legal`: the record of both mails.
+  
+  Each worked in its own worktree, which was brought into the main checkout and removed. The
+  lead made the review fixes. Review: `invariant-reviewer`, no P0 or P1.
+- **What changed**:
+  - **Phase 6's end to end** (`owner-alerts.e2e-spec.ts`, 9/9 locally): silent without
+    config; the digest once a Madrid day, with a refused send releasing its claim; one
+    streak alert with none on the fourth failure; a spend-cap alert; no `@`, uuid or `usr-`
+    in any captured mail; `/cron/reminders` answering when the digest throws. The admin
+    suite counts the owner mail kinds.
+  - **The crons watch each other**: `/cron/rewrite-steps` alerts the owner when
+    `/cron/reminders` has been silent for more than 26 h. The alert is claimed for 20 h (one
+    a day) and the watch gets at most 10 s before the sweep starts. `apps/api/AGENTS.md`
+    no longer says no cron is scheduled.
+  - **The account-waiting mail carries no address, name, id or token** (owner, 2026-09-29).
+    It links to Cuentas' waiting accounts. The mail-link route stays until tokens already
+    sent expire; `docs/legal/checklist-activacion.md` dates their removal. Its failure log
+    line keeps only the error's class.
+  - **The terms notice's links open in a new tab**, and say so to screen readers.
+- **Evidence**:
+  - `gate.sh --full` is green; api 1063 unit tests.
+  - A local full end-to-end run was not usable: two runs overlapped on the shared dev
+    database. It showed the known `admin` flakes and a `care` block failing together,
+    which points to its setup, not this change. CI's full run decides.
+  - 27 leftover `@e2e.invalid` accounts from the interrupted runs were deleted from dev,
+    after the guard confirmed it was not production.
+- **Still open**:
+  - Phase 5 is revisited with real data from mid-October.
+  - The text gauge is compared with OpenRouter after a month.
+  - The owner deletes the old account-waiting mails, which carry addresses and live
+    tokens for up to 30 days.
+  - The mail-link route is removed 30 days after deploy.

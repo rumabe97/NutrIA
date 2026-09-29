@@ -17,6 +17,10 @@
 > **Mantenido por**: el agente `legal`. **Fecha de corte**: 2026-09-29, rama
 > `agent/008-phase6/backend` en `a1fac59` (**sin fusionar**: todo lo que sigue es verdad
 > una vez fusionada tal cual).
+>
+> **Adenda del mismo día** ([al final](#adenda-2026-09-29-tarde-el-aviso-de-cuenta-esperando-resuelto-y-un-cuarto-aviso)):
+> el § 5 (dirección en el aviso de cuenta esperando) queda **resuelto**, y hay un aviso más
+> (la tarea de recordatorios callada).
 
 ## 0. Veredicto
 
@@ -172,3 +176,68 @@ El aviso (`OwnerAlert.ts`) no lleva pie; no hace falta.
   `packages/core/src/repositories/Analytics/AnalyticsRepository.ts`;
   `apps/api/src/modules/meal-plans/services/PlanGeneration.service.ts`.
 - Decisiones `0029`, `0068`, `0071`.
+
+---
+
+## Adenda (2026-09-29, tarde): el aviso de cuenta esperando, resuelto, y un cuarto aviso
+
+> **Fecha de corte**: árbol de trabajo de la rama `admin-console-loose-ends` sobre
+> `e1332b4`, **sin commit ni fusión**: lo que sigue es verdad una vez fusionado tal cual.
+> Lo de arriba no se reescribe; esta adenda dice qué ha dejado de ser cierto.
+
+**1. § 5, primer punto: resuelto** por decisión del propietario
+([`LOG.md`](../decisions/LOG.md), 2026-09-29, enmienda de `0029`/`0030`). El aviso
+`account-waiting` ya no lleva la dirección, el nombre, el id ni un enlace de activación:
+dice que hay una cuenta esperando y enlaza a `/admin/cuentas?activated=no`, que solo abre
+con la sesión del propietario (`AccountWaiting.ts:15-32`; la función ni recibe la cuenta,
+`AccountWaitingMail.ts:32-36`; `AccountWaiting.spec.ts` lo sostiene en los dos idiomas). El
+log tampoco lleva ya el id del usuario, y el de un fallo solo la clase del error (`AccountWaitingMail.ts:46` y `49`). El P3
+propuesto (borrar esos correos tras activar o rechazar) deja de hacer falta para los
+nuevos: no hay nada que borrar. Se va algo más que la dirección: el botón llevaba un
+token firmado que abría la cuenta **sin sesión** durante 30 días (`ActivationLink.ts:4`);
+un buzón comprometido era una llave (arts. 5.1.f y 32). Texto tal como está:
+[`textos/06`](./textos/06-correos.md) § L.
+
+**2. Lo que deja de ser cierto arriba.**
+
+- § 2, «el aviso de `0029` ya le manda, por el mismo proveedor, **la dirección** de cada
+  alta. El resumen le manda menos que eso»: una vez fusionado, **ningún** correo al
+  propietario lleva la dirección de nadie. La conclusión del § 2 no cambia; su apoyo en
+  ese punto sí.
+- § 0 y el propósito hablan de **tres** correos: ahora son cinco tipos (el resumen, tres
+  avisos inmediatos y el de cuenta esperando).
+- § 3 sigue en pie y queda más firme: la lista de fines del proveedor de correo en la
+  política nunca nombró este aviso, y ahora no hace falta, porque por él no sale ningún
+  dato de usuario.
+
+**3. Lo que queda (residual, P3).** Los correos `account-waiting` enviados **antes** del
+cambio siguen en el buzón del propietario con la dirección de cada alta, y su enlace sigue
+abriendo la cuenta hasta que el token caduque (30 días desde que se envió);
+`GET /admin/activate` se mantiene solo para ellos y el código dice que se borre, con
+`ActivationLink.ts`, cuando hayan caducado (`AdminAccounts.controller.ts`, comentario de la
+ruta). Recomendación al propietario: **borrar esos correos** del buzón (y de la papelera)
+cuando haya actuado sobre cada cuenta — nada del producto los necesita, y la consola tiene
+lo mismo; y quitar la ruta 30 días después del despliegue. P2-10 (Gmail de consumo sin
+DPA) sigue abierto y no depende de esto.
+
+**4. Un cuarto aviso: la tarea de recordatorios callada.** `OwnerAlert.ts:38-46`,
+`type: 'reminders-silent'`, desde `/cron/rewrite-steps` (03:30 UTC) cuando
+`/cron/reminders` lleva más de 26 h sin terminar una ejecución (o no tiene ninguna); uno al
+día como mucho, reclamado para 20 h (`OwnerAlerts.service.ts:121-133`). Texto fijo y un enlace sin id: ningún dato de persona,
+y `OwnerMail.spec.ts` lo pasa por los mismos centinelas. **Veredicto: se puede enviar
+como está**; ni la política ni el registro cambian por él (fila 7 ya cubre «avisos»).
+Tiene una lectura jurídica a favor: `/cron/reminders` es también la que borra las
+invitaciones caducadas, cuyo plazo prometido es «como muy tarde al día siguiente» de
+caducar (registro, fila 5; art. 5.1.e), y este aviso es lo que le dice al propietario, el
+primer día, que esa promesa está en riesgo. Su `detail` no lo nombra: redacción **P3**
+opcional para `backend`, en [`textos/06`](./textos/06-correos.md) § K.
+
+**5. Nada nuevo que confirmar con un abogado**: el aviso nuevo y el aviso reducido caen en
+la misma lectura del § 6.1 (información anónima para el proveedor de correo).
+
+Fuentes de esta adenda: `git diff e1332b4` y `git status --short` en la rama
+`admin-console-loose-ends` (2026-09-29): `AccountWaiting.ts`, `AccountWaiting.spec.ts`,
+`AccountWaitingMail.ts`, `ActivationLink.ts`, `AdminAccounts.controller.ts`,
+`auth.config.ts`, `SelfService.ts`, `OwnerAlert.ts`, `OwnerMail.spec.ts`,
+`OwnerAlerts.service.ts`, `Cron.controller.ts`, `AdminAlertController.ts`,
+`apps/api/vercel.json`, `ExpiredInvitations.service.ts`; `docs/decisions/LOG.md`.

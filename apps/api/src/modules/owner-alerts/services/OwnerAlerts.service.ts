@@ -113,6 +113,25 @@ export class OwnerAlertsService {
     }
   }
 
+  /**
+   * The rewrite cron (03:30 UTC) watching the reminders cron (08:00 UTC), whose
+   * digest already reports the rewrite cron: neither can report itself dead. One
+   * mail a day while it stays silent — claimed for 20 h, so a cron that fires a little earlier than the day before still sends (`owner_alerted { kind: 'cron-silent-reminders' }`).
+   */
+  async watchReminders(now = new Date()): Promise<void> {
+    if (this.owner === undefined) {
+      return;
+    }
+
+    try {
+      if ((await AdminAlertController.silentCrons(now)).includes('reminders')) {
+        await this.deliver('cron-silent-reminders', new Date(now.getTime() - 20 * HOUR_MS), this.alert({ type: 'reminders-silent' }));
+      }
+    } catch (error: unknown) {
+      this.logger.error(`The reminders watch failed: ${error instanceof Error ? error.constructor.name : 'unknown'}`);
+    }
+  }
+
   private async failureStreak(now: Date): Promise<void> {
     try {
       const codes = await AdminAlertController.failureStreak();

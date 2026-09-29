@@ -74,6 +74,10 @@ export class AdminAccountsController {
   /**
    * The button in the owner's mail (`0030`).
    *
+   * Kept only for mails already in the inbox, whose tokens stay valid until
+   * they expire: no new mail issues one (the account-waiting mail links to the
+   * console instead). Delete this route, and `ActivationLink`, once they have.
+   *
    * Public because it is clicked from an inbox, where there is no session — the
    * signed token is the authority, it names one account, it expires, and it can
    * do nothing else. A bad or stale token is a 404 like every other denial, so

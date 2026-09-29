@@ -14,6 +14,10 @@ const TTL_MS = 30 * 24 * 60 * 60 * 1000;
  * the owner's own password. That is a deliberate trade for a button that works
  * from a phone at a bus stop, and it is why the token cannot do anything but
  * this.
+ *
+ * @knipignore No mail issues one any more (the account-waiting mail links to
+ * the console); the specs mint them to prove the mail-link route still honours
+ * the ones already sent. Delete with the route once they have expired.
  */
 export function activationToken(userId: string, secret: string, now = Date.now()): string {
   const expiresAt = now + TTL_MS;

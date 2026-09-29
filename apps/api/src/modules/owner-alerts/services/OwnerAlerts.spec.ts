@@ -39,8 +39,9 @@ function build({ configured = true, owner = OWNER as string | null, sent = true 
   const digest = jest.spyOn(AdminAlertController, 'digest').mockResolvedValue(QUIET);
   const failureStreak = jest.spyOn(AdminAlertController, 'failureStreak').mockResolvedValue(null);
   const spendCrossings = jest.spyOn(AdminAlertController, 'spendCrossings').mockResolvedValue([]);
+  const silentCrons = jest.spyOn(AdminAlertController, 'silentCrons').mockResolvedValue([]);
 
-  return { claim, digest, failureStreak, release, send, service, spendCrossings };
+  return { claim, digest, failureStreak, release, send, service, silentCrons, spendCrossings };
 }
 
 describe('OwnerAlertsService', () => {
@@ -52,12 +53,14 @@ describe('OwnerAlertsService', () => {
     ['without OWNER_EMAIL', { owner: null }],
     ['without SMTP', { configured: false }]
   ])('does nothing at all %s: no read, no claim, no mail', async (_name, options) => {
-    const { claim, digest, failureStreak, send, service, spendCrossings } = build(options);
+    const { claim, digest, failureStreak, send, service, silentCrons, spendCrossings } = build(options);
 
     await service.digest(NOW);
     await service.afterJob(true, NOW);
     await service.checkSpend(NOW);
+    await service.watchReminders(NOW);
 
+    expect(silentCrons).not.toHaveBeenCalled();
     expect(digest).not.toHaveBeenCalled();
     expect(failureStreak).not.toHaveBeenCalled();
     expect(spendCrossings).not.toHaveBeenCalled();
@@ -201,6 +204,53 @@ describe('OwnerAlertsService', () => {
       await service.afterJob(true, NOW);
 
       expect(spendCrossings).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('the reminders cron gone quiet', () => {
+    it('sends one alert with a link to Sistema, claimed for 20 h so a daily cron firing early still sends', async () => {
+      const { claim, send, service, silentCrons } = build();
+
+      silentCrons.mockResolvedValue(['reminders']);
+      await service.watchReminders(NOW);
+
+      expect(claim).toHaveBeenCalledWith('cron-silent-reminders', new Date(NOW.getTime() - 20 * 60 * 60 * 1000));
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send.mock.calls[0]?.[0].subject).toBe('NutrIA — la tarea de recordatorios lleva más de 26 h sin correr');
+      expect(send.mock.calls[0]?.[0].text).toContain('https://nutria.example/admin/ajustes/sistema');
+    });
+
+    it('sends nothing on a second call within 20 h, when the claim is already taken', async () => {
+      const { claim, send, service, silentCrons } = build();
+
+      silentCrons.mockResolvedValue(['reminders']);
+      claim.mockResolvedValueOnce('claim-1').mockResolvedValueOnce(null);
+      await service.watchReminders(NOW);
+      await service.watchReminders(new Date(NOW.getTime() + 60 * 60 * 1000));
+
+      expect(send).toHaveBeenCalledTimes(1);
+    });
+
+    it('sends nothing when the reminders ran recently, or only the rewrite is silent', async () => {
+      const { claim, send, service, silentCrons } = build();
+
+      await service.watchReminders(NOW);
+      silentCrons.mockResolvedValue(['rewrite']);
+      await service.watchReminders(NOW);
+
+      expect(claim).not.toHaveBeenCalled();
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('gives the claim back when the mail did not leave, and never throws', async () => {
+      const { release, service, silentCrons } = build({ sent: false });
+
+      silentCrons.mockResolvedValue(['reminders']);
+      await service.watchReminders(NOW);
+      expect(release).toHaveBeenCalledWith('claim-1');
+
+      silentCrons.mockRejectedValue(new Error('database gone'));
+      await expect(service.watchReminders(NOW)).resolves.toBeUndefined();
     });
   });
 });

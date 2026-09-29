@@ -4,6 +4,7 @@ import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { AnalyticsController } from 'core/controllers/Analytics';
 import { CareController } from 'core/controllers/Care';
 import { TERMS_VERSION } from 'core/entities/User';
+import { DEFAULT_WEB_LOCALE, webUrl } from 'core/domain/WebUrl';
 
 import { database } from 'database';
 import { account, rateLimit, session, user, verification } from 'database/schema/auth';
@@ -46,11 +47,7 @@ const SESSION_REFRESH_AGE_DAYS = 1;
  */
 export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | 'send'>, billing: Pick<BillingService, 'cancelEverything'>) {
   const providers = configuredSocialProviders(env);
-  const selfService = {
-    link: { apiUrl: `${env.BETTER_AUTH_URL}/${env.API_PREFIX}`, secret: env.BETTER_AUTH_SECRET },
-    mailer,
-    ownerEmail: env.OWNER_EMAIL
-  };
+  const selfService = { link: (path: string) => webUrl(env.APP_URL, path, DEFAULT_WEB_LOCALE), mailer, ownerEmail: env.OWNER_EMAIL };
 
   return betterAuth({
     account: {

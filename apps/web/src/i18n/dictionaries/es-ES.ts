@@ -932,6 +932,7 @@ export const esES = {
     legalNotice: 'Al crear tu cuenta aceptas las {terms}. Cómo tratamos tus datos te lo explica la {privacy}.',
     legalNoticeSignIn:
       'Si es la primera vez que entras con Google o Apple, se crea tu cuenta y aceptas las {terms}. Cómo tratamos tus datos te lo explica la {privacy}.',
+    legalOpensInTab: ' (se abre en una pestaña nueva)',
     legalPrivacy: 'política de privacidad',
     legalTerms: 'condiciones de uso',
     name: 'Nombre',

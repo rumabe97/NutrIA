@@ -6,7 +6,10 @@ import { UserController } from 'core/controllers/User';
 import { onAccountCreated, onAddressConfirmed } from './SelfService.js';
 
 const ACCOUNT = { id: 'usr-1', email: 'ada@example.invalid' };
-const LINK = { apiUrl: 'https://api.example.invalid/api/v1', secret: 'a'.repeat(48) };
+
+function LINK(path: string): string {
+  return `https://app.example.invalid${path}`;
+}
 
 function deps(sent = true) {
   return {

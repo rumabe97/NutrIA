@@ -185,6 +185,13 @@ export const AdminAlertController = {
     return AnalyticsRepository.releaseOwnerAlert(id);
   },
 
+  /** The crons whose last finished run is older than `CRON_STALE_HOURS`, or that never ran: the console's own rule, for a cron watching another. */
+  async silentCrons(now: Date): Promise<readonly CronJob[]> {
+    return cronStates(await AdminSystemRepository.lastCronRuns(), now)
+      .filter(cron => cron.stale)
+      .map(cron => cron.job);
+  },
+
   /** Each source whose month's spend is at 80 % of its cap or more, with the threshold it has reached. */
   async spendCrossings(now: Date, caps: OwnerAlertCaps): Promise<readonly SpendCrossing[]> {
     const spend = await spends(now, caps);

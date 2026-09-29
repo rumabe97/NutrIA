@@ -171,6 +171,18 @@ describe('the failure streak', () => {
   });
 });
 
+describe('the silent crons', () => {
+  it('names a cron past 26 h or never run, and none when both are recent', async () => {
+    expect(await AdminAlertController.silentCrons(NOW)).toEqual([]);
+
+    admin.lastCronRuns.mockResolvedValue([{ at: new Date(NOW.getTime() - 30 * HOUR), job: 'reminders' }]);
+    expect(await AdminAlertController.silentCrons(NOW)).toEqual(['reminders', 'rewrite']);
+
+    admin.lastCronRuns.mockResolvedValue([]);
+    expect(await AdminAlertController.silentCrons(NOW)).toEqual(['reminders', 'rewrite']);
+  });
+});
+
 describe('hasNews', () => {
   const quiet: OwnerDigest = {
     crons: [],

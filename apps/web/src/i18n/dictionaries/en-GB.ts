@@ -903,6 +903,7 @@ export const enGB: Dictionary = {
     legalNotice: 'By creating your account you accept the {terms}. How we handle your data is explained in the {privacy}.',
     legalNoticeSignIn:
       'If this is the first time you sign in with Google or Apple, your account is created and you accept the {terms}. How we handle your data is explained in the {privacy}.',
+    legalOpensInTab: ' (opens in a new tab)',
     legalPrivacy: 'privacy policy',
     legalTerms: 'terms of use',
     name: 'Name',

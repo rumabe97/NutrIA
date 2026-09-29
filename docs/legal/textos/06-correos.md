@@ -11,11 +11,16 @@
 > Ninguno lleva palabras de salud: un buzón se escanea y una pantalla de bloqueo es
 > pública (criterio ya aplicado en `CareInvitation.ts`, `0059`).
 >
-> **H, I y J son distintos**: no informan a nadie ni avisan de un contrato; son los
-> correos al propietario (`0071`), y están documentados **tal como están construidos**
-> (rama `agent/008-phase6/backend`, `a1fac59`), no como borrador. Solo en español
-> (`const LOCALE = 'es-ES'` en `OwnerDigest.ts:23` y `OwnerAlert.ts:16`, como `OWNER_LOCALE` en `AccountWaitingMail.ts:7`), así que su columna en-GB es `—`. Revisión y veredicto:
-> [`../2026-09-29-correos-al-propietario.md`](../2026-09-29-correos-al-propietario.md).
+> **H a L son distintos**: no informan a nadie ni avisan de un contrato; son los
+> correos al propietario (`0071`, `0029`), y están documentados **tal como están
+> construidos**, no como borrador: H, I y J en la rama `agent/008-phase6/backend`
+> (`a1fac59`, fusionada en `0ca076c`, #161); K y L en el árbol de trabajo de `admin-console-loose-ends`
+> sobre `e1332b4`, **sin commit ni fusión** (verdad una vez fusionado tal cual). Solo se
+> envían en español (`const LOCALE = 'es-ES'` en `OwnerDigest.ts:23` y `OwnerAlert.ts:16`,
+> `OWNER_LOCALE` en `AccountWaitingMail.ts:6`), así que su columna en-GB es `—`, salvo en L,
+> cuya plantilla tiene inglés aunque nunca se envíe. Revisión y veredicto:
+> [`../2026-09-29-correos-al-propietario.md`](../2026-09-29-correos-al-propietario.md) (con su
+> adenda del mismo día para K y L).
 >
 > **Marcadores**: `{name}` en estas plantillas es el del profesional o el del
 > destinatario, como hoy. El titular de NutrIA no se nombra en el correo: se enlaza a la
@@ -209,3 +214,61 @@ del 79 % al 100 %, sale solo el de 100). `{fuente}`: `texto` o `imágenes`; `{um
 | `again` | `Un aviso por umbral y mes: no volverá a llegar hasta el mes que viene.` | — |
 
 <!-- Fuente: OwnerAlert.ts:29 y 47-52, OwnerAlerts.service.ts (spendAlert, checkSpend), a1fac59; topes AI_TEXT_MONTHLY_CAP_USD y AI_IMAGE_MONTHLY_CAP_USD (0071, 0064). Sin ningún dato de persona: cifras de gasto del servicio. Sin efecto jurídico; mismo fundamento de forma que H. -->
+
+---
+
+## K. Aviso al propietario: la tarea de recordatorios lleva más de 26 h sin correr (tal como está — `0071`)
+
+**Plantilla**: `OwnerAlert.ts:38-46`, `type: 'reminders-silent'`, `EmailKind` `owner-alert`.
+**Destinatario**: solo `OWNER_EMAIL`, y solo si hay SMTP (`OwnerAlerts.service.ts:54`).
+**Cuándo**: lo primero que hace `/cron/rewrite-steps` (03:30 UTC, `apps/api/vercel.json`),
+antes del barrido y aunque el barrido esté parado por el tope, vacío o falle
+(`Cron.controller.ts:69`): si la última ejecución terminada de `/cron/reminders` (08:00 UTC)
+tiene más de 26 h, o no hay ninguna (`AdminAlertController.silentCrons`,
+`CRON_STALE_HOURS = 26`, `cronStates` en `AdminSystemController.ts:121-131`, la misma regla
+que la consola), sale el aviso; uno al día mientras siga callada, reclamado para 20 h para
+que una ejecución algo más temprana que la del día anterior no lo pierda
+(`owner_alerted { kind: 'cron-silent-reminders' }`, `OwnerAlerts.service.ts:121-133`). **Marcadores**: ninguno; el texto es fijo.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `NutrIA — la tarea de recordatorios lleva más de 26 h sin correr` | — |
+| `intro` | `La tarea de recordatorios lleva más de 26 h sin correr.` | — |
+| `detail` | `Los recordatorios, el resumen de la mañana y el borrado de las invitaciones caducadas salen de esa tarea: mientras no corra, no ocurren.` | — |
+| `button` | `Abrir Sistema` → `/admin/ajustes/sistema` | — |
+| `again` | `Si sigue sin correr, no volverás a recibir este aviso hasta mañana.` | — |
+
+<!-- Fuente: OwnerAlert.ts:28 y 38-46, OwnerAlerts.service.ts:121-133 (watchReminders; ventana de 20 h), Cron.controller.ts:65-69, AdminAlertController.silentCrons, AdminSystemController.ts:61 (CRON_STALE_HOURS) y 121-131 (cronStates: sin ejecución también cuenta como callada), vercel.json crons; árbol de trabajo de admin-console-loose-ends sobre e1332b4, sin commit. Es el más limpio de los avisos: no lleva ni un número ni un código, solo texto fijo y un enlace sin id; OwnerMail.spec.ts lo incluye en ALERTS y lo pasa por los mismos centinelas que I y J. Sin ningún dato de persona; sin efecto jurídico frente a nadie. Mismo fundamento de forma que H (arts. 5.1.c, 5.1.f y 32). Lo que sí tiene alcance jurídico es lo que vigila: /cron/reminders también borra las invitaciones caducadas (ExpiredInvitationsService.forget, antes del barrido de recordatorios), y los textos prometen borrarlas «como muy tarde al día siguiente» de caducar (registro, fila 5: ≤ 15 días; art. 5.1.e). Si la tarea no corre, esa promesa deja de cumplirse, y este aviso es lo que se lo dice al propietario en el primer día. `detail` no lo nombra: es cierto en lo que dice e incompleto (P3, redacción; propuesta: «Los recordatorios, el resumen de la mañana y el borrado de las invitaciones caducadas salen de esa tarea: mientras no corra, no ocurren.»). Un fallo del borrado con la tarea en marcha no dispara el aviso (forget no lanza); ese caso queda en el log. -->
+
+---
+
+## L. Aviso al propietario: una cuenta está esperando (tal como está — `0029`, enmendado el 2026-09-29)
+
+**Plantilla**: `AccountWaiting.ts:15-32`, `EmailKind` `account-waiting`.
+**Destinatario**: solo `OWNER_EMAIL`, y solo si hay SMTP (`AccountWaitingMail.ts:37-39`).
+**Cuándo**: al confirmar alguien su dirección (`afterEmailVerification`,
+`auth.config.ts:182-183` → `onAddressConfirmed` → `notifyOwnerOfWaitingAccount`), solo si la
+activación es manual y la cuenta no se ha abierto sola. **Enlace**:
+`webUrl(APP_URL, '/admin/cuentas?activated=no', DEFAULT_WEB_LOCALE)` — `APP_URL` +
+`/admin/cuentas?activated=no`, sin prefijo porque el español no lo lleva
+(`packages/core/src/domain/WebUrl/WebUrl.ts:13`, `22` y `44-52`): la lista de cuentas
+esperando de la consola, que solo abre con la sesión del propietario. **Marcadores**:
+ninguno. **Lo que ya no lleva** (hasta el 2026-09-29 sí): la dirección de la persona, el
+botón `Abrir esta cuenta` con un token de activación firmado válido 30 días, ni la
+sentencia SQL con la dirección. (La plantilla antigua tenía también una línea «Todavía no
+ha confirmado su correo», que solo salía si se le pasaba `emailVerified: false`; como el
+aviso se envía al confirmar, no consta que llegara a salir.) La función ni
+siquiera recibe la cuenta (`AccountWaitingMail.ts:32-36`), y la línea del log ya no lleva
+el id del usuario, y la del fallo solo la clase del error, no su mensaje, que puede llevar
+la dirección del destinatario (`AccountWaitingMail.ts:46` y `49`).
+
+| Campo | es-ES (el único que se envía) | en-GB (en la plantilla, no se envía) |
+| --- | --- | --- |
+| `subject` | `NutrIA — una cuenta está esperando` | `NutrIA — an account is waiting` |
+| `intro` | `Alguien se ha registrado y está esperando a que le abras la cuenta. En la consola verás quién es.` | `Someone signed up and is waiting for their account to be opened. You will see who in the console.` |
+| `button` | `Ver las cuentas esperando` → `/admin/cuentas?activated=no` | `See the accounts waiting` → el mismo enlace |
+
+En la versión de texto plano no va la etiqueta del botón: `intro`, una línea en blanco y el
+enlace.
+
+<!-- Fuente: AccountWaiting.ts:15-32, AccountWaitingMail.ts:6-9 y 32-51, auth.config.ts:50 (selfService.link) y 182-183, SelfService.ts:51-66; AccountWaiting.spec.ts comprueba en asunto, texto y HTML, en los dos idiomas, que no aparece «@», «usr-», un UUID, «token», «/admin/activate» ni «update "user"»; árbol de trabajo de admin-console-loose-ends sobre e1332b4, sin commit; decisión en docs/decisions/LOG.md (2026-09-29, enmienda 0029/0030; decidió el propietario). Por qué así: el correo sale por el proveedor SMTP (hoy Gmail de consumo, sin DPA, P2-10) y se queda en un buzón sin plazo de supresión. Llevar la dirección era guardar un dato de cada alta sin plazo, fuera del sistema que la borra con la cuenta (art. 5.1.e; minimización, 5.1.c); llevar el token era dejar en ese buzón una llave que abre una cuenta sin sesión (arts. 5.1.f y 32). Ahora el correo no dice quién ni permite hacer nada: para el proveedor y el buzón es información anónima (considerando 26; C-413/23 P) [abogado], y quien lo abre necesita la sesión del propietario para ver algo. Los correos enviados antes del cambio siguen en el buzón con la dirección y un token que GET /admin/activate honra hasta que caduque (30 días, ActivationLink.ts:4): ver la adenda de ../2026-09-29-correos-al-propietario.md. Sin efecto jurídico frente a nadie; la política no cambia (sus fines del proveedor de correo nunca incluyeron este aviso, y ahora no hace falta). -->

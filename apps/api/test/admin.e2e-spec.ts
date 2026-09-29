@@ -2273,6 +2273,31 @@ describe('admin', () => {
       await refusedAsInput('system?period=12');
     });
 
+    it('count the owner’s own mails by kind (owner-digest, owner-alert), sent and failed, without an address', async () => {
+      const sql = (
+        database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> }
+      ).$client;
+      const count = async (kind: string) =>
+        (await body<SystemBody>('system')).mail.kinds.find(row => row.kind === kind) ?? { failed: 0, kind, sent: 0 };
+      const before = { alert: await count('owner-alert'), digest: await count('owner-digest') };
+
+      // Rows with a marker no real one carries, removed at the end whatever happens.
+      try {
+        await sql`insert into analytics_events (event, user_id, properties) values
+          ('mail_sent', null, ${JSON.stringify({ kind: 'owner-digest', marker: 'admin-e2e', ok: true })}::jsonb),
+          ('mail_sent', null, ${JSON.stringify({ kind: 'owner-alert', marker: 'admin-e2e', ok: false })}::jsonb)`;
+
+        const digest = await count('owner-digest');
+        const alert = await count('owner-alert');
+
+        expect(digest).toEqual({ failed: before.digest.failed, kind: 'owner-digest', sent: before.digest.sent + 1 });
+        expect(alert).toEqual({ failed: before.alert.failed + 1, kind: 'owner-alert', sent: before.alert.sent });
+        expect(JSON.stringify((await body<SystemBody>('system')).mail)).not.toMatch(/@|admin-e2e/);
+      } finally {
+        await sql`delete from analytics_events where event = 'mail_sent' and properties ->> 'marker' = 'admin-e2e'`;
+      }
+    });
+
     it('count who holds which version of each consent, and nothing of anybody', async () => {
       const view = await body<AdminConsentsView>('consents');
 

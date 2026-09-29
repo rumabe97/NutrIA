@@ -20,7 +20,7 @@ const URL = 'https://nutria.example/check-in';
  * and a new template has to be added here.
  */
 const TEMPLATES: readonly { readonly name: string; readonly render: (locale: EmailLocale) => RenderedEmail }[] = [
-  { name: 'accountWaitingEmail', render: locale => accountWaitingEmail({ email: 'ana@example.invalid', locale, url: URL }) },
+  { name: 'accountWaitingEmail', render: locale => accountWaitingEmail({ locale, url: URL }) },
   { name: 'checkInReminderEmail', render: locale => checkInReminderEmail({ locale, url: URL }) },
   { name: 'passwordResetEmail', render: locale => passwordResetEmail({ locale, url: URL }) },
   { name: 'verifyEmail', render: locale => verifyEmail({ locale, url: URL }) }

@@ -28,6 +28,7 @@ describe('the cron routes', () => {
   const record = jest.fn(async (_job: string, _counts: Readonly<Record<string, 'cap' | number>>) => Promise.resolve());
   const digest = jest.fn(async () => Promise.resolve());
   const checkSpend = jest.fn(async () => Promise.resolve());
+  const watchReminders = jest.fn(async () => Promise.resolve());
   const bearer = (secret: string) => ['Bearer', secret].join(' ');
 
   afterEach(async () => {
@@ -44,7 +45,7 @@ describe('the cron routes', () => {
         { provide: CheckInReminderService, useValue: { sweep } },
         { provide: ExpiredInvitationsService, useValue: { forget } },
         { provide: CronRunService, useValue: { record } },
-        { provide: OwnerAlertsService, useValue: { checkSpend, digest } }
+        { provide: OwnerAlertsService, useValue: { checkSpend, digest, watchReminders } }
       ]
     }).compile();
 
@@ -92,6 +93,45 @@ describe('the cron routes', () => {
     await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
 
     expect(checkSpend).toHaveBeenCalledTimes(1);
+  });
+
+  it('checks the reminders cron before the rewrite sweep, whether it is held by the cap, throws, or the watch itself fails', async () => {
+    const order: string[] = [];
+
+    watchReminders.mockImplementationOnce(async () => {
+      order.push('watch');
+
+      return Promise.resolve();
+    });
+    rewriteOutdated.mockImplementationOnce(async () => {
+      order.push('sweep');
+
+      return Promise.resolve({ heldBy: 'cap', pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
+    });
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
+    expect(order).toEqual(['watch', 'sweep']);
+
+    watchReminders.mockRejectedValueOnce(new Error('database gone'));
+    rewriteOutdated.mockResolvedValueOnce({ pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
+    await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
+    expect(record).toHaveBeenLastCalledWith('rewrite', { pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
+
+    watchReminders.mockClear();
+    rewriteOutdated.mockRejectedValueOnce(new Error('model gone'));
+    await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(500);
+    expect(watchReminders).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs nothing on the rewrite route for the wrong bearer', async () => {
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/rewrite-steps').set('Authorization', bearer('wrong')).expect(404);
+
+    expect(watchReminders).not.toHaveBeenCalled();
+    expect(rewriteOutdated).not.toHaveBeenCalled();
+    expect(checkSpend).not.toHaveBeenCalled();
   });
 
   it('sends no digest to the wrong bearer', async () => {
