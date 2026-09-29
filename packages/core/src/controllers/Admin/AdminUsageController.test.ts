@@ -56,10 +56,30 @@ beforeEach(() => {
   vi.spyOn(AdminController, 'aiUsage').mockResolvedValue(TODAY);
   ai.callsPerDay.mockResolvedValue([
     // The period before: 14–21 September.
-    row({ calls: 5, day: '2026-09-20', failed: true, timed: 5, totalMs: 5000 }),
+    row({ calls: 5, costUsd: 0.1, day: '2026-09-20', failed: true, timed: 5, totalMs: 5000 }),
     // This period.
-    row({ answeredModel: 'gemma', calls: 4, day: '2026-09-23', inputTokens: 400, outputTokens: 80, provider: 'DeepInfra', timed: 4, totalMs: 4000 }),
-    row({ answeredModel: 'gemma', calls: 2, day: '2026-09-28', inputTokens: 200, outputTokens: 40, provider: 'DeepInfra', timed: 2, totalMs: 1000 }),
+    row({
+      answeredModel: 'gemma',
+      calls: 4,
+      costUsd: 0.2,
+      day: '2026-09-23',
+      inputTokens: 400,
+      outputTokens: 80,
+      provider: 'DeepInfra',
+      timed: 4,
+      totalMs: 4000
+    }),
+    row({
+      answeredModel: 'gemma',
+      calls: 2,
+      costUsd: 0.1,
+      day: '2026-09-28',
+      inputTokens: 200,
+      outputTokens: 40,
+      provider: 'DeepInfra',
+      timed: 2,
+      totalMs: 1000
+    }),
     row({ calls: 1, day: '2026-09-28', failed: true, model: 'deepseek' })
   ]);
 });
@@ -80,6 +100,8 @@ describe('AdminUsageController.ai', () => {
     expect(view.totals).toEqual({
       averageMs: { current: 833, previous: 1000 },
       calls: { current: 7, previous: 5 },
+      // Rounded to six places: 0.2 + 0.1 is 0.30000000000000004 in binary.
+      costUsd: { current: 0.3, previous: 0.1 },
       failed: { current: 1, previous: 5 },
       inputTokens: { current: 600, previous: 0 },
       outputTokens: { current: 120, previous: 0 }
@@ -90,6 +112,7 @@ describe('AdminUsageController.ai', () => {
     const view = await AdminUsageController.ai(7, {}, NOW);
 
     expect(view.callsPerDay).toEqual({ days: WEEK, values: [0, 4, 0, 0, 0, 0, 3] });
+    expect(view.spendPerDay).toEqual({ days: WEEK, values: [0, 0.2, 0, 0, 0, 0, 0.1] });
     expect(view.tokensPerDay).toEqual({
       days: WEEK,
       series: [

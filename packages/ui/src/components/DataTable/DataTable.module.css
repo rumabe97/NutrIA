@@ -4,6 +4,9 @@
 .region {
   /* Measured, so the empty state can size itself to what is visible (`100cqi`). */
   container-type: inline-size;
+  /* The containing block of the visually hidden sort hints (`position: absolute`), so
+     they stay inside the scrolling region instead of widening the page past its edge. */
+  position: relative;
   max-inline-size: 100%;
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -38,7 +41,10 @@
   color: var(--foreground-02);
   font-size: var(--font-size-02);
   font-weight: var(--font-weight-semibold);
-  vertical-align: bottom;
+  /* Middle, not bottom: a sortable header's link is a touch target (--target-min tall
+     on a coarse pointer) that centres its own text, so every header's words sit on
+     one line only when the cells centre too. */
+  vertical-align: middle;
   white-space: nowrap;
 }
 

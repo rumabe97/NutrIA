@@ -413,14 +413,17 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 8 — Web: Registro, IA y modelos, Catálogo, Imágenes; the transition page goes
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 007 phase 8`. Reviews: `accessibility`,
   plus `/local-probe`.
 - **Goal**: the remaining pages exist and the transition page is deleted, so every row of
   the PRD inventory is on its new page.
 - **Scope**: `apps/web/src/app/(admin)/admin/{generacion,catalogo}/**`,
   `apps/web/src/app/(admin)/admin/anterior/**` (deleted), `apps/web/src/components/{AdminTable,AdminNav,GenerationCalls}/**`,
-  Resumen's links, the dictionaries.
+  Resumen's links and its text-AI spend tile, the dictionaries. Added on 2026-09-29 (the
+  owner: "¿por qué no se ve el dinero gastado en generar planes?"): the API's
+  `/admin/ai` `totals.costUsd` and `spendPerDay`, and `/admin/summary` `tiles.textAi`, in
+  `packages/core/src/controllers/Admin/{AdminUsageController,AdminSeriesController}.ts`.
 - **Steps**:
   1. `/admin/generacion` shows three charts: a stacked `ColumnChart` of outcome per day,
      a `LineChart` of p50 and p95 duration, and a `BarChart` of failures by code. Then
@@ -430,9 +433,17 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
        field the current page shows, in a nested table, with the same labels
        (`t.logCall*`, `t.rejection`).
      - Filters: outcome, code, email, since and date range.
+     - A `BarChart` of rejections by reason over the period (`stats.rejectionsByReason`,
+       totals over everybody, `allergen` included — they name nobody), labelled with
+       `t.rejection`.
   2. `/admin/generacion/ia`: `StatTile`s, a `LineChart` of calls per day, a stacked
      `ColumnChart` of tokens per day, and a per-model `DataTable` with a `BarChart` of
      calls per model.
+     - A spend `StatTile` (`totals.costUsd`, against the previous period) and a
+       `LineChart` of spend per day (`spendPerDay`). "Cómo se cuenta" says the text
+       models' spend covers the dishes generated for plans and the nightly step
+       rewrites, which the events do not tell apart, and that pictures are billed apart.
+     - The per-model table shows each model's cost (`models[].costUsd`).
   3. `/admin/catalogo` (Recetas): tiles, a `BarChart` of recipes by slot, and the recipe
      table with its filters. `/admin/catalogo/ingredientes`: the ingredient table.
   4. `/admin/catalogo/imagenes`: a `Gauge` of the month's spend against the cap, a
@@ -440,6 +451,8 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
      included. There is also a link to the dish-pictures switch on Ajustes.
   5. Delete `/admin/anterior`, its CSS and its nav entry. Repoint Resumen's failed
      generations link. Remove dictionary keys that only the deleted page used.
+  6. Resumen gains a "Gasto en IA de texto" `StatTile` (`tiles.textAi`: `spentUsd` against
+     the previous period, `sparkline` per day) beside the picture spend tile.
 - **Acceptance criteria**: PRD 3, 4 (all rows), 5, 6, 7, 10, 11.
 - **Verification**:
   - `pnpm turbo lint ts:check test --filter=web`.

@@ -17,7 +17,7 @@ import { PeriodSelector } from 'components/PeriodSelector';
 
 import { DEFAULT_PERIOD } from 'core/entities/Period';
 
-import { formatNumber, interpolate } from 'lib/format';
+import { formatNumber, formatUsd, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from './consoleMetadata';
@@ -35,11 +35,14 @@ export async function generateMetadata(): Promise<Metadata> {
 
 /**
  * Where each "needs you" row leads: the table it counts, already filtered. "Waiting"
- * is `activated=no`, which includes addresses not yet confirmed — the same count.
- * Registro does not exist yet, so failures are the transition page's section until
- * phase 8 repoints it (`/admin/generacion?status=failed&since=24h`).
+ * is `activated=no`, which includes addresses not yet confirmed — the same count. The
+ * failures are the last 24 hours' failed generations on Registro, as the row counts them.
  */
-const NEEDS_YOU_HREF = { failed: '/admin/anterior#registro', unread: '/admin/buzon?state=waiting', waiting: '/admin/cuentas?activated=no' } as const;
+const NEEDS_YOU_HREF = {
+  failed: '/admin/generacion?status=failed&since=24h',
+  unread: '/admin/buzon?state=waiting',
+  waiting: '/admin/cuentas?activated=no'
+} as const;
 
 /**
  * Resumen (`0068`): the period's headline figures against the period before, sign-ups
@@ -75,8 +78,7 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
   const { charts, needsYou, tiles } = summary;
   const number = (value: number) => formatNumber(value, locale);
   const percent = (value: number) => formatNumber(value, locale, { maximumFractionDigits: 0, style: 'percent' });
-  // Narrow symbol: "12,34 $" fits a tile on a phone where "12,34 US$" would not.
-  const dollars = (value: number) => formatNumber(value, locale, { currency: 'USD', currencyDisplay: 'narrowSymbol', style: 'currency' });
+  const dollars = (value: number) => formatUsd(value, locale);
   const outcome = (key: string) => charts.generations.series.find(series => series.key === key)?.values ?? [];
   const pending = charts.generations.days.map((_, index) => (outcome('queued')[index] ?? 0) + (outcome('running')[index] ?? 0));
   const failedInPeriod = outcome('failed').reduce((total, value) => total + value, 0);
@@ -156,6 +158,18 @@ export default async function AdminSummaryPage({ searchParams }: { searchParams:
             locale={locale}
             note={interpolate(t.pictureMonth, { cap: dollars(tiles.pictures.capUsd), spent: dollars(tiles.pictures.monthSpentUsd) })}
             value={dollars(tiles.pictures.spentUsd.current)}
+          />
+        </Card>
+        {/* What the text models billed: the dishes for plans and the nightly step rewrites.
+            Spend is neither good nor bad news on its own, so the change stays grey. */}
+        <Card as="li" padding="sm">
+          <StatTile
+            change={tiles.textAi.spentUsd}
+            changeLabel={common.changeLabel}
+            label={t.textAiSpend}
+            locale={locale}
+            sparkline={tiles.textAi.sparkline.values}
+            value={dollars(tiles.textAi.spentUsd.current)}
           />
         </Card>
       </ul>

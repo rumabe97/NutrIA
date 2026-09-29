@@ -16,24 +16,9 @@ export const esES = {
   activity: { athlete: 'Deportista', high: 'Alto', light: 'Ligero', moderate: 'Moderado', sedentary: 'Sedentario' },
 
   admin: {
-    activationTitle: 'Altas',
-    aiByModel: 'Hoy, por el modelo que contestó',
-    aiCalls: 'Peticiones hoy',
-    aiHint:
-      'Nuestro recuento de lo que ha salido de aquí, contra el límite que hayas configurado. Google no publica cuánta cuota te queda de verdad: si su consola dice otra cifra, la diferencia son llamadas que no pasaron por este servicio.',
-    aiLastRefusal: 'Último rechazo por cuota',
-    aiLastRefusalValue: '{model} · límite {limit} · reintentar en {seconds} s · a las {time} UTC',
-    aiModel: 'Modelo',
-    aiModelUsage: '{calls} llamadas · {failed} fallidas · {seconds} s de media · {input} / {output} tokens',
-    aiRefused: 'Rechazadas por cuota',
-    aiResets: 'La cuenta diaria se reinicia',
-    aiTitle: 'IA',
-    aiTokens: 'Tokens (entrada / salida)',
-    attempts: '{count} intentos',
     automaticActivation: 'Activación automática',
     automaticHint: 'Quien confirma su correo entra directamente. Tú no tienes que hacer nada.',
     events: { session_started: 'Entradas', swap_requested: 'Cambios de comida pedidos' },
-    failureNote: '{count} generaciones han fallado. El código dice si fue la cuota, la clave o el catálogo.',
     funnel: {
       activated: 'Cuenta abierta',
       checkedIn: 'Han hecho el check-in',
@@ -44,43 +29,14 @@ export const esES = {
       returned: 'Han vuelto a por un segundo plan',
       signedUp: 'Se han registrado'
     },
-    ingredients: 'Ingredientes',
-    intro: 'Cómo va el servicio. No hay ningún plan ni ningún perfil aquí: solo si la generación funciona y cuánto hay en el catálogo.',
-    jobsTitle: 'Generaciones ({days} días)',
-    logCall: '{slot}, ronda {round}: {model}',
-    logCallAsked: 'pedido: {model}',
-    logCallDropped: 'descartados: {reasons}',
-    logCallFailed: 'falló ({status})',
-    logCallIds: 'petición {request}',
-    logCallKept: '{kept} de {dishes} platos',
-    logCallQuota: 'cuota: límite {limit}, reintentar en {seconds} s',
-    logCallReasoning: '{count} de razonamiento',
-    logCalls: '{count} llamadas al modelo',
-    logCallTokens: '{input} / {output} tokens',
-    logCallVia: 'vía {provider}',
-    logEmpty: 'Ninguna generación registrada todavía.',
-    logHint:
-      'Las últimas generaciones, quién las pidió y cada llamada al modelo: qué modelo contestó, a través de qué proveedor, cuánto tardó, los tokens y qué platos se quedaron. La petición es el id con el que el panel de OmniRoute guarda esa llamada.',
-    logNoCalls: 'Ninguna llamada al modelo: salió de la biblioteca, o no llegó a pedirla.',
-    logPlan: 'plan {version} · {model} · prompt {prompt} · {reused} platos de la biblioteca',
-    logTitle: 'Registro de generaciones',
     manualHint: 'Al confirmar su correo la cuenta queda esperando y te avisamos a ti. La abres tú desde esta lista.',
-    noJobs: 'Ninguna generación todavía.',
-    picturesDrawing: 'Dibujándose ahora',
-    picturesFailed: 'Fallidas (se reintentan pasados 7 días)',
     picturesHint:
       'Encendido: la primera vez que alguien abre un plato sin imagen se dibuja una, y la ven todos los que lo abran después. Al llegar al tope del mes no se dibuja ninguna más hasta el mes siguiente.',
     picturesLabel: 'Dibujar las imágenes de los platos',
     picturesOffHint: 'Apagado: no se dibuja ninguna imagen nueva. Las que ya existen se siguen viendo.',
-    picturesReady: 'Listas',
-    picturesReleased: 'Devueltas por el tope o la clave (se reintentan en la siguiente visita)',
-    picturesSpend: 'Gastado este mes',
-    picturesSpendValue: '{spent} de {cap}',
-    picturesTitle: 'Imágenes de los platos',
     premiumHint: 'Premium está activo: las cuentas a las que se lo hayas dado tienen tres replanificaciones por quincena y veinte cambios por plan.',
     premiumLabel: 'Nivel de pago',
     premiumOffHint: 'Premium está apagado: todo el mundo usa los límites gratuitos, incluido quien ya lo tenga concedido. Encenderlo se lo devuelve.',
-    premiumTitle: 'Nivel de pago',
     professionalHint: 'Encendido: los profesionales que concedas pueden abrir su consulta y vincular pacientes.',
     professionalLabel: 'Consulta para dietistas',
     professionalOffHint: 'Apagado: nadie ve la consulta, tampoco quien ya tenga la concesión. Sus pacientes siguen como cuentas normales.',
@@ -90,26 +46,10 @@ export const esES = {
       'Ninguno de tus {count} dispositivos lo aceptó. Si quitaste el permiso o borraste la app, vuelve a activar los avisos en tu perfil.',
     pushTestSent: 'Enviado: lo han aceptado {count} de tus dispositivos. Debería llegar en unos segundos.',
     pushTestUnconfigured: 'El push no está configurado en el servidor: faltan las variables VAPID en la API de Vercel, o falta el redeploy.',
-    recipes: 'Recetas',
-    rejection: {
-      allergen: 'alérgeno',
-      duplicate: 'repetido',
-      foreign_food: 'nombra algo que no lleva',
-      over_time: 'demasiado tiempo',
-      oversized: 'ración enorme',
-      schema: 'esquema',
-      unknown_ingredient: 'ingrediente inventado',
-      unwanted: 'dieta o gustos',
-      wrong_language: 'idioma equivocado',
-      wrong_meal: 'comida equivocada'
-    },
     remindersHint:
       'Encendido: cada mañana se avisa, por correo y en los móviles que lo pidieron, a quien ha terminado su quincena sin hacer el check-in. Una vez por quincena, y cada persona puede desactivarlo en su perfil.',
-    remindersLabel: 'Enviar el recordatorio',
     remindersOffHint: 'Apagado: no sale ningún recordatorio. El check-in solo aparece en la pantalla de Hoy.',
-    remindersTitle: 'Recordatorio del check-in',
-    title: 'Servicio',
-    withoutImage: '{count} sin imagen'
+    remindersTitle: 'Recordatorio del check-in'
   },
 
   /* `/admin/cuentas`: sign-ups per week, then every account with its locks and milestones (never content, `0028`). */
@@ -164,6 +104,54 @@ export const esES = {
     title: 'Cuentas'
   },
 
+  /* `/admin/generacion/ia`: calls, tokens and spend of the text models over the period, and by model. */
+  adminAi: {
+    averageMs: 'Tiempo medio por llamada',
+    averageNote: 'Periodo anterior: {seconds}',
+    calls: 'Llamadas al modelo',
+    callsChart: 'Llamadas por día',
+    callsEmpty: 'Ninguna llamada al modelo en este periodo.',
+    callsSeries: 'Llamadas',
+    caption: 'Uso por modelo',
+    columns: {
+      averageMs: 'Media',
+      calls: 'Llamadas',
+      cost: 'Coste',
+      failed: 'Fallidas',
+      input: 'Tokens de entrada',
+      model: 'Modelo',
+      output: 'Tokens de salida',
+      reasoning: 'De razonamiento'
+    },
+    failed: 'Llamadas fallidas',
+    howCounted: [
+      'Cada cifra con flecha se compara con el periodo anterior de la misma duración. Los días son de la hora de Madrid.',
+      'El gasto es lo que facturaron los modelos de texto, llamada a llamada: los platos que se generan para los planes y la reescritura de los pasos de cada noche. Las llamadas no dicen cuál de las dos cosas eran.',
+      'Las imágenes de los platos se facturan aparte y tienen su propia página, en Catálogo.',
+      'Una llamada cuenta para el modelo que contestó. Si falló antes de saberlo, cuenta para el que se pidió.',
+      'Una llamada fallida es una que el proveedor rechazó, que se quedó sin tiempo o que contestó algo que no servía.'
+    ],
+    inputTokens: 'Tokens de entrada',
+    intro: 'Cuántas veces se llama a los modelos de texto, con cuántos tokens y cuánto cuesta.',
+    modelsChart: 'Llamadas por modelo',
+    modelsEmpty: 'Ninguna llamada al modelo en este periodo.',
+    modelsTitle: 'Por modelo',
+    noAverage: 'Ninguna llamada midió su tiempo',
+    /** The bar that gathers every model past the ten most called. */
+    others: 'Los demás ({count})',
+    outputTokens: 'Tokens de salida',
+    spend: 'Gasto en IA de texto',
+    spendChart: 'Gasto por día',
+    spendEmpty: 'No se ha facturado nada en este periodo.',
+    spendSeries: 'Gasto',
+    tilesLabel: 'Cifras del periodo',
+    title: 'IA y modelos',
+    tokens: { input: 'Entrada', output: 'Salida' },
+    tokensChart: 'Tokens por día',
+    tokensEmpty: 'Ningún token en este periodo.',
+    trendsTitle: 'Por día'
+  },
+
   /* Words every console page with a period shares: the selector, the charts' table, the tiles' change. */
   adminConsole: {
     /** A tile's change against the previous period, for a screen reader; `{change}` is the signed percentage. */
@@ -174,12 +162,16 @@ export const esES = {
     no: 'No',
     period: 'Periodo',
     periodOption: '{days} días',
+    /** A duration in seconds, already formatted. */
+    seconds: '{seconds} s',
     /* The console's tables (`AdminTable`): the toolbar, the sort links, the result line and the pager. */
     table: {
       any: 'Cualquiera',
       apply: 'Aplicar',
       ascending: 'ascendente',
       clear: 'Quitar la búsqueda y los filtros',
+      /** The line over a table in one fixed order, which its section names. */
+      count: '{count} en total',
       descending: 'descendente',
       /** The fold that holds a table's filters, and how many of them are on. */
       filters: 'Filtros',
@@ -233,6 +225,124 @@ export const esES = {
     waitingState: 'Sin ver'
   },
 
+  /* `/admin/catalogo/ingredientes`: every ingredient, per 100 g, with its labels. */
+  adminIngredients: {
+    caption: 'Ingredientes',
+    columns: {
+      allergens: 'Alérgenos',
+      carbs: 'Hidratos (g)',
+      category: 'Categoría',
+      countries: 'Países',
+      fat: 'Grasas (g)',
+      kcal: 'kcal',
+      mayContain: 'Trazas',
+      meals: 'Comidas',
+      name: 'Nombre',
+      protein: 'Proteína (g)'
+    },
+    containsAllergen: 'Contiene el alérgeno',
+    empty: 'El catálogo no tiene ningún ingrediente.',
+    everyMeal: 'Todas',
+    everywhere: 'Todos',
+    howCounted: [
+      'Las cifras son por 100 g.',
+      'Los alérgenos y las trazas son la etiqueta del ingrediente, no la alergia de nadie.',
+      'Comidas «Todas» quiere decir que el ingrediente vale para cualquier comida. Países «Todos», que se vende en todas partes.'
+    ],
+    intro: 'Cada ingrediente del catálogo, con sus cifras por 100 g y su etiqueta.',
+    noMatch: 'Ningún ingrediente coincide con la búsqueda o los filtros.',
+    search: 'Buscar por nombre',
+    sortBy: { carbs: 'hidratos', category: 'categoría', fat: 'grasas', kcal: 'kcal', name: 'nombre', protein: 'proteína' },
+    tableTitle: 'Todos los ingredientes',
+    title: 'Ingredientes'
+  },
+
+  /* `/admin/generacion`: how generations ended and how long they took, then every one with its model calls. */
+  adminLog: {
+    caption: 'Generaciones',
+    chartsTitle: 'En el periodo',
+    code: 'Código',
+    columns: {
+      account: 'Cuenta',
+      attempts: 'Intentos',
+      calls: 'Llamadas al modelo',
+      code: 'Código',
+      detail: 'Detalle',
+      plan: 'Plan',
+      seconds: 'Segundos',
+      started: 'Inicio',
+      status: 'Estado'
+    },
+    durationsChart: 'Duración por día',
+    durationsEmpty: 'Ninguna generación terminó en este periodo.',
+    empty: 'Ninguna generación registrada todavía.',
+    failuresChart: 'Fallos por código',
+    failuresEmpty: 'Ninguna generación falló en este periodo.',
+    failuresSeries: 'Generaciones',
+    from: 'Desde el día',
+    howCounted: [
+      'Los días y las horas son de Madrid.',
+      'Cada generación del gráfico de resultados cuenta en el estado en el que está ahora.',
+      'La mediana y el percentil 95 miden solo las generaciones que terminaron, por el día en que se pidieron. Un día sin ninguna no tiene punto en la línea.',
+      'Los platos descartados son los que el modelo propuso y el servicio no aceptó, sumados sobre todas las generaciones del periodo. En la tabla no aparecen los motivos «alérgeno» ni «dieta o gustos»: junto a un correo dirían algo de esa persona.',
+      'Una generación sin llamadas al modelo salió entera de la biblioteca, o no llegó a pedirla.',
+      'La petición es el id con el que la pasarela guarda esa llamada.'
+    ],
+    intro: 'Cada generación de un plan: cómo terminó, cuánto tardó y cada llamada al modelo.',
+    logCall: '{slot}, ronda {round}',
+    logCallAsked: 'pedido: {model}',
+    logCallColumns: {
+      call: 'Comida',
+      error: 'Mensaje del proveedor',
+      model: 'Modelo',
+      request: 'Petición',
+      result: 'Resultado',
+      seconds: 'Segundos'
+    },
+    logCallDropped: 'descartados: {reasons}',
+    logCallFailed: 'falló ({status})',
+    logCallKept: '{kept} de {dishes} platos',
+    logCallQuota: 'cuota: límite {limit}, reintentar en {seconds} s',
+    logCallReasoning: '{count} de razonamiento',
+    logCalls: '{count} llamadas',
+    logCallsCaption: 'Llamadas al modelo de esta generación',
+    logCallTokens: '{input} / {output} tokens',
+    logCallVia: 'vía {provider}',
+    logNoCalls: 'Ninguna',
+    logPlan: 'v{version} · {model} · prompt {prompt} · {reused} de la biblioteca',
+    noCode: 'Sin código',
+    noMatch: 'Ninguna generación coincide con la búsqueda o los filtros.',
+    outcomesChart: 'Generaciones por día',
+    outcomesEmpty: 'Ninguna generación en este periodo.',
+    p50: 'Mediana',
+    p95: 'Percentil 95',
+    reason: 'Motivo',
+    rejection: {
+      allergen: 'alérgeno',
+      duplicate: 'repetido',
+      foreign_food: 'nombra algo que no lleva',
+      over_time: 'demasiado tiempo',
+      oversized: 'ración enorme',
+      schema: 'esquema',
+      unknown_ingredient: 'ingrediente inventado',
+      unwanted: 'dieta o gustos',
+      wrong_language: 'idioma equivocado',
+      wrong_meal: 'comida equivocada'
+    },
+    rejectionsChart: 'Platos descartados por motivo',
+    rejectionsEmpty: 'Ningún plato descartado en este periodo.',
+    rejectionsSeries: 'Platos',
+    search: 'Buscar por correo',
+    since: 'Empezadas en',
+    sinceDay: 'Las últimas 24 horas',
+    sinceDays: 'Los últimos {days} días',
+    statuses: { failed: 'Fallida', queued: 'En cola', running: 'En curso', succeeded: 'Terminada' },
+    tableNote: 'Las más recientes primero.',
+    tableTitle: 'Todas las generaciones',
+    title: 'Registro',
+    to: 'Hasta el día'
+  },
+
   /* The console's own navigation (`0068`): six groups, and only the pages that exist yet. */
   adminNav: {
     back: 'Volver a NutrIA',
@@ -241,15 +351,53 @@ export const esES = {
     menu: 'Menú',
     pages: {
       accounts: 'Cuentas',
+      ai: 'IA y modelos',
       inbox: 'Buzón',
-      legacy: 'Anterior',
+      ingredients: 'Ingredientes',
+      log: 'Registro',
+      pictures: 'Imágenes',
       plans: 'Planes',
       product: 'Embudo y actividad',
       professionals: 'Profesionales',
+      recipes: 'Recetas',
       settings: 'Ajustes',
       summary: 'Resumen'
     },
     title: 'Consola'
+  },
+
+  /* `/admin/catalogo/imagenes`: the month's spend against the cap, spend per day, and pictures by state (`0066`). */
+  adminPictures: {
+    cap: 'Tope del mes',
+    gaugeChart: 'Gasto del mes contra el tope',
+    gaugeEmpty: 'No hay ningún tope configurado.',
+    gaugeNote: 'Desde el {date}, mes natural en UTC: no cambia con el periodo.',
+    gaugeTitle: 'Este mes',
+    howCounted: [
+      'El tope cuenta el mes natural en UTC, no el periodo. Al llegar a él no se dibuja ninguna imagen más hasta el mes siguiente.',
+      'El gasto por día es lo que se facturó cada día por dibujar imágenes, en días de la hora de Madrid.',
+      'Lista es una imagen dibujada, con su archivo. Fallida es una que falló por el propio plato: se reintenta pasados 7 días. Devuelta es una que se dejó por el tope o por la clave: se vuelve a dibujar en la siguiente visita.',
+      'Las imágenes de los platos se facturan aparte del texto, que tiene su gasto en IA y modelos.'
+    ],
+    intro: 'Lo que cuestan las imágenes de los platos y en qué estado están.',
+    over: 'Por encima del tope',
+    settingsLink: 'Cambiar en Ajustes',
+    settingsOff: 'Dibujar imágenes está apagado: no se dibuja ninguna nueva.',
+    settingsOn: 'Dibujar imágenes está encendido.',
+    share: 'Del total',
+    spendChart: 'Gasto en imágenes por día',
+    spendEmpty: 'No se ha dibujado nada en este periodo.',
+    spendSeries: 'Gasto',
+    spendTitle: 'En el periodo',
+    spent: 'Gastado',
+    state: 'Estado',
+    states: { drawing: 'Dibujándose', failed: 'Fallidas', ready: 'Listas', released: 'Devueltas' },
+    statesChart: 'Imágenes por estado',
+    statesEmpty: 'Todavía no hay ninguna imagen.',
+    statesNote: 'Todas, de cualquier fecha: no cambia con el periodo.',
+    statesSeries: 'Imágenes',
+    statesTitle: 'Estado actual',
+    title: 'Imágenes'
   },
 
   /* `/admin/producto/planes`: every plan by the state it is in now, and plans made per day. */
@@ -323,6 +471,49 @@ export const esES = {
     title: 'Profesionales'
   },
 
+  /* `/admin/catalogo`: the recipe catalogue's size, by meal, and every recipe (shared data, never who made it, `0028`). */
+  adminRecipes: {
+    bySlotChart: 'Recetas por comida',
+    bySlotEmpty: 'El catálogo no tiene ninguna receta.',
+    bySlotSeries: 'Recetas',
+    bySlotTitle: 'Por comida',
+    caption: 'Recetas',
+    columns: {
+      allergens: 'Alérgenos',
+      carbs: 'Hidratos (g)',
+      fat: 'Grasas (g)',
+      kcal: 'kcal',
+      locale: 'Idioma',
+      mayContain: 'Trazas',
+      meals: 'Comidas',
+      name: 'Nombre',
+      picture: 'Imagen',
+      protein: 'Proteína (g)',
+      source: 'Origen'
+    },
+    containsAllergen: 'Contiene el alérgeno',
+    empty: 'El catálogo no tiene ninguna receta.',
+    howCounted: [
+      'Las cifras son por ración y salen de los ingredientes de la receta, con la misma cuenta que usa la app. Una receta que no se puede calcular muestra —.',
+      'Los alérgenos y las trazas son la etiqueta del plato, no la alergia de nadie.',
+      'Una receta que vale para dos comidas cuenta en las dos en el gráfico.',
+      'Sin imagen cuenta toda receta que no tiene una imagen lista: también las que se están dibujando o fallaron.',
+      'El catálogo es de todos: aquí no aparece quién pidió cada receta.'
+    ],
+    intro: 'El catálogo de recetas: cuántas hay, para qué comida y de dónde vienen.',
+    locales: { 'en-GB': 'Inglés', 'es-ES': 'Español' },
+    noMatch: 'Ninguna receta coincide con la búsqueda o los filtros.',
+    pictures: { drawing: 'Dibujándose', failed: 'Fallida', none: 'Sin imagen', ready: 'Lista' },
+    search: 'Buscar por nombre',
+    slot: 'Comida',
+    sortBy: { kcal: 'kcal por ración', name: 'nombre', protein: 'proteína por ración' },
+    sources: { ai: 'IA', seed: 'Semilla', user: 'Usuario' },
+    tableTitle: 'Todas las recetas',
+    tiles: { ai: 'Generadas por IA', seed: 'De la semilla', total: 'Recetas', user: 'Creadas por usuarios', withoutImage: 'Sin imagen' },
+    tilesLabel: 'Cifras del catálogo',
+    title: 'Recetas'
+  },
+
   /* `/admin/ajustes`: the five switches and the push test, grouped by what they govern. */
   adminSettings: {
     access: 'Acceso',
@@ -344,7 +535,8 @@ export const esES = {
       'Las generaciones con éxito son las terminadas entre las terminadas y las fallidas que empezaron en el periodo. Las que siguen en cola o en curso no cuentan.',
       'Cada generación del gráfico cuenta en el estado en el que está ahora.',
       'Sin activar incluye las cuentas que aún no han confirmado el correo.',
-      'El tope de las imágenes cuenta el mes natural en UTC, no el periodo.'
+      'El tope de las imágenes cuenta el mes natural en UTC, no el periodo.',
+      'El gasto en IA de texto es lo que facturaron los modelos de texto: los platos de los planes y la reescritura de los pasos de cada noche. Las imágenes van aparte.'
     ],
     intro: 'Cómo va el servicio en el periodo elegido, frente al periodo anterior de la misma duración.',
     needsYou: {
@@ -364,6 +556,7 @@ export const esES = {
     signUpsEmpty: 'Nadie se ha registrado en este periodo.',
     signUpsSeries: 'Altas',
     successRate: 'Generaciones con éxito',
+    textAiSpend: 'Gasto en IA de texto',
     tilesLabel: 'Cifras del periodo',
     title: 'Resumen',
     total: 'Total',
@@ -1156,9 +1349,13 @@ export const esES = {
     '/acceder': { description: 'Entra en NutrIA para ver tu plan de hoy, tu lista de la compra y tu progreso.', title: 'Acceder' },
     '/admin': { title: 'Resumen' },
     '/admin/ajustes': { title: 'Ajustes' },
-    '/admin/anterior': { title: 'Panel' },
     '/admin/buzon': { title: 'Buzón' },
+    '/admin/catalogo': { title: 'Recetas' },
+    '/admin/catalogo/imagenes': { title: 'Imágenes' },
+    '/admin/catalogo/ingredientes': { title: 'Ingredientes' },
     '/admin/cuentas': { title: 'Cuentas' },
+    '/admin/generacion': { title: 'Registro' },
+    '/admin/generacion/ia': { title: 'IA y modelos' },
     '/admin/producto': { title: 'Embudo y actividad' },
     '/admin/producto/planes': { title: 'Planes' },
     '/admin/profesionales': { title: 'Profesionales' },

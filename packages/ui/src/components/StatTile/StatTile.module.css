@@ -1,4 +1,6 @@
 .tile {
+  /* Measured, so the figure can size itself to the tile (`cqi`) as well as to the text. */
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   gap: var(--space-01);
@@ -21,7 +23,9 @@
 
 .value {
   color: var(--foreground-01);
-  font-size: var(--font-size-08);
+  /* The display size, but never wider than the tile allows: a figure never breaks inside
+     a number, so at 200 % text on a phone a long one ("12.345.678") would stick out. */
+  font-size: min(var(--font-size-08), 14cqi);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-02);
   /* The figure keeps its width and breaks only between words, never inside a number;

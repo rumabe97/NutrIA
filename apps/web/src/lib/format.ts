@@ -17,6 +17,23 @@ export function formatNumber(value: number, locale: Locale, options?: Intl.Numbe
   return new Intl.NumberFormat(locale, options).format(value);
 }
 
+/**
+ * Dollars as the console reads them: the narrow symbol ("12,34 $", which fits a tile on
+ * a phone where "12,34 US$" would not), and up to four decimals under a dollar, because
+ * a model call bills fractions of a cent and "0,00 $" would say it was free.
+ */
+export function formatUsd(value: number, locale: Locale): string {
+  const fraction = value !== 0 && Math.abs(value) < 1 ? 4 : 2;
+
+  return formatNumber(value, locale, {
+    currency: 'USD',
+    currencyDisplay: 'narrowSymbol',
+    maximumFractionDigits: fraction,
+    minimumFractionDigits: 2,
+    style: 'currency'
+  });
+}
+
 export function formatDate(isoDate: string, locale: Locale, options: Intl.DateTimeFormatOptions): string {
   return new Intl.DateTimeFormat(locale, options).format(new Date(`${isoDate}T00:00:00`));
 }

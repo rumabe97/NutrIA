@@ -1,0 +1,43 @@
+/* The page measures itself, so the charts and the toolbar count their columns from the
+   room they have beside the sidebar. */
+.page {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--gap-region);
+  /* One column that may shrink below its widest child: the table scrolls inside its own
+     region, and the page never scrolls sideways. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The charts sit on cards: the gaps between marks are the card's colour. */
+.chart {
+  --chart-surface: var(--surface-card);
+}
+
+.charts {
+  display: grid;
+  gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@container (inline-size >= 56rem) {
+  .charts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* A failed generation is what this page exists to find: the word says it, the weight
+   and the text step of the red make it easy to see down the column. */
+.page [data-status='failed'] {
+  color: var(--color-error-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* The provider's detail, redacted: prose, so it wraps — wide enough to read, never cut. */
+.prose {
+  margin: 0;
+  max-inline-size: 32rem;
+  min-inline-size: min(16rem, 60vw);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}

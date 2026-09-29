@@ -1,6 +1,6 @@
-import { AdminRepository, AdminSeriesRepository, JOB_STATUSES, PLAN_STATUSES } from '#repositories/Admin';
+import { AdminAiRepository, AdminRepository, AdminSeriesRepository, JOB_STATUSES, PLAN_STATUSES } from '#repositories/Admin';
 import { ANALYTICS_EVENTS } from 'core/entities/Analytics';
-import { fillDays, fillWeeks, madridDayKeys, madridWeekKeys, windowFor } from 'core/domain/Period';
+import { fillDays, fillWeeks, madridDayKey, madridDayKeys, madridWeekKeys, windowFor } from 'core/domain/Period';
 import { monthStart } from 'core/controllers/Recipe';
 
 import type { Funnel, KeyedDayCountRow, Outcomes } from '#repositories/Admin';
@@ -93,6 +93,12 @@ export type AdminSummaryView = {
     readonly plansGenerated: TrendTile;
     /** Succeeded ÷ (succeeded + failed) among the generations made in each period. */
     readonly successRate: RateComparison;
+    /**
+     * Dollars the text models billed — the dishes generated for plans and the nightly
+     * step rewrites, which the `ai_call` event does not tell apart — against the
+     * period before; the sparkline is the period's spend per day. Pictures are apart.
+     */
+    readonly textAi: { readonly sparkline: DaySeries; readonly spentUsd: PeriodComparison };
     /** Every account there is. */
     readonly totalAccounts: number;
     /** Messages not marked dealt with. */
@@ -254,7 +260,7 @@ export const AdminSeriesController = {
     const window = windowFor(period, now);
     const days = madridDayKeys(window.from, window.to);
     const month = monthStart(now);
-    const [accounts, active, plans, generations, spend, unread, signUpDays, generationDays, activeDays, planDays] = await Promise.all([
+    const [accounts, active, plans, generations, spend, unread, signUpDays, generationDays, activeDays, planDays, aiDays] = await Promise.all([
       AdminSeriesRepository.accountTotals(window),
       AdminSeriesRepository.activePeopleTotals(window),
       AdminSeriesRepository.planTotals(window),
@@ -264,9 +270,13 @@ export const AdminSeriesController = {
       AdminSeriesRepository.signUpsPerDay(window.from, window.to),
       AdminSeriesRepository.generationsPerDay(window.from, window.to),
       AdminSeriesRepository.activePeoplePerDay(window.from, window.to),
-      AdminSeriesRepository.plansCreatedPerDay(window.from, window.to)
+      AdminSeriesRepository.plansCreatedPerDay(window.from, window.to),
+      AdminAiRepository.callsPerDay(window.previousFrom, window.to)
     ]);
     const signUps: DaySeries = { days, values: fillDays(days, signUpDays) };
+    const firstDay = madridDayKey(window.from);
+    const dollars = (value: number) => Math.round(value * 1e6) / 1e6;
+    const aiSpend = (inPeriod: boolean) => dollars(aiDays.filter(row => row.day >= firstDay === inPeriod).reduce((sum, row) => sum + row.costUsd, 0));
 
     return {
       charts: { generations: presentGroup(days, JOB_STATUSES, generationDays), signUps },
@@ -283,6 +293,16 @@ export const AdminSeriesController = {
         },
         plansGenerated: { ...plans, sparkline: { days, values: fillDays(days, planDays) } },
         successRate: { current: rate(generations.current), previous: rate(generations.previous) },
+        textAi: {
+          sparkline: {
+            days,
+            values: fillDays(
+              days,
+              aiDays.filter(row => row.day >= firstDay).map(row => ({ day: row.day, n: row.costUsd }))
+            ).map(dollars)
+          },
+          spentUsd: { current: aiSpend(true), previous: aiSpend(false) }
+        },
         totalAccounts: accounts.total,
         unreadMessages: unread,
         waitingAccounts: accounts.waiting

@@ -1,0 +1,112 @@
+/* The disclosure, like "Cómo se cuenta": a chevron that turns, and a floor stated once. */
+.summary {
+  --summary-floor: var(--height-m);
+
+  align-items: center;
+  color: var(--foreground-02);
+  cursor: pointer;
+  display: flex;
+  gap: var(--space-02);
+  inline-size: fit-content;
+  list-style: none;
+  min-block-size: var(--summary-floor);
+}
+
+@media (pointer: coarse) {
+  .summary {
+    --summary-floor: var(--target-min);
+  }
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary:hover {
+  color: var(--foreground-01);
+}
+
+.chevron {
+  block-size: 1em;
+  flex: none;
+  inline-size: 1em;
+  transition: transform var(--duration-fast) var(--ease-default);
+}
+
+.details[open] .chevron {
+  transform: rotate(90deg);
+}
+
+/* The calls under the generation: smaller and quieter than the row they belong to, one
+   line a cell as every console table is, the provider's message the only prose.
+
+   This table sits inside `DataTable`'s, whose descendant rules (`.table th`, the sticky
+   first column) reach it too. `table.table` outweighs them, so the nested row header
+   neither sticks to the outer region's edge nor paints its surface. */
+table.table {
+  border-collapse: collapse;
+  font-size: var(--font-size-02);
+  margin-block: var(--space-02);
+}
+
+table.table :is(th, td) {
+  border-block-end: 1px solid var(--border-01);
+  padding: var(--space-02) var(--space-03);
+  text-align: start;
+  vertical-align: top;
+  white-space: nowrap;
+}
+
+table.table :is(th, td):first-child {
+  background-color: transparent;
+  padding-inline-start: 0;
+  position: static;
+}
+
+table.table thead th {
+  color: var(--foreground-03);
+  font-size: inherit;
+  font-weight: var(--font-weight-medium);
+}
+
+table.table tbody th {
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-medium);
+}
+
+table.table tbody td {
+  color: var(--foreground-02);
+}
+
+table.table tbody tr:last-child :is(th, td) {
+  border-block-end: none;
+}
+
+table.table .end {
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+/* The text step of the red, not the fill: the fill as text is under 4.5:1. The words
+   ("falló") say it too, so the colour is never alone. */
+table.table td.failed {
+  color: var(--color-error-text);
+}
+
+table.table td.request {
+  color: var(--foreground-03);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The provider's own message, redacted: prose, so it wraps — wide enough to read. */
+.message {
+  margin: 0;
+  max-inline-size: 32rem;
+  min-inline-size: min(16rem, 60vw);
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.none {
+  color: var(--foreground-03);
+}

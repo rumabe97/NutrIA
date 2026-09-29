@@ -37,9 +37,11 @@ export interface AdminTableColumn extends Pick<DataTableColumn, 'align' | 'heade
   readonly sort?: { readonly first: SortDirection; readonly phrase: string; readonly value: string };
 }
 
-export interface AdminTableFilter {
+/** A filter that picks one of a list: a native `<select>`. */
+interface AdminSelectFilter {
   /** The option that sends nothing ("Cualquiera"). */
   readonly anyLabel: string;
+  readonly kind?: 'select';
   readonly label: string;
   /** The query parameter. */
   readonly name: string;
@@ -47,6 +49,18 @@ export interface AdminTableFilter {
   /** What the address says now, or undefined for "any". */
   readonly value: string | undefined;
 }
+
+/** A filter that takes a calendar day (`YYYY-MM-DD`): a native date field. Empty is "any". */
+interface AdminDateFilter {
+  readonly kind: 'date';
+  readonly label: string;
+  /** The query parameter. */
+  readonly name: string;
+  /** What the address says now, or undefined for "any". */
+  readonly value: string | undefined;
+}
+
+export type AdminTableFilter = AdminDateFilter | AdminSelectFilter;
 
 interface AdminTableProps {
   /** Names the table and its scroll region. Hidden: the section's heading is on screen. */
@@ -66,8 +80,8 @@ interface AdminTableProps {
   rows: readonly DataTableRow[];
   /** The search field (always the parameter `q`: the API's log redacts only that one). */
   search: { readonly label: string; readonly value: string | undefined };
-  /** The order the rows came in. */
-  sort: { readonly dir: SortDirection; readonly value: string };
+  /** The order the rows came in. Omit for a table in one fixed order, which its section says. */
+  sort?: { readonly dir: SortDirection; readonly value: string };
   /** Every row the search and filters match, not only this page. */
   total: number;
   words: Dictionary['adminConsole']['table'];
@@ -130,14 +144,14 @@ export function AdminTable({
 
   const filtered = search.value !== undefined || filters.some(filter => filter.value !== undefined);
   const clearHref = `${tableHref(pathname, query, Object.fromEntries([...owned].filter(name => name !== 'size').map(name => [name, undefined])))}#${ANCHOR}`;
-  const sortedColumn = columns.find(column => column.sort?.value === sort.value);
+  const sortedColumn = sort ? columns.find(column => column.sort?.value === sort.value) : undefined;
 
   const tableColumns: DataTableColumn[] = columns.map(({ sort: order, ...column }) => {
     if (!order) {
       return column;
     }
 
-    const sorted = order.value === sort.value ? sort.dir : undefined;
+    const sorted = order.value === sort?.value ? sort.dir : undefined;
     const next = sorted === undefined ? order.first : sorted === 'asc' ? 'desc' : 'asc';
     const hint = sorted === 'asc' ? words.sortedAsc : sorted === 'desc' ? words.sortedDesc : next === 'asc' ? words.sortAsc : words.sortDesc;
 
@@ -150,11 +164,13 @@ export function AdminTable({
   });
 
   const number = (value: number) => formatNumber(value, locale);
-  const status = interpolate(words.status, {
-    column: sortedColumn?.sort?.phrase ?? sort.value,
-    count: number(total),
-    direction: sort.dir === 'asc' ? words.ascending : words.descending
-  });
+  const status = sort
+    ? interpolate(words.status, {
+        column: sortedColumn?.sort?.phrase ?? sort.value,
+        count: number(total),
+        direction: sort.dir === 'asc' ? words.ascending : words.descending
+      })
+    : interpolate(words.count, { count: number(total) });
 
   const pageHref = (offset: number) =>
     `${tableHref(pathname, query, { abierta: undefined, offset: offset > 0 ? String(offset) : undefined })}#${ANCHOR}`;
@@ -166,16 +182,20 @@ export function AdminTable({
       : undefined;
 
   const active = filters.filter(filter => filter.value !== undefined).length;
-  const filterFields = filters.map(filter => (
-    <AdminFilter
-      anyLabel={filter.anyLabel}
-      key={filter.name}
-      label={filter.label}
-      name={filter.name}
-      options={filter.options}
-      value={filter.value ?? ''}
-    />
-  ));
+  const filterFields = filters.map(filter =>
+    filter.kind === 'date' ? (
+      <Input defaultValue={filter.value ?? ''} key={filter.name} label={filter.label} name={filter.name} type="date" />
+    ) : (
+      <AdminFilter
+        anyLabel={filter.anyLabel}
+        key={filter.name}
+        label={filter.label}
+        name={filter.name}
+        options={filter.options}
+        value={filter.value ?? ''}
+      />
+    )
+  );
   // What the table is now: the address and the rows on screen. See `AdminTableStatus`.
   const version = JSON.stringify([query, rows.map(row => row.id)]);
 

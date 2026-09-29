@@ -3,6 +3,9 @@ import type { PageQuery } from 'components/PeriodSelector';
 /** The part of a Zod object schema these helpers use, so the web needs no Zod of its own. */
 interface QuerySchema<T> {
   parse(input: unknown): T;
+  safeParse(
+    input: unknown
+  ): { data: T; success: true } | { error: { readonly issues: readonly { readonly path: readonly PropertyKey[] }[] }; success: false };
   readonly shape: Readonly<Record<string, { safeParse(input: unknown): { success: boolean } }>>;
 }
 
@@ -16,7 +19,8 @@ function first(value: PageQuery[string]): string | undefined {
  *
  * Each parameter is checked with the API's own schema (`core/entities/AdminQuery`),
  * and one it would refuse is dropped — the table then shows its default for it — so
- * a hand-edited address shows a table rather than a 422 turned into a 404.
+ * a hand-edited address shows a table rather than a 422 turned into a 404. A rule across
+ * parameters (a range that ends before it starts) drops the parameters it names.
  */
 export function readTableQuery<T>(schema: QuerySchema<T>, query: PageQuery): T {
   const accepted: Record<string, string> = {};
@@ -26,6 +30,20 @@ export function readTableQuery<T>(schema: QuerySchema<T>, query: PageQuery): T {
 
     if (value !== undefined && field.safeParse(value).success) {
       accepted[key] = value;
+    }
+  }
+
+  const whole = schema.safeParse(accepted);
+
+  if (whole.success) {
+    return whole.data;
+  }
+
+  for (const issue of whole.error.issues) {
+    const [key] = issue.path;
+
+    if (typeof key === 'string') {
+      delete accepted[key];
     }
   }
 
