@@ -45,6 +45,7 @@ const QUALITY: AdminCatalogueQualityView = {
   recipes: 3,
   shouldBeZero: { mealsOutsideServingBounds: 0, overBound: 0, refusalLimit: 0, uncosted: 0, unserved: 0 },
   sweep: { attemptBound: 3, current: 3, givenUp: 0, pending: 0, stepsVersion: '2.8.0', withRefusals: 0 },
+  sweepHistory: { calls: [], costUsd: [], days: [], heldByCap: [], pending: [], rewritten: [], runs: [], skipped: [], unreached: [] },
   toLookAt: { overCapBySource: [], oversizedRejections: { days: [], values: [] }, picturesFailed: 0 },
   window: { from: '2026-08-30T22:00:00.000Z', previousFrom: '2026-07-30T22:00:00.000Z', to: '2026-09-29T10:00:00.000Z' }
 };

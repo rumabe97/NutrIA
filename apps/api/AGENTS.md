@@ -411,6 +411,31 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     (`admin/services/SystemSnapshot.ts`) is the only place the environment is read for it, and
     `SystemSnapshot.spec.ts` plus `AdminSystemController.test.ts` prove no configuration value reaches the
     answer. Mail and push "configured" come from `EmailService.configured` and `PushService.configured`.
+- **Quality, retention and the sweep's history** (`0071`, phase 5): read-only, `@Roles('admin')` on `AdminController`,
+  counts of people or plans and never a row of either; types exported from `core/controllers/Admin`.
+  - **`GET /admin/plans/quality?period=`** (`AdminPlanQualityController`) sums `meal_plans.generation_metadata -> 'quality'`
+    over plans made in the period, reading that key and `created_at` only: no `user_id`, no plan id, no group by
+    a day or a person. Plans without `quality` (before 2026-09-29) are counted in `withoutQuality`, never scored.
+    Below `MIN_PLANS_FOR_SHARES` (10) scored plans `fewData` is true and the answer is exactly
+    `dataStart, fewData, minPlans, period, plans, window, withoutQuality` (every other key absent, not null; the type is
+    a union narrowed on `fewData`). The period ends at today's Madrid midnight (`qualityWindow`), never `now`, so a plan
+    made today is in no figure until tomorrow. The rule of 10 also applies to each disjoint stretch nested periods
+    expose, `[−7,0)`, `[−30,−7)`, `[−90,−30)` days (scalar `count(*)` subselects in the same statement): `fewData`
+    whenever a stretch inside the requested period has plans but fewer than 10, so two periods cannot be subtracted
+    into a handful of plans (`0028`).
+    `dataStart` is the Madrid day of the first plan carrying `quality`. The energy floor is two sums
+    (`daysFloorNarrowed`, `daysFloorNarrowedOutOfBand`, `planQuality`): every sum is guarded by the JSON type, so plans
+    stored before a key existed add 0, and `floor.base` holds the denominators of only the plans that carry the floor
+    counts (`floor.since` says from when). `planQuality` needs `minimumKcal` again as input.
+  - **`GET /admin/retention`** (`AdminRetentionController`, no query parameter: any key is a 422; monthly cohorts only,
+    weekly cells could be subtracted from a month's): cohorts of sign-ups (last 6 months, Madrid days) and, for weeks 1, 2 and 4 after each person's own sign-up day, distinct people active in
+    that week out of those whose week is already over (`eligible`). Two readings: `didSomething` (a `meal_completions`,
+    `meal_swaps`, completed `check_ins` or `progress_entries` row, from day one) and `usedTheApp` (`ACTIVE_EVENTS`; only
+    people who signed up on or after `eventsSince`, 2026-09-29). `enough` marks a cell of 20 or more eligible people
+    (`MIN_COHORT_FOR_SHARES`); below it `active` is null (`size` and `eligible` stay), since with them it would name one person. The statement returns counts grouped by cohort and week: no id.
+  - The rewrite sweep's history is `sweepHistory` inside `GET /admin/catalogue/quality` (one page, one route): per Madrid
+    day, `runs`, `rewritten`, `skipped`, `unreached`, `heldByCap`, `pending` (the day's last run, null with none) from
+    `cron_run` for `job: 'rewrite'`, and `calls` / `costUsd` from the `ai_call`s filed under `feature: 'rewrite'`.
 - **The text-AI cap** (`0071`, phase 4): `AI_TEXT_MONTHLY_CAP_USD`, optional and positive; unset means no
   gauge, no warning and no held-back sweep. It shows and warns and never stops a plan; the wall that stops
   spending is the OpenRouter key's own limit (`0064`), and the cap is never set above it.

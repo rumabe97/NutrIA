@@ -1,7 +1,8 @@
-import { AdminCatalogueRepository, AdminGenerationsRepository } from '#repositories/Admin';
+import { AdminAiRepository, AdminCatalogueRepository, AdminGenerationsRepository, AdminSystemRepository } from '#repositories/Admin';
 import { failsCheck, qualityFlags } from 'core/domain/CatalogueQuality';
 import { fillDays, madridDayKeys, windowFor } from 'core/domain/Period';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
+import { roundDollars as dollars } from 'core/controllers/Analytics';
 import { REWRITE_ATTEMPT_BOUND, stepsVersionAttempts } from 'core/domain/Method';
 import { RECIPE_SOURCES } from 'core/entities/AdminQuery';
 import { toCatalogue } from 'core/entities/Plan';
@@ -58,6 +59,24 @@ export type AdminCatalogueQualityView = {
     /** Refused at least once and fewer than `attemptBound` times under the current version. A recipe may also be pending. */
     readonly withRefusals: number;
   };
+  /**
+   * The nightly rewrite sweep over the period, one value per Madrid day (`cron_run` for the
+   * `rewrite` job, and the `ai_call`s filed under `feature: 'rewrite'`). A day the cron did not
+   * run has `runs` 0 and every count 0; `pending` is the last run's, null when there was none.
+   * A run held back by the cap counts in `heldByCap` and in nothing else.
+   */
+  readonly sweepHistory: {
+    /** Calls the sweep made to the model, and their cost in dollars (a floor when a call carried no cost). */
+    readonly calls: readonly number[];
+    readonly costUsd: readonly number[];
+    readonly days: readonly string[];
+    readonly heldByCap: readonly number[];
+    readonly pending: readonly (number | null)[];
+    readonly rewritten: readonly number[];
+    readonly runs: readonly number[];
+    readonly skipped: readonly number[];
+    readonly unreached: readonly number[];
+  };
   /** Things worth a look, not defects. */
   readonly toLookAt: {
     /** Recipes over their meals' cap but within the bound (`check=over_cap`), one entry per source, zeros included. */
@@ -98,12 +117,19 @@ export const AdminQualityController = {
   async quality(period: Period, stepsVersion: string, now = new Date()): Promise<AdminCatalogueQualityView> {
     const window = windowFor(period, now);
     const days = madridDayKeys(window.from, window.to);
-    const [recipes, mealsOutsideServingBounds, picturesFailed, rejections] = await Promise.all([
+    const [recipes, mealsOutsideServingBounds, picturesFailed, rejections, runs, spend] = await Promise.all([
       judged(stepsVersion),
       AdminCatalogueRepository.mealsOutsideServingBounds(),
       AdminCatalogueRepository.picturesFailed(),
-      AdminGenerationsRepository.rejectionsPerDay(OVERSIZED_REASON, window.from, window.to)
+      AdminGenerationsRepository.rejectionsPerDay(OVERSIZED_REASON, window.from, window.to),
+      AdminSystemRepository.rewriteRunsPerDay(window.from, window.to),
+      AdminAiRepository.featurePerDay('rewrite', window.from, window.to)
     ]);
+    const perDay = <T>(rows: readonly (T & { readonly day: string })[], pick: (row: T) => number) =>
+      fillDays(
+        days,
+        rows.map(row => ({ day: row.day, n: pick(row) }))
+      );
     const count = (test: (flags: QualityFlags) => boolean) => recipes.filter(({ flags }) => test(flags)).length;
     const givenUp = count(flags => flags.refusalLimit);
     const pending = recipes.filter(({ row }) => row.pending).length;
@@ -130,6 +156,17 @@ export const AdminQualityController = {
 
           return attempts > 0 && attempts < REWRITE_ATTEMPT_BOUND;
         }).length
+      },
+      sweepHistory: {
+        calls: perDay(spend, row => row.calls),
+        costUsd: perDay(spend, row => row.costUsd).map(dollars),
+        days,
+        heldByCap: perDay(runs, row => row.heldByCap),
+        pending: days.map(day => runs.find(row => row.day === day)?.pending ?? null),
+        rewritten: perDay(runs, row => row.rewritten),
+        runs: perDay(runs, row => row.runs),
+        skipped: perDay(runs, row => row.skipped),
+        unreached: perDay(runs, row => row.unreached)
       },
       toLookAt: {
         overCapBySource: RECIPE_SOURCES.map(source => ({ n: overCap.filter(({ row }) => row.source === source).length, source })),

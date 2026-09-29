@@ -416,11 +416,13 @@ export const enGB: Dictionary = {
       log: 'Log',
       notifications: 'Notifications',
       pictures: 'Pictures',
+      planQuality: 'Plan quality',
       plans: 'Plans',
       product: 'Funnel and activity',
       professionals: 'Professionals',
       quality: 'Quality',
       recipes: 'Recipes',
+      retention: 'Retention',
       settings: 'Switches',
       summary: 'Overview',
       system: 'System'
@@ -481,6 +483,56 @@ export const enGB: Dictionary = {
     statesSeries: 'Pictures',
     statesTitle: 'Current state',
     title: 'Pictures'
+  },
+
+  /* `/admin/producto/planes/calidad` (`0071`): how the plans made in the period were delivered against the owner's bar. Sums only, never a plan or a person (`0028`). */
+  adminPlanQuality: {
+    advisoriesLabel: 'Plans carrying each advisory',
+    advisoriesNote: 'Advisories the plans went out with; none stopped a plan being delivered.',
+    advisoriesTitle: 'Advisories by kind',
+    advisoryKinds: {
+      carbs_out_of_band: 'Carbs outside the band',
+      fat_out_of_band: 'Fat outside the band',
+      kcal_out_of_band: 'Calories outside the band',
+      protein_above_target: 'Protein above target',
+      protein_below_target: 'Protein below target',
+      variety: 'Variety'
+    },
+    bandLabel: 'Share of days inside the band',
+    bandNote: 'A day is inside the band when all four macros land within ±5 % of their target.',
+    bandTitle: 'Days inside the band',
+    dataSince: 'Data since {date}.',
+    daysOf: '{count} of {days} days',
+    deliveryLabel: 'Times the plans stepped outside what was planned',
+    deliveryNote: 'How often the plans had to step outside what was planned to be built.',
+    deliveryTitle: 'How they were delivered',
+    eventDays: 'Event days inside their band',
+    fallbacks: { full_library: 'From the whole library', wider_rotation: 'With a wider rotation' },
+    few: 'Little data: {plans} plans in the period; {min} are needed to show figures.',
+    floorCaution: 'It does not say the floor caused a miss: it counts days outside the band on any macro, whatever the reason.',
+    floorLine: 'Days with the band narrowed by the floor: {days}. Outside the band: {narrowed}, against {rest} on the rest.',
+    floorLineAlone: 'Days with the band narrowed by the floor: {days}. Outside the band: {narrowed}.',
+    floorNoData: 'No plan in the period records this yet.',
+    floorNone: 'No day in the period had its band narrowed by the floor.',
+    floorSince: 'Recorded since {date}.',
+    floorTitle: 'Energy floor',
+    howCounted: [
+      'The plans made in the period are counted, summed: no plan, day or person is ever shown.',
+      'Plans made before quality was recorded are not scored afterwards: they are counted apart and enter no figure.',
+      'A day counts as inside the band only when all four macros are inside it at once. A day can miss several macros.',
+      'Below {min} plans in the period no figure is shown: it would be one or two people’s plans.',
+      'The energy floor narrows a day’s band when its target sits below it. It is recorded only on plans made from the date shown, and there is no series per day.'
+    ],
+    inBandAll: 'All four macros at once',
+    intro: 'How many of the plans’ days meet the band, which macros miss, and what it took to deliver them.',
+    loadsRefused: 'Event loads refused',
+    macros: { carbs: 'Carbs', fat: 'Fat', kcal: 'Calories', protein: 'Protein' },
+    noData: 'No plan has its quality recorded yet.',
+    tiles: { plans: 'Scored plans', withoutQuality: 'Plans without quality recorded' },
+    tilesLabel: 'Plans in the period',
+    title: 'Plan quality',
+    untilYesterday: 'The period ends yesterday: today’s plans are not in it.',
+    withoutQualityNote: 'Made before quality was recorded: they enter no figure.'
   },
 
   /* `/admin/producto/planes`: every plan by the state it is in now, and plans made per day. */
@@ -556,16 +608,33 @@ export const enGB: Dictionary = {
 
   /* `/admin/catalogo/calidad` (`0071`): what the catalogue should satisfy and does not, and the step rewrite's state. */
   adminQuality: {
+    historyCalls: 'Calls',
+    historyChart: 'What each run did, by day',
+    historyCost: 'Cost',
+    historyCostChart: 'Rewrite spend by day',
+    historyCostSeries: 'Cost',
+    historyEmpty: 'No run rewrote or spent anything in this period.',
+    historyNoData: 'No data',
+    historyNote: 'By Madrid day, within the period.',
+    historyPending: 'Pending at the end',
+    historyRunsCaption: 'Days the rewrite was active',
+    historyRunsEmpty: 'No run or call in this period.',
+    historyRunsHeader: 'Runs',
+    historySeries: { heldByCap: 'Held by the cap', rewritten: 'Rewritten', skipped: 'Skipped', unreached: 'Not reached' },
+    historyTitle: 'Rewrite history',
+    historyTotal: 'Total',
     howCounted: [
       'Everything is worked out now, over every recipe, with the same sums the scheduler uses: no figure is stored. Each link opens Recipes with exactly the recipes counted.',
       'Meals with servings out of range are meals stored with a serving outside the scheduler’s limits. They are only counted: no meal is shown.',
       'Over the cap is a dish that passes its meal’s maximum kcal without passing the limit for one serving. Size rejections are dishes the model proposed and the service dropped for passing that limit, per Madrid day.',
       'Failed pictures are the ones that failed because of the dish itself. Those left for the cap or the key do not count.',
-      'The step rewrite counts each recipe once: current, pending or given up. With refusals are the ones refused at least once without reaching the limit; a recipe can also be pending.'
+      'The step rewrite counts each recipe once: current, pending or given up. With refusals are the ones refused at least once without reaching the limit; a recipe can also be pending.',
+      'The rewrite history sums, per Madrid day, what each night’s run did: rewritten, skipped, not reached and held by the spend cap (a held run counts only there). Pending is the day’s last run’s value. Calls and cost are the rewrite feature’s; the cost is a floor when a call carried none.'
     ],
     intro: 'What the catalogue should satisfy and does not, and how the step rewrite is going.',
     lookChart: 'Size rejections per day',
     lookEmpty: 'No dish was rejected for its size in this period.',
+    lookLabel: 'Figures worth a look',
     lookNote: 'Not defects: worth a look now and then.',
     lookSeries: 'Dishes rejected',
     lookTitle: 'Worth a look',
@@ -640,6 +709,34 @@ export const enGB: Dictionary = {
     tiles: { ai: 'Generated by AI', seed: 'From the seed', total: 'Recipes', user: 'Made by users', withoutImage: 'Without a picture' },
     tilesLabel: 'The catalogue’s figures',
     title: 'Recipes'
+  },
+
+  /* `/admin/personas/retencion` (`0071`): sign-up cohorts and how many were active later. Counts of people, no id, no link (`0028`). */
+  adminRetention: {
+    cohort: 'Cohort',
+    cohortsLabel: 'Cohorts',
+    didNote:
+      'Someone with a meal completed, a swap, a check-in or a progress entry that week. It is approximate: someone who only opens the app is not counted.',
+    didTable: 'Cohorts that did something',
+    didTitle: 'Did something (approximate)',
+    empty: 'Nobody signed up in these cohorts.',
+    hidden: 'A dash (—) is a cell with no figure: either fewer than {min} eligible people, or that week has not happened yet.',
+    howCounted: [
+      'A cohort is the people who signed up in that month. A cell reads “active / eligible”: the eligible are those who have already lived that whole week.',
+      'Week 1 is the seven days that begin seven days after each person’s own sign-up; week 2, fourteen; week 4, twenty-eight.',
+      'A cell is shown only from {min} eligible people; with more it also carries the percentage. Below that, a dash (—): the figure is not shown.',
+      'The two versions count different people for the same cohort: “Used the app” only counts people who signed up from {since}.',
+      'There are no links and no names: a cell is a count, not a list of people.'
+    ],
+    intro: 'How many people are still active one, two and four weeks after signing up.',
+    notYet: 'No figure: that week has not happened yet',
+    size: 'People',
+    title: 'Retention',
+    tooFew: 'No figure: fewer than {min} eligible people',
+    usedNote: 'Someone who signed in or used the app that week. It only counts people who signed up from {since}; the columns fill in from {from}.',
+    usedTable: 'Cohorts that used the app',
+    usedTitle: 'Used the app',
+    week: 'Week {weeks}'
   },
 
   /* `/admin/ajustes`: the five switches and the push test, grouped by what they govern. */
@@ -1542,8 +1639,10 @@ export const enGB: Dictionary = {
     '/admin/generacion': { title: 'Log' },
     '/admin/generacion/ia': { title: 'AI and models' },
     '/admin/notificaciones': { title: 'Notifications' },
+    '/admin/personas/retencion': { title: 'Retention' },
     '/admin/producto': { title: 'Funnel and activity' },
     '/admin/producto/planes': { title: 'Plans' },
+    '/admin/producto/planes/calidad': { title: 'Plan quality' },
     '/admin/profesionales': { title: 'Professionals' },
     '/check-in': { title: "The fortnight's check-in" },
     '/compra': { title: 'The shopping' },

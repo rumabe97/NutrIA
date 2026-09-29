@@ -120,6 +120,35 @@ export const AdminAiRepository = {
   },
 
   /**
+   * One feature's spend per Madrid day: calls and dollars from the `ai_call`
+   * events it filed itself under (`feature`). A few rows. Mode: one grouped
+   * query on the `(event, created_at)` index.
+   */
+  async featurePerDay(
+    feature: 'plan' | 'rewrite' | 'swap',
+    from: Date,
+    to: Date
+  ): Promise<readonly { readonly calls: number; readonly costUsd: number; readonly day: string }[]> {
+    try {
+      const day = madridDay(analyticsEvents.createdAt);
+
+      return await database()
+        .select({ calls: sql<number>`count(*)`.mapWith(Number), costUsd: summed('costUsd'), day })
+        .from(analyticsEvents)
+        .where(
+          and(
+            eq(analyticsEvents.event, 'ai_call'),
+            sql`${analyticsEvents.properties} ->> 'feature' = ${feature}`,
+            within(analyticsEvents.createdAt, from, to)
+          )
+        )
+        .groupBy(day);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
    * The text models' month so far, per feature: every `ai_call` since
    * `monthStart` (a UTC month, as the pictures' cap counts). A few rows however
    * many calls were made. Mode: one grouped query on the `(event, created_at)` index.

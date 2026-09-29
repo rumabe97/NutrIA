@@ -37,9 +37,11 @@ import type {
   AdminNotificationsView,
   AdminPeopleView,
   AdminPicturesPeriodView,
+  AdminPlanQualityView,
   AdminPlansView,
   AdminProductView,
   AdminRecipesView,
+  AdminRetentionView,
   AdminSummaryView,
   AdminSystemView,
   CatalogueRecipeView,
@@ -2182,7 +2184,14 @@ describe('admin', () => {
     it('carry the quality of the catalogue, with exact keys, and its sweep adds up', async () => {
       const view = await body<AdminCatalogueQualityView>('catalogue/quality');
 
-      expect(keys(view)).toEqual(['period', 'recipes', 'shouldBeZero', 'sweep', 'toLookAt', 'window']);
+      expect(keys(view)).toEqual(['period', 'recipes', 'shouldBeZero', 'sweep', 'sweepHistory', 'toLookAt', 'window']);
+      expect(keys(view.sweepHistory)).toEqual(['calls', 'costUsd', 'days', 'heldByCap', 'pending', 'rewritten', 'runs', 'skipped', 'unreached']);
+
+      // One value per day of the period, in every array.
+      for (const series of Object.values(view.sweepHistory)) {
+        expect(series).toHaveLength(30);
+      }
+
       expect(keys(view.shouldBeZero)).toEqual(['mealsOutsideServingBounds', 'overBound', 'refusalLimit', 'uncosted', 'unserved']);
       expect(keys(view.sweep)).toEqual(['attemptBound', 'current', 'givenUp', 'pending', 'stepsVersion', 'withRefusals']);
       expect(keys(view.toLookAt)).toEqual(['overCapBySource', 'oversizedRejections', 'picturesFailed']);
@@ -2206,6 +2215,16 @@ describe('admin', () => {
       }
 
       await refusedAsInput('catalogue/quality?period=12');
+    });
+
+    it('carry the sweep history for the period asked, one value per day', async () => {
+      for (const period of [7, 90]) {
+        const view = await body<AdminCatalogueQualityView>(`catalogue/quality?period=${period}`);
+
+        for (const series of Object.values(view.sweepHistory)) {
+          expect(series).toHaveLength(period);
+        }
+      }
     });
 
     it('carry the system: versions, caps, integrations as booleans and crons, with no value of a setting', async () => {
@@ -2302,6 +2321,270 @@ describe('admin', () => {
       }
 
       await refusedAsInput('catalogue/recipes?check=nope');
+    });
+
+    /*
+     * Planes › Calidad and Personas › Retención (`0071`, project 008 phase 5):
+     * counts of plans and of people, never a plan, a day or a person. A
+     * fresh sign-up lands in the current cohort as one more of its `size`.
+     */
+    describe('plan quality and retention', () => {
+      const QUALITY = 'plans/quality';
+      const RETENTION = 'retention';
+      const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
+      const KEEPS = ['dataStart', 'fewData', 'minPlans', 'period', 'plans', 'window', 'withoutQuality'];
+
+      /** Every key and every string value, at any depth. */
+      const words = (value: unknown): string[] => {
+        if (typeof value === 'string') {
+          return [value];
+        }
+
+        if (Array.isArray(value)) {
+          return value.flatMap(words);
+        }
+
+        if (value !== null && typeof value === 'object') {
+          return Object.entries(value).flatMap(([key, inner]) => [key, ...words(inner)]);
+        }
+
+        return [];
+      };
+
+      let subject: Account;
+
+      beforeAll(async () => {
+        subject = await register(app, `admin-retention-${Date.now()}@e2e.invalid`);
+        made.push(subject.cookie);
+      });
+
+      it('do not exist for an ordinary account nor for nobody — 404 before 422 on a query they would refuse', async () => {
+        for (const path of [
+          QUALITY,
+          `${QUALITY}?period=12`,
+          `${QUALITY}?period=abc`,
+          `${QUALITY}?period=7&period=30`,
+          RETENTION,
+          `${RETENTION}?grouping=year`,
+          `${RETENTION}?grouping=week`,
+          `${RETENTION}?grouping=month`,
+          `${RETENTION}?grouping=month&grouping=month`
+        ]) {
+          const asOrdinary: Response = await get(path, ordinary.cookie);
+          const asNobody: Response = await get(path);
+
+          expect({ nobody: asNobody.status, ordinary: asOrdinary.status, path }).toEqual({ nobody: 404, ordinary: 404, path });
+        }
+      });
+
+      it('refuse to the admin what they cannot read, as INVALID_INPUT', async () => {
+        for (const path of [
+          `${QUALITY}?period=12`,
+          `${QUALITY}?period=abc`,
+          `${QUALITY}?period=7&period=30`,
+          `${RETENTION}?grouping=year`,
+          `${RETENTION}?grouping=`,
+          // Monthly only, and no query at all: even the one word it used to take is refused now.
+          `${RETENTION}?grouping=week`,
+          `${RETENTION}?grouping=month`,
+          `${RETENTION}?grouping=month&grouping=month`,
+          `${RETENTION}?grouping=month&grouping=week`,
+          `${RETENTION}?period=30`
+        ]) {
+          await refusedAsInput(path);
+        }
+
+        for (const path of [QUALITY, `${QUALITY}?period=7`, `${QUALITY}?period=90`, RETENTION]) {
+          await get(path, owner.cookie).expect(200);
+        }
+      });
+
+      it('carry the quality of the plans, with exact keys at every level and a closed set of kinds', async () => {
+        const view = await body<AdminPlanQualityView>(QUALITY);
+
+        // The union on `fewData`: seven keys while there are too few plans, every key once there are enough.
+        expect(keys(view)).toEqual(
+          view.fewData
+            ? [...KEEPS].sort()
+            : [
+                'advisoriesByKind',
+                'dataStart',
+                'days',
+                'daysInBand',
+                'eventDays',
+                'eventDaysInBand',
+                'fallbacks',
+                'fewData',
+                'floor',
+                'loadsRefused',
+                'minPlans',
+                'missesByMacro',
+                'period',
+                'plans',
+                'shares',
+                'window',
+                'withoutQuality'
+              ].sort()
+        );
+        expect(view.period).toBe(30);
+        expect(view.minPlans).toBe(10);
+        expect(view.fewData).toBe(view.plans < view.minPlans);
+        expect(keys(view.window)).toEqual(['from', 'previousFrom', 'to']);
+
+        for (const period of [7, 90]) {
+          expect((await body<AdminPlanQualityView>(`${QUALITY}?period=${period}`)).period).toBe(period);
+        }
+      });
+
+      /*
+       * The two branches depend on the shared database: one run proves only the
+       * branch its data falls in. Whichever it is, `fewData` must agree with
+       * `plans`. While fewer than 10 plans are scored the answer keeps only
+       * plans, withoutQuality, dataStart, fewData, minPlans, period and window as
+       * values, every other key absent (lead decision, phase 5).
+       */
+      it('answer with no quality figure at all while there are too few plans; exact keys and sums otherwise', async () => {
+        for (const period of [7, 30, 90]) {
+          const view = await body<AdminPlanQualityView>(`${QUALITY}?period=${period}`);
+
+          expect({ fewData: view.fewData, period }).toEqual({ fewData: view.plans < 10, period });
+
+          if (view.fewData) {
+            // Exactly these seven keys, and nothing else, under `fewData`.
+            expect({ keys: keys(view), period }).toEqual({ keys: [...KEEPS].sort(), period });
+
+            // Every quality figure is absent, not zero: a zero would read as "all misses" or "none".
+            for (const gone of [
+              'advisoriesByKind',
+              'days',
+              'daysInBand',
+              'eventDays',
+              'eventDaysInBand',
+              'fallbacks',
+              'floor',
+              'loadsRefused',
+              'missesByMacro',
+              'shares'
+            ]) {
+              expect({ gone, has: gone in view, period }).toEqual({ gone, has: false, period });
+            }
+          } else {
+            expect(keys(view.floor)).toEqual(['base', 'daysNarrowed', 'daysNarrowedOutOfBand', 'since']);
+            expect(keys(view.floor.base)).toEqual(['days', 'daysInBand', 'plans']);
+            expect(view.fallbacks.map(entry => entry.kind)).toEqual(['full_library', 'wider_rotation']);
+            expect(view.advisoriesByKind.map(entry => entry.kind).sort()).toEqual(
+              ['carbs_out_of_band', 'fat_out_of_band', 'kcal_out_of_band', 'protein_above_target', 'protein_below_target', 'variety'].sort()
+            );
+            expect(keys(view.missesByMacro)).toEqual(['carbs', 'fat', 'kcal', 'protein']);
+
+            for (const entry of [...view.advisoriesByKind, ...view.fallbacks]) {
+              expect(keys(entry)).toEqual(['kind', 'n']);
+            }
+
+            expect(view.daysInBand).toBeLessThanOrEqual(view.days);
+            expect(view.eventDaysInBand).toBeLessThanOrEqual(view.eventDays);
+            expect(view.floor.daysNarrowedOutOfBand).toBeLessThanOrEqual(view.floor.daysNarrowed);
+            // Never null once there are enough plans; a single figure may be, when its denominator is zero.
+            expect(view.shares).not.toBeNull();
+            expect(keys(view.shares)).toEqual(['eventInBand', 'floor', 'inBand', 'inBandByMacro']);
+            expect(keys(view.shares.inBandByMacro)).toEqual(['carbs', 'fat', 'kcal', 'protein']);
+
+            if (view.shares.floor) {
+              expect(keys(view.shares.floor)).toEqual(['narrowedOutOfBand', 'restOutOfBand']);
+            }
+          }
+        }
+      });
+
+      it('carry retention as cohorts of counts, with exact keys and a cell per week', async () => {
+        const view = await body<AdminRetentionView>(RETENTION);
+
+        expect(keys(view)).toEqual(['didSomething', 'eventsSince', 'minCohort', 'usedTheApp', 'weeks']);
+        expect(view.minCohort).toBe(20);
+        expect(view.eventsSince).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        expect(view.weeks).toEqual([1, 2, 4]);
+
+        for (const cohorts of [view.didSomething, view.usedTheApp]) {
+          expect(cohorts).toHaveLength(6);
+
+          for (const cohort of cohorts) {
+            expect(keys(cohort)).toEqual(['cells', 'size', 'start']);
+            expect(cohort.start).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+            expect(cohort.cells.map(cell => cell.weeks)).toEqual([1, 2, 4]);
+
+            for (const cell of cohort.cells) {
+              expect(keys(cell)).toEqual(['active', 'eligible', 'enough', 'weeks']);
+              expect(cell.active ?? 0).toBeLessThanOrEqual(cell.eligible);
+              expect(cell.eligible).toBeLessThanOrEqual(cohort.size);
+              expect(cell.enough).toBe(cell.eligible >= view.minCohort);
+              // A count of people is shown only from `minCohort` eligible people; below it, null.
+              expect(cell.enough ? typeof cell.active : cell.active).toBe(cell.enough ? 'number' : null);
+            }
+          }
+
+          expect(cohorts.map(cohort => cohort.start)).toEqual([...cohorts.map(cohort => cohort.start)].sort());
+        }
+      });
+
+      it('put a new account in the current month’s cohort, with too few people to show a share', async () => {
+        const view = await body<AdminRetentionView>(RETENTION);
+        const current = view.didSomething.at(-1);
+
+        if (!current) {
+          throw new Error('Retention returned no cohort');
+        }
+
+        // The last cohort is this month; the account made in `beforeAll` is one of its people.
+        expect(current.start).toBe(`${new Date().toISOString().slice(0, 7)}-01`);
+        expect(current.size).toBeGreaterThanOrEqual(1);
+        expect(current.cells.map(cell => ({ active: cell.active, enough: cell.enough }))).toEqual(
+          current.cells.map(() => ({ active: null, enough: false }))
+        );
+        expect(view.usedTheApp.at(-1)?.size).toBeGreaterThanOrEqual(1);
+        expect(view.usedTheApp.at(-1)?.cells.map(cell => cell.active)).toEqual([null, null, null]);
+        expect(subject.email).toContain('admin-retention-');
+      });
+
+      // The window ends at today's Madrid midnight (`windowFor`): a plan made now belongs to a day not yet over.
+      it('end at today’s midnight, so a plan generated now does not raise today’s count', async () => {
+        const counts = async () => {
+          const both = await Promise.all([7, 30].map(period => body<AdminPlanQualityView>(`${QUALITY}?period=${period}`)));
+
+          return both.map(view => ({ plans: view.plans, to: view.window.to, withoutQuality: view.withoutQuality }));
+        };
+
+        const before = await counts();
+        const madrid = new Intl.DateTimeFormat('en-GB', { hourCycle: 'h23', timeStyle: 'medium', timeZone: 'Europe/Madrid' }).format(
+          new Date(before[0]?.to ?? '')
+        );
+
+        expect(madrid).toBe('00:00:00');
+
+        await completeOnboarding(app, subject);
+        expect((await generateAndWait(app, subject)).status).toBe('succeeded');
+        expect(await counts()).toEqual(before);
+      });
+
+      it('name no account: no key or value in the answers looks like a user, an address or an id', async () => {
+        const bodies = [
+          await body<AdminPlanQualityView>(QUALITY),
+          await body<AdminRetentionView>(RETENTION),
+          await body<AdminCatalogueQualityView>('catalogue/quality')
+        ];
+        const seeded = [owner, ordinary, subject].flatMap(account => [account.email, account.email.split('@')[0] ?? account.email, account.id]);
+
+        for (const view of bodies) {
+          const text = JSON.stringify(view);
+
+          // No key names a user or an address, no value is an address or an id. (A recipe's `source: 'user'` is a value, not an account.)
+          expect(words(view).filter(word => /email|@/i.test(word) || UUID.test(word))).toEqual([]);
+          expect(Object.keys(view).filter(key => /user|email/i.test(key))).toEqual([]);
+
+          for (const needle of seeded) {
+            expect({ leaked: text.includes(needle), needle: needle.slice(0, 12) }).toEqual({ leaked: false, needle: needle.slice(0, 12) });
+          }
+        }
+      });
     });
 
     /*

@@ -5,6 +5,8 @@ import {
   AdminController,
   AdminLogController,
   AdminNotificationController,
+  AdminPlanQualityController,
+  AdminRetentionController,
   AdminSeriesController,
   AdminUsageController
 } from 'core/controllers/Admin';
@@ -20,8 +22,10 @@ import type {
   AdminNotificationsDto,
   AdminPeopleDto,
   AdminPicturesPeriodDto,
+  AdminPlanQualityDto,
   AdminPlansDto,
   AdminProductDto,
+  AdminRetentionDto,
   AdminSummaryDto
 } from '../dto/out/index.js';
 import type { Env } from '../../../config/index.js';
@@ -65,12 +69,20 @@ export class AdminService {
     return AdminUsageController.pictures(query.period, this.env.AI_IMAGE_MONTHLY_CAP_USD);
   }
 
+  async planQuality(query: PeriodQueryDto): Promise<AdminPlanQualityDto> {
+    return AdminPlanQualityController.quality(query.period);
+  }
+
   async plans(query: PeriodQueryDto): Promise<AdminPlansDto> {
     return AdminSeriesController.plans(query.period);
   }
 
   async product(query: PeriodQueryDto): Promise<AdminProductDto> {
     return AdminSeriesController.product(query.period);
+  }
+
+  async retention(): Promise<AdminRetentionDto> {
+    return AdminRetentionController.retention();
   }
 
   /** Resumen's picture tile reads against the same cap drawing stops at, as `pictures` does. */

@@ -377,6 +377,7 @@ export class PlanGenerationService {
       dayTargets: loads.dayTargets,
       fallback,
       loadsRefused: loads.refused.length,
+      minimumKcal,
       targets,
       violations
     });

@@ -83,7 +83,7 @@ names nothing, and any `redirect()` in a console page repeats the role check fir
 (`forwardOpened.ts`). Nothing outside the console links to it. Pages, grouped by
 `components/AdminNav/sections.ts` (a one-page group draws as a single link):
 Resumen `/admin` · Personas: `/admin/cuentas`, `/admin/profesionales`, `/admin/buzon`,
-`/admin/consentimientos` · Producto: `/admin/producto`, `/admin/producto/planes`,
+`/admin/consentimientos`, `/admin/personas/retencion` (monthly cohorts, counts only, a cell null below 20 people) · Producto: `/admin/producto`, `/admin/producto/planes`, `/admin/producto/planes/calidad` (sums only; "pocos datos" and no figure under 10 plans),
 `/admin/notificaciones` · Generación: `/admin/generacion`, `/admin/generacion/ia` ·
 Catálogo: `/admin/catalogo` (takes `?check=` from Calidad), `/admin/catalogo/calidad`,
 `/admin/catalogo/ingredientes`, `/admin/catalogo/imagenes` · Ajustes: `/admin/ajustes`,

@@ -1,4 +1,4 @@
-import { isBlocking } from './PlanValidation';
+import { isBlocking, PLAN_TOLERANCE } from './PlanValidation';
 
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PlanViolation } from './PlanValidation';
@@ -11,6 +11,16 @@ export type AdvisoryKind = Exclude<
   PlanViolation['kind'],
   'below_minimum_kcal' | 'empty_day' | 'missing_slot' | 'protein_above_ceiling' | 'wrong_day_count'
 >;
+
+/** Every advisory kind, in a stable order: the console lists them all, zeros included. Typed against `AdvisoryKind`, so a new kind does not compile until it is here. */
+export const ADVISORY_KINDS = [
+  'carbs_out_of_band',
+  'fat_out_of_band',
+  'kcal_out_of_band',
+  'protein_above_target',
+  'protein_below_target',
+  'variety'
+] as const satisfies readonly AdvisoryKind[];
 
 /**
  * Every advisory kind at zero, so a plan that had none of one still says 0 and
@@ -41,6 +51,8 @@ export type PlanQualityInput = {
   readonly fallback: 'full_library' | 'wider_rotation' | null;
   /** Event loads the bounds refused, which were built as ordinary days. */
   readonly loadsRefused: number;
+  /** The energy floor the plan was built against (`minimumDailyKcal`): a day whose band would start below it is narrowed by it. */
+  readonly minimumKcal: number;
   /** The plan's own targets, for every day that is not an event's. */
   readonly targets: NutritionTargets;
   /** What `validatePlan` said of the plan as delivered. */
@@ -60,6 +72,17 @@ export type PlanQuality = {
   /** How many advisories of each kind the plan was delivered with. Every kind is present. */
   readonly advisoriesByKind: Readonly<Record<AdvisoryKind, number>>;
   readonly days: number;
+  /**
+   * Days whose band minimum (the day's kcal target × 0.95, event days by their own
+   * loaded target) falls below the energy floor, so the floor narrows the band; says
+   * nothing about whether the day was missed. Absent on plans stored before phase 5.
+   */
+  readonly daysFloorNarrowed: number;
+  /**
+   * Of `daysFloorNarrowed`, the days not inside 5 % on all four macros; counts any macro
+   * and does not attribute cause. Absent on plans stored before phase 5.
+   */
+  readonly daysFloorNarrowedOutOfBand: number;
   /** Days inside the band on all four macros at once — the owner's bar. */
   readonly daysInBand: number;
   /** Event days, and of those, how many landed inside their own band on all four macros. */
@@ -97,10 +120,13 @@ export function planQuality(input: PlanQualityInput): PlanQuality {
 
   const missed = new Set([...missedBy.carbs, ...missedBy.fat, ...missedBy.kcal, ...missedBy.protein]);
   const eventDays = [...planDays].filter(day => input.dayTargets.has(day));
+  const narrowed = [...planDays].filter(day => (input.dayTargets.get(day) ?? input.targets).kcal * (1 - PLAN_TOLERANCE.kcal) < input.minimumKcal);
 
   return {
     advisoriesByKind,
     days: planDays.size,
+    daysFloorNarrowed: narrowed.length,
+    daysFloorNarrowedOutOfBand: narrowed.filter(day => missed.has(day)).length,
     daysInBand: [...planDays].filter(day => !missed.has(day)).length,
     eventDays: eventDays.length,
     eventDaysInBand: eventDays.filter(day => !missed.has(day)).length,

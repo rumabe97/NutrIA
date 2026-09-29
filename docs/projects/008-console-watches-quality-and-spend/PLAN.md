@@ -248,7 +248,7 @@ numbers refer to it. Read it before any phase.
 
 ### Phase 4 — Spend against a cap
 
-- [x] done
+- [x] done — commit `c99def8` ("The text models' month is counted against a cap: the console shows it by feature and warns, and the nightly rewrite pauses at 80 %")
 - **Dispatch**: opus @ medium — `/execute-project 008 phase 4`. Reviews:
   `invariant-reviewer`, `accessibility`. — owner-gated: set `AI_TEXT_MONTHLY_CAP_USD=5` on
   the Vercel API project, never above the OpenRouter key's own cap.
@@ -285,7 +285,7 @@ numbers refer to it. Read it before any phase.
 
 ### Phase 5 — What needs data to accumulate
 
-- [ ] pending
+- [x] done — built on 2026-09-29, the day phase 1 deployed, by the owner's choice rather than after the 2–4 weeks the dispatch asks for: the pages are built and tested now, and are reviewed against real data once it has accumulated (see LOG).
 - **Dispatch**: opus @ medium — `/execute-project 008 phase 5`. Not before 2–4 weeks after
   phase 1 is in production. Reviews: `invariant-reviewer`, `accessibility`,
   `plan-evaluator` (the band figure against `evaluate-plans.mjs`).

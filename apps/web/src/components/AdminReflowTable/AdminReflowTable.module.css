@@ -1,0 +1,88 @@
+/* A table on a card, as every console table: the pinned first column paints the card's
+   colour and a cell stays on one line. Below 36rem of card the list takes its place. */
+.card {
+  --table-surface: var(--surface-card);
+
+  container-type: inline-size;
+}
+
+.wide :is(th, td) {
+  white-space: nowrap;
+}
+
+.narrow {
+  display: none;
+}
+
+.caption {
+  color: var(--foreground-01);
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+  padding-block-end: var(--space-03);
+}
+
+.empty {
+  color: var(--foreground-02);
+  margin: 0;
+}
+
+.list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.item + .item {
+  border-block-start: 1px solid var(--border-01);
+}
+
+.item {
+  display: grid;
+  gap: var(--space-02);
+  padding-block: var(--space-03);
+}
+
+.title {
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+
+.values {
+  display: grid;
+  gap: var(--space-01);
+  margin: 0;
+}
+
+/* Name left, figure right; a long pair wraps instead of pushing past the card. */
+.value {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--font-size-03);
+  gap: var(--space-01) var(--space-03);
+  justify-content: space-between;
+}
+
+.value dt {
+  color: var(--foreground-02);
+}
+
+.value dd {
+  font-variant-numeric: tabular-nums;
+  margin: 0;
+  text-align: end;
+}
+
+@container (inline-size < 36rem) {
+  .wide {
+    display: none;
+  }
+
+  .narrow {
+    display: block;
+  }
+}

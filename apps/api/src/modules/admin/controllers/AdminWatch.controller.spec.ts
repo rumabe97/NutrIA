@@ -4,7 +4,13 @@ import express from 'express';
 import request from 'supertest';
 import { Test } from '@nestjs/testing';
 
-import { AdminConsentController, AdminNotificationController, AdminSystemController as CoreSystem } from 'core/controllers/Admin';
+import {
+  AdminConsentController,
+  AdminNotificationController,
+  AdminPlanQualityController,
+  AdminRetentionController,
+  AdminSystemController as CoreSystem
+} from 'core/controllers/Admin';
 
 import { AdminController } from './Admin.controller.js';
 import { AdminGuard } from '../../../shared/guards/index.js';
@@ -15,7 +21,7 @@ import { EmailService } from '../../email/services/Email.service.js';
 import { ENV } from '../../../config/index.js';
 import { PushService } from '../../notifications/index.js';
 
-import type { AdminConsentsView, AdminNotificationsView, AdminSystemView } from 'core/controllers/Admin';
+import type { AdminConsentsView, AdminNotificationsView, AdminPlanQualityView, AdminRetentionView, AdminSystemView } from 'core/controllers/Admin';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
 
@@ -31,6 +37,9 @@ const NOTIFICATIONS: AdminNotificationsView = {
   window: WINDOW
 };
 const SYSTEM = { commit: null, period: 30, window: WINDOW } as unknown as AdminSystemView;
+
+const PLAN_QUALITY = { fewData: true, period: 30, plans: 0 } as unknown as AdminPlanQualityView;
+const RETENTION = { didSomething: [], usedTheApp: [] } as unknown as AdminRetentionView;
 
 /**
  * The console's watching pages (`0071`): consents, notifications and system.
@@ -132,5 +141,38 @@ describe('the watching pages', () => {
 
     expect(notifications).not.toHaveBeenCalled();
     expect(system).not.toHaveBeenCalled();
+  });
+
+  it('reads plan quality and retention for the owner only, and refuses what is outside their grammar before reading', async () => {
+    role = 'user';
+    const planQuality = jest.spyOn(AdminPlanQualityController, 'quality').mockResolvedValue(PLAN_QUALITY);
+    const retention = jest.spyOn(AdminRetentionController, 'retention').mockResolvedValue(RETENTION);
+
+    for (const path of ['plans/quality', 'plans/quality?period=12', 'retention', 'retention?grouping=year']) {
+      await get(path).expect(404);
+    }
+
+    role = 'admin';
+
+    for (const path of [
+      'plans/quality?period=12',
+      'plans/quality?period=7&period=30',
+      'retention?grouping=week',
+      'retention?grouping=month',
+      'retention?grouping=week&grouping=month'
+    ]) {
+      expect(((await get(path).expect(422)).body as { code: string }).code).toBe('INVALID_INPUT');
+    }
+
+    expect(planQuality).not.toHaveBeenCalled();
+    expect(retention).not.toHaveBeenCalled();
+
+    expect((await get('plans/quality').expect(200)).body).toEqual(PLAN_QUALITY);
+    expect(planQuality).toHaveBeenLastCalledWith(30);
+    await get('plans/quality?period=90').expect(200);
+    expect(planQuality).toHaveBeenLastCalledWith(90);
+
+    expect((await get('retention').expect(200)).body).toEqual(RETENTION);
+    expect(retention).toHaveBeenLastCalledWith();
   });
 });

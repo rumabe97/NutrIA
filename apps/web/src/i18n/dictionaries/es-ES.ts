@@ -442,11 +442,13 @@ export const esES = {
       log: 'Registro',
       notifications: 'Notificaciones',
       pictures: 'Imágenes',
+      planQuality: 'Calidad de los planes',
       plans: 'Planes',
       product: 'Embudo y actividad',
       professionals: 'Profesionales',
       quality: 'Calidad',
       recipes: 'Recetas',
+      retention: 'Retención',
       settings: 'Interruptores',
       summary: 'Resumen',
       system: 'Sistema'
@@ -508,6 +510,56 @@ export const esES = {
     statesSeries: 'Imágenes',
     statesTitle: 'Estado actual',
     title: 'Imágenes'
+  },
+
+  /* `/admin/producto/planes/calidad` (`0071`): how the plans made in the period were delivered against the owner's bar. Sums only, never a plan or a person (`0028`). */
+  adminPlanQuality: {
+    advisoriesLabel: 'Número de planes con cada aviso',
+    advisoriesNote: 'Avisos con los que salieron los planes; ninguno impidió entregarlos.',
+    advisoriesTitle: 'Avisos por tipo',
+    advisoryKinds: {
+      carbs_out_of_band: 'Hidratos fuera de la banda',
+      fat_out_of_band: 'Grasas fuera de la banda',
+      kcal_out_of_band: 'Calorías fuera de la banda',
+      protein_above_target: 'Proteína por encima del objetivo',
+      protein_below_target: 'Proteína por debajo del objetivo',
+      variety: 'Variedad'
+    },
+    bandLabel: 'Porcentaje de días dentro de la banda',
+    bandNote: 'Un día está dentro de la banda cuando sus cuatro macros quedan a ±5 % de su objetivo.',
+    bandTitle: 'Días dentro de la banda',
+    dataSince: 'Datos desde el {date}.',
+    daysOf: '{count} de {days} días',
+    deliveryLabel: 'Veces que hizo falta salir de lo previsto',
+    deliveryNote: 'Cuántas veces hizo falta salir de lo previsto para armar los planes.',
+    deliveryTitle: 'Cómo se entregaron',
+    eventDays: 'Días de evento dentro de su banda',
+    fallbacks: { full_library: 'Con toda la biblioteca', wider_rotation: 'Con una rotación más amplia' },
+    few: 'Pocos datos: {plans} planes en el periodo; hacen falta {min} para mostrar cifras.',
+    floorCaution: 'No dice que el suelo causara un fallo: cuenta los días fuera de banda en cualquier macro, sea cual sea el motivo.',
+    floorLine: 'Días con la banda estrechada por el suelo: {days}. Fuera de banda: {narrowed}, frente a {rest} en el resto.',
+    floorLineAlone: 'Días con la banda estrechada por el suelo: {days}. Fuera de banda: {narrowed}.',
+    floorNoData: 'Ningún plan del periodo registra todavía este dato.',
+    floorNone: 'Ningún día del periodo tuvo la banda estrechada por el suelo.',
+    floorSince: 'Se registra desde el {date}.',
+    floorTitle: 'Suelo de energía',
+    howCounted: [
+      'Se cuentan los planes hechos en el periodo, sumados: nunca se muestra un plan, un día ni una persona.',
+      'Los planes hechos antes de registrar la calidad no se puntúan después: se cuentan aparte y no entran en ninguna cifra.',
+      'Un día cuenta como dentro de la banda solo si los cuatro macros lo están a la vez. Un día puede fallar en varios macros.',
+      'Por debajo de {min} planes en el periodo no se muestra ninguna cifra: serían los planes de una o dos personas.',
+      'El suelo de energía estrecha la banda de un día cuando su objetivo queda por debajo de él. Se registra solo en los planes hechos desde la fecha indicada y no hay serie por día.'
+    ],
+    inBandAll: 'Los cuatro macros a la vez',
+    intro: 'Cuántos días de los planes cumplen la banda, en qué macros fallan y cuánto costó entregarlos.',
+    loadsRefused: 'Cargas de evento rechazadas',
+    macros: { carbs: 'Hidratos', fat: 'Grasas', kcal: 'Calorías', protein: 'Proteína' },
+    noData: 'Todavía no hay ningún plan con la calidad registrada.',
+    tiles: { plans: 'Planes puntuados', withoutQuality: 'Planes sin calidad registrada' },
+    tilesLabel: 'Planes del periodo',
+    title: 'Calidad de los planes',
+    untilYesterday: 'El periodo termina ayer: los planes de hoy no entran.',
+    withoutQualityNote: 'Hechos antes de registrar la calidad: no entran en las cifras.'
   },
 
   /* `/admin/producto/planes`: every plan by the state it is in now, and plans made per day. */
@@ -583,16 +635,33 @@ export const esES = {
 
   /* `/admin/catalogo/calidad` (`0071`): what the catalogue should satisfy and does not, and the step rewrite's state. */
   adminQuality: {
+    historyCalls: 'Llamadas',
+    historyChart: 'Resultado de cada ejecución por día',
+    historyCost: 'Coste',
+    historyCostChart: 'Gasto de la reescritura por día',
+    historyCostSeries: 'Coste',
+    historyEmpty: 'Ninguna ejecución reescribió ni gastó nada en este periodo.',
+    historyNoData: 'Sin datos',
+    historyNote: 'Por día de Madrid, dentro del periodo.',
+    historyPending: 'Pendientes al final',
+    historyRunsCaption: 'Días con actividad de la reescritura',
+    historyRunsEmpty: 'Ninguna ejecución ni llamada en este periodo.',
+    historyRunsHeader: 'Ejecuciones',
+    historySeries: { heldByCap: 'Retenidas por el tope', rewritten: 'Reescritas', skipped: 'Omitidas', unreached: 'Sin alcanzar' },
+    historyTitle: 'Historia de la reescritura',
+    historyTotal: 'Total',
     howCounted: [
       'Todo se calcula ahora, sobre todas las recetas, con las mismas cuentas que usa el planificador: no se guarda ninguna cifra. Cada enlace abre Recetas con exactamente las recetas contadas.',
       'Las comidas con raciones fuera de rango son comidas guardadas con una ración fuera de los límites del planificador. Solo se cuentan: no se muestra ninguna comida.',
       'Por encima del tope es un plato que pasa las kcal máximas de su comida sin pasar el límite de una ración. Los rechazos por tamaño son platos que el modelo propuso y se descartaron por pasarse de ese límite, por día de Madrid.',
       'Las imágenes fallidas son las que fallaron por el propio plato. Las que se dejaron por el tope o por la clave no cuentan.',
-      'La reescritura de los pasos cuenta cada receta una vez: al día, pendiente o abandonada. Con rechazos son las rechazadas alguna vez sin llegar al límite; una receta puede estar también pendiente.'
+      'La reescritura de los pasos cuenta cada receta una vez: al día, pendiente o abandonada. Con rechazos son las rechazadas alguna vez sin llegar al límite; una receta puede estar también pendiente.',
+      'La historia de la reescritura suma por día de Madrid lo que hizo cada ejecución de la noche: reescritas, omitidas, sin alcanzar y retenidas por el tope de gasto (una ejecución retenida cuenta solo ahí). Las pendientes son el valor de la última ejecución del día. Las llamadas y el coste son las de la función de reescritura; el coste es un mínimo si alguna llamada no lo traía.'
     ],
     intro: 'Lo que el catálogo debería cumplir y no cumple, y cómo va la reescritura de los pasos.',
     lookChart: 'Rechazos por tamaño por día',
     lookEmpty: 'Ningún plato se rechazó por su tamaño en este periodo.',
+    lookLabel: 'Cifras para mirar',
     lookNote: 'No son fallos: conviene mirarlos de vez en cuando.',
     lookSeries: 'Platos rechazados',
     lookTitle: 'Para mirar',
@@ -668,6 +737,35 @@ export const esES = {
     tiles: { ai: 'Generadas por IA', seed: 'De la semilla', total: 'Recetas', user: 'Creadas por usuarios', withoutImage: 'Sin imagen' },
     tilesLabel: 'Cifras del catálogo',
     title: 'Recetas'
+  },
+
+  /* `/admin/personas/retencion` (`0071`): sign-up cohorts and how many were active later. Counts of people, no id, no link (`0028`). */
+  adminRetention: {
+    cohort: 'Cohorte',
+    cohortsLabel: 'Cohortes',
+    didNote:
+      'Alguien con una comida completada, un cambio de plato, un check-in o una medida de progreso esa semana. Es aproximada: quien solo abre la app no cuenta.',
+    didTable: 'Cohortes que hicieron algo',
+    didTitle: 'Hizo algo (aproximada)',
+    empty: 'Nadie se ha registrado en estas cohortes.',
+    hidden: 'Un guion (—) es una celda sin cifra: o hay menos de {min} personas evaluables, o esa semana aún no ha pasado.',
+    howCounted: [
+      'Cada cohorte son las personas que se registraron en ese mes. Una celda es «activas / evaluables»: las evaluables son las que ya han vivido esa semana completa.',
+      'La semana 1 son los siete días que empiezan siete días después del registro de cada persona; la 2, catorce; la 4, veintiocho.',
+      'Una celda solo se muestra a partir de {min} personas evaluables; con más, lleva también el porcentaje. Por debajo, un guion (—): la cifra no se enseña.',
+      'Las dos versiones cuentan a personas distintas de la misma cohorte: «Usó la app» solo cuenta a quien se registró desde el {since}.',
+      'No hay enlaces ni nombres: una celda es una cuenta, no una lista de personas.'
+    ],
+    intro: 'Cuánta gente sigue activa una, dos y cuatro semanas después de registrarse.',
+    notYet: 'Sin cifra: esa semana aún no ha pasado',
+    size: 'Personas',
+    title: 'Retención',
+    tooFew: 'Sin cifra: menos de {min} personas evaluables',
+    usedNote:
+      'Alguien que entró o usó la app esa semana. Solo cuenta a quien se registró desde el {since}; las columnas se van llenando desde el {from}.',
+    usedTable: 'Cohortes que usaron la app',
+    usedTitle: 'Usó la app',
+    week: 'Semana {weeks}'
   },
 
   /* `/admin/ajustes`: the five switches and the push test, grouped by what they govern. */
@@ -1585,8 +1683,10 @@ export const esES = {
     '/admin/generacion': { title: 'Registro' },
     '/admin/generacion/ia': { title: 'IA y modelos' },
     '/admin/notificaciones': { title: 'Notificaciones' },
+    '/admin/personas/retencion': { title: 'Retención' },
     '/admin/producto': { title: 'Embudo y actividad' },
     '/admin/producto/planes': { title: 'Planes' },
+    '/admin/producto/planes/calidad': { title: 'Calidad de los planes' },
     '/admin/profesionales': { title: 'Profesionales' },
     '/check-in': { title: 'Check-in de la quincena' },
     '/compra': { title: 'La compra' },
