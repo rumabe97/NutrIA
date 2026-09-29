@@ -9,7 +9,8 @@ import {
   AdminGenerationsController,
   AdminProfessionalsController,
   AdminPushTestController,
-  AdminSettingsController
+  AdminSettingsController,
+  AdminSystemController
 } from './controllers/index.js';
 import {
   AdminAccountsService,
@@ -19,7 +20,8 @@ import {
   AdminProfessionalsService,
   AdminPushTestService,
   AdminService,
-  AdminSettingsService
+  AdminSettingsService,
+  AdminSystemService
 } from './services/index.js';
 import { BackgroundTaskService } from '../../shared/services/index.js';
 import { EmailModule } from '../email/email.module.js';
@@ -41,7 +43,8 @@ import { NotificationsModule } from '../notifications/index.js';
     AdminGenerationsController,
     AdminProfessionalsController,
     AdminPushTestController,
-    AdminSettingsController
+    AdminSettingsController,
+    AdminSystemController
   ],
   // `PushService`: the owner's test goes out through the one door every push does; `EmailService`: the grant's mail.
   imports: [EmailModule, NotificationsModule],
@@ -54,6 +57,7 @@ import { NotificationsModule } from '../notifications/index.js';
     AdminPushTestService,
     AdminService,
     AdminSettingsService,
+    AdminSystemService,
     BackgroundTaskService,
     envProvider
   ]

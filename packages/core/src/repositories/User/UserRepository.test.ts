@@ -165,7 +165,7 @@ describe('accountOrder', () => {
     const [ascending] = sqlOf(accountOrder(query({ dir: 'asc', sort: 'lastActiveAt' })));
 
     expect(first).toBe(
-      '(select max("analytics_events"."created_at") from "analytics_events" where "analytics_events"."user_id" = "user"."id") desc nulls last'
+      '(select max("analytics_events"."created_at") from "analytics_events" where "analytics_events"."user_id" = "user"."id" and "analytics_events"."event" in ($1, $2)) desc nulls last'
     );
     expect(ascending).toMatch(/ asc nulls last$/);
   });
@@ -196,7 +196,10 @@ describe('the account query over the one table', () => {
     expect(sql).toContain('where "onboarding_state"."user_id" = "user"."id"');
     expect(sql).toContain('where "professionals"."user_id" = "user"."id"');
     expect(sql).toContain('(select count(*) from "meal_plans" where "user_id" = "user"."id")');
-    expect(sql).toContain('(select max("created_at") from "analytics_events" where "user_id" = "user"."id")');
+    // Last activity is a sign-in or a use of a session (`0071`), not any event the account ever left.
+    expect(sql).toContain(
+      '(select max("created_at") from "analytics_events" where "user_id" = "user"."id" and "analytics_events"."event" in ($1, $2))'
+    );
     expect(sql).not.toMatch(/= "id"/);
   });
 });

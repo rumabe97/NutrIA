@@ -1,14 +1,23 @@
 import { Inject, Injectable } from '@nestjs/common';
 
-import { AdminController, AdminLogController, AdminSeriesController, AdminUsageController } from 'core/controllers/Admin';
+import {
+  AdminConsentController,
+  AdminController,
+  AdminLogController,
+  AdminNotificationController,
+  AdminSeriesController,
+  AdminUsageController
+} from 'core/controllers/Admin';
 
 import { ENV } from '../../../config/index.js';
 
 import type {
   AdminAiDto,
   AdminAnalyticsDto,
+  AdminConsentsDto,
   AdminGenerationsDto,
   AdminGenerationStatsDto,
+  AdminNotificationsDto,
   AdminPeopleDto,
   AdminPicturesPeriodDto,
   AdminPlansDto,
@@ -30,6 +39,10 @@ export class AdminService {
     return AdminController.analytics();
   }
 
+  async consents(): Promise<AdminConsentsDto> {
+    return AdminConsentController.consents();
+  }
+
   /** The query arrives validated (`GenerationsQueryDto`); what each filter means is `packages/core`'s. */
   async generationsPage(query: GenerationsQueryDto): Promise<AdminGenerationsDto> {
     return AdminLogController.page(query);
@@ -37,6 +50,10 @@ export class AdminService {
 
   async generationStats(query: PeriodQueryDto): Promise<AdminGenerationStatsDto> {
     return AdminLogController.stats(query.period);
+  }
+
+  async notifications(query: PeriodQueryDto): Promise<AdminNotificationsDto> {
+    return AdminNotificationController.notifications(query.period);
   }
 
   async people(query: PeriodQueryDto): Promise<AdminPeopleDto> {

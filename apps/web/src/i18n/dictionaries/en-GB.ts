@@ -70,7 +70,7 @@ export const enGB: Dictionary = {
     howCounted: [
       'Weeks start on Monday, Madrid time. The first and last weeks of the period are usually partial: they count only the period’s days.',
       'Open means the account can sign in. Accounts that have not confirmed their address also show as not open.',
-      'Last activity is the account’s latest product event, such as signing in or asking for a meal swap. It does not say what they did.',
+      'Last activity is the last time the account signed in or used the app. It does not say what they did. Until {date} it counted sign-ins only.',
       'Plans counts the account’s plans in any state. No plan is read.'
     ],
     intro: 'Who has signed up, what they still need to get in, and how far they have got.',
@@ -173,6 +173,33 @@ export const enGB: Dictionary = {
     tierChange: '{from} → {to}',
     title: 'Audit log',
     via: { automatic: 'Automatic', console: 'Console', mail_link: 'Email link' }
+  },
+
+  /* `/admin/consentimientos` (`0071`): each versioned consent, its version in force and who holds it. Numbers only. */
+  adminConsents: {
+    caption: 'Consents by version',
+    columns: {
+      consent: 'Consent',
+      current: 'On the current one',
+      older: 'On an older one',
+      version: 'Version in force',
+      versions: 'Versions in use'
+    },
+    consents: { care: 'Link with a professional', health: 'Health data', professional: 'The professional’s agreement', profile: 'Profile' },
+    empty: 'No account has accepted yet.',
+    howCounted: [
+      'It counts accounts: each account counts once per consent, on the version it accepted.',
+      'On an older one are the accounts that will be asked again. Not accepted is a grant that has not accepted the agreement yet (the professional’s only).',
+      'An open link is one accepted consent.',
+      'No dates: this page does not say when anybody accepted. The privacy policy is not a consent and is not here.'
+    ],
+    intro: 'Which version of each consent is in force and how many accounts hold it.',
+    onboarded: 'Finished profile on the current version',
+    onboardedNote: '{holding} of {total} accounts with a finished profile.',
+    tilesLabel: 'The consents’ figures',
+    title: 'Consents',
+    unaccepted: 'not accepted',
+    versionOf: '{version}: {n}'
   },
 
   /* Words every console page with a period shares: the selector, the charts' table, the tiles' change. */
@@ -363,18 +390,44 @@ export const enGB: Dictionary = {
       accounts: 'Accounts',
       ai: 'AI and models',
       auditLog: 'Audit log',
+      consents: 'Consents',
       inbox: 'Inbox',
       ingredients: 'Ingredients',
       log: 'Log',
+      notifications: 'Notifications',
       pictures: 'Pictures',
       plans: 'Plans',
       product: 'Funnel and activity',
       professionals: 'Professionals',
+      quality: 'Quality',
       recipes: 'Recipes',
       settings: 'Switches',
-      summary: 'Overview'
+      summary: 'Overview',
+      system: 'System'
     },
     title: 'Console'
+  },
+
+  /* `/admin/notificaciones` (`0071`): push subscriptions, reminders per week and channel, and who checked in after one. */
+  adminNotifications: {
+    answered: 'Checked in within 3 days',
+    answeredNote: '{share} of those who got a reminder.',
+    howCounted: [
+      'Weeks start on Monday, Madrid time. The first and last of the period are usually incomplete.',
+      'A reminder that leaves by both channels counts once in each. Reminders per channel are kept since {date}: before that, a reminder sent by both kept a single row.',
+      'Checked in within 3 days counts distinct people, among those sent a reminder in the period, who made a check-in in the three days after one. It does not prove the reminder was the reason.',
+      'Subscriptions are subscribed browsers: one person may have several. No subscription address and no name is shown.'
+    ],
+    intro: 'Who can be reached, how many reminders leave by each channel and how many people check in afterwards.',
+    people: 'People with push',
+    reminded: 'People reminded',
+    remindersChannels: { email: 'Email', push: 'Push' },
+    remindersChart: 'Reminders per week',
+    remindersEmpty: 'No reminder left in this period.',
+    remindersTitle: 'Reminders',
+    subscriptions: 'Push subscriptions',
+    tilesLabel: 'The notifications’ figures',
+    title: 'Notifications'
   },
 
   adminPictures: {
@@ -456,7 +509,7 @@ export const enGB: Dictionary = {
     funnelTitle: 'Funnel',
     howCounted: [
       'The funnel is counted from the data rather than from events, so it covers the accounts that predate this screen too. Each step’s percentage is of the step above.',
-      'Active people per day counts each person once a day. Someone who signs in on three different days counts on all three, so the days can add up to more than the period’s total on the Overview.',
+      'Active people per day counts each person once a day. Someone who signs in on three different days counts on all three, so the days can add up to more than the period’s total on the Overview. Active means signed in or used the app; until {date} it counted sign-ins only.',
       'Events are things somebody did. Calls to the model are not here: they have a page of their own.'
     ],
     intro: 'How far people get, and what they do each day.',
@@ -481,12 +534,58 @@ export const enGB: Dictionary = {
     title: 'Professionals'
   },
 
+  /* `/admin/catalogo/calidad` (`0071`): what the catalogue should satisfy and does not, and the step rewrite's state. */
+  adminQuality: {
+    howCounted: [
+      'Everything is worked out now, over every recipe, with the same sums the scheduler uses: no figure is stored. Each link opens Recipes with exactly the recipes counted.',
+      'Meals with servings out of range are meals stored with a serving outside the scheduler’s limits. They are only counted: no meal is shown.',
+      'Over the cap is a dish that passes its meal’s maximum kcal without passing the limit for one serving. Size rejections are dishes the model proposed and the service dropped for passing that limit, per Madrid day.',
+      'Failed pictures are the ones that failed because of the dish itself. Those left for the cap or the key do not count.',
+      'The step rewrite counts each recipe once: current, pending or given up. With refusals are the ones refused at least once without reaching the limit; a recipe can also be pending.'
+    ],
+    intro: 'What the catalogue should satisfy and does not, and how the step rewrite is going.',
+    lookChart: 'Size rejections per day',
+    lookEmpty: 'No dish was rejected for its size in this period.',
+    lookNote: 'Not defects: worth a look now and then.',
+    lookSeries: 'Dishes rejected',
+    lookTitle: 'Worth a look',
+    openRecipes: 'See the recipes',
+    overCapBySource: 'Over their meal’s cap, by source',
+    picturesFailed: 'Pictures failed for the dish itself',
+    rejectionsTitle: 'Dishes rejected for size',
+    status: { ok: 'Fine', warn: 'Check' },
+    sweep: { current: 'Current', givenUp: 'Given up', pending: 'Pending', withRefusals: 'With refusals' },
+    sweepNote: 'Steps version {version}. A recipe is given up after {bound} refusals.',
+    sweepOf: 'of {total} recipes',
+    sweepTitle: 'Step rewrite',
+    tilesLabel: 'The rewrite’s state',
+    title: 'Quality',
+    zero: {
+      mealsOutsideServingBounds: 'Meals with servings out of range',
+      overBound: 'Recipes past the limit for one serving',
+      refusalLimit: 'Recipes the rewrite has given up on',
+      uncosted: 'Recipes without computable macros',
+      unserved: 'Dishes that fit no meal'
+    },
+    zeroLabel: 'Figures that should be zero',
+    zeroNote: 'A figure above zero is a defect upstream. Those with a link open the recipes counted.',
+    zeroTitle: 'Should be zero'
+  },
+
   adminRecipes: {
     bySlotChart: 'Recipes by meal',
     bySlotEmpty: 'The catalogue has no recipe.',
     bySlotSeries: 'Recipes',
     bySlotTitle: 'By meal',
     caption: 'Recipes',
+    check: 'Quality',
+    checks: {
+      over_bound: 'Past the limit for one serving',
+      over_cap: 'Over their meal’s cap',
+      refusal_limit: 'Rewrite given up',
+      uncosted: 'Without computable macros',
+      unserved: 'Fits no meal'
+    },
     columns: {
       allergens: 'Allergens',
       carbs: 'Carbs (g)',
@@ -540,7 +639,7 @@ export const enGB: Dictionary = {
     generationsEmpty: 'No generation in this period.',
     howCounted: [
       'Every figure with an arrow is compared with the previous period of the same length.',
-      'Active people counts each person once over the whole period, whether they signed in on one day or on many.',
+      'Active people counts each person once over the whole period, whether they signed in on one day or on many. Active means signed in or used the app; until {date} it counted sign-ins only.',
       'Successful generations are the finished ones out of those finished or failed that started in the period. Those still queued or running do not count.',
       'Each generation on the chart counts in the state it is in now.',
       'Not activated includes the accounts that have not confirmed their address yet.',
@@ -573,6 +672,71 @@ export const enGB: Dictionary = {
     trendsTitle: 'Trends',
     unreadMessages: 'Unseen messages',
     waitingAccounts: 'Not activated'
+  },
+
+  /* `/admin/ajustes/sistema` (`0071`): the deployed commit, versions, caps, integrations yes or no, each cron's last run and mail sent. */
+  adminSystem: {
+    caps: {
+      oversizedFactor: 'A dish is rejected past this multiple of its meal’s cap',
+      pictureMonthlyUsd: 'Monthly cap for pictures',
+      rewriteAttemptBound: 'Refusals before the rewrite gives up on a recipe',
+      servingBounds: 'Servings a meal is sized between',
+      servingKcal: 'kcal cap per serving, {slot}'
+    },
+    capsTitle: 'Limits',
+    columns: { item: 'Item', job: 'Job', lastRun: 'Last run', state: 'State', template: 'Template', value: 'Value' },
+    commit: 'Deployed version',
+    commitNone: 'Unknown',
+    cronCaption: 'Scheduled jobs',
+    cronEmpty: 'No jobs.',
+    cronNever: 'Never',
+    cronNote: 'Stale if it has gone more than {hours} h without finishing.',
+    crons: { reminders: 'Check-in reminders', rewrite: 'Step rewrite' },
+    cronState: { ok: 'On time', stale: 'Stale' },
+    cronTitle: 'Scheduled jobs',
+    howCounted: [
+      'No configuration value, key or address appears here: only yes or no, versions, dates and limits.',
+      'A scheduled job is stale if its last finished run is over 26 hours old, or it has never finished. Runs are kept since {date}: until the first one lands, every job reads “Never”.',
+      'Mail is counted since {date}, per template and Madrid day. Sent means handed to the provider, not read. No recipient is kept.',
+      'The deployed version is given by the platform on each deploy.'
+    ],
+    integrations: {
+      cronSecret: 'Scheduled jobs’ secret',
+      mail: 'Mail',
+      ownerAddress: 'Owner’s address for alerts',
+      pictures: 'Dish pictures',
+      push: 'Push notifications',
+      rewriteSweep: 'Nightly step rewrite',
+      sentry: 'Error tracking'
+    },
+    integrationsTitle: 'Integrations',
+    intro: 'Which version is running, with which limits, what is set up and whether jobs and mail work.',
+    mailCaption: 'Mail by template',
+    mailChart: 'Mail per day',
+    mailEmpty: 'No mail left in this period.',
+    mailKinds: {
+      'account-waiting': 'Account waiting',
+      'care-invitation': 'Link invitation',
+      'check-in-reminder': 'Check-in reminder',
+      'checkin-submitted': 'Check-in submitted',
+      'password-reset': 'Password reset',
+      'professional-granted': 'Professional profile granted',
+      'verify-email': 'Confirm email'
+    },
+    mailSeries: { failed: 'Failed', sent: 'Sent' },
+    mailTitle: 'Mail',
+    no: 'No',
+    title: 'System',
+    versions: {
+      careConsent: 'Link consent',
+      healthConsent: 'Health data consent',
+      professionalAgreement: 'The professional’s agreement',
+      profileConsent: 'Profile consent',
+      prompt: 'Dish generation prompt',
+      steps: 'Step rewrite prompt'
+    },
+    versionsTitle: 'Versions',
+    yes: 'Yes'
   },
 
   appNav: {
@@ -1344,13 +1508,17 @@ export const enGB: Dictionary = {
     '/admin': { title: 'Overview' },
     '/admin/ajustes': { title: 'Switches' },
     '/admin/ajustes/registro': { title: 'Audit log' },
+    '/admin/ajustes/sistema': { title: 'System' },
     '/admin/buzon': { title: 'Inbox' },
     '/admin/catalogo': { title: 'Recipes' },
+    '/admin/catalogo/calidad': { title: 'Quality' },
     '/admin/catalogo/imagenes': { title: 'Pictures' },
     '/admin/catalogo/ingredientes': { title: 'Ingredients' },
+    '/admin/consentimientos': { title: 'Consents' },
     '/admin/cuentas': { title: 'Accounts' },
     '/admin/generacion': { title: 'Log' },
     '/admin/generacion/ia': { title: 'AI and models' },
+    '/admin/notificaciones': { title: 'Notifications' },
     '/admin/producto': { title: 'Funnel and activity' },
     '/admin/producto/planes': { title: 'Plans' },
     '/admin/profesionales': { title: 'Professionals' },

@@ -150,6 +150,16 @@ describe('access: two locks, and the shape of a denial', () => {
       // The admin trail (0071): plain, and with an action it would refuse.
       '/admin/audit',
       '/admin/audit?action=nope',
+      // Catalogue quality, consents, notifications, system and the quality filter (project 008 phase 3): plain, and with a query they would refuse.
+      '/admin/catalogue/quality',
+      '/admin/catalogue/quality?period=12',
+      '/admin/consents',
+      '/admin/notifications',
+      '/admin/notifications?period=12',
+      '/admin/system',
+      '/admin/system?period=12',
+      '/admin/catalogue/recipes?check=over_bound',
+      '/admin/catalogue/recipes?check=nope',
       '/health-data'
     ];
 

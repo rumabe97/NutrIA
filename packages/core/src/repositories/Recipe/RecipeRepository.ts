@@ -849,7 +849,7 @@ export const RecipeRepository = {
  * one did and the method still has a gap: no step's `cue` is non-empty
  * anywhere it cooks, or no step carries a `minutes` above zero.
  */
-function needsRewriteCondition(stepsVersion: string) {
+export function needsRewriteCondition(stepsVersion: string) {
   return sql`
     not (
       split_part(${recipes.stepsVersion}, '+', 1) is not distinct from ${stepsVersion}

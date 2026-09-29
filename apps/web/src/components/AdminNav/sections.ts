@@ -29,6 +29,7 @@ export const ADMIN_SECTIONS: readonly AdminNavSection[] = [
     pages: [
       { href: '/admin/cuentas', label: 'accounts' },
       { href: '/admin/profesionales', label: 'professionals' },
+      { href: '/admin/consentimientos', label: 'consents' },
       { href: '/admin/buzon', label: 'inbox' }
     ]
   },
@@ -36,7 +37,8 @@ export const ADMIN_SECTIONS: readonly AdminNavSection[] = [
     group: 'product',
     pages: [
       { href: '/admin/producto', label: 'product' },
-      { href: '/admin/producto/planes', label: 'plans' }
+      { href: '/admin/producto/planes', label: 'plans' },
+      { href: '/admin/notificaciones', label: 'notifications' }
     ]
   },
   {
@@ -50,6 +52,7 @@ export const ADMIN_SECTIONS: readonly AdminNavSection[] = [
     group: 'catalogue',
     pages: [
       { href: '/admin/catalogo', label: 'recipes' },
+      { href: '/admin/catalogo/calidad', label: 'quality' },
       { href: '/admin/catalogo/ingredientes', label: 'ingredients' },
       { href: '/admin/catalogo/imagenes', label: 'pictures' }
     ]
@@ -58,7 +61,8 @@ export const ADMIN_SECTIONS: readonly AdminNavSection[] = [
     group: 'settings',
     pages: [
       { href: '/admin/ajustes', label: 'settings' },
-      { href: '/admin/ajustes/registro', label: 'auditLog' }
+      { href: '/admin/ajustes/registro', label: 'auditLog' },
+      { href: '/admin/ajustes/sistema', label: 'system' }
     ]
   }
 ];

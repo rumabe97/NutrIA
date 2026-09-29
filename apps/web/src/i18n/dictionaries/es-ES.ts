@@ -75,7 +75,7 @@ export const esES = {
     howCounted: [
       'Las semanas empiezan en lunes, hora de Madrid. La primera y la última del periodo suelen estar incompletas: cuentan solo los días del periodo.',
       'Abierta quiere decir que la cuenta puede entrar. Las que no han confirmado el correo también aparecen como no abiertas.',
-      'Última actividad es el último evento del producto de esa cuenta, como entrar o pedir un cambio de comida. No dice qué hizo.',
+      'Última actividad es la última vez que la cuenta entró o usó la app. No dice qué hizo. Hasta el {date} solo contaba las entradas.',
       'Planes cuenta los planes de la cuenta en cualquier estado. Ningún plan se lee.'
     ],
     intro: 'Quién se ha registrado, qué le falta para entrar y hasta dónde ha llegado.',
@@ -181,6 +181,33 @@ export const esES = {
     tierChange: '{from} → {to}',
     title: 'Registro de acciones',
     via: { automatic: 'Automático', console: 'Consola', mail_link: 'Enlace del correo' }
+  },
+
+  /* `/admin/consentimientos` (`0071`): each versioned consent, its version in force and who holds it. Numbers only. */
+  adminConsents: {
+    caption: 'Consentimientos por versión',
+    columns: {
+      consent: 'Consentimiento',
+      current: 'Con la vigente',
+      older: 'Con una anterior',
+      version: 'Versión vigente',
+      versions: 'Versiones en uso'
+    },
+    consents: { care: 'Vínculo con un profesional', health: 'Datos de salud', professional: 'Acuerdo del profesional', profile: 'Perfil' },
+    empty: 'Ninguna cuenta ha aceptado todavía.',
+    howCounted: [
+      'Cuenta cuentas: cada cuenta cuenta una vez por consentimiento, con la versión que aceptó.',
+      'Con una anterior son las cuentas a las que se volverá a preguntar. Sin aceptar es una concesión que todavía no ha aceptado el acuerdo (solo el del profesional).',
+      'Un vínculo abierto es un consentimiento aceptado.',
+      'Sin fechas: esta página no dice cuándo aceptó nadie. La política de privacidad no es un consentimiento y no aparece aquí.'
+    ],
+    intro: 'Qué versión de cada consentimiento está en vigor y cuántas cuentas la tienen.',
+    onboarded: 'Perfil terminado con la versión vigente',
+    onboardedNote: '{holding} de {total} cuentas con el perfil terminado.',
+    tilesLabel: 'Cifras de los consentimientos',
+    title: 'Consentimientos',
+    unaccepted: 'sin aceptar',
+    versionOf: '{version}: {n}'
   },
 
   /* Words every console page with a period shares: the selector, the charts' table, the tiles' change. */
@@ -388,18 +415,44 @@ export const esES = {
       accounts: 'Cuentas',
       ai: 'IA y modelos',
       auditLog: 'Registro de acciones',
+      consents: 'Consentimientos',
       inbox: 'Buzón',
       ingredients: 'Ingredientes',
       log: 'Registro',
+      notifications: 'Notificaciones',
       pictures: 'Imágenes',
       plans: 'Planes',
       product: 'Embudo y actividad',
       professionals: 'Profesionales',
+      quality: 'Calidad',
       recipes: 'Recetas',
       settings: 'Interruptores',
-      summary: 'Resumen'
+      summary: 'Resumen',
+      system: 'Sistema'
     },
     title: 'Consola'
+  },
+
+  /* `/admin/notificaciones` (`0071`): push subscriptions, reminders per week and channel, and who checked in after one. */
+  adminNotifications: {
+    answered: 'Hicieron el check-in en 3 días',
+    answeredNote: '{share} de quienes recibieron un aviso.',
+    howCounted: [
+      'Las semanas empiezan en lunes, hora de Madrid. La primera y la última del periodo suelen estar incompletas.',
+      'Un aviso que sale por los dos canales cuenta una vez en cada uno. Los avisos por canal se guardan desde el {date}: antes, un aviso enviado por los dos guardaba una sola fila.',
+      'Hicieron el check-in en 3 días cuenta personas distintas, entre las avisadas en el periodo, que hicieron un check-in en los tres días siguientes a un aviso. No prueba que fuera por el aviso.',
+      'Suscripciones son navegadores suscritos: una persona puede tener varios. No se muestra ninguna dirección de suscripción ni ningún nombre.'
+    ],
+    intro: 'A quién se puede avisar, cuántos avisos salen por canal y cuánta gente hace el check-in después.',
+    people: 'Personas con push',
+    reminded: 'Personas avisadas',
+    remindersChannels: { email: 'Correo', push: 'Push' },
+    remindersChart: 'Avisos por semana',
+    remindersEmpty: 'No salió ningún aviso en este periodo.',
+    remindersTitle: 'Avisos',
+    subscriptions: 'Suscripciones push',
+    tilesLabel: 'Cifras de las notificaciones',
+    title: 'Notificaciones'
   },
 
   /* `/admin/catalogo/imagenes`: the month's spend against the cap, spend per day, and pictures by state (`0066`). */
@@ -482,7 +535,7 @@ export const esES = {
     funnelTitle: 'Embudo',
     howCounted: [
       'El embudo se cuenta sobre los datos, no sobre eventos, así que incluye también las cuentas anteriores a esta pantalla. El porcentaje de cada paso es sobre el paso de arriba.',
-      'Personas activas por día cuenta a cada persona una vez al día. Quien entra tres días distintos cuenta en los tres, así que la suma de los días puede pasar del total del periodo que da Resumen.',
+      'Personas activas por día cuenta a cada persona una vez al día. Quien entra tres días distintos cuenta en los tres, así que la suma de los días puede pasar del total del periodo que da Resumen. Activa quiere decir que entró o usó la app; hasta el {date} solo contaba las entradas.',
       'Los eventos son lo que alguien hizo. Las llamadas al modelo no están aquí: tienen su propia página.'
     ],
     intro: 'Hasta dónde llega la gente y qué hace cada día.',
@@ -507,6 +560,44 @@ export const esES = {
     title: 'Profesionales'
   },
 
+  /* `/admin/catalogo/calidad` (`0071`): what the catalogue should satisfy and does not, and the step rewrite's state. */
+  adminQuality: {
+    howCounted: [
+      'Todo se calcula ahora, sobre todas las recetas, con las mismas cuentas que usa el planificador: no se guarda ninguna cifra. Cada enlace abre Recetas con exactamente las recetas contadas.',
+      'Las comidas con raciones fuera de rango son comidas guardadas con una ración fuera de los límites del planificador. Solo se cuentan: no se muestra ninguna comida.',
+      'Por encima del tope es un plato que pasa las kcal máximas de su comida sin pasar el límite de una ración. Los rechazos por tamaño son platos que el modelo propuso y se descartaron por pasarse de ese límite, por día de Madrid.',
+      'Las imágenes fallidas son las que fallaron por el propio plato. Las que se dejaron por el tope o por la clave no cuentan.',
+      'La reescritura de los pasos cuenta cada receta una vez: al día, pendiente o abandonada. Con rechazos son las rechazadas alguna vez sin llegar al límite; una receta puede estar también pendiente.'
+    ],
+    intro: 'Lo que el catálogo debería cumplir y no cumple, y cómo va la reescritura de los pasos.',
+    lookChart: 'Rechazos por tamaño por día',
+    lookEmpty: 'Ningún plato se rechazó por su tamaño en este periodo.',
+    lookNote: 'No son fallos: conviene mirarlos de vez en cuando.',
+    lookSeries: 'Platos rechazados',
+    lookTitle: 'Para mirar',
+    openRecipes: 'Ver las recetas',
+    overCapBySource: 'Por encima del tope de su comida, por origen',
+    picturesFailed: 'Imágenes fallidas por el propio plato',
+    rejectionsTitle: 'Platos rechazados por tamaño',
+    status: { ok: 'Bien', warn: 'Revisar' },
+    sweep: { current: 'Al día', givenUp: 'Abandonadas', pending: 'Pendientes', withRefusals: 'Con rechazos' },
+    sweepNote: 'Versión de los pasos {version}. Se abandona una receta tras {bound} rechazos.',
+    sweepOf: 'de {total} recetas',
+    sweepTitle: 'Reescritura de los pasos',
+    tilesLabel: 'Estado de la reescritura',
+    title: 'Calidad',
+    zero: {
+      mealsOutsideServingBounds: 'Comidas con raciones fuera de rango',
+      overBound: 'Recetas por encima del límite de una ración',
+      refusalLimit: 'Recetas que la reescritura ha abandonado',
+      uncosted: 'Recetas sin macros calculables',
+      unserved: 'Platos que no encajan con ninguna comida'
+    },
+    zeroLabel: 'Cifras que deberían ser cero',
+    zeroNote: 'Una cifra por encima de cero es un fallo aguas arriba. Las que llevan enlace abren esas recetas.',
+    zeroTitle: 'Debería ser cero'
+  },
+
   /* `/admin/catalogo`: the recipe catalogue's size, by meal, and every recipe (shared data, never who made it, `0028`). */
   adminRecipes: {
     bySlotChart: 'Recetas por comida',
@@ -514,6 +605,14 @@ export const esES = {
     bySlotSeries: 'Recetas',
     bySlotTitle: 'Por comida',
     caption: 'Recetas',
+    check: 'Calidad',
+    checks: {
+      over_bound: 'Por encima del límite de una ración',
+      over_cap: 'Por encima del tope de su comida',
+      refusal_limit: 'Reescritura abandonada',
+      uncosted: 'Sin macros calculables',
+      unserved: 'No encaja con ninguna comida'
+    },
     columns: {
       allergens: 'Alérgenos',
       carbs: 'Hidratos (g)',
@@ -567,7 +666,7 @@ export const esES = {
     generationsEmpty: 'Ninguna generación en este periodo.',
     howCounted: [
       'Cada cifra con flecha se compara con el periodo anterior de la misma duración.',
-      'Personas activas cuenta a cada persona una vez en todo el periodo, tanto si entró un día como si entró muchos.',
+      'Personas activas cuenta a cada persona una vez en todo el periodo, tanto si entró un día como si entró muchos. Activa quiere decir que entró o usó la app; hasta el {date} solo contaba las entradas.',
       'Las generaciones con éxito son las terminadas entre las terminadas y las fallidas que empezaron en el periodo. Las que siguen en cola o en curso no cuentan.',
       'Cada generación del gráfico cuenta en el estado en el que está ahora.',
       'Sin activar incluye las cuentas que aún no han confirmado el correo.',
@@ -600,6 +699,71 @@ export const esES = {
     trendsTitle: 'Tendencias',
     unreadMessages: 'Mensajes sin ver',
     waitingAccounts: 'Sin activar'
+  },
+
+  /* `/admin/ajustes/sistema` (`0071`): the deployed commit, versions, caps, integrations yes or no, each cron's last run and mail sent. */
+  adminSystem: {
+    caps: {
+      oversizedFactor: 'Un plato se rechaza pasando este múltiplo del tope de su comida',
+      pictureMonthlyUsd: 'Tope mensual de imágenes',
+      rewriteAttemptBound: 'Rechazos antes de abandonar una receta en la reescritura',
+      servingBounds: 'Raciones entre las que se dimensiona una comida',
+      servingKcal: 'Tope de kcal por ración, {slot}'
+    },
+    capsTitle: 'Límites',
+    columns: { item: 'Elemento', job: 'Tarea', lastRun: 'Última ejecución', state: 'Estado', template: 'Plantilla', value: 'Valor' },
+    commit: 'Versión desplegada',
+    commitNone: 'Desconocida',
+    cronCaption: 'Tareas programadas',
+    cronEmpty: 'Sin tareas.',
+    cronNever: 'Nunca',
+    cronNote: 'Atrasada si lleva más de {hours} h sin terminar.',
+    crons: { reminders: 'Avisos de check-in', rewrite: 'Reescritura de los pasos' },
+    cronState: { ok: 'Al día', stale: 'Atrasada' },
+    cronTitle: 'Tareas programadas',
+    howCounted: [
+      'Aquí no aparece ningún valor de configuración, clave ni dirección: solo sí o no, versiones, fechas y límites.',
+      'Una tarea programada está atrasada si su última ejecución terminada tiene más de 26 horas, o si no ha terminado nunca. Las ejecuciones se guardan desde el {date}: hasta que llegue la primera, todas figuran como «Nunca».',
+      'El correo se cuenta desde el {date}, por plantilla y por día de Madrid. Enviado quiere decir entregado al proveedor, no leído. No se guarda ningún destinatario.',
+      'La versión desplegada la da la plataforma en cada despliegue.'
+    ],
+    integrations: {
+      cronSecret: 'Secreto de las tareas programadas',
+      mail: 'Correo',
+      ownerAddress: 'Dirección del dueño para avisos',
+      pictures: 'Imágenes de los platos',
+      push: 'Notificaciones push',
+      rewriteSweep: 'Reescritura nocturna de los pasos',
+      sentry: 'Registro de errores'
+    },
+    integrationsTitle: 'Integraciones',
+    intro: 'Qué versión corre, con qué límites, qué está configurado y si las tareas y el correo funcionan.',
+    mailCaption: 'Correo por plantilla',
+    mailChart: 'Correos por día',
+    mailEmpty: 'No salió ningún correo en este periodo.',
+    mailKinds: {
+      'account-waiting': 'Cuenta en espera',
+      'care-invitation': 'Invitación de vínculo',
+      'check-in-reminder': 'Aviso de check-in',
+      'checkin-submitted': 'Check-in enviado',
+      'password-reset': 'Restablecer contraseña',
+      'professional-granted': 'Perfil profesional concedido',
+      'verify-email': 'Confirmar correo'
+    },
+    mailSeries: { failed: 'Fallidos', sent: 'Enviados' },
+    mailTitle: 'Correo',
+    no: 'No',
+    title: 'Sistema',
+    versions: {
+      careConsent: 'Consentimiento del vínculo',
+      healthConsent: 'Consentimiento de datos de salud',
+      professionalAgreement: 'Acuerdo del profesional',
+      profileConsent: 'Consentimiento del perfil',
+      prompt: 'Plantilla de generación de platos',
+      steps: 'Plantilla de reescritura de pasos'
+    },
+    versionsTitle: 'Versiones',
+    yes: 'Sí'
   },
 
   appNav: {
@@ -1386,13 +1550,17 @@ export const esES = {
     '/admin': { title: 'Resumen' },
     '/admin/ajustes': { title: 'Interruptores' },
     '/admin/ajustes/registro': { title: 'Registro de acciones' },
+    '/admin/ajustes/sistema': { title: 'Sistema' },
     '/admin/buzon': { title: 'Buzón' },
     '/admin/catalogo': { title: 'Recetas' },
+    '/admin/catalogo/calidad': { title: 'Calidad' },
     '/admin/catalogo/imagenes': { title: 'Imágenes' },
     '/admin/catalogo/ingredientes': { title: 'Ingredientes' },
+    '/admin/consentimientos': { title: 'Consentimientos' },
     '/admin/cuentas': { title: 'Cuentas' },
     '/admin/generacion': { title: 'Registro' },
     '/admin/generacion/ia': { title: 'IA y modelos' },
+    '/admin/notificaciones': { title: 'Notificaciones' },
     '/admin/producto': { title: 'Embudo y actividad' },
     '/admin/producto/planes': { title: 'Planes' },
     '/admin/profesionales': { title: 'Profesionales' },

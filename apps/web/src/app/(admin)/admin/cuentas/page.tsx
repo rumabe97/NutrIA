@@ -21,6 +21,7 @@ import { formatDate, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../consoleMetadata';
+import { RECORDING_STARTS } from '../recordingStart';
 
 import type { AccountView, Paged } from 'core/controllers/User';
 import type { AdminPeopleView } from 'core/controllers/Admin';
@@ -65,6 +66,7 @@ export default async function AdminAccountsPage({ searchParams }: { searchParams
   }
 
   const common = dictionary.adminConsole;
+  const since = formatDate(RECORDING_STARTS, locale, { day: 'numeric', month: 'long', year: 'numeric' });
   const t = dictionary.adminAccounts;
   const premium = settings?.flags?.premium ?? false;
   const opened = typeof query.abierta === 'string' ? [query.abierta] : (query.abierta ?? []);
@@ -181,7 +183,7 @@ export default async function AdminAccountsPage({ searchParams }: { searchParams
         />
       </AdminSection>
 
-      <HowCounted notes={t.howCounted} summary={common.howCounted} />
+      <HowCounted notes={t.howCounted.map(note => interpolate(note, { date: since }))} summary={common.howCounted} />
     </div>
   );
 }

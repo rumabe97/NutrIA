@@ -1,0 +1,42 @@
+/* The page measures itself, so the tiles and the table count their room beside the sidebar. */
+.page {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--gap-region);
+  /* One column that may shrink below its widest child: the table scrolls inside its own region. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* As many tiles a row as fit at 11rem each. */
+.tiles {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.table {
+  --table-surface: var(--surface-card);
+
+  container-type: inline-size;
+}
+
+/* Cells stay on one line: a narrow table scrolls inside its card. */
+.table :is(th, td) {
+  white-space: nowrap;
+}
+
+/* A long first column pinned on a narrow table would cover the figures, so there it scrolls with them. */
+@container (inline-size < 36rem) {
+  .table table :is(th, td):first-child {
+    position: static;
+  }
+
+  /* What a row is may wrap there, so what it says (a value, a state) stays in view. */
+  .table table tbody :is(th, td):first-child {
+    min-inline-size: 7rem;
+    white-space: normal;
+  }
+}

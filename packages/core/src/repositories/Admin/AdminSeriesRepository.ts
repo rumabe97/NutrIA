@@ -6,6 +6,7 @@ import { mealPlans, planGenerationJobs } from 'database/schema/plan';
 import { recipeImageCalls } from 'database/schema/recipe';
 import { user } from 'database/schema/auth';
 
+import { ACTIVE_EVENTS } from 'core/entities/Analytics';
 import { DatabaseOperationError } from 'core/entities/Error';
 
 import { madridDay, within } from './AdminSql';
@@ -71,7 +72,7 @@ export const AdminSeriesRepository = {
     }
   },
 
-  /** Distinct people who started a session, per Madrid day. Mode: one grouped query. */
+  /** Distinct people who were active (signed in or used a session, `0071`), per Madrid day. Mode: one grouped query. */
   async activePeoplePerDay(from: Date, to: Date): Promise<readonly DayCountRow[]> {
     try {
       const day = madridDay(analyticsEvents.createdAt);
@@ -79,14 +80,14 @@ export const AdminSeriesRepository = {
       return await database()
         .select({ day, n: countDistinct(analyticsEvents.userId) })
         .from(analyticsEvents)
-        .where(and(eq(analyticsEvents.event, 'session_started'), within(analyticsEvents.createdAt, from, to)))
+        .where(and(inArray(analyticsEvents.event, [...ACTIVE_EVENTS]), within(analyticsEvents.createdAt, from, to)))
         .groupBy(day);
     } catch (error: unknown) {
       throw wrap(error);
     }
   },
 
-  /** Distinct people who started a session in each period — one person, however many days. Mode: one aggregate. */
+  /** Distinct people who were active in each period — one person, however many days. Mode: one aggregate. */
   async activePeopleTotals(window: PeriodWindow): Promise<PeriodCount> {
     try {
       const distinctWithin = (from: Date, to: Date) =>
@@ -94,7 +95,7 @@ export const AdminSeriesRepository = {
       const [row] = await database()
         .select({ current: distinctWithin(window.from, window.to), previous: distinctWithin(window.previousFrom, window.from) })
         .from(analyticsEvents)
-        .where(and(eq(analyticsEvents.event, 'session_started'), within(analyticsEvents.createdAt, window.previousFrom, window.to)));
+        .where(and(inArray(analyticsEvents.event, [...ACTIVE_EVENTS]), within(analyticsEvents.createdAt, window.previousFrom, window.to)));
 
       return { current: row?.current ?? 0, previous: row?.previous ?? 0 };
     } catch (error: unknown) {

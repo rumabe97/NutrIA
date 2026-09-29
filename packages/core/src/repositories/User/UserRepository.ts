@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, getTableName, isNotNull, isNull, not, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, getTableName, inArray, isNotNull, isNull, not, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { analyticsEvents } from 'database/schema/platform';
@@ -9,6 +9,7 @@ import { onboardingState } from 'database/schema/profile';
 import { professionals } from 'database/schema/professional';
 import { user } from 'database/schema/auth';
 
+import { ACTIVE_EVENTS } from 'core/entities/Analytics';
 import { DatabaseOperationError } from 'core/entities/Error';
 import { userSchema } from 'core/entities/User';
 
@@ -43,7 +44,7 @@ export type AccountRow = {
   readonly createdAt: Date;
   readonly email: string;
   readonly emailVerified: boolean;
-  /** The latest product event recorded for the account, or null when there is none. */
+  /** The latest sign-in or use recorded for the account, or null when there is none. */
   readonly lastActiveAt: Date | null;
   /** The day onboarding was finished, `YYYY-MM-DD`, or null. */
   readonly onboardedAt: string | null;
@@ -73,7 +74,7 @@ const IS_PROFESSIONAL = sql`exists (select 1 from ${professionals} where ${profe
  */
 const MILESTONES = {
   lastActiveAt:
-    sql<Date | null>`(select max(${analyticsEvents.createdAt}) from ${analyticsEvents} where ${analyticsEvents.userId} = ${ACCOUNT_ID})`.mapWith(
+    sql<Date | null>`(select max(${analyticsEvents.createdAt}) from ${analyticsEvents} where ${analyticsEvents.userId} = ${ACCOUNT_ID} and ${inArray(analyticsEvents.event, [...ACTIVE_EVENTS])})`.mapWith(
       analyticsEvents.createdAt
     ),
   onboardedAt: sql<

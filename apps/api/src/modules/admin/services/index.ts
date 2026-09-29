@@ -6,3 +6,4 @@ export * from './AdminFeedback.service.js';
 export * from './AdminProfessionals.service.js';
 export * from './AdminPushTest.service.js';
 export * from './AdminSettings.service.js';
+export * from './AdminSystem.service.js';

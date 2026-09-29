@@ -65,7 +65,7 @@ export function servingFactor(kcal: number, slot: MealSlot): number {
  * figure (`composePerServing`). A dish whose slugs the catalogue does not know
  * is not judged here: that is the catalogue gate's refusal, not this one's.
  */
-export function isOversized(dish: CandidateDish, catalogue: Catalogue): boolean {
+export function isOversized(dish: Pick<CandidateDish, 'ingredients' | 'servings' | 'slots'>, catalogue: Catalogue): boolean {
   const composed = composePerServing(dish, catalogue);
 
   return composed.ok && composed.macros.kcal > servingCap(dish.slots) * OVERSIZED_FACTOR;

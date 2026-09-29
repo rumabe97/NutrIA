@@ -1,7 +1,9 @@
-import { and, count, countDistinct, eq, gte, sql } from 'drizzle-orm';
+import { and, count, countDistinct, eq, gte, inArray, sql } from 'drizzle-orm';
 
 import { analyticsEvents } from 'database/schema/platform';
 import { database } from 'database';
+
+import { ACTIVE_EVENTS } from 'core/entities/Analytics';
 
 import type { AnalyticsEvent } from 'core/entities/Analytics';
 
@@ -20,7 +22,7 @@ export const AnalyticsRepository = {
       db
         .select({ n: countDistinct(analyticsEvents.userId) })
         .from(analyticsEvents)
-        .where(and(gte(analyticsEvents.createdAt, since), eq(analyticsEvents.event, 'session_started')))
+        .where(and(gte(analyticsEvents.createdAt, since), inArray(analyticsEvents.event, [...ACTIVE_EVENTS])))
     ]);
 
     return { people: people[0]?.n ?? 0, rows: rows.map(row => ({ event: row.event, n: row.n })) };

@@ -14,9 +14,11 @@ const catalogue = vi.hoisted(() => ({
   ingredientAllergens: vi.fn<(typeof Catalogue)['ingredientAllergens']>(),
   ingredientPage: vi.fn<(typeof Catalogue)['ingredientPage']>(),
   matchingRecipes: vi.fn<(typeof Catalogue)['matchingRecipes']>(),
+  qualityRecipes: vi.fn<(typeof Catalogue)['qualityRecipes']>(),
   recipeCounts: vi.fn<(typeof Catalogue)['recipeCounts']>(),
   recipePage: vi.fn<(typeof Catalogue)['recipePage']>()
 }));
+const STEPS = '2.8.0';
 const loadCatalogue = vi.hoisted(() => vi.fn());
 const listAllergens = vi.hoisted(() => vi.fn());
 
@@ -157,10 +159,30 @@ describe('byFigure', () => {
 });
 
 describe('AdminCatalogueController.recipes', () => {
+  it('narrows the table to the recipes a quality check finds, and only asks the check when it is given', async () => {
+    catalogue.qualityRecipes.mockResolvedValue([
+      { id: 'r-ok', items: [{ grams: 100, slug: 'aceite' }], mealSlots: ['lunch'], pending: false, servings: 1, source: 'seed', stepsVersion: STEPS },
+      { id: 'r-big', items: [{ grams: 900, slug: 'aceite' }], mealSlots: ['lunch'], pending: false, servings: 1, source: 'seed', stepsVersion: STEPS }
+    ]);
+    catalogue.recipePage.mockResolvedValue({ rows: [], total: 0 });
+    loadCatalogue.mockResolvedValue([OIL]);
+
+    await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({ check: 'over_bound' }), STEPS);
+
+    expect(catalogue.qualityRecipes).toHaveBeenCalledWith(STEPS);
+    expect(catalogue.recipePage).toHaveBeenCalledWith(expect.objectContaining({ check: 'over_bound' }), ['r-big']);
+
+    catalogue.qualityRecipes.mockClear();
+    await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({}), STEPS);
+
+    expect(catalogue.qualityRecipes).not.toHaveBeenCalled();
+    expect(catalogue.recipePage).toHaveBeenLastCalledWith(expect.anything(), undefined);
+  });
+
   it('by name, pages in SQL and costs only the page', async () => {
     catalogue.recipePage.mockResolvedValue({ rows: [recipe({})], total: 57 });
 
-    const view = await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({ offset: '25', size: '25' }));
+    const view = await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({ offset: '25', size: '25' }), STEPS);
 
     expect(catalogue.matchingRecipes).not.toHaveBeenCalled();
     expect(catalogue.compositions).toHaveBeenCalledWith(['r-1']);
@@ -192,7 +214,7 @@ describe('AdminCatalogueController.recipes', () => {
       recipe({ id: 'r-3', name: 'Pan para dos', servings: 2, slug: 'pan-para-dos' })
     ]);
 
-    const view = await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({ dir: 'desc', size: '2', sort: 'kcal' }));
+    const view = await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({ dir: 'desc', size: '2', sort: 'kcal' }), STEPS);
 
     expect(catalogue.recipePage).not.toHaveBeenCalled();
     expect(view.total).toBe(3);
@@ -201,7 +223,7 @@ describe('AdminCatalogueController.recipes', () => {
       ['pan-para-dos', 375]
     ]);
 
-    const protein = await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({ offset: '1', size: '2', sort: 'protein' }));
+    const protein = await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({ offset: '1', size: '2', sort: 'protein' }), STEPS);
 
     expect(protein.rows.map(row => [row.slug, row.proteinG])).toEqual([
       ['pan-para-dos', 13.5],
@@ -212,7 +234,7 @@ describe('AdminCatalogueController.recipes', () => {
   it('counts every slot and every source, zeros included, in their own order', async () => {
     catalogue.recipePage.mockResolvedValue({ rows: [], total: 0 });
 
-    const { counts } = await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({}));
+    const { counts } = await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({}), STEPS);
 
     expect(counts).toEqual({
       bySlot: [
@@ -236,7 +258,7 @@ describe('AdminCatalogueController.recipes', () => {
   it('carries nothing that names a person: no id, no created_by, no user', async () => {
     catalogue.recipePage.mockResolvedValue({ rows: [recipe({})], total: 1 });
 
-    const [row] = (await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({}))).rows;
+    const [row] = (await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({}), STEPS)).rows;
 
     expect(Object.keys(row ?? {}).sort()).toEqual(
       ['allergens', 'carbsG', 'fatG', 'kcal', 'locale', 'mayContain', 'mealSlots', 'name', 'picture', 'proteinG', 'slug', 'source'].sort()

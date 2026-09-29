@@ -15,10 +15,11 @@ import { PeriodSelector } from 'components/PeriodSelector';
 
 import { DEFAULT_PERIOD } from 'core/entities/Period';
 
-import { formatNumber } from 'lib/format';
+import { formatDate, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../consoleMetadata';
+import { RECORDING_STARTS } from '../recordingStart';
 
 import type { AdminProductView } from 'core/controllers/Admin';
 import type { ChartTone } from 'ui/types/Chart.types';
@@ -59,6 +60,7 @@ export default async function AdminProductPage({ searchParams }: { searchParams:
   }
 
   const common = dictionary.adminConsole;
+  const since = formatDate(RECORDING_STARTS, locale, { day: 'numeric', month: 'long', year: 'numeric' });
   const t = dictionary.adminProduct;
   const events = dictionary.admin.events;
   const reached = FUNNEL_STAGES.map(stage => product.funnel[stage]);
@@ -124,7 +126,7 @@ export default async function AdminProductPage({ searchParams }: { searchParams:
         </div>
       </AdminSection>
 
-      <HowCounted notes={t.howCounted} summary={common.howCounted} />
+      <HowCounted notes={t.howCounted.map(note => interpolate(note, { date: since }))} summary={common.howCounted} />
     </div>
   );
 }

@@ -64,6 +64,47 @@ describe('recipeFilters', () => {
   });
 });
 
+describe('the quality reads', () => {
+  it('narrows the table to the recipes a check found, bound as parameters, and to none when it found none', () => {
+    const { params, sql } = render(recipeFilters(recipeCatalogueQuerySchema.parse({ source: 'ai' }), ['r-1', 'r-2']));
+
+    expect(sql).toBe('("recipes"."id" in ($1, $2) and "recipes"."source" = $3)');
+    expect(params).toEqual(['r-1', 'r-2', 'ai']);
+    expect(render(recipeFilters(recipeCatalogueQuerySchema.parse({}), [])).sql).toBe('false');
+    expect(recipeFilters(recipeCatalogueQuerySchema.parse({}), undefined)).toBeUndefined();
+  });
+
+  it('reads every recipe once, its served ingredients folded into arrays and the sweep’s own condition beside them', async () => {
+    await AdminCatalogueRepository.qualityRecipes('2.8.0');
+
+    const [statement] = sent;
+
+    expect(statement?.sql).toContain(
+      'from "recipes" left join "recipe_ingredients" on ("recipe_ingredients"."recipe_id" = "recipes"."id" and "recipe_ingredients"."is_optional" = $'
+    );
+    expect(statement?.sql).toContain('left join "ingredients" on "ingredients"."id" = "recipe_ingredients"."ingredient_id"');
+    expect(statement?.sql).toContain('group by "recipes"."id"');
+    expect(statement?.sql).toContain(`split_part("recipes"."steps_version", '+', 1)`);
+    // A recipe, its dish and its steps' version: nothing that names a person.
+    expect(statement?.sql).not.toMatch(/created_by|"user"/);
+  });
+
+  it('counts meals outside the serving bounds and returns nothing else of them', async () => {
+    await AdminCatalogueRepository.mealsOutsideServingBounds();
+
+    expect(sent[0]?.sql).toBe('select count(*) from "meals" where ("meals"."servings" < $1 or "meals"."servings" > $2)');
+    expect(sent[0]?.params).toEqual(['0.5', '4']);
+  });
+
+  it('counts the pictures that failed for the dish’s own reasons with the same state the table shows', async () => {
+    await AdminCatalogueRepository.picturesFailed();
+
+    expect(sent[0]?.sql).toContain(`count(*) filter (where case`);
+    expect(sent[0]?.sql).toContain(`= 'failed')`);
+    expect(sent[0]?.sql).toContain('left join "recipe_images"');
+  });
+});
+
 describe('AdminCatalogueRepository.recipePage', () => {
   it('selects what a dish is — never who made it — over its one picture row, by name with a stable tail', async () => {
     await AdminCatalogueRepository.recipePage(recipeCatalogueQuerySchema.parse({ allergen: 'milk', dir: 'desc', offset: '25', size: '25' }));

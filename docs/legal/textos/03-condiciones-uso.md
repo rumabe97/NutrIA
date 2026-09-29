@@ -9,9 +9,11 @@
 > está. Actualizar `terms.updated`.
 >
 > **Versión**: hoy no se guarda qué versión de las condiciones aceptó cada cuenta (P2-2).
-> Propuesta: `TERMS_VERSION = '2.0.0'` en `packages/core/src/entities/Account` (o donde el
-> backend prefiera), y dos columnas en `user` o una tabla `terms_acceptances`: versión y
-> fecha, escritas al registrarse. Las condiciones actuales dicen que un cambio se avisa por
+> **Decidido el 2026-09-29 (D5)**: `TERMS_VERSION = '2.0.0'` en `packages/core` y dos
+> columnas nulas en `user` (`termsVersion`, `termsAcceptedAt`), escritas por el servidor al
+> crear la cuenta; sin tabla nueva ni relleno. La 2.0.0 publica además la sección «Cómo se
+> celebra este contrato». Especificación completa en
+> [`../2026-09-29-aceptacion-de-los-textos-legales.md`](../2026-09-29-aceptacion-de-los-textos-legales.md) § 5 y § 6. Las condiciones actuales dicen que un cambio se avisa por
 > correo antes de aplicarse (sección «Cambios en estas condiciones»): **este cambio debe
 > avisarse por correo a las cuentas existentes** antes de publicarlo.
 >

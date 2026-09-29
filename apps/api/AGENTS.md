@@ -384,6 +384,33 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     no session to name, such as `local-probe`'s `account.mjs`, passes `UNAUDITED` there to
     keep its own professional from being recorded as its own grantor while the stored
     `grantedBy` column still names it.
+- **The console's watching pages** (`0071`, phase 3): read-only, `@Roles('admin')`, counts and
+  versions only (`0028`); every response type is exported from `core/controllers/Admin` for the web.
+  - **"Active"** is `ACTIVE_EVENTS` (`core/entities/Analytics`): `session_started` or `app_used`.
+    `AdminSeriesRepository.activePeople*`, `AnalyticsRepository.activitySince`'s people and
+    `UserRepository`'s `lastActiveAt` all read that one list; nothing else counts as activity
+    (a swap request no longer moves "last active"). Before 2026-09-29 it was sign-ins only.
+  - **`GET /admin/catalogue/quality?period=`** (`AdminQualityController`) judges every recipe with
+    the app's own helpers (`composePerServing`, `isOversized`, `servingCap`, `fitSlots`,
+    `stepsVersionAttempts`; `core/domain/CatalogueQuality`), read in the act (about 0.45 MB a call
+    on the dev library — the nightly snapshot is not needed). "Should be zero": `overBound`,
+    `uncosted`, `unserved`, `refusalLimit`, and `mealsOutsideServingBounds` (a count over `meals`,
+    no row returned). "To look at": `overCapBySource`, `oversizedRejections` per Madrid day,
+    `picturesFailed`. `sweep`: `current + pending + givenUp = recipes`. The API supplies
+    `STEPS_VERSION`; `core` cannot import it.
+  - **`GET /admin/catalogue/recipes?check=`** (`over_bound`, `uncosted`, `unserved`, `refusal_limit`,
+    `over_cap`) narrows Recetas to exactly the recipes a quality count is made of, through the same
+    `judged()` read, so a count and the table it links to cannot disagree.
+  - **`GET /admin/consents`** — for the four versioned consents, the version in force and how many
+    accounts hold it, an older one, or (professional's agreement) none yet. **`GET /admin/notifications?period=`**
+    — push subscriptions and people, reminders per Madrid week and channel (one `notifications` row
+    per channel a reminder left by, since phase 1), and distinct people who checked in within 3 days of
+    one. **`GET /admin/system?period=`** — commit (only if it is a hash), prompt/steps/consent versions,
+    the caps, each integration as a boolean, each cron's last `cron_run` (`stale` past 26 h or never
+    recorded) and mail sent/failed per template and Madrid day. `systemSnapshot(env, …)`
+    (`admin/services/SystemSnapshot.ts`) is the only place the environment is read for it, and
+    `SystemSnapshot.spec.ts` plus `AdminSystemController.test.ts` prove no configuration value reaches the
+    answer. Mail and push "configured" come from `EmailService.configured` and `PushService.configured`.
 - **Professionals** (`0059`): an account is a professional because a `professionals` row
   says so, and only `POST /admin/accounts/:id/professional` (the collegiate number, nothing
   else) writes one; `DELETE` of the same takes it back and `GET /admin/professionals` lists

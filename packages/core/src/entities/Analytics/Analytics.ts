@@ -31,6 +31,13 @@ export const PRODUCT_EVENTS = [
   'swap_requested'
 ] as const;
 
+/**
+ * The events that mean somebody is active (`0071`): they signed in, or used a
+ * session they already had. Every "active people" and "last activity" figure
+ * in the console reads exactly these, so the two cannot drift apart.
+ */
+export const ACTIVE_EVENTS = ['session_started', 'app_used'] as const satisfies readonly (typeof PRODUCT_EVENTS)[number][];
+
 /** What the service did. Never a user; read only by the pages that account for the system. */
 export const SYSTEM_EVENTS = [
   /**
@@ -58,5 +65,7 @@ export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[number];
 /** Which part of the service spent a model call (`0071`): plan dishes, a meal swap, or the nightly step rewrite. */
 export type AiFeature = 'plan' | 'rewrite' | 'swap';
 
-/** The crons a `cron_run` names. */
-export type CronJob = 'reminders' | 'rewrite';
+/** The crons a `cron_run` names (`vercel.json`'s two). */
+export const CRON_JOBS = ['reminders', 'rewrite'] as const;
+
+export type CronJob = (typeof CRON_JOBS)[number];

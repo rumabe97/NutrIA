@@ -132,7 +132,7 @@ numbers refer to it. Read it before any phase.
 
 ### Phase 2 — The admin audit log (the one migration)
 
-- [x] done
+- [x] done — commit `16193e6` ("Every admin action leaves one row in the audit log, and the owner can read them")
 - **Dispatch**: opus @ medium — `/execute-project 008 phase 2`. Reviews:
   `migration-reviewer`, `invariant-reviewer`, `accessibility` (the page). The `tests`
   agent writes the end-to-end cases. After merge — owner-gated (or by the lead with the
@@ -186,7 +186,7 @@ numbers refer to it. Read it before any phase.
 
 ### Phase 3 — "Active" fixed, and the pages that read what already exists
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 008 phase 3`. Reviews:
   `invariant-reviewer`, `accessibility` with `/local-probe`, and `legal` (D5). Can run as
   one `/team` with phase 1's API if convenient.
@@ -367,20 +367,71 @@ numbers refer to it. Read it before any phase.
   - In dev, with mail to the log (the probe's no-mail setup), provoke three failures and
     a digest: one alert, and never two of a kind in 6 h. Record it in the LOG.
 
-### Phase 7 — The legal texts' acceptance (only if `legal` decides so in phase 3)
+### Phase 7 — The terms' acceptance (`legal` said yes in phase 3, for the terms only)
 
 - [ ] pending
 - **Dispatch**: opus @ high — `/execute-project 008 phase 7`. `quality-max`: it changes
-  sign-up. Reviews: `invariant-reviewer`, `migration-reviewer` if a column or table is
-  needed, and `legal`. If `legal` said no in phase 3, this phase is marked done with that
-  reason and nothing is built.
-- **Goal**: sign-up records a versioned acceptance of `/privacidad` and `/condiciones`,
-  and Consentimientos counts it.
-- **Scope**: set by `legal`'s answer; amend the plan before starting.
-- **Steps**: written as a plan amendment from `legal`'s answer, in the same change as the
-  answer's LOG entry.
+  sign-up. Reviews: `invariant-reviewer`, `migration-reviewer`, `accessibility` with
+  `/local-probe`, and `legal` on the texts.
+- **Goal**: sign-up records which version of `/condiciones` each new account accepted,
+  the notice is seen before every control that creates an account, and Consentimientos
+  counts it.
+- **Source**: `legal`'s answer to D5,
+  [`docs/legal/2026-09-29-aceptacion-de-los-textos-legales.md`](../../legal/2026-09-29-aceptacion-de-los-textos-legales.md)
+  § 5 (what is built) and § 6 (the texts). The privacy policy is informed, never
+  accepted: nothing is recorded for it, and the console never shows it as a consent.
+- **Scope**:
+  - `packages/core/src/entities/User/**` (or wherever `backend` keeps the consent
+    versions) and the admin consents and system repositories and controllers;
+  - `packages/database/src/schemas/auth.schema.ts` plus one migration;
+  - `apps/api/src/modules/{auth,admin}/**`;
+  - `apps/web/src/components/{RegisterScreen,SignInForm,LegalNotice,SocialSignIn}/**`,
+    the Consentimientos and Sistema pages, and the dictionaries (`terms`, `privacy`,
+    `auth`);
+  - `apps/api/test/**`.
+- **Steps**:
+  1. **Version.** `TERMS_VERSION = '2.0.0'` in core, beside the other consent versions.
+     The rule is that any change of meaning in `terms` (either dictionary) bumps
+     `TERMS_VERSION` and `terms.updated` in the same commit; a typo fix does not.
+  2. **Storage.** Add `user.termsVersion text` and `user.termsAcceptedAt timestamptz`,
+     both nullable, in one migration with no backfill: `null` means before recording.
+     Declare them in Better Auth's `additionalFields` with `input: false`, as
+     `activatedAt` is.
+  3. **Write.** In `databaseHooks.user.create.before`, set `TERMS_VERSION` and now, in the
+     same `INSERT`, for email, Google and Apple alike. The version never travels from the
+     browser.
+  4. **Show** (fixes the P1 in the note's § 4.1).
+     - `LegalNotice` and `auth.legalAge` are visible without scrolling, before or right
+       beside every control that creates an account: on `/registro`, Google, Apple and
+       "Crear cuenta"; on `/acceder`, Google and Apple. The recommended place is just
+       above `SocialSignIn`.
+     - `/acceder` gets its own key, `auth.legalNoticeSignIn` (§ 6.C).
+     - There is no checkbox.
+  5. **Texts in the same deploy:** § 6.A (a new terms section, "Cómo se celebra este
+     contrato", with a new `terms.updated`) and § 6.B (the privacy policy's "Cuenta" line,
+     with a new `privacy.updated`). `HEALTH_CONSENT_VERSION` does not change.
+  6. **Console.**
+     - Consentimientos gets a "Condiciones de uso" row: the current version, and the
+       accounts on it, on an older one, and with no record.
+     - Sistema shows `TERMS_VERSION` beside the other versions.
+     - The admin e2e exact key lists are updated in the same change.
+  7. **Tests.**
+     - An account created by email and one created with Google (the e2e provider stub)
+       have `termsVersion = TERMS_VERSION` and a non-null `termsAcceptedAt`.
+     - A sign-up `POST` with `termsVersion` in its body does not write it.
+     - The consents response has its exact key list.
+     - No console response carries the version on an addressed row.
+- **Not in this phase:** asking `null` or older accounts to accept again; the LSSI
+  art. 28 confirmation; rewriting the "continuing to use means you accept" clause; the
+  acceptance at Stripe checkout. The note's § 7 lists the questions for a lawyer.
 - **Acceptance criteria**: PRD 10 (the legal-texts half), 13.
-- **Verification**: as amended.
+- **Verification**:
+  - `pnpm --filter database generate` produces exactly one migration, and
+    `node scripts/check-migrations.mjs` passes.
+  - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api --filter=web`.
+  - The touched e2e suites, and CI.
+  - `/local-probe` on `/registro` and `/acceder` at 320, 390 and 1280 px, in both themes:
+    the notice is visible before the provider buttons with no scrolling.
 
 ## Hand-off
 

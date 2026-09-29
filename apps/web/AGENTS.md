@@ -82,10 +82,12 @@ console page's metadata goes through `consoleMetadata(path)`, so a non-admin's t
 names nothing, and any `redirect()` in a console page repeats the role check first
 (`forwardOpened.ts`). Nothing outside the console links to it. Pages, grouped by
 `components/AdminNav/sections.ts` (a one-page group draws as a single link):
-Resumen `/admin` · Personas: `/admin/cuentas`, `/admin/profesionales`, `/admin/buzon` ·
-Producto: `/admin/producto`, `/admin/producto/planes` · Generación: `/admin/generacion`,
-`/admin/generacion/ia` · Catálogo: `/admin/catalogo`, `/admin/catalogo/ingredientes`,
-`/admin/catalogo/imagenes` · `/admin/ajustes`. Tables are `components/AdminTable` over
+Resumen `/admin` · Personas: `/admin/cuentas`, `/admin/profesionales`, `/admin/buzon`,
+`/admin/consentimientos` · Producto: `/admin/producto`, `/admin/producto/planes`,
+`/admin/notificaciones` · Generación: `/admin/generacion`, `/admin/generacion/ia` ·
+Catálogo: `/admin/catalogo` (takes `?check=` from Calidad), `/admin/catalogo/calidad`,
+`/admin/catalogo/ingredientes`, `/admin/catalogo/imagenes` · Ajustes: `/admin/ajustes`,
+`/admin/ajustes/registro`, `/admin/ajustes/sistema`. Tables are `components/AdminTable` over
 `ui/DataTable` on a `Card`: a GET form that works without JavaScript, all state in the URL,
 free text always named `q` (the API log redacts only `q`), cells on one line except prose.
 Charts are `packages/ui`'s server-rendered SVG set, each with its "Ver datos" table; a

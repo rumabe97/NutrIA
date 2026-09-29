@@ -1,15 +1,23 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
-import { DEFAULT_PAGE_SIZE, INGREDIENT_SORTS, MAX_PAGE_SIZE, RECIPE_SORTS, RECIPE_SOURCES, SORT_DIRECTIONS } from 'core/entities/AdminQuery';
+import {
+  DEFAULT_PAGE_SIZE,
+  INGREDIENT_SORTS,
+  MAX_PAGE_SIZE,
+  RECIPE_CHECKS,
+  RECIPE_SORTS,
+  RECIPE_SOURCES,
+  SORT_DIRECTIONS
+} from 'core/entities/AdminQuery';
 import { INGREDIENT_CATEGORIES, MEAL_SLOTS } from 'core/entities/Plan';
 
 import { AdminCatalogueService } from '../services/index.js';
-import { IngredientCatalogueQueryDto, RecipeCatalogueQueryDto } from '../dto/in/index.js';
+import { IngredientCatalogueQueryDto, PeriodQueryDto, RecipeCatalogueQueryDto } from '../dto/in/index.js';
 import { Roles } from '../../../shared/index.js';
-import { ZodQuery } from './ZodQuery.js';
+import { PERIOD_PARAMETER, ZodQuery } from './ZodQuery.js';
 
-import type { AdminIngredientsDto, AdminRecipesDto } from '../dto/out/index.js';
+import type { AdminCatalogueQualityDto, AdminIngredientsDto, AdminRecipesDto } from '../dto/out/index.js';
 
 const PAGE_SIZE = { description: `1–${MAX_PAGE_SIZE}. ${DEFAULT_PAGE_SIZE} when absent.`, name: 'size', required: false, type: Number } as const;
 
@@ -33,6 +41,13 @@ export class AdminCatalogueController {
   @ApiQuery({ enum: MEAL_SLOTS, name: 'slot', required: false })
   @ApiQuery({ description: 'An allergen key a served ingredient contains, e.g. `gluten`.', name: 'allergen', required: false, type: String })
   @ApiQuery({ enum: ['ready', 'drawing', 'failed', 'none'], name: 'picture', required: false })
+  @ApiQuery({
+    description:
+      'Only the recipes a quality check finds — the ones Catálogo › Calidad counts (0071): `over_bound`, `uncosted`, `unserved`, `refusal_limit`, `over_cap`.',
+    enum: RECIPE_CHECKS,
+    name: 'check',
+    required: false
+  })
   @ApiQuery({ enum: RECIPE_SOURCES, name: 'source', required: false })
   @ApiQuery({ description: 'BCP 47, e.g. `es-ES`.', name: 'locale', required: false, type: String })
   @ApiQuery({ enum: RECIPE_SORTS, name: 'sort', required: false })
@@ -42,6 +57,17 @@ export class AdminCatalogueController {
   @Get('recipes')
   async recipes(@ZodQuery(RecipeCatalogueQueryDto) query: RecipeCatalogueQueryDto): Promise<AdminRecipesDto> {
     return this.catalogue.recipes(query);
+  }
+
+  @ApiOkResponse({
+    description:
+      'What should be zero (recipes past the bound, without costable macros, meals with servings outside the bounds, dishes never served, recipes at the sweep’s refusal limit), what is worth a look (recipes over their meal’s cap by source, `oversized` rejections per day, pictures failed) and the rewrite sweep’s state. Counts only. 422 INVALID_INPUT for a period other than 7, 30 or 90.'
+  })
+  @ApiOperation({ summary: 'Catalogue quality and the rewrite sweep (0071)' })
+  @ApiQuery(PERIOD_PARAMETER)
+  @Get('quality')
+  async quality(@ZodQuery(PeriodQueryDto) query: PeriodQueryDto): Promise<AdminCatalogueQualityDto> {
+    return this.catalogue.quality(query);
   }
 
   @ApiOkResponse({
