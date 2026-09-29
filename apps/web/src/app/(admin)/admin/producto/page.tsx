@@ -35,7 +35,7 @@ export async function generateMetadata(): Promise<Metadata> {
 const FUNNEL_STAGES = ['signedUp', 'confirmed', 'activated', 'onboarded', 'planned', 'lived', 'checkedIn', 'returned'] as const;
 
 /** Each event keeps its colour whatever else is charted beside it: colour follows the event, not its place. */
-const EVENT_TONES: Readonly<Record<string, ChartTone>> = { session_started: 1, swap_requested: 2 };
+const EVENT_TONES: Readonly<Record<string, ChartTone>> = { app_used: 3, session_started: 1, swap_requested: 2 };
 
 /**
  * Embudo y actividad (`0068`): how far people get, counted from state over every

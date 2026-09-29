@@ -4,7 +4,7 @@ import { CronController, RecipesController } from './controllers/index.js';
 import { envProvider } from '../../config/index.js';
 import { ExpiredInvitationsService } from '../care/services/ExpiredInvitations.service.js';
 import { NotificationsModule } from '../notifications/index.js';
-import { RecipesService } from './services/index.js';
+import { CronRunService, RecipesService } from './services/index.js';
 
 /**
  * `NotificationsModule` because the platform's cron routes live together in
@@ -16,6 +16,6 @@ import { RecipesService } from './services/index.js';
 @Module({
   controllers: [CronController, RecipesController],
   imports: [NotificationsModule],
-  providers: [envProvider, ExpiredInvitationsService, RecipesService]
+  providers: [CronRunService, envProvider, ExpiredInvitationsService, RecipesService]
 })
 export class RecipesModule {}

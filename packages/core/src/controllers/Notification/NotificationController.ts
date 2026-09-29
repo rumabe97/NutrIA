@@ -1,9 +1,9 @@
 import { NotificationRepository } from '#repositories/Notification';
 
-import type { PushTarget, Recipient } from '#repositories/Notification';
+import type { NotificationChannel, PushTarget, Recipient } from '#repositories/Notification';
 import type { PushSubscriptionInput } from 'core/entities/Notification';
 
-export type { PushTarget, Recipient };
+export type { NotificationChannel, PushTarget, Recipient };
 
 export type NotificationSettingsView = { readonly checkInEmail: boolean };
 
@@ -23,13 +23,24 @@ export const NotificationController = {
     return NotificationRepository.findPushTargets(userId);
   },
 
-  async recordCheckInReminder(userId: string, title: string, body: string, channel: 'email' | 'push'): Promise<void> {
-    await NotificationRepository.recordSent(userId, { body, channel, title, type: 'checkin_due' });
+  /** The proof that a reminder went out, one row per channel that carried it (`0071`). */
+  async recordCheckInReminder(
+    userId: string,
+    title: string,
+    body: string,
+    ...channels: [NotificationChannel, ...NotificationChannel[]]
+  ): Promise<void> {
+    await NotificationRepository.recordSent(userId, { body, channels, title, type: 'checkin_due' });
   },
 
-  /** The proof that a professional was told their client checked in (`0059`, PRD 004 criterion 10). */
-  async recordCheckinSubmitted(professionalId: string, title: string, body: string, channel: 'email' | 'push'): Promise<void> {
-    await NotificationRepository.recordSent(professionalId, { body, channel, title, type: 'checkin_submitted' });
+  /** The proof that a professional was told their client checked in (`0059`, PRD 004 criterion 10), one row per channel. */
+  async recordCheckinSubmitted(
+    professionalId: string,
+    title: string,
+    body: string,
+    ...channels: [NotificationChannel, ...NotificationChannel[]]
+  ): Promise<void> {
+    await NotificationRepository.recordSent(professionalId, { body, channels, title, type: 'checkin_submitted' });
   },
 
   async removePushSubscription(userId: string, endpoint: string): Promise<void> {

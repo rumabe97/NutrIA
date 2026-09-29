@@ -6,7 +6,7 @@
 > `/plan-project`, from the owner's brief and answers of 2026-09-28 — approved by the owner
 > before the plan is written.
 
-- **Status**: approved — by the owner, 2026-09-28
+- **Status**: delivered — closed by the owner, 2026-09-29
 - **Roadmap item**: [`docs/ROADMAP.md` § Later / someday — Admin](../../ROADMAP.md) (promoted to a project by the owner, 2026-09-28)
 
 ## Problem

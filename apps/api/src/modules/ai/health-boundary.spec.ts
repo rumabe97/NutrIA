@@ -201,7 +201,7 @@ describe('the free-text and belief boundary around the AI module', () => {
       likedFoodNames(context)
     );
 
-    await new PoolBuilder(client).build({ context, preferences, reusable: [], slots: ['breakfast', 'lunch'] });
+    await new PoolBuilder(client).build({ context, feature: 'plan', preferences, reusable: [], slots: ['breakfast', 'lunch'] });
 
     expect(generate).toHaveBeenCalled();
 

@@ -465,6 +465,8 @@ describe('RecipeRewriter — inside the function’s time', () => {
 
     expect(ai.requests[0]?.signal).toBeInstanceOf(AbortSignal);
     expect(ai.requests[0]?.session).toBe(`rewrite:${RECIPE.id}`);
+    // The sweep's spend is its own on every `ai_call` (`0071`).
+    expect(ai.requests[0]?.feature).toBe('rewrite');
   });
 
   /** The numbers, pinned: they are what fits the function, and loosening them is what gets a sweep killed mid-write. */

@@ -34,9 +34,14 @@ The milestone is met, and has been in production since 2026-09-07.
 - [`007-admin-console`](./projects/007-admin-console/) — `/admin` is a console of twelve
   pages in six groups, with its own navigation, server-rendered charts, searchable tables
   and a 7 / 30 / 90-day period; it still reads nobody (`0068`, `0069`). Asked for by the
-  owner on 2026-09-28; all nine phases shipped (#144–#153 and the phase 9 removals), with
-  the owner's walk-through on the iPhone and desktop as the last step. Along the way it
-  surfaced and fixed the oversized AI dishes (`0070`).
+  owner on 2026-09-28; all nine phases shipped (#144–#154) and the owner closed it on
+  2026-09-29. Along the way it surfaced and fixed the oversized AI dishes (`0070`).
+- [`008-console-watches-quality-and-spend`](./projects/008-console-watches-quality-and-spend/) —
+  the console watches rather than shows: catalogue and plan quality, text-AI spend against
+  a 5 USD cap, an audit log of admin actions, "active" that means used, retention, the
+  sweep, crons and mail, consents, and a daily mail to the owner when something is off
+  (`0071`). Asked for by the owner on 2026-09-29; the PRD and the seven-phase
+  plan are approved.
 
 The end-to-end suites stand at 14 suites and 88 tests, run against a throwaway database
 with a scripted model (`apps/api/test/README.md`), and on every pull request against a

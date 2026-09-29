@@ -886,3 +886,27 @@
     has no visible name. The alternative: pin the first column capped at about 45 % of the
     table, wrapping its text.
 - **Notes**: every open P3 across the project is listed in phases 4–8.
+
+## Closing (2026-09-29)
+
+- **Closed by the owner** on 2026-09-29 ("Cierra el proyecto 007"), after phase 9 reached
+  production (#154, `dcf10bc`). The human-verify step is recorded as the owner's closing
+  word, not as an itemised walk-through. What the owner had seen on the iPhone during the
+  project: the dark band under Safari's bar (fixed in #150 and #151), the sortable header
+  alignment (#153), and the menu scroll (#154). Anything found later is a new change, not
+  a reopening.
+- **Shipped:** #144 (shell, Ajustes) · #145 (charts, StatTile, DataTable) · #146 (period
+  API, migration 0046) · #147 (Resumen, Producto, Planes) · #148 (people tables API) ·
+  #149 (Cuentas, Profesionales, Buzón) · #150 (ambient light behind Safari's bar) · #151
+  (log, AI, catalogue and pictures API) · #152 (serving ceiling `0070`, migration 0047,
+  the log names nobody's figures) · #153 (Registro, IA y modelos, Catálogo, Imágenes;
+  text-AI spend; the transition page goes) · #154 (removals, docs, the phone menu).
+- **Left open, all owner's choices or P3s** (listed in phases 4–9):
+  - deleting `AI_REQUESTS_PER_DAY` and `AI_TOKENS_PER_MINUTE` on Vercel;
+  - pinning the first table column on a phone (addresses on one line vs a visible row
+    name);
+  - a real English name for the allergens;
+  - the two billing test accounts on the dev database;
+  - the intermittent `admin.e2e-spec.ts:1924` case.
+- **What follows:** project 008, where the console watches quality and spend. The owner
+  approved all nine items on 2026-09-29, plus the architect's additions.

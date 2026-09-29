@@ -1,3 +1,4 @@
+import type { AiFeature } from 'core/entities/Analytics';
 import type { FlexibleSchema } from 'ai';
 import type { GatewayCall, QuotaRefusal } from './gateway.js';
 
@@ -16,6 +17,12 @@ export type AiCall = {
 };
 
 export type AiRequest<T> = {
+  /**
+   * Which part of the service is spending the call (`0071`): a plan's dishes,
+   * a meal swap, or the nightly step rewrite. Recorded on its `ai_call`, so the
+   * console can say what spent the money. Says nothing about who asked.
+   */
+  readonly feature: AiFeature;
   /**
    * The most the answer may write, in tokens (`resolveOutputCap`); absent, the
    * provider's own limit. An answer cut off by it fails as `invalid_output`.

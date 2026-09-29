@@ -166,6 +166,7 @@ export class RecipeRewriter {
 
   private async rewrite(recipe: UndocumentedRecipe, signal: AbortSignal, vocabularies: Map<string, Promise<readonly string[]>>): Promise<void> {
     const request = {
+      feature: 'rewrite' as const,
       prompt: buildRewritePrompt(recipe, languageName(recipe.locale)),
       schema: wireRewriteSchema,
       // Files every call of a recipe together in a gateway's own log.

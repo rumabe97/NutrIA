@@ -2,6 +2,7 @@ import { Controller, Get, UseGuards } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 
 import { CheckInReminderService } from '../../notifications/index.js';
+import { CronRunService } from '../services/index.js';
 import { CronSecretGuard } from '../../../shared/guards/index.js';
 import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
 import { Public, SkipRateLimit } from '../../../shared/index.js';
@@ -36,7 +37,8 @@ export class CronController {
   constructor(
     private readonly invitations: ExpiredInvitationsService,
     private readonly reminders: CheckInReminderService,
-    private readonly rewriter: RecipeRewriter
+    private readonly rewriter: RecipeRewriter,
+    private readonly runs: CronRunService
   ) {}
 
   /**
@@ -47,11 +49,20 @@ export class CronController {
   async checkInReminders(): Promise<ReminderRunDto> {
     await this.invitations.forget();
 
-    return this.reminders.sweep();
+    const run = await this.reminders.sweep();
+
+    // At the end, so the record says the run finished (`0071`).
+    await this.runs.record('reminders', run);
+
+    return run;
   }
 
   @Get('rewrite-steps')
   async rewriteSteps(): Promise<RewriteRunDto> {
-    return this.rewriter.rewriteOutdated(REWRITES_PER_SWEEP);
+    const run = await this.rewriter.rewriteOutdated(REWRITES_PER_SWEEP);
+
+    await this.runs.record('rewrite', run);
+
+    return run;
   }
 }

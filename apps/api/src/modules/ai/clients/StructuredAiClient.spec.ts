@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, jest } from '@jest/globals';
 import { jsonSchema } from 'ai';
 import { MockLanguageModelV4 } from 'ai/test';
 
+import { AnalyticsController } from 'core/controllers/Analytics';
+
 import { AiCallError } from './AiClient.js';
 import { resolveModel } from '../ai.config.js';
 import { StructuredAiClient } from './StructuredAiClient.js';
@@ -23,7 +25,7 @@ describe('StructuredAiClient', () => {
     });
     const client = new StructuredAiClient(model, { maxRetries: 0, sessionHeader: null }, []);
     const failure = await client
-      .generate({ prompt: 'Diseña platos', schema: jsonSchema({ type: 'object' }), signal: AbortSignal.timeout(20), system: 'Chef' })
+      .generate({ feature: 'plan', prompt: 'Diseña platos', schema: jsonSchema({ type: 'object' }), signal: AbortSignal.timeout(20), system: 'Chef' })
       .catch((error: unknown) => error);
 
     expect(failure).toBeInstanceOf(AiCallError);
@@ -40,7 +42,7 @@ describe('StructuredAiClient', () => {
     const client = new StructuredAiClient(model, { maxRetries: 0, sessionHeader: null }, []);
     const started = Date.now();
     const failure = await client
-      .generate({ prompt: 'Diseña platos', schema: jsonSchema({ type: 'object' }), signal: AbortSignal.timeout(20), system: 'Chef' })
+      .generate({ feature: 'plan', prompt: 'Diseña platos', schema: jsonSchema({ type: 'object' }), signal: AbortSignal.timeout(20), system: 'Chef' })
       .catch((error: unknown) => error);
 
     expect(Date.now() - started).toBeLessThan(2000);
@@ -62,7 +64,7 @@ describe('StructuredAiClient', () => {
     });
     const client = new StructuredAiClient(model, { maxRetries: 0, sessionHeader: null }, [key]);
     const failure = await client
-      .generate({ prompt: 'Diseña platos', schema: jsonSchema({ type: 'object' }), system: 'Chef' })
+      .generate({ feature: 'plan', prompt: 'Diseña platos', schema: jsonSchema({ type: 'object' }), system: 'Chef' })
       .catch((error: unknown) => error);
 
     expect(failure).toBeInstanceOf(AiCallError);
@@ -94,7 +96,7 @@ describe('StructuredAiClient', () => {
     });
     const client = new StructuredAiClient(model, { maxRetries: 0, sessionHeader: null }, []);
     const failure = await client
-      .generate({ maxOutputTokens: 4400, prompt: 'Diseña platos', schema: jsonSchema({ type: 'object' }), system: 'Chef' })
+      .generate({ feature: 'plan', maxOutputTokens: 4400, prompt: 'Diseña platos', schema: jsonSchema({ type: 'object' }), system: 'Chef' })
       .catch((error: unknown) => error);
 
     expect(asked).toEqual([4400]);
@@ -121,7 +123,13 @@ describe('StructuredAiClient on OpenRouter', () => {
     OPENROUTER_API_KEY: 'test-openrouter-key'
   });
   const client = () => new StructuredAiClient(resolveModel(env), { maxRetries: 0, sessionHeader: null }, []);
-  const request = { prompt: 'Diseña platos', schema: jsonSchema<{ dishes: unknown[] }>({ type: 'object' }), session: 'job-1', system: 'Chef' };
+  const request = {
+    feature: 'swap' as const,
+    prompt: 'Diseña platos',
+    schema: jsonSchema<{ dishes: unknown[] }>({ type: 'object' }),
+    session: 'job-1',
+    system: 'Chef'
+  };
   const answer = (status: number, body: unknown) =>
     jest
       .spyOn(globalThis, 'fetch')
@@ -140,8 +148,11 @@ describe('StructuredAiClient on OpenRouter', () => {
       provider: 'Novita',
       usage: { completion_tokens: 900, completion_tokens_details: { reasoning_tokens: 300 }, cost: 0.0021, prompt_tokens: 4100, total_tokens: 5000 }
     });
+    const record = jest.spyOn(AnalyticsController, 'record').mockResolvedValue(undefined);
     const response = await client().generate(request);
 
+    // Which part of the service spent it, and no user (`0071`).
+    expect(record).toHaveBeenCalledWith('ai_call', null, expect.objectContaining({ costUsd: 0.0021, feature: 'swap', ok: true }));
     expect(response.call).toMatchObject({
       answeredModel: 'minimax/minimax-m3',
       gateway: { costUsd: 0.0021, model: 'minimax/minimax-m3', provider: 'Novita', requestId: 'gen-1790000000-abc' },
@@ -155,10 +166,13 @@ describe('StructuredAiClient on OpenRouter', () => {
     answer(429, {
       error: { code: 429, message: 'Provider returned error', metadata: { provider_name: 'DeepInfra', raw: 'rate limited: Diseña platos' } }
     });
+    const record = jest.spyOn(AnalyticsController, 'record').mockResolvedValue(undefined);
     const failure = await client()
       .generate(request)
       .catch((error: unknown) => error);
 
+    // A refusal says which feature it was refused to, like a success.
+    expect(record).toHaveBeenCalledWith('ai_call', null, expect.objectContaining({ feature: 'swap', ok: false, status: 429 }));
     expect(failure).toBeInstanceOf(AiCallError);
     expect((failure as AiCallError).failure).toMatchObject({ gateway: { costUsd: null, provider: 'DeepInfra' }, kind: 'provider', status: 429 });
     // The message is logged and stored on the job row: OpenRouter's words and the provider's name, never `raw`.

@@ -189,7 +189,14 @@ describe('PoolBuilder — the fresh floor holds however rich the library the rot
     const { client, generate } = answeringClient();
     const reusable = Array.from({ length: have }, (_u, index) => ({ ...dish(`have ${index}`, ['lunch']), slug: `have-${index}` }));
 
-    await new PoolBuilder(client).build({ context: context(), freshFloorPerSlot: FRESH_DISHES_PER_SLOT, preferences, reusable, slots: ['lunch'] });
+    await new PoolBuilder(client).build({
+      context: context(),
+      feature: 'plan',
+      freshFloorPerSlot: FRESH_DISHES_PER_SLOT,
+      preferences,
+      reusable,
+      slots: ['lunch']
+    });
 
     const totalAsked = generate.mock.calls.reduce((sum, call) => sum + askedIn((call[0] as { prompt: string }).prompt).count, 0);
 
@@ -200,7 +207,7 @@ describe('PoolBuilder — the fresh floor holds however rich the library the rot
     const { client, generate } = stubClient([{ dishes: [] }]);
     const reusable = Array.from({ length: 19 }, (_u, index) => ({ ...dish(`have ${index}`, ['lunch']), slug: `have-${index}` }));
 
-    await new PoolBuilder(client).build({ context: context(), needPerSlot: 4, preferences, reusable, slots: ['lunch'] });
+    await new PoolBuilder(client).build({ context: context(), feature: 'plan', needPerSlot: 4, preferences, reusable, slots: ['lunch'] });
 
     expect(generate).not.toHaveBeenCalled();
   });
@@ -223,7 +230,13 @@ describe('PoolBuilder', () => {
 
   it('makes no model call at all when reuse already covers every slot', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
-    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: fullReusablePool(), slots: SLOTS });
+    const result = await new PoolBuilder(client).build({
+      context: context(),
+      feature: 'plan',
+      preferences,
+      reusable: fullReusablePool(),
+      slots: SLOTS
+    });
 
     // This is the mechanism that keeps running cost from scaling with users.
     expect(generate).not.toHaveBeenCalled();
@@ -234,7 +247,7 @@ describe('PoolBuilder', () => {
 
   it('generates only the shortfall and reports usage', async () => {
     const { client, generate } = answeringClient();
-    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: SLOTS });
+    const result = await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: SLOTS });
     const requests = SLOTS.length * FIRST_ROUND_PER_SLOT;
 
     // Every request in the first round; usage adds up across them.
@@ -254,7 +267,7 @@ describe('PoolBuilder', () => {
   it('asks each slot in its own request, naming only that slot', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: SLOTS });
+    await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: SLOTS });
 
     // The first round: each prompt names one slot and no other, and each slot is asked in requests of at most three.
     const firstRound = generate.mock.calls.slice(0, SLOTS.length * FIRST_ROUND_PER_SLOT).map(call => (call[0] as { prompt: string }).prompt);
@@ -270,7 +283,14 @@ describe('PoolBuilder', () => {
     const two = { dishes: [dish('Nuevo uno', ['lunch']), dish('Nuevo dos', ['lunch'])] };
     const backfill = Array.from({ length: 20 }, (_u, i) => ({ ...dish(`Guardado ${i}`, ['lunch']), slug: `guardado-${i}` }));
     const { client, generate } = stubClient([two]);
-    const result = await new PoolBuilder(client).build({ backfill, context: context(), preferences, reusable: [], slots: ['lunch'] });
+    const result = await new PoolBuilder(client).build({
+      backfill,
+      context: context(),
+      feature: 'plan',
+      preferences,
+      reusable: [],
+      slots: ['lunch']
+    });
 
     // The first round only: no second.
     expect(generate).toHaveBeenCalledTimes(FIRST_ROUND_PER_SLOT);
@@ -282,7 +302,7 @@ describe('PoolBuilder', () => {
   it('rejects a dish referencing an ingredient outside the catalogue, and retries', async () => {
     const bad = { dishes: [dish('Fantasma', ['lunch'], ['no-existe'])] };
     const { client, generate } = stubClient([bad]);
-    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+    const result = await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
 
     expect(result.dishes).toEqual([]);
     expect(result.metadata.rejected).toBeGreaterThan(0);
@@ -295,6 +315,7 @@ describe('PoolBuilder', () => {
     const { client } = stubClient([unsafe]);
     const result = await new PoolBuilder(client).build({
       context: context({ allergenIds: new Set([GLUTEN]) }),
+      feature: 'plan',
       preferences,
       reusable: [],
       slots: ['breakfast']
@@ -316,7 +337,7 @@ describe('PoolBuilder', () => {
       ]
     };
     const { client } = stubClient([withBread]);
-    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+    const result = await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
 
     expect(result.generated).toEqual([]);
     expect(result.metadata.aiCalls[0]?.rejected).toMatchObject({ foreign_food: 1 });
@@ -325,7 +346,13 @@ describe('PoolBuilder', () => {
   it('never offers an unsafe ingredient to the model in the first place', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client).build({ context: context({ allergenIds: new Set([GLUTEN]) }), preferences, reusable: [], slots: ['breakfast'] });
+    await new PoolBuilder(client).build({
+      context: context({ allergenIds: new Set([GLUTEN]) }),
+      feature: 'plan',
+      preferences,
+      reusable: [],
+      slots: ['breakfast']
+    });
 
     const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
 
@@ -346,7 +373,13 @@ describe('PoolBuilder', () => {
       unenforceableLabels: []
     };
 
-    await new PoolBuilder(client).build({ context: { ...context(), preferences: wanted }, preferences, reusable: [], slots: ['breakfast'] });
+    await new PoolBuilder(client).build({
+      context: { ...context(), preferences: wanted },
+      feature: 'plan',
+      preferences,
+      reusable: [],
+      slots: ['breakfast']
+    });
 
     const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
 
@@ -359,6 +392,7 @@ describe('PoolBuilder', () => {
 
     const result = await new PoolBuilder(client).build({
       context: context({ unenforceableLabels: ['nuez'] }),
+      feature: 'plan',
       needPerSlot: 2,
       preferences,
       reusable: [],
@@ -382,6 +416,7 @@ describe('PoolBuilder', () => {
         catalogue: toCatalogue([...CATALOGUE, meat, dairy]),
         preferences: { ...NO_PREFERENCE_EXCLUSIONS, keepsMeatFromDairy: true }
       },
+      feature: 'plan',
       needPerSlot: 2,
       preferences,
       reusable: [],
@@ -404,6 +439,7 @@ describe('PoolBuilder', () => {
 
     const result = await new PoolBuilder(client).build({
       context: { ...context(), preferences: wanted },
+      feature: 'plan',
       preferences,
       reusable: [],
       slots: ['breakfast']
@@ -416,7 +452,13 @@ describe('PoolBuilder', () => {
   it('offers a trace-risk ingredient to a user who is not trace-sensitive', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client).build({ context: context({ allergenIds: new Set([GLUTEN]) }), preferences, reusable: [], slots: ['breakfast'] });
+    await new PoolBuilder(client).build({
+      context: context({ allergenIds: new Set([GLUTEN]) }),
+      feature: 'plan',
+      preferences,
+      reusable: [],
+      slots: ['breakfast']
+    });
 
     expect((generate.mock.calls[0]?.[0] as { prompt: string }).prompt).toContain('avena');
   });
@@ -426,6 +468,7 @@ describe('PoolBuilder', () => {
 
     await new PoolBuilder(client).build({
       context: context({ allergenIds: new Set([GLUTEN]), crossContaminationAllergenIds: new Set([GLUTEN]) }),
+      feature: 'plan',
       preferences,
       reusable: [],
       slots: ['breakfast']
@@ -441,6 +484,7 @@ describe('PoolBuilder', () => {
     const { client } = stubClient([unsafe]);
     const result = await new PoolBuilder(client).build({
       context: context({ excludedIngredientIds: new Set(['ing-tomate']) }),
+      feature: 'plan',
       preferences,
       reusable: [],
       slots: ['lunch']
@@ -455,6 +499,7 @@ describe('PoolBuilder', () => {
 
     await new PoolBuilder(client).build({
       context: context({ excludedIngredientIds: new Set(['ing-tomate']) }),
+      feature: 'plan',
       preferences,
       reusable: [],
       slots: ['breakfast']
@@ -469,7 +514,13 @@ describe('PoolBuilder', () => {
   it('never names an allergy it could not resolve: no free text reaches the model (prompt 4.0.0)', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client).build({ context: context({ unenforceableLabels: ['marisco'] }), preferences, reusable: [], slots: ['breakfast'] });
+    await new PoolBuilder(client).build({
+      context: context({ unenforceableLabels: ['marisco'] }),
+      feature: 'plan',
+      preferences,
+      reusable: [],
+      slots: ['breakfast']
+    });
 
     const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
 
@@ -485,6 +536,7 @@ describe('PoolBuilder', () => {
 
     await new PoolBuilder(client).build({
       context: context({ allergenIds: new Set([GLUTEN]), excludedIngredientIds: new Set(['ing-tomate']) }),
+      feature: 'plan',
       preferences,
       reusable: [],
       slots: ['breakfast']
@@ -496,7 +548,13 @@ describe('PoolBuilder', () => {
   it('writes the prompt in English and asks for output in the user\u2019s language', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client).build({ context: { ...context(), locale: 'en-GB' }, preferences, reusable: [], slots: ['breakfast'] });
+    await new PoolBuilder(client).build({
+      context: { ...context(), locale: 'en-GB' },
+      feature: 'plan',
+      preferences,
+      reusable: [],
+      slots: ['breakfast']
+    });
 
     const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
 
@@ -510,7 +568,13 @@ describe('PoolBuilder', () => {
   it('asks for Spanish when that is the user\u2019s language', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client).build({ context: { ...context(), locale: 'es-ES' }, preferences, reusable: [], slots: ['breakfast'] });
+    await new PoolBuilder(client).build({
+      context: { ...context(), locale: 'es-ES' },
+      feature: 'plan',
+      preferences,
+      reusable: [],
+      slots: ['breakfast']
+    });
 
     expect((generate.mock.calls[0]?.[0] as { prompt: string }).prompt).toContain('SPANISH (SPAIN)');
   });
@@ -518,7 +582,7 @@ describe('PoolBuilder', () => {
   it('asks for cooking rather than combinations', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+    await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
 
     const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
 
@@ -540,6 +604,7 @@ describe('PoolBuilder', () => {
 
       await new PoolBuilder(client).build({
         context: context(),
+        feature: 'plan',
         preferences: { ...preferences, avoidNames: ['Pollo al limón', 'Lentejas con chorizo'] },
         reusable: [],
         slots: ['lunch']
@@ -556,6 +621,7 @@ describe('PoolBuilder', () => {
 
       await new PoolBuilder(client).build({
         context: context(),
+        feature: 'plan',
         preferences: { ...preferences, checkIn: { difficulty: 'hard', hunger: 'too_much', satisfaction: 2 } },
         reusable: [],
         slots: ['lunch']
@@ -572,7 +638,7 @@ describe('PoolBuilder', () => {
     it('says nothing about last fortnight when there was none', async () => {
       const { client, generate } = stubClient([{ dishes: [] }]);
 
-      await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+      await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
 
       expect((generate.mock.calls[0]?.[0] as { prompt: string }).prompt).not.toContain('LAST FORTNIGHT');
     });
@@ -580,7 +646,13 @@ describe('PoolBuilder', () => {
     it('states the spread as counts the model can check, where a request asks for enough dishes to count', async () => {
       const { client, generate } = stubClient([{ dishes: [] }]);
 
-      await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['breakfast', 'lunch', 'dinner'] });
+      await new PoolBuilder(client).build({
+        context: context(),
+        feature: 'plan',
+        preferences,
+        reusable: [],
+        slots: ['breakfast', 'lunch', 'dinner']
+      });
 
       const prompts = generate.mock.calls.map(call => (call[0] as { prompt: string }).prompt);
       // Nothing came back, so the second round asks each slot's whole shortfall in one request.
@@ -597,7 +669,7 @@ describe('PoolBuilder', () => {
   it('asks for one action per step, with its time and its cue', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+    await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
 
     const prompt = (generate.mock.calls[0]?.[0] as { prompt: string }).prompt;
 
@@ -624,7 +696,7 @@ describe('PoolBuilder', () => {
       }
     ]);
 
-    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+    const result = await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
     const steps = result.generated[0]?.steps ?? [];
 
     expect(steps[0]).not.toHaveProperty('cue', '');
@@ -635,14 +707,14 @@ describe('PoolBuilder', () => {
   it('gives up after a bounded number of rounds rather than looping', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+    await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
 
     expect(generate).toHaveBeenCalledTimes(FIRST_ROUND_PER_SLOT + 2);
   });
 
   it('serves reuse alone when no provider is configured, without calling anything', async () => {
     const { client, generate } = stubClient([{ dishes: [] }], false);
-    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [dish2('sopa')], slots: SLOTS });
+    const result = await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [dish2('sopa')], slots: SLOTS });
 
     expect(generate).not.toHaveBeenCalled();
     expect(result.dishes).toHaveLength(1);
@@ -651,7 +723,13 @@ describe('PoolBuilder', () => {
 
   it('degrades to reuse when the provider fails, instead of failing the generation here', async () => {
     const failing = { generate: jest.fn(async () => Promise.reject(new Error('AI_UNAVAILABLE'))), isAvailable: true } as unknown as AiClient;
-    const result = await new PoolBuilder(failing).build({ context: context(), preferences, reusable: [dish2('sopa')], slots: SLOTS });
+    const result = await new PoolBuilder(failing).build({
+      context: context(),
+      feature: 'plan',
+      preferences,
+      reusable: [dish2('sopa')],
+      slots: SLOTS
+    });
 
     // The scheduler decides whether this pool is enough and names the slot it
     // cannot fill — a better failure than "the AI is down".
@@ -662,7 +740,7 @@ describe('PoolBuilder', () => {
   it('does not accept the same dish twice across retries', async () => {
     const repeated = { dishes: [dish('Arroz con pollo', ['lunch'], ['arroz', 'pollo'])] };
     const { client } = stubClient([repeated, repeated, repeated]);
-    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+    const result = await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
 
     expect(result.dishes).toHaveLength(1);
   });
@@ -701,7 +779,7 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
 
   it('drops a dish that claims only dinner and uses a lunch-only food, as wrong_meal', async () => {
     const { client } = stubClient([{ dishes: [stew(['dinner'])] }]);
-    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+    const result = await new PoolBuilder(client).build({ context: withLentils(), feature: 'plan', preferences, reusable: [], slots: ['dinner'] });
 
     expect(result.generated).toEqual([]);
     expect(result.dishes).toEqual([]);
@@ -722,7 +800,7 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
    */
   it('keeps a dish the model mislabelled supper, for the dinner it was asked for, when its ingredients belong there — stored as dinner alone', async () => {
     const { client } = stubClient([{ dishes: [dish('Arroz con pollo', ['supper'], ['arroz', 'pollo'])] }]);
-    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+    const result = await new PoolBuilder(client).build({ context: withLentils(), feature: 'plan', preferences, reusable: [], slots: ['dinner'] });
 
     expect(result.generated.map(kept => kept.slots)).toEqual([['dinner']]);
     expect(result.metadata.aiCalls[0]?.rejected).toEqual({});
@@ -730,7 +808,7 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
 
   it('still drops a dish mislabelled supper for the dinner it was asked for, when a lunch-only food rules out both', async () => {
     const { client } = stubClient([{ dishes: [stew(['supper'])] }]);
-    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+    const result = await new PoolBuilder(client).build({ context: withLentils(), feature: 'plan', preferences, reusable: [], slots: ['dinner'] });
 
     expect(result.generated).toEqual([]);
     expect(result.metadata.aiCalls[0]?.rejected).toEqual({ wrong_meal: 1 });
@@ -752,6 +830,7 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
     const { client } = stubClient([{ dishes: [dish('Arroz blanco', ['lunch', 'dinner'], ['arroz-blanco-cocido'])] }]);
     const result = await new PoolBuilder(client).build({
       context: { ...context(), catalogue: toCatalogue([...CATALOGUE, rice]) },
+      feature: 'plan',
       preferences,
       reusable: [],
       slots: ['breakfast']
@@ -768,7 +847,7 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
    */
   it('keeps every meal a dish claims when one of them is the meal it was asked for', async () => {
     const { client } = stubClient([{ dishes: [dish('Arroz con pollo', ['lunch', 'dinner'], ['arroz', 'pollo'])] }]);
-    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+    const result = await new PoolBuilder(client).build({ context: withLentils(), feature: 'plan', preferences, reusable: [], slots: ['dinner'] });
 
     expect(result.generated.map(kept => kept.slots)).toEqual([['lunch', 'dinner']]);
     expect(result.metadata.aiCalls[0]?.rejected).toEqual({});
@@ -782,7 +861,7 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
    */
   it('keeps a dish that named no meal at all, for the dinner it was asked for, when its ingredients belong there', async () => {
     const { client } = stubClient([{ dishes: [dish('Arroz con pollo', [], ['arroz', 'pollo'])] }]);
-    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+    const result = await new PoolBuilder(client).build({ context: withLentils(), feature: 'plan', preferences, reusable: [], slots: ['dinner'] });
 
     expect(result.generated.map(kept => kept.slots)).toEqual([['dinner']]);
     expect(result.metadata.aiCalls[0]?.rejected).toEqual({});
@@ -790,7 +869,7 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
 
   it('still drops a dish that named no meal at all, when a lunch-only food rules out the dinner it was asked for', async () => {
     const { client } = stubClient([{ dishes: [stew([])] }]);
-    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+    const result = await new PoolBuilder(client).build({ context: withLentils(), feature: 'plan', preferences, reusable: [], slots: ['dinner'] });
 
     expect(result.generated).toEqual([]);
     expect(result.metadata.aiCalls[0]?.rejected).toEqual({ wrong_meal: 1 });
@@ -798,7 +877,7 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
 
   it('keeps a stew that also claimed dinner, as a lunch only — it counts at lunch, not at the dinner it was asked for', async () => {
     const { client } = stubClient([{ dishes: [stew(['lunch', 'dinner'])] }]);
-    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['dinner'] });
+    const result = await new PoolBuilder(client).build({ context: withLentils(), feature: 'plan', preferences, reusable: [], slots: ['dinner'] });
 
     expect(result.generated.map(kept => kept.slots)).toEqual([['lunch']]);
     expect(result.metadata.aiCalls[0]?.rejected).toEqual({});
@@ -807,7 +886,13 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
 
   it('serves the same stew at dinner for a vegan: every plant protein belongs to every meal (0062 § 4)', async () => {
     const { client } = stubClient([{ dishes: [stew(['lunch', 'dinner'])] }]);
-    const result = await new PoolBuilder(client).build({ context: withLentils(['vegan']), preferences, reusable: [], slots: ['dinner'] });
+    const result = await new PoolBuilder(client).build({
+      context: withLentils(['vegan']),
+      feature: 'plan',
+      preferences,
+      reusable: [],
+      slots: ['dinner']
+    });
 
     expect(result.generated.map(kept => kept.slots)).toEqual([['lunch', 'dinner']]);
   });
@@ -815,7 +900,13 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
   it('never drops a food in no meal back in, for a vegan either (0063 § 3)', async () => {
     const nowhere: CatalogueIngredient = { ...lentils, mealSlots: ['none'] };
     const { client } = stubClient([{ dishes: [stew(['lunch', 'dinner'])] }]);
-    const result = await new PoolBuilder(client).build({ context: withLentils(['vegan'], nowhere), preferences, reusable: [], slots: ['lunch'] });
+    const result = await new PoolBuilder(client).build({
+      context: withLentils(['vegan'], nowhere),
+      feature: 'plan',
+      preferences,
+      reusable: [],
+      slots: ['lunch']
+    });
 
     expect(result.generated).toEqual([]);
     expect(result.metadata.aiCalls[0]?.rejected).toEqual({ wrong_meal: 1 });
@@ -823,7 +914,7 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
 
   it('leaves a dish of staples exactly as the model sent it', async () => {
     const { client } = stubClient([{ dishes: [dish('Arroz con tomate', ['breakfast', 'lunch', 'dinner'], ['arroz', 'tomate'])] }]);
-    const result = await new PoolBuilder(client).build({ context: withLentils(), preferences, reusable: [], slots: ['lunch'] });
+    const result = await new PoolBuilder(client).build({ context: withLentils(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
 
     expect(result.generated.map(kept => kept.slots)).toEqual([['breakfast', 'lunch', 'dinner']]);
   });
@@ -832,6 +923,7 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
     const { client } = stubClient([{ dishes: [stew(['dinner'])] }]);
     const result = await new PoolBuilder(client).build({
       context: withLentils([], { ...lentils, mealSlots: [] }),
+      feature: 'plan',
       preferences,
       reusable: [],
       slots: ['dinner']
@@ -845,6 +937,7 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
     const { client } = stubClient([{ dishes: [unsafe] }]);
     const result = await new PoolBuilder(client).build({
       context: { ...withLentils(), safety: context({ allergenIds: new Set([GLUTEN]) }).safety },
+      feature: 'plan',
       preferences,
       reusable: [],
       slots: ['dinner']
@@ -903,7 +996,7 @@ describe('PoolBuilder — the catalogue each request is shown', () => {
   it('shows each meal only the foods that belong at it', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client).build({ context: withRows(), preferences, reusable: [], slots: ['breakfast', 'lunch', 'dinner'] });
+    await new PoolBuilder(client).build({ context: withRows(), feature: 'plan', preferences, reusable: [], slots: ['breakfast', 'lunch', 'dinner'] });
 
     const prompts = promptsOf(generate);
 
@@ -917,7 +1010,7 @@ describe('PoolBuilder — the catalogue each request is shown', () => {
   it('asks a dinner without pulses for no legumes, and a lunch with them as before', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client).build({ context: withRows(), preferences, reusable: [], slots: ['lunch', 'dinner'] });
+    await new PoolBuilder(client).build({ context: withRows(), feature: 'plan', preferences, reusable: [], slots: ['lunch', 'dinner'] });
 
     const prompts = promptsOf(generate);
 
@@ -930,6 +1023,7 @@ describe('PoolBuilder — the catalogue each request is shown', () => {
 
     await new PoolBuilder(client).build({
       context: withRows(),
+      feature: 'plan',
       libraryUsage: cooked,
       preferences,
       reusable: [],
@@ -956,7 +1050,15 @@ describe('PoolBuilder — the catalogue each request is shown', () => {
     const lunchFor = async (session: string) => {
       const { client, generate } = stubClient([{ dishes: [] }]);
 
-      await new PoolBuilder(client).build({ context: withRows(), libraryUsage: cooked, preferences, reusable: [], session, slots: ['lunch'] });
+      await new PoolBuilder(client).build({
+        context: withRows(),
+        feature: 'plan',
+        libraryUsage: cooked,
+        preferences,
+        reusable: [],
+        session,
+        slots: ['lunch']
+      });
 
       return promptsOf(generate).get('lunch');
     };
@@ -970,6 +1072,7 @@ describe('PoolBuilder — the catalogue each request is shown', () => {
 
     await new PoolBuilder(client).build({
       context: withRows({ allergenIds: new Set([GLUTEN]) }),
+      feature: 'plan',
       libraryUsage: cooked,
       preferences,
       reusable: [],
@@ -984,7 +1087,13 @@ describe('PoolBuilder — the catalogue each request is shown', () => {
   it('marks the produce in season in the month it is told, and lists the rest after it', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client).build({ context: withRows(), preferences: { ...preferences, month: 7 }, reusable: [], slots: ['breakfast'] });
+    await new PoolBuilder(client).build({
+      context: withRows(),
+      feature: 'plan',
+      preferences: { ...preferences, month: 7 },
+      reusable: [],
+      slots: ['breakfast']
+    });
 
     expect(promptsOf(generate).get('breakfast')).toContain(
       'Fresh produce and herbs:\nIn season this month (prefer these): tomate-de-huerta\nOut of season (use sparingly): naranja\n'
@@ -1013,7 +1122,7 @@ describe('PoolBuilder — telling a broken provider from an absent one', () => {
 
   it('records the provider error when a configured provider fails', async () => {
     const failing = { generate: jest.fn(async () => Promise.reject(new Error('AI_UNAVAILABLE'))), isAvailable: true } as unknown as AiClient;
-    const result = await new PoolBuilder(failing).build({ context: context(), preferences, reusable: [], slots: SLOTS });
+    const result = await new PoolBuilder(failing).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: SLOTS });
 
     expect(result.metadata.providerUsed).toBe(true);
     expect(result.metadata.providerError).toBe('AI_UNAVAILABLE');
@@ -1021,7 +1130,7 @@ describe('PoolBuilder — telling a broken provider from an absent one', () => {
 
   it('records no provider error when none is configured — a different situation entirely', async () => {
     const { client } = stubClient([{ dishes: [] }], false);
-    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: SLOTS });
+    const result = await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: SLOTS });
 
     expect(result.metadata.providerUsed).toBe(false);
     expect(result.metadata.providerError).toBeUndefined();
@@ -1029,7 +1138,7 @@ describe('PoolBuilder — telling a broken provider from an absent one', () => {
 
   it('leaves the provider error unset on a successful call', async () => {
     const { client } = stubClient([{ dishes: [] }]);
-    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: SLOTS });
+    const result = await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: SLOTS });
 
     expect(result.metadata.providerError).toBeUndefined();
   });
@@ -1047,7 +1156,7 @@ describe('PoolBuilder — telling a broken provider from an absent one', () => {
   it('reports a round whose JSON parsed but was not shaped { dishes: [...] }, instead of crashing', async () => {
     const malformed = { plates: [dish('Arroz con pollo', ['lunch'], ['arroz', 'pollo'])] } as unknown as GeneratedPool;
     const { client } = stubClient([malformed]);
-    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+    const result = await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
 
     expect(result.generated).toEqual([]);
     expect(result.metadata.providerError).toMatch(/dishes/);
@@ -1109,14 +1218,16 @@ describe('PoolBuilder — the call log', () => {
     const client = { generate, isAvailable: true } as unknown as AiClient;
     const result = await new PoolBuilder(client).build({
       context: context({ allergenIds: new Set([GLUTEN]) }),
+      feature: 'swap',
       preferences,
       reusable: [],
       session: 'job-1',
       slots: ['lunch']
     });
 
-    // The job id travels with every call, so the gateway files them together.
-    expect(generate).toHaveBeenCalledWith(expect.objectContaining({ session: 'job-1' }));
+    // The job id travels with every call, so the gateway files them together;
+    // the feature with it, so its `ai_call` says what spent it (`0071`).
+    expect(generate).toHaveBeenCalledWith(expect.objectContaining({ feature: 'swap', session: 'job-1' }));
     expect(result.metadata.aiCalls[0]).toMatchObject({
       answeredModel: 'muse-spark-1.2-contributor-free',
       dishes: 3,
@@ -1149,7 +1260,7 @@ describe('PoolBuilder — the call log', () => {
       status: 429
     });
     const failing = { generate: jest.fn(async () => Promise.reject(refusal)), isAvailable: true } as unknown as AiClient;
-    const result = await new PoolBuilder(failing).build({ context: context(), preferences, reusable: [], slots: ['dinner'] });
+    const result = await new PoolBuilder(failing).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['dinner'] });
 
     // Every request of the first round refused; with none answered, no second round.
     expect(result.metadata.aiCalls).toEqual(
@@ -1170,7 +1281,13 @@ describe('PoolBuilder — the call log', () => {
 
   it('keeps nothing when the library covered everything and no call was made', async () => {
     const { client } = stubClient([{ dishes: [] }]);
-    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: fullReusablePool(), slots: SLOTS });
+    const result = await new PoolBuilder(client).build({
+      context: context(),
+      feature: 'plan',
+      preferences,
+      reusable: fullReusablePool(),
+      slots: SLOTS
+    });
 
     expect(result.metadata.aiCalls).toEqual([]);
   });
@@ -1184,6 +1301,7 @@ describe('PoolBuilder — the call log', () => {
     const { client } = stubClient([{ dishes: [quick, slow] }]);
     const result = await new PoolBuilder(client).build({
       context: { ...context(), preferences: { ...NO_PREFERENCE_EXCLUSIONS, maxMinutesPerDish: 30 } },
+      feature: 'plan',
       preferences,
       reusable: [],
       slots: ['lunch']
@@ -1208,7 +1326,7 @@ describe('PoolBuilder — the call log', () => {
     const asOne = { ...dish('Arroz de carga con pollo', ['lunch']), ingredients: pot };
     const asThree = { ...dish('Arroz con pollo para tres', ['lunch']), ingredients: pot, servings: 3 };
     const { client } = stubClient([{ dishes: [asOne, asThree] }]);
-    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+    const result = await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
 
     expect(result.generated.map(generated => generated.name)).toEqual(['Arroz con pollo para tres']);
     expect(result.metadata.aiCalls[0]?.rejected).toEqual({ oversized: 1 });
@@ -1218,7 +1336,13 @@ describe('PoolBuilder — the call log', () => {
     // 700 kcal a serving: a fine lunch, past a snack's 400 × 1.5.
     const heavy = { ...dish('Bocadillo de pollo y arroz', ['afternoon_snack']), ingredients: [{ grams: 350, slug: 'pollo' }] };
     const { client } = stubClient([{ dishes: [heavy] }]);
-    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['afternoon_snack'] });
+    const result = await new PoolBuilder(client).build({
+      context: context(),
+      feature: 'plan',
+      preferences,
+      reusable: [],
+      slots: ['afternoon_snack']
+    });
 
     expect(result.generated).toEqual([]);
     expect(result.metadata.aiCalls[0]?.rejected).toEqual({ oversized: 1 });
@@ -1257,7 +1381,7 @@ describe('PoolBuilder — the time budget', () => {
     );
     const client = { generate, isAvailable: true } as unknown as AiClient;
     const started = Date.now();
-    const result = await new PoolBuilder(client, 50).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+    const result = await new PoolBuilder(client, 50).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
 
     expect(Date.now() - started).toBeLessThan(2000);
     expect(result.metadata.outOfTime).toBe(true);
@@ -1271,7 +1395,7 @@ describe('PoolBuilder — the time budget', () => {
   it('does not start a later round without the time to bring something back', async () => {
     // One dish where nineteen are wanted, so a second round is due; ten seconds leave no room for it.
     const { client, generate } = stubClient([{ dishes: [dish('Arroz con pollo', ['lunch'], ['arroz', 'pollo'])] }]);
-    const result = await new PoolBuilder(client, 10_000).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+    const result = await new PoolBuilder(client, 10_000).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
 
     expect(generate).toHaveBeenCalledTimes(FIRST_ROUND_PER_SLOT);
     expect(result.metadata.outOfTime).toBe(true);
@@ -1279,7 +1403,7 @@ describe('PoolBuilder — the time budget', () => {
 
   it('leaves a build that finished in time unmarked', async () => {
     const { client } = stubClient([{ dishes: Array.from({ length: DISHES_NEEDED_PER_SLOT }, (_u, i) => dish(`Plato ${i}`, ['lunch'])) }]);
-    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+    const result = await new PoolBuilder(client).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
 
     expect(result.metadata.outOfTime).toBeUndefined();
   });
@@ -1319,7 +1443,14 @@ describe('PoolBuilder — the first round, three dishes a request', () => {
   it('asks a shortfall of seven as requests of 3, 3 and 1, all in the first round, each shown the same catalogue and exclusions', async () => {
     const { client, generate } = answeringClient();
     const kept = { ...dish('Guiso guardado', ['lunch']), slug: 'guiso-guardado' };
-    const result = await new PoolBuilder(client).build({ context: context(), needPerSlot: 8, preferences, reusable: [kept], slots: ['lunch'] });
+    const result = await new PoolBuilder(client).build({
+      context: context(),
+      feature: 'plan',
+      needPerSlot: 8,
+      preferences,
+      reusable: [kept],
+      slots: ['lunch']
+    });
     const asked = prompts(generate);
 
     expect(asked.map(prompt => askedIn(prompt))).toEqual([
@@ -1342,7 +1473,14 @@ describe('PoolBuilder — the first round, three dishes a request', () => {
   it('asks each slot on its own, split the same way', async () => {
     const { client, generate } = answeringClient();
 
-    await new PoolBuilder(client).build({ context: context(), needPerSlot: 7, preferences, reusable: [], slots: ['breakfast', 'dinner'] });
+    await new PoolBuilder(client).build({
+      context: context(),
+      feature: 'plan',
+      needPerSlot: 7,
+      preferences,
+      reusable: [],
+      slots: ['breakfast', 'dinner']
+    });
 
     expect(prompts(generate).map(prompt => askedIn(prompt))).toEqual([
       { count: 3, slot: 'breakfast' },
@@ -1357,7 +1495,7 @@ describe('PoolBuilder — the first round, three dishes a request', () => {
   it('asks a later round for what is still short in one request per slot, as before', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client).build({ context: context(), needPerSlot: 7, preferences, reusable: [], slots: ['lunch'] });
+    await new PoolBuilder(client).build({ context: context(), feature: 'plan', needPerSlot: 7, preferences, reusable: [], slots: ['lunch'] });
 
     expect(prompts(generate).map(prompt => askedIn(prompt).count)).toEqual([3, 3, 1, 7, 7]);
   });
@@ -1365,7 +1503,15 @@ describe('PoolBuilder — the first round, three dishes a request', () => {
   it('keeps a name two parallel requests both sent once, and counts the others as duplicates', async () => {
     const same = { dishes: [dish('Arroz con pollo', ['lunch'], ['arroz', 'pollo'])] };
     const { client, generate } = stubClient([same]);
-    const result = await new PoolBuilder(client).build({ backfill, context: context(), needPerSlot: 7, preferences, reusable: [], slots: ['lunch'] });
+    const result = await new PoolBuilder(client).build({
+      backfill,
+      context: context(),
+      feature: 'plan',
+      needPerSlot: 7,
+      preferences,
+      reusable: [],
+      slots: ['lunch']
+    });
 
     expect(result.generated.map(generated => generated.name)).toEqual(['Arroz con pollo']);
     expect(result.metadata.aiCalls.map(call => call.rejected)).toEqual([{}, { duplicate: 1 }, { duplicate: 1 }]);
@@ -1399,7 +1545,15 @@ describe('PoolBuilder — the first round, three dishes a request', () => {
       };
     });
     const client = { generate, isAvailable: true } as unknown as AiClient;
-    const result = await new PoolBuilder(client).build({ backfill, context: context(), needPerSlot: 7, preferences, reusable: [], slots: ['lunch'] });
+    const result = await new PoolBuilder(client).build({
+      backfill,
+      context: context(),
+      feature: 'plan',
+      needPerSlot: 7,
+      preferences,
+      reusable: [],
+      slots: ['lunch']
+    });
 
     // The first and third requests' four dishes are kept; the refused one's three come from the library.
     expect(result.generated).toHaveLength(4);
@@ -1434,6 +1588,7 @@ describe('PoolBuilder — the output cap', () => {
 
     await new PoolBuilder(client, undefined, { margin: 800, perDish: 1200 }).build({
       context: context(),
+      feature: 'plan',
       needPerSlot: 7,
       preferences,
       reusable: [],
@@ -1449,7 +1604,7 @@ describe('PoolBuilder — the output cap', () => {
   it('sends no cap when the provider has none', async () => {
     const { client, generate } = stubClient([{ dishes: [] }]);
 
-    await new PoolBuilder(client, undefined, null).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+    await new PoolBuilder(client, undefined, null).build({ context: context(), feature: 'plan', preferences, reusable: [], slots: ['lunch'] });
 
     expect((generate.mock.calls[0]?.[0] as AiRequest<unknown>).maxOutputTokens).toBeUndefined();
   });
@@ -1462,6 +1617,7 @@ describe('PoolBuilder — the output cap', () => {
     const failing = { generate: jest.fn(async () => Promise.reject(cut)), isAvailable: true } as unknown as AiClient;
     const result = await new PoolBuilder(failing, undefined, { margin: 800, perDish: 1200 }).build({
       context: context(),
+      feature: 'plan',
       preferences,
       reusable: [],
       slots: ['lunch']
@@ -1503,6 +1659,7 @@ describe('PoolBuilder — a near-miss slug', () => {
 
     return new PoolBuilder(client).build({
       context: { ...context(safety), catalogue: toCatalogue(rows) },
+      feature: 'plan',
       needPerSlot: 1,
       preferences,
       reusable: [],
@@ -1581,6 +1738,7 @@ describe('PoolBuilder — a near-miss slug', () => {
     const { client } = stubClient([{ dishes: [dish('Pasta con tomate', ['lunch'], ['pastas-frescas', 'tomate'])] }, { dishes: [] }]);
     const result = await new PoolBuilder(client).build({
       context: { ...context({ allergenIds: new Set([MILK]) }), catalogue: toCatalogue(rows) },
+      feature: 'plan',
       needPerSlot: 1,
       preferences,
       reusable: [],
@@ -1634,6 +1792,7 @@ describe("PoolBuilder — cleaning the model's steps", () => {
 
     return new PoolBuilder(client).build({
       context: { ...context(), catalogue: toCatalogue(ROWS) },
+      feature: 'plan',
       needPerSlot: 1,
       preferences,
       reusable: [],

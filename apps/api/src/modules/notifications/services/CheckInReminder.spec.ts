@@ -95,7 +95,8 @@ describe('CheckInReminderService', () => {
       title: 'Tu quincena ha terminado',
       url: 'https://nutria.example/check-in'
     });
-    expect(record.mock.calls.map(call => call[3])).toEqual(['email']);
+    // Both channels carried it, so both are recorded (`0071`): one used to be lost.
+    expect(record.mock.calls.map(call => call.slice(3))).toEqual([['email', 'push']]);
   });
 
   it('reaches only the phone of someone who turned the mail off, and records it as a push', async () => {

@@ -1,5 +1,5 @@
 import { AdminAiRepository, AdminRepository, AdminSeriesRepository, JOB_STATUSES, PLAN_STATUSES } from '#repositories/Admin';
-import { ANALYTICS_EVENTS } from 'core/entities/Analytics';
+import { PRODUCT_EVENTS } from 'core/entities/Analytics';
 import { fillDays, fillWeeks, madridDayKey, madridDayKeys, madridWeekKeys, windowFor } from 'core/domain/Period';
 import { monthStart } from 'core/controllers/Recipe';
 
@@ -162,8 +162,8 @@ export type AdminPeopleView = {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Events the console charts per day. `ai_call` is a provider request, not something a person did. */
-const CHARTED_EVENTS: readonly string[] = ANALYTICS_EVENTS.filter(event => event !== 'ai_call');
+/** Events the console charts per day: what people did, never what the service did (`0071`). */
+const CHARTED_EVENTS: readonly string[] = PRODUCT_EVENTS;
 
 export function presentWindow(window: PeriodWindow): PeriodWindowView {
   return { from: window.from.toISOString(), previousFrom: window.previousFrom.toISOString(), to: window.to.toISOString() };

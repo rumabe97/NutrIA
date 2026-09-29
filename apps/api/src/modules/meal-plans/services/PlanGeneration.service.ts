@@ -6,7 +6,7 @@ import { buildShoppingList, unresolvedSlugs } from 'core/domain/ShoppingList';
 import { dishSafety } from 'core/domain/Safety';
 import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
 import { DEFAULT_MEAL_SHAPE, slotsIn, weightsFor } from 'core/domain/MealShape';
-import { isBlocking, validatePlan } from 'core/domain/PlanValidation';
+import { isBlocking, planQuality, validatePlan } from 'core/domain/PlanValidation';
 import { eventOn, loadedTargets } from 'core/domain/Event';
 import { minimumDailyKcal, targetViolations } from 'core/domain/Nutrition';
 import { CheckInController } from 'core/controllers/CheckIn';
@@ -22,7 +22,7 @@ import { likedFoodNames, promptPreferences, toRecipeDraft } from './GenerationSh
 import type { AiCallRecord, CandidateDish, PlanAssignment } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { TargetBounds } from 'core/domain/Nutrition';
-import type { PlanViolation } from 'core/domain/PlanValidation';
+import type { PlanQuality, PlanViolation } from 'core/domain/PlanValidation';
 import type { GenerationContext } from 'core/controllers/Recipe';
 import { FRESH_DISHES_PER_SLOT, rotatePool } from 'core/domain/Variety';
 import type { Rotation } from 'core/domain/Variety';
@@ -178,6 +178,7 @@ export class PlanGenerationService {
     const built = await this.pool.build({
       backfill,
       context,
+      feature: 'plan',
       // 0013's fresh floor, applied regardless of how rich the rotation's own
       // cap (`REUSED_DISHES_PER_SLOT`, raised in `0065`) lets the library get:
       // a whole-plan build must never ask the model for fewer than seven
@@ -369,6 +370,16 @@ export class PlanGenerationService {
     }
 
     const advisorySummary = [...advisories.map(describe), ...loads.refused];
+    // The same judgement as counts, for the console to sum over a period (`0071`):
+    // no target, no figure and no event's name — the sentences above carry those.
+    const quality = planQuality({
+      dayIndexes: scheduled.assignment.days.map(day => day.dayIndex),
+      dayTargets: loads.dayTargets,
+      fallback,
+      loadsRefused: loads.refused.length,
+      targets,
+      violations
+    });
 
     if (advisories.length > 0) {
       // Delivered, not discarded. The targets are an estimate — the profile screen
@@ -403,7 +414,18 @@ export class PlanGenerationService {
 
     return PlanJobController.persist(
       userId,
-      this.toDraft(scheduled.assignment, shopping, built, targets, context, jobId, rotation, advisorySummary, fallback, start, loads),
+      this.toDraft(
+        scheduled.assignment,
+        shopping,
+        built,
+        targets,
+        context,
+        jobId,
+        rotation,
+        { advisories: advisorySummary, fallback, quality },
+        start,
+        loads
+      ),
       byProfessional
     );
   }
@@ -522,8 +544,7 @@ export class PlanGenerationService {
     context: GenerationContext,
     jobId: string,
     rotation: Rotation,
-    advisories: readonly string[],
-    fallback: Fallback,
+    { advisories, fallback, quality }: { readonly advisories: readonly string[]; readonly fallback: Fallback; readonly quality: PlanQuality },
     start: Date,
     loads: Loads
   ): PlanDraft {
@@ -570,6 +591,7 @@ export class PlanGenerationService {
         jobId,
         locale: context.locale,
         poolSeed: rotation.seed,
+        quality,
         scheduledAt: start.toISOString()
       },
       // Only dishes the plan actually uses are persisted — a generated dish the
