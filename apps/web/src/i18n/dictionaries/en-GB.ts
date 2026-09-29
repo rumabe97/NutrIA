@@ -14,7 +14,7 @@ export const enGB: Dictionary = {
   admin: {
     automaticActivation: 'Automatic activation',
     automaticHint: 'Whoever confirms their address is in. Nothing for you to do.',
-    events: { session_started: 'Sign-ins', swap_requested: 'Meal swaps asked for' },
+    events: { app_used: 'Used the app', session_started: 'Sign-ins', swap_requested: 'Meal swaps asked for' },
     funnel: {
       activated: 'Account opened',
       checkedIn: 'Did the check-in',

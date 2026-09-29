@@ -78,6 +78,16 @@ describe('CheckInSubmittedService.notify', () => {
     expect(record).toHaveBeenCalledWith(PRO.id, expect.any(String), expect.any(String), 'push');
   });
 
+  /* 0071: a notice both channels carried is recorded on both. */
+  it('records the mail and the phone when both carried it', async () => {
+    const { record, service } = harness({ targets: [PHONE] });
+
+    await service.notify(PRO, 'Lucía');
+
+    expect(record).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith(PRO.id, expect.any(String), expect.any(String), 'email', 'push');
+  });
+
   it('records nothing when nothing accepted it', async () => {
     const { record, service } = harness({ sends: false });
 

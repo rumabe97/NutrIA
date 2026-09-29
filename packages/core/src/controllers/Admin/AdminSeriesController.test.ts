@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AdminSeriesController } from './AdminSeriesController';
+import { SYSTEM_EVENTS } from 'core/entities/Analytics';
 
 import type { Funnel, AdminSeriesRepository as Series } from '#repositories/Admin';
 
@@ -143,19 +144,26 @@ describe('AdminSeriesController.summary', () => {
 });
 
 describe('AdminSeriesController.product', () => {
-  it('keeps the funnel as it stands and charts the period’s people and events, ai_call excepted', async () => {
+  it('keeps the funnel as it stands and charts the period’s people and what they did — never a system event', async () => {
     const view = await AdminSeriesController.product(7, NOW);
 
     expect(view.funnel).toEqual(FUNNEL);
     expect(view.activePeople).toEqual({ days: WEEK, values: [0, 0, 0, 0, 0, 9, 0] });
-    expect(series.eventsPerDay).toHaveBeenCalledWith(['session_started', 'swap_requested'], new Date('2026-09-21T22:00:00Z'), NOW);
+    // The product events only (`0071`): a cron's run, a mail or a model call is not something a person did.
+    expect(series.eventsPerDay).toHaveBeenCalledWith(['session_started', 'app_used', 'swap_requested'], new Date('2026-09-21T22:00:00Z'), NOW);
     expect(view.events).toEqual({
       days: WEEK,
       series: [
         { key: 'session_started', values: [0, 0, 0, 0, 0, 0, 0] },
+        { key: 'app_used', values: [0, 0, 0, 0, 0, 0, 0] },
         { key: 'swap_requested', values: [0, 0, 0, 2, 0, 0, 0] }
       ]
     });
+
+    for (const system of SYSTEM_EVENTS) {
+      expect(view.events.series.some(series => series.key === system)).toBe(false);
+    }
+
     expect(view.window.from).toBe('2026-09-21T22:00:00.000Z');
   });
 });

@@ -18,7 +18,7 @@ export const esES = {
   admin: {
     automaticActivation: 'Activación automática',
     automaticHint: 'Quien confirma su correo entra directamente. Tú no tienes que hacer nada.',
-    events: { session_started: 'Entradas', swap_requested: 'Cambios de comida pedidos' },
+    events: { app_used: 'Usaron la app', session_started: 'Entradas', swap_requested: 'Cambios de comida pedidos' },
     funnel: {
       activated: 'Cuenta abierta',
       checkedIn: 'Han hecho el check-in',

@@ -6,7 +6,7 @@
 > change and the deviation is recorded in LOG.md.
 > **Audience**: agents primarily, humans review. **Committed**: yes.
 
-- **Status**: approved — by the owner, 2026-09-28
+- **Status**: done — closed by the owner, 2026-09-29
 - **Type**: standard
 - **PRD**: [./PRD.md](./PRD.md). Every acceptance criterion is mapped at the end of this file.
 - **Routing profile**: `tiered`. No phase touches allergy validation, authentication or AI
@@ -462,7 +462,7 @@ Recorded in [`0068`](../../decisions/0068-the-admin-is-a-console-of-pages-that-s
 
 ### Phase 9 — Removals, documentation and the owner's check
 
-- [ ] in progress
+- [x] done — commit `dcf10bc` ("What the console no longer needs is gone, the docs describe it, and the phone menu scrolls")
 - **Dispatch**: sonnet @ medium — `/execute-project 007 phase 9` (mechanical deletion
   against a written list). Reviews: `invariant-reviewer` on the final diff, and an
   `accessibility` pass over the whole console. — human-verify: the owner walks the console

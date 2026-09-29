@@ -1,4 +1,5 @@
 import { AnalyticsRepository } from '#repositories/Analytics';
+import { madridDayKey, madridMidnight } from 'core/domain/Period';
 
 import type { AnalyticsEvent } from 'core/entities/Analytics';
 
@@ -17,5 +18,14 @@ export const AnalyticsController = {
    */
   async record(event: AnalyticsEvent, userId: string | null, properties?: Record<string, unknown>): Promise<void> {
     await AnalyticsRepository.record(event, userId, properties);
+  },
+
+  /**
+   * Somebody used a session they already had (`0071`): one `app_used` per
+   * person per Madrid day — the console's day — however many sessions they
+   * renewed in it. Never throws, like `record`.
+   */
+  async recordUse(userId: string, now = new Date()): Promise<void> {
+    await AnalyticsRepository.recordOnceSince('app_used', userId, madridMidnight(madridDayKey(now)));
   }
 };

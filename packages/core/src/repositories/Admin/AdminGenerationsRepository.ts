@@ -36,10 +36,31 @@ export type FailureCodeRow = { readonly code: string | null; readonly n: number 
 /** Dishes rejected for one reason, summed over the calls of the period's generations. */
 export type RejectionReasonRow = { readonly n: number; readonly reason: string };
 
+type PlanLogMetadata = Record<string, unknown> | null;
+
+/**
+ * The keys of a plan's `generation_metadata` the log shows (`planOf`), and the
+ * only ones it reads. The rest never leaves the database on this path: the
+ * advisories are sentences with an event's name and a plan's figures in them,
+ * and `quality` is read only summed over a period (`0071`, `0028`). Constants,
+ * written into the SQL rather than bound.
+ */
+const PLAN_LOG_KEYS = ['backfilled', 'fallback', 'model', 'promptVersion', 'rejected', 'reused'] as const;
+
+/** Each allowed key beside its value: `'model', "meal_plans"."generation_metadata" -> 'model', …`. */
+const PLAN_LOG_PAIRS = sql.join(
+  PLAN_LOG_KEYS.map(key => sql`${sql.raw(`'${key}'`)}, ${mealPlans.generationMetadata} -> ${sql.raw(`'${key}'`)}`),
+  sql`, `
+);
+
+/** `generation_metadata` cut down to `PLAN_LOG_KEYS` in SQL; null when the job produced no plan. */
+const PLAN_LOG_METADATA = sql<PlanLogMetadata>`case when ${mealPlans.generationMetadata} is null then null else jsonb_build_object(${PLAN_LOG_PAIRS}) end`;
+
 /**
  * What the log selects: the job, the account's address and name — the one
  * thing of theirs it carries (`0028`, `0050`) — and what the plan recorded
- * about its own making. Exactly `GenerationRow`'s shape.
+ * about its own making, as far as the log shows it. Exactly `GenerationRow`'s
+ * shape.
  */
 const GENERATION_COLUMNS = {
   id: planGenerationJobs.id,
@@ -49,7 +70,7 @@ const GENERATION_COLUMNS = {
   error: planGenerationJobs.error,
   errorDetail: planGenerationJobs.errorDetail,
   finishedAt: planGenerationJobs.finishedAt,
-  metadata: mealPlans.generationMetadata,
+  metadata: PLAN_LOG_METADATA.mapWith(mealPlans.generationMetadata),
   name: user.name,
   planVersion: mealPlans.version,
   startedAt: planGenerationJobs.startedAt,

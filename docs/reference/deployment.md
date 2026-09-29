@@ -174,8 +174,11 @@ platform sends it as the bearer, and without it the route answers 404.
 | `/api/v1/cron/rewrite-steps` | one text generation per recipe, at most twelve a run, ending by 240 s. Through the gateway, its free models; on Google directly, the daily cap generation needs | `AI_REWRITE_STEPS`, off by default; `AI_REWRITE_MODEL` picks its model ([`ai-gateway.md`](./ai-gateway.md) §6) |
 | `/api/v1/cron/reminders` | **nothing from the AI provider**: a mail and/or a push per account, at most once a fortnight | the **Check-in reminder** switch on `/admin`, off until thrown; `SMTP_HOST` for the mail and `VAPID_*` for the push. Sends nothing without either |
 
-A daily run is what the Hobby plan allows. On a plan that runs crons hourly, `0 * * * *`
-clears the 160 stale recipes of 2026-09-12 in about fourteen hours instead of two weeks.
+Each cron runs daily by choice, not by the plan's limit: Vercel is on Pro since 2026-09-26,
+which runs crons as often as hourly. What keeps them daily is Neon's free compute, shared by
+production and development — an hourly cron would wake it 24 times a day. Where a backlog
+justifies it, `0 * * * *` clears the 160 stale recipes of 2026-09-12 in about fourteen hours
+instead of two weeks.
 
 Vercel reads the block at deploy time, so a deploy is what starts or stops a cron. Note that
 a scheduled call costs a function invocation whether or not the route does any work.

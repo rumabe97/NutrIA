@@ -46,7 +46,7 @@ export class StructuredAiClient extends AiClient {
     return this.model !== null;
   }
 
-  async generate<T>({ maxOutputTokens, prompt, schema, session, signal, system }: AiRequest<T>): Promise<AiResponse<T>> {
+  async generate<T>({ feature, maxOutputTokens, prompt, schema, session, signal, system }: AiRequest<T>): Promise<AiResponse<T>> {
     if (!this.model) {
       throw new Error('No AI model configured; check AI_PROVIDER');
     }
@@ -91,6 +91,7 @@ export class StructuredAiClient extends AiClient {
       await AnalyticsController.record('ai_call', null, {
         answeredModel: call.answeredModel,
         costUsd: call.gateway?.costUsd ?? null,
+        feature,
         inputTokens: usage.inputTokens,
         model,
         ms: call.ms,
@@ -141,6 +142,7 @@ export class StructuredAiClient extends AiClient {
       await AnalyticsController.record('ai_call', null, {
         // An invalid answer was still paid for (`0064`).
         costUsd: failure.gateway?.costUsd ?? null,
+        feature,
         model,
         ms: failure.ms,
         ok: false,

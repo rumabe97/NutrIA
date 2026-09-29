@@ -152,6 +152,7 @@ export class MealSwapService {
       const targets = anchor.plan.strategy ?? { carbsG: 0, fatG: 0, fiberG: 0, kcal: current.macros.kcal * 4, proteinG: current.macros.proteinG * 4 };
       const built = await this.pool.build({
         context,
+        feature: 'swap',
         // Read only now, on the way to the model: a swap the library answers never needs it.
         libraryUsage: await RecipeController.libraryUsage([current.slot], context),
         needPerSlot: SWAP_CANDIDATES,

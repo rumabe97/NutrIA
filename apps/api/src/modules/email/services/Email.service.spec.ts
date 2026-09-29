@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { Logger } from '@nestjs/common';
 
+import { AnalyticsController } from 'core/controllers/Analytics';
+
 import type { Env } from '../../../config/index.js';
 
 type SendMail = (message: Record<string, unknown>) => Promise<unknown>;
 
 const sendMail = jest.fn<SendMail>();
+const record = jest.spyOn(AnalyticsController, 'record').mockResolvedValue(undefined);
 const createTransport = jest.fn<(options: Record<string, unknown>) => { sendMail: SendMail }>(() => ({ sendMail }));
 
 jest.unstable_mockModule('nodemailer', () => ({ createTransport }));
@@ -26,6 +29,7 @@ describe('EmailService', () => {
   beforeEach(() => {
     sendMail.mockReset();
     createTransport.mockClear();
+    record.mockClear();
     jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
   });
@@ -100,6 +104,28 @@ describe('EmailService', () => {
     expect(line).toBe('mail not sent (verify-email): EENVELOPE 550');
     expect(line).not.toContain('ana@example.com');
     expect(line).not.toContain('Ana Dietista');
+  });
+
+  /* 0071: what left and what did not, per template — never to whom. */
+  it('records each mail handed to the provider as its template and whether it left, with no user', async () => {
+    sendMail.mockResolvedValueOnce({});
+    sendMail.mockRejectedValueOnce(Object.assign(new Error('Invalid login: ana@example.com'), { code: 'EAUTH' }));
+    const service = new EmailService(configured);
+
+    await service.send(message);
+    await service.send({ ...message, kind: 'check-in-reminder' });
+
+    expect(record.mock.calls).toEqual([
+      ['mail_sent', null, { kind: 'verify-email', ok: true }],
+      ['mail_sent', null, { kind: 'check-in-reminder', ok: false }]
+    ]);
+    expect(JSON.stringify(record.mock.calls)).not.toMatch(/ana@example\.com|Ana Dietista|Invalid login/);
+  });
+
+  it('records nothing while unconfigured: no mail was tried', async () => {
+    await new EmailService({} as Env).send(message);
+
+    expect(record).not.toHaveBeenCalled();
   });
 
   it('logs a failure with no code as unknown, and nothing of its message', async () => {

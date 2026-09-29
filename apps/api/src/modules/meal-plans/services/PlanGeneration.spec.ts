@@ -20,6 +20,7 @@ import { shapeFor } from 'core/domain/MealShape';
 import type { CandidateDish, CatalogueIngredient, MealSlot } from 'core/entities/Plan';
 import type { EventView } from 'core/controllers/Event';
 import type { NutritionTargets } from 'core/entities/Nutrition';
+import type { PlanQuality } from 'core/domain/PlanValidation';
 import type { PoolBuilder, PoolResult } from '../../ai/services/PoolBuilder.service.js';
 import type * as Scheduler from 'core/domain/Scheduler';
 
@@ -154,7 +155,7 @@ type Mocks = {
 /** What `persist` is handed, as far as these cases read it. */
 type Draft = {
   days: { dayIndex: number; loadedFor: string | null; targets: NutritionTargets }[];
-  generationMetadata: { advisories: readonly string[] };
+  generationMetadata: { advisories: readonly string[]; quality: PlanQuality };
   startDate: string;
   strategy: NutritionTargets;
 };
@@ -269,8 +270,11 @@ describe('PlanGenerationService', () => {
 
     await service.generate('user-1', 'job-1', async () => Promise.resolve());
 
-    const input = buildPool.mock.calls[0]?.[0] as { libraryUsage: unknown; preferences: { month: number }; session: string } | undefined;
+    const input = buildPool.mock.calls[0]?.[0] as
+      { feature: string; libraryUsage: unknown; preferences: { month: number }; session: string } | undefined;
 
+    // Its model calls are a plan's, on every `ai_call` (`0071`).
+    expect(input?.feature).toBe('plan');
     expect(input?.preferences.month).toBe(new Date().getUTCMonth() + 1);
     expect(RecipeController.libraryUsage).toHaveBeenCalledWith(SLOTS, expect.anything());
     expect(input?.libraryUsage).toBe(USAGE);
@@ -337,10 +341,40 @@ describe('PlanGenerationService', () => {
     expect(planId).toBeTruthy();
     expect(persist).toHaveBeenCalledTimes(1);
 
-    const draft = persist.mock.calls[0]?.[1] as { generationMetadata: { advisories: readonly string[] } };
+    const draft = persist.mock.calls[0]?.[1] as Draft;
 
     expect(draft.generationMetadata.advisories.length).toBeGreaterThan(0);
     expect(draft.generationMetadata.advisories.join(' ')).toContain('protein_below_target');
+
+    // The same drift as counts (`0071`): the plan's length, the days it missed protein on,
+    // and nothing of what the person eats — no target, no figure.
+    const { quality } = draft.generationMetadata;
+
+    expect(quality.days).toBe(14);
+    expect(quality.missesByMacro.protein).toBeGreaterThan(0);
+    expect(quality.daysInBand).toBeLessThanOrEqual(14 - quality.missesByMacro.protein);
+    expect(quality.advisoriesByKind.protein_below_target).toBe(quality.missesByMacro.protein);
+    expect(JSON.stringify(quality)).not.toContain(String(TARGETS.proteinG));
+  });
+
+  it('records a plan with nothing to say as fourteen days in band, from its first pool', async () => {
+    const { persist, service } = build();
+
+    await service.generate('user-1', 'job-1', async () => Promise.resolve());
+
+    const { quality } = (persist.mock.calls[0]?.[1] as Draft).generationMetadata;
+
+    expect(Object.keys(quality).sort()).toEqual([
+      'advisoriesByKind',
+      'days',
+      'daysInBand',
+      'eventDays',
+      'eventDaysInBand',
+      'fallback',
+      'loadsRefused',
+      'missesByMacro'
+    ]);
+    expect(quality).toMatchObject({ days: 14, eventDays: 0, loadsRefused: 0 });
   });
 
   /*
@@ -734,6 +768,10 @@ describe('PlanGenerationService', () => {
     expect(draft.days.filter(day => day.loadedFor !== null).map(day => day.dayIndex)).toEqual([4, 5]);
     expect(draft.days[3]).toMatchObject({ loadedFor: 'Media maratón', targets: loaded });
     expect(draft.days[5]).toMatchObject({ loadedFor: null, targets: draft.strategy });
+
+    // Counted, never named: the quality knows two days ate for something, not what.
+    expect(draft.generationMetadata.quality).toMatchObject({ days: 14, eventDays: 2, loadsRefused: 0 });
+    expect(JSON.stringify(draft.generationMetadata.quality)).not.toContain('maratón');
   });
 
   /*
@@ -759,5 +797,6 @@ describe('PlanGenerationService', () => {
     expect(draft.days.every(day => day.loadedFor === null)).toBe(true);
     expect(draft.days.every(day => day.targets.kcal === draft.strategy.kcal)).toBe(true);
     expect(draft.generationMetadata.advisories.join(' ')).toContain('kcal_above_ceiling');
+    expect(draft.generationMetadata.quality).toMatchObject({ eventDays: 0, eventDaysInBand: 0, loadsRefused: 2 });
   });
 });

@@ -102,6 +102,23 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
           after: async (created: { userId: string }) => {
             await AnalyticsController.record('session_started', created.userId);
           }
+        },
+        update: {
+          /*
+           * Somebody used a session they already had (`0071`). A session lasts
+           * thirty days and Better Auth renews it at most once a day of use
+           * (`updateAge`), from `getSession` — which `SessionGuard` calls on every
+           * request — so a person who opens the app daily without signing in
+           * again passes here and nowhere else. One `app_used` a Madrid day,
+           * however many sessions or parallel requests renewed; nothing about
+           * the visit travels but the fact of it, and it never throws.
+           */
+          after: async (updated: { userId?: string } | null) => {
+            if (updated?.userId) {
+              // Its own catch as well: a counter never turns a renewal into a 500.
+              await AnalyticsController.recordUse(updated.userId).catch(() => undefined);
+            }
+          }
         }
       },
       user: {

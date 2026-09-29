@@ -12,6 +12,9 @@ import { DatabaseOperationError } from 'core/entities/Error';
 /** One browser that asked to be told things: where to send, and what to encrypt to. */
 export type PushTarget = { readonly auth: string; readonly endpoint: string; readonly p256dh: string };
 
+/** A channel a notice can reach somebody on, outside the app. */
+export type NotificationChannel = 'email' | 'push';
+
 export type Recipient = {
   readonly email: string;
   readonly endDate: string;
@@ -170,17 +173,26 @@ export const NotificationRepository = {
   },
 
   /**
-   * The proof that a reminder went out. Written after a channel accepted it,
-   * never before; `channel` says which carried it.
+   * The proof that a notice went out. Written after a channel accepted it,
+   * never before: one row per channel that carried it (`0071`), so a notice
+   * that reached both the inbox and a phone says both — in one statement, so
+   * it says both or neither.
    */
   async recordSent(
     userId: string,
-    input: { readonly body: string; readonly channel: 'email' | 'push'; readonly title: string; readonly type: 'checkin_due' | 'checkin_submitted' }
+    input: {
+      readonly body: string;
+      readonly channels: readonly [NotificationChannel, ...NotificationChannel[]];
+      readonly title: string;
+      readonly type: 'checkin_due' | 'checkin_submitted';
+    }
   ): Promise<void> {
+    const sentAt = new Date();
+
     try {
       await database()
         .insert(notifications)
-        .values({ body: input.body, channel: input.channel, sentAt: new Date(), title: input.title, type: input.type, userId });
+        .values([...new Set(input.channels)].map(channel => ({ body: input.body, channel, sentAt, title: input.title, type: input.type, userId })));
     } catch (error: unknown) {
       throw wrap(error);
     }

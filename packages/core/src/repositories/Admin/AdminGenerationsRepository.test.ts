@@ -64,7 +64,13 @@ describe('AdminGenerationsRepository.page', () => {
     expect(page?.sql).toContain('from "plan_generation_jobs" inner join "user" on "user"."id" = "plan_generation_jobs"."user_id"');
     expect(page?.sql).toContain('left join "meal_plans" on "meal_plans"."id" = "plan_generation_jobs"."plan_id"');
     expect(page?.sql).toContain('"user"."email"');
-    expect(page?.sql).toContain('"meal_plans"."generation_metadata"');
+    // Only the keys the log shows, cut in SQL: the advisories (an event's name, a plan's figures) and the
+    // plan's quality never leave the database on this path (`0071`).
+    expect(page?.sql).toContain(
+      `case when "meal_plans"."generation_metadata" is null then null else jsonb_build_object('backfilled', "meal_plans"."generation_metadata" -> 'backfilled', 'fallback', "meal_plans"."generation_metadata" -> 'fallback', 'model', "meal_plans"."generation_metadata" -> 'model', 'promptVersion', "meal_plans"."generation_metadata" -> 'promptVersion', 'rejected', "meal_plans"."generation_metadata" -> 'rejected', 'reused', "meal_plans"."generation_metadata" -> 'reused') end`
+    );
+    expect(page?.sql).not.toMatch(/advisories|quality|loadedTargets/);
+    expect(page?.sql.match(/"meal_plans"\."generation_metadata"(?! (is null|->))/g)).toBeNull();
     // An address and a name; nothing else of the account's, and nothing of the plan but what it recorded of its own making.
     expect(page?.sql).not.toMatch(/"meal_plans"\."(user_id|targets|days)"/);
     expect(page?.sql).toContain('order by "plan_generation_jobs"."created_at" desc, "plan_generation_jobs"."id" asc limit $3 offset $4');

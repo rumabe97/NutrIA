@@ -4,6 +4,7 @@ import request from 'supertest';
 
 import { CheckInReminderService } from '../../notifications/index.js';
 import { CronController } from './Cron.controller.js';
+import { CronRunService } from '../services/index.js';
 import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
 import { ENV } from '../../../config/index.js';
 import { RecipeRewriter } from '../../ai/index.js';
@@ -22,6 +23,7 @@ describe('the cron routes', () => {
   const rewriteOutdated = jest.fn<(limit: number) => Promise<{ pending: number; rewritten: number; skipped: number; unreached: number }>>();
   const sweep = jest.fn(async () => Promise.resolve({ considered: 0, failed: 0, pushed: 0, sent: 0 }));
   const forget = jest.fn(async () => Promise.resolve());
+  const record = jest.fn(async (_job: string, _counts: Readonly<Record<string, number>>) => Promise.resolve());
   const bearer = (secret: string) => ['Bearer', secret].join(' ');
 
   afterEach(async () => {
@@ -36,7 +38,8 @@ describe('the cron routes', () => {
         { provide: ENV, useValue: { CRON_SECRET: secret } },
         { provide: RecipeRewriter, useValue: { rewriteOutdated } },
         { provide: CheckInReminderService, useValue: { sweep } },
-        { provide: ExpiredInvitationsService, useValue: { forget } }
+        { provide: ExpiredInvitationsService, useValue: { forget } },
+        { provide: CronRunService, useValue: { record } }
       ]
     }).compile();
 
@@ -56,11 +59,32 @@ describe('the cron routes', () => {
     expect(sweep).toHaveBeenCalledTimes(1);
   });
 
+  /* 0071: a run leaves no row of its own, so each one that finishes says so — its job and its counts. */
+  it('records the reminder run once it finished, with its counts', async () => {
+    sweep.mockResolvedValueOnce({ considered: 3, failed: 1, pushed: 1, sent: 2 });
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/reminders').set('Authorization', bearer(SECRET)).expect(200);
+
+    expect(record).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith('reminders', { considered: 3, failed: 1, pushed: 1, sent: 2 });
+  });
+
+  it('records no run that did not finish', async () => {
+    sweep.mockRejectedValueOnce(new Error('database gone'));
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/reminders').set('Authorization', bearer(SECRET)).expect(500);
+
+    expect(record).not.toHaveBeenCalled();
+  });
+
   it('deletes nothing for the wrong bearer', async () => {
     const server = await boot(SECRET);
 
     await request(server).get('/cron/reminders').set('Authorization', bearer('wrong')).expect(404);
     expect(forget).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
   });
 
   it('runs a bounded rewrite sweep on its own route', async () => {
@@ -71,6 +95,7 @@ describe('the cron routes', () => {
 
     expect(response.body).toEqual({ pending: 12, rewritten: 9, skipped: 1, unreached: 2 });
     expect(rewriteOutdated).toHaveBeenCalledWith(12);
+    expect(record).toHaveBeenCalledWith('rewrite', { pending: 12, rewritten: 9, skipped: 1, unreached: 2 });
   });
 
   it('guards the rewrite route exactly as it guards the other', async () => {

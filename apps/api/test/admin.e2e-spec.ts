@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
 import { SettingsController } from 'core/controllers/Settings';
-import { ANALYTICS_EVENTS } from 'core/entities/Analytics';
+import { PRODUCT_EVENTS } from 'core/entities/Analytics';
 import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
@@ -139,7 +139,9 @@ const PERIOD_WORDS = new Set([
   'completed',
   'archived',
   'pending_review',
-  ...ANALYTICS_EVENTS.filter(event => event !== 'ai_call')
+  // A system event (`ai_call`, `cron_run`, `mail_sent`, `owner_alerted`) never
+  // reaches this page's words: it is not something a person did (`0071`).
+  ...PRODUCT_EVENTS
 ]);
 
 const ALLERGEN_KEYS = [
@@ -615,11 +617,11 @@ describe('admin', () => {
           expect(row.values).toHaveLength(period);
         }
 
-        // Sessions and swaps are charted; a provider request is not something a person did.
+        // Exactly the product events, in their own order — no system event
+        // (`ai_call`, `cron_run`, `mail_sent`, `owner_alerted`) rides along (`0071`).
         const events = product.events.series.map(row => row.key);
 
-        expect(events).toEqual(expect.arrayContaining(['session_started', 'swap_requested']));
-        expect(events).not.toContain('ai_call');
+        expect(events).toEqual([...PRODUCT_EVENTS]);
       }
     });
 
@@ -1605,6 +1607,23 @@ describe('admin', () => {
 
       expect((real?.calls.length ?? 0) > 0).toBe(true);
       expect(real?.calls.every(call => typeof call.rejected === 'object')).toBe(true);
+    });
+
+    /*
+     * `quality` and `advisories` live in the same `generation_metadata` column
+     * as the keys the log does show (`0071`, phase 1 step 8): `quality` is
+     * read only summed over a period, never per plan, and `advisories` are
+     * sentences with an event's name and a figure in them (`0028`). The
+     * pipeline's own job — the one this block's `beforeAll` generated — has
+     * both, so this proves the SQL selection (`PLAN_LOG_KEYS`), not their absence.
+     */
+    it('never carries quality or advisories on any row, whatever the plan recorded of itself', async () => {
+      const paged = (await get(`generations?q=${gt}`, owner.cookie).expect(200)).body as AdminGenerationsView;
+      const keys = new Set<string>();
+
+      walk(paged, keys, new Set());
+
+      expect({ advisories: keys.has('advisories'), quality: keys.has('quality') }).toEqual({ advisories: false, quality: false });
     });
 
     it('refuse an unknown filter value, a range that ends before it starts, a repeated parameter and a bad page, as INVALID_INPUT', async () => {

@@ -1,6 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { createTransport } from 'nodemailer';
 
+import { AnalyticsController } from 'core/controllers/Analytics';
+
 import { ENV } from '../../../config/index.js';
 
 import type { EmailKind } from '../templates/Layout.js';
@@ -51,6 +53,11 @@ function failureOf(error: unknown): string {
  * (an invitation's names the professional) or a provider's error message (it
  * quotes the rejected recipient): a failure is logged as the message's `kind`
  * and the error's code.
+ *
+ * Every message handed to the provider leaves a `mail_sent` (`0071`): its
+ * `kind` — the template — and whether it was accepted, so a revoked app
+ * password shows as failures per template rather than only in the log. Never
+ * the recipient. Nothing is recorded while unconfigured: no mail was tried.
  */
 @Injectable()
 export class EmailService {
@@ -94,14 +101,18 @@ export class EmailService {
       return false;
     }
 
+    let ok = false;
+
     try {
       await this.transporter.sendMail({ from: this.from, html: message.html, subject: message.subject, text: message.text, to: message.to });
-
-      return true;
+      ok = true;
     } catch (error) {
       this.logger.error(`mail not sent (${message.kind}): ${failureOf(error)}`);
-
-      return false;
     }
+
+    // The template and the outcome: nothing of the message, and no user.
+    await AnalyticsController.record('mail_sent', null, { kind: message.kind, ok });
+
+    return ok;
   }
 }

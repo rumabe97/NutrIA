@@ -426,17 +426,31 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   the inbox, paged, with a reversible `handled` mark. It is the one admin read that carries a
   person's own words and address — allowed because the message was written to be read and
   answered. Nothing summarises it and it never reaches a model.
-- **AI usage** (`0035`): every provider request records an `ai_call` event from
-  `StructuredAiClient` — the only place a request leaves the building, recorded with no user.
-  `/admin/ai` sums them over a period: calls, failures, tokens, latency and `costUsd` (the
-  dishes generated for plans and the nightly step rewrites, which the event does not tell
-  apart), per day and per model. The free-Gemini daily quota readouts are gone (`0068`):
+- **AI usage** (`0035`, `0071`): every provider request records an `ai_call` event from
+  `StructuredAiClient` — the only place a request leaves the building, recorded with no user —
+  carrying `feature: 'plan' | 'swap' | 'rewrite'`, which `AiRequest` requires of every caller
+  (`PoolBuilder.build` takes it from the plan or the swap; `RecipeRewriter` sets `rewrite`).
+  Events from before `0071` have none. `/admin/ai` sums them over a period: calls, failures,
+  tokens, latency and `costUsd`, per day and per model. The free-Gemini daily quota readouts are gone (`0068`):
   paid OpenRouter has no daily allowance.
 - **Analytics** (`0033`): the funnel on `/admin` is counted from state — `AdminRepository.funnel()`
   — never from events, so it is correct retroactively and cannot disagree with the rows it
-  counts. `analytics_events` holds only what leaves no row: `session_started` and
-  `swap_requested`. The set is closed in `ANALYTICS_EVENTS`, no HTTP route writes one, an
-  event never carries content, and `AnalyticsController.record` never throws.
+  counts. `analytics_events` holds only what leaves no row, in two closed halves (`0071`):
+  `PRODUCT_EVENTS` — `session_started`, `app_used`, `swap_requested`, the only ones Embudo
+  charts — and `SYSTEM_EVENTS` — `ai_call`, `cron_run` (`CronController`, through
+  `CronRunService`, after a run finished: `{ job, …its counts }`), `mail_sent` (`EmailService.send`,
+  every mail handed to the provider: `{ kind, ok }`, the template, never the recipient) and
+  `owner_alerted` — which never carry a user. `app_used` is written by the
+  `session.update.after` hook, which runs when `SessionGuard`'s `getSession` renews a session
+  (once a day of use, `updateAge`; `modules/auth/SessionRenewal.spec.ts` proves it), at most one a
+  Madrid day per person: `AnalyticsController.recordUse` checks and writes under an advisory lock,
+  because a server render renews one session from several parallel requests. No HTTP route
+  writes an event, an event never carries content, and recording never throws.
+- **Plan quality** (`0071`): each new plan's `generation_metadata.quality` is `planQuality`
+  (`core/domain/PlanValidation`) over the delivered plan's violations — counts only, never a
+  target, a figure or an event's name. The generation log (`AdminGenerationsRepository`)
+  selects only `planOf`'s keys from `generation_metadata` in SQL, so `quality` and the
+  `advisories` sentences never leave the database on that path.
 - **Vacations** (`0032`): `POST /vacations` moves every plan day at or after the trip forward
   by its length, in one transaction, so those dates hold no plan day at all. Nothing else was
   taught about holidays — skipping, adherence and the check-in mail all follow the dates.
@@ -444,8 +458,8 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   overlaps another, or one longer than ninety days.
 - **Reminders** (`0027`): `/cron/reminders`, guarded by `CRON_SECRET` like the other two
   sweeps. `CheckInReminderService` sends one mail per fortnight to accounts whose plan reached
-  its last day, and writes the `notifications` row only after the provider accepted it — the
-  row is what stops a second one. Never put plan or health content in a reminder; it is read on
+  its last day, and writes the `notifications` rows only after a channel accepted it — one row
+  per channel that carried it (`0071`), and any row is what stops a second one. Never put plan or health content in a reminder; it is read on
   a lock screen. `PATCH /notifications/settings` is the switch. **No cron is scheduled**: the
   `crons` block is out of `apps/api/vercel.json` while the project runs on free tiers, so all
   three routes only run when called by hand with the bearer.

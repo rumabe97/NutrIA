@@ -7,6 +7,7 @@ import { checkInSubmittedEmail, checkInSubmittedPush, checkInSubmittedRecord } f
 import { EmailService } from '../../email/services/Email.service.js';
 import { ENV } from '../../../config/index.js';
 import { ErrorReporter } from '../../../shared/observability/index.js';
+import { channelsReached } from './Channels.js';
 import { PushService } from './Push.service.js';
 import { recipientLocale } from '../../email/services/index.js';
 
@@ -52,14 +53,15 @@ export class CheckInSubmittedService {
         NotificationController.pushTargets(professional.id)
       ]);
       const phones = await this.push.send(pushTargets, { ...checkInSubmittedPush(locale, clientName), url });
+      const channels = channelsReached(mailed, phones);
 
-      if (!mailed && phones === 0) {
+      if (!channels) {
         return;
       }
 
       const record = checkInSubmittedRecord(locale, clientName);
 
-      await NotificationController.recordCheckinSubmitted(professional.id, record.title, record.body, mailed ? 'email' : 'push');
+      await NotificationController.recordCheckinSubmitted(professional.id, record.title, record.body, ...channels);
     } catch (error: unknown) {
       this.logger.error(`Check-in notice to a professional failed: ${error instanceof Error ? error.message : 'unknown'}`);
       this.reporter.report(error, 'care:checkin-submitted');

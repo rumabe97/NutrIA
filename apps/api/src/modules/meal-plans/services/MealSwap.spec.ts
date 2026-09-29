@@ -255,8 +255,11 @@ describe('MealSwapService', () => {
     await service.swap('user-1', MEAL, 'es-ES');
 
     const input = build.mock.calls[0]?.[0] as
-      { libraryUsage: unknown; needPerSlot: number; preferences: { month: number }; session: string; slots: readonly MealSlot[] } | undefined;
+      | { feature: string; libraryUsage: unknown; needPerSlot: number; preferences: { month: number }; session: string; slots: readonly MealSlot[] }
+      | undefined;
 
+    // Its model calls are a swap's, on every `ai_call` (`0071`).
+    expect(input?.feature).toBe('swap');
     expect(input?.needPerSlot).toBe(3);
     expect(input?.slots).toEqual(['lunch']);
     // The month of the day being replaced, not of the plan's start (`0062` § 6);

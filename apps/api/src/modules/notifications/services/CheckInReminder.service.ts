@@ -8,6 +8,7 @@ import { checkInReminderEmail, checkInReminderPush, checkInReminderRecord } from
 import { EmailService } from '../../email/services/Email.service.js';
 import { ENV } from '../../../config/index.js';
 import { ErrorReporter } from '../../../shared/observability/index.js';
+import { channelsReached } from './Channels.js';
 import { PushService } from './Push.service.js';
 
 import type { EmailLocale } from '../../email/templates/Layout.js';
@@ -89,15 +90,17 @@ export class CheckInReminderService {
         // phone its reminder, nor the other way round.
         const mailed = await this.mail(recipient, locale, url);
         const phones = await this.push.send(recipient.pushTargets, { ...checkInReminderPush(locale), url });
+        const channels = channelsReached(mailed, phones);
 
-        if (!mailed && phones === 0) {
+        if (!channels) {
           failed += 1;
           continue;
         }
 
         const record = checkInReminderRecord(locale);
 
-        await NotificationController.recordCheckInReminder(recipient.userId, record.title, record.body, mailed ? 'email' : 'push');
+        // Every channel that carried it, not the first (`0071`).
+        await NotificationController.recordCheckInReminder(recipient.userId, record.title, record.body, ...channels);
         sent += 1;
         pushed += phones > 0 ? 1 : 0;
       } catch (error: unknown) {

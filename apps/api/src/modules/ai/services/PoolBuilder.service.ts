@@ -13,6 +13,7 @@ import { buildPoolPrompt, languageName, POOL_SYSTEM_PROMPT, PROMPT_VERSION } fro
 import { generatedDishSchema, wirePoolSchema } from '../prompts/pool.schema.js';
 
 import type { AiCall, AiFailure, AiUsage } from '../clients/AiClient.js';
+import type { AiFeature } from 'core/entities/Analytics';
 import type { AiOutputCap } from '../ai.config.js';
 import type { AiCallFailure, AiCallRecord, CandidateDish, CatalogueIngredient, DishRejection, MealSlot } from 'core/entities/Plan';
 import type { GeneratedDish } from '../prompts/pool.schema.js';
@@ -76,6 +77,8 @@ export type BuildPoolInput = {
    */
   readonly backfill?: readonly CandidateDish[];
   readonly context: GenerationContext;
+  /** Whose calls these are, on each `ai_call` (`0071`): a whole plan's dishes, or one meal's swap. */
+  readonly feature: Extract<AiFeature, 'plan' | 'swap'>;
   /**
    * The least the model is asked for per slot, even where the library alone
    * already covers `needPerSlot` — 0013's fresh floor. Left at zero, a rich
@@ -148,6 +151,7 @@ export class PoolBuilder {
   async build({
     backfill = [],
     context,
+    feature,
     freshFloorPerSlot = 0,
     libraryUsage = new Map(),
     needPerSlot = DISHES_NEEDED_PER_SLOT,
@@ -309,6 +313,7 @@ export class PoolBuilder {
       const rounds = await Promise.allSettled(
         requests.map(({ size, slot }) =>
           this.ai.generate({
+            feature,
             // A model that writes far more dishes than it was asked for is cut
             // off here instead of running into the budget; its answer then
             // fails as `invalid_output` and costs only its own dishes.
