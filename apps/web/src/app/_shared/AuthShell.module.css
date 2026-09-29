@@ -1,5 +1,7 @@
 .shell {
   display: grid;
+  /* One column no wider than the screen: with large text the card wraps instead of spilling off the side. */
+  grid-template-columns: minmax(0, 1fr);
   min-height: 100dvh;
   place-items: center;
   padding: var(--space-06) var(--space-05) var(--space-10);

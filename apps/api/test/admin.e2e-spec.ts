@@ -3,6 +3,7 @@ import request from 'supertest';
 
 import { SettingsController } from 'core/controllers/Settings';
 import { PRODUCT_EVENTS } from 'core/entities/Analytics';
+import { TERMS_VERSION } from 'core/entities/User';
 import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
@@ -2243,7 +2244,9 @@ describe('admin', () => {
       expect(view.commit === null || /^[0-9a-f]{7,64}$/.test(view.commit)).toBe(true);
       expect(keys(view.caps)).toEqual(['oversizedFactor', 'pictureMonthlyUsd', 'rewriteAttemptBound', 'servingBounds', 'servingKcal']);
       expect(keys(view.caps.servingBounds)).toEqual(['max', 'min']);
-      expect(keys(view.versions)).toEqual(['careConsent', 'healthConsent', 'professionalAgreement', 'profileConsent', 'prompt', 'steps']);
+      expect(keys(view.versions)).toEqual(['careConsent', 'healthConsent', 'professionalAgreement', 'profileConsent', 'prompt', 'steps', 'terms']);
+      expect(view.versions.terms).toMatch(SEMVER);
+      expect(view.versions.terms).toBe(TERMS_VERSION);
       expect(view.versions.steps).toMatch(SEMVER);
       expect(keys(view.mail)).toEqual(['days', 'kinds', 'perDay', 'totals']);
       expect(keys(view.mail.totals)).toEqual(['failed', 'sent']);
@@ -2275,7 +2278,7 @@ describe('admin', () => {
 
       expect(keys(view)).toEqual(['consents', 'onboarded']);
       expect(keys(view.onboarded)).toEqual(['holding', 'total']);
-      expect(view.consents.map((consent: { key: string }) => consent.key)).toEqual(['profile', 'health', 'care', 'professional']);
+      expect(view.consents.map((consent: { key: string }) => consent.key)).toEqual(['profile', 'health', 'care', 'professional', 'terms']);
 
       for (const consent of view.consents) {
         expect(keys(consent)).toEqual(['current', 'currentVersion', 'key', 'older', 'versions']);
@@ -2283,6 +2286,48 @@ describe('admin', () => {
       }
 
       expect(view.onboarded.holding).toBeLessThanOrEqual(view.onboarded.total);
+    });
+
+    it('count the terms an account was created under: the current version, the accounts from before it as their own bucket, a new sign-up as current', async () => {
+      const find = (view: AdminConsentsView) => view.consents.find(consent => consent.key === 'terms');
+      const before = find(await body<AdminConsentsView>('consents'));
+      const sql = (
+        database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> }
+      ).$client;
+      const [{ n: unrecorded }] = await sql<{ n: number }>`select count(*)::int as n from "user" where terms_version is null`;
+
+      expect(before?.currentVersion).toBe('2.0.0');
+      expect(before?.currentVersion).toBe(TERMS_VERSION);
+
+      const nullBucket = before?.versions.find(version => version.version === null);
+
+      // Accounts from before the record are their own bucket, and are never "older": nobody is asked again for them.
+      expect(nullBucket?.n ?? 0).toBe(unrecorded);
+
+      const email = `admin-terms-${Date.now()}@e2e.invalid`;
+
+      byEmail.push(email);
+      await request(httpServer(app))
+        .post(`/${PREFIX}/auth/sign-up/email`)
+        .send({ email, name: 'Terms', password: 'correct-horse-battery-staple-9' })
+        .expect(200);
+
+      const after = find(await body<AdminConsentsView>('consents'));
+
+      expect(after?.current).toBe((before?.current ?? 0) + 1);
+      expect(after?.older).toBe(before?.older);
+      expect(after?.versions.find(version => version.version === TERMS_VERSION)?.n).toBe(
+        (before?.versions.find(version => version.version === TERMS_VERSION)?.n ?? 0) + 1
+      );
+      expect(after?.versions.find(version => version.version === null)?.n ?? 0).toBe(unrecorded);
+    });
+
+    it('never put an account’s terms on a row that names the account', async () => {
+      for (const route of ['accounts', 'people', 'professionals', 'feedback', 'audit', `accounts?q=${encodeURIComponent(ordinary.email)}`]) {
+        const text = JSON.stringify((await get(route, owner.cookie).expect(200)).body);
+
+        expect({ found: /terms(Version|AcceptedAt)|terms_(version|accepted_at)/i.test(text), route }).toEqual({ found: false, route });
+      }
     });
 
     it('count the reminders per channel and week, and who can be reached by push', async () => {

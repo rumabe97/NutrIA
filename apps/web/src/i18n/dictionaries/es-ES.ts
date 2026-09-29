@@ -214,11 +214,17 @@ export const esES = {
       version: 'Versión vigente',
       versions: 'Versiones en uso'
     },
-    consents: { care: 'Vínculo con un profesional', health: 'Datos de salud', professional: 'Acuerdo del profesional', profile: 'Perfil' },
+    consents: {
+      care: 'Vínculo con un profesional',
+      health: 'Datos de salud',
+      professional: 'Acuerdo del profesional',
+      profile: 'Perfil',
+      terms: 'Condiciones de uso'
+    },
     empty: 'Ninguna cuenta ha aceptado todavía.',
     howCounted: [
       'Cuenta cuentas: cada cuenta cuenta una vez por consentimiento, con la versión que aceptó.',
-      'Con una anterior son las cuentas a las que se volverá a preguntar. Sin aceptar es una concesión que todavía no ha aceptado el acuerdo (solo el del profesional).',
+      'Con una anterior son las cuentas a las que se volverá a preguntar. Sin aceptar es una concesión que todavía no ha aceptado el acuerdo (solo el del profesional). Sin registro son las cuentas creadas antes de que se guardara la versión de las condiciones: no se sabe cuál vieron, y no se les vuelve a preguntar.',
       'Un vínculo abierto es un consentimiento aceptado.',
       'Sin fechas: esta página no dice cuándo aceptó nadie. La política de privacidad no es un consentimiento y no aparece aquí.'
     ],
@@ -228,6 +234,7 @@ export const esES = {
     tilesLabel: 'Cifras de los consentimientos',
     title: 'Consentimientos',
     unaccepted: 'sin aceptar',
+    unrecorded: 'Sin registro',
     versionOf: '{version}: {n}'
   },
 
@@ -884,7 +891,8 @@ export const esES = {
       professionalAgreement: 'Acuerdo del profesional',
       profileConsent: 'Consentimiento del perfil',
       prompt: 'Plantilla de generación de platos',
-      steps: 'Plantilla de reescritura de pasos'
+      steps: 'Plantilla de reescritura de pasos',
+      terms: 'Condiciones de uso'
     },
     versionsTitle: 'Versiones',
     yes: 'Sí'
@@ -922,6 +930,8 @@ export const esES = {
     invalidLink: 'Este enlace no es válido o ha caducado.',
     legalAge: 'Necesitas tener al menos 18 años para crear una cuenta.',
     legalNotice: 'Al crear tu cuenta aceptas las {terms}. Cómo tratamos tus datos te lo explica la {privacy}.',
+    legalNoticeSignIn:
+      'Si es la primera vez que entras con Google o Apple, se crea tu cuenta y aceptas las {terms}. Cómo tratamos tus datos te lo explica la {privacy}.',
     legalPrivacy: 'política de privacidad',
     legalTerms: 'condiciones de uso',
     name: 'Nombre',
@@ -2056,7 +2066,7 @@ export const esES = {
       {
         heading: 'Qué datos recogemos y para qué',
         list: [
-          'Cuenta: tu nombre y tu correo y, si entras con Google o Apple, el nombre y el correo que ese servicio nos confirma. Mientras tienes la sesión abierta guardamos la dirección IP y el navegador desde el que entraste, para poder cerrarla. Para que tengas una cuenta y solo tú entres en ella.',
+          'Cuenta: tu nombre y tu correo y, si entras con Google o Apple, el nombre y el correo que ese servicio nos confirma, y qué versión de las condiciones de uso aceptaste al crearla y cuándo. Mientras tienes la sesión abierta guardamos la dirección IP y el navegador desde el que entraste, para poder cerrarla. Para que tengas una cuenta y solo tú entres en ella, y para poder demostrar qué condiciones aceptaste.',
           'Tu cuerpo y tu objetivo: fecha de nacimiento, sexo, altura, peso, nivel de actividad y tu objetivo (por ejemplo, perder peso). Para calcular cuánto necesitas comer.',
           'País: desde dónde compras. Para que el catálogo solo te muestre alimentos que puedas encontrar allí.',
           'Alergias e intolerancias: las que eliges de la lista, las que escribes a mano y su gravedad. Para que ningún plan te proponga algo que te puede hacer daño.',
@@ -2175,7 +2185,7 @@ export const esES = {
       }
     ],
     title: 'Política de privacidad',
-    updated: 'Última actualización: 28 de septiembre de 2026'
+    updated: 'Última actualización: 29 de septiembre de 2026'
   },
   profile: {
     account: 'Cuenta',
@@ -2433,6 +2443,16 @@ export const esES = {
         paragraphs: []
       },
       {
+        heading: 'Cómo se celebra este contrato',
+        list: [
+          'Se celebra al crear tu cuenta: rellenas tu nombre, tu correo y una contraseña y pulsas «Crear mi plan», o entras por primera vez con Google o Apple. En los dos casos, el aviso que acompaña a esos botones te enlaza a estas condiciones.',
+          'Antes de pulsar puedes revisar y corregir lo que has escrito en cada campo, y si falta algo o no es válido te lo decimos antes de crear la cuenta.',
+          'Guardamos qué versión de estas condiciones aceptaste y cuándo. Esta página muestra siempre la versión vigente, con su fecha, y puedes guardarla o imprimirla. Si quieres la versión que aceptaste, pídenosla en {email}.',
+          'Puedes contratar en español o en inglés.'
+        ],
+        paragraphs: []
+      },
+      {
         heading: 'Contenido generado con inteligencia artificial',
         paragraphs: [
           'Las recetas y los planes se generan con ayuda de inteligencia artificial y se validan con nuestro propio código antes de mostrártelos. Aun así pueden contener errores: un tiempo de cocción, una cantidad, un paso poco claro. Usa tu criterio en la cocina, sobre todo con la seguridad alimentaria: cocina bien la carne, el pescado y los huevos, y respeta la cadena de frío.',
@@ -2505,7 +2525,7 @@ export const esES = {
       }
     ],
     title: 'Condiciones de uso',
-    updated: 'Última actualización: 28 de septiembre de 2026'
+    updated: 'Última actualización: 29 de septiembre de 2026'
   },
 
   tour: {

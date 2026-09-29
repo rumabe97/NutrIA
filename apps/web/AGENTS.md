@@ -102,8 +102,12 @@ any of those is a change to these pages too**, with a new `updated` date.
 The documents say `{name}` and `{email}`; who that is lives in `i18n/legalIdentity.ts`, the
 one file `scripts/check-leaks.sh` lets name a person, so never write either into a
 dictionary (`i18n/legal.test.ts` fails if you do).
-`components/LegalNotice` is the sentence under the sign-in and sign-up buttons that links
+`components/LegalNotice` is the sentence, with the age line, ABOVE the provider buttons on sign-up and sign-in (visible before any control that creates an account; no checkbox) that links
 both: one dictionary string with `{terms}` and `{privacy}` placeholders, never fragments.
+
+Any change of meaning in `dictionary.terms`, in either dictionary, bumps `TERMS_VERSION`
+(`core/entities/User`) and `terms.updated` in the same commit. A typo fix bumps neither.
+The privacy policy has no version and is never recorded.
 
 Pages are Server Components by default and fetch through `serverApi`. A page that needs a
 session-scoped fetch must set `export const dynamic = 'force-dynamic'` — otherwise Next

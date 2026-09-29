@@ -21,6 +21,13 @@ import type { Metadata } from 'next';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * Consents whose `null` version means "before the service kept it", not "not yet accepted":
+ * the terms, for accounts created before recording. The rest of the rows read `null` as a
+ * grant still waiting for the agreement.
+ */
+const UNRECORDED_WHEN_NULL: ReadonlySet<string> = new Set(['terms']);
+
 export async function generateMetadata(): Promise<Metadata> {
   return consoleMetadata('/admin/consentimientos');
 }
@@ -54,7 +61,14 @@ export default async function AdminConsentsPage() {
       versions:
         consent.versions.length === 0
           ? '—'
-          : consent.versions.map(entry => interpolate(t.versionOf, { n: number(entry.n), version: entry.version ?? t.unaccepted })).join(' · ')
+          : consent.versions
+              .map(entry =>
+                interpolate(t.versionOf, {
+                  n: number(entry.n),
+                  version: entry.version ?? (UNRECORDED_WHEN_NULL.has(consent.key) ? t.unrecorded : t.unaccepted)
+                })
+              )
+              .join(' · ')
     }
   }));
 

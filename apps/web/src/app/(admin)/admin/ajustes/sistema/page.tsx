@@ -76,7 +76,8 @@ export default async function AdminSystemPage({ searchParams }: { searchParams: 
     { item: t.versions.profileConsent, value: system.versions.profileConsent },
     { item: t.versions.healthConsent, value: system.versions.healthConsent },
     { item: t.versions.careConsent, value: system.versions.careConsent },
-    { item: t.versions.professionalAgreement, value: system.versions.professionalAgreement }
+    { item: t.versions.professionalAgreement, value: system.versions.professionalAgreement },
+    { item: t.versions.terms, value: system.versions.terms }
   ];
 
   const capRows = [

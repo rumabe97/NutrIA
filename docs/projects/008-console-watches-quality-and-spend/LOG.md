@@ -418,3 +418,78 @@
     in the owner's Gmail with no deletion deadline. It is a candidate for `analisis.md`
     § 9.
   - The end-to-end cases for this phase land in their own change.
+
+## Phase 7 — The terms' acceptance (2026-09-29)
+
+- **Executor**: the `backend-high` agent (opus, high, as dispatched: it changes sign-up)
+  and the `frontend` agent (medium) worked in parallel from current main, and the `tests`
+  agent (medium) wrote the end to end. Each worked in its own worktree, which was brought
+  into the main checkout and removed. The lead (opus, this session) made the review
+  fixes and applied migration 0049 on the dev branch with the owner's yes. Reviews:
+  `migration-reviewer` (opus, high), `invariant-reviewer`, and `accessibility` with
+  `/local-probe`.
+- **Result**: done.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=database --filter=api --filter=web`:
+    17/17 tasks; api 1052 tests. `pnpm -w run deadcode` is clean.
+  - `pnpm --filter database generate` finds nothing more, and
+    `node scripts/check-migrations.mjs` passes: 50 migrations in order.
+  - End-to-end, local, blank `VAPID_*` and `SMTP_*`: `terms-record` (new, 4 cases),
+    `social-sign-in` and `admin`, 85 of 87.
+    - The new cases cover:
+      - an email sign-up and a Google account (the e2e stub) are stored with `2.0.0` and
+        a moment within a minute;
+      - a forged sign-up body gets 400 and creates no account;
+      - `/auth/update-user` can never change either column, with a value, null or `""`;
+      - a Google link into a confirmed password account leaves its record as it was;
+      - Consentimientos' `terms` row: its null bucket equals the unrecorded accounts,
+        and a fresh sign-up adds one to `current`;
+      - no addressed admin body carries either field.
+    - The two failures are the shared dev database's week-count flakes ("count sign-ups
+      and messages per Madrid ISO week", "a sign-up and a message made now in the
+      current week"), which pass in CI.
+  - `migration-reviewer`: no P0–P2, safe to ship.
+    - The migration adds two nullable columns with no default: a catalogue change, no
+      rewrite.
+    - The old API selects named columns and never sees them. The new API cannot run
+      before them, because `vercel-build` migrates before it serves.
+    - Its P3s are in the comment: taking the lock waits for open transactions on
+      "user", so the merge should not land just before the 03:30 and 08:00 UTC crons;
+      and NULL means *not recorded*.
+  - `invariant-reviewer`: no P0.
+    - No client can set or change the version: `input: false` refuses a value with 400
+      on sign-up and update-user, an empty one is dropped, and the provider profile
+      skips the fields.
+    - Sign-up and strict account linking are unchanged. Neither field reaches an
+      addressed admin row.
+    - `/get-session` shows them to the account's owner, which is acceptable.
+    - Its P1 (the admin key lists) and both P2 test gaps (the provider path,
+      update-user) are covered by the new cases. Its two P3 wordings are fixed.
+  - `accessibility`: the legal check passes. The notice, with the age line, is fully
+    visible without scrolling and 20 px above the Google button at 320, 390 and 1280 px,
+    in both themes; the worst case ends at 369 px of a 700 px screen. Its contrast is
+    4.90:1 in light and 6.92:1 in dark. `/condiciones` has one `h1` and 14 `h2`, in
+    order.
+    - Its P2s are fixed:
+      - the auth card spilled sideways at 200 % text on every auth page, so
+        `AuthShell`'s grid now has one `minmax(0, 1fr)` column;
+      - the new terms section named a «Crear cuenta» button, but the button is «Crear
+        mi plan» (EN "Create my plan"), so the section now names the real button.
+    - Left: the notice's links open in the same tab, so a form half filled would be
+      lost. It is unlikely, since the notice comes before the fields.
+- **Deviations from plan**:
+  1. The terms section names «Crear mi plan», not the legal note's «Crear cuenta» (§ 6.A),
+     to match the control. The meaning is unchanged, so TERMS_VERSION stays 2.0.0.
+  2. On `/acceder` the notice renders only when a provider button is drawn. Its text says
+     "Google o Apple" while Apple is still off (§ 6.C kept as written).
+- **Decisions**: [`0071`](../../decisions/0071-the-service-records-what-leaves-no-row-and-the-console-watches-it.md);
+  legal's D5 note.
+- **Notes**:
+  - This is the plan's last phase. Still open from project 008:
+    - the owner sets `AI_TEXT_MONTHLY_CAP_USD=5` on Vercel;
+    - phase 5 is revisited with real data from mid-October;
+    - phase 6's end-to-end cases are still to land;
+    - #161 (phase 6) did not trigger its deploy, and ships with this merge;
+    - the digest's reminders-cron blind spot.
+  - After the merge, migration 0049 runs against production during the API's build. It is
+    already applied on the dev branch.

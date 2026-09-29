@@ -4,10 +4,11 @@ import { database } from 'database';
 import { careLinks } from 'database/schema/care';
 import { healthDataConsents, onboardingState, profileDataConsents } from 'database/schema/profile';
 import { professionals } from 'database/schema/professional';
+import { user } from 'database/schema/auth';
 
 import { DatabaseOperationError } from 'core/entities/Error';
 
-/** How many accounts hold a version of a consent. `null` is a grant that has not been accepted yet (the professional's agreement). */
+/** How many accounts hold a version of a consent. `null` is a grant that has not been accepted yet (the professional's agreement) or an account created before its terms were recorded. */
 export type ConsentVersionRow = { readonly n: number; readonly version: string | null };
 
 /**
@@ -82,6 +83,18 @@ export const AdminConsentRepository = {
         .select({ n: count(), version: profileDataConsents.version })
         .from(profileDataConsents)
         .groupBy(profileDataConsents.version);
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Accounts by the version of `/condiciones` they were created under; `null`
+   * is every account created before the record existed. Mode: one grouped query.
+   */
+  async termsVersions(): Promise<readonly ConsentVersionRow[]> {
+    try {
+      return await database().select({ n: count(), version: user.termsVersion }).from(user).groupBy(user.termsVersion);
     } catch (error: unknown) {
       throw wrap(error);
     }

@@ -205,11 +205,17 @@ export const enGB: Dictionary = {
       version: 'Version in force',
       versions: 'Versions in use'
     },
-    consents: { care: 'Link with a professional', health: 'Health data', professional: 'The professional’s agreement', profile: 'Profile' },
+    consents: {
+      care: 'Link with a professional',
+      health: 'Health data',
+      professional: 'The professional’s agreement',
+      profile: 'Profile',
+      terms: 'Terms of use'
+    },
     empty: 'No account has accepted yet.',
     howCounted: [
       'It counts accounts: each account counts once per consent, on the version it accepted.',
-      'On an older one are the accounts that will be asked again. Not accepted is a grant that has not accepted the agreement yet (the professional’s only).',
+      'On an older one are the accounts that will be asked again. Not accepted is a grant that has not accepted the agreement yet (the professional’s only). No record are the accounts created before the terms’ version was kept: which one they saw is unknown, and they are not asked again.',
       'An open link is one accepted consent.',
       'No dates: this page does not say when anybody accepted. The privacy policy is not a consent and is not here.'
     ],
@@ -219,6 +225,7 @@ export const enGB: Dictionary = {
     tilesLabel: 'The consents’ figures',
     title: 'Consents',
     unaccepted: 'not accepted',
+    unrecorded: 'No record',
     versionOf: '{version}: {n}'
   },
 
@@ -855,7 +862,8 @@ export const enGB: Dictionary = {
       professionalAgreement: 'The professional’s agreement',
       profileConsent: 'Profile consent',
       prompt: 'Dish generation prompt',
-      steps: 'Step rewrite prompt'
+      steps: 'Step rewrite prompt',
+      terms: 'Terms of use'
     },
     versionsTitle: 'Versions',
     yes: 'Yes'
@@ -893,6 +901,8 @@ export const enGB: Dictionary = {
     invalidLink: 'This link is not valid, or it has expired.',
     legalAge: 'You need to be at least 18 to create an account.',
     legalNotice: 'By creating your account you accept the {terms}. How we handle your data is explained in the {privacy}.',
+    legalNoticeSignIn:
+      'If this is the first time you sign in with Google or Apple, your account is created and you accept the {terms}. How we handle your data is explained in the {privacy}.',
     legalPrivacy: 'privacy policy',
     legalTerms: 'terms of use',
     name: 'Name',
@@ -2013,7 +2023,7 @@ export const enGB: Dictionary = {
       {
         heading: 'What we collect and why',
         list: [
-          'Account: your name and email and, if you sign in with Google or Apple, the name and email that service confirms to us. While you are signed in we keep the IP address and browser you signed in from, so we can end the session. So that you have an account and only you get into it.',
+          'Account: your name and email and, if you sign in with Google or Apple, the name and email that service confirms to us, and which version of the terms of use you accepted when you created it and when. While you are signed in we keep the IP address and browser you signed in from, so we can end the session. So that you have an account and only you get into it, and so that we can show which terms you accepted.',
           'Your body and your goal: date of birth, sex, height, weight, activity level and your goal (for example, losing weight). To work out how much you need to eat.',
           'Country: where you shop from. So the catalogue only shows you foods you can actually find there.',
           'Allergies and intolerances: the ones you pick from the list, the ones you type yourself, and how severe they are. So that no plan offers you something that could harm you.',
@@ -2132,7 +2142,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Privacy policy',
-    updated: 'Last updated: 28 September 2026'
+    updated: 'Last updated: 29 September 2026'
   },
 
   profile: {
@@ -2397,6 +2407,16 @@ export const enGB: Dictionary = {
         paragraphs: []
       },
       {
+        heading: 'How this contract is made',
+        list: [
+          'It is made when you create your account: you fill in your name, email and a password and press "Create my plan", or you sign in with Google or Apple for the first time. Either way, the notice next to those buttons links to these terms.',
+          'Before you press, you can review and correct what you have typed in each field, and if something is missing or not valid we tell you before the account is created.',
+          'We keep which version of these terms you accepted and when. This page always shows the current version, with its date, and you can save or print it. If you want the version you accepted, ask us at {email}.',
+          'You can contract in Spanish or English.'
+        ],
+        paragraphs: []
+      },
+      {
         heading: 'Content generated with artificial intelligence',
         paragraphs: [
           'Recipes and plans are generated with the help of artificial intelligence and validated by our own code before you see them. They can still contain mistakes: a cooking time, a quantity, an unclear step. Use your judgement in the kitchen, above all with food safety: cook meat, fish and eggs through, and keep the cold chain.',
@@ -2469,7 +2489,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Terms of use',
-    updated: 'Last updated: 28 September 2026'
+    updated: 'Last updated: 29 September 2026'
   },
 
   tour: {

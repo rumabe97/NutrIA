@@ -1,5 +1,7 @@
 .notice {
-  margin: 0;
+  display: grid;
+  gap: var(--space-02);
+  margin: 0 0 var(--space-05);
 }
 
 /* Underlined, not only coloured: inside a sentence of the same size, colour

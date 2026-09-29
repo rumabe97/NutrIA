@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { TERMS_VERSION } from 'core/entities/User';
+
 import { AdminConsentController } from './AdminConsentController';
 
 const repository = vi.hoisted(() => ({
@@ -7,7 +9,8 @@ const repository = vi.hoisted(() => ({
   healthVersions: vi.fn(),
   onboardedAgainstProfileConsent: vi.fn(),
   professionalVersions: vi.fn(),
-  profileVersions: vi.fn()
+  profileVersions: vi.fn(),
+  termsVersions: vi.fn()
 }));
 
 vi.mock('#repositories/Admin', () => ({ AdminConsentRepository: repository }));
@@ -19,17 +22,19 @@ beforeEach(() => {
   repository.onboardedAgainstProfileConsent.mockResolvedValue({ holding: 0, onboarded: 0 });
   repository.professionalVersions.mockResolvedValue([]);
   repository.profileVersions.mockResolvedValue([]);
+  repository.termsVersions.mockResolvedValue([]);
 });
 
 describe('AdminConsentController.consents', () => {
-  it('lists the four versioned consents in order, each with the version in force', async () => {
+  it('lists the five versioned consents in order, each with the version in force', async () => {
     const view = await AdminConsentController.consents();
 
     expect(view.consents.map(consent => [consent.key, consent.current, consent.older])).toEqual([
       ['profile', 0, 0],
       ['health', 0, 0],
       ['care', 0, 0],
-      ['professional', 0, 0]
+      ['professional', 0, 0],
+      ['terms', 0, 0]
     ]);
     expect(view.consents.every(consent => /^\d+\.\d+\.\d+$/.test(consent.currentVersion))).toBe(true);
   });
@@ -55,6 +60,32 @@ describe('AdminConsentController.consents', () => {
     expect(profile?.versions.map(version => version.n)).toEqual([7, 2, 1]);
     expect(professional).toMatchObject({ current: 0, older: 1 });
     expect(professional?.versions).toContainEqual({ n: 3, version: null });
+  });
+
+  it('counts the accounts with no terms record apart: neither current nor older', async () => {
+    const terms = (await AdminConsentController.consents()).consents.find(consent => consent.key === 'terms');
+
+    repository.termsVersions.mockResolvedValue([
+      { n: 40, version: null },
+      { n: 6, version: terms?.currentVersion },
+      { n: 2, version: '1.0.0' }
+    ]);
+
+    const view = (await AdminConsentController.consents()).consents.find(consent => consent.key === 'terms');
+
+    expect(view).toMatchObject({ current: 6, currentVersion: TERMS_VERSION, older: 2 });
+    expect(view?.versions).toEqual([
+      { n: 6, version: TERMS_VERSION },
+      { n: 2, version: '1.0.0' },
+      { n: 40, version: null }
+    ]);
+    expect(Object.keys(view ?? {}).sort()).toEqual(['current', 'currentVersion', 'key', 'older', 'versions']);
+  });
+
+  it('never lists the privacy policy as a consent', async () => {
+    const keys = (await AdminConsentController.consents()).consents.map(consent => consent.key as string);
+
+    expect(keys).not.toContain('privacy');
   });
 
   it('sets the profile consent against onboarded accounts and answers nothing else', async () => {

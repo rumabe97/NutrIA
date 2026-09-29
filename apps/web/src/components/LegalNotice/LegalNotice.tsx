@@ -19,6 +19,11 @@ function isPlaceholder(part: string): part is Placeholder {
 /**
  * "By continuing you accept the terms and the privacy policy", under the way in.
  *
+ * It sits above the provider buttons, not under the form: on a phone the buttons
+ * fill the first screen, and a notice below the fold is not read before the tap
+ * that creates the account (`legal`, D5 § 4.1). No checkbox: the law asks for a
+ * clear notice beside the control, and a box would read like the health consents.
+ *
  * On sign-in as well as sign-up, because "Continue with Google" on the sign-in
  * page creates an account for somebody who has none (`0058`), and that person
  * never sees the sign-up page.
@@ -27,22 +32,30 @@ function isPlaceholder(part: string): part is Placeholder {
  * fragments to glue together: word order is the translator's, and a sentence
  * assembled from halves is only ever right in the language it was written in.
  */
-export function LegalNotice() {
+export function LegalNotice({ variant = 'signUp' }: Readonly<{ variant?: 'signIn' | 'signUp' }>) {
   const dictionary = useDictionary();
   const locale = useLocale();
+  const sentence = variant === 'signIn' ? dictionary.auth.legalNoticeSignIn : dictionary.auth.legalNotice;
   const labels: Record<Placeholder, string> = { '{privacy}': dictionary.auth.legalPrivacy, '{terms}': dictionary.auth.legalTerms };
 
   return (
-    <Text align="center" className={styles.notice} size="xs" tone="secondary">
-      {dictionary.auth.legalNotice.split(/(\{terms\}|\{privacy\})/).map(part =>
-        isPlaceholder(part) ? (
-          <Link className={styles.link} href={withLocale(LINKS[part], locale)} key={part}>
-            {labels[part]}
-          </Link>
-        ) : (
-          part
-        )
-      )}
-    </Text>
+    <div className={styles.notice}>
+      <Text align="center" size="xs" tone="secondary">
+        {sentence.split(/(\{terms\}|\{privacy\})/).map(part =>
+          isPlaceholder(part) ? (
+            <Link className={styles.link} href={withLocale(LINKS[part], locale)} key={part}>
+              {labels[part]}
+            </Link>
+          ) : (
+            part
+          )
+        )}
+      </Text>
+      {/* Stated where the terms are accepted, not only inside them: the one
+          fact somebody must read before any control here does anything. */}
+      <Text align="center" size="xs" tone="secondary">
+        {dictionary.auth.legalAge}
+      </Text>
+    </div>
   );
 }

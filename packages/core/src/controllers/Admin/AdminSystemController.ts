@@ -8,6 +8,7 @@ import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
 import { REWRITE_ATTEMPT_BOUND } from 'core/domain/Method';
 import { SERVING_BOUNDS } from 'core/domain/Scheduler';
+import { TERMS_VERSION } from 'core/entities/User';
 
 import { presentWindow } from './AdminSeriesController';
 
@@ -104,6 +105,7 @@ export type AdminSystemView = {
     readonly profileConsent: string;
     readonly prompt: string;
     readonly steps: string;
+    readonly terms: string;
   };
   readonly window: PeriodWindowView;
 };
@@ -169,7 +171,8 @@ export const AdminSystemController = {
         professionalAgreement: PROFESSIONAL_AGREEMENT_VERSION,
         profileConsent: PROFILE_CONSENT_VERSION,
         prompt: snapshot.promptVersion,
-        steps: snapshot.stepsVersion
+        steps: snapshot.stepsVersion,
+        terms: TERMS_VERSION
       },
       window: presentWindow(window)
     };
