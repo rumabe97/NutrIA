@@ -13,8 +13,8 @@ import type { Env } from '../../../config/index.js';
 export class AdminAccountsService {
   constructor(@Inject(ENV) private readonly env: Env) {}
 
-  async activate(id: string): Promise<ActivatedAccountDto> {
-    const opened = await UserController.activate({ id });
+  async activate(id: string, actorId: string): Promise<ActivatedAccountDto> {
+    const opened = await UserController.activate({ id }, { actorId, via: 'console' });
 
     if (!opened) {
       throw new NotFoundException();
@@ -28,6 +28,9 @@ export class AdminAccountsService {
    * it names one account, it expires, and it can do nothing else. A bad or
    * stale token is a 404 like every other denial, so the route tells a stranger
    * nothing — including whether the account exists.
+   *
+   * No session reaches this click, so the audit row's actor is `null`
+   * (`0071`) — the trail says the link opened it, not who clicked.
    */
   async activateByToken(token: string | undefined): Promise<ActivatedAccountDto> {
     const userId = token ? verifyActivationToken(token, this.env.BETTER_AUTH_SECRET) : null;
@@ -36,7 +39,13 @@ export class AdminAccountsService {
       throw new NotFoundException();
     }
 
-    return this.activate(userId);
+    const opened = await UserController.activate({ id: userId }, { actorId: null, via: 'mail_link' });
+
+    if (!opened) {
+      throw new NotFoundException();
+    }
+
+    return opened;
   }
 
   /**
@@ -45,8 +54,8 @@ export class AdminAccountsService {
    * A 404 when nothing matched, like every other denial: the owner typing an id
    * that does not exist learns the same thing a stranger would.
    */
-  async setTier(id: string, body: SetTierDto): Promise<TierChangedDto> {
-    const moved = await UserController.setTier(id, body.tier);
+  async setTier(id: string, body: SetTierDto, actorId: string): Promise<TierChangedDto> {
+    const moved = await UserController.setTier(id, body.tier, actorId);
 
     if (!moved) {
       throw new NotFoundException();

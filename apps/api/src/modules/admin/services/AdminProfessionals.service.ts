@@ -45,8 +45,8 @@ export class AdminProfessionalsService {
     return ProfessionalController.list(query);
   }
 
-  async revoke(id: string): Promise<void> {
-    await ProfessionalController.revoke(id);
+  async revoke(id: string, actorId: string): Promise<void> {
+    await ProfessionalController.revoke(id, actorId);
   }
 
   /** In the professional's own language. Never logs the address or the number: a failure says only that the mail did not go. */

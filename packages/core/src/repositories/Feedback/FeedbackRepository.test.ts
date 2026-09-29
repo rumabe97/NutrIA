@@ -1,14 +1,24 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PgDialect } from 'drizzle-orm/pg-core';
 
 import { feedbackQuerySchema } from 'core/entities/AdminQuery';
 
-import { feedbackFilters, feedbackOrder } from './FeedbackRepository';
+import { feedbackFilters, feedbackOrder, FeedbackRepository } from './FeedbackRepository';
 
 import type { FeedbackQuery } from 'core/entities/AdminQuery';
 import type { SQL } from 'drizzle-orm';
 
 const dialect = new PgDialect({ casing: 'snake_case' });
+
+/** What `setHandled`'s guarded `UPDATE … RETURNING` answers inside its transaction. */
+let updated: Record<string, unknown>[] = [];
+
+vi.mock('database', () => ({
+  database: () => ({
+    transaction: (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({ update: () => ({ set: () => ({ where: () => ({ returning: () => Promise.resolve(updated) }) }) }) })
+  })
+}));
 
 function render(fragment: SQL | undefined): { params: unknown[]; sql: string } {
   if (!fragment) {
@@ -57,5 +67,37 @@ describe('feedbackOrder', () => {
       '"feedback"."created_at" asc nulls last',
       '"feedback"."id" asc'
     ]);
+  });
+});
+
+/** `setHandled` (`0071`): the trail's row goes in the same transaction as the mark, and only when a row was actually touched. */
+describe('FeedbackRepository.setHandled', () => {
+  beforeEach(() => {
+    updated = [];
+  });
+
+  it('calls the record in the same transaction as a real mark', async () => {
+    updated = [{ id: 'fb-1' }];
+    const record = vi.fn(async () => {});
+
+    await expect(FeedbackRepository.setHandled('fb-1', true, record)).resolves.toBe(true);
+    expect(record).toHaveBeenCalledTimes(1);
+  });
+
+  it('calls no record when there was no such message', async () => {
+    updated = [];
+    const record = vi.fn(async () => {});
+
+    await expect(FeedbackRepository.setHandled('fb-missing', true, record)).resolves.toBe(false);
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('rejects, wrapped, when the caller’s own record rejects — a mark that is not also that row did not happen', async () => {
+    updated = [{ id: 'fb-1' }];
+    const record = vi.fn(async () => {
+      throw new Error('database unavailable');
+    });
+
+    await expect(FeedbackRepository.setHandled('fb-1', true, record)).rejects.toThrow();
   });
 });

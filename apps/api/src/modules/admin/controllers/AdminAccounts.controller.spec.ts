@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, jest } from '@jest/globals';
+import { afterAll, afterEach, beforeAll, describe, expect, it, jest } from '@jest/globals';
 import { APP_GUARD } from '@nestjs/core';
 import express from 'express';
 import request from 'supertest';
@@ -34,8 +34,27 @@ describe('AdminAccountsController', () => {
       providers: [
         AdminAccountsService,
         { provide: ENV, useValue: { APP_URL: 'https://nutria.example', BETTER_AUTH_SECRET: SECRET } },
-        // No session guard stands in here on purpose: an inbox has no session,
-        // and that is exactly the request this route has to survive.
+        // The session that stands in for the owner on the routes that have
+        // one — activate-by-id and setTier. The one-click link has none,
+        // which is exactly the request it has to survive: no session guard
+        // stands in above `AdminGuard` for it either.
+        {
+          provide: APP_GUARD,
+          useValue: {
+            canActivate: (context: { switchToHttp: () => { getRequest: () => { user?: unknown } } }) => {
+              context.switchToHttp().getRequest().user = {
+                id: 'usr-owner',
+                activated: true,
+                email: 'owner@example.invalid',
+                emailVerified: true,
+                name: 'Owner',
+                role: 'admin'
+              };
+
+              return true;
+            }
+          }
+        },
         { provide: APP_GUARD, useClass: AdminGuard }
       ]
     }).compile();
@@ -49,6 +68,9 @@ describe('AdminAccountsController', () => {
 
   afterAll(async () => {
     await app?.close();
+  });
+
+  afterEach(() => {
     jest.restoreAllMocks();
   });
 
@@ -73,5 +95,40 @@ describe('AdminAccountsController', () => {
       .get(`/${PREFIX}/admin/activate`)
       .query({ token: 'not-a-token' })
       .expect(404);
+  });
+
+  /* `0071`: the trail names the click, never the session it never had. */
+  it('records the mail link, never a session, as the actor of the click', async () => {
+    const activate = jest.spyOn(UserController, 'activate').mockResolvedValue({ email: 'ana@example.invalid' });
+
+    await request(app.getHttpServer() as Server)
+      .get(`/${PREFIX}/admin/activate`)
+      .query({ token: activationToken('usr-9', SECRET) })
+      .expect(302);
+
+    expect(activate).toHaveBeenCalledWith({ id: 'usr-9' }, { actorId: null, via: 'mail_link' });
+  });
+
+  /* `0071`: the console always has a session, so the trail always names it. */
+  it('records the session as the actor when the console opens an account', async () => {
+    const activate = jest.spyOn(UserController, 'activate').mockResolvedValue({ email: 'ana@example.invalid' });
+
+    await request(app.getHttpServer() as Server)
+      .post(`/${PREFIX}/admin/accounts/usr-9/activate`)
+      .expect(201);
+
+    expect(activate).toHaveBeenCalledWith({ id: 'usr-9' }, { actorId: 'usr-owner', via: 'console' });
+  });
+
+  /* `0071`: the console is the only route that moves a tier, and its session is always the actor. */
+  it('records the session as the actor when the console moves a tier', async () => {
+    const setTier = jest.spyOn(UserController, 'setTier').mockResolvedValue({ email: 'ana@example.invalid' });
+
+    await request(app.getHttpServer() as Server)
+      .patch(`/${PREFIX}/admin/accounts/usr-9/tier`)
+      .send({ tier: 'premium' })
+      .expect(200);
+
+    expect(setTier).toHaveBeenCalledWith('usr-9', 'premium', 'usr-owner');
   });
 });

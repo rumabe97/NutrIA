@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeProfessional, makeUser } from '#test/fixtures';
 import { NotFoundError } from 'core/entities/Error';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
+import { UNAUDITED } from 'core/entities/Audit';
 
 import { ProfessionalController } from './ProfessionalController';
 
@@ -13,25 +14,29 @@ import type { User } from 'core/entities/User';
 
 const acceptAgreement = vi.fn<(userId: string, version: string, now: Date) => Promise<Professional | null>>();
 const find = vi.fn<(userId: string) => Promise<Professional | null>>();
-const grant = vi.fn<(userId: string, collegiateNumber: string, grantedBy: string) => Promise<Professional>>();
+const grant =
+  vi.fn<(userId: string, collegiateNumber: string, grantedBy: string, record?: (tx: unknown) => Promise<void>) => Promise<Professional>>();
 const list = vi.fn<(query: ProfessionalQuery) => Promise<readonly ProfessionalListRow[]>>();
 const linkCounts = vi.fn<(professionalId: string) => Promise<ProfessionalListRow['links']>>();
-const revoke = vi.fn<(userId: string) => Promise<boolean>>();
+const revoke = vi.fn<(userId: string, record?: (tx: unknown) => Promise<void>) => Promise<boolean>>();
 const findById = vi.fn<(id: string) => Promise<User | undefined>>();
 const isEnabled = vi.fn<(key: string, fallback: boolean) => Promise<boolean>>();
+const record = vi.fn<(entry: unknown, tx?: unknown) => Promise<void>>();
 
 vi.mock('#repositories/Professional', () => ({
   ProfessionalRepository: {
     acceptAgreement: (userId: string, version: string, now: Date) => acceptAgreement(userId, version, now),
     find: (userId: string) => find(userId),
-    grant: (userId: string, collegiateNumber: string, grantedBy: string) => grant(userId, collegiateNumber, grantedBy),
+    grant: (userId: string, collegiateNumber: string, grantedBy: string, r?: (tx: unknown) => Promise<void>) =>
+      grant(userId, collegiateNumber, grantedBy, r),
     linkCounts: (professionalId: string) => linkCounts(professionalId),
     list: (query: ProfessionalQuery) => list(query),
-    revoke: (userId: string) => revoke(userId)
+    revoke: (userId: string, r?: (tx: unknown) => Promise<void>) => revoke(userId, r)
   }
 }));
 vi.mock('#repositories/User', () => ({ UserRepository: { findById: (id: string) => findById(id) } }));
 vi.mock('#repositories/Settings', () => ({ SettingsRepository: { isEnabled: (key: string, fallback: boolean) => isEnabled(key, fallback) } }));
+vi.mock('#repositories/Audit', () => ({ AuditRepository: { record: (entry: unknown, tx?: unknown) => record(entry, tx) } }));
 
 beforeEach(() => {
   acceptAgreement.mockReset();
@@ -52,7 +57,7 @@ describe('ProfessionalController.grant', () => {
 
     const view = await ProfessionalController.grant('usr-dietitian', { collegiateNumber: 'MAD00123' }, 'usr-owner');
 
-    expect(grant).toHaveBeenCalledWith('usr-dietitian', 'MAD00123', 'usr-owner');
+    expect(grant).toHaveBeenCalledWith('usr-dietitian', 'MAD00123', 'usr-owner', expect.any(Function));
     expect(view).toEqual({
       collegiateNumber: 'MAD00123',
       email: 'dietista@example.com',
@@ -76,20 +81,29 @@ describe('ProfessionalController.grant', () => {
     await expect(ProfessionalController.grant('usr-dietitian', { collegiateNumber: 'MAD00123' }, 'usr-owner')).rejects.toThrow(NotFoundError);
     expect(grant).not.toHaveBeenCalled();
   });
+
+  it('writes no trail row when a probe grants with UNAUDITED, though the stored grantedBy still names it', async () => {
+    findById.mockResolvedValue(makeUser({ id: 'usr-dietitian', email: 'dietista@example.com' }));
+    grant.mockResolvedValue(makeProfessional({ grantedBy: 'usr-dietitian', userId: 'usr-dietitian' }));
+
+    await ProfessionalController.grant('usr-dietitian', { collegiateNumber: 'PROBE-001' }, 'usr-dietitian', UNAUDITED);
+
+    expect(grant).toHaveBeenCalledWith('usr-dietitian', 'PROBE-001', 'usr-dietitian', undefined);
+  });
 });
 
 describe('ProfessionalController.revoke', () => {
-  it('takes the grant back', async () => {
+  it('takes the grant back, with the owner as the trail’s actor', async () => {
     revoke.mockResolvedValue(true);
 
-    await expect(ProfessionalController.revoke('usr-dietitian')).resolves.toBeUndefined();
-    expect(revoke).toHaveBeenCalledWith('usr-dietitian');
+    await expect(ProfessionalController.revoke('usr-dietitian', 'usr-owner')).resolves.toBeUndefined();
+    expect(revoke).toHaveBeenCalledWith('usr-dietitian', expect.any(Function));
   });
 
   it('is a 404 when the account was never a professional', async () => {
     revoke.mockResolvedValue(false);
 
-    await expect(ProfessionalController.revoke('usr-dietitian')).rejects.toThrow(NotFoundError);
+    await expect(ProfessionalController.revoke('usr-dietitian', 'usr-owner')).rejects.toThrow(NotFoundError);
   });
 });
 

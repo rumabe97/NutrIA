@@ -1,5 +1,7 @@
+import { AuditRepository } from '#repositories/Audit';
 import { ProfessionalRepository } from '#repositories/Professional';
 import { SettingsRepository } from '#repositories/Settings';
+import { UNAUDITED } from 'core/entities/Audit';
 import { UserRepository } from '#repositories/User';
 import { FLAGS } from 'core/domain/Flag';
 import { NotFoundError } from 'core/entities/Error';
@@ -121,15 +123,39 @@ export const ProfessionalController = {
    * Also a 404 while the address is unconfirmed. The owner grants because an
    * address belongs to a dietitian, and anybody can register that address
    * without owning it; only a confirmed one says the person holds the inbox.
+   *
+   * `grantedBy` is the stored column — the practice's own record of who
+   * granted it, kept even when a re-grant is not itself worth a trail row.
+   * `actor` is the trail's own actor and defaults to `grantedBy`, which is
+   * every route's case; a probe that grants a practice to stand a scenario up
+   * with nobody's session to name passes `UNAUDITED` so its own professional
+   * is never recorded as its own grantor.
    */
-  async grant(userId: string, input: GrantProfessional, grantedBy: string): Promise<ProfessionalAccountView> {
+  async grant(
+    userId: string,
+    input: GrantProfessional,
+    grantedBy: string,
+    actor: string | typeof UNAUDITED = grantedBy
+  ): Promise<ProfessionalAccountView> {
     const account = await UserRepository.findById(userId);
 
     if (!account?.emailVerified) {
       throw new NotFoundError(`User "${userId}" not found`);
     }
 
-    const row = await ProfessionalRepository.grant(userId, input.collegiateNumber, grantedBy);
+    const row = await ProfessionalRepository.grant(
+      userId,
+      input.collegiateNumber,
+      grantedBy,
+      actor === UNAUDITED
+        ? undefined
+        : async tx => {
+            await AuditRepository.record(
+              { action: 'professional.granted', actorId: actor, entity: 'professional', metadata: {}, subjectUserId: userId },
+              tx
+            );
+          }
+    );
     // A grant made again — a corrected number — may be on an account with links already.
     const links = await ProfessionalRepository.linkCounts(userId);
 
@@ -173,9 +199,16 @@ export const ProfessionalController = {
     return rows.map(presentAccount);
   },
 
-  /** Takes the grant back. A 404 when the account was not a professional. */
-  async revoke(userId: string): Promise<void> {
-    if (!(await ProfessionalRepository.revoke(userId))) {
+  /**
+   * Takes the grant back. A 404 when the account was not a professional.
+   * `actorId` is the session's user (`0071`) — the console is the only door.
+   */
+  async revoke(userId: string, actorId: string): Promise<void> {
+    const revoked = await ProfessionalRepository.revoke(userId, async tx => {
+      await AuditRepository.record({ action: 'professional.revoked', actorId, entity: 'professional', metadata: {}, subjectUserId: userId }, tx);
+    });
+
+    if (!revoked) {
       throw new NotFoundError(`User "${userId}" is not a professional`);
     }
   }

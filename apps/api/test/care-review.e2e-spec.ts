@@ -5,6 +5,7 @@ import { addDays } from 'core/domain/Vacation';
 import { CARE_CONSENT_VERSION } from 'core/entities/Care';
 import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
 import { SettingsController } from 'core/controllers/Settings';
+import { UNAUDITED } from 'core/entities/Audit';
 import { UserController } from 'core/controllers/User';
 import { database } from 'database';
 
@@ -1246,7 +1247,7 @@ describe('care review', () => {
     });
 
     it('rebuilds no day for this client, premium only through the practice, consent and onboarding both unmet', async () => {
-      await SettingsController.setFlag('premium', true);
+      await SettingsController.setFlag('premium', true, UNAUDITED);
 
       try {
         const today = new Date().toISOString().slice(0, 10);
@@ -1266,7 +1267,7 @@ describe('care review', () => {
         expect((response.body as AddedEventDto).rebuiltDates).toEqual([]);
         expect(await planRows(client.id)).toEqual(before);
       } finally {
-        await SettingsController.setFlag('premium', false);
+        await SettingsController.setFlag('premium', false, UNAUDITED);
       }
     });
   });

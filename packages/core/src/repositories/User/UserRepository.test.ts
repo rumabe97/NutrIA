@@ -15,6 +15,13 @@ const dialect = new PgDialect({ casing: 'snake_case' });
 /** What each query was given: the page's `WHERE`, order, limit and offset, and the count's `WHERE`. */
 const seen: { countWhere?: SQL; limit?: number; offset?: number; order?: SQL[]; where?: SQL } = {};
 
+/** What the guarded `UPDATE … RETURNING` inside `activate`/`setTier`'s transaction answers, and its own `WHERE`. */
+let updated: Record<string, unknown>[] = [];
+let updateWhere: SQL | undefined;
+
+/** What the transaction's own `before` select answers — the row's state read before the update, inside the same transaction. */
+let before: Record<string, unknown>[] = [];
+
 vi.mock('database', () => ({
   database: () => ({
     select: (fields: Record<string, unknown>) => {
@@ -50,7 +57,20 @@ vi.mock('database', () => ({
       };
 
       return chain;
-    }
+    },
+    transaction: (fn: (tx: unknown) => Promise<unknown>) =>
+      fn({
+        select: () => ({ from: () => ({ where: () => ({ limit: () => Promise.resolve(before) }) }) }),
+        update: () => ({
+          set: () => ({
+            where: (where: SQL) => {
+              updateWhere = where;
+
+              return { returning: () => Promise.resolve(updated) };
+            }
+          })
+        })
+      })
   })
 }));
 
@@ -196,5 +216,118 @@ describe('UserRepository.findAll', () => {
     expect(seen.offset).toBe(50);
     expect(render(seen.countWhere)).toEqual(render(seen.where));
     expect(render(seen.where).params).toEqual(['%ana%', 'free']);
+  });
+});
+
+/*
+ * `activate` and `setTier` (`0071`): the admin trail's row goes in the same
+ * transaction as the account's own update, and only when a row was actually
+ * touched — a stranger's id must leave no trace of having been tried.
+ */
+describe('UserRepository.activate', () => {
+  beforeEach(() => {
+    updated = [];
+    updateWhere = undefined;
+    before = [];
+  });
+
+  it('writes the caller’s row inside the same transaction as a real activation, named by RETURNING’s id', async () => {
+    before = [{ activatedAt: null }];
+    updated = [{ id: 'usr-1', email: 'a@example.com' }];
+    const record = vi.fn(async () => {});
+
+    const result = await UserRepository.activate({ email: 'a@example.com' }, record);
+
+    expect(result).toEqual({ email: 'a@example.com' });
+    expect(record).toHaveBeenCalledWith(expect.anything(), 'usr-1');
+    expect(render(updateWhere).sql).toBe('"user"."email" = $1');
+  });
+
+  it('calls no record when there was no such account', async () => {
+    updated = [];
+    const record = vi.fn(async () => {});
+
+    const result = await UserRepository.activate({ id: 'usr-missing' }, record);
+
+    expect(result).toBeNull();
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('calls no record when the account was already active — nothing changed, though it answers the same', async () => {
+    before = [{ activatedAt: new Date('2026-09-01T00:00:00.000Z') }];
+    updated = [{ id: 'usr-1', email: 'a@example.com' }];
+    const record = vi.fn(async () => {});
+
+    const result = await UserRepository.activate({ id: 'usr-1' }, record);
+
+    expect(result).toEqual({ email: 'a@example.com' });
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('activates with no record at all when the caller gives none', async () => {
+    before = [{ activatedAt: null }];
+    updated = [{ id: 'usr-1', email: 'a@example.com' }];
+
+    await expect(UserRepository.activate({ id: 'usr-1' })).resolves.toEqual({ email: 'a@example.com' });
+  });
+
+  it('rejects, wrapped, when the caller’s own record rejects — an activation that is not also that row did not happen', async () => {
+    before = [{ activatedAt: null }];
+    updated = [{ id: 'usr-1', email: 'a@example.com' }];
+    const record = vi.fn(async () => {
+      throw new Error('database unavailable');
+    });
+
+    await expect(UserRepository.activate({ id: 'usr-1' }, record)).rejects.toThrow();
+  });
+});
+
+describe('UserRepository.setTier', () => {
+  beforeEach(() => {
+    updated = [];
+    updateWhere = undefined;
+    before = [];
+  });
+
+  it('writes the caller’s row inside the same transaction as a real move, naming the tier it came from', async () => {
+    before = [{ tier: 'free' }];
+    updated = [{ email: 'a@example.com' }];
+    const record = vi.fn(async () => {});
+
+    const result = await UserRepository.setTier('usr-1', 'premium', record);
+
+    expect(result).toEqual({ email: 'a@example.com' });
+    expect(record).toHaveBeenCalledWith(expect.anything(), 'free');
+  });
+
+  it('calls no record when there was no such account', async () => {
+    updated = [];
+    const record = vi.fn(async () => {});
+
+    const result = await UserRepository.setTier('usr-missing', 'premium', record);
+
+    expect(result).toBeNull();
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('calls no record when the account already holds that tier — nothing changed', async () => {
+    before = [{ tier: 'premium' }];
+    updated = [{ email: 'a@example.com' }];
+    const record = vi.fn(async () => {});
+
+    const result = await UserRepository.setTier('usr-1', 'premium', record);
+
+    expect(result).toEqual({ email: 'a@example.com' });
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('rejects, wrapped, when the caller’s own record rejects', async () => {
+    before = [{ tier: 'free' }];
+    updated = [{ email: 'a@example.com' }];
+    const record = vi.fn(async () => {
+      throw new Error('database unavailable');
+    });
+
+    await expect(UserRepository.setTier('usr-1', 'premium', record)).rejects.toThrow();
   });
 });

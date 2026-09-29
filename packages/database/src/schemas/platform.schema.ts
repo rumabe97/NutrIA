@@ -71,6 +71,12 @@ export const subscriptions = userOwnedSingleton('subscriptions', {
  * Security-relevant actions only. `actorId` is `set null` on delete so the trail
  * survives account deletion without keeping the deleted user's identity.
  * Never write request bodies here — they carry health data.
+ *
+ * `subjectUserId` (`0071`) is the account an admin action was about — also
+ * `set null` on delete, for the same reason: "an account was activated on day
+ * X" outlives the account without naming it. `entityId` stays for what is
+ * **not** a person: a setting's key, or a feedback message's id, which is
+ * deleted in cascade with its own author and carries no separate FK here.
  */
 export const auditLogs = pgTable(
   'audit_logs',
@@ -82,9 +88,15 @@ export const auditLogs = pgTable(
     entityId: text(),
     ipHash: text(),
     metadata: jsonb().$type<Record<string, unknown>>(),
+    subjectUserId: text().references(() => user.id, { onDelete: 'set null' }),
     ...timestamps
   },
-  table => [index('audit_logs_actor_idx').on(table.actorId), index('audit_logs_action_idx').on(table.action)]
+  table => [
+    index('audit_logs_actor_idx').on(table.actorId),
+    index('audit_logs_action_idx').on(table.action),
+    index('audit_logs_subject_idx').on(table.subjectUserId),
+    index('audit_logs_created_at_idx').on(table.createdAt)
+  ]
 );
 
 /** Product events. Properties must stay non-identifying — see § Privacy. */

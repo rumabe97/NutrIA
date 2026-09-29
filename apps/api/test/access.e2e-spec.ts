@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
 import { UserController } from 'core/controllers/User';
+import { UNAUDITED } from 'core/entities/Audit';
 
 import { createApp, deleteAccounts, httpServer, PREFIX, ScriptedAiClient } from './harness.js';
 
@@ -76,7 +77,7 @@ describe('access: two locks, and the shape of a denial', () => {
     const email = `locks-owner-${stamp}@e2e.invalid`;
     const cookie = await signUp(email);
 
-    await UserController.activate({ email });
+    await UserController.activate({ email }, UNAUDITED);
 
     const refused = await request(httpServer(app)).get(`/${PREFIX}/profile`).set('Cookie', cookie).expect(409);
 
@@ -89,7 +90,7 @@ describe('access: two locks, and the shape of a denial', () => {
     const cookie = await signUp(email);
 
     await UserController.confirmAddress(email);
-    await UserController.activate({ email });
+    await UserController.activate({ email }, UNAUDITED);
 
     await request(httpServer(app)).get(`/${PREFIX}/profile`).set('Cookie', cookie).expect(200);
   });
@@ -146,6 +147,9 @@ describe('access: two locks, and the shape of a denial', () => {
       '/admin/catalogue/ingredients',
       '/admin/catalogue/ingredients?sort=x',
       '/admin/catalogue/ingredients?category=x',
+      // The admin trail (0071): plain, and with an action it would refuse.
+      '/admin/audit',
+      '/admin/audit?action=nope',
       '/health-data'
     ];
 
@@ -159,7 +163,7 @@ describe('access: two locks, and the shape of a denial', () => {
     const cookie = await signUp(email);
 
     await UserController.confirmAddress(email);
-    await UserController.activate({ email });
+    await UserController.activate({ email }, UNAUDITED);
 
     const refused = await request(httpServer(app)).post(`/${PREFIX}/meal-plans/generate`).set('Cookie', cookie).expect(409);
 
@@ -172,14 +176,51 @@ describe('access: two locks, and the shape of a denial', () => {
     const server = httpServer(app);
 
     await UserController.confirmAddress(email);
-    await UserController.activate({ email });
+    await UserController.activate({ email }, UNAUDITED);
     await request(server).patch(`/${PREFIX}/profile`).set('Cookie', cookie).send({ displayName: 'Gone' }).expect(200);
+
+    // An admin mutation about this account, so the trail (0071) has a row
+    // naming it to lose — through a second, admin account of the suite's own.
+    const ownerEmail = `locks-delete-owner-${stamp}@e2e.invalid`;
+    const ownerCookie = await signUp(ownerEmail);
+
+    // The admin session needs both its own locks open too, like anybody else's.
+    await UserController.confirmAddress(ownerEmail);
+    await UserController.activate({ email: ownerEmail }, UNAUDITED);
+    await UserController.grantAdmin(ownerEmail);
+
+    const me: Response = await request(server).get(`/${PREFIX}/users/me`).set('Cookie', cookie).expect(200);
+    const targetId = (me.body as { id: string }).id;
+
+    await request(server).patch(`/${PREFIX}/admin/accounts/${targetId}/tier`).set('Cookie', ownerCookie).send({ tier: 'premium' }).expect(200);
+
+    const before: Response = await request(server)
+      .get(`/${PREFIX}/admin/audit?action=account.tier_changed&size=1`)
+      .set('Cookie', ownerCookie)
+      .expect(200);
+    const beforeRow = (before.body as { rows: { at: string; subject: string | null }[] }).rows[0];
+
+    expect(beforeRow).toMatchObject({ subject: email });
 
     await request(server).delete(`/${PREFIX}/users/me`).set('Cookie', cookie).expect(204);
 
     // The session dies with the row, and the credentials with it: the account is
     // not merely unreachable, it is not there (`ARCHITECTURE.md` § Privacy).
     await request(server).get(`/${PREFIX}/profile`).set('Cookie', cookie).expect(404);
+
+    // The trail's own row about it survives, subject-less — the action outlives the account without naming it (0071).
+    const after: Response = await request(server)
+      .get(`/${PREFIX}/admin/audit?action=account.tier_changed&size=1`)
+      .set('Cookie', ownerCookie)
+      .expect(200);
+    const afterRow = (after.body as { rows: { at: string; subject: string | null }[] }).rows.find(row => row.at === beforeRow?.at);
+    const text = JSON.stringify(after.body);
+
+    expect(afterRow).toMatchObject({ subject: null });
+    // ipHash and entityId are read straight off the table (audit.e2e-spec.ts);
+    // here the point is narrower — the console's own answer never carries either key at all.
+    expect(text.toLowerCase()).not.toContain('iphash');
+    expect(text.toLowerCase()).not.toContain('entityid');
     await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: PASSWORD }).expect(401);
   });
 });

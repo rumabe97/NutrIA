@@ -6,6 +6,7 @@ import { Test } from '@nestjs/testing';
 
 import { UserController } from 'core/controllers/User';
 import { database } from 'database';
+import { UNAUDITED } from 'core/entities/Audit';
 import { PROFESSIONAL_AGREEMENT_VERSION } from 'core/entities/Professional';
 import { PROFILE_CONSENT_VERSION } from 'core/entities/Profile';
 import { shapeFor } from 'core/domain/MealShape';
@@ -13,6 +14,7 @@ import { shapeFor } from 'core/domain/MealShape';
 import { AiClient } from '../src/modules/ai/clients/AiClient.js';
 import { AppModule } from '../src/app.module.js';
 
+import type { AuditAction } from 'core/entities/Audit';
 import type { AiRequest, AiResponse } from '../src/modules/ai/clients/AiClient.js';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
@@ -272,7 +274,7 @@ export async function activate(email: string): Promise<void> {
     throw new Error(`No account to confirm for ${email}`);
   }
 
-  if (!(await UserController.activate({ email }))) {
+  if (!(await UserController.activate({ email }, UNAUDITED))) {
     throw new Error(`No account to activate for ${email}`);
   }
 }
@@ -496,4 +498,95 @@ export async function activeShoppingList(app: INestApplication, account: Account
   const response: Response = await request(httpServer(app)).get(`/${PREFIX}/shopping-lists/active`).set('Cookie', account.cookie).expect(200);
 
   return response.body as { items: { name: string }[] };
+}
+
+/**
+ * `database()`'s own `postgres.js` client, for the handful of things this
+ * file reads or writes straight against a table because no route does (see
+ * `openPractice`, below): the Drizzle query builder and this package's own
+ * `drizzle-orm` resolve to two separate copies of its types once `apps/api`
+ * builds against it, so `eq`/`desc` from `drizzle-orm` do not type-check here
+ * against a schema column — only raw SQL does.
+ */
+function sqlClient(): <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> {
+  return (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
+    .$client;
+}
+
+/**
+ * How many rows the admin trail (`0071`) holds for one action, or for all of
+ * them. Read directly from the table rather than through `GET /admin/audit`
+ * so a suite proving "this call wrote no row" (a 404 that must leave the
+ * trail untouched) does not need an admin session of its own — only the
+ * before/after count.
+ */
+export async function auditCount(action?: AuditAction): Promise<number> {
+  const sql = sqlClient();
+  const rows =
+    action === undefined
+      ? await sql<{ n: number }>`select count(*)::int as n from audit_logs`
+      : await sql<{ n: number }>`select count(*)::int as n from audit_logs where action = ${action}`;
+
+  return rows[0]?.n ?? 0;
+}
+
+export type AuditRow = {
+  readonly id: string;
+  readonly action: string;
+  readonly actorId: string | null;
+  /** As the raw client hands it back — a string, not a parsed `Date`. */
+  readonly createdAt: string;
+  readonly entity: string;
+  readonly entityId: string | null;
+  readonly ipHash: string | null;
+  readonly metadata: Record<string, unknown> | null;
+  readonly subjectUserId: string | null;
+};
+
+/**
+ * The newest row for one action, read straight from the table — `entityId`,
+ * `subjectUserId` and `ipHash` included, none of which `AuditLogView`
+ * (`GET /admin/audit`) exposes. `null` when the action has never been
+ * written, which no suite here should see: every suite that calls this has
+ * just caused the row it is reading.
+ */
+export async function latestAuditRow(action: AuditAction): Promise<AuditRow | null> {
+  const sql = sqlClient();
+  const rows = await sql<AuditRow>`
+    select id, action, actor_id as "actorId", created_at as "createdAt", entity, entity_id as "entityId", ip_hash as "ipHash", metadata, subject_user_id as "subjectUserId"
+    from audit_logs
+    where action = ${action}
+    order by created_at desc, id desc
+    limit 1`;
+
+  return rows[0] ?? null;
+}
+
+/** One row by its own id, however its columns now read — for a suite that captured the id before an account it named was deleted. */
+export async function auditRowById(id: string): Promise<AuditRow | null> {
+  const sql = sqlClient();
+  const rows = await sql<AuditRow>`
+    select id, action, actor_id as "actorId", created_at as "createdAt", entity, entity_id as "entityId", ip_hash as "ipHash", metadata, subject_user_id as "subjectUserId"
+    from audit_logs
+    where id = ${id}`;
+
+  return rows[0] ?? null;
+}
+
+/** Every row naming this account as its subject — for a suite that must find one before deleting the account it is about. */
+export async function auditRowsAboutSubject(subjectUserId: string): Promise<readonly AuditRow[]> {
+  const sql = sqlClient();
+
+  return sql<AuditRow>`
+    select id, action, actor_id as "actorId", created_at as "createdAt", entity, entity_id as "entityId", ip_hash as "ipHash", metadata, subject_user_id as "subjectUserId"
+    from audit_logs
+    where subject_user_id = ${subjectUserId}`;
+}
+
+/** How many rows in the whole table carry an ip hash — always zero; nothing in the product ever writes one (`0071`). */
+export async function auditRowsWithIpHash(): Promise<number> {
+  const sql = sqlClient();
+  const rows = await sql<{ n: number }>`select count(*)::int as n from audit_logs where ip_hash is not null`;
+
+  return rows[0]?.n ?? 0;
 }

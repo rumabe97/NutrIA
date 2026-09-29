@@ -7,6 +7,7 @@ import { HEALTH_CONSENT_VERSION } from 'core/entities/Health';
 import { NotFoundError } from 'core/entities/Error';
 import { nudgedKcal } from 'core/controllers/CheckIn';
 import { UserController } from 'core/controllers/User';
+import { UNAUDITED } from 'core/entities/Audit';
 import { database } from 'database';
 
 import {
@@ -454,7 +455,7 @@ describe('care', () => {
       const { token } = await invite(pro, email);
 
       await request(server()).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: 'Unconfirmed', password: PASSWORD }).expect(200);
-      await UserController.activate({ email });
+      await UserController.activate({ email }, UNAUDITED);
 
       const signIn: Response = await request(server()).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: PASSWORD }).expect(200);
       const cookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');

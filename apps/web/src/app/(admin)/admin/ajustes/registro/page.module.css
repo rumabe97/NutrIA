@@ -1,0 +1,10 @@
+/* The page measures itself, so the toolbar counts its columns from the room it has
+   beside the sidebar. */
+.page {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--gap-region);
+  /* One column that may shrink below its widest child: the table scrolls inside its own
+     region, and the page never scrolls sideways. */
+  grid-template-columns: minmax(0, 1fr);
+}

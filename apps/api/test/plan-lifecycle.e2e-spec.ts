@@ -6,6 +6,7 @@ import { completeOnboarding, createApp, deleteAccounts, generateAndWait, httpSer
 import { PlanJobController } from 'core/controllers/Plan';
 import { QuotaExceededError } from 'core/entities/Error';
 import { SettingsController } from 'core/controllers/Settings';
+import { UNAUDITED } from 'core/entities/Audit';
 import { UserController } from 'core/controllers/User';
 
 import type { Account } from './harness.js';
@@ -228,7 +229,7 @@ describe('plan lifecycle', () => {
       return (response.body as AllowancesView).planRedo;
     };
 
-    await UserController.setTier(account.id, 'premium');
+    await UserController.setTier(account.id, 'premium', UNAUDITED);
 
     // Granted, switch off: nothing changes, and the tier reads free.
     expect(await redo()).toMatchObject({ allowed: false, limit: 1 });
@@ -236,7 +237,7 @@ describe('plan lifecycle', () => {
       body: { tier: 'free' }
     });
 
-    await SettingsController.setFlag('premium', true);
+    await SettingsController.setFlag('premium', true, UNAUDITED);
 
     // Switch on: the same spent redo is allowed again, against a higher limit.
     const granted = await redo();
@@ -245,11 +246,11 @@ describe('plan lifecycle', () => {
     expect(granted.limit).toBeGreaterThan(1);
     expect(granted.used).toBe(1);
 
-    await SettingsController.setFlag('premium', false);
+    await SettingsController.setFlag('premium', false, UNAUDITED);
 
     // Switch off again: back to the free numbers, with the grant still on the row.
     expect(await redo()).toMatchObject({ allowed: false, limit: 1 });
-    await UserController.setTier(account.id, 'free');
+    await UserController.setTier(account.id, 'free', UNAUDITED);
   });
 
   it('keeps the replaced plan in the history, and it is still readable as it was', async () => {

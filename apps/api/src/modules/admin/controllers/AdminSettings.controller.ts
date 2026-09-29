@@ -2,10 +2,11 @@ import { Controller, Get, Patch } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { AdminSettingsService } from '../services/index.js';
-import { Roles, ZodBody } from '../../../shared/index.js';
+import { CurrentUser, Roles, ZodBody } from '../../../shared/index.js';
 import { SetFlagDto } from '../dto/in/index.js';
 
 import type { AdminSettingsViewDto } from '../dto/out/index.js';
+import type { SessionUser } from '../../../shared/index.js';
 
 /** The switches. `GET /settings` is the signed-in read; throwing one stays here. */
 @ApiTags('admin')
@@ -24,7 +25,7 @@ export class AdminSettingsController {
   @ApiOkResponse({ description: 'Every switch as it now stands.' })
   @ApiOperation({ summary: 'Throw one switch' })
   @Patch('settings')
-  async setFlag(@ZodBody(SetFlagDto) body: SetFlagDto): Promise<AdminSettingsViewDto> {
-    return this.settings.setFlag(body);
+  async setFlag(@ZodBody(SetFlagDto) body: SetFlagDto, @CurrentUser() owner: SessionUser): Promise<AdminSettingsViewDto> {
+    return this.settings.setFlag(body, owner.id);
   }
 }

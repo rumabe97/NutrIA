@@ -54,5 +54,11 @@ export const ADMIN_SECTIONS: readonly AdminNavSection[] = [
       { href: '/admin/catalogo/imagenes', label: 'pictures' }
     ]
   },
-  { group: 'settings', pages: [{ href: '/admin/ajustes', label: 'settings' }] }
+  {
+    group: 'settings',
+    pages: [
+      { href: '/admin/ajustes', label: 'settings' },
+      { href: '/admin/ajustes/registro', label: 'auditLog' }
+    ]
+  }
 ];

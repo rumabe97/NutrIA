@@ -152,6 +152,37 @@ export const esES = {
     trendsTitle: 'Por día'
   },
 
+  /* `/admin/ajustes/registro` (`0071`): quién hizo cada mutación de cuenta o de ajuste, y cuándo. */
+  adminAudit: {
+    actions: {
+      'account.activated': 'Cuenta activada',
+      'account.tier_changed': 'Cambio de plan',
+      'feedback.handled': 'Mensaje marcado como visto',
+      'feedback.reopened': 'Mensaje reabierto',
+      'professional.granted': 'Perfil profesional concedido',
+      'professional.revoked': 'Perfil profesional revocado',
+      'push.test_sent': 'Aviso de prueba enviado',
+      'setting.changed': 'Ajuste cambiado'
+    },
+    caption: 'Acciones',
+    columns: { account: 'Cuenta', action: 'Acción', actor: 'Quién', date: 'Fecha', detail: 'Detalle' },
+    empty: 'El registro empieza el día en que esto se despliega: no hay ninguna fila anterior.',
+    howCounted: [
+      'El registro empieza el día en que esto se despliega. No hay ninguna fila de antes.',
+      'Las horas son de Madrid.',
+      'El detalle es solo lo que la propia acción guarda: nunca el cuerpo de la petición ni una dirección IP.'
+    ],
+    intro: 'Quién hizo cada cambio de cuenta o de ajuste, y cuándo.',
+    noMatch: 'Ninguna acción coincide con el filtro.',
+    settingChange: '{key}: {state}',
+    state: { off: 'Apagado', on: 'Encendido' },
+    tableNote: 'Las más recientes primero.',
+    tableTitle: 'Todas las acciones',
+    tierChange: '{from} → {to}',
+    title: 'Registro de acciones',
+    via: { automatic: 'Automático', console: 'Consola', mail_link: 'Enlace del correo' }
+  },
+
   /* Words every console page with a period shares: the selector, the charts' table, the tiles' change. */
   adminConsole: {
     /** A tile's change against the previous period, for a screen reader; `{change}` is the signed percentage. */
@@ -170,6 +201,8 @@ export const esES = {
       apply: 'Aplicar',
       ascending: 'ascendente',
       clear: 'Quitar la búsqueda y los filtros',
+      /** The same, on a table with no search field. */
+      clearFilters: 'Quitar los filtros',
       /** The line over a table in one fixed order, which its section names. */
       count: '{count} en total',
       descending: 'descendente',
@@ -189,7 +222,9 @@ export const esES = {
       sortedDesc: 'orden descendente; ordenar de forma ascendente',
       /** The line over a table, announced when a search, a filter or a sort changes it. */
       status: '{count} en total · por {column}, {direction}',
-      toolbar: 'Buscar y filtrar'
+      toolbar: 'Buscar y filtrar',
+      /** The toolbar's name on a table with no search field. */
+      toolbarFilters: 'Filtrar'
     },
     week: 'Semana (desde el lunes)',
     yes: 'Sí'
@@ -352,6 +387,7 @@ export const esES = {
     pages: {
       accounts: 'Cuentas',
       ai: 'IA y modelos',
+      auditLog: 'Registro de acciones',
       inbox: 'Buzón',
       ingredients: 'Ingredientes',
       log: 'Registro',
@@ -360,7 +396,7 @@ export const esES = {
       product: 'Embudo y actividad',
       professionals: 'Profesionales',
       recipes: 'Recetas',
-      settings: 'Ajustes',
+      settings: 'Interruptores',
       summary: 'Resumen'
     },
     title: 'Consola'
@@ -520,7 +556,7 @@ export const esES = {
     intro: 'Los interruptores del servicio. Debajo de cada uno, lo que pasa ahora mismo.',
     notifications: 'Notificaciones',
     product: 'Producto',
-    title: 'Ajustes'
+    title: 'Interruptores'
   },
 
   /* `/admin`: the period's headline figures, two trends, and what needs the owner now. */
@@ -1348,7 +1384,8 @@ export const esES = {
     },
     '/acceder': { description: 'Entra en NutrIA para ver tu plan de hoy, tu lista de la compra y tu progreso.', title: 'Acceder' },
     '/admin': { title: 'Resumen' },
-    '/admin/ajustes': { title: 'Ajustes' },
+    '/admin/ajustes': { title: 'Interruptores' },
+    '/admin/ajustes/registro': { title: 'Registro de acciones' },
     '/admin/buzon': { title: 'Buzón' },
     '/admin/catalogo': { title: 'Recetas' },
     '/admin/catalogo/imagenes': { title: 'Imágenes' },

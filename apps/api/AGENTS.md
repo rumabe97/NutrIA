@@ -350,6 +350,40 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     `contains` (`repositories/Search`) and bound; `offset` / `size` (1–100) are strict;
   - in a correlated sub-select, name the outer row explicitly (`qualified`, `"user"."id"`):
     drizzle drops the table name on single-table columns, and a spec renders the real SQL.
+- **The admin trail** (`0071`): **every admin mutation writes its `audit_logs` row in the
+  same transaction as the action itself** — activating an account (console, the mail link
+  and the automatic activation alike), moving a tier, granting or revoking a professional,
+  marking or reopening a feedback message, throwing a switch, and the owner's test push
+  (which has no database write of its own to share a transaction with, so its row is
+  written right after the send resolves — the one documented exception). The pattern is
+  `core/repositories/*`'s own: each mutating repository method takes an optional `record`
+  callback (`RecordAudit`, `core/repositories/Audit`) and calls it with its own `tx`, after
+  checking the row it changed exists — exactly `CareRepository.logAccess`'s shape (`0059`),
+  reused rather than reinvented. `actorId` is always the session's user
+  (`@CurrentUser()`), or `null` for the mail link and the automatic activation; **never**
+  a request body, and `ipHash` stays empty. A person acted on is `subjectUserId`, named
+  from the changing `UPDATE`'s own `RETURNING` — never the id the caller matched by, which
+  is absent when the match was by email — and is a foreign key `set null` on delete: the
+  trail outlives the account without naming it. What is not a person (a setting's key, a
+  feedback message's id) is `entityId`, plain text. `GET /admin/audit` reads it back,
+  filtered by a closed action list, paged, newest first — `{ at, action, actor, subject,
+  detail }`, `detail` being the closed metadata and nothing else. A mutation that changes
+  nothing writes no row either: activating an already-active account, or moving a tier to
+  the one it already holds, still answers as if it had, because a repeated click must not
+  fail, but there is nothing there worth a line in the trail.
+  - **`UserController.activate`, `UserController.setTier` and `SettingsController.setFlag`
+    require their audit argument** — there is no optional-audit shortcut left to reach for
+    by accident. `apps/api/src` always has a real one to give, because a route always has a
+    session or a signed link. `core/entities/Audit` exports `UNAUDITED`, a sentinel a suite
+    or a probe passes to skip the row when it moves state to set a scenario up rather than
+    to exercise the console. **`UNAUDITED` must never appear in `apps/api/src`** — a
+    grep-style spec enforces it mechanically
+    (`apps/api/src/modules/admin/audit-boundary.spec.ts`), the same pattern as the health-data
+    boundary (`health-boundary.spec.ts`). `ProfessionalController.grant`'s audit actor
+    defaults to `grantedBy` — every route's case — so it stays untouched; only a caller with
+    no session to name, such as `local-probe`'s `account.mjs`, passes `UNAUDITED` there to
+    keep its own professional from being recorded as its own grantor while the stored
+    `grantedBy` column still names it.
 - **Professionals** (`0059`): an account is a professional because a `professionals` row
   says so, and only `POST /admin/accounts/:id/professional` (the collegiate number, nothing
   else) writes one; `DELETE` of the same takes it back and `GET /admin/professionals` lists

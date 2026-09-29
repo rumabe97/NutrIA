@@ -12,6 +12,7 @@ import { professionalSchema } from 'core/entities/Professional';
 
 import type { Professional } from 'core/entities/Professional';
 import type { ProfessionalQuery } from 'core/entities/AdminQuery';
+import type { RecordAudit } from '#repositories/Audit';
 import type { SQL } from 'drizzle-orm';
 
 /**
@@ -119,16 +120,22 @@ export const ProfessionalRepository = {
    * `practiceOpen` and `includedClients` are deliberately not touched — they
    * are billing's to write (`0061`), and a re-grant must not close a practice.
    */
-  async grant(userId: string, collegiateNumber: string, grantedBy: string): Promise<Professional> {
+  async grant(userId: string, collegiateNumber: string, grantedBy: string, record?: RecordAudit): Promise<Professional> {
     try {
-      const grantedAt = new Date();
-      const [row] = await database()
-        .insert(professionals)
-        .values({ collegiateNumber, grantedAt, grantedBy, userId })
-        .onConflictDoUpdate({ set: { collegiateNumber, grantedAt, grantedBy, updatedAt: grantedAt }, target: professionals.userId })
-        .returning();
+      return await database().transaction(async tx => {
+        const grantedAt = new Date();
+        const [row] = await tx
+          .insert(professionals)
+          .values({ collegiateNumber, grantedAt, grantedBy, userId })
+          .onConflictDoUpdate({ set: { collegiateNumber, grantedAt, grantedBy, updatedAt: grantedAt }, target: professionals.userId })
+          .returning();
 
-      return professionalSchema.parse(row);
+        if (record) {
+          await record(tx);
+        }
+
+        return professionalSchema.parse(row);
+      });
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -188,12 +195,16 @@ export const ProfessionalRepository = {
   },
 
   /** Takes the grant back. Returns false when the account was not a professional. */
-  async revoke(userId: string): Promise<boolean> {
+  async revoke(userId: string, record?: RecordAudit): Promise<boolean> {
     try {
       // Their unanswered invitations go with the grant: nobody can answer them any more, and each holds an address somebody typed.
       return await database().transaction(async tx => {
         const rows = await tx.delete(professionals).where(eq(professionals.userId, userId)).returning({ id: professionals.id });
         await tx.delete(careInvitations).where(eq(careInvitations.professionalId, userId));
+
+        if (rows.length > 0 && record) {
+          await record(tx);
+        }
 
         return rows.length > 0;
       });

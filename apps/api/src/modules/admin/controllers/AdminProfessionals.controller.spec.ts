@@ -231,7 +231,7 @@ describe('AdminProfessionalsController', () => {
         .delete(`/${PREFIX}/admin/accounts/usr-dietitian/professional`)
         .expect(204);
 
-      expect(revoke).toHaveBeenCalledWith('usr-dietitian');
+      expect(revoke).toHaveBeenCalledWith('usr-dietitian', 'usr-owner');
     });
 
     it('is 404 when revoking an account that was never granted', async () => {

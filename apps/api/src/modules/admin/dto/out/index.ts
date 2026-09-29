@@ -1,5 +1,6 @@
 export * from './Accounts.dto.js';
 export * from './AdminAnalytics.dto.js';
+export * from './AdminAudit.dto.js';
 export * from './AdminGeneration.dto.js';
 export * from './AdminPeople.dto.js';
 export * from './AdminPictures.dto.js';

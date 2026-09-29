@@ -78,8 +78,12 @@ interface AdminTableProps {
   pathname: string;
   query: PageQuery;
   rows: readonly DataTableRow[];
-  /** The search field (always the parameter `q`: the API's log redacts only that one). */
-  search: { readonly label: string; readonly value: string | undefined };
+  /**
+   * The search field (always the parameter `q`: the API's log redacts only that one).
+   * Omit for a table the API takes no free text for — the toolbar then holds only its
+   * filters.
+   */
+  search?: { readonly label: string; readonly value: string | undefined };
   /** The order the rows came in. Omit for a table in one fixed order, which its section says. */
   sort?: { readonly dir: SortDirection; readonly value: string };
   /** Every row the search and filters match, not only this page. */
@@ -128,11 +132,11 @@ export function AdminTable({
   total,
   words
 }: AdminTableProps) {
-  const owned = new Set(['q', ...filters.map(filter => filter.name), ...(paging ? ['size'] : []), ...TRANSIENT]);
+  const owned = new Set([...(search ? ['q'] : []), ...filters.map(filter => filter.name), ...(paging ? ['size'] : []), ...TRANSIENT]);
   const kept = Object.entries(query).flatMap(([name, value]) =>
     owned.has(name) || value === undefined ? [] : (typeof value === 'string' ? [value] : value).map(one => [name, one] as const)
   );
-  const values: Record<string, string> = { q: search.value ?? '' };
+  const values: Record<string, string> = search ? { q: search.value ?? '' } : {};
 
   for (const filter of filters) {
     values[filter.name] = filter.value ?? '';
@@ -142,7 +146,7 @@ export function AdminTable({
     values.size = String(paging.size);
   }
 
-  const filtered = search.value !== undefined || filters.some(filter => filter.value !== undefined);
+  const filtered = search?.value !== undefined || filters.some(filter => filter.value !== undefined);
   const clearHref = `${tableHref(pathname, query, Object.fromEntries([...owned].filter(name => name !== 'size').map(name => [name, undefined])))}#${ANCHOR}`;
   const sortedColumn = sort ? columns.find(column => column.sort?.value === sort.value) : undefined;
 
@@ -201,8 +205,17 @@ export function AdminTable({
 
   return (
     <div className={styles.root} id={ANCHOR}>
-      <AdminTableForm action={pathname} anchor={ANCHOR} className={styles.toolbar} label={words.toolbar} values={values}>
-        <Input className={styles.search} defaultValue={search.value ?? ''} label={search.label} maxLength={200} name="q" type="search" />
+      <AdminTableForm
+        action={pathname}
+        anchor={ANCHOR}
+        className={styles.toolbar}
+        label={search ? words.toolbar : words.toolbarFilters}
+        searchable={search !== undefined}
+        values={values}
+      >
+        {search ? (
+          <Input className={styles.search} defaultValue={search.value ?? ''} label={search.label} maxLength={200} name="q" type="search" />
+        ) : null}
         {/* One filter stays in the toolbar; more fold, so the toolbar fits a phone at large text. */}
         {filters.length > 1 ? (
           <AdminFilters
@@ -246,7 +259,7 @@ export function AdminTable({
               <Fragment>
                 {noMatch}{' '}
                 <Link className={styles.clear} href={clearHref}>
-                  {words.clear}
+                  {search ? words.clear : words.clearFilters}
                 </Link>
               </Fragment>
             ) : (
