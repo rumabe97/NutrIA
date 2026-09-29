@@ -9,9 +9,21 @@ import type { MealSlot } from './Plan';
  * `wrong_language`: a step's own text — not its optional cue, which is simply
  * dropped — reads as English in a request for another language
  * (`domain/Method`'s `cleanSteps`, 2026-09-26).
+ * `oversized`: one serving is past one and a half times its meals' energy cap
+ * (`domain/Serving`, `0070`) — a pot declared as one plate. Not about the
+ * person: the caps are the same for everyone.
  */
 export type DishRejection =
-  'allergen' | 'duplicate' | 'foreign_food' | 'over_time' | 'schema' | 'unknown_ingredient' | 'unwanted' | 'wrong_language' | 'wrong_meal';
+  | 'allergen'
+  | 'duplicate'
+  | 'foreign_food'
+  | 'over_time'
+  | 'oversized'
+  | 'schema'
+  | 'unknown_ingredient'
+  | 'unwanted'
+  | 'wrong_language'
+  | 'wrong_meal';
 
 /** What a failed call said about itself. */
 export type AiCallFailure = {

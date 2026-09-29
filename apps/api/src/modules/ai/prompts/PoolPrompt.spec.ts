@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import { DEFAULT_MEAL_SHAPE, weightsFor } from 'core/domain/MealShape';
 import { mealCatalogue, offersPulses } from 'core/domain/MealFit';
+import { SERVING_KCAL_CAP } from 'core/domain/Serving';
 
 import { buildPoolPrompt, STEPS_VERSION } from './PoolPrompt.js';
 
@@ -299,6 +300,73 @@ describe('buildPoolPrompt', () => {
     expect(withEvent).toContain('SOME DAYS THIS FORTNIGHT EAT FOR AN EVENT');
     expect(withEvent).toContain('Make 2 of these dishes fit that split instead');
     expect(withEvent).toContain('(23% protein · 58% carbohydrate · 19% fat)');
+  });
+
+  describe('one serving has a ceiling (`0070`)', () => {
+    /** The diagnosis's shape: a large lunch, a light dinner, a light mid-morning snack, nothing else — lunch is 0.72 of the day. */
+    const heavyLunch = weightsFor({
+      ...DEFAULT_MEAL_SHAPE,
+      afternoon_snack: 'off',
+      breakfast: 'off',
+      dinner: 'light',
+      lunch: 'large',
+      morning_snack: 'light'
+    });
+    const big: NutritionTargets = { carbsG: 450, fatG: 110, fiberG: 50, kcal: 3700, proteinG: 200 };
+    const prompt = buildPoolPrompt(context({ slotShares: heavyLunch, targets: big }), []);
+    const lunch = briefIn(prompt, 'lunch');
+
+    it('briefs a 3,700 kcal heavy lunch at the cap, not at 2,700 kcal', () => {
+      expect(lunch.kcal).toBe(SERVING_KCAL_CAP.lunch);
+    });
+
+    it('scales protein, carbohydrate, fat and fibre by the same factor, so the split is the day’s', () => {
+      const factor = SERVING_KCAL_CAP.lunch / big.kcal;
+
+      expect(lunch.proteinG).toBe(Math.round(big.proteinG * factor));
+      expect(lunch.carbsG).toBe(Math.round(big.carbsG * factor));
+      expect(lunch.fatG).toBe(Math.round(big.fatG * factor));
+      expect(lunch.fiberG).toBe(Math.round(big.fiberG * factor));
+    });
+
+    it('straddles the capped protein, not the uncapped one', () => {
+      expect(prompt).toContain(
+        `Protein: half the set between ${Math.round(lunch.proteinG * 0.9)} and ${lunch.proteinG} g, half between ${lunch.proteinG} and ${Math.round(lunch.proteinG * 1.1)} g`
+      );
+    });
+
+    it('tells a capped meal that the person is served more than one serving', () => {
+      expect(prompt).toContain(`One serving is capped at ~${SERVING_KCAL_CAP.lunch} kcal at this meal.`);
+      expect(prompt).toContain('are served more than one serving');
+      expect(buildPoolPrompt(context(), [])).not.toContain('One serving is capped at');
+    });
+
+    it('states the ceiling as a rule for every request', () => {
+      expect(buildPoolPrompt(context(), [])).toContain('- One serving has a ceiling.');
+    });
+
+    it('leaves a brief under its cap exactly as the share gives it', () => {
+      expect(briefIn(buildPoolPrompt(context(), []), 'lunch').kcal).toBeLessThan(SERVING_KCAL_CAP.lunch);
+    });
+
+    it('caps each meal at its own ceiling', () => {
+      const snack = briefIn(
+        buildPoolPrompt(context({ needBySlot: new Map([['morning_snack', 4]]), slotShares: heavyLunch, targets: { ...big, kcal: 12_000 } }), []),
+        'morning_snack'
+      );
+
+      expect(snack.kcal).toBe(SERVING_KCAL_CAP.morning_snack);
+    });
+
+    it('caps the event-day lines too, keeping their split', () => {
+      const hyrox: NutritionTargets = { carbsG: 520, fatG: 105, fiberG: 52, kcal: 3732, proteinG: 205 };
+      const withEvent = buildPoolPrompt(context({ loadedTargets: [hyrox], slotShares: heavyLunch, targets: big }), []);
+      const factor = SERVING_KCAL_CAP.lunch / hyrox.kcal;
+
+      expect(withEvent).toContain(
+        `- ~${SERVING_KCAL_CAP.lunch} kcal · ${Math.round(hyrox.proteinG * factor)} g protein · ${Math.round(hyrox.carbsG * factor)} g carbohydrate · ${Math.round(hyrox.fatG * factor)} g fat · at least ${Math.round(hyrox.fiberG * factor)} g fibre per serving`
+      );
+    });
   });
 
   it('keeps its sections apart and never stacks blank lines', () => {

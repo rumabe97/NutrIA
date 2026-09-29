@@ -1193,6 +1193,36 @@ describe('PoolBuilder — the call log', () => {
     expect(result.generated.map(generated => generated.name)).not.toContain('Estofado de pollo');
     expect(result.metadata.aiCalls[0]?.rejected).toEqual({ over_time: 1 });
   });
+
+  /**
+   * `0070`: one serving no plate holds. The diagnosis's worst was 2,693 kcal
+   * declared as one lunch. The same grams declared as three servings are three
+   * ordinary plates, and are kept.
+   */
+  it('drops a dish whose one serving is past one and a half times its meal’s cap, as oversized', async () => {
+    // Every catalogue row is 200 kcal per 100 g: 1,400 g is 2,800 kcal.
+    const pot = [
+      { grams: 700, slug: 'arroz' },
+      { grams: 700, slug: 'pollo' }
+    ];
+    const asOne = { ...dish('Arroz de carga con pollo', ['lunch']), ingredients: pot };
+    const asThree = { ...dish('Arroz con pollo para tres', ['lunch']), ingredients: pot, servings: 3 };
+    const { client } = stubClient([{ dishes: [asOne, asThree] }]);
+    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['lunch'] });
+
+    expect(result.generated.map(generated => generated.name)).toEqual(['Arroz con pollo para tres']);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({ oversized: 1 });
+  });
+
+  it('judges the size at the meals the dish is kept for: a snack is held to a snack’s cap', async () => {
+    // 700 kcal a serving: a fine lunch, past a snack's 400 × 1.5.
+    const heavy = { ...dish('Bocadillo de pollo y arroz', ['afternoon_snack']), ingredients: [{ grams: 350, slug: 'pollo' }] };
+    const { client } = stubClient([{ dishes: [heavy] }]);
+    const result = await new PoolBuilder(client).build({ context: context(), preferences, reusable: [], slots: ['afternoon_snack'] });
+
+    expect(result.generated).toEqual([]);
+    expect(result.metadata.aiCalls[0]?.rejected).toEqual({ oversized: 1 });
+  });
 });
 
 /**

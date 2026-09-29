@@ -33,6 +33,9 @@ export type DurationDayRow = { readonly day: string; readonly p50: number; reado
 /** How many generations failed with one code. `null` is a failure that recorded none. */
 export type FailureCodeRow = { readonly code: string | null; readonly n: number };
 
+/** Dishes rejected for one reason, summed over the calls of the period's generations. */
+export type RejectionReasonRow = { readonly n: number; readonly reason: string };
+
 /**
  * What the log selects: the job, the account's address and name — the one
  * thing of theirs it carries (`0028`, `0050`) — and what the plan recorded
@@ -150,6 +153,31 @@ export const AdminGenerationsRepository = {
       ]);
 
       return { rows, total: counted[0]?.n ?? 0 };
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Dishes rejected per reason over the calls of the generations made in the period —
+   * every reason, the person's own ones (`allergen`, `unwanted`) included, because
+   * here they are totals over everybody and name nobody (`0028`). The addressed log
+   * row never carries those two. One grouped query over each call's `rejected`
+   * object; a call without one adds nothing.
+   */
+  async rejectionsByReason(from: Date, to: Date): Promise<readonly RejectionReasonRow[]> {
+    try {
+      const rows = await database().execute<{ n: number | string; reason: string }>(sql`
+        select reason.key as reason, sum((reason.value)::numeric)::int as n
+        from ${planGenerationJobs},
+             jsonb_array_elements(case when jsonb_typeof(${planGenerationJobs.aiCalls}) = 'array' then ${planGenerationJobs.aiCalls} else '[]'::jsonb end) as call,
+             jsonb_each(case when jsonb_typeof(call -> 'rejected') = 'object' then call -> 'rejected' else '{}'::jsonb end) as reason
+        where ${within(planGenerationJobs.createdAt, from, to)} and jsonb_typeof(reason.value) = 'number'
+        group by reason.key
+        having sum((reason.value)::numeric) > 0
+        order by n desc, reason.key asc`);
+
+      return rows.map(row => ({ n: Number(row.n), reason: row.reason }));
     } catch (error: unknown) {
       throw wrap(error);
     }

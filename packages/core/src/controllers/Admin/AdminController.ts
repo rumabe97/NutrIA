@@ -291,7 +291,21 @@ function withoutPersonalRejections(call: AiCallRecord): AiCallRecord {
   return { ...call, rejected };
 }
 
-/** One generation for the log: the job, its account's address and name, its calls and its plan — never the reasons that describe the person. */
+/**
+ * An invalid plan's detail reads `kind (N días, p. ej. 1180 frente a 1850); …` — the
+ * example quotes that person's own day against their own target or floor, which is
+ * their plan and their energy need (`0028`). The addressed row keeps the kind and the
+ * number of days and drops the example.
+ */
+function withoutPersonalFigures(code: string | null, detail: string | null): string | null {
+  if (code !== 'GENERATION_INVALID_PLAN' || detail === null) {
+    return detail;
+  }
+
+  return detail.replace(/, p\. ej\. [^);]*/g, '');
+}
+
+/** One generation for the log: the job, its account's address and name, its calls and its plan — never the reasons or figures that describe the person. */
 export function presentGeneration(row: GenerationRow): AdminGenerationView {
   // Written by this service in `AiCallRecord`'s shape; null before the log existed.
   const calls = (row.aiCalls ?? []) as unknown as readonly AiCallRecord[];
@@ -300,6 +314,7 @@ export function presentGeneration(row: GenerationRow): AdminGenerationView {
     ...present(row),
     account: { email: row.email, name: row.name },
     calls: calls.map(withoutPersonalRejections),
+    detail: withoutPersonalFigures(row.error, row.errorDetail),
     plan: planOf(row.planVersion, row.metadata)
   };
 }

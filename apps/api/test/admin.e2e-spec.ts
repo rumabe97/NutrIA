@@ -1280,7 +1280,20 @@ describe('admin', () => {
      * `PERIOD_KEYS`: a new field is a decision. None of the three period reads
      * has a `name`, an `email`, an `id` or anything of a person.
      */
-    const STATS_KEYS = new Set([...WINDOW_KEYS, 'durations', 'failuresByCode', 'outcomes', 'period', 'window', 'p50', 'p95', 'code', 'n']);
+    const STATS_KEYS = new Set([
+      ...WINDOW_KEYS,
+      'durations',
+      'failuresByCode',
+      'outcomes',
+      'period',
+      'rejectionsByReason',
+      'window',
+      'p50',
+      'p95',
+      'code',
+      'n',
+      'reason'
+    ]);
     const AI_KEYS = new Set([
       ...WINDOW_KEYS,
       // today's, unchanged
@@ -1674,8 +1687,16 @@ describe('admin', () => {
         const response: Response = await get(`generations/stats${query === undefined ? '' : `?period=${query}`}`, owner.cookie).expect(200);
         const stats = response.body as AdminGenerationStatsView;
 
-        expect(Object.keys(stats).sort()).toEqual(['durations', 'failuresByCode', 'outcomes', 'period', 'window']);
+        expect(Object.keys(stats).sort()).toEqual(['durations', 'failuresByCode', 'outcomes', 'period', 'rejectionsByReason', 'window']);
         expect(stats.period).toBe(period);
+
+        // Totals by reason over everybody (0028): a reason and a count, never a job, an account or an address.
+        for (const row of stats.rejectionsByReason) {
+          expect(Object.keys(row).sort()).toEqual(['n', 'reason']);
+          expect(typeof row.reason).toBe('string');
+          expect(Number.isInteger(row.n) && row.n > 0).toBe(true);
+        }
+
         expectDays(stats.outcomes, period, stats.window.to);
         expect(stats.outcomes.series.map(row => row.key)).toEqual(['queued', 'running', 'succeeded', 'failed']);
 

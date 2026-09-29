@@ -40,6 +40,12 @@ export type AdminGenerationStatsView = {
   /** Generations per day by the status each is in now — the same series as Resumen's chart. */
   readonly outcomes: DaySeriesGroup;
   readonly period: Period;
+  /**
+   * Dishes the model proposed and the service rejected, per reason, over the period's
+   * generations, the commonest first. Totals over everybody: this is where `allergen`
+   * and `unwanted` may be counted, since nothing here names a person (`0028`).
+   */
+  readonly rejectionsByReason: readonly { readonly n: number; readonly reason: string }[];
   readonly window: PeriodWindowView;
 };
 
@@ -85,14 +91,15 @@ export const AdminLogController = {
     return { offset: query.offset, rows: rows.map(presentGeneration), size: query.size, total };
   },
 
-  /** Outcome per day, the durations per day and the failures by code, over the period. */
+  /** Outcome per day, the durations per day, the failures by code and the rejections by reason, over the period. */
   async stats(period: Period, now = new Date()): Promise<AdminGenerationStatsView> {
     const window = windowFor(period, now);
     const days = madridDayKeys(window.from, window.to);
-    const [outcomes, durations, failures] = await Promise.all([
+    const [outcomes, durations, failures, rejections] = await Promise.all([
       AdminSeriesRepository.generationsPerDay(window.from, window.to),
       AdminGenerationsRepository.durationsPerDay(window.from, window.to),
-      AdminGenerationsRepository.failuresByCode(window.from, window.to)
+      AdminGenerationsRepository.failuresByCode(window.from, window.to),
+      AdminGenerationsRepository.rejectionsByReason(window.from, window.to)
     ]);
     const byDay = new Map(durations.map(row => [row.day, row]));
 
@@ -113,6 +120,7 @@ export const AdminLogController = {
       failuresByCode: failures.map(row => ({ code: row.code, n: row.n })),
       outcomes: presentGroup(days, JOB_STATUSES, outcomes),
       period,
+      rejectionsByReason: rejections.map(row => ({ n: row.n, reason: row.reason })),
       window: presentWindow(window)
     };
   }

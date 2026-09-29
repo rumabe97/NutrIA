@@ -4,6 +4,7 @@ import { dishSafety, findSafetyViolations, mentionsUnresolvedAllergy } from 'cor
 import { fitSlots, mealCatalogue, offersPulses, repairSlug } from 'core/domain/MealFit';
 import { cleanSteps, methodMentions } from 'core/domain/Method';
 import { breaksDishRule, withinTime } from 'core/domain/Preference';
+import { isOversized, OVERSIZED_FACTOR, servingCap } from 'core/domain/Serving';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
 import { AI_MODEL_BUDGET, AI_OUTPUT_CAP } from '../ai.config.js';
@@ -482,7 +483,7 @@ export class PoolBuilder {
    * Schema → catalogue (near-miss slugs repaired first) → **allergy gate**,
    * in that order; then the preferences, the time limit and the method; last,
    * the meals it may be served at, which only ever takes meals away from a
-   * dish already accepted.
+   * dish already accepted; and one serving's size at those meals (`0070`).
    *
    * The gate runs on generated dishes even though the prompt was given only safe
    * ingredients, because a prompt is a request and this is a guarantee. A rejection
@@ -693,22 +694,35 @@ export class PoolBuilder {
       return { reason: 'wrong_meal' };
     }
 
-    return {
-      dish: {
-        cookMinutes: dish.cookMinutes,
-        cuisine: dish.cuisine,
-        difficulty: dish.difficulty,
-        ingredients: dish.ingredients,
-        name: dish.name,
-        prepMinutes: dish.prepMinutes,
-        servings: dish.servings,
-        slots,
-        slug,
-        // The wire has no nullable, so "none" arrives as an empty string or a zero.
-        // Both leave as no key at all, which is what the pages test for.
-        steps: dish.steps.map(step => ({ ...step, cue: step.cue || undefined, minutes: step.minutes || undefined }))
-      }
+    const kept: CandidateDish = {
+      cookMinutes: dish.cookMinutes,
+      cuisine: dish.cuisine,
+      difficulty: dish.difficulty,
+      ingredients: dish.ingredients,
+      name: dish.name,
+      prepMinutes: dish.prepMinutes,
+      servings: dish.servings,
+      slots,
+      slug,
+      // The wire has no nullable, so "none" arrives as an empty string or a zero.
+      // Both leave as no key at all, which is what the pages test for.
+      steps: dish.steps.map(step => ({ ...step, cue: step.cue || undefined, minutes: step.minutes || undefined }))
     };
+
+    // Last of all, on the meals it will be served at: one serving no plate
+    // holds (`0070`). The prompt caps the brief; this is the bound after it —
+    // a pot declared as one serving would enter the library every other
+    // person draws from. Composed by `composePerServing`, never a second
+    // formula. Not about the person: the caps are everyone's.
+    if (isOversized(kept, context.catalogue)) {
+      this.logger.warn(
+        `Dish "${dish.name}" rejected: one of its ${String(dish.servings)} servings is past ${String(servingCap(slots) * OVERSIZED_FACTOR)} kcal`
+      );
+
+      return { reason: 'oversized' };
+    }
+
+    return { dish: kept };
   }
 }
 
