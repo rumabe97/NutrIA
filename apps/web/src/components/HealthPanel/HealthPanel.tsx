@@ -15,6 +15,8 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { Card } from 'components/Card';
 
+import { HEALTH_CONSENT_VERSION } from 'core/entities/Health';
+
 import { api, messageFor } from 'lib/api';
 import { formatNumber, interpolate } from 'lib/format';
 
@@ -42,8 +44,6 @@ const CONDITION_KEYS = [
   'pregnancy',
   'breastfeeding'
 ] as const;
-
-const CONSENT_VERSION = '1.0.0';
 
 /** The kinds `core/entities/Health` accepts, in the order the picker offers them (`0052`). */
 const SUPPLEMENT_KINDS: readonly SupplementKind[] = ['protein', 'creatine', 'vitamins_minerals', 'omega_3', 'other'];
@@ -103,7 +103,7 @@ export function HealthPanel({ health }: { health: HealthView }) {
             ...conditionKeys.map(key => ({ conditionKey: key, label: dictionary.conditions[key as ConditionKey] ?? key })),
             ...splitList(otherConditions).map(label => ({ conditionKey: null, label }))
           ],
-          consentVersion: CONSENT_VERSION,
+          consentVersion: HEALTH_CONSENT_VERSION,
           medications: splitList(medications).map(name => ({ name })),
           supplements: supplements
             .filter(row => row.name.trim() !== '')
