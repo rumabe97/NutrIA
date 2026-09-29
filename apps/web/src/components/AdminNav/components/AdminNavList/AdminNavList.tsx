@@ -64,7 +64,7 @@ export function AdminNavList({ onNavigate, pathname }: AdminNavListProps) {
       {ADMIN_SECTIONS.filter(section => section.pages.length > 0).map(section => {
         // A group of one page is that page: "RESUMEN" over "Resumen" says the same thing twice.
         // The heading comes back on its own the day the group has a second page.
-        if (section.pages.length === 1 || !section.group) {
+        if (section.pages.length === 1) {
           return section.pages.map(link);
         }
 

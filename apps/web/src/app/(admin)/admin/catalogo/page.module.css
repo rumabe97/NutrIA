@@ -1,0 +1,26 @@
+/* The page measures itself, so the toolbar counts its columns from the room it has
+   beside the sidebar. */
+.page {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--gap-region);
+  /* One column that may shrink below its widest child: the table scrolls inside its own
+     region, and the page never scrolls sideways. */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* As many tiles a row as fit at 11rem each: five in one row on a desktop, two or one on
+   a phone, one at large text. */
+.tiles {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* The chart sits on a card: the gaps between marks are the card's colour. */
+.chart {
+  --chart-surface: var(--surface-card);
+}

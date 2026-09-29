@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { accountQuerySchema, feedbackQuerySchema } from 'core/entities/AdminQuery';
+import { accountQuerySchema, feedbackQuerySchema, generationQuerySchema } from 'core/entities/AdminQuery';
 
 import { apiSearch, readTableQuery, tableHref } from './tableQuery';
 
@@ -31,6 +31,10 @@ describe('readTableQuery', () => {
 
   it('reads the first of a repeated parameter and ignores ones it does not know', () => {
     expect(readTableQuery(feedbackQuerySchema, { abierta: 'x', period: '7', state: ['seen', 'waiting'] })).toMatchObject({ state: 'seen' });
+  });
+
+  it('drops the parameter a rule across parameters names, instead of failing the page', () => {
+    expect(readTableQuery(generationQuerySchema, { from: '2026-09-28', to: '2026-09-01' })).toEqual({ offset: 0, size: 25, to: '2026-09-01' });
   });
 
   it('treats a blank search as none', () => {

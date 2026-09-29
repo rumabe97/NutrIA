@@ -1,0 +1,34 @@
+.page {
+  display: grid;
+  gap: var(--gap-region);
+  /* One column that may shrink below its widest child (reflow at 200 % text). */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The charts sit on cards: the gaps between marks are the card's colour. */
+.chart {
+  --chart-surface: var(--surface-card);
+}
+
+/* Whether drawing is on, and the way to the switch: a sentence, then its link. */
+.switch {
+  color: var(--foreground-02);
+  font-size: var(--font-size-03);
+  margin: 0;
+  max-inline-size: var(--prose-max);
+}
+
+.link {
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+}
+
+/* A standalone link is a target of its own on touch: the floor, stated once. */
+@media (pointer: coarse) {
+  .link {
+    align-items: center;
+    display: inline-flex;
+    min-block-size: var(--target-min);
+  }
+}
