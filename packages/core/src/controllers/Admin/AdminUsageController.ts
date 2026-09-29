@@ -14,6 +14,12 @@ export type AiPeriodTotals = {
   /** Mean of our own clock over the calls that recorded one; null for a period with none. */
   readonly averageMs: { readonly current: number | null; readonly previous: number | null };
   readonly calls: PeriodComparison;
+  /**
+   * Dollars the text models billed (`costUsd` on each `ai_call`): the dishes generated
+   * for plans and the nightly step rewrites — the event does not say which. Pictures
+   * are billed apart (`/admin/pictures`).
+   */
+  readonly costUsd: PeriodComparison;
   /** Calls recorded `ok: false`: refused, timed out, or answered with something unusable. */
   readonly failed: PeriodComparison;
   readonly inputTokens: PeriodComparison;
@@ -36,6 +42,8 @@ export type AdminAiView = AiUsageView & {
    */
   readonly models: readonly AiModelUsage[];
   readonly period: Period;
+  /** Dollars the text models billed per day, to six places as the events carry them. */
+  readonly spendPerDay: DaySeries;
   /** Tokens per day: keys `input` and `output`, both always present. */
   readonly tokensPerDay: DaySeriesGroup;
   readonly totals: AiPeriodTotals;
@@ -56,19 +64,25 @@ export type AdminPicturesPeriodView = AdminPicturesView & {
 /** The two token series, in the order a stacked chart draws them. */
 export const TOKEN_KEYS = ['input', 'output'] as const;
 
-type Totals = { calls: number; failed: number; inputTokens: number; outputTokens: number; timed: number; totalMs: number };
+type Totals = { calls: number; costUsd: number; failed: number; inputTokens: number; outputTokens: number; timed: number; totalMs: number };
 
-const ZERO: Totals = { calls: 0, failed: 0, inputTokens: 0, outputTokens: 0, timed: 0, totalMs: 0 };
+const ZERO: Totals = { calls: 0, costUsd: 0, failed: 0, inputTokens: 0, outputTokens: 0, timed: 0, totalMs: 0 };
 
 function add(total: Totals, row: AiCallDayRow): Totals {
   return {
     calls: total.calls + row.calls,
+    costUsd: total.costUsd + row.costUsd,
     failed: total.failed + (row.failed ? row.calls : 0),
     inputTokens: total.inputTokens + row.inputTokens,
     outputTokens: total.outputTokens + row.outputTokens,
     timed: total.timed + row.timed,
     totalMs: total.totalMs + row.totalMs
   };
+}
+
+/** Cents added one call at a time drift in binary; dollars to six places, as the events carry them. */
+function dollars(value: number): number {
+  return Math.round(value * 1e6) / 1e6;
 }
 
 function average({ timed, totalMs }: Pick<Totals, 'timed' | 'totalMs'>): number | null {
@@ -151,6 +165,7 @@ export const AdminUsageController = {
       callsPerDay: { days, values: per(row => row.calls) },
       models: modelsOf(current),
       period,
+      spendPerDay: { days, values: per(row => row.costUsd).map(dollars) },
       tokensPerDay: {
         days,
         series: [
@@ -161,6 +176,7 @@ export const AdminUsageController = {
       totals: {
         averageMs: { current: average(inPeriod), previous: average(before) },
         calls: { current: inPeriod.calls, previous: before.calls },
+        costUsd: { current: dollars(inPeriod.costUsd), previous: dollars(before.costUsd) },
         failed: { current: inPeriod.failed, previous: before.failed },
         inputTokens: { current: inPeriod.inputTokens, previous: before.inputTokens },
         outputTokens: { current: inPeriod.outputTokens, previous: before.outputTokens }

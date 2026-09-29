@@ -91,6 +91,7 @@ const PERIOD_KEYS = new Set([
   'unreadMessages',
   'pictures',
   'spentUsd',
+  'textAi',
   'monthSpentUsd',
   'monthStart',
   'capUsd',
@@ -1320,6 +1321,7 @@ describe('admin', () => {
       'callsPerDay',
       'models',
       'period',
+      'spendPerDay',
       'tokensPerDay',
       'totals',
       'window',
@@ -1770,9 +1772,9 @@ describe('admin', () => {
           expect(row.values).toHaveLength(period);
         }
 
-        expect(Object.keys(view.totals).sort()).toEqual(['averageMs', 'calls', 'failed', 'inputTokens', 'outputTokens']);
+        expect(Object.keys(view.totals).sort()).toEqual(['averageMs', 'calls', 'costUsd', 'failed', 'inputTokens', 'outputTokens']);
 
-        for (const key of ['averageMs', 'calls', 'failed', 'inputTokens', 'outputTokens'] as const) {
+        for (const key of ['averageMs', 'calls', 'costUsd', 'failed', 'inputTokens', 'outputTokens'] as const) {
           expect(Object.keys(view.totals[key]).sort()).toEqual(['current', 'previous']);
         }
 
@@ -1781,6 +1783,9 @@ describe('admin', () => {
 
         expect(sum(view.callsPerDay.values)).toBe(view.totals.calls.current);
         expect(sum(view.models.map(model => model.calls))).toBe(view.totals.calls.current);
+        // The spend chart is the spend total, day by day (to six places, as the events carry it).
+        expect(view.spendPerDay.values).toHaveLength(period);
+        expect(sum(view.spendPerDay.values)).toBeCloseTo(view.totals.costUsd.current, 5);
 
         expectNobody(`ai ${period}`, view, AI_KEYS);
       }

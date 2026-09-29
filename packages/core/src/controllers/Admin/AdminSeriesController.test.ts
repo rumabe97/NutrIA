@@ -20,8 +20,10 @@ const series = vi.hoisted(() => ({
   unreadMessages: vi.fn<(typeof Series)['unreadMessages']>()
 }));
 const funnel = vi.hoisted(() => vi.fn<() => Promise<Funnel>>());
+const ai = vi.hoisted(() => ({ callsPerDay: vi.fn() }));
 
 vi.mock('#repositories/Admin', () => ({
+  AdminAiRepository: ai,
   AdminRepository: { funnel },
   AdminSeriesRepository: series,
   JOB_STATUSES: ['queued', 'running', 'succeeded', 'failed'],
@@ -36,6 +38,13 @@ const FUNNEL: Funnel = { activated: 5, checkedIn: 1, confirmed: 6, lived: 2, onb
 
 beforeEach(() => {
   vi.clearAllMocks();
+  ai.callsPerDay.mockResolvedValue([
+    // The period before, then two models on one day of this one: the tile sums them.
+    { costUsd: 0.4, day: '2026-09-20' },
+    { costUsd: 0.1, day: '2026-09-23' },
+    { costUsd: 0.2, day: '2026-09-23' },
+    { costUsd: 0.05, day: '2026-09-28' }
+  ]);
   series.accountTotals.mockResolvedValue({ created: { current: 3, previous: 1 }, total: 40, waiting: 2 });
   series.activePeopleTotals.mockResolvedValue({ current: 9, previous: 12 });
   series.planTotals.mockResolvedValue({ current: 4, previous: 0 });
@@ -191,5 +200,17 @@ describe('AdminSeriesController.people', () => {
       weeks: ['2026-08-24', '2026-08-31', '2026-09-07', '2026-09-14', '2026-09-21', '2026-09-28']
     });
     expect(view.messages.values).toEqual([0, 0, 0, 0, 3, 4]);
+  });
+});
+
+describe('AdminSeriesController.summary — the text models’ spend', () => {
+  it('sums the period against the one before, and lays the period’s days as the sparkline', async () => {
+    const summary = await AdminSeriesController.summary(7, 10, NOW);
+
+    expect(ai.callsPerDay).toHaveBeenCalledWith(new Date('2026-09-14T22:00:00Z'), NOW);
+    expect(summary.tiles.textAi).toEqual({
+      sparkline: { days: WEEK, values: [0, 0.3, 0, 0, 0, 0, 0.05] },
+      spentUsd: { current: 0.35, previous: 0.4 }
+    });
   });
 });

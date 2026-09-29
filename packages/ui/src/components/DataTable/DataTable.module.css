@@ -38,7 +38,10 @@
   color: var(--foreground-02);
   font-size: var(--font-size-02);
   font-weight: var(--font-weight-semibold);
-  vertical-align: bottom;
+  /* Middle, not bottom: a sortable header's link is a touch target (--target-min tall
+     on a coarse pointer) that centres its own text, so every header's words sit on
+     one line only when the cells centre too. */
+  vertical-align: middle;
   white-space: nowrap;
 }
 
