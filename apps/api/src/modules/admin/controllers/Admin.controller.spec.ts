@@ -4,7 +4,7 @@ import express from 'express';
 import request from 'supertest';
 import { Test } from '@nestjs/testing';
 
-import { AdminSeriesController, AdminUsageController, AdminController as CoreAdmin } from 'core/controllers/Admin';
+import { AdminSeriesController, AdminUsageController } from 'core/controllers/Admin';
 
 import { AdminController } from './Admin.controller.js';
 import { AdminGuard } from '../../../shared/guards/index.js';
@@ -12,29 +12,11 @@ import { AdminService } from '../services/index.js';
 import { AllExceptionsFilter } from '../../../shared/filters/index.js';
 import { ENV } from '../../../config/index.js';
 
-import type {
-  AdminAiView,
-  AdminOverviewView,
-  AdminPicturesPeriodView,
-  AdminPlansView,
-  AdminProductView,
-  AdminSummaryView
-} from 'core/controllers/Admin';
+import type { AdminAiView, AdminPicturesPeriodView, AdminPlansView, AdminProductView, AdminSummaryView } from 'core/controllers/Admin';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
 
 const PREFIX = 'api/v1';
-
-const OVERVIEW: AdminOverviewView = {
-  counts: {
-    accounts: { total: 6, waiting: 0 },
-    catalogue: { ingredients: 930, recipes: 160, withoutImage: 160 },
-    jobs: [{ n: 3, status: 'succeeded' }],
-    plans: [{ n: 1, status: 'active' }]
-  },
-  jobs: [],
-  windowDays: 7
-};
 
 /**
  * The guard is the feature: an admin route reachable by a signed-in user is a
@@ -82,18 +64,12 @@ describe('AdminController', () => {
 
   it('is 404 for an ordinary account, whatever it asks for', async () => {
     role = 'user';
-    const overview = jest.spyOn(CoreAdmin, 'overview');
+    const pictures = jest.spyOn(AdminUsageController, 'pictures');
 
-    await request(app.getHttpServer() as Server)
-      .get(`/${PREFIX}/admin/overview`)
-      .expect(404);
-    await request(app.getHttpServer() as Server)
-      .get(`/${PREFIX}/admin/failures`)
-      .expect(404);
     await request(app.getHttpServer() as Server)
       .get(`/${PREFIX}/admin/pictures`)
       .expect(404);
-    expect(overview).not.toHaveBeenCalled();
+    expect(pictures).not.toHaveBeenCalled();
   });
 
   /* 0068: the console's period reads are the owner's like every other admin route. */
@@ -169,17 +145,6 @@ describe('AdminController', () => {
     expect(plans).not.toHaveBeenCalled();
   });
 
-  it('answers the owner', async () => {
-    role = 'admin';
-    jest.spyOn(CoreAdmin, 'overview').mockResolvedValue(OVERVIEW);
-
-    const response = await request(app.getHttpServer() as Server)
-      .get(`/${PREFIX}/admin/overview`)
-      .expect(200);
-
-    expect((response.body as AdminOverviewView).counts.accounts.total).toBe(6);
-  });
-
   /* 0066: this month's picture spend, read against the cap drawing stops at — and, since 0068, its days. */
   it('gives the owner the month’s picture spend against the configured cap, over 30 days unless asked', async () => {
     role = 'admin';
@@ -201,16 +166,16 @@ describe('AdminController', () => {
     expect(pictures).toHaveBeenLastCalledWith(90, 10);
   });
 
-  it('reads the AI usage over a period, today’s fields still there, and refuses any other period', async () => {
+  it('reads the AI usage over a period, and refuses any other period', async () => {
     role = 'admin';
-    const ai = jest.spyOn(AdminUsageController, 'ai').mockResolvedValue({ calls: 3, period: 7 } as unknown as AdminAiView);
+    const ai = jest.spyOn(AdminUsageController, 'ai').mockResolvedValue({ period: 7 } as unknown as AdminAiView);
 
     const response = await request(app.getHttpServer() as Server)
       .get(`/${PREFIX}/admin/ai?period=7`)
       .expect(200);
 
-    expect(response.body).toEqual({ calls: 3, period: 7 });
-    expect(ai).toHaveBeenCalledWith(7, { requestsPerDay: undefined, tokensPerMinute: undefined });
+    expect(response.body).toEqual({ period: 7 });
+    expect(ai).toHaveBeenCalledWith(7);
 
     ai.mockClear();
 

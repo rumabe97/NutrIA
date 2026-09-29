@@ -137,15 +137,13 @@ const day = z.iso.date().optional();
  * `GET /admin/generations`: filter by outcome and failure code, search the
  * account's address (`q`, which the request log redacts), narrow to the last
  * 24 hours or a period and to a range of Madrid days (`from` and `to`, both
- * inclusive), and page. Every filter given applies. `legacy=1` answers today's
- * unpaged array until phase 9 removes it. A range that ends before it starts
- * is refused.
+ * inclusive), and page. Every filter given applies. A range that ends before
+ * it starts is refused.
  */
 export const generationQuerySchema = z
   .object({
     code: failureCode,
     from: day,
-    legacy: z.enum(['1']).optional(),
     offset,
     q: search,
     since: z.enum(GENERATION_SINCE).optional(),

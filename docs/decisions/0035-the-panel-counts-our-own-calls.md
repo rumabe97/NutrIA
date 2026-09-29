@@ -1,6 +1,6 @@
 # 0035 — The panel counts our own calls, and says so
 
-**Status**: accepted · **Date**: 2026-09-10 · **Deciders**: owner, agent
+**Status**: accepted — its readouts and `AI_REQUESTS_PER_DAY` / `AI_TOKENS_PER_MINUTE` removed by [0068](./0068-the-admin-is-a-console-of-pages-that-still-reads-nobody.md) (paid OpenRouter has no daily allowance); `ai_call` still records every request · **Date**: 2026-09-10 · **Deciders**: owner, agent
 
 ## Context
 

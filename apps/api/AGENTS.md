@@ -330,11 +330,26 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   manual — the only moment an account joins the queue. It never throws (a confirmation must not
   fail because a mailbox did) and it is the only mail carrying a user's address, because
   activation matches on it.
-- **Admin** (`0028`): `GET /admin/overview`, `/admin/failures` and `/admin/accounts`,
-  `@Roles('admin')` on the controller class so a new route is guarded by default.
-  `AdminRepository` selects no column that carries content — no dish, no profile. The account
-  list carries address, dates and role and nothing else. Keep it that way: the questions worth
-  a screen are "is generation working", "how big is the catalogue" and "who is waiting".
+- **Admin** (`0028`, `0068`): the console's routes, all `@Roles('admin')` on the controller
+  class so a new route is guarded by default — a non-admin and no session get 404, before any
+  query parameter is read (guards run before pipes). Nothing selected is a person's own — no
+  plan, no meal, no profile, no health value, no allergy; the catalogue's dishes and
+  ingredients are shared reference data, unattributed (no `created_by`, no user id). Account
+  rows carry milestones only (onboarded, plans, last activity, professional).
+  The addressed generation log never carries a person's own rejection reasons (`allergen`,
+  `unwanted`) or an invalid plan's figures; totals over everybody may (`/generations/stats`).
+  Query conventions, for every admin read:
+  - a Zod schema in `core/entities` (`AdminQuery`, `Period`), bound to one parameter with
+    `ZodQuery` in the admin module (never `@UsePipes`); anything outside it is
+    `422 INVALID_INPUT`, unknown keys are dropped, a repeated parameter is refused;
+  - periods are `7 | 30 | 90` (30 by default), compared with the period before of the same
+    length, grouped by **Madrid calendar day** (`core/domain/Period`; a quiet day is 0, never
+    missing), weeks by their Madrid Monday;
+  - sorts come from an allow-list mapped to columns (never a column name from the URL), nulls
+    last in both directions, ties broken by id; free text is `q`, escaped as a literal
+    `contains` (`repositories/Search`) and bound; `offset` / `size` (1–100) are strict;
+  - in a correlated sub-select, name the outer row explicitly (`qualified`, `"user"."id"`):
+    drizzle drops the table name on single-table columns, and a spec renders the real SQL.
 - **Professionals** (`0059`): an account is a professional because a `professionals` row
   says so, and only `POST /admin/accounts/:id/professional` (the collegiate number, nothing
   else) writes one; `DELETE` of the same takes it back and `GET /admin/professionals` lists
@@ -412,10 +427,11 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   person's own words and address — allowed because the message was written to be read and
   answered. Nothing summarises it and it never reaches a model.
 - **AI usage** (`0035`): every provider request records an `ai_call` event from
-  `StructuredAiClient` — the only place a request leaves the building. `/admin/ai` counts
-  today's against `AI_REQUESTS_PER_DAY` and `AI_TOKENS_PER_MINUTE`, which are configuration
-  because they belong to an account and a model; unset means a count with no bar. It is our
-  count, not the provider's: there is no remaining-quota endpoint to read.
+  `StructuredAiClient` — the only place a request leaves the building, recorded with no user.
+  `/admin/ai` sums them over a period: calls, failures, tokens, latency and `costUsd` (the
+  dishes generated for plans and the nightly step rewrites, which the event does not tell
+  apart), per day and per model. The free-Gemini daily quota readouts are gone (`0068`):
+  paid OpenRouter has no daily allowance.
 - **Analytics** (`0033`): the funnel on `/admin` is counted from state — `AdminRepository.funnel()`
   — never from events, so it is correct retroactively and cannot disagree with the rows it
   counts. `analytics_events` holds only what leaves no row: `session_started` and

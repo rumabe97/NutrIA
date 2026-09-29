@@ -67,9 +67,29 @@ Routes are **Spanish words in both languages** — `/registro` and `/en/registro
 translated slug: the API prefixes a path to build a mailed link and does not translate it.
 `/acceder`, `/registro`, `/recuperar`, `/restablecer`, `/pendiente`, `/inicio`, `/plan`,
 `/plan/historial`, `/compra`, `/progreso`, `/check-in`, `/perfil`, `/onboarding/[paso]`,
-and `/admin` — owner-only, unlinked, 404 for everyone else (`0028`). Add any new signed-in
-route to `PROTECTED` in `src/proxy.ts`, which matches against the **locale-stripped** path,
-so each route is named once for both languages.
+and the admin console under `/admin` (below). Add any new signed-in route to `PROTECTED` in
+`src/proxy.ts`, which matches against the **locale-stripped** path, so each route is named
+once for both languages.
+
+**The admin console** (`0028`, `0068`, `0069`) is its own route group, `app/(admin)`, with
+its own root layout: no `AppNav`, no offline provider and **no offline copy** — its pages
+hold email addresses and must never sit in a browser cache (`public/sw.js` names none of
+them; keep it so). `(admin)/admin/layout.tsx` is the gate: 404 unless `/users/me` says
+`role: admin` (`readConsoleUser`, React `cache`d, shared with the metadata). The 404 is
+`(admin)/not-found.tsx`, one segment *above* the gate, because a segment's not-found does
+not wrap its own layout; `admin/[...rest]` makes a made-up address the same 404. Every
+console page's metadata goes through `consoleMetadata(path)`, so a non-admin's tab title
+names nothing, and any `redirect()` in a console page repeats the role check first
+(`forwardOpened.ts`). Nothing outside the console links to it. Pages, grouped by
+`components/AdminNav/sections.ts` (a one-page group draws as a single link):
+Resumen `/admin` · Personas: `/admin/cuentas`, `/admin/profesionales`, `/admin/buzon` ·
+Producto: `/admin/producto`, `/admin/producto/planes` · Generación: `/admin/generacion`,
+`/admin/generacion/ia` · Catálogo: `/admin/catalogo`, `/admin/catalogo/ingredientes`,
+`/admin/catalogo/imagenes` · `/admin/ajustes`. Tables are `components/AdminTable` over
+`ui/DataTable` on a `Card`: a GET form that works without JavaScript, all state in the URL,
+free text always named `q` (the API log redacts only `q`), cells on one line except prose.
+Charts are `packages/ui`'s server-rendered SVG set, each with its "Ver datos" table; a
+period (`components/PeriodSelector`, 7 / 30 / 90) drives every chart on its page.
 
 **Legal pages.** `/privacidad` and `/condiciones` are one screen, `_shared/LegalScreen`,
 printing a document from the dictionary (`dictionary.privacy`, `dictionary.terms`: an

@@ -4,7 +4,7 @@ import { fillDays, madridDayKey, madridDayKeys, windowFor } from 'core/domain/Pe
 import { AdminController, aiModelOf } from './AdminController';
 import { presentWindow } from './AdminSeriesController';
 
-import type { AdminPicturesView, AiModelUsage, AiUsageView } from './AdminController';
+import type { AdminPicturesView, AiModelUsage } from './AdminController';
 import type { AiCallDayRow } from '#repositories/Admin';
 import type { DaySeries, DaySeriesGroup, PeriodComparison, PeriodWindowView } from './AdminSeriesController';
 import type { Period } from 'core/entities/Period';
@@ -27,18 +27,18 @@ export type AiPeriodTotals = {
 };
 
 /**
- * IA y modelos (`GET /admin/ai?period=`): today's usage exactly as before —
- * its fields go in phase 9 — and the period's, all from the `ai_call` events
- * `StructuredAiClient` records. Counts, tokens, clocks and model names; no
- * person, no prompt, no answer (`0028`).
+ * IA y modelos (`GET /admin/ai?period=`): the period's usage, all from the
+ * `ai_call` events `StructuredAiClient` records. Counts, tokens, clocks and
+ * model names; no person, no prompt, no answer (`0028`). Only the fields
+ * `/admin/generacion/ia` reads — a page that grows a field it needs adds one
+ * here, deliberately.
  */
-export type AdminAiView = AiUsageView & {
+export type AdminAiView = {
   /** Provider requests per day, whatever their outcome. */
   readonly callsPerDay: DaySeries;
   /**
-   * The period's calls by the model that answered and who served it — the
-   * rule today's `byModel` uses (`aiModelOf`) — the most used first. Named
-   * `models` because `byModel` is today's list until phase 9.
+   * The period's calls by the model that answered and who served it (`aiModelOf`),
+   * the most used first.
    */
   readonly models: readonly AiModelUsage[];
   readonly period: Period;
@@ -90,9 +90,8 @@ function average({ timed, totalMs }: Pick<Totals, 'timed' | 'totalMs'>): number 
 }
 
 /**
- * The period's grouped `ai_call` rows by model and provider, with the same
- * key, the same sums and the same rounding as today's `summariseAiCalls`.
- * Exported for its spec.
+ * The period's grouped `ai_call` rows by model and provider, summed and
+ * grouped by `aiModelOf`'s rule. Exported for its spec.
  */
 export function modelsOf(rows: readonly AiCallDayRow[]): readonly AiModelUsage[] {
   const models = new Map<string, AiModelUsage & { timed: number; totalMs: number }>();
@@ -132,24 +131,19 @@ export function modelsOf(rows: readonly AiCallDayRow[]): readonly AiModelUsage[]
 
 /**
  * The console's usage pages over a period (`0068`): provider requests and
- * picture spend per day. Today's answers are `AdminController`'s, unchanged,
- * and each view adds the period's beside them.
+ * picture spend per day. Pictures keep this month's count against the cap
+ * (`AdminController.pictures`, unchanged) beside the period's spend.
  */
 export const AdminUsageController = {
   /**
-   * Today's usage, and the period's: totals against the period before,
-   * calls and tokens per day, and the calls by model. One grouped read covers
-   * both periods: the day each row falls on says which one it is in.
+   * The period's usage: totals against the period before, calls and tokens
+   * per day, and the calls by model.
    */
-  async ai(
-    period: Period,
-    limits: { readonly requestsPerDay?: number; readonly tokensPerMinute?: number } = {},
-    now = new Date()
-  ): Promise<AdminAiView> {
+  async ai(period: Period, now = new Date()): Promise<AdminAiView> {
     const window = windowFor(period, now);
     const days = madridDayKeys(window.from, window.to);
     const firstDay = madridDayKey(window.from);
-    const [today, rows] = await Promise.all([AdminController.aiUsage(limits), AdminAiRepository.callsPerDay(window.previousFrom, window.to)]);
+    const rows = await AdminAiRepository.callsPerDay(window.previousFrom, window.to);
     const current = rows.filter(row => row.day >= firstDay);
     const previous = rows.filter(row => row.day < firstDay);
     const inPeriod = current.reduce(add, ZERO);
@@ -161,7 +155,6 @@ export const AdminUsageController = {
       );
 
     return {
-      ...today,
       callsPerDay: { days, values: per(row => row.calls) },
       models: modelsOf(current),
       period,

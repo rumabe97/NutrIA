@@ -116,7 +116,6 @@ On the API project, beside what [`deployment.md`](./deployment.md) §2 lists:
 | `OMNIROUTE_MODEL` | `NutrIA-Fallback`; it wins over `AI_MODEL` for this provider |
 | `AI_BUDGET_SECONDS` | leave empty — 170, which fits the 300-second function. Raise it only on a host without that limit |
 | `GOOGLE_API_KEY` | keep it: it is the rollback (§4) |
-| `AI_REQUESTS_PER_DAY`, `AI_TOKENS_PER_MINUTE` | leave empty: they describe a Google allowance, not the gateway's |
 | `AI_REWRITE_STEPS` | `true` to let the daily cron rewrite old recipe methods (§6) |
 | `AI_REWRITE_MODEL` | a combo of the free models without the Gemini step, e.g. `muse-spark` then `mimo`; empty uses `OMNIROUTE_MODEL` (§6) |
 | `CRON_SECRET` | sixteen characters or more; the platform sends it on the cron's call |

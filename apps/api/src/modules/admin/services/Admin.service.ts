@@ -7,11 +7,8 @@ import { ENV } from '../../../config/index.js';
 import type {
   AdminAiDto,
   AdminAnalyticsDto,
-  AdminGenerationDto,
   AdminGenerationsDto,
   AdminGenerationStatsDto,
-  AdminJobDto,
-  AdminOverviewDto,
   AdminPeopleDto,
   AdminPicturesPeriodDto,
   AdminPlansDto,
@@ -25,26 +22,12 @@ import type { GenerationsQueryDto, PeriodQueryDto } from '../dto/in/index.js';
 export class AdminService {
   constructor(@Inject(ENV) private readonly env: Env) {}
 
-  /**
-   * The bars come from configuration because they belong to an account and a
-   * model — one Gemini model is given twenty requests a day and another five
-   * hundred. Unset means a count with no bar: a limit nobody stated is not a
-   * limit this product may invent (`0035`).
-   */
   async ai(query: PeriodQueryDto): Promise<AdminAiDto> {
-    return AdminUsageController.ai(query.period, { requestsPerDay: this.env.AI_REQUESTS_PER_DAY, tokensPerMinute: this.env.AI_TOKENS_PER_MINUTE });
+    return AdminUsageController.ai(query.period);
   }
 
   async analytics(): Promise<AdminAnalyticsDto> {
     return AdminController.analytics();
-  }
-
-  async failures(): Promise<readonly AdminJobDto[]> {
-    return AdminController.failures();
-  }
-
-  async generations(): Promise<readonly AdminGenerationDto[]> {
-    return AdminController.generations();
   }
 
   /** The query arrives validated (`GenerationsQueryDto`); what each filter means is `packages/core`'s. */
@@ -54,10 +37,6 @@ export class AdminService {
 
   async generationStats(query: PeriodQueryDto): Promise<AdminGenerationStatsDto> {
     return AdminLogController.stats(query.period);
-  }
-
-  async overview(): Promise<AdminOverviewDto> {
-    return AdminController.overview();
   }
 
   async people(query: PeriodQueryDto): Promise<AdminPeopleDto> {

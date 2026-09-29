@@ -815,3 +815,74 @@
     checks stop needing a custom script.
   - **Stale error text:** already checked on 2026-09-29. No production or dev row holds a
     provider's echo of the request, so Registro's detail column is safe.
+
+## Phase 9 — Removals, documentation and the owner's check (2026-09-29)
+
+- **Executor**: the `backend` agent (medium effort) on sonnet for the API and core
+  removals, and the `tests` agent (medium effort) on sonnet for the end-to-end updates.
+  Both worked in their own worktrees, which were brought into the main checkout and
+  removed. The lead (opus, this session) wrote the docs and made the review and owner
+  fixes. Reviews: `invariant-reviewer` on the final diff, and a final `accessibility` pass
+  over the whole console, both on opus.
+- **Result**: removals and docs are done. **Waiting for the owner's check (human-verify):**
+  a walk through the console on the iPhone and on desktop. The phase stays in progress, and
+  PRD and PLAN stay "approved", until the owner confirms.
+- **Evidence**:
+  - `rg -n "AI_REQUESTS_PER_DAY|AI_TOKENS_PER_MINUTE|resetsAt|lastRefusal|admin/failures|nextPacificMidnight" apps packages`
+    finds only `apps/api/test`'s deliberate "is gone" assertions and the `AGENTS.md` prose
+    that explains the removal.
+  - `pnpm turbo lint ts:check test --filter=core --filter=api --filter=web --filter=ui`:
+    17/17 tasks; core 1124 tests, api 972, web 125, ui 487. `deadcode` is green.
+  - End-to-end, local, `VAPID_*` blank: `admin` 54/54 and `access` 8/8.
+    - `admin.e2e-spec.ts:1924` ("never name who made a dish") failed once and passed on
+      the rerun. It is intermittent on the shared dev DB, not a phase 9 regression, since
+      this diff touches no recipe storage. Watch it.
+    - CI's full run on the pull request is the proof.
+  - `invariant-reviewer`: **sound, no P0 or P1.**
+    - The redactions (`allergen`/`unwanted`, an invalid plan's figures) hold on the one
+      generations path left.
+    - Every admin class is `@Roles('admin')` with 404 before validation.
+    - No response gained a field, and the env variables have no reader left.
+    - PRD criterion 9 was re-checked across phases 3–9 and holds.
+    - Its P2 and P3s are fixed: `scripts/smoke.mjs` now checks `/admin/summary` (the
+      removed `/admin/overview` would 404 whatever the guard did); wording in
+      `apps/api/AGENTS.md`, `AdminRepository`, `Admin.controller` and `AdminController`;
+      `docs/reference/ai-gateway.md`; `0035`'s status line.
+  - `accessibility`, final pass: 12 pages × 320/390/1280 × light/dark (72 loads), all 200.
+    - 0 px sideways scroll, also at 200 % text at 320.
+    - Table header baselines level (0 px spread).
+    - Contrast ≥ 4.90 everywhere.
+    - An ordinary account gets "Página no encontrada" on every page and on `/admin/zzz`.
+    - The phone menu **scrolls under a touch drag** to "Volver a NutrIA" (the owner's
+      report).
+    - One P1, fixed by the lead: the drawer never took focus on open (vaul's `autoFocus`
+      defaults to false and cancels Radix's move). `Sidebar` now sets `autoFocus`, and a
+      test proves it: it fails without the prop and passes with it. The lead's browser
+      check afterwards: focus lands inside the dialog, and the touch scroll still works.
+- **Deviations from plan**:
+  1. **Step 2 (dictionary keys) was already done in phase 8.** Parity is enforced by the
+     types.
+  2. **More came out than the list named, because it became dead:**
+     - `AdminController.aiUsage` and `summariseAiCalls`, `AiUsageView`, `AiRefusal`;
+     - `byModel`, `AnalyticsRepository.aiCallsSince`;
+     - `AdminRepository.counts`, `recentJobs` and `recentGenerations`;
+     - the legacy `generations()` path and its DTOs.
+     `AdminAiView` now carries exactly what IA y modelos reads: `callsPerDay`, `models`,
+     `period`, `spendPerDay`, `tokensPerDay`, `totals`, `window`.
+  3. **`?legacy=1` is now an unknown key and is dropped,** so it answers the paged shape.
+     An end-to-end case proves it, and another proves `/admin/overview` and
+     `/admin/failures` 404 for everyone.
+  4. **The owner's phone menu could not scroll.** vaul sets `touch-action: none` on every
+     drawer. `.sidebar[data-vaul-drawer]` is now `touch-action: pan-y;
+     overscroll-behavior: contain`, measured with a CDP touch drag.
+  5. **Files outside the listed scope:** the Scope line is amended.
+- **Decisions**: none new. `0035` is marked with what `0068` removed from it.
+- **For the owner**:
+  - `AI_REQUESTS_PER_DAY` and `AI_TOKENS_PER_MINUTE` may be deleted from the API project
+    on Vercel. Nothing reads them and a deployment that still sets them boots. That is the
+    owner's action; no agent changes Vercel.
+  - **The owner's call (accessibility P2):** under 36rem the first column scrolls with the
+    rest (the owner asked for whole addresses on one line), so mid-table on a phone a row
+    has no visible name. The alternative: pin the first column capped at about 45 % of the
+    table, wrapping its text.
+- **Notes**: every open P3 across the project is listed in phases 4–8.
