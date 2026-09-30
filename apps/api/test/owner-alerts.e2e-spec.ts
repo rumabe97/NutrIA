@@ -154,7 +154,8 @@ describe('the owner is told by mail (0071, phase 6)', () => {
   const mails = (kind: string) =>
     sql()<MailRow>`
       select (properties ->> 'ok')::boolean as ok from analytics_events
-      where event = 'mail_sent' and properties ->> 'kind' = ${kind} and created_at >= ${started}`;
+      where event = 'mail_sent' and properties ->> 'kind' = ${kind} and created_at >= ${started}
+      order by created_at, id`;
 
   const ownerMails = () => outbox.filter(mail => mail.to === OWNER);
 
@@ -471,12 +472,14 @@ describe('the owner is told by mail (0071, phase 6)', () => {
       await forget(['generation-streak']);
       refuse = true;
 
-      const before = (await mails('owner-alert')).length;
+      const refused = async () => (await mails('owner-alert')).filter(mail => !mail.ok).length;
+      const before = await refused();
 
       await fails(mailed, bad[0] as Account);
-      await until(async () => (await mails('owner-alert')).length === before + 1);
+      // Counted, not sliced by position: the refused mail is the one this case caused.
+      await until(async () => (await refused()) === before + 1);
 
-      expect((await mails('owner-alert')).slice(before)).toEqual([{ ok: false }]);
+      expect(await refused()).toBe(before + 1);
       expect(await alerted('generation-streak')).toEqual([]);
     }, 120_000);
   });
