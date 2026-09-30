@@ -1,4 +1,4 @@
-import { aliasedTable, and, eq, gte, inArray, isNull, lt, or, sql } from 'drizzle-orm';
+import { aliasedTable, and, asc, eq, gte, inArray, isNull, lt, lte, ne, or, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { database } from 'database';
@@ -63,6 +63,9 @@ export type PictureFood = {
   readonly slug: string;
 };
 
+/** A row that holds a candidate, as `candidateRow` reads it. */
+export type CandidateRow = { readonly lastAttemptAt: Date | null; readonly provenance: PictureProvenance | null; readonly status: string };
+
 /** A dish as its picture is drawn from: recipe data only. */
 export type PictureDish = {
   readonly ingredients: readonly { readonly grams: number; readonly name: string; readonly slug: string }[];
@@ -70,6 +73,27 @@ export type PictureDish = {
 };
 
 export const RecipeRepository = {
+  /**
+   * The row of a dish that holds a candidate (`0072`): what it stored, its
+   * status and when its drawing ended — what says whether the candidate can
+   * still be looked at. Null for a dish with no row or no pointer. `provenance`
+   * carries the file's path: it is for the API to fetch or delete the file, and
+   * no view is made of it. Mode: one read by primary key.
+   */
+  async candidateRow(recipeId: string): Promise<CandidateRow | null> {
+    try {
+      const [row] = await database()
+        .select({ lastAttemptAt: recipeImages.lastAttemptAt, provenance: recipeImages.provenance, status: recipeImages.status })
+        .from(recipeImages)
+        .where(and(eq(recipeImages.recipeId, recipeId), hasCandidate))
+        .limit(1);
+
+      return row ?? null;
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_images');
+    }
+  },
+
   /**
    * Claims the drawing of a dish's picture for this caller (0066). True when this
    * caller won and must draw; false when the dish is ready, already being drawn,
@@ -89,6 +113,11 @@ export const RecipeRepository = {
    * A **released** row (`releasePicture`: the cap, a refused key) is claimed at
    * once, with no cool-off, and keeps its `attempts`: what stopped it was not
    * the dish, and what the dish already failed still counts.
+   *
+   * A row holding a **candidate** (`0072`) is never claimed, cooled off or not:
+   * the claim would forget where the rejected file is kept, and nothing could
+   * delete it afterwards. It is claimable again once the pointer is gone — the
+   * owner discarded it, or the nightly cleanup deleted the expired file.
    *
    * Mode: one `INSERT … ON CONFLICT DO UPDATE … WHERE … RETURNING`. "Is anyone
    * drawing it?" and "I am" cannot be two statements: two first views fired
@@ -110,10 +139,13 @@ export const RecipeRepository = {
             status: 'drawing',
             updatedAt: now
           },
-          setWhere: or(
-            and(eq(recipeImages.status, 'failed'), lt(recipeImages.lastAttemptAt, cooledOff)),
-            and(eq(recipeImages.status, 'failed'), released),
-            and(eq(recipeImages.status, 'drawing'), lt(recipeImages.lastAttemptAt, stale))
+          setWhere: and(
+            sql`not ${hasCandidate}`,
+            or(
+              and(eq(recipeImages.status, 'failed'), lt(recipeImages.lastAttemptAt, cooledOff)),
+              and(eq(recipeImages.status, 'failed'), released),
+              and(eq(recipeImages.status, 'drawing'), lt(recipeImages.lastAttemptAt, stale))
+            )
           ),
           target: recipeImages.recipeId
         })
@@ -211,7 +243,8 @@ export const RecipeRepository = {
    * `claimedAt` is the `now` its claim was made with. Mode: a single guarded
    * `UPDATE … WHERE status = 'drawing' AND last_attempt_at = claimedAt`, so a
    * drawing whose claim was taken over as stale cannot end the newer one. False
-   * when nothing was updated.
+   * when nothing was updated. A candidate's pointer the row still holds is
+   * carried into what is written (`keepingCandidate`).
    */
   async completePicture(
     recipeId: string,
@@ -227,11 +260,42 @@ export const RecipeRepository = {
     try {
       const rows = await database()
         .update(recipeImages)
-        .set({ ...picture, status: 'ready', updatedAt: new Date() })
+        .set({ ...picture, provenance: keepingCandidate(picture.provenance), status: 'ready', updatedAt: new Date() })
         .where(stillClaimed(recipeId, claimedAt))
         .returning({ recipeId: recipeImages.recipeId });
 
       return rows.length === 1;
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_images');
+    }
+  },
+
+  /**
+   * Forgets a candidate whose file is already deleted (`0072`): removes the
+   * pointer and nothing else — `status`, `attempts` and `lastAttemptAt` stay, so
+   * the dish keeps waiting out the same cool-off. Mode: one guarded
+   * `UPDATE … WHERE the row still holds this very path RETURNING`, so a pointer
+   * written since (another drawing's) is never removed for a file that was not
+   * deleted; with `record`, the audit row is written in the same transaction
+   * (the owner's discard), and a pointer that was not removed leaves none. The
+   * nightly cleanup gives no `record`: it is no admin's action. False when
+   * nothing was removed.
+   */
+  async dropCandidate(recipeId: string, path: string, record?: RecordAudit): Promise<boolean> {
+    try {
+      return await database().transaction(async tx => {
+        const rows = await tx
+          .update(recipeImages)
+          .set({ provenance: sql`${recipeImages.provenance} - 'candidate'`, updatedAt: new Date() })
+          .where(and(eq(recipeImages.recipeId, recipeId), sql`${candidatePath} = ${path}`))
+          .returning({ recipeId: recipeImages.recipeId });
+
+        if (rows.length === 1) {
+          await record?.(tx);
+        }
+
+        return rows.length === 1;
+      });
     } catch (error: unknown) {
       throw wrap(error, 'recipe_images');
     }
@@ -251,7 +315,7 @@ export const RecipeRepository = {
     try {
       const rows = await database()
         .update(recipeImages)
-        .set({ ...outcome, lastAttemptAt: now, status: 'failed', updatedAt: now })
+        .set({ attempts: outcome.attempts, lastAttemptAt: now, provenance: keepingCandidate(outcome.provenance), status: 'failed', updatedAt: now })
         .where(stillClaimed(recipeId, claimedAt))
         .returning({ recipeId: recipeImages.recipeId });
 
@@ -698,6 +762,7 @@ export const RecipeRepository = {
       const [row] = await database()
         .select({
           attempts: recipeImages.attempts,
+          candidate: sql<boolean>`${hasCandidate}`,
           lastAttemptAt: recipeImages.lastAttemptAt,
           released: sql<boolean>`${released}`,
           status: recipeImages.status,
@@ -707,7 +772,7 @@ export const RecipeRepository = {
         .where(eq(recipeImages.recipeId, recipeId))
         .limit(1);
 
-      return pictureStateSchema.parse(row ?? { attempts: 0, lastAttemptAt: null, released: false, status: 'none', url: null });
+      return pictureStateSchema.parse(row ?? { attempts: 0, candidate: false, lastAttemptAt: null, released: false, status: 'none', url: null });
     } catch (error: unknown) {
       throw wrap(error, 'recipe_images');
     }
@@ -776,7 +841,7 @@ export const RecipeRepository = {
         .set({
           attempts: outcome.attempts,
           lastAttemptAt: now,
-          provenance: { reason: outcome.reason, released: outcome.why },
+          provenance: keepingCandidate({ reason: outcome.reason, released: outcome.why }),
           status: 'failed',
           updatedAt: now
         })
@@ -794,16 +859,25 @@ export const RecipeRepository = {
    * released or not — at once, with no cool-off, for a fresh three attempts,
    * and a `drawing` one stuck past `staleAfterMinutes`, as a view's claim would.
    * A fresh `drawing` or a `ready` row, or none, is not touched. `provenance` is
-   * cleared, so a retried released row is not counted as released while it draws.
-   * Mode: one guarded `UPDATE … WHERE failed OR stale drawing RETURNING`, and the audit row written by
-   * `record` in the same transaction, so a retry that did not start leaves none
-   * and one that started always has one. False when nothing was claimed.
+   * cleared, so a retried released row is not counted as released while it draws
+   * — and with it a candidate's pointer (`0072`), which is why the row is read
+   * and locked first: the path it held is handed back, for the caller to delete
+   * the file once the claim is made.
+   * Mode: `SELECT … FOR UPDATE`, then one guarded `UPDATE … WHERE failed OR stale drawing RETURNING`, and the audit row written by
+   * `record`, all in one transaction, so a retry that did not start leaves none
+   * and one that started always has one. Null when nothing was claimed.
    */
-  async retryPicture(recipeId: string, now: Date, staleAfterMinutes: number, record: RecordAudit): Promise<boolean> {
+  async retryPicture(
+    recipeId: string,
+    now: Date,
+    staleAfterMinutes: number,
+    record: RecordAudit
+  ): Promise<{ readonly candidatePath: string | null } | null> {
     try {
       const stale = new Date(now.getTime() - staleAfterMinutes * 60_000);
 
       return await database().transaction(async tx => {
+        const [held] = await tx.select({ path: candidatePath }).from(recipeImages).where(eq(recipeImages.recipeId, recipeId)).for('update');
         const rows = await tx
           .update(recipeImages)
           .set({ attempts: 0, lastAttemptAt: now, provenance: null, status: 'drawing', updatedAt: now })
@@ -815,11 +889,13 @@ export const RecipeRepository = {
           )
           .returning({ recipeId: recipeImages.recipeId });
 
-        if (rows.length === 1) {
-          await record(tx);
+        if (rows.length !== 1) {
+          return null;
         }
 
-        return rows.length === 1;
+        await record(tx);
+
+        return { candidatePath: held?.path ?? null };
       });
     } catch (error: unknown) {
       throw wrap(error, 'recipe_images');
@@ -878,6 +954,31 @@ export const RecipeRepository = {
       return true;
     } catch (error: unknown) {
       throw wrap(error, 'favorite_recipes');
+    }
+  },
+
+  /**
+   * The candidates nobody can look at any more (`0072`), for the nightly
+   * cleanup: a row whose drawing ended at or before `expiredAt` — the
+   * cool-off's own instant — or that is no longer `failed`. The database says
+   * which files exist, so the store is never listed. Oldest first and bounded;
+   * what is not reached waits for the next night. Mode: one filtered read; the
+   * rows are few.
+   */
+  async unreviewableCandidates(expiredAt: Date, limit: number): Promise<readonly { readonly path: string; readonly recipeId: string }[]> {
+    try {
+      const rows = await database()
+        .select({ path: candidatePath, recipeId: recipeImages.recipeId })
+        .from(recipeImages)
+        .where(
+          and(hasCandidate, or(ne(recipeImages.status, 'failed'), isNull(recipeImages.lastAttemptAt), lte(recipeImages.lastAttemptAt, expiredAt)))
+        )
+        .orderBy(asc(recipeImages.lastAttemptAt))
+        .limit(limit);
+
+      return rows.flatMap(row => (row.path === null ? [] : [{ path: row.path, recipeId: row.recipeId }]));
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_images');
     }
   },
 
@@ -947,6 +1048,28 @@ export function needsRewriteCondition(stepsVersion: string) {
  */
 /** A row a drawing gave back for a reason that is not the dish's (`releasePicture`). */
 const released = sql`(${recipeImages.provenance} ->> 'released') is not null`;
+
+/** Where a row's candidate is kept in the private store (`0072`), or null: `provenance.candidate.path`. */
+const candidatePath = sql<string | null>`(${recipeImages.provenance} -> 'candidate' ->> 'path')`;
+
+/** A row that holds a candidate. Always true or false, a row with no `provenance` included. */
+const hasCandidate = sql`(${candidatePath} is not null)`;
+
+/**
+ * What a drawing's end writes as `provenance`, with the candidate's pointer
+ * the row already holds carried over (`0072`). A row being drawn holds none —
+ * a view's claim refuses a row with one and the owner's retry hands the path
+ * back to be deleted — so this changes nothing unless that ever stops being
+ * true; then the pointer outlives the write instead of being lost with the
+ * only record of where a rejected file is, and the cleanup deletes it.
+ *
+ * **The pointer the row already holds wins** over one in what is written: if
+ * that day came, a file uploaded by the drawing that is ending would be left
+ * with no pointer — a private file nothing reads — and never the older file.
+ */
+function keepingCandidate(provenance: PictureProvenance): SQL {
+  return sql`${JSON.stringify(provenance)}::jsonb || case when ${hasCandidate} then jsonb_build_object('candidate', ${recipeImages.provenance} -> 'candidate') else '{}'::jsonb end`;
+}
 
 function stillClaimed(recipeId: string, claimedAt: Date): SQL | undefined {
   return and(eq(recipeImages.recipeId, recipeId), eq(recipeImages.status, 'drawing'), eq(recipeImages.lastAttemptAt, claimedAt));

@@ -82,8 +82,8 @@ function select() {
       where: (where: SQL) => {
         statements.push({ kind: 'select', table, where: dialect.sqlToQuery(where) });
 
-        // Awaited directly (an aggregate) or through `.limit()`: one answer either way.
-        return { limit: next, then: (resolve: (rows: unknown[]) => unknown) => next().then(resolve) };
+        // Awaited directly (an aggregate), through `.limit()`, locked (`.for()`) or ordered first: one answer either way.
+        return { for: next, limit: next, orderBy: () => ({ limit: next }), then: (resolve: (rows: unknown[]) => unknown) => next().then(resolve) };
       }
     })
   };
@@ -102,6 +102,17 @@ const RECIPE = '6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f';
 const NOW = new Date('2026-09-27T12:00:00Z');
 /** When the drawing being ended was claimed. */
 const CLAIMED = new Date('2026-09-27T11:58:00Z');
+
+/** A candidate's place in the private store. */
+const CANDIDATE = `dish-picture-candidates/${RECIPE}/2.0.0-0b7e3f2a-5c1d-4e8f-9a6b-7c8d9e0f1a2b.jpg`;
+
+/** What a drawing's end writes as `provenance`: what it was given, and the candidate's pointer the row already holds. */
+const KEEPING =
+  "$1::jsonb || case when ((\"recipe_images\".\"provenance\" -> 'candidate' ->> 'path') is not null) then jsonb_build_object('candidate', \"recipe_images\".\"provenance\" -> 'candidate') else '{}'::jsonb end";
+
+function written(value: unknown): { params: unknown[]; sql: string } {
+  return dialect.sqlToQuery(value as SQL);
+}
 
 beforeEach(() => {
   statements.length = 0;
@@ -138,8 +149,9 @@ describe('RecipeRepository.claimPicture', () => {
     expect(dialect.sqlToQuery(claim.upsert?.set.attempts as SQL).sql).toBe(
       'case when "recipe_images"."status" = \'drawing\' then "recipe_images"."attempts" + 1 when ("recipe_images"."provenance" ->> \'released\') is not null then "recipe_images"."attempts" else 0 end'
     );
+    // 0072: a row holding a candidate is never claimed, whichever of the three it is.
     expect(claim.upsert?.setWhere.sql).toBe(
-      '(("recipe_images"."status" = $1 and "recipe_images"."last_attempt_at" < $2) or ("recipe_images"."status" = $3 and ("recipe_images"."provenance" ->> \'released\') is not null) or ("recipe_images"."status" = $4 and "recipe_images"."last_attempt_at" < $5))'
+      '(not (("recipe_images"."provenance" -> \'candidate\' ->> \'path\') is not null) and (("recipe_images"."status" = $1 and "recipe_images"."last_attempt_at" < $2) or ("recipe_images"."status" = $3 and ("recipe_images"."provenance" ->> \'released\') is not null) or ("recipe_images"."status" = $4 and "recipe_images"."last_attempt_at" < $5)))'
     );
     // 7 days of cool-off after a failure; a drawing is stale 15 minutes after its claim by default.
     expect(claim.upsert?.setWhere.params).toEqual([
@@ -205,7 +217,8 @@ describe('RecipeRepository — ending a drawing', () => {
     }
 
     expect(done.table).toBe(recipeImages);
-    expect(done.set).toMatchObject({ ...picture, status: 'ready' });
+    expect(done.set).toMatchObject({ attempts: 2, model: picture.model, promptVersion: '2.0.0', status: 'ready', url: picture.url });
+    expect(written(done.set.provenance)).toMatchObject({ params: ['{"c2pa":true}'], sql: KEEPING });
     expect(done.set).not.toHaveProperty('bytes');
     expect(done.where.sql).toBe('("recipe_images"."recipe_id" = $1 and "recipe_images"."status" = $2 and "recipe_images"."last_attempt_at" = $3)');
     expect(done.where.params).toEqual([RECIPE, 'drawing', CLAIMED.toISOString()]);
@@ -228,8 +241,25 @@ describe('RecipeRepository — ending a drawing', () => {
       throw new Error('expected an update');
     }
 
-    expect(failed.set).toMatchObject({ attempts: 3, lastAttemptAt: NOW, provenance: { rejected: 3 }, status: 'failed' });
+    expect(failed.set).toMatchObject({ attempts: 3, lastAttemptAt: NOW, status: 'failed' });
+    expect(written(failed.set.provenance)).toMatchObject({ params: ['{"rejected":3}'], sql: KEEPING });
     expect(failed.where.params).toEqual([RECIPE, 'drawing', CLAIMED.toISOString()]);
+  });
+
+  /* 0072: a drawing's end never forgets where a rejected file is kept. */
+  it('failPicture writes the candidate it is given, inside what the row stores', async () => {
+    answers = [[{ recipeId: RECIPE }]];
+    const provenance = { candidate: { extras: [], model: 'm', path: CANDIDATE, promptVersion: '2.0.0' }, notes: [], reason: 'judge_allergen' };
+
+    await RecipeRepository.failPicture(RECIPE, CLAIMED, { attempts: 3, provenance }, NOW);
+
+    const [failed] = statements;
+
+    if (failed?.kind !== 'update') {
+      throw new Error('expected an update');
+    }
+
+    expect(written(failed.set.provenance).params).toEqual([JSON.stringify(provenance)]);
   });
 });
 
@@ -237,6 +267,7 @@ describe('RecipeRepository — reading a picture and its spend', () => {
   it('pictureState answers `none` for a dish with no row', async () => {
     await expect(RecipeRepository.pictureState(RECIPE)).resolves.toEqual({
       attempts: 0,
+      candidate: false,
       lastAttemptAt: null,
       released: false,
       status: 'none',
@@ -315,7 +346,8 @@ describe('RecipeRepository.releasePicture', () => {
     }
 
     expect(release.table).toBe(recipeImages);
-    expect(release.set).toMatchObject({ attempts: 2, lastAttemptAt: NOW, provenance: { reason: 'cap_reached', released: 'cap' }, status: 'failed' });
+    expect(release.set).toMatchObject({ attempts: 2, lastAttemptAt: NOW, status: 'failed' });
+    expect(written(release.set.provenance)).toMatchObject({ params: ['{"reason":"cap_reached","released":"cap"}'], sql: KEEPING });
     expect(release.where.sql).toBe('("recipe_images"."recipe_id" = $1 and "recipe_images"."status" = $2 and "recipe_images"."last_attempt_at" = $3)');
     expect(release.where.params).toEqual([RECIPE, 'drawing', CLAIMED.toISOString()]);
   });
@@ -327,12 +359,15 @@ describe('RecipeRepository.releasePicture', () => {
 
 describe('RecipeRepository.retryPicture', () => {
   it('claims only a failed row, released or past its cool-off or not, for a fresh three attempts — and the audit row goes in the same transaction', async () => {
-    answers = [[{ recipeId: RECIPE }]];
+    answers = [[{ path: null }], [{ recipeId: RECIPE }]];
     const record = vi.fn(async () => Promise.resolve());
 
-    await expect(RecipeRepository.retryPicture(RECIPE, NOW, 15, record)).resolves.toBe(true);
+    await expect(RecipeRepository.retryPicture(RECIPE, NOW, 15, record)).resolves.toEqual({ candidatePath: null });
 
-    const [claim] = statements;
+    const [locked, claim] = statements;
+
+    // The row is read and locked first, so the path the claim clears is the one handed back.
+    expect(locked).toMatchObject({ kind: 'select', table: recipeImages, where: { params: [RECIPE], sql: '"recipe_images"."recipe_id" = $1' } });
 
     if (claim?.kind !== 'update') {
       throw new Error('expected an update');
@@ -351,8 +386,21 @@ describe('RecipeRepository.retryPicture', () => {
     expect(record).toHaveBeenCalledWith(tx);
   });
 
+  /* 0072: the retry discards the candidate — the claim clears the pointer and hands the path back for the file to be deleted. */
+  it('hands back the path of the candidate the row held, which the claim cleared', async () => {
+    answers = [[{ path: CANDIDATE }], [{ recipeId: RECIPE }]];
+
+    await expect(RecipeRepository.retryPicture(RECIPE, NOW, 15, async () => Promise.resolve())).resolves.toEqual({ candidatePath: CANDIDATE });
+  });
+
+  it('hands back no path when nothing was claimed, even for a row that holds a candidate', async () => {
+    answers = [[{ path: CANDIDATE }], []];
+
+    await expect(RecipeRepository.retryPicture(RECIPE, NOW, 15, async () => Promise.resolve())).resolves.toBeNull();
+  });
+
   it('fails when the audit row cannot be written, so the claim rolls back with it', async () => {
-    answers = [[{ recipeId: RECIPE }]];
+    answers = [[], [{ recipeId: RECIPE }]];
     const record = vi.fn(async () => Promise.reject(new Error('audit down')));
 
     await expect(RecipeRepository.retryPicture(RECIPE, NOW, 15, record)).rejects.toThrow();
@@ -361,7 +409,93 @@ describe('RecipeRepository.retryPicture', () => {
   it('writes no audit row when nothing was claimed', async () => {
     const record = vi.fn(async () => Promise.resolve());
 
-    await expect(RecipeRepository.retryPicture(RECIPE, NOW, 15, record)).resolves.toBe(false);
+    await expect(RecipeRepository.retryPicture(RECIPE, NOW, 15, record)).resolves.toBeNull();
     expect(record).not.toHaveBeenCalled();
+  });
+});
+
+/* 0072: a rejected picture waits for the owner as a pointer inside `provenance` — no state and no column of its own. */
+describe('RecipeRepository — a candidate', () => {
+  const HAS = '("recipe_images"."provenance" -> \'candidate\' ->> \'path\') is not null';
+
+  it('candidateRow reads only a row that holds a pointer', async () => {
+    const row = { lastAttemptAt: NOW, provenance: { candidate: { path: CANDIDATE } }, status: 'failed' };
+
+    answers = [[row]];
+
+    await expect(RecipeRepository.candidateRow(RECIPE)).resolves.toEqual(row);
+    await expect(RecipeRepository.candidateRow(RECIPE)).resolves.toBeNull();
+
+    const [read] = statements;
+
+    if (read?.kind !== 'select') {
+      throw new Error('expected a read');
+    }
+
+    expect(read.where).toMatchObject({ params: [RECIPE], sql: `("recipe_images"."recipe_id" = $1 and (${HAS}))` });
+  });
+
+  it('dropCandidate removes the pointer and nothing else, only from a row that still holds that very path, with the audit row in the same transaction', async () => {
+    answers = [[{ recipeId: RECIPE }]];
+    const record = vi.fn(async () => Promise.resolve());
+
+    await expect(RecipeRepository.dropCandidate(RECIPE, CANDIDATE, record)).resolves.toBe(true);
+
+    const [drop] = statements;
+
+    if (drop?.kind !== 'update') {
+      throw new Error('expected an update');
+    }
+
+    // The cool-off is left as it was: no status, no attempts, no date.
+    expect(Object.keys(drop.set).sort()).toEqual(['provenance', 'updatedAt']);
+    expect(written(drop.set.provenance)).toMatchObject({ params: [], sql: '"recipe_images"."provenance" - \'candidate\'' });
+    expect(drop.where).toMatchObject({
+      params: [RECIPE, CANDIDATE],
+      sql: '("recipe_images"."recipe_id" = $1 and ("recipe_images"."provenance" -> \'candidate\' ->> \'path\') = $2)'
+    });
+    expect(updatedThrough).toEqual(['tx']);
+    expect(record).toHaveBeenCalledWith(tx);
+  });
+
+  it('dropCandidate writes no audit row when the pointer was no longer that one, and rolls back when the audit row cannot be written', async () => {
+    const record = vi.fn(async () => Promise.resolve());
+
+    await expect(RecipeRepository.dropCandidate(RECIPE, CANDIDATE, record)).resolves.toBe(false);
+    expect(record).not.toHaveBeenCalled();
+
+    answers = [[{ recipeId: RECIPE }]];
+    await expect(RecipeRepository.dropCandidate(RECIPE, CANDIDATE, async () => Promise.reject(new Error('audit down')))).rejects.toThrow();
+  });
+
+  it('dropCandidate needs no audit for the cleanup, which is no admin’s action', async () => {
+    answers = [[{ recipeId: RECIPE }]];
+
+    await expect(RecipeRepository.dropCandidate(RECIPE, CANDIDATE)).resolves.toBe(true);
+  });
+
+  it('unreviewableCandidates reads the rows whose candidate expired or whose row is no longer failed, from the database and never the store', async () => {
+    const expiredAt = new Date('2026-09-20T12:00:00Z');
+
+    answers = [[{ path: CANDIDATE, recipeId: RECIPE }]];
+
+    await expect(RecipeRepository.unreviewableCandidates(expiredAt, 100)).resolves.toEqual([{ path: CANDIDATE, recipeId: RECIPE }]);
+
+    const [read] = statements;
+
+    if (read?.kind !== 'select') {
+      throw new Error('expected a read');
+    }
+
+    expect(read.where).toMatchObject({
+      params: ['failed', expiredAt.toISOString()],
+      sql: `((${HAS}) and ("recipe_images"."status" <> $1 or "recipe_images"."last_attempt_at" is null or "recipe_images"."last_attempt_at" <= $2))`
+    });
+  });
+
+  it('pictureState says whether the row holds a candidate', async () => {
+    answers = [[{ attempts: 3, candidate: true, lastAttemptAt: NOW, released: false, status: 'failed', url: null }]];
+
+    await expect(RecipeRepository.pictureState(RECIPE)).resolves.toMatchObject({ candidate: true, status: 'failed' });
   });
 });

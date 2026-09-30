@@ -353,6 +353,15 @@ export const AI_PICTURES = Symbol('AI_PICTURES');
  */
 export const AI_PICTURE_CAP = Symbol('AI_PICTURE_CAP');
 
+/**
+ * The clock a candidate expires by (`0072`): the table, the file's route, the
+ * discard and the nightly cleanup all read it. A provider of its own so an
+ * end-to-end test can move it past the seven days without waiting for them.
+ */
+export const PICTURE_CANDIDATE_CLOCK = Symbol('PICTURE_CANDIDATE_CLOCK');
+
+export type PictureCandidateClock = () => Date;
+
 /** What the picture clients are built from (`0066`). */
 export type PictureSettings = {
   /** `OPENROUTER_IMAGE_API_KEY`: the pictures' own key, whose monthly limit OpenRouter enforces too. */

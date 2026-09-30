@@ -39,3 +39,19 @@
   color: var(--foreground-02);
   font-size: var(--font-size-02);
 }
+
+/* The way to a rejected picture's review, where the retry button would be. */
+.review {
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+}
+
+/* A standalone link is a target of its own on touch: the floor, stated once. */
+@media (pointer: coarse) {
+  .review {
+    align-items: center;
+    display: inline-flex;
+    min-block-size: var(--target-min);
+  }
+}

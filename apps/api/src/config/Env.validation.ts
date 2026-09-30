@@ -350,6 +350,13 @@ const envObject = z.object({
    * Vercel Blob's read-write token, where accepted dish pictures are kept
    * (`0066`). The platform adds it when the store is connected to the project.
    */
+  /*
+   * The read-write token of the second, **private** Blob store, where a
+   * picture the judge rejected waits for the owner (`0072`). Its own variable:
+   * the platform's default name belongs to the public store. Unset, no
+   * rejected picture is kept and drawing is as it was.
+   */
+  BLOB_CANDIDATES_READ_WRITE_TOKEN: optional(z.string()),
   BLOB_READ_WRITE_TOKEN: optional(z.string()),
   /*
    * The parent domain the session cookie is written for, with the leading dot
@@ -571,6 +578,15 @@ const envSchema = envObject
         code: 'custom',
         message: 'must be its own key, not OPENROUTER_API_KEY — the pictures’ monthly limit is set on it',
         path: ['OPENROUTER_IMAGE_API_KEY']
+      });
+    }
+
+    // Its own store: with the public store's token here, a picture the judge rejected would be written where anyone with the link reads it (`0072`).
+    if (env.BLOB_CANDIDATES_READ_WRITE_TOKEN && env.BLOB_CANDIDATES_READ_WRITE_TOKEN.trim() === env.BLOB_READ_WRITE_TOKEN?.trim()) {
+      ctx.addIssue({
+        code: 'custom',
+        message: 'must be the private store’s own token, not BLOB_READ_WRITE_TOKEN — a rejected picture is never kept in the public store',
+        path: ['BLOB_CANDIDATES_READ_WRITE_TOKEN']
       });
     }
   })

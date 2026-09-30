@@ -2,21 +2,23 @@ import { randomUUID } from 'node:crypto';
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
-import { buildPicturePrompt, judgePicture, PICTURE_PROMPT_VERSION, pictureMarks } from 'core/domain/DishPicture';
+import { buildPicturePrompt, flaggedExtras, judgePicture, PICTURE_PROMPT_VERSION, pictureMarks } from 'core/domain/DishPicture';
 import { PICTURE_ATTEMPTS, RecipeController } from 'core/controllers/Recipe';
 
 import { AI_PICTURE_CAP } from '../ai.config.js';
 import { BackgroundTaskService } from '../../../shared/services/index.js';
 import { isQuotaExhausted } from '../clients/quota.js';
 import { PictureCallError } from '../clients/pictureTransport.js';
+import { PictureCandidateStore } from '../clients/PictureCandidateStore.js';
 import { PictureImageClient } from '../clients/PictureImageClient.js';
 import { PictureJudgeClient } from '../clients/PictureJudgeClient.js';
 import { PictureStore } from '../clients/PictureStore.js';
+import { untilAborted } from '../clients/untilAborted.js';
 
-import { reasonOfCall, reasonOfRejection } from 'core/entities/DishPicture';
+import { PICTURE_CANDIDATE_FOLDER, reasonOfCall, reasonOfRejection } from 'core/entities/DishPicture';
 
+import type { PictureCandidate, PictureDiagnostic, PictureReason } from 'core/entities/DishPicture';
 import type { PictureClaim } from 'core/controllers/Recipe';
-import type { PictureReason } from 'core/entities/DishPicture';
 import type { PictureCatalogueEntry, PictureRecipe, PictureVerdict } from 'core/domain/DishPicture';
 
 /** What a picture is billed on Vertex at 1K (`0066`): recorded when OpenRouter never says, so the cap is never undercounted. */
@@ -35,10 +37,23 @@ const DRAW_BUDGET_MS = 240_000;
 /** No attempt starts with less than this left: one attempt is an image and two judge calls, ~25 s in the pilot. */
 const ATTEMPT_MIN_MS = 60_000;
 
+/**
+ * How long keeping a rejected picture may take (`0072`). Its own clock, after
+ * the drawing's: the upload happens once the attempts are over, inside the
+ * minute the function keeps past `DRAW_BUDGET_MS`.
+ */
+const CANDIDATE_BUDGET_MS = 10_000;
+
 /** How a drawing ended. */
 export type DrawOutcome = 'accepted' | 'failed' | 'lost' | 'released';
 
 type Inputs = { readonly catalogue: readonly PictureCatalogueEntry[]; readonly recipe: PictureRecipe };
+
+/** A picture the judge rejected, which carried its C2PA manifest: held in memory while the drawing runs, and no longer. */
+type Rejected = { readonly bytes: Uint8Array; readonly model: string; readonly verdict: PictureVerdict };
+
+/** An attempt that ended with no picture to look at: a call that broke, or one the account would not pay for. */
+type Unjudged = { readonly kind: 'failed' | 'refused'; readonly note: string; readonly reason: PictureReason };
 
 /** One attempt: kept, not kept (count it and go on), or stopped (count it, and no attempt after it can do better). */
 type Attempt =
@@ -49,7 +64,9 @@ type Attempt =
       readonly model: string;
       readonly verdict: PictureVerdict;
     }
-  | { readonly kind: 'failed' | 'refused' | 'rejected' | 'unkeepable'; readonly note: string; readonly reason: PictureReason };
+  | { readonly diagnostic: PictureDiagnostic; readonly kind: 'unkeepable'; readonly note: string; readonly reason: PictureReason }
+  | { readonly kind: 'rejected'; readonly note: string; readonly reason: PictureReason; readonly rejected: Rejected }
+  | Unjudged;
 
 /**
  * Whether a failed call says the account cannot pay for another (`0066`):
@@ -95,11 +112,22 @@ function describe(error: unknown): string {
  * 4. the judge's two calls, each recorded;
  * 5. `judgePicture`, on the whole catalogue: the allergens come from there.
  *
- * Only an accepted picture is stored, byte for byte, and only then is the dish
- * `ready`. A judge that fails is a picture that is not kept, never one that is.
- * The account refusing to pay ends the drawing and gives the claim back, so
- * the dish is `none` again and not failed. Everything else that goes wrong
- * fails the dish, which waits out the cool-off.
+ * Only an accepted picture is published — stored byte for byte in the public
+ * store — and only then is the dish `ready`. A judge that fails is a picture
+ * that is not kept, never one that is. The account refusing to pay ends the
+ * drawing and gives the claim back, so the dish is `none` again and not
+ * failed. Everything else that goes wrong fails the dish, which waits out the
+ * cool-off.
+ *
+ * **A rejected picture is kept privately, for the owner to look at** (`0072`,
+ * which amends `0066`): the last picture of the drawing that carried its C2PA
+ * manifest and that the judge rejected is held in memory and, only if the
+ * drawing ends failed, uploaded to the private store (`PictureCandidateStore`)
+ * with a pointer in the dish's row. It has no public address, it is never a
+ * dish's picture, and **nothing here publishes one** — no attempt, retry or
+ * cron. A drawing that is accepted or given back keeps none; a file without its
+ * manifest is never kept anywhere, and the row records what it was instead.
+ * Without the private store, none of this happens and drawing is as it was.
  */
 @Injectable()
 export class DishPictureService {
@@ -110,6 +138,7 @@ export class DishPictureService {
     private readonly images: PictureImageClient,
     private readonly judge: PictureJudgeClient,
     private readonly store: PictureStore,
+    private readonly candidates: PictureCandidateStore,
     @Inject(AI_PICTURE_CAP) readonly capUsd: number
   ) {}
 
@@ -146,6 +175,9 @@ export class DishPictureService {
     let attempts = claim.attempts;
     const notes: string[] = [];
     let reason: PictureReason = 'other';
+    // The last picture the judge rejected, and what a file without its manifest was (`0072`).
+    let rejected: Rejected | null = null;
+    let diagnostic: PictureDiagnostic | null = null;
 
     try {
       const inputs = await RecipeController.pictureInputs(claim.recipeId);
@@ -181,7 +213,12 @@ export class DishPictureService {
           return await this.release(claim, attempt.note, attempts - 1, attempt.reason);
         }
 
+        if (attempt.kind === 'rejected') {
+          rejected = attempt.rejected;
+        }
+
         if (attempt.kind === 'unkeepable') {
+          diagnostic = attempt.diagnostic;
           break;
         }
       }
@@ -191,7 +228,19 @@ export class DishPictureService {
       this.logger.warn(`Picture of recipe ${claim.recipeId} failed: ${describe(error)}`);
     }
 
-    const ended = await RecipeController.failPicture(claim, { attempts, provenance: { notes, reason } });
+    // Only here, where the drawing has ended failed: an accepted or given-back one returned above and kept nothing.
+    const candidate = rejected === null ? null : await this.keepCandidate(claim, rejected);
+    const provenance = { notes, reason, ...(candidate !== null && { candidate }), ...(diagnostic !== null && { diagnostic }) };
+    let ended = false;
+
+    try {
+      ended = await RecipeController.failPicture(claim, { attempts, provenance });
+    } finally {
+      if (!ended && candidate !== null) {
+        // No row points to the file: the claim was taken over, or the write failed.
+        await this.dropCandidate(candidate);
+      }
+    }
 
     return ended ? 'failed' : 'lost';
   }
@@ -225,7 +274,13 @@ export class DishPictureService {
     const marks = pictureMarks(drawn.bytes);
 
     if (drawn.contentType !== 'image/jpeg' || !marks.c2pa) {
-      return { kind: 'unkeepable', note: `no C2PA manifest (${drawn.contentType})`, reason: 'no_provenance' };
+      return {
+        // The file is dropped here, for good: what it was is all that is kept of it (`0072`).
+        diagnostic: { ...marks, contentType: drawn.contentType, size: drawn.bytes.length },
+        kind: 'unkeepable',
+        note: `no C2PA manifest (${drawn.contentType})`,
+        reason: 'no_provenance'
+      };
     }
 
     const verdict = await this.judged(recipeId, inputs, drawn.bytes, signal);
@@ -240,11 +295,11 @@ export class DishPictureService {
 
     const note = verdict.notes.join(' ');
 
-    return { kind: 'rejected', note, reason: reasonOfRejection(note) };
+    return { kind: 'rejected', note, reason: reasonOfRejection(note), rejected: { bytes: drawn.bytes, model: drawn.model, verdict } };
   }
 
   /** The judge's two calls, each recorded, and the rule on what they saw. A failed call is a picture that is not kept. */
-  private async judged(recipeId: string, inputs: Inputs, bytes: Uint8Array, signal: AbortSignal): Promise<Attempt | PictureVerdict> {
+  private async judged(recipeId: string, inputs: Inputs, bytes: Uint8Array, signal: AbortSignal): Promise<PictureVerdict | Unjudged> {
     const record = (costUsd: number | null, model: string, outcome: string) =>
       RecipeController.recordPictureCall({ costUsd: costUsd ?? JUDGE_COST_FLOOR_USD, kind: 'judge', model, outcome, recipeId });
 
@@ -299,6 +354,46 @@ export class DishPictureService {
     }
 
     return 'accepted';
+  }
+
+  /**
+   * Uploads a rejected picture to the private store, as it came, and answers
+   * the pointer the dish's row will hold: the path, what drew it, and what the
+   * judge flagged in closed words — allergen keys and catalogue slugs, never
+   * the judge's own (`flaggedExtras`). Null without the store, and null when
+   * the upload fails or outlasts its budget: the dish then fails exactly as it
+   * would have, with no candidate. It never changes how the drawing ended.
+   */
+  private async keepCandidate(claim: PictureClaim, rejected: Rejected): Promise<PictureCandidate | null> {
+    // Checked again on the bytes about to be uploaded, here at the only `put`: a file without its C2PA manifest is never kept.
+    if (!this.candidates.isAvailable || !pictureMarks(rejected.bytes).c2pa) {
+      return null;
+    }
+
+    // The recipe's id and a random part, as the public path is made; this one never leaves the API.
+    const path = `${PICTURE_CANDIDATE_FOLDER}/${claim.recipeId}/${PICTURE_PROMPT_VERSION}-${randomUUID()}.jpg`;
+    const signal = AbortSignal.timeout(CANDIDATE_BUDGET_MS);
+
+    try {
+      await untilAborted(this.candidates.put(path, rejected.bytes, 'image/jpeg', signal), signal);
+
+      return { extras: flaggedExtras(rejected.verdict), model: rejected.model, path, promptVersion: PICTURE_PROMPT_VERSION };
+    } catch (error: unknown) {
+      this.logger.warn(`The rejected picture of recipe ${claim.recipeId} was not kept: ${describe(error)}`);
+
+      return null;
+    }
+  }
+
+  /** Deletes a candidate no row points to. Best effort: what stays is a private file of a few hundred KB, and nothing reads it. */
+  private async dropCandidate(candidate: PictureCandidate): Promise<void> {
+    const signal = AbortSignal.timeout(CANDIDATE_BUDGET_MS);
+
+    try {
+      await untilAborted(this.candidates.del(candidate.path, signal), signal);
+    } catch {
+      // Known, and accepted (`0072`): an orphan in the private store.
+    }
   }
 
   /** Gives the claim back, keeping the attempts the dish itself used. */

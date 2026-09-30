@@ -73,6 +73,7 @@ function allSecrets(env: Env): readonly string[] {
     env.APPLE_OAUTH_PRIVATE_KEY,
     env.SMTP_PASS,
     env.BLOB_READ_WRITE_TOKEN,
+    env.BLOB_CANDIDATES_READ_WRITE_TOKEN,
     env.OPENROUTER_IMAGE_API_KEY
   ].map(value => value?.trim());
 

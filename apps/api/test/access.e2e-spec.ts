@@ -165,6 +165,11 @@ describe('access: two locks, and the shape of a denial', () => {
       '/admin/plans/quality?period=12',
       '/admin/retention',
       '/admin/retention?grouping=year',
+      // One recipe and the file of its rejected picture (project 009 phase 2): an id that is no recipe, and one that is no id.
+      '/admin/catalogue/recipes/00000000-0000-4000-8000-000000000000',
+      '/admin/catalogue/recipes/not-a-uuid',
+      '/admin/catalogue/recipes/00000000-0000-4000-8000-000000000000/picture/candidate',
+      '/admin/catalogue/recipes/not-a-uuid/picture/candidate',
       '/health-data'
     ];
 

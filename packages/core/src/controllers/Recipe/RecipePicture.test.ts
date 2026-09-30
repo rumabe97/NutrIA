@@ -12,7 +12,10 @@ const monthSpendUsd = vi.fn<(since: Date) => Promise<number>>();
 const claimPicture = vi.fn<(recipeId: string, now: Date, coolOffDays: number, staleAfterMinutes: number) => Promise<boolean>>();
 const servesRecipe = vi.fn<(userId: string, recipeId: string) => Promise<boolean>>();
 const recipeExists = vi.fn<(recipeId: string) => Promise<boolean>>();
-const retryPicture = vi.fn<(recipeId: string, now: Date, staleMinutes: number, record: (tx: unknown) => Promise<void>) => Promise<boolean>>();
+const retryPicture =
+  vi.fn<
+    (recipeId: string, now: Date, staleMinutes: number, record: (tx: unknown) => Promise<void>) => Promise<{ candidatePath: string | null } | null>
+  >();
 const record = vi.fn<(entry: unknown, tx: unknown) => Promise<void>>();
 const pictureRecipe = vi.fn<() => Promise<unknown>>();
 const pictureCatalogue = vi.fn<() => Promise<unknown>>();
@@ -52,7 +55,7 @@ beforeEach(() => {
   retryPicture.mockImplementation(async (_id, _now, _stale, audit) => {
     await audit('tx');
 
-    return true;
+    return { candidatePath: null };
   });
 });
 
@@ -91,6 +94,21 @@ describe('RecipeController.requestPicture', () => {
 
     await expect(RecipeController.requestPicture(RECIPE, 10, NOW)).resolves.toBeNull();
     expect(monthSpendUsd).not.toHaveBeenCalled();
+    expect(claimPicture).not.toHaveBeenCalled();
+  });
+
+  /* 0072: the claim would forget where the rejected file is kept. */
+  it.each<[string, PictureState]>([
+    ['inside its cool-off', { attempts: 3, candidate: true, lastAttemptAt: minutesAgo(60), status: 'failed', url: null }],
+    [
+      'past its cool-off, until the cleanup removes the pointer',
+      { attempts: 3, candidate: true, lastAttemptAt: minutesAgo(8 * 24 * 60), status: 'failed', url: null }
+    ],
+    ['given back', { attempts: 1, candidate: true, lastAttemptAt: minutesAgo(1), released: true, status: 'failed', url: null }]
+  ])('claims nothing for a dish holding a candidate, %s', async (_case, state) => {
+    pictureState.mockResolvedValue(state);
+
+    await expect(RecipeController.requestPicture(RECIPE, 10, NOW)).resolves.toBeNull();
     expect(claimPicture).not.toHaveBeenCalled();
   });
 
@@ -252,10 +270,61 @@ describe('RecipeController.retryPicture', () => {
   });
 
   it('refuses as drawing when somebody claimed it between the read and the claim', async () => {
-    retryPicture.mockResolvedValue(false);
+    const forget = vi.fn(async () => Promise.resolve());
 
-    await expect(RecipeController.retryPicture(RECIPE, OWNER, OPEN, NOW)).rejects.toMatchObject({ reason: 'drawing' });
+    retryPicture.mockResolvedValue(null);
+
+    await expect(RecipeController.retryPicture(RECIPE, OWNER, { ...OPEN, forget }, NOW)).rejects.toMatchObject({ reason: 'drawing' });
     expect(record).not.toHaveBeenCalled();
+    expect(forget).not.toHaveBeenCalled();
+  });
+
+  /* 0072: a retry discards the candidate — checks, then the claim, then the file. */
+  describe('with a candidate waiting', () => {
+    const PATH = `dish-picture-candidates/${RECIPE}/2.0.0-0b7e3f2a-5c1d-4e8f-9a6b-7c8d9e0f1a2b.jpg`;
+
+    it('deletes the candidate’s file only after the claim that cleared its pointer', async () => {
+      const order: string[] = [];
+      const forget = vi.fn(async (_path: string) => {
+        order.push('forget');
+      });
+
+      retryPicture.mockImplementation(async (_id, _now, _stale, audit) => {
+        await audit('tx');
+        order.push('claim');
+
+        return { candidatePath: PATH };
+      });
+
+      await expect(RecipeController.retryPicture(RECIPE, OWNER, { ...OPEN, forget }, NOW)).resolves.toMatchObject({ recipeId: RECIPE });
+      expect(order).toEqual(['claim', 'forget']);
+      expect(forget).toHaveBeenCalledWith(PATH);
+    });
+
+    it('deletes nothing when the retry is refused', async () => {
+      const forget = vi.fn(async () => Promise.resolve());
+
+      monthSpendUsd.mockResolvedValue(10);
+
+      await expect(RecipeController.retryPicture(RECIPE, OWNER, { ...OPEN, forget }, NOW)).rejects.toMatchObject({ reason: 'cap_reached' });
+      expect(forget).not.toHaveBeenCalled();
+    });
+
+    it('keeps the claim when the file cannot be deleted: a private file nothing points to, never an undone retry', async () => {
+      retryPicture.mockResolvedValue({ candidatePath: PATH });
+
+      await expect(
+        RecipeController.retryPicture(RECIPE, OWNER, { ...OPEN, forget: async () => Promise.reject(new Error('store down')) }, NOW)
+      ).resolves.toEqual({ attempts: 0, claimedAt: NOW, recipeId: RECIPE });
+    });
+
+    it('asks for no deletion for a dish that held none', async () => {
+      const forget = vi.fn(async () => Promise.resolve());
+
+      await RecipeController.retryPicture(RECIPE, OWNER, { ...OPEN, forget }, NOW);
+
+      expect(forget).not.toHaveBeenCalled();
+    });
   });
 
   it('claims a picture that was given back too', async () => {

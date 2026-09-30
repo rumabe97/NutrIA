@@ -1,0 +1,20 @@
+/* The failure line and the two buttons. The line is always there, so a failure is
+   announced when it arrives; empty, it takes no room. */
+.actions {
+  display: grid;
+}
+
+.error {
+  color: var(--color-error-text);
+  margin: 0;
+}
+
+.error:not(:empty) {
+  margin-block-end: var(--space-03);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+}

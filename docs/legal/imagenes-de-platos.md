@@ -25,9 +25,19 @@
 > propietario**: MAI-Image-2.6 queda fuera, solo Gemini en Vertex. Cambian los §§ 0, 1.2,
 > 1.5, 2, 4, 5 y 7; lo escrito sobre MAI se queda como el porqué de la decisión.
 >
-> **Describe una función que aún no existe.** Lo que aquí se dice del producto sale del
-> PRD, del informe y del piloto. Antes de encender el flag hay que comprobarlo contra el
-> código que se construya (§ 6).
+> **Revisión 2026-09-30 (proyecto 009, fase 2)**: una imagen que el juez rechazó ya no se
+> tira siempre; la última de un dibujo fallido se guarda en privado para que el
+> propietario la mire ([`0072`](../decisions/0072-a-rejected-picture-waits-for-the-owner.md),
+> que enmienda `0066`). Cambian el § 4.1 (una fila y una viñeta), el § 5 (IMG-10 e
+> IMG-11), el § 7 (d) y las fuentes, y son nuevos los §§ 1.6 y 4.3. Esta revisión **sí está leída contra el código**:
+> el árbol de trabajo de `main` sobre `abc0a90`, sin commit; lo que dice es verdad una vez
+> fusionado tal cual. Solo la fase 2: aceptar una imagen contra el juez y retirarla
+> (fase 3) no existen y no están aquí.
+>
+> **Los §§ 0 a 4.2 se escribieron antes de que la función existiera.** Lo que dicen del
+> producto sale del PRD, del informe y del piloto, y la comprobación contra el código
+> construido sigue pendiente en la lista del § 6, salvo lo que esa lista marca con su
+> fuente.
 
 ## 0. Resumen
 
@@ -173,6 +183,48 @@ análisis:
 | S2, 1.1 (accesibilidad) | Contraste alto, compatible con lectores de pantalla, detectable por tecnologías de apoyo | Nombre accesible propio (§ 3.2); contraste sobre cualquier foto |
 | S2, 1.2.1 | Visible sin interacción; encima o sobre el contenido; distinguible sobre cualquier fondo; en la primera exposición | Marca superpuesta en la esquina superior derecha de la tarjeta **y** de la imagen grande; en la grande, además, el pie con «orientativa» |
 | S2, 1.2.2 a | «in the top right corner of an image» | Esquina superior derecha |
+
+### 1.6 La imagen rechazada que solo ve el propietario (009, fase 2): ¿es una «exposición»?
+
+**El hecho.** La imagen que el juez rechazó se ve en un solo sitio: la página
+`/admin/catalogo/<id>/imagen` de la consola, con sesión de administrador
+(`AdminCatalogue.controller.ts:49` y `:116-123`). No es la imagen de ningún plato, no
+tiene dirección pública y nada la publica (§ 4.3).
+
+**La pregunta.** El art. 50.4 obliga al responsable del despliegue a «hacer público» que
+la imagen es artificial, y el 50.5 a decírselo «a las personas físicas de que se trate
+[…] a más tardar con ocasión de la primera interacción o exposición». ¿Es el propietario,
+mirando su propia consola, una de esas personas?
+
+| Lectura | Qué dice | En qué se apoya |
+| --- | --- | --- |
+| Literal | Sí: es una persona física que ve el contenido | Directrices, apdo. 141: son personas de que se trate los «active or passive users and other persons exposed to the AI-generated or manipulated synthetic content»; apdo. 143: «any natural person exposed to the content». Ninguno de los dos excluye a quien despliega |
+| Por la finalidad (**la que sigo**) | No: el deber es de quien despliega **hacia su público**, y aquí el único que mira es quien despliega | Art. 3.60: la ultrasuplantación es lo que «puede inducir a una persona a pensar erróneamente» que es auténtico; quien encargó la imagen y la revisa sabiendo que el juez la rechazó no puede ser inducido a ese error. Cdo. 134: el deber es «hacer público […] etiquetando los resultados de salida». Directrices, apdo. 115: el engaño se mide sobre «the reasonably foreseeable audience», según «the intended distribution channels», y aquí no hay canal ni audiencia. Apdo. 87 (escrito para el 50.2 y para salidas «strictly technical», que una foto de comida no es: vale como indicio de la lógica, no como regla): trata aparte los «production steps and workflows before the output is finalised and made available to other external persons or the public», vistos solo por personas de la propia organización y con controles de acceso |
+
+**Las Directrices no resuelven el caso con estas palabras**: ningún apartado habla de la
+revisión interna de una ultrasuplantación antes de publicarla. Por eso es una
+interpretación, y va a la lista del § 7 **[abogado]**.
+
+**Por qué no necesita la hora con el abogado.** El resultado es el mismo con las dos
+lecturas, porque el producto cumple la más estricta:
+
+- **Aviso visible (50.4 y 50.5)**: la página dice, debajo de la imagen, «Imagen generada
+  por IA. El revisor la rechazó y no está publicada: solo se ve en esta página.»
+  (`adminPictureReview.pictureCaption`, `es-ES.ts:532`; `page.tsx:89`); el `alt` dice
+  «Imagen de {dish} generada por IA, pendiente de revisión»
+  (`es-ES.ts:531`; `page.tsx:84`); y la imagen se pinta con el mismo componente que las
+  publicadas, que le pone la marca «IA» en la esquina superior derecha
+  (`DishPicture.tsx:75-80`).
+- **Marca legible por máquina (50.2)**: solo se guarda un fichero que lleva su manifiesto
+  C2PA, comprobado dos veces sobre los bytes (`DishPicture.service.ts:276` y `:369`), y
+  se guarda y se sirve sin tocar un byte (`:378`; `AdminCatalogue.controller.ts:120-122`).
+
+**Cuándo habría que volver aquí**: si esa imagen saliera de la consola —en un correo, en
+una exportación, en una pantalla que vea alguien que no actúa bajo la autoridad del
+propietario—. Entonces hay audiencia y el aviso va con la imagen, como en el § 3. Que un
+fichero sin C2PA no se guarde nunca es, por lo mismo, una regla de cumplimiento y no una
+preferencia técnica (informe `0005` § 10.5): es lo que sostiene la última frase del
+§ 4.2 b de la política.
 
 ---
 
@@ -331,7 +383,8 @@ Requisitos de la marca, que `frontend` y `accessibility` resuelven como quieran:
 | Pedir la imagen (la página de la comida llama a la API) | La sesión de quien abre la página, como en cualquier otra petición | Vercel (ya encargado) |
 | Dibujar la imagen | **Ninguno.** El prompt se hace solo con la receta: nombre, ingredientes ordenados por peso con su proporción en palabras («most of the plate»…), y el estilo fijo (piloto, `buildPrompt`; PRD, criterio 4). Nada del usuario, del perfil, de alergias ni de salud. Tampoco quién la pidió ni cuándo | OpenRouter → Google (Vertex, `google-vertex/global`), con ZDR y sin respaldo |
 | Juez de visión | **Ninguno**: la imagen y la lista de la receta | OpenRouter → DeepInfra (ya nombrada) |
-| Guardar | Ninguno: la imagen y sus metadatos técnicos (modelo, versión del prompt, tamaño) | Vercel Blob; `recipe_images` en Neon |
+| Guardar la imagen que el juez aceptó | Ninguno: la imagen y sus metadatos técnicos (modelo, versión del prompt, tamaño) | Vercel Blob (almacén público); `recipe_images` en Neon |
+| Guardar, para que el propietario la mire, la última imagen que el juez rechazó (proyecto 009 fase 2, `0072`; § 4.3) | **Ninguno.** Como mucho un fichero por plato: el JPEG tal como lo devolvió el modelo, con su C2PA, hecho solo con la receta. En la fila del plato (`recipe_images.provenance.candidate`): la ruta del fichero, el modelo, la versión del prompt y lo que señaló el juez, como claves de alérgeno y slugs del catálogo de NutrIA. De un fichero sin C2PA no se guarda el fichero, solo qué era (tipo, tamaño y tres marcas sí/no). No añade ningún dato sobre quién abrió el plato: la hora del fallo sigue a una visita, como ya pasaba antes de esta fase, y no viaja con ningún identificador ([`textos/06`](./textos/06-correos.md) § M) | Vercel Blob, en un **segundo almacén, privado**, en `fra1` (Vercel ya es encargado); la fila, en Neon. Lo ve **solo una sesión de administrador**, a través de la API; no hay dirección pública y la ruta no sale de la API. **Se puede ver 7 días** desde el fallo; el fichero se borra después, normalmente en la limpieza de la noche siguiente, **sin plazo garantizado** (§ 4.3) |
 | Ver la imagen | La IP y el navegador de quien la carga, que llegan a la red de Vercel | Vercel (ya encargado) |
 | Avisar al propietario de que una imagen falló o de que el proveedor rechaza las peticiones —la clave no puede pagar o ha llegado a su límite de uso— (proyecto 009 fase 1, `0072`; [`textos/06`](./textos/06-correos.md) § M y § N) | **Ninguno**: recuentos por motivo de una lista cerrada y un enlace a la consola; ni el nombre ni el id del plato, ni lo que escribió el proveedor o el revisor | El proveedor SMTP (ya nombrado), hacia el buzón del propietario |
 
@@ -353,8 +406,18 @@ Requisitos de la marca, que `frontend` y `accessibility` resuelven como quieran:
 - **Almacén público**: «blob URLs are accessible to anyone with the link». La ruta no debe
   llevar nada de nadie: ni id de usuario ni de plan, solo el de la receta y un hash
   (`recipes/<id>/<hash>…`, `0003` § 7.2). Lo compruebo al revisar el código (§ 6).
+- **Almacén privado** (009 fase 2): es otro almacén, no una carpeta del público. Vercel:
+  «Private Blob stores require authentication for all read and write operations» y la
+  dirección de un fichero «is not publicly accessible» (*Private Storage*, act.
+  2026-09-15). El token solo lo tiene la API, y la API no arranca si es el mismo que el
+  del almacén público (`Env.validation.ts:585-591`). Su región también se fija al crearlo:
+  en `fra1`, «en la Unión Europea» sigue siendo verdad para lo que se guarda. La ruta
+  lleva el id de la receta, la versión del prompt y una parte aleatoria
+  (`DishPicture.service.ts:374`), nada de nadie.
 - **Registro y EIPD**: no hay actividad nueva con datos personales. El registro añade la
   entrega por Vercel Blob a la fila 2, y la EIPD una nota (hecho en este mismo cambio).
+  El 2026-09-30 los dos nombran el segundo almacén; sigue sin haber dato, fin ni
+  destinatario nuevo.
 
 ### 4.2 Cambios en `/privacidad` (en vivo) y en [`textos/02`](./textos/02-politica-privacidad.md)
 
@@ -393,6 +456,104 @@ equivalente):
 <!-- Fuente: RGPD art. 13.1.e; Vercel Blob (región elegible al crear el almacén, docs act. 2026-08-26): la frase «en la Unión Europea» solo es verdad si el almacén se crea en `fra1` (§ 6). -->
 
 **d) «Transferencias»**: sin cambios (§ 4.1).
+### 4.3 La imagen rechazada que espera al propietario (009, fase 2)
+
+**Lo que deja de ser verdad.** Hasta el 2026-09-30 el código, `0066` y el PRD del 006
+decían que una imagen rechazada «nunca se guarda». Este documento no lo prometía con esas
+palabras, pero lo daba por hecho: la fila «Guardar» del § 4.1 solo conocía la imagen
+aceptada. Dicho con precisión, para la fase 2:
+
+> Una imagen que el juez rechazó **nunca se publica**: no es la imagen de ningún plato, no
+> está en el almacén público y ninguna ruta, reintento ni tarea la convierte en una. **Sí
+> se guarda una, en privado**: la última de un dibujo que terminó fallido, si llevaba su
+> manifiesto C2PA, para que el propietario la mire durante 7 días. Un fichero sin
+> manifiesto no se guarda nunca, en ningún almacén.
+
+**Qué se guarda y qué no** (`DishPicture.service.ts:173-246` y `:367-386`;
+`PictureCandidate.ts:36-43` y `:52-58`):
+
+| | Se guarda | Dónde |
+| --- | --- | --- |
+| La última imagen con C2PA que el juez rechazó, **solo si el dibujo termina fallido** | El JPEG, byte a byte | Almacén privado, `dish-picture-candidates/<id de receta>/<versión del prompt>-<aleatorio>.jpg` |
+| Su puntero | La ruta, el modelo, la versión del prompt y, por cada alimento señalado, claves de alérgeno y slugs del catálogo (`flaggedExtras`, `judge.ts:523-527`): **no** la palabra que escribió el modelo de visión | `recipe_images.provenance.candidate` (Neon) |
+| Un fichero sin C2PA | El fichero, **no**. Un diagnóstico cerrado: tipo de contenido, tamaño y tres marcas sí/no | `recipe_images.provenance.diagnostic` |
+| Las otras imágenes rechazadas del mismo dibujo; las de un dibujo que acaba aceptado o devuelto; la que el juez no llegó a ver | Nada | — |
+| Las notas del dibujo | Como antes de esta fase: `provenance.notes` guarda las notas del juez, que **sí** incluyen nombres de alimentos escritos por el modelo de visión (`judge.ts:502-510`). No llegan a ninguna pantalla ni a ningún correo: la consola solo saca de esa fila el motivo de la lista cerrada y lo que lleva el puntero (`AdminCatalogueController.ts:213-226` y `:235-239`; ningún DTO de `modules/admin/dto/out` lleva `notes` ni `provenance`) | `recipe_images.provenance.notes` |
+
+Sin el token del almacén privado no se guarda nada y el dibujo es el de antes
+(`DishPicture.service.ts:369`; `VercelBlobPictureCandidateStore.ts:21-23`).
+
+**Quién la ve.** Solo una sesión de administrador, por dos rutas con `@Roles('admin')`
+(`AdminCatalogue.controller.ts:49`): la que responde los bytes
+(`GET /admin/catalogue/recipes/:id/picture/candidate`, `:116-123`, con
+`Cache-Control: private, no-store` y `nosniff`) y la que responde la receta con lo que
+señaló el juez y cuándo caduca, **sin ruta ni dirección** (`:86-89`). Para cualquier otro,
+un 404. Vercel, como alojamiento, guarda el fichero: ya es encargado y ya está nombrado.
+
+**Cuánto tiempo: lo que es verdad, y lo que no se puede prometer.**
+
+| | Plazo | Fuente |
+| --- | --- | --- |
+| Se puede ver | Mientras la fila siga `failed` y no hayan pasado **7 días exactos** desde el último intento. Pasado ese instante ni se enseña ni se sirve, aunque el fichero siga ahí | `reviewableCandidate` y `candidateExpiry`, `RecipeController.ts:112-134`; `PICTURE_COOL_OFF_DAYS = 7`, `:60` |
+| Se borra antes | Cuando el propietario la descarta (primero el fichero, después el puntero y la fila `picture.discarded`, en una transacción) o reintenta el dibujo (primero el reclamo, que quita el puntero; después el fichero) | `RecipeController.ts:363-375` y `:616-627` |
+| Se borra al caducar | En la limpieza de las **03:30 UTC** (`apps/api/vercel.json`), dentro de `/cron/rewrite-steps`: hasta 24 h después de caducar. Primero el fichero, después el puntero | `Cron.controller.ts:103-109`; `RecipeController.ts:309-335`; `RecipeRepository.ts:968-979` |
+| Puede tardar más | La limpieza tiene 8 s, no empieza un borrado en sus últimos 4 s y toma como mucho 100 filas por noche, las más antiguas primero. Un borrado que falla deja el puntero y se reintenta la noche siguiente, sin límite de noches. Si la tarea no corre, nada se borra; el resumen diario avisa de que la «reescritura nocturna» lleva más de 26 h sin correr ([`textos/06`](./textos/06-correos.md) § H) | `Cron.controller.ts:26`; `PictureCandidates.service.ts:14` y `:46-50`; `RecipeController.ts:69` y `:318-331` |
+| Puede quedarse **sin plazo** | Un fichero **sin puntero**, que ninguna ruta puede leer y que la limpieza no encuentra, porque lee la base y nunca lista el almacén: (a) el borrado tras un reintento falla, y el fallo se traga (`RecipeController.ts:625-627`); (b) el fichero se subió y la fila no llegó a escribirse —la función murió, o el reclamo se perdió y el borrado de después falló— (`DishPicture.service.ts:236-243` y `:389-397`); (c) se quita el token con punteros vivos: la limpieza quita los punteros y no borra nada (`PictureCandidates.service.ts:41-50`). Solo lo borra el propietario, a mano, desde el panel de Vercel | las citadas |
+
+Por eso ningún texto debe decir «como mucho 7 días». Lo que se puede afirmar es: **se
+puede ver 7 días; después se borra, normalmente en la limpieza de la noche siguiente**.
+`0072` lo dice así desde el 2026-09-30 («can be reviewed for 7 days»; antes decía «kept
+for at most 7 days»), igual que `apps/api/AGENTS.md:339-340`. El informe `0005` § 5
+conserva «como mucho 7 días»: es un informe cerrado y no se edita; manda `0072`.
+
+Al borrar, Vercel avisa de que «it may take up to one minute for them to be fully removed
+from the Vercel CDN cache» (*Using the Blob SDK*, `del()`, act. 2026-08-26). Esa copia
+solo se lee con el token, y la API pide siempre el original, no la copia
+(`VercelBlobPictureCandidateStore.ts:32`, `useCache: false`). No he encontrado en la
+documentación de Vercel qué pasa con un fichero borrado en sus copias de seguridad: **no
+lo sé**.
+
+**¿Hay un plazo legal que cumplir?** No. El art. 5.1.e RGPD limita la conservación de
+**datos personales**, y aquí no hay ninguno (abajo). Los 7 días son una decisión de
+producto: que un fichero huérfano dure más no incumple nada frente a nadie. Lo que sí
+sería un problema es escribir un plazo que el código no sostiene en un texto que alguien
+lea, y por eso se revisó la página: la nota del plazo (`adminPictureReview.decideNote`),
+el aviso tras reintentar (`retryDone`) y «pasados al menos 7 días» en Imágenes quedaron
+corregidos el 2026-09-30. Dos imprecisiones se quedan, conocidas y anotadas en el LOG
+del proyecto: entre la caducidad y la limpieza, Recetas dice de ese plato «Se reintenta
+sola en la siguiente visita» (`adminRecipes.retryNext`), y no es así hasta que la
+limpieza quita el puntero; y la página sin imagen que revisar da tres causas cuando el
+plato puede no haber tenido ninguna (`nothingBody`).
+
+**`/privacidad` no cambia**, ni `privacy.updated`:
+
+- **No hay datos personales** (RGPD art. 4.1: «toda información sobre una persona física
+  identificada o identificable»; art. 2.1: el Reglamento se aplica al tratamiento «de
+  datos personales»; cdo. 26: no se aplica a la «información que no guarda relación con
+  una persona física identificada o identificable»). El fichero es una foto de comida
+  hecha con la receta; el puntero lleva una ruta con el id de la receta, un modelo, una
+  versión y palabras del catálogo. Una clave de alérgeno aquí describe una imagen y una
+  receta, no la alergia de nadie: no es dato de salud (art. 4.15).
+- **No hay destinatario nuevo** (art. 13.1.e): Vercel ya está nombrado, con «las imágenes
+  de los platos, en la Unión Europea» (`es-ES.ts:2229`; `en-GB.ts:2187`), y el segundo
+  almacén está en `fra1`.
+- **No hay fin nuevo ni nada que una persona vea distinto** (art. 13.1.c y 13.3): la
+  política se informa a los interesados sobre sus datos, y a nadie se le trata un dato
+  más.
+- **La frase en vigor sigue siendo verdad** (art. 5.1.a): «Las imágenes se guardan en
+  Vercel, se muestran a todas las personas que ven ese plato y llevan la marca «IA»»
+  (`es-ES.ts:2221`) habla de las imágenes de los platos, y una rechazada no es la imagen
+  de ningún plato ni se muestra a nadie. «un modelo que ejecuta DeepInfra comprueba que
+  la imagen no muestra alimentos que la receta no lleva» sigue describiendo la única
+  puerta por la que una imagen llega a una persona. **La fase 3 sí obliga a volver a esa
+  frase.**
+- **El rastro**: descartar escribe una fila `picture.discarded` con el id del propietario
+  como autor (`RecipeController.ts:369`), igual que `picture.retried` desde el 008. Es un
+  dato del propio responsable en su propio registro de acciones: no hay interesado al que
+  informar. Si un día administra otra persona, será un dato suyo ([`analisis.md` § 1](./analisis.md),
+  tabla de lo que queda al borrar una cuenta, fila `audit_logs.actorId`).
+
+`/condiciones` tampoco cambia: la frase del § 3.3 habla de las imágenes que se muestran.
 
 ---
 
@@ -409,6 +570,8 @@ equivalente):
 | IMG-7 | Una ruta pública de Blob lleva un id de usuario | P1 (dato personal expuesto a cualquiera con el enlace) | Solo el id de la receta y un hash (§ 4.1) |
 | IMG-8 | Recodificar borra el C2PA de Google | P3 (medido: llega y se sirve sin tocar) | Servir el original ✔; validar la firma una vez sobre un fichero servido por Blob (§ 2.3.1) |
 | IMG-9 | No haber leído las condiciones de Google Cloud (IA generativa) para este modelo (las de Microsoft ya no hacen falta) | P2 (licencia de uso) | Leerlas antes de encender (§ 6). **No las he leído**; la cláusula de «práctica clínica» de P1-10 era de la API de Gemini, y aquí no hay uso clínico: son fotos de recetas |
+| IMG-10 | Una imagen que el juez rechazó —puede mostrar un alimento con un alérgeno que el plato no lleva— llega a alguien que no es el propietario (009 fase 2) | P2 (la misma confusión que IMG-2, y sin el aviso visible si sale como fichero suelto; el C2PA va dentro) | Almacén **privado** aparte, con token propio que la API no confunde con el público (`Env.validation.ts:585-591`); rutas solo para administrador, 404 para el resto; la ruta del fichero no está en ninguna respuesta, registro ni error (`VercelBlobPictureCandidateStore.ts:44-60`); nada publica una candidata (§ 4.3). Un fichero sin C2PA no se guarda nunca |
+| IMG-11 | Un texto promete que la imagen rechazada se borra a los 7 días y un fichero dura más (limpieza con retraso, o huérfano sin puntero) | P3 (nadie resulta afectado: no hay datos personales ni plazo legal; sería un texto inexacto, y solo lo lee el propietario) | No escribir «como mucho 7 días» en ningún texto (§ 4.3); la página de revisión dice «hasta el {date}» y «Después la borra la limpieza nocturna, normalmente la noche siguiente»; vaciar a mano el almacén privado si un día importa |
 
 ---
 
@@ -427,8 +590,14 @@ Añadidos al [`analisis.md` § 10](./analisis.md#10-confirmar-con-un-abogado), p
   nacional de lenguas lo impida. NutrIA no es firmante, pero ¿algún riesgo?
 - ~~(c) Si el C2PA no llega por OpenRouter: ¿basta SynthID más un IPTC sin firmar?~~ Ya
   no hace falta: medido el 2026-09-27, llega.
+- (d) (2026-09-30, 009 fase 2) ¿Es una «exposición» del art. 50.4-50.5 que el propietario
+  vea, en su consola, una imagen que el juez rechazó y que no se ha publicado? Mi lectura,
+  por la finalidad de la norma, es que no (§ 1.6). **No hace falta gastar la hora en
+  esto**: la página la rotula igualmente y el fichero lleva su C2PA, así que el producto
+  cumple con cualquiera de las dos lecturas. Queda anotada por si la imagen saliera un día
+  de la consola.
 
-## Fuentes (versión consultada el 2026-09-27)
+## Fuentes (versión consultada el 2026-09-27; las del final, el 2026-09-30)
 
 - Reglamento (UE) 2024/1689, texto del DOUE en BOE (`DOUE-L-2024-81079`): arts. 3.3, 3.4,
   3.60, 50, 99.4 y 113; cdos. 133 y 134.
@@ -447,3 +616,11 @@ Añadidos al [`analisis.md` § 10](./analisis.md#10-confirmar-con-un-abogado), p
   y 7.1; TRLGDCU (BOE-A-2007-20555, consolidada a 28/02/2026), art. 60.1; Ley 7/1998
   (BOE-A-1998-8789, consolidada a 16/03/2019), art. 5.5; Ley 11/2023, art. 3.3; RGPD, arts. 5,
   13 y 28.
+- **Consultadas el 2026-09-30** (009 fase 2): Reglamento (UE) 2024/1689, texto del DOUE en
+  BOE (PDF `L00001-00144`), arts. 3.60 y 50.2, 50.4 y 50.5, y cdo. 134; Directrices
+  C(2026) 5054 final, apdos. 87, 115, 117, 141 y 143; Reglamento (UE) 2016/679, texto del
+  DOUE en BOE (PDF `L00001-00088`), arts. 2.1, 4.1, 4.15, 5.1.a, 5.1.e y 13, y cdo. 26;
+  Vercel, *Private Storage* (act. 2026-09-15) y *Using the Blob SDK*, `del()` (act.
+  2026-08-26). Código: árbol de trabajo de `main` sobre `abc0a90`, sin commit. Que el
+  segundo almacén es privado y está en `fra1` lo dice `docs/reference/deployment.md:96`;
+  **no lo he comprobado en Vercel**.

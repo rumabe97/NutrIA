@@ -8,7 +8,7 @@ import { CronRunService } from '../services/index.js';
 import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
 import { ENV } from '../../../config/index.js';
 import { OwnerAlertsService } from '../../owner-alerts/index.js';
-import { RecipeRewriter } from '../../ai/index.js';
+import { PictureCandidatesService, RecipeRewriter } from '../../ai/index.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
@@ -30,6 +30,7 @@ describe('the cron routes', () => {
   const checkSpend = jest.fn(async () => Promise.resolve());
   const watchReminders = jest.fn(async () => Promise.resolve());
   const pictureFailures = jest.fn(async () => Promise.resolve());
+  const clean = jest.fn(async (_budgetMs: number) => Promise.resolve({ deleted: 0, left: 0 }));
   const bearer = (secret: string) => ['Bearer', secret].join(' ');
 
   afterEach(async () => {
@@ -46,6 +47,7 @@ describe('the cron routes', () => {
         { provide: CheckInReminderService, useValue: { sweep } },
         { provide: ExpiredInvitationsService, useValue: { forget } },
         { provide: CronRunService, useValue: { record } },
+        { provide: PictureCandidatesService, useValue: { clean } },
         { provide: OwnerAlertsService, useValue: { checkSpend, digest, pictureFailures, watchReminders } }
       ]
     }).compile();
@@ -117,7 +119,7 @@ describe('the cron routes', () => {
     watchReminders.mockRejectedValueOnce(new Error('database gone'));
     rewriteOutdated.mockResolvedValueOnce({ pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
     await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
-    expect(record).toHaveBeenLastCalledWith('rewrite', { pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
+    expect(record).toHaveBeenLastCalledWith('rewrite', { candidatesDeleted: 0, pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
 
     watchReminders.mockClear();
     rewriteOutdated.mockRejectedValueOnce(new Error('model gone'));
@@ -207,6 +209,102 @@ describe('the cron routes', () => {
     }
   });
 
+  /* 0072, PRD 009 criterion 3: the expired candidates are deleted at 03:30, before the sweep, and the run says how many. */
+  describe('the cleanup of expired picture candidates', () => {
+    it('runs on the rewrite route only, after the watch and before the sweep, and its count goes in the run’s record', async () => {
+      const order: string[] = [];
+
+      watchReminders.mockImplementationOnce(async () => {
+        order.push('watch');
+
+        return Promise.resolve();
+      });
+      clean.mockImplementationOnce(async () => {
+        order.push('clean');
+
+        return Promise.resolve({ deleted: 3, left: 1 });
+      });
+      rewriteOutdated.mockImplementationOnce(async () => {
+        order.push('sweep');
+
+        return Promise.resolve({ pending: 4, rewritten: 2, skipped: 1, unreached: 1 });
+      });
+      const server = await boot(SECRET);
+
+      const response = await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
+
+      expect(order).toEqual(['watch', 'clean', 'sweep']);
+      expect(clean).toHaveBeenCalledWith(8_000);
+      expect(record).toHaveBeenCalledWith('rewrite', { candidatesDeleted: 3, pending: 4, rewritten: 2, skipped: 1, unreached: 1 });
+      // The sweep's answer is the sweep's: the cleanup is in the record, not in it.
+      expect(response.body).toEqual({ pending: 4, rewritten: 2, skipped: 1, unreached: 1 });
+
+      clean.mockClear();
+      await request(server).get('/cron/reminders').set('Authorization', bearer(SECRET)).expect(200);
+      expect(clean).not.toHaveBeenCalled();
+    });
+
+    it('is counted in a run held back by the cap too', async () => {
+      clean.mockResolvedValueOnce({ deleted: 2, left: 0 });
+      rewriteOutdated.mockResolvedValue({ heldBy: 'cap', pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
+      const server = await boot(SECRET);
+
+      await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
+
+      expect(record).toHaveBeenCalledWith('rewrite', { candidatesDeleted: 2, pending: 0, rewritten: 0, skipped: 'cap', unreached: 0 });
+    });
+
+    it('never throws into the sweep: a cleanup that fails is recorded as none', async () => {
+      clean.mockRejectedValueOnce(new Error('store down'));
+      rewriteOutdated.mockResolvedValue({ pending: 0, rewritten: 1, skipped: 0, unreached: 0 });
+      const server = await boot(SECRET);
+
+      await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
+
+      expect(rewriteOutdated).toHaveBeenCalledTimes(1);
+      expect(record).toHaveBeenCalledWith('rewrite', { candidatesDeleted: 0, pending: 0, rewritten: 1, skipped: 0, unreached: 0 });
+    });
+
+    it('holds the sweep no longer than its own budget, apart from the watch’s', async () => {
+      const budgets: number[] = [];
+      const realTimeout = setTimeout;
+
+      // The cleanup's own timer fires at once; every other timer is left alone.
+      jest.spyOn(globalThis, 'setTimeout').mockImplementation(((run: () => void, ms?: number) => {
+        if (ms !== 8_000) {
+          return realTimeout(run, ms);
+        }
+
+        budgets.push(ms);
+
+        return realTimeout(run, 0);
+      }) as typeof setTimeout);
+      rewriteOutdated.mockResolvedValue({ pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
+      // A store that never answers.
+      clean.mockImplementationOnce(async () => new Promise<{ deleted: number; left: number }>(() => undefined));
+
+      try {
+        const server = await boot(SECRET);
+
+        await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
+
+        expect(budgets).toHaveLength(1);
+        expect(rewriteOutdated).toHaveBeenCalledTimes(1);
+        expect(record).toHaveBeenCalledWith('rewrite', { candidatesDeleted: 0, pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
+      } finally {
+        jest.restoreAllMocks();
+      }
+    });
+
+    it('deletes nothing for the wrong bearer', async () => {
+      const server = await boot(SECRET);
+
+      await request(server).get('/cron/rewrite-steps').set('Authorization', bearer('wrong')).expect(404);
+
+      expect(clean).not.toHaveBeenCalled();
+    });
+  });
+
   it('sends no failed pictures’ mail to the wrong bearer', async () => {
     const server = await boot(SECRET);
 
@@ -234,7 +332,7 @@ describe('the cron routes', () => {
 
     await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
 
-    expect(record).toHaveBeenCalledWith('rewrite', { pending: 0, rewritten: 1, skipped: 0, unreached: 0 });
+    expect(record).toHaveBeenCalledWith('rewrite', { candidatesDeleted: 0, pending: 0, rewritten: 1, skipped: 0, unreached: 0 });
   });
 
   it('records no run that did not finish', async () => {
@@ -262,7 +360,7 @@ describe('the cron routes', () => {
 
     expect(response.body).toEqual({ pending: 12, rewritten: 9, skipped: 1, unreached: 2 });
     expect(rewriteOutdated).toHaveBeenCalledWith(12);
-    expect(record).toHaveBeenCalledWith('rewrite', { pending: 12, rewritten: 9, skipped: 1, unreached: 2 });
+    expect(record).toHaveBeenCalledWith('rewrite', { candidatesDeleted: 0, pending: 12, rewritten: 9, skipped: 1, unreached: 2 });
   });
 
   it('records a sweep held back by the cap as skipped: cap', async () => {
@@ -271,7 +369,7 @@ describe('the cron routes', () => {
 
     await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
 
-    expect(record).toHaveBeenCalledWith('rewrite', { pending: 0, rewritten: 0, skipped: 'cap', unreached: 0 });
+    expect(record).toHaveBeenCalledWith('rewrite', { candidatesDeleted: 0, pending: 0, rewritten: 0, skipped: 'cap', unreached: 0 });
   });
 
   it('records nothing when the sweep throws (a spend it could not read)', async () => {

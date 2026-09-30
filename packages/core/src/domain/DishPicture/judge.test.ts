@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { judgePicture } from 'core/domain/DishPicture';
+import { flaggedExtras, judgePicture } from 'core/domain/DishPicture';
 
 import type { PictureCatalogueEntry, PictureMatch, PictureRecipe, PictureVerdict, SeenFood, SeenPicture } from 'core/domain/DishPicture';
 
@@ -490,5 +490,31 @@ describe('judgePicture — a short name beside the full one is a second food', (
 
   it('takes the fuller name alone as the ingredient itself', () => {
     expect(pairedWith('mantequilla-de-cacahuete', 'Peanut butter', ['peanut butter']).accepted).toBe(true);
+  });
+});
+
+/* 0072: what is kept of a rejected picture's verdict is ours — allergen keys and catalogue slugs — never the judge's words. */
+describe('flaggedExtras', () => {
+  it('keeps the allergen keys and the catalogue slugs of every food carrying an allergen the dish lacks, and no name', () => {
+    const verdict: Pick<PictureVerdict, 'extras'> = {
+      extras: [
+        { amount: 'main', foreignAllergens: ['crustaceans'], generic: false, mappedTo: ['gambas'], name: 'jumbo shrimp', specific: true },
+        { amount: 'trace', foreignAllergens: ['sesame'], generic: false, mappedTo: ['sesamo'], name: 'sesame seeds', specific: true },
+        { amount: 'side', foreignAllergens: [], generic: false, mappedTo: ['limon'], name: 'lemon wedge', specific: true },
+        { amount: 'side', foreignAllergens: [], generic: true, mappedTo: [], name: 'white drizzle', specific: false }
+      ]
+    };
+
+    const flagged = flaggedExtras(verdict);
+
+    expect(flagged).toEqual([
+      { foreignAllergens: ['crustaceans'], mappedTo: ['gambas'] },
+      { foreignAllergens: ['sesame'], mappedTo: ['sesamo'] }
+    ]);
+    expect(JSON.stringify(flagged)).not.toMatch(/shrimp|seeds|wedge|drizzle/);
+  });
+
+  it('is empty for a verdict that flagged nothing', () => {
+    expect(flaggedExtras({ extras: [] })).toEqual([]);
   });
 });

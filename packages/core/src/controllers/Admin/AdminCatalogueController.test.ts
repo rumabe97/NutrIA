@@ -4,7 +4,7 @@ import { composePerServing } from 'core/domain/Composition';
 import { ingredientCatalogueQuerySchema, recipeCatalogueQuerySchema } from 'core/entities/AdminQuery';
 import { ALLERGEN_IDS, makeCatalogue, makeCatalogueIngredient, makeDish } from '#test/fixtures';
 
-import { AdminCatalogueController, allergensOf, byFigure, perServing, pictureFailure } from './AdminCatalogueController';
+import { AdminCatalogueController, allergensOf, byFigure, candidateFlagsOf, perServing, pictureFailure } from './AdminCatalogueController';
 
 import type { AdminCatalogueRepository as Catalogue, CatalogueRecipeRow } from '#repositories/Admin';
 import type { CatalogueRecipeView } from './AdminCatalogueController';
@@ -15,6 +15,7 @@ const catalogue = vi.hoisted(() => ({
   ingredientPage: vi.fn<(typeof Catalogue)['ingredientPage']>(),
   matchingRecipes: vi.fn<(typeof Catalogue)['matchingRecipes']>(),
   qualityRecipes: vi.fn<(typeof Catalogue)['qualityRecipes']>(),
+  recipe: vi.fn<(typeof Catalogue)['recipe']>(),
   recipeCounts: vi.fn<(typeof Catalogue)['recipeCounts']>(),
   recipePage: vi.fn<(typeof Catalogue)['recipePage']>()
 }));
@@ -149,6 +150,7 @@ describe('byFigure', () => {
     mealSlots: [],
     name,
     picture: 'none',
+    pictureCandidate: null,
     pictureReason: null,
     proteinG: null,
     retryableAt: null,
@@ -207,6 +209,7 @@ describe('AdminCatalogueController.recipes', () => {
         mealSlots: ['lunch'],
         name: 'Bocadillo',
         picture: 'none',
+        pictureCandidate: null,
         pictureReason: null,
         proteinG: 25.8,
         retryableAt: null,
@@ -281,6 +284,7 @@ describe('AdminCatalogueController.recipes', () => {
         'mealSlots',
         'name',
         'picture',
+        'pictureCandidate',
         'pictureReason',
         'proteinG',
         'retryableAt',
@@ -373,5 +377,159 @@ describe('pictureFailure', () => {
       pictureReason: 'cap_reached',
       retryableAt: null
     });
+  });
+});
+
+/* 0072: the owner sees what the judge flagged, in our own closed words, and until when — never where the file is. */
+describe('a dish’s candidate on the table', () => {
+  const NOW = new Date('2026-09-30T12:00:00Z');
+  const PATH = 'dish-picture-candidates/6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f/2.0.0-0b7e3f2a-5c1d-4e8f-9a6b-7c8d9e0f1a2b.jpg';
+  const held = (hoursAgo: number, extras: readonly { foreignAllergens: string[]; mappedTo: string[] }[]) => ({
+    picture: 'failed' as const,
+    pictureAt: new Date(NOW.getTime() - hoursAgo * 3_600_000),
+    pictureFailed: true,
+    pictureProvenance: {
+      candidate: { extras, model: 'stub/picture', path: PATH, promptVersion: '2.0.0' },
+      notes: ['3:rejected:extra_allergen:x'],
+      reason: 'judge_allergen'
+    }
+  });
+  const PRAWNS = [
+    { foreignAllergens: ['milk', 'crustaceans'], mappedTo: ['queso', 'gambas'] },
+    { foreignAllergens: ['milk'], mappedTo: ['queso'] }
+  ];
+
+  it('reads the flags each once and sorted, and the expiry as the end of the cool-off', () => {
+    expect(candidateFlagsOf(held(24, PRAWNS), NOW)).toEqual({
+      allergens: ['crustaceans', 'milk'],
+      expiresAt: '2026-10-06T12:00:00.000Z',
+      ingredients: ['gambas', 'queso']
+    });
+  });
+
+  it.each<[string, Parameters<typeof candidateFlagsOf>[0]]>([
+    ['expired, though the cleanup has not deleted it yet', held(24 * 7, PRAWNS)],
+    ['on a row that is not failed', { ...held(24, PRAWNS), pictureFailed: false }],
+    ['absent from a failed row', { pictureAt: NOW, pictureFailed: true, pictureProvenance: { reason: 'call_failed' } }],
+    ['on a row with nothing stored', { pictureAt: NOW, pictureFailed: true, pictureProvenance: null }]
+  ])('shows no candidate %s', (_case, row) => {
+    expect(candidateFlagsOf(row, NOW)).toBeNull();
+  });
+
+  it('puts it on the row with the catalogue’s own names, the slug where the catalogue has none — and the failure’s reason beside it', async () => {
+    catalogue.recipePage.mockResolvedValue({ rows: [recipe(held(24, PRAWNS))], total: 1 });
+
+    const [row] = (await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({}), STEPS, NOW)).rows;
+
+    // The flagged ingredients are named in the same catalogue read as the dish's own.
+    expect(loadCatalogue).toHaveBeenCalledWith('es-ES', null, ['pan', 'queso', 'aceite', 'gambas']);
+    expect(row?.pictureCandidate).toEqual({
+      allergens: ['crustaceans', 'milk'],
+      expiresAt: '2026-10-06T12:00:00.000Z',
+      ingredients: [
+        { name: 'gambas', slug: 'gambas' },
+        { name: CHEESE.name, slug: 'queso' }
+      ]
+    });
+    expect(row).toMatchObject({ picture: 'failed', pictureReason: 'judge_allergen', retryableAt: '2026-10-06T12:00:00.000Z' });
+  });
+
+  it('never lets the file’s path, or anything else the row stored, out', async () => {
+    catalogue.recipePage.mockResolvedValue({ rows: [recipe(held(24, PRAWNS))], total: 1 });
+    catalogue.matchingRecipes.mockResolvedValue([recipe(held(24, PRAWNS))]);
+
+    for (const query of [{}, { sort: 'kcal' }]) {
+      const answer = JSON.stringify(await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse(query), STEPS, NOW));
+
+      expect(answer).not.toContain('dish-picture-candidates');
+      expect(answer).not.toContain('0b7e3f2a');
+      expect(answer).not.toContain('extra_allergen');
+      expect(answer).not.toContain('stub/picture');
+    }
+
+    const [row] = (await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({}), STEPS, NOW)).rows;
+
+    expect(Object.keys(row?.pictureCandidate ?? {}).sort()).toEqual(['allergens', 'expiresAt', 'ingredients']);
+  });
+});
+
+/* Project 009, step 4 as amended: one recipe by id with its ingredients — what a rejected picture is reviewed against. */
+describe('AdminCatalogueController.recipe', () => {
+  const ID = '6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f';
+  const NOW = new Date('2026-09-30T12:00:00Z');
+  const PATH = `dish-picture-candidates/${ID}/2.0.0-0b7e3f2a-5c1d-4e8f-9a6b-7c8d9e0f1a2b.jpg`;
+
+  beforeEach(() => {
+    catalogue.compositions.mockResolvedValue([
+      { grams: 60, recipeId: ID, slug: 'queso' },
+      { grams: 120, recipeId: ID, slug: 'pan' },
+      { grams: 5, recipeId: ID, slug: 'sin-nombre' }
+    ]);
+  });
+
+  it('answers the table’s own row and the served ingredients, heaviest first, named by the catalogue — the slug where it has none', async () => {
+    catalogue.recipe.mockResolvedValue(recipe({ id: ID }));
+    catalogue.recipePage.mockResolvedValue({ rows: [recipe({ id: ID })], total: 1 });
+
+    const view = await AdminCatalogueController.recipe(ID, NOW);
+    const [listed] = (await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({}), STEPS, NOW)).rows;
+    const { ingredients, ...row } = view;
+
+    expect(catalogue.recipe).toHaveBeenCalledWith(ID);
+    expect(row).toEqual(listed);
+    expect(ingredients).toEqual([
+      { grams: 120, name: BREAD.name, slug: 'pan' },
+      { grams: 60, name: CHEESE.name, slug: 'queso' },
+      { grams: 5, name: 'sin-nombre', slug: 'sin-nombre' }
+    ]);
+  });
+
+  it('carries the dish’s candidate as the table does, and never where its file is', async () => {
+    catalogue.recipe.mockResolvedValue(
+      recipe({
+        id: ID,
+        picture: 'failed',
+        pictureAt: new Date(NOW.getTime() - 86_400_000),
+        pictureFailed: true,
+        pictureProvenance: {
+          candidate: { extras: [{ foreignAllergens: ['milk'], mappedTo: ['queso'] }], model: 'stub/picture', path: PATH, promptVersion: '2.0.0' },
+          notes: ['3:rejected:extra_allergen:cheddar=milk'],
+          reason: 'judge_allergen'
+        }
+      })
+    );
+
+    const view = await AdminCatalogueController.recipe(ID, NOW);
+
+    expect(view.pictureCandidate).toEqual({
+      allergens: ['milk'],
+      expiresAt: '2026-10-06T12:00:00.000Z',
+      ingredients: [{ name: CHEESE.name, slug: 'queso' }]
+    });
+    expect(JSON.stringify(view)).not.toMatch(/dish-picture-candidates|0b7e3f2a|cheddar|stub\/picture|https?:/);
+  });
+
+  it('names nobody: the row’s keys and `ingredients`, nothing else', async () => {
+    catalogue.recipe.mockResolvedValue(recipe({ id: ID }));
+
+    const view = await AdminCatalogueController.recipe(ID, NOW);
+
+    expect(Object.keys(view).filter(key => /user|created|author|owner|email/i.test(key))).toEqual([]);
+    expect(Object.keys(view)).toContain('ingredients');
+    expect(Object.keys(view.ingredients[0] ?? {}).sort()).toEqual(['grams', 'name', 'slug']);
+  });
+
+  it('is not found for a recipe that does not exist, and for an id that is not one before anything is read — never echoing it', async () => {
+    catalogue.recipe.mockResolvedValue(null);
+
+    await expect(AdminCatalogueController.recipe(ID, NOW)).rejects.toMatchObject({ message: 'Recipe not found' });
+
+    catalogue.recipe.mockClear();
+    const error = (await AdminCatalogueController.recipe('not-a-uuid-zzq', NOW).catch((thrown: unknown) => thrown)) as Error;
+
+    expect(error.name).toBe('NotFoundError');
+    expect(error.message).toBe('Recipe not found');
+    expect(catalogue.recipe).not.toHaveBeenCalled();
+    expect(catalogue.compositions).not.toHaveBeenCalled();
   });
 });

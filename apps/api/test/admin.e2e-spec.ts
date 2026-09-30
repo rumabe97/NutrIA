@@ -1235,6 +1235,7 @@ describe('admin', () => {
       'mealSlots',
       'name',
       'picture',
+      'pictureCandidate',
       'pictureReason',
       'proteinG',
       'retryableAt',
@@ -1412,8 +1413,13 @@ describe('admin', () => {
       'n',
       'slot',
       'source',
+      // What a row's `pictureCandidate` carries when a dish holds one (`0072`): its flagged ingredients and its expiry, never where its file is.
+      'expiresAt',
+      'ingredients',
       ...RECIPE_KEYS
     ]);
+    /** One recipe on its own (`0072`): the row, and its served ingredients with their `grams`. */
+    const RECIPE_ONE_KEYS = new Set([...RECIPE_BODY_KEYS, 'grams']);
     const INGREDIENT_BODY_KEYS = new Set(['offset', 'rows', 'size', 'total', ...INGREDIENT_KEYS]);
 
     /**
@@ -1505,6 +1511,11 @@ describe('admin', () => {
         'pictures?period=1',
         'catalogue/recipes',
         'catalogue/recipes?sort=createdAt',
+        // One recipe and the file of its rejected picture (`0072`): an id that is no recipe, and one that is no id.
+        'catalogue/recipes/00000000-0000-4000-8000-000000000000',
+        'catalogue/recipes/not-a-uuid',
+        'catalogue/recipes/00000000-0000-4000-8000-000000000000/picture/candidate',
+        'catalogue/recipes/not-a-uuid/picture/candidate',
         'catalogue/ingredients',
         'catalogue/ingredients?sort=x',
         'catalogue/ingredients?category=x'
@@ -1868,7 +1879,7 @@ describe('admin', () => {
       }
     });
 
-    it('list recipes with exactly their fifteen keys and the whole catalogue’s counts', async () => {
+    it('list recipes with exactly their sixteen keys and the whole catalogue’s counts', async () => {
       const page = await recipes('');
 
       expect(Object.keys(page).sort()).toEqual(['counts', 'offset', 'rows', 'size', 'total']);
@@ -2019,8 +2030,14 @@ describe('admin', () => {
       expect(found.rows.map(row => row.name)).toContain(dish?.name);
       expect(found.rows.find(row => row.name === dish?.name)?.source).toBe('ai');
 
+      // The same dish read on its own (`0072`): its row and its ingredients, and still nobody's.
+      const alone: Response = await get(`catalogue/recipes/${found.rows.find(row => row.name === dish?.name)?.id ?? ''}`, owner.cookie).expect(200);
+
+      expect(Object.keys(alone.body as Record<string, unknown>).sort()).toEqual([...RECIPE_KEYS, 'ingredients'].sort());
+
       const bodies: [string, unknown, ReadonlySet<string>][] = [
         ['the maker’s dish', found, RECIPE_BODY_KEYS],
+        ['the maker’s dish, alone', alone.body, RECIPE_ONE_KEYS],
         ['source=ai', await recipes('source=ai&size=100'), RECIPE_BODY_KEYS],
         ['every slot, by kcal', await recipes('sort=kcal&size=100'), RECIPE_BODY_KEYS],
         ['ingredients', await ingredients('size=100'), INGREDIENT_BODY_KEYS]
@@ -2033,7 +2050,7 @@ describe('admin', () => {
 
         // A recipe row carries its own `id` (the retry route takes it): a dish's id names nobody, and
         // `expectNobody` below still refuses every account's id as a value. Ingredients carry none.
-        const person = allowed === RECIPE_BODY_KEYS ? PERSON_KEYS.filter(key => key !== 'id') : PERSON_KEYS;
+        const person = allowed === INGREDIENT_BODY_KEYS ? PERSON_KEYS : PERSON_KEYS.filter(key => key !== 'id');
 
         expect({ label, person: [...keys].filter(key => person.includes(key)) }).toEqual({ label, person: [] });
         expectNobody(label, body, allowed);

@@ -113,3 +113,108 @@
   - `picture-alerts.e2e-spec.ts` pins `AI_REWRITE_STEPS=false`: the rewrite client is the
     real one in every e2e application.
 
+## Phase 2 — The candidate: keep, see, discard, clean (2026-09-30)
+
+- **Executor**: the plan's `opus @ medium`, by role agents on opus at their definitions'
+  `medium`: `backend` (core and API), `frontend` (the page, in three passes) and `tests`
+  (the end-to-end cases, in two). Reviews by `invariant-reviewer`, `accessibility` and
+  `legal` at their definitions' levels. The lead (Opus 5.5) brought each worktree's changes
+  into the checkout, applied the reviewers' findings to core and API after `backend` had
+  returned, and wrote the docs rows. A power loss cut the session once, after `backend`'s
+  work was already in the checkout; nothing was lost.
+- **Result**: done. **Not seen in a browser by anyone**, and the end-to-end suites have not
+  run: see Evidence.
+- **Owner-gated step, done**: the private store `nutria-picture-candidates`
+  (`store_lAZVZUShjOwQhEUp`, private, `fra1`) was created by the lead on the owner's word,
+  and the owner connected it to the API project in Production with the prefix
+  `BLOB_CANDIDATES`. `BLOB_CANDIDATES_READ_WRITE_TOKEN` is there, sensitive; checked by
+  name, its value never read. The lead did not connect it: through the API the variable
+  would have taken the public store's name. The stop signal did not fire: a second store
+  connects under its own variable and costs nothing more.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=api --filter=web`: 17 of 17 tasks
+    green — core 1384 tests, api 1155 (91 suites), web 125. `pnpm format`, the dead-code
+    check and `sh scripts/check-leaks.sh` green. The env spec is among the api suites.
+  - `health-boundary.spec.ts` green: `modules/ai` gained imports of `core/controllers/Recipe`
+    and `core/entities/{Error,DishPicture}` only.
+  - **The end-to-end suites did not run**: the dev database is still over its Neon quota
+    (`accessibility`'s one probe attempt found it unreachable), so CI is the first run of
+    `picture-candidates.e2e-spec.ts` and of the four suites moved with it.
+  - **`/local-probe` did not run**, for the same reason: `accessibility` reviewed the page
+    statically, as the plan allows, and says so. Touch targets, contrast and the 320 px
+    reflow are read from the code, not measured.
+  - `invariant-reviewer`: no P0, no P1; two P2, fixed (below). `accessibility`: passes on a
+    static read; one P2, fixed. `legal`: no P0–P2; its notes are in
+    `docs/legal/imagenes-de-platos.md` (§§ 1.6, 4.1, 4.3, 5) and `checklist-activacion.md`,
+    with `textos/06-correos.md` (entry M), `registro-actividades.md` and `eipd.md` brought
+    in line. It also corrected, in `analisis.md`, a row about `audit_logs` that had been
+    untrue since project 008 — not this phase's, and in this change.
+- **What shipped**:
+  - `PictureCandidateStore` (private Vercel Blob, and a stub in memory). A drawing that ends
+    failed uploads the last picture the judge rejected that carried C2PA, and stores its
+    pointer and the judge's flags (allergen keys, catalogue slugs) in `provenance.candidate`.
+    A file without a manifest is never uploaded; the row keeps a closed diagnostic.
+  - A row with a pointer is not claimed for drawing. The owner's retry deletes the candidate.
+  - `GET /admin/catalogue/recipes/:id/picture/candidate` (the bytes), `POST …/discard`
+    (`picture.discarded`, in the pointer's transaction), and `pictureCandidate` on recipe
+    rows. No path or URL leaves the API.
+  - The cleanup inside `/cron/rewrite-steps`, on its own 8 s, recorded as `candidatesDeleted`.
+  - The review page `/admin/catalogo/<id>/imagen`, linked from Recetas, with no accept button.
+- **Deviations from plan** (each is in the plan as an amendment):
+  - **A read the plan did not name**: `GET /admin/catalogue/recipes/:id`, one recipe with its
+    ingredients. The console read recipes only as a paged list whose rows carry no
+    ingredients, so the review page had nothing to show the dish from.
+  - **Scope, two files**: `ErrorReporter.ts` (the new token is scrubbed from error reports)
+    and one sentence of `OwnerAlert.ts` ("al menos 7 días": with a candidate the wait is up
+    to a day longer). The same "at least" went into two strings of Imágenes.
+  - **On a Recetas row that holds a candidate, the review link replaces the retry button**:
+    that button would have deleted the candidate without saying so.
+  - **A drawing the judge rejected that then ends on an unsigned file keeps the earlier,
+    signed picture** as its candidate, with the diagnostic of the unsigned one and the
+    reason `no_provenance`. That follows the plan's text ("the last judge-rejected picture
+    that carried C2PA", "only if the drawing ends failed"); report `0005`'s state table read
+    "none" for that row. The file kept passed the manifest check.
+  - **From `invariant-reviewer`'s two P2**: the cleanup removes pointers past review even
+    with the store's token gone, deleting nothing — otherwise those dishes would never be
+    drawn again (PRD 7); and the API refuses to boot when the private store's token equals
+    the public store's. From its P3: nothing that is not a candidate's path is asked of the
+    store; the manifest is checked again at the only `put`; discard is limited to 30 an hour.
+  - **`0072` reworded** (`legal`): "can be reviewed for 7 days; its file is deleted by the
+    cleanup that follows, with no guaranteed instant", in the place of "kept for at most
+    7 days". Report `0005` says the old sentence and is not edited.
+- **Known, and written down**:
+  - A candidate's file can outlive its 7 days: the cleanup runs nightly, takes 100 rows and
+    starts no deletion in its last 4 s; and a file with no pointer (a retry whose deletion
+    failed, a function that died between the upload and the row) is never deleted, because
+    the store is never listed. They are private files nothing reads.
+  - Between a candidate's expiry and the cleanup (up to a day), Recetas says the dish "is
+    retried on its own on the next view"; it is not until the pointer is gone (`legal` P3).
+  - The "nothing to review" state gives three causes (discarded, retried, its 7 days passed)
+    and is also what a dish that never held a candidate shows (`legal` P3, no change asked).
+  - The ingredient grams on the review page are for the whole recipe; the view carries no
+    servings count, so the page says "for the whole recipe".
+  - After a retry the page does not learn that a new candidate arrived: the owner reloads.
+  - No console nav item is marked current on the nested page (`AdminNavList` matches the
+    address exactly), and a Spanish dish name inside the English heading carries no `lang`:
+    both P3, accepted by `accessibility`.
+  - Every suite that calls `/cron/rewrite-steps` now runs the cleanup against the shared dev
+    database, through a stub store: it removes the pointers of candidates already expired
+    there. The new suite sets pre-existing pointers aside and restores them; `owner-alerts`,
+    `text-cap` and `picture-alerts` do not.
+- **Decisions**: [`0072`](../../decisions/0072-a-rejected-picture-waits-for-the-owner.md),
+  one sentence reworded. No new record.
+- **Notes for the next phase**:
+  - **For the owner's phone, once deployed**: that VoiceOver reads "Imagen descartada." after
+    a discard, and that the ingredients are read as a list (`accessibility`, device only).
+  - The pointer already stores `model` and `promptVersion` for the accept; `candidateFlags`
+    is what the owner is shown and what an accept must repeat.
+  - `picture.accepted`, `picture.removed` and the reason `owner_removed` do not exist yet.
+    `PictureCandidatesService` does not inject the public `PictureStore`: the accept is the
+    first code that will hold both.
+  - `keepingCandidate` lets the pointer a row already holds win over one being written; a
+    `ready` row made by the accept must drop the pointer on purpose.
+  - The review page's copy says the picture "is not published" and offers no accept; phase 3
+    changes that copy, and `legal` returns to the privacy policy's sentence about the judge.
+  - `frontend` found that a version token on `pictureCandidate` (not a path) would let the
+    page key the image, so a second candidate is never shown from a stale one.
+

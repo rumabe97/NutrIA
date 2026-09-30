@@ -1,5 +1,14 @@
-import { Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
-import { ApiAcceptedResponse, ApiConflictResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Header, HttpCode, HttpStatus, Param, Post, StreamableFile } from '@nestjs/common';
+import {
+  ApiAcceptedResponse,
+  ApiConflictResponse,
+  ApiNotFoundResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiProduces,
+  ApiQuery,
+  ApiTags
+} from '@nestjs/swagger';
 
 import {
   DEFAULT_PAGE_SIZE,
@@ -17,7 +26,15 @@ import { IngredientCatalogueQueryDto, PeriodQueryDto, RecipeCatalogueQueryDto } 
 import { CurrentUser, RateLimit, Roles } from '../../../shared/index.js';
 import { PERIOD_PARAMETER, ZodQuery } from './ZodQuery.js';
 
-import type { AdminCatalogueQualityDto, AdminIngredientsDto, AdminRecipesDto, PictureRetryDto } from '../dto/out/index.js';
+import type {
+  AdminCatalogueQualityDto,
+  AdminIngredientsDto,
+  AdminRecipeDto,
+  AdminRecipesDto,
+  PictureCandidateFileDto,
+  PictureDiscardDto,
+  PictureRetryDto
+} from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
 const PAGE_SIZE = { description: `1–${MAX_PAGE_SIZE}. ${DEFAULT_PAGE_SIZE} when absent.`, name: 'size', required: false, type: Number } as const;
@@ -35,7 +52,7 @@ export class AdminCatalogueController {
 
   @ApiOkResponse({
     description:
-      'One page of recipes with macros per serving (the app’s own composition), allergens, picture state (with the reason it failed or was given back, and when its cool-off ends) and source, and the catalogue’s counts by slot and source and without a ready picture. 422 INVALID_INPUT for an unknown filter or sort.'
+      'One page of recipes with macros per serving (the app’s own composition), allergens, picture state (with the reason it failed or was given back, when its cool-off ends, and `pictureCandidate` — the allergen keys and catalogue ingredients the judge flagged on a rejected picture kept for review, and when it expires; never its address) and source, and the catalogue’s counts by slot and source and without a ready picture. 422 INVALID_INPUT for an unknown filter or sort.'
   })
   @ApiOperation({ summary: 'Search, filter, sort and page the recipes (0068)' })
   @ApiQuery({ description: 'Name contains, case-insensitive.', name: 'q', required: false, type: String })
@@ -60,8 +77,20 @@ export class AdminCatalogueController {
     return this.catalogue.recipes(query);
   }
 
+  @ApiNotFoundResponse({ description: 'No such recipe.' })
+  @ApiOkResponse({
+    description:
+      'The recipe as the table lists it — macros per serving, allergens, picture state and `pictureCandidate` — and `ingredients`: its served ingredients with their grams for the recipe’s servings and their catalogue name, heaviest first. What a rejected picture is reviewed against. Nothing names a person.'
+  })
+  @ApiOperation({ summary: 'One recipe with its ingredients (0072)' })
+  @Get('recipes/:id')
+  async recipe(@Param('id') id: string): Promise<AdminRecipeDto> {
+    return this.catalogue.recipe(id);
+  }
+
   @ApiAcceptedResponse({
-    description: 'The picture was claimed and is being drawn: `{ status: "drawing" }`. One `picture.retried` row is in the trail.'
+    description:
+      'The picture was claimed and is being drawn: `{ status: "drawing" }`. One `picture.retried` row is in the trail. A candidate the dish held is deleted.'
   })
   @ApiConflictResponse({
     description:
@@ -74,6 +103,36 @@ export class AdminCatalogueController {
   @RateLimit({ limit: 30, ttlSeconds: 3600 })
   async retryPicture(@Param('id') id: string, @CurrentUser() owner: SessionUser): Promise<PictureRetryDto> {
     return this.catalogue.retryPicture(id, owner.id);
+  }
+
+  @ApiNotFoundResponse({ description: 'No candidate that can be looked at: none, an expired one, or no such recipe.' })
+  @ApiOkResponse({
+    content: { 'image/jpeg': { schema: { format: 'binary', type: 'string' } } },
+    description:
+      'The rejected picture this dish holds for review, byte for byte: `Content-Type: image/jpeg`, `X-Content-Type-Options: nosniff`, `Cache-Control: private, no-store`. Nothing publishes it.'
+  })
+  @ApiOperation({ summary: 'The file of a dish’s rejected picture, kept privately for the owner’s review (0072)' })
+  @ApiProduces('image/jpeg')
+  @Get('recipes/:id/picture/candidate')
+  @Header('Cache-Control', 'private, no-store')
+  @Header('X-Content-Type-Options', 'nosniff')
+  async candidate(@Param('id') id: string): Promise<PictureCandidateFileDto> {
+    const bytes = await this.catalogue.candidate(id);
+
+    return new StreamableFile(bytes, { length: bytes.length, type: 'image/jpeg' });
+  }
+
+  @ApiNotFoundResponse({ description: 'No candidate that can be looked at: none, an expired one, or no such recipe.' })
+  @ApiOkResponse({
+    description:
+      'The candidate’s file and its pointer are gone: `{ status: "discarded" }`. The dish stays failed and keeps its cool-off; one `picture.discarded` row is in the trail.'
+  })
+  @ApiOperation({ summary: 'Discard a dish’s rejected picture without drawing again (0072)' })
+  @HttpCode(HttpStatus.OK)
+  @Post('recipes/:id/picture/candidate/discard')
+  @RateLimit({ limit: 30, ttlSeconds: 3600 })
+  async discardCandidate(@Param('id') id: string, @CurrentUser() owner: SessionUser): Promise<PictureDiscardDto> {
+    return this.catalogue.discardCandidate(id, owner.id);
   }
 
   @ApiOkResponse({
