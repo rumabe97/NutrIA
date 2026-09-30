@@ -38,17 +38,17 @@
   },
   "dependencies": {
     "database": "workspace:^",
-    "drizzle-orm": "^0.45.2",
+    "drizzle-orm": "^0.45.3",
     "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
-    "@vitest/coverage-istanbul": "^5.0.1",
+    "@vitest/coverage-istanbul": "^5.0.2",
     "eslint": "^9.39.2",
     "eslint-configuration": "workspace:*",
-    "prettier": "^3.9.8",
+    "prettier": "^3.9.9",
     "typescript-configuration": "workspace:*",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.2"
   },
   "files": [
     "dist"
