@@ -24,7 +24,7 @@
     "knip": "^6.37.0",
     "prettier-configuration": "workspace:*",
     "turbo": "^2.11.1",
-    "typescript": "^6.0.3"
+    "typescript": "^7.0.2"
   },
   "engines": {
     "node": ">=24"
