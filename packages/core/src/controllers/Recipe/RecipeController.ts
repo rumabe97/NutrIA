@@ -20,7 +20,14 @@ import { NotFoundError, OnboardingIncompleteError, PictureRetryRefusedError, Pla
 import { OnboardingRepository } from '#repositories/Onboarding';
 import { VacationRepository } from '#repositories/Vacation';
 import { isAway } from 'core/domain/Vacation';
-import { ACCEPTED_BY_OWNER, candidateFlags, pictureCandidateOf, repeatsExpiry, repeatsFlaggedAllergens } from 'core/entities/DishPicture';
+import {
+  ACCEPTED_BY_OWNER,
+  candidateFlags,
+  pictureCandidateOf,
+  pictureEvidenceOf,
+  repeatsExpiry,
+  repeatsFlaggedAllergens
+} from 'core/entities/DishPicture';
 import { pictureMarks } from 'core/domain/DishPicture';
 import { toCatalogue } from 'core/entities/Plan';
 import type { CandidateDish, Catalogue, MealSlot, RecipeVerdict } from 'core/entities/Plan';
@@ -33,7 +40,15 @@ import type { DishRef, ReusableRecipe, UndocumentedRecipe } from '#repositories/
 export type { UndocumentedRecipe } from '#repositories/Recipe';
 import type { PreferenceExclusions } from 'core/domain/Preference';
 import type { SafetyProfile } from 'core/entities/Safety';
-import type { PictureAcceptance, PictureCall, PictureCandidate, PictureProvenance, PictureReason, PictureState } from 'core/entities/DishPicture';
+import type {
+  PictureAcceptance,
+  PictureCall,
+  PictureCandidate,
+  PictureJudgedDrawing,
+  PictureProvenance,
+  PictureReason,
+  PictureState
+} from 'core/entities/DishPicture';
 import type { PictureCatalogueEntry, PictureRecipe } from 'core/domain/DishPicture';
 
 /**
@@ -338,7 +353,11 @@ export const RecipeController = {
    * 4. those same bytes, untouched, are put in the public store, under the
    *    prompt version the candidate was drawn from;
    * 5. one transaction makes the row `ready` — if it is still the row that was
-   *    read — and writes the audit row with the overridden allergen keys. When
+   *    read — and writes the audit row with the overridden allergen keys. What
+   *    the judge said is kept beside the owner's marks (`pictureEvidenceOf`: the
+   *    rejections' notes and the judged drawings, read with the row in step 1,
+   *    which the guarded write proves unchanged); the audit row carries none of
+   *    it. When
    *    nothing was updated, or the transaction rolled back, the public file just
    *    written is deleted: a `ready` row always has its audit row, and an audit
    *    row always has its `ready` row. **The file is deleted only once it is
@@ -417,6 +436,7 @@ export const RecipeController = {
           model: candidate.model,
           promptVersion: candidate.promptVersion,
           provenance: {
+            ...pictureEvidenceOf(row.provenance),
             acceptedBy: ACCEPTED_BY_OWNER,
             c2pa: marks.c2pa,
             overriddenAllergens: allergens,
@@ -536,11 +556,15 @@ export const RecipeController = {
     return { deleted, left: rows.length - deleted };
   },
 
-  /** The drawing ended with a picture stored at `url`. False when the claim was no longer this drawing's. */
+  /**
+   * The drawing ended with a picture stored at `url`. False when the claim was no longer this drawing's.
+   * `judged` is what the judge answered on this drawing's attempts, kept beside the earlier drawings'.
+   */
   async completePicture(
     claim: PictureClaim,
     picture: {
       readonly attempts: number;
+      readonly judged: PictureJudgedDrawing | null;
       readonly model: string;
       readonly promptVersion: string;
       readonly provenance: PictureProvenance;
@@ -576,10 +600,10 @@ export const RecipeController = {
     }
   },
 
-  /** The drawing ended with nothing kept; the cool-off starts `now`. */
+  /** The drawing ended with nothing kept; the cool-off starts `now`. What its attempts were judged is kept, as `completePicture` keeps it. */
   async failPicture(
     claim: PictureClaim,
-    outcome: { readonly attempts: number; readonly provenance: PictureProvenance },
+    outcome: { readonly attempts: number; readonly judged: PictureJudgedDrawing | null; readonly provenance: PictureProvenance },
     now: Date = new Date()
   ): Promise<boolean> {
     return RecipeRepository.failPicture(claim.recipeId, claim.claimedAt, outcome, now);
@@ -723,7 +747,7 @@ export const RecipeController = {
    */
   async releasePicture(
     claim: PictureClaim,
-    outcome: { readonly attempts: number; readonly reason: PictureReason; readonly why: string },
+    outcome: { readonly attempts: number; readonly judged: PictureJudgedDrawing | null; readonly reason: PictureReason; readonly why: string },
     now: Date = new Date()
   ): Promise<boolean> {
     return RecipeRepository.releasePicture(claim.recipeId, claim.claimedAt, outcome, now);

@@ -167,8 +167,9 @@ const RECIPE_COLUMNS = {
   pictureAcceptedByHand: sql<boolean>`${ACCEPTED_BY_HAND}`,
   pictureAt: recipeImages.lastAttemptAt,
   pictureFailed: sql<boolean>`coalesce(${qualified(recipeImages, 'status')} = 'failed', false)`,
-  // Only a failed row's: a ready one carries the judge's notes, which the list has no use for.
-  pictureProvenance: sql<PictureProvenance | null>`case when ${qualified(recipeImages, 'status')} = 'failed' then ${qualified(recipeImages, 'provenance')} end`,
+  // Only a failed row's: a ready one carries the judge's notes, which the list has no use for. Never the judge's
+  // answers (`drawings`): they are the largest part of a row and nothing the console shows is made from them.
+  pictureProvenance: sql<PictureProvenance | null>`case when ${qualified(recipeImages, 'status')} = 'failed' then ${qualified(recipeImages, 'provenance')} - 'drawings' end`,
   // The published file's public address, and only a `ready` row's: what a person's app is given for the same dish.
   pictureUrl: sql<string | null>`case when ${qualified(recipeImages, 'status')} = 'ready' then ${qualified(recipeImages, 'url')} end`,
   servings: recipes.servings,

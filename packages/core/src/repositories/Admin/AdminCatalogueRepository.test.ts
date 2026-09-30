@@ -157,7 +157,22 @@ describe('AdminCatalogueRepository.recipePage', () => {
     expect(sent[0]?.sql).toContain(
       `coalesce("recipe_images"."status" = 'ready' and ("recipe_images"."provenance" ->> 'acceptedBy') = 'owner', false)`
     );
-    expect(sent[0]?.sql).toContain(`case when "recipe_images"."status" = 'failed' then "recipe_images"."provenance" end`);
+    expect(sent[0]?.sql).toContain(`case when "recipe_images"."status" = 'failed' then "recipe_images"."provenance" - 'drawings' end`);
+  });
+
+  /* Project 010, phase 3: what the judge answered is kept in the row, and the console's reads leave it there. */
+  it('never selects the judge’s answers: the list and the one-recipe read take the failed row’s provenance without its drawings', async () => {
+    await AdminCatalogueRepository.recipePage(recipeCatalogueQuerySchema.parse({}));
+    await AdminCatalogueRepository.recipe('6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f');
+
+    // Each read of the column is a flag's (`->> 'acceptedBy'`, `->> 'released'`) or the failed row's, drawings taken off.
+    const reads = sent.filter(({ sql }) => sql.includes('"recipe_images"."provenance" - '));
+
+    expect(reads).toHaveLength(2);
+
+    for (const { sql } of sent) {
+      expect(sql).not.toMatch(/"recipe_images"\."provenance"(?! ->> ')(?! - 'drawings')/);
+    }
   });
 
   it('selects a picture’s public address only from a ready row', async () => {

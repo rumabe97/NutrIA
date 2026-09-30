@@ -8,11 +8,11 @@ import { dislikedRecipes, favoriteRecipes } from 'database/schema/plan';
 import { recipeImageCalls, recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 
 import { METHOD_RULES, nextRewriteStamp, REWRITE_ATTEMPT_BOUND } from 'core/domain/Method';
-import { ACCEPTED_BY_OWNER, pictureStateSchema } from 'core/entities/DishPicture';
+import { ACCEPTED_BY_OWNER, keepingDrawings, pictureStateSchema } from 'core/entities/DishPicture';
 import { DatabaseOperationError } from 'core/entities/Error';
 import type { FoodClass } from 'database/schema/food';
 import type { LibraryRecipe } from 'core/domain/MealFit';
-import type { PictureCall, PictureProvenance, PictureReason, PictureState } from 'core/entities/DishPicture';
+import type { PictureCall, PictureJudgedDrawing, PictureProvenance, PictureReason, PictureState } from 'core/entities/DishPicture';
 import type { RecordAudit } from '#repositories/Audit';
 import type { CatalogueIngredient, MealSlot, RecipeVerdict } from 'core/entities/Plan';
 import type { RecipeStep } from 'database/schema/recipe';
@@ -313,9 +313,12 @@ export const RecipeRepository = {
 
   /**
    * A drawing that ended with an accepted picture: its address and what drew it.
-   * `claimedAt` is the `now` its claim was made with. Mode: a single guarded
-   * `UPDATE … WHERE status = 'drawing' AND last_attempt_at = claimedAt`, so a
-   * drawing whose claim was taken over as stale cannot end the newer one. False
+   * `claimedAt` is the `now` its claim was made with. Mode: `SELECT … FOR UPDATE`
+   * of the row this caller still holds, then a guarded
+   * `UPDATE … WHERE status = 'drawing' AND last_attempt_at = claimedAt`, in one
+   * transaction — so a drawing whose claim was taken over as stale cannot end
+   * the newer one, and the judged drawings the row held are read and kept in
+   * the same breath (`keepingDrawings`, with `judged`, this drawing's). False
    * when nothing was updated. A candidate's pointer the row still holds is
    * carried into what is written (`keepingCandidate`). One of the only two
    * writes that make a picture `ready`: this is the judge's door, and
@@ -326,6 +329,7 @@ export const RecipeRepository = {
     claimedAt: Date,
     picture: {
       readonly attempts: number;
+      readonly judged: PictureJudgedDrawing | null;
       readonly model: string;
       readonly promptVersion: string;
       readonly provenance: PictureProvenance;
@@ -333,13 +337,33 @@ export const RecipeRepository = {
     }
   ): Promise<boolean> {
     try {
-      const rows = await database()
-        .update(recipeImages)
-        .set({ ...picture, provenance: keepingCandidate(picture.provenance), status: 'ready', updatedAt: new Date() })
-        .where(stillClaimed(recipeId, claimedAt))
-        .returning({ recipeId: recipeImages.recipeId });
+      return await database().transaction(async tx => {
+        const [held] = await tx
+          .select({ provenance: recipeImages.provenance })
+          .from(recipeImages)
+          .where(stillClaimed(recipeId, claimedAt))
+          .for('update');
 
-      return rows.length === 1;
+        if (held === undefined) {
+          return false;
+        }
+
+        const rows = await tx
+          .update(recipeImages)
+          .set({
+            attempts: picture.attempts,
+            model: picture.model,
+            promptVersion: picture.promptVersion,
+            provenance: keepingCandidate(keepingDrawings(picture.provenance, held.provenance, picture.judged)),
+            status: 'ready',
+            updatedAt: new Date(),
+            url: picture.url
+          })
+          .where(stillClaimed(recipeId, claimedAt))
+          .returning({ recipeId: recipeImages.recipeId });
+
+        return rows.length === 1;
+      });
     } catch (error: unknown) {
       throw wrap(error, 'recipe_images');
     }
@@ -387,23 +411,41 @@ export const RecipeRepository = {
 
   /**
    * A drawing that ended with no picture it could keep. `lastAttemptAt` is when
-   * it ended, which is what the cool-off counts from. Mode: the same guarded
-   * `UPDATE` as `completePicture`, for the same reason.
+   * it ended, which is what the cool-off counts from. Mode: the same locked read
+   * and guarded `UPDATE` as `completePicture`, for the same reasons.
    */
   async failPicture(
     recipeId: string,
     claimedAt: Date,
-    outcome: { readonly attempts: number; readonly provenance: PictureProvenance },
+    outcome: { readonly attempts: number; readonly judged: PictureJudgedDrawing | null; readonly provenance: PictureProvenance },
     now: Date
   ): Promise<boolean> {
     try {
-      const rows = await database()
-        .update(recipeImages)
-        .set({ attempts: outcome.attempts, lastAttemptAt: now, provenance: keepingCandidate(outcome.provenance), status: 'failed', updatedAt: now })
-        .where(stillClaimed(recipeId, claimedAt))
-        .returning({ recipeId: recipeImages.recipeId });
+      return await database().transaction(async tx => {
+        const [held] = await tx
+          .select({ provenance: recipeImages.provenance })
+          .from(recipeImages)
+          .where(stillClaimed(recipeId, claimedAt))
+          .for('update');
 
-      return rows.length === 1;
+        if (held === undefined) {
+          return false;
+        }
+
+        const rows = await tx
+          .update(recipeImages)
+          .set({
+            attempts: outcome.attempts,
+            lastAttemptAt: now,
+            provenance: keepingCandidate(keepingDrawings(outcome.provenance, held.provenance, outcome.judged)),
+            status: 'failed',
+            updatedAt: now
+          })
+          .where(stillClaimed(recipeId, claimedAt))
+          .returning({ recipeId: recipeImages.recipeId });
+
+        return rows.length === 1;
+      });
     } catch (error: unknown) {
       throw wrap(error, 'recipe_images');
     }
@@ -909,30 +951,43 @@ export const RecipeRepository = {
    * month's cap reached, the key refused. The row is `failed` with
    * `provenance.released` saying why, so it reads as no picture and is not
    * drawing; the next claim takes it at once, with no cool-off, and keeps
-   * `attempts` — the attempts the dish already used (`claimPicture`). Mode: the
-   * same guarded `UPDATE` as `completePicture`. False when the claim was no
-   * longer this caller's.
+   * `attempts` — the attempts the dish already used (`claimPicture`). What an
+   * attempt judged before the drawing stopped is kept, as a failure keeps it.
+   * Mode: the same locked read and guarded `UPDATE` as `completePicture`. False
+   * when the claim was no longer this caller's.
    */
   async releasePicture(
     recipeId: string,
     claimedAt: Date,
-    outcome: { readonly attempts: number; readonly reason: PictureReason; readonly why: string },
+    outcome: { readonly attempts: number; readonly judged: PictureJudgedDrawing | null; readonly reason: PictureReason; readonly why: string },
     now: Date
   ): Promise<boolean> {
     try {
-      const rows = await database()
-        .update(recipeImages)
-        .set({
-          attempts: outcome.attempts,
-          lastAttemptAt: now,
-          provenance: keepingCandidate({ reason: outcome.reason, released: outcome.why }),
-          status: 'failed',
-          updatedAt: now
-        })
-        .where(stillClaimed(recipeId, claimedAt))
-        .returning({ recipeId: recipeImages.recipeId });
+      return await database().transaction(async tx => {
+        const [held] = await tx
+          .select({ provenance: recipeImages.provenance })
+          .from(recipeImages)
+          .where(stillClaimed(recipeId, claimedAt))
+          .for('update');
 
-      return rows.length === 1;
+        if (held === undefined) {
+          return false;
+        }
+
+        const rows = await tx
+          .update(recipeImages)
+          .set({
+            attempts: outcome.attempts,
+            lastAttemptAt: now,
+            provenance: keepingCandidate(keepingDrawings({ reason: outcome.reason, released: outcome.why }, held.provenance, outcome.judged)),
+            status: 'failed',
+            updatedAt: now
+          })
+          .where(stillClaimed(recipeId, claimedAt))
+          .returning({ recipeId: recipeImages.recipeId });
+
+        return rows.length === 1;
+      });
     } catch (error: unknown) {
       throw wrap(error, 'recipe_images');
     }
@@ -948,6 +1003,8 @@ export const RecipeRepository = {
    * to delete the public file once this has committed — and the path of a
    * candidate the row still held (an acceptance whose last step failed), for
    * its private file, since the pointer goes with the rest of `provenance`.
+   * The judged drawings the row held are kept (`keepingDrawings`): a picture
+   * taken back is the very case a refinement of the judge needs to read.
    *
    * Mode: `SELECT … FOR UPDATE`, then one guarded `UPDATE … WHERE ready AND
    * accepted by the owner RETURNING`, and the audit row written by `record`,
@@ -962,13 +1019,19 @@ export const RecipeRepository = {
     try {
       return await database().transaction(async tx => {
         const [held] = await tx
-          .select({ path: candidatePath, url: recipeImages.url })
+          .select({ path: candidatePath, provenance: recipeImages.provenance, url: recipeImages.url })
           .from(recipeImages)
           .where(eq(recipeImages.recipeId, recipeId))
           .for('update');
         const rows = await tx
           .update(recipeImages)
-          .set({ lastAttemptAt: now, provenance: { reason: 'owner_removed' satisfies PictureReason }, status: 'failed', updatedAt: now, url: null })
+          .set({
+            lastAttemptAt: now,
+            provenance: keepingDrawings({ reason: 'owner_removed' satisfies PictureReason }, held?.provenance),
+            status: 'failed',
+            updatedAt: now,
+            url: null
+          })
           .where(and(eq(recipeImages.recipeId, recipeId), eq(recipeImages.status, 'ready'), handAccepted))
           .returning({ recipeId: recipeImages.recipeId });
 
@@ -990,10 +1053,11 @@ export const RecipeRepository = {
    * released or not — at once, with no cool-off, for a fresh three attempts,
    * and a `drawing` one stuck past `staleAfterMinutes`, as a view's claim would.
    * A fresh `drawing` or a `ready` row, or none, is not touched. `provenance` is
-   * cleared, so a retried released row is not counted as released while it draws
+   * cleared but for the judged drawings (`keepingDrawings`: null when there are
+   * none), so a retried released row is not counted as released while it draws
    * — and with it a candidate's pointer (`0072`), which is why the row is read
    * and locked first: the path it held is handed back, for the caller to delete
-   * the file once the claim is made.
+   * the file once the claim is made, and the drawings it held are kept.
    * Mode: `SELECT … FOR UPDATE`, then one guarded `UPDATE … WHERE failed OR stale drawing RETURNING`, and the audit row written by
    * `record`, all in one transaction, so a retry that did not start leaves none
    * and one that started always has one. Null when nothing was claimed.
@@ -1008,10 +1072,15 @@ export const RecipeRepository = {
       const stale = new Date(now.getTime() - staleAfterMinutes * 60_000);
 
       return await database().transaction(async tx => {
-        const [held] = await tx.select({ path: candidatePath }).from(recipeImages).where(eq(recipeImages.recipeId, recipeId)).for('update');
+        const [held] = await tx
+          .select({ path: candidatePath, provenance: recipeImages.provenance })
+          .from(recipeImages)
+          .where(eq(recipeImages.recipeId, recipeId))
+          .for('update');
+        const kept = keepingDrawings({}, held?.provenance);
         const rows = await tx
           .update(recipeImages)
-          .set({ attempts: 0, lastAttemptAt: now, provenance: null, status: 'drawing', updatedAt: now })
+          .set({ attempts: 0, lastAttemptAt: now, provenance: Object.keys(kept).length === 0 ? null : kept, status: 'drawing', updatedAt: now })
           .where(
             and(
               eq(recipeImages.recipeId, recipeId),

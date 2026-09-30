@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { pictureJudgedDrawing, pictureJudgement } from 'core/entities/DishPicture';
 import { DatabaseOperationError, NotFoundError, PictureRetryRefusedError } from 'core/entities/Error';
 
 import { PICTURE_COOL_OFF_DAYS, RecipeController, reviewableCandidate, toPictureStatus } from './RecipeController';
@@ -70,6 +71,22 @@ const CANDIDATE = {
 };
 /** What the console showed, and what the request repeats. */
 const SHOWN = ['crustaceans', 'milk'];
+
+/** A food name only the judge ever wrote: anything that carries it out of the row carries a model's words. */
+const SENTINEL = 'zzjudge-sentinel-food';
+
+/** What the judge answered on the drawing that left the candidate, as the row stores it (project 010). */
+const JUDGEMENT = pictureJudgement({
+  at: ENDED,
+  match: { extras: [SENTINEL], ingredients: [{ matched: [], slug: 'arroz-blanco-cocido', status: 'seen' }] },
+  number: 3,
+  seen: { foods: [{ amount: 'main', name: SENTINEL, specific: true }] },
+  verdict: { accepted: false, notes: [`extra_allergen:${SENTINEL}=crustaceans`] }
+});
+const JUDGED =
+  JUDGEMENT === null
+    ? null
+    : pictureJudgedDrawing({ ingredients: [{ grams: 200, name: 'Cooked white rice', slug: 'arroz-blanco-cocido' }], name: 'Arroz' }, [JUDGEMENT]);
 
 function failed(overrides: Partial<Row> = {}): Row {
   return {
@@ -213,7 +230,13 @@ describe('RecipeController.acceptCandidate', () => {
     expect(picture).toEqual({
       model: 'google/gemini-image',
       promptVersion: '2.0.0',
-      provenance: { acceptedBy: 'owner', c2pa: true, overriddenAllergens: ['crustaceans', 'milk'], trainedAlgorithmicMedia: true },
+      provenance: {
+        acceptedBy: 'owner',
+        c2pa: true,
+        notes: ['3:rejected:extra_allergen:prawns=crustaceans'],
+        overriddenAllergens: ['crustaceans', 'milk'],
+        trainedAlgorithmicMedia: true
+      },
       url: URL
     });
     expect(record).toHaveBeenCalledTimes(1);
@@ -223,14 +246,40 @@ describe('RecipeController.acceptCandidate', () => {
     );
   });
 
-  it('stores and audits catalogue keys only: no path, no address of the private file, none of the judge’s words', async () => {
+  /*
+   * Project 010, phase 3, on purpose: the acceptance used to store the owner's marks alone, which erased what the judge
+   * said about the dish. It now keeps the rejections' notes and the judged drawings beside them — in the row, which no
+   * view reads — while the audit row still carries catalogue keys only, and neither holds a path.
+   */
+  it('audits catalogue keys only, and stores no path or address of the private file', async () => {
     const { files } = stores();
 
+    candidateRow.mockResolvedValue(failed({ provenance: { ...failed().provenance, drawings: [JUDGED] } }));
     await accept(files);
 
-    const written = JSON.stringify([acceptCandidate.mock.calls[0]?.[2].provenance, record.mock.calls[0]?.[0]]);
+    const audited = JSON.stringify(record.mock.calls[0]?.[0]);
 
-    expect(written).not.toMatch(/dish-picture-candidates|0b7e3f2a|extra_allergen|prawns|gambas|queso|notes/);
+    expect(audited).not.toMatch(/dish-picture-candidates|0b7e3f2a|extra_allergen|prawns|gambas|queso|notes/);
+    expect(audited).not.toContain(SENTINEL);
+    expect(JSON.stringify(acceptCandidate.mock.calls[0]?.[2].provenance)).not.toMatch(/dish-picture-candidates|0b7e3f2a|candidate/);
+  });
+
+  it('keeps what the judge said on the rejected drawing beside the owner’s marks: its notes and its answers', async () => {
+    const { files } = stores();
+
+    expect(JUDGED).not.toBeNull();
+
+    candidateRow.mockResolvedValue(failed({ provenance: { ...failed().provenance, drawings: [JUDGED] } }));
+    await accept(files);
+
+    expect(acceptCandidate.mock.calls[0]?.[2].provenance).toEqual({
+      acceptedBy: 'owner',
+      c2pa: true,
+      drawings: [JUDGED],
+      notes: ['3:rejected:extra_allergen:prawns=crustaceans'],
+      overriddenAllergens: ['crustaceans', 'milk'],
+      trainedAlgorithmicMedia: true
+    });
   });
 
   it('leaves no path in what the row stores once it is complete: the pointer step 5 carried over is dropped in step 6, after its file', async () => {
@@ -244,10 +293,11 @@ describe('RecipeController.acceptCandidate', () => {
 
     await accept(files);
 
-    // What the acceptance itself writes names no file…
+    // What the acceptance itself writes names no file: the owner's four marks, and the rejections' notes (project 010)…
     expect(Object.keys(acceptCandidate.mock.calls[0]?.[2].provenance ?? {}).sort()).toEqual([
       'acceptedBy',
       'c2pa',
+      'notes',
       'overriddenAllergens',
       'trainedAlgorithmicMedia'
     ]);

@@ -15,9 +15,16 @@ import { PictureJudgeClient } from '../clients/PictureJudgeClient.js';
 import { PictureStore } from '../clients/PictureStore.js';
 import { untilAborted } from '../clients/untilAborted.js';
 
-import { PICTURE_CANDIDATE_FOLDER, PICTURE_FOLDER, reasonOfCall, reasonOfRejection } from 'core/entities/DishPicture';
+import {
+  PICTURE_CANDIDATE_FOLDER,
+  PICTURE_FOLDER,
+  pictureJudgedDrawing,
+  pictureJudgement,
+  reasonOfCall,
+  reasonOfRejection
+} from 'core/entities/DishPicture';
 
-import type { PictureCandidate, PictureDiagnostic, PictureReason } from 'core/entities/DishPicture';
+import type { PictureCandidate, PictureDiagnostic, PictureJudgedDrawing, PictureJudgement, PictureReason } from 'core/entities/DishPicture';
 import type { PictureClaim } from 'core/controllers/Recipe';
 import type { PictureCatalogueEntry, PictureRecipe, PictureVerdict } from 'core/domain/DishPicture';
 
@@ -55,17 +62,27 @@ type Rejected = { readonly bytes: Uint8Array; readonly model: string; readonly v
 /** An attempt that ended with no picture to look at: a call that broke, or one the account would not pay for. */
 type Unjudged = { readonly kind: 'failed' | 'refused'; readonly note: string; readonly reason: PictureReason };
 
+/** What the judge answered on an attempt, as it is stored — null when it did not fit the shape at all. */
+type Judged = { readonly judgement: PictureJudgement | null; readonly verdict: PictureVerdict };
+
 /** One attempt: kept, not kept (count it and go on), or stopped (count it, and no attempt after it can do better). */
 type Attempt =
   | {
       readonly bytes: Uint8Array;
+      readonly judgement: PictureJudgement | null;
       readonly kind: 'accepted';
       readonly marks: ReturnType<typeof pictureMarks>;
       readonly model: string;
       readonly verdict: PictureVerdict;
     }
   | { readonly diagnostic: PictureDiagnostic; readonly kind: 'unkeepable'; readonly note: string; readonly reason: PictureReason }
-  | { readonly kind: 'rejected'; readonly note: string; readonly reason: PictureReason; readonly rejected: Rejected }
+  | {
+      readonly judgement: PictureJudgement | null;
+      readonly kind: 'rejected';
+      readonly note: string;
+      readonly reason: PictureReason;
+      readonly rejected: Rejected;
+    }
   | Unjudged;
 
 /**
@@ -129,6 +146,14 @@ function describe(error: unknown): string {
  * anywhere, and the row records what it was instead. Without the private
  * store, none of this happens and drawing is as it was.
  *
+ * **What the judge said is kept** (project 010): every attempt that reached the
+ * judge — both calls answered and the rule ran — hands its two answers and the
+ * verdict to the drawing's end, with the recipe as it was judged
+ * (`pictureJudgedDrawing`), and the row keeps them beside the drawings before
+ * it. Cut to a closed shape in `core/entities/DishPicture`; what does not fit is
+ * cut or dropped there, and never changes how the drawing ends. Nothing here
+ * logs them.
+ *
  * **A picture reaches a person through one of two doors, and this is the
  * first**: `judgePicture` accepted it, in `keep`. The second is the owner's
  * acceptance by hand of a candidate (`PictureCandidatesService.accept`), which
@@ -179,16 +204,20 @@ export class DishPictureService {
     const deadline = Date.now() + DRAW_BUDGET_MS;
     let attempts = claim.attempts;
     const notes: string[] = [];
+    // What the judge answered on each attempt that reached it, and the recipe it was judged against.
+    const judgements: PictureJudgement[] = [];
+    let inputs: Inputs | null = null;
+    const judged = (): PictureJudgedDrawing | null => (inputs === null ? null : pictureJudgedDrawing(inputs.recipe, judgements));
     let reason: PictureReason = 'other';
     // The last picture the judge rejected, and what a file without its manifest was (`0072`).
     let rejected: Rejected | null = null;
     let diagnostic: PictureDiagnostic | null = null;
 
     try {
-      const inputs = await RecipeController.pictureInputs(claim.recipeId);
+      inputs = await RecipeController.pictureInputs(claim.recipeId);
 
       if (!inputs) {
-        return await this.release(claim, 'the recipe is gone', attempts, 'other');
+        return await this.release(claim, 'the recipe is gone', attempts, 'other', null);
       }
 
       const prompt = buildPicturePrompt(inputs.recipe);
@@ -199,15 +228,19 @@ export class DishPictureService {
         // can end up to about one attempt (~0.036 $) past the cap per concurrent drawing.
         // The pictures' OpenRouter key carries its own monthly limit as the wall.
         if ((await RecipeController.pictureSpendUsd()) >= this.capUsd) {
-          return await this.release(claim, 'the month’s cap is reached', attempts, 'cap_reached');
+          return await this.release(claim, 'the month’s cap is reached', attempts, 'cap_reached', judged());
         }
 
         attempts += 1;
 
-        const attempt = await this.attempt(claim, inputs, prompt, AbortSignal.timeout(deadline - Date.now()));
+        const attempt = await this.attempt(claim, inputs, prompt, AbortSignal.timeout(deadline - Date.now()), attempts);
+
+        if ((attempt.kind === 'accepted' || attempt.kind === 'rejected') && attempt.judgement !== null) {
+          judgements.push(attempt.judgement);
+        }
 
         if (attempt.kind === 'accepted') {
-          return await this.keep(claim, attempt, attempts, notes);
+          return await this.keep(claim, attempt, attempts, notes, judged());
         }
 
         notes.push(`${attempts}:${attempt.kind}:${attempt.note}`);
@@ -215,7 +248,7 @@ export class DishPictureService {
 
         if (attempt.kind === 'refused') {
           // The refused attempt is not the dish's: it does not count.
-          return await this.release(claim, attempt.note, attempts - 1, attempt.reason);
+          return await this.release(claim, attempt.note, attempts - 1, attempt.reason, judged());
         }
 
         if (attempt.kind === 'rejected') {
@@ -239,7 +272,7 @@ export class DishPictureService {
     let ended = false;
 
     try {
-      ended = await RecipeController.failPicture(claim, { attempts, provenance });
+      ended = await RecipeController.failPicture(claim, { attempts, judged: judged(), provenance });
     } finally {
       if (!ended && candidate !== null) {
         // No row points to the file: the claim was taken over, or the write failed.
@@ -250,7 +283,7 @@ export class DishPictureService {
     return ended ? 'failed' : 'lost';
   }
 
-  private async attempt(claim: PictureClaim, inputs: Inputs, prompt: string, signal: AbortSignal): Promise<Attempt> {
+  private async attempt(claim: PictureClaim, inputs: Inputs, prompt: string, signal: AbortSignal, number: number): Promise<Attempt> {
     const recipeId = claim.recipeId;
     let drawn;
 
@@ -288,23 +321,29 @@ export class DishPictureService {
       };
     }
 
-    const verdict = await this.judged(recipeId, inputs, drawn.bytes, signal);
+    const judged = await this.judged(recipeId, inputs, drawn.bytes, signal, number);
 
-    if ('kind' in verdict) {
-      return verdict;
+    if ('kind' in judged) {
+      return judged;
     }
 
+    const { judgement, verdict } = judged;
+
     if (verdict.accepted) {
-      return { bytes: drawn.bytes, kind: 'accepted', marks, model: drawn.model, verdict };
+      return { bytes: drawn.bytes, judgement, kind: 'accepted', marks, model: drawn.model, verdict };
     }
 
     const note = verdict.notes.join(' ');
 
-    return { kind: 'rejected', note, reason: reasonOfRejection(note), rejected: { bytes: drawn.bytes, model: drawn.model, verdict } };
+    return { judgement, kind: 'rejected', note, reason: reasonOfRejection(note), rejected: { bytes: drawn.bytes, model: drawn.model, verdict } };
   }
 
-  /** The judge's two calls, each recorded, and the rule on what they saw. A failed call is a picture that is not kept. */
-  private async judged(recipeId: string, inputs: Inputs, bytes: Uint8Array, signal: AbortSignal): Promise<PictureVerdict | Unjudged> {
+  /**
+   * The judge's two calls, each recorded, and the rule on what they saw — with
+   * both answers and the verdict as they are stored (`pictureJudgement`, which
+   * never throws). A failed call is a picture that is not kept, and nothing of it is stored.
+   */
+  private async judged(recipeId: string, inputs: Inputs, bytes: Uint8Array, signal: AbortSignal, number: number): Promise<Judged | Unjudged> {
     const record = (costUsd: number | null, model: string, outcome: string) =>
       RecipeController.recordPictureCall({ costUsd: costUsd ?? JUDGE_COST_FLOOR_USD, kind: 'judge', model, outcome, recipeId });
 
@@ -317,7 +356,9 @@ export class DishPictureService {
 
       await record(match.costUsd, match.model, 'matched');
 
-      return judgePicture({ catalogue: inputs.catalogue, match: match.result, recipe: inputs.recipe, seen: seen.result });
+      const verdict = judgePicture({ catalogue: inputs.catalogue, match: match.result, recipe: inputs.recipe, seen: seen.result });
+
+      return { judgement: pictureJudgement({ at: new Date(), match: match.result, number, seen: seen.result, verdict }), verdict };
     } catch (error: unknown) {
       await record(failedCallCost(error, JUDGE_COST_FLOOR_USD), 'judge', 'error');
 
@@ -330,7 +371,8 @@ export class DishPictureService {
     claim: PictureClaim,
     attempt: Extract<Attempt, { kind: 'accepted' }>,
     attempts: number,
-    notes: readonly string[]
+    notes: readonly string[],
+    judged: PictureJudgedDrawing | null
   ): Promise<DrawOutcome> {
     // The recipe's id and a random part, never a person's: the path is public.
     const path = `${PICTURE_FOLDER}/${claim.recipeId}/${PICTURE_PROMPT_VERSION}-${randomUUID()}.jpg`;
@@ -343,6 +385,7 @@ export class DishPictureService {
     };
     const ended = await RecipeController.completePicture(claim, {
       attempts,
+      judged,
       model: attempt.model,
       promptVersion: PICTURE_PROMPT_VERSION,
       provenance,
@@ -401,10 +444,16 @@ export class DishPictureService {
     }
   }
 
-  /** Gives the claim back, keeping the attempts the dish itself used. */
-  private async release(claim: PictureClaim, why: string, attempts: number, reason: PictureReason): Promise<DrawOutcome> {
+  /** Gives the claim back, keeping the attempts the dish itself used and what the judge said on them. */
+  private async release(
+    claim: PictureClaim,
+    why: string,
+    attempts: number,
+    reason: PictureReason,
+    judged: PictureJudgedDrawing | null
+  ): Promise<DrawOutcome> {
     this.logger.warn(`Picture of recipe ${claim.recipeId} given back: ${why}`);
 
-    return (await RecipeController.releasePicture(claim, { attempts, reason, why })) ? 'released' : 'lost';
+    return (await RecipeController.releasePicture(claim, { attempts, judged, reason, why })) ? 'released' : 'lost';
   }
 }

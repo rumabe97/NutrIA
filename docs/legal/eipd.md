@@ -88,7 +88,10 @@ no contiene datos personales y no cambia ningún riesgo de esta evaluación. Des
 fase 3 del mismo proyecto el propietario puede publicar esa imagen a mano, contra el
 juez, y retirarla: sigue sin haber datos personales, y el riesgo que cambia (una imagen
 que muestra un alérgeno que el plato no lleva) no es un riesgo de protección de datos;
-está en [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 5, IMG-2. Detalle en
+está en [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 5, IMG-2. Desde el proyecto
+010 fase 3 la fila del plato guarda lo que el juez respondió sobre cada intento (palabras
+de un modelo sobre una foto de comida, y la receta tal como se juzgó): sin datos
+personales, no toca ningún riesgo de esta evaluación (§ 4.5 de ese documento). Detalle en
 [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 4.
 
 ---

@@ -235,6 +235,36 @@ describe('AdminUsageController.pictures', () => {
     ]);
     expect(JSON.stringify(view)).not.toContain('sk-leak');
   });
+
+  /* Project 010, phase 3: the read leaves the judge's answers in the row; even handed them, the page counts reasons only. */
+  it('sends none of the judge’s answers, even for rows that still carry them', async () => {
+    vi.spyOn(AdminController, 'pictures').mockResolvedValue({
+      acceptedByHand: 0,
+      capUsd: 10,
+      drawing: 0,
+      enabled: true,
+      failed: 1,
+      ready: 0,
+      released: 0,
+      since: '2026-09-01T00:00:00.000Z',
+      spentUsd: 0
+    });
+    series.pictureSpendPerDay.mockResolvedValue([]);
+    failedPictures.mockResolvedValue([
+      {
+        provenance: {
+          drawings: [{ attempts: [{ seen: { foods: [{ amount: 'main', name: 'zzjudge-sentinel-food', specific: true }] } }] }],
+          reason: 'judge_allergen'
+        },
+        released: false
+      }
+    ]);
+
+    const view = await AdminUsageController.pictures(7, 10, NOW);
+
+    expect(view.failedByReason).toEqual([{ n: 1, reason: 'judge_allergen' }]);
+    expect(JSON.stringify(view)).not.toContain('zzjudge-sentinel-food');
+  });
 });
 
 describe('countByReason', () => {

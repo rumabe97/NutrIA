@@ -275,13 +275,40 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     (period, by when the row ended); recipe rows add `pictureReason` and `retryableAt` (null when
     retryable now). `POST /admin/catalogue/recipes/:id/picture/retry` (`@Roles('admin')`, 202
     `{status:'drawing'}`) claims a `failed` or released picture ignoring the cool-off, or a `drawing` one stuck past
-    `PICTURE_STALE_MINUTES` (`RecipeRepository.retryPicture`, clears `provenance`, audit
+    `PICTURE_STALE_MINUTES` (`RecipeRepository.retryPicture`, clears `provenance` but for `drawings`, audit
     `picture.retried` in the same transaction) and schedules through `DishPictureService.schedule`;
     rate-limited 30 an hour; recipe rows carry `id`, which it is addressed by; 404 unknown recipe
     (fixed `Recipe not found`), 409 `PICTURE_FLAG_OFF`,
     `PICTURE_UNAVAILABLE`, `PICTURE_CAP_REACHED`, `PICTURE_DRAWING` (never takes over a fresh drawing),
     `PICTURE_NOT_RETRYABLE` (ready, or never drawn). Plan failures by code already are
     `failuresByCode` on `GET /admin/generations/stats`.
+  - **What the judge said is kept** (project 010, phase 3; `PictureJudgement` in
+    `core/entities/DishPicture`). Every attempt that reached the judge — both calls answered and
+    `judgePicture` ran — hands its two answers and the verdict to the drawing's end, and the row keeps
+    them in `provenance.drawings`: oldest first, one entry per drawing, `{ recipe: { name,
+    ingredients: { grams, name, slug }[], reduced }, attempts: { at, attempt, seen, match, verdict:
+    { accepted, notes }, reduced }[], v: 1 }` — the recipe as it was judged, once per drawing, so a
+    picture can be replayed through another rule after the recipe changed. **Bounded and closed**: the
+    last `PICTURE_DRAWINGS_KEPT` (3) drawings, 3 attempts each; 16 foods, 16 extras, 30 ingredients, 4
+    matched names, 16 notes, 60 UTF-16 units a name, 160 a note; control characters and lone
+    surrogates removed (Postgres refuses them in `jsonb`), in the drawings and in every other string a
+    drawing's end writes (`jsonbSafe`); what is cut or cleaned is marked `reduced`; an attempt still
+    over 6 KB is not stored, and a recipe over 4 KB loses its last ingredients. So a row holds at most
+    about 68 KB of drawings (3 × (3 × 6 KB + 4 KB)); a real drawing is about 6 KB, three about 19 KB.
+    **Versioned**: what an end writes is checked against this version's strict shape (`v`), but the
+    drawings a row already holds are carried as they are — an older shape, or a newer one a
+    rolled-back deploy left, is never dropped; only an entry that is not an object is. Raise
+    `PICTURE_DRAWING_VERSION` with any change to the shape. Storing never throws and never changes
+    how a drawing ends.
+    **Every writer keeps them**: `completePicture`, `failPicture` and `releasePicture` read the row
+    under its lock and write it back with this drawing's after them (`keepingDrawings`); a view's claim
+    leaves the row as it is; the retry keeps `drawings` alone (`null` when there are none); the removal
+    keeps them beside `owner_removed`; `dropCandidate` (discard, cleanup, the acceptance's step 6)
+    takes the pointer alone; the acceptance keeps them and the rejections' `notes`. **None of it
+    leaves**: `AdminCatalogueRepository` and `AdminRepository.failedPictures` select
+    `provenance - 'drawings'`, no view, answer, audit row or log line carries a name a model wrote,
+    and a person's app reads `status` and `url` only. A drawing killed before its end stores nothing
+    of its attempts. Nothing about a person is stored: a picture of a dish and a model's words on it.
   - **A rejected picture waits seven days where only the owner can see it**
     ([`0072`](../../docs/decisions/0072-a-rejected-picture-waits-for-the-owner.md), project 009, which
     amends `0066`'s "a rejected picture is never stored"). **No retry, cron or automatic code
@@ -317,7 +344,8 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     - **No state, no migration.** The pointer is `recipe_images.provenance.candidate`
       (`PictureCandidate` in `core/entities/DishPicture`: `path`, `model`, `promptVersion`, and
       `extras` — the judge's allergen keys and catalogue slugs, **never the vision model's words**),
-      beside `reason` and `notes`, which the failed pictures' mail still reads untouched.
+      beside `reason` and `notes`, which the failed pictures' mail still reads untouched, and the
+      judge's answers (`drawings`, above).
     - **The path never leaves the API**: not in a DTO, a log line or an error (the store's failures
       are scrubbed of it and carry no `cause`). Recipe rows carry
       `pictureCandidate: { allergens, ingredients: { name, slug }[], expiresAt } | null`.
@@ -343,7 +371,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
       `POST …/picture/candidate/discard` (200 `{status:'discarded'}`) deletes the file, then the
       pointer with `picture.discarded` in the same transaction; `status`, `attempts` and
       `lastAttemptAt` stay, so the dish keeps its cool-off and nothing is spent. 404 likewise.
-    - **The retry discards the candidate**: checks → claim (which clears `provenance`) → `del()`.
+    - **The retry discards the candidate**: checks → claim (which clears `provenance` but for `drawings`) → `del()`.
       A deletion that fails there leaves a private file with no pointer: known, accepted.
     - **Accept** — `POST …/picture/candidate/accept`, `@Roles('admin')`, 30 an hour, body
       `{ allergens: string[], expiresAt: string }` (`pictureAcceptanceSchema`, strict; 422
@@ -369,7 +397,9 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
          or outlasts its 10 s is followed by a deletion of that path, and answers 500;
       5. one transaction: the guarded `UPDATE` to `ready` (still `failed`, still that very path, the
          same `lastAttemptAt` that was read) with `model` and `promptVersion` from the candidate and
-         `provenance { acceptedBy: 'owner', overriddenAllergens, c2pa, trainedAlgorithmicMedia }`,
+         `provenance { acceptedBy: 'owner', overriddenAllergens, c2pa, trainedAlgorithmicMedia }` and
+         what the judge said about the dish, read with the row in step 1 (`pictureEvidenceOf`: the
+         rejections' `notes` and the `drawings`, each only when the row held it — never a path),
          **and** `picture.accepted { allergens }`. Nothing updated (another tab, a retry, a discard,
          the cleanup) → the public file just written is deleted and 409 `PICTURE_NO_CANDIDATE`; the
          audit write failing rolls the update back, deletes the public file and answers 500. **Never a
@@ -401,7 +431,8 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
       `{ status: 'removed', fileDeleted }`. **Only a `ready` row whose provenance says
       `acceptedBy: 'owner'`** (`RecipeRepository.removeAcceptedPicture`'s `WHERE`); anything else — a
       picture the judge accepted included — is 409 `PICTURE_NOT_REMOVABLE` and nothing is written. One
-      transaction puts the row `failed` with `provenance { reason: 'owner_removed' }`, no address and
+      transaction puts the row `failed` with `provenance { reason: 'owner_removed' }` (and the
+      `drawings` it held: a picture taken back is what a refinement of the judge reads), no address and
       `lastAttemptAt = now` (a whole cool-off, so the dish is not redrawn at once) and writes
       `picture.removed`; **then** the public file is deleted (`PictureStore.del`, which deletes nothing
       that is not a `dish-pictures/<uuid>/…jpg`). The row first, so no screen is ever given the address
