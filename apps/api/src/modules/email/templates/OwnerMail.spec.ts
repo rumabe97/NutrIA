@@ -44,7 +44,21 @@ const ALERTS: readonly OwnerAlert[] = [
   { codes: ['GENERATION_AI_UNAVAILABLE', 'GENERATION_TIMED_OUT', 'OTHER'], type: 'failures' },
   { capUsd: 25, share: 0.84, source: 'text', spentUsd: 21, threshold: 80, type: 'spend' },
   { capUsd: 10, share: 1.02, source: 'pictures', spentUsd: 10.2, threshold: 100, type: 'spend' },
-  { type: 'reminders-silent' }
+  { type: 'reminders-silent' },
+  {
+    reasons: [
+      { n: 2, reason: 'judge_allergen' },
+      { n: 1, reason: 'no_provenance' }
+    ],
+    type: 'picture-failures'
+  },
+  {
+    reasons: [
+      { n: 2, reason: 'payment_refused' },
+      { n: 1, reason: 'model_refused' }
+    ],
+    type: 'picture-payment-refused'
+  }
 ];
 
 function everything(mail: { html: string; subject: string; text: string }): string {
@@ -140,8 +154,9 @@ describe('the owner’s immediate alerts', () => {
     const mail = ownerAlertEmail({ alert, link });
 
     expectNothingPersonal(everything(mail));
-    expect(mail.kind).toBe('owner-alert');
+    expect(mail.kind).toBe(alert.type === 'picture-failures' || alert.type === 'picture-payment-refused' ? 'owner-picture-alert' : 'owner-alert');
     expect(mail.text).toContain('https://nutria.example/admin/');
+    expect(mail.text.match(/https:\/\//g)).toHaveLength(1);
   });
 
   it('shows a code from its closed set in the streak alert, never free text', () => {
@@ -152,6 +167,63 @@ describe('the owner’s immediate alerts', () => {
 
     expectNothingPersonal(everything(mail));
     expect(mail.text).toContain('OTHER, GENERATION_TIMED_OUT, OTHER');
+  });
+
+  /* Project 009, PRD 1: reasons and counts and the link to the failed pictures — never a dish. */
+  it('counts the failed pictures by reason, in the console’s words, with the link to the failed ones', () => {
+    const mail = ownerAlertEmail({ alert: ALERTS[4] as OwnerAlert, link });
+
+    expect(mail.subject).toBe('NutrIA — imágenes de platos fallidas: 3');
+    expect(mail.text).toContain('Imágenes de platos que han fallado desde el aviso anterior: 3.');
+    expect(mail.text).toContain('Por motivo: El revisor vio un alérgeno que el plato no tiene: 2; Sin firma C2PA: 1.');
+    expect(mail.text).toContain('https://nutria.example/admin/catalogo?picture=failed');
+    expect(mail.text).toContain('Como mucho un aviso por hora');
+  });
+
+  it('shows a reason from its closed set in the failed pictures’ mail, never a dish, an id or a model’s words', () => {
+    const mail = ownerAlertEmail({
+      alert: {
+        reasons: [
+          { n: 1, reason: 'SENTINEL-DISH-NAME' },
+          { n: 1, reason: '3f2b8c1e-9d4a-4b7e-8a11-0c5d6e7f8a90' },
+          { n: 1, reason: 'extra_allergen: SENTINEL-ERROR-TEXT someone@example.com' },
+          { n: 1, reason: '__proto__' },
+          { n: 2.7, reason: 'call_failed' }
+        ] as unknown as Extract<OwnerAlert, { type: 'picture-failures' }>['reasons'],
+        type: 'picture-failures'
+      },
+      link
+    });
+
+    expectNothingPersonal(everything(mail));
+    expect(mail.text).toContain('Por motivo: Otro motivo: 1; Otro motivo: 1; Otro motivo: 1; Otro motivo: 1; La llamada falló: 2.');
+  });
+
+  it('prints a count as a whole number and nothing else, whatever arrived in its place', () => {
+    const hostile = ['SENTINEL-DISH-NAME', Number.NaN, -4, Number.POSITIVE_INFINITY] as unknown as number[];
+
+    for (const n of hostile) {
+      const failures = ownerAlertEmail({ alert: { reasons: [{ n, reason: 'call_failed' }], type: 'picture-failures' }, link });
+      const refused = ownerAlertEmail({ alert: { reasons: [{ n, reason: 'payment_refused' }], type: 'picture-payment-refused' }, link });
+
+      expectNothingPersonal(everything(failures));
+      expectNothingPersonal(everything(refused));
+      expect(failures.subject).toBe('NutrIA — imágenes de platos fallidas: 0');
+      expect(failures.text).toContain('La llamada falló: 0.');
+      expect(refused.text).toContain('desde el aviso anterior: 0. Por motivo: El proveedor no puede cobrar: 0.');
+    }
+  });
+
+  it('says the provider turns the pictures’ key away, with how many dishes were given back, by reason, and the link to Imágenes', () => {
+    const mail = ownerAlertEmail({ alert: ALERTS[5] as OwnerAlert, link });
+
+    expect(mail.subject).toBe('NutrIA — el proveedor de imágenes rechaza las peticiones');
+    expect(mail.text).toContain('la clave de imágenes no puede pagar o ha llegado a su límite de uso');
+    expect(mail.text).toContain(
+      'Platos con el dibujo devuelto desde el aviso anterior: 3. Por motivo: El proveedor no puede cobrar: 2; El modelo rechazó la petición: 1.'
+    );
+    expect(mail.text).toContain('https://nutria.example/admin/catalogo/imagenes');
+    expect(mail.text).toContain('durante 6 horas');
   });
 
   it('names the source and the threshold in the subject of a spend alert', () => {

@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
-import { AdminAlertController, hasNews } from 'core/controllers/Admin';
+import { AdminAlertController, hasNews, PICTURE_ALERT_KINDS } from 'core/controllers/Admin';
 import { DEFAULT_WEB_LOCALE, webUrl } from 'core/domain/WebUrl';
 import { madridDayKey, madridMidnight } from 'core/domain/Period';
 import { monthStart } from 'core/controllers/Recipe';
@@ -18,6 +18,8 @@ import type { RenderedEmail } from '../../email/templates/Layout.js';
 
 /** An alert of one kind is not repeated within this many hours (`0071`). */
 const REPEAT_HOURS = 6;
+/** The mail about failed pictures: at most one in this many hours (project 009). */
+const PICTURE_REPEAT_HOURS = 1;
 const HOUR_MS = 60 * 60 * 1000;
 
 /**
@@ -31,6 +33,9 @@ const HOUR_MS = 60 * 60 * 1000;
  *   A per-call check would put a query on the path of every model call; a
  *   plan job makes several and ends minutes later, which is early enough for a
  *   number that moves over days.
+ * - **Dish pictures that failed** (project 009): at most one mail an hour, with
+ *   everything that failed since the one before, and one every 6 h while the
+ *   provider turns the pictures' key away (no payment, or a rate limit). Checked when any drawing ends and in both crons.
  *
  * Every mail carries numbers, codes from closed lists and links, never an
  * address or anybody's text (`OwnerDigest`, `OwnerAlert`). The right to send is
@@ -132,6 +137,48 @@ export class OwnerAlertsService {
     }
   }
 
+  /**
+   * The dish pictures that failed since the owner was last told, by closed reason, and
+   * the drawings given back because the provider turned the pictures' key away — it
+   * could not pay, or it reached its rate limit (project 009).
+   *
+   * Called when a drawing ends, however it ended, and by both daily crons. The first
+   * failure of a run mails at once; the ones inside that hour's claim are not lost,
+   * because each mail counts from the one before it (`AdminAlertController.pictureFailures`)
+   * and the next call past the hour sends them. The claim is dated `now`, the instant
+   * the count ran up to. The provider's refusals have their own claim, for 6 h. A row
+   * given back by the month's cap mails nothing here: the spend alert says it.
+   */
+  async pictureFailures(now = new Date()): Promise<void> {
+    if (this.owner === undefined) {
+      return;
+    }
+
+    try {
+      const { failed, refused } = await AdminAlertController.pictureFailures(now);
+
+      if (failed.length > 0) {
+        await this.deliver(
+          PICTURE_ALERT_KINDS.failed,
+          new Date(now.getTime() - PICTURE_REPEAT_HOURS * HOUR_MS),
+          this.alert({ reasons: failed, type: 'picture-failures' }),
+          now
+        );
+      }
+
+      if (refused.length > 0) {
+        await this.deliver(
+          PICTURE_ALERT_KINDS.refused,
+          new Date(now.getTime() - REPEAT_HOURS * HOUR_MS),
+          this.alert({ reasons: refused, type: 'picture-payment-refused' }),
+          now
+        );
+      }
+    } catch (error: unknown) {
+      this.logger.error(`The picture failures check failed: ${error instanceof Error ? error.constructor.name : 'unknown'}`);
+    }
+  }
+
   private async failureStreak(now: Date): Promise<void> {
     try {
       const codes = await AdminAlertController.failureStreak();
@@ -159,15 +206,18 @@ export class OwnerAlertsService {
     return ownerAlertEmail({ alert, link: this.link });
   }
 
-  /** Claims `kind` since `since`, sends, and gives the claim back when the mail did not leave. */
-  private async deliver(kind: string, since: Date, mail: RenderedEmail): Promise<void> {
+  /**
+   * Claims `kind` since `since`, sends, and gives the claim back when the mail did not leave.
+   * `at` dates the claim, for a mail that counts since the previous one.
+   */
+  private async deliver(kind: string, since: Date, mail: RenderedEmail, at?: Date): Promise<void> {
     const to = this.owner;
 
     if (to === undefined) {
       return;
     }
 
-    const claim = await AdminAlertController.claim(kind, since);
+    const claim = await AdminAlertController.claim(kind, since, ...(at === undefined ? [] : [at]));
 
     if (claim === null) {
       return;

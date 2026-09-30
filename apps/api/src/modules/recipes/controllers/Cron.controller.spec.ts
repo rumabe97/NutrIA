@@ -29,6 +29,7 @@ describe('the cron routes', () => {
   const digest = jest.fn(async () => Promise.resolve());
   const checkSpend = jest.fn(async () => Promise.resolve());
   const watchReminders = jest.fn(async () => Promise.resolve());
+  const pictureFailures = jest.fn(async () => Promise.resolve());
   const bearer = (secret: string) => ['Bearer', secret].join(' ');
 
   afterEach(async () => {
@@ -45,7 +46,7 @@ describe('the cron routes', () => {
         { provide: CheckInReminderService, useValue: { sweep } },
         { provide: ExpiredInvitationsService, useValue: { forget } },
         { provide: CronRunService, useValue: { record } },
-        { provide: OwnerAlertsService, useValue: { checkSpend, digest, watchReminders } }
+        { provide: OwnerAlertsService, useValue: { checkSpend, digest, pictureFailures, watchReminders } }
       ]
     }).compile();
 
@@ -151,6 +152,68 @@ describe('the cron routes', () => {
 
     expect(record).toHaveBeenCalledTimes(1);
     expect(record).toHaveBeenCalledWith('reminders', { considered: 3, failed: 1, pushed: 1, sent: 2 });
+  });
+
+  /* Project 009: the failed pictures an hour's claim held back go out with the next cron, whichever it is. */
+  it('sends the failed pictures’ mail on both crons, and neither run depends on it', async () => {
+    rewriteOutdated.mockResolvedValue({ pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/reminders').set('Authorization', bearer(SECRET)).expect(200);
+    expect(pictureFailures).toHaveBeenCalledTimes(1);
+
+    await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
+    expect(pictureFailures).toHaveBeenCalledTimes(2);
+
+    pictureFailures.mockRejectedValue(new Error('smtp is down'));
+    await request(server).get('/cron/reminders').set('Authorization', bearer(SECRET)).expect(200);
+    await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
+    expect(sweep).toHaveBeenCalledTimes(2);
+    expect(rewriteOutdated).toHaveBeenCalledTimes(2);
+    pictureFailures.mockResolvedValue(undefined);
+  });
+
+  it('waits for the failed pictures’ mail only as long as its budget, on both crons', async () => {
+    const budgets: number[] = [];
+    const realTimeout = setTimeout;
+
+    // The budget's own timer fires at once; every other timer is left alone.
+    jest.spyOn(globalThis, 'setTimeout').mockImplementation(((run: () => void, ms?: number) => {
+      if (ms !== 10_000) {
+        return realTimeout(run, ms);
+      }
+
+      budgets.push(ms);
+
+      return realTimeout(run, 0);
+    }) as typeof setTimeout);
+    rewriteOutdated.mockResolvedValue({ pending: 0, rewritten: 0, skipped: 0, unreached: 0 });
+    // A mail server that never answers.
+    pictureFailures.mockImplementation(async () => new Promise<void>(() => undefined));
+
+    try {
+      const server = await boot(SECRET);
+
+      await request(server).get('/cron/reminders').set('Authorization', bearer(SECRET)).expect(200);
+      expect(budgets).toHaveLength(1);
+      await request(server).get('/cron/rewrite-steps').set('Authorization', bearer(SECRET)).expect(200);
+      expect(budgets).toHaveLength(2);
+
+      expect(sweep).toHaveBeenCalledTimes(1);
+      expect(rewriteOutdated).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.restoreAllMocks();
+      pictureFailures.mockImplementation(async () => Promise.resolve());
+    }
+  });
+
+  it('sends no failed pictures’ mail to the wrong bearer', async () => {
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/reminders').set('Authorization', bearer('wrong')).expect(404);
+    await request(server).get('/cron/rewrite-steps').set('Authorization', bearer('wrong')).expect(404);
+
+    expect(pictureFailures).not.toHaveBeenCalled();
   });
 
   it("still runs the reminders when the owner's digest fails", async () => {

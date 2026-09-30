@@ -20,6 +20,12 @@
 > tarea callada — verdad una vez fusionado el árbol de trabajo de `admin-console-loose-ends`
 > sobre `e1332b4`): ningún dato, fin ni destinatario nuevo; un dato menos en el buzón del
 > propietario ([adenda](./2026-09-29-correos-al-propietario.md#adenda-2026-09-29-tarde-el-aviso-de-cuenta-esperando-resuelto-y-un-cuarto-aviso)).
+> Revisado el 2026-09-30: fila 7 (dos avisos al propietario sobre las imágenes de los platos,
+> `0072`, proyecto 009 fase 1 — verdad una vez fusionado el árbol de trabajo de `main` sobre
+> `0d7b275`): ningún dato, fin ni destinatario nuevo; recuentos por motivo de lista cerrada y
+> un enlace, sin el nombre ni el id de ningún plato. Lo único que se guarda de más son dos
+> valores nuevos del tipo en `owner_alerted` y uno de la plantilla en `mail_sent`, los dos
+> sin usuario ([`textos/06`](./textos/06-correos.md) § M y § N).
 >
 > **No soy abogado.** Los plazos y destinatarios marcados «pendiente» dependen de
 > decisiones del [`analisis.md` § 9](./analisis.md#9-riesgos-ordenados-por-lo-que-le-puede-pasar-a-una-persona-real).
@@ -34,6 +40,6 @@
 | 4 | Seguimiento | adherencia, peso, check-in, recordatorios | usuarios | marcas, valoraciones, comentarios, peso, respuestas | Vercel, Neon, SMTP, push del navegador (cifrado) | EE. UU. (empresas) | cuenta | — |
 | 5 | Consulta de dietistas (004) | comunicación consentida al profesional, rastro | usuarios vinculados, invitados, profesionales | los de 2-4 según el enlace; correo del invitado; rastro; colegiado | el profesional vinculado (responsable independiente) | — | enlace: cuenta; invitación: hasta que se responde, o 14 días más el barrido diario (≤ 15; si esa tarea lleva más de 26 h sin correr, aviso al propietario, [`textos/06`](./textos/06-correos.md) § K); rastro: cuenta del cliente | `withClient`, rastro, 404, acuerdo del profesional (**pendiente**) |
 | 6 | Cobros | Premium y planes de consulta | usuarios de pago, profesionales | ids de Stripe, estado, periodo | Stripe / Link | EE. UU./UE — DPA de Stripe | cuenta; Stripe según ley fiscal | checkout y portal alojados por Stripe; webhook firmado |
-| 7 | Métricas y errores | saber si funciona | usuarios | evento + `userId`; error y pila sin datos | Neon; Sentry (si activo) | EE. UU./UE según región de Sentry | **pendiente**: 24 meses métricas, 12 meses trabajos | sin salud; redacción de secretos; los correos al propietario (resumen y avisos de fallos, gasto y tarea callada, `0071`) solo llevan recuentos, códigos de lista cerrada, texto fijo y enlaces |
+| 7 | Métricas y errores | saber si funciona | usuarios | evento + `userId`; error y pila sin datos | Neon; Sentry (si activo) | EE. UU./UE según región de Sentry | **pendiente**: 24 meses métricas, 12 meses trabajos | sin salud; redacción de secretos; los correos al propietario (resumen y avisos de fallos, gasto y tarea callada, `0071`; imágenes de platos fallidas y proveedor de imágenes que rechaza las peticiones por pago o límite de uso, `0072`) solo llevan recuentos, códigos de lista cerrada, texto fijo y enlaces |
 | 8 | Buzón de sugerencias | leer y responder | usuarios | texto libre | Neon | — | **pendiente**: 24 meses tras «atendido» | solo el propietario lo lee |
 | 9 | Copias de seguridad | recuperación | todos | todo | Neon (restauración), equipo del propietario (exportación) | UE | Neon: ventana del plan (**anotar**); exportación: **30 días (pendiente)** | cifrado de la exportación **pendiente** |

@@ -533,7 +533,13 @@ describe('the owner is told by mail (0071, phase 6)', () => {
           .overrideProvider(ENV)
           .useValue(envFor({}))
           .overrideProvider(OwnerAlertsService)
-          .useValue({ afterJob: () => Promise.resolve(), checkSpend: () => Promise.resolve(), digest: () => Promise.reject(new Error('boom')) })
+          .useValue({
+            afterJob: () => Promise.resolve(),
+            checkSpend: () => Promise.resolve(),
+            digest: () => Promise.reject(new Error('boom')),
+            // The pictures' mail is the cron's second call to the owner (project 009), and breaks the same way.
+            pictureFailures: () => Promise.reject(new Error('boom'))
+          })
       );
 
       try {

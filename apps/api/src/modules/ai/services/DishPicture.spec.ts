@@ -335,6 +335,49 @@ describe('DishPictureService', () => {
 
     expect(store.stored).toHaveLength(1);
   });
+
+  /* Project 009: whoever scheduled the drawing is told it ended; what they do with it lives outside this module. */
+  it('tells the caller a scheduled drawing ended, however it ended, and only then', async () => {
+    const wait = async () =>
+      new Promise(resolve => {
+        setTimeout(resolve, 20);
+      });
+    const onEnd = jest.fn<() => void>();
+    const kept = service();
+
+    kept.pictures.schedule(CLAIM, onEnd);
+    expect(onEnd).not.toHaveBeenCalled();
+    await wait();
+    expect(kept.store.stored).toHaveLength(1);
+    expect(onEnd).toHaveBeenCalledTimes(1);
+
+    const failed = service({
+      images: drawing(async () => Promise.reject(new PictureCallError('OpenRouter /images answered 503: upstream trouble', 503)))
+    });
+
+    failed.pictures.schedule(CLAIM, onEnd);
+    await wait();
+    expect(onEnd).toHaveBeenCalledTimes(2);
+
+    const thrown = service();
+
+    jest.spyOn(thrown.pictures, 'draw').mockRejectedValue(new Error('database down'));
+    thrown.pictures.schedule(CLAIM, onEnd);
+    await wait();
+    expect(onEnd).toHaveBeenCalledTimes(3);
+  });
+
+  it('is not touched by a caller whose end-of-drawing call throws', async () => {
+    const { pictures, store } = service();
+
+    pictures.schedule(CLAIM, async () => Promise.reject(new Error('smtp is down')));
+    await new Promise(resolve => {
+      setTimeout(resolve, 20);
+    });
+
+    expect(store.stored).toHaveLength(1);
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('isRefusal', () => {

@@ -27,6 +27,7 @@ import { BackgroundTaskService } from '../../shared/services/index.js';
 import { EmailModule } from '../email/email.module.js';
 import { envProvider } from '../../config/index.js';
 import { NotificationsModule } from '../notifications/index.js';
+import { OwnerAlertsModule } from '../owner-alerts/index.js';
 
 /**
  * One controller per question the screen asks, so the reads that carry a
@@ -46,8 +47,9 @@ import { NotificationsModule } from '../notifications/index.js';
     AdminSettingsController,
     AdminSystemController
   ],
-  // `PushService`: the owner's test goes out through the one door every push does; `EmailService`: the grant's mail.
-  imports: [EmailModule, NotificationsModule],
+  // `PushService`: the owner's test goes out through the one door every push does; `EmailService`: the grant's mail;
+  // `OwnerAlertsService`: a retried picture that fails again is mailed like any other (project 009).
+  imports: [EmailModule, NotificationsModule, OwnerAlertsModule],
   providers: [
     AdminAccountsService,
     AdminAuditService,

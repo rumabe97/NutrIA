@@ -5,6 +5,7 @@ import { PlanController } from 'core/controllers/Plan';
 
 import { DishPictureService } from '../../ai/index.js';
 import { MealSwapService } from './MealSwap.service.js';
+import { OwnerAlertsService } from '../../owner-alerts/index.js';
 import { PlanJobRunner } from './PlanJobRunner.service.js';
 
 import type { AllowancesDto, JobDto, MealDetailDto, MealStatusDto, PlanDayDto, PlanDto, PlanSummaryDto } from '../dto/out/index.js';
@@ -22,6 +23,7 @@ export class MealPlansService {
   private readonly logger = new Logger(MealPlansService.name);
 
   constructor(
+    private readonly alerts: OwnerAlertsService,
     private readonly pictures: DishPictureService,
     private readonly runner: PlanJobRunner,
     private readonly swaps: MealSwapService
@@ -55,7 +57,9 @@ export class MealPlansService {
    * The meal's own page: the one read that may start its dish's picture
    * (`0066`). Without a way to draw and keep one — no key, no store — it only
    * reads, and nothing is claimed. A claim won here is drawn after the
-   * response, and the answer already says `drawing`.
+   * response, and the answer already says `drawing`. When the drawing ends the
+   * owner hears of the pictures that failed (project 009) — after the response
+   * too, and never into it.
    */
   async meal(userId: string, mealId: string, locale: string | null): Promise<MealDetailDto> {
     if (!this.pictures.isAvailable) {
@@ -69,7 +73,7 @@ export class MealPlansService {
     }
 
     if (claim) {
-      this.pictures.schedule(claim);
+      this.pictures.schedule(claim, () => this.alerts.pictureFailures());
     }
 
     return meal;

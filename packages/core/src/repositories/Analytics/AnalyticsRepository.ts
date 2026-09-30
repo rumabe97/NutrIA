@@ -38,8 +38,13 @@ export const AnalyticsRepository = {
    *
    * The event carries the kind and nothing else, and no user (`0071`). Never
    * throws: an alert that cannot be claimed is not sent, which is the safe side.
+   *
+   * `at` dates the event by the caller's clock in the place of the database's:
+   * for a mail that counts "since the previous one" (`lastOwnerAlert`), so the
+   * instant it counted up to and the instant the next one counts from are the
+   * same value, whatever the two clocks say of each other.
    */
-  async claimOwnerAlert(kind: string, since: Date): Promise<string | null> {
+  async claimOwnerAlert(kind: string, since: Date, at?: Date): Promise<string | null> {
     try {
       return await database().transaction(async tx => {
         const [lock] = await tx.execute<{ locked: boolean }>(
@@ -67,7 +72,7 @@ export const AnalyticsRepository = {
 
         const [row] = await tx
           .insert(analyticsEvents)
-          .values({ event: 'owner_alerted', properties: { kind }, userId: null })
+          .values({ event: 'owner_alerted', properties: { kind }, userId: null, ...(at === undefined ? {} : { createdAt: at }) })
           .returning({ id: analyticsEvents.id });
 
         return row?.id ?? null;

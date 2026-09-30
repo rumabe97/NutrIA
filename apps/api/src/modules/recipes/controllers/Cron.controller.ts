@@ -12,7 +12,7 @@ import { RecipeRewriter } from '../../ai/index.js';
 import type { ReminderRunDto, RewriteRunDto } from '../dto/out/index.js';
 
 /**
- * The most the reminders watch may take before the sweep starts. The sweep's own clock
+ * The most the reminders watch and the pictures' mail may take before a sweep starts. The sweep's own clock
  * starts after it and the function dies at 300 s: a mail server that hangs must not eat
  * the minute the sweep keeps for its writes and its record.
  */
@@ -60,6 +60,13 @@ export class CronController {
     // It never throws, and the catch keeps it so: a broken digest must not cost the reminders their run.
     await this.alerts.digest().catch(() => undefined);
     await this.invitations.forget();
+    // The pictures that failed inside an hour's claim, with nobody opening a dish since, go out here (project 009).
+    // After the deletion, which holds a deadline promised to other people; this mail only informs the owner,
+    // and a mail server that hangs does not hold the reminders past the budget.
+    await Promise.race([
+      this.alerts.pictureFailures().catch(() => undefined),
+      new Promise<void>(resolve => setTimeout(resolve, WATCH_BUDGET_MS).unref())
+    ]);
 
     const run = await this.reminders.sweep();
 
@@ -72,9 +79,13 @@ export class CronController {
   @Get('rewrite-steps')
   async rewriteSteps(): Promise<RewriteRunDto> {
     // First, so a sweep held by the cap, empty or failing still checks the other cron: the two watch each other.
-    // It never throws, and the catch keeps it so.
+    // Then the pictures that failed and were not mailed yet (project 009), inside the same budget.
+    // Neither throws, and the catch keeps it so.
     await Promise.race([
-      this.alerts.watchReminders().catch(() => undefined),
+      this.alerts
+        .watchReminders()
+        .then(() => this.alerts.pictureFailures())
+        .catch(() => undefined),
       new Promise<void>(resolve => setTimeout(resolve, WATCH_BUDGET_MS).unref())
     ]);
 

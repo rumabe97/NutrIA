@@ -6,6 +6,7 @@ import type { OwnerDigest } from './AdminAlertController';
 
 const admin = vi.hoisted(() => ({
   accountTotals: vi.fn(),
+  failedPictures: vi.fn(),
   failuresByCode: vi.fn(),
   lastCronRuns: vi.fn(),
   lastOutcomes: vi.fn(),
@@ -20,7 +21,7 @@ const analytics = vi.hoisted(() => ({ claimOwnerAlert: vi.fn(), lastOwnerAlert: 
 vi.mock('#repositories/Admin', () => ({
   AdminAiRepository: { monthByFeature: admin.monthByFeature },
   AdminGenerationsRepository: { failuresByCode: admin.failuresByCode, lastOutcomes: admin.lastOutcomes },
-  AdminRepository: { pictures: admin.pictures },
+  AdminRepository: { failedPictures: admin.failedPictures, pictures: admin.pictures },
   AdminSeriesRepository: { accountTotals: admin.accountTotals, messagesSince: admin.messagesSince },
   AdminSystemRepository: { lastCronRuns: admin.lastCronRuns, mailPerDay: admin.mailPerDay },
   JOB_STATUSES: [],
@@ -36,6 +37,7 @@ const ZERO = { mealsOutsideServingBounds: 0, overBound: 0, refusalLimit: 0, unco
 beforeEach(() => {
   vi.resetAllMocks();
   admin.accountTotals.mockResolvedValue({ created: { current: 0, previous: 0 }, total: 5, waiting: 0 });
+  admin.failedPictures.mockResolvedValue([]);
   admin.failuresByCode.mockResolvedValue([]);
   admin.lastCronRuns.mockResolvedValue([
     { at: new Date(NOW.getTime() - 20 * HOUR), job: 'reminders' },
@@ -168,6 +170,79 @@ describe('the failure streak', () => {
 
     admin.lastOutcomes.mockResolvedValue([{ code: 'X', status: 'failed' }]);
     expect(await AdminAlertController.failureStreak()).toBeNull();
+  });
+});
+
+describe('the pictures that failed', () => {
+  const failed = (reason: string) => ({ provenance: { notes: ['1:rejected:SENTINEL-DISH-NAME'], reason }, released: false });
+  const released = (reason: string) => ({ provenance: { reason, released: 'SENTINEL-ERROR-TEXT' }, released: true });
+
+  it('counts each kind since its own last mail, and a day back when there was none', async () => {
+    await AdminAlertController.pictureFailures(NOW);
+
+    expect(analytics.lastOwnerAlert.mock.calls).toEqual([['picture-failed'], ['picture-payment-refused']]);
+    expect(admin.failedPictures.mock.calls).toEqual([
+      [new Date(NOW.getTime() - 24 * HOUR), NOW],
+      [new Date(NOW.getTime() - 24 * HOUR), NOW]
+    ]);
+
+    const lastFailed = new Date(NOW.getTime() - 2 * HOUR);
+    const lastRefused = new Date(NOW.getTime() - 50 * HOUR);
+
+    analytics.lastOwnerAlert.mockImplementation(async (kind: string) => Promise.resolve(kind === 'picture-failed' ? lastFailed : lastRefused));
+    admin.failedPictures.mockClear();
+    await AdminAlertController.pictureFailures(NOW);
+
+    expect(admin.failedPictures.mock.calls).toEqual([
+      [lastFailed, NOW],
+      [lastRefused, NOW]
+    ]);
+  });
+
+  it('counts the dishes that failed by closed reason, and leaves out the ones given back', async () => {
+    admin.failedPictures.mockResolvedValue([
+      failed('judge_allergen'),
+      failed('judge_allergen'),
+      failed('no_provenance'),
+      failed('SENTINEL-ERROR-TEXT'),
+      released('cap_reached'),
+      released('payment_refused')
+    ]);
+
+    const { failed: counts } = await AdminAlertController.pictureFailures(NOW);
+
+    expect(counts).toEqual([
+      { n: 2, reason: 'judge_allergen' },
+      // A reason outside the closed set is read from the notes, never shown as it came.
+      { n: 1, reason: 'judge_rejected' },
+      { n: 1, reason: 'no_provenance' }
+    ]);
+    expect(JSON.stringify(counts)).not.toContain('SENTINEL');
+  });
+
+  it('counts the provider’s refusals — no payment, a rate limit — only on rows given back, and never the month’s cap', async () => {
+    admin.failedPictures.mockResolvedValue([released('cap_reached'), released('other'), failed('payment_refused'), failed('model_refused')]);
+    await expect(AdminAlertController.pictureFailures(NOW)).resolves.toMatchObject({ refused: [] });
+
+    admin.failedPictures.mockResolvedValue([
+      released('payment_refused'),
+      released('payment_refused'),
+      released('model_refused'),
+      released('cap_reached')
+    ]);
+    await expect(AdminAlertController.pictureFailures(NOW)).resolves.toEqual({
+      failed: [],
+      refused: [
+        { n: 2, reason: 'payment_refused' },
+        { n: 1, reason: 'model_refused' }
+      ]
+    });
+  });
+
+  it('dates a claim by the clock it is given', async () => {
+    await AdminAlertController.claim('picture-failed', new Date(NOW.getTime() - HOUR), NOW);
+
+    expect(analytics.claimOwnerAlert).toHaveBeenCalledWith('picture-failed', new Date(NOW.getTime() - HOUR), NOW);
   });
 });
 

@@ -152,6 +152,17 @@ describe('AnalyticsRepository.claimOwnerAlert', () => {
     expect(write?.params).toContain(null);
   });
 
+  it('dates the event by the caller’s clock when given one, and by the database’s otherwise', async () => {
+    const at = new Date('2026-09-30T10:00:00Z');
+
+    await AnalyticsRepository.claimOwnerAlert('picture-failed', SINCE, at);
+    expect(state.sent.find(statement => statement.sql.startsWith('insert'))?.params).toContain(at.toISOString());
+
+    state.sent.length = 0;
+    await AnalyticsRepository.claimOwnerAlert('picture-failed', SINCE);
+    expect(state.sent.find(statement => statement.sql.startsWith('insert'))?.params).not.toContain(at.toISOString());
+  });
+
   it('claims nothing when that kind was sent since then', async () => {
     state.existing = 1;
 
