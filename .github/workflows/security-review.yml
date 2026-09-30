@@ -36,6 +36,12 @@ permissions:
 jobs:
   review:
     name: security review
+    # Not on Dependabot's pull requests: GitHub gives them no repository secret, so the
+    # review could never run there and, being a required check, it blocked every
+    # dependency update. A skipped job counts as passed; lint, types, tests and the
+    # end-to-end run stay required for them. The PR's author decides, not whoever
+    # re-ran the job, so a rebase comment does not switch the review back on and off.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
