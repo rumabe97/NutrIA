@@ -91,3 +91,45 @@
   - The fixture's generator and the architect's harness are in the private local context,
     in the main checkout only.
 
+## Phase 3 — What the judge said is kept (2026-09-30)
+
+- **Executor**: `backend-high` on opus (the plan's `opus @ high`) for core and the service;
+  `tests-high` on opus for the end-to-end suites; review by `invariant-reviewer` (opus, high)
+  and `legal`. Run beside phase 1, in their own worktrees; the lead brought both in after
+  phase 1 merged (#176) and ran the verification on top of it.
+- **Result**: done. The judge's rule is untouched; nothing a person sees changes.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=api --filter=web` (forced), with
+    phase 1's suite in place: 17 of 17 tasks green — core 1807 passed and 136 expected to
+    fail, api 1232, web 135, ui 487, database 43.
+  - End-to-end: the dev database is over its monthly quota until 2026-10-01, so the touched
+    suites (`picture-judgements`, new; `picture-acceptance`, `picture-candidates`) run in CI
+    only; lint and types are green locally.
+  - `invariant-reviewer`: no P0, no P1; one P2 (a change of shape would have dropped the
+    history a row held) and three P3s, all fixed — the drawings are versioned and an older
+    or newer shape is carried as it is.
+  - `legal`: what is stored is a picture of a dish and a model's words on it; it names
+    nobody. IMG-2, the DPIA and the record of processing say what is kept.
+- **What was built**:
+  - `PictureJudgement` (`core/entities/DishPicture`): the closed, bounded, versioned shape of
+    `provenance.drawings` — the last 3 drawings, 3 attempts each, the recipe as it was judged
+    once per drawing; caps on foods, names and notes; control characters and lone surrogates
+    removed from every string a drawing's end writes (`jsonbSafe`); what is cut is marked
+    `reduced`. Storing never throws and never changes how a drawing ends.
+  - Every writer keeps the drawings: the three ends of a drawing read the row under its lock
+    and write it back in one transaction; the retry, the removal and the hand-accept keep
+    them; the hand-accept also keeps the rejections' `notes`, and still holds no path.
+  - None of it leaves: the console's reads select `provenance - 'drawings'`; no view, answer,
+    audit row or log line carries a name a model wrote — pinned by unit tests and by the new
+    end-to-end suite with a sentinel name.
+  - No migration: `provenance` is `jsonb` already.
+- **Deviations from plan**: step 1 widened — the drawings survive the dish's next drawing
+  (plan amended the same day, before the work). The end-to-end cases that read
+  `provenance`'s exact keys moved with it.
+- **Decisions**: none new; `0073`.
+- **Notes for the next phase**:
+  - Phase 6 reads `provenance.drawings` in production (read-only) to replay each attempt
+    through a changed rule; the e2e suite shows that a stored attempt replays to the verdict
+    it stored.
+  - Any change to the shape raises `PICTURE_DRAWING_VERSION`.
+

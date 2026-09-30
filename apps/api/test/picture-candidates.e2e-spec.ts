@@ -46,6 +46,7 @@ import type { Env } from '../src/config/index.js';
 import type { INestApplication } from '@nestjs/common';
 import type { JudgeCall, JudgedIngredient } from '../src/modules/ai/clients/PictureJudgeClient.js';
 import type { Paged } from 'core/controllers/User';
+import type { PictureJudgedDrawing } from 'core/entities/DishPicture';
 import type { PictureMatch, SeenFood, SeenPicture } from 'core/domain/DishPicture';
 import type { Response } from 'supertest';
 import type { TestingModuleBuilder } from '@nestjs/testing';
@@ -137,7 +138,13 @@ class PrawnsJudge extends StubPictureJudgeClient {
 type Dish = { mealId: string; name: string; recipeId: string; slug: string };
 type MealDetail = { illustrationPath: string | null; pictureStatus: string };
 type StoredCandidate = { extras: { foreignAllergens: string[]; mappedTo: string[] }[]; model: string; path: string; promptVersion: string };
-type Provenance = { candidate?: StoredCandidate; diagnostic?: Record<string, unknown>; notes?: string[]; reason?: string };
+type Provenance = {
+  candidate?: StoredCandidate;
+  diagnostic?: Record<string, unknown>;
+  drawings?: PictureJudgedDrawing[];
+  notes?: string[];
+  reason?: string;
+};
 /** `lastAttemptAt` as ISO text with its milliseconds, whatever the driver makes of a timestamp. */
 type Row = { attempts: number; lastAttemptAt: string; provenance: Provenance | null; status: string; url: string | null };
 type RecipeRow = AdminRecipesView['rows'][number];
@@ -470,8 +477,15 @@ describe('a rejected picture waits for the owner (0072, phase 2)', () => {
       expect(Buffer.from(store.files.get(path) ?? []).equals(Buffer.from(STUB_PICTURE))).toBe(true);
       expect(published.stored.filter(put => put.path.includes(dish.recipeId))).toEqual([]);
 
-      // The pointer, beside what a failed row always stored: the reason the owner's mail counts is intact.
-      expect(Object.keys(failed.provenance ?? {}).sort()).toEqual(['candidate', 'notes', 'reason']);
+      // The pointer, beside what a failed row always stored — the reason the owner's mail counts is intact — and what the judge said (project 010).
+      expect(Object.keys(failed.provenance ?? {}).sort()).toEqual(['candidate', 'drawings', 'notes', 'reason']);
+      expect(failed.provenance?.drawings?.map(drawing => drawing.attempts.map(attempt => [attempt.attempt, attempt.verdict.accepted]))).toEqual([
+        [
+          [1, false],
+          [2, false],
+          [3, false]
+        ]
+      ]);
       expect(failed.provenance?.reason).toBe('judge_allergen');
       expect(failed.provenance?.notes).toHaveLength(3);
       expect(Object.keys(failed.provenance?.candidate ?? {}).sort()).toEqual(['extras', 'model', 'path', 'promptVersion']);
@@ -688,6 +702,11 @@ describe('a rejected picture waits for the owner (0072, phase 2)', () => {
 
         expect(ended).toMatchObject({ attempts: 1, status: 'ready' });
         expect(ended.provenance?.candidate).toBeUndefined();
+        // What an accepted row stores, and not a key more: its one judged attempt among them (project 010).
+        expect(Object.keys(ended.provenance ?? {}).sort()).toEqual(['c2pa', 'drawings', 'judge', 'notes', 'trainedAlgorithmicMedia']);
+        expect(ended.provenance?.drawings?.map(drawing => drawing.attempts.map(attempt => [attempt.attempt, attempt.verdict.accepted]))).toEqual([
+          [[1, true]]
+        ]);
         expect(files(dish.recipeId)).toEqual([]);
         expect(published.stored.filter(put => put.path.includes(dish.recipeId))).toHaveLength(1);
         expect((await listed(dish)).row).toMatchObject({ picture: 'ready', pictureCandidate: null });
@@ -712,7 +731,7 @@ describe('a rejected picture waits for the owner (0072, phase 2)', () => {
         expect(await calls(dish.recipeId)).toEqual(['image']);
         expect(judge.calls).toBe(judged);
 
-        // The closed diagnostic, and no pointer: the file itself is kept nowhere.
+        // The closed diagnostic, and no pointer: the file itself is kept nowhere. Nothing was judged, so no `drawings` either.
         expect(Object.keys(ended.provenance ?? {}).sort()).toEqual(['diagnostic', 'notes', 'reason']);
         expect(ended.provenance?.reason).toBe('no_provenance');
         expect(ended.provenance?.diagnostic).toEqual({
@@ -740,8 +759,9 @@ describe('a rejected picture waits for the owner (0072, phase 2)', () => {
         const ended = await draw(dish, bare);
 
         expect(ended).toMatchObject({ attempts: 3, status: 'failed', url: null });
-        // What a failed row stored before `0072`, and not a key more.
-        expect(Object.keys(ended.provenance ?? {}).sort()).toEqual(['notes', 'reason']);
+        // What a failed row stored before `0072`, and not a key more — but for the judge's answers (project 010).
+        expect(Object.keys(ended.provenance ?? {}).sort()).toEqual(['drawings', 'notes', 'reason']);
+        expect(ended.provenance?.drawings?.[0]?.attempts).toHaveLength(3);
         expect(ended.provenance?.reason).toBe('judge_allergen');
         expect(ended.provenance?.notes).toHaveLength(3);
         expect(await calls(dish.recipeId)).toEqual(['image', 'judge', 'judge', 'image', 'judge', 'judge', 'image', 'judge', 'judge']);
@@ -805,7 +825,7 @@ describe('a rejected picture waits for the owner (0072, phase 2)', () => {
         const cleaned = await row(dish.recipeId);
 
         expect(cleaned).toMatchObject({ attempts: 3, lastAttemptAt: dated?.lastAttemptAt, status: 'failed' });
-        expect(Object.keys(cleaned?.provenance ?? {}).sort()).toEqual(['notes', 'reason']);
+        expect(Object.keys(cleaned?.provenance ?? {}).sort()).toEqual(['drawings', 'notes', 'reason']);
         expect(cleaned?.provenance?.reason).toBe('judge_allergen');
 
         // Claimable again: the same view, the same date, and now a drawing.
@@ -859,7 +879,7 @@ describe('a rejected picture waits for the owner (0072, phase 2)', () => {
         const cleaned = await row(dish.recipeId);
 
         expect(cleaned).toMatchObject({ attempts: 3, lastAttemptAt: failed.lastAttemptAt, status: 'failed' });
-        expect(Object.keys(cleaned?.provenance ?? {}).sort()).toEqual(['notes', 'reason']);
+        expect(Object.keys(cleaned?.provenance ?? {}).sort()).toEqual(['drawings', 'notes', 'reason']);
 
         // The next night finds nothing.
         since = await databaseNow();
@@ -890,7 +910,11 @@ describe('a rejected picture waits for the owner (0072, phase 2)', () => {
         const after = await row(dish.recipeId);
 
         expect(after).toMatchObject({ attempts: failed.attempts, lastAttemptAt: failed.lastAttemptAt, status: 'failed', url: null });
-        expect(after?.provenance).toEqual({ notes: failed.provenance?.notes, reason: failed.provenance?.reason });
+        expect(after?.provenance).toEqual({
+          drawings: failed.provenance?.drawings,
+          notes: failed.provenance?.notes,
+          reason: failed.provenance?.reason
+        });
 
         // Exactly one row, about this recipe, by the owner, about nobody.
         expect(await auditCount('picture.discarded')).toBe(audits + 1);

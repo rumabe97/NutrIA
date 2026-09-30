@@ -49,7 +49,7 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 
 ### Phase 1 — The acceptance set, before the rule changes
 
-- [x] done
+- [x] done — commit `aaee20e` ("The judge's refinement starts from its acceptance set, written as tests")
 - **Dispatch**: opus @ high — `/execute-project 010 phase 1`. `quality-max`. Review:
   `invariant-reviewer`.
 - **Goal**: what the rule must and must not do is written as tests while the rule is
@@ -159,7 +159,7 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 
 ### Phase 3 — What the judge said is kept
 
-- [ ] in progress
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 010 phase 3`. `quality-max`: it touches
   the accept's write. Reviews: `invariant-reviewer`, `legal`. The `tests` agent moves the
   end-to-end cases.

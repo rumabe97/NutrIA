@@ -93,13 +93,14 @@ export const AdminRepository = {
   /**
    * The picture rows that ended without a picture (`failed`, released or not)
    * in `[from, to)` by the time they ended. Only their provenance: the reasons
-   * are counted by `pictureReasonOf`, the one place that reads it. Mode: one
-   * filtered read; the rows are few (a failed dish waits a week).
+   * are counted by `pictureReasonOf`, the one place that reads it — and not the
+   * judge's answers (`drawings`), which no count needs. Mode: one filtered read;
+   * the rows are few (a failed dish waits a week).
    */
   async failedPictures(from: Date, to: Date): Promise<readonly FailedPictureRow[]> {
     try {
       return await database()
-        .select({ provenance: recipeImages.provenance, released: sql<boolean>`${released}` })
+        .select({ provenance: sql<Record<string, unknown> | null>`${recipeImages.provenance} - 'drawings'`, released: sql<boolean>`${released}` })
         .from(recipeImages)
         .where(and(eq(recipeImages.status, 'failed'), gte(recipeImages.lastAttemptAt, from), lt(recipeImages.lastAttemptAt, to)));
     } catch (error: unknown) {

@@ -26,6 +26,8 @@ export type PictureState = z.infer<typeof pictureStateSchema>;
  * What was checked on a picture's file: the C2PA manifest found or not, the judge's notes — and, on a
  * failed row, why it failed (`reason`, `released`), the candidate it holds (`candidate`,
  * `PictureCandidate`) or what a file without its manifest was (`diagnostic`, `PictureDiagnostic`).
+ * On any row, what the judge answered on the dish's last drawings (`drawings`, `PictureJudgedDrawing`),
+ * which every write keeps and no view reads.
  */
 export type PictureProvenance = Record<string, unknown>;
 

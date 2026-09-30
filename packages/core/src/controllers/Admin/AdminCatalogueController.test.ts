@@ -618,6 +618,49 @@ describe('AdminCatalogueController.recipe', () => {
     expect(JSON.stringify(row)).not.toContain('store.example');
   });
 
+  /* Project 010, phase 3: the rows keep what the judge answered; the reads leave it out, and even handed it, no view carries it. */
+  it('carries none of the judge’s answers — no food a model named — in the list or the one-recipe read, whatever the row holds', async () => {
+    const drawings = [
+      {
+        attempts: [
+          {
+            match: { extras: ['zzjudge-sentinel-food'], ingredients: [] },
+            seen: { foods: [{ amount: 'main', name: 'zzjudge-sentinel-food', specific: true }] },
+            verdict: { accepted: false, notes: ['extra_allergen:zzjudge-sentinel-food=milk'] }
+          }
+        ],
+        recipe: { ingredients: [], name: 'Bocadillo', reduced: false }
+      }
+    ];
+    const rows = [
+      recipe({
+        id: ID,
+        picture: 'failed',
+        pictureAt: new Date(NOW.getTime() - 3_600_000),
+        pictureFailed: true,
+        pictureProvenance: {
+          candidate: { extras: [{ foreignAllergens: ['milk'], mappedTo: ['queso'] }], model: 'stub/picture', path: PATH, promptVersion: '2.0.0' },
+          drawings,
+          reason: 'judge_allergen'
+        }
+      }),
+      recipe({ id: 'r-ready', picture: 'ready', pictureAcceptedByHand: true, pictureProvenance: { acceptedBy: 'owner', drawings } })
+    ];
+
+    catalogue.recipePage.mockResolvedValue({ rows, total: rows.length });
+    catalogue.recipe.mockResolvedValue(rows[0] ?? null);
+
+    const list = await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({}), STEPS, NOW);
+    const one = await AdminCatalogueController.recipe(ID, NOW);
+
+    expect(one.pictureReason).toBe('judge_allergen');
+    expect(one.pictureCandidate?.allergens).toEqual(['milk']);
+
+    for (const answer of [list, one]) {
+      expect(JSON.stringify(answer)).not.toMatch(/zzjudge-sentinel-food|drawings|"seen"|"match"/);
+    }
+  });
+
   it('names nobody: the row’s keys and `ingredients`, nothing else', async () => {
     catalogue.recipe.mockResolvedValue(recipe({ id: ID }));
 

@@ -45,7 +45,7 @@ import type { Env } from '../src/config/index.js';
 import type { INestApplication } from '@nestjs/common';
 import type { JudgeCall, JudgedIngredient } from '../src/modules/ai/clients/PictureJudgeClient.js';
 import type { Paged } from 'core/controllers/User';
-import type { PictureAcceptance } from 'core/entities/DishPicture';
+import type { PictureAcceptance, PictureJudgedDrawing } from 'core/entities/DishPicture';
 import type { PictureCandidateClock } from '../src/modules/ai/ai.config.js';
 import type { PictureMatch, SeenFood, SeenPicture } from 'core/domain/DishPicture';
 import type { Response } from 'supertest';
@@ -238,7 +238,7 @@ type Dish = { mealId: string; name: string; recipeId: string; slug: string };
 type MealDetail = { illustrationPath: string | null; pictureStatus: string; recipeId: string };
 type PictureStatus = { status: string; url: string | null };
 type StoredCandidate = { extras: { foreignAllergens: string[]; mappedTo: string[] }[]; model: string; path: string; promptVersion: string };
-type Provenance = { acceptedBy?: string; candidate?: StoredCandidate; notes?: string[]; reason?: string };
+type Provenance = { acceptedBy?: string; candidate?: StoredCandidate; drawings?: PictureJudgedDrawing[]; notes?: string[]; reason?: string };
 /** `lastAttemptAt` as ISO text with its milliseconds, whatever the driver makes of a timestamp. */
 type Row = {
   attempts: number;
@@ -1013,7 +1013,17 @@ describe('the owner accepts a picture against the judge, and takes it back (0072
         status: 'ready',
         url: address(written[0]?.path ?? '')
       });
-      expect(after?.provenance).toEqual({ acceptedBy: 'owner', c2pa: true, overriddenAllergens: keys, trainedAlgorithmicMedia: true });
+      // What the judge said is kept beside it (project 010): the rejections' notes and its three judged attempts, as the failed row held them.
+      expect(failed.provenance?.drawings).toHaveLength(1);
+      expect(failed.provenance?.drawings?.[0]?.attempts).toHaveLength(3);
+      expect(after?.provenance).toEqual({
+        acceptedBy: 'owner',
+        c2pa: true,
+        drawings: failed.provenance?.drawings,
+        notes: failed.provenance?.notes,
+        overriddenAllergens: keys,
+        trainedAlgorithmicMedia: true
+      });
 
       // No model was asked anything, and nothing was paid.
       expect([images.calls, judge.calls]).toEqual([drawn, judgings]);
@@ -1221,7 +1231,9 @@ describe('the owner accepts a picture against the judge, and takes it back (0072
       const removedAt = new Date(after?.lastAttemptAt ?? '').getTime();
 
       expect(after).toMatchObject({ attempts: before.row?.attempts, status: 'failed', url: null });
-      expect(after?.provenance).toEqual({ reason: 'owner_removed' });
+      // And what the judge said on the drawing the owner had overruled: the picture taken back is what a refinement reads (project 010).
+      expect(before.row?.provenance?.drawings).toHaveLength(1);
+      expect(after?.provenance).toEqual({ drawings: before.row?.provenance?.drawings, reason: 'owner_removed' });
       expect(removedAt).toBeGreaterThanOrEqual(from);
       expect(removedAt).toBeLessThanOrEqual(until);
       // The public file, by the address the row held — and that one alone.
@@ -1450,7 +1462,15 @@ describe('the owner accepts a picture against the judge, and takes it back (0072
       expect(removals.find(response => response.status === 409)?.body).toEqual(refusal('NOT_REMOVABLE'));
       expect(published.deleted.slice(deleted)).toEqual([url]);
       expect((await trail(dish.recipeId)).map(written => written.action)).toEqual(['picture.retried', 'picture.accepted', 'picture.removed']);
-      expect(await row(dish.recipeId)).toMatchObject({ provenance: { reason: 'owner_removed' }, status: 'failed', url: null });
+      // Both drawings' judged attempts survive the retry, the acceptance and the removal, oldest first (project 010).
+      const removed = await row(dish.recipeId);
+
+      expect(removed).toMatchObject({ status: 'failed', url: null });
+      expect(Object.keys(removed?.provenance ?? {}).sort()).toEqual(['drawings', 'reason']);
+      expect(removed?.provenance?.reason).toBe('owner_removed');
+      expect(first.row.provenance?.drawings).toHaveLength(1);
+      expect(second.row.provenance?.drawings).toEqual([...(first.row.provenance?.drawings ?? []), expect.anything()]);
+      expect(removed?.provenance?.drawings).toEqual(second.row.provenance?.drawings);
       expect(await status(dish)).toEqual({ status: 'none', url: null });
     }, 60_000);
 

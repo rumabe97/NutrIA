@@ -6,11 +6,12 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 
 import { recipeImageCalls, recipeImages } from 'database/schema/recipe';
 
-import { ACCEPTED_BY_OWNER } from 'core/entities/DishPicture';
+import { ACCEPTED_BY_OWNER, PICTURE_DRAWINGS_KEPT, pictureJudgedDrawing, pictureJudgement } from 'core/entities/DishPicture';
 
 import { ACCEPTED_BY_OWNER_SQL, RecipeRepository } from './RecipeRepository';
 
 import type { SQL } from 'drizzle-orm';
+import type { PictureJudgedDrawing } from 'core/entities/DishPicture';
 
 // As the client reads column names (`database`): snake_case.
 const dialect = new PgDialect({ casing: 'snake_case' });
@@ -140,6 +141,53 @@ function written(value: unknown): { params: unknown[]; sql: string } {
   return dialect.sqlToQuery(value as SQL);
 }
 
+/** What `KEEPING` was given, parsed back: the provenance a write stores, before the pointer is carried over. */
+function stored(value: unknown): Record<string, unknown> {
+  return JSON.parse(String(written(value).params[0])) as Record<string, unknown>;
+}
+
+/** A drawing whose one attempt was rejected for `food`, judged at `at`: what a drawing's end hands the repository. */
+function judgedDrawing(at: string, food: string): PictureJudgedDrawing {
+  const judgement = pictureJudgement({
+    at: new Date(at),
+    match: { extras: [food], ingredients: [{ matched: [], slug: 'arroz-blanco-cocido', status: 'seen' }] },
+    number: 1,
+    seen: { foods: [{ amount: 'main', name: food, specific: true }] },
+    verdict: { accepted: false, notes: [`extra_food:${food}`] }
+  });
+  const drawing =
+    judgement === null
+      ? null
+      : pictureJudgedDrawing({ ingredients: [{ grams: 200, name: 'Cooked white rice', slug: 'arroz-blanco-cocido' }], name: 'Arroz' }, [judgement]);
+
+  if (drawing === null) {
+    throw new Error('expected a drawing');
+  }
+
+  return drawing;
+}
+
+/** The statement a drawing's end sends after its locked read, checked to be an update. */
+function endOf(index = 1): Extract<Statement, { kind: 'update' }> {
+  const statement = statements[index];
+
+  if (statement?.kind !== 'update') {
+    throw new Error('expected an update');
+  }
+
+  return statement;
+}
+
+/** The locked read every end of a drawing starts with: the row this caller still holds. */
+const HELD = {
+  kind: 'select',
+  table: recipeImages,
+  where: {
+    params: [RECIPE, 'drawing', CLAIMED.toISOString()],
+    sql: '("recipe_images"."recipe_id" = $1 and "recipe_images"."status" = $2 and "recipe_images"."last_attempt_at" = $3)'
+  }
+};
+
 beforeEach(() => {
   statements.length = 0;
   updatedThrough.length = 0;
@@ -226,9 +274,10 @@ describe('RecipeRepository.claimPicture', () => {
 
 describe('RecipeRepository — ending a drawing', () => {
   it('completePicture writes the address and what drew it, only over the drawing this caller claimed', async () => {
-    answers = [[{ recipeId: RECIPE }]];
+    answers = [[{ provenance: null }], [{ recipeId: RECIPE }]];
     const picture = {
       attempts: 2,
+      judged: null,
       model: 'google/gemini-3.1-flash-lite-image',
       promptVersion: '2.0.0',
       provenance: { c2pa: true },
@@ -237,11 +286,12 @@ describe('RecipeRepository — ending a drawing', () => {
 
     await expect(RecipeRepository.completePicture(RECIPE, CLAIMED, picture)).resolves.toBe(true);
 
-    const [done] = statements;
+    // The row this drawing still holds is read and locked first, in the transaction the update goes through.
+    expect(statements[0]).toMatchObject(HELD);
+    expect(locks).toEqual(['update']);
+    expect(updatedThrough).toEqual(['tx']);
 
-    if (done?.kind !== 'update') {
-      throw new Error('expected an update');
-    }
+    const done = endOf();
 
     expect(done.table).toBe(recipeImages);
     expect(done.set).toMatchObject({ attempts: 2, model: picture.model, promptVersion: '2.0.0', status: 'ready', url: picture.url });
@@ -253,20 +303,28 @@ describe('RecipeRepository — ending a drawing', () => {
 
   it('completePicture answers false when the row is no longer this caller’s drawing — ended, or taken over as stale', async () => {
     await expect(
-      RecipeRepository.completePicture(RECIPE, CLAIMED, { attempts: 1, model: 'm', promptVersion: 'v', provenance: {}, url: 'u' })
+      RecipeRepository.completePicture(RECIPE, CLAIMED, { attempts: 1, judged: null, model: 'm', promptVersion: 'v', provenance: {}, url: 'u' })
+    ).resolves.toBe(false);
+    // Nothing held: nothing is written.
+    expect(statements.map(statement => statement.kind)).toEqual(['select']);
+
+    // Held when read, and taken over before the write: the guarded update reaches nothing.
+    answers = [[{ provenance: null }], []];
+
+    await expect(
+      RecipeRepository.completePicture(RECIPE, CLAIMED, { attempts: 1, judged: null, model: 'm', promptVersion: 'v', provenance: {}, url: 'u' })
     ).resolves.toBe(false);
   });
 
   it('failPicture starts the cool-off from when the drawing ended, only over the drawing this caller claimed', async () => {
-    answers = [[{ recipeId: RECIPE }]];
+    answers = [[{ provenance: null }], [{ recipeId: RECIPE }]];
 
-    await expect(RecipeRepository.failPicture(RECIPE, CLAIMED, { attempts: 3, provenance: { rejected: 3 } }, NOW)).resolves.toBe(true);
+    await expect(RecipeRepository.failPicture(RECIPE, CLAIMED, { attempts: 3, judged: null, provenance: { rejected: 3 } }, NOW)).resolves.toBe(true);
 
-    const [failed] = statements;
+    expect(statements[0]).toMatchObject(HELD);
+    expect(updatedThrough).toEqual(['tx']);
 
-    if (failed?.kind !== 'update') {
-      throw new Error('expected an update');
-    }
+    const failed = endOf();
 
     expect(failed.set).toMatchObject({ attempts: 3, lastAttemptAt: NOW, status: 'failed' });
     expect(written(failed.set.provenance)).toMatchObject({ params: ['{"rejected":3}'], sql: KEEPING });
@@ -275,18 +333,12 @@ describe('RecipeRepository — ending a drawing', () => {
 
   /* 0072: a drawing's end never forgets where a rejected file is kept. */
   it('failPicture writes the candidate it is given, inside what the row stores', async () => {
-    answers = [[{ recipeId: RECIPE }]];
+    answers = [[{ provenance: null }], [{ recipeId: RECIPE }]];
     const provenance = { candidate: { extras: [], model: 'm', path: CANDIDATE, promptVersion: '2.0.0' }, notes: [], reason: 'judge_allergen' };
 
-    await RecipeRepository.failPicture(RECIPE, CLAIMED, { attempts: 3, provenance }, NOW);
+    await RecipeRepository.failPicture(RECIPE, CLAIMED, { attempts: 3, judged: null, provenance }, NOW);
 
-    const [failed] = statements;
-
-    if (failed?.kind !== 'update') {
-      throw new Error('expected an update');
-    }
-
-    expect(written(failed.set.provenance).params).toEqual([JSON.stringify(provenance)]);
+    expect(written(endOf().set.provenance).params).toEqual([JSON.stringify(provenance)]);
   });
 });
 
@@ -362,15 +414,16 @@ describe('RecipeRepository — reading a picture and its spend', () => {
 
 describe('RecipeRepository.releasePicture', () => {
   it('ends the claim as a released failure that keeps its attempts, only over the drawing this caller claimed', async () => {
-    answers = [[{ recipeId: RECIPE }]];
+    answers = [[{ provenance: null }], [{ recipeId: RECIPE }]];
 
-    await expect(RecipeRepository.releasePicture(RECIPE, CLAIMED, { attempts: 2, reason: 'cap_reached', why: 'cap' }, NOW)).resolves.toBe(true);
+    await expect(
+      RecipeRepository.releasePicture(RECIPE, CLAIMED, { attempts: 2, judged: null, reason: 'cap_reached', why: 'cap' }, NOW)
+    ).resolves.toBe(true);
 
-    const [release] = statements;
+    expect(statements[0]).toMatchObject(HELD);
+    expect(updatedThrough).toEqual(['tx']);
 
-    if (release?.kind !== 'update') {
-      throw new Error('expected an update');
-    }
+    const release = endOf();
 
     expect(release.table).toBe(recipeImages);
     expect(release.set).toMatchObject({ attempts: 2, lastAttemptAt: NOW, status: 'failed' });
@@ -380,13 +433,15 @@ describe('RecipeRepository.releasePicture', () => {
   });
 
   it('answers false when the claim was taken over or ended', async () => {
-    await expect(RecipeRepository.releasePicture(RECIPE, CLAIMED, { attempts: 0, reason: 'cap_reached', why: 'cap' }, NOW)).resolves.toBe(false);
+    await expect(
+      RecipeRepository.releasePicture(RECIPE, CLAIMED, { attempts: 0, judged: null, reason: 'cap_reached', why: 'cap' }, NOW)
+    ).resolves.toBe(false);
   });
 });
 
 describe('RecipeRepository.retryPicture', () => {
   it('claims only a failed row, released or past its cool-off or not, for a fresh three attempts — and the audit row goes in the same transaction', async () => {
-    answers = [[{ path: null }], [{ recipeId: RECIPE }]];
+    answers = [[{ path: null, provenance: { notes: ['1:failed:x'], reason: 'call_failed' } }], [{ recipeId: RECIPE }]];
     const record = vi.fn(async () => Promise.resolve());
 
     await expect(RecipeRepository.retryPicture(RECIPE, NOW, 15, record)).resolves.toEqual({ candidatePath: null });
@@ -577,7 +632,8 @@ describe('RecipeRepository.acceptCandidate', () => {
     expect(record).toHaveBeenCalledWith(tx);
   });
 
-  it('writes nothing that is a path or an address of the private file, and nothing of the judge’s words', async () => {
+  // What the judge said is the controller's to hand over (`pictureEvidenceOf`, project 010); no path ever is.
+  it('writes nothing that is a path or an address of the private file', async () => {
     answers = [[{ recipeId: RECIPE }]];
     await RecipeRepository.acceptCandidate(RECIPE, SEEN, PICTURE, NOW, async () => Promise.resolve());
 
@@ -587,7 +643,7 @@ describe('RecipeRepository.acceptCandidate', () => {
       throw new Error('expected an update');
     }
 
-    expect(JSON.stringify(written(accept.set.provenance).params)).not.toMatch(/dish-picture-candidates|extra_allergen|notes/);
+    expect(JSON.stringify(written(accept.set.provenance).params)).not.toMatch(/dish-picture-candidates|candidate/);
   });
 
   it('answers false and writes no audit row when the row moved since it was read: another tab, a retry, a discard, the cleanup', async () => {
@@ -626,6 +682,7 @@ describe('RecipeRepository.removeAcceptedPicture', () => {
       throw new Error('expected an update');
     }
 
+    // A row with no judged drawings keeps nothing but the reason.
     expect(removal.set).toEqual({ lastAttemptAt: NOW, provenance: { reason: 'owner_removed' }, status: 'failed', updatedAt: NOW, url: null });
     expect(removal.where).toMatchObject({
       params: [RECIPE, 'ready'],
@@ -697,6 +754,111 @@ describe('RecipeRepository.settledPicture', () => {
 
     await expect(RecipeRepository.settledPicture(RECIPE, 3_000)).rejects.toThrow('Database operation failed');
     waiting.mockRestore();
+  });
+});
+
+/*
+ * Project 010, phase 3: what the judge answered on a dish's drawings is kept in its row, and survives the next
+ * drawing — a view's claim after the cool-off, the owner's retry — within `PICTURE_DRAWINGS_KEPT`.
+ */
+describe('RecipeRepository — what the judge said is kept', () => {
+  const first = judgedDrawing('2026-09-01T10:00:00Z', 'first');
+  const second = judgedDrawing('2026-09-09T10:00:00Z', 'second');
+  const third = judgedDrawing('2026-09-17T10:00:00Z', 'third');
+  const fourth = judgedDrawing('2026-09-27T11:59:00Z', 'fourth');
+
+  it('a failed drawing stores its judged attempts after the ones the row held, and drops the oldest beyond the bound', async () => {
+    answers = [[{ provenance: { drawings: [first, second, third], notes: ['3:rejected:x'], reason: 'judge_allergen' } }], [{ recipeId: RECIPE }]];
+
+    await RecipeRepository.failPicture(
+      RECIPE,
+      CLAIMED,
+      { attempts: 3, judged: fourth, provenance: { notes: ['1:rejected:y'], reason: 'judge_rejected' } },
+      NOW
+    );
+
+    expect(PICTURE_DRAWINGS_KEPT).toBe(3);
+    // What this drawing wrote replaces the rest; the drawings are the one thing carried over, in order.
+    expect(stored(endOf().set.provenance)).toEqual({ drawings: [second, third, fourth], notes: ['1:rejected:y'], reason: 'judge_rejected' });
+  });
+
+  it('an accepted drawing keeps them too, beside its own marks', async () => {
+    answers = [[{ provenance: { drawings: [first], reason: 'cap_reached', released: 'cap' } }], [{ recipeId: RECIPE }]];
+    const provenance = { c2pa: true, judge: [], notes: [], trainedAlgorithmicMedia: true };
+
+    await RecipeRepository.completePicture(RECIPE, CLAIMED, { attempts: 1, judged: second, model: 'm', promptVersion: 'v', provenance, url: 'u' });
+
+    expect(stored(endOf().set.provenance)).toEqual({ ...provenance, drawings: [first, second] });
+  });
+
+  it('a drawing given back keeps what its attempts were judged before it stopped', async () => {
+    answers = [[{ provenance: null }], [{ recipeId: RECIPE }]];
+
+    await RecipeRepository.releasePicture(RECIPE, CLAIMED, { attempts: 1, judged: first, reason: 'payment_refused', why: 'refused' }, NOW);
+
+    expect(stored(endOf().set.provenance)).toEqual({ drawings: [first], reason: 'payment_refused', released: 'refused' });
+  });
+
+  it('a drawing that judged nothing leaves the drawings the row held as they were, and adds no key to a row that held none', async () => {
+    answers = [[{ provenance: { drawings: [first] } }], [{ recipeId: RECIPE }], [{ provenance: null }], [{ recipeId: RECIPE }]];
+
+    await RecipeRepository.failPicture(RECIPE, CLAIMED, { attempts: 1, judged: null, provenance: { notes: [], reason: 'no_provenance' } }, NOW);
+    await RecipeRepository.failPicture(RECIPE, CLAIMED, { attempts: 1, judged: null, provenance: { notes: [], reason: 'no_provenance' } }, NOW);
+
+    expect(stored(endOf(1).set.provenance)).toEqual({ drawings: [first], notes: [], reason: 'no_provenance' });
+    expect(stored(endOf(3).set.provenance)).toEqual({ notes: [], reason: 'no_provenance' });
+  });
+
+  it('trusts no drawings key in what is written, carries a stored drawing of another shape as it is, and drops what is not an object', async () => {
+    const older = { attempts: [], recipe: 'x' };
+
+    answers = [[{ provenance: { drawings: [older, first, 'garbage'] } }], [{ recipeId: RECIPE }]];
+
+    await RecipeRepository.failPicture(RECIPE, CLAIMED, { attempts: 1, judged: null, provenance: { drawings: ['forged'], reason: 'other' } }, NOW);
+
+    expect(stored(endOf().set.provenance)).toEqual({ drawings: [older, first], reason: 'other' });
+  });
+
+  it('a drawing’s end writes no NUL and no lone surrogate from a provider’s or the judge’s words: the write cannot fail on them', async () => {
+    answers = [[{ provenance: null }], [{ recipeId: RECIPE }]];
+
+    await RecipeRepository.failPicture(
+      RECIPE,
+      CLAIMED,
+      {
+        attempts: 1,
+        judged: null,
+        provenance: { notes: ['1:failed:answered 503: a\u0000b', '2:rejected:extra_food:c\ud800'], reason: 'call_failed' }
+      },
+      NOW
+    );
+
+    expect(written(endOf().set.provenance).params[0]).not.toMatch(/\\u0000|\\ud800/);
+    expect(stored(endOf().set.provenance)).toEqual({ notes: ['1:failed:answered 503: a b', '2:rejected:extra_food:c'], reason: 'call_failed' });
+  });
+
+  it('the owner’s retry clears everything but the drawings, so the row is neither released nor holding a candidate while it draws', async () => {
+    const candidate = { extras: [], model: 'm', path: CANDIDATE, promptVersion: '2.0.0' };
+
+    answers = [
+      [{ path: CANDIDATE, provenance: { candidate, drawings: [first, second], reason: 'cap_reached', released: 'cap' } }],
+      [{ recipeId: RECIPE }]
+    ];
+
+    await expect(RecipeRepository.retryPicture(RECIPE, NOW, 15, async () => Promise.resolve())).resolves.toEqual({ candidatePath: CANDIDATE });
+
+    expect(endOf().set).toMatchObject({ provenance: { drawings: [first, second] }, status: 'drawing' });
+  });
+
+  it('the owner’s removal keeps them beside its reason, and nothing of the acceptance', async () => {
+    const provenance = { acceptedBy: 'owner', c2pa: true, drawings: [first], notes: ['1:rejected:x'], overriddenAllergens: ['milk'] };
+
+    answers = [[{ path: null, provenance, url: 'https://store.example/dish-pictures/x.jpg' }], [{ recipeId: RECIPE }]];
+
+    await RecipeRepository.removeAcceptedPicture(RECIPE, NOW, async () => Promise.resolve());
+
+    expect(endOf().set).toMatchObject({ provenance: { drawings: [first], reason: 'owner_removed' }, status: 'failed', url: null });
+    expect(Object.keys((endOf().set.provenance ?? {}) as object).sort()).toEqual(['drawings', 'reason']);
   });
 });
 

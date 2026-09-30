@@ -68,3 +68,17 @@ describe('AdminRepository.pictures', () => {
     await expect(AdminRepository.pictures(new Date('2026-09-01T00:00:00Z'))).resolves.toMatchObject({ acceptedByHand: 0, ready: 5 });
   });
 });
+
+/* Project 010, phase 3: the failed pictures' counts — `/admin/pictures` and the owner's mail — read no judge's answers. */
+describe('AdminRepository.failedPictures', () => {
+  it('reads a failed row’s provenance without its drawings, and whether it was given back', async () => {
+    answers.push([[{ reason: 'judge_allergen' }, false]]);
+
+    await expect(AdminRepository.failedPictures(new Date('2026-09-01T00:00:00Z'), new Date('2026-09-30T00:00:00Z'))).resolves.toEqual([
+      { provenance: { reason: 'judge_allergen' }, released: false }
+    ]);
+
+    expect(sent[0]?.sql).toMatch(/^select "provenance" - 'drawings', /);
+    expect(sent[0]?.sql).not.toMatch(/"provenance"(?! ->> ')(?! - 'drawings')/);
+  });
+});

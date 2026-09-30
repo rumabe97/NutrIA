@@ -38,6 +38,13 @@
 > almacenes de Vercel Blob. El rastro gana dos acciones (`picture.accepted`, con las claves
 > de alérgeno que el juez señaló, y `picture.removed`), cuyo autor es el propio responsable
 > ([`imagenes-de-platos.md`](./imagenes-de-platos.md) § 4.4).
+> Revisado otra vez el mismo día: fila 2 **sin cambios** (proyecto 010 fase 3 — verdad una
+> vez fusionado el árbol `.claude/worktrees/backend-010-3` sobre `f81e834`): la fila de
+> cada plato en `recipe_images` guarda ahora lo que respondieron las dos llamadas del juez
+> y su veredicto, con la receta tal como se juzgó. Son palabras de un modelo sobre una foto
+> de comida hecha solo con la receta: ningún dato personal, fin, interesado, destinatario
+> ni plazo nuevo que anotar (art. 30.1 solo alcanza a tratamientos de datos personales)
+> ([`imagenes-de-platos.md`](./imagenes-de-platos.md) § 4.5).
 >
 > **No soy abogado.** Los plazos y destinatarios marcados «pendiente» dependen de
 > decisiones del [`analisis.md` § 9](./analisis.md#9-riesgos-ordenados-por-lo-que-le-puede-pasar-a-una-persona-real).

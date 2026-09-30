@@ -45,6 +45,12 @@
 > diccionarios). Los números de línea de esta revisión son de esos dos árboles; lo que
 > dice es verdad una vez fusionados tal cual.
 >
+> **Revisión 2026-09-30 (proyecto 010, fase 3)**: la fila de cada plato guarda lo que
+> respondió el juez en cada intento, con la receta tal como se juzgó. Cambian el § 4.1 (la
+> fila del juez), el § 4.3 (dos filas), el § 4.4 (una frase) y las fuentes; es nuevo el
+> § 4.5. **Leída contra el código**: el árbol `.claude/worktrees/backend-010-3` sobre
+> `f81e834`, sin commit; los números de línea de esta revisión son de ese árbol.
+>
 > **Los §§ 0 a 4.2 se escribieron antes de que la función existiera.** Lo que dicen del
 > producto sale del PRD, del informe y del piloto, y la comprobación contra el código
 > construido sigue pendiente en la lista del § 6, salvo lo que esa lista marca con su
@@ -434,7 +440,7 @@ Requisitos de la marca, que `frontend` y `accessibility` resuelven como quieran:
 | --- | --- | --- |
 | Pedir la imagen (la página de la comida llama a la API) | La sesión de quien abre la página, como en cualquier otra petición | Vercel (ya encargado) |
 | Dibujar la imagen | **Ninguno.** El prompt se hace solo con la receta: nombre, ingredientes ordenados por peso con su proporción en palabras («most of the plate»…), y el estilo fijo (piloto, `buildPrompt`; PRD, criterio 4). Nada del usuario, del perfil, de alergias ni de salud. Tampoco quién la pidió ni cuándo | OpenRouter → Google (Vertex, `google-vertex/global`), con ZDR y sin respaldo |
-| Juez de visión | **Ninguno**: la imagen y la lista de la receta | OpenRouter → DeepInfra (ya nombrada) |
+| Juez de visión | **Ninguno**: la imagen y la lista de la receta. Desde el 010 fase 3, lo que responde (alimentos que ve, su cruce con los ingredientes y el veredicto) **se guarda** en la fila del plato y no se enseña a nadie (§ 4.5) | OpenRouter → DeepInfra (ya nombrada); la respuesta, en `recipe_images` en Neon |
 | Guardar la imagen que se publica: la que el juez aceptó o, desde el 009 fase 3, la que el propietario aceptó a mano contra el juez (§ 4.4) | Ninguno: la imagen y sus metadatos técnicos (modelo, versión del prompt, tamaño). En la aceptada a mano, además, `acceptedBy: 'owner'` —la palabra fija, no un id de cuenta— y las claves de alérgeno que el juez había señalado (`RecipeController.ts:417-425`). Quién la aceptó está solo en el registro de acciones (§ 4.4) | Vercel Blob (almacén público); `recipe_images` en Neon |
 | Guardar, para que el propietario la mire, la última imagen que el juez rechazó (proyecto 009 fase 2, `0072`; § 4.3) | **Ninguno.** Como mucho un fichero por plato: el JPEG tal como lo devolvió el modelo, con su C2PA, hecho solo con la receta. En la fila del plato (`recipe_images.provenance.candidate`): la ruta del fichero, el modelo, la versión del prompt y lo que señaló el juez, como claves de alérgeno y slugs del catálogo de NutrIA. De un fichero sin C2PA no se guarda el fichero, solo qué era (tipo, tamaño y tres marcas sí/no). No añade ningún dato sobre quién abrió el plato: la hora del fallo sigue a una visita, como ya pasaba antes de esta fase, y no viaja con ningún identificador ([`textos/06`](./textos/06-correos.md) § M) | Vercel Blob, en un **segundo almacén, privado**, en `fra1` (Vercel ya es encargado); la fila, en Neon. Lo ve **solo una sesión de administrador**, a través de la API; no hay dirección pública y la ruta no sale de la API. **Se puede ver 7 días** desde el fallo; el fichero se borra después, normalmente en la limpieza de la noche siguiente, **sin plazo garantizado** (§ 4.3) |
 | Ver la imagen | La IP y el navegador de quien la carga, que llegan a la red de Vercel | Vercel (ya encargado) |
@@ -621,8 +627,8 @@ de ser verdad con la fase 3, y se corrige arriba.)
 | La última imagen con C2PA que el juez rechazó, **solo si el dibujo termina fallido** | El JPEG, byte a byte | Almacén privado, `dish-picture-candidates/<id de receta>/<versión del prompt>-<aleatorio>.jpg` |
 | Su puntero | La ruta, el modelo, la versión del prompt y, por cada alimento señalado, claves de alérgeno y slugs del catálogo (`flaggedExtras`, `judge.ts:523-527`): **no** la palabra que escribió el modelo de visión | `recipe_images.provenance.candidate` (Neon) |
 | Un fichero sin C2PA | El fichero, **no**. Un diagnóstico cerrado: tipo de contenido, tamaño y tres marcas sí/no | `recipe_images.provenance.diagnostic` |
-| Las otras imágenes rechazadas del mismo dibujo; las de un dibujo que acaba aceptado o devuelto; la que el juez no llegó a ver | Nada | — |
-| Las notas del dibujo | Como antes de esta fase: `provenance.notes` guarda las notas del juez, que **sí** incluyen nombres de alimentos escritos por el modelo de visión (`judge.ts:502-510`). No llegan a ninguna pantalla ni a ningún correo: la consola solo saca de esa fila el motivo de la lista cerrada y lo que lleva el puntero (`AdminCatalogueController.ts:213-226` y `:235-239`; ningún DTO de `modules/admin/dto/out` lleva `notes` ni `provenance`) | `recipe_images.provenance.notes` |
+| Las otras imágenes rechazadas del mismo dibujo; las de un dibujo que acaba aceptado o devuelto; la que el juez no llegó a ver | Del fichero, nada. Desde el 010 fase 3, **lo que el juez respondió** sobre cada una que llegó a juzgar sí se guarda (§ 4.5) | `recipe_images.provenance.drawings` |
+| Las notas del dibujo | Como antes de esta fase: `provenance.notes` guarda las notas del juez, que **sí** incluyen nombres de alimentos escritos por el modelo de visión (`judge.ts:502-510`). No llegan a ninguna pantalla ni a ningún correo: la consola solo saca de esa fila el motivo de la lista cerrada y lo que lleva el puntero (`AdminCatalogueController.ts:213-226` y `:235-239`; ningún DTO de `modules/admin/dto/out` lleva `notes` ni `provenance`). Desde el 010 fase 3, además, las respuestas enteras del juez, en `drawings` (§ 4.5) | `recipe_images.provenance.notes` |
 
 Sin el token del almacén privado no se guarda nada y el dibujo es el de antes
 (`DishPicture.service.ts:369`; `VercelBlobPictureCandidateStore.ts:21-23`).
@@ -705,7 +711,8 @@ plato puede no haber tenido ninguna (`nothingBody`).
 **Qué pasa, en datos.** Ningún dato personal entra ni sale. Aceptar mueve un fichero —una
 foto de comida hecha con la receta— del almacén privado al público y cambia una fila de
 `recipe_images`; retirar borra el fichero público y devuelve la fila a `failed` con el
-motivo cerrado `owner_removed` (`RecipeRepository.ts:957-986`). No hay destinatario
+motivo cerrado `owner_removed` (`RecipeRepository.ts:957-986`) y, desde el 010 fase 3,
+con lo que el juez respondió sobre el plato (§ 4.5). No hay destinatario
 nuevo: Vercel ya guarda y sirve las imágenes. Lo único que nombra a alguien es el rastro,
 y nombra al propietario (abajo).
 
@@ -821,6 +828,80 @@ cambio, con `terms.updated` (P3). **No se toma** (propietario, 2026-09-30):
 
 <!-- Fuente: TRLGDCU art. 60.1; Ley 3/1991, art. 7.1 (omisión de información necesaria); Ley 7/1998, art. 5.5. Solo informa: no es un «cambio importante» y no exige correo previo (§ 3.3). -->
 
+### 4.5 Lo que dijo el juez se guarda (010, fase 3)
+
+**Qué se guarda.** En `recipe_images.provenance.drawings`, por cada intento que llegó al
+juez (las dos llamadas respondieron y la regla corrió): la hora del juicio, el número del
+intento, lo que el modelo de visión dijo ver (nombre de cada alimento, cantidad y si es
+específico; cosas que no son comida; nitidez, realismo), el cruce con los ingredientes de
+la receta, el veredicto y sus notas. Una vez por dibujo, la receta tal como se juzgó:
+nombre e ingredientes con sus gramos. Como mucho 3 dibujos de 3 intentos por plato, con
+tope en cada lista y cada cadena; lo que no cabe se corta y un intento que aun así pasa de
+6 KB no se guarda (`PictureJudgement.ts:24-41`, `:74-97`, `:249-294`).
+
+**¿Nombra o describe a alguien?** No.
+
+- El esquema es cerrado (`strictObject`) y se llena solo con las respuestas, el veredicto,
+  la hora y el número del intento (`DishPicture.service.ts:361`), y con la receta que lee
+  `pictureRecipe` (nombre e ingredientes, `RecipeRepository.ts:857-879`). **Nada del
+  reclamo ni de la petición**: ni id de usuario, ni sesión, ni quién abrió el plato.
+- Lo que el modelo de visión describe es una imagen generada solo con la receta (§ 4.1).
+  Una palabra suya («mano», «mantel», un alimento) describe esa imagen, no a una persona:
+  no es información «sobre una persona física» (RGPD art. 4.1; cdo. 26).
+- El nombre de la receta lo escribe el modelo que diseña los platos, o sale de la
+  biblioteca: el único escritor de `recipes` fija `source: 'ai'` y toma el nombre del
+  borrador del modelo (`PlanRepository.ts:1246-1262`); ningún camino guarda un nombre que
+  haya escrito una persona. Es la misma entrada que ya recibe el dibujo.
+- `recipes.createdBy` sigue ligando una receta generada a la cuenta que la generó, como
+  antes ([`analisis.md` § 1.1](./analisis.md)); la copia de la receta **no** lo copia, y
+  una receta no es de nadie (`0028`).
+- La hora de cada juicio (`at`) sigue a una visita, igual que `lastAttemptAt` desde el
+  006: no viaja con ningún identificador (§ 4.1, fila de la imagen rechazada).
+
+**¿Queda algo falso o incompleto en el registro o la EIPD?** No. No hay categoría de datos
+personales, fin, interesado ni destinatario nuevos: las respuestas las producen los mismos
+proveedores que ya las producían (§ 4.1), y se guardan en Neon, ya nombrado. **Plazo**: lo
+que dure la fila del plato, que se borra con la receta (`recipe.schema.ts:139`, `ON DELETE
+CASCADE`); las recetas no se borran al borrar una cuenta. Acotado **en tamaño** (3 × 3),
+**no en tiempo**. El art. 5.1.e solo limita la conservación de datos personales. Anotado
+en el registro y en la EIPD, sin fila nueva.
+
+**¿Sale de la API?** No, según el código: la consola lee `provenance - 'drawings'`
+(`AdminCatalogueRepository.ts:172`; `AdminRepository.ts:103`, que alimenta los recuentos y
+el correo de fallos); la lectura de la candidata solo saca de la fila el puntero
+(`RecipeController.ts:146`); la aceptación a mano la vuelve a escribir en la fila, no en
+el registro de acciones (`RecipeController.ts:439`); los `logger.warn` del servicio llevan
+el id de la receta y un motivo, no las respuestas (`DishPicture.service.ts:266`, `:399`,
+`:430`, `:455`).
+
+**¿Obliga a algo guardar la salida de un modelo sin enseñarla?**
+
+- **Ley de IA**: no. El art. 50.2 pide marcar el contenido sintético que el sistema genera
+  para que se pueda detectar; estas palabras son una salida técnica, dentro de un flujo
+  interno con control de acceso, que no llega a nadie: el supuesto que las Directrices
+  tratan aparte (apdo. 87, § 1.6). El 50.4-50.5 es hacia el público, y aquí no hay
+  público. Los registros de los arts. 12 y 26.6 son solo para sistemas de alto riesgo, y
+  este no lo es. Nada en el Reglamento prohíbe ni exige guardar la salida.
+- **Consumo**: no. Sin comunicación al consumidor no hay práctica comercial (TRLGDCU
+  art. 19.2), y estas palabras no llegan a ninguno.
+- **Condiciones de los proveedores**, tal como las recoge este directorio: nada limita que
+  NutrIA guarde lo que le responden. El ajuste «OpenRouter use of inputs/outputs»
+  ([`checklist-activacion.md`](./checklist-activacion.md)) es sobre el uso que hace
+  OpenRouter, no NutrIA. **Las condiciones de DeepInfra sobre sus salidas no las he
+  leído** (la misma laguna que IMG-9 para Google): P3.
+- **El día que una pantalla, una exportación o un correo enseñe estas palabras a alguien**,
+  hay que volver al § 1 y al § 4.2.
+
+**`/privacidad` sigue siendo verdad.** «Ninguno guarda la petición ni la usa para entrenar»
+habla de los proveedores (OpenRouter, Google, DeepInfra), no de NutrIA; «Nunca recibe nada
+tuyo, ni siquiera quién ha abierto el plato» no cambia, porque las llamadas no cambian. El
+párrafo de los planes («Nadie entrena con ello ni lo guarda») habla de la petición del
+diseño de platos, no de esta. Ninguna frase publicada promete que NutrIA no guarde lo que
+responde el juez (`es-ES.ts:2280-2290`, en `main`). **Sin cambio de texto ni de
+`privacy.updated`.**
+
+<!-- Fuente: RGPD (texto del DOUE en BOE, PDF `L00001-00088`) arts. 2.1, 4.1, 5.1.e y 30.1, cdo. 26; Reglamento (UE) 2024/1689 arts. 50.2, 50.4, 50.5 y Directrices C(2026) 5054 final, apdo. 87 (consultados el 2026-09-30 para el § 1.6; no vueltos a consultar en esta revisión); arts. 12 y 26.6 (registros, solo alto riesgo): **no consultados para esta revisión**, lectura de su título y su capítulo (III, alto riesgo) que un abogado puede comprobar en un minuto; TRLGDCU (BOE-A-2007-20555, consolidado a 28/02/2026) art. 19.2. Código: árbol `.claude/worktrees/backend-010-3` sobre `f81e834`. -->
+
 ---
 
 ## 5. Riesgos, ordenados por lo que le puede pasar a una persona
@@ -919,3 +1000,9 @@ Añadidos al [`analisis.md` § 10](./analisis.md#10-confirmar-con-un-abogado), p
   `cacheControlMaxAge` (act. 2026-08-26). Código: árbol de trabajo de `main` sobre
   `fce954d` y árbol de `frontend` (`.claude/worktrees/frontend-009-3`), los dos sin
   commit. `0072`, PRD y PLAN del 009, informe `0005` §§ 5 y 10.
+- **2026-09-30** (010 fase 3, § 4.5): sin fuente nueva consultada; se apoya en las de las
+  dos entradas anteriores. Código: árbol `.claude/worktrees/backend-010-3` sobre
+  `f81e834`, sin commit (`PictureJudgement.ts`, `DishPicture.service.ts`,
+  `RecipeRepository.ts`, `AdminCatalogueRepository.ts`, `AdminRepository.ts`,
+  `RecipeController.ts`, `PlanRepository.ts`, `recipe.schema.ts`); PRD 010, criterio 10;
+  `0073`.
