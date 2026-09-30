@@ -45,6 +45,17 @@ The milestone is met, and has been in production since 2026-09-07.
   time-bound: review plan quality and retention with real data from mid-October, compare
   the text-spend gauge with OpenRouter after a month, and remove the mail-link activation
   route once its tokens expire (~2026-10-29).
+- [`009-owner-reviews-rejected-pictures`](./projects/009-owner-reviews-rejected-pictures/) —
+  the owner is mailed when dish pictures fail; a picture the judge rejected waits seven days
+  in a private store where only he can see it; and he can publish it against the judge, in
+  two steps and on the record, or take it back (`0072`). Asked for by the owner on
+  2026-09-30; all three phases shipped the same day (#172–#174) and he confirmed the last
+  one by hand.
+- [`010-the-judge-knows-a-dishs-own-form`](./projects/010-the-judge-knows-a-dishs-own-form/) —
+  the picture judge stops rejecting a dish's own form — corn-flour pancakes read as wheat
+  ones — for every kind of dish, keeps what it said for the next refinement, and lets any
+  published picture be removed (`0073`, report `0006`). Asked for by the owner on
+  2026-09-30; planned, not started.
 
 The end-to-end suites stand at 14 suites and 88 tests, run against a throwaway database
 with a scripted model (`apps/api/test/README.md`), and on every pull request against a

@@ -312,3 +312,15 @@
   - `legal` leaves one question worth five minutes of a lawyer: how `picture.accepted`
     weighs if somebody claims a harm.
 
+## Phase 3 — shipped and verified (2026-09-30)
+
+- **Shipped**: pull request #174, merged as `efba83b`. CI green on its first run, the
+  end-to-end suites included; `main`'s own run for the merge green; both production
+  deployments succeeded. Production's `/privacidad` serves the new sentence dated
+  30 September 2026, and the accept and remove routes answer the guards' 404 with no session.
+- **Human-verify: confirmed by human on 2026-09-30.** The owner, in production, on the one
+  candidate there was — corn-flour pancakes the judge had rejected for gluten — in his
+  words: "ya funciona todo". Which of the steps he exercised (accept, the picture on the
+  dish, remove) he did not say one by one.
+- **Next, by the owner's word the same day**: refine the judge, with that rejection as its case.
+
