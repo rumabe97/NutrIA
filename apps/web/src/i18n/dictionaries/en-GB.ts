@@ -900,6 +900,7 @@ export const enGB: Dictionary = {
       'checkin-submitted': 'Check-in submitted',
       'owner-alert': 'Alert to the owner',
       'owner-digest': 'Daily digest to the owner',
+      'owner-picture-alert': 'Picture alert to the owner',
       'password-reset': 'Password reset',
       'professional-granted': 'Professional profile granted',
       'verify-email': 'Confirm email'

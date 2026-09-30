@@ -65,8 +65,9 @@ describe('the health-data boundary around the AI module', () => {
     expect(offenders).toEqual([]);
   });
 
-  // The API modules that hold the same data, by any relative path into them.
-  it.each(['care', 'health-data'])('imports nothing from the %s module', module => {
+  // The API modules that hold the same data, by any relative path into them — and `owner-alerts`,
+  // which reads `core/controllers/Admin`: a drawing tells its caller it ended, never the owner (project 009).
+  it.each(['care', 'health-data', 'owner-alerts'])('imports nothing from the %s module', module => {
     const into = new RegExp(`(?:from\\s+|import\\(\\s*)['"][./]*(?:modules/)?${module}/`);
     const offenders = sources.filter(path => into.test(readFileSync(path, 'utf8')));
 

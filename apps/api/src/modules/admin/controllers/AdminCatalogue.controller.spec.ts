@@ -14,6 +14,7 @@ import { AdminGuard } from '../../../shared/guards/index.js';
 import { AllExceptionsFilter } from '../../../shared/filters/index.js';
 import { RATE_LIMIT_KEY } from '../../../shared/decorators/RateLimit.decorator.js';
 import { DishPictureService } from '../../ai/services/index.js';
+import { OwnerAlertsService } from '../../owner-alerts/index.js';
 
 import type { AdminCatalogueQualityView, AdminIngredientsView, AdminRecipesView } from 'core/controllers/Admin';
 import type { INestApplication } from '@nestjs/common';
@@ -69,6 +70,7 @@ describe('AdminCatalogueController', () => {
   let role = 'user';
   const schedule = jest.fn();
   const pictures = { capUsd: 10, isAvailable: true, schedule };
+  const pictureFailures = jest.fn(async () => Promise.resolve());
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -76,6 +78,7 @@ describe('AdminCatalogueController', () => {
       providers: [
         AdminCatalogueService,
         { provide: DishPictureService, useValue: pictures },
+        { provide: OwnerAlertsService, useValue: { pictureFailures } },
         {
           provide: APP_GUARD,
           useValue: {
@@ -244,7 +247,12 @@ describe('AdminCatalogueController', () => {
 
       expect(response.body).toEqual({ status: 'drawing' });
       expect(claim).toHaveBeenCalledWith(CLAIM.recipeId, 'usr-1', { available: true, capUsd: 10 });
-      expect(schedule).toHaveBeenCalledWith(CLAIM);
+      expect(schedule).toHaveBeenCalledWith(CLAIM, expect.any(Function));
+
+      // Project 009: a retry that fails again is mailed like any other, once its drawing ends.
+      expect(pictureFailures).not.toHaveBeenCalled();
+      await (schedule.mock.calls[0]?.[1] as () => Promise<void>)();
+      expect(pictureFailures).toHaveBeenCalledTimes(1);
     });
 
     it('tells the core when pictures are unavailable, and draws nothing when it refuses', async () => {

@@ -11,16 +11,22 @@
 > Ninguno lleva palabras de salud: un buzón se escanea y una pantalla de bloqueo es
 > pública (criterio ya aplicado en `CareInvitation.ts`, `0059`).
 >
-> **H a L son distintos**: no informan a nadie ni avisan de un contrato; son los
-> correos al propietario (`0071`, `0029`), y están documentados **tal como están
+> **H a N son distintos**: no informan a nadie ni avisan de un contrato; son los
+> correos al propietario (`0071`, `0029`, `0072`), y están documentados **tal como están
 > construidos**, no como borrador: H, I y J en la rama `agent/008-phase6/backend`
 > (`a1fac59`, fusionada en `0ca076c`, #161); K y L en el árbol de trabajo de `admin-console-loose-ends`
-> sobre `e1332b4`, **sin commit ni fusión** (verdad una vez fusionado tal cual). Solo se
-> envían en español (`const LOCALE = 'es-ES'` en `OwnerDigest.ts:23` y `OwnerAlert.ts:16`,
+> sobre `e1332b4`, **sin commit ni fusión** (verdad una vez fusionado tal cual); M y N
+> (proyecto 009, fase 1) en el árbol de trabajo de `main` sobre `0d7b275`, **sin commit**
+> (verdad una vez fusionado tal cual). Solo se
+> envían en español (`const LOCALE = 'es-ES'` en `OwnerDigest.ts:23` y `OwnerAlert.ts:23`,
 > `OWNER_LOCALE` en `AccountWaitingMail.ts:6`), así que su columna en-GB es `—`, salvo en L,
-> cuya plantilla tiene inglés aunque nunca se envíe. Revisión y veredicto:
+> cuya plantilla tiene inglés aunque nunca se envíe. Los números de línea de H a L son los
+> de su fecha de corte: el cambio de M y N mueve los de `OwnerAlert.ts` (hoy: `failures` en
+> `:93-101`, `spend` en `:130-138`, `reminders-silent` en `:83-92`) y los de
+> `OwnerAlerts.service.ts` (destinatario en `:58-60`, `watchReminders` en `:126-138`).
+> Revisión y veredicto:
 > [`../2026-09-29-correos-al-propietario.md`](../2026-09-29-correos-al-propietario.md) (con su
-> adenda del mismo día para K y L).
+> adenda del mismo día para K y L, y la del 2026-09-30 para M y N).
 >
 > **Marcadores**: `{name}` en estas plantillas es el del profesional o el del
 > destinatario, como hoy. El titular de NutrIA no se nombra en el correo: se enlaza a la
@@ -272,3 +278,80 @@ En la versión de texto plano no va la etiqueta del botón: `intro`, una línea 
 enlace.
 
 <!-- Fuente: AccountWaiting.ts:15-32, AccountWaitingMail.ts:6-9 y 32-51, auth.config.ts:50 (selfService.link) y 182-183, SelfService.ts:51-66; AccountWaiting.spec.ts comprueba en asunto, texto y HTML, en los dos idiomas, que no aparece «@», «usr-», un UUID, «token», «/admin/activate» ni «update "user"»; árbol de trabajo de admin-console-loose-ends sobre e1332b4, sin commit; decisión en docs/decisions/LOG.md (2026-09-29, enmienda 0029/0030; decidió el propietario). Por qué así: el correo sale por el proveedor SMTP (hoy Gmail de consumo, sin DPA, P2-10) y se queda en un buzón sin plazo de supresión. Llevar la dirección era guardar un dato de cada alta sin plazo, fuera del sistema que la borra con la cuenta (art. 5.1.e; minimización, 5.1.c); llevar el token era dejar en ese buzón una llave que abre una cuenta sin sesión (arts. 5.1.f y 32). Ahora el correo no dice quién ni permite hacer nada: para el proveedor y el buzón es información anónima (considerando 26; C-413/23 P) [abogado], y quien lo abre necesita la sesión del propietario para ver algo. Los correos enviados antes del cambio siguen en el buzón con la dirección y un token que GET /admin/activate honra hasta que caduque (30 días, ActivationLink.ts:4): ver la adenda de ../2026-09-29-correos-al-propietario.md. Sin efecto jurídico frente a nadie; la política no cambia (sus fines del proveedor de correo nunca incluyeron este aviso, y ahora no hace falta). -->
+
+---
+
+## M. Aviso al propietario: imágenes de platos fallidas (tal como está — `0072`, proyecto 009 fase 1)
+
+**Plantilla**: `OwnerAlert.ts:103-114`, `type: 'picture-failures'`, `EmailKind`
+`owner-picture-alert` (`OwnerAlert.ts:145`, `Layout.ts:28`; etiqueta propia para que
+Sistema lo cuente aparte). **Destinatario**: solo `OWNER_EMAIL`, y solo si hay SMTP
+(`OwnerAlerts.service.ts:58-60`). **Cuándo**: se intenta al terminar cualquier dibujo,
+acabe como acabe y después de la respuesta (`DishPictureService.schedule(claim, onEnd)`,
+llamado desde `MealPlans.service.ts:76` y `AdminCatalogue.service.ts:39`), y en los dos
+crons diarios (`Cron.controller.ts:67` y `:87`); sale si hay al menos una fila de
+`recipe_images` en `failed` **no devuelta** cuyo último intento cae entre el último aviso
+de este tipo —o hace 24 h si no hubo ninguno— y ahora
+(`AdminAlertController.ts:225-240`, `AdminRepository.ts:93-102`), y como mucho uno por
+hora (`owner_alerted { kind: 'picture-failed' }`, reclamado desde «hace una hora» y
+fechado en el instante hasta el que contó, `OwnerAlerts.service.ts:160-167`).
+**Marcadores**: `{total}` y `{n}` son enteros no negativos (`whole`, `OwnerAlert.ts:68-70`);
+`{motivo}` es una de ocho etiquetas fijas (`REASON`, `OwnerAlert.ts:51-60`), elegida por
+`reasonLabel` (`:63-65`): lo que no esté en `PICTURE_REASONS` sale como `Otro motivo`,
+nunca como llegó; `{dias}` es `PICTURE_COOL_OFF_DAYS` (7, `RecipeController.ts:59`).
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `NutrIA — imágenes de platos fallidas: {total}` | — |
+| `intro` | `Imágenes de platos que han fallado desde el aviso anterior: {total}. Cada plato espera {dias} días antes de volver a dibujarse solo.` | — |
+| `detail` | `Por motivo: {motivo}: {n}; {motivo}: {n}.` — etiquetas posibles: `El revisor vio un alérgeno que el plato no tiene`, `El revisor la rechazó`, `Sin firma C2PA`, `El modelo rechazó la petición`, `El proveedor no puede cobrar`, `La llamada falló`, `Tope del mes alcanzado`, `Otro motivo` | — |
+| `button` | `Abrir las imágenes fallidas` → `/admin/catalogo?picture=failed` | — |
+| `again` | `Como mucho un aviso por hora: lo que falle mientras tanto irá en el siguiente.` | — |
+
+<!-- Fuente: OwnerAlert.ts:35, 51-75, 103-114 y 145; OwnerAlerts.service.ts:20-23 (PICTURE_REPEAT_HOURS = 1), 58-60 y 152-180; AdminAlertController.ts:76 (PICTURE_ALERT_KINDS), 85-94 y 225-240; AdminUsageController.ts:84-94 (countByReason); AdminRepository.ts:84 y 93-102 (la lectura devuelve solo `provenance` y si la fila fue devuelta: ni el id de la receta ni su nombre salen de la base); PictureReason.ts (lista cerrada; el texto del proveedor o del revisor se reduce a una de ocho palabras en `pictureReasonOf`); AnalyticsRepository.ts claimOwnerAlert (el evento guarda solo `kind`, con `userId: null`); OwnerMail.spec.ts:43-62, 68-76, 153-160 y 173-215 (los dos avisos pasan por los mismos centinelas que I-K, el de nombre de plato incluido; un motivo hostil —nombre de plato, uuid, texto del revisor con una dirección, `__proto__`— sale como `Otro motivo`, y un recuento que no es un número sale como `0`); árbol de trabajo de main sobre 0d7b275, sin commit.
+Datos de persona: ninguno. Cuenta filas de `recipe_images`, que son platos del catálogo, no personas; no lleva el nombre del plato (decisión del propietario, 0072: `recipe_source` admite `user` y un día un nombre sería texto de alguien), ni su id, ni lo que escribió un proveedor o el revisor. `El revisor vio un alérgeno que el plato no tiene` habla de una imagen y de una receta, no de la alergia de nadie, y no nombra el alérgeno: no es dato de salud (art. 4.15 RGPD; C-184/20 no llega a un dato que no se refiere a una persona). El enlace no lleva id y solo abre con la sesión del propietario. Para el proveedor de correo y el buzón es información anónima (considerando 26 RGPD: «información que no guarda relación con una persona física identificada o identificable»; C-413/23 P) [abogado, la misma pregunta que H]. La hora a la que llega el primer aviso de una racha sigue a la visita de alguien a la página de una comida (el dibujo se reclama en esa visita): no viaja ningún identificador, y solo el propietario, con la consola que ya tiene, podría relacionar una hora con una cuenta; misma lectura que el § 2 de la nota del 2026-09-29. Sin efecto jurídico frente a nadie. Mismo fundamento de forma que H (RGPD arts. 5.1.c, 5.1.f y 32).
+Lo que afirma, contra el código (nada es falso; tres imprecisiones P3):
+(1) `intro`, «desde el aviso anterior» (OwnerAlert.ts:110): cierto desde el segundo aviso; el primero, sin ninguno anterior, cuenta las últimas 24 h (AdminAlertController.ts:226 y 232). Lo contado son platos que **siguen** en `failed` al leer: uno que falló y que el propietario reintentó entre dos avisos solo aparece en el siguiente si el reintento también falla, y entonces una vez, con la fecha del reintento (RecipeRepository.ts, `retryPicture` lo pone en `drawing` y `failPicture` fecha el nuevo fallo).
+(2) `intro`, «Cada plato espera 7 días antes de volver a dibujarse solo»: cierto para lo que este correo cuenta, que son filas no devueltas (RecipeRepository.ts:99-116, claimPicture: una fila `failed` no devuelta solo se reclama con el último intento de hace más de `coolOffDays`). «Solo» quiere decir «sin que el propietario lo reintente»: no hay tarea que lo dibuje; lo dibuja la primera visita a la página de la comida pasado ese plazo. **Dejará de ser exacto en la fase 2** (0072, «Consequences»: un plato con candidata espera además al barrido de las 03:30 tras el día 7, hasta 24 h más): revisar esta frase entonces.
+(3) `again`, «Como mucho un aviso por hora: lo que falle mientras tanto irá en el siguiente»: lo primero lo sostiene el reclamo (OwnerAlerts.service.ts:163; OwnerAlerts.spec.ts, «three failures within the hour»; picture-alerts.e2e-spec.ts). Lo segundo es cierto con una excepción que el propio código anota (AdminAlertController.ts:222-223: un dibujo que termina mientras se lee, fechado antes y escrito después, no entra en ningún correo; está en la consola). «El siguiente» no tiene hora: sale con el primer dibujo que termine pasada la hora o, si nadie abre un plato, con el siguiente cron (03:30 u 08:00 UTC), hasta unas 19 h después (informe 0005 § 4.1). El texto no promete plazo, así que no es falso.
+Orden en `/cron/reminders`: la comprobación de este aviso va **después** de borrar las invitaciones caducadas (Cron.controller.ts:62 y 66-69; P3 aplicado el 2026-09-30, antes iba delante), porque el borrado sostiene un plazo prometido a terceros (§ A y § K; art. 5.1.e) y este aviso solo informa al propietario. En los dos crons corre dentro de un tope de 10 s (`WATCH_BUDGET_MS`, `:19`; `Promise.race` en `:66-69` para `/cron/reminders` y en `:84-90` para `/cron/rewrite-steps`, donde lo comparte con la vigilancia de K): un servidor de correo que no responde no retiene el barrido de recordatorios ni el nocturno más allá de ese tope. Tampoco lanza (`.catch` en `:67` y `:88`).
+Las devoluciones (filas dadas de vuelta sin culpa del plato) no entran en este correo: las del proveedor —sin pago o límite de uso— van en N; la del tope del mes tiene su aviso de gasto (J); la de una receta borrada (`other`) solo se ve en la consola. -->
+
+---
+
+## N. Aviso al propietario: el proveedor de imágenes rechaza las peticiones (tal como está — `0072`, proyecto 009 fase 1)
+
+**Plantilla**: `OwnerAlert.ts:116-128`, `type: 'picture-payment-refused'`, `EmailKind`
+`owner-picture-alert`. **Destinatario**: solo `OWNER_EMAIL`, y solo si hay SMTP.
+**Cuándo**: en los mismos momentos que M (es el mismo método,
+`OwnerAlerts.service.ts:152-180`); sale si hay al menos una fila de `recipe_images`
+**devuelta** con el motivo `payment_refused` o `model_refused` (`REFUSALS`,
+`AdminAlertController.ts:79` y `238`) cuyo último intento cae entre el último aviso de
+este tipo —o hace 24 h— y ahora (`:226` y `233`), y como mucho uno cada 6 horas
+(`owner_alerted { kind: 'picture-payment-refused' }`, `OwnerAlerts.service.ts:169-176`;
+el nombre del reclamo y del tipo no ha cambiado, aunque desde la decisión del propietario
+del 2026-09-30 cubre también el límite de uso). `payment_refused` es un 402 o un mensaje de
+clave o cuota agotada; `model_refused` en una fila **devuelta** es un 429, el límite de
+uso: es el único otro rechazo que devuelve un dibujo (`isRefusal`,
+`DishPicture.service.ts:60-66`; `reasonOfCall`, `PictureReason.ts`). Vengan de la llamada
+que dibuja o de las del revisor: las dos usan la misma clave (`OPENROUTER_IMAGE_API_KEY`,
+`ai.config.ts:388`). **Marcadores**: `{total}` y `{n}`, enteros no negativos (`whole`);
+`{motivo}`, por `reasonLabel`, aquí una de dos etiquetas: `El proveedor no puede cobrar`
+y `El modelo rechazó la petición`.
+
+| Campo | es-ES | en-GB |
+| --- | --- | --- |
+| `subject` | `NutrIA — el proveedor de imágenes rechaza las peticiones` | — |
+| `intro` | `El proveedor de las imágenes está rechazando las peticiones: la clave de imágenes no puede pagar o ha llegado a su límite de uso. Mientras dure, los dibujos que rechace se devuelven sin dibujar.` (propuesta P3 aplicada) | — |
+| `detail` | `Platos con el dibujo devuelto desde el aviso anterior: {total}. Por motivo: {motivo}: {n}; {motivo}: {n}. Esos platos no cuentan como fallidos: se dibujan en la siguiente visita, cuando el proveedor vuelva a aceptar peticiones.` | — |
+| `button` | `Abrir las imágenes` → `/admin/catalogo/imagenes` | — |
+| `again` | `Mientras dure, no volverás a recibir este aviso durante 6 horas.` | — |
+
+<!-- Fuente: OwnerAlert.ts:36, 73-75 (byReason) y 116-128; OwnerAlerts.service.ts:20 (REPEAT_HOURS = 6) y 169-176; AdminAlertController.ts:70-79, 88-93 y 225-240; DishPicture.service.ts:60-66 (isRefusal: 402, 429, cuota o límite de la clave) y release(); RecipeRepository.ts releasePicture (`provenance: { reason, released }`) y claimPicture (una fila devuelta se reclama en la siguiente visita, sin espera); AdminCatalogueRepository.ts:99-103 (PICTURE_STATE: una fila devuelta se lee como `none`, no como `failed`); OwnerMail.spec.ts:55-61, 202-215 y 217-227; OwnerAlerts.spec.ts:314 («mails a refused payment or a rate limit under its own claim, once in six hours»); AdminAlertController.test.ts:223 («counts the provider’s refusals — no payment, a rate limit — only on rows given back, and never the month’s cap»); picture-alerts.e2e-spec.ts:457; decisión del propietario del 2026-09-30 (el límite de uso se avisa junto con el pago rechazado); árbol de trabajo de main sobre 0d7b275, sin commit.
+Datos de persona: ninguno; recuentos, dos etiquetas fijas y un enlace sin id, por los mismos filtros que M (`reasonLabel`, `whole`). Es información sobre la cuenta del propietario con su proveedor, no sobre nadie más. Sin efecto jurídico frente a nadie; mismo fundamento de forma que H (arts. 5.1.c, 5.1.f y 32) y misma lectura [abogado] del considerando 26.
+Lo que afirma, contra el código (nada es falso; de las dos imprecisiones P3 que nacieron de sumar el límite de uso, la primera está corregida y la segunda se deja como está):
+(1) `intro`, «Mientras dure, los dibujos que rechace se devuelven sin dibujar» (OwnerAlert.ts:124): cierto para los dos motivos (`release()`, DishPicture.service.ts: el dibujo rechazado se devuelve y no cuenta contra el plato). Antes decía «no se dibuja ninguna», exacto para una clave que no puede pagar y de más para un límite de uso, donde un 429 devuelve el dibujo que lo recibe y el siguiente puede salir; corregido el 2026-09-30. «Está rechazando», en presente, es cierto cuando el aviso sale al terminar el dibujo rechazado; si sale por un cron horas después puede haber pasado ya, y «Mientras dure» lo cubre.
+(2) `detail`, etiqueta `El modelo rechazó la petición` para un 429 (OwnerAlert.ts:56): es la palabra de la consola para `model_refused`, pero en este correo ese motivo es siempre el límite de uso del proveedor, no una negativa del modelo; la `intro` lo dice bien («ha llegado a su límite de uso») y la etiqueta no. No pido cambio: mantener la palabra de la consola tiene más valor que afinarla aquí.
+(3) `detail`, «Platos con el dibujo devuelto desde el aviso anterior: {total}»: cuenta platos cuya fila sigue devuelta al leer, uno por plato (AdminAlertController.ts:238), y el total es la suma de los dos motivos (OwnerAlert.ts:117). Como en M, el primer aviso cuenta 24 h (P3, aceptable).
+(4) «Esos platos no cuentan como fallidos: se dibujan en la siguiente visita, cuando el proveedor vuelva a aceptar peticiones»: cierto (no entran en M, AdminAlertController.ts:237; la consola los lee como sin imagen; el intento devuelto no gasta intentos del plato ni abre la espera de 7 días).
+(5) `again`, «durante 6 horas»: OwnerAlerts.service.ts:172. Un solo reclamo para los dos motivos: un 429 suelto silencia durante 6 h también el aviso de un pago rechazado que llegue después; ese pago sale en el siguiente aviso, con su recuento, porque cada uno cuenta desde el anterior. -->

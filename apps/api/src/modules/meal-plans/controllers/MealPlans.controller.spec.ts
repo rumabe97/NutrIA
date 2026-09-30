@@ -11,6 +11,7 @@ import { AllExceptionsFilter } from '../../../shared/filters/index.js';
 import { MealPlansController } from './MealPlans.controller.js';
 import { DishPictureService } from '../../ai/index.js';
 import { MealPlansService, MealSwapService, PlanJobRunner } from '../services/index.js';
+import { OwnerAlertsService } from '../../owner-alerts/index.js';
 import { RequiresOnboardingGuard } from '../../../shared/guards/index.js';
 
 import type { INestApplication } from '@nestjs/common';
@@ -36,9 +37,16 @@ function build(picturesService = pictures()) {
   );
   const swap = jest.fn(async (_userId: string, _mealId: string, _locale: string | null, _axis?: SwapAxis) => Promise.resolve({ id: 'meal-1' }));
 
-  const plans = new MealPlansService(picturesService, { start } as unknown as PlanJobRunner, { swap } as unknown as MealSwapService);
+  const pictureFailures = jest.fn(async () => Promise.resolve());
 
-  return { controller: new MealPlansController(plans), start, swap };
+  const plans = new MealPlansService(
+    { pictureFailures } as unknown as OwnerAlertsService,
+    picturesService,
+    { start } as unknown as PlanJobRunner,
+    { swap } as unknown as MealSwapService
+  );
+
+  return { controller: new MealPlansController(plans), pictureFailures, start, swap };
 }
 
 function onboardingState(patch: Partial<OnboardingView>): OnboardingView {
@@ -132,11 +140,16 @@ describe('MealPlansController', () => {
     const service = pictures(true);
     const claim = { attempts: 0, claimedAt: new Date(), recipeId: 'rcp-1' };
     const openMeal = jest.spyOn(PlanController, 'openMeal').mockResolvedValue({ claim, meal: { pictureStatus: 'drawing' } as never });
-    const { controller } = build(service);
+    const { controller, pictureFailures } = build(service);
 
     await expect(controller.meal(ALICE, BOB_PLAN, null)).resolves.toEqual({ pictureStatus: 'drawing' });
     expect(openMeal).toHaveBeenCalledWith('usr-alice', BOB_PLAN, null, 10);
-    expect(service.schedule).toHaveBeenCalledWith(claim);
+    expect(service.schedule).toHaveBeenCalledWith(claim, expect.any(Function));
+
+    // Project 009: the owner hears of failed pictures when the drawing ends, not while the meal is answered.
+    expect(pictureFailures).not.toHaveBeenCalled();
+    await (service.schedule.mock.calls[0]?.[1] as () => Promise<void>)();
+    expect(pictureFailures).toHaveBeenCalledTimes(1);
   });
 
   it('answers the meal and schedules nothing when asking for its picture failed', async () => {
@@ -211,6 +224,7 @@ describe('meal-plan routes behind onboarding (through the real pipeline)', () =>
       providers: [
         MealPlansService,
         { provide: DishPictureService, useValue: pictures() },
+        { provide: OwnerAlertsService, useValue: { pictureFailures: jest.fn() } },
         { provide: PlanJobRunner, useValue: { start } },
         { provide: MealSwapService, useValue: { swap: jest.fn() } },
         { provide: APP_GUARD, useClass: RequiresOnboardingGuard }

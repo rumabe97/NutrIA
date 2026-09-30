@@ -590,6 +590,21 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     how it ended; **spend at 80 % / 100 %** of the text or picture cap is checked there too, at
     the end of the rewrite sweep and in the digest — per job, not per model call, which would put
     a query on every call. A spend threshold is once per UTC month, the streak once per 6 h.
+  - **Dish pictures that failed** (project 009, `0072`): `OwnerAlertsService.pictureFailures` mails
+    the dishes whose drawing failed — not the ones given back — counted by closed `PictureReason`
+    since the last mail of its kind (`AdminAlertController.pictureFailures`; a day back without one),
+    with one link to `/admin/catalogo?picture=failed`. Claimed as
+    `owner_alerted { kind: 'picture-failed' }` for one hour, and the claim is dated at the instant the
+    count ran up to, so what fails inside the hour is in the next mail and not lost. A drawing the
+    provider turned away and gave back — `payment_refused` (a 402, a spent key) or `model_refused`
+    (a rate limit, the only other refusal that gives a claim back; owner, 2026-09-30) — mails under
+    its own claim, `picture-payment-refused`, once in 6 h, by reason; one given back by the cap mails
+    nothing here. It is called when a drawing ends, however it ended, and
+    by both crons. **The call hangs from `DishPictureService.schedule(claim, onEnd)` and is passed in
+    by the two callers outside `modules/ai`** (`MealPlansService.meal`, `AdminCatalogueService.retryPicture`):
+    the AI module never imports `owner-alerts` or `core/controllers/Admin` (`health-boundary.spec.ts`),
+    and what `onEnd` throws is dropped. The mail names no dish, no id and nothing a model wrote; its
+    `EmailKind` is `owner-picture-alert`.
   - The right to send is *claimed* first (`claimOwnerAlert`: advisory lock + check + insert), so
     two jobs failing together send one mail; a claim is given back when the send reports failure (the transport times out in
     seconds, well inside the function's 300 s).

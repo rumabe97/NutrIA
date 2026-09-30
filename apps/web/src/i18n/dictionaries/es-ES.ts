@@ -929,6 +929,7 @@ export const esES = {
       'checkin-submitted': 'Check-in enviado',
       'owner-alert': 'Aviso al propietario',
       'owner-digest': 'Resumen diario al propietario',
+      'owner-picture-alert': 'Aviso de imágenes al propietario',
       'password-reset': 'Restablecer contraseña',
       'professional-granted': 'Perfil profesional concedido',
       'verify-email': 'Confirmar correo'

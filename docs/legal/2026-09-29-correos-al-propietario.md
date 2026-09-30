@@ -241,3 +241,62 @@ Fuentes de esta adenda: `git diff e1332b4` y `git status --short` en la rama
 `auth.config.ts`, `SelfService.ts`, `OwnerAlert.ts`, `OwnerMail.spec.ts`,
 `OwnerAlerts.service.ts`, `Cron.controller.ts`, `AdminAlertController.ts`,
 `apps/api/vercel.json`, `ExpiredInvitations.service.ts`; `docs/decisions/LOG.md`.
+
+---
+
+## Adenda (2026-09-30): dos avisos sobre las imágenes de los platos
+
+> **Fecha de corte**: árbol de trabajo de `main` sobre `0d7b275`, **sin commit** (proyecto
+> 009, fase 1; [`0072`](../decisions/0072-a-rejected-picture-waits-for-the-owner.md)): lo
+> que sigue es verdad una vez fusionado tal cual. Solo la fase 1: la candidata guardada, el
+> almacén privado y aceptar o retirar una imagen (fases 2 y 3) no están aquí.
+
+**1. Qué son.** Dos tipos más de `OwnerAlert`, con `EmailKind` propio
+(`owner-picture-alert`): los platos cuya imagen ha fallado desde el aviso anterior, por
+motivo de una lista cerrada de ocho, como mucho uno por hora; y el proveedor de imágenes
+que rechaza las peticiones —la clave no puede pagar o ha llegado a su límite de uso
+(decisión del propietario del mismo día: el límite se avisa junto con el pago)—, como
+mucho uno cada 6 horas. Texto tal como está y comprobación frase a frase:
+[`textos/06`](./textos/06-correos.md) § M y § N.
+
+**2. Veredicto: se pueden enviar como están.** Ninguno lleva un dato de nadie: un recuento
+de filas de `recipe_images` —platos del catálogo—, una etiqueta fija por motivo y un enlace
+sin id. No llevan el nombre del plato, su id ni lo que escribió el proveedor o el revisor,
+y lo sostienen el tipo (`OwnerAlert.ts:35-36`), el filtro (`reasonLabel`, `whole`) y
+`OwnerMail.spec.ts`, con los mismos centinelas que el resto. El destinatario sigue siendo
+solo `OWNER_EMAIL`. Misma lectura que el § 2: información anónima para el proveedor de
+correo (considerando 26 RGPD).
+
+**3. Lo que deja de ser cierto arriba.** Los tipos de correo al propietario son ahora
+siete (el resumen, cinco avisos inmediatos y el de cuenta esperando). El § 3 no cambia: ni
+la política de privacidad ni el registro necesitan más que la anotación de la revisión
+(fila 7). No hay encargado nuevo: salen por el mismo proveedor SMTP.
+
+**4. Lo que se guarda de más.** Nada con datos personales: dos valores nuevos de `kind` en
+el evento `owner_alerted` (`picture-failed`, `picture-payment-refused`; `userId: null`; su
+fecha la pone ahora quien reclama, para que cada correo cuente desde el anterior) y uno en
+`mail_sent` (`owner-picture-alert`, sin destinatario). Ni tabla, ni columna, ni migración.
+
+**5. Redacción (P3; nada era falso).** Aplicadas por el lead el mismo día: en el aviso
+del proveedor, «Mientras dure, los dibujos que rechace se devuelven sin dibujar» (antes
+«y no se dibuja ninguna», una deducción en presente que además era de más para un límite
+de uso) y «Platos con el dibujo devuelto» en lugar de «Dibujos devueltos», porque se
+cuentan platos; y, en `/cron/reminders`, la comprobación de estos avisos pasa a ir después
+del borrado de las invitaciones caducadas y dentro de un tope de 10 s, el mismo de
+`/cron/rewrite-steps` (`Cron.controller.ts:62`, `66-69` y `84-90`). Quedan, sin
+cambio pedido: «desde el aviso anterior» en el primer aviso de cada tipo (cuenta 24 h);
+«7 días», que la fase 2 alargará hasta un día; y la etiqueta «El modelo rechazó la
+petición», que es la palabra de la consola y en el aviso del proveedor es siempre un 429.
+Detalle con su línea en los comentarios de § M y § N.
+
+**6. Nada nuevo que confirmar con un abogado**: la misma pregunta del § 6.1.
+
+Fuentes de esta adenda: `git diff` y `git status --short` en `main` sobre `0d7b275`
+(2026-09-30): `OwnerAlert.ts`, `OwnerMail.spec.ts`, `Layout.ts`, `OwnerAlerts.service.ts`,
+`OwnerAlerts.spec.ts`, `AdminAlertController.ts`, `AdminRepository.ts`,
+`AnalyticsRepository.ts`, `DishPicture.service.ts`, `PictureReason.ts`,
+`RecipeRepository.ts`, `Cron.controller.ts`, `MealPlans.service.ts`,
+`AdminCatalogue.service.ts`, `apps/api/test/picture-alerts.e2e-spec.ts`; PRD y PLAN del
+proyecto 009, decisión `0072`, informe de arquitectura `0005` § 4.1 y § 10. RGPD
+(`DOUE-L-2016-80807`, leído hoy en el PDF del DOUE en BOE): considerando 26, art. 4.15,
+art. 5.1.c, 5.1.e y 5.1.f.

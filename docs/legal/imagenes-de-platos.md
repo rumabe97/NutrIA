@@ -333,6 +333,7 @@ Requisitos de la marca, que `frontend` y `accessibility` resuelven como quieran:
 | Juez de visión | **Ninguno**: la imagen y la lista de la receta | OpenRouter → DeepInfra (ya nombrada) |
 | Guardar | Ninguno: la imagen y sus metadatos técnicos (modelo, versión del prompt, tamaño) | Vercel Blob; `recipe_images` en Neon |
 | Ver la imagen | La IP y el navegador de quien la carga, que llegan a la red de Vercel | Vercel (ya encargado) |
+| Avisar al propietario de que una imagen falló o de que el proveedor rechaza las peticiones —la clave no puede pagar o ha llegado a su límite de uso— (proyecto 009 fase 1, `0072`; [`textos/06`](./textos/06-correos.md) § M y § N) | **Ninguno**: recuentos por motivo de una lista cerrada y un enlace a la consola; ni el nombre ni el id del plato, ni lo que escribió el proveedor o el revisor | El proveedor SMTP (ya nombrado), hacia el buzón del propietario |
 
 **Consecuencias**:
 

@@ -5,9 +5,12 @@ import { windowFor } from 'core/domain/Period';
 
 import { AdminQualityController } from './AdminQualityController';
 import { AdminTextSpend } from './AdminTextSpend';
+import { countByReason } from './AdminUsageController';
 import { cronStates } from './AdminSystemController';
 
 import type { CronJob } from 'core/entities/Analytics';
+import type { PictureReason } from 'core/entities/DishPicture';
+import type { PictureReasonCount } from './AdminUsageController';
 import type { RecipeCheck } from 'core/entities/AdminQuery';
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -62,6 +65,32 @@ export type OwnerDigest = {
   readonly shouldBeZero: Readonly<Record<ZeroKey, number>>;
   readonly textSpend?: SpendFigure;
   readonly waitingAccounts: number;
+};
+
+/**
+ * The two mails about dish pictures, as `owner_alerted` names their claims (project 009):
+ * dishes whose drawing failed, and drawings given back because the provider turned them
+ * away — the pictures' key could not pay, or reached its rate limit. Each counts since
+ * the last mail of its own kind.
+ */
+export const PICTURE_ALERT_KINDS = { failed: 'picture-failed', refused: 'picture-payment-refused' } as const;
+
+/** The reasons a drawing is given back for that the owner is mailed about: the provider's no. The month's cap is not one. */
+const REFUSALS: readonly PictureReason[] = ['payment_refused', 'model_refused'];
+
+/**
+ * What the pictures' mails say, as numbers. A reason is one of `PICTURE_REASONS`: no
+ * dish is named or numbered, and nothing a provider or the judge wrote is here.
+ */
+export type PictureFailures = {
+  /** Dishes that failed for their own reasons — not given back — since the last `picture-failed` mail, by reason. */
+  readonly failed: readonly PictureReasonCount[];
+  /**
+   * Dishes whose drawing the provider turned away and gave back since the last
+   * `picture-payment-refused` mail, by reason: `payment_refused` (a 402, a spent key or
+   * quota) or `model_refused` (a rate limit, the only other refusal that gives a claim back).
+   */
+  readonly refused: readonly PictureReasonCount[];
 };
 
 /** A failure code as the generation records it; anything else is not shown. */
@@ -121,9 +150,12 @@ async function spends(now: Date, caps: OwnerAlertCaps): Promise<{ readonly pictu
  * here returns a name.
  */
 export const AdminAlertController = {
-  /** Takes the right to send `kind`; `null` when it was sent since `since`. Give the id back to `release` if the mail did not leave. */
-  claim(kind: string, since: Date): Promise<string | null> {
-    return AnalyticsRepository.claimOwnerAlert(kind, since);
+  /**
+   * Takes the right to send `kind`; `null` when it was sent since `since`. Give the id back to `release` if the mail did not leave.
+   * `at` dates the claim by the caller's clock, for a mail that counts since the previous one.
+   */
+  claim(kind: string, since: Date, at?: Date): Promise<string | null> {
+    return AnalyticsRepository.claimOwnerAlert(kind, since, at);
   },
 
   /** The day's numbers. Throws when a reader fails: the caller sends nothing rather than a digest with a hole. */
@@ -178,6 +210,33 @@ export const AdminAlertController = {
     const last = await AdminGenerationsRepository.lastOutcomes(FAILURE_STREAK);
 
     return last.length === FAILURE_STREAK && last.every(job => job.status === 'failed') ? last.map(job => safeCode(job.code)) : null;
+  },
+
+  /**
+   * The pictures that ended without one since the owner was last told, up to `now`
+   * (project 009). Each count starts at the last mail of its own kind, or a day back
+   * when there was none, so a failure that fell inside an hour's claim is in the next
+   * mail and not lost. A row given back by the month's cap is in neither count: the
+   * spend alert already says it.
+   *
+   * Known, and small: a drawing that ends while this reads, dated before `now` and
+   * written after the read, is in no mail. It is on the console either way.
+   */
+  async pictureFailures(now: Date): Promise<PictureFailures> {
+    const dayAgo = new Date(now.getTime() - DAY_MS);
+    const [lastFailed, lastRefused] = await Promise.all([
+      AnalyticsRepository.lastOwnerAlert(PICTURE_ALERT_KINDS.failed),
+      AnalyticsRepository.lastOwnerAlert(PICTURE_ALERT_KINDS.refused)
+    ]);
+    const [failed, refused] = await Promise.all([
+      AdminRepository.failedPictures(lastFailed ?? dayAgo, now),
+      AdminRepository.failedPictures(lastRefused ?? dayAgo, now)
+    ]);
+
+    return {
+      failed: countByReason(failed.filter(row => !row.released)),
+      refused: countByReason(refused.filter(row => row.released)).filter(({ reason }) => REFUSALS.includes(reason))
+    };
   },
 
   /** Gives back a claim whose mail did not leave. */

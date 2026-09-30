@@ -118,9 +118,27 @@ export class DishPictureService {
     return this.images.isAvailable && this.judge.isAvailable && this.store.isAvailable;
   }
 
-  /** Draws after the response, kept alive by the platform (`BackgroundTaskService`). */
-  schedule(claim: PictureClaim): void {
-    this.background.run(`dish-picture:${claim.recipeId}`, () => this.draw(claim));
+  /**
+   * Draws after the response, kept alive by the platform (`BackgroundTaskService`).
+   *
+   * `onEnd` is told that the drawing ended, however it ended — kept, failed, given
+   * back, lost or thrown. It is the caller's, and what it does is not this module's
+   * business: the owner's mail about failed pictures hangs from it, outside the AI
+   * module (`health-boundary.spec.ts`). It cannot change the drawing's outcome: what
+   * it throws is dropped.
+   */
+  schedule(claim: PictureClaim, onEnd?: () => Promise<void> | void): void {
+    this.background.run(`dish-picture:${claim.recipeId}`, async () => {
+      try {
+        return await this.draw(claim);
+      } finally {
+        try {
+          await onEnd?.();
+        } catch {
+          // The drawing has ended and is recorded; whoever listens fails on their own.
+        }
+      }
+    });
   }
 
   async draw(claim: PictureClaim): Promise<DrawOutcome> {

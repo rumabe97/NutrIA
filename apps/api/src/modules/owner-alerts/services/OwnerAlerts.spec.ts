@@ -6,7 +6,7 @@ import { OwnerAlertsService } from './OwnerAlerts.service.js';
 
 import type { Env } from '../../../config/index.js';
 import type { EmailService } from '../../email/services/Email.service.js';
-import type { OwnerDigest, SpendCrossing } from 'core/controllers/Admin';
+import type { OwnerDigest, PictureFailures, SpendCrossing } from 'core/controllers/Admin';
 
 const NOW = new Date('2026-09-29T08:00:00Z');
 const OWNER = 'owner@example.com';
@@ -21,6 +21,8 @@ const QUIET: OwnerDigest = {
   waitingAccounts: 0
 };
 const TEXT_80: SpendCrossing = { capUsd: 25, share: 0.84, source: 'text', spentUsd: 21, threshold: 80 };
+const HOUR = 60 * 60 * 1000;
+const NO_PICTURES: PictureFailures = { failed: [], refused: [] };
 const TEXT_100: SpendCrossing = { capUsd: 25, share: 1.04, source: 'text', spentUsd: 26, threshold: 100 };
 
 function build({ configured = true, owner = OWNER as string | null, sent = true } = {}) {
@@ -40,8 +42,9 @@ function build({ configured = true, owner = OWNER as string | null, sent = true 
   const failureStreak = jest.spyOn(AdminAlertController, 'failureStreak').mockResolvedValue(null);
   const spendCrossings = jest.spyOn(AdminAlertController, 'spendCrossings').mockResolvedValue([]);
   const silentCrons = jest.spyOn(AdminAlertController, 'silentCrons').mockResolvedValue([]);
+  const pictureFailures = jest.spyOn(AdminAlertController, 'pictureFailures').mockResolvedValue(NO_PICTURES);
 
-  return { claim, digest, failureStreak, release, send, service, silentCrons, spendCrossings };
+  return { claim, digest, failureStreak, pictureFailures, release, send, service, silentCrons, spendCrossings };
 }
 
 describe('OwnerAlertsService', () => {
@@ -53,13 +56,15 @@ describe('OwnerAlertsService', () => {
     ['without OWNER_EMAIL', { owner: null }],
     ['without SMTP', { configured: false }]
   ])('does nothing at all %s: no read, no claim, no mail', async (_name, options) => {
-    const { claim, digest, failureStreak, send, service, silentCrons, spendCrossings } = build(options);
+    const { claim, digest, failureStreak, pictureFailures, send, service, silentCrons, spendCrossings } = build(options);
 
     await service.digest(NOW);
     await service.afterJob(true, NOW);
     await service.checkSpend(NOW);
     await service.watchReminders(NOW);
+    await service.pictureFailures(NOW);
 
+    expect(pictureFailures).not.toHaveBeenCalled();
     expect(silentCrons).not.toHaveBeenCalled();
     expect(digest).not.toHaveBeenCalled();
     expect(failureStreak).not.toHaveBeenCalled();
@@ -251,6 +256,106 @@ describe('OwnerAlertsService', () => {
 
       silentCrons.mockRejectedValue(new Error('database gone'));
       await expect(service.watchReminders(NOW)).resolves.toBeUndefined();
+    });
+  });
+
+  /* Project 009, PRD 1. The counts themselves are `AdminAlertController.pictureFailures`'s, and the whole path is the e2e suite's. */
+  describe('dish pictures that failed', () => {
+    const ALLERGEN = { n: 1, reason: 'judge_allergen' } as const;
+
+    it('sends one mail for one failure, claimed for an hour and dated at the instant it counted up to', async () => {
+      const { claim, pictureFailures, send, service } = build();
+
+      pictureFailures.mockResolvedValue({ failed: [ALLERGEN], refused: [] });
+      await service.pictureFailures(NOW);
+
+      expect(pictureFailures).toHaveBeenCalledWith(NOW);
+      expect(claim).toHaveBeenCalledTimes(1);
+      expect(claim).toHaveBeenCalledWith('picture-failed', new Date(NOW.getTime() - HOUR), NOW);
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send.mock.calls[0]?.[0]).toMatchObject({ kind: 'owner-picture-alert', subject: 'NutrIA — imágenes de platos fallidas: 1', to: OWNER });
+      expect(send.mock.calls[0]?.[0].text).toContain('https://nutria.example/admin/catalogo?picture=failed');
+    });
+
+    it('sends one mail for three failures within the hour, and the next call past it carries the other two', async () => {
+      const { claim, pictureFailures, send, service } = build();
+
+      // The first failure wins the claim; the two after it find the hour taken.
+      claim.mockResolvedValueOnce('claim-1').mockResolvedValueOnce(null).mockResolvedValueOnce(null).mockResolvedValueOnce('claim-2');
+      pictureFailures.mockResolvedValueOnce({ failed: [ALLERGEN], refused: [] });
+      await service.pictureFailures(NOW);
+      // Counted since the mail that left: the first failure is no longer among them.
+      pictureFailures.mockResolvedValueOnce({ failed: [ALLERGEN], refused: [] });
+      await service.pictureFailures(new Date(NOW.getTime() + 10 * 60 * 1000));
+      pictureFailures.mockResolvedValueOnce({ failed: [{ n: 1, reason: 'call_failed' }, ALLERGEN], refused: [] });
+      await service.pictureFailures(new Date(NOW.getTime() + 20 * 60 * 1000));
+
+      expect(send).toHaveBeenCalledTimes(1);
+
+      const later = new Date(NOW.getTime() + 61 * 60 * 1000);
+
+      pictureFailures.mockResolvedValueOnce({ failed: [{ n: 1, reason: 'call_failed' }, ALLERGEN], refused: [] });
+      await service.pictureFailures(later);
+
+      expect(claim).toHaveBeenLastCalledWith('picture-failed', new Date(later.getTime() - HOUR), later);
+      expect(send).toHaveBeenCalledTimes(2);
+      expect(send.mock.calls[1]?.[0].subject).toBe('NutrIA — imágenes de platos fallidas: 2');
+    });
+
+    it('sends nothing, and claims nothing, when no picture failed — a row given back by the cap is not one', async () => {
+      const { claim, send, service } = build();
+
+      await service.pictureFailures(NOW);
+
+      expect(claim).not.toHaveBeenCalled();
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it('mails a refused payment or a rate limit under its own claim, once in six hours', async () => {
+      const { claim, pictureFailures, send, service } = build();
+
+      pictureFailures.mockResolvedValue({
+        failed: [],
+        refused: [
+          { n: 2, reason: 'payment_refused' },
+          { n: 1, reason: 'model_refused' }
+        ]
+      });
+      claim.mockResolvedValueOnce('claim-1').mockResolvedValueOnce(null);
+      await service.pictureFailures(NOW);
+      await service.pictureFailures(new Date(NOW.getTime() + 5 * HOUR));
+
+      expect(claim).toHaveBeenCalledWith('picture-payment-refused', new Date(NOW.getTime() - 6 * HOUR), NOW);
+      expect(claim).toHaveBeenLastCalledWith('picture-payment-refused', new Date(NOW.getTime() - HOUR), new Date(NOW.getTime() + 5 * HOUR));
+      expect(send).toHaveBeenCalledTimes(1);
+      expect(send.mock.calls[0]?.[0]).toMatchObject({
+        kind: 'owner-picture-alert',
+        subject: 'NutrIA — el proveedor de imágenes rechaza las peticiones'
+      });
+      expect(send.mock.calls[0]?.[0].text).toContain(
+        'desde el aviso anterior: 3. Por motivo: El proveedor no puede cobrar: 2; El modelo rechazó la petición: 1.'
+      );
+    });
+
+    it('sends both mails when pictures failed and the provider turns the key away, each under its own claim', async () => {
+      const { claim, pictureFailures, send, service } = build();
+
+      pictureFailures.mockResolvedValue({ failed: [ALLERGEN], refused: [{ n: 1, reason: 'model_refused' }] });
+      await service.pictureFailures(NOW);
+
+      expect(claim.mock.calls.map(([kind]) => kind)).toEqual(['picture-failed', 'picture-payment-refused']);
+      expect(send).toHaveBeenCalledTimes(2);
+    });
+
+    it('gives the claim back when the mail did not leave, and never throws', async () => {
+      const { pictureFailures, release, service } = build({ sent: false });
+
+      pictureFailures.mockResolvedValue({ failed: [ALLERGEN], refused: [] });
+      await service.pictureFailures(NOW);
+      expect(release).toHaveBeenCalledWith('claim-1');
+
+      pictureFailures.mockRejectedValue(new Error('database gone'));
+      await expect(service.pictureFailures(NOW)).resolves.toBeUndefined();
     });
   });
 });
