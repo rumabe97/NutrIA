@@ -35,20 +35,20 @@
     "ts:check": "tsc --noEmit"
   },
   "dependencies": {
-    "dotenv": "^18.0.0",
-    "drizzle-orm": "^0.45.2",
+    "dotenv": "^18.0.4",
+    "drizzle-orm": "^0.45.3",
     "postgres": "^3.4.9"
   },
   "devDependencies": {
     "@types/node": "^26.6.3",
-    "@vitest/coverage-istanbul": "^5.0.1",
-    "drizzle-kit": "^0.31.10",
+    "@vitest/coverage-istanbul": "^5.0.2",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9.39.2",
     "eslint-configuration": "workspace:*",
-    "prettier": "^3.9.8",
-    "tsx": "^4.23.13",
+    "prettier": "^3.9.9",
+    "tsx": "^4.23.15",
     "typescript-configuration": "workspace:*",
-    "vitest": "^5.0.1"
+    "vitest": "^5.0.2"
   },
   "files": [
     "dist"
