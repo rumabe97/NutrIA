@@ -1,0 +1,2421 @@
+{
+  "about": [
+    "The acceptance floor of the dish-picture judge (project 010): the judge’s stored answers for the 68 pictures of the 2026-09-27 pilot, reduced.",
+    "Produced once, on 2026-09-30, by a script kept outside the repository, from the pilot’s private record: the 57 pictures judged again with the judge the product uses (set \"rejudged\"), the 8 of the mini-pilot (set \"mini\") and the 3 wrong-recipe controls (set \"control\").",
+    "Kept per picture: the foods the vision call named (name, amount, specific) with its marks for the picture (realism, sharpness, plasticOrCgi, extraDishes; nonFood is the number of objects it listed, not their names), what the match call answered (each ingredient’s status and matched names, and the extras), and the recipe’s ingredients (slug, the English name the picture is drawn from, grams).",
+    "Left out: the allergens the vision call offered (the rule never reads them), its free-text remark, the model that drew each picture, every file name and every recipe id.",
+    "No dish name: the pilot’s dishes come from a private library, so each recipe’s title is \"Plato del piloto NN\". Today’s rule does not read the title (checked: real and neutral titles give the same verdicts). The rule of project 010 will read it as one way to find a dish’s own form, so a neutral title can only make that rule stricter on these pictures, never looser.",
+    "The controls are a picture drawn for one recipe (\"drawnFor\") judged against another (\"recipe\"). Their match call’s answer was not stored, only the verdict. It is rebuilt, as an assumption: the extras are the verdict’s extras (which were that call’s extras), the seen foods are those same foods with the amount and the flag the verdict kept, and every ingredient is not_seen with nothing matched (the verdict says so of the mains; of the rest it is assumed).",
+    "\"accepted\" and \"notes\" are what judgePicture answered for each picture with the seed catalogue on 2026-09-30, before the rule changed. They are the pin: 65 accepted with these notes, 3 controls rejected."
+  ],
+  "recipes": [
+    {
+      "key": "01", "title": "Plato del piloto 01",
+      "ingredients": [
+        {"slug":"leche-semidesnatada","name":"Semi-skimmed milk","grams":250},
+        {"slug":"platano","name":"Banana","grams":100},
+        {"slug":"copos-de-avena","name":"Rolled oats","grams":90},
+        {"slug":"nueces","name":"Walnuts","grams":18},
+        {"slug":"mantequilla-de-cacahuete","name":"Peanut butter","grams":15},
+        {"slug":"proteina-de-suero","name":"Whey protein powder","grams":15},
+        {"slug":"canela-molida","name":"Ground cinnamon","grams":1}
+      ]
+    },
+    {
+      "key": "02", "title": "Plato del piloto 02",
+      "ingredients": [
+        {"slug":"pan-de-espelta","name":"Spelt bread","grams":120},
+        {"slug":"huevo","name":"Egg","grams":120},
+        {"slug":"clara-de-huevo","name":"Egg white","grams":100},
+        {"slug":"aguacate","name":"Avocado","grams":100},
+        {"slug":"aceite-de-oliva-virgen-extra","name":"Extra virgin olive oil","grams":15},
+        {"slug":"vinagre-de-vino-blanco","name":"White wine vinegar","grams":10},
+        {"slug":"sal","name":"Salt","grams":2},
+        {"slug":"pimenton-ahumado","name":"Smoked paprika","grams":2}
+      ]
+    },
+    {
+      "key": "03", "title": "Plato del piloto 03",
+      "ingredients": [
+        {"slug":"patata","name":"Potato","grams":580},
+        {"slug":"huevo","name":"Egg","grams":265},
+        {"slug":"cebolla","name":"Onion","grams":160},
+        {"slug":"aceite-de-oliva-virgen-extra","name":"Extra virgin olive oil","grams":6},
+        {"slug":"sal","name":"Salt","grams":3}
+      ]
+    },
+    {
+      "key": "04", "title": "Plato del piloto 04",
+      "ingredients": [
+        {"slug":"skyr","name":"Skyr","grams":250},
+        {"slug":"arandano","name":"Blueberries","grams":50},
+        {"slug":"nueces","name":"Walnuts","grams":20},
+        {"slug":"miel","name":"Honey","grams":15}
+      ]
+    },
+    {
+      "key": "05", "title": "Plato del piloto 05",
+      "ingredients": [
+        {"slug":"setas-variadas","name":"Mixed mushrooms","grams":500},
+        {"slug":"patata","name":"Potato","grams":400},
+        {"slug":"caldo-de-verduras","name":"Vegetable stock","grams":200},
+        {"slug":"leche-semidesnatada","name":"Semi-skimmed milk","grams":200},
+        {"slug":"huevo","name":"Egg","grams":90},
+        {"slug":"cebolla","name":"Onion","grams":80},
+        {"slug":"pan-tostado","name":"Toasted bread (rusks)","grams":60},
+        {"slug":"queso-parmesano","name":"Parmesan","grams":18},
+        {"slug":"aceite-de-oliva-virgen-extra","name":"Extra virgin olive oil","grams":16},
+        {"slug":"ajo","name":"Garlic","grams":6},
+        {"slug":"sal","name":"Salt","grams":4}
+      ]
+    },
+    {
+      "key": "06", "title": "Plato del piloto 06",
+      "ingredients": [
+        {"slug":"arroz-blanco-cocido","name":"Cooked white rice","grams":530},
+        {"slug":"calamar","name":"Squid","grams":145},
+        {"slug":"cebolla","name":"Onion","grams":110},
+        {"slug":"tomate-triturado","name":"Crushed tomatoes","grams":100},
+        {"slug":"gambas","name":"Fresh prawns","grams":45},
+        {"slug":"aceite-de-oliva-virgen-extra","name":"Extra virgin olive oil","grams":35},
+        {"slug":"ajo","name":"Garlic","grams":6},
+        {"slug":"caldo-de-pescado","name":"Fish stock","grams":5},
+        {"slug":"perejil","name":"Fresh parsley","grams":4},
+        {"slug":"pimenton-dulce","name":"Sweet paprika","grams":3},
+        {"slug":"sal","name":"Salt","grams":2}
+      ]
+    },
+    {
+      "key": "07", "title": "Plato del piloto 07",
+      "ingredients": [
+        {"slug":"tomate-triturado","name":"Crushed tomatoes","grams":360},
+        {"slug":"espaguetis-secos","name":"Spaghetti","grams":305},
+        {"slug":"atun-al-natural","name":"Tuna in brine","grams":125},
+        {"slug":"aceitunas-negras","name":"Black olives","grams":95},
+        {"slug":"aceite-de-oliva-virgen-extra","name":"Extra virgin olive oil","grams":30},
+        {"slug":"ajo","name":"Garlic","grams":10},
+        {"slug":"albahaca-fresca","name":"Fresh basil","grams":8},
+        {"slug":"sal","name":"Salt","grams":3}
+      ]
+    },
+    {
+      "key": "08", "title": "Plato del piloto 08",
+      "ingredients": [
+        {"slug":"patata","name":"Potato","grams":400},
+        {"slug":"merluza","name":"Fresh hake","grams":240},
+        {"slug":"guisantes-frescos","name":"Fresh peas","grams":240},
+        {"slug":"vino-blanco","name":"White wine (for cooking)","grams":65},
+        {"slug":"aceite-de-oliva-virgen-extra","name":"Extra virgin olive oil","grams":30},
+        {"slug":"ajo","name":"Garlic","grams":10},
+        {"slug":"perejil","name":"Fresh parsley","grams":6},
+        {"slug":"sal","name":"Salt","grams":3}
+      ]
+    },
+    {
+      "key": "09", "title": "Plato del piloto 09",
+      "ingredients": [
+        {"slug":"arroz-blanco-cocido","name":"Cooked white rice","grams":455},
+        {"slug":"salmon","name":"Fresh salmon","grams":180},
+        {"slug":"edamame-congelado","name":"Frozen edamame","grams":150},
+        {"slug":"salsa-teriyaki","name":"Teriyaki sauce","grams":60},
+        {"slug":"aceite-de-sesamo","name":"Sesame oil","grams":10},
+        {"slug":"jengibre-fresco","name":"Fresh ginger","grams":10},
+        {"slug":"sesamo","name":"Sesame seeds","grams":8},
+        {"slug":"sal","name":"Salt","grams":2}
+      ]
+    },
+    {
+      "key": "10", "title": "Plato del piloto 10",
+      "ingredients": [
+        {"slug":"brocoli","name":"Broccoli","grams":180},
+        {"slug":"arroz-integral-crudo","name":"Brown rice","grams":100},
+        {"slug":"tomate-cherry","name":"Cherry tomatoes","grams":90},
+        {"slug":"espinaca","name":"Spinach","grams":70},
+        {"slug":"pechuga-de-pollo","name":"Chicken breast","grams":55},
+        {"slug":"aceite-de-oliva-virgen-extra","name":"Extra virgin olive oil","grams":16},
+        {"slug":"limon","name":"Lemon","grams":15},
+        {"slug":"ajo","name":"Garlic","grams":4},
+        {"slug":"sal","name":"Salt","grams":2},
+        {"slug":"pimienta-negra","name":"Black pepper","grams":1},
+        {"slug":"oregano-seco","name":"Dried oregano","grams":1}
+      ]
+    },
+    {
+      "key": "11", "title": "Plato del piloto 11",
+      "ingredients": [
+        {"slug":"lentejas-cocidas","name":"Cooked lentils","grams":300},
+        {"slug":"patata","name":"Potato","grams":200},
+        {"slug":"ternera-magra","name":"Lean beef","grams":100},
+        {"slug":"chorizo","name":"Chorizo","grams":60},
+        {"slug":"cebolla","name":"Onion","grams":60},
+        {"slug":"panceta","name":"Pork belly","grams":60},
+        {"slug":"aceite-de-oliva-virgen-extra","name":"Extra virgin olive oil","grams":25}
+      ]
+    },
+    {
+      "key": "12", "title": "Plato del piloto 12",
+      "ingredients": [
+        {"slug":"tofu-firme","name":"Firm tofu","grams":220},
+        {"slug":"brocoli","name":"Broccoli","grams":150},
+        {"slug":"quinoa-cocida","name":"Cooked quinoa","grams":150},
+        {"slug":"salsa-de-soja","name":"Soy sauce","grams":15},
+        {"slug":"aceite-de-sesamo","name":"Sesame oil","grams":10},
+        {"slug":"ajo","name":"Garlic","grams":5},
+        {"slug":"jengibre-fresco","name":"Fresh ginger","grams":3},
+        {"slug":"sal","name":"Salt","grams":1}
+      ]
+    },
+    {
+      "key": "13", "title": "Plato del piloto 13",
+      "ingredients": [
+        {"slug":"patata","name":"Potato","grams":400},
+        {"slug":"bonito","name":"Bonito","grams":130},
+        {"slug":"huevo","name":"Egg","grams":100},
+        {"slug":"pimiento-rojo","name":"Red pepper","grams":100},
+        {"slug":"cebolleta","name":"Spring onion","grams":50},
+        {"slug":"aceitunas-verdes","name":"Green olives","grams":40},
+        {"slug":"aceite-de-oliva-virgen-extra","name":"Extra virgin olive oil","grams":32},
+        {"slug":"vinagre-de-jerez","name":"Sherry vinegar","grams":15},
+        {"slug":"sal","name":"Salt","grams":2}
+      ]
+    },
+    {
+      "key": "14", "title": "Plato del piloto 14",
+      "ingredients": [
+        {"slug":"requeson","name":"Curd cheese","grams":90},
+        {"slug":"datiles","name":"Dates","grams":55},
+        {"slug":"miel","name":"Honey","grams":15},
+        {"slug":"nueces","name":"Walnuts","grams":10}
+      ]
+    },
+    {
+      "key": "15", "title": "Plato del piloto 15",
+      "ingredients": [
+        {"slug":"leche-entera","name":"Whole milk","grams":1380},
+        {"slug":"arroz-bomba-crudo","name":"Bomba rice","grams":110},
+        {"slug":"azucar-blanco","name":"White sugar","grams":45},
+        {"slug":"naranja","name":"Orange","grams":24},
+        {"slug":"canela-en-rama","name":"Cinnamon sticks","grams":3},
+        {"slug":"sal","name":"Salt","grams":1}
+      ]
+    },
+    {
+      "key": "16", "title": "Plato del piloto 16",
+      "ingredients": [
+        {"slug":"tortilla-de-maiz","name":"Corn tortilla","grams":260},
+        {"slug":"maiz-dulce","name":"Cooked sweetcorn","grams":180},
+        {"slug":"pechuga-de-pollo","name":"Chicken breast","grams":140},
+        {"slug":"aguacate","name":"Avocado","grams":100},
+        {"slug":"cebolla-morada","name":"Red onion","grams":40},
+        {"slug":"lima","name":"Lime","grams":15},
+        {"slug":"aceite-de-oliva-virgen-extra","name":"Extra virgin olive oil","grams":10},
+        {"slug":"cilantro","name":"Fresh coriander","grams":8},
+        {"slug":"chile-chipotle-seco","name":"Dried chipotle chilli","grams":4},
+        {"slug":"sal","name":"Salt","grams":3},
+        {"slug":"comino-molido","name":"Ground cumin","grams":2}
+      ]
+    },
+    {
+      "key": "17", "title": "Plato del piloto 17",
+      "ingredients": [
+        {"slug":"fideos-de-arroz-cocidos","name":"Cooked rice noodles","grams":560},
+        {"slug":"gambas","name":"Fresh prawns","grams":130},
+        {"slug":"zanahoria","name":"Carrot","grams":80},
+        {"slug":"pimiento-rojo","name":"Red pepper","grams":80},
+        {"slug":"brotes-de-soja","name":"Bean sprouts","grams":60},
+        {"slug":"aceite-de-sesamo","name":"Sesame oil","grams":18},
+        {"slug":"tamari","name":"Tamari","grams":14},
+        {"slug":"ajo","name":"Garlic","grams":8}
+      ]
+    },
+    {
+      "key": "18", "title": "Plato del piloto 18",
+      "ingredients": [
+        {"slug":"patata","name":"Potato","grams":300},
+        {"slug":"pulpo-cocido","name":"Cooked octopus","grams":250},
+        {"slug":"queso-fresco-de-cabra","name":"Fresh goat's cheese","grams":80},
+        {"slug":"aceite-de-oliva-virgen-extra","name":"Extra virgin olive oil","grams":45},
+        {"slug":"pimenton-dulce","name":"Sweet paprika","grams":5}
+      ]
+    },
+    {
+      "key": "19", "title": "Plato del piloto 19",
+      "ingredients": [
+        {"slug":"cuscus-crudo","name":"Couscous","grams":300},
+        {"slug":"tofu-firme","name":"Firm tofu","grams":300},
+        {"slug":"berenjena","name":"Aubergine","grams":200},
+        {"slug":"tomate-cherry","name":"Cherry tomatoes","grams":150},
+        {"slug":"pimiento-rojo","name":"Red pepper","grams":100},
+        {"slug":"cebolla-morada","name":"Red onion","grams":60},
+        {"slug":"aceite-de-oliva-virgen-extra","name":"Extra virgin olive oil","grams":25},
+        {"slug":"tahini","name":"Tahini","grams":15},
+        {"slug":"limon","name":"Lemon","grams":10},
+        {"slug":"comino-molido","name":"Ground cumin","grams":4},
+        {"slug":"sal","name":"Salt","grams":3},
+        {"slug":"pimienta-negra","name":"Black pepper","grams":2}
+      ]
+    },
+    {
+      "key": "20", "title": "Plato del piloto 20",
+      "ingredients": [
+        {"slug":"hamburguesa-de-ternera","name":"Beef burger","grams":180},
+        {"slug":"patatas-gajo-congeladas","name":"Frozen potato wedges","grams":150},
+        {"slug":"cebolla","name":"Onion","grams":100},
+        {"slug":"pan-de-hamburguesa","name":"Burger bun","grams":80},
+        {"slug":"queso-cheddar","name":"Cheddar","grams":30},
+        {"slug":"aceite-de-oliva-virgen-extra","name":"Extra virgin olive oil","grams":12},
+        {"slug":"sal","name":"Salt","grams":2}
+      ]
+    }
+  ],
+  "pictures": [
+    {
+      "id": "rejudged-01-1", "set": "rejudged", "recipe": "01",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"oatmeal","amount":"main","specific":true},
+          {"name":"banana","amount":"garnish","specific":true},
+          {"name":"walnuts","amount":"garnish","specific":true},
+          {"name":"peanut butter","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"leche-semidesnatada","status":"not_seen","matched":[]},
+          {"slug":"platano","status":"seen","matched":["banana"]},
+          {"slug":"copos-de-avena","status":"seen","matched":["oatmeal"]},
+          {"slug":"nueces","status":"seen","matched":["walnuts"]},
+          {"slug":"mantequilla-de-cacahuete","status":"seen","matched":["peanut butter"]},
+          {"slug":"proteina-de-suero","status":"not_seen","matched":[]},
+          {"slug":"canela-molida","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-01-2", "set": "rejudged", "recipe": "01",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"oatmeal","amount":"main","specific":true},
+          {"name":"banana","amount":"garnish","specific":true},
+          {"name":"walnuts","amount":"garnish","specific":true},
+          {"name":"peanut butter","amount":"garnish","specific":true},
+          {"name":"cinnamon","amount":"trace","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"leche-semidesnatada","status":"not_seen","matched":[]},
+          {"slug":"platano","status":"seen","matched":["banana"]},
+          {"slug":"copos-de-avena","status":"seen","matched":["oatmeal"]},
+          {"slug":"nueces","status":"seen","matched":["walnuts"]},
+          {"slug":"mantequilla-de-cacahuete","status":"seen","matched":["peanut butter"]},
+          {"slug":"proteina-de-suero","status":"not_seen","matched":[]},
+          {"slug":"canela-molida","status":"seen","matched":["cinnamon"]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-01-3", "set": "rejudged", "recipe": "01",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"oatmeal","amount":"main","specific":true},
+          {"name":"banana","amount":"garnish","specific":true},
+          {"name":"walnuts","amount":"garnish","specific":true},
+          {"name":"peanut butter","amount":"garnish","specific":true},
+          {"name":"cinnamon","amount":"trace","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"leche-semidesnatada","status":"not_seen","matched":[]},
+          {"slug":"platano","status":"seen","matched":["banana"]},
+          {"slug":"copos-de-avena","status":"seen","matched":["oatmeal"]},
+          {"slug":"nueces","status":"seen","matched":["walnuts"]},
+          {"slug":"mantequilla-de-cacahuete","status":"seen","matched":["peanut butter"]},
+          {"slug":"proteina-de-suero","status":"not_seen","matched":[]},
+          {"slug":"canela-molida","status":"seen","matched":["cinnamon"]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-02-1", "set": "rejudged", "recipe": "02",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"poached egg","amount":"main","specific":true},
+          {"name":"avocado","amount":"main","specific":true},
+          {"name":"bread","amount":"main","specific":true},
+          {"name":"red spice","amount":"garnish","specific":false},
+          {"name":"oil drizzle","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"pan-de-espelta","status":"seen","matched":["bread"]},
+          {"slug":"huevo","status":"seen","matched":["poached egg"]},
+          {"slug":"clara-de-huevo","status":"unsure","matched":[]},
+          {"slug":"aguacate","status":"seen","matched":["avocado"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"seen","matched":["oil drizzle"]},
+          {"slug":"vinagre-de-vino-blanco","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]},
+          {"slug":"pimenton-ahumado","status":"seen","matched":["red spice"]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-03-1", "set": "rejudged", "recipe": "03",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"omelette with potatoes","amount":"main","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"patata","status":"seen","matched":["omelette with potatoes"]},
+          {"slug":"huevo","status":"seen","matched":["omelette with potatoes"]},
+          {"slug":"cebolla","status":"not_seen","matched":[]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["missing_main:Onion"]
+    },
+    {
+      "id": "rejudged-03-2", "set": "rejudged", "recipe": "03",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"egg","amount":"main","specific":true},
+          {"name":"potato","amount":"main","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"patata","status":"seen","matched":["potato"]},
+          {"slug":"huevo","status":"seen","matched":["egg"]},
+          {"slug":"cebolla","status":"not_seen","matched":[]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"not_seen","matched":[]},
+          {"slug":"sal","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["missing_main:Onion"]
+    },
+    {
+      "id": "rejudged-02-2", "set": "rejudged", "recipe": "02",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"toast","amount":"main","specific":true},
+          {"name":"avocado","amount":"main","specific":true},
+          {"name":"poached egg","amount":"main","specific":true},
+          {"name":"paprika","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"pan-de-espelta","status":"seen","matched":["toast"]},
+          {"slug":"huevo","status":"seen","matched":["poached egg"]},
+          {"slug":"clara-de-huevo","status":"unsure","matched":[]},
+          {"slug":"aguacate","status":"seen","matched":["avocado"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"vinagre-de-vino-blanco","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]},
+          {"slug":"pimenton-ahumado","status":"seen","matched":["paprika"]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-02-3", "set": "rejudged", "recipe": "02",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"avocado spread","amount":"main","specific":true},
+          {"name":"poached egg","amount":"main","specific":true},
+          {"name":"bread","amount":"main","specific":true},
+          {"name":"paprika","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"pan-de-espelta","status":"seen","matched":["bread"]},
+          {"slug":"huevo","status":"seen","matched":["poached egg"]},
+          {"slug":"clara-de-huevo","status":"unsure","matched":[]},
+          {"slug":"aguacate","status":"seen","matched":["avocado spread"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"vinagre-de-vino-blanco","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]},
+          {"slug":"pimenton-ahumado","status":"seen","matched":["paprika"]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-03-3", "set": "rejudged", "recipe": "03",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"egg","amount":"main","specific":true},
+          {"name":"potato","amount":"main","specific":true},
+          {"name":"onion","amount":"main","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"patata","status":"seen","matched":["potato"]},
+          {"slug":"huevo","status":"seen","matched":["egg"]},
+          {"slug":"cebolla","status":"seen","matched":["onion"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"not_seen","matched":[]},
+          {"slug":"sal","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-04-1", "set": "rejudged", "recipe": "04",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"blueberries","amount":"garnish","specific":true},
+          {"name":"walnuts","amount":"garnish","specific":true},
+          {"name":"honey","amount":"garnish","specific":true},
+          {"name":"yogurt","amount":"main","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"skyr","status":"unsure","matched":["yogurt"]},
+          {"slug":"arandano","status":"seen","matched":["blueberries"]},
+          {"slug":"nueces","status":"seen","matched":["walnuts"]},
+          {"slug":"miel","status":"seen","matched":["honey"]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-04-2", "set": "rejudged", "recipe": "04",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"blueberries","amount":"garnish","specific":true},
+          {"name":"walnuts","amount":"garnish","specific":true},
+          {"name":"yogurt","amount":"main","specific":true},
+          {"name":"honey drizzle","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"skyr","status":"seen","matched":["yogurt"]},
+          {"slug":"arandano","status":"seen","matched":["blueberries"]},
+          {"slug":"nueces","status":"seen","matched":["walnuts"]},
+          {"slug":"miel","status":"seen","matched":["honey drizzle"]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-04-3", "set": "rejudged", "recipe": "04",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"blueberries","amount":"garnish","specific":true},
+          {"name":"walnuts","amount":"garnish","specific":true},
+          {"name":"yogurt","amount":"main","specific":true},
+          {"name":"honey","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"skyr","status":"unsure","matched":["yogurt"]},
+          {"slug":"arandano","status":"seen","matched":["blueberries"]},
+          {"slug":"nueces","status":"seen","matched":["walnuts"]},
+          {"slug":"miel","status":"seen","matched":["honey"]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-05-1", "set": "rejudged", "recipe": "05",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"mushrooms","amount":"main","specific":true},
+          {"name":"poached egg","amount":"garnish","specific":true},
+          {"name":"croutons","amount":"garnish","specific":true},
+          {"name":"shaved cheese","amount":"garnish","specific":true},
+          {"name":"soup","amount":"main","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"setas-variadas","status":"seen","matched":["mushrooms"]},
+          {"slug":"patata","status":"not_seen","matched":[]},
+          {"slug":"caldo-de-verduras","status":"seen","matched":["soup"]},
+          {"slug":"leche-semidesnatada","status":"not_seen","matched":[]},
+          {"slug":"huevo","status":"seen","matched":["poached egg"]},
+          {"slug":"cebolla","status":"not_seen","matched":[]},
+          {"slug":"pan-tostado","status":"seen","matched":["croutons"]},
+          {"slug":"queso-parmesano","status":"seen","matched":["shaved cheese"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"not_seen","matched":[]},
+          {"slug":"ajo","status":"not_seen","matched":[]},
+          {"slug":"sal","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["missing_main:Potato"]
+    },
+    {
+      "id": "rejudged-05-2", "set": "rejudged", "recipe": "05",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"poached egg","amount":"main","specific":true},
+          {"name":"mushrooms","amount":"main","specific":true},
+          {"name":"croutons","amount":"garnish","specific":true},
+          {"name":"shaved cheese","amount":"garnish","specific":true},
+          {"name":"potatoes","amount":"main","specific":true},
+          {"name":"creamy sauce","amount":"main","specific":false}
+        ]
+      },
+      "match": {
+        "extras": ["creamy sauce"],
+        "ingredients": [
+          {"slug":"setas-variadas","status":"seen","matched":["mushrooms"]},
+          {"slug":"patata","status":"seen","matched":["potatoes"]},
+          {"slug":"caldo-de-verduras","status":"unsure","matched":[]},
+          {"slug":"leche-semidesnatada","status":"unsure","matched":[]},
+          {"slug":"huevo","status":"seen","matched":["poached egg"]},
+          {"slug":"cebolla","status":"unsure","matched":[]},
+          {"slug":"pan-tostado","status":"seen","matched":["croutons"]},
+          {"slug":"queso-parmesano","status":"seen","matched":["shaved cheese"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:creamy sauce"]
+    },
+    {
+      "id": "rejudged-05-3", "set": "rejudged", "recipe": "05",
+      "seen": {
+        "realism": 5,
+        "sharpness": 4,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"egg","amount":"main","specific":true},
+          {"name":"mushrooms","amount":"main","specific":true},
+          {"name":"grated cheese","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"main","specific":false},
+          {"name":"diced potatoes","amount":"main","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"setas-variadas","status":"seen","matched":["mushrooms"]},
+          {"slug":"patata","status":"seen","matched":["diced potatoes"]},
+          {"slug":"caldo-de-verduras","status":"unsure","matched":[]},
+          {"slug":"leche-semidesnatada","status":"unsure","matched":[]},
+          {"slug":"huevo","status":"seen","matched":["egg"]},
+          {"slug":"cebolla","status":"unsure","matched":[]},
+          {"slug":"pan-tostado","status":"unsure","matched":[]},
+          {"slug":"queso-parmesano","status":"seen","matched":["grated cheese"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:sauce"]
+    },
+    {
+      "id": "rejudged-06-1", "set": "rejudged", "recipe": "06",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"shrimp","amount":"main","specific":true},
+          {"name":"squid rings","amount":"main","specific":true},
+          {"name":"rice","amount":"main","specific":true},
+          {"name":"tomato pieces","amount":"garnish","specific":true},
+          {"name":"herbs","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"main","specific":false}
+        ]
+      },
+      "match": {
+        "extras": ["sauce"],
+        "ingredients": [
+          {"slug":"arroz-blanco-cocido","status":"seen","matched":["rice"]},
+          {"slug":"calamar","status":"seen","matched":["squid rings"]},
+          {"slug":"cebolla","status":"unsure","matched":[]},
+          {"slug":"tomate-triturado","status":"seen","matched":["tomato pieces"]},
+          {"slug":"gambas","status":"seen","matched":["shrimp"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"caldo-de-pescado","status":"unsure","matched":[]},
+          {"slug":"perejil","status":"seen","matched":["herbs"]},
+          {"slug":"pimenton-dulce","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:sauce"]
+    },
+    {
+      "id": "rejudged-06-2", "set": "rejudged", "recipe": "06",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"shrimp","amount":"main","specific":true},
+          {"name":"squid","amount":"main","specific":true},
+          {"name":"rice","amount":"main","specific":true},
+          {"name":"parsley","amount":"garnish","specific":true},
+          {"name":"tomato","amount":"trace","specific":true},
+          {"name":"onion","amount":"trace","specific":true},
+          {"name":"sauce","amount":"main","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"arroz-blanco-cocido","status":"seen","matched":["rice"]},
+          {"slug":"calamar","status":"seen","matched":["squid"]},
+          {"slug":"cebolla","status":"seen","matched":["onion"]},
+          {"slug":"tomate-triturado","status":"seen","matched":["tomato"]},
+          {"slug":"gambas","status":"seen","matched":["shrimp"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"caldo-de-pescado","status":"unsure","matched":[]},
+          {"slug":"perejil","status":"seen","matched":["parsley"]},
+          {"slug":"pimenton-dulce","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:sauce"]
+    },
+    {
+      "id": "rejudged-07-1", "set": "rejudged", "recipe": "07",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"pasta","amount":"main","specific":true},
+          {"name":"tuna","amount":"main","specific":true},
+          {"name":"black olives","amount":"garnish","specific":true},
+          {"name":"tomato sauce","amount":"main","specific":true},
+          {"name":"spinach","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": ["spinach"],
+        "ingredients": [
+          {"slug":"tomate-triturado","status":"seen","matched":["tomato sauce"]},
+          {"slug":"espaguetis-secos","status":"seen","matched":["pasta"]},
+          {"slug":"atun-al-natural","status":"seen","matched":["tuna"]},
+          {"slug":"aceitunas-negras","status":"seen","matched":["black olives"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"albahaca-fresca","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:spinach"]
+    },
+    {
+      "id": "rejudged-06-3", "set": "rejudged", "recipe": "06",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"shrimp","amount":"main","specific":true},
+          {"name":"squid","amount":"main","specific":true},
+          {"name":"rice","amount":"main","specific":true},
+          {"name":"tomato","amount":"garnish","specific":true},
+          {"name":"herbs","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"main","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"arroz-blanco-cocido","status":"seen","matched":["rice"]},
+          {"slug":"calamar","status":"seen","matched":["squid"]},
+          {"slug":"cebolla","status":"unsure","matched":[]},
+          {"slug":"tomate-triturado","status":"seen","matched":["tomato"]},
+          {"slug":"gambas","status":"seen","matched":["shrimp"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"caldo-de-pescado","status":"unsure","matched":[]},
+          {"slug":"perejil","status":"seen","matched":["herbs"]},
+          {"slug":"pimenton-dulce","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:sauce"]
+    },
+    {
+      "id": "rejudged-07-2", "set": "rejudged", "recipe": "07",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"spaghetti","amount":"main","specific":true},
+          {"name":"tuna","amount":"main","specific":true},
+          {"name":"black olives","amount":"garnish","specific":true},
+          {"name":"tomato sauce","amount":"main","specific":true},
+          {"name":"basil","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"tomate-triturado","status":"seen","matched":["tomato sauce"]},
+          {"slug":"espaguetis-secos","status":"seen","matched":["spaghetti"]},
+          {"slug":"atun-al-natural","status":"seen","matched":["tuna"]},
+          {"slug":"aceitunas-negras","status":"seen","matched":["black olives"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"albahaca-fresca","status":"seen","matched":["basil"]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-07-3", "set": "rejudged", "recipe": "07",
+      "seen": {
+        "realism": 4,
+        "sharpness": 4,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"spaghetti","amount":"main","specific":true},
+          {"name":"tomato sauce","amount":"main","specific":true},
+          {"name":"tuna","amount":"main","specific":true},
+          {"name":"black olives","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"tomate-triturado","status":"seen","matched":["tomato sauce"]},
+          {"slug":"espaguetis-secos","status":"seen","matched":["spaghetti"]},
+          {"slug":"atun-al-natural","status":"seen","matched":["tuna"]},
+          {"slug":"aceitunas-negras","status":"seen","matched":["black olives"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"albahaca-fresca","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-08-1", "set": "rejudged", "recipe": "08",
+      "seen": {
+        "realism": 4,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"fish fillet","amount":"main","specific":true},
+          {"name":"potatoes","amount":"side","specific":true},
+          {"name":"peas","amount":"side","specific":true},
+          {"name":"herbs","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"trace","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"patata","status":"seen","matched":["potatoes"]},
+          {"slug":"merluza","status":"seen","matched":["fish fillet"]},
+          {"slug":"guisantes-frescos","status":"seen","matched":["peas"]},
+          {"slug":"vino-blanco","status":"unsure","matched":[]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"perejil","status":"seen","matched":["herbs"]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:sauce"]
+    },
+    {
+      "id": "rejudged-08-2", "set": "rejudged", "recipe": "08",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"fish","amount":"main","specific":true},
+          {"name":"potatoes","amount":"side","specific":true},
+          {"name":"peas","amount":"garnish","specific":true},
+          {"name":"herbs","amount":"garnish","specific":true},
+          {"name":"garlic","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"patata","status":"seen","matched":["potatoes"]},
+          {"slug":"merluza","status":"seen","matched":["fish"]},
+          {"slug":"guisantes-frescos","status":"seen","matched":["peas"]},
+          {"slug":"vino-blanco","status":"unsure","matched":[]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"seen","matched":["garlic"]},
+          {"slug":"perejil","status":"seen","matched":["herbs"]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-08-3", "set": "rejudged", "recipe": "08",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"fish fillet","amount":"main","specific":true},
+          {"name":"potatoes","amount":"side","specific":true},
+          {"name":"peas","amount":"side","specific":true},
+          {"name":"herbs","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"side","specific":false}
+        ]
+      },
+      "match": {
+        "extras": ["sauce"],
+        "ingredients": [
+          {"slug":"patata","status":"seen","matched":["potatoes"]},
+          {"slug":"merluza","status":"seen","matched":["fish fillet"]},
+          {"slug":"guisantes-frescos","status":"seen","matched":["peas"]},
+          {"slug":"vino-blanco","status":"unsure","matched":[]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"perejil","status":"seen","matched":["herbs"]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:sauce"]
+    },
+    {
+      "id": "rejudged-09-1", "set": "rejudged", "recipe": "09",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"salmon","amount":"main","specific":true},
+          {"name":"rice","amount":"main","specific":true},
+          {"name":"edamame","amount":"side","specific":true},
+          {"name":"sesame seeds","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"arroz-blanco-cocido","status":"seen","matched":["rice"]},
+          {"slug":"salmon","status":"seen","matched":["salmon"]},
+          {"slug":"edamame-congelado","status":"seen","matched":["edamame"]},
+          {"slug":"salsa-teriyaki","status":"seen","matched":["sauce"]},
+          {"slug":"aceite-de-sesamo","status":"unsure","matched":[]},
+          {"slug":"jengibre-fresco","status":"not_seen","matched":[]},
+          {"slug":"sesamo","status":"seen","matched":["sesame seeds"]},
+          {"slug":"sal","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-09-2", "set": "rejudged", "recipe": "09",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"rice","amount":"main","specific":true},
+          {"name":"salmon","amount":"main","specific":true},
+          {"name":"edamame","amount":"side","specific":true},
+          {"name":"sesame seeds","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"arroz-blanco-cocido","status":"seen","matched":["rice"]},
+          {"slug":"salmon","status":"seen","matched":["salmon"]},
+          {"slug":"edamame-congelado","status":"seen","matched":["edamame"]},
+          {"slug":"salsa-teriyaki","status":"seen","matched":["sauce"]},
+          {"slug":"aceite-de-sesamo","status":"unsure","matched":[]},
+          {"slug":"jengibre-fresco","status":"not_seen","matched":[]},
+          {"slug":"sesamo","status":"seen","matched":["sesame seeds"]},
+          {"slug":"sal","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-09-3", "set": "rejudged", "recipe": "09",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"salmon","amount":"main","specific":true},
+          {"name":"rice","amount":"main","specific":false},
+          {"name":"edamame","amount":"side","specific":true},
+          {"name":"sesame seeds","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"arroz-blanco-cocido","status":"seen","matched":["rice"]},
+          {"slug":"salmon","status":"seen","matched":["salmon"]},
+          {"slug":"edamame-congelado","status":"seen","matched":["edamame"]},
+          {"slug":"salsa-teriyaki","status":"seen","matched":["sauce"]},
+          {"slug":"aceite-de-sesamo","status":"unsure","matched":[]},
+          {"slug":"jengibre-fresco","status":"unsure","matched":[]},
+          {"slug":"sesamo","status":"seen","matched":["sesame seeds"]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-10-1", "set": "rejudged", "recipe": "10",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"broccoli","amount":"main","specific":true},
+          {"name":"brown rice","amount":"main","specific":true},
+          {"name":"chicken","amount":"main","specific":true},
+          {"name":"spinach","amount":"side","specific":true},
+          {"name":"cherry tomatoes","amount":"garnish","specific":true},
+          {"name":"yellow bell pepper","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": ["yellow bell pepper"],
+        "ingredients": [
+          {"slug":"brocoli","status":"seen","matched":["broccoli"]},
+          {"slug":"arroz-integral-crudo","status":"seen","matched":["brown rice"]},
+          {"slug":"tomate-cherry","status":"seen","matched":["cherry tomatoes"]},
+          {"slug":"espinaca","status":"seen","matched":["spinach"]},
+          {"slug":"pechuga-de-pollo","status":"seen","matched":["chicken"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"limon","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]},
+          {"slug":"pimienta-negra","status":"unsure","matched":[]},
+          {"slug":"oregano-seco","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:yellow bell pepper"]
+    },
+    {
+      "id": "rejudged-10-2", "set": "rejudged", "recipe": "10",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"broccoli","amount":"main","specific":true},
+          {"name":"brown rice","amount":"main","specific":true},
+          {"name":"cherry tomatoes","amount":"side","specific":true},
+          {"name":"spinach","amount":"side","specific":true},
+          {"name":"chicken","amount":"main","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"brocoli","status":"seen","matched":["broccoli"]},
+          {"slug":"arroz-integral-crudo","status":"seen","matched":["brown rice"]},
+          {"slug":"tomate-cherry","status":"seen","matched":["cherry tomatoes"]},
+          {"slug":"espinaca","status":"seen","matched":["spinach"]},
+          {"slug":"pechuga-de-pollo","status":"seen","matched":["chicken"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"limon","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]},
+          {"slug":"pimienta-negra","status":"unsure","matched":[]},
+          {"slug":"oregano-seco","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-11-1", "set": "rejudged", "recipe": "11",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"lentils","amount":"main","specific":true},
+          {"name":"beef","amount":"main","specific":true},
+          {"name":"potatoes","amount":"main","specific":true},
+          {"name":"sausage","amount":"main","specific":true},
+          {"name":"onions","amount":"trace","specific":true},
+          {"name":"broth","amount":"main","specific":false}
+        ]
+      },
+      "match": {
+        "extras": ["broth"],
+        "ingredients": [
+          {"slug":"lentejas-cocidas","status":"seen","matched":["lentils"]},
+          {"slug":"patata","status":"seen","matched":["potatoes"]},
+          {"slug":"ternera-magra","status":"seen","matched":["beef"]},
+          {"slug":"chorizo","status":"seen","matched":["sausage"]},
+          {"slug":"cebolla","status":"seen","matched":["onions"]},
+          {"slug":"panceta","status":"not_seen","matched":[]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:broth"]
+    },
+    {
+      "id": "rejudged-11-2", "set": "rejudged", "recipe": "11",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"lentils","amount":"main","specific":true},
+          {"name":"potatoes","amount":"main","specific":true},
+          {"name":"beef","amount":"main","specific":true},
+          {"name":"sausage","amount":"main","specific":true},
+          {"name":"bacon","amount":"garnish","specific":true},
+          {"name":"onion","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"lentejas-cocidas","status":"seen","matched":["lentils"]},
+          {"slug":"patata","status":"seen","matched":["potatoes"]},
+          {"slug":"ternera-magra","status":"seen","matched":["beef"]},
+          {"slug":"chorizo","status":"seen","matched":["sausage"]},
+          {"slug":"cebolla","status":"seen","matched":["onion"]},
+          {"slug":"panceta","status":"seen","matched":["bacon"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-11-3", "set": "rejudged", "recipe": "11",
+      "seen": {
+        "realism": 5,
+        "sharpness": 4,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"lentils","amount":"main","specific":true},
+          {"name":"potatoes","amount":"main","specific":true},
+          {"name":"beef","amount":"main","specific":true},
+          {"name":"sausage","amount":"main","specific":true},
+          {"name":"onions","amount":"main","specific":true},
+          {"name":"broth","amount":"main","specific":false}
+        ]
+      },
+      "match": {
+        "extras": ["broth"],
+        "ingredients": [
+          {"slug":"lentejas-cocidas","status":"seen","matched":["lentils"]},
+          {"slug":"patata","status":"seen","matched":["potatoes"]},
+          {"slug":"ternera-magra","status":"seen","matched":["beef"]},
+          {"slug":"chorizo","status":"seen","matched":["sausage"]},
+          {"slug":"cebolla","status":"seen","matched":["onions"]},
+          {"slug":"panceta","status":"not_seen","matched":[]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:broth"]
+    },
+    {
+      "id": "rejudged-12-1", "set": "rejudged", "recipe": "12",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 2,
+        "foods": [
+          {"name":"quinoa","amount":"main","specific":true},
+          {"name":"broccoli","amount":"main","specific":true},
+          {"name":"tofu","amount":"main","specific":true},
+          {"name":"sauce","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"tofu-firme","status":"seen","matched":["tofu"]},
+          {"slug":"brocoli","status":"seen","matched":["broccoli"]},
+          {"slug":"quinoa-cocida","status":"seen","matched":["quinoa"]},
+          {"slug":"salsa-de-soja","status":"seen","matched":["sauce"]},
+          {"slug":"aceite-de-sesamo","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"jengibre-fresco","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["non_food"]
+    },
+    {
+      "id": "rejudged-12-2", "set": "rejudged", "recipe": "12",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"broccoli","amount":"main","specific":true},
+          {"name":"tofu","amount":"main","specific":true},
+          {"name":"quinoa","amount":"main","specific":true},
+          {"name":"garlic","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"tofu-firme","status":"seen","matched":["tofu"]},
+          {"slug":"brocoli","status":"seen","matched":["broccoli"]},
+          {"slug":"quinoa-cocida","status":"seen","matched":["quinoa"]},
+          {"slug":"salsa-de-soja","status":"seen","matched":["sauce"]},
+          {"slug":"aceite-de-sesamo","status":"seen","matched":["sauce"]},
+          {"slug":"ajo","status":"seen","matched":["garlic"]},
+          {"slug":"jengibre-fresco","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-12-3", "set": "rejudged", "recipe": "12",
+      "seen": {
+        "realism": 4,
+        "sharpness": 4,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"tofu","amount":"main","specific":true},
+          {"name":"broccoli","amount":"main","specific":true},
+          {"name":"quinoa","amount":"main","specific":true},
+          {"name":"sauce","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"tofu-firme","status":"seen","matched":["tofu"]},
+          {"slug":"brocoli","status":"seen","matched":["broccoli"]},
+          {"slug":"quinoa-cocida","status":"seen","matched":["quinoa"]},
+          {"slug":"salsa-de-soja","status":"seen","matched":["sauce"]},
+          {"slug":"aceite-de-sesamo","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"jengibre-fresco","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-13-1", "set": "rejudged", "recipe": "13",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"potatoes","amount":"main","specific":true},
+          {"name":"tuna","amount":"main","specific":true},
+          {"name":"hard-boiled egg","amount":"garnish","specific":true},
+          {"name":"green olives","amount":"garnish","specific":true},
+          {"name":"red pepper","amount":"garnish","specific":true},
+          {"name":"green onion","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"trace","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"patata","status":"seen","matched":["potatoes"]},
+          {"slug":"bonito","status":"seen","matched":["tuna"]},
+          {"slug":"huevo","status":"seen","matched":["hard-boiled egg"]},
+          {"slug":"pimiento-rojo","status":"seen","matched":["red pepper"]},
+          {"slug":"cebolleta","status":"seen","matched":["green onion"]},
+          {"slug":"aceitunas-verdes","status":"seen","matched":["green olives"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"vinagre-de-jerez","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:sauce"]
+    },
+    {
+      "id": "rejudged-14-1", "set": "rejudged", "recipe": "14",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 3,
+        "foods": [
+          {"name":"cottage cheese","amount":"main","specific":true},
+          {"name":"dates","amount":"garnish","specific":true},
+          {"name":"walnuts","amount":"garnish","specific":true},
+          {"name":"honey","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"requeson","status":"seen","matched":["cottage cheese"]},
+          {"slug":"datiles","status":"seen","matched":["dates"]},
+          {"slug":"miel","status":"seen","matched":["honey"]},
+          {"slug":"nueces","status":"seen","matched":["walnuts"]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["non_food"]
+    },
+    {
+      "id": "rejudged-13-2", "set": "rejudged", "recipe": "13",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"potatoes","amount":"main","specific":true},
+          {"name":"tuna","amount":"main","specific":true},
+          {"name":"hard-boiled egg","amount":"garnish","specific":true},
+          {"name":"green olives","amount":"garnish","specific":true},
+          {"name":"red peppers","amount":"garnish","specific":true},
+          {"name":"green onions","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"trace","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"patata","status":"seen","matched":["potatoes"]},
+          {"slug":"bonito","status":"seen","matched":["tuna"]},
+          {"slug":"huevo","status":"seen","matched":["hard-boiled egg"]},
+          {"slug":"pimiento-rojo","status":"seen","matched":["red peppers"]},
+          {"slug":"cebolleta","status":"seen","matched":["green onions"]},
+          {"slug":"aceitunas-verdes","status":"seen","matched":["green olives"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"vinagre-de-jerez","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:sauce"]
+    },
+    {
+      "id": "rejudged-14-2", "set": "rejudged", "recipe": "14",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"cottage cheese","amount":"main","specific":true},
+          {"name":"dates","amount":"garnish","specific":true},
+          {"name":"walnuts","amount":"garnish","specific":true},
+          {"name":"honey","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"requeson","status":"seen","matched":["cottage cheese"]},
+          {"slug":"datiles","status":"seen","matched":["dates"]},
+          {"slug":"miel","status":"seen","matched":["honey"]},
+          {"slug":"nueces","status":"seen","matched":["walnuts"]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-13-3", "set": "rejudged", "recipe": "13",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"tuna","amount":"main","specific":true},
+          {"name":"potato","amount":"main","specific":true},
+          {"name":"hard-boiled egg","amount":"garnish","specific":true},
+          {"name":"green olive","amount":"garnish","specific":true},
+          {"name":"red pepper","amount":"garnish","specific":true},
+          {"name":"green onion","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"trace","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"patata","status":"seen","matched":["potato"]},
+          {"slug":"bonito","status":"seen","matched":["tuna"]},
+          {"slug":"huevo","status":"seen","matched":["hard-boiled egg"]},
+          {"slug":"pimiento-rojo","status":"seen","matched":["red pepper"]},
+          {"slug":"cebolleta","status":"seen","matched":["green onion"]},
+          {"slug":"aceitunas-verdes","status":"seen","matched":["green olive"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":["sauce"]},
+          {"slug":"vinagre-de-jerez","status":"unsure","matched":["sauce"]},
+          {"slug":"sal","status":"unsure","matched":["sauce"]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-14-3", "set": "rejudged", "recipe": "14",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"cottage cheese","amount":"main","specific":true},
+          {"name":"dates","amount":"garnish","specific":true},
+          {"name":"walnuts","amount":"garnish","specific":true},
+          {"name":"honey","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"requeson","status":"seen","matched":["cottage cheese"]},
+          {"slug":"datiles","status":"seen","matched":["dates"]},
+          {"slug":"miel","status":"seen","matched":["honey"]},
+          {"slug":"nueces","status":"seen","matched":["walnuts"]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-15-1", "set": "rejudged", "recipe": "15",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"rice pudding","amount":"main","specific":true},
+          {"name":"orange peel","amount":"garnish","specific":true},
+          {"name":"cinnamon sticks","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"leche-entera","status":"unsure","matched":[]},
+          {"slug":"arroz-bomba-crudo","status":"seen","matched":["rice pudding"]},
+          {"slug":"azucar-blanco","status":"unsure","matched":[]},
+          {"slug":"naranja","status":"seen","matched":["orange peel"]},
+          {"slug":"canela-en-rama","status":"seen","matched":["cinnamon sticks"]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-15-2", "set": "rejudged", "recipe": "15",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"rice pudding","amount":"main","specific":true},
+          {"name":"cinnamon sticks","amount":"garnish","specific":true},
+          {"name":"orange zest","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"leche-entera","status":"unsure","matched":["rice pudding"]},
+          {"slug":"arroz-bomba-crudo","status":"seen","matched":["rice pudding"]},
+          {"slug":"azucar-blanco","status":"unsure","matched":["rice pudding"]},
+          {"slug":"naranja","status":"seen","matched":["orange zest"]},
+          {"slug":"canela-en-rama","status":"seen","matched":["cinnamon sticks"]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-15-3", "set": "rejudged", "recipe": "15",
+      "seen": {
+        "realism": 4,
+        "sharpness": 4,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"rice pudding","amount":"main","specific":true},
+          {"name":"cinnamon stick","amount":"garnish","specific":true},
+          {"name":"cinnamon powder","amount":"garnish","specific":true},
+          {"name":"dried fruit","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": ["cinnamon powder","dried fruit"],
+        "ingredients": [
+          {"slug":"leche-entera","status":"unsure","matched":[]},
+          {"slug":"arroz-bomba-crudo","status":"seen","matched":["rice pudding"]},
+          {"slug":"azucar-blanco","status":"unsure","matched":[]},
+          {"slug":"naranja","status":"not_seen","matched":[]},
+          {"slug":"canela-en-rama","status":"seen","matched":["cinnamon stick"]},
+          {"slug":"sal","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:cinnamon powder/dried fruit","missing_main:Orange"]
+    },
+    {
+      "id": "rejudged-16-1", "set": "rejudged", "recipe": "16",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"tortilla","amount":"main","specific":true},
+          {"name":"chicken","amount":"main","specific":true},
+          {"name":"corn","amount":"main","specific":true},
+          {"name":"avocado","amount":"garnish","specific":true},
+          {"name":"red onion","amount":"garnish","specific":true},
+          {"name":"cilantro","amount":"garnish","specific":true},
+          {"name":"lime","amount":"garnish","specific":true},
+          {"name":"red chili flakes","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"tortilla-de-maiz","status":"seen","matched":["tortilla"]},
+          {"slug":"maiz-dulce","status":"seen","matched":["corn"]},
+          {"slug":"pechuga-de-pollo","status":"seen","matched":["chicken"]},
+          {"slug":"aguacate","status":"seen","matched":["avocado"]},
+          {"slug":"cebolla-morada","status":"seen","matched":["red onion"]},
+          {"slug":"lima","status":"seen","matched":["lime"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"cilantro","status":"seen","matched":["cilantro"]},
+          {"slug":"chile-chipotle-seco","status":"seen","matched":["red chili flakes"]},
+          {"slug":"sal","status":"unsure","matched":[]},
+          {"slug":"comino-molido","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-17-1", "set": "rejudged", "recipe": "17",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"shrimp","amount":"main","specific":true},
+          {"name":"rice noodles","amount":"main","specific":true},
+          {"name":"carrots","amount":"side","specific":true},
+          {"name":"red bell peppers","amount":"side","specific":true},
+          {"name":"bean sprouts","amount":"side","specific":true},
+          {"name":"sesame seeds","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"trace","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"fideos-de-arroz-cocidos","status":"seen","matched":["rice noodles"]},
+          {"slug":"gambas","status":"seen","matched":["shrimp"]},
+          {"slug":"zanahoria","status":"seen","matched":["carrots"]},
+          {"slug":"pimiento-rojo","status":"seen","matched":["red bell peppers"]},
+          {"slug":"brotes-de-soja","status":"seen","matched":["bean sprouts"]},
+          {"slug":"aceite-de-sesamo","status":"seen","matched":["sesame seeds"]},
+          {"slug":"tamari","status":"seen","matched":["sauce"]},
+          {"slug":"ajo","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-17-2", "set": "rejudged", "recipe": "17",
+      "seen": {
+        "realism": 5,
+        "sharpness": 4,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"shrimp","amount":"main","specific":true},
+          {"name":"noodles","amount":"main","specific":false},
+          {"name":"carrots","amount":"garnish","specific":true},
+          {"name":"red bell pepper","amount":"garnish","specific":true},
+          {"name":"bean sprouts","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"fideos-de-arroz-cocidos","status":"seen","matched":["noodles"]},
+          {"slug":"gambas","status":"seen","matched":["shrimp"]},
+          {"slug":"zanahoria","status":"seen","matched":["carrots"]},
+          {"slug":"pimiento-rojo","status":"seen","matched":["red bell pepper"]},
+          {"slug":"brotes-de-soja","status":"seen","matched":["bean sprouts"]},
+          {"slug":"aceite-de-sesamo","status":"unsure","matched":[]},
+          {"slug":"tamari","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-16-2", "set": "rejudged", "recipe": "16",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"tortilla","amount":"main","specific":true},
+          {"name":"shredded chicken","amount":"main","specific":true},
+          {"name":"corn","amount":"main","specific":true},
+          {"name":"avocado","amount":"garnish","specific":true},
+          {"name":"red onion","amount":"garnish","specific":true},
+          {"name":"lime wedge","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"main","specific":false},
+          {"name":"herbs","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": ["sauce"],
+        "ingredients": [
+          {"slug":"tortilla-de-maiz","status":"seen","matched":["tortilla"]},
+          {"slug":"maiz-dulce","status":"seen","matched":["corn"]},
+          {"slug":"pechuga-de-pollo","status":"seen","matched":["shredded chicken"]},
+          {"slug":"aguacate","status":"seen","matched":["avocado"]},
+          {"slug":"cebolla-morada","status":"seen","matched":["red onion"]},
+          {"slug":"lima","status":"seen","matched":["lime wedge"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"cilantro","status":"seen","matched":["herbs"]},
+          {"slug":"chile-chipotle-seco","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]},
+          {"slug":"comino-molido","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:sauce"]
+    },
+    {
+      "id": "rejudged-18-1", "set": "rejudged", "recipe": "18",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"octopus","amount":"main","specific":true},
+          {"name":"feta cheese","amount":"garnish","specific":true},
+          {"name":"potatoes","amount":"side","specific":true},
+          {"name":"paprika","amount":"garnish","specific":true},
+          {"name":"oil","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"patata","status":"seen","matched":["potatoes"]},
+          {"slug":"pulpo-cocido","status":"seen","matched":["octopus"]},
+          {"slug":"queso-fresco-de-cabra","status":"seen","matched":["feta cheese"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"seen","matched":["oil"]},
+          {"slug":"pimenton-dulce","status":"seen","matched":["paprika"]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-17-3", "set": "rejudged", "recipe": "17",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"shrimp","amount":"main","specific":true},
+          {"name":"noodles","amount":"main","specific":false},
+          {"name":"carrots","amount":"side","specific":true},
+          {"name":"red bell peppers","amount":"side","specific":true},
+          {"name":"bean sprouts","amount":"side","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"fideos-de-arroz-cocidos","status":"seen","matched":["noodles"]},
+          {"slug":"gambas","status":"seen","matched":["shrimp"]},
+          {"slug":"zanahoria","status":"seen","matched":["carrots"]},
+          {"slug":"pimiento-rojo","status":"seen","matched":["red bell peppers"]},
+          {"slug":"brotes-de-soja","status":"seen","matched":["bean sprouts"]},
+          {"slug":"aceite-de-sesamo","status":"unsure","matched":[]},
+          {"slug":"tamari","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-18-2", "set": "rejudged", "recipe": "18",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"octopus","amount":"main","specific":true},
+          {"name":"potatoes","amount":"main","specific":true},
+          {"name":"white sauce","amount":"garnish","specific":false},
+          {"name":"red spice","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": ["white sauce"],
+        "ingredients": [
+          {"slug":"patata","status":"seen","matched":["potatoes"]},
+          {"slug":"pulpo-cocido","status":"seen","matched":["octopus"]},
+          {"slug":"queso-fresco-de-cabra","status":"unsure","matched":[]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"pimenton-dulce","status":"seen","matched":["red spice"]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:white sauce"]
+    },
+    {
+      "id": "rejudged-19-1", "set": "rejudged", "recipe": "19",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"couscous","amount":"main","specific":true},
+          {"name":"tofu","amount":"main","specific":true},
+          {"name":"eggplant","amount":"main","specific":true},
+          {"name":"cherry tomato","amount":"garnish","specific":true},
+          {"name":"red onion","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"cuscus-crudo","status":"seen","matched":["couscous"]},
+          {"slug":"tofu-firme","status":"seen","matched":["tofu"]},
+          {"slug":"berenjena","status":"seen","matched":["eggplant"]},
+          {"slug":"tomate-cherry","status":"seen","matched":["cherry tomato"]},
+          {"slug":"cebolla-morada","status":"seen","matched":["red onion"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"tahini","status":"unsure","matched":[]},
+          {"slug":"limon","status":"unsure","matched":[]},
+          {"slug":"comino-molido","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]},
+          {"slug":"pimienta-negra","status":"unsure","matched":[]},
+          {"slug":"pimiento-rojo","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:sauce"]
+    },
+    {
+      "id": "rejudged-20-1", "set": "rejudged", "recipe": "20",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"hamburger","amount":"main","specific":true},
+          {"name":"potato wedges","amount":"side","specific":true},
+          {"name":"caramelized onions","amount":"garnish","specific":true},
+          {"name":"cheese","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"hamburguesa-de-ternera","status":"seen","matched":["hamburger"]},
+          {"slug":"patatas-gajo-congeladas","status":"seen","matched":["potato wedges"]},
+          {"slug":"cebolla","status":"seen","matched":["caramelized onions"]},
+          {"slug":"pan-de-hamburguesa","status":"unsure","matched":[]},
+          {"slug":"queso-cheddar","status":"seen","matched":["cheese"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-19-2", "set": "rejudged", "recipe": "19",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"couscous","amount":"main","specific":true},
+          {"name":"tofu","amount":"main","specific":true},
+          {"name":"eggplant","amount":"main","specific":true},
+          {"name":"cherry tomatoes","amount":"main","specific":true},
+          {"name":"red onion","amount":"garnish","specific":true},
+          {"name":"white drizzle","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"cuscus-crudo","status":"seen","matched":["couscous"]},
+          {"slug":"tofu-firme","status":"seen","matched":["tofu"]},
+          {"slug":"berenjena","status":"seen","matched":["eggplant"]},
+          {"slug":"tomate-cherry","status":"seen","matched":["cherry tomatoes"]},
+          {"slug":"cebolla-morada","status":"seen","matched":["red onion"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"tahini","status":"unsure","matched":[]},
+          {"slug":"limon","status":"unsure","matched":[]},
+          {"slug":"comino-molido","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]},
+          {"slug":"pimienta-negra","status":"unsure","matched":[]},
+          {"slug":"pimiento-rojo","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:white drizzle"]
+    },
+    {
+      "id": "rejudged-19-3", "set": "rejudged", "recipe": "19",
+      "seen": {
+        "realism": 5,
+        "sharpness": 4,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"couscous","amount":"main","specific":true},
+          {"name":"tofu","amount":"main","specific":true},
+          {"name":"eggplant","amount":"main","specific":true},
+          {"name":"cherry tomatoes","amount":"garnish","specific":true},
+          {"name":"red onion","amount":"garnish","specific":true},
+          {"name":"white drizzle","amount":"garnish","specific":false},
+          {"name":"red drizzle","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"cuscus-crudo","status":"seen","matched":["couscous"]},
+          {"slug":"tofu-firme","status":"seen","matched":["tofu"]},
+          {"slug":"berenjena","status":"seen","matched":["eggplant"]},
+          {"slug":"tomate-cherry","status":"seen","matched":["cherry tomatoes"]},
+          {"slug":"cebolla-morada","status":"seen","matched":["red onion"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"seen","matched":["white drizzle","red drizzle"]},
+          {"slug":"tahini","status":"seen","matched":["white drizzle"]},
+          {"slug":"limon","status":"seen","matched":["white drizzle"]},
+          {"slug":"comino-molido","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]},
+          {"slug":"pimienta-negra","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-20-2", "set": "rejudged", "recipe": "20",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"ground beef","amount":"main","specific":true},
+          {"name":"onions","amount":"garnish","specific":true},
+          {"name":"cheese","amount":"garnish","specific":true},
+          {"name":"potato wedges","amount":"side","specific":true},
+          {"name":"bun","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"hamburguesa-de-ternera","status":"seen","matched":["ground beef"]},
+          {"slug":"patatas-gajo-congeladas","status":"seen","matched":["potato wedges"]},
+          {"slug":"cebolla","status":"seen","matched":["onions"]},
+          {"slug":"pan-de-hamburguesa","status":"seen","matched":["bun"]},
+          {"slug":"queso-cheddar","status":"seen","matched":["cheese"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "rejudged-20-3", "set": "rejudged", "recipe": "20",
+      "seen": {
+        "realism": 4,
+        "sharpness": 4,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"hamburger patty","amount":"main","specific":true},
+          {"name":"cheese","amount":"garnish","specific":true},
+          {"name":"onions","amount":"garnish","specific":true},
+          {"name":"bun","amount":"main","specific":true},
+          {"name":"potato wedges","amount":"side","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"hamburguesa-de-ternera","status":"seen","matched":["hamburger patty"]},
+          {"slug":"patatas-gajo-congeladas","status":"seen","matched":["potato wedges"]},
+          {"slug":"cebolla","status":"seen","matched":["onions"]},
+          {"slug":"pan-de-hamburguesa","status":"seen","matched":["bun"]},
+          {"slug":"queso-cheddar","status":"seen","matched":["cheese"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "mini-07", "set": "mini", "recipe": "07",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"spaghetti","amount":"main","specific":true},
+          {"name":"tuna","amount":"main","specific":true},
+          {"name":"black olives","amount":"garnish","specific":true},
+          {"name":"tomato sauce","amount":"main","specific":true},
+          {"name":"herbs","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"tomate-triturado","status":"seen","matched":["tomato sauce"]},
+          {"slug":"espaguetis-secos","status":"seen","matched":["spaghetti"]},
+          {"slug":"atun-al-natural","status":"seen","matched":["tuna"]},
+          {"slug":"aceitunas-negras","status":"seen","matched":["black olives"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"albahaca-fresca","status":"seen","matched":["herbs"]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "mini-12", "set": "mini", "recipe": "12",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"broccoli","amount":"main","specific":true},
+          {"name":"quinoa","amount":"main","specific":true},
+          {"name":"tofu","amount":"main","specific":true},
+          {"name":"sauce","amount":"garnish","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"tofu-firme","status":"seen","matched":["tofu"]},
+          {"slug":"brocoli","status":"seen","matched":["broccoli"]},
+          {"slug":"quinoa-cocida","status":"seen","matched":["quinoa"]},
+          {"slug":"salsa-de-soja","status":"seen","matched":["sauce"]},
+          {"slug":"aceite-de-sesamo","status":"seen","matched":["sauce"]},
+          {"slug":"ajo","status":"unsure","matched":[]},
+          {"slug":"jengibre-fresco","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "mini-17", "set": "mini", "recipe": "17",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"shrimp","amount":"main","specific":true},
+          {"name":"noodles","amount":"main","specific":false},
+          {"name":"carrots","amount":"side","specific":true},
+          {"name":"red bell pepper","amount":"side","specific":true},
+          {"name":"bean sprouts","amount":"side","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"fideos-de-arroz-cocidos","status":"seen","matched":["noodles"]},
+          {"slug":"gambas","status":"seen","matched":["shrimp"]},
+          {"slug":"zanahoria","status":"seen","matched":["carrots"]},
+          {"slug":"pimiento-rojo","status":"seen","matched":["red bell pepper"]},
+          {"slug":"brotes-de-soja","status":"seen","matched":["bean sprouts"]},
+          {"slug":"aceite-de-sesamo","status":"unsure","matched":[]},
+          {"slug":"tamari","status":"unsure","matched":[]},
+          {"slug":"ajo","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "mini-18", "set": "mini", "recipe": "18",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"octopus","amount":"main","specific":true},
+          {"name":"potato","amount":"side","specific":true},
+          {"name":"feta cheese","amount":"garnish","specific":true},
+          {"name":"paprika","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"patata","status":"seen","matched":["potato"]},
+          {"slug":"pulpo-cocido","status":"seen","matched":["octopus"]},
+          {"slug":"queso-fresco-de-cabra","status":"seen","matched":["feta cheese"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"pimenton-dulce","status":"seen","matched":["paprika"]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "mini-05", "set": "mini", "recipe": "05",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"mushrooms","amount":"main","specific":true},
+          {"name":"poached egg","amount":"main","specific":true},
+          {"name":"croutons","amount":"garnish","specific":true},
+          {"name":"grated cheese","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"main","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"setas-variadas","status":"seen","matched":["mushrooms"]},
+          {"slug":"patata","status":"not_seen","matched":[]},
+          {"slug":"caldo-de-verduras","status":"unsure","matched":[]},
+          {"slug":"leche-semidesnatada","status":"not_seen","matched":[]},
+          {"slug":"huevo","status":"seen","matched":["poached egg"]},
+          {"slug":"cebolla","status":"not_seen","matched":[]},
+          {"slug":"pan-tostado","status":"seen","matched":["croutons"]},
+          {"slug":"queso-parmesano","status":"seen","matched":["grated cheese"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"not_seen","matched":[]},
+          {"slug":"ajo","status":"not_seen","matched":[]},
+          {"slug":"sal","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:sauce","missing_main:Potato"]
+    },
+    {
+      "id": "mini-13", "set": "mini", "recipe": "13",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"potatoes","amount":"main","specific":true},
+          {"name":"tuna","amount":"main","specific":true},
+          {"name":"hard-boiled egg","amount":"garnish","specific":true},
+          {"name":"green olives","amount":"garnish","specific":true},
+          {"name":"red pepper strips","amount":"garnish","specific":true},
+          {"name":"chopped green onions","amount":"garnish","specific":true},
+          {"name":"sauce","amount":"trace","specific":false}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"patata","status":"seen","matched":["potatoes"]},
+          {"slug":"bonito","status":"seen","matched":["tuna"]},
+          {"slug":"huevo","status":"seen","matched":["hard-boiled egg"]},
+          {"slug":"pimiento-rojo","status":"seen","matched":["red pepper strips"]},
+          {"slug":"cebolleta","status":"seen","matched":["chopped green onions"]},
+          {"slug":"aceitunas-verdes","status":"seen","matched":["green olives"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"vinagre-de-jerez","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": ["extra_food:sauce"]
+    },
+    {
+      "id": "mini-19", "set": "mini", "recipe": "19",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"couscous","amount":"main","specific":true},
+          {"name":"tofu","amount":"main","specific":true},
+          {"name":"eggplant","amount":"main","specific":true},
+          {"name":"cherry tomatoes","amount":"garnish","specific":true},
+          {"name":"red bell pepper","amount":"garnish","specific":true},
+          {"name":"onion","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"cuscus-crudo","status":"seen","matched":["couscous"]},
+          {"slug":"tofu-firme","status":"seen","matched":["tofu"]},
+          {"slug":"berenjena","status":"seen","matched":["eggplant"]},
+          {"slug":"tomate-cherry","status":"seen","matched":["cherry tomatoes"]},
+          {"slug":"pimiento-rojo","status":"seen","matched":["red bell pepper"]},
+          {"slug":"cebolla-morada","status":"unsure","matched":["onion"]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"unsure","matched":[]},
+          {"slug":"tahini","status":"unsure","matched":[]},
+          {"slug":"limon","status":"unsure","matched":[]},
+          {"slug":"comino-molido","status":"unsure","matched":[]},
+          {"slug":"sal","status":"unsure","matched":[]},
+          {"slug":"pimienta-negra","status":"unsure","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "mini-20", "set": "mini", "recipe": "20",
+      "seen": {
+        "realism": 5,
+        "sharpness": 5,
+        "plasticOrCgi": false,
+        "extraDishes": 0,
+        "nonFood": 0,
+        "foods": [
+          {"name":"hamburger","amount":"main","specific":true},
+          {"name":"caramelized onions","amount":"garnish","specific":true},
+          {"name":"potato wedges","amount":"side","specific":true}
+        ]
+      },
+      "match": {
+        "extras": [],
+        "ingredients": [
+          {"slug":"hamburguesa-de-ternera","status":"seen","matched":["hamburger"]},
+          {"slug":"patatas-gajo-congeladas","status":"seen","matched":["potato wedges"]},
+          {"slug":"cebolla","status":"seen","matched":["caramelized onions"]},
+          {"slug":"pan-de-hamburguesa","status":"not_seen","matched":[]},
+          {"slug":"queso-cheddar","status":"not_seen","matched":[]},
+          {"slug":"aceite-de-oliva-virgen-extra","status":"not_seen","matched":[]},
+          {"slug":"sal","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": true,
+      "notes": []
+    },
+    {
+      "id": "control-1", "set": "control", "recipe": "12", "drawnFor": "17",
+      "seen": {
+        "foods": [
+          {"name":"shrimp","amount":"main","specific":true},
+          {"name":"noodles","amount":"main","specific":false},
+          {"name":"carrots","amount":"side","specific":true},
+          {"name":"red bell peppers","amount":"side","specific":true},
+          {"name":"bean sprouts","amount":"side","specific":true}
+        ]
+      },
+      "match": {
+        "extras": ["shrimp","noodles","carrots","red bell peppers","bean sprouts"],
+        "ingredients": [
+          {"slug":"tofu-firme","status":"not_seen","matched":[]},
+          {"slug":"brocoli","status":"not_seen","matched":[]},
+          {"slug":"quinoa-cocida","status":"not_seen","matched":[]},
+          {"slug":"salsa-de-soja","status":"not_seen","matched":[]},
+          {"slug":"aceite-de-sesamo","status":"not_seen","matched":[]},
+          {"slug":"ajo","status":"not_seen","matched":[]},
+          {"slug":"jengibre-fresco","status":"not_seen","matched":[]},
+          {"slug":"sal","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": false,
+      "notes": ["extra_allergen:shrimp=crustaceans","extra_food:shrimp/noodles/carrots/red bell peppers/bean sprouts","missing_main:Firm tofu/Broccoli/Cooked quinoa"]
+    },
+    {
+      "id": "control-2", "set": "control", "recipe": "12", "drawnFor": "18",
+      "seen": {
+        "foods": [
+          {"name":"octopus","amount":"main","specific":true},
+          {"name":"potatoes","amount":"main","specific":true},
+          {"name":"feta cheese","amount":"garnish","specific":true},
+          {"name":"paprika","amount":"garnish","specific":true}
+        ]
+      },
+      "match": {
+        "extras": ["octopus","potatoes","feta cheese","paprika"],
+        "ingredients": [
+          {"slug":"tofu-firme","status":"not_seen","matched":[]},
+          {"slug":"brocoli","status":"not_seen","matched":[]},
+          {"slug":"quinoa-cocida","status":"not_seen","matched":[]},
+          {"slug":"salsa-de-soja","status":"not_seen","matched":[]},
+          {"slug":"aceite-de-sesamo","status":"not_seen","matched":[]},
+          {"slug":"ajo","status":"not_seen","matched":[]},
+          {"slug":"jengibre-fresco","status":"not_seen","matched":[]},
+          {"slug":"sal","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": false,
+      "notes": ["extra_allergen:octopus=molluscs/feta cheese=lactose+milk","extra_food:octopus/potatoes/feta cheese/paprika","missing_main:Firm tofu/Broccoli/Cooked quinoa"]
+    },
+    {
+      "id": "control-3", "set": "control", "recipe": "04", "drawnFor": "20",
+      "seen": {
+        "foods": [
+          {"name":"hamburger patty","amount":"main","specific":true},
+          {"name":"cheese","amount":"garnish","specific":true},
+          {"name":"caramelized onions","amount":"garnish","specific":true},
+          {"name":"bun","amount":"main","specific":true},
+          {"name":"potato wedges","amount":"side","specific":true}
+        ]
+      },
+      "match": {
+        "extras": ["hamburger patty","cheese","caramelized onions","bun","potato wedges"],
+        "ingredients": [
+          {"slug":"skyr","status":"not_seen","matched":[]},
+          {"slug":"arandano","status":"not_seen","matched":[]},
+          {"slug":"nueces","status":"not_seen","matched":[]},
+          {"slug":"miel","status":"not_seen","matched":[]}
+        ]
+      },
+      "accepted": false,
+      "notes": ["extra_allergen:bun=gluten","extra_food:hamburger patty/cheese/caramelized onions/bun/potato wedges","unmapped:hamburger patty","missing_main:Skyr"]
+    }
+  ]
+}

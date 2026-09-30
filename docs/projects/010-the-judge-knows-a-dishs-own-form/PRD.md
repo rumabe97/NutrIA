@@ -82,7 +82,9 @@ The picture judge rejects pictures that show the dish as it is.
     ingredients that *are* that form, and the title's words that name it;
   - three vocabulary fixes: words that are not a food ("base", "glass", "bowl"…) are not
     mapped one by one; a plant qualifier before a dairy word ("soy yogurt", "coconut
-    milk") maps the qualifier and not the dairy word; sulphites never reject a picture;
+    milk") maps the qualifier and not the dairy word; a sulphite a food only *may contain*
+    never rejects a picture (owner, 2026-09-30: one it contains still does — dried
+    apricots, wine);
   - the note a verdict carries when the exemption was used.
 - The acceptance set as tests, written **before** the rule changes: the pilot's answers
   and its three controls, the production cases rebuilt, one case per class in both

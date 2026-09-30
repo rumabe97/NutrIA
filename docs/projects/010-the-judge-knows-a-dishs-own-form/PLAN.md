@@ -49,7 +49,7 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 
 ### Phase 1 — The acceptance set, before the rule changes
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 010 phase 1`. `quality-max`. Review:
   `invariant-reviewer`.
 - **Goal**: what the rule must and must not do is written as tests while the rule is
@@ -57,6 +57,10 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 - **Scope**:
   - `packages/core/src/domain/DishPicture/**` — tests and fixtures only; `judge.ts` is not
     touched in this phase;
+  - *amended 2026-09-30:* `packages/core/src/test/dish-picture/**` — the helper the test
+    files share (the seed catalogue's reader, the builder of a picture's case). A helper
+    beside the rule would be compiled into the package; this folder is left out of the
+    build and of coverage, and already holds the domain's test data;
   - `packages/core/AGENTS.md`, if the fixtures need a line on where they come from.
 - **Steps**:
   1. **The pilot, reduced, as a fixture.** From the pilot's stored judge answers (the 57
@@ -124,9 +128,15 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
        protein, firm tofu or minced meat.
   4. **Three vocabulary fixes** (report § 7.4): words that are not a food are not mapped
      in the word-by-word step; a plant qualifier before a dairy word maps the qualifier
-     and not the dairy word; sulphites never reject a picture.
+     and not the dairy word; a sulphite a food only *may contain* never rejects a picture
+     (*amended 2026-09-30, owner:* one a food contains — dried apricots, wine — still does).
   5. **The note.** A verdict that used the exemption carries `own_form:<name>`; it is
-     stored with an accepted picture as the other notes are.
+     stored with an accepted picture as the other notes are. *Amended 2026-09-30, from
+     phase 1's review:* the note is written only when the exemption actually removed a
+     foreign allergen — several pilot pictures show a dish's own form that today's rule
+     already accepts, and their pinned notes must not change. The pilot's floor is
+     one-sided: its 65 accepted pictures cannot show a looser rule; only the 3 controls
+     and the forms file's rejects can.
   6. **The two tests that pin the wrong behaviour** (`judge.test.ts`, "noodles" left as an
      extra on a dish of rice noodles; "cake" on a dish of rice cakes) are rewritten on
      purpose, named in the log, with the reviewer's agreement. The three tests of project
@@ -149,7 +159,7 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 
 ### Phase 3 — What the judge said is kept
 
-- [ ] pending
+- [ ] in progress
 - **Dispatch**: opus @ high — `/execute-project 010 phase 3`. `quality-max`: it touches
   the accept's write. Reviews: `invariant-reviewer`, `legal`. The `tests` agent moves the
   end-to-end cases.
@@ -163,6 +173,10 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
      foods seen and the match are kept in `recipe_images.provenance` beside the notes —
      for a failed drawing and for an accepted one. Bounded: three attempts, a closed shape,
      a cap on how many foods and how long a name.
+     *Amended 2026-09-30:* they also survive the dish's next drawing — a view's claim
+     after the cool-off, or the owner's retry — within the same bound. A dish rejected
+     three times and drawn again later is exactly the case a refinement needs to read, and
+     today each drawing's end overwrites what the one before left.
   2. **A hand-accept keeps the evidence.** The accept's write keeps the rejections' notes
      and the attempts' answers beside `acceptedBy` and the overridden allergens. It still
      holds no path.
@@ -225,7 +239,8 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
   2. Put each new name in its family where it is a form, so the dish's own version still
      passes: a dish of crepes is not rejected for the word "crepes".
   3. Look for more of the same kind: run the annex's list of foods through the rule and
-     add what it finds to the pinned list of phase 1.
+     add what it finds to the pinned list of phase 1. Found by phase 1's review, outside
+     the 19: "hamburger", "sausages", "buttermilk".
   4. Measure again on the private library; record the exposure and the pairs in the log.
 - **Acceptance criteria**: PRD 8, 11.
 - **Verification**:

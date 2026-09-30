@@ -55,7 +55,7 @@ const TOFU_BOWL: PictureRecipe = {
     { grams: 5, name: 'Lemon', slug: 'limon' },
     { grams: 10, name: 'Extra virgin olive oil', slug: 'aceite-de-oliva-virgen-extra' }
   ],
-  name: 'Salteado de tofu firme con brócoli, quinoa y aderezo de sésamo'
+  name: 'Bol de tofu firme salteado, con brócoli y quinoa al sésamo'
 };
 
 /** Every ingredient of the bowl seen, and matched to itself. */
@@ -411,10 +411,12 @@ describe('judgePicture — a bare name read the safe way', () => {
     expect(verdict.accepted).toBe(true);
   });
 
+  // Project 010: contradicts production's stew with heura, whose "meatballs" were left as an extra (judge.forms.test.ts); phase 2 rewrites it.
   it('rejects "noodles" the match call left as an extra, even on a rice-noodle dish', () => {
     expect(judge(withExtra({ amount: 'side', name: 'noodles', specific: true }), NOODLE_BOWL).accepted).toBe(false);
   });
 
+  // Project 010: stays as it is — a rice cake is a cracker, not a cake, so "cake" left as an extra keeps rejecting (judge.forms.test.ts).
   it.each([
     ['matched to the dish’s own rice cakes, is those rice cakes', true, ['cake']],
     ['left as an extra on the same dish, is sponge cake', false, []]
