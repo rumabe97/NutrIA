@@ -170,11 +170,32 @@ describe('access: two locks, and the shape of a denial', () => {
       '/admin/catalogue/recipes/not-a-uuid',
       '/admin/catalogue/recipes/00000000-0000-4000-8000-000000000000/picture/candidate',
       '/admin/catalogue/recipes/not-a-uuid/picture/candidate',
+      '/admin/catalogue/recipes?picture=accepted_by_hand',
       '/health-data'
     ];
 
     for (const path of paths) {
       await request(server).get(`/${PREFIX}${path}`).expect(404);
+    }
+
+    // The owner's acceptance of a rejected picture and its removal (project 009 phase 3): writes, and the same 404 —
+    // with the body the route takes, with one it would refuse, and with none.
+    const writes: [string, unknown][] = [
+      [
+        '/admin/catalogue/recipes/00000000-0000-4000-8000-000000000000/picture/candidate/accept',
+        { allergens: [], expiresAt: '2026-10-07T00:00:00.000Z' }
+      ],
+      ['/admin/catalogue/recipes/00000000-0000-4000-8000-000000000000/picture/candidate/accept', { allergens: 'gluten', confirmed: true }],
+      ['/admin/catalogue/recipes/not-a-uuid/picture/candidate/accept', undefined],
+      ['/admin/catalogue/recipes/00000000-0000-4000-8000-000000000000/picture/remove', undefined],
+      ['/admin/catalogue/recipes/not-a-uuid/picture/remove', undefined]
+    ];
+
+    for (const [path, body] of writes) {
+      const call = request(server).post(`/${PREFIX}${path}`);
+      const response: Response = await (body === undefined ? call : call.send(body as object));
+
+      expect({ body, path, status: response.status }).toEqual({ body, path, status: 404 });
     }
   });
 

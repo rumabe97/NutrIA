@@ -8,6 +8,7 @@ import { checkIns } from 'database/schema/progress';
 import { mealCompletions } from 'database/schema/plan';
 import { onboardingState } from 'database/schema/profile';
 
+import { ACCEPTED_BY_OWNER_SQL } from '#repositories/Recipe';
 import { DatabaseOperationError } from 'core/entities/Error';
 
 export type JobRow = {
@@ -67,6 +68,8 @@ export type Funnel = {
  */
 /** The dish pictures at a glance (`0066`): the month's spend and how many are in each state. */
 export type PictureCounts = {
+  /** Of the `ready` ones, those the owner accepted by hand against the judge (`0072`) — the only ones that can be removed. */
+  readonly acceptedByHand: number;
   readonly drawing: number;
   /** Failed for the dish's own reasons: rejected, unmarked, broken — waiting out the cool-off. */
   readonly failed: number;
@@ -79,6 +82,9 @@ export type PictureCounts = {
 
 /** A picture row a drawing gave back (`RecipeRepository.releasePicture`). */
 const released = sql`(${recipeImages.provenance} ->> 'released') is not null`;
+
+/** A picture the owner accepted by hand (`RecipeRepository.acceptCandidate`): `provenance.acceptedBy`, spelled by `ACCEPTED_BY_OWNER_SQL`. */
+const handAccepted = sql`coalesce((${recipeImages.provenance} ->> 'acceptedBy') = ${ACCEPTED_BY_OWNER_SQL}, false)`;
 
 /** What a picture row that ended without a picture stored about how: enough for `pictureReasonOf`, and no dish is named. */
 export type FailedPictureRow = { readonly provenance: Record<string, unknown> | null; readonly released: boolean };
@@ -146,9 +152,9 @@ export const AdminRepository = {
       const db = database();
       const [states, spend] = await Promise.all([
         db
-          .select({ n: count(), released: sql<boolean>`${released}`, status: recipeImages.status })
+          .select({ byOwner: sql<boolean>`${handAccepted}`, n: count(), released: sql<boolean>`${released}`, status: recipeImages.status })
           .from(recipeImages)
-          .groupBy(recipeImages.status, sql`${released}`),
+          .groupBy(recipeImages.status, sql`${released}`, sql`${handAccepted}`),
         db
           .select({ total: sql<string>`coalesce(sum(${recipeImageCalls.costUsd}), 0)` })
           .from(recipeImageCalls)
@@ -157,7 +163,14 @@ export const AdminRepository = {
       const n = (status: string, wasReleased = false) =>
         states.filter(row => row.status === status && row.released === wasReleased).reduce((total, row) => total + row.n, 0);
 
-      return { drawing: n('drawing'), failed: n('failed'), ready: n('ready'), released: n('failed', true), spentUsd: Number(spend[0]?.total ?? 0) };
+      return {
+        acceptedByHand: states.filter(row => row.status === 'ready' && row.byOwner).reduce((total, row) => total + row.n, 0),
+        drawing: n('drawing'),
+        failed: n('failed'),
+        ready: n('ready'),
+        released: n('failed', true),
+        spentUsd: Number(spend[0]?.total ?? 0)
+      };
     } catch (error: unknown) {
       throw wrap(error);
     }

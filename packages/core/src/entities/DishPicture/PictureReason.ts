@@ -12,6 +12,7 @@ import type { PictureProvenance } from './DishPicture';
  * - `payment_refused`: the account cannot pay for another call (402, a spent key or quota).
  * - `call_failed`: a call that ended without an answer we could use (timeout, 5xx, unreadable answer).
  * - `cap_reached`: the month's picture spend reached its cap.
+ * - `owner_removed`: the owner took back a picture accepted by hand (`0072`). Not a drawing that failed: the owner's own act.
  * - `other`: anything else, including a row that records nothing.
  */
 export const PICTURE_REASONS = [
@@ -22,6 +23,7 @@ export const PICTURE_REASONS = [
   'payment_refused',
   'call_failed',
   'cap_reached',
+  'owner_removed',
   'other'
 ] as const;
 

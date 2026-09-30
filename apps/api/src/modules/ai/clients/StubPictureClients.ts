@@ -58,14 +58,20 @@ export class StubPictureJudgeClient extends PictureJudgeClient {
 
 /**
  * Keeps nothing anywhere: the address is the file itself, as a data URL, so a
- * local screen shows the stub picture with no store. `stored` lists every put,
- * for a test to read.
+ * local screen shows the stub picture with no store. `stored` lists every put
+ * and `deleted` the address of every deletion, for a test to read.
  */
 export class StubPictureStore extends PictureStore {
+  readonly deleted: string[] = [];
+
   readonly stored: { readonly bytes: Uint8Array; readonly path: string }[] = [];
 
   get isAvailable(): boolean {
     return true;
+  }
+
+  async del(address: string): Promise<void> {
+    this.deleted.push(address);
   }
 
   async put(path: string, bytes: Uint8Array, contentType: 'image/jpeg'): Promise<StoredPicture> {

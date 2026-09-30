@@ -180,13 +180,18 @@ export const esES = {
       'account.tier_changed': 'Cambio de plan',
       'feedback.handled': 'Mensaje marcado como visto',
       'feedback.reopened': 'Mensaje reabierto',
+      'picture.accepted': 'Imagen rechazada de un plato aceptada a mano, contra el revisor',
       'picture.discarded': 'Imagen rechazada de un plato descartada a mano',
+      'picture.removed': 'Imagen de un plato aceptada a mano, retirada',
       'picture.retried': 'Imagen de un plato reintentada a mano',
       'professional.granted': 'Perfil profesional concedido',
       'professional.revoked': 'Perfil profesional revocado',
       'push.test_sent': 'Aviso de prueba enviado',
       'setting.changed': 'Ajuste cambiado'
     },
+    /** `picture.accepted`: what the judge had flagged, followed by the catalogue's names for those allergens. */
+    allergensOverridden: 'El revisor había señalado:',
+    allergensOverriddenNone: 'El revisor no había señalado ningún alérgeno',
     caption: 'Acciones',
     columns: { account: 'Cuenta', action: 'Acción', actor: 'Quién', date: 'Fecha', detail: 'Detalle' },
     empty: 'El registro empieza el día en que esto se despliega: no hay ninguna fila anterior.',
@@ -501,8 +506,37 @@ export const esES = {
 
   /* `/admin/catalogo/[id]/imagen` (`0072`): one picture the checker rejected, beside what the dish is made of and what the checker flagged. A dish, never a person (`0028`); never the vision model's own words. */
   adminPictureReview: {
+    accept: 'Aceptar',
+    /** Followed by the allergens the judge flagged: the box that must be ticked before the picture is published. */
+    acceptAck: 'He visto la imagen y la publico aunque el revisor vio en ella:',
+    acceptAckMissing: 'Marca la casilla para publicar la imagen.',
+    acceptAckNone: 'He visto la imagen y la publico aunque el revisor la rechazó.',
+    acceptConfirm: 'Publicar la imagen',
+    acceptConfirmBody: 'Paso 2 de 2. Al confirmar, la imagen de {dish} se publica tal cual para todas las personas que reciban el plato.',
+    acceptConfirmTitle: '¿Publicar esta imagen?',
+    acceptContinue: 'Entendido, continuar',
+    acceptDone: 'Imagen publicada. La aceptaste a mano.',
+    acceptedHelp: 'Retirar deja el plato sin imagen para todos y borra el archivo publicado. No cuesta nada.',
+    acceptedIntro: 'La imagen de este plato está publicada: la aceptaste a mano, contra el revisor. La ven todas las personas que reciben el plato.',
+    acceptedTitle: 'Imagen aceptada a mano',
+    acceptedTrail: 'El registro de acciones guarda cuándo se aceptó cada imagen y qué alérgenos había señalado el revisor.',
+    acceptedTrailLink: 'Abrir el registro de acciones',
+    acceptEffects: [
+      'La imagen se publica para todas las personas que reciban este plato.',
+      'Si muestra un alimento con un alérgeno que el plato no lleva, una persona con esa alergia puede desconfiar de un plato que es seguro para ella.',
+      'Los alérgenos del plato los decide la receta, no la imagen: aceptarla no cambia lo que el plato lleva ni a quién se le da.',
+      'El revisor solo mira lo que sobra en la imagen. Si falta un ingrediente que el plato sí lleva, nadie lo ha comprobado: compárala tú con la lista del plato.',
+      'Queda en el registro de acciones, con tu cuenta y los alérgenos que el revisor señaló.',
+      'Se puede retirar después: «Retirar» deja el plato sin imagen otra vez. No borra las copias que un navegador ya haya guardado.'
+    ],
+    acceptEffectsTitle: 'Qué pasa si la aceptas',
+    acceptStaleTitle: 'No se ha publicado nada',
+    acceptTooMany: 'Demasiadas aceptaciones en una hora: espera un rato y vuelve a probar.',
+    acceptWarningBody: 'Paso 1 de 2. El revisor rechazó esta imagen. Aceptarla es publicarla contra su criterio.',
+    acceptWarningTitle: 'Antes de aceptar esta imagen',
     back: 'Volver a Recetas',
-    decideHelp: 'Descartar borra la imagen y no cuesta nada. Reintentar la borra y dibuja otra, que es de pago.',
+    decideHelp:
+      'Aceptar la publica tal cual para todas las personas que reciban el plato, contra el revisor, y no cuesta nada. Descartar la borra y tampoco cuesta. Reintentar la borra y dibuja otra, que es de pago.',
     decideNote:
       'Puedes verla hasta el {date}, hora de Madrid. Después la borra la limpieza nocturna, normalmente la noche siguiente, y hasta entonces el plato no vuelve a dibujarse solo.',
     decideTitle: 'Qué hacer con ella',
@@ -522,15 +556,34 @@ export const esES = {
     flaggedTitle: 'Lo que vio el revisor',
     gone: 'Esta imagen ya no está guardada.',
     ingredients: 'Ingredientes, para la receta entera',
-    intro: 'El revisor rechazó esta imagen y no se ha publicado. Espera tu decisión.',
+    intro: 'El revisor rechazó esta imagen y no está publicada. Espera tu decisión: aceptarla, descartarla o reintentar el dibujo.',
     introNothing: 'Estado de la imagen del plato: {state}.',
-    loadFailed: 'No se ha podido cargar la imagen: puede que el archivo ya no esté. Recarga la página; si sigue sin verse, descártala o reinténtala.',
+    introNothingReason: 'Estado de la imagen del plato: {state}. {reason}.',
+    loadFailed:
+      'No se ha podido cargar la imagen: puede que el archivo ya no esté. Recarga la página; si sigue sin verse, descártala o reinténtala. No la aceptes sin verla.',
     none: 'Ninguno',
-    nothingBody: 'Este plato no tiene ninguna imagen rechazada esperando: se descartó, se reintentó o pasaron sus 7 días.',
+    nothingBody:
+      'Este plato no tiene ninguna imagen rechazada esperando: se descartó, se reintentó, se retiró después de aceptarla o pasaron sus 7 días.',
     nothingTitle: 'No hay ninguna imagen que revisar',
     pictureAlt: 'Imagen de {dish} generada por IA, pendiente de revisión',
     pictureCaption: 'Imagen generada por IA. El revisor la rechazó y no está publicada: solo se ve en esta página.',
     pictureTitle: 'La imagen',
+    publishedAlt: 'Imagen de {dish} generada por IA, publicada',
+    publishedCaption: 'Imagen generada por IA. La aceptaste a mano y está publicada: es la que ven las personas que reciben este plato.',
+    publishedLoadFailed:
+      'No se ha podido cargar la imagen publicada: puede que su archivo ya no esté. Recarga la página; si sigue sin verse, retírala: el plato se queda sin imagen y se vuelve a dibujar pasados al menos 7 días, o antes si lo reintentas desde Recetas.',
+    reload: 'Cerrar y recargar la página',
+    remove: 'Retirar',
+    removeBody:
+      'El plato vuelve a quedarse sin imagen para todas las personas que lo reciban, y el archivo publicado se borra del almacén. La red de Vercel puede seguir sirviéndolo hasta un minuto, y un navegador que ya lo cargó conserva su copia. Espera al menos 7 días antes de volver a dibujarse solo, salvo que lo reintentes a mano desde Recetas. Queda en el registro de acciones, con tu cuenta.',
+    removeConfirm: 'Retirar la imagen',
+    removeDone: 'Imagen retirada. El plato ya no tiene imagen.',
+    removeLeftover:
+      'La imagen está retirada: el plato ya no la muestra a nadie. Pero su archivo no se ha podido borrar del almacén público y sigue ahí hasta que lo borres a mano, en el panel de Vercel: en el almacén de las imágenes, la carpeta dish-pictures y, dentro, la que lleva el id de este plato (está en la dirección de esta página).',
+    removeLeftoverTitle: 'Retirada, con su archivo sin borrar',
+    removeStaleTitle: 'No se ha retirado nada',
+    removeTitle: '¿Retirar esta imagen?',
+    removeTooMany: 'Demasiadas retiradas en una hora: espera un rato y vuelve a probar.',
     retry: 'Reintentar',
     retryBody: 'Se borra esta imagen y se dibuja otra ahora. Dibujar es de pago y cuenta para el tope del mes; el revisor puede volver a rechazarla.',
     retryConfirm: 'Borrar y dibujar otra',
@@ -541,12 +594,14 @@ export const esES = {
 
   /* `/admin/catalogo/imagenes`: the month's spend against the cap, spend per day, and pictures by state (`0066`). */
   adminPictures: {
+    acceptedByHand: 'De las listas, aceptadas a mano contra el revisor',
+    acceptedByHandLabel: 'Imágenes listas aceptadas a mano',
     cap: 'Tope del mes',
     failedEmpty: 'Ninguna imagen ha fallado en este periodo.',
     failedLink: 'Ver las recetas con imagen fallida',
     failedListLabel: 'Imágenes fallidas por motivo',
     failedNote:
-      'Imágenes que fallaron por el propio plato en el periodo, contadas por el día en que terminaron. Se reintentan solas pasados al menos 7 días, o a mano desde Recetas.',
+      'Imágenes que fallaron por el propio plato en el periodo, o que retiraste a mano, contadas por el día en que terminaron. Se reintentan solas pasados al menos 7 días, o a mano desde Recetas.',
     failedTitle: 'Por qué fallaron',
     gaugeChart: 'Gasto del mes contra el tope',
     gaugeEmpty: 'No hay ningún tope configurado.',
@@ -555,7 +610,7 @@ export const esES = {
     howCounted: [
       'El tope cuenta el mes natural en UTC, no el periodo. Al llegar a él no se dibuja ninguna imagen más hasta el mes siguiente.',
       'El gasto por día es lo que se facturó cada día por dibujar imágenes, en días de la hora de Madrid.',
-      'Lista es una imagen dibujada, con su archivo. Fallida es una que falló por el propio plato: se reintenta pasados al menos 7 días. Devuelta es una que se dejó por el tope o por la clave: se vuelve a dibujar en la siguiente visita.',
+      'Lista es una imagen publicada, con su archivo: la aceptó el revisor o, contra él, la aceptaste tú a mano. Fallida es una que falló por el propio plato, o una aceptada a mano que retiraste: se reintenta pasados al menos 7 días. Devuelta es una que se dejó por el tope o por la clave: se vuelve a dibujar en la siguiente visita.',
       'Las imágenes de los platos se facturan aparte del texto, que tiene su gasto en IA y modelos.'
     ],
     intro: 'Lo que cuestan las imágenes de los platos y en qué estado están.',
@@ -569,6 +624,8 @@ export const esES = {
       model_refused: 'El proveedor no aceptó la petición (un límite de uso o una política): un error 4xx distinto de 402.',
       no_provenance: 'El archivo llegó sin la firma C2PA que acredita que es una imagen generada, y no se guarda nunca.',
       other: 'Cualquier otro caso, incluidas filas antiguas que no guardaron el motivo.',
+      owner_removed:
+        'Retiraste una imagen que habías aceptado a mano contra el revisor. No es un dibujo que fallara: el plato espera al menos 7 días antes de volver a dibujarse solo.',
       payment_refused: 'La cuenta del proveedor no puede pagar otra llamada (error 402, clave o cuota agotada). No es culpa del plato.'
     },
     reasons: {
@@ -579,6 +636,7 @@ export const esES = {
       model_refused: 'El modelo rechazó la petición',
       no_provenance: 'Sin firma C2PA',
       other: 'Otro motivo',
+      owner_removed: 'La retiraste a mano',
       payment_refused: 'El proveedor no puede cobrar'
     },
     releasedEmpty: 'Ninguna imagen se ha devuelto en este periodo.',
@@ -782,6 +840,7 @@ export const esES = {
 
   /* `/admin/catalogo`: the recipe catalogue's size, by meal, and every recipe (shared data, never who made it, `0028`). */
   adminRecipes: {
+    acceptedByHand: 'Aceptada a mano, contra el revisor',
     bySlotChart: 'Recetas por comida',
     bySlotEmpty: 'El catálogo no tiene ninguna receta.',
     bySlotSeries: 'Recetas',
@@ -817,11 +876,13 @@ export const esES = {
       'Sin imagen cuenta toda receta que no tiene una imagen lista: también las que se están dibujando o fallaron.',
       'El catálogo es de todos: aquí no aparece quién pidió cada receta.',
       'Una imagen fallida o devuelta se puede reintentar a mano con «Reintentar», sin esperar los 7 días; solo si dibujar está encendido y el tope del mes lo permite.',
-      'Una imagen que el revisor rechazó se guarda 7 días para que la mires: «Revisar la imagen» la abre, y desde ahí se descarta o se reintenta. Mientras está guardada, el plato no se dibuja solo.'
+      'Una imagen que el revisor rechazó se guarda 7 días para que la mires: «Revisar la imagen» la abre, y desde ahí se acepta, se descarta o se reintenta. Mientras está guardada, el plato no se dibuja solo.',
+      'Una imagen lista que aceptaste a mano, contra el revisor, lo dice en su fila, y el filtro de imagen «Lista, aceptada a mano» las reúne: «Revisar la imagen» abre su página, y desde ahí se puede retirar. Una que aceptó el revisor no se puede retirar.'
     ],
     intro: 'El catálogo de recetas: cuántas hay, para qué comida y de dónde vienen.',
     locales: { 'en-GB': 'Inglés', 'es-ES': 'Español' },
     noMatch: 'Ninguna receta coincide con la búsqueda o los filtros.',
+    pictureFilters: { accepted_by_hand: 'Lista, aceptada a mano', drawing: 'Dibujándose', failed: 'Fallida', none: 'Sin imagen', ready: 'Lista' },
     pictures: { drawing: 'Dibujándose', failed: 'Fallida', none: 'Sin imagen', ready: 'Lista' },
     retry: 'Reintentar',
     retryFor: 'Reintentar la imagen de {dish}',
@@ -1289,9 +1350,15 @@ export const esES = {
     /** The tab's title on a 404 — the same for a wrong address and for a console page shown to somebody else (`0028`). */
     notFoundTitle: 'Página no encontrada',
     onboardingIncomplete: 'Nos falta parte de tu perfil. Termínalo y vuelve a intentarlo.',
+    pictureAllergensMismatch:
+      'La imagen que espera revisión ha cambiado desde que abriste la página: lo que el revisor señaló ya no es lo que viste. Recarga y mírala otra vez.',
     pictureCapReached: 'El gasto en imágenes de este mes ya ha llegado al tope: no se puede dibujar otra hasta el mes que viene.',
     pictureDrawing: 'Esa imagen ya se está dibujando.',
     pictureFlagOff: 'Dibujar imágenes está apagado. Enciéndelo en Ajustes y vuelve a intentarlo.',
+    pictureNoCandidate: 'Esa imagen ya no está guardada: se aceptó, se descartó, se reintentó o pasaron sus 7 días.',
+    pictureNotAcceptable:
+      'Esa imagen no se puede aceptar: su archivo no es un JPEG con la firma C2PA que lo marca como generado por IA. Descártala o reinténtala.',
+    pictureNotRemovable: 'Esa imagen no se puede retirar: solo se retiran las que aceptaste a mano, y esta ya no lo es.',
     pictureNotRetryable: 'Esa imagen no se puede reintentar: ya no está fallida.',
     pictureUnavailable: 'Las imágenes no están disponibles ahora mismo: falta la clave o el servicio del proveedor.',
     planPaused: 'Tu plan está en pausa mientras estás de vacaciones.',
@@ -2218,7 +2285,7 @@ export const esES = {
           'A quién va: la petición va a OpenRouter (OpenRouter, Inc., Estados Unidos), que la trata por encargo nuestro y la pasa a la empresa que ejecuta el modelo: DeepInfra o CoreWeave, también en Estados Unidos. El modelo es Gemma 4 31B y, si no responde, DeepSeek V4.1 Flash; son modelos abiertos que ejecutan esas empresas: lo que se envía para diseñar tus platos nunca pasa por los servicios de Google ni de DeepSeek.',
           'Nadie entrena con ello ni lo guarda: solo usamos proveedores que borran la petición en cuanto responden y no la usan para entrenar ni mejorar ningún modelo. Lo exigimos en nuestra cuenta de OpenRouter y otra vez en cada petición. OpenRouter guarda solo datos técnicos de cada petición (tamaño, tiempo, coste), no su contenido.',
           'Una excepción que debes conocer: OpenRouter puede pasar una pequeña muestra de peticiones, sin nada que las ligue a nuestra cuenta ni a ti, por un modelo que les pone una etiqueta de tema para sus estadísticas públicas de uso. No guarda el texto, solo la etiqueta.',
-          'Las imágenes de los platos las genera otro modelo, a partir solo de la receta: su nombre, sus ingredientes y en qué proporción. Nunca recibe nada tuyo, ni siquiera quién ha abierto el plato. La petición va a OpenRouter, que la pasa a Google (Vertex AI), y un modelo que ejecuta DeepInfra comprueba que la imagen no muestra alimentos que la receta no lleva. Ninguno guarda la petición ni la usa para entrenar. Las imágenes se guardan en Vercel, se muestran a todas las personas que ven ese plato y llevan la marca «IA»; los ficheros llevan además una marca invisible y legible por máquina que dice que están generados por IA.',
+          'Las imágenes de los platos las genera otro modelo, a partir solo de la receta: su nombre, sus ingredientes y en qué proporción. Nunca recibe nada tuyo, ni siquiera quién ha abierto el plato. La petición va a OpenRouter, que la pasa a Google (Vertex AI), y un modelo que ejecuta DeepInfra revisa cada imagen antes de que se publique. Ninguno guarda la petición ni la usa para entrenar. Si ese modelo ve con claridad en la imagen un alimento con un alérgeno que la receta no lleva, la imagen se rechaza, y solo se publica si después la revisamos a mano y decidimos publicarla. Esa revisión no es una garantía: la imagen puede mostrar algo que el plato no lleva, y lo que lleva lo dice su lista de ingredientes. Las imágenes se guardan en Vercel, se muestran a todas las personas que ven ese plato y llevan la marca «IA»; los ficheros llevan además una marca invisible y legible por máquina que dice que están generados por IA.',
           'Hasta el 26 de septiembre de 2026 algunos de los modelos que usábamos eran versiones gratuitas alojadas en Estados Unidos cuyos proveedores podían usar lo que recibían para mejorar sus modelos. Ya no usamos ninguno de ellos.'
         ]
       },
@@ -2289,7 +2356,7 @@ export const esES = {
       }
     ],
     title: 'Política de privacidad',
-    updated: 'Última actualización: 29 de septiembre de 2026'
+    updated: 'Última actualización: 30 de septiembre de 2026'
   },
   profile: {
     account: 'Cuenta',

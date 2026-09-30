@@ -195,6 +195,15 @@ const allergenKey = z
 /** A catalogue reads from the start of the alphabet unless asked otherwise. */
 const ascending = z.enum(SORT_DIRECTIONS).default('asc');
 
+/** The ready pictures the owner accepted by hand against the judge (`0072`), as the recipe table's picture filter names them. */
+export const PICTURE_ACCEPTED_BY_HAND = 'accepted_by_hand';
+
+/**
+ * What the recipe table's `picture` filter takes: a picture's state, or the
+ * hand-accepted ones — a subset of `ready`, the only pictures that can be removed.
+ */
+export const RECIPE_PICTURE_FILTERS = [...pictureStatusSchema.options, PICTURE_ACCEPTED_BY_HAND] as const;
+
 /**
  * `GET /admin/catalogue/recipes`: search by name, filter by meal slot, a quality check, an
  * allergen the recipe contains, its picture's state, its source and its
@@ -209,7 +218,7 @@ export const recipeCatalogueQuerySchema = z.object({
     .regex(/^[a-z]{2,3}(-[A-Z]{2})?$/)
     .optional(),
   offset,
-  picture: pictureStatusSchema.optional(),
+  picture: z.enum(RECIPE_PICTURE_FILTERS).optional(),
   q: search,
   size,
   slot: z.enum(MEAL_SLOTS).optional(),

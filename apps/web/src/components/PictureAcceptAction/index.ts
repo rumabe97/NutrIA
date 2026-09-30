@@ -1,0 +1,1 @@
+export { PictureAcceptAction } from './PictureAcceptAction';

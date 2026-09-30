@@ -141,7 +141,15 @@ dl.list {
   margin-block-start: var(--space-03);
 }
 
-/* Stacked and stretched on a phone: two things that may be done next, the same size. */
+/* Where the acceptance is recorded: a sentence, then its link. */
+.trail {
+  color: var(--foreground-02);
+  font-size: var(--font-size-03);
+  margin: var(--space-03) 0 0;
+  max-inline-size: var(--prose-max);
+}
+
+/* Stacked and stretched on a phone: the things that may be done next, the same size. */
 @media (width < 34rem) {
   .actions {
     align-items: stretch;

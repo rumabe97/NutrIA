@@ -29,6 +29,25 @@ export type PictureState = z.infer<typeof pictureStateSchema>;
  */
 export type PictureProvenance = Record<string, unknown>;
 
+/** Where a published picture is kept, in the public store: `<this>/<recipeId>/<promptVersion>-<random>.jpg`. Never a person's id. */
+export const PICTURE_FOLDER = 'dish-pictures';
+
+const PUBLISHED_PATH = new RegExp(`^${PICTURE_FOLDER}/[0-9a-f-]{36}/[A-Za-z0-9._-]+\\.jpg$`);
+
+/** Whether a path is a published picture's: under the pictures' folder, a recipe's id, one file name. Nothing else is written or deleted there. */
+export function isPublishedPicturePath(path: string): boolean {
+  return PUBLISHED_PATH.test(path);
+}
+
+/**
+ * Who let a picture reach a person, when it was not the judge (`0072`): the
+ * owner, by hand, against the judge's rejection. Stored as
+ * `provenance.acceptedBy` on the `ready` row, beside the allergen keys that
+ * were overridden (`provenance.overriddenAllergens`). A picture `judgePicture`
+ * accepted carries neither.
+ */
+export const ACCEPTED_BY_OWNER = 'owner';
+
 /** One paid call made for a dish's picture — an image drawn or a judgement of one. */
 export const pictureCallSchema = z.object({
   costUsd: z.number().min(0),

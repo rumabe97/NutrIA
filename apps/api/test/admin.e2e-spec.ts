@@ -1235,6 +1235,7 @@ describe('admin', () => {
       'mealSlots',
       'name',
       'picture',
+      'pictureAcceptedByHand',
       'pictureCandidate',
       'pictureReason',
       'proteinG',
@@ -1384,6 +1385,7 @@ describe('admin', () => {
     ]);
     const PICTURE_KEYS = new Set([
       ...WINDOW_KEYS,
+      'acceptedByHand',
       'capUsd',
       'drawing',
       'enabled',
@@ -1418,8 +1420,8 @@ describe('admin', () => {
       'ingredients',
       ...RECIPE_KEYS
     ]);
-    /** One recipe on its own (`0072`): the row, and its served ingredients with their `grams`. */
-    const RECIPE_ONE_KEYS = new Set([...RECIPE_BODY_KEYS, 'grams']);
+    /** One recipe on its own (`0072`): the row, its served ingredients with their `grams`, and the public address of its picture once it is ready. */
+    const RECIPE_ONE_KEYS = new Set([...RECIPE_BODY_KEYS, 'grams', 'pictureUrl']);
     const INGREDIENT_BODY_KEYS = new Set(['offset', 'rows', 'size', 'total', ...INGREDIENT_KEYS]);
 
     /**
@@ -1526,6 +1528,29 @@ describe('admin', () => {
         const asNobody: Response = await get(path);
 
         expect({ nobody: asNobody.status, ordinary: asOrdinary.status, path }).toEqual({ nobody: 404, ordinary: 404, path });
+      }
+
+      // The owner's acceptance of a rejected picture and its removal (`0072`): the same 404 before the body is read — the one the route takes, one it would refuse, or none.
+      const writes: [string, unknown][] = [
+        ['catalogue/recipes/00000000-0000-4000-8000-000000000000/picture/candidate/accept', { allergens: [], expiresAt: '2026-10-07T00:00:00.000Z' }],
+        ['catalogue/recipes/00000000-0000-4000-8000-000000000000/picture/candidate/accept', { allergens: 'gluten', confirmed: true }],
+        ['catalogue/recipes/not-a-uuid/picture/candidate/accept', undefined],
+        ['catalogue/recipes/00000000-0000-4000-8000-000000000000/picture/remove', undefined],
+        ['catalogue/recipes/not-a-uuid/picture/remove', undefined]
+      ];
+
+      for (const [path, body] of writes) {
+        const post = (cookie?: string) => {
+          const call = request(httpServer(app)).post(`/${PREFIX}/admin/${path}`);
+          const signed = cookie === undefined ? call : call.set('Cookie', cookie);
+
+          return body === undefined ? signed : signed.send(body as object);
+        };
+
+        const asOrdinary: Response = await post(ordinary.cookie);
+        const asNobody: Response = await post();
+
+        expect({ body, nobody: asNobody.status, ordinary: asOrdinary.status, path }).toEqual({ body, nobody: 404, ordinary: 404, path });
       }
     });
 
@@ -1855,6 +1880,7 @@ describe('admin', () => {
 
         expect(Object.keys(view).sort()).toEqual(
           [
+            'acceptedByHand',
             'capUsd',
             'drawing',
             'enabled',
@@ -1879,7 +1905,7 @@ describe('admin', () => {
       }
     });
 
-    it('list recipes with exactly their sixteen keys and the whole catalogue’s counts', async () => {
+    it('list recipes with exactly their seventeen keys and the whole catalogue’s counts', async () => {
       const page = await recipes('');
 
       expect(Object.keys(page).sort()).toEqual(['counts', 'offset', 'rows', 'size', 'total']);
@@ -1954,6 +1980,11 @@ describe('admin', () => {
       for (const picture of ['ready', 'drawing', 'failed', 'none'] as const) {
         await everyRow(`picture=${picture}`, row => row.picture === picture);
       }
+
+      // The pictures the owner accepted by hand (`0072`): ready ones and no others, and never more than the ready ones.
+      const byHand = await everyRow('picture=accepted_by_hand', row => row.picture === 'ready' && row.pictureAcceptedByHand);
+
+      expect(byHand.total).toBeLessThanOrEqual((await recipes('picture=ready')).total);
 
       const locale = breakfast.rows[0]?.locale ?? '';
       const inLocale = await everyRow(`locale=${locale}`, row => row.locale === locale);
@@ -2033,7 +2064,7 @@ describe('admin', () => {
       // The same dish read on its own (`0072`): its row and its ingredients, and still nobody's.
       const alone: Response = await get(`catalogue/recipes/${found.rows.find(row => row.name === dish?.name)?.id ?? ''}`, owner.cookie).expect(200);
 
-      expect(Object.keys(alone.body as Record<string, unknown>).sort()).toEqual([...RECIPE_KEYS, 'ingredients'].sort());
+      expect(Object.keys(alone.body as Record<string, unknown>).sort()).toEqual([...RECIPE_KEYS, 'ingredients', 'pictureUrl'].sort());
 
       const bodies: [string, unknown, ReadonlySet<string>][] = [
         ['the maker’s dish', found, RECIPE_BODY_KEYS],
@@ -2129,6 +2160,8 @@ describe('admin', () => {
           'source=SEED',
           'picture=released',
           'picture=yes',
+          'picture=accepted',
+          'picture=ACCEPTED_BY_HAND',
           'allergen=GLUTEN',
           'allergen=gluten;',
           'locale=spanish',

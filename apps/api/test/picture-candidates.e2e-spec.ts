@@ -526,10 +526,12 @@ describe('a rejected picture waits for the owner (0072, phase 2)', () => {
     it('reads one recipe as its list row plus its served ingredients, heaviest first', async () => {
       const { dish } = held();
       const { row: shown } = await listed(dish);
-      const { ingredients, ...rest } = (await one(dish)).view;
+      const { ingredients, pictureUrl, ...rest } = (await one(dish)).view;
 
       expect(rest).toEqual(shown);
       expect(rest.pictureCandidate).not.toBeNull();
+      // A picture's public address, once there is one (phase 3): a candidate has none, and its path is never put here.
+      expect(pictureUrl).toBeNull();
 
       const served = await sql()<{ grams: number; slug: string }>`
         select ri.grams::float8 as grams, i.slug

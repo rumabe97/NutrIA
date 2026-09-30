@@ -105,6 +105,35 @@ describe('the quality reads', () => {
   });
 });
 
+/* Project 009, phase 3: Imágenes' count links here, so "Retirar" is reachable without paging the whole catalogue. */
+describe('the hand-accepted pictures as a filter', () => {
+  it('matches exactly the ready rows the owner accepted, in SQL, and binds nothing', () => {
+    const { params, sql } = render(recipeFilters(recipeCatalogueQuerySchema.parse({ picture: 'accepted_by_hand' })));
+
+    expect(sql).toBe(`coalesce("recipe_images"."status" = 'ready' and ("recipe_images"."provenance" ->> 'acceptedBy') = 'owner', false)`);
+    expect(params).toEqual([]);
+  });
+
+  it('is the very expression the row’s flag is read with, so the filter and the flag cannot disagree', async () => {
+    await AdminCatalogueRepository.recipePage(recipeCatalogueQuerySchema.parse({ picture: 'accepted_by_hand' }));
+
+    const flag = `coalesce("recipe_images"."status" = 'ready' and ("recipe_images"."provenance" ->> 'acceptedBy') = 'owner', false)`;
+    const [page, counted] = sent;
+
+    expect(page?.sql.split(flag)).toHaveLength(3);
+    expect(page?.sql).toContain(`where ${flag} order by`);
+    // The total is counted over the same filter.
+    expect(counted?.sql).toContain(`where ${flag}`);
+  });
+
+  it('leaves the four states as they were: `ready` still lists every ready picture, by hand or by the judge', () => {
+    const { params, sql } = render(recipeFilters(recipeCatalogueQuerySchema.parse({ picture: 'ready' })));
+
+    expect(sql).not.toContain('acceptedBy');
+    expect(params).toEqual(['ready']);
+  });
+});
+
 describe('AdminCatalogueRepository.recipePage', () => {
   it('selects what a dish is — never who made it — over its one picture row, by name with a stable tail', async () => {
     await AdminCatalogueRepository.recipePage(recipeCatalogueQuerySchema.parse({ allergen: 'milk', dir: 'desc', offset: '25', size: '25' }));
@@ -119,6 +148,22 @@ describe('AdminCatalogueRepository.recipePage', () => {
     expect(page?.params).toEqual(['milk', 25, 25]);
     expect(counted?.sql).toMatch(/^select count\(\*\) from "recipes" left join "recipe_images"/);
     expect(counted?.sql).toContain('= "recipes"."id"');
+  });
+
+  /* 0072: what lets the console offer "Retirar". A flag computed in SQL — a ready row's provenance itself is never selected. */
+  it('reads whether a ready picture was accepted by hand as a flag, and a provenance only from a failed row', async () => {
+    await AdminCatalogueRepository.recipePage(recipeCatalogueQuerySchema.parse({}));
+
+    expect(sent[0]?.sql).toContain(
+      `coalesce("recipe_images"."status" = 'ready' and ("recipe_images"."provenance" ->> 'acceptedBy') = 'owner', false)`
+    );
+    expect(sent[0]?.sql).toContain(`case when "recipe_images"."status" = 'failed' then "recipe_images"."provenance" end`);
+  });
+
+  it('selects a picture’s public address only from a ready row', async () => {
+    await AdminCatalogueRepository.recipePage(recipeCatalogueQuerySchema.parse({}));
+
+    expect(sent[0]?.sql).toContain(`case when "recipe_images"."status" = 'ready' then "recipe_images"."url" end`);
   });
 
   it('never lets a sub-select correlate on a bare "id"', async () => {

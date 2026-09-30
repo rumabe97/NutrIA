@@ -25,8 +25,8 @@
   --chart-surface: var(--surface-card);
 }
 
-/* A picture cell that can be retried: the state, its reason and its wait on their own lines,
-   then the button. Prose, so it wraps. */
+/* A picture cell with something to do: the state, its reason and its wait on their own lines,
+   then the button or the link. Prose, so it wraps. */
 .picture {
   display: grid;
   gap: var(--space-01);
@@ -40,7 +40,7 @@
   font-size: var(--font-size-02);
 }
 
-/* The way to a rejected picture's review, where the retry button would be. */
+/* The way to a picture's review — a rejected one, or one accepted by hand — where the retry button would be. */
 .review {
   color: var(--foreground-01);
   font-weight: var(--font-weight-medium);

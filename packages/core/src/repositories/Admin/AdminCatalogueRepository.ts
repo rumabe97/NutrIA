@@ -4,11 +4,12 @@ import { allergens } from 'database/schema/safety';
 import { contains, ordered } from '#repositories/Search';
 import { database } from 'database';
 import { meals } from 'database/schema/plan';
-import { needsRewriteCondition } from '#repositories/Recipe';
+import { ACCEPTED_BY_OWNER_SQL, needsRewriteCondition } from '#repositories/Recipe';
 import { ingredientAllergens, ingredientNames, ingredients } from 'database/schema/food';
 import { recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 
 import { DatabaseOperationError } from 'core/entities/Error';
+import { PICTURE_ACCEPTED_BY_HAND } from 'core/entities/AdminQuery';
 import { SERVING_BOUNDS } from 'core/domain/Scheduler';
 
 import { qualified } from './AdminSql';
@@ -32,12 +33,16 @@ export type CatalogueRecipeRow = {
   readonly mealSlots: readonly string[];
   readonly name: string;
   readonly picture: PictureStatus;
+  /** A `ready` picture the owner accepted by hand against the judge (`0072`): the only kind that can be removed. */
+  readonly pictureAcceptedByHand: boolean;
   /** When the row was last claimed or ended: what the cool-off counts from. Null with no row. */
   readonly pictureAt: Date | null;
   /** The row is `failed`, released or not (`picture` reads a released one as `none`). */
   readonly pictureFailed: boolean;
   /** What a failed row stored about how it ended — its candidate's path included (`0072`); null for any other row. Read by `pictureReasonOf` and `reviewableCandidate`, never sent as it is. */
   readonly pictureProvenance: PictureProvenance | null;
+  /** The public address of a `ready` picture's file — the one a person's app is given; null for any other row. Never a candidate's path. */
+  readonly pictureUrl: string | null;
   readonly servings: number;
   readonly slug: string;
   readonly source: 'ai' | 'seed' | 'user';
@@ -104,6 +109,14 @@ export const PICTURE_STATE = sql<PictureStatus>`case
   else 'none' end`;
 
 /**
+ * A `ready` picture the owner accepted by hand against the judge (`0072`):
+ * `provenance.acceptedBy` is `ACCEPTED_BY_OWNER`, spelled by `ACCEPTED_BY_OWNER_SQL` as the removal's own guard spells it,
+ * read here as a flag and a filter, never sent as it is. Always true or false,
+ * a recipe with no picture row included.
+ */
+const ACCEPTED_BY_HAND = sql`coalesce(${qualified(recipeImages, 'status')} = 'ready' and (${qualified(recipeImages, 'provenance')} ->> 'acceptedBy') = ${ACCEPTED_BY_OWNER_SQL}, false)`;
+
+/**
  * A served ingredient of the outer recipe contains the allergen. Served means
  * not optional: the app leaves optional ingredients out of every dish it
  * serves (`findReusable`, `PlanRepository`), and so out of its macros and its
@@ -135,7 +148,11 @@ export function recipeFilters(
     query.slot === undefined ? undefined : sql`${query.slot} = any(${qualified(recipes, 'meal_slots')})`,
     query.source === undefined ? undefined : eq(recipes.source, query.source),
     query.locale === undefined ? undefined : eq(recipes.locale, query.locale),
-    query.picture === undefined ? undefined : sql`${PICTURE_STATE} = ${query.picture}`,
+    query.picture === undefined
+      ? undefined
+      : query.picture === PICTURE_ACCEPTED_BY_HAND
+        ? ACCEPTED_BY_HAND
+        : sql`${PICTURE_STATE} = ${query.picture}`,
     query.allergen === undefined ? undefined : containsAllergen(query.allergen)
   );
 }
@@ -147,10 +164,13 @@ const RECIPE_COLUMNS = {
   mealSlots: recipes.mealSlots,
   name: recipes.name,
   picture: PICTURE_STATE,
+  pictureAcceptedByHand: sql<boolean>`${ACCEPTED_BY_HAND}`,
   pictureAt: recipeImages.lastAttemptAt,
   pictureFailed: sql<boolean>`coalesce(${qualified(recipeImages, 'status')} = 'failed', false)`,
   // Only a failed row's: a ready one carries the judge's notes, which the list has no use for.
   pictureProvenance: sql<PictureProvenance | null>`case when ${qualified(recipeImages, 'status')} = 'failed' then ${qualified(recipeImages, 'provenance')} end`,
+  // The published file's public address, and only a `ready` row's: what a person's app is given for the same dish.
+  pictureUrl: sql<string | null>`case when ${qualified(recipeImages, 'status')} = 'ready' then ${qualified(recipeImages, 'url')} end`,
   servings: recipes.servings,
   slug: recipes.slug,
   source: recipes.source

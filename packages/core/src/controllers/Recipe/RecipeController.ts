@@ -20,7 +20,8 @@ import { NotFoundError, OnboardingIncompleteError, PictureRetryRefusedError, Pla
 import { OnboardingRepository } from '#repositories/Onboarding';
 import { VacationRepository } from '#repositories/Vacation';
 import { isAway } from 'core/domain/Vacation';
-import { pictureCandidateOf } from 'core/entities/DishPicture';
+import { ACCEPTED_BY_OWNER, candidateFlags, pictureCandidateOf, repeatsExpiry, repeatsFlaggedAllergens } from 'core/entities/DishPicture';
+import { pictureMarks } from 'core/domain/DishPicture';
 import { toCatalogue } from 'core/entities/Plan';
 import type { CandidateDish, Catalogue, MealSlot, RecipeVerdict } from 'core/entities/Plan';
 import type { LibraryUsage } from 'core/domain/MealFit';
@@ -32,7 +33,7 @@ import type { DishRef, ReusableRecipe, UndocumentedRecipe } from '#repositories/
 export type { UndocumentedRecipe } from '#repositories/Recipe';
 import type { PreferenceExclusions } from 'core/domain/Preference';
 import type { SafetyProfile } from 'core/entities/Safety';
-import type { PictureCall, PictureCandidate, PictureProvenance, PictureReason, PictureState } from 'core/entities/DishPicture';
+import type { PictureAcceptance, PictureCall, PictureCandidate, PictureProvenance, PictureReason, PictureState } from 'core/entities/DishPicture';
 import type { PictureCatalogueEntry, PictureRecipe } from 'core/domain/DishPicture';
 
 /**
@@ -135,6 +136,29 @@ export function reviewableCandidate(
 
 /** Deletes a candidate's file from the private store. The API's: core names the path and never touches a store. */
 export type ForgetCandidateFile = (path: string) => Promise<void>;
+
+/**
+ * The two stores as the owner's acceptance needs them (`0072`). The API's:
+ * core says what is read, published and deleted, and in which order, and never
+ * touches a store. The private store and the public one stay apart — nothing
+ * here moves a file between them but `publish`, and only with the bytes it is
+ * handed.
+ */
+export type AcceptanceFiles = {
+  /** Whether both stores can be used at all. */
+  readonly available: boolean;
+  /** Deletes the candidate's file from the private store. */
+  readonly forget: ForgetCandidateFile;
+  /** Puts these very bytes in the public store, under the usual path with this prompt version, and answers their address. */
+  readonly publish: (bytes: Uint8Array, promptVersion: string) => Promise<{ readonly url: string }>;
+  /** The candidate's file from the private store, byte for byte, or null when the store no longer has it. */
+  readonly read: (path: string) => Promise<Uint8Array | null>;
+  /** Deletes from the public store a file this acceptance put there and no row points to. */
+  readonly unpublish: (url: string) => Promise<void>;
+};
+
+/** The version part of a picture's path: one plain token, so it can never name another folder. */
+const PATH_TOKEN = /^[A-Za-z0-9._-]+$/;
 
 export type GenerationContext = {
   readonly catalogue: Catalogue;
@@ -244,6 +268,30 @@ async function buildContext(userId: string): Promise<GenerationContext> {
   return { catalogue: toCatalogue(catalogue), dietaryPatterns, locale, preferences, safety };
 }
 
+/**
+ * How long the read-back after an acceptance whose transaction threw waits for
+ * the row: longer than a commit takes, short enough for a request.
+ */
+const SETTLED_LOCK_MS = 3_000;
+
+/**
+ * Whether a dish's picture is `ready` at this very address, read back after an
+ * acceptance whose transaction threw. The read takes the row's lock
+ * (`RecipeRepository.settledPicture`), so it waits for a transaction that is
+ * still committing and answers what that transaction ended as — true or false
+ * is then a fact. Null when the row could not be had in time or read at all:
+ * the outcome is unknown.
+ */
+async function publishedAt(recipeId: string, url: string): Promise<boolean | null> {
+  try {
+    const row = await RecipeRepository.settledPicture(recipeId, SETTLED_LOCK_MS);
+
+    return row !== null && row.status === 'ready' && row.url === url;
+  } catch {
+    return null;
+  }
+}
+
 // --- Presenters ---------------------------------------------------------------
 
 function toCandidateDish(recipe: ReusableRecipe): CandidateDish {
@@ -266,6 +314,160 @@ function toCandidateDish(recipe: ReusableRecipe): CandidateDish {
 // --- Controller ---------------------------------------------------------------
 
 export const RecipeController = {
+  /**
+   * The owner publishes a candidate against the judge (`picture.accepted`,
+   * `0072`) — **the second of the only two doors a picture reaches a person
+   * through**; the first is `judgePicture` accepting it, inside a drawing. No
+   * retry, cron or automatic code calls this: it takes an admin's session
+   * (`actorId`) and the allergens that admin was shown.
+   *
+   * After the refusals every picture route shares (an unknown recipe, the
+   * `dishPictures` switch off, the stores unavailable), six steps, in this
+   * order, and the order is the design:
+   * 1. the row is `failed`, holds a candidate, and the candidate has not expired;
+   * 2. `shown` repeats what the console showed — the second confirmation step,
+   *    on the server: the expiry of this very candidate, so a candidate a later
+   *    drawing left, which nobody looked at, is never accepted from a page that
+   *    shows an older one; and the allergen keys it stores, so what was warned
+   *    about is what is accepted;
+   * 3. the file is read from the private store and `pictureMarks` runs again on
+   *    those bytes — a file that is not a JPEG carrying its C2PA manifest is
+   *    never published, whatever the row says it was. As at the judge's door,
+   *    what is looked for is that the manifest is there: its signature is not
+   *    verified;
+   * 4. those same bytes, untouched, are put in the public store, under the
+   *    prompt version the candidate was drawn from;
+   * 5. one transaction makes the row `ready` — if it is still the row that was
+   *    read — and writes the audit row with the overridden allergen keys. When
+   *    nothing was updated, or the transaction rolled back, the public file just
+   *    written is deleted: a `ready` row always has its audit row, and an audit
+   *    row always has its `ready` row. **The file is deleted only once it is
+   *    known that no row points to it**: a transaction that threw is read back
+   *    under the row's lock, which waits for a commit still in flight; if the
+   *    row is `ready` at that address the acceptance happened and goes on; if
+   *    the row cannot be had in time, or read at all, the file stays;
+   * 6. the private file is deleted, and then its pointer. If that fails the
+   *    acceptance stands, and the nightly cleanup finds the row and finishes it.
+   *
+   * It calls no model, so the month's cap does not hold it. What a person's
+   * app then reads is what it reads of any picture: `ready` and an address,
+   * and nothing about who accepted it.
+   *
+   * Refusals are `PictureRetryRefusedError`, and none says what the candidate
+   * stores; an unknown recipe, or an id that is not one, is a `NotFoundError`.
+   */
+  async acceptCandidate(recipeId: string, actorId: string, shown: PictureAcceptance, files: AcceptanceFiles, now: Date = new Date()): Promise<void> {
+    if (!z.uuid().safeParse(recipeId).success || !(await RecipeRepository.recipeExists(recipeId))) {
+      throw new NotFoundError('Recipe not found');
+    }
+
+    if (!(await SettingsController.dishPictures())) {
+      throw new PictureRetryRefusedError('flag_off');
+    }
+
+    if (!files.available) {
+      throw new PictureRetryRefusedError('unavailable');
+    }
+
+    // 1. A candidate that can be looked at, by the one clock every read of one uses.
+    const row = await RecipeRepository.candidateRow(recipeId);
+    const found = row === null ? null : reviewableCandidate(row, now);
+
+    if (row === null || found === null || row.lastAttemptAt === null) {
+      throw new PictureRetryRefusedError('no_candidate');
+    }
+
+    const { candidate } = found;
+
+    // 2. What the console showed, repeated: this very candidate — not one a later drawing left — and its allergens.
+    if (!repeatsExpiry(shown.expiresAt, found.expiresAt)) {
+      throw new PictureRetryRefusedError('no_candidate');
+    }
+
+    if (!repeatsFlaggedAllergens(shown.allergens, candidate)) {
+      throw new PictureRetryRefusedError('allergens_mismatch');
+    }
+
+    // 3. The bytes about to be published, checked again: the mark the row stored is not enough.
+    const bytes = await files.read(candidate.path);
+
+    if (bytes === null) {
+      throw new PictureRetryRefusedError('no_candidate');
+    }
+
+    const marks = pictureMarks(bytes);
+
+    if (!marks.jpeg || !marks.c2pa || !PATH_TOKEN.test(candidate.promptVersion)) {
+      throw new PictureRetryRefusedError('not_acceptable');
+    }
+
+    // 4. The same bytes, in the public store.
+    const { url } = await files.publish(bytes, candidate.promptVersion);
+
+    // 5. `ready` and its audit row, together or not at all.
+    const allergens = candidateFlags(candidate).allergens;
+    let accepted = false;
+    let failure: { readonly error: unknown } | null = null;
+
+    try {
+      accepted = await RecipeRepository.acceptCandidate(
+        recipeId,
+        { lastAttemptAt: row.lastAttemptAt, path: candidate.path },
+        {
+          model: candidate.model,
+          promptVersion: candidate.promptVersion,
+          provenance: {
+            acceptedBy: ACCEPTED_BY_OWNER,
+            c2pa: marks.c2pa,
+            overriddenAllergens: allergens,
+            trainedAlgorithmicMedia: marks.trainedAlgorithmicMedia
+          },
+          url
+        },
+        now,
+        async tx => {
+          await AuditRepository.record({ action: 'picture.accepted', actorId, entity: 'recipe', entityId: recipeId, metadata: { allergens } }, tx);
+        }
+      );
+    } catch (error: unknown) {
+      failure = { error };
+    }
+
+    if (failure !== null) {
+      // A transaction that threw may still have committed — the answer to a COMMIT can be lost on its way back. The
+      // row says which, read under its lock so a commit still in flight is waited for: `ready` at this very address
+      // is an acceptance that happened, audit row and all.
+      const published = await publishedAt(recipeId, url);
+
+      if (published === null) {
+        // Nobody can say whether a row points to the file. It stays: a file no row points to harms nobody, and a
+        // picture on somebody's screen whose file is gone is the one outcome an acceptance may never produce.
+        throw failure.error;
+      }
+
+      accepted = published;
+    }
+
+    if (!accepted) {
+      // No row points to the file: another tab, a retry, a discard or the cleanup moved the row, or the transaction rolled back.
+      await files.unpublish(url).catch(() => undefined);
+
+      if (failure !== null) {
+        throw failure.error;
+      }
+
+      throw new PictureRetryRefusedError('no_candidate');
+    }
+
+    // 6. The private file, then its pointer. The picture is published either way; what is left is the cleanup's.
+    try {
+      await files.forget(candidate.path);
+      await RecipeRepository.dropCandidate(recipeId, candidate.path);
+    } catch {
+      // The `ready` row still holds the pointer, so the nightly cleanup deletes the file and then the pointer.
+    }
+  },
+
   /** Every recipe's own method, for `apps/api/scripts/clean-stored-steps.mjs`. See `RecipeRepository.listForStepCleanup`. */
   async allStepsForCleanup(): Promise<
     readonly {
@@ -525,6 +727,66 @@ export const RecipeController = {
     now: Date = new Date()
   ): Promise<boolean> {
     return RecipeRepository.releasePicture(claim.recipeId, claim.claimedAt, outcome, now);
+  },
+
+  /**
+   * The owner takes back a picture accepted by hand (`picture.removed`, `0072`):
+   * how a mistaken acceptance is undone. **Only a picture the owner accepted**
+   * — one the judge accepted is refused, and nothing is written. The dish goes
+   * back to `failed` with the closed reason `owner_removed` and waits out a
+   * whole cool-off from `now`, the audit row written in the same transaction.
+   *
+   * The row first, the public file after: from the moment the row says
+   * removed no screen is given the picture's address, whatever becomes of the
+   * file. `unpublish` then deletes it; when that fails the removal stands and
+   * `fileDeleted` is false — a file left in the public store that no row
+   * points to, for the owner to delete by hand. Never the other way round: a
+   * `ready` row whose file is gone is a broken picture on somebody's screen.
+   * A candidate the row still held — an acceptance whose last step failed — has
+   * its private file deleted too, best effort, as the retry does: when that
+   * deletion fails, what is left is a private file nothing points to, the
+   * retry's own known and accepted case.
+   *
+   * It needs neither the `dishPictures` switch nor the month's cap: taking a
+   * picture back is always possible. A `PictureRetryRefusedError`
+   * (`not_removable`) for anything that is not a hand-accepted picture; a
+   * `NotFoundError` for an unknown recipe, or an id that is not one.
+   */
+  async removePicture(
+    recipeId: string,
+    actorId: string,
+    files: { readonly forget: ForgetCandidateFile; readonly unpublish: (url: string) => Promise<void> },
+    now: Date = new Date()
+  ): Promise<{ readonly fileDeleted: boolean }> {
+    if (!z.uuid().safeParse(recipeId).success || !(await RecipeRepository.recipeExists(recipeId))) {
+      throw new NotFoundError('Recipe not found');
+    }
+
+    const removed = await RecipeRepository.removeAcceptedPicture(recipeId, now, async tx => {
+      await AuditRepository.record({ action: 'picture.removed', actorId, entity: 'recipe', entityId: recipeId, metadata: {} }, tx);
+    });
+
+    if (removed === null) {
+      throw new PictureRetryRefusedError('not_removable');
+    }
+
+    if (removed.candidatePath !== null) {
+      // The removal has already cleared the pointer with the rest of what the row stored. A deletion that fails
+      // here leaves a private file nothing points to: known and accepted, as after a retry whose deletion failed.
+      await files.forget(removed.candidatePath).catch(() => undefined);
+    }
+
+    if (removed.url === null) {
+      return { fileDeleted: true };
+    }
+
+    try {
+      await files.unpublish(removed.url);
+
+      return { fileDeleted: true };
+    } catch {
+      return { fileDeleted: false };
+    }
   },
 
   /**

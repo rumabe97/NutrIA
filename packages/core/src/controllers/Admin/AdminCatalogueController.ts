@@ -40,6 +40,12 @@ export type CatalogueRecipeView = {
   /** `ready` with a file, `drawing`, `failed` for the dish's own reasons, or `none` — which a released picture reads as. */
   readonly picture: PictureStatus;
   /**
+   * Whether the picture was accepted by hand, against the judge (`0072`): true only for a `ready`
+   * picture the owner published from a candidate. It is what the console offers "Retirar" on, and
+   * the only picture `POST …/picture/remove` takes back. A closed flag — never the stored provenance.
+   */
+  readonly pictureAcceptedByHand: boolean;
+  /**
    * The rejected picture this dish holds for the owner to look at (`0072`), while it can be
    * looked at; null for a dish with none and for one whose candidate has expired. Its file is
    * read through `GET /admin/catalogue/recipes/:id/picture/candidate` — never an address here.
@@ -70,6 +76,11 @@ export type CatalogueRecipeView = {
 export type AdminRecipeView = CatalogueRecipeView & {
   /** The served ingredients — not the optional ones, as the app serves them — heaviest first: grams for the recipe's servings, and the catalogue's Spanish name (the slug where it has none). */
   readonly ingredients: readonly { readonly grams: number; readonly name: string; readonly slug: string }[];
+  /**
+   * The public address of the dish's picture — the same one a person's app is given — when it is `ready`; null otherwise.
+   * What the review page shows of a picture that can be removed. Never a candidate's: that file has no address.
+   */
+  readonly pictureUrl: string | null;
 };
 
 /**
@@ -85,6 +96,17 @@ export type PictureCandidateView = {
   /** The catalogue ingredients the flagged foods were mapped to, by slug, with their Spanish name (the slug where the catalogue has none). */
   readonly ingredients: readonly { readonly name: string; readonly slug: string }[];
 };
+
+/** `POST /admin/catalogue/recipes/:id/picture/candidate/accept`: the candidate is the dish's picture now, published by the owner's hand. */
+export type PictureAcceptView = { readonly status: 'ready' };
+
+/**
+ * `POST /admin/catalogue/recipes/:id/picture/remove`: the dish has no picture again. `fileDeleted` is false when the public
+ * file could not be deleted: no screen is given its address any more, and it stays in the public store until deleted by hand.
+ * True means the store deleted it, not that every copy is gone: the store's cache may serve it for up to a minute more, and a
+ * browser that already fetched it keeps its copy. What is immediate is the row: from the removal on, nothing hands the address out.
+ */
+export type PictureRemoveView = { readonly fileDeleted: boolean; readonly status: 'removed' };
 
 /** `POST /admin/catalogue/recipes/:id/picture/candidate/discard`: the file and its pointer are gone; the dish waits out its cool-off as before. */
 export type PictureDiscardView = { readonly status: 'discarded' };
@@ -290,6 +312,7 @@ async function compose(
       mealSlots: row.mealSlots,
       name: row.name,
       picture: row.picture,
+      pictureAcceptedByHand: row.picture === 'ready' && row.pictureAcceptedByHand,
       pictureCandidate:
         flags === null
           ? null
@@ -360,7 +383,7 @@ export const AdminCatalogueController = {
       throw new NotFoundError('Recipe not found');
     }
 
-    return { ...composed.view, ingredients: composed.ingredients };
+    return { ...composed.view, ingredients: composed.ingredients, pictureUrl: row.picture === 'ready' ? row.pictureUrl : null };
   },
 
   /**

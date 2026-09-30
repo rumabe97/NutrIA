@@ -3,7 +3,9 @@ import type {
   AdminIngredientsView,
   AdminRecipesView,
   AdminRecipeView,
+  PictureAcceptView,
   PictureDiscardView,
+  PictureRemoveView,
   PictureRetryView
 } from 'core/controllers/Admin';
 import type { StreamableFile } from '@nestjs/common';
@@ -26,6 +28,12 @@ export type AdminCatalogueQualityDto = AdminCatalogueQualityView;
  * `Cache-Control: private, no-store`. It is the only way the file is read: no answer carries its address.
  */
 export type PictureCandidateFileDto = StreamableFile;
+
+/** The owner's acceptance of a candidate against the judge (`0072`): it is the dish's picture now. */
+export type PictureAcceptDto = PictureAcceptView;
+
+/** The owner's removal of a picture accepted by hand: the dish has none again, and whether its public file was deleted. */
+export type PictureRemoveDto = PictureRemoveView;
 
 /** The owner's discard of a candidate: its file and its pointer are gone, and the dish waits as before. */
 export type PictureDiscardDto = PictureDiscardView;

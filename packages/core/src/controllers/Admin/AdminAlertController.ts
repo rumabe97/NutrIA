@@ -217,7 +217,9 @@ export const AdminAlertController = {
    * (project 009). Each count starts at the last mail of its own kind, or a day back
    * when there was none, so a failure that fell inside an hour's claim is in the next
    * mail and not lost. A row given back by the month's cap is in neither count: the
-   * spend alert already says it.
+   * spend alert already says it. Nor is a picture the owner removed by hand
+   * (`owner_removed`, `0072`): it is a failed row, and the owner's own act — a mail
+   * telling them what they just did is no warning.
    *
    * Known, and small: a drawing that ends while this reads, dated before `now` and
    * written after the read, is in no mail. It is on the console either way.
@@ -234,7 +236,7 @@ export const AdminAlertController = {
     ]);
 
     return {
-      failed: countByReason(failed.filter(row => !row.released)),
+      failed: countByReason(failed.filter(row => !row.released)).filter(({ reason }) => reason !== 'owner_removed'),
       refused: countByReason(refused.filter(row => row.released)).filter(({ reason }) => REFUSALS.includes(reason))
     };
   },

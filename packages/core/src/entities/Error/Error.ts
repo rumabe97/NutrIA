@@ -156,10 +156,24 @@ export class MealInFutureError extends Error {
   }
 }
 
-/** Why an owner's retry of a dish's picture was refused: each is a state of the system, not of the request. */
-type PictureRetryRefusal = 'cap_reached' | 'drawing' | 'flag_off' | 'not_retryable' | 'unavailable';
+/** Why the owner's retry, acceptance or removal of a dish's picture was refused. A closed set: the console is told which, and nothing else. */
+type PictureRetryRefusal =
+  | 'allergens_mismatch'
+  | 'cap_reached'
+  | 'drawing'
+  | 'flag_off'
+  | 'no_candidate'
+  | 'not_acceptable'
+  | 'not_removable'
+  | 'not_retryable'
+  | 'unavailable';
 
-/** The manual retry of a dish's picture cannot start now (`reason`); answered 409 with a code the console switches on. */
+/**
+ * What the owner asked of a dish's picture cannot be done now (`reason`); answered 409 with a code the console switches on.
+ * The manual retry's refusals, and those of the acceptance and the removal by hand (`0072`): `no_candidate` (none that can
+ * be accepted, or it went meanwhile), `allergens_mismatch` (the request does not repeat the allergens the console showed),
+ * `not_acceptable` (the file is not a JPEG carrying its C2PA manifest), `not_removable` (not a picture accepted by hand).
+ */
 export class PictureRetryRefusedError extends Error {
   constructor(readonly reason: PictureRetryRefusal) {
     super(`Picture retry refused: ${reason}`);
