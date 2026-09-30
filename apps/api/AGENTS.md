@@ -616,10 +616,22 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
   other and tells the owner when it has been silent for more than 26 h.
 - **Error reporting** (`0024`): `ErrorReporter` in `shared/observability` — off without
   `SENTRY_DSN`. The exception filter reports what it turns into a 5xx and `PlanJobRunner`
-  reports a failed generation. It sends the error, its stack and the route *pattern* only:
-  `beforeSend` deletes request, user and response context, and messages go through
-  `redactSecrets` with the configured credentials scrubbed by value. Never add a body, a
-  header or an id to a report.
+  reports a failed generation. A report carries the error (message cut at `\nparams:`, secrets
+  redacted by value), its stack with source-code lines, the `where` tag (the route *pattern*),
+  the release, the environment and the server's own runtime context. Nothing else: `beforeSend`
+  deletes request, user, response context, breadcrumbs, extra and `transaction` (the raw path).
+  Never add a body, a header or an id to a report. The one deliberate exception: the Billing
+  service's error messages that carry a Stripe customer or subscription id (two ids, no health
+  data). The SDK's own collection is explicitly off too: Sentry 11 collects by default
+  (bodies, headers, cookies, query strings, user, DB query data, queue arguments, gen-AI text,
+  stack-frame variables), so `DATA_COLLECTION` in `ErrorReporter.ts` turns every category off
+  by name, as a literal that must satisfy the SDK's `ResolvedDataCollection` and so stops the
+  type-check when a later SDK adds a field. Traces are off by **omitting** `tracesSampleRate`
+  and `tracesSampler`, never by a zero: any rate loads the tracing integrations, and a
+  `sentry-trace` header from a caller then sends span envelopes that skip `beforeSend`.
+  `SENTRY_TRACES_SAMPLE_RATE` is deleted from the environment before `init`, trace headers
+  are not propagated, logs and metrics are dropped, and the server name is not sent. The
+  real-SDK spec (`ErrorReporter.sdk.spec.ts`) proves it.
 - **Weights, not filters** (`0026`): `isPreferredDish` (core `domain/Variety`) decides what the
   library offers first — a liked dish, a chosen cuisine, a liked food. `rotatePool` partitions
   on it and `pickReplacement` ranks on it; neither ever removes a dish, so a preference here

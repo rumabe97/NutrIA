@@ -5,6 +5,36 @@ import { ENV } from '../../config/index.js';
 import { redactSecrets } from '../../modules/ai/clients/redact.js';
 
 import type { Env } from '../../config/index.js';
+import type { NodeClient } from '@sentry/node';
+
+type ResolvedDataCollection = ReturnType<NodeClient['getDataCollectionOptions']>;
+
+/**
+ * Sentry 11 collects by default what 10 collected only with `sendDefaultPii`:
+ * request bodies, headers, cookies, query strings, the user, database query
+ * data, queue arguments, gen-AI inputs and outputs and the local variables of
+ * every stack frame. This is a health product, so each category is switched off
+ * by name. Written as an exhaustive literal (`satisfies` the SDK's own
+ * `ResolvedDataCollection`, where every field and nested field is required) so a field a later SDK adds stops the type-check until
+ * somebody decides it — an omitted field would silently take the collecting
+ * default.
+ *
+ * `frameContextLines` is the one that stays on: it is lines of this project's
+ * own source code around each frame, never a runtime value.
+ */
+export const DATA_COLLECTION = {
+  cookies: false,
+  databaseQueryData: false,
+  frameContextLines: 5,
+  genAI: { inputs: false, outputs: false },
+  graphQL: { document: false, variables: false },
+  httpBodies: [],
+  httpHeaders: { request: false, response: false },
+  queues: false,
+  stackFrameVariables: false,
+  urlQueryParams: false,
+  userInfo: false
+} as const satisfies ResolvedDataCollection;
 
 /**
  * Every secret this process holds, not only the AI provider keys
@@ -18,6 +48,13 @@ import type { Env } from '../../config/index.js';
  * since a placeholder is a word, not a credential.
  */
 const MIN_SECRET_LENGTH = 12;
+
+/** DrizzleQueryError appends the bound values after a `\nparams:` line. */
+function cutParams(text: string): string {
+  const at = text.indexOf('\nparams:');
+
+  return at === -1 ? text : text.slice(0, at);
+}
 
 function allSecrets(env: Env): readonly string[] {
   const configured = [
@@ -33,7 +70,10 @@ function allSecrets(env: Env): readonly string[] {
     env.STRIPE_WEBHOOK_SECRET,
     env.VAPID_PRIVATE_KEY,
     env.GOOGLE_OAUTH_CLIENT_SECRET,
-    env.APPLE_OAUTH_PRIVATE_KEY
+    env.APPLE_OAUTH_PRIVATE_KEY,
+    env.SMTP_PASS,
+    env.BLOB_READ_WRITE_TOKEN,
+    env.OPENROUTER_IMAGE_API_KEY
   ].map(value => value?.trim());
 
   return [...new Set(configured.filter((value): value is string => (value?.length ?? 0) >= MIN_SECRET_LENGTH))];
@@ -71,6 +111,11 @@ export class ErrorReporter {
 
     const secrets = this.secrets;
 
+    // The SDK falls back to this variable when no rate is passed, and any
+    // rate — even 0 — loads the tracing integrations. Traces stay off only if
+    // no rate reaches the SDK at all.
+    Reflect.deleteProperty(process.env, 'SENTRY_TRACES_SAMPLE_RATE');
+
     Sentry.init({
       beforeSend(event) {
         // Whatever the SDK collected on its own, it does not leave here.
@@ -83,14 +128,17 @@ export class ErrorReporter {
         delete event.contexts?.response;
         delete event.breadcrumbs;
         delete event.extra;
+        // The http integration names it "METHOD raw-path": ids, and an
+        // invitation token. `tags.where` already holds the route pattern.
+        delete event.transaction;
 
         if (event.message) {
-          event.message = redactSecrets(event.message, secrets);
+          event.message = redactSecrets(cutParams(event.message), secrets);
         }
 
         for (const value of event.exception?.values ?? []) {
           if (value.value) {
-            value.value = redactSecrets(value.value, secrets);
+            value.value = redactSecrets(cutParams(value.value), secrets);
           }
         }
 
@@ -107,14 +155,21 @@ export class ErrorReporter {
 
         return event;
       },
+      beforeSendLog: () => null,
+      beforeSendMetric: () => null,
+      dataCollection: DATA_COLLECTION,
       dsn: env.SENTRY_DSN,
       environment: env.NODE_ENV,
+      includeServerName: false,
       // The commit is the release, so a spike can be read against a deploy.
       release: env.VERCEL_GIT_COMMIT_SHA,
-      sendDefaultPii: false,
-      // Errors only. Traces would carry route timings for every request and buy
-      // nothing a log line does not already give.
-      tracesSampleRate: 0
+      // Errors only. There is deliberately NO `tracesSampleRate` (nor a
+      // `tracesSampler`): the SDK enables tracing whenever one is defined, even
+      // as 0, and an incoming `sentry-trace: ...-1` header then sends a span
+      // envelope that never passes `beforeSend`. Omitting it is what keeps
+      // tracing off.
+      // No trace headers on outgoing calls (OpenRouter, Stripe, Google).
+      tracePropagationTargets: []
     });
     this.logger.log(`Error reporting on (${env.NODE_ENV})`);
   }
