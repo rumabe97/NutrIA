@@ -156,6 +156,17 @@ export class MealInFutureError extends Error {
   }
 }
 
+/** Why an owner's retry of a dish's picture was refused: each is a state of the system, not of the request. */
+type PictureRetryRefusal = 'cap_reached' | 'drawing' | 'flag_off' | 'not_retryable' | 'unavailable';
+
+/** The manual retry of a dish's picture cannot start now (`reason`); answered 409 with a code the console switches on. */
+export class PictureRetryRefusedError extends Error {
+  constructor(readonly reason: PictureRetryRefusal) {
+    super(`Picture retry refused: ${reason}`);
+    this.name = 'PictureRetryRefusedError';
+  }
+}
+
 export class PlanPausedError extends Error {
   constructor(message = 'Plan paused') {
     super(message);

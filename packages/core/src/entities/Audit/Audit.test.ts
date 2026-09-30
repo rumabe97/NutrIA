@@ -15,6 +15,10 @@ describe('auditQuerySchema', () => {
     expect(() => auditQuerySchema.parse({ action: 'account.deleted' })).toThrow();
   });
 
+  it('names the owner’s picture retry', () => {
+    expect(AUDIT_ACTIONS).toContain('picture.retried');
+  });
+
   it('coerces and bounds offset and size', () => {
     expect(auditQuerySchema.parse({ offset: '50', size: '100' })).toEqual({ offset: 50, size: 100 });
     expect(() => auditQuerySchema.parse({ size: '0' })).toThrow();

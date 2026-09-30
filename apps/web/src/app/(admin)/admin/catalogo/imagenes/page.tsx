@@ -1,3 +1,5 @@
+import { Fragment } from 'react';
+
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 
@@ -9,6 +11,7 @@ import { Gauge } from 'ui/components/Gauge';
 import { LineChart } from 'ui/components/LineChart';
 import { parsePeriod } from 'core/domain/Period';
 
+import { AdminCountList } from 'components/AdminCountList';
 import { AdminPageHeader } from 'components/AdminPageHeader';
 import { AdminSection } from 'components/AdminSection';
 import { Card } from 'components/Card';
@@ -16,13 +19,15 @@ import { HowCounted } from 'components/HowCounted';
 import { PeriodSelector } from 'components/PeriodSelector';
 
 import { DEFAULT_PERIOD } from 'core/entities/Period';
+import { PICTURE_REASONS } from 'core/entities/DishPicture';
 
-import { formatDate, formatUsd, interpolate } from 'lib/format';
+import { formatDate, formatNumber, formatUsd, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../../consoleMetadata';
 
-import type { AdminPicturesPeriodView } from 'core/controllers/Admin';
+import type { AdminCountRow } from 'components/AdminCountList';
+import type { AdminPicturesPeriodView, PictureReasonCount } from 'core/controllers/Admin';
 import type { ChartTone } from 'ui/types/Chart.types';
 import type { Metadata } from 'next';
 import type { PageQuery } from 'components/PeriodSelector';
@@ -65,6 +70,12 @@ export default async function AdminPicturesPage({ searchParams }: { searchParams
   const t = dictionary.adminPictures;
   const dollars = (value: number) => formatUsd(value, locale);
   const monthStart = formatDate(pictures.since.slice(0, 10), locale, { day: 'numeric', month: 'long' });
+
+  // The reasons are counts, not lists: Recetas filters by the failed state, not by reason, so
+  // one link under the failed section opens those recipes and no row promises more.
+  const reasonRows = (counts: readonly PictureReasonCount[]): readonly AdminCountRow[] =>
+    counts.map(row => ({ id: row.reason, count: formatNumber(row.n, locale), label: t.reasons[row.reason] }));
+  const reasonNotes = PICTURE_REASONS.map(reason => `${t.reasons[reason]}: ${t.reasonHelp[reason]}`);
 
   return (
     <div className={styles.page}>
@@ -131,7 +142,34 @@ export default async function AdminPicturesPage({ searchParams }: { searchParams
         </Card>
       </AdminSection>
 
-      <HowCounted notes={t.howCounted} summary={common.howCounted} />
+      <AdminSection note={t.failedNote} title={t.failedTitle}>
+        {pictures.failedByReason.length === 0 ? (
+          <Card>
+            <p className={styles.empty}>{t.failedEmpty}</p>
+          </Card>
+        ) : (
+          <Fragment>
+            <AdminCountList label={t.failedListLabel} rows={reasonRows(pictures.failedByReason)} />
+            <p className={styles.more}>
+              <Link className={styles.link} href="/admin/catalogo?picture=failed">
+                {t.failedLink}
+              </Link>
+            </p>
+          </Fragment>
+        )}
+      </AdminSection>
+
+      <AdminSection note={t.releasedNote} title={t.releasedTitle}>
+        {pictures.releasedByReason.length === 0 ? (
+          <Card>
+            <p className={styles.empty}>{t.releasedEmpty}</p>
+          </Card>
+        ) : (
+          <AdminCountList label={t.releasedListLabel} rows={reasonRows(pictures.releasedByReason)} />
+        )}
+      </AdminSection>
+
+      <HowCounted notes={[...t.howCounted, ...reasonNotes]} summary={common.howCounted} />
     </div>
   );
 }

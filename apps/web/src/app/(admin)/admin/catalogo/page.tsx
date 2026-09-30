@@ -12,21 +12,23 @@ import { AdminSection } from 'components/AdminSection';
 import { AdminTable, apiSearch, readTableQuery } from 'components/AdminTable';
 import { Card } from 'components/Card';
 import { HowCounted } from 'components/HowCounted';
+import { RETRY_STATUS_ID, RetryPictureButton } from 'components/RetryPictureButton';
 
 import { MEAL_SLOTS } from 'core/entities/Plan';
 import { RECIPE_CHECKS, RECIPE_SOURCES, recipeCatalogueQuerySchema } from 'core/entities/AdminQuery';
 
-import { formatNumber } from 'lib/format';
+import { formatInstant, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../consoleMetadata';
 
-import type { AdminRecipesView } from 'core/controllers/Admin';
+import type { AdminRecipesView, CatalogueRecipeView } from 'core/controllers/Admin';
 import type { AdminTableColumn, AdminTableFilter } from 'components/AdminTable';
 import type { Allergen } from 'core/entities/Safety';
 import type { MealSlot } from 'core/entities/Plan';
 import type { Metadata } from 'next';
 import type { PageQuery } from 'components/PeriodSelector';
+import type { ReactNode } from 'react';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,7 +135,30 @@ export default async function AdminRecipesPage({ searchParams }: { searchParams:
     }
   ];
 
-  const rows = recipes.rows.map(recipe => ({
+  const madridDate = (iso: string) =>
+    formatInstant(Date.parse(iso), locale, { day: 'numeric', month: 'long', timeZone: 'Europe/Madrid', year: 'numeric' });
+  const reasons = dictionary.adminPictures.reasons;
+
+  // The state, then why it is not a picture, then what happens next: the button for a
+  // picture that can be retried by hand (`0066`), or the wait it is in.
+  const pictureCell = (recipe: CatalogueRecipeView): ReactNode => {
+    if (recipe.pictureReason === null) {
+      return t.pictures[recipe.picture];
+    }
+
+    return (
+      <div className={styles.picture}>
+        <span>{t.pictures[recipe.picture]}</span>
+        <span className={styles.reason}>{reasons[recipe.pictureReason]}</span>
+        <span className={styles.reason}>
+          {recipe.retryableAt === null ? t.retryNext : interpolate(t.retryFrom, { date: madridDate(recipe.retryableAt) })}
+        </span>
+        <RetryPictureButton dish={recipe.name} recipeId={recipe.id} version={`${recipe.pictureReason}:${recipe.retryableAt}`} />
+      </div>
+    );
+  };
+
+  const rows = recipes.rows.map((recipe: CatalogueRecipeView) => ({
     id: recipe.slug,
     cells: {
       allergens: names(recipe.allergens),
@@ -144,7 +169,7 @@ export default async function AdminRecipesPage({ searchParams }: { searchParams:
       mayContain: names(recipe.mayContain),
       meals: recipe.mealSlots.map(slotName).join(', '),
       name: recipe.name,
-      picture: t.pictures[recipe.picture],
+      picture: pictureCell(recipe),
       protein: grams(recipe.proteinG),
       source: t.sources[recipe.source as keyof typeof t.sources] ?? recipe.source
     }
@@ -153,6 +178,7 @@ export default async function AdminRecipesPage({ searchParams }: { searchParams:
   return (
     <div className={styles.page}>
       <AdminPageHeader intro={t.intro} title={t.title} />
+      <p className="visually-hidden" id={RETRY_STATUS_ID} role="status" />
 
       <ul aria-label={t.tilesLabel} className={styles.tiles}>
         <Card as="li" padding="sm">

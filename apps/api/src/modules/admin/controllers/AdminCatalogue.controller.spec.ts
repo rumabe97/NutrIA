@@ -5,11 +5,15 @@ import request from 'supertest';
 import { Test } from '@nestjs/testing';
 
 import { AdminCatalogueController as CoreCatalogue, AdminQualityController as CoreQuality } from 'core/controllers/Admin';
+import { NotFoundError, PictureRetryRefusedError } from 'core/entities/Error';
+import { RecipeController } from 'core/controllers/Recipe';
 
 import { AdminCatalogueController } from './AdminCatalogue.controller.js';
 import { AdminCatalogueService } from '../services/index.js';
 import { AdminGuard } from '../../../shared/guards/index.js';
 import { AllExceptionsFilter } from '../../../shared/filters/index.js';
+import { RATE_LIMIT_KEY } from '../../../shared/decorators/RateLimit.decorator.js';
+import { DishPictureService } from '../../ai/services/index.js';
 
 import type { AdminCatalogueQualityView, AdminIngredientsView, AdminRecipesView } from 'core/controllers/Admin';
 import type { INestApplication } from '@nestjs/common';
@@ -22,6 +26,7 @@ const RECIPES: AdminRecipesView = {
   offset: 0,
   rows: [
     {
+      id: '6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f',
       allergens: ['gluten'],
       carbsG: 60.8,
       fatG: 23.4,
@@ -30,8 +35,10 @@ const RECIPES: AdminRecipesView = {
       mayContain: [],
       mealSlots: ['lunch'],
       name: 'Bocadillo',
-      picture: 'none',
+      picture: 'failed',
+      pictureReason: 'call_failed',
       proteinG: 25.8,
+      retryableAt: '2026-10-06T12:00:00.000Z',
       slug: 'bocadillo',
       source: 'seed'
     }
@@ -60,12 +67,15 @@ const INGREDIENTS: AdminIngredientsView = { offset: 0, rows: [], size: 25, total
 describe('AdminCatalogueController', () => {
   let app: INestApplication;
   let role = 'user';
+  const schedule = jest.fn();
+  const pictures = { capUsd: 10, isAvailable: true, schedule };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [AdminCatalogueController],
       providers: [
         AdminCatalogueService,
+        { provide: DishPictureService, useValue: pictures },
         {
           provide: APP_GUARD,
           useValue: {
@@ -93,7 +103,13 @@ describe('AdminCatalogueController', () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    schedule.mockClear();
+    pictures.isAvailable = true;
   });
+
+  function retry(id: string) {
+    return request(app.getHttpServer() as Server).post(`/${PREFIX}/admin/catalogue/recipes/${id}/picture/retry`);
+  }
 
   function get(path: string) {
     return request(app.getHttpServer() as Server).get(`/${PREFIX}/admin/catalogue/${path}`);
@@ -201,5 +217,79 @@ describe('AdminCatalogueController', () => {
     expect(recipes).not.toHaveBeenCalled();
     expect(ingredients).not.toHaveBeenCalled();
     expect(quality).not.toHaveBeenCalled();
+  });
+
+  describe('POST recipes/:id/picture/retry', () => {
+    it('is rate-limited on the handler: 30 an hour', () => {
+      expect(Reflect.getMetadata(RATE_LIMIT_KEY, AdminCatalogueController.prototype.retryPicture)).toEqual({ limit: 30, ttlSeconds: 3600 });
+    });
+
+    const CLAIM = { attempts: 0, claimedAt: new Date('2026-09-30T12:00:00Z'), recipeId: '6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f' };
+
+    it('is 404 for an ordinary account, claims nothing and draws nothing', async () => {
+      role = 'user';
+      const claim = jest.spyOn(RecipeController, 'retryPicture');
+
+      await retry(CLAIM.recipeId).expect(404);
+
+      expect(claim).not.toHaveBeenCalled();
+      expect(schedule).not.toHaveBeenCalled();
+    });
+
+    it('claims for the owner from the session, hands the claim to the drawing service and answers 202', async () => {
+      role = 'admin';
+      const claim = jest.spyOn(RecipeController, 'retryPicture').mockResolvedValue(CLAIM);
+
+      const response = await retry(CLAIM.recipeId).expect(202);
+
+      expect(response.body).toEqual({ status: 'drawing' });
+      expect(claim).toHaveBeenCalledWith(CLAIM.recipeId, 'usr-1', { available: true, capUsd: 10 });
+      expect(schedule).toHaveBeenCalledWith(CLAIM);
+    });
+
+    it('tells the core when pictures are unavailable, and draws nothing when it refuses', async () => {
+      role = 'admin';
+      pictures.isAvailable = false;
+      const claim = jest.spyOn(RecipeController, 'retryPicture').mockRejectedValue(new PictureRetryRefusedError('unavailable'));
+
+      const response = await retry(CLAIM.recipeId).expect(409);
+
+      expect(claim).toHaveBeenCalledWith(CLAIM.recipeId, 'usr-1', { available: false, capUsd: 10 });
+      expect((response.body as { code: string }).code).toBe('PICTURE_UNAVAILABLE');
+      expect(schedule).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['flag_off', 'PICTURE_FLAG_OFF'],
+      ['cap_reached', 'PICTURE_CAP_REACHED'],
+      ['drawing', 'PICTURE_DRAWING'],
+      ['not_retryable', 'PICTURE_NOT_RETRYABLE']
+    ] as const)('answers 409 %s as %s', async (reason, code) => {
+      role = 'admin';
+      jest.spyOn(RecipeController, 'retryPicture').mockRejectedValue(new PictureRetryRefusedError(reason));
+
+      const response = await retry(CLAIM.recipeId).expect(409);
+
+      expect(response.body).toMatchObject({ code, statusCode: 409 });
+    });
+
+    it('answers 404 for a recipe that does not exist', async () => {
+      role = 'admin';
+      jest.spyOn(RecipeController, 'retryPicture').mockRejectedValue(new NotFoundError('Recipe not found'));
+
+      await retry('00000000-0000-4000-8000-000000000000').expect(404);
+      expect(schedule).not.toHaveBeenCalled();
+    });
+
+    it('never echoes the segment sent in a 404, for an unknown id or one that is not a uuid', async () => {
+      role = 'admin';
+      jest.spyOn(RecipeController, 'retryPicture').mockRejectedValue(new NotFoundError('Recipe not found'));
+
+      for (const segment of ['00000000-0000-4000-8000-000000000000', 'not-a-uuid-zzq']) {
+        const response = await retry(segment).expect(404);
+
+        expect(JSON.stringify(response.body)).not.toContain(segment);
+      }
+    });
   });
 });

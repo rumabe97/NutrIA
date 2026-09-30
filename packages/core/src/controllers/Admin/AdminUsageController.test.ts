@@ -1,16 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { AdminController, aiModelOf } from './AdminController';
-import { AdminUsageController, modelsOf } from './AdminUsageController';
+import { AdminUsageController, countByReason, modelsOf } from './AdminUsageController';
 
 import type { AdminAiRepository as Ai, AiCallDayRow, AdminSeriesRepository as Series } from '#repositories/Admin';
 
 const ai = vi.hoisted(() => ({ callsPerDay: vi.fn<(typeof Ai)['callsPerDay']>(), monthByFeature: vi.fn<(typeof Ai)['monthByFeature']>() }));
 const series = vi.hoisted(() => ({ pictureSpendPerDay: vi.fn<(typeof Series)['pictureSpendPerDay']>() }));
+const failedPictures = vi.hoisted(() => vi.fn<() => Promise<{ provenance: Record<string, unknown> | null; released: boolean }[]>>());
 
 vi.mock('#repositories/Admin', () => ({
   AdminAiRepository: ai,
-  AdminRepository: {},
+  AdminRepository: { failedPictures },
   AdminSeriesRepository: series,
   JOB_STATUSES: [],
   PLAN_STATUSES: []
@@ -172,6 +173,8 @@ describe('AdminUsageController.pictures', () => {
       { day: '2026-09-28', n: 1.25 }
     ]);
 
+    failedPictures.mockResolvedValue([]);
+
     const view = await AdminUsageController.pictures(7, 10, NOW);
 
     expect(AdminController.pictures).toHaveBeenCalledWith(10, NOW);
@@ -179,6 +182,56 @@ describe('AdminUsageController.pictures', () => {
     expect(view).toMatchObject(month);
     expect(view.spendPerDay).toEqual({ days: WEEK, values: [0, 0, 0.3, 0, 0, 0, 1.25] });
     expect(view.period).toBe(7);
+    expect(view.failedByReason).toEqual([]);
+    expect(view.releasedByReason).toEqual([]);
+  });
+
+  it('counts the period’s failed and released pictures by closed reason, old rows included, and never sends a provider’s words', async () => {
+    vi.spyOn(AdminController, 'pictures').mockResolvedValue({
+      capUsd: 10,
+      drawing: 0,
+      enabled: true,
+      failed: 4,
+      ready: 0,
+      released: 2,
+      since: '2026-09-01T00:00:00.000Z',
+      spentUsd: 0
+    });
+    series.pictureSpendPerDay.mockResolvedValue([]);
+    failedPictures.mockResolvedValue([
+      { provenance: { notes: ['1:rejected:extra_allergen:shrimp=crustaceans'], reason: 'judge_allergen' }, released: false },
+      { provenance: { notes: ['1:rejected:extra_allergen:egg=egg', '2:rejected:extra_allergen:egg=egg'] }, released: false },
+      { provenance: { notes: ['1:failed:OpenRouter /images answered 503: sk-leak'] }, released: false },
+      { provenance: null, released: false },
+      { provenance: { reason: 'cap_reached', released: 'the month’s cap is reached' }, released: true },
+      { provenance: { released: 'OpenRouter /images answered 402: Key limit exceeded' }, released: true }
+    ]);
+
+    const view = await AdminUsageController.pictures(7, 10, NOW);
+
+    expect(failedPictures).toHaveBeenCalledWith(new Date('2026-09-21T22:00:00Z'), NOW);
+    expect(view.failedByReason).toEqual([
+      { n: 2, reason: 'judge_allergen' },
+      { n: 1, reason: 'call_failed' },
+      { n: 1, reason: 'other' }
+    ]);
+    expect(view.releasedByReason).toEqual([
+      { n: 1, reason: 'cap_reached' },
+      { n: 1, reason: 'payment_refused' }
+    ]);
+    expect(JSON.stringify(view)).not.toContain('sk-leak');
+  });
+});
+
+describe('countByReason', () => {
+  it('orders by count, then by name, and leaves out the reasons with none', () => {
+    expect(
+      countByReason([{ provenance: { reason: 'other' } }, { provenance: { reason: 'call_failed' } }, { provenance: { reason: 'other' } }])
+    ).toEqual([
+      { n: 2, reason: 'other' },
+      { n: 1, reason: 'call_failed' }
+    ]);
+    expect(countByReason([])).toEqual([]);
   });
 });
 

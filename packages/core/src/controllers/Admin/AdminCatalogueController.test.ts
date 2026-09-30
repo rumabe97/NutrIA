@@ -4,7 +4,7 @@ import { composePerServing } from 'core/domain/Composition';
 import { ingredientCatalogueQuerySchema, recipeCatalogueQuerySchema } from 'core/entities/AdminQuery';
 import { ALLERGEN_IDS, makeCatalogue, makeCatalogueIngredient, makeDish } from '#test/fixtures';
 
-import { AdminCatalogueController, allergensOf, byFigure, perServing } from './AdminCatalogueController';
+import { AdminCatalogueController, allergensOf, byFigure, perServing, pictureFailure } from './AdminCatalogueController';
 
 import type { AdminCatalogueRepository as Catalogue, CatalogueRecipeRow } from '#repositories/Admin';
 import type { CatalogueRecipeView } from './AdminCatalogueController';
@@ -61,6 +61,9 @@ function recipe(overrides: Partial<CatalogueRecipeRow>): CatalogueRecipeRow {
     mealSlots: ['lunch'],
     name: 'Bocadillo',
     picture: 'none',
+    pictureAt: null,
+    pictureFailed: false,
+    pictureProvenance: null,
     servings: 1,
     slug: 'bocadillo',
     source: 'seed',
@@ -136,6 +139,7 @@ describe('allergensOf', () => {
 
 describe('byFigure', () => {
   const view = (name: string, kcal: number | null, slug = name): CatalogueRecipeView => ({
+    id: name,
     allergens: [],
     carbsG: null,
     fatG: null,
@@ -145,7 +149,9 @@ describe('byFigure', () => {
     mealSlots: [],
     name,
     picture: 'none',
+    pictureReason: null,
     proteinG: null,
+    retryableAt: null,
     slug,
     source: 'seed'
   });
@@ -191,6 +197,7 @@ describe('AdminCatalogueController.recipes', () => {
     expect(view.total).toBe(57);
     expect(view.rows).toEqual([
       {
+        id: 'r-1',
         allergens: ['gluten', 'milk'],
         carbsG: 60.8,
         fatG: 23.4,
@@ -200,7 +207,9 @@ describe('AdminCatalogueController.recipes', () => {
         mealSlots: ['lunch'],
         name: 'Bocadillo',
         picture: 'none',
+        pictureReason: null,
         proteinG: 25.8,
+        retryableAt: null,
         slug: 'bocadillo',
         source: 'seed'
       }
@@ -255,13 +264,29 @@ describe('AdminCatalogueController.recipes', () => {
     });
   });
 
-  it('carries nothing that names a person: no id, no created_by, no user', async () => {
+  it('carries nothing that names a person: no created_by, no user', async () => {
     catalogue.recipePage.mockResolvedValue({ rows: [recipe({})], total: 1 });
 
     const [row] = (await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({}), STEPS)).rows;
 
     expect(Object.keys(row ?? {}).sort()).toEqual(
-      ['allergens', 'carbsG', 'fatG', 'kcal', 'locale', 'mayContain', 'mealSlots', 'name', 'picture', 'proteinG', 'slug', 'source'].sort()
+      [
+        'allergens',
+        'carbsG',
+        'fatG',
+        'id',
+        'kcal',
+        'locale',
+        'mayContain',
+        'mealSlots',
+        'name',
+        'picture',
+        'pictureReason',
+        'proteinG',
+        'retryableAt',
+        'slug',
+        'source'
+      ].sort()
     );
   });
 });
@@ -312,6 +337,41 @@ describe('AdminCatalogueController.ingredients', () => {
       ],
       size: 25,
       total: 930
+    });
+  });
+});
+
+/* The owner sees why a picture failed, and when a view would draw it again; a released one has no wait. */
+describe('pictureFailure', () => {
+  const NOW = new Date('2026-09-30T12:00:00Z');
+  const failed = (hoursAgo: number, pictureProvenance: Record<string, unknown> | null) => ({
+    pictureAt: new Date(NOW.getTime() - hoursAgo * 3_600_000),
+    pictureFailed: true,
+    pictureProvenance
+  });
+
+  it('says nothing for a picture that did not fail', () => {
+    expect(pictureFailure({ pictureAt: NOW, pictureFailed: false, pictureProvenance: null }, NOW)).toEqual({
+      pictureReason: null,
+      retryableAt: null
+    });
+  });
+
+  it('names the reason and the end of the 7-day cool-off for a fresh failure', () => {
+    expect(pictureFailure(failed(24, { notes: ['1:unkeepable:no C2PA manifest (image/jpeg)'] }), NOW)).toEqual({
+      pictureReason: 'no_provenance',
+      retryableAt: '2026-10-06T12:00:00.000Z'
+    });
+  });
+
+  it('is retryable now, with no date, once the cool-off is over', () => {
+    expect(pictureFailure(failed(24 * 8, { reason: 'call_failed' }), NOW)).toEqual({ pictureReason: 'call_failed', retryableAt: null });
+  });
+
+  it('has no wait for a picture that was given back', () => {
+    expect(pictureFailure(failed(1, { reason: 'cap_reached', released: 'the month’s cap is reached' }), NOW)).toEqual({
+      pictureReason: 'cap_reached',
+      retryableAt: null
     });
   });
 });

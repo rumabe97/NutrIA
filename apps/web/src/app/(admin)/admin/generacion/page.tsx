@@ -8,6 +8,7 @@ import { ColumnChart } from 'ui/components/ColumnChart';
 import { LineChart } from 'ui/components/LineChart';
 import { parsePeriod } from 'core/domain/Period';
 
+import { AdminCountList } from 'components/AdminCountList';
 import { AdminPageHeader } from 'components/AdminPageHeader';
 import { AdminSection } from 'components/AdminSection';
 import { AdminTable, apiSearch, readTableQuery } from 'components/AdminTable';
@@ -24,6 +25,7 @@ import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../consoleMetadata';
 
+import type { AdminCountRow } from 'components/AdminCountList';
 import type { AdminGenerationStatsView, AdminGenerationsView } from 'core/controllers/Admin';
 import type { AdminTableColumn, AdminTableFilter } from 'components/AdminTable';
 import type { DishRejection } from 'core/entities/Plan';
@@ -73,6 +75,9 @@ export default async function AdminLogPage({ searchParams }: { searchParams: Pro
   const started = (iso: string) =>
     formatInstant(Date.parse(iso), locale, { day: 'numeric', hour: '2-digit', minute: '2-digit', month: 'short', timeZone: 'Europe/Madrid' });
 
+  // A code the dictionary knows is said in words; one it does not is shown as it is.
+  const codeLabel = (code: string) => (t.codes as Readonly<Record<string, string>>)[code] ?? code;
+
   // The codes worth offering are the ones that happened; one the address names stays
   // offered, so the field always says what the table is filtered by.
   const codes = [...new Set([...(stats?.failuresByCode ?? []).flatMap(row => (row.code ? [row.code] : [])), ...(table.code ? [table.code] : [])])];
@@ -99,7 +104,13 @@ export default async function AdminLogPage({ searchParams }: { searchParams: Pro
       options: GENERATION_STATUSES.map(status => ({ label: t.statuses[status], value: status })),
       value: table.status
     },
-    { anyLabel: common.table.any, label: t.code, name: 'code', options: codes.map(code => ({ label: code, value: code })), value: table.code },
+    {
+      anyLabel: common.table.any,
+      label: t.code,
+      name: 'code',
+      options: codes.map(code => ({ label: codeLabel(code) === code ? code : `${codeLabel(code)} (${code})`, value: code })),
+      value: table.code
+    },
     {
       anyLabel: common.table.any,
       label: t.since,
@@ -120,7 +131,14 @@ export default async function AdminLogPage({ searchParams }: { searchParams: Pro
       account: generation.account.email,
       attempts: number(generation.attempts),
       calls: <GenerationCalls calls={generation.calls} locale={locale} slots={dictionary.slots} words={t} />,
-      code: generation.code ?? '—',
+      code: generation.code ? (
+        <div className={styles.code}>
+          <span>{codeLabel(generation.code)}</span>
+          {codeLabel(generation.code) === generation.code ? null : <span className={styles.raw}>{generation.code}</span>}
+        </div>
+      ) : (
+        '—'
+      ),
       detail: generation.detail ? <p className={styles.prose}>{generation.detail}</p> : '—',
       plan: generation.plan
         ? interpolate(t.logPlan, {
@@ -134,6 +152,15 @@ export default async function AdminLogPage({ searchParams }: { searchParams: Pro
       started: generation.startedAt ? started(generation.startedAt) : '—',
       status: <span data-status={generation.status}>{t.statuses[generation.status as keyof typeof t.statuses] ?? generation.status}</span>
     }
+  }));
+
+  // One row a code, the commonest first as the API sends them; each opens the table filtered to it
+  // within the same period. A failure that left no code has no filter to open.
+  const failureRows: readonly AdminCountRow[] = (stats?.failuresByCode ?? []).map(row => ({
+    id: row.code ?? 'none',
+    count: number(row.n),
+    href: row.code ? `${PATHNAME}?${new URLSearchParams({ code: row.code, since: String(period) })}` : undefined,
+    label: row.code ? codeLabel(row.code) : t.noCode
   }));
 
   const outcome = (key: string) => stats?.outcomes.series.find(series => series.key === key)?.values ?? [];
@@ -189,18 +216,6 @@ export default async function AdminLogPage({ searchParams }: { searchParams: Pro
               <BarChart
                 className={styles.chart}
                 dataLabel={common.dataLabel}
-                emptyLabel={t.failuresEmpty}
-                labels={stats.failuresByCode.map(row => row.code ?? t.noCode)}
-                labelsHeader={t.code}
-                locale={locale}
-                series={[{ name: t.failuresSeries, values: stats.failuresByCode.map(row => row.n) }]}
-                title={t.failuresChart}
-              />
-            </Card>
-            <Card>
-              <BarChart
-                className={styles.chart}
-                dataLabel={common.dataLabel}
                 emptyLabel={t.rejectionsEmpty}
                 labels={stats.rejectionsByReason.map(row => t.rejection[row.reason as DishRejection] ?? row.reason)}
                 labelsHeader={t.reason}
@@ -210,6 +225,18 @@ export default async function AdminLogPage({ searchParams }: { searchParams: Pro
               />
             </Card>
           </div>
+        </AdminSection>
+      ) : null}
+
+      {stats ? (
+        <AdminSection note={t.failuresNote} title={t.failuresTitle}>
+          {failureRows.length === 0 ? (
+            <Card>
+              <p className={styles.empty}>{t.failuresEmpty}</p>
+            </Card>
+          ) : (
+            <AdminCountList label={t.failuresTitle} rows={failureRows} />
+          )}
         </AdminSection>
       ) : null}
 

@@ -1,4 +1,4 @@
-import { count, countDistinct, eq, gte, isNotNull, sql } from 'drizzle-orm';
+import { and, count, countDistinct, eq, gte, isNotNull, lt, sql } from 'drizzle-orm';
 
 import { database } from 'database';
 import { recipeImageCalls, recipeImages } from 'database/schema/recipe';
@@ -80,7 +80,27 @@ export type PictureCounts = {
 /** A picture row a drawing gave back (`RecipeRepository.releasePicture`). */
 const released = sql`(${recipeImages.provenance} ->> 'released') is not null`;
 
+/** What a picture row that ended without a picture stored about how: enough for `pictureReasonOf`, and no dish is named. */
+export type FailedPictureRow = { readonly provenance: Record<string, unknown> | null; readonly released: boolean };
+
 export const AdminRepository = {
+  /**
+   * The picture rows that ended without a picture (`failed`, released or not)
+   * in `[from, to)` by the time they ended. Only their provenance: the reasons
+   * are counted by `pictureReasonOf`, the one place that reads it. Mode: one
+   * filtered read; the rows are few (a failed dish waits a week).
+   */
+  async failedPictures(from: Date, to: Date): Promise<readonly FailedPictureRow[]> {
+    try {
+      return await database()
+        .select({ provenance: recipeImages.provenance, released: sql<boolean>`${released}` })
+        .from(recipeImages)
+        .where(and(eq(recipeImages.status, 'failed'), gte(recipeImages.lastAttemptAt, from), lt(recipeImages.lastAttemptAt, to)));
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   /**
    * The funnel, in one round trip per stage.
    *

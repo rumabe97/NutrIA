@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
+import { z } from 'zod';
+
 import { fitSlots, libraryUsage, SECOND_CUT_SLOTS } from 'core/domain/MealFit';
 import { hasUsableMethod } from 'core/domain/Method';
 import { rotatePool } from 'core/domain/Variety';
@@ -13,7 +15,8 @@ import { SafetyController } from 'core/controllers/Safety';
 import { SettingsController } from 'core/controllers/Settings';
 import { PlanRepository } from '#repositories/Plan';
 import { requireProfileConsent } from 'core/controllers/Profile';
-import { NotFoundError, OnboardingIncompleteError, PlanPausedError } from 'core/entities/Error';
+import { AuditRepository } from '#repositories/Audit';
+import { NotFoundError, OnboardingIncompleteError, PictureRetryRefusedError, PlanPausedError } from 'core/entities/Error';
 import { OnboardingRepository } from '#repositories/Onboarding';
 import { VacationRepository } from '#repositories/Vacation';
 import { isAway } from 'core/domain/Vacation';
@@ -28,7 +31,7 @@ import type { DishRef, ReusableRecipe, UndocumentedRecipe } from '#repositories/
 export type { UndocumentedRecipe } from '#repositories/Recipe';
 import type { PreferenceExclusions } from 'core/domain/Preference';
 import type { SafetyProfile } from 'core/entities/Safety';
-import type { PictureCall, PictureProvenance, PictureState } from 'core/entities/DishPicture';
+import type { PictureCall, PictureProvenance, PictureReason, PictureState } from 'core/entities/DishPicture';
 import type { PictureCatalogueEntry, PictureRecipe } from 'core/domain/DishPicture';
 
 /**
@@ -393,7 +396,11 @@ export const RecipeController = {
    * The drawing stopped for a reason that is not the dish's (the cap, the key):
    * no picture, claimable again at once, keeping the `attempts` already used.
    */
-  async releasePicture(claim: PictureClaim, outcome: { readonly attempts: number; readonly why: string }, now: Date = new Date()): Promise<boolean> {
+  async releasePicture(
+    claim: PictureClaim,
+    outcome: { readonly attempts: number; readonly reason: PictureReason; readonly why: string },
+    now: Date = new Date()
+  ): Promise<boolean> {
     return RecipeRepository.releasePicture(claim.recipeId, claim.claimedAt, outcome, now);
   },
 
@@ -428,6 +435,66 @@ export const RecipeController = {
     const { attempts } = await RecipeRepository.pictureState(recipeId);
 
     return { attempts, claimedAt: now, recipeId };
+  },
+
+  /**
+   * The owner's retry of a dish's picture from the console (`picture.retried`).
+   * A dish whose picture `failed` — or was given back — is claimed at once, with
+   * no cool-off; everything else a view's claim decides still holds: the
+   * `dishPictures` flag, the pictures being available at all (`available`, the
+   * API's to say), the month's cap, and a drawing in flight is never taken over (one stuck past
+   * `PICTURE_STALE_MINUTES` is, as a view's claim would take it).
+   * The audit row is written in the claim's own transaction, so a refused retry
+   * leaves none. The caller draws the claim it gets back, as a view does.
+   *
+   * Refusals are `PictureRetryRefusedError`; an unknown recipe, or an id that
+   * is not one, is a `NotFoundError` before anything else is looked at.
+   */
+  async retryPicture(
+    recipeId: string,
+    actorId: string,
+    options: { readonly available: boolean; readonly capUsd: number },
+    now: Date = new Date()
+  ): Promise<PictureClaim> {
+    if (!z.uuid().safeParse(recipeId).success || !(await RecipeRepository.recipeExists(recipeId))) {
+      throw new NotFoundError('Recipe not found');
+    }
+
+    if (!(await SettingsController.dishPictures())) {
+      throw new PictureRetryRefusedError('flag_off');
+    }
+
+    if (!options.available) {
+      throw new PictureRetryRefusedError('unavailable');
+    }
+
+    const state = await RecipeRepository.pictureState(recipeId);
+
+    const staleDrawing =
+      state.status === 'drawing' && (state.lastAttemptAt === null || now.getTime() - state.lastAttemptAt.getTime() >= PICTURE_STALE_MINUTES * 60_000);
+
+    if (state.status === 'drawing' && !staleDrawing) {
+      throw new PictureRetryRefusedError('drawing');
+    }
+
+    if (state.status !== 'failed' && !staleDrawing) {
+      throw new PictureRetryRefusedError('not_retryable');
+    }
+
+    if ((await RecipeRepository.monthSpendUsd(monthStart(now))) >= options.capUsd) {
+      throw new PictureRetryRefusedError('cap_reached');
+    }
+
+    const claimed = await RecipeRepository.retryPicture(recipeId, now, PICTURE_STALE_MINUTES, async tx => {
+      await AuditRepository.record({ action: 'picture.retried', actorId, entity: 'recipe', entityId: recipeId, metadata: {} }, tx);
+    });
+
+    if (!claimed) {
+      // Somebody's view or another retry took it between the read and the claim.
+      throw new PictureRetryRefusedError('drawing');
+    }
+
+    return { attempts: 0, claimedAt: now, recipeId };
   },
 
   /**

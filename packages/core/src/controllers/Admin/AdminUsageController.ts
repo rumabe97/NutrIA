@@ -1,4 +1,5 @@
-import { AdminAiRepository, AdminSeriesRepository } from '#repositories/Admin';
+import { AdminAiRepository, AdminRepository, AdminSeriesRepository } from '#repositories/Admin';
+import { pictureReasonOf } from 'core/entities/DishPicture';
 import { fillDays, madridDayKey, madridDayKeys, windowFor } from 'core/domain/Period';
 
 import { AdminController, aiModelOf } from './AdminController';
@@ -10,6 +11,7 @@ import type { TextMonthView } from './AdminTextSpend';
 import type { AiCallDayRow } from '#repositories/Admin';
 import type { DaySeries, DaySeriesGroup, PeriodComparison, PeriodWindowView } from './AdminSeriesController';
 import type { Period } from 'core/entities/Period';
+import type { PictureReason } from 'core/entities/DishPicture';
 
 /** The period's provider requests against the period before it. */
 export type AiPeriodTotals = {
@@ -63,11 +65,33 @@ export type AdminAiView = {
  * and the pictures by state, as before, and the spend per day over the period.
  */
 export type AdminPicturesPeriodView = AdminPicturesView & {
+  /**
+   * Pictures that failed for the dish's own reasons in the period (by when they ended), by closed
+   * reason (`PICTURE_REASONS`), the commonest first; reasons with none are left out.
+   */
+  readonly failedByReason: readonly PictureReasonCount[];
   readonly period: Period;
+  /** Pictures given back in the period for a reason that is not the dish's, by closed reason, the commonest first. */
+  readonly releasedByReason: readonly PictureReasonCount[];
   /** Dollars billed for pictures per day, from `recipe_image_calls`. */
   readonly spendPerDay: DaySeries;
   readonly window: PeriodWindowView;
 };
+
+export type PictureReasonCount = { readonly n: number; readonly reason: PictureReason };
+
+/** Rows counted by their closed reason, the commonest first and then by name, so the order is stable. Exported for its spec. */
+export function countByReason(rows: readonly { readonly provenance: Record<string, unknown> | null }[]): readonly PictureReasonCount[] {
+  const counts = new Map<PictureReason, number>();
+
+  for (const row of rows) {
+    const reason = pictureReasonOf(row.provenance);
+
+    counts.set(reason, (counts.get(reason) ?? 0) + 1);
+  }
+
+  return [...counts].map(([reason, n]) => ({ n, reason })).sort((a, b) => b.n - a.n || a.reason.localeCompare(b.reason));
+}
 
 /** The two token series, in the order a stacked chart draws them. */
 export const TOKEN_KEYS = ['input', 'output'] as const;
@@ -191,14 +215,17 @@ export const AdminUsageController = {
   async pictures(period: Period, capUsd: number, now = new Date()): Promise<AdminPicturesPeriodView> {
     const window = windowFor(period, now);
     const days = madridDayKeys(window.from, window.to);
-    const [month, spend] = await Promise.all([
+    const [month, spend, ended] = await Promise.all([
       AdminController.pictures(capUsd, now),
-      AdminSeriesRepository.pictureSpendPerDay(window.from, window.to)
+      AdminSeriesRepository.pictureSpendPerDay(window.from, window.to),
+      AdminRepository.failedPictures(window.from, window.to)
     ]);
 
     return {
       ...month,
+      failedByReason: countByReason(ended.filter(row => !row.released)),
       period,
+      releasedByReason: countByReason(ended.filter(row => row.released)),
       // Cents added one day at a time drift in binary; a day's dollars to six places, as the column stores them.
       spendPerDay: { days, values: fillDays(days, spend).map(value => Math.round(value * 1e6) / 1e6) },
       window: presentWindow(window)

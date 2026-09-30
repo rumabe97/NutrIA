@@ -13,7 +13,10 @@ import { PictureImageClient } from '../clients/PictureImageClient.js';
 import { PictureJudgeClient } from '../clients/PictureJudgeClient.js';
 import { PictureStore } from '../clients/PictureStore.js';
 
+import { reasonOfCall, reasonOfRejection } from 'core/entities/DishPicture';
+
 import type { PictureClaim } from 'core/controllers/Recipe';
+import type { PictureReason } from 'core/entities/DishPicture';
 import type { PictureCatalogueEntry, PictureRecipe, PictureVerdict } from 'core/domain/DishPicture';
 
 /** What a picture is billed on Vertex at 1K (`0066`): recorded when OpenRouter never says, so the cap is never undercounted. */
@@ -46,8 +49,7 @@ type Attempt =
       readonly model: string;
       readonly verdict: PictureVerdict;
     }
-  | { readonly kind: 'failed' | 'rejected'; readonly note: string }
-  | { readonly kind: 'refused' | 'unkeepable'; readonly note: string };
+  | { readonly kind: 'failed' | 'refused' | 'rejected' | 'unkeepable'; readonly note: string; readonly reason: PictureReason };
 
 /**
  * Whether a failed call says the account cannot pay for another (`0066`):
@@ -70,6 +72,11 @@ export function isRefusal(error: unknown): boolean {
  */
 function failedCallCost(error: unknown, floor: number): number {
   return error instanceof PictureCallError && error.status !== null && error.status >= 400 && error.status < 500 ? 0 : floor;
+}
+
+/** The closed reason a failed call ends a drawing with (`PictureReason`): its status when it had one, else its words. */
+function reasonOf(error: unknown): PictureReason {
+  return reasonOfCall({ message: describe(error), status: error instanceof PictureCallError ? error.status : null });
 }
 
 function describe(error: unknown): string {
@@ -120,12 +127,13 @@ export class DishPictureService {
     const deadline = Date.now() + DRAW_BUDGET_MS;
     let attempts = claim.attempts;
     const notes: string[] = [];
+    let reason: PictureReason = 'other';
 
     try {
       const inputs = await RecipeController.pictureInputs(claim.recipeId);
 
       if (!inputs) {
-        return await this.release(claim, 'the recipe is gone', attempts);
+        return await this.release(claim, 'the recipe is gone', attempts, 'other');
       }
 
       const prompt = buildPicturePrompt(inputs.recipe);
@@ -136,7 +144,7 @@ export class DishPictureService {
         // can end up to about one attempt (~0.036 $) past the cap per concurrent drawing.
         // The pictures' OpenRouter key carries its own monthly limit as the wall.
         if ((await RecipeController.pictureSpendUsd()) >= this.capUsd) {
-          return await this.release(claim, 'the month’s cap is reached', attempts);
+          return await this.release(claim, 'the month’s cap is reached', attempts, 'cap_reached');
         }
 
         attempts += 1;
@@ -148,10 +156,11 @@ export class DishPictureService {
         }
 
         notes.push(`${attempts}:${attempt.kind}:${attempt.note}`);
+        reason = attempt.reason;
 
         if (attempt.kind === 'refused') {
           // The refused attempt is not the dish's: it does not count.
-          return await this.release(claim, attempt.note, attempts - 1);
+          return await this.release(claim, attempt.note, attempts - 1, attempt.reason);
         }
 
         if (attempt.kind === 'unkeepable') {
@@ -160,10 +169,11 @@ export class DishPictureService {
       }
     } catch (error: unknown) {
       notes.push(`error:${describe(error)}`);
+      reason = reasonOf(error);
       this.logger.warn(`Picture of recipe ${claim.recipeId} failed: ${describe(error)}`);
     }
 
-    const ended = await RecipeController.failPicture(claim, { attempts, provenance: { notes } });
+    const ended = await RecipeController.failPicture(claim, { attempts, provenance: { notes, reason } });
 
     return ended ? 'failed' : 'lost';
   }
@@ -183,7 +193,7 @@ export class DishPictureService {
         recipeId
       });
 
-      return { kind: isRefusal(error) ? 'refused' : 'failed', note: describe(error) };
+      return { kind: isRefusal(error) ? 'refused' : 'failed', note: describe(error), reason: reasonOf(error) };
     }
 
     await RecipeController.recordPictureCall({
@@ -197,7 +207,7 @@ export class DishPictureService {
     const marks = pictureMarks(drawn.bytes);
 
     if (drawn.contentType !== 'image/jpeg' || !marks.c2pa) {
-      return { kind: 'unkeepable', note: `no C2PA manifest (${drawn.contentType})` };
+      return { kind: 'unkeepable', note: `no C2PA manifest (${drawn.contentType})`, reason: 'no_provenance' };
     }
 
     const verdict = await this.judged(recipeId, inputs, drawn.bytes, signal);
@@ -206,9 +216,13 @@ export class DishPictureService {
       return verdict;
     }
 
-    return verdict.accepted
-      ? { bytes: drawn.bytes, kind: 'accepted', marks, model: drawn.model, verdict }
-      : { kind: 'rejected', note: verdict.notes.join(' ') };
+    if (verdict.accepted) {
+      return { bytes: drawn.bytes, kind: 'accepted', marks, model: drawn.model, verdict };
+    }
+
+    const note = verdict.notes.join(' ');
+
+    return { kind: 'rejected', note, reason: reasonOfRejection(note) };
   }
 
   /** The judge's two calls, each recorded, and the rule on what they saw. A failed call is a picture that is not kept. */
@@ -229,7 +243,7 @@ export class DishPictureService {
     } catch (error: unknown) {
       await record(failedCallCost(error, JUDGE_COST_FLOOR_USD), 'judge', 'error');
 
-      return { kind: isRefusal(error) ? 'refused' : 'failed', note: `judge: ${describe(error)}` };
+      return { kind: isRefusal(error) ? 'refused' : 'failed', note: `judge: ${describe(error)}`, reason: reasonOf(error) };
     }
   }
 
@@ -270,9 +284,9 @@ export class DishPictureService {
   }
 
   /** Gives the claim back, keeping the attempts the dish itself used. */
-  private async release(claim: PictureClaim, why: string, attempts: number): Promise<DrawOutcome> {
+  private async release(claim: PictureClaim, why: string, attempts: number, reason: PictureReason): Promise<DrawOutcome> {
     this.logger.warn(`Picture of recipe ${claim.recipeId} given back: ${why}`);
 
-    return (await RecipeController.releasePicture(claim, { attempts, why })) ? 'released' : 'lost';
+    return (await RecipeController.releasePicture(claim, { attempts, reason, why })) ? 'released' : 'lost';
   }
 }

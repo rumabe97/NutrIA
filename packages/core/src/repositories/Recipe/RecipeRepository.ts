@@ -12,7 +12,8 @@ import { pictureStateSchema } from 'core/entities/DishPicture';
 import { DatabaseOperationError } from 'core/entities/Error';
 import type { FoodClass } from 'database/schema/food';
 import type { LibraryRecipe } from 'core/domain/MealFit';
-import type { PictureCall, PictureProvenance, PictureState } from 'core/entities/DishPicture';
+import type { PictureCall, PictureProvenance, PictureReason, PictureState } from 'core/entities/DishPicture';
+import type { RecordAudit } from '#repositories/Audit';
 import type { CatalogueIngredient, MealSlot, RecipeVerdict } from 'core/entities/Plan';
 import type { RecipeStep } from 'database/schema/recipe';
 import type { SQL } from 'drizzle-orm';
@@ -712,6 +713,17 @@ export const RecipeRepository = {
     }
   },
 
+  /** Whether a recipe exists. Mode: one read by primary key. */
+  async recipeExists(recipeId: string): Promise<boolean> {
+    try {
+      const [row] = await database().select({ id: recipes.id }).from(recipes).where(eq(recipes.id, recipeId)).limit(1);
+
+      return row !== undefined;
+    } catch (error: unknown) {
+      throw wrap(error, 'recipes');
+    }
+  },
+
   /** One paid picture call and its cost. Mode: a plain insert; each call is its own row. */
   async recordPictureCall(call: PictureCall): Promise<void> {
     try {
@@ -752,15 +764,63 @@ export const RecipeRepository = {
    * same guarded `UPDATE` as `completePicture`. False when the claim was no
    * longer this caller's.
    */
-  async releasePicture(recipeId: string, claimedAt: Date, outcome: { readonly attempts: number; readonly why: string }, now: Date): Promise<boolean> {
+  async releasePicture(
+    recipeId: string,
+    claimedAt: Date,
+    outcome: { readonly attempts: number; readonly reason: PictureReason; readonly why: string },
+    now: Date
+  ): Promise<boolean> {
     try {
       const rows = await database()
         .update(recipeImages)
-        .set({ attempts: outcome.attempts, lastAttemptAt: now, provenance: { released: outcome.why }, status: 'failed', updatedAt: now })
+        .set({
+          attempts: outcome.attempts,
+          lastAttemptAt: now,
+          provenance: { reason: outcome.reason, released: outcome.why },
+          status: 'failed',
+          updatedAt: now
+        })
         .where(stillClaimed(recipeId, claimedAt))
         .returning({ recipeId: recipeImages.recipeId });
 
       return rows.length === 1;
+    } catch (error: unknown) {
+      throw wrap(error, 'recipe_images');
+    }
+  },
+
+  /**
+   * The owner's retry of a picture (`picture.retried`): claims a `failed` row —
+   * released or not — at once, with no cool-off, for a fresh three attempts,
+   * and a `drawing` one stuck past `staleAfterMinutes`, as a view's claim would.
+   * A fresh `drawing` or a `ready` row, or none, is not touched. `provenance` is
+   * cleared, so a retried released row is not counted as released while it draws.
+   * Mode: one guarded `UPDATE … WHERE failed OR stale drawing RETURNING`, and the audit row written by
+   * `record` in the same transaction, so a retry that did not start leaves none
+   * and one that started always has one. False when nothing was claimed.
+   */
+  async retryPicture(recipeId: string, now: Date, staleAfterMinutes: number, record: RecordAudit): Promise<boolean> {
+    try {
+      const stale = new Date(now.getTime() - staleAfterMinutes * 60_000);
+
+      return await database().transaction(async tx => {
+        const rows = await tx
+          .update(recipeImages)
+          .set({ attempts: 0, lastAttemptAt: now, provenance: null, status: 'drawing', updatedAt: now })
+          .where(
+            and(
+              eq(recipeImages.recipeId, recipeId),
+              or(eq(recipeImages.status, 'failed'), and(eq(recipeImages.status, 'drawing'), lt(recipeImages.lastAttemptAt, stale)))
+            )
+          )
+          .returning({ recipeId: recipeImages.recipeId });
+
+        if (rows.length === 1) {
+          await record(tx);
+        }
+
+        return rows.length === 1;
+      });
     } catch (error: unknown) {
       throw wrap(error, 'recipe_images');
     }
