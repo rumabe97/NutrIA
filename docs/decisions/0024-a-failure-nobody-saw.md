@@ -28,11 +28,11 @@ person they happened to.**
   default.** This is a health product. A plan is what someone eats; a prompt
   carries their conditions, their medication and their body; an email is an
   identifier. So `beforeSend` deletes the request, the user and the response
-  context whatever the SDK collected, `sendDefaultPii` is off, and messages pass
+  context whatever the SDK collected, the SDK's data collection is off (`dataCollection`), and messages pass
   through the same redaction the AI client logs use. The report is the error,
   its stack, the route *pattern* — never the URL, which carries ids — and the
   commit as the release.
-- Traces are off. They would carry a timing for every request and buy nothing
+- Traces are off, by giving the SDK no `tracesSampleRate` at all (a zero still enables tracing). They would carry a timing for every request and buy nothing
   a log line does not already give, and the free tier is for errors.
 
 ## Consequences
