@@ -20,3 +20,11 @@
   font-size: var(--font-size-03);
   padding: var(--space-03) var(--space-04);
 }
+
+/* Nothing went wrong and nothing was deleted: a state with its way out, so the warning
+   edge (as `CareInviteForm`'s), not the red box of a failure. */
+.signInAgain {
+  border-inline-start: 3px solid var(--color-warning);
+  font-size: var(--font-size-03);
+  padding-inline-start: var(--space-04);
+}

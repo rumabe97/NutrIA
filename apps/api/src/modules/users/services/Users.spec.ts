@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, jest } from '@jest/globals';
+import { APIError } from 'better-auth/api';
 
 import { ProfessionalController } from 'core/controllers/Professional';
 import { UserController } from 'core/controllers/User';
+import { ReauthenticationRequiredError } from 'core/entities/Error';
 
 import { UsersService } from './Users.service.js';
 
@@ -76,5 +78,51 @@ describe('UsersService.me — professional', () => {
     jest.spyOn(ProfessionalController, 'hasAccess').mockRejectedValue(new Error('settings unreachable'));
 
     await expect(service.me('usr-1')).resolves.toEqual({ ...ACCOUNT, professional: false });
+  });
+});
+
+/*
+ * Production, 2026-09-30: a Google account deleting itself from a session older
+ * than a day got a 500. Better Auth refuses that delete on purpose — no password,
+ * a stale session — and the refusal must reach the person as something to do,
+ * not as a failure. The rule itself is not relaxed.
+ */
+describe('UsersService.remove', () => {
+  function harness(deleteUser: (input: { body: object; headers: Headers }) => Promise<unknown>) {
+    const spy = jest.fn(deleteUser);
+
+    return { deleteUser: spy, service: new UsersService({ api: { deleteUser: spy } } as unknown as Auth) };
+  }
+
+  it('asks Better Auth to delete the session’s own account, with no password and nothing else in the body', async () => {
+    const { deleteUser, service } = harness(async () => ({ message: 'User deleted', success: true }));
+
+    await service.remove({ cookie: 'better-auth.session_token=abc' });
+
+    expect(deleteUser).toHaveBeenCalledTimes(1);
+    expect(deleteUser.mock.calls[0]?.[0].body).toEqual({});
+    expect(deleteUser.mock.calls[0]?.[0].headers.get('cookie')).toBe('better-auth.session_token=abc');
+  });
+
+  it('turns a session too old to delete with into ReauthenticationRequiredError', async () => {
+    const { service } = harness(() =>
+      Promise.reject(APIError.from('BAD_REQUEST', { code: 'SESSION_EXPIRED', message: 'Session expired. Re-authenticate to perform this action.' }))
+    );
+
+    await expect(service.remove({})).rejects.toBeInstanceOf(ReauthenticationRequiredError);
+  });
+
+  it('lets any other Better Auth refusal through untouched, for the filter to translate', async () => {
+    const refusal = APIError.from('BAD_REQUEST', { code: 'INVALID_PASSWORD', message: 'Invalid password' });
+    const { service } = harness(() => Promise.reject(refusal));
+
+    await expect(service.remove({})).rejects.toBe(refusal);
+  });
+
+  it('lets a failure that is not Better Auth’s through untouched — Stripe unreachable stays a 500 and the account stays', async () => {
+    const failure = new Error('Stripe could not be reached');
+    const { service } = harness(() => Promise.reject(failure));
+
+    await expect(service.remove({})).rejects.toBe(failure);
   });
 });

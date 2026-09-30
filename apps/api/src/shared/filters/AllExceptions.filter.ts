@@ -1,4 +1,5 @@
 import { ArgumentsHost, Catch, HttpException, HttpStatus, Logger } from '@nestjs/common';
+import { isAPIError } from 'better-auth/api';
 
 import {
   AccountNotActivatedError,
@@ -15,6 +16,7 @@ import {
   PracticeFullError,
   ProfileConsentRequiredError,
   QuotaExceededError,
+  ReauthenticationRequiredError,
   SafetyViolationError,
   UnauthorizedError,
   UnderMinimumAgeError
@@ -62,6 +64,60 @@ function parserRefusal(exception: unknown): ErrorBody | null {
   const refusal = typeof type === 'string' && Object.hasOwn(PARSER_REFUSALS, type) ? PARSER_REFUSALS[type] : undefined;
 
   return refusal ? { code: 'REQUEST_ERROR', ...refusal } : null;
+}
+
+/**
+ * The Better Auth codes sent on as `AUTH_<CODE>`: each is about the caller's own
+ * account, which the caller already holds a session for, so none of them says
+ * anything about anybody else. Every other code becomes `AUTH_ERROR`. That
+ * matters for the day a new server-side caller reaches `auth.api.signUpEmail`
+ * or `changeEmail`: `USER_ALREADY_EXISTS` passed through would tell a stranger
+ * that an address has an account. A new code is added here only after that
+ * question is asked of it.
+ */
+const AUTH_CODES: ReadonlySet<string> = new Set(['CREDENTIAL_ACCOUNT_NOT_FOUND', 'INVALID_PASSWORD', 'SESSION_EXPIRED']);
+
+/**
+ * A refusal Better Auth threw from one of *our* calls to `auth.api.*` (its own
+ * routes under `/auth` answer through its handler and never reach this filter).
+ *
+ * This is the safety net, not the contract. A caller that expects a refusal
+ * catches it itself and throws a domain error, as `UsersService.remove` does
+ * with `SESSION_EXPIRED`. Unrecognised, it used to be a 500. Now it keeps its
+ * status, with a stable code (`AUTH_<CODE>` for the codes in `AUTH_CODES`,
+ * `AUTH_ERROR` otherwise), and never its message: that is English, written for
+ * developers, and may name what it checked. Two exceptions, each an existing
+ * rule: a 401, 403 or 404 is a denial and gets the same bytes as `SessionGuard`'s
+ * own; a 5xx, or a status that is not an HTTP error, stays the generic 500 that
+ * is logged and reported.
+ */
+function authRefusal(exception: unknown): ErrorBody | null {
+  // `isAPIError` also accepts anything whose `name` is 'APIError'. Only better-call
+  // throws that name in the installed tree (checked 2026-10-01). If a dependency ever
+  // does too, its 4xx would land here, and a 4xx is neither logged nor reported.
+  if (!isAPIError(exception)) {
+    return null;
+  }
+
+  const status = (exception as { statusCode?: unknown }).statusCode;
+
+  if (typeof status !== 'number' || status < HttpStatus.BAD_REQUEST || status >= HttpStatus.INTERNAL_SERVER_ERROR) {
+    return null;
+  }
+
+  if (status === HttpStatus.UNAUTHORIZED || status === HttpStatus.FORBIDDEN || status === HttpStatus.NOT_FOUND) {
+    // Word for word what `SessionGuard`'s `NotFoundException` answers: a session
+    // that vanishes mid-request looks exactly like a request with no cookie.
+    return { code: 'NOT_FOUND', message: 'Not Found', statusCode: HttpStatus.NOT_FOUND };
+  }
+
+  const code = (exception as { body?: { code?: unknown } }).body?.code;
+
+  return {
+    code: typeof code === 'string' && AUTH_CODES.has(code) ? `AUTH_${code}` : 'AUTH_ERROR',
+    message: 'No se ha podido completar la operación.',
+    statusCode: status
+  };
 }
 
 /**
@@ -164,6 +220,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
       return { code: 'EMAIL_NOT_VERIFIED', message: 'Confirma tu correo para continuar.', statusCode: HttpStatus.CONFLICT };
     }
 
+    if (exception instanceof ReauthenticationRequiredError) {
+      // A state the person fixes themselves: sign out, sign in, and the same
+      // request goes through. The only act that asks for it is deleting the account.
+      return {
+        code: 'REAUTHENTICATION_REQUIRED',
+        message: 'Por seguridad, vuelve a iniciar sesión para borrar tu cuenta.',
+        statusCode: HttpStatus.CONFLICT
+      };
+    }
+
     if (exception instanceof MealInFutureError) {
       return { code: 'MEAL_IN_FUTURE', message: 'Todavía no puedes marcar esta comida.', statusCode: HttpStatus.CONFLICT };
     }
@@ -234,6 +300,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     return (
+      authRefusal(exception) ??
       parserRefusal(exception) ?? {
         code: 'INTERNAL_ERROR',
         message: 'Algo ha ido mal. Inténtalo de nuevo.',

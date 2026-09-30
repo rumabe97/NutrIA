@@ -31,6 +31,7 @@ export type ApiErrorCode =
   | 'PRACTICE_FULL'
   | 'PROFILE_CONSENT_REQUIRED'
   | 'QUOTA_EXCEEDED'
+  | 'REAUTHENTICATION_REQUIRED'
   | 'REQUEST_ERROR'
   | 'UNDER_MINIMUM_AGE'
   | 'UNSAFE_CONTENT';
@@ -81,13 +82,20 @@ const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   PRACTICE_FULL: 'practiceFull',
   PROFILE_CONSENT_REQUIRED: 'profileConsentRequired',
   QUOTA_EXCEEDED: 'quotaExceeded',
+  REAUTHENTICATION_REQUIRED: 'reauthenticationRequired',
   REQUEST_ERROR: 'request',
   UNDER_MINIMUM_AGE: 'underMinimumAge',
   UNSAFE_CONTENT: 'unsafeContent'
 };
 
 export function messageFor(error: unknown, dictionary: Dictionary): string {
-  return dictionary.errors[error instanceof ApiError ? MESSAGE_KEYS[error.code] : 'internal'];
+  if (!(error instanceof ApiError)) {
+    return dictionary.errors.internal;
+  }
+
+  // A code this build does not know yet (the API adds them — `AUTH_*` from Better Auth's
+  // refusals, say) still says something, rather than an empty alert.
+  return dictionary.errors[MESSAGE_KEYS[error.code] ?? 'request'];
 }
 
 type Options = Omit<RequestInit, 'body'> & { body?: unknown };

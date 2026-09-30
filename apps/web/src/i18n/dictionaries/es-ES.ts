@@ -1372,6 +1372,7 @@ export const esES = {
     practiceFull: 'Tu consulta ya tiene todos los pacientes que incluye tu plan.',
     profileConsentRequired: 'Nos falta tu consentimiento para tratar tus datos de salud.',
     quotaExceeded: 'Has agotado lo que permite tu plan esta quincena.',
+    reauthenticationRequired: 'Por seguridad, cierra sesión, vuelve a entrar e inténtalo de nuevo.',
     request: 'No hemos podido completar la acción.',
     underMinimumAge: 'NutrIA es para mayores de 18 años.',
     unsafeContent: 'Ese contenido no cumple tus restricciones alimentarias.'
@@ -2379,6 +2380,8 @@ export const esES = {
     deleteFailed: 'No hemos podido borrar la cuenta. Inténtalo de nuevo.',
     deletePending: 'Borrando…',
     deletePrompt: 'Escribe {word} para confirmar.',
+    deleteSignInAgain: 'Cerrar sesión y volver a entrar',
+    deleteSignInAgainBody: 'Por seguridad, para borrar tu cuenta tienes que haber iniciado sesión hoy. Cierra sesión, vuelve a entrar y bórrala.',
     deleteTypeLabel: 'Escribe {word}',
     deleteWord: 'BORRAR',
     dietaryPatterns: 'Tipo de alimentación',

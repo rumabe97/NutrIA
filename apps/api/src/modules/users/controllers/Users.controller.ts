@@ -1,5 +1,5 @@
 import { Controller, Delete, Get, HttpCode, HttpStatus, Req } from '@nestjs/common';
-import { ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiConflictResponse, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 import { AllowUnverified, CurrentUser } from '../../../shared/index.js';
 import { UsersService } from '../services/index.js';
@@ -27,6 +27,9 @@ export class UsersController {
   }
 
   @AllowUnverified()
+  @ApiConflictResponse({
+    description: '`REAUTHENTICATION_REQUIRED`: the session is older than a day. Nothing was touched; sign in again and delete.'
+  })
   @ApiNoContentResponse({ description: 'Deleted, along with every row that references the account.' })
   @ApiOperation({ summary: 'Permanently delete the account and every row that references it' })
   @Delete('me')

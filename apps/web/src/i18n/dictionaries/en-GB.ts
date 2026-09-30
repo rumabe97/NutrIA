@@ -1340,6 +1340,7 @@ export const enGB: Dictionary = {
     practiceFull: 'Your practice already has all the clients your plan includes.',
     profileConsentRequired: 'We need your consent to handle your health data.',
     quotaExceeded: 'You have used up what your plan allows this fortnight.',
+    reauthenticationRequired: 'For your security, sign out, sign back in and try again.',
     request: 'We could not complete that action.',
     underMinimumAge: 'NutrIA is for adults, 18 and over.',
     unsafeContent: 'That content does not meet your dietary restrictions.'
@@ -2335,6 +2336,8 @@ export const enGB: Dictionary = {
     deleteFailed: 'We could not delete the account. Please try again.',
     deletePending: 'Deleting…',
     deletePrompt: 'Type {word} to confirm.',
+    deleteSignInAgain: 'Sign out and sign in again',
+    deleteSignInAgainBody: 'For your security, you need to have signed in today to delete your account. Sign out, sign back in and delete it.',
     deleteTypeLabel: 'Type {word}',
     deleteWord: 'DELETE',
     dietaryPatterns: 'Way of eating',

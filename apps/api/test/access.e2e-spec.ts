@@ -3,8 +3,9 @@ import request from 'supertest';
 
 import { UserController } from 'core/controllers/User';
 import { UNAUDITED } from 'core/entities/Audit';
+import { database } from 'database';
 
-import { createApp, deleteAccounts, httpServer, PREFIX, ScriptedAiClient } from './harness.js';
+import { createApp, deleteAccountByEmail, deleteAccounts, httpServer, PREFIX, ScriptedAiClient } from './harness.js';
 
 import type { INestApplication } from '@nestjs/common';
 import type { Response } from 'supertest';
@@ -21,6 +22,46 @@ import type { Response } from 'supertest';
  * Requires a real database — see ./README.md.
  */
 const PASSWORD = 'correct-horse-battery-staple-9';
+
+/** The suite's raw handle on the tables, for what no route may write or read. */
+function tables() {
+  return (database() as unknown as { readonly $client: <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]> })
+    .$client;
+}
+
+/**
+ * Sets every session of this account back two days, past Better Auth's
+ * `freshAge` (one day), so the next delete meets the session a person has
+ * after signing in on Monday and deleting on Wednesday. Written on the table:
+ * no route can age a session, and waiting a day is not a test.
+ */
+async function ageSessions(userId: string): Promise<void> {
+  const aged = await tables()<{ id: string }>`
+    update session set created_at = now() - interval '2 days' where user_id = ${userId} returning id`;
+
+  if (aged.length === 0) {
+    throw new Error(`No session to age for: ${userId}`);
+  }
+}
+
+/**
+ * An invitation addressed to `email` from `professionalId`, written on the table.
+ * What it stands for is `beforeDelete`'s own work: `CareController.forgetAddress`
+ * deletes it, so while it is there, `beforeDelete` has not run. Written on the
+ * table because the route needs the whole workspace (switch, grant, agreement,
+ * practice), and `care.e2e-spec.ts` is the suite about that.
+ */
+async function invitationTo(email: string, professionalId: string): Promise<void> {
+  await tables()`
+    insert into care_invitations (email, expires_at, professional_id, token_hash)
+    values (${email.toLowerCase()}, now() + interval '14 days', ${professionalId}, ${`e2e-stale-delete-${Date.now()}`})`;
+}
+
+async function invitationsTo(email: string): Promise<number> {
+  const rows = await tables()<{ id: string }>`select id from care_invitations where email = ${email.toLowerCase()}`;
+
+  return rows.length;
+}
 
 describe('access: two locks, and the shape of a denial', () => {
   let app: INestApplication;
@@ -263,5 +304,64 @@ describe('access: two locks, and the shape of a denial', () => {
     expect(text.toLowerCase()).not.toContain('iphash');
     expect(text.toLowerCase()).not.toContain('entityid');
     await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: PASSWORD }).expect(401);
+  });
+
+  /*
+   * Production, 2026-09-30: deleting from a session older than a day was a 500.
+   * Better Auth refuses it on purpose, since a stolen session must not delete an
+   * account, and the refusal is now a state to act on: sign in again, then delete.
+   * It comes before anything is touched: Stripe, invitations, rows.
+   */
+  it('refuses to delete from a session older than a day, touching nothing, and deletes from a fresh one', async () => {
+    const email = `locks-stale-delete-${stamp}@e2e.invalid`;
+    const staleCookie = await signUp(email);
+    const server = httpServer(app);
+
+    try {
+      await UserController.confirmAddress(email);
+      await UserController.activate({ email }, UNAUDITED);
+      await request(server).patch(`/${PREFIX}/profile`).set('Cookie', staleCookie).send({ displayName: 'Stays' }).expect(200);
+
+      const me: Response = await request(server).get(`/${PREFIX}/users/me`).set('Cookie', staleCookie).expect(200);
+      const userId = (me.body as { id: string }).id;
+
+      // Somebody who invited this address: the row `beforeDelete` would clear. Deleted with the suite's accounts.
+      const inviterCookie = await signUp(`locks-stale-inviter-${stamp}@e2e.invalid`);
+      const inviter: Response = await request(server).get(`/${PREFIX}/users/me`).set('Cookie', inviterCookie).expect(200);
+
+      await invitationTo(email, (inviter.body as { id: string }).id);
+      await ageSessions(userId);
+
+      const refused: Response = await request(server).delete(`/${PREFIX}/users/me`).set('Cookie', staleCookie).expect(409);
+
+      expect(refused.body).toEqual({
+        code: 'REAUTHENTICATION_REQUIRED',
+        message: 'Por seguridad, vuelve a iniciar sesión para borrar tu cuenta.',
+        statusCode: 409
+      });
+
+      // Nothing went: the account, its profile, its session and its password all still answer.
+      const still: Response = await request(server).get(`/${PREFIX}/users/me`).set('Cookie', staleCookie).expect(200);
+      const profile: Response = await request(server).get(`/${PREFIX}/profile`).set('Cookie', staleCookie).expect(200);
+
+      expect((still.body as { id: string }).id).toBe(userId);
+      expect(profile.body).toMatchObject({ profile: { displayName: 'Stays' } });
+      // …and `beforeDelete` never ran: the invitation it clears first is still there.
+      expect(await invitationsTo(email)).toBe(1);
+
+      // The way through, the one the screen offers: sign in again, then delete.
+      const signIn: Response = await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: PASSWORD }).expect(200);
+      const freshCookie = (signIn.headers['set-cookie'] as unknown as string[]).join('; ');
+
+      await request(server).delete(`/${PREFIX}/users/me`).set('Cookie', freshCookie).expect(204);
+      // The fresh delete does run it: the address is forgotten along with the account.
+      expect(await invitationsTo(email)).toBe(0);
+      await request(server).get(`/${PREFIX}/users/me`).set('Cookie', freshCookie).expect(404);
+      await request(server).get(`/${PREFIX}/users/me`).set('Cookie', staleCookie).expect(404);
+      await request(server).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: PASSWORD }).expect(401);
+    } finally {
+      // The aged cookie in `made` can no longer delete it; if the test stopped half-way, this still does.
+      await deleteAccountByEmail(app, email, PASSWORD);
+    }
   });
 });
