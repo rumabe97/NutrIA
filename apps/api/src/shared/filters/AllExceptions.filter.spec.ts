@@ -1,5 +1,6 @@
 import { BadRequestException, HttpStatus, NotFoundException } from '@nestjs/common';
 import { describe, expect, it, jest } from '@jest/globals';
+import { APIError } from 'better-auth/api';
 
 import {
   AccountNotActivatedError,
@@ -11,6 +12,7 @@ import {
   PictureRetryRefusedError,
   ProfileConsentRequiredError,
   QuotaExceededError,
+  ReauthenticationRequiredError,
   SafetyViolationError,
   UnauthorizedError,
   UnderMinimumAgeError
@@ -167,5 +169,79 @@ describe('AllExceptionsFilter', () => {
 
   it('labels a Nest 404 with the same code as a domain 404', () => {
     expect(capture(new NotFoundException()).body.code).toBe('NOT_FOUND');
+  });
+
+  /*
+   * Account deletion from a session older than a day (production, 2026-09-30):
+   * Better Auth's `SESSION_EXPIRED`, turned into this by `UsersService.remove`,
+   * was a 500. It is a state the person fixes by signing in again.
+   */
+  it('maps a session too old to delete the account to 409 REAUTHENTICATION_REQUIRED, with the words for it', () => {
+    expect(capture(new ReauthenticationRequiredError()).body).toEqual({
+      code: 'REAUTHENTICATION_REQUIRED',
+      message: 'Por seguridad, vuelve a iniciar sesión para borrar tu cuenta.',
+      statusCode: HttpStatus.CONFLICT
+    });
+  });
+
+  /* Any other refusal Better Auth throws from one of our own `auth.api.*` calls. */
+  describe('a Better Auth refusal', () => {
+    it('keeps its 4xx status and its code, prefixed, but never its message', () => {
+      const { body } = capture(APIError.from('BAD_REQUEST', { code: 'INVALID_PASSWORD', message: 'Invalid password' }));
+
+      expect(body).toEqual({ code: 'AUTH_INVALID_PASSWORD', message: 'No se ha podido completar la operación.', statusCode: HttpStatus.BAD_REQUEST });
+    });
+
+    it('is not logged or reported as a server failure', () => {
+      const report = jest.fn();
+      const filter = new AllExceptionsFilter({ report } as never);
+      const error = jest.fn();
+      const host = {
+        switchToHttp: () => ({ getRequest: () => ({ method: 'DELETE' }), getResponse: () => ({ status: () => ({ json: jest.fn() }) }) })
+      } as unknown as ArgumentsHost;
+
+      Object.assign(filter, { logger: { error } });
+      filter.catch(APIError.from('BAD_REQUEST', { code: 'SESSION_EXPIRED', message: 'Session expired.' }), host);
+      expect(report).not.toHaveBeenCalled();
+      expect(error).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL', 422],
+      ['USER_NOT_FOUND', 400],
+      ['postgres://user:hunter2@db', 400]
+    ] as const)(
+      'answers a code not on the list (%s) as AUTH_ERROR, never echoing it — no answer may say an address has an account',
+      (code, statusCode) => {
+        expect(capture(new APIError(statusCode, { code, message: 'x' })).body).toEqual({
+          code: 'AUTH_ERROR',
+          message: 'No se ha podido completar la operación.',
+          statusCode
+        });
+      }
+    );
+
+    it.each(['UNAUTHORIZED', 'FORBIDDEN', 'NOT_FOUND'] as const)(
+      'turns %s into the one denial there is, byte for byte what SessionGuard answers without a cookie',
+      status => {
+        const denial = capture(new APIError(status, { code: 'FAILED_TO_GET_SESSION', message: 'Unauthorized' })).body;
+        const noCookie = capture(new NotFoundException()).body;
+
+        expect(denial).toEqual({ code: 'NOT_FOUND', message: 'Not Found', statusCode: HttpStatus.NOT_FOUND });
+        expect(JSON.stringify(denial)).toBe(JSON.stringify(noCookie));
+      }
+    );
+
+    it('stays the generic 500 when Better Auth itself failed', () => {
+      expect(capture(APIError.from('INTERNAL_SERVER_ERROR', { code: 'FAILED_TO_GET_SESSION', message: 'db down at 10.0.0.3' })).body).toEqual({
+        code: 'INTERNAL_ERROR',
+        message: 'Algo ha ido mal. Inténtalo de nuevo.',
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR
+      });
+    });
+
+    it('does not mistake an ordinary error that carries a 4xx statusCode for one', () => {
+      expect(capture(Object.assign(new Error('card declined'), { statusCode: 402 })).body.statusCode).toBe(HttpStatus.INTERNAL_SERVER_ERROR);
+    });
   });
 });

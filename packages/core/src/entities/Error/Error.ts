@@ -213,6 +213,24 @@ export class UnderMinimumAgeError extends Error {
   }
 }
 
+/**
+ * An irreversible act on the caller's own account asked from a session that is
+ * no longer fresh: older than Better Auth's `freshAge` (one day) with no
+ * password to stand in for it. Deleting the account is the one such act today.
+ *
+ * A state, not a denial: the account is the caller's, and signing in again
+ * makes the same request succeed. 409 like the other states a screen explains.
+ * It is not a 401, which the web app reads as "signed out", and not a 403,
+ * which this codebase never answers. The rule itself is not relaxed: a stolen
+ * session older than a day must not be able to delete an account.
+ */
+export class ReauthenticationRequiredError extends Error {
+  constructor(message = 'Reauthentication required') {
+    super(message);
+    this.name = 'ReauthenticationRequiredError';
+  }
+}
+
 export class OnboardingIncompleteError extends Error {
   constructor(public readonly missingSteps: readonly string[] = []) {
     super('Onboarding incomplete');

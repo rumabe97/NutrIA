@@ -1,14 +1,19 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { isAPIError } from 'better-auth/api';
 import { fromNodeHeaders } from 'better-auth/node';
 
 import { ProfessionalController } from 'core/controllers/Professional';
 import { UserController } from 'core/controllers/User';
+import { ReauthenticationRequiredError } from 'core/entities/Error';
 
 import { AUTH } from '../../auth/auth.config.js';
 
 import type { Auth } from '../../auth/auth.config.js';
 import type { IncomingHttpHeaders } from 'node:http';
 import type { UserDto } from '../dto/out/index.js';
+
+/** Better Auth's code for a session too old for a sensitive act (`BASE_ERROR_CODES.SESSION_EXPIRED`). */
+const SESSION_EXPIRED = 'SESSION_EXPIRED';
 
 @Injectable()
 export class UsersService {
@@ -47,8 +52,26 @@ export class UsersService {
    * It takes the request's headers rather than a user id because Better Auth
    * deletes the account the *session* belongs to — an id would be an id
    * somebody chose, which is the one thing no delete may accept.
+   *
+   * No password is passed, on purpose: Better Auth then asks for a *fresh*
+   * session (created within `freshAge`, one day) and refuses an older one with
+   * `SESSION_EXPIRED`, before `beforeDelete` runs (Stripe, invitations) and
+   * before any row goes. So a refused delete touches nothing. That refusal
+   * becomes `ReauthenticationRequiredError` (409 `REAUTHENTICATION_REQUIRED`):
+   * sign in again, then delete. A password is not accepted in its place because
+   * Better Auth's rate limit does not cover a call made from here, and this
+   * route would become an unthrottled password oracle for a stolen session.
+   * Any other refusal goes on to `AllExceptionsFilter`, which translates it.
    */
   async remove(headers: IncomingHttpHeaders): Promise<void> {
-    await this.auth.api.deleteUser({ body: {}, headers: fromNodeHeaders(headers) });
+    try {
+      await this.auth.api.deleteUser({ body: {}, headers: fromNodeHeaders(headers) });
+    } catch (error) {
+      if (isAPIError(error) && (error.body as { code?: unknown } | undefined)?.code === SESSION_EXPIRED) {
+        throw new ReauthenticationRequiredError();
+      }
+
+      throw error;
+    }
   }
 }

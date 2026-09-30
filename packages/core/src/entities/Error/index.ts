@@ -13,6 +13,7 @@ export {
   PracticeFullError,
   ProfileConsentRequiredError,
   QuotaExceededError,
+  ReauthenticationRequiredError,
   SafetyViolationError,
   UnauthorizedError,
   UnderMinimumAgeError

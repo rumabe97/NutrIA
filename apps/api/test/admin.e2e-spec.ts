@@ -2693,7 +2693,8 @@ describe('admin', () => {
         }
 
         // The last cohort is this month; the account made in `beforeAll` is one of its people.
-        expect(current.start).toBe(`${new Date().toISOString().slice(0, 7)}-01`);
+        // Madrid's month, as the console keys it: near midnight on the last day, UTC is still the month before.
+        expect(current.start).toBe(`${madridDay(new Date().toISOString()).slice(0, 7)}-01`);
         expect(current.size).toBeGreaterThanOrEqual(1);
         expect(current.cells.map(cell => ({ active: cell.active, enough: cell.enough }))).toEqual(
           current.cells.map(() => ({ active: null, enough: false }))
