@@ -435,6 +435,36 @@ describe('the owner is told that dish pictures failed (0072, phase 1)', () => {
     });
   });
 
+  describe('a picture the owner took back', () => {
+    it('is a failed row and no failure: it is counted in no mail, alone or beside a drawing that did fail', async () => {
+      const [removed, failing] = [dish(0), dish(1)];
+      const now = new Date();
+
+      // As `POST …/picture/remove` leaves the row (`0072`, phase 3): failed, dated at the removal, the closed reason and nothing else.
+      await seed(removed.id, new Date(now.getTime() - 10 * MINUTE), 'owner_removed');
+      await sql()`update recipe_images set provenance = ${JSON.stringify({ reason: 'owner_removed' })}::text::jsonb where recipe_id = ${removed.id}`;
+      await service(mailed).pictureFailures(now);
+
+      // Alone: nothing to tell the owner about their own act, and no claim spent on it.
+      expect(pictureMails()).toEqual([]);
+      expect(await claims(FAILED)).toEqual([]);
+      expect(await sentRows()).toEqual([]);
+
+      // Beside a drawing that failed: one mail, which counts that one and does not name the removal.
+      await seed(failing.id, new Date(now.getTime() - 5 * MINUTE), 'call_failed');
+      await service(mailed).pictureFailures(now);
+
+      const [mail] = pictureMails();
+
+      expect(pictureMails()).toHaveLength(1);
+      expect(mail?.subject).toBe(`${FAILED_SUBJECT}1`);
+      expect(mail?.text).toContain('Por motivo: La llamada falló: 1.');
+      expect(`${mail?.text ?? ''}${mail?.html ?? ''}`).not.toContain('Retirada a mano');
+      expectClean(mail as Sent);
+      expect(await claims(FAILED)).toHaveLength(1);
+    });
+  });
+
   describe('three failures inside the hour', () => {
     it('send one mail, and the next call past the hour carries the other two', async () => {
       const [first, second, third] = [dish(0), dish(1), dish(2)];

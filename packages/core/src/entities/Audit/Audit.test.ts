@@ -19,11 +19,11 @@ describe('auditQuerySchema', () => {
     expect(AUDIT_ACTIONS).toContain('picture.retried');
   });
 
-  /* 0072: discarding a candidate is an admin mutation. Accepting and removing one are not built yet, so they are not names yet. */
-  it('names the owner’s discard of a candidate, and no acceptance or removal of one', () => {
+  /* 0072: discarding, accepting and removing a picture by hand are admin mutations, each with its own name. */
+  it('names the owner’s discard and acceptance of a candidate, and the removal of an accepted one', () => {
     expect(AUDIT_ACTIONS).toContain('picture.discarded');
-    expect(AUDIT_ACTIONS).not.toContain('picture.accepted');
-    expect(AUDIT_ACTIONS).not.toContain('picture.removed');
+    expect(AUDIT_ACTIONS).toContain('picture.accepted');
+    expect(AUDIT_ACTIONS).toContain('picture.removed');
   });
 
   it('coerces and bounds offset and size', () => {

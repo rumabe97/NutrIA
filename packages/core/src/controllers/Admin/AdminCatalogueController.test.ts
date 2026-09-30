@@ -62,9 +62,11 @@ function recipe(overrides: Partial<CatalogueRecipeRow>): CatalogueRecipeRow {
     mealSlots: ['lunch'],
     name: 'Bocadillo',
     picture: 'none',
+    pictureAcceptedByHand: false,
     pictureAt: null,
     pictureFailed: false,
     pictureProvenance: null,
+    pictureUrl: null,
     servings: 1,
     slug: 'bocadillo',
     source: 'seed',
@@ -150,6 +152,7 @@ describe('byFigure', () => {
     mealSlots: [],
     name,
     picture: 'none',
+    pictureAcceptedByHand: false,
     pictureCandidate: null,
     pictureReason: null,
     proteinG: null,
@@ -209,6 +212,7 @@ describe('AdminCatalogueController.recipes', () => {
         mealSlots: ['lunch'],
         name: 'Bocadillo',
         picture: 'none',
+        pictureAcceptedByHand: false,
         pictureCandidate: null,
         pictureReason: null,
         proteinG: 25.8,
@@ -284,6 +288,7 @@ describe('AdminCatalogueController.recipes', () => {
         'mealSlots',
         'name',
         'picture',
+        'pictureAcceptedByHand',
         'pictureCandidate',
         'pictureReason',
         'proteinG',
@@ -453,6 +458,71 @@ describe('a dish’s candidate on the table', () => {
   });
 });
 
+/* Project 009, phase 3: what lets the console offer "Retirar" on a hand-accepted picture, and only there. */
+describe('a hand-accepted picture on the table', () => {
+  const NOW = new Date('2026-09-30T12:00:00Z');
+
+  it('is a closed flag, true only for a ready picture the row says was accepted by hand', async () => {
+    catalogue.recipePage.mockResolvedValue({
+      rows: [
+        recipe({ id: 'r-hand', picture: 'ready', pictureAcceptedByHand: true }),
+        recipe({ id: 'r-judge', picture: 'ready' }),
+        // A `ready` row with no file reads `none`: there is nothing to remove from anybody's screen.
+        recipe({ id: 'r-no-file', picture: 'none', pictureAcceptedByHand: true }),
+        recipe({ id: 'r-failed', picture: 'failed', pictureFailed: true, pictureProvenance: { reason: 'owner_removed' } })
+      ],
+      total: 4
+    });
+
+    const { rows } = await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({}), STEPS, NOW);
+
+    expect(rows.map(row => [row.id, row.pictureAcceptedByHand])).toEqual([
+      ['r-hand', true],
+      ['r-judge', false],
+      ['r-no-file', false],
+      ['r-failed', false]
+    ]);
+    expect(rows[3]).toMatchObject({ picture: 'failed', pictureReason: 'owner_removed' });
+  });
+
+  /* Step 6 not done yet: the ready row still holds the candidate's pointer until its private file is deleted. */
+  it('shows no candidate on a ready row that still holds the pointer, whatever reaches the controller of what the row stored', async () => {
+    const lingering = {
+      acceptedBy: 'owner',
+      candidate: {
+        extras: [{ foreignAllergens: ['milk'], mappedTo: ['queso'] }],
+        model: 'stub/picture',
+        path: 'dish-picture-candidates/6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f/2.0.0-0b7e3f2a-5c1d-4e8f-9a6b-7c8d9e0f1a2b.jpg',
+        promptVersion: '2.0.0'
+      },
+      overriddenAllergens: ['milk']
+    };
+
+    // The read selects a provenance only from a failed row (`AdminCatalogueRepository.test`); even handed one, a row that is not failed shows none.
+    catalogue.recipePage.mockResolvedValue({
+      rows: [recipe({ picture: 'ready', pictureAcceptedByHand: true, pictureAt: NOW, pictureProvenance: lingering })],
+      total: 1
+    });
+    catalogue.recipe.mockResolvedValue(recipe({ picture: 'ready', pictureAcceptedByHand: true, pictureAt: NOW, pictureProvenance: lingering }));
+
+    const [row] = (await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({}), STEPS, NOW)).rows;
+    const one = await AdminCatalogueController.recipe('6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f', NOW);
+
+    for (const view of [row, one]) {
+      expect(view).toMatchObject({ picture: 'ready', pictureAcceptedByHand: true, pictureCandidate: null, pictureReason: null, retryableAt: null });
+      expect(JSON.stringify(view)).not.toMatch(/dish-picture-candidates|0b7e3f2a|stub\/picture/);
+    }
+  });
+
+  it('says nothing of who accepted it, which allergens were overridden or where the file is', async () => {
+    catalogue.recipePage.mockResolvedValue({ rows: [recipe({ picture: 'ready', pictureAcceptedByHand: true })], total: 1 });
+
+    const answer = JSON.stringify(await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({}), STEPS, NOW));
+
+    expect(answer).not.toMatch(/acceptedBy"|overriddenAllergens|dish-pictures|https?:/);
+  });
+});
+
 /* Project 009, step 4 as amended: one recipe by id with its ingredients — what a rejected picture is reviewed against. */
 describe('AdminCatalogueController.recipe', () => {
   const ID = '6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f';
@@ -473,10 +543,12 @@ describe('AdminCatalogueController.recipe', () => {
 
     const view = await AdminCatalogueController.recipe(ID, NOW);
     const [listed] = (await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({}), STEPS, NOW)).rows;
-    const { ingredients, ...row } = view;
+    const { ingredients, pictureUrl, ...row } = view;
 
     expect(catalogue.recipe).toHaveBeenCalledWith(ID);
+    // The table's row, plus the two things only this read carries.
     expect(row).toEqual(listed);
+    expect(pictureUrl).toBeNull();
     expect(ingredients).toEqual([
       { grams: 120, name: BREAD.name, slug: 'pan' },
       { grams: 60, name: CHEESE.name, slug: 'queso' },
@@ -507,6 +579,43 @@ describe('AdminCatalogueController.recipe', () => {
       ingredients: [{ name: CHEESE.name, slug: 'queso' }]
     });
     expect(JSON.stringify(view)).not.toMatch(/dish-picture-candidates|0b7e3f2a|cheddar|stub\/picture|https?:/);
+  });
+
+  /* Project 009, phase 3: the review page shows the picture the owner is about to take back. */
+  it('carries the public address of a ready picture, and none for any other — the list’s rows never do', async () => {
+    const address = `https://store.example/dish-pictures/${ID}/2.0.0-published.jpg`;
+
+    catalogue.recipe.mockResolvedValue(recipe({ id: ID, picture: 'ready', pictureAcceptedByHand: true, pictureUrl: address }));
+    await expect(AdminCatalogueController.recipe(ID, NOW)).resolves.toMatchObject({ picture: 'ready', pictureUrl: address });
+
+    // A failed row holding a candidate: its file has no address, and the path never stands in for one.
+    catalogue.recipe.mockResolvedValue(
+      recipe({
+        id: ID,
+        picture: 'failed',
+        pictureAt: new Date(NOW.getTime() - 3_600_000),
+        pictureFailed: true,
+        pictureProvenance: { candidate: { extras: [], model: 'stub/picture', path: PATH, promptVersion: '2.0.0' }, reason: 'judge_allergen' }
+      })
+    );
+
+    const failed = await AdminCatalogueController.recipe(ID, NOW);
+
+    expect(failed.pictureUrl).toBeNull();
+    expect(failed.pictureCandidate).not.toBeNull();
+
+    for (const picture of ['none', 'drawing', 'failed'] as const) {
+      // Whatever the row held, only a ready picture has an address to give.
+      catalogue.recipe.mockResolvedValue(recipe({ id: ID, picture, pictureUrl: address }));
+      await expect(AdminCatalogueController.recipe(ID, NOW)).resolves.toMatchObject({ pictureUrl: null });
+    }
+
+    catalogue.recipePage.mockResolvedValue({ rows: [recipe({ id: ID, picture: 'ready', pictureUrl: address })], total: 1 });
+
+    const [row] = (await AdminCatalogueController.recipes(recipeCatalogueQuerySchema.parse({}), STEPS, NOW)).rows;
+
+    expect(Object.keys(row ?? {})).not.toContain('pictureUrl');
+    expect(JSON.stringify(row)).not.toContain('store.example');
   });
 
   it('names nobody: the row’s keys and `ingredients`, nothing else', async () => {

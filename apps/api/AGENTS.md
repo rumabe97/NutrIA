@@ -253,8 +253,9 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     can make and which is written over the body last.
   - **The allergens come from the catalogue, never from the judge.** `judgePicture` gets
     the **whole** catalogue with `mayContain`; a picture showing an extra food with an
-    allergen the dish lacks is rejected: it is never published, never a dish's picture and
-    never in the public store. A judge that fails is a picture not kept.
+    allergen the dish lacks is rejected: no drawing, retry or cron ever publishes it. It reaches
+    the public store and becomes a dish's picture only if the owner accepts it by hand (the second
+    door, below). A judge that fails is a picture not kept.
   - **The file is stored as the model returned it** — no `sharp`, no resize: any
     re-encode breaks Google's C2PA manifest, and a file without one is never kept.
   - **Every paid call is a row in `recipe_image_calls`**, and the cap is their sum; a
@@ -268,7 +269,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     month's spend against the cap. Every screen that shows one carries `legal`'s AI mark.
   - **Why a picture failed, and the owner's retry** (`PictureReason` in `core/entities/DishPicture`): a
     closed set (`judge_allergen`, `judge_rejected`, `no_provenance`, `model_refused`, `payment_refused`,
-    `call_failed`, `cap_reached`, `other`) — never the provider's words. New rows store
+    `call_failed`, `cap_reached`, `owner_removed`, `other`) — never the provider's words. New rows store
     `provenance.reason` (`DishPictureService`); older ones are derived from their notes by kind prefix or
     from `released` (`pictureReasonOf`). `GET /admin/pictures` adds `failedByReason` / `releasedByReason`
     (period, by when the row ended); recipe rows add `pictureReason` and `retryableAt` (null when
@@ -283,9 +284,23 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     `failuresByCode` on `GET /admin/generations/stats`.
   - **A rejected picture waits seven days where only the owner can see it**
     ([`0072`](../../docs/decisions/0072-a-rejected-picture-waits-for-the-owner.md), project 009, which
-    amends `0066`'s "a rejected picture is never stored"). **Nothing publishes a candidate yet**: no
-    route, retry, cron or other code makes one a dish's picture — the owner's acceptance is a later
-    phase, and until it lands the only door to a person is `judgePicture`.
+    amends `0066`'s "a rejected picture is never stored"). **No retry, cron or automatic code
+    publishes a candidate**: the only thing that does is the owner's acceptance, the second door below.
+    - **Two doors, and no third** (`0072`, PRD 009 criterion 8). A picture reaches a person only
+      because (a) `judgePicture` accepted it inside a drawing (`DishPictureService.keep` →
+      `RecipeRepository.completePicture`), or (b) the owner, with an admin session, accepted it by hand
+      after seeing the allergens the judge flagged (`PictureCandidatesService.accept` →
+      `RecipeController.acceptCandidate` → `RecipeRepository.acceptCandidate`), and that acceptance is
+      a `picture.accepted` row written **in the same transaction** that makes the picture `ready`. In
+      both, the published file carries its C2PA manifest — **carries**: `pictureMarks` looks for the
+      manifest's segment in those same bytes and does not verify its signature, at either door. Those two
+      repository methods are the only writes of `status: 'ready'`, and `RecipeRepository.ts` is the only
+      file of `packages/core` that writes `recipe_images` at all — its one insert names its status, since
+      the column still defaults to `'ready'` (a default to drop in a later migration) — and nothing
+      under `apps/api/src` names the table (specs read the sources and pin all of it);
+      `acceptCandidate` is reached only from `POST …/picture/candidate/accept`. **Adding a
+      third caller of either, or a third write of `ready`, is changing this invariant**: it needs a
+      decision record, not a pull request.
     - **What is kept.** One candidate per dish: the last picture of a drawing that carried its C2PA
       manifest and that the judge rejected, held in memory by `DishPictureService` and uploaded
       **only if the drawing ends failed** — an accepted or given-back drawing keeps none, and a
@@ -330,6 +345,84 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
       `lastAttemptAt` stay, so the dish keeps its cool-off and nothing is spent. 404 likewise.
     - **The retry discards the candidate**: checks → claim (which clears `provenance`) → `del()`.
       A deletion that fails there leaves a private file with no pointer: known, accepted.
+    - **Accept** — `POST …/picture/candidate/accept`, `@Roles('admin')`, 30 an hour, body
+      `{ allergens: string[], expiresAt: string }` (`pictureAcceptanceSchema`, strict; 422
+      `INVALID_INPUT` when it is missing or anything else), 200 `{ status: 'ready' }`. After the shared refusals — 404 `Recipe
+      not found`, 409 `PICTURE_FLAG_OFF` (the `dishPictures` switch), 409 `PICTURE_UNAVAILABLE` (either
+      store's token missing) — **six steps, in this order, and the order is the design**
+      (`RecipeController.acceptCandidate`):
+      1. the row is `failed`, holds a candidate and it has not expired (`reviewableCandidate`), else
+         409 `PICTURE_NO_CANDIDATE`;
+      2. the body repeats what the console showed — the second confirmation step, on the server.
+         `expiresAt` is the `pictureCandidate.expiresAt` the page was rendered with, compared as
+         instants (`repeatsExpiry`): it is what says **which** candidate was seen, since it ends the
+         cool-off of the very drawing that left it, so a candidate a retry from another tab left on
+         the same dish — maybe with the same flags, a picture nobody looked at — is refused 409
+         `PICTURE_NO_CANDIDATE`. Then the allergen keys, as a set, are the ones the candidate stores
+         (`repeatsFlaggedAllergens` against `candidateFlags`), else 409 `PICTURE_ALLERGENS_MISMATCH`; a candidate with nothing flagged needs the
+         explicit empty list. **No refusal says which keys are stored**;
+      3. the file is read from the private store and `pictureMarks` runs again on those bytes: not a
+         JPEG with its C2PA manifest → 409 `PICTURE_NOT_ACCEPTABLE` (the mark the row stored is never
+         enough); a file the store no longer has → `PICTURE_NO_CANDIDATE`;
+      4. **those very bytes** — the same array, never re-encoded — are put in the public store at
+         `dish-pictures/<recipeId>/<the candidate's promptVersion>-<random>.jpg`; a write that fails
+         or outlasts its 10 s is followed by a deletion of that path, and answers 500;
+      5. one transaction: the guarded `UPDATE` to `ready` (still `failed`, still that very path, the
+         same `lastAttemptAt` that was read) with `model` and `promptVersion` from the candidate and
+         `provenance { acceptedBy: 'owner', overriddenAllergens, c2pa, trainedAlgorithmicMedia }`,
+         **and** `picture.accepted { allergens }`. Nothing updated (another tab, a retry, a discard,
+         the cleanup) → the public file just written is deleted and 409 `PICTURE_NO_CANDIDATE`; the
+         audit write failing rolls the update back, deletes the public file and answers 500. **Never a
+         `ready` row without its audit row, nor the reverse** — and **the public file is deleted only
+         once it is known that no row points to it**. A transaction that threw may still have committed
+         (a lost answer to `COMMIT`), so the row is read back **under its lock**
+         (`RecipeRepository.settledPicture`: `SELECT … FOR SHARE`, `lock_timeout` 3 s): a plain read
+         could answer "not ready" a moment before an in-flight commit lands, while a locking read waits
+         for the transaction that still holds the row and sees how it ended. `ready` at that very
+         address is an acceptance that happened and goes on to step 6; any other settled state deletes
+         the file; and when the row cannot be had within the timeout, or read at all, the outcome is
+         unknown and the file stays. What is guaranteed: the file is never deleted while a transaction
+         of this acceptance may still commit. What is not: a public file no row points to can be left
+         behind (the unknown branch, a deletion that fails, a function that dies after step 4) —
+         nothing collects it, and that is the accepted price of never leaving a `ready` picture
+         without its file;
+      6. the private file is deleted, then its pointer (`dropCandidate`, no second audit row). Step 5
+         carries the pointer over on purpose, so when this fails the acceptance stands and the nightly
+         cleanup — which takes rows that are no longer `failed` — deletes the file and the pointer.
+      **Until step 6 is done the `ready` row still holds the pointer**: it shows no `pictureCandidate`,
+      its file's route answers 404, and it can be neither accepted nor discarded again
+      (`reviewableCandidate` needs a `failed` row; the owner's `dropCandidate` too); `remove` on it
+      deletes that private file as well.
+      It calls no model: **the month's cap does not hold it**. A person's app reads exactly what it
+      reads of any picture (`toPictureStatus`: `ready` and the address). What is left if the function
+      dies: after 4, a public file no row points to, at an unguessable path (known, like `keep`'s);
+      after 5, a published picture whose private file waits for the cleanup.
+    - **Remove** — `POST …/picture/remove`, `@Roles('admin')`, 30 an hour, no body, 200
+      `{ status: 'removed', fileDeleted }`. **Only a `ready` row whose provenance says
+      `acceptedBy: 'owner'`** (`RecipeRepository.removeAcceptedPicture`'s `WHERE`); anything else — a
+      picture the judge accepted included — is 409 `PICTURE_NOT_REMOVABLE` and nothing is written. One
+      transaction puts the row `failed` with `provenance { reason: 'owner_removed' }`, no address and
+      `lastAttemptAt = now` (a whole cool-off, so the dish is not redrawn at once) and writes
+      `picture.removed`; **then** the public file is deleted (`PictureStore.del`, which deletes nothing
+      that is not a `dish-pictures/<uuid>/…jpg`). The row first, so no screen is ever given the address
+      of a picture the row says is removed; a deletion that fails leaves the removal standing,
+      `fileDeleted: false`, and a file in the public store no row points to — for the owner to delete
+      by hand. `fileDeleted: true` means the store deleted the file, not that every copy is gone:
+      Vercel's cache may serve it for up to a minute more, and a browser that already fetched it keeps
+      its copy for the year `VercelBlobPictureStore` sets — what is immediate is that nothing hands
+      the address out. A candidate's pointer the row still held is cleared with the rest and its private
+      file deleted best effort; if that fails it is a private file nothing points to, the retry's own
+      accepted case. It needs neither the switch nor the cap. `owner_removed` is counted on
+      `/admin/pictures` (`failedByReason`) and **left out of the failed pictures' mail**: it is the
+      owner's own act.
+    - **What the console reads of it.** Recipe rows carry `pictureAcceptedByHand: boolean` (a `ready`
+      picture accepted by hand — what "Retirar" is offered on; computed in SQL, the stored provenance is
+      never sent), and `GET /admin/pictures` adds `acceptedByHand`, a count inside `ready`.
+      `GET /admin/catalogue/recipes?picture=accepted_by_hand` lists exactly those rows — one more
+      value on the picture filter (`RECIPE_PICTURE_FILTERS`), the same SQL expression as the flag.
+      `GET /admin/catalogue/recipes/:id` — and only it, never a list row — adds `pictureUrl`: the
+      public address of a `ready` picture, the one a person's app is given, null for any other state;
+      never a candidate's, whose file has no address.
     - **The cleanup** runs inside `/cron/rewrite-steps`, after the watch and before the sweep, on
       its own 8 s (`PictureCandidatesService.clean`): it reads the rows whose candidate is no longer
       reviewable (expired, or the row is no longer `failed`) **from the database, never by listing

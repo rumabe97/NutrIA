@@ -16,7 +16,7 @@ import { HowCounted } from 'components/HowCounted';
 import { RETRY_STATUS_ID, RetryPictureButton } from 'components/RetryPictureButton';
 
 import { MEAL_SLOTS } from 'core/entities/Plan';
-import { RECIPE_CHECKS, RECIPE_SOURCES, recipeCatalogueQuerySchema } from 'core/entities/AdminQuery';
+import { PICTURE_ACCEPTED_BY_HAND, RECIPE_CHECKS, RECIPE_SOURCES, recipeCatalogueQuerySchema } from 'core/entities/AdminQuery';
 
 import { formatInstant, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
@@ -39,8 +39,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const PATHNAME = '/admin/catalogo';
 
-/** The picture states a recipe can be filtered by, in the order a dish goes through them. */
-const PICTURE_STATES = ['ready', 'drawing', 'failed', 'none'] as const;
+/**
+ * What a recipe's picture can be filtered by: its states, in the order a dish goes through
+ * them, and — a part of the ready ones — those the owner accepted by hand (`0072`).
+ */
+const PICTURE_FILTERS = ['ready', PICTURE_ACCEPTED_BY_HAND, 'drawing', 'failed', 'none'] as const;
 
 /**
  * Recetas (`0068`): how big the catalogue is, by meal and by where the recipes came
@@ -117,7 +120,7 @@ export default async function AdminRecipesPage({ searchParams }: { searchParams:
       anyLabel: common.table.any,
       label: t.columns.picture,
       name: 'picture',
-      options: PICTURE_STATES.map(state => ({ label: t.pictures[state], value: state })),
+      options: PICTURE_FILTERS.map(filter => ({ label: t.pictureFilters[filter], value: filter })),
       value: table.picture
     },
     {
@@ -140,11 +143,33 @@ export default async function AdminRecipesPage({ searchParams }: { searchParams:
     formatInstant(Date.parse(iso), locale, { day: 'numeric', month: 'long', timeZone: 'Europe/Madrid', year: 'numeric' });
   const reasons = dictionary.adminPictures.reasons;
 
+  const review = (recipe: CatalogueRecipeView): ReactNode => (
+    <Link
+      aria-label={interpolate(t.reviewFor, { dish: recipe.name })}
+      className={styles.review}
+      href={`${PATHNAME}/${encodeURIComponent(recipe.id)}/imagen`}
+    >
+      {t.review}
+    </Link>
+  );
+
   // The state, then why it is not a picture, then what happens next: the button for a
   // picture that can be retried by hand (`0066`), or the wait it is in. A dish holding a
   // rejected picture (`0072`) links to its review instead: a retry deletes that picture, and
-  // only the review page says so before it does.
+  // only the review page says so before it does. A ready picture the owner accepted by hand
+  // says so and links to the same page, where it can be removed; one the judge accepted is
+  // only its state.
   const pictureCell = (recipe: CatalogueRecipeView): ReactNode => {
+    if (recipe.pictureAcceptedByHand) {
+      return (
+        <div className={styles.picture}>
+          <span>{t.pictures[recipe.picture]}</span>
+          <span className={styles.reason}>{t.acceptedByHand}</span>
+          {review(recipe)}
+        </div>
+      );
+    }
+
     if (recipe.pictureReason === null) {
       return t.pictures[recipe.picture];
     }
@@ -159,13 +184,7 @@ export default async function AdminRecipesPage({ searchParams }: { searchParams:
         {recipe.pictureCandidate === null ? (
           <RetryPictureButton dish={recipe.name} recipeId={recipe.id} version={`${recipe.pictureReason}:${recipe.retryableAt}`} />
         ) : (
-          <Link
-            aria-label={interpolate(t.reviewFor, { dish: recipe.name })}
-            className={styles.review}
-            href={`${PATHNAME}/${encodeURIComponent(recipe.id)}/imagen`}
-          >
-            {t.review}
-          </Link>
+          review(recipe)
         )}
       </div>
     );

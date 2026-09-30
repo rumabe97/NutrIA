@@ -11,7 +11,9 @@ import { AdminSection } from 'components/AdminSection';
 import { Card } from 'components/Card';
 import { DishPicture } from 'components/DishPicture';
 import { EmptyState } from 'components/EmptyState';
+import { PictureAcceptAction } from 'components/PictureAcceptAction';
 import { PictureCandidateAction, REVIEW_BACK_ID, REVIEW_STATUS_ID } from 'components/PictureCandidateAction';
+import { PictureRemoveAction } from 'components/PictureRemoveAction';
 
 import { formatInstant, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
@@ -31,15 +33,22 @@ export async function generateMetadata(): Promise<Metadata> {
 
 const RECIPES = '/admin/catalogo';
 
+/** The trail, at the acceptances: when each was made and which allergens the judge had flagged. */
+const ACCEPTANCES = '/admin/ajustes/registro?action=picture.accepted';
+
 /**
  * Recetas › the review of one rejected picture (`0072`): the picture the judge turned down,
  * large and marked as made by AI, beside what the dish is made of and what the judge
  * flagged — allergen labels and catalogue ingredients, never the vision model's own words.
- * Until it expires the owner can discard it or retry the drawing, which deletes it too.
+ * Until it expires the owner can accept it against the judge, in two steps and after the
+ * warning that names those allergens; discard it; or retry the drawing, which deletes it too.
  *
- * The file is read through the API with the admin's session; no address of it is in any
- * answer. A recipe that holds no picture to look at says so, and an id that is no recipe
- * is the console's 404. A dish, never a person (`0028`).
+ * A dish whose picture the owner accepted by hand shows that picture here, as it is
+ * published, and only here is "Retirar": it is never drawn for a picture the judge accepted.
+ *
+ * The candidate's file is read through the API with the admin's session; no address of it is
+ * in any answer. The published one is public, and its address comes with the recipe. A recipe that holds no picture to look at says so, and an id that is no
+ * recipe is the console's 404. A dish, never a person (`0028`).
  */
 export default async function AdminPictureReviewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -61,22 +70,58 @@ export default async function AdminPictureReviewPage({ params }: { params: Promi
   const names = (values: readonly string[]): ReactNode => (values.length === 0 ? t.none : <span lang="es">{values.join(', ')}</span>);
   const labels = (keys: readonly string[]) => keys.map(key => allergenName.get(key) ?? key);
   const grams = (value: number) => `${formatNumber(value, locale, { maximumFractionDigits: 0 })} ${dictionary.units.gram}`;
+  const state = dictionary.adminRecipes.pictures[recipe.picture];
 
-  return (
-    <div className={styles.page}>
-      <p className={styles.back}>
-        <Link className={styles.link} href={RECIPES} id={REVIEW_BACK_ID}>
-          {t.back}
-        </Link>
-      </p>
-      <p className="visually-hidden" id={REVIEW_STATUS_ID} role="status" />
+  const intro = (): string => {
+    if (candidate) {
+      return t.intro;
+    }
 
-      <AdminPageHeader
-        intro={candidate ? t.intro : interpolate(t.introNothing, { state: dictionary.adminRecipes.pictures[recipe.picture] })}
-        title={interpolate(t.title, { dish: recipe.name })}
-      />
+    if (recipe.pictureAcceptedByHand) {
+      return t.acceptedIntro;
+    }
 
-      {candidate ? (
+    // Why it is not a picture, when the row says: a picture the owner removed reads as failed, with that reason.
+    return recipe.pictureReason === null
+      ? interpolate(t.introNothing, { state })
+      : interpolate(t.introNothingReason, { reason: dictionary.adminPictures.reasons[recipe.pictureReason], state });
+  };
+
+  const dish = (
+    <AdminSection title={t.dishTitle}>
+      <Card as="dl" className={styles.list}>
+        <div>
+          <dt>{t.dishAllergens}</dt>
+          <dd>{names(labels(recipe.allergens))}</dd>
+        </div>
+        <div>
+          <dt>{t.dishTraces}</dt>
+          <dd>{names(labels(recipe.mayContain))}</dd>
+        </div>
+        <div>
+          <dt>{t.ingredients}</dt>
+          <dd>
+            {recipe.ingredients.length === 0 ? (
+              t.none
+            ) : (
+              <ul className={styles.ingredients} lang="es" role="list">
+                {recipe.ingredients.map(ingredient => (
+                  <li key={ingredient.slug}>
+                    <span>{ingredient.name}</span>
+                    <span className={styles.grams}>{grams(ingredient.grams)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </dd>
+        </div>
+      </Card>
+    </AdminSection>
+  );
+
+  const body = (): ReactNode => {
+    if (candidate) {
+      return (
         <div className={styles.review}>
           <AdminSection title={t.pictureTitle}>
             <figure className={styles.figure}>
@@ -106,35 +151,7 @@ export default async function AdminPictureReviewPage({ params }: { params: Promi
               </Card>
             </AdminSection>
 
-            <AdminSection title={t.dishTitle}>
-              <Card as="dl" className={styles.list}>
-                <div>
-                  <dt>{t.dishAllergens}</dt>
-                  <dd>{names(labels(recipe.allergens))}</dd>
-                </div>
-                <div>
-                  <dt>{t.dishTraces}</dt>
-                  <dd>{names(labels(recipe.mayContain))}</dd>
-                </div>
-                <div>
-                  <dt>{t.ingredients}</dt>
-                  <dd>
-                    {recipe.ingredients.length === 0 ? (
-                      t.none
-                    ) : (
-                      <ul className={styles.ingredients} lang="es" role="list">
-                        {recipe.ingredients.map(ingredient => (
-                          <li key={ingredient.slug}>
-                            <span>{ingredient.name}</span>
-                            <span className={styles.grams}>{grams(ingredient.grams)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </dd>
-                </div>
-              </Card>
-            </AdminSection>
+            {dish}
           </div>
 
           <div className={styles.decide}>
@@ -151,16 +168,71 @@ export default async function AdminPictureReviewPage({ params }: { params: Promi
               title={t.decideTitle}
             >
               <Text className={styles.help}>{t.decideHelp}</Text>
+              {/* Three buttons of one weight: none of them does anything before its own dialog. The accept is sent
+                  back exactly the allergen keys this page was rendered with. */}
               <div className={styles.actions}>
+                <PictureAcceptAction
+                  allergens={candidate.allergens.map(key => ({ key, label: allergenName.get(key) ?? key }))}
+                  dish={recipe.name}
+                  expiresAt={candidate.expiresAt}
+                  ingredients={candidate.ingredients.map(ingredient => ingredient.name)}
+                  recipeId={recipe.id}
+                />
                 <PictureCandidateAction kind="discard" recipeId={recipe.id} />
                 <PictureCandidateAction kind="retry" recipeId={recipe.id} />
               </div>
             </AdminSection>
           </div>
         </div>
-      ) : (
-        <EmptyState body={t.nothingBody} title={t.nothingTitle} />
-      )}
+      );
+    }
+
+    if (recipe.pictureAcceptedByHand) {
+      return (
+        <div className={styles.review}>
+          <AdminSection title={t.pictureTitle}>
+            <figure className={styles.figure}>
+              <DishPicture alt={interpolate(t.publishedAlt, { dish: recipe.name })} path={recipe.pictureUrl} priority={true} variant="hero" />
+              <figcaption className={styles.caption}>{t.publishedCaption}</figcaption>
+              <p className={styles.loadFailed}>{t.publishedLoadFailed}</p>
+            </figure>
+          </AdminSection>
+
+          {dish}
+
+          <div className={styles.decide}>
+            <AdminSection title={t.acceptedTitle}>
+              <Text className={styles.help}>{t.acceptedHelp}</Text>
+              <div className={styles.actions}>
+                <PictureRemoveAction recipeId={recipe.id} />
+              </div>
+              <p className={styles.trail}>
+                <span>{t.acceptedTrail}</span>{' '}
+                <Link className={styles.link} href={ACCEPTANCES}>
+                  {t.acceptedTrailLink}
+                </Link>
+              </p>
+            </AdminSection>
+          </div>
+        </div>
+      );
+    }
+
+    return <EmptyState body={t.nothingBody} title={t.nothingTitle} />;
+  };
+
+  return (
+    <div className={styles.page}>
+      <p className={styles.back}>
+        <Link className={styles.link} href={RECIPES} id={REVIEW_BACK_ID}>
+          {t.back}
+        </Link>
+      </p>
+      <p className="visually-hidden" id={REVIEW_STATUS_ID} role="status" />
+
+      <AdminPageHeader intro={intro()} title={interpolate(t.title, { dish: recipe.name })} />
+
+      {body()}
     </div>
   );
 }

@@ -68,10 +68,29 @@
 **Privacidad y textos**
 - [x] (propietario) Almacén de Vercel Blob creado en **`fra1`** (no se puede cambiar después). — Según `docs/reference/deployment.md:95`; `legal` no lo ha visto en Vercel: el propietario lo confirma en el panel (Storage → el almacén → región).
 - [x] (propietario) **Segundo almacén**, el de las imágenes rechazadas que esperan al propietario (proyecto 009 fase 2, `0072`): `nutria-picture-candidates`, **privado** y en **`fra1`**, creado el **2026-09-30** y conectado solo a Producción del proyecto de la API como `BLOB_CANDIDATES_READ_WRITE_TOKEN`. — Según `docs/reference/deployment.md:96` y el lead; `legal` no lo ha visto en Vercel: el propietario confirma en el panel las dos cosas que no se pueden cambiar después, **Private** y **`fra1`**. Si no fuera privado, una imagen rechazada tendría dirección pública (IMG-10); si no estuviera en `fra1`, «en la Unión Europea» dejaría de ser verdad en `/privacidad`. Detalle en [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 4.3.
-- [x] (frontend) `/privacidad`: cambios a, b y c del § 4.2, con `privacy.updated` nuevo, publicados antes del flag o el mismo día. Sin Microsoft (MAI fuera). — En `main` (`abc0a90`): los tres párrafos están en `es-ES.ts` y `en-GB.ts` (namespace `privacy`), con «Última actualización: 29 de septiembre de 2026». La fase 2 del 009 no los toca ([`imagenes-de-platos.md`](./imagenes-de-platos.md) § 4.3).
+- [x] (frontend) `/privacidad`: cambios a, b y c del § 4.2, con `privacy.updated` nuevo, publicados antes del flag o el mismo día. Sin Microsoft (MAI fuera). — En `main` (`abc0a90`): los tres párrafos están en `es-ES.ts` y `en-GB.ts` (namespace `privacy`), con «Última actualización: 29 de septiembre de 2026». La fase 2 del 009 no los toca ([`imagenes-de-platos.md`](./imagenes-de-platos.md) § 4.3); **la fase 3 sí cambia una frase** (casillas de abajo).
 - [x] (frontend) `/condiciones`: la frase del § 3.3, con `terms.updated` nuevo. — En `main` (`abc0a90`): namespace `terms` de `es-ES.ts` y `en-GB.ts`, con «Última actualización: 29 de septiembre de 2026».
 - [ ] (propietario) Leídas las condiciones de Google Cloud para IA generativa (Vertex). Cualquier cláusula que choque, a `legal` (IMG-9).
-- [ ] `legal` revisa el código construido contra este documento, porque hoy describe un plan, no código. — Hecho solo para lo que añade la fase 2 del 009 (la imagen rechazada guardada, § 1.6 y § 4.3, 2026-09-30) y para las casillas de arriba que llevan su fuente. El resto del 006 (la marca en cada pantalla, el contraste, las rutas del almacén público) sigue sin revisar.
+- [ ] `legal` revisa el código construido contra este documento, porque hoy describe un plan, no código. — Hecho solo para lo que añaden las fases 2 y 3 del 009 (la imagen rechazada guardada, § 1.6 y § 4.3; aceptarla a mano y retirarla, § 1.7 y § 4.4; 2026-09-30) y para las casillas de arriba que llevan su fuente. El resto del 006 (la marca en cada pantalla, el contraste, las rutas del almacén público) sigue sin revisar.
+
+**Aceptar a mano una imagen que el juez rechazó (proyecto 009 fase 3, `0072`)**
+
+> La función no tiene flag propio: existe en cuanto se despliega, para la sesión del
+> propietario. El único interruptor que la frena es el de las imágenes (`dishPictures`:
+> apagado, aceptar se rechaza; retirar funciona siempre), y ese ya está encendido en
+> producción desde el 2026-09-28. Lo que sigue tiene que ser verdad **antes de la primera aceptación**, y esa
+> solo puede hacerla él. Detalle en [`imagenes-de-platos.md`](./imagenes-de-platos.md)
+> § 1.7, § 4.2 b y § 4.4.
+
+- [x] (propietario) **Decidido el 2026-09-30**: la frase de `/privacidad` sobre el juez cambia al **texto A** del § 4.2 b, en el mismo cambio que el botón de aceptar, con `privacy.updated` = 30 de septiembre de 2026.
+- [x] (frontend) `/privacidad` con la frase nueva en `es-ES` y `en-GB`, y `privacy.updated` = 30 de septiembre de 2026, **en el mismo cambio** que trae el botón de aceptar. Sin correo previo: no cambia qué datos se tratan ni con quién. — Comprobado el 2026-09-30 en el árbol de trabajo de `main` (`es-ES.ts:2288` y `:2359`; `en-GB.ts:2243` y `:2314`), letra por letra; cuenta cuando se fusione y se despliegue.
+- [ ] (propietario) **No aceptar ninguna imagen a mano hasta ver la frase nueva en `/privacidad` en producción** (IMG-15).
+- [x] (frontend) Redacción del aviso de aceptar y del diálogo de retirar: lo que «Retirar» no deshace (copias en caché), dónde borrar un fichero que no se pudo borrar y la viñeta de lo que el revisor no mira ([`imagenes-de-platos.md`](./imagenes-de-platos.md) § 4.4). — Comprobado el 2026-09-30 en el árbol de trabajo de `main` (`adminPictureReview`: `acceptEffects`, `removeBody`, `removeLeftover`, en los dos idiomas), letra por letra. Queda un P3 en una cadena nueva, `publishedLoadFailed` («retírala para que el plato vuelva a dibujarse»: retirar no lo dibuja); no bloquea.
+- ~~(propietario, opcional) `/condiciones`: «…o mostrar algo que el plato no lleva»~~ — **no se toma** (propietario, 2026-09-30): `/condiciones` no cambia. La frase actual sigue siendo verdad (§ 4.4).
+- [ ] (propietario) En la verificación de la fase —aceptar una, verla en el plato, retirarla—, comprobar que la imagen aceptada lleva la marca «IA» en la tarjeta y en la página de la comida, y el pie en esta; y, una vez, pasar por `c2patool` o el verificador de Content Credentials un fichero **aceptado a mano** tal como lo sirve Blob (ha pasado por dos almacenes; la firma no se valida en el código, § 1.7). Si no valida, retirar y a `legal`.
+- [x] (backend) El borrado fallido del almacén público ya no escribe la dirección del fichero en el registro (IMG-13). — Comprobado el 2026-09-30 en el árbol de trabajo de `main`: `VercelBlobPictureStore.ts:43-54` y `:89-97` sustituyen la dirección y la ruta por `[picture]` y lanzan sin `cause`, también en `put`; spec en `VercelBlobPictureStore.spec.ts:99-125`.
+- Conocido y fuera de alcance (propietario, 2026-09-30; LOG del 009): una imagen que el **juez** aceptó por error no se puede retirar, solo las aceptadas a mano (IMG-16).
+- [ ] (propietario) Cada cierto tiempo, mirar el recuento «aceptadas a mano» en Imágenes y repasar esas imágenes desde el filtro de Recetas; una que ya no convenza, retirarla.
 
 ## 1. Antes de encender `professional`
 

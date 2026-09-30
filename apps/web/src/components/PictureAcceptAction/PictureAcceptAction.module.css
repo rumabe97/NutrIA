@@ -1,0 +1,78 @@
+/* One step under the dialog's title and sentence: what it shows, then its failure line and buttons. */
+.body {
+  display: grid;
+  gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* What the judge flagged, set apart as the thing being overridden: label over value, one pair under the other. */
+.flagged {
+  border: 1px solid var(--border-01);
+  border-radius: var(--radius-control);
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  padding: var(--space-03);
+}
+
+.flagged dt {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  margin-block-end: var(--space-01);
+}
+
+.flagged dd {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-medium);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.heading {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-semibold);
+  margin: 0 0 var(--space-02);
+}
+
+.effects {
+  display: grid;
+  font-size: var(--font-size-03);
+  gap: var(--space-02);
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+  padding-inline-start: var(--space-05);
+}
+
+/* The box beside the first line of a sentence that wraps, not beside its middle. `label.ack`
+   so it wins over the checkbox's own sheet whatever order the two land in. */
+label.ack {
+  align-items: flex-start;
+}
+
+/* Half of what a line of the label is taller than the 16px box. */
+label.ack > button {
+  margin-block-start: calc((var(--font-size-03) * var(--line-height-03) - 16px) / 2);
+}
+
+/* The failure line and the buttons. The line is always there, so a failure is announced
+   when it arrives; empty, it takes no room. */
+.actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.error {
+  color: var(--color-error-text);
+  margin: 0;
+}
+
+.error:not(:empty) {
+  margin-block-end: var(--space-03);
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02);
+}

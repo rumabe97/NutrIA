@@ -19,6 +19,7 @@ import { HowCounted } from 'components/HowCounted';
 import { PeriodSelector } from 'components/PeriodSelector';
 
 import { DEFAULT_PERIOD } from 'core/entities/Period';
+import { PICTURE_ACCEPTED_BY_HAND } from 'core/entities/AdminQuery';
 import { PICTURE_REASONS } from 'core/entities/DishPicture';
 
 import { formatDate, formatNumber, formatUsd, interpolate } from 'lib/format';
@@ -48,7 +49,8 @@ const STATE_TONES: Readonly<Record<(typeof STATES)[number], ChartTone>> = { draw
 /**
  * Imágenes (`0066`, `0068`): this month's picture spend against the cap, what drawing
  * cost per day over the period, and every picture by the state it is in now — the ones
- * given back by the cap or the key included. The switch that turns drawing on or off
+ * given back by the cap or the key included, and how many of the ready ones the owner
+ * accepted by hand against the judge (`0072`). The switch that turns drawing on or off
  * lives on Ajustes; this page says which way it is and links to it.
  *
  * Counts and dollars only: no dish, no person.
@@ -140,6 +142,18 @@ export default async function AdminPicturesPage({ searchParams }: { searchParams
             tones={STATES.map(state => STATE_TONES[state])}
           />
         </Card>
+        {/* A part of the ready ones, not a state of its own. With any, the row opens them on Recetas, where each can be removed. */}
+        <AdminCountList
+          label={t.acceptedByHandLabel}
+          rows={[
+            {
+              id: PICTURE_ACCEPTED_BY_HAND,
+              count: formatNumber(pictures.acceptedByHand, locale),
+              href: pictures.acceptedByHand > 0 ? `/admin/catalogo?picture=${PICTURE_ACCEPTED_BY_HAND}` : undefined,
+              label: t.acceptedByHand
+            }
+          ]}
+        />
       </AdminSection>
 
       <AdminSection note={t.failedNote} title={t.failedTitle}>

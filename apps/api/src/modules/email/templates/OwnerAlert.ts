@@ -56,6 +56,8 @@ const REASON: Readonly<Record<PictureReason, string>> = {
   model_refused: 'El modelo rechazó la petición',
   no_provenance: 'Sin firma C2PA',
   other: 'Otro motivo',
+  // Never in a mail: the failed pictures' count leaves the owner's own removals out (`AdminAlertController.pictureFailures`).
+  owner_removed: 'Retirada a mano',
   payment_refused: 'El proveedor no puede cobrar'
 };
 

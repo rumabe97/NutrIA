@@ -12,10 +12,12 @@ import type {
   AdminIngredientsDto,
   AdminRecipeDto,
   AdminRecipesDto,
+  PictureAcceptDto,
   PictureDiscardDto,
+  PictureRemoveDto,
   PictureRetryDto
 } from '../dto/out/index.js';
-import type { IngredientCatalogueQueryDto, PeriodQueryDto, RecipeCatalogueQueryDto } from '../dto/in/index.js';
+import type { AcceptPictureCandidateDto, IngredientCatalogueQueryDto, PeriodQueryDto, RecipeCatalogueQueryDto } from '../dto/in/index.js';
 
 /** The catalogue's two tables. The queries arrive validated; the rules — and the macros — are `packages/core`'s. */
 @Injectable()
@@ -25,6 +27,19 @@ export class AdminCatalogueService {
     private readonly candidates: PictureCandidatesService,
     private readonly pictures: DishPictureService
   ) {}
+
+  /**
+   * The owner accepts a dish's candidate against the judge (`0072`) — the second of the two doors a picture
+   * reaches a person through, and the only one with a session behind it. `body` is what the console showed,
+   * repeated — the candidate's expiry and the allergens on its warning; core checks both against what the row stores, reads the file again for
+   * its C2PA manifest, publishes those bytes and writes `picture.accepted` in the transaction that makes the
+   * picture `ready` (`RecipeController.acceptCandidate`). Nothing is drawn and nothing is spent.
+   */
+  async acceptCandidate(recipeId: string, actorId: string, body: AcceptPictureCandidateDto): Promise<PictureAcceptDto> {
+    await this.candidates.accept(recipeId, actorId, body);
+
+    return { status: 'ready' };
+  }
 
   /**
    * The file of the rejected picture a dish holds for the owner (`0072`), as the model returned it.
@@ -53,6 +68,17 @@ export class AdminCatalogueService {
   /** One recipe with its served ingredients, by the candidates' own clock like the table. The recipe is a dish: nothing here is scoped to a person. */
   async recipe(recipeId: string): Promise<AdminRecipeDto> {
     return AdminCatalogueController.recipe(recipeId, this.candidates.now());
+  }
+
+  /**
+   * The owner takes back a picture accepted by hand: the dish is `failed` with `owner_removed` and waits out a
+   * cool-off, `picture.removed` in the same transaction, and then the public file is deleted. A picture the
+   * judge accepted is refused. `fileDeleted` is false when the file is still in the public store.
+   */
+  async removePicture(recipeId: string, actorId: string): Promise<PictureRemoveDto> {
+    const { fileDeleted } = await this.candidates.remove(recipeId, actorId);
+
+    return { fileDeleted, status: 'removed' };
   }
 
   /** The current steps version is the API's: `check=refusal_limit` is read against it. */

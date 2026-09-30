@@ -132,11 +132,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
     }
 
     if (exception instanceof PictureRetryRefusedError) {
-      // The owner's retry of a dish's picture, refused by the system's state: the code names which
-      // (`PICTURE_FLAG_OFF`, `PICTURE_UNAVAILABLE`, `PICTURE_CAP_REACHED`, `PICTURE_DRAWING`, `PICTURE_NOT_RETRYABLE`).
+      // What the owner asked of a dish's picture — a retry, the acceptance of a rejected one, the removal of an
+      // accepted one — refused, and the code names why: `PICTURE_FLAG_OFF`, `PICTURE_UNAVAILABLE`,
+      // `PICTURE_CAP_REACHED`, `PICTURE_DRAWING`, `PICTURE_NOT_RETRYABLE`, `PICTURE_NO_CANDIDATE`,
+      // `PICTURE_ALLERGENS_MISMATCH`, `PICTURE_NOT_ACCEPTABLE`, `PICTURE_NOT_REMOVABLE`. One message for all,
+      // and nothing of the picture in it: the console says which from the code.
       return {
         code: `PICTURE_${exception.reason.toUpperCase()}`,
-        message: 'No se puede reintentar la imagen ahora.',
+        message: 'No se puede hacer eso con la imagen ahora.',
         statusCode: HttpStatus.CONFLICT
       };
     }

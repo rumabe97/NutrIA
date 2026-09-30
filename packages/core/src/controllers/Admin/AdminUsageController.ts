@@ -67,7 +67,8 @@ export type AdminAiView = {
 export type AdminPicturesPeriodView = AdminPicturesView & {
   /**
    * Pictures that failed for the dish's own reasons in the period (by when they ended), by closed
-   * reason (`PICTURE_REASONS`), the commonest first; reasons with none are left out.
+   * reason (`PICTURE_REASONS`), the commonest first; reasons with none are left out. A picture the
+   * owner removed by hand is among them, under `owner_removed` (`0072`).
    */
   readonly failedByReason: readonly PictureReasonCount[];
   readonly period: Period;

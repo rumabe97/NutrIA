@@ -7,6 +7,7 @@ import {
   GENERATION_STATUSES,
   generationQuerySchema,
   ingredientCatalogueQuerySchema,
+  RECIPE_PICTURE_FILTERS,
   RECIPE_SOURCES,
   recipeCatalogueQuerySchema,
   retentionQuerySchema
@@ -114,6 +115,9 @@ describe('recipeCatalogueQuerySchema', () => {
     expect(recipeCatalogueQuerySchema.safeParse({ slot: 'brunch' }).success).toBe(false);
     expect(recipeCatalogueQuerySchema.safeParse({ allergen: 'Gluten' }).success).toBe(false);
     expect(recipeCatalogueQuerySchema.safeParse({ picture: 'released' }).success).toBe(false);
+    // 0072: the ready pictures the owner accepted by hand, a filter value beside the four states.
+    expect(recipeCatalogueQuerySchema.parse({ picture: 'accepted_by_hand' }).picture).toBe('accepted_by_hand');
+    expect(RECIPE_PICTURE_FILTERS).toEqual(['none', 'drawing', 'ready', 'failed', 'accepted_by_hand']);
     expect(recipeCatalogueQuerySchema.safeParse({ source: 'import' }).success).toBe(false);
     expect(recipeCatalogueQuerySchema.safeParse({ locale: 'es_ES' }).success).toBe(false);
   });

@@ -85,5 +85,11 @@ measured each point against the code. The owner decided on 2026-09-30.
   before the count, written after it was read — is in no mail. It is on the console at once.
   Marking each row as told would close it; it was left out as more machinery than a rare,
   visible miss deserves.
+- An accept writes the picture to the public store before the transaction that publishes
+  it. A process that dies between the two, or a deletion that fails after a refused
+  accept, leaves a file the judge rejected in the public store with no row pointing to it
+  and nothing that collects it. Its address is random, and is never returned, stored or
+  logged; that is obscurity, the thing this record refuses as a design, accepted here only
+  as the residue of a failure. The other order would publish a row before its file exists.
 - The owner creates and connects the private store. Without its token, nothing is kept and
   the product behaves as before.

@@ -15,6 +15,7 @@ import {
   INGREDIENT_SORTS,
   MAX_PAGE_SIZE,
   RECIPE_CHECKS,
+  RECIPE_PICTURE_FILTERS,
   RECIPE_SORTS,
   RECIPE_SOURCES,
   SORT_DIRECTIONS
@@ -22,8 +23,8 @@ import {
 import { INGREDIENT_CATEGORIES, MEAL_SLOTS } from 'core/entities/Plan';
 
 import { AdminCatalogueService } from '../services/index.js';
-import { IngredientCatalogueQueryDto, PeriodQueryDto, RecipeCatalogueQueryDto } from '../dto/in/index.js';
-import { CurrentUser, RateLimit, Roles } from '../../../shared/index.js';
+import { AcceptPictureCandidateDto, IngredientCatalogueQueryDto, PeriodQueryDto, RecipeCatalogueQueryDto } from '../dto/in/index.js';
+import { CurrentUser, RateLimit, Roles, ZodBody } from '../../../shared/index.js';
 import { PERIOD_PARAMETER, ZodQuery } from './ZodQuery.js';
 
 import type {
@@ -31,8 +32,10 @@ import type {
   AdminIngredientsDto,
   AdminRecipeDto,
   AdminRecipesDto,
+  PictureAcceptDto,
   PictureCandidateFileDto,
   PictureDiscardDto,
+  PictureRemoveDto,
   PictureRetryDto
 } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
@@ -52,13 +55,18 @@ export class AdminCatalogueController {
 
   @ApiOkResponse({
     description:
-      'One page of recipes with macros per serving (the app’s own composition), allergens, picture state (with the reason it failed or was given back, when its cool-off ends, and `pictureCandidate` — the allergen keys and catalogue ingredients the judge flagged on a rejected picture kept for review, and when it expires; never its address) and source, and the catalogue’s counts by slot and source and without a ready picture. 422 INVALID_INPUT for an unknown filter or sort.'
+      'One page of recipes with macros per serving (the app’s own composition), allergens, picture state (with the reason it failed or was given back, when its cool-off ends, `pictureAcceptedByHand` — a ready picture the owner accepted by hand, the only kind that can be removed — and `pictureCandidate` — the allergen keys and catalogue ingredients the judge flagged on a rejected picture kept for review, and when it expires; never its address) and source, and the catalogue’s counts by slot and source and without a ready picture. 422 INVALID_INPUT for an unknown filter or sort.'
   })
   @ApiOperation({ summary: 'Search, filter, sort and page the recipes (0068)' })
   @ApiQuery({ description: 'Name contains, case-insensitive.', name: 'q', required: false, type: String })
   @ApiQuery({ enum: MEAL_SLOTS, name: 'slot', required: false })
   @ApiQuery({ description: 'An allergen key a served ingredient contains, e.g. `gluten`.', name: 'allergen', required: false, type: String })
-  @ApiQuery({ enum: ['ready', 'drawing', 'failed', 'none'], name: 'picture', required: false })
+  @ApiQuery({
+    description: 'A picture state, or `accepted_by_hand`: the ready pictures the owner accepted against the judge (0072).',
+    enum: RECIPE_PICTURE_FILTERS,
+    name: 'picture',
+    required: false
+  })
   @ApiQuery({
     description:
       'Only the recipes a quality check finds — the ones Catálogo › Calidad counts (0071): `over_bound`, `uncosted`, `unserved`, `refusal_limit`, `over_cap`.',
@@ -80,7 +88,7 @@ export class AdminCatalogueController {
   @ApiNotFoundResponse({ description: 'No such recipe.' })
   @ApiOkResponse({
     description:
-      'The recipe as the table lists it — macros per serving, allergens, picture state and `pictureCandidate` — and `ingredients`: its served ingredients with their grams for the recipe’s servings and their catalogue name, heaviest first. What a rejected picture is reviewed against. Nothing names a person.'
+      'The recipe as the table lists it — macros per serving, allergens, picture state and `pictureCandidate` — `pictureUrl`, the public address of its picture when it is ready and null otherwise (never a candidate’s), and `ingredients`: its served ingredients with their grams for the recipe’s servings and their catalogue name, heaviest first. What a rejected picture is reviewed against. Nothing names a person.'
   })
   @ApiOperation({ summary: 'One recipe with its ingredients (0072)' })
   @Get('recipes/:id')
@@ -109,7 +117,7 @@ export class AdminCatalogueController {
   @ApiOkResponse({
     content: { 'image/jpeg': { schema: { format: 'binary', type: 'string' } } },
     description:
-      'The rejected picture this dish holds for review, byte for byte: `Content-Type: image/jpeg`, `X-Content-Type-Options: nosniff`, `Cache-Control: private, no-store`. Nothing publishes it.'
+      'The rejected picture this dish holds for review, byte for byte: `Content-Type: image/jpeg`, `X-Content-Type-Options: nosniff`, `Cache-Control: private, no-store`. Reading it publishes nothing: only the owner’s acceptance does.'
   })
   @ApiOperation({ summary: 'The file of a dish’s rejected picture, kept privately for the owner’s review (0072)' })
   @ApiProduces('image/jpeg')
@@ -133,6 +141,43 @@ export class AdminCatalogueController {
   @RateLimit({ limit: 30, ttlSeconds: 3600 })
   async discardCandidate(@Param('id') id: string, @CurrentUser() owner: SessionUser): Promise<PictureDiscardDto> {
     return this.catalogue.discardCandidate(id, owner.id);
+  }
+
+  @ApiConflictResponse({
+    description:
+      '`PICTURE_FLAG_OFF` (the dishPictures switch is off), `PICTURE_UNAVAILABLE` (a store is not configured), `PICTURE_NO_CANDIDATE` (none that can be accepted — none, expired, its file gone, not the candidate whose `expiresAt` the body repeats, or the dish changed meanwhile: another tab, a retry, a discard), `PICTURE_ALLERGENS_MISMATCH` (the body does not repeat the allergens this candidate was flagged for) or `PICTURE_NOT_ACCEPTABLE` (the file is not a JPEG carrying its C2PA manifest). None says what the candidate stores.'
+  })
+  @ApiNotFoundResponse({ description: 'No such recipe.' })
+  @ApiOkResponse({
+    description:
+      'The candidate is the dish’s picture: `{ status: "ready" }`. Its file was read again, found to carry its C2PA manifest (its presence, not its signature) and published byte for byte; one `picture.accepted` row, carrying the overridden allergen keys, was written in the same transaction. The month’s cap does not hold it: no model is called. 422 INVALID_INPUT when the body is not `{ allergens: string[], expiresAt: string }` — the list is required, empty when nothing was flagged, and `expiresAt` is the ISO instant the candidate was shown with.'
+  })
+  @ApiOperation({ summary: 'Accept a dish’s rejected picture against the judge, after seeing the allergens it flagged (0072)' })
+  @HttpCode(HttpStatus.OK)
+  @Post('recipes/:id/picture/candidate/accept')
+  @RateLimit({ limit: 30, ttlSeconds: 3600 })
+  async acceptCandidate(
+    @Param('id') id: string,
+    @ZodBody(AcceptPictureCandidateDto) body: AcceptPictureCandidateDto,
+    @CurrentUser() owner: SessionUser
+  ): Promise<PictureAcceptDto> {
+    return this.catalogue.acceptCandidate(id, owner.id, body);
+  }
+
+  @ApiConflictResponse({
+    description: '`PICTURE_NOT_REMOVABLE`: the dish has no picture accepted by hand — one the judge accepted cannot be removed.'
+  })
+  @ApiNotFoundResponse({ description: 'No such recipe.' })
+  @ApiOkResponse({
+    description:
+      'The picture is no longer the dish’s: `{ status: "removed", fileDeleted }`. The dish is `failed` with the reason `owner_removed` and waits out its cool-off from now; one `picture.removed` row is in the trail. `fileDeleted` is false when the public file could not be deleted: no screen is given its address any more. True means the store deleted it: its cache may serve it for up to a minute more, and a browser that already fetched it keeps its copy.'
+  })
+  @ApiOperation({ summary: 'Remove a dish picture that was accepted by hand (0072)' })
+  @HttpCode(HttpStatus.OK)
+  @Post('recipes/:id/picture/remove')
+  @RateLimit({ limit: 30, ttlSeconds: 3600 })
+  async removePicture(@Param('id') id: string, @CurrentUser() owner: SessionUser): Promise<PictureRemoveDto> {
+    return this.catalogue.removePicture(id, owner.id);
   }
 
   @ApiOkResponse({

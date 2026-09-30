@@ -165,7 +165,17 @@ describe('modelsOf', () => {
 
 describe('AdminUsageController.pictures', () => {
   it('keeps the month against the cap, and lays the spend on every day of the period', async () => {
-    const month = { capUsd: 10, drawing: 1, enabled: true, failed: 2, ready: 30, released: 1, since: '2026-09-01T00:00:00.000Z', spentUsd: 3.2 };
+    const month = {
+      acceptedByHand: 2,
+      capUsd: 10,
+      drawing: 1,
+      enabled: true,
+      failed: 2,
+      ready: 30,
+      released: 1,
+      since: '2026-09-01T00:00:00.000Z',
+      spentUsd: 3.2
+    };
 
     vi.spyOn(AdminController, 'pictures').mockResolvedValue(month);
     series.pictureSpendPerDay.mockResolvedValue([
@@ -188,6 +198,7 @@ describe('AdminUsageController.pictures', () => {
 
   it('counts the period’s failed and released pictures by closed reason, old rows included, and never sends a provider’s words', async () => {
     vi.spyOn(AdminController, 'pictures').mockResolvedValue({
+      acceptedByHand: 0,
       capUsd: 10,
       drawing: 0,
       enabled: true,
@@ -203,6 +214,8 @@ describe('AdminUsageController.pictures', () => {
       { provenance: { notes: ['1:rejected:extra_allergen:egg=egg', '2:rejected:extra_allergen:egg=egg'] }, released: false },
       { provenance: { notes: ['1:failed:OpenRouter /images answered 503: sk-leak'] }, released: false },
       { provenance: null, released: false },
+      // 0072: a picture the owner took back is a failed row, counted here under its own reason.
+      { provenance: { reason: 'owner_removed' }, released: false },
       { provenance: { reason: 'cap_reached', released: 'the month’s cap is reached' }, released: true },
       { provenance: { released: 'OpenRouter /images answered 402: Key limit exceeded' }, released: true }
     ]);
@@ -213,7 +226,8 @@ describe('AdminUsageController.pictures', () => {
     expect(view.failedByReason).toEqual([
       { n: 2, reason: 'judge_allergen' },
       { n: 1, reason: 'call_failed' },
-      { n: 1, reason: 'other' }
+      { n: 1, reason: 'other' },
+      { n: 1, reason: 'owner_removed' }
     ]);
     expect(view.releasedByReason).toEqual([
       { n: 1, reason: 'cap_reached' },

@@ -84,7 +84,11 @@ guarda y sirve las imágenes. El dibujo (Google en Vertex; MAI de Microsoft, fue
 el juez (DeepInfra) solo reciben la receta, nada de nadie: no son encargados. Desde el
 2026-09-30 (proyecto 009 fase 2) un segundo almacén de Vercel Blob, privado y en `fra1`,
 guarda la última imagen que el juez rechazó de un plato para que el propietario la mire:
-no contiene datos personales y no cambia ningún riesgo de esta evaluación. Detalle en
+no contiene datos personales y no cambia ningún riesgo de esta evaluación. Desde la
+fase 3 del mismo proyecto el propietario puede publicar esa imagen a mano, contra el
+juez, y retirarla: sigue sin haber datos personales, y el riesgo que cambia (una imagen
+que muestra un alérgeno que el plato no lleva) no es un riesgo de protección de datos;
+está en [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 5, IMG-2. Detalle en
 [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 4.
 
 ---
@@ -127,7 +131,7 @@ de las pendientes marcadas.
 | R11 | Un plan que no es seguro por calorías o proteína (IA o profesional) | Daño a la salud | 2 | 3 | 6 | M16 | 2 |
 | R12 | El usuario cree que NutrIA sustituye a un profesional | Decisiones de salud mal informadas | 2 | 3 | 6 | M17 | 3 |
 | R13 | Imposibilidad de ejercer derechos (portabilidad, limitación) | Pérdida de control | 2 | 2 | 4 | M18 (**exportación pendiente**) | 2 |
-| R15 | Una persona alérgica se fía de la imagen de un plato (006), que no muestra un ingrediente que el plato lleva | Reacción alérgica | 2 | 4 | 8 | M1 (la puerta de alérgenos va contra la lista, no contra la imagen); pie «Es orientativa: manda la lista de ingredientes» y frase en las condiciones ([`imagenes-de-platos.md`](./imagenes-de-platos.md) § 3); juez de visión para lo que sobra | 2 |
+| R15 | Una persona alérgica se fía de la imagen de un plato (006), que no muestra un ingrediente que el plato lleva | Reacción alérgica | 2 | 4 | 8 | M1 (la puerta de alérgenos va contra la lista, no contra la imagen); pie «Es orientativa: manda la lista de ingredientes» y frase en las condiciones ([`imagenes-de-platos.md`](./imagenes-de-platos.md) § 3). El juez de visión **no** mitiga este riesgo: solo mira lo que sobra, nunca lo que falta, y desde el 009 fase 3 el propietario puede publicar a mano una imagen que el juez rechazó; ese acto tampoco toca R15 (la imagen sigue sin decidir qué lleva el plato ni a quién se le da). Lo que sobra es IMG-2 | 2 |
 
 ---
 

@@ -1,0 +1,1 @@
+export { PictureRemoveAction } from './PictureRemoveAction';

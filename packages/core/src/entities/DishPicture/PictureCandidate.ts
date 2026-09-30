@@ -86,3 +86,43 @@ export function candidateFlags(candidate: Pick<PictureCandidate, 'extras'>): {
     ingredients: distinct(candidate.extras.flatMap(extra => extra.mappedTo))
   };
 }
+
+/**
+ * What an acceptance must carry (`0072`, PRD 009 criterion 5): what the
+ * console showed on the warning, repeated. It is the second confirmation step
+ * put on the server — nobody accepts a candidate without having been shown
+ * what the judge flagged, nor a candidate other than the one they saw.
+ *
+ * - `allergens`: the allergen keys shown. A candidate with nothing flagged is
+ *   accepted with the empty list, said explicitly: the key is never optional.
+ * - `expiresAt`: the expiry the candidate was shown with, an ISO instant. It is
+ *   what says **which** candidate was seen: it ends the cool-off of the very
+ *   drawing that left it, so a candidate a later drawing left — same dish, maybe
+ *   the same flags, a picture nobody looked at — never carries the same one.
+ *   Not a path, and already on the view.
+ *
+ * Strict: nothing else is read.
+ */
+export const pictureAcceptanceSchema = z.strictObject({
+  allergens: z.array(z.string().min(1).max(64)).max(64),
+  expiresAt: z.iso.datetime({ offset: true })
+});
+
+export type PictureAcceptance = z.infer<typeof pictureAcceptanceSchema>;
+
+/** Whether the expiry an acceptance repeats is this candidate's, compared as instants: however the same moment was written. */
+export function repeatsExpiry(shown: string, expiresAt: Date): boolean {
+  return new Date(shown).getTime() === expiresAt.getTime();
+}
+
+/**
+ * Whether the allergens an acceptance repeats are the ones the candidate
+ * stores, as sets: order and repetition do not matter, a missing or an extra
+ * key does.
+ */
+export function repeatsFlaggedAllergens(shown: readonly string[], candidate: Pick<PictureCandidate, 'extras'>): boolean {
+  const stored = candidateFlags(candidate).allergens;
+  const repeated = distinct(shown);
+
+  return repeated.length === stored.length && repeated.every((key, index) => key === stored[index]);
+}

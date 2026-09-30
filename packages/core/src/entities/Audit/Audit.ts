@@ -19,7 +19,9 @@ export const AUDIT_ACTIONS = [
   'setting.changed',
   'push.test_sent',
   'picture.retried',
-  'picture.discarded'
+  'picture.discarded',
+  'picture.accepted',
+  'picture.removed'
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -60,7 +62,10 @@ export interface AuditMetadataByAction {
   'account.tier_changed': { readonly from: string; readonly to: string };
   'feedback.handled': Record<string, never>;
   'feedback.reopened': Record<string, never>;
+  /** The owner published a picture the judge rejected (`0072`): the allergen keys the judge flagged and the owner overrode — catalogue keys, never a path, never a model's words. */
+  'picture.accepted': { readonly allergens: readonly string[] };
   'picture.discarded': Record<string, never>;
+  'picture.removed': Record<string, never>;
   'picture.retried': Record<string, never>;
   'professional.granted': Record<string, never>;
   'professional.revoked': Record<string, never>;

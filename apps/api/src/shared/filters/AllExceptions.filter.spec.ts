@@ -8,6 +8,7 @@ import {
   DatabaseOperationError,
   InputParseError,
   NotFoundError,
+  PictureRetryRefusedError,
   ProfileConsentRequiredError,
   QuotaExceededError,
   SafetyViolationError,
@@ -58,6 +59,24 @@ describe('AllExceptionsFilter', () => {
 
   it('maps a missing profile consent to 409 with its own code, like an unfinished profile', () => {
     expect(capture(new ProfileConsentRequiredError()).body).toMatchObject({ code: 'PROFILE_CONSENT_REQUIRED', statusCode: HttpStatus.CONFLICT });
+  });
+
+  /* Project 009: the retry, the acceptance and the removal of a dish's picture share one refusal, told apart by its code. */
+  it.each([
+    ['flag_off', 'PICTURE_FLAG_OFF'],
+    ['unavailable', 'PICTURE_UNAVAILABLE'],
+    ['cap_reached', 'PICTURE_CAP_REACHED'],
+    ['drawing', 'PICTURE_DRAWING'],
+    ['not_retryable', 'PICTURE_NOT_RETRYABLE'],
+    ['no_candidate', 'PICTURE_NO_CANDIDATE'],
+    ['allergens_mismatch', 'PICTURE_ALLERGENS_MISMATCH'],
+    ['not_acceptable', 'PICTURE_NOT_ACCEPTABLE'],
+    ['not_removable', 'PICTURE_NOT_REMOVABLE']
+  ] as const)('maps a refused picture request (%s) to 409 %s, with words that fit a retry, an acceptance and a removal alike', (reason, code) => {
+    const { body } = capture(new PictureRetryRefusedError(reason));
+
+    expect(body).toEqual({ code, message: 'No se puede hacer eso con la imagen ahora.', statusCode: HttpStatus.CONFLICT });
+    expect(body.message).not.toMatch(/reintentar/i);
   });
 
   it('maps a birth date under the minimum age to 422 with a stable code', () => {

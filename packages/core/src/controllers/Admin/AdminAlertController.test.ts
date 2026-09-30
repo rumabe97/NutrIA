@@ -220,6 +220,15 @@ describe('the pictures that failed', () => {
     expect(JSON.stringify(counts)).not.toContain('SENTINEL');
   });
 
+  /* 0072: a picture the owner removed is a failed row, and the owner's own act: no mail tells them what they just did. */
+  it('leaves out the pictures the owner removed by hand, and mails nothing when they are all there is', async () => {
+    admin.failedPictures.mockResolvedValue([failed('owner_removed'), failed('judge_allergen'), failed('owner_removed')]);
+    await expect(AdminAlertController.pictureFailures(NOW)).resolves.toEqual({ failed: [{ n: 1, reason: 'judge_allergen' }], refused: [] });
+
+    admin.failedPictures.mockResolvedValue([failed('owner_removed')]);
+    await expect(AdminAlertController.pictureFailures(NOW)).resolves.toEqual({ failed: [], refused: [] });
+  });
+
   it('counts the provider’s refusals — no payment, a rate limit — only on rows given back, and never the month’s cap', async () => {
     admin.failedPictures.mockResolvedValue([released('cap_reached'), released('other'), failed('payment_refused'), failed('model_refused')]);
     await expect(AdminAlertController.pictureFailures(NOW)).resolves.toMatchObject({ refused: [] });

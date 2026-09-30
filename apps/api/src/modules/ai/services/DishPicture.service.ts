@@ -15,7 +15,7 @@ import { PictureJudgeClient } from '../clients/PictureJudgeClient.js';
 import { PictureStore } from '../clients/PictureStore.js';
 import { untilAborted } from '../clients/untilAborted.js';
 
-import { PICTURE_CANDIDATE_FOLDER, reasonOfCall, reasonOfRejection } from 'core/entities/DishPicture';
+import { PICTURE_CANDIDATE_FOLDER, PICTURE_FOLDER, reasonOfCall, reasonOfRejection } from 'core/entities/DishPicture';
 
 import type { PictureCandidate, PictureDiagnostic, PictureReason } from 'core/entities/DishPicture';
 import type { PictureClaim } from 'core/controllers/Recipe';
@@ -112,9 +112,9 @@ function describe(error: unknown): string {
  * 4. the judge's two calls, each recorded;
  * 5. `judgePicture`, on the whole catalogue: the allergens come from there.
  *
- * Only an accepted picture is published — stored byte for byte in the public
- * store — and only then is the dish `ready`. A judge that fails is a picture
- * that is not kept, never one that is. The account refusing to pay ends the
+ * Only a picture the judge accepted is published here — stored byte for byte
+ * in the public store — and only then is the dish `ready`. A judge that fails
+ * is a picture that is not kept, never one that is. The account refusing to pay ends the
  * drawing and gives the claim back, so the dish is `none` again and not
  * failed. Everything else that goes wrong fails the dish, which waits out the
  * cool-off.
@@ -123,11 +123,16 @@ function describe(error: unknown): string {
  * which amends `0066`): the last picture of the drawing that carried its C2PA
  * manifest and that the judge rejected is held in memory and, only if the
  * drawing ends failed, uploaded to the private store (`PictureCandidateStore`)
- * with a pointer in the dish's row. It has no public address, it is never a
- * dish's picture, and **nothing here publishes one** — no attempt, retry or
- * cron. A drawing that is accepted or given back keeps none; a file without its
- * manifest is never kept anywhere, and the row records what it was instead.
- * Without the private store, none of this happens and drawing is as it was.
+ * with a pointer in the dish's row. It has no public address, and **nothing
+ * here publishes one** — no attempt, retry or cron. A drawing that is accepted
+ * or given back keeps none; a file without its manifest is never kept
+ * anywhere, and the row records what it was instead. Without the private
+ * store, none of this happens and drawing is as it was.
+ *
+ * **A picture reaches a person through one of two doors, and this is the
+ * first**: `judgePicture` accepted it, in `keep`. The second is the owner's
+ * acceptance by hand of a candidate (`PictureCandidatesService.accept`), which
+ * no drawing, retry or cron ever calls. There is no third.
  */
 @Injectable()
 export class DishPictureService {
@@ -328,7 +333,7 @@ export class DishPictureService {
     notes: readonly string[]
   ): Promise<DrawOutcome> {
     // The recipe's id and a random part, never a person's: the path is public.
-    const path = `dish-pictures/${claim.recipeId}/${PICTURE_PROMPT_VERSION}-${randomUUID()}.jpg`;
+    const path = `${PICTURE_FOLDER}/${claim.recipeId}/${PICTURE_PROMPT_VERSION}-${randomUUID()}.jpg`;
     const { url } = await this.store.put(path, attempt.bytes, 'image/jpeg');
     const provenance = {
       c2pa: attempt.marks.c2pa,

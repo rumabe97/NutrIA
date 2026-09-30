@@ -104,7 +104,7 @@ is the design; read its §§ 4–6 before any phase. Decision
 
 ### Phase 2 — The candidate: keep, see, discard, clean
 
-- [x] done
+- [x] done — commit `fce954d` ("A picture the judge rejected waits for the owner, privately, for seven days", #173)
 - **Dispatch**: opus @ medium — `/execute-project 009 phase 2`. Reviews:
   `invariant-reviewer`, `accessibility` with `/local-probe`, `legal`. — owner-gated:
   create the private Blob store in `fra1` and connect it to the API project (steps
@@ -185,7 +185,7 @@ is the design; read its §§ 4–6 before any phase. Decision
 
 ### Phase 3 — Accept against the judge, and remove
 
-- [ ] pending
+- [ ] in progress — built and verified; waiting for the owner's manual verification (human-verify), which needs it deployed
 - **Dispatch**: opus @ high — `/execute-project 009 phase 3`. `quality-max`. Reviews:
   `invariant-reviewer` (opus, high), `accessibility`, `legal`. — human-verify: the owner
   accepts one candidate, sees it on the dish, and removes it.
@@ -194,7 +194,12 @@ is the design; read its §§ 4–6 before any phase. Decision
   - `packages/core/src/{entities,controllers,repositories}/{DishPicture,Recipe,Admin,Audit}/**`;
   - `apps/api/src/modules/{ai,admin}/**`;
   - `apps/web/src/app/(admin)/admin/catalogo/**`, the dictionaries;
-  - `apps/api/test/**`; `docs/legal/**` (`legal`); `docs/decisions/**`.
+  - `apps/api/test/**`; `docs/legal/**` (`legal`); `docs/decisions/**`;
+  - *amended 2026-09-30:* `packages/core/src/entities/Error/Error.ts` (the closed refusal
+    codes of accept and remove), `apps/api/src/shared/filters/AllExceptions.filter.ts` (its
+    fixed message for those codes said "retry") and one line of
+    `apps/api/src/modules/email/templates/OwnerAlert.ts` (the label of `owner_removed`);
+    and `packages/core/src/entities/AdminQuery/AdminQuery.ts` (the Recetas filter's new value).
 - **Steps**:
   1. **Accept.** `POST …/picture/candidate/accept`, `@Roles('admin')`, rate-limited like
      the retry. It runs the six steps of report § 4.4, in order:
@@ -213,6 +218,11 @@ is the design; read its §§ 4–6 before any phase. Decision
      
      The month's cap does not hold an accept. With the `dishPictures` switch off, the
      route refuses.
+
+     *Amended 2026-09-30:* the body also repeats the candidate's `expiresAt` as the console
+     showed it, and an accept for another candidate is refused. With the allergen keys alone,
+     a page left open on one candidate could publish the next one of the same dish — drawn
+     by a retry, with the same flags — which the owner never saw (report § 4.4, step 2).
   2. **Remove.** `POST …/picture/remove` works only on a row with `acceptedBy: 'owner'`.
      The row goes to `failed` with the closed reason `owner_removed`, the public file is
      deleted, and `picture.removed` is written in the same transaction.
@@ -221,6 +231,11 @@ is the design; read its §§ 4–6 before any phase. Decision
      - the second confirmation step;
      - "Retirar" on a hand-accepted picture;
      - a count of hand-accepted pictures on Imágenes.
+
+     *Amended 2026-09-30:* the one-recipe read carries the published picture's public
+     address (`pictureUrl`), so the page can show the picture that "Retirar" takes back; and
+     Recetas' `picture` filter gains a value that lists the hand-accepted pictures, so the
+     count on Imágenes links to them and they can be found to be removed.
   4. **The record.** Decision `0072` is final, and `apps/api/AGENTS.md` states the
      two-door invariant. `legal` updates IMG-2 and decides on the privacy policy's
      sentence; if that sentence changes, `privacy.updated` changes with it.

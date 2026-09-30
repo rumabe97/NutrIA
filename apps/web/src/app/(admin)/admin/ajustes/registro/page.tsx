@@ -1,3 +1,5 @@
+import { Fragment } from 'react';
+
 import { notFound } from 'next/navigation';
 
 import styles from './page.module.css';
@@ -16,13 +18,16 @@ import { formatInstant, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../../consoleMetadata';
+import { overriddenAllergens } from './overriddenAllergens';
 
 import type { AdminTableColumn, AdminTableFilter } from 'components/AdminTable';
+import type { Allergen } from 'core/entities/Safety';
 import type { AuditLogView } from 'core/controllers/Audit';
 import type { FlagName } from 'core/domain/Flag';
 import type { Metadata } from 'next';
 import type { Paged } from 'core/controllers/User';
 import type { PageQuery } from 'components/PeriodSelector';
+import type { ReactNode } from 'react';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,15 +44,17 @@ const FLAG_BY_KEY = new Map<string, FlagName>((Object.keys(FLAGS) as FlagName[])
  * Ajustes › Registro de acciones (`0071`): the owner's own trail, filtered by action and
  * paged, newest first. Every row is a mutation that already happened — nothing here is
  * clickable, and nothing here is a person's plan, meal or health value (`0028`): only who
- * did what to which account, and when.
+ * did what to which account, and when. A picture accepted against the judge (`0072`) says
+ * which allergens the judge had flagged, in the catalogue's words.
  */
 export default async function AdminAuditPage({ searchParams }: { searchParams: Promise<PageQuery> }) {
   const query = await searchParams;
   const table = readTableQuery(auditQuerySchema, query);
-  const [dictionary, locale, log] = await Promise.all([
+  const [dictionary, locale, log, allergens] = await Promise.all([
     getDictionary(),
     activeLocale(),
-    serverApi<Paged<AuditLogView>>(`/admin/audit?${apiSearch(table)}`)
+    serverApi<Paged<AuditLogView>>(`/admin/audit?${apiSearch(table)}`),
+    serverApi<readonly Allergen[]>('/safety/allergens')
   ]);
 
   if (!log) {
@@ -73,12 +80,14 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
     return name ? flagLabel[name] : key;
   };
 
+  const allergenName = new Map((allergens ?? []).map(allergen => [allergen.key, allergen.labelEs]));
+
   const tierLabel = (tier: string): string => (tier === 'free' || tier === 'premium' ? tiers[tier] : tier);
 
   const at = (iso: string) =>
     formatInstant(Date.parse(iso), locale, { day: 'numeric', hour: '2-digit', minute: '2-digit', month: 'short', timeZone: 'Europe/Madrid' });
 
-  function detail(row: AuditLogView): string {
+  function detail(row: AuditLogView): ReactNode {
     const data = row.detail;
 
     if (!data) {
@@ -96,6 +105,19 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
     // With no actor, the actor column already says how (`actor` below); say it once.
     if (row.action === 'account.activated' && row.actor && typeof data.via === 'string' && data.via in t.via) {
       return t.via[data.via as keyof typeof t.via];
+    }
+
+    const overridden = row.action === 'picture.accepted' ? overriddenAllergens(data) : null;
+
+    if (overridden !== null) {
+      // The labels the console uses for allergens everywhere, Spanish only: marked so, for a screen reader on the English page.
+      return overridden.length === 0 ? (
+        t.allergensOverriddenNone
+      ) : (
+        <Fragment>
+          {t.allergensOverridden} <span lang="es">{overridden.map(key => allergenName.get(key) ?? key).join(', ')}</span>
+        </Fragment>
+      );
     }
 
     return '—';

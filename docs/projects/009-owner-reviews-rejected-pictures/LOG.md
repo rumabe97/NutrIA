@@ -218,3 +218,97 @@
   - `frontend` found that a version token on `pictureCandidate` (not a path) would let the
     page key the image, so a second candidate is never shown from a stale one.
 
+## Phase 3 — Accept against the judge, and remove (2026-09-30)
+
+- **Executor**: the plan's `opus @ high`, by the role agents' `-high` variants on opus:
+  `backend-high` (core and API, in five rounds), `frontend-high` (the page, in five) and
+  `tests-high` (the end-to-end cases, in two). Reviews by `invariant-reviewer` (opus, high),
+  `accessibility` and `legal`. The lead (Opus 5.5) brought each worktree's changes into the
+  checkout, settled the contract between the agents and wrote the record.
+- **Result**: built and verified; **waiting for the owner's manual verification**
+  (human-verify: accept one candidate, see it on the dish, remove it). It can only be done
+  in production: the dev database is over its quota. Not confirmed by a human yet.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=api --filter=web`: 17 of 17 tasks
+    green — core 1516 tests, api 1224 (92 suites), web 135. `pnpm format`, the dead-code
+    check and `sh scripts/check-leaks.sh` green.
+  - `invariant-reviewer`: **no P0 and no P1** (the plan's condition); three P2 — two fixed,
+    one accepted and written into `0072` — and five P3, fixed. It re-read the fix of the
+    one it called a must. `accessibility`: passes on a static read; one P2 and three P3,
+    fixed. `legal`: one P1 — the privacy policy's sentence — settled by the owner's
+    decision below; the rest P2 and P3.
+  - **The end-to-end suites did not run** (the dev database is over its quota): CI is the
+    first run of `picture-acceptance.e2e-spec.ts` and of the six suites moved with it.
+  - **Nothing was seen in a browser**: `/local-probe` was tried once by `accessibility` and
+    the database was unreachable. Phase 2's page was seen by the owner on his iPhone in
+    production; phase 3's dialogs were not seen by anyone.
+  - **Not shown by any test**: that Postgres makes the accept's locking read-back wait for a
+    commit still in flight. It cannot be driven end to end (nothing outside that transaction
+    can make it throw while it commits); unit specs pin the statement and the three branches.
+- **What shipped**:
+  - `POST …/picture/candidate/accept`: the six steps of report § 4.4 — the row failed with an
+    unexpired candidate; the body repeats the allergens and the candidate shown; the bytes
+    read from the private store are checked again for their manifest; those same bytes go to
+    the public store; one transaction makes the row `ready` (`acceptedBy: 'owner'`, the
+    overridden allergens) and writes `picture.accepted`; the private file is deleted.
+  - `POST …/picture/remove`: only a picture accepted by hand. The row first (failed,
+    `owner_removed`, `picture.removed`), then the public file.
+  - The console: the accept in two steps, "Retirar", the published picture on the review
+    page, the hand-accepted filter on Recetas and the count on Imágenes, the overridden
+    allergens on the trail.
+  - `apps/api/AGENTS.md` states the two-door invariant; `picture-doors.spec.ts` pins that
+    each door has one caller and that nothing else writes `recipe_images`.
+- **Deviations from plan** (each is in the plan as an amendment):
+  - **The accept also repeats which candidate was shown** (`expiresAt`). With the allergen
+    keys alone, a page left open on one candidate could publish the next one of the same
+    dish, never seen (`frontend-high`'s finding; report § 4.4 step 2 names the purpose).
+  - **The one-recipe read carries the published picture's address**, and **Recetas filters
+    the hand-accepted pictures**: without them the page could not show what "Retirar" takes
+    back, nor could such a picture be found again among the ready ones.
+  - **Scope, four files**: `Error.ts` (the closed refusal codes), `AllExceptions.filter.ts`
+    (its fixed message said "retry"), `AdminQuery.ts` (the filter's value), one line of
+    `OwnerAlert.ts` (the label of `owner_removed`).
+  - **The pointer survives step 5 and is dropped at step 6**, as the report reads; the brief
+    the lead gave said otherwise and was wrong.
+  - **The read-back after a failed transaction is a locking read** (`FOR SHARE`, 3 s): a
+    plain read could answer before an in-flight commit and have the public file of a
+    published picture deleted (`invariant-reviewer`'s P2, held here as a must).
+  - **"No reviewable candidate" on accept is 409 `PICTURE_NO_CANDIDATE`** (report § 4.4),
+    where the bytes route and the discard answer 404. Remove works with the switch off.
+  - **`owner_removed` is not counted in the failed pictures' mail**: it is the owner's own act.
+  - **A failed deletion in the public store no longer logs the file's address** (`legal`'s
+    check of `0072`'s "never logged").
+  - **The privacy policy changes** (owner, 2026-09-30, `legal`'s text A, with
+    `privacy.updated`): its sentence said a model checks that the picture shows no food the
+    recipe lacks. It now says what the checker rejects, that a rejected picture is published
+    only after a review by hand, and that the review is no guarantee. `/condiciones` does
+    not change. This was the phase's stop signal; the owner chose to change the text.
+- **Known, and written down**:
+  - A judge-rejected file can stay in the public store at a random address with no row, if
+    the process dies between the upload and the transaction or a deletion fails; nothing
+    collects it (`0072`, Consequences).
+  - `fileDeleted: false` on a removal leaves a file only the owner can delete, by hand, in
+    Vercel; the page says where in words. A removed picture may be served from cache for up
+    to a minute and stays in a browser that already fetched it.
+  - **A picture the judge accepted by mistake cannot be removed** (owner's decision: removal
+    of hand-accepted pictures only; `legal`'s IMG-16).
+  - The manifest's presence is what is checked, at both doors; its signature is not verified.
+  - The accept's guard compares `last_attempt_at` at millisecond precision against a
+    microsecond column: safe while every writer uses a JavaScript date (`tests-high`, P3).
+  - `RateLimitGuard` runs before `AdminGuard`: an ordinary account's 31st request to these
+    routes in an hour is a 429, not the 404 (as on retry and discard; outside this diff).
+  - The column `recipe_images.status` still defaults to `'ready'`; dropping the default
+    needs a migration. Specs pin that the one insert names its status.
+  - For the owner's phone: that VoiceOver reads the step change of the accept, the endings
+    inside the dialogs, and "Imagen publicada." / "Imagen retirada."; the touch targets and
+    the reflow at 320 px were never measured.
+- **Decisions**: [`0072`](../../decisions/0072-a-rejected-picture-waits-for-the-owner.md)
+  (final; one consequence added), and the 2026-09-30 line of `docs/decisions/LOG.md`.
+- **Notes for what comes next**:
+  - **Refine the judge** (owner, 2026-09-30): the first rejection seen in production was
+    false — corn-flour pancakes read as the catalogue's wheat pancakes. The rule counts the
+    dish's own form as an extra food when the catalogue holds a product of that name. To be
+    planned as its own project and measured on the pilot's answers.
+  - `legal` leaves one question worth five minutes of a lawyer: how `picture.accepted`
+    weighs if somebody claims a harm.
+

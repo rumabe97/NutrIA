@@ -615,6 +615,7 @@ describe('dish pictures', () => {
 
     // This month's fields as before, and the period's beside them (project 007 phase 7).
     expect(Object.keys(body).sort()).toEqual([
+      'acceptedByHand',
       'capUsd',
       'drawing',
       'enabled',

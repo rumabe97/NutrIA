@@ -9,6 +9,13 @@ describe('pictureReasonOf', () => {
     }
   });
 
+  /* 0072: a picture the owner took back is a failed row with a reason of its own — never read as a drawing that broke. */
+  it('names the owner’s removal, and keeps `other` last', () => {
+    expect(PICTURE_REASONS).toContain('owner_removed');
+    expect(PICTURE_REASONS.at(-1)).toBe('other');
+    expect(pictureReasonOf({ reason: 'owner_removed' })).toBe('owner_removed');
+  });
+
   it('ignores a stored reason outside the closed set, and reads the notes instead', () => {
     expect(pictureReasonOf({ notes: ['1:unkeepable:no C2PA manifest (image/png)'], reason: 'a provider’s words' })).toBe('no_provenance');
   });

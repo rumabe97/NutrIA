@@ -37,6 +37,7 @@ const RECIPES: AdminRecipesView = {
       mealSlots: ['lunch'],
       name: 'Bocadillo',
       picture: 'failed',
+      pictureAcceptedByHand: false,
       pictureCandidate: { allergens: ['crustaceans'], expiresAt: '2026-10-06T12:00:00.000Z', ingredients: [{ name: 'Gambas', slug: 'gambas' }] },
       pictureReason: 'judge_allergen',
       proteinG: 25.8,
@@ -76,7 +77,9 @@ describe('AdminCatalogueController', () => {
   const read = jest.fn<(recipeId: string) => Promise<Uint8Array>>();
   const discard = jest.fn<(recipeId: string, actorId: string) => Promise<void>>();
   const forget = jest.fn<(path: string) => Promise<void>>();
-  const candidates = { discard, forget, now: () => NOW, read };
+  const accept = jest.fn<(recipeId: string, actorId: string, shown: { allergens: string[]; expiresAt: string }) => Promise<void>>();
+  const remove = jest.fn<(recipeId: string, actorId: string) => Promise<{ fileDeleted: boolean }>>();
+  const candidates = { accept, discard, forget, now: () => NOW, read, remove };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -117,6 +120,8 @@ describe('AdminCatalogueController', () => {
     read.mockReset();
     discard.mockReset();
     forget.mockReset();
+    accept.mockReset();
+    remove.mockReset();
     pictures.isAvailable = true;
   });
 
@@ -320,7 +325,7 @@ describe('AdminCatalogueController', () => {
   /* Project 009, step 4 as amended: one recipe by id with its ingredients, for the review of its rejected picture. */
   describe('GET recipes/:id', () => {
     const ID = '6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f';
-    const RECIPE = { ...RECIPES.rows[0], ingredients: [{ grams: 120, name: 'Pan', slug: 'pan' }] } as AdminRecipeView;
+    const RECIPE = { ...RECIPES.rows[0], ingredients: [{ grams: 120, name: 'Pan', slug: 'pan' }], pictureUrl: null } as AdminRecipeView;
 
     it('is 404 for an ordinary account, the same as every denial, before the id is looked at — and reads nothing', async () => {
       role = 'user';
@@ -459,6 +464,215 @@ describe('AdminCatalogueController', () => {
 
       expect(Object.keys(row?.pictureCandidate ?? {}).sort()).toEqual(['allergens', 'expiresAt', 'ingredients']);
       expect(JSON.stringify(row)).not.toMatch(/dish-picture-candidates|https?:|blob/);
+    });
+  });
+
+  /*
+   * Project 009, phase 3 (`0072`): the owner's acceptance of a rejected picture — the second of the two doors a
+   * picture reaches a person through — and the removal of a picture accepted so.
+   */
+  describe('accepting a candidate by hand, and removing it', () => {
+    const RECIPE = '6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f';
+    /** The `pictureCandidate.expiresAt` the review page was rendered with: what says which candidate was seen. */
+    const SEEN = '2026-10-06T12:00:00.000Z';
+
+    function accepting(id: string) {
+      return request(app.getHttpServer() as Server).post(`/${PREFIX}/admin/catalogue/recipes/${id}/picture/candidate/accept`);
+    }
+
+    function removing(id: string) {
+      return request(app.getHttpServer() as Server).post(`/${PREFIX}/admin/catalogue/recipes/${id}/picture/remove`);
+    }
+
+    it('limits both to thirty an hour, like the retry', () => {
+      expect(Reflect.getMetadata(RATE_LIMIT_KEY, AdminCatalogueController.prototype.acceptCandidate)).toEqual({ limit: 30, ttlSeconds: 3600 });
+      expect(Reflect.getMetadata(RATE_LIMIT_KEY, AdminCatalogueController.prototype.removePicture)).toEqual({ limit: 30, ttlSeconds: 3600 });
+    });
+
+    it('is 404 for an ordinary account on both, the same as every denial and before the body is looked at — and nothing is accepted or removed', async () => {
+      role = 'user';
+
+      const denied = await accepting(RECIPE)
+        .send({ allergens: ['crustaceans'], expiresAt: SEEN })
+        .expect(404);
+      const other = await get('recipes').expect(404);
+
+      expect(denied.body).toEqual(other.body);
+      // A body that would be refused is not even read: the denial comes first.
+      expect((await accepting(RECIPE).send({ nonsense: true }).expect(404)).body).toEqual(other.body);
+      await accepting('not-a-uuid').expect(404);
+      expect((await removing(RECIPE).expect(404)).body).toEqual(other.body);
+      await removing('not-a-uuid').expect(404);
+
+      expect(accept).not.toHaveBeenCalled();
+      expect(remove).not.toHaveBeenCalled();
+    });
+
+    it('accepts for the owner from the session, with the allergens the request repeats, and answers that the picture is ready', async () => {
+      role = 'admin';
+      accept.mockResolvedValue(undefined);
+
+      const response = await accepting(RECIPE)
+        .send({ allergens: ['milk', 'crustaceans'], expiresAt: SEEN })
+        .expect(200);
+
+      expect(response.body).toEqual({ status: 'ready' });
+      expect(accept).toHaveBeenCalledWith(RECIPE, 'usr-1', { allergens: ['milk', 'crustaceans'], expiresAt: SEEN });
+    });
+
+    it('takes the empty list for a candidate nothing was flagged on', async () => {
+      role = 'admin';
+      accept.mockResolvedValue(undefined);
+
+      await accepting(RECIPE).send({ allergens: [], expiresAt: SEEN }).expect(200);
+
+      expect(accept).toHaveBeenCalledWith(RECIPE, 'usr-1', { allergens: [], expiresAt: SEEN });
+    });
+
+    /* PRD 009, criterion 5: an accept without the allergens is refused. */
+    it.each<[string, object | string | undefined]>([
+      ['no body at all', undefined],
+      ['an empty body', {}],
+      ['a list that is one word', { allergens: 'crustaceans', expiresAt: SEEN }],
+      ['a list of something else', { allergens: [1, 2], expiresAt: SEEN }],
+      ['an empty key', { allergens: [''], expiresAt: SEEN }],
+      ['a null list', { allergens: null, expiresAt: SEEN }],
+      ['a bare confirmation in its place', { confirmed: true }],
+      ['the allergens alone, which do not say which candidate was seen', { allergens: ['crustaceans'] }],
+      ['the expiry alone', { expiresAt: SEEN }],
+      ['an expiry that is no instant', { allergens: ['crustaceans'], expiresAt: '2026-10-06' }],
+      ['somebody to blame beside them', { actorId: 'somebody-else', allergens: ['crustaceans'], expiresAt: SEEN }]
+    ])('refuses %s with INVALID_INPUT, and accepts nothing', async (_case, body) => {
+      role = 'admin';
+
+      const sent = body === undefined ? accepting(RECIPE) : accepting(RECIPE).send(body);
+      const response = await sent.expect(422);
+
+      expect(response.body).toMatchObject({ code: 'INVALID_INPUT', statusCode: 422 });
+      expect(accept).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['flag_off', 'PICTURE_FLAG_OFF'],
+      ['unavailable', 'PICTURE_UNAVAILABLE'],
+      ['no_candidate', 'PICTURE_NO_CANDIDATE'],
+      ['allergens_mismatch', 'PICTURE_ALLERGENS_MISMATCH'],
+      ['not_acceptable', 'PICTURE_NOT_ACCEPTABLE']
+    ] as const)('answers 409 %s as %s, and never says what the candidate stores', async (reason, code) => {
+      role = 'admin';
+      accept.mockRejectedValue(new PictureRetryRefusedError(reason));
+
+      const response = await accepting(RECIPE)
+        .send({ allergens: ['egg'], expiresAt: SEEN })
+        .expect(409);
+
+      expect(response.body).toMatchObject({ code, statusCode: 409 });
+      expect(Object.keys(response.body as object).sort()).toEqual(['code', 'message', 'statusCode']);
+      expect(JSON.stringify(response.body)).not.toMatch(/crustaceans|milk|egg|dish-picture|2026/);
+    });
+
+    it('answers 404 for a recipe that does not exist, never echoing the segment', async () => {
+      role = 'admin';
+      accept.mockRejectedValue(new NotFoundError('Recipe not found'));
+      remove.mockRejectedValue(new NotFoundError('Recipe not found'));
+
+      for (const segment of ['00000000-0000-4000-8000-000000000000', 'not-a-uuid-zzq']) {
+        const accepted = await accepting(segment).send({ allergens: [], expiresAt: SEEN }).expect(404);
+        const removed = await removing(segment).expect(404);
+
+        expect(JSON.stringify(accepted.body)).not.toContain(segment);
+        expect(JSON.stringify(removed.body)).not.toContain(segment);
+      }
+    });
+
+    it('answers a failure of a store or of the audit write as a plain 500, with none of its words', async () => {
+      role = 'admin';
+      accept.mockRejectedValue(new Error('Blob put failed: 503 at dish-pictures/x'));
+
+      const response = await accepting(RECIPE)
+        .send({ allergens: ['crustaceans'], expiresAt: SEEN })
+        .expect(500);
+
+      expect(response.body).toMatchObject({ code: 'INTERNAL_ERROR' });
+      expect(JSON.stringify(response.body)).not.toMatch(/Blob|dish-pictures/);
+    });
+
+    it('removes for the owner from the session, whatever a body says, and answers whether the public file went', async () => {
+      role = 'admin';
+      remove.mockResolvedValue({ fileDeleted: true });
+
+      const response = await removing(RECIPE).send({ actorId: 'somebody-else' }).expect(200);
+
+      expect(response.body).toEqual({ fileDeleted: true, status: 'removed' });
+      expect(remove).toHaveBeenCalledWith(RECIPE, 'usr-1');
+
+      remove.mockResolvedValue({ fileDeleted: false });
+      expect((await removing(RECIPE).expect(200)).body).toEqual({ fileDeleted: false, status: 'removed' });
+    });
+
+    /* PRD 009, criterion 6: only a hand-accepted picture can be removed. */
+    it('answers 409 PICTURE_NOT_REMOVABLE for a picture the judge accepted, or a dish with none', async () => {
+      role = 'admin';
+      remove.mockRejectedValue(new PictureRetryRefusedError('not_removable'));
+
+      const response = await removing(RECIPE).expect(409);
+
+      expect(response.body).toMatchObject({ code: 'PICTURE_NOT_REMOVABLE', statusCode: 409 });
+    });
+
+    it('lists the hand-accepted pictures through the table’s own picture filter, and refuses a value outside its grammar', async () => {
+      role = 'admin';
+      const recipes = jest.spyOn(CoreCatalogue, 'recipes').mockResolvedValue(RECIPES);
+
+      await get('recipes?picture=accepted_by_hand').expect(200);
+
+      expect(recipes.mock.calls[0]?.[0]).toMatchObject({ picture: 'accepted_by_hand' });
+
+      const refused = await get('recipes?picture=accepted_by_owner').expect(422);
+
+      expect(refused.body).toMatchObject({ code: 'INVALID_INPUT' });
+      expect(recipes).toHaveBeenCalledTimes(1);
+    });
+
+    it('answers one recipe with the public address of its ready picture, and the list without any', async () => {
+      role = 'admin';
+      const address = `https://store.example/dish-pictures/${RECIPE}/2.0.0-published.jpg`;
+      const [row] = RECIPES.rows;
+
+      if (row === undefined) {
+        throw new Error('no row');
+      }
+
+      jest
+        .spyOn(CoreCatalogue, 'recipe')
+        .mockResolvedValue({
+          ...row,
+          ingredients: [],
+          picture: 'ready',
+          pictureAcceptedByHand: true,
+          pictureCandidate: null,
+          pictureReason: null,
+          pictureUrl: address
+        });
+      jest.spyOn(CoreCatalogue, 'recipes').mockResolvedValue(RECIPES);
+
+      expect(((await get(`recipes/${RECIPE}`).expect(200)).body as AdminRecipeView).pictureUrl).toBe(address);
+      expect(Object.keys(((await get('recipes').expect(200)).body as AdminRecipesView).rows[0] ?? {})).not.toContain('pictureUrl');
+    });
+
+    it('carries on a recipe row a closed flag for a hand-accepted picture — not who accepted it, nor what was overridden', async () => {
+      role = 'admin';
+      jest
+        .spyOn(CoreCatalogue, 'recipes')
+        .mockResolvedValue({
+          ...RECIPES,
+          rows: RECIPES.rows.map(row => ({ ...row, picture: 'ready', pictureAcceptedByHand: true, pictureCandidate: null, pictureReason: null }))
+        });
+
+      const [row] = ((await get('recipes').expect(200)).body as AdminRecipesView).rows;
+
+      expect(row?.pictureAcceptedByHand).toBe(true);
+      expect(JSON.stringify(row)).not.toMatch(/acceptedBy"|overriddenAllergens|provenance|https?:|blob/);
     });
   });
 });

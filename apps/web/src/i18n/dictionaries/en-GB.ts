@@ -171,13 +171,17 @@ export const enGB: Dictionary = {
       'account.tier_changed': 'Tier changed',
       'feedback.handled': 'Message marked seen',
       'feedback.reopened': 'Message reopened',
+      'picture.accepted': 'Rejected dish picture accepted by hand, against the checker',
       'picture.discarded': 'Rejected dish picture discarded by hand',
+      'picture.removed': 'Hand-accepted dish picture removed',
       'picture.retried': 'Dish picture retried by hand',
       'professional.granted': 'Professional profile granted',
       'professional.revoked': 'Professional profile revoked',
       'push.test_sent': 'Test push sent',
       'setting.changed': 'Setting changed'
     },
+    allergensOverridden: 'The checker had flagged:',
+    allergensOverriddenNone: 'The checker had flagged no allergen',
     caption: 'Actions',
     columns: { account: 'Account', action: 'Action', actor: 'Who', date: 'Date', detail: 'Detail' },
     empty: 'The log starts on the day this deploys: there is no row before it.',
@@ -475,8 +479,36 @@ export const enGB: Dictionary = {
 
   /* `/admin/catalogo/[id]/imagen` (`0072`): one picture the checker rejected, beside what the dish is made of and what the checker flagged. A dish, never a person (`0028`); never the vision model's own words. */
   adminPictureReview: {
+    accept: 'Accept',
+    acceptAck: 'I have seen the picture and I publish it although the checker saw in it:',
+    acceptAckMissing: 'Tick the box to publish the picture.',
+    acceptAckNone: 'I have seen the picture and I publish it although the checker rejected it.',
+    acceptConfirm: 'Publish the picture',
+    acceptConfirmBody: 'Step 2 of 2. Once confirmed, the picture of {dish} is published as it is for everyone who gets the dish.',
+    acceptConfirmTitle: 'Publish this picture?',
+    acceptContinue: 'Understood, continue',
+    acceptDone: 'Picture published. You accepted it by hand.',
+    acceptedHelp: 'Remove leaves the dish without a picture for everyone and deletes the published file. It costs nothing.',
+    acceptedIntro: 'This dish’s picture is published: you accepted it by hand, against the checker. Everyone who gets the dish sees it.',
+    acceptedTitle: 'Picture accepted by hand',
+    acceptedTrail: 'The audit log keeps when each picture was accepted and which allergens the checker had flagged.',
+    acceptedTrailLink: 'Open the audit log',
+    acceptEffects: [
+      'The picture is published for everyone who gets this dish.',
+      'If it shows a food carrying an allergen the dish does not have, a person with that allergy may distrust a dish that is safe for them.',
+      'The dish’s allergens are decided by the recipe, not by the picture: accepting it changes neither what the dish contains nor who is given it.',
+      'The checker only looks at what is extra in the picture. If an ingredient the dish does contain is missing, nobody has checked that: compare it with the dish’s list yourself.',
+      'It is recorded in the audit log, with your account and the allergens the checker flagged.',
+      'It can be taken back later: “Remove” leaves the dish without a picture again. It does not delete the copies a browser has already stored.'
+    ],
+    acceptEffectsTitle: 'What happens if you accept it',
+    acceptStaleTitle: 'Nothing was published',
+    acceptTooMany: 'Too many acceptances in an hour: wait a while and try again.',
+    acceptWarningBody: 'Step 1 of 2. The checker rejected this picture. Accepting it publishes it against the checker’s verdict.',
+    acceptWarningTitle: 'Before you accept this picture',
     back: 'Back to Recipes',
-    decideHelp: 'Discard deletes the picture and costs nothing. Retry deletes it and draws another, which is a paid call.',
+    decideHelp:
+      'Accept publishes it as it is for everyone who gets the dish, against the checker, and costs nothing. Discard deletes it and costs nothing either. Retry deletes it and draws another, which is a paid call.',
     decideNote:
       'You can look at it until {date}, Madrid time. After that the nightly cleanup deletes it, normally the following night, and until then the dish is not drawn again on its own.',
     decideTitle: 'What to do with it',
@@ -496,15 +528,33 @@ export const enGB: Dictionary = {
     flaggedTitle: 'What the checker saw',
     gone: 'This picture is no longer kept.',
     ingredients: 'Ingredients, for the whole recipe',
-    intro: 'The checker rejected this picture and it has not been published. It is waiting for your decision.',
+    intro: 'The checker rejected this picture and it is not published. It is waiting for your decision: accept it, discard it or retry the drawing.',
     introNothing: 'The dish’s picture: {state}.',
-    loadFailed: 'The picture could not be loaded: the file may be gone. Reload the page; if it still does not show, discard it or retry.',
+    introNothingReason: 'The dish’s picture: {state}. {reason}.',
+    loadFailed:
+      'The picture could not be loaded: the file may be gone. Reload the page; if it still does not show, discard it or retry. Do not accept it unseen.',
     none: 'None',
-    nothingBody: 'This dish has no rejected picture waiting: it was discarded, retried, or its 7 days passed.',
+    nothingBody: 'This dish has no rejected picture waiting: it was discarded, retried, removed after being accepted, or its 7 days passed.',
     nothingTitle: 'There is no picture to review',
     pictureAlt: 'AI-generated picture of {dish}, awaiting review',
     pictureCaption: 'AI-generated picture. The checker rejected it and it is not published: it is only seen on this page.',
     pictureTitle: 'The picture',
+    publishedAlt: 'AI-generated picture of {dish}, published',
+    publishedCaption: 'AI-generated picture. You accepted it by hand and it is published: it is what everyone who gets this dish sees.',
+    publishedLoadFailed:
+      'The published picture could not be loaded: its file may be gone. Reload the page; if it still does not show, remove it: the dish is left without a picture and is drawn again after at least 7 days, or sooner if you retry it from Recipes.',
+    reload: 'Close and reload the page',
+    remove: 'Remove',
+    removeBody:
+      'The dish goes back to having no picture for everyone who gets it, and the published file is deleted from the store. Vercel’s network may go on serving it for up to a minute, and a browser that already loaded it keeps its copy. It waits at least 7 days before it is drawn again on its own, unless you retry it by hand from Recipes. It is recorded in the audit log, with your account.',
+    removeConfirm: 'Remove the picture',
+    removeDone: 'Picture removed. The dish has no picture now.',
+    removeLeftover:
+      'The picture is removed: the dish no longer shows it to anyone. But its file could not be deleted from the public store, and it stays there until you delete it by hand, in the Vercel dashboard: in the pictures’ store, the dish-pictures folder and, inside it, the one named with this dish’s id (it is in this page’s address).',
+    removeLeftoverTitle: 'Removed, with its file not deleted',
+    removeStaleTitle: 'Nothing was removed',
+    removeTitle: 'Remove this picture?',
+    removeTooMany: 'Too many removals in an hour: wait a while and try again.',
     retry: 'Retry',
     retryBody:
       'This picture is deleted and another is drawn now. Drawing is a paid call and counts towards the month’s cap; the checker may reject it again.',
@@ -515,12 +565,14 @@ export const enGB: Dictionary = {
   },
 
   adminPictures: {
+    acceptedByHand: 'Of the ready ones, accepted by hand against the checker',
+    acceptedByHandLabel: 'Ready pictures accepted by hand',
     cap: 'Month’s cap',
     failedEmpty: 'No picture failed in this period.',
     failedLink: 'See the recipes with a failed picture',
     failedListLabel: 'Failed pictures by reason',
     failedNote:
-      'Pictures that failed for the dish’s own reasons in the period, counted by the day they ended. They are tried again on their own after at least 7 days, or by hand from Recipes.',
+      'Pictures that failed for the dish’s own reasons in the period, or that you removed by hand, counted by the day they ended. They are tried again on their own after at least 7 days, or by hand from Recipes.',
     failedTitle: 'Why they failed',
     gaugeChart: 'The month’s spend against the cap',
     gaugeEmpty: 'No cap is set.',
@@ -529,7 +581,7 @@ export const enGB: Dictionary = {
     howCounted: [
       'The cap counts the calendar month in UTC, not the period. Once it is reached no more pictures are drawn until next month.',
       'Spend per day is what drawing pictures was billed each day, in Madrid days.',
-      'Ready is a drawn picture with its file. Failed is one that failed for the dish’s own reasons: it is tried again after at least 7 days. Given back is one left by the cap or the key: it is drawn again on the next view.',
+      'Ready is a published picture with its file: the checker accepted it or, against the checker, you accepted it by hand. Failed is one that failed for the dish’s own reasons, or a hand-accepted one you removed: it is tried again after at least 7 days. Given back is one left by the cap or the key: it is drawn again on the next view.',
       'Dish pictures are billed apart from text, whose spend is on AI and models.'
     ],
     intro: 'What the dish pictures cost and what state they are in.',
@@ -543,6 +595,8 @@ export const enGB: Dictionary = {
       model_refused: 'The provider did not accept the request (a usage limit or a policy): a 4xx error other than 402.',
       no_provenance: 'The file came back without the C2PA signature that proves it is a generated image, and it is never kept.',
       other: 'Any other case, including old rows that did not record the reason.',
+      owner_removed:
+        'You removed a picture you had accepted by hand against the checker. Not a drawing that failed: the dish waits at least 7 days before it is drawn again on its own.',
       payment_refused: 'The provider’s account cannot pay for another call (error 402, spent key or quota). Not the dish’s fault.'
     },
     reasons: {
@@ -553,6 +607,7 @@ export const enGB: Dictionary = {
       model_refused: 'The model refused the request',
       no_provenance: 'No C2PA signature',
       other: 'Other reason',
+      owner_removed: 'You removed it by hand',
       payment_refused: 'The provider cannot charge'
     },
     releasedEmpty: 'No picture was given back in this period.',
@@ -755,6 +810,7 @@ export const enGB: Dictionary = {
   },
 
   adminRecipes: {
+    acceptedByHand: 'Accepted by hand, against the checker',
     bySlotChart: 'Recipes by meal',
     bySlotEmpty: 'The catalogue has no recipe.',
     bySlotSeries: 'Recipes',
@@ -790,11 +846,13 @@ export const enGB: Dictionary = {
       'Without a picture counts every recipe with no ready picture: those being drawn or that failed too.',
       'The catalogue is everybody’s: nothing here says who asked for each recipe.',
       'A failed or given-back picture can be retried by hand with “Retry”, without waiting the 7 days; only when drawing is on and the month’s cap allows it.',
-      'A picture the checker rejected is kept for 7 days for you to look at: “Review the picture” opens it, and from there it is discarded or retried. While it is kept, the dish is not drawn on its own.'
+      'A picture the checker rejected is kept for 7 days for you to look at: “Review the picture” opens it, and from there it is accepted, discarded or retried. While it is kept, the dish is not drawn on its own.',
+      'A ready picture you accepted by hand, against the checker, says so on its row, and the picture filter “Ready, accepted by hand” gathers them: “Review the picture” opens its page, and it can be removed from there. One the checker accepted cannot be removed.'
     ],
     intro: 'The recipe catalogue: how many, for which meal, and where they came from.',
     locales: { 'en-GB': 'English', 'es-ES': 'Spanish' },
     noMatch: 'No recipe matches the search or the filters.',
+    pictureFilters: { accepted_by_hand: 'Ready, accepted by hand', drawing: 'Being drawn', failed: 'Failed', none: 'No picture', ready: 'Ready' },
     pictures: { drawing: 'Being drawn', failed: 'Failed', none: 'No picture', ready: 'Ready' },
     retry: 'Retry',
     retryFor: 'Retry the picture of {dish}',
@@ -1260,9 +1318,15 @@ export const enGB: Dictionary = {
     notFound: 'We could not find what you were looking for.',
     notFoundTitle: 'Page not found',
     onboardingIncomplete: 'Part of your profile is missing. Finish it and try again.',
+    pictureAllergensMismatch:
+      'The picture waiting for review has changed since you opened the page: what the checker flagged is no longer what you saw. Reload and look at it again.',
     pictureCapReached: 'This month’s picture spend has reached the cap: no more can be drawn until next month.',
     pictureDrawing: 'That picture is already being drawn.',
     pictureFlagOff: 'Drawing pictures is off. Turn it on in Settings and try again.',
+    pictureNoCandidate: 'That picture is no longer kept: it was accepted, discarded, retried, or its 7 days passed.',
+    pictureNotAcceptable:
+      'That picture cannot be accepted: its file is not a JPEG with the C2PA signature that marks it as AI-generated. Discard it or retry.',
+    pictureNotRemovable: 'That picture cannot be removed: only the ones you accepted by hand can be, and this one no longer is.',
     pictureNotRetryable: 'That picture cannot be retried: it is no longer failed.',
     pictureUnavailable: 'Pictures are not available right now: the provider’s key or service is missing.',
     planPaused: 'Your plan is paused while you are away.',
@@ -2176,7 +2240,7 @@ export const enGB: Dictionary = {
           "Where it goes: the request goes to OpenRouter (OpenRouter, Inc., United States), which processes it on our behalf and passes it to the company that runs the model: DeepInfra or CoreWeave, also in the United States. The model is Gemma 4 31B and, if it does not answer, DeepSeek V4.1 Flash; they are open models run by those companies: what is sent to design your dishes never goes through Google's or DeepSeek's own services.",
           'Nobody trains on it or keeps it: we only use providers that delete the request as soon as they answer and do not use it to train or improve any model. We require this in our OpenRouter account and again in every request. OpenRouter keeps only technical data about each request (size, time, cost), not its content.',
           'One exception you should know about: OpenRouter may pass a small sample of requests, with nothing linking them to our account or to you, through a model that tags them with a topic for its public usage statistics. It does not keep the text, only the tag.',
-          'The pictures of the dishes are generated by another model, from the recipe alone: its name, its ingredients and in what proportion. It never receives anything of yours, not even who opened the dish. The request goes to OpenRouter, which passes it to Google (Vertex AI), and a model run by DeepInfra checks that the picture shows no food the recipe does not contain. None of them keeps the request or trains on it. The pictures are stored on Vercel, shown to everyone who sees that dish, and carry the "AI" mark; the files also carry an invisible, machine-readable mark saying they were generated by AI.',
+          'The pictures of the dishes are generated by another model, from the recipe alone: its name, its ingredients and in what proportion. It never receives anything of yours, not even who opened the dish. The request goes to OpenRouter, which passes it to Google (Vertex AI), and a model run by DeepInfra reviews every picture before it is published. None of them keeps the request or trains on it. If that model clearly sees in the picture a food carrying an allergen the recipe does not have, the picture is rejected, and it is published only if we then review it by hand and decide to publish it. That review is not a guarantee: the picture may show something the dish does not contain, and what the dish contains is what its ingredient list says. The pictures are stored on Vercel, shown to everyone who sees that dish, and carry the "AI" mark; the files also carry an invisible, machine-readable mark saying they were generated by AI.',
           'Until 26 September 2026 some of the models we used were free versions hosted in the United States whose providers could use what they received to improve their models. We no longer use any of them.'
         ]
       },
@@ -2247,7 +2311,7 @@ export const enGB: Dictionary = {
       }
     ],
     title: 'Privacy policy',
-    updated: 'Last updated: 29 September 2026'
+    updated: 'Last updated: 30 September 2026'
   },
 
   profile: {
