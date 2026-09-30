@@ -7,7 +7,7 @@
 > report [`0004`](../../reference/architecture/0004-consola-seguimiento-2026-09-29.md) —
 > approved by the owner before the plan is written.
 
-- **Status**: approved — by the owner, 2026-09-29
+- **Status**: delivered — closed by the owner, 2026-09-29
 - **Roadmap item**: [`docs/ROADMAP.md`](../../ROADMAP.md) — the follow-up to
   [`007-admin-console`](../007-admin-console/), asked for by the owner on 2026-09-29
 

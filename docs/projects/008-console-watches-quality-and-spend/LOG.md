@@ -532,3 +532,29 @@
   - The owner deletes the old account-waiting mails, which carry addresses and live
     tokens for up to 30 days.
   - The mail-link route is removed 30 days after deploy.
+
+## Closing (2026-09-29)
+
+- **Closed by the owner** on 2026-09-29 ("Cierra el proyecto 008"), after the follow-ups
+  reached production (#163, with main CI green and both deployments live). Anything found later is a
+  new change, not a reopening.
+- **Shipped:**
+  - #155: recording (app_used, cron_run, mail_sent, the AI feature, plan quality);
+  - #156: the audit log, migration 0048;
+  - #157: health data saved again (found in phase 3);
+  - #158: Calidad, Consentimientos, Sistema, Notificaciones, and "active" means use;
+  - #159: the text-AI cap;
+  - #160: plan quality, retention and the sweep's history;
+  - #161: the owner's alerts;
+  - #162: the terms' acceptance, migration 0049;
+  - #163: the account-waiting mail names nobody, the crons watch each other, and phase 6's
+    end to end.
+- **Left open, all time-bound:**
+  - From mid-October, with at least 10 scored plans in a period, review Planes › Calidad
+    against the 99.4 % baseline (phase 5's verification), look at the populated charts,
+    and check that retention's "Usó la app" fills in from 2026-10-06.
+  - After a month with `AI_TEXT_MONTHLY_CAP_USD` set, compare the gauge with OpenRouter's
+    panel; a gap of more than 10 % is investigated before relying on the warnings.
+  - Around 2026-10-29, remove `GET /admin/activate` and `ActivationLink`, once the tokens
+    already mailed have expired (`docs/legal/checklist-activacion.md`). The owner deletes
+    the old account-waiting mails.
