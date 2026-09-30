@@ -693,13 +693,15 @@ describe('what the judge said is kept (project 010, phase 3)', () => {
   describe('what a drawing’s end writes, whatever a provider said', () => {
     /** Neither Postgres accepts inside `jsonb`: what a provider's error message may carry. */
     const BROKEN = 'Key limit\u0000 exceeded \uD800';
+    /** The same two characters in a message the service does not read as a refused key (`/key limit/i` is). */
+    const BROKEN_UPSTREAM = 'Upstream\u0000 overloaded \uD800';
 
     const clean = (text: string): { nul: boolean; surrogate: boolean } => ({ nul: text.includes('\u0000'), surrogate: /\p{Cs}/u.test(text) });
 
     it('a failed call whose message carries a NUL byte and a lone surrogate ends the drawing failed, its notes cleaned', async () => {
       const dish = take();
 
-      images.failing = new PictureCallError(BROKEN, 500);
+      images.failing = new PictureCallError(BROKEN_UPSTREAM, 500);
 
       try {
         const ended = await draw(dish);
@@ -713,7 +715,7 @@ describe('what the judge said is kept (project 010, phase 3)', () => {
           expect(clean(note)).toEqual({ nul: false, surrogate: false });
         }
 
-        expect(ended.provenance?.notes?.some(note => note.includes('Key limit'))).toBe(true);
+        expect(ended.provenance?.notes?.some(note => note.includes('Upstream'))).toBe(true);
       } finally {
         images.failing = null;
       }
