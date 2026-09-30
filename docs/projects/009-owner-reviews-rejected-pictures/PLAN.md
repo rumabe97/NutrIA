@@ -185,7 +185,7 @@ is the design; read its §§ 4–6 before any phase. Decision
 
 ### Phase 3 — Accept against the judge, and remove
 
-- [ ] in progress — built and verified; waiting for the owner's manual verification (human-verify), which needs it deployed
+- [x] done — commit `efba83b` ("The owner can publish a picture the judge rejected, and take it back", #174); confirmed by human on 2026-09-30
 - **Dispatch**: opus @ high — `/execute-project 009 phase 3`. `quality-max`. Reviews:
   `invariant-reviewer` (opus, high), `accessibility`, `legal`. — human-verify: the owner
   accepts one candidate, sees it on the dish, and removes it.
