@@ -40,8 +40,11 @@ The milestone is met, and has been in production since 2026-09-07.
   the console watches rather than shows: catalogue and plan quality, text-AI spend against
   a 5 USD cap, an audit log of admin actions, "active" that means used, retention, the
   sweep, crons and mail, consents, and a daily mail to the owner when something is off
-  (`0071`). Asked for by the owner on 2026-09-29; the PRD and the seven-phase
-  plan are approved.
+  (`0071`). Asked for by the owner on 2026-09-29; all seven phases and their follow-ups
+  shipped the same day (#155–#163), and the owner closed it on 2026-09-29. Still to do,
+  time-bound: review plan quality and retention with real data from mid-October, compare
+  the text-spend gauge with OpenRouter after a month, and remove the mail-link activation
+  route once its tokens expire (~2026-10-29).
 
 The end-to-end suites stand at 14 suites and 88 tests, run against a throwaway database
 with a scripted model (`apps/api/test/README.md`), and on every pull request against a

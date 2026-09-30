@@ -6,7 +6,7 @@
 > change and the deviation is recorded in LOG.md.
 > **Audience**: agents primarily, humans review. **Committed**: yes.
 
-- **Status**: approved — by the owner, 2026-09-29 (by launching phase 1)
+- **Status**: done — closed by the owner, 2026-09-29
 - **Type**: standard
 - **PRD**: [./PRD.md](./PRD.md). Every acceptance criterion is mapped at the end of this file.
 - **Routing profile**: `tiered`.
@@ -369,7 +369,7 @@ numbers refer to it. Read it before any phase.
 
 ### Phase 7 — The terms' acceptance (`legal` said yes in phase 3, for the terms only)
 
-- [x] done
+- [x] done — commit `e1332b4` ("Sign-up records which terms an account accepted, and the notice is seen before any button that creates one")
 - **Dispatch**: opus @ high — `/execute-project 008 phase 7`. `quality-max`: it changes
   sign-up. Reviews: `invariant-reviewer`, `migration-reviewer`, `accessibility` with
   `/local-probe`, and `legal` on the texts.

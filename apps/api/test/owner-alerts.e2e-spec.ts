@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 
-import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
 import { SettingsController } from 'core/controllers/Settings';
@@ -154,7 +154,8 @@ describe('the owner is told by mail (0071, phase 6)', () => {
   const mails = (kind: string) =>
     sql()<MailRow>`
       select (properties ->> 'ok')::boolean as ok from analytics_events
-      where event = 'mail_sent' and properties ->> 'kind' = ${kind} and created_at >= ${started}`;
+      where event = 'mail_sent' and properties ->> 'kind' = ${kind} and created_at >= ${started}
+      order by created_at, id`;
 
   const ownerMails = () => outbox.filter(mail => mail.to === OWNER);
 
@@ -221,6 +222,11 @@ describe('the owner is told by mail (0071, phase 6)', () => {
   async function forget(kinds: readonly string[]): Promise<void> {
     await sql()`delete from analytics_events where event = 'owner_alerted' and properties ->> 'kind' = any(${kinds as string[]}) and created_at >= ${started}`;
   }
+
+  // A case that fails halfway must not leave the mail refused for the ones after it.
+  afterEach(() => {
+    refuse = false;
+  });
 
   beforeAll(async () => {
     // What this suite is about is what the default environment does not do.
@@ -448,6 +454,8 @@ describe('the owner is told by mail (0071, phase 6)', () => {
     it('are counted again after a success in between', async () => {
       await forget(['generation-streak']);
 
+      const mailsBefore = (await mails('owner-alert')).length;
+
       expect((await generate(mailed, good[1] as Account)).status).toBe('succeeded');
       await fails(mailed, bad[2] as Account);
       await fails(mailed, bad[3] as Account);
@@ -456,21 +464,23 @@ describe('the owner is told by mail (0071, phase 6)', () => {
 
       await fails(mailed, bad[4] as Account);
       await until(async () => (await alerted('generation-streak')).length === 1);
+      // The claim is taken before the mail is sent: leave nothing in flight for the next case to count as its own.
+      await until(async () => (await mails('owner-alert')).length === mailsBefore + 1);
     }, 300_000);
 
     it('never change the job’s final status when the mail cannot leave, and give the claim back', async () => {
       await forget(['generation-streak']);
       refuse = true;
 
-      const before = (await mails('owner-alert')).length;
+      const refused = async () => (await mails('owner-alert')).filter(mail => !mail.ok).length;
+      const before = await refused();
 
       await fails(mailed, bad[0] as Account);
-      await until(async () => (await mails('owner-alert')).length === before + 1);
+      // Counted, not sliced by position: the refused mail is the one this case caused.
+      await until(async () => (await refused()) === before + 1);
 
-      expect((await mails('owner-alert')).slice(before)).toEqual([{ ok: false }]);
+      expect(await refused()).toBe(before + 1);
       expect(await alerted('generation-streak')).toEqual([]);
-
-      refuse = false;
     }, 120_000);
   });
 

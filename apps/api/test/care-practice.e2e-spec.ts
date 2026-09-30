@@ -576,7 +576,10 @@ describe('care-practice', () => {
       // Refused by the schema, or bought at the price and nothing else: either way the body sets no number.
       if (answer.status === 200) {
         expect(on.stripe.bought.at(-1)?.line_items).toEqual([{ price: TWO, quantity: 1 }]);
-        expect(JSON.stringify(on.stripe.bought.at(-1))).not.toContain('500');
+        // As a value, not a substring: the session's `expires_at` is a Unix time that can hold "500".
+        expect(
+          JSON.stringify(on.stripe.bought.at(-1), (_key, value: unknown) => (value === 500 || value === '500' ? 'SMUGGLED' : value))
+        ).not.toContain('SMUGGLED');
       } else {
         expect(answer.status).toBe(422);
         expect(on.stripe.bought).toHaveLength(before);
