@@ -44,6 +44,12 @@
   - **The end-to-end suite did not run locally.** One attempt at
     `pnpm test:e2e -- picture-alerts` was refused at its first query: "Your account or
     project has exceeded the quota" (the dev database). Nothing was written. CI runs it.
+  - **Its first CI run (pull request #172) was red, on the suites and not on the code**:
+    the suite dated its starting `picture-payment-refused` claim two hours back, inside the
+    six hours that claim lasts, so its own claim silenced the mail it waited for (two
+    cases); and `owner-alerts.e2e-spec.ts` stood in for `OwnerAlertsService` without the
+    new `pictureFailures`, so `/cron/reminders` answered 500 there (one case). The claims
+    are now dated seven hours back and the stand-in has the method.
   - `invariant-reviewer`: no P0, no P1. Its four P2 and the P3 it asked a change for are
     below. `legal`: both mails can be sent; no P0, P1 or P2, and its note is entries M
     and N of `docs/legal/textos/06-correos.md`.
@@ -102,7 +108,7 @@
     cleanup of phase 2 goes in `/cron/rewrite-steps` before the sweep; the watch and the
     pictures' mail already share a 10 s budget there — give the cleanup its own.
   - The e2e suite moves real rows of the shared database for its run (claims of the
-    blocking kinds, failed pictures of the last three hours) and puts them back in a
+    blocking kinds, failed pictures of the last eight hours) and puts them back in a
     `finally`. A phase 2 suite that reads candidates should follow it.
   - `picture-alerts.e2e-spec.ts` pins `AI_REWRITE_STEPS=false`: the rewrite client is the
     real one in every e2e application.

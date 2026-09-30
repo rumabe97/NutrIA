@@ -46,9 +46,10 @@ import type { TestingModuleBuilder } from '@nestjs/testing';
  *
  * What is counted is "since the last mail of that kind, or 24 h", so the shared database
  * would leak into the numbers. Isolation, here, is a *dated claim first*: a `picture-failed`
- * and a `picture-payment-refused` claim two hours back, made by the suite (older than the
- * hour a mail waits, newer than anything else), and any failed picture the database
- * already held from the last three hours moved sixty days back and put back at the end.
+ * and a `picture-payment-refused` claim seven hours back, made by the suite (older than the
+ * six hours the longer of the two claims lasts — a nearer one would itself be "already told" —
+ * and newer than anything else), and any failed picture the database already held from
+ * the last eight hours moved sixty days back and put back at the end.
  * Claims of every other kind that would block (`digest` today, `generation-streak`,
  * `spend-*`, `cron-silent-reminders`) are moved sixty days back for the run, as
  * `owner-alerts.e2e-spec.ts` does. Every row the run makes is removed.
@@ -250,7 +251,7 @@ describe('the owner is told that dish pictures failed (0072, phase 1)', () => {
       expect(process.env[name] ?? '').toBe('');
     }
 
-    const [clock] = await sql()<{ baseline: string; now: string }>`select now()::text as now, (now() - interval '2 hours')::text as baseline`;
+    const [clock] = await sql()<{ baseline: string; now: string }>`select now()::text as now, (now() - interval '7 hours')::text as baseline`;
 
     started = clock?.now ?? '';
     baseline = clock?.baseline ?? '';
@@ -282,7 +283,7 @@ describe('the owner is told that dish pictures failed (0072, phase 1)', () => {
     shelved.push(...blocking);
     await sql()`update analytics_events set created_at = created_at - interval '60 days' where id::text = any(${blocking.map(row => row.id)})`;
 
-    // The dated claims: what the counts start from, newer than any shelved claim and older than the hour a mail waits.
+    // The dated claims: what the counts start from, newer than any shelved claim and older than the 6 h a refusal's mail waits.
     for (const kind of PICTURE_KINDS) {
       await sql()`
         insert into analytics_events (event, user_id, properties, created_at)
@@ -291,7 +292,7 @@ describe('the owner is told that dish pictures failed (0072, phase 1)', () => {
 
     const failedLately = await sql()<ShelvedPicture>`
       select recipe_id::text as "recipeId", last_attempt_at::text as "lastAttemptAt" from recipe_images
-      where status = 'failed' and last_attempt_at > now() - interval '3 hours'`;
+      where status = 'failed' and last_attempt_at > now() - interval '8 hours'`;
 
     shelvedPictures.push(...failedLately);
     await sql()`
