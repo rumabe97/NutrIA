@@ -490,6 +490,9 @@ up-to-date branch (`.github/workflows/dependabot-automerge.yml`) — a red run m
 and after the merge §10's smoke asks production whether it still answers. A **major**
 version is left for a person and says so. To hold one back: `gh pr merge --disable-auto <n>`;
 to stop it all, switch off *Allow auto-merge* in the repository's settings.
+The security review (`security-review.yml`) is also a required check, and it **skips
+Dependabot's pull requests**: GitHub gives them no repository secret, so it could never
+run there. A skipped job counts as passed (owner, 2026-09-30).
 A security update Dependabot cannot make by itself (`security_update_not_possible`: a
 transitive dependency its parent pins) needs a `pnpm.overrides` entry written by hand.
 Security updates do not wait for the week. In the repository's settings, **secret scanning,
