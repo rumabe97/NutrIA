@@ -33,7 +33,7 @@ export type CatalogueRecipeRow = {
   readonly mealSlots: readonly string[];
   readonly name: string;
   readonly picture: PictureStatus;
-  /** A `ready` picture the owner accepted by hand against the judge (`0072`): the only kind that can be removed. */
+  /** A `ready` picture the owner accepted by hand against the judge (`0072`); false on a `ready` row is the judge's. Any `ready` one can be removed. */
   readonly pictureAcceptedByHand: boolean;
   /** When the row was last claimed or ended: what the cool-off counts from. Null with no row. */
   readonly pictureAt: Date | null;
@@ -110,7 +110,7 @@ export const PICTURE_STATE = sql<PictureStatus>`case
 
 /**
  * A `ready` picture the owner accepted by hand against the judge (`0072`):
- * `provenance.acceptedBy` is `ACCEPTED_BY_OWNER`, spelled by `ACCEPTED_BY_OWNER_SQL` as the removal's own guard spells it,
+ * `provenance.acceptedBy` is `ACCEPTED_BY_OWNER`, spelled by `ACCEPTED_BY_OWNER_SQL` as the count on `/admin/pictures` spells it,
  * read here as a flag and a filter, never sent as it is. Always true or false,
  * a recipe with no picture row included.
  */

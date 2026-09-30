@@ -55,7 +55,7 @@ export class AdminCatalogueController {
 
   @ApiOkResponse({
     description:
-      'One page of recipes with macros per serving (the app’s own composition), allergens, picture state (with the reason it failed or was given back, when its cool-off ends, `pictureAcceptedByHand` — a ready picture the owner accepted by hand, the only kind that can be removed — and `pictureCandidate` — the allergen keys and catalogue ingredients the judge flagged on a rejected picture kept for review, and when it expires; never its address) and source, and the catalogue’s counts by slot and source and without a ready picture. 422 INVALID_INPUT for an unknown filter or sort.'
+      'One page of recipes with macros per serving (the app’s own composition), allergens, picture state (with the reason it failed or was given back, when its cool-off ends, `pictureAcceptedByHand` — a ready picture the owner accepted by hand; false on a ready row is the judge’s — and `pictureCandidate` — the allergen keys and catalogue ingredients the judge flagged on a rejected picture kept for review, and when it expires; never its address) and source, and the catalogue’s counts by slot and source and without a ready picture. 422 INVALID_INPUT for an unknown filter or sort.'
   })
   @ApiOperation({ summary: 'Search, filter, sort and page the recipes (0068)' })
   @ApiQuery({ description: 'Name contains, case-insensitive.', name: 'q', required: false, type: String })
@@ -165,14 +165,14 @@ export class AdminCatalogueController {
   }
 
   @ApiConflictResponse({
-    description: '`PICTURE_NOT_REMOVABLE`: the dish has no picture accepted by hand — one the judge accepted cannot be removed.'
+    description: '`PICTURE_NOT_REMOVABLE`: the dish has no published picture — it is failed, being drawn, or was never drawn. Nothing is written.'
   })
   @ApiNotFoundResponse({ description: 'No such recipe.' })
   @ApiOkResponse({
     description:
-      'The picture is no longer the dish’s: `{ status: "removed", fileDeleted }`. The dish is `failed` with the reason `owner_removed` and waits out its cool-off from now; one `picture.removed` row is in the trail. `fileDeleted` is false when the public file could not be deleted: no screen is given its address any more. True means the store deleted it: its cache may serve it for up to a minute more, and a browser that already fetched it keeps its copy.'
+      'The picture is no longer the dish’s: `{ status: "removed", fileDeleted }`. The dish is `failed` with the reason `owner_removed` and waits out its cool-off from now; one `picture.removed` row is in the trail, with `acceptedBy`: `judge` or `owner`, the door the picture had come through. It publishes nothing. `fileDeleted` is false when the public file could not be deleted: no screen is given its address any more. True means the store deleted it: its cache may serve it for up to a minute more, and a browser that already fetched it keeps its copy.'
   })
-  @ApiOperation({ summary: 'Remove a dish picture that was accepted by hand (0072)' })
+  @ApiOperation({ summary: 'Remove a dish’s published picture, whether the judge or the owner accepted it (0072, project 010)' })
   @HttpCode(HttpStatus.OK)
   @Post('recipes/:id/picture/remove')
   @RateLimit({ limit: 30, ttlSeconds: 3600 })

@@ -182,7 +182,7 @@ export const esES = {
       'feedback.reopened': 'Mensaje reabierto',
       'picture.accepted': 'Imagen rechazada de un plato aceptada a mano, contra el revisor',
       'picture.discarded': 'Imagen rechazada de un plato descartada a mano',
-      'picture.removed': 'Imagen de un plato aceptada a mano, retirada',
+      'picture.removed': 'Imagen publicada de un plato, retirada',
       'picture.retried': 'Imagen de un plato reintentada a mano',
       'professional.granted': 'Perfil profesional concedido',
       'professional.revoked': 'Perfil profesional revocado',
@@ -202,6 +202,8 @@ export const esES = {
     ],
     intro: 'Quién hizo cada cambio de cuenta o de ajuste, y cuándo.',
     noMatch: 'Ninguna acción coincide con el filtro.',
+    /** `picture.removed`: who had accepted the picture the owner took back. A row written before this was kept says nothing. */
+    removedAcceptedBy: { judge: 'La había aceptado el revisor', owner: 'La habías aceptado a mano, contra el revisor' },
     settingChange: '{key}: {state}',
     state: { off: 'Apagado', on: 'Encendido' },
     tableNote: 'Las más recientes primero.',
@@ -504,7 +506,7 @@ export const esES = {
     title: 'Notificaciones'
   },
 
-  /* `/admin/catalogo/[id]/imagen` (`0072`): one picture the checker rejected, beside what the dish is made of and what the checker flagged. A dish, never a person (`0028`); never the vision model's own words. */
+  /* `/admin/catalogo/[id]/imagen` (`0072`, project 010): one picture the checker rejected, beside what the dish is made of and what the checker flagged; or one published picture, whoever accepted it, and the way to remove it. A dish, never a person (`0028`); never the vision model's own words. */
   adminPictureReview: {
     accept: 'Aceptar',
     /** Followed by the allergens the judge flagged: the box that must be ticked before the picture is published. */
@@ -559,11 +561,16 @@ export const esES = {
     intro: 'El revisor rechazó esta imagen y no está publicada. Espera tu decisión: aceptarla, descartarla o reintentar el dibujo.',
     introNothing: 'Estado de la imagen del plato: {state}.',
     introNothingReason: 'Estado de la imagen del plato: {state}. {reason}.',
+    judgeAcceptedHelp:
+      'Si muestra algo que el plato no lleva, retírala: el plato se queda sin imagen para todos y se borra el archivo publicado. No cuesta nada.',
+    judgeAcceptedIntro: 'La imagen de este plato está publicada: la aceptó el revisor. La ven todas las personas que reciben el plato.',
+    judgeAcceptedTitle: 'Imagen aceptada por el revisor',
+    judgePublishedCaption: 'Imagen generada por IA. La aceptó el revisor y está publicada: es la que ven las personas que reciben este plato.',
     loadFailed:
       'No se ha podido cargar la imagen: puede que el archivo ya no esté. Recarga la página; si sigue sin verse, descártala o reinténtala. No la aceptes sin verla.',
     none: 'Ninguno',
     nothingBody:
-      'Este plato no tiene ninguna imagen rechazada esperando: se descartó, se reintentó, se retiró después de aceptarla o pasaron sus 7 días.',
+      'Este plato no tiene ninguna imagen publicada ni ninguna rechazada esperando: aún no se ha dibujado, se está dibujando, se descartó, se reintentó, se retiró o pasaron sus 7 días.',
     nothingTitle: 'No hay ninguna imagen que revisar',
     pictureAlt: 'Imagen de {dish} generada por IA, pendiente de revisión',
     pictureCaption: 'Imagen generada por IA. El revisor la rechazó y no está publicada: solo se ve en esta página.',
@@ -575,14 +582,14 @@ export const esES = {
     reload: 'Cerrar y recargar la página',
     remove: 'Retirar',
     removeBody:
-      'El plato vuelve a quedarse sin imagen para todas las personas que lo reciban, y el archivo publicado se borra del almacén. La red de Vercel puede seguir sirviéndolo hasta un minuto, y un navegador que ya lo cargó conserva su copia. Espera al menos 7 días antes de volver a dibujarse solo, salvo que lo reintentes a mano desde Recetas. Queda en el registro de acciones, con tu cuenta.',
+      'El plato vuelve a quedarse sin imagen para todas las personas que lo reciban, y el archivo publicado se borra del almacén: esta imagen no se puede recuperar. La red de Vercel puede seguir sirviéndolo hasta un minuto, y un navegador que ya lo cargó conserva su copia. Espera al menos 7 días antes de volver a dibujarse solo, salvo que lo reintentes a mano desde Recetas. Queda en el registro de acciones, con tu cuenta.',
     removeConfirm: 'Retirar la imagen',
     removeDone: 'Imagen retirada. El plato ya no tiene imagen.',
     removeLeftover:
       'La imagen está retirada: el plato ya no la muestra a nadie. Pero su archivo no se ha podido borrar del almacén público y sigue ahí hasta que lo borres a mano, en el panel de Vercel: en el almacén de las imágenes, la carpeta dish-pictures y, dentro, la que lleva el id de este plato (está en la dirección de esta página).',
     removeLeftoverTitle: 'Retirada, con su archivo sin borrar',
     removeStaleTitle: 'No se ha retirado nada',
-    removeTitle: '¿Retirar esta imagen?',
+    removeTitle: '¿Retirar la imagen de {dish}?',
     removeTooMany: 'Demasiadas retiradas en una hora: espera un rato y vuelve a probar.',
     retry: 'Reintentar',
     retryBody: 'Se borra esta imagen y se dibuja otra ahora. Dibujar es de pago y cuenta para el tope del mes; el revisor puede volver a rechazarla.',
@@ -610,7 +617,7 @@ export const esES = {
     howCounted: [
       'El tope cuenta el mes natural en UTC, no el periodo. Al llegar a él no se dibuja ninguna imagen más hasta el mes siguiente.',
       'El gasto por día es lo que se facturó cada día por dibujar imágenes, en días de la hora de Madrid.',
-      'Lista es una imagen publicada, con su archivo: la aceptó el revisor o, contra él, la aceptaste tú a mano. Fallida es una que falló por el propio plato, o una aceptada a mano que retiraste: se reintenta pasados al menos 7 días. Devuelta es una que se dejó por el tope o por la clave: se vuelve a dibujar en la siguiente visita.',
+      'Lista es una imagen publicada, con su archivo: la aceptó el revisor o, contra él, la aceptaste tú a mano. Fallida es una que falló por el propio plato, o una publicada que retiraste: se reintenta pasados al menos 7 días. Devuelta es una que se dejó por el tope o por la clave: se vuelve a dibujar en la siguiente visita.',
       'Las imágenes de los platos se facturan aparte del texto, que tiene su gasto en IA y modelos.'
     ],
     intro: 'Lo que cuestan las imágenes de los platos y en qué estado están.',
@@ -625,7 +632,7 @@ export const esES = {
       no_provenance: 'El archivo llegó sin la firma C2PA que acredita que es una imagen generada, y no se guarda nunca.',
       other: 'Cualquier otro caso, incluidas filas antiguas que no guardaron el motivo.',
       owner_removed:
-        'Retiraste una imagen que habías aceptado a mano contra el revisor. No es un dibujo que fallara: el plato espera al menos 7 días antes de volver a dibujarse solo.',
+        'Retiraste una imagen publicada: la había aceptado el revisor o la aceptaste tú a mano. No es un dibujo que fallara: el plato espera al menos 7 días antes de volver a dibujarse solo.',
       payment_refused: 'La cuenta del proveedor no puede pagar otra llamada (error 402, clave o cuota agotada). No es culpa del plato.'
     },
     reasons: {
@@ -877,7 +884,7 @@ export const esES = {
       'El catálogo es de todos: aquí no aparece quién pidió cada receta.',
       'Una imagen fallida o devuelta se puede reintentar a mano con «Reintentar», sin esperar los 7 días; solo si dibujar está encendido y el tope del mes lo permite.',
       'Una imagen que el revisor rechazó se guarda 7 días para que la mires: «Revisar la imagen» la abre, y desde ahí se acepta, se descarta o se reintenta. Mientras está guardada, el plato no se dibuja solo.',
-      'Una imagen lista que aceptaste a mano, contra el revisor, lo dice en su fila, y el filtro de imagen «Lista, aceptada a mano» las reúne: «Revisar la imagen» abre su página, y desde ahí se puede retirar. Una que aceptó el revisor no se puede retirar.'
+      'Toda imagen lista se puede retirar, la aceptara el revisor o tú a mano: «Revisar la imagen» abre su página, con los ingredientes del plato, y desde ahí se retira. Una que aceptaste a mano, contra el revisor, lo dice en su fila, y el filtro de imagen «Lista, aceptada a mano» las reúne.'
     ],
     intro: 'El catálogo de recetas: cuántas hay, para qué comida y de dónde vienen.',
     locales: { 'en-GB': 'Inglés', 'es-ES': 'Español' },
@@ -1358,7 +1365,7 @@ export const esES = {
     pictureNoCandidate: 'Esa imagen ya no está guardada: se aceptó, se descartó, se reintentó o pasaron sus 7 días.',
     pictureNotAcceptable:
       'Esa imagen no se puede aceptar: su archivo no es un JPEG con la firma C2PA que lo marca como generado por IA. Descártala o reinténtala.',
-    pictureNotRemovable: 'Esa imagen no se puede retirar: solo se retiran las que aceptaste a mano, y esta ya no lo es.',
+    pictureNotRemovable: 'Esa imagen no se puede retirar: el plato ya no tiene una imagen publicada.',
     pictureNotRetryable: 'Esa imagen no se puede reintentar: ya no está fallida.',
     pictureUnavailable: 'Las imágenes no están disponibles ahora mismo: falta la clave o el servicio del proveedor.',
     planPaused: 'Tu plan está en pausa mientras estás de vacaciones.',

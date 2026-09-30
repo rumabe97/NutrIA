@@ -469,7 +469,7 @@ describe('AdminCatalogueController', () => {
 
   /*
    * Project 009, phase 3 (`0072`): the owner's acceptance of a rejected picture — the second of the two doors a
-   * picture reaches a person through — and the removal of a picture accepted so.
+   * picture reaches a person through — and the removal of a published picture (any, since project 010's phase 4).
    */
   describe('accepting a candidate by hand, and removing it', () => {
     const RECIPE = '6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f';
@@ -610,8 +610,11 @@ describe('AdminCatalogueController', () => {
       expect((await removing(RECIPE).expect(200)).body).toEqual({ fileDeleted: false, status: 'removed' });
     });
 
-    /* PRD 009, criterion 6: only a hand-accepted picture can be removed. */
-    it('answers 409 PICTURE_NOT_REMOVABLE for a picture the judge accepted, or a dish with none', async () => {
+    /*
+     * PRD 010, criterion 9: any published picture can be removed, the judge's included — rewritten on purpose from
+     * PRD 009's "only a hand-accepted one". What is still refused is a dish with no published picture.
+     */
+    it('answers 409 PICTURE_NOT_REMOVABLE for a dish with no published picture: failed, being drawn, or never drawn', async () => {
       role = 'admin';
       remove.mockRejectedValue(new PictureRetryRefusedError('not_removable'));
 

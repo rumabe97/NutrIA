@@ -133,3 +133,49 @@
     it stored.
   - Any change to the shape raises `PICTURE_DRAWING_VERSION`.
 
+
+## Phase 4 — Any published picture can be removed (2026-09-30)
+
+- **Executor**: three opus agents at high in parallel, on one contract — `backend-high`
+  (core and api), `frontend-high` (the console), `tests-high` (the end-to-end cases).
+  Reviews: `invariant-reviewer` (opus, high), `accessibility-high` (code only), `legal`.
+  Built beside phase 2 and ahead of it: `legal` advised that phase 2 not ship before a
+  picture the judge accepted can be taken back.
+- **Result**: built and verified; **waiting for the owner's check** (human-verify) and for
+  the local probe, which needs the dev database (over its monthly quota until 2026-10-01).
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=api --filter=web` (forced,
+    `--concurrency=2`): 17 of 17 tasks green — core 1815 passed and 136 expected to fail
+    (phase 1's marks, for phase 2), api 1233, web 142, ui 487, database 43.
+  - End-to-end: `picture-acceptance` rewritten; it first runs in CI (dev database over
+    quota). Lint and types green.
+  - `invariant-reviewer`: no P0, no P1. One P2 fixed — a row whose address pointed into
+    another dish's folder would have had that dish's public file deleted; `unpublish` now
+    refuses such an address before the store is asked (the removal still commits, answering
+    `fileDeleted: false`). Two P3s: one closed as already asserted in e2e; `0072` still reads
+    "a picture the judge accepted cannot" without pointing at `0073` — left, as most
+    decisions carry no "amended by" line.
+  - `accessibility` (code): no P0, no P1. One P2 fixed — after a removal, focus passed back
+    over the closing dialog's confirm button before reaching "Volver a Recetas". P3s left:
+    a ready row's "Revisar la imagen" sounds like a rejected one's; "generada por IA" heard
+    twice (alt and caption); the dialog's `85vh` on iOS Safari at large text.
+  - `legal`: IMG-16 closed; IMG-2 and IMG-14 updated; `/privacidad` and `/condiciones` do
+    not change. One P3: `fileDeleted: false` for a refused address shows the console's "delete
+    it by hand" text, which is wrong for that case; no code writes such a row today.
+- **What was built**:
+  - `POST /admin/catalogue/recipes/:id/picture/remove` works on any `ready` picture: the
+    guard is `status = 'ready'` alone. In one transaction under the row's lock: the row goes
+    `failed` with `owner_removed` (keeping `drawings`), and `picture.removed` records
+    `{ acceptedBy: 'judge' | 'owner' }`, read from the locked row. Then the public file is
+    deleted. Refusals unchanged: 409 for a dish with no published picture, 404 for anyone but
+    the owner.
+  - The console: every published picture has its review page — the picture, the dish's
+    ingredients and "Retirar", whose dialog names the dish and says the picture cannot be
+    recovered. Recetas links to it from every `ready` row. The audit log says who had accepted
+    a removed picture.
+- **Deviations from plan**: the audit log page and `apps/web/AGENTS.md` joined the scope
+  (plan amended); comments only in `core/entities/{Error,AdminQuery}` and
+  `apps/web/src/lib/pictureRefusal.ts`.
+- **Decisions**: none new; `0073`.
+- **For the owner (human-verify)**: open a dish whose picture the judge accepted, in
+  `/admin/catalogo`, and see the picture and "Retirar". Removing one is your choice.

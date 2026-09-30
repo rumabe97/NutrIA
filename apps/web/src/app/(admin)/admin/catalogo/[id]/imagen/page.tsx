@@ -19,6 +19,7 @@ import { formatInstant, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../../../consoleMetadata';
+import { pictureReview } from '../../pictureReview';
 
 import type { AdminRecipeView } from 'core/controllers/Admin';
 import type { Allergen } from 'core/entities/Safety';
@@ -43,8 +44,10 @@ const ACCEPTANCES = '/admin/ajustes/registro?action=picture.accepted';
  * Until it expires the owner can accept it against the judge, in two steps and after the
  * warning that names those allergens; discard it; or retry the drawing, which deletes it too.
  *
- * A dish whose picture the owner accepted by hand shows that picture here, as it is
- * published, and only here is "Retirar": it is never drawn for a picture the judge accepted.
+ * A dish with a published picture shows it here, as it is published, with the dish's
+ * ingredients and "Retirar" — whoever accepted it, the judge or the owner by hand (project
+ * 010: a picture the judge accepted wrongly needs a way out that is not a migration). Only
+ * here is "Retirar".
  *
  * The candidate's file is read through the API with the admin's session; no address of it is
  * in any answer. The published one is public, and its address comes with the recipe. A recipe that holds no picture to look at says so, and an id that is no
@@ -71,14 +74,19 @@ export default async function AdminPictureReviewPage({ params }: { params: Promi
   const labels = (keys: readonly string[]) => keys.map(key => allergenName.get(key) ?? key);
   const grams = (value: number) => `${formatNumber(value, locale, { maximumFractionDigits: 0 })} ${dictionary.units.gram}`;
   const state = dictionary.adminRecipes.pictures[recipe.picture];
+  const kind = pictureReview(recipe);
 
   const intro = (): string => {
     if (candidate) {
       return t.intro;
     }
 
-    if (recipe.pictureAcceptedByHand) {
+    if (kind === 'byHand') {
       return t.acceptedIntro;
+    }
+
+    if (kind === 'byJudge') {
+      return t.judgeAcceptedIntro;
     }
 
     // Why it is not a picture, when the row says: a picture the owner removed reads as failed, with that reason.
@@ -187,13 +195,16 @@ export default async function AdminPictureReviewPage({ params }: { params: Promi
       );
     }
 
-    if (recipe.pictureAcceptedByHand) {
+    // Published, by the judge or by hand: the same page, and the same way to take it back.
+    if (kind === 'byHand' || kind === 'byJudge') {
+      const byHand = kind === 'byHand';
+
       return (
         <div className={styles.review}>
           <AdminSection title={t.pictureTitle}>
             <figure className={styles.figure}>
               <DishPicture alt={interpolate(t.publishedAlt, { dish: recipe.name })} path={recipe.pictureUrl} priority={true} variant="hero" />
-              <figcaption className={styles.caption}>{t.publishedCaption}</figcaption>
+              <figcaption className={styles.caption}>{byHand ? t.publishedCaption : t.judgePublishedCaption}</figcaption>
               <p className={styles.loadFailed}>{t.publishedLoadFailed}</p>
             </figure>
           </AdminSection>
@@ -201,17 +212,20 @@ export default async function AdminPictureReviewPage({ params }: { params: Promi
           {dish}
 
           <div className={styles.decide}>
-            <AdminSection title={t.acceptedTitle}>
-              <Text className={styles.help}>{t.acceptedHelp}</Text>
+            <AdminSection title={byHand ? t.acceptedTitle : t.judgeAcceptedTitle}>
+              <Text className={styles.help}>{byHand ? t.acceptedHelp : t.judgeAcceptedHelp}</Text>
               <div className={styles.actions}>
-                <PictureRemoveAction recipeId={recipe.id} />
+                <PictureRemoveAction dish={recipe.name} recipeId={recipe.id} />
               </div>
-              <p className={styles.trail}>
-                <span>{t.acceptedTrail}</span>{' '}
-                <Link className={styles.link} href={ACCEPTANCES}>
-                  {t.acceptedTrailLink}
-                </Link>
-              </p>
+              {/* Only an acceptance by hand has a row of its own in the trail; the judge's is the drawing itself. */}
+              {byHand ? (
+                <p className={styles.trail}>
+                  <span>{t.acceptedTrail}</span>{' '}
+                  <Link className={styles.link} href={ACCEPTANCES}>
+                    {t.acceptedTrailLink}
+                  </Link>
+                </p>
+              ) : null}
             </AdminSection>
           </div>
         </div>

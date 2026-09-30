@@ -20,7 +20,7 @@ describe('pictureRefusal', () => {
     expect(pictureRefusal(refused('PICTURE_NO_CANDIDATE'), ACCEPT_STALE)).toBe('stale');
   });
 
-  it('takes a picture that is no longer accepted by hand as a stale page, for a removal', () => {
+  it('takes a picture that is no longer published as a stale page, for a removal', () => {
     expect(pictureRefusal(refused('PICTURE_NOT_REMOVABLE'), REMOVE_STALE)).toBe('stale');
   });
 

@@ -330,7 +330,7 @@ describe('PictureCandidatesService.accept', () => {
   });
 });
 
-/* PRD 009, criterion 6: taking back a picture accepted by hand. */
+/* PRD 010, criterion 9: taking back a published picture, whichever door it came through (it was PRD 009's criterion 6: by hand only). */
 describe('PictureCandidatesService.remove', () => {
   it('hands core the session’s owner, its clock and the two deletions, and answers whether the public file went', async () => {
     const { candidates, published, store } = service();
@@ -348,6 +348,26 @@ describe('PictureCandidatesService.remove', () => {
     store.files.set(PATH, STUB_PICTURE);
     await files?.forget(PATH);
     expect(store.files.size).toBe(0);
+  });
+
+  /* Invariant review of 010 phase 4: now that any ready row can be removed, a row's address is never trusted to be its own. */
+  it('never deletes another recipe’s file, whatever the row’s address says: the store is not asked, and core hears the file is still there', async () => {
+    const { candidates, published } = service();
+    const OTHER = '0f0e0d0c-0b0a-4908-8706-050403020100';
+
+    remove.mockResolvedValue({ fileDeleted: false });
+    await candidates.remove(RECIPE.toUpperCase(), OWNER);
+
+    const files = remove.mock.calls[0]?.[2];
+
+    await expect(files?.unpublish(`https://store.example/dish-pictures/${OTHER}/2.0.0-x.jpg`)).rejects.toThrow('another recipe');
+    await expect(files?.unpublish(`dish-pictures/${OTHER}/2.0.0-x.jpg`)).rejects.toThrow('another recipe');
+    await expect(files?.unpublish(`https://store.example/dish-pictures%2F${OTHER}%2F2.0.0-x.jpg`)).rejects.toThrow('another recipe');
+    expect(published.deleted).toEqual([]);
+
+    // Its own file, whichever case the id arrived in, is deleted as before.
+    await files?.unpublish(`https://store.example/dish-pictures/${RECIPE}/2.0.0-x.jpg`);
+    expect(published.deleted).toEqual([`https://store.example/dish-pictures/${RECIPE}/2.0.0-x.jpg`]);
   });
 
   it('works without the private store’s token: a picture can always be taken back', async () => {

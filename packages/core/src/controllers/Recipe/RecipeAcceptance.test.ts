@@ -12,6 +12,7 @@ import type { AcceptanceFiles } from './RecipeController';
 
 type Row = { lastAttemptAt: Date | null; provenance: Record<string, unknown> | null; status: string };
 type Audit = (tx: unknown) => Promise<void>;
+type RemovalAudit = (tx: unknown, removed: { acceptedBy: 'judge' | 'owner' }) => Promise<void>;
 type Seen = { lastAttemptAt: Date; path: string };
 type Picture = { model: string; promptVersion: string; provenance: Record<string, unknown>; url: string };
 
@@ -21,7 +22,7 @@ const candidateRow = vi.fn<(recipeId: string) => Promise<Row | null>>();
 const acceptCandidate = vi.fn<(recipeId: string, seen: Seen, picture: Picture, now: Date, audit: Audit) => Promise<boolean>>();
 const dropCandidate = vi.fn<(recipeId: string, path: string, audit?: Audit) => Promise<boolean>>();
 const removeAcceptedPicture =
-  vi.fn<(recipeId: string, now: Date, audit: Audit) => Promise<{ candidatePath: string | null; url: string | null } | null>>();
+  vi.fn<(recipeId: string, now: Date, audit: RemovalAudit) => Promise<{ candidatePath: string | null; url: string | null } | null>>();
 const monthSpendUsd = vi.fn<() => Promise<number>>();
 type Settled = { status: string; url: string | null } | null;
 
@@ -41,7 +42,7 @@ vi.mock('#repositories/Recipe', () => ({
     monthSpendUsd: () => monthSpendUsd(),
     pictureState: (recipeId: string) => pictureState(recipeId),
     recipeExists: (recipeId: string) => recipeExists(recipeId),
-    removeAcceptedPicture: (recipeId: string, now: Date, audit: Audit) => removeAcceptedPicture(recipeId, now, audit),
+    removeAcceptedPicture: (recipeId: string, now: Date, audit: RemovalAudit) => removeAcceptedPicture(recipeId, now, audit),
     settledPicture: (recipeId: string, lockTimeoutMs: number) => settledPicture(recipeId, lockTimeoutMs)
   }
 }));
@@ -163,7 +164,7 @@ beforeEach(() => {
   // As a row whose acceptance did not happen reads, once settled: still failed.
   settledPicture.mockResolvedValue({ status: 'failed', url: null });
   removeAcceptedPicture.mockImplementation(async (_id, _now, audit) => {
-    await audit('tx');
+    await audit('tx', { acceptedBy: 'judge' });
 
     return { candidatePath: null, url: URL };
   });
@@ -664,7 +665,10 @@ describe('RecipeController.acceptCandidate', () => {
   });
 });
 
-/* PRD 009, criterion 6: only a picture accepted by hand can be taken back. */
+/*
+ * PRD 010, criterion 9 (phase 4): any published picture can be taken back — the judge's as much as one accepted by
+ * hand. Rewritten on purpose from PRD 009's criterion 6, "only a picture accepted by hand".
+ */
 describe('RecipeController.removePicture', () => {
   function stores(overrides: Partial<{ forget: (path: string) => Promise<void>; unpublish: (url: string) => Promise<void> }> = {}) {
     const order: string[] = [];
@@ -686,7 +690,7 @@ describe('RecipeController.removePicture', () => {
 
     removeAcceptedPicture.mockImplementation(async (_id, _now, audit) => {
       order.push('row');
-      await audit('tx');
+      await audit('tx', { acceptedBy: 'owner' });
       order.push('audit');
 
       return { candidatePath: null, url: URL };
@@ -699,11 +703,37 @@ describe('RecipeController.removePicture', () => {
     expect(removeAcceptedPicture).toHaveBeenCalledWith(RECIPE, NOW, expect.any(Function));
     expect(files.unpublish).toHaveBeenCalledWith(URL);
     expect(record).toHaveBeenCalledTimes(1);
-    expect(record).toHaveBeenCalledWith({ action: 'picture.removed', actorId: OWNER, entity: 'recipe', entityId: RECIPE, metadata: {} }, 'tx');
+    expect(record).toHaveBeenCalledWith(
+      { action: 'picture.removed', actorId: OWNER, entity: 'recipe', entityId: RECIPE, metadata: { acceptedBy: 'owner' } },
+      'tx'
+    );
     expect(files.forget).not.toHaveBeenCalled();
   });
 
-  it('refuses a picture the judge accepted — and a dish with none — writing nothing and deleting nothing', async () => {
+  it('takes back a picture the judge accepted, the same way, and its audit row says so — in a closed word, nothing else', async () => {
+    const { files, order } = stores();
+
+    removeAcceptedPicture.mockImplementation(async (_id, _now, audit) => {
+      order.push('row');
+      await audit('tx', { acceptedBy: 'judge' });
+
+      return { candidatePath: null, url: URL };
+    });
+
+    await expect(RecipeController.removePicture(RECIPE, OWNER, files, NOW)).resolves.toEqual({ fileDeleted: true });
+
+    expect(order).toEqual(['row', 'unpublish']);
+    expect(files.unpublish).toHaveBeenCalledWith(URL);
+    expect(record).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith(
+      { action: 'picture.removed', actorId: OWNER, entity: 'recipe', entityId: RECIPE, metadata: { acceptedBy: 'judge' } },
+      'tx'
+    );
+    // Removing publishes nothing: no third door (`0072`).
+    expect(files.forget).not.toHaveBeenCalled();
+  });
+
+  it('refuses a dish with no published picture — failed, being drawn, never drawn — writing nothing and deleting nothing', async () => {
     const { files } = stores();
 
     removeAcceptedPicture.mockResolvedValue(null);
@@ -831,7 +861,7 @@ describe('a ready row that still holds its candidate’s pointer', () => {
     };
 
     removeAcceptedPicture.mockImplementation(async (_id, _now, audit) => {
-      await audit('tx');
+      await audit('tx', { acceptedBy: 'owner' });
 
       return { candidatePath: PATH, url: URL };
     });

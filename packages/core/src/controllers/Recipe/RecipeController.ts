@@ -754,11 +754,15 @@ export const RecipeController = {
   },
 
   /**
-   * The owner takes back a picture accepted by hand (`picture.removed`, `0072`):
-   * how a mistaken acceptance is undone. **Only a picture the owner accepted**
-   * — one the judge accepted is refused, and nothing is written. The dish goes
-   * back to `failed` with the closed reason `owner_removed` and waits out a
-   * whole cool-off from `now`, the audit row written in the same transaction.
+   * The owner takes back a published picture (`picture.removed`, `0072`):
+   * how a mistaken acceptance is undone — **any `ready` picture**, the judge's
+   * as much as one accepted by hand (project 010, phase 4: a picture the judge
+   * accepted wrongly has a way out that is not a migration). The dish goes back
+   * to `failed` with the closed reason `owner_removed` and waits out a whole
+   * cool-off from `now`, the audit row written in the same transaction and
+   * saying which door the picture had come through (`acceptedBy`: `judge` or
+   * `owner`, read from the locked row — never a path, never a model's words).
+   * It publishes nothing: removing is never a third door (`0072`).
    *
    * The row first, the public file after: from the moment the row says
    * removed no screen is given the picture's address, whatever becomes of the
@@ -773,8 +777,9 @@ export const RecipeController = {
    *
    * It needs neither the `dishPictures` switch nor the month's cap: taking a
    * picture back is always possible. A `PictureRetryRefusedError`
-   * (`not_removable`) for anything that is not a hand-accepted picture; a
-   * `NotFoundError` for an unknown recipe, or an id that is not one.
+   * (`not_removable`) for a dish with no `ready` picture — `failed`, `drawing`
+   * or never drawn — with nothing written; a `NotFoundError` for an unknown
+   * recipe, or an id that is not one.
    */
   async removePicture(
     recipeId: string,
@@ -786,8 +791,8 @@ export const RecipeController = {
       throw new NotFoundError('Recipe not found');
     }
 
-    const removed = await RecipeRepository.removeAcceptedPicture(recipeId, now, async tx => {
-      await AuditRepository.record({ action: 'picture.removed', actorId, entity: 'recipe', entityId: recipeId, metadata: {} }, tx);
+    const removed = await RecipeRepository.removeAcceptedPicture(recipeId, now, async (tx, { acceptedBy }) => {
+      await AuditRepository.record({ action: 'picture.removed', actorId, entity: 'recipe', entityId: recipeId, metadata: { acceptedBy } }, tx);
     });
 
     if (removed === null) {

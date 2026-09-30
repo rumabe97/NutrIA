@@ -8,11 +8,11 @@ import { dislikedRecipes, favoriteRecipes } from 'database/schema/plan';
 import { recipeImageCalls, recipeImages, recipeIngredients, recipes } from 'database/schema/recipe';
 
 import { METHOD_RULES, nextRewriteStamp, REWRITE_ATTEMPT_BOUND } from 'core/domain/Method';
-import { ACCEPTED_BY_OWNER, keepingDrawings, pictureStateSchema } from 'core/entities/DishPicture';
+import { ACCEPTED_BY_OWNER, keepingDrawings, pictureAcceptedByOf, pictureStateSchema } from 'core/entities/DishPicture';
 import { DatabaseOperationError } from 'core/entities/Error';
 import type { FoodClass } from 'database/schema/food';
 import type { LibraryRecipe } from 'core/domain/MealFit';
-import type { PictureCall, PictureJudgedDrawing, PictureProvenance, PictureReason, PictureState } from 'core/entities/DishPicture';
+import type { PictureAcceptedBy, PictureCall, PictureJudgedDrawing, PictureProvenance, PictureReason, PictureState } from 'core/entities/DishPicture';
 import type { RecordAudit } from '#repositories/Audit';
 import type { CatalogueIngredient, MealSlot, RecipeVerdict } from 'core/entities/Plan';
 import type { RecipeStep } from 'database/schema/recipe';
@@ -74,9 +74,11 @@ export type PictureDish = {
 
 /**
  * `ACCEPTED_BY_OWNER` as Postgres reads it: a literal, for every statement that
- * asks whether a picture was accepted by hand — the removal's guard here, the
- * console's flag, filter and count in `#repositories/Admin`. One spelling, so
- * what "Retirar" is offered on and what a removal takes cannot drift apart.
+ * asks whether a picture was accepted by hand — the console's flag, filter and
+ * count in `#repositories/Admin`. One spelling, so the flag, the filter and the
+ * count cannot drift apart. The removal no longer asks (project 010, phase 4:
+ * any `ready` picture can be taken back); it reads the same mark in code, with
+ * `pictureAcceptedByOf`, to say in its audit row which door the picture came through.
  * A literal and not a parameter because one of them groups by it, and Postgres
  * must see the selected and the grouped expression as the same one. The
  * constant is a plain word of ours, never anything a request carries.
@@ -994,27 +996,31 @@ export const RecipeRepository = {
   },
 
   /**
-   * The owner takes back a picture accepted by hand (`picture.removed`, `0072`):
-   * the row goes back to `failed` with the closed reason `owner_removed`, no
-   * address, and its cool-off counted from `now` — so the dish is not drawn
-   * again at once. **Only a `ready` row whose `provenance` says the owner
-   * accepted it**: a picture the judge accepted is not touched, and neither is
-   * any other row. The address the picture had is handed back, for the caller
-   * to delete the public file once this has committed — and the path of a
-   * candidate the row still held (an acceptance whose last step failed), for
-   * its private file, since the pointer goes with the rest of `provenance`.
-   * The judged drawings the row held are kept (`keepingDrawings`): a picture
-   * taken back is the very case a refinement of the judge needs to read.
+   * The owner takes back a published picture (`picture.removed`, `0072`,
+   * project 010 phase 4): the row goes back to `failed` with the closed reason
+   * `owner_removed`, no address, and its cool-off counted from `now` — so the
+   * dish is not drawn again at once. **Any `ready` row**, whichever door it
+   * came through: a picture the judge accepted wrongly has a way out that is
+   * not a migration. Any other row — `failed`, `drawing`, none — is not
+   * touched. Which door it was is read from the row under its lock and handed
+   * to `record` in a closed word (`pictureAcceptedByOf`), for the audit row to
+   * say it; nothing else of the row reaches it. The address the picture had is
+   * handed back, for the caller to delete the public file once this has
+   * committed — and the path of a candidate the row still held (an acceptance
+   * whose last step failed), for its private file, since the pointer goes with
+   * the rest of `provenance`. The judged drawings the row held are kept
+   * (`keepingDrawings`): a picture taken back is the very case a refinement of
+   * the judge needs to read. It publishes nothing and writes no `ready`.
    *
-   * Mode: `SELECT … FOR UPDATE`, then one guarded `UPDATE … WHERE ready AND
-   * accepted by the owner RETURNING`, and the audit row written by `record`,
-   * all in one transaction: a removal that did not happen leaves no audit row,
-   * and one that happened always has one. Null when nothing was removed.
+   * Mode: `SELECT … FOR UPDATE`, then one guarded `UPDATE … WHERE ready
+   * RETURNING`, and the audit row written by `record`, all in one transaction:
+   * a removal that did not happen leaves no audit row, and one that happened
+   * always has one. Null when nothing was removed.
    */
   async removeAcceptedPicture(
     recipeId: string,
     now: Date,
-    record: RecordAudit
+    record: (tx: Parameters<RecordAudit>[0], removed: { readonly acceptedBy: PictureAcceptedBy }) => Promise<void>
   ): Promise<{ readonly candidatePath: string | null; readonly url: string | null } | null> {
     try {
       return await database().transaction(async tx => {
@@ -1032,14 +1038,15 @@ export const RecipeRepository = {
             updatedAt: now,
             url: null
           })
-          .where(and(eq(recipeImages.recipeId, recipeId), eq(recipeImages.status, 'ready'), handAccepted))
+          .where(and(eq(recipeImages.recipeId, recipeId), eq(recipeImages.status, 'ready')))
           .returning({ recipeId: recipeImages.recipeId });
 
         if (rows.length !== 1) {
           return null;
         }
 
-        await record(tx);
+        // The row read under the lock is the row just updated: which door its picture came through is known here, and only here.
+        await record(tx, { acceptedBy: pictureAcceptedByOf(held?.provenance) });
 
         return { candidatePath: held?.path ?? null, url: held?.url ?? null };
       });
@@ -1288,9 +1295,6 @@ const candidatePath = sql<string | null>`(${recipeImages.provenance} -> 'candida
 
 /** A row that holds a candidate. Always true or false, a row with no `provenance` included. */
 const hasCandidate = sql`(${candidatePath} is not null)`;
-
-/** A picture the owner accepted by hand against the judge (`0072`): `provenance.acceptedBy`. The only pictures that can be removed. */
-const handAccepted = sql`(${recipeImages.provenance} ->> 'acceptedBy') = ${ACCEPTED_BY_OWNER_SQL}`;
 
 /**
  * What a drawing's end writes as `provenance`, with the candidate's pointer

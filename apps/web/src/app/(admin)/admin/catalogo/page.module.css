@@ -40,7 +40,7 @@
   font-size: var(--font-size-02);
 }
 
-/* The way to a picture's review — a rejected one, or one accepted by hand — where the retry button would be. */
+/* The way to a picture's review — a rejected one, or a published one — where the retry button would be. */
 .review {
   color: var(--foreground-01);
   font-weight: var(--font-weight-medium);

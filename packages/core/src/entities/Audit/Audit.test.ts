@@ -20,7 +20,7 @@ describe('auditQuerySchema', () => {
   });
 
   /* 0072: discarding, accepting and removing a picture by hand are admin mutations, each with its own name. */
-  it('names the owner’s discard and acceptance of a candidate, and the removal of an accepted one', () => {
+  it('names the owner’s discard and acceptance of a candidate, and the removal of a published one', () => {
     expect(AUDIT_ACTIONS).toContain('picture.discarded');
     expect(AUDIT_ACTIONS).toContain('picture.accepted');
     expect(AUDIT_ACTIONS).toContain('picture.removed');
