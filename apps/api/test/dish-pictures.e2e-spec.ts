@@ -607,15 +607,20 @@ describe('dish pictures', () => {
       'drawing',
       'enabled',
       'failed',
+      'failedByReason',
       'period',
       'ready',
       'released',
+      'releasedByReason',
       'since',
       'spendPerDay',
       'spentUsd',
       'window'
     ]);
     expect(body['released']).toEqual(expect.any(Number));
+    // Why they failed or were given back, as closed reasons and counts: never the provider's text.
+    expect(Array.isArray(body['failedByReason'])).toBe(true);
+    expect(Array.isArray(body['releasedByReason'])).toBe(true);
     expect(body['enabled']).toBe(true);
     expect(body['ready']).toEqual(expect.any(Number));
     expect(body['ready'] as number).toBeGreaterThanOrEqual(1);
