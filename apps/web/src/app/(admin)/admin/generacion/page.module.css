@@ -41,3 +41,21 @@
   overflow-wrap: anywhere;
   white-space: normal;
 }
+
+/* The code column: what happened in words, the raw code beneath it for the filter. */
+.code {
+  display: grid;
+  gap: var(--space-01);
+}
+
+.raw {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+}
+
+/* A section with nothing to list says so, on a card like its neighbours. */
+.empty {
+  color: var(--foreground-02);
+  font-size: var(--font-size-03);
+  margin: 0;
+}

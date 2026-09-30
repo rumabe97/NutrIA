@@ -8,6 +8,7 @@ export {
   MealInFutureError,
   NotFoundError,
   OnboardingIncompleteError,
+  PictureRetryRefusedError,
   PlanPausedError,
   PracticeFullError,
   ProfileConsentRequiredError,

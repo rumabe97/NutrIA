@@ -1224,7 +1224,23 @@ describe('admin', () => {
 
     /** Every key a log row carries: the job, its account, its calls and its plan (`0050`). Unchanged by phase 7. */
     const GENERATION_KEYS = ['account', 'attempts', 'calls', 'code', 'detail', 'finishedAt', 'id', 'plan', 'seconds', 'startedAt', 'status', 'step'];
-    const RECIPE_KEYS = ['allergens', 'carbsG', 'fatG', 'kcal', 'locale', 'mayContain', 'mealSlots', 'name', 'picture', 'proteinG', 'slug', 'source'];
+    const RECIPE_KEYS = [
+      'allergens',
+      'carbsG',
+      'fatG',
+      'id',
+      'kcal',
+      'locale',
+      'mayContain',
+      'mealSlots',
+      'name',
+      'picture',
+      'pictureReason',
+      'proteinG',
+      'retryableAt',
+      'slug',
+      'source'
+    ];
     const INGREDIENT_KEYS = [
       'allergens',
       'carbsPer100g',
@@ -1371,9 +1387,13 @@ describe('admin', () => {
       'drawing',
       'enabled',
       'failed',
+      'failedByReason',
+      'n',
       'period',
       'ready',
+      'reason',
       'released',
+      'releasedByReason',
       'since',
       'spendPerDay',
       'spentUsd',
@@ -1823,7 +1843,21 @@ describe('admin', () => {
         const view = response.body as AdminPicturesPeriodView;
 
         expect(Object.keys(view).sort()).toEqual(
-          ['capUsd', 'drawing', 'enabled', 'failed', 'period', 'ready', 'released', 'since', 'spendPerDay', 'spentUsd', 'window'].sort()
+          [
+            'capUsd',
+            'drawing',
+            'enabled',
+            'failed',
+            'failedByReason',
+            'period',
+            'ready',
+            'released',
+            'releasedByReason',
+            'since',
+            'spendPerDay',
+            'spentUsd',
+            'window'
+          ].sort()
         );
         expect(view.period).toBe(period);
         // Dollars, not counts: `expectDays` checks the days, the values are checked here.
@@ -1834,7 +1868,7 @@ describe('admin', () => {
       }
     });
 
-    it('list recipes with exactly their twelve keys and the whole catalogue’s counts', async () => {
+    it('list recipes with exactly their fifteen keys and the whole catalogue’s counts', async () => {
       const page = await recipes('');
 
       expect(Object.keys(page).sort()).toEqual(['counts', 'offset', 'rows', 'size', 'total']);
@@ -1971,7 +2005,7 @@ describe('admin', () => {
       }
     });
 
-    it('never name who made a dish: no id, no created_by, not the maker’s id anywhere', async () => {
+    it('never name who made a dish: no created_by, no person’s id, not the maker’s id anywhere', async () => {
       // The premise: this block's generation asked the model, so the catalogue holds a dish `log` made.
       expect(asked).toBeGreaterThan(0);
 
@@ -1997,7 +2031,11 @@ describe('admin', () => {
 
         walk(body, keys, new Set());
 
-        expect({ label, person: [...keys].filter(key => PERSON_KEYS.includes(key)) }).toEqual({ label, person: [] });
+        // A recipe row carries its own `id` (the retry route takes it): a dish's id names nobody, and
+        // `expectNobody` below still refuses every account's id as a value. Ingredients carry none.
+        const person = allowed === RECIPE_BODY_KEYS ? PERSON_KEYS.filter(key => key !== 'id') : PERSON_KEYS;
+
+        expect({ label, person: [...keys].filter(key => person.includes(key)) }).toEqual({ label, person: [] });
         expectNobody(label, body, allowed);
       }
     });

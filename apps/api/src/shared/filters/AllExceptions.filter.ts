@@ -10,6 +10,7 @@ import {
   MealInFutureError,
   NotFoundError,
   OnboardingIncompleteError,
+  PictureRetryRefusedError,
   PlanPausedError,
   PracticeFullError,
   ProfileConsentRequiredError,
@@ -126,6 +127,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
         code: 'PRACTICE_FULL',
         message: 'Tu consulta ya tiene todos los pacientes que incluye tu plan.',
         practice: { includedClients: exception.includedClients, waysUp: ['larger_plan', 'end_link'] },
+        statusCode: HttpStatus.CONFLICT
+      };
+    }
+
+    if (exception instanceof PictureRetryRefusedError) {
+      // The owner's retry of a dish's picture, refused by the system's state: the code names which
+      // (`PICTURE_FLAG_OFF`, `PICTURE_UNAVAILABLE`, `PICTURE_CAP_REACHED`, `PICTURE_DRAWING`, `PICTURE_NOT_RETRYABLE`).
+      return {
+        code: `PICTURE_${exception.reason.toUpperCase()}`,
+        message: 'No se puede reintentar la imagen ahora.',
         statusCode: HttpStatus.CONFLICT
       };
     }

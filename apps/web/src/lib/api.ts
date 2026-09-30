@@ -18,6 +18,11 @@ export type ApiErrorCode =
   | 'NETWORK'
   | 'NOT_FOUND'
   | 'ONBOARDING_INCOMPLETE'
+  | 'PICTURE_CAP_REACHED'
+  | 'PICTURE_DRAWING'
+  | 'PICTURE_FLAG_OFF'
+  | 'PICTURE_NOT_RETRYABLE'
+  | 'PICTURE_UNAVAILABLE'
   | 'PLAN_PAUSED'
   | 'PRACTICE_FULL'
   | 'PROFILE_CONSENT_REQUIRED'
@@ -59,6 +64,11 @@ const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   NETWORK: 'network',
   NOT_FOUND: 'notFound',
   ONBOARDING_INCOMPLETE: 'onboardingIncomplete',
+  PICTURE_CAP_REACHED: 'pictureCapReached',
+  PICTURE_DRAWING: 'pictureDrawing',
+  PICTURE_FLAG_OFF: 'pictureFlagOff',
+  PICTURE_NOT_RETRYABLE: 'pictureNotRetryable',
+  PICTURE_UNAVAILABLE: 'pictureUnavailable',
   PLAN_PAUSED: 'planPaused',
   PRACTICE_FULL: 'practiceFull',
   PROFILE_CONSENT_REQUIRED: 'profileConsentRequired',

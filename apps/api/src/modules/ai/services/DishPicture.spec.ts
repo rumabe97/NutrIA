@@ -141,7 +141,10 @@ describe('DishPictureService.draw — a picture that is not kept', () => {
     expect(calls.filter(call => call.kind === 'image')).toHaveLength(3);
     expect(fail).toHaveBeenCalledWith(CLAIM, {
       attempts: 3,
-      provenance: { notes: expect.arrayContaining([expect.stringMatching(/^1:rejected:extra_allergen:shrimp=crustaceans/)]) }
+      provenance: {
+        notes: expect.arrayContaining([expect.stringMatching(/^1:rejected:extra_allergen:shrimp=crustaceans/)]),
+        reason: 'judge_allergen'
+      }
     });
   });
 
@@ -187,7 +190,10 @@ describe('DishPictureService.draw — a picture that is not kept', () => {
 
     expect(store.stored).toEqual([]);
     expect(calls.map(call => call.kind)).toEqual(['image']);
-    expect(fail).toHaveBeenCalledWith(CLAIM, { attempts: 1, provenance: { notes: ['1:unkeepable:no C2PA manifest (image/jpeg)'] } });
+    expect(fail).toHaveBeenCalledWith(CLAIM, {
+      attempts: 1,
+      provenance: { notes: ['1:unkeepable:no C2PA manifest (image/jpeg)'], reason: 'no_provenance' }
+    });
   });
 
   it('draws again after an image call that failed, recording what it may have cost', async () => {
@@ -243,22 +249,22 @@ describe('DishPictureService.draw — stopping without blaming the dish', () => 
     await expect(service({ images }).pictures.draw(CLAIM)).resolves.toBe('released');
 
     expect(images.draw).not.toHaveBeenCalled();
-    expect(release).toHaveBeenCalledWith(CLAIM, { attempts: 0, why: 'the month’s cap is reached' });
+    expect(release).toHaveBeenCalledWith(CLAIM, { attempts: 0, reason: 'cap_reached', why: 'the month’s cap is reached' });
     expect(fail).not.toHaveBeenCalled();
   });
 
   it.each([
-    ['a key past its limit (402)', new PictureCallError('OpenRouter /images answered 402: Key limit exceeded', 402)],
-    ['a rate limit (429)', new PictureCallError('OpenRouter /images answered 429: Too many requests', 429)],
-    ['a quota in the provider’s words', new Error('RESOURCE_EXHAUSTED: quota exceeded')]
-  ])('gives the claim back on %s, recording the refusal at no cost', async (_case, refusal) => {
+    ['a key past its limit (402)', new PictureCallError('OpenRouter /images answered 402: Key limit exceeded', 402), 'payment_refused'],
+    ['a rate limit (429)', new PictureCallError('OpenRouter /images answered 429: Too many requests', 429), 'model_refused'],
+    ['a quota in the provider’s words', new Error('RESOURCE_EXHAUSTED: quota exceeded'), 'payment_refused']
+  ])('gives the claim back on %s, recording the refusal at no cost', async (_case, refusal, reason) => {
     const images = drawing(async () => Promise.reject(refusal));
 
     await expect(service({ images }).pictures.draw(CLAIM)).resolves.toBe('released');
 
     expect(images.draw).toHaveBeenCalledTimes(1);
     // The refused attempt is not counted against the dish.
-    expect(release).toHaveBeenCalledWith(CLAIM, expect.objectContaining({ attempts: 0 }));
+    expect(release).toHaveBeenCalledWith(CLAIM, expect.objectContaining({ attempts: 0, reason }));
     expect(fail).not.toHaveBeenCalled();
     expect(calls[0]?.costUsd).toBe(refusal instanceof PictureCallError ? 0 : IMAGE_COST_FLOOR_USD);
   });
@@ -294,11 +300,18 @@ describe('DishPictureService.draw — stopping without blaming the dish', () => 
     await expect(service().pictures.draw(CLAIM)).resolves.toBe('released');
   });
 
+  it('fails the dish with a closed reason for a call that broke, never the provider’s words', async () => {
+    const images = drawing(async () => Promise.reject(new PictureCallError('OpenRouter /images answered 503: upstream trouble', 503)));
+
+    await expect(service({ images }).pictures.draw(CLAIM)).resolves.toBe('failed');
+    expect(fail).toHaveBeenCalledWith(CLAIM, { attempts: 3, provenance: { notes: expect.any(Array), reason: 'call_failed' } });
+  });
+
   it('fails the dish on anything unexpected, never leaving it drawing', async () => {
     jest.spyOn(RecipeController, 'pictureSpendUsd').mockRejectedValue(new Error('database down'));
 
     await expect(service().pictures.draw(CLAIM)).resolves.toBe('failed');
-    expect(fail).toHaveBeenCalledWith(CLAIM, { attempts: 0, provenance: { notes: ['error:database down'] } });
+    expect(fail).toHaveBeenCalledWith(CLAIM, { attempts: 0, provenance: { notes: ['error:database down'], reason: 'other' } });
   });
 });
 

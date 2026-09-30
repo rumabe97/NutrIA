@@ -14,7 +14,7 @@ import { SERVING_BOUNDS } from 'core/domain/Scheduler';
 import { qualified } from './AdminSql';
 
 import type { IngredientCatalogueQuery, RecipeCatalogueQuery } from 'core/entities/AdminQuery';
-import type { PictureStatus } from 'core/entities/DishPicture';
+import type { PictureProvenance, PictureStatus } from 'core/entities/DishPicture';
 import type { SortDirection } from 'core/entities/AdminQuery';
 import type { SQL } from 'drizzle-orm';
 
@@ -32,6 +32,12 @@ export type CatalogueRecipeRow = {
   readonly mealSlots: readonly string[];
   readonly name: string;
   readonly picture: PictureStatus;
+  /** When the row was last claimed or ended: what the cool-off counts from. Null with no row. */
+  readonly pictureAt: Date | null;
+  /** The row is `failed`, released or not (`picture` reads a released one as `none`). */
+  readonly pictureFailed: boolean;
+  /** What a failed row stored about how it ended; null for any other row. Read by `pictureReasonOf`, never sent as it is. */
+  readonly pictureProvenance: PictureProvenance | null;
   readonly servings: number;
   readonly slug: string;
   readonly source: 'ai' | 'seed' | 'user';
@@ -141,6 +147,10 @@ const RECIPE_COLUMNS = {
   mealSlots: recipes.mealSlots,
   name: recipes.name,
   picture: PICTURE_STATE,
+  pictureAt: recipeImages.lastAttemptAt,
+  pictureFailed: sql<boolean>`coalesce(${qualified(recipeImages, 'status')} = 'failed', false)`,
+  // Only a failed row's: a ready one carries the judge's notes, which the list has no use for.
+  pictureProvenance: sql<PictureProvenance | null>`case when ${qualified(recipeImages, 'status')} = 'failed' then ${qualified(recipeImages, 'provenance')} end`,
   servings: recipes.servings,
   slug: recipes.slug,
   source: recipes.source

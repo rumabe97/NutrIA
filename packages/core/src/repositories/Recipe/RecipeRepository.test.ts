@@ -43,6 +43,17 @@ function insert(table: unknown) {
   };
 }
 
+/** Which handle each UPDATE went through: the transaction's, or the client's own. */
+const updatedThrough: string[] = [];
+
+function updateVia(handle: string) {
+  return (table: unknown) => {
+    updatedThrough.push(handle);
+
+    return update(table);
+  };
+}
+
 function update(table: unknown) {
   return {
     set: (set: Record<string, unknown>) => ({
@@ -78,7 +89,14 @@ function select() {
   };
 }
 
-vi.mock('database', () => ({ database: () => ({ delete: remove, insert, select, update }) }));
+const db = { delete: remove, insert, select, update };
+
+/** A handle of its own, so a statement sent outside the transaction cannot pass for one sent inside it. */
+const tx = { ...db, update: updateVia('tx') };
+
+vi.mock('database', () => ({
+  database: () => ({ ...db, transaction: async (run: (handle: typeof tx) => Promise<unknown>) => run(tx), update: updateVia('client') })
+}));
 
 const RECIPE = '6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f';
 const NOW = new Date('2026-09-27T12:00:00Z');
@@ -87,6 +105,7 @@ const CLAIMED = new Date('2026-09-27T11:58:00Z');
 
 beforeEach(() => {
   statements.length = 0;
+  updatedThrough.length = 0;
   answers = [];
 });
 
@@ -287,7 +306,7 @@ describe('RecipeRepository.releasePicture', () => {
   it('ends the claim as a released failure that keeps its attempts, only over the drawing this caller claimed', async () => {
     answers = [[{ recipeId: RECIPE }]];
 
-    await expect(RecipeRepository.releasePicture(RECIPE, CLAIMED, { attempts: 2, why: 'cap' }, NOW)).resolves.toBe(true);
+    await expect(RecipeRepository.releasePicture(RECIPE, CLAIMED, { attempts: 2, reason: 'cap_reached', why: 'cap' }, NOW)).resolves.toBe(true);
 
     const [release] = statements;
 
@@ -296,12 +315,53 @@ describe('RecipeRepository.releasePicture', () => {
     }
 
     expect(release.table).toBe(recipeImages);
-    expect(release.set).toMatchObject({ attempts: 2, lastAttemptAt: NOW, provenance: { released: 'cap' }, status: 'failed' });
+    expect(release.set).toMatchObject({ attempts: 2, lastAttemptAt: NOW, provenance: { reason: 'cap_reached', released: 'cap' }, status: 'failed' });
     expect(release.where.sql).toBe('("recipe_images"."recipe_id" = $1 and "recipe_images"."status" = $2 and "recipe_images"."last_attempt_at" = $3)');
     expect(release.where.params).toEqual([RECIPE, 'drawing', CLAIMED.toISOString()]);
   });
 
   it('answers false when the claim was taken over or ended', async () => {
-    await expect(RecipeRepository.releasePicture(RECIPE, CLAIMED, { attempts: 0, why: 'cap' }, NOW)).resolves.toBe(false);
+    await expect(RecipeRepository.releasePicture(RECIPE, CLAIMED, { attempts: 0, reason: 'cap_reached', why: 'cap' }, NOW)).resolves.toBe(false);
+  });
+});
+
+describe('RecipeRepository.retryPicture', () => {
+  it('claims only a failed row, released or past its cool-off or not, for a fresh three attempts — and the audit row goes in the same transaction', async () => {
+    answers = [[{ recipeId: RECIPE }]];
+    const record = vi.fn(async () => Promise.resolve());
+
+    await expect(RecipeRepository.retryPicture(RECIPE, NOW, 15, record)).resolves.toBe(true);
+
+    const [claim] = statements;
+
+    if (claim?.kind !== 'update') {
+      throw new Error('expected an update');
+    }
+
+    expect(claim.table).toBe(recipeImages);
+    expect(claim.set).toMatchObject({ attempts: 0, lastAttemptAt: NOW, status: 'drawing' });
+    expect(claim.set).toMatchObject({ provenance: null });
+    // A failed row, or a drawing older than the stale bound; a fresh drawing is not reached.
+    expect(claim.where.sql).toBe(
+      '("recipe_images"."recipe_id" = $1 and ("recipe_images"."status" = $2 or ("recipe_images"."status" = $3 and "recipe_images"."last_attempt_at" < $4)))'
+    );
+    expect(claim.where.params).toEqual([RECIPE, 'failed', 'drawing', new Date(NOW.getTime() - 15 * 60_000).toISOString()]);
+    expect(updatedThrough).toEqual(['tx']);
+    expect(record).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith(tx);
+  });
+
+  it('fails when the audit row cannot be written, so the claim rolls back with it', async () => {
+    answers = [[{ recipeId: RECIPE }]];
+    const record = vi.fn(async () => Promise.reject(new Error('audit down')));
+
+    await expect(RecipeRepository.retryPicture(RECIPE, NOW, 15, record)).rejects.toThrow();
+  });
+
+  it('writes no audit row when nothing was claimed', async () => {
+    const record = vi.fn(async () => Promise.resolve());
+
+    await expect(RecipeRepository.retryPicture(RECIPE, NOW, 15, record)).resolves.toBe(false);
+    expect(record).not.toHaveBeenCalled();
   });
 });

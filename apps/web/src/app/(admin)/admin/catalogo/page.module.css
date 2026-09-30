@@ -24,3 +24,18 @@
 .chart {
   --chart-surface: var(--surface-card);
 }
+
+/* A picture cell that can be retried: the state, its reason and its wait on their own lines,
+   then the button. Prose, so it wraps. */
+.picture {
+  display: grid;
+  gap: var(--space-01);
+  justify-items: start;
+  max-inline-size: 16rem;
+  white-space: normal;
+}
+
+.reason {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+}

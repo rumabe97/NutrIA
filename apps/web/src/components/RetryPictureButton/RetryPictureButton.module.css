@@ -1,0 +1,13 @@
+.root {
+  display: grid;
+  gap: var(--space-02);
+  justify-items: start;
+}
+
+.error {
+  color: var(--color-error-text);
+  font-size: var(--font-size-02);
+  margin: 0;
+  max-inline-size: 18rem;
+  white-space: normal;
+}

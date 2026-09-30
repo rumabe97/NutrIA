@@ -1,5 +1,5 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
+import { ApiAcceptedResponse, ApiConflictResponse, ApiNotFoundResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 
 import {
   DEFAULT_PAGE_SIZE,
@@ -14,10 +14,11 @@ import { INGREDIENT_CATEGORIES, MEAL_SLOTS } from 'core/entities/Plan';
 
 import { AdminCatalogueService } from '../services/index.js';
 import { IngredientCatalogueQueryDto, PeriodQueryDto, RecipeCatalogueQueryDto } from '../dto/in/index.js';
-import { Roles } from '../../../shared/index.js';
+import { CurrentUser, RateLimit, Roles } from '../../../shared/index.js';
 import { PERIOD_PARAMETER, ZodQuery } from './ZodQuery.js';
 
-import type { AdminCatalogueQualityDto, AdminIngredientsDto, AdminRecipesDto } from '../dto/out/index.js';
+import type { AdminCatalogueQualityDto, AdminIngredientsDto, AdminRecipesDto, PictureRetryDto } from '../dto/out/index.js';
+import type { SessionUser } from '../../../shared/index.js';
 
 const PAGE_SIZE = { description: `1–${MAX_PAGE_SIZE}. ${DEFAULT_PAGE_SIZE} when absent.`, name: 'size', required: false, type: Number } as const;
 
@@ -34,7 +35,7 @@ export class AdminCatalogueController {
 
   @ApiOkResponse({
     description:
-      'One page of recipes with macros per serving (the app’s own composition), allergens, picture state and source, and the catalogue’s counts by slot and source and without a ready picture. 422 INVALID_INPUT for an unknown filter or sort.'
+      'One page of recipes with macros per serving (the app’s own composition), allergens, picture state (with the reason it failed or was given back, and when its cool-off ends) and source, and the catalogue’s counts by slot and source and without a ready picture. 422 INVALID_INPUT for an unknown filter or sort.'
   })
   @ApiOperation({ summary: 'Search, filter, sort and page the recipes (0068)' })
   @ApiQuery({ description: 'Name contains, case-insensitive.', name: 'q', required: false, type: String })
@@ -57,6 +58,22 @@ export class AdminCatalogueController {
   @Get('recipes')
   async recipes(@ZodQuery(RecipeCatalogueQueryDto) query: RecipeCatalogueQueryDto): Promise<AdminRecipesDto> {
     return this.catalogue.recipes(query);
+  }
+
+  @ApiAcceptedResponse({
+    description: 'The picture was claimed and is being drawn: `{ status: "drawing" }`. One `picture.retried` row is in the trail.'
+  })
+  @ApiConflictResponse({
+    description:
+      '`PICTURE_FLAG_OFF` (the dishPictures switch is off), `PICTURE_UNAVAILABLE` (no image, judge or store configured), `PICTURE_CAP_REACHED` (this month’s cap), `PICTURE_DRAWING` (already being drawn) or `PICTURE_NOT_RETRYABLE` (the picture is ready, or was never drawn).'
+  })
+  @ApiNotFoundResponse({ description: 'No such recipe.' })
+  @ApiOperation({ summary: 'Retry a failed or given-back dish picture by hand, ignoring the cool-off (0066)' })
+  @HttpCode(HttpStatus.ACCEPTED)
+  @Post('recipes/:id/picture/retry')
+  @RateLimit({ limit: 30, ttlSeconds: 3600 })
+  async retryPicture(@Param('id') id: string, @CurrentUser() owner: SessionUser): Promise<PictureRetryDto> {
+    return this.catalogue.retryPicture(id, owner.id);
   }
 
   @ApiOkResponse({

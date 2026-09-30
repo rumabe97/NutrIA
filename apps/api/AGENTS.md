@@ -264,6 +264,21 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     — nothing leaves the machine. Otherwise nothing is drawn without
     `OPENROUTER_IMAGE_API_KEY` and `BLOB_READ_WRITE_TOKEN`. `/admin/pictures` shows the
     month's spend against the cap. Every screen that shows one carries `legal`'s AI mark.
+  - **Why a picture failed, and the owner's retry** (`PictureReason` in `core/entities/DishPicture`): a
+    closed set (`judge_allergen`, `judge_rejected`, `no_provenance`, `model_refused`, `payment_refused`,
+    `call_failed`, `cap_reached`, `other`) — never the provider's words. New rows store
+    `provenance.reason` (`DishPictureService`); older ones are derived from their notes by kind prefix or
+    from `released` (`pictureReasonOf`). `GET /admin/pictures` adds `failedByReason` / `releasedByReason`
+    (period, by when the row ended); recipe rows add `pictureReason` and `retryableAt` (null when
+    retryable now). `POST /admin/catalogue/recipes/:id/picture/retry` (`@Roles('admin')`, 202
+    `{status:'drawing'}`) claims a `failed` or released picture ignoring the cool-off, or a `drawing` one stuck past
+    `PICTURE_STALE_MINUTES` (`RecipeRepository.retryPicture`, clears `provenance`, audit
+    `picture.retried` in the same transaction) and schedules through `DishPictureService.schedule`;
+    rate-limited 30 an hour; recipe rows carry `id`, which it is addressed by; 404 unknown recipe
+    (fixed `Recipe not found`), 409 `PICTURE_FLAG_OFF`,
+    `PICTURE_UNAVAILABLE`, `PICTURE_CAP_REACHED`, `PICTURE_DRAWING` (never takes over a fresh drawing),
+    `PICTURE_NOT_RETRYABLE` (ready, or never drawn). Plan failures by code already are
+    `failuresByCode` on `GET /admin/generations/stats`.
 - `pnpm --filter api smoke:function` runs the deployed entry behind a plain Node
   server and checks it boots, denies with 404, and returns the JSON envelope for an
   unmatched route. Needs a live database, so it is not in the gate. Run it after any

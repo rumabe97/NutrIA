@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { NotFoundError } from 'core/entities/Error';
+import { NotFoundError, PictureRetryRefusedError } from 'core/entities/Error';
 
 import { monthStart, PICTURE_COOL_OFF_DAYS, RecipeController, toPictureStatus } from './RecipeController';
 
@@ -11,10 +11,14 @@ const pictureState = vi.fn<(recipeId: string) => Promise<PictureState>>();
 const monthSpendUsd = vi.fn<(since: Date) => Promise<number>>();
 const claimPicture = vi.fn<(recipeId: string, now: Date, coolOffDays: number, staleAfterMinutes: number) => Promise<boolean>>();
 const servesRecipe = vi.fn<(userId: string, recipeId: string) => Promise<boolean>>();
+const recipeExists = vi.fn<(recipeId: string) => Promise<boolean>>();
+const retryPicture = vi.fn<(recipeId: string, now: Date, staleMinutes: number, record: (tx: unknown) => Promise<void>) => Promise<boolean>>();
+const record = vi.fn<(entry: unknown, tx: unknown) => Promise<void>>();
 const pictureRecipe = vi.fn<() => Promise<unknown>>();
 const pictureCatalogue = vi.fn<() => Promise<unknown>>();
 
 vi.mock('core/controllers/Settings', () => ({ SettingsController: { dishPictures: () => dishPictures() } }));
+vi.mock('#repositories/Audit', () => ({ AuditRepository: { record: (entry: unknown, tx: unknown) => record(entry, tx) } }));
 vi.mock('#repositories/Plan', () => ({ PlanRepository: { servesRecipe: (userId: string, recipeId: string) => servesRecipe(userId, recipeId) } }));
 vi.mock('#repositories/Recipe', () => ({
   FALLBACK_LOCALE: 'es-ES',
@@ -23,7 +27,10 @@ vi.mock('#repositories/Recipe', () => ({
     monthSpendUsd: (since: Date) => monthSpendUsd(since),
     pictureCatalogue: () => pictureCatalogue(),
     pictureRecipe: () => pictureRecipe(),
-    pictureState: (recipeId: string) => pictureState(recipeId)
+    pictureState: (recipeId: string) => pictureState(recipeId),
+    recipeExists: (recipeId: string) => recipeExists(recipeId),
+    retryPicture: (recipeId: string, now: Date, staleMinutes: number, audit: (tx: unknown) => Promise<void>) =>
+      retryPicture(recipeId, now, staleMinutes, audit)
   }
 }));
 
@@ -41,6 +48,12 @@ beforeEach(() => {
   pictureState.mockResolvedValue(NONE);
   monthSpendUsd.mockResolvedValue(0);
   claimPicture.mockResolvedValue(true);
+  recipeExists.mockResolvedValue(true);
+  retryPicture.mockImplementation(async (_id, _now, _stale, audit) => {
+    await audit('tx');
+
+    return true;
+  });
 });
 
 /* PRD 006, criteria 1, 5, 7 and 9: when a view may start a drawing. */
@@ -173,5 +186,81 @@ describe('monthStart', () => {
   it('is the first instant of the month in UTC', () => {
     expect(monthStart(new Date('2026-10-01T00:30:00+02:00'))).toEqual(new Date('2026-09-01T00:00:00Z'));
     expect(monthStart(new Date('2026-12-31T23:59:59Z'))).toEqual(new Date('2026-12-01T00:00:00Z'));
+  });
+});
+
+/* The owner's retry from the console: no cool-off, but the flag, availability, the cap and a drawing in flight all still hold. */
+describe('RecipeController.retryPicture', () => {
+  const FAILED: PictureState = { attempts: 3, lastAttemptAt: minutesAgo(60), status: 'failed', url: null };
+  const OWNER = 'owner-1';
+  const OPEN = { available: true, capUsd: 10 };
+
+  beforeEach(() => {
+    pictureState.mockResolvedValue(FAILED);
+  });
+
+  it('claims a picture that failed one hour ago — inside the cool-off — and writes the audit row in the claim’s transaction', async () => {
+    await expect(RecipeController.retryPicture(RECIPE, OWNER, OPEN, NOW)).resolves.toEqual({ attempts: 0, claimedAt: NOW, recipeId: RECIPE });
+
+    expect(retryPicture).toHaveBeenCalledWith(RECIPE, NOW, 15, expect.any(Function));
+    expect(record).toHaveBeenCalledWith({ action: 'picture.retried', actorId: OWNER, entity: 'recipe', entityId: RECIPE, metadata: {} }, 'tx');
+    // The normal claim, with its cool-off, is not the one used.
+    expect(claimPicture).not.toHaveBeenCalled();
+  });
+
+  it('answers not found for a recipe that does not exist, and for an id that is not one, before anything else', async () => {
+    recipeExists.mockResolvedValue(false);
+    dishPictures.mockResolvedValue(false);
+
+    await expect(RecipeController.retryPicture(RECIPE, OWNER, OPEN, NOW)).rejects.toBeInstanceOf(NotFoundError);
+    await expect(RecipeController.retryPicture('not-a-uuid', OWNER, OPEN, NOW)).rejects.toBeInstanceOf(NotFoundError);
+    expect(retryPicture).not.toHaveBeenCalled();
+  });
+
+  it.each<[string, () => void, { available: boolean; capUsd: number }, string]>([
+    ['the flag is off', () => dishPictures.mockResolvedValue(false), OPEN, 'flag_off'],
+    ['pictures are unavailable', () => undefined, { available: false, capUsd: 10 }, 'unavailable'],
+    ['a drawing is in flight', () => pictureState.mockResolvedValue({ ...FAILED, lastAttemptAt: minutesAgo(1), status: 'drawing' }), OPEN, 'drawing'],
+    ['the picture is ready', () => pictureState.mockResolvedValue({ ...FAILED, status: 'ready', url: 'https://blob/x.jpg' }), OPEN, 'not_retryable'],
+    ['the dish never had a drawing', () => pictureState.mockResolvedValue(NONE), OPEN, 'not_retryable'],
+    ['the month’s cap is reached', () => monthSpendUsd.mockResolvedValue(10), OPEN, 'cap_reached']
+  ])('refuses, leaving no row, when %s', async (_case, arrange, options, reason) => {
+    arrange();
+
+    await expect(RecipeController.retryPicture(RECIPE, OWNER, options, NOW)).rejects.toEqual(new PictureRetryRefusedError(reason as never));
+    expect(retryPicture).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('takes over a drawing stuck past the stale bound, as a view would, but not one inside it', async () => {
+    pictureState.mockResolvedValue({ ...FAILED, lastAttemptAt: minutesAgo(60), status: 'drawing' });
+    await expect(RecipeController.retryPicture(RECIPE, OWNER, OPEN, NOW)).resolves.toMatchObject({ recipeId: RECIPE });
+
+    pictureState.mockResolvedValue({ ...FAILED, lastAttemptAt: minutesAgo(14), status: 'drawing' });
+    await expect(RecipeController.retryPicture(RECIPE, OWNER, OPEN, NOW)).rejects.toMatchObject({ reason: 'drawing' });
+  });
+
+  it('answers a fixed not found that never echoes the id sent', async () => {
+    recipeExists.mockResolvedValue(false);
+
+    for (const segment of [RECIPE, 'not-a-uuid-zzq']) {
+      const error = await RecipeController.retryPicture(segment, OWNER, OPEN, NOW).catch((thrown: unknown) => thrown);
+
+      expect(error).toBeInstanceOf(NotFoundError);
+      expect((error as Error).message).toBe('Recipe not found');
+    }
+  });
+
+  it('refuses as drawing when somebody claimed it between the read and the claim', async () => {
+    retryPicture.mockResolvedValue(false);
+
+    await expect(RecipeController.retryPicture(RECIPE, OWNER, OPEN, NOW)).rejects.toMatchObject({ reason: 'drawing' });
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('claims a picture that was given back too', async () => {
+    pictureState.mockResolvedValue({ ...FAILED, released: true });
+
+    await expect(RecipeController.retryPicture(RECIPE, OWNER, OPEN, NOW)).resolves.toMatchObject({ recipeId: RECIPE });
   });
 });

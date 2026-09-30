@@ -2,6 +2,8 @@ import { AdminCatalogueRepository } from '#repositories/Admin';
 import { composeMacros, scaleMacros } from 'core/domain/Composition';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { MEAL_SLOTS, toCatalogue } from 'core/entities/Plan';
+import { PICTURE_COOL_OFF_DAYS } from 'core/controllers/Recipe';
+import { pictureReasonOf } from 'core/entities/DishPicture';
 import { RECIPE_SOURCES } from 'core/entities/AdminQuery';
 import { SafetyRepository } from '#repositories/Safety';
 
@@ -11,7 +13,7 @@ import type { CatalogueRecipeRow, CompositionRow } from '#repositories/Admin';
 import type { Catalogue } from 'core/entities/Plan';
 import type { IngredientCatalogueQuery, RecipeCatalogueQuery, SortDirection } from 'core/entities/AdminQuery';
 import type { Paged } from 'core/controllers/User';
-import type { PictureStatus } from 'core/entities/DishPicture';
+import type { PictureReason, PictureStatus } from 'core/entities/DishPicture';
 
 /**
  * One recipe on the console's catalogue table (`0068`). What the dish is and
@@ -19,6 +21,8 @@ import type { PictureStatus } from 'core/entities/DishPicture';
  * (`0028`). The catalogue is shared reference data.
  */
 export type CatalogueRecipeView = {
+  /** The recipe's id — what the retry of its picture is addressed by. A dish, never a person. */
+  readonly id: string;
   /** Allergen keys a served ingredient contains, sorted. */
   readonly allergens: readonly string[];
   /** Per serving, from the app's own composition (`core/domain/Composition`); null when a recipe cannot be costed. */
@@ -32,10 +36,25 @@ export type CatalogueRecipeView = {
   readonly name: string;
   /** `ready` with a file, `drawing`, `failed` for the dish's own reasons, or `none` — which a released picture reads as. */
   readonly picture: PictureStatus;
+  /**
+   * Why the picture failed or was given back, when it did (`picture` is `failed`, or `none` for a
+   * released one); null for any other. A closed set — never the provider's words. A picture with
+   * a reason can be retried by hand.
+   */
+  readonly pictureReason: PictureReason | null;
   readonly proteinG: number | null;
+  /**
+   * When a failed picture leaves its cool-off and a view draws it again, ISO. Null when it is
+   * retryable now (the cool-off is over, or the picture was released) and for a picture that is
+   * not failed. The owner's retry ignores it.
+   */
+  readonly retryableAt: string | null;
   readonly slug: string;
   readonly source: string;
 };
+
+/** `POST /admin/catalogue/recipes/:id/picture/retry`: the retry was claimed and the drawing is scheduled. */
+export type PictureRetryView = { readonly status: 'drawing' };
 
 /** The catalogue's size for the tiles and the chart, whatever the table is filtered by. */
 export type CatalogueCountsView = {
@@ -149,8 +168,30 @@ export function byFigure(figure: 'kcal' | 'proteinG', direction: SortDirection) 
   };
 }
 
+/**
+ * A failed picture's reason and when its cool-off ends. A released row (`released`
+ * in what it stored) is claimed by the next view at once, so it has no date.
+ * Exported for its spec.
+ */
+export function pictureFailure(
+  row: Pick<CatalogueRecipeRow, 'pictureAt' | 'pictureFailed' | 'pictureProvenance'>,
+  now: Date
+): Pick<CatalogueRecipeView, 'pictureReason' | 'retryableAt'> {
+  if (!row.pictureFailed) {
+    return { pictureReason: null, retryableAt: null };
+  }
+
+  const released = typeof row.pictureProvenance?.released === 'string';
+  const until = row.pictureAt === null ? null : new Date(row.pictureAt.getTime() + PICTURE_COOL_OFF_DAYS * 86_400_000);
+
+  return {
+    pictureReason: pictureReasonOf(row.pictureProvenance),
+    retryableAt: released || until === null || until.getTime() <= now.getTime() ? null : until.toISOString()
+  };
+}
+
 /** The rows with their macros and allergens, computed from their served ingredients. */
-async function present(rows: readonly CatalogueRecipeRow[]): Promise<readonly CatalogueRecipeView[]> {
+async function present(rows: readonly CatalogueRecipeRow[], now: Date): Promise<readonly CatalogueRecipeView[]> {
   const compositions = await AdminCatalogueRepository.compositions(rows.map(row => row.id));
   const slugs = [...new Set(compositions.map(item => item.slug))];
   const [ingredients, allergenList] = await Promise.all([
@@ -178,10 +219,12 @@ async function present(rows: readonly CatalogueRecipeRow[]): Promise<readonly Ca
         keyOf
       ),
       ...perServing(items, row.servings, catalogue),
+      id: row.id,
       locale: row.locale,
       mealSlots: row.mealSlots,
       name: row.name,
       picture: row.picture,
+      ...pictureFailure(row, now),
       slug: row.slug,
       source: row.source
     };
@@ -237,13 +280,13 @@ export const AdminCatalogueController = {
    * Calidad counts with), so a count there and the table it links to agree.
    * `stepsVersion` is the current one, which only the API knows.
    */
-  async recipes(query: RecipeCatalogueQuery, stepsVersion: string): Promise<AdminRecipesView> {
+  async recipes(query: RecipeCatalogueQuery, stepsVersion: string, now = new Date()): Promise<AdminRecipesView> {
     const ids = query.check === undefined ? undefined : await AdminQualityController.idsFailing(query.check, stepsVersion);
     const [page, counts] = await Promise.all([
       query.sort === 'name'
-        ? AdminCatalogueRepository.recipePage(query, ids).then(async ({ rows, total }) => ({ rows: await present(rows), total }))
+        ? AdminCatalogueRepository.recipePage(query, ids).then(async ({ rows, total }) => ({ rows: await present(rows, now), total }))
         : AdminCatalogueRepository.matchingRecipes(query, ids).then(async rows => {
-            const costed = [...(await present(rows))].sort(byFigure(query.sort === 'kcal' ? 'kcal' : 'proteinG', query.dir));
+            const costed = [...(await present(rows, now))].sort(byFigure(query.sort === 'kcal' ? 'kcal' : 'proteinG', query.dir));
 
             return { rows: costed.slice(query.offset, query.offset + query.size), total: costed.length };
           }),

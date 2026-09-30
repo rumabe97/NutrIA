@@ -32,3 +32,15 @@
     min-block-size: var(--target-min);
   }
 }
+
+/* The one link under a list of counts: it follows the card, not a row inside it. */
+.more {
+  margin: var(--space-03) 0 0;
+}
+
+/* A section with nothing to list says so, on a card like its neighbours. */
+.empty {
+  color: var(--foreground-02);
+  font-size: var(--font-size-03);
+  margin: 0;
+}
