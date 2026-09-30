@@ -5,11 +5,18 @@ import { RecipeController } from 'core/controllers/Recipe';
 import { BackgroundTaskService } from '../../../shared/services/index.js';
 import { DishPictureService, IMAGE_COST_FLOOR_USD, isRefusal, JUDGE_COST_FLOOR_USD } from './DishPicture.service.js';
 import { PictureCallError } from '../clients/pictureTransport.js';
-import { STUB_PICTURE, StubPictureImageClient, StubPictureJudgeClient, StubPictureStore } from '../clients/StubPictureClients.js';
+import {
+  STUB_PICTURE,
+  StubPictureCandidateStore,
+  StubPictureImageClient,
+  StubPictureJudgeClient,
+  StubPictureStore
+} from '../clients/StubPictureClients.js';
 
 import type { PictureClaim } from 'core/controllers/Recipe';
 import type { PictureCall } from 'core/entities/DishPicture';
 import type { PictureCatalogueEntry, PictureRecipe } from 'core/domain/DishPicture';
+import type { PictureCandidateStore } from '../clients/PictureCandidateStore.js';
 import type { PictureImageClient } from '../clients/PictureImageClient.js';
 import type { PictureJudgeClient } from '../clients/PictureJudgeClient.js';
 
@@ -42,7 +49,14 @@ class PrawnsJudge extends StubPictureJudgeClient {
 let calls: PictureCall[];
 let spend: number;
 
-function service(parts: { cap?: number; images?: PictureImageClient; judge?: PictureJudgeClient; store?: StubPictureStore } = {}) {
+/** The private store with no token: nothing is kept in it, which is how every drawing was before `0072`. */
+function noCandidateStore(): StubPictureCandidateStore {
+  return Object.defineProperty(new StubPictureCandidateStore(), 'isAvailable', { get: () => false });
+}
+
+function service(
+  parts: { candidates?: PictureCandidateStore; cap?: number; images?: PictureImageClient; judge?: PictureJudgeClient; store?: StubPictureStore } = {}
+) {
   const store = parts.store ?? new StubPictureStore();
 
   return {
@@ -51,6 +65,7 @@ function service(parts: { cap?: number; images?: PictureImageClient; judge?: Pic
       parts.images ?? new StubPictureImageClient(),
       parts.judge ?? new StubPictureJudgeClient(),
       store,
+      parts.candidates ?? noCandidateStore(),
       parts.cap ?? 10
     ),
     store
@@ -192,7 +207,12 @@ describe('DishPictureService.draw — a picture that is not kept', () => {
     expect(calls.map(call => call.kind)).toEqual(['image']);
     expect(fail).toHaveBeenCalledWith(CLAIM, {
       attempts: 1,
-      provenance: { notes: ['1:unkeepable:no C2PA manifest (image/jpeg)'], reason: 'no_provenance' }
+      // 0072: the file is never kept; what it was is — a closed diagnostic.
+      provenance: {
+        diagnostic: { c2pa: false, contentType: 'image/jpeg', jpeg: true, size: 4, trainedAlgorithmicMedia: false },
+        notes: ['1:unkeepable:no C2PA manifest (image/jpeg)'],
+        reason: 'no_provenance'
+      }
     });
   });
 
@@ -237,6 +257,224 @@ describe('DishPictureService.draw — a picture that is not kept', () => {
     complete.mockResolvedValue(false);
 
     await expect(service().pictures.draw(CLAIM)).resolves.toBe('lost');
+  });
+});
+
+/* PRD 009, criteria 2 and 7 (`0072`): the last rejected picture waits, privately, only when the drawing ends failed. */
+describe('DishPictureService.draw — a rejected picture kept for the owner', () => {
+  const CANDIDATE_PATH = new RegExp(`^dish-picture-candidates/${RECIPE}/2\\.0\\.0-[0-9a-f-]{36}\\.jpg$`);
+
+  /** A signed picture that is not the stub's: the same marks, one byte more. */
+  const picture = (last: number) => new Uint8Array([...STUB_PICTURE, last]);
+
+  /** Draws a different signed picture each time, so the one that was kept can be told. */
+  function numbered(): PictureImageClient {
+    let drawn = 0;
+
+    return drawing(async () => {
+      drawn += 1;
+
+      return Promise.resolve({
+        bytes: picture(drawn),
+        contentType: 'image/jpeg' as const,
+        costUsd: 0,
+        generationId: null,
+        model: 'stub/picture',
+        provider: 'stub'
+      });
+    });
+  }
+
+  it('uploads the last rejected picture, untouched, to the private store and points the failed row at it', async () => {
+    const candidates = new StubPictureCandidateStore();
+    const { pictures, store } = service({ candidates, images: numbered(), judge: new PrawnsJudge() });
+
+    await expect(pictures.draw(CLAIM)).resolves.toBe('failed');
+
+    // Exactly one private file — the third attempt's — and nothing in the public store.
+    expect(store.stored).toEqual([]);
+    expect([...candidates.files.keys()]).toEqual([expect.stringMatching(CANDIDATE_PATH)]);
+    const [[path, bytes] = []] = [...candidates.files];
+
+    expect(bytes).toEqual(picture(3));
+    expect(fail).toHaveBeenCalledTimes(1);
+    expect(fail).toHaveBeenCalledWith(CLAIM, {
+      attempts: 3,
+      provenance: {
+        // The judge's closed data: allergen keys and catalogue slugs. Its word for the food ("shrimp") is not here.
+        candidate: { extras: [{ foreignAllergens: ['crustaceans'], mappedTo: ['gambas'] }], model: 'stub/picture', path, promptVersion: '2.0.0' },
+        notes: expect.arrayContaining([expect.stringMatching(/^3:rejected:extra_allergen/)]),
+        // Phase 1's mail counts by this: a candidate beside it changes nothing.
+        reason: 'judge_allergen'
+      }
+    });
+    expect(complete).not.toHaveBeenCalled();
+  });
+
+  it('keeps nothing of the judge’s own words in the pointer', async () => {
+    const { pictures } = service({ candidates: new StubPictureCandidateStore(), judge: new PrawnsJudge() });
+
+    await pictures.draw(CLAIM);
+
+    const candidate = (fail.mock.calls[0]?.[1].provenance as { candidate: unknown }).candidate;
+
+    expect(JSON.stringify(candidate)).not.toContain('shrimp');
+  });
+
+  it('keeps none when the drawing is accepted in the end, though an earlier attempt was rejected', async () => {
+    const candidates = new StubPictureCandidateStore();
+    const prawns = new PrawnsJudge();
+    let judged = 0;
+    const judge = Object.assign(new StubPictureJudgeClient(), {
+      match: async (...args: Parameters<StubPictureJudgeClient['match']>) =>
+        judged === 1 ? prawns.match() : new StubPictureJudgeClient().match(...args),
+      see: async () => {
+        judged += 1;
+
+        return judged === 1 ? prawns.see() : new StubPictureJudgeClient().see();
+      }
+    });
+    const { pictures, store } = service({ candidates, judge });
+
+    await expect(pictures.draw(CLAIM)).resolves.toBe('accepted');
+
+    expect(candidates.files.size).toBe(0);
+    expect(store.stored).toHaveLength(1);
+    expect(complete).toHaveBeenCalledWith(CLAIM, expect.objectContaining({ attempts: 2 }));
+    expect(fail).not.toHaveBeenCalled();
+  });
+
+  it('keeps none when the drawing is given back after a rejection — the cap, a refused key', async () => {
+    const candidates = new StubPictureCandidateStore();
+    let first = true;
+    const images = drawing(async () => {
+      if (first) {
+        first = false;
+
+        return Promise.resolve({
+          bytes: STUB_PICTURE,
+          contentType: 'image/jpeg' as const,
+          costUsd: 0,
+          generationId: null,
+          model: 'm',
+          provider: null
+        });
+      }
+
+      throw new PictureCallError('OpenRouter /images answered 402: Key limit exceeded', 402);
+    });
+
+    await expect(service({ candidates, images, judge: new PrawnsJudge() }).pictures.draw(CLAIM)).resolves.toBe('released');
+
+    expect(candidates.files.size).toBe(0);
+    expect(fail).not.toHaveBeenCalled();
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it('never uploads a file without its C2PA manifest: the row gets a closed diagnostic and no candidate', async () => {
+    const candidates = new StubPictureCandidateStore();
+    const images = drawing(async () =>
+      Promise.resolve({
+        bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0, 0]),
+        contentType: 'image/png',
+        costUsd: 0,
+        generationId: null,
+        model: 'm',
+        provider: null
+      })
+    );
+
+    await expect(service({ candidates, images, judge: new PrawnsJudge() }).pictures.draw(CLAIM)).resolves.toBe('failed');
+
+    expect(candidates.files.size).toBe(0);
+    expect(fail).toHaveBeenCalledWith(CLAIM, {
+      attempts: 1,
+      provenance: {
+        diagnostic: { c2pa: false, contentType: 'image/png', jpeg: false, size: 6, trainedAlgorithmicMedia: false },
+        notes: ['1:unkeepable:no C2PA manifest (image/png)'],
+        reason: 'no_provenance'
+      }
+    });
+  });
+
+  it('keeps the signed picture the judge rejected earlier, and never the unsigned file that ended the drawing', async () => {
+    const candidates = new StubPictureCandidateStore();
+    const unsigned = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+    let first = true;
+    const images = drawing(async () => {
+      const bytes = first ? STUB_PICTURE : unsigned;
+
+      first = false;
+
+      return Promise.resolve({ bytes, contentType: 'image/jpeg' as const, costUsd: 0, generationId: null, model: 'm', provider: null });
+    });
+
+    await expect(service({ candidates, images, judge: new PrawnsJudge() }).pictures.draw(CLAIM)).resolves.toBe('failed');
+
+    expect([...candidates.files.values()]).toEqual([STUB_PICTURE]);
+    expect(fail).toHaveBeenCalledWith(CLAIM, {
+      attempts: 2,
+      provenance: expect.objectContaining({
+        candidate: expect.objectContaining({ path: expect.stringMatching(CANDIDATE_PATH) }),
+        diagnostic: { c2pa: false, contentType: 'image/jpeg', jpeg: true, size: 4, trainedAlgorithmicMedia: false },
+        reason: 'no_provenance'
+      })
+    });
+  });
+
+  it('keeps none of a picture the judge never got to judge', async () => {
+    const candidates = new StubPictureCandidateStore();
+    const judge = Object.assign(new StubPictureJudgeClient(), {
+      see: async () => Promise.reject(new PictureCallError('The judge answered with JSON of the wrong shape', null))
+    });
+
+    await expect(service({ candidates, judge }).pictures.draw(CLAIM)).resolves.toBe('failed');
+
+    expect(candidates.files.size).toBe(0);
+    expect(fail).toHaveBeenCalledWith(CLAIM, { attempts: 3, provenance: { notes: expect.any(Array), reason: 'call_failed' } });
+  });
+
+  it('fails the dish exactly as before, with no candidate, when the upload fails', async () => {
+    const candidates = Object.assign(new StubPictureCandidateStore(), { put: async () => Promise.reject(new Error('Candidate put failed: 503')) });
+
+    await expect(service({ candidates, judge: new PrawnsJudge() }).pictures.draw(CLAIM)).resolves.toBe('failed');
+
+    expect(fail).toHaveBeenCalledWith(CLAIM, { attempts: 3, provenance: { notes: expect.any(Array), reason: 'judge_allergen' } });
+  });
+
+  /* PRD 009, criterion 7. */
+  it('keeps nothing, and asks the private store nothing, without its token', async () => {
+    const candidates = noCandidateStore();
+    const put = jest.spyOn(candidates, 'put');
+
+    await expect(service({ candidates, judge: new PrawnsJudge() }).pictures.draw(CLAIM)).resolves.toBe('failed');
+
+    expect(put).not.toHaveBeenCalled();
+    expect(fail).toHaveBeenCalledWith(CLAIM, { attempts: 3, provenance: { notes: expect.any(Array), reason: 'judge_allergen' } });
+  });
+
+  it('can draw without the private store: it is not what a picture needs to be kept', () => {
+    expect(service({ candidates: noCandidateStore() }).pictures.isAvailable).toBe(true);
+  });
+
+  it('deletes the file it uploaded when the claim was taken over, so no file is left without a pointer', async () => {
+    const candidates = new StubPictureCandidateStore();
+
+    fail.mockResolvedValue(false);
+
+    await expect(service({ candidates, judge: new PrawnsJudge() }).pictures.draw(CLAIM)).resolves.toBe('lost');
+
+    expect(candidates.files.size).toBe(0);
+  });
+
+  it('deletes the file it uploaded when the failure could not be written', async () => {
+    const candidates = new StubPictureCandidateStore();
+
+    fail.mockRejectedValue(new Error('database gone'));
+
+    await expect(service({ candidates, judge: new PrawnsJudge() }).pictures.draw(CLAIM)).rejects.toThrow('database gone');
+
+    expect(candidates.files.size).toBe(0);
   });
 });
 

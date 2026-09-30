@@ -34,7 +34,8 @@ measured each point against the code. The owner decided on 2026-09-30.
     in the same transaction that makes the picture `ready`.
   - In both, the published file carries its C2PA manifest, checked on those same bytes.
   - There is no third door: no retry, cron or automatic code publishes a candidate.
-- **A rejected picture is kept for at most 7 days**, as one candidate per dish. It lives in
+- **A rejected picture can be reviewed for 7 days**, as one candidate per dish; its file is
+  deleted by the cleanup that follows, with no guaranteed instant. It lives in
   a private Vercel Blob store in `fra1` that only the API reads. It has no public URL, and
   its path never leaves the API.
   - The 7 days are the cool-off's own clock.

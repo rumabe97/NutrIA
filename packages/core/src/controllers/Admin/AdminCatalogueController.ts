@@ -1,9 +1,12 @@
+import { z } from 'zod';
+
 import { AdminCatalogueRepository } from '#repositories/Admin';
 import { composeMacros, scaleMacros } from 'core/domain/Composition';
 import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { MEAL_SLOTS, toCatalogue } from 'core/entities/Plan';
-import { PICTURE_COOL_OFF_DAYS } from 'core/controllers/Recipe';
-import { pictureReasonOf } from 'core/entities/DishPicture';
+import { NotFoundError } from 'core/entities/Error';
+import { candidateFlags, pictureReasonOf } from 'core/entities/DishPicture';
+import { PICTURE_COOL_OFF_DAYS, reviewableCandidate } from 'core/controllers/Recipe';
 import { RECIPE_SOURCES } from 'core/entities/AdminQuery';
 import { SafetyRepository } from '#repositories/Safety';
 
@@ -37,6 +40,12 @@ export type CatalogueRecipeView = {
   /** `ready` with a file, `drawing`, `failed` for the dish's own reasons, or `none` — which a released picture reads as. */
   readonly picture: PictureStatus;
   /**
+   * The rejected picture this dish holds for the owner to look at (`0072`), while it can be
+   * looked at; null for a dish with none and for one whose candidate has expired. Its file is
+   * read through `GET /admin/catalogue/recipes/:id/picture/candidate` — never an address here.
+   */
+  readonly pictureCandidate: PictureCandidateView | null;
+  /**
    * Why the picture failed or was given back, when it did (`picture` is `failed`, or `none` for a
    * released one); null for any other. A closed set — never the provider's words. A picture with
    * a reason can be retried by hand.
@@ -52,6 +61,33 @@ export type CatalogueRecipeView = {
   readonly slug: string;
   readonly source: string;
 };
+
+/**
+ * One recipe on its own (`GET /admin/catalogue/recipes/:id`): the table's row, and what the dish is
+ * made of — what the review of its rejected picture is read against (`0072`). Still a dish and
+ * nobody's: no `created_by`, no id of a person (`0028`).
+ */
+export type AdminRecipeView = CatalogueRecipeView & {
+  /** The served ingredients — not the optional ones, as the app serves them — heaviest first: grams for the recipe's servings, and the catalogue's Spanish name (the slug where it has none). */
+  readonly ingredients: readonly { readonly grams: number; readonly name: string; readonly slug: string }[];
+};
+
+/**
+ * What the owner is shown of a candidate (`0072`): what the judge flagged, in our own closed words —
+ * allergen keys and catalogue ingredients, never what the vision model wrote — and until when it can
+ * be looked at. **No path and no address of the file**: it lives in a private store only the API reads.
+ */
+export type PictureCandidateView = {
+  /** Allergen keys the picture shows and the dish does not carry, sorted. */
+  readonly allergens: readonly string[];
+  /** When it stops being reviewable, ISO: the end of the dish's cool-off. The file is deleted by the next nightly cleanup. */
+  readonly expiresAt: string;
+  /** The catalogue ingredients the flagged foods were mapped to, by slug, with their Spanish name (the slug where the catalogue has none). */
+  readonly ingredients: readonly { readonly name: string; readonly slug: string }[];
+};
+
+/** `POST /admin/catalogue/recipes/:id/picture/candidate/discard`: the file and its pointer are gone; the dish waits out its cool-off as before. */
+export type PictureDiscardView = { readonly status: 'discarded' };
 
 /** `POST /admin/catalogue/recipes/:id/picture/retry`: the retry was claimed and the drawing is scheduled. */
 export type PictureRetryView = { readonly status: 'drawing' };
@@ -190,10 +226,37 @@ export function pictureFailure(
   };
 }
 
+/**
+ * The candidate a row holds as the console shows it, or null when it holds none that can be looked
+ * at (`reviewableCandidate`: failed, and not expired). Only the flags and the expiry are read from
+ * what the row stored — the path stays behind. Exported for its spec.
+ */
+export function candidateFlagsOf(
+  row: Pick<CatalogueRecipeRow, 'pictureAt' | 'pictureFailed' | 'pictureProvenance'>,
+  now: Date
+): { readonly allergens: readonly string[]; readonly expiresAt: string; readonly ingredients: readonly string[] } | null {
+  const found = reviewableCandidate(
+    { lastAttemptAt: row.pictureAt, provenance: row.pictureProvenance, status: row.pictureFailed ? 'failed' : null },
+    now
+  );
+
+  return found === null ? null : { ...candidateFlags(found.candidate), expiresAt: found.expiresAt.toISOString() };
+}
+
 /** The rows with their macros and allergens, computed from their served ingredients. */
 async function present(rows: readonly CatalogueRecipeRow[], now: Date): Promise<readonly CatalogueRecipeView[]> {
+  return (await compose(rows, now)).map(({ view }) => view);
+}
+
+/** Each row as the table shows it, beside the served ingredients it was computed from, named by the same catalogue read. */
+async function compose(
+  rows: readonly CatalogueRecipeRow[],
+  now: Date
+): Promise<readonly { readonly ingredients: AdminRecipeView['ingredients']; readonly view: CatalogueRecipeView }[]> {
   const compositions = await AdminCatalogueRepository.compositions(rows.map(row => row.id));
-  const slugs = [...new Set(compositions.map(item => item.slug))];
+  const candidates = new Map(rows.map(row => [row.id, candidateFlagsOf(row, now)]));
+  // The flagged ingredients are named from the same catalogue read as the dish's own.
+  const slugs = [...new Set([...compositions.map(item => item.slug), ...[...candidates.values()].flatMap(flags => flags?.ingredients ?? [])])];
   const [ingredients, allergenList] = await Promise.all([
     RecipeRepository.loadCatalogue(FALLBACK_LOCALE, null, slugs),
     SafetyRepository.listAllergens()
@@ -211,8 +274,11 @@ async function present(rows: readonly CatalogueRecipeRow[], now: Date): Promise<
 
   return rows.map(row => {
     const items = byRecipe.get(row.id) ?? [];
-
-    return {
+    const flags = candidates.get(row.id) ?? null;
+    const ingredients = items
+      .map(item => ({ grams: item.grams, name: catalogue.get(item.slug)?.name ?? item.slug, slug: item.slug }))
+      .sort((a, b) => b.grams - a.grams || (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0));
+    const view = {
       ...allergensOf(
         items.map(item => item.slug),
         catalogue,
@@ -224,10 +290,20 @@ async function present(rows: readonly CatalogueRecipeRow[], now: Date): Promise<
       mealSlots: row.mealSlots,
       name: row.name,
       picture: row.picture,
+      pictureCandidate:
+        flags === null
+          ? null
+          : {
+              allergens: flags.allergens,
+              expiresAt: flags.expiresAt,
+              ingredients: flags.ingredients.map(slug => ({ name: catalogue.get(slug)?.name ?? slug, slug }))
+            },
       ...pictureFailure(row, now),
       slug: row.slug,
       source: row.source
     };
+
+    return { ingredients, view };
   });
 }
 
@@ -264,6 +340,27 @@ export const AdminCatalogueController = {
       size: query.size,
       total
     };
+  },
+
+  /**
+   * One recipe with its served ingredients: the row the table shows, costed and named by the same
+   * reads, so the two cannot disagree. A `NotFoundError` with a fixed message for an id that is
+   * not one, before anything is read, and for a recipe that does not exist.
+   */
+  async recipe(recipeId: string, now = new Date()): Promise<AdminRecipeView> {
+    const row = z.uuid().safeParse(recipeId).success ? await AdminCatalogueRepository.recipe(recipeId) : null;
+
+    if (row === null) {
+      throw new NotFoundError('Recipe not found');
+    }
+
+    const [composed] = await compose([row], now);
+
+    if (composed === undefined) {
+      throw new NotFoundError('Recipe not found');
+    }
+
+    return { ...composed.view, ingredients: composed.ingredients };
   },
 
   /**

@@ -10,6 +10,7 @@ import {
   AI_PICTURES,
   AI_REWRITE_CLIENT,
   AI_SECRETS,
+  PICTURE_CANDIDATE_CLOCK,
   picturesStubbed,
   resolveCallSettings,
   resolveModel,
@@ -19,15 +20,17 @@ import {
 } from './ai.config.js';
 import { AiClient } from './clients/AiClient.js';
 import { BackgroundTaskService } from '../../shared/services/index.js';
-import { DishPictureService, PoolBuilder, RecipeRewriter } from './services/index.js';
+import { DishPictureService, PictureCandidatesService, PoolBuilder, RecipeRewriter } from './services/index.js';
 import { OpenRouterImageClient } from './clients/OpenRouterImageClient.js';
 import { OpenRouterVisionJudgeClient } from './clients/OpenRouterVisionJudgeClient.js';
+import { PictureCandidateStore } from './clients/PictureCandidateStore.js';
 import { PictureImageClient } from './clients/PictureImageClient.js';
 import { PictureJudgeClient } from './clients/PictureJudgeClient.js';
 import { PictureStore } from './clients/PictureStore.js';
 import { providerCredentials } from './clients/redact.js';
 import { StructuredAiClient } from './clients/StructuredAiClient.js';
-import { StubPictureImageClient, StubPictureJudgeClient, StubPictureStore } from './clients/StubPictureClients.js';
+import { StubPictureCandidateStore, StubPictureImageClient, StubPictureJudgeClient, StubPictureStore } from './clients/StubPictureClients.js';
+import { VercelBlobPictureCandidateStore } from './clients/VercelBlobPictureCandidateStore.js';
 import { VercelBlobPictureStore } from './clients/VercelBlobPictureStore.js';
 
 import type { AiCallSettings, PictureSettings } from './ai.config.js';
@@ -41,7 +44,17 @@ import type { Env } from '../../config/index.js';
  */
 @Global()
 @Module({
-  exports: [AiClient, DishPictureService, PictureImageClient, PictureJudgeClient, PictureStore, PoolBuilder, RecipeRewriter],
+  exports: [
+    AiClient,
+    DishPictureService,
+    PictureCandidatesService,
+    PictureCandidateStore,
+    PictureImageClient,
+    PictureJudgeClient,
+    PictureStore,
+    PoolBuilder,
+    RecipeRewriter
+  ],
   providers: [
     envProvider,
     { inject: [ENV], provide: AI_MODEL, useFactory: (env: Env) => resolveModel(env) },
@@ -79,8 +92,20 @@ import type { Env } from '../../config/index.js';
       useFactory: (env: Env, secrets: readonly string[]) =>
         picturesStubbed(env) ? new StubPictureStore() : new VercelBlobPictureStore(env.BLOB_READ_WRITE_TOKEN?.trim() || null, secrets)
     },
+    // The rejected pictures that wait for the owner (`0072`): a private store under its own token.
+    // Without it nothing is kept and drawing is as it was; the stub keeps them in memory.
+    {
+      inject: [ENV, AI_SECRETS],
+      provide: PictureCandidateStore,
+      useFactory: (env: Env, secrets: readonly string[]) =>
+        picturesStubbed(env)
+          ? new StubPictureCandidateStore()
+          : new VercelBlobPictureCandidateStore(env.BLOB_CANDIDATES_READ_WRITE_TOKEN?.trim() || null, secrets)
+    },
+    { provide: PICTURE_CANDIDATE_CLOCK, useValue: () => new Date() },
     BackgroundTaskService,
     DishPictureService,
+    PictureCandidatesService,
     PoolBuilder,
     RecipeRewriter
   ]

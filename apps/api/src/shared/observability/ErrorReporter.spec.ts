@@ -135,15 +135,22 @@ describe('ErrorReporter', () => {
     expect(scrubbed?.exception?.values?.[0]?.value).toBe('Failed query: insert into "conditions" values ($1)');
   });
 
-  it('redacts the SMTP password, the Blob token and the image key', () => {
+  it('redacts the SMTP password, the two Blob tokens and the image key', () => {
     const smtp = ['sm7pPass', 'W0rd', 'Value12'].join('');
     const blob = ['bl0bTok', 'enValue', '987654'].join('');
+    const candidates = ['c4ndTok', 'enValue', '135790'].join('');
     const image = ['1mgKey', 'Value', 'abcdef123'].join('');
-    new ErrorReporter({ ...ENV_STUB, BLOB_READ_WRITE_TOKEN: blob, OPENROUTER_IMAGE_API_KEY: image, SMTP_PASS: smtp } as unknown as Env);
+    new ErrorReporter({
+      ...ENV_STUB,
+      BLOB_CANDIDATES_READ_WRITE_TOKEN: candidates,
+      BLOB_READ_WRITE_TOKEN: blob,
+      OPENROUTER_IMAGE_API_KEY: image,
+      SMTP_PASS: smtp
+    } as unknown as Env);
 
-    const scrubbed = capturedBeforeSend?.({ message: `${smtp} ${blob} ${image}` }, {});
+    const scrubbed = capturedBeforeSend?.({ message: `${smtp} ${blob} ${candidates} ${image}` }, {});
 
-    for (const secret of [smtp, blob, image]) {
+    for (const secret of [smtp, blob, candidates, image]) {
       expect(scrubbed?.message).not.toContain(secret);
     }
   });

@@ -547,6 +547,29 @@ describe('dish pictures', () => {
     expect(env.AI_IMAGE_MONTHLY_CAP_USD).toBe(10);
     expect(env.OPENROUTER_IMAGE_API_KEY).toBeUndefined();
     expect(env.BLOB_READ_WRITE_TOKEN).toBeUndefined();
+    // 0072: and no private store either — no rejected picture is kept.
+    expect(env.BLOB_CANDIDATES_READ_WRITE_TOKEN).toBeUndefined();
+  });
+
+  it('reads the private store’s token under its own name, empty as unset', () => {
+    expect(validateEnv({ ...valid, BLOB_CANDIDATES_READ_WRITE_TOKEN: 'vercel_blob_rw_private_token_value' }).BLOB_CANDIDATES_READ_WRITE_TOKEN).toBe(
+      'vercel_blob_rw_private_token_value'
+    );
+    expect(validateEnv({ ...valid, BLOB_CANDIDATES_READ_WRITE_TOKEN: '' }).BLOB_CANDIDATES_READ_WRITE_TOKEN).toBeUndefined();
+  });
+
+  /* 0072: the public store's token in the private store's variable would keep a rejected picture where a link reads it. */
+  it('refuses the public store’s token as the private store’s, without echoing it', () => {
+    const token = 'vercel_blob_rw_shared_token_value';
+
+    expect(() => validateEnv({ ...valid, BLOB_CANDIDATES_READ_WRITE_TOKEN: ` ${token}`, BLOB_READ_WRITE_TOKEN: token })).toThrow(
+      /BLOB_CANDIDATES_READ_WRITE_TOKEN.*own token/
+    );
+    expect(() => validateEnv({ ...valid, BLOB_CANDIDATES_READ_WRITE_TOKEN: token, BLOB_READ_WRITE_TOKEN: token })).not.toThrow(/shared_token_value/);
+    expect(
+      validateEnv({ ...valid, BLOB_CANDIDATES_READ_WRITE_TOKEN: 'vercel_blob_rw_private_token_value', BLOB_READ_WRITE_TOKEN: token })
+        .BLOB_CANDIDATES_READ_WRITE_TOKEN
+    ).toBe('vercel_blob_rw_private_token_value');
   });
 
   it('reads the companies into lists and the cap as a number', () => {

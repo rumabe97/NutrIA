@@ -85,7 +85,7 @@ Todas las tablas de usuario cuelgan de `user.id` con `ON DELETE CASCADE`
 | `target_overrides.setByProfessionalId` | quién fijó los objetivos | `NULL` (`profile.schema.ts:122`) |
 | `care_invitations` | correo tecleado por el profesional, hash del token | se borra por dirección en `beforeDelete` (`apps/api/src/modules/auth/auth.config.ts:227-230`); las caducadas solo se limpian cuando se escribe otra invitación (`care.schema.ts:14-24`) |
 | `recipes.createdBy` | receta generada | `NULL`; la receta queda en la biblioteca (`recipe.schema.ts:22`) |
-| `audit_logs.actorId` | eventos de seguridad | `NULL` (`platform.schema.ts:80`); hoy **nada escribe** en esta tabla |
+| `audit_logs.actorId` | acciones de administración de una lista cerrada (`AUDIT_ACTIONS`, `packages/core/src/entities/Audit/Audit.ts:12-23`, desde el 008) | `NULL` (`platform.schema.ts:86`). Corregido el 2026-09-30: decía que nada escribía en esta tabla. Las dos acciones sobre imágenes (`picture.retried`, `picture.discarded`) llevan como autor al propietario y como entidad una receta: ningún dato de un tercero. **Sin revisar**: qué queda en las filas cuya entidad es una cuenta (`account.*`, `professional.*`) cuando esa cuenta se borra |
 | `analytics_events` | `session_started`, `swap_requested`, `ai_call` | cascada; **ligados a `userId`** (`platform.schema.ts:97`; escritores en `auth.config.ts:103` y `apps/api/src/modules/meal-plans/services/MealPlans.service.ts:69`) |
 
 Antes de borrar, se cancelan las suscripciones de Stripe y, si Stripe falla, la cuenta no
@@ -853,6 +853,9 @@ Una hora, en este orden:
 11. **Imágenes de los platos** (2026-09-27): (a) ¿una foto realista de un plato es una
     ultrasuplantación (art. 3.60)? (b) ¿«IA» en lugar de «AI» en la marca? ~~(c) Si el
     C2PA de Google no llega por OpenRouter…~~ (llega, medido el 2026-09-27).
+    (d) (2026-09-30) ¿es una «exposición» del art. 50.4-50.5 que el propietario vea en su
+    consola una imagen rechazada y sin publicar? No cambia nada en el producto, que la
+    rotula igualmente: no hace falta gastar la hora en ella.
     Detalle en [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 7.
 12. **Aceptación de las condiciones** (2026-09-29, D5): el art. 59.4 TRLGDCU y la cuenta
     gratuita, la confirmación del art. 28 LSSI, «seguir usando = aceptar», la prueba tras

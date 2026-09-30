@@ -253,7 +253,8 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     can make and which is written over the body last.
   - **The allergens come from the catalogue, never from the judge.** `judgePicture` gets
     the **whole** catalogue with `mayContain`; a picture showing an extra food with an
-    allergen the dish lacks is never stored. A judge that fails is a picture not kept.
+    allergen the dish lacks is rejected: it is never published, never a dish's picture and
+    never in the public store. A judge that fails is a picture not kept.
   - **The file is stored as the model returned it** — no `sharp`, no resize: any
     re-encode breaks Google's C2PA manifest, and a file without one is never kept.
   - **Every paid call is a row in `recipe_image_calls`**, and the cap is their sum; a
@@ -262,7 +263,8 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     the dish. Three attempts, counted across a stale takeover, then `failed`.
   - **`AI_PROVIDER=stub` draws, judges and keeps with stubs** (`StubPictureClients.ts`)
     — nothing leaves the machine. Otherwise nothing is drawn without
-    `OPENROUTER_IMAGE_API_KEY` and `BLOB_READ_WRITE_TOKEN`. `/admin/pictures` shows the
+    `OPENROUTER_IMAGE_API_KEY` and `BLOB_READ_WRITE_TOKEN` (`BLOB_CANDIDATES_READ_WRITE_TOKEN` is
+    not needed to draw: only to keep a rejected picture). `/admin/pictures` shows the
     month's spend against the cap. Every screen that shows one carries `legal`'s AI mark.
   - **Why a picture failed, and the owner's retry** (`PictureReason` in `core/entities/DishPicture`): a
     closed set (`judge_allergen`, `judge_rejected`, `no_provenance`, `model_refused`, `payment_refused`,
@@ -279,6 +281,66 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     `PICTURE_UNAVAILABLE`, `PICTURE_CAP_REACHED`, `PICTURE_DRAWING` (never takes over a fresh drawing),
     `PICTURE_NOT_RETRYABLE` (ready, or never drawn). Plan failures by code already are
     `failuresByCode` on `GET /admin/generations/stats`.
+  - **A rejected picture waits seven days where only the owner can see it**
+    ([`0072`](../../docs/decisions/0072-a-rejected-picture-waits-for-the-owner.md), project 009, which
+    amends `0066`'s "a rejected picture is never stored"). **Nothing publishes a candidate yet**: no
+    route, retry, cron or other code makes one a dish's picture — the owner's acceptance is a later
+    phase, and until it lands the only door to a person is `judgePicture`.
+    - **What is kept.** One candidate per dish: the last picture of a drawing that carried its C2PA
+      manifest and that the judge rejected, held in memory by `DishPictureService` and uploaded
+      **only if the drawing ends failed** — an accepted or given-back drawing keeps none, and a
+      picture the judge never got to judge is not one. A file without its manifest is never
+      uploaded; its row stores a closed `provenance.diagnostic` instead (content type, size, the
+      three marks of `pictureMarks`). The upload has its own 10 s and its own catch: it never changes
+      how a drawing ends.
+    - **Where.** `PictureCandidateStore` (put, get, del): a second Vercel Blob store, **private**, in
+      fra1, on `BLOB_CANDIDATES_READ_WRITE_TOKEN`; `StubPictureCandidateStore` (in memory, `files`)
+      with `AI_PROVIDER=stub`. Without the token it is unavailable, nothing is kept and drawing is
+      exactly as before. The token may not be the public store's: `Env.validation.ts` refuses to
+      boot when the two are equal. Path `dish-picture-candidates/<recipeId>/<promptVersion>-<random>.jpg`;
+      nothing that is not such a path is ever asked of the store (`isPictureCandidatePath`).
+    - **No state, no migration.** The pointer is `recipe_images.provenance.candidate`
+      (`PictureCandidate` in `core/entities/DishPicture`: `path`, `model`, `promptVersion`, and
+      `extras` — the judge's allergen keys and catalogue slugs, **never the vision model's words**),
+      beside `reason` and `notes`, which the failed pictures' mail still reads untouched.
+    - **The path never leaves the API**: not in a DTO, a log line or an error (the store's failures
+      are scrubbed of it and carry no `cause`). Recipe rows carry
+      `pictureCandidate: { allergens, ingredients: { name, slug }[], expiresAt } | null`.
+      `GET /admin/catalogue/recipes/:id` (`@Roles('admin')`, 404 `Recipe not found` for an unknown
+      id or one that is not a uuid) answers one such row plus `ingredients: { grams, name, slug }[]`
+      — the dish's served ingredients, which the review page shows beside the picture. The console's
+      catalogue names are Spanish (`FALLBACK_LOCALE`), here as on the table: no read takes a locale.
+    - **One clock.** A candidate is reviewable while the row is `failed` and
+      `now < lastAttemptAt + PICTURE_COOL_OFF_DAYS` (`reviewableCandidate`, the only reader of that
+      rule): the table, the file's route and the discard all go through it, so an expired one the
+      cleanup has not deleted yet is neither shown nor served. `PICTURE_CANDIDATE_CLOCK` is the
+      provider an end-to-end test replaces to move it.
+    - **A row with a pointer is not claimed for drawing** (`claimPicture`'s `WHERE`, `unclaimable`),
+      cooled off or not, so no claim forgets where a file is. **The pointer is removed only after
+      its file is deleted**, by a write that needs the row to still hold that very path
+      (`RecipeRepository.dropCandidate`). `completePicture`, `failPicture` and `releasePicture`
+      carry over a pointer the row still holds instead of overwriting it.
+    - **Routes**, both `@Roles('admin')` (a 404 for anybody else, before anything is read).
+      `GET /admin/catalogue/recipes/:id/picture/candidate` answers the bytes — the API's one
+      answer that is not JSON, a `StreamableFile` — with `Content-Type: image/jpeg`,
+      `X-Content-Type-Options: nosniff` and `Cache-Control: private, no-store`; 404 `NOT_FOUND`
+      (fixed `Picture candidate not found`) with none reviewable.
+      `POST …/picture/candidate/discard` (200 `{status:'discarded'}`) deletes the file, then the
+      pointer with `picture.discarded` in the same transaction; `status`, `attempts` and
+      `lastAttemptAt` stay, so the dish keeps its cool-off and nothing is spent. 404 likewise.
+    - **The retry discards the candidate**: checks → claim (which clears `provenance`) → `del()`.
+      A deletion that fails there leaves a private file with no pointer: known, accepted.
+    - **The cleanup** runs inside `/cron/rewrite-steps`, after the watch and before the sweep, on
+      its own 8 s (`PictureCandidatesService.clean`): it reads the rows whose candidate is no longer
+      reviewable (expired, or the row is no longer `failed`) **from the database, never by listing
+      the store**, deletes each file and then its pointer, and the `rewrite` `cron_run` records
+      `candidatesDeleted`. So a dish with a candidate is drawn again after the first 03:30 past its
+      seventh day, up to 24 h later than one without. It takes 100 rows a night, oldest first, and
+      starts no deletion in its last 4 s: a backlog waits for the next night, so "7 days" is when a
+      candidate stops being reviewable, not a promise of when its file is gone. **With the token
+      removed while dishes hold pointers**, the cleanup still removes the pointers past review and
+      deletes nothing — the dishes are not left waiting for ever, and the files stay in the private
+      store with no pointer.
 - `pnpm --filter api smoke:function` runs the deployed entry behind a plain Node
   server and checks it boots, denies with 404, and returns the JSON envelope for an
   unmatched route. Needs a live database, so it is not in the gate. Run it after any

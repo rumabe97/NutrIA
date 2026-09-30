@@ -11,6 +11,8 @@ export type PictureStatus = z.infer<typeof pictureStatusSchema>;
 /** A dish's picture as the database holds it: the file's address once ready, never the file. */
 export const pictureStateSchema = z.object({
   attempts: z.number().int().min(0),
+  /** A `failed` row holding a rejected picture for the owner to look at (`0072`): not claimed for drawing while it does. */
+  candidate: z.boolean().optional(),
   lastAttemptAt: z.date().nullable(),
   /** A `failed` row whose drawing was given back — the cap, a refused key — and may be claimed again at once. */
   released: z.boolean().optional(),
@@ -20,7 +22,11 @@ export const pictureStateSchema = z.object({
 
 export type PictureState = z.infer<typeof pictureStateSchema>;
 
-/** What was checked on a picture's file: the C2PA manifest found or not, the judge's notes. */
+/**
+ * What was checked on a picture's file: the C2PA manifest found or not, the judge's notes — and, on a
+ * failed row, why it failed (`reason`, `released`), the candidate it holds (`candidate`,
+ * `PictureCandidate`) or what a file without its manifest was (`diagnostic`, `PictureDiagnostic`).
+ */
 export type PictureProvenance = Record<string, unknown>;
 
 /** One paid call made for a dish's picture — an image drawn or a judgement of one. */

@@ -20,6 +20,7 @@ import { NotFoundError, OnboardingIncompleteError, PictureRetryRefusedError, Pla
 import { OnboardingRepository } from '#repositories/Onboarding';
 import { VacationRepository } from '#repositories/Vacation';
 import { isAway } from 'core/domain/Vacation';
+import { pictureCandidateOf } from 'core/entities/DishPicture';
 import { toCatalogue } from 'core/entities/Plan';
 import type { CandidateDish, Catalogue, MealSlot, RecipeVerdict } from 'core/entities/Plan';
 import type { LibraryUsage } from 'core/domain/MealFit';
@@ -31,7 +32,7 @@ import type { DishRef, ReusableRecipe, UndocumentedRecipe } from '#repositories/
 export type { UndocumentedRecipe } from '#repositories/Recipe';
 import type { PreferenceExclusions } from 'core/domain/Preference';
 import type { SafetyProfile } from 'core/entities/Safety';
-import type { PictureCall, PictureProvenance, PictureReason, PictureState } from 'core/entities/DishPicture';
+import type { PictureCall, PictureCandidate, PictureProvenance, PictureReason, PictureState } from 'core/entities/DishPicture';
 import type { PictureCatalogueEntry, PictureRecipe } from 'core/domain/DishPicture';
 
 /**
@@ -64,6 +65,9 @@ export const PICTURE_ATTEMPTS = 3;
 /** How long a drawing may hold its claim before another view takes it over: longer than the function lives. */
 const PICTURE_STALE_MINUTES = 15;
 
+/** How many expired candidates one cleanup takes: far more than a night leaves, and a bound all the same. */
+const CANDIDATES_PER_CLEANUP = 100;
+
 /** A drawing this caller won and must now make, or give back. `claimedAt` is the claim's token. */
 export type PictureClaim = { readonly attempts: number; readonly claimedAt: Date; readonly recipeId: string };
 
@@ -84,16 +88,53 @@ export function monthStart(now: Date): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 }
 
-/** Whether a stored state is one a claim could not take — spared the month's spend read on every view. */
+/**
+ * Whether a stored state is one a claim could not take — spared the month's spend read on every view.
+ * A row holding a candidate is never claimed (`0072`), cooled off or given back: `claimPicture` refuses it too.
+ */
 function unclaimable(state: PictureState, now: Date): boolean {
   const since = state.lastAttemptAt === null ? Infinity : now.getTime() - state.lastAttemptAt.getTime();
 
   return (
     state.status === 'ready' ||
+    state.candidate === true ||
     (state.status === 'drawing' && since < PICTURE_STALE_MINUTES * 60_000) ||
     (state.status === 'failed' && state.released !== true && since < PICTURE_COOL_OFF_DAYS * 86_400_000)
   );
 }
+
+/**
+ * When a candidate stops being reviewable (`0072`): the instant its dish's
+ * cool-off ends, `PICTURE_COOL_OFF_DAYS` after the drawing that left it. One
+ * clock — "the candidate expires" and "the dish may be drawn again" are the
+ * same instant, give or take the nightly cleanup that deletes the file.
+ */
+export function candidateExpiry(lastAttemptAt: Date): Date {
+  return new Date(lastAttemptAt.getTime() + PICTURE_COOL_OFF_DAYS * 86_400_000);
+}
+
+/**
+ * The candidate a row holds, while it can be looked at: the row is `failed`
+ * and `now` is before its expiry. Null otherwise — a candidate the cleanup has
+ * not deleted yet is neither shown nor served. Every read of a candidate goes
+ * through this, so they cannot disagree.
+ */
+export function reviewableCandidate(
+  row: { readonly lastAttemptAt: Date | null; readonly provenance: PictureProvenance | null; readonly status: string | null },
+  now: Date
+): { readonly candidate: PictureCandidate; readonly expiresAt: Date } | null {
+  if (row.status !== 'failed' || row.lastAttemptAt === null) {
+    return null;
+  }
+
+  const candidate = pictureCandidateOf(row.provenance);
+  const expiresAt = candidateExpiry(row.lastAttemptAt);
+
+  return candidate === null || now.getTime() >= expiresAt.getTime() ? null : { candidate, expiresAt };
+}
+
+/** Deletes a candidate's file from the private store. The API's: core names the path and never touches a store. */
+export type ForgetCandidateFile = (path: string) => Promise<void>;
 
 export type GenerationContext = {
   readonly catalogue: Catalogue;
@@ -255,6 +296,44 @@ export const RecipeController = {
     return RecipeRepository.claimUndocumented(stepsVersion, limit, REWRITE_CLAIM_MINUTES);
   },
 
+  /**
+   * The nightly cleanup of candidates nobody can look at any more (`0072`):
+   * expired, or on a row that is no longer `failed`. For each, `forget` deletes
+   * the file and **only then** is the pointer removed — by a write that needs
+   * the row to still hold that very path — so a file never outlives the only
+   * record of where it is, and the dish is claimable again from that moment.
+   * One that fails is left for the next night; none stops the others. No
+   * deletion starts once `until` has passed. Returns how many were deleted and
+   * how many were left.
+   */
+  async cleanCandidates(
+    forget: ForgetCandidateFile,
+    options: { readonly until?: Date } = {},
+    now: Date = new Date()
+  ): Promise<{ readonly deleted: number; readonly left: number }> {
+    const expiredAt = new Date(now.getTime() - PICTURE_COOL_OFF_DAYS * 86_400_000);
+    const rows = await RecipeRepository.unreviewableCandidates(expiredAt, CANDIDATES_PER_CLEANUP);
+    let deleted = 0;
+
+    for (const row of rows) {
+      if (options.until !== undefined && Date.now() >= options.until.getTime()) {
+        break;
+      }
+
+      try {
+        await forget(row.path);
+
+        if (await RecipeRepository.dropCandidate(row.recipeId, row.path)) {
+          deleted += 1;
+        }
+      } catch {
+        // The pointer stays, so the next night finds the file again.
+      }
+    }
+
+    return { deleted, left: rows.length - deleted };
+  },
+
   /** The drawing ended with a picture stored at `url`. False when the claim was no longer this drawing's. */
   async completePicture(
     claim: PictureClaim,
@@ -267,6 +346,32 @@ export const RecipeController = {
     }
   ): Promise<boolean> {
     return RecipeRepository.completePicture(claim.recipeId, claim.claimedAt, picture);
+  },
+
+  /**
+   * The owner discards a dish's candidate (`picture.discarded`, `0072`):
+   * `forget` deletes the file, then the pointer is removed and the audit row
+   * written in one transaction. Nothing else about the dish changes — it stays
+   * failed and waits out the same cool-off; the retry is a different verb, and
+   * the one that spends.
+   *
+   * A `NotFoundError` when there is no candidate that can be looked at: an
+   * unknown recipe or an id that is not one, no candidate, an expired one, or
+   * one that went between the read and the write (another tab, a retry). A
+   * deletion that fails throws, and the pointer stays.
+   */
+  async discardCandidate(recipeId: string, actorId: string, forget: ForgetCandidateFile, now: Date = new Date()): Promise<void> {
+    const { candidate } = await RecipeController.pictureCandidate(recipeId, now);
+
+    await forget(candidate.path);
+
+    const dropped = await RecipeRepository.dropCandidate(recipeId, candidate.path, async tx => {
+      await AuditRepository.record({ action: 'picture.discarded', actorId, entity: 'recipe', entityId: recipeId, metadata: {} }, tx);
+    });
+
+    if (!dropped) {
+      throw new NotFoundError('Picture candidate not found');
+    }
   },
 
   /** The drawing ended with nothing kept; the cool-off starts `now`. */
@@ -348,6 +453,24 @@ export const RecipeController = {
    */
   async nobodysContext(): Promise<GenerationContext> {
     return buildContext(randomUUID());
+  },
+
+  /**
+   * The candidate a dish holds, while it can be looked at (`reviewableCandidate`),
+   * for the API to fetch its file. It carries the file's path: **for the API's
+   * own use, never for an answer**. A `NotFoundError` with a fixed message
+   * otherwise — an unknown recipe, an id that is not one, no candidate, or an
+   * expired one the cleanup has not deleted yet.
+   */
+  async pictureCandidate(recipeId: string, now: Date = new Date()): Promise<{ readonly candidate: PictureCandidate; readonly expiresAt: Date }> {
+    const row = z.uuid().safeParse(recipeId).success ? await RecipeRepository.candidateRow(recipeId) : null;
+    const found = row === null ? null : reviewableCandidate(row, now);
+
+    if (found === null) {
+      throw new NotFoundError('Picture candidate not found');
+    }
+
+    return found;
   },
 
   /**
@@ -447,13 +570,18 @@ export const RecipeController = {
    * The audit row is written in the claim's own transaction, so a refused retry
    * leaves none. The caller draws the claim it gets back, as a view does.
    *
+   * A candidate the dish held is discarded (`0072`), in this order: the checks,
+   * the claim — which clears the pointer — and only then `forget` deletes the
+   * file. A deletion that fails leaves a private file nothing points to, which
+   * is known and accepted; it never undoes the retry.
+   *
    * Refusals are `PictureRetryRefusedError`; an unknown recipe, or an id that
    * is not one, is a `NotFoundError` before anything else is looked at.
    */
   async retryPicture(
     recipeId: string,
     actorId: string,
-    options: { readonly available: boolean; readonly capUsd: number },
+    options: { readonly available: boolean; readonly capUsd: number; readonly forget?: ForgetCandidateFile },
     now: Date = new Date()
   ): Promise<PictureClaim> {
     if (!z.uuid().safeParse(recipeId).success || !(await RecipeRepository.recipeExists(recipeId))) {
@@ -492,6 +620,10 @@ export const RecipeController = {
     if (!claimed) {
       // Somebody's view or another retry took it between the read and the claim.
       throw new PictureRetryRefusedError('drawing');
+    }
+
+    if (claimed.candidatePath !== null) {
+      await options.forget?.(claimed.candidatePath).catch(() => undefined);
     }
 
     return { attempts: 0, claimedAt: now, recipeId };

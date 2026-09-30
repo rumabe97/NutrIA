@@ -61,16 +61,17 @@
 - [x] (propietario) **MAI-Image-2.6 fuera** (decidido el 2026-09-27): solo Gemini en Vertex. Otro modelo, si vuelve, repite antes [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 2 y entra antes en la política.
 
 **Aviso visible (art. 50.4 y 50.5)**
-- [ ] (frontend) Pie `meal.pictureCaption` y `alt` `meal.pictureOf` en la página de la comida, en los dos idiomas.
+- [x] (frontend) Pie `meal.pictureCaption` y `alt` `meal.pictureOf` en la página de la comida, en los dos idiomas. — En `main` (`abc0a90`): `es-ES.ts` y `en-GB.ts`, `meal.pictureCaption` y `meal.pictureOf`; `MealPicture.tsx:71-73`.
 - [ ] (frontend + accessibility) Marca `picture.aiMark` («IA»/«AI») en la esquina superior derecha de la imagen, en la tarjeta y en la imagen grande, visible sin interacción, 4,5:1 sobre cualquier foto, con nombre accesible `picture.aiMarkLabel`; sin marca en el plato de reserva.
 - [ ] Ningún otro sitio muestra la imagen sin su aviso (filas del plan, consulta, correos, notificaciones, vista previa al compartir). Si se añade uno, lleva la marca.
 
 **Privacidad y textos**
-- [ ] (propietario) Almacén de Vercel Blob creado en **`fra1`** (no se puede cambiar después).
-- [ ] (frontend) `/privacidad`: cambios a, b y c del § 4.2, con `privacy.updated` nuevo, publicados antes del flag o el mismo día. Sin Microsoft (MAI fuera).
-- [ ] (frontend) `/condiciones`: la frase del § 3.3, con `terms.updated` nuevo.
+- [x] (propietario) Almacén de Vercel Blob creado en **`fra1`** (no se puede cambiar después). — Según `docs/reference/deployment.md:95`; `legal` no lo ha visto en Vercel: el propietario lo confirma en el panel (Storage → el almacén → región).
+- [x] (propietario) **Segundo almacén**, el de las imágenes rechazadas que esperan al propietario (proyecto 009 fase 2, `0072`): `nutria-picture-candidates`, **privado** y en **`fra1`**, creado el **2026-09-30** y conectado solo a Producción del proyecto de la API como `BLOB_CANDIDATES_READ_WRITE_TOKEN`. — Según `docs/reference/deployment.md:96` y el lead; `legal` no lo ha visto en Vercel: el propietario confirma en el panel las dos cosas que no se pueden cambiar después, **Private** y **`fra1`**. Si no fuera privado, una imagen rechazada tendría dirección pública (IMG-10); si no estuviera en `fra1`, «en la Unión Europea» dejaría de ser verdad en `/privacidad`. Detalle en [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 4.3.
+- [x] (frontend) `/privacidad`: cambios a, b y c del § 4.2, con `privacy.updated` nuevo, publicados antes del flag o el mismo día. Sin Microsoft (MAI fuera). — En `main` (`abc0a90`): los tres párrafos están en `es-ES.ts` y `en-GB.ts` (namespace `privacy`), con «Última actualización: 29 de septiembre de 2026». La fase 2 del 009 no los toca ([`imagenes-de-platos.md`](./imagenes-de-platos.md) § 4.3).
+- [x] (frontend) `/condiciones`: la frase del § 3.3, con `terms.updated` nuevo. — En `main` (`abc0a90`): namespace `terms` de `es-ES.ts` y `en-GB.ts`, con «Última actualización: 29 de septiembre de 2026».
 - [ ] (propietario) Leídas las condiciones de Google Cloud para IA generativa (Vertex). Cualquier cláusula que choque, a `legal` (IMG-9).
-- [ ] `legal` revisa el código construido contra este documento, porque hoy describe un plan, no código.
+- [ ] `legal` revisa el código construido contra este documento, porque hoy describe un plan, no código. — Hecho solo para lo que añade la fase 2 del 009 (la imagen rechazada guardada, § 1.6 y § 4.3, 2026-09-30) y para las casillas de arriba que llevan su fuente. El resto del 006 (la marca en cada pantalla, el contraste, las rutas del almacén público) sigue sin revisar.
 
 ## 1. Antes de encender `professional`
 

@@ -180,6 +180,7 @@ export const esES = {
       'account.tier_changed': 'Cambio de plan',
       'feedback.handled': 'Mensaje marcado como visto',
       'feedback.reopened': 'Mensaje reabierto',
+      'picture.discarded': 'Imagen rechazada de un plato descartada a mano',
       'picture.retried': 'Imagen de un plato reintentada a mano',
       'professional.granted': 'Perfil profesional concedido',
       'professional.revoked': 'Perfil profesional revocado',
@@ -498,6 +499,46 @@ export const esES = {
     title: 'Notificaciones'
   },
 
+  /* `/admin/catalogo/[id]/imagen` (`0072`): one picture the checker rejected, beside what the dish is made of and what the checker flagged. A dish, never a person (`0028`); never the vision model's own words. */
+  adminPictureReview: {
+    back: 'Volver a Recetas',
+    decideHelp: 'Descartar borra la imagen y no cuesta nada. Reintentar la borra y dibuja otra, que es de pago.',
+    decideNote:
+      'Puedes verla hasta el {date}, hora de Madrid. Después la borra la limpieza nocturna, normalmente la noche siguiente, y hasta entonces el plato no vuelve a dibujarse solo.',
+    decideTitle: 'Qué hacer con ella',
+    discard: 'Descartar',
+    discardBody:
+      'Se borra el archivo y no se puede recuperar. No cuesta nada: no se dibuja ninguna imagen nueva y el plato sigue sin imagen hasta su siguiente reintento.',
+    discardConfirm: 'Descartar la imagen',
+    discardDone: 'Imagen descartada.',
+    discardTitle: '¿Descartar esta imagen?',
+    dishAllergens: 'Alérgenos del plato',
+    dishTitle: 'El plato',
+    dishTraces: 'Trazas del plato',
+    flaggedAllergens: 'Alérgenos que vio y el plato no tiene',
+    flaggedAllergensNone: 'No señaló ninguno. Eso no quiere decir que la imagen esté bien.',
+    flaggedIngredients: 'Ingredientes del catálogo que reconoció',
+    flaggedNote: 'Lo que el revisor vio en la imagen, con las palabras del catálogo. Puede incluir alérgenos que el plato lleva como trazas.',
+    flaggedTitle: 'Lo que vio el revisor',
+    gone: 'Esta imagen ya no está guardada.',
+    ingredients: 'Ingredientes, para la receta entera',
+    intro: 'El revisor rechazó esta imagen y no se ha publicado. Espera tu decisión.',
+    introNothing: 'Estado de la imagen del plato: {state}.',
+    loadFailed: 'No se ha podido cargar la imagen: puede que el archivo ya no esté. Recarga la página; si sigue sin verse, descártala o reinténtala.',
+    none: 'Ninguno',
+    nothingBody: 'Este plato no tiene ninguna imagen rechazada esperando: se descartó, se reintentó o pasaron sus 7 días.',
+    nothingTitle: 'No hay ninguna imagen que revisar',
+    pictureAlt: 'Imagen de {dish} generada por IA, pendiente de revisión',
+    pictureCaption: 'Imagen generada por IA. El revisor la rechazó y no está publicada: solo se ve en esta página.',
+    pictureTitle: 'La imagen',
+    retry: 'Reintentar',
+    retryBody: 'Se borra esta imagen y se dibuja otra ahora. Dibujar es de pago y cuenta para el tope del mes; el revisor puede volver a rechazarla.',
+    retryConfirm: 'Borrar y dibujar otra',
+    retryDone: 'Imagen descartada. Se está dibujando otra.',
+    retryTitle: '¿Dibujar otra imagen?',
+    title: 'Revisar la imagen de {dish}'
+  },
+
   /* `/admin/catalogo/imagenes`: the month's spend against the cap, spend per day, and pictures by state (`0066`). */
   adminPictures: {
     cap: 'Tope del mes',
@@ -505,7 +546,7 @@ export const esES = {
     failedLink: 'Ver las recetas con imagen fallida',
     failedListLabel: 'Imágenes fallidas por motivo',
     failedNote:
-      'Imágenes que fallaron por el propio plato en el periodo, contadas por el día en que terminaron. Se reintentan solas pasados 7 días, o a mano desde Recetas.',
+      'Imágenes que fallaron por el propio plato en el periodo, contadas por el día en que terminaron. Se reintentan solas pasados al menos 7 días, o a mano desde Recetas.',
     failedTitle: 'Por qué fallaron',
     gaugeChart: 'Gasto del mes contra el tope',
     gaugeEmpty: 'No hay ningún tope configurado.',
@@ -514,7 +555,7 @@ export const esES = {
     howCounted: [
       'El tope cuenta el mes natural en UTC, no el periodo. Al llegar a él no se dibuja ninguna imagen más hasta el mes siguiente.',
       'El gasto por día es lo que se facturó cada día por dibujar imágenes, en días de la hora de Madrid.',
-      'Lista es una imagen dibujada, con su archivo. Fallida es una que falló por el propio plato: se reintenta pasados 7 días. Devuelta es una que se dejó por el tope o por la clave: se vuelve a dibujar en la siguiente visita.',
+      'Lista es una imagen dibujada, con su archivo. Fallida es una que falló por el propio plato: se reintenta pasados al menos 7 días. Devuelta es una que se dejó por el tope o por la clave: se vuelve a dibujar en la siguiente visita.',
       'Las imágenes de los platos se facturan aparte del texto, que tiene su gasto en IA y modelos.'
     ],
     intro: 'Lo que cuestan las imágenes de los platos y en qué estado están.',
@@ -775,7 +816,8 @@ export const esES = {
       'Una receta que vale para dos comidas cuenta en las dos en el gráfico.',
       'Sin imagen cuenta toda receta que no tiene una imagen lista: también las que se están dibujando o fallaron.',
       'El catálogo es de todos: aquí no aparece quién pidió cada receta.',
-      'Una imagen fallida o devuelta se puede reintentar a mano con «Reintentar», sin esperar los 7 días; solo si dibujar está encendido y el tope del mes lo permite.'
+      'Una imagen fallida o devuelta se puede reintentar a mano con «Reintentar», sin esperar los 7 días; solo si dibujar está encendido y el tope del mes lo permite.',
+      'Una imagen que el revisor rechazó se guarda 7 días para que la mires: «Revisar la imagen» la abre, y desde ahí se descarta o se reintenta. Mientras está guardada, el plato no se dibuja solo.'
     ],
     intro: 'El catálogo de recetas: cuántas hay, para qué comida y de dónde vienen.',
     locales: { 'en-GB': 'Inglés', 'es-ES': 'Español' },
@@ -788,6 +830,8 @@ export const esES = {
     retryNext: 'Se reintenta sola en la siguiente visita',
     retryStarted: 'Dibujándose',
     retryTooMany: 'Demasiados reintentos: espera un rato y vuelve a probar.',
+    review: 'Revisar la imagen',
+    reviewFor: 'Revisar la imagen de {dish}',
     search: 'Buscar por nombre',
     slot: 'Comida',
     sortBy: { kcal: 'kcal por ración', name: 'nombre', protein: 'proteína por ración' },
@@ -1746,6 +1790,7 @@ export const esES = {
     '/admin/ajustes/sistema': { title: 'Sistema' },
     '/admin/buzon': { title: 'Buzón' },
     '/admin/catalogo': { title: 'Recetas' },
+    '/admin/catalogo/[id]/imagen': { title: 'Revisar una imagen' },
     '/admin/catalogo/calidad': { title: 'Calidad' },
     '/admin/catalogo/imagenes': { title: 'Imágenes' },
     '/admin/catalogo/ingredientes': { title: 'Ingredientes' },

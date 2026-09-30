@@ -18,7 +18,8 @@ export const AUDIT_ACTIONS = [
   'feedback.reopened',
   'setting.changed',
   'push.test_sent',
-  'picture.retried'
+  'picture.retried',
+  'picture.discarded'
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -59,6 +60,7 @@ export interface AuditMetadataByAction {
   'account.tier_changed': { readonly from: string; readonly to: string };
   'feedback.handled': Record<string, never>;
   'feedback.reopened': Record<string, never>;
+  'picture.discarded': Record<string, never>;
   'picture.retried': Record<string, never>;
   'professional.granted': Record<string, never>;
   'professional.revoked': Record<string, never>;

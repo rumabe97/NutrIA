@@ -171,6 +171,7 @@ export const enGB: Dictionary = {
       'account.tier_changed': 'Tier changed',
       'feedback.handled': 'Message marked seen',
       'feedback.reopened': 'Message reopened',
+      'picture.discarded': 'Rejected dish picture discarded by hand',
       'picture.retried': 'Dish picture retried by hand',
       'professional.granted': 'Professional profile granted',
       'professional.revoked': 'Professional profile revoked',
@@ -472,13 +473,54 @@ export const enGB: Dictionary = {
     title: 'Notifications'
   },
 
+  /* `/admin/catalogo/[id]/imagen` (`0072`): one picture the checker rejected, beside what the dish is made of and what the checker flagged. A dish, never a person (`0028`); never the vision model's own words. */
+  adminPictureReview: {
+    back: 'Back to Recipes',
+    decideHelp: 'Discard deletes the picture and costs nothing. Retry deletes it and draws another, which is a paid call.',
+    decideNote:
+      'You can look at it until {date}, Madrid time. After that the nightly cleanup deletes it, normally the following night, and until then the dish is not drawn again on its own.',
+    decideTitle: 'What to do with it',
+    discard: 'Discard',
+    discardBody:
+      'The file is deleted and cannot be brought back. It costs nothing: no new picture is drawn, and the dish stays without a picture until its next retry.',
+    discardConfirm: 'Discard the picture',
+    discardDone: 'Picture discarded.',
+    discardTitle: 'Discard this picture?',
+    dishAllergens: 'The dish’s allergens',
+    dishTitle: 'The dish',
+    dishTraces: 'The dish’s traces',
+    flaggedAllergens: 'Allergens it saw that the dish does not have',
+    flaggedAllergensNone: 'It flagged none. That does not mean the picture is right.',
+    flaggedIngredients: 'Catalogue ingredients it recognised',
+    flaggedNote: 'What the checker saw in the picture, in the catalogue’s words. It may include allergens the dish carries as traces.',
+    flaggedTitle: 'What the checker saw',
+    gone: 'This picture is no longer kept.',
+    ingredients: 'Ingredients, for the whole recipe',
+    intro: 'The checker rejected this picture and it has not been published. It is waiting for your decision.',
+    introNothing: 'The dish’s picture: {state}.',
+    loadFailed: 'The picture could not be loaded: the file may be gone. Reload the page; if it still does not show, discard it or retry.',
+    none: 'None',
+    nothingBody: 'This dish has no rejected picture waiting: it was discarded, retried, or its 7 days passed.',
+    nothingTitle: 'There is no picture to review',
+    pictureAlt: 'AI-generated picture of {dish}, awaiting review',
+    pictureCaption: 'AI-generated picture. The checker rejected it and it is not published: it is only seen on this page.',
+    pictureTitle: 'The picture',
+    retry: 'Retry',
+    retryBody:
+      'This picture is deleted and another is drawn now. Drawing is a paid call and counts towards the month’s cap; the checker may reject it again.',
+    retryConfirm: 'Delete and draw another',
+    retryDone: 'Picture discarded. Another is being drawn.',
+    retryTitle: 'Draw another picture?',
+    title: 'Review the picture of {dish}'
+  },
+
   adminPictures: {
     cap: 'Month’s cap',
     failedEmpty: 'No picture failed in this period.',
     failedLink: 'See the recipes with a failed picture',
     failedListLabel: 'Failed pictures by reason',
     failedNote:
-      'Pictures that failed for the dish’s own reasons in the period, counted by the day they ended. They are tried again on their own after 7 days, or by hand from Recipes.',
+      'Pictures that failed for the dish’s own reasons in the period, counted by the day they ended. They are tried again on their own after at least 7 days, or by hand from Recipes.',
     failedTitle: 'Why they failed',
     gaugeChart: 'The month’s spend against the cap',
     gaugeEmpty: 'No cap is set.',
@@ -487,7 +529,7 @@ export const enGB: Dictionary = {
     howCounted: [
       'The cap counts the calendar month in UTC, not the period. Once it is reached no more pictures are drawn until next month.',
       'Spend per day is what drawing pictures was billed each day, in Madrid days.',
-      'Ready is a drawn picture with its file. Failed is one that failed for the dish’s own reasons: it is tried again after 7 days. Given back is one left by the cap or the key: it is drawn again on the next view.',
+      'Ready is a drawn picture with its file. Failed is one that failed for the dish’s own reasons: it is tried again after at least 7 days. Given back is one left by the cap or the key: it is drawn again on the next view.',
       'Dish pictures are billed apart from text, whose spend is on AI and models.'
     ],
     intro: 'What the dish pictures cost and what state they are in.',
@@ -747,7 +789,8 @@ export const enGB: Dictionary = {
       'A recipe that suits two meals counts in both on the chart.',
       'Without a picture counts every recipe with no ready picture: those being drawn or that failed too.',
       'The catalogue is everybody’s: nothing here says who asked for each recipe.',
-      'A failed or given-back picture can be retried by hand with “Retry”, without waiting the 7 days; only when drawing is on and the month’s cap allows it.'
+      'A failed or given-back picture can be retried by hand with “Retry”, without waiting the 7 days; only when drawing is on and the month’s cap allows it.',
+      'A picture the checker rejected is kept for 7 days for you to look at: “Review the picture” opens it, and from there it is discarded or retried. While it is kept, the dish is not drawn on its own.'
     ],
     intro: 'The recipe catalogue: how many, for which meal, and where they came from.',
     locales: { 'en-GB': 'English', 'es-ES': 'Spanish' },
@@ -760,6 +803,8 @@ export const enGB: Dictionary = {
     retryNext: 'Tries again on its own on the next view',
     retryStarted: 'Being drawn',
     retryTooMany: 'Too many retries: wait a while and try again.',
+    review: 'Review the picture',
+    reviewFor: 'Review the picture of {dish}',
     search: 'Search by name',
     slot: 'Meal',
     sortBy: { kcal: 'kcal per serving', name: 'name', protein: 'protein per serving' },
@@ -1702,6 +1747,7 @@ export const enGB: Dictionary = {
     '/admin/ajustes/sistema': { title: 'System' },
     '/admin/buzon': { title: 'Inbox' },
     '/admin/catalogo': { title: 'Recipes' },
+    '/admin/catalogo/[id]/imagen': { title: 'Review a picture' },
     '/admin/catalogo/calidad': { title: 'Quality' },
     '/admin/catalogo/imagenes': { title: 'Pictures' },
     '/admin/catalogo/ingredientes': { title: 'Ingredients' },

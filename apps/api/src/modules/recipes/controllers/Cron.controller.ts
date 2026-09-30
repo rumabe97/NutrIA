@@ -6,8 +6,8 @@ import { CronRunService } from '../services/index.js';
 import { CronSecretGuard } from '../../../shared/guards/index.js';
 import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
 import { OwnerAlertsService } from '../../owner-alerts/index.js';
+import { PictureCandidatesService, RecipeRewriter } from '../../ai/index.js';
 import { Public, SkipRateLimit } from '../../../shared/index.js';
-import { RecipeRewriter } from '../../ai/index.js';
 
 import type { ReminderRunDto, RewriteRunDto } from '../dto/out/index.js';
 
@@ -17,6 +17,13 @@ import type { ReminderRunDto, RewriteRunDto } from '../dto/out/index.js';
  * the minute the sweep keeps for its writes and its record.
  */
 const WATCH_BUDGET_MS = 10_000;
+
+/**
+ * The most the cleanup of expired picture candidates may take before the sweep starts (`0072`).
+ * Its own, apart from the watch's: a store that hangs costs the sweep these seconds and no more,
+ * and the two together still leave the sweep its 240 of the function's 300.
+ */
+const CLEANUP_BUDGET_MS = 8_000;
 
 /**
  * What one sweep fetches: as many as three lanes can finish inside its time
@@ -44,6 +51,7 @@ const REWRITES_PER_SWEEP = 12;
 export class CronController {
   constructor(
     private readonly alerts: OwnerAlertsService,
+    private readonly candidates: PictureCandidatesService,
     private readonly invitations: ExpiredInvitationsService,
     private readonly reminders: CheckInReminderService,
     private readonly rewriter: RecipeRewriter,
@@ -89,10 +97,24 @@ export class CronController {
       new Promise<void>(resolve => setTimeout(resolve, WATCH_BUDGET_MS).unref())
     ]);
 
+    // The rejected pictures nobody can look at any more (`0072`): their files deleted, then their pointers, which is
+    // what lets their dishes be drawn again. Before the sweep and on its own budget; it never throws into it. A
+    // cleanup that outlasts its budget goes on behind the sweep and is recorded as none: the next night counts the rest.
+    const candidatesDeleted = await Promise.race([
+      this.candidates
+        .clean(CLEANUP_BUDGET_MS)
+        .then(cleaned => cleaned.deleted)
+        .catch(() => 0),
+      new Promise<number>(resolve => setTimeout(() => resolve(0), CLEANUP_BUDGET_MS).unref())
+    ]);
+
     const run = await this.rewriter.rewriteOutdated(REWRITES_PER_SWEEP);
 
     // A sweep held back by the cap says so in its record, in the place of a count of skipped recipes.
-    await this.runs.record('rewrite', 'heldBy' in run ? { pending: 0, rewritten: 0, skipped: 'cap', unreached: 0 } : run);
+    await this.runs.record('rewrite', {
+      ...('heldBy' in run ? { pending: 0, rewritten: 0, skipped: 'cap' as const, unreached: 0 } : run),
+      candidatesDeleted
+    });
     // The sweep is the one spender nobody waits for: the cap's warning is checked when it ends (`0071`).
     // It never throws, and the catch keeps it so: the sweep's answer does not depend on the owner's mail.
     await this.alerts.checkSpend().catch(() => undefined);

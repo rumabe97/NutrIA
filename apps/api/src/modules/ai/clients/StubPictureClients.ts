@@ -1,3 +1,4 @@
+import { PictureCandidateStore } from './PictureCandidateStore.js';
 import { PictureImageClient } from './PictureImageClient.js';
 import { PictureJudgeClient } from './PictureJudgeClient.js';
 import { PictureStore } from './PictureStore.js';
@@ -71,5 +72,34 @@ export class StubPictureStore extends PictureStore {
     this.stored.push({ bytes, path });
 
     return { url: `data:${contentType};base64,${Buffer.from(bytes).toString('base64')}` };
+  }
+}
+
+/**
+ * The private store, in memory (`0072`): a rejected picture is kept in this
+ * process and nowhere else. `files` is every file it holds, by path, for a
+ * test to read — or to fill, to set a candidate up without a drawing.
+ */
+export class StubPictureCandidateStore extends PictureCandidateStore {
+  readonly files = new Map<string, Uint8Array>();
+
+  get isAvailable(): boolean {
+    return true;
+  }
+
+  async del(path: string): Promise<void> {
+    this.files.delete(path);
+  }
+
+  async get(path: string): Promise<Uint8Array | null> {
+    return this.files.get(path) ?? null;
+  }
+
+  async put(path: string, bytes: Uint8Array): Promise<void> {
+    if (this.files.has(path)) {
+      throw new Error('Candidate put failed: a file is already there');
+    }
+
+    this.files.set(path, bytes);
   }
 }

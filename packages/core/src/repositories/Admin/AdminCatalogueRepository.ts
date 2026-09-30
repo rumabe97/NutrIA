@@ -36,7 +36,7 @@ export type CatalogueRecipeRow = {
   readonly pictureAt: Date | null;
   /** The row is `failed`, released or not (`picture` reads a released one as `none`). */
   readonly pictureFailed: boolean;
-  /** What a failed row stored about how it ended; null for any other row. Read by `pictureReasonOf`, never sent as it is. */
+  /** What a failed row stored about how it ended — its candidate's path included (`0072`); null for any other row. Read by `pictureReasonOf` and `reviewableCandidate`, never sent as it is. */
   readonly pictureProvenance: PictureProvenance | null;
   readonly servings: number;
   readonly slug: string;
@@ -391,6 +391,17 @@ export const AdminCatalogueRepository = {
         source: row.source,
         stepsVersion: row.stepsVersion
       }));
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /** One recipe as the table lists it, or null when there is none. Mode: one read by primary key, with its one picture row. */
+  async recipe(recipeId: string): Promise<CatalogueRecipeRow | null> {
+    try {
+      const [row] = await recipeSelect(database(), eq(recipes.id, recipeId)).limit(1);
+
+      return row ?? null;
     } catch (error: unknown) {
       throw wrap(error);
     }

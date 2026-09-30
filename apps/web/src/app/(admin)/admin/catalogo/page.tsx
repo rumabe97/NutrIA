@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 
 import styles from './page.module.css';
 
@@ -140,7 +141,9 @@ export default async function AdminRecipesPage({ searchParams }: { searchParams:
   const reasons = dictionary.adminPictures.reasons;
 
   // The state, then why it is not a picture, then what happens next: the button for a
-  // picture that can be retried by hand (`0066`), or the wait it is in.
+  // picture that can be retried by hand (`0066`), or the wait it is in. A dish holding a
+  // rejected picture (`0072`) links to its review instead: a retry deletes that picture, and
+  // only the review page says so before it does.
   const pictureCell = (recipe: CatalogueRecipeView): ReactNode => {
     if (recipe.pictureReason === null) {
       return t.pictures[recipe.picture];
@@ -153,7 +156,17 @@ export default async function AdminRecipesPage({ searchParams }: { searchParams:
         <span className={styles.reason}>
           {recipe.retryableAt === null ? t.retryNext : interpolate(t.retryFrom, { date: madridDate(recipe.retryableAt) })}
         </span>
-        <RetryPictureButton dish={recipe.name} recipeId={recipe.id} version={`${recipe.pictureReason}:${recipe.retryableAt}`} />
+        {recipe.pictureCandidate === null ? (
+          <RetryPictureButton dish={recipe.name} recipeId={recipe.id} version={`${recipe.pictureReason}:${recipe.retryableAt}`} />
+        ) : (
+          <Link
+            aria-label={interpolate(t.reviewFor, { dish: recipe.name })}
+            className={styles.review}
+            href={`${PATHNAME}/${encodeURIComponent(recipe.id)}/imagen`}
+          >
+            {t.review}
+          </Link>
+        )}
       </div>
     );
   };

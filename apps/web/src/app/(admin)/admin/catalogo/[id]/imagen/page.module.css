@@ -1,0 +1,150 @@
+/* The page measures itself, so the picture and the facts sit side by side from the room
+   there is beside the sidebar, not from the window's width. */
+.page {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--gap-region);
+  /* One column that may shrink below its widest child (reflow at 200 % text). */
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* The way back sits close over the title it belongs to: the region gap, taken back to a block's. */
+.back {
+  font-size: var(--font-size-03);
+  margin: 0 0 calc(var(--gap-block) - var(--gap-region));
+}
+
+.link {
+  color: var(--foreground-01);
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+}
+
+/* A standalone link is a target of its own on touch: the floor, stated once. */
+@media (pointer: coarse) {
+  .link {
+    align-items: center;
+    display: inline-flex;
+    min-block-size: var(--target-min);
+  }
+}
+
+/* One column on a phone, in reading order: the picture, what was flagged, the dish, the decision. */
+.review {
+  display: grid;
+  gap: var(--gap-region);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.facts {
+  display: grid;
+  gap: var(--gap-region);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* With room, the picture keeps the larger column and the facts are read beside it; the
+   decision follows both, across the page. */
+@container (inline-size >= 52rem) {
+  .review {
+    align-items: start;
+    column-gap: var(--gap-block);
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  }
+
+  .decide {
+    grid-column: 1 / -1;
+  }
+}
+
+.figure {
+  display: grid;
+  gap: var(--space-02);
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+}
+
+.caption,
+.loadFailed {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  margin: 0;
+  max-inline-size: var(--prose-max);
+}
+
+/* Said only when the file did not arrive: the frame is then a plate, and a plate explains nothing. */
+.loadFailed {
+  color: var(--color-error-text);
+  display: none;
+}
+
+.figure:has([data-failed]) .loadFailed {
+  display: block;
+}
+
+/* Label over value, one pair under the other. `dl.list` so the reset wins over the card
+   whatever order the sheets land in. */
+dl.list {
+  display: grid;
+  gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0;
+}
+
+.list dt {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  margin-block-end: var(--space-01);
+}
+
+.list dd {
+  font-size: var(--font-size-03);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ingredients {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* The name, then its grams at the far edge; a long name wraps and the figure stays whole. */
+.ingredients li {
+  align-items: baseline;
+  display: flex;
+  gap: var(--space-03);
+  justify-content: space-between;
+  padding-block: var(--space-02);
+}
+
+.ingredients li + li {
+  border-block-start: 1px solid var(--border-01);
+}
+
+.grams {
+  color: var(--foreground-02);
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.help {
+  margin: 0;
+  max-inline-size: var(--prose-max);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  margin-block-start: var(--space-03);
+}
+
+/* Stacked and stretched on a phone: two things that may be done next, the same size. */
+@media (width < 34rem) {
+  .actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

@@ -107,7 +107,7 @@ function copyOf(alert: OwnerAlert, link: (path: string) => string): Copy {
         again: 'Como mucho un aviso por hora: lo que falle mientras tanto irá en el siguiente.',
         button: 'Abrir las imágenes fallidas',
         detail: byReason(alert.reasons),
-        intro: `Imágenes de platos que han fallado desde el aviso anterior: ${total}. Cada plato espera ${String(PICTURE_COOL_OFF_DAYS)} días antes de volver a dibujarse solo.`,
+        intro: `Imágenes de platos que han fallado desde el aviso anterior: ${total}. Cada plato espera al menos ${String(PICTURE_COOL_OFF_DAYS)} días antes de volver a dibujarse solo.`,
         subject: `NutrIA — imágenes de platos fallidas: ${total}`,
         url: link('/admin/catalogo?picture=failed')
       };

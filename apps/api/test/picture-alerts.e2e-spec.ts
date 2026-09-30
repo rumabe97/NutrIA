@@ -173,14 +173,26 @@ describe('the owner is told that dish pictures failed (0072, phase 1)', () => {
     return found;
   };
 
-  /** A failed row as a drawing leaves it; a `released` one is the claim given back, as `releasePicture` writes it. */
-  async function seed(recipeId: string, at: Date, reason: string, released = false): Promise<void> {
+  /**
+   * A failed row as a drawing leaves it; a `released` one is the claim given back, as `releasePicture` writes it.
+   * With `candidate`, the row also holds the pointer to a rejected picture kept for review (`0072`), as a
+   * drawing the judge rejected leaves it — the pointer only: no file is behind it, and nothing here reads one.
+   */
+  async function seed(recipeId: string, at: Date, reason: string, released = false, candidate = false): Promise<void> {
+    const pointer = {
+      extras: [{ foreignAllergens: ['crustaceans'], mappedTo: ['gambas'] }],
+      model: 'stub/picture',
+      path: `dish-picture-candidates/${recipeId}/e2e-${String(stamp)}.jpg`,
+      promptVersion: 'e2e'
+    };
+    const failed = { notes: ['1:failed:e2e'], reason, ...(candidate && { candidate: pointer }) };
+
     touched.add(recipeId);
     await sql()`delete from recipe_images where recipe_id = ${recipeId}`;
     await sql()`
       insert into recipe_images (recipe_id, status, attempts, last_attempt_at, provenance)
       values (${recipeId}, 'failed', ${released ? 0 : 3}, ${at.toISOString()}::timestamptz,
-              ${JSON.stringify(released ? { reason, released: 'e2e' } : { notes: ['1:failed:e2e'], reason })}::text::jsonb)`;
+              ${JSON.stringify(released ? { reason, released: 'e2e' } : failed)}::text::jsonb)`;
   }
 
   async function status(recipeId: string): Promise<string | undefined> {
@@ -401,6 +413,26 @@ describe('the owner is told that dish pictures failed (0072, phase 1)', () => {
       expect(await claims(REFUSED)).toEqual([]);
       expect(await sentRows()).toEqual([{ ok: true }]);
     }, 60_000);
+  });
+
+  describe('a failed dish that holds a rejected picture for review', () => {
+    it('is counted like any other, by its reason: the pointer beside it changes nothing, and is in no mail', async () => {
+      const target = dish(0);
+      const now = new Date();
+
+      await seed(target.id, new Date(now.getTime() - 10 * MINUTE), 'judge_allergen', false, true);
+      await service(mailed).pictureFailures(now);
+
+      const [mail] = pictureMails();
+
+      expect(pictureMails()).toHaveLength(1);
+      expect(mail?.subject).toBe(`${FAILED_SUBJECT}1`);
+      expect(mail?.text).toContain('El revisor vio un alérgeno que el plato no tiene: 1');
+      // The pointer carries the dish's uuid and the folder: `expectClean` refuses the first, and this the second.
+      expectClean(mail as Sent);
+      expect(`${mail?.text ?? ''}${mail?.html ?? ''}`).not.toContain('dish-picture-candidates');
+      expect(await claims(FAILED)).toHaveLength(1);
+    });
   });
 
   describe('three failures inside the hour', () => {

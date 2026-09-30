@@ -3,6 +3,7 @@ import { matchCustomAllergen, normaliseForMatching, toMatchIndex } from 'core/do
 import { pictureParts } from './prompt';
 
 import type { MatchIndex } from 'core/domain/Safety';
+import type { PictureCandidateExtra } from 'core/entities/DishPicture';
 import type { PictureRecipe } from './prompt';
 
 /**
@@ -509,4 +510,18 @@ export function judgePicture(input: {
   ].filter(note => note !== '');
 
   return { accepted: rejecting.length === 0, extras, notes };
+}
+
+/**
+ * What a rejected picture's verdict says in closed words (`0072`): for each
+ * food carrying an allergen the dish lacks, those allergen keys and the
+ * catalogue slugs its name was mapped to. The name itself — the vision model's
+ * own word — is left behind: this is what is stored with a candidate and shown
+ * to the owner. Every such food is here, a trace included: the owner is warned
+ * of more than what rejected the picture, never of less.
+ */
+export function flaggedExtras(verdict: Pick<PictureVerdict, 'extras'>): PictureCandidateExtra[] {
+  return verdict.extras
+    .filter(extra => extra.foreignAllergens.length > 0)
+    .map(extra => ({ foreignAllergens: [...extra.foreignAllergens], mappedTo: [...extra.mappedTo] }));
 }

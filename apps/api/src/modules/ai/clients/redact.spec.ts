@@ -118,6 +118,10 @@ describe('providerCredentials', () => {
     expect(providerCredentials(env)).toEqual([FAKE.openai, FAKE.gateway]);
   });
 
+  it('collects the private store’s token too (0072)', () => {
+    expect(providerCredentials({ BLOB_CANDIDATES_READ_WRITE_TOKEN: FAKE.gateway } as unknown as Env)).toEqual([FAKE.gateway]);
+  });
+
   it('skips a value too short to be a credential, which would blank out ordinary words instead', () => {
     expect(providerCredentials({ GOOGLE_API_KEY: 'k' } as unknown as Env)).toEqual([]);
   });

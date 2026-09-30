@@ -85,7 +85,7 @@ names nothing, and any `redirect()` in a console page repeats the role check fir
 Resumen `/admin` · Personas: `/admin/cuentas`, `/admin/profesionales`, `/admin/buzon`,
 `/admin/consentimientos`, `/admin/personas/retencion` (monthly cohorts, counts only, a cell null below 20 people) · Producto: `/admin/producto`, `/admin/producto/planes`, `/admin/producto/planes/calidad` (sums only; "pocos datos" and no figure under 10 plans),
 `/admin/notificaciones` · Generación: `/admin/generacion`, `/admin/generacion/ia` ·
-Catálogo: `/admin/catalogo` (takes `?check=` from Calidad), `/admin/catalogo/calidad`,
+Catálogo: `/admin/catalogo` (takes `?check=` from Calidad), `/admin/catalogo/[id]/imagen` (the review of a picture the judge rejected, `0072`: not in the navigation, linked from its row on Recetas, which then draws no retry button — the retry deletes the picture and only the review page says so first), `/admin/catalogo/calidad`,
 `/admin/catalogo/ingredientes`, `/admin/catalogo/imagenes` · Ajustes: `/admin/ajustes`,
 `/admin/ajustes/registro`, `/admin/ajustes/sistema`. Tables are `components/AdminTable` over
 `ui/DataTable` on a `Card`: a GET form that works without JavaScript, all state in the URL,

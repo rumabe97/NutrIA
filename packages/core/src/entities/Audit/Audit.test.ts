@@ -19,6 +19,13 @@ describe('auditQuerySchema', () => {
     expect(AUDIT_ACTIONS).toContain('picture.retried');
   });
 
+  /* 0072: discarding a candidate is an admin mutation. Accepting and removing one are not built yet, so they are not names yet. */
+  it('names the owner’s discard of a candidate, and no acceptance or removal of one', () => {
+    expect(AUDIT_ACTIONS).toContain('picture.discarded');
+    expect(AUDIT_ACTIONS).not.toContain('picture.accepted');
+    expect(AUDIT_ACTIONS).not.toContain('picture.removed');
+  });
+
   it('coerces and bounds offset and size', () => {
     expect(auditQuerySchema.parse({ offset: '50', size: '100' })).toEqual({ offset: 50, size: 100 });
     expect(() => auditQuerySchema.parse({ size: '0' })).toThrow();

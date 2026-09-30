@@ -13,10 +13,10 @@ import { AdminCatalogueService } from '../services/index.js';
 import { AdminGuard } from '../../../shared/guards/index.js';
 import { AllExceptionsFilter } from '../../../shared/filters/index.js';
 import { RATE_LIMIT_KEY } from '../../../shared/decorators/RateLimit.decorator.js';
-import { DishPictureService } from '../../ai/services/index.js';
+import { DishPictureService, PictureCandidatesService } from '../../ai/services/index.js';
 import { OwnerAlertsService } from '../../owner-alerts/index.js';
 
-import type { AdminCatalogueQualityView, AdminIngredientsView, AdminRecipesView } from 'core/controllers/Admin';
+import type { AdminCatalogueQualityView, AdminIngredientsView, AdminRecipesView, AdminRecipeView } from 'core/controllers/Admin';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
 
@@ -37,7 +37,8 @@ const RECIPES: AdminRecipesView = {
       mealSlots: ['lunch'],
       name: 'Bocadillo',
       picture: 'failed',
-      pictureReason: 'call_failed',
+      pictureCandidate: { allergens: ['crustaceans'], expiresAt: '2026-10-06T12:00:00.000Z', ingredients: [{ name: 'Gambas', slug: 'gambas' }] },
+      pictureReason: 'judge_allergen',
       proteinG: 25.8,
       retryableAt: '2026-10-06T12:00:00.000Z',
       slug: 'bocadillo',
@@ -71,6 +72,11 @@ describe('AdminCatalogueController', () => {
   const schedule = jest.fn();
   const pictures = { capUsd: 10, isAvailable: true, schedule };
   const pictureFailures = jest.fn(async () => Promise.resolve());
+  const NOW = new Date('2026-09-30T12:00:00Z');
+  const read = jest.fn<(recipeId: string) => Promise<Uint8Array>>();
+  const discard = jest.fn<(recipeId: string, actorId: string) => Promise<void>>();
+  const forget = jest.fn<(path: string) => Promise<void>>();
+  const candidates = { discard, forget, now: () => NOW, read };
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -78,6 +84,7 @@ describe('AdminCatalogueController', () => {
       providers: [
         AdminCatalogueService,
         { provide: DishPictureService, useValue: pictures },
+        { provide: PictureCandidatesService, useValue: candidates },
         { provide: OwnerAlertsService, useValue: { pictureFailures } },
         {
           provide: APP_GUARD,
@@ -107,6 +114,9 @@ describe('AdminCatalogueController', () => {
   afterEach(() => {
     jest.restoreAllMocks();
     schedule.mockClear();
+    read.mockReset();
+    discard.mockReset();
+    forget.mockReset();
     pictures.isAvailable = true;
   });
 
@@ -167,7 +177,9 @@ describe('AdminCatalogueController', () => {
         sort: 'protein',
         source: 'seed'
       },
-      expect.stringMatching(/^\d+\.\d+\.\d+$/)
+      expect.stringMatching(/^\d+\.\d+\.\d+$/),
+      // 0072: the candidates' own clock, so a row and the file's route agree on what has expired.
+      NOW
     );
   });
 
@@ -246,8 +258,12 @@ describe('AdminCatalogueController', () => {
       const response = await retry(CLAIM.recipeId).expect(202);
 
       expect(response.body).toEqual({ status: 'drawing' });
-      expect(claim).toHaveBeenCalledWith(CLAIM.recipeId, 'usr-1', { available: true, capUsd: 10 });
+      expect(claim).toHaveBeenCalledWith(CLAIM.recipeId, 'usr-1', { available: true, capUsd: 10, forget: expect.any(Function) });
       expect(schedule).toHaveBeenCalledWith(CLAIM, expect.any(Function));
+
+      // 0072: a candidate the dish held is deleted by the retry — core asks, once its claim is made.
+      await claim.mock.calls[0]?.[2].forget?.('dish-picture-candidates/x/2.0.0-y.jpg');
+      expect(forget).toHaveBeenCalledWith('dish-picture-candidates/x/2.0.0-y.jpg');
 
       // Project 009: a retry that fails again is mailed like any other, once its drawing ends.
       expect(pictureFailures).not.toHaveBeenCalled();
@@ -262,7 +278,7 @@ describe('AdminCatalogueController', () => {
 
       const response = await retry(CLAIM.recipeId).expect(409);
 
-      expect(claim).toHaveBeenCalledWith(CLAIM.recipeId, 'usr-1', { available: false, capUsd: 10 });
+      expect(claim).toHaveBeenCalledWith(CLAIM.recipeId, 'usr-1', { available: false, capUsd: 10, forget: expect.any(Function) });
       expect((response.body as { code: string }).code).toBe('PICTURE_UNAVAILABLE');
       expect(schedule).not.toHaveBeenCalled();
     });
@@ -298,6 +314,151 @@ describe('AdminCatalogueController', () => {
 
         expect(JSON.stringify(response.body)).not.toContain(segment);
       }
+    });
+  });
+
+  /* Project 009, step 4 as amended: one recipe by id with its ingredients, for the review of its rejected picture. */
+  describe('GET recipes/:id', () => {
+    const ID = '6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f';
+    const RECIPE = { ...RECIPES.rows[0], ingredients: [{ grams: 120, name: 'Pan', slug: 'pan' }] } as AdminRecipeView;
+
+    it('is 404 for an ordinary account, the same as every denial, before the id is looked at — and reads nothing', async () => {
+      role = 'user';
+      const recipe = jest.spyOn(CoreCatalogue, 'recipe');
+
+      const denied = await get(`recipes/${ID}`).expect(404);
+
+      expect(denied.body).toEqual((await get('recipes').expect(404)).body);
+      await get('recipes/not-a-uuid').expect(404);
+      expect(recipe).not.toHaveBeenCalled();
+    });
+
+    it('answers the owner the recipe with its ingredients, by the candidates’ clock, with no address of a file', async () => {
+      role = 'admin';
+      const recipe = jest.spyOn(CoreCatalogue, 'recipe').mockResolvedValue(RECIPE);
+
+      const response = await get(`recipes/${ID}`).expect(200);
+
+      expect(response.body).toEqual(RECIPE);
+      expect(recipe).toHaveBeenCalledWith(ID, NOW);
+      expect(JSON.stringify(response.body)).not.toMatch(/dish-picture-candidates|https?:|blob/);
+    });
+
+    it('answers 404 for an unknown recipe or an id that is not one, never echoing the segment', async () => {
+      role = 'admin';
+      jest.spyOn(CoreCatalogue, 'recipe').mockRejectedValue(new NotFoundError('Recipe not found'));
+
+      for (const segment of ['00000000-0000-4000-8000-000000000000', 'not-a-uuid-zzq']) {
+        const response = await get(`recipes/${segment}`).expect(404);
+
+        expect(response.body).toMatchObject({ code: 'NOT_FOUND', statusCode: 404 });
+        expect(JSON.stringify(response.body)).not.toContain(segment);
+      }
+    });
+
+    it('does not take the table’s, the quality’s or the ingredients’ routes for an id', async () => {
+      role = 'admin';
+      const recipe = jest.spyOn(CoreCatalogue, 'recipe');
+
+      jest.spyOn(CoreCatalogue, 'recipes').mockResolvedValue(RECIPES);
+      jest.spyOn(CoreQuality, 'quality').mockResolvedValue(QUALITY);
+      jest.spyOn(CoreCatalogue, 'ingredients').mockResolvedValue(INGREDIENTS);
+
+      await get('recipes').expect(200);
+      await get('quality').expect(200);
+      await get('ingredients').expect(200);
+
+      expect(recipe).not.toHaveBeenCalled();
+    });
+  });
+
+  /* 0072, PRD 009 criteria 2, 4 and 9: the rejected picture a dish holds for the owner — seen, and discarded. */
+  describe('a dish’s picture candidate', () => {
+    const RECIPE = '6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f';
+    const FILE = new Uint8Array([0xff, 0xd8, 0xff, 0xeb, 0x00, 0x04, 0x4a, 0x50, 0xff, 0xd9]);
+
+    function file(id: string) {
+      return request(app.getHttpServer() as Server).get(`/${PREFIX}/admin/catalogue/recipes/${id}/picture/candidate`);
+    }
+
+    function discarding(id: string) {
+      return request(app.getHttpServer() as Server).post(`/${PREFIX}/admin/catalogue/recipes/${id}/picture/candidate/discard`);
+    }
+
+    it('is limited to thirty discards an hour, like the retry', () => {
+      expect(Reflect.getMetadata(RATE_LIMIT_KEY, AdminCatalogueController.prototype.discardCandidate)).toEqual({ limit: 30, ttlSeconds: 3600 });
+    });
+
+    it('is 404 for an ordinary account on both routes, the same as every denial, and neither reads nor deletes', async () => {
+      role = 'user';
+
+      const denied = await file(RECIPE).expect(404);
+      const other = await get('recipes').expect(404);
+
+      expect(denied.body).toEqual(other.body);
+      await file('not-a-uuid').expect(404);
+      await discarding(RECIPE).expect(404);
+      await discarding('not-a-uuid').expect(404);
+
+      expect(read).not.toHaveBeenCalled();
+      expect(discard).not.toHaveBeenCalled();
+    });
+
+    it('answers the owner the file itself, byte for byte, as a private JPEG nothing may sniff or store', async () => {
+      role = 'admin';
+      read.mockResolvedValue(FILE);
+
+      const response = await file(RECIPE).buffer(true).expect(200);
+
+      expect(new Uint8Array(response.body as Buffer)).toEqual(FILE);
+      expect(response.headers['content-type']).toBe('image/jpeg');
+      expect(response.headers['x-content-type-options']).toBe('nosniff');
+      expect(response.headers['cache-control']).toBe('private, no-store');
+      expect(response.headers['content-length']).toBe(String(FILE.length));
+      expect(read).toHaveBeenCalledWith(RECIPE);
+    });
+
+    it('answers 404 when there is no candidate to look at — none, an expired one, an unknown dish — and never echoes the id', async () => {
+      role = 'admin';
+      read.mockRejectedValue(new NotFoundError('Picture candidate not found'));
+
+      for (const segment of [RECIPE, 'not-a-uuid-zzq']) {
+        const response = await file(segment).expect(404);
+
+        expect(response.headers['content-type']).toMatch(/json/);
+        expect(response.body).toMatchObject({ code: 'NOT_FOUND', statusCode: 404 });
+        expect(JSON.stringify(response.body)).not.toContain(segment);
+      }
+    });
+
+    it('discards for the owner from the session, and answers that it is gone', async () => {
+      role = 'admin';
+      discard.mockResolvedValue(undefined);
+
+      const response = await discarding(RECIPE).send({ actorId: 'somebody-else' }).expect(200);
+
+      expect(response.body).toEqual({ status: 'discarded' });
+      // Who discarded is the session's user, whatever a body says.
+      expect(discard).toHaveBeenCalledWith(RECIPE, 'usr-1');
+    });
+
+    it('answers 404 to a discard with no candidate to look at', async () => {
+      role = 'admin';
+      discard.mockRejectedValue(new NotFoundError('Picture candidate not found'));
+
+      const response = await discarding(RECIPE).expect(404);
+
+      expect(response.body).toMatchObject({ code: 'NOT_FOUND' });
+    });
+
+    it('carries the candidate on a recipe row as flags and an expiry, and no address of its file', async () => {
+      role = 'admin';
+      jest.spyOn(CoreCatalogue, 'recipes').mockResolvedValue(RECIPES);
+
+      const [row] = ((await get('recipes').expect(200)).body as AdminRecipesView).rows;
+
+      expect(Object.keys(row?.pictureCandidate ?? {}).sort()).toEqual(['allergens', 'expiresAt', 'ingredients']);
+      expect(JSON.stringify(row)).not.toMatch(/dish-picture-candidates|https?:|blob/);
     });
   });
 });

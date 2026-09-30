@@ -45,7 +45,7 @@ is the design; read its §§ 4–6 before any phase. Decision
 
 ### Phase 1 — The mail when pictures fail
 
-- [x] done
+- [x] done — commit `abc0a90` ("The owner is mailed when dish pictures fail, and when their provider turns the key away", #172)
 - **Dispatch**: opus @ medium — `/execute-project 009 phase 1`. Reviews:
   `invariant-reviewer`, and `legal` on the template. The `tests` agent writes the
   end-to-end cases.
@@ -104,7 +104,7 @@ is the design; read its §§ 4–6 before any phase. Decision
 
 ### Phase 2 — The candidate: keep, see, discard, clean
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 009 phase 2`. Reviews:
   `invariant-reviewer`, `accessibility` with `/local-probe`, `legal`. — owner-gated:
   create the private Blob store in `fra1` and connect it to the API project (steps
@@ -115,6 +115,11 @@ is the design; read its §§ 4–6 before any phase. Decision
   - `apps/api/src/modules/{ai,admin,recipes}/**`;
   - `apps/api/src/config/Env.validation.ts`, `turbo.json`, `apps/api/.env.example`,
     `docs/reference/deployment.md` (the new variable, all four);
+  - *amended 2026-09-30:* `apps/api/src/shared/observability/ErrorReporter.ts` and its spec —
+    the new token joins the secrets an error report is scrubbed of;
+  - *amended 2026-09-30:* one sentence of `apps/api/src/modules/email/templates/OwnerAlert.ts`
+    — the failed pictures' mail said a dish waits 7 days; with a candidate it is up to a day
+    longer, so it now says "at least";
   - `apps/web/src/app/(admin)/admin/catalogo/**`, the dictionaries;
   - `apps/api/test/**`; `docs/legal/**` (`legal`).
 - **Steps**:
@@ -144,6 +149,10 @@ is the design; read its §§ 4–6 before any phase. Decision
        candidate.
      - Recipe rows gain `pictureCandidate`: the allergen keys, the catalogue ingredients
        and when it expires. They never carry a path or a URL.
+     - *Amended 2026-09-30:* `GET /admin/catalogue/recipes/:id`, `@Roles('admin')`, answers
+       one recipe as its list row plus its ingredients. The console could read recipes only
+       as a paged list, and a row carries no ingredients, so the review page of step 7 had
+       nothing to read the dish from.
   5. **Discarding.** `POST …/picture/candidate/discard` deletes the file and the pointer,
      leaves `status`, `attempts` and `lastAttemptAt` alone, and writes `picture.discarded`
      in the same transaction as the pointer's removal.

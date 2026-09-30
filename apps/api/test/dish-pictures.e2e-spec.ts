@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from '@jest/globals';
 import request from 'supertest';
 
 import { database } from 'database';
+import { PICTURE_CANDIDATE_FOLDER } from 'core/entities/DishPicture';
 import { PICTURE_PROMPT_VERSION } from 'core/domain/DishPicture';
 import { SettingsController } from 'core/controllers/Settings';
 import { UNAUDITED } from 'core/entities/Audit';
@@ -37,7 +38,9 @@ import type { Response } from 'supertest';
  *
  * Recipes are shared by every account, so the suite only draws dishes that
  * had no picture row when it started, and deletes the rows it made for them
- * (`recipe_images`, `recipe_image_calls`) when it ends. The `dishPictures`
+ * (`recipe_images`, `recipe_image_calls`) when it ends. The private store is
+ * the module's own in-memory stub (`0072`): the one rejected picture it keeps
+ * goes with the application. The `dishPictures`
  * flag is a shared row: on while the suite runs, off after it.
  *
  * Requires a real, seeded database — see ./README.md.
@@ -104,7 +107,13 @@ async function pictureApp(ai: ScriptedAiClient, { images, judge, store }: Stubs,
 
 type MealDetail = { illustrationPath: string | null; pictureStatus: string; recipeId: string };
 type PictureStatus = { status: string; url: string | null };
-type Row = { attempts: number; bytes: unknown; provenance: { notes?: string[] } | null; status: string; url: string | null };
+type Row = {
+  attempts: number;
+  bytes: unknown;
+  provenance: { candidate?: { path?: string }; notes?: string[] } | null;
+  status: string;
+  url: string | null;
+};
 type Call = { costUsd: string; kind: string; model: string; outcome: string | null };
 type Dish = { mealId: string; recipeId: string };
 
@@ -420,11 +429,14 @@ describe('dish pictures', () => {
       main.judge.matched = null;
     }
 
+    // Nothing in the public store, and no address on the row: what is kept of it (`0072`) is a private
+    // pointer for the owner's review, which `picture-candidates.e2e-spec.ts` follows from here.
     expect(main.store.stored.slice(kept).filter(put => put.path.includes(dish.recipeId))).toEqual([]);
 
     const failed = await row(dish.recipeId);
 
     expect(failed).toMatchObject({ attempts: 3, bytes: null, status: 'failed', url: null });
+    expect(failed?.provenance?.candidate?.path).toMatch(new RegExp(`^${PICTURE_CANDIDATE_FOLDER}/${dish.recipeId}/`));
     // Rejected three times for the allergen, and for nothing else the rule might have tripped on.
     expect(failed?.provenance?.notes).toHaveLength(3);
 
