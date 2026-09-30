@@ -22,6 +22,7 @@ import { formatInstant, formatNumber, interpolate } from 'lib/format';
 import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../consoleMetadata';
+import { pictureReview } from './pictureReview';
 
 import type { AdminRecipesView, CatalogueRecipeView } from 'core/controllers/Admin';
 import type { AdminTableColumn, AdminTableFilter } from 'components/AdminTable';
@@ -156,15 +157,17 @@ export default async function AdminRecipesPage({ searchParams }: { searchParams:
   // The state, then why it is not a picture, then what happens next: the button for a
   // picture that can be retried by hand (`0066`), or the wait it is in. A dish holding a
   // rejected picture (`0072`) links to its review instead: a retry deletes that picture, and
-  // only the review page says so before it does. A ready picture the owner accepted by hand
-  // says so and links to the same page, where it can be removed; one the judge accepted is
-  // only its state.
+  // only the review page says so before it does. A ready picture links to the same page,
+  // where it can be removed, whoever accepted it (project 010); one the owner accepted by
+  // hand also says so.
   const pictureCell = (recipe: CatalogueRecipeView): ReactNode => {
-    if (recipe.pictureAcceptedByHand) {
+    const kind = pictureReview(recipe);
+
+    if (kind === 'byHand' || kind === 'byJudge') {
       return (
         <div className={styles.picture}>
           <span>{t.pictures[recipe.picture]}</span>
-          <span className={styles.reason}>{t.acceptedByHand}</span>
+          {kind === 'byHand' ? <span className={styles.reason}>{t.acceptedByHand}</span> : null}
           {review(recipe)}
         </div>
       );

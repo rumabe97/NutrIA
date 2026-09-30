@@ -172,7 +172,7 @@ type PictureRetryRefusal =
  * What the owner asked of a dish's picture cannot be done now (`reason`); answered 409 with a code the console switches on.
  * The manual retry's refusals, and those of the acceptance and the removal by hand (`0072`): `no_candidate` (none that can
  * be accepted, or it went meanwhile), `allergens_mismatch` (the request does not repeat the allergens the console showed),
- * `not_acceptable` (the file is not a JPEG carrying its C2PA manifest), `not_removable` (not a picture accepted by hand).
+ * `not_acceptable` (the file is not a JPEG carrying its C2PA manifest), `not_removable` (the dish has no published — `ready` — picture).
  */
 export class PictureRetryRefusedError extends Error {
   constructor(readonly reason: PictureRetryRefusal) {

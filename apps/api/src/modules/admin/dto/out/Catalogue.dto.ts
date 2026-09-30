@@ -32,7 +32,7 @@ export type PictureCandidateFileDto = StreamableFile;
 /** The owner's acceptance of a candidate against the judge (`0072`): it is the dish's picture now. */
 export type PictureAcceptDto = PictureAcceptView;
 
-/** The owner's removal of a picture accepted by hand: the dish has none again, and whether its public file was deleted. */
+/** The owner's removal of a published picture, the judge's or one accepted by hand: the dish has none again, and whether its public file was deleted. */
 export type PictureRemoveDto = PictureRemoveView;
 
 /** The owner's discard of a candidate: its file and its pointer are gone, and the dish waits as before. */

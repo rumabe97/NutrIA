@@ -17,7 +17,7 @@ export type PictureRefusal = 'other' | 'stale' | 'tooMany';
 /** The codes that mean the review page no longer shows what is stored, for an acceptance. */
 export const ACCEPT_STALE: readonly ApiErrorCode[] = ['PICTURE_ALLERGENS_MISMATCH', 'PICTURE_NO_CANDIDATE'];
 
-/** The same for a removal: the picture is not one accepted by hand any more. */
+/** The same for a removal: the dish has no published picture any more (removed in another tab, or never drawn). */
 export const REMOVE_STALE: readonly ApiErrorCode[] = ['PICTURE_NOT_REMOVABLE'];
 
 /** Which answer `error` gets. A recipe that is gone (404) is a stale page too. */

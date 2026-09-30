@@ -14,28 +14,31 @@ import { focusReviewBack, sayReview } from 'components/PictureCandidateAction/re
 import { useKeepFocus } from 'components/AdminTable/useKeepFocus';
 
 import { api, messageFor } from 'lib/api';
+import { interpolate } from 'lib/format';
 import { pictureRefusal, REMOVE_STALE } from 'lib/pictureRefusal';
 
 import type { PictureRemoveView } from 'core/controllers/Admin';
 
 interface PictureRemoveActionProps {
+  /** The dish's name, as the page shows it: the dialog names what it removes, heard on its own by a screen reader. */
+  dish: string;
   recipeId: string;
 }
 
 /**
- * "Retirar" on a picture the owner accepted by hand (`0072`): how a mistaken acceptance is
- * undone. Never drawn on a picture the judge accepted — the API refuses that one.
+ * "Retirar" on a published picture, whoever accepted it — the owner by hand (`0072`) or the
+ * judge (project 010): how a mistaken acceptance is undone without a migration.
  *
- * Confirmed first, in a dialog that says what it does to everybody who gets the dish, how
- * long the dish then waits, and that it is recorded. Removed, the page is read again, focus
+ * Confirmed first, in a dialog that names the dish and says what it does to everybody who
+ * gets it, how long it then waits, and that it is recorded. Removed, the page is read again, focus
  * goes to the link back to Recetas and what happened is said in the page's one region once
  * it is there.
  *
  * Two endings stay in the dialog until it is closed, because they are to be read: the
- * picture removed but its public file not deleted, and a picture that was no longer one
- * accepted by hand (another tab got there first). Closing either reads the page again.
+ * picture removed but its public file not deleted, and a picture that was no longer
+ * published (another tab got there first). Closing either reads the page again.
  */
-export function PictureRemoveAction({ recipeId }: PictureRemoveActionProps) {
+export function PictureRemoveAction({ dish, recipeId }: PictureRemoveActionProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const t = dictionary.adminPictureReview;
@@ -57,6 +60,8 @@ export function PictureRemoveAction({ recipeId }: PictureRemoveActionProps) {
   }, [ended]);
 
   function leave(message: string) {
+    // The dialog is closing on its way out: focus goes to the back link, not back to the confirm it fades with.
+    keepFocus(null);
     finished.current = message;
     setOpen(false);
     router.refresh();
@@ -129,7 +134,7 @@ export function PictureRemoveAction({ recipeId }: PictureRemoveActionProps) {
         }
       }}
       open={open}
-      title={ended === undefined ? t.removeTitle : ended.title}
+      title={ended === undefined ? interpolate(t.removeTitle, { dish }) : ended.title}
       trigger={
         <Button type="button" variant="secondary">
           {t.remove}

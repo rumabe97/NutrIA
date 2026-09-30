@@ -428,14 +428,24 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
       dies: after 4, a public file no row points to, at an unguessable path (known, like `keep`'s);
       after 5, a published picture whose private file waits for the cleanup.
     - **Remove** — `POST …/picture/remove`, `@Roles('admin')`, 30 an hour, no body, 200
-      `{ status: 'removed', fileDeleted }`. **Only a `ready` row whose provenance says
-      `acceptedBy: 'owner'`** (`RecipeRepository.removeAcceptedPicture`'s `WHERE`); anything else — a
-      picture the judge accepted included — is 409 `PICTURE_NOT_REMOVABLE` and nothing is written. One
-      transaction puts the row `failed` with `provenance { reason: 'owner_removed' }` (and the
-      `drawings` it held: a picture taken back is what a refinement of the judge reads), no address and
-      `lastAttemptAt = now` (a whole cool-off, so the dish is not redrawn at once) and writes
-      `picture.removed`; **then** the public file is deleted (`PictureStore.del`, which deletes nothing
-      that is not a `dish-pictures/<uuid>/…jpg`). The row first, so no screen is ever given the address
+      `{ status: 'removed', fileDeleted }`. **Any `ready` row, whichever door it came through**
+      (project 010, phase 4: a picture the judge accepted wrongly has a way out that is not a
+      migration; until then only a hand-accepted one could be removed) —
+      `RecipeRepository.removeAcceptedPicture`'s `WHERE` is `status = 'ready'` alone. A dish with no
+      published picture — `failed`, `drawing`, never drawn — is 409 `PICTURE_NOT_REMOVABLE` and nothing
+      is written. One transaction reads the row under its lock, puts it `failed` with
+      `provenance { reason: 'owner_removed' }` (and the `drawings` it held: a picture taken back is what a
+      refinement of the judge reads; nothing else the judge's or the hand's door wrote is kept), no
+      address and `lastAttemptAt = now` (a whole cool-off, so a view does not redraw it at once; the
+      owner's retry still can) and writes `picture.removed { acceptedBy: 'judge' | 'owner' }` — the door
+      the picture had come through, a closed word (`PICTURE_ACCEPTED_BY`, `pictureAcceptedByOf`: `owner`
+      only for the hand's exact mark, `judge` for every other `ready` row), read from that locked row;
+      never a path, an address or a model's words. Rows written before phase 4 carry `{}`. The removal
+      publishes nothing and writes no `ready`: it is not a third door. **Then** the public file is deleted (`PictureStore.del`, which deletes nothing
+      that is not a `dish-pictures/<uuid>/…jpg`; and before it, `PictureCandidatesService.unpublish` refuses
+      an address under **another** recipe's folder, `isAnotherRecipesPicture` — whatever this dish's row
+      says, taking it back never deletes another dish's file: the removal stands, `fileDeleted: false`).
+      The row first, so no screen is ever given the address
       of a picture the row says is removed; a deletion that fails leaves the removal standing,
       `fileDeleted: false`, and a file in the public store no row points to — for the owner to delete
       by hand. `fileDeleted: true` means the store deleted the file, not that every copy is gone:
@@ -447,7 +457,8 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
       `/admin/pictures` (`failedByReason`) and **left out of the failed pictures' mail**: it is the
       owner's own act.
     - **What the console reads of it.** Recipe rows carry `pictureAcceptedByHand: boolean` (a `ready`
-      picture accepted by hand — what "Retirar" is offered on; computed in SQL, the stored provenance is
+      picture accepted by hand; false on a `ready` row is the judge's — which door, not whether it can be
+      removed: "Retirar" is offered on every `ready` picture; computed in SQL, the stored provenance is
       never sent), and `GET /admin/pictures` adds `acceptedByHand`, a count inside `ready`.
       `GET /admin/catalogue/recipes?picture=accepted_by_hand` lists exactly those rows — one more
       value on the picture filter (`RECIPE_PICTURE_FILTERS`), the same SQL expression as the flag.

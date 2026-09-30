@@ -41,8 +41,9 @@ export type CatalogueRecipeView = {
   readonly picture: PictureStatus;
   /**
    * Whether the picture was accepted by hand, against the judge (`0072`): true only for a `ready`
-   * picture the owner published from a candidate. It is what the console offers "Retirar" on, and
-   * the only picture `POST …/picture/remove` takes back. A closed flag — never the stored provenance.
+   * picture the owner published from a candidate; false on a `ready` row means the judge accepted it.
+   * Which door, not whether it can be taken back: `POST …/picture/remove` takes any `ready` picture
+   * (project 010, phase 4). A closed flag — never the stored provenance.
    */
   readonly pictureAcceptedByHand: boolean;
   /**
@@ -78,7 +79,8 @@ export type AdminRecipeView = CatalogueRecipeView & {
   readonly ingredients: readonly { readonly grams: number; readonly name: string; readonly slug: string }[];
   /**
    * The public address of the dish's picture — the same one a person's app is given — when it is `ready`; null otherwise.
-   * What the review page shows of a picture that can be removed. Never a candidate's: that file has no address.
+   * What the review page shows of a published picture, beside "Retirar", which any `ready` one is offered. Never a
+   * candidate's: that file has no address.
    */
   readonly pictureUrl: string | null;
 };

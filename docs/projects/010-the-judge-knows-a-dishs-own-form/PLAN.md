@@ -101,7 +101,7 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 
 ### Phase 2 — The dish's own form, and three words' worth of vocabulary
 
-- [ ] pending
+- [ ] in progress
 - **Dispatch**: opus @ high — `/execute-project 010 phase 2`. `quality-max`. Reviews:
   `invariant-reviewer` (opus, high), `legal`.
 - **Goal**: a form the dish has or names stops rejecting its own picture, and nothing
@@ -159,7 +159,7 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 
 ### Phase 3 — What the judge said is kept
 
-- [x] done
+- [x] done — commit `8e9ca11` ("What the judge said about a dish's picture is kept, and never leaves")
 - **Dispatch**: opus @ high — `/execute-project 010 phase 3`. `quality-max`: it touches
   the accept's write. Reviews: `invariant-reviewer`, `legal`. The `tests` agent moves the
   end-to-end cases.
@@ -193,7 +193,7 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 
 ### Phase 4 — Any published picture can be removed
 
-- [ ] pending
+- [ ] in progress
 - **Dispatch**: opus @ high — `/execute-project 010 phase 4`. `quality-max`: it changes who
   may take back what. Reviews: `invariant-reviewer`, `accessibility` with `/local-probe`,
   `legal`. — human-verify: the owner opens a dish whose picture the judge accepted and
@@ -204,7 +204,11 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
   - `apps/api/src/modules/{ai,admin}/**`;
   - `apps/web/src/app/(admin)/admin/catalogo/**`, `apps/web/src/components/PictureRemoveAction/**`,
     the dictionaries;
-  - `apps/api/test/**`; `apps/api/AGENTS.md`; `docs/legal/**` (`legal`).
+  - `apps/api/test/**`; `apps/api/AGENTS.md`; `docs/legal/**` (`legal`);
+  - *amended 2026-09-30:* `apps/web/src/app/(admin)/admin/ajustes/registro/**` and
+    `apps/web/AGENTS.md` — the audit log names who had accepted a removed picture, or it
+    would show the new detail as a dash; `core/entities/{Error,AdminQuery}` and
+    `apps/web/src/lib/pictureRefusal.ts` change comments only.
 - **Steps**:
   1. **The route.** `POST …/picture/remove` works on any `ready` picture. The row goes to
      failed with `owner_removed`, the public file is deleted, and `picture.removed` is

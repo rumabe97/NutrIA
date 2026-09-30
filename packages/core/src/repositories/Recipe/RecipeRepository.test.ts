@@ -664,11 +664,19 @@ describe('RecipeRepository.acceptCandidate', () => {
   });
 });
 
+/*
+ * PRD 010, criterion 9 (phase 4): any published picture can be taken back, the judge's as much as one accepted by
+ * hand. Rewritten on purpose from PRD 009's criterion 6 ("only a ready picture the owner accepted"): the guard is
+ * `ready` alone, and the audit row says which door the picture had come through.
+ */
 describe('RecipeRepository.removeAcceptedPicture', () => {
   const URL = 'https://store.example/dish-pictures/x.jpg';
+  /** What the judge's door (`completePicture`) leaves on a `ready` row: no `acceptedBy`. */
+  const BY_JUDGE = { c2pa: true, judge: [], notes: [], trainedAlgorithmicMedia: true };
+  const BY_OWNER = { acceptedBy: 'owner', c2pa: true, overriddenAllergens: ['milk'], trainedAlgorithmicMedia: true };
 
-  it('takes back only a ready picture the owner accepted: failed with `owner_removed`, no address, the cool-off from now — and the audit row in the same transaction', async () => {
-    answers = [[{ path: null, url: URL }], [{ recipeId: RECIPE }]];
+  it('takes back a ready picture the owner accepted: failed with `owner_removed`, no address, the cool-off from now — and the audit row in the same transaction', async () => {
+    answers = [[{ path: null, provenance: BY_OWNER, url: URL }], [{ recipeId: RECIPE }]];
     const record = vi.fn(async () => Promise.resolve());
 
     await expect(RecipeRepository.removeAcceptedPicture(RECIPE, NOW, record)).resolves.toEqual({ candidatePath: null, url: URL });
@@ -684,18 +692,41 @@ describe('RecipeRepository.removeAcceptedPicture', () => {
 
     // A row with no judged drawings keeps nothing but the reason.
     expect(removal.set).toEqual({ lastAttemptAt: NOW, provenance: { reason: 'owner_removed' }, status: 'failed', updatedAt: NOW, url: null });
-    expect(removal.where).toMatchObject({
-      params: [RECIPE, 'ready'],
-      sql: '("recipe_images"."recipe_id" = $1 and "recipe_images"."status" = $2 and ("recipe_images"."provenance" ->> \'acceptedBy\') = \'owner\')'
-    });
+    // Any ready row: who accepted it is no longer part of the guard.
+    expect(removal.where).toMatchObject({ params: [RECIPE, 'ready'], sql: '("recipe_images"."recipe_id" = $1 and "recipe_images"."status" = $2)' });
     expect(updatedThrough).toEqual(['tx']);
     expect(record).toHaveBeenCalledTimes(1);
-    expect(record).toHaveBeenCalledWith(tx);
+    expect(record).toHaveBeenCalledWith(tx, { acceptedBy: 'owner' });
   });
 
-  it('refuses a picture the judge accepted, and any other row: nothing is removed and no audit row is written', async () => {
-    // The row is there and ready, with an address — the guarded update simply does not reach it.
-    answers = [[{ path: null, url: URL }], []];
+  it('takes back a ready picture the judge accepted the same way, and tells the audit row so in a closed word', async () => {
+    answers = [[{ path: null, provenance: { ...BY_JUDGE, drawings: [] }, url: URL }], [{ recipeId: RECIPE }]];
+    const record = vi.fn(async () => Promise.resolve());
+
+    await expect(RecipeRepository.removeAcceptedPicture(RECIPE, NOW, record)).resolves.toEqual({ candidatePath: null, url: URL });
+
+    expect(endOf().set).toMatchObject({ lastAttemptAt: NOW, status: 'failed', url: null });
+    // Nothing of what the judge's door wrote is kept but the drawings (none here): only the reason.
+    expect(Object.keys((endOf().set.provenance ?? {}) as object)).toEqual(['reason']);
+    expect(record).toHaveBeenCalledWith(tx, { acceptedBy: 'judge' });
+    // Only the closed word reaches the audit writer — never the row's provenance, its address or a path.
+    expect(record.mock.calls).toStrictEqual([[tx, { acceptedBy: 'judge' }]]);
+  });
+
+  it('calls a ready row with no provenance, or one whose `acceptedBy` is anything but the owner’s word, the judge’s', async () => {
+    for (const provenance of [null, {}, { acceptedBy: 'Owner' }, { acceptedBy: ['owner'] }]) {
+      answers = [[{ path: null, provenance, url: URL }], [{ recipeId: RECIPE }]];
+      const record = vi.fn(async () => Promise.resolve());
+
+      await RecipeRepository.removeAcceptedPicture(RECIPE, NOW, record);
+
+      expect(record).toHaveBeenCalledWith(tx, { acceptedBy: 'judge' });
+    }
+  });
+
+  it('refuses any row that is not ready — failed, drawing, released — and a dish with none: nothing is removed and no audit row is written', async () => {
+    // The row is there but not ready: the guarded update simply does not reach it.
+    answers = [[{ path: null, provenance: { reason: 'judge_rejected' }, url: null }], []];
     const record = vi.fn(async () => Promise.resolve());
 
     await expect(RecipeRepository.removeAcceptedPicture(RECIPE, NOW, record)).resolves.toBeNull();
@@ -707,7 +738,7 @@ describe('RecipeRepository.removeAcceptedPicture', () => {
   });
 
   it('hands back the path of a candidate the row still held, since the removal clears the pointer with the rest', async () => {
-    answers = [[{ path: CANDIDATE, url: URL }], [{ recipeId: RECIPE }]];
+    answers = [[{ path: CANDIDATE, provenance: BY_OWNER, url: URL }], [{ recipeId: RECIPE }]];
 
     await expect(RecipeRepository.removeAcceptedPicture(RECIPE, NOW, async () => Promise.resolve())).resolves.toEqual({
       candidatePath: CANDIDATE,
@@ -716,9 +747,45 @@ describe('RecipeRepository.removeAcceptedPicture', () => {
   });
 
   it('fails when the audit row cannot be written, so the removal rolls back with it', async () => {
-    answers = [[{ path: null, url: URL }], [{ recipeId: RECIPE }]];
+    answers = [[{ path: null, provenance: BY_JUDGE, url: URL }], [{ recipeId: RECIPE }]];
 
     await expect(RecipeRepository.removeAcceptedPicture(RECIPE, NOW, async () => Promise.reject(new Error('audit down')))).rejects.toThrow();
+  });
+
+  /*
+   * A removed dish is not drawn again inside its cool-off: the removal leaves it `failed` at `now` with no
+   * `released` mark and no candidate — which a view's claim lets through only once `last_attempt_at` is older than
+   * the cool-off. Even a `released` mark the ready row somehow held is not carried over.
+   */
+  it('leaves a dish a view’s claim does not take inside its cool-off, and does once it is over', async () => {
+    answers = [[{ path: null, provenance: { ...BY_JUDGE, released: 'cap' }, url: URL }], [{ recipeId: RECIPE }]];
+
+    await RecipeRepository.removeAcceptedPicture(RECIPE, NOW, async () => Promise.resolve());
+
+    const removal = endOf().set;
+
+    expect(removal).toMatchObject({ lastAttemptAt: NOW, status: 'failed' });
+    expect(removal.provenance).toEqual({ reason: 'owner_removed' });
+
+    for (const [at, claimable] of [
+      [new Date(NOW.getTime() + 6 * 86_400_000), false],
+      [new Date(NOW.getTime() + 7 * 86_400_000 + 1), true]
+    ] as const) {
+      statements.length = 0;
+      answers = [[]];
+      await RecipeRepository.claimPicture(RECIPE, at, 7);
+
+      const [claim] = statements;
+
+      if (claim?.kind !== 'insert') {
+        throw new Error('expected an insert');
+      }
+
+      // The only branch a `failed`, unreleased row can pass: `status = 'failed' and last_attempt_at < $2`.
+      const cooledOff = new Date(claim.upsert?.setWhere.params[1] as string);
+
+      expect(NOW < cooledOff).toBe(claimable);
+    }
   });
 });
 
@@ -850,7 +917,7 @@ describe('RecipeRepository — what the judge said is kept', () => {
     expect(endOf().set).toMatchObject({ provenance: { drawings: [first, second] }, status: 'drawing' });
   });
 
-  it('the owner’s removal keeps them beside its reason, and nothing of the acceptance', async () => {
+  it('the owner’s removal keeps them beside its reason, and nothing of the acceptance — whichever door it came through', async () => {
     const provenance = { acceptedBy: 'owner', c2pa: true, drawings: [first], notes: ['1:rejected:x'], overriddenAllergens: ['milk'] };
 
     answers = [[{ path: null, provenance, url: 'https://store.example/dish-pictures/x.jpg' }], [{ recipeId: RECIPE }]];

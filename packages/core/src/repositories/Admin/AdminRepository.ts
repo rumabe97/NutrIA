@@ -68,7 +68,7 @@ export type Funnel = {
  */
 /** The dish pictures at a glance (`0066`): the month's spend and how many are in each state. */
 export type PictureCounts = {
-  /** Of the `ready` ones, those the owner accepted by hand against the judge (`0072`) — the only ones that can be removed. */
+  /** Of the `ready` ones, those the owner accepted by hand against the judge (`0072`); the rest the judge accepted. */
   readonly acceptedByHand: number;
   readonly drawing: number;
   /** Failed for the dish's own reasons: rejected, unmarked, broken — waiting out the cool-off. */

@@ -200,7 +200,7 @@ export const PICTURE_ACCEPTED_BY_HAND = 'accepted_by_hand';
 
 /**
  * What the recipe table's `picture` filter takes: a picture's state, or the
- * hand-accepted ones — a subset of `ready`, the only pictures that can be removed.
+ * hand-accepted ones — a subset of `ready`, the pictures that did not pass the judge.
  */
 export const RECIPE_PICTURE_FILTERS = [...pictureStatusSchema.options, PICTURE_ACCEPTED_BY_HAND] as const;
 

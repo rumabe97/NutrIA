@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from 'core/entities/AdminQuery';
+import type { PictureAcceptedBy } from 'core/entities/DishPicture';
 
 /**
  * Ajustes › Registro de acciones (`0071`): the closed list of admin mutations
@@ -65,7 +66,12 @@ export interface AuditMetadataByAction {
   /** The owner published a picture the judge rejected (`0072`): the allergen keys the judge flagged and the owner overrode — catalogue keys, never a path, never a model's words. */
   'picture.accepted': { readonly allergens: readonly string[] };
   'picture.discarded': Record<string, never>;
-  'picture.removed': Record<string, never>;
+  /**
+   * The owner took a published picture back (`0072`, project 010 phase 4): which door it had come through, in a closed
+   * word — `judge` or `owner` (`PICTURE_ACCEPTED_BY`). Never a path, an address or a model's words. Rows written before
+   * phase 4, when only a hand-accepted picture could be removed, carry `{}`.
+   */
+  'picture.removed': { readonly acceptedBy: PictureAcceptedBy };
   'picture.retried': Record<string, never>;
   'professional.granted': Record<string, never>;
   'professional.revoked': Record<string, never>;

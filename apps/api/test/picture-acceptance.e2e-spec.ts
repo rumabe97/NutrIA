@@ -55,7 +55,12 @@ import type { TestingModuleBuilder } from '@nestjs/testing';
 /**
  * The owner publishes a picture the judge rejected, and takes it back (`0072`, project 009
  * phase 3): `POST …/picture/candidate/accept` and `POST …/picture/remove` — the second of
- * the only two doors a picture reaches a person through, and the way back out of it.
+ * the only two doors a picture reaches a person through, and the way back out of it. Since
+ * project 010 phase 4 the way out is for every published picture, the judge's too: a
+ * picture the judge accepted wrongly is taken back as one the owner accepted is, and the
+ * `picture.removed` row says in a closed word — `acceptedBy: 'judge' | 'owner'` — which of
+ * the two had let it through. The cases that pinned "the judge's picture cannot be
+ * removed" were rewritten on purpose.
  *
  * Three applications share one database, both stores and the candidates' clock:
  *
@@ -161,17 +166,25 @@ class ControlledImages extends StubPictureImageClient {
   }
 }
 
-/** Sees a prawn on every picture, which no dish of this suite carries; with `prawns` off it is the stub judge, which accepts. */
+/**
+ * Sees a prawn on every picture, which no dish of this suite carries; with `prawns` off it is the stub judge, which accepts —
+ * and, with a `garnish` named, sees that too: a name no catalogue maps, so it carries no allergen and the picture still passes.
+ */
 class PrawnsJudge extends StubPictureJudgeClient {
   calls = 0;
+  garnish: string | null = null;
   prawns = true;
 
   async see(): Promise<JudgeCall<SeenPicture>> {
     this.calls += 1;
 
-    return this.prawns
-      ? { costUsd: 0, model: 'e2e/judge', provider: 'e2e', result: { foods: [{ amount: 'main', name: 'shrimp', specific: true }] } }
-      : super.see();
+    if (this.prawns) {
+      return { costUsd: 0, model: 'e2e/judge', provider: 'e2e', result: { foods: [{ amount: 'main', name: 'shrimp', specific: true }] } };
+    }
+
+    return this.garnish === null
+      ? super.see()
+      : { costUsd: 0, model: 'e2e/judge', provider: 'e2e', result: { foods: [{ amount: 'garnish', name: this.garnish, specific: true }] } };
   }
 
   async match(seen: readonly SeenFood[], ingredients: readonly JudgedIngredient[]): Promise<JudgeCall<PictureMatch>> {
@@ -611,8 +624,9 @@ describe('the owner accepts a picture against the judge, and takes it back (0072
     expect((await generateAndWait(app, planner)).status).toBe('succeeded');
 
     fresh = await untouchedDishes(planner);
-    // Seven are drawn — two candidates the blocks share, the judge's own picture, and one for each of the four cases that make theirs — and one more is only asked about.
-    expect(fresh.length).toBeGreaterThanOrEqual(8);
+    // Eight are drawn — two candidates the blocks share, the judge's own picture, the judge's picture that is taken back, and one for
+    // each of the four cases that make theirs — and one more is only asked about.
+    expect(fresh.length).toBeGreaterThanOrEqual(9);
   }, 300_000);
 
   afterAll(async () => {
@@ -844,7 +858,7 @@ describe('the owner accepts a picture against the judge, and takes it back (0072
         expect((await remove(id, owner.cookie).expect(404)).body).toEqual(NO_RECIPE);
       }
 
-      // And a failed picture is not one to remove: only what the owner accepted is.
+      // And a failed picture is not one to remove: only a published one is.
       expect((await remove(dish.recipeId, owner.cookie).expect(409)).body).toEqual(refusal('NOT_REMOVABLE'));
 
       // An id written in capitals is the recipe it is — found, and refused for what it holds — and one that is no recipe is the same 404.
@@ -1165,25 +1179,26 @@ describe('the owner accepts a picture against the judge, and takes it back (0072
       expect(JSON.stringify(await meal(dish))).toContain(pictureOf(dish));
     });
 
-    it('a picture the judge accepted cannot be removed, and nobody but the owner can remove one: nothing is written', async () => {
+    // Rewritten on purpose (project 010 phase 4): until then this case also pinned that the owner's removal of the judge's picture was a 409.
+    it('nobody but the owner can remove a picture — neither the one the owner accepted nor the judge’s: nothing is written', async () => {
       const { dish } = held();
       const mine = await state(dish);
       const theirs = await state(byTheJudge());
 
-      expect((await remove(byTheJudge().recipeId, owner.cookie).expect(409)).body).toEqual(refusal('NOT_REMOVABLE'));
-      expect(await state(byTheJudge())).toEqual(theirs);
-      expect(await trail(byTheJudge().recipeId)).toEqual([]);
-      expect(await status(byTheJudge())).toEqual({ status: 'ready', url: pictureOf(byTheJudge()) });
-
-      // The one picture that can be removed is not there to remove for an ordinary account, nor without a session.
+      // Either published picture is not there to remove for an ordinary account, nor without a session.
       for (const cookie of [ordinary.cookie, undefined]) {
         const denied: unknown = (await admin('pictures', cookie).expect(404)).body;
 
-        expect((await remove(dish.recipeId, cookie).expect(404)).body).toEqual(denied);
+        for (const id of [dish.recipeId, byTheJudge().recipeId]) {
+          expect((await remove(id, cookie).expect(404)).body).toEqual(denied);
+        }
       }
 
       expect(await state(dish)).toEqual(mine);
+      expect(await state(byTheJudge())).toEqual(theirs);
+      expect(await trail(byTheJudge().recipeId)).toEqual([]);
       expect(await status(dish)).toEqual({ status: 'ready', url: pictureOf(dish) });
+      expect(await status(byTheJudge())).toEqual({ status: 'ready', url: pictureOf(byTheJudge()) });
     });
 
     it('a removal whose audit row the database refuses removes nothing: a 500, the picture still ready at its address, and its file not deleted', async () => {
@@ -1236,20 +1251,27 @@ describe('the owner accepts a picture against the judge, and takes it back (0072
       expect(after?.provenance).toEqual({ drawings: before.row?.provenance?.drawings, reason: 'owner_removed' });
       expect(removedAt).toBeGreaterThanOrEqual(from);
       expect(removedAt).toBeLessThanOrEqual(until);
-      // The public file, by the address the row held — and that one alone.
+      // The public file, by the address the row held — and that one alone — and nothing put anywhere.
       expect(published.deleted.slice(before.deleted)).toEqual([url]);
+      expect(published.stored).toHaveLength(before.stored);
       expect(alive(dish.recipeId)).toEqual([]);
 
-      // Exactly one row more, beside the acceptance it undoes.
+      // Exactly one row more, beside the acceptance it undoes — saying, in its closed word and nothing else, that the owner had let it through.
       expect(await auditCount()).toBe(before.audits + 1);
       expect(await trail(dish.recipeId)).toEqual([
         { action: 'picture.accepted', actorId: owner.id, entity: 'recipe', metadata: { allergens: keys }, subjectUserId: null },
-        { action: 'picture.removed', actorId: owner.id, entity: 'recipe', metadata: {}, subjectUserId: null }
+        { action: 'picture.removed', actorId: owner.id, entity: 'recipe', metadata: { acceptedBy: 'owner' }, subjectUserId: null }
       ]);
 
       const removed = await trailPage('picture.removed');
 
-      expect(removed.page.rows[0]).toEqual({ action: 'picture.removed', actor: owner.email, at: expect.any(String), detail: {}, subject: null });
+      expect(removed.page.rows[0]).toEqual({
+        action: 'picture.removed',
+        actor: owner.email,
+        at: expect.any(String),
+        detail: { acceptedBy: 'owner' },
+        subject: null
+      });
 
       // The console: a failed dish with a closed reason, waiting out a whole cool-off from the removal.
       const shown = await listed(dish);
@@ -1291,42 +1313,209 @@ describe('the owner accepts a picture against the judge, and takes it back (0072
       expect(images.calls).toBe(drawn);
       expect(await row(dish.recipeId)).toEqual(after);
 
-      // Removed once: a second finds nothing the owner accepted, and writes nothing.
+      // Removed once: a second finds nothing published, and writes nothing.
       const again = await state(dish);
 
       expect((await remove(dish.recipeId, owner.cookie).expect(409)).body).toEqual(refusal('NOT_REMOVABLE'));
       expect(await state(dish)).toEqual(again);
     });
 
-    it('the owner’s retry draws the removed dish again — one picture.retried — and a picture the judge then accepts is not one to remove', async () => {
+    // Rewritten on purpose (project 010 phase 4): until then its last step pinned that the judge's picture that followed was a 409.
+    it('the owner’s retry draws the removed dish again — one picture.retried — and the judge’s picture that follows is removed as the judge’s, whatever the dish’s history', async () => {
       const { dish } = held();
       const drawn = images.calls;
+      let ended: Row | undefined;
 
       judge.prawns = false;
 
       try {
         expect((await retry(dish.recipeId, owner.cookie).expect(202)).body).toEqual({ status: 'drawing' });
 
-        const ended = await settled(dish.recipeId);
-
-        // Through the first door this time: the judge's, and the row says nothing of the owner.
-        expect(ended.status).toBe('ready');
-        expect(ended.provenance?.acceptedBy).toBeUndefined();
-        byHand.delete(dish.recipeId);
-        byJudge.add(dish.recipeId);
+        ended = await settled(dish.recipeId);
       } finally {
         judge.prawns = true;
       }
 
+      // Through the first door this time: the judge's, and the row says nothing of the owner.
+      expect(ended.status).toBe('ready');
+      expect(ended.provenance?.acceptedBy).toBeUndefined();
+      byHand.delete(dish.recipeId);
       expect(images.calls).toBe(drawn + 1);
       expect((await trail(dish.recipeId)).map(written => written.action)).toEqual(['picture.accepted', 'picture.removed', 'picture.retried']);
       expect((await listed(dish)).row).toMatchObject({ picture: 'ready', pictureAcceptedByHand: false });
 
-      // That it was once accepted by hand is history: what is there now is the judge's, and stays.
+      // That it was once accepted by hand is history: what is there now is the judge's, and the removal says so.
       const before = await state(dish);
+      const [url] = alive(dish.recipeId).map(put => address(put.path));
+
+      expect(url).toBeDefined();
+      expect(before.row).toMatchObject({ status: 'ready', url });
+      expect((await remove(dish.recipeId, owner.cookie).expect(200)).body).toEqual({ fileDeleted: true, status: 'removed' });
+
+      const after = await row(dish.recipeId);
+
+      expect(after).toMatchObject({ attempts: ended.attempts, status: 'failed', url: null });
+      expect(after?.provenance).toEqual({ drawings: ended.provenance?.drawings, reason: 'owner_removed' });
+      expect(published.deleted.slice(before.deleted)).toEqual([url]);
+      expect(published.stored).toHaveLength(before.stored);
+      expect(alive(dish.recipeId)).toEqual([]);
+      expect(await auditCount()).toBe(before.audits + 1);
+
+      const written = await trail(dish.recipeId);
+
+      expect(written.map(found => found.action)).toEqual(['picture.accepted', 'picture.removed', 'picture.retried', 'picture.removed']);
+      // The first removal took back the owner's acceptance, this one the judge's: the word is the picture's, read when it is removed.
+      expect(written.filter(found => found.action === 'picture.removed').map(found => found.metadata)).toEqual([
+        { acceptedBy: 'owner' },
+        { acceptedBy: 'judge' }
+      ]);
+      expect(await status(dish)).toEqual({ status: 'none', url: null });
+    }, 60_000);
+
+    it('a picture the judge accepted is taken back too — with the switch off and the cap spent — failed as owner_removed from now, its file deleted, one picture.removed saying judge and nothing the judge wrote', async () => {
+      const dish = take();
+      const garnish = `zqxgarnish${String(stamp)}`;
+      let ended: Row | undefined;
+
+      judge.prawns = false;
+      judge.garnish = garnish;
+
+      try {
+        ended = await draw(dish);
+      } finally {
+        judge.prawns = true;
+        judge.garnish = null;
+      }
+
+      // The premises: the judge let it through, the owner had no hand in it, and what the judge wrote — a food of its own naming — is in its row.
+      expect(ended).toMatchObject({ status: 'ready' });
+      expect(ended.provenance?.acceptedBy).toBeUndefined();
+      expect(ended.provenance?.drawings).toHaveLength(1);
+      expect(JSON.stringify(ended.provenance)).toContain(garnish);
+      expect(await trail(dish.recipeId)).toEqual([]);
+      expect((await listed(dish)).row).toMatchObject({ picture: 'ready', pictureAcceptedByHand: false });
+
+      const [url] = alive(dish.recipeId).map(put => address(put.path));
+
+      expect(url).toBeDefined();
+      expect(ended.url).toBe(url);
+
+      // Its last drawing a week and a day ago: were the removal not to count a cool-off from now, a view would draw the dish again at once.
+      await sql()`update recipe_images set last_attempt_at = now() - interval '8 days' where recipe_id = ${dish.recipeId}`;
+
+      // A removal whose audit row the database refuses removes nothing, the judge's picture as the owner's.
+      const refused = await state(dish);
+
+      expect((await remove(dish.recipeId, owner.cookie, ghost).expect(500)).body).toEqual({
+        code: 'INTERNAL_ERROR',
+        message: 'Algo ha ido mal. Inténtalo de nuevo.',
+        statusCode: 500
+      });
+      expect(await state(dish)).toEqual(refused);
+      expect(await status(dish)).toEqual({ status: 'ready', url });
+
+      const before = await state(dish);
+      const counts = (await pictures()).view;
+      const drawn = images.calls;
+      let response: Response | undefined;
+
+      // Taking a picture back is always possible: on the application whose month's cap is zero, with the switch off.
+      await SettingsController.setFlag('dishPictures', false, UNAUDITED);
+
+      const from = Date.now();
+
+      try {
+        response = await remove(dish.recipeId, owner.cookie, capped).expect(200);
+      } finally {
+        await SettingsController.setFlag('dishPictures', true, UNAUDITED);
+      }
+
+      const until = Date.now();
+
+      expect(response.body).toEqual({ fileDeleted: true, status: 'removed' });
+
+      // The row: failed for the owner's own reason, no address, the judged drawing kept, and its cool-off counted from the removal.
+      const after = await row(dish.recipeId);
+      const removedAt = new Date(after?.lastAttemptAt ?? '').getTime();
+
+      expect(after).toMatchObject({ attempts: ended.attempts, status: 'failed', url: null });
+      expect(after?.provenance).toEqual({ drawings: ended.provenance?.drawings, reason: 'owner_removed' });
+      expect(removedAt).toBeGreaterThanOrEqual(from);
+      expect(removedAt).toBeLessThanOrEqual(until);
+
+      // The public file, by the address the row held, and that one alone; nothing is put anywhere, and no model is asked.
+      expect(published.deleted.slice(before.deleted)).toEqual([url]);
+      expect(published.stored).toHaveLength(before.stored);
+      expect(alive(dish.recipeId)).toEqual([]);
+      expect(images.calls).toBe(drawn);
+
+      // Exactly one audit row: by the owner, about the recipe, about nobody, and its metadata the closed word alone.
+      expect(await auditCount()).toBe(before.audits + 1);
+      expect(await trail(dish.recipeId)).toEqual([
+        { action: 'picture.removed', actorId: owner.id, entity: 'recipe', metadata: { acceptedBy: 'judge' }, subjectUserId: null }
+      ]);
+
+      const removed = await trailPage('picture.removed');
+
+      expect(removed.page.rows[0]).toEqual({
+        action: 'picture.removed',
+        actor: owner.email,
+        at: expect.any(String),
+        detail: { acceptedBy: 'judge' },
+        subject: null
+      });
+
+      // The console: a failed dish with the closed reason, waiting out a whole cool-off; one fewer ready, none fewer accepted by hand.
+      const shown = await listed(dish);
+
+      expect(shown.row).toMatchObject({
+        picture: 'failed',
+        pictureAcceptedByHand: false,
+        pictureCandidate: null,
+        pictureReason: 'owner_removed',
+        retryableAt: expiry(after?.lastAttemptAt ?? '')
+      });
+
+      const now = await pictures();
+
+      expect({ acceptedByHand: now.view.acceptedByHand, failed: now.view.failed, ready: now.view.ready }).toEqual({
+        acceptedByHand: counts.acceptedByHand,
+        failed: counts.failed + 1,
+        ready: counts.ready - 1
+      });
+      expect(countOf(now.view.failedByReason, 'owner_removed')).toBe(countOf(counts.failedByReason, 'owner_removed') + 1);
+
+      const alone = await one(dish);
+
+      expect(alone.view).toMatchObject({ picture: 'failed', pictureAcceptedByHand: false, pictureCandidate: null, pictureUrl: null });
+
+      // No answer — the removal, the trail, the list, the counts, the review page — carries the address, a path, or the judge's words.
+      const answers = {
+        list: shown.text,
+        pictures: now.text,
+        recipe: alone.text,
+        remove: JSON.stringify(response.body),
+        trail: removed.text,
+        written: JSON.stringify(await trail(dish.recipeId))
+      };
+
+      for (const [answer, text] of Object.entries(answers)) {
+        for (const word of [url ?? '', 'dish-pictures/', garnish]) {
+          expect({ answer, found: text.includes(word), word }).toEqual({ answer, found: false, word });
+        }
+      }
+
+      // Nobody is shown the picture any more, and a view inside the cool-off does not draw the dish again.
+      expect(await meal(dish)).toMatchObject({ illustrationPath: null, pictureStatus: 'none' });
+      expect(await status(dish)).toEqual({ status: 'none', url: null });
+      expect(images.calls).toBe(drawn);
+      expect(await row(dish.recipeId)).toEqual(after);
+
+      // Removed once: a second is refused, and writes nothing.
+      const again = await state(dish);
 
       expect((await remove(dish.recipeId, owner.cookie).expect(409)).body).toEqual(refusal('NOT_REMOVABLE'));
-      expect(await state(dish)).toEqual(before);
+      expect(await state(dish)).toEqual(again);
     }, 60_000);
   });
 

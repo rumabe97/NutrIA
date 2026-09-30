@@ -19,6 +19,7 @@ import { serverApi } from 'lib/server-api';
 
 import { consoleMetadata } from '../../consoleMetadata';
 import { overriddenAllergens } from './overriddenAllergens';
+import { removedAcceptedBy } from './removedAcceptedBy';
 
 import type { AdminTableColumn, AdminTableFilter } from 'components/AdminTable';
 import type { Allergen } from 'core/entities/Safety';
@@ -45,7 +46,8 @@ const FLAG_BY_KEY = new Map<string, FlagName>((Object.keys(FLAGS) as FlagName[])
  * paged, newest first. Every row is a mutation that already happened — nothing here is
  * clickable, and nothing here is a person's plan, meal or health value (`0028`): only who
  * did what to which account, and when. A picture accepted against the judge (`0072`) says
- * which allergens the judge had flagged, in the catalogue's words.
+ * which allergens the judge had flagged, in the catalogue's words; a removed picture says
+ * who had accepted it (project 010).
  */
 export default async function AdminAuditPage({ searchParams }: { searchParams: Promise<PageQuery> }) {
   const query = await searchParams;
@@ -105,6 +107,12 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
     // With no actor, the actor column already says how (`actor` below); say it once.
     if (row.action === 'account.activated' && row.actor && typeof data.via === 'string' && data.via in t.via) {
       return t.via[data.via as keyof typeof t.via];
+    }
+
+    const acceptedBy = row.action === 'picture.removed' ? removedAcceptedBy(data) : null;
+
+    if (acceptedBy !== null) {
+      return t.removedAcceptedBy[acceptedBy];
     }
 
     const overridden = row.action === 'picture.accepted' ? overriddenAllergens(data) : null;

@@ -71,9 +71,10 @@ export class AdminCatalogueService {
   }
 
   /**
-   * The owner takes back a picture accepted by hand: the dish is `failed` with `owner_removed` and waits out a
-   * cool-off, `picture.removed` in the same transaction, and then the public file is deleted. A picture the
-   * judge accepted is refused. `fileDeleted` is false when the file is still in the public store.
+   * The owner takes back a published picture — any `ready` one, the judge's or one accepted by hand: the dish is
+   * `failed` with `owner_removed` and waits out a cool-off, `picture.removed` (saying which door the picture came
+   * through) in the same transaction, and then the public file is deleted. A dish with no `ready` picture is refused.
+   * `fileDeleted` is false when the file is still in the public store.
    */
   async removePicture(recipeId: string, actorId: string): Promise<PictureRemoveDto> {
     const { fileDeleted } = await this.candidates.remove(recipeId, actorId);

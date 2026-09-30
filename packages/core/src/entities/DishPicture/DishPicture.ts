@@ -42,6 +42,38 @@ export function isPublishedPicturePath(path: string): boolean {
 }
 
 /**
+ * The published picture's path an address names — a store URL, decoded, or
+ * the path itself — or null when it is not a published picture's path at all.
+ */
+export function publishedPicturePathOf(address: string): string | null {
+  let path = address;
+
+  if (/^https?:\/\//i.test(address)) {
+    try {
+      path = decodeURIComponent(new URL(address).pathname.slice(1));
+    } catch {
+      return null;
+    }
+  }
+
+  return isPublishedPicturePath(path) ? path : null;
+}
+
+/**
+ * Whether an address is a published picture that belongs to **another**
+ * recipe: a path under the pictures' folder whose recipe folder is not
+ * `recipeId`. What a deletion made for one dish must never touch, whatever
+ * that dish's row says its address is (invariant review of project 010,
+ * phase 4). An address that is not a published picture's path at all is
+ * not answered here: the store refuses it on its own.
+ */
+export function isAnotherRecipesPicture(address: string, recipeId: string): boolean {
+  const path = publishedPicturePathOf(address);
+
+  return path !== null && !path.startsWith(`${PICTURE_FOLDER}/${recipeId.toLowerCase()}/`);
+}
+
+/**
  * Who let a picture reach a person, when it was not the judge (`0072`): the
  * owner, by hand, against the judge's rejection. Stored as
  * `provenance.acceptedBy` on the `ready` row, beside the allergen keys that
@@ -49,6 +81,27 @@ export function isPublishedPicturePath(path: string): boolean {
  * accepted carries neither.
  */
 export const ACCEPTED_BY_OWNER = 'owner';
+
+/**
+ * Which of the two doors a published picture came through (`0072`), in a
+ * closed word: `judge` — `judgePicture` accepted it inside a drawing — or
+ * `owner` — accepted by hand against the judge. What `picture.removed` says of
+ * the picture it took back (project 010, phase 4); never a name, never a path.
+ */
+export const PICTURE_ACCEPTED_BY = ['judge', ACCEPTED_BY_OWNER] as const;
+
+export type PictureAcceptedBy = (typeof PICTURE_ACCEPTED_BY)[number];
+
+/**
+ * Who accepted a `ready` picture, read from the `provenance` it holds: `owner`
+ * only when `provenance.acceptedBy` is `ACCEPTED_BY_OWNER` — the one mark the
+ * hand's door writes — and `judge` for every other `ready` row, which is what
+ * the judge's door (`completePicture`) leaves. Meaningless for a row that is
+ * not `ready`; its caller asks only of one.
+ */
+export function pictureAcceptedByOf(provenance: PictureProvenance | null | undefined): PictureAcceptedBy {
+  return provenance?.acceptedBy === ACCEPTED_BY_OWNER ? ACCEPTED_BY_OWNER : 'judge';
+}
 
 /** One paid call made for a dish's picture — an image drawn or a judgement of one. */
 export const pictureCallSchema = z.object({

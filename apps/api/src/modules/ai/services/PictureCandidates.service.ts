@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { Inject, Injectable, Logger } from '@nestjs/common';
 
-import { isPictureCandidatePath, isPublishedPicturePath, PICTURE_FOLDER } from 'core/entities/DishPicture';
+import { isAnotherRecipesPicture, isPictureCandidatePath, isPublishedPicturePath, PICTURE_FOLDER } from 'core/entities/DishPicture';
 import { NotFoundError } from 'core/entities/Error';
 import { RecipeController } from 'core/controllers/Recipe';
 
@@ -120,9 +120,9 @@ export class PictureCandidatesService {
   }
 
   /**
-   * The owner takes back a picture accepted by hand (`RecipeController.removePicture`,
-   * which refuses any other picture and audits): the row first, then the public
-   * file. `fileDeleted` is false when the file is still in the public store —
+   * The owner takes back a published picture, whichever door it came through
+   * (`RecipeController.removePicture`, which refuses a dish with no `ready`
+   * picture and audits): the row first, then the public file. `fileDeleted` is false when the file is still in the public store —
    * no screen is given its address any more.
    */
   async remove(id: string, actorId: string): Promise<{ readonly fileDeleted: boolean }> {
@@ -201,9 +201,19 @@ export class PictureCandidatesService {
   /**
    * Deletes a file from the public store: a picture the owner removed, or one
    * an acceptance published that no row came to point to. Throws when it could
-   * not, so core can say the file is still there.
+   * not, so core can say the file is still there. **Only this recipe's own
+   * file**: an address under another recipe's folder — whatever this dish's row
+   * says — is refused before the store is asked, so taking one dish's picture
+   * back can never leave another dish `ready` at a dead address. The removal
+   * stands and answers `fileDeleted: false`.
    */
   private async unpublish(recipeId: string, address: string): Promise<void> {
+    if (isAnotherRecipesPicture(address, recipeId)) {
+      this.logger.warn(`A published picture of recipe ${recipeId} was not deleted: its address is under another recipe's folder`);
+
+      throw new Error('Picture delete refused: another recipe’s picture');
+    }
+
     const signal = AbortSignal.timeout(STORE_CALL_MS);
 
     try {

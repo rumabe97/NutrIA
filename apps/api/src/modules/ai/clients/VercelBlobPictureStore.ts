@@ -1,6 +1,6 @@
 import { del, put } from '@vercel/blob';
 
-import { isPublishedPicturePath } from 'core/entities/DishPicture';
+import { publishedPicturePathOf } from 'core/entities/DishPicture';
 
 import { PictureStore } from './PictureStore.js';
 import { redactSecrets } from './redact.js';
@@ -34,7 +34,7 @@ export class VercelBlobPictureStore extends PictureStore {
     }
 
     // Only a dish's picture is ever deleted: whatever a row held, nothing else is asked of the store.
-    const path = publishedPath(address);
+    const path = publishedPicturePathOf(address);
 
     if (path === null) {
       throw new Error('Blob del refused: not a dish picture');
@@ -95,19 +95,4 @@ export class VercelBlobPictureStore extends PictureStore {
     // The longest first, so an address goes whole before the path inside it does.
     return [...places].sort((a, b) => b.length - a.length).reduce((text, place) => text.replaceAll(place, '[picture]'), message);
   }
-}
-
-/** The path a published picture's address names — the address being that path or the file's URL — or null when it is not a dish's picture. */
-function publishedPath(address: string): string | null {
-  let path = address;
-
-  if (/^https?:\/\//i.test(address)) {
-    try {
-      path = decodeURIComponent(new URL(address).pathname.slice(1));
-    } catch {
-      return null;
-    }
-  }
-
-  return isPublishedPicturePath(path) ? path : null;
 }
