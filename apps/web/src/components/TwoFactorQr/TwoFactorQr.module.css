@@ -1,0 +1,17 @@
+/* Big enough for a phone held at arm's length, never wider than its column. */
+.qr {
+  block-size: auto;
+  border-radius: var(--radius-control);
+  display: block;
+  inline-size: min(12rem, 100%);
+}
+
+/* Palette tokens on purpose, the one place in this app: a scanner wants dark modules on a
+   light ground, in the dark scheme too. Inverted, many authenticators read nothing. */
+.light {
+  fill: var(--color-white);
+}
+
+.dark {
+  fill: var(--color-black);
+}

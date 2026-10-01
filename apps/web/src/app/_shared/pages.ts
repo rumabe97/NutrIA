@@ -41,11 +41,19 @@ export const INDEXABLE_PATHS: readonly PagePath[] = ['/', '/acceder', '/condicio
  * Public, reachable, and meaningless in a search result.
  *
  * Three of them are transactional dead ends that do nothing without a token
- * from an email, and the other two are only ever reached by a redirect: just
- * after signing up, and when a password has turned up in a breach. They say `noindex, follow` rather than being hidden: a crawler
+ * from an email, and the other three are only ever reached on the way in: just
+ * after signing up, when a password has turned up in a breach, and the second
+ * step of a sign-in with two-factor on. They say `noindex, follow` rather than being hidden: a crawler
  * that reads them still passes through to the pages they link to.
  */
-export const UNINDEXED_PATHS: readonly PagePath[] = ['/cambiar-contrasena', '/pendiente', '/recuperar', '/restablecer', '/verificar-email'];
+export const UNINDEXED_PATHS: readonly PagePath[] = [
+  '/acceder/codigo',
+  '/cambiar-contrasena',
+  '/pendiente',
+  '/recuperar',
+  '/restablecer',
+  '/verificar-email'
+];
 
 /**
  * The signed-in tree.

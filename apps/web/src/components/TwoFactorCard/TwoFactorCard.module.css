@@ -1,0 +1,182 @@
+.root {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.head {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-02) var(--space-03);
+  justify-content: space-between;
+}
+
+/* The same title every card on the profile gives its blocks; focusable only by script,
+   after a step that had focus leaves the page. */
+.title {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
+/* The state in words; on is set in weight as well, so it never rests on colour. */
+.on,
+.off {
+  font-size: var(--font-size-02);
+}
+
+.on {
+  color: var(--color-success-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.off {
+  color: var(--foreground-02);
+}
+
+.done {
+  color: var(--foreground-02);
+  font-size: var(--font-size-03);
+  margin: 0;
+}
+
+.actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  padding-top: var(--space-02);
+}
+
+/* A label longer than a phone at large text wraps rather than running off the edge. */
+.actions > [class] {
+  block-size: auto;
+  height: auto;
+  line-height: var(--line-height-02);
+  max-width: 100%;
+  padding-block: var(--space-02);
+  text-align: center;
+  white-space: normal;
+}
+
+/* One step at a time, divided from the card's head by a hairline, like SessionList's question. */
+.step {
+  border-top: 1px solid var(--border-01);
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
+  padding-top: var(--space-04);
+}
+
+.form {
+  display: grid;
+  gap: var(--space-03);
+}
+
+.question {
+  font-size: var(--font-size-03);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+
+.error {
+  border-left: 2px solid var(--color-error);
+  color: var(--color-error-text);
+  font-size: var(--font-size-02);
+  margin: 0;
+  padding: var(--space-02) var(--space-04);
+}
+
+.fieldError {
+  color: var(--color-error-text);
+  font-size: var(--font-size-02);
+  margin: 0;
+}
+
+/* The picture beside the other two ways in; under it when the column is narrow. */
+.scan {
+  align-items: start;
+  display: grid;
+  gap: var(--space-04);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (width >= 40rem) {
+  .scan {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+.manual {
+  display: grid;
+  gap: var(--space-03);
+}
+
+.link {
+  color: var(--color-brand-11);
+  font-size: var(--font-size-03);
+  justify-self: start;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.secretBlock {
+  display: grid;
+  gap: var(--space-01);
+  margin: 0;
+}
+
+.secretLabel {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+}
+
+/* Read character by character into another app: monospaced, and broken anywhere at large text. */
+.secret,
+.codes code {
+  /* The stack ui/Code uses: there is no monospace token. */
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  font-size: var(--font-size-03);
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.code input {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-caps);
+}
+
+/* Two columns of five on a phone, the way they would be written on paper. */
+.codes {
+  display: grid;
+  gap: var(--space-02) var(--space-05);
+  grid-template-columns: repeat(2, max-content);
+  list-style: none;
+  margin: 0;
+  padding: var(--space-03) 0;
+}
+
+@media (width < 17rem) {
+  .codes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.saved {
+  display: grid;
+  gap: var(--space-01);
+}
+
+/* A link on its own line: a finger's height on a phone (0057). */
+@media (pointer: coarse) {
+  .link {
+    align-items: center;
+    display: inline-flex;
+    min-block-size: var(--target-min);
+  }
+}

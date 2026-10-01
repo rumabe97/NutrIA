@@ -65,7 +65,7 @@ or a header. Spanish is unprefixed so its URLs never changed.
 
 Routes are **Spanish words in both languages** — `/registro` and `/en/registro`, never a
 translated slug: the API prefixes a path to build a mailed link and does not translate it.
-`/acceder`, `/registro`, `/recuperar`, `/restablecer`, `/pendiente`, `/cambiar-contrasena`, `/inicio`, `/plan`,
+`/acceder`, `/acceder/codigo`, `/registro`, `/recuperar`, `/restablecer`, `/pendiente`, `/cambiar-contrasena`, `/inicio`, `/plan`,
 `/plan/historial`, `/compra`, `/progreso`, `/check-in`, `/perfil`, `/onboarding/[paso]`,
 and the admin console under `/admin` (below). Add any new signed-in route to `PROTECTED` in
 `src/proxy.ts`, which matches against the **locale-stripped** path, so each route is named
@@ -223,6 +223,32 @@ request, and repeats the same order, so the two never pass somebody back and for
 (app) layout cannot redirect to itself. `lib/api.ts` sends a browser request's 409 there too.
 After the change the form gives way to the confirmation, focused, and a "Continuar" link to
 `/inicio` — not a redirect, which would swallow the confirmation. The section is `#seguridad`.
+
+**The second factor (project 011, phase 3).** Better Auth's `twoFactor` plugin, used as it is:
+`twoFactorClient()` in `lib/auth-client.ts` **with no options**, so it never navigates on its
+own. A password sign-in on an account with the factor on answers `{ twoFactorRedirect: true }`
+and **no session** — only a ten-minute `two_factor` cookie — so `SignInForm` pushes to
+`/acceder/codigo` (the language kept, `?siguiente` carried) and never to `/inicio`. The
+challenge (`_shared/TwoFactorScreen` → `components/TwoFactorChallenge`, in `(auth)` in both
+trees, static, `noindex`) takes the six digits (`autocomplete="one-time-code"`,
+`inputmode="numeric"`) or, behind "Usar un código de respaldo", one backup code — ten letters
+and digits, `abcde-12345`, compared case and all; `lib/twoFactor.ts` puts back a missing dash
+and never changes the case — plus "Confiar en este dispositivo 30 días". Success does what a
+password sign-in does next (offline copies forgotten, language synced, `ownPath(siguiente)`).
+A pending sign-in that expired or ran out of attempts (`INVALID_TWO_FACTOR_COOKIE`,
+`TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE`) offers only "Volver a acceder"; `src/proxy.ts` sends a
+visit to `/acceder/codigo` with no `two_factor` cookie back to `/acceder` — cookie presence,
+a redirect, not a check. Refusals map by code in `twoFactorRefusal`, never by message.
+In "Seguridad", `components/TwoFactorCard` sits between the password and the sessions, **only
+when `UserView.hasPassword`** (the plugin's routes take the password, and the API answers 404 to
+`/enable` without one); a Google-only account keeps the sentence pointing to Google's own.
+Every change is an inline step behind the password (`TwoFactorPasswordStep`): on →
+`TwoFactorSetup` (the QR drawn in the page from `uqr`'s module grid by `TwoFactorQr` —
+dark on white in both schemes, the one place palette tokens are used — the `otpauth://` link
+for an app on this device, the key in text) → the first right code turns it on →
+`TwoFactorBackupCodes`, the ten codes shown this once with copy, a `.txt` download and "Los he
+guardado" before "Terminar"; off (red confirm) and "Generar códigos nuevos" likewise. The codes
+and the secret live only in component state. `UserView.twoFactorEnabled` seeds the card.
 
 ## Security headers
 
