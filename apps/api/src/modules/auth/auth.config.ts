@@ -13,7 +13,8 @@ import { account, rateLimit, session, user, verification } from 'database/schema
 
 import { APPLE_ORIGIN, configuredSocialProviders, socialProviderOptions } from './services/SocialProviders.js';
 import { onAccountCreated, onAddressConfirmed } from './services/SelfService.js';
-import { passwordPolicy } from './services/PasswordPolicy.js';
+import { accountSecurityAfter, accountSecurityBefore, onPasswordReset } from './services/AccountSecurity.js';
+import { sendPasswordChangedMail } from './services/PasswordChangedMail.js';
 import { sendPasswordResetMail } from './services/PasswordResetMail.js';
 import { sendVerificationMail } from './services/VerificationMail.js';
 
@@ -57,6 +58,23 @@ export function createAuth(
 ) {
   const providers = configuredSocialProviders(env);
   const selfService = { link: (path: string) => webUrl(env.APP_URL, path, DEFAULT_WEB_LOCALE), mailer, ownerEmail: env.OWNER_EMAIL };
+  // HIBP is never called under `NODE_ENV=test`: the suites must not reach the network.
+  const isCompromised = env.NODE_ENV === 'test' ? null : isPasswordCompromised;
+  const security = {
+    background,
+    isCompromised,
+    mailPasswordChanged: async ({
+      id,
+      acceptLanguage,
+      email,
+      userAgent
+    }: {
+      id: string;
+      acceptLanguage: string | null;
+      email: string;
+      userAgent: string | null;
+    }) => sendPasswordChangedMail(mailer, { acceptLanguage, appUrl: env.APP_URL, to: email, userAgent, userId: id })
+  };
 
   return betterAuth({
     account: {
@@ -168,6 +186,8 @@ export function createAuth(
       // The rule's one home is `core` (PLAN 011 phase 1); the web forms read the same two numbers.
       maxPasswordLength: PASSWORD_MAX_LENGTH,
       minPasswordLength: PASSWORD_MIN_LENGTH,
+      // The mark cleared, the audit row, the "password changed" mail (PLAN 011 phase 2; `services/AccountSecurity.ts`).
+      onPasswordReset: onPasswordReset(security),
       // Verification is required before a session is useful, but sign-up still
       // succeeds — bouncing the user back to the form with "check your email"
       // half-completed is worse than letting them in and gating the plan.
@@ -222,12 +242,17 @@ export function createAuth(
         })
     },
     /*
-     * A new password — sign-up, reset, change — holding a word the account
-     * gives away, or one HIBP knows, is refused here (`services/PasswordPolicy.ts`).
-     * HIBP fails open, and is never called under `NODE_ENV=test`: the suites
-     * must not reach the network, and the context check stays on for them.
+     * Before: a new password — sign-up, reset, change — holding a word the
+     * account gives away, or one HIBP knows, is refused (`services/PasswordPolicy.ts`);
+     * HIBP fails open, and the context check stays on under test. And a change
+     * of password always closes every other session, whatever the body says.
+     *
+     * After, on a 2xx (`services/AccountSecurity.ts`, PLAN 011 phase 2): a
+     * change clears the breach mark, leaves its audit row and sends the mail;
+     * closing sessions leaves its row; a sign-in checks the password it just
+     * proved against HIBP in the background and marks the account on a hit.
      */
-    hooks: { before: passwordPolicy(env.NODE_ENV === 'test' ? null : isPasswordCompromised) },
+    hooks: { after: accountSecurityAfter(security), before: accountSecurityBefore(isCompromised) },
     /*
      * Counted in the database, not in the process.
      *
@@ -262,6 +287,13 @@ export function createAuth(
          * — a client cannot send it, which is the whole point of a door.
          */
         activatedAt: { input: false, required: false, type: 'date' },
+        /*
+         * Rides the session for the same reason (PLAN 011 phase 2):
+         * `PasswordChangeGuard` asks on every request whether a sign-in found
+         * the password breached. Written only by the sign-in hook and cleared
+         * by a change or a reset; `input: false`, so no body can clear it.
+         */
+        passwordCompromisedAt: { input: false, required: false, type: 'date' },
         role: { defaultValue: 'user', input: false, required: false, type: 'string' },
         // The terms' record (`0071`): written by `databaseHooks.user.create.before`, never by a client.
         termsAcceptedAt: { input: false, required: false, type: 'date' },

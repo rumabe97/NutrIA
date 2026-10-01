@@ -10,7 +10,15 @@ import type { BackgroundTaskService } from '../../../shared/services/index.js';
 import type { CheckInSubmittedService } from '../../notifications/index.js';
 import type { SessionUser } from '../../../shared/index.js';
 
-const ALICE: SessionUser = { id: 'usr-alice', activated: true, email: 'alice@example.invalid', emailVerified: true, name: 'Alice', role: 'user' };
+const ALICE: SessionUser = {
+  id: 'usr-alice',
+  activated: true,
+  email: 'alice@example.invalid',
+  emailVerified: true,
+  name: 'Alice',
+  passwordChangeRequired: false,
+  role: 'user'
+};
 const PLAN = '11111111-2222-4333-8444-555555555555';
 
 /**

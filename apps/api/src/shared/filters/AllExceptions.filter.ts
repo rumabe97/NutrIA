@@ -11,6 +11,7 @@ import {
   MealInFutureError,
   NotFoundError,
   OnboardingIncompleteError,
+  PasswordChangeRequiredError,
   PictureRetryRefusedError,
   PlanPausedError,
   PracticeFullError,
@@ -243,6 +244,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       // an authorisation denial this one is meant to be understood. The client
       // switches on `code` and sends the person back to their resume step.
       return { code: 'ONBOARDING_INCOMPLETE', message: 'Termina tu perfil antes de continuar.', statusCode: HttpStatus.CONFLICT };
+    }
+
+    if (exception instanceof PasswordChangeRequiredError) {
+      // 409 like an unfinished profile (PLAN 011 phase 2): the account is the
+      // caller's, its password was found breached, and the answer is what to do.
+      return { code: 'PASSWORD_CHANGE_REQUIRED', message: 'Cambia tu contraseña para continuar.', statusCode: HttpStatus.CONFLICT };
     }
 
     if (exception instanceof ProfileConsentRequiredError) {

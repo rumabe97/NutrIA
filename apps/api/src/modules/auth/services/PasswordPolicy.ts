@@ -1,9 +1,11 @@
 import { Logger } from '@nestjs/common';
-import { APIError, createAuthMiddleware, getAuthoritativeSessionFromCtx } from 'better-auth/api';
+import { APIError, getAuthoritativeSessionFromCtx } from 'better-auth/api';
 
 import { PASSWORD_ERROR_CODES, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, passwordHasContext } from 'core/entities/Password';
 
-type Context = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0];
+import type { createAuthMiddleware } from 'better-auth/api';
+
+export type Context = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0];
 type AccountWords = { email?: string | null; name?: string | null };
 
 /** Answers whether a password is in the breach corpus, or throws when it cannot tell. */
@@ -58,11 +60,11 @@ export async function breachedOrPass(
   }
 }
 
-function record(value: unknown): Record<string, unknown> {
+export function record(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 }
 
-function text(value: unknown): string | null {
+export function text(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
 }
 
@@ -108,10 +110,10 @@ const DOORS: Record<string, { account: (context: Context, body: Record<string, u
 };
 
 /**
- * Better Auth's `hooks.before`: on the three doors, a new password that holds
- * a word the account gives away is refused, then one HIBP knows. Both refusals
- * are Better Auth's own `APIError`, so the body is `{ code, message }` like
- * every other auth error and the web app reads `error.code`.
+ * On the three doors, a new password that holds a word the account gives away
+ * is refused, then one HIBP knows. Both refusals are Better Auth's own
+ * `APIError`, so the body is `{ code, message }` like every other auth error
+ * and the web app reads `error.code`.
  *
  * Length is checked first, by Better Auth, inside the route — which runs after
  * this hook. So a password outside the lengths is left alone here, and the
@@ -122,9 +124,12 @@ const DOORS: Record<string, { account: (context: Context, body: Record<string, u
  *
  * `isCompromised` is null where HIBP must not be called — under `NODE_ENV=test`
  * — and the context check stays on there.
+ *
+ * A bare check, not a middleware: `hooks.before` (`AccountSecurity.ts`) runs
+ * it first, then what else it does before a route.
  */
-export function passwordPolicy(isCompromised: CompromisedCheck | null) {
-  return createAuthMiddleware(async context => {
+export function checkNewPassword(isCompromised: CompromisedCheck | null): (context: Context) => Promise<void> {
+  return async context => {
     const door = DOORS[context.path ?? ''];
 
     if (!door) {
@@ -157,5 +162,5 @@ export function passwordPolicy(isCompromised: CompromisedCheck | null) {
         message: 'This password has appeared in a data breach. Choose a different one.'
       });
     }
-  });
+  };
 }

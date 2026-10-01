@@ -10,6 +10,8 @@ export type SessionUser = {
   readonly email: string;
   readonly emailVerified: boolean;
   readonly name: string;
+  /** A sign-in found the password breached and it has not been changed since (PLAN 011 phase 2). `PasswordChangeGuard` reads it. */
+  readonly passwordChangeRequired: boolean;
   readonly role: 'admin' | 'user';
 };
 
