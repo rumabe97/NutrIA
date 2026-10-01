@@ -1,10 +1,11 @@
 -- Hand-added comment only; the statements are drizzle-kit's, unchanged (PLAN 011 phase 4).
 -- A new, empty table and one nullable column with no default. The ADD COLUMN on "two_factor" is metadata only: no
--- row is rewritten, and its ACCESS EXCLUSIVE lock is held for the catalogue change alone, after waiting for open
--- transactions on "two_factor" (the plugin's short reads and writes during a sign-in). The two foreign keys on the
--- new table check no rows (it has none) and take SHARE ROW EXCLUSIVE on "user", which waits behind open writers on
--- "user" for the same short moment (BillingRepository.customerFor holds FOR NO KEY UPDATE on a user row while it
--- calls Stripe), so do not merge this just before the 03:30 and 08:00 UTC crons.
+-- row is rewritten. But drizzle-kit migrate runs every pending migration in ONE transaction, so the ACCESS EXCLUSIVE
+-- lock it takes on "two_factor" is held until COMMIT — through the two foreign keys after it, which check no rows
+-- (the table is empty) but take SHARE ROW EXCLUSIVE on "user" and wait behind any open writer there
+-- (BillingRepository.customerFor holds FOR NO KEY UPDATE on a user row while it calls Stripe; the SDK's timeout is
+-- 80 s). While it waits, every 2FA sign-in's read of "two_factor" waits too. Usually seconds; so do not merge this
+-- just before the 03:30 and 08:00 UTC crons or while somebody is checking out.
 -- No backfill, on purpose: NULL last_totp_step means "no code accepted since this was recorded", and the first
 -- correct code claims its step. The old API, still running while this deploys, neither reads nor writes the column
 -- or the table: its Drizzle schema does not name them, and the plugin's INSERT leaves the column NULL. If the API is

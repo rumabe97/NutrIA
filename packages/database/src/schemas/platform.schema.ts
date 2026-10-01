@@ -77,7 +77,8 @@ export const subscriptions = userOwnedSingleton('subscriptions', {
  * A row whose `cancelledAt` is set is history only; a new request writes over
  * it. The cron deletes the row once the factor is gone. `requestedBy` is the
  * admin who asked, `set null` if that account is deleted, like the audit log's
- * actor.
+ * actor. Unindexed on purpose: a row lives only until the cron removes the
+ * factor, so the `set null` on an admin's deletion scans a handful of rows.
  */
 export const twoFactorRemovals = userOwnedSingleton('two_factor_removal', {
   cancelledAt: timestamp({ withTimezone: true }),
