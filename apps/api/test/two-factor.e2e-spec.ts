@@ -862,32 +862,39 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       expect(await flagOf(plain.id)).toBe(false);
       expect(await twoFactorRows(plain.id)).toEqual([]);
 
-      const { id, email } = await withFactor('olga', 'Olga Ibáñez');
+      const { id, email, uri } = await withFactor('olga', 'Olga Ibáñez');
 
       await sql()`delete from session where user_id = ${id}`;
 
       const mailed = outbox.filter(mail => mail.to === email).length;
       const { jar: challenge } = await challenged(email);
+      const notFound = await guardsNotFound();
       const send = await post('auth/two-factor/send-otp', challenge.header);
 
-      expect(send.status).toBe(400);
-      expect(code(send)).toBe('OTP_NOT_CONFIGURED');
+      // Not offered at all: the routes answer as if they did not exist, the guard's 404 byte for byte.
+      expect({ status: send.status, text: send.text }).toEqual(notFound);
 
       for (const typed of ['000000', '123456']) {
         const verified = await post('auth/two-factor/verify-otp', challenge.header, { code: typed });
 
-        expect(verified.status).toBeGreaterThanOrEqual(400);
-        expect(verified.status).toBeLessThan(500);
+        expect({ status: verified.status, text: verified.text }).toEqual(notFound);
         expect(new CookieJar().take(verified).has('session_token')).toBe(false);
       }
 
       expect(await sessionsOf(id)).toBe(0);
       expect((await get('users/me', challenge.header)).status).toBe(404);
 
+      // The challenge is still whole: the OTP routes spent none of it, and a TOTP code still finishes it.
+      expect((await verifyTotp(challenge.header, totpCode(uri))).status).toBe(200);
+
       // Signed in, the same: nothing to send, nothing to verify.
       const signed = await signedIn(plain.email);
+      const signedSend = await post('auth/two-factor/send-otp', signed.header);
+      const signedVerify = await post('auth/two-factor/verify-otp', signed.header, { code: '123456' });
 
-      expect((await post('auth/two-factor/send-otp', signed.header)).status).toBe(400);
+      expect({ status: signedSend.status, text: signedSend.text }).toEqual(notFound);
+      expect({ status: signedVerify.status, text: signedVerify.text }).toEqual(notFound);
+      expect(await flagOf(plain.id)).toBe(false);
       await pause(500);
       expect(outbox.filter(mail => mail.to === email)).toHaveLength(mailed);
       expect(outbox.filter(mail => mail.to === plain.email)).toHaveLength(0);
