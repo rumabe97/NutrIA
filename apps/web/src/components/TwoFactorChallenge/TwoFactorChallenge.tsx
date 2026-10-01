@@ -77,15 +77,16 @@ export function TwoFactorChallenge() {
     }
   }, [ended]);
 
-  /** On the field and in the alert; focus back on the field with what was typed selected, so typing replaces it. */
+  /**
+   * In the alert, and on the field when it is about what was typed. Focus goes back to the
+   * field either way — the button it was on was disabled while the request ran — with what
+   * was typed selected, so typing replaces it.
+   */
   function refuse(message: string, onField: boolean) {
     setError(message);
     setFieldError(onField ? message : undefined);
-
-    if (onField) {
-      codeRef.current?.focus();
-      codeRef.current?.select();
-    }
+    codeRef.current?.focus();
+    codeRef.current?.select();
   }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {

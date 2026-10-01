@@ -2816,7 +2816,7 @@ export const esES = {
 
   twoFactor: {
     activate: 'Activar',
-    addToApp: 'Abrir en la app de autenticación',
+    addToApp: 'Añadir a tu app',
     attemptsSpent: 'Demasiados códigos incorrectos en este acceso. Vuelve a acceder para empezar de nuevo.',
     backupCode: 'Código de respaldo',
     backupCodeHint: 'Uno de los 10 que guardaste: 10 letras y números con un guion.',

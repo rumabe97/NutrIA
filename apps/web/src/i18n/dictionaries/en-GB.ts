@@ -2777,7 +2777,7 @@ export const enGB: Dictionary = {
 
   twoFactor: {
     activate: 'Turn on',
-    addToApp: 'Open in the authenticator app',
+    addToApp: 'Add to your app',
     attemptsSpent: 'Too many wrong codes for this sign-in. Sign in again to start over.',
     backupCode: 'Backup code',
     backupCodeHint: 'One of the 10 you saved: 10 letters and numbers with a hyphen.',
