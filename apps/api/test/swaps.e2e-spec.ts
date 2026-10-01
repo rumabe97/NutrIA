@@ -98,7 +98,17 @@ describe('meal swaps', () => {
      * changed would fail on it while proving nothing.
      */
     const list = await activeShoppingList(app, account);
-    const planned = new Set(after.days.flatMap(day => day.meals.flatMap(meal => meal.ingredients.map(ingredient => ingredient.name))));
+    // A cooked grain or pasta is listed as its dry food (`0078`), and the plan view
+    // names only the cooked one: the meal detail says what the list will call it.
+    const planned = new Set<string>();
+
+    for (const meal of after.days.flatMap(day => day.meals)) {
+      const detail: Response = await request(httpServer(app)).get(`/${PREFIX}/meal-plans/meals/${meal.id}`).set('Cookie', account.cookie).expect(200);
+
+      for (const ingredient of (detail.body as { ingredients: readonly { dry?: { name: string }; name: string }[] }).ingredients) {
+        planned.add(ingredient.dry?.name ?? ingredient.name);
+      }
+    }
 
     expect(list.items.length).toBeGreaterThan(0);
     expect(before.items.length).toBeGreaterThan(0);
