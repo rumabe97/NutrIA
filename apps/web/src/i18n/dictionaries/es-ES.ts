@@ -1743,6 +1743,7 @@ export const esES = {
     body: 'Con {count} comidas al día, la más grande lleva unas {kcal} kcal. Es la única forma de repartir tus macros; por eso los platos salen abundantes. Si añades una comida (un desayuno o una merienda), cada plato será más pequeño.',
     dismissed: 'Aviso ocultado',
     keep: 'Seguir así',
+    keepName: 'Seguir así y generar mi plan',
     title: 'Tus comidas serán grandes',
     understood: 'Entendido'
   },

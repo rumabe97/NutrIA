@@ -1707,6 +1707,7 @@ export const enGB: Dictionary = {
     body: 'With {count} meals a day, the largest carries about {kcal} kcal. It is the only way to spread your macros, which is why the dishes come out generous. If you add a meal (a breakfast or a snack), each dish will be smaller.',
     dismissed: 'Note hidden',
     keep: 'Carry on',
+    keepName: 'Carry on and build my plan',
     title: 'Your meals will be big',
     understood: 'Got it'
   },

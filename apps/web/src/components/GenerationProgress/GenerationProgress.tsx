@@ -236,6 +236,7 @@ export function GenerationProgress({ allowance, events, mealSize }: GenerationPr
           {asksAboutSize ? (
             <Fragment>
               <Button
+                aria-label={dictionary.mealSize.keepName}
                 onClick={() => {
                   rememberMealSizeAnswer('kept', mealSize.answerKey);
                   void start();
