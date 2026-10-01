@@ -411,12 +411,27 @@ describe('judgePicture — a bare name read the safe way', () => {
     expect(verdict.accepted).toBe(true);
   });
 
-  // Project 010: contradicts production's stew with heura, whose "meatballs" were left as an extra (judge.forms.test.ts); phase 2 rewrites it.
-  it('rejects "noodles" the match call left as an extra, even on a rice-noodle dish', () => {
-    expect(judge(withExtra({ amount: 'side', name: 'noodles', specific: true }), NOODLE_BOWL).accepted).toBe(false);
+  /*
+   * Rewritten on purpose by project 010 (`0073`): until then this test pinned
+   * the opposite — "noodles" left as an extra rejected the rice-noodle dish for
+   * gluten, and the same picture passed or failed on the match call's answer.
+   * A dish's own form is not an extra food, however the match call answered.
+   */
+  it('takes "noodles" the match call left as an extra on a rice-noodle dish as those noodles too', () => {
+    const verdict = judge(withExtra({ amount: 'side', name: 'noodles', specific: true }), NOODLE_BOWL);
+
+    expect(verdict.accepted).toBe(true);
+    expect(verdict.notes).toContain('own_form:noodles');
   });
 
-  // Project 010: stays as it is — a rice cake is a cracker, not a cake, so "cake" left as an extra keeps rejecting (judge.forms.test.ts).
+  it('still rejects "wheat noodles" left as an extra on a rice-noodle dish: only the form’s word is the dish’s', () => {
+    const verdict = judge(withExtra({ amount: 'side', name: 'wheat noodles', specific: true }), NOODLE_BOWL);
+
+    expect(verdict.accepted).toBe(false);
+    expect(verdict.extras.at(-1)?.foreignAllergens).toEqual(['gluten']);
+  });
+
+  // Project 010 kept this one as it was: a rice cake is a cracker, not a cake, so "cake" left as an extra keeps rejecting (judge.forms.test.ts).
   it.each([
     ['matched to the dish’s own rice cakes, is those rice cakes', true, ['cake']],
     ['left as an extra on the same dish, is sponge cake', false, []]

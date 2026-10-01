@@ -861,6 +861,12 @@ Una hora, en este orden:
     (f) (2026-09-30) una imagen que el propietario publica a mano contra el juez, con aviso
     y registro: ¿cómo pesa ese registro si alguien reclama un daño? **Sí merece cinco
     minutos.**
+    (g) (2026-09-30, 010 fase 2) la frase de `/privacidad` sobre el juez, ahora que la
+    regla acepta a propósito un segundo alimento con la forma de uno que el plato ya
+    tiene: ¿engañosa (Ley 3/1991, art. 5.1.b)? Mi lectura: no, leída entera; P2. La misma
+    tras el endurecimiento de la regla, que estrecha la clase sin cerrarla. Una imagen de
+    esa clase se puede retirar desde la consola (010 fase 4, `28854ac`). Cinco minutos
+    solo si el propietario no toma la cláusula propuesta.
     Detalle en [`imagenes-de-platos.md`](./imagenes-de-platos.md) § 7.
 12. **Aceptación de las condiciones** (2026-09-29, D5): el art. 59.4 TRLGDCU y la cuenta
     gratuita, la confirmación del art. 28 LSSI, «seguir usando = aceptar», la prueba tras

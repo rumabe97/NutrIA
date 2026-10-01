@@ -257,6 +257,49 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     allergen the dish lacks is rejected: no drawing, retry or cron ever publishes it. It reaches
     the public store and becomes a dish's picture only if the owner accepts it by hand (the second
     door, below). A judge that fails is a picture not kept.
+  - **A dish's own form is not an extra food** ([`0073`](../../docs/decisions/0073-a-dishs-own-form-is-not-an-extra-food.md),
+    project 010). A picture shows a form, not what it is made of. When the judge names a form —
+    pancakes, bread, meatballs, milk — and the dish has its own version of it, that name brings no
+    allergen of the form, whether the match call paired it or left it over. "Its own version" is read
+    from the recipe in code, from the closed tables of `core/domain/DishPicture/forms.ts`: an
+    ingredient whose slug *is* the form, or a word of the dish's title (Spanish or English) that names
+    it. **The exemption is a whitelist**: once the serving words of `SERVING_WORDS` are set aside ("a
+    glass of", "grated", "slice of"), the name must be word for word one row of the family's `seen`
+    ("milk", "burger patty", "pizza base"). Any other name is read exactly as it was before the rule,
+    notes and all: "cheese pancakes", "wheat noodles", "whole milk", "cow's milk", "goat cheese",
+    "cream cheese", "milk roll", "cinnamon roll" are other foods. A name of the dish's own form is
+    excused only of its family's closed set of allergens (`FormFamily.carries`, written in `forms.ts`,
+    never read from the catalogue): "battered fish" is excused its batter and its fish is still
+    weighed; a brownie's walnuts, a tuna empanada's fish, a vegetable nugget's soy are never a form's. **What
+    bounds it besides**: families are narrow (bread does not excuse pancakes); breading and nuggets or
+    croquettes are keyed by the title only; rice and corn cakes are crackers, never cakes, and a
+    title's "tortitas" names no pancakes on a dish that holds them; a bare "burger" still rejects (its
+    bun), "burger patty" does not; a title names a form only where it means it — not in the reach of
+    a negation, which runs from "sin", "ni", "no", "without", "en vez de", "en lugar de", "instead
+    of", "libre de" up to "con", "with", "y", "and", a comma or a closing parenthesis ("sin queso ni
+    pan", "con lechuga en vez de pan"), not negated by its own suffix ("bread-free", "breadless",
+    "crust-less"), not beside "bowl", "bol" or "cuenco" ("burrito bowl"), not in another sense
+    ("pan rallado", "pan sauce", "migas de atún"), and the words of `TITLE_ONLY_AS_HEAD`
+    (`tostadas`, `toast`, `tacos`, `wraps`, `sándwich`, `quesadilla`, `enchiladas`, `montadito`…) only
+    as the title's first word and only before the end of the title or "con", "with", "y", "and"
+    ("tostadas de boniato", "tostadas crujientes de boniato", "wraps frescos de lechuga", "sweet potato
+    toast" name no bread and no tortilla; "tostadas con aguacate" does); "pan" and
+    "pizza" name their form wherever they stand ("pan de coliflor"); a name of the same form seen beside
+    another that says more ("milk" beside "soy milk") is a second food. A verdict whose exemption took an allergen away carries
+    `own_form:<name>` in its notes — only then, so a verdict the old rule already accepted keeps its
+    notes — stored with the picture like the others (`provenance.judge`, the drawings). Like
+    `extra_food:`, it holds a model's word and never leaves. **Three vocabulary fixes go with it**: a
+    word that is not a food ("base", "glass", "bowl"…) is not mapped on its own; a named plant before a
+    dairy word ("soy yogurt", "coconut milk") maps the plant and not the dairy — "plant", "vegan",
+    "vegetable" name no plant, so "plant milk" or "vegan butter" read as they always did (they could be
+    soy or nuts), and "plant protein" is still soy; a sulphite a food only *may*
+    contain never rejects (one it contains — dried apricots, wine — does). Every row of the
+    tables has its case in `forms.test.ts`; the pilot (`judge.pilot.test.ts`, 65 accepted with their
+    notes, 3 controls rejected) is the floor and is never edited; `judge.reverse.test.ts` pins what
+    the rule lets through beside twenty example dishes, and says why each food moved;
+    `judge.catalogue.test.ts` draws every catalogue product whose name holds a form's word beside
+    each example dish, and lists by family every one it accepts that carries an allergen the dish
+    lacks — a new product or a new row shows up there first.
   - **The file is stored as the model returned it** — no `sharp`, no resize: any
     re-encode breaks Google's C2PA manifest, and a file without one is never kept.
   - **Every paid call is a row in `recipe_image_calls`**, and the cap is their sum; a

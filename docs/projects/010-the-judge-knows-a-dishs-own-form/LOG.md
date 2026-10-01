@@ -179,3 +179,81 @@
 - **Decisions**: none new; `0073`.
 - **For the owner (human-verify)**: open a dish whose picture the judge accepted, in
   `/admin/catalogo`, and see the picture and "Retirar". Removing one is your choice.
+
+## Phase 2 — The dish's own form, and three words' worth of vocabulary (2026-10-01)
+
+- **Executor**: `backend-high` on opus, three rounds; `invariant-reviewer` (opus, high)
+  three times, the third iterating with the implementer directly; `legal` twice. Shipped
+  **after** phase 4, on `legal`'s advice: a picture the new rule accepts wrongly can be
+  taken back.
+- **Result**: done.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=api --filter=web
+    --concurrency=2 --force`: 17 of 17 tasks green — core 3090, api 1233, web 142.
+    `pnpm --filter core test:coverage`: floors hold (DishPicture about 99 % of lines,
+    96.7 % of branches). No `.fails`, `.skip` or `.only` anywhere in core.
+  - The pilot's test and fixture untouched and green: 65 accepted, 3 controls rejected, no
+    note moved. The holes test untouched: still 19.
+  - Phase 1's 191 rows: 187 verbatim; 4 rewritten on purpose (below).
+  - `invariant-reviewer`, third round: no P0, no P1.
+- **Why three rounds.** The first two rounds wrote the exemption as a blacklist — excuse
+  the form word, then guard what slips through — and each review found a new class of
+  foreign allergen getting past the guard (round 1: a qualifier that carries an allergen
+  only as part of the whole catalogue name, "goat cheese", "cow's milk", "spring roll";
+  and title words anywhere, "semillas tostadas", "sin pan"; round 2: names made of the
+  dish's own form words, "cream cheese", "milk roll"; descriptors, "whole milk"; negation
+  gaps; nouns like "wraps de lechuga"). Round 3 changed the rule's shape:
+  - **A whitelist.** Once a closed list of serving words is set aside (a glass of,
+    grated, sliced…), the seen name must be *exactly one row* of a family the dish holds,
+    by ingredient slug or title. Any other name is read exactly as before, notes included.
+  - **Closed allergens per family**, written in `forms.ts` and never read from the
+    catalogue (a brownie's walnuts had been excused beside a nut-free sponge): bread
+    gluten; breading eggs+gluten; pancakes, cakes, biscuits, pastry and meat
+    eggs+gluten+milk; crackers gluten; wraps gluten; pasta eggs+gluten; nuggets
+    eggs+gluten+lactose+milk; milk, yogurt and cream lactose+milk; cheese milk.
+  - **Titles**: a negation (sin, ni, no, without, en vez de, en lugar de, instead of,
+    libre de) reaches to con/with/y/and, a comma or a closing parenthesis; "-free" and
+    "-less" negate their own word; a title word beside bowl/bol/cuenco names nothing;
+    ambiguous head words (tostada, tosta, rebanada, taco, empanada, pastel, wrap, sandwich,
+    burrito, quesadilla, enchilada, fajita, montadito, toast) name their form only as the
+    title's first word followed by its end or con/with/y/and; phrases where "pan" or
+    "migas" mean something else name nothing.
+  - **The exhaustive test** `judge.catalogue.test.ts`: every seed product whose name holds
+    a row's word (175) beside 21 example dishes; an accepted pair carries nothing the dish
+    lacks or is a listed second batch of the same form, checked against its family's set.
+    A new catalogue product shows up there, not in a reviewer's probe.
+- **Library measure** (the private library, offline, counts only):
+  - Pairs that pass now and were rejected before phase 2: **195 of 26,394** (predicted
+    229; round 1 211; round 2 205). By family: meat 82, milk 26, bread 19, wraps 16,
+    pancakes 14, cream 10, pasta 10, crackers 3, cakes 1; plus 14 from the sulphite
+    vocabulary fix. **Newly rejected against the rule before phase 2: 0.**
+  - Dishes exposed to a false rejection (paired / left over), any class: 78/80 (before
+    phase 2 144/145). The classes seen in production: 32/34. Still exposed on purpose:
+    "nuggets" (title only), "cakes" and now "crackers" on rice and corn cakes (the
+    crackers may contain sesame — the lead accepted the cost; production's own word,
+    "grain base", passes), the three classes left out (lactose, tofu read as cheese,
+    scrambles without egg).
+  - Titles: 8 of 500 hold a negation token, none with a family word in its reach; a
+    head-only noun outside first position in 13, first in 34 (26 before "de").
+- **Deviations from plan** (plan amended):
+  - Four phase-1 rows rewritten to expect **rejected**, with the reviewer's agreement:
+    "brownie" on a bean brownie (the catalogue's only brownie holds walnuts), "crackers"
+    on corn cakes (may contain sesame), "empanadas" on corn empanadillas (the only
+    empanada is tuna), "plant milk" on an oat pudding (a generic plant word names no
+    plant). Phase 5 maps the bare filled words to their unfilled form (step 5).
+  - Rows beyond the annex: "pizza base", "breaded chicken", "battered fish" (its fish still
+    weighed against the dish). Meat also holds poultry and lamb mince.
+  - Accepted by the lead: "Pan de coliflor/nube/lechuga" and "Pizza(s) de coliflor/
+    berenjena" name their form (the owner's "title alone"); "sin queso y pan" names bread.
+  - Pinned as unchanged, not this rule: "whole/skimmed/fresh milk" paired by the match
+    call with the soy milk passes through project 006's shortened-name rule.
+  - Step 6: `judge.test.ts`'s "noodles left as an extra on a rice-noodle dish" rewritten
+    on purpose; "cake" on rice cakes kept rejected (phase 1's decision); project 006's
+    three second-food tests untouched.
+  - **`/privacidad`**: the owner decided (2026-09-30, "Mete la cláusula de privacidad") to
+    add `legal`'s clause (b) to the checker sentence; it ships with this phase, and
+    `privacy.updated` carries the day it reaches production.
+- **Decisions**: `0073`.
+- **Notes for the next phase**: phase 5's step 5 (the filled forms) and the bare "pizza",
+  "tortilla", "crust" found by the third review. The reviewers' probe scripts and the
+  measuring harness are in the private local context of the session, not the repository.

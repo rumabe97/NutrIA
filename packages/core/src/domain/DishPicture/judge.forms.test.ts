@@ -8,42 +8,29 @@ import type { PictureRecipe } from 'core/domain/DishPicture';
 import type { Picture } from '#test/dish-picture/acceptance';
 
 /*
- * What the rule must do once it knows a dish's own form (project 010, `0073`),
- * written while the rule is still the one that does not: a word that names a
- * form — pancakes, bread, meatballs, milk — brings no allergens when the dish
- * has its own version of that form, by an ingredient that is the form or by a
- * title that names it, and every other word of the name counts as before.
- *
- * How phase 2 uses the marks. A case here says what is wanted. Where today's
- * rule gets it wrong the case is registered with `it.fails`, through `wanted`:
- * the suite is green now, and a marked case that passes turns it red — so the
- * marks are exactly the production cases and the faithful pictures the rule
- * rejects, no more. Phase 2 changes the rule until each marked case passes and
- * removes its mark: a `'both'` or `'extra'` in a table becomes `'neither'`, an
- * `it.fails` becomes `it`. When none is left, the mark column and `wanted` go.
- * The cases that must stay rejected carry no mark: they pass today and after.
+ * What the rule does now that it knows a dish's own form (project 010,
+ * `0073`), written in phase 1 while the rule was still the one that did not: a
+ * word that names a form — pancakes, bread, meatballs, milk — brings no
+ * allergens when the dish has its own version of that form, by an ingredient
+ * that is the form or by a title that names it, and every other word of the
+ * name counts as before. The faithful cases the old rule rejected were marked
+ * as expected to fail; phase 2 made each pass and took its mark away. The
+ * cases that must stay rejected never carried one.
  *
  * Two families have title keys only (`0073`): breading and the breaded forms
  * (nuggets, croquettes). Breadcrumbs or cornflakes in a dish can be a binder
  * or a cereal, and are not seen as a coating; only a title that says
  * "empanado", "rebozado", "nuggets" or "croquetas" excuses the form.
  *
- * For phase 2: the architect's prototype puts a bare "burger" in the meat
- * family and accepts it beside a plant protein. It must not: a burger is seen
- * in its bun, and the bun's gluten is what rejects it. "burger patty" and
- * "patty" are the meat alone, and are excused.
+ * A bare "burger" is not in the meat family: a burger is seen in its bun, and
+ * the bun's gluten is what rejects it. "burger patty" and "patty" are the meat
+ * alone, and are excused.
  *
  * Every dish is an example written for these tests, except the three of
- * production, which are rebuilt and say what they assume.
+ * production, which are rebuilt and say what they assume. The tables row by
+ * row are in `forms.test.ts`.
  */
-function wanted(wrongToday: boolean) {
-  return wrongToday ? it.fails : it;
-}
-
 type Dish = keyof typeof DISHES;
-
-/** Which of the match call's two answers today's rule rejects, for a picture it should accept. */
-type WrongToday = 'both' | 'extra' | 'neither';
 
 /**
  * A faithful picture: the judge calls the dish's own food `name`. With `of`,
@@ -51,23 +38,23 @@ type WrongToday = 'both' | 'extra' | 'neither';
  * answer, paired with it and left as an extra. With `null`, the name is for
  * something the title says and no single ingredient is, so it is an extra.
  */
-type Faithful = readonly [dish: Dish, name: string, of: string | null, wrongToday: WrongToday];
+type Faithful = readonly [dish: Dish, name: string, of: string | null];
 
 function accepts(rows: readonly Faithful[]): void {
-  for (const [key, name, of, wrongToday] of rows) {
+  for (const [key, name, of] of rows) {
     const recipe = DISHES[key];
 
     if (of !== null) {
       const paired = picture(recipe, { name, of, paired: true });
 
-      wanted(wrongToday === 'both')(`accepts "${name}" paired with ${of} on "${recipe.name}"`, () => {
+      it(`accepts "${name}" paired with ${of} on "${recipe.name}"`, () => {
         expect(judged(recipe, paired).accepted).toBe(true);
       });
     }
 
     const extra = picture(recipe, of === null ? { name } : { name, of });
 
-    wanted(wrongToday !== 'neither')(`accepts "${name}" left as an extra on "${recipe.name}"`, () => {
+    it(`accepts "${name}" left as an extra on "${recipe.name}"`, () => {
       expect(judged(recipe, extra).accepted).toBe(true);
     });
   }
@@ -189,7 +176,7 @@ const PRODUCTION = {
 } as const;
 
 describe('judgePicture — the production cases, rebuilt', () => {
-  it.fails.each([
+  it.each([
     ['the corn-flour pancakes, "pancakes" left as an extra', PRODUCTION.pancakesExtra],
     ['the corn-flour pancakes, "pancakes" paired with the corn flour', PRODUCTION.pancakesPaired],
     ['the rice cakes, "grain base" paired with the rice cakes', PRODUCTION.riceCakesPaired],
@@ -201,23 +188,24 @@ describe('judgePicture — the production cases, rebuilt', () => {
   });
 
   /*
-   * Not a wanted behaviour: the proof that the rebuilds are the mechanism.
-   * Today's rule gives back what production recorded — the rice cakes' note
-   * as the report quotes it (the `missing_main` after it is this rebuild's:
-   * the turkey and the apple, which the judge did not see), the stew's three
-   * allergens, and for the pancakes gluten
-   * alone from a single catalogue row, which is what the owner's console
-   * showed. Phase 2 deletes this test with the behaviour it describes.
+   * What each verdict says, so the pictures the new rule accepts can be found
+   * afterwards (PRD 7): the pancakes and the meatballs through the dish's own
+   * form, noted `own_form`; the rice cakes through the vocabulary ("base" is
+   * not a food), which is no exemption and is noted as before. The
+   * `missing_main` notes are this rebuild's: the ingredients it does not name.
    */
-  it('reproduces, with today’s rule, what production recorded of each rejection', () => {
-    expect(judged(...PRODUCTION.riceCakesPaired).notes).toEqual([
-      'extra_allergen:grain base=gluten',
-      'extra_food:shredded chicken/diced potatoes/grain base',
-      'matched_foreign:grain base',
-      'missing_main:Turkey cold cuts/Apple'
-    ]);
-    expect(judged(...PRODUCTION.stewExtra).notes).toContain('extra_allergen:meatballs=eggs+gluten+milk');
-    expect(flaggedExtras(judged(...PRODUCTION.pancakesExtra))).toEqual([{ foreignAllergens: ['gluten'], mappedTo: ['tortitas-americanas'] }]);
+  it('notes the exemption where it took an allergen away, and only there', () => {
+    const notes = Object.fromEntries(Object.entries(PRODUCTION).map(([key, [recipe, shown]]) => [key, judged(recipe, shown).notes]));
+
+    expect(notes).toEqual({
+      pancakesExtra: ['extra_food:pancakes', 'own_form:pancakes', 'missing_main:Egg'],
+      pancakesPaired: ['own_form:pancakes', 'missing_main:Egg'],
+      riceCakesExtra: ['extra_food:shredded chicken/diced potatoes/grain base', 'missing_main:Turkey cold cuts/Apple/Rice cakes'],
+      riceCakesPaired: ['extra_food:shredded chicken/diced potatoes', 'missing_main:Turkey cold cuts/Apple'],
+      stewExtra: ['extra_food:meatballs', 'own_form:meatballs', 'missing_main:Heura/Crushed tomatoes'],
+      stewPaired: ['own_form:meatballs', 'missing_main:Crushed tomatoes']
+    });
+    expect(flaggedExtras(judged(...PRODUCTION.pancakesExtra))).toEqual([]);
   });
 });
 
@@ -229,9 +217,9 @@ describe('judgePicture — the production cases, rebuilt', () => {
  */
 describe('judgePicture — bread: bread, toast, bun, roll, croutons', () => {
   accepts([
-    ['glutenFreeToast', 'toast', 'pan-sin-gluten', 'both'],
-    ['glutenFreeToast', 'bread', 'pan-sin-gluten', 'extra'],
-    ['cornBreadEn', 'bread', 'harina-de-maiz', 'both']
+    ['glutenFreeToast', 'toast', 'pan-sin-gluten'],
+    ['glutenFreeToast', 'bread', 'pan-sin-gluten'],
+    ['cornBreadEn', 'bread', 'harina-de-maiz']
   ]);
 
   rejects([
@@ -240,16 +228,26 @@ describe('judgePicture — bread: bread, toast, bun, roll, croutons', () => {
     ['glutenFreeToast', 'pancakes', null, 'gluten'],
     ['chickenWithRice', 'toast', null, 'gluten']
   ]);
+
+  // Phase 2's review (P1-A): a qualifier that carries nothing on its own still makes the whole another food.
+  rejects([
+    ['glutenFreeToast', 'spring roll', 'pan-sin-gluten', 'gluten'],
+    ['glutenFreeToast', 'sushi roll', 'pan-sin-gluten', 'gluten'],
+    ['glutenFreeToast', 'california roll', 'pan-sin-gluten', 'gluten'],
+    ['glutenFreeToast', 'swiss roll', 'pan-sin-gluten', 'gluten'],
+    ['glutenFreeToast', 'cinnamon roll', 'pan-sin-gluten', 'gluten'],
+    ['glutenFreeToast', 'soda bread', 'pan-sin-gluten', 'gluten']
+  ]);
 });
 
 describe('judgePicture — breading: breadcrumbs, breaded, batter, tempura', () => {
   accepts([
-    ['glutenFreeBreaded', 'breaded chicken', 'pechuga-de-pollo', 'both'],
-    ['glutenFreeBreaded', 'breadcrumbs', 'pan-rallado-sin-gluten', 'extra'],
-    ['cornflakeChicken', 'breaded chicken', 'pechuga-de-pollo', 'both'],
-    ['batteredHake', 'battered fish', 'merluza', 'both'],
-    ['batteredHakeEn', 'battered fish', 'merluza', 'both'],
-    ['riceTempura', 'tempura', null, 'extra']
+    ['glutenFreeBreaded', 'breaded chicken', 'pechuga-de-pollo'],
+    ['glutenFreeBreaded', 'breadcrumbs', 'pan-rallado-sin-gluten'],
+    ['cornflakeChicken', 'breaded chicken', 'pechuga-de-pollo'],
+    ['batteredHake', 'battered fish', 'merluza'],
+    ['batteredHakeEn', 'battered fish', 'merluza'],
+    ['riceTempura', 'tempura', null]
   ]);
 
   rejects([
@@ -264,12 +262,12 @@ describe('judgePicture — breading: breadcrumbs, breaded, batter, tempura', () 
 
 describe('judgePicture — pancakes: pancakes, crepes, waffles, fritters', () => {
   accepts([
-    ['ricePancakes', 'pancakes', 'harina-de-arroz', 'both'],
-    ['ricePancakesEn', 'pancakes', 'harina-de-arroz', 'both'],
-    ['riceWaffles', 'waffles', 'harina-de-arroz', 'both'],
+    ['ricePancakes', 'pancakes', 'harina-de-arroz'],
+    ['ricePancakesEn', 'pancakes', 'harina-de-arroz'],
+    ['riceWaffles', 'waffles', 'harina-de-arroz'],
     // Accepted today only because the two names map to nothing (`judge.holes.test.ts`): they must still be once that hole is closed.
-    ['crepes', 'crepes', 'harina-de-trigo-sarraceno', 'neither'],
-    ['courgetteFritters', 'fritters', 'calabacin', 'neither']
+    ['crepes', 'crepes', 'harina-de-trigo-sarraceno'],
+    ['courgetteFritters', 'fritters', 'calabacin']
   ]);
 
   rejects([
@@ -281,11 +279,19 @@ describe('judgePicture — pancakes: pancakes, crepes, waffles, fritters', () =>
 
 describe('judgePicture — cakes: cake, muffin, cupcake, brownie', () => {
   accepts([
-    ['lemonCake', 'cake', 'harina-de-arroz', 'both'],
-    ['lemonCakeEn', 'cake', 'harina-de-arroz', 'both'],
-    ['riceMuffins', 'muffins', 'harina-de-arroz', 'both'],
-    ['beanBrownie', 'brownie', 'alubias-negras-cocidas', 'both']
+    ['lemonCake', 'cake', 'harina-de-arroz'],
+    ['lemonCakeEn', 'cake', 'harina-de-arroz'],
+    ['riceMuffins', 'muffins', 'harina-de-arroz']
   ]);
+
+  /*
+   * Rewritten on purpose in phase 2's third round (the lead's decision, with
+   * the reviewer; phase 1 wrote it as accepted): the bare "brownie" reads as
+   * the catalogue's only brownie, which holds walnuts, and a family excuses
+   * only its closed set (`FormFamily.carries`) — never a filling. Phase 5:
+   * map the bare form word to the unfilled form, and this is accepted again.
+   */
+  rejects([['beanBrownie', 'brownie', 'alubias-negras-cocidas', 'tree_nuts']]);
 
   rejects([
     ['lemonCake', 'walnut cake', null, 'tree_nuts'],
@@ -299,10 +305,10 @@ describe('judgePicture — cakes: cake, muffin, cupcake, brownie', () => {
 
 describe('judgePicture — biscuits: biscuit, cookie', () => {
   accepts([
-    ['glutenFreeBiscuits', 'cookies', 'galletas-sin-gluten', 'both'],
-    ['glutenFreeBiscuits', 'biscuits', 'galletas-sin-gluten', 'extra'],
-    ['riceCookies', 'cookies', 'harina-de-arroz', 'both'],
-    ['riceCookiesEn', 'cookies', 'harina-de-arroz', 'both']
+    ['glutenFreeBiscuits', 'cookies', 'galletas-sin-gluten'],
+    ['glutenFreeBiscuits', 'biscuits', 'galletas-sin-gluten'],
+    ['riceCookies', 'cookies', 'harina-de-arroz'],
+    ['riceCookiesEn', 'cookies', 'harina-de-arroz']
   ]);
 
   rejects([
@@ -313,10 +319,17 @@ describe('judgePicture — biscuits: biscuit, cookie', () => {
 });
 
 describe('judgePicture — crackers', () => {
-  accepts([
-    ['riceCakes', 'crackers', 'tortitas-de-arroz', 'both'],
-    ['cornCakes', 'crackers', 'tortitas-de-maiz', 'both']
-  ]);
+  accepts([['riceCakes', 'crackers', 'tortitas-de-arroz']]);
+
+  /*
+   * Rewritten on purpose in phase 2's third round (the lead's decision, with
+   * the reviewer; phase 1 wrote it as accepted): "crackers" read as the
+   * catalogue's crackers, which may contain sesame, and the crackers family
+   * excuses its flour only (`FormFamily.carries`). The rice-cake dish above
+   * passes because it holds hummus, and so sesame. Phase 5: map the bare form
+   * word to the unfilled form, and this is accepted again.
+   */
+  rejects([['cornCakes', 'crackers', 'tortitas-de-maiz', 'sesame']]);
 
   rejects([
     ['riceCakes', 'cheese crackers', null, 'milk'],
@@ -327,13 +340,13 @@ describe('judgePicture — crackers', () => {
 
 describe('judgePicture — wraps: tortilla, wrap, taco, flatbread, pita', () => {
   accepts([
-    ['cornTacos', 'wrap', 'tortilla-de-maiz', 'both'],
-    ['cornTacos', 'flatbread', 'tortilla-de-maiz', 'both'],
-    ['cornTacos', 'tacos', 'tortilla-de-maiz', 'both'],
+    ['cornTacos', 'wrap', 'tortilla-de-maiz'],
+    ['cornTacos', 'flatbread', 'tortilla-de-maiz'],
+    ['cornTacos', 'tacos', 'tortilla-de-maiz'],
     // A hole today, as "crepes" is.
-    ['cornTacos', 'tortillas', 'tortilla-de-maiz', 'neither'],
-    ['nachos', 'tortilla chips', 'nachos', 'neither'],
-    ['arepas', 'flatbread', 'harina-de-maiz', 'both']
+    ['cornTacos', 'tortillas', 'tortilla-de-maiz'],
+    ['nachos', 'tortilla chips', 'nachos'],
+    ['arepas', 'flatbread', 'harina-de-maiz']
   ]);
 
   rejects([
@@ -345,14 +358,22 @@ describe('judgePicture — wraps: tortilla, wrap, taco, flatbread, pita', () => 
 
 describe('judgePicture — pizza and pastry: pizza, crust, dough, pastry, pie, quiche, empanada, dumpling', () => {
   accepts([
-    ['cauliflowerPizza', 'pizza base', 'coliflor', 'both'],
-    ['cauliflowerPizzaEn', 'pizza base', 'coliflor', 'both'],
+    ['cauliflowerPizza', 'pizza base', 'coliflor'],
+    ['cauliflowerPizzaEn', 'pizza base', 'coliflor'],
     // A hole today, as "crepes" is.
-    ['cauliflowerPizza', 'pizza', 'coliflor', 'neither'],
-    ['cornEmpanadillas', 'pastry', 'harina-de-maiz', 'both'],
-    ['cornEmpanadillas', 'empanadas', 'harina-de-maiz', 'both'],
-    ['ricePaperGyozas', 'dumplings', 'papel-de-arroz', 'both']
+    ['cauliflowerPizza', 'pizza', 'coliflor'],
+    ['cornEmpanadillas', 'pastry', 'harina-de-maiz'],
+    ['ricePaperGyozas', 'dumplings', 'papel-de-arroz']
   ]);
+
+  /*
+   * Rewritten on purpose in phase 2's third round (the lead's decision, with
+   * the reviewer; phase 1 wrote it as accepted): the bare "empanadas" read as
+   * the catalogue's only empanada, a tuna one, and the pastry family excuses
+   * its dough only (`FormFamily.carries`) — never a filling's fish. Phase 5:
+   * map the bare form word to the unfilled form, and this is accepted again.
+   */
+  rejects([['cornEmpanadillas', 'empanadas', 'harina-de-maiz', 'fish']]);
 
   rejects([
     ['cauliflowerPizza', 'cheese pizza', null, 'milk'],
@@ -363,11 +384,11 @@ describe('judgePicture — pizza and pastry: pizza, crust, dough, pastry, pie, q
 
 describe('judgePicture — pasta: pasta, noodles, spaghetti, penne, macaroni', () => {
   accepts([
-    ['glutenFreeSpaghetti', 'spaghetti', 'pasta-sin-gluten', 'both'],
-    ['glutenFreeSpaghetti', 'pasta', 'pasta-sin-gluten', 'extra'],
-    ['riceNoodles', 'noodles', 'fideos-de-arroz-cocidos', 'extra'],
-    ['glassNoodles', 'noodles', 'fideos-de-cristal', 'extra'],
-    ['lentilPasta', 'penne', 'pasta-de-lentejas', 'both']
+    ['glutenFreeSpaghetti', 'spaghetti', 'pasta-sin-gluten'],
+    ['glutenFreeSpaghetti', 'pasta', 'pasta-sin-gluten'],
+    ['riceNoodles', 'noodles', 'fideos-de-arroz-cocidos'],
+    ['glassNoodles', 'noodles', 'fideos-de-cristal'],
+    ['lentilPasta', 'penne', 'pasta-de-lentejas']
   ]);
 
   rejects([
@@ -385,20 +406,20 @@ describe('judgePicture — pasta: pasta, noodles, spaghetti, penne, macaroni', (
  */
 describe('judgePicture — meat forms: meatball, burger, patty, sausage', () => {
   accepts([
-    ['heuraStirFry', 'meatballs', 'heura', 'both'],
-    ['heuraStirFry', 'burger patty', 'heura', 'both'],
+    ['heuraStirFry', 'meatballs', 'heura'],
+    ['heuraStirFry', 'burger patty', 'heura'],
     // "sausages" carries no allergen today: the row is here so that the word has its case.
-    ['heuraStirFry', 'sausages', 'heura', 'neither'],
-    ['seitan', 'meatballs', 'seitan', 'both'],
-    ['tofu', 'burger patty', 'tofu-firme', 'both'],
-    ['tempeh', 'meatballs', 'tempeh', 'both'],
-    ['texturedSoy', 'meatballs', 'soja-texturizada', 'both'],
-    ['veggieBurger', 'meatballs', 'hamburguesa-vegetal', 'both'],
-    ['minceWithRice', 'meatballs', 'carne-picada-de-ternera', 'both'],
-    ['minceWithRice', 'burger patty', 'carne-picada-de-ternera', 'both'],
-    ['chickenMeatballs', 'meatballs', 'pollo-picado', 'both'],
-    ['chickenMeatballsEn', 'meatballs', 'pollo-picado', 'both'],
-    ['lentilBurgers', 'burger patty', 'lentejas-cocidas', 'both']
+    ['heuraStirFry', 'sausages', 'heura'],
+    ['seitan', 'meatballs', 'seitan'],
+    ['tofu', 'burger patty', 'tofu-firme'],
+    ['tempeh', 'meatballs', 'tempeh'],
+    ['texturedSoy', 'meatballs', 'soja-texturizada'],
+    ['veggieBurger', 'meatballs', 'hamburguesa-vegetal'],
+    ['minceWithRice', 'meatballs', 'carne-picada-de-ternera'],
+    ['minceWithRice', 'burger patty', 'carne-picada-de-ternera'],
+    ['chickenMeatballs', 'meatballs', 'pollo-picado'],
+    ['chickenMeatballsEn', 'meatballs', 'pollo-picado'],
+    ['lentilBurgers', 'burger patty', 'lentejas-cocidas']
   ]);
 
   rejects([
@@ -416,9 +437,9 @@ describe('judgePicture — meat forms: meatball, burger, patty, sausage', () => 
 /* A breaded form is seen to be breaded: the title excuses it, the protein under it never does (report § 7.3). */
 describe('judgePicture — breaded forms: nuggets, croquettes', () => {
   accepts([
-    ['heuraNuggets', 'nuggets', 'heura', 'both'],
-    ['sweetPotatoCroquettes', 'croquettes', 'boniato', 'both'],
-    ['sweetPotatoCroquettesEn', 'croquettes', 'boniato', 'both']
+    ['heuraNuggets', 'nuggets', 'heura'],
+    ['sweetPotatoCroquettes', 'croquettes', 'boniato'],
+    ['sweetPotatoCroquettesEn', 'croquettes', 'boniato']
   ]);
 
   rejects([
@@ -431,12 +452,12 @@ describe('judgePicture — breaded forms: nuggets, croquettes', () => {
 
 describe('judgePicture — milk: milk, milkshake', () => {
   accepts([
-    ['soyMilkShake', 'milk', 'leche-de-soja', 'extra'],
-    ['soyMilkShake', 'milkshake', 'leche-de-soja', 'both'],
-    ['oatMilkRicePudding', 'milk', 'leche-de-avena', 'extra'],
-    ['lactoseFreeRicePudding', 'milk', 'leche-sin-lactosa', 'extra'],
-    ['riceDrinkShake', 'milk', 'bebida-de-arroz', 'both'],
-    ['coconutCurry', 'milk', 'leche-de-coco', 'extra']
+    ['soyMilkShake', 'milk', 'leche-de-soja'],
+    ['soyMilkShake', 'milkshake', 'leche-de-soja'],
+    ['oatMilkRicePudding', 'milk', 'leche-de-avena'],
+    ['lactoseFreeRicePudding', 'milk', 'leche-sin-lactosa'],
+    ['riceDrinkShake', 'milk', 'bebida-de-arroz'],
+    ['coconutCurry', 'milk', 'leche-de-coco']
   ]);
 
   rejects([
@@ -444,16 +465,24 @@ describe('judgePicture — milk: milk, milkshake', () => {
     ['soyMilkShake', 'yogurt', null, 'milk'],
     ['fruitSalad', 'milk', null, 'milk']
   ]);
+
+  // Phase 2's review (P1-A).
+  rejects([
+    ['soyMilkShake', "cow's milk", 'leche-de-soja', 'milk'],
+    ['soyMilkShake', 'cow milk', 'leche-de-soja', 'milk'],
+    ['soyMilkShake', 'dairy milk', 'leche-de-soja', 'milk'],
+    ['soyMilkShake', 'goat milk', 'leche-de-soja', 'milk']
+  ]);
 });
 
 describe('judgePicture — yogurt', () => {
   accepts([
     // The catalogue writes "Soya yoghurt"; the judge writes it the American way.
-    ['soyYoghurt', 'yogurt', 'yogur-de-soja', 'both'],
-    ['soyYoghurt', 'yoghurt', 'yogur-de-soja', 'extra'],
-    ['soyYoghurt', 'soy yogurt', 'yogur-de-soja', 'both'],
-    ['coconutYoghurt', 'yogurt', 'yogur-de-coco', 'both'],
-    ['coconutYoghurt', 'coconut yogurt', 'yogur-de-coco', 'both']
+    ['soyYoghurt', 'yogurt', 'yogur-de-soja'],
+    ['soyYoghurt', 'yoghurt', 'yogur-de-soja'],
+    ['soyYoghurt', 'soy yogurt', 'yogur-de-soja'],
+    ['coconutYoghurt', 'yogurt', 'yogur-de-coco'],
+    ['coconutYoghurt', 'coconut yogurt', 'yogur-de-coco']
   ]);
 
   rejects([
@@ -462,13 +491,19 @@ describe('judgePicture — yogurt', () => {
     ['soyYoghurt', 'milk', null, 'milk'],
     ['fruitSalad', 'yogurt', null, 'milk']
   ]);
+
+  // Phase 2's review (P1-A).
+  rejects([
+    ['soyYoghurt', 'dairy yogurt', 'yogur-de-soja', 'milk'],
+    ['soyYoghurt', 'goat yogurt', 'yogur-de-soja', 'milk']
+  ]);
 });
 
 /* Tofu is not a cheese (report § 6): a dish of tofu excuses no cheese. */
 describe('judgePicture — cheese', () => {
   accepts([
-    ['veganCheeseSalad', 'cheese', 'queso-vegano', 'extra'],
-    ['veganCheeseSalad', 'grated cheese', 'queso-vegano', 'extra']
+    ['veganCheeseSalad', 'cheese', 'queso-vegano'],
+    ['veganCheeseSalad', 'grated cheese', 'queso-vegano']
   ]);
 
   rejects([
@@ -477,19 +512,33 @@ describe('judgePicture — cheese', () => {
     ['tofu', 'cheese', 'tofu-firme', 'milk'],
     ['tofu', 'feta cheese', 'tofu-firme', 'milk']
   ]);
+
+  // Phase 2's review (P1-A): a catalogue cheese of its own, named by a word that carries nothing alone.
+  rejects([
+    ['veganCheeseSalad', 'goat cheese', 'queso-vegano', 'milk'],
+    ['veganCheeseSalad', "goat's cheese", 'queso-vegano', 'milk'],
+    ['veganCheeseSalad', 'blue cheese', 'queso-vegano', 'milk']
+  ]);
 });
 
 describe('judgePicture — cream', () => {
   accepts([
-    ['coconutSoup', 'cream', 'crema-de-coco', 'extra'],
-    ['coconutCurry', 'cream', 'leche-de-coco', 'both'],
-    ['soyCreamMushrooms', 'cream', 'nata-vegetal-de-soja', 'extra']
+    ['coconutSoup', 'cream', 'crema-de-coco'],
+    ['coconutCurry', 'cream', 'leche-de-coco'],
+    ['soyCreamMushrooms', 'cream', 'nata-vegetal-de-soja']
   ]);
 
   rejects([
     ['coconutSoup', 'cream cheese', null, 'milk'],
     ['coconutSoup', 'yogurt', null, 'milk'],
     ['tomatoSoup', 'cream', null, 'milk']
+  ]);
+
+  // Phase 2's review (P1-A).
+  rejects([
+    ['coconutCurry', 'heavy cream', 'leche-de-coco', 'milk'],
+    ['coconutCurry', 'double cream', 'leche-de-coco', 'milk'],
+    ['coconutCurry', 'dairy cream', 'leche-de-coco', 'milk']
   ]);
 });
 
@@ -569,11 +618,11 @@ describe('judgePicture — a form beside its fuller name, on a dish keyed by its
 /* The three vocabulary fixes that go with the rule (report § 7.4). */
 describe('judgePicture — a word that is not a food is not mapped on its own', () => {
   accepts([
-    ['riceCakes', 'grain base', 'tortitas-de-arroz', 'both'],
-    ['chickenWithRice', 'rice base', 'arroz-blanco-cocido', 'both'],
-    ['soyMilkShake', 'glass of milk', 'leche-de-soja', 'both'],
+    ['riceCakes', 'grain base', 'tortitas-de-arroz'],
+    ['chickenWithRice', 'rice base', 'arroz-blanco-cocido'],
+    ['soyMilkShake', 'glass of milk', 'leche-de-soja'],
     // "bowl" and "glass" carry no allergen today; "base" does, from the one catalogue row that has the word.
-    ['chickenWithRice', 'rice bowl', 'arroz-blanco-cocido', 'neither']
+    ['chickenWithRice', 'rice bowl', 'arroz-blanco-cocido']
   ]);
 
   rejects([
@@ -586,10 +635,17 @@ describe('judgePicture — a word that is not a food is not mapped on its own', 
 
 describe('judgePicture — a plant qualifier before a dairy word maps the qualifier, not the dairy', () => {
   accepts([
-    ['fruitSalad', 'coconut milk', null, 'extra'],
-    ['coconutCurry', 'coconut milk', 'leche-de-coco', 'extra'],
-    ['oatMilkRicePudding', 'plant milk', 'leche-de-avena', 'both']
+    ['fruitSalad', 'coconut milk', null],
+    ['coconutCurry', 'coconut milk', 'leche-de-coco']
   ]);
+
+  /*
+   * Rewritten on purpose in phase 2's third round (the lead's decision, with
+   * the reviewer; phase 1 wrote it as accepted): "plant" names no plant — it
+   * could be soy or nuts — so "plant milk" is read as it always was: milk,
+   * and the loose "plant" as the catalogue's plant protein.
+   */
+  rejects([['oatMilkRicePudding', 'plant milk', 'leche-de-avena', 'milk']]);
 
   rejects([
     ['fruitSalad', 'soy milk', null, 'soy'],
@@ -604,7 +660,7 @@ describe('judgePicture — a plant qualifier before a dairy word maps the qualif
 describe('judgePicture — a sulphite a food only may contain never rejects a picture', () => {
   accepts([
     // The catalogue's king prawns may contain sulphites, which its fresh prawns do not.
-    ['prawnsWithRice', 'king prawns', 'gambas', 'both']
+    ['prawnsWithRice', 'king prawns', 'gambas']
   ]);
 
   rejects([
@@ -612,4 +668,169 @@ describe('judgePicture — a sulphite a food only may contain never rejects a pi
     ['fruitSalad', 'dried apricots', null, 'sulphites'],
     ['chickenWithRice', 'glass of wine', null, 'sulphites']
   ]);
+});
+
+/*
+ * Phase 2's review (P1-B): a title word that does not name the dish's form —
+ * an adjective, a negated word, a word in another sense, a form's word before
+ * what stands in for it — excuses nothing. The last three are phase 1's open
+ * cases, decided conservative: lettuce tacos, a crustless quiche and
+ * sweet-potato toast have no tortilla, pastry or bread, and a picture of one
+ * named so is rejected (the owner's hand-accept is for it). Dishes written for
+ * these tests; none holds a slug of the family.
+ */
+describe('judgePicture — a title word that names no form of the dish', () => {
+  const SEEDS = ['semillas-de-calabaza', 20] as const;
+  const cases: readonly (readonly [PictureRecipe, readonly string[]])[] = [
+    [dish('Crema de calabaza con semillas tostadas', ['calabaza', 300], ['cebolla', 40], SEEDS, OIL), ['croutons', 'bread', 'toast', 'bun']],
+    [dish('Ensalada de quinoa tostada con pepino', ['quinoa-cocida', 150], ['pepino', 80], OIL), ['bread', 'toast']],
+    [dish('Yogur con almendras tostadas y miel', ['yogur-natural-desnatado', 150], ['almendras', 20], ['miel', 10]), ['toast', 'bread']],
+    [dish('Hamburguesa sin pan con ensalada', ['carne-picada-de-ternera', 150], ['lechuga', 80], ['tomate', 60], OIL), ['bun', 'bread']],
+    [dish('Salmorejo sin pan', ['tomate', 300], ['ajo', 5], OIL), ['croutons', 'bread']],
+    [dish('Chicken without bread, with greens', ['pechuga-de-pollo', 150], ['lechuga', 80], OIL), ['bread', 'bun']],
+    [dish('Bread-free chicken bowl', ['pechuga-de-pollo', 150], ['arroz-blanco-cocido', 150], OIL), ['bread']],
+    [dish('Rebanadas de berenjena al horno', ['berenjena', 250], ['tomate', 60], OIL), ['bread', 'toast']],
+    [dish('Ensalada con tacos de queso feta', ['lechuga', 100], ['queso-feta', 50], ['tomate', 60], OIL), ['wrap', 'flatbread']],
+    [dish('Pechuga empanada al horno', ['pechuga-de-pollo', 160], ['harina-de-arroz', 20], OIL), ['pastry', 'pizza base', 'dough']],
+    [dish('Pastel de verduras al horno', ['calabacin', 150], ['huevo', 120], ['cebolla', 50], OIL), ['cake', 'muffin', 'brownie']],
+    [dish('Salmon fish cakes with salad', ['salmon', 150], ['patata', 100], ['lechuga', 60], OIL), ['cake', 'muffin', 'brownie']],
+    [dish('Potato cakes with spinach', ['patata', 200], ['espinaca', 80], OIL), ['cake', 'muffin', 'brownie']],
+    [dish('Cottage pie de ternera', ['carne-picada-de-ternera', 150], ['patata', 200], OIL), ['pastry', 'pizza base', 'dough']],
+    // Phase 1's three open cases.
+    [dish('Tacos de lechuga con pollo', ['pechuga-de-pollo', 120], ['lechuga', 80], ['tomate', 50], OIL), ['wrap', 'flatbread']],
+    [dish('Quiche sin masa de espinacas', ['huevo', 180], ['espinaca', 100], ['cebolla', 40], OIL), ['pastry', 'dough']],
+    [dish('Tostadas de boniato con aguacate', ['boniato', 200], ['aguacate', 80], OIL), ['bread', 'toast']],
+    // The second review (P1-3): a negation reaches past the next word.
+    [dish('Hamburguesa sin queso ni pan', ['carne-picada-de-ternera', 150], ['lechuga', 80], OIL), ['bun', 'bread']],
+    [dish('Hamburguesa de pavo sin gluten ni lactosa ni pan', ['pavo-picado', 150], ['lechuga', 80], OIL), ['bun', 'bread']],
+    [dish('Hamburguesa sin su pan, con ensalada', ['carne-picada-de-ternera', 150], ['lechuga', 80], OIL), ['bun', 'bread']],
+    [dish('Hamburguesa con lechuga en vez de pan', ['carne-picada-de-ternera', 150], ['lechuga', 80], OIL), ['bun', 'bread']],
+    [dish('Hamburguesa en lugar de pan, con lechuga', ['carne-picada-de-ternera', 150], ['lechuga', 80], OIL), ['bun', 'bread']],
+    [dish('Burger with lettuce instead of bread', ['carne-picada-de-ternera', 150], ['lechuga', 80], OIL), ['bun', 'bread']],
+    // The second review (P1-4): a form's word before what stands in for it, or beside "bowl".
+    [dish('Wraps de lechuga con pavo', ['pavo-picado', 120], ['lechuga', 80], OIL), ['wrap', 'flatbread']],
+    [dish('Lettuce wraps with turkey', ['pavo-picado', 120], ['lechuga', 80], OIL), ['wrap', 'flatbread']],
+    [dish('Sándwich de lechuga con pavo', ['fiambre-de-pavo', 60], ['lechuga', 80], ['tomate', 50]), ['bread', 'toast']],
+    [dish('Quesadilla de boniato al horno', ['boniato', 200], ['cebolla', 40], OIL), ['wrap', 'flatbread']],
+    [dish('Enchiladas de calabacín con pavo', ['calabacin', 200], ['pavo-picado', 100], OIL), ['wrap', 'flatbread']],
+    [dish('Montadito de berenjena asada', ['berenjena', 200], ['tomate', 60], OIL), ['bread', 'toast']],
+    [dish('Burrito bowl de pavo', ['pavo-picado', 120], ['arroz-blanco-cocido', 150], OIL), ['wrap', 'flatbread']],
+    [dish('Taco bowl con pavo', ['pavo-picado', 120], ['arroz-blanco-cocido', 150], OIL), ['wrap', 'flatbread']],
+    // The second review (P2): a crustless tart or quiche has no pastry and no sponge.
+    [dish('Crustless quiche with spinach', ['huevo', 180], ['espinaca', 100], OIL), ['pastry', 'dough']],
+    [dish('Tarta salada sin masa de verduras', ['huevo', 180], ['calabacin', 100], OIL), ['cake', 'pastry']]
+  ];
+
+  it.each(cases.flatMap(([recipe, names]) => names.map(name => [recipe.name, name, recipe] as const)))(
+    'rejects "%s" + "%s", for gluten, with no own form',
+    (_title, name, recipe) => {
+      const verdict = judged(recipe, picture(recipe, { name }));
+
+      expect(verdict.accepted).toBe(false);
+      expect(verdict.extras.find(extra => extra.name === name)?.foreignAllergens).toContain('gluten');
+      expect(verdict.notes.some(note => note.startsWith('own_form:'))).toBe(false);
+    }
+  );
+});
+
+/*
+ * Phase 2's second review, the names (P1-1, P1-2, P2). Each was a name that
+ * held a form the dish owns and more: a second form ("cream cheese", "milk
+ * roll"), a word that says what kind of milk it is ("whole milk"), a word of
+ * the dish's own ingredients ("cinnamon roll" on a dish with cinnamon). None
+ * is a row of its family, so each is read as it was before the rule —
+ * whichever way the match call answered. Dishes written for these tests.
+ */
+describe('judgePicture — a name that is more than the dish’s own form is read as before', () => {
+  const SHAKE = dish('Batido de soja con plátano', ['leche-de-soja', 250], ['platano', 100]);
+  const MILKS = ['whole milk', 'skimmed milk', 'semi skimmed milk', 'fresh milk'];
+  const cases: readonly (readonly [PictureRecipe, string, string, string])[] = [
+    [
+      dish('Tarta de queso vegana', ['queso-vegano', 150], ['nata-vegetal-de-soja', 100], ['harina-de-arroz', 50]),
+      'cream cheese',
+      'queso-vegano',
+      'milk'
+    ],
+    [dish('Pan sin gluten con leche de soja', ['pan-sin-gluten', 80], ['leche-de-soja', 200]), 'milk roll', 'pan-sin-gluten', 'gluten'],
+    [dish('Pan sin gluten con leche de soja', ['pan-sin-gluten', 80], ['leche-de-soja', 200]), 'milk bun', 'pan-sin-gluten', 'gluten'],
+    ...MILKS.map(name => [SHAKE, name, 'leche-de-soja', 'milk'] as const),
+    [dish('Curry de garbanzos con leche de coco', ['garbanzos-cocidos', 200], ['leche-de-coco', 150], OIL), 'light cream', 'leche-de-coco', 'milk'],
+    [
+      dish('Curry de garbanzos con leche de coco ligera', ['garbanzos-cocidos', 200], ['leche-de-coco-ligera', 150], OIL),
+      'light cream',
+      'leche-de-coco-ligera',
+      'milk'
+    ],
+    [
+      dish('Tostadas sin gluten con canela', ['pan-sin-gluten', 80], ['canela-molida', 3], ['platano', 80]),
+      'cinnamon roll',
+      'pan-sin-gluten',
+      'gluten'
+    ],
+    [
+      dish('Tostadas sin gluten con canela', ['pan-sin-gluten', 80], ['canela-molida', 3], ['platano', 80]),
+      'cinnamon bun',
+      'pan-sin-gluten',
+      'gluten'
+    ],
+    [dish('Tostadas sin gluten con cebolleta', ['pan-sin-gluten', 80], ['cebolleta', 20], ['huevo', 60]), 'spring roll', 'pan-sin-gluten', 'gluten'],
+    [dish('Pan sin gluten con arroz para sushi', ['pan-sin-gluten', 80], ['arroz-para-sushi', 100]), 'sushi roll', 'pan-sin-gluten', 'gluten'],
+    [dish('Tostadas sin gluten con huevo', ['pan-sin-gluten', 80], ['huevo', 60]), 'egg roll', 'pan-sin-gluten', 'gluten']
+  ];
+
+  it.each(
+    cases.flatMap(([recipe, name, of, allergen]) =>
+      (
+        [
+          ['left as an extra', picture(recipe, { name })],
+          [`left as an extra for ${of}`, picture(recipe, { name, of })],
+          // Below: a kind of milk paired with the soy milk was always read as its name cut short.
+          ...(MILKS.includes(name) ? [] : ([[`paired with ${of}`, picture(recipe, { name, of, paired: true })]] as const))
+        ] as const
+      ).map(([way, shown]) => [name, way, recipe.name, allergen, recipe, shown] as const)
+    )
+  )('rejects "%s" %s on "%s", for %s, with no own form', (name, _way, _title, allergen, recipe, shown) => {
+    const verdict = judged(recipe, shown);
+
+    expect(verdict.accepted).toBe(false);
+    expect(verdict.extras.find(extra => extra.name === name)?.foreignAllergens).toContain(allergen);
+    expect(verdict.notes.some(note => note.startsWith('own_form:'))).toBe(false);
+  });
+
+  /*
+   * The lead's decision (round 3): a family excuses a closed set of allergens
+   * (`FormFamily.carries`), never what a catalogue product of the form
+   * happens to hold. The catalogue's brownie holds walnuts; a brownie beside
+   * a nut-free sponge is excused its flour, egg and milk, and rejected for
+   * the nuts.
+   */
+  it.each(['brownie', 'brownies'])('rejects "%s" beside a nut-free sponge, for tree nuts, every way the match call answers', name => {
+    const sponge = DISHES.lemonCake;
+
+    for (const shown of [
+      picture(sponge, { name }),
+      picture(sponge, { name, of: 'harina-de-arroz' }),
+      picture(sponge, { name, of: 'harina-de-arroz', paired: true })
+    ]) {
+      const verdict = judged(sponge, shown);
+
+      expect(verdict.accepted).toBe(false);
+      expect(verdict.extras.find(extra => extra.name === name)?.foreignAllergens).toEqual(['tree_nuts']);
+      expect(verdict.notes).toContain(`own_form:${name}`);
+    }
+  });
+
+  /*
+   * Not this rule, and unchanged by it: a name the match call paired with an
+   * ingredient, made of words of that ingredient's own name once the
+   * descriptors are gone ("whole milk" → "milk", of "Soy milk"), is that
+   * ingredient's name cut short (project 006, `shortened` in `judge.ts`). The
+   * rule before project 010 accepted these as well; pinned so a change is seen.
+   */
+  it.each(MILKS)('accepts "%s" paired with the soy milk, as the rule before project 010 did, with no own form', name => {
+    const verdict = judged(SHAKE, picture(SHAKE, { name, of: 'leche-de-soja', paired: true }));
+
+    expect(verdict.accepted).toBe(true);
+    expect(verdict.notes.some(note => note.startsWith('own_form:'))).toBe(false);
+  });
 });

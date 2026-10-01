@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import { DISHES, judged, picture } from '#test/dish-picture/acceptance';
 
+import { FORM_FAMILIES } from './forms';
+
 /*
  * The reverse measure (project 010, PRD 6; report `0006` § 5.4): what the rule
  * lets through. Each example dish is drawn faithfully, then with one more food
@@ -22,11 +24,12 @@ import { DISHES, judged, picture } from '#test/dish-picture/acceptance';
  * report's 229 pairs, where the extra stood alone, and are not meant to
  * reconcile with them.
  *
- * Phase 2 moves these lists. Every food it adds must be a form of the same
- * family as one the dish already has — a wheat roll beside gluten-free bread —
- * and is explained family by family in the log, as the library's 229 pairs
- * are; a food that is not is the rule excusing too much. Nothing may leave a
- * list unexplained either.
+ * Phase 2 moved these lists, and only by `ADDED_IN_PHASE_2`: every food it
+ * added is a form of a family the dish has its own version of — a wheat roll
+ * beside gluten-free bread — or the one vocabulary fix that lets a food
+ * through (a sulphite king prawns only may contain, on a dish of prawns).
+ * Nothing left a list. A later change that moves a list says, the same way,
+ * why each food moved.
  */
 const EXTRA_FOODS = [
   'bread',
@@ -94,8 +97,10 @@ const EXTRA_FOODS = [
   'cornflakes'
 ] as const;
 
-/** For each dish, the extra foods today's rule accepts beside it. */
-const ACCEPTED_TODAY: Readonly<Partial<Record<keyof typeof DISHES, readonly string[]>>> = {
+type Dish = keyof typeof DISHES;
+
+/** For each dish, the extra foods the rule accepted beside it before project 010's phase 2. */
+const ACCEPTED_BEFORE: Readonly<Partial<Record<Dish, readonly string[]>>> = {
   cauliflowerPizza: ['egg', 'fried egg', 'mayonnaise', 'sausages'],
   chickenWithRice: ['sausages'],
   coconutCurry: ['sausages'],
@@ -166,22 +171,54 @@ const ACCEPTED_TODAY: Readonly<Partial<Record<keyof typeof DISHES, readonly stri
   ]
 };
 
+/**
+ * What phase 2 added, dish by dish, and why: the family of forms the dish has
+ * its own version of (`forms.ts`) — by the ingredient or the title in the
+ * comment — or the sulphite fix. A form beside the dish's own form under its
+ * fuller name stays out: "bread" beside the toast's "gluten-free bread",
+ * "pasta" beside "gluten-free pasta", "yogurt" beside "soya yoghurt", "cheese"
+ * beside "vegan cheese" (project 006's second food).
+ */
+const ADDED_IN_PHASE_2: Readonly<Partial<Record<Dish, Readonly<Record<string, readonly string[]>>>>> = {
+  cauliflowerPizza: { pastry: ['pizza base', 'pastry'] }, // the title's "pizza"
+  coconutCurry: { cream: ['cream'], milk: ['milk'] }, // `leche-de-coco`
+  cornTacos: { wraps: ['wrap', 'flatbread'] }, // `tortilla-de-maiz`
+  glutenFreeBiscuits: { biscuits: ['cookies'] }, // `galletas-sin-gluten`
+  glutenFreeSpaghetti: { pasta: ['noodles', 'spaghetti'] }, // `pasta-sin-gluten`
+  glutenFreeToast: { bread: ['toast', 'bun', 'croutons'] }, // `pan-sin-gluten`
+  heuraNuggets: { meat: ['meatballs', 'burger patty'], nuggets: ['nuggets', 'croquettes'] }, // `heura`; the title's "nuggets"
+  heuraStirFry: { meat: ['meatballs', 'burger patty'] }, // `heura`
+  prawnsWithRice: { sulphites: ['king prawns'] }, // a sulphite they only may contain, beside prawns
+  riceCakes: { crackers: ['crackers'] }, // `tortitas-de-arroz`
+  ricePancakes: { pancakes: ['pancakes', 'waffles'] }, // the title's "tortitas", on a dish with no rice or corn cakes
+  soyMilkShake: { milk: ['milk'] } // `leche-de-soja`
+};
+
 describe('judgePicture — the reverse measure: one more food on an example dish', () => {
   it('measures 63 foods on 20 dishes', () => {
     expect(new Set(EXTRA_FOODS).size).toBe(63);
-    expect(Object.keys(ACCEPTED_TODAY)).toHaveLength(20);
+    expect(Object.keys(ACCEPTED_BEFORE)).toHaveLength(20);
   });
 
-  it.each(Object.entries(ACCEPTED_TODAY) as [keyof typeof DISHES, readonly string[]][])(
-    'accepts on %s only the foods pinned for it',
-    (key, accepted) => {
+  it.each(Object.entries(ACCEPTED_BEFORE) as [Dish, readonly string[]][])(
+    'accepts on %s the foods it accepted before, and those phase 2 added, only',
+    (key, before) => {
       const recipe = DISHES[key];
+      const added = Object.values(ADDED_IN_PHASE_2[key] ?? {}).flat();
 
-      expect(EXTRA_FOODS.filter(food => judged(recipe, picture(recipe, { name: food })).accepted)).toEqual(accepted);
+      expect(EXTRA_FOODS.filter(food => judged(recipe, picture(recipe, { name: food })).accepted)).toEqual(
+        EXTRA_FOODS.filter(food => before.includes(food) || added.includes(food))
+      );
     }
   );
 
-  it('accepts 83 of the 1,260 pairs today', () => {
-    expect(Object.values(ACCEPTED_TODAY).flat()).toHaveLength(83);
+  it('accepted 83 of the 1,260 pairs before phase 2, and accepts 106: 22 through a dish’s own form, 1 through the sulphite fix', () => {
+    const added = Object.values(ADDED_IN_PHASE_2).flatMap(families => Object.entries(families ?? {}));
+    const byOwnForm = added.filter(([family]) => family !== 'sulphites').flatMap(([, foods]) => foods);
+    const bySulphites = added.filter(([family]) => family === 'sulphites').flatMap(([, foods]) => foods);
+
+    expect(added.every(([family]) => family === 'sulphites' || FORM_FAMILIES.some(known => known.family === family))).toBe(true);
+    expect([Object.values(ACCEPTED_BEFORE).flat().length, byOwnForm.length, bySulphites.length]).toEqual([83, 22, 1]);
+    expect(Object.values(ACCEPTED_BEFORE).flat().length + byOwnForm.length + bySulphites.length).toBe(106);
   });
 });
