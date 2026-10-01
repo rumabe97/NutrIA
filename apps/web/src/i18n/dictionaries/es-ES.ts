@@ -178,6 +178,8 @@ export const esES = {
     actions: {
       'account.activated': 'Cuenta activada',
       'account.tier_changed': 'Cambio de plan',
+      'auth.password_changed': 'Contraseña cambiada',
+      'auth.sessions_revoked': 'Sesiones cerradas',
       'feedback.handled': 'Mensaje marcado como visto',
       'feedback.reopened': 'Mensaje reabierto',
       'picture.accepted': 'Imagen rechazada de un plato aceptada a mano, contra el revisor',
@@ -202,8 +204,12 @@ export const esES = {
     ],
     intro: 'Quién hizo cada cambio de cuenta o de ajuste, y cuándo.',
     noMatch: 'Ninguna acción coincide con el filtro.',
+    /** `auth.password_changed`: how the person changed it. */
+    passwordVia: { change: 'Desde su perfil', reset: 'Con el enlace de recuperación' },
     /** `picture.removed`: who had accepted the picture the owner took back. A row written before this was kept says nothing. */
     removedAcceptedBy: { judge: 'La había aceptado el revisor', owner: 'La habías aceptado a mano, contra el revisor' },
+    /** `auth.sessions_revoked`: which of the person's sessions were closed. */
+    sessionsScope: { all: 'Todas', one: 'Una', others: 'Todas menos la suya' },
     settingChange: '{key}: {state}',
     state: { off: 'Apagado', on: 'Encendido' },
     tableNote: 'Las más recientes primero.',
@@ -2561,7 +2567,8 @@ export const esES = {
       'Un dispositivo cuya sesión cierres tendrá que volver a entrar. Hasta que se conecte de nuevo puede seguir mostrando lo que guardó para leer sin conexión.',
     sessionsFailed: 'No hemos podido cargar tus sesiones.',
     sessionsLoading: 'Cargando tus sesiones…',
-    sessionsNotFresh: 'Por seguridad, para ver tus dispositivos tienes que haber iniciado sesión hoy. Cerrar todas las demás sesiones sí puedes ahora.',
+    sessionsNotFresh:
+      'Por seguridad, para ver tus dispositivos tienes que haber iniciado sesión hoy. Cerrar todas las demás sesiones sí puedes ahora.',
     sessionsTitle: 'Dónde tienes la sesión abierta',
     signInAgain: 'Cerrar sesión y volver a entrar',
     started: 'Entraste el {date}',

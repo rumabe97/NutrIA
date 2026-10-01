@@ -169,6 +169,8 @@ export const enGB: Dictionary = {
     actions: {
       'account.activated': 'Account activated',
       'account.tier_changed': 'Tier changed',
+      'auth.password_changed': 'Password changed',
+      'auth.sessions_revoked': 'Sessions signed out',
       'feedback.handled': 'Message marked seen',
       'feedback.reopened': 'Message reopened',
       'picture.accepted': 'Rejected dish picture accepted by hand, against the checker',
@@ -192,7 +194,11 @@ export const enGB: Dictionary = {
     ],
     intro: 'Who made each account or setting change, and when.',
     noMatch: 'No action matches the filter.',
+    /** `auth.password_changed`: how the person changed it. */
+    passwordVia: { change: 'From their profile', reset: 'With the recovery link' },
     removedAcceptedBy: { judge: 'The checker had accepted it', owner: 'You had accepted it by hand, against the checker' },
+    /** `auth.sessions_revoked`: which of the person's sessions were closed. */
+    sessionsScope: { all: 'All of them', one: 'One', others: 'All but their own' },
     settingChange: '{key}: {state}',
     state: { off: 'Off', on: 'On' },
     tableNote: 'Most recent first.',
@@ -2513,8 +2519,7 @@ export const enGB: Dictionary = {
     platforms: { android: 'Android', ipad: 'iPad', iphone: 'iPhone', linux: 'Linux', mac: 'Mac', windows: 'Windows' },
     sectionTitle: 'Security',
     sessionClosed: 'We have signed out {device}.',
-    sessionsBody:
-      'A device you sign out will have to sign in again. Until it next connects, it may still show what it kept for reading offline.',
+    sessionsBody: 'A device you sign out will have to sign in again. Until it next connects, it may still show what it kept for reading offline.',
     sessionsFailed: 'We could not load your sessions.',
     sessionsLoading: 'Loading your sessions…',
     sessionsNotFresh: 'For your security, you need to have signed in today to see your devices. You can still sign out all the others now.',
