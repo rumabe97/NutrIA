@@ -101,7 +101,20 @@ export const esES = {
     sortBy: { createdAt: 'fecha de alta', email: 'correo', lastActiveAt: 'última actividad', plans: 'número de planes' },
     tableTitle: 'Todas las cuentas',
     tiers: { free: 'Gratis', premium: 'Premium' },
-    title: 'Cuentas'
+    title: 'Cuentas',
+    /** Taking an account's second factor away when its owner has lost it (project 011, phase 4): asked, then done by the daily job. */
+    twoFactorRemoval: {
+      body: 'Se quita entre 48 y 72 horas después de ahora. Le escribimos a esta dirección en este momento: si no lo ha pedido, le basta con entrar con su código para cancelarlo.',
+      cancel: 'Cancelar',
+      /** The visible word first (WCAG 2.5.3), then what it cancels and whose. */
+      cancelFor: 'Cancelar la retirada del segundo factor: {email}',
+      confirm: 'Programar la retirada',
+      notPending: 'Ya no había ninguna retirada pendiente: puede que la persona la haya cancelado al entrar con su código.',
+      pending: 'Segundo factor: se quita a partir del {date}',
+      remove: 'Quitar el segundo factor',
+      removeFor: 'Quitar el segundo factor: {email}',
+      title: 'Quitar el segundo factor de {email}'
+    }
   },
 
   /* `/admin/generacion/ia`: calls, tokens and spend of the text models over the period, and by model. */
@@ -180,6 +193,9 @@ export const esES = {
       'account.tier_changed': 'Cambio de plan',
       'auth.2fa_disabled': 'Verificación en dos pasos desactivada',
       'auth.2fa_enabled': 'Verificación en dos pasos activada',
+      'auth.2fa_removal_cancelled': 'Retirada de la verificación en dos pasos cancelada',
+      'auth.2fa_removal_requested': 'Retirada de la verificación en dos pasos pedida',
+      'auth.2fa_removed_by_owner': 'Verificación en dos pasos quitada a petición',
       'auth.backup_code_used': 'Código de respaldo usado',
       'auth.backup_codes_regenerated': 'Códigos de respaldo nuevos generados',
       'auth.password_changed': 'Contraseña cambiada',
@@ -212,6 +228,8 @@ export const esES = {
     noMatch: 'Ninguna acción coincide con el filtro.',
     /** `auth.password_changed`: how the person changed it. */
     passwordVia: { change: 'Desde su perfil', reset: 'Con el enlace de recuperación' },
+    /** `auth.2fa_removal_cancelled`: who stopped it. */
+    removalCancelledBy: { account: 'La persona, al entrar con su código', owner: 'Desde la consola' },
     /** `picture.removed`: who had accepted the picture the owner took back. A row written before this was kept says nothing. */
     removedAcceptedBy: { judge: 'La había aceptado el revisor', owner: 'La habías aceptado a mano, contra el revisor' },
     /** `auth.sessions_revoked`: which of the person's sessions were closed. */
@@ -1023,7 +1041,12 @@ export const esES = {
     cronEmpty: 'Sin tareas.',
     cronNever: 'Nunca',
     cronNote: 'Atrasada si lleva más de {hours} h sin terminar.',
-    crons: { reminders: 'Avisos de check-in', rewrite: 'Reescritura de los pasos', verifications: 'Borrado de enlaces caducados' },
+    crons: {
+      reminders: 'Avisos de check-in',
+      rewrite: 'Reescritura de los pasos',
+      twoFactorRemovals: 'Retirada del segundo factor',
+      verifications: 'Borrado de enlaces caducados'
+    },
     cronState: { ok: 'Al día', stale: 'Atrasada' },
     cronTitle: 'Tareas programadas',
     howCounted: [
@@ -1048,14 +1071,22 @@ export const esES = {
     mailEmpty: 'No salió ningún correo en este periodo.',
     mailKinds: {
       'account-waiting': 'Cuenta en espera',
+      'backup-code-used': 'Código de respaldo usado',
+      'backup-codes-regenerated': 'Códigos de respaldo nuevos',
       'care-invitation': 'Invitación de vínculo',
       'check-in-reminder': 'Aviso de check-in',
       'checkin-submitted': 'Check-in enviado',
       'owner-alert': 'Aviso al propietario',
       'owner-digest': 'Resumen diario al propietario',
       'owner-picture-alert': 'Aviso de imágenes al propietario',
+      'password-changed': 'Contraseña cambiada',
       'password-reset': 'Restablecer contraseña',
       'professional-granted': 'Perfil profesional concedido',
+      'two-factor-disabled': 'Segundo factor desactivado',
+      'two-factor-enabled': 'Segundo factor activado',
+      'two-factor-removal-cancelled': 'Retirada del segundo factor cancelada',
+      'two-factor-removal-requested': 'Retirada del segundo factor pedida',
+      'two-factor-removed': 'Segundo factor quitado',
       'verify-email': 'Confirmar correo'
     },
     mailSeries: { failed: 'Fallidos', sent: 'Enviados' },
@@ -1398,6 +1429,9 @@ export const esES = {
     quotaExceeded: 'Has agotado lo que permite tu plan esta quincena.',
     reauthenticationRequired: 'Por seguridad, cierra sesión, vuelve a entrar e inténtalo de nuevo.',
     request: 'No hemos podido completar la acción.',
+    /** The console's second factor removal (project 011, phase 4). */
+    twoFactorNotEnabled: 'Esta cuenta ya no tiene el segundo factor activado.',
+    twoFactorRemovalPending: 'Ya había una retirada pendiente para esta cuenta: la fecha está en su fila.',
     underMinimumAge: 'NutrIA es para mayores de 18 años.',
     unsafeContent: 'Ese contenido no cumple tus restricciones alimentarias.'
   },
@@ -2280,7 +2314,7 @@ export const esES = {
           'Cómo llevas el plan: qué comidas marcas como hechas o saltadas, tus valoraciones y comentarios de los platos, tu peso a lo largo del tiempo y tus check-ins quincenales. Para que el siguiente plan lo tenga en cuenta.',
           'Pagos: si contratas Premium, Stripe cobra y nosotros guardamos solo el identificador de tu suscripción y su estado. Nunca vemos el número de tu tarjeta.',
           'Seguridad de tu cuenta: anotamos cuándo cambias o restableces tu contraseña y cuándo cierras sesiones, con la fecha y sin tu dirección IP. Para que podamos ver qué pasó si alguien entra en tu cuenta.',
-          'Verificación en dos pasos, solo si la activas: el secreto de tu aplicación de autenticación y tus códigos de respaldo, cifrados, los intentos fallidos de código y, en el registro de seguridad, cuándo la activas, la desactivas o usas un código de respaldo. Si la desactivas, borramos el secreto y los códigos. Para que, aunque alguien sepa tu contraseña, no entre en tu cuenta.',
+          'Verificación en dos pasos, solo si la activas: el secreto de tu aplicación de autenticación y tus códigos de respaldo, cifrados, los intentos fallidos de código y, en el registro de seguridad, cuándo la activas, la desactivas o usas un código de respaldo. Si la desactivas, borramos el secreto y los códigos. Si pierdes el teléfono y los códigos de respaldo, puedes pedirnos, desde la dirección de tu cuenta, que la quitemos: te avisamos por correo al momento, entre 48 y 72 horas después se quita y, si entras antes con un código, se cancela; en el registro de seguridad queda anotado. Para que, aunque alguien sepa tu contraseña, no entre en tu cuenta.',
           'Uso del producto: registramos, ligado a tu cuenta, cuándo abres sesión y cuándo pides cambiar un plato, sin más detalle. Para saber si el producto funciona.',
           'Lo que nos escribes: los mensajes del buzón de sugerencias, para leerlos y responderte.'
         ],

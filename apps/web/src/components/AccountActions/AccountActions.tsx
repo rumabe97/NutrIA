@@ -11,6 +11,7 @@ import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
+import { TwoFactorRemoval } from 'components/TwoFactorRemoval';
 import { useKeepFocus } from 'components/AdminTable/useKeepFocus';
 
 import { COLLEGIATE_NUMBER_PATTERN } from 'core/entities/Professional';
@@ -23,7 +24,7 @@ import type { AccountView } from 'core/controllers/User';
 type Tier = AccountView['tier'];
 
 interface AccountActionsProps {
-  account: Pick<AccountView, 'activated' | 'email' | 'id' | 'professional' | 'tier'>;
+  account: Pick<AccountView, 'activated' | 'email' | 'id' | 'professional' | 'tier' | 'twoFactorEnabled' | 'twoFactorRemovalDueAt'>;
   /**
    * Whether the paid tier exists today. With the switch off the tier control is
    * not drawn at all: a button that moves an account to a tier that grants
@@ -35,7 +36,8 @@ interface AccountActionsProps {
 /**
  * One account's row actions on Cuentas (`0068`): open it (`0030`, `0031`), move its
  * tier, make it a professional (`0059`) — the controls the old account list had,
- * with the same words, the same collegiate-number check and the same errors.
+ * with the same words, the same collegiate-number check and the same errors — and
+ * remove its second factor (`TwoFactorRemoval`, project 011), its own island below.
  *
  * Each row is its own island. After an action the page is read again, so the row's
  * columns say the new state; until then this row says it already, and the button
@@ -248,6 +250,8 @@ export function AccountActions({ account, premium }: AccountActionsProps) {
           {error}
         </Text>
       ) : null}
+
+      <TwoFactorRemoval account={account} />
     </div>
   );
 }

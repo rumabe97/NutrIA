@@ -95,7 +95,18 @@ export const enGB: Dictionary = {
     sortBy: { createdAt: 'sign-up date', email: 'email', lastActiveAt: 'last activity', plans: 'number of plans' },
     tableTitle: 'Every account',
     tiers: { free: 'Free', premium: 'Premium' },
-    title: 'Accounts'
+    title: 'Accounts',
+    twoFactorRemoval: {
+      body: 'It is removed between 48 and 72 hours from now. We write to this address straight away: if they did not ask for it, signing in with their code cancels it.',
+      cancel: 'Cancel',
+      cancelFor: 'Cancel the second factor removal: {email}',
+      confirm: 'Schedule the removal',
+      notPending: 'There was no removal pending any more: the person may have cancelled it by signing in with their code.',
+      pending: 'Second factor: removed from {date}',
+      remove: 'Remove the second factor',
+      removeFor: 'Remove the second factor: {email}',
+      title: 'Remove the second factor from {email}'
+    }
   },
 
   adminAi: {
@@ -171,6 +182,9 @@ export const enGB: Dictionary = {
       'account.tier_changed': 'Tier changed',
       'auth.2fa_disabled': '2-step verification turned off',
       'auth.2fa_enabled': '2-step verification turned on',
+      'auth.2fa_removal_cancelled': '2-step verification removal cancelled',
+      'auth.2fa_removal_requested': '2-step verification removal requested',
+      'auth.2fa_removed_by_owner': '2-step verification removed on request',
       'auth.backup_code_used': 'Backup code used',
       'auth.backup_codes_regenerated': 'New backup codes generated',
       'auth.password_changed': 'Password changed',
@@ -202,6 +216,7 @@ export const enGB: Dictionary = {
     noMatch: 'No action matches the filter.',
     /** `auth.password_changed`: how the person changed it. */
     passwordVia: { change: 'From their profile', reset: 'With the recovery link' },
+    removalCancelledBy: { account: 'The person, by signing in with their code', owner: 'From the console' },
     removedAcceptedBy: { judge: 'The checker had accepted it', owner: 'You had accepted it by hand, against the checker' },
     /** `auth.sessions_revoked`: which of the person's sessions were closed. */
     sessionsScope: { all: 'All of them', one: 'One', others: 'All but their own' },
@@ -992,7 +1007,12 @@ export const enGB: Dictionary = {
     cronEmpty: 'No jobs.',
     cronNever: 'Never',
     cronNote: 'Stale if it has gone more than {hours} h without finishing.',
-    crons: { reminders: 'Check-in reminders', rewrite: 'Step rewrite', verifications: 'Expired link cleanup' },
+    crons: {
+      reminders: 'Check-in reminders',
+      rewrite: 'Step rewrite',
+      twoFactorRemovals: 'Second factor removals',
+      verifications: 'Expired link cleanup'
+    },
     cronState: { ok: 'On time', stale: 'Stale' },
     cronTitle: 'Scheduled jobs',
     howCounted: [
@@ -1017,14 +1037,22 @@ export const enGB: Dictionary = {
     mailEmpty: 'No mail left in this period.',
     mailKinds: {
       'account-waiting': 'Account waiting',
+      'backup-code-used': 'Backup code used',
+      'backup-codes-regenerated': 'New backup codes',
       'care-invitation': 'Link invitation',
       'check-in-reminder': 'Check-in reminder',
       'checkin-submitted': 'Check-in submitted',
       'owner-alert': 'Alert to the owner',
       'owner-digest': 'Daily digest to the owner',
       'owner-picture-alert': 'Picture alert to the owner',
+      'password-changed': 'Password changed',
       'password-reset': 'Password reset',
       'professional-granted': 'Professional profile granted',
+      'two-factor-disabled': 'Second factor turned off',
+      'two-factor-enabled': 'Second factor turned on',
+      'two-factor-removal-cancelled': 'Second factor removal cancelled',
+      'two-factor-removal-requested': 'Second factor removal requested',
+      'two-factor-removed': 'Second factor removed',
       'verify-email': 'Confirm email'
     },
     mailSeries: { failed: 'Failed', sent: 'Sent' },
@@ -1366,6 +1394,9 @@ export const enGB: Dictionary = {
     quotaExceeded: 'You have used up what your plan allows this fortnight.',
     reauthenticationRequired: 'For your security, sign out, sign back in and try again.',
     request: 'We could not complete that action.',
+    /** The console's second factor removal (project 011, phase 4). */
+    twoFactorNotEnabled: 'This account no longer has the second factor on.',
+    twoFactorRemovalPending: 'A removal was already pending for this account: its date is on its row.',
     underMinimumAge: 'NutrIA is for adults, 18 and over.',
     unsafeContent: 'That content does not meet your dietary restrictions.'
   },
@@ -2235,7 +2266,7 @@ export const enGB: Dictionary = {
           'How the plan is going: which meals you mark as eaten or skipped, your ratings and comments on dishes, your weight over time and your fortnightly check-ins. So the next plan takes them into account.',
           'Payments: if you subscribe to Premium, Stripe takes the payment and we keep only the identifier for your subscription and its status. We never see your card number.',
           'Account security: we record when you change or reset your password and when you sign out of sessions, with the date and without your IP address. So that we can see what happened if someone gets into your account.',
-          'Two-step verification, only if you turn it on: the secret of your authenticator app and your backup codes, encrypted, failed code attempts and, in the security record, when you turn it on, turn it off or use a backup code. If you turn it off, we delete the secret and the codes. So that, even if someone knows your password, they cannot get into your account.',
+          'Two-step verification, only if you turn it on: the secret of your authenticator app and your backup codes, encrypted, failed code attempts and, in the security record, when you turn it on, turn it off or use a backup code. If you turn it off, we delete the secret and the codes. If you lose your phone and your backup codes, you can ask us, from your account’s address, to remove it: we email you right away, it is removed 48 to 72 hours later and, if you sign in with a code before then, it is cancelled; it is noted in the security record. So that, even if someone knows your password, they cannot get into your account.',
           'Product use: we record, linked to your account, when you sign in and when you ask to change a dish, and nothing more. To know whether the product works.',
           'What you write to us: messages in the feedback box, so we can read and answer them.'
         ],
