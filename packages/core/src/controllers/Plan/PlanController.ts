@@ -926,7 +926,7 @@ async function localeFor(userId: string, requested: string | null): Promise<stri
   return requested ?? (await ProfileRepository.findByUserId(userId))?.locale ?? FALLBACK_LOCALE;
 }
 
-/** What a cooked grain's dry weight is rounded to on the meal (`0078`). */
+/** What a cooked grain's dry weight is rounded to on the meal (`0078`), and the least it shows: never "0 g". */
 const DRY_STEP_G = 5;
 
 /** The dry foods' names, in the reader's language, for the cooked grains among these slugs. No query when there are none. */
@@ -985,7 +985,7 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
         alternatives: alternativesFor(item, grams, item.substitutes, safety),
         ...(dry && {
           dry: {
-            grams: Math.round(dry.dryGrams / DRY_STEP_G) * DRY_STEP_G,
+            grams: Math.max(DRY_STEP_G, Math.round(dry.dryGrams / DRY_STEP_G) * DRY_STEP_G),
             name: (dry.drySlug && dryNames.get(dry.drySlug)) ?? withoutCooked(item.name)
           }
         }),
