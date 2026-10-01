@@ -55,7 +55,7 @@ import {
   PATTERN_EXCLUDED_SLUGS,
   resolvePreferences
 } from 'core/domain/Preference';
-import { PLAN_DAYS, PLATE_LIMIT, schedulePlan } from 'core/domain/Scheduler';
+import { PLAN_DAYS, PLATE_GRAMS_MAX, PLATE_LIMIT, schedulePlan } from 'core/domain/Scheduler';
 import { bestEffortExclusions, dishSafety, normaliseForMatching, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
 import { MAIN_SLOTS } from 'core/domain/Variety';
 
@@ -419,6 +419,7 @@ async function measureProfile(profile, shared) {
   // against its own raised target, exactly as `validatePlan` judges it.
   const deviations = macroDeviations(scheduled.assignment.days, dayTargets, targets);
   const plateShare = plateShares(scheduled.assignment.days, dayTargets, targets, weights);
+  const plateWeight = plateGrams(scheduled.assignment.days);
 
   const blockingViolations = violations.filter(isBlocking);
   const bandViolations = violations.filter(violation => BAND_KINDS.has(violation.kind));
@@ -487,6 +488,7 @@ async function measureProfile(profile, shared) {
     measured: true,
     note,
     plateShare,
+    plateWeight,
     poolSize: pool.length,
     slug: profile.slug,
     unsafe,
@@ -740,6 +742,38 @@ function plateShares(days, dayTargets, targets, weights) {
   };
 }
 
+/**
+ * What every plate weighs — the sum of its ingredients' grams, cooked, as the
+ * scheduler sizes them — against `PLATE_GRAMS_MAX` for its slot (`0078`): the
+ * heaviest plate, the mean per slot, and how many are over their ceiling.
+ */
+function plateGrams(days) {
+  const bySlot = new Map();
+  let max = null;
+  let overCeiling = 0;
+  let plates = 0;
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      const grams = meal.ingredients.reduce((sum, item) => sum + item.grams, 0);
+      const slot = bySlot.get(meal.slot) ?? { count: 0, total: 0 };
+
+      bySlot.set(meal.slot, { count: slot.count + 1, total: slot.total + grams });
+      max = max === null ? grams : Math.max(max, grams);
+      // A tenth of a gram per item is rounding, not weight.
+      overCeiling += grams > PLATE_GRAMS_MAX[meal.slot] + 0.5 ? 1 : 0;
+      plates += 1;
+    }
+  }
+
+  return {
+    max: max === null ? null : Math.round(max),
+    meanBySlot: Object.fromEntries([...bySlot].map(([slot, { count, total }]) => [slot, Math.round(total / count)])),
+    overCeiling,
+    plates
+  };
+}
+
 function printProfile(profile, result) {
   console.log(`\n${profile.slug} — ${profile.description}`);
 
@@ -823,6 +857,15 @@ function printProfile(profile, result) {
     console.log(
       `  plate share of its slot (limit ${PLATE_LIMIT.min}–${PLATE_LIMIT.max}): min ${min}, max ${max}, outside ${outsideLimit} / ${plates}`
     );
+  }
+
+  if (result.plateWeight) {
+    const { max, meanBySlot, overCeiling, plates } = result.plateWeight;
+    const means = Object.entries(meanBySlot)
+      .map(([slot, mean]) => `${slot} ${mean} g (ceiling ${PLATE_GRAMS_MAX[slot]})`)
+      .join(', ');
+
+    console.log(`  plate grams (0078): max ${max} g, mean ${means}; over the ceiling ${overCeiling} / ${plates}`);
   }
 
   const spanish = result.spanish;
@@ -954,6 +997,15 @@ function printComparison(before, results) {
         previous.plateShare
           ? `  plate share: max ${previous.plateShare.max} → ${after.plateShare.max}, outside the limit ${previous.plateShare.outsideLimit} → ${after.plateShare.outsideLimit}`
           : `  plate share: max ${after.plateShare.max}, outside the limit ${after.plateShare.outsideLimit} (not measured before)`
+      );
+    }
+
+    // Nor does a file written before `0078` have plate grams.
+    if (after.plateWeight) {
+      console.log(
+        previous.plateWeight
+          ? `  plate grams: max ${previous.plateWeight.max} → ${after.plateWeight.max} g, over the ceiling ${previous.plateWeight.overCeiling} → ${after.plateWeight.overCeiling}`
+          : `  plate grams: max ${after.plateWeight.max} g, over the ceiling ${after.plateWeight.overCeiling} (not measured before)`
       );
     }
   }
