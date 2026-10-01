@@ -289,6 +289,30 @@ describe('what follows a password change, a closed session and a sign-in', () =>
       ]);
     });
 
+    it('answers 200 for another person’s token, closes nothing and records nothing', async () => {
+      const auth = build();
+      const ana = await signUp(auth);
+      const bea = (await call(auth, '/sign-up/email', { body: { email: 'bea@example.invalid', name: 'Bea', password: PASSWORD } })).cookie ?? '';
+      const beaToken = store.session.find(row => row.userId === store.user.find(user => user.email === 'bea@example.invalid')?.id)?.token;
+
+      const answered = await call(auth, '/revoke-session', { body: { token: beaToken }, cookie: ana });
+
+      expect(answered).toMatchObject({ body: { status: true }, status: 200 });
+      await expect(sessionOf(auth, bea)).resolves.not.toBeNull();
+      expect(writes.sessionsRevoked).not.toHaveBeenCalled();
+    });
+
+    it('answers a made-up token the same way, and records nothing', async () => {
+      const auth = build();
+      const ana = await signUp(auth);
+
+      await expect(call(auth, '/revoke-session', { body: { token: 'not-a-token' }, cookie: ana })).resolves.toMatchObject({
+        body: { status: true },
+        status: 200
+      });
+      expect(writes.sessionsRevoked).not.toHaveBeenCalled();
+    });
+
     it('records nothing for a request with no session', async () => {
       const auth = build();
       await signUp(auth);
