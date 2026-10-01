@@ -462,6 +462,40 @@ describe('account security: the password, the sessions, and a password found bre
       expect(code(await get('profile', session.cookie).expect(409))).toBe('PASSWORD_CHANGE_REQUIRED');
     });
 
+    it('refuses the same password back, by change or by reset, with PASSWORD_COMPROMISED, and the mark stays', async () => {
+      const { id, email } = await account('luis', 'Luis Arriaga');
+      const session = await signIn(email);
+
+      await mark(id);
+
+      // HIBP is off under NODE_ENV=test: this is the comparison with the stored hash, nothing else.
+      const changed = await change(session.cookie, { currentPassword: ORIGINAL, newPassword: ORIGINAL });
+
+      expect(changed.status).toBe(400);
+      expect(code(changed)).toBe('PASSWORD_COMPROMISED');
+      expect(await markOf(id)).not.toBeNull();
+      expect(code(await get('profile', session.cookie).expect(409))).toBe('PASSWORD_CHANGE_REQUIRED');
+
+      const token = `account-security-same-${String(stamp)}`;
+
+      await sql()`
+        insert into verification (id, identifier, value, expires_at, created_at, updated_at)
+        values (${token}, ${`reset-password:${token}`}, ${id}, now() + interval '1 hour', now(), now())`;
+
+      const reset = await request(server()).post(`/${PREFIX}/auth/reset-password`).send({ newPassword: ORIGINAL, token });
+
+      expect(reset.status).toBe(400);
+      expect(code(reset)).toBe('PASSWORD_COMPROMISED');
+      expect(await markOf(id)).not.toBeNull();
+      expect(code(await get('profile', session.cookie).expect(409))).toBe('PASSWORD_CHANGE_REQUIRED');
+
+      // Refusals both: no row, no mail.
+      expect(await auditRows(id, 'auth.password_changed')).toEqual([]);
+      await pause(500);
+      expect(mailsTo(email)).toEqual([]);
+      await sql()`delete from verification where id = ${token}`;
+    });
+
     it('still lets a marked account delete itself', async () => {
       const { id, email } = await account('gema', 'Gema Villalobos');
       const session = await signIn(email);
