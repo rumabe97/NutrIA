@@ -755,7 +755,8 @@ export const esES = {
       draft: 'Borrador',
       failed: 'Fallido',
       generating: 'Generándose',
-      pending_review: 'Pendiente de revisión'
+      pending_review: 'Pendiente de revisión',
+      scheduled: 'Programado'
     },
     title: 'Planes'
   },
