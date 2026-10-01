@@ -172,6 +172,7 @@ export const enGB: Dictionary = {
       'auth.2fa_disabled': '2-step verification turned off',
       'auth.2fa_enabled': '2-step verification turned on',
       'auth.backup_code_used': 'Backup code used',
+      'auth.backup_codes_regenerated': 'New backup codes generated',
       'auth.password_changed': 'Password changed',
       'auth.sessions_revoked': 'Sessions signed out',
       'feedback.handled': 'Message marked seen',

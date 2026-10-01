@@ -181,6 +181,7 @@ export const esES = {
       'auth.2fa_disabled': 'Verificación en dos pasos desactivada',
       'auth.2fa_enabled': 'Verificación en dos pasos activada',
       'auth.backup_code_used': 'Código de respaldo usado',
+      'auth.backup_codes_regenerated': 'Códigos de respaldo nuevos generados',
       'auth.password_changed': 'Contraseña cambiada',
       'auth.sessions_revoked': 'Sesiones cerradas',
       'feedback.handled': 'Mensaje marcado como visto',

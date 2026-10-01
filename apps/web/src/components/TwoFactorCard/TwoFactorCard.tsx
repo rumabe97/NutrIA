@@ -136,10 +136,13 @@ export function TwoFactorCard({ email, enabled: enabledAtLoad }: TwoFactorCardPr
       <Text size="sm" tone="secondary">
         {enabled ? t.bodyOn : t.bodyOff}
       </Text>
-      {/* Better Auth does not challenge a provider's sign-in (`0074`): the switch covers the password only. */}
-      <Text size="sm" tone="secondary">
-        {t.googleNote}
-      </Text>
+      {/* Better Auth does not challenge a provider's sign-in (`0074`): once on, say that the code
+          guards the password only. */}
+      {enabled ? (
+        <Text size="sm" tone="secondary">
+          {t.googleNote}
+        </Text>
+      ) : null}
 
       {/* Mounted empty, so what changed is announced when its words arrive; out of the
           layout until then, so it adds no gap. */}
