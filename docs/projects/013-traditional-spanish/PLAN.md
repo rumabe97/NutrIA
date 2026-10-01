@@ -51,7 +51,7 @@
    - Add `patron-tradicional-espanola` to `apps/api/scripts/evaluate-plans.mjs`: male, 62, 172 cm, 78 kg, moderate, maintenance; ordinary shape; `dietaryPattern: 'traditional_spanish'`. It goes through the same branch that replicates `resolvePreferences`.
    - Report per profile: forbidden ingredients, foreign cuisines and foreign names on plates; lunches and dinners with legumes and with fish.
 
-9. **Start date** (added 2026-10-01, owner; the simple version, PRD criterion 8).
+9. **Start date** (added 2026-10-01, owner; the simple version, PRD criterion 8). *Ships in a second pull request* (owner, 2026-10-01): traditional Spanish (items 1–8) goes out first on its own, and this item follows on the same branch history once its backend is done and reviewed. Range and format refusals answer **422 `INVALID_INPUT`**, the repository's convention for body validation, not 400.
    - **DB.** A nullable `start_date date` column on `plan_generation_jobs`, in this branch's migration or a second one (`migration-reviewer` re-reviews).
    - **API.**
      - `POST /meal-plans/generate` takes the optional body `{ startDate }`.
