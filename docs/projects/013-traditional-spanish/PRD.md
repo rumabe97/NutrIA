@@ -105,6 +105,23 @@ A dish with no stated cuisine, or "mediterránea", passes on its ingredients alo
    No existing profile loses a day.
 7. **Legal and docs.** `/privacidad` and the consent texts do not change, because the model does not receive the pattern (`legal` confirmed the consent finding; owner decision 2026-10-01). Decision `0077` records the definition and the lists, and `docs/ARCHITECTURE.md` mentions the pattern.
 
+## Added 2026-10-01 (owner): a plan can start on a chosen day
+
+The owner was asked for this: when a plan is made, it should not have to start at once, so the person can shop for it first. The owner chose the simple version.
+
+- **When the choice appears.** Only when no plan is running: the person's first plan, or a plan that has already ended (the redo standing is `new_fortnight`). In that case the person may pick a start date from today to today + 7. When a plan is running, generation starts today, as now.
+- **Before the start date.** The new plan is the active plan. Inicio shows "Tu plan empieza el {fecha}", with the shopping list and the plan one tap away, instead of "plan ended". Future days cannot be marked, as today.
+- **Professionals.** Their generation path keeps starting today.
+
+8. **Start date.**
+   - `POST /meal-plans/generate` takes an optional `{ startDate: 'YYYY-MM-DD' }`. Without it, the plan starts today.
+   - Outside today to today + 7, it answers 400.
+   - With a running plan and any date other than today, it answers 409 `GENERATION_START_NOT_ALLOWED`.
+   - The plan's days are dated from the chosen day.
+   - `/plan/generando` offers the choice when allowed.
+   - Inicio shows the waiting state.
+   - An e2e suite proves the 400, the 409 and a plan dated from today + 3.
+
 ## Open questions
 
 - None. The owner chose on 2026-10-01 to keep avena, aguacate, cuscús, basmati and the modern dairy and seeds.

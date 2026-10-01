@@ -51,6 +51,24 @@
    - Add `patron-tradicional-espanola` to `apps/api/scripts/evaluate-plans.mjs`: male, 62, 172 cm, 78 kg, moderate, maintenance; ordinary shape; `dietaryPattern: 'traditional_spanish'`. It goes through the same branch that replicates `resolvePreferences`.
    - Report per profile: forbidden ingredients, foreign cuisines and foreign names on plates; lunches and dinners with legumes and with fish.
 
+9. **Start date** (added 2026-10-01, owner; the simple version, PRD criterion 8).
+   - **DB.** A nullable `start_date date` column on `plan_generation_jobs`, in this branch's migration or a second one (`migration-reviewer` re-reviews).
+   - **API.**
+     - `POST /meal-plans/generate` takes the optional body `{ startDate }`.
+     - Validation: a DTO date, and from `isoToday()` to `isoToday()` + 7, else 400.
+     - `PlanJobController.start` refuses a `startDate` other than today with `ConflictError('GENERATION_START_NOT_ALLOWED')` unless `planRedoStanding(...).kind === 'new_fortnight'`.
+     - The date is stored on the job, and `PlanGeneration.run` uses `start = job.startDate ?? today` (PlanGeneration.service.ts:146).
+     - The outgoing plan is closed with `completedAt = today`, never a future date (PlanRepository.ts:160-167).
+     - The care path is unchanged.
+   - **Web.**
+     - On `/plan/generando` (GenerationProgress.tsx:86), before the POST, when `/meal-plans/allowances` says `planRedo.kind === 'new_fortnight'`, offer "¿Cuándo empiezas?" as chips: Hoy, Mañana, then the next 6 days by weekday and date. The default is Hoy.
+     - Inicio (inicio/page.tsx:87-88, :197-213): when the active plan's `startDate` is after today, show "Tu plan empieza el {fecha}" with links to the shopping list and the plan, not the "plan ended" state.
+     - PlanBrowser (PlanBrowser.tsx:52) opens on day 1 when today is before the start.
+     - The new error code goes into both dictionaries.
+   - **Tests.**
+     - Unit: the range, the 409, `start` from the job, and `completedAt` never in the future.
+     - e2e: the 400, the 409, and a plan whose day 1 is today + 3.
+
 ## Phases
 
 ### Phase 1 — Traditional Spanish, end to end
