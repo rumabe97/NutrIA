@@ -74,14 +74,16 @@ The evaluator (`apps/api/scripts/evaluate-plans.mjs`) has no profile like this o
 1. **Reference weight.** Protein grams = goal g/kg × reference weight. The reference weight is the
    lower of the actual weight and the weight at BMI 25 for the person's height, for the goals
    `weight_loss`, `healthy_eating` and `maintenance`; `muscle_gain` and `performance` keep actual
-   weight. For the evaluator's
+   weight, and never below 0.8 g/kg of actual weight (amended during execution). For the evaluator's
    stand-in (male, 60, 176 cm, 102 kg, moderate, weight_loss at 1 kg/week), the targets are
    2,122 kcal and 139 g of protein (184 g today), with fat at 66 g and carbohydrate at 243 g,
    re-derived as today. A profile at BMI ≤ 25, or with a `muscle_gain` or `performance` goal, gets exactly what it gets today.
 2. **Hard plate limit.** No meal in a scheduled meal plan has energy outside
    0.5–1.5 × its slot's share of that day's energy. This holds for the first build, the balance,
    the swaps, the spread pass, distinct days, and a person's swap of one meal (`pickReplacement`).
-   A dish that cannot be sized into that range is never placed in that slot. One exception: the
+   A dish that cannot be sized into that range is never placed in that slot, unless no dish in the pool
+   fits the slot. In that case the first placement uses the eligible dishes, and the limit holds for
+   every later pass (amended during execution). Another exception: the
    daily energy floor still outranks the limit. A swap may take its plate past 1.5× only as far
    as needed to keep the day above the floor, as the existing swap loop does today.
 3. **Macros not made worse.** The macro promise does not get worse for the profiles the evaluator

@@ -8,7 +8,7 @@
 > planner agent via `/plan-project`; approved by the owner before execution starts.
 > Write repo-relative: no absolute paths, no references to other private repos.
 
-- **Status**: approved
+- **Status**: done
 - **Type**: standard
 - **PRD**: ./PRD.md
 - **Routing profile**: tiered
@@ -30,11 +30,19 @@ Decision: [`0076`](../../decisions/0076-protein-on-a-reference-weight-and-a-hard
    - Both callers (`nutritionTargets` and `resolveTargets`) pass it.
    - `targetBounds` (protein floor and ceiling) and `PlanValidation`'s 3 g/kg ceiling stay on
      actual weight: they bound plausibility, not need.
+   - *Amended in execution:* the reference-weight protein is never below
+     `PROTEIN_FLOOR_G_PER_KG` × actual weight. From about BMI 44 the reference weight alone fell
+     under that floor, and `nutritionTargets` threw `protein_below_floor`. The energy share cap
+     stays outermost. `macrosForKcal` takes an optional `heightCm` and keeps actual weight for the floor.
 2. **Hard plate limit** (`packages/core/src/domain/Scheduler/Scheduler.ts`)
    - New exported `PLATE_LIMIT = { max: 1.5, min: 0.5 }`, a fraction of the slot budget's kcal.
      It sits outside the soft `SHARE_BAND` (0.7–1.4), which stays as the preference inside it.
    - One helper, `plateServings(perServing, budget)`, returns the quarter-serving sizes that are
      inside both `SERVING_BOUNDS` and `PLATE_LIMIT`. It can return none.
+   - *Amended in execution:* when the pool holds no dish that fits a slot, the first placement
+     (`pickBest`) falls back to the eligible dishes, as before. This avoids failing the meal plan
+     with `insufficient_pool` for a target no dish fits. The later passes never swap a fitting
+     plate out for an unfitting one.
    - Every place that sizes or offers a plate goes through it:
      - `servingsFor` clamps to it;
      - `balancedDay`'s `options` are filtered by it;
@@ -52,7 +60,7 @@ Decision: [`0076`](../../decisions/0076-protein-on-a-reference-weight-and-a-hard
 
 ### Phase 1 — Protein on a reference weight, a hard plate limit, and a profile that measures both
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 012 phase 1` — owner-gated: after the merge deploys, the person regenerates their meal plan; a free account has one redo a fortnight (`0015`), so if it is spent the owner raises the account to premium from the admin console (`PATCH accounts/:id/tier`) first; then the owner runs a read-only check of the new meal plan
 - **Goal**: PRD criteria 1–6 in one reviewable change.
 - **Scope**:

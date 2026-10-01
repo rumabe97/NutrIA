@@ -6,6 +6,7 @@ import {
   basalMetabolicRate,
   macrosForKcal,
   nutritionTargets,
+  proteinReferenceWeightKg,
   resolveTargets,
   targetBounds,
   TargetsUnreachableError,
@@ -464,5 +465,78 @@ describe('resolveTargets — computed, corrected, and which is in effect', () =>
     expect(computed.kcal).toBeGreaterThanOrEqual(Math.floor(bounds.floorKcal));
     expect(resolveTargets(input, override({ kcal: Math.round(bounds.floorKcal) })).overrideStatus).toBe('applied');
     expect(resolveTargets(input, override({ kcal: Math.round(bounds.floorKcal) - 50 })).overrideStatus).toBe('stale');
+  });
+});
+
+describe('protein on a reference weight (0076)', () => {
+  // A synthetic stand-in for the meal plan that found this: two main plates a
+  // day could only carry 184 g of protein as 500 g of meat each.
+  const standIn: TargetInput = {
+    activityLevel: 'moderate',
+    ageYears: 60,
+    goal: 'weight_loss',
+    heightCm: 176,
+    paceKgPerWeek: 1,
+    sex: 'male',
+    weightKg: 102
+  };
+
+  it('computes protein on the weight at BMI 25 above it, and leaves the energy alone', () => {
+    const { carbsG, fatG, kcal, proteinG } = nutritionTargets(standIn);
+
+    expect({ carbsG, fatG, kcal, proteinG }).toEqual({ carbsG: 243, fatG: 66, kcal: 2122, proteinG: 139 });
+    expect(macrosForKcal(kcal, standIn.weightKg, standIn.goal).proteinG).toBe(184);
+  });
+
+  it('changes nothing at or under BMI 25', () => {
+    const lean: TargetInput = { ...standIn, goal: 'maintenance', weightKg: 68 };
+
+    expect(nutritionTargets(lean).proteinG).toBe(macrosForKcal(nutritionTargets(lean).kcal, 68, 'maintenance').proteinG);
+    expect(proteinReferenceWeightKg(68, 176, 'maintenance')).toBe(68);
+  });
+
+  it('caps a BMI 27 maintenance profile at the BMI 25 weight', () => {
+    const input: TargetInput = { ...standIn, goal: 'maintenance', heightCm: 170, paceKgPerWeek: null, weightKg: 78 };
+
+    expect(nutritionTargets(input).proteinG).toBe(Math.round(25 * 1.7 ** 2 * 1.6));
+  });
+
+  it('keeps training goals on actual weight', () => {
+    const athlete: TargetInput = {
+      activityLevel: 'athlete',
+      ageYears: 26,
+      goal: 'muscle_gain',
+      heightCm: 190,
+      paceKgPerWeek: 0.25,
+      sex: 'male',
+      weightKg: 98
+    };
+
+    expect(nutritionTargets(athlete).proteinG).toBe(186);
+    expect(proteinReferenceWeightKg(98, 190, 'performance')).toBe(98);
+  });
+
+  it('never asks for less than the floor on actual weight, however high the BMI', () => {
+    // At 200 kg and 170 cm the BMI 25 weight is 72 kg: 1.4 g/kg of it is 101 g,
+    // under the 160 g floor every target is checked against.
+    for (const goal of ['healthy_eating', 'maintenance', 'weight_loss'] as const) {
+      const input: TargetInput = { ...standIn, goal, heightCm: 170, weightKg: 200 };
+
+      expect(() => nutritionTargets(input), goal).not.toThrow();
+      expect(nutritionTargets(input).proteinG, goal).toBeGreaterThanOrEqual(160);
+    }
+  });
+
+  it('re-derives a kcal-only correction on the reference weight too', () => {
+    const { effective } = resolveTargets(standIn, {
+      carbsG: null,
+      fatG: null,
+      kcal: 2300,
+      overriddenAt: new Date(),
+      proteinG: null,
+      setBy: { kind: 'self' }
+    });
+
+    expect(effective.proteinG).toBe(139);
   });
 });

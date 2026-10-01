@@ -23,12 +23,16 @@ and fewer than half were within ±5% on all four macros.
    weight. The reference weight is `min(actual weight, the weight at BMI 25 for the person's
    height)`, with `REFERENCE_BMI = 25`, for the goals `weight_loss`, `healthy_eating` and
    `maintenance`. `muscle_gain` and `performance` keep actual weight: their excess over BMI 25 is
-   likely muscle (owner's choice, option (c)).
+   likely muscle (owner's choice, option (c)). The result is never below `PROTEIN_FLOOR_G_PER_KG` of
+   actual weight. Without that floor, from about BMI 44 the person got no targets at all (amended during
+   execution).
    - Energy, the protein floor, and the 3 g/kg plausibility ceiling stay on actual weight.
    - Protein need tracks lean mass, and body weight above BMI 25 is mostly not lean mass.
 2. **A hard plate limit.** Every plate's energy is held within 0.5–1.5 × its slot's share of that
    day (`PLATE_LIMIT`), on every path that sizes or places a plate.
-   - A dish that cannot be sized into that range is not eligible for the slot.
+   - A dish that cannot be sized into that range is not eligible for the slot. The exception is a
+     slot where no dish in the pool fits: there the first placement uses the eligible dishes, as
+     before, and every later pass keeps the limit (amended during execution).
    - The soft `SHARE_BAND` (0.7–1.4) is unchanged inside it.
    - When the macros cannot be met within the limit, the day is delivered out of band with its
      advisory. A plate is never inflated to meet them.

@@ -44,6 +44,22 @@ export const PROTEIN_CEILING_G_PER_KG = 3;
 export const PROTEIN_FLOOR_G_PER_KG = 0.8;
 
 /**
+ * The BMI whose weight caps the weight protein is computed on (`0076`).
+ *
+ * Protein need follows lean mass, and weight above BMI 25 is mostly not lean
+ * mass: 1.8 g/kg on the actual 100 kg of a 175 cm person asked for 180 g, which
+ * two plates a day could only carry as 500 g of meat each. The floor and the
+ * ceiling above stay on actual weight — they bound plausibility, not need.
+ */
+export const REFERENCE_BMI = 25;
+
+/**
+ * The goals whose protein is computed on the reference weight (`0076`, option c).
+ * Training goals keep actual weight: their weight over BMI 25 is likely muscle.
+ */
+export const REFERENCE_WEIGHT_GOALS: ReadonlySet<string> = new Set(['healthy_eating', 'maintenance', 'weight_loss']);
+
+/**
  * The share of daily energy that may come from protein.
  *
  * Not a preference — an achievability bound. Past roughly this point a day stops
