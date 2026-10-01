@@ -288,7 +288,6 @@ export function SessionList() {
                   <time dateTime={new Date(row.createdAt).toISOString()}>
                     {interpolate(t.started, { date: formatInstant(row.createdAt, locale, DATE) })}
                   </time>
-                  {' · '}
                   <time dateTime={new Date(row.updatedAt).toISOString()}>
                     {interpolate(t.lastActive, { date: formatInstant(row.updatedAt, locale, DATE) })}
                   </time>
