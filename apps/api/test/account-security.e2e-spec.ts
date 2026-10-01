@@ -383,6 +383,8 @@ describe('account security: the password, the sessions, and a password found bre
 
       expect(attempt.status).toBeLessThan(500);
       await get('users/me', hers.cookie).expect(200);
+      // Nothing was removed, so nothing is recorded: a row means a session really ended.
+      expect(await auditRows(dario.id, 'auth.sessions_revoked')).toEqual([]);
 
       await post('auth/revoke-other-sessions', his.cookie).expect(200);
       await post('auth/revoke-sessions', his.cookie).expect(200);
@@ -391,6 +393,9 @@ describe('account security: the password, the sessions, and a password found bre
       await get('users/me', hersToo.cookie).expect(200);
       expect((await listSessions(hers.cookie)).sort()).toEqual([hers.token, hersToo.token].sort());
       expect(await auditRows(elena.id, 'auth.sessions_revoked')).toEqual([]);
+      // His own session did end, by the last call: that one is recorded, and the attempt on hers still is not.
+      expect((await auditRows(dario.id, 'auth.sessions_revoked')).map(row => row.metadata)).not.toContainEqual({ scope: 'one' });
+      expect((await auditRows(dario.id, 'auth.sessions_revoked')).map(row => row.metadata)).toContainEqual({ scope: 'all' });
     });
   });
 
