@@ -980,7 +980,7 @@ export const enGB: Dictionary = {
     cronEmpty: 'No jobs.',
     cronNever: 'Never',
     cronNote: 'Stale if it has gone more than {hours} h without finishing.',
-    crons: { reminders: 'Check-in reminders', rewrite: 'Step rewrite' },
+    crons: { reminders: 'Check-in reminders', rewrite: 'Step rewrite', verifications: 'Expired link cleanup' },
     cronState: { ok: 'On time', stale: 'Stale' },
     cronTitle: 'Scheduled jobs',
     howCounted: [
