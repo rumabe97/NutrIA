@@ -685,7 +685,10 @@ export class CookieJar {
 
   /** Only the cookies whose name carries `fragment` — one cookie carried to another jar. */
   only(fragment: string): string {
-    return [...this.cookies].filter(([name]) => name.includes(fragment)).map(([name, value]) => `${name}=${value}`).join('; ');
+    return [...this.cookies]
+      .filter(([name]) => name.includes(fragment))
+      .map(([name, value]) => `${name}=${value}`)
+      .join('; ');
   }
 
   get header(): string {
