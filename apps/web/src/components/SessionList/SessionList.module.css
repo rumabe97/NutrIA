@@ -66,6 +66,11 @@
   line-height: var(--line-height-04);
 }
 
+/* One date a line: side by side they wrapped mid-phrase at 320px. */
+.meta time {
+  display: block;
+}
+
 /* Said in words and set in weight, not a colour: this row is the one that has no button. */
 .current {
   color: var(--foreground-02);
@@ -108,7 +113,10 @@
 
 /* "Cerrar sesión y volver a entrar" is wider than a phone at large text: wrap the label. */
 .actions > * {
+  block-size: auto;
+  line-height: var(--line-height-02);
   max-width: 100%;
+  padding-block: var(--space-02);
   text-align: center;
   white-space: normal;
 }

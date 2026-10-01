@@ -1,10 +1,11 @@
 'use client';
-import { useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 
 import styles from 'components/AuthForm/AuthForm.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
+import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
 import { CtaLink } from 'components/CtaLink';
@@ -26,6 +27,8 @@ interface ChangePasswordFormProps {
   forced?: boolean;
   /** Where focus goes after a change in the profile — the card's title, since the button it was on is disabled while saving. */
   headingRef?: RefObject<HTMLHeadingElement | null>;
+  /** Why the change is asked for, above the form and gone with it — once changed, it is no longer true. */
+  intro?: string;
   /** Called after a change, which has closed every other session — the list showing them is stale. */
   onChanged?: () => void;
 }
@@ -42,7 +45,7 @@ interface ChangePasswordFormProps {
  * goes on the current field; the new password's refusals are phase 1's. Focus goes
  * to the refused field: the button it was on was disabled while the request ran.
  */
-export function ChangePasswordForm({ email, forced = false, headingRef, onChanged }: ChangePasswordFormProps) {
+export function ChangePasswordForm({ email, forced = false, headingRef, intro, onChanged }: ChangePasswordFormProps) {
   const dictionary = useDictionary();
   const t = dictionary.security;
   const [error, setError] = useState<string>();
@@ -159,62 +162,69 @@ export function ChangePasswordForm({ email, forced = false, headingRef, onChange
   }
 
   return (
-    <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
-      {/* Which account this password belongs to, for a password manager; never shown or sent. */}
-      <input autoComplete="username" hidden={true} name="username" readOnly={true} type="text" value={email} />
-
-      {error ? (
-        <p className={styles.error} key={attempt} role="alert">
-          {error}
-        </p>
+    <Fragment>
+      {intro ? (
+        <Text className={styles.subtitle} tone="secondary">
+          {intro}
+        </Text>
       ) : null}
-      {/* Mounted empty, so the confirmation is announced when its words arrive; out of the
+      <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
+        {/* Which account this password belongs to, for a password manager; never shown or sent. */}
+        <input autoComplete="username" hidden={true} name="username" readOnly={true} type="text" value={email} />
+
+        {error ? (
+          <p className={styles.error} key={attempt} role="alert">
+            {error}
+          </p>
+        ) : null}
+        {/* Mounted empty, so the confirmation is announced when its words arrive; out of the
           layout until then, so it adds no gap. */}
-      <p className={changed ? styles.success : 'visually-hidden'} role="status">
-        {changed ? t.passwordChanged : null}
-      </p>
+        <p className={changed ? styles.success : 'visually-hidden'} role="status">
+          {changed ? t.passwordChanged : null}
+        </p>
 
-      <Input
-        autoComplete="current-password"
-        error={fieldError?.field === 'current' ? fieldError.message : undefined}
-        label={t.currentPassword}
-        name="current"
-        onChange={() => clearFieldError('current')}
-        ref={currentRef}
-        required={true}
-        type="password"
-      />
-      <Input
-        autoComplete="new-password"
-        describedBy={`${hintId} ${levelId}`}
-        error={fieldError?.field === 'password' ? fieldError.message : undefined}
-        label={dictionary.auth.newPassword}
-        minLength={PASSWORD_MIN_LENGTH}
-        name="password"
-        onChange={event => {
-          setPasswordLength(event.currentTarget.value.length);
-          clearFieldError('password');
-        }}
-        passwordrules={PASSWORD_RULES}
-        ref={passwordRef}
-        required={true}
-        type="password"
-      />
-      <PasswordMeter hintId={hintId} length={passwordLength} levelId={levelId} />
-      <Input
-        autoComplete="new-password"
-        error={fieldError?.field === 'confirm' ? fieldError.message : undefined}
-        label={dictionary.auth.confirmPassword}
-        name="confirm"
-        onChange={() => clearFieldError('confirm')}
-        ref={confirmRef}
-        required={true}
-        type="password"
-      />
+        <Input
+          autoComplete="current-password"
+          error={fieldError?.field === 'current' ? fieldError.message : undefined}
+          label={t.currentPassword}
+          name="current"
+          onChange={() => clearFieldError('current')}
+          ref={currentRef}
+          required={true}
+          type="password"
+        />
+        <Input
+          autoComplete="new-password"
+          describedBy={`${hintId} ${levelId}`}
+          error={fieldError?.field === 'password' ? fieldError.message : undefined}
+          label={dictionary.auth.newPassword}
+          minLength={PASSWORD_MIN_LENGTH}
+          name="password"
+          onChange={event => {
+            setPasswordLength(event.currentTarget.value.length);
+            clearFieldError('password');
+          }}
+          passwordrules={PASSWORD_RULES}
+          ref={passwordRef}
+          required={true}
+          type="password"
+        />
+        <PasswordMeter hintId={hintId} length={passwordLength} levelId={levelId} />
+        <Input
+          autoComplete="new-password"
+          error={fieldError?.field === 'confirm' ? fieldError.message : undefined}
+          label={dictionary.auth.confirmPassword}
+          name="confirm"
+          onChange={() => clearFieldError('confirm')}
+          ref={confirmRef}
+          required={true}
+          type="password"
+        />
 
-      <Button loading={pending} type="submit">
-        {pending ? dictionary.common.saving : t.changePassword}
-      </Button>
-    </form>
+        <Button loading={pending} type="submit">
+          {pending ? dictionary.common.saving : t.changePassword}
+        </Button>
+      </form>
+    </Fragment>
   );
 }

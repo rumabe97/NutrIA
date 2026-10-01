@@ -6,7 +6,6 @@ import own from './PendingScreen.module.css';
 import styles from 'components/AuthForm/AuthForm.module.css';
 
 import { dictionaryFor } from 'i18n/server';
-import { Text } from 'ui/components/Text';
 import { withLocale } from 'i18n/routes';
 
 import { ChangePasswordForm } from 'components/ChangePasswordForm';
@@ -49,11 +48,8 @@ export async function ForcedPasswordScreen({ locale }: Readonly<{ locale: Locale
   return (
     <Fragment>
       <h1 className={styles.title}>{t.forcedTitle}</h1>
-      <Text className={styles.subtitle} tone="secondary">
-        {t.forcedBody}
-      </Text>
-
-      <ChangePasswordForm email={user.email} forced={true} />
+      {/* The why goes with the form: after the change it would contradict the confirmation. */}
+      <ChangePasswordForm email={user.email} forced={true} intro={t.forcedBody} />
 
       <div className={`${styles.footer} ${own.actions}`}>
         <SignOutLink>{t.forcedSignOut}</SignOutLink>
