@@ -38,16 +38,22 @@ const VERIFY_TOTP = '/two-factor/verify-totp';
 const VERIFY_BACKUP_CODE = '/two-factor/verify-backup-code';
 const SIGN_IN = '/sign-in/email';
 
-/** Email OTP as a second factor is not offered: these two answer the 404 before the plugin sees them. */
-const EMAIL_OTP: ReadonlySet<string> = new Set(['/two-factor/send-otp', '/two-factor/verify-otp']);
+/**
+ * The plugin's routes this product does not offer, answered the 404 before the
+ * plugin sees them: email OTP as a second factor, and `/get-totp-uri`, which
+ * would hand the secret to whoever holds the session and the password, with
+ * no row and no mail — a silent clone of the authenticator. The secret leaves
+ * only in `/enable`'s answer.
+ */
+const NOT_OFFERED: ReadonlySet<string> = new Set(['/two-factor/get-totp-uri', '/two-factor/send-otp', '/two-factor/verify-otp']);
 
 const logger = new Logger('TwoFactor');
 
 /**
  * Word for word what `SessionGuard`'s `NotFoundException` answers through
- * `AllExceptionsFilter` — `{"code":"NOT_FOUND","message":"Not Found","statusCode":404}`
- * — so an account without a password cannot tell this refusal from a request
- * with no session at all.
+ * `AllExceptionsFilter` on the data routes —
+ * `{"code":"NOT_FOUND","message":"Not Found","statusCode":404}` — the one
+ * denial the product gives, whatever was refused.
  */
 function notFound(): APIError {
   return new APIError('NOT_FOUND', { code: 'NOT_FOUND', message: 'Not Found', statusCode: 404 });
@@ -60,14 +66,15 @@ function notFound(): APIError {
  *   ever arrived through Google or Apple — is the guard's 404. Its second
  *   factor is its provider's, and with no password there is nothing for a
  *   code to stand beside. Without a session the route answers its own 401.
- * - `/two-factor/send-otp` and `/two-factor/verify-otp` are the 404: no
- *   `otpOptions.sendOTP` is configured, so the plugin would refuse them
- *   anyway, and this keeps it true whatever a later option adds.
+ * - `/two-factor/send-otp`, `/two-factor/verify-otp` and
+ *   `/two-factor/get-totp-uri` are the 404 (`NOT_OFFERED`). No
+ *   `otpOptions.sendOTP` is configured, so the plugin would refuse the first
+ *   two anyway; this keeps it true whatever a later option adds.
  */
 export async function twoFactorBefore(context: Context): Promise<void> {
   const path = context.path ?? '';
 
-  if (EMAIL_OTP.has(path)) {
+  if (NOT_OFFERED.has(path)) {
     throw notFound();
   }
 
@@ -160,7 +167,8 @@ export async function twoFactorAfter(deps: TwoFactorDeps, context: Context, retu
   if (path === DISABLE) {
     const user = context.context.session?.user;
 
-    if (user) {
+    // The plugin answers 2xx to `/disable` on an account that never had it on; nothing went off, so nothing is said.
+    if (user?.twoFactorEnabled === true) {
       await changed(deps, context, { id: user.id, email: user.email }, { kind: 'disabled' });
     }
 
@@ -184,6 +192,42 @@ export async function twoFactorAfter(deps: TwoFactorDeps, context: Context, retu
 
     await changed(deps, context, user, { kind: 'backup-code-used', remaining });
   }
+}
+
+/**
+ * `databaseHooks.account.create.before`: whether to refuse linking a provider
+ * to an account (PLAN 011 phase 3, invariant review P1).
+ *
+ * The plugin guards only the password door. Better Auth's implicit link at
+ * `/callback/:provider` — a verified provider address matching a verified
+ * local one (`0058`) — checks no factor, so whoever controls the mailbox
+ * could make a Google account on it, arrive through Google, be linked and get
+ * a full session with no code: the same mailbox holder a reset is not allowed
+ * to let past the factor. Refused when the provider is not `credential`, the
+ * account has the factor on and the request carries no session of that
+ * account; Better Auth then answers "unable to link account" and the web its
+ * generic social failure. An explicit link from a signed-in session, a new
+ * account and an account without the factor are untouched.
+ */
+export async function refusesLinkPastTheFactor(
+  linked: { providerId?: unknown; userId?: unknown },
+  context: Context | null | undefined
+): Promise<boolean> {
+  const userId = text(linked.userId);
+
+  if (!context || linked.providerId === 'credential' || !userId) {
+    return false;
+  }
+
+  const owner = await context.context.internalAdapter.findUserById(userId);
+
+  if ((owner as { twoFactorEnabled?: unknown } | null)?.twoFactorEnabled !== true) {
+    return false;
+  }
+
+  const caller = await getSessionFromCtx(context);
+
+  return caller?.user.id !== userId;
 }
 
 /**

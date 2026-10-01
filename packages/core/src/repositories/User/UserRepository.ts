@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, getTableName, inArray, isNotNull, isNull, lt, not, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, getTableName, inArray, isNotNull, isNull, like, lt, not, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { analyticsEvents } from 'database/schema/platform';
@@ -31,6 +31,17 @@ export type RecordActivationAudit = (tx: Transaction, subjectUserId: string) => 
  * value is available without a second round trip outside it.
  */
 export type RecordTierAudit = (tx: Transaction, from: UserTier) => Promise<void>;
+
+/**
+ * How Better Auth's two-factor plugin names a trusted device's `verification`
+ * row (`trust-device-<random>`, value = the account id): the row that lets a
+ * browser skip the code for thirty days.
+ */
+const TRUSTED_DEVICE_PREFIX = 'trust-device-';
+
+function trustedDevicesOf(id: string): SQL | undefined {
+  return and(eq(verification.value, id), like(verification.identifier, `${TRUSTED_DEVICE_PREFIX}%`));
+}
 
 /** `passwordChanged`'s watcher: the audit row, written in the transaction that clears the breach mark. */
 export type RecordPasswordAudit = (tx: Transaction) => Promise<void>;
@@ -293,6 +304,16 @@ export const UserRepository = {
     }
   },
 
+  async forgetExpiredVerifications(now: Date): Promise<number> {
+    try {
+      const rows = await database().delete(verification).where(lt(verification.expiresAt, now)).returning({ id: verification.id });
+
+      return rows.length;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
   /**
    * Deletes every verification row — reset tokens, address links, OAuth state —
    * whose `expires_at` is already past, and answers how many went (PLAN 011).
@@ -302,9 +323,16 @@ export const UserRepository = {
    * real one. Strictly past: a row that has not expired is never touched, and
    * every reader checks `expiresAt` itself, so this changes no answer.
    */
-  async forgetExpiredVerifications(now: Date): Promise<number> {
+  /**
+   * Every device the account trusted to skip the second factor stops being
+   * trusted (PLAN 011 phase 3) — when the factor goes off, so a device trusted
+   * before does not skip it once it is back on. A password change or reset
+   * does the same inside `passwordChanged`. The browser's cookie stays, and
+   * points at nothing.
+   */
+  async forgetTrustedDevices(id: string): Promise<number> {
     try {
-      const rows = await database().delete(verification).where(lt(verification.expiresAt, now)).returning({ id: verification.id });
+      const rows = await database().delete(verification).where(trustedDevicesOf(id)).returning({ id: verification.id });
 
       return rows.length;
     } catch (error: unknown) {
@@ -378,11 +406,16 @@ export const UserRepository = {
    * written, in one transaction — a change that is not also its row did not
    * happen, as far as the trail is concerned. Better Auth has already stored
    * the new password by then; this is only what follows it.
+   *
+   * Every trusted device of the account goes in the same transaction (PLAN
+   * 011 phase 3): a password changed because somebody else may know it must
+   * not leave that somebody's browser skipping the second factor.
    */
   async passwordChanged(id: string, record: RecordPasswordAudit): Promise<void> {
     try {
       await database().transaction(async tx => {
         await tx.update(user).set({ passwordCompromisedAt: null }).where(eq(user.id, id));
+        await tx.delete(verification).where(trustedDevicesOf(id));
         await record(tx);
       });
     } catch (error: unknown) {

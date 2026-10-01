@@ -71,6 +71,13 @@ vi.mock('database', () => ({
     },
     transaction: (fn: (tx: unknown) => Promise<unknown>) =>
       fn({
+        delete: (table: unknown) => ({
+          where: (where: SQL) => {
+            deleted = { table, where };
+
+            return Promise.resolve();
+          }
+        }),
         select: () => ({ from: () => ({ where: () => ({ limit: () => Promise.resolve(before) }) }) }),
         update: () => ({
           set: (values: Record<string, unknown>) => ({
@@ -362,6 +369,18 @@ describe('UserRepository.setTier', () => {
  * address costs what one for a real address does; this sweep owns it now, and
  * must never take a row that is still alive.
  */
+describe('UserRepository.forgetTrustedDevices', () => {
+  it('deletes only that account’s trusted-device rows, and counts them', async () => {
+    await expect(UserRepository.forgetTrustedDevices('usr-1')).resolves.toBe(2);
+
+    expect(deleted?.table).toBe(verification);
+    expect(render(deleted?.where)).toEqual({
+      params: ['usr-1', 'trust-device-%'],
+      sql: '("verification"."value" = $1 and "verification"."identifier" like $2)'
+    });
+  });
+});
+
 describe('UserRepository.forgetExpiredVerifications', () => {
   it('deletes only the verification rows already past their date, and counts them', async () => {
     const now = new Date('2026-10-01T08:05:00.000Z');
@@ -414,6 +433,19 @@ describe('UserRepository.passwordChanged', () => {
     expect(updateSet).toEqual({ passwordCompromisedAt: null });
     expect(render(updateWhere)).toEqual({ params: ['usr-1'], sql: '"user"."id" = $1' });
     expect(record).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops trusting every device of that account in the same transaction, and nobody else’s', async () => {
+    await UserRepository.passwordChanged(
+      'usr-1',
+      vi.fn(async () => {})
+    );
+
+    expect(deleted?.table).toBe(verification);
+    expect(render(deleted?.where)).toEqual({
+      params: ['usr-1', 'trust-device-%'],
+      sql: '("verification"."value" = $1 and "verification"."identifier" like $2)'
+    });
   });
 
   it('rejects, wrapped, when the row cannot be written', async () => {

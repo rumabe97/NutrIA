@@ -17,7 +17,14 @@ import { onAccountCreated, onAddressConfirmed } from './services/SelfService.js'
 import { accountSecurityAfter, accountSecurityBefore, onPasswordReset } from './services/AccountSecurity.js';
 import { sendPasswordChangedMail } from './services/PasswordChangedMail.js';
 import { sendPasswordResetMail } from './services/PasswordResetMail.js';
-import { BACKUP_CODE_COUNT, sessionStartedOnSignIn, startsAVisit, TRUST_DEVICE_MAX_AGE, TWO_FACTOR_ISSUER } from './services/TwoFactor.js';
+import {
+  BACKUP_CODE_COUNT,
+  refusesLinkPastTheFactor,
+  sessionStartedOnSignIn,
+  startsAVisit,
+  TRUST_DEVICE_MAX_AGE,
+  TWO_FACTOR_ISSUER
+} from './services/TwoFactor.js';
 import { sendTwoFactorMail } from './services/TwoFactorMail.js';
 import { sendVerificationMail } from './services/VerificationMail.js';
 
@@ -132,6 +139,19 @@ export function createAuth(
     baseURL: env.BETTER_AUTH_URL,
     database: drizzleAdapter(database(), { provider: 'pg', schema: { account, rateLimit, session, twoFactor: twoFactorTable, user, verification } }),
     databaseHooks: {
+      account: {
+        create: {
+          /*
+           * No provider is linked past the second factor (PLAN 011 phase 3):
+           * the implicit link at the provider's callback would otherwise open
+           * a full session for an account with the factor on, with no code
+           * (`services/TwoFactor.ts`, `refusesLinkPastTheFactor`). `false`
+           * makes Better Auth answer "unable to link account".
+           */
+          before: async (linked: { providerId?: unknown; userId?: unknown }, context: Parameters<typeof refusesLinkPastTheFactor>[1]) =>
+            (await refusesLinkPastTheFactor(linked, context)) ? false : undefined
+        }
+      },
       session: {
         create: {
           /*
