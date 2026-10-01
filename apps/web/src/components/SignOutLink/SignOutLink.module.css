@@ -12,3 +12,12 @@
 .link:hover {
   color: var(--foreground-01);
 }
+
+/* A control on its own line, on the pending and forced-change screens: a finger's height on a phone (0057). */
+@media (pointer: coarse) {
+  .link {
+    align-items: center;
+    display: inline-flex;
+    min-block-size: var(--target-min);
+  }
+}

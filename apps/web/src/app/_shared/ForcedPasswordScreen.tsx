@@ -53,7 +53,7 @@ export async function ForcedPasswordScreen({ locale }: Readonly<{ locale: Locale
         {t.forcedBody}
       </Text>
 
-      <ChangePasswordForm forced={true} />
+      <ChangePasswordForm email={user.email} forced={true} />
 
       <div className={`${styles.footer} ${own.actions}`}>
         <SignOutLink>{t.forcedSignOut}</SignOutLink>

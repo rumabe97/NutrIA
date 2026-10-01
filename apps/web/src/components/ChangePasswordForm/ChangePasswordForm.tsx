@@ -1,7 +1,5 @@
 'use client';
-import { useId, useState } from 'react';
-
-import { useRouter } from 'next/navigation';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import styles from 'components/AuthForm/AuthForm.module.css';
 
@@ -9,6 +7,7 @@ import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
 import { useDictionary } from 'i18n/LocaleProvider';
 
+import { CtaLink } from 'components/CtaLink';
 import { PasswordMeter } from 'components/PasswordMeter';
 
 import { PASSWORD_MIN_LENGTH } from 'core/entities/Password';
@@ -16,13 +15,17 @@ import { PASSWORD_MIN_LENGTH } from 'core/entities/Password';
 import { authClient } from 'lib/auth-client';
 import { PASSWORD_RULES, passwordLengthRefusal, passwordRefusalMessage } from 'lib/newPassword';
 
-import type { FormEvent } from 'react';
+import type { FormEvent, RefObject } from 'react';
 
 type Field = 'confirm' | 'current' | 'password';
 
 interface ChangePasswordFormProps {
-  /** The forced-change screen: on success the app opens again, at `/inicio`. */
+  /** The account's address, in a hidden username field: password managers save the new password against it. */
+  email: string;
+  /** The forced-change screen: on success the form gives way to the confirmation and the way back in. */
   forced?: boolean;
+  /** Where focus goes after a change in the profile — the card's title, since the button it was on is disabled while saving. */
+  headingRef?: RefObject<HTMLHeadingElement | null>;
   /** Called after a change, which has closed every other session — the list showing them is stale. */
   onChanged?: () => void;
 }
@@ -36,10 +39,10 @@ interface ChangePasswordFormProps {
  *
  * Refusals as `ResetPasswordForm` gives them: by code, on the field, and in the
  * form's alert. A wrong current password is Better Auth's `INVALID_PASSWORD` and
- * goes on the current field; the new password's refusals are phase 1's.
+ * goes on the current field; the new password's refusals are phase 1's. Focus goes
+ * to the refused field: the button it was on was disabled while the request ran.
  */
-export function ChangePasswordForm({ forced = false, onChanged }: ChangePasswordFormProps) {
-  const router = useRouter();
+export function ChangePasswordForm({ email, forced = false, headingRef, onChanged }: ChangePasswordFormProps) {
   const dictionary = useDictionary();
   const t = dictionary.security;
   const [error, setError] = useState<string>();
@@ -53,10 +56,22 @@ export function ChangePasswordForm({ forced = false, onChanged }: ChangePassword
   const [passwordLength, setPasswordLength] = useState(0);
   const hintId = useId();
   const levelId = useId();
+  const currentRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
+  const confirmRef = useRef<HTMLInputElement>(null);
+  const doneRef = useRef<HTMLParagraphElement>(null);
+
+  // The forced screen's confirmation replaces the form; focus lands on it, which reads it.
+  useEffect(() => {
+    if (forced && changed) {
+      doneRef.current?.focus();
+    }
+  }, [forced, changed]);
 
   function refuse(field: Field, message: string) {
     setError(message);
     setFieldError({ field, message });
+    ({ confirm: confirmRef, current: currentRef, password: passwordRef })[field].current?.focus();
   }
 
   /** A refusal is about what was sent: once that field is edited, it no longer applies. */
@@ -100,9 +115,9 @@ export function ChangePasswordForm({ forced = false, onChanged }: ChangePassword
 
     const { error: changeError } = await authClient.changePassword({ currentPassword, newPassword: password, revokeOtherSessions: true });
 
-    if (changeError) {
-      setPending(false);
+    setPending(false);
 
+    if (changeError) {
       const refusal = passwordRefusalMessage(changeError.code, dictionary);
 
       if (refusal) {
@@ -112,38 +127,52 @@ export function ChangePasswordForm({ forced = false, onChanged }: ChangePassword
       } else {
         // Better Auth's rate limit answers 429: that one is a wait, not a failure.
         setError(changeError.status === 429 ? dictionary.auth.tooManyAttempts : dictionary.errors.internal);
+        headingRef?.current?.focus();
       }
 
       return;
     }
 
-    if (forced) {
-      // The lock is lifted with the change; the button keeps its spinner until the app is back.
-      router.push('/inicio');
-      router.refresh();
+    setChanged(true);
 
+    if (forced) {
       return;
     }
 
-    setPending(false);
     formElement.reset();
     setPasswordLength(0);
-    setChanged(true);
+    headingRef?.current?.focus();
     onChanged?.();
+  }
+
+  if (forced && changed) {
+    // The lock lifted with the change. A link, not a redirect: a confirmation said just
+    // before a navigation is lost in it.
+    return (
+      <div className={styles.form}>
+        <p className={styles.success} ref={doneRef} tabIndex={-1}>
+          {t.passwordChanged}
+        </p>
+        <CtaLink href="/inicio">{dictionary.common.continue}</CtaLink>
+      </div>
+    );
   }
 
   return (
     <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
+      {/* Which account this password belongs to, for a password manager; never shown or sent. */}
+      <input autoComplete="username" hidden={true} name="username" readOnly={true} type="text" value={email} />
+
       {error ? (
         <p className={styles.error} key={attempt} role="alert">
           {error}
         </p>
       ) : null}
-      {changed ? (
-        <p className={styles.success} role="status">
-          {t.passwordChanged}
-        </p>
-      ) : null}
+      {/* Mounted empty, so the confirmation is announced when its words arrive; out of the
+          layout until then, so it adds no gap. */}
+      <p className={changed ? styles.success : 'visually-hidden'} role="status">
+        {changed ? t.passwordChanged : null}
+      </p>
 
       <Input
         autoComplete="current-password"
@@ -151,6 +180,7 @@ export function ChangePasswordForm({ forced = false, onChanged }: ChangePassword
         label={t.currentPassword}
         name="current"
         onChange={() => clearFieldError('current')}
+        ref={currentRef}
         required={true}
         type="password"
       />
@@ -166,6 +196,7 @@ export function ChangePasswordForm({ forced = false, onChanged }: ChangePassword
           clearFieldError('password');
         }}
         passwordrules={PASSWORD_RULES}
+        ref={passwordRef}
         required={true}
         type="password"
       />
@@ -176,6 +207,7 @@ export function ChangePasswordForm({ forced = false, onChanged }: ChangePassword
         label={dictionary.auth.confirmPassword}
         name="confirm"
         onChange={() => clearFieldError('confirm')}
+        ref={confirmRef}
         required={true}
         type="password"
       />

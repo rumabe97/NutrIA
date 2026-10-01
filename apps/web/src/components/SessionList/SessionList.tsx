@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -17,6 +17,7 @@ import { formatInstant, interpolate } from 'lib/format';
 import { SIGN_IN_AGAIN_PATH } from 'lib/accountDeletion';
 
 import type { Dictionary } from 'i18n/dictionaries/es-ES';
+import type { KeyboardEvent } from 'react';
 
 /** One row of the list: what Better Auth's `/list-sessions` returns, narrowed to what is drawn. */
 interface SessionRow {
@@ -83,9 +84,14 @@ export function SessionList() {
   const [error, setError] = useState<string>();
   const [done, setDone] = useState<string>();
   const headingRef = useRef<HTMLHeadingElement>(null);
-  const confirmRef = useRef<HTMLParagraphElement>(null);
+  const confirmRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeRefs = useRef(new Map<string, HTMLButtonElement>());
+  // Where focus goes once the list has been drawn without the row that had it.
+  const focusNext = useRef<string | null>(null);
   const mounted = useRef(false);
+  const questionId = useId();
+  const consequenceId = useId();
 
   const load = useCallback(
     () =>
@@ -101,8 +107,8 @@ export function SessionList() {
     void load();
   }, [load]);
 
-  // Opening the question moves focus to it; cancelling hands focus back to the button that
-  // opened it. Skipped on mount. A finished close moves focus itself (to the heading).
+  // Opening the question moves focus to its answer, which carries the question as its
+  // description; the trigger it replaces has left the page. Skipped on mount.
   useEffect(() => {
     if (!mounted.current) {
       mounted.current = true;
@@ -114,6 +120,19 @@ export function SessionList() {
       confirmRef.current?.focus();
     }
   }, [confirming]);
+
+  // A closed row takes its focused button with it: the next row's button takes focus, or
+  // the previous one's, or the heading when no other row is left.
+  useEffect(() => {
+    if (focusNext.current === null) {
+      return;
+    }
+
+    const target = closeRefs.current.get(focusNext.current);
+
+    focusNext.current = null;
+    (target ?? headingRef.current)?.focus();
+  }, [state]);
 
   function failed(status: number) {
     setError(status === 429 ? dictionary.auth.tooManyAttempts : dictionary.errors.internal);
@@ -134,10 +153,19 @@ export function SessionList() {
       return;
     }
 
-    setState(previous => (previous.kind === 'ready' ? { kind: 'ready', rows: previous.rows.filter(other => other.id !== row.id) } : previous));
+    setState(previous => {
+      if (previous.kind !== 'ready') {
+        return previous;
+      }
+
+      const others = previous.rows.filter(other => !other.current);
+      const index = others.findIndex(other => other.id === row.id);
+
+      focusNext.current = (others[index + 1] ?? others[index - 1])?.id ?? '';
+
+      return { kind: 'ready', rows: previous.rows.filter(other => other.id !== row.id) };
+    });
     setDone(interpolate(t.sessionClosed, { device: row.label }));
-    // The button that had focus has just left the page with its row.
-    headingRef.current?.focus();
   }
 
   async function closeOthers() {
@@ -165,6 +193,14 @@ export function SessionList() {
     setConfirming(false);
     // Focus goes back once the button is on the page again.
     requestAnimationFrame(() => triggerRef.current?.focus());
+  }
+
+  /** Escape answers the question with "no", as it would in a dialog. */
+  function onConfirmKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (event.key === 'Escape' && !closingOthers) {
+      event.preventDefault();
+      cancel();
+    }
   }
 
   /** The menu's sign-out, then the sign-in page, which brings them back to the profile. */
@@ -201,11 +237,11 @@ export function SessionList() {
           {error}
         </p>
       ) : null}
-      {done ? (
-        <p className={styles.done} role="status">
-          {done}
-        </p>
-      ) : null}
+      {/* Mounted empty, so what was closed is announced when its words arrive; out of the
+          layout until then, so it adds no gap. */}
+      <p className={done ? styles.done : 'visually-hidden'} role="status">
+        {done ?? null}
+      </p>
 
       {state.kind === 'loading' ? (
         <Text size="sm" tone="secondary">
@@ -249,19 +285,31 @@ export function SessionList() {
               <div className={styles.device}>
                 <span className={styles.label}>{row.label}</span>
                 <span className={styles.meta}>
-                  {interpolate(t.started, { date: formatInstant(row.createdAt, locale, DATE) })}
+                  <time dateTime={new Date(row.createdAt).toISOString()}>
+                    {interpolate(t.started, { date: formatInstant(row.createdAt, locale, DATE) })}
+                  </time>
                   {' · '}
-                  {interpolate(t.lastActive, { date: formatInstant(row.updatedAt, locale, DATE) })}
+                  <time dateTime={new Date(row.updatedAt).toISOString()}>
+                    {interpolate(t.lastActive, { date: formatInstant(row.updatedAt, locale, DATE) })}
+                  </time>
                 </span>
               </div>
               {row.current ? (
                 <span className={styles.current}>{t.thisDevice}</span>
               ) : (
                 <Button
-                  aria-label={interpolate(t.closeSessionLabel, { device: row.label })}
-                  disabled={closingOthers || (closing !== undefined && closing !== row.id)}
+                  // Two sessions on the same browser read the same: the date tells them apart.
+                  aria-label={interpolate(t.closeSessionLabel, { date: formatInstant(row.createdAt, locale, DATE), device: row.label })}
+                  disabled={closingOthers || closing !== undefined}
                   loading={closing === row.id}
                   onClick={() => void close(row)}
+                  ref={element => {
+                    if (element) {
+                      closeRefs.current.set(row.id, element);
+                    } else {
+                      closeRefs.current.delete(row.id);
+                    }
+                  }}
                   type="button"
                   variant="secondary"
                 >
@@ -280,15 +328,22 @@ export function SessionList() {
       ) : null}
 
       {canCloseOthers && confirming ? (
-        <div className={styles.confirm}>
-          <p className={styles.question} ref={confirmRef} tabIndex={-1}>
+        <div className={styles.confirm} onKeyDown={onConfirmKeyDown}>
+          <p className={styles.question} id={questionId}>
             {t.closeOthersTitle}
           </p>
-          <Text size="sm" tone="secondary">
+          <Text id={consequenceId} size="sm" tone="secondary">
             {t.closeOthersBody}
           </Text>
           <div className={styles.actions}>
-            <Button loading={closingOthers} onClick={() => void closeOthers()} type="button" variant="destructive">
+            {/* Nothing is deleted, so not red; the one filled button while the question is open. */}
+            <Button
+              aria-describedby={`${questionId} ${consequenceId}`}
+              loading={closingOthers}
+              onClick={() => void closeOthers()}
+              ref={confirmRef}
+              type="button"
+            >
               {t.closeOthersConfirm}
             </Button>
             <Button disabled={closingOthers} onClick={cancel} type="button" variant="secondary">

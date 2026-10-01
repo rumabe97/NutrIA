@@ -205,7 +205,9 @@ Better Auth's `/change-password`; the API closes every other session whatever th
 when `UserView.hasPassword`, else one sentence and a link to Google's 2-Step Verification; then
 `SessionList`, over Better Auth's own `/list-sessions`, `/revoke-session` and
 `/revoke-other-sessions` — never wrapped in anything that widens them. The device is
-`lib/deviceLabel.ts` (browser × platform, no version, "Navegador" when unreadable); "última
+`lib/deviceLabel.ts` over `core/domain/Device`'s `deviceOf` — the reading the "password changed"
+mail uses, so both name a session alike (browser × system, no version, "Navegador" when
+unreadable); "última
 actividad" is a date, because Better Auth moves `updatedAt` at most once a day. `/list-sessions`
 wants a session younger than `freshAge` (a day) and answers `SESSION_NOT_FRESH` otherwise: the
 list then says so and offers signing in again, and "Cerrar todas las demás" stays, since it needs
@@ -219,7 +221,8 @@ When `UserView.passwordChangeRequired` (a password found in a breach at sign-in)
 (`_shared/ForcedPasswordScreen`) lives beside `/pendiente` in both public trees, rendered per
 request, and repeats the same order, so the two never pass somebody back and forth and the
 (app) layout cannot redirect to itself. `lib/api.ts` sends a browser request's 409 there too.
-After the change → `/inicio`.
+After the change the form gives way to the confirmation, focused, and a "Continuar" link to
+`/inicio` — not a redirect, which would swallow the confirmation. The section is `#seguridad`.
 
 ## Security headers
 

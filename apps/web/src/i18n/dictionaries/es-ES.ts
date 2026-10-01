@@ -1897,7 +1897,7 @@ export const esES = {
     '/admin/producto/planes': { title: 'Planes' },
     '/admin/producto/planes/calidad': { title: 'Calidad de los planes' },
     '/admin/profesionales': { title: 'Profesionales' },
-    '/cambiar-contrasena': { title: 'Cambiar tu contraseña' },
+    '/cambiar-contrasena': { title: 'Cambia tu contraseña' },
     '/check-in': { title: 'Check-in de la quincena' },
     '/compra': { title: 'La compra' },
     '/condiciones': {
@@ -2272,6 +2272,7 @@ export const esES = {
           'Enfermedades, medicación y suplementos: solo si decides contárnoslo, bajo un consentimiento aparte que puedes retirar en cualquier momento sin borrar el resto de tu cuenta.',
           'Cómo llevas el plan: qué comidas marcas como hechas o saltadas, tus valoraciones y comentarios de los platos, tu peso a lo largo del tiempo y tus check-ins quincenales. Para que el siguiente plan lo tenga en cuenta.',
           'Pagos: si contratas Premium, Stripe cobra y nosotros guardamos solo el identificador de tu suscripción y su estado. Nunca vemos el número de tu tarjeta.',
+          'Seguridad de tu cuenta: anotamos cuándo cambias o restableces tu contraseña y cuándo cierras sesiones, con la fecha y sin tu dirección IP. Para que tú y nosotros podamos ver qué pasó si alguien entra en tu cuenta.',
           'Uso del producto: registramos, ligado a tu cuenta, cuándo abres sesión y cuándo pides cambiar un plato, sin más detalle. Para saber si el producto funciona.',
           'Lo que nos escribes: los mensajes del buzón de sugerencias, para leerlos y responderte.'
         ],
@@ -2322,7 +2323,7 @@ export const esES = {
           'OpenRouter, y DeepInfra o CoreWeave, que ejecutan el modelo de inteligencia artificial, como se explica en «La inteligencia artificial». Están en Estados Unidos.',
           'Vercel (alojamiento de la web, la API y las imágenes de los platos, en la Unión Europea) y Neon (base de datos, en la Unión Europea). Son empresas de Estados Unidos.',
           'Stripe, si contratas Premium, para cobrar la suscripción. Stripe procesa y conserva los datos de pago según sus propias políticas.',
-          'Nuestro proveedor de correo, para los correos de confirmación, recuperación de contraseña y recordatorio del check-in que tú actives.',
+          'Nuestro proveedor de correo, para los correos de confirmación, recuperación de contraseña, invitaciones, avisos de seguridad de tu cuenta (como que tu contraseña ha cambiado, que no se pueden desactivar) y avisos que actives.',
           'El servicio de notificaciones de tu propio navegador (Google, Apple o Mozilla), si activas los avisos; el contenido va cifrado y ellos no pueden leerlo.',
           'Sentry, un servicio de errores, solo si está activado: recibe el error y dónde ocurrió, nunca tus datos ni lo que escribiste.'
         ],
@@ -2338,6 +2339,7 @@ export const esES = {
         heading: 'Cuánto tiempo guardamos tus datos',
         paragraphs: [
           'Mientras tu cuenta exista. Al borrarla, todo lo que hay en ella se borra al momento: perfil, alergias, salud, planes, listas de la compra, progreso y consentimientos.',
+          'El registro de seguridad de tu cuenta se guarda mientras exista tu cuenta; al borrarla deja de estar ligado a ti.',
           'Nuestro proveedor de base de datos guarda, por su cuenta, un historial breve para poder recuperarnos de un fallo; puedes pedirnos el plazo exacto en {email}.',
           'Si contrataste Premium, Stripe conserva los datos de facturación el tiempo que le exige la ley, aunque borres tu cuenta.'
         ]
@@ -2536,7 +2538,6 @@ export const esES = {
   },
 
   security: {
-    browsers: { chrome: 'Chrome', edge: 'Edge', firefox: 'Firefox', safari: 'Safari' },
     browserUnknown: 'Navegador',
     changePassword: 'Cambiar contraseña',
     closeOthers: 'Cerrar todas las demás',
@@ -2544,7 +2545,7 @@ export const esES = {
     closeOthersConfirm: 'Sí, cerrarlas',
     closeOthersTitle: '¿Cerrar la sesión en todos tus otros dispositivos?',
     closeSession: 'Cerrar',
-    closeSessionLabel: 'Cerrar la sesión de {device}',
+    closeSessionLabel: 'Cerrar la sesión de {device}, entraste el {date}',
     currentPassword: 'Contraseña actual',
     currentPasswordMissing: 'Escribe tu contraseña actual.',
     deviceOn: '{browser} en {platform}',
@@ -2552,23 +2553,21 @@ export const esES = {
       'Tu contraseña aparece en filtraciones de datos conocidas. No quiere decir que alguien haya entrado en tu cuenta, pero ya no es segura: elige una nueva para seguir. Al guardarla se cierra la sesión en tus otros dispositivos.',
     forcedSignOut: 'Cerrar sesión',
     forcedTitle: 'Cambia tu contraseña',
-    googleOnly: 'Entras con Google, así que tu cuenta está tan protegida como tu cuenta de Google. Activa allí la verificación en dos pasos.',
-    googleOnlyLink: 'Verificación en dos pasos de Google',
+    googleOnly: 'Entras con Google, así que tu cuenta está tan protegida como tu cuenta de Google.',
+    googleOnlyLink: 'Activa la verificación en dos pasos en tu cuenta de Google',
     lastActive: 'Última actividad: {date}',
     noOtherSessions: 'No tienes la sesión abierta en ningún otro dispositivo.',
     othersClosed: 'Hemos cerrado la sesión en tus otros dispositivos.',
     passwordBody: 'Al cambiarla se cierra la sesión en tus otros dispositivos, y te avisamos por correo.',
     passwordChanged: 'Contraseña cambiada. Hemos cerrado la sesión en tus otros dispositivos.',
     passwordTitle: 'Contraseña',
-    platforms: { android: 'Android', ipad: 'iPad', iphone: 'iPhone', linux: 'Linux', mac: 'Mac', windows: 'Windows' },
     sectionTitle: 'Seguridad',
     sessionClosed: 'Hemos cerrado la sesión de {device}.',
     sessionsBody:
       'Un dispositivo cuya sesión cierres tendrá que volver a entrar. Hasta que se conecte de nuevo puede seguir mostrando lo que guardó para leer sin conexión.',
     sessionsFailed: 'No hemos podido cargar tus sesiones.',
     sessionsLoading: 'Cargando tus sesiones…',
-    sessionsNotFresh:
-      'Por seguridad, para ver tus dispositivos tienes que haber iniciado sesión hoy. Cerrar todas las demás sesiones sí puedes ahora.',
+    sessionsNotFresh: 'Por seguridad, la lista solo se muestra si has entrado hoy. Aun así, puedes cerrar ahora todas las demás sesiones.',
     sessionsTitle: 'Dónde tienes la sesión abierta',
     signInAgain: 'Cerrar sesión y volver a entrar',
     started: 'Entraste el {date}',

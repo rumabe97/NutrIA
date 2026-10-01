@@ -2227,6 +2227,7 @@ export const enGB: Dictionary = {
           'Conditions, medication and supplements: only if you choose to tell us, under a separate consent you can withdraw at any time without deleting the rest of your account.',
           'How the plan is going: which meals you mark as eaten or skipped, your ratings and comments on dishes, your weight over time and your fortnightly check-ins. So the next plan takes them into account.',
           'Payments: if you subscribe to Premium, Stripe takes the payment and we keep only the identifier for your subscription and its status. We never see your card number.',
+          'Account security: we record when you change or reset your password and when you sign out of sessions, with the date and without your IP address. So that you and we can see what happened if someone gets into your account.',
           'Product use: we record, linked to your account, when you sign in and when you ask to change a dish, and nothing more. To know whether the product works.',
           'What you write to us: messages in the feedback box, so we can read and answer them.'
         ],
@@ -2277,7 +2278,7 @@ export const enGB: Dictionary = {
           'OpenRouter, and DeepInfra or CoreWeave, which run the artificial-intelligence model, as explained in "Artificial intelligence". They are in the United States.',
           'Vercel (hosting for the website, the API and the pictures of the dishes, in the European Union) and Neon (database, in the European Union). Both are US companies.',
           'Stripe, if you subscribe to Premium, to charge the subscription. Stripe processes and keeps payment data under its own policies.',
-          'Our email provider, for confirmation, password-reset and check-in reminder emails you turn on.',
+          'Our email provider, for confirmation, password-reset and invitation emails, account security notices (such as your password having changed, which cannot be turned off) and notices you turn on.',
           "Your browser's own notification service (Google, Apple or Mozilla), if you turn on reminders; the content is encrypted and they cannot read it.",
           'Sentry, an error-reporting service, only if switched on: it receives the error and where it happened, never your data or anything you wrote.'
         ],
@@ -2293,6 +2294,7 @@ export const enGB: Dictionary = {
         heading: 'How long we keep your data',
         paragraphs: [
           'While your account exists. When you delete it, everything in it is deleted at once: profile, allergies, health, plans, shopping lists, progress and consents.',
+          'The security record of your account is kept while your account exists; when you delete it, it stops being linked to you.',
           'Our database provider keeps, on its own, a short history to let us recover from a fault; you can ask us for the exact window at {email}.',
           'If you subscribed to Premium, Stripe keeps billing data for as long as the law requires, even if you delete your account.'
         ]
@@ -2492,7 +2494,6 @@ export const enGB: Dictionary = {
   },
 
   security: {
-    browsers: { chrome: 'Chrome', edge: 'Edge', firefox: 'Firefox', safari: 'Safari' },
     browserUnknown: 'Browser',
     changePassword: 'Change password',
     closeOthers: 'Sign out all the others',
@@ -2500,7 +2501,7 @@ export const enGB: Dictionary = {
     closeOthersConfirm: 'Yes, sign them out',
     closeOthersTitle: 'Sign out on all your other devices?',
     closeSession: 'Sign out',
-    closeSessionLabel: 'Sign out {device}',
+    closeSessionLabel: 'Sign out {device}, signed in on {date}',
     currentPassword: 'Current password',
     currentPasswordMissing: 'Type your current password.',
     deviceOn: '{browser} on {platform}',
@@ -2508,21 +2509,20 @@ export const enGB: Dictionary = {
       'Your password appears in known data breaches. It does not mean anyone has got into your account, but it is no longer safe: choose a new one to carry on. Saving it signs you out on your other devices.',
     forcedSignOut: 'Sign out',
     forcedTitle: 'Change your password',
-    googleOnly: 'You sign in with Google, so your account is as well protected as your Google account. Turn on 2-Step Verification there.',
-    googleOnlyLink: 'Google 2-Step Verification',
+    googleOnly: 'You sign in with Google, so your account is as well protected as your Google account.',
+    googleOnlyLink: 'Turn on 2-Step Verification in your Google account',
     lastActive: 'Last active: {date}',
     noOtherSessions: 'You are not signed in on any other device.',
     othersClosed: 'We have signed you out on your other devices.',
     passwordBody: 'Changing it signs you out on your other devices, and we let you know by email.',
     passwordChanged: 'Password changed. We have signed you out on your other devices.',
     passwordTitle: 'Password',
-    platforms: { android: 'Android', ipad: 'iPad', iphone: 'iPhone', linux: 'Linux', mac: 'Mac', windows: 'Windows' },
     sectionTitle: 'Security',
     sessionClosed: 'We have signed out {device}.',
     sessionsBody: 'A device you sign out will have to sign in again. Until it next connects, it may still show what it kept for reading offline.',
     sessionsFailed: 'We could not load your sessions.',
     sessionsLoading: 'Loading your sessions…',
-    sessionsNotFresh: 'For your security, you need to have signed in today to see your devices. You can still sign out all the others now.',
+    sessionsNotFresh: 'For your security, the list only shows if you have signed in today. You can still sign out all the others now.',
     sessionsTitle: 'Where you are signed in',
     signInAgain: 'Sign out and sign in again',
     started: 'Signed in on {date}',

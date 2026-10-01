@@ -57,6 +57,7 @@
   font-size: var(--font-size-03);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-04);
+  overflow-wrap: anywhere;
 }
 
 .meta {

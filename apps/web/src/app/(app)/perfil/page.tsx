@@ -285,12 +285,13 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
         </section>
 
         {/* The password and the devices signed in (project 011). Not drawn when the
-            account could not be read: whether there is a password decides the card. */}
+            account could not be read: whether there is a password decides the card.
+            `#seguridad` is linked to; the header's scroll-padding keeps it clear. */}
         {user ? (
-          <section className={styles.section}>
+          <section className={styles.section} id="seguridad">
             <h2 className={styles.sectionTitle}>{dictionary.security.sectionTitle}</h2>
 
-            <SecurityCard hasPassword={user.hasPassword} />
+            <SecurityCard email={user.email} hasPassword={user.hasPassword} />
           </section>
         ) : null}
 

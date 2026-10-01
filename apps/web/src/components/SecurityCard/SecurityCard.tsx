@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 
 import styles from './SecurityCard.module.css';
 
@@ -14,6 +14,8 @@ import { SessionList } from 'components/SessionList';
 const GOOGLE_TWO_STEP_URL = 'https://myaccount.google.com/signinoptions/twosv';
 
 interface SecurityCardProps {
+  /** The account's address, for the password form's hidden username field. */
+  email: string;
   /** A password account exists (`UserView.hasPassword`); without one, there is nothing here to change. */
   hasPassword: boolean;
 }
@@ -25,21 +27,24 @@ interface SecurityCardProps {
  * the list is drawn again after it, by remounting it, rather than showing devices that
  * are already signed out.
  */
-export function SecurityCard({ hasPassword }: SecurityCardProps) {
+export function SecurityCard({ email, hasPassword }: SecurityCardProps) {
   const dictionary = useDictionary();
   const t = dictionary.security;
   const [generation, setGeneration] = useState(0);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   return (
     <Fragment>
       <Card as="section" className={styles.card}>
-        <h3 className={styles.title}>{t.passwordTitle}</h3>
+        <h3 className={styles.title} ref={headingRef} tabIndex={-1}>
+          {t.passwordTitle}
+        </h3>
         {hasPassword ? (
           <Fragment>
             <Text size="sm" tone="secondary">
               {t.passwordBody}
             </Text>
-            <ChangePasswordForm onChanged={() => setGeneration(previous => previous + 1)} />
+            <ChangePasswordForm email={email} headingRef={headingRef} onChanged={() => setGeneration(previous => previous + 1)} />
           </Fragment>
         ) : (
           <Fragment>
