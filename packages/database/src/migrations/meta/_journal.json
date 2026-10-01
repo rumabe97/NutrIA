@@ -372,6 +372,13 @@
       "when": 1790886515979,
       "tag": "0052_traditional_spanish_is_a_way_of_eating",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1790894268538,
+      "tag": "0053_a_plan_can_be_scheduled",
+      "breakpoints": true
     }
   ]
 }
