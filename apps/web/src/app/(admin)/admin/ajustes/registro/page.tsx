@@ -108,6 +108,10 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
       return t.passwordVia[data.via];
     }
 
+    if (row.action === 'auth.backup_code_used' && typeof data.remaining === 'number') {
+      return interpolate(t.backupCodesLeft, { remaining: data.remaining });
+    }
+
     if (row.action === 'auth.sessions_revoked' && (data.scope === 'one' || data.scope === 'others' || data.scope === 'all')) {
       return t.sessionsScope[data.scope];
     }

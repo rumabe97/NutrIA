@@ -4,6 +4,12 @@
   letter-spacing: var(--tracking-caps);
 }
 
+/* The box, then what ticking it means, read with it. */
+.trust {
+  display: grid;
+  gap: var(--space-01);
+}
+
 /* The other ways on, quieter than the one button that verifies. */
 .alternatives {
   align-items: center;

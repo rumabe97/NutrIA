@@ -114,15 +114,16 @@
   gap: var(--space-03);
 }
 
-.link {
-  color: var(--color-brand-11);
-  font-size: var(--font-size-03);
+/* The otpauth link wears a secondary button: it may be longer than a phone at large text. */
+.wrap {
+  block-size: auto;
+  height: auto;
   justify-self: start;
-  text-decoration: none;
-}
-
-.link:hover {
-  text-decoration: underline;
+  line-height: var(--line-height-02);
+  max-width: 100%;
+  padding-block: var(--space-02);
+  text-align: center;
+  white-space: normal;
 }
 
 .secretBlock {
@@ -136,14 +137,18 @@
   font-size: var(--font-size-02);
 }
 
-/* Read character by character into another app: monospaced, and broken anywhere at large text. */
+/* Read character by character into another app: a monospace face that tells l, 1 and I
+   apart, and O from 0 — the alphabet has all of them. */
 .secret,
-.codes code {
+.codes {
   /* The stack ui/Code uses: there is no monospace token. */
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
   font-size: var(--font-size-03);
-  overflow-wrap: anywhere;
-  user-select: all;
+}
+
+/* A group never breaks inside; the line breaks between groups. */
+.group {
+  white-space: nowrap;
 }
 
 .code input {
@@ -151,32 +156,17 @@
   letter-spacing: var(--tracking-caps);
 }
 
-/* Two columns of five on a phone, the way they would be written on paper. */
+/* In rows, so the order seen is the order read; as many columns as fit, one at large text. */
 .codes {
   display: grid;
   gap: var(--space-02) var(--space-05);
-  grid-template-columns: repeat(2, max-content);
+  grid-template-columns: repeat(auto-fill, minmax(12ch, 1fr));
   list-style: none;
   margin: 0;
   padding: var(--space-03) 0;
 }
 
-@media (width < 17rem) {
-  .codes {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
 .saved {
   display: grid;
   gap: var(--space-01);
-}
-
-/* A link on its own line: a finger's height on a phone (0057). */
-@media (pointer: coarse) {
-  .link {
-    align-items: center;
-    display: inline-flex;
-    min-block-size: var(--target-min);
-  }
 }

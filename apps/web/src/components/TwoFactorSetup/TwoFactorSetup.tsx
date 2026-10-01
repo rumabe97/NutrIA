@@ -1,19 +1,21 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import styles from 'components/TwoFactorCard/TwoFactorCard.module.css';
 
-import { Button } from 'ui/components/Button';
+import { Button, buttonClassName } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
 import { useDictionary } from 'i18n/LocaleProvider';
 
 import { TwoFactorQr } from 'components/TwoFactorQr';
 
-import { authClient } from 'lib/auth-client';
-import { totpCode, totpSecret, twoFactorRefusal } from 'lib/twoFactor';
+import { useFleetingStatus } from 'hooks/useFleetingStatus';
 
-import type { FormEvent, KeyboardEvent } from 'react';
+import { authClient } from 'lib/auth-client';
+import { secretGroups, totpCode, totpSecret, twoFactorRefusal } from 'lib/twoFactor';
+
+import type { FormEvent } from 'react';
 
 interface TwoFactorSetupProps {
   onCancel: () => void;
@@ -24,27 +26,41 @@ interface TwoFactorSetupProps {
 }
 
 /**
- * Adding NutrIA to an authenticator, three ways for three situations: the QR code for
- * a second device, the `otpauth://` link for an app on this one (the iPhone's Passwords
- * opens it), and the key in text for an app that takes neither. Then one code from the
- * app, through `/two-factor/verify-totp` — Better Auth turns the factor on with the
- * first right one, and not before: a setup abandoned here leaves the account as it was.
+ * Steps 2 and 3 of turning the factor on. Adding NutrIA to an authenticator three ways,
+ * for three situations: the QR code for a second device, the `otpauth://` link for an
+ * app on this one — the one-handed phone user cannot scan their own screen — and the key
+ * in text for an app that takes neither. Then one code from the app, through
+ * `/two-factor/verify-totp`: Better Auth turns the factor on with the first right one,
+ * and not before, so a setup abandoned anywhere here leaves the account as it was.
+ *
+ * Each step's title takes focus when it arrives, because the button pressed has gone.
  */
 export function TwoFactorSetup({ onCancel, onConfirmed, totpUri }: TwoFactorSetupProps) {
   const dictionary = useDictionary();
   const t = dictionary.twoFactor;
+  const [step, setStep] = useState<'confirm' | 'scan'>('scan');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [fieldError, setFieldError] = useState<string>();
   const [attempt, setAttempt] = useState(0);
-  const titleRef = useRef<HTMLParagraphElement>(null);
+  const [copied, sayCopied] = useFleetingStatus();
+  const titleRef = useRef<HTMLHeadingElement>(null);
   const codeRef = useRef<HTMLInputElement>(null);
+  const captionId = useId();
   const secret = totpSecret(totpUri);
 
-  // The password form that opened this has left the page: focus goes to what replaced it.
   useEffect(() => {
     titleRef.current?.focus();
-  }, []);
+  }, [step]);
+
+  async function copySecret() {
+    try {
+      await navigator.clipboard.writeText(secret ?? '');
+      sayCopied(t.secretCopied);
+    } catch {
+      sayCopied(t.copyFailed);
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -55,9 +71,7 @@ export function TwoFactorSetup({ onCancel, onConfirmed, totpUri }: TwoFactorSetu
     const code = totpCode(String(new FormData(event.currentTarget).get('code')));
 
     if (!code) {
-      setError(t.codeMissing);
-      setFieldError(t.codeMissing);
-      codeRef.current?.focus();
+      refuse(t.codeMissing, true);
 
       return;
     }
@@ -74,75 +88,112 @@ export function TwoFactorSetup({ onCancel, onConfirmed, totpUri }: TwoFactorSetu
 
     setPending(false);
 
-    const refusal = twoFactorRefusal(verifyError.code, verifyError.status, dictionary);
+    const refusal = twoFactorRefusal(verifyError.code, verifyError.status, dictionary, 'settings');
 
-    setError(refusal.message);
-    setFieldError(refusal.field === 'code' ? refusal.message : undefined);
+    refuse(refusal.message, refusal.field === 'code');
+  }
+
+  function refuse(message: string, onField: boolean) {
+    setError(message);
+    setFieldError(onField ? message : undefined);
     codeRef.current?.focus();
+    codeRef.current?.select();
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
-    if (event.key === 'Escape' && !pending) {
-      event.preventDefault();
-      onCancel();
-    }
-  }
+  if (step === 'scan') {
+    return (
+      <div className={styles.step}>
+        <h4 className={styles.question} ref={titleRef} tabIndex={-1}>
+          {t.stepScan}
+        </h4>
 
-  return (
-    <div className={styles.step} onKeyDown={onKeyDown}>
-      <p className={styles.question} ref={titleRef} tabIndex={-1}>
-        {t.scanTitle}
-      </p>
-      <Text size="sm" tone="secondary">
-        {t.scanBody}
-      </Text>
-
-      <div className={styles.scan}>
-        <TwoFactorQr label={t.qrLabel} uri={totpUri} />
-        <div className={styles.manual}>
-          <a className={styles.link} href={totpUri}>
-            {t.addToApp}
-          </a>
-          {secret ? (
-            <p className={styles.secretBlock}>
-              <span className={styles.secretLabel}>{t.secret}</span>
-              {/* Selectable as one piece; the spaces are for reading, and apps ignore them. */}
-              <code className={styles.secret}>{secret}</code>
+        <div className={styles.scan}>
+          <TwoFactorQr labelledBy={captionId} uri={totpUri} />
+          <div className={styles.manual}>
+            <Text id={captionId} size="sm" tone="secondary">
+              {t.scanCaption}
+            </Text>
+            <a className={buttonClassName({ className: styles.wrap, variant: 'secondary' })} href={totpUri} translate="no">
+              {t.addToApp}
+            </a>
+            {secret ? (
+              <div className={styles.secretBlock}>
+                <span className={styles.secretLabel}>{t.secret}</span>
+                {/* Groups that never break inside, plain spaces between them: it wraps between
+                    groups at 320px and a reader reads it group by group. */}
+                <code className={styles.secret} translate="no">
+                  {secretGroups(secret).map(group => (
+                    <span className={styles.group} key={group.at}>
+                      {group.at > 0 ? ' ' : null}
+                      {group.text}
+                    </span>
+                  ))}
+                </code>
+                <div className={styles.actions}>
+                  <Button onClick={() => void copySecret()} type="button" variant="secondary">
+                    {t.copySecret}
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+            {/* Mounted empty, so "copied" is announced when its words arrive. */}
+            <p className={copied ? styles.done : 'visually-hidden'} role="status">
+              {copied ?? null}
             </p>
-          ) : null}
+          </div>
         </div>
-      </div>
-
-      <form className={styles.form} noValidate={true} onSubmit={submit}>
-        {error ? (
-          <p className={styles.error} key={attempt} role="alert">
-            {error}
-          </p>
-        ) : null}
-
-        <Input
-          autoComplete="one-time-code"
-          className={styles.code}
-          error={fieldError}
-          hint={t.confirmHint}
-          inputMode="numeric"
-          label={t.code}
-          name="code"
-          onChange={() => setFieldError(undefined)}
-          ref={codeRef}
-          required={true}
-          type="text"
-        />
 
         <div className={styles.actions}>
-          <Button loading={pending} type="submit">
-            {t.confirm}
+          <Button onClick={() => setStep('confirm')} type="button">
+            {dictionary.common.continue}
           </Button>
-          <Button disabled={pending} onClick={onCancel} type="button" variant="secondary">
+          <Button onClick={onCancel} type="button" variant="tertiary">
             {dictionary.common.cancel}
           </Button>
         </div>
-      </form>
-    </div>
+      </div>
+    );
+  }
+
+  return (
+    <form className={styles.step} noValidate={true} onSubmit={submit}>
+      <h4 className={styles.question} ref={titleRef} tabIndex={-1}>
+        {t.stepConfirm}
+      </h4>
+
+      {error ? (
+        <p className={styles.error} key={attempt} role="alert">
+          {error}
+        </p>
+      ) : null}
+
+      <Input
+        autoComplete="one-time-code"
+        className={styles.code}
+        enterKeyHint="go"
+        error={fieldError}
+        hint={t.confirmHint}
+        inputMode="numeric"
+        label={t.confirmCode}
+        name="code"
+        onChange={() => setFieldError(undefined)}
+        ref={codeRef}
+        required={true}
+        type="text"
+      />
+
+      <div className={styles.actions}>
+        <Button loading={pending} type="submit">
+          {t.confirm}
+        </Button>
+        {/* Back to the same key: nothing is made again. */}
+        <Button disabled={pending} onClick={() => setStep('scan')} type="button" variant="tertiary">
+          {dictionary.common.back}
+        </Button>
+        <Button disabled={pending} onClick={onCancel} type="button" variant="tertiary">
+          {dictionary.common.cancel}
+        </Button>
+      </div>
+    </form>
   );
 }

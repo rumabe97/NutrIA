@@ -6,36 +6,46 @@ import styles from 'components/TwoFactorCard/TwoFactorCard.module.css';
 import { Button } from 'ui/components/Button';
 import { Checkbox } from 'ui/components/Checkbox';
 import { Text } from 'ui/components/Text';
-import { useDictionary } from 'i18n/LocaleProvider';
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
+
+import { useFleetingStatus } from 'hooks/useFleetingStatus';
 
 import { backupCodesFile } from 'lib/twoFactor';
+import { formatInstant, interpolate } from 'lib/format';
 
 interface TwoFactorBackupCodesProps {
   codes: readonly string[];
   /** The account's address, at the top of the downloaded file, so it says which account the codes open. */
   email: string;
   onDone: () => void;
+  /** The title, which carries the news on its own: the factor is on, or these replace the old ones. */
+  title: string;
 }
+
+const DATE: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
 
 /**
  * The backup codes, shown this once: the API never hands them out again, only new ones
  * in their place. Copy and a `.txt` download, then a box to tick before "Terminar" —
- * pressing it unticked says why on the box rather than being a disabled button that
- * says nothing. The codes live in this component's state and nowhere else.
+ * pressing it unticked says why under the box and moves there, rather than being a
+ * disabled button that cannot be focused and says nothing. The codes live in this
+ * component's state and nowhere else.
  */
-export function TwoFactorBackupCodes({ codes, email, onDone }: TwoFactorBackupCodesProps) {
+export function TwoFactorBackupCodes({ codes, email, onDone, title }: TwoFactorBackupCodesProps) {
   const dictionary = useDictionary();
+  const locale = useLocale();
   const t = dictionary.twoFactor;
   const [saved, setSaved] = useState(false);
   const [unsaved, setUnsaved] = useState(false);
-  const [copied, setCopied] = useState<string>();
-  const titleRef = useRef<HTMLParagraphElement>(null);
+  const [status, say] = useFleetingStatus();
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const titleId = useId();
   // The box takes no ref (`ui/Checkbox` wraps Radix's): it is found by its id instead.
   const savedId = useId();
-  const listId = useId();
   const unsavedId = useId();
+  const missing = unsaved && !saved;
 
-  // What came before has left the page: focus goes to the title, which reads what this is.
+  // What came before has left the page: focus goes to the title, which says what happened.
   useEffect(() => {
     titleRef.current?.focus();
   }, []);
@@ -43,20 +53,23 @@ export function TwoFactorBackupCodes({ codes, email, onDone }: TwoFactorBackupCo
   async function copy() {
     try {
       await navigator.clipboard.writeText(codes.join('\n'));
-      setCopied(t.codesCopied);
+      say(t.codesCopied);
     } catch {
-      setCopied(t.copyFailed);
+      say(t.copyFailed);
     }
   }
 
   function download() {
-    const url = URL.createObjectURL(new Blob([backupCodesFile(codes, email, dictionary)], { type: 'text/plain;charset=utf-8' }));
+    const file = backupCodesFile(codes, email, formatInstant(Date.now(), locale, DATE), dictionary);
+    const url = URL.createObjectURL(new Blob([file], { type: 'text/plain;charset=utf-8' }));
     const link = document.createElement('a');
 
     link.href = url;
     link.download = t.fileName;
     link.click();
     URL.revokeObjectURL(url);
+    // The browser never says when it has finished, so this says it started.
+    say(interpolate(t.downloading, { file: t.fileName }));
   }
 
   function done() {
@@ -72,20 +85,18 @@ export function TwoFactorBackupCodes({ codes, email, onDone }: TwoFactorBackupCo
 
   return (
     <div className={styles.step}>
-      <p className={styles.question} ref={titleRef} tabIndex={-1}>
-        {t.codesTitle}
-      </p>
+      <h4 className={styles.question} id={titleId} ref={titleRef} tabIndex={-1}>
+        {title}
+      </h4>
       <Text size="sm" tone="secondary">
         {t.codesBody}
       </Text>
 
-      <p className="visually-hidden" id={listId}>
-        {t.codesListLabel}
-      </p>
-      <ol aria-labelledby={listId} className={styles.codes}>
+      {/* "List, 10 items": in rows, so the order read is the order seen. */}
+      <ol aria-labelledby={titleId} className={styles.codes}>
         {codes.map(code => (
           <li key={code}>
-            <code>{code}</code>
+            <code translate="no">{code}</code>
           </li>
         ))}
       </ol>
@@ -98,22 +109,22 @@ export function TwoFactorBackupCodes({ codes, email, onDone }: TwoFactorBackupCo
           {t.download}
         </Button>
       </div>
-      {/* Mounted empty, so "copied" is announced when its words arrive. */}
-      <p className={copied ? styles.done : 'visually-hidden'} role="status">
-        {copied ?? null}
+      {/* Mounted empty, so what happened is announced when its words arrive. */}
+      <p className={status ? styles.done : 'visually-hidden'} role="status">
+        {status ?? null}
       </p>
 
       <div className={styles.saved}>
         <Checkbox
-          aria-describedby={unsaved && !saved ? unsavedId : undefined}
-          aria-invalid={unsaved && !saved ? true : undefined}
+          aria-describedby={missing ? unsavedId : undefined}
+          aria-invalid={missing ? true : undefined}
           checked={saved}
           id={savedId}
           label={t.codesSaved}
           onCheckedChange={checked => setSaved(checked === true)}
         />
-        {unsaved && !saved ? (
-          <p aria-live="polite" className={styles.fieldError} id={unsavedId}>
+        {missing ? (
+          <p className={styles.fieldError} id={unsavedId}>
             {t.codesSavedMissing}
           </p>
         ) : null}

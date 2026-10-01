@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -33,9 +33,14 @@ type Method = 'backup' | 'totp';
  * left, and answer with the session — so nothing here runs until a code is right.
  *
  * Then what `SignInForm` does after a password: no offline copy of the last person's
- * plan, the account's language, and `?siguiente` or `/inicio`. A pending sign-in that
- * expired or ran out of attempts can only start again at the password; the refusal
- * says so and links there.
+ * plan, the account's language, and `?siguiente` or `/inicio`. When the pending sign-in
+ * is gone — expired, out of attempts, or the account locked for longer than it lives —
+ * the form gives way to why, focused, and the way back to the password: a button that
+ * can only fail is not left on the page.
+ *
+ * One field, never six boxes (paste, autofill and screen readers all want one), no
+ * `maxLength` (it would cut a pasted `123 456` without a word) and no sending on the
+ * sixth digit (WCAG 3.2.2). No `autoFocus` either: the route announcer focuses the title.
  */
 export function TwoFactorChallenge() {
   const router = useRouter();
@@ -48,28 +53,38 @@ export function TwoFactorChallenge() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
   const [fieldError, setFieldError] = useState<string>();
-  const [restart, setRestart] = useState(false);
+  const [ended, setEnded] = useState<string>();
   // Each submit remounts the alert, so the same refusal twice is announced twice.
   const [attempt, setAttempt] = useState(0);
   const codeRef = useRef<HTMLInputElement>(null);
+  const endedRef = useRef<HTMLParagraphElement>(null);
   const switched = useRef(false);
+  const trustHintId = useId();
   const next = params.get('siguiente') ?? undefined;
   const signInPath = `${withLocale('/acceder', locale)}${next ? `?${new URLSearchParams({ siguiente: next }).toString()}` : ''}`;
 
-  // Changing the kind of code replaces the field: focus goes to the new one. Not on mount:
-  // a screen reader starts at the title, and the field is the next thing it reads.
+  // Changing the kind of code replaces the field: focus goes to the new one. Not on mount.
   useEffect(() => {
     if (switched.current) {
       codeRef.current?.focus();
     }
   }, [method]);
 
+  // The form has left the page: focus goes to what replaced it, which reads it.
+  useEffect(() => {
+    if (ended) {
+      endedRef.current?.focus();
+    }
+  }, [ended]);
+
+  /** On the field and in the alert; focus back on the field with what was typed selected, so typing replaces it. */
   function refuse(message: string, onField: boolean) {
     setError(message);
     setFieldError(onField ? message : undefined);
 
     if (onField) {
       codeRef.current?.focus();
+      codeRef.current?.select();
     }
   }
 
@@ -98,10 +113,13 @@ export function TwoFactorChallenge() {
     if (verifyError) {
       setPending(false);
 
-      const refusal = twoFactorRefusal(verifyError.code, verifyError.status, dictionary);
+      const refusal = twoFactorRefusal(verifyError.code, verifyError.status, dictionary, 'challenge');
 
-      setRestart(refusal.restart);
-      refuse(refusal.message, refusal.field === 'code');
+      if (refusal.restart) {
+        setEnded(refusal.message);
+      } else {
+        refuse(refusal.message, refusal.field === 'code');
+      }
 
       return;
     }
@@ -122,6 +140,17 @@ export function TwoFactorChallenge() {
     setMethod(previous => (previous === 'totp' ? 'backup' : 'totp'));
   }
 
+  if (ended) {
+    return (
+      <div className={authStyles.form}>
+        <p className={authStyles.error} ref={endedRef} tabIndex={-1}>
+          {ended}
+        </p>
+        <CtaLink href={signInPath}>{dictionary.auth.backToSignIn}</CtaLink>
+      </div>
+    );
+  }
+
   return (
     <Fragment>
       <Text className={authStyles.subtitle} tone="secondary">
@@ -139,7 +168,9 @@ export function TwoFactorChallenge() {
           <Input
             autoComplete="one-time-code"
             className={styles.code}
+            enterKeyHint="go"
             error={fieldError}
+            hint={t.codeHint}
             inputMode="numeric"
             key="totp"
             label={t.code}
@@ -151,10 +182,12 @@ export function TwoFactorChallenge() {
           />
         ) : (
           <Input
+            // Mixed case and compared exactly: a capital the keyboard adds makes a right code wrong.
             autoCapitalize="none"
-            autoComplete="one-time-code"
+            autoComplete="off"
             autoCorrect="off"
             className={styles.code}
+            enterKeyHint="go"
             error={fieldError}
             hint={t.backupCodeHint}
             inputMode="text"
@@ -165,31 +198,31 @@ export function TwoFactorChallenge() {
             ref={codeRef}
             required={true}
             spellCheck={false}
+            translate="no"
             type="text"
           />
         )}
 
-        <Checkbox checked={trust} label={t.trustDevice} onCheckedChange={checked => setTrust(checked === true)} />
+        <div className={styles.trust}>
+          <Checkbox aria-describedby={trustHintId} checked={trust} label={t.trustDevice} onCheckedChange={checked => setTrust(checked === true)} />
+          <Text id={trustHintId} size="sm" tone="secondary">
+            {t.trustDeviceHint}
+          </Text>
+        </div>
 
-        {/* Once the pending sign-in is gone no code can work: the one way on is the password. */}
-        {restart ? (
-          <CtaLink href={signInPath}>{dictionary.auth.backToSignIn}</CtaLink>
-        ) : (
-          <Button loading={pending} type="submit">
-            {pending ? t.verifying : t.verify}
+        <Button loading={pending} type="submit">
+          {pending ? t.verifying : t.verify}
+        </Button>
+
+        <div className={styles.alternatives}>
+          <Button disabled={pending} onClick={switchMethod} type="button" variant="tertiary">
+            {method === 'totp' ? t.useBackup : t.useApp}
           </Button>
-        )}
-
-        {restart ? null : (
-          <div className={styles.alternatives}>
-            <Button disabled={pending} onClick={switchMethod} type="button" variant="tertiary">
-              {method === 'totp' ? t.useBackup : t.useApp}
-            </Button>
-            <Link className={`${authStyles.link} ${authStyles.standaloneLink}`} href={signInPath}>
-              {dictionary.auth.backToSignIn}
-            </Link>
-          </div>
-        )}
+          {/* Always a way out, for somebody without their phone or their codes. */}
+          <Link className={`${authStyles.link} ${authStyles.standaloneLink}`} href={signInPath}>
+            {dictionary.auth.backToSignIn}
+          </Link>
+        </div>
       </form>
     </Fragment>
   );

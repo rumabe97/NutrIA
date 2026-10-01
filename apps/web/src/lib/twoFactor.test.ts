@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { backupCode, backupCodesFile, totpCode, totpSecret, twoFactorRefusal } from './twoFactor';
+import { backupCode, backupCodesFile, secretGroups, totpCode, totpSecret, twoFactorRefusal } from './twoFactor';
 import { enGB } from '../i18n/dictionaries/en-GB';
 import { esES } from '../i18n/dictionaries/es-ES';
 
@@ -9,6 +9,7 @@ describe('totpCode', () => {
     expect(totpCode('123456')).toBe('123456');
     expect(totpCode('123 456')).toBe('123456');
     expect(totpCode(' 123-456 ')).toBe('123456');
+    expect(totpCode('123.456')).toBe('123456');
   });
 
   it('refuses anything that is not six digits', () => {
@@ -39,8 +40,16 @@ describe('backupCode', () => {
 });
 
 describe('totpSecret', () => {
-  it('reads the key out of the address, in groups of four', () => {
-    expect(totpSecret('otpauth://totp/NutrIA:ana%40example.com?secret=JBSWY3DPEHPK3PXP&issuer=NutrIA')).toBe('JBSW Y3DP EHPK 3PXP');
+  it('reads the key out of the address', () => {
+    expect(totpSecret('otpauth://totp/NutrIA:ana%40example.com?secret=JBSWY3DPEHPK3PXP&issuer=NutrIA')).toBe('JBSWY3DPEHPK3PXP');
+  });
+
+  it('groups it in fours, the last group short when it must be', () => {
+    expect(secretGroups('JBSWY3DPEHPK3PXP').map(group => group.text)).toEqual(['JBSW', 'Y3DP', 'EHPK', '3PXP']);
+    expect(secretGroups('JBSWY3')).toEqual([
+      { at: 0, text: 'JBSW' },
+      { at: 4, text: 'Y3' }
+    ]);
   });
 
   it('says nothing when there is no key to read', () => {
@@ -50,12 +59,13 @@ describe('totpSecret', () => {
 });
 
 describe('backupCodesFile', () => {
-  it('names the account and lists one code a line', () => {
-    const file = backupCodesFile(['aaaaa-11111', 'bbbbb-22222'], 'ana@example.com', esES);
+  it('names the account and the date, and lists one code a line', () => {
+    const file = backupCodesFile(['aaaaa-11111', 'bbbbb-22222'], 'ana@example.com', '1 de octubre de 2026', esES);
 
     expect(file.split('\n')).toEqual([
       esES.twoFactor.fileTitle,
       'ana@example.com',
+      'Generados el 1 de octubre de 2026',
       '',
       'aaaaa-11111',
       'bbbbb-22222',
@@ -67,23 +77,40 @@ describe('backupCodesFile', () => {
 });
 
 describe('twoFactorRefusal', () => {
-  it('puts a wrong code or password on its field', () => {
-    expect(twoFactorRefusal('INVALID_CODE', 401, esES)).toEqual({ field: 'code', message: esES.twoFactor.wrongCode, restart: false });
-    expect(twoFactorRefusal('INVALID_BACKUP_CODE', 401, enGB)).toEqual({ field: 'code', message: enGB.twoFactor.wrongBackupCode, restart: false });
-    expect(twoFactorRefusal('INVALID_PASSWORD', 400, esES)).toEqual({ field: 'password', message: esES.twoFactor.wrongPassword, restart: false });
+  it('puts a wrong code or password on its field, in the words of where it was typed', () => {
+    expect(twoFactorRefusal('INVALID_CODE', 401, esES, 'challenge')).toEqual({ field: 'code', message: esES.twoFactor.wrongCode, restart: false });
+    expect(twoFactorRefusal('INVALID_CODE', 401, esES, 'settings').message).toBe(esES.twoFactor.setupWrongCode);
+    expect(twoFactorRefusal('INVALID_BACKUP_CODE', 401, enGB, 'challenge')).toEqual({
+      field: 'code',
+      message: enGB.twoFactor.wrongBackupCode,
+      restart: false
+    });
+    expect(twoFactorRefusal('INVALID_PASSWORD', 400, esES, 'settings')).toEqual({
+      field: 'password',
+      message: esES.twoFactor.wrongPassword,
+      restart: false
+    });
   });
 
-  it('sends a sign-in that expired or ran out of attempts back to the password', () => {
-    expect(twoFactorRefusal('INVALID_TWO_FACTOR_COOKIE', 401, esES).restart).toBe(true);
-    expect(twoFactorRefusal('TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE', 401, esES).restart).toBe(true);
-  });
-
-  it('says a lock is a wait, on no field', () => {
-    expect(twoFactorRefusal('ACCOUNT_TEMPORARILY_LOCKED', 401, esES)).toEqual({ field: null, message: esES.twoFactor.locked, restart: false });
+  it('sends a sign-in that expired, ran out of attempts or locked the account back to the password', () => {
+    expect(twoFactorRefusal('INVALID_TWO_FACTOR_COOKIE', 401, esES, 'challenge')).toEqual({
+      field: null,
+      message: esES.twoFactor.expired,
+      restart: true
+    });
+    expect(twoFactorRefusal('TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE', 400, esES, 'challenge').restart).toBe(true);
+    expect(twoFactorRefusal('ACCOUNT_TEMPORARILY_LOCKED', 429, esES, 'challenge')).toEqual({
+      field: null,
+      message: esES.twoFactor.locked,
+      restart: true
+    });
   });
 
   it('tells a rate limit from any other failure', () => {
-    expect(twoFactorRefusal(undefined, 429, esES).message).toBe(esES.auth.tooManyAttempts);
-    expect(twoFactorRefusal('SOMETHING_ELSE', 500, esES).message).toBe(esES.errors.internal);
+    expect(twoFactorRefusal(undefined, 429, esES, 'challenge').message).toBe(esES.auth.tooManyAttempts);
+    expect(twoFactorRefusal(undefined, 503, esES, 'challenge').message).toBe(
+      'No hemos podido iniciar sesión (error 503). Inténtalo de nuevo en un momento.'
+    );
+    expect(twoFactorRefusal('SOMETHING_ELSE', 500, esES, 'settings').message).toBe(esES.errors.internal);
   });
 });

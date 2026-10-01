@@ -29,7 +29,7 @@ interface TwoFactorPasswordStepProps {
 
 /**
  * The password every change to the second factor asks for first — turning it on, off,
- * and new backup codes — inline in the card, the way `SessionList` asks before closing
+ * and new backup codes — inline in the card, under its own `h4`, the way `SessionList` asks before closing
  * the other sessions. Opening it puts focus in the field; Escape and "Cancelar" put it
  * back where it was, which is the caller's job.
  */
@@ -75,7 +75,9 @@ export function TwoFactorPasswordStep({ body, confirm, destructive = false, emai
     setPending(false);
     setError(refusal.message);
     setFieldError(refusal.field === 'password' ? refusal.message : undefined);
+    // Back on the field with what was typed selected: typing again replaces it.
     passwordRef.current?.focus();
+    passwordRef.current?.select();
   }
 
   /** Escape answers with "no", as it would in a dialog. */
@@ -88,9 +90,9 @@ export function TwoFactorPasswordStep({ body, confirm, destructive = false, emai
 
   return (
     <form aria-labelledby={titleId} className={styles.step} noValidate={true} onKeyDown={onKeyDown} onSubmit={submit}>
-      <p className={styles.question} id={titleId}>
+      <h4 className={styles.question} id={titleId}>
         {title}
-      </p>
+      </h4>
       <Text size="sm" tone="secondary">
         {body}
       </Text>
@@ -107,7 +109,7 @@ export function TwoFactorPasswordStep({ body, confirm, destructive = false, emai
       <Input
         autoComplete="current-password"
         error={fieldError}
-        label={dictionary.auth.password}
+        label={dictionary.twoFactor.password}
         name="password"
         onChange={() => setFieldError(undefined)}
         ref={passwordRef}
@@ -119,7 +121,7 @@ export function TwoFactorPasswordStep({ body, confirm, destructive = false, emai
         <Button loading={pending} type="submit" variant={destructive ? 'destructive' : 'primary'}>
           {confirm}
         </Button>
-        <Button disabled={pending} onClick={onCancel} type="button" variant="secondary">
+        <Button disabled={pending} onClick={onCancel} type="button" variant="tertiary">
           {dictionary.common.cancel}
         </Button>
       </div>

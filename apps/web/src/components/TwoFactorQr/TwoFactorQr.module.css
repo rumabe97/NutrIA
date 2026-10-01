@@ -1,9 +1,12 @@
-/* Big enough for a phone held at arm's length, never wider than its column. */
+/* Pixels, not rem: what a camera needs does not grow with the reader's text size. Big enough
+   for a phone held at arm's length, never under 160px. */
 .qr {
   block-size: auto;
   border-radius: var(--radius-control);
   display: block;
-  inline-size: min(12rem, 100%);
+  inline-size: 192px;
+  max-inline-size: 100%;
+  min-inline-size: 160px;
 }
 
 /* Palette tokens on purpose, the one place in this app: a scanner wants dark modules on a

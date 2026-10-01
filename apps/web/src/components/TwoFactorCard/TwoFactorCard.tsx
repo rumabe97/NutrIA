@@ -27,7 +27,7 @@ type Action = 'disable' | 'enable' | 'regenerate';
 type Step =
   | { action: Action; kind: 'password' }
   | { backupCodes: readonly string[]; kind: 'scan'; totpUri: string }
-  | { codes: readonly string[]; kind: 'codes'; said: string }
+  | { codes: readonly string[]; kind: 'codes'; said: string; title: string }
   | { kind: 'idle' };
 
 interface TwoFactorCardProps {
@@ -87,12 +87,12 @@ export function TwoFactorCard({ email, enabled: enabledAtLoad }: TwoFactorCardPr
       const { data, error } = await authClient.twoFactor.enable({ password });
 
       if (error) {
-        return twoFactorRefusal(error.code, error.status, dictionary);
+        return twoFactorRefusal(error.code, error.status, dictionary, 'settings');
       }
 
       // The API offers no other method (no email codes); a reply without a key is a fault.
       if (!('totpURI' in data)) {
-        return twoFactorRefusal(undefined, 500, dictionary);
+        return twoFactorRefusal(undefined, 500, dictionary, 'settings');
       }
 
       setStep({ backupCodes: data.backupCodes, kind: 'scan', totpUri: data.totpURI });
@@ -104,7 +104,7 @@ export function TwoFactorCard({ email, enabled: enabledAtLoad }: TwoFactorCardPr
       const { error } = await authClient.twoFactor.disable({ password });
 
       if (error) {
-        return twoFactorRefusal(error.code, error.status, dictionary);
+        return twoFactorRefusal(error.code, error.status, dictionary, 'settings');
       }
 
       setEnabled(false);
@@ -116,10 +116,10 @@ export function TwoFactorCard({ email, enabled: enabledAtLoad }: TwoFactorCardPr
     const { data, error } = await authClient.twoFactor.generateBackupCodes({ password });
 
     if (error) {
-      return twoFactorRefusal(error.code, error.status, dictionary);
+      return twoFactorRefusal(error.code, error.status, dictionary, 'settings');
     }
 
-    setStep({ codes: data.backupCodes, kind: 'codes', said: t.regenerated });
+    setStep({ codes: data.backupCodes, kind: 'codes', said: t.regenerated, title: t.codesTitleRegenerated });
 
     return undefined;
   }
@@ -156,7 +156,7 @@ export function TwoFactorCard({ email, enabled: enabledAtLoad }: TwoFactorCardPr
           <Button onClick={() => open('regenerate')} ref={regenerateRef} type="button" variant="secondary">
             {t.regenerate}
           </Button>
-          <Button onClick={() => open('disable')} ref={disableRef} type="button" variant="secondary">
+          <Button onClick={() => open('disable')} ref={disableRef} type="button" variant="destructive">
             {t.disable}
           </Button>
         </div>
@@ -169,7 +169,7 @@ export function TwoFactorCard({ email, enabled: enabledAtLoad }: TwoFactorCardPr
           email={email}
           onCancel={() => back('enable')}
           onSubmit={password => submitPassword('enable', password)}
-          title={t.title}
+          title={t.stepPassword}
         />
       ) : null}
 
@@ -201,13 +201,15 @@ export function TwoFactorCard({ email, enabled: enabledAtLoad }: TwoFactorCardPr
           onCancel={() => back('enable')}
           onConfirmed={() => {
             setEnabled(true);
-            setStep({ codes: step.backupCodes, kind: 'codes', said: t.enabled });
+            setStep({ codes: step.backupCodes, kind: 'codes', said: t.enabled, title: t.codesTitleEnabled });
           }}
           totpUri={step.totpUri}
         />
       ) : null}
 
-      {step.kind === 'codes' ? <TwoFactorBackupCodes codes={step.codes} email={email} onDone={() => back('heading', step.said)} /> : null}
+      {step.kind === 'codes' ? (
+        <TwoFactorBackupCodes codes={step.codes} email={email} onDone={() => back('heading', step.said)} title={step.title} />
+      ) : null}
     </div>
   );
 }
