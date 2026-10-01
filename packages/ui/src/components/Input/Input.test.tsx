@@ -75,6 +75,12 @@ describe('Input', () => {
       expect(screen.queryByText('We never share your email')).not.toBeInTheDocument();
     });
 
+    it('describes the field by the error alone when the hint is hidden, never by an id that is not on the page', () => {
+      render(<Input error="Invalid email" hint="We never share your email" label="Email" />);
+      const describedBy = screen.getByLabelText('Email').getAttribute('aria-describedby') ?? '';
+      expect(describedBy.split(' ')).toEqual([screen.getByText('Invalid email').id]);
+    });
+
     it('announces the error via aria-live="polite" (so it reads without re-focusing the field)', () => {
       render(<Input error="Invalid email" label="Email" />);
       expect(screen.getByText('Invalid email')).toHaveAttribute('aria-live', 'polite');

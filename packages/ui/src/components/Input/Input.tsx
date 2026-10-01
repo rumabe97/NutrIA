@@ -19,7 +19,8 @@ export interface InputProps extends Omit<ComponentPropsWithRef<'input'>, 'aria-d
 
 export function Input({ className, describedBy: extraDescribedBy, error, hint, label, ...rest }: InputProps) {
   const id = useId();
-  const hintId = hint ? `${id}-hint` : undefined;
+  // Only while the hint is drawn: an error replaces it, and a description must not point at nothing.
+  const hintId = hint && !error ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
   const describedBy = [hintId, errorId, extraDescribedBy].filter(Boolean).join(' ') || undefined;
 

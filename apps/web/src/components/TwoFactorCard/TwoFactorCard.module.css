@@ -111,17 +111,22 @@
 
 .manual {
   display: grid;
+  /* The column is the card's, not its widest word's. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-03);
 }
 
-/* The otpauth link wears a secondary button: it may be longer than a phone at large text. */
-.wrap {
+/* The otpauth link wears a secondary button: it may be longer than a phone at large text.
+   Element and parent in the selector, so it wins over Button's own class whatever order the
+   stylesheets land in. */
+.manual > .wrap {
   block-size: auto;
   height: auto;
   justify-self: start;
   line-height: var(--line-height-02);
   max-width: 100%;
   padding-block: var(--space-02);
+  overflow-wrap: anywhere;
   text-align: center;
   white-space: normal;
 }
