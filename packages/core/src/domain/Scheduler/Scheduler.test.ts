@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
-import { axisFilter, pickReplacement, PLAN_DAYS, PLATE_LIMIT, schedulePlan, SERVING_BOUNDS, SHARE_BAND } from 'core/domain/Scheduler';
+import {
+  axisFilter,
+  pickReplacement,
+  PLAN_DAYS,
+  PLATE_GRAMS_MAX,
+  PLATE_LIMIT,
+  schedulePlan,
+  SERVING_BOUNDS,
+  SHARE_BAND
+} from 'core/domain/Scheduler';
 import { shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 
 /** The old question, asked of the new answer: "N meals, snacks or not" is still how a test wants to describe a day. */
@@ -618,25 +627,29 @@ describe('schedulePlan — a large athlete on three meals a day', { timeout: 20_
    */
   const BIG: NutritionTargets = { carbsG: 566, fatG: 128, fiberG: 57, kcal: 4099, proteinG: 171 };
 
+  // Rice and chicken at twice their real density, and half their real grams in
+  // each dish below, so every dish carries the same macros in half the weight:
+  // ~1,370 kcal of cooked rice is over 900 g, past `PLATE_GRAMS_MAX` (`0078`),
+  // and this test is about scaling portions, not about weight.
   const catalogue = makeCatalogue([
     makeCatalogueIngredient({
       id: 'i-arroz',
-      carbsPer100g: 28,
-      fatPer100g: 0.3,
-      fiberPer100g: 0.4,
-      kcalPer100g: 130,
+      carbsPer100g: 56,
+      fatPer100g: 0.6,
+      fiberPer100g: 0.8,
+      kcalPer100g: 260,
       name: 'Arroz',
-      proteinPer100g: 2.7,
+      proteinPer100g: 5.4,
       slug: 'arroz'
     }),
     makeCatalogueIngredient({
       id: 'i-pollo',
       carbsPer100g: 0,
-      fatPer100g: 3.6,
+      fatPer100g: 7.2,
       fiberPer100g: 0,
-      kcalPer100g: 165,
+      kcalPer100g: 330,
       name: 'Pollo',
-      proteinPer100g: 31,
+      proteinPer100g: 62,
       slug: 'pollo'
     }),
     makeCatalogueIngredient({
@@ -668,8 +681,8 @@ describe('schedulePlan — a large athlete on three meals a day', { timeout: 20_
     [0, 1, 2, 3, 4, 5, 6, 7, 8].map(n =>
       makeDish({
         ingredients: [
-          { grams: 270 - n * 8, slug: 'arroz' },
-          { grams: 20 + n * 6, slug: 'pollo' },
+          { grams: 135 - n * 4, slug: 'arroz' },
+          { grams: 10 + n * 3, slug: 'pollo' },
           { grams: 10, slug: 'aceite' }
         ],
         name: `${slot} ${n}`,
@@ -764,11 +777,12 @@ describe('schedulePlan — each meal near its share of the day (SHARE_BAND)', ()
    * real plan did the same with a 388-kcal lunch and a 1,247-kcal dinner.
    */
   const T: NutritionTargets = { carbsG: 250, fatG: 58, fiberG: 25, kcal: 2000, proteinG: 120 };
-  // Three pure foods at 100 kcal per 100 g, so a dish's grams are its energy.
+  // Three pure foods at 200 kcal per 100 g, so a dish's grams are half its
+  // energy — at 100, an 800-kcal lunch weighed 800 g, past `PLATE_GRAMS_MAX`.
   const pureCatalogue = makeCatalogue([
-    makeCatalogueIngredient({ id: 'p', carbsPer100g: 0, fatPer100g: 0, kcalPer100g: 100, name: 'Proteína', proteinPer100g: 25, slug: 'proteina' }),
-    makeCatalogueIngredient({ id: 'c', carbsPer100g: 25, fatPer100g: 0, kcalPer100g: 100, name: 'Hidrato', proteinPer100g: 0, slug: 'hidrato' }),
-    makeCatalogueIngredient({ id: 'f', carbsPer100g: 0, fatPer100g: 11.11, kcalPer100g: 100, name: 'Grasa', proteinPer100g: 0, slug: 'grasa' })
+    makeCatalogueIngredient({ id: 'p', carbsPer100g: 0, fatPer100g: 0, kcalPer100g: 200, name: 'Proteína', proteinPer100g: 50, slug: 'proteina' }),
+    makeCatalogueIngredient({ id: 'c', carbsPer100g: 50, fatPer100g: 0, kcalPer100g: 200, name: 'Hidrato', proteinPer100g: 0, slug: 'hidrato' }),
+    makeCatalogueIngredient({ id: 'f', carbsPer100g: 0, fatPer100g: 22.22, kcalPer100g: 200, name: 'Grasa', proteinPer100g: 0, slug: 'grasa' })
   ]);
   const weights = weightsFor(shapeFor(3, false));
   const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0);
@@ -781,9 +795,9 @@ describe('schedulePlan — each meal near its share of the day (SHARE_BAND)', ()
 
       return makeDish({
         ingredients: [
-          { grams: Math.round(protein * kcal), slug: 'proteina' },
-          { grams: Math.round((0.74 - protein) * kcal), slug: 'hidrato' },
-          { grams: Math.round(0.26 * kcal), slug: 'grasa' }
+          { grams: Math.round(protein * kcal) / 2, slug: 'proteina' },
+          { grams: Math.round((0.74 - protein) * kcal) / 2, slug: 'hidrato' },
+          { grams: Math.round(0.26 * kcal) / 2, slug: 'grasa' }
         ],
         name: `${slot} ${n}`,
         slots: [slot],
@@ -1669,5 +1683,175 @@ describe('pickReplacement — PLATE_LIMIT (0076)', () => {
     expect(picked?.servings).toBe(3.5);
     expect(picked?.macros.kcal).toBeGreaterThanOrEqual(1000);
     expect((picked?.macros.kcal ?? 0) / budget.kcal).toBeGreaterThan(PLATE_LIMIT.max);
+  });
+});
+
+describe('PLATE_GRAMS_MAX — no plate weighs more than its slot allows (0078)', () => {
+  // Pure foods at 200 kcal per 100 g, and water at none: a dish's weight is
+  // set by how much water it carries, independently of its energy.
+  const watery = makeCatalogue([
+    makeCatalogueIngredient({ id: 'p', carbsPer100g: 0, fatPer100g: 0, kcalPer100g: 200, name: 'Proteína', proteinPer100g: 50, slug: 'proteina' }),
+    makeCatalogueIngredient({ id: 'c', carbsPer100g: 50, fatPer100g: 0, kcalPer100g: 200, name: 'Hidrato', proteinPer100g: 0, slug: 'hidrato' }),
+    makeCatalogueIngredient({ id: 'f', carbsPer100g: 0, fatPer100g: 22.22, kcalPer100g: 200, name: 'Grasa', proteinPer100g: 0, slug: 'grasa' }),
+    makeCatalogueIngredient({
+      id: 'w',
+      carbsPer100g: 0,
+      fatPer100g: 0,
+      fiberPer100g: 0,
+      kcalPer100g: 0,
+      name: 'Agua',
+      proteinPer100g: 0,
+      slug: 'agua'
+    })
+  ]);
+  const weights = weightsFor({ afternoon_snack: 'off', breakfast: 'off', dinner: 'normal', lunch: 'normal', morning_snack: 'light', supper: 'off' });
+  const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0);
+  const T: NutritionTargets = { carbsG: 250, fatG: 70, fiberG: 29, kcal: 2100, proteinG: 120 };
+  const budgetOf = (slot: string, targets: NutritionTargets = T): number => (targets.kcal * (weights.get(slot as never) ?? 0)) / total;
+
+  /** One serving of `kcal`, weighing `grams` — the rest of the weight is water. */
+  const dish = (slug: string, slot: 'dinner' | 'lunch' | 'morning_snack', kcal: number, grams: number) => {
+    const food = Math.round(kcal / 2);
+    const [protein, carbs, fat] = [Math.round(food * 0.23), Math.round(food * 0.47), Math.round(food * 0.3)];
+
+    return makeDish({
+      ingredients: [
+        { grams: protein, slug: 'proteina' },
+        { grams: carbs, slug: 'hidrato' },
+        { grams: fat, slug: 'grasa' },
+        // Exactly `grams` in all, so a dish of 1,000 g is not 1,001.
+        { grams: Math.max(1, grams - protein - carbs - fat), slug: 'agua' }
+      ],
+      name: slug,
+      servings: 1,
+      slots: [slot],
+      slug
+    });
+  };
+
+  const plateGrams = (meal: { readonly ingredients: readonly { readonly grams: number }[] }): number =>
+    meal.ingredients.reduce((sum, item) => sum + item.grams, 0);
+  // Each item is rounded to a tenth of a gram on its own, so a plate at the edge may sum a hair over it.
+  const ROUNDING = 0.5;
+
+  it('holds the ceilings the owner set', () => {
+    // Written out, so this fails if a ceiling is loosened, not only if it is ignored.
+    expect(PLATE_GRAMS_MAX).toEqual({ afternoon_snack: 250, breakfast: 750, dinner: 750, lunch: 750, morning_snack: 250, supper: 250 });
+  });
+
+  it('never serves a 1,000 g lunch dish above 750 g, nor a 300 g snack dish above 250 g', () => {
+    // Each lunch carries its whole share in 1,000 g and each snack in 300 g, so
+    // sizing them to their energy alone would serve one of each.
+    const pool = [
+      ...Array.from({ length: 8 }, (_none, n) => dish(`lunch-${n}`, 'lunch', budgetOf('lunch') * (0.95 + n * 0.02), 1000)),
+      ...Array.from({ length: 8 }, (_none, n) => dish(`dinner-${n}`, 'dinner', budgetOf('dinner') * (0.95 + n * 0.02), 500)),
+      ...Array.from({ length: 8 }, (_none, n) => dish(`snack-${n}`, 'morning_snack', budgetOf('morning_snack') * (0.95 + n * 0.02), 300))
+    ];
+    const result = schedulePlan({ catalogue: watery, minimumKcal: MINIMUM_KCAL, pool, targets: T, weights });
+
+    expect(result.ok).toBe(true);
+
+    if (!result.ok) {
+      return;
+    }
+
+    const meals = result.assignment.days.flatMap(day => day.meals.map(meal => ({ day: day.dayIndex, grams: plateGrams(meal), meal })));
+
+    for (const { day, grams, meal } of meals) {
+      expect(grams, `day ${day} ${meal.slot} at ${grams} g`).toBeLessThanOrEqual(PLATE_GRAMS_MAX[meal.slot] + ROUNDING);
+    }
+
+    // Served smaller, not refused: the 1,000 g lunches are still the lunches.
+    expect(meals.filter(entry => entry.meal.slot === 'lunch').every(entry => entry.meal.dish.slug.startsWith('lunch-'))).toBe(true);
+    expect(meals.filter(entry => entry.meal.slot === 'lunch').every(entry => entry.meal.servings < 1)).toBe(true);
+    expect(meals.filter(entry => entry.meal.slot === 'morning_snack').every(entry => entry.meal.servings < 1)).toBe(true);
+  });
+
+  it('never places a dish whose smallest size is already past its ceiling when another fits', () => {
+    // Half a serving of 1,600 g is 800 g: no size of it is a lunch.
+    const pool = [
+      dish('lunch-heavy', 'lunch', budgetOf('lunch'), 1600),
+      ...Array.from({ length: 8 }, (_none, n) => dish(`lunch-${n}`, 'lunch', budgetOf('lunch') * (0.95 + n * 0.02), 600)),
+      ...Array.from({ length: 8 }, (_none, n) => dish(`dinner-${n}`, 'dinner', budgetOf('dinner') * (0.95 + n * 0.02), 500)),
+      ...Array.from({ length: 8 }, (_none, n) => dish(`snack-${n}`, 'morning_snack', budgetOf('morning_snack') * (0.95 + n * 0.02), 200))
+    ];
+    const result = schedulePlan({ catalogue: watery, minimumKcal: MINIMUM_KCAL, pool, targets: T, weights });
+
+    expect(result.ok).toBe(true);
+
+    if (result.ok) {
+      expect(result.assignment.days.flatMap(day => day.meals.map(meal => meal.dish.slug))).not.toContain('lunch-heavy');
+    }
+  });
+
+  it('lets the energy floor outrank the ceiling when nothing under it reaches the floor', () => {
+    // 900 kcal of target under a 1,500 floor, on dishes of two grams a calorie:
+    // every plate at its ceiling is 875 kcal, short of it.
+    const low: NutritionTargets = { carbsG: 105, fatG: 30, fiberG: 13, kcal: 900, proteinG: 52 };
+    const pool = [
+      ...Array.from({ length: 8 }, (_none, n) => dish(`lunch-${n}`, 'lunch', budgetOf('lunch', low) * (0.95 + n * 0.02), 2 * budgetOf('lunch', low))),
+      ...Array.from({ length: 8 }, (_none, n) =>
+        dish(`dinner-${n}`, 'dinner', budgetOf('dinner', low) * (0.95 + n * 0.02), 2 * budgetOf('dinner', low))
+      ),
+      ...Array.from({ length: 8 }, (_none, n) =>
+        dish(`snack-${n}`, 'morning_snack', budgetOf('morning_snack', low) * (0.95 + n * 0.02), 2 * budgetOf('morning_snack', low))
+      )
+    ];
+    const result = schedulePlan({ catalogue: watery, days: 2, minimumKcal: 1500, pool, targets: low, weights });
+
+    expect(result.ok).toBe(true);
+
+    if (result.ok) {
+      for (const day of result.assignment.days) {
+        expect(day.totals.kcal, `day ${day.dayIndex}`).toBeGreaterThanOrEqual(1500);
+      }
+
+      expect(result.assignment.days.some(day => day.meals.some(meal => plateGrams(meal) > PLATE_GRAMS_MAX[meal.slot]))).toBe(true);
+    }
+  });
+});
+
+describe('pickReplacement — PLATE_GRAMS_MAX (0078)', () => {
+  // 100 kcal per 100 g of food, and water at none.
+  const catalogue = makeCatalogue([
+    makeCatalogueIngredient({ id: 'x', kcalPer100g: 100, proteinPer100g: 10, slug: 'food' }),
+    makeCatalogueIngredient({ id: 'w', carbsPer100g: 0, fatPer100g: 0, fiberPer100g: 0, kcalPer100g: 0, proteinPer100g: 0, slug: 'agua' })
+  ]);
+  const budget = { carbsG: 110, fatG: 30, kcal: 900, proteinG: 70 };
+  const lunch = (slug: string, food: number, water = 0) =>
+    makeDish({
+      ingredients:
+        water > 0
+          ? [
+              { grams: food, slug: 'food' },
+              { grams: water, slug: 'agua' }
+            ]
+          : [{ grams: food, slug: 'food' }],
+      name: slug,
+      servings: 1,
+      slots: ['lunch'],
+      slug
+    });
+  const gramsOf = (picked: ReturnType<typeof pickReplacement>): number => (picked?.ingredients ?? []).reduce((sum, item) => sum + item.grams, 0);
+
+  it('serves a 1,000 g dish no heavier than the ceiling, though its energy asks for a whole serving', () => {
+    const picked = pickReplacement({ budget, catalogue, dayIndex: 2, placed: [], plateMinimumKcal: 0, pool: [lunch('big', 1000)], slot: 'lunch' });
+
+    expect(picked?.servings).toBe(0.75);
+    expect(gramsOf(picked)).toBeLessThanOrEqual(PLATE_GRAMS_MAX.lunch);
+  });
+
+  it('does not offer a dish whose smallest size is past the ceiling', () => {
+    // 600 kcal in 2,000 g: half a serving is 1,000 g.
+    expect(
+      pickReplacement({ budget, catalogue, dayIndex: 2, placed: [], plateMinimumKcal: 0, pool: [lunch('soup', 600, 1400)], slot: 'lunch' })
+    ).toBeUndefined();
+  });
+
+  it('passes the ceiling only as far as the floor needs', () => {
+    const picked = pickReplacement({ budget, catalogue, dayIndex: 2, placed: [], plateMinimumKcal: 900, pool: [lunch('big', 1000)], slot: 'lunch' });
+
+    expect(picked?.servings).toBe(1);
+    expect(gramsOf(picked)).toBeGreaterThan(PLATE_GRAMS_MAX.lunch);
   });
 });

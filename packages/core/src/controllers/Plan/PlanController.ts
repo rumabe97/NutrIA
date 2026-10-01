@@ -17,6 +17,7 @@ import { SafetyController } from 'core/controllers/Safety';
 import { SettingsController } from 'core/controllers/Settings';
 import { RecipeController, toPictureStatus } from 'core/controllers/Recipe';
 import { alternativesFor } from 'core/domain/Substitution';
+import { toDry, withoutCooked } from 'core/domain/Yield';
 import type { AiCallRecord, Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
 import type { CountedStanding, MealSwapStanding, PlanRedoStanding, Tier } from 'core/domain/Allowance';
 import type { NutritionTargets } from 'core/entities/Nutrition';
@@ -838,8 +839,19 @@ export interface MealDetailView {
    * `alternatives` are what to buy instead when the shop has none, already
    * filtered for this person's allergens and scaled to this portion. Empty for
    * a staple, on purpose.
+   *
+   * `dry` is present only on a cooked grain or pasta (`0078`): what it weighs
+   * before cooking, rounded to 5 g, and the dry food's name — or the cooked
+   * one's without "cocido" when the catalogue has no dry food. `grams` stays the
+   * cooked weight on the plate.
    */
-  ingredients: readonly { alternatives: readonly { grams: number; name: string }[]; grams: number; name: string; unit: string }[];
+  ingredients: readonly {
+    alternatives: readonly { grams: number; name: string }[];
+    dry?: { grams: number; name: string };
+    grams: number;
+    name: string;
+    unit: string;
+  }[];
   kcal: number;
   name: string;
   /**
@@ -914,6 +926,22 @@ async function localeFor(userId: string, requested: string | null): Promise<stri
   return requested ?? (await ProfileRepository.findByUserId(userId))?.locale ?? FALLBACK_LOCALE;
 }
 
+/** What a cooked grain's dry weight is rounded to on the meal (`0078`), and the least it shows: never "0 g". */
+const DRY_STEP_G = 5;
+
+/** The dry foods' names, in the reader's language, for the cooked grains among these slugs. No query when there are none. */
+async function dryNamesFor(slugs: readonly string[], locale: string): Promise<ReadonlyMap<string, string>> {
+  const drySlugs = [...new Set(slugs.flatMap(slug => toDry(slug, 0)?.drySlug ?? []))];
+
+  if (drySlugs.length === 0) {
+    return new Map();
+  }
+
+  const ingredients = await RecipeRepository.loadCatalogue(locale, null, drySlugs);
+
+  return new Map(ingredients.map(ingredient => [ingredient.slug, ingredient.name]));
+}
+
 async function loadMealDetail(userId: string, mealId: string, requested: string | null, withPending = false): Promise<MealDetailView> {
   const locale = await localeFor(userId, requested);
   // The safety profile is fetched alongside the meal rather than only when an
@@ -931,6 +959,10 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
   const { day, items, meal, plan, recipe } = found;
   const factor = Number(meal.servings) / (recipe.servings || 1);
   const verdict = await RecipeRepository.findVerdict(userId, recipe.id);
+  const dryNames = await dryNamesFor(
+    items.map(item => item.slug),
+    locale
+  );
   const picture = toPictureStatus({ status: recipe.pictureStatus, url: recipe.pictureUrl });
 
   return {
@@ -947,7 +979,20 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
     ingredients: items.map(item => {
       const grams = Math.round(Number(item.grams) * factor * 10) / 10;
 
-      return { alternatives: alternativesFor(item, grams, item.substitutes, safety), grams, name: item.name, unit: item.unit };
+      const dry = toDry(item.slug, grams);
+
+      return {
+        alternatives: alternativesFor(item, grams, item.substitutes, safety),
+        ...(dry && {
+          dry: {
+            grams: Math.max(DRY_STEP_G, Math.round(dry.dryGrams / DRY_STEP_G) * DRY_STEP_G),
+            name: (dry.drySlug && dryNames.get(dry.drySlug)) ?? withoutCooked(item.name)
+          }
+        }),
+        grams,
+        name: item.name,
+        unit: item.unit
+      };
     }),
     kcal: Number(meal.kcal),
     name: recipe.name,
