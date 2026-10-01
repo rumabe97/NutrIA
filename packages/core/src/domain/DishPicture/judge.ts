@@ -1,10 +1,13 @@
 import { matchCustomAllergen, normaliseForMatching, toMatchIndex } from 'core/domain/Safety';
 
 import {
+  BARE_FORMS,
   DAIRY_WORDS,
   FORM_FAMILIES,
   NOT_A_FOOD,
   PLANT_QUALIFIERS,
+  READINGS,
+  SAME_WORD,
   SERVING_WORDS,
   SPELLINGS,
   TITLE_BOWL,
@@ -65,6 +68,13 @@ import type { PictureRecipe } from './prompt';
  * ("soy yogurt") maps the plant, not the dairy; and a sulphite a food only may
  * contain never rejects (one it contains — dried apricots, wine — does, even
  * where another row of the same word only may).
+ *
+ * And the holes are closed (project 010, phase 5): a name that carries an
+ * allergen and mapped to none — "pizza", "crepe", "paneer", "meringue",
+ * "hamburger", "croutons" — is read as its usual recipe; a form's word alone
+ * is the form with nothing in it, never the catalogue's only filled product
+ * of that name (`BARE_FORMS`); and "tortilla" is a potato omelette on a dish
+ * that is one, and a wheat wrap everywhere else (`READINGS`).
  */
 
 /** How much of a food the judge sees. `trace` never rejects a picture. */
@@ -245,71 +255,102 @@ const GENERIC: ReadonlySet<string> = new Set([
 const LINKING: ReadonlySet<string> = new Set(['a', 'and', 'in', 'of', 'on', 'or', 's', 'the', 'with']);
 
 /**
- * The judge's English for a food the catalogue names otherwise, normalised →
- * the catalogue slugs whose allergens it carries. Only foods that carry an
- * allergen are worth a line: a missing one here lets a picture through.
+ * The judge's English for a food the catalogue names otherwise, normalised and
+ * singular → the catalogue slugs whose allergens it carries. A plural is read
+ * through its singular ("croutons", "pies", "yogurts"). Only foods that carry
+ * an allergen are worth a line: a missing one here lets a picture through.
+ * Project 010's phase 5 closed the names that carried an allergen and mapped
+ * to none ("pizza", "crepe", "paneer", "meringue"…; `judge.holes.test.ts`):
+ * each is read as its usual recipe, never as a filled product.
  */
 const SEEN_SYNONYMS: ReadonlyMap<string, readonly string[]> = new Map([
   ['batter', ['harina-de-trigo']],
   ['bechamel', ['leche-entera', 'harina-de-trigo']],
   ['biscuit', ['galletas-de-mantequilla']],
-  ['biscuits', ['galletas-de-mantequilla']],
   ['bread', ['pan-blanco']],
   ['breaded', ['pan-rallado']],
+  ['burrito', ['tortilla-de-trigo']],
+  ['buttermilk', ['leche-entera']],
   ['cake', ['bizcocho']],
-  ['cakes', ['bizcocho']],
   ['calamari', ['calamar']],
   ['cookie', ['galletas-de-mantequilla']],
-  ['cookies', ['galletas-de-mantequilla']],
+  ['crayfish', ['cangrejo']],
   ['cream', ['nata-para-cocinar']],
-  ['croutons', ['pan-blanco']],
+  ['crepe', ['tortitas-americanas']],
+  ['crouton', ['pan-blanco']],
+  // A crumble's topping is a butter biscuit's dough: flour, egg and butter.
+  ['crumble', ['galletas-de-mantequilla']],
+  ['crumb', ['pan-rallado']],
+  // A pizza's crust or a pie's: what both carry is the flour.
+  ['crust', ['masa-de-pizza']],
+  ['cupcake', ['magdalena']],
   ['custard', ['natillas']],
   ['dumpling', ['harina-de-trigo']],
-  ['dumplings', ['harina-de-trigo']],
   ['fish', ['merluza']],
   ['flatbread', ['pan-de-pita']],
+  ['frittata', ['huevo']],
+  ['fritter', ['harina-de-trigo']],
+  ['fusilli', ['pasta-cocida']],
   ['gyoza', ['harina-de-trigo']],
+  ['hollandaise', ['huevo', 'mantequilla']],
   ['lasagna', ['placas-de-lasana']],
+  ['latte', ['leche-entera']],
   ['macaroni', ['pasta-cocida']],
   ['mayo', ['mayonesa']],
+  ['meringue', ['clara-de-huevo']],
   ['mussel', ['mejillon']],
   ['noodle', ['noodles-de-trigo']],
-  ['noodles', ['noodles-de-trigo']],
   ['nut', ['nueces']],
-  ['nuts', ['nueces']],
   ['oat', ['copos-de-avena']],
   ['oatmeal', ['copos-de-avena']],
-  ['oats', ['copos-de-avena']],
+  ['paneer', ['requeson']],
   ['pastry', ['masa-de-hojaldre']],
   ['penne', ['pasta-cocida']],
   ['pie', ['masa-quebrada']],
+  // The form, not a topping: a pizza's cheese is seen as cheese.
+  ['pizza', ['masa-de-pizza']],
   ['porridge', ['copos-de-avena']],
   ['prawn', ['gambas']],
   ['ramen', ['noodles-de-trigo']],
   ['shrimp', ['gambas']],
   ['spaghetti', ['pasta-cocida']],
+  // Its shortcrust, and the egg it was read as before: the catalogue's two tarts share only that.
+  ['tart', ['masa-quebrada', 'huevo']],
   ['toast', ['pan-de-molde']],
   ['udon', ['noodles-udon']],
   ['yogurt', ['yogur-natural-desnatado']]
 ]);
 
+/** A word of `table` read as it is or through its singular: "croutons" is a "crouton". */
+function lookup<T>(table: ReadonlyMap<string, T>, word: string): T | undefined {
+  return forms(word)
+    .map(form => table.get(form))
+    .find(found => found !== undefined);
+}
+
 /** "gluten-free", "lactose free": the word before `free` is what the food lacks, not what it is. */
 const FREE_OF = /\b[a-z]+ free\b/g;
 
-/** The words of a name that could say what the food is, in order. */
+/** The words of a name that could say what the food is, in order: "hamburger" read as "burger" (`SAME_WORD`). */
 function words(text: string): readonly string[] {
   return normaliseForMatching(text)
     .replace(FREE_OF, ' ')
     .split(' ')
-    .filter(word => word !== '' && !LINKING.has(word) && !DESCRIPTORS.has(word));
+    .filter(word => word !== '' && !LINKING.has(word) && !DESCRIPTORS.has(word))
+    .map(word => lookup(SAME_WORD, word) ?? word);
 }
 
-/** A word and its singular, so "prawns" meets "prawn" and "tomatoes" meets "tomato". */
+/** A word and its singular, so "prawns" meets "prawn", "tomatoes" meets "tomato" and "sandwiches" meets "sandwich". */
 function forms(word: string): readonly string[] {
   const out = new Set([word]);
 
   if (word.endsWith('oes') || word.endsWith('ies')) {
     out.add(word.endsWith('ies') ? `${word.slice(0, -3)}y` : word.slice(0, -2));
+  }
+
+  // Phase 5: an "-es" plural after a hissing sound was read as a word of its own, and "sandwiches" carried nothing.
+  if (/(ch|sh|ss|us|x|z)es$/.test(word)) {
+    out.add(word.slice(0, -2));
   }
 
   if (word.endsWith('s') && word.length > 3) {
@@ -377,10 +418,9 @@ function titleWords(name: string): { readonly negatedBySuffix: ReadonlySet<numbe
  * And a title that negates a word of the family ("quiche sin masa") names
  * none of it.
  */
-function ownFamilies(recipe: PictureRecipe): readonly FormFamily[] {
-  const slugs = new Set(recipe.ingredients.map(ingredient => ingredient.slug));
-  const { negatedBySuffix, words: title } = titleWords(recipe.name);
-  const notAForm = new Set(TITLE_NOT_A_FORM.flatMap(phrase => occurrences(title, phrase.split(' '), exactly).flat()));
+/** A title's words, and those a negation reaches ("sin queso ni pan") or its own suffix negates ("breadless"). */
+function negatedTitle(name: string): { readonly negated: ReadonlySet<number>; readonly title: readonly string[] } {
+  const { negatedBySuffix, words: title } = titleWords(name);
   const negated = new Set(negatedBySuffix);
 
   for (const negation of TITLE_NEGATIONS.map(phrase => phrase.split(' '))) {
@@ -390,6 +430,14 @@ function ownFamilies(recipe: PictureRecipe): readonly FormFamily[] {
       }
     }
   }
+
+  return { negated, title };
+}
+
+function ownFamilies(recipe: PictureRecipe): readonly FormFamily[] {
+  const slugs = new Set(recipe.ingredients.map(ingredient => ingredient.slug));
+  const { negated, title } = negatedTitle(recipe.name);
+  const notAForm = new Set(TITLE_NOT_A_FORM.flatMap(phrase => occurrences(title, phrase.split(' '), exactly).flat()));
 
   const head = title.findIndex(word => !TITLE_MARKS.includes(word));
   const after = (index: number) => title.slice(index + 1).find(word => !TITLE_MARKS.includes(word));
@@ -413,6 +461,41 @@ function ownFamilies(recipe: PictureRecipe): readonly FormFamily[] {
     family.title.some(phrase => occurrences(title, phrase.split(' '), exactly).some(names));
 
   return FORM_FAMILIES.filter(family => family.slugs.some(slug => slugs.has(slug)) || titled(family));
+}
+
+/**
+ * How the dish reads each word of `READINGS`: as the other food it may name
+ * when the dish is that food — it holds that food's slug, or its title names
+ * it, not negated, or the title's first word is the word itself on a dish
+ * that holds an egg — and as its usual reading everywhere else. An egg and a
+ * potato alone make no omelette. "tortilla" on an omelette is the
+ * omelette; on anything else it is a wheat wrap, and a dish of corn tortillas
+ * excuses it as its own wraps-family form.
+ */
+function dishReadings(recipe: PictureRecipe): (word: string) => readonly string[] | undefined {
+  const slugs = new Set(recipe.ingredients.map(ingredient => ingredient.slug));
+  const { negated, title } = negatedTitle(recipe.name);
+  const titled = (phrase: string) => occurrences(title, phrase.split(' '), exactly).some(at => at.every(index => !negated.has(index)));
+  const head = title.findIndex(word => !TITLE_MARKS.includes(word));
+
+  return word => {
+    const reading = lookup(READINGS, word);
+
+    if (reading === undefined) {
+      return undefined;
+    }
+
+    const { reads, slugs: is, title: named, titleHead } = reading.when;
+    const isIt =
+      is.some(slug => slugs.has(slug)) ||
+      named.some(titled) ||
+      (head !== -1 &&
+        titleHead.words.includes(title[head] as string) &&
+        !negated.has(head) &&
+        titleHead.holds.every(group => group.some(slug => slugs.has(slug))));
+
+    return isIt ? reads : reading.otherwise;
+  };
 }
 
 /**
@@ -474,6 +557,10 @@ function everything(entry: PictureCatalogueEntry): readonly string[] {
 /**
  * The catalogue slugs a seen food's name stands for.
  *
+ * 0. A name that is one word of `READINGS` ("tortilla", "fried tortillas"):
+ *    the reading the dish gives it (`dishReadings`). One of `BARE_FORMS`
+ *    ("brownie", "a slice of brownie", "crackers"): the form with nothing in
+ *    it, before the catalogue's filled product of that name.
  * 1. The whole name, exactly, as `CustomAllergen` matches it, or through
  *    `SEEN_SYNONYMS`: "peanut butter" is peanut butter and not butter.
  * 2. Otherwise every entry one of whose names is made only of the food's own
@@ -489,15 +576,18 @@ function everything(entry: PictureCatalogueEntry): readonly string[] {
  *    neither's sesame. A word that is not a food (`NOT_A_FOOD`: "base",
  *    "glass") is not read here: "grain base" is not a pizza base.
  */
-function mapName(name: string, food: readonly string[], catalogue: Catalogue): Mapped {
+function mapName(name: string, food: readonly string[], catalogue: Catalogue, readAs: (word: string) => readonly string[] | undefined): Mapped {
   const entriesOf = (slugs: readonly string[]) => slugs.flatMap(slug => catalogue.bySlug.get(slug) ?? []);
-  const direct = matchCustomAllergen(name, catalogue.index);
-  const exact = entriesOf(direct === null ? (SEEN_SYNONYMS.get(normaliseForMatching(name)) ?? []) : [direct]);
   const union = (entries: readonly PictureCatalogueEntry[]): Mapped => ({
     contains: new Set(entries.flatMap(entry => entry.allergens)),
     mayContain: new Set(entries.flatMap(entry => entry.mayContain ?? [])),
     slugs: entries.map(entry => entry.slug)
   });
+  const [only, ...more] = food;
+  const bare = only !== undefined && more.length === 0 ? only : undefined;
+  const unfilled = bare === undefined ? undefined : (readAs(bare) ?? lookup(BARE_FORMS, bare));
+  const direct = matchCustomAllergen(name, catalogue.index);
+  const exact = entriesOf(unfilled ?? (direct === null ? (lookup(SEEN_SYNONYMS, normaliseForMatching(name)) ?? []) : [direct]));
 
   if (exact.length > 0) {
     return union(exact);
@@ -512,7 +602,7 @@ function mapName(name: string, food: readonly string[], catalogue: Catalogue): M
   const byWhole = new Set(whole.flatMap(match => match.covers));
   const synonyms = food
     .filter(word => !byWhole.has(word))
-    .flatMap(word => entriesOf(SEEN_SYNONYMS.get(word) ?? []).map(entry => ({ covers: [word], entry })));
+    .flatMap(word => entriesOf(lookup(SEEN_SYNONYMS, word) ?? []).map(entry => ({ covers: [word], entry })));
   const tight = [...whole, ...synonyms];
   const covered = new Set(tight.flatMap(match => match.covers));
   const { contains, mayContain, slugs } = union(tight.map(match => match.entry));
@@ -603,8 +693,9 @@ export function judgePicture(input: {
   const matched = byKey(match.ingredients.flatMap(ingredient => ingredient.matched));
 
   const families = ownFamilies(recipe);
+  const readAs = dishReadings(recipe);
   const everyName = [...seen.foods.map(food => food.name), ...match.extras, ...match.ingredients.flatMap(ingredient => ingredient.matched)];
-  const spelled = (word: string) => SPELLINGS.get(word) ?? word;
+  const spelled = (word: string) => SPELLINGS.get(word) ?? lookup(SAME_WORD, word) ?? word;
   const sameSpelled = (a: string, b: string) => sameWord(spelled(a), spelled(b));
 
   /*
@@ -681,7 +772,7 @@ export function judgePicture(input: {
       const mapped =
         list.length === 0
           ? { contains: new Set<string>(), mayContain: new Set<string>(), slugs: [] }
-          : mapName(list === all ? name : list.join(' '), list, catalogue);
+          : mapName(list === all ? name : list.join(' '), list, catalogue, readAs);
 
       return { foreignAllergens: foreignOf(mapped), slugs: mapped.slugs };
     };
@@ -692,7 +783,7 @@ export function judgePicture(input: {
      * A name of the dish's own form is excused of what its family's form
      * carries (`FormFamily.carries`, a closed set) and of nothing else,
      * whatever the row: "battered fish" is excused of its batter and its fish
-     * is still weighed; a brownie's walnuts are never a sponge's.
+     * is still weighed; a filled product's filling is never its form's.
      */
     const left = family === undefined ? asToday.foreignAllergens : asToday.foreignAllergens.filter(allergen => !family.carries.includes(allergen));
     // The exemption stands only where it takes an allergen away: elsewhere the name reads as it always has, notes and all.

@@ -210,6 +210,7 @@ const OWN_FORM = {
     OIL
   ),
   nachos: dish('Nachos con frijoles y aguacate', ['frijoles-refritos', 100], ['aguacate', 60], ['nachos', 50], ['tomate', 50]),
+  oatCrumble: dish('Crumble de manzana y avena', ['manzana', 200], ['copos-de-avena', 50], ['miel', 15], OIL),
   oatMilkRicePudding: dish('Arroz cremoso cocido en leche de avena', ['leche-de-avena', 250], ['arroz-blanco-cocido', 120], ['canela-molida', 1]),
   prawnsWithRice: dish('Gambas al ajillo con arroz', ['gambas', 150], ['arroz-blanco-cocido', 150], ['ajo', 8], OIL),
   riceCakes: dish('Tortitas de arroz untadas de hummus con pepino en rodajas', ['pepino', 80], ['hummus', 60], ['tortitas-de-arroz', 40], OIL),
@@ -275,6 +276,8 @@ const NO_FORM = {
     ['salsa-de-soja', 10]
   ),
   polenta: dish('Polenta cremosa con champiñones', ['polenta-cocida', 200], ['champinon', 120], OIL),
+  // A Spanish omelette: "tortilla" is its own name for it, and no family's form (`READINGS`, phase 5).
+  potatoOmelette: dish('Tortilla de patatas con cebolla', ['huevo', 150], ['patata', 200], ['cebolla', 50], OIL),
   ricePudding: dish('Arroz con leche', ['leche-entera', 250], ['arroz-blanco-cocido', 120]),
   salmonWithRice: dish('Salmón con arroz y brócoli', ['salmon', 150], ['arroz-blanco-cocido', 150], ['brocoli', 100], OIL),
   scrambledEggs: dish('Revuelto de huevo con espinacas', ['huevo', 120], ['espinaca', 100], OIL),

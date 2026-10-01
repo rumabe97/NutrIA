@@ -178,19 +178,19 @@ export const FORM_FAMILIES: readonly FormFamily[] = [
     without: ['masa', 'base']
   },
   {
-    // A butter biscuit's flour, egg and butter.
+    // A butter biscuit's flour, egg and butter. A crumble's topping is the same dough, rubbed loose.
     carries: ['eggs', 'gluten', 'milk'],
     family: 'biscuits',
-    seen: ['biscuit', 'cookie'],
+    seen: ['biscuit', 'cookie', 'crumble'],
     slugs: ['galletas-sin-gluten'],
-    title: ['galleta', 'galletas', 'biscuit', 'biscuits', 'cookie', 'cookies']
+    title: ['galleta', 'galletas', 'biscuit', 'biscuits', 'cookie', 'cookies', 'crumble', 'crumbles']
   },
   // A cracker's flour. Not the sesame the catalogue's crackers may contain: no allergen is excused only because a product may contain it.
   { carries: ['gluten'], family: 'crackers', seen: ['cracker'], slugs: [...CAKES_OF_A_CEREAL], title: [] },
   {
     carries: ['gluten'],
     family: 'wraps',
-    seen: ['tortilla', 'wrap', 'taco', 'flatbread', 'pita', 'pitta'],
+    seen: ['tortilla', 'wrap', 'taco', 'burrito', 'flatbread', 'pita', 'pitta'],
     slugs: ['tortilla-de-maiz', 'nachos'],
     title: [
       'wrap',
@@ -220,7 +220,7 @@ export const FORM_FAMILIES: readonly FormFamily[] = [
     // Flour, the butter of puff and shortcrust pastry, a quiche's egg. Not a filling: the catalogue's empanada is tuna, and its fish is not a pastry's.
     carries: ['eggs', 'gluten', 'milk'],
     family: 'pastry',
-    seen: ['pizza', 'pizza base', 'crust', 'dough', 'pastry', 'pie', 'tart', 'quiche', 'empanada', 'dumpling', 'gyoza'],
+    seen: ['pizza', 'pizza base', 'pizza crust', 'crust', 'dough', 'pastry', 'pie', 'tart', 'quiche', 'empanada', 'dumpling', 'gyoza'],
     slugs: [],
     title: [
       'pizza',
@@ -305,7 +305,8 @@ export const FORM_FAMILIES: readonly FormFamily[] = [
   {
     carries: ['lactose', 'milk'],
     family: 'milk',
-    seen: ['milk', 'milkshake'],
+    // A latte is a glass of the dish's milk with coffee: made with oat milk, it looks the same.
+    seen: ['milk', 'milkshake', 'latte'],
     slugs: [
       'leche-de-soja',
       'leche-de-avena',
@@ -435,6 +436,89 @@ export const TITLE_NEGATION_ENDS: readonly string[] = ['con', 'with', 'y', 'and'
 export const SPELLINGS: ReadonlyMap<string, string> = new Map([
   ['pitta', 'pita'],
   ['yoghurt', 'yogurt']
+]);
+
+/**
+ * Another word the judge uses for a word the rule already reads (project 010,
+ * phase 5): read as that word everywhere — in a seen name, in a catalogue
+ * name, in a family's row. "hamburger" is a burger and "hamburger patty" the
+ * row "burger patty"; "omelet" is the American "omelette". Before, each was
+ * a word nothing held, and mapped to no allergen.
+ */
+export const SAME_WORD: ReadonlyMap<string, string> = new Map([
+  ['hamburger', 'burger'],
+  ['omelet', 'omelette']
+]);
+
+/**
+ * A form's word alone, read as the form with nothing in it (project 010,
+ * phase 5): the catalogue slugs whose allergens the bare word carries. It is
+ * read before the catalogue, because the catalogue's only product of that
+ * name is a filled one — its brownie may contain nuts, its empanada is tuna,
+ * its crackers may contain sesame, its "sandwich" is a chocolate sandwich
+ * biscuit — and a bare word does not say the filling. "Brownie" is a sponge's
+ * flour, egg and milk; "a slice of brownie" too. A name that says more is
+ * read as it always was: "walnut brownie" is walnuts, "tuna empanada" is
+ * tuna. Each word is a row of a family, and carries nothing beyond that
+ * family's closed set (`forms.test.ts`).
+ */
+export const BARE_FORMS: ReadonlyMap<string, readonly string[]> = new Map([
+  ['brownie', ['bizcocho']],
+  ['cracker', ['harina-de-trigo']],
+  ['empanada', ['obleas-de-empanadillas']],
+  ['sandwich', ['pan-de-molde']]
+]);
+
+/**
+ * A word that names two foods with different allergens (project 010, phase
+ * 5), read from the dish — never the way that fits it best. "tortilla" is a
+ * Spanish omelette on a dish that *is* one, and a wheat wrap, with its gluten,
+ * on every other dish: a dish of corn tortillas excuses it as its own
+ * wraps-family form, and a dish with egg and no gluten that is no omelette
+ * rejects it (the lead's decision: a wheat wrap must never pass on a dish a
+ * coeliac may eat). A dish is an omelette by its title — a phrase that names
+ * one anywhere, or "tortilla" as its first word on a dish that holds an egg (a
+ * "tortilla de espinacas", a "tortilla francesa": two of the library's would
+ * otherwise be rejected for their own name) — or by holding the packaged
+ * omelette. Never by an egg and a potato alone: a potato salad with egg, or
+ * "huevos rotos", is no omelette, and a wrap named "tortilla" on it keeps its
+ * gluten (the reviewer's P2-5; every omelette of the library is named by its
+ * title). Before, the word alone mapped to nothing and let a wrap
+ * through on a dish of chicken and rice. A name that says more — "wheat
+ * tortilla", "spanish tortilla" — is read as it always was. Known misses,
+ * pinned in `judge.holes.test.ts`: the bare word on a dish that is one of the
+ * two foods is read as that food, so a picture of the other one passes where
+ * the dish carries what it would bring.
+ */
+export type DishReading = {
+  /** What the word carries on any dish that is not `when`'s food. */
+  readonly otherwise: readonly string[];
+  readonly when: {
+    /** What the word carries on that dish. */
+    readonly reads: readonly string[];
+    /** The dish holds one of these: the food itself. */
+    readonly slugs: readonly string[];
+    /** Or its title names it, as a normalised title reads it, not negated. */
+    readonly title: readonly string[];
+    /** Or one of `words` is the title's first word, not negated, on a dish that holds one slug of each group of `holds`. */
+    readonly titleHead: { readonly holds: readonly (readonly string[])[]; readonly words: readonly string[] };
+  };
+};
+
+export const READINGS: ReadonlyMap<string, DishReading> = new Map([
+  [
+    'tortilla',
+    {
+      otherwise: ['tortilla-de-trigo'],
+      when: {
+        reads: ['tortilla-de-patatas-envasada'],
+        slugs: ['tortilla-de-patatas-envasada'],
+        // A frittata is an Italian omelette: one of the library's holds egg and potato, and is named so only by its title.
+        title: ['tortilla de patata', 'tortilla de patatas', 'tortilla espanola', 'omelette', 'omelettes', 'frittata', 'frittatas'],
+        titleHead: { holds: [['huevo', 'clara-de-huevo', 'huevo-de-codorniz']], words: ['tortilla', 'tortillas'] }
+      }
+    }
+  ]
 ]);
 
 /**

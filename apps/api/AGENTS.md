@@ -270,7 +270,7 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     "cream cheese", "milk roll", "cinnamon roll" are other foods. A name of the dish's own form is
     excused only of its family's closed set of allergens (`FormFamily.carries`, written in `forms.ts`,
     never read from the catalogue): "battered fish" is excused its batter and its fish is still
-    weighed; a brownie's walnuts, a tuna empanada's fish, a vegetable nugget's soy are never a form's. **What
+    weighed; a named filling ("walnut brownie", "tuna empanadas"), a vegetable nugget's soy are never a form's. **What
     bounds it besides**: families are narrow (bread does not excuse pancakes); breading and nuggets or
     croquettes are keyed by the title only; rice and corn cakes are crackers, never cakes, and a
     title's "tortitas" names no pancakes on a dish that holds them; a bare "burger" still rejects (its
@@ -293,7 +293,24 @@ Production is stricter than development, by design: `ALLOWED_ORIGINS` is require
     dairy word ("soy yogurt", "coconut milk") maps the plant and not the dairy — "plant", "vegan",
     "vegetable" name no plant, so "plant milk" or "vegan butter" read as they always did (they could be
     soy or nuts), and "plant protein" is still soy; a sulphite a food only *may*
-    contain never rejects (one it contains — dried apricots, wine — does). Every row of the
+    contain never rejects (one it contains — dried apricots, wine — does). **The holes are closed**
+    (phase 5): a name that carries an allergen is read as its usual recipe even where the catalogue has
+    no row of that name — "pizza" and "crust" a dough's gluten, "crepe" a batter, "paneer" a fresh
+    cheese, "meringue" egg white, "crayfish" a crustacean (`SEEN_SYNONYMS`); "hamburger" and "omelet"
+    as "burger" and "omelette" (`SAME_WORD`); a plural through its singular ("croutons",
+    "sandwiches"). A form's word alone is the form with nothing in it (`BARE_FORMS`): a bare
+    "brownie", "crackers", "empanadas" or "sandwich" is not the catalogue's only filled product of
+    that name. "tortilla" is read from the dish (`READINGS`): a potato omelette on a dish that is one
+    (its title names "tortilla de patata(s)", "tortilla española", "omelette" or "frittata", or opens
+    with "tortilla" on a dish that holds an egg, or it holds the packaged omelette; an egg and a potato
+    alone make none), and a wheat wrap, with its gluten, everywhere else — a dish of
+    corn tortillas excuses it as its own form, and a dish of egg with no gluten rejects it. Known
+    misses, pinned: a wheat wrap called "tortilla" on a gluten-free potato omelette, and a potato
+    omelette called "tortilla" on a wheat dish with no egg, pass. A bare form's word lets through, on
+    purpose and pinned in `judge.forms.test.ts`, a filled product named by that word alone: a tuna
+    empanada's fish, the nuts a brownie or the sesame crackers may contain. "sausages"
+    and "patty" are left open, with the reason, in
+    `judge.holes.test.ts`. Every row of the
     tables has its case in `forms.test.ts`; the pilot (`judge.pilot.test.ts`, 65 accepted with their
     notes, 3 controls rejected) is the floor and is never edited; `judge.reverse.test.ts` pins what
     the rule lets through beside twenty example dishes, and says why each food moved;
