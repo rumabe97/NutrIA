@@ -107,7 +107,9 @@ function presentUser(user: User, hasPassword: boolean): StoredUserView {
  * One account on the admin table (`GET /admin/accounts`): the two locks, when
  * it arrived, what it is, and its milestones. No profile, no answers, no plan,
  * no health value, no allergy — only dates and counts about the account
- * (`0028`, `0068`). Its keys are exactly these eleven; a twelfth is a decision.
+ * (`0028`, `0068`). Its keys are exactly these thirteen; a fourteenth is a decision.
+ * The last two were one (PLAN 011 phase 4): the console offers to remove a
+ * lost second factor only where there is one, and shows a pending removal.
  */
 export type AccountView = {
   id: string;
@@ -125,6 +127,10 @@ export type AccountView = {
   professional: boolean;
   role: 'admin' | 'user';
   tier: 'free' | 'premium';
+  /** The second factor is on. */
+  twoFactorEnabled: boolean;
+  /** When the owner's pending removal of the factor falls due (ISO) — the cron removes it on its first run after — or null when none is pending. */
+  twoFactorRemovalDueAt: string | null;
 };
 
 /**
@@ -143,7 +149,9 @@ function presentAccount(row: AccountRow): AccountView {
     plans: row.plans,
     professional: row.professional,
     role: row.role,
-    tier: row.tier
+    tier: row.tier,
+    twoFactorEnabled: row.twoFactorEnabled,
+    twoFactorRemovalDueAt: row.twoFactorRemovalDueAt?.toISOString() ?? null
   };
 }
 

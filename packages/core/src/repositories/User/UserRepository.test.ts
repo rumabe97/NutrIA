@@ -229,6 +229,10 @@ describe('the account query over the one table', () => {
     expect(sql).toContain(
       '(select max("created_at") from "analytics_events" where "user_id" = "user"."id" and "analytics_events"."event" in ($1, $2))'
     );
+    // The pending removal of a second factor (PLAN 011 phase 4): this account's, and only while not cancelled.
+    expect(sql).toContain(
+      '(select "due_at" from "two_factor_removal" where "user_id" = "user"."id" and "two_factor_removal"."cancelled_at" is null)'
+    );
     expect(sql).not.toMatch(/= "id"/);
   });
 });
