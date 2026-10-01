@@ -1,4 +1,4 @@
-import { bigint, boolean, index, integer, pgEnum, pgTable, text, timestamp } from 'drizzle-orm/pg-core';
+import { bigint, boolean, index, integer, pgEnum, pgTable, text, timestamp, unique } from 'drizzle-orm/pg-core';
 
 import { timestamps } from './_columns';
 
@@ -55,6 +55,13 @@ export const user = pgTable('user', {
   /** The `TERMS_VERSION` in force at sign-up; null means the account predates the record, never "unknown version". */
   termsVersion: text(),
   tier: userTier().notNull().default('free'),
+  /**
+   * The second factor is on (PLAN 011 phase 3): Better Auth's two-factor
+   * plugin sets it on the first correct code after `/two-factor/enable`, and
+   * clears it on `/two-factor/disable`. A sign-in with a password then answers
+   * a challenge instead of a session. Never written by a client (`input: false`).
+   */
+  twoFactorEnabled: boolean().notNull().default(false),
   ...timestamps
 });
 
@@ -105,6 +112,35 @@ export const verification = pgTable(
     ...timestamps
   },
   table => [index('verification_identifier_idx').on(table.identifier)]
+);
+
+/**
+ * The authenticator-app secret and the backup codes of an account with a
+ * second factor (PLAN 011 phase 3) — Better Auth's two-factor plugin owns the
+ * table and its columns, like the four above. Both secrets are stored
+ * encrypted with `BETTER_AUTH_SECRET`; neither is ever returned by a route but
+ * `/two-factor/enable` and `/two-factor/generate-backup-codes`, once, to their
+ * owner.
+ *
+ * One row per account, and the UNIQUE says so: the plugin looks a row up by
+ * `userId` and finds one. `verified` is false between `/enable` and the first
+ * correct code; the two counters are the plugin's lockout after repeated wrong
+ * codes.
+ */
+export const twoFactor = pgTable(
+  'two_factor',
+  {
+    id: text().primaryKey(),
+    backupCodes: text().notNull(),
+    failedVerificationCount: integer().notNull().default(0),
+    lockedUntil: timestamp({ withTimezone: true }),
+    secret: text().notNull(),
+    userId: text()
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    verified: boolean().notNull().default(true)
+  },
+  table => [unique('two_factor_user_id_unique').on(table.userId)]
 );
 
 /**
