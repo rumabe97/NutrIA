@@ -500,7 +500,7 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
       const early = await cron();
 
       expect(early.status).toBe(200);
-      expect(Object.keys(early.body as object)).toEqual(['removed']);
+      expect(Object.keys(early.body as object).sort()).toEqual(['failed', 'removed']);
       expect(await flagOf(id)).toBe(true);
       expect(await twoFactorRows(id)).toBe(1);
       expect(await pending(id)).toBe(true);
@@ -537,7 +537,7 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
       // Again, and again: nothing more removed, recorded or mailed.
       for (const again of [await cron(), await cron()]) {
         expect(again.status).toBe(200);
-        expect(again.body).toEqual({ removed: 0 });
+        expect(again.body).toEqual({ failed: 0, removed: 0 });
       }
 
       expect(await auditRows(id, 'auth.2fa_removed_by_owner')).toHaveLength(1);
@@ -571,9 +571,25 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
       expect((await post('auth/two-factor/disable', jar.header, { password: ORIGINAL })).status).toBe(200);
       expect(await flagOf(id)).toBe(false);
 
+      // And began turning it on again without confirming: a secret left, unverified, the flag still off.
+      const restarted = await paced(() =>
+        request(server()).post(`/${PREFIX}/auth/two-factor/enable`).set('Cookie', jar.header).set('User-Agent', IPHONE).send({ password: ORIGINAL })
+      );
+
+      expect(restarted.status).toBe(200);
+      secrets.push(...(restarted.body as { backupCodes: string[] }).backupCodes, totpSecret((restarted.body as { totpURI: string }).totpURI).base32);
+      expect(await twoFactorRows(id)).toBe(1);
+
       await due(id);
-      expect((await cron()).status).toBe(200);
+
+      const ran = await cron();
+
+      expect(ran.status).toBe(200);
+      // Not a removal: nothing was on to remove.
+      expect(ran.body).toEqual({ failed: 0, removed: 0 });
       expect(await removalRows(id)).toEqual([]);
+      expect(await twoFactorRows(id)).toBe(0);
+      expect(await flagOf(id)).toBe(false);
       expect(await auditRows(id, 'auth.2fa_removed_by_owner')).toEqual([]);
       await pause(500);
       expect(mailsTo(email, REMOVED_MAIL)).toEqual([]);
@@ -609,6 +625,7 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
 
       for (const run of runs) {
         expect(run.userId).toBeNull();
+        expect(Object.keys(run.properties ?? {}).sort()).toEqual(['failed', 'job', 'removed']);
       }
     });
   });
