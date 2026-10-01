@@ -4,9 +4,11 @@ import { createAuthMiddleware, getSessionFromCtx, isAPIError } from 'better-auth
 import { UserController } from 'core/controllers/User';
 
 import { breachedOrPass, checkNewPassword, record, text } from './PasswordPolicy.js';
+import { twoFactorAfter, twoFactorBefore } from './TwoFactor.js';
 
 import type { BackgroundTaskService } from '../../../shared/services/index.js';
 import type { CompromisedCheck, Context } from './PasswordPolicy.js';
+import type { TwoFactorDeps } from './TwoFactor.js';
 import type { PasswordChangedVia, SessionsRevokedScope } from 'core/entities/Audit';
 
 /** Whom a password change is about, and what the mail needs from the request that made it. */
@@ -17,7 +19,7 @@ export type PasswordChangedNotice = {
   readonly userAgent: string | null;
 };
 
-export type AccountSecurityDeps = {
+export type AccountSecurityDeps = TwoFactorDeps & {
   readonly background: Pick<BackgroundTaskService, 'run'>;
   /** Null where HIBP must not be called — under `NODE_ENV=test`. */
   readonly isCompromised: CompromisedCheck | null;
@@ -84,13 +86,15 @@ async function passwordChanged(deps: AccountSecurityDeps, notice: PasswordChange
  * the body said: a password
  * changed because somebody else may know it must not leave that somebody's
  * session alive. Better Auth then deletes every session of the account and
- * issues the caller a new one.
+ * issues the caller a new one. On `/two-factor/*`, the password-only rule and
+ * no email OTP (`TwoFactor.ts`).
  */
 export function accountSecurityBefore(isCompromised: CompromisedCheck | null) {
   const check = checkNewPassword(isCompromised);
 
   return createAuthMiddleware(async context => {
     await check(context);
+    await twoFactorBefore(context);
 
     if (context.path === CHANGE_PASSWORD) {
       return { context: { body: { ...record(context.body), revokeOtherSessions: true } } };
@@ -140,7 +144,11 @@ async function notTheCallersSession(context: Context): Promise<{ status: true } 
  * - `/sign-in/email`: the password just proved checked against HIBP, in the
  *   background — sign-in never waits for it — and the account marked on a hit
  *   if it is not already. A timeout or an error marks nothing (`breachedOrPass`
- *   fails open). Off where `isCompromised` is null.
+ *   fails open). Off where `isCompromised` is null. It runs before the
+ *   two-factor plugin's own after-hook, so an account with the factor on is
+ *   checked too, though it answers a challenge.
+ * - `/two-factor/*`: the factor on or off and a backup code spent, each with
+ *   its row and its mail (`TwoFactor.ts`).
  */
 export function accountSecurityAfter(deps: AccountSecurityDeps) {
   return createAuthMiddleware(async context => {
@@ -151,6 +159,12 @@ export function accountSecurityAfter(deps: AccountSecurityDeps) {
     }
 
     const path = context.path ?? '';
+
+    if (path.startsWith('/two-factor/')) {
+      await twoFactorAfter(deps, context, returned);
+
+      return;
+    }
 
     if (path === CHANGE_PASSWORD) {
       const user = answeredUser(returned);
