@@ -86,8 +86,12 @@ describe('account security: the password, the sessions, and a password found bre
   async function signUp(label: string, name: string): Promise<{ id: string; email: string; }> {
     const email = emailFor(label);
     const made = await request(server()).post(`/${PREFIX}/auth/sign-up/email`).set('User-Agent', IPHONE).send({ email, name, password: ORIGINAL }).expect(200);
+    const id = (made.body as { user: { id: string } }).user.id;
 
-    return { id: (made.body as { user: { id: string } }).user.id, email };
+    // Sign-up signs the person in, and this suite keeps no cookie of that session: gone, so every list counts only the sessions a test made.
+    await sql()`delete from session where user_id = ${id}`;
+
+    return { id, email };
   }
 
   /** An account with both locks open, as `harness.ts` → `register` makes one, but keeping its id for the table. */
@@ -316,7 +320,8 @@ describe('account security: the password, the sessions, and a password found bre
       expect(said).toMatch(/iPhone|iOS/);
       expect(said).not.toContain(IPHONE);
       expect(said).not.toMatch(/127\.0\.0\.1|::1|::ffff/);
-      expect(said).not.toMatch(HEALTH_WORDS);
+      // On the words a person reads, not the html's styles (`font-weight` is not a word of health).
+      expect(`${mail?.subject ?? ''}\n${mail?.text ?? ''}`).not.toMatch(HEALTH_WORDS);
 
       for (const token of tokens) {
         expect(said).not.toContain(token);
@@ -471,14 +476,17 @@ describe('account security: the password, the sessions, and a password found bre
       const { id, email } = await account('luis', 'Luis Arriaga');
       const session = await signIn(email);
       const elsewhere = await signIn(email);
+      const stored = await passwordHash(id);
 
       await mark(id);
 
-      // A wrong current password is the route's own refusal, whatever the new one is: the hook is no oracle for the stored hash.
+      // Held to the body's own currentPassword, not to the stored hash: a guess and the real password get the same
+      // answer, so the refusal says nothing about what is stored and a session holder cannot guess with it.
       const guessed = await change(session.cookie, { currentPassword: 'a-guess-at-the-password-5', newPassword: 'a-guess-at-the-password-5' });
 
       expect(guessed.status).toBe(400);
-      expect(code(guessed)).toBe('INVALID_PASSWORD');
+      expect(code(guessed)).toBe('PASSWORD_COMPROMISED');
+      expect(await passwordHash(id)).toBe(stored);
 
       // HIBP is off under NODE_ENV=test: this is the comparison with the stored hash, nothing else.
       const changed = await change(session.cookie, { currentPassword: ORIGINAL, newPassword: ORIGINAL });
