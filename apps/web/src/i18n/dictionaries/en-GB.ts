@@ -1336,6 +1336,7 @@ export const enGB: Dictionary = {
     notFound: 'We could not find what you were looking for.',
     notFoundTitle: 'Page not found',
     onboardingIncomplete: 'Part of your profile is missing. Finish it and try again.',
+    passwordChangeRequired: 'You need to change your password before you carry on.',
     pictureAllergensMismatch:
       'The picture waiting for review has changed since you opened the page: what the checker flagged is no longer what you saw. Reload and look at it again.',
     pictureCapReached: 'This month’s picture spend has reached the cap: no more can be drawn until next month.',
@@ -1844,6 +1845,7 @@ export const enGB: Dictionary = {
     '/admin/producto/planes': { title: 'Plans' },
     '/admin/producto/planes/calidad': { title: 'Plan quality' },
     '/admin/profesionales': { title: 'Professionals' },
+    '/cambiar-contrasena': { title: 'Change your password' },
     '/check-in': { title: "The fortnight's check-in" },
     '/compra': { title: 'The shopping' },
     '/condiciones': {
@@ -2481,6 +2483,46 @@ export const enGB: Dictionary = {
     weightStart: 'You started at {value} kg',
     weightTarget: 'Target {value} kg',
     weightTitle: 'Your weight'
+  },
+
+  security: {
+    browsers: { chrome: 'Chrome', edge: 'Edge', firefox: 'Firefox', safari: 'Safari' },
+    browserUnknown: 'Browser',
+    changePassword: 'Change password',
+    closeOthers: 'Sign out all the others',
+    closeOthersBody: 'You will have to sign in again on each of them. You stay signed in on this one.',
+    closeOthersConfirm: 'Yes, sign them out',
+    closeOthersTitle: 'Sign out on all your other devices?',
+    closeSession: 'Sign out',
+    closeSessionLabel: 'Sign out {device}',
+    currentPassword: 'Current password',
+    currentPasswordMissing: 'Type your current password.',
+    deviceOn: '{browser} on {platform}',
+    forcedBody:
+      'Your password appears in known data breaches. It does not mean anyone has got into your account, but it is no longer safe: choose a new one to carry on. Saving it signs you out on your other devices.',
+    forcedSignOut: 'Sign out',
+    forcedTitle: 'Change your password',
+    googleOnly: 'You sign in with Google, so your account is as well protected as your Google account. Turn on 2-Step Verification there.',
+    googleOnlyLink: 'Google 2-Step Verification',
+    lastActive: 'Last active: {date}',
+    noOtherSessions: 'You are not signed in on any other device.',
+    othersClosed: 'We have signed you out on your other devices.',
+    passwordBody: 'Changing it signs you out on your other devices, and we let you know by email.',
+    passwordChanged: 'Password changed. We have signed you out on your other devices.',
+    passwordTitle: 'Password',
+    platforms: { android: 'Android', ipad: 'iPad', iphone: 'iPhone', linux: 'Linux', mac: 'Mac', windows: 'Windows' },
+    sectionTitle: 'Security',
+    sessionClosed: 'We have signed out {device}.',
+    sessionsBody:
+      'A device you sign out will have to sign in again. Until it next connects, it may still show what it kept for reading offline.',
+    sessionsFailed: 'We could not load your sessions.',
+    sessionsLoading: 'Loading your sessions…',
+    sessionsNotFresh: 'For your security, you need to have signed in today to see your devices. You can still sign out all the others now.',
+    sessionsTitle: 'Where you are signed in',
+    signInAgain: 'Sign out and sign in again',
+    started: 'Signed in on {date}',
+    thisDevice: 'This device',
+    wrongCurrentPassword: 'Your current password is not right.'
   },
 
   shopping: {

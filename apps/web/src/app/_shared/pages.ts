@@ -41,11 +41,11 @@ export const INDEXABLE_PATHS: readonly PagePath[] = ['/', '/acceder', '/condicio
  * Public, reachable, and meaningless in a search result.
  *
  * Three of them are transactional dead ends that do nothing without a token
- * from an email, and the fourth is only ever reached by a redirect just after
- * signing up. They say `noindex, follow` rather than being hidden: a crawler
+ * from an email, and the other two are only ever reached by a redirect: just
+ * after signing up, and when a password has turned up in a breach. They say `noindex, follow` rather than being hidden: a crawler
  * that reads them still passes through to the pages they link to.
  */
-export const UNINDEXED_PATHS: readonly PagePath[] = ['/pendiente', '/recuperar', '/restablecer', '/verificar-email'];
+export const UNINDEXED_PATHS: readonly PagePath[] = ['/cambiar-contrasena', '/pendiente', '/recuperar', '/restablecer', '/verificar-email'];
 
 /**
  * The signed-in tree.
@@ -72,12 +72,12 @@ export const PRIVATE_PATHS: readonly PagePath[] = [
 /**
  * What `robots.txt` closes.
  *
- * The signed-in tree, plus `/pendiente` — which is public, but is only ever
- * arrived at by a redirect just after signing up. Nothing links to it, so
- * closing it costs no discoverability and saves a crawl of a page whose whole
- * content is "check your email".
+ * The signed-in tree, plus `/pendiente` and `/cambiar-contrasena` — which sit
+ * in the public trees, but are only ever arrived at by a redirect with a
+ * session. Nothing links to them, so closing them costs no discoverability and
+ * saves a crawl of a page that only redirects a visitor without one.
  */
-export const DISALLOWED_PATHS: readonly PagePath[] = [...PRIVATE_PATHS, '/pendiente'];
+export const DISALLOWED_PATHS: readonly PagePath[] = [...PRIVATE_PATHS, '/cambiar-contrasena', '/pendiente'];
 
 /** A site-relative path as the absolute URL a sitemap, a canonical or a robots directive needs. */
 export function absoluteUrl(path: string): string {

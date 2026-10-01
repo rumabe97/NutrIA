@@ -1368,6 +1368,7 @@ export const esES = {
     /** The tab's title on a 404 — the same for a wrong address and for a console page shown to somebody else (`0028`). */
     notFoundTitle: 'Página no encontrada',
     onboardingIncomplete: 'Nos falta parte de tu perfil. Termínalo y vuelve a intentarlo.',
+    passwordChangeRequired: 'Antes de seguir tienes que cambiar tu contraseña.',
     pictureAllergensMismatch:
       'La imagen que espera revisión ha cambiado desde que abriste la página: lo que el revisor señaló ya no es lo que viste. Recarga y mírala otra vez.',
     pictureCapReached: 'El gasto en imágenes de este mes ya ha llegado al tope: no se puede dibujar otra hasta el mes que viene.',
@@ -1890,6 +1891,7 @@ export const esES = {
     '/admin/producto/planes': { title: 'Planes' },
     '/admin/producto/planes/calidad': { title: 'Calidad de los planes' },
     '/admin/profesionales': { title: 'Profesionales' },
+    '/cambiar-contrasena': { title: 'Cambiar tu contraseña' },
     '/check-in': { title: 'Check-in de la quincena' },
     '/compra': { title: 'La compra' },
     '/condiciones': {
@@ -2525,6 +2527,46 @@ export const esES = {
     weightStart: 'Empezaste en {value} kg',
     weightTarget: 'Objetivo {value} kg',
     weightTitle: 'Tu peso'
+  },
+
+  security: {
+    browsers: { chrome: 'Chrome', edge: 'Edge', firefox: 'Firefox', safari: 'Safari' },
+    browserUnknown: 'Navegador',
+    changePassword: 'Cambiar contraseña',
+    closeOthers: 'Cerrar todas las demás',
+    closeOthersBody: 'Tendrás que volver a entrar en cada uno. En este sigues dentro.',
+    closeOthersConfirm: 'Sí, cerrarlas',
+    closeOthersTitle: '¿Cerrar la sesión en todos tus otros dispositivos?',
+    closeSession: 'Cerrar',
+    closeSessionLabel: 'Cerrar la sesión de {device}',
+    currentPassword: 'Contraseña actual',
+    currentPasswordMissing: 'Escribe tu contraseña actual.',
+    deviceOn: '{browser} en {platform}',
+    forcedBody:
+      'Tu contraseña aparece en filtraciones de datos conocidas. No quiere decir que alguien haya entrado en tu cuenta, pero ya no es segura: elige una nueva para seguir. Al guardarla se cierra la sesión en tus otros dispositivos.',
+    forcedSignOut: 'Cerrar sesión',
+    forcedTitle: 'Cambia tu contraseña',
+    googleOnly: 'Entras con Google, así que tu cuenta está tan protegida como tu cuenta de Google. Activa allí la verificación en dos pasos.',
+    googleOnlyLink: 'Verificación en dos pasos de Google',
+    lastActive: 'Última actividad: {date}',
+    noOtherSessions: 'No tienes la sesión abierta en ningún otro dispositivo.',
+    othersClosed: 'Hemos cerrado la sesión en tus otros dispositivos.',
+    passwordBody: 'Al cambiarla se cierra la sesión en tus otros dispositivos, y te avisamos por correo.',
+    passwordChanged: 'Contraseña cambiada. Hemos cerrado la sesión en tus otros dispositivos.',
+    passwordTitle: 'Contraseña',
+    platforms: { android: 'Android', ipad: 'iPad', iphone: 'iPhone', linux: 'Linux', mac: 'Mac', windows: 'Windows' },
+    sectionTitle: 'Seguridad',
+    sessionClosed: 'Hemos cerrado la sesión de {device}.',
+    sessionsBody:
+      'Un dispositivo cuya sesión cierres tendrá que volver a entrar. Hasta que se conecte de nuevo puede seguir mostrando lo que guardó para leer sin conexión.',
+    sessionsFailed: 'No hemos podido cargar tus sesiones.',
+    sessionsLoading: 'Cargando tus sesiones…',
+    sessionsNotFresh: 'Por seguridad, para ver tus dispositivos tienes que haber iniciado sesión hoy. Cerrar todas las demás sesiones sí puedes ahora.',
+    sessionsTitle: 'Dónde tienes la sesión abierta',
+    signInAgain: 'Cerrar sesión y volver a entrar',
+    started: 'Entraste el {date}',
+    thisDevice: 'Este dispositivo',
+    wrongCurrentPassword: 'La contraseña actual no es correcta.'
   },
 
   shopping: {

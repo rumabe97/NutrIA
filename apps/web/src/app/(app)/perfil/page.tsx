@@ -17,6 +17,7 @@ import { ProfileConsentCard } from 'components/ProfileConsentCard';
 import { ProfileSection } from 'components/ProfileSection';
 import { PushToggle } from 'components/PushToggle';
 import { ReminderToggle } from 'components/ReminderToggle';
+import { SecurityCard } from 'components/SecurityCard';
 import { TargetsPanel } from 'components/TargetsPanel';
 import { Tour } from 'components/Tour';
 import { VacationPlanner } from 'components/VacationPlanner';
@@ -282,6 +283,16 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
               § A), not the account itself. */}
           <ProfileConsentCard />
         </section>
+
+        {/* The password and the devices signed in (project 011). Not drawn when the
+            account could not be read: whether there is a password decides the card. */}
+        {user ? (
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>{dictionary.security.sectionTitle}</h2>
+
+            <SecurityCard hasPassword={user.hasPassword} />
+          </section>
+        ) : null}
 
         {/* How the product speaks to this person: which reminders, and in which language. */}
         <section className={styles.section}>
