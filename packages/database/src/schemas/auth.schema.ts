@@ -37,6 +37,14 @@ export const user = pgTable('user', {
   emailVerified: boolean().notNull().default(false),
   image: text(),
   name: text().notNull(),
+  /**
+   * When a sign-in found this account's password in the breach corpus (PLAN 011
+   * phase 2) — null while it is not known to be. Set at most once, cleared by a
+   * change or a reset. A timestamp and nothing else: never the password, its
+   * hash or its prefix. While it is set, every route but `/users/me` and
+   * `/auth/*` answers 409 `PASSWORD_CHANGE_REQUIRED`.
+   */
+  passwordCompromisedAt: timestamp({ withTimezone: true }),
   role: userRole().notNull().default('user'),
   /**
    * When the server recorded that this account was created under `termsVersion`

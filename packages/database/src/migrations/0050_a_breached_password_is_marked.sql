@@ -1,0 +1,1 @@
+ALTER TABLE "user" ADD COLUMN "password_compromised_at" timestamp with time zone;

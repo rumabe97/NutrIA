@@ -7,7 +7,7 @@ import { database } from 'database';
 import { mealPlans } from 'database/schema/plan';
 import { onboardingState } from 'database/schema/profile';
 import { professionals } from 'database/schema/professional';
-import { user, verification } from 'database/schema/auth';
+import { account, user, verification } from 'database/schema/auth';
 
 import { ACTIVE_EVENTS } from 'core/entities/Analytics';
 import { DatabaseOperationError } from 'core/entities/Error';
@@ -31,6 +31,9 @@ export type RecordActivationAudit = (tx: Transaction, subjectUserId: string) => 
  * value is available without a second round trip outside it.
  */
 export type RecordTierAudit = (tx: Transaction, from: UserTier) => Promise<void>;
+
+/** `passwordChanged`'s watcher: the audit row, written in the transaction that clears the breach mark. */
+export type RecordPasswordAudit = (tx: Transaction) => Promise<void>;
 
 /**
  * One account on the owner's table: the row's own columns, and four
@@ -326,6 +329,62 @@ export const UserRepository = {
         .returning({ email: user.email });
 
       return rows.length > 0;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Whether the account can sign in with a password — a `credential` account
+   * exists for it. A person who only ever arrived through Google has none, and
+   * has no password to change. Answers nothing about the password itself.
+   */
+  async hasPassword(id: string): Promise<boolean> {
+    try {
+      const [row] = await database()
+        .select({ id: account.id })
+        .from(account)
+        .where(and(eq(account.userId, id), eq(account.providerId, 'credential')))
+        .limit(1);
+
+      return row !== undefined;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Marks the account's password as found in the breach corpus (PLAN 011
+   * phase 2), once: a mark already set keeps its first instant. A third
+   * write to a table Better Auth owns, and only of a column it does not read.
+   * Answers whether this call set it.
+   */
+  async markPasswordCompromised(id: string, at: Date): Promise<boolean> {
+    try {
+      const rows = await database()
+        .update(user)
+        .set({ passwordCompromisedAt: at })
+        .where(and(eq(user.id, id), isNull(user.passwordCompromisedAt)))
+        .returning({ id: user.id });
+
+      return rows.length > 0;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * The password changed: the breach mark goes and the caller's audit row is
+   * written, in one transaction — a change that is not also its row did not
+   * happen, as far as the trail is concerned. Better Auth has already stored
+   * the new password by then; this is only what follows it.
+   */
+  async passwordChanged(id: string, record: RecordPasswordAudit): Promise<void> {
+    try {
+      await database().transaction(async tx => {
+        await tx.update(user).set({ passwordCompromisedAt: null }).where(eq(user.id, id));
+        await record(tx);
+      });
     } catch (error: unknown) {
       throw wrap(error);
     }

@@ -38,6 +38,8 @@ export const userSchema = z.object({
   emailVerified: z.boolean(),
   image: z.string().nullable(),
   name: z.string().min(1).max(100),
+  /** When a sign-in found the password in the breach corpus (PLAN 011 phase 2); null while it is not known to be. */
+  passwordCompromisedAt: z.date().nullable(),
   role: z.enum(['user', 'admin']),
   tier: z.enum(['free', 'premium']),
   updatedAt: z.date()

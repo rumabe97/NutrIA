@@ -19,6 +19,9 @@ const activate =
 const setTier = vi.fn<(id: string, tier: UserTier, record?: (tx: unknown, from: UserTier) => Promise<void>) => Promise<{ email: string } | null>>();
 const record = vi.fn<(entry: unknown, tx?: unknown) => Promise<void>>();
 const forgetExpiredVerifications = vi.fn<(now: Date) => Promise<number>>();
+const hasPassword = vi.fn<(id: string) => Promise<boolean>>();
+const markPasswordCompromised = vi.fn<(id: string, at: Date) => Promise<boolean>>();
+const passwordChanged = vi.fn<(id: string, record: (tx: unknown) => Promise<void>) => Promise<void>>();
 
 vi.mock('#repositories/User', () => ({
   UserRepository: {
@@ -26,6 +29,9 @@ vi.mock('#repositories/User', () => ({
     findAll: (query: AccountQuery) => findAll(query),
     findById: (id: string) => findById(id),
     forgetExpiredVerifications: (now: Date) => forgetExpiredVerifications(now),
+    hasPassword: (id: string) => hasPassword(id),
+    markPasswordCompromised: (id: string, at: Date) => markPasswordCompromised(id, at),
+    passwordChanged: (id: string, r: (tx: unknown) => Promise<void>) => passwordChanged(id, r),
     setTier: (id: string, tier: UserTier, r?: (tx: unknown, from: UserTier) => Promise<void>) => setTier(id, tier, r)
   }
 }));
@@ -39,6 +45,8 @@ vi.mock('#repositories/Audit', () => ({ AuditRepository: { record: (entry: unkno
 describe('UserController.getUser — activation is not the address', () => {
   beforeEach(() => {
     findById.mockReset();
+    hasPassword.mockReset();
+    hasPassword.mockResolvedValue(true);
   });
 
   it('reports a confirmed address the owner has not opened as not activated', async () => {
@@ -51,6 +59,79 @@ describe('UserController.getUser — activation is not the address', () => {
     findById.mockResolvedValue(makeUser({ activatedAt: new Date('2026-09-09T21:00:00.000Z'), emailVerified: false }));
 
     await expect(UserController.getUser({ id: 'usr-1' })).resolves.toMatchObject({ activated: true, emailVerified: false });
+  });
+});
+
+/*
+ * PLAN 011 phase 2: what the "Seguridad" section and the forced-change screen
+ * read — whether there is a password to change, and whether it must be.
+ */
+describe('UserController.getUser — the password', () => {
+  beforeEach(() => {
+    findById.mockReset();
+    hasPassword.mockReset();
+  });
+
+  it('says a Google-only account has no password, asked of the session’s own id', async () => {
+    findById.mockResolvedValue(makeUser());
+    hasPassword.mockResolvedValue(false);
+
+    await expect(UserController.getUser({ id: 'usr-1' })).resolves.toMatchObject({ hasPassword: false, passwordChangeRequired: false });
+    expect(hasPassword).toHaveBeenCalledWith('usr-1');
+  });
+
+  it('asks for a change while the breach mark is set, and says only that — never when', async () => {
+    findById.mockResolvedValue(makeUser({ passwordCompromisedAt: new Date('2026-10-01T08:00:00.000Z') }));
+    hasPassword.mockResolvedValue(true);
+
+    const view = await UserController.getUser({ id: 'usr-1' });
+
+    expect(view).toMatchObject({ hasPassword: true, passwordChangeRequired: true });
+    expect(view).not.toHaveProperty('passwordCompromisedAt');
+  });
+});
+
+describe('UserController.passwordChanged', () => {
+  beforeEach(() => {
+    passwordChanged.mockReset();
+    record.mockReset();
+    passwordChanged.mockImplementation(async (_id, r) => r('tx-1'));
+  });
+
+  it.each(['change', 'reset'] as const)('clears the mark and writes one auth.password_changed row {via: %s} inside the same transaction', async via => {
+    await UserController.passwordChanged('usr-1', via);
+
+    expect(passwordChanged).toHaveBeenCalledWith('usr-1', expect.any(Function));
+    expect(record).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith(
+      { action: 'auth.password_changed', actorId: 'usr-1', entity: 'user', metadata: { via }, subjectUserId: 'usr-1' },
+      'tx-1'
+    );
+  });
+});
+
+describe('UserController.sessionsRevoked', () => {
+  beforeEach(() => {
+    record.mockReset();
+  });
+
+  it.each(['one', 'others', 'all'] as const)('writes one auth.sessions_revoked row {scope: %s}, the scope and nothing else', async scope => {
+    await UserController.sessionsRevoked('usr-1', scope);
+
+    expect(record).toHaveBeenCalledWith(
+      { action: 'auth.sessions_revoked', actorId: 'usr-1', entity: 'session', metadata: { scope }, subjectUserId: 'usr-1' },
+      undefined
+    );
+  });
+});
+
+describe('UserController.markPasswordCompromised', () => {
+  it('marks the account at the instant given, and answers whether this call set it', async () => {
+    const at = new Date('2026-10-01T08:00:00.000Z');
+    markPasswordCompromised.mockResolvedValue(false);
+
+    await expect(UserController.markPasswordCompromised('usr-1', at)).resolves.toBe(false);
+    expect(markPasswordCompromised).toHaveBeenCalledWith('usr-1', at);
   });
 });
 

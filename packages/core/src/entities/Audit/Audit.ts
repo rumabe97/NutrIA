@@ -5,8 +5,9 @@ import type { PictureAcceptedBy } from 'core/entities/DishPicture';
 
 /**
  * Ajustes › Registro de acciones (`0071`): the closed list of admin mutations
- * that leave a row, plus the automatic activation on email confirmation.
- * Nothing else writes here, and nothing here is a free-form string a caller
+ * that leave a row, plus the automatic activation on email confirmation, plus
+ * two acts a person does to their own account's security (PLAN 011 phase 2):
+ * changing the password and closing sessions. Nothing else writes here, and nothing here is a free-form string a caller
  * invents — a new admin mutation is a new name added to this list, reviewed,
  * not a string typed at the call site.
  */
@@ -22,7 +23,9 @@ export const AUDIT_ACTIONS = [
   'picture.retried',
   'picture.discarded',
   'picture.accepted',
-  'picture.removed'
+  'picture.removed',
+  'auth.password_changed',
+  'auth.sessions_revoked'
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -31,6 +34,16 @@ export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 export const ACCOUNT_ACTIVATION_VIA = ['console', 'mail_link', 'automatic'] as const;
 
 export type AccountActivationVia = (typeof ACCOUNT_ACTIVATION_VIA)[number];
+
+/** How a password came to change: from a signed-in session, or from a reset link. */
+export const PASSWORD_CHANGED_VIA = ['change', 'reset'] as const;
+
+export type PasswordChangedVia = (typeof PASSWORD_CHANGED_VIA)[number];
+
+/** Which sessions a person closed: one other device, every other device, or every device including this one. */
+export const SESSIONS_REVOKED_SCOPE = ['one', 'others', 'all'] as const;
+
+export type SessionsRevokedScope = (typeof SESSIONS_REVOKED_SCOPE)[number];
 
 /**
  * Stands where an audit argument is otherwise required, for a suite or a
@@ -61,6 +74,13 @@ export type ActivationAudit =
 export interface AuditMetadataByAction {
   'account.activated': { readonly via: AccountActivationVia };
   'account.tier_changed': { readonly from: string; readonly to: string };
+  /**
+   * The account's password changed (PLAN 011 phase 2), and through which door. A closed word and nothing
+   * else: never a token, an IP address, a user agent, a session id, nor anything of the password.
+   */
+  'auth.password_changed': { readonly via: PasswordChangedVia };
+  /** The person closed sessions of their own (PLAN 011 phase 2): which ones, in a closed word. Never a token, an IP, a user agent or a session id. */
+  'auth.sessions_revoked': { readonly scope: SessionsRevokedScope };
   'feedback.handled': Record<string, never>;
   'feedback.reopened': Record<string, never>;
   /** The owner published a picture the judge rejected (`0072`): the allergen keys the judge flagged and the owner overrode — catalogue keys, never a path, never a model's words. */
