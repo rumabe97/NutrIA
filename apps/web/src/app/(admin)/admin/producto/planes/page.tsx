@@ -33,7 +33,8 @@ export async function generateMetadata(): Promise<Metadata> {
 /**
  * A colour per state, pinned so a state keeps its colour whichever others are empty.
  * Six states take the six categorical slots; `failed` is an outcome and wears the
- * failure tone, so the seventh never falls to grey.
+ * failure tone, so the seventh never falls to grey. `scheduled` has no slot of its own
+ * and shares `pending_review`'s: both are plans not yet running.
  */
 const STATE_TONES: Readonly<Record<string, ChartTone>> = {
   active: 1,
@@ -42,7 +43,8 @@ const STATE_TONES: Readonly<Record<string, ChartTone>> = {
   draft: 4,
   failed: 'failure',
   generating: 3,
-  pending_review: 6
+  pending_review: 6,
+  scheduled: 6
 };
 
 /**

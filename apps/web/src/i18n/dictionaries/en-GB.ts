@@ -726,7 +726,8 @@ export const enGB: Dictionary = {
       draft: 'Draft',
       failed: 'Failed',
       generating: 'Generating',
-      pending_review: 'Awaiting review'
+      pending_review: 'Awaiting review',
+      scheduled: 'Scheduled'
     },
     title: 'Plans'
   },
