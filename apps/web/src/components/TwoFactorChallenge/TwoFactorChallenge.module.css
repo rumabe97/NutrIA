@@ -1,0 +1,28 @@
+/* The code is read digit by digit against the app: figures that line up, a little apart. */
+.code input {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-caps);
+}
+
+/* The box, then what ticking it means, read with it. */
+.trust {
+  display: grid;
+  gap: var(--space-01);
+}
+
+/* The other ways on, quieter than the one button that verifies. */
+.alternatives {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-03);
+  justify-content: space-between;
+}
+
+/* Text this large for the screen: one under the other, each its own line. */
+@media (width < 17rem) {
+  .alternatives {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

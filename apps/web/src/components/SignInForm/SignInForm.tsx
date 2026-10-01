@@ -9,7 +9,8 @@ import styles from 'components/AuthForm/AuthForm.module.css';
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
 import { Text } from 'ui/components/Text';
-import { useDictionary } from 'i18n/LocaleProvider';
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
+import { withLocale } from 'i18n/routes';
 
 import { LegalNotice } from 'components/LegalNotice';
 import { SocialSignIn } from 'components/SocialSignIn';
@@ -50,6 +51,7 @@ function arrivalError(code: string | null, dictionary: Dictionary): string | und
 export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly SocialProvider[] }>) {
   const router = useRouter();
   const dictionary = useDictionary();
+  const locale = useLocale();
   const params = useSearchParams();
   const [error, setError] = useState<string | undefined>(() => arrivalError(params.get('error'), dictionary));
   const [pending, setPending] = useState(false);
@@ -60,11 +62,11 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
     setPending(true);
 
     const form = new FormData(event.currentTarget);
-    const { error: signInError } = await signIn.email({ email: String(form.get('email')), password: String(form.get('password')) });
-
-    setPending(false);
+    const { data, error: signInError } = await signIn.email({ email: String(form.get('email')), password: String(form.get('password')) });
 
     if (signInError) {
+      setPending(false);
+
       // One message for wrong password and unknown account alike: telling them
       // apart turns this form into an account-enumeration oracle. Anything that
       // is *not* a refusal — the service down, a rejected origin, a database the
@@ -79,6 +81,18 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
       return;
     }
 
+    // Two-factor on: the password was right, but Better Auth answered with no session —
+    // only a short-lived cookie that the challenge's routes accept. Never `/inicio` from
+    // here: there is nobody signed in yet. The button keeps its spinner until the page
+    // changes, so a second press cannot start a second sign-in.
+    if (data && 'twoFactorRedirect' in data && data.twoFactorRedirect) {
+      const next = params.get('siguiente');
+
+      router.push(`${withLocale('/acceder/codigo', locale)}${next ? `?${new URLSearchParams({ siguiente: next }).toString()}` : ''}`);
+
+      return;
+    }
+
     // Whoever used this device before leaves no copy of their plan behind for
     // the next person, even one who never signed out (`0053`).
     await forgetOfflineCopies();
@@ -89,6 +103,7 @@ export function SignInForm({ providers = [] }: Readonly<{ providers?: readonly S
     // browser negotiated.
     await syncLocaleFromProfile();
 
+    setPending(false);
     router.push(ownPath(params.get('siguiente') ?? undefined, '/inicio'));
     router.refresh();
   }

@@ -284,7 +284,7 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
           <ProfileConsentCard />
         </section>
 
-        {/* The password and the devices signed in (project 011). Not drawn when the
+        {/* The password, the second factor and the devices signed in (project 011). Not drawn when the
             account could not be read: whether there is a password decides the card.
             `#seguridad` is an anchor for later: nothing links to it yet, and a fragment
             on a full load does not land, since the section streams in after the
@@ -293,7 +293,7 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
           <section className={styles.section} id="seguridad">
             <h2 className={styles.sectionTitle}>{dictionary.security.sectionTitle}</h2>
 
-            <SecurityCard email={user.email} hasPassword={user.hasPassword} />
+            <SecurityCard email={user.email} hasPassword={user.hasPassword} twoFactorEnabled={user.twoFactorEnabled} />
           </section>
         ) : null}
 
