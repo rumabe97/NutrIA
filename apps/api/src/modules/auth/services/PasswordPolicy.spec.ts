@@ -229,9 +229,10 @@ describe('the password rule on the three doors', () => {
       await signUp(auth, PASSWORD);
       const token = await resetToken(auth, ACCOUNT.email);
 
-      await expect(
-        outcome(auth.api.resetPassword({ body: { newPassword: 'garcia-garcia-garcia', token: '' }, query: { token } }))
-      ).resolves.toEqual({ code: 'PASSWORD_HAS_CONTEXT', status: 400 });
+      await expect(outcome(auth.api.resetPassword({ body: { newPassword: 'garcia-garcia-garcia', token: '' }, query: { token } }))).resolves.toEqual({
+        code: 'PASSWORD_HAS_CONTEXT',
+        status: 400
+      });
     });
 
     it('prefers a body token over the query one, as Better Auth does', async () => {

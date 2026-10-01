@@ -48,7 +48,18 @@ describe('AdminSystemController.system', () => {
     const VERSION = /^\d+\.\d+\.\d+$/;
     const HASH = /^[0-9a-f]{7,40}$/;
     const DATE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+Z)?$/;
-    const KEYS = new Set(['afternoon_snack', 'breakfast', 'dinner', 'lunch', 'morning_snack', 'supper', 'reminders', 'rewrite', 'verifications', 'verify']);
+    const KEYS = new Set([
+      'afternoon_snack',
+      'breakfast',
+      'dinner',
+      'lunch',
+      'morning_snack',
+      'supper',
+      'reminders',
+      'rewrite',
+      'verifications',
+      'verify'
+    ]);
 
     for (const { path, value } of leaves(view)) {
       if (path.startsWith('caps.') || path === 'period' || path.startsWith('mail.') || path.startsWith('window.')) {

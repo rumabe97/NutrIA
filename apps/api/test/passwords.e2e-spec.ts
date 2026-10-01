@@ -303,7 +303,9 @@ describe('passwords: the length, and nothing of the account in it', () => {
       });
 
       it('still checks the body token when the query token is dead', async () => {
-        expectRefusal(await resetWithQuery('quintanilla-quintanilla-2', token, 'not-a-token-anybody-issued'), 'PASSWORD_HAS_CONTEXT', ['quintanilla']);
+        expectRefusal(await resetWithQuery('quintanilla-quintanilla-2', token, 'not-a-token-anybody-issued'), 'PASSWORD_HAS_CONTEXT', [
+          'quintanilla'
+        ]);
         await stillOriginal();
       });
 
@@ -372,8 +374,13 @@ describe('passwords: the length, and nothing of the account in it', () => {
 
     it('stays in the table through lookups: Better Auth’s own cleanup is off, the sweep owns expiry', async () => {
       // Each of these looks a verification up, which is what deletes every expired row when the cleanup is on.
-      await request(server()).post(`/${PREFIX}/auth/request-password-reset`).send({ email: emailFor('nobody') }).expect(200);
-      await request(server()).post(`/${PREFIX}/auth/reset-password`).send({ newPassword: 'cobalt-harbour-willow-7', token: 'not-a-token-anybody-issued' });
+      await request(server())
+        .post(`/${PREFIX}/auth/request-password-reset`)
+        .send({ email: emailFor('nobody') })
+        .expect(200);
+      await request(server())
+        .post(`/${PREFIX}/auth/reset-password`)
+        .send({ newPassword: 'cobalt-harbour-willow-7', token: 'not-a-token-anybody-issued' });
       sent.push('cobalt-harbour-willow-7');
 
       const [row] = await sql()<{ n: number }>`select count(*)::int as n from verification where id = ${bystander}`;
