@@ -2227,7 +2227,7 @@ export const enGB: Dictionary = {
           'Conditions, medication and supplements: only if you choose to tell us, under a separate consent you can withdraw at any time without deleting the rest of your account.',
           'How the plan is going: which meals you mark as eaten or skipped, your ratings and comments on dishes, your weight over time and your fortnightly check-ins. So the next plan takes them into account.',
           'Payments: if you subscribe to Premium, Stripe takes the payment and we keep only the identifier for your subscription and its status. We never see your card number.',
-          'Account security: we record when you change or reset your password and when you sign out of sessions, with the date and without your IP address. So that you and we can see what happened if someone gets into your account.',
+          'Account security: we record when you change or reset your password and when you sign out of sessions, with the date and without your IP address. So that we can see what happened if someone gets into your account.',
           'Product use: we record, linked to your account, when you sign in and when you ask to change a dish, and nothing more. To know whether the product works.',
           'What you write to us: messages in the feedback box, so we can read and answer them.'
         ],
