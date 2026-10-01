@@ -30,6 +30,12 @@ import { FORM_FAMILIES } from './forms';
  * through (a sulphite king prawns only may contain, on a dish of prawns).
  * Nothing left a list. A later change that moves a list says, the same way,
  * why each food moved.
+ *
+ * Phase 5 (the holes) moved one food, by `ADDED_IN_PHASE_5`: a bare
+ * "crackers" is a cracker's flour (`BARE_FORMS`), no longer the catalogue's
+ * crackers that may contain sesame, so a dish of wheat spaghetti accepts it.
+ * The holes it closed are not among these 63 foods, and the one it left open
+ * ("sausages") is still accepted everywhere.
  */
 const EXTRA_FOODS = [
   'bread',
@@ -194,6 +200,11 @@ const ADDED_IN_PHASE_2: Readonly<Partial<Record<Dish, Readonly<Record<string, re
   soyMilkShake: { milk: ['milk'] } // `leche-de-soja`
 };
 
+/** What phase 5 added, and why: a bare form's word read as the form with nothing in it, which carries nothing the dish lacks. */
+const ADDED_IN_PHASE_5: Readonly<Partial<Record<Dish, Readonly<Record<string, readonly string[]>>>>> = {
+  wheatSpaghetti: { bare: ['crackers'] } // a cracker's flour beside wheat spaghetti; the catalogue's crackers may also contain sesame
+};
+
 describe('judgePicture — the reverse measure: one more food on an example dish', () => {
   it('measures 63 foods on 20 dishes', () => {
     expect(new Set(EXTRA_FOODS).size).toBe(63);
@@ -201,10 +212,10 @@ describe('judgePicture — the reverse measure: one more food on an example dish
   });
 
   it.each(Object.entries(ACCEPTED_BEFORE) as [Dish, readonly string[]][])(
-    'accepts on %s the foods it accepted before, and those phase 2 added, only',
+    'accepts on %s the foods it accepted before, and those phases 2 and 5 added, only',
     (key, before) => {
       const recipe = DISHES[key];
-      const added = Object.values(ADDED_IN_PHASE_2[key] ?? {}).flat();
+      const added = [...Object.values(ADDED_IN_PHASE_2[key] ?? {}).flat(), ...Object.values(ADDED_IN_PHASE_5[key] ?? {}).flat()];
 
       expect(EXTRA_FOODS.filter(food => judged(recipe, picture(recipe, { name: food })).accepted)).toEqual(
         EXTRA_FOODS.filter(food => before.includes(food) || added.includes(food))
@@ -220,5 +231,12 @@ describe('judgePicture — the reverse measure: one more food on an example dish
     expect(added.every(([family]) => family === 'sulphites' || FORM_FAMILIES.some(known => known.family === family))).toBe(true);
     expect([Object.values(ACCEPTED_BEFORE).flat().length, byOwnForm.length, bySulphites.length]).toEqual([83, 22, 1]);
     expect(Object.values(ACCEPTED_BEFORE).flat().length + byOwnForm.length + bySulphites.length).toBe(106);
+  });
+
+  it('accepts 107 after phase 5: 1 more, a bare form word that carries nothing the dish lacks', () => {
+    const foods = (phase: typeof ADDED_IN_PHASE_2) => Object.values(phase).flatMap(families => Object.values(families ?? {}).flat());
+
+    expect(foods(ADDED_IN_PHASE_5)).toEqual(['crackers']);
+    expect(Object.values(ACCEPTED_BEFORE).flat().length + foods(ADDED_IN_PHASE_2).length + foods(ADDED_IN_PHASE_5).length).toBe(107);
   });
 });

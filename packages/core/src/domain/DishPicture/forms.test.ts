@@ -3,11 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { dish, DISHES, judged, picture, SEED_CATALOGUE } from '#test/dish-picture/acceptance';
 
 import {
+  BARE_FORMS,
   DAIRY_WORDS,
   FORM_FAMILIES,
   NOT_A_FOOD,
   NOT_A_PLANT,
   PLANT_QUALIFIERS,
+  READINGS,
+  SAME_WORD,
   SERVING_WORDS,
   SPELLINGS,
   TITLE_BOWL,
@@ -36,13 +39,14 @@ import type { FormFamily } from './forms';
 const PLAIN = dish('Plato de prueba', ['lechuga', 100]);
 
 /**
- * The judge's words of a family that carry no allergen on their own today,
- * so they reject nothing and there is nothing to excuse: the holes phase 5
- * closes ("pizza", "crepe", "tortilla"…) and forms whose catalogue rows carry
- * nothing. Pinned both ways: a word here that starts to carry an allergen, or
- * one missing that carries none, fails the last test of this file.
+ * The judge's words of a family that carry no allergen on their own, so they
+ * reject nothing and there is nothing to excuse: forms whose catalogue rows
+ * carry nothing they contain. Phase 5 closed the others ("pizza", "crepe",
+ * "tortilla"…); these two it left open, with the reason, in
+ * `judge.holes.test.ts`. Pinned both ways: a word here that starts to carry an
+ * allergen, or one missing that carries none, fails the last test of this file.
  */
-const CARRIES_NOTHING = ['crepe', 'crouton', 'crumb', 'crust', 'cupcake', 'fritter', 'fusilli', 'patty', 'pizza', 'sausage', 'tortilla'];
+const CARRIES_NOTHING = ['patty', 'sausage'];
 
 function foreign(recipe: PictureRecipe, name: string): readonly string[] {
   return judged(recipe, picture(recipe, { name })).extras.find(extra => extra.name === name)?.foreignAllergens ?? [];
@@ -84,18 +88,17 @@ function rejected(recipe: PictureRecipe, name: string): boolean {
 const BEYOND_THE_FAMILY: Readonly<Record<string, readonly string[]>> = {
   // The catalogue's fish is hake.
   'battered fish': ['fish'],
-  // The catalogue's only brownie holds walnuts (the lead's decision, round 3): a brownie beside a nut-free sponge is rejected.
-  brownie: ['tree_nuts'],
-  // The catalogue's crackers may contain sesame; the family's form is its flour.
-  cracker: ['sesame'],
-  // The catalogue's only empanada is tuna.
-  empanada: ['fish'],
   // The catalogue's nuggets are chicken or soy: the soy is the protein.
   nugget: ['soy'],
   // A quiche's cream: lactose is not a pastry's.
-  quiche: ['lactose'],
-  // The bare word reads as the catalogue's chocolate sandwich biscuits.
-  sandwich: ['milk', 'soy']
+  quiche: ['lactose']
+  /*
+   * Phase 5 took four rows out: a bare "brownie", "cracker", "empanada" and
+   * "sandwich" read as the form with nothing in it (`BARE_FORMS`), no longer
+   * as the catalogue's only product of the name — a brownie that may contain
+   * nuts, crackers that may contain sesame, a tuna empanada, chocolate
+   * sandwich biscuits.
+   */
 };
 
 /**
@@ -742,6 +745,66 @@ describe('forms — two spellings are one word', () => {
     });
 
     expect(verdict.accepted).toBe(false);
+  });
+});
+
+describe('forms — another word for a word the rule reads (phase 5)', () => {
+  it.each([...SAME_WORD])('reads "%s" as "%s", a word of the catalogue', (word, known) => {
+    expect(
+      SEED_CATALOGUE.some(entry =>
+        entry.names.some(name =>
+          name
+            .toLowerCase()
+            .split(/[^a-z]+/)
+            .includes(known)
+        )
+      )
+    ).toBe(true);
+    expect(foreign(PLAIN, word)).toEqual(foreign(PLAIN, known));
+    expect(foreign(PLAIN, word)).not.toEqual([]);
+  });
+
+  it('reads "hamburger patty" as the meat family’s "burger patty"', () => {
+    expectOwnForm(DISHES.heuraStirFry, 'hamburger patty', 'heura');
+  });
+});
+
+describe('forms — a form’s word alone is the form with nothing in it (phase 5)', () => {
+  const familyOf = (word: string) => FORM_FAMILIES.find(family => family.seen.includes(word));
+
+  it.each([...BARE_FORMS])('"%s" is a row of a family, read as %j of the seed catalogue', (word, slugs) => {
+    expect(familyOf(word)).toBeDefined();
+    expect(slugs.every(slug => SEED_CATALOGUE.some(entry => entry.slug === slug))).toBe(true);
+  });
+
+  it.each([...BARE_FORMS])('"%s" carries nothing beyond its family’s closed set', word => {
+    const family = familyOf(word) as FormFamily;
+
+    expect(foreign(PLAIN, word)).not.toEqual([]);
+    expect(beyondItsFamily(family, word)).toEqual([]);
+  });
+
+  it.each([...BARE_FORMS.keys()].map(word => [word, /(ch|sh|x)$/.test(word) ? `${word}es` : `${word}s`] as const))(
+    'reads "%s" in the plural, "%s", as the bare form too',
+    (word, plural) => {
+      expect(foreign(PLAIN, plural)).toEqual(foreign(PLAIN, word));
+    }
+  );
+});
+
+describe('forms — a word of two readings (phase 5)', () => {
+  it.each([...READINGS])('"%s" is a row of a family, and every slug it is read by is in the seed catalogue', (word, reading) => {
+    const { reads, slugs, title, titleHead } = reading.when;
+    const read = [...reading.otherwise, ...reads, ...slugs, ...titleHead.holds.flat()];
+
+    expect(FORM_FAMILIES.some(family => family.seen.includes(word))).toBe(true);
+    expect(read.every(slug => SEED_CATALOGUE.some(entry => entry.slug === slug))).toBe(true);
+    expect([...title, ...titleHead.words].filter(phrase => !/^[a-z0-9]+( [a-z0-9]+)*$/.test(phrase))).toEqual([]);
+  });
+
+  // The lead's decision: the reading comes from the dish. Its usual one is a wheat wrap's gluten, which a family excuses only where the dish has its own.
+  it.each([...READINGS])('"%s" carries its usual reading on a dish that is not its other food', word => {
+    expect(foreign(PLAIN, word)).toEqual(['gluten']);
   });
 });
 

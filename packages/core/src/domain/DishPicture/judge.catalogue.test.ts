@@ -4,7 +4,9 @@ import { normaliseForMatching } from 'core/domain/Safety';
 
 import { DISHES, judged, picture, SEED_CATALOGUE } from '#test/dish-picture/acceptance';
 
-import { FORM_FAMILIES, SERVING_WORDS } from './forms';
+import { BARE_FORMS, FORM_FAMILIES, SERVING_WORDS } from './forms';
+
+import type { PictureCatalogueEntry } from 'core/domain/DishPicture';
 
 /*
  * The exhaustive measure (project 010, phase 2's third round): every product
@@ -74,8 +76,8 @@ const DISH_OF_FAMILY: Readonly<Record<string, (typeof DISH_KEYS)[number]>> = {
 const SECOND_BATCH: Readonly<Partial<Record<(typeof DISH_KEYS)[number], Readonly<Record<string, readonly string[]>>>>> = {
   glutenFreeSpaghetti: { pasta: ['Macaroni', 'Spaghetti'] }, // gluten, beside gluten-free pasta
   glutenFreeToast: { bread: ['Baguette'] }, // gluten, beside gluten-free bread
-  // Gluten and milk, beside a rice-flour sponge. Not the catalogue's brownie: its walnuts are no cake's (`FormFamily.carries`).
-  lemonCake: { cakes: ['Muffin'] },
+  // Gluten and milk, beside a rice-flour sponge. "Brownie" since phase 5, the bare word being a brownie with nothing in it: its tree nuts are a bare drop (`BARE_DROPS`).
+  lemonCake: { cakes: ['Brownie', 'Muffin'] },
   riceCakes: { crackers: ['Crackers'] }, // gluten, beside rice cakes
   ricePancakes: { pancakes: ['Waffle'] } // gluten and milk, beside rice-flour pancakes
 };
@@ -107,7 +109,12 @@ const CARRY_NOTHING_MORE: Readonly<Record<(typeof DISH_KEYS)[number], number>> =
 
 /** A word and its singular, as the rule reads a plural. */
 function singular(word: string): readonly string[] {
-  return [word, ...(word.endsWith('ies') ? [`${word.slice(0, -3)}y`] : []), ...(word.endsWith('s') && word.length > 3 ? [word.slice(0, -1)] : [])];
+  return [
+    word,
+    ...(word.endsWith('ies') ? [`${word.slice(0, -3)}y`] : []),
+    ...(/(ch|sh|ss|us|x|z)es$/.test(word) ? [word.slice(0, -2)] : []),
+    ...(word.endsWith('s') && word.length > 3 ? [word.slice(0, -1)] : [])
+  ];
 }
 
 function sameWord(a: string, b: string): boolean {
@@ -125,18 +132,42 @@ const PRODUCTS = [
   )
 ].sort();
 
+/** Whether a product's name is a form's word alone (`BARE_FORMS`, phase 5), which the rule reads as the form with nothing in it. */
+function isBareForm(product: string): boolean {
+  return singular(normaliseForMatching(product)).some(word => BARE_FORMS.has(word));
+}
+
+/** The catalogue's own entry for a product, by its English name: what the product really holds, whatever the rule reads its name as. */
+function entryOf(product: string): PictureCatalogueEntry | undefined {
+  return SEED_CATALOGUE.find(known => known.names[1] === product);
+}
+
 /** The allergens a product carries that the dish does not: contained and not contained by the dish, or may-contained and not carried at all (a sulphite a product only may contain never rejects). */
 function beyondTheDish(key: (typeof DISH_KEYS)[number], product: string): readonly string[] {
   const own = DISHES[key].ingredients.flatMap(ingredient => SEED_CATALOGUE.find(entry => entry.slug === ingredient.slug) ?? []);
   const contains = new Set(own.flatMap(entry => entry.allergens));
   const carries = new Set(own.flatMap(entry => [...entry.allergens, ...(entry.mayContain ?? [])]));
-  const entry = SEED_CATALOGUE.find(known => known.names[1] === product);
+  const entry = entryOf(product);
 
   return [
     ...(entry?.allergens ?? []).filter(allergen => !contains.has(allergen)),
     ...(entry?.mayContain ?? []).filter(allergen => !carries.has(allergen) && allergen !== 'sulphites')
   ];
 }
+
+/**
+ * What a bare form's word drops (phase 5, `BARE_FORMS`): a product named by
+ * the word alone, accepted although the catalogue says it may contain an
+ * allergen the dish lacks. A picture shows a brownie, never that it may
+ * contain nuts; it is the cost of reading a bare word as the form with
+ * nothing in it, listed here dish by dish so that it cannot grow unseen. Each
+ * dropped allergen is one the product only *may* contain, never one it
+ * contains (the last test).
+ */
+const BARE_DROPS: Readonly<Partial<Record<(typeof DISH_KEYS)[number], Readonly<Record<string, readonly string[]>>>>> = {
+  lemonCake: { Brownie: ['tree_nuts'] }, // and its gluten and milk, the cakes family's own
+  wheatSpaghetti: { Crackers: ['sesame'] } // its gluten is the dish's
+};
 
 /** Whether a product's name, set aside how it is served, is a row of the family. */
 function isRowOf(family: string, product: string): boolean {
@@ -166,8 +197,13 @@ describe('judgePicture — every catalogue product that holds a form’s word, b
     expect(Object.keys(DISH_OF_FAMILY).sort()).toEqual(FORM_FAMILIES.map(family => family.family).sort());
   });
 
-  it.each(DISH_KEYS)('accepts beside %s only what carries nothing the dish lacks, and its own second batches', key => {
-    const listed = Object.values(SECOND_BATCH[key] ?? {}).flat();
+  // A new product named by a form's word alone is read as the bare form, and shows up here.
+  it('reads two products by a form’s word alone, as the form with nothing in it', () => {
+    expect(PRODUCTS.filter(isBareForm)).toEqual(['Brownie', 'Crackers']);
+  });
+
+  it.each(DISH_KEYS)('accepts beside %s only what carries nothing the dish lacks, its own second batches and its bare drops', key => {
+    const listed = [...Object.values(SECOND_BATCH[key] ?? {}).flat(), ...Object.keys(BARE_DROPS[key] ?? {})];
     const beyond = accepted(key).filter(product => beyondTheDish(key, product).length > 0);
 
     expect(beyond).toEqual(PRODUCTS.filter(product => listed.includes(product)));
@@ -178,12 +214,29 @@ describe('judgePicture — every catalogue product that holds a form’s word, b
     Object.entries(SECOND_BATCH).flatMap(([key, families]) =>
       Object.entries(families ?? {}).map(([family, products]) => [key, family, products] as const)
     )
-  )('on %s, the %s family’s second batches carry nothing beyond the family’s closed set', (key, family, products) => {
+  )('on %s, the %s family’s second batches carry nothing beyond the family’s closed set, but a bare drop', (key, family, products) => {
     const carries = FORM_FAMILIES.find(known => known.family === family)?.carries ?? [];
 
     for (const product of products) {
-      expect(beyondTheDish(key as (typeof DISH_KEYS)[number], product).filter(allergen => !carries.includes(allergen))).toEqual([]);
+      const dropped = BARE_DROPS[key as (typeof DISH_KEYS)[number]]?.[product] ?? [];
+
+      expect(
+        beyondTheDish(key as (typeof DISH_KEYS)[number], product).filter(allergen => !carries.includes(allergen) && !dropped.includes(allergen))
+      ).toEqual([]);
     }
+  });
+
+  it.each(
+    Object.entries(BARE_DROPS).flatMap(([key, products]) =>
+      Object.entries(products ?? {}).map(([product, dropped]) => [key as (typeof DISH_KEYS)[number], product, dropped] as const)
+    )
+  )('on %s, "%s" is a bare form that drops %j: allergens it only may contain', (key, product, dropped) => {
+    const family = FORM_FAMILIES.find(known => known.seen.some(row => singular(normaliseForMatching(product)).includes(row)));
+    const entry = entryOf(product);
+
+    expect(isBareForm(product)).toBe(true);
+    expect(beyondTheDish(key, product).filter(allergen => !(family?.carries ?? []).includes(allergen))).toEqual(dropped);
+    expect(dropped.every(allergen => (entry?.mayContain ?? []).includes(allergen) && !(entry?.allergens ?? []).includes(allergen))).toBe(true);
   });
 
   it.each(

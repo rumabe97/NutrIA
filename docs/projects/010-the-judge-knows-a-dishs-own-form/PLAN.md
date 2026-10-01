@@ -101,7 +101,7 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 
 ### Phase 2 — The dish's own form, and three words' worth of vocabulary
 
-- [x] done
+- [x] done — commit `3ffd2d5` ("The picture judge knows a dish's own form, and no longer rejects it for its bread or its milk")
 - **Dispatch**: opus @ high — `/execute-project 010 phase 2`. `quality-max`. Reviews:
   `invariant-reviewer` (opus, high), `legal`.
 - **Goal**: a form the dish has or names stops rejecting its own picture, and nothing
@@ -236,7 +236,7 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 
 ### Phase 5 — The holes
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 010 phase 5`. `quality-max`. Review:
   `invariant-reviewer`.
 - **Goal**: a food that carries an allergen and that the rule does not see today is seen.
@@ -259,6 +259,19 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
      brownie, crackers on the corn cakes, empanadas on the corn empanadillas, plant milk on
      the oat pudding — the last only if a named-plant reading allows it) can pass again,
      each un-rewritten on purpose with the reviewer.
+     *Amended 2026-10-01, lead:* "sandwich" joins the bare words (it had read as the
+     catalogue's chocolate sandwich biscuits). The class is its own, not phase 2's "second
+     batch": **a bare form word carries what its form carries; a filling or a may-contain the
+     picture cannot show is not read into it.** So a bare "crackers" passes on any dish with
+     gluten, a bare "brownie" on any dish with eggs, gluten and milk, and a bare "empanada" on
+     any wheat dish without fish — a tuna empanada named only "empanada" beside chicken
+     empanadillas is accepted **by design** (its fish is contained, not may-contain; the
+     picture does not show it). A filling the judge names ("tuna empanadas", "walnut
+     brownie", "sesame crackers") still rejects everywhere.
+  6. *Amended 2026-10-01, lead:* "tortilla" is read from the dish: the potato omelette only
+     when the dish is one (the packaged omelette; or its title names tortilla de patata(s),
+     tortilla española, omelette(s), frittata(s); or opens with "tortilla(s)" on a dish
+     holding an egg); everywhere else a wheat wrap. "sausages" and "patty" stay open.
   4. Measure again on the private library; record the exposure and the pairs in the log.
 - **Acceptance criteria**: PRD 8, 11.
 - **Verification**:

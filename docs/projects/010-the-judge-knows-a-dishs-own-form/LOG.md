@@ -257,3 +257,78 @@
 - **Notes for the next phase**: phase 5's step 5 (the filled forms) and the bare "pizza",
   "tortilla", "crust" found by the third review. The reviewers' probe scripts and the
   measuring harness are in the private local context of the session, not the repository.
+
+## Phase 5 — The holes (2026-10-01)
+
+- **Executor**: `backend-high` on opus; `invariant-reviewer` (opus, high) beside it from
+  the start, iterating with the implementer directly (two rounds and a re-check).
+- **Result**: done.
+- **Evidence**:
+  - `pnpm turbo lint ts:check test --filter=core --filter=api --filter=web
+    --concurrency=2`: 17 of 17 green — core 3237. `pnpm --filter core test:coverage`:
+    floors hold (DishPicture 100 % of lines, 97.46 % of branches). Format clean.
+  - The pilot's test and fixture untouched and green. Replayed from the private record:
+    57/57 and 8/8 accepted, the 3 controls rejected; only control 3's notes move (still
+    rejected, now also for "hamburger patty", gluten).
+  - `invariant-reviewer`: no P0, no P1. Its own sweep (1,139 names × 88 dishes, the rule
+    after phase 2 against this one): everything that newly passes is a bare form word (or
+    cookies/biscuits on the new crumble dish); 5,004 pairs newly rejected.
+- **What changed** (by mechanism):
+  - **Plurals.** Synonyms are looked up through a word's singular, and "-es" plurals after
+    ch/sh/ss/us/x/z are understood: "croutons", "toasts", "pies", "yogurts",
+    "sandwiches" now carry their allergen.
+  - **The 19 holes are closed**, and 15 more the sweep found: pizza, crust, tart, crepe,
+    cupcake, fritter, fusilli, burrito, crumble, crumb, paneer, latte, buttermilk,
+    frittata, meringue, hollandaise, crayfish… each mapped to its usual recipe, never to a
+    filled product. "hamburger" reads as "burger", "omelet" as "omelette". Where a new name
+    is a form, it is a row of its family (crumble, burrito, pizza crust, latte), so the dish's
+    own version still passes.
+  - **Bare form words** (`BARE_FORMS`): "brownie", "cracker", "empanada", "sandwich" alone
+    read as the unfilled form. Its own class, not phase 2's second batch: a bare form word
+    carries what its form carries, and a filling or a may-contain the picture cannot show
+    is not read into it. By design: a tuna empanada named only "empanada" beside chicken
+    empanadillas is accepted (its fish is contained, not may-contain — the picture does not
+    show it); bare "crackers" pass on any dish with gluten, bare "brownie" on any dish with
+    eggs, gluten and milk. A named filling ("tuna empanadas", "walnut brownie", "sesame
+    crackers") rejects everywhere. Each cost is a test titled as on purpose.
+    `judge.catalogue.test.ts` reads each product's own entry (not the rule's table) and
+    `BARE_DROPS` lists the two catalogue drops, checked to be may-contain only.
+  - **"tortilla"** is read from the dish: the potato omelette only when the dish is one (the
+    packaged omelette; a title naming tortilla de patata(s), tortilla española,
+    omelette(s), frittata(s); or a title opening with "tortilla(s)" on a dish holding an
+    egg); everywhere else a wheat wrap (gluten). Corn tacos are excused by their own wraps
+    form. Known misses, pinned and in `apps/api/AGENTS.md`: a wheat wrap called "tortilla"
+    on a gluten-free omelette passes; a potato omelette called "tortilla" on a wheat dish
+    with no egg passes.
+  - **Left open, with reasons pinned in `judge.holes.test.ts`**: "sausages" (three faithful
+    pilot pictures call the dish's chorizo "sausage" — mapping it is the stop signal; only
+    the vegetarian sausages contain an allergen) and "patty" (no allergen of its own).
+- **Library measure** (private library, offline, counts only; before = the rule after
+  phase 2):
+  - Exposure (paired / left over): any class 78/80 → 69/80; without the classes left out
+    34/36 → 25/36; the classes seen in production 32/34 → 22/34. The whole fall is
+    "crackers" on rice and corn cakes. **Nothing rose.**
+  - § 5.4 pairs (31,500): 111 newly accepted, all "crackers" (101 on dishes that already
+    carry gluten, 10 on their own cakes); **0 newly rejected**.
+  - The phase's 39 names × 500 dishes: 13,374 newly rejected; 287 newly accepted, all bare
+    form words (sandwich 131, crackers 111, empanadas 36, brownie 9).
+  - "tortilla": 0 of 13 egg dishes titled tortilla/frittata/omelette rejected, before and
+    now; 0 of 8 tortilla dishes; 7 of 8 egg-and-potato dishes not titled as omelettes now
+    reject a wheat "tortilla" (the 8th carries gluten) — the intended tightening.
+  - Sandwich/bocadillo titles: 11 of 13 (paired) and 13 of 13 (left over) rejected for
+    their own name before; 0 now.
+- **Deviations from plan** (plan amended):
+  - "sandwich" joins the bare words; the bare-word widening is recorded as its own class.
+  - "tortilla" readings, the title-head key and "frittata" as a title word (the lead's
+    decisions); the egg-and-potato key was dropped after measuring that every library
+    omelette is reached by its title.
+  - `judge.holes.test.ts` rewritten on purpose (what each hole carries, what is left open);
+    the three phase-2 rows (brownie, crackers, empanadas) accepted again; "plant milk" stays
+    rejected (a generic plant word names no plant). Two example dishes added to the test
+    helper (`oatCrumble`, `potatoOmelette`).
+  - Accepted cost: "Tortilla de patatas sin huevo" (vegan) is read as an omelette and
+    rejected for eggs — a redraw, the same kind as the scrambles left out.
+- **Decisions**: `0073`.
+- **Notes for phase 6**: read production's `provenance.drawings` for "tortilla",
+  "sandwich", "empanada" and the `own_form:` notes; "sausages" stays open until a
+  vegetarian sausage turns up in a rejected picture.
