@@ -1,4 +1,4 @@
-import { PASSWORD_MIN_LENGTH } from 'core/entities/Password';
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from 'core/entities/Password';
 
 import { interpolate } from '../../lib/format';
 
@@ -16,8 +16,9 @@ export const PASSWORD_LONG_LENGTH = 20;
  * - `short`: under the minimum; the meter also says how many characters are missing.
  * - `enough`: the minimum or more.
  * - `long`: `PASSWORD_LONG_LENGTH` or more.
+ * - `tooLong`: over the maximum, which the form and the API refuse.
  */
-export type PasswordMeterStep = 'empty' | 'enough' | 'long' | 'short';
+export type PasswordMeterStep = 'empty' | 'enough' | 'long' | 'short' | 'tooLong';
 
 export interface PasswordMeterReading {
   /** How much of the bar is filled, 0 to 1. */
@@ -40,6 +41,10 @@ export function readPasswordMeter(length: number): PasswordMeterReading {
     return { fill, missing, step: 'short' };
   }
 
+  if (length > PASSWORD_MAX_LENGTH) {
+    return { fill, missing, step: 'tooLong' };
+  }
+
   return { fill, missing, step: length >= PASSWORD_LONG_LENGTH ? 'long' : 'enough' };
 }
 
@@ -59,6 +64,8 @@ export function passwordMeterLevel({ step }: PasswordMeterReading, dictionary: D
       return dictionary.auth.passwordMeterEnough;
     case 'long':
       return dictionary.auth.passwordMeterLong;
+    case 'tooLong':
+      return dictionary.auth.passwordMeterTooLong;
   }
 }
 

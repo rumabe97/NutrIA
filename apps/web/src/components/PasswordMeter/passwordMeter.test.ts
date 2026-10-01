@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { PASSWORD_MAX_LENGTH } from 'core/entities/Password';
+
 import { enGB } from '../../i18n/dictionaries/en-GB';
 import { esES } from '../../i18n/dictionaries/es-ES';
 import { PASSWORD_LONG_LENGTH, passwordMeterHint, passwordMeterLevel, passwordMeterMissing, readPasswordMeter } from './passwordMeter';
@@ -18,6 +20,11 @@ describe('readPasswordMeter', () => {
     expect(readPasswordMeter(12)).toMatchObject({ missing: 0, step: 'enough' });
     expect(readPasswordMeter(PASSWORD_LONG_LENGTH - 1)).toMatchObject({ step: 'enough' });
     expect(readPasswordMeter(PASSWORD_LONG_LENGTH)).toMatchObject({ step: 'long' });
+  });
+
+  it('is too long only past the maximum, where the form refuses it', () => {
+    expect(readPasswordMeter(PASSWORD_MAX_LENGTH)).toMatchObject({ step: 'long' });
+    expect(readPasswordMeter(PASSWORD_MAX_LENGTH + 1)).toMatchObject({ fill: 1, step: 'tooLong' });
   });
 
   it('advances the bar with every character and stops at full', () => {
@@ -47,6 +54,11 @@ describe('passwordMeterLevel', () => {
       'Length: enough.',
       'Length: good.'
     ]);
+  });
+
+  it('says too long past the maximum, never good, in both languages', () => {
+    expect(passwordMeterLevel(readPasswordMeter(PASSWORD_MAX_LENGTH + 1), esES)).toBe('Longitud: demasiado larga.');
+    expect(passwordMeterLevel(readPasswordMeter(PASSWORD_MAX_LENGTH + 1), enGB)).toBe('Length: too long.');
   });
 
   it('changes only when the step does, never with each character', () => {

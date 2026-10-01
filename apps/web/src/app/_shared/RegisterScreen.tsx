@@ -22,8 +22,17 @@ import { forgetOfflineCopies } from 'lib/offline';
 import { PASSWORD_RULES, passwordLengthRefusal, passwordRefusalMessage } from 'lib/newPassword';
 import { signUp } from 'lib/auth-client';
 
+import type { Dictionary } from 'i18n/dictionaries/es-ES';
 import type { FormEvent } from 'react';
 import type { SocialProvider } from 'lib/sign-in-providers';
+
+function signUpFailure(status: number, dictionary: Dictionary): string {
+  if (status === 422) {
+    return dictionary.auth.emailTaken;
+  }
+
+  return status === 429 ? dictionary.auth.tooManyAttempts : dictionary.auth.signUpFailed;
+}
 
 export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readonly SocialProvider[] }>) {
   const router = useRouter();
@@ -82,8 +91,8 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
       // Better Auth distinguishes "email already registered" from everything
       // else. Both are shown as-is: at sign-*up* an existing address is
       // information the visitor already has, and hiding it only produces a
-      // confusing dead end.
-      setError(signUpError.status === 422 ? dictionary.auth.emailTaken : dictionary.auth.signUpFailed);
+      // confusing dead end. Its rate limit answers 429: that one is a wait, not a failure.
+      setError(signUpFailure(signUpError.status, dictionary));
 
       return;
     }
@@ -122,7 +131,11 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
           label={dictionary.auth.password}
           minLength={PASSWORD_MIN_LENGTH}
           name="password"
-          onChange={event => setPasswordLength(event.currentTarget.value.length)}
+          onChange={event => {
+            setPasswordLength(event.currentTarget.value.length);
+            // A refusal is about the password that was sent: once it is edited, it no longer applies.
+            setPasswordError(undefined);
+          }}
           passwordrules={PASSWORD_RULES}
           required={true}
           type="password"

@@ -1082,6 +1082,7 @@ export const enGB: Dictionary = {
     passwordMeterMissing: '{count} more characters needed.',
     passwordMeterMissingOne: '1 more character needed.',
     passwordMeterShort: 'Length: too short.',
+    passwordMeterTooLong: 'Length: too long.',
     passwordsDoNotMatch: 'The passwords do not match.',
     passwordStrengthHint: 'A phrase of several words is best.',
     passwordTooLong: 'The password can be at most {count} characters.',
@@ -1110,6 +1111,7 @@ export const enGB: Dictionary = {
     socialFailed: 'We could not complete the sign-in. Try again, or sign in with your email.',
     socialNotLinked:
       'There is already an account with that address, and it has not been confirmed yet. Sign in with your password and confirm the email, or reset the password. After that you can sign in this way too.',
+    tooManyAttempts: 'Too many attempts in a row. Wait a moment and try again.',
     toSignIn: 'Sign in',
     toSignUp: 'Create one',
     verifyBody: 'We have sent you a confirmation link. Open it on this device to activate your account.',

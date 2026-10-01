@@ -33,10 +33,20 @@ export function ResetPasswordForm() {
   // Each submit remounts the alert, so the same refusal twice is announced twice.
   const [attempt, setAttempt] = useState(0);
   const [pending, setPending] = useState(false);
+  // A spent or expired token: no password will be accepted with it, so the way out is a new link.
+  const [linkExpired, setLinkExpired] = useState(false);
   // Only the length is kept, for the meter: the password itself stays in the field.
   const [passwordLength, setPasswordLength] = useState(0);
   const hintId = useId();
   const levelId = useId();
+
+  const askNewLink = (
+    <div className={styles.footer}>
+      <Link className={`${styles.link} ${styles.standaloneLink}`} href={withLocale('/recuperar', locale)}>
+        {dictionary.auth.askNewLink}
+      </Link>
+    </div>
+  );
 
   if (!token) {
     return (
@@ -44,11 +54,7 @@ export function ResetPasswordForm() {
         <p className={styles.error} role="alert">
           {dictionary.auth.invalidLink}
         </p>
-        <div className={styles.footer}>
-          <Link className={`${styles.link} ${styles.standaloneLink}`} href={withLocale('/recuperar', locale)}>
-            {dictionary.auth.askNewLink}
-          </Link>
-        </div>
+        {askNewLink}
       </Fragment>
     );
   }
@@ -62,6 +68,7 @@ export function ResetPasswordForm() {
     event.preventDefault();
     setError(undefined);
     setFieldError(undefined);
+    setLinkExpired(false);
     setAttempt(previous => previous + 1);
 
     const form = new FormData(event.currentTarget);
@@ -94,8 +101,12 @@ export function ResetPasswordForm() {
 
       if (refusal) {
         refuse('password', refusal);
+      } else if (resetError.code === 'INVALID_TOKEN') {
+        setError(dictionary.auth.invalidLink);
+        setLinkExpired(true);
       } else {
-        setError(resetError.code === 'INVALID_TOKEN' ? dictionary.auth.invalidLink : dictionary.errors.internal);
+        // Better Auth's rate limit answers 429: that one is a wait, not a failure.
+        setError(resetError.status === 429 ? dictionary.auth.tooManyAttempts : dictionary.errors.internal);
       }
 
       return;
@@ -111,6 +122,7 @@ export function ResetPasswordForm() {
           {error}
         </p>
       ) : null}
+      {linkExpired ? askNewLink : null}
 
       <Input
         autoComplete="new-password"
@@ -119,7 +131,11 @@ export function ResetPasswordForm() {
         label={dictionary.auth.newPassword}
         minLength={PASSWORD_MIN_LENGTH}
         name="password"
-        onChange={event => setPasswordLength(event.currentTarget.value.length)}
+        onChange={event => {
+          setPasswordLength(event.currentTarget.value.length);
+          // A refusal is about the password that was sent: once it is edited, it no longer applies.
+          setFieldError(previous => (previous?.field === 'password' ? undefined : previous));
+        }}
         passwordrules={PASSWORD_RULES}
         required={true}
         type="password"
@@ -130,6 +146,7 @@ export function ResetPasswordForm() {
         error={fieldError?.field === 'confirm' ? fieldError.message : undefined}
         label={dictionary.auth.confirmPassword}
         name="confirm"
+        onChange={() => setFieldError(previous => (previous?.field === 'confirm' ? undefined : previous))}
         required={true}
         type="password"
       />
