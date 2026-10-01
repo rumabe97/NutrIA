@@ -531,7 +531,7 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
               {/* Halal and kosher are enforced in code by excluding what the
                   religion forbids — never a claim of certified slaughter,
                   which nothing here checks. */}
-              <Text id="dietary-patterns-hint" className={styles.hint} size="xs" tone="tertiary">
+              <Text className={styles.hint} id="dietary-patterns-hint" size="xs" tone="tertiary">
                 {f.dietaryPatternsHint}
               </Text>
             </fieldset>
