@@ -61,6 +61,7 @@ jest.unstable_mockModule('./TwoFactorMail.js', () => ({
 }));
 
 const { createAuth } = await import('../auth.config.js');
+const { refusesLinkPastTheFactor } = await import('./TwoFactor.js');
 
 const ORIGIN = 'http://localhost:3000';
 const PASSWORD = 'correct-horse-battery-staple-9';
@@ -369,6 +370,66 @@ describe('the second factor', () => {
     });
   });
 
+  describe('the secret', () => {
+    it('never leaves again after /enable: /get-totp-uri is the 404, even with the session and the password', async () => {
+      const auth = build();
+      const { browser } = await withFactor(auth);
+
+      const refused = await call(auth, browser, '/two-factor/get-totp-uri', { password: PASSWORD });
+
+      expect(refused).toMatchObject({ raw: NOT_FOUND, status: 404 });
+    });
+  });
+
+  describe('linking a provider', () => {
+    type LinkContext = Parameters<typeof refusesLinkPastTheFactor>[1];
+
+    function context(owner: Row | null, session: { user: { id: string } } | null): LinkContext {
+      return {
+        context: { internalAdapter: { findUserById: async () => Promise.resolve(owner) }, session },
+        headers: new Headers()
+      } as unknown as LinkContext;
+    }
+
+    it('refuses Google into an account with the factor on when no session of that account asks', async () => {
+      await expect(
+        refusesLinkPastTheFactor({ providerId: 'google', userId: 'usr-1' }, context({ id: 'usr-1', twoFactorEnabled: true }, null))
+      ).resolves.toBe(true);
+      await expect(
+        refusesLinkPastTheFactor(
+          { providerId: 'google', userId: 'usr-1' },
+          context({ id: 'usr-1', twoFactorEnabled: true }, { user: { id: 'usr-2' } })
+        )
+      ).resolves.toBe(true);
+    });
+
+    it('lets the account’s own session link it, an account without the factor, and the password account itself', async () => {
+      await expect(
+        refusesLinkPastTheFactor(
+          { providerId: 'google', userId: 'usr-1' },
+          context({ id: 'usr-1', twoFactorEnabled: true }, { user: { id: 'usr-1' } })
+        )
+      ).resolves.toBe(false);
+      await expect(
+        refusesLinkPastTheFactor({ providerId: 'google', userId: 'usr-1' }, context({ id: 'usr-1', twoFactorEnabled: false }, null))
+      ).resolves.toBe(false);
+      await expect(
+        refusesLinkPastTheFactor({ providerId: 'credential', userId: 'usr-1' }, context({ id: 'usr-1', twoFactorEnabled: true }, null))
+      ).resolves.toBe(false);
+    });
+
+    it('is what createAuth’s account hook answers: false refuses the link, nothing lets it through', async () => {
+      const before = build().options.databaseHooks?.account?.create?.before as unknown as (
+        linked: Row,
+        linkContext: LinkContext
+      ) => Promise<false | undefined>;
+      const linked = { accountId: 'g-1', providerId: 'google', userId: 'usr-1' };
+
+      await expect(before(linked, context({ id: 'usr-1', twoFactorEnabled: true }, null))).resolves.toBe(false);
+      await expect(before(linked, context({ id: 'usr-1', twoFactorEnabled: false }, null))).resolves.toBeUndefined();
+    });
+  });
+
   describe('email OTP', () => {
     it('sends nothing and grants nothing: both routes are the 404', async () => {
       const auth = build();
@@ -440,6 +501,18 @@ describe('the second factor', () => {
       expect(regenerate).toMatchObject({ body: { code: 'INVALID_PASSWORD' }, status: 400 });
       expect(store.user[0]?.twoFactorEnabled).toBe(true);
       expect(twoFactorChanged).not.toHaveBeenCalled();
+    });
+
+    it('says nothing when /disable finds the factor already off', async () => {
+      const auth = build();
+      const browser = await signUp(auth);
+
+      const answered = await call(auth, browser, '/two-factor/disable', { password: PASSWORD });
+      await drain();
+
+      expect(answered.status).toBe(200);
+      expect(twoFactorChanged).not.toHaveBeenCalled();
+      expect(mails).toEqual([]);
     });
 
     it('turns it off with the password, writes auth.2fa_disabled and mails, and counts no visit', async () => {

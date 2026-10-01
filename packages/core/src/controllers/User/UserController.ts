@@ -317,8 +317,16 @@ export const UserController = {
    * correct code after `/two-factor/enable`, off at `/two-factor/disable`.
    * Better Auth has already written the account; this is the row that says
    * so, with nothing in it: never the secret, a code or a session.
+   *
+   * Off also stops trusting every device the account trusted to skip the
+   * code — before the row, so a device trusted while it was on cannot skip
+   * it once it is back on.
    */
   async twoFactorChanged(userId: string, enabled: boolean): Promise<void> {
+    if (!enabled) {
+      await UserRepository.forgetTrustedDevices(userId);
+    }
+
     await AuditRepository.record({
       action: enabled ? 'auth.2fa_enabled' : 'auth.2fa_disabled',
       actorId: userId,
