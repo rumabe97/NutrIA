@@ -55,7 +55,7 @@ const IPHONE =
 const ENABLED_MAIL = /activado la verificaci[oó]n en dos pasos/i;
 const DISABLED_MAIL = /desactivado la verificaci[oó]n en dos pasos/i;
 const BACKUP_MAIL = /c[oó]digo de respaldo/i;
-const REGENERATED_MAIL = /nuevos c[oó]digos de respaldo/i;
+const REGENERATED_MAIL = /c[oó]digos de respaldo nuevos/i;
 /** M14: the mail says nothing of health. */
 const HEALTH_WORDS = /alerg|allerg|salud|health|dieta|diet\b|peso|weight|calor|medic|embaraz|pregnan/i;
 const GOOGLE = { clientId: 'nutria-e2e.apps.googleusercontent.com', clientSecret: 'not-a-real-secret' };
@@ -1000,7 +1000,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
 
       expect(back.status).toBe(302);
       expect(location.origin + location.pathname).toBe(`${APP}/acceder`);
-      expect(location.searchParams.get('error')).toBe('account_not_linked');
+      expect(location.searchParams.get('error')).toBe('unable_to_link_account');
       expect(new CookieJar().take(back).has('session_token')).toBe(false);
       expect(await sessionsOf(id)).toBe(0);
       expect(await providerAccounts(id)).toEqual(['credential']);
@@ -1075,7 +1075,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       const jar = await signedIn(email);
       const disabled = await post('auth/two-factor/disable', jar.header, { password: ORIGINAL });
 
-      expect(disabled.status).toBeLessThan(500);
+      expect(disabled.status).toBe(200);
       expect(await flagOf(id)).toBe(false);
       await pause(1000);
       expect(await auditRows(id, 'auth.2fa_disabled')).toEqual([]);
