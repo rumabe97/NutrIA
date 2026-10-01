@@ -263,7 +263,8 @@ describe('events on premium', () => {
       for (const meal of day.meals) {
         const detail: Response = await request(server).get(`/${PREFIX}/meal-plans/meals/${meal.id}`).set('Cookie', athlete.cookie).expect(200);
 
-        for (const item of (detail.body as { ingredients: readonly { dry?: { grams: number; name: string }; grams: number; name: string }[] }).ingredients) {
+        for (const item of (detail.body as { ingredients: readonly { dry?: { grams: number; name: string }; grams: number; name: string }[] })
+          .ingredients) {
           // A cooked grain is listed as its dry food (`0078`): the list sums the
           // dry weights and rounds the line up to 5 g, so those lines are keyed
           // and summed by what the meal says it weighs dry.

@@ -55,10 +55,7 @@ const ENGLISH_NAMES: Record<string, string> = {
  * cooked slug: the seeded en-GB name of the dry food `COOKED_YIELDS` maps it to,
  * and, for a cooked pasta with no dry slug, its name without "cooked" plus "(dry)".
  */
-const ENGLISH_DRY_NAMES: Record<string, string> = {
-  'pasta-cocida': 'Pasta (dry)',
-  [SEEDED.arroz]: 'Long-grain rice'
-};
+const ENGLISH_DRY_NAMES: Record<string, string> = { 'pasta-cocida': 'Pasta (dry)', [SEEDED.arroz]: 'Long-grain rice' };
 
 const POOL = [
   dish('Greek yoghurt bowl', ['breakfast'], [{ grams: 250, slug: SEEDED.yogur }]),
