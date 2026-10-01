@@ -332,3 +332,15 @@
 - **Notes for phase 6**: read production's `provenance.drawings` for "tortilla",
   "sandwich", "empanada" and the `own_form:` notes; "sausages" stays open until a
   vegetarian sausage turns up in a rejected picture.
+
+## Phase 6 — Production, after it ships (2026-10-01) — waiting on its gate
+
+- **Executor**: the lead (opus), reading production read-only.
+- **Result**: not started — owner-gated. Phases 2 to 5 are live (the final rule since
+  `09ed832`, 2026-10-01), but neither condition holds yet: about 60 dishes drawn with that
+  rule, or two weeks gone (2026-10-15).
+- **Evidence** (production `recipe_images`, read-only, 2026-10-01): 26 dishes have a
+  picture, all `ready`, none `failed`; the most recent drawing ended 2026-10-01 07:30 UTC,
+  before phase 5 reached production — so no dish has yet been drawn with the final rule.
+- **For the owner**: run `/execute-project 010 phase 6` again when about 60 dishes have been
+  drawn since 2026-10-01, or on 2026-10-15.

@@ -333,6 +333,24 @@ code:
 - granting the first professional from `/admin`, and only then turning the `professional`
   flag on.
 
+### 10. Accounts are harder to take — planned (`0074`)
+
+Added on 2026-10-01, the owner: "quiero mejorar la seguridad del usuario". The project is
+[`011-accounts-are-harder-to-take`](./projects/011-accounts-are-harder-to-take/), and the
+architect's report
+[`0007`](./reference/architecture/0007-seguridad-de-cuentas-2026-10-01.md) is its design.
+It covers:
+
+- strong passwords decided on the server, with breached passwords refused;
+- a "Seguridad" section in the profile;
+- an optional second factor (TOTP, then passkeys), made mandatory for professionals and
+  the admin;
+- the owner's delayed removal of a lost factor;
+- a per-account sign-in brake, a sign-up that reveals nothing, and a CSP.
+
+Its phase 0 waits on the owner, who runs a read-only count query. The second factor must
+reach professionals before the `professional` flag goes on (§9).
+
 ## Later / someday
 
 - Admin: generation monitoring and failure review are done (`0028`, `/admin`). Safety-flag

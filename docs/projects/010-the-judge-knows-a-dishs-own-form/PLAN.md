@@ -236,7 +236,7 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 
 ### Phase 5 — The holes
 
-- [x] done
+- [x] done — commit `09ed832` ("The picture judge sees the foods it used to miss, and reads a bare word as its plain form")
 - **Dispatch**: opus @ high — `/execute-project 010 phase 5`. `quality-max`. Review:
   `invariant-reviewer`.
 - **Goal**: a food that carries an allergen and that the rule does not see today is seen.
@@ -281,7 +281,7 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 
 ### Phase 6 — Production, after it ships
 
-- [ ] pending
+- [ ] in progress — waiting on its gate: about 60 dishes drawn with the final rule (live since `09ed832`, 2026-10-01) or 2026-10-15, whichever comes first
 - **Dispatch**: opus @ medium — `/execute-project 010 phase 6`. No code; reads production
   read-only. — owner-gated: phases 2 to 5 shipped, and either about 60 dishes drawn with
   the new rule or two weeks gone, whichever comes first.
