@@ -1,3 +1,4 @@
+import { toDry, withoutCooked } from 'core/domain/Yield';
 import type { Catalogue, ShoppingDraft, ShoppingDraftItem } from 'core/entities/Plan';
 
 /** Anything shaped like a plan: days of meals, each with its scaled ingredients. A scheduled plan is one; a plan read back for a swap is another. */
@@ -18,14 +19,29 @@ const CATEGORY_ORDER = ['produce', 'protein', 'dairy', 'bakery', 'frozen', 'pant
  *
  * `name` and `category` are snapshotted from the catalogue rather than referenced,
  * so a list stays readable after the catalogue moves on.
+ *
+ * Cooked grains and pastas are bought dry (`0078`): each is summed as its dry
+ * weight, on the dry food's row when the catalogue has one — so cooked and dry
+ * couscous in one plan are one line — or on its own row named "(en seco)" when
+ * it does not. A row that took any of that is rounded up to 5 g: a yield is an
+ * average, and a list that comes up short is the one way it can fail.
  */
 export function buildShoppingList(assignment: ShoppingSource, catalogue: Catalogue, locale = 'es-ES'): ShoppingDraft {
   const totals = new Map<string, number>();
+  // Rows that hold dry weight read off a cooked grain.
+  const dried = new Set<string>();
 
   for (const day of assignment.days) {
     for (const meal of day.meals) {
       for (const item of meal.ingredients) {
-        totals.set(item.slug, (totals.get(item.slug) ?? 0) + item.grams);
+        const dry = toDry(item.slug, item.grams);
+        const slug = dry?.drySlug && catalogue.has(dry.drySlug) ? dry.drySlug : item.slug;
+
+        totals.set(slug, (totals.get(slug) ?? 0) + (dry?.dryGrams ?? item.grams));
+
+        if (dry) {
+          dried.add(slug);
+        }
       }
     }
   }
@@ -42,7 +58,8 @@ export function buildShoppingList(assignment: ShoppingSource, catalogue: Catalog
       continue;
     }
 
-    const totalGrams = roundTo(grams, 1);
+    // Rounded to the gram's tenth first, so 240.0000001 is not bought as 245.
+    const totalGrams = dried.has(slug) ? Math.ceil(roundTo(grams, 1) / DRY_STEP_G) * DRY_STEP_G : roundTo(grams, 1);
     const display = toDisplay(totalGrams, ingredient.defaultUnit, ingredient.gramsPerUnit);
 
     items.push({
@@ -50,13 +67,22 @@ export function buildShoppingList(assignment: ShoppingSource, catalogue: Catalog
       displayQuantity: display.quantity,
       displayUnit: display.unit,
       ingredientId: ingredient.id,
-      name: ingredient.name,
+      // Still the cooked food's row only when the catalogue has no dry one to merge into.
+      name: dried.has(slug) && toDry(slug, 0) ? `${withoutCooked(ingredient.name)} ${dryLabel(locale)}` : ingredient.name,
       slug,
       totalGrams
     });
   }
 
   return { items: items.sort(byAisleThenName(locale)) };
+}
+
+/** What a row of dry weight is rounded up to. */
+const DRY_STEP_G = 5;
+
+/** What says a cooked food's row is weighed dry, in the list's language. */
+function dryLabel(locale: string): string {
+  return locale.startsWith('en') ? '(dry)' : '(en seco)';
 }
 
 /** Slugs in the assignment that the catalogue cannot resolve. Empty on a valid plan. */
