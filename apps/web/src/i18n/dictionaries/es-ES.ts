@@ -1763,7 +1763,7 @@ export const esES = {
       customAllergensHint: 'Separa con comas. Al guardar buscamos cada una en nuestro catálogo y te decimos qué podemos aplicar.',
       dietaryPatterns: 'Tipo de alimentación',
       dietaryPatternsHint:
-        'Quitamos el cerdo, el alcohol y la gelatina (y, en kosher, el marisco y la carne con lácteos). La carne certificada depende de dónde la compres.',
+        'Quitamos el cerdo, el alcohol y la gelatina (y, en kosher, el marisco y la carne con lácteos). La carne certificada depende de dónde la compres. «Tradicional española» deja solo cocina casera española: fuera tofu, seitán, quinoa, salsas asiáticas o tacos.',
       disliked: 'Alimentos que no quieres ver',
       dislikedHint: 'No volverán a aparecer en tus planes.',
       displayName: '¿Cómo quieres que te llamemos?',
@@ -1805,6 +1805,7 @@ export const esES = {
         lactose_free: 'Sin lactosa',
         omnivore: 'Sin restricción',
         pescatarian: 'Pescetariana',
+        traditional_spanish: 'Tradicional española',
         vegan: 'Vegana',
         vegetarian: 'Vegetariana'
       },

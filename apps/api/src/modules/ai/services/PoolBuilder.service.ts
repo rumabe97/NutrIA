@@ -3,7 +3,7 @@ import { Inject, Injectable, Logger, Optional } from '@nestjs/common';
 import { dishSafety, findSafetyViolations, mentionsUnresolvedAllergy } from 'core/domain/Safety';
 import { fitSlots, mealCatalogue, offersPulses, repairSlug } from 'core/domain/MealFit';
 import { cleanSteps, methodMentions } from 'core/domain/Method';
-import { breaksDishRule, withinTime } from 'core/domain/Preference';
+import { breaksDishRule, breaksPatternDish, withinTime } from 'core/domain/Preference';
 import { isOversized, OVERSIZED_FACTOR, servingCap } from 'core/domain/Serving';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 
@@ -619,6 +619,14 @@ export class PoolBuilder {
     // someone who keeps them apart. Never asked of the model, only enforced.
     if (breaksDishRule(dish.ingredients, context.catalogue, context.preferences)) {
       this.logger.warn(`Dish "${dish.name}" rejected by a dish rule of their preferences`);
+
+      return { reason: 'unwanted' };
+    }
+
+    // Foreign to their way of eating by its stated cuisine or its name
+    // (`0077`): never told to the model, enforced here.
+    if (breaksPatternDish(dish, context.preferences)) {
+      this.logger.warn(`Dish "${dish.name}" rejected: its cuisine or name is foreign to their way of eating`);
 
       return { reason: 'unwanted' };
     }
