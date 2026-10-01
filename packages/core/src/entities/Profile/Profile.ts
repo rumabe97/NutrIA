@@ -57,7 +57,8 @@ export const DIETARY_PATTERNS = [
   'gluten_free',
   'lactose_free',
   'halal',
-  'kosher'
+  'kosher',
+  'traditional_spanish'
 ] as const;
 
 /**
