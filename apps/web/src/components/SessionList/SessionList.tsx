@@ -201,8 +201,11 @@ export function SessionList() {
           {error}
         </p>
       ) : null}
-      {/* Mounted empty so what was closed is announced when it is. */}
-      <div role="status">{done ? <p className={styles.done}>{done}</p> : null}</div>
+      {done ? (
+        <p className={styles.done} role="status">
+          {done}
+        </p>
+      ) : null}
 
       {state.kind === 'loading' ? (
         <Text size="sm" tone="secondary">

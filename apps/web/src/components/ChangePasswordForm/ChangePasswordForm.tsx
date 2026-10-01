@@ -139,8 +139,11 @@ export function ChangePasswordForm({ forced = false, onChanged }: ChangePassword
           {error}
         </p>
       ) : null}
-      {/* Mounted empty so the confirmation is announced when it arrives. */}
-      <div role="status">{changed ? <p className={styles.success}>{t.passwordChanged}</p> : null}</div>
+      {changed ? (
+        <p className={styles.success} role="status">
+          {t.passwordChanged}
+        </p>
+      ) : null}
 
       <Input
         autoComplete="current-password"
