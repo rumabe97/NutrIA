@@ -68,6 +68,26 @@ export const subscriptions = userOwnedSingleton('subscriptions', {
 });
 
 /**
+ * The owner's request to take a lost second factor off an account (PLAN 011
+ * phase 4), one row per account.
+ *
+ * Nothing is removed when the row is written: the daily cron removes the factor
+ * on its first run at or after `dueAt` (48 h after the request, so 48–72 h in
+ * practice), and a correct code from the account in between sets `cancelledAt`.
+ * A row whose `cancelledAt` is set is history only; a new request writes over
+ * it. The cron deletes the row once the factor is gone. `requestedBy` is the
+ * admin who asked, `set null` if that account is deleted, like the audit log's
+ * actor. Unindexed on purpose: a row lives only until the cron removes the
+ * factor, so the `set null` on an admin's deletion scans a handful of rows.
+ */
+export const twoFactorRemovals = userOwnedSingleton('two_factor_removal', {
+  cancelledAt: timestamp({ withTimezone: true }),
+  dueAt: timestamp({ withTimezone: true }).notNull(),
+  requestedAt: timestamp({ withTimezone: true }).notNull(),
+  requestedBy: text().references(() => user.id, { onDelete: 'set null' })
+});
+
+/**
  * Security-relevant actions only. `actorId` is `set null` on delete so the trail
  * survives account deletion without keeping the deleted user's identity.
  * Never write request bodies here — they carry health data.

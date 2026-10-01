@@ -33,6 +33,9 @@ export type EmailKind =
   | 'professional-granted'
   | 'two-factor-disabled'
   | 'two-factor-enabled'
+  | 'two-factor-removal-cancelled'
+  | 'two-factor-removal-requested'
+  | 'two-factor-removed'
   | 'verify-email';
 
 export interface RenderedEmail {

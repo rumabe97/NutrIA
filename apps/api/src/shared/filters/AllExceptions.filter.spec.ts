@@ -15,6 +15,7 @@ import {
   QuotaExceededError,
   ReauthenticationRequiredError,
   SafetyViolationError,
+  TwoFactorRemovalRefusedError,
   UnauthorizedError,
   UnderMinimumAgeError
 } from 'core/entities/Error';
@@ -80,6 +81,18 @@ describe('AllExceptionsFilter', () => {
 
     expect(body).toEqual({ code, message: 'No se puede hacer eso con la imagen ahora.', statusCode: HttpStatus.CONFLICT });
     expect(body.message).not.toMatch(/reintentar/i);
+  });
+
+  /* PLAN 011 phase 4: the owner's removal of a lost second factor, refused with the code the console switches on. */
+  it.each([
+    ['not_enabled', 'TWO_FACTOR_NOT_ENABLED'],
+    ['pending', 'TWO_FACTOR_REMOVAL_PENDING']
+  ] as const)('maps a refused two-factor removal (%s) to 409 %s', (reason, code) => {
+    expect(capture(new TwoFactorRemovalRefusedError(reason)).body).toEqual({
+      code,
+      message: 'No se puede pedir eso para esta cuenta ahora.',
+      statusCode: HttpStatus.CONFLICT
+    });
   });
 
   it('maps a birth date under the minimum age to 422 with a stable code', () => {

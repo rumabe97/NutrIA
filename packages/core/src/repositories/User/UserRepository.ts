@@ -1,7 +1,7 @@
 import { and, asc, count, desc, eq, getTableName, inArray, isNotNull, isNull, like, lt, not, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
-import { analyticsEvents } from 'database/schema/platform';
+import { analyticsEvents, twoFactorRemovals } from 'database/schema/platform';
 import { contains, ordered } from '#repositories/Search';
 import { database } from 'database';
 import { mealPlans } from 'database/schema/plan';
@@ -68,6 +68,10 @@ export type AccountRow = {
   readonly professional: boolean;
   readonly role: 'admin' | 'user';
   readonly tier: UserTier;
+  /** The second factor is on (PLAN 011 phase 4): whether the console offers to remove it. */
+  readonly twoFactorEnabled: boolean;
+  /** When the owner's pending removal of the factor falls due, or null when none is pending. */
+  readonly twoFactorRemovalDueAt: Date | null;
 };
 
 /**
@@ -97,7 +101,12 @@ const MILESTONES = {
     onboardingState.completedAt
   ),
   plans: sql<number>`(select count(*) from ${mealPlans} where ${mealPlans.userId} = ${ACCOUNT_ID})`.mapWith(Number),
-  professional: sql<boolean>`${IS_PROFESSIONAL}`.mapWith(Boolean)
+  professional: sql<boolean>`${IS_PROFESSIONAL}`.mapWith(Boolean),
+  /** The pending removal's due date (PLAN 011 phase 4) — one row at most per account (UNIQUE on `user_id`). */
+  twoFactorRemovalDueAt:
+    sql<Date | null>`(select ${twoFactorRemovals.dueAt} from ${twoFactorRemovals} where ${twoFactorRemovals.userId} = ${ACCOUNT_ID} and ${isNull(twoFactorRemovals.cancelledAt)})`.mapWith(
+      twoFactorRemovals.dueAt
+    )
 };
 
 /** What the account table selects: the row's own columns and the four milestones. Exported for its spec. */
@@ -112,7 +121,9 @@ export const ACCOUNT_COLUMNS = {
   plans: MILESTONES.plans,
   professional: MILESTONES.professional,
   role: user.role,
-  tier: user.tier
+  tier: user.tier,
+  twoFactorEnabled: user.twoFactorEnabled,
+  twoFactorRemovalDueAt: MILESTONES.twoFactorRemovalDueAt
 };
 
 /** Onboarding finished: the funnel's own definition (`AdminRepository.funnel`). */
