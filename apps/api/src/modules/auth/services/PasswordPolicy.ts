@@ -73,7 +73,10 @@ function text(value: unknown): string | null {
  * a dead token learns nothing about the account it once named.
  */
 async function resetAccount(context: Context, body: Record<string, unknown>): Promise<AccountWords | null> {
-  const token = text(body.token) ?? text(record(context.query).token);
+  // `||`, exactly as Better Auth reads it: an empty body token falls through to
+  // the query's, and Better Auth goes on with that one — `??` kept the "" and
+  // skipped the checks on a reset that then went through.
+  const token = text(body.token) || text(record(context.query).token);
 
   if (!token) {
     return null;
