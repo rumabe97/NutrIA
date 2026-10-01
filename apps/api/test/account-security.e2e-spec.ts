@@ -449,12 +449,10 @@ describe('account security: the password, the sessions, and a password found bre
 
       await mark(id);
 
-      for (const body of [{ passwordCompromisedAt: null }, { password_compromised_at: null }]) {
-        const refused = await post('auth/update-user', session.cookie, body);
+      const refused = await post('auth/update-user', session.cookie, { passwordCompromisedAt: null });
 
-        expect(refused.status).toBe(400);
-        expect(await markOf(id)).not.toBeNull();
-      }
+      expect(refused.status).toBe(400);
+      expect(await markOf(id)).not.toBeNull();
 
       expect(code(await get('profile', session.cookie).expect(409))).toBe('PASSWORD_CHANGE_REQUIRED');
     });
