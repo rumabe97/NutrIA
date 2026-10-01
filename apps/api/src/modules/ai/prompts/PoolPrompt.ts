@@ -601,6 +601,7 @@ function characterOf(slot: MealSlot, patterns: readonly string[]): string | null
       return spanish ? SPANISH_BREAKFAST_CHARACTER : BREAKFAST_CHARACTER;
     case 'lunch':
       return LUNCH_CHARACTER;
+
     case 'dinner': {
       const dinner = spanish ? SPANISH_DINNER_CHARACTER : DINNER_CHARACTER;
 
@@ -608,6 +609,7 @@ function characterOf(slot: MealSlot, patterns: readonly string[]): string | null
         ? `${dinner} ${spanish ? SPANISH_PLANT_BASED_DINNER : PLANT_BASED_DINNER}`
         : dinner;
     }
+
     case 'supper':
       return SNACK_CHARACTER;
     default:

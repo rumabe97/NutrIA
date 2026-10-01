@@ -6,6 +6,7 @@ import {
   FOREIGN_CUISINES,
   freeFromExclusions,
   isEnforceableDislike,
+  isLegumeSlug,
   leaningSlugs,
   NO_PREFERENCE_EXCLUSIONS,
   PATTERN_EXCLUDED_SLUGS,
@@ -583,6 +584,13 @@ describe('resolvePreferences — the traditional Spanish lean (0077)', () => {
       'salmon-congelado',
       'salmonete'
     ]);
+  });
+
+  it('counts a legume by the head of its slug, as the evaluator does', () => {
+    expect(
+      ['lentejas-cocidas', 'garbanzos-secos', 'alubias-blancas-cocidas', 'judiones', 'habas-frescas', 'judias-rojas-cocidas'].every(isLegumeSlug)
+    ).toBe(true);
+    expect(['pasta-de-lentejas', 'harina-de-garbanzo', 'judia-verde', 'proteina-de-guisante'].some(isLegumeSlug)).toBe(false);
   });
 
   it('never leans to an excluded row, and leans to nothing without the pattern', () => {

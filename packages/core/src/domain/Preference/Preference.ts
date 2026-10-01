@@ -263,14 +263,11 @@ export const PATTERN_EXCLUDED_SLUGS: Readonly<Record<string, ReadonlySet<string>
  * `harina-de-garbanzo` and `seta-de-cardo` do not. Fish and seafood are their
  * classes.
  */
+/** Legumes, by the head of the slug: a plato de cuchara's base, not `pasta-de-lentejas` or `harina-de-garbanzo`. */
+const LEGUME_HEADS: readonly string[] = ['alubias', 'garbanzos', 'habas', 'judias-rojas', 'judiones', 'lentejas'];
+
 const SPANISH_LEAN_HEADS: readonly string[] = [
-  // Legumes
-  'alubias',
-  'garbanzos',
-  'habas',
-  'judias-rojas',
-  'judiones',
-  'lentejas',
+  ...LEGUME_HEADS,
   // Rice — the foreign ones are excluded before the lean is read
   'arroz',
   // Huerta
@@ -295,6 +292,11 @@ const SPANISH_LEAN_HEADS: readonly string[] = [
 /** Whether a slug starts with one of these heads, as whole words. */
 function startsWithHead(slug: string, heads: readonly string[]): boolean {
   return heads.some(head => slug === head || slug.startsWith(`${head}-`));
+}
+
+/** Whether a catalogue row is a legume in the sense `0077` leans to — what the evaluator counts a plato de cuchara by. */
+export function isLegumeSlug(slug: string): boolean {
+  return startsWithHead(slug, LEGUME_HEADS);
 }
 
 /**
