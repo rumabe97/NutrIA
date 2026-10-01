@@ -50,6 +50,16 @@ const ENGLISH_NAMES: Record<string, string> = {
   [SEEDED.yogur]: 'Natural Greek yoghurt'
 };
 
+/**
+ * What the shopping list calls the cooked foods above (`0078`), keyed by the
+ * cooked slug: the seeded en-GB name of the dry food `COOKED_YIELDS` maps it to,
+ * and, for a cooked pasta with no dry slug, its name without "cooked" plus "(dry)".
+ */
+const ENGLISH_DRY_NAMES: Record<string, string> = {
+  'pasta-cocida': 'Pasta (dry)',
+  [SEEDED.arroz]: 'Long-grain rice'
+};
+
 const POOL = [
   dish('Greek yoghurt bowl', ['breakfast'], [{ grams: 250, slug: SEEDED.yogur }]),
   dish('Scrambled eggs', ['breakfast'], [{ grams: 160, slug: SEEDED.huevo }]),
@@ -248,7 +258,10 @@ describe('an English account, end to end', () => {
     // Every name must be one the en-GB catalogue supplied. A fallback to Spanish
     // is a legitimate *runtime* state — a locale the catalogue lacks — but not
     // here: the seed has en-GB for every one of these.
-    const english = new Set(Object.values(ENGLISH_NAMES));
+    // A cooked grain is listed as its dry food (`0078`): the en-GB name of the
+    // dry food the yield table maps to, or "(dry)" after the cooked name's stem
+    // when the catalogue has none.
+    const english = new Set([...Object.values(ENGLISH_NAMES), ...Object.values(ENGLISH_DRY_NAMES)]);
 
     for (const item of list.items) {
       // Named, so a failure says which item, since Jest's expect takes no message.

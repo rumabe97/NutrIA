@@ -257,14 +257,24 @@ describe('events on premium', () => {
     // (`0015`): a list patched for two days would drift on everything shared.
     const expected = new Map<string, number>();
     const occurrences = new Map<string, number>();
+    const dryLines = new Set<string>();
 
     for (const day of after.days) {
       for (const meal of day.meals) {
         const detail: Response = await request(server).get(`/${PREFIX}/meal-plans/meals/${meal.id}`).set('Cookie', athlete.cookie).expect(200);
 
-        for (const item of (detail.body as { ingredients: readonly { grams: number; name: string }[] }).ingredients) {
-          expected.set(item.name, (expected.get(item.name) ?? 0) + item.grams);
-          occurrences.set(item.name, (occurrences.get(item.name) ?? 0) + 1);
+        for (const item of (detail.body as { ingredients: readonly { dry?: { grams: number; name: string }; grams: number; name: string }[] }).ingredients) {
+          // A cooked grain is listed as its dry food (`0078`): the list sums the
+          // dry weights and rounds the line up to 5 g, so those lines are keyed
+          // and summed by what the meal says it weighs dry.
+          const name = item.dry?.name ?? item.name;
+
+          expected.set(name, (expected.get(name) ?? 0) + (item.dry?.grams ?? item.grams));
+          occurrences.set(name, (occurrences.get(name) ?? 0) + 1);
+
+          if (item.dry) {
+            dryLines.add(name);
+          }
         }
       }
     }
@@ -276,7 +286,9 @@ describe('events on premium', () => {
       // may drift ±0.05 g, so a correct list drifts with the number of meals.
       const count = occurrences.get(item.name) ?? 0;
       const drift = Math.abs(item.totalGrams - (expected.get(item.name) ?? 0));
-      const tolerance = 0.05 * count + 0.1;
+      // Each meal's dry grams are already rounded to 5 g (±2.5 g a meal), and the
+      // list then rounds the sum up to 5 g, which adds up to 5 g more.
+      const tolerance = dryLines.has(item.name) ? 2.5 * count + 5.1 : 0.05 * count + 0.1;
 
       expect({ drift: drift <= tolerance ? 0 : Math.round(drift * 100) / 100, meals: count, name: item.name }).toEqual({
         drift: 0,
