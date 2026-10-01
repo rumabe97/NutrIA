@@ -136,7 +136,7 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
 
           {/* Right under the figures it follows from, and dismissible: it is a fact
               about the shape, not a fault. */}
-          {profile?.mealSize.largeMeals && preferences ? (
+          {profile?.mealSize?.largeMeals && preferences ? (
             <ProfileMealSizeNote
               answerKey={mealSizeKey(profile.mealSize.largestMainKcal, preferences.mealShape)}
               count={mealCount(preferences.mealShape)}

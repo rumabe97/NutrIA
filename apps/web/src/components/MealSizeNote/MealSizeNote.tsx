@@ -1,3 +1,5 @@
+import { useId } from 'react';
+
 import styles from './MealSizeNote.module.css';
 
 import { Text } from 'ui/components/Text';
@@ -21,9 +23,13 @@ interface MealSizeNoteProps {
  * the caller's, so the same card serves both screens.
  */
 export function MealSizeNote({ actions, body, heading: Heading = 'h2', title }: MealSizeNoteProps) {
+  const titleId = useId();
+
   return (
-    <Card as="section" className={styles.note}>
-      <Heading className={styles.title}>{title}</Heading>
+    <Card aria-labelledby={titleId} as="section" className={styles.note}>
+      <Heading className={styles.title} id={titleId}>
+        {title}
+      </Heading>
       <Text tone="secondary">{body}</Text>
       {actions ? <div className={styles.actions}>{actions}</div> : null}
     </Card>
