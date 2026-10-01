@@ -5,7 +5,7 @@ import { TwoFactorRepository } from '#repositories/TwoFactor';
 
 // --- Presenters ---------------------------------------------------------------
 
-/** `POST /admin/users/:id/two-factor/removal`'s answer: when the cron may remove the factor, ISO. Nothing else of the account. */
+/** `POST /admin/accounts/:id/two-factor/removal`'s answer: when the cron may remove the factor, ISO. Nothing else of the account. */
 export type TwoFactorRemovalView = { readonly dueAt: string };
 
 /** What a request leaves the API: the view for the response, and the address the mail goes to — which never reaches the response. */

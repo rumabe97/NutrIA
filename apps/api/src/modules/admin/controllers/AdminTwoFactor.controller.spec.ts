@@ -21,7 +21,7 @@ import type { OutgoingEmail } from '../../email/services/index.js';
 import type { Server } from 'node:http';
 
 const PREFIX = 'api/v1';
-const ROUTE = `/${PREFIX}/admin/users/usr-ana/two-factor/removal`;
+const ROUTE = `/${PREFIX}/admin/accounts/usr-ana/two-factor/removal`;
 const NOT_FOUND = { code: 'NOT_FOUND', message: 'Not Found', statusCode: 404 };
 
 /** Lets the background task's promise chain run: the service deliberately does not await it. */
@@ -156,7 +156,7 @@ describe('AdminTwoFactorController', () => {
       expect(
         (
           await request(app.getHttpServer() as Server)
-            .post(`/${PREFIX}/admin/users/nobody/two-factor/removal`)
+            .post(`/${PREFIX}/admin/accounts/nobody/two-factor/removal`)
             .expect(404)
         ).body
       ).toEqual(NOT_FOUND);

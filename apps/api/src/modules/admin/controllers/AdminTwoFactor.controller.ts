@@ -29,14 +29,14 @@ export class AdminTwoFactorController {
     description: '`TWO_FACTOR_NOT_ENABLED`: the account has no factor on. `TWO_FACTOR_REMOVAL_PENDING`: one is already waiting.'
   })
   @ApiOperation({ summary: 'Ask for a lost second factor to be removed in 48 hours' })
-  @Post('users/:id/two-factor/removal')
+  @Post('accounts/:id/two-factor/removal')
   async request(@Param('id') id: string, @CurrentUser() owner: SessionUser): Promise<TwoFactorRemovalDto> {
     return this.twoFactor.request(id, owner.id);
   }
 
   @ApiNoContentResponse({ description: 'The pending removal is cancelled and the account is mailed. 404 when none is pending.' })
   @ApiOperation({ summary: 'Cancel a pending removal of the second factor' })
-  @Delete('users/:id/two-factor/removal')
+  @Delete('accounts/:id/two-factor/removal')
   @HttpCode(HttpStatus.NO_CONTENT)
   async cancel(@Param('id') id: string, @CurrentUser() owner: SessionUser): Promise<void> {
     await this.twoFactor.cancel(id, owner.id);
