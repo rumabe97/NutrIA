@@ -30,7 +30,7 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 
 ### Phase 0 — Measure 014, and the instrument for everything after it
 
-- [ ] pending
+- [x] done — the production simulation (LOG.md); the evaluator extension moved to phase 1
 - **Dispatch**: sonnet @ medium — `/execute-project 016 phase 0`. `plan-evaluator` reads the numbers. **owner-gated:** the production simulation (read-only, run by the owner with `!`).
 - **Goal**: PRD criterion 1.
 - **Steps**:
@@ -44,11 +44,13 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
   3. Rewrite the read-only `simulate-pro.mjs` (outside the repository). The owner runs it for their own profile, and the numbers go to LOG.md.
 - **Stop if**: 014 alone already gives the owner's profile at least 13/14 days with servings ≤ 1.5 and no food above D. Then report, and let the owner reorder.
 
-### Phase 1 — The choice: few meals means big meals, said before generating (C)
+### Phase 1 — The choice before generating (C), and a scaled weight ceiling until accompaniments land
 
 - [ ] pending
-- **Dispatch**: `/team` — `backend` (sonnet · medium) for `mealShareKcal` and its view; `frontend` (sonnet · medium) for the note on `/plan/generando` and `/perfil`; `accessibility` (sonnet · low). `/execute-project 016 phase 1`.
-- **Goal**: PRD criterion 2.
+- **Dispatch**: `/team` — `backend` (opus · medium) for `mealShareKcal`, its view, the scaled ceiling and the evaluator extension; `plan-evaluator`; `frontend` (sonnet · medium) for the note on `/plan/generando` and `/perfil`; `accessibility` (sonnet · low). `/execute-project 016 phase 1`.
+- **Goal**: PRD criterion 2, plus a temporary amendment to `0078` (owner, 2026-10-02, after phase 0 measured 3–11/14 days in band on the owner's two-meal profile under the flat 750 g ceiling).
+- **Scaled ceiling.** For lunch, dinner and breakfast, `PLATE_GRAMS_MAX` stays 750 g up to a slot share of 950 kcal. Above that it scales by share ÷ 950, capped at 900 g; snacks stay 250 g. It reverts to the flat ceiling when the `accompaniments` flag turns on (phase 3). The evaluator extension from phase 0 lands here (servings histogram, plate and meal grams, grams per food group, time per profile, `--flag`).
+- **Stop if** the owner's simulation on the whole library is below 12/14 days, or any evaluator profile loses a day against `016-base.json`.
 - **Steps**:
   1. Core: `mealShareKcal`, and the allowance or generation view exposes each main slot's kcal and a `largeMeals` boolean (any main slot over 850).
   2. Web:
@@ -59,22 +61,10 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
      - copy in both dictionaries.
   3. Run the design review and `/local-probe`.
 
-### Phase 2 — No plate holds more than two servings of one food (D)
+### Phase 2 — Accompaniments in the domain, behind a flag (A)
 
 - [ ] pending
-- **Dispatch**: `backend` (opus · medium) and `plan-evaluator`. `/execute-project 016 phase 2`.
-- **Goal**: PRD criterion 3.
-- **Steps**:
-  1. Add `PLATE_FOOD_MAX` and the group test, with groups recognised as `0008` § D says.
-  2. Plug it into `withinPlateLimit`: scaled above 1,100 kcal of share, with the floor exception.
-  3. Unit tests.
-  4. Run the evaluator against the phase 0 base.
-- **Stop if**: a profile loses more than one day in band.
-
-### Phase 3 — Accompaniments in the domain, behind a flag (A)
-
-- [ ] pending
-- **Dispatch**: `backend-high` (opus · high), `plan-evaluator`, `invariant-reviewer` (opus · high). `/execute-project 016 phase 3`.
+- **Dispatch**: `backend-high` (opus · high), `plan-evaluator`, `invariant-reviewer` (opus · high). `/execute-project 016 phase 2`.
 - **Goal**: PRD criterion 4, domain half, with the flag off in production.
 - **Steps**:
   1. Add `core/domain/Accompaniment`, with the list, the discrete portions and the per-person filter (safety, exclusions, season, meal, kosher on the whole meal).
@@ -88,17 +78,29 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
   5. Run the evaluator with `--flag accompaniments`.
 - **Stop if**: any profile loses a day in band, a fortnight takes more than ~60 s, or any allergen reaches a plate.
 
-### Phase 4 — Accompaniments end to end, and the flag on (A)
+### Phase 3 — Accompaniments end to end, and the flag on (A)
 
 - [ ] pending
-- **Dispatch**: `/team` — `backend-high`, `frontend`, `tests`, `migration-reviewer`, `invariant-reviewer`, `accessibility`. `/execute-project 016 phase 4`. **human-verify:** the owner sees it on the iPhone.
+- **Dispatch**: `/team` — `backend-high`, `frontend`, `tests`, `migration-reviewer`, `invariant-reviewer`, `accessibility`. `/execute-project 016 phase 3`. **human-verify:** the owner sees it on the iPhone.
 - **Goal**: PRD criterion 4, end to end.
 - **Steps**:
   1. Add the `meal_accompaniments` migration (additive) and the repository.
   2. Generation, swap and rebuild delete and reinsert in their own transaction. The views gain accompaniments, and `composition` and the shopping list include them.
   3. Web: `MealRow` reads "Plato + pan (60 g) + una naranja", the meal page gets an "Acompaña con" section, and the offline copy carries the new field.
   4. e2e: a meal with accompaniments, a swap, a rebuild, a professional review, and allergies and patterns respected.
-  5. Turn the flag on after deploy.
+  5. Turn the flag on after deploy, and with it return `PLATE_GRAMS_MAX` to the flat 750 g (phase 1's scaling ends).
+
+### Phase 4 — No plate holds more than two servings of one food (D), after accompaniments
+
+- [ ] pending
+- **Dispatch**: `backend` (opus · medium) and `plan-evaluator`. `/execute-project 016 phase 4`.
+- **Goal**: PRD criterion 3. Reordered after A (owner, 2026-10-02): before accompaniments exist, a per-food ceiling would cost more days in band. Run only if the evaluator still shows a food over its ceiling once A is on.
+- **Steps**:
+  1. Add `PLATE_FOOD_MAX` and the group test, with groups recognised as `0008` § D says.
+  2. Plug it into `withinPlateLimit`: scaled above 1,100 kcal of share, with the floor exception.
+  3. Unit tests.
+  4. Run the evaluator against the phase 0 base.
+- **Stop if**: a profile loses more than one day in band.
 
 ### Phase 5 — Dishes designed for one person (B)
 
@@ -113,7 +115,7 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 
 ## Hand-off
 
-- **Order.** C and D ship alone. A gives value only after phase 4. B never goes before A.
+- **Order** (amended 2026-10-02): C with the scaled ceiling, then A (domain, then end to end), then D if still needed, then B. B never goes before A.
 - **Zero euros.** Measuring B with `bench-models.mjs` costs model calls: ask the owner for the number first.
 - **Production** is read-only, and only by the owner's command.
 - **No `fable` for agents.**
