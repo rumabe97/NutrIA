@@ -629,7 +629,16 @@ describe('admin', () => {
 
         // Every key present, zeros included, so a legend does not change with what happened.
         expect(summary.charts.generations.series.map(row => row.key)).toEqual(['queued', 'running', 'succeeded', 'failed']);
-        expect(plans.byState.map(row => row.status)).toEqual(['draft', 'generating', 'active', 'completed', 'archived', 'failed', 'pending_review', 'scheduled']);
+        expect(plans.byState.map(row => row.status)).toEqual([
+          'draft',
+          'generating',
+          'active',
+          'completed',
+          'archived',
+          'failed',
+          'pending_review',
+          'scheduled'
+        ]);
 
         for (const row of [...summary.charts.generations.series, ...product.events.series]) {
           expect(row.values).toHaveLength(period);
