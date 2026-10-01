@@ -2857,6 +2857,7 @@ export const esES = {
     fileName: 'nutria-codigos-respaldo.txt',
     fileNote: 'Cada código sirve una sola vez. Si generas códigos nuevos, estos dejan de servir.',
     fileTitle: 'NutrIA · Códigos de respaldo',
+    googleNote: 'Si también entras con Google, ahí no te pediremos el código: te protege la verificación en dos pasos de tu cuenta de Google.',
     locked: 'Demasiados intentos fallidos. Espera 15 minutos y vuelve a acceder.',
     lockedSettings: 'Demasiados códigos incorrectos. Espera 15 minutos y vuelve a intentarlo.',
     password: 'Tu contraseña',

@@ -2818,6 +2818,7 @@ export const enGB: Dictionary = {
     fileName: 'nutria-backup-codes.txt',
     fileNote: 'Each code works only once. If you generate new codes, these stop working.',
     fileTitle: 'NutrIA · Backup codes',
+    googleNote: 'If you also sign in with Google, we do not ask for the code there: your Google account’s own 2-Step Verification protects it.',
     locked: 'Too many failed attempts. Wait 15 minutes and sign in again.',
     lockedSettings: 'Too many wrong codes. Wait 15 minutes and try again.',
     password: 'Your password',
