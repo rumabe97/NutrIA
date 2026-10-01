@@ -348,6 +348,27 @@ describe('account security: the password, the sessions, and a password found bre
       expect(rows.map(row => row.metadata)).toEqual([{ scope: 'one' }, { scope: 'others' }, { scope: 'all' }]);
     });
 
+    it('refuses the list to a session older than a day with SESSION_NOT_FRESH, and still lets it close the others', async () => {
+      const { id, email } = await account('julia', 'Julia Pedraza');
+      const old = await signIn(email);
+      const other = await signIn(email);
+
+      // Two days back, past Better Auth's `freshAge`: no route can age a session, and waiting a day is not a test.
+      const aged = await sql()<{ id: string }>`
+        update session set created_at = now() - interval '2 days' where user_id = ${id} and token = ${old.token} returning id`;
+
+      expect(aged).toHaveLength(1);
+
+      const refused = await get('auth/list-sessions', old.cookie);
+
+      expect(refused.status).toBe(403);
+      expect(code(refused)).toBe('SESSION_NOT_FRESH');
+
+      await post('auth/revoke-other-sessions', old.cookie).expect(200);
+      await get('users/me', other.cookie).expect(404);
+      await get('users/me', old.cookie).expect(200);
+    });
+
     it('never lists or closes another person’s session: A’s cookie with B’s token changes nothing for B', async () => {
       const dario = await account('dario', 'Darío Montes');
       const elena = await account('elena', 'Elena Saavedra');
