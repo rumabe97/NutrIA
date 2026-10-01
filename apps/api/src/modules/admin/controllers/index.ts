@@ -8,3 +8,4 @@ export * from './AdminProfessionals.controller.js';
 export * from './AdminPushTest.controller.js';
 export * from './AdminSettings.controller.js';
 export * from './AdminSystem.controller.js';
+export * from './AdminTwoFactor.controller.js';

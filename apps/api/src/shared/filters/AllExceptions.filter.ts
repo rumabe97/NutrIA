@@ -19,6 +19,7 @@ import {
   QuotaExceededError,
   ReauthenticationRequiredError,
   SafetyViolationError,
+  TwoFactorRemovalRefusedError,
   UnauthorizedError,
   UnderMinimumAgeError
 } from 'core/entities/Error';
@@ -184,6 +185,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
         code: 'PRACTICE_FULL',
         message: 'Tu consulta ya tiene todos los pacientes que incluye tu plan.',
         practice: { includedClients: exception.includedClients, waysUp: ['larger_plan', 'end_link'] },
+        statusCode: HttpStatus.CONFLICT
+      };
+    }
+
+    if (exception instanceof TwoFactorRemovalRefusedError) {
+      // The owner's removal of a lost second factor (PLAN 011 phase 4) cannot be asked now: the account has no factor
+      // on, or a removal is already waiting. The console says which from the code; nothing of the account is in it.
+      return {
+        code: exception.reason === 'pending' ? 'TWO_FACTOR_REMOVAL_PENDING' : 'TWO_FACTOR_NOT_ENABLED',
+        message: 'No se puede pedir eso para esta cuenta ahora.',
         statusCode: HttpStatus.CONFLICT
       };
     }

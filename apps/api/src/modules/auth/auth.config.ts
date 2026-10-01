@@ -26,13 +26,14 @@ import {
   TWO_FACTOR_ISSUER
 } from './services/TwoFactor.js';
 import { sendTwoFactorMail } from './services/TwoFactorMail.js';
+import { sendTwoFactorRemovalMail } from './services/TwoFactorRemovalMail.js';
 import { sendVerificationMail } from './services/VerificationMail.js';
 
 import type { BackgroundTaskService } from '../../shared/services/index.js';
 import type { BillingService } from '../billing/services/Billing.service.js';
 import type { Env } from '../../config/index.js';
 import type { EmailService } from '../email/services/Email.service.js';
-import type { TwoFactorNotice } from './services/TwoFactor.js';
+import type { TwoFactorNotice, TwoFactorRemovalNotice } from './services/TwoFactor.js';
 
 const MINUTES = 60;
 
@@ -86,7 +87,9 @@ export function createAuth(
       userAgent: string | null;
     }) => sendPasswordChangedMail(mailer, { acceptLanguage, appUrl: env.APP_URL, to: email, userAgent, userId: id }),
     mailTwoFactor: async ({ id, acceptLanguage, email, event, userAgent }: TwoFactorNotice) =>
-      sendTwoFactorMail(mailer, { acceptLanguage, appUrl: env.APP_URL, event, to: email, userAgent, userId: id })
+      sendTwoFactorMail(mailer, { acceptLanguage, appUrl: env.APP_URL, event, to: email, userAgent, userId: id }),
+    mailTwoFactorRemoval: async ({ id, email, event }: TwoFactorRemovalNotice) =>
+      sendTwoFactorRemovalMail(mailer, { appUrl: env.APP_URL, event, to: email, userId: id })
   };
 
   return betterAuth({

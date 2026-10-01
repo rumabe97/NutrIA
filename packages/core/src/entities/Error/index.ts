@@ -16,6 +16,7 @@ export {
   QuotaExceededError,
   ReauthenticationRequiredError,
   SafetyViolationError,
+  TwoFactorRemovalRefusedError,
   UnauthorizedError,
   UnderMinimumAgeError
 } from './Error';

@@ -285,3 +285,16 @@ export class PracticeFullError extends Error {
     this.name = 'PracticeFullError';
   }
 }
+
+/**
+ * The owner's request to remove an account's lost second factor (PLAN 011
+ * phase 4) cannot be made now: the account has no factor on (`not_enabled`),
+ * or a removal is already waiting for its 48 hours (`pending`). 409, with a
+ * code the console switches on, like a refused picture request.
+ */
+export class TwoFactorRemovalRefusedError extends Error {
+  constructor(readonly reason: 'not_enabled' | 'pending') {
+    super(`Two-factor removal refused: ${reason}`);
+    this.name = 'TwoFactorRemovalRefusedError';
+  }
+}

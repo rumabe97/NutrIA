@@ -5,11 +5,13 @@ import { Logger } from '@nestjs/common';
 import { memoryAdapter } from 'better-auth/adapters/memory';
 
 import { AnalyticsController } from 'core/controllers/Analytics';
+import { TwoFactorController } from 'core/controllers/TwoFactor';
 import { UserController } from 'core/controllers/User';
 
 import { validateEnv } from '../../../config/Env.validation.js';
 
 import type { TwoFactorEvent } from '../../email/templates/TwoFactorChanged.js';
+import type { TwoFactorRemovalEvent } from '../../email/templates/TwoFactorRemoval.js';
 
 /**
  * The second factor (PLAN 011 phase 3), on the real Better Auth built by the
@@ -36,6 +38,7 @@ const store: { account: Row[]; rateLimit: Row[]; session: Row[]; twoFactor: Row[
 const resetUrls: string[] = [];
 const mails: { event: TwoFactorEvent; to: string; userId: string }[] = [];
 const sentOtps: unknown[] = [];
+const removalMails: { event: TwoFactorRemovalEvent; to: string; userId: string }[] = [];
 
 jest.unstable_mockModule('better-auth/adapters/drizzle', () => ({ drizzleAdapter: () => memoryAdapter(store) }));
 jest.unstable_mockModule('database', () => ({ database: () => ({}) }));
@@ -55,6 +58,14 @@ jest.unstable_mockModule('./PasswordResetMail.js', () => ({
 jest.unstable_mockModule('./TwoFactorMail.js', () => ({
   sendTwoFactorMail: async (_mailer: unknown, { event, to, userId }: { event: TwoFactorEvent; to: string; userId: string }) => {
     mails.push({ event, to, userId });
+
+    return Promise.resolve();
+  }
+}));
+
+jest.unstable_mockModule('./TwoFactorRemovalMail.js', () => ({
+  sendTwoFactorRemovalMail: async (_mailer: unknown, { event, to, userId }: { event: TwoFactorRemovalEvent; to: string; userId: string }) => {
+    removalMails.push({ event, to, userId });
 
     return Promise.resolve();
   }
@@ -191,6 +202,14 @@ async function signUp(auth: Auth): Promise<Browser> {
   return browser;
 }
 
+/**
+ * The authenticator's next code: the one `withFactor` confirmed with is spent (PLAN 011 phase 4, a code is
+ * accepted once), and the plugin's window accepts the step after the current one.
+ */
+function nextTotp(uri: string): string {
+  return totp(uri, Date.now() + 30_000);
+}
+
 /** Signed up, the factor enabled and confirmed: the browser that did it, the URI and the ten codes. */
 async function withFactor(auth: Auth): Promise<{ browser: Browser; codes: string[]; uri: string }> {
   const browser = await signUp(auth);
@@ -206,6 +225,8 @@ describe('the second factor', () => {
   let backupCodeUsed: jest.SpiedFunction<typeof UserController.backupCodeUsed>;
   let backupCodesRegenerated: jest.SpiedFunction<typeof UserController.backupCodesRegenerated>;
   let analytics: jest.SpiedFunction<typeof AnalyticsController.record>;
+  let claimTotpStep: jest.SpiedFunction<typeof TwoFactorController.claimTotpStep>;
+  let cancelRemovalByAccount: jest.SpiedFunction<typeof TwoFactorController.cancelRemovalByAccount>;
   const logged: string[] = [];
 
   beforeEach(() => {
@@ -215,6 +236,7 @@ describe('the second factor', () => {
 
     resetUrls.length = 0;
     mails.length = 0;
+    removalMails.length = 0;
     sentOtps.length = 0;
     tasks.length = 0;
     logged.length = 0;
@@ -225,6 +247,20 @@ describe('the second factor', () => {
     jest.spyOn(UserController, 'sessionsRevoked').mockResolvedValue(undefined);
     analytics = jest.spyOn(AnalyticsController, 'record').mockResolvedValue(undefined);
     jest.spyOn(AnalyticsController, 'recordUse').mockResolvedValue(undefined);
+    // The replay rule's claim (PLAN 011 phase 4), as `TwoFactorRepository.claimTotpStep`'s guarded UPDATE does it, on the store's row.
+    claimTotpStep = jest.spyOn(TwoFactorController, 'claimTotpStep').mockImplementation(async (userId, step) => {
+      const row = store.twoFactor.find(candidate => candidate.userId === userId);
+      const last = row?.lastTotpStep;
+
+      if (!row || (typeof last === 'number' && last >= step)) {
+        return Promise.resolve(false);
+      }
+
+      row.lastTotpStep = step;
+
+      return Promise.resolve(true);
+    });
+    cancelRemovalByAccount = jest.spyOn(TwoFactorController, 'cancelRemovalByAccount').mockResolvedValue(null);
 
     const keep = (...parts: unknown[]) => {
       logged.push(parts.map(part => (typeof part === 'string' ? part : JSON.stringify(part))).join(' '));
@@ -347,7 +383,7 @@ describe('the second factor', () => {
       expect(store.session).toHaveLength(sessionsBefore);
       expect(sessionsStarted()).toEqual([]);
 
-      const finished = await call(auth, browser, '/two-factor/verify-totp', { code: totp(uri) });
+      const finished = await call(auth, browser, '/two-factor/verify-totp', { code: nextTotp(uri) });
 
       expect(finished.status).toBe(200);
       await expect(sessionOf(auth, browser)).resolves.toMatchObject({ user: { email: ACCOUNT.email } });
@@ -360,7 +396,7 @@ describe('the second factor', () => {
       const { uri } = await withFactor(auth);
       const browser = new Browser();
       await call(auth, browser, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
-      await call(auth, browser, '/two-factor/verify-totp', { code: totp(uri), trustDevice: true });
+      await call(auth, browser, '/two-factor/verify-totp', { code: nextTotp(uri), trustDevice: true });
       await call(auth, browser, '/sign-out', {});
       analytics.mockClear();
 
@@ -369,6 +405,151 @@ describe('the second factor', () => {
       expect(again.body?.twoFactorRedirect).toBeUndefined();
       await expect(sessionOf(auth, browser)).resolves.toMatchObject({ user: { email: ACCOUNT.email } });
       expect(sessionsStarted()).toHaveLength(1);
+    });
+  });
+
+  /* PLAN 011 phase 4, amended 2026-10-01: an authenticator code is accepted once. */
+  describe('a code used twice', () => {
+    it('refuses the same code on a second challenge exactly as a wrong code, and opens no session', async () => {
+      const auth = build();
+      const { uri } = await withFactor(auth);
+      const code = nextTotp(uri);
+      const first = new Browser();
+      await call(auth, first, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+
+      expect((await call(auth, first, '/two-factor/verify-totp', { code })).status).toBe(200);
+
+      const second = new Browser();
+      await call(auth, second, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+      const replayed = await call(auth, second, '/two-factor/verify-totp', { code });
+      const wrong = await call(auth, second, '/two-factor/verify-totp', { code: code === '000000' ? '111111' : '000000' });
+
+      expect(replayed).toMatchObject({ body: { code: 'INVALID_CODE' }, status: 401 });
+      expect(replayed.raw).toBe(wrong.raw);
+      expect(replayed.status).toBe(wrong.status);
+      await expect(sessionOf(auth, second)).resolves.toBeNull();
+    });
+
+    it('refuses a code from a step older than the last one accepted, and accepts the next step’s', async () => {
+      const auth = build();
+      const { uri } = await withFactor(auth);
+      const challenge = new Browser();
+      await call(auth, challenge, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+
+      // The confirmation claimed the current step; the one before it is older still.
+      const older = await call(auth, challenge, '/two-factor/verify-totp', { code: totp(uri, Date.now() - 30_000) });
+      const next = await call(auth, challenge, '/two-factor/verify-totp', { code: nextTotp(uri) });
+
+      expect(older).toMatchObject({ body: { code: 'INVALID_CODE' }, status: 401 });
+      expect(next.status).toBe(200);
+      await expect(sessionOf(auth, challenge)).resolves.toMatchObject({ user: { email: ACCOUNT.email } });
+    });
+
+    it('refuses the confirmation’s own code from a session too: the rule covers turning it on', async () => {
+      const auth = build();
+      const browser = await signUp(auth);
+      const uri = (await call(auth, browser, '/two-factor/enable', { password: PASSWORD })).body?.totpURI as string;
+      const code = totp(uri);
+
+      expect((await call(auth, browser, '/two-factor/verify-totp', { code })).status).toBe(200);
+      expect(await call(auth, browser, '/two-factor/verify-totp', { code })).toMatchObject({ body: { code: 'INVALID_CODE' }, status: 401 });
+    });
+
+    it('claims nothing for a wrong code, and nothing while the plugin would refuse anyway — a locked account', async () => {
+      const auth = build();
+      const { uri } = await withFactor(auth);
+      claimTotpStep.mockClear();
+      const challenge = new Browser();
+      await call(auth, challenge, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+
+      const code = nextTotp(uri);
+      await call(auth, challenge, '/two-factor/verify-totp', { code: code === '000000' ? '111111' : '000000' });
+      expect(claimTotpStep).not.toHaveBeenCalled();
+
+      const row = store.twoFactor[0] as Row;
+      row.lockedUntil = new Date(Date.now() + 60_000);
+      const locked = await call(auth, challenge, '/two-factor/verify-totp', { code });
+
+      expect(locked.status).toBe(429);
+      expect(claimTotpStep).not.toHaveBeenCalled();
+
+      // Unlocked, the same code still works: the refusal did not spend its step.
+      row.lockedUntil = null;
+      row.failedVerificationCount = 0;
+      expect((await call(auth, challenge, '/two-factor/verify-totp', { code })).status).toBe(200);
+    });
+  });
+
+  /* PLAN 011 phase 4: a correct code from the account cancels the owner's pending removal of its factor. */
+  describe('a pending removal', () => {
+    it('is cancelled by a code that finishes a sign-in, and the account is told', async () => {
+      const auth = build();
+      const { uri } = await withFactor(auth);
+      const userId = store.user[0]?.id as string;
+      cancelRemovalByAccount.mockClear();
+      cancelRemovalByAccount.mockResolvedValue({ email: ACCOUNT.email });
+      const challenge = new Browser();
+      await call(auth, challenge, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+
+      const finished = await call(auth, challenge, '/two-factor/verify-totp', { code: nextTotp(uri) });
+      await drain();
+
+      expect(finished.status).toBe(200);
+      expect(cancelRemovalByAccount).toHaveBeenCalledTimes(1);
+      expect(cancelRemovalByAccount).toHaveBeenCalledWith(userId);
+      expect(removalMails).toEqual([{ event: { kind: 'cancelled' }, to: ACCOUNT.email, userId }]);
+    });
+
+    it('is cancelled by a backup code too', async () => {
+      const auth = build();
+      const { codes } = await withFactor(auth);
+      cancelRemovalByAccount.mockClear();
+      const challenge = new Browser();
+      await call(auth, challenge, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+
+      await call(auth, challenge, '/two-factor/verify-backup-code', { code: codes[0] });
+
+      expect(cancelRemovalByAccount).toHaveBeenCalledWith(store.user[0]?.id as string);
+    });
+
+    it('is cancelled by the code that turns the factor on', async () => {
+      const auth = build();
+      const browser = await signUp(auth);
+      const uri = (await call(auth, browser, '/two-factor/enable', { password: PASSWORD })).body?.totpURI as string;
+
+      await call(auth, browser, '/two-factor/verify-totp', { code: totp(uri) });
+
+      expect(cancelRemovalByAccount).toHaveBeenCalledWith(store.user[0]?.id as string);
+    });
+
+    it('is not touched by a wrong or replayed code, and says nothing when none was pending', async () => {
+      const auth = build();
+      const { uri } = await withFactor(auth);
+      cancelRemovalByAccount.mockClear();
+      const challenge = new Browser();
+      await call(auth, challenge, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+
+      await call(auth, challenge, '/two-factor/verify-totp', { code: '000000' === totp(uri) ? '111111' : '000000' });
+      await call(auth, challenge, '/two-factor/verify-totp', { code: totp(uri) });
+      expect(cancelRemovalByAccount).not.toHaveBeenCalled();
+
+      await call(auth, challenge, '/two-factor/verify-totp', { code: nextTotp(uri) });
+      await drain();
+      expect(cancelRemovalByAccount).toHaveBeenCalledTimes(1);
+      expect(removalMails).toEqual([]);
+    });
+
+    it('lets the sign-in through when the cancel fails, with a line that names only the account', async () => {
+      const auth = build();
+      const { uri } = await withFactor(auth);
+      cancelRemovalByAccount.mockRejectedValue(new Error('database down'));
+      const challenge = new Browser();
+      await call(auth, challenge, '/sign-in/email', { email: ACCOUNT.email, password: PASSWORD });
+
+      const finished = await call(auth, challenge, '/two-factor/verify-totp', { code: nextTotp(uri) });
+
+      expect(finished.status).toBe(200);
+      expect(logged.join('\n')).toContain(`two_factor_removal_uncancelled {"userId":"${store.user[0]?.id as string}"}`);
     });
   });
 
