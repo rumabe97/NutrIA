@@ -179,6 +179,36 @@ for a provider clears the offline copies first and leaves a note (`lib/arrival.t
 the password form does before it navigates. A refusal comes back as `/acceder?error=…`,
 and `SignInForm` turns the code into copy.
 
+**New passwords (project 011, report `0007` § 4.1).** The rule has one home,
+`core/entities/Password`: 12 to 128 characters counted as JavaScript `.length`, and no
+composition rule. `RegisterScreen` and `ResetPasswordForm` read both bounds from there —
+never write a length in a form — and `lib/newPassword.ts` turns them into the field's
+`passwordrules` (`PASSWORD_RULES`), runs the same length check before the round trip (both
+ends: **no `maxLength` attribute**, which truncates a paste without a word), and
+maps the API's refusals to copy by code: `PASSWORD_TOO_SHORT`, `PASSWORD_TOO_LONG` (Better
+Auth's), `PASSWORD_HAS_CONTEXT` (the name, the email's local part or «nutria»: one code and
+one sentence for all three, so the screen never says which matched) and
+`PASSWORD_COMPROMISED` (a known breach). Any other code keeps the form's own message. A
+password refusal goes on the field's `error` as well as in the form's alert: at 320px the
+alert is off-screen when the button is pressed. `components/PasswordMeter` sits under the
+field: a decorative bar that follows the length, the level in words (`Longitud: corta`, the
+one live region, mounted empty and changing only with the level — never a per-keystroke
+count), and the minimum and phrase hints, all on the field's `describedBy` (the `Input` prop
+that adds to the hint and error links; `aria-describedby` would replace them). It measures
+length only and never says "strong" — the breach check is the API's. The form keeps the
+length in state, never the password. Sign-in has none of this: an older, shorter password still opens its
+account.
+
+## Security headers
+
+`next.config.js` `headers()` sends `X-Frame-Options: DENY`, `X-Content-Type-Options:
+nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy`
+denying camera, microphone and geolocation on every path **except the proxied API prefix**,
+which keeps helmet's own set from `apps/api` (a stricter `no-referrer`, its own CSP) rather
+than getting a second, conflicting value. Static headers keep the public pages
+prerendered and cached. Before using any of the three denied features, change the policy
+in the same commit. No CSP yet — project 011 phase 9 adds it, report-only first.
+
 ## Offline
 
 `public/sw.js` keeps copies for reading without a network

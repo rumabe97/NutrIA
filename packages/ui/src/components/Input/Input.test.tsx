@@ -81,6 +81,20 @@ describe('Input', () => {
     });
   });
 
+  describe('describedBy', () => {
+    it('adds outside descriptions after the hint and the error, never in place of them', () => {
+      render(<Input describedBy="meter" error="Too short" label="Password" />);
+      const describedBy = screen.getByLabelText('Password').getAttribute('aria-describedby')?.split(' ');
+
+      expect(describedBy).toEqual([screen.getByText('Too short').id, 'meter']);
+    });
+
+    it('describes the field with the outside ids alone when there is no hint and no error', () => {
+      render(<Input describedBy="meter note" label="Password" />);
+      expect(screen.getByLabelText('Password')).toHaveAttribute('aria-describedby', 'meter note');
+    });
+  });
+
   describe('id stability', () => {
     it('generates unique ids per instance so two Inputs on the same page do not collide', () => {
       render(

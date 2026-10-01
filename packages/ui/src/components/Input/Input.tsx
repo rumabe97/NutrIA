@@ -6,7 +6,9 @@ import { Label } from 'ui/components/Label';
 
 import type { ComponentPropsWithRef } from 'react';
 
-export interface InputProps extends Omit<ComponentPropsWithRef<'input'>, 'id'> {
+export interface InputProps extends Omit<ComponentPropsWithRef<'input'>, 'aria-describedby' | 'id'> {
+  /** Ids of more descriptions outside the field — a meter, a note — added after the hint and the error rather than replacing them. */
+  describedBy?: string;
   /** Error message in an `aria-live="polite"` region. Prefer on-blur or on-submit validation — debounce live updates (~300ms) to avoid chatter. */
   error?: string;
   /** Helper text linked via `aria-describedby`. Auto-hidden when `error` is set. */
@@ -15,11 +17,11 @@ export interface InputProps extends Omit<ComponentPropsWithRef<'input'>, 'id'> {
   label: string;
 }
 
-export function Input({ className, error, hint, label, ...rest }: InputProps) {
+export function Input({ className, describedBy: extraDescribedBy, error, hint, label, ...rest }: InputProps) {
   const id = useId();
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
-  const describedBy = [hintId, errorId].filter(Boolean).join(' ') || undefined;
+  const describedBy = [hintId, errorId, extraDescribedBy].filter(Boolean).join(' ') || undefined;
 
   return (
     <div className={className ? `${styles.root} ${className}` : styles.root}>

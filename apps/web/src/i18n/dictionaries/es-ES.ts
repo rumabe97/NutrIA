@@ -1105,8 +1105,17 @@ export const esES = {
     noAccount: '¿Aún no tienes cuenta?',
     orWithEmail: 'o con tu correo',
     password: 'Contraseña',
+    passwordCompromised: 'Esa contraseña aparece en filtraciones conocidas. Elige otra: mejor una frase de varias palabras.',
+    passwordHasContext: 'La contraseña no puede contener tu nombre, tu correo ni «nutria». Elige otra.',
     passwordHint: 'Mínimo {count} caracteres.',
+    passwordMeterEnough: 'Longitud: suficiente.',
+    passwordMeterLong: 'Longitud: buena.',
+    passwordMeterMissing: 'Faltan {count} caracteres.',
+    passwordMeterMissingOne: 'Falta 1 carácter.',
+    passwordMeterShort: 'Longitud: corta.',
     passwordsDoNotMatch: 'Las contraseñas no coinciden.',
+    passwordStrengthHint: 'Mejor una frase de varias palabras.',
+    passwordTooLong: 'La contraseña puede tener como máximo {count} caracteres.',
     passwordTooShort: 'La contraseña debe tener al menos {count} caracteres.',
     pendingBody: 'Estamos abriendo NutrIA poco a poco. Activaremos tu cuenta ({email}) en cuanto podamos y te avisaremos por correo.',
     pendingCheck: 'Volver a comprobar',
@@ -2340,7 +2349,7 @@ export const esES = {
       {
         heading: 'Cómo protegemos tus datos',
         paragraphs: [
-          'Tu contraseña nunca se guarda en texto plano y la conexión va siempre cifrada. Tus enfermedades, tu medicación y tus suplementos viven en una parte del código que no puede hablar con la inteligencia artificial, y un test lo comprueba en cada cambio. Los registros del servidor y de errores no guardan lo que escribes. El acceso a la base de datos está restringido y nadie la consulta salvo para arreglar un fallo.'
+          'Tu contraseña nunca se guarda en texto plano y la conexión va siempre cifrada. Tus enfermedades, tu medicación y tus suplementos viven en una parte del código que no puede hablar con la inteligencia artificial, y un test lo comprueba en cada cambio. Los registros del servidor y de errores no guardan lo que escribes. Cuando creas, restableces o cambias tu contraseña, la comparamos con una lista pública de contraseñas filtradas: desde nuestro servidor enviamos al servicio gratuito Have I Been Pwned solo los cinco primeros caracteres de una huella de la contraseña, que no permite saber cuál es, sin tu cuenta, tu correo ni tu dirección IP, y no guardamos ni la contraseña ni esa huella. Si el servicio no responde, la contraseña se acepta sin esa comprobación. El acceso a la base de datos está restringido y nadie la consulta salvo para arreglar un fallo.'
         ]
       },
       {
