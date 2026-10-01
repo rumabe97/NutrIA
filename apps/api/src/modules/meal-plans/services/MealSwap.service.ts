@@ -4,6 +4,7 @@ import { normaliseForMatching } from 'core/domain/Safety';
 import { buildShoppingList } from 'core/domain/ShoppingList';
 import { axisFilter, pickReplacement } from 'core/domain/Scheduler';
 import { minimumDailyKcal } from 'core/domain/Nutrition';
+import { leaningSlugs } from 'core/domain/Preference';
 import { ConflictError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileConsentController, ProfileController } from 'core/controllers/Profile';
@@ -131,7 +132,7 @@ export class MealSwapService {
     };
     const leaning = {
       preferCuisines: new Set(profile.cuisines.map(cuisine => normaliseForMatching(cuisine))),
-      preferIngredientSlugs: context.preferences.preferredIngredientSlugs,
+      preferIngredientSlugs: leaningSlugs(context.preferences),
       preferSlugs: new Set(verdicts.liked.map(dish => dish.slug))
     };
     // What this plate must carry for its day to stay over the floor: the floor,

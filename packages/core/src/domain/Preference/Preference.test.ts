@@ -2,15 +2,22 @@ import { describe, expect, it } from 'vitest';
 
 import {
   breaksDishRule,
+  breaksPatternDish,
+  FOREIGN_CUISINES,
   freeFromExclusions,
   isEnforceableDislike,
+  leaningSlugs,
   NO_PREFERENCE_EXCLUSIONS,
+  PATTERN_EXCLUDED_SLUGS,
   PATTERN_EXCLUSIONS,
   resolvePreferences,
   timeAllowance,
   withinTime
 } from 'core/domain/Preference';
-import { makeCatalogueIngredient } from '#test/fixtures';
+import { rotatePool } from 'core/domain/Variety';
+import { makeCatalogueIngredient, makeDish } from '#test/fixtures';
+
+import { INGREDIENT_SEED } from '../../../../database/src/seed/ingredients';
 
 import type { CatalogueIngredient } from 'core/entities/Plan';
 import type { FoodClass } from 'database/schema/food';
@@ -446,5 +453,167 @@ describe('freeFromExclusions — a substitute built for one restriction, offered
 
   it('excludes nothing where the row is not a free-from substitute', () => {
     expect(freeFromExclusions([food('arroz-blanco-cocido', 'Arroz')], needs()).size).toBe(0);
+  });
+});
+
+describe('resolvePreferences — traditional Spanish, by exact slug (0077)', () => {
+  const spanish = PATTERN_EXCLUDED_SLUGS.traditional_spanish ?? new Set<string>();
+  const seed = INGREDIENT_SEED.map(row => food(row.slug, row.name, row.classes ?? []));
+
+  function resolve(ingredients: readonly CatalogueIngredient[], dietaryPatterns: readonly string[] = ['traditional_spanish']) {
+    return resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns, dislikedLabels: [], ingredients });
+  }
+
+  it('holds the 157 rows of the decision, every one of them in the seed', () => {
+    const seedSlugs = new Set(INGREDIENT_SEED.map(row => row.slug));
+
+    expect(spanish.size).toBe(157);
+    expect([...spanish].filter(slug => !seedSlugs.has(slug))).toEqual([]);
+  });
+
+  it('excludes every slug of the list from the real catalogue', () => {
+    const excluded = resolve(seed).excludedIngredientIds;
+
+    expect([...spanish].filter(slug => !excluded.has(`i-${slug}`))).toEqual([]);
+    expect(excluded.size).toBe(157);
+  });
+
+  it('is exact, not a run: seta-ostra survives salsa-de-ostras, and the owner’s keeps stay', () => {
+    const excluded = resolve(seed).excludedIngredientIds;
+
+    for (const kept of [
+      'seta-ostra',
+      'copos-de-avena',
+      'aguacate',
+      'arroz-basmati-crudo',
+      'kefir',
+      'queso-batido-desnatado',
+      'lentejas-cocidas',
+      'merluza'
+    ]) {
+      expect(
+        seed.some(row => row.slug === kept),
+        kept
+      ).toBe(true);
+      expect(excluded.has(`i-${kept}`), kept).toBe(false);
+    }
+  });
+
+  it('ignores a slug the catalogue does not hold, and excludes nothing without the pattern', () => {
+    expect(ids(resolve(CATALOGUE))).toEqual([]);
+    expect(ids(resolve([...CATALOGUE, food('tofu-firme', 'Tofu firme')], ['omnivore']))).toEqual([]);
+    expect(ids(resolve([...CATALOGUE, food('tofu-firme', 'Tofu firme')]))).toEqual(['i-tofu-firme']);
+  });
+});
+
+describe('breaksPatternDish — a foreign cuisine or name (0077)', () => {
+  const spanish = { refusesForeignDishes: true };
+
+  it('refuses a mexicana dish and a wok, whatever the case or accents', () => {
+    expect(breaksPatternDish({ cuisine: 'Mexicana', name: 'Pollo con arroz' }, spanish)).toBe(true);
+    expect(breaksPatternDish({ cuisine: 'ASIÁTICA', name: 'Arroz salteado' }, spanish)).toBe(true);
+    expect(breaksPatternDish({ cuisine: 'Oriente Medio', name: 'Garbanzos especiados' }, spanish)).toBe(true);
+    expect(breaksPatternDish({ cuisine: 'mediterránea', name: 'Wok de verduras' }, spanish)).toBe(true);
+    expect(breaksPatternDish({ cuisine: null, name: 'Tabulé de cuscús' }, spanish)).toBe(true);
+    expect(breaksPatternDish({ cuisine: null, name: 'Fajita de pollo' }, spanish)).toBe(true);
+  });
+
+  it('lets a paella with no cuisine pass, and the Spanish and neighbouring kitchens', () => {
+    expect(breaksPatternDish({ cuisine: null, name: 'Paella valenciana' }, spanish)).toBe(false);
+    expect(breaksPatternDish({ cuisine: '', name: 'Paella valenciana' }, spanish)).toBe(false);
+
+    for (const cuisine of ['mediterránea', 'Española', 'andaluza', 'italiana', 'francesa', 'griega']) {
+      expect(breaksPatternDish({ cuisine, name: 'Merluza en salsa verde' }, spanish), cuisine).toBe(false);
+    }
+  });
+
+  it('reads tacos as Spanish unless they are the Mexican kind', () => {
+    expect(breaksPatternDish({ cuisine: null, name: 'Huevos al plato con tacos de jamón' }, spanish)).toBe(false);
+    expect(breaksPatternDish({ cuisine: null, name: 'Tacos de pollo' }, spanish)).toBe(true);
+    expect(breaksPatternDish({ cuisine: null, name: 'Ensalada con tacos de ternera' }, spanish)).toBe(true);
+    expect(breaksPatternDish({ cuisine: null, name: 'Tacos al pastor' }, spanish)).toBe(true);
+  });
+
+  it('takes whole words only: a word that contains one passes', () => {
+    expect(breaksPatternDish({ cuisine: null, name: 'Pokes de calabacín' }, spanish)).toBe(false);
+    expect(breaksPatternDish({ cuisine: 'indiana', name: 'Crema de calabaza' }, spanish)).toBe(false);
+  });
+
+  it('refuses nothing without the pattern, and the list is stored normalised', () => {
+    expect(breaksPatternDish({ cuisine: 'mexicana', name: 'Tacos de pollo' }, { refusesForeignDishes: false })).toBe(false);
+    expect(
+      resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns: ['traditional_spanish'], dislikedLabels: [], ingredients: [] })
+        .refusesForeignDishes
+    ).toBe(true);
+    expect([...FOREIGN_CUISINES].every(cuisine => /^[a-z ]+$/.test(cuisine))).toBe(true);
+  });
+});
+
+describe('resolvePreferences — the traditional Spanish lean (0077)', () => {
+  const catalogue = [
+    ...CATALOGUE,
+    food('garbanzos-cocidos', 'Garbanzos cocidos'),
+    food('pasta-de-lentejas', 'Pasta de lentejas'),
+    food('seta-de-cardo', 'Seta de cardo'),
+    food('judia-verde', 'Judía verde'),
+    food('arroz-para-sushi', 'Arroz para sushi'),
+    food('patata', 'Patata')
+  ];
+  const lean = (patterns: readonly string[]) =>
+    resolvePreferences({
+      allergenIdsByKey: new Map(),
+      dietaryPatterns: patterns,
+      dislikedLabels: [],
+      ingredients: catalogue,
+      likedLabels: ['patata']
+    });
+
+  it('leans to legumes, rice, fish, seafood and huerta, by the head of the slug', () => {
+    const slugs = [...lean(['traditional_spanish']).leaningIngredientSlugs].sort();
+
+    expect(slugs).toEqual([
+      'arroz-blanco-cocido',
+      'gambas',
+      'garbanzos-cocidos',
+      'judia-verde',
+      'lentejas-cocidas',
+      'merluza',
+      'salmon',
+      'salmon-ahumado',
+      'salmon-congelado',
+      'salmonete'
+    ]);
+  });
+
+  it('never leans to an excluded row, and leans to nothing without the pattern', () => {
+    expect(lean(['traditional_spanish']).leaningIngredientSlugs.has('arroz-para-sushi')).toBe(false);
+    expect(lean(['omnivore']).leaningIngredientSlugs.size).toBe(0);
+  });
+
+  it('keeps the lean apart from the likes, and joins them for the pick', () => {
+    const preferences = lean(['traditional_spanish']);
+
+    expect([...preferences.preferredIngredientSlugs]).toEqual(['patata']);
+    expect(leaningSlugs(preferences).has('patata')).toBe(true);
+    expect(leaningSlugs(preferences).has('lentejas-cocidas')).toBe(true);
+    expect(leaningSlugs(lean(['omnivore']))).toEqual(new Set(['patata']));
+  });
+
+  it('puts a lentil stew before an equal dish without legumes', () => {
+    const stew = makeDish({
+      ingredients: [{ grams: 200, slug: 'lentejas-cocidas' }],
+      name: 'Lentejas estofadas',
+      slots: ['lunch'],
+      slug: 'lentejas-estofadas'
+    });
+    const plain = makeDish({ ingredients: [{ grams: 200, slug: 'huevo' }], name: 'Huevos rotos', slots: ['lunch'], slug: 'huevos-rotos' });
+    const spanish = { preferIngredientSlugs: leaningSlugs(lean(['traditional_spanish'])) };
+    const neutral = { preferIngredientSlugs: leaningSlugs(lean(['omnivore'])) };
+    const seeds = Array.from({ length: 20 }, (_, index) => `user:${index}`);
+    const first = (leaning: typeof spanish, seed: string) =>
+      rotatePool([plain, stew], ['lunch'], { ...leaning, avoidSlugs: new Set(), seed }, 1).map(dish => dish.slug);
+
+    expect(seeds.every(seed => first(spanish, seed)[0] === 'lentejas-estofadas')).toBe(true);
+    expect(seeds.some(seed => first(neutral, seed)[0] === 'huevos-rotos')).toBe(true);
   });
 });
