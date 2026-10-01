@@ -2279,6 +2279,7 @@ export const esES = {
           'Cómo llevas el plan: qué comidas marcas como hechas o saltadas, tus valoraciones y comentarios de los platos, tu peso a lo largo del tiempo y tus check-ins quincenales. Para que el siguiente plan lo tenga en cuenta.',
           'Pagos: si contratas Premium, Stripe cobra y nosotros guardamos solo el identificador de tu suscripción y su estado. Nunca vemos el número de tu tarjeta.',
           'Seguridad de tu cuenta: anotamos cuándo cambias o restableces tu contraseña y cuándo cierras sesiones, con la fecha y sin tu dirección IP. Para que podamos ver qué pasó si alguien entra en tu cuenta.',
+          'Verificación en dos pasos, solo si la activas: el secreto de tu aplicación de autenticación y tus códigos de respaldo, cifrados, los intentos fallidos de código y, en el registro de seguridad, cuándo la activas, la desactivas o usas un código de respaldo. Si la desactivas, borramos el secreto y los códigos. Para que, aunque alguien sepa tu contraseña, no entre en tu cuenta.',
           'Uso del producto: registramos, ligado a tu cuenta, cuándo abres sesión y cuándo pides cambiar un plato, sin más detalle. Para saber si el producto funciona.',
           'Lo que nos escribes: los mensajes del buzón de sugerencias, para leerlos y responderte.'
         ],
@@ -2373,7 +2374,7 @@ export const esES = {
       {
         heading: 'Cookies y almacenamiento en tu dispositivo',
         paragraphs: [
-          'Solo usamos lo imprescindible para que el servicio funcione, y por eso no te pedimos permiso: la cookie de tu sesión, la del idioma que has elegido y, al entrar con Google o Apple, las que ese paso necesita durante unos minutos. Ninguna es de terceros ni rastrea tu actividad en otras webs.',
+          'Solo usamos lo imprescindible para que el servicio funcione, y por eso no te pedimos permiso: la cookie de tu sesión, la del idioma que has elegido, la que, si marcas «confiar en este dispositivo» al verificar en dos pasos, evita pedirte el código durante 30 días en ese navegador y, al entrar con Google o Apple, las que ese paso necesita durante unos minutos. Ninguna es de terceros ni rastrea tu actividad en otras webs.',
           'En el almacenamiento de tu navegador guardamos lo que marcas sin conexión hasta que se envía, un aviso de plan pendiente de revisión y, si instalas NutrIA en tu teléfono, una copia de tu plan de hoy y de la lista de la compra para usarlas sin conexión. Todo se queda en tu dispositivo.'
         ]
       },
