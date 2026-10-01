@@ -28,6 +28,8 @@ import type { MealStatus as Status } from 'core/entities/Plan';
 import type { Metadata } from 'next';
 import type { VacationView } from 'core/controllers/Vacation';
 
+const NO_BREAK_SPACE = '\u00a0';
+
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -185,10 +187,13 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
                 {ingredient.dry ? (
                   <span className={styles.ingredientName}>
                     {interpolate(dictionary.meal.dryLine, {
-                      cooked: formatQuantity(ingredient.grams, 'g', locale, dictionary),
-                      dry: formatQuantity(ingredient.dry.grams, 'g', locale, dictionary),
+                      dry: formatQuantity(ingredient.dry.grams, 'g', locale, dictionary).replace(' ', NO_BREAK_SPACE),
                       name: ingredient.dry.name
-                    })}
+                    })}{' '}
+                    {/* One unbreakable piece: the line breaks before the cooked weight, never inside it. */}
+                    <span className={styles.cooked}>
+                      {interpolate(dictionary.meal.cookedNote, { cooked: formatQuantity(ingredient.grams, 'g', locale, dictionary) })}
+                    </span>
                   </span>
                 ) : (
                   <Fragment>
