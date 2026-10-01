@@ -125,6 +125,15 @@ describe('UserController.passwordChanged', () => {
 describe('UserController.sessionsRevoked', () => {
   beforeEach(() => {
     record.mockReset();
+    forgetTrustedDevices.mockReset();
+  });
+
+  it('stops trusting the account’s devices when others or all sessions close, not when one does', async () => {
+    await UserController.sessionsRevoked('usr-1', 'one');
+    await UserController.sessionsRevoked('usr-1', 'others');
+    await UserController.sessionsRevoked('usr-1', 'all');
+
+    expect(forgetTrustedDevices.mock.calls).toEqual([['usr-1'], ['usr-1']]);
   });
 
   it.each(['one', 'others', 'all'] as const)('writes one auth.sessions_revoked row {scope: %s}, the scope and nothing else', async scope => {
@@ -159,6 +168,21 @@ describe('UserController.twoFactorChanged', () => {
 
     expect(record).toHaveBeenCalledTimes(1);
     expect(record).toHaveBeenCalledWith({ action, actorId: 'usr-1', entity: 'user', metadata: {}, subjectUserId: 'usr-1' }, undefined);
+  });
+});
+
+describe('UserController.backupCodesRegenerated', () => {
+  beforeEach(() => {
+    record.mockReset();
+  });
+
+  it('writes one auth.backup_codes_regenerated row with nothing in its metadata', async () => {
+    await UserController.backupCodesRegenerated('usr-1');
+
+    expect(record).toHaveBeenCalledWith(
+      { action: 'auth.backup_codes_regenerated', actorId: 'usr-1', entity: 'user', metadata: {}, subjectUserId: 'usr-1' },
+      undefined
+    );
   });
 });
 

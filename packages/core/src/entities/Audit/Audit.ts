@@ -8,7 +8,7 @@ import type { PictureAcceptedBy } from 'core/entities/DishPicture';
  * that leave a row, plus the automatic activation on email confirmation, plus
  * the acts a person does to their own account's security (PLAN 011 phases 2
  * and 3): changing the password, closing sessions, turning the second factor
- * on or off and spending a backup code. Nothing else writes here, and nothing here is a free-form string a caller
+ * on or off, spending a backup code and generating new ones. Nothing else writes here, and nothing here is a free-form string a caller
  * invents — a new admin mutation is a new name added to this list, reviewed,
  * not a string typed at the call site.
  */
@@ -29,7 +29,8 @@ export const AUDIT_ACTIONS = [
   'auth.sessions_revoked',
   'auth.2fa_enabled',
   'auth.2fa_disabled',
-  'auth.backup_code_used'
+  'auth.backup_code_used',
+  'auth.backup_codes_regenerated'
 ] as const;
 
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
@@ -84,6 +85,8 @@ export interface AuditMetadataByAction {
   'auth.2fa_enabled': Record<string, never>;
   /** A backup code was spent (PLAN 011 phase 3): how many are left, and never which one. */
   'auth.backup_code_used': { readonly remaining: number };
+  /** Ten new backup codes replaced the old ones (PLAN 011 phase 3). Nothing else: never a code. */
+  'auth.backup_codes_regenerated': Record<string, never>;
   /**
    * The account's password changed (PLAN 011 phase 2), and through which door. A closed word and nothing
    * else: never a token, an IP address, a user agent, a session id, nor anything of the password.

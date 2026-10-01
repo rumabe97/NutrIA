@@ -204,6 +204,7 @@ async function withFactor(auth: Auth): Promise<{ browser: Browser; codes: string
 describe('the second factor', () => {
   let twoFactorChanged: jest.SpiedFunction<typeof UserController.twoFactorChanged>;
   let backupCodeUsed: jest.SpiedFunction<typeof UserController.backupCodeUsed>;
+  let backupCodesRegenerated: jest.SpiedFunction<typeof UserController.backupCodesRegenerated>;
   let analytics: jest.SpiedFunction<typeof AnalyticsController.record>;
   const logged: string[] = [];
 
@@ -219,6 +220,7 @@ describe('the second factor', () => {
     logged.length = 0;
     twoFactorChanged = jest.spyOn(UserController, 'twoFactorChanged').mockResolvedValue(undefined);
     backupCodeUsed = jest.spyOn(UserController, 'backupCodeUsed').mockResolvedValue(undefined);
+    backupCodesRegenerated = jest.spyOn(UserController, 'backupCodesRegenerated').mockResolvedValue(undefined);
     jest.spyOn(UserController, 'passwordChanged').mockResolvedValue(undefined);
     jest.spyOn(UserController, 'sessionsRevoked').mockResolvedValue(undefined);
     analytics = jest.spyOn(AnalyticsController, 'record').mockResolvedValue(undefined);
@@ -499,6 +501,7 @@ describe('the second factor', () => {
 
       expect(disable).toMatchObject({ body: { code: 'INVALID_PASSWORD' }, status: 400 });
       expect(regenerate).toMatchObject({ body: { code: 'INVALID_PASSWORD' }, status: 400 });
+      expect(backupCodesRegenerated).not.toHaveBeenCalled();
       expect(store.user[0]?.twoFactorEnabled).toBe(true);
       expect(twoFactorChanged).not.toHaveBeenCalled();
     });
@@ -544,6 +547,11 @@ describe('the second factor', () => {
 
       expect(fresh.body?.backupCodes).toHaveLength(10);
       expect(old).toMatchObject({ body: { code: 'INVALID_BACKUP_CODE' }, status: 401 });
+      await drain();
+      const userId = store.user[0]?.id as string;
+      expect(backupCodesRegenerated).toHaveBeenCalledTimes(1);
+      expect(backupCodesRegenerated).toHaveBeenCalledWith(userId);
+      expect(mails).toContainEqual({ event: { kind: 'backup-codes-regenerated' }, to: ACCOUNT.email, userId });
     });
   });
 

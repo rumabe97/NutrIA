@@ -196,6 +196,14 @@ export const UserController = {
   },
 
   /**
+   * Ten new backup codes replaced the old ones (PLAN 011 phase 3): the row
+   * that says so, and never a code.
+   */
+  async backupCodesRegenerated(userId: string): Promise<void> {
+    await AuditRepository.record({ action: 'auth.backup_codes_regenerated', actorId: userId, entity: 'user', metadata: {}, subjectUserId: userId });
+  },
+
+  /**
    * A backup code opened a challenge or was checked from a session (PLAN 011
    * phase 3): how many the account has left, and never which one was spent.
    */
@@ -279,6 +287,11 @@ export const UserController = {
    * address.
    */
   async sessionsRevoked(userId: string, scope: SessionsRevokedScope): Promise<void> {
+    // Closing every other session, or all of them, also stops trusting every device to skip the second factor (PLAN 011 phase 3).
+    if (scope !== 'one') {
+      await UserRepository.forgetTrustedDevices(userId);
+    }
+
     await AuditRepository.record({ action: 'auth.sessions_revoked', actorId: userId, entity: 'session', metadata: { scope }, subjectUserId: userId });
   },
 

@@ -36,6 +36,7 @@ const ENABLE = '/two-factor/enable';
 const DISABLE = '/two-factor/disable';
 const VERIFY_TOTP = '/two-factor/verify-totp';
 const VERIFY_BACKUP_CODE = '/two-factor/verify-backup-code';
+const GENERATE_BACKUP_CODES = '/two-factor/generate-backup-codes';
 const SIGN_IN = '/sign-in/email';
 
 /**
@@ -120,6 +121,8 @@ async function changed(deps: TwoFactorDeps, context: Context, user: { id: string
   try {
     if (event.kind === 'backup-code-used') {
       await UserController.backupCodeUsed(user.id, event.remaining);
+    } else if (event.kind === 'backup-codes-regenerated') {
+      await UserController.backupCodesRegenerated(user.id);
     } else {
       await UserController.twoFactorChanged(user.id, event.kind === 'enabled');
     }
@@ -146,7 +149,10 @@ async function changed(deps: TwoFactorDeps, context: Context, user: { id: string
  *   never `/enable` itself, which only stores an unverified secret. The plugin
  *   has rotated the session to one whose user has it on. A challenge (no
  *   session before the request) is a sign-in and writes nothing here.
- * - `/two-factor/disable`: off, for the session's own account.
+ * - `/two-factor/disable`: off, for the session's own account, when it was on.
+ * - `/two-factor/generate-backup-codes`: ten new codes, the old ones dead —
+ *   a row and a mail, so nobody holding the session and the password can
+ *   swap the owner's codes for their own in silence.
  * - `/two-factor/verify-backup-code`: one code spent, from a challenge or a
  *   session, with how many are left.
  */
@@ -170,6 +176,16 @@ export async function twoFactorAfter(deps: TwoFactorDeps, context: Context, retu
     // The plugin answers 2xx to `/disable` on an account that never had it on; nothing went off, so nothing is said.
     if (user?.twoFactorEnabled === true) {
       await changed(deps, context, { id: user.id, email: user.email }, { kind: 'disabled' });
+    }
+
+    return;
+  }
+
+  if (path === GENERATE_BACKUP_CODES) {
+    const user = context.context.session?.user;
+
+    if (user) {
+      await changed(deps, context, { id: user.id, email: user.email }, { kind: 'backup-codes-regenerated' });
     }
 
     return;
