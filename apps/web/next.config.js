@@ -1,3 +1,5 @@
+import { pagesSource } from './headersSource.js';
+
 /**
  * When the API lives on another host, the browser still only ever talks to this
  * one: `/api/v1/*` is proxied to `API_UPSTREAM_URL` here, so the session cookie
@@ -33,19 +35,10 @@ const SECURITY_HEADERS = [
   { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' }
 ];
 
-/** Every path, or every path but the proxied API prefix when there is one. */
-function pagesSource() {
-  if (!upstreamBase) {return '/:path*';}
-
-  const escaped = upstreamBase.slice(1).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
-  return `/:path((?!${escaped}(?:/|$)).*)`;
-}
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   async headers() {
-    return [{ headers: SECURITY_HEADERS, source: pagesSource() }];
+    return [{ headers: SECURITY_HEADERS, source: pagesSource(upstreamBase) }];
   },
 
   async rewrites() {
