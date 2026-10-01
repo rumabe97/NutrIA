@@ -173,6 +173,26 @@ clears the mark, and a password change always ends every other session, whatever
 asks. Like `ONBOARDING_INCOMPLETE`, it is a 409 rather than a 404 because the caller owns
 the account and must be told what to do.
 
+**An account with a password can add a second factor** (011 phase 3, `0074`). It is Better
+Auth's `twoFactor` plugin: TOTP plus 10 backup codes, and a trusted device for 30 days.
+There is no email code. With the factor on, `/sign-in/email` answers
+`{ twoFactorRedirect: true }` and no usable session, and the web finishes the sign-in at
+`/acceder/codigo`.
+
+Our hooks add the rules the plugin lacks:
+- enabling is refused for an account without a password;
+- `/get-totp-uri` and the email-code routes answer the guard's 404, so the secret leaves
+  only in `/enable`'s answer to its owner;
+- a new implicit provider link into an account with the factor on is refused unless that
+  account's own session asks (a Google account linked beforehand still signs in without
+  the code, per `0074`);
+- trusted devices are forgotten on disable, password change, reset and
+  revoke-(other-)sessions;
+- turning it on, off, using a backup code and regenerating codes are each audited and
+  mailed.
+
+The plugin's provisional session is not counted as a `session_started`.
+
 **Where onboarding resumes is resolved server-side.** `OnboardingView.resumeStep` is the
 first *missing* required step, not the furthest one reached — `currentStep` is the step
 after the last one saved, so re-editing an early answer used to send a returning user to a
