@@ -1,0 +1,32 @@
+.card {
+  display: grid;
+  gap: var(--space-03);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.title {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-04);
+  margin: 0;
+}
+
+.link {
+  color: var(--color-brand-11);
+  font-size: var(--font-size-03);
+  justify-self: start;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+/* A link on its own line: a finger's height on a phone (0057). */
+@media (pointer: coarse) {
+  .link {
+    align-items: center;
+    display: inline-flex;
+    min-block-size: var(--target-min);
+  }
+}
