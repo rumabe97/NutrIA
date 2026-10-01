@@ -288,6 +288,34 @@ describe('passwords: the length, and nothing of the account in it', () => {
       expect((refused.body as Refusal).code).toBe('INVALID_TOKEN');
     });
 
+    describe('a token in the query, which Better Auth reads when the body has none', () => {
+      const resetWithQuery = (newPassword: string, body: string, query: string) => {
+        sent.push(newPassword);
+
+        return request(server()).post(`/${PREFIX}/auth/reset-password`).query({ token: query }).send({ newPassword, token: body });
+      };
+
+      const stillOriginal = () => request(server()).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: original }).expect(200);
+
+      it('checks the password against the account the query token belongs to when the body token is empty', async () => {
+        expectRefusal(await resetWithQuery('quintanilla-quintanilla-1', '', token), 'PASSWORD_HAS_CONTEXT', ['quintanilla']);
+        await stillOriginal();
+      });
+
+      it('still checks the body token when the query token is dead', async () => {
+        expectRefusal(await resetWithQuery('quintanilla-quintanilla-2', token, 'not-a-token-anybody-issued'), 'PASSWORD_HAS_CONTEXT', ['quintanilla']);
+        await stillOriginal();
+      });
+
+      it('answers INVALID_TOKEN when the body token is dead and the query token live, and sets nothing', async () => {
+        const refused = await resetWithQuery('meadow-lantern-copper-4', 'not-a-token-anybody-issued', token);
+
+        expect(refused.status).toBe(400);
+        expect((refused.body as Refusal).code).toBe('INVALID_TOKEN');
+        await stillOriginal();
+      });
+    });
+
     it('accepts a clean password with the same token — a refusal does not spend it — and only the new one signs in', async () => {
       const accepted = await reset(renewed);
 
