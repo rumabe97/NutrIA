@@ -45,7 +45,8 @@ const ORIGINAL = 'correct-horse-battery-staple-9';
 /** Used only to delete what is left: written straight into an account's credential, then signed in with. */
 const CLEANUP_PASSWORD = 'quiet-orchard-lamp-velvet-3';
 /** Sent on every request, so "no user agent in an audit row" and "the device family only" have something to look for. */
-const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
+const IPHONE =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const CHANGED_SUBJECT = /contraseña (?:de NutrIA )?ha cambiado|password has changed/i;
 /** M14: the mail says nothing of health. */
 const HEALTH_WORDS = /alerg|allerg|salud|health|dieta|diet\b|peso|weight|calor|medic|embaraz|pregnan/i;
@@ -54,7 +55,7 @@ type Sql = <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) =
 type Session = { readonly cookie: string; readonly token: string };
 type ListedSession = { readonly token: string; readonly userAgent?: string | null };
 type Me = { readonly hasPassword?: boolean; readonly passwordChangeRequired?: boolean };
-type AuditMeta = { readonly ipHash: string | null; readonly metadata: Record<string, unknown> | null; };
+type AuditMeta = { readonly ipHash: string | null; readonly metadata: Record<string, unknown> | null };
 
 function cookiesOf(response: Response): string {
   return ((response.headers['set-cookie'] as unknown as string[] | undefined) ?? []).map(cookie => cookie.split(';')[0]).join('; ');
@@ -83,9 +84,13 @@ describe('account security: the password, the sessions, and a password found bre
   const emailFor = (label: string) => `account-security-${label}-${String(stamp)}@e2e.invalid`;
   const mailsTo = (email: string) => outbox.filter(mail => mail.to === email && CHANGED_SUBJECT.test(mail.subject));
 
-  async function signUp(label: string, name: string): Promise<{ id: string; email: string; }> {
+  async function signUp(label: string, name: string): Promise<{ id: string; email: string }> {
     const email = emailFor(label);
-    const made = await request(server()).post(`/${PREFIX}/auth/sign-up/email`).set('User-Agent', IPHONE).send({ email, name, password: ORIGINAL }).expect(200);
+    const made = await request(server())
+      .post(`/${PREFIX}/auth/sign-up/email`)
+      .set('User-Agent', IPHONE)
+      .send({ email, name, password: ORIGINAL })
+      .expect(200);
     const id = (made.body as { user: { id: string } }).user.id;
 
     // Sign-up signs the person in, and this suite keeps no cookie of that session: gone, so every list counts only the sessions a test made.
@@ -95,7 +100,7 @@ describe('account security: the password, the sessions, and a password found bre
   }
 
   /** An account with both locks open, as `harness.ts` → `register` makes one, but keeping its id for the table. */
-  async function account(label: string, name: string): Promise<{ id: string; email: string; }> {
+  async function account(label: string, name: string): Promise<{ id: string; email: string }> {
     const made = await signUp(label, name);
 
     await activate(made.email);

@@ -383,10 +383,34 @@ cuenta así: el propietario debe comprobarlo).
 | `analytics_events` | indefinido | P2: fijar 24 meses y purgar |
 | `plan_generation_jobs` (errores, llamadas a la IA sin contenido) | indefinido | P2: fijar 12 meses |
 | Sesiones (IP, agente) | 30 días | ✔ |
+| `audit_logs`, filas `auth.*` (`auth.password_changed`, `auth.sessions_revoked`; 011 fase 2) | **12 meses**, y al borrar la cuenta la fila queda sin persona (`actorId` y `subjectUserId` a `NULL`). Las demás filas de `audit_logs` (administración) siguen sin plazo. Ver § 4.1 bis | **Pendiente**: la purga la construye una fase posterior del 011 |
 | Pagos (Stripe) | lo que exija la ley a Stripe; con *Managed Payments*, a Link como vendedor | ✔ política |
 | Copias: restauración de Neon | ventana del plan (sin anotar en `deployment.md` § 8) | P2: anotarla y citarla |
 | Copias: exportación manual | **indefinido, sin cifrar**, en el equipo del propietario | **P1**: cifrar, plazo (30 días) y borrado |
 | Diez columnas que el onboarding dejó de rellenar (`0067`; `user_preferences.breakfastStyle/budget/cookingFrequency/portionPreference/sleepEnd/sleepStart/trainingDaysPerWeek/trainingTime/workScheduleNotes`, `goals.customGoal`) | puestas a `NULL` por la migración `0043` para todas las cuentas, en este mismo cambio; las columnas y el valor `'custom'` del enum se eliminan en la entrega siguiente | **P2-13**: cerrado (§ 9) |
+
+### 4.1 bis Filas de seguridad de la cuenta en `audit_logs` (proyecto 011, fase 2; decidido el 2026-10-01)
+
+*No soy abogado; esto es análisis para que el propietario lo revise con uno.*
+
+**Qué se guarda.** `auth.password_changed` (`via`: `change` o `reset`) y `auth.sessions_revoked` (`scope`: `one`, `others`, `all`), con la fecha y el id de la cuenta. Ni token, ni IP, ni agente. Es un dato personal (dice algo de una persona identificable: cuándo cambió su contraseña) pero no de categoría especial (art. 9): no dice nada de salud.
+
+**Base y finalidad.** Art. 6.1.f (interés legítimo en la seguridad de la cuenta; considerando 49) y art. 32.1: poder reconstruir, tras un posible robo de la cuenta, cuándo cambió la contraseña y cuándo se cerraron sesiones, y que la propia persona lo vea. Test de ponderación: el dato es mínimo (acción, fecha, sin IP), lo genera la propia persona y a ella le sirve; la expectativa razonable es que un servicio con cuenta lo anote.
+
+**Plazo: 12 meses** (art. 5.1.e). Razón: la utilidad es de investigación de un robo, que se descubre en semanas o pocos meses; un cambio de contraseña de hace años no ayuda a nadie y aumenta lo que un acceso indebido a la base revelaría (art. 5.1.c, 32). 12 meses cubre una reclamación o un descubrimiento tardío sin guardarlo sin fin. Es una elección de proporcionalidad, no un plazo fijado por una norma: **a confirmar con un abogado** (no he encontrado plazo legal específico y no lo he verificado en una guía de la AEPD; el art. 5.1.e exige solo que se justifique el que se elija).
+
+**¿Difiere del plazo actual de `audit_logs`?** Sí. Hoy ninguna fila de `audit_logs` se borra (§ 1, fila `audit_logs.actorId`; no hay purga en `packages/core` ni en `apps/api`: comprobado el 2026-10-01 por búsqueda de borrados sobre `auditLogs`). Las filas de administración quedan como están: las escribe el propietario, sin datos de terceros. Las `auth.*` sí describen a la persona de la cuenta, y por eso llevan plazo.
+
+**Lo que debe construir la fase posterior.**
+1. Una purga diaria que borre de `audit_logs` las filas con `action LIKE 'auth.%'` y `createdAt` anterior a 12 meses. Solo `auth.*`: no toca `account.*`, `professional.*`, `picture.*`, etc. Cuelga del mismo barrido diario de invitaciones, o de una tarea propia, con prueba de que no borra una fila de administración.
+2. La fase 3 y 4 añaden `auth.2fa_*` y `auth.passkey_added`: entran por el mismo prefijo, sin cambiar el plazo.
+3. Hasta que exista la purga, `/privacidad` NO publica el número (ver textos/02, ⟦registro-seguridad⟧); y el checklist de activación lo recoge como condición de la fase que lo promete.
+
+**Condición para el código (backend).** La persona va solo en `actorId` y `subjectUserId` (ambos `ON DELETE SET NULL`, `platform.schema.ts:86`). **`entityId` no puede llevar el id de la cuenta** (no tiene FK: sobreviviría a su borrado como identificador de alguien que ya no existe; sería pseudonimización, no anonimato) ni `metadata` nada más que `via` o `scope`. Con eso, al borrar la cuenta la fila restante (acción, fecha, `via`/`scope`) no identifica a nadie (considerando 26) y es cierto lo que dice la política: «al borrarla, todo lo que hay en ella se borra».
+
+**Correo «tu contraseña ha cambiado».** Es un mensaje de servicio ligado a la seguridad (art. 6.1.b/f; no es comunicación comercial, LSSI art. 21 no aplica) y no se puede desactivar. Lleva la hora y el tipo de dispositivo, sin IP ni palabra de salud: el tipo de dispositivo sale del agente de la sesión que ya se guarda (la política ya dice que guardamos el navegador de la sesión) y no se guarda en ningún sitio nuevo. Si el correo no repite la hora exacta con zona, que diga cuándo en la zona de la persona.
+
+**¿Cambia `/privacidad`?** Sí, dos frases (textos/02, ⟦registro-seguridad⟧): (a) en «Qué datos recogemos», la categoría nueva, porque art. 13.1 exige informar de las categorías y de la finalidad; (b) en «Con quién compartimos», el correo de aviso de seguridad, porque la línea actual del proveedor de correo dice «avisos que actives» y este no se activa. No es un cambio «importante» en el sentido de «Cambios en esta política» (no hay dato nuevo de salud ni destinatario nuevo): se actualiza `updated`, sin correo a la gente. No hay versión de consentimiento que subir: el consentimiento de salud no cambia.
 
 ### 4.2 Transferencias internacionales (arts. 44-49)
 

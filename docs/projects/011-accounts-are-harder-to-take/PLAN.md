@@ -58,7 +58,7 @@ records what was decided.
 
 ### Phase 0 — Does the limit see each person?
 
-- [x] done
+- [x] done — commit `4b1b8933` ("A new password must be 12 to 128 characters and no known breach, and a reset no longer tells by its timing whether an address exists (#183)")
 - **Dispatch**: opus @ high — `/execute-project 011 phase 0`. `quality-max`: the
   authentication limiter. Review: `invariant-reviewer`. — owner-gated: the owner runs the
   read-only count query of report `0007` § 9 on Neon's `production` branch and pastes
@@ -97,7 +97,7 @@ records what was decided.
 
 ### Phase 1 — Strong passwords on every door
 
-- [x] done
+- [x] done — commit `4b1b8933` ("A new password must be 12 to 128 characters and no known breach, and a reset no longer tells by its timing whether an address exists (#183)")
 - **Dispatch**: opus @ high — `/execute-project 011 phase 1`, as a `/team` (`backend`,
   `frontend`, `tests`). `quality-max`: sign-up and reset. Reviews: `invariant-reviewer`,
   `accessibility` with `/local-probe`, `legal` (one line).
@@ -181,7 +181,7 @@ records what was decided.
 
 ### Phase 2 — "Seguridad" in /perfil
 
-- [ ] pending
+- [ ] in progress
 - **Dispatch**: opus @ high — `/execute-project 011 phase 2`, as a `/team` (`backend`,
   `frontend`, `tests`). `quality-max`. Reviews: `invariant-reviewer`, `migration-reviewer`,
   `accessibility` with `/local-probe`, `legal` (retention).
@@ -202,7 +202,8 @@ records what was decided.
     - after a successful change or reset, `password_compromised_at` is cleared.
   - `apps/api/src/shared/guards/**`: when `password_compromised_at` is set, `SessionGuard`
     (or a guard beside it, like `RequiresOnboarding`) answers 409 `PASSWORD_CHANGE_REQUIRED`
-    on every route but `/users/me`. Better Auth's own routes (`/auth/*`, including
+    on every route but `/users/me` (amended 2026-10-01: GET and DELETE `/users/me`, plus
+    GET `/auth/me`, our echo of the session user). Better Auth's own routes (`/auth/*`, including
     `/auth/change-password`, `/auth/sign-out` and, from phase 3, `/auth/two-factor/*`) are
     `@Public()` in `Auth.controller.ts` and never pass the global guards, so they stay
     reachable without an allowlist; a spec pins that. This 409 is the documented
@@ -464,6 +465,11 @@ records what was decided.
       `next_allowed_at` growing (30 s, 1 min, 2 min… capped at 15 min);
     - on a 200: clear the row;
     - `NODE_ENV=test` keeps it on; suites use distinct addresses.
+  - The `auth.*` audit purge (added 2026-10-01 from phase 2, `legal`'s retention in
+    `docs/legal/analisis.md` § 4.1 bis): the same daily cron also deletes `audit_logs`
+    rows whose `action` starts with `auth.` and are older than 12 months. It touches no
+    other action, and a spec proves it. Until it runs in production, `/privacidad` must not
+    name the 12 months.
   - `apps/web`: `SignInForm` maps the 429 to "Demasiados intentos; prueba dentro de un
     rato" (es/en).
   - `apps/api/test/**`: `sign-in-brake.e2e-spec.ts`.

@@ -20,6 +20,10 @@
 - [ ] **EIPD** revisada y firmada por el propietario ([`eipd.md`](./eipd.md) § 7).
 - [ ] Política de privacidad nueva publicada solo con las frases cuyo ⟦requisito⟧ se cumple ([`textos/02`](./textos/02-politica-privacidad.md)); correo de aviso de cambio enviado antes ([`textos/06`](./textos/06-correos.md) § F).
 
+## 0 quater. Antes de publicar «se borra a los 12 meses» en `/privacidad` (proyecto 011)
+
+- [ ] La purga diaria de `audit_logs` (`action LIKE 'auth.%'`, `createdAt` de más de 12 meses) está en producción: fase 7 del 011, en el cron diario de fallos de inicio de sesión. Con prueba de que no borra filas de administración (`analisis.md` § 4.1 bis). Solo entonces se publica la frase marcada ⟦si purga-seguridad⟧ de [`textos/02`](./textos/02-politica-privacidad.md). Hasta entonces la política dice solo «mientras exista tu cuenta».
+
 ## 0 bis. Antes de poner `AI_PROVIDER=openrouter` en producción (`0064`)
 
 > Producción corre con `AI_PROVIDER=stub` desde el 2026-09-26: no sale nada a ningún
