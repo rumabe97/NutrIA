@@ -256,6 +256,9 @@ export const PATTERN_EXCLUDED_SLUGS: Readonly<Record<string, ReadonlySet<string>
   ])
 };
 
+/** Legumes, by the head of the slug: a plato de cuchara's base, not `pasta-de-lentejas` or `harina-de-garbanzo`. */
+const LEGUME_HEADS: readonly string[] = ['alubias', 'garbanzos', 'habas', 'judias-rojas', 'judiones', 'lentejas'];
+
 /**
  * The rows traditional Spanish cooking is built on (`0077`), by what a slug
  * starts with: legumes, rice and the huerta. By the head of the slug, not a run
@@ -263,9 +266,6 @@ export const PATTERN_EXCLUDED_SLUGS: Readonly<Record<string, ReadonlySet<string>
  * `harina-de-garbanzo` and `seta-de-cardo` do not. Fish and seafood are their
  * classes.
  */
-/** Legumes, by the head of the slug: a plato de cuchara's base, not `pasta-de-lentejas` or `harina-de-garbanzo`. */
-const LEGUME_HEADS: readonly string[] = ['alubias', 'garbanzos', 'habas', 'judias-rojas', 'judiones', 'lentejas'];
-
 const SPANISH_LEAN_HEADS: readonly string[] = [
   ...LEGUME_HEADS,
   // Rice — the foreign ones are excluded before the lean is read

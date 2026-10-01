@@ -624,7 +624,7 @@ export class PoolBuilder {
     }
 
     // Foreign to their way of eating by its stated cuisine or its name
-    // (`0077`): asked of the model in the prompt, enforced here.
+    // (`0077`): never told to the model, enforced here.
     if (breaksPatternDish(dish, context.preferences)) {
       this.logger.warn(`Dish "${dish.name}" rejected: its cuisine or name is foreign to their way of eating`);
 

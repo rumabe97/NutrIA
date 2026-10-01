@@ -168,18 +168,8 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * event-day lines are capped the same way; and a capped meal is told that the
  * person eats more there and is served more than one serving. The pool builder
  * refuses a dish past one and a half times its cap (`oversized`).
- * 4.6.0: traditional Spanish is a way of eating the model is told (`0077`,
- * project 013). A person who eats Spanish home cooking was served skyr, seitán
- * and a dish labelled "asiática". The rule is enforced in code — 157 rows out
- * of the catalogue, a foreign cuisine or dish name rejected as `unwanted` — and
- * the prompt now asks for what the code cannot make: platos de cuchara at least
- * four times a week and fish three (AESAN 2022), rice, the huerta, olive oil,
- * Spanish names, and `cuisine` "española". With the pattern, breakfast and
- * dinner are described by Spanish examples, and the lean-protein line names no
- * row the catalogue no longer holds (skyr, tofu, tempeh, soy yoghurt); without
- * it, the prompt is 4.5.0's word for word.
  */
-export const PROMPT_VERSION = '4.6.0';
+export const PROMPT_VERSION = '4.5.0';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -308,28 +298,13 @@ const DIFFICULTY_LINE: Record<CheckInForGeneration['difficulty'], string> = {
 /**
  * Ways of eating that may be named to the model: an allow-list, so a pattern
  * added to the schema is withheld until somebody decides it may be said (the
- * lead, 2026-09-25: vegetarian and vegan; 2026-10-01, `0077`: traditional
- * Spanish, a taste in food that reveals neither a belief nor a health
- * condition, and is said through `SPANISH_WAY_OF_EATING`). Halal and kosher reveal
+ * lead, 2026-09-25: vegetarian and vegan, nothing else). Halal and kosher reveal
  * a belief, gluten-free and lactose-free a coeliac disease or an intolerance;
  * none is sent anywhere, and each is enforced in code (`PATTERN_EXCLUSIONS`,
  * `PATTERN_SLUG_RUNS`, `PATTERN_ALLERGENS`, `breaksDishRule`). The rest are
  * enforced by their exclusions alone and need no words.
  */
-export const NAMEABLE_PATTERNS: ReadonlySet<string> = new Set(['vegetarian', 'vegan', 'traditional_spanish']);
-
-/**
- * What traditional Spanish asks of the model (`0077`, PRD 013 criterion 4). The
- * rows foreign to it are already out of the catalogue and a foreign cuisine or
- * name is rejected in code; this asks for the cooking the code cannot make.
- */
-const SPANISH_WAY_OF_EATING =
-  'WAY OF EATING: traditional Spanish home cooking. Platos de cuchara — lentejas, garbanzos, alubias, potajes, cocidos — at least 4 times a week and fish at least 3 times; rice dishes; vegetables of the huerta (judía verde, acelga, espinaca, coliflor, brócoli, pimientos, calabacín, berenjena, alcachofa, puerro); olive oil as the fat. Spanish dish names, as a Spanish home cook says them, and `cuisine` "española" on every dish.';
-
-/** Whether the person eats traditional Spanish, which changes the examples the prompt gives. */
-function eatsSpanish(patterns: readonly string[]): boolean {
-  return patterns.includes('traditional_spanish');
-}
+export const NAMEABLE_PATTERNS: ReadonlySet<string> = new Set(['vegetarian', 'vegan']);
 
 /**
  * The cuisines onboarding offers, normalised. The route accepts any string, so
@@ -537,16 +512,6 @@ const GOAL_GUIDANCE: Record<Goal['type'], string> = {
  * the one macro at nine calories a gram, so it is where a dish overshoots, and
  * the one to add last.
  */
-const LEAN_SOURCES =
-  '- When it asks for a lot of protein and little fat, reach for the lean sources their way of eating allows: poultry breast, white fish, tuna in water, eggs and whites, fresh cheese, skyr or natural yoghurt, legumes, tofu, tempeh, soy yoghurt.';
-/** The same line for traditional Spanish, naming no row its catalogue no longer holds. */
-const SPANISH_LEAN_SOURCES =
-  '- When it asks for a lot of protein and little fat, reach for the lean sources their way of eating allows: poultry breast, white fish, tuna in water, eggs and whites, queso fresco, natural yoghurt, legumes.';
-
-function compositionRules(patterns: readonly string[]): readonly string[] {
-  return COMPOSITION_RULES.map(line => (line === LEAN_SOURCES && eatsSpanish(patterns) ? SPANISH_LEAN_SOURCES : line));
-}
-
 const COMPOSITION_RULES = [
   'HOW TO BUILD EACH DISH TO ITS NUMBERS:',
   '- Protein is a figure to land on, not a minimum. A dish 20% over its protein is as far off as one 20% under, and the day cannot absorb it: the other meals cannot give protein back. Give the protein source the grams its figure asks for, and let starch and vegetables carry the rest of the plate.',
@@ -554,7 +519,7 @@ const COMPOSITION_RULES = [
   '- Energy: protein and carbohydrate carry 4 kcal per gram, fat carries 9. Ten grams of oil is 90 kcal — the easiest way to overshoot a dish, and the last thing to add.',
   '- Weigh the fat. Oil, butter, cheese, nuts, seeds, avocado, cured meats and oily fish are dense: give each an exact gram amount that fits the fat target, not a generous splash.',
   '- When the split asks for a lot of carbohydrate, build the plate on a starch — rice, pasta, couscous, potato, bread, oats, legumes — and add fruit to breakfasts and snacks.',
-  LEAN_SOURCES,
+  '- When it asks for a lot of protein and little fat, reach for the lean sources their way of eating allows: poultry breast, white fish, tuna in water, eggs and whites, fresh cheese, skyr or natural yoghurt, legumes, tofu, tempeh, soy yoghurt.',
   '- When it asks for little carbohydrate, build the plate on vegetables and protein, with a small starch or none, and let olive oil, nuts or avocado carry the energy the split gives to fat.',
   '- If a dish is short of energy, add starch or protein first — whichever the split is short of — and fat only if the fat target has room. A large brief is a large plate, or a plate with bread, fruit or dairy beside it; a small brief is a full plate of lighter food, never a smaller portion of a rich one.',
   '- A snack follows the same split as the day, scaled down. A snack of nuts alone is three quarters fat; pair it with fruit, dairy or bread.',
@@ -586,30 +551,17 @@ const DINNER_CHARACTER =
   'Dinner: lighter home cooking than lunch — eggs, fish, grilled meat, vegetable creams, salads, a toast or a sandwich. Not a stew.';
 /** Added to dinner for a vegan or a vegetarian, who keep the pulses at dinner (`0062` § 4) in the forms a dinner takes. */
 const PLANT_BASED_DINNER = 'Pulses in light forms — hummus, purées and creams, warm salads — never stewed.';
-/** Breakfast and dinner for traditional Spanish (`0077`): Spanish examples, and no skyr bowl or hummus, which its catalogue no longer holds. */
-const SPANISH_BREAKFAST_CHARACTER =
-  'Breakfast: a Spanish breakfast, built on bread, oats, dairy, eggs or fruit — tostada con tomate y aceite, pan con queso fresco, yogur con fruta, a bocadillo, eggs. Not lunch food: no pasta, rice, stews, pulses or plated salads.';
-const SPANISH_DINNER_CHARACTER =
-  'Dinner: lighter home cooking than lunch — tortilla, revuelto, fish a la plancha or en papillote, crema de verduras, ensalada, a tosta. Not a stew.';
-const SPANISH_PLANT_BASED_DINNER = 'Pulses in light forms — purées and creams, warm salads — never stewed.';
 
 function characterOf(slot: MealSlot, patterns: readonly string[]): string | null {
-  const spanish = eatsSpanish(patterns);
-
   switch (slot) {
     case 'breakfast':
-      return spanish ? SPANISH_BREAKFAST_CHARACTER : BREAKFAST_CHARACTER;
+      return BREAKFAST_CHARACTER;
     case 'lunch':
       return LUNCH_CHARACTER;
-
-    case 'dinner': {
-      const dinner = spanish ? SPANISH_DINNER_CHARACTER : DINNER_CHARACTER;
-
+    case 'dinner':
       return patterns.some(pattern => pattern === 'vegan' || pattern === 'vegetarian')
-        ? `${dinner} ${spanish ? SPANISH_PLANT_BASED_DINNER : PLANT_BASED_DINNER}`
-        : dinner;
-    }
-
+        ? `${DINNER_CHARACTER} ${PLANT_BASED_DINNER}`
+        : DINNER_CHARACTER;
     case 'supper':
       return SNACK_CHARACTER;
     default:
@@ -717,9 +669,6 @@ export function buildPoolPrompt(
   const shares = sharesOf(context);
   const wanted = [...context.needBySlot.entries()].filter(([, count]) => count > 0);
   const patterns = context.dietaryPatterns.filter(pattern => NAMEABLE_PATTERNS.has(pattern));
-  // Named by its value — vegetarian, vegan — except traditional Spanish, which
-  // has a line of its own.
-  const named = patterns.filter(pattern => !eatsSpanish([pattern]));
 
   // Per serving, per slot, on all four macros and fibre. A model told only a
   // daily figure — or only energy and protein — writes dishes that hit those
@@ -769,7 +718,7 @@ export function buildPoolPrompt(
       '',
       'Every main dish carries a protein source — meat, fish, egg, dairy or legumes — sized to its protein figure. Energy, protein, carbohydrate and fat are each held to 5% of target on every day, over and under: a dish that hits the protein and misses the split is the wrong dish.',
       '',
-      ...compositionRules(patterns),
+      ...COMPOSITION_RULES,
       'WHAT MAKES A DISH GOOD ENOUGH TO SEND BACK:',
       '- A name a cook would recognise, describing the dish — not a list of its ingredients.',
       '- Seasoning. The catalogue has salt, paprika, cumin, oregano, cinnamon, bay, garlic, lemon,',
@@ -809,8 +758,7 @@ export function buildPoolPrompt(
       context.dislikedNames.length > 0
         ? `DISHES THEY SAID THEY DISLIKED — do not propose these, close variations of them, or their defining ingredient in the same role: ${context.dislikedNames.slice(0, 40).join('; ')}`
         : null,
-      named.length > 0 ? `WAY OF EATING: ${named.join(', ')}` : null,
-      eatsSpanish(patterns) ? SPANISH_WAY_OF_EATING : null,
+      patterns.length > 0 ? `WAY OF EATING: ${patterns.join(', ')}` : null,
       context.cookingTimeMinutes ? `MAXIMUM TIME PER DISH: ${context.cookingTimeMinutes} minutes (prep + cooking)` : null,
       cuisines ? `PREFERRED CUISINES: ${cuisines}` : null,
       likes ? `LIKES: ${likes}` : null,

@@ -3,7 +3,7 @@ import { DEFAULT_MEAL_SHAPE, weightsFor } from 'core/domain/MealShape';
 import { mealCatalogue, offersPulses } from 'core/domain/MealFit';
 import { SERVING_KCAL_CAP } from 'core/domain/Serving';
 
-import { buildPoolPrompt, NAMEABLE_PATTERNS, STEPS_VERSION } from './PoolPrompt.js';
+import { buildPoolPrompt, STEPS_VERSION } from './PoolPrompt.js';
 
 import type { Goal } from 'core/entities/Profile';
 import type { CatalogueIngredient, IngredientCategory, MealSlot } from 'core/entities/Plan';
@@ -472,57 +472,24 @@ describe('buildPoolPrompt', () => {
     }
 
     expect(buildPoolPrompt(context({ dietaryPatterns: ['halal', 'gluten_free'] }), [])).not.toContain('WAY OF EATING');
+    expect(buildPoolPrompt(context({ dietaryPatterns: ['traditional_spanish'] }), [])).not.toContain('WAY OF EATING');
   });
 
-  describe('traditional Spanish (0077)', () => {
-    const spanish = (needBySlot: ReadonlyMap<MealSlot, number>, extra: readonly string[] = []) =>
-      buildPoolPrompt(context({ dietaryPatterns: ['traditional_spanish', ...extra], needBySlot }), []);
+  /**
+   * Traditional Spanish (`0077`) is enforced in code and never told to the
+   * model: over the same catalogue its prompt is the one without it, word for
+   * word. What it changes is the catalogue — fewer rows, as halal.
+   */
+  it('never tells the model about traditional Spanish: the same catalogue makes the same prompt', () => {
+    const catalogue = [row('tomate', 'produce'), row('lentejas', 'protein'), row('merluza', 'protein'), row('arroz', 'pantry')];
 
-    it('is on the allow-list, said in its own words and never by its value', () => {
-      const prompt = spanish(new Map([['lunch', 6]]));
+    for (const slot of ['breakfast', 'lunch', 'dinner'] as const) {
+      const needBySlot = new Map<MealSlot, number>([[slot, 6]]);
 
-      expect(NAMEABLE_PATTERNS.has('traditional_spanish')).toBe(true);
-      expect(prompt).toContain('WAY OF EATING: traditional Spanish home cooking.');
-      expect(prompt).toContain('at least 4 times a week and fish at least 3 times');
-      expect(prompt).toContain('`cuisine` "española" on every dish');
-      expect(prompt).not.toContain('traditional_spanish');
-    });
-
-    it('keeps vegetarian and vegan named beside it', () => {
-      const prompt = spanish(new Map([['dinner', 6]]), ['vegetarian']);
-
-      expect(prompt).toContain('WAY OF EATING: vegetarian\n');
-      expect(prompt).toContain('WAY OF EATING: traditional Spanish home cooking.');
-      expect(prompt).toContain('Pulses in light forms — purées and creams, warm salads — never stewed.');
-      expect(prompt).not.toContain('hummus');
-    });
-
-    it('gives Spanish breakfast and dinner examples, and no row its catalogue no longer holds', () => {
-      const breakfast = spanish(new Map([['breakfast', 6]]));
-      const dinner = spanish(new Map([['dinner', 6]]));
-
-      expect(breakfast).toContain('tostada con tomate y aceite, pan con queso fresco, yogur con fruta');
-      expect(dinner).toContain('tortilla, revuelto, fish a la plancha or en papillote');
-
-      for (const prompt of [breakfast, dinner]) {
-        for (const foreign of ['skyr', 'tofu', 'tempeh', 'soy yoghurt', 'hummus']) {
-          expect(prompt).not.toContain(foreign);
-        }
-      }
-    });
-
-    it('changes nothing for someone without it', () => {
-      for (const slot of ['breakfast', 'lunch', 'dinner'] as const) {
-        const prompt = buildPoolPrompt(context({ needBySlot: new Map([[slot, 6]]) }), []);
-
-        expect(prompt).not.toContain('traditional Spanish');
-        expect(prompt).not.toContain('tostada con tomate');
-        expect(prompt).not.toContain('revuelto');
-        expect(prompt).toContain('skyr or natural yoghurt, legumes, tofu, tempeh, soy yoghurt.');
-      }
-
-      expect(buildPoolPrompt(context({ needBySlot: new Map([['breakfast', 6]]) }), [])).toContain('a yoghurt or skyr bowl');
-    });
+      expect(buildPoolPrompt(context({ dietaryPatterns: ['traditional_spanish'], needBySlot }), catalogue)).toBe(
+        buildPoolPrompt(context({ dietaryPatterns: [], needBySlot }), catalogue)
+      );
+    }
   });
 
   it('never has a line for dislikes, allergies or notes in the person’s own words', () => {
