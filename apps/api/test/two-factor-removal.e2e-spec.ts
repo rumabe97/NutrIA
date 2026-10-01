@@ -568,7 +568,10 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
       const { id, email, jar } = await withFactor('mario', 'Mario Calvo');
 
       expect((await requestRemoval(id)).status).toBe(201);
-      expect((await post('auth/two-factor/disable', jar.header, { password: ORIGINAL })).status).toBe(200);
+      const disabled = await post('auth/two-factor/disable', jar.header, { password: ORIGINAL });
+
+      expect(disabled.status).toBe(200);
+      jar.take(disabled);
       expect(await flagOf(id)).toBe(false);
 
       // And began turning it on again without confirming: a secret left, unverified, the flag still off.
