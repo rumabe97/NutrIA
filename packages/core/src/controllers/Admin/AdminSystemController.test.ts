@@ -48,7 +48,18 @@ describe('AdminSystemController.system', () => {
     const VERSION = /^\d+\.\d+\.\d+$/;
     const HASH = /^[0-9a-f]{7,40}$/;
     const DATE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+Z)?$/;
-    const KEYS = new Set(['afternoon_snack', 'breakfast', 'dinner', 'lunch', 'morning_snack', 'supper', 'reminders', 'rewrite', 'verify']);
+    const KEYS = new Set([
+      'afternoon_snack',
+      'breakfast',
+      'dinner',
+      'lunch',
+      'morning_snack',
+      'supper',
+      'reminders',
+      'rewrite',
+      'verifications',
+      'verify'
+    ]);
 
     for (const { path, value } of leaves(view)) {
       if (path.startsWith('caps.') || path === 'period' || path.startsWith('mail.') || path.startsWith('window.')) {
@@ -114,14 +125,16 @@ describe('AdminSystemController.system', () => {
 
     expect(fresh.crons).toEqual([
       { job: 'reminders', lastRunAt: new Date(NOW.getTime() - 26 * HOUR).toISOString(), stale: false },
-      { job: 'rewrite', lastRunAt: new Date(NOW.getTime() - 27 * HOUR).toISOString(), stale: true }
+      { job: 'rewrite', lastRunAt: new Date(NOW.getTime() - 27 * HOUR).toISOString(), stale: true },
+      { job: 'verifications', lastRunAt: null, stale: true }
     ]);
 
     repository.lastCronRuns.mockResolvedValue([]);
 
     expect((await AdminSystemController.system(30, SNAPSHOT, NOW)).crons).toEqual([
       { job: 'reminders', lastRunAt: null, stale: true },
-      { job: 'rewrite', lastRunAt: null, stale: true }
+      { job: 'rewrite', lastRunAt: null, stale: true },
+      { job: 'verifications', lastRunAt: null, stale: true }
     ]);
   });
 

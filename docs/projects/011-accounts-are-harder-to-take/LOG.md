@@ -20,3 +20,154 @@
 - **Decisions**: links to any docs/decisions/ records created.
 - **Notes for the next phase**: anything the next executor must know.
 -->
+
+## Phase 0 — Does the limit see each person? (2026-10-01)
+
+- **Executor**: opus 5.5 @ high (the lead, directly — no code changed, so no role agent
+  was spawned).
+- **Result**: done — **Result A**.
+- **Evidence**:
+  - The owner ran report `0007` § 9's count query on Neon's `production` branch (last
+    30 days): **12** sessions, **0** without an IP, **9** distinct IPs. Every session
+    carries an IP, and the spread fits distinct people, not one shared Vercel egress
+    (B2) nor the shared `no-trusted-ip` bucket (B1).
+  - Spoofing (PRD 1, third clause): Vercel's request-headers documentation
+    (`vercel.com/docs/headers/request-headers`, read through `search_vercel_documentation`)
+    says Vercel overwrites `x-forwarded-for` and does not forward external IPs, unless an
+    Enterprise trusted proxy is set up (not used here). A value the client sends never
+    reaches Better Auth's key.
+  - `pnpm turbo lint ts:check test --filter=api`: 11/11 tasks green, 93 suites,
+    1250 tests passing.
+- **Deviations from plan**: none. Under Result A nothing is configured, so steps 3–5 (the
+  header choice, its spec, the re-run after deploy) do not apply.
+  `apps/api/src/modules/auth/auth.config.ts` and `apps/api/src/config/CreateApp.ts`
+  (`trust proxy` 1) are unchanged. `invariant-reviewer` was not run, because there is no
+  diff to review.
+- **Decisions**: none.
+- **Notes for the next phase**:
+  - The sample is small: a friends beta, 12 sessions in 30 days. If phase 7's brake ever
+    sees one IP for many accounts, re-run the § 9 query before blaming the brake.
+  - The Vercel log search for "Rate limiting could not determine a client IP" was not
+    reported. With 0 empty IPs the warning cannot have fired on a sign-in. The owner may
+    still run it once to close PRD 1's second clause by observation.
+  - Phases 1+ may rely on Better Auth's limiter keying on the client's IP.
+
+## Phase 1 — Strong passwords on every door (2026-10-01)
+
+- **Executor**: run as a `/team` led by opus 5.5 @ high. Roster:
+  - `backend-high`, `frontend-high`, `tests-high` and `accessibility-high`, all on opus,
+    because of the plan's floor for the sign-up and reset paths;
+  - `legal` on sonnet (a one-line judgement on a text, not on the sign-in path);
+  - `invariant-reviewer` on opus @ high, twice.
+
+  A follow-up of `frontend` (a headers unit test) ran as `frontend` on sonnet @ medium,
+  because it is off the sign-in path. The machine shut down mid-phase; `tests`,
+  `accessibility` and `invariant-reviewer` were spawned again on the merged commit, and
+  no work was lost because every agent had committed. The advisor was not consulted.
+- **Result**: done.
+- **Evidence**:
+  - Gate on `66f9cd2a`: `pnpm turbo lint ts:check test --filter=core --filter=api
+    --filter=web --filter=ui`, 17/17 tasks. API 1293 tests, core 107 files, web 25,
+    ui 59, database 4.
+  - End-to-end on the final tree:
+    - `passwords.e2e-spec.ts` 21/21;
+    - `access.e2e-spec.ts` 9/9;
+    - the affected suites on `66f9cd2a`: 13 of 14 suites, 267 of 269 tests. Both failures are in `admin`.
+      One was a stale cron list (`['reminders','rewrite']`), fixed in `2df3efcb`. The other is
+      "never name who made a dish", whose premise depends on the library (below).
+  - The partial full run on `07077b76`, stopped at 18 of 42 suites to run the final
+    tree: 16 pass, 2 fail.
+    - `care-review`: its `beforeAll` passed the 120 s hook timeout (the slow-day case
+      the suites' README names).
+    - `admin` › "never name who made a dish": its premise needs a recipe the model
+      generates, and Nutria-E2E's 2,072-recipe library serves the plan instead. The
+      branch touches no generation or recipe code.
+
+    CI's clean container is the proof for both.
+  - HIBP never reached from a suite: `apps/api/test/hibp-tripwire.ts` refuses and counts
+    every request, and the passwords suite asserts zero.
+  - Reset timing (PRD 5), measured locally. The run used a local SMTP sink that waits
+    ~500 ms and never relays, 20 + 20 requests, `NODE_ENV=test`, runs in threes with a
+    61 s pause.
+    - Before decision `0075`: existing 1374 ms, missing 1594 ms (+220 ms, fails).
+    - After: existing **440 ms**, missing **366 ms** (−73 ms, within 100 ms).
+    - What is left is one round trip: Better Auth reads the accounts only when the user
+      exists. Round trips counted with a query logger: existing 3 in-request, missing 2.
+    - A unit spec proves the reset answers before a mailer that resolves after 500 ms.
+  - `invariant-reviewer`:
+    - On `23f65209...5946a6da`, two P1s, both fixed and re-verified closed:
+      - an empty body token skipped the reset checks (`??` → `||`, the way Better Auth
+        reads it);
+      - live reset and verification tokens were written to the request log in `url`,
+        `referer` and `location` (`pino.ts` scrub).
+    - A P2 (the headers source pattern unpinned) is fixed with a unit test over Next's
+      own matcher.
+    - On `30c794ce...66f9cd2a` (the sweep): no P0, no P1. Two P2 test gaps are fixed by
+      `tests`.
+  - `accessibility`: `/local-probe` on `/registro`, `/en/registro`, `/restablecer` and
+    `/en/restablecer`, at 320, 390 and 1280 px, light and dark, plus scripted typing,
+    pasting and submitting.
+    - It found four P2s, all fixed and re-probed closed:
+      - a dead end on an invalid link;
+      - "try again" on a 429;
+      - the hint at 4.41:1;
+      - the meter saying "buena" over 128.
+    - It found two P3s, fixed: the missing-count description and a stale field error.
+    - The breached state could not be rendered, because HIBP is off locally.
+  - `legal`: `/privacidad` names the breached-password check under "Cómo protegemos tus
+    datos" (art. 5.1.a transparency; not required, on its reading that a 5-character
+    hash prefix is not personal data, to be confirmed by a lawyer). The text is in
+    `docs/legal/textos/02-politica-privacidad.md` and both dictionaries, and it must
+    ship in the same deploy as the hook.
+- **Deviations from plan** (the plan is amended in the same change):
+  - **No `maxLength` on the password fields.** The browser would silently cut a pasted
+    password. `passwordrules` stays, and over 128 is refused on the client.
+  - **`newPasswordSchema` counts `.length`** with a `superRefine`, not `.min/.max`.
+    Zod 4.6 counts code points while Better Auth counts UTF-16 units.
+  - **Scope grew by `apps/api/src/shared/logging/pino.ts`**, after the invariant review.
+    A refused reset now leaves a token spendable after its Referer was logged.
+  - **Scope grew by the verification sweep**, the owner's choice for PRD 5 (decision
+    `0075`): `verification.disableCleanup`, a daily cron
+    `/api/v1/cron/sweep-verifications` at 08:05 UTC that records its run, the
+    `verifications` cron label in both dictionaries, and `deployment.md` § 3b.
+  - **The security headers skip the rewritten `/api/v1` paths**, so they don't double
+    helmet's.
+  - **Fixed in passing**, beyond the plan: the reset form's links dropped `/en`; "Pedir
+    un enlace nuevo" was under 44 px; the shared `Input` replaced its own describedby
+    links. The `Input` now takes a merged `describedBy` prop.
+- **Decisions**:
+  [`0075`](../../decisions/0075-expired-verification-rows-are-swept-daily-not-on-every-read.md).
+- **Notes for the next phase**:
+  - **Owner, after deploy**:
+    - `curl -sI` on the production web origin should show the four headers, with
+      `x-vercel-cache: HIT` still on `/`.
+    - Count `hibp_unavailable` in the API logs over the first day. The plan's stop
+      signal is HIBP habitually over 2 s from `fra1`.
+    - The first owner digest lists the new sweep as silent until its first run at
+      08:05 UTC.
+    - If the deploy is not on 2026-10-01, set `privacy.updated` to that day in both
+      dictionaries.
+  - **Owner, on the iPhone**:
+    - whether VoiceOver reads the meter's level once per change;
+    - whether the keyboard hides the meter at 320 px;
+    - whether the Keychain suggestion honours `passwordrules`;
+    - whether a refusal is announced twice (the alert plus the `Input`'s own live
+      error).
+  - **Open P3s**:
+    - the form's top alert is not cleared when the field is edited;
+    - links in running text are told apart by colour alone (shared `.link`);
+    - the `token=` scrub misses a double-encoded `%253d`;
+    - the `Cron.controller.ts:41` comment still says "a third sweep".
+  - **Residual risks**:
+    - Vercel's own access logs keep `/restablecer?token=…` (platform, single-use,
+      1 h).
+    - The OAuth `code=`/`state=` stay unscrubbed (single-use, PKCE-bound).
+    - Expired verification rows now live up to a day.
+  - **Nutria-E2E state**: an earlier cut-off run left `app_settings.professional`,
+    `premium` and `automatic_activation` true. The full run resets `professional`; the
+    other two's baselines are unknown.
+  - **For phase 2**:
+    - `/change-password` is already guarded by the hook (the session's own words, the
+      authoritative session).
+    - Its own refusal codes are mapped in `apps/web/src/lib/newPassword.ts`.
+    - The `PasswordMeter` is reusable as it is.

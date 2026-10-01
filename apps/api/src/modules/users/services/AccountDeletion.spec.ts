@@ -6,6 +6,7 @@ import { CareController } from 'core/controllers/Care';
 import { ReauthenticationRequiredError } from 'core/entities/Error';
 
 import { validateEnv } from '../../../config/Env.validation.js';
+import { BackgroundTaskService } from '../../../shared/services/index.js';
 
 /**
  * The real Better Auth, built by the real `createAuth`, deleting through the
@@ -69,7 +70,7 @@ describe('deleting an account through UsersService.remove, on the real Better Au
   });
 
   async function signedIn() {
-    const auth = createAuth(env, { configured: false, send: async () => Promise.resolve(false) }, { cancelEverything });
+    const auth = createAuth(env, { configured: false, send: async () => Promise.resolve(false) }, { cancelEverything }, new BackgroundTaskService());
     const { headers } = await auth.api.signUpEmail({
       body: { email: 'ana@example.invalid', name: 'Ana', password: 'una-contraseña-larga' },
       returnHeaders: true

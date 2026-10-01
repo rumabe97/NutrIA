@@ -163,9 +163,11 @@ one, and a preview that half-works is worse than none.
 
 ## 3b. The crons
 
-`apps/api/vercel.json` schedules both:
+`apps/api/vercel.json` schedules three:
 - the rewrite sweep, daily at 03:30 UTC, when nobody is building a plan;
-- the check-in reminder, daily at 08:00 UTC ([`0054`](../decisions/0054-the-check-in-reminder-comes-back-behind-a-switch.md)).
+- the check-in reminder, daily at 08:00 UTC ([`0054`](../decisions/0054-the-check-in-reminder-comes-back-behind-a-switch.md));
+- the verification sweep, daily at 08:05 UTC, right after the reminder so Neon is usually
+  already awake ([`0075`](../decisions/0075-expired-verification-rows-are-swept-daily-not-on-every-read.md)).
 
 There is no illustration sweep any more: a dish's picture is drawn the first time somebody
 opens its meal page (`0066`, §4). Every cron call needs `CRON_SECRET` on the API project: the
@@ -175,6 +177,7 @@ platform sends it as the bearer, and without it the route answers 404.
 | --- | --- | --- |
 | `/api/v1/cron/rewrite-steps` | one text generation per recipe, at most twelve a run, ending by 240 s. Through the gateway, its free models; on Google directly, the daily cap generation needs | `AI_REWRITE_STEPS`, off by default; `AI_REWRITE_MODEL` picks its model ([`ai-gateway.md`](./ai-gateway.md) §6) |
 | `/api/v1/cron/reminders` | **nothing from the AI provider**: a mail and/or a push per account, at most once a fortnight | the **Check-in reminder** switch on `/admin`, off until thrown; `SMTP_HOST` for the mail and `VAPID_*` for the push. Sends nothing without either |
+| `/api/v1/cron/sweep-verifications` | **nothing from the AI provider**: one `DELETE` of the verification rows already past `expires_at` (unused reset tokens, abandoned OAuth states). Better Auth's own cleanup on read is off (`0075`), so this is the only pruning | nothing: it always runs |
 
 Each cron runs daily by choice, not by the plan's limit: Vercel is on Pro since 2026-09-26,
 which runs crons as often as hourly. What keeps them daily is Neon's free compute, shared by

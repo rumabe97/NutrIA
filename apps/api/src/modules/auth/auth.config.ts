@@ -1,8 +1,10 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { isPasswordCompromised } from 'better-auth/plugins/haveibeenpwned';
 
 import { AnalyticsController } from 'core/controllers/Analytics';
 import { CareController } from 'core/controllers/Care';
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from 'core/entities/Password';
 import { TERMS_VERSION } from 'core/entities/User';
 import { DEFAULT_WEB_LOCALE, webUrl } from 'core/domain/WebUrl';
 
@@ -11,9 +13,11 @@ import { account, rateLimit, session, user, verification } from 'database/schema
 
 import { APPLE_ORIGIN, configuredSocialProviders, socialProviderOptions } from './services/SocialProviders.js';
 import { onAccountCreated, onAddressConfirmed } from './services/SelfService.js';
+import { passwordPolicy } from './services/PasswordPolicy.js';
 import { sendPasswordResetMail } from './services/PasswordResetMail.js';
 import { sendVerificationMail } from './services/VerificationMail.js';
 
+import type { BackgroundTaskService } from '../../shared/services/index.js';
 import type { BillingService } from '../billing/services/Billing.service.js';
 import type { Env } from '../../config/index.js';
 import type { EmailService } from '../email/services/Email.service.js';
@@ -45,7 +49,12 @@ const SESSION_REFRESH_AGE_DAYS = 1;
  * removes a person's health data — every user-scoped table references it with
  * ON DELETE CASCADE (see `packages/database/src/schemas/_utils.ts`).
  */
-export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | 'send'>, billing: Pick<BillingService, 'cancelEverything'>) {
+export function createAuth(
+  env: Env,
+  mailer: Pick<EmailService, 'configured' | 'send'>,
+  billing: Pick<BillingService, 'cancelEverything'>,
+  background: Pick<BackgroundTaskService, 'run'>
+) {
   const providers = configuredSocialProviders(env);
   const selfService = { link: (path: string) => webUrl(env.APP_URL, path, DEFAULT_WEB_LOCALE), mailer, ownerEmail: env.OWNER_EMAIL };
 
@@ -70,6 +79,16 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
       encryptOAuthTokens: true
     },
     advanced: {
+      /*
+       * What Better Auth hands to `runInBackgroundOrAwait` — the reset mail,
+       * the verification mail — runs after the response, kept alive on the
+       * platform by `BackgroundTaskService`. Without it the reset waited for
+       * SMTP only when the address had an account, and its timing said which
+       * addresses do (PRD 011, criterion 5). Consequence: those mails may land
+       * after the HTTP response, and a failure is the service's log line, not
+       * the request's error — which is what the mail functions already chose.
+       */
+      backgroundTasks: { handler: promise => background.run('auth', promise) },
       /*
        * Written for the parent domain when API and web sit on sibling subdomains,
        * which is the deployed shape: the web app reads this cookie itself, both in
@@ -146,6 +165,9 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
     },
     emailAndPassword: {
       enabled: true,
+      // The rule's one home is `core` (PLAN 011 phase 1); the web forms read the same two numbers.
+      maxPasswordLength: PASSWORD_MAX_LENGTH,
+      minPasswordLength: PASSWORD_MIN_LENGTH,
       // Verification is required before a session is useful, but sign-up still
       // succeeds — bouncing the user back to the form with "check your email"
       // half-completed is worse than letting them in and gating the plan.
@@ -199,6 +221,13 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
           userId: recipient.id
         })
     },
+    /*
+     * A new password — sign-up, reset, change — holding a word the account
+     * gives away, or one HIBP knows, is refused here (`services/PasswordPolicy.ts`).
+     * HIBP fails open, and is never called under `NODE_ENV=test`: the suites
+     * must not reach the network, and the context check stays on for them.
+     */
+    hooks: { before: passwordPolicy(env.NODE_ENV === 'test' ? null : isPasswordCompromised) },
     /*
      * Counted in the database, not in the process.
      *
@@ -266,7 +295,16 @@ export function createAuth(env: Env, mailer: Pick<EmailService, 'configured' | '
         },
         enabled: true
       }
-    }
+    },
+    /*
+     * No pruning inside a request (PLAN 011). Better Auth deletes expired rows
+     * on every verification lookup, and on a reset only the unknown-address
+     * branch looks one up — a round trip more, which timed the difference
+     * between an address with an account and one without. Every reader checks
+     * `expiresAt` itself, so this changes no answer; the daily
+     * `/cron/sweep-verifications` owns the pruning now.
+     */
+    verification: { disableCleanup: true }
   });
 }
 

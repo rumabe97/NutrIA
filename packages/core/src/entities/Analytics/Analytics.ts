@@ -65,7 +65,7 @@ export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[number];
 /** Which part of the service spent a model call (`0071`): plan dishes, a meal swap, or the nightly step rewrite. */
 export type AiFeature = 'plan' | 'rewrite' | 'swap';
 
-/** The crons a `cron_run` names (`vercel.json`'s two). */
-export const CRON_JOBS = ['reminders', 'rewrite'] as const;
+/** The crons a `cron_run` names (`vercel.json`'s three). */
+export const CRON_JOBS = ['reminders', 'rewrite', 'verifications'] as const;
 
 export type CronJob = (typeof CRON_JOBS)[number];

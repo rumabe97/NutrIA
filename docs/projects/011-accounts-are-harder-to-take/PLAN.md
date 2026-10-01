@@ -58,7 +58,7 @@ records what was decided.
 
 ### Phase 0 — Does the limit see each person?
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 011 phase 0`. `quality-max`: the
   authentication limiter. Review: `invariant-reviewer`. — owner-gated: the owner runs the
   read-only count query of report `0007` § 9 on Neon's `production` branch and pastes
@@ -97,7 +97,7 @@ records what was decided.
 
 ### Phase 1 — Strong passwords on every door
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 011 phase 1`, as a `/team` (`backend`,
   `frontend`, `tests`). `quality-max`: sign-up and reset. Reviews: `invariant-reviewer`,
   `accessibility` with `/local-probe`, `legal` (one line).
@@ -130,6 +130,15 @@ records what was decided.
       and a `Permissions-Policy` that denies camera, microphone and geolocation (nothing
       in `apps/web/src` uses them on 2026-10-01; re-grep before shipping).
   - `apps/api/test/**`: a new `passwords.e2e-spec.ts`.
+  - `apps/api/src/shared/logging/pino.ts` and its spec (amended 2026-10-01, after the
+    invariant review): the request log scrubs reset and verification tokens from `url`,
+    `referer` and `location`, because a refused reset now leaves a token spendable after
+    its Referer was logged.
+  - `verification.disableCleanup` in `auth.config.ts`, a daily cron
+    `/api/v1/cron/sweep-verifications` (route, service, spec, `apps/api/vercel.json`) and
+    `docs/reference/deployment.md` § 3b (amended 2026-10-01, owner: "corrige lo del tiempo
+    ese"; decision [`0075`](../../decisions/0075-expired-verification-rows-are-swept-daily-not-on-every-read.md)).
+    Better Auth's cleanup on read added one round trip to the missing-address reset.
   - `apps/api/AGENTS.md`, `apps/web/AGENTS.md`, `docs/legal/**` (`legal`).
 - **Steps**:
   1. `core` first, with its tests:

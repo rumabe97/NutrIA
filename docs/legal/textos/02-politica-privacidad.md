@@ -47,6 +47,12 @@
 >   septiembre de 2026 / 30 September 2026; `/condiciones` no cambia. Hasta entonces vale la frase anterior, que se conserva
 >   debajo. Porqué y fuentes en [`imagenes-de-platos.md`](../imagenes-de-platos.md) § 4.2 b.
 >
+> - **⟦contraseñas-filtradas⟧** (2026-10-01, proyecto 011 fase 1; la frase va de «⟦si contraseñas-filtradas⟧» a «⟦fin⟧», y las marcas no se publican): la comprobación de la
+>   contraseña contra Have I Been Pwned al crear la cuenta, restablecerla o cambiarla. La
+>   frase marcada de «Cómo protegemos tus datos» se publica **el mismo día** en que el
+>   gancho esté activo en producción, con `privacy.updated` nuevo; antes de eso, no. No
+>   hay correo de aviso (ver la fuente de esa sección).
+>
 > **D5 (2026-09-29)**: cuando la fase 7 del proyecto 008 guarde la versión de las
 > condiciones, la línea «Cuenta» de «Qué datos recogemos» la nombra
 > ([`../2026-09-29-aceptacion-de-los-textos-legales.md`](../2026-09-29-aceptacion-de-los-textos-legales.md) § 6.B);
@@ -224,9 +230,9 @@ Respondemos en un mes como máximo. No te cobramos nada por ello.
 
 ### Cómo protegemos tus datos
 
-Tu contraseña nunca se guarda en texto plano y la conexión va siempre cifrada. Tus enfermedades, tu medicación y tus suplementos viven en una parte del código que no puede hablar con la inteligencia artificial, y un test lo comprueba en cada cambio. Un dietista solo llega a tus datos a través del enlace que aceptaste, y cada acceso queda anotado. Los registros del servidor y de errores no guardan lo que escribes. El acceso a la base de datos está restringido y nadie la consulta salvo para arreglar un fallo.
+Tu contraseña nunca se guarda en texto plano y la conexión va siempre cifrada. Tus enfermedades, tu medicación y tus suplementos viven en una parte del código que no puede hablar con la inteligencia artificial, y un test lo comprueba en cada cambio. Un dietista solo llega a tus datos a través del enlace que aceptaste, y cada acceso queda anotado. Los registros del servidor y de errores no guardan lo que escribes. ⟦si contraseñas-filtradas⟧ Cuando creas, restableces o cambias tu contraseña, la comparamos con una lista pública de contraseñas filtradas: desde nuestro servidor enviamos al servicio gratuito Have I Been Pwned solo los cinco primeros caracteres de una huella de la contraseña, que no permite saber cuál es, sin tu cuenta, tu correo ni tu dirección IP, y no guardamos ni la contraseña ni esa huella. Si el servicio no responde, la contraseña se acepta sin esa comprobación. ⟦fin⟧ El acceso a la base de datos está restringido y nadie la consulta salvo para arreglar un fallo.
 
-<!-- Fuente: RGPD art. 32; ARCHITECTURE.md § Invariants; ErrorReporter.ts; pino redaction (apps/api/src/shared/logging/pino.ts:51). -->
+<!-- Fuente: RGPD art. 32; ARCHITECTURE.md § Invariants; ErrorReporter.ts; pino redaction (apps/api/src/shared/logging/pino.ts:51). Contraseñas filtradas (2026-10-01, `0007-seguridad-de-cuentas` § 4.1): la frase va en esta sección, como medida de seguridad (art. 32), y NO en «Con quién compartimos» ni en «Transferencias»: lo que sale hacia HIBP son 5 caracteres hexadecimales del SHA-1 (unas 2.000 contraseñas comparten prefijo), sin cuenta, correo ni IP de la persona (la petición sale de la función de Vercel; la cabecera `Add-Padding` y el agente `BetterAuth Password Checker` no identifican a nadie: `better-auth/dist/plugins/haveibeenpwned/index.mjs`), de modo que no es un dato personal de nadie para quien lo recibe (RGPD art. 4.1 y considerando 26; TJUE C-413/23 P, la información que el destinatario no puede razonablemente atribuir a una persona no lo es para él), HIBP no es destinatario del art. 13.1.e y no hay transferencia del cap. V. Se nombra por lealtad (art. 5.1.a), como Sentry y los modelos de imágenes: es una llamada a un tercero que provoca lo que la persona teclea. «Si el servicio no responde, se acepta»: es el comportamiento decidido (0007 § 4.1; gancho propio con tiempo límite, `hibp_unavailable` sin contraseña ni huella); si el código cambia a rechazar, la frase cambia. «No guardamos»: el registro `hibp_unavailable` no lleva contraseña ni huella. La documentación de HIBP (API v3, Pwned Passwords) describe el k-anonimato y que no hay clave ni límite, y no dice si registra las peticiones; no hace falta, porque lo que recibe no identifica a nadie. Un cambio de política que solo añade esto NO es «importante» en el sentido de «Cambios en esta política»: no cambia qué datos tuyos se tratan ni con quién se comparten; se actualiza `updated` y no hay correo. Interpretación a confirmar con un abogado: que el prefijo no sea dato personal (hay quien lee que cualquier huella de una contraseña elegida por una persona lo es; si el abogado lo ve así, el efecto práctico es nombrar a HIBP en «Con quién compartimos» y en «Transferencias», y firmar o aceptar sus condiciones como encargado). -->
 
 ### Cookies y almacenamiento en tu dispositivo
 
@@ -367,7 +373,7 @@ We answer within one month at most, free of charge.
 
 ### How we protect your data
 
-Your password is never stored in plain text and the connection is always encrypted. Your conditions, medications and supplements live in a part of the code that cannot talk to the artificial intelligence, and a test checks it on every change. A dietitian reaches your data only through the link you accepted, and every access is recorded. Server and error logs do not keep what you write. Database access is restricted and nobody looks at it except to fix a fault.
+Your password is never stored in plain text and the connection is always encrypted. Your conditions, medications and supplements live in a part of the code that cannot talk to the artificial intelligence, and a test checks it on every change. A dietitian reaches your data only through the link you accepted, and every access is recorded. Server and error logs do not keep what you write. ⟦if filtered-passwords⟧ When you create, reset or change your password, we compare it with a public list of leaked passwords: from our server we send the free Have I Been Pwned service only the first five characters of a fingerprint of the password, which does not reveal what the password is, with no account, email or IP address of yours, and we keep neither the password nor that fingerprint. If the service does not answer, the password is accepted without that check. ⟦end⟧ Database access is restricted and nobody looks at it except to fix a fault.
 
 ### Cookies and storage on your device
 

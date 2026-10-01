@@ -980,7 +980,7 @@ export const enGB: Dictionary = {
     cronEmpty: 'No jobs.',
     cronNever: 'Never',
     cronNote: 'Stale if it has gone more than {hours} h without finishing.',
-    crons: { reminders: 'Check-in reminders', rewrite: 'Step rewrite' },
+    crons: { reminders: 'Check-in reminders', rewrite: 'Step rewrite', verifications: 'Expired link cleanup' },
     cronState: { ok: 'On time', stale: 'Stale' },
     cronTitle: 'Scheduled jobs',
     howCounted: [
@@ -1074,8 +1074,18 @@ export const enGB: Dictionary = {
     noAccount: 'No account yet?',
     orWithEmail: 'or with your email',
     password: 'Password',
+    passwordCompromised: 'That password appears in known data breaches. Choose another: a phrase of several words is best.',
+    passwordHasContext: 'The password cannot contain your name, your email or “nutria”. Choose another.',
     passwordHint: 'At least {count} characters.',
+    passwordMeterEnough: 'Length: enough.',
+    passwordMeterLong: 'Length: good.',
+    passwordMeterMissing: '{count} more characters needed.',
+    passwordMeterMissingOne: '1 more character needed.',
+    passwordMeterShort: 'Length: too short.',
+    passwordMeterTooLong: 'Length: too long.',
     passwordsDoNotMatch: 'The passwords do not match.',
+    passwordStrengthHint: 'A phrase of several words is best.',
+    passwordTooLong: 'The password can be at most {count} characters.',
     passwordTooShort: 'The password must be at least {count} characters.',
     pendingBody: 'We are opening NutrIA a few people at a time. We will activate your account ({email}) as soon as we can and let you know by email.',
     pendingCheck: 'Check again',
@@ -1101,6 +1111,7 @@ export const enGB: Dictionary = {
     socialFailed: 'We could not complete the sign-in. Try again, or sign in with your email.',
     socialNotLinked:
       'There is already an account with that address, and it has not been confirmed yet. Sign in with your password and confirm the email, or reset the password. After that you can sign in this way too.',
+    tooManyAttempts: 'Too many attempts in a row. Wait a moment and try again.',
     toSignIn: 'Sign in',
     toSignUp: 'Create one',
     verifyBody: 'We have sent you a confirmation link. Open it on this device to activate your account.',
@@ -2295,7 +2306,7 @@ export const enGB: Dictionary = {
       {
         heading: 'How we protect your data',
         paragraphs: [
-          'Your password is never stored in plain text and the connection is always encrypted. Your conditions, medications and supplements live in a part of the code that cannot talk to the artificial intelligence, and a test checks it on every change. Server and error logs do not keep what you write. Database access is restricted and nobody looks at it except to fix a fault.'
+          'Your password is never stored in plain text and the connection is always encrypted. Your conditions, medications and supplements live in a part of the code that cannot talk to the artificial intelligence, and a test checks it on every change. Server and error logs do not keep what you write. When you create, reset or change your password, we compare it with a public list of leaked passwords: from our server we send the free Have I Been Pwned service only the first five characters of a fingerprint of the password, which does not reveal what the password is, with no account, email or IP address of yours, and we keep neither the password nor that fingerprint. If the service does not answer, the password is accepted without that check. Database access is restricted and nobody looks at it except to fix a fault.'
         ]
       },
       {

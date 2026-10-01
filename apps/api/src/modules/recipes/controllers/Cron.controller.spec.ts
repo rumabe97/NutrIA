@@ -6,6 +6,7 @@ import { CheckInReminderService } from '../../notifications/index.js';
 import { CronController } from './Cron.controller.js';
 import { CronRunService } from '../services/index.js';
 import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
+import { ExpiredVerificationsService } from '../../auth/services/ExpiredVerifications.service.js';
 import { ENV } from '../../../config/index.js';
 import { OwnerAlertsService } from '../../owner-alerts/index.js';
 import { PictureCandidatesService, RecipeRewriter } from '../../ai/index.js';
@@ -25,6 +26,7 @@ describe('the cron routes', () => {
     jest.fn<(limit: number) => Promise<{ heldBy?: 'cap'; pending: number; rewritten: number; skipped: number; unreached: number }>>();
   const sweep = jest.fn(async () => Promise.resolve({ considered: 0, failed: 0, pushed: 0, sent: 0 }));
   const forget = jest.fn(async () => Promise.resolve());
+  const forgetVerifications = jest.fn(async () => Promise.resolve(0));
   const record = jest.fn(async (_job: string, _counts: Readonly<Record<string, 'cap' | number>>) => Promise.resolve());
   const digest = jest.fn(async () => Promise.resolve());
   const checkSpend = jest.fn(async () => Promise.resolve());
@@ -46,6 +48,7 @@ describe('the cron routes', () => {
         { provide: RecipeRewriter, useValue: { rewriteOutdated } },
         { provide: CheckInReminderService, useValue: { sweep } },
         { provide: ExpiredInvitationsService, useValue: { forget } },
+        { provide: ExpiredVerificationsService, useValue: { forget: forgetVerifications } },
         { provide: CronRunService, useValue: { record } },
         { provide: PictureCandidatesService, useValue: { clean } },
         { provide: OwnerAlertsService, useValue: { checkSpend, digest, pictureFailures, watchReminders } }
@@ -386,6 +389,48 @@ describe('the cron routes', () => {
 
     await request(server).get('/cron/rewrite-steps').set('Authorization', bearer('wrong')).expect(404);
     expect(rewriteOutdated).not.toHaveBeenCalled();
+  });
+
+  /* PLAN 011: Better Auth's own pruning is off, so this route owns it; it touches nothing else. */
+  it('deletes the expired verification rows on its own route and answers how many', async () => {
+    forgetVerifications.mockResolvedValueOnce(5);
+    const server = await boot(SECRET);
+
+    const response = await request(server).get('/cron/sweep-verifications').set('Authorization', bearer(SECRET)).expect(200);
+
+    expect(response.body).toEqual({ deleted: 5 });
+    expect(forgetVerifications).toHaveBeenCalledTimes(1);
+    expect(forget).not.toHaveBeenCalled();
+    expect(sweep).not.toHaveBeenCalled();
+    expect(rewriteOutdated).not.toHaveBeenCalled();
+    // 0071: the run says it finished, with its count, so the console's silent-cron watch sees it.
+    expect(record).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith('verifications', { deleted: 5 });
+  });
+
+  it('records no verification sweep that did not finish', async () => {
+    forgetVerifications.mockRejectedValueOnce(new Error('database down'));
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/sweep-verifications').set('Authorization', bearer(SECRET)).expect(500);
+
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('deletes no verification row for the wrong bearer, or none at all', async () => {
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/sweep-verifications').set('Authorization', bearer('wrong')).expect(404);
+    await request(server).get('/cron/sweep-verifications').expect(404);
+    expect(forgetVerifications).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
+  });
+
+  it('deletes no verification row when no secret is configured', async () => {
+    const server = await boot(undefined);
+
+    await request(server).get('/cron/sweep-verifications').set('Authorization', bearer('undefined')).expect(404);
+    expect(forgetVerifications).not.toHaveBeenCalled();
   });
 
   /* 0066: a dish is drawn the first time its meal page is opened, never by a sweep. */

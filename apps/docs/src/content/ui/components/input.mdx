@@ -65,12 +65,13 @@ export default function Example() {
   { prop: 'label', type: 'string', default: '—', description: '**Required.** Visible label rendered above the input and linked via `htmlFor`' },
   { prop: 'hint', type: 'string', default: '—', description: 'Helper text shown below the input. Hidden when `error` is also set' },
   { prop: 'error', type: 'string', default: '—', description: 'Error message shown below the input. Adds `aria-invalid="true"`, red styling, and announces via `aria-live="polite"`. Prefer on-blur or on-submit validation — see Accessibility below.' },
+  { prop: 'describedBy', type: 'string', default: '—', description: 'Ids of descriptions outside the field (a strength meter, a note), added to `aria-describedby` after the hint and the error. `aria-describedby` itself is not accepted: passed through, it would replace the hint and error links' },
   { prop: 'type', type: 'string', default: "'text'", description: 'Any native input type (`text`, `email`, `password`, `number`, `url`, etc.)' },
   { prop: 'disabled', type: 'boolean', default: 'false', description: 'Prevents interaction and dims the field' },
   { prop: 'required', type: 'boolean', default: 'false', description: 'Marks the field as required for native form validation' },
 ]} />
 
-All standard `<input>` HTML attributes are also accepted (`value`, `defaultValue`, `onChange`, `placeholder`, `name`, `min`, `max`, `pattern`, etc.). The `id` prop is intentionally omitted — `Input` generates its own stable id.
+All standard `<input>` HTML attributes except `aria-describedby` are also accepted (`value`, `defaultValue`, `onChange`, `placeholder`, `name`, `min`, `max`, `pattern`, etc.). The `id` prop is intentionally omitted — `Input` generates its own stable id.
 
 ## Use in forms
 

@@ -110,7 +110,9 @@ function pick(headers: IncomingHttpHeaders | OutgoingHttpHeaders, allowed: reado
  * Paths that carry a secret in a segment: a professional's invitation token
  * (`0059`), in the API's route and in the web page that calls it — which is
  * what a same-origin `referer` names. Only its hash is stored; a log line that
- * kept the token would hold the one copy that opens the invitation.
+ * kept the token would hold the one copy that opens the invitation. And Better
+ * Auth's reset link, `/auth/reset-password/<token>`, the one copy that sets a
+ * new password on the account.
  *
  * A separator is `/` or its percent-encoding (`%2F`, and `%252F` encoded twice),
  * because the same path travels inside a query string — `?next=%2Fen%2Finvitacion%2F<token>`,
@@ -122,7 +124,7 @@ function pick(headers: IncomingHttpHeaders | OutgoingHttpHeaders, allowed: reado
  */
 const SEPARATOR = String.raw`(?:\/|%(?:25)*2f)`;
 const SECRET_SEGMENTS = new RegExp(
-  String.raw`(${SEPARATOR}(?:care${SEPARATOR}invitations|invitacion)${SEPARATOR})(?:[^/?#&%\s]|%(?!(?:25)*2f)[0-9a-f]{2})+`,
+  String.raw`(${SEPARATOR}(?:care${SEPARATOR}invitations|invitacion|(?:auth${SEPARATOR})?reset-password)${SEPARATOR})(?:[^/?#&%\s]|%(?!(?:25)*2f)[0-9a-f]{2})+`,
   'gi'
 );
 
@@ -130,16 +132,19 @@ const SECRET_SEGMENTS = new RegExp(
  * A search box's text (`q`, the admin console's tables — `0068`): the owner types an
  * address or words copied from somebody's message there, and the table's state lives in
  * the URL, so it reaches this log as the request's query and as a later request's
- * `referer`. The value stops at the next `&`, `#` or, inside a query string that is
+ * `referer`. And a `token`: the reset page's (`/restablecer?token=…`, in the reset
+ * link's `location` and in the reset POST's `referer`) and the verification link's
+ * (`/auth/verify-email?token=…`), each one a live credential until it is spent.
+ * The value stops at the next `&`, `#` or, inside a query string that is
  * itself percent-encoded (`?next=%2Fadmin%3Fq%3D…`), at the next `%26`.
  */
 // Also `q[]=` and `q[x]=` (plain or percent-encoded brackets): the validation refuses
 // them, but a request is logged before any pipe runs.
-const SEARCH_PARAMETER = /((?:[?&]|%3f|%26)q(?:\[[^\]&#=]*\]|%5b(?:(?!%5d)[^&#=])*%5d)*(?:=|%3d))(?:(?!%26)[^&#\s])*/gi;
+const SECRET_PARAMETERS = /((?:[?&]|%3f|%26)(?:q|token)(?:\[[^\]&#=]*\]|%5b(?:(?!%5d)[^&#=])*%5d)*(?:=|%3d))(?:(?!%26)[^&#\s])*/gi;
 
-/** The same path with every secret segment and search text replaced — the route stays readable, the secret does not. */
+/** The same path with every secret segment, token and search text replaced — the route stays readable, the secret does not. */
 function withoutSecrets(value: string): string {
-  return value.replace(SECRET_SEGMENTS, '$1[redacted]').replace(SEARCH_PARAMETER, '$1[redacted]');
+  return value.replace(SECRET_SEGMENTS, '$1[redacted]').replace(SECRET_PARAMETERS, '$1[redacted]');
 }
 
 export function serializeRequest(request: SerializedRequest): Record<string, unknown> {
@@ -154,7 +159,14 @@ export function serializeRequest(request: SerializedRequest): Record<string, unk
 }
 
 export function serializeResponse(response: SerializedResponse): Record<string, unknown> {
-  return { headers: pick(response.headers, LOGGED_RESPONSE_HEADERS), statusCode: response.statusCode };
+  const headers = pick(response.headers, LOGGED_RESPONSE_HEADERS);
+
+  // A redirect names where it sends the browser, and the reset link sends it to a page carrying the token.
+  if (typeof headers.location === 'string') {
+    headers.location = withoutSecrets(headers.location);
+  }
+
+  return { headers, statusCode: response.statusCode };
 }
 
 /**

@@ -9,6 +9,7 @@ import { EmailModule } from '../email/email.module.js';
 import { EmailService } from '../email/services/Email.service.js';
 import { ENV, envProvider } from '../../config/index.js';
 import { SessionGuard } from '../../shared/guards/Session.guard.js';
+import { BackgroundTaskService } from '../../shared/services/index.js';
 
 import type { Env } from '../../config/index.js';
 
@@ -24,11 +25,13 @@ import type { Env } from '../../config/index.js';
   imports: [BillingModule, EmailModule],
   providers: [
     {
-      inject: [ENV, EmailService, BillingService],
+      inject: [ENV, EmailService, BillingService, BackgroundTaskService],
       provide: AUTH,
-      useFactory: (env: Env, mailer: EmailService, billing: BillingService) => createAuth(env, mailer, billing)
+      useFactory: (env: Env, mailer: EmailService, billing: BillingService, background: BackgroundTaskService) =>
+        createAuth(env, mailer, billing, background)
     },
     AuthHandlerService,
+    BackgroundTaskService,
     SessionGuard,
     envProvider
   ]
