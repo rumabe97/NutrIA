@@ -153,23 +153,47 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
     return response;
   }
 
+  /**
+   * The API's own limiter (`RateLimitGuard`, 120 a minute) keys a caller with no session on its address and the
+   * route pattern, and every `/auth/*` path is one pattern: this suite's sign-ups, sign-ins, challenges and codes
+   * all spend the same allowance. On CI's local Postgres the suite outruns it inside a minute; on Neon it never
+   * does. Its refusal never reached a handler, so it is waited out and the same request sent again. It is told
+   * apart by what it lacks: Better Auth's own 429 always carries `X-Retry-After`, the guard's never does (and the
+   * exception filter hands its body back as `REQUEST_ERROR`, so the code cannot tell them apart). Better Auth's is
+   * the product answering, and is not retried here.
+   */
+  async function paced(send: () => PromiseLike<Response>): Promise<Response> {
+    const deadline = Date.now() + 70_000;
+    let response = await send();
+
+    while (response.status === 429 && response.headers['x-retry-after'] === undefined && Date.now() < deadline) {
+      await pause(5_000);
+      response = await send();
+    }
+
+    return response;
+  }
+
   async function post(path: string, cookie: string, body: object = {}): Promise<Response> {
     return seen(
-      await request(server()).post(`/${PREFIX}/${path}`).set('Cookie', cookie).set('User-Agent', IPHONE).set('Accept-Language', 'es').send(body)
+      await paced(() =>
+        request(server()).post(`/${PREFIX}/${path}`).set('Cookie', cookie).set('User-Agent', IPHONE).set('Accept-Language', 'es').send(body)
+      )
     );
   }
 
   async function get(path: string, cookie: string): Promise<Response> {
-    return seen(await request(server()).get(`/${PREFIX}/${path}`).set('Cookie', cookie).set('User-Agent', IPHONE));
+    return seen(await paced(() => request(server()).get(`/${PREFIX}/${path}`).set('Cookie', cookie).set('User-Agent', IPHONE)));
   }
 
   async function account(label: string, name: string): Promise<Made> {
     const email = emailFor(label);
-    const made = await request(server())
-      .post(`/${PREFIX}/auth/sign-up/email`)
-      .set('User-Agent', IPHONE)
-      .send({ email, name, password: ORIGINAL })
-      .expect(200);
+    const made = await paced(() =>
+      request(server()).post(`/${PREFIX}/auth/sign-up/email`).set('User-Agent', IPHONE).send({ email, name, password: ORIGINAL })
+    );
+
+    expect(made.status).toBe(200);
+
     const id = (made.body as { user: { id: string } }).user.id;
 
     ids.push(id);
@@ -213,12 +237,11 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
 
   async function enable(jar: CookieJar, password = ORIGINAL): Promise<{ readonly backupCodes: string[]; readonly totpURI: string }> {
     // Not through `post`: this is one of the two responses the secret may be in.
-    const response = await request(server())
-      .post(`/${PREFIX}/auth/two-factor/enable`)
-      .set('Cookie', jar.header)
-      .set('User-Agent', IPHONE)
-      .send({ password })
-      .expect(200);
+    const response = await paced(() =>
+      request(server()).post(`/${PREFIX}/auth/two-factor/enable`).set('Cookie', jar.header).set('User-Agent', IPHONE).send({ password })
+    );
+
+    expect(response.status).toBe(200);
     const body = response.body as { backupCodes: string[]; totpURI: string };
     const secret = totpSecret(body.totpURI);
 
@@ -318,7 +341,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
 
   /** What the session guard answers a caller with no session: the 404 every denial here must be, byte for byte. */
   async function guardsNotFound(): Promise<{ readonly status: number; readonly text: string }> {
-    const answer = await request(server()).get(`/${PREFIX}/profile`);
+    const answer = await paced(() => request(server()).get(`/${PREFIX}/profile`));
 
     return { status: answer.status, text: answer.text };
   }
@@ -338,10 +361,12 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
 
     const state = new URL((start.body as { url: string }).url).searchParams.get('state') ?? '';
 
-    return request(server())
-      .get(`/${PREFIX}/auth/callback/google`)
-      .query({ code: 'e2e-code', state })
-      .set('Cookie', [cookie, rawCookies(start)].filter(Boolean).join('; '));
+    return paced(() =>
+      request(server())
+        .get(`/${PREFIX}/auth/callback/google`)
+        .query({ code: 'e2e-code', state })
+        .set('Cookie', [cookie, rawCookies(start)].filter(Boolean).join('; '))
+    );
   }
 
   async function providerAccounts(userId: string): Promise<string[]> {
@@ -488,6 +513,10 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
         await sql()`update account set password = ${known} where user_id = ${id} and provider_id = 'credential'`;
         await deleteAccountByEmail(app, email, CLEANUP_PASSWORD);
       }
+
+      // The door signs in first, and gives up quietly when that is refused — a spent limiter after a failed case
+      // included. What it could not delete goes on the table: the cascade from `user.id` takes the rest.
+      await sql()`delete from "user" where email like ${pattern}`;
 
       const [remaining] = await sql()<{ n: number }>`select count(*)::int as n from "user" where email like ${pattern}`;
 
@@ -788,13 +817,16 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       expect(await auditRows(id, 'auth.backup_codes_regenerated')).toEqual([]);
 
       // Not through `post`: this is the other response the codes may be in.
-      const generated = await request(server())
-        .post(`/${PREFIX}/auth/two-factor/generate-backup-codes`)
-        .set('Cookie', jar.header)
-        .set('User-Agent', IPHONE)
-        .set('Accept-Language', 'es')
-        .send({ password: ORIGINAL })
-        .expect(200);
+      const generated = await paced(() =>
+        request(server())
+          .post(`/${PREFIX}/auth/two-factor/generate-backup-codes`)
+          .set('Cookie', jar.header)
+          .set('User-Agent', IPHONE)
+          .set('Accept-Language', 'es')
+          .send({ password: ORIGINAL })
+      );
+
+      expect(generated.status).toBe(200);
       const fresh = (generated.body as { backupCodes: string[] }).backupCodes;
 
       secrets.push(...fresh);
