@@ -1,3 +1,5 @@
+import { createHmac } from 'node:crypto';
+
 import express from 'express';
 import request from 'supertest';
 
@@ -589,4 +591,104 @@ export async function auditRowsWithIpHash(): Promise<number> {
   const rows = await sql<{ n: number }>`select count(*)::int as n from audit_logs where ip_hash is not null`;
 
   return rows[0]?.n ?? 0;
+}
+
+const BASE32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+/** RFC 4648 base32, padding ignored — the alphabet an `otpauth://` URI's `secret` is written in. */
+function base32Decode(text: string): Buffer {
+  let bits = 0;
+  let value = 0;
+  const bytes: number[] = [];
+
+  for (const char of text.replace(/=+$/, '').toUpperCase()) {
+    const index = BASE32.indexOf(char);
+
+    if (index < 0) {
+      throw new Error(`Not base32: ${char}`);
+    }
+
+    value = (value << 5) | index;
+    bits += 5;
+
+    if (bits >= 8) {
+      bytes.push((value >>> (bits - 8)) & 0xff);
+      bits -= 8;
+    }
+  }
+
+  return Buffer.from(bytes);
+}
+
+/**
+ * The code an authenticator app shows for this `otpauth://` URI (RFC 6238:
+ * HMAC-SHA1, 30-second steps, 6 digits), `steps` periods away from now — what
+ * the person types, computed the way their phone does, with nothing of the
+ * product's own code. `steps` outside ±1 is a code the server's window does
+ * not accept, which is how a suite writes a wrong one.
+ */
+export function totpCode(totpURI: string, steps = 0, now = Date.now()): string {
+  const secret = new URL(totpURI).searchParams.get('secret');
+
+  if (!secret) {
+    throw new Error('No secret in the TOTP URI');
+  }
+
+  const counter = Buffer.alloc(8);
+
+  counter.writeBigUInt64BE(BigInt(Math.floor(now / 30_000) + steps));
+
+  const digest = createHmac('sha1', base32Decode(secret)).update(counter).digest();
+  const offset = (digest[digest.length - 1] ?? 0) & 0x0f;
+  const truncated = digest.readUInt32BE(offset) & 0x7fffffff;
+
+  return String(truncated % 1_000_000).padStart(6, '0');
+}
+
+/** The raw secret behind a TOTP URI, as the server keys its HMAC with it — for a suite looking for it where it must not be. */
+export function totpSecret(totpURI: string): { readonly base32: string; readonly raw: string } {
+  const base32 = new URL(totpURI).searchParams.get('secret') ?? '';
+
+  return { base32, raw: base32Decode(base32).toString('utf8') };
+}
+
+/**
+ * A browser's cookie jar, as far as a suite needs one: each `Set-Cookie` of a
+ * response replaces the cookie of that name, and one set to expire
+ * (`Max-Age=0`, or an empty value) removes it. Joining a response's cookies
+ * as they come would send a cleared session cookie back as if it were live.
+ */
+export class CookieJar {
+  private readonly cookies = new Map<string, string>();
+
+  take(response: Response): this {
+    for (const line of (response.headers['set-cookie'] as unknown as string[] | undefined) ?? []) {
+      const [pair = '', ...attributes] = line.split(';');
+      const at = pair.indexOf('=');
+      const name = pair.slice(0, at).trim();
+      const value = pair.slice(at + 1).trim();
+      const expired = value === '' || attributes.some(attribute => /^\s*max-age=0\s*$/i.test(attribute));
+
+      if (expired) {
+        this.cookies.delete(name);
+      } else {
+        this.cookies.set(name, value);
+      }
+    }
+
+    return this;
+  }
+
+  has(fragment: string): boolean {
+    return [...this.cookies.keys()].some(name => name.includes(fragment));
+  }
+
+  /** Only the cookies whose name carries `fragment` — one cookie carried to another jar. */
+  only(fragment: string): string {
+    return [...this.cookies].filter(([name]) => name.includes(fragment)).map(([name, value]) => `${name}=${value}`).join('; ');
+  }
+
+  get header(): string {
+    return [...this.cookies].map(([name, value]) => `${name}=${value}`).join('; ');
+  }
 }
