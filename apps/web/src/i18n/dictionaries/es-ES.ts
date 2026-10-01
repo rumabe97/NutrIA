@@ -2858,6 +2858,7 @@ export const esES = {
     fileNote: 'Cada código sirve una sola vez. Si generas códigos nuevos, estos dejan de servir.',
     fileTitle: 'NutrIA · Códigos de respaldo',
     locked: 'Demasiados intentos fallidos. Espera 15 minutos y vuelve a acceder.',
+    lockedSettings: 'Demasiados códigos incorrectos. Espera 15 minutos y vuelve a intentarlo.',
     password: 'Tu contraseña',
     passwordMissing: 'Escribe tu contraseña.',
     passwordStep: 'Primero, tu contraseña: lo que cambia la seguridad de tu cuenta la pide siempre.',

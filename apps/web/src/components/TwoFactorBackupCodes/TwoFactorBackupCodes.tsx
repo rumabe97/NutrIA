@@ -37,6 +37,8 @@ export function TwoFactorBackupCodes({ codes, email, onDone, title }: TwoFactorB
   const t = dictionary.twoFactor;
   const [saved, setSaved] = useState(false);
   const [unsaved, setUnsaved] = useState(false);
+  // Counts the unticked presses: focus moves once the error is on the page, and again on each press.
+  const [nudge, setNudge] = useState(0);
   const [status, say] = useFleetingStatus();
   const titleRef = useRef<HTMLHeadingElement>(null);
   const titleId = useId();
@@ -44,6 +46,13 @@ export function TwoFactorBackupCodes({ codes, email, onDone, title }: TwoFactorB
   const savedId = useId();
   const unsavedId = useId();
   const missing = unsaved && !saved;
+
+  // After the commit, so the box is focused already described by its error and marked invalid.
+  useEffect(() => {
+    if (nudge > 0) {
+      document.getElementById(savedId)?.focus();
+    }
+  }, [nudge, savedId]);
 
   // What came before has left the page: focus goes to the title, which says what happened.
   useEffect(() => {
@@ -66,8 +75,12 @@ export function TwoFactorBackupCodes({ codes, email, onDone, title }: TwoFactorB
 
     link.href = url;
     link.download = t.fileName;
+    // In the document for the click, the safe form for older WebKit; the address is kept a
+    // while, because Safari starts the download after the click has returned.
+    document.body.append(link);
     link.click();
-    URL.revokeObjectURL(url);
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
     // The browser never says when it has finished, so this says it started.
     say(interpolate(t.downloading, { file: t.fileName }));
   }
@@ -75,7 +88,7 @@ export function TwoFactorBackupCodes({ codes, email, onDone, title }: TwoFactorB
   function done() {
     if (!saved) {
       setUnsaved(true);
-      document.getElementById(savedId)?.focus();
+      setNudge(previous => previous + 1);
 
       return;
     }
@@ -93,7 +106,8 @@ export function TwoFactorBackupCodes({ codes, email, onDone, title }: TwoFactorB
       </Text>
 
       {/* "List, 10 items": in rows, so the order read is the order seen. */}
-      <ol aria-labelledby={titleId} className={styles.codes}>
+      {/* `role="list"`: Safari drops the list role from a list drawn without markers. */}
+      <ol aria-labelledby={titleId} className={styles.codes} role="list">
         {codes.map(code => (
           <li key={code}>
             <code translate="no">{code}</code>

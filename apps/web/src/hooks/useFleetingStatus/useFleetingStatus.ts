@@ -6,13 +6,11 @@ const FLEETING_MS = 5000;
 
 /**
  * A short confirmation for a `role="status"` line that is mounted empty: set it, and it
- * clears itself after a few seconds — or is replaced by the next one. The button that
+ * clears itself after a few seconds — or is replaced by the next one, which restarts the clock. The button that
  * caused it keeps its label, since a label changing under focus reads inconsistently.
  */
 export function useFleetingStatus(): [string | undefined, (message: string) => void] {
   const [message, setMessage] = useState<string>();
-  // A new key for each message, so the same words twice restart the timer.
-  const [said, setSaid] = useState(0);
 
   useEffect(() => {
     if (message === undefined) {
@@ -22,13 +20,15 @@ export function useFleetingStatus(): [string | undefined, (message: string) => v
     const timer = window.setTimeout(() => setMessage(undefined), FLEETING_MS);
 
     return () => window.clearTimeout(timer);
-  }, [message, said]);
+  }, [message]);
 
   return [
     message,
     next => {
-      setMessage(next);
-      setSaid(previous => previous + 1);
+      // Emptied first and filled on the next frame: the same words twice change the DOM
+      // twice, so a screen reader announces them twice.
+      setMessage(undefined);
+      requestAnimationFrame(() => setMessage(next));
     }
   ];
 }

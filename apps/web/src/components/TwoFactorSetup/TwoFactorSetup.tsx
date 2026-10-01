@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useId, useRef, useState } from 'react';
+import { Fragment, useEffect, useId, useRef, useState } from 'react';
 
 import styles from 'components/TwoFactorCard/TwoFactorCard.module.css';
 
@@ -122,11 +122,13 @@ export function TwoFactorSetup({ onCancel, onConfirmed, totpUri }: TwoFactorSetu
                 {/* Groups that never break inside, plain spaces between them: it wraps between
                     groups at 320px and a reader reads it group by group. */}
                 <code className={styles.secret} translate="no">
+                  {/* The space outside the span: a break after a space follows the space's own
+                      white-space, so inside a nowrap span it would never wrap. */}
                   {secretGroups(secret).map(group => (
-                    <span className={styles.group} key={group.at}>
+                    <Fragment key={group.at}>
                       {group.at > 0 ? ' ' : null}
-                      {group.text}
-                    </span>
+                      <span className={styles.group}>{group.text}</span>
+                    </Fragment>
                   ))}
                 </code>
                 <div className={styles.actions}>

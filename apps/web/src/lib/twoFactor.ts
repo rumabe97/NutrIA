@@ -82,7 +82,8 @@ export function twoFactorRefusal(
     case 'INVALID_PASSWORD':
       return { field: 'password', message: t.wrongPassword, restart: false };
     case 'ACCOUNT_TEMPORARILY_LOCKED':
-      return { field: null, message: t.locked, restart: true };
+      // In /perfil there is no sign-in to go back to: only a wait.
+      return where === 'challenge' ? { field: null, message: t.locked, restart: true } : { field: null, message: t.lockedSettings, restart: false };
     case 'TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE':
       return { field: null, message: t.attemptsSpent, restart: true };
     case 'INVALID_TWO_FACTOR_COOKIE':
