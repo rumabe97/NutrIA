@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, getTableName, inArray, isNotNull, isNull, not, sql } from 'drizzle-orm';
+import { and, asc, count, desc, eq, getTableName, inArray, isNotNull, isNull, lt, not, sql } from 'drizzle-orm';
 import { ZodError } from 'zod';
 
 import { analyticsEvents } from 'database/schema/platform';
@@ -7,7 +7,7 @@ import { database } from 'database';
 import { mealPlans } from 'database/schema/plan';
 import { onboardingState } from 'database/schema/profile';
 import { professionals } from 'database/schema/professional';
-import { user } from 'database/schema/auth';
+import { user, verification } from 'database/schema/auth';
 
 import { ACTIVE_EVENTS } from 'core/entities/Analytics';
 import { DatabaseOperationError } from 'core/entities/Error';
@@ -285,6 +285,25 @@ export const UserRepository = {
       const [row] = await database().select().from(user).where(eq(user.id, id)).limit(1);
 
       return row ? userSchema.parse(row) : undefined;
+    } catch (error: unknown) {
+      throw wrap(error);
+    }
+  },
+
+  /**
+   * Deletes every verification row — reset tokens, address links, OAuth state —
+   * whose `expires_at` is already past, and answers how many went (PLAN 011).
+   * The second write to a table Better Auth owns: the pruning Better Auth did
+   * itself on every lookup, until `verification.disableCleanup` turned that off
+   * so a reset for an unknown address costs the same round trips as one for a
+   * real one. Strictly past: a row that has not expired is never touched, and
+   * every reader checks `expiresAt` itself, so this changes no answer.
+   */
+  async forgetExpiredVerifications(now: Date): Promise<number> {
+    try {
+      const rows = await database().delete(verification).where(lt(verification.expiresAt, now)).returning({ id: verification.id });
+
+      return rows.length;
     } catch (error: unknown) {
       throw wrap(error);
     }

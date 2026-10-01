@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import { PgDialect } from 'drizzle-orm/pg-core';
-import { user } from 'database/schema/auth';
+import { user, verification } from 'database/schema/auth';
 
 import { accountQuerySchema } from 'core/entities/AdminQuery';
 
@@ -22,8 +22,18 @@ let updateWhere: SQL | undefined;
 /** What the transaction's own `before` select answers — the row's state read before the update, inside the same transaction. */
 let before: Record<string, unknown>[] = [];
 
+/** The table and `WHERE` the last `DELETE` was given; it answers two rows gone. */
+let deleted: { table: unknown; where: SQL } | undefined;
+
 vi.mock('database', () => ({
   database: () => ({
+    delete: (table: unknown) => ({
+      where: (where: SQL) => {
+        deleted = { table, where };
+
+        return { returning: () => Promise.resolve([{ id: 'v-1' }, { id: 'v-2' }]) };
+      }
+    }),
     select: (fields: Record<string, unknown>) => {
       const counting = 'n' in fields;
       const chain = {
@@ -332,5 +342,21 @@ describe('UserRepository.setTier', () => {
     });
 
     await expect(UserRepository.setTier('usr-1', 'premium', record)).rejects.toThrow();
+  });
+});
+
+/*
+ * PLAN 011: Better Auth's own pruning is off, so a reset for an unknown
+ * address costs what one for a real address does; this sweep owns it now, and
+ * must never take a row that is still alive.
+ */
+describe('UserRepository.forgetExpiredVerifications', () => {
+  it('deletes only the verification rows already past their date, and counts them', async () => {
+    const now = new Date('2026-10-01T08:05:00.000Z');
+
+    await expect(UserRepository.forgetExpiredVerifications(now)).resolves.toBe(2);
+
+    expect(deleted?.table).toBe(verification);
+    expect(render(deleted?.where)).toEqual({ params: [now.toISOString()], sql: '"verification"."expires_at" < $1' });
   });
 });

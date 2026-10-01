@@ -18,12 +18,14 @@ const activate =
   >();
 const setTier = vi.fn<(id: string, tier: UserTier, record?: (tx: unknown, from: UserTier) => Promise<void>) => Promise<{ email: string } | null>>();
 const record = vi.fn<(entry: unknown, tx?: unknown) => Promise<void>>();
+const forgetExpiredVerifications = vi.fn<(now: Date) => Promise<number>>();
 
 vi.mock('#repositories/User', () => ({
   UserRepository: {
     activate: (match: { id?: string; email?: string }, r?: (tx: unknown, subjectUserId: string) => Promise<void>) => activate(match, r),
     findAll: (query: AccountQuery) => findAll(query),
     findById: (id: string) => findById(id),
+    forgetExpiredVerifications: (now: Date) => forgetExpiredVerifications(now),
     setTier: (id: string, tier: UserTier, r?: (tx: unknown, from: UserTier) => Promise<void>) => setTier(id, tier, r)
   }
 }));
@@ -219,5 +221,16 @@ describe('UserController.setTier', () => {
 
     expect(setTier).toHaveBeenCalledWith('usr-1', 'premium', undefined);
     expect(record).not.toHaveBeenCalled();
+  });
+});
+
+describe('UserController.forgetExpiredVerifications', () => {
+  it('deletes every verification row past its date, as of the moment given, and says how many', async () => {
+    const now = new Date('2026-10-01T08:05:00.000Z');
+
+    forgetExpiredVerifications.mockResolvedValue(4);
+
+    await expect(UserController.forgetExpiredVerifications(now)).resolves.toBe(4);
+    expect(forgetExpiredVerifications).toHaveBeenCalledExactlyOnceWith(now);
   });
 });

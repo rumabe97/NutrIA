@@ -182,6 +182,15 @@ export const UserController = {
   },
 
   /**
+   * The daily sweep (`/cron/sweep-verifications`): every expired verification
+   * row is deleted, now that Better Auth no longer prunes them on each lookup.
+   * Answers how many went.
+   */
+  async forgetExpiredVerifications(now: Date = new Date()): Promise<number> {
+    return UserRepository.forgetExpiredVerifications(now);
+  },
+
+  /**
    * `id` must come from the verified session. There is deliberately no
    * "get any user" method: a caller that could pass an arbitrary id would be one
    * missing authorisation check away from reading another account.

@@ -295,7 +295,16 @@ export function createAuth(
         },
         enabled: true
       }
-    }
+    },
+    /*
+     * No pruning inside a request (PLAN 011). Better Auth deletes expired rows
+     * on every verification lookup, and on a reset only the unknown-address
+     * branch looks one up — a round trip more, which timed the difference
+     * between an address with an account and one without. Every reader checks
+     * `expiresAt` itself, so this changes no answer; the daily
+     * `/cron/sweep-verifications` owns the pruning now.
+     */
+    verification: { disableCleanup: true }
   });
 }
 
