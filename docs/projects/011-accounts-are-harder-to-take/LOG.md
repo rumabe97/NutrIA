@@ -294,3 +294,101 @@
       for a marked account.
     - The new audit actions follow `legal`'s rule: the account id only in
       `actorId`/`subjectUserId`, no `ipHash`, metadata a single word.
+
+## Phase 3 — Optional second factor: an authenticator app (2026-10-01)
+
+- **Executor**: run as a `/team` led by opus 5.5 @ high.
+  - **On opus · high:** `backend-high`, `frontend-high`, `tests-high` and
+    `accessibility-high`, the authentication floor.
+  - **Reviewers on opus · high:** `migration-reviewer` and `invariant-reviewer`.
+  - **`legal`** on sonnet.
+  - **The lead's mistake:** the lead spawned duplicate `backend-2` and `tests-2` while the
+    originals were still running, having declined their shutdown to fix findings.
+    - Both duplicates were stopped with TaskStop.
+    - `tests-2` wrote into the tests worktree before it stopped; `tests` reviewed and kept
+      those edits. Nothing of `backend-2` reached the branch, as `backend` checked.
+    - A killed `tests-2` run left 5 accounts on Nutria-E2E; `tests` deleted them by stamp.
+  - No advisor consultation.
+- **Result**: done in code. Pending: the human-verify on the owner's iPhone after deploy.
+- **Evidence**:
+  - **Gate** on `978b2700`: `pnpm turbo lint ts:check test --filter=core --filter=database
+    --filter=api --filter=web --filter=ui`, 17/17 tasks. API 1375 tests, core 108 files,
+    web 27, ui 59, database 4.
+  - **End-to-end** on `f729e636`, by file path: `two-factor` 24/24; `social-sign-in`,
+    `access` and `account-security` 31/31. A first run on the stale `c6b67a1e` failed 3;
+    two were product code that `910faa2b` added, and one was the test's error-code
+    expectation. The full run is left to CI. No leftover accounts.
+  - **Migration 0051** (the `two_factor` table, `ON DELETE CASCADE`, `UNIQUE(user_id)`, and
+    `user.two_factor_enabled`): `migration-reviewer` found no P0.
+    - `UNIQUE(user_id)` cannot break the plugin. The only insert is `/enable` after an
+      empty `findOne`, and a racing double enable gets a 500, which is safer than two
+      secrets.
+    - The column is catalogue-only, and the old API survives.
+    - A rollback quietly turns 2FA off while it lasts.
+    - Its point (`twoFactor` in the adapter's schema map) was already met.
+    - Applied to Nutria-E2E by the lead on the owner's word, 2026-10-01.
+  - **`invariant-reviewer`**: no P0. Its two P1s are fixed and verified closed against
+    Better Auth 1.7.6's source.
+    - **P1-a:** a new implicit Google link at `/callback/google` into an account with the
+      factor on gave a session with no code, because the link ignores
+      `twoFactorEnabled`. Fixed by `databaseHooks.account.create.before`, which refuses it
+      unless that account's own session asks. The callback then answers
+      `?error=unable_to_link_account` and the web shows its generic social failure.
+      Side effect: an explicit Apple link would also be refused, since Apple's
+      `form_post` carries no session cookie. Apple is dark, and this is noted in
+      `apps/api/AGENTS.md`.
+    - **P1-b:** `/two-factor/get-totp-uri` handed the secret to session+password with no
+      trace. It now answers the guard's 404.
+    - **P2, done:** trusted devices are forgotten on disable, change, reset and
+      revoke-(other-)sessions. This relies on Better Auth's plain verification identifiers,
+      and the comment says so.
+    - **P2, done:** regenerating codes is audited (`auth.backup_codes_regenerated`) and
+      mailed.
+    - **P3, done:** an idle disable writes and mails nothing; a wrong comment is corrected;
+      the card says Google sign-in is guarded by Google, not by this code.
+  - **`accessibility`**:
+    - **Code read:** 1 P1 (the 52-character secret did not wrap) and 3 P2s, all fixed in
+      `cbd66a37`.
+    - **`/local-probe`** on `37f0561f`, covering the whole flow in Chrome with real TOTP
+      codes at 320, 390 and 1280 px, light and dark, plus 200% text: no P0 or P1. 2 P2s
+      and 1 P3 were fixed in `1d8e2935`, and a re-probe on `8eb06490` was clean.
+    - Not rendered: the 10-failure lockout screen (Better Auth's rate limit answers 429
+      from the 4th wrong code), and the English flow beyond the redirect.
+  - **`legal`**: `/privacidad` gains a "Verificación en dos pasos" data item and the
+    30-day "confiar en este dispositivo" cookie. The three mails fit the published
+    security-notices line. Its condition (disable deletes the `two_factor` row) holds.
+    The trust cookie's LSSI 22.2 exemption is to confirm with a lawyer.
+- **Deviations from plan** (plan amended in the same change):
+  - the invariant fixes above;
+  - the `uqr` dependency, added by the lead before the agents started;
+  - the challenge route is `/acceder/codigo` in both trees, beside `/pendiente` in `(auth)`.
+- **Decisions**: none new (`0074` covers the design).
+- **Notes for the next phase**:
+  - **Human-verify, after deploy, on the owner's iPhone with the installed app:**
+    - turn the factor on (Keychain through the "Añadir a tu app" `otpauth://` link, or an
+      app);
+    - sign in with a code, then with a backup code;
+    - turn it off;
+    - also check the `.txt` download, code autofill and VoiceOver on the grouped key and
+      the codes.
+
+    Record "confirmed by human on <date>" with the iOS version. Stop signal: the
+    challenge does not work inside the installed app.
+  - **Owner decisions:**
+    - (a) **TOTP replay:** a code is accepted again on a new challenge within about 90 s,
+      because the plugin keeps no record of used codes (RFC 6238 § 5.2, NIST 800-63B "only
+      once"). Refusing it needs a used-step record and a hook that decrypts the secret. A
+      P2, and the suite pins today's 200.
+    - (b) **Linked Google account:** an account the person linked to Google themselves
+      still signs in through Google without the code, per `0074`. It matters more in phase
+      6, where TOTP becomes mandatory for professionals.
+  - **Open, minor:**
+    - `/change-password`'s rotated session counts as a `session_started`;
+    - migrations that lock `user` set no `lock_timeout`;
+    - outside the feature: the "Ver tu evolución →" link on `/inicio` is 20 px tall on a
+      phone, and the welcome tour overflows at 320 px with 200% text.
+  - **For phase 4:**
+    - the owner's removal clears the `two_factor` row and `two_factor_enabled`, and should
+      also forget trusted devices (`UserRepository.forgetTrustedDevices`);
+    - the audit actions follow the same rule;
+    - the mails reuse the TwoFactorChanged template.

@@ -20,6 +20,8 @@ export type EmailLocale = 'en-GB' | 'es-ES';
  */
 export type EmailKind =
   | 'account-waiting'
+  | 'backup-code-used'
+  | 'backup-codes-regenerated'
   | 'care-invitation'
   | 'check-in-reminder'
   | 'checkin-submitted'
@@ -29,6 +31,8 @@ export type EmailKind =
   | 'password-changed'
   | 'password-reset'
   | 'professional-granted'
+  | 'two-factor-disabled'
+  | 'two-factor-enabled'
   | 'verify-email';
 
 export interface RenderedEmail {

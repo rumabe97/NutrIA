@@ -69,6 +69,12 @@ export interface UserView {
    * has taken the switch into account; this is the column.
    */
   tier: 'free' | 'premium';
+  /**
+   * The second factor is on (PLAN 011 phase 3): a password sign-in asks for a
+   * code from the authenticator app, or a backup code, before it opens a
+   * session. Always false for an account without a password.
+   */
+  twoFactorEnabled: boolean;
 }
 
 /**
@@ -90,7 +96,8 @@ function presentUser(user: User, hasPassword: boolean): StoredUserView {
     name: user.name,
     passwordChangeRequired: user.passwordCompromisedAt !== null,
     role: user.role,
-    tier: user.tier
+    tier: user.tier,
+    twoFactorEnabled: user.twoFactorEnabled
   };
 }
 
@@ -189,6 +196,28 @@ export const UserController = {
   },
 
   /**
+   * Ten new backup codes replaced the old ones (PLAN 011 phase 3): the row
+   * that says so, and never a code.
+   */
+  async backupCodesRegenerated(userId: string): Promise<void> {
+    await AuditRepository.record({ action: 'auth.backup_codes_regenerated', actorId: userId, entity: 'user', metadata: {}, subjectUserId: userId });
+  },
+
+  /**
+   * A backup code opened a challenge or was checked from a session (PLAN 011
+   * phase 3): how many the account has left, and never which one was spent.
+   */
+  async backupCodeUsed(userId: string, remaining: number): Promise<void> {
+    await AuditRepository.record({
+      action: 'auth.backup_code_used',
+      actorId: userId,
+      entity: 'user',
+      metadata: { remaining },
+      subjectUserId: userId
+    });
+  },
+
+  /**
    * The owner vouching for an address (see the repository): the runbook's
    * statement, and how the suites stand in for a click nobody makes there.
    * No HTTP route calls it — the product's path is the verification link.
@@ -258,6 +287,11 @@ export const UserController = {
    * address.
    */
   async sessionsRevoked(userId: string, scope: SessionsRevokedScope): Promise<void> {
+    // Closing every other session, or all of them, also stops trusting every device to skip the second factor (PLAN 011 phase 3).
+    if (scope !== 'one') {
+      await UserRepository.forgetTrustedDevices(userId);
+    }
+
     await AuditRepository.record({ action: 'auth.sessions_revoked', actorId: userId, entity: 'session', metadata: { scope }, subjectUserId: userId });
   },
 
@@ -289,5 +323,29 @@ export const UserController = {
           };
 
     return UserRepository.setTier(id, tier, record);
+  },
+
+  /**
+   * The second factor went on or off (PLAN 011 phase 3) — on at the first
+   * correct code after `/two-factor/enable`, off at `/two-factor/disable`.
+   * Better Auth has already written the account; this is the row that says
+   * so, with nothing in it: never the secret, a code or a session.
+   *
+   * Off also stops trusting every device the account trusted to skip the
+   * code — before the row, so a device trusted while it was on cannot skip
+   * it once it is back on.
+   */
+  async twoFactorChanged(userId: string, enabled: boolean): Promise<void> {
+    if (!enabled) {
+      await UserRepository.forgetTrustedDevices(userId);
+    }
+
+    await AuditRepository.record({
+      action: enabled ? 'auth.2fa_enabled' : 'auth.2fa_disabled',
+      actorId: userId,
+      entity: 'user',
+      metadata: {},
+      subjectUserId: userId
+    });
   }
 };

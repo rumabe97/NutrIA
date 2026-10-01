@@ -34,6 +34,11 @@ const PROTECTED = [
   '/progreso'
 ];
 const AUTH_ROUTES = ['/acceder', '/registro'];
+// The second step of a sign-in with two-factor on. Better Auth drops the session cookie
+// the password made and sets this one instead, for ten minutes; only the challenge's
+// routes accept it. Without it there is no sign-in waiting for a code.
+const CHALLENGE = '/acceder/codigo';
+const TWO_FACTOR_COOKIE = 'better-auth.two_factor';
 
 export function proxy(request: NextRequest): NextResponse {
   const { nextUrl } = request;
@@ -75,6 +80,18 @@ export function proxy(request: NextRequest): NextResponse {
     return remember(NextResponse.redirect(url), arriving);
   }
 
+  // Opened with no sign-in pending — a bookmark, a back button after the code, a cookie
+  // that expired: back to the password, keeping `?siguiente`. A present cookie proves
+  // nothing either; the API checks it when the code is sent.
+  if (path === CHALLENGE && !hasSession && !request.cookies.has(TWO_FACTOR_COOKIE) && !request.cookies.has(`__Secure-${TWO_FACTOR_COOKIE}`)) {
+    const url = nextUrl.clone();
+
+    url.pathname = withLocale('/acceder', locale);
+
+    return remember(NextResponse.redirect(url), arriving);
+  }
+
+  // `/acceder/codigo` too: with a session there is no second step left to take.
   if (hasSession && AUTH_ROUTES.some(authPath => path.startsWith(authPath))) {
     const url = nextUrl.clone();
 

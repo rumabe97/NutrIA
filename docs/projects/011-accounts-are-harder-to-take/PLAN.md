@@ -251,7 +251,7 @@ records what was decided.
 
 ### Phase 3 — Optional second factor: an authenticator app
 
-- [ ] pending
+- [ ] in progress
 - **Dispatch**: opus @ high — `/execute-project 011 phase 3`, as a `/team` (`backend`,
   `frontend`, `tests`). `quality-max`. Reviews: `invariant-reviewer`, `migration-reviewer`,
   `accessibility` with `/local-probe`. — human-verify: the owner turns it on in his
@@ -288,6 +288,14 @@ records what was decided.
       instead of the switch;
     - dictionaries.
   - `apps/api/test/**`: `two-factor.e2e-spec.ts`.
+  - Amended 2026-10-01, after the invariant review:
+    - a new implicit provider link into an account with the factor on is refused unless
+      that account's own session asks (`databaseHooks.account.create.before`);
+    - `/two-factor/get-totp-uri` answers the guard's 404;
+    - trusted devices are forgotten on disable, password change, reset,
+      `/revoke-other-sessions` and `/revoke-sessions`;
+    - regenerating backup codes is audited (`auth.backup_codes_regenerated`) and mailed;
+    - the QR is drawn by `uqr` (0.1.3, MIT, no dependency), added by the lead.
 - **Steps**:
   1. Migration; `migration-reviewer`.
   2. Plugin and hooks; unit specs for the password-only rule and the analytics count.

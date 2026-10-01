@@ -178,6 +178,10 @@ export const esES = {
     actions: {
       'account.activated': 'Cuenta activada',
       'account.tier_changed': 'Cambio de plan',
+      'auth.2fa_disabled': 'Verificación en dos pasos desactivada',
+      'auth.2fa_enabled': 'Verificación en dos pasos activada',
+      'auth.backup_code_used': 'Código de respaldo usado',
+      'auth.backup_codes_regenerated': 'Códigos de respaldo nuevos generados',
       'auth.password_changed': 'Contraseña cambiada',
       'auth.sessions_revoked': 'Sesiones cerradas',
       'feedback.handled': 'Mensaje marcado como visto',
@@ -194,6 +198,8 @@ export const esES = {
     /** `picture.accepted`: what the judge had flagged, followed by the catalogue's names for those allergens. */
     allergensOverridden: 'El revisor había señalado:',
     allergensOverriddenNone: 'El revisor no había señalado ningún alérgeno',
+    /** `auth.backup_code_used`: how many codes the person has left. */
+    backupCodesLeft: 'Le quedan {remaining}',
     caption: 'Acciones',
     columns: { account: 'Cuenta', action: 'Acción', actor: 'Quién', date: 'Fecha', detail: 'Detalle' },
     empty: 'El registro empieza el día en que esto se despliega: no hay ninguna fila anterior.',
@@ -1877,6 +1883,7 @@ export const esES = {
       title: 'NutrIA — Planes de alimentación personalizados'
     },
     '/acceder': { description: 'Entra en NutrIA para ver tu plan de hoy, tu lista de la compra y tu progreso.', title: 'Acceder' },
+    '/acceder/codigo': { title: 'Verificación en dos pasos' },
     '/admin': { title: 'Resumen' },
     '/admin/ajustes': { title: 'Interruptores' },
     '/admin/ajustes/registro': { title: 'Registro de acciones' },
@@ -2273,6 +2280,7 @@ export const esES = {
           'Cómo llevas el plan: qué comidas marcas como hechas o saltadas, tus valoraciones y comentarios de los platos, tu peso a lo largo del tiempo y tus check-ins quincenales. Para que el siguiente plan lo tenga en cuenta.',
           'Pagos: si contratas Premium, Stripe cobra y nosotros guardamos solo el identificador de tu suscripción y su estado. Nunca vemos el número de tu tarjeta.',
           'Seguridad de tu cuenta: anotamos cuándo cambias o restableces tu contraseña y cuándo cierras sesiones, con la fecha y sin tu dirección IP. Para que podamos ver qué pasó si alguien entra en tu cuenta.',
+          'Verificación en dos pasos, solo si la activas: el secreto de tu aplicación de autenticación y tus códigos de respaldo, cifrados, los intentos fallidos de código y, en el registro de seguridad, cuándo la activas, la desactivas o usas un código de respaldo. Si la desactivas, borramos el secreto y los códigos. Para que, aunque alguien sepa tu contraseña, no entre en tu cuenta.',
           'Uso del producto: registramos, ligado a tu cuenta, cuándo abres sesión y cuándo pides cambiar un plato, sin más detalle. Para saber si el producto funciona.',
           'Lo que nos escribes: los mensajes del buzón de sugerencias, para leerlos y responderte.'
         ],
@@ -2367,7 +2375,7 @@ export const esES = {
       {
         heading: 'Cookies y almacenamiento en tu dispositivo',
         paragraphs: [
-          'Solo usamos lo imprescindible para que el servicio funcione, y por eso no te pedimos permiso: la cookie de tu sesión, la del idioma que has elegido y, al entrar con Google o Apple, las que ese paso necesita durante unos minutos. Ninguna es de terceros ni rastrea tu actividad en otras webs.',
+          'Solo usamos lo imprescindible para que el servicio funcione, y por eso no te pedimos permiso: la cookie de tu sesión, la del idioma que has elegido, la que, si marcas «confiar en este dispositivo» al verificar en dos pasos, evita pedirte el código durante 30 días en ese navegador y, al entrar con Google o Apple, las que ese paso necesita durante unos minutos. Ninguna es de terceros ni rastrea tu actividad en otras webs.',
           'En el almacenamiento de tu navegador guardamos lo que marcas sin conexión hasta que se envía, un aviso de plan pendiente de revisión y, si instalas NutrIA en tu teléfono, una copia de tu plan de hoy y de la lista de la compra para usarlas sin conexión. Todo se queda en tu dispositivo.'
         ]
       },
@@ -2805,6 +2813,81 @@ export const esES = {
         title: 'Si te vas, el plan te espera'
       }
     }
+  },
+
+  twoFactor: {
+    activate: 'Activar',
+    addToApp: 'Añadir a tu app',
+    attemptsSpent: 'Demasiados códigos incorrectos en este acceso. Vuelve a acceder para empezar de nuevo.',
+    backupCode: 'Código de respaldo',
+    backupCodeHint: 'Uno de los 10 que guardaste: 10 letras y números con un guion.',
+    backupCodeMissing: 'Un código de respaldo son 10 letras y números con un guion, como abcde-12345.',
+    bodyOff:
+      'Al entrar, además de tu contraseña te pediremos un código de 6 cifras de una app de autenticación, como las Contraseñas del iPhone o Google Authenticator.',
+    bodyOn:
+      'Al entrar con tu contraseña te pedimos también un código de tu app de autenticación. Si no la tienes a mano, sirve un código de respaldo.',
+    challengeBackupSubtitle: 'Escribe uno de los códigos de respaldo que guardaste al activarla. Cada uno sirve una sola vez.',
+    challengeSubtitle: 'Tu cuenta tiene activada la verificación en dos pasos. Escribe el código que muestra ahora tu app de autenticación.',
+    challengeTitle: 'Verificación en dos pasos',
+    code: 'Código de verificación',
+    codeHint: 'El código de 6 cifras que muestra tu app de autenticación.',
+    codeMissing: 'El código tiene 6 cifras.',
+    codesBody: 'Cada código sirve una vez. No volverás a verlos aquí; si los pierdes, genera otros.',
+    codesCopied: 'Códigos copiados.',
+    codesSaved: 'Los he guardado',
+    codesSavedMissing: 'Marca la casilla cuando los hayas guardado: no volverás a verlos.',
+    codesTitleEnabled: 'Verificación activada. Guarda tus códigos de respaldo',
+    codesTitleRegenerated: 'Códigos nuevos. Los anteriores ya no sirven',
+    confirm: 'Comprobar y activar',
+    confirmCode: 'Código de la app',
+    confirmHint: 'El de 6 cifras que muestra la app ahora: así sabemos que está bien añadida.',
+    copy: 'Copiar códigos',
+    copyFailed: 'No se han podido copiar. Descárgalos o apúntalos a mano.',
+    copySecret: 'Copiar clave',
+    disable: 'Desactivar',
+    disableBody: 'Tu cuenta quedará protegida solo por tu contraseña, y tus códigos de respaldo dejarán de servir.',
+    disableConfirm: 'Desactivar la verificación',
+    disabled: 'Verificación en dos pasos desactivada. Te lo confirmamos por correo.',
+    disableTitle: '¿Desactivar la verificación en dos pasos?',
+    done: 'Terminar',
+    download: 'Descargar (.txt)',
+    downloading: 'Descargando {file}',
+    enabled: 'Verificación en dos pasos activada. Te lo confirmamos por correo.',
+    expired: 'Ha pasado demasiado tiempo. Vuelve a acceder.',
+    fileDate: 'Generados el {date}',
+    fileName: 'nutria-codigos-respaldo.txt',
+    fileNote: 'Cada código sirve una sola vez. Si generas códigos nuevos, estos dejan de servir.',
+    fileTitle: 'NutrIA · Códigos de respaldo',
+    googleNote: 'Si también entras con Google, ahí no te pediremos el código: te protege la verificación en dos pasos de tu cuenta de Google.',
+    locked: 'Demasiados intentos fallidos. Espera 15 minutos y vuelve a acceder.',
+    lockedSettings: 'Demasiados códigos incorrectos. Espera 15 minutos y vuelve a intentarlo.',
+    password: 'Tu contraseña',
+    passwordMissing: 'Escribe tu contraseña.',
+    passwordStep: 'Primero, tu contraseña: lo que cambia la seguridad de tu cuenta la pide siempre.',
+    regenerate: 'Generar códigos nuevos',
+    regenerateBody: 'Los códigos anteriores dejarán de servir.',
+    regenerateConfirm: 'Generar códigos',
+    regenerated: 'Tienes códigos de respaldo nuevos. Los anteriores ya no sirven.',
+    regenerateTitle: '¿Generar códigos de respaldo nuevos?',
+    scanCaption: 'Escanéalo con tu app de autenticación. Si estás en el móvil, usa el botón o la clave de abajo.',
+    secret: 'Clave de configuración',
+    secretCopied: 'Clave copiada.',
+    setupWrongCode: 'No coincide. Escribe el código que muestra la app ahora.',
+    statusOff: 'Desactivada',
+    statusOn: 'Activada',
+    stepConfirm: 'Paso 3 de 3: comprueba el código',
+    stepPassword: 'Paso 1 de 3: tu contraseña',
+    stepScan: 'Paso 2 de 3: añade NutrIA a tu app',
+    title: 'Verificación en dos pasos',
+    trustDevice: 'Confiar en este dispositivo 30 días',
+    trustDeviceHint: 'No te pediremos el código en este navegador durante 30 días. No lo marques en un dispositivo compartido.',
+    useApp: 'Usar el código de la app',
+    useBackup: 'Usar un código de respaldo',
+    verify: 'Verificar',
+    verifying: 'Verificando…',
+    wrongBackupCode: 'Ese código de respaldo no es válido o ya se usó.',
+    wrongCode: 'El código no es correcto. Escribe el que muestra la app ahora; si sigue fallando, comprueba que la hora del móvil es automática.',
+    wrongPassword: 'La contraseña no es correcta.'
   },
 
   units: {

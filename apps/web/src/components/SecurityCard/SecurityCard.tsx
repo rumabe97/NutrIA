@@ -9,6 +9,7 @@ import { useDictionary } from 'i18n/LocaleProvider';
 import { Card } from 'components/Card';
 import { ChangePasswordForm } from 'components/ChangePasswordForm';
 import { SessionList } from 'components/SessionList';
+import { TwoFactorCard } from 'components/TwoFactorCard';
 
 /** Google's own page for turning on its second step — the one that protects an account signed in with Google. */
 const GOOGLE_TWO_STEP_URL = 'https://myaccount.google.com/signinoptions/twosv';
@@ -18,16 +19,20 @@ interface SecurityCardProps {
   email: string;
   /** A password account exists (`UserView.hasPassword`); without one, there is nothing here to change. */
   hasPassword: boolean;
+  /** `UserView.twoFactorEnabled`: the second factor is on. */
+  twoFactorEnabled: boolean;
 }
 
 /**
- * The profile's "Seguridad": the password, and where the account is signed in.
+ * The profile's "Seguridad": the password, the second factor (only with a password: an
+ * account that signs in with Google gets Google's own, in the sentence above), and where
+ * the account is signed in.
  *
  * One client component for both because a password change closes every other session:
  * the list is drawn again after it, by remounting it, rather than showing devices that
  * are already signed out.
  */
-export function SecurityCard({ email, hasPassword }: SecurityCardProps) {
+export function SecurityCard({ email, hasPassword, twoFactorEnabled }: SecurityCardProps) {
   const dictionary = useDictionary();
   const t = dictionary.security;
   const [generation, setGeneration] = useState(0);
@@ -57,6 +62,12 @@ export function SecurityCard({ email, hasPassword }: SecurityCardProps) {
           </Fragment>
         )}
       </Card>
+
+      {hasPassword ? (
+        <Card as="section">
+          <TwoFactorCard email={email} enabled={twoFactorEnabled} />
+        </Card>
+      ) : null}
 
       <Card as="section">
         <SessionList key={generation} />

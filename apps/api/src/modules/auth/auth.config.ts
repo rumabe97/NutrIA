@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { isPasswordCompromised } from 'better-auth/plugins/haveibeenpwned';
+import { twoFactor } from 'better-auth/plugins/two-factor';
 
 import { AnalyticsController } from 'core/controllers/Analytics';
 import { CareController } from 'core/controllers/Care';
@@ -9,19 +10,29 @@ import { TERMS_VERSION } from 'core/entities/User';
 import { DEFAULT_WEB_LOCALE, webUrl } from 'core/domain/WebUrl';
 
 import { database } from 'database';
-import { account, rateLimit, session, user, verification } from 'database/schema/auth';
+import { account, rateLimit, session, twoFactor as twoFactorTable, user, verification } from 'database/schema/auth';
 
 import { APPLE_ORIGIN, configuredSocialProviders, socialProviderOptions } from './services/SocialProviders.js';
 import { onAccountCreated, onAddressConfirmed } from './services/SelfService.js';
 import { accountSecurityAfter, accountSecurityBefore, onPasswordReset } from './services/AccountSecurity.js';
 import { sendPasswordChangedMail } from './services/PasswordChangedMail.js';
 import { sendPasswordResetMail } from './services/PasswordResetMail.js';
+import {
+  BACKUP_CODE_COUNT,
+  refusesLinkPastTheFactor,
+  sessionStartedOnSignIn,
+  startsAVisit,
+  TRUST_DEVICE_MAX_AGE,
+  TWO_FACTOR_ISSUER
+} from './services/TwoFactor.js';
+import { sendTwoFactorMail } from './services/TwoFactorMail.js';
 import { sendVerificationMail } from './services/VerificationMail.js';
 
 import type { BackgroundTaskService } from '../../shared/services/index.js';
 import type { BillingService } from '../billing/services/Billing.service.js';
 import type { Env } from '../../config/index.js';
 import type { EmailService } from '../email/services/Email.service.js';
+import type { TwoFactorNotice } from './services/TwoFactor.js';
 
 const MINUTES = 60;
 
@@ -31,8 +42,8 @@ const MINUTES = 60;
  * because those are the requests that guess passwords.
  *
  * The end-to-end suites open dozens of accounts in a couple of minutes from one
- * address, which is precisely that shape of traffic. Only the two paths they
- * hammer are raised, only under `NODE_ENV=test`, and raised rather than switched
+ * address, which is precisely that shape of traffic. Only the paths they
+ * hammer — and `/two-factor/*`, three in ten seconds by the plugin's rule — are raised, only under `NODE_ENV=test`, and raised rather than switched
  * off: the limiter stays on its real path, so a broken `rate_limit` table still
  * fails the suites, and every other route keeps the production rule.
  */
@@ -73,7 +84,9 @@ export function createAuth(
       acceptLanguage: string | null;
       email: string;
       userAgent: string | null;
-    }) => sendPasswordChangedMail(mailer, { acceptLanguage, appUrl: env.APP_URL, to: email, userAgent, userId: id })
+    }) => sendPasswordChangedMail(mailer, { acceptLanguage, appUrl: env.APP_URL, to: email, userAgent, userId: id }),
+    mailTwoFactor: async ({ id, acceptLanguage, email, event, userAgent }: TwoFactorNotice) =>
+      sendTwoFactorMail(mailer, { acceptLanguage, appUrl: env.APP_URL, event, to: email, userAgent, userId: id })
   };
 
   return betterAuth({
@@ -124,8 +137,21 @@ export function createAuth(
     },
     basePath: `/${env.API_PREFIX}/auth`,
     baseURL: env.BETTER_AUTH_URL,
-    database: drizzleAdapter(database(), { provider: 'pg', schema: { account, rateLimit, session, user, verification } }),
+    database: drizzleAdapter(database(), { provider: 'pg', schema: { account, rateLimit, session, twoFactor: twoFactorTable, user, verification } }),
     databaseHooks: {
+      account: {
+        create: {
+          /*
+           * No provider is linked past the second factor (PLAN 011 phase 3):
+           * the implicit link at the provider's callback would otherwise open
+           * a full session for an account with the factor on, with no code
+           * (`services/TwoFactor.ts`, `refusesLinkPastTheFactor`). `false`
+           * makes Better Auth answer "unable to link account".
+           */
+          before: async (linked: { providerId?: unknown; userId?: unknown }, context: Parameters<typeof refusesLinkPastTheFactor>[1]) =>
+            (await refusesLinkPastTheFactor(linked, context)) ? false : undefined
+        }
+      },
       session: {
         create: {
           /*
@@ -133,9 +159,16 @@ export function createAuth(
            * session row is deleted when it expires, so "did anybody come back"
            * is unanswerable a fortnight later unless it is written down as it
            * happens. Nothing about the visit travels but the fact of it.
+           *
+           * Once per real sign-in (PLAN 011 phase 3): a password sign-in is
+           * counted by `sessionStartedOnSignIn` once the two-factor plugin has
+           * decided whether its session survives, and the plugin's rotations
+           * of a session somebody already had are not visits (`startsAVisit`).
            */
-          after: async (created: { userId: string }) => {
-            await AnalyticsController.record('session_started', created.userId);
+          after: async (created: { userId: string }, context: Parameters<typeof startsAVisit>[0]) => {
+            if (startsAVisit(context)) {
+              await AnalyticsController.record('session_started', created.userId);
+            }
           }
         },
         update: {
@@ -253,6 +286,21 @@ export function createAuth(
      * proved against HIBP in the background and marks the account on a hit.
      */
     hooks: { after: accountSecurityAfter(security), before: accountSecurityBefore(isCompromised) },
+    plugins: [
+      /*
+       * The second factor (PLAN 011 phase 3): an authenticator app (TOTP) and
+       * ten backup codes, for an account with a password — `hooks.before`
+       * answers the 404 to anybody else, and to email OTP, which is not
+       * offered (no `otpOptions.sendOTP`). `/enable` stores an unverified
+       * secret; the first correct `/verify-totp` turns it on. A password
+       * sign-in then answers `{ twoFactorRedirect: true }` with no session,
+       * and `/verify-totp` or `/verify-backup-code` finishes it. A change or
+       * a reset of the password leaves the factor as it was.
+       */
+      twoFactor({ backupCodeOptions: { amount: BACKUP_CODE_COUNT }, issuer: TWO_FACTOR_ISSUER, trustDeviceMaxAge: TRUST_DEVICE_MAX_AGE }),
+      // After `twoFactor`, so it sees what the plugin left of the sign-in's session.
+      sessionStartedOnSignIn()
+    ],
     /*
      * Counted in the database, not in the process.
      *
@@ -265,7 +313,8 @@ export function createAuth(
      * (`0007`, amended).
      */
     rateLimit: {
-      customRules: env.NODE_ENV === 'test' ? { '/sign-in/*': TEST_AUTH_RULE, '/sign-up/*': TEST_AUTH_RULE } : undefined,
+      customRules:
+        env.NODE_ENV === 'test' ? { '/sign-in/*': TEST_AUTH_RULE, '/sign-up/*': TEST_AUTH_RULE, '/two-factor/*': TEST_AUTH_RULE } : undefined,
       enabled: true,
       storage: 'database'
     },

@@ -21,6 +21,7 @@ const record = vi.fn<(entry: unknown, tx?: unknown) => Promise<void>>();
 const forgetExpiredVerifications = vi.fn<(now: Date) => Promise<number>>();
 const hasPassword = vi.fn<(id: string) => Promise<boolean>>();
 const markPasswordCompromised = vi.fn<(id: string, at: Date) => Promise<boolean>>();
+const forgetTrustedDevices = vi.fn<(id: string) => Promise<number>>();
 const passwordChanged = vi.fn<(id: string, record: (tx: unknown) => Promise<void>) => Promise<void>>();
 
 vi.mock('#repositories/User', () => ({
@@ -29,6 +30,7 @@ vi.mock('#repositories/User', () => ({
     findAll: (query: AccountQuery) => findAll(query),
     findById: (id: string) => findById(id),
     forgetExpiredVerifications: (now: Date) => forgetExpiredVerifications(now),
+    forgetTrustedDevices: (id: string) => forgetTrustedDevices(id),
     hasPassword: (id: string) => hasPassword(id),
     markPasswordCompromised: (id: string, at: Date) => markPasswordCompromised(id, at),
     passwordChanged: (id: string, r: (tx: unknown) => Promise<void>) => passwordChanged(id, r),
@@ -89,6 +91,13 @@ describe('UserController.getUser — the password', () => {
     expect(view).toMatchObject({ hasPassword: true, passwordChangeRequired: true });
     expect(view).not.toHaveProperty('passwordCompromisedAt');
   });
+
+  it('says whether the second factor is on, as the row has it', async () => {
+    findById.mockResolvedValue(makeUser({ twoFactorEnabled: true }));
+    hasPassword.mockResolvedValue(true);
+
+    await expect(UserController.getUser({ id: 'usr-1' })).resolves.toMatchObject({ twoFactorEnabled: true });
+  });
 });
 
 describe('UserController.passwordChanged', () => {
@@ -116,6 +125,15 @@ describe('UserController.passwordChanged', () => {
 describe('UserController.sessionsRevoked', () => {
   beforeEach(() => {
     record.mockReset();
+    forgetTrustedDevices.mockReset();
+  });
+
+  it('stops trusting the account’s devices when others or all sessions close, not when one does', async () => {
+    await UserController.sessionsRevoked('usr-1', 'one');
+    await UserController.sessionsRevoked('usr-1', 'others');
+    await UserController.sessionsRevoked('usr-1', 'all');
+
+    expect(forgetTrustedDevices.mock.calls).toEqual([['usr-1'], ['usr-1']]);
   });
 
   it.each(['one', 'others', 'all'] as const)('writes one auth.sessions_revoked row {scope: %s}, the scope and nothing else', async scope => {
@@ -123,6 +141,61 @@ describe('UserController.sessionsRevoked', () => {
 
     expect(record).toHaveBeenCalledWith(
       { action: 'auth.sessions_revoked', actorId: 'usr-1', entity: 'session', metadata: { scope }, subjectUserId: 'usr-1' },
+      undefined
+    );
+  });
+});
+
+describe('UserController.twoFactorChanged', () => {
+  beforeEach(() => {
+    record.mockReset();
+    forgetTrustedDevices.mockReset();
+  });
+
+  it('stops trusting the account’s devices when the factor goes off, and only then', async () => {
+    await UserController.twoFactorChanged('usr-1', false);
+    await UserController.twoFactorChanged('usr-1', true);
+
+    expect(forgetTrustedDevices).toHaveBeenCalledTimes(1);
+    expect(forgetTrustedDevices).toHaveBeenCalledWith('usr-1');
+  });
+
+  it.each([
+    [true, 'auth.2fa_enabled'],
+    [false, 'auth.2fa_disabled']
+  ] as const)('writes one row with nothing in its metadata when the factor goes %s', async (enabled, action) => {
+    await UserController.twoFactorChanged('usr-1', enabled);
+
+    expect(record).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith({ action, actorId: 'usr-1', entity: 'user', metadata: {}, subjectUserId: 'usr-1' }, undefined);
+  });
+});
+
+describe('UserController.backupCodesRegenerated', () => {
+  beforeEach(() => {
+    record.mockReset();
+  });
+
+  it('writes one auth.backup_codes_regenerated row with nothing in its metadata', async () => {
+    await UserController.backupCodesRegenerated('usr-1');
+
+    expect(record).toHaveBeenCalledWith(
+      { action: 'auth.backup_codes_regenerated', actorId: 'usr-1', entity: 'user', metadata: {}, subjectUserId: 'usr-1' },
+      undefined
+    );
+  });
+});
+
+describe('UserController.backupCodeUsed', () => {
+  beforeEach(() => {
+    record.mockReset();
+  });
+
+  it('writes one auth.backup_code_used row with the count left and nothing else', async () => {
+    await UserController.backupCodeUsed('usr-1', 9);
+
+    expect(record).toHaveBeenCalledWith(
+      { action: 'auth.backup_code_used', actorId: 'usr-1', entity: 'user', metadata: { remaining: 9 }, subjectUserId: 'usr-1' },
       undefined
     );
   });

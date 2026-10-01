@@ -42,6 +42,8 @@ export const userSchema = z.object({
   passwordCompromisedAt: z.date().nullable(),
   role: z.enum(['user', 'admin']),
   tier: z.enum(['free', 'premium']),
+  /** The second factor is on (PLAN 011 phase 3): a password sign-in answers a challenge before a session. */
+  twoFactorEnabled: z.boolean(),
   updatedAt: z.date()
 });
 
