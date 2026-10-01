@@ -40,7 +40,7 @@ Each is adapted to the rule below, not taken as is.
 
 ### Phase 1 — The `scheduled` status exists, and the review index no longer depends on the status list
 
-- [ ] in progress
+- [x] done
 - **Dispatch**: sonnet @ medium — `/execute-project 015 phase 1`. The `migration-reviewer` (opus · high) reviews.
 - **Goal**:
   - Rewrite `meal_plans_one_pending_review_per_user` as `WHERE status = 'pending_review'`. That value is already committed, so this is safe in one migration: drop the index and create it again.
@@ -52,7 +52,7 @@ Each is adapted to the rule below, not taken as is.
   2. Update `schema.test.ts`'s status-list guard to the new predicate.
   3. Run `node scripts/check-migrations.mjs --drift`.
   4. Have the migration reviewed.
-- **Acceptance**: migration reviewed safe (no lock beyond the index rebuild on a small table, old API unaffected); gate green.
+- **Acceptance**: migration reviewed safe, with the old API unaffected, and gate green. *Amended:* the lock is ACCESS EXCLUSIVE on `meal_plans` until commit, so it also blocks reads and FK-checked inserts into plan_days, meals and plan_generation_jobs. That is milliseconds at today's size.
 - **Verification**: `sh .claude/skills/ship/scripts/gate.sh --full <dir>`.
 
 ### Phase 2 — A plan waits for its day
