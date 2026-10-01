@@ -51,6 +51,7 @@ export class SessionGuard implements CanActivate {
       email: session.user.email,
       emailVerified: session.user.emailVerified,
       name: session.user.name,
+      passwordChangeRequired: (session.user as { passwordCompromisedAt?: Date | string | null }).passwordCompromisedAt != null,
       role: (session.user as { role?: 'admin' | 'user' }).role ?? 'user'
     };
 

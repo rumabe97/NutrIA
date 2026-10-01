@@ -1,0 +1,11 @@
+-- Hand-added comment only; the statement is drizzle-kit's, unchanged (PLAN 011 phase 2).
+-- One nullable column with no default: metadata only, no row is rewritten, and the ACCESS EXCLUSIVE
+-- lock on "user" is held for the catalogue change alone (milliseconds), not for a table scan. Taking it
+-- first waits for every open transaction on "user", and new session lookups queue behind the wait.
+-- BillingRepository.customerFor holds FOR NO KEY UPDATE on a user row while it calls Stripe, so the
+-- ALTER can wait as long as that call takes. Do not merge this just before the 03:30 and 08:00 UTC crons.
+-- No backfill, on purpose: NULL means "not known to be breached", which is true of every existing row.
+-- The old API, still running while this deploys, neither reads nor writes the column. If the API is
+-- rolled back, a password changed under the old API leaves the mark set, and the person is asked to
+-- change it once more when the new API returns. No index, no constraint and no foreign key.
+ALTER TABLE "user" ADD COLUMN "password_compromised_at" timestamp with time zone;

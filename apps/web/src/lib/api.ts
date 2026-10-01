@@ -1,5 +1,6 @@
 import { API_URL } from './env';
 import { DEFAULT_LOCALE, LOCALE_COOKIE, parseLocale } from '../i18n/config';
+import { withLocale } from '../i18n/routes';
 
 import type { Dictionary } from '../i18n/dictionaries/es-ES';
 
@@ -18,6 +19,7 @@ export type ApiErrorCode =
   | 'NETWORK'
   | 'NOT_FOUND'
   | 'ONBOARDING_INCOMPLETE'
+  | 'PASSWORD_CHANGE_REQUIRED'
   | 'PICTURE_ALLERGENS_MISMATCH'
   | 'PICTURE_CAP_REACHED'
   | 'PICTURE_DRAWING'
@@ -69,6 +71,7 @@ const MESSAGE_KEYS: Record<ApiErrorCode, keyof Dictionary['errors']> = {
   NETWORK: 'network',
   NOT_FOUND: 'notFound',
   ONBOARDING_INCOMPLETE: 'onboardingIncomplete',
+  PASSWORD_CHANGE_REQUIRED: 'passwordChangeRequired',
   PICTURE_ALLERGENS_MISMATCH: 'pictureAllergensMismatch',
   PICTURE_CAP_REACHED: 'pictureCapReached',
   PICTURE_DRAWING: 'pictureDrawing',
@@ -97,6 +100,9 @@ export function messageFor(error: unknown, dictionary: Dictionary): string {
   // refusals, say) still says something, rather than an empty alert.
   return dictionary.errors[MESSAGE_KEYS[error.code] ?? 'request'];
 }
+
+/** Where an account whose password must be changed is sent (`PASSWORD_CHANGE_REQUIRED`). */
+export const PASSWORD_CHANGE_PATH = '/cambiar-contrasena';
 
 type Options = Omit<RequestInit, 'body'> & { body?: unknown };
 
@@ -145,6 +151,14 @@ export async function api<T>(path: string, { body, headers, ...options }: Option
       practice?: { includedClients: number };
       retryAt?: string;
     };
+
+    // A password found in a breach locks every route but the change itself (project 011):
+    // whatever was being done, the one way forward is the screen that changes it. The
+    // server-rendered pages get there through `redirectUnlessReady`; this is the same for a
+    // request made from the browser. The error is still thrown, so the caller stops.
+    if (code === 'PASSWORD_CHANGE_REQUIRED' && typeof window !== 'undefined') {
+      window.location.assign(withLocale(PASSWORD_CHANGE_PATH, parseLocale(readLocaleCookie()) ?? DEFAULT_LOCALE));
+    }
 
     throw new ApiError(
       code ?? 'REQUEST_ERROR',

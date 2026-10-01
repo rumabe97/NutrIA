@@ -1,10 +1,19 @@
 import { Logger } from '@nestjs/common';
-import { APIError, createAuthMiddleware, getAuthoritativeSessionFromCtx } from 'better-auth/api';
+import { APIError, getAuthoritativeSessionFromCtx } from 'better-auth/api';
 
 import { PASSWORD_ERROR_CODES, PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, passwordHasContext } from 'core/entities/Password';
 
-type Context = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0];
+import type { createAuthMiddleware } from 'better-auth/api';
+
+export type Context = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0];
 type AccountWords = { email?: string | null; name?: string | null };
+
+/**
+ * The account a door sets a password for. `sameAsStored` is there only for an
+ * account marked compromised, and answers whether the new password is the one
+ * it already has.
+ */
+type DoorAccount = AccountWords & { sameAsStored?: (password: string) => Promise<boolean> };
 
 /** Answers whether a password is in the breach corpus, or throws when it cannot tell. */
 export type CompromisedCheck = (password: string) => Promise<boolean>;
@@ -58,11 +67,11 @@ export async function breachedOrPass(
   }
 }
 
-function record(value: unknown): Record<string, unknown> {
+export function record(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 }
 
-function text(value: unknown): string | null {
+export function text(value: unknown): string | null {
   return typeof value === 'string' ? value : null;
 }
 
@@ -72,7 +81,7 @@ function text(value: unknown): string | null {
  * skipped: Better Auth answers its own `INVALID_TOKEN`, and a stranger holding
  * a dead token learns nothing about the account it once named.
  */
-async function resetAccount(context: Context, body: Record<string, unknown>): Promise<AccountWords | null> {
+async function resetAccount(context: Context, body: Record<string, unknown>): Promise<DoorAccount | null> {
   // `||`, exactly as Better Auth reads it: an empty body token falls through to
   // the query's, and Better Auth goes on with that one — `??` kept the "" and
   // skipped the checks on a reset that then went through.
@@ -90,28 +99,58 @@ async function resetAccount(context: Context, body: Record<string, unknown>): Pr
 
   const user = await context.context.internalAdapter.findUserById(verification.value);
 
-  return user ? { email: user.email, name: user.name } : null;
+  if (!user) {
+    return null;
+  }
+
+  const sameAsStored = async (password: string): Promise<boolean> => {
+    const credential = await context.context.internalAdapter.findCredentialAccount(user.id);
+
+    return credential?.password ? context.context.password.verify({ hash: credential.password, password }) : false;
+  };
+
+  return { email: user.email, name: user.name, ...(isMarked(user) ? { sameAsStored } : {}) };
 }
 
-/** The session's own account, read the way `/change-password` itself reads it. No session, and Better Auth answers its 401. */
-async function sessionAccount(context: Context): Promise<AccountWords | null> {
+function isMarked(user: object): boolean {
+  return (user as { passwordCompromisedAt?: unknown }).passwordCompromisedAt != null;
+}
+
+/**
+ * The session's own account, read the way `/change-password` itself reads it.
+ * No session, and Better Auth answers its 401.
+ *
+ * For a marked account the new password is held to the body's
+ * `currentPassword`, not to the stored hash: verifying it against the hash
+ * here, before the route has checked `currentPassword`, would let anybody
+ * holding the session guess the password one refusal at a time. The route
+ * refuses a `currentPassword` that is not the stored one, so a new password
+ * equal to a current one that passes is exactly the stored password.
+ */
+async function sessionAccount(context: Context, body: Record<string, unknown>): Promise<DoorAccount | null> {
   const session = await getAuthoritativeSessionFromCtx(context);
 
-  return session ? { email: session.user.email, name: session.user.name } : null;
+  if (!session) {
+    return null;
+  }
+
+  const sameAsStored = async (password: string): Promise<boolean> => Promise.resolve(password === text(body.currentPassword));
+
+  return { email: session.user.email, name: session.user.name, ...(isMarked(session.user) ? { sameAsStored } : {}) };
 }
 
 /** The three doors a password is set through, which field carries it, and whose words it may not contain. */
-const DOORS: Record<string, { account: (context: Context, body: Record<string, unknown>) => Promise<AccountWords | null>; field: string }> = {
+const DOORS: Record<string, { account: (context: Context, body: Record<string, unknown>) => Promise<DoorAccount | null>; field: string }> = {
   '/change-password': { account: sessionAccount, field: 'newPassword' },
   '/reset-password': { account: resetAccount, field: 'newPassword' },
   '/sign-up/email': { account: async (_context, body) => Promise.resolve({ email: text(body.email), name: text(body.name) }), field: 'password' }
 };
 
 /**
- * Better Auth's `hooks.before`: on the three doors, a new password that holds
- * a word the account gives away is refused, then one HIBP knows. Both refusals
- * are Better Auth's own `APIError`, so the body is `{ code, message }` like
- * every other auth error and the web app reads `error.code`.
+ * On the three doors, a new password that holds a word the account gives away
+ * is refused, then one HIBP knows. Both refusals are Better Auth's own
+ * `APIError`, so the body is `{ code, message }` like every other auth error
+ * and the web app reads `error.code`.
  *
  * Length is checked first, by Better Auth, inside the route — which runs after
  * this hook. So a password outside the lengths is left alone here, and the
@@ -120,11 +159,21 @@ const DOORS: Record<string, { account: (context: Context, body: Record<string, u
  * body that is not what the route expects is left alone too: the route's own
  * validation answers it.
  *
+ * An account marked compromised may not set the password it already has, by
+ * change or by reset: HIBP failing open would otherwise let the breached
+ * password through, and the after-hooks would clear the mark. The refusal is
+ * `PASSWORD_COMPROMISED`, which is what that password is, and needs no HIBP —
+ * so a marked account is never stuck behind the 409 while HIBP is down, and
+ * never freed by it either.
+ *
  * `isCompromised` is null where HIBP must not be called — under `NODE_ENV=test`
- * — and the context check stays on there.
+ * — and the context and same-password checks stay on there.
+ *
+ * A bare check, not a middleware: `hooks.before` (`AccountSecurity.ts`) runs
+ * it first, then what else it does before a route.
  */
-export function passwordPolicy(isCompromised: CompromisedCheck | null) {
-  return createAuthMiddleware(async context => {
+export function checkNewPassword(isCompromised: CompromisedCheck | null): (context: Context) => Promise<void> {
+  return async context => {
     const door = DOORS[context.path ?? ''];
 
     if (!door) {
@@ -151,11 +200,14 @@ export function passwordPolicy(isCompromised: CompromisedCheck | null) {
       });
     }
 
-    if (isCompromised && (await breachedOrPass(password, context.path ?? '', isCompromised))) {
+    if (
+      (account.sameAsStored && (await account.sameAsStored(password))) ||
+      (isCompromised && (await breachedOrPass(password, context.path ?? '', isCompromised)))
+    ) {
       throw APIError.from('BAD_REQUEST', {
         code: PASSWORD_ERROR_CODES.compromised,
         message: 'This password has appeared in a data breach. Choose a different one.'
       });
     }
-  });
+  };
 }

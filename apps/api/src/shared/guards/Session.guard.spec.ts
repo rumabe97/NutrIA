@@ -7,7 +7,17 @@ import type { Auth } from '../../modules/auth/auth.config.js';
 import type { ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
 
-type Session = { user: { id: string; activatedAt?: Date | null; email: string; emailVerified: boolean; name: string; role?: string } } | null;
+type Session = {
+  user: {
+    id: string;
+    activatedAt?: Date | null;
+    email: string;
+    emailVerified: boolean;
+    name: string;
+    passwordCompromisedAt?: Date | null;
+    role?: string;
+  };
+} | null;
 
 function makeContext(request: Record<string, unknown> = { headers: {} }): ExecutionContext {
   return {
@@ -52,7 +62,26 @@ describe('SessionGuard', () => {
 
     await guard.canActivate(makeContext(request));
 
-    expect(request.user).toEqual({ id: 'usr_1', activated: true, email: 'ada@example.com', emailVerified: true, name: 'Ada', role: 'user' });
+    expect(request.user).toEqual({
+      id: 'usr_1',
+      activated: true,
+      email: 'ada@example.com',
+      emailVerified: true,
+      name: 'Ada',
+      passwordChangeRequired: false,
+      role: 'user'
+    });
+  });
+
+  it('says a password must be changed while the row carries the breach mark, re-read with the session (PLAN 011 phase 2)', async () => {
+    const request: Record<string, unknown> = { headers: {} };
+    const { guard } = makeGuard({
+      user: { id: 'usr_3', activatedAt: new Date(), email: 'a@b.c', emailVerified: true, name: 'A', passwordCompromisedAt: new Date() }
+    });
+
+    await guard.canActivate(makeContext(request));
+
+    expect((request.user as { passwordChangeRequired: boolean }).passwordChangeRequired).toBe(true);
   });
 
   it('defaults a missing role to `user` — never to something privileged', async () => {

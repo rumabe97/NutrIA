@@ -65,7 +65,7 @@ or a header. Spanish is unprefixed so its URLs never changed.
 
 Routes are **Spanish words in both languages** — `/registro` and `/en/registro`, never a
 translated slug: the API prefixes a path to build a mailed link and does not translate it.
-`/acceder`, `/registro`, `/recuperar`, `/restablecer`, `/pendiente`, `/inicio`, `/plan`,
+`/acceder`, `/registro`, `/recuperar`, `/restablecer`, `/pendiente`, `/cambiar-contrasena`, `/inicio`, `/plan`,
 `/plan/historial`, `/compra`, `/progreso`, `/check-in`, `/perfil`, `/onboarding/[paso]`,
 and the admin console under `/admin` (below). Add any new signed-in route to `PROTECTED` in
 `src/proxy.ts`, which matches against the **locale-stripped** path, so each route is named
@@ -198,6 +198,31 @@ that adds to the hint and error links; `aria-describedby` would replace them). I
 length only and never says "strong" — the breach check is the API's. The form keeps the
 length in state, never the password. Sign-in has none of this: an older, shorter password still opens its
 account.
+
+**Security in /perfil, and the forced change (project 011, phase 2).** `components/SecurityCard`
+is the profile's "Seguridad": `ChangePasswordForm` (current + new + confirm + the meter, through
+Better Auth's `/change-password`; the API closes every other session whatever the body says)
+when `UserView.hasPassword`, else one sentence and a link to Google's 2-Step Verification; then
+`SessionList`, over Better Auth's own `/list-sessions`, `/revoke-session` and
+`/revoke-other-sessions` — never wrapped in anything that widens them. The device is
+`lib/deviceLabel.ts` over `core/domain/Device`'s `deviceOf` — the reading the "password changed"
+mail uses, so both name a session alike (browser × system, no version, "Navegador" when
+unreadable); "última
+actividad" is a date, because Better Auth moves `updatedAt` at most once a day. `/list-sessions`
+wants a session younger than `freshAge` (a day) and answers `SESSION_NOT_FRESH` otherwise: the
+list then says so and offers signing in again, and "Cerrar todas las demás" stays, since it needs
+no fresh session. That one is destructive and asks first, inline, the way `ProfileConsentCard`
+does. Closing another device leaves its offline copy until it next connects (`0053`); the copy
+says that and nothing more.
+When `UserView.passwordChangeRequired` (a password found in a breach at sign-in), the API answers
+409 `PASSWORD_CHANGE_REQUIRED` on every route but `GET`/`DELETE /users/me` and Better Auth's own.
+**`redirectUnlessReady` (`lib/access.ts`) checks in the API's order: a closed lock →
+`/pendiente`, then this → `/cambiar-contrasena`; onboarding comes after, per page.** The screen
+(`_shared/ForcedPasswordScreen`) lives beside `/pendiente` in both public trees, rendered per
+request, and repeats the same order, so the two never pass somebody back and forth and the
+(app) layout cannot redirect to itself. `lib/api.ts` sends a browser request's 409 there too.
+After the change the form gives way to the confirmation, focused, and a "Continuar" link to
+`/inicio` — not a redirect, which would swallow the confirmation. The section is `#seguridad`.
 
 ## Security headers
 

@@ -21,6 +21,7 @@ const SESSION_COOKIE = 'better-auth.session_token';
 // is a language, not a route, and must never match any of these.
 const PROTECTED = [
   '/admin',
+  '/cambiar-contrasena',
   '/compra',
   '/consentimiento',
   '/consulta',

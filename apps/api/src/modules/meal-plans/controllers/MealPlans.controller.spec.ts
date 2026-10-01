@@ -21,7 +21,15 @@ import type { Response } from 'supertest';
 import type { Server } from 'node:http';
 import type { SessionUser } from '../../../shared/index.js';
 
-const ALICE: SessionUser = { id: 'usr-alice', activated: true, email: 'alice@example.invalid', emailVerified: true, name: 'Alice', role: 'user' };
+const ALICE: SessionUser = {
+  id: 'usr-alice',
+  activated: true,
+  email: 'alice@example.invalid',
+  emailVerified: true,
+  name: 'Alice',
+  passwordChangeRequired: false,
+  role: 'user'
+};
 const BOB_PLAN = '11111111-2222-4333-8444-555555555555';
 
 /** Pictures that cannot be drawn — no key, no store — unless a test says otherwise. */

@@ -214,6 +214,21 @@ export class UnderMinimumAgeError extends Error {
 }
 
 /**
+ * A sign-in found the account's password in the breach corpus, and it has not
+ * been changed since (PLAN 011 phase 2). Every route but `/users/me` and
+ * `/auth/*` refuses until it is.
+ *
+ * A state, not a denial: the account is the caller's, and the only useful
+ * answer is what to do — change the password. 409, like `ONBOARDING_INCOMPLETE`.
+ */
+export class PasswordChangeRequiredError extends Error {
+  constructor(message = 'Password change required') {
+    super(message);
+    this.name = 'PasswordChangeRequiredError';
+  }
+}
+
+/**
  * An irreversible act on the caller's own account asked from a session that is
  * no longer fresh: older than Better Auth's `freshAge` (one day) with no
  * password to stand in for it. Deleting the account is the one such act today.

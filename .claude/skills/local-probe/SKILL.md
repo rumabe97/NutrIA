@@ -111,6 +111,18 @@ runbook's own statement, and only for the `@probe.invalid` address it just made.
 `link`, it refuses to run unless `packages/database/.env` proves the local database is
 not production. The role goes when the account is deleted.
 
+### A breached password, or an old session (011 phase 2)
+
+```bash
+node $S/account.mjs compromise "$PROBE_DIR/cookie.txt"   # 409 PASSWORD_CHANGE_REQUIRED → /cambiar-contrasena
+node $S/account.mjs age "$PROBE_DIR/cookie.txt"          # sessions two days old → list-sessions refuses them
+```
+
+Each writes one column on rows of the account the cookie signs in, and only if it is a
+`@probe.invalid` address: `user.password_compromised_at`, which a local run never sets
+(HIBP is off), and `session.created_at`, which only time moves. Same production guard as
+`link`. A password change clears the mark, and deleting the account takes both.
+
 ## 5. Always finish
 
 ```bash

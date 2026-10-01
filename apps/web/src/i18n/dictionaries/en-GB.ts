@@ -169,6 +169,8 @@ export const enGB: Dictionary = {
     actions: {
       'account.activated': 'Account activated',
       'account.tier_changed': 'Tier changed',
+      'auth.password_changed': 'Password changed',
+      'auth.sessions_revoked': 'Sessions signed out',
       'feedback.handled': 'Message marked seen',
       'feedback.reopened': 'Message reopened',
       'picture.accepted': 'Rejected dish picture accepted by hand, against the checker',
@@ -192,7 +194,11 @@ export const enGB: Dictionary = {
     ],
     intro: 'Who made each account or setting change, and when.',
     noMatch: 'No action matches the filter.',
+    /** `auth.password_changed`: how the person changed it. */
+    passwordVia: { change: 'From their profile', reset: 'With the recovery link' },
     removedAcceptedBy: { judge: 'The checker had accepted it', owner: 'You had accepted it by hand, against the checker' },
+    /** `auth.sessions_revoked`: which of the person's sessions were closed. */
+    sessionsScope: { all: 'All of them', one: 'One', others: 'All but their own' },
     settingChange: '{key}: {state}',
     state: { off: 'Off', on: 'On' },
     tableNote: 'Most recent first.',
@@ -1336,6 +1342,7 @@ export const enGB: Dictionary = {
     notFound: 'We could not find what you were looking for.',
     notFoundTitle: 'Page not found',
     onboardingIncomplete: 'Part of your profile is missing. Finish it and try again.',
+    passwordChangeRequired: 'You need to change your password before you carry on.',
     pictureAllergensMismatch:
       'The picture waiting for review has changed since you opened the page: what the checker flagged is no longer what you saw. Reload and look at it again.',
     pictureCapReached: 'This month’s picture spend has reached the cap: no more can be drawn until next month.',
@@ -1844,6 +1851,7 @@ export const enGB: Dictionary = {
     '/admin/producto/planes': { title: 'Plans' },
     '/admin/producto/planes/calidad': { title: 'Plan quality' },
     '/admin/profesionales': { title: 'Professionals' },
+    '/cambiar-contrasena': { title: 'Change your password' },
     '/check-in': { title: "The fortnight's check-in" },
     '/compra': { title: 'The shopping' },
     '/condiciones': {
@@ -2219,6 +2227,7 @@ export const enGB: Dictionary = {
           'Conditions, medication and supplements: only if you choose to tell us, under a separate consent you can withdraw at any time without deleting the rest of your account.',
           'How the plan is going: which meals you mark as eaten or skipped, your ratings and comments on dishes, your weight over time and your fortnightly check-ins. So the next plan takes them into account.',
           'Payments: if you subscribe to Premium, Stripe takes the payment and we keep only the identifier for your subscription and its status. We never see your card number.',
+          'Account security: we record when you change or reset your password and when you sign out of sessions, with the date and without your IP address. So that we can see what happened if someone gets into your account.',
           'Product use: we record, linked to your account, when you sign in and when you ask to change a dish, and nothing more. To know whether the product works.',
           'What you write to us: messages in the feedback box, so we can read and answer them.'
         ],
@@ -2269,7 +2278,7 @@ export const enGB: Dictionary = {
           'OpenRouter, and DeepInfra or CoreWeave, which run the artificial-intelligence model, as explained in "Artificial intelligence". They are in the United States.',
           'Vercel (hosting for the website, the API and the pictures of the dishes, in the European Union) and Neon (database, in the European Union). Both are US companies.',
           'Stripe, if you subscribe to Premium, to charge the subscription. Stripe processes and keeps payment data under its own policies.',
-          'Our email provider, for confirmation, password-reset and check-in reminder emails you turn on.',
+          'Our email provider, for confirmation, password-reset and invitation emails, account security notices (such as your password having changed, which cannot be turned off) and notices you turn on.',
           "Your browser's own notification service (Google, Apple or Mozilla), if you turn on reminders; the content is encrypted and they cannot read it.",
           'Sentry, an error-reporting service, only if switched on: it receives the error and where it happened, never your data or anything you wrote.'
         ],
@@ -2285,6 +2294,7 @@ export const enGB: Dictionary = {
         heading: 'How long we keep your data',
         paragraphs: [
           'While your account exists. When you delete it, everything in it is deleted at once: profile, allergies, health, plans, shopping lists, progress and consents.',
+          'The security record of your account is kept while your account exists; when you delete it, it stops being linked to you.',
           'Our database provider keeps, on its own, a short history to let us recover from a fault; you can ask us for the exact window at {email}.',
           'If you subscribed to Premium, Stripe keeps billing data for as long as the law requires, even if you delete your account.'
         ]
@@ -2306,7 +2316,7 @@ export const enGB: Dictionary = {
       {
         heading: 'How we protect your data',
         paragraphs: [
-          'Your password is never stored in plain text and the connection is always encrypted. Your conditions, medications and supplements live in a part of the code that cannot talk to the artificial intelligence, and a test checks it on every change. Server and error logs do not keep what you write. When you create, reset or change your password, we compare it with a public list of leaked passwords: from our server we send the free Have I Been Pwned service only the first five characters of a fingerprint of the password, which does not reveal what the password is, with no account, email or IP address of yours, and we keep neither the password nor that fingerprint. If the service does not answer, the password is accepted without that check. Database access is restricted and nobody looks at it except to fix a fault.'
+          'Your password is never stored in plain text and the connection is always encrypted. Your conditions, medications and supplements live in a part of the code that cannot talk to the artificial intelligence, and a test checks it on every change. Server and error logs do not keep what you write. When you create, reset or change your password, and each time you sign in with it, we compare it with a public list of leaked passwords: from our server we send the free Have I Been Pwned service only the first five characters of a fingerprint of the password, which does not reveal what the password is, with no account, email or IP address of yours, and we keep neither the password nor that fingerprint. If the service does not answer, the password is accepted without that check. When you sign in, your password is accepted even if it appears on the list: we ask you to change it, and we keep nothing but that mark on your account. Database access is restricted and nobody looks at it except to fix a fault.'
         ]
       },
       {
@@ -2481,6 +2491,43 @@ export const enGB: Dictionary = {
     weightStart: 'You started at {value} kg',
     weightTarget: 'Target {value} kg',
     weightTitle: 'Your weight'
+  },
+
+  security: {
+    browserUnknown: 'Browser',
+    changePassword: 'Change password',
+    closeOthers: 'Sign out all the others',
+    closeOthersBody: 'You will have to sign in again on each of them. You stay signed in on this one.',
+    closeOthersConfirm: 'Yes, sign them out',
+    closeOthersTitle: 'Sign out on all your other devices?',
+    closeSession: 'Sign out',
+    closeSessionLabel: 'Sign out {device}, signed in on {date}',
+    currentPassword: 'Current password',
+    currentPasswordMissing: 'Type your current password.',
+    deviceOn: '{browser} on {platform}',
+    forcedBody:
+      'Your password appears in known data breaches. It does not mean anyone has got into your account, but it is no longer safe: choose a new one to carry on. Saving it signs you out on your other devices.',
+    forcedSignOut: 'Sign out',
+    forcedTitle: 'Change your password',
+    googleOnly: 'You sign in with Google, so your account is as well protected as your Google account.',
+    googleOnlyLink: 'Turn on 2-Step Verification in your Google account',
+    lastActive: 'Last active: {date}',
+    noOtherSessions: 'You are not signed in on any other device.',
+    othersClosed: 'We have signed you out on your other devices.',
+    passwordBody: 'Changing it signs you out on your other devices, and we let you know by email.',
+    passwordChanged: 'Password changed. We have signed you out on your other devices.',
+    passwordTitle: 'Password',
+    sectionTitle: 'Security',
+    sessionClosed: 'We have signed out {device}.',
+    sessionsBody: 'A device you sign out will have to sign in again. Until it next connects, it may still show what it kept for reading offline.',
+    sessionsFailed: 'We could not load your sessions.',
+    sessionsLoading: 'Loading your sessions…',
+    sessionsNotFresh: 'For your security, the list only shows if you have signed in today. You can still sign out all the others now.',
+    sessionsTitle: 'Where you are signed in',
+    signInAgain: 'Sign out and sign in again',
+    started: 'Signed in on {date}',
+    thisDevice: 'This device',
+    wrongCurrentPassword: 'Your current password is not right.'
   },
 
   shopping: {

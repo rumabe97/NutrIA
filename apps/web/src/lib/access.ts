@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 
+import { PASSWORD_CHANGE_PATH } from './api';
 import { serverApi } from './server-api';
 
 import type { UserView } from 'core/controllers/User';
@@ -24,5 +25,13 @@ export async function redirectUnlessReady(): Promise<void> {
 
   if (user && (!user.activated || !user.emailVerified)) {
     redirect('/pendiente');
+  }
+
+  // Second, after the locks and before onboarding — the API's own order (project 011): a
+  // password found in a breach answers 409 on every route but `/users/me`, so nothing past
+  // this point could load. The screen it sends to is outside this tree and repeats both
+  // checks, so neither redirect can bounce back here.
+  if (user?.passwordChangeRequired) {
+    redirect(PASSWORD_CHANGE_PATH);
   }
 }

@@ -10,6 +10,12 @@
 //        node account.mjs link <professional-cookie-file> <client-cookie-file>
 //            makes the first account a professional with an open practice, and links the
 //            second to it through a real invitation, accepted with consent
+//        node account.mjs compromise <cookie-file>
+//            marks its password as found breached, so the API answers 409
+//            PASSWORD_CHANGE_REQUIRED and the web sends it to /cambiar-contrasena (011 phase 2)
+//        node account.mjs age <cookie-file>
+//            makes its sessions two days old, past Better Auth's freshAge, so list-sessions
+//            refuses them (SESSION_NOT_FRESH)
 //
 // Every account made here is deleted before the probe ends. The cookie file is how:
 // keep it in the scratchpad, never in the repository.
@@ -25,6 +31,12 @@
 // `--admin` goes through the runbook's own statement (`UserController.grantAdmin`), never
 // through SQL, and only for the address this run just made (@probe.invalid). Deleting the
 // account deletes the role with it.
+//
+// `compromise` and `age` write one column on rows that belong only to the account the cookie
+// signs in (@probe.invalid, checked through GET /users/me): `user.password_compromised_at`,
+// which Better Auth's sign-in sets on an HIBP hit that a local run never makes, and
+// `session.created_at`, which only time moves. A change of password clears the first; the
+// account's deletion takes both.
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -40,12 +52,12 @@ const admin = args.includes('--admin');
 const [action, cookieFile, clientCookieFile] = args.filter(arg => arg !== '--admin');
 
 if (
-  !['create', 'delete', 'link'].includes(action) ||
+  !['create', 'delete', 'link', 'compromise', 'age'].includes(action) ||
   !cookieFile ||
   (action === 'link' && !clientCookieFile) ||
   (admin && action !== 'create')
 ) {
-  console.error('usage: node account.mjs create <cookie-file> [--admin] | delete <cookie-file> | link <professional-cookie-file> <client-cookie-file>');
+  console.error('usage: node account.mjs create <cookie-file> [--admin] | delete <cookie-file> | link <professional-cookie-file> <client-cookie-file> | compromise <cookie-file> | age <cookie-file>');
   process.exit(2);
 }
 
@@ -63,7 +75,7 @@ async function call(method, path, body, cookie) {
   return response;
 }
 
-assertNotProduction({ strict: action === 'link' || admin });
+assertNotProduction({ strict: action === 'link' || action === 'compromise' || action === 'age' || admin });
 
 // `core` reads the database from the environment, the same one the local API was given —
 // and only that one: the guard above checked apps/api/.env, so a DATABASE_URL already
@@ -99,6 +111,31 @@ if (action === 'delete') {
     }
   }
 
+  process.exit(0);
+}
+
+if (action === 'compromise' || action === 'age') {
+  const { database } = await load('database');
+  const who = await (await call('GET', '/users/me', undefined, readFileSync(cookieFile, 'utf8'))).json();
+
+  if (!who.email?.endsWith('@probe.invalid')) {
+    throw new Error(`${action} only touches an account this script made (@probe.invalid)`);
+  }
+
+  const changed =
+    action === 'compromise'
+      ? await database().$client`update "user" set password_compromised_at = now() where id = ${who.id} returning id`
+      : await database().$client`update session set created_at = now() - interval '2 days' where user_id = ${who.id} returning id`;
+
+  if (changed.length === 0) {
+    throw new Error(`${action} changed nothing`);
+  }
+
+  console.log(
+    action === 'compromise'
+      ? `[probe] ${who.email}'s password is marked breached until it is changed`
+      : `[probe] ${who.email}'s ${changed.length} session(s) are two days old`
+  );
   process.exit(0);
 }
 

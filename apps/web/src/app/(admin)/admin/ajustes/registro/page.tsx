@@ -104,6 +104,14 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
       return interpolate(t.settingChange, { key: settingLabel(data.key), state: data.enabled ? t.state.on : t.state.off });
     }
 
+    if (row.action === 'auth.password_changed' && (data.via === 'change' || data.via === 'reset')) {
+      return t.passwordVia[data.via];
+    }
+
+    if (row.action === 'auth.sessions_revoked' && (data.scope === 'one' || data.scope === 'others' || data.scope === 'all')) {
+      return t.sessionsScope[data.scope];
+    }
+
     // With no actor, the actor column already says how (`actor` below); say it once.
     if (row.action === 'account.activated' && row.actor && typeof data.via === 'string' && data.via in t.via) {
       return t.via[data.via as keyof typeof t.via];

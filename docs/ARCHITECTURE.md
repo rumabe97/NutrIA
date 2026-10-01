@@ -161,6 +161,18 @@ carrying `ONBOARDING_INCOMPLETE`, because the denial rule exists to avoid confir
 resource to someone who should not know of it, and here the caller owns the account and the
 only useful answer is which step they left.
 
+**A password found breached must be changed before anything else** (011 phase 2, `0074`).
+After a successful sign-in, Better Auth's `hooks.after` checks the password against HIBP in
+the background and, on a hit, sets `user.password_compromised_at`. `PasswordChangeGuard` is
+global and deny-by-default while that mark is set. It answers 409
+`PASSWORD_CHANGE_REQUIRED` on every non-public route except GET/DELETE `/users/me` and
+GET `/auth/me`, and Better Auth's own `/auth/*` routes, change-password and sign-out
+among them, stay reachable. It runs after `VerifiedEmailGuard`, so an unconfirmed or
+unopened account hears that first, and before `RequiresOnboardingGuard`. A change or a reset
+clears the mark, and a password change always ends every other session, whatever the body
+asks. Like `ONBOARDING_INCOMPLETE`, it is a 409 rather than a 404 because the caller owns
+the account and must be told what to do.
+
 **Where onboarding resumes is resolved server-side.** `OnboardingView.resumeStep` is the
 first *missing* required step, not the furthest one reached — `currentStep` is the step
 after the last one saved, so re-editing an early answer used to send a returning user to a

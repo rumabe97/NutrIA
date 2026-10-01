@@ -9,6 +9,7 @@ import {
   DatabaseOperationError,
   InputParseError,
   NotFoundError,
+  PasswordChangeRequiredError,
   PictureRetryRefusedError,
   ProfileConsentRequiredError,
   QuotaExceededError,
@@ -180,6 +181,15 @@ describe('AllExceptionsFilter', () => {
     expect(capture(new ReauthenticationRequiredError()).body).toEqual({
       code: 'REAUTHENTICATION_REQUIRED',
       message: 'Por seguridad, vuelve a iniciar sesión para borrar tu cuenta.',
+      statusCode: HttpStatus.CONFLICT
+    });
+  });
+
+  /* PLAN 011 phase 2: a breached password is a state the person fixes by changing it. */
+  it('maps a password that must be changed to 409 PASSWORD_CHANGE_REQUIRED', () => {
+    expect(capture(new PasswordChangeRequiredError()).body).toEqual({
+      code: 'PASSWORD_CHANGE_REQUIRED',
+      message: 'Cambia tu contraseña para continuar.',
       statusCode: HttpStatus.CONFLICT
     });
   });

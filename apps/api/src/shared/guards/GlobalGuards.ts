@@ -1,4 +1,5 @@
 import { AdminGuard } from './Admin.guard.js';
+import { PasswordChangeGuard } from './PasswordChange.guard.js';
 import { RateLimitGuard } from './RateLimit.guard.js';
 import { RequiresOnboardingGuard } from './RequiresOnboarding.guard.js';
 import { SessionGuard } from './Session.guard.js';
@@ -26,5 +27,18 @@ import type { CanActivate, Type } from '@nestjs/common';
  * throttled, only denied per request — accepted because the counters are
  * in-process (a Vercel invocation is already spent either way) and an
  * authenticated flood, the case the limiter exists for, is unaffected.
+ *
+ * The three 409s an account's own state answers come in the order the person
+ * fixes them (PLAN 011 phase 2): `EMAIL_NOT_VERIFIED` / `ACCOUNT_NOT_ACTIVATED`
+ * (`VerifiedEmailGuard`), then `PASSWORD_CHANGE_REQUIRED` (`PasswordChangeGuard`),
+ * then `ONBOARDING_INCOMPLETE` (`RequiresOnboardingGuard`). `AdminGuard` sits
+ * before the password guard so a non-admin still gets the admin routes' 404.
  */
-export const GLOBAL_GUARDS: readonly Type<CanActivate>[] = [SessionGuard, RateLimitGuard, VerifiedEmailGuard, AdminGuard, RequiresOnboardingGuard];
+export const GLOBAL_GUARDS: readonly Type<CanActivate>[] = [
+  SessionGuard,
+  RateLimitGuard,
+  VerifiedEmailGuard,
+  AdminGuard,
+  PasswordChangeGuard,
+  RequiresOnboardingGuard
+];

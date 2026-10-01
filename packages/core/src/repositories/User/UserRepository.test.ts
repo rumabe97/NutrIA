@@ -18,6 +18,7 @@ const seen: { countWhere?: SQL; limit?: number; offset?: number; order?: SQL[]; 
 /** What the guarded `UPDATE … RETURNING` inside `activate`/`setTier`'s transaction answers, and its own `WHERE`. */
 let updated: Record<string, unknown>[] = [];
 let updateWhere: SQL | undefined;
+let updateSet: Record<string, unknown> | undefined;
 
 /** What the transaction's own `before` select answers — the row's state read before the update, inside the same transaction. */
 let before: Record<string, unknown>[] = [];
@@ -72,15 +73,26 @@ vi.mock('database', () => ({
       fn({
         select: () => ({ from: () => ({ where: () => ({ limit: () => Promise.resolve(before) }) }) }),
         update: () => ({
-          set: () => ({
+          set: (values: Record<string, unknown>) => ({
             where: (where: SQL) => {
+              updateSet = values;
               updateWhere = where;
 
               return { returning: () => Promise.resolve(updated) };
             }
           })
         })
+      }),
+    update: () => ({
+      set: (values: Record<string, unknown>) => ({
+        where: (where: SQL) => {
+          updateSet = values;
+          updateWhere = where;
+
+          return { returning: () => Promise.resolve(updated) };
+        }
       })
+    })
   })
 }));
 
@@ -358,5 +370,57 @@ describe('UserRepository.forgetExpiredVerifications', () => {
 
     expect(deleted?.table).toBe(verification);
     expect(render(deleted?.where)).toEqual({ params: [now.toISOString()], sql: '"verification"."expires_at" < $1' });
+  });
+});
+
+/*
+ * PLAN 011 phase 2: the breach mark is a timestamp, set once by a sign-in and
+ * cleared by a change, the clearing in the same transaction as its audit row.
+ */
+describe('UserRepository.markPasswordCompromised', () => {
+  beforeEach(() => {
+    updated = [];
+    updateSet = undefined;
+    updateWhere = undefined;
+  });
+
+  it('sets only the instant, and only on that account while it is not already marked', async () => {
+    const at = new Date('2026-10-01T08:00:00.000Z');
+    updated = [{ id: 'usr-1' }];
+
+    await expect(UserRepository.markPasswordCompromised('usr-1', at)).resolves.toBe(true);
+    expect(updateSet).toEqual({ passwordCompromisedAt: at });
+    expect(render(updateWhere)).toEqual({ params: ['usr-1'], sql: '("user"."id" = $1 and "user"."password_compromised_at" is null)' });
+  });
+
+  it('answers false when the account was already marked — the first instant stays', async () => {
+    updated = [];
+
+    await expect(UserRepository.markPasswordCompromised('usr-1', new Date())).resolves.toBe(false);
+  });
+});
+
+describe('UserRepository.passwordChanged', () => {
+  beforeEach(() => {
+    updateSet = undefined;
+    updateWhere = undefined;
+  });
+
+  it('clears the mark on that account and writes the caller’s row in the same transaction', async () => {
+    const record = vi.fn(async () => {});
+
+    await UserRepository.passwordChanged('usr-1', record);
+
+    expect(updateSet).toEqual({ passwordCompromisedAt: null });
+    expect(render(updateWhere)).toEqual({ params: ['usr-1'], sql: '"user"."id" = $1' });
+    expect(record).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects, wrapped, when the row cannot be written', async () => {
+    const record = vi.fn(async () => {
+      throw new Error('database unavailable');
+    });
+
+    await expect(UserRepository.passwordChanged('usr-1', record)).rejects.toThrow();
   });
 });
