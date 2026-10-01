@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { createAuthMiddleware, isAPIError } from 'better-auth/api';
+import { createAuthMiddleware, getSessionFromCtx, isAPIError } from 'better-auth/api';
 
 import { UserController } from 'core/controllers/User';
 
@@ -26,6 +26,7 @@ export type AccountSecurityDeps = {
 };
 
 const CHANGE_PASSWORD = '/change-password';
+const REVOKE_ONE = '/revoke-session';
 const SIGN_IN = '/sign-in/email';
 
 /** Better Auth's three ways to close sessions, and the word the trail records for each. */
@@ -77,8 +78,10 @@ async function passwordChanged(deps: AccountSecurityDeps, notice: PasswordChange
 
 /**
  * Better Auth's `hooks.before`. First the password rule on the three doors a
- * password is set through (`PasswordPolicy.ts`), then, on `/change-password`,
- * `revokeOtherSessions` forced to `true` whatever the body said: a password
+ * password is set through (`PasswordPolicy.ts`). On `/revoke-session`, a
+ * token that is not the caller's is answered here (`notTheCallersSession`).
+ * On `/change-password`, `revokeOtherSessions` is forced to `true` whatever
+ * the body said: a password
  * changed because somebody else may know it must not leave that somebody's
  * session alive. Better Auth then deletes every session of the account and
  * issues the caller a new one.
@@ -93,8 +96,34 @@ export function accountSecurityBefore(isCompromised: CompromisedCheck | null) {
       return { context: { body: { ...record(context.body), revokeOtherSessions: true } } };
     }
 
+    if (context.path === REVOKE_ONE) {
+      return notTheCallersSession(context);
+    }
+
     return undefined;
   });
+}
+
+/**
+ * `/revoke-session` for a token that is not one of the caller's own sessions.
+ * Better Auth deletes nothing then and still answers `{ status: true }`; this
+ * gives the same answer before the route, so the after-hook never runs and the
+ * trail never records a revoke that did not happen. It reveals nothing:
+ * another person's token, an expired one and a made-up one all get the answer
+ * Better Auth would have given. No caller session and no token are left to the
+ * route, which answers its own 401 or 400.
+ */
+async function notTheCallersSession(context: Context): Promise<{ status: true } | undefined> {
+  const token = text(record(context.body).token);
+  const caller = await getSessionFromCtx(context);
+
+  if (!token || !caller) {
+    return undefined;
+  }
+
+  const target = await context.context.internalAdapter.findSession(token);
+
+  return target?.session.userId === caller.user.id ? undefined : { status: true };
 }
 
 /**
@@ -106,9 +135,8 @@ export function accountSecurityBefore(isCompromised: CompromisedCheck | null) {
  * - `/revoke-session`, `/revoke-other-sessions`, `/revoke-sessions`:
  *   `auth.sessions_revoked` with `one` / `others` / `all`, for the session's own
  *   user — Better Auth scoped the deletion to that user already. A
- *   `/revoke-session` for a token that is not the caller's deletes nothing and
- *   still answers 200, so its row says a revoke was asked, not that a session
- *   of somebody else's went.
+ *   `/revoke-session` for a token that is not the caller's is answered by
+ *   `hooks.before` and never gets here, so a `one` row is a session that went.
  * - `/sign-in/email`: the password just proved checked against HIBP, in the
  *   background — sign-in never waits for it — and the account marked on a hit
  *   if it is not already. A timeout or an error marks nothing (`breachedOrPass`
