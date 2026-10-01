@@ -403,6 +403,17 @@ describe('the cron routes', () => {
     expect(forget).not.toHaveBeenCalled();
     expect(sweep).not.toHaveBeenCalled();
     expect(rewriteOutdated).not.toHaveBeenCalled();
+    // 0071: the run says it finished, with its count, so the console's silent-cron watch sees it.
+    expect(record).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith('verifications', { deleted: 5 });
+  });
+
+  it('records no verification sweep that did not finish', async () => {
+    forgetVerifications.mockRejectedValueOnce(new Error('database down'));
+    const server = await boot(SECRET);
+
+    await request(server).get('/cron/sweep-verifications').set('Authorization', bearer(SECRET)).expect(500);
+
     expect(record).not.toHaveBeenCalled();
   });
 
@@ -412,6 +423,7 @@ describe('the cron routes', () => {
     await request(server).get('/cron/sweep-verifications').set('Authorization', bearer('wrong')).expect(404);
     await request(server).get('/cron/sweep-verifications').expect(404);
     expect(forgetVerifications).not.toHaveBeenCalled();
+    expect(record).not.toHaveBeenCalled();
   });
 
   it('deletes no verification row when no secret is configured', async () => {

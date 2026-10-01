@@ -132,6 +132,11 @@ export class CronController {
    */
   @Get('sweep-verifications')
   async sweepVerifications(): Promise<VerificationSweepDto> {
-    return { deleted: await this.verifications.forget() };
+    const run = { deleted: await this.verifications.forget() };
+
+    // At the end, so the record says the run finished and the console's silent-cron watch sees it (`0071`).
+    await this.runs.record('verifications', run);
+
+    return run;
   }
 }
