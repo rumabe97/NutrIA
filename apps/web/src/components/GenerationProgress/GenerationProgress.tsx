@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { Fragment, useState, useSyncExternalStore } from 'react';
 
 import { useRouter } from 'next/navigation';
 
@@ -11,10 +11,12 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { CtaLink } from 'components/CtaLink';
 import { EventPlanner } from 'components/EventPlanner';
+import { MealSizeNote } from 'components/MealSizeNote';
 
 import { api, ApiError, messageFor } from 'lib/api';
 import { formatDate, interpolate } from 'lib/format';
 import { generationError, stepLabel } from 'lib/generation';
+import { hasMealSizeAnswer, mealSizeBody, rememberMealSizeAnswer, subscribeMealSizeAnswers } from 'lib/mealSize';
 import { markPendingReview } from 'lib/pendingReview';
 
 import type { EventAllowance } from 'components/EventPlanner';
@@ -47,6 +49,16 @@ interface GenerationProgressProps {
   allowance: EventAllowance | null;
   /** The upcoming events, shown before the job starts so the plan is built with them. */
   events: readonly EventView[];
+  /**
+   * What the biggest main meal will weigh, when the shape makes it large, and the
+   * key its answer is kept under (`mealSizeKey`). Null when nothing needs saying.
+   */
+  mealSize: { answerKey: string; count: number; kcal: number } | null;
+}
+
+/** The server cannot know what this browser remembers, so the note is asked: never skipped by default. */
+function notAnsweredOnServer(): boolean {
+  return false;
 }
 
 /**
@@ -64,12 +76,18 @@ interface GenerationProgressProps {
  * script of reassuring messages (PRD criterion 8). The bar is indeterminate for
  * the same reason: the pipeline reports stages, not a percentage.
  */
-export function GenerationProgress({ allowance, events }: GenerationProgressProps) {
+export function GenerationProgress({ allowance, events, mealSize }: GenerationProgressProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
   const [phase, setPhase] = useState<Phase>({ kind: 'ready' });
   const [fatal, setFatal] = useState<string>();
+  const kept = useSyncExternalStore(
+    subscribeMealSizeAnswers,
+    () => (mealSize ? hasMealSizeAnswer('kept', mealSize.answerKey) : true),
+    notAnsweredOnServer
+  );
+  const asksAboutSize = mealSize !== null && !kept;
 
   async function start() {
     setFatal(undefined);
@@ -205,11 +223,38 @@ export function GenerationProgress({ allowance, events }: GenerationProgressProp
           <EventPlanner allowance={allowance} events={events} variant="generation" />
         </div>
 
+        {/* A large meal is said before the job exists: afterwards the only
+            answer is a redo. "Carry on" is remembered, so it is not asked again
+            until the figure or the shape changes. */}
+        {asksAboutSize ? (
+          <div className={styles.before}>
+            <MealSizeNote body={mealSizeBody(dictionary, locale, mealSize.count, mealSize.kcal)} title={dictionary.mealSize.title} />
+          </div>
+        ) : null}
+
         <div className={styles.actions}>
-          <Button onClick={() => void start()} size="lg" type="button">
-            {dictionary.generation.start}
-          </Button>
-          <CtaLink href="/inicio" size="lg" variant="secondary">
+          {asksAboutSize ? (
+            <Fragment>
+              <Button
+                onClick={() => {
+                  rememberMealSizeAnswer('kept', mealSize.answerKey);
+                  void start();
+                }}
+                size="lg"
+                type="button"
+              >
+                {dictionary.mealSize.keep}
+              </Button>
+              <CtaLink href="/onboarding/4?volver=generando" size="lg" variant="secondary">
+                {dictionary.mealSize.add}
+              </CtaLink>
+            </Fragment>
+          ) : (
+            <Button onClick={() => void start()} size="lg" type="button">
+              {dictionary.generation.start}
+            </Button>
+          )}
+          <CtaLink href="/inicio" size="lg" variant={asksAboutSize ? 'tertiary' : 'secondary'}>
             {dictionary.generation.back}
           </CtaLink>
         </div>
