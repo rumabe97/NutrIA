@@ -46,7 +46,7 @@ const ORIGINAL = 'correct-horse-battery-staple-9';
 const CLEANUP_PASSWORD = 'quiet-orchard-lamp-velvet-3';
 /** Sent on every request, so "no user agent in an audit row" and "the device family only" have something to look for. */
 const IPHONE = 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
-const CHANGED_SUBJECT = /contraseña ha cambiado|password has changed/i;
+const CHANGED_SUBJECT = /contraseña (?:de NutrIA )?ha cambiado|password has changed/i;
 /** M14: the mail says nothing of health. */
 const HEALTH_WORDS = /alerg|allerg|salud|health|dieta|diet\b|peso|weight|calor|medic|embaraz|pregnan/i;
 
