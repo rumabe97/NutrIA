@@ -28,7 +28,7 @@ A real user who eats Spanish home cooking was served skyr, seitán and edamame, 
 - rice (any `arroz-*` slug outside the list above);
 - huerta vegetables (judía verde, acelga, espinaca, coliflor, brócoli, pimientos, calabacín, berenjena, alcachofa, puerro, cardo, borraja).
 
-The prompt asks for platos de cuchara at least 4 times a week and fish 3 times, as the AESAN's 2022 recommendations set.
+**The model is not told** (owner, 2026-10-01). The pool prompt is the same for everyone. The accepted consent text says the model learns only whether a person is vegetarian or vegan, and naming this pattern would have meant re-asking every user. The weekly aims of the AESAN's 2022 recommendations (legumes at least 4 times a week, fish 3 times) are pursued through the lean and measured by the evaluator, not asked of the model.
 
 ## Alternatives considered
 

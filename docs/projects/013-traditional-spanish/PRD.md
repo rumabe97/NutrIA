@@ -92,7 +92,7 @@ A dish with no stated cuisine, or "mediterránea", passes on its ingredients alo
 1. **Selectable.** `traditional_spanish` is a dietary pattern. It is offered in onboarding and in the profile as "Tradicional española" / "Traditional Spanish", it is saved, and the profile shows it translated.
 2. **Ingredients enforced.** With the pattern, no plate, library dish, generated dish or swap contains any of the 157 rows in `0077`. They are excluded through `resolvePreferences`, like halal and kosher.
 3. **Cuisine and name enforced.** With the pattern, no dish is served whose normalised `cuisine` is in the foreign list or whose name matches the foreign-name rule, in reuse, swaps or generation. A generated dish that breaks either rule is rejected as `unwanted`.
-4. **The prompt asks for it.**
+4. **The prompt does not reveal it** (amended 2026-10-01, owner). The pool prompt is byte-identical with and without the pattern, and `PROMPT_VERSION` does not change. Naming the pattern to the model would make the accepted consent text untrue ("vegetariano o vegano") and force every user to consent again. Enforcement lives entirely in code: the model is never shown an excluded row, and a generated dish that breaks a rule is rejected. *Superseded text:* **The prompt asks for it.**
    - The model is told the person eats traditional Spanish home cooking: platos de cuchara at least 4 times a week, fish 3 times, rice, vegetables of the huerta, olive oil, Spanish dish names, cuisine "española".
    - It is not offered the excluded rows.
    - `PROMPT_VERSION` moves to 4.6.0.
@@ -103,7 +103,7 @@ A dish with no stated cuisine, or "mediterránea", passes on its ingredients alo
    - at least 8 lunches or dinners with legumes and at least 6 with fish in the fortnight;
    - variety no worse than the omnivore profiles.
    No existing profile loses a day.
-7. **Legal and docs.** `/privacidad` names the new choice among what the model receives, in wording `legal` approves. Decision `0077` records the definition and the lists, and `docs/ARCHITECTURE.md` mentions the pattern.
+7. **Legal and docs.** `/privacidad` and the consent texts do not change, because the model does not receive the pattern (`legal` confirmed the consent finding; owner decision 2026-10-01). Decision `0077` records the definition and the lists, and `docs/ARCHITECTURE.md` mentions the pattern.
 
 ## Open questions
 

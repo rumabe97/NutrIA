@@ -31,7 +31,7 @@
      - in `RecipeController.usesExcluded` (reuse and swaps);
      - in `PoolBuilder`'s validation, where it rejects as `unwanted`.
    - A null cuisine passes.
-4. **Prompt** (`apps/api/src/modules/ai/prompts/PoolPrompt.ts`).
+4. **Prompt — amended 2026-10-01 (owner): no change.** The prompt stays byte-identical for every person: no `NAMEABLE_PATTERNS` entry, no pattern-dependent example, and no new `PROMPT_VERSION`. A spec proves the prompt is the same with and without the pattern. The reason is that naming the pattern would make the accepted consent untrue. *Superseded:* **Prompt** (`apps/api/src/modules/ai/prompts/PoolPrompt.ts`).
    - Add `traditional_spanish` to `NAMEABLE_PATTERNS`, with its own `WAY OF EATING` line from the PRD, criterion 4.
    - When the pattern is present, `BREAKFAST_CHARACTER` and `characterOf` drop "skyr bowl"-type examples for Spanish ones (tostada con tomate y aceite, pan con queso fresco, yogur con fruta).
    - The `cuisine` field is asked as "española".
@@ -44,7 +44,7 @@
    - Add the labels in `es-ES.ts` ("Tradicional española") and `en-GB.ts` ("Traditional Spanish").
    - Extend `dietaryPatternsHint` with one sentence: "Solo platos de cocina casera española: fuera tofu, seitán, quinoa, salsas asiáticas o tacos."
    - `perfil/page.tsx:224` shows translated labels for every pattern. Today it shows raw enum values.
-7. **Legal.**
+7. **Legal — amended: no text changes**, since the model is not told. *Superseded:* **Legal.**
    - The `legal` agent drafts the sentence for `/privacidad` (es-ES:2320, en-GB:2306) naming this choice among what the model receives.
    - The frontend agent applies it, and the change ships in the same release.
 8. **Evaluator.**
@@ -55,14 +55,14 @@
 
 ### Phase 1 — Traditional Spanish, end to end
 
-- [ ] pending
+- [ ] in progress
 - **Dispatch**: opus @ high — `/execute-project 013 phase 1`, run as `/team`:
   - `backend-high`: steps 1–5 and 8;
   - `frontend`: steps 6–7;
   - `legal`: the step 7 text;
   - `migration-reviewer` and `invariant-reviewer`: the diff;
   - `plan-evaluator`: step 8.
-  - **owner-approves:** the `/privacidad` sentence before it ships.
+  - The `/privacidad` gate is dropped by the amendment to item 7.
 - **Goal**: PRD criteria 1–7.
 - **Scope**:
   - `packages/database/src/schemas/_enums.ts` and a new migration with its meta;
