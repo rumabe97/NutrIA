@@ -40,7 +40,7 @@ Each is adapted to the rule below, not taken as is.
 
 ### Phase 1 — The `scheduled` status exists, and the review index no longer depends on the status list
 
-- [ ] pending
+- [ ] in progress
 - **Dispatch**: sonnet @ medium — `/execute-project 015 phase 1`. The `migration-reviewer` (opus · high) reviews.
 - **Goal**:
   - Rewrite `meal_plans_one_pending_review_per_user` as `WHERE status = 'pending_review'`. That value is already committed, so this is safe in one migration: drop the index and create it again.
