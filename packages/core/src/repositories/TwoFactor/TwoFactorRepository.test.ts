@@ -136,17 +136,18 @@ describe('TwoFactorRepository.due', () => {
 
 describe('TwoFactorRepository.remove', () => {
   it('deletes the request only if still pending and due, then the factor, the flag and the trusted devices, then records', async () => {
-    answers = [[['rem-1']], [['tf-1']], [['ana@example.invalid']], []];
+    answers = [[['rem-1']], [[true]], [], [['ana@example.invalid']], []];
 
     await expect(TwoFactorRepository.remove('usr-7', NOW, record)).resolves.toEqual({ email: 'ana@example.invalid' });
     expect(statements.map(statement => statement.sql)).toEqual([
       'delete from "two_factor_removal" where ("two_factor_removal"."user_id" = $1 and "two_factor_removal"."cancelled_at" is null and "two_factor_removal"."due_at" <= $2) returning "id"',
-      'delete from "two_factor" where "two_factor"."user_id" = $1 returning "id"',
+      'select "two_factor_enabled" from "user" where "user"."id" = $1 limit $2',
+      'delete from "two_factor" where "two_factor"."user_id" = $1',
       'update "user" set "two_factor_enabled" = $1, "updated_at" = $2 where "user"."id" = $3 returning "email"',
       'delete from "verification" where ("verification"."value" = $1 and "verification"."identifier" like $2)'
     ]);
     expect(statements[0]?.params[0]).toBe('usr-7');
-    expect(statements[3]?.params).toEqual(['usr-7', 'trust-device-%']);
+    expect(statements[4]?.params).toEqual(['usr-7', 'trust-device-%']);
     expect(record).toHaveBeenCalledTimes(1);
   });
 
@@ -158,8 +159,8 @@ describe('TwoFactorRepository.remove', () => {
     expect(record).not.toHaveBeenCalled();
   });
 
-  it('closes the request quietly when the account had already turned the factor off itself', async () => {
-    answers = [[['rem-1']], [], [['ana@example.invalid']], []];
+  it('closes the request quietly when the account had already turned the factor off itself — even with an unconfirmed secret left', async () => {
+    answers = [[['rem-1']], [[false]], [], [['ana@example.invalid']], []];
 
     await expect(TwoFactorRepository.remove('usr-7', NOW, record)).resolves.toBeNull();
     expect(record).not.toHaveBeenCalled();

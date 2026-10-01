@@ -105,9 +105,10 @@ export const TwoFactorRepository = {
    * plugin's `two_factor` row goes, `two_factor_enabled` turns false, every
    * trusted device is forgotten, and `record` writes the audit row.
    *
-   * When the account had already turned the factor off itself (no
-   * `two_factor` row was there to delete), the request row still goes but
-   * nothing else is said: no row, no mail. Answers the address when a
+   * When the account had already turned the factor off itself — read inside
+   * this transaction, before anything changes; a secret stored by `/enable`
+   * and never confirmed is not a factor that was on — the request row and any
+   * such secret still go, but nothing else is said: no row, no mail. Answers the address when a
    * factor was removed, otherwise null.
    */
   async remove(userId: string, now: Date, record: RecordAudit): Promise<{ readonly email: string } | null> {
@@ -122,7 +123,10 @@ export const TwoFactorRepository = {
           return null;
         }
 
-        const factors = await tx.delete(twoFactor).where(eq(twoFactor.userId, userId)).returning({ id: twoFactor.id });
+        const [before] = await tx.select({ twoFactorEnabled: user.twoFactorEnabled }).from(user).where(eq(user.id, userId)).limit(1);
+
+        await tx.delete(twoFactor).where(eq(twoFactor.userId, userId));
+
         const [account] = await tx
           .update(user)
           .set({ twoFactorEnabled: false, updatedAt: now })
@@ -131,7 +135,7 @@ export const TwoFactorRepository = {
 
         await tx.delete(verification).where(and(eq(verification.value, userId), like(verification.identifier, `${TRUSTED_DEVICE_PREFIX}%`)));
 
-        if (factors.length === 0 || !account) {
+        if (!account || before?.twoFactorEnabled !== true) {
           return null;
         }
 
