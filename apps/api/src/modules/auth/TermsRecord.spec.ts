@@ -4,6 +4,7 @@ import { memoryAdapter } from 'better-auth/adapters/memory';
 import { TERMS_VERSION } from 'core/entities/User';
 
 import { validateEnv } from '../../config/Env.validation.js';
+import { BackgroundTaskService } from '../../shared/services/index.js';
 
 /**
  * The real Better Auth, built by the real `createAuth`, over Better Auth's own
@@ -41,7 +42,12 @@ const env = validateEnv({
 });
 
 function build(): ReturnType<typeof createAuth> {
-  return createAuth(env, { configured: false, send: async () => Promise.resolve(false) }, { cancelEverything: async () => Promise.resolve() });
+  return createAuth(
+    env,
+    { configured: false, send: async () => Promise.resolve(false) },
+    { cancelEverything: async () => Promise.resolve() },
+    new BackgroundTaskService()
+  );
 }
 
 describe('the terms an account was created under', () => {

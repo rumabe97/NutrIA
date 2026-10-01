@@ -4,6 +4,7 @@ import { memoryAdapter } from 'better-auth/adapters/memory';
 import { AnalyticsController } from 'core/controllers/Analytics';
 
 import { validateEnv } from '../../config/Env.validation.js';
+import { BackgroundTaskService } from '../../shared/services/index.js';
 
 import type { ExecutionContext } from '@nestjs/common';
 import type { Reflector } from '@nestjs/core';
@@ -101,7 +102,8 @@ describe('a session renewed through SessionGuard', () => {
     const auth = createAuth(
       env,
       { configured: false, send: async () => Promise.resolve(false) },
-      { cancelEverything: async () => Promise.resolve() }
+      { cancelEverything: async () => Promise.resolve() },
+      new BackgroundTaskService()
     );
     const guard = new SessionGuard(auth, reflector);
     const { cookie, userId } = await signedIn(auth);
@@ -133,7 +135,8 @@ describe('a session renewed through SessionGuard', () => {
     const auth = createAuth(
       env,
       { configured: false, send: async () => Promise.resolve(false) },
-      { cancelEverything: async () => Promise.resolve() }
+      { cancelEverything: async () => Promise.resolve() },
+      new BackgroundTaskService()
     );
     const guard = new SessionGuard(auth, reflector);
     const { cookie } = await signedIn(auth);
@@ -148,7 +151,8 @@ describe('a session renewed through SessionGuard', () => {
     const auth = createAuth(
       env,
       { configured: false, send: async () => Promise.resolve(false) },
-      { cancelEverything: async () => Promise.resolve() }
+      { cancelEverything: async () => Promise.resolve() },
+      new BackgroundTaskService()
     );
     const guard = new SessionGuard(auth, reflector);
     const { cookie } = await signedIn(auth);
@@ -171,7 +175,8 @@ describe('a session renewed through SessionGuard', () => {
     const auth = createAuth(
       env,
       { configured: false, send: async () => Promise.resolve(false) },
-      { cancelEverything: async () => Promise.resolve() }
+      { cancelEverything: async () => Promise.resolve() },
+      new BackgroundTaskService()
     );
     const guard = new SessionGuard(auth, reflector);
     const { cookie, userId } = await signedIn(auth);
