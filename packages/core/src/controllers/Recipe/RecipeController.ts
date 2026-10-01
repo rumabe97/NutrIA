@@ -10,7 +10,7 @@ import { FALLBACK_LOCALE, RecipeRepository } from '#repositories/Recipe';
 import { ProfileRepository } from '#repositories/Profile';
 import { HealthRepository } from '#repositories/Health';
 import { proteinSupplementExclusions } from 'core/domain/Health';
-import { breaksDishRule, freeFromExclusions, resolvePreferences, withinTime } from 'core/domain/Preference';
+import { breaksDishRule, breaksPatternDish, freeFromExclusions, resolvePreferences, withinTime } from 'core/domain/Preference';
 import { SafetyController } from 'core/controllers/Safety';
 import { SettingsController } from 'core/controllers/Settings';
 import { PlanRepository } from '#repositories/Plan';
@@ -201,12 +201,19 @@ export type GenerationContext = {
 
 /**
  * Whether a dish uses anything this person's way of eating or dislikes rule out
- * (0023). A recipe already in the library is no more evidence that they want it
- * than that it is safe for them, so reuse is filtered exactly as generation is.
+ * (0023), or is foreign to their way of eating by its cuisine or name (`0077`).
+ * A recipe already in the library is no more evidence that they want it than
+ * that it is safe for them, so reuse is filtered exactly as generation is.
  */
-function usesExcluded(ingredients: readonly { readonly slug: string }[], context: GenerationContext): boolean {
+function usesExcluded(
+  dish: { readonly cuisine: string | null; readonly ingredients: readonly { readonly slug: string }[]; readonly name: string },
+  context: GenerationContext
+): boolean {
+  const { ingredients } = dish;
+
   return (
     breaksDishRule(ingredients, context.catalogue, context.preferences) ||
+    breaksPatternDish(dish, context.preferences) ||
     ingredients.some(item => {
       const ingredient = context.catalogue.get(item.slug);
 
@@ -949,7 +956,7 @@ export const RecipeController = {
         recipe =>
           hasUsableMethod(recipe) &&
           dishSafety(recipe.ingredients, context.catalogue, context.safety).kind === 'safe' &&
-          !usesExcluded(recipe.ingredients, context) &&
+          !usesExcluded(recipe, context) &&
           !mentionsUnresolvedAllergy(recipe, context.safety.unenforceableLabels) &&
           withinTime(recipe, context.preferences.maxMinutesPerDish)
       )

@@ -6,6 +6,10 @@ export const goalType = pgEnum('goal_type', ['weight_loss', 'maintenance', 'musc
 
 export const activityLevel = pgEnum('activity_level', ['sedentary', 'light', 'moderate', 'high', 'athlete']);
 
+/**
+ * `traditional_spanish` (`0077`) is appended last, like `plan_status`'s
+ * `pending_review`: adding a value rewrites nothing, reordering would.
+ */
 export const dietaryPattern = pgEnum('dietary_pattern', [
   'omnivore',
   'vegetarian',
@@ -15,7 +19,8 @@ export const dietaryPattern = pgEnum('dietary_pattern', [
   'gluten_free',
   'lactose_free',
   'halal',
-  'kosher'
+  'kosher',
+  'traditional_spanish'
 ]);
 
 /** Ordered as they occur in a day — `meals.slot` sorts on this. */

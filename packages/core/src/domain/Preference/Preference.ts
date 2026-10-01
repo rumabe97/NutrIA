@@ -84,6 +84,234 @@ export const PATTERN_SLUG_RUNS: Readonly<Record<string, readonly string[]>> = {
 };
 
 /**
+ * What a way of eating excludes by name: exact catalogue slugs, never runs.
+ *
+ * `traditional_spanish` (`0077`): the rows foreign to Spanish home cooking —
+ * soy and meat substitutes, foreign grains and noodles, Asian and Latin
+ * American sauces, foreign breads, tropical produce, foreign cheeses, plant
+ * drinks. Exact, because a run would overreach: `ostra` would take
+ * `seta-ostra`. A slug here the catalogue does not hold is ignored; the seed
+ * test keeps the list inside the seed. Avena, aguacate, cuscús, basmati and
+ * the modern dairy stay, by the owner's choice.
+ */
+export const PATTERN_EXCLUDED_SLUGS: Readonly<Record<string, ReadonlySet<string>>> = {
+  traditional_spanish: new Set([
+    'aceite-de-coco',
+    'aceite-de-sesamo',
+    'agua-de-coco',
+    'alga-kombu',
+    'alga-nori',
+    'alga-wakame',
+    'alubias-negras-cocidas',
+    'amaranto',
+    'arroz-jazmin-crudo',
+    'arroz-para-sushi',
+    'arroz-salvaje-cocido',
+    'arroz-salvaje-crudo',
+    'arroz-tres-delicias-congelado',
+    'azukis',
+    'baba-ganoush',
+    'bagel',
+    'bebida-de-proteinas',
+    'bebida-de-proteinas-vegetal',
+    'brotes-de-alfalfa',
+    'brotes-de-soja',
+    'bulgur-cocido',
+    'bulgur-crudo',
+    'caldo-dashi',
+    'chile-chipotle-seco',
+    'chutney-de-mango',
+    'cinco-especias-chinas',
+    'coco-fresco',
+    'col-china',
+    'col-rizada',
+    'crema-agria',
+    'crema-de-anacardos',
+    'crema-de-coco',
+    'curry-en-polvo',
+    'daikon',
+    'edamame-cocido',
+    'edamame-congelado',
+    'espirulina',
+    'fideos-de-arroz-cocidos',
+    'fideos-de-arroz-secos',
+    'fideos-de-cristal',
+    'fideos-soba',
+    'filete-de-panga-congelado',
+    'freekeh',
+    'frijoles-refritos',
+    'garam-masala',
+    'ghee',
+    'gochujang',
+    'guacamole',
+    'hamburguesa-vegetal',
+    'harina-de-trigo-sarraceno',
+    'harissa',
+    'heura',
+    'hierba-limon',
+    'hummus',
+    'hummus-de-remolacha',
+    'jackfruit',
+    'jalapeno',
+    'jengibre-en-polvo',
+    'jengibre-fresco',
+    'judia-mungo',
+    'kimchi',
+    'kombucha',
+    'leche-de-almendra',
+    'leche-de-avena',
+    'leche-de-coco',
+    'leche-de-coco-ligera',
+    'leche-de-soja',
+    'lentejas-rojas-cocidas',
+    'levadura-nutricional',
+    'lichi',
+    'mango',
+    'mango-congelado',
+    'mantequilla-de-cacahuete',
+    'maracuya',
+    'mijo',
+    'mijo-cocido',
+    'miso',
+    'nachos',
+    'noodles-de-trigo',
+    'noodles-udon',
+    'nuggets-vegetales',
+    'okra',
+    'pak-choi',
+    'pan-bao',
+    'pan-de-pita',
+    'pan-naan',
+    'papaya',
+    'papel-de-arroz',
+    'pasta-de-curry-rojo',
+    'pasta-de-curry-verde',
+    'pate-vegetal',
+    'pesto-vegano',
+    'pitaya',
+    'platano-macho',
+    'proteina-de-guisante',
+    'proteina-de-suero',
+    'queso-cheddar',
+    'queso-cottage',
+    'queso-feta',
+    'queso-halloumi',
+    'queso-havarti',
+    'queso-raclette',
+    'queso-scamorza',
+    'queso-vegano',
+    'quinoa-cocida',
+    'quinoa-cruda',
+    'quinoa-hinchada',
+    'ramen-instantaneo',
+    'ras-el-hanout',
+    'salchichas-vegetales',
+    'salsa-agridulce',
+    'salsa-barbacoa',
+    'salsa-de-chile-dulce',
+    'salsa-de-ostras',
+    'salsa-de-pescado',
+    'salsa-de-soja',
+    'salsa-de-soja-baja-en-sal',
+    'salsa-hoisin',
+    'salsa-pico-de-gallo',
+    'salsa-ponzu',
+    'salsa-satay',
+    'salsa-sriracha',
+    'salsa-teriyaki',
+    'sazonador-para-tacos',
+    'seitan',
+    'sesamo',
+    'seta-shiitake',
+    'sirope-de-agave',
+    'sirope-de-arce',
+    'sirope-de-datiles',
+    'skyr',
+    'soja-cocida',
+    'soja-en-grano',
+    'soja-texturizada',
+    'sumac',
+    'tahini',
+    'tamari',
+    'te-matcha',
+    'tempeh',
+    'tilapia',
+    'tofu-ahumado',
+    'tofu-firme',
+    'tofu-sedoso',
+    'tortilla-de-maiz',
+    'tortilla-de-trigo',
+    'tortitas-americanas',
+    'tortitas-de-maiz',
+    'trigo-sarraceno',
+    'trigo-sarraceno-cocido',
+    'tzatziki',
+    'vinagre-de-arroz',
+    'wasabi',
+    'wrap-integral',
+    'yogur-de-coco',
+    'yogur-de-soja',
+    'yuca',
+    'zaatar'
+  ])
+};
+
+/** Legumes, by the head of the slug: a plato de cuchara's base, not `pasta-de-lentejas` or `harina-de-garbanzo`. */
+const LEGUME_HEADS: readonly string[] = ['alubias', 'garbanzos', 'habas', 'judias-rojas', 'judiones', 'lentejas'];
+
+/**
+ * The rows traditional Spanish cooking is built on (`0077`), by what a slug
+ * starts with: legumes, rice and the huerta. By the head of the slug, not a run
+ * anywhere in it, so `lentejas-cocidas` leans and `pasta-de-lentejas`,
+ * `harina-de-garbanzo` and `seta-de-cardo` do not. Fish and seafood are their
+ * classes.
+ */
+const SPANISH_LEAN_HEADS: readonly string[] = [
+  ...LEGUME_HEADS,
+  // Rice — the foreign ones are excluded before the lean is read
+  'arroz',
+  // Huerta
+  'acelga',
+  'alcachofa',
+  'alcachofas',
+  'berenjena',
+  'borraja',
+  'brocoli',
+  'calabacin',
+  'cardo',
+  'coliflor',
+  'espinaca',
+  'espinacas',
+  'judia-verde',
+  'judias-verdes',
+  'pimiento',
+  'pimientos',
+  'puerro'
+];
+
+/** Whether a slug starts with one of these heads, as whole words. */
+function startsWithHead(slug: string, heads: readonly string[]): boolean {
+  return heads.some(head => slug === head || slug.startsWith(`${head}-`));
+}
+
+/** Whether a catalogue row is a legume in the sense `0077` leans to — what the evaluator counts a plato de cuchara by. */
+export function isLegumeSlug(slug: string): boolean {
+  return startsWithHead(slug, LEGUME_HEADS);
+}
+
+/**
+ * What a way of eating leans towards, as a test on a catalogue row. A lean, not
+ * a rule: it moves a dish to the front of the library's pick through the same
+ * `Leaning` a liked food does, and takes nothing out.
+ */
+const PATTERN_LEANS: Readonly<Record<string, readonly ((ingredient: CatalogueIngredient) => boolean)[]>> = {
+  traditional_spanish: [
+    ingredient => startsWithHead(ingredient.slug, SPANISH_LEAN_HEADS),
+    ingredient => ingredient.classes.includes('fish') || ingredient.classes.includes('shellfish')
+  ]
+};
+
+/**
  * What a health-revealing way of eating excludes, as allergen keys and which
  * presences count. Gluten-free takes traces out too: somebody who eats that way
  * is often coeliac, and the declaration does not say they are not. Lactose-free
@@ -273,6 +501,15 @@ export type PreferenceExclusions = {
    */
   readonly keepsMeatFromDairy: boolean;
   /**
+   * Catalogue rows a way of eating leans towards, as slugs — for
+   * `traditional_spanish`, legumes, fish and seafood, rice and huerta
+   * vegetables (`0077`). A weight on the pick like a like, never a rule, and
+   * kept apart from `preferredIngredientSlugs` because those are named to the
+   * model as what they like and these are not. Never holds an excluded row.
+   * Joined with the likes by `leaningSlugs`.
+   */
+  readonly leaningIngredientSlugs: ReadonlySet<string>;
+  /**
    * The longest a dish may take, prep plus cooking, or null when they set none.
    *
    * Enforced rather than asked for the reason the whole of `0023` exists: a
@@ -289,6 +526,12 @@ export type PreferenceExclusions = {
    * filter.
    */
   readonly preferredIngredientSlugs: ReadonlySet<string>;
+  /**
+   * Whether a dish of a foreign cuisine, or with a foreign name, is out
+   * (`traditional_spanish`). A rule on the dish, not on an ingredient. See
+   * `breaksPatternDish`.
+   */
+  readonly refusesForeignDishes: boolean;
   /** Dislikes that named nothing the catalogue knows. Never sent to the model (prompt 4.0.0), never claimed as applied. */
   readonly unenforceableLabels: readonly string[];
 };
@@ -372,16 +615,18 @@ export function resolvePreferences(input: {
 }): PreferenceExclusions {
   const classes = new Set<FoodClass>(input.dietaryPatterns.flatMap(pattern => PATTERN_EXCLUSIONS[pattern] ?? []));
   const runs = [...new Set(input.dietaryPatterns.flatMap(pattern => PATTERN_SLUG_RUNS[pattern] ?? []))];
+  const slugs = new Set(input.dietaryPatterns.flatMap(pattern => [...(PATTERN_EXCLUDED_SLUGS[pattern] ?? [])]));
   const excluded = new Set<string>();
   const unenforceable: string[] = [];
 
   const byAllergen = input.dietaryPatterns.filter(pattern => PATTERN_ALLERGENS[pattern] !== undefined);
   const { allergenIdsByKey } = input;
 
-  if (classes.size > 0 || runs.length > 0 || byAllergen.length > 0) {
+  if (classes.size > 0 || runs.length > 0 || slugs.size > 0 || byAllergen.length > 0) {
     for (const ingredient of input.ingredients) {
       if (
         inClasses(ingredient, classes) ||
+        slugs.has(ingredient.slug) ||
         (hasRun(ingredient.slug, runs) && !isExceptedFromRuns(ingredient.slug)) ||
         hasPatternAllergen(ingredient, byAllergen, allergenIdsByKey)
       ) {
@@ -421,11 +666,22 @@ export function resolvePreferences(input: {
     }
   }
 
+  const leans = input.dietaryPatterns.flatMap(pattern => PATTERN_LEANS[pattern] ?? []);
+  const leaning = new Set(
+    leans.length === 0
+      ? []
+      : input.ingredients
+          .filter(ingredient => !excluded.has(ingredient.id) && leans.some(lean => lean(ingredient)))
+          .map(ingredient => ingredient.slug)
+  );
+
   return {
     excludedIngredientIds: excluded,
     keepsMeatFromDairy: input.dietaryPatterns.some(pattern => SEPARATES_MEAT_AND_DAIRY.has(pattern)),
+    leaningIngredientSlugs: leaning,
     maxMinutesPerDish: input.maxMinutesPerDish ?? null,
     preferredIngredientSlugs: preferred,
+    refusesForeignDishes: input.dietaryPatterns.some(pattern => REFUSES_FOREIGN_DISHES.has(pattern)),
     unenforceableLabels: unenforceable
   };
 }
@@ -434,8 +690,10 @@ export function resolvePreferences(input: {
 export const NO_PREFERENCE_EXCLUSIONS: PreferenceExclusions = {
   excludedIngredientIds: new Set(),
   keepsMeatFromDairy: false,
+  leaningIngredientSlugs: new Set(),
   maxMinutesPerDish: null,
   preferredIngredientSlugs: new Set(),
+  refusesForeignDishes: false,
   unenforceableLabels: []
 };
 
@@ -478,4 +736,87 @@ export function breaksDishRule(
   const classes = new Set(ingredients.flatMap(item => catalogue.get(item.slug)?.classes ?? []));
 
   return (classes.has('meat') || classes.has('pork')) && classes.has('dairy');
+}
+
+/**
+ * Every slug the library pick puts first for this person: the foods they said
+ * they like, and the ones their way of eating leans towards. One union, so a
+ * plan and a single swap lean the same way (`Rotation.isPreferredDish`).
+ */
+export function leaningSlugs(preferences: Pick<PreferenceExclusions, 'leaningIngredientSlugs' | 'preferredIngredientSlugs'>): ReadonlySet<string> {
+  if (preferences.leaningIngredientSlugs.size === 0) {
+    return preferences.preferredIngredientSlugs;
+  }
+
+  return new Set([...preferences.preferredIngredientSlugs, ...preferences.leaningIngredientSlugs]);
+}
+
+/**
+ * Cuisines foreign to Spanish home cooking, normalised (`normaliseForMatching`:
+ * lower case, no accents). A dish whose stated cuisine is exactly one of these
+ * is out for `traditional_spanish` (`0077`). Mediterránea, española and its
+ * regions, italiana, francesa and griega pass on their ingredients, and so does
+ * a dish with no cuisine at all.
+ */
+export const FOREIGN_CUISINES: ReadonlySet<string> = new Set([
+  'mexicana',
+  'asiatica',
+  'oriental',
+  'india',
+  'indio',
+  'japonesa',
+  'tailandesa',
+  'china',
+  'coreana',
+  'vietnamita',
+  'peruana',
+  'latina',
+  'venezolana',
+  'americana',
+  'estadounidense',
+  'hawaiana',
+  'tropical',
+  'nordica',
+  'escandinava',
+  'marroqui',
+  'magrebi',
+  'arabe',
+  'libanesa',
+  'oriente medio',
+  'fusion'
+]);
+
+/**
+ * A dish name that gives away a foreign dish (`0077`), read on the normalised
+ * name — accents gone and punctuation a space — so "Tabulé" meets `tabule` and
+ * a word boundary is plain ASCII. "Tacos" is foreign at the start of a name or
+ * as the Mexican kind, and Spanish otherwise: "huevos al plato con tacos de
+ * jamón" keeps its tacos.
+ */
+const FOREIGN_DISH_NAME =
+  /\b(?:curry|shakshuka|wok|poke|sushi|ramen|burrito|fajitas?|quesadilla|teriyaki|pad thai|falafel|tabule|nachos|hummus|guacamole|chipotle|tikka|masala|noodles?|bibimbap|kimchi)\b|^tacos\b|\btacos (?:de pollo|de ternera|de pescado|mexicanos|al pastor)\b/;
+
+/** Ways of eating that refuse a dish by its cuisine or its name. Judged per dish, by `breaksPatternDish`. */
+const REFUSES_FOREIGN_DISHES: ReadonlySet<string> = new Set(['traditional_spanish']);
+
+/**
+ * Whether a whole dish is foreign to this person's way of eating by what it
+ * says it is rather than by what it holds: a stated cuisine in
+ * `FOREIGN_CUISINES`, or a name `FOREIGN_DISH_NAME` gives away. A missing or
+ * empty cuisine passes; its ingredients are judged on their own, by
+ * `excludedIngredientIds`.
+ */
+export function breaksPatternDish(
+  dish: { readonly cuisine: string | null; readonly name: string },
+  preferences: Pick<PreferenceExclusions, 'refusesForeignDishes'>
+): boolean {
+  if (!preferences.refusesForeignDishes) {
+    return false;
+  }
+
+  if (dish.cuisine && FOREIGN_CUISINES.has(normaliseForMatching(dish.cuisine))) {
+    return true;
+  }
+
+  return FOREIGN_DISH_NAME.test(normaliseForMatching(dish.name));
 }
