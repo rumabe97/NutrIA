@@ -47,7 +47,14 @@ import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/M
 import { loadedTargets } from 'core/domain/Event';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
 import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
-import { breaksPatternDish, FOREIGN_CUISINES, freeFromExclusions, isLegumeSlug, PATTERN_EXCLUDED_SLUGS, resolvePreferences } from 'core/domain/Preference';
+import {
+  breaksPatternDish,
+  FOREIGN_CUISINES,
+  freeFromExclusions,
+  isLegumeSlug,
+  PATTERN_EXCLUDED_SLUGS,
+  resolvePreferences
+} from 'core/domain/Preference';
 import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
 import { bestEffortExclusions, dishSafety, normaliseForMatching, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
 import { MAIN_SLOTS } from 'core/domain/Variety';
@@ -776,7 +783,9 @@ function printProfile(profile, result) {
 
   if (profile.dietaryPattern === 'traditional_spanish') {
     for (const item of [...spanish.forbiddenRows, ...spanish.foreignCuisines, ...spanish.foreignNames].slice(0, 10)) {
-      console.log(`    FOREIGN day ${item.dayIndex} ${item.slot}: "${item.dish}"${item.slug ? ` holds ${item.slug}` : ''}${item.cuisine ? ` (${item.cuisine})` : ''}`);
+      console.log(
+        `    FOREIGN day ${item.dayIndex} ${item.slot}: "${item.dish}"${item.slug ? ` holds ${item.slug}` : ''}${item.cuisine ? ` (${item.cuisine})` : ''}`
+      );
     }
   }
 

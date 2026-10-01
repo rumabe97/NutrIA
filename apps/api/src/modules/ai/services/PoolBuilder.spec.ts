@@ -493,7 +493,14 @@ describe('PoolBuilder', () => {
         { dishes: [{ ...dish('Arroz salteado', ['breakfast']), cuisine: 'asiática' }, dish('Wok de pollo', ['breakfast'], ['pollo', 'arroz'])] }
       ]);
 
-      const result = await new PoolBuilder(client).build({ context: context(), feature: 'plan', needPerSlot: 2, preferences, reusable: [], slots: ['breakfast'] });
+      const result = await new PoolBuilder(client).build({
+        context: context(),
+        feature: 'plan',
+        needPerSlot: 2,
+        preferences,
+        reusable: [],
+        slots: ['breakfast']
+      });
 
       expect(result.generated.map(generated => generated.name)).toEqual(['Arroz salteado', 'Wok de pollo']);
     });
