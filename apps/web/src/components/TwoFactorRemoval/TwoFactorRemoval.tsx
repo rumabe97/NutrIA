@@ -68,7 +68,7 @@ export function TwoFactorRemoval({ account }: TwoFactorRemovalProps) {
       // Both mean the row is out of date: it is read again, and the sentence goes on the row, which outlives the dialog.
       if (caught instanceof ApiError && (caught.code === 'TWO_FACTOR_REMOVAL_PENDING' || caught.code === 'TWO_FACTOR_NOT_ENABLED')) {
         requested.current = true;
-        setError(caught.code === 'TWO_FACTOR_REMOVAL_PENDING' ? t.alreadyPending : t.notEnabled);
+        setError(messageFor(caught, dictionary));
         setConfirming(false);
         router.refresh();
       } else {

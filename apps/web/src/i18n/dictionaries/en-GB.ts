@@ -97,12 +97,10 @@ export const enGB: Dictionary = {
     tiers: { free: 'Free', premium: 'Premium' },
     title: 'Accounts',
     twoFactorRemoval: {
-      alreadyPending: 'A removal was already pending for this account: its date is on its row.',
       body: 'It is removed between 48 and 72 hours from now. We write to this address straight away: if they did not ask for it, signing in with their code cancels it.',
       cancel: 'Cancel',
       cancelFor: 'Cancel the second factor removal: {email}',
       confirm: 'Schedule the removal',
-      notEnabled: 'This account no longer has the second factor on.',
       notPending: 'There was no removal pending any more: the person may have cancelled it by signing in with their code.',
       pending: 'Second factor: removed from {date}',
       remove: 'Remove the second factor',
@@ -1391,6 +1389,9 @@ export const enGB: Dictionary = {
     quotaExceeded: 'You have used up what your plan allows this fortnight.',
     reauthenticationRequired: 'For your security, sign out, sign back in and try again.',
     request: 'We could not complete that action.',
+    /** The console's second factor removal (project 011, phase 4). */
+    twoFactorNotEnabled: 'This account no longer has the second factor on.',
+    twoFactorRemovalPending: 'A removal was already pending for this account: its date is on its row.',
     underMinimumAge: 'NutrIA is for adults, 18 and over.',
     unsafeContent: 'That content does not meet your dietary restrictions.'
   },

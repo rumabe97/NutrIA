@@ -104,13 +104,11 @@ export const esES = {
     title: 'Cuentas',
     /** Taking an account's second factor away when its owner has lost it (project 011, phase 4): asked, then done by the daily job. */
     twoFactorRemoval: {
-      alreadyPending: 'Ya había una retirada pendiente para esta cuenta: la fecha está en su fila.',
       body: 'Se quita entre 48 y 72 horas después de ahora. Le escribimos a esta dirección en este momento: si no lo ha pedido, le basta con entrar con su código para cancelarlo.',
       cancel: 'Cancelar',
       /** The visible word first (WCAG 2.5.3), then what it cancels and whose. */
       cancelFor: 'Cancelar la retirada del segundo factor: {email}',
       confirm: 'Programar la retirada',
-      notEnabled: 'Esta cuenta ya no tiene el segundo factor activado.',
       notPending: 'Ya no había ninguna retirada pendiente: puede que la persona la haya cancelado al entrar con su código.',
       pending: 'Segundo factor: se quita a partir del {date}',
       remove: 'Quitar el segundo factor',
@@ -1426,6 +1424,9 @@ export const esES = {
     quotaExceeded: 'Has agotado lo que permite tu plan esta quincena.',
     reauthenticationRequired: 'Por seguridad, cierra sesión, vuelve a entrar e inténtalo de nuevo.',
     request: 'No hemos podido completar la acción.',
+    /** The console's second factor removal (project 011, phase 4). */
+    twoFactorNotEnabled: 'Esta cuenta ya no tiene el segundo factor activado.',
+    twoFactorRemovalPending: 'Ya había una retirada pendiente para esta cuenta: la fecha está en su fila.',
     underMinimumAge: 'NutrIA es para mayores de 18 años.',
     unsafeContent: 'Ese contenido no cumple tus restricciones alimentarias.'
   },
