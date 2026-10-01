@@ -56,8 +56,8 @@ const ENGLISH_NAMES: Record<string, string> = {
  * and, for a cooked pasta with no dry slug, its name without "cooked" plus "(dry)".
  */
 const ENGLISH_DRY_NAMES: Record<string, string> = {
-  [SEEDED.arroz]: 'Long-grain rice',
-  'pasta-cocida': 'Pasta (dry)'
+  'pasta-cocida': 'Pasta (dry)',
+  [SEEDED.arroz]: 'Long-grain rice'
 };
 
 const POOL = [
