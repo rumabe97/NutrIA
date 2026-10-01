@@ -49,7 +49,7 @@ export function TwoFactorRemoval({ account }: TwoFactorRemovalProps) {
   const root = useRef<HTMLDivElement>(null);
   const requested = useRef(false);
   const keepFocus = useKeepFocus(pending !== undefined, root);
-  const path = `/admin/users/${encodeURIComponent(account.id)}/two-factor/removal`;
+  const path = `/admin/accounts/${encodeURIComponent(account.id)}/two-factor/removal`;
   const due = dueAt === undefined ? account.twoFactorRemovalDueAt : dueAt;
 
   async function request() {
