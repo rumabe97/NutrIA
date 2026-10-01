@@ -4,7 +4,7 @@ import { NotFoundError } from 'core/entities/Error';
 import { UNAUDITED } from 'core/entities/Audit';
 import { UserRepository } from '#repositories/User';
 
-import type { ActivationAudit } from 'core/entities/Audit';
+import type { ActivationAudit, PasswordChangedVia, SessionsRevokedScope } from 'core/entities/Audit';
 import type { AccountQuery } from 'core/entities/AdminQuery';
 import type { AccountRow, RecordActivationAudit, RecordTierAudit } from '#repositories/User';
 import type { User, UserTier } from 'core/entities/User';
@@ -37,8 +37,22 @@ export interface UserView {
   createdAt: string;
   email: string;
   emailVerified: boolean;
+  /**
+   * The account can sign in with a password — a `credential` account exists
+   * (PLAN 011 phase 2). False for somebody who only ever arrived through
+   * Google: they have no password to change, and their security is their
+   * provider's.
+   */
+  hasPassword: boolean;
   image: string | null;
   name: string;
+  /**
+   * A sign-in found the password in the breach corpus and it has not been
+   * changed since (PLAN 011 phase 2). While true, every route but `/users/me`
+   * and `/auth/*` answers 409 `PASSWORD_CHANGE_REQUIRED`; the web app sends
+   * the person to the forced-change screen.
+   */
+  passwordChangeRequired: boolean;
   /**
    * Whether this account is a professional *today*: the `professional` switch
    * on and the owner's grant standing — `ProfessionalController.hasAccess`,
@@ -64,15 +78,17 @@ export interface UserView {
  */
 export type StoredUserView = Omit<UserView, 'professional'>;
 
-function presentUser(user: User): StoredUserView {
+function presentUser(user: User, hasPassword: boolean): StoredUserView {
   return {
     id: user.id,
     activated: user.activatedAt !== null,
     createdAt: user.createdAt.toISOString(),
     email: user.email,
     emailVerified: user.emailVerified,
+    hasPassword,
     image: user.image,
     name: user.name,
+    passwordChangeRequired: user.passwordCompromisedAt !== null,
     role: user.role,
     tier: user.tier
   };
@@ -196,18 +212,53 @@ export const UserController = {
    * missing authorisation check away from reading another account.
    */
   async getUser(input: { id: string }): Promise<StoredUserView> {
-    const user = await UserRepository.findById(input.id);
+    const [user, hasPassword] = await Promise.all([UserRepository.findById(input.id), UserRepository.hasPassword(input.id)]);
 
     if (!user) {
       throw new NotFoundError(`User "${input.id}" not found`);
     }
 
-    return presentUser(user);
+    return presentUser(user, hasPassword);
   },
 
   /** The runbook's role statement (see the repository). No route reaches it. */
   async grantAdmin(email: string): Promise<boolean> {
     return UserRepository.grantAdmin(email);
+  },
+
+  /**
+   * A sign-in found the password in the breach corpus (PLAN 011 phase 2): the
+   * account is marked, once — a mark already set keeps its first instant.
+   * `userId` is the account Better Auth just signed in, never a body's. Only a
+   * timestamp is stored: nothing of the password.
+   */
+  async markPasswordCompromised(userId: string, at: Date = new Date()): Promise<boolean> {
+    return UserRepository.markPasswordCompromised(userId, at);
+  },
+
+  /**
+   * The account's password changed (PLAN 011 phase 2) — from a session
+   * (`change`) or a reset link (`reset`). The breach mark goes and one
+   * `auth.password_changed` row is written, in one transaction. The person is
+   * both actor and subject: nobody else can change it.
+   */
+  async passwordChanged(userId: string, via: PasswordChangedVia): Promise<void> {
+    await UserRepository.passwordChanged(userId, async tx => {
+      await AuditRepository.record(
+        { action: 'auth.password_changed', actorId: userId, entity: 'user', metadata: { via }, subjectUserId: userId },
+        tx
+      );
+    });
+  },
+
+  /**
+   * The person closed sessions of their own (PLAN 011 phase 2). Better Auth
+   * has already deleted them, scoped to the session's user; this is the row
+   * that says so — which ones in a closed word, never which token, device or
+   * address.
+   */
+  async sessionsRevoked(userId: string, scope: SessionsRevokedScope): Promise<void> {
+    await AuditRepository.record({ action: 'auth.sessions_revoked', actorId: userId, entity: 'session', metadata: { scope }, subjectUserId: userId });
   },
 
   /**
