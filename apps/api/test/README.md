@@ -226,4 +226,5 @@ Better Auth's own mails — the address confirmation on sign-up, the reset link 
 after the HTTP response. A suite never reads one straight after the request: what it needs
 from a mail it reads from the table that mail was built from (`passwords.e2e-spec.ts` reads
 the reset token from `verification`, written before the response), or it waits for the
-mail with a bounded poll, as `owner-alerts.e2e-spec.ts`'s `until` does.
+mail with a bounded poll — as `audit.e2e-spec.ts` does for the verification url it reads
+off `console.info`, and `owner-alerts.e2e-spec.ts`'s `until` for the owner's mails.

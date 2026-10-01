@@ -154,10 +154,19 @@ describe('audit: one row per admin mutation, and the trail that reads them back'
       await request(httpServer(app)).post(`/${PREFIX}/auth/sign-up/email`).send({ email, name: 'Auto', password: PASSWORD }).expect(200);
 
       const id = await idOf(email);
-      const logged = spy.mock.calls.find(call => typeof call[0] === 'string' && call[0].includes(`verification url for ${id}:`));
+      const loggedLine = () => spy.mock.calls.find(call => typeof call[0] === 'string' && call[0].includes(`verification url for ${id}:`));
+      // Better Auth sends the mail as a background task (`BackgroundTaskService`, project 011), so the line may be
+      // written after the sign-up has answered: waited for, within a bound, rather than read once.
+      const deadline = Date.now() + 5_000;
+
+      while (!loggedLine() && Date.now() < deadline) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+
+      const logged = loggedLine();
 
       if (!logged) {
-        throw new Error('No verification url was logged for the new account');
+        throw new Error('No verification url was logged for the new account within 5 s');
       }
 
       const url = new URL(String(logged[0]).split(': ').slice(1).join(': ').trim());
