@@ -1,3 +1,4 @@
+export * from './AllowPasswordChangePending.decorator.js';
 export * from './AllowUnverified.decorator.js';
 export * from './BeforePractice.decorator.js';
 export * from './CurrentUser.decorator.js';

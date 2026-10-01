@@ -1,7 +1,7 @@
 import { All, Controller, Get, Req, Res } from '@nestjs/common';
 import { ApiExcludeEndpoint, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
-import { AllowUnverified, CurrentUser, Public } from '../../../shared/index.js';
+import { AllowPasswordChangePending, AllowUnverified, CurrentUser, Public } from '../../../shared/index.js';
 import { AuthHandlerService } from '../services/index.js';
 
 import type { Request, Response } from 'express';
@@ -33,6 +33,8 @@ export class AuthController {
 
   @ApiOkResponse({ description: 'The session user. 404 when there is no session, like every other denial.' })
   @ApiOperation({ summary: 'The signed-in user, or 404 when there is no session' })
+  // Under `/auth/*` like the rest, and only echoes the session: reachable while the password must be changed.
+  @AllowPasswordChangePending()
   @AllowUnverified()
   @Get('me')
   me(@CurrentUser() user: SessionUser): SessionUserDto {

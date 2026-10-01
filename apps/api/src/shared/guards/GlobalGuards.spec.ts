@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import { AdminGuard } from './Admin.guard.js';
 import { GLOBAL_GUARDS } from './GlobalGuards.js';
+import { PasswordChangeGuard } from './PasswordChange.guard.js';
 import { RateLimitGuard } from './RateLimit.guard.js';
 import { RequiresOnboardingGuard } from './RequiresOnboarding.guard.js';
 import { SessionGuard } from './Session.guard.js';
@@ -84,10 +85,10 @@ async function run(chain: readonly CanActivate[], request: Record<string, unknow
 }
 
 describe('GLOBAL_GUARDS', () => {
-  it('names all five guards, in the order that keeps SessionGuard first', () => {
+  it('names all six guards, in the order that keeps SessionGuard first', () => {
     // A deletion here is one element of one array, not a visible line removed
     // from app.module.ts — pin membership as well as the two guards' order.
-    expect(GLOBAL_GUARDS).toEqual([SessionGuard, RateLimitGuard, VerifiedEmailGuard, AdminGuard, RequiresOnboardingGuard]);
+    expect(GLOBAL_GUARDS).toEqual([SessionGuard, RateLimitGuard, VerifiedEmailGuard, AdminGuard, PasswordChangeGuard, RequiresOnboardingGuard]);
   });
 
   it('has the signed-in user on the request by the time the limiter builds its key', async () => {

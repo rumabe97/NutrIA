@@ -16,8 +16,10 @@ const ACCOUNT: StoredUserView = {
   createdAt: '2026-09-01T10:00:00.000Z',
   email: 'persona@example.com',
   emailVerified: true,
+  hasPassword: true,
   image: null,
   name: 'Persona',
+  passwordChangeRequired: false,
   role: 'user',
   tier: 'free'
 };

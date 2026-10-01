@@ -98,16 +98,19 @@ describe('UserController.passwordChanged', () => {
     passwordChanged.mockImplementation(async (_id, r) => r('tx-1'));
   });
 
-  it.each(['change', 'reset'] as const)('clears the mark and writes one auth.password_changed row {via: %s} inside the same transaction', async via => {
-    await UserController.passwordChanged('usr-1', via);
+  it.each(['change', 'reset'] as const)(
+    'clears the mark and writes one auth.password_changed row {via: %s} inside the same transaction',
+    async via => {
+      await UserController.passwordChanged('usr-1', via);
 
-    expect(passwordChanged).toHaveBeenCalledWith('usr-1', expect.any(Function));
-    expect(record).toHaveBeenCalledTimes(1);
-    expect(record).toHaveBeenCalledWith(
-      { action: 'auth.password_changed', actorId: 'usr-1', entity: 'user', metadata: { via }, subjectUserId: 'usr-1' },
-      'tx-1'
-    );
-  });
+      expect(passwordChanged).toHaveBeenCalledWith('usr-1', expect.any(Function));
+      expect(record).toHaveBeenCalledTimes(1);
+      expect(record).toHaveBeenCalledWith(
+        { action: 'auth.password_changed', actorId: 'usr-1', entity: 'user', metadata: { via }, subjectUserId: 'usr-1' },
+        'tx-1'
+      );
+    }
+  );
 });
 
 describe('UserController.sessionsRevoked', () => {

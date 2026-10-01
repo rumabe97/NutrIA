@@ -26,6 +26,7 @@ export type EmailKind =
   | 'owner-alert'
   | 'owner-digest'
   | 'owner-picture-alert'
+  | 'password-changed'
   | 'password-reset'
   | 'professional-granted'
   | 'verify-email';

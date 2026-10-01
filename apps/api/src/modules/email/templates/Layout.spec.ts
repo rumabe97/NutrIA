@@ -2,6 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import { accountWaitingEmail } from './AccountWaiting.js';
 import { checkInReminderEmail } from './CheckInReminder.js';
+import { passwordChangedEmail } from './PasswordChanged.js';
 import { passwordResetEmail } from './PasswordReset.js';
 import { verifyEmail } from './VerifyEmail.js';
 
@@ -22,6 +23,11 @@ const URL = 'https://nutria.example/check-in';
 const TEMPLATES: readonly { readonly name: string; readonly render: (locale: EmailLocale) => RenderedEmail }[] = [
   { name: 'accountWaitingEmail', render: locale => accountWaitingEmail({ locale, url: URL }) },
   { name: 'checkInReminderEmail', render: locale => checkInReminderEmail({ locale, url: URL }) },
+  {
+    name: 'passwordChangedEmail',
+    render: locale =>
+      passwordChangedEmail({ at: new Date('2026-10-01T13:05:00.000Z'), device: { browser: 'safari', system: 'iphone' }, locale, recoverUrl: URL })
+  },
   { name: 'passwordResetEmail', render: locale => passwordResetEmail({ locale, url: URL }) },
   { name: 'verifyEmail', render: locale => verifyEmail({ locale, url: URL }) }
 ];

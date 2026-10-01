@@ -1,6 +1,7 @@
 export * from './Admin.guard.js';
 export * from './CronSecret.guard.js';
 export * from './GlobalGuards.js';
+export * from './PasswordChange.guard.js';
 export * from './Professional.guard.js';
 export * from './ProfessionalSwitch.guard.js';
 export * from './RateLimit.guard.js';
