@@ -1727,7 +1727,7 @@ export const enGB: Dictionary = {
       customAllergensHint: 'Separate with commas. When you save we look each one up in our catalogue and tell you what we can apply.',
       dietaryPatterns: 'Way of eating',
       dietaryPatternsHint:
-        'We take out pork, alcohol and gelatine (and, for kosher, shellfish and meat with dairy). Certified meat depends on where you buy it.',
+        'We take out pork, alcohol and gelatine (and, for kosher, shellfish and meat with dairy). Certified meat depends on where you buy it. “Traditional Spanish” leaves only home-style Spanish cooking: no tofu, seitan, quinoa, Asian sauces or tacos.',
       disliked: 'Foods you don’t want to see',
       dislikedHint: 'They will not appear in your plans again.',
       displayName: 'What should we call you?',
@@ -1769,6 +1769,7 @@ export const enGB: Dictionary = {
         lactose_free: 'Lactose-free',
         omnivore: 'No restriction',
         pescatarian: 'Pescatarian',
+        traditional_spanish: 'Traditional Spanish',
         vegan: 'Vegan',
         vegetarian: 'Vegetarian'
       },

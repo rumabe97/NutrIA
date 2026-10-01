@@ -221,7 +221,16 @@ export default async function ProfilePage({ searchParams }: Readonly<{ searchPar
                   t.none
                 )
               },
-              { label: t.dietaryPatterns, value: list(profile?.dietaryPatterns ?? [], t.noRestriction) }
+              {
+                label: t.dietaryPatterns,
+                value: list(
+                  (profile?.dietaryPatterns ?? []).map(
+                    pattern =>
+                      dictionary.onboarding.options.dietaryPatterns[pattern as keyof typeof dictionary.onboarding.options.dietaryPatterns] ?? pattern
+                  ),
+                  t.noRestriction
+                )
+              }
             ]}
             title={t.restrictions}
           />
