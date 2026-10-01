@@ -2,6 +2,11 @@ import { afterAll } from '@jest/globals';
 
 import { closeDatabase } from 'database';
 
+import { installHibpTripwire } from './hibp-tripwire.js';
+
+// Before any suite builds its app: no request to Have I Been Pwned ever leaves a run (`hibp-tripwire.ts`).
+installHibpTripwire();
+
 /**
  * Closes this file's database pool when its suite ends.
  *
