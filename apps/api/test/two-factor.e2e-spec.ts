@@ -64,7 +64,7 @@ const APP = 'http://localhost:3000';
 
 type Sql = <Row>(strings: TemplateStringsArray, ...values: readonly unknown[]) => Promise<Row[]>;
 type Made = { readonly id: string; readonly email: string };
-type WithFactor = Made & { readonly backupCodes: readonly string[]; readonly jar: CookieJar; readonly uri: string; };
+type WithFactor = Made & { readonly backupCodes: readonly string[]; readonly jar: CookieJar; readonly uri: string };
 type AuditRow = {
   readonly actorId: string | null;
   readonly entity: string;
@@ -95,7 +95,16 @@ function part(value: unknown): string {
 /** Shaped like Google's, signed by nobody: the callback reads the claims of a token it fetched itself over TLS. */
 function idToken(email: string, sub: string): string {
   const now = Math.floor(Date.now() / 1000);
-  const claims = { aud: GOOGLE.clientId, email, email_verified: true, exp: now + 3600, iat: now, iss: 'https://accounts.google.com', name: 'Gala', sub };
+  const claims = {
+    aud: GOOGLE.clientId,
+    email,
+    email_verified: true,
+    exp: now + 3600,
+    iat: now,
+    iss: 'https://accounts.google.com',
+    name: 'Gala',
+    sub
+  };
 
   return `${part({ alg: 'RS256', typ: 'JWT' })}.${part(claims)}.unsigned`;
 }
@@ -146,12 +155,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
 
   async function post(path: string, cookie: string, body: object = {}): Promise<Response> {
     return seen(
-      await request(server())
-        .post(`/${PREFIX}/${path}`)
-        .set('Cookie', cookie)
-        .set('User-Agent', IPHONE)
-        .set('Accept-Language', 'es')
-        .send(body)
+      await request(server()).post(`/${PREFIX}/${path}`).set('Cookie', cookie).set('User-Agent', IPHONE).set('Accept-Language', 'es').send(body)
     );
   }
 
@@ -207,7 +211,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
     return { jar, response };
   }
 
-  async function enable(jar: CookieJar, password = ORIGINAL): Promise<{ readonly backupCodes: string[]; readonly totpURI: string; }> {
+  async function enable(jar: CookieJar, password = ORIGINAL): Promise<{ readonly backupCodes: string[]; readonly totpURI: string }> {
     // Not through `post`: this is one of the two responses the secret may be in.
     const response = await request(server())
       .post(`/${PREFIX}/auth/two-factor/enable`)
@@ -215,7 +219,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       .set('User-Agent', IPHONE)
       .send({ password })
       .expect(200);
-    const body = response.body as { backupCodes: string[]; totpURI: string; };
+    const body = response.body as { backupCodes: string[]; totpURI: string };
     const secret = totpSecret(body.totpURI);
 
     secrets.push(secret.base32, secret.raw, ...body.backupCodes);
@@ -409,7 +413,7 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       const original = console[method];
 
       console[method] = (...line: unknown[]) => {
-        logged.push(line.map(item => (typeof item === 'string' ? item : JSON.stringify(item) ?? String(item))).join(' '));
+        logged.push(line.map(item => (typeof item === 'string' ? item : (JSON.stringify(item) ?? String(item)))).join(' '));
         original.apply(console, line);
       };
 
@@ -943,7 +947,8 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
 
       // The sign-up's address confirmation and the "turned on" mail run after their responses and may land at any
       // point here; neither is a code. Anything else to these addresses would be.
-      const codeMails = (to: string) => outbox.filter(mail => mail.to === to && mail.kind !== 'verify-email' && !ENABLED_MAIL.test(`${mail.subject}\n${mail.text}`));
+      const codeMails = (to: string) =>
+        outbox.filter(mail => mail.to === to && mail.kind !== 'verify-email' && !ENABLED_MAIL.test(`${mail.subject}\n${mail.text}`));
       const mailed = codeMails(email).length;
       const { jar: challenge } = await challenged(email);
       const notFound = await guardsNotFound();
