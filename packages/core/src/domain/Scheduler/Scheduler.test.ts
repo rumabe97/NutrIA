@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { axisFilter, pickReplacement, PLAN_DAYS, schedulePlan, SERVING_BOUNDS, SHARE_BAND } from 'core/domain/Scheduler';
+import { axisFilter, pickReplacement, PLAN_DAYS, PLATE_LIMIT, schedulePlan, SERVING_BOUNDS, SHARE_BAND } from 'core/domain/Scheduler';
 import { shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 
 /** The old question, asked of the new answer: "N meals, snacks or not" is still how a test wants to describe a day. */
@@ -1539,5 +1539,135 @@ describe('schedulePlan — no day is sized under the energy floor', () => {
     const far: NutritionTargets = { carbsG: 250, fatG: 70, fiberG: 30, kcal: 2100, proteinG: 117.5 };
 
     expect(run(MINIMUM_KCAL, far)).toEqual(run(0, far));
+  });
+});
+
+describe('schedulePlan — every plate inside PLATE_LIMIT of its share (0076)', () => {
+  // Pure foods at 100 kcal per 100 g, so a dish's grams are its energy.
+  const pureCatalogue = makeCatalogue([
+    makeCatalogueIngredient({ id: 'p', carbsPer100g: 0, fatPer100g: 0, kcalPer100g: 100, name: 'Proteína', proteinPer100g: 25, slug: 'proteina' }),
+    makeCatalogueIngredient({ id: 'c', carbsPer100g: 25, fatPer100g: 0, kcalPer100g: 100, name: 'Hidrato', proteinPer100g: 0, slug: 'hidrato' }),
+    makeCatalogueIngredient({ id: 'f', carbsPer100g: 0, fatPer100g: 11.11, kcalPer100g: 100, name: 'Grasa', proteinPer100g: 0, slug: 'grasa' })
+  ]);
+  // The shape that found it: a light morning snack, a lunch and a dinner.
+  const weights = weightsFor({ afternoon_snack: 'off', breakfast: 'off', dinner: 'normal', lunch: 'normal', morning_snack: 'light', supper: 'off' });
+  const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0);
+  const T: NutritionTargets = { carbsG: 194, fatG: 66, fiberG: 29, kcal: 2100, proteinG: 185 };
+  const budgetOf = (slot: string, targets: NutritionTargets = T): number => (targets.kcal * (weights.get(slot as never) ?? 0)) / total;
+  /** A dish of `kcal` per serving, `protein` of it from protein, the rest split carbs/fat. */
+  const dish = (slug: string, slot: 'dinner' | 'lunch' | 'morning_snack', kcal: number, protein: number) =>
+    makeDish({
+      ingredients: [
+        { grams: Math.round(protein * kcal), slug: 'proteina' },
+        { grams: Math.round((0.72 - protein) * kcal), slug: 'hidrato' },
+        { grams: Math.round(0.28 * kcal), slug: 'grasa' }
+      ],
+      name: slug,
+      servings: 1,
+      slots: [slot],
+      slug
+    });
+  // Protein lives at lunch; dinner is starch. Only a lunch far past its share
+  // and a dinner far under it would land 185 g — what the real plan did.
+  const pool = [
+    ...Array.from({ length: 8 }, (_none, n) => dish(`lunch-${n}`, 'lunch', budgetOf('lunch') * (0.95 + n * 0.02), 0.6)),
+    ...Array.from({ length: 8 }, (_none, n) => dish(`dinner-${n}`, 'dinner', budgetOf('dinner') * (0.95 + n * 0.02), 0.08)),
+    ...Array.from({ length: 8 }, (_none, n) => dish(`snack-${n}`, 'morning_snack', budgetOf('morning_snack') * (0.95 + n * 0.02), 0.3))
+  ];
+
+  const sharesOf = (result: ReturnType<typeof schedulePlan>, targets: NutritionTargets = T) =>
+    result.ok
+      ? result.assignment.days.flatMap(day =>
+          day.meals.map(meal => ({ day: day.dayIndex, share: meal.macros.kcal / budgetOf(meal.slot, targets), slot: meal.slot }))
+        )
+      : [];
+
+  it('serves no plate outside the limit, and leaves the protein short rather than inflating lunch', () => {
+    const result = schedulePlan({ catalogue: pureCatalogue, minimumKcal: MINIMUM_KCAL, pool, targets: T, weights });
+
+    expect(result.ok).toBe(true);
+    // Written out, so this fails if the constant is loosened, not only if it is ignored.
+    expect(PLATE_LIMIT).toEqual({ max: 1.5, min: 0.5 });
+
+    for (const { day, share, slot } of sharesOf(result)) {
+      expect(share, `day ${day} ${slot} at ${share.toFixed(2)}`).toBeGreaterThanOrEqual(0.5);
+      expect(share, `day ${day} ${slot} at ${share.toFixed(2)}`).toBeLessThanOrEqual(1.5);
+    }
+  });
+
+  it('never places a snack whose smallest size is already past the limit', () => {
+    const tooBig = dish('snack-huge', 'morning_snack', budgetOf('morning_snack') * 4, 0.3);
+    const result = schedulePlan({ catalogue: pureCatalogue, minimumKcal: MINIMUM_KCAL, pool: [tooBig, ...pool], targets: T, weights });
+
+    expect(result.ok).toBe(true);
+
+    if (result.ok) {
+      expect(result.assignment.days.flatMap(day => day.meals.map(meal => meal.dish.slug))).not.toContain('snack-huge');
+    }
+  });
+
+  it('lets the energy floor outrank the limit when nothing inside it reaches the floor', () => {
+    // 900 kcal of target under a 1,500 floor: 1.5 × every share is 1,350, short of it.
+    const low: NutritionTargets = { carbsG: 83, fatG: 28, fiberG: 13, kcal: 900, proteinG: 79 };
+    const lowPool = [
+      ...Array.from({ length: 8 }, (_none, n) => dish(`lunch-${n}`, 'lunch', budgetOf('lunch', low) * (0.95 + n * 0.02), 0.35)),
+      ...Array.from({ length: 8 }, (_none, n) => dish(`dinner-${n}`, 'dinner', budgetOf('dinner', low) * (0.95 + n * 0.02), 0.35)),
+      ...Array.from({ length: 8 }, (_none, n) => dish(`snack-${n}`, 'morning_snack', budgetOf('morning_snack', low) * (0.95 + n * 0.02), 0.35))
+    ];
+    const result = schedulePlan({ catalogue: pureCatalogue, days: 2, minimumKcal: 1500, pool: lowPool, targets: low, weights });
+
+    expect(result.ok).toBe(true);
+
+    if (result.ok) {
+      for (const day of result.assignment.days) {
+        expect(day.totals.kcal, `day ${day.dayIndex}`).toBeGreaterThanOrEqual(1500);
+      }
+
+      expect(Math.max(...sharesOf(result, low).map(entry => entry.share))).toBeGreaterThan(PLATE_LIMIT.max);
+    }
+  });
+});
+
+describe('pickReplacement — PLATE_LIMIT (0076)', () => {
+  const pure = makeCatalogue([makeCatalogueIngredient({ id: 'x', kcalPer100g: 100, proteinPer100g: 10, slug: 'food' })]);
+  const budget = { carbsG: 75, fatG: 20, kcal: 600, proteinG: 45 };
+  const lunch = (slug: string, grams: number) =>
+    makeDish({ ingredients: [{ grams, slug: 'food' }], name: slug, servings: 1, slots: ['lunch'], slug });
+
+  it('does not offer a dish whose smallest size is past the limit', () => {
+    // 2,000 kcal a serving: half of one is already 1.67 × a 600-kcal share.
+    expect(
+      pickReplacement({ budget, catalogue: pure, dayIndex: 2, placed: [], plateMinimumKcal: 0, pool: [lunch('huge', 2000)], slot: 'lunch' })
+    ).toBeUndefined();
+  });
+
+  it('keeps the plate inside the limit when the floor does not need more', () => {
+    const picked = pickReplacement({
+      budget,
+      catalogue: pure,
+      dayIndex: 2,
+      placed: [],
+      plateMinimumKcal: 0,
+      pool: [lunch('plain', 300)],
+      slot: 'lunch'
+    });
+
+    expect((picked?.macros.kcal ?? 0) / budget.kcal).toBeLessThanOrEqual(PLATE_LIMIT.max);
+  });
+
+  it('passes the limit only as far as the floor needs, and stops at the first size that clears it', () => {
+    const picked = pickReplacement({
+      budget,
+      catalogue: pure,
+      dayIndex: 2,
+      placed: [],
+      plateMinimumKcal: 1000,
+      pool: [lunch('plain', 300)],
+      slot: 'lunch'
+    });
+
+    expect(picked?.servings).toBe(3.5);
+    expect(picked?.macros.kcal).toBeGreaterThanOrEqual(1000);
+    expect((picked?.macros.kcal ?? 0) / budget.kcal).toBeGreaterThan(PLATE_LIMIT.max);
   });
 });

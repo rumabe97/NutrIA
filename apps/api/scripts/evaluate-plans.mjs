@@ -55,7 +55,7 @@ import {
   PATTERN_EXCLUDED_SLUGS,
   resolvePreferences
 } from 'core/domain/Preference';
-import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
+import { PLAN_DAYS, PLATE_LIMIT, schedulePlan } from 'core/domain/Scheduler';
 import { bestEffortExclusions, dishSafety, normaliseForMatching, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
 import { MAIN_SLOTS } from 'core/domain/Variety';
 
@@ -145,6 +145,16 @@ const PROFILES = [
     target: { activityLevel: 'moderate', ageYears: 52, goal: 'maintenance', heightCm: 180, sex: 'male', weightKg: 85 },
     shape: DEFAULT_MEAL_SHAPE,
     dietaryPattern: 'lactose_free'
+  },
+  {
+    // A synthetic stand-in for a real meal plan, not a copy of it (`0076`): two
+    // main plates and a light snack carrying a BMI-over-30 weight-loss target,
+    // which once came back as 1,700-kcal lunches beside 250-kcal dinners.
+    slug: 'imc-alto-2-comidas',
+    description:
+      'BMI over 30, losing 1 kg a week, a light morning snack, lunch and dinner — protein on a reference weight, plates inside PLATE_LIMIT',
+    target: { activityLevel: 'moderate', ageYears: 60, goal: 'weight_loss', heightCm: 176, paceKgPerWeek: 1, sex: 'male', weightKg: 102 },
+    shape: { afternoon_snack: 'off', breakfast: 'off', dinner: 'normal', lunch: 'normal', morning_snack: 'light', supper: 'off' }
   },
   {
     slug: 'patron-tradicional-espanola',
@@ -408,6 +418,7 @@ async function measureProfile(profile, shared) {
   // centre those days actually sit. A day loaded for an event is judged
   // against its own raised target, exactly as `validatePlan` judges it.
   const deviations = macroDeviations(scheduled.assignment.days, dayTargets, targets);
+  const plateShare = plateShares(scheduled.assignment.days, dayTargets, targets, weights);
 
   const blockingViolations = violations.filter(isBlocking);
   const bandViolations = violations.filter(violation => BAND_KINDS.has(violation.kind));
@@ -475,6 +486,7 @@ async function measureProfile(profile, shared) {
     fallback: null,
     measured: true,
     note,
+    plateShare,
     poolSize: pool.length,
     slug: profile.slug,
     unsafe,
@@ -697,6 +709,37 @@ function overallMeanAbs(deviations) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+/**
+ * Each plate's energy over its slot's share of that day's target — the measure
+ * `PLATE_LIMIT` bounds (`0076`), from the same `weightsFor` the scheduler sized
+ * with and each day's own target, a loaded one included.
+ */
+function plateShares(days, dayTargets, targets, weights) {
+  const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0) || 1;
+  const shares = [];
+
+  for (const day of days) {
+    const kcal = (dayTargets.get(day.dayIndex) ?? targets).kcal;
+
+    for (const meal of day.meals) {
+      const budget = (kcal * (weights.get(meal.slot) ?? 0)) / total;
+
+      if (budget > 0) {
+        shares.push(meal.macros.kcal / budget);
+      }
+    }
+  }
+
+  const round = value => Math.round(value * 100) / 100;
+
+  return {
+    max: shares.length > 0 ? round(Math.max(...shares)) : null,
+    min: shares.length > 0 ? round(Math.min(...shares)) : null,
+    outsideLimit: shares.filter(share => share < PLATE_LIMIT.min || share > PLATE_LIMIT.max).length,
+    plates: shares.length
+  };
+}
+
 function printProfile(profile, result) {
   console.log(`\n${profile.slug} — ${profile.description}`);
 
@@ -771,6 +814,14 @@ function printProfile(profile, result) {
   for (const violation of result.varietyViolations.slice(0, 10)) {
     console.log(
       `    day ${violation.dayIndex}${violation.slot ? ` ${violation.slot}` : ''}: ${violation.dishSlug ?? `matches day ${violation.matchesDayIndex}`} (${violation.kind})`
+    );
+  }
+
+  if (result.plateShare) {
+    const { max, min, outsideLimit, plates } = result.plateShare;
+
+    console.log(
+      `  plate share of its slot (limit ${PLATE_LIMIT.min}–${PLATE_LIMIT.max}): min ${min}, max ${max}, outside ${outsideLimit} / ${plates}`
     );
   }
 
@@ -895,6 +946,15 @@ function printComparison(before, results) {
 
     if (variety) {
       console.log(`  ${variety}`);
+    }
+
+    // A file written before `0076` has no plate shares; say so rather than compare with nothing.
+    if (after.plateShare) {
+      console.log(
+        previous.plateShare
+          ? `  plate share: max ${previous.plateShare.max} → ${after.plateShare.max}, outside the limit ${previous.plateShare.outsideLimit} → ${after.plateShare.outsideLimit}`
+          : `  plate share: max ${after.plateShare.max}, outside the limit ${after.plateShare.outsideLimit} (not measured before)`
+      );
     }
   }
 }

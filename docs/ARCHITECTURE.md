@@ -328,6 +328,18 @@ had no band at all until `0045`, and the scheduler fitted neither; a real plan m
 carbohydrate by 46% on every day and passed. The scheduler now fits all four, and 5% is
 what it reaches on a real library.
 
+**Protein is computed on a reference weight, and every plate stays near its share of the
+day** (`0076`). For weight loss, healthy eating and maintenance, the goal's g/kg applies
+to the lower of actual weight and the weight at BMI 25 for the person's height, never
+below the 0.8 g/kg floor on actual weight. Training goals keep actual weight, and energy and
+the protein bounds stay on it. Each plate's energy is held within 0.5–1.5× its slot's share
+of that day (`PLATE_LIMIT`), as a bound rather than the preference `SHARE_BAND` (0.7–1.4)
+is. A day that cannot meet its macros inside it is delivered out of band with its advisory.
+Only the energy floor outranks the limit, and only as far as the floor needs. The limit is
+relative to the person's own share, so `0070`'s big eaters still get their 2–4 servings. A
+real meal plan without it met a 180 g protein target with 1,700-kcal lunches beside
+250-kcal dinners.
+
 **Nutrition targets are computed, not generated.** `nutritionTargets` in
 `packages/core/domain/Nutrition` derives kcal and macros from Mifflin-St Jeor and the
 user's goal, and clamps to `MINIMUM_DAILY_KCAL` and to a share of maintenance. It returns

@@ -110,6 +110,24 @@ export const SHARE_BAND = { max: 1.4, min: 0.7 } as const;
 const SHARE_BAND_WEIGHT = 1;
 
 /**
+ * How far one plate may stray from its share of the day, as a bound rather
+ * than a price (`0076`). `SHARE_BAND` inside it stays the preference.
+ *
+ * `SHARE_BAND` alone let a real meal plan trade a plate's shape for macro fit
+ * every time a protein target asked for it: 1,700-kcal lunches beside 250-kcal
+ * dinners, a "light" snack of 550. `0070` caps one serving; this caps the plate,
+ * relative to the person's own share, so a big eater's 2–4 servings still fit.
+ * A dish that cannot be sized into it is not a candidate for the slot, and a
+ * day that cannot meet its macros inside it is delivered out of band with its
+ * advisory. The energy floor is the one thing that outranks it — see
+ * `balancedDay` and `pickReplacement`.
+ */
+export const PLATE_LIMIT = { max: 1.5, min: 0.5 } as const;
+
+/** Float slack for a share computed at a limit's edge. */
+const PLATE_EPSILON = 1e-9;
+
+/**
  * The fortnight pass that spreads what a day could not fix on its own across
  * the days that have room for it (`0048`).
  *
@@ -345,8 +363,15 @@ export function schedulePlan(input: SchedulerInput): ScheduleResult {
         .filter(dish => dish.slots.includes(slot))
         .filter(dish => perServing.has(dish.slug))
         .filter(dish => canPlace(dish.slug, slot, dayIndex, placed));
+      // Only dishes that can be sized inside `PLATE_LIMIT` (`0076`). When the pool
+      // holds none for this slot, the day is still built from what there is —
+      // a target no dish fits is validation's to refuse, not a reason to
+      // deliver nothing — and the later passes never swap a fitting plate out.
+      const fitting = eligible.filter(dish => fitsPlate(perServing.get(dish.slug) as Macros, budget));
 
-      const chosen = pickBest(eligible, budget, perServing, placed, dayIndex, slot, slug => crowded(slug, { dayIndex, slot }, placed, proteins, cap));
+      const chosen = pickBest(fitting.length > 0 ? fitting : eligible, budget, perServing, placed, dayIndex, slot, slug =>
+        crowded(slug, { dayIndex, slot }, placed, proteins, cap)
+      );
 
       if (!chosen) {
         return {
@@ -453,7 +478,12 @@ export function pickReplacement(input: {
   const passes = (dish: CandidateDish): boolean => {
     const base = perServing.get(dish.slug);
 
-    return base !== undefined && plateKcal(base, SERVING_BOUNDS.max) >= input.plateMinimumKcal && (input.filter?.(dish, base) ?? true);
+    return (
+      base !== undefined &&
+      fitsPlate(base, input.budget) &&
+      plateKcal(base, SERVING_BOUNDS.max) >= input.plateMinimumKcal &&
+      (input.filter?.(dish, base) ?? true)
+    );
   };
 
   const costOf = (slug: string): number => {
@@ -479,7 +509,8 @@ export function pickReplacement(input: {
 
   let servings = servingsFor(base, input.budget);
 
-  // Ends: `passes` kept only dishes that reach it at the largest size.
+  // Ends: `passes` kept only dishes that reach it at the largest size. The one
+  // place a plate may pass `PLATE_LIMIT.max`, and only as far as the floor needs.
   while (plateKcal(base, servings) < input.plateMinimumKcal && servings < SERVING_BOUNDS.max) {
     servings = roundServings(servings + SERVING_STEP);
   }
@@ -592,9 +623,47 @@ function scaledFitCost(perServing: Macros, budget: SlotBudget): number {
   return fitCost(scaleMacros(perServing, servingsFor(perServing, budget)), budget);
 }
 
-/** The portion that best meets the slot's energy, within what a person can be served. */
+/** The portion that best meets the slot's energy, within what a person can be served and `PLATE_LIMIT`. */
 function servingsFor(perServing: Macros, budget: SlotBudget): number {
-  return quantiseServings(perServing.kcal > 0 ? budget.kcal / perServing.kcal : 1);
+  const servings = quantiseServings(perServing.kcal > 0 ? budget.kcal / perServing.kcal : 1);
+  const sizes = plateServings(perServing, budget);
+  const [smallest, largest] = [sizes.at(0), sizes.at(-1)];
+
+  // No admissible size: every caller has already refused such a dish (`fitsPlate`).
+  if (smallest === undefined || largest === undefined) {
+    return servings;
+  }
+
+  return Math.min(Math.max(servings, smallest), largest);
+}
+
+/** Whether this many servings keep the plate inside `PLATE_LIMIT` of its share. */
+function withinPlateLimit(perServing: Macros, servings: number, budget: SlotBudget): boolean {
+  if (budget.kcal <= 0 || perServing.kcal <= 0) {
+    return true;
+  }
+
+  const share = (perServing.kcal * servings) / budget.kcal;
+
+  return share >= PLATE_LIMIT.min - PLATE_EPSILON && share <= PLATE_LIMIT.max + PLATE_EPSILON;
+}
+
+/** Every quarter size inside both `SERVING_BOUNDS` and `PLATE_LIMIT`, smallest first. Empty when there is none. */
+function plateServings(perServing: Macros, budget: SlotBudget): readonly number[] {
+  const sizes: number[] = [];
+
+  for (let servings: number = SERVING_BOUNDS.min; servings <= SERVING_BOUNDS.max; servings = roundServings(servings + SERVING_STEP)) {
+    if (withinPlateLimit(perServing, servings, budget)) {
+      sizes.push(servings);
+    }
+  }
+
+  return sizes;
+}
+
+/** Whether a dish can be served in this slot at all without breaking `PLATE_LIMIT`. */
+function fitsPlate(perServing: Macros, budget: SlotBudget): boolean {
+  return plateServings(perServing, budget).length > 0;
 }
 
 /** How far a dish sits from a budget, as a sum of relative errors. */
@@ -963,46 +1032,68 @@ function balancedDay(
   };
 
   // The sizes each dish may take: its own, and up to its window either side,
-  // never past what a person can be served.
+  // never past what a person can be served — and, unless `limited` is false,
+  // never outside `PLATE_LIMIT`.
   const windows = windowsFor(picks, budgets, banded ? SPREAD_MAX_COMBOS : BALANCE_MAX_COMBOS);
-  const options = picks.map((pick, index) => {
-    const sizes: number[] = [];
-    const window = windows[index] ?? 0;
+  const optionsFor = (limited: boolean): number[][] =>
+    picks.map((pick, index) => {
+      const sizes: number[] = [];
+      const window = windows[index] ?? 0;
+      const budget = budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
 
-    for (let step = -window; step <= window; step += 1) {
-      const servings = roundServings(pick.servings + step * SERVING_STEP);
+      for (let step = -window; step <= window; step += 1) {
+        const servings = roundServings(pick.servings + step * SERVING_STEP);
 
-      if (servings >= SERVING_BOUNDS.min && servings <= SERVING_BOUNDS.max) {
-        sizes.push(servings);
+        if (servings >= SERVING_BOUNDS.min && servings <= SERVING_BOUNDS.max && (!limited || withinPlateLimit(pick.base, servings, budget))) {
+          sizes.push(servings);
+        }
       }
-    }
 
-    return sizes;
-  });
+      // Nothing admissible in the window only for a dish with no admissible size
+      // at all — `servingsFor` sizes every other one inside the limit, and its
+      // own size is always in its window. It keeps that size.
+      return sizes.length > 0 ? sizes : [pick.servings];
+    });
 
+  // The day as it stands is the one to beat, when its plates are inside the
+  // limit — a tie keeps it, as it always has.
+  const inside = picks.every(pick =>
+    withinPlateLimit(pick.base, pick.servings, budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 })
+  );
   let best: readonly number[] = picks.map(pick => pick.servings);
-  let bestCost = dayCost(best);
+  let bestCost = inside ? dayCost(best) : Number.POSITIVE_INFINITY;
 
-  const visit = (index: number, chosen: number[]): void => {
-    if (index === picks.length) {
-      const cost = dayCost(chosen);
+  const search = (options: readonly (readonly number[])[]): void => {
+    const visit = (index: number, chosen: number[]): void => {
+      if (index === picks.length) {
+        const cost = dayCost(chosen);
 
-      if (cost < bestCost) {
-        bestCost = cost;
-        best = [...chosen];
+        if (cost < bestCost) {
+          bestCost = cost;
+          best = [...chosen];
+        }
+
+        return;
       }
 
-      return;
-    }
+      for (const servings of options[index] ?? []) {
+        chosen.push(servings);
+        visit(index + 1, chosen);
+        chosen.pop();
+      }
+    };
 
-    for (const servings of options[index] ?? []) {
-      chosen.push(servings);
-      visit(index + 1, chosen);
-      chosen.pop();
-    }
+    visit(0, []);
   };
 
-  visit(0, []);
+  search(optionsFor(true));
+
+  // The energy floor outranks `PLATE_LIMIT` (`0076`): when no combination inside
+  // the limit reaches it, the day is searched once more at every size a person
+  // can be served, and `FLOOR_OUTRANKS_ORDER` decides as it always has.
+  if (floorMiss(deliveredKcal(picks, best), minimumKcal) > 0) {
+    search(optionsFor(false));
+  }
 
   return { cost: bestCost, picks: picks.map((pick, index) => ({ ...pick, servings: best[index] ?? pick.servings })) };
 }
@@ -1083,7 +1174,7 @@ function improveDay(
 
         const base = perServing.get(candidate.slug);
 
-        if (!base || !canPlace(candidate.slug, pick.slot, dayIndex, [...others, ...siblings])) {
+        if (!base || !fitsPlate(base, budget) || !canPlace(candidate.slug, pick.slot, dayIndex, [...others, ...siblings])) {
           continue;
         }
 
@@ -1297,6 +1388,12 @@ function spreadAcrossDays(days: readonly BuiltDay[], fixed: readonly Placement[]
             continue;
           }
 
+          const noBudget = { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
+
+          if (!fitsPlate(theirs.base, worst.budgets.get(mine.slot) ?? noBudget) || !fitsPlate(mine.base, other.budgets.get(mine.slot) ?? noBudget)) {
+            continue;
+          }
+
           const rest = placements.filter(
             placement => placement.slot !== mine.slot || (placement.dayIndex !== worst.dayIndex && placement.dayIndex !== other.dayIndex)
           );
@@ -1449,7 +1546,11 @@ function enforceDistinctDays(
 
         const base = perServing.get(candidate.slug);
 
-        if (!base || crowded(candidate.slug, { dayIndex: day.dayIndex, slot: pick.slot }, placedElsewhere, proteins, cap)) {
+        if (
+          !base ||
+          !fitsPlate(base, budget) ||
+          crowded(candidate.slug, { dayIndex: day.dayIndex, slot: pick.slot }, placedElsewhere, proteins, cap)
+        ) {
           continue;
         }
 
