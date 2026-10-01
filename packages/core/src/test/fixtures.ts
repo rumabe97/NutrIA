@@ -36,6 +36,7 @@ export function makeUser(overrides?: Partial<User>): User {
     emailVerified: true,
     image: null,
     name: 'Ada Lovelace',
+    passwordCompromisedAt: null,
     role: 'user',
     tier: 'free',
     updatedAt: new Date('2026-01-15T10:00:00.000Z'),
