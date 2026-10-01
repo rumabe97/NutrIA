@@ -23,7 +23,14 @@ import type { Response } from 'supertest';
  * - with the factor on, `/sign-in/email` answers `twoFactorRedirect` and no
  *   usable session, and only a TOTP code or a backup code finishes it;
  * - a backup code works once (`auth.backup_code_used {remaining}`, and a mail);
- * - turning it off and new backup codes both need the password;
+ * - turning it off and new backup codes both need the password; new codes
+ *   write `auth.backup_codes_regenerated` and send a mail; turning off what is
+ *   already off writes and sends nothing;
+ * - Google is never joined implicitly to an account with the factor on; the
+ *   signed-in owner can still join it on purpose;
+ * - `/two-factor/get-totp-uri` is the guard's 404;
+ * - a trusted device is forgotten when the factor is turned off and on again,
+ *   the password changes or is reset, or every session is revoked;
  * - a reset or a password change neither skips the challenge nor turns it off;
  * - an account with no password (Google only) cannot turn it on: the guard's 404;
  * - email OTP is not offered and grants nothing;
@@ -48,6 +55,7 @@ const IPHONE =
 const ENABLED_MAIL = /activado la verificaci[oó]n en dos pasos/i;
 const DISABLED_MAIL = /desactivado la verificaci[oó]n en dos pasos/i;
 const BACKUP_MAIL = /c[oó]digo de respaldo/i;
+const REGENERATED_MAIL = /nuevos c[oó]digos de respaldo/i;
 /** M14: the mail says nothing of health. */
 const HEALTH_WORDS = /alerg|allerg|salud|health|dieta|diet\b|peso|weight|calor|medic|embaraz|pregnan/i;
 const GOOGLE = { clientId: 'nutria-e2e.apps.googleusercontent.com', clientSecret: 'not-a-real-secret' };
@@ -309,6 +317,68 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
     const answer = await request(server()).get(`/${PREFIX}/profile`);
 
     return { status: answer.status, text: answer.text };
+  }
+
+  /**
+   * The round trip through Google as `email`/`sub`: `/sign-in/social`, or `/link-social` when `cookie` holds a session,
+   * then back to `/callback/google` with whatever the start set. Returns the callback's answer.
+   */
+  async function throughGoogle(email: string, sub: string, cookie = ''): Promise<Response> {
+    googleEmail = email;
+    googleSub = sub;
+
+    const route = cookie ? 'auth/link-social' : 'auth/sign-in/social';
+    const start = await post(route, cookie, { callbackURL: `${APP}/inicio`, errorCallbackURL: `${APP}/acceder`, provider: 'google' });
+
+    expect(start.status).toBe(200);
+
+    const state = new URL((start.body as { url: string }).url).searchParams.get('state') ?? '';
+
+    return request(server())
+      .get(`/${PREFIX}/auth/callback/google`)
+      .query({ code: 'e2e-code', state })
+      .set('Cookie', [cookie, rawCookies(start)].filter(Boolean).join('; '));
+  }
+
+  async function providerAccounts(userId: string): Promise<string[]> {
+    const rows = await sql()<{ provider: string }>`select provider_id as provider from account where user_id = ${userId} order by provider_id`;
+
+    return rows.map(row => row.provider);
+  }
+
+  /** A sign-in finished with "trust this device": the `trust_device` cookie it handed back, and nothing else. */
+  async function trustedDevice(email: string, uri: string, password = ORIGINAL): Promise<string> {
+    const { jar } = await challenged(email, password);
+    const trusted = await verifyTotp(jar.header, totpCode(uri), true);
+
+    expect(trusted.status).toBe(200);
+    expect(jar.take(trusted).has('trust_device')).toBe(true);
+
+    return jar.only('trust_device');
+  }
+
+  /**
+   * Whether the plugin still holds the row a `trust_device` cookie points at (`<hmac>!<identifier>`, signed):
+   * read before the change under test, so a refused skip afterwards is the change's doing and not a cookie that was
+   * dead already.
+   */
+  async function trustIsLive(cookie: string): Promise<boolean> {
+    const value = decodeURIComponent(cookie.slice(cookie.indexOf('=') + 1));
+    const identifier = value.slice(0, value.lastIndexOf('.')).split('!')[1] ?? '';
+    const [row] = await sql()<{ n: number }>`
+      select count(*)::int as n from verification where identifier = ${identifier} and expires_at > now()`;
+
+    expect(identifier).toMatch(/^trust-device-/);
+
+    return (row?.n ?? 0) === 1;
+  }
+
+  /** How many trusted devices the plugin still remembers for this account: its `trust-device-*` rows, each valued with the account id. */
+  async function trustRows(userId: string): Promise<number> {
+    const [row] = await sql()<{ n: number }>`
+      select count(*)::int as n from verification where identifier like 'trust-device-%' and value = ${userId}`;
+
+    return row?.n ?? 0;
   }
 
   function words(mail: OutgoingEmail | undefined): string {
@@ -702,8 +772,8 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       await signedIn(email);
     });
 
-    it('makes new backup codes only with the password, and the old ones stop working', async () => {
-      const { backupCodes, email, jar } = await withFactor('ines', 'Inés Gil');
+    it('makes new backup codes only with the password, records and mails it once, and the old ones stop working', async () => {
+      const { id, backupCodes, email, jar } = await withFactor('ines', 'Inés Gil');
 
       expect((await post('auth/two-factor/generate-backup-codes', jar.header, {})).status).toBe(400);
 
@@ -711,11 +781,14 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
 
       expect(wrong.status).toBe(400);
       expect(code(wrong)).toBe('INVALID_PASSWORD');
+      expect(await auditRows(id, 'auth.backup_codes_regenerated')).toEqual([]);
 
       // Not through `post`: this is the other response the codes may be in.
       const generated = await request(server())
         .post(`/${PREFIX}/auth/two-factor/generate-backup-codes`)
         .set('Cookie', jar.header)
+        .set('User-Agent', IPHONE)
+        .set('Accept-Language', 'es')
         .send({ password: ORIGINAL })
         .expect(200);
       const fresh = (generated.body as { backupCodes: string[] }).backupCodes;
@@ -723,6 +796,17 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       secrets.push(...fresh);
       expect(fresh).toHaveLength(10);
       expect(fresh.filter(backup => backupCodes.includes(backup))).toEqual([]);
+
+      const rows = await auditRows(id, 'auth.backup_codes_regenerated');
+
+      expect(rows).toHaveLength(1);
+      expectOwnRow(rows[0], id);
+      expect(rows[0]?.metadata ?? {}).toEqual({});
+
+      await until(() => mailsTo(email, REGENERATED_MAIL).length > 0, 'The "new backup codes" mail');
+      await pause(500);
+      expect(mailsTo(email, REGENERATED_MAIL)).toHaveLength(1);
+      expectQuietMail(mailsTo(email, REGENERATED_MAIL)[0]);
 
       const old = await challenged(email);
       const refused = await post('auth/two-factor/verify-backup-code', old.jar.header, { code: backupCodes[2] ?? '' });
@@ -813,19 +897,10 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
     it('an account with no password (Google only) gets the guard’s 404 on enable, byte for byte, and no secret', async () => {
       jest.spyOn(SettingsController, 'automaticActivation').mockResolvedValue(true);
 
-      googleEmail = emailFor('google');
-      googleSub = `g-two-factor-${String(stamp)}`;
+      const back = await throughGoogle(emailFor('google'), `g-two-factor-${String(stamp)}`);
 
-      const start = await post('auth/sign-in/social', '', { callbackURL: `${APP}/inicio`, errorCallbackURL: `${APP}/acceder`, provider: 'google' });
+      expect(back.status).toBe(302);
 
-      expect(start.status).toBe(200);
-
-      const state = new URL((start.body as { url: string }).url).searchParams.get('state') ?? '';
-      const back = await request(server())
-        .get(`/${PREFIX}/auth/callback/google`)
-        .query({ code: 'e2e-code', state })
-        .set('Cookie', rawCookies(start))
-        .expect(302);
       const jar = new CookieJar().take(back);
 
       googleCookie = jar.header;
@@ -904,6 +979,167 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
     });
   });
 
+  describe('what the invariant review closed', () => {
+    it('an implicit Google link into a password account with the factor on is refused: no session, no account row, no new user', async () => {
+      jest.spyOn(SettingsController, 'automaticActivation').mockResolvedValue(true);
+
+      const { id, email, uri } = await withFactor('sara', 'Sara Ortiz');
+      const sub = `g-two-factor-link-${String(stamp)}`;
+
+      await sql()`delete from session where user_id = ${id}`;
+      expect(await providerAccounts(id)).toEqual(['credential']);
+
+      // The address is confirmed and Google vouches for it: without the factor, `social-sign-in` shows this joining.
+      const back = await throughGoogle(email, sub);
+      const location = new URL(String(back.headers.location));
+
+      expect(back.status).toBe(302);
+      expect(location.origin + location.pathname).toBe(`${APP}/acceder`);
+      expect(location.searchParams.get('error')).toBe('account_not_linked');
+      expect(new CookieJar().take(back).has('session_token')).toBe(false);
+      expect(await sessionsOf(id)).toBe(0);
+      expect(await providerAccounts(id)).toEqual(['credential']);
+
+      const [users] = await sql()<{ n: number }>`select count(*)::int as n from "user" where email = ${email}`;
+      const [linked] = await sql()<{ n: number }>`select count(*)::int as n from account where account_id = ${sub}`;
+
+      expect(users?.n).toBe(1);
+      expect(linked?.n).toBe(0);
+
+      // The owner, signed in with the password and the code, can still join Google to the account on purpose.
+      const { jar } = await challenged(email);
+      const verified = await verifyTotp(jar.header, totpCode(uri));
+
+      expect(verified.status).toBe(200);
+      jar.take(verified);
+
+      const joined = await throughGoogle(email, sub, jar.header);
+
+      expect(joined.status).toBe(302);
+      expect(String(joined.headers.location)).toBe(`${APP}/inicio`);
+      expect(await providerAccounts(id)).toEqual(['credential', 'google']);
+      expect(await flagOf(id)).toBe(true);
+    });
+
+    it('a Google account joined while the factor was off still signs in through Google with no code (decision 0074)', async () => {
+      jest.spyOn(SettingsController, 'automaticActivation').mockResolvedValue(true);
+
+      const { id, email } = await account('zoe', 'Zoe Navas');
+      const sub = `g-two-factor-joined-${String(stamp)}`;
+      const joined = await throughGoogle(email, sub);
+
+      // Joined as `social-sign-in` shows: same address, confirmed, the factor off.
+      expect(joined.status).toBe(302);
+      expect(String(joined.headers.location)).toBe(`${APP}/inicio`);
+      expect(await providerAccounts(id)).toEqual(['credential', 'google']);
+
+      const jar = await signedIn(email);
+      const { totpURI } = await enable(jar);
+
+      jar.take(await verifyTotp(jar.header, totpCode(totpURI)));
+      expect(await flagOf(id)).toBe(true);
+
+      // Better Auth challenges only a password sign-in; a provider sign-in rests on the provider's own second factor.
+      const again = await throughGoogle(email, sub);
+      const arrived = new CookieJar().take(again);
+
+      expect(again.status).toBe(302);
+      expect(String(again.headers.location)).toBe(`${APP}/inicio`);
+      expect(arrived.has('two_factor')).toBe(false);
+      expect((await get('users/me', arrived.header)).body).toMatchObject({ id, twoFactorEnabled: true });
+
+      // The password door is still asked.
+      await challenged(email);
+    });
+
+    it('get-totp-uri answers the guard’s 404, byte for byte, signed in or not, and hands no secret back', async () => {
+      const { jar } = await withFactor('tomas', 'Tomás Rey');
+      const notFound = await guardsNotFound();
+
+      for (const cookie of [jar.header, '']) {
+        for (const body of [{ password: ORIGINAL }, {}]) {
+          const asked = await post('auth/two-factor/get-totp-uri', cookie, body);
+
+          expect({ status: asked.status, text: asked.text }).toEqual(notFound);
+        }
+      }
+    });
+
+    it('disable on an account with the factor already off records nothing and mails nothing', async () => {
+      const { id, email } = await account('ursula', 'Úrsula Paz');
+      const jar = await signedIn(email);
+      const disabled = await post('auth/two-factor/disable', jar.header, { password: ORIGINAL });
+
+      expect(disabled.status).toBeLessThan(500);
+      expect(await flagOf(id)).toBe(false);
+      await pause(1000);
+      expect(await auditRows(id, 'auth.2fa_disabled')).toEqual([]);
+      expect(mailsTo(email, DISABLED_MAIL)).toEqual([]);
+    });
+
+    it('a device trusted before the factor was turned off and on again is asked again', async () => {
+      const { id, email, jar, uri } = await withFactor('vera', 'Vera Lago');
+      const trust = await trustedDevice(email, uri);
+
+      expect(await trustIsLive(trust)).toBe(true);
+      // Turned off from the session, which never held the trust cookie: the plugin's own disable forgets only the device it is sent from.
+      expect(jar.has('trust_device')).toBe(false);
+
+      const disabled = await post('auth/two-factor/disable', jar.header, { password: ORIGINAL });
+
+      expect(disabled.status).toBe(200);
+      jar.take(disabled);
+      expect(await trustRows(id)).toBe(0);
+
+      const { totpURI } = await enable(jar);
+      const verified = await verifyTotp(jar.header, totpCode(totpURI));
+
+      expect(verified.status).toBe(200);
+      jar.take(verified);
+
+      const { jar: challenge } = await challenged(email, ORIGINAL, trust);
+
+      expect((await verifyTotp(challenge.header, totpCode(totpURI))).status).toBe(200);
+    });
+
+    it('a device trusted before a password change is asked again', async () => {
+      const { id, email, jar, uri } = await withFactor('wendy', 'Wendy Gómez');
+      const trust = await trustedDevice(email, uri);
+
+      expect(await trustIsLive(trust)).toBe(true);
+      expect(jar.has('trust_device')).toBe(false);
+      expect((await change(jar.header, { currentPassword: ORIGINAL, newPassword: 'amber-lantern-quietly-8' })).status).toBe(200);
+      expect(await trustRows(id)).toBe(0);
+      await challenged(email, 'amber-lantern-quietly-8', trust);
+    });
+
+    it('a device trusted before a reset is asked again', async () => {
+      const { id, email, uri } = await withFactor('ximena', 'Ximena Toro');
+      const trust = await trustedDevice(email, uri);
+      const token = `two-factor-reset-trust-${String(stamp)}`;
+
+      expect(await trustIsLive(trust)).toBe(true);
+      await sql()`
+        insert into verification (id, identifier, value, expires_at, created_at, updated_at)
+        values (${token}, ${`reset-password:${token}`}, ${id}, now() + interval '1 hour', now(), now())`;
+      expect((await post('auth/reset-password', '', { newPassword: 'cobalt-harbour-willow-8', token })).status).toBe(200);
+      expect(await trustRows(id)).toBe(0);
+      await challenged(email, 'cobalt-harbour-willow-8', trust);
+      await sql()`delete from verification where id = ${token}`;
+    });
+
+    it('a device trusted before revoke-sessions is asked again', async () => {
+      const { id, email, jar, uri } = await withFactor('yago', 'Yago Ríos');
+      const trust = await trustedDevice(email, uri);
+
+      expect(await trustIsLive(trust)).toBe(true);
+      expect(jar.has('trust_device')).toBe(false);
+      expect((await post('auth/revoke-sessions', jar.header)).status).toBe(200);
+      expect(await trustRows(id)).toBe(0);
+      await challenged(email, ORIGINAL, trust);
+    });
+  });
+
   describe('counting, and leaving', () => {
     it('counts one session_started per sign-in, with the factor and without it, and none for an abandoned challenge', async () => {
       const plain = await account('pablo', 'Pablo Mora');
@@ -958,7 +1194,8 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       const rows = await sql()<AuditRow & { action: string }>`
         select action, actor_id as "actorId", entity, entity_id as "entityId", ip_hash as "ipHash", metadata, subject_user_id as "subjectUserId"
         from audit_logs
-        where created_at >= ${started} and action in ('auth.2fa_enabled', 'auth.2fa_disabled', 'auth.backup_code_used')`;
+        where created_at >= ${started}
+          and action in ('auth.2fa_enabled', 'auth.2fa_disabled', 'auth.backup_code_used', 'auth.backup_codes_regenerated')`;
 
       // Every enable, two disables and three backup codes — at least.
       expect(rows.length).toBeGreaterThanOrEqual(6);
