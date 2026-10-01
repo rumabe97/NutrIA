@@ -4,6 +4,7 @@ import { OnboardingIncompleteError, ProfileConsentRequiredError } from 'core/ent
 import { normaliseForMatching } from 'core/domain/Safety';
 import { buildShoppingList, unresolvedSlugs } from 'core/domain/ShoppingList';
 import { dishSafety } from 'core/domain/Safety';
+import { leaningSlugs } from 'core/domain/Preference';
 import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
 import { DEFAULT_MEAL_SHAPE, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { isBlocking, planQuality, validatePlan } from 'core/domain/PlanValidation';
@@ -157,9 +158,10 @@ export class PlanGenerationService {
       avoidSlugs: new Set([...history.recentDishes.map(dish => dish.slug), ...verdicts.disliked.map(dish => dish.slug)]),
       // Their kitchens and their foods lean the library pick without narrowing
       // it (0026): a dish of a chosen cuisine, or using something they said they
-      // like, is offered first and the rest still follow.
+      // like or their way of eating leans towards (`0077`), is offered first and
+      // the rest still follow.
       preferCuisines: new Set(profile.cuisines.map(cuisine => normaliseForMatching(cuisine))),
-      preferIngredientSlugs: context.preferences.preferredIngredientSlugs,
+      preferIngredientSlugs: leaningSlugs(context.preferences),
       preferSlugs: new Set(verdicts.liked.map(dish => dish.slug)),
       seed: `${userId}:${history.nextVersion}`
     };

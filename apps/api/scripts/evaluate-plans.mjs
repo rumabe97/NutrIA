@@ -47,9 +47,16 @@ import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/M
 import { loadedTargets } from 'core/domain/Event';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
 import { isBlocking, PLAN_TOLERANCE, validatePlan } from 'core/domain/PlanValidation';
-import { freeFromExclusions, resolvePreferences } from 'core/domain/Preference';
+import {
+  breaksPatternDish,
+  FOREIGN_CUISINES,
+  freeFromExclusions,
+  isLegumeSlug,
+  PATTERN_EXCLUDED_SLUGS,
+  resolvePreferences
+} from 'core/domain/Preference';
 import { PLAN_DAYS, schedulePlan } from 'core/domain/Scheduler';
-import { bestEffortExclusions, dishSafety, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
+import { bestEffortExclusions, dishSafety, normaliseForMatching, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
 import { MAIN_SLOTS } from 'core/domain/Variety';
 
 // ---------------------------------------------------------------------------
@@ -138,6 +145,13 @@ const PROFILES = [
     target: { activityLevel: 'moderate', ageYears: 52, goal: 'maintenance', heightCm: 180, sex: 'male', weightKg: 85 },
     shape: DEFAULT_MEAL_SHAPE,
     dietaryPattern: 'lactose_free'
+  },
+  {
+    slug: 'patron-tradicional-espanola',
+    description: 'A declared dietary pattern (traditional Spanish), ordinary shape — 0077: rows, cuisines and names enforced in code',
+    target: { activityLevel: 'moderate', ageYears: 62, goal: 'maintenance', heightCm: 172, sex: 'male', weightKg: 78 },
+    shape: DEFAULT_MEAL_SHAPE,
+    dietaryPattern: 'traditional_spanish'
   }
 ];
 
@@ -464,6 +478,7 @@ async function measureProfile(profile, shared) {
     poolSize: pool.length,
     slug: profile.slug,
     unsafe,
+    spanish: spanishMetrics(scheduled.assignment.days, context.catalogue),
     // How varied the plan actually is, not just whether it broke a rule —
     // distinct dishes maximised, no two days the same, a repeat as far apart
     // as the pool allows (owner, 2026-09-26; `0065`).
@@ -477,6 +492,46 @@ async function measureProfile(profile, shared) {
     })),
     worst
   };
+}
+
+/**
+ * What traditional Spanish (`0077`) promises, read off the plates of every
+ * profile: a row the pattern excludes, a dish of a foreign cuisine, a dish with
+ * a foreign name — each zero for `patron-tradicional-espanola`, and a baseline
+ * for everyone else — and how many lunches and dinners carry legumes and fish
+ * (PRD 013 criterion 6: at least 8 and 6 in the fortnight).
+ */
+function spanishMetrics(days, catalogue) {
+  const forbidden = PATTERN_EXCLUDED_SLUGS.traditional_spanish;
+  const forbiddenRows = [];
+  const foreignCuisines = [];
+  const foreignNames = [];
+  let withLegumes = 0;
+  let withFish = 0;
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      const { dish } = meal;
+      const slugs = dish.ingredients.map(item => item.slug);
+
+      for (const slug of slugs.filter(slug => forbidden.has(slug))) {
+        forbiddenRows.push({ dayIndex: day.dayIndex, dish: dish.name, slot: meal.slot, slug });
+      }
+
+      if (dish.cuisine && FOREIGN_CUISINES.has(normaliseForMatching(dish.cuisine))) {
+        foreignCuisines.push({ cuisine: dish.cuisine, dayIndex: day.dayIndex, dish: dish.name, slot: meal.slot });
+      } else if (breaksPatternDish({ cuisine: null, name: dish.name }, { refusesForeignDishes: true })) {
+        foreignNames.push({ dayIndex: day.dayIndex, dish: dish.name, slot: meal.slot });
+      }
+
+      if (meal.slot === 'lunch' || meal.slot === 'dinner') {
+        withLegumes += slugs.some(isLegumeSlug) ? 1 : 0;
+        withFish += slugs.some(slug => (catalogue.get(slug)?.classes ?? []).some(cls => cls === 'fish' || cls === 'shellfish')) ? 1 : 0;
+      }
+    }
+  }
+
+  return { foreignCuisines, foreignNames, forbiddenRows, mainsWithFish: withFish, mainsWithLegumes: withLegumes };
 }
 
 /**
@@ -717,6 +772,21 @@ function printProfile(profile, result) {
     console.log(
       `    day ${violation.dayIndex}${violation.slot ? ` ${violation.slot}` : ''}: ${violation.dishSlug ?? `matches day ${violation.matchesDayIndex}`} (${violation.kind})`
     );
+  }
+
+  const spanish = result.spanish;
+
+  console.log(
+    `  traditional Spanish (0077): ${spanish.forbiddenRows.length} excluded row(s), ${spanish.foreignCuisines.length} foreign cuisine(s), ${spanish.foreignNames.length} foreign name(s) on plates;` +
+      ` lunches and dinners with legumes ${spanish.mainsWithLegumes}, with fish ${spanish.mainsWithFish}`
+  );
+
+  if (profile.dietaryPattern === 'traditional_spanish') {
+    for (const item of [...spanish.forbiddenRows, ...spanish.foreignCuisines, ...spanish.foreignNames].slice(0, 10)) {
+      console.log(
+        `    FOREIGN day ${item.dayIndex} ${item.slot}: "${item.dish}"${item.slug ? ` holds ${item.slug}` : ''}${item.cuisine ? ` (${item.cuisine})` : ''}`
+      );
+    }
   }
 
   if (result.unsafe.length > 0) {
