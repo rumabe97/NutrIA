@@ -331,6 +331,81 @@ describe('passwords: the length, and nothing of the account in it', () => {
     });
   });
 
+  describe('an expired verification row, before the sweep reaches it', () => {
+    const email = emailFor('expired');
+    const original = 'amber-thistle-railway-6';
+    /** A row nobody would ever look up: only the cleanup Better Auth runs on every lookup could remove it. */
+    const bystander = `passwords-bystander:${String(stamp)}`;
+    let userId = '';
+    let token = '';
+    let hash = '';
+
+    const passwordHash = async () => {
+      const [row] = await sql()<{ password: string }>`select password from account where user_id = ${userId} and provider_id = 'credential'`;
+
+      return row?.password ?? '';
+    };
+
+    beforeAll(async () => {
+      const made = await signUp(email, 'Eustaquio Berrocal', original).expect(200);
+
+      userId = (made.body as { user: { id: string } }).user.id;
+      await request(server()).post(`/${PREFIX}/auth/request-password-reset`).send({ email }).expect(200);
+
+      const [row] = await sql()<{ identifier: string }>`
+        select identifier from verification where value = ${userId} and identifier like 'reset-password:%' order by created_at desc limit 1`;
+
+      token = row?.identifier.slice('reset-password:'.length) ?? '';
+      expect(token).not.toBe('');
+
+      // Expired a minute ago, as a link left in a mailbox past its hour would be.
+      await sql()`update verification set expires_at = now() - interval '1 minute' where identifier = ${`reset-password:${token}`}`;
+      await sql()`
+        insert into verification (id, identifier, value, expires_at, created_at, updated_at)
+        values (${bystander}, ${bystander}, 'nobody', now() - interval '1 minute', now(), now())`;
+      hash = await passwordHash();
+    });
+
+    afterAll(async () => {
+      await sql()`delete from verification where id = ${bystander} or identifier = ${`reset-password:${token}`}`;
+    });
+
+    it('stays in the table through lookups: Better Auth’s own cleanup is off, the sweep owns expiry', async () => {
+      // Each of these looks a verification up, which is what deletes every expired row when the cleanup is on.
+      await request(server()).post(`/${PREFIX}/auth/request-password-reset`).send({ email: emailFor('nobody') }).expect(200);
+      await request(server()).post(`/${PREFIX}/auth/reset-password`).send({ newPassword: 'cobalt-harbour-willow-7', token: 'not-a-token-anybody-issued' });
+      sent.push('cobalt-harbour-willow-7');
+
+      const [row] = await sql()<{ n: number }>`select count(*)::int as n from verification where id = ${bystander}`;
+
+      expect(row?.n).toBe(1);
+    });
+
+    it('is refused by the reset link: a redirect with INVALID_TOKEN', async () => {
+      const opened = await request(server())
+        .get(`/${PREFIX}/auth/reset-password/${token}`)
+        .query({ callbackURL: 'http://localhost:3000/restablecer' })
+        .redirects(0);
+
+      expect(opened.status).toBe(302);
+      expect(new URL(String(opened.headers.location)).searchParams.get('error')).toBe('INVALID_TOKEN');
+    });
+
+    it('is refused by the reset itself with INVALID_TOKEN, before any check of ours, and the password is unchanged', async () => {
+      for (const newPassword of ['berrocal-berrocal-berrocal', 'saffron-meadow-ladder-9']) {
+        sent.push(newPassword);
+
+        const refused = await request(server()).post(`/${PREFIX}/auth/reset-password`).send({ newPassword, token });
+
+        expect(refused.status).toBe(400);
+        expect((refused.body as Refusal).code).toBe('INVALID_TOKEN');
+      }
+
+      expect(await passwordHash()).toBe(hash);
+      await request(server()).post(`/${PREFIX}/auth/sign-in/email`).send({ email, password: original }).expect(200);
+    });
+  });
+
   describe('change', () => {
     const email = emailFor('change');
     const current = 'granite-meadow-cobalt-4';
