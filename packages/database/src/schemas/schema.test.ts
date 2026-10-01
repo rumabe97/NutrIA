@@ -137,7 +137,7 @@ describe('the link between a professional and a client (0059)', () => {
 });
 
 describe('a plan waiting for review (0060)', () => {
-  it('keeps the one-pending index excluding every other status — a value added later must not silently join it', () => {
+  it('keeps the one-pending index an equality on pending_review — no value added later can join it', () => {
     const index = getTableConfig(schema.mealPlans).indexes.find(candidate => candidate.config.name === 'meal_plans_one_pending_review_per_user');
     const where = index?.config.where;
 
@@ -145,8 +145,8 @@ describe('a plan waiting for review (0060)', () => {
     expect(where).toBeDefined();
 
     const predicate = new PgDialect().sqlToQuery(where as NonNullable<typeof where>).sql;
-    const excluded = [...predicate.matchAll(/'([a-z_]+)'/g)].map(match => match[1]).sort();
 
-    expect(excluded).toEqual(schema.planStatus.enumValues.filter(value => value !== 'pending_review').sort());
+    expect(predicate).toMatch(/^"?[a-z_]*"?\.?"status" = 'pending_review'$/);
+    expect(predicate).not.toMatch(/not in/i);
   });
 });
