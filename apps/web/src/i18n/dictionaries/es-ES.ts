@@ -2272,7 +2272,7 @@ export const esES = {
           'Enfermedades, medicación y suplementos: solo si decides contárnoslo, bajo un consentimiento aparte que puedes retirar en cualquier momento sin borrar el resto de tu cuenta.',
           'Cómo llevas el plan: qué comidas marcas como hechas o saltadas, tus valoraciones y comentarios de los platos, tu peso a lo largo del tiempo y tus check-ins quincenales. Para que el siguiente plan lo tenga en cuenta.',
           'Pagos: si contratas Premium, Stripe cobra y nosotros guardamos solo el identificador de tu suscripción y su estado. Nunca vemos el número de tu tarjeta.',
-          'Seguridad de tu cuenta: anotamos cuándo cambias o restableces tu contraseña y cuándo cierras sesiones, con la fecha y sin tu dirección IP. Para que tú y nosotros podamos ver qué pasó si alguien entra en tu cuenta.',
+          'Seguridad de tu cuenta: anotamos cuándo cambias o restableces tu contraseña y cuándo cierras sesiones, con la fecha y sin tu dirección IP. Para que podamos ver qué pasó si alguien entra en tu cuenta.',
           'Uso del producto: registramos, ligado a tu cuenta, cuándo abres sesión y cuándo pides cambiar un plato, sin más detalle. Para saber si el producto funciona.',
           'Lo que nos escribes: los mensajes del buzón de sugerencias, para leerlos y responderte.'
         ],
