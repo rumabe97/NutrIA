@@ -2234,6 +2234,7 @@ export const enGB: Dictionary = {
           'How the plan is going: which meals you mark as eaten or skipped, your ratings and comments on dishes, your weight over time and your fortnightly check-ins. So the next plan takes them into account.',
           'Payments: if you subscribe to Premium, Stripe takes the payment and we keep only the identifier for your subscription and its status. We never see your card number.',
           'Account security: we record when you change or reset your password and when you sign out of sessions, with the date and without your IP address. So that we can see what happened if someone gets into your account.',
+          'Two-step verification, only if you turn it on: the secret of your authenticator app and your backup codes, encrypted, failed code attempts and, in the security record, when you turn it on, turn it off or use a backup code. If you turn it off, we delete the secret and the codes. So that, even if someone knows your password, they cannot get into your account.',
           'Product use: we record, linked to your account, when you sign in and when you ask to change a dish, and nothing more. To know whether the product works.',
           'What you write to us: messages in the feedback box, so we can read and answer them.'
         ],
@@ -2328,7 +2329,7 @@ export const enGB: Dictionary = {
       {
         heading: 'Cookies and storage on your device',
         paragraphs: [
-          'We only use what is essential for the service to work, which is why we do not ask for permission: your session cookie, the cookie for the language you chose and, when you sign in with Google or Apple, the ones that step needs for a few minutes. None is third-party or tracks you on other sites.',
+          'We only use what is essential for the service to work, which is why we do not ask for permission: your session cookie, the cookie for the language you chose, the one that, if you tick “trust this device” when verifying in two steps, stops asking you for the code for 30 days in that browser, and, when you sign in with Google or Apple, the ones that step needs for a few minutes. None is third-party or tracks you on other sites.',
           "In your browser's storage we keep the meals you tick while offline until they are sent, a notice about a plan pending review and, if you install NutrIA on your phone, a copy of today's plan and the shopping list so they work offline. It all stays on your device."
         ]
       },
