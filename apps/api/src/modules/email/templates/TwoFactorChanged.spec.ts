@@ -7,7 +7,12 @@ import type { TwoFactorEvent } from './TwoFactorChanged.js';
 const RECOVER = 'https://nutria.example/recuperar';
 const AT = new Date('2026-10-01T13:05:00.000Z');
 const IPHONE_SAFARI = { browser: 'safari', system: 'iphone' } as const;
-const EVENTS: TwoFactorEvent[] = [{ kind: 'enabled' }, { kind: 'disabled' }, { kind: 'backup-code-used', remaining: 4 }];
+const EVENTS: TwoFactorEvent[] = [
+  { kind: 'enabled' },
+  { kind: 'disabled' },
+  { kind: 'backup-code-used', remaining: 4 },
+  { kind: 'backup-codes-regenerated' }
+];
 
 /** The same list the password mail is held to (M14): this mail is about the account, never its contents. */
 const HEALTH_WORDS = [
@@ -35,6 +40,10 @@ describe('twoFactorChangedEmail', () => {
     expect(mail({ kind: 'backup-code-used', remaining: 4 })).toMatchObject({
       kind: 'backup-code-used',
       subject: 'Has usado un código de respaldo (te quedan 4)'
+    });
+    expect(mail({ kind: 'backup-codes-regenerated' })).toMatchObject({
+      kind: 'backup-codes-regenerated',
+      subject: 'Has generado códigos de respaldo nuevos; los anteriores ya no sirven'
     });
     expect(mail({ kind: 'enabled' }, 'en-GB').subject).toBe('You turned on two-step verification');
     expect(mail({ kind: 'backup-code-used', remaining: 1 }, 'en-GB').subject).toBe('You used a backup code (1 left)');
