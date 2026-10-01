@@ -525,13 +525,13 @@ export function OnboardingFlow({ allergens, consent, profile, returnTo = null, s
               ))}
             </fieldset>
 
-            <fieldset className={styles.fieldset}>
+            <fieldset aria-describedby="dietary-patterns-hint" className={styles.fieldset}>
               <legend className={styles.legend}>{f.dietaryPatterns}</legend>
               <ChipGroup name="dietaryPatterns" options={options.dietaryPatterns} selected={profile?.dietaryPatterns ?? []} />
               {/* Halal and kosher are enforced in code by excluding what the
                   religion forbids — never a claim of certified slaughter,
                   which nothing here checks. */}
-              <Text className={styles.hint} size="xs" tone="tertiary">
+              <Text id="dietary-patterns-hint" className={styles.hint} size="xs" tone="tertiary">
                 {f.dietaryPatternsHint}
               </Text>
             </fieldset>
