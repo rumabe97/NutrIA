@@ -5,11 +5,12 @@ import { CheckInReminderService } from '../../notifications/index.js';
 import { CronRunService } from '../services/index.js';
 import { CronSecretGuard } from '../../../shared/guards/index.js';
 import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
+import { ExpiredVerificationsService } from '../../auth/services/ExpiredVerifications.service.js';
 import { OwnerAlertsService } from '../../owner-alerts/index.js';
 import { PictureCandidatesService, RecipeRewriter } from '../../ai/index.js';
 import { Public, SkipRateLimit } from '../../../shared/index.js';
 
-import type { ReminderRunDto, RewriteRunDto } from '../dto/out/index.js';
+import type { ReminderRunDto, RewriteRunDto, VerificationSweepDto } from '../dto/out/index.js';
 
 /**
  * The most the reminders watch and the pictures' mail may take before a sweep starts. The sweep's own clock
@@ -36,7 +37,7 @@ const REWRITES_PER_SWEEP = 12;
 /**
  * The platform's cron calls these; nothing else may.
  *
- * Both sweeps live on one controller because they are one caller — the
+ * Every sweep lives on one controller because they are one caller — the
  * scheduler — and `CronSecretGuard` is their whole authorisation, on the class
  * so a third sweep is guarded by default rather than by remembering.
  *
@@ -55,7 +56,8 @@ export class CronController {
     private readonly invitations: ExpiredInvitationsService,
     private readonly reminders: CheckInReminderService,
     private readonly rewriter: RecipeRewriter,
-    private readonly runs: CronRunService
+    private readonly runs: CronRunService,
+    private readonly verifications: ExpiredVerificationsService
   ) {}
 
   /**
@@ -118,6 +120,22 @@ export class CronController {
     // The sweep is the one spender nobody waits for: the cap's warning is checked when it ends (`0071`).
     // It never throws, and the catch keeps it so: the sweep's answer does not depend on the owner's mail.
     await this.alerts.checkSpend().catch(() => undefined);
+
+    return run;
+  }
+
+  /**
+   * Once a day, five minutes after the reminders so the database is usually
+   * awake: every expired verification row deleted (PLAN 011). Better Auth no
+   * longer prunes them inside a reset, so a reset for an unknown address costs
+   * the same round trips as one for a real one. Spends nothing and needs no switch.
+   */
+  @Get('sweep-verifications')
+  async sweepVerifications(): Promise<VerificationSweepDto> {
+    const run = { deleted: await this.verifications.forget() };
+
+    // At the end, so the record says the run finished and the console's silent-cron watch sees it (`0071`).
+    await this.runs.record('verifications', run);
 
     return run;
   }

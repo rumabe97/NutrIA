@@ -28,8 +28,8 @@ import type { Request } from 'express';
  * have no second door behind them.
  *
  * A guard rather than a private method on the controller, because it is the
- * whole authorisation of three routes, and a check a route has to remember to
- * call is a check a fourth route will not.
+ * whole authorisation of four routes, and a check a route has to remember to
+ * call is a check a fifth route will not.
  */
 @Injectable()
 export class CronSecretGuard implements CanActivate {

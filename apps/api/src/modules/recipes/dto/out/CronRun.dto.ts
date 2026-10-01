@@ -6,3 +6,6 @@ export type ReminderRunDto = ReminderRun;
 
 /** What one rewrite sweep rewrote, skipped, and left. */
 export type RewriteRunDto = RewriteHeldBack | RewriteRun;
+
+/** How many expired verification rows one prune deleted. */
+export type VerificationSweepDto = { readonly deleted: number };

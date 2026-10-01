@@ -35,7 +35,7 @@ const ZERO_LABEL: Record<(typeof ZERO_ITEMS)[number]['key'], string> = {
   unserved: 'Platos sin ingredientes que sirvan a sus comidas'
 };
 
-const CRON_LABEL = { reminders: 'recordatorios', rewrite: 'reescritura nocturna' } as const;
+const CRON_LABEL = { reminders: 'recordatorios', rewrite: 'reescritura nocturna', verifications: 'borrado de enlaces caducados' } as const;
 
 type Section = { readonly lines: readonly string[]; readonly title: string; readonly url: string };
 
