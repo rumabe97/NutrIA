@@ -16,6 +16,7 @@ import { api, ApiError, messageFor } from 'lib/api';
 import { formatInstant, interpolate } from 'lib/format';
 
 import type { AccountView } from 'core/controllers/User';
+import type { TwoFactorRemovalRequestedView } from 'core/controllers/TwoFactor';
 
 interface TwoFactorRemovalProps {
   account: Pick<AccountView, 'email' | 'id' | 'twoFactorEnabled' | 'twoFactorRemovalDueAt'>;
@@ -58,7 +59,7 @@ export function TwoFactorRemoval({ account }: TwoFactorRemovalProps) {
     setError(undefined);
 
     try {
-      const answer = await api<{ dueAt: string }>(path, { method: 'POST' });
+      const answer = await api<TwoFactorRemovalRequestedView>(path, { method: 'POST' });
       requested.current = true;
       setDueAt(answer.dueAt);
       setConfirming(false);

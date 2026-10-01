@@ -1047,6 +1047,9 @@ export const enGB: Dictionary = {
       'owner-picture-alert': 'Picture alert to the owner',
       'password-reset': 'Password reset',
       'professional-granted': 'Professional profile granted',
+      'two-factor-removal-cancelled': 'Second factor removal cancelled',
+      'two-factor-removal-requested': 'Second factor removal requested',
+      'two-factor-removed': 'Second factor removed',
       'verify-email': 'Confirm email'
     },
     mailSeries: { failed: 'Failed', sent: 'Sent' },

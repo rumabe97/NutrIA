@@ -1081,6 +1081,9 @@ export const esES = {
       'owner-picture-alert': 'Aviso de imágenes al propietario',
       'password-reset': 'Restablecer contraseña',
       'professional-granted': 'Perfil profesional concedido',
+      'two-factor-removal-cancelled': 'Retirada del segundo factor cancelada',
+      'two-factor-removal-requested': 'Retirada del segundo factor pedida',
+      'two-factor-removed': 'Segundo factor quitado',
       'verify-email': 'Confirmar correo'
     },
     mailSeries: { failed: 'Fallidos', sent: 'Enviados' },
