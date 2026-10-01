@@ -71,7 +71,8 @@ const DIETARY_PATTERN_VALUES = [
   'gluten_free',
   'lactose_free',
   'halal',
-  'kosher'
+  'kosher',
+  'traditional_spanish'
 ] as const;
 
 /**
