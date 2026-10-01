@@ -111,6 +111,18 @@ describe('the routes a marked account still reaches', () => {
       'modules/users/controllers/Users.controller.ts'
     ]);
   });
+
+  it('marks nothing around the decorator: its key, or the key’s value, is named only by the decorator and the guard', () => {
+    const sources = readdirSync(SRC, { recursive: true, withFileTypes: true })
+      .filter(entry => entry.isFile() && entry.name.endsWith('.ts') && !entry.name.endsWith('.spec.ts'))
+      .map(entry => join(entry.parentPath, entry.name));
+    const naming = sources
+      .filter(path => /ALLOW_PASSWORD_CHANGE_PENDING_KEY|allowPasswordChangePending/.test(readFileSync(path, 'utf8')))
+      .map(path => path.slice(SRC.length + 1));
+
+    expect(sources.length).toBeGreaterThan(100);
+    expect(naming.sort()).toEqual(['shared/decorators/AllowPasswordChangePending.decorator.ts', 'shared/guards/PasswordChange.guard.ts']);
+  });
 });
 
 /*

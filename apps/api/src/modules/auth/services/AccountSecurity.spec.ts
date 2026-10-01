@@ -335,6 +335,69 @@ describe('what follows a password change, a closed session and a sign-in', () =>
     });
   });
 
+  describe('a marked account may not keep its breached password while HIBP is down', () => {
+    const at = new Date('2026-10-01T08:00:00.000Z');
+
+    async function resetToken(auth: Auth): Promise<string> {
+      await auth.api.requestPasswordReset({ body: { email: ACCOUNT.email } });
+      await drain();
+
+      return new URL(resetUrls.at(-1) ?? '').pathname.split('/').at(-1) ?? '';
+    }
+
+    it('refuses a change to the same password with PASSWORD_COMPROMISED, and keeps the mark', async () => {
+      const auth = build('development');
+      const cookie = await signUp(auth);
+      (store.user[0] as Row).passwordCompromisedAt = at;
+      isPasswordCompromised.mockRejectedValue(new Error('HIBP unavailable'));
+
+      const refused = await call(auth, '/change-password', { body: { currentPassword: PASSWORD, newPassword: PASSWORD }, cookie });
+      await drain();
+
+      expect(refused).toMatchObject({ body: { code: 'PASSWORD_COMPROMISED' }, status: 400 });
+      expect(writes.passwordChanged).not.toHaveBeenCalled();
+      expect(mails).toEqual([]);
+      expect((store.user[0] as Row).passwordCompromisedAt).toEqual(at);
+    });
+
+    it('refuses a reset to the same password with PASSWORD_COMPROMISED, the token unspent and the mark kept', async () => {
+      const auth = build('development');
+      await signUp(auth);
+      (store.user[0] as Row).passwordCompromisedAt = at;
+      isPasswordCompromised.mockRejectedValue(new Error('HIBP unavailable'));
+      const token = await resetToken(auth);
+
+      const refused = await call(auth, '/reset-password', { body: { newPassword: PASSWORD, token } });
+      await drain();
+
+      expect(refused).toMatchObject({ body: { code: 'PASSWORD_COMPROMISED' }, status: 400 });
+      expect(writes.passwordChanged).not.toHaveBeenCalled();
+      expect((store.user[0] as Row).passwordCompromisedAt).toEqual(at);
+      await expect(call(auth, '/reset-password', { body: { newPassword: NEW_PASSWORD, token } })).resolves.toMatchObject({ status: 200 });
+    });
+
+    it('still lets it change to a new password, and the change clears the mark', async () => {
+      const auth = build('development');
+      const cookie = await signUp(auth);
+      (store.user[0] as Row).passwordCompromisedAt = at;
+      isPasswordCompromised.mockRejectedValue(new Error('HIBP unavailable'));
+
+      const changed = await call(auth, '/change-password', { body: { currentPassword: PASSWORD, newPassword: NEW_PASSWORD }, cookie });
+
+      expect(changed.status).toBe(200);
+      expect(writes.passwordChanged).toHaveBeenCalledWith(store.user[0]?.id as string, 'change');
+    });
+
+    it('leaves an account that is not marked as it was: its same password goes through', async () => {
+      const auth = build('test');
+      const cookie = await signUp(auth);
+
+      const changed = await call(auth, '/change-password', { body: { currentPassword: PASSWORD, newPassword: PASSWORD }, cookie });
+
+      expect(changed.status).toBe(200);
+    });
+  });
+
   describe('a sign-in checks the password it proved against HIBP, after answering', () => {
     it('answers before HIBP does, then marks the account on a hit', async () => {
       const auth = build('development');
