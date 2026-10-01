@@ -2819,6 +2819,7 @@ export const enGB: Dictionary = {
     fileNote: 'Each code works only once. If you generate new codes, these stop working.',
     fileTitle: 'NutrIA · Backup codes',
     locked: 'Too many failed attempts. Wait 15 minutes and sign in again.',
+    lockedSettings: 'Too many wrong codes. Wait 15 minutes and try again.',
     password: 'Your password',
     passwordMissing: 'Type your password.',
     passwordStep: 'First, your password: anything that changes your account’s security always asks for it.',

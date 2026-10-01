@@ -106,6 +106,14 @@ describe('twoFactorRefusal', () => {
     });
   });
 
+  it('says a lock in /perfil is a wait, not a sign-in', () => {
+    expect(twoFactorRefusal('ACCOUNT_TEMPORARILY_LOCKED', 429, esES, 'settings')).toEqual({
+      field: null,
+      message: esES.twoFactor.lockedSettings,
+      restart: false
+    });
+  });
+
   it('tells a rate limit from any other failure', () => {
     expect(twoFactorRefusal(undefined, 429, esES, 'challenge').message).toBe(esES.auth.tooManyAttempts);
     expect(twoFactorRefusal(undefined, 503, esES, 'challenge').message).toBe(
