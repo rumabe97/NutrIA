@@ -1113,6 +1113,7 @@ export const esES = {
     passwordMeterMissing: 'Faltan {count} caracteres.',
     passwordMeterMissingOne: 'Falta 1 carácter.',
     passwordMeterShort: 'Longitud: corta.',
+    passwordMeterTooLong: 'Longitud: demasiado larga.',
     passwordsDoNotMatch: 'Las contraseñas no coinciden.',
     passwordStrengthHint: 'Mejor una frase de varias palabras.',
     passwordTooLong: 'La contraseña puede tener como máximo {count} caracteres.',
@@ -1141,6 +1142,7 @@ export const esES = {
     socialFailed: 'No hemos podido completar el acceso. Inténtalo de nuevo o entra con tu correo.',
     socialNotLinked:
       'Ya hay una cuenta con esa dirección y aún no está confirmada. Entra con tu contraseña y confirma el correo, o restablece la contraseña. Después podrás entrar también así.',
+    tooManyAttempts: 'Demasiados intentos seguidos. Espera un momento y vuelve a probar.',
     toSignIn: 'Accede',
     toSignUp: 'Crea la tuya',
     verifyBody: 'Te hemos enviado un enlace de confirmación. Ábrelo desde este dispositivo para activar tu cuenta.',

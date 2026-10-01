@@ -12,7 +12,7 @@ interface PasswordMeterProps {
   hintId: string;
   /** The password's length — the meter never sees the password itself. */
   length: number;
-  /** Id of the level sentence. Goes on the field's `describedBy`, after `hintId`. */
+  /** Id of the level line, the missing count included. Goes on the field's `describedBy`, after `hintId`. */
   levelId: string;
 }
 
@@ -24,8 +24,9 @@ interface PasswordMeterProps {
  *
  * The bar is decoration (`aria-hidden`); the level says the same in words and is the one
  * live region, mounted from the first render and changing only when the level does. The
- * count of missing characters is shown beside it, outside the region, so it is never read
- * out on every keystroke. A refusal is the form's and the field's, not this.
+ * count of missing characters sits beside it, outside the region, so it is never announced
+ * on every keystroke; the whole line carries `levelId`, so the field's description reads it
+ * on focus. A refusal is the form's and the field's, not this.
  */
 export function PasswordMeter({ hintId, length, levelId }: PasswordMeterProps) {
   const dictionary = useDictionary();
@@ -37,8 +38,8 @@ export function PasswordMeter({ hintId, length, levelId }: PasswordMeterProps) {
       <div aria-hidden={true} className={styles.track}>
         <div className={styles.bar} style={{ inlineSize: `${reading.fill * FULL}%` }} />
       </div>
-      <p className={styles.status}>
-        <span aria-atomic={true} aria-live="polite" id={levelId}>
+      <p className={styles.status} id={levelId}>
+        <span aria-atomic={true} aria-live="polite">
           {passwordMeterLevel(reading, dictionary)}
         </span>
         {missing ? ` ${missing}` : null}
