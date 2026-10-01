@@ -89,6 +89,13 @@ describe('UserController.getUser — the password', () => {
     expect(view).toMatchObject({ hasPassword: true, passwordChangeRequired: true });
     expect(view).not.toHaveProperty('passwordCompromisedAt');
   });
+
+  it('says whether the second factor is on, as the row has it', async () => {
+    findById.mockResolvedValue(makeUser({ twoFactorEnabled: true }));
+    hasPassword.mockResolvedValue(true);
+
+    await expect(UserController.getUser({ id: 'usr-1' })).resolves.toMatchObject({ twoFactorEnabled: true });
+  });
 });
 
 describe('UserController.passwordChanged', () => {
@@ -123,6 +130,37 @@ describe('UserController.sessionsRevoked', () => {
 
     expect(record).toHaveBeenCalledWith(
       { action: 'auth.sessions_revoked', actorId: 'usr-1', entity: 'session', metadata: { scope }, subjectUserId: 'usr-1' },
+      undefined
+    );
+  });
+});
+
+describe('UserController.twoFactorChanged', () => {
+  beforeEach(() => {
+    record.mockReset();
+  });
+
+  it.each([
+    [true, 'auth.2fa_enabled'],
+    [false, 'auth.2fa_disabled']
+  ] as const)('writes one row with nothing in its metadata when the factor goes %s', async (enabled, action) => {
+    await UserController.twoFactorChanged('usr-1', enabled);
+
+    expect(record).toHaveBeenCalledTimes(1);
+    expect(record).toHaveBeenCalledWith({ action, actorId: 'usr-1', entity: 'user', metadata: {}, subjectUserId: 'usr-1' }, undefined);
+  });
+});
+
+describe('UserController.backupCodeUsed', () => {
+  beforeEach(() => {
+    record.mockReset();
+  });
+
+  it('writes one auth.backup_code_used row with the count left and nothing else', async () => {
+    await UserController.backupCodeUsed('usr-1', 9);
+
+    expect(record).toHaveBeenCalledWith(
+      { action: 'auth.backup_code_used', actorId: 'usr-1', entity: 'user', metadata: { remaining: 9 }, subjectUserId: 'usr-1' },
       undefined
     );
   });

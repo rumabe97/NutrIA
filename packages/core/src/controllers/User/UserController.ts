@@ -69,6 +69,12 @@ export interface UserView {
    * has taken the switch into account; this is the column.
    */
   tier: 'free' | 'premium';
+  /**
+   * The second factor is on (PLAN 011 phase 3): a password sign-in asks for a
+   * code from the authenticator app, or a backup code, before it opens a
+   * session. Always false for an account without a password.
+   */
+  twoFactorEnabled: boolean;
 }
 
 /**
@@ -90,7 +96,8 @@ function presentUser(user: User, hasPassword: boolean): StoredUserView {
     name: user.name,
     passwordChangeRequired: user.passwordCompromisedAt !== null,
     role: user.role,
-    tier: user.tier
+    tier: user.tier,
+    twoFactorEnabled: user.twoFactorEnabled
   };
 }
 
@@ -186,6 +193,20 @@ export const UserController = {
           };
 
     return UserRepository.activate(match, record);
+  },
+
+  /**
+   * A backup code opened a challenge or was checked from a session (PLAN 011
+   * phase 3): how many the account has left, and never which one was spent.
+   */
+  async backupCodeUsed(userId: string, remaining: number): Promise<void> {
+    await AuditRepository.record({
+      action: 'auth.backup_code_used',
+      actorId: userId,
+      entity: 'user',
+      metadata: { remaining },
+      subjectUserId: userId
+    });
   },
 
   /**
@@ -289,5 +310,21 @@ export const UserController = {
           };
 
     return UserRepository.setTier(id, tier, record);
+  },
+
+  /**
+   * The second factor went on or off (PLAN 011 phase 3) — on at the first
+   * correct code after `/two-factor/enable`, off at `/two-factor/disable`.
+   * Better Auth has already written the account; this is the row that says
+   * so, with nothing in it: never the secret, a code or a session.
+   */
+  async twoFactorChanged(userId: string, enabled: boolean): Promise<void> {
+    await AuditRepository.record({
+      action: enabled ? 'auth.2fa_enabled' : 'auth.2fa_disabled',
+      actorId: userId,
+      entity: 'user',
+      metadata: {},
+      subjectUserId: userId
+    });
   }
 };

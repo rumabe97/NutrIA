@@ -39,6 +39,7 @@ export function makeUser(overrides?: Partial<User>): User {
     passwordCompromisedAt: null,
     role: 'user',
     tier: 'free',
+    twoFactorEnabled: false,
     updatedAt: new Date('2026-01-15T10:00:00.000Z'),
     ...overrides
   };

@@ -21,7 +21,8 @@ const ACCOUNT: StoredUserView = {
   name: 'Persona',
   passwordChangeRequired: false,
   role: 'user',
-  tier: 'free'
+  tier: 'free',
+  twoFactorEnabled: false
 };
 
 /*
