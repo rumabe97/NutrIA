@@ -95,7 +95,20 @@ export const enGB: Dictionary = {
     sortBy: { createdAt: 'sign-up date', email: 'email', lastActiveAt: 'last activity', plans: 'number of plans' },
     tableTitle: 'Every account',
     tiers: { free: 'Free', premium: 'Premium' },
-    title: 'Accounts'
+    title: 'Accounts',
+    twoFactorRemoval: {
+      alreadyPending: 'A removal was already pending for this account: its date is on its row.',
+      body: 'It is removed between 48 and 72 hours from now. We write to this address straight away: if they did not ask for it, signing in with their code cancels it.',
+      cancel: 'Cancel',
+      cancelFor: 'Cancel the second factor removal: {email}',
+      confirm: 'Schedule the removal',
+      notEnabled: 'This account no longer has the second factor on.',
+      notPending: 'There was no removal pending any more: the person may have cancelled it by signing in with their code.',
+      pending: 'Second factor: removed from {date}',
+      remove: 'Remove the second factor',
+      removeFor: 'Remove the second factor: {email}',
+      title: 'Remove the second factor from {email}'
+    }
   },
 
   adminAi: {
@@ -171,6 +184,9 @@ export const enGB: Dictionary = {
       'account.tier_changed': 'Tier changed',
       'auth.2fa_disabled': '2-step verification turned off',
       'auth.2fa_enabled': '2-step verification turned on',
+      'auth.2fa_removal_cancelled': '2-step verification removal cancelled',
+      'auth.2fa_removal_requested': '2-step verification removal requested',
+      'auth.2fa_removed_by_owner': '2-step verification removed on request',
       'auth.backup_code_used': 'Backup code used',
       'auth.backup_codes_regenerated': 'New backup codes generated',
       'auth.password_changed': 'Password changed',
@@ -202,6 +218,7 @@ export const enGB: Dictionary = {
     noMatch: 'No action matches the filter.',
     /** `auth.password_changed`: how the person changed it. */
     passwordVia: { change: 'From their profile', reset: 'With the recovery link' },
+    removalCancelledBy: { account: 'The person, by signing in with their code', owner: 'From the console' },
     removedAcceptedBy: { judge: 'The checker had accepted it', owner: 'You had accepted it by hand, against the checker' },
     /** `auth.sessions_revoked`: which of the person's sessions were closed. */
     sessionsScope: { all: 'All of them', one: 'One', others: 'All but their own' },
@@ -992,7 +1009,12 @@ export const enGB: Dictionary = {
     cronEmpty: 'No jobs.',
     cronNever: 'Never',
     cronNote: 'Stale if it has gone more than {hours} h without finishing.',
-    crons: { reminders: 'Check-in reminders', rewrite: 'Step rewrite', verifications: 'Expired link cleanup' },
+    crons: {
+      reminders: 'Check-in reminders',
+      rewrite: 'Step rewrite',
+      twoFactorRemovals: 'Second factor removals',
+      verifications: 'Expired link cleanup'
+    },
     cronState: { ok: 'On time', stale: 'Stale' },
     cronTitle: 'Scheduled jobs',
     howCounted: [
