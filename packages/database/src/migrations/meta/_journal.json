@@ -358,6 +358,13 @@
       "when": 1790861971212,
       "tag": "0050_a_breached_password_is_marked",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1790869602464,
+      "tag": "0051_an_account_can_have_a_second_factor",
+      "breakpoints": true
     }
   ]
 }
