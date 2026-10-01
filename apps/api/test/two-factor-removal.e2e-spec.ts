@@ -272,7 +272,7 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
 
   /** The phase 2 shape: ids only where they belong, nothing else anywhere. */
   function expectRow(row: AuditRow | undefined, actorId: string | null, subjectUserId: string, metadata: Record<string, unknown>): void {
-    expect(row).toMatchObject({ actorId, entityId: null, ipHash: null, subjectUserId });
+    expect(row).toMatchObject({ actorId, entity: 'user', entityId: null, ipHash: null, subjectUserId });
     expect(row?.metadata ?? {}).toEqual(metadata);
   }
 
@@ -724,8 +724,10 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
       expectRow(rows[0], owner.id, id, { by: 'owner' });
 
       const again = await cancelRemoval(id);
+      const guarded = await get('admin/accounts', ordinary.cookie);
 
       expect(again.status).toBe(404);
+      expect(again.text).toBe(guarded.text);
       expect(await auditRows(id, 'auth.2fa_removal_cancelled')).toHaveLength(1);
 
       await due(id);
