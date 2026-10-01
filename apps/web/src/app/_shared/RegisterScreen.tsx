@@ -1,5 +1,5 @@
 'use client';
-import { Fragment, useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -13,16 +13,17 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 import { withLocale } from 'i18n/routes';
 
 import { LegalNotice } from 'components/LegalNotice';
+import { PasswordMeter } from 'components/PasswordMeter';
 import { SocialSignIn } from 'components/SocialSignIn';
 
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from 'core/entities/Password';
+
 import { forgetOfflineCopies } from 'lib/offline';
-import { interpolate } from 'lib/format';
+import { PASSWORD_RULES, passwordLengthRefusal, passwordRefusalMessage } from 'lib/newPassword';
 import { signUp } from 'lib/auth-client';
 
 import type { FormEvent } from 'react';
 import type { SocialProvider } from 'lib/sign-in-providers';
-
-const MIN_PASSWORD_LENGTH = 8;
 
 export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readonly SocialProvider[] }>) {
   const router = useRouter();
@@ -30,6 +31,9 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
   const locale = useLocale();
   const [error, setError] = useState<string>();
   const [pending, setPending] = useState(false);
+  // Only the length is kept, for the meter: the password itself stays in the field.
+  const [passwordLength, setPasswordLength] = useState(0);
+  const meterId = useId();
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,8 +42,10 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
     const form = new FormData(event.currentTarget);
     const password = String(form.get('password'));
 
-    if (password.length < MIN_PASSWORD_LENGTH) {
-      setError(interpolate(dictionary.auth.passwordTooShort, { count: MIN_PASSWORD_LENGTH }));
+    const lengthRefusal = passwordLengthRefusal(password);
+
+    if (lengthRefusal) {
+      setError(passwordRefusalMessage(lengthRefusal, dictionary));
 
       return;
     }
@@ -51,11 +57,14 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
     setPending(false);
 
     if (signUpError) {
-      // Better Auth distinguishes "email already registered" from everything
-      // else. Both are shown as-is: at sign-*up* an existing address is
-      // information the visitor already has, and hiding it only produces a
-      // confusing dead end.
-      setError(signUpError.status === 422 ? dictionary.auth.emailTaken : dictionary.auth.signUpFailed);
+      // A refused password says why, by its code. Better Auth also
+      // distinguishes "email already registered" from everything else. Both are
+      // shown as-is: at sign-*up* an existing address is information the
+      // visitor already has, and hiding it only produces a confusing dead end.
+      setError(
+        passwordRefusalMessage(signUpError.code, dictionary) ??
+          (signUpError.status === 422 ? dictionary.auth.emailTaken : dictionary.auth.signUpFailed)
+      );
 
       return;
     }
@@ -88,14 +97,18 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
         <Input autoComplete="name" label={dictionary.auth.name} name="name" required={true} type="text" />
         <Input autoComplete="email" label={dictionary.auth.email} name="email" required={true} type="email" />
         <Input
+          aria-describedby={meterId}
           autoComplete="new-password"
-          hint={interpolate(dictionary.auth.passwordHint, { count: MIN_PASSWORD_LENGTH })}
           label={dictionary.auth.password}
-          minLength={MIN_PASSWORD_LENGTH}
+          maxLength={PASSWORD_MAX_LENGTH}
+          minLength={PASSWORD_MIN_LENGTH}
           name="password"
+          onChange={event => setPasswordLength(event.currentTarget.value.length)}
+          passwordrules={PASSWORD_RULES}
           required={true}
           type="password"
         />
+        <PasswordMeter id={meterId} length={passwordLength} />
 
         <Button loading={pending} type="submit">
           {pending ? dictionary.auth.signUpPending : dictionary.auth.signUp}
