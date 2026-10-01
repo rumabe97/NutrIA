@@ -21,6 +21,7 @@ export type EmailLocale = 'en-GB' | 'es-ES';
 export type EmailKind =
   | 'account-waiting'
   | 'backup-code-used'
+  | 'backup-codes-regenerated'
   | 'care-invitation'
   | 'check-in-reminder'
   | 'checkin-submitted'
