@@ -326,7 +326,8 @@ export const UserRepository = {
   /**
    * Every device the account trusted to skip the second factor stops being
    * trusted (PLAN 011 phase 3) — when the factor goes off, so a device trusted
-   * before does not skip it once it is back on. A password change or reset
+   * before does not skip it once it is back on, and when the person closes
+   * every other session or all of them. A password change or reset
    * does the same inside `passwordChanged`. The browser's cookie stays, and
    * points at nothing.
    */
