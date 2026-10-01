@@ -123,6 +123,7 @@
 
 .ingredientLine {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-04);
   justify-content: space-between;
 }
@@ -130,6 +131,12 @@
 .ingredientName {
   min-inline-size: 0;
   overflow-wrap: anywhere;
+}
+
+/* The cooked weight stays in one piece so a narrow line breaks before it. */
+.cooked {
+  color: var(--foreground-02);
+  white-space: nowrap;
 }
 
 .alternatives {
@@ -290,9 +297,5 @@
   .title {
     font-size: var(--font-size-07);
     hyphens: auto;
-  }
-
-  .ingredientLine {
-    flex-wrap: wrap;
   }
 }

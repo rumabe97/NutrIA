@@ -28,6 +28,8 @@ import type { MealStatus as Status } from 'core/entities/Plan';
 import type { Metadata } from 'next';
 import type { VacationView } from 'core/controllers/Vacation';
 
+const NO_BREAK_SPACE = '\u00a0';
+
 export const dynamic = 'force-dynamic';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -180,8 +182,25 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
           {meal.ingredients.map(ingredient => (
             <li className={styles.ingredient} key={ingredient.name}>
               <div className={styles.ingredientLine}>
-                <span className={styles.ingredientName}>{ingredient.name}</span>
-                <span className={styles.quantity}>{formatQuantity(ingredient.grams, 'g', locale, dictionary)}</span>
+                {/* Cooked grains and pastas are weighed dry in the kitchen, so the line
+                    gives the dry weight first and the cooked one the plate ends up with. */}
+                {ingredient.dry ? (
+                  <span className={styles.ingredientName}>
+                    {interpolate(dictionary.meal.dryLine, {
+                      dry: formatQuantity(ingredient.dry.grams, 'g', locale, dictionary).replace(' ', NO_BREAK_SPACE),
+                      name: ingredient.dry.name
+                    })}{' '}
+                    {/* One unbreakable piece: the line breaks before the cooked weight, never inside it. */}
+                    <span className={styles.cooked}>
+                      {interpolate(dictionary.meal.cookedNote, { cooked: formatQuantity(ingredient.grams, 'g', locale, dictionary) })}
+                    </span>
+                  </span>
+                ) : (
+                  <Fragment>
+                    <span className={styles.ingredientName}>{ingredient.name}</span>
+                    <span className={styles.quantity}>{formatQuantity(ingredient.grams, 'g', locale, dictionary)}</span>
+                  </Fragment>
+                )}
               </div>
               {/* What to buy instead when the shop has none — already filtered for
                   this person's allergens and scaled to this portion, so the line
