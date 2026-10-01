@@ -1689,6 +1689,7 @@ export const esES = {
     dislikedHint: 'Anotado: no volverá, ni nada muy parecido.',
     done: 'Hecha',
     doneHint: 'Marcada como hecha.',
+    dryLine: '{name}: {dry} en seco ({cooked} cocido)',
     ingredients: 'Ingredientes',
     like: 'Me gusta',
     likedHint: 'Anotado: podrá volver, y buscaremos platos en esta línea.',

@@ -1653,6 +1653,7 @@ export const enGB: Dictionary = {
     dislikedHint: 'Noted: it will not come back, nor anything close to it.',
     done: 'Eaten',
     doneHint: 'Marked as eaten.',
+    dryLine: '{name}: {dry} dry ({cooked} cooked)',
     ingredients: 'Ingredients',
     like: 'I like it',
     likedHint: 'Noted: it may come back, and we will look for dishes along these lines.',
