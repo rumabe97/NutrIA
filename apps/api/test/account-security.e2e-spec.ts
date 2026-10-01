@@ -443,6 +443,22 @@ describe('account security: the password, the sessions, and a password found bre
       await until(() => mailsTo(email).length === 1, 'The "password changed" mail');
     });
 
+    it('cannot be cleared through Better Auth’s update-user: the field is not input', async () => {
+      const { id, email } = await account('kevin', 'Kevin Aldana');
+      const session = await signIn(email);
+
+      await mark(id);
+
+      for (const body of [{ passwordCompromisedAt: null }, { password_compromised_at: null }]) {
+        const refused = await post('auth/update-user', session.cookie, body);
+
+        expect(refused.status).toBe(400);
+        expect(await markOf(id)).not.toBeNull();
+      }
+
+      expect(code(await get('profile', session.cookie).expect(409))).toBe('PASSWORD_CHANGE_REQUIRED');
+    });
+
     it('still lets a marked account delete itself', async () => {
       const { id, email } = await account('gema', 'Gema Villalobos');
       const session = await signIn(email);
