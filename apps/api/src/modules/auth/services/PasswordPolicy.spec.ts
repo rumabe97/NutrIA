@@ -224,6 +224,30 @@ describe('the password rule on the three doors', () => {
         status: 400
       });
     });
+    it('reads the query token when the body carries an empty one, as Better Auth does', async () => {
+      const auth = build();
+      await signUp(auth, PASSWORD);
+      const token = await resetToken(auth, ACCOUNT.email);
+
+      await expect(
+        outcome(auth.api.resetPassword({ body: { newPassword: 'garcia-garcia-garcia', token: '' }, query: { token } }))
+      ).resolves.toEqual({ code: 'PASSWORD_HAS_CONTEXT', status: 400 });
+    });
+
+    it('prefers a body token over the query one, as Better Auth does', async () => {
+      const auth = build();
+      await signUp(auth, PASSWORD);
+      const token = await resetToken(auth, ACCOUNT.email);
+
+      // The body's live token is the one Better Auth spends; a dead query token beside it changes nothing.
+      await expect(
+        outcome(auth.api.resetPassword({ body: { newPassword: 'garcia-garcia-garcia', token }, query: { token: 'not-a-token' } }))
+      ).resolves.toEqual({ code: 'PASSWORD_HAS_CONTEXT', status: 400 });
+      // And a dead body token is the one it refuses, whatever the query holds.
+      await expect(
+        outcome(auth.api.resetPassword({ body: { newPassword: 'garcia-garcia-garcia', token: 'not-a-token' }, query: { token } }))
+      ).resolves.toEqual({ code: 'INVALID_TOKEN', status: 400 });
+    });
   });
 
   describe('change — the words are the session’s user’s', () => {

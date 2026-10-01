@@ -104,6 +104,72 @@ describe('serializeRequest', () => {
   });
 });
 
+describe('reset and verification tokens', () => {
+  const token = 'Xk3pQ9rT2vLm8NwZ4bYc6dFh';
+  const jwt = 'eyJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6ImFuYUBleGFtcGxlLmludmFsaWQifQ.s1g-n4tur_e';
+
+  it('never writes the reset token in the reset link Better Auth serves', () => {
+    const url = `/api/v1/auth/reset-password/${token}?callbackURL=https%3A%2F%2Fnutria.example%2Fes%2Frestablecer`;
+    const line = serializeRequest({ headers: {}, method: 'GET', url });
+
+    expect(JSON.stringify(line)).not.toContain(token);
+    expect(line.url).toBe('/api/v1/auth/reset-password/[redacted]?callbackURL=https%3A%2F%2Fnutria.example%2Fes%2Frestablecer');
+    // The POST that spends it carries no segment and is left as it is.
+    expect(serializeRequest({ headers: {}, method: 'POST', url: '/api/v1/auth/reset-password' }).url).toBe('/api/v1/auth/reset-password');
+  });
+
+  it('never writes the reset token in the location that link redirects to', () => {
+    const line = serializeResponse({ headers: { location: `https://nutria.example/es/restablecer?token=${token}` }, statusCode: 302 });
+
+    expect(JSON.stringify(line)).not.toContain(token);
+    expect(line).toEqual({ headers: { location: 'https://nutria.example/es/restablecer?token=[redacted]' }, statusCode: 302 });
+  });
+
+  it('never writes the reset token in the referer of the reset POST', () => {
+    const line = serializeRequest({
+      headers: { referer: `https://nutria.example/es/restablecer?token=${token}&from=mail` },
+      method: 'POST',
+      url: '/api/v1/auth/reset-password'
+    });
+
+    expect(JSON.stringify(line)).not.toContain(token);
+    expect((line.headers as { referer: string }).referer).toBe('https://nutria.example/es/restablecer?token=[redacted]&from=mail');
+  });
+
+  it('never writes the verification token in the verify-email link', () => {
+    const url = `/api/v1/auth/verify-email?token=${jwt}&callbackURL=https%3A%2F%2Fnutria.example%2Fes%2Fplan`;
+    const line = serializeRequest({ headers: {}, method: 'GET', url });
+
+    expect(JSON.stringify(line)).not.toContain('eyJ');
+    expect(line.url).toBe('/api/v1/auth/verify-email?token=[redacted]&callbackURL=https%3A%2F%2Fnutria.example%2Fes%2Fplan');
+  });
+
+  it('never writes either token when it travels percent-encoded or in another case', () => {
+    const urls = [
+      `/api/v1/auth/sign-in/email?callbackURL=https%3A%2F%2Fnutria.example%2Fes%2Frestablecer%3Ftoken%3D${token}%26x%3D1`,
+      `/api/v1/Auth/Reset-Password/${token}?callbackURL=x`,
+      `/api/v1/auth/reset-password%2F${token}`,
+      `/api/v1/auth/verify-email?TOKEN=${jwt}`,
+      `/api/v1/auth/verify-email?x=1&token=${jwt}#top`
+    ];
+
+    for (const url of urls) {
+      const logged = JSON.stringify(serializeRequest({ headers: {}, method: 'GET', url }));
+
+      expect(logged).not.toContain(token);
+      expect(logged).not.toContain('eyJ');
+    }
+
+    expect(serializeRequest({ headers: {}, method: 'GET', url: urls[0] ?? '' }).url).toBe(
+      '/api/v1/auth/sign-in/email?callbackURL=https%3A%2F%2Fnutria.example%2Fes%2Frestablecer%3Ftoken%3D[redacted]%26x%3D1'
+    );
+  });
+
+  it('leaves a parameter that only ends in `token` alone', () => {
+    expect(serializeRequest({ headers: {}, method: 'GET', url: '/x?page_token=abc' }).url).toBe('/x?page_token=abc');
+  });
+});
+
 describe('serializeResponse', () => {
   const line = serializeResponse({
     headers: {
