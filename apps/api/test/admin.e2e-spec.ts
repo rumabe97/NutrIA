@@ -150,6 +150,7 @@ const PERIOD_WORDS = new Set([
   'completed',
   'archived',
   'pending_review',
+  'scheduled',
   // A system event (`ai_call`, `cron_run`, `mail_sent`, `owner_alerted`) never
   // reaches this page's words: it is not something a person did (`0071`).
   ...PRODUCT_EVENTS
@@ -628,7 +629,7 @@ describe('admin', () => {
 
         // Every key present, zeros included, so a legend does not change with what happened.
         expect(summary.charts.generations.series.map(row => row.key)).toEqual(['queued', 'running', 'succeeded', 'failed']);
-        expect(plans.byState.map(row => row.status)).toEqual(['draft', 'generating', 'active', 'completed', 'archived', 'failed', 'pending_review']);
+        expect(plans.byState.map(row => row.status)).toEqual(['draft', 'generating', 'active', 'completed', 'archived', 'failed', 'pending_review', 'scheduled']);
 
         for (const row of [...summary.charts.generations.series, ...product.events.series]) {
           expect(row.values).toHaveLength(period);
