@@ -16,7 +16,7 @@ import { LegalNotice } from 'components/LegalNotice';
 import { PasswordMeter } from 'components/PasswordMeter';
 import { SocialSignIn } from 'components/SocialSignIn';
 
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from 'core/entities/Password';
+import { PASSWORD_MIN_LENGTH } from 'core/entities/Password';
 
 import { forgetOfflineCopies } from 'lib/offline';
 import { PASSWORD_RULES, passwordLengthRefusal, passwordRefusalMessage } from 'lib/newPassword';
@@ -30,14 +30,27 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
   const dictionary = useDictionary();
   const locale = useLocale();
   const [error, setError] = useState<string>();
+  // A refused password is said on the field too, next to the button: the alert at the top
+  // is announced, but at 320px it is off-screen when the button is pressed.
+  const [passwordError, setPasswordError] = useState<string>();
+  // Each submit remounts the alert, so the same refusal twice is announced twice.
+  const [attempt, setAttempt] = useState(0);
   const [pending, setPending] = useState(false);
   // Only the length is kept, for the meter: the password itself stays in the field.
   const [passwordLength, setPasswordLength] = useState(0);
-  const meterId = useId();
+  const hintId = useId();
+  const levelId = useId();
+
+  function refusePassword(message: string) {
+    setError(message);
+    setPasswordError(message);
+  }
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);
+    setPasswordError(undefined);
+    setAttempt(previous => previous + 1);
 
     const form = new FormData(event.currentTarget);
     const password = String(form.get('password'));
@@ -45,7 +58,7 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
     const lengthRefusal = passwordLengthRefusal(password);
 
     if (lengthRefusal) {
-      setError(passwordRefusalMessage(lengthRefusal, dictionary));
+      refusePassword(passwordRefusalMessage(lengthRefusal, dictionary) ?? dictionary.auth.signUpFailed);
 
       return;
     }
@@ -57,14 +70,20 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
     setPending(false);
 
     if (signUpError) {
-      // A refused password says why, by its code. Better Auth also
-      // distinguishes "email already registered" from everything else. Both are
-      // shown as-is: at sign-*up* an existing address is information the
-      // visitor already has, and hiding it only produces a confusing dead end.
-      setError(
-        passwordRefusalMessage(signUpError.code, dictionary) ??
-          (signUpError.status === 422 ? dictionary.auth.emailTaken : dictionary.auth.signUpFailed)
-      );
+      // A refused password says why, by its code, on the field and in the alert.
+      const refusal = passwordRefusalMessage(signUpError.code, dictionary);
+
+      if (refusal) {
+        refusePassword(refusal);
+
+        return;
+      }
+
+      // Better Auth distinguishes "email already registered" from everything
+      // else. Both are shown as-is: at sign-*up* an existing address is
+      // information the visitor already has, and hiding it only produces a
+      // confusing dead end.
+      setError(signUpError.status === 422 ? dictionary.auth.emailTaken : dictionary.auth.signUpFailed);
 
       return;
     }
@@ -89,7 +108,7 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
 
       <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
         {error ? (
-          <p className={styles.error} role="alert">
+          <p className={styles.error} key={attempt} role="alert">
             {error}
           </p>
         ) : null}
@@ -97,10 +116,10 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
         <Input autoComplete="name" label={dictionary.auth.name} name="name" required={true} type="text" />
         <Input autoComplete="email" label={dictionary.auth.email} name="email" required={true} type="email" />
         <Input
-          aria-describedby={meterId}
           autoComplete="new-password"
+          describedBy={`${hintId} ${levelId}`}
+          error={passwordError}
           label={dictionary.auth.password}
-          maxLength={PASSWORD_MAX_LENGTH}
           minLength={PASSWORD_MIN_LENGTH}
           name="password"
           onChange={event => setPasswordLength(event.currentTarget.value.length)}
@@ -108,7 +127,7 @@ export function RegisterScreen({ providers = [] }: Readonly<{ providers?: readon
           required={true}
           type="password"
         />
-        <PasswordMeter id={meterId} length={passwordLength} />
+        <PasswordMeter hintId={hintId} length={passwordLength} levelId={levelId} />
 
         <Button loading={pending} type="submit">
           {pending ? dictionary.auth.signUpPending : dictionary.auth.signUp}

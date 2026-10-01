@@ -8,11 +8,12 @@ import styles from 'components/AuthForm/AuthForm.module.css';
 
 import { Button } from 'ui/components/Button';
 import { Input } from 'ui/components/Input';
-import { useDictionary } from 'i18n/LocaleProvider';
+import { useDictionary, useLocale } from 'i18n/LocaleProvider';
+import { withLocale } from 'i18n/routes';
 
 import { PasswordMeter } from 'components/PasswordMeter';
 
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from 'core/entities/Password';
+import { PASSWORD_MIN_LENGTH } from 'core/entities/Password';
 
 import { authClient } from 'lib/auth-client';
 import { PASSWORD_RULES, passwordLengthRefusal, passwordRefusalMessage } from 'lib/newPassword';
@@ -23,12 +24,19 @@ import type { FormEvent } from 'react';
 export function ResetPasswordForm() {
   const router = useRouter();
   const dictionary = useDictionary();
+  const locale = useLocale();
   const token = useSearchParams().get('token');
   const [error, setError] = useState<string>();
+  // A refused password is said on its field too, next to the button: the alert at the top
+  // is announced, but on a phone it can be off-screen when the button is pressed.
+  const [fieldError, setFieldError] = useState<{ field: 'confirm' | 'password'; message: string }>();
+  // Each submit remounts the alert, so the same refusal twice is announced twice.
+  const [attempt, setAttempt] = useState(0);
   const [pending, setPending] = useState(false);
   // Only the length is kept, for the meter: the password itself stays in the field.
   const [passwordLength, setPasswordLength] = useState(0);
-  const meterId = useId();
+  const hintId = useId();
+  const levelId = useId();
 
   if (!token) {
     return (
@@ -37,7 +45,7 @@ export function ResetPasswordForm() {
           {dictionary.auth.invalidLink}
         </p>
         <div className={styles.footer}>
-          <Link className={styles.link} href="/recuperar">
+          <Link className={`${styles.link} ${styles.standaloneLink}`} href={withLocale('/recuperar', locale)}>
             {dictionary.auth.askNewLink}
           </Link>
         </div>
@@ -45,9 +53,16 @@ export function ResetPasswordForm() {
     );
   }
 
+  function refuse(field: 'confirm' | 'password', message: string) {
+    setError(message);
+    setFieldError({ field, message });
+  }
+
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(undefined);
+    setFieldError(undefined);
+    setAttempt(previous => previous + 1);
 
     const form = new FormData(event.currentTarget);
     const password = String(form.get('password'));
@@ -55,13 +70,13 @@ export function ResetPasswordForm() {
     const lengthRefusal = passwordLengthRefusal(password);
 
     if (lengthRefusal) {
-      setError(passwordRefusalMessage(lengthRefusal, dictionary));
+      refuse('password', passwordRefusalMessage(lengthRefusal, dictionary) ?? dictionary.errors.internal);
 
       return;
     }
 
     if (password !== String(form.get('confirm'))) {
-      setError(dictionary.auth.passwordsDoNotMatch);
+      refuse('confirm', dictionary.auth.passwordsDoNotMatch);
 
       return;
     }
@@ -73,29 +88,35 @@ export function ResetPasswordForm() {
     setPending(false);
 
     if (resetError) {
-      // A refused password says why; anything else is the link (an invalid or expired
-      // token skips the password checks, and Better Auth answers INVALID_TOKEN).
-      setError(passwordRefusalMessage(resetError.code, dictionary) ?? dictionary.auth.invalidLink);
+      // A refused password says why, on its field. An invalid or expired token skips the
+      // password checks and Better Auth answers INVALID_TOKEN: only that is the link.
+      const refusal = passwordRefusalMessage(resetError.code, dictionary);
+
+      if (refusal) {
+        refuse('password', refusal);
+      } else {
+        setError(resetError.code === 'INVALID_TOKEN' ? dictionary.auth.invalidLink : dictionary.errors.internal);
+      }
 
       return;
     }
 
-    router.push('/acceder');
+    router.push(withLocale('/acceder', locale));
   }
 
   return (
     <form className={styles.form} noValidate={true} onSubmit={onSubmit}>
       {error ? (
-        <p className={styles.error} role="alert">
+        <p className={styles.error} key={attempt} role="alert">
           {error}
         </p>
       ) : null}
 
       <Input
-        aria-describedby={meterId}
         autoComplete="new-password"
+        describedBy={`${hintId} ${levelId}`}
+        error={fieldError?.field === 'password' ? fieldError.message : undefined}
         label={dictionary.auth.newPassword}
-        maxLength={PASSWORD_MAX_LENGTH}
         minLength={PASSWORD_MIN_LENGTH}
         name="password"
         onChange={event => setPasswordLength(event.currentTarget.value.length)}
@@ -103,8 +124,15 @@ export function ResetPasswordForm() {
         required={true}
         type="password"
       />
-      <PasswordMeter id={meterId} length={passwordLength} />
-      <Input autoComplete="new-password" label={dictionary.auth.confirmPassword} name="confirm" required={true} type="password" />
+      <PasswordMeter hintId={hintId} length={passwordLength} levelId={levelId} />
+      <Input
+        autoComplete="new-password"
+        error={fieldError?.field === 'confirm' ? fieldError.message : undefined}
+        label={dictionary.auth.confirmPassword}
+        name="confirm"
+        required={true}
+        type="password"
+      />
 
       <Button loading={pending} type="submit">
         {pending ? dictionary.common.saving : dictionary.auth.savePassword}

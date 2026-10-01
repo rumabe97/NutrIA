@@ -12,8 +12,8 @@ import type { Dictionary } from 'i18n/dictionaries/es-ES';
 export const PASSWORD_LONG_LENGTH = 20;
 
 /**
- * - `empty`: nothing typed; the meter says the minimum.
- * - `short`: under the minimum; it says how many characters are missing.
+ * - `empty`: nothing typed.
+ * - `short`: under the minimum; the meter also says how many characters are missing.
  * - `enough`: the minimum or more.
  * - `long`: `PASSWORD_LONG_LENGTH` or more.
  */
@@ -43,16 +43,35 @@ export function readPasswordMeter(length: number): PasswordMeterReading {
   return { fill, missing, step: length >= PASSWORD_LONG_LENGTH ? 'long' : 'enough' };
 }
 
-/** The sentence under the bar: where the length stands, in words, so the bar is never the only signal. */
-export function passwordMeterText({ missing, step }: PasswordMeterReading, dictionary: Dictionary): string {
+/**
+ * The level, in words: what the bar shows, so colour and length are never the only signal.
+ * Empty before anything is typed. It changes only when the step does — it is the meter's
+ * live region, and a region that changed with every character would be read out on every
+ * keystroke. It names the length, never strength: the API may still refuse the password.
+ */
+export function passwordMeterLevel({ step }: PasswordMeterReading, dictionary: Dictionary): string {
   switch (step) {
     case 'empty':
-      return interpolate(dictionary.auth.passwordHint, { count: PASSWORD_MIN_LENGTH });
+      return '';
     case 'short':
-      return missing === 1 ? dictionary.auth.passwordMeterShortOne : interpolate(dictionary.auth.passwordMeterShort, { count: missing });
+      return dictionary.auth.passwordMeterShort;
     case 'enough':
       return dictionary.auth.passwordMeterEnough;
     case 'long':
       return dictionary.auth.passwordMeterLong;
   }
+}
+
+/** How many characters are still missing, while the password is short; shown, never announced. */
+export function passwordMeterMissing({ missing, step }: PasswordMeterReading, dictionary: Dictionary): string | undefined {
+  if (step !== 'short') {
+    return undefined;
+  }
+
+  return missing === 1 ? dictionary.auth.passwordMeterMissingOne : interpolate(dictionary.auth.passwordMeterMissing, { count: missing });
+}
+
+/** The two standing hints: the minimum, and that a phrase is best. */
+export function passwordMeterHint(dictionary: Dictionary): string {
+  return `${interpolate(dictionary.auth.passwordHint, { count: PASSWORD_MIN_LENGTH })} ${dictionary.auth.passwordStrengthHint}`;
 }

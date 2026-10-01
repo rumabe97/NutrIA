@@ -183,15 +183,20 @@ and `SignInForm` turns the code into copy.
 `core/entities/Password`: 12 to 128 characters counted as JavaScript `.length`, and no
 composition rule. `RegisterScreen` and `ResetPasswordForm` read both bounds from there —
 never write a length in a form — and `lib/newPassword.ts` turns them into the field's
-`passwordrules` (`PASSWORD_RULES`), runs the same length check before the round trip, and
+`passwordrules` (`PASSWORD_RULES`), runs the same length check before the round trip (both
+ends: **no `maxLength` attribute**, which truncates a paste without a word), and
 maps the API's refusals to copy by code: `PASSWORD_TOO_SHORT`, `PASSWORD_TOO_LONG` (Better
 Auth's), `PASSWORD_HAS_CONTEXT` (the name, the email's local part or «nutria»: one code and
 one sentence for all three, so the screen never says which matched) and
-`PASSWORD_COMPROMISED` (a known breach). Any other code keeps the form's own message.
-`components/PasswordMeter` sits under the field: a bar that follows the length, a sentence
-saying where it stands, and the hint that a phrase is best. It measures length only and
-never says "strong" — the breach check is the API's. The form keeps the length in state,
-never the password. Sign-in has none of this: an older, shorter password still opens its
+`PASSWORD_COMPROMISED` (a known breach). Any other code keeps the form's own message. A
+password refusal goes on the field's `error` as well as in the form's alert: at 320px the
+alert is off-screen when the button is pressed. `components/PasswordMeter` sits under the
+field: a decorative bar that follows the length, the level in words (`Longitud: corta`, the
+one live region, mounted empty and changing only with the level — never a per-keystroke
+count), and the minimum and phrase hints, all on the field's `describedBy` (the `Input` prop
+that adds to the hint and error links; `aria-describedby` would replace them). It measures
+length only and never says "strong" — the breach check is the API's. The form keeps the
+length in state, never the password. Sign-in has none of this: an older, shorter password still opens its
 account.
 
 ## Security headers

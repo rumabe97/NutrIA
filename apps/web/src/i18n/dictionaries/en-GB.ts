@@ -1075,12 +1075,13 @@ export const enGB: Dictionary = {
     orWithEmail: 'or with your email',
     password: 'Password',
     passwordCompromised: 'That password appears in known data breaches. Choose another: a phrase of several words is best.',
-    passwordHasContext: 'The password cannot contain your name, your email or “nutria”.',
+    passwordHasContext: 'The password cannot contain your name, your email or “nutria”. Choose another.',
     passwordHint: 'At least {count} characters.',
-    passwordMeterEnough: 'Long enough.',
-    passwordMeterLong: 'A good length.',
-    passwordMeterShort: '{count} more characters needed.',
-    passwordMeterShortOne: '1 more character needed.',
+    passwordMeterEnough: 'Length: enough.',
+    passwordMeterLong: 'Length: good.',
+    passwordMeterMissing: '{count} more characters needed.',
+    passwordMeterMissingOne: '1 more character needed.',
+    passwordMeterShort: 'Length: too short.',
     passwordsDoNotMatch: 'The passwords do not match.',
     passwordStrengthHint: 'A phrase of several words is best.',
     passwordTooLong: 'The password can be at most {count} characters.',
@@ -2303,7 +2304,7 @@ export const enGB: Dictionary = {
       {
         heading: 'How we protect your data',
         paragraphs: [
-          'Your password is never stored in plain text and the connection is always encrypted. Your conditions, medications and supplements live in a part of the code that cannot talk to the artificial intelligence, and a test checks it on every change. Server and error logs do not keep what you write. Database access is restricted and nobody looks at it except to fix a fault.'
+          'Your password is never stored in plain text and the connection is always encrypted. Your conditions, medications and supplements live in a part of the code that cannot talk to the artificial intelligence, and a test checks it on every change. Server and error logs do not keep what you write. When you create, reset or change your password, we compare it with a public list of leaked passwords: from our server we send the free Have I Been Pwned service only the first five characters of a fingerprint of the password, which does not reveal what the password is, with no account, email or IP address of yours, and we keep neither the password nor that fingerprint. If the service does not answer, the password is accepted without that check. Database access is restricted and nobody looks at it except to fix a fault.'
         ]
       },
       {

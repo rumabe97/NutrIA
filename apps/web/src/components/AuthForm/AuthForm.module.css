@@ -54,6 +54,16 @@
   text-decoration: underline;
 }
 
+/* A link that stands on its own line, not inside a sentence: a finger's height
+   on a phone, like every other control (0057). */
+@media (pointer: coarse) {
+  .standaloneLink {
+    align-items: center;
+    display: inline-flex;
+    min-block-size: var(--target-min);
+  }
+}
+
 .forgot {
   justify-self: end;
   margin-top: calc(var(--space-04) * -1);
