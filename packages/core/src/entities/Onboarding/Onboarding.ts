@@ -66,7 +66,7 @@ export const onboardingStepSchema = z.discriminatedUnion('step', [
     data: z.object({ cuisines: z.array(z.string().max(60)).max(10), preferences: z.array(foodPreferenceInput).max(60) }),
     step: z.literal('food-preferences')
   }),
-  z.object({ data: setAllergiesSchema.extend({ dietaryPatterns: z.array(z.string()).max(9) }), step: z.literal('allergies') }),
+  z.object({ data: setAllergiesSchema.extend({ dietaryPatterns: z.array(z.string()).max(10) }), step: z.literal('allergies') }),
   z.object({ data: updatePreferencesSchema.pick({ cookingTimeMinutes: true }), step: z.literal('cooking') })
 ]);
 

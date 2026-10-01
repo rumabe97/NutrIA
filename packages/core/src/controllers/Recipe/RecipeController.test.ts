@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { OnboardingIncompleteError, ProfileConsentRequiredError } from 'core/entities/Error';
-import { NO_PREFERENCE_EXCLUSIONS } from 'core/domain/Preference';
+import { NO_PREFERENCE_EXCLUSIONS, resolvePreferences } from 'core/domain/Preference';
 import { DISHES_NEEDED_PER_SLOT } from 'core/domain/Variety';
 import { toCatalogue } from 'core/entities/Plan';
 import { makeCatalogueIngredient } from '#test/fixtures';
@@ -235,6 +235,59 @@ describe('RecipeController.reusablePool — an allergy the catalogue could not r
     const pool = await RecipeController.reusablePool(['lunch'], context);
 
     expect(pool.map(dish => dish.slug)).toEqual(['arroz-sencillo']);
+  });
+});
+
+describe('RecipeController.reusablePool — traditional Spanish (0077)', () => {
+  const catalogue = [
+    makeCatalogueIngredient({ id: 'i-arroz', name: 'Arroz', slug: 'arroz' }),
+    makeCatalogueIngredient({ id: 'i-tofu-firme', name: 'Tofu firme', slug: 'tofu-firme' })
+  ];
+  const contextFor = (dietaryPatterns: readonly string[]): GenerationContext => ({
+    catalogue: toCatalogue(catalogue),
+    dietaryPatterns,
+    locale: 'es-ES',
+    preferences: resolvePreferences({ allergenIdsByKey: new Map(), dietaryPatterns, dislikedLabels: [], ingredients: catalogue }),
+    safety: NO_RESTRICTIONS
+  });
+  const recipe = (slug: string, name: string, cuisine: string | null, slugs: readonly string[] = ['arroz']): ReusableRecipe => ({
+    id: slug,
+    cookMinutes: 0,
+    cuisine,
+    difficulty: 'easy',
+    ingredients: slugs.map(ingredient => ({ grams: 80, slug: ingredient })),
+    mealSlots: ['lunch'],
+    name,
+    prepMinutes: 5,
+    servings: 1,
+    slug,
+    steps: [
+      { minutes: 10, text: 'Lavar el arroz y ponerlo a hervir en agua con sal' },
+      { minutes: 2, text: 'Escurrir, reposar dos minutos y servir caliente' }
+    ]
+  });
+  const library = [
+    recipe('tofu-con-arroz', 'Tofu con arroz', 'mediterránea', ['tofu-firme', 'arroz']),
+    recipe('arroz-mexicano', 'Arroz rojo', 'Mexicana'),
+    recipe('curry-de-arroz', 'Curry de arroz', null),
+    recipe('paella', 'Paella', null),
+    recipe('arroz-a-la-cubana', 'Arroz a la cubana', 'española')
+  ];
+
+  it('returns no dish with an excluded row, a foreign cuisine or a foreign name', async () => {
+    findReusable.mockResolvedValue(library);
+
+    const pool = await RecipeController.reusablePool(['lunch'], contextFor(['traditional_spanish']));
+
+    expect(pool.map(dish => dish.slug)).toEqual(['paella', 'arroz-a-la-cubana']);
+  });
+
+  it('returns them all without the pattern', async () => {
+    findReusable.mockResolvedValue(library);
+
+    const pool = await RecipeController.reusablePool(['lunch'], contextFor([]));
+
+    expect(pool).toHaveLength(library.length);
   });
 });
 

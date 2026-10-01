@@ -365,6 +365,13 @@
       "when": 1790869602464,
       "tag": "0051_an_account_can_have_a_second_factor",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1790886515979,
+      "tag": "0052_traditional_spanish_is_a_way_of_eating",
+      "breakpoints": true
     }
   ]
 }

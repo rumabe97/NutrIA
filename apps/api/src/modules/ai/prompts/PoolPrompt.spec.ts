@@ -472,6 +472,24 @@ describe('buildPoolPrompt', () => {
     }
 
     expect(buildPoolPrompt(context({ dietaryPatterns: ['halal', 'gluten_free'] }), [])).not.toContain('WAY OF EATING');
+    expect(buildPoolPrompt(context({ dietaryPatterns: ['traditional_spanish'] }), [])).not.toContain('WAY OF EATING');
+  });
+
+  /**
+   * Traditional Spanish (`0077`) is enforced in code and never told to the
+   * model: over the same catalogue its prompt is the one without it, word for
+   * word. What it changes is the catalogue — fewer rows, as halal.
+   */
+  it('never tells the model about traditional Spanish: the same catalogue makes the same prompt', () => {
+    const catalogue = [row('tomate', 'produce'), row('lentejas', 'protein'), row('merluza', 'protein'), row('arroz', 'pantry')];
+
+    for (const slot of ['breakfast', 'lunch', 'dinner'] as const) {
+      const needBySlot = new Map<MealSlot, number>([[slot, 6]]);
+
+      expect(buildPoolPrompt(context({ dietaryPatterns: ['traditional_spanish'], needBySlot }), catalogue)).toBe(
+        buildPoolPrompt(context({ dietaryPatterns: [], needBySlot }), catalogue)
+      );
+    }
   });
 
   it('never has a line for dislikes, allergies or notes in the person’s own words', () => {

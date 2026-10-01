@@ -276,6 +276,19 @@ ingredients do not all resolve. The interface never aggregates the two — "your
 are covered" would be true of one half and a lie about the other, and the reader cannot
 tell which half they are in.
 
+**A way of eating is enforced in code, and the model learns only what it may.** A
+dietary pattern becomes exclusions in `core/domain/Preference` (`resolvePreferences`).
+Halal and kosher work by food class and slug runs, and gluten-free and lactose-free by
+allergen. Traditional Spanish (`0077`) works by 157 exact slugs plus a dish rule
+(`breaksPatternDish`: a foreign stated cuisine or a foreign dish name). The dish rule lives
+inside `RecipeController.usesExcluded`, so reuse, swaps and the event rebuild inherit it,
+and the pool builder rejects a generated dish that breaks it as `unwanted`. The model is
+named only vegetarian and vegan (`NAMEABLE_PATTERNS`), because that is what the accepted
+consent says it receives. For every other pattern it simply sees a catalogue with fewer
+rows, and a spec pins the prompt identical with and without traditional Spanish. A
+pattern's lean towards foods (legumes, fish, rice and huerta vegetables for traditional
+Spanish) orders the library pick, and is kept out of the prompt's list of liked foods.
+
 **Health data is collected as health data, or not at all.** Conditions, medications and
 supplements live in their own tables under an explicit, versioned consent
 (`HEALTH_CONSENT_VERSION`); withdrawing deletes the rows and the consent in one
