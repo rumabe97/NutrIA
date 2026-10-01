@@ -101,7 +101,7 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
 
 ### Phase 2 — The dish's own form, and three words' worth of vocabulary
 
-- [ ] in progress
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 010 phase 2`. `quality-max`. Reviews:
   `invariant-reviewer` (opus, high), `legal`.
 - **Goal**: a form the dish has or names stops rejecting its own picture, and nothing
@@ -110,6 +110,11 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
   - `packages/core/src/domain/DishPicture/**` (the rule, its tables in a file of their
     own, the tests);
   - `apps/api/AGENTS.md` (the picture notes), `docs/legal/**` (`legal`).
+  - *amended 2026-09-30, owner ("Mete la cláusula de privacidad"):* the `/privacidad`
+    sentence about the checker gains `legal`'s clause (b) — something shaped like what the
+    dish already has or its name says does not count — in `es-ES.ts`, `en-GB.ts` and
+    `docs/legal/textos/02-politica-privacidad.md`. It ships **with** this phase, never before;
+    `privacy.updated` (both dictionaries) is set to the day it reaches production.
 - **Steps**:
   1. **The tables**, closed and in one file: for each family of report § 7.3 and its
      annex — the judge's words, the catalogue slugs that *are* that form, and the title's
@@ -244,7 +249,16 @@ is the design; read its §§ 4, 5, 7 and its annex before any phase. Decision
      passes: a dish of crepes is not rejected for the word "crepes".
   3. Look for more of the same kind: run the annex's list of foods through the rule and
      add what it finds to the pinned list of phase 1. Found by phase 1's review, outside
-     the 19: "hamburger", "sausages", "buttermilk".
+     the 19: "hamburger", "sausages", "buttermilk". *Amended 2026-10-01, from phase 2's
+     third review:* a bare "pizza", "tortilla" or "crust" maps to no allergen today and is
+     accepted even beside chicken and rice.
+  5. *Amended 2026-10-01, from phase 2:* a bare filled form word reads as the catalogue's
+     only (filled) product — "brownie" as the walnut brownie, "empanada" as the tuna one,
+     "crackers" as the ones that may contain sesame. Map the bare word to the unfilled form,
+     so the four phase-1 rows phase 2 rewrote to expect rejected (brownie on the bean
+     brownie, crackers on the corn cakes, empanadas on the corn empanadillas, plant milk on
+     the oat pudding — the last only if a named-plant reading allows it) can pass again,
+     each un-rewritten on purpose with the reviewer.
   4. Measure again on the private library; record the exposure and the pairs in the log.
 - **Acceptance criteria**: PRD 8, 11.
 - **Verification**:

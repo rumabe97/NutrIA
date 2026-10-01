@@ -59,7 +59,27 @@
 > (IMG-2, IMG-14 e IMG-16) y las fuentes. **Leída contra el código**: el árbol
 > `.claude/worktrees/phase4-010` sobre `8e9ca114`, sin commit, que lleva la fase 4 y **no**
 > la fase 2 del 010 (la regla del juez): nada de lo que aquí se dice depende de esa regla.
-> Los números de línea marcados «fase 4» son de ese árbol.
+> Los números de línea marcados «fase 4» son de ese árbol. **Fusionada en `28854ac`
+> (#178)** y desplegada, según el lead (el despliegue no lo he comprobado yo). Comprobado
+> el 2026-09-30 que las líneas centrales coinciden en `main`: `RecipeRepository.ts:1041`
+> (`status = 'ready'`), `RecipeController.ts:795-800`, `Audit.ts:72-74` y
+> `DishPicture.ts:102-104`.
+>
+> **Revisión 2026-09-30 (proyecto 010, fase 2)**: cambia la regla con la que el juez
+> acepta una imagen: la forma que el plato ya tiene, o que su nombre dice, deja de contar
+> como alimento de más ([`0073`](../decisions/0073-a-dishs-own-form-is-not-an-extra-food.md)).
+> Cambian el § 4.2 b (una lectura fechada de la frase del juez en `/privacidad`: **sigue
+> en pie, con una excepción nueva que la frase no dice; P2, decisión del propietario**), el
+> § 4.3 (la fila de las notas), el § 5 (IMG-2, un tercer camino), el § 7 (g) y las
+> fuentes; es nuevo el § 4.6. **Leída contra el código**: el árbol de trabajo de `main`
+> sobre `28854ac` (ya con la fase 4), sin commit (`packages/core/src/domain/DishPicture/judge.ts`,
+> el nuevo `forms.ts` y sus pruebas); los números de línea de esta revisión son de ese
+> árbol. **Releída el 2026-09-30 tras el endurecimiento de la regla** que pidió la primera
+> revisión de invariantes (la palabra de la forma solo se excusa si todo lo demás del
+> nombre es del plato; un producto del catálogo con nombre propio no se excusa; un título
+> negado o ambiguo no nombra la forma): cambian la descripción y las cifras del § 4.6 y
+> de IMG-2; **la lectura de la frase de `/privacidad` no cambia**. Las 1.158 pruebas de
+> `packages/core/src/domain/DishPicture` pasan en ese árbol (ejecutadas por `legal`).
 >
 > **Los §§ 0 a 4.2 se escribieron antes de que la función existiera.** Lo que dicen del
 > producto sale del PRD, del informe y del piloto, y la comprobación contra el código
@@ -100,6 +120,13 @@
    marca «IA» y el mismo pie (§ 1.7). Cambia el riesgo IMG-2, que deja de depender de un
    modelo y pasa a depender de una decisión registrada (§ 5), y **cambia una frase
    publicada de `/privacidad`** (§ 4.2 b), que es decisión del propietario.
+9. **La forma propia del plato** (010 fase 2, `0073`): la regla del juez deja de contar
+   como alimento de más la forma que el plato ya tiene o que su nombre dice. Es un tercer
+   camino hacia IMG-2, medido y acotado: acepta a propósito un segundo alimento de esa
+   forma (un vaso de leche junto a un curry con leche de coco). La frase de `/privacidad`
+   sobre el juez **sigue en pie, pero no describe esa clase**: P2, y el propietario decide
+   si toma una cláusula de una línea (§ 4.6). No hay datos personales nuevos y nada cambia
+   para la Ley de IA.
 
 ---
 
@@ -525,6 +552,20 @@ parada).
 > 2026» / «Last updated: 30 September 2026» (`es-ES.ts:2359`; `en-GB.ts:2314`), y
 > `terms.updated` sigue en el 29.
 
+> **Releída el 2026-09-30 contra el 010 fase 2, y otra vez tras su endurecimiento**
+> (la regla de la forma propia, § 4.6; la segunda lectura no cambia nada de este recuadro:
+> la clase se estrecha, pero sigue existiendo;
+> lo que sigue a este recuadro, hasta la tabla «Texto nuevo», es la revisión del 009
+> fase 3 sobre la frase **anterior**, no sobre el texto A):
+> el texto A **sigue en pie en general y deja de describir una clase concreta** de
+> imágenes, que el juez ahora acepta a propósito: un segundo alimento con la forma de uno
+> que el plato ya tiene o que su nombre dice (un vaso de leche junto a un curry con leche
+> de coco). En esa clase el modelo ve con claridad un alimento que, según el catálogo,
+> lleva un alérgeno que la receta no lleva, y la imagen **se publica**. **P2, no P1**: la
+> frase siguiente («la imagen puede mostrar algo que el plato no lleva») avisa al lector
+> de la consecuencia, y el plato sigue siendo seguro. **No obliga a cambiar el texto; lo
+> recomiendo.** Lectura completa, la cláusula propuesta y por qué, en el § 4.6.
+
 *Por qué no puede quedarse.*
 
 1. **Qué clase de frase es.** No es información de los arts. 13-14 RGPD: en este flujo
@@ -558,7 +599,8 @@ parada).
 4. **Y ya decía más de lo que el código hace.** La escribí el 2026-09-27 desde el PRD,
    antes de que existiera el juez. El juez construido **no** rechaza cualquier alimento
    que sobre: solo el que se ve con claridad —nombrado, en más que una traza— y lleva un
-   alérgeno que ningún ingrediente del plato lleva (`judge.ts:16-18`, `:497` y `:512`).
+   alérgeno que ningún ingrediente del plato lleva (`judge.ts:16-18`, `:497` y `:512`,
+   líneas del árbol de la fase 3; en el de la fase 2 del 010, `:710`).
    Una imagen con perejil o tomate que la receta no lleva se publica. Eso es verdad hoy
    en producción, con o sin fase 3.
 
@@ -638,7 +680,7 @@ de ser verdad con la fase 3, y se corrige arriba.)
 | Su puntero | La ruta, el modelo, la versión del prompt y, por cada alimento señalado, claves de alérgeno y slugs del catálogo (`flaggedExtras`, `judge.ts:523-527`): **no** la palabra que escribió el modelo de visión | `recipe_images.provenance.candidate` (Neon) |
 | Un fichero sin C2PA | El fichero, **no**. Un diagnóstico cerrado: tipo de contenido, tamaño y tres marcas sí/no | `recipe_images.provenance.diagnostic` |
 | Las otras imágenes rechazadas del mismo dibujo; las de un dibujo que acaba aceptado o devuelto; la que el juez no llegó a ver | Del fichero, nada. Desde el 010 fase 3, **lo que el juez respondió** sobre cada una que llegó a juzgar sí se guarda (§ 4.5) | `recipe_images.provenance.drawings` |
-| Las notas del dibujo | Como antes de esta fase: `provenance.notes` guarda las notas del juez, que **sí** incluyen nombres de alimentos escritos por el modelo de visión (`judge.ts:502-510`). No llegan a ninguna pantalla ni a ningún correo: la consola solo saca de esa fila el motivo de la lista cerrada y lo que lleva el puntero (`AdminCatalogueController.ts:213-226` y `:235-239`; ningún DTO de `modules/admin/dto/out` lleva `notes` ni `provenance`). Desde el 010 fase 3, además, las respuestas enteras del juez, en `drawings` (§ 4.5) | `recipe_images.provenance.notes` |
+| Las notas del dibujo | Como antes de esta fase: `provenance.notes` guarda las notas del juez, que **sí** incluyen nombres de alimentos escritos por el modelo de visión (`judge.ts:502-510`). No llegan a ninguna pantalla ni a ningún correo: la consola solo saca de esa fila el motivo de la lista cerrada y lo que lleva el puntero (`AdminCatalogueController.ts:213-226` y `:235-239`; ningún DTO de `modules/admin/dto/out` lleva `notes` ni `provenance`). Desde el 010 fase 3, además, las respuestas enteras del juez, en `drawings` (§ 4.5). Desde el 010 fase 2, una nota más, `own_form:<nombres>`, cuando la regla de la forma propia quitó un alérgeno (`judge.ts:654` y `:720`): son nombres que escribió el modelo de visión, como los de `extra_food:`, y van y se quedan donde van las demás notas (§ 4.6) | `recipe_images.provenance.notes` |
 
 Sin el token del almacén privado no se guarda nada y el dibujo es el de antes
 (`DishPicture.service.ts:369`; `VercelBlobPictureCandidateStore.ts:21-23`).
@@ -945,6 +987,190 @@ responde el juez (`es-ES.ts:2280-2290`, en `main`). **Sin cambio de texto ni de
 
 <!-- Fuente: RGPD (texto del DOUE en BOE, PDF `L00001-00088`) arts. 2.1, 4.1, 5.1.e y 30.1, cdo. 26; Reglamento (UE) 2024/1689 arts. 50.2, 50.4, 50.5 y Directrices C(2026) 5054 final, apdo. 87 (consultados el 2026-09-30 para el § 1.6; no vueltos a consultar en esta revisión); arts. 12 y 26.6 (registros, solo alto riesgo): **no consultados para esta revisión**, lectura de su título y su capítulo (III, alto riesgo) que un abogado puede comprobar en un minuto; TRLGDCU (BOE-A-2007-20555, consolidado a 28/02/2026) art. 19.2. Código: árbol `.claude/worktrees/backend-010-3` sobre `f81e834`. -->
 
+### 4.6 La forma propia del plato no es un alimento de más (010, fase 2)
+
+**Qué hace la regla, leída en el código.** El juez sigue igual: las dos llamadas al
+modelo, lo que se les pregunta y el diseño a ciegas no cambian, y los alérgenos siguen
+saliendo del catálogo, no del modelo (`judge.ts:24-66`; `0073`). Cambia cómo el código lee
+un nombre que el modelo de visión escribió:
+
+- **La forma propia.** Si el nombre contiene una palabra de forma («pancake», «bread»,
+  «roll», «meatball», «milk», «cream», «yogurt», «cheese»…) y el plato tiene su propia
+  versión de esa familia, esa palabra no aporta alérgenos; el resto del nombre se lee como
+  antes («cheese pancakes» sigue siendo queso; «wheat noodles», trigo). «Su propia versión»
+  se decide en código, con tablas cerradas (`forms.ts:51-291`), de dos maneras: un
+  ingrediente del plato que **es** esa forma (un slug del catálogo: `pan-sin-gluten`,
+  `leche-de-coco`, `heura`…) o una palabra del **nombre del plato** que la nombra
+  («tortitas», «albóndigas», «pizza», «bocadillo»…) (`judge.ts:337-365`).
+- **Solo mientras todo lo demás del nombre sea del plato** (endurecido tras la primera
+  revisión de invariantes). La palabra de la forma se excusa solo si cada una de las
+  otras palabras del nombre es de servir («glass», «bowl», «cup»…, `forms.ts:359`), es
+  una palabra de los propios ingredientes del plato, o solo lleva a ingredientes del
+  plato; y nunca si el nombre entero es un producto del catálogo con un alérgeno que el
+  plato no lleva (`judge.ts:590-628`, `aProductOfItsOwn` y `stillTheDishes`). Por eso
+  «goat cheese» junto a un queso vegano, «cow's milk» junto a un batido de soja, «heavy
+  cream» junto a un curry con leche de coco, o «spring roll» y «soda bread» junto a una
+  tostada sin gluten **vuelven a rechazar** (`judge.forms.test.ts:232-239`, `:448`,
+  `:495` y `:516`). Un «vaso de leche» sí sigue excusado: «glass» es de servir.
+- **Solo donde el nombre del plato la nombra de verdad** (también endurecido): una
+  palabra del título negada («sin pan», «without bread», «sin el pan») o seguida de
+  «free» («bread-free») no cuenta, y una negada quita la familia entera («quiche sin
+  masa» no nombra masa) (`forms.ts:327-336`; `judge.ts:350-358`); las palabras ambiguas
+  del español «tostada(s)», «tosta(s)», «rebanada(s)», «taco(s)», «empanada(s)» y
+  «pastel(es)» solo cuentan como primera palabra del título y no antes de «de»
+  (`forms.ts:299-325`; `judge.ts:356`), así que «tostadas de boniato», «tacos de lechuga»
+  o «pastel de verduras» no nombran ni pan, ni tortilla, ni bizcocho; y el inglés «cakes»
+  y «pie» ya no son palabras de título («fish cakes», «cottage pie»; `forms.ts:126-155` y
+  `:187-215`). Todos esos casos rechazan, fijados en `judge.forms.test.ts:643-685`.
+- **Lo que la acota, además**: familias estrechas (el pan no excusa unas tortitas); el
+  rebozado y los nuggets o croquetas, solo por el nombre del plato; unas tortitas de arroz
+  o de maíz no son bizcocho ni tortitas; una «burger» a secas sigue rechazando (su pan);
+  un nombre de la misma forma junto a otro que dice más («milk» o «cow's milk» junto a
+  «soy milk») sigue siendo un segundo alimento (`judge.ts:546-580`).
+- **La nota.** Cuando la excepción quita un alérgeno, y solo entonces, el veredicto lleva
+  `own_form:<nombres>` (`judge.ts:650-661` y `:720`).
+- **Tres arreglos de vocabulario**: palabras que no son comida («base», «glass», «bowl»…)
+  no se leen solas (`forms.ts:347-359`; `judge.ts:457`); «soy yogurt» o «coconut milk» se
+  leen como la planta, no como el lácteo, y «plant milk» no se lee como nada; fuera de
+  ese caso, «plant» vuelve a ser comida («plant protein» sigue siendo la proteína vegetal
+  del catálogo, y su soja) (`forms.ts:361-387`; `judge.ts:367-383`;
+  `forms.test.ts:459-465`); y un sulfito que un alimento solo **puede contener** ya no
+  rechaza nunca una imagen, mientras que uno que **contiene** (orejones, vino) sí, también
+  cuando otra fila del catálogo con la misma palabra solo pueda contenerlo
+  (`forms.ts:389-394`; `judge.ts:467-470` y `:586`; `forms.test.ts:495-515`;
+  `judge.forms.test.ts:636-640`; decisión del
+  propietario, 2026-09-30).
+
+**Datos personales: ninguno nuevo.** Lo que entra en la regla es la receta tal como la
+recibe el dibujo desde el 006 (`PictureRecipe`: nombre e ingredientes, `prompt.ts:18`) y
+las respuestas del modelo de visión sobre una foto hecha con ella. El nombre del plato
+**ya era** entrada del dibujo (§ 4.1); lo nuevo es que ahora también pesa en el
+veredicto. Hoy ningún camino guarda un nombre de receta que haya escrito una persona
+(§ 4.5), aunque `recipe_source` admite `user` ([`textos/06`](./textos/06-correos.md) § M,
+nota de fuente): **si un día una persona pudiera poner nombre a una receta, ese nombre
+entraría en esta regla** y habría que volver aquí. La nota `own_form:` lleva palabras del
+modelo, como `extra_food:`, y se queda donde se quedan las demás notas y los juicios
+(`provenance.judge`, `provenance.drawings`), que no salen de la API (§ 4.3 y § 4.5). Ni
+el registro de actividades, ni la EIPD, ni `/privacidad` como información del art. 13
+RGPD cambian por esto: no hay dato, fin, destinatario ni plazo nuevos (RGPD arts. 2.1 y
+4.1; cdo. 26).
+
+**Lo que la regla deja pasar a propósito.** `0073` lo dice: acepta lo que una imagen no
+puede distinguir, **un segundo alimento de la misma forma que el plato ya tiene**. Casos
+fijados en las pruebas (`judge.reverse.test.ts`, `ADDED_IN_PHASE_2`): un vaso de leche o
+nata junto a un curry con leche de coco; albóndigas o una hamburguesa sin pan junto a un
+salteado de Heura; tostadas, un panecillo o picatostes junto a una tostada sin gluten;
+tortitas o gofres en un plato cuyo nombre dice «tortitas». En las 20 recetas de ejemplo,
+de 1.260 pares, 22 más pasan por la forma propia y 1 por el sulfito (sin cambio tras el
+endurecimiento: `judge.reverse.test.ts`, 83 + 22 + 1 = 106). En la biblioteca de 500
+platos, **195 de 26.394 pares** que antes se rechazaban, y **ninguno** que antes se
+aceptara y ahora se rechace (según el lead, «0 newly rejected», que leo respecto a la regla
+anterior al 010; medido fuera de línea con la regla
+endurecida; antes del endurecimiento eran 211; la previsión de `0073` era 229; **no lo he
+comprobado** y el LOG del 010 no recoge aún ninguna de las dos cifras). Y, por el código,
+un nombre de plato que nombra una forma la sigue excusando aunque el plato no la lleve
+(unas «tortitas de avena» excusan unas «pancakes»; una «hamburguesa de lentejas», una
+«burger patty» de lo que sea), pero ya solo cuando la palabra del título es inequívoca y no está
+negada: unas «tostadas de boniato» ya **no** excusan unas tostadas de pan
+(`judge.forms.test.ts:672`, que ahora lo fija rechazando). `0073` acepta lo primero
+(«the picture then matches what the person reads in the title»).
+
+**¿Sigue siendo verdad la frase de `/privacidad`?** La frase (texto A, § 4.2 b;
+`es-ES.ts:2288`, `en-GB.ts:2243`):
+
+> «Si ese modelo ve con claridad en la imagen un alimento con un alérgeno que la receta no
+> lleva, la imagen se rechaza, y solo se publica si después la revisamos a mano y decidimos
+> publicarla. Esa revisión no es una garantía: la imagen puede mostrar algo que el plato no
+> lleva, y lo que lleva lo dice su lista de ingredientes.»
+
+1. **Para casi todo, sí.** Lo que la fase 2 deja de rechazar es sobre todo la imagen
+   **fiel** (las tortitas de harina de maíz que se leían como trigo): la frase nunca
+   prometió rechazarla, y ahora el código se parece más a lo que dice. El arreglo de la
+   planta la hace más verdadera («soy yogurt» ya no es leche). El del sulfito no la toca:
+   «un alimento **con** un alérgeno» se lee como «que lo lleva», y «puede contener» es
+   menos que eso.
+2. **Para una clase, no.** La fuente de esta frase la ataba a una condición del código:
+   alimento específico, más que una traza, con un alérgeno del catálogo que el plato no
+   lleva (`foreignAllergens.length > 0`, comentario de fuente del § 4.2 b). Esa condición
+   se ha movido. Un vaso de leche junto a un curry con leche de coco lo **ve con
+   claridad** (específico, no traza), el catálogo dice que la leche lleva el alérgeno
+   «leche», la receta no lo lleva, y la imagen **se publica**. La frase dice que se
+   rechaza. **Releído tras el endurecimiento**: la clase es más estrecha (195 pares en
+   lugar de 211, tras una tercera revisión que hizo de la regla una lista cerrada; «cow's milk», «goat cheese» o «heavy cream» vuelven a rechazar, y un
+   título negado o ambiguo ya no excusa nada), pero **no desaparece**: «milk» y «cream»
+   junto al curry con leche de coco, un panecillo junto a la tostada sin gluten o unas
+   albóndigas junto al salteado de Heura siguen aceptándose (`judge.reverse.test.ts`,
+   `ADDED_IN_PHASE_2`), y cada una muestra con claridad un alimento que, según el
+   catálogo, lleva un alérgeno que la receta no lleva.
+3. **Una lectura que la salvaría, y por qué no me apoyo solo en ella.** Se puede sostener
+   que el modelo no «ve» un alérgeno en una forma: un vaso blanco puede ser leche de vaca o
+   de coco, y una imagen no muestra de qué está hecho; «un alimento con un alérgeno» sería
+   entonces el que lo deja ver (nueces, gambas, huevo, queso). Es razonable, pero el
+   lector medio no lee así «un alimento con un alérgeno»: lee «leche». Y el § 4.2 b
+   descartó la variante B precisamente por ser «más ancha que el juez»; aceptar ahora la
+   misma anchura sin decirlo sería medir con dos varas **[abogado]**.
+4. **Por qué no es P1.** La frase se mide por el derecho de consumo, no por el RGPD (aquí
+   no hay datos personales, § 4.2 b punto 1). Ley 3/1991, art. 5.1: es engañosa la
+   información que «aun siendo veraz, por su contenido o presentación induzca o pueda
+   inducir a error», entre otras cosas sobre «los resultados y características esenciales
+   de las pruebas o controles efectuados» (letra b), y siempre que sea «susceptible de
+   alterar su comportamiento económico». Leída **entera**, la frase ya avisa de que «la
+   imagen puede mostrar algo que el plato no lleva» y de que manda la lista, que es
+   exactamente lo que pasa en esta clase; el plato es seguro; y nadie contrata o deja de
+   contratar por esta frase. Además, la frase nunca fue exhaustiva: los 19 nombres con
+   alérgeno que no se traducen a ninguno (`0073` § Context; `judge.holes.test.ts`) ya
+   pasaban. La diferencia es que aquello era un hueco y esto es una regla escrita a
+   propósito. **P2**: la misma escala que el IMG-15 antes de la fase 3 («la frase ya dice
+   más de lo que el juez hace»), que no bloqueó.
+
+**Mi lectura, la misma antes y después del endurecimiento: no hace falta cambiarla;
+recomiendo hacerlo.** Es **decisión del propietario**: (a) dejarla, aceptando un P2
+conocido y anotado aquí; o (b) añadir una cláusula al final de esa frase, que la vuelve
+verdad también para esta clase (y, si yerra, yerra hacia prometer menos control del que
+hay):
+
+| | es-ES | en-GB |
+| --- | --- | --- |
+| Hoy | `Si ese modelo ve con claridad en la imagen un alimento con un alérgeno que la receta no lleva, la imagen se rechaza, y solo se publica si después la revisamos a mano y decidimos publicarla.` | `If that model clearly sees in the picture a food carrying an allergen the recipe does not have, the picture is rejected, and it is published only if we then review it by hand and decide to publish it.` |
+| Propuesta (b) | `Si ese modelo ve con claridad en la imagen un alimento con un alérgeno que la receta no lleva, la imagen se rechaza, y solo se publica si después la revisamos a mano y decidimos publicarla; no cuenta lo que tiene la forma de algo que el plato ya tiene o que su nombre dice, como su pan o su leche, porque una imagen no muestra de qué está hecho.` | `If that model clearly sees in the picture a food carrying an allergen the recipe does not have, the picture is rejected, and it is published only if we then review it by hand and decide to publish it; something shaped like what the dish already has or its name says, such as its bread or its milk, does not count, because a picture cannot show what it is made of.` |
+
+<!-- Fuente de (b), releída contra la regla endurecida (árbol de trabajo de `main` sobre `28854ac`, sin commit): `judge.ts:337-365` (ingrediente o nombre del plato: «que el plato ya tiene o que su nombre dice»), `:572-580` y `:650-655` (solo la palabra de la forma: lo demás del nombre sigue contando, así que «su pan», no «cualquier cosa con pan»; y solo cuando quita un alérgeno). Los dos ejemplos siguen siendo verdad: «su pan» (tostadas, panecillo o picatostes junto a la tostada sin gluten) y «su leche» («milk» junto al curry con leche de coco o al batido de soja) están en `judge.reverse.test.ts`, `ADDED_IN_PHASE_2`. La cláusula describe una excepción **más ancha** que la del código, que sigue contando: un nombre de la misma forma junto a otro que dice más («milk» junto a «soy milk», `:546-570`); un nombre con una palabra que no es del plato ni de servir, o que es un producto del catálogo con un alérgeno ajeno («goat cheese», «cow's milk», «heavy cream», «spring roll», «soda bread», `:590-628`); un título negado («sin pan», «bread-free») o con una palabra ambigua fuera de cabeza o antes de «de» («tostadas de boniato», «tacos de lechuga», «pastel de verduras»), `:344-358` y `forms.ts:299-336`. En todos esos casos la cláusula diría «no cuenta» y el código lo cuenta y rechaza: prometer menos control del que hay no induce a error (Ley 3/1991, art. 5.1, que exige que la información pueda inducir a error y alterar el comportamiento económico; decir que se revisa menos no lleva a nadie a fiarse más). Solo informa: no es un «cambio importante» y no exige correo previo (mismo criterio que § 4.2 b). -->
+
+- **Dónde**: `privacy`, el mismo párrafo de las imágenes (`es-ES.ts:2288`;
+  `en-GB.ts:2243`); el resto del párrafo no cambia. Y la misma frase en
+  [`textos/02`](./textos/02-politica-privacidad.md) (línea 149), si se toma.
+- **Si se toma**: `privacy.updated` con la fecha del día en que llegue a producción
+  (`es-ES.ts:2359`; `en-GB.ts:2314`). `terms.updated`, no. **Sin correo previo**: no cambia
+  qué datos se tratan, para qué ni con quién.
+- **Orden**: la regla no tiene flag; llega a producción con el despliegue. Si el
+  propietario toma (b), lo simple es que el diccionario cambie en el mismo despliegue que
+  la regla o después; no hace falta que vaya antes, porque dejarla es P2.
+
+**Cómo se encuentra y se deshace una imagen de esa clase, hoy.** `0073` dice «The note and
+"Retirar" are how it is found and undone». **Deshacerla, sí; encontrarla, no desde la
+consola**:
+
+- **«Retirar» la alcanza.** Desde el 010 fase 4 (`28854ac`, #178, desplegada según el
+  lead), «Retirar» vale para cualquier imagen publicada, también la que el juez aceptó
+  por la forma propia: la condición es `status = 'ready'` y nada más
+  (`RecipeRepository.ts:1041`), sin migración, con la fila `picture.removed` y
+  `acceptedBy: judge` (§ 4.4). IMG-16 está cerrado y esta regla no lo reabre; lo que
+  queda es IMG-14 (copias en caché), igual que para cualquier retirada.
+- **La nota `own_form:` no sale de la API** (la fase 3 lo fija con pruebas; § 4.5):
+  ninguna pantalla de la consola la enseña, así que nada le señala al propietario cuál de
+  las imágenes publicadas pasó por esta excepción. Solo la encuentra con una consulta de
+  lectura sobre `recipe_images.provenance` en Neon, o en la relectura de producción de la
+  fase 6; o mirando la imagen desde Recetas («Revisar la imagen»), como cualquier otra.
+
+**Lo que no cambia** y sigue siendo verdad: la etiqueta de la consola «El revisor vio un
+alérgeno que el plato no tiene» (el motivo cerrado sigue saliendo de `extra_allergen:`,
+`PictureReason.ts:67-69`); la viñeta del aviso de aceptar «El revisor solo mira lo que
+sobra en la imagen» (§ 4.4); el pie «Es orientativa: manda la lista de ingredientes» y la
+frase de `/condiciones` (§ 3); y todo el § 1 y el § 2: la regla no toca el fichero, su
+C2PA, la marca «IA» ni el pie (Ley de IA art. 50.2, 50.4 y 50.5).
+
+<!-- Fuente: código en el árbol de trabajo de `main` sobre `28854ac`, sin commit, con la regla ya endurecida: `packages/core/src/domain/DishPicture/judge.ts:24-66` (cabecera), `:337-365` (`ownFamilies`, con la negación y la cabeza del título), `:367-383` (`plantQualified`), `:457` (`NOT_A_FOOD` fuera del paso 4), `:467-470` (un sulfito que alguna fila contiene cuenta como contenido), `:546-570` (`besideAnother`), `:572-580` (`ownForm`), `:586` (sulfitos que solo «puede contener»), `:590-628` (`theDishes`, `aProductOfItsOwn`, `stillTheDishes`), `:650-661` (la excepción solo cuenta si quita un alérgeno; `own_form`), `:710` (`rejecting`), `:720` (la nota); `forms.ts:51-291` (familias; «cakes» y «pie» fuera de los títulos en `:126-155` y `:187-215`), `:297` (`TITLE_NOT_A_FORM`), `:299-325` (`TITLE_ONLY_AS_HEAD`), `:327-336` (negaciones), `:345` (`SEEN_NOT_A_FORM`), `:347-359` (`NOT_A_FOOD`), `:361-387` (planta y lácteo), `:389-394` (sulfitos); `prompt.ts:18` (`PictureRecipe`); `judge.reverse.test.ts` (`ADDED_IN_PHASE_2`: 83 + 22 + 1 = 106 de 1.260); `judge.forms.test.ts:232-239`, `:448`, `:495`, `:516`, `:636-640`, `:643-685`; `forms.test.ts:254-256` y `:261`, `:459-465`, `:495-515`; las 1.158 pruebas de `packages/core/src/domain/DishPicture` pasan (ejecutadas por `legal` el 2026-09-30). `RecipeRepository.ts:1041` en `main` (`28854ac`). `PictureReason.ts:67-69`. `0073` §§ Context, Decision y Consequences; PLAN 010, fase 2, pasos 5 y 8 y señal de parada; PRD 010, criterio de `legal`. 205 de 26.394 (antes 211), 0 que pasen a rechazarse: dato del lead, **no comprobado por `legal`**. Normas: Ley 3/1991 (BOE-A-1991-628, consolidada a 27/12/2025), art. 5.1, letra b; RGPD arts. 2.1 y 4.1 y cdo. 26 — consultados el 2026-09-30 para el 009 fase 3 y no vueltos a consultar; las citas son las del § 4.2 b. -->
+
 ---
 
 ## 5. Riesgos, ordenados por lo que le puede pasar a una persona
@@ -952,7 +1178,7 @@ responde el juez (`es-ES.ts:2280-2290`, en `main`). **Sin cambio de texto ni de
 | # | Qué puede pasar | Gravedad | Qué lo evita |
 | --- | --- | --- | --- |
 | IMG-1 | Una persona alérgica ve una foto sin el alimento que le hace daño, aunque el plato lo lleve (una salsa, un aceite de sésamo «cocinado dentro»), y se fía de la foto | **P1** (daño a la salud, aunque la lista esté bien) | La puerta de alérgenos es código contra la lista, no contra la imagen (`0004`). El pie dice «manda la lista de ingredientes». Las condiciones lo dicen (§ 3.3). El juez solo rechaza lo que **sobra**, no lo que falta: el pie es la medida |
-| IMG-2 | La foto muestra un alimento con alérgeno que el plato no lleva (nueces en un plato sin nueces). **Revisado el 2026-09-30 (009 fase 3)**: antes solo podía pasar si el juez no lo veía; ahora puede pasar porque el propietario publica, a mano, una imagen en la que el juez **sí** lo vio. Si el juez acertó, esa imagen muestra de verdad el alimento, y la ven todas las personas a las que se les da el plato, hasta que se retire | **P2, y el más alto de los P2.** La gravedad no sube: el plato es seguro, la receta y la lista de la compra no llevan ese alimento, y para que haya exposición alguien tendría que cocinar «según la foto» y añadirlo por su cuenta. Lo que le pasa a una persona real es que desconfía de un plato seguro, se lo salta o deja de fiarse de la app. Sube la **probabilidad** (ya no hace falta un fallo del modelo: basta una decisión) y cambia la **naturaleza**: deja de ser el error de un modelo y pasa a ser un acto del propietario, avisado y registrado, del que responde él (TRLGDCU art. 147) **[abogado]** | **Dos puertas** (`0072`): el juez, o la revisión del propietario. La segunda lleva: (1) un aviso que nombra los alérgenos y los ingredientes del catálogo que el juez reconoció, con el plato al lado (§ 4.4); (2) dos pasos, y el segundo repetido en el servidor: la petición debe traer esos mismos alérgenos y la caducidad de esa misma candidata (`RecipeController.ts:383-389`); (3) la fila `picture.accepted`, en la transacción que publica; (4) **«Retirar»**, que quita la imagen del plato al instante, con los límites del § 4.4 (copias en caché); (5) el recuento «aceptadas a mano» en Imágenes y su filtro en Recetas, para volver a mirarlas. **Lo que sigue valiendo para cualquier imagen**: el pie «Es orientativa: manda la lista de ingredientes», que **solo está en la página de la comida** (`meal.pictureCaption`, `es-ES.ts:1668`) —la tarjeta del panel lleva la marca «IA» y nada más—, y la frase de las condiciones (§ 3.3). **Desde el 010 fase 4, «Retirar» alcanza también a la imagen que el juez aceptó por error**: el propietario la quita desde la consola, sin migración, y el plato vuelve a quedarse sin imagen para todos, con los mismos límites del § 4.4 (IMG-14; IMG-16 cerrado). Lo que no hace nada es **encontrarla**: ningún código señala una imagen que el juez aceptó mal; hace falta que alguien la vea y la retire |
+| IMG-2 | La foto muestra un alimento con alérgeno que el plato no lleva (nueces en un plato sin nueces). **Revisado el 2026-09-30 (009 fase 3)**: antes solo podía pasar si el juez no lo veía; ahora puede pasar porque el propietario publica, a mano, una imagen en la que el juez **sí** lo vio. Si el juez acertó, esa imagen muestra de verdad el alimento, y la ven todas las personas a las que se les da el plato, hasta que se retire. **Revisado el 2026-09-30 (010 fase 2): un tercer camino, el de la propia regla del juez.** La forma que el plato ya tiene, o que su nombre dice, no cuenta como alimento de más (`0073`; § 4.6). Así se aceptan las imágenes fieles que antes se rechazaban, y también, a propósito, **un segundo alimento de esa misma forma** que la imagen no puede distinguir del propio: un vaso de leche junto a un curry con leche de coco, un panecillo junto a una tostada sin gluten, albóndigas junto a un salteado de Heura. Según el lead, 195 de 26.394 pares de la biblioteca que antes se rechazaban, con la regla ya endurecida tras la primera revisión de invariantes, y ninguno que antes se aceptara y ahora se rechace, leído respecto a la regla anterior al 010 (medido fuera de línea, no comprobado por `legal`; antes del endurecimiento, 211; previsión de `0073`: 229). Aquí no hace falta ni un fallo del modelo ni una decisión del propietario: lo acepta la regla | **P2, y el más alto de los P2.** La gravedad no sube: el plato es seguro, la receta y la lista de la compra no llevan ese alimento, y para que haya exposición alguien tendría que cocinar «según la foto» y añadirlo por su cuenta. Lo que le pasa a una persona real es que desconfía de un plato seguro, se lo salta o deja de fiarse de la app. Sube la **probabilidad** (ya no hace falta un fallo del modelo: basta una decisión) y cambia la **naturaleza**: deja de ser el error de un modelo y pasa a ser un acto del propietario, avisado y registrado, del que responde él (TRLGDCU art. 147) **[abogado]** | **Dos puertas** (`0072`): el juez, o la revisión del propietario. La segunda lleva: (1) un aviso que nombra los alérgenos y los ingredientes del catálogo que el juez reconoció, con el plato al lado (§ 4.4); (2) dos pasos, y el segundo repetido en el servidor: la petición debe traer esos mismos alérgenos y la caducidad de esa misma candidata (`RecipeController.ts:383-389`); (3) la fila `picture.accepted`, en la transacción que publica; (4) **«Retirar»**, que quita la imagen del plato al instante, con los límites del § 4.4 (copias en caché); (5) el recuento «aceptadas a mano» en Imágenes y su filtro en Recetas, para volver a mirarlas. **Lo que sigue valiendo para cualquier imagen**: el pie «Es orientativa: manda la lista de ingredientes», que **solo está en la página de la comida** (`meal.pictureCaption`, `es-ES.ts:1668`) —la tarjeta del panel lleva la marca «IA» y nada más—, y la frase de las condiciones (§ 3.3). **Desde el 010 fase 4, «Retirar» alcanza también a la imagen que el juez aceptó por error**: el propietario la quita desde la consola, sin migración, y el plato vuelve a quedarse sin imagen para todos, con los mismos límites del § 4.4 (IMG-14; IMG-16 cerrado). Lo que no hace nada es **encontrarla**: ningún código señala una imagen que el juez aceptó mal; hace falta que alguien la vea y la retire. **Para el tercer camino (010 fase 2)**: la gravedad no cambia (el plato sigue siendo seguro; lo que pasa es la misma desconfianza) y la probabilidad sube poco y medida. Lo mitigan: tablas cerradas, familias estrechas, el nombre más completo que gana («milk» junto a «soy milk» sigue rechazando), la excusa solo mientras todo lo demás del nombre sea del plato y el nombre entero no sea otro producto del catálogo («goat cheese», «cow's milk», «heavy cream» rechazan), un título negado o ambiguo que no nombra nada («sin pan», «tostadas de boniato»), una prueba por fila, el piloto (65 aceptadas, 3 controles rechazados) como suelo que no se mueve, y la nota `own_form:` guardada con la imagen. **Un hueco, hoy**: la nota no llega a ninguna pantalla (solo una consulta de lectura en Neon o la relectura de la fase 6 la encuentran). La fase 4 del 010, fusionada antes que esta regla (`28854ac`, #178), permite retirar una imagen aceptada por el juez, también por la forma propia (IMG-16 cerrado; esta regla no lo reabre). La frase de `/privacidad` sobre el juez no describe esta clase: P2, **decisión del propietario** (§ 4.6) |
 | IMG-3 | ~~Una imagen de MAI llega a alguien sin marca legible por máquina~~ | cerrado | MAI fuera por decisión del propietario (2026-09-27) |
 | IMG-4 | La tarjeta del panel muestra la imagen sin aviso | **P1** (art. 50.4-50.5) | `picture.aiMark` (§ 3.2), en la tarjeta y en la imagen grande |
 | IMG-5 | La política dice que no se usa Google y Google dibuja | **P1** (texto que se leería falso) | § 4.2 a |
@@ -1003,6 +1229,16 @@ Añadidos al [`analisis.md` § 10](./analisis.md#10-confirmar-con-un-abogado), p
   retirar) o de que publicó a sabiendas? (TRLGDCU art. 147; Código Civil art. 1902, **que
   no he consultado para esta revisión**). **Sí merece cinco minutos de la hora**, junto
   con (a): las dos deciden cuánto cuidado pide publicar una foto realista de comida.
+- (g) (2026-09-30, 010 fase 2) La frase de `/privacidad` «Si ese modelo ve con claridad en
+  la imagen un alimento con un alérgeno que la receta no lleva, la imagen se rechaza»,
+  ¿induce a error (Ley 3/1991, art. 5.1.b) ahora que la regla acepta a propósito un
+  segundo alimento con la forma de uno que el plato ya tiene (un vaso de leche junto a un
+  curry con leche de coco), cuando la frase siguiente avisa de que «la imagen puede
+  mostrar algo que el plato no lleva»? Mi lectura: leída entera, no llega a engañosa, pero
+  no describe esa clase (P2; § 4.6). La misma tras el endurecimiento de la regla: la clase
+  es más estrecha (195 pares de la biblioteca en lugar de 211), pero sigue existiendo.
+  **Si el propietario toma la cláusula (b) del § 4.6, no hace falta gastar la hora en
+  esto**; si no la toma, cinco minutos.
 
 ## Fuentes (versión consultada el 2026-09-27; las del final, el 2026-09-30)
 
@@ -1056,4 +1292,16 @@ Añadidos al [`analisis.md` § 10](./analisis.md#10-confirmar-con-un-abogado), p
   `RecipeController.ts`, `PictureCandidates.service.ts`, `DishPicture.ts`, `Audit.ts`,
   `RecipeAcceptance.test.ts`, `apps/api/AGENTS.md` «Remove», y los diccionarios `es-ES.ts`
   y `en-GB.ts`); migración `0042`. PRD 010, criterio 9; `0073`; informe `0006`,
-  pregunta 4.
+  pregunta 4. Fusionada en `main` como `28854ac` (#178); comprobado que
+  `RecipeRepository.ts:1041`, `RecipeController.ts:795-800`, `Audit.ts:72-74` y
+  `DishPicture.ts:102-104` coinciden allí. El despliegue lo afirma el lead.
+- **2026-09-30** (010 fase 2, § 4.6): sin fuente nueva consultada; Ley 3/1991, art. 5.1, y
+  RGPD, arts. 2.1 y 4.1 y cdo. 26, tal como se consultaron para el 009 fase 3 (entrada de
+  arriba). Código: árbol de trabajo de `main` sobre `28854ac` (ya con la fase 4), sin
+  commit, con la regla endurecida tras la primera revisión de invariantes
+  (`packages/core/src/domain/DishPicture/judge.ts`, `forms.ts`, `forms.test.ts`,
+  `judge.reverse.test.ts`, `judge.forms.test.ts`, `judge.test.ts`;
+  `packages/core/src/entities/DishPicture/PictureReason.ts`); las 1.158 pruebas de esa
+  carpeta pasan (ejecutadas por `legal`); `apps/api/AGENTS.md` (la nota de la forma
+  propia, sin commit); `0073`; PRD, PLAN y LOG del 010. La cifra 195 de 26.394 (antes
+  211, y 205 en la segunda ronda), con 0 pares que pasen a rechazarse, es del lead y no la he comprobado.
