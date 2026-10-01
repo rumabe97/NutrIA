@@ -241,6 +241,11 @@ describe('account security: the password, the sessions, and a password found bre
       await pause(500);
       expect(mailsTo(email)).toEqual([]);
       await get('users/me', session.cookie).expect(200);
+
+      // Not marked, the same password back is a change like any other: the refusal is the mark's alone.
+      const same = await change(session.cookie, { currentPassword: ORIGINAL, newPassword: ORIGINAL });
+
+      expect(same.status).toBe(200);
     });
 
     it('ends every other session even when the body asks to keep them, hands the caller a new one, and mails after answering', async () => {
@@ -465,8 +470,15 @@ describe('account security: the password, the sessions, and a password found bre
     it('refuses the same password back, by change or by reset, with PASSWORD_COMPROMISED, and the mark stays', async () => {
       const { id, email } = await account('luis', 'Luis Arriaga');
       const session = await signIn(email);
+      const elsewhere = await signIn(email);
 
       await mark(id);
+
+      // A wrong current password is the route's own refusal, whatever the new one is: the hook is no oracle for the stored hash.
+      const guessed = await change(session.cookie, { currentPassword: 'a-guess-at-the-password-5', newPassword: 'a-guess-at-the-password-5' });
+
+      expect(guessed.status).toBe(400);
+      expect(code(guessed)).toBe('INVALID_PASSWORD');
 
       // HIBP is off under NODE_ENV=test: this is the comparison with the stored hash, nothing else.
       const changed = await change(session.cookie, { currentPassword: ORIGINAL, newPassword: ORIGINAL });
@@ -475,6 +487,8 @@ describe('account security: the password, the sessions, and a password found bre
       expect(code(changed)).toBe('PASSWORD_COMPROMISED');
       expect(await markOf(id)).not.toBeNull();
       expect(code(await get('profile', session.cookie).expect(409))).toBe('PASSWORD_CHANGE_REQUIRED');
+      // Refused, so nothing was revoked.
+      await get('users/me', elsewhere.cookie).expect(200);
 
       const token = `account-security-same-${String(stamp)}`;
 
@@ -489,10 +503,15 @@ describe('account security: the password, the sessions, and a password found bre
       expect(await markOf(id)).not.toBeNull();
       expect(code(await get('profile', session.cookie).expect(409))).toBe('PASSWORD_CHANGE_REQUIRED');
 
-      // Refusals both: no row, no mail.
+      // Refusals all: no row, no mail.
       expect(await auditRows(id, 'auth.password_changed')).toEqual([]);
       await pause(500);
       expect(mailsTo(email)).toEqual([]);
+
+      // The refusal did not spend the token: the same link with a new password goes through and clears the mark.
+      await request(server()).post(`/${PREFIX}/auth/reset-password`).send({ newPassword: 'saffron-meadow-ladder-9', token }).expect(200);
+      expect(await markOf(id)).toBeNull();
+      expect((await auditRows(id, 'auth.password_changed')).map(row => row.metadata)).toEqual([{ via: 'reset' }]);
       await sql()`delete from verification where id = ${token}`;
     });
 
