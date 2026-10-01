@@ -133,8 +133,6 @@ export const twoFactor = pgTable(
     id: text().primaryKey(),
     backupCodes: text().notNull(),
     failedVerificationCount: integer().notNull().default(0),
-    lockedUntil: timestamp({ withTimezone: true }),
-    secret: text().notNull(),
     /**
      * The newest 30-second TOTP step a code from this account was accepted for
      * (PLAN 011 phase 4) — null until the first. Ours, not the plugin's: a
@@ -142,6 +140,8 @@ export const twoFactor = pgTable(
      * greater, so one code is never accepted twice, nor an older one after it.
      */
     lastTotpStep: bigint({ mode: 'number' }),
+    lockedUntil: timestamp({ withTimezone: true }),
+    secret: text().notNull(),
     userId: text()
       .notNull()
       .references(() => user.id, { onDelete: 'cascade' }),
