@@ -353,6 +353,14 @@ relative to the person's own share, so `0070`'s big eaters still get their 2–4
 real meal plan without it met a 180 g protein target with 1,700-kcal lunches beside
 250-kcal dinners.
 
+**A plate also has a weight ceiling, and cooked grains read dry** (`0078`). No plate weighs
+more than `PLATE_GRAMS_MAX`: 750 g at breakfast, lunch and dinner, and 250 g at the snacks
+and supper. It is enforced through the same `withinPlateLimit` as the energy limit, and the
+energy floor is again the only thing that may pass it. The 15 cooked grains and pastas of
+the catalogue (`core/domain/Yield`) are shown on the meal in dry weight. The meal's own
+grams stay cooked, because the macros are computed from them. The shopping list buys them
+dry, merged with the same food bought dry; cooked legumes stay cooked.
+
 **Nutrition targets are computed, not generated.** `nutritionTargets` in
 `packages/core/domain/Nutrition` derives kcal and macros from Mifflin-St Jeor and the
 user's goal, and clamps to `MINIMUM_DAILY_KCAL` and to a share of maintenance. It returns

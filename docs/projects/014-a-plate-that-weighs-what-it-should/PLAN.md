@@ -40,7 +40,7 @@
 
 ### Phase 1 — The gram ceiling and dry weights, end to end
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ medium — `/execute-project 014 phase 1`, run as `/team`:
   - `backend` (opus · medium): items 1–2, 4, the core half of 3, and 5;
   - `frontend` (sonnet · medium): the web half of 3;
