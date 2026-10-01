@@ -866,7 +866,10 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
 
       await sql()`delete from session where user_id = ${id}`;
 
-      const mailed = outbox.filter(mail => mail.to === email).length;
+      // The sign-up's address confirmation and the "turned on" mail run after their responses and may land at any
+      // point here; neither is a code. Anything else to these addresses would be.
+      const codeMails = (to: string) => outbox.filter(mail => mail.to === to && mail.kind !== 'verify-email' && !ENABLED_MAIL.test(`${mail.subject}\n${mail.text}`));
+      const mailed = codeMails(email).length;
       const { jar: challenge } = await challenged(email);
       const notFound = await guardsNotFound();
       const send = await post('auth/two-factor/send-otp', challenge.header);
@@ -896,8 +899,8 @@ describe('two-factor: a second factor on Better Auth’s own plugin', () => {
       expect({ status: signedVerify.status, text: signedVerify.text }).toEqual(notFound);
       expect(await flagOf(plain.id)).toBe(false);
       await pause(500);
-      expect(outbox.filter(mail => mail.to === email)).toHaveLength(mailed);
-      expect(outbox.filter(mail => mail.to === plain.email)).toHaveLength(0);
+      expect(codeMails(email)).toHaveLength(mailed);
+      expect(codeMails(plain.email)).toHaveLength(0);
     });
   });
 
