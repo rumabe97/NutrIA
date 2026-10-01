@@ -31,7 +31,7 @@ import type { Response } from 'supertest';
  * the owner asks, the account's own address is told at once, and nothing is
  * removed until the daily cron runs past `due_at` (48 h after the request).
  *
- * - `POST /admin/users/:id/two-factor/removal` → 201 `{ dueAt }`, only for an
+ * - `POST /admin/accounts/:id/two-factor/removal` → 201 `{ dueAt }`, only for an
  *   account with the factor on; a second one while one waits is 409
  *   `TWO_FACTOR_REMOVAL_PENDING`, an account without it 409
  *   `TWO_FACTOR_NOT_ENABLED`; `DELETE` cancels (204), and with nothing
@@ -59,9 +59,10 @@ const CLEANUP_PASSWORD = 'quiet-orchard-lamp-velvet-3';
 const IPHONE =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';
 const HOUR = 3_600_000;
-const REQUESTED_MAIL = /petici[oó]n para quitar/i;
-const CANCELLED_MAIL = /cancelad/i;
-const REMOVED_MAIL = /hemos quitado/i;
+/** The three mails, by their `EmailKind`. */
+const REQUESTED_MAIL: string = 'two-factor-removal-requested';
+const CANCELLED_MAIL: string = 'two-factor-removal-cancelled';
+const REMOVED_MAIL: string = 'two-factor-removed';
 /** M14: the mail says nothing of health. */
 const HEALTH_WORDS = /alerg|allerg|salud|health|dieta|diet\b|peso|weight|calor|medic|embaraz|pregnan/i;
 
@@ -119,7 +120,7 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
 
   const server = () => httpServer(app);
   const emailFor = (label: string) => `two-factor-removal-${label}-${String(stamp)}@e2e.invalid`;
-  const mailsTo = (email: string, subject: RegExp) => outbox.filter(mail => mail.to === email && subject.test(`${mail.subject}\n${mail.text}`));
+  const mailsTo = (email: string, kind: string) => outbox.filter(mail => mail.to === email && mail.kind === kind);
 
   function seen(response: Response): Response {
     bodies.push(JSON.stringify(response.body ?? {}));
@@ -204,7 +205,7 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
     return { ...made, backupCodes, jar, uri: totpURI };
   }
 
-  const removal = (userId: string) => `admin/users/${userId}/two-factor/removal`;
+  const removal = (userId: string) => `admin/accounts/${userId}/two-factor/removal`;
 
   async function requestRemoval(userId: string, cookie = owner.cookie): Promise<Response> {
     return post(removal(userId), cookie);
@@ -400,7 +401,7 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
       expect(mailsTo(email, REQUESTED_MAIL)).toHaveLength(1);
       expectQuietMail(mailsTo(email, REQUESTED_MAIL)[0]);
       // Only the account's own address is told: nothing went to the owner, or to anybody else, about it.
-      expect(outbox.filter(mail => REQUESTED_MAIL.test(`${mail.subject}\n${mail.text}`) && mail.to !== email)).toEqual([]);
+      expect(outbox.filter(mail => mail.kind === REQUESTED_MAIL && mail.to !== email)).toEqual([]);
 
       // Still asked at sign-in: the request alone turns nothing off.
       await challenged(email);
@@ -421,6 +422,13 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
       expect(await auditRows(id, 'auth.2fa_removal_requested')).toHaveLength(1);
       await pause(500);
       expect(mailsTo(email, REQUESTED_MAIL)).toHaveLength(1);
+    });
+
+    it('an id that is no account is a 404', async () => {
+      const asked = await requestRemoval('00000000-0000-4000-8000-000000000000');
+
+      expect(asked.status).toBe(404);
+      expect((await requestRemoval('no-such-account')).status).toBe(404);
     });
 
     it('an account without the factor is 409 TWO_FACTOR_NOT_ENABLED: no row, no record, no mail', async () => {
@@ -492,6 +500,7 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
       const early = await cron();
 
       expect(early.status).toBe(200);
+      expect(Object.keys(early.body as object)).toEqual(['removed']);
       expect(await flagOf(id)).toBe(true);
       expect(await twoFactorRows(id)).toBe(1);
       expect(await pending(id)).toBe(true);
@@ -507,10 +516,12 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
       const ran = await cron();
 
       expect(ran.status).toBe(200);
+      expect((ran.body as { removed: number }).removed).toBeGreaterThanOrEqual(1);
       expect(await flagOf(id)).toBe(false);
       expect(await twoFactorRows(id)).toBe(0);
       expect(await trustRows(id)).toBe(0);
-      expect(await pending(id)).toBe(false);
+      // Carried out, the request is gone.
+      expect(await removalRows(id)).toEqual([]);
 
       const rows = await auditRows(id, 'auth.2fa_removed_by_owner');
 
@@ -524,8 +535,11 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
       await signedIn(email);
 
       // Again, and again: nothing more removed, recorded or mailed.
-      expect((await cron()).status).toBe(200);
-      expect((await cron()).status).toBe(200);
+      for (const again of [await cron(), await cron()]) {
+        expect(again.status).toBe(200);
+        expect(again.body).toEqual({ removed: 0 });
+      }
+
       expect(await auditRows(id, 'auth.2fa_removed_by_owner')).toHaveLength(1);
       await pause(500);
       expect(mailsTo(email, REMOVED_MAIL)).toHaveLength(1);
@@ -550,6 +564,38 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
       expect(await auditRows(waiting.id, 'auth.2fa_removed_by_owner')).toEqual([]);
     });
 
+    it('an account that turned the factor off itself meanwhile: the request goes, with no row and no mail', async () => {
+      const { id, email, jar } = await withFactor('mario', 'Mario Calvo');
+
+      expect((await requestRemoval(id)).status).toBe(201);
+      expect((await post('auth/two-factor/disable', jar.header, { password: ORIGINAL })).status).toBe(200);
+      expect(await flagOf(id)).toBe(false);
+
+      await due(id);
+      expect((await cron()).status).toBe(200);
+      expect(await removalRows(id)).toEqual([]);
+      expect(await auditRows(id, 'auth.2fa_removed_by_owner')).toEqual([]);
+      await pause(500);
+      expect(mailsTo(email, REMOVED_MAIL)).toEqual([]);
+    });
+
+    it('the cron without its secret is a 404 and carries nothing out', async () => {
+      const { id } = await withFactor('nico', 'Nico Ferro');
+
+      expect((await requestRemoval(id)).status).toBe(201);
+      await due(id);
+
+      for (const authorization of ['', 'Bearer not-the-secret']) {
+        const call = request(server()).get(`/${PREFIX}/cron/two-factor-removals`);
+
+        expect((await (authorization ? call.set('Authorization', authorization) : call)).status).toBe(404);
+      }
+
+      expect(await flagOf(id)).toBe(true);
+      expect(await pending(id)).toBe(true);
+      expect(await auditRows(id, 'auth.2fa_removed_by_owner')).toEqual([]);
+    });
+
     it('records each run as a cron_run with no user', async () => {
       const [since] = await sql()<{ now: string }>`select now()::text as now`;
 
@@ -557,7 +603,7 @@ describe('two-factor-removal: the owner takes a lost factor off, 48 hours after 
 
       const runs = await sql()<{ properties: Record<string, unknown> | null; userId: string | null }>`
         select properties, user_id as "userId" from analytics_events
-        where event = 'cron_run' and created_at >= ${since?.now ?? ''} and properties->>'job' like '%two-factor%'`;
+        where event = 'cron_run' and created_at >= ${since?.now ?? ''} and properties->>'job' = 'twoFactorRemovals'`;
 
       expect(runs.length).toBeGreaterThanOrEqual(1);
 
