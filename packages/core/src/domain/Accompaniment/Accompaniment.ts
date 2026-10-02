@@ -584,6 +584,102 @@ const COMPOSED_NAMES: Readonly<Record<string, Readonly<Record<'en-GB' | 'es-ES',
   'verduras-a-la-plancha': { 'en-GB': 'Grilled vegetables', 'es-ES': 'Verduras a la plancha' }
 };
 
+/**
+ * How a composed accompaniment is made, one practical sentence per locale,
+ * fixed here and never asked of a model (016 phase 6). Each line uses exactly
+ * the foods its portion lists, and the oil it lists — a teaspoon is its 5 g,
+ * two are the gazpacho's 10 g — and no more. A simple one is a food served as
+ * it comes, and has none.
+ */
+const COMPOSED_PREPARATIONS: Readonly<Record<string, Readonly<Record<'en-GB' | 'es-ES', string>>>> = {
+  'arroz-blanco': {
+    'en-GB': 'Rinse the rice, simmer it covered in twice its volume of salted water for about 15 minutes and let it rest for 5.',
+    'es-ES': 'Lava el arroz, cuécelo tapado en el doble de su volumen de agua con la sal unos 15 minutos y déjalo reposar 5.'
+  },
+  'arroz-rojo': {
+    'en-GB':
+      'Soften the onion and garlic in a teaspoon of oil, stir in the rice and tomato, add twice the water and the salt and simmer covered for about 15 minutes.',
+    'es-ES':
+      'Sofríe la cebolla y el ajo con una cucharadita de aceite, añade el arroz y el tomate, cubre con el doble de agua, sala y cuécelo tapado unos 15 minutos.'
+  },
+  'brocoli-salteado': {
+    'en-GB':
+      'Cut the broccoli into florets and sauté over high heat with the sliced garlic and a teaspoon of oil, adding a splash of water to steam it; salt at the end.',
+    'es-ES':
+      'Separa el brócoli en ramilletes y saltéalo a fuego vivo con el ajo laminado y una cucharadita de aceite, con un chorrito de agua para que se haga al vapor; sala al final.'
+  },
+  'ensalada-de-invierno': {
+    'en-GB':
+      "Segment the orange, grate the carrot, toss both with the lamb's lettuce and dress with a teaspoon of oil, the vinegar and a pinch of salt.",
+    'es-ES':
+      'Pela la naranja en gajos, ralla la zanahoria, mézclalas con los canónigos y aliña con una cucharadita de aceite, el vinagre y una pizca de sal.'
+  },
+  'ensalada-de-pepino': {
+    'en-GB': 'Slice the cucumber thinly, dress it with the rice vinegar and sprinkle with the sesame.',
+    'es-ES': 'Corta el pepino en rodajas finas, alíñalo con el vinagre de arroz y espolvorea el sésamo.'
+  },
+  'ensalada-marroqui': {
+    'en-GB': 'Dice the tomato, cucumber and onion small, add the parsley and dress with the lemon, a teaspoon of oil and the salt.',
+    'es-ES': 'Pica en dados pequeños el tomate, el pepino y la cebolla, añade el perejil y aliña con el limón, una cucharadita de aceite y la sal.'
+  },
+  'ensalada-mixta': {
+    'en-GB': 'Chop the lettuce and tomato, add thinly sliced onion and dress with a teaspoon of oil, the vinegar and a pinch of salt.',
+    'es-ES': 'Trocea la lechuga y el tomate, añade la cebolla en juliana fina y aliña con una cucharadita de aceite, el vinagre y una pizca de sal.'
+  },
+  'ensalada-verde': {
+    'en-GB': 'Wash and tear the lettuce, add thinly sliced onion and dress with a teaspoon of oil, the vinegar and a pinch of salt.',
+    'es-ES': 'Lava y trocea la lechuga, añade la cebolla en juliana fina y aliña con una cucharadita de aceite, el vinagre y una pizca de sal.'
+  },
+  frijoles: {
+    'en-GB': 'Warm the beans with the chopped onion and garlic and a splash of water for about 10 minutes, mash some of them and add the salt.',
+    'es-ES': 'Calienta las alubias con la cebolla y el ajo picados y un chorrito de agua unos 10 minutos, aplasta una parte y sala.'
+  },
+  gazpacho: {
+    'en-GB': 'Blend the tomato, cucumber, pepper and garlic with two teaspoons of oil, the vinegar and the salt, strain and serve well chilled.',
+    'es-ES': 'Tritura el tomate, el pepino, el pimiento y el ajo con dos cucharaditas de aceite, el vinagre y la sal, cuélalo y sírvelo bien frío.'
+  },
+  'insalata-mista': {
+    'en-GB':
+      'Tear the lettuce, halve the cherry tomatoes, grate the carrot and dress with a teaspoon of oil, the balsamic vinegar and a pinch of salt.',
+    'es-ES':
+      'Trocea la lechuga, parte los tomates cherry por la mitad, ralla la zanahoria y aliña con una cucharadita de aceite, el balsámico y una pizca de sal.'
+  },
+  'judias-verdes-rehogadas': {
+    'en-GB': 'Boil the beans in salted water for about 8 minutes, drain and toss them for a minute with the sliced garlic and a teaspoon of oil.',
+    'es-ES': 'Cuece las judías en agua con sal unos 8 minutos, escúrrelas y rehógalas un minuto con el ajo laminado y una cucharadita de aceite.'
+  },
+  'naranja-con-canela': {
+    'en-GB': 'Peel and slice the orange and dust it with the cinnamon.',
+    'es-ES': 'Pela la naranja, córtala en rodajas y espolvoréala con la canela.'
+  },
+  'pak-choi-salteado': {
+    'en-GB':
+      'Stir-fry the pak choi over high heat with the garlic, grated ginger and a teaspoon of oil for two or three minutes, then finish with the soy sauce.',
+    'es-ES':
+      'Saltea el pak choi a fuego vivo con el ajo, el jengibre rallado y una cucharadita de aceite dos o tres minutos y termina con la salsa de soja.'
+  },
+  'pico-de-gallo': {
+    'en-GB': 'Finely chop the tomato, onion, jalapeño and coriander and mix them with the lime juice and the salt.',
+    'es-ES': 'Pica fino el tomate, la cebolla, el jalapeño y el cilantro y mézclalos con el zumo de lima y la sal.'
+  },
+  'sopa-de-miso': {
+    'en-GB':
+      'Soak the wakame, heat 200 ml of water without letting it boil, dissolve the miso, add the diced tofu and serve with the chopped spring onion.',
+    'es-ES': 'Hidrata el wakame, calienta 200 ml de agua sin que hierva, disuelve el miso, añade el tofu en dados y sirve con la cebolleta picada.'
+  },
+  tabule: {
+    'en-GB':
+      'Soak the bulgur in hot water for 15 minutes, drain it and mix with the chopped tomato and cucumber, the herbs, the lemon, a teaspoon of oil and the salt.',
+    'es-ES':
+      'Hidrata el bulgur en agua caliente 15 minutos, escúrrelo y mézclalo con el tomate y el pepino picados, las hierbas, el limón, una cucharadita de aceite y la sal.'
+  },
+  'verduras-a-la-plancha': {
+    'en-GB': 'Slice the vegetables, brush them with a teaspoon of oil and cook them on a very hot griddle for a few minutes a side; salt at the end.',
+    'es-ES':
+      'Corta las verduras en láminas, úntalas con una cucharadita de aceite y hazlas a la plancha bien caliente unos minutos por lado; sala al final.'
+  }
+};
+
 /** Whether an accompaniment needs its own name: more than one food, or a food that is not its key. */
 export function isComposed(accompaniment: Accompaniment): boolean {
   return accompaniment.portions.some(items => items.length !== 1 || items[0]?.slug !== accompaniment.key);
@@ -602,6 +698,20 @@ export function accompanimentName(key: string, locale: string, foodName: string 
   }
 
   return foodName ?? key;
+}
+
+/**
+ * How a composed accompaniment is made, in the reader's language (`es-ES` the
+ * fallback); `undefined` for a simple one, or a key the catalogue does not know.
+ */
+export function accompanimentPreparation(key: string, locale: string): string | undefined {
+  const preparation = COMPOSED_PREPARATIONS[key];
+
+  if (!preparation) {
+    return undefined;
+  }
+
+  return locale === 'en-GB' ? preparation['en-GB'] : preparation['es-ES'];
 }
 
 /** One stored row of what goes beside a meal: `MealAccompanimentDraft`. */

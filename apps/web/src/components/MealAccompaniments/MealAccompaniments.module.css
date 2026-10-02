@@ -85,3 +85,8 @@
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+
+/* How a composed side is made: body text under its ingredients, never a heading. */
+.preparation {
+  margin: var(--space-02) 0 0;
+}

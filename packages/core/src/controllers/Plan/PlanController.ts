@@ -28,7 +28,7 @@ import { SettingsController } from 'core/controllers/Settings';
 import { RecipeController, toPictureStatus } from 'core/controllers/Recipe';
 import { alternativesFor } from 'core/domain/Substitution';
 import { toDry, withoutCooked } from 'core/domain/Yield';
-import { accompanimentName } from 'core/domain/Accompaniment';
+import { accompanimentName, accompanimentPreparation } from 'core/domain/Accompaniment';
 import type {
   AiCallRecord,
   Macros,
@@ -62,6 +62,8 @@ export interface AccompanimentView {
   kcal: number;
   key: string;
   name: string;
+  /** How a composed side is made, one sentence in the reader's language; absent for a food served as it comes. */
+  preparation?: string;
 }
 
 export interface MealView {
@@ -284,26 +286,31 @@ function presentAccompaniments(
     byKey.set(side.accompanimentKey, [...(byKey.get(side.accompanimentKey) ?? []), side]);
   }
 
-  return [...byKey].map(([key, rows]) => ({
-    grams: round(rows.reduce((sum, row) => sum + row.grams, 0)),
-    ingredients: rows.map(row => {
-      const dry = toDry(row.slug, row.grams);
+  return [...byKey].map(([key, rows]) => {
+    const preparation = accompanimentPreparation(key, locale);
 
-      return {
-        ...(dry && {
-          dry: {
-            grams: Math.max(DRY_STEP_G, Math.round(dry.dryGrams / DRY_STEP_G) * DRY_STEP_G),
-            name: (dry.drySlug && dryNames.get(dry.drySlug)) ?? withoutCooked(row.name)
-          }
-        }),
-        grams: row.grams,
-        name: row.name
-      };
-    }),
-    kcal: round(rows.reduce((sum, row) => sum + row.kcal, 0)),
-    key,
-    name: accompanimentName(key, locale, rows.find(row => row.slug === key)?.name)
-  }));
+    return {
+      grams: round(rows.reduce((sum, row) => sum + row.grams, 0)),
+      ingredients: rows.map(row => {
+        const dry = toDry(row.slug, row.grams);
+
+        return {
+          ...(dry && {
+            dry: {
+              grams: Math.max(DRY_STEP_G, Math.round(dry.dryGrams / DRY_STEP_G) * DRY_STEP_G),
+              name: (dry.drySlug && dryNames.get(dry.drySlug)) ?? withoutCooked(row.name)
+            }
+          }),
+          grams: row.grams,
+          name: row.name
+        };
+      }),
+      kcal: round(rows.reduce((sum, row) => sum + row.kcal, 0)),
+      key,
+      name: accompanimentName(key, locale, rows.find(row => row.slug === key)?.name),
+      ...(preparation && { preparation })
+    };
+  });
 }
 
 function presentMeal({ items, meal, recipe, sides }: MealRow, locale: string): MealView {
