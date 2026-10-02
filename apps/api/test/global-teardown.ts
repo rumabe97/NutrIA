@@ -32,7 +32,8 @@ function tables(): Tables {
  * own pool.
  */
 export default async function globalTeardown(): Promise<void> {
-  if (!process.env.DATABASE_URL) {
+  // Under NUTRIA_LOCAL_PG=1 no URL is set, and the pool connects to the local Postgres.
+  if (!process.env.DATABASE_URL && process.env.NUTRIA_LOCAL_PG !== '1') {
     return;
   }
 

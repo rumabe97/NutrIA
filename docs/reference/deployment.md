@@ -78,6 +78,7 @@ from local development:
 | `SWAGGER_ENABLED` | leave unset — off by default outside development; an explicit `true` is refused, because the schema describes every endpoint to anyone who asks |
 | `DATABASE_URL` | Neon's **pooled** endpoint (host contains `-pooler`) |
 | `DIRECT_DATABASE_URL` | Neon's **direct** endpoint — the build runs migrations through it |
+| `NUTRIA_LOCAL_PG` | **never set** — local only (tests, evaluator, dev): it replaces both database URLs with the loopback Postgres `pnpm db:local` runs. The API refuses to boot with it when `NODE_ENV=production` or `VERCEL_ENV` is set |
 | `AI_REWRITE_STEPS` | `false` on a free-tier project: the rewrite sweep would spend the daily request cap generation needs in ~2 hours; `true` with billing |
 | `CRON_SECRET` | any 16+ characters (`openssl rand -base64 32`); the platform sends it as a bearer on a cron call. Two crons are scheduled: the rewrite sweep and the check-in reminder (§3b). Unset, the routes 404 and say so in the log |
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM` | the password-reset sender (`0019`), see §5c. All five together or none: a host without credentials or a sender is refused at boot. With none, reset links go to the log and nobody receives them |
