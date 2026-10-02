@@ -487,7 +487,7 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   - Re-run the evaluator.
 - **Status:** queued after project 015 phase 2. Owner decision of 2026-10-02.
 
-## 2026-10-02 — Project (queued): 017, more accompaniments
+## 2026-10-02 — Project (queued): 018, more accompaniments (was numbered 017; renumbered when scheduler tuning went first)
 
 - **Why:** project 016 ships 46 accompaniments in code (10 starch, 15 vegetable, 21 dessert; 18 composed, each with a fixed preparation line). The owner wants more variety beside meals.
 - **Method (owner chose two of three options):**
@@ -510,3 +510,9 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   2. **Win back the two days:** `objetivo-bajo-3-comidas` (from the starch rule) and `objetivo-alto-5-comidas` (from Italian pasta becoming lunch-only), protein 5.4% and 5.1%.
   3. **Decide whether the pasta/rice cap of 4 becomes hard**, measured in days in band.
 - **Status:** queued. Owner decision of 2026-10-02 ("hazlo en el siguiente proyecto"). The lead recommends it before 017, because 017's extra sides would widen the same search.
+
+## 2026-10-02 — Project 017 planned: every day in band, every starch counted
+
+- The scheduler tuning queued above became `docs/projects/017-every-day-in-band/`, with the PRD approved by the owner: option (a) for the reference library, and "the macros win" over a hard cap.
+- Speed is already done (#198).
+- More accompaniments becomes 018.
