@@ -936,15 +936,23 @@ function foodsOf(perServing: PerServing): readonly (readonly [PlateFood, number]
 }
 
 /**
- * `plateServings` already worked out, per serving and by everything else it
- * reads: the slot, the share and its ceiling, and what is beside the plate.
+ * `plateServings` already worked out, per budget (a plan builds each day's
+ * once, and the share and its ceiling are all it reads of one), per serving,
+ * and by the slot and what is beside the plate.
  */
-const PLATE_SERVINGS = new WeakMap<PerServing, Map<string, readonly number[]>>();
+const PLATE_SERVINGS = new WeakMap<SlotBudget, WeakMap<PerServing, Map<string, readonly number[]>>>();
 
 /** Every quarter size inside `SERVING_BOUNDS`, `PLATE_LIMIT`, `PLATE_GRAMS_MAX` and `PLATE_FOOD_MAX`, smallest first. Empty when there is none. */
 function plateServings(perServing: PerServing, budget: SlotBudget, slot: MealSlot, besideKcal = 0): readonly number[] {
-  let known = PLATE_SERVINGS.get(perServing);
-  const key = `${slot}|${budget.kcal}|${budget.gramsMax}|${besideKcal}`;
+  let byServing = PLATE_SERVINGS.get(budget);
+
+  if (!byServing) {
+    byServing = new WeakMap();
+    PLATE_SERVINGS.set(budget, byServing);
+  }
+
+  let known = byServing.get(perServing);
+  const key = besideKcal === 0 ? slot : `${slot}|${besideKcal}`;
   const cached = known?.get(key);
 
   if (cached) {
@@ -961,7 +969,7 @@ function plateServings(perServing: PerServing, budget: SlotBudget, slot: MealSlo
 
   if (!known) {
     known = new Map();
-    PLATE_SERVINGS.set(perServing, known);
+    byServing.set(perServing, known);
   }
 
   known.set(key, sizes);
@@ -1255,6 +1263,8 @@ type RemainingRange = { readonly high: Macros; readonly low: Macros; readonly mi
  */
 const BOUND_SLACK = 1e-9;
 
+const MACRO_KEYS = ['carbsG', 'fatG', 'fiberG', 'kcal', 'proteinG'] as const;
+
 /** `RemainingRange` from every meal onwards, the last one empty. */
 function remainingRanges(options: readonly (readonly { readonly term: Term }[])[]): readonly RemainingRange[] {
   const zero: Macros = { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 };
@@ -1262,23 +1272,46 @@ function remainingRanges(options: readonly (readonly { readonly term: Term }[])[
 
   for (let index = options.length - 1; index >= 0; index -= 1) {
     const after = ranges[0] as RemainingRange;
-    const terms = (options[index] ?? []).map(option => option.term);
-    const added = (key: keyof Macros): number[] => terms.map(term => term.plate[key] + term.beside[key]);
-    const span = (pick: (values: number[]) => number, from: Macros): Macros => ({
-      carbsG: from.carbsG + pick(added('carbsG')),
-      fatG: from.fatG + pick(added('fatG')),
-      fiberG: from.fiberG + pick(added('fiberG')),
-      kcal: from.kcal + pick(added('kcal')),
-      proteinG: from.proteinG + pick(added('proteinG'))
-    });
+    const high = { ...after.high };
+    const low = { ...after.low };
+    let misses = Number.POSITIVE_INFINITY;
+    let strays = Number.POSITIVE_INFINITY;
+    let tenths = Number.NEGATIVE_INFINITY;
+    // Each macro's most and least this meal adds, found in one pass over its options.
+    const most = {
+      carbsG: Number.NEGATIVE_INFINITY,
+      fatG: Number.NEGATIVE_INFINITY,
+      fiberG: Number.NEGATIVE_INFINITY,
+      kcal: Number.NEGATIVE_INFINITY,
+      proteinG: Number.NEGATIVE_INFINITY
+    };
+    const least = {
+      carbsG: Number.POSITIVE_INFINITY,
+      fatG: Number.POSITIVE_INFINITY,
+      fiberG: Number.POSITIVE_INFINITY,
+      kcal: Number.POSITIVE_INFINITY,
+      proteinG: Number.POSITIVE_INFINITY
+    };
 
-    ranges.unshift({
-      high: span(values => Math.max(...values), after.high),
-      low: span(values => Math.min(...values), after.low),
-      misses: after.misses + Math.min(...terms.map(term => term.misses)),
-      strays: after.strays + Math.min(...terms.map(term => term.stray)),
-      tenths: after.tenths + Math.max(...terms.map(term => term.tenths))
-    });
+    for (const { term } of options[index] ?? []) {
+      for (const key of MACRO_KEYS) {
+        const added = term.plate[key] + term.beside[key];
+
+        most[key] = Math.max(most[key], added);
+        least[key] = Math.min(least[key], added);
+      }
+
+      misses = Math.min(misses, term.misses);
+      strays = Math.min(strays, term.stray);
+      tenths = Math.max(tenths, term.tenths);
+    }
+
+    for (const key of MACRO_KEYS) {
+      high[key] += most[key];
+      low[key] += least[key];
+    }
+
+    ranges.unshift({ high, low, misses: after.misses + misses, strays: after.strays + strays, tenths: after.tenths + tenths });
   }
 
   return ranges;
@@ -1643,15 +1676,16 @@ function balancedDay(
       const proteinG = sums.proteinG + beside.proteinG - target.proteinG;
       const carbsG = sums.carbsG + beside.carbsG - target.carbsG;
       const fatG = sums.fatG + beside.fatG - target.fatG;
-      let lowest = Math.min(fitAlong(low, kcal, proteinG, carbsG, fatG), fitAlong(high, kcal, proteinG, carbsG, fatG));
+      const at = (size: number): number => (size > low && size < high ? fitAlong(size, kcal, proteinG, carbsG, fatG) : Number.POSITIVE_INFINITY);
 
-      for (const size of [-kcal / lastBase.kcal, -proteinG / lastBase.proteinG, -carbsG / lastBase.carbsG, -fatG / lastBase.fatG]) {
-        if (size > low && size < high) {
-          lowest = Math.min(lowest, fitAlong(size, kcal, proteinG, carbsG, fatG));
-        }
-      }
-
-      return lowest;
+      return Math.min(
+        fitAlong(low, kcal, proteinG, carbsG, fatG),
+        fitAlong(high, kcal, proteinG, carbsG, fatG),
+        at(-kcal / lastBase.kcal),
+        at(-proteinG / lastBase.proteinG),
+        at(-carbsG / lastBase.carbsG),
+        at(-fatG / lastBase.fatG)
+      );
     };
 
     // `fitCost` of the day with the last meal at a size, from each macro's miss without it.
