@@ -1295,6 +1295,14 @@ async function replaceAccompaniments(tx: Transaction, plate: PlateRow, rows: rea
  * Only rows set beside the plate the meal holds now — same dish, same
  * servings. A previous API, after a rollback, swaps or rebuilds a meal in
  * place without knowing this table; the rows it left are not shown.
+ *
+ * The one case this cannot see: rolled back, the previous API rebuilds a meal
+ * for an event and lands on the same dish at the same servings. Its rows still
+ * match and still show, while the meal's own kcal and macros, rewritten by
+ * that API, are the plate's alone — the day reads low by the sides' energy
+ * until the next swap or rebuild by this API. It takes a rollback, a rebuild
+ * during it and an identical slot, so it is accepted (migration review of
+ * 0055, P2).
  */
 async function findAccompaniments(
   db: ReturnType<typeof database>,
