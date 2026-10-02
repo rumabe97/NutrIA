@@ -359,7 +359,12 @@ and supper. It is enforced through the same `withinPlateLimit` as the energy lim
 energy floor is again the only thing that may pass it. The 15 cooked grains and pastas of
 the catalogue (`core/domain/Yield`) are shown on the meal in dry weight. The meal's own
 grams stay cooked, because the macros are computed from them. The shopping list buys them
-dry, merged with the same food bought dry; cooked legumes stay cooked.
+dry, merged with the same food bought dry; cooked legumes stay cooked. *Temporarily* (`016`
+phase 1, until accompaniments land), the main-meal ceiling scales above 950 kcal of share
+by share ÷ 950, up to 900 g, because a flat 750 g cost two-meal people their macro fit.
+Before generating, a person whose largest main meal carries more than 850 kcal
+(`mealSize`, from the scheduler's own shares) is told why their plates are large and
+chooses to add a meal or carry on.
 
 **Nutrition targets are computed, not generated.** `nutritionTargets` in
 `packages/core/domain/Nutrition` derives kcal and macros from Mifflin-St Jeor and the

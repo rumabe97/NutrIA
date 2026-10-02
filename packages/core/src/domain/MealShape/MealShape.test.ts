@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { shapeFor, slotsIn, weightsFor } from './MealShape';
+import { LARGE_MEAL_KCAL, mainMealSize, mealShareKcal, shapeFor, slotsIn, weightsFor } from './MealShape';
 
 import { mealShapeSchema } from 'core/entities/Profile';
 
@@ -79,5 +79,46 @@ describe('shapeFor — the day an old answer implied', () => {
 
   it('gives somebody who wanted no snacks a supper instead', () => {
     expect(slotsIn(shapeFor(4, false))).toEqual(['breakfast', 'lunch', 'dinner', 'supper']);
+  });
+});
+
+describe('how big each meal is', () => {
+  const TWO_MEALS: MealShape = { ...ORDINARY, breakfast: 'off' };
+
+  it('splits the day by the weights the scheduler sizes plates to', () => {
+    const shares = mealShareKcal(TWO_MEALS, { kcal: 2100 });
+
+    // 0.33 and 0.30 of a day with nothing else in it.
+    expect(shares.get('lunch')).toBeCloseTo((2100 * 0.33) / 0.63, 6);
+    expect(shares.get('dinner')).toBeCloseTo((2100 * 0.3) / 0.63, 6);
+    expect(shares.has('breakfast')).toBe(false);
+    expect([...shares.values()].reduce((sum, kcal) => sum + kcal, 0)).toBeCloseTo(2100, 6);
+  });
+
+  it('says a two-meal day of 2,100 kcal has large meals, and a three-meal day of 2,200 does not', () => {
+    expect(mainMealSize(TWO_MEALS, { kcal: 2100 })).toEqual({ largeMeals: true, largestMainKcal: 1100 });
+    expect(mainMealSize(ORDINARY, { kcal: 2200 })).toEqual({ largeMeals: false, largestMainKcal: 825 });
+  });
+
+  it('counts breakfast as a main meal and a snack as none', () => {
+    const breakfastOnly: MealShape = {
+      afternoon_snack: 'normal',
+      breakfast: 'normal',
+      dinner: 'off',
+      lunch: 'off',
+      morning_snack: 'off',
+      supper: 'off'
+    };
+
+    expect(mainMealSize(breakfastOnly, { kcal: 1700 }).largestMainKcal).toBe(Math.round((1700 * 0.25) / 0.34));
+  });
+
+  it('is large only past 850 kcal, on the rounded figure', () => {
+    // Lunch alone: the whole day is the lunch.
+    const lunchOnly: MealShape = { afternoon_snack: 'off', breakfast: 'off', dinner: 'off', lunch: 'normal', morning_snack: 'off', supper: 'off' };
+
+    expect(mainMealSize(lunchOnly, { kcal: LARGE_MEAL_KCAL })).toEqual({ largeMeals: false, largestMainKcal: 850 });
+    expect(mainMealSize(lunchOnly, { kcal: 850.4 })).toEqual({ largeMeals: false, largestMainKcal: 850 });
+    expect(mainMealSize(lunchOnly, { kcal: 851 })).toEqual({ largeMeals: true, largestMainKcal: 851 });
   });
 });

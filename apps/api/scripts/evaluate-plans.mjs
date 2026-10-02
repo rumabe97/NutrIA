@@ -27,7 +27,11 @@
  * below for the mechanism and its one caveat.
  *
  * Usage (from apps/api):
- *   node --env-file-if-exists=.env scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json]
+ *   node --env-file-if-exists=.env scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]...
+ *
+ * `--flag <name>` names a scheduler flag to measure with on (project 016). No
+ * flag exists yet: the names are parsed, printed and recorded in the JSON, and
+ * change nothing — so a run with one is still comparable with a run without.
  *
  * Exit codes:
  *   0  every profile measured; no plate carried a declared allergen
@@ -37,6 +41,7 @@
  *      overrides a 1
  */
 import { createRequire } from 'node:module';
+import { performance } from 'node:perf_hooks';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts/guard.mjs';
@@ -55,9 +60,10 @@ import {
   PATTERN_EXCLUDED_SLUGS,
   resolvePreferences
 } from 'core/domain/Preference';
-import { PLAN_DAYS, PLATE_GRAMS_MAX, PLATE_LIMIT, schedulePlan } from 'core/domain/Scheduler';
+import { PLAN_DAYS, PLATE_GRAMS_MAX, PLATE_LIMIT, plateGramsMax, schedulePlan } from 'core/domain/Scheduler';
 import { bestEffortExclusions, dishSafety, normaliseForMatching, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
 import { MAIN_SLOTS } from 'core/domain/Variety';
+import { toDry } from 'core/domain/Yield';
 
 // ---------------------------------------------------------------------------
 // The profiles. Fixed here, printed in the report, so the next run measures the
@@ -171,7 +177,7 @@ const BAND_KINDS = new Set(['carbs_out_of_band', 'fat_out_of_band', 'kcal_out_of
 // CLI
 // ---------------------------------------------------------------------------
 function parseArgs(argv) {
-  const options = { compare: null, json: null, locale: 'es-ES' };
+  const options = { compare: null, flags: [], json: null, locale: 'es-ES' };
 
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
@@ -182,6 +188,15 @@ function parseArgs(argv) {
       options.json = argv[(index += 1)];
     } else if (arg === '--compare') {
       options.compare = argv[(index += 1)];
+    } else if (arg === '--flag') {
+      const name = argv[(index += 1)];
+
+      if (!name) {
+        console.error('--flag needs a name');
+        process.exit(2);
+      }
+
+      options.flags.push(name);
     } else {
       console.error(`unknown argument: ${arg}`);
       process.exit(2);
@@ -419,7 +434,7 @@ async function measureProfile(profile, shared) {
   // against its own raised target, exactly as `validatePlan` judges it.
   const deviations = macroDeviations(scheduled.assignment.days, dayTargets, targets);
   const plateShare = plateShares(scheduled.assignment.days, dayTargets, targets, weights);
-  const plateWeight = plateGrams(scheduled.assignment.days);
+  const plateWeight = plateGrams(scheduled.assignment.days, dayTargets, targets, weights);
 
   const blockingViolations = violations.filter(isBlocking);
   const bandViolations = violations.filter(violation => BAND_KINDS.has(violation.kind));
@@ -485,11 +500,13 @@ async function measureProfile(profile, shared) {
     daysInsideAll4,
     deviations,
     fallback: null,
+    foodGroups: foodGroupGrams(scheduled.assignment.days, context.catalogue),
     measured: true,
     note,
     plateShare,
     plateWeight,
     poolSize: pool.length,
+    servings: servingsHistogram(scheduled.assignment.days),
     slug: profile.slug,
     unsafe,
     spanish: spanishMetrics(scheduled.assignment.days, context.catalogue),
@@ -744,34 +761,115 @@ function plateShares(days, dayTargets, targets, weights) {
 
 /**
  * What every plate weighs — the sum of its ingredients' grams, cooked, as the
- * scheduler sizes them — against `PLATE_GRAMS_MAX` for its slot (`0078`): the
- * heaviest plate, the mean per slot, and how many are over their ceiling.
+ * scheduler sizes them — against `plateGramsMax` for its slot and that day's
+ * share (`0078`, scaled for a big main meal by 016): the heaviest plate, the
+ * mean and the heaviest per slot, and how many are over their ceiling. A meal
+ * is one plate until accompaniments land (016 phase 2), so this is also what a
+ * meal weighs.
  */
-function plateGrams(days) {
+function plateGrams(days, dayTargets, targets, weights) {
+  const total = [...weights.values()].reduce((sum, weight) => sum + weight, 0) || 1;
   const bySlot = new Map();
   let max = null;
   let overCeiling = 0;
   let plates = 0;
 
   for (const day of days) {
-    for (const meal of day.meals) {
-      const grams = meal.ingredients.reduce((sum, item) => sum + item.grams, 0);
-      const slot = bySlot.get(meal.slot) ?? { count: 0, total: 0 };
+    const kcal = (dayTargets.get(day.dayIndex) ?? targets).kcal;
 
-      bySlot.set(meal.slot, { count: slot.count + 1, total: slot.total + grams });
+    for (const meal of day.meals) {
+      const budgetKcal = (kcal * (weights.get(meal.slot) ?? 0)) / total;
+      const grams = meal.ingredients.reduce((sum, item) => sum + item.grams, 0);
+      const slot = bySlot.get(meal.slot) ?? { ceiling: 0, count: 0, max: 0, total: 0 };
+
+      bySlot.set(meal.slot, {
+        ceiling: Math.max(slot.ceiling, plateGramsMax(meal.slot, budgetKcal)),
+        count: slot.count + 1,
+        max: Math.max(slot.max, grams),
+        total: slot.total + grams
+      });
       max = max === null ? grams : Math.max(max, grams);
       // A tenth of a gram per item is rounding, not weight.
-      overCeiling += grams > PLATE_GRAMS_MAX[meal.slot] + 0.5 ? 1 : 0;
+      overCeiling += grams > plateGramsMax(meal.slot, budgetKcal) + 0.5 ? 1 : 0;
       plates += 1;
     }
   }
 
   return {
+    ceilingBySlot: Object.fromEntries([...bySlot].map(([slot, { ceiling }]) => [slot, Math.round(ceiling)])),
     max: max === null ? null : Math.round(max),
+    maxBySlot: Object.fromEntries([...bySlot].map(([slot, entry]) => [slot, Math.round(entry.max)])),
     meanBySlot: Object.fromEntries([...bySlot].map(([slot, { count, total }]) => [slot, Math.round(total / count)])),
     overCeiling,
     plates
   };
+}
+
+/**
+ * How many plates of each slot were served at each size (project 016): the
+ * question accompaniments answer is whether a big meal is one dish at three
+ * servings, and a mean hides that.
+ */
+function servingsHistogram(days) {
+  const bySlot = {};
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      const sizes = (bySlot[meal.slot] ??= {});
+      // Two decimals, so `1.00` is not an integer key an object would move ahead of `0.75`.
+      const key = meal.servings.toFixed(2);
+
+      sizes[key] = (sizes[key] ?? 0) + 1;
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(bySlot).map(([slot, sizes]) => [slot, Object.fromEntries(Object.entries(sizes).sort(([a], [b]) => Number(a) - Number(b)))])
+  );
+}
+
+/**
+ * The food groups architect report 0008 § D would cap per plate, as served:
+ * meat (classes meat and pork), fish and shellfish, cooked legumes
+ * (`isLegumeSlug`), grains read dry (`toDry`, `0078`), and potato and sweet
+ * potato. Per group, the heaviest plate and the mean over the plates that
+ * carry any of it.
+ */
+const FOOD_GROUPS = {
+  fish: (slug, item) => item?.classes.some(cls => cls === 'fish' || cls === 'shellfish') ?? false,
+  grains: slug => toDry(slug, 1) !== null,
+  legumes: slug => isLegumeSlug(slug),
+  meat: (slug, item) => item?.classes.some(cls => cls === 'meat' || cls === 'pork') ?? false,
+  potato: slug => slug.startsWith('patata') || slug.startsWith('boniato')
+};
+
+function foodGroupGrams(days, catalogue) {
+  const groups = Object.fromEntries(Object.keys(FOOD_GROUPS).map(group => [group, []]));
+
+  for (const day of days) {
+    for (const meal of day.meals) {
+      for (const [group, matches] of Object.entries(FOOD_GROUPS)) {
+        const grams = meal.ingredients
+          .filter(item => matches(item.slug, catalogue.get(item.slug)))
+          .reduce((sum, item) => sum + (group === 'grains' ? (toDry(item.slug, item.grams)?.dryGrams ?? 0) : item.grams), 0);
+
+        if (grams > 0) {
+          groups[group].push(grams);
+        }
+      }
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(groups).map(([group, list]) => [
+      group,
+      {
+        max: list.length > 0 ? Math.round(Math.max(...list)) : null,
+        mean: list.length > 0 ? Math.round(list.reduce((sum, grams) => sum + grams, 0) / list.length) : null,
+        plates: list.length
+      }
+    ])
+  );
 }
 
 function printProfile(profile, result) {
@@ -860,12 +958,38 @@ function printProfile(profile, result) {
   }
 
   if (result.plateWeight) {
-    const { max, meanBySlot, overCeiling, plates } = result.plateWeight;
+    const { ceilingBySlot, max, maxBySlot, meanBySlot, overCeiling, plates } = result.plateWeight;
     const means = Object.entries(meanBySlot)
-      .map(([slot, mean]) => `${slot} ${mean} g (ceiling ${PLATE_GRAMS_MAX[slot]})`)
-      .join(', ');
+      .map(
+        ([slot, mean]) =>
+          `${slot} ${mean} g, max ${maxBySlot?.[slot] ?? '?'} g (ceiling ${ceilingBySlot?.[slot] ?? PLATE_GRAMS_MAX[slot]}, flat ${PLATE_GRAMS_MAX[slot]})`
+      )
+      .join('; ');
 
-    console.log(`  plate grams (0078): max ${max} g, mean ${means}; over the ceiling ${overCeiling} / ${plates}`);
+    console.log(`  plate grams (0078, scaled by 016): max ${max} g; ${means}; over the ceiling ${overCeiling} / ${plates}`);
+  }
+
+  if (result.servings) {
+    const lines = Object.entries(result.servings).map(
+      ([slot, sizes]) =>
+        `${slot} ${Object.entries(sizes)
+          .map(([size, count]) => `${size}×${count}`)
+          .join(' ')}`
+    );
+
+    console.log(`  servings per slot (size×plates): ${lines.join('; ')}`);
+  }
+
+  if (result.foodGroups) {
+    const groups = Object.entries(result.foodGroups)
+      .map(([group, { max, mean, plates }]) => (plates > 0 ? `${group} mean ${mean} g, max ${max} g on ${plates}` : `${group} none`))
+      .join('; ');
+
+    console.log(`  grams per food group per plate (grains dry): ${groups}`);
+  }
+
+  if (typeof result.ms === 'number') {
+    console.log(`  time: ${result.ms} ms`);
   }
 
   const spanish = result.spanish;
@@ -1004,7 +1128,11 @@ function printComparison(before, results) {
     if (after.plateWeight) {
       console.log(
         previous.plateWeight
-          ? `  plate grams: max ${previous.plateWeight.max} → ${after.plateWeight.max} g, over the ceiling ${previous.plateWeight.overCeiling} → ${after.plateWeight.overCeiling}`
+          ? `  plate grams: max ${previous.plateWeight.max} → ${after.plateWeight.max} g, over the ceiling ${previous.plateWeight.overCeiling} → ${after.plateWeight.overCeiling}; mean ${Object.entries(
+              after.plateWeight.meanBySlot
+            )
+              .map(([slot, mean]) => `${slot} ${previous.plateWeight.meanBySlot?.[slot] ?? '?'} → ${mean} g`)
+              .join(', ')}`
           : `  plate grams: max ${after.plateWeight.max} g, over the ceiling ${after.plateWeight.overCeiling} (not measured before)`
       );
     }
@@ -1063,7 +1191,10 @@ async function main() {
             // eslint-disable-next-line no-await-in-loop -- profiles are measured one at a
             // time inside a single transaction; concurrent reads would not change the
             // result, only make a failure harder to attribute to one profile.
-            results.push(await measureProfile(profile, shared));
+            const started = performance.now();
+            const result = await measureProfile(profile, shared);
+
+            results.push({ ...result, ms: Math.round(performance.now() - started) });
           }
         } finally {
           databaseModule.database = originalDatabase;
@@ -1076,6 +1207,7 @@ async function main() {
   }
 
   console.log(`Locale: ${options.locale}`);
+  console.log(`Flags: ${options.flags.length > 0 ? `${options.flags.join(', ')} (no flag exists yet — measured exactly as without)` : 'none'}`);
   console.log(`Profiles (fixed, reuse for the next run): ${PROFILES.map(profile => profile.slug).join(', ')}`);
 
   for (const profile of PROFILES) {
@@ -1089,7 +1221,7 @@ async function main() {
     writeFileSync(
       options.json,
       JSON.stringify(
-        { locale: options.locale, profiles: PROFILES.map(profile => ({ description: profile.description, slug: profile.slug })), results },
+        { flags: options.flags, locale: options.locale, profiles: PROFILES.map(profile => ({ description: profile.description, slug: profile.slug })), results },
         null,
         2
       )
