@@ -189,7 +189,7 @@ const USAGE_MIN_DISHES = DISHES_NEEDED_PER_SLOT;
 export type LibraryRecipe = {
   /** The stated cuisine, which decides where its rice, pasta, grains, potato and pulses fit (`0079`). */
   readonly cuisine?: string | null;
-  readonly ingredients: readonly { readonly grams?: number; readonly id: string; readonly slug: string }[];
+  readonly ingredients: readonly { readonly id: string; readonly grams?: number; readonly slug: string }[];
   readonly servings?: number;
   readonly slots: readonly MealSlot[];
 };

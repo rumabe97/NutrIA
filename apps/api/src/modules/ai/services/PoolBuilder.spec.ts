@@ -898,9 +898,10 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
    * dish is stored as lunch and dinner, never as breakfast too.
    */
   it('keeps a dish returned to the wrong meal at the meal its ingredients actually fit, instead of dropping it', async () => {
-    // Rice, cooked, lunch and dinner only — legitimate exactly where it claims, illegitimate at breakfast.
+    // A plate of rice (150 g cooked, 50 g dry), Asian: Table 2 puts it at lunch and dinner, never at breakfast (`0079`).
     const rice: CatalogueIngredient = { ...ingredient('arroz-blanco-cocido'), mealSlots: ['lunch', 'dinner'] };
-    const { client } = stubClient([{ dishes: [dish('Arroz blanco', ['lunch', 'dinner'], ['arroz-blanco-cocido'])] }]);
+    const bowl = { ...dish('Arroz blanco', ['lunch', 'dinner']), cuisine: 'Japonesa', ingredients: [{ grams: 150, slug: 'arroz-blanco-cocido' }] };
+    const { client } = stubClient([{ dishes: [bowl] }]);
     const result = await new PoolBuilder(client).build({
       context: { ...context(), catalogue: toCatalogue([...CATALOGUE, rice]) },
       feature: 'plan',
@@ -992,17 +993,26 @@ describe('PoolBuilder — the meals a model\u2019s dish may be served at', () =>
     expect(result.generated.map(kept => kept.slots)).toEqual([['breakfast', 'lunch', 'dinner']]);
   });
 
-  it('changes nothing when the lists are empty', async () => {
-    const { client } = stubClient([{ dishes: [stew(['dinner'])] }]);
-    const result = await new PoolBuilder(client).build({
-      context: withLentils([], { ...lentils, mealSlots: [] }),
+  it('reads the stewed pulses by cuisine, not by their list (0079, option B)', async () => {
+    const emptied = withLentils([], { ...lentils, mealSlots: [] });
+    const spanish = await new PoolBuilder(stubClient([{ dishes: [stew(['dinner'])] }]).client).build({
+      context: emptied,
+      feature: 'plan',
+      preferences,
+      reusable: [],
+      slots: ['dinner']
+    });
+    const italian = await new PoolBuilder(stubClient([{ dishes: [{ ...stew(['dinner']), cuisine: 'Italiana' }] }]).client).build({
+      context: withLentils(),
       feature: 'plan',
       preferences,
       reusable: [],
       slots: ['dinner']
     });
 
-    expect(result.generated.map(kept => kept.slots)).toEqual([['dinner']]);
+    // An empty list does not make a Spanish lentil stew a dinner; an Italian one is a dinner whatever the list says.
+    expect(spanish.generated).toEqual([]);
+    expect(italian.generated.map(kept => kept.slots)).toEqual([['dinner']]);
   });
 
   it('asks only after the allergy gate: an unsafe dish is counted as an allergen, whatever its meal', async () => {

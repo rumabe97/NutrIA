@@ -1,7 +1,7 @@
 import { composeMacros, scaleMacros } from 'core/domain/Composition';
 import { cuisineFamily, dishGroups, foodGroupOf, groupFits } from 'core/domain/MealFit';
 import { breaksDishRule } from 'core/domain/Preference';
-import { bestEffortExclusions, dishSafety } from 'core/domain/Safety';
+import { bestEffortExclusions, dishSafety, mentionsUnresolvedAllergy } from 'core/domain/Safety';
 
 import type { CuisineFamily, FoodGroup } from 'core/domain/MealFit';
 import type { PreferenceExclusions } from 'core/domain/Preference';
@@ -25,15 +25,15 @@ export type AccompanimentRole = 'dessert' | 'starch' | 'vegetable';
 export type AccompanimentItem = { readonly grams: number; readonly slug: string };
 
 export type Accompaniment = {
+  /** The families that may offer it, or every family (3c: the simple ones but the family breads and hummus). */
+  readonly families: 'all' | readonly CuisineFamily[];
   /** Stable, for the meal's rows and the screen's words. */
   readonly key: string;
-  /** The families that may offer it, or every family (3c: the simple ones but the family breads and hummus). */
-  readonly families: readonly CuisineFamily[] | 'all';
   /**
    * The months it is offered in, on the day it is served — a hard filter (owner's answer 8).
    * `catalogue` reads each row's own `seasonMonths` (fruit); `all` is every month.
    */
-  readonly months: readonly number[] | 'all' | 'catalogue';
+  readonly months: 'all' | 'catalogue' | readonly number[];
   /** Its discrete portions, smallest first. A composed accompaniment has one. */
   readonly portions: readonly (readonly AccompanimentItem[])[];
   readonly role: AccompanimentRole;
@@ -71,7 +71,7 @@ function composed(
   key: string,
   role: AccompanimentRole,
   families: readonly CuisineFamily[],
-  months: readonly number[] | 'all',
+  months: 'all' | readonly number[],
   items: readonly AccompanimentItem[],
   slots: readonly MealSlot[] = LD
 ): Accompaniment {
@@ -82,7 +82,10 @@ function composed(
  * Table 3 of `0079`, literally. USDA rows only, except `queso-de-burgos`,
  * which `0079` names as the one still waiting to be re-sourced. `pan-de-semillas`
  * is not here on purpose: it may contain sesame and tree nuts. `pan-sin-gluten`
- * is, and reaches only the people `freeFromExclusions` leaves it to.
+ * is, and reaches only the people `freeFromExclusions` leaves it to — which
+ * holds only when the caller hands `larderFor` the preferences and safety of
+ * `GenerationContext` as `buildContext` merges them (free-from, supplements and
+ * unresolved allergies included), never a fresh `resolvePreferences`.
  */
 export const ACCOMPANIMENTS: readonly Accompaniment[] = [
   // 3a — simple.
@@ -279,7 +282,15 @@ export type AccompanimentSet = {
 
 export const NO_ACCOMPANIMENT: AccompanimentSet = { items: [], macros: { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 }, portions: [] };
 
-/** Whoever is eating: what the gate, their way of eating and their dislikes allow. */
+/**
+ * Whoever is eating: what the gate, their way of eating and their dislikes allow.
+ *
+ * TODO(016 phase 4, docs/projects/016-a-spanish-meal/PLAN.md): build it from
+ * `RecipeController.generationContext(userId)` — its `preferences` and `safety`
+ * as merged there — on the generation, swap and event-rebuild paths alike, and
+ * test through that context that a non-coeliac never gets `pan-sin-gluten` and a
+ * coeliac does, and that a plan with sides passes `assertPlanIsSafe`.
+ */
 export type AccompanimentDiner = {
   readonly catalogue: Catalogue;
   readonly preferences: Pick<PreferenceExclusions, 'excludedIngredientIds' | 'keepsMeatFromDairy'>;
@@ -294,8 +305,11 @@ export type Larder = { readonly diner: AccompanimentDiner; readonly portions: re
  * catalogue, safe by `dishSafety` (allergies and intolerances, `contains`, and
  * `may_contain` for whoever set it), none excluded by their way of eating or
  * their dislikes (`traditional_spanish`'s rows among them), and none sharing a
- * word with an allergy the catalogue could not resolve. A composed
- * accompaniment with one row out is out whole.
+ * word with an allergy the catalogue could not resolve — neither by its rows
+ * nor by its own name, the way a dish is refused for naming one
+ * (`mentionsUnresolvedAllergy`): somebody who typed "gazpacho" gets no gazpacho,
+ * though tomato and cucumber share no word with it. A composed accompaniment
+ * with one row out is out whole.
  */
 export function larderFor(diner: AccompanimentDiner): Larder {
   const unresolved = bestEffortExclusions(diner.safety.unenforceableLabels, [...diner.catalogue.values()]);
@@ -310,7 +324,9 @@ export function larderFor(diner: AccompanimentDiner): Larder {
         return id !== undefined && !diner.preferences.excludedIngredientIds.has(id) && !unresolved.has(id);
       });
 
-      if (!known || !allowed || dishSafety(items, diner.catalogue, diner.safety).kind !== 'safe') {
+      const named = mentionsUnresolvedAllergy({ name: accompaniment.key.replaceAll('-', ' '), steps: [] }, diner.safety.unenforceableLabels);
+
+      if (!known || !allowed || named || dishSafety(items, diner.catalogue, diner.safety).kind !== 'safe') {
         continue;
       }
 
@@ -447,6 +463,29 @@ export function setsOf(portions: readonly AccompanimentPortion[]): readonly Acco
   visit(0, []);
 
   return sets;
+}
+
+/**
+ * The sets that may go beside this dish at this meal, in this month:
+ * `setsOf(portionsBeside(...))`, less every set that, with the dish, breaks a
+ * whole-meal rule of their way of eating. `portionsBeside` judges each portion
+ * beside the dish; a rule like kosher's is about the whole table, so the set
+ * is judged again together — a meat side and a yoghurt would each pass alone.
+ * What the scheduler and a swap both read.
+ */
+export function setsBeside(
+  larder: Larder,
+  dish: {
+    readonly cuisine?: string | null;
+    readonly ingredients: readonly { readonly grams: number; readonly slug: string }[];
+    readonly servings: number;
+  },
+  slot: MealSlot,
+  month: number
+): readonly AccompanimentSet[] {
+  const { catalogue, preferences } = larder.diner;
+
+  return setsOf(portionsBeside(larder, dish, slot, month)).filter(set => !breaksDishRule([...dish.ingredients, ...set.items], catalogue, preferences));
 }
 
 function toSet(portions: readonly AccompanimentPortion[]): AccompanimentSet {

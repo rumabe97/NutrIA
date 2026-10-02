@@ -500,7 +500,7 @@ export const RecipeRepository = {
 
       const byRecipe = new Map<
         string,
-        { cuisine: string | null; ingredients: { grams: number; id: string; slug: string }[]; servings: number; slots: readonly MealSlot[] }
+        { cuisine: string | null; ingredients: { id: string; grams: number; slug: string }[]; servings: number; slots: readonly MealSlot[] }
       >();
 
       for (const row of rows) {
@@ -511,7 +511,7 @@ export const RecipeRepository = {
           slots: row.mealSlots as readonly MealSlot[]
         };
 
-        recipe.ingredients.push({ grams: Number(row.grams), id: row.ingredientId, slug: row.slug });
+        recipe.ingredients.push({ id: row.ingredientId, grams: Number(row.grams), slug: row.slug });
         byRecipe.set(row.recipeId, recipe);
       }
 

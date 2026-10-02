@@ -75,6 +75,7 @@ function harness(
   jest
     .spyOn(SettingsController, 'flags')
     .mockResolvedValue({
+      accompaniments: false,
       automaticActivation: true,
       checkInReminders: false,
       dishPictures: false,

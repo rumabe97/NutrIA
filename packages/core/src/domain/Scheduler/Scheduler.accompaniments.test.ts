@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { describe, expect, it } from 'vitest';
 
-import { ACCOMPANIED_FROM_KCAL, PLATE_GRAMS_MAX, pickReplacement, schedulePlan } from 'core/domain/Scheduler';
+import { ACCOMPANIED_FROM_KCAL, pickReplacement, PLATE_GRAMS_MAX, schedulePlan } from 'core/domain/Scheduler';
 import { ACCOMPANIMENTS, larderFor } from 'core/domain/Accompaniment';
 import { addMacros, composePerServing, scaleMacros } from 'core/domain/Composition';
 import { mealShareKcal, shapeFor, weightsFor } from 'core/domain/MealShape';

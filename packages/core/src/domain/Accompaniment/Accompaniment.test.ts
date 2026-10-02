@@ -5,7 +5,7 @@ import { NO_PREFERENCE_EXCLUSIONS, PATTERN_EXCLUDED_SLUGS, resolvePreferences } 
 import { dishSafety, toSafetyProfile } from 'core/domain/Safety';
 import { makeAccompanimentRows, makeCatalogueIngredient } from '#test/fixtures';
 
-import { ACCOMPANIMENTS, larderFor, NO_ACCOMPANIMENT, portionsBeside, setsOf } from './Accompaniment';
+import { ACCOMPANIMENTS, larderFor, NO_ACCOMPANIMENT, portionsBeside, setsBeside, setsOf } from './Accompaniment';
 
 import type { AccompanimentDiner, AccompanimentPortion } from './Accompaniment';
 import type { CatalogueIngredient, MealSlot } from 'core/entities/Plan';
@@ -18,14 +18,22 @@ const NUTS = 'a-nuts';
 const GLUTEN = 'a-gluten';
 const SESAME = 'a-sesame';
 const SOY = 'a-soy';
-const contains = (allergenId: string) => ({ allergenId, presence: 'contains' as const });
-const traces = (allergenId: string) => ({ allergenId, presence: 'may_contain' as const });
+
+function contains(allergenId: string) {
+  return { allergenId, presence: 'contains' as const };
+}
+
+function traces(allergenId: string) {
+  return { allergenId, presence: 'may_contain' as const };
+}
 
 /** The links the real catalogue carries for these rows, as far as these tests need them. */
 const ALLERGENS: Readonly<Record<string, Partial<CatalogueIngredient>>> = {
   almendras: { allergens: [contains(NUTS)] },
   hummus: { allergens: [contains(SESAME)] },
   miso: { allergens: [contains(SOY), traces(GLUTEN)] },
+  // Fruit by its own months, as `seasons.ts` gives them.
+  naranja: { seasonMonths: [1, 2, 3, 4, 5, 11, 12] },
   nueces: { allergens: [contains(NUTS)] },
   'pan-blanco': { allergens: [contains(GLUTEN)] },
   'pan-de-centeno': { allergens: [contains(GLUTEN)] },
@@ -36,13 +44,11 @@ const ALLERGENS: Readonly<Record<string, Partial<CatalogueIngredient>>> = {
   'queso-de-burgos': { allergens: [contains(MILK)] },
   requeson: { allergens: [contains(MILK)] },
   'salsa-de-soja-baja-en-sal': { allergens: [contains(SOY), contains(GLUTEN)] },
+  sandia: { seasonMonths: [6, 7, 8, 9] },
   sesamo: { allergens: [contains(SESAME)] },
   'tofu-sedoso': { allergens: [contains(SOY)] },
   'yogur-griego-natural': { allergens: [contains(MILK)] },
-  'yogur-natural-desnatado': { allergens: [contains(MILK)] },
-  // Fruit by its own months, as `seasons.ts` gives them.
-  naranja: { seasonMonths: [1, 2, 3, 4, 5, 11, 12] },
-  sandia: { seasonMonths: [6, 7, 8, 9] }
+  'yogur-natural-desnatado': { allergens: [contains(MILK)] }
 };
 
 const rows = makeAccompanimentRows(SLUGS, ALLERGENS);
@@ -53,7 +59,9 @@ function diner(safety: SafetyProfile = NOBODY, preferences: AccompanimentDiner['
   return { catalogue, preferences, safety };
 }
 
-const keysOf = (portions: readonly AccompanimentPortion[]): Set<string> => new Set(portions.map(portion => portion.accompaniment.key));
+function keysOf(portions: readonly AccompanimentPortion[]): Set<string> {
+  return new Set(portions.map(portion => portion.accompaniment.key));
+}
 
 const SPANISH_STEW = { cuisine: 'Española', ingredients: [{ grams: 150, slug: 'merluza' }], servings: 1 };
 const OCTOBER = 10;
@@ -156,6 +164,14 @@ describe('larderFor — what one person may ever be offered (0079 § 3d)', () =>
     expect(keys.has('ensalada-verde')).toBe(true);
   });
 
+  it('takes out an accompaniment that names an allergy the catalogue could not resolve, though its rows do not', () => {
+    const keys = keysOf(larderFor(diner({ ...NOBODY, unenforceableLabels: ['gazpacho', 'Tabulé'] })).portions);
+
+    expect(keys.has('gazpacho')).toBe(false);
+    expect(keys.has('tabule')).toBe(false);
+    expect(keys.has('ensalada-mixta')).toBe(true);
+  });
+
   it('takes out whatever shares a word with an allergy the catalogue could not resolve', () => {
     const safety: SafetyProfile = { ...NOBODY, unenforceableLabels: ['canónigos frescos'] };
 
@@ -221,6 +237,24 @@ describe('portionsBeside — what may go beside one plate, at one meal, in one m
     expect(keysOf(portionsBeside(kosherLarder, SPANISH_STEW, 'lunch', OCTOBER)).has('yogur-griego-natural')).toBe(true);
     // The same meat plate for somebody who does not keep them apart.
     expect(keysOf(portionsBeside(larderFor({ ...diner(), catalogue: meatCatalogue }), meat, 'lunch', OCTOBER)).has('yogur-griego-natural')).toBe(true);
+  });
+});
+
+describe('setsBeside — a whole-meal rule judged on the whole table', () => {
+  it('drops a set whose sides break kosher together, though each passes beside the plate alone', () => {
+    // A bread with meat in it — a jamón roll — is not in Table 3; a future row like it must not meet a yoghurt.
+    const meatyBread = toCatalogue(rows.map(row => (row.slug === 'pan-blanco' ? { ...row, classes: ['animal', 'meat'] as const } : row)));
+    const kosher = { ...NO_PREFERENCE_EXCLUSIONS, keepsMeatFromDairy: true };
+    const larder = larderFor({ catalogue: meatyBread, preferences: kosher, safety: NOBODY });
+    const portions = keysOf(portionsBeside(larder, SPANISH_STEW, 'lunch', OCTOBER));
+    const sets = setsBeside(larder, SPANISH_STEW, 'lunch', OCTOBER);
+    const holds = (key: string) => (set: (typeof sets)[number]) => set.portions.some(portion => portion.accompaniment.key === key);
+
+    expect(portions.has('pan-blanco')).toBe(true);
+    expect(portions.has('yogur-griego-natural')).toBe(true);
+    expect(sets.some(set => holds('pan-blanco')(set) && holds('yogur-griego-natural')(set))).toBe(false);
+    expect(sets.some(holds('pan-blanco'))).toBe(true);
+    expect(sets.some(holds('yogur-griego-natural'))).toBe(true);
   });
 });
 

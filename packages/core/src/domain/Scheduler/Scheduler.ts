@@ -1,4 +1,4 @@
-import { NO_ACCOMPANIMENT, portionsBeside, setsOf } from 'core/domain/Accompaniment';
+import { NO_ACCOMPANIMENT, setsBeside } from 'core/domain/Accompaniment';
 import { addMacros, composePerServing, scaleIngredients, scaleMacros, sumMacros } from 'core/domain/Composition';
 import { canPlace, isPreferredDish, MAIN_SLOTS, mainProtein, nearestGap, PREFERRED_MAIN_GAP, PROTEIN_RULES, proteinCap } from 'core/domain/Variety';
 import { PLAN_TOLERANCE } from 'core/domain/PlanValidation';
@@ -248,7 +248,7 @@ function sidesFor(offer: AccompanimentOffer | undefined, cache: Map<string, read
         let sets = cache.get(key);
 
         if (!sets) {
-          sets = rankedSets(setsOf(portionsBeside(offer.larder, pick.dish, pick.slot, month)), pick.base, budget, pick.slot);
+          sets = rankedSets(setsBeside(offer.larder, pick.dish, pick.slot, month), pick.base, budget, pick.slot);
           cache.set(key, sets);
         }
 
@@ -726,7 +726,7 @@ export function pickReplacement(input: {
   const offer = input.accompaniments;
   const sets =
     offer && MAIN_SLOTS.has(input.slot) && budget.kcal > ACCOMPANIED_FROM_KCAL
-      ? rankedSets(setsOf(portionsBeside(offer.larder, dish, input.slot, offer.month)), base, budget, input.slot)
+      ? rankedSets(setsBeside(offer.larder, dish, input.slot, offer.month), base, budget, input.slot)
       : [];
   // The best of the offered sets, priced as `rankedSets` priced them; "none" when it is the best or the only one.
   const set =
@@ -1210,37 +1210,6 @@ function inversionsOf(
 }
 
 /**
- * How far a day's portions take its meals outside `SHARE_BAND` — zero while
- * every meal is inside. At the sizes given, or each pick's own.
- */
-function straysOf(
-  picks: readonly Pick[],
-  budgets: ReadonlyMap<MealSlot, SlotBudget>,
-  servings: readonly number[] = [],
-  sets: readonly (AccompanimentSet | undefined)[] = []
-): number {
-  let strays = 0;
-
-  for (const [index, pick] of picks.entries()) {
-    const budget = budgets.get(pick.slot)?.kcal ?? 0;
-
-    if (budget <= 0) {
-      continue;
-    }
-
-    const share = mealKcal(pick, servings[index] ?? pick.servings, sets[index] ?? pick.set) / budget;
-
-    if (share < SHARE_BAND.min) {
-      strays += SHARE_BAND.min - share;
-    } else if (share > SHARE_BAND.max) {
-      strays += share - SHARE_BAND.max;
-    }
-  }
-
-  return strays;
-}
-
-/**
  * Sizes a day's portions to its targets, a quarter serving at a time — every
  * combination, not a walk.
  *
@@ -1432,6 +1401,7 @@ function balancedDay(
   const search = (options: readonly (readonly Option[])[]): void => {
     const sizes: number[] = [];
     const sets: (AccompanimentSet | undefined)[] = [];
+
     const visit = (index: number): void => {
       if (index === picks.length) {
         const cost = dayCost(sizes, sets);
