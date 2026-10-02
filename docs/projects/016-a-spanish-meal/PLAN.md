@@ -150,7 +150,7 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 
 ### Phase 7 — Starch-base variety (its lunch-only rule is superseded by phase 2's table)
 
-- [ ] pending
+- [x] done — Italian pasta and rice lunch only (`0079` amended); `STARCH_RULES` in `core/domain/Variety/Starch.ts`, priced like the protein rule in generation, swaps and event rebuilds; numbers in the LOG (2026-10-02)
 - **Dispatch**: `backend` (opus · medium) and `plan-evaluator`. `/execute-project 016 phase 7`. Added 2026-10-02 (owner, from their own production plan).
 - **Goal**: two complaints from the owner's production plan.
   - Pasta came back many times in one fortnight (different recipes, same base).
