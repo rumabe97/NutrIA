@@ -4,7 +4,7 @@ import styles from './MealAccompaniments.module.css';
 
 import { Text } from 'ui/components/Text';
 
-import { accompanimentTitle } from 'lib/accompaniments';
+import { accompanimentAdds, accompanimentIsSingle, accompanimentTitle } from 'lib/accompaniments';
 import { formatNumber, formatQuantity, interpolate } from 'lib/format';
 
 import type { Dictionary } from '../../i18n/dictionaries/es-ES';
@@ -49,39 +49,44 @@ export function MealAccompaniments({ dictionary, locale, mealKcal, sides }: Meal
       </div>
 
       <ul className={styles.sides} role="list">
-        {sides.map(side => (
-          <li className={styles.side} key={side.key}>
-            <div className={styles.head}>
-              <h3 className={styles.name}>{accompanimentTitle(side, dictionary, locale)}</h3>
-              <span className={styles.kcal}>
-                {interpolate(dictionary.meal.accompanimentAdds, { kcal: formatNumber(Math.round(side.kcal), locale) })}
-              </span>
-            </div>
-            <ul className={styles.ingredients} role="list">
-              {side.ingredients.map(ingredient => (
-                <li className={styles.ingredient} key={ingredient.name}>
-                  {/* Plain rice is weighed dry in the kitchen, like a dish's grains. */}
-                  {ingredient.dry ? (
-                    <span className={styles.ingredientName}>
-                      {interpolate(dictionary.meal.dryLine, {
-                        dry: formatQuantity(ingredient.dry.grams, 'g', locale, dictionary).replace(' ', NO_BREAK_SPACE),
-                        name: ingredient.dry.name
-                      })}{' '}
-                      <span className={styles.cooked}>
-                        {interpolate(dictionary.meal.cookedNote, { cooked: formatQuantity(ingredient.grams, 'g', locale, dictionary) })}
-                      </span>
-                    </span>
-                  ) : (
-                    <Fragment>
-                      <span className={styles.ingredientName}>{ingredient.name}</span>
-                      <span className={styles.quantity}>{formatQuantity(ingredient.grams, 'g', locale, dictionary)}</span>
-                    </Fragment>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </li>
-        ))}
+        {sides.map(side => {
+          // A lone food is its heading; its weight moves to the heading's line.
+          const single = accompanimentIsSingle(side);
+
+          return (
+            <li className={styles.side} key={side.key}>
+              <div className={styles.head}>
+                <h3 className={styles.name}>{accompanimentTitle(side, dictionary, locale)}</h3>
+                <span className={styles.kcal}>{accompanimentAdds(side, dictionary, locale)}</span>
+              </div>
+              {single ? null : (
+                <ul className={styles.ingredients} role="list">
+                  {side.ingredients.map(ingredient => (
+                    <li className={styles.ingredient} key={ingredient.name}>
+                      {/* Plain rice is weighed dry in the kitchen, like a dish's grains. */}
+                      {ingredient.dry ? (
+                        <span className={styles.ingredientName}>
+                          {interpolate(dictionary.meal.dryLine, {
+                            dry: formatQuantity(ingredient.dry.grams, 'g', locale, dictionary).replace(' ', NO_BREAK_SPACE),
+                            name: ingredient.dry.name
+                          })}{' '}
+                          <span className={styles.cooked}>
+                            {interpolate(dictionary.meal.cookedNote, { cooked: formatQuantity(ingredient.grams, 'g', locale, dictionary) })}
+                          </span>
+                        </span>
+                      ) : (
+                        <Fragment>
+                          <span className={styles.ingredientName}>{ingredient.name}</span>
+                          <span className={styles.quantity}>{formatQuantity(ingredient.grams, 'g', locale, dictionary)}</span>
+                        </Fragment>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </section>
   );

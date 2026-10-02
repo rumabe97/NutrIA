@@ -1,4 +1,4 @@
-import { formatQuantity, interpolate } from './format';
+import { formatNumber, formatQuantity, interpolate } from './format';
 
 import type { Dictionary } from '../i18n/dictionaries/es-ES';
 import type { Locale } from '../i18n/config';
@@ -31,4 +31,30 @@ export function accompanimentTitle(side: MealAccompaniment, dictionary: Dictiona
   const phrase = accompanimentPhrase(side, dictionary, locale);
 
   return phrase.charAt(0).toLocaleUpperCase(locale) + phrase.slice(1);
+}
+
+/** Whether its phrase already carries the weight ("pan (60 g)"), so a screen need not say it again. */
+export function accompanimentIsWeighed(side: MealAccompaniment, dictionary: Dictionary): boolean {
+  const names: Readonly<Record<string, string>> = dictionary.meal.accompanimentNames;
+
+  return names[side.key]?.includes('{grams}') ?? false;
+}
+
+/** A food on its own — a piece of fruit, a bread — is its own heading: a row beneath would say the same words twice. */
+export function accompanimentIsSingle(side: MealAccompaniment): boolean {
+  const [only] = side.ingredients;
+
+  return side.ingredients.length === 1 && !only?.dry && only?.name === side.name;
+}
+
+/**
+ * What stands at the end of a side's heading: "+61 kcal", and before it the weight
+ * when the heading does not carry it and no ingredient row will ("130 g · +61 kcal").
+ */
+export function accompanimentAdds(side: MealAccompaniment, dictionary: Dictionary, locale: Locale): string {
+  const adds = interpolate(dictionary.meal.accompanimentAdds, { kcal: formatNumber(Math.round(side.kcal), locale) });
+
+  return accompanimentIsSingle(side) && !accompanimentIsWeighed(side, dictionary)
+    ? `${formatQuantity(side.grams, 'g', locale, dictionary)} · ${adds}`
+    : adds;
 }
