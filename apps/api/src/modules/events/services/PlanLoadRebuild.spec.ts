@@ -159,6 +159,7 @@ function build(
     .spyOn(PlanController, 'allowances')
     .mockResolvedValue({
       events: { limit: premium ? 10 : 3, midPlan: premium ? { limit: 3, remaining: 3 } : null, remaining: premium ? 9 : 2 },
+      mealSize: null,
       mealSwaps: { allowed: true, limit: premium ? 20 : 5, remaining: premium ? 20 : 5, used: 0 },
       planRedo: { allowed: true, kind: 'redo', limit: premium ? 3 : 1, nextAt: null, used: 0 },
       tier: premium ? 'premium' : 'free'

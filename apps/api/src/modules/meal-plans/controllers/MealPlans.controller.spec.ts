@@ -91,6 +91,7 @@ describe('MealPlansController', () => {
       .spyOn(PlanController, 'allowances')
       .mockResolvedValue({
         events: { limit: 3, midPlan: null, remaining: 3 },
+        mealSize: null,
         mealSwaps: { allowed: true, limit: 5, remaining: 5, used: 0 },
         planRedo: { allowed: true, kind: 'new_fortnight', limit: 1, nextAt: null, used: 0 },
         tier: 'free'

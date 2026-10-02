@@ -6,6 +6,8 @@ import {
   PLAN_DAYS,
   PLATE_GRAMS_MAX,
   PLATE_LIMIT,
+  plateGramsMax,
+  SCALED_PLATE_GRAMS,
   schedulePlan,
   SERVING_BOUNDS,
   SHARE_BAND
@@ -1758,7 +1760,7 @@ describe('PLATE_GRAMS_MAX — no plate weighs more than its slot allows (0078)',
     const meals = result.assignment.days.flatMap(day => day.meals.map(meal => ({ day: day.dayIndex, grams: plateGrams(meal), meal })));
 
     for (const { day, grams, meal } of meals) {
-      expect(grams, `day ${day} ${meal.slot} at ${grams} g`).toBeLessThanOrEqual(PLATE_GRAMS_MAX[meal.slot] + ROUNDING);
+      expect(grams, `day ${day} ${meal.slot} at ${grams} g`).toBeLessThanOrEqual(plateGramsMax(meal.slot, budgetOf(meal.slot)) + ROUNDING);
     }
 
     // Served smaller, not refused: the 1,000 g lunches are still the lunches.
@@ -1806,7 +1808,9 @@ describe('PLATE_GRAMS_MAX — no plate weighs more than its slot allows (0078)',
         expect(day.totals.kcal, `day ${day.dayIndex}`).toBeGreaterThanOrEqual(1500);
       }
 
-      expect(result.assignment.days.some(day => day.meals.some(meal => plateGrams(meal) > PLATE_GRAMS_MAX[meal.slot]))).toBe(true);
+      expect(result.assignment.days.some(day => day.meals.some(meal => plateGrams(meal) > plateGramsMax(meal.slot, budgetOf(meal.slot, low))))).toBe(
+        true
+      );
     }
   });
 });
@@ -1853,5 +1857,51 @@ describe('pickReplacement — PLATE_GRAMS_MAX (0078)', () => {
 
     expect(picked?.servings).toBe(1);
     expect(gramsOf(picked)).toBeGreaterThan(PLATE_GRAMS_MAX.lunch);
+  });
+});
+
+describe('plateGramsMax — a big main meal may weigh more until accompaniments land (016, temporary)', () => {
+  it('keeps 750 g for a main meal up to 950 kcal of share', () => {
+    expect(SCALED_PLATE_GRAMS).toEqual({ fromKcal: 950, maxGrams: 900 });
+    expect(plateGramsMax('lunch', 900)).toBe(750);
+    expect(plateGramsMax('lunch', 950)).toBe(750);
+  });
+
+  it('scales above 950 kcal in proportion to the share', () => {
+    expect(plateGramsMax('lunch', 1050)).toBeCloseTo(828.9, 1);
+    expect(plateGramsMax('dinner', 1050)).toBeCloseTo(828.9, 1);
+    expect(plateGramsMax('breakfast', 1050)).toBeCloseTo(828.9, 1);
+  });
+
+  it('never past 900 g', () => {
+    expect(plateGramsMax('lunch', 1400)).toBe(900);
+    expect(plateGramsMax('lunch', 3000)).toBe(900);
+  });
+
+  it('leaves snacks and supper at their ceiling however big their share', () => {
+    for (const slot of ['morning_snack', 'afternoon_snack', 'supper'] as const) {
+      expect(plateGramsMax(slot, 1400)).toBe(PLATE_GRAMS_MAX[slot]);
+    }
+  });
+
+  describe('through pickReplacement, on a 1,400 kcal lunch', () => {
+    // 100 kcal per 100 g: one serving of 400 kcal weighs 400 g, so 2.25 servings are 900 g.
+    const catalogue = makeCatalogue([makeCatalogueIngredient({ id: 'x', kcalPer100g: 100, proteinPer100g: 10, slug: 'food' })]);
+    const budget = { carbsG: 170, fatG: 47, kcal: 1400, proteinG: 105 };
+    const pool = [makeDish({ ingredients: [{ grams: 400, slug: 'food' }], name: 'big', servings: 1, slots: ['lunch'], slug: 'big' })];
+    const gramsOf = (picked: ReturnType<typeof pickReplacement>): number => (picked?.ingredients ?? []).reduce((sum, item) => sum + item.grams, 0);
+
+    it('serves it past 750 g but within 900 g', () => {
+      const picked = pickReplacement({ budget, catalogue, dayIndex: 2, placed: [], plateMinimumKcal: 0, pool, slot: 'lunch' });
+
+      expect(picked?.servings).toBe(2.25);
+      expect(gramsOf(picked)).toBe(SCALED_PLATE_GRAMS.maxGrams);
+    });
+
+    it('passes 900 g only for the energy floor', () => {
+      const picked = pickReplacement({ budget, catalogue, dayIndex: 2, placed: [], plateMinimumKcal: 1000, pool, slot: 'lunch' });
+
+      expect(gramsOf(picked)).toBeGreaterThan(SCALED_PLATE_GRAMS.maxGrams);
+    });
   });
 });
