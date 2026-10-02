@@ -435,6 +435,12 @@ const PROTEIN_REPEAT_WEIGHT = 0.05;
 const PROTEIN_SWAP_WEIGHT = 0.15;
 
 /**
+ * How close two days' band misses (`bandMiss`) must be for `improveDay` to call
+ * them equal and let fit and the variety rules' prices decide between them.
+ */
+const BAND_TIE = 0.01;
+
+/**
  * The same inside the spread pass, where a macro brought inside its band is
  * worth one: half that. An exchange that only moves a macro closer does not
  * buy a repeat; one that brings a macro inside does.
@@ -2045,6 +2051,7 @@ function improveDay(
 
   const targets = targetsOn(input, dayIndex);
   let current = [...picks];
+
   // A swap is judged on the bands first (`bandMiss`, the bands validation
   // reports): a day with fewer macros outside, or outside by less, wins whatever
   // its fit and the variety rules' prices say, and those decide only between days
@@ -2150,7 +2157,7 @@ function improveDay(
     for (const entry of priced) {
       // Fewer macros outside their bands first, whatever the rest costs; among
       // days equally inside them, fit and the variety rules' prices decide.
-      if (entry.miss < bestMiss - Number(process.env.TIE ?? 0.01) || (entry.miss <= bestMiss + Number(process.env.TIE ?? 0.01) && entry.cost < bestCost)) {
+      if (entry.miss < bestMiss - BAND_TIE || (entry.miss <= bestMiss + BAND_TIE && entry.cost < bestCost)) {
         bestMiss = entry.miss;
         bestCost = entry.cost;
         bestDay = entry.swapped;

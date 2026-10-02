@@ -1065,20 +1065,92 @@ describe('schedulePlan — on a small pool, energy before every other band (017 
     food('yogur-griego-natural', [97, 9, 4, 5, 0], { classes: ['animal', 'dairy'] })
   ]);
   const dishes: readonly (readonly [string, readonly (readonly [number, string])[]])[] = [
-    ['avena-con-yogur', [[80, 'copos-de-avena'], [150, 'yogur-griego-natural']]],
-    ['tostada-con-huevo', [[80, 'pan-integral'], [120, 'huevo']]],
-    ['yogur-con-avena', [[200, 'yogur-griego-natural'], [60, 'copos-de-avena']]],
-    ['huevos-con-pan', [[140, 'huevo'], [60, 'pan-integral']]],
+    [
+      'avena-con-yogur',
+      [
+        [80, 'copos-de-avena'],
+        [150, 'yogur-griego-natural']
+      ]
+    ],
+    [
+      'tostada-con-huevo',
+      [
+        [80, 'pan-integral'],
+        [120, 'huevo']
+      ]
+    ],
+    [
+      'yogur-con-avena',
+      [
+        [200, 'yogur-griego-natural'],
+        [60, 'copos-de-avena']
+      ]
+    ],
+    [
+      'huevos-con-pan',
+      [
+        [140, 'huevo'],
+        [60, 'pan-integral']
+      ]
+    ],
     ['avena-sola', [[110, 'copos-de-avena']]],
-    ['arroz-con-pollo', [[220, 'arroz-blanco-cocido'], [180, 'pechuga-de-pollo']]],
-    ['lentejas-con-arroz', [[250, 'lentejas-cocidas'], [150, 'arroz-blanco-cocido']]],
-    ['pollo-con-patata', [[200, 'pechuga-de-pollo'], [250, 'patata']]],
-    ['arroz-con-tomate', [[260, 'arroz-blanco-cocido'], [150, 'tomate']]],
+    [
+      'arroz-con-pollo',
+      [
+        [220, 'arroz-blanco-cocido'],
+        [180, 'pechuga-de-pollo']
+      ]
+    ],
+    [
+      'lentejas-con-arroz',
+      [
+        [250, 'lentejas-cocidas'],
+        [150, 'arroz-blanco-cocido']
+      ]
+    ],
+    [
+      'pollo-con-patata',
+      [
+        [200, 'pechuga-de-pollo'],
+        [250, 'patata']
+      ]
+    ],
+    [
+      'arroz-con-tomate',
+      [
+        [260, 'arroz-blanco-cocido'],
+        [150, 'tomate']
+      ]
+    ],
     ['lentejas-solas', [[350, 'lentejas-cocidas']]],
-    ['merluza-con-patata', [[200, 'merluza'], [220, 'patata']]],
-    ['pollo-con-tomate', [[170, 'pechuga-de-pollo'], [200, 'tomate']]],
-    ['merluza-con-arroz', [[180, 'merluza'], [180, 'arroz-blanco-cocido']]],
-    ['patata-con-huevo', [[250, 'patata'], [110, 'huevo']]],
+    [
+      'merluza-con-patata',
+      [
+        [200, 'merluza'],
+        [220, 'patata']
+      ]
+    ],
+    [
+      'pollo-con-tomate',
+      [
+        [170, 'pechuga-de-pollo'],
+        [200, 'tomate']
+      ]
+    ],
+    [
+      'merluza-con-arroz',
+      [
+        [180, 'merluza'],
+        [180, 'arroz-blanco-cocido']
+      ]
+    ],
+    [
+      'patata-con-huevo',
+      [
+        [250, 'patata'],
+        [110, 'huevo']
+      ]
+    ],
     ['merluza-sola', [[300, 'merluza']]]
   ];
   const slots = slotsForTest(3, false);
@@ -1124,6 +1196,7 @@ describe('schedulePlan — on a small pool, energy before every other band (017 
         })
       )
     ).flat();
+
   const inBand = (pool: readonly CandidateDish[]) => {
     const result = schedulePlan({ catalogue, minimumKcal: MINIMUM_KCAL, monthOf: () => 10, pool, targets, weights: weightsFor(shapeFor(3, false)) });
 
@@ -1134,7 +1207,9 @@ describe('schedulePlan — on a small pool, energy before every other band (017 
     }
 
     for (const day of result.assignment.days) {
-      expect(Math.abs(day.totals.kcal - targets.kcal), `day ${day.dayIndex} at ${day.totals.kcal} kcal`).toBeLessThanOrEqual(targets.kcal * FIXTURE_BAND);
+      expect(Math.abs(day.totals.kcal - targets.kcal), `day ${day.dayIndex} at ${day.totals.kcal} kcal`).toBeLessThanOrEqual(
+        targets.kcal * FIXTURE_BAND
+      );
     }
   };
 

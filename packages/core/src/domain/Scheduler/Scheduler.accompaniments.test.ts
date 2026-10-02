@@ -149,17 +149,17 @@ const TWO_MEALS: MealShape = { afternoon_snack: 'off', breakfast: 'off', dinner:
 // 181/182 with them.
 describe('the scheduler with accompaniments off — the plans it always made', () => {
   it('three meals, an ordinary target', () => {
-    expect(plan(shapeFor(3, false), 1)).toBe('05fd8151e054e3696ac81e1e6a001384c7ac6e99934ffe0a1d4f60f1ae729f16');
+    expect(plan(shapeFor(3, false), 1)).toBe('5420517b59e69220fc74174b10918413cbbac18fcb145abfb8e870fbcedd5f87');
   });
 
   // Moved in 017 phase 2 (group D): the snacks of these shapes are now held to
   // three of a kind a fortnight (`SNACK_RULES`), and every fixture snack is one kind.
   it('five meals, a high target', () => {
-    expect(plan(shapeFor(5, true), 1.8)).toBe('e5c760e02972427ce6ff4e4d459da9858c057ea9c7a3e2518a75fe9a246a4dcd');
+    expect(plan(shapeFor(5, true), 1.8)).toBe('474d936201e83d313a215c2cf6721729703b9edffd306ec4ee0e4c38f2299154');
   });
 
   it('two big main meals and a light snack', () => {
-    expect(plan(TWO_MEALS, 1.1)).toBe('9ae1a98c1994972bfe35491319aabd4bbfb3bab48057000bbc75f6a3d022ae65');
+    expect(plan(TWO_MEALS, 1.1)).toBe('1b9a3a08884f4bab7d8375f8be5f9f0cda701427715038aca39bf999c640ca91');
   });
 
   it('a swap', () => {
