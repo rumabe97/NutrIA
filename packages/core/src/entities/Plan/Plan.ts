@@ -172,6 +172,12 @@ export type ShoppingItemDraft = {
 };
 
 export type PlanDraft = {
+  /**
+   * The list the active plan keeps when this one cuts it (project 015): built
+   * from the days it has left, for that plan's id. The repository writes it in
+   * the same transaction as the cut, and only for that plan.
+   */
+  readonly cutShoppingItems?: { readonly items: readonly ShoppingItemDraft[]; readonly planId: string };
   readonly days: readonly {
     readonly date: string;
     readonly dayIndex: number;
@@ -189,6 +195,11 @@ export type PlanDraft = {
   readonly shoppingItems: readonly ShoppingItemDraft[];
   readonly startDate: string;
   readonly strategy: NutritionTargets;
+  /**
+   * The person's calendar day when the generation began (project 015): a plan
+   * whose `startDate` is after it waits as `scheduled`.
+   */
+  readonly today: string;
 };
 
 /** The only field a shopping-list item exposes for writing. */
@@ -234,3 +245,12 @@ export type SwapAxis = (typeof SWAP_AXES)[number];
 
 export const swapMealSchema = z.object({ axis: z.enum(SWAP_AXES).optional() }).default({});
 export type SwapMeal = z.infer<typeof swapMealSchema>;
+
+/**
+ * The day the fortnight starts, optionally; the person's today when it is left
+ * out (project 015). Its window — their today to `MAX_START_DAYS_AHEAD` days
+ * on — is theirs, so it is checked where their today is known,
+ * `PlanJobController.start`.
+ */
+export const generatePlanSchema = z.object({ startDate: z.iso.date().optional() }).default({});
+export type GeneratePlan = z.infer<typeof generatePlanSchema>;

@@ -58,6 +58,7 @@ describe('AdminSystemController.system', () => {
       'reminders',
       'rewrite',
       'verifications',
+      'activations',
       'verify'
     ]);
 
@@ -126,7 +127,8 @@ describe('AdminSystemController.system', () => {
     expect(fresh.crons).toEqual([
       { job: 'reminders', lastRunAt: new Date(NOW.getTime() - 26 * HOUR).toISOString(), stale: false },
       { job: 'rewrite', lastRunAt: new Date(NOW.getTime() - 27 * HOUR).toISOString(), stale: true },
-      { job: 'verifications', lastRunAt: null, stale: true }
+      { job: 'verifications', lastRunAt: null, stale: true },
+      { job: 'activations', lastRunAt: null, stale: true }
     ]);
 
     repository.lastCronRuns.mockResolvedValue([]);
@@ -134,7 +136,8 @@ describe('AdminSystemController.system', () => {
     expect((await AdminSystemController.system(30, SNAPSHOT, NOW)).crons).toEqual([
       { job: 'reminders', lastRunAt: null, stale: true },
       { job: 'rewrite', lastRunAt: null, stale: true },
-      { job: 'verifications', lastRunAt: null, stale: true }
+      { job: 'verifications', lastRunAt: null, stale: true },
+      { job: 'activations', lastRunAt: null, stale: true }
     ]);
   });
 

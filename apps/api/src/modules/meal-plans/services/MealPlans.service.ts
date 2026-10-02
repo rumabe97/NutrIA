@@ -10,6 +10,7 @@ import { PlanJobRunner } from './PlanJobRunner.service.js';
 
 import type { AllowancesDto, JobDto, MealDetailDto, MealStatusDto, PlanDayDto, PlanDto, PlanSummaryDto } from '../dto/out/index.js';
 import type { SetMealStatusDto, SwapMealDto } from '../dto/in/index.js';
+import type { ShoppingListView } from 'core/controllers/Plan';
 
 /**
  * A page of history, and the ceiling on one. Clamped here rather than at the
@@ -41,8 +42,8 @@ export class MealPlansService {
     return PlanController.getDay(userId, planId, dayIndex, locale);
   }
 
-  async generate(userId: string): Promise<JobDto> {
-    return this.runner.start(userId);
+  async generate(userId: string, startDate?: string): Promise<JobDto> {
+    return this.runner.start(userId, undefined, startDate);
   }
 
   async history(userId: string, limit: number, offset: number): Promise<readonly PlanSummaryDto[]> {
@@ -77,6 +78,14 @@ export class MealPlansService {
     }
 
     return meal;
+  }
+
+  async scheduledPlan(userId: string, locale: string | null): Promise<PlanDto> {
+    return PlanController.getScheduledPlan(userId, locale);
+  }
+
+  async scheduledShoppingList(userId: string, locale: string | null): Promise<ShoppingListView> {
+    return PlanController.getScheduledShoppingList(userId, locale);
   }
 
   async plan(userId: string, planId: string, locale: string | null): Promise<PlanDto> {

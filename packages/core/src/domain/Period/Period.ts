@@ -76,6 +76,19 @@ export function madridDayKey(instant: Date): string {
 }
 
 /**
+ * The calendar day an instant falls on in a time zone, as `YYYY-MM-DD` — a
+ * person's today, read in the zone their profile keeps. A zone `Intl` does not
+ * know is Madrid's, the profile's default.
+ */
+export function dayKeyIn(instant: Date, timeZone: string): string {
+  try {
+    return new Intl.DateTimeFormat('en-CA', { day: '2-digit', month: '2-digit', timeZone, year: 'numeric' }).format(instant);
+  } catch {
+    return madridDayKey(instant);
+  }
+}
+
+/**
  * The first instant of a Madrid calendar day.
  *
  * Midnight UTC minus the offset in force at that midnight. The offset is read

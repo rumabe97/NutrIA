@@ -23,6 +23,8 @@ interface MealRowProps {
   proteinG: number;
   /** A row of a plan that is no longer active: the mark is shown, not offered. */
   readOnly?: boolean;
+  /** False for a plan that has not started: there is nothing to mark yet, so no circle that looks as if there were. */
+  showMark?: boolean;
   slot: string;
   status?: string;
 }
@@ -44,7 +46,17 @@ interface MealRowProps {
  * Optimistic; a failure puts it back. "Skipped" stays on the meal's own page,
  * where it is a considered choice rather than a tap in passing.
  */
-export function MealRow({ id, ingredients = [], kcal, name, proteinG, readOnly = false, slot, status: initial = 'planned' }: MealRowProps) {
+export function MealRow({
+  id,
+  ingredients = [],
+  kcal,
+  name,
+  proteinG,
+  readOnly = false,
+  showMark = true,
+  slot,
+  status: initial = 'planned'
+}: MealRowProps) {
   const router = useRouter();
   const dictionary = useDictionary();
   const locale = useLocale();
@@ -88,8 +100,8 @@ export function MealRow({ id, ingredients = [], kcal, name, proteinG, readOnly =
   }
 
   return (
-    <div className={styles.row} data-status={status}>
-      {readOnly ? (
+    <div className={styles.row} data-marked={showMark} data-status={status}>
+      {!showMark ? null : readOnly ? (
         <span aria-hidden="true" className={styles.tick} data-done={done} data-static="true">
           <svg
             className={styles.tickMark}

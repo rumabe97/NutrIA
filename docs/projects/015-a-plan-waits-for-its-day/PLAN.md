@@ -57,7 +57,7 @@ Each is adapted to the rule below, not taken as is.
 
 ### Phase 2 — A plan waits for its day
 
-- [ ] pending
+- [x] done
 - **Dispatch**: opus @ high — `/execute-project 015 phase 2`, run as `/team`:
   - `backend-high`: the allowance rule, generation, activation, the repository, vacations, events, the cron, and a migration adding `meal_plans_one_scheduled_per_user`;
   - `frontend`: the chooser, `/inicio`, `/compra`;

@@ -98,6 +98,7 @@ const COMPOSITION: readonly MealCompositionView[] = Array.from({ length: 14 }, (
 
     return {
       id: `meal-${dayIndex}-${slot}`,
+      date: `2026-09-${String(8 + dayIndex).padStart(2, '0')}`,
       dayIndex,
       ingredients: dish.ingredients,
       macros: { carbsG: 60, fatG: 20, fiberG: 8, kcal: 660, proteinG: 40 },
@@ -158,10 +159,12 @@ function build(
   jest
     .spyOn(PlanController, 'allowances')
     .mockResolvedValue({
+      defaultStart: '2026-09-09',
       events: { limit: premium ? 10 : 3, midPlan: premium ? { limit: 3, remaining: 3 } : null, remaining: premium ? 9 : 2 },
       mealSize: null,
       mealSwaps: { allowed: true, limit: premium ? 20 : 5, remaining: premium ? 20 : 5, used: 0 },
       planRedo: { allowed: true, kind: 'redo', limit: premium ? 3 : 1, nextAt: null, used: 0 },
+      startOptions: [],
       tier: premium ? 'premium' : 'free'
     });
   jest.spyOn(PlanController, 'getActivePlan').mockResolvedValue(PLAN as never);

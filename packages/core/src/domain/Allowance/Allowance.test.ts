@@ -7,7 +7,8 @@ import {
   mealSwapStanding,
   midPlanEventStanding,
   planRedoStanding,
-  redosInFortnight
+  redosInFortnight,
+  startMeaning
 } from 'core/domain/Allowance';
 
 describe('planRedoStanding', () => {
@@ -121,5 +122,41 @@ describe('allowancesFor', () => {
   it('treats an unstated tier as free', () => {
     expect(mealSwapStanding(6)).toMatchObject({ allowed: false });
     expect(planRedoStanding({ endDate: '2026-09-20' }, 1, '2026-09-09')).toMatchObject({ allowed: false });
+  });
+});
+
+describe('startMeaning — what a chosen first day spends (project 015)', () => {
+  const TODAY = '2026-10-02';
+  const A = { endDate: '2026-10-04' };
+
+  it('is the next fortnight, free, after the plan under way ends — waiting when that is after today', () => {
+    expect(startMeaning(A, '2026-10-05', TODAY)).toEqual({ cuts: null, kind: 'new_fortnight', scheduled: true });
+  });
+
+  it('is a redo that cuts the plan under way to the day before, for a start on or before its end', () => {
+    expect(startMeaning(A, '2026-10-04', TODAY)).toEqual({ cuts: '2026-10-03', kind: 'redo', scheduled: true });
+    expect(startMeaning(A, '2026-10-03', TODAY)).toEqual({ cuts: '2026-10-02', kind: 'redo', scheduled: true });
+  });
+
+  it('is today’s redo, as it always was, for a start of today while a plan runs', () => {
+    expect(startMeaning(A, TODAY, TODAY)).toMatchObject({ kind: 'redo', scheduled: false });
+    expect(startMeaning({ endDate: '2026-10-01' }, TODAY, TODAY)).toEqual({ cuts: null, kind: 'new_fortnight', scheduled: false });
+  });
+
+  it('is a new fortnight on any day with no plan under way', () => {
+    expect(startMeaning(undefined, TODAY, TODAY)).toEqual({ cuts: null, kind: 'new_fortnight', scheduled: false });
+    expect(startMeaning(undefined, '2026-10-09', TODAY)).toEqual({ cuts: null, kind: 'new_fortnight', scheduled: true });
+  });
+
+  it('is a redo whatever the day when a plan already waits for its day: it is replaced', () => {
+    expect(startMeaning(A, '2026-10-05', TODAY, true)).toEqual({ cuts: null, kind: 'redo', scheduled: true });
+    expect(startMeaning(undefined, '2026-10-05', TODAY, true)).toMatchObject({ kind: 'redo' });
+  });
+});
+
+describe('redosInFortnight — a plan that replaced the next fortnight’s opener (project 015)', () => {
+  it('counts it and its carried redos, and stops there: it opened that fortnight', () => {
+    expect(redosInFortnight([{ opens: true, redo: true, replacedRedos: 1 }, { redo: true }, { redo: false }])).toBe(2);
+    expect(redosInFortnight([{ redo: true }, { opens: true, redo: true }, { redo: true }])).toBe(2);
   });
 });

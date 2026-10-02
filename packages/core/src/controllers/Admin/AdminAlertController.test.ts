@@ -42,7 +42,8 @@ beforeEach(() => {
   admin.lastCronRuns.mockResolvedValue([
     { at: new Date(NOW.getTime() - 20 * HOUR), job: 'reminders' },
     { at: new Date(NOW.getTime() - 20 * HOUR), job: 'rewrite' },
-    { at: new Date(NOW.getTime() - 20 * HOUR), job: 'verifications' }
+    { at: new Date(NOW.getTime() - 20 * HOUR), job: 'verifications' },
+    { at: new Date(NOW.getTime() - 20 * HOUR), job: 'activations' }
   ]);
   admin.mailPerDay.mockResolvedValue([]);
   admin.messagesSince.mockResolvedValue(0);
@@ -100,7 +101,7 @@ describe('AdminAlertController.digest', () => {
     const digest = await AdminAlertController.digest(NOW, { pictureCapUsd: 10, stepsVersion: '2.8.0' });
 
     // Never recorded is stale, like the Sistema page reads it.
-    expect(digest.crons).toEqual(['rewrite', 'verifications']);
+    expect(digest.crons).toEqual(['rewrite', 'verifications', 'activations']);
   });
 
   it('turns any free text a source held into a closed label: it cannot reach the mail', async () => {
@@ -261,10 +262,10 @@ describe('the silent crons', () => {
     expect(await AdminAlertController.silentCrons(NOW)).toEqual([]);
 
     admin.lastCronRuns.mockResolvedValue([{ at: new Date(NOW.getTime() - 30 * HOUR), job: 'reminders' }]);
-    expect(await AdminAlertController.silentCrons(NOW)).toEqual(['reminders', 'rewrite', 'verifications']);
+    expect(await AdminAlertController.silentCrons(NOW)).toEqual(['reminders', 'rewrite', 'verifications', 'activations']);
 
     admin.lastCronRuns.mockResolvedValue([]);
-    expect(await AdminAlertController.silentCrons(NOW)).toEqual(['reminders', 'rewrite', 'verifications']);
+    expect(await AdminAlertController.silentCrons(NOW)).toEqual(['reminders', 'rewrite', 'verifications', 'activations']);
   });
 });
 

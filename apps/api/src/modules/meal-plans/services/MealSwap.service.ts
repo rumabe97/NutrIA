@@ -81,11 +81,16 @@ export class MealSwapService {
       throw new NotFoundError('Meal not found');
     }
 
-    if (!review && anchor.plan.status !== 'active') {
+    // The plan waiting for its day is the person's own coming fortnight
+    // (project 015): its meals may be swapped, counted against its own swaps.
+    if (!review && anchor.plan.status !== 'active' && anchor.plan.status !== 'scheduled') {
       throw new ConflictError('Only the active plan can be changed');
     }
 
-    const mealSwaps = review ? await PlanController.mealSwapStanding(userId, anchor.plan.id) : (await PlanController.allowances(userId)).mealSwaps;
+    const mealSwaps =
+      review || anchor.plan.status === 'scheduled'
+        ? await PlanController.mealSwapStanding(userId, anchor.plan.id)
+        : (await PlanController.allowances(userId)).mealSwaps;
 
     if (!mealSwaps.allowed) {
       throw new QuotaExceededError('meal_swap');

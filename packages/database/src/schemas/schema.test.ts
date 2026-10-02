@@ -150,3 +150,17 @@ describe('a plan waiting for review (0060)', () => {
     expect(predicate).not.toMatch(/not in/i);
   });
 });
+
+describe('a plan waiting for its day (project 015)', () => {
+  it('allows one scheduled plan per user, by an equality on scheduled', () => {
+    const index = getTableConfig(schema.mealPlans).indexes.find(candidate => candidate.config.name === 'meal_plans_one_scheduled_per_user');
+    const where = index?.config.where;
+
+    expect(index?.config.unique).toBe(true);
+    expect(where).toBeDefined();
+
+    const predicate = new PgDialect().sqlToQuery(where as NonNullable<typeof where>).sql;
+
+    expect(predicate).toMatch(/^"?[a-z_]*"?\.?"status" = 'scheduled'$/);
+  });
+});

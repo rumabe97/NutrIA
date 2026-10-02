@@ -4,13 +4,14 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { CheckInReminderService } from '../../notifications/index.js';
 import { CronRunService } from '../services/index.js';
 import { CronSecretGuard } from '../../../shared/guards/index.js';
+import { DuePlansService } from '../../meal-plans/services/DuePlans.service.js';
 import { ExpiredInvitationsService } from '../../care/services/ExpiredInvitations.service.js';
 import { ExpiredVerificationsService } from '../../auth/services/ExpiredVerifications.service.js';
 import { OwnerAlertsService } from '../../owner-alerts/index.js';
 import { PictureCandidatesService, RecipeRewriter } from '../../ai/index.js';
 import { Public, SkipRateLimit } from '../../../shared/index.js';
 
-import type { ReminderRunDto, RewriteRunDto, VerificationSweepDto } from '../dto/out/index.js';
+import type { PlanActivationDto, ReminderRunDto, RewriteRunDto, VerificationSweepDto } from '../dto/out/index.js';
 
 /**
  * The most the reminders watch and the pictures' mail may take before a sweep starts. The sweep's own clock
@@ -53,6 +54,7 @@ export class CronController {
   constructor(
     private readonly alerts: OwnerAlertsService,
     private readonly candidates: PictureCandidatesService,
+    private readonly duePlans: DuePlansService,
     private readonly invitations: ExpiredInvitationsService,
     private readonly reminders: CheckInReminderService,
     private readonly rewriter: RecipeRewriter,
@@ -120,6 +122,23 @@ export class CronController {
     // The sweep is the one spender nobody waits for: the cap's warning is checked when it ends (`0071`).
     // It never throws, and the catch keeps it so: the sweep's answer does not depend on the owner's mail.
     await this.alerts.checkSpend().catch(() => undefined);
+
+    return run;
+  }
+
+  /**
+   * Once a day at 23:05 UTC — 00:05 in Madrid in winter, 01:05 in summer, after
+   * Madrid's midnight all year: every plan waiting for its day whose day has
+   * come, made active and the plan before it completed (project 015). Reads of
+   * the active plan do the same, so this is what makes it true for somebody who
+   * does not open the app that morning — the reminders and the progress read it.
+   */
+  @Get('activate-plans')
+  async activatePlans(): Promise<PlanActivationDto> {
+    const run = await this.duePlans.activate();
+
+    // At the end, so the record says the run finished (`0071`).
+    await this.runs.record('activations', run);
 
     return run;
   }

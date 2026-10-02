@@ -66,7 +66,7 @@ or a header. Spanish is unprefixed so its URLs never changed.
 Routes are **Spanish words in both languages** — `/registro` and `/en/registro`, never a
 translated slug: the API prefixes a path to build a mailed link and does not translate it.
 `/acceder`, `/acceder/codigo`, `/registro`, `/recuperar`, `/restablecer`, `/pendiente`, `/cambiar-contrasena`, `/inicio`, `/plan`,
-`/plan/historial`, `/compra`, `/progreso`, `/check-in`, `/perfil`, `/onboarding/[paso]`,
+`/plan/historial`, `/plan/proximo` and `/compra/proxima` (the plan that has not started, project 015: its own paths, never a query on `/plan` or `/compra`, because the worker keeps one copy per pathname), `/compra`, `/progreso`, `/check-in`, `/perfil`, `/onboarding/[paso]`,
 and the admin console under `/admin` (below). Add any new signed-in route to `PROTECTED` in
 `src/proxy.ts`, which matches against the **locale-stripped** path, so each route is named
 once for both languages.
