@@ -46,7 +46,7 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 
 ### Phase 1 — The choice before generating (C), and a scaled weight ceiling until accompaniments land
 
-- [ ] pending
+- [x] done
 - **Dispatch**: `/team` — `backend` (opus · medium) for `mealShareKcal`, its view, the scaled ceiling and the evaluator extension; `plan-evaluator`; `frontend` (sonnet · medium) for the note on `/plan/generando` and `/perfil`; `accessibility` (sonnet · low). `/execute-project 016 phase 1`.
 - **Goal**: PRD criterion 2, plus a temporary amendment to `0078` (owner, 2026-10-02, after phase 0 measured 3–11/14 days in band on the owner's two-meal profile under the flat 750 g ceiling).
 - **Scaled ceiling.** For lunch, dinner and breakfast, `PLATE_GRAMS_MAX` stays 750 g up to a slot share of 950 kcal. Above that it scales by share ÷ 950, capped at 900 g; snacks stay 250 g. It reverts to the flat ceiling when the `accompaniments` flag turns on (phase 3). The evaluator extension from phase 0 lands here (servings histogram, plate and meal grams, grams per food group, time per profile, `--flag`).
