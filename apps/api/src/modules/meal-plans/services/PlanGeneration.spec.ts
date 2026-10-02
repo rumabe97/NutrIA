@@ -691,7 +691,8 @@ describe('PlanGenerationService', () => {
       recipeSlug: 'arroz-1',
       servings: 1,
       slot: 'lunch' as const,
-      sortOrder: 0
+      sortOrder: 0,
+      starch: null
     });
     const cut = jest.spyOn(PlanController, 'cutComposition').mockResolvedValue({ meals: [kept(1, 100), kept(2, 150)], planId: 'plan-a' });
 
@@ -724,7 +725,8 @@ describe('PlanGenerationService', () => {
           recipeSlug: 'arroz-1',
           servings: 1,
           slot: 'lunch',
-          sortOrder: 0
+          sortOrder: 0,
+          starch: null
         }
       ],
       planId: 'plan-a'

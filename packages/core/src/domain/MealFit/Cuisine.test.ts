@@ -131,7 +131,12 @@ describe('groupFits — the grid of Table 2', () => {
     ['spanish', 'potato', 'morning_snack', true],
     ['spanish', 'pulses', 'dinner', false],
     ['other', 'rice', 'dinner', false],
-    ['italian', 'pasta', 'dinner', true],
+    ['italian', 'pasta', 'lunch', true],
+    ['italian', 'pasta', 'dinner', false],
+    ['italian', 'rice', 'dinner', false],
+    ['italian', 'grains', 'dinner', true],
+    ['italian', 'potato', 'dinner', true],
+    ['asian', 'pasta', 'dinner', true],
     ['italian', 'pulses', 'dinner', true],
     ['asian', 'rice', 'dinner', true],
     ['asian', 'rice', 'afternoon_snack', true],
@@ -181,6 +186,13 @@ describe('fitSlots by cuisine (0079, option B)', () => {
     const breakfast = { ...dish(null, ['arroz-blanco-cocido', 60], ['merluza', 80]), slots: ['breakfast', 'lunch'] as MealSlot[] };
 
     expect(fitSlots(breakfast, catalogue, [])).toEqual(['breakfast', 'lunch']);
+  });
+
+  it('keeps an Italian pasta or risotto at lunch, as a Spanish one (0079, amended 2026-10-02)', () => {
+    expect(fitSlots(dish('Italiana', ['arroz-blanco-cocido', 150], ['merluza', 120]), catalogue, [])).toEqual(['lunch']);
+    expect(fitSlots(dish('Italiana', ['pasta-integral-seca', 80], ['tomate', 100]), catalogue, [])).toEqual(['lunch']);
+    expect(fitSlots(dish('Italiana', ['quinoa-cocida', 150], ['merluza', 120]), catalogue, [])).toEqual(MAINS);
+    expect(fitSlots(dish('China', ['arroz-blanco-cocido', 150], ['merluza', 120]), catalogue, [])).toEqual(MAINS);
   });
 
   it('widens an Italian lentil stew to dinner over the pulses list', () => {

@@ -28,6 +28,8 @@ import { SettingsController } from 'core/controllers/Settings';
 import { RecipeController, toPictureStatus } from 'core/controllers/Recipe';
 import { alternativesFor } from 'core/domain/Substitution';
 import { toDry, withoutCooked } from 'core/domain/Yield';
+import { starchBase } from 'core/domain/Variety';
+import type { StarchBase } from 'core/domain/Variety';
 import { accompanimentName, accompanimentPreparation } from 'core/domain/Accompaniment';
 import type {
   AiCallRecord,
@@ -227,6 +229,8 @@ export interface MealCompositionView {
   servings: number;
   slot: MealSlot;
   sortOrder: number;
+  /** The plate's starch base, its own rows and not what is beside it — what a swap or a rebuild keeps pasta and rice apart by (`STARCH_RULES`). */
+  starch: StarchBase | null;
 }
 
 export interface JobView {
@@ -460,7 +464,8 @@ export const PlanController = {
           recipeSlug: recipe.slug,
           servings: Number(meal.servings),
           slot: meal.slot,
-          sortOrder: meal.sortOrder
+          sortOrder: meal.sortOrder,
+          starch: starchBase({ ingredients: items.map(item => ({ grams: Number(item.grams), slug: item.slug })), servings: recipe.servings })
         };
       })
     );

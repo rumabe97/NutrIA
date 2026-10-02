@@ -223,11 +223,16 @@ const MAINS = ['lunch', 'dinner'] as const satisfies readonly MealSlot[];
 /**
  * Table 2: the meals each group may be served at, by family. `other` reads the
  * Spanish row. Supper is in no cell: it is the late snack (`0062`).
+ *
+ * Italian pasta and rice are lunch only, like Spanish (owner, 2026-10-02,
+ * `0079`'s amendment): a real fortnight put an "Italiana" whole-wheat pasta at
+ * four dinners and a risotto at a fifth, which is not how the person eats.
+ * Asian rice and noodles keep dinner.
  */
 const FAMILY_FIT: Readonly<Record<Exclude<CuisineFamily, 'other'>, Readonly<Record<FoodGroup, readonly MealSlot[]>>>> = {
   arab: { grains: ['lunch'], pasta: ['lunch'], potato: MAINS, pulses: ['lunch'], rice: ['lunch'] },
   asian: { grains: MAINS, pasta: MAINS, potato: MAINS, pulses: MAINS, rice: ['morning_snack', 'lunch', 'afternoon_snack', 'dinner'] },
-  italian: { grains: MAINS, pasta: MAINS, potato: MAINS, pulses: MAINS, rice: MAINS },
+  italian: { grains: MAINS, pasta: ['lunch'], potato: MAINS, pulses: MAINS, rice: ['lunch'] },
   latin: { grains: MAINS, pasta: ['lunch'], potato: MAINS, pulses: ['breakfast', 'lunch', 'dinner'], rice: MAINS },
   spanish: { grains: ['lunch'], pasta: ['lunch'], potato: ['morning_snack', 'lunch', 'dinner'], pulses: ['lunch'], rice: ['lunch'] }
 };

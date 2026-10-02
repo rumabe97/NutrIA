@@ -1,3 +1,4 @@
+import type { StarchBase } from './Starch';
 import type { MealSlot, PlanDayAssignment } from 'core/entities/Plan';
 
 /**
@@ -64,7 +65,13 @@ function gapBetween(slot: MealSlot, other: MealSlot): number {
 }
 
 /** Placements made so far, in the order the scheduler made them. */
-export type Placement = { readonly dayIndex: number; readonly dishSlug: string; readonly slot: MealSlot };
+export type Placement = {
+  readonly dayIndex: number;
+  readonly dishSlug: string;
+  readonly slot: MealSlot;
+  /** The dish's starch base, when the caller knows it and the pool may not hold the dish — a swap, a rebuild (`starchMeals`). */
+  readonly starch?: StarchBase | null;
+};
 
 /**
  * How many days separate this day from this dish's nearest placement so far —
