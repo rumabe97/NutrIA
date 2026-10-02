@@ -70,8 +70,8 @@ other value is refused, never read as off.
 
 `reset` is the answer to a database a run left in a strange state, and the step after a
 merge that brought a migration (or `NUTRIA_LOCAL_PG=1 pnpm --filter database migrate` to
-keep the data). The data directory lives outside the repository and no subcommand deletes
-it. The seed library file is gitignored, so `reset` from a worktree reads it from the main
+keep the data). The data directory lives outside the repository (`NUTRIA_PG_DIR`, default
+`~/.local/share/nutria-pg`) and no subcommand deletes it. The seed library file is gitignored, so `reset` from a worktree reads it from the main
 checkout.
 
 ## Dependencies
