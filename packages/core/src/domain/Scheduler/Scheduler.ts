@@ -2071,10 +2071,25 @@ function improveDay(
   // with them (one day 5.1% over its fat); the rules gave a little where they had
   // held a day out — one profile's legume six times instead of four, a snack
   // kind four times. The most-served protein did not move.
+  //
+  // Remembered by the day's dishes (017 phase 3): a swap a round shortlisted
+  // comes back in the next round whenever that round changed another meal, and a
+  // quarter of these searches were the same day again. Every pick here is sized
+  // `servingsFor` its dish and slot and carries no set, so the dishes alone are
+  // the day the search is given, and the answer is the one it would give.
+  const known = new Map<string, { readonly cost: number; readonly miss: number }>();
   const sized = (day: readonly Pick[]): { readonly cost: number; readonly miss: number } => {
-    const balanced = balancedDay(day, targets, budgets, input.minimumKcal, false, sides);
+    const key = day.map(pick => pick.dish.slug).join('|');
+    let found = known.get(key);
 
-    return { cost: balanced.cost, miss: bandMiss(totalsOf(balanced.picks), targets) };
+    if (!found) {
+      const balanced = balancedDay(day, targets, budgets, input.minimumKcal, false, sides);
+
+      found = { cost: balanced.cost, miss: bandMiss(totalsOf(balanced.picks), targets) };
+      known.set(key, found);
+    }
+
+    return found;
   };
 
   for (let round = 0; round < MAX_SWAP_ROUNDS; round += 1) {
@@ -2095,12 +2110,18 @@ function improveDay(
     let bestCost = now.cost + repeatsOf(today) + dayReuseCost(current, dayIndex, others) + kindsNow;
     let bestDay: readonly Pick[] | undefined;
     const shortlist: { readonly cost: number; readonly extra: number; readonly swapped: readonly Pick[] }[] = [];
+    // Each meal's `reuseCost` as it stands, so a candidate's day is summed as
+    // `dayReuseCost` sums it — in the same order, to the bit — pricing one meal.
+    const reuseNow = current.map(entry => reuseCost(entry.dish.slug, entry.slot, dayIndex, others));
+    // A swap moves the protein rules only through the candidate's protein: priced once per meal and protein.
+    const repeatsPriced = new Map<string, number>();
 
     for (const [index, pick] of current.entries()) {
       // Everything already on the plate today except the one being replaced.
       const siblings = current
         .filter((_entry, position) => position !== index)
         .map(entry => ({ dayIndex, dishSlug: entry.dish.slug, slot: entry.slot }));
+      const rest = [...others, ...siblings];
       const budget = budgets.get(pick.slot) ?? { carbsG: 0, fatG: 0, kcal: 0, proteinG: 0 };
 
       for (const candidate of input.pool) {
@@ -2114,14 +2135,18 @@ function improveDay(
           !base ||
           !fitsPlate(base, budget, pick.slot) ||
           !protein.seasonal(candidate.slug, dayIndex) ||
-          !canPlace(candidate.slug, pick.slot, dayIndex, [...others, ...siblings])
+          !canPlace(candidate.slug, pick.slot, dayIndex, rest)
         ) {
           continue;
         }
 
-        const repeats = repeatsOf(
-          today.map((entry, position) => (position === index ? { protein: proteinOf(candidate.slug), slot: entry.slot } : entry))
-        );
+        const candidateProtein = proteinOf(candidate.slug);
+        const repeatsKey = `${index}|${candidateProtein ?? ''}`;
+        const repeats =
+          repeatsPriced.get(repeatsKey) ??
+          repeatsOf(today.map((entry, position) => (position === index ? { protein: candidateProtein, slot: entry.slot } : entry)));
+
+        repeatsPriced.set(repeatsKey, repeats);
         const servings = servingsFor(base, budget, pick.slot);
         const swapped = current.map((entry, position) =>
           position === index ? { base, dish: candidate, servings, slot: entry.slot, sortOrder: entry.sortOrder } : entry
@@ -2138,7 +2163,11 @@ function improveDay(
           kindsPriced.set(key, kindsCost);
         }
 
-        const extra = repeats + dayReuseCost(swapped, dayIndex, others) + kindsCost;
+        const reuse = reuseNow.reduce(
+          (sum, cost, position) => sum + (position === index ? reuseCost(candidate.slug, pick.slot, dayIndex, others) : cost),
+          0
+        );
+        const extra = repeats + reuse + kindsCost;
 
         shortlist.push({ cost: dayFitCost(swapped, targets) + extra, extra, swapped });
       }

@@ -466,6 +466,8 @@ async function measureProfile(profile, shared, options) {
     ? { larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }), monthOf }
     : undefined;
 
+  // The scheduler alone, without the pool's read or this report (017 phase 3): what generation waits for.
+  const scheduleStarted = performance.now();
   const scheduled = schedulePlan({
     accompaniments,
     catalogue: context.catalogue,
@@ -476,6 +478,8 @@ async function measureProfile(profile, shared, options) {
     targets,
     weights
   });
+
+  const scheduleMs = Math.round(performance.now() - scheduleStarted);
 
   if (!scheduled.ok) {
     return { measured: false, note, poolSize: pool.length, shortfall: scheduled.shortfall, slug: profile.slug };
@@ -597,6 +601,7 @@ async function measureProfile(profile, shared, options) {
 
   return {
     advisories: tally([...bandViolations, ...otherAdvisories]),
+    scheduleMs,
     blocking: tally(blockingViolations),
     blockingDetail,
     daysInsideAll4,
@@ -1492,7 +1497,7 @@ function printProfile(profile, result) {
   }
 
   if (typeof result.ms === 'number') {
-    console.log(`  time: ${result.ms} ms`);
+    console.log(`  time: ${result.ms} ms, of which scheduling ${result.scheduleMs} ms`);
   }
 
   const spanish = result.spanish;
