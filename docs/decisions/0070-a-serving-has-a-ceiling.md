@@ -100,3 +100,27 @@ larger is served more than one serving of the dish, not a bigger serving.**
 - **Changing the caps.** They are a product figure, in one place (`SERVING_KCAL_CAP`). Changing
   them changes the prompt (a `PROMPT_VERSION` bump) and the bound together. It does
   not re-repair the library, which would take a new migration.
+
+## Amended 2026-10-02 — lunch and dinner at 650, the bound at 975
+
+Project 016 phase 6 (architect report `0008` § B, prompt 4.6.0). The plan now sets bread,
+fruit or a salad beside a lunch or a dinner (`0079`), so the dish is one plate for one person.
+
+- `SERVING_KCAL_CAP` for lunch and dinner goes from 900 to 650 kcal. Breakfast (700) and the
+  snacks and supper (400) are unchanged, so breakfast's cap is now above lunch's.
+- `OVERSIZED_FACTOR` stays 1.5, so the `oversized` bound for lunch and dinner moves from
+  1,350 to 975 kcal.
+- The library is repaired again by migration `0056`, by the same rule as `0047`, with one
+  difference: seed recipes are split too. At the new cap some of the seed's 900–1,000 kcal
+  lunches are past the bound, and the seed's load file inserts `ON CONFLICT DO NOTHING`,
+  so loading it again never undoes a split. The rows that sit beside a meal
+  (`meal_accompaniments`) and still match it move by the same k as the meal.
+- On dev (read-only dry run): 41 recipes (40 ai, 1 seed), k = 2 for 40 and 3 for 1, none
+  skipped; 146 meals, the largest going from 1.75 to 3.5 servings; 12 accompaniment rows.
+  (owner: yes to the split, 2026-10-02)
+- Two windows it cannot close (migration review, P2): a generation or swap already running on
+  the previous API may write a meal at the old servings, so merge when `plan_generation_jobs`
+  has nothing running; and a first load of the seed file after `0056` brings its one lunch past
+  the bound back unsplit, so load the seed first or re-run `0056`'s statement after it
+  (idempotent). Before it runs on production, keep a read-only capture of the repair set, as
+  `0047` did.

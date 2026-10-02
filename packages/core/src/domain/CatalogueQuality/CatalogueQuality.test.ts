@@ -31,7 +31,7 @@ describe('qualityFlags', () => {
 
   it('judges the bound and the cap with the app’s own helpers, at the value they draw the line', () => {
     const lunchCap = servingCap(['lunch']);
-    // 900 kcal cap → 450 g; 1.5 × 900 = 1350 kcal → 675 g.
+    // 650 kcal cap → 325 g; 1.5 × 650 = 975 kcal → 487.5 g.
     const atCap = recipe({ items: [{ grams: (lunchCap / 200) * 100, slug: 'base' }] });
     const overCap = recipe({ items: [{ grams: (lunchCap / 200) * 100 + 10, slug: 'base' }] });
     const overBound = recipe({ items: [{ grams: 700, slug: 'base' }] });
@@ -49,11 +49,11 @@ describe('qualityFlags', () => {
   });
 
   it('measures a serving, not the pot: more servings of the same pot is a smaller plate', () => {
-    expect(flags({ items: [{ grams: 700, slug: 'base' }], servings: 2 })).toMatchObject({ overBound: false, overCap: false });
+    expect(flags({ items: [{ grams: 700, slug: 'base' }], servings: 3 })).toMatchObject({ overBound: false, overCap: false });
   });
 
   it('takes the largest cap of the meals a dish is stored for', () => {
-    // 420 kcal is over a snack's 400 but under a lunch's 900.
+    // 420 kcal is over a snack's 400 but under a lunch's 650.
     const items = [{ grams: 210, slug: 'base' }];
 
     expect(flags({ items, mealSlots: ['afternoon_snack'] }).overCap).toBe(true);

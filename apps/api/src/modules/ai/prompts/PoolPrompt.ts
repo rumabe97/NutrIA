@@ -162,14 +162,30 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * the library everyone is served from (49 dev dishes over 1,500 kcal, 17 over
  * 2,000). The "250 g dry is three" and "a plate a person would recognise as
  * one" lines lost to the number every time. Now each meal's brief is capped
- * (`SERVING_KCAL_CAP`: 900 kcal lunch and dinner, 700 breakfast, 400 a snack)
+ * (`SERVING_KCAL_CAP`: then 900 kcal lunch and dinner, 700 breakfast, 400 a snack)
  * with protein, carbohydrate, fat and fibre scaled by the same factor, so the
  * split is exactly 0047's; the protein straddle follows the capped figure; the
  * event-day lines are capped the same way; and a capped meal is told that the
  * person eats more there and is served more than one serving. The pool builder
  * refuses a dish past one and a half times its cap (`oversized`).
+ * 4.6.0: a dish for one person (project 016 § B, architect report `0008`).
+ * The plan now sets sides beside a lunch or a dinner itself (`0079`: bread,
+ * salads, vegetables, gazpacho, plain rice or potatoes, fruit, yoghurt, nuts,
+ * queso de Burgos), so the line that let a large brief be "a plate with
+ * bread, fruit or dairy beside it" is gone, and "Real portions" says one
+ * serving is one plate for one person, with the plan adding the sides — named
+ * by kind, vegetables and starch among them, so the model does not pile them
+ * into the dish.
+ * Lunch and dinner are capped at 650 kcal a serving instead of 900, and the
+ * pool builder's `oversized` bound moves with it, to 975. The plate method —
+ * half vegetables, a quarter protein, a quarter starch — enters as a
+ * preference below the split, never above it. To keep the lunch request
+ * inside PRD 005's 55% of 3.4.0, the ceiling line lost its first clause,
+ * which said what the brief already shows. Beyond the lower cap, only the
+ * fixed text changed: what the prompt says about the person is 4.5.0's, word
+ * for word, and `traditional_spanish` is still never named (`0077`).
  */
-export const PROMPT_VERSION = '4.5.0';
+export const PROMPT_VERSION = '4.6.0';
 
 /**
  * The version of the rules for *writing steps*, stamped on every recipe and
@@ -521,12 +537,12 @@ const COMPOSITION_RULES = [
   '- When the split asks for a lot of carbohydrate, build the plate on a starch — rice, pasta, couscous, potato, bread, oats, legumes — and add fruit to breakfasts and snacks.',
   '- When it asks for a lot of protein and little fat, reach for the lean sources their way of eating allows: poultry breast, white fish, tuna in water, eggs and whites, fresh cheese, skyr or natural yoghurt, legumes, tofu, tempeh, soy yoghurt.',
   '- When it asks for little carbohydrate, build the plate on vegetables and protein, with a small starch or none, and let olive oil, nuts or avocado carry the energy the split gives to fat.',
-  '- If a dish is short of energy, add starch or protein first — whichever the split is short of — and fat only if the fat target has room. A large brief is a large plate, or a plate with bread, fruit or dairy beside it; a small brief is a full plate of lighter food, never a smaller portion of a rich one.',
+  '- If a dish is short of energy, add starch or protein first — whichever the split is short of — and fat only if the fat target has room. A large brief is a large plate; a small brief is a full plate of lighter food, never a smaller portion of a rich one.',
   '- A snack follows the same split as the day, scaled down. A snack of nuts alone is three quarters fat; pair it with fruit, dairy or bread.',
   '- Fibre: at least two plant components in a main dish — vegetables, legumes, whole grains, fruit.',
   '- Weigh each ingredient as it is named. A slug that says cooked (cocido, cocida) is weighed cooked; one that says raw or dry (crudo, seco) — or says neither, for rice, pasta, grains and pulses — is weighed dry, as bought. Dry rice or pasta roughly triples in weight when cooked: 80 g dry is a normal plate, 250 g dry is three.',
-  '- Real portions. The grams are for the number of servings you declare, and one serving is a plate a person would recognise as one.',
-  '- One serving has a ceiling. No figure below asks one serving for more than one plate holds; a person who eats more is served more than one serving of the same dish, and the plan sizes that. Never build one serving past its numbers.',
+  '- Real portions. Grams cover the declared servings; one serving is one plate for one. The plan adds sides to lunch and dinner (bread, salad, vegetables, rice, fruit, dairy). Prefer half vegetables, a quarter protein, a quarter starch, never above the numbers.',
+  '- One serving has a ceiling. A person who eats more is served more servings of the same dish, and the plan sizes that. Never build one serving past its numbers.',
   ''
 ];
 

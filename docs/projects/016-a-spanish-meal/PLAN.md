@@ -139,7 +139,7 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 
 ### Phase 6 — Dishes designed for one person (B)
 
-- [ ] pending
+- [x] done — prompt 4.6.0; step 4 (two weeks of `oversized` and `unwanted` in the console) is the owner's, open
 - **Dispatch**: `backend-high` (opus · high), `invariant-reviewer`, `plan-evaluator`. `/execute-project 016 phase 6`.
 - **Goal**: PRD criterion 5.
 - **Steps**:
