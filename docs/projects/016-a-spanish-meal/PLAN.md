@@ -112,6 +112,9 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 - **Added 2026-10-02 (lead, from phase 3's evaluator): accompaniments accompany, they do not replace the dish.** With the flag on, sides reached 54% of a meal's energy (vegetarian), 46% (halal, traditional Spanish).
   - Add a hard cap: the sides of one meal carry at most 35% of that meal's energy (`ACCOMPANIMENT_MAX_SHARE`). It is checked inside the set choice, so a set over it is never offered.
   - Measure again: days in band no worse than phase 3's flag-on run, and the share of mains in 0.75–1.5 servings stays ≥ 80%.
+- **From the phase 3 re-review:**
+  - Add a kosher test through `schedulePlan` and one through `pickReplacement` in `Scheduler.accompaniments.test.ts`. Today nothing fails if either goes back to `setsOf(portionsBeside(...))`.
+  - P3: drop the `straysOf` mention in the `dayCost` comment.
 - **Also from the phase 3 review (P2-3):** build the larder from `RecipeController.generationContext`'s merged preferences and safety on generation, swap and event rebuild.
   - Test that only a coeliac gets gluten-free bread, and that `assertPlanIsSafe` sees the sides.
 - **Steps**:
