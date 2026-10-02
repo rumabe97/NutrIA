@@ -1837,6 +1837,7 @@ function spreadAcrossDays(
         ...current.flatMap(day => day.picks.map(pick => ({ dayIndex: day.dayIndex, dishSlug: pick.dish.slug, slot: pick.slot })))
       ];
       const starchBefore = starchExcess(starchMeals(placements, starch.index), starch.days);
+
       // An exchange keeps the fortnight's pasta and rice, but may bring two onto days running.
       const starchAdded = (other: BuiltDay, toWorst: readonly Pick[], toOther: readonly Pick[]): number => {
         const moved = [
@@ -1847,6 +1848,7 @@ function spreadAcrossDays(
 
         return Math.max(0, starchExcess(starchMeals(moved, starch.index), starch.days) - starchBefore);
       };
+
       const screened: { before: number; otherAt: number; quick: number; starch: boolean; toOther: Pick[]; toWorst: Pick[] }[] = [];
 
       for (const [otherAt, other] of current.entries()) {

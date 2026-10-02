@@ -5,7 +5,9 @@ import { STARCH_RULES, starchBase, starchCap, starchCrowded, starchExcess, starc
 
 import type { StarchMeal } from 'core/domain/Variety';
 
-const dish = (...items: [string, number][]) => ({ ingredients: items.map(([slug, grams]) => ({ grams, slug })), servings: 1 });
+function dish(...items: [string, number][]) {
+  return { ingredients: items.map(([slug, grams]) => ({ grams, slug })), servings: 1 };
+}
 
 describe('starchBase', () => {
   it('names a plate by its starch, read with 0079’s food groups', () => {
