@@ -28,6 +28,7 @@ const NOW = new Date('2026-09-29T10:00:00Z');
 
 function row(overrides: Partial<QualityRecipeRow>): QualityRecipeRow {
   return {
+    cuisine: null,
     id: 'r-ok',
     items: [{ grams: 100, slug: 'base' }],
     mealSlots: ['lunch'],

@@ -172,8 +172,8 @@ describe('byFigure', () => {
 describe('AdminCatalogueController.recipes', () => {
   it('narrows the table to the recipes a quality check finds, and only asks the check when it is given', async () => {
     catalogue.qualityRecipes.mockResolvedValue([
-      { id: 'r-ok', items: [{ grams: 100, slug: 'aceite' }], mealSlots: ['lunch'], pending: false, servings: 1, source: 'seed', stepsVersion: STEPS },
-      { id: 'r-big', items: [{ grams: 900, slug: 'aceite' }], mealSlots: ['lunch'], pending: false, servings: 1, source: 'seed', stepsVersion: STEPS }
+      { cuisine: null, id: 'r-ok', items: [{ grams: 100, slug: 'aceite' }], mealSlots: ['lunch'], pending: false, servings: 1, source: 'seed', stepsVersion: STEPS },
+      { cuisine: null, id: 'r-big', items: [{ grams: 900, slug: 'aceite' }], mealSlots: ['lunch'], pending: false, servings: 1, source: 'seed', stepsVersion: STEPS }
     ]);
     catalogue.recipePage.mockResolvedValue({ rows: [], total: 0 });
     loadCatalogue.mockResolvedValue([OIL]);

@@ -48,6 +48,7 @@ import { assertNotProduction } from '../../../.claude/skills/local-probe/scripts
 
 import { RecipeController } from 'core/controllers/Recipe';
 import { SafetyController } from 'core/controllers/Safety';
+import { cuisineFamily } from 'core/domain/MealFit';
 import { DEFAULT_MEAL_SHAPE, shapeFor, slotsIn, weightsFor } from 'core/domain/MealShape';
 import { loadedTargets } from 'core/domain/Event';
 import { TargetsUnreachableError, minimumDailyKcal, nutritionTargets } from 'core/domain/Nutrition';
@@ -62,7 +63,7 @@ import {
 } from 'core/domain/Preference';
 import { PLAN_DAYS, PLATE_GRAMS_MAX, PLATE_LIMIT, plateGramsMax, schedulePlan } from 'core/domain/Scheduler';
 import { bestEffortExclusions, dishSafety, normaliseForMatching, resolveCustomAllergens, toSafetyProfile } from 'core/domain/Safety';
-import { MAIN_SLOTS } from 'core/domain/Variety';
+import { DISHES_NEEDED_PER_SLOT, MAIN_SLOTS } from 'core/domain/Variety';
 import { toDry } from 'core/domain/Yield';
 
 // ---------------------------------------------------------------------------
@@ -383,6 +384,17 @@ async function measureProfile(profile, shared) {
   }
 
   const pool = await RecipeController.reusablePool(slots, context);
+  // What the library can serve each meal for this person, after `fitSlots`
+  // (`0079` Table 2 included), against `DISHES_NEEDED_PER_SLOT`; and the
+  // dinners by cuisine family, which is where Table 2 cuts.
+  const poolBySlot = Object.fromEntries(slots.map(slot => [slot, pool.filter(dish => dish.slots.includes(slot)).length]));
+  const dinnersByFamily = {};
+
+  for (const dish of pool.filter(candidate => candidate.slots.includes('dinner'))) {
+    const family = cuisineFamily(dish.cuisine);
+
+    dinnersByFamily[family] = (dinnersByFamily[family] ?? 0) + 1;
+  }
 
   const scheduled = schedulePlan({
     catalogue: context.catalogue,
@@ -501,10 +513,12 @@ async function measureProfile(profile, shared) {
     deviations,
     fallback: null,
     foodGroups: foodGroupGrams(scheduled.assignment.days, context.catalogue),
+    dinnersByFamily,
     measured: true,
     note,
     plateShare,
     plateWeight,
+    poolBySlot,
     poolSize: pool.length,
     servings: servingsHistogram(scheduled.assignment.days),
     slug: profile.slug,
@@ -888,6 +902,21 @@ function printProfile(profile, result) {
   }
 
   console.log(`  pool: ${result.poolSize} dishes`);
+
+  if (result.poolBySlot) {
+    const thin = Object.entries(result.poolBySlot).filter(([, count]) => count < DISHES_NEEDED_PER_SLOT);
+
+    console.log(
+      `  servable per slot (need ${DISHES_NEEDED_PER_SLOT}): ${Object.entries(result.poolBySlot)
+        .map(([slot, count]) => `${slot} ${count}`)
+        .join(', ')}${thin.length > 0 ? ` — BELOW: ${thin.map(([slot]) => slot).join(', ')}` : ''}`
+    );
+    console.log(
+      `  dinners by cuisine family: ${Object.entries(result.dinnersByFamily ?? {})
+        .map(([family, count]) => `${family} ${count}`)
+        .join(', ') || 'none'}`
+    );
+  }
   console.log(`  days inside 5% on all four macros: ${result.daysInsideAll4} / ${PLAN_DAYS}`);
 
   if (result.worst) {

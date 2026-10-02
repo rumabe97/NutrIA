@@ -53,6 +53,7 @@ export type CatalogueRecipeRow = {
  * ingredients, by the catalogue's slug — nothing that names a person (`0028`).
  */
 export type QualityRecipeRow = {
+  readonly cuisine: string | null;
   readonly id: string;
   readonly items: readonly { readonly grams: number; readonly slug: string }[];
   readonly mealSlots: readonly string[];
@@ -390,6 +391,7 @@ export const AdminCatalogueRepository = {
       const rows = await database()
         .select({
           id: recipes.id,
+          cuisine: recipes.cuisine,
           grams: sql<number[]>`coalesce(array_agg(${recipeIngredients.grams}::float8) filter (where ${recipeIngredients.id} is not null), '{}')`,
           mealSlots: recipes.mealSlots,
           pending: sql<boolean>`${needsRewriteCondition(stepsVersion)}`.mapWith(Boolean),
@@ -404,6 +406,7 @@ export const AdminCatalogueRepository = {
         .groupBy(recipes.id);
 
       return rows.map(row => ({
+        cuisine: row.cuisine,
         id: row.id,
         items: row.slugs.map((slug, at) => ({ grams: Number(row.grams[at]), slug })),
         mealSlots: row.mealSlots,
