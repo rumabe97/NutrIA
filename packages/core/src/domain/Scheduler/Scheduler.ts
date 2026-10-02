@@ -1478,11 +1478,21 @@ function balancedDay(
       kcals[index] = term.meal;
     }
 
-    return closingCost(sums);
+    return closingCost(sums.carbsG, sums.fatG, sums.fiberG, sums.kcal, sums.misses, sums.proteinG, sums.strays, sums.tenths);
   };
 
-  // The day's cost once every meal's term is summed and `kcals` holds each meal's energy.
-  const closingCost = ({ carbsG, fatG, fiberG, kcal, misses, proteinG, strays, tenths }: DaySums): number => {
+  // The day's cost once every meal's term is summed and `kcals` holds each meal's
+  // energy. The sums come in one by one, so the last meal's options need no object.
+  const closingCost = (
+    carbsG: number,
+    fatG: number,
+    fiberG: number,
+    kcal: number,
+    misses: number,
+    proteinG: number,
+    strays: number,
+    tenths: number
+  ): number => {
     // A meal the person said should be bigger must stay bigger — see
     // `SHARE_ORDER_GAP`. Priced as a hinge on every ordered pair.
     let inversions = 0;
@@ -1573,6 +1583,8 @@ function balancedDay(
     const sizes: number[] = picks.map(pick => pick.servings);
     const sets: (AccompanimentSet | undefined)[] = picks.map(pick => pick.set);
     const rest = remainingRanges(options);
+    const distance = (sum: number, low: number, high: number, wanted: number): number =>
+      wanted <= 0 ? 0 : sum + low > wanted ? (sum + low - wanted) / wanted : sum + high < wanted ? (wanted - sum - high) / wanted : 0;
 
     // The least any leaf under this prefix can cost: each macro's reachable
     // range against its target, what the prefix and the cheapest remaining
@@ -1580,8 +1592,19 @@ function balancedDay(
     // at the most energy still reachable. `bandMiss` is taken as nothing.
     const lowestBelow = (index: number, sums: DaySums): number => {
       const range = rest[index] as RemainingRange;
-      const distance = (sum: number, low: number, high: number, wanted: number): number =>
-        wanted <= 0 ? 0 : sum + low > wanted ? (sum + low - wanted) / wanted : sum + high < wanted ? (wanted - sum - high) / wanted : 0;
+
+      return (
+        distance(sums.kcal, range.low.kcal, range.high.kcal, target.kcal) * 1.5 +
+        distance(sums.proteinG, range.low.proteinG, range.high.proteinG, target.proteinG) +
+        distance(sums.carbsG, range.low.carbsG, range.high.carbsG, target.carbsG) * 0.75 +
+        distance(sums.fatG, range.low.fatG, range.high.fatG, target.fatG) * 0.75 +
+        placedInversions(index) +
+        unfitted(sums, range)
+      );
+    };
+
+    // What the ordered pairs already placed cost, priced as `closingCost` prices them.
+    const placedInversions = (index: number): number => {
       let inversions = 0;
 
       for (const pair of ordered) {
@@ -1595,23 +1618,86 @@ function balancedDay(
         }
       }
 
+      return inversions * (banded ? ORDER_OUTRANKS_BANDS : SHARE_INVERSION_WEIGHT);
+    };
+
+    // The least the strays, the serving misses and the floor can still add.
+    const unfitted = (sums: DaySums, range: RemainingRange): number => {
       const reachable = (sums.tenths + range.tenths) / 10;
 
       return (
-        distance(sums.kcal, range.low.kcal, range.high.kcal, target.kcal) * 1.5 +
-        distance(sums.proteinG, range.low.proteinG, range.high.proteinG, target.proteinG) +
-        distance(sums.carbsG, range.low.carbsG, range.high.carbsG, target.carbsG) * 0.75 +
-        distance(sums.fatG, range.low.fatG, range.high.fatG, target.fatG) * 0.75 +
-        inversions * (banded ? ORDER_OUTRANKS_BANDS : SHARE_INVERSION_WEIGHT) +
         (sums.strays + range.strays) * SHARE_BAND_WEIGHT +
         (sides ? (sums.misses + range.misses) * SERVING_PREFERENCE_WEIGHT : 0) +
         (reachable < minimumKcal ? floorMiss(reachable, minimumKcal) * FLOOR_OUTRANKS_ORDER : 0)
       );
     };
 
+    // The least `fitCost` the last meal can leave beside one set, at any size
+    // between `low` and `high` — not only the quarter steps. Every macro moves
+    // with the one size, so the macros cannot each find their target at a
+    // different size, as the ranges let them: the cost is convex in the size,
+    // and its least is at an end or where a macro meets its target.
+    const lowestFit = (sums: DaySums, beside: Macros, low: number, high: number): number => {
+      // Each macro's miss at size zero; at a size, the miss plus the plate's share of it.
+      const kcal = sums.kcal + beside.kcal - target.kcal;
+      const proteinG = sums.proteinG + beside.proteinG - target.proteinG;
+      const carbsG = sums.carbsG + beside.carbsG - target.carbsG;
+      const fatG = sums.fatG + beside.fatG - target.fatG;
+      let lowest = Math.min(fitAlong(low, kcal, proteinG, carbsG, fatG), fitAlong(high, kcal, proteinG, carbsG, fatG));
+
+      for (const size of [-kcal / lastBase.kcal, -proteinG / lastBase.proteinG, -carbsG / lastBase.carbsG, -fatG / lastBase.fatG]) {
+        if (size > low && size < high) {
+          lowest = Math.min(lowest, fitAlong(size, kcal, proteinG, carbsG, fatG));
+        }
+      }
+
+      return lowest;
+    };
+
+    // `fitCost` of the day with the last meal at a size, from each macro's miss without it.
+    const fitAlong = (size: number, kcal: number, proteinG: number, carbsG: number, fatG: number): number =>
+      (target.kcal > 0 ? (Math.abs(kcal + lastBase.kcal * size) / target.kcal) * 1.5 : 0) +
+      (target.proteinG > 0 ? Math.abs(proteinG + lastBase.proteinG * size) / target.proteinG : 0) +
+      (target.carbsG > 0 ? (Math.abs(carbsG + lastBase.carbsG * size) / target.carbsG) * 0.75 : 0) +
+      (target.fatG > 0 ? (Math.abs(fatG + lastBase.fatG * size) / target.fatG) * 0.75 : 0);
+
+    const last = picks.length - 1;
+    const lastBase: Macros = picks[last]?.base ?? { carbsG: 0, fatG: 0, fiberG: 0, kcal: 0, proteinG: 0 };
+    // The last meal's options, a run per set — the order they were offered in —
+    // each with the range it alone can add: a run that cannot win is not priced.
+    const runs: {
+      readonly beside: Macros;
+      readonly from: number;
+      readonly high: number;
+      readonly low: number;
+      readonly range: RemainingRange;
+      readonly to: number;
+    }[] = [];
+    const lastOptions = options[last] ?? [];
+
+    for (let from = 0; from < lastOptions.length;) {
+      let to = from + 1;
+
+      while (to < lastOptions.length && lastOptions[to]?.set === lastOptions[from]?.set) {
+        to += 1;
+      }
+
+      const run = lastOptions.slice(from, to);
+
+      runs.push({
+        beside: (run[0] as Option).term.beside,
+        from,
+        high: Math.max(...run.map(option => option.servings)),
+        low: Math.min(...run.map(option => option.servings)),
+        range: remainingRanges([run])[0] as RemainingRange,
+        to
+      });
+      from = to;
+    }
+
     const visit = (index: number, sums: DaySums): void => {
       if (index === picks.length) {
-        const cost = closingCost(sums);
+        const cost = closingCost(sums.carbsG, sums.fatG, sums.fiberG, sums.kcal, sums.misses, sums.proteinG, sums.strays, sums.tenths);
 
         if (cost < bestCost) {
           bestCost = cost;
@@ -1623,6 +1709,49 @@ function balancedDay(
       }
 
       if (index > 0 && lowestBelow(index, sums) > bestCost + BOUND_SLACK * (1 + Math.abs(bestCost))) {
+        return;
+      }
+
+      // The last meal's options are the leaves, most of the search: each is
+      // summed in place, as `addTerm` sums it, and priced without a call a leaf.
+      if (index === last) {
+        const placed = placedInversions(index);
+
+        for (const run of runs) {
+          if (
+            lowestFit(sums, run.beside, run.low, run.high) + placed + unfitted(sums, run.range) >
+            bestCost + BOUND_SLACK * (1 + Math.abs(bestCost))
+          ) {
+            continue;
+          }
+
+          for (let at = run.from; at < run.to; at += 1) {
+            const option = lastOptions[at] as Option;
+            const { beside, plate } = option.term;
+
+            kcals[index] = option.term.meal;
+
+            const cost = closingCost(
+              sums.carbsG + plate.carbsG + beside.carbsG,
+              sums.fatG + plate.fatG + beside.fatG,
+              sums.fiberG + plate.fiberG + beside.fiberG,
+              sums.kcal + plate.kcal + beside.kcal,
+              sums.misses + option.term.misses,
+              sums.proteinG + plate.proteinG + beside.proteinG,
+              sums.strays + option.term.stray,
+              sums.tenths + option.term.tenths
+            );
+
+            if (cost < bestCost) {
+              sizes[index] = option.servings;
+              sets[index] = option.set;
+              bestCost = cost;
+              best = [...sizes];
+              bestSets = [...sets];
+            }
+          }
+        }
+
         return;
       }
 
