@@ -169,10 +169,13 @@ import type { NutritionTargets } from 'core/entities/Nutrition';
  * person eats more there and is served more than one serving. The pool builder
  * refuses a dish past one and a half times its cap (`oversized`).
  * 4.6.0: a dish for one person (project 016 § B, architect report `0008`).
- * The plan now sets bread, fruit, yoghurt or a salad beside a lunch or a
- * dinner itself (`0079`), so the line that let a large brief be "a plate with
+ * The plan now sets sides beside a lunch or a dinner itself (`0079`: bread,
+ * salads, vegetables, gazpacho, plain rice or potatoes, fruit, yoghurt, nuts,
+ * queso de Burgos), so the line that let a large brief be "a plate with
  * bread, fruit or dairy beside it" is gone, and "Real portions" says one
- * serving is one plate for one person, with the plan adding bread or fruit.
+ * serving is one plate for one person, with the plan adding the sides — named
+ * by kind, vegetables and starch among them, so the model does not pile them
+ * into the dish.
  * Lunch and dinner are capped at 650 kcal a serving instead of 900, and the
  * pool builder's `oversized` bound moves with it, to 975. The plate method —
  * half vegetables, a quarter protein, a quarter starch — enters as a
@@ -538,7 +541,7 @@ const COMPOSITION_RULES = [
   '- A snack follows the same split as the day, scaled down. A snack of nuts alone is three quarters fat; pair it with fruit, dairy or bread.',
   '- Fibre: at least two plant components in a main dish — vegetables, legumes, whole grains, fruit.',
   '- Weigh each ingredient as it is named. A slug that says cooked (cocido, cocida) is weighed cooked; one that says raw or dry (crudo, seco) — or says neither, for rice, pasta, grains and pulses — is weighed dry, as bought. Dry rice or pasta roughly triples in weight when cooked: 80 g dry is a normal plate, 250 g dry is three.',
-  '- Real portions. The grams are for the servings you declare; one serving is one plate for one person, and the plan adds bread or fruit beside a lunch or a dinner. Prefer half vegetables, a quarter protein, a quarter starch, never above the numbers.',
+  '- Real portions. Grams cover the declared servings; one serving is one plate for one. The plan adds sides to lunch and dinner (bread, salad, vegetables, rice, fruit, dairy). Prefer half vegetables, a quarter protein, a quarter starch, never above the numbers.',
   '- One serving has a ceiling. A person who eats more is served more servings of the same dish, and the plan sizes that. Never build one serving past its numbers.',
   ''
 ];

@@ -494,8 +494,8 @@ describe('buildPoolPrompt', () => {
   });
 
   /**
-   * 4.6.0 (project 016 § B) changed only the fixed text: the plan sets bread
-   * and fruit beside a dish, and the plate method is a preference under the
+   * 4.6.0 (project 016 § B) changed only the fixed text: the plan sets sides
+   * beside a dish (bread, salad, vegetables, rice, fruit, dairy), and the plate method is a preference under the
    * split. What depends on the person — the day's targets, the goal, the way
    * of eating, likes, liked and avoided dishes, the time, the check-in — is
    * pinned here as 4.5.0 wrote it, every line a person's prompt has that an
@@ -518,11 +518,13 @@ describe('buildPoolPrompt', () => {
     });
     const catalogue = [row('tomate', 'produce'), row('merluza', 'protein'), row('arroz', 'pantry')];
 
-    it('says the plan sets bread and fruit beside a lunch or a dinner, and no longer asks for them', () => {
+    it('names the sides the plan sets beside a lunch or a dinner, vegetables and starch among them, and no longer asks for them', () => {
       const prompt = buildPoolPrompt(person, catalogue);
 
       expect(prompt).not.toContain('a plate with bread, fruit or dairy beside it');
-      expect(prompt).toContain('one serving is one plate for one person, and the plan adds bread or fruit beside a lunch or a dinner.');
+      expect(prompt).toContain(
+        'one serving is one plate for one. The plan adds sides to lunch and dinner (bread, salad, vegetables, rice, fruit, dairy).'
+      );
     });
 
     it('asks for the plate method as a preference below the split, never above it', () => {

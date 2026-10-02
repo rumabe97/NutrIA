@@ -10,7 +10,7 @@ const catalogue = makeCatalogue([makeCatalogueIngredient()]);
 
 describe('SERVING_KCAL_CAP', () => {
   /**
-   * Since 4.6.0 a lunch or a dinner is one plate with bread or fruit set
+   * Since 4.6.0 a lunch or a dinner is one plate with sides set
    * beside it by the plan, so its dish is capped below breakfast's, which
    * stays the seed library's own ceiling.
    */
@@ -26,7 +26,7 @@ describe('SERVING_KCAL_CAP', () => {
 
   /**
    * Prompt 4.6.0 (project 016 § B): a main dish is one person's plate, and the
-   * plan sets bread and fruit beside it. Literal figures, so a cap moved back
+   * plan sets sides beside it. Literal figures, so a cap moved back
    * to 900 fails here rather than passing every relative assertion below.
    */
   it('designs lunch and dinner at 650 kcal a serving, and refuses one past 975', () => {
