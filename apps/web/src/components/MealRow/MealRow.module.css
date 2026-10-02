@@ -235,3 +235,8 @@
     flex-wrap: wrap;
   }
 }
+
+/* No circle to the left: the text takes the whole row. */
+.row[data-marked='false'] {
+  grid-template-columns: minmax(0, 1fr);
+}

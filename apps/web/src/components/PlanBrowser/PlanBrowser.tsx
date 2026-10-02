@@ -158,6 +158,7 @@ export function PlanBrowser({ events = [], history = null, midPlan = null, plan,
                   name={meal.name}
                   proteinG={meal.proteinG}
                   readOnly={history !== null || upcoming}
+                  showMark={!upcoming}
                   slot={meal.slot}
                   status={meal.status}
                 />
