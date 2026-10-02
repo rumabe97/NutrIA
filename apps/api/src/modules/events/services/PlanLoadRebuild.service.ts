@@ -10,7 +10,7 @@ import { minimumDailyKcal, targetViolations } from 'core/domain/Nutrition';
 import { OnboardingIncompleteError, PlanPausedError, ProfileConsentRequiredError, QuotaExceededError } from 'core/entities/Error';
 import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController } from 'core/controllers/Plan';
-import { ProfileController } from 'core/controllers/Profile';
+import { personToday, ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
 import { SettingsController } from 'core/controllers/Settings';
 import { accompanimentRows, larderFor } from 'core/domain/Accompaniment';
@@ -46,7 +46,7 @@ export class PlanLoadRebuildService {
   private readonly logger = new Logger(PlanLoadRebuildService.name);
 
   /** The dates of the active plan rebuilt for this event, oldest first. Empty when none were. */
-  async forEvent(userId: string, event: EventView, today = isoToday()): Promise<readonly string[]> {
+  async forEvent(userId: string, event: EventView, on?: string): Promise<readonly string[]> {
     const { events } = await PlanController.allowances(userId);
 
     // Null is a tier with no such thing; zero left is a tier that has spent it.
@@ -62,6 +62,8 @@ export class PlanLoadRebuildService {
       return [];
     }
 
+    // The person's day, the one their plan is laid out in — never the UTC date.
+    const today = on ?? (await personToday(userId));
     const wanted = new Set(event.loadedDates);
     const days = plan.days.filter(day => wanted.has(day.date) && day.date > today);
 
@@ -288,8 +290,4 @@ function groupByDay(meals: readonly MealCompositionView[]): readonly { readonly 
   }
 
   return [...days.values()].map(entries => ({ meals: entries }));
-}
-
-function isoToday(): string {
-  return new Date().toISOString().slice(0, 10);
 }

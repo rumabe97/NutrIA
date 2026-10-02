@@ -2,6 +2,7 @@ import { ConflictError, InputParseError, NotFoundError } from 'core/entities/Err
 import { MAX_VACATION_DAYS } from 'core/entities/Vacation';
 import { VacationRepository } from '#repositories/Vacation';
 import { daysAway, isAway, problemWith } from 'core/domain/Vacation';
+import { personToday } from 'core/controllers/Profile';
 
 import type { PlanVacation, Vacation } from 'core/entities/Vacation';
 
@@ -16,16 +17,14 @@ export interface VacationView {
   startsOn: string;
 }
 
-/** The convention every dated controller here follows: the caller may say when "now" is, and a test does. */
-function isoToday(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function present(trip: Vacation, today: string): VacationView {
   return { id: trip.id, away: isAway(trip, today), days: daysAway(trip), endsOn: trip.endsOn, startsOn: trip.startsOn };
 }
 
 // --- Controller ---------------------------------------------------------------
+
+// Every dated method takes the person's own day (`personToday`), the one their
+// plan is laid out in; a caller — a test — may name it instead.
 
 /**
  * Being away, and what it does to a plan (`0032`).
@@ -37,19 +36,25 @@ function present(trip: Vacation, today: string): VacationView {
  */
 export const VacationController = {
   /** Whether the person is away today — the one question every screen asks. */
-  async away(userId: string, today = isoToday()): Promise<VacationView | null> {
+  async away(userId: string, day?: string): Promise<VacationView | null> {
+    const today = day ?? (await personToday(userId));
+
     const trips = await VacationRepository.findUpcoming(userId, today);
 
     return trips.map(trip => present(trip, today)).find(trip => trip.away) ?? null;
   },
 
-  async cancel(userId: string, id: string, today = isoToday()): Promise<void> {
+  async cancel(userId: string, id: string, day?: string): Promise<void> {
+    const today = day ?? (await personToday(userId));
+
     if (!(await VacationRepository.remove(userId, id, today))) {
       throw new NotFoundError(`Vacation "${id}" not found`);
     }
   },
 
-  async list(userId: string, today = isoToday()): Promise<readonly VacationView[]> {
+  async list(userId: string, day?: string): Promise<readonly VacationView[]> {
+    const today = day ?? (await personToday(userId));
+
     return (await VacationRepository.findUpcoming(userId, today)).map(trip => present(trip, today));
   },
 
@@ -61,7 +66,9 @@ export const VacationController = {
    * somebody has already eaten, and two overlapping trips would count the same
    * days twice and push the plan further than the person is away.
    */
-  async plan(userId: string, trip: PlanVacation, today = isoToday()): Promise<VacationView> {
+  async plan(userId: string, trip: PlanVacation, day?: string): Promise<VacationView> {
+    const today = day ?? (await personToday(userId));
+
     const problem = problemWith(trip, today, await VacationRepository.findUpcoming(userId, today));
 
     if (problem === 'overlaps') {

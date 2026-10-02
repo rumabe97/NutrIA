@@ -6,6 +6,7 @@ import { eventsInWindow, loadedDates, loadStartsOn, planWindow, problemWith, win
 import { MAX_DAYS_BEFORE } from 'core/entities/Event';
 import { addDays } from 'core/domain/Vacation';
 import { PlanController } from 'core/controllers/Plan';
+import { personToday } from 'core/controllers/Profile';
 
 import type { AddEvent, Event, MacroDirection } from 'core/entities/Event';
 
@@ -25,11 +26,6 @@ export interface EventView {
   protein: MacroDirection;
 }
 
-/** The convention every dated controller here follows: the caller may say when "now" is, and a test does. */
-function isoToday(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function present(event: Event, today: string): EventView {
   return {
     id: event.id,
@@ -45,6 +41,9 @@ function present(event: Event, today: string): EventView {
 }
 
 // --- Controller ---------------------------------------------------------------
+
+// Every dated method takes the person's own day (`personToday`), the one their
+// plan is laid out in; a caller — a test — may name it instead.
 
 /**
  * A day that asks more of the body, and the days before it that eat for it
@@ -68,7 +67,9 @@ export const EventController = {
    * Then the fortnight's own cap (`0044`), which is an allowance rather than a
    * mistake — 429, the status for "not now", the same answer a spent swap gets.
    */
-  async add(userId: string, event: AddEvent, today = isoToday()): Promise<EventView> {
+  async add(userId: string, event: AddEvent, day?: string): Promise<EventView> {
+    const today = day ?? (await personToday(userId));
+
     const problem = problemWith(event, today, await EventRepository.findUpcoming(userId, today));
 
     if (problem === 'overlaps') {
@@ -106,7 +107,9 @@ export const EventController = {
     return present(created, today);
   },
 
-  async list(userId: string, today = isoToday()): Promise<readonly EventView[]> {
+  async list(userId: string, day?: string): Promise<readonly EventView[]> {
+    const today = day ?? (await personToday(userId));
+
     return (await EventRepository.findUpcoming(userId, today)).map(event => present(event, today));
   },
 
