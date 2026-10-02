@@ -79,6 +79,7 @@ const DISLIKED = lunch('chicken-rice-bad', [
 function meal(id: string, dayIndex: number, slot: MealSlot, dish: CandidateDish): MealCompositionView {
   return {
     id,
+    date: `2026-09-${String(8 + dayIndex).padStart(2, '0')}`,
     dayIndex,
     ingredients: dish.ingredients,
     macros: { carbsG: 60, fatG: 8, fiberG: 10, kcal: 560, proteinG: 42 },

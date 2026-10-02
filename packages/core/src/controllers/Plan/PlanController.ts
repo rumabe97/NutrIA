@@ -184,6 +184,8 @@ export interface AllowancesView {
  */
 export interface MealCompositionView {
   id: string;
+  /** The day the meal is on, so a plan cut short can keep only its days before the cut (project 015). */
+  date: string;
   dayIndex: number;
   ingredients: readonly { grams: number; slug: string }[];
   macros: Macros;
@@ -363,6 +365,7 @@ export const PlanController = {
 
         return {
           id: meal.id,
+          date: day.date,
           dayIndex: day.dayIndex,
           ingredients: items.map(item => ({ grams: Math.round(Number(item.grams) * factor * 10) / 10, slug: item.slug })),
           macros: {
@@ -379,6 +382,24 @@ export const PlanController = {
         };
       })
     );
+  },
+
+  /**
+   * What the active plan keeps when a plan starting on `start` cuts it (project
+   * 015): its id and its meals before `start`, as `composition` reads them — what
+   * its shopping list is rebuilt from. Null when nothing is cut: no active plan,
+   * or one that ends before `start`.
+   */
+  async cutComposition(userId: string, start: string): Promise<{ readonly meals: readonly MealCompositionView[]; readonly planId: string } | null> {
+    const active = await PlanRepository.findActive(userId);
+
+    if (!active || active.endDate < start) {
+      return null;
+    }
+
+    const meals = await PlanController.composition(userId, active.id);
+
+    return { meals: meals.filter(meal => meal.date < start), planId: active.id };
   },
 
   /**

@@ -172,6 +172,12 @@ export type ShoppingItemDraft = {
 };
 
 export type PlanDraft = {
+  /**
+   * The list the active plan keeps when this one cuts it (project 015): built
+   * from the days it has left, for that plan's id. The repository writes it in
+   * the same transaction as the cut, and only for that plan.
+   */
+  readonly cutShoppingItems?: { readonly items: readonly ShoppingItemDraft[]; readonly planId: string };
   readonly days: readonly {
     readonly date: string;
     readonly dayIndex: number;

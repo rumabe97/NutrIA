@@ -260,9 +260,16 @@ export const PlanRepository = {
         //
         // A plan that waits for its day leaves the active one standing instead —
         // cut to end the day before it starts, when it would otherwise overlap.
+        // Its list loses the deleted days' food in the same transaction: a plan
+        // cut short never lists what it no longer cooks. What the person ticked or
+        // added stays, as on a swap.
         if (active && shape.cutsActiveTo !== null) {
           await tx.delete(planDays).where(and(eq(planDays.planId, active.id), gte(planDays.date, draft.startDate)));
           await tx.update(mealPlans).set({ endDate: shape.cutsActiveTo, updatedAt: new Date() }).where(eq(mealPlans.id, active.id));
+
+          if (draft.cutShoppingItems?.planId === active.id) {
+            await replaceGeneratedItems(tx, active.id, draft.cutShoppingItems.items);
+          }
         }
 
         if (shape.completesActive) {

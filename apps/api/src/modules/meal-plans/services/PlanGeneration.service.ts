@@ -409,6 +409,12 @@ export class PlanGenerationService {
     }
 
     const shopping = buildShoppingList(scheduled.assignment, context.catalogue, context.locale);
+    // A plan that waits for its day may cut the one under way (project 015):
+    // that plan's list is rebuilt from the days it keeps, saved with the cut.
+    const cut = dates.start > dates.today ? await PlanController.cutComposition(userId, dates.start) : null;
+    const cutShoppingItems = cut
+      ? { items: toShoppingItems(buildShoppingList({ days: byDay(cut.meals) }, context.catalogue, context.locale)), planId: cut.planId }
+      : undefined;
 
     // Past its job's deadline this generation has already been reported as
     // failed; saving now would hand somebody a plan after telling them to retry.
@@ -420,19 +426,22 @@ export class PlanGenerationService {
 
     return PlanJobController.persist(
       userId,
-      this.toDraft(
-        scheduled.assignment,
-        shopping,
-        built,
-        targets,
-        context,
-        jobId,
-        rotation,
-        { advisories: advisorySummary, fallback, quality },
-        start,
-        loads,
-        dates.today
-      ),
+      {
+        ...this.toDraft(
+          scheduled.assignment,
+          shopping,
+          built,
+          targets,
+          context,
+          jobId,
+          rotation,
+          { advisories: advisorySummary, fallback, quality },
+          start,
+          loads,
+          dates.today
+        ),
+        ...(cutShoppingItems && { cutShoppingItems })
+      },
       byProfessional
     );
   }
@@ -606,19 +615,35 @@ export class PlanGenerationService {
       // scheduler never placed is not worth a row.
       locale: context.locale,
       newRecipes: built.generated.filter(dish => used.has(dish.slug)).map(dish => toRecipeDraft(dish, context)),
-      shoppingItems: shopping.items.map(item => ({
-        category: item.category,
-        displayQuantity: item.displayQuantity,
-        displayUnit: item.displayUnit,
-        ingredientId: item.ingredientId,
-        name: item.name,
-        totalGrams: item.totalGrams
-      })),
+      shoppingItems: toShoppingItems(shopping),
       startDate: isoDate(start),
       strategy: { carbsG: targets.carbsG, fatG: targets.fatG, fiberG: targets.fiberG, kcal: targets.kcal, proteinG: targets.proteinG },
       today
     };
   }
+}
+
+/** A built list as a plan stores it. */
+function toShoppingItems(shopping: ReturnType<typeof buildShoppingList>): PlanDraft['shoppingItems'] {
+  return shopping.items.map(item => ({
+    category: item.category,
+    displayQuantity: item.displayQuantity,
+    displayUnit: item.displayUnit,
+    ingredientId: item.ingredientId,
+    name: item.name,
+    totalGrams: item.totalGrams
+  }));
+}
+
+/** A plan's meals, one entry per day, as the list builder reads them. */
+function byDay<T extends { readonly dayIndex: number }>(meals: readonly T[]): readonly { readonly meals: readonly T[] }[] {
+  const days = new Map<number, T[]>();
+
+  for (const meal of meals) {
+    days.set(meal.dayIndex, [...(days.get(meal.dayIndex) ?? []), meal]);
+  }
+
+  return [...days.values()].map(entries => ({ meals: entries }));
 }
 
 /**

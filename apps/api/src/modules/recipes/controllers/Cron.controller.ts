@@ -127,11 +127,11 @@ export class CronController {
   }
 
   /**
-   * Once a day at 22:05 UTC — 00:05 in Madrid in summer; in winter it is 23:05
-   * there, a day early, and the first read of the morning activates instead: every plan waiting for its day whose day has come, made active
-   * and the plan before it completed (project 015). Reads of the active plan do
-   * the same, so this is what makes it true for somebody who does not open the
-   * app that morning — the reminders and the progress read it.
+   * Once a day at 23:05 UTC — 00:05 in Madrid in winter, 01:05 in summer, after
+   * Madrid's midnight all year: every plan waiting for its day whose day has
+   * come, made active and the plan before it completed (project 015). Reads of
+   * the active plan do the same, so this is what makes it true for somebody who
+   * does not open the app that morning — the reminders and the progress read it.
    */
   @Get('activate-plans')
   async activatePlans(): Promise<PlanActivationDto> {

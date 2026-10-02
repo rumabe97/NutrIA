@@ -626,3 +626,29 @@ describe('PlanController — reading a plan activates one whose day has come (pr
     expect(activateDue).not.toHaveBeenCalledWith('usr-ny', expect.anything());
   });
 });
+
+describe('PlanController.cutComposition — what a plan cut short keeps (project 015)', () => {
+  const meal = (id: string, date: string) => ({ id, date }) as unknown as Awaited<ReturnType<typeof PlanController.composition>>[number];
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('keeps the active plan’s meals before the start, with its id', async () => {
+    findActive.mockResolvedValue({ id: 'plan-a', endDate: '2026-10-04', redo: false, replacedRedos: 0, status: 'active', version: 1 });
+    vi.spyOn(PlanController, 'composition').mockResolvedValue([meal('m1', '2026-10-02'), meal('m2', '2026-10-03'), meal('m3', '2026-10-04')]);
+
+    const kept = await PlanController.cutComposition('usr-1', '2026-10-04');
+
+    expect(kept?.planId).toBe('plan-a');
+    expect(kept?.meals.map(entry => entry.id)).toEqual(['m1', 'm2']);
+  });
+
+  it('is null when nothing is cut: no plan, or one that ends before the start', async () => {
+    findActive.mockResolvedValue(undefined);
+    await expect(PlanController.cutComposition('usr-1', '2026-10-05')).resolves.toBeNull();
+
+    findActive.mockResolvedValue({ id: 'plan-a', endDate: '2026-10-04', redo: false, replacedRedos: 0, status: 'active', version: 1 });
+    await expect(PlanController.cutComposition('usr-1', '2026-10-05')).resolves.toBeNull();
+  });
+});
