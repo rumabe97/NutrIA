@@ -1,8 +1,32 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { refusesProfessionalSave } from './PlanRepository';
+import { PlanRepository, refusesProfessionalSave, saveShape } from './PlanRepository';
 
-vi.mock('database', () => ({ database: () => ({}) }));
+/** What each `select … for update` answers, in order, and every write the transaction made. */
+const selects: unknown[][] = [];
+const writes: Record<string, unknown>[] = [];
+
+function chain() {
+  const answer = () => Promise.resolve(selects.shift() ?? []);
+  // Awaited after `for`, or straight after `limit` for a read that holds nothing.
+  const link = {
+    for: answer,
+    from: () => link,
+    limit: () => link,
+    then: (resolve: (rows: unknown[]) => unknown, reject: (error: unknown) => unknown) => answer().then(resolve, reject),
+    where: () => link
+  };
+
+  return link;
+}
+
+const tx = {
+  delete: () => ({ where: () => Promise.resolve(writes.push({ deleted: true })) }),
+  select: () => chain(),
+  update: () => ({ set: (values: Record<string, unknown>) => ({ where: () => Promise.resolve(writes.push(values)) }) })
+};
+
+vi.mock('database', () => ({ database: () => ({ transaction: (fn: (t: typeof tx) => Promise<unknown>) => fn(tx) }) }));
 
 /**
  * The save-time rule for a professional's generation (`0060`): it never
@@ -21,5 +45,169 @@ describe('refusesProfessionalSave', () => {
 
   it('never refuses the client’s own generation', () => {
     expect(refusesProfessionalSave({ byProfessional: false, review: false, running: true })).toBe(false);
+  });
+});
+
+/*
+ * How a generated plan is saved (project 015). The SQL around it — the rows
+ * read and held in the plan's transaction, the days deleted — is covered end to
+ * end; here, every branch of the decision.
+ */
+describe('saveShape — a plan may wait for its day', () => {
+  const TODAY = '2026-10-02';
+  const A = { endDate: '2026-10-04' };
+  const base = { active: A, counted: undefined, review: false, today: TODAY, waiting: undefined };
+
+  it('starts today as it always did: active, the plan under way completed, a redo while it still runs', () => {
+    expect(saveShape({ ...base, start: TODAY })).toEqual({
+      completesActive: true,
+      cutsActiveTo: null,
+      opens: false,
+      redo: true,
+      replacedRedos: 0,
+      replacesWaiting: false,
+      status: 'active'
+    });
+    expect(saveShape({ ...base, active: { endDate: '2026-10-01' }, start: TODAY })).toMatchObject({ redo: false, status: 'active' });
+  });
+
+  it('waits as the next fortnight, free, when it starts after the plan under way ends — which stays whole', () => {
+    expect(saveShape({ ...base, start: '2026-10-05' })).toEqual({
+      completesActive: false,
+      cutsActiveTo: null,
+      opens: false,
+      redo: false,
+      replacedRedos: 0,
+      replacesWaiting: false,
+      status: 'scheduled'
+    });
+  });
+
+  it('cuts the plan under way to the day before a start inside it, and counts a redo', () => {
+    expect(saveShape({ ...base, start: '2026-10-04' })).toMatchObject({
+      completesActive: false,
+      cutsActiveTo: '2026-10-03',
+      opens: false,
+      redo: true,
+      status: 'scheduled'
+    });
+    expect(saveShape({ ...base, start: '2026-10-03' })).toMatchObject({ cutsActiveTo: '2026-10-02', redo: true });
+  });
+
+  it('waits with no plan under way as a new fortnight', () => {
+    expect(saveShape({ ...base, active: undefined, start: '2026-10-06' })).toMatchObject({ cutsActiveTo: null, redo: false, status: 'scheduled' });
+  });
+
+  it('replaces a plan already waiting, and that is a redo — the first of the fortnight it opens', () => {
+    const waiting = { generationMetadata: { redo: false } };
+
+    expect(saveShape({ ...base, start: '2026-10-05', waiting })).toMatchObject({
+      opens: true,
+      redo: true,
+      replacedRedos: 0,
+      replacesWaiting: true,
+      status: 'scheduled'
+    });
+    // Started today instead: the waiting plan goes, the plan under way completes.
+    expect(saveShape({ ...base, start: TODAY, waiting })).toMatchObject({ completesActive: true, replacesWaiting: true, status: 'active' });
+  });
+
+  it('carries everything the replaced plan spent, whichever way either faced — a cut stays spent', async () => {
+    // It had itself replaced the opener: one redo already spent.
+    const opener = { generationMetadata: { opens: true, redo: true } };
+    // It had cut the plan under way, after replacing one: two spent.
+    const cutter = { generationMetadata: { redo: true, replacedRedos: 1 } };
+
+    expect(saveShape({ ...base, start: '2026-10-05', waiting: opener })).toMatchObject({ opens: true, replacedRedos: 1 });
+    expect(saveShape({ ...base, start: '2026-10-04', waiting: opener })).toMatchObject({ opens: false, replacedRedos: 1 });
+    expect(saveShape({ ...base, start: '2026-10-04', waiting: cutter })).toMatchObject({ opens: false, replacedRedos: 2 });
+    expect(saveShape({ ...base, start: '2026-10-05', waiting: cutter })).toMatchObject({ opens: true, replacedRedos: 2 });
+    expect(saveShape({ ...base, start: '2026-10-05', waiting: { generationMetadata: { redo: false } } })).toMatchObject({ replacedRedos: 0 });
+  });
+
+  it('replaces a waiting plan for a professional’s plan that goes active, at no charge to the client (owner, 2026-10-02)', () => {
+    const waiting = { generationMetadata: { opens: true, redo: true } };
+
+    expect(saveShape({ ...base, active: { endDate: '2026-10-01' }, byProfessional: true, start: TODAY, waiting })).toEqual({
+      completesActive: true,
+      cutsActiveTo: null,
+      opens: false,
+      redo: false,
+      replacedRedos: 0,
+      replacesWaiting: true,
+      status: 'active'
+    });
+  });
+
+  it('leaves everything standing for a plan that goes to review — the care path is unchanged', () => {
+    expect(saveShape({ ...base, review: true, start: '2026-10-05', waiting: { generationMetadata: null } })).toEqual({
+      completesActive: false,
+      cutsActiveTo: null,
+      opens: false,
+      redo: false,
+      replacedRedos: 0,
+      replacesWaiting: false,
+      status: 'pending_review'
+    });
+  });
+});
+
+describe('PlanRepository.publish — the professional’s plan prevails over a scheduled one (owner, 2026-10-02)', () => {
+  it('deletes the client’s scheduled plan in the publish’s transaction, with its job unlinked, and charges nothing', async () => {
+    writes.length = 0;
+    // pending (held), active, scheduled (held)
+    selects.push([{ id: 'plan-p', version: 4 }], [{ version: 2 }], [{ id: 'plan-s' }]);
+    const record = vi.fn(async () => undefined);
+
+    await expect(PlanRepository.publish('usr-1', record, '2026-10-02')).resolves.toBe('plan-p');
+    expect(writes).toEqual([
+      { planId: null },
+      { deleted: true },
+      expect.objectContaining({ completedAt: '2026-10-02', status: 'completed' }),
+      expect.objectContaining({ status: 'active' })
+    ]);
+    expect(record).toHaveBeenCalledOnce();
+  });
+
+  it('publishes as before when nothing is scheduled', async () => {
+    writes.length = 0;
+    selects.push([{ id: 'plan-p', version: 4 }], [{ version: 2 }], []);
+
+    await expect(
+      PlanRepository.publish(
+        'usr-1',
+        vi.fn(async () => undefined),
+        '2026-10-02'
+      )
+    ).resolves.toBe('plan-p');
+    expect(writes).toHaveLength(2);
+  });
+});
+
+describe('PlanRepository.activateDue — on its day, once', () => {
+  it('completes the plan under way the day before and activates the waiting one', async () => {
+    writes.length = 0;
+    selects.push([{ id: 'plan-2', startDate: '2026-10-05', version: 2 }], [{ version: 1 }]);
+
+    await expect(PlanRepository.activateDue('usr-1', '2026-10-05')).resolves.toBe(true);
+    expect(writes).toHaveLength(2);
+    expect(writes[0]).toMatchObject({ completedAt: '2026-10-04', status: 'completed' });
+    expect(writes[1]).toMatchObject({ status: 'active' });
+  });
+
+  it('deletes, never activates, a waiting plan older than the active one — left by a rolled-back release', async () => {
+    writes.length = 0;
+    selects.push([{ id: 'plan-2', startDate: '2026-10-05', version: 2 }], [{ version: 3 }]);
+
+    await expect(PlanRepository.activateDue('usr-1', '2026-10-05')).resolves.toBe(false);
+    // The job is unlinked, the stale row deleted; the active plan is not completed.
+    expect(writes).toEqual([{ planId: null }, { deleted: true }]);
+  });
+
+  it('changes nothing when nothing is due, so a second run is harmless', async () => {
+    writes.length = 0;
+
+    await expect(PlanRepository.activateDue('usr-1', '2026-10-05')).resolves.toBe(false);
+    expect(writes).toHaveLength(0);
   });
 });

@@ -142,9 +142,12 @@ export class PlanGenerationService {
     const weights = weightsFor(shape);
     const slots = slotsIn(shape);
 
-    // Laid out from today, one day after another, which is what a fortnight is
-    // — and what lets an event's date become a day index before scheduling.
-    const start = new Date();
+    // Laid out from its first day, one day after another, which is what a
+    // fortnight is — and what lets an event's date become a day index before
+    // scheduling. The first day is the one chosen with the job, or the person's
+    // today (project 015); a later one makes the plan wait for it.
+    const dates = await PlanJobController.dates(userId, jobId);
+    const start = new Date(`${dates.start}T00:00:00Z`);
     const loads = await this.loadsFor(userId, targets, profile.targets?.bounds ?? null, start);
 
     await markStep(STEPS.choosing);
@@ -406,6 +409,9 @@ export class PlanGenerationService {
     }
 
     const shopping = buildShoppingList(scheduled.assignment, context.catalogue, context.locale);
+    // A plan that waits for its day may cut the one under way (project 015):
+    // that plan's list is rebuilt from the days it keeps, saved with the cut.
+    const cutShoppingItems = dates.start > dates.today ? await this.cutListFor(userId, dates.start, context) : undefined;
 
     // Past its job's deadline this generation has already been reported as
     // failed; saving now would hand somebody a plan after telling them to retry.
@@ -417,20 +423,53 @@ export class PlanGenerationService {
 
     return PlanJobController.persist(
       userId,
-      this.toDraft(
-        scheduled.assignment,
-        shopping,
-        built,
-        targets,
-        context,
-        jobId,
-        rotation,
-        { advisories: advisorySummary, fallback, quality },
-        start,
-        loads
-      ),
+      {
+        ...this.toDraft(
+          scheduled.assignment,
+          shopping,
+          built,
+          targets,
+          context,
+          jobId,
+          rotation,
+          { advisories: advisorySummary, fallback, quality },
+          start,
+          loads,
+          dates.today
+        ),
+        ...(cutShoppingItems && { cutShoppingItems })
+      },
       byProfessional
     );
+  }
+
+  /**
+   * The list the plan under way keeps when this one cuts it (project 015):
+   * built from the days it keeps, for its id — or none, when nothing is cut.
+   *
+   * Checked as a generation checks its own plan: `buildShoppingList` skips a
+   * food the catalogue does not hold, and this catalogue is today's, which may
+   * be narrower than the one the old plan was built from. A list missing a line
+   * for food the person still cooks is worse than one still listing the days
+   * that were cut, so then the list is left as it stands, and that is logged.
+   */
+  private async cutListFor(userId: string, start: string, context: GenerationContext): Promise<PlanDraft['cutShoppingItems']> {
+    const cut = await PlanController.cutComposition(userId, start);
+
+    if (!cut) {
+      return undefined;
+    }
+
+    const kept = { days: byDay(cut.meals) };
+    const missing = unresolvedSlugs(kept, context.catalogue);
+
+    if (missing.length > 0) {
+      this.logger.warn(`Plan ${cut.planId} cut short; its list is left as it stands: ${missing.length} of its foods are not in today's catalogue`);
+
+      return undefined;
+    }
+
+    return { items: toShoppingItems(buildShoppingList(kept, context.catalogue, context.locale)), planId: cut.planId };
   }
 
   /**
@@ -549,7 +588,8 @@ export class PlanGenerationService {
     rotation: Rotation,
     { advisories, fallback, quality }: { readonly advisories: readonly string[]; readonly fallback: Fallback; readonly quality: PlanQuality },
     start: Date,
-    loads: Loads
+    loads: Loads,
+    today: string
   ): PlanDraft {
     const end = new Date(start);
 
@@ -601,18 +641,35 @@ export class PlanGenerationService {
       // scheduler never placed is not worth a row.
       locale: context.locale,
       newRecipes: built.generated.filter(dish => used.has(dish.slug)).map(dish => toRecipeDraft(dish, context)),
-      shoppingItems: shopping.items.map(item => ({
-        category: item.category,
-        displayQuantity: item.displayQuantity,
-        displayUnit: item.displayUnit,
-        ingredientId: item.ingredientId,
-        name: item.name,
-        totalGrams: item.totalGrams
-      })),
+      shoppingItems: toShoppingItems(shopping),
       startDate: isoDate(start),
-      strategy: { carbsG: targets.carbsG, fatG: targets.fatG, fiberG: targets.fiberG, kcal: targets.kcal, proteinG: targets.proteinG }
+      strategy: { carbsG: targets.carbsG, fatG: targets.fatG, fiberG: targets.fiberG, kcal: targets.kcal, proteinG: targets.proteinG },
+      today
     };
   }
+}
+
+/** A built list as a plan stores it. */
+function toShoppingItems(shopping: ReturnType<typeof buildShoppingList>): PlanDraft['shoppingItems'] {
+  return shopping.items.map(item => ({
+    category: item.category,
+    displayQuantity: item.displayQuantity,
+    displayUnit: item.displayUnit,
+    ingredientId: item.ingredientId,
+    name: item.name,
+    totalGrams: item.totalGrams
+  }));
+}
+
+/** A plan's meals, one entry per day, as the list builder reads them. */
+function byDay<T extends { readonly dayIndex: number }>(meals: readonly T[]): readonly { readonly meals: readonly T[] }[] {
+  const days = new Map<number, T[]>();
+
+  for (const meal of meals) {
+    days.set(meal.dayIndex, [...(days.get(meal.dayIndex) ?? []), meal]);
+  }
+
+  return [...days.values()].map(entries => ({ meals: entries }));
 }
 
 /**

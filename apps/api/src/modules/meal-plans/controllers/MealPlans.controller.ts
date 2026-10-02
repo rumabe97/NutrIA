@@ -3,10 +3,11 @@ import { ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags } fr
 
 import { CurrentUser, Locale, RateLimit, RequiresOnboarding, ZodBody } from '../../../shared/index.js';
 import { HISTORY_PAGE, MealPlansService } from '../services/index.js';
-import { SetMealStatusDto, SwapMealDto } from '../dto/in/index.js';
+import { GeneratePlanDto, SetMealStatusDto, SwapMealDto } from '../dto/in/index.js';
 
 import type { AllowancesDto, JobDto, MealDetailDto, MealStatusDto, PlanDayDto, PlanDto, PlanSummaryDto } from '../dto/out/index.js';
 import type { SessionUser } from '../../../shared/index.js';
+import type { ShoppingListView } from 'core/controllers/Plan';
 
 /**
  * Every route scopes to `@CurrentUser().id`. None accepts a user id, and the
@@ -26,14 +27,20 @@ import type { SessionUser } from '../../../shared/index.js';
 export class MealPlansController {
   constructor(private readonly plans: MealPlansService) {}
 
-  @ApiCreatedResponse({ description: 'A job to poll. 409 when one is already running.' })
-  @ApiOperation({ summary: 'Start generating a plan. Returns a job to poll; 409 if one is already running.' })
+  @ApiCreatedResponse({
+    description:
+      'A job to poll. 409 when one is already running; 422 INVALID_INPUT for a start outside today..today+7; 429 QUOTA_EXCEEDED when the start needs a redo and none is left.'
+  })
+  @ApiOperation({
+    summary:
+      'Start generating a plan, from today or a chosen day up to a week ahead (a later day waits as `scheduled`). Returns a job to poll; 409 if one is already running.'
+  })
   @Post('generate')
   // Far tighter than the global limit: this is the one endpoint that costs money
   // and minutes. Three attempts an hour is generous for a fortnightly plan.
   @RateLimit({ limit: 3, ttlSeconds: 3600 })
-  async generate(@CurrentUser() user: SessionUser): Promise<JobDto> {
-    return this.plans.generate(user.id);
+  async generate(@CurrentUser() user: SessionUser, @ZodBody(GeneratePlanDto) body: GeneratePlanDto): Promise<JobDto> {
+    return this.plans.generate(user.id, body.startDate);
   }
 
   @ApiOkResponse({ description: 'What is left of the fortnight’s redo and swaps.' })
@@ -44,7 +51,10 @@ export class MealPlansController {
   }
 
   @ApiCreatedResponse({ description: 'The meal that replaced it. 429 QUOTA_EXCEEDED when the allowance is spent.' })
-  @ApiOperation({ summary: "Replace one meal of the active plan with a dish that fits — from the library, or new. Counts against the plan's swaps." })
+  @ApiOperation({
+    summary:
+      "Replace one meal of the active plan, or of the plan waiting for its day, with a dish that fits — from the library, or new. Counts against that plan's swaps."
+  })
   @Post('meals/:id/swap')
   // A swap may reach the model; this keeps a stuck retry loop from spending the
   // fortnight's allowance in a minute, and it sits well above the allowance itself.
@@ -83,6 +93,21 @@ export class MealPlansController {
   @Get('active')
   async active(@CurrentUser() user: SessionUser, @Locale() locale: string | null): Promise<PlanDto | null> {
     return this.plans.activePlan(user.id, locale);
+  }
+
+  @ApiOkResponse({ description: 'The plan waiting for its day. 404 when there is none.' })
+  @ApiOperation({ summary: 'The plan waiting for its first day (project 015), as the active plan is read. 404 when there is none.' })
+  // Before `:id`, like `active`.
+  @Get('scheduled')
+  async scheduled(@CurrentUser() user: SessionUser, @Locale() locale: string | null): Promise<PlanDto> {
+    return this.plans.scheduledPlan(user.id, locale);
+  }
+
+  @ApiOkResponse({ description: 'The shopping list of the plan waiting for its day, in the reader’s language. 404 when there is none.' })
+  @ApiOperation({ summary: 'The shopping list of the plan waiting for its first day, to shop before it starts. 404 when there is none.' })
+  @Get('scheduled/shopping-list')
+  async scheduledShoppingList(@CurrentUser() user: SessionUser, @Locale() locale: string | null): Promise<ShoppingListView> {
+    return this.plans.scheduledShoppingList(user.id, locale);
   }
 
   @ApiOkResponse({ description: 'Plan history, newest first.' })

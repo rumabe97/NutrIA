@@ -149,7 +149,9 @@ function countDown(used: number, limit: number): CountedStanding {
  * arithmetic, no extra column. A pending plan, when there is one, heads the
  * chain: it is the fortnight under way for this count.
  */
-export function redosInFortnight(chainFromActive: readonly { readonly redo: boolean; readonly replacedRedos?: number }[]): number {
+export function redosInFortnight(
+  chainFromActive: readonly { readonly opens?: boolean; readonly redo: boolean; readonly replacedRedos?: number }[]
+): number {
   let count = 0;
 
   for (const plan of chainFromActive) {
@@ -157,12 +159,57 @@ export function redosInFortnight(chainFromActive: readonly { readonly redo: bool
       break;
     }
 
-    // A plan that replaced plans still under review (`0060`) carries the redos
-    // they were: deleted, they are not in the chain, and they were spent.
+    // A plan that replaced plans still under review (`0060`), or a plan
+    // waiting for its day (project 015), carries the redos they were: deleted,
+    // they are not in the chain, and they were spent.
     count += 1 + (plan.replacedRedos ?? 0);
+
+    // A redo that replaced the plan waiting to open the next fortnight is that
+    // fortnight's first plan (project 015): the one it replaced, which marked
+    // the boundary, is gone, so the stamp marks it instead.
+    if (plan.opens) {
+      break;
+    }
   }
 
   return count;
+}
+
+/** How far ahead a plan may be asked to start (project 015): today, or one of the next seven days. */
+export const MAX_START_DAYS_AHEAD = 7;
+
+/**
+ * What starting a plan on `start` means (project 015), with `active` the plan
+ * being lived — or the one under review that counts as it — and `today` the
+ * person's calendar day:
+ *
+ * - no plan, or a start after it ends: the next fortnight, free;
+ * - a start on or before its end: a redo, and `cuts` is the day it now ends —
+ *   the day before the start. A start of today is the redo it always was:
+ *   the plan is completed rather than cut, which the repository decides;
+ * - a plan already waiting for its day (`waiting`) is replaced, and that is a
+ *   redo whatever the start.
+ *
+ * `scheduled` says the new plan waits: its first day is after today.
+ */
+export type StartMeaning = { readonly cuts: string | null; readonly kind: 'new_fortnight' | 'redo'; readonly scheduled: boolean };
+
+export function startMeaning(active: { readonly endDate: string } | undefined, start: string, today: string, waiting = false): StartMeaning {
+  const scheduled = start > today;
+
+  if (!active || start > active.endDate) {
+    return { cuts: null, kind: waiting ? 'redo' : 'new_fortnight', scheduled };
+  }
+
+  return { cuts: dayBefore(start), kind: 'redo', scheduled };
+}
+
+function dayBefore(isoDate: string): string {
+  const date = new Date(`${isoDate}T00:00:00Z`);
+
+  date.setUTCDate(date.getUTCDate() - 1);
+
+  return date.toISOString().slice(0, 10);
 }
 
 function dayAfter(isoDate: string): string {
