@@ -50,10 +50,10 @@ export const FLAGS: Readonly<Record<FlagName, Flag>> = {
    * larder when it is on, and nothing when it is off.
    *
    * Falls back to off. Off, every plan is the plan the scheduler always made,
-   * to the bit — a test pins it. Owner-only, and in phase 3 nothing reads it
-   * yet: the meals cannot store what is beside them until phase 4 adds the
-   * table, so a plan made with it on would carry energy no screen shows.
-   * Phase 4 wires it and turns it on after the deploy.
+   * to the bit — a test pins it. Owner-only: generation, a swap and an event
+   * rebuild read it (`SettingsController.accompaniments`), and a screen reads
+   * what the meal carries, never the flag. Turned on after the deploy that
+   * stores the sides (`meal_accompaniments`).
    */
   accompaniments: { audience: 'owner', fallback: false, key: 'accompaniments' },
 

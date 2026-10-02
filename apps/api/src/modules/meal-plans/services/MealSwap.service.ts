@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-import { normaliseForMatching } from 'core/domain/Safety';
+import { dishSafety, normaliseForMatching } from 'core/domain/Safety';
+import { accompanimentRows, larderFor } from 'core/domain/Accompaniment';
 import { buildShoppingList } from 'core/domain/ShoppingList';
 import { axisFilter, pickReplacement } from 'core/domain/Scheduler';
 import { minimumDailyKcal } from 'core/domain/Nutrition';
@@ -9,6 +10,7 @@ import { ConflictError, NotFoundError, QuotaExceededError } from 'core/entities/
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileConsentController, ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
+import { SettingsController } from 'core/controllers/Settings';
 
 import { PoolBuilder } from '../../ai/services/PoolBuilder.service.js';
 import { likedFoodNames, promptPreferences, toRecipeDraft } from './GenerationShared.js';
@@ -96,11 +98,12 @@ export class MealSwapService {
       throw new QuotaExceededError('meal_swap');
     }
 
-    const [context, verdicts, profile, meals] = await Promise.all([
+    const [context, verdicts, profile, meals, accompanied] = await Promise.all([
       RecipeController.generationContext(userId),
       RecipeController.verdicts(userId),
       ProfileController.getFullProfile(userId),
-      PlanController.composition(userId, anchor.plan.id, review !== undefined)
+      PlanController.composition(userId, anchor.plan.id, review !== undefined),
+      SettingsController.accompaniments()
     ]);
     const current = meals.find(meal => meal.id === mealId);
 
@@ -147,7 +150,28 @@ export class MealSwapService {
       .filter(meal => meal.dayIndex === current.dayIndex && meal.id !== mealId)
       .reduce((sum, meal) => sum + meal.macros.kcal, 0);
     const plateMinimumKcal = minimumDailyKcal(profile.profile?.sex ?? 'prefer_not_to_say') - restOfDayKcal;
-    const pick = { budget, catalogue: context.catalogue, dayIndex: current.dayIndex, filter, leaning, placed, plateMinimumKcal, slot: current.slot };
+    // What may go beside the new plate (project 016), behind its flag: this
+    // person's larder from the same context the dish is chosen by, in the month
+    // of the day being swapped. The budget stays the whole meal.
+    const sides = accompanied
+      ? {
+          accompaniments: {
+            larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }),
+            month: Number(anchor.day.date.slice(5, 7))
+          }
+        }
+      : {};
+    const pick = {
+      ...sides,
+      budget,
+      catalogue: context.catalogue,
+      dayIndex: current.dayIndex,
+      filter,
+      leaning,
+      placed,
+      plateMinimumKcal,
+      slot: current.slot
+    };
 
     const library = (await RecipeController.reusablePool([current.slot], context)).filter(dish => !inPlan.has(dish.slug) && !disliked.has(dish.slug));
     let replacement = pickReplacement({ ...pick, pool: library });
@@ -196,6 +220,17 @@ export class MealSwapService {
     }
 
     const swapped = replacement;
+
+    // The gate over what is about to be written, plate and sides together, as
+    // generation runs it over the assembled plan: the pool and the larder were
+    // each filtered on the way in, and the meal is what the person eats.
+    const safety = dishSafety(swapped.ingredients, context.catalogue, context.safety);
+
+    if (safety.kind !== 'safe') {
+      this.logger.error(`Swap of meal ${mealId} (${current.slot}) rejected by the allergy gate: ${safety.kind}`);
+      throw new ConflictError('No dish fits this meal right now');
+    }
+
     const shopping = buildShoppingList(
       { days: groupByDay(meals.map(meal => (meal.id === mealId ? { ...meal, ingredients: swapped.ingredients } : meal))) },
       context.catalogue,
@@ -205,7 +240,15 @@ export class MealSwapService {
     await PlanController.swapMeal(
       userId,
       mealId,
-      { locale: context.locale, macros: swapped.macros, newRecipe, recipeSlug: swapped.dish.slug, servings: swapped.servings, source },
+      {
+        accompaniments: accompanimentRows(swapped.accompaniments, context.catalogue),
+        locale: context.locale,
+        macros: swapped.macros,
+        newRecipe,
+        recipeSlug: swapped.dish.slug,
+        servings: swapped.servings,
+        source
+      },
       shopping.items.map(item => ({
         category: item.category,
         displayQuantity: item.displayQuantity,
