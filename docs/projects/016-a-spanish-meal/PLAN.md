@@ -64,8 +64,14 @@ The design is `0008` ([architect report](../../reference/architecture/0008-una-c
 ### Phase 2 — Accompaniments in the domain, behind a flag (A)
 
 - [ ] pending
-- **Dispatch**: `backend-high` (opus · high), `plan-evaluator`, `invariant-reviewer` (opus · high). `/execute-project 016 phase 2`.
+- **Dispatch**: `backend-high` (opus · high), `frontend` (sonnet · medium, for the note refinement only), `plan-evaluator`, `invariant-reviewer` (opus · high). `/execute-project 016 phase 2`. Starts after project 015 phase 2 merges, because both touch `/plan/generando` and the allowances view.
 - **Goal**: PRD criterion 4, domain half, with the flag off in production.
+
+- **Added 2026-10-02 (owner): a smarter large-meals note (C refinement).** The note told a person who already eats four times (two light snacks) to "add a meal". It should name the change that would work.
+  - In core, add `mealSizeSuggestion(shape, targets)`. It tries, in order, adding a normal breakfast, turning a light snack normal, and adding an afternoon snack. It returns the first change that brings the largest main meal to 850 kcal or below, with the resulting kcal, or null when none does.
+  - The note then says that change ("Si añades un desayuno, tu comida bajaría a unas 745 kcal").
+  - With no suggestion, it offers only "Seguir así".
+  - Owners: `backend-high` (core and view) and `frontend` (the copy). Unit tests cover the owner's four-meal shape.
 - **Steps**:
   1. Add `core/domain/Accompaniment`, with the list, the discrete portions and the per-person filter (safety, exclusions, season, meal, kosher on the whole meal).
   2. Scheduler: sets in `balancedDay`, the soft serving cost, and `ScheduledMeal.accompaniments`, with macros and ingredients covering the whole meal.
