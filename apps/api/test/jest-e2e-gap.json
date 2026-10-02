@@ -1,0 +1,12 @@
+{
+  "extensionsToTreatAsEsm": [".ts"],
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "moduleNameMapper": { "^(\\.{1,2}/.*)\\.js$": "$1" },
+  "globalTeardown": "<rootDir>/global-teardown.ts",
+  "rootDir": ".",
+  "setupFilesAfterEnv": ["<rootDir>/setup-e2e.ts", "<rootDir>/setup-clock-gap.ts"],
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "testTimeout": 120000,
+  "transform": { "^.+\\.(t|j)s$": ["ts-jest", { "useESM": true, "tsconfig": "<rootDir>/../tsconfig.json" }] }
+}
