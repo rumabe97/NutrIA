@@ -33,6 +33,7 @@ Agent-focused guidance for this monorepo. The closest `AGENTS.md` to the file yo
 | `pnpm --filter database migrate`  | Apply pending migrations                                                                            |
 | `pnpm --filter database seed`     | Seed the allergen catalogue and ingredients — **reference data, not sample data**                   |
 | `pnpm --filter api test:e2e`      | End-to-end suite, incl. user isolation. **Needs a real database** — see `apps/api/test/README.md`    |
+| `pnpm db:local start\|stop\|status\|reset` | The local Postgres 18 every test, evaluator run and dev-database script uses — see [§ Local database](#local-database) |
 
 Skills under `.claude/skills/` wrap the sequences that were otherwise retyped every time, and one that is not here decides whether a screen is finished:
 
@@ -46,6 +47,32 @@ Skills under `.claude/skills/` wrap the sequences that were otherwise retyped ev
 > **After editing `packages/core` or `packages/database`, run `pnpm --filter core build`**
 > (or leave `pnpm dev` running, which watches). They compile to CommonJS `dist/` for
 > `apps/api`; without a rebuild the API keeps running the previous build.
+
+## Local database
+
+Local tests, the plan evaluator, the end-to-end suites, the probe and every dev-database
+script run against a **local Postgres**, never Neon: Neon's allowance is shared with
+production, and the dev project ran out on 2026-10-02. CI is unchanged; it has its own
+Postgres service.
+
+```bash
+pnpm db:local start      # first time: initialises ~/.local/share/nutria-pg/data; then starts it, detached
+pnpm db:local reset      # drop, migrate, seed, load docs/local/nutria-seed-500.sql, re-run 0056
+pnpm db:local status     # running? migrations, ingredients and recipes counted
+NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs --flag accompaniments
+```
+
+`NUTRIA_LOCAL_PG=1` makes the database package (client, `migrate`, `seed`), the API and
+the probe's `guard.mjs` connect to `postgres://postgres:postgres@127.0.0.1:54329/nutria_local`
+whatever a `.env` or the shell says. The URL is hard-coded: the switch cannot point anywhere
+but this machine, and the API refuses to boot with it on a deployment. Only `1` is on; any
+other value is refused, never read as off.
+
+`reset` is the answer to a database a run left in a strange state, and the step after a
+merge that brought a migration (or `NUTRIA_LOCAL_PG=1 pnpm --filter database migrate` to
+keep the data). The data directory lives outside the repository and no subcommand deletes
+it. The seed library file is gitignored, so `reset` from a worktree reads it from the main
+checkout.
 
 ## Dependencies
 

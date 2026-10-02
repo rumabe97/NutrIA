@@ -72,19 +72,21 @@ like somebody pressed a button rather than like a run that passed.
 **Never point these at a database holding real user data.** Every suite registers accounts
 and deletes them again in `afterAll`.
 
-### On this machine, against a local Postgres
+### On this machine, against the local Postgres
 
-The command the tests agent runs, with the environment emptied of everything that reaches
-out — mail, Sentry, web push, the OAuth providers — and the database a throwaway Postgres 17
-listening on `127.0.0.1:54329`, migrated and seeded as above. Jest reads no `.env`, so what
-the command does not set is not set. Never a URL from a `.env`:
-those are real Neon databases.
+The command the tests agent runs: `NUTRIA_LOCAL_PG=1` against the Postgres 18 that
+`pnpm db:local` runs on `127.0.0.1:54329` (root `AGENTS.md` § Local database), with the
+environment emptied of everything that reaches out — mail, Sentry, web push, the OAuth
+providers. Jest reads no `.env`, so what the command does not set is not set, and under the
+switch no database URL is needed: the API and the database package connect to the
+hard-coded local one whatever a `.env` or the shell says. **Never Neon**: its allowance is
+shared with production.
 
 ```bash
-node .claude/skills/local-probe/scripts/guard.mjs          # refuses the production database
+pnpm db:local status                                       # running, migrated, seeded? else: pnpm db:local reset
+NUTRIA_LOCAL_PG=1 node .claude/skills/local-probe/scripts/guard.mjs
 cd apps/api
-DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/nutria_e2e \
-DIRECT_DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54329/nutria_e2e \
+NUTRIA_LOCAL_PG=1 \
 BETTER_AUTH_SECRET="$(openssl rand -base64 48)" APP_URL=http://localhost:3000 BETTER_AUTH_URL=http://localhost:3001 \
 NODE_ENV=test AI_PROVIDER=stub SENTRY_DSN= VAPID_PUBLIC_KEY= VAPID_PRIVATE_KEY= VAPID_SUBJECT= \
 SMTP_HOST= SMTP_PORT= SMTP_USER= SMTP_PASS= EMAIL_FROM= OWNER_EMAIL= \
@@ -97,6 +99,11 @@ Set `AI_PROVIDER=stub` and leave `SMTP_HOST` empty for the run: the suites never
 provider (below) and must never send a mail, and the environment contract refuses a half
 mail configuration anyway. `NODE_ENV=test` keeps the development-only rules.
 
+The local database is also the development one, library and all, so a run must leave it as
+it found it: every suite deletes the accounts it makes (below). A run that left a mess is
+one `pnpm db:local reset` away from clean — drop, migrate, seed, the seed library, and 0056
+re-run over it, in about ten seconds. `plan-lifecycle` took 29 s here on 2026-10-02.
+
 ### In CI
 
 `.github/workflows/ci.yml` runs these suites on every pull request against a `postgres:17`
@@ -105,32 +112,6 @@ reset. It migrates, seeds and runs, exactly as below; the seed takes five second
 container and the suites about twenty minutes on a shared runner. That is also the answer
 to "what if I break the harness": the failure arrives on the pull request that caused it,
 before it can reach `main`.
-
-### Without Docker: the Nutria-E2E project
-
-This machine has neither Docker nor a local Postgres. Since 2026-09-24 local development
-and these suites have their own Neon project, **Nutria-E2E** (endpoint
-`ep-billowing-water-…`, database `neondb`), separate from production's project so they no
-longer spend its free allowance. `apps/api/.env`'s `DATABASE_URL` and
-`DIRECT_DATABASE_URL` point at it, and that is the one exception to "never a URL from a
-`.env`" above: run the command with those two values in place of the `127.0.0.1:54329`
-ones, after `guard.mjs` has confirmed they are not production's.
-
-It is also the development database, library and all, so a run there must leave it as it
-found it. Every suite deletes the accounts it makes (below), and the global teardown
-fails the run if any `.invalid` account is left. That includes a `@probe.invalid` one the
-local probe forgot, so clean those first. Do not reseed it for a run. The old
-`nutria_e2e` database on the dev branch of production's project went with the split and no
-longer exists; if a throwaway is ever wanted again, `create database nutria_e2e;` inside
-Nutria-E2E and replace `/neondb` with `/nutria_e2e` in both URLs. Migrations and the seed
-run against it like any other database (the seed takes about ten minutes from here).
-
-A local run against this remote database has two clocks in play, the machine's and
-Neon's, so keep the machine's synced (`timedatectl set-ntp true`). Otherwise a suite that
-judges the database's timestamps by the API's own clock can read one as the other. Expect
-it to be slow too: the full run takes about an hour from here, and a `beforeAll` that
-creates several accounts can pass its 120 s hook timeout on a slow day. CI's container is
-the verdict.
 
 ### Every suite deletes what it makes
 
