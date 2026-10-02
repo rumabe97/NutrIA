@@ -5,7 +5,7 @@ import { formatNumber, interpolate } from './format';
 import type { Dictionary } from '../i18n/dictionaries/es-ES';
 import type { Locale } from '../i18n/config';
 import type { MealShape } from 'core/entities/Profile';
-import type { MealSlot } from 'core/entities/Plan';
+import type { MealSizeView } from 'core/controllers/Profile';
 
 /** Which of the two places a person has answered the note: generating, or the profile. */
 export type MealSizeAnswer = 'dismissed' | 'kept';
@@ -27,16 +27,8 @@ export function mealSizeKey(largestMainKcal: number, shape: MealShape): string {
   return `${largestMainKcal}:${MEAL_SLOTS.map(slot => shape[slot]).join(',')}`;
 }
 
-/**
- * The one change that would bring the biggest main meal down, and what it would
- * come down to. Null when no change to the shape would.
- * TODO: swap for `NonNullable<MealSizeView['suggestion']>` from `core/controllers/Profile` once backend's contract is merged.
- */
-export interface MealSizeSuggestion {
-  change: 'add_afternoon_snack' | 'add_breakfast' | 'snack_to_normal';
-  largestMainKcal: number;
-  slot?: MealSlot;
-}
+/** The one change that would bring the biggest main meal down, and what it would come down to. */
+export type MealSizeSuggestion = NonNullable<MealSizeView['suggestion']>;
 
 function roundedKcal(kcal: number, locale: Locale): string {
   return formatNumber(Math.round(kcal / 10) * 10, locale);
