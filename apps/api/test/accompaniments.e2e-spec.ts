@@ -196,23 +196,32 @@ describe('accompaniments, end to end', () => {
     return response.body as SidedPlan;
   };
 
-  /**
-   * The suite reads every meal of a plan several times, and the default limit
-   * (120 a minute per account and route) can run out on a slow runner: a 429 is
-   * waited out for the window and tried again, twice at most.
-   */
   const detailOf = async (who: Account, mealId: string): Promise<Sided<MealDetailView>> => {
-    const send = () => request(server()).get(`/${PREFIX}/meal-plans/meals/${mealId}`).set('Cookie', who.cookie);
-    let response: Response = await send();
-
-    for (let retry = 0; retry < 2 && response.status === 429; retry += 1) {
-      await new Promise(resolve => setTimeout(resolve, 61_000));
-      response = await send();
-    }
-
-    expect(response.status).toBe(200);
+    const response: Response = await request(server()).get(`/${PREFIX}/meal-plans/meals/${mealId}`).set('Cookie', who.cookie).expect(200);
 
     return response.body as Sided<MealDetailView>;
+  };
+
+  /**
+   * The names a dish's own ingredients go on the list under, read from the meal
+   * detail once per recipe: they are the recipe's, whatever the meal or its
+   * servings, so a plan's meals sharing a dish share one read. Keeps the suite far
+   * under the 120-a-minute limit on the detail route.
+   */
+  const dishNamesByRecipe = new Map<string, readonly string[]>();
+
+  const dishNamesOf = async (who: Account, meal: SidedMeal): Promise<readonly string[]> => {
+    const known = dishNamesByRecipe.get(meal.recipeId);
+
+    if (known) {
+      return known;
+    }
+
+    const names = (await detailOf(who, meal.id)).ingredients.map(item => item.dry?.name ?? item.name);
+
+    dishNamesByRecipe.set(meal.recipeId, names);
+
+    return names;
   };
 
   const listOf = async (who: Account): Promise<readonly ListItem[]> => {
@@ -331,10 +340,8 @@ describe('accompaniments, end to end', () => {
     const dishNames = new Set<string>();
 
     for (const meal of mealsOf(plan)) {
-      const detail = await detailOf(who, meal.id);
-
-      for (const item of detail.ingredients) {
-        dishNames.add(item.dry?.name ?? item.name);
+      for (const name of await dishNamesOf(who, meal)) {
+        dishNames.add(name);
       }
 
       for (const side of meal.accompaniments) {
