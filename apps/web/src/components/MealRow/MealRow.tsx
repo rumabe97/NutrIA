@@ -10,12 +10,17 @@ import { useDictionary, useLocale } from 'i18n/LocaleProvider';
 
 import { useOffline } from 'components/OfflineProvider';
 
+import { accompanimentPhrase } from 'lib/accompaniments';
 import { api } from 'lib/api';
 import { formatNumber, formatQuantity } from 'lib/format';
 import { slotLabel } from 'lib/generation';
 
+import type { MealAccompaniment } from 'lib/accompaniments';
+
 interface MealRowProps {
   id: string;
+  /** What goes beside the plate, read after the dish's name (`0079`). */
+  accompaniments?: readonly MealAccompaniment[];
   /** Already scaled to this meal's portion by the API. */
   ingredients?: readonly { grams: number; name: string }[];
   kcal: number;
@@ -48,6 +53,7 @@ interface MealRowProps {
  */
 export function MealRow({
   id,
+  accompaniments = [],
   ingredients = [],
   kcal,
   name,
@@ -72,6 +78,12 @@ export function MealRow({
       <span className={styles.slot}>{slotLabel(slot, dictionary)}</span>
       <span className={styles.name}>
         {name}
+        {accompaniments.map(side => (
+          <Fragment key={side.key}>
+            {' '}
+            <span className={styles.side}>+ {accompanimentPhrase(side, dictionary, locale)}</span>
+          </Fragment>
+        ))}
         {status === 'completed' ? <span className={styles.badge}>{dictionary.meal.badgeDone}</span> : null}
         {status === 'skipped' ? <span className={styles.badge}>{dictionary.meal.badgeSkipped}</span> : null}
       </span>

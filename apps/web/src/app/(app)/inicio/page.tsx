@@ -177,6 +177,7 @@ export default async function DashboardPage() {
                     <div className={`${styles.meals} motion-list`}>
                       {day.meals.map(meal => (
                         <MealRow
+                          accompaniments={meal.accompaniments}
                           id={meal.id}
                           ingredients={meal.ingredients}
                           kcal={meal.kcal}

@@ -10,6 +10,7 @@ import { Text } from 'ui/components/Text';
 
 import { Card } from 'components/Card';
 import { MacroSummary } from 'components/MacroSummary';
+import { MealAccompaniments } from 'components/MealAccompaniments';
 import { MealPicture } from 'components/MealPicture';
 import { MealStatus } from 'components/MealStatus';
 import { MealSwap } from 'components/MealSwap';
@@ -217,6 +218,10 @@ export default async function MealDetailPage({ params }: { params: Promise<{ id:
           ))}
         </ul>
       </section>
+
+      {/* After the dish's own ingredients and before its method: what is eaten
+          beside the plate, with the energy it adds to the meal. */}
+      <MealAccompaniments dictionary={dictionary} locale={locale} mealKcal={meal.kcal} sides={meal.accompaniments} />
 
       {meal.steps.length > 0 ? (
         <section className={styles.section}>

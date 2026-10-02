@@ -1,0 +1,84 @@
+.section {
+  margin-top: var(--gap-region);
+}
+
+.title {
+  font-size: var(--font-size-06);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--tracking-title);
+  margin: 0 0 var(--gap-heading);
+}
+
+.share {
+  background-color: var(--color-brand-02);
+  border-radius: var(--radius-control);
+  margin-bottom: var(--gap-block);
+  padding: var(--space-03) var(--space-04);
+}
+
+.sides {
+  display: grid;
+  gap: var(--gap-block);
+}
+
+.head {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-01) var(--space-04);
+  justify-content: space-between;
+}
+
+.name {
+  font-size: var(--font-size-04);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.kcal {
+  color: var(--foreground-02);
+  font-size: var(--font-size-02);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ingredients {
+  display: grid;
+  gap: 0;
+  grid-template-columns: minmax(0, 1fr);
+  list-style: none;
+  margin: var(--space-02) 0 0;
+  padding: 0;
+}
+
+.ingredient {
+  border-bottom: 1px solid var(--border-01);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-04);
+  justify-content: space-between;
+  padding-block: var(--space-03);
+}
+
+.ingredient:last-child {
+  border-bottom: none;
+}
+
+.ingredientName {
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The cooked weight stays in one piece so a narrow line breaks before it. */
+.cooked {
+  color: var(--foreground-02);
+  white-space: nowrap;
+}
+
+.quantity {
+  color: var(--foreground-02);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
