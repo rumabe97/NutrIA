@@ -475,3 +475,14 @@ reading his own review screen: 4,099 kcal a day, for losing weight.
   and cross-fortnight variety are preferences, and a preference never costs someone
   their plan. Only structure and safety do.
 
+
+## 2026-10-02 — Task (queued): re-source the 14 BEDCA catalogue rows to public-domain USDA data
+
+- **Why:** BEDCA's terms allow electronic use only when it is "personal, educacional o no comercial", unless AESAN gives express authorisation. NutrIA is commercial. The owner decided not to ask for that authorisation and to use public-domain data instead. The `architect` raised this during project 016 phase 2.
+- **Scope:** the 14 seed rows with `source: 'bedca'`, all in `packages/database/src/seed/ingredients/`: jamón serrano, jamón cocido, bacalao desalado, dorada, lubina, sardina, pulpo cocido, queso de Burgos, kéfir, vinagre de Jerez, tomate frito, picos de pan, filete de merluza congelado, aceitunas verdes, salsa alioli.
+- **The work:**
+  - Replace each row's values with the closest USDA FoodData Central food (public domain), and record its FDC id.
+  - Ship a reviewed data migration for the catalogue rows already in production. Stored meals keep their snapshot macros.
+  - Drop "BEDCA" from the web nutrition note (es-ES and en-GB `note`) and from the seed comments.
+  - Re-run the evaluator.
+- **Status:** queued after project 015 phase 2. Owner decision of 2026-10-02.
