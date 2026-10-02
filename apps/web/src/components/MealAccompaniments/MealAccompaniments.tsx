@@ -54,7 +54,7 @@ export function MealAccompaniments({ dictionary, locale, mealKcal, sides }: Meal
             <div className={styles.head}>
               <h3 className={styles.name}>{accompanimentTitle(side, dictionary, locale)}</h3>
               <span className={styles.kcal}>
-                {interpolate(dictionary.meal.accompanimentAdds, { kcal: formatNumber(Math.round(side.kcal), locale) })} {dictionary.units.kcal}
+                {interpolate(dictionary.meal.accompanimentAdds, { kcal: formatNumber(Math.round(side.kcal), locale) })}
               </span>
             </div>
             <ul className={styles.ingredients} role="list">
