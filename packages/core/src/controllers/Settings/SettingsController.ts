@@ -19,6 +19,14 @@ export type SettingsView = { readonly flags: Partial<FlagSet> };
 
 export const SettingsController = {
   /**
+   * Whether a big lunch or dinner gets bread, a salad or fruit beside it
+   * (project 016). Asked by generation, a swap and an event rebuild, each once.
+   */
+  async accompaniments(): Promise<boolean> {
+    return SettingsRepository.isEnabled(FLAGS.accompaniments.key, FLAGS.accompaniments.fallback);
+  },
+
+  /**
    * Whether confirming an address opens the account by itself (`0031`).
    *
    * Kept as its own named accessor rather than folded into `flags()` because

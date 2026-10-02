@@ -5,7 +5,7 @@ import { bestEffortExclusions, dishSafety, mentionsUnresolvedAllergy } from 'cor
 
 import type { CuisineFamily, FoodGroup } from 'core/domain/MealFit';
 import type { PreferenceExclusions } from 'core/domain/Preference';
-import type { Catalogue, Macros, MealSlot } from 'core/entities/Plan';
+import type { Catalogue, Macros, MealAccompanimentDraft, MealSlot, ScheduledAccompaniment } from 'core/entities/Plan';
 import type { SafetyProfile } from 'core/entities/Safety';
 
 /**
@@ -339,11 +339,11 @@ export const NO_ACCOMPANIMENT: AccompanimentSet = { items: [], macros: { carbsG:
 /**
  * Whoever is eating: what the gate, their way of eating and their dislikes allow.
  *
- * TODO(016 phase 4, docs/projects/016-a-spanish-meal/PLAN.md): build it from
- * `RecipeController.generationContext(userId)` — its `preferences` and `safety`
- * as merged there — on the generation, swap and event-rebuild paths alike, and
- * test through that context that a non-coeliac never gets `pan-sin-gluten` and a
- * coeliac does, and that a plan with sides passes `assertPlanIsSafe`.
+ * Generation, a swap and an event rebuild all hand `larderFor` the
+ * `GenerationContext` itself — its `preferences` and `safety` as
+ * `RecipeController.generationContext` merged them (free-from, supplements and
+ * unresolved allergies included), never a fresh `resolvePreferences` — so
+ * `pan-sin-gluten` reaches only the people it is for.
  */
 export type AccompanimentDiner = {
   readonly catalogue: Catalogue;
@@ -556,4 +556,89 @@ function toSet(portions: readonly AccompanimentPortion[]): AccompanimentSet {
     macros: { carbsG: sum('carbsG'), fatG: sum('fatG'), fiberG: sum('fiberG'), kcal: sum('kcal'), proteinG: sum('proteinG') },
     portions
   };
+}
+
+/**
+ * What the screen calls a composed accompaniment, by locale (`es-ES` the
+ * fallback, as for every name). A simple one is its food, and is called what
+ * the catalogue calls that food in the reader's language.
+ */
+const COMPOSED_NAMES: Readonly<Record<string, Readonly<Record<'en-GB' | 'es-ES', string>>>> = {
+  'arroz-blanco': { 'en-GB': 'Plain rice', 'es-ES': 'Arroz blanco' },
+  'arroz-rojo': { 'en-GB': 'Mexican red rice', 'es-ES': 'Arroz rojo' },
+  'brocoli-salteado': { 'en-GB': 'Sautéed broccoli', 'es-ES': 'Brócoli salteado' },
+  'ensalada-de-invierno': { 'en-GB': 'Winter salad', 'es-ES': 'Ensalada de invierno' },
+  'ensalada-de-pepino': { 'en-GB': 'Cucumber salad', 'es-ES': 'Ensalada de pepino' },
+  'ensalada-marroqui': { 'en-GB': 'Moroccan salad', 'es-ES': 'Ensalada marroquí' },
+  'ensalada-mixta': { 'en-GB': 'Mixed salad', 'es-ES': 'Ensalada mixta' },
+  'ensalada-verde': { 'en-GB': 'Green salad', 'es-ES': 'Ensalada verde' },
+  frijoles: { 'en-GB': 'Black beans', 'es-ES': 'Frijoles' },
+  gazpacho: { 'en-GB': 'Gazpacho', 'es-ES': 'Gazpacho' },
+  'insalata-mista': { 'en-GB': 'Insalata mista', 'es-ES': 'Insalata mista' },
+  'judias-verdes-rehogadas': { 'en-GB': 'Sautéed green beans', 'es-ES': 'Judías verdes rehogadas' },
+  'naranja-con-canela': { 'en-GB': 'Orange with cinnamon', 'es-ES': 'Naranja con canela' },
+  'pak-choi-salteado': { 'en-GB': 'Stir-fried pak choi', 'es-ES': 'Pak choi salteado' },
+  'pico-de-gallo': { 'en-GB': 'Pico de gallo', 'es-ES': 'Pico de gallo' },
+  'sopa-de-miso': { 'en-GB': 'Miso soup', 'es-ES': 'Sopa de miso' },
+  tabule: { 'en-GB': 'Tabbouleh', 'es-ES': 'Tabulé' },
+  'verduras-a-la-plancha': { 'en-GB': 'Grilled vegetables', 'es-ES': 'Verduras a la plancha' }
+};
+
+/** Whether an accompaniment needs its own name: more than one food, or a food that is not its key. */
+export function isComposed(accompaniment: Accompaniment): boolean {
+  return accompaniment.portions.some(items => items.length !== 1 || items[0]?.slug !== accompaniment.key);
+}
+
+/**
+ * An accompaniment's name in the reader's language: a composed one from
+ * `COMPOSED_NAMES`, a simple one as the catalogue names its food
+ * (`foodName`, already resolved to the locale), and the key as the last resort.
+ */
+export function accompanimentName(key: string, locale: string, foodName: string | undefined): string {
+  const composed = COMPOSED_NAMES[key];
+
+  if (composed) {
+    return locale === 'en-GB' ? composed['en-GB'] : composed['es-ES'];
+  }
+
+  return foodName ?? key;
+}
+
+/** One stored row of what goes beside a meal: `MealAccompanimentDraft`. */
+export type AccompanimentRow = MealAccompanimentDraft;
+
+/**
+ * A scheduled meal's accompaniments as the rows that store them: one per food,
+ * in the order they are served, each with its own macros from the catalogue,
+ * rounded to the hundredth the column keeps. The meal's own macros stay the
+ * whole meal's; these are what the screen breaks it into. Every food must be
+ * in the catalogue — the caller has checked (`unresolvedSlugs`) — or this throws.
+ */
+export function accompanimentRows(accompaniments: readonly ScheduledAccompaniment[] | undefined, catalogue: Catalogue): readonly AccompanimentRow[] {
+  const rows: AccompanimentRow[] = [];
+  const hundredth = (value: number): number => Math.round(value * 100) / 100;
+
+  for (const accompaniment of accompaniments ?? []) {
+    for (const item of accompaniment.ingredients) {
+      const ingredient = catalogue.get(item.slug);
+      const composed = composeMacros([item], catalogue);
+
+      if (!ingredient || !composed.ok) {
+        throw new Error(`Accompaniment ${accompaniment.key} uses ${item.slug}, which the catalogue does not hold`);
+      }
+
+      rows.push({
+        accompanimentKey: accompaniment.key,
+        carbsG: hundredth(composed.macros.carbsG),
+        fatG: hundredth(composed.macros.fatG),
+        grams: item.grams,
+        ingredientId: ingredient.id,
+        kcal: hundredth(composed.macros.kcal),
+        proteinG: hundredth(composed.macros.proteinG),
+        sortOrder: rows.length
+      });
+    }
+  }
+
+  return rows;
 }

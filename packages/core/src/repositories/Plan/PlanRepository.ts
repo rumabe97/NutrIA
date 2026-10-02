@@ -2,7 +2,7 @@ import { aliasedTable, and, desc, eq, exists, getTableColumns, gte, inArray, lt,
 
 import { database } from 'database';
 import { careLinks } from 'database/schema/care';
-import { mealCompletions, mealPlans, meals, mealSwaps, planDays, planGenerationJobs } from 'database/schema/plan';
+import { mealAccompaniments, mealCompletions, mealPlans, meals, mealSwaps, planDays, planGenerationJobs } from 'database/schema/plan';
 import { professionals } from 'database/schema/professional';
 import { profiles } from 'database/schema/profile';
 import { ingredientAllergens, ingredientNames, ingredients, ingredientSubstitutions } from 'database/schema/food';
@@ -11,7 +11,7 @@ import { shoppingListItems, shoppingLists } from 'database/schema/shopping';
 
 import { ConflictError, DatabaseOperationError, NotFoundError, QuotaExceededError } from 'core/entities/Error';
 import { FALLBACK_LOCALE } from '#repositories/Recipe';
-import type { Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
+import type { Macros, MealAccompanimentDraft, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { RecordAccess } from '#repositories/Care';
 
@@ -330,7 +330,18 @@ export const PlanRepository = {
         );
 
         if (mealRows.length > 0) {
-          await tx.insert(meals).values(mealRows);
+          const inserted = await tx.insert(meals).values(mealRows).returning({ id: meals.id, planDayId: meals.planDayId, slot: meals.slot });
+          const mealIdBySlot = new Map(inserted.map(row => [`${row.planDayId}|${row.slot}`, row.id]));
+          // What goes beside each plate (project 016), in the same transaction as the meals it belongs to.
+          const sides = draft.days.flatMap(day =>
+            day.meals.flatMap(meal =>
+              accompanimentValues(mealIdBySlot.get(`${dayIdByIndex.get(day.dayIndex) as string}|${meal.slot}`) as string, meal.accompaniments)
+            )
+          );
+
+          if (sides.length > 0) {
+            await tx.insert(mealAccompaniments).values(sides);
+          }
         }
 
         const [list] = await tx.insert(shoppingLists).values({ planId: plan.id, userId }).returning({ id: shoppingLists.id });
@@ -499,9 +510,17 @@ export const PlanRepository = {
         byRecipe.set(item.recipeId, [...(byRecipe.get(item.recipeId) ?? []), { grams: item.grams, name, slug: item.slug }]);
       }
 
+      const sides = await findAccompaniments(
+        db,
+        rows.map(row => row.meal.id),
+        locale
+      );
+
       return days.map(day => ({
         ...day,
-        meals: rows.filter(row => row.meal.planDayId === day.id).map(row => ({ ...row, items: byRecipe.get(row.recipe.id) ?? [] }))
+        meals: rows
+          .filter(row => row.meal.planDayId === day.id)
+          .map(row => ({ ...row, items: byRecipe.get(row.recipe.id) ?? [], sides: sides.get(row.meal.id) ?? [] }))
       }));
     } catch (error: unknown) {
       throw wrap(error);
@@ -642,7 +661,9 @@ export const PlanRepository = {
         unit: item.unit
       }));
 
-      return { ...row, items };
+      const sides = (await findAccompaniments(db, [row.meal.id], locale)).get(row.meal.id) ?? [];
+
+      return { ...row, items, sides };
     } catch (error: unknown) {
       throw wrap(error);
     }
@@ -882,7 +903,14 @@ export const PlanRepository = {
       readonly days: readonly {
         readonly dayIndex: number;
         readonly loadedFor: string;
-        readonly meals: readonly { readonly macros: Macros; readonly recipeSlug: string; readonly servings: number; readonly slot: MealSlot }[];
+        readonly meals: readonly {
+          /** What goes beside the plate (project 016): the meal's rows are deleted and these put in their place. */
+          readonly accompaniments?: readonly MealAccompanimentDraft[];
+          readonly macros: Macros;
+          readonly recipeSlug: string;
+          readonly servings: number;
+          readonly slot: MealSlot;
+        }[];
         readonly targets: NutritionTargets;
       }[];
       readonly limit: number;
@@ -974,6 +1002,8 @@ export const PlanRepository = {
             if (updated.length === 0) {
               throw new DatabaseOperationError(`Rebuild references ${meal.slot} on day ${day.dayIndex}, which that day does not eat`);
             }
+
+            await replaceAccompaniments(tx, (updated[0] as { id: string }).id, meal.accompaniments);
           }
         }
 
@@ -1124,6 +1154,8 @@ export const PlanRepository = {
     userId: string,
     mealId: string,
     change: {
+      /** What goes beside the new plate (project 016): the meal's rows are deleted and these put in their place. */
+      readonly accompaniments?: readonly MealAccompanimentDraft[];
       readonly limit: number;
       readonly locale: string;
       readonly macros: Macros;
@@ -1188,6 +1220,9 @@ export const PlanRepository = {
           })
           .where(eq(meals.id, mealId));
 
+        // The old plate's sides go with it, whatever the new one carries — none included.
+        await replaceAccompaniments(tx, mealId, change.accompaniments);
+
         await tx
           .insert(mealSwaps)
           .values({ fromRecipeId: owned.recipeId, mealId, planId: owned.planId, source: change.source, toRecipeId: recipeId, userId });
@@ -1203,6 +1238,96 @@ export const PlanRepository = {
       throw wrap(error);
     }
   }
+};
+
+/** A meal's accompaniment rows as `meal_accompaniments` stores them. */
+function accompanimentValues(mealId: string, rows: readonly MealAccompanimentDraft[] | undefined) {
+  return (rows ?? []).map(row => ({
+    accompanimentKey: row.accompanimentKey,
+    carbsG: String(row.carbsG),
+    fatG: String(row.fatG),
+    grams: String(row.grams),
+    ingredientId: row.ingredientId,
+    kcal: String(row.kcal),
+    mealId,
+    proteinG: String(row.proteinG),
+    sortOrder: row.sortOrder
+  }));
+}
+
+/**
+ * What goes beside one meal, replaced whole (project 016): the swap and the
+ * event rebuild change the plate, so its sides are deleted and the new ones
+ * put in, inside the caller's transaction. No rows is a meal with nothing beside it.
+ */
+async function replaceAccompaniments(tx: Transaction, mealId: string, rows: readonly MealAccompanimentDraft[] | undefined): Promise<void> {
+  await tx.delete(mealAccompaniments).where(eq(mealAccompaniments.mealId, mealId));
+
+  const values = accompanimentValues(mealId, rows);
+
+  if (values.length > 0) {
+    await tx.insert(mealAccompaniments).values(values);
+  }
+}
+
+/**
+ * What goes beside each of these meals, in the reader's language, in serving
+ * order (project 016). Every meal id here has already been reached through an
+ * owner-scoped read; this only fills it in. One query for all of them.
+ */
+async function findAccompaniments(
+  db: ReturnType<typeof database>,
+  mealIds: readonly string[],
+  locale: string
+): Promise<ReadonlyMap<string, readonly MealAccompanimentRead[]>> {
+  if (mealIds.length === 0) {
+    return new Map();
+  }
+
+  const requested = aliasedTable(ingredientNames, 'requested_name');
+  const fallback = aliasedTable(ingredientNames, 'fallback_name');
+  const rows = await db
+    .select({
+      accompanimentKey: mealAccompaniments.accompanimentKey,
+      fallbackName: fallback.name,
+      grams: mealAccompaniments.grams,
+      kcal: mealAccompaniments.kcal,
+      mealId: mealAccompaniments.mealId,
+      requestedName: requested.name,
+      slug: ingredients.slug
+    })
+    .from(mealAccompaniments)
+    .innerJoin(ingredients, eq(ingredients.id, mealAccompaniments.ingredientId))
+    .leftJoin(requested, and(eq(requested.ingredientId, ingredients.id), eq(requested.locale, locale)))
+    .leftJoin(fallback, and(eq(fallback.ingredientId, ingredients.id), eq(fallback.locale, FALLBACK_LOCALE)))
+    .where(inArray(mealAccompaniments.mealId, [...mealIds]))
+    .orderBy(mealAccompaniments.mealId, mealAccompaniments.sortOrder);
+  const byMeal = new Map<string, MealAccompanimentRead[]>();
+
+  for (const row of rows) {
+    byMeal.set(row.mealId, [
+      ...(byMeal.get(row.mealId) ?? []),
+      {
+        accompanimentKey: row.accompanimentKey,
+        grams: Number(row.grams),
+        kcal: Number(row.kcal),
+        name: row.requestedName ?? row.fallbackName ?? row.slug,
+        slug: row.slug
+      }
+    ]);
+  }
+
+  return byMeal;
+}
+
+/** One food beside a meal, as the reads hand it to the presenters. */
+export type MealAccompanimentRead = {
+  readonly accompanimentKey: string;
+  readonly grams: number;
+  readonly kcal: number;
+  /** The food's name in the reader's language, `es-ES`, or its slug. */
+  readonly name: string;
+  readonly slug: string;
 };
 
 /**

@@ -12,6 +12,8 @@ import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
+import { SettingsController } from 'core/controllers/Settings';
+import { accompanimentRows, larderFor } from 'core/domain/Accompaniment';
 
 import type { EventView } from 'core/controllers/Event';
 import type { MealCompositionView } from 'core/controllers/Plan';
@@ -144,7 +146,19 @@ export class PlanLoadRebuildService {
     const placed: Placement[] = kept.map(meal => ({ dayIndex: meal.dayIndex, dishSlug: meal.recipeSlug, slot: meal.slot }));
     const dayIndexes = [...rebuilding].sort((a, b) => a - b);
     const sex = profile.profile?.sex ?? 'prefer_not_to_say';
+    // What may go beside a big lunch or dinner (project 016), as at generation:
+    // this person's larder from the same context, in each rebuilt day's month.
+    const months = new Map(plan.days.map(day => [day.dayIndex, Number(day.date.slice(5, 7))]));
+    const sides = (await SettingsController.accompaniments())
+      ? {
+          accompaniments: {
+            larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }),
+            monthOf: (dayIndex: number) => months.get(dayIndex) ?? 1
+          }
+        }
+      : {};
     const scheduled = schedulePlan({
+      ...sides,
       catalogue: context.catalogue,
       dayIndexes,
       dayTargets: new Map(dayIndexes.map(dayIndex => [dayIndex, targets])),
@@ -219,7 +233,14 @@ export class PlanLoadRebuildService {
         scheduled.assignment.days.map(day => ({
           dayIndex: day.dayIndex,
           loadedFor: event.name,
-          meals: day.meals.map(meal => ({ macros: meal.macros, recipeSlug: meal.dish.slug, servings: meal.servings, slot: meal.slot })),
+          meals: day.meals.map(meal => ({
+            // Replaced whole, beside the plate it goes with — none when the flag is off.
+            accompaniments: accompanimentRows(meal.accompaniments, context.catalogue),
+            macros: meal.macros,
+            recipeSlug: meal.dish.slug,
+            servings: meal.servings,
+            slot: meal.slot
+          })),
           targets
         })),
         shopping.items.map(item => ({

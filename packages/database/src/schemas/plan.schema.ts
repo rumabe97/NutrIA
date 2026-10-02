@@ -2,6 +2,7 @@ import { date, index, integer, jsonb, numeric, pgTable, smallint, text, timestam
 import { sql } from 'drizzle-orm';
 
 import { jobStatus, macroDirection, mealSlot, mealStatus, planStatus } from './_enums';
+import { ingredients } from './food.schema';
 import { recipes } from './recipe.schema';
 import { user } from './auth.schema';
 import { timestamps } from './_columns';
@@ -144,6 +145,42 @@ export const meals = pgTable(
     // sequential scan of every meal ever stored without this.
     index('meals_recipe_idx').on(table.recipeId)
   ]
+);
+
+/**
+ * What goes beside a meal's plate — bread, a salad, a piece of fruit (project
+ * 016, `0079` Table 3, design A of architect report `0008`): one row per
+ * ingredient of each accompaniment, so a composed one (a salad) is its rows
+ * under one `accompanimentKey`.
+ *
+ * A child of the meal, never a recipe: what goes beside a plate is the
+ * person's, and a recipe is shared. The meal's own `kcal` and macros are the
+ * whole meal, these rows included; each row snapshots its own, for the same
+ * reason the meal does — history keeps the numbers that were eaten. A swap
+ * and an event rebuild delete and reinsert a meal's rows in their own
+ * transaction. Account deletion reaches them through the meal's cascade.
+ */
+export const mealAccompaniments = pgTable(
+  'meal_accompaniments',
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    /** `core/domain/Accompaniment`'s key: stable, what the screen names it by. */
+    accompanimentKey: text().notNull(),
+    carbsG: numeric({ precision: 7, scale: 2 }).notNull(),
+    fatG: numeric({ precision: 7, scale: 2 }).notNull(),
+    grams: numeric({ precision: 7, scale: 2 }).notNull(),
+    ingredientId: uuid()
+      .notNull()
+      .references(() => ingredients.id, { onDelete: 'restrict' }),
+    kcal: numeric({ precision: 7, scale: 2 }).notNull(),
+    mealId: uuid()
+      .notNull()
+      .references(() => meals.id, { onDelete: 'cascade' }),
+    proteinG: numeric({ precision: 7, scale: 2 }).notNull(),
+    sortOrder: smallint().notNull().default(0)
+  },
+  // Led by `meal_id`, so it is also the index every read of a meal's rows uses.
+  table => [unique('meal_accompaniments_unique').on(table.mealId, table.accompanimentKey, table.ingredientId)]
 );
 
 /** The adherence signal. One row per user action, so it is auditable and undoable. */

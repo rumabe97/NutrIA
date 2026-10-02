@@ -5,6 +5,7 @@ import { ConflictError, OnboardingIncompleteError, ProfileConsentRequiredError, 
 import { PlanController } from 'core/controllers/Plan';
 import { ProfileConsentController, ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
+import { SettingsController } from 'core/controllers/Settings';
 import { toCatalogue } from 'core/entities/Plan';
 
 import { MealSwapService } from './MealSwap.service.js';
@@ -92,7 +93,12 @@ function meal(id: string, dayIndex: number, slot: MealSlot, dish: CandidateDish)
 
 function harness(
   options: {
+    /** The `accompaniments` flag (project 016), and what the context says of the person; off and nobody by default. */
+    readonly accompaniments?: boolean;
+    readonly allergenIds?: ReadonlySet<string>;
+    readonly catalogue?: readonly CatalogueIngredient[];
     readonly composition?: readonly MealCompositionView[];
+    readonly excluded?: ReadonlySet<string>;
     readonly generated?: readonly CandidateDish[];
     readonly library?: readonly CandidateDish[];
     readonly planStatus?: string;
@@ -127,13 +133,15 @@ function harness(
   jest
     .spyOn(RecipeController, 'generationContext')
     .mockResolvedValue({
-      catalogue: toCatalogue(CATALOGUE),
+      catalogue: toCatalogue(options.catalogue ?? CATALOGUE),
       dietaryPatterns: [],
       locale: 'es-ES',
-      preferences: NO_PREFERENCE_EXCLUSIONS,
-      safety: SAFETY
+      preferences: options.excluded ? { ...NO_PREFERENCE_EXCLUSIONS, excludedIngredientIds: options.excluded } : NO_PREFERENCE_EXCLUSIONS,
+      safety: options.allergenIds ? { ...SAFETY, allergenIds: options.allergenIds } : SAFETY
     });
   jest.spyOn(RecipeController, 'verdicts').mockResolvedValue({ disliked: [{ name: 'Bad', slug: 'chicken-rice-bad' }], liked: [] });
+  // The accompaniments flag, off unless a test turns it on (project 016).
+  jest.spyOn(SettingsController, 'accompaniments').mockResolvedValue(options.accompaniments ?? false);
   jest
     .spyOn(ProfileController, 'getFullProfile')
     .mockResolvedValue({
@@ -456,5 +464,66 @@ describe('MealSwapService', () => {
 
     await expect(service.swap('user-1', MEAL, 'es-ES')).rejects.toBeInstanceOf(ConflictError);
     expect(swapMeal).not.toHaveBeenCalled();
+  });
+
+  /*
+   * Project 016 phase 4: a swap composes what goes beside the new plate from
+   * the person's larder — built from the swap's own generation context — and
+   * replaces the old plate's sides with it.
+   */
+  describe('accompaniments (016)', () => {
+    const GLUTEN = 'allergen-gluten';
+    const bread = (slug: string, gluten: boolean): CatalogueIngredient => ({
+      ...ingredient(slug, 265, 9),
+      allergens: gluten ? [{ allergenId: GLUTEN, presence: 'contains' }] : [],
+      category: 'bakery'
+    });
+    const WITH_BREAD = [...CATALOGUE, bread('pan-blanco', true), bread('pan-sin-gluten', false)];
+    // A big lunch, past the 700 kcal from which sides are offered.
+    const big = (id: string, dayIndex: number, slot: MealSlot, dish: CandidateDish): MealCompositionView => ({
+      ...meal(id, dayIndex, slot, dish),
+      macros: { carbsG: 110, fatG: 25, fiberG: 12, kcal: 1000, proteinG: 70 }
+    });
+    const composition = [big(MEAL, 3, 'lunch', CURRENT), big('m-2', 4, 'dinner', FITS)];
+    const library = [lunch('rice-bowl', [{ grams: 400, slug: 'rice' }, { grams: 150, slug: 'chicken' }])];
+    type Row = { accompanimentKey: string };
+    const keysOf = (swapMeal: ReturnType<typeof harness>['swapMeal']): string[] =>
+      ((swapMeal.mock.calls[0]?.[2] as { accompaniments?: readonly Row[] } | undefined)?.accompaniments ?? []).map(row => row.accompanimentKey);
+
+    it('replaces the old sides with none while the flag is off', async () => {
+      const { service, swapMeal } = harness({ catalogue: WITH_BREAD, composition, library });
+
+      await service.swap('user-1', MEAL, 'es-ES');
+
+      expect(swapMeal.mock.calls[0]?.[2]?.accompaniments).toEqual([]);
+    });
+
+    it('never gives gluten-free bread to somebody the context does not leave it to', async () => {
+      const { service, swapMeal } = harness({
+        accompaniments: true,
+        catalogue: [...CATALOGUE, bread('pan-sin-gluten', false)],
+        composition,
+        excluded: new Set(['i-pan-sin-gluten']),
+        library
+      });
+
+      await service.swap('user-1', MEAL, 'es-ES');
+
+      expect(swapMeal).toHaveBeenCalled();
+      expect(keysOf(swapMeal)).not.toContain('pan-sin-gluten');
+    });
+
+    it('gives a coeliac gluten-free bread beside the new plate, and the list counts it', async () => {
+      const { service, swapMeal } = harness({ accompaniments: true, allergenIds: new Set([GLUTEN]), catalogue: WITH_BREAD, composition, library });
+
+      await service.swap('user-1', MEAL, 'es-ES');
+
+      const keys = keysOf(swapMeal);
+      const items = swapMeal.mock.calls[0]?.[3] ?? [];
+
+      expect(keys).toContain('pan-sin-gluten');
+      expect(keys).not.toContain('pan-blanco');
+      expect(items.some(item => item.ingredientId === 'i-pan-sin-gluten')).toBe(true);
+    });
   });
 });

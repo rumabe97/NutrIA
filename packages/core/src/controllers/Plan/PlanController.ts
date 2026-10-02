@@ -28,18 +28,50 @@ import { SettingsController } from 'core/controllers/Settings';
 import { RecipeController, toPictureStatus } from 'core/controllers/Recipe';
 import { alternativesFor } from 'core/domain/Substitution';
 import { toDry, withoutCooked } from 'core/domain/Yield';
-import type { AiCallRecord, Macros, MealSlot, MealStatus, PlanDraft, RecipeDraft, ShoppingItemDraft } from 'core/entities/Plan';
+import { accompanimentName } from 'core/domain/Accompaniment';
+import type {
+  AiCallRecord,
+  Macros,
+  MealAccompanimentDraft,
+  MealSlot,
+  MealStatus,
+  PlanDraft,
+  RecipeDraft,
+  ShoppingItemDraft
+} from 'core/entities/Plan';
 import type { CountedStanding, MealSwapStanding, PlanRedoStanding, StartMeaning, Tier } from 'core/domain/Allowance';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PlanWindow } from 'core/domain/Event';
 import type { RecordAccess } from '#repositories/Care';
+import type { MealAccompanimentRead } from '#repositories/Plan';
 import type { PictureClaim } from 'core/controllers/Recipe';
 import type { MealSizeView } from 'core/controllers/Profile';
 
 // --- Presenters ---------------------------------------------------------------
 
+/**
+ * One thing beside the plate (project 016, `0079` Table 3): bread, a salad, a
+ * piece of fruit. `key` is stable; `name` is in the reader's language — the
+ * food's own name for a simple one, the dish's for a composed one (a salad).
+ * `grams` and `kcal` are its whole portion; `ingredients` are its foods, with
+ * `dry` as on a meal's own ingredient (`0078`).
+ */
+export interface AccompanimentView {
+  grams: number;
+  ingredients: readonly { dry?: { grams: number; name: string }; grams: number; name: string }[];
+  kcal: number;
+  key: string;
+  name: string;
+}
+
 export interface MealView {
   id: string;
+  /**
+   * What goes beside the plate, in serving order; empty when nothing does — a
+   * plan made with the `accompaniments` flag off, or before it existed. The
+   * meal's `kcal` and macros already include it; `ingredients` are the dish's only.
+   */
+  accompaniments: readonly AccompanimentView[];
   carbsG: number;
   cookMinutes: number;
   difficulty: string;
@@ -236,13 +268,52 @@ function presentJob(
 
 type MealRow = Awaited<ReturnType<typeof PlanRepository.findDaysWithMeals>>[number]['meals'][number];
 
-function presentMeal({ items, meal, recipe }: MealRow): MealView {
+/**
+ * A meal's accompaniment rows, one view per accompaniment in serving order.
+ * `dryNames` are the dry foods' names where the reader has them; without one, a
+ * cooked food's own name without "cocido", as on the meal's own ingredients.
+ */
+function presentAccompaniments(
+  sides: readonly MealAccompanimentRead[],
+  locale: string,
+  dryNames: ReadonlyMap<string, string> = new Map()
+): readonly AccompanimentView[] {
+  const byKey = new Map<string, MealAccompanimentRead[]>();
+
+  for (const side of sides) {
+    byKey.set(side.accompanimentKey, [...(byKey.get(side.accompanimentKey) ?? []), side]);
+  }
+
+  return [...byKey].map(([key, rows]) => ({
+    grams: round(rows.reduce((sum, row) => sum + row.grams, 0)),
+    ingredients: rows.map(row => {
+      const dry = toDry(row.slug, row.grams);
+
+      return {
+        ...(dry && {
+          dry: {
+            grams: Math.max(DRY_STEP_G, Math.round(dry.dryGrams / DRY_STEP_G) * DRY_STEP_G),
+            name: (dry.drySlug && dryNames.get(dry.drySlug)) ?? withoutCooked(row.name)
+          }
+        }),
+        grams: row.grams,
+        name: row.name
+      };
+    }),
+    kcal: round(rows.reduce((sum, row) => sum + row.kcal, 0)),
+    key,
+    name: accompanimentName(key, locale, rows.find(row => row.slug === key)?.name)
+  }));
+}
+
+function presentMeal({ items, meal, recipe, sides }: MealRow, locale: string): MealView {
   // The recipe's quantities are for *its* servings; this meal may have been
   // scaled to fit the day. The same factor `loadMealDetail` applies.
   const factor = Number(meal.servings) / (recipe.servings || 1);
 
   return {
     id: meal.id,
+    accompaniments: presentAccompaniments(sides, locale),
     carbsG: Number(meal.carbsG),
     cookMinutes: recipe.cookMinutes,
     difficulty: recipe.difficulty,
@@ -360,14 +431,18 @@ export const PlanController = {
     const days = await PlanRepository.findDaysWithMeals(plan.id, FALLBACK_LOCALE);
 
     return days.flatMap(day =>
-      day.meals.map(({ items, meal, recipe }) => {
+      day.meals.map(({ items, meal, recipe, sides }) => {
         const factor = Number(meal.servings) / (recipe.servings || 1);
 
         return {
           id: meal.id,
           date: day.date,
           dayIndex: day.dayIndex,
-          ingredients: items.map(item => ({ grams: Math.round(Number(item.grams) * factor * 10) / 10, slug: item.slug })),
+          // The plate's, then what is beside it (project 016): the shopping list a swap rebuilds counts both.
+          ingredients: [
+            ...items.map(item => ({ grams: Math.round(Number(item.grams) * factor * 10) / 10, slug: item.slug })),
+            ...sides.map(side => ({ grams: side.grams, slug: side.slug }))
+          ],
           macros: {
             carbsG: Number(meal.carbsG),
             fatG: Number(meal.fatG),
@@ -440,7 +515,9 @@ export const PlanController = {
       return null;
     }
 
-    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
+    const resolved = await localeFor(userId, locale);
+
+    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, resolved), resolved);
   },
 
   async getDay(userId: string, planId: string, dayIndex: number, locale: string | null = null): Promise<PlanDayView> {
@@ -485,7 +562,9 @@ export const PlanController = {
       return null;
     }
 
-    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
+    const resolved = await localeFor(userId, locale);
+
+    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, resolved), resolved);
   },
 
   /** Owner-scoped. A plan belonging to someone else is simply not found. */
@@ -496,7 +575,9 @@ export const PlanController = {
       throw new NotFoundError('Plan not found');
     }
 
-    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
+    const resolved = await localeFor(userId, locale);
+
+    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, resolved), resolved);
   },
 
   /**
@@ -513,7 +594,9 @@ export const PlanController = {
       throw new NotFoundError('Plan not found');
     }
 
-    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, await localeFor(userId, locale)));
+    const resolved = await localeFor(userId, locale);
+
+    return assemble(plan, await PlanRepository.findDaysWithMeals(plan.id, resolved), resolved);
   },
 
   /** The list of the plan waiting for its day (project 015), to shop before it starts; not found when there is none. */
@@ -742,6 +825,8 @@ export const PlanController = {
     userId: string,
     mealId: string,
     change: {
+      /** What goes beside the new plate (project 016); absent or empty is nothing. */
+      readonly accompaniments?: readonly MealAccompanimentDraft[];
       readonly locale: string;
       readonly macros: Macros;
       readonly newRecipe: RecipeDraft | null;
@@ -799,7 +884,8 @@ export const PlanController = {
 
 function assemble(
   plan: Awaited<ReturnType<typeof PlanRepository.findActive>>,
-  days: Awaited<ReturnType<typeof PlanRepository.findDaysWithMeals>>
+  days: Awaited<ReturnType<typeof PlanRepository.findDaysWithMeals>>,
+  locale: string
 ): PlanView {
   if (!plan) {
     throw new NotFoundError('Plan not found');
@@ -808,7 +894,7 @@ function assemble(
   return {
     id: plan.id,
     days: days.map(day => {
-      const presented = day.meals.map(presentMeal);
+      const presented = day.meals.map(meal => presentMeal(meal, locale));
 
       return {
         date: day.date,
@@ -996,6 +1082,12 @@ export const PlanJobController = {
 
 export interface MealDetailView {
   id: string;
+  /**
+   * What goes beside the plate, as on `MealView` (project 016); empty when
+   * nothing does. `ingredients` below are the dish's only; the meal's `kcal`
+   * and macros are the whole meal.
+   */
+  accompaniments: readonly AccompanimentView[];
   carbsG: number;
   cookMinutes: number;
   cuisine: string | null;
@@ -1223,17 +1315,15 @@ async function loadMealDetail(userId: string, mealId: string, requested: string 
     throw new NotFoundError('Meal not found');
   }
 
-  const { day, items, meal, plan, recipe } = found;
+  const { day, items, meal, plan, recipe, sides } = found;
   const factor = Number(meal.servings) / (recipe.servings || 1);
   const verdict = await RecipeRepository.findVerdict(userId, recipe.id);
-  const dryNames = await dryNamesFor(
-    items.map(item => item.slug),
-    locale
-  );
+  const dryNames = await dryNamesFor([...items.map(item => item.slug), ...sides.map(side => side.slug)], locale);
   const picture = toPictureStatus({ status: recipe.pictureStatus, url: recipe.pictureUrl });
 
   return {
     id: meal.id,
+    accompaniments: presentAccompaniments(sides, locale, dryNames),
     carbsG: Number(meal.carbsG),
     cookMinutes: recipe.cookMinutes,
     cuisine: recipe.cuisine,

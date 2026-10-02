@@ -37,7 +37,12 @@ vi.mock('core/controllers/Recipe', async importOriginal => ({
 
 const RECIPE = '6b1f0c3e-6a1d-4c55-9f3a-1f2b3c4d5e6f';
 
-function detail(picture: { pictureStatus: string | null; pictureUrl: string | null }, items: readonly unknown[] = [], servings = '1') {
+function detail(
+  picture: { pictureStatus: string | null; pictureUrl: string | null },
+  items: readonly unknown[] = [],
+  servings = '1',
+  sides: readonly unknown[] = []
+) {
   return {
     day: { date: '2026-09-27', dayIndex: 0 },
     items,
@@ -53,7 +58,8 @@ function detail(picture: { pictureStatus: string | null; pictureUrl: string | nu
       prepMinutes: 5,
       servings: 1,
       ...picture
-    }
+    },
+    sides
   };
 }
 
@@ -150,5 +156,47 @@ describe('PlanController.getMeal — dry weights (0078)', () => {
 
     expect(loadCatalogue).not.toHaveBeenCalled();
     expect(meal.ingredients[0]).toEqual({ alternatives: [], grams: 200, name: 'Lentejas cocidas', unit: 'g' });
+  });
+});
+
+/* Project 016 phase 4: what goes beside the plate, by accompaniment, the dish's own ingredients untouched. */
+describe('PlanController.getMeal — accompaniments (016)', () => {
+  const side = (accompanimentKey: string, slug: string, name: string, grams: number, kcal: number) => ({ accompanimentKey, grams, kcal, name, slug });
+
+  it("groups the rows by accompaniment, in serving order, named in the reader's language", async () => {
+    findMealDetail.mockResolvedValue(
+      detail({ pictureStatus: 'ready', pictureUrl: 'https://blob/x.jpg' }, [item('lentejas-cocidas', 'Lentejas cocidas', 200)], '1', [
+        side('pan-blanco', 'pan-blanco', 'Pan blanco', 60, 159),
+        side('ensalada-verde', 'lechuga', 'Lechuga', 80, 12),
+        side('ensalada-verde', 'cebolla', 'Cebolla', 15, 6),
+        side('ensalada-verde', 'aceite-de-oliva-virgen-extra', 'Aceite de oliva virgen extra', 5, 44.2)
+      ])
+    );
+    loadCatalogue.mockResolvedValue([]);
+
+    const meal = await PlanController.getMeal('usr-a', 'meal-1', 'es-ES');
+
+    expect(meal.ingredients.map(ingredient => ingredient.name)).toEqual(['Lentejas cocidas']);
+    expect(meal.accompaniments).toEqual([
+      { grams: 60, ingredients: [{ grams: 60, name: 'Pan blanco' }], kcal: 159, key: 'pan-blanco', name: 'Pan blanco' },
+      {
+        grams: 100,
+        ingredients: [
+          { grams: 80, name: 'Lechuga' },
+          { grams: 15, name: 'Cebolla' },
+          { grams: 5, name: 'Aceite de oliva virgen extra' }
+        ],
+        kcal: 62.2,
+        key: 'ensalada-verde',
+        name: 'Ensalada verde'
+      }
+    ]);
+  });
+
+  it('answers an empty list for a meal with nothing beside it', async () => {
+    findMealDetail.mockResolvedValue(detail({ pictureStatus: 'ready', pictureUrl: 'https://blob/x.jpg' }));
+    loadCatalogue.mockResolvedValue([]);
+
+    expect((await PlanController.getMeal('usr-a', 'meal-1', 'es-ES')).accompaniments).toEqual([]);
   });
 });

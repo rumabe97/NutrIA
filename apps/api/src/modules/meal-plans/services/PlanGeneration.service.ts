@@ -16,6 +16,8 @@ import { OnboardingController } from 'core/controllers/Onboarding';
 import { PlanController, PlanJobController } from 'core/controllers/Plan';
 import { ProfileController } from 'core/controllers/Profile';
 import { RecipeController } from 'core/controllers/Recipe';
+import { SettingsController } from 'core/controllers/Settings';
+import { accompanimentRows, larderFor } from 'core/domain/Accompaniment';
 
 import { PoolBuilder } from '../../ai/services/PoolBuilder.service.js';
 import { likedFoodNames, promptPreferences, toRecipeDraft } from './GenerationShared.js';
@@ -241,8 +243,20 @@ export class PlanGenerationService {
     // the floor is scheduled and then thrown away (`FLOOR_OUTRANKS_ORDER`).
     const sex = profile.profile?.sex ?? 'prefer_not_to_say';
     const minimumKcal = minimumDailyKcal(sex);
+    // What may go beside a big lunch or dinner (project 016), behind its flag:
+    // this person's larder, filtered by the very context the dishes were —
+    // their allergies, their way of eating, their dislikes, the free-from foods
+    // only for whoever needs them — and the month each day falls in.
+    const sides = (await SettingsController.accompaniments())
+      ? {
+          accompaniments: {
+            larder: larderFor({ catalogue: context.catalogue, preferences: context.preferences, safety: context.safety }),
+            monthOf: (dayIndex: number) => addDays(start, dayIndex - 1).getUTCMonth() + 1
+          }
+        }
+      : {};
 
-    let scheduled = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, minimumKcal, pool: built.dishes, targets, weights });
+    let scheduled = schedulePlan({ ...sides, catalogue: context.catalogue, dayTargets: loads.dayTargets, minimumKcal, pool: built.dishes, targets, weights });
     let fallback: Fallback = null;
 
     if (!scheduled.ok) {
@@ -263,7 +277,7 @@ export class PlanGenerationService {
       const widened = await wholeLibrary();
 
       this.logger.warn(`Retrying with the full library (${widened.length} dishes, last fortnight included)`);
-      scheduled = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, minimumKcal, pool: widened, targets, weights });
+      scheduled = schedulePlan({ ...sides, catalogue: context.catalogue, dayTargets: loads.dayTargets, minimumKcal, pool: widened, targets, weights });
       fallback = 'full_library';
     }
 
@@ -311,6 +325,7 @@ export class PlanGenerationService {
       this.logger.warn(`Plan rejected by validation (${summarise(violations.filter(isBlocking))}); retrying with the full library`);
 
       const retried = schedulePlan({
+        ...sides,
         catalogue: context.catalogue,
         dayTargets: loads.dayTargets,
         minimumKcal,
@@ -350,7 +365,7 @@ export class PlanGenerationService {
     if (fallback === null && bandMiss(violations) > 0) {
       const rest = rotatePool(everything, slots, rotation, Number.POSITIVE_INFINITY);
       const wider = [...new Map([...built.dishes, ...rest].map(dish => [dish.slug, dish])).values()];
-      const retried = schedulePlan({ catalogue: context.catalogue, dayTargets: loads.dayTargets, minimumKcal, pool: wider, targets, weights });
+      const retried = schedulePlan({ ...sides, catalogue: context.catalogue, dayTargets: loads.dayTargets, minimumKcal, pool: wider, targets, weights });
 
       if (retried.ok) {
         const retriedViolations = check(retried.assignment);
@@ -605,6 +620,8 @@ export class PlanGenerationService {
         // this plan is history (`0021`, `0043`).
         loadedFor: loads.loadedFor.get(day.dayIndex) ?? null,
         meals: day.meals.map(meal => ({
+          // What goes beside the plate, one row per food; the macros below are the whole meal's.
+          ...(meal.accompaniments && { accompaniments: accompanimentRows(meal.accompaniments, context.catalogue) }),
           carbsG: meal.macros.carbsG,
           fatG: meal.macros.fatG,
           fiberG: meal.macros.fiberG,

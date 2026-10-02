@@ -198,6 +198,21 @@ export const ACCOMPANIED_FROM_KCAL = 700;
 export const ACCOMPANIMENT_SETS = 6;
 
 /**
+ * Accompaniments accompany; they do not replace the dish (016 phase 4). With
+ * nothing holding them, phase 3's evaluator saw sides carry 54 % of a
+ * vegetarian's meal and 46 % of a halal or traditional Spanish one. So the
+ * sides of one meal carry at most this share of its energy, plate and sides
+ * together — checked inside the set choice, at every size the search tries,
+ * so a set past it is never offered (`sidesWithinShare`).
+ */
+export const ACCOMPANIMENT_MAX_SHARE = 0.35;
+
+/** Whether what is beside a plate of this size stays within `ACCOMPANIMENT_MAX_SHARE` of the meal. Nothing beside it always does. */
+function sidesWithinShare(perServing: PerServing, servings: number, besideKcal: number): boolean {
+  return besideKcal <= 0 || besideKcal <= ACCOMPANIMENT_MAX_SHARE * (perServing.kcal * servings + besideKcal) + PLATE_EPSILON;
+}
+
+/**
  * With accompaniments on, a serving is best between these (`0008` § A,
  * "Raciones"): the hard bounds stay `SERVING_BOUNDS`, and a plate outside this
  * band costs `SERVING_PREFERENCE_WEIGHT` per serving outside it — so where
@@ -880,7 +895,9 @@ function servingsFor(perServing: PerServing, budget: SlotBudget, slot: MealSlot)
  * portions and does not count).
  */
 function withinPlateLimit(perServing: PerServing, servings: number, budget: SlotBudget, slot: MealSlot, besideKcal = 0): boolean {
-  const light = perServing.grams * servings <= (budget.gramsMax ?? plateGramsMax(slot, budget.kcal)) + PLATE_EPSILON;
+  const light =
+    perServing.grams * servings <= (budget.gramsMax ?? plateGramsMax(slot, budget.kcal)) + PLATE_EPSILON &&
+    sidesWithinShare(perServing, servings, besideKcal);
 
   if (budget.kcal <= 0 || perServing.kcal <= 0) {
     return light;
@@ -1285,7 +1302,7 @@ function balancedDay(
 
   const kcals: number[] = picks.map(() => 0);
 
-  // `fitCost` + bands + `inversionsOf` + `straysOf` + `SERVING_PREFERENCE` +
+  // `fitCost` + bands + `inversionsOf` + strays + `SERVING_PREFERENCE` +
   // `floorMiss(deliveredKcal)`, for the sizes and sets given.
   const dayCost = (servings: readonly number[], sets: readonly (AccompanimentSet | undefined)[] = []): number => {
     let carbsG = 0;
@@ -1378,6 +1395,8 @@ function balancedDay(
           if (
             servings >= SERVING_BOUNDS.min &&
             servings <= SERVING_BOUNDS.max &&
+            // The sides' share holds even where the floor lifts the plate's limits.
+            sidesWithinShare(pick.base, servings, set?.macros.kcal ?? 0) &&
             (!limited || withinPlateLimit(pick.base, servings, budget, pick.slot, set?.macros.kcal ?? 0))
           ) {
             options.push({ servings, set });
