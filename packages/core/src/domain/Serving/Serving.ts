@@ -18,14 +18,20 @@ import type { CandidateDish, Catalogue, MealSlot } from 'core/entities/Plan';
  * Measured on the dev library, 2026-09-29.
  *
  * A person who eats more is served more servings, not a bigger one: the
- * scheduler scales a portion up to `SERVING_BOUNDS.max` (4), so 900 kcal lunches
- * serve a lunch of up to 3,600 kcal.
+ * scheduler scales a portion up to `SERVING_BOUNDS.max` (4), so 650 kcal lunches
+ * serve a lunch of up to 2,600 kcal.
+ *
+ * Lunch and dinner came down from 900 to 650 in prompt 4.6.0 (project 016 § B,
+ * architect report `0008`): the plan now sets bread, fruit and dairy beside a
+ * main dish (`0079`), so the dish is designed for one person's plate and the
+ * meal's size comes from its servings and what sits beside it. The stored
+ * library of 700–900 kcal dishes is served at about 0.75 of a serving.
  */
 export const SERVING_KCAL_CAP: Readonly<Record<MealSlot, number>> = {
   afternoon_snack: 400,
   breakfast: 700,
-  dinner: 900,
-  lunch: 900,
+  dinner: 650,
+  lunch: 650,
   morning_snack: 400,
   supper: 400
 };

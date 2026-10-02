@@ -9,14 +9,33 @@ import { MEAL_SLOTS } from 'core/entities/Plan';
 const catalogue = makeCatalogue([makeCatalogueIngredient()]);
 
 describe('SERVING_KCAL_CAP', () => {
-  it('caps every meal, lunch and dinner above breakfast and breakfast above a snack', () => {
+  /**
+   * Since 4.6.0 a lunch or a dinner is one plate with bread or fruit set
+   * beside it by the plan, so its dish is capped below breakfast's, which
+   * stays the seed library's own ceiling.
+   */
+  it('caps every meal, lunch and dinner alike and every main meal above a snack', () => {
     for (const slot of MEAL_SLOTS) {
       expect(SERVING_KCAL_CAP[slot]).toBeGreaterThan(0);
     }
 
     expect(SERVING_KCAL_CAP.lunch).toBe(SERVING_KCAL_CAP.dinner);
-    expect(SERVING_KCAL_CAP.breakfast).toBeLessThan(SERVING_KCAL_CAP.lunch);
+    expect(SERVING_KCAL_CAP.afternoon_snack).toBeLessThan(SERVING_KCAL_CAP.lunch);
     expect(SERVING_KCAL_CAP.afternoon_snack).toBeLessThan(SERVING_KCAL_CAP.breakfast);
+  });
+
+  /**
+   * Prompt 4.6.0 (project 016 § B): a main dish is one person's plate, and the
+   * plan sets bread and fruit beside it. Literal figures, so a cap moved back
+   * to 900 fails here rather than passing every relative assertion below.
+   */
+  it('designs lunch and dinner at 650 kcal a serving, and refuses one past 975', () => {
+    expect(SERVING_KCAL_CAP.lunch).toBe(650);
+    expect(SERVING_KCAL_CAP.dinner).toBe(650);
+    expect(servingFactor(900, 'lunch')).toBeCloseTo(650 / 900, 9);
+    expect(isOversized(makeDish({ ingredients: [{ grams: 976 / 2, slug: 'base' }] }), catalogue)).toBe(true);
+    expect(isOversized(makeDish({ ingredients: [{ grams: 974 / 2, slug: 'base' }] }), catalogue)).toBe(false);
+    expect(isOversized(makeDish({ ingredients: [{ grams: 1000 / 2, slug: 'base' }], slots: ['dinner'] }), catalogue)).toBe(true);
   });
 });
 

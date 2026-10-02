@@ -11,7 +11,8 @@ import type { CheckInForGeneration } from 'core/controllers/CheckIn';
 import type { NutritionTargets } from 'core/entities/Nutrition';
 import type { PromptContext } from './PoolPrompt.js';
 
-const TARGETS: NutritionTargets = { carbsG: 250, fatG: 70, fiberG: 30, kcal: 2400, proteinG: 150 };
+/** A day whose lunch and dinner sit under their 650 kcal cap (4.6.0), so a brief is the share itself. */
+const TARGETS: NutritionTargets = { carbsG: 214, fatG: 59, fiberG: 25, kcal: 1900, proteinG: 128 };
 
 const LABEL: Partial<Record<MealSlot, string>> = {
   afternoon_snack: 'afternoon snack',
@@ -232,7 +233,7 @@ describe('buildPoolPrompt', () => {
   it('states the whole day — four macros, fibre and the split — and holds each to 5%', () => {
     const prompt = buildPoolPrompt(context(), []);
 
-    expect(prompt).toContain('- 2400 kcal · 150 g protein · 250 g carbohydrate · 70 g fat · at least 30 g fibre');
+    expect(prompt).toContain('- 1900 kcal · 128 g protein · 214 g carbohydrate · 59 g fat · at least 25 g fibre');
     expect(prompt).toContain('The split: 27% protein · 45% carbohydrate · 28% fat.');
     expect(prompt).toContain('Energy, protein, carbohydrate and fat are each held to 5% of target on every day, over and under');
     // No longer true since `0045`: the bands are advisory, and nothing is discarded for protein.
@@ -490,6 +491,72 @@ describe('buildPoolPrompt', () => {
         buildPoolPrompt(context({ dietaryPatterns: [], needBySlot }), catalogue)
       );
     }
+  });
+
+  /**
+   * 4.6.0 (project 016 § B) changed only the fixed text: the plan sets bread
+   * and fruit beside a dish, and the plate method is a preference under the
+   * split. What depends on the person — the day's targets, the goal, the way
+   * of eating, likes, liked and avoided dishes, the time, the check-in — is
+   * pinned here as 4.5.0 wrote it, every line a person's prompt has that an
+   * empty one does not. At 1,800 kcal the lunch brief is under both caps,
+   * 900 and 650, so its figures are pinned too.
+   */
+  describe('one person’s plate (4.6.0)', () => {
+    const person = context({
+      avoidNames: ['Lentejas estofadas'],
+      checkIn: checkIn(null),
+      cookingTimeMinutes: 20,
+      cuisines: ['italiana'],
+      dietaryPatterns: ['vegetarian', 'traditional_spanish', 'halal'],
+      dislikedNames: ['Sopa de ajo'],
+      excludeSlugs: ['pisto-manchego'],
+      goal: 'weight_loss',
+      likedFoods: ['tomate', 'merluza'],
+      lovedNames: ['Tortilla de patatas'],
+      targets: { carbsG: 200, fatG: 60, fiberG: 30, kcal: 1800, proteinG: 110 }
+    });
+    const catalogue = [row('tomate', 'produce'), row('merluza', 'protein'), row('arroz', 'pantry')];
+
+    it('says the plan sets bread and fruit beside a lunch or a dinner, and no longer asks for them', () => {
+      const prompt = buildPoolPrompt(person, catalogue);
+
+      expect(prompt).not.toContain('a plate with bread, fruit or dairy beside it');
+      expect(prompt).toContain('one serving is one plate for one person, and the plan adds bread or fruit beside a lunch or a dinner.');
+    });
+
+    it('asks for the plate method as a preference below the split, never above it', () => {
+      const prompt = buildPoolPrompt(person, catalogue);
+      const plate = prompt.indexOf('Prefer half vegetables, a quarter protein, a quarter starch');
+
+      expect(plate).toBeGreaterThan(-1);
+      expect(prompt).toContain('a quarter starch, never above the numbers.');
+      expect(prompt.indexOf('2. Each dish lands on its numbers')).toBeLessThan(plate);
+    });
+
+    it('keeps every person-dependent line as 4.5.0 wrote it', () => {
+      const empty = new Set(buildPoolPrompt(context(), catalogue).split('\n'));
+      const own = buildPoolPrompt(person, catalogue)
+        .split('\n')
+        .filter(line => !empty.has(line));
+
+      expect(own).toEqual([
+        '- 1800 kcal · 110 g protein · 200 g carbohydrate · 60 g fat · at least 30 g fibre',
+        '- The split: 25% protein · 45% carbohydrate · 30% fat. Every dish should sit close to this split on its own, so any combination of them lands on the day.',
+        '- Losing weight: the most food for the energy — volume, vegetables, lean protein at every meal, to its figure, for satiety, broths and roasting over frying, dressings and cheese measured, never poured.',
+        '- lunch: 6 distinct dishes, each ~612 kcal · 37 g protein · 68 g carbohydrate · 20 g fat · at least 10 g fibre per serving.',
+        '  Protein: half the set between 33 and 37 g, half between 37 and 41 g — not all at the top.',
+        'SERVED TO THEM LAST FORTNIGHT — propose different dishes, not these or close variations of them: Lentejas estofadas',
+        "LAST FORTNIGHT'S CHECK-IN: the portions felt right; the plan was manageable; they rated it 4/5.",
+        'DISHES THEY SAID THEY LOVED — this is their taste; design new dishes in the same spirit (technique, seasoning, kind of dish), not copies: Tortilla de patatas',
+        'DISHES THEY SAID THEY DISLIKED — do not propose these, close variations of them, or their defining ingredient in the same role: Sopa de ajo',
+        'WAY OF EATING: vegetarian',
+        'MAXIMUM TIME PER DISH: 20 minutes (prep + cooking)',
+        'PREFERRED CUISINES: italiana',
+        'LIKES: tomate, merluza',
+        'DO NOT REPEAT THESE ALREADY-PROPOSED DISHES: pisto-manchego'
+      ]);
+    });
   });
 
   it('never has a line for dislikes, allergies or notes in the person’s own words', () => {
