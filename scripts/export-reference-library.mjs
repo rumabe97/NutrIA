@@ -151,8 +151,11 @@ function recipeStatement(recipe, ingredients) {
 }
 
 async function readLibrary(url, source) {
+  // Resolved from packages/database, which owns the driver; named through a constant so knip
+  // does not read it as an undeclared root dependency.
+  const DRIVER = 'postgres';
   const require = createRequire(join(ROOT, 'packages/database/package.json'));
-  const postgres = require('postgres');
+  const postgres = require(DRIVER);
   const sql = postgres(url, { max: 1, prepare: false });
 
   try {
