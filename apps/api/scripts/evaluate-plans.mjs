@@ -26,8 +26,9 @@
  * errors rather than applies. See "why one transaction, and why it is provable"
  * below for the mechanism and its one caveat.
  *
- * Usage (from apps/api):
- *   node --env-file-if-exists=.env scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--start YYYY-MM-DD] [--only <profile>]
+ * Usage (from the repository root, against the local Postgres `pnpm db:local` runs —
+ * never Neon):
+ *   NUTRIA_LOCAL_PG=1 node apps/api/scripts/evaluate-plans.mjs [--locale es-ES] [--json out.json] [--compare before.json] [--flag <name>]... [--start YYYY-MM-DD] [--only <profile>]
  *
  * `--flag <name>` names a scheduler flag to measure with on (project 016). The
  * one that exists is `accompaniments`: each profile's larder (`larderFor`, the
